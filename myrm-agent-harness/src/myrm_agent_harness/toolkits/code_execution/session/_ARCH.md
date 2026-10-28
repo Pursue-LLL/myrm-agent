@@ -15,7 +15,7 @@ state (env vars, cwd) across commands.
 | process_tree.py | Core | `kill_process_tree`: ends a shell and everything it started (descendants snapshotted via psutil and terminated before the shell, then killed after a grace period) — a sandboxed shell shares the server's process group, so killing the group is not an option there; own-group shells keep the SIGTERM→SIGKILL group kill and, from a descendant snapshot taken first, also stop children that left the group (`setsid`); a shell that is already reaped is never signalled (its PID may belong to someone else by now); Windows uses `taskkill /T` | ✅ |
 | local_session.py | Core | `LocalPersistentSession` concrete implementation with bwrap sandbox support and strict child process credential token isolation via `sanitize_env`; when a sandbox is active it builds its policy from `SessionConfig` through `build_workspace_sandbox_policy` (a session without a sandbox builds none and judges nothing) | ✅ |
 | shell_flavor.py | Core | Platform-specific shell drivers: `BashFlavor` (with `exit()` interceptor + block-rc wrapper + errexit `EXIT` trap + ANSI-C `$'…'` env quoting), `PowerShellFlavor` (with UTF-8 console I/O encoding, `$ProgressPreference='SilentlyContinue'`, `exit()` interceptor, dual exit code normalization, env values always a quoted literal), `WindowsFlavor` (legacy cmd.exe fallback); every flavor sets a command's `CommandEnv` before the command and unsets its `scoped` part after the end marker | ✅ |
-| stream_output_processor.py | Core | `StreamOutputProcessor` — unified tee writing, SSE throttle/valve, disk quota | ✅ |
+| stream_output_processor.py | Core | `StreamOutputProcessor` — unified tee writing (raw), SSE throttle/valve, disk quota; scrubs the live (SSE) text on whole lines of the accumulated output, holding an unfinished line or open key block (up to a size cap) so a secret split across reads is matched in one piece | ✅ |
 | stream_buffer.py | Core | `ExecutionStreamBuffer` — zero-copy byte stream parsing with marker detection; `parse_failed` flag when the exit-code field is not a number (boundary corruption) | ✅ |
 | log_distiller.py | Core | High-efficiency terminal execution log distiller (`DistilledLogResult`, `TerminalLogDistiller`, `distill_terminal_output`) | ✅ |
 
@@ -23,7 +23,7 @@ state (env vars, cwd) across commands.
 
 - `utils.text_utils.strip_ansi` — ANSI escape sequence stripping for clean SSE output
 - `executors.common.exit_classify` — Non-zero exit code semantic classification
-- `executors.models.scrub_sensitive_info` — PII scrubbing for real-time SSE streams
+- `executors.models.scrub_sensitive_info` — path and credential scrubbing for real-time SSE streams (called by `StreamOutputProcessor`, not by `command_stream.py`)
 - `security.script_armor.prepare_armored_command` — Script materialization & subprocess invocation armor
 - `security.script_armor.sweep_stale_materialized_scripts` — Stale orphan temporary script cleanup on startup
 - `utils.runtime.cancel_hook::cut_deadline_on_cancel` — brings the command deadline forward when the request's cancel token fires

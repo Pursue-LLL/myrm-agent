@@ -19,31 +19,31 @@ class TestAnsiStripping:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        result = sop.accumulate_sse("\x1b[31mERROR\x1b[0m: failed")
-        assert result == "ERROR: failed"
+        result = sop.accumulate_sse("\x1b[31mERROR\x1b[0m: failed\n")
+        assert result == "ERROR: failed\n"
         assert "\x1b" not in result
 
     def test_strips_multiple_ansi_sequences(self) -> None:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        text = "\x1b[1m\x1b[32mPASSED\x1b[0m test_foo \x1b[90m(0.1s)\x1b[0m"
+        text = "\x1b[1m\x1b[32mPASSED\x1b[0m test_foo \x1b[90m(0.1s)\x1b[0m\n"
         result = sop.accumulate_sse(text)
-        assert result == "PASSED test_foo (0.1s)"
+        assert result == "PASSED test_foo (0.1s)\n"
 
     def test_strips_osc_sequences(self) -> None:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        text = "\x1b]0;window title\x07real content"
+        text = "\x1b]0;window title\x07real content\n"
         result = sop.accumulate_sse(text)
-        assert result == "real content"
+        assert result == "real content\n"
 
     def test_clean_text_passes_through_unchanged(self) -> None:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        clean = "hello world\nno escapes here"
+        clean = "hello world\nno escapes here\n"
         result = sop.accumulate_sse(clean)
         assert result == clean
 
@@ -51,8 +51,7 @@ class TestAnsiStripping:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        result = sop.accumulate_sse("")
-        assert result == ""
+        assert sop.accumulate_sse("") is None
 
     def test_flush_returns_stripped_content(self) -> None:
         """flush() returns already-stripped text from accumulation buffer."""
@@ -80,18 +79,18 @@ class TestAnsiStripping:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        text = "\x9b31mRED\x9b0m"
+        text = "\x9b31mRED\x9b0m\n"
         result = sop.accumulate_sse(text)
-        assert result == "RED"
+        assert result == "RED\n"
 
     def test_strips_cursor_movement(self) -> None:
         """CSI cursor sequences (e.g. \\x1b[2K erase line) should be stripped."""
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        text = "\x1b[2K\x1b[1Gprogress: 50%"
+        text = "\x1b[2K\x1b[1Gprogress: 50%\n"
         result = sop.accumulate_sse(text)
-        assert result == "progress: 50%"
+        assert result == "progress: 50%\n"
 
     def test_npm_style_colored_output(self) -> None:
         """Simulate npm install colored output."""
@@ -128,8 +127,8 @@ class TestThrottle:
         sop = StreamOutputProcessor()
         sop._last_sse_time = time.monotonic() - 1.0
 
-        result = sop.accumulate_sse("ready")
-        assert result == "ready"
+        result = sop.accumulate_sse("ready\n")
+        assert result == "ready\n"
 
 
 class TestValve:

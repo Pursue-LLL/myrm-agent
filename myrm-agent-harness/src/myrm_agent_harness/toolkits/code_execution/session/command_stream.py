@@ -5,7 +5,6 @@ session.models::SessionExecutionResult, SessionState (POS: Plain session value t
 session.shell_flavor::ShellFlavor (POS: Platform-specific shell command formatting)
 session.stream_output_processor::StreamOutputProcessor (POS: Unified tee/SSE output handling)
 session.stream_buffer::ExecutionStreamBuffer (POS: Zero-copy byte stream parsing)
-executors.models::scrub_sensitive_info (POS: PII scrubbing for output streams)
 security.script_armor::prepare_armored_command (POS: Execution security armor wrapping script materialization)
 utils.runtime.cancel_hook::DeadlineCut, cut_deadline_on_cancel (POS: end a timeout scope as soon as the request token is cancelled)
 
@@ -104,9 +103,6 @@ class CommandStreamMixin:
 
         import aiofiles
 
-        from myrm_agent_harness.toolkits.code_execution.executors.models import (
-            scrub_sensitive_info,
-        )
         from myrm_agent_harness.toolkits.code_execution.session.stream_buffer import (
             ExecutionStreamBuffer,
         )
@@ -144,8 +140,7 @@ class CommandStreamMixin:
                     safe_text = stream_buf.process_bytes(chunk, exit_marker, end_marker)
                     if safe_text:
                         await sop.write_tee(tee_file, safe_text)
-                        scrubbed_text = scrub_sensitive_info(safe_text)
-                        sse_emit = sop.accumulate_sse(scrubbed_text)
+                        sse_emit = sop.accumulate_sse(safe_text)
                         if sse_emit:
                             with contextlib.suppress(RuntimeError):
                                 await dispatch_custom_event("tool_stdout_chunk", {"chunk": sse_emit})
@@ -260,9 +255,6 @@ class CommandStreamMixin:
 
                 import aiofiles
 
-                from myrm_agent_harness.toolkits.code_execution.executors.models import (
-                    scrub_sensitive_info,
-                )
                 from myrm_agent_harness.toolkits.code_execution.session.stream_buffer import (
                     ExecutionStreamBuffer,
                 )
@@ -289,11 +281,7 @@ class CommandStreamMixin:
                             safe_text = stream_buf.process_bytes(chunk, exit_marker, end_marker)
                             if safe_text:
                                 await sop.write_tee(tee_file, safe_text)
-                                # Mirror the execute path: scrub before the SSE
-                                # valve so real-time UI output never leaks host
-                                # paths or credential tokens (tee keeps the raw
-                                # log for debugging).
-                                sse_emit = sop.accumulate_sse(scrub_sensitive_info(safe_text))
+                                sse_emit = sop.accumulate_sse(safe_text)
                                 if sse_emit:
                                     yield sse_emit
 

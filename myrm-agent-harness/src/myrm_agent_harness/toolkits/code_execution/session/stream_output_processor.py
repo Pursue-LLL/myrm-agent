@@ -2,6 +2,7 @@
 
 [INPUT]
 utils.text_utils::strip_ansi (POS: ANSI escape sequence stripping, ECMA-48 full spec)
+executors.models::scrub_sensitive_info (POS: absolute-path and credential scrubbing for output streams)
 
 [OUTPUT]
 StreamOutputProcessor: Handles auto-tee writing, SSE flood protection, and disk quota.
@@ -10,6 +11,9 @@ StreamOutputProcessor: Handles auto-tee writing, SSE flood protection, and disk 
 Single source of truth for output handling: tee file writing with 50MB quota,
 SSE 10FPS throttle, 500KB valve, and LRU log cleanup. Used by both
 PersistentSession._execute_core and PersistentSession.execute_stream.
+Live (SSE) text is scrubbed here, on whole lines of the accumulated output: a credential
+or key block that arrives split across reads is joined before it is matched, so it never
+reaches the UI half-redacted. The tee file keeps the raw log.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
+from myrm_agent_harness.toolkits.code_execution.executors.models import scrub_sensitive_info
 from myrm_agent_harness.utils.text_utils import strip_ansi
 
 if TYPE_CHECKING:
@@ -36,6 +41,9 @@ _TEE_MAX_BYTES = 50 * 1024 * 1024  # 50 MB hard limit
 _TEE_KEEP_COUNT = 20  # LRU: keep the most recent N log files
 _SSE_VALVE_BYTES = 500_000  # 500 KB: stop pushing SSE beyond this
 _SSE_THROTTLE_INTERVAL = 0.1  # 10 FPS
+_SSE_HOLD_MAX_CHARS = 16_384  # a longer unfinished line or open key block is released as it is, never withheld
+_PEM_BEGIN = "-----BEGIN"
+_PEM_END = "-----END"
 
 
 class StreamOutputProcessor:
@@ -121,9 +129,12 @@ class StreamOutputProcessor:
     def accumulate_sse(self, text: str) -> str | None:
         """Accumulate text for SSE emission. Returns text to send, or None.
 
+        Only whole lines are emitted: an unfinished last line, and a PEM block whose END line has not
+        arrived, wait for more output (or ``flush()``) so the scrubber always sees a secret in one piece.
+
         Returns:
-            - The accumulated text to emit (when throttle interval has passed)
-            - ``None`` when still accumulating (not yet time to emit)
+            - The scrubbed text to emit (when the throttle interval has passed and a line is complete)
+            - ``None`` when still accumulating (not yet time to emit, or no complete line yet)
 
         Once the valve triggers (>500KB), always returns ``None``.
         """
@@ -139,20 +150,32 @@ class StreamOutputProcessor:
 
         now = time.monotonic()
         if now - self._last_sse_time >= _SSE_THROTTLE_INTERVAL:
-            result = self._sse_acc_text
-            self._sse_acc_text = ""
-            self._last_sse_time = now
-            return result
+            ready = self._take_emittable()
+            if ready:
+                self._last_sse_time = now
+                return scrub_sensitive_info(ready)
 
         return None
 
+    def _take_emittable(self) -> str:
+        """Remove and return the buffered text that is complete enough to scrub."""
+        text = self._sse_acc_text
+        cut = max(text.rfind("\n"), text.rfind("\r")) + 1
+        pem_begin = text.rfind(_PEM_BEGIN, 0, cut)
+        if pem_begin != -1 and _PEM_END not in text[pem_begin:cut]:
+            cut = text.rfind("\n", 0, pem_begin) + 1
+        if len(text) - cut >= _SSE_HOLD_MAX_CHARS:
+            cut = len(text)
+        self._sse_acc_text = text[cut:]
+        return text[:cut]
+
     def flush(self) -> str:
-        """Return any remaining buffered SSE text. Call after the read loop."""
+        """Return the remaining buffered SSE text, scrubbed. Call after the read loop."""
         if self._sse_warning_sent:
             return ""
         result = self._sse_acc_text
         self._sse_acc_text = ""
-        return result
+        return scrub_sensitive_info(result)
 
     def _build_valve_warning(self) -> str:
         limit_note = (
