@@ -2,11 +2,22 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-27 · 路径审批卡的「同时授予文件夹访问」：勾选项只在理由含英文短语时出现，授权的文件夹由前端从参数里猜，一次调用涉及几个文件夹也只能授权一个
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/security/session_access.py`、`approval/_interrupt_payload.py`、`approval/_batch_decisions.py`；服务端 `session_access_service.py`；前端 `src/lib/approval`、`SingleApprovalCard`、新增 `PathGrantToggle`；六语言文案。与 harness `BUG-HARNESS-2026-10-27-057` 配套，取代下一条前端补丁。没有改任何提示词与工具 schema。没有目视检查审批卡，没有在真实模型上走过。） |
+| **症状** | 卡片的勾选项要求理由里含英文短语「Path outside allowed zones」（旧 `resolvePathGrantMeta`），harness 的授权在恢复时也有同一道英文门：理由不是这句话时，既没有勾选项也不授权。要授权的文件夹由前端 `resolveGrantSourcePath` 从 `path`、`file_path`、`target_path`、`paths` 里取第一个，一次调用涉及多个工作区外文件夹时卡片只提一个，服务端也只认这一个；卡片提的文件夹与 harness 实际会授权的还会不一致（禁止区与超过每会话 5 个上限的文件夹，授权会丢掉，卡片仍然提）。以上是读代码得出的，没有在真实的审批往返里复现。 |
+| **根因** | 「该授权哪些文件夹」有三份：前端猜一份，服务端认前端给的一份，harness 授权时再算一份，计划与执行不在一处。 |
+| **修复** | harness 的 `plan_directory_grants` 是唯一计划（每个工作区外的文件夹一次，禁止区与超上限的不列入，写入类工具给可写）；`build_interrupt_payload` 把它作为 `grantDirectories` 放进审批请求；勾选后卡片把同一份列表回传；服务端 `apply_directory_resume_grant` 逐个文件夹过部署边界与禁止区；harness 恢复时按同一份计划授权，不再看理由的措辞。前端删掉 `resolveGrantSourcePath`、`resolvePathGrantMeta` 与英文门；新增 `PathGrantToggle`，列出每个文件夹和「只读 / 可读写」，没有可授权的文件夹时不显示；`refreshSessionAccessRoots` 的 `optimistic` 改为列表（桌面拖入文件夹的调用同步改成单元素列表）。六语言补 `grantDirectoryReadOnly`、`grantDirectoryReadWrite`，`grantDirectoryDesc` 改为「下列文件夹」；卡片里半自动模式的拦截横幅与「放行中」标签原是硬编码中文，顺带移进 locale（`highRiskIntercepted.title`、`highRiskIntercepted.description`、`autoApproving`，中文原文不变）。 |
+| **回归证据** | harness：`tests/agent/security/test_session_access.py` 的 `TestPlanDirectoryGrants` 5 例、`tests/agent/middlewares/approval/test_interrupt_payload_grants.py` 10 例（含「理由换成中文照样授权」「不勾选不授权」）；服务端 `tests/services/agent/test_session_access_service.py` 13 例；前端 `buildToolApprovalRequest.test.ts`、`approvalDecision.test.ts`、`sessionAccessRefresh.test.ts`、`PathGrantToggle.test.tsx` 4 例、`SingleApprovalCard.grantDirectories.test.tsx` 3 例；`vitest` 跑 `src/components/features/chat-window`、`src/lib`、`src/hooks`、`src/store/chat` 667 个文件 5043 例通过；`tsc --noEmit`、`verify:i18n`、`verify:theme-colors`、`verify:icu-syntax`、`verify:stable-mocks` 通过。 |
+| **仍然存在** | ① 服务端的部署边界拒绝某个文件夹时，授权会静默丢掉（日志里一条 WARNING），卡片不告知。② 「全部批准」不带授权，只有单张卡片的勾选才授权。③ 没有目视检查卡片（窄屏下长路径的截断、读写徽标的配色）。④ 新增的非中文文案是新译，没有母语者校对。⑤ `verify:hardcoded-copy`、`verify:a11y`、`verify:orphans` 在工作区里因他人的文件失败，本次改动的文件不在其中。 |
+
 ## 2026-10-27 · 文件读取按 `paths` 传文件时，审批卡的「授权此目录」取不到目录：授权没有落下去，同一目录的下一次读取还要再问
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（前端 `src/lib/approval`；与 harness `BUG-HARNESS-2026-10-27-057` 配套。没有改任何提示词、工具 schema 与服务端代码）。没有目视检查审批卡，没有在真实模型上走过。 |
+| **状态** | **已被取代**（本条的前端补丁 `resolveGrantSourcePath` 已删除：授权的文件夹现在由 harness 规划，见上一条）。 |
 | **症状** | 文件读取工具的主参数是列表 `paths`。harness 修复之前，`paths` 调用根本不进路径判决（工作区外的文件不弹审批卡）；修复之后，工作区外的文件会弹卡，而卡片只从 `path`、`file_path`、`target_path` 三个单数参数里取文件，`paths` 调用取到空串，`grantDirectoryMeta` 里没有目录。服务端在恢复回合开头只认前端传来的这个目录来授权，所以按代码对 `paths` 调用点「授权此目录」是空操作，下一次读同一目录还要再问。这一条是读代码得出的，没有在真实的审批往返里复现。 |
 | **根因** | `resolvePathGrantMeta` 只认三个单数键，列表里的文件没有来源。 |
 | **修复** | `resolveGrantSourcePath` 先收集三个单数键与 `paths` 列表里的字符串，取第一个落在工作区外的绝对路径（那就是触发这张卡的文件），没有则取第一个；工作区根取自 `extensions.workspaceRoot`。写入类工具的可写标记不变。 |
