@@ -13,7 +13,8 @@ SSE 10FPS throttle, 500KB valve, and LRU log cleanup. Used by both
 PersistentSession._execute_core and PersistentSession.execute_stream.
 Live (SSE) text is scrubbed here, on whole lines of the accumulated output: a credential
 or key block that arrives split across reads is joined before it is matched, so it never
-reaches the UI half-redacted. The tee file keeps the raw log.
+reaches the UI half-redacted. The tee file keeps the raw log; the credentials delivered to the command are
+already masked in the text it receives (``ExecutionStreamBuffer``).
 """
 
 from __future__ import annotations

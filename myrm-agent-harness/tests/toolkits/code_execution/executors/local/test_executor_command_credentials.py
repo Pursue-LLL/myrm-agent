@@ -36,8 +36,14 @@ def _credentials(*credentials: EphemeralUserCredential) -> Iterator[None]:
         user_credentials_ctx.reset(token)
 
 
+def _hex(value: str) -> str:
+    """How ``_read_command`` shows a value: a delivered credential is masked in anything a command prints, so the
+    tests read it back as hex, which is not a form the output masking recognises."""
+    return value.encode().hex()
+
+
 def _read_command(name: str) -> str:
-    return f"printenv {name} || echo NONE"
+    return f"printenv {name} | tr -d '\\n' | od -An -tx1 | tr -d ' \\n' | grep . || echo NONE"
 
 
 @pytest.fixture
@@ -79,17 +85,17 @@ class TestUserCredentials:
         with _credentials():
             assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "NONE"
         with _credentials(_GITHUB):
-            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "github-secret-1"
+            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == _hex("github-secret-1")
 
     async def test_refreshed_credential_replaces_the_old_one(self, executor: LocalExecutor, tmp_path: Path) -> None:
         with _credentials(_GITHUB):
             await _run(executor, tmp_path, _read_command("GITHUB_TOKEN"))
         with _credentials(EphemeralUserCredential(issuer="github", token="github-secret-2")):
-            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "github-secret-2"
+            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == _hex("github-secret-2")
 
     async def test_credential_does_not_outlive_its_command(self, executor: LocalExecutor, tmp_path: Path) -> None:
         with _credentials(_GITHUB):
-            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "github-secret-1"
+            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == _hex("github-secret-1")
         with _credentials():
             assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "NONE"
 
@@ -97,13 +103,12 @@ class TestUserCredentials:
         self, executor: LocalExecutor, tmp_path: Path
     ) -> None:
         with _credentials(_GITHUB, _FEISHU):
-            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "github-secret-1"
+            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == _hex("github-secret-1")
             assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN"), issuers=[]) == "NONE"
             assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN"), issuers=["feishu"]) == "NONE"
-            assert (
-                await _run(executor, tmp_path, _read_command("FEISHU_USER_ACCESS_TOKEN"), issuers=["feishu"])
-                == "feishu-secret-1"
-            )
+            assert await _run(
+                executor, tmp_path, _read_command("FEISHU_USER_ACCESS_TOKEN"), issuers=["feishu"]
+            ) == _hex("feishu-secret-1")
 
     async def test_issuer_declared_by_a_later_command_reaches_the_running_shell(
         self, executor: LocalExecutor, tmp_path: Path
@@ -112,8 +117,8 @@ class TestUserCredentials:
             assert (
                 await _run(executor, tmp_path, _read_command("FEISHU_USER_ACCESS_TOKEN"), issuers=["feishu"]) != "NONE"
             )
-            assert (
-                await _run(executor, tmp_path, _read_command("GITHUB_TOKEN"), issuers=["github"]) == "github-secret-1"
+            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN"), issuers=["github"]) == _hex(
+                "github-secret-1"
             )
             assert await _run(executor, tmp_path, _read_command("FEISHU_USER_ACCESS_TOKEN"), issuers=[]) == "NONE"
 
@@ -134,7 +139,7 @@ class TestUserCredentials:
                     )
                 )
             ]
-        assert "github-secret-1" in "".join(chunks)
+        assert _hex("github-secret-1") in "".join(chunks)
         with _credentials():
             assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "NONE"
 
@@ -163,7 +168,7 @@ class TestEphemeralCredentials:
             expected_action_digest=command_digest(command),
         )
 
-        assert await _run(executor, tmp_path, command) == "one-time-pw"
+        assert await _run(executor, tmp_path, command) == _hex("one-time-pw")
         assert store.list_summaries(approval_session) == []
         assert await _run(executor, tmp_path, command) == "NONE"
 
@@ -189,12 +194,12 @@ class TestEphemeralCredentials:
         )
 
         assert result.success, result.error
-        assert result.stdout.strip() == "one-time-pw"
+        assert result.stdout.strip() == _hex("one-time-pw")
 
     async def test_credential_follows_the_approved_command_when_workspace_paths_are_rewritten(
         self, executor: LocalExecutor, tmp_path: Path, approval_session: str
     ) -> None:
-        issued = "printenv DB_PASSWORD && echo /workspace/data.csv"
+        issued = "printenv DB_PASSWORD | tr -d '\\n' | od -An -tx1 | tr -d ' \\n' && echo && echo /workspace/data.csv"
         get_ephemeral_credential_store().store_credential(
             approval_session, "DB_PASSWORD", "one-time-pw", expected_action_digest=command_digest(issued)
         )
@@ -202,7 +207,7 @@ class TestEphemeralCredentials:
         output = await _run(executor, tmp_path, issued)
 
         credential_line, path_line = output.splitlines()
-        assert credential_line == "one-time-pw"
+        assert credential_line == _hex("one-time-pw")
         assert path_line.endswith("/data.csv")
         assert not path_line.startswith("/workspace/")
 
@@ -228,7 +233,7 @@ class TestEphemeralCredentials:
             )
         ]
 
-        assert "one-time-pw" in "".join(chunks)
+        assert _hex("one-time-pw") in "".join(chunks)
 
     async def test_credential_is_not_delivered_to_a_command_that_was_not_approved(
         self, executor: LocalExecutor, tmp_path: Path, approval_session: str
@@ -251,7 +256,7 @@ class TestPerCommandEnv:
     ) -> None:
         await _run(executor, tmp_path, "echo started", env={"ORG": "first"})
 
-        assert await _run(executor, tmp_path, _read_command("ORG"), env={"ORG": "second"}) == "second"
+        assert await _run(executor, tmp_path, _read_command("ORG"), env={"ORG": "second"}) == _hex("second")
 
     async def test_secret_named_env_is_still_stripped(self, executor: LocalExecutor, tmp_path: Path) -> None:
         await _run(executor, tmp_path, "echo started", env={"MY_API_TOKEN": "leak"})

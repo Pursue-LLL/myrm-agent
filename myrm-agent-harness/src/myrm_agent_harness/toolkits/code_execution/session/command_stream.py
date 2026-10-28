@@ -5,6 +5,7 @@ session.models::SessionExecutionResult, SessionState (POS: Plain session value t
 session.shell_flavor::ShellFlavor (POS: Platform-specific shell command formatting)
 session.stream_output_processor::StreamOutputProcessor (POS: Unified tee/SSE output handling; live text scrubbed on whole lines)
 session.stream_buffer::ExecutionStreamBuffer (POS: Zero-copy byte stream parsing)
+session.value_masker::ValueMasker (POS: Exact-value masking of the credentials delivered to a command)
 security.script_armor::prepare_armored_command (POS: Execution security armor wrapping script materialization)
 utils.runtime.cancel_hook::DeadlineCut, cut_deadline_on_cancel (POS: end a timeout scope as soon as the request token is cancelled)
 
@@ -15,7 +16,8 @@ CANCELLED_WHILE_RUNNING / CANCELLED_BEFORE_START / CANCELLED_EXIT_CODE: result o
 [POS]
 Output pump of the persistent shell. A command ends in one of four ways: its end marker, a dead shell, the timeout
 or a cancelled request. The last two share one exit: the shell tree is killed, the session is marked TERMINATED so
-the next command rebuilds it, and the output produced so far is returned.
+the next command rebuilds it, and the output produced so far is returned. The credentials delivered to a command
+(``CommandEnv.scoped``) are masked in everything it prints, before the output is teed, streamed or returned.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.code_execution.security.script_armor import prepare_armored_command
 from myrm_agent_harness.toolkits.code_execution.session.models import SessionExecutionResult
+from myrm_agent_harness.toolkits.code_execution.session.value_masker import ValueMasker
 from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel
 
 if TYPE_CHECKING:
@@ -56,6 +59,11 @@ def _generate_marker(prefix: str) -> str:
     code.
     """
     return f"__MYRM_{prefix}_{secrets.token_hex(8)}__"
+
+
+def _credential_masker(env: CommandEnv | None) -> ValueMasker | None:
+    """The masker that hides the credentials delivered to one command from everything it prints."""
+    return ValueMasker(env.scoped.values()) if env is not None and env.scoped else None
 
 
 class CommandStreamMixin:
@@ -111,7 +119,7 @@ class CommandStreamMixin:
         )
         from myrm_agent_harness.utils.event_utils import dispatch_custom_event
 
-        stream_buf = ExecutionStreamBuffer()
+        stream_buf = ExecutionStreamBuffer(masker=_credential_masker(env))
         sop = StreamOutputProcessor()
         tee_file_path = sop.setup_tee(self.config.work_dir)
         cut = DeadlineCut()
@@ -262,7 +270,7 @@ class CommandStreamMixin:
                     StreamOutputProcessor,
                 )
 
-                stream_buf = ExecutionStreamBuffer()
+                stream_buf = ExecutionStreamBuffer(masker=_credential_masker(env))
                 sop = StreamOutputProcessor()
                 tee_file_path = sop.setup_tee(self.config.work_dir)
                 cut = DeadlineCut()

@@ -38,8 +38,16 @@ async def session(tmp_path: Path) -> AsyncIterator[LocalPersistentSession]:
         await shell.close()
 
 
+def _hex(value: str) -> str:
+    """How ``_read`` shows a value: a delivered credential is masked in anything a command prints, so the tests read
+    it back as hex, which is not a form the output masking recognises."""
+    return value.encode().hex()
+
+
 async def _read(session: LocalPersistentSession, name: str, env: CommandEnv | None = None) -> str:
-    result = await session.execute(f"printf '%s' \"${{{name}-<unset>}}\"", env=env)
+    """The variable's value as hex, or ``<unset>``."""
+    shown = f"printf '%s' \"${name}\" | od -An -tx1 | tr -d ' \\n'"
+    result = await session.execute(f"[ -n \"${{{name}+set}}\" ] && {shown} || printf '<unset>'", env=env)
     assert result.success
     return result.stdout
 
@@ -49,22 +57,22 @@ class TestScopedEnv:
     async def test_scoped_value_reaches_its_command_only(self, session: LocalPersistentSession) -> None:
         env = CommandEnv(scoped={"TOKEN_A": "secret-1"})
 
-        assert await _read(session, "TOKEN_A", env) == "secret-1"
+        assert await _read(session, "TOKEN_A", env) == _hex("secret-1")
         assert await _read(session, "TOKEN_A") == "<unset>"
 
     async def test_scoped_value_reaches_a_shell_that_is_already_running(self, session: LocalPersistentSession) -> None:
         assert await _read(session, "TOKEN_A") == "<unset>"
 
-        assert await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": "late"})) == "late"
+        assert await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": "late"})) == _hex("late")
 
     async def test_each_command_sees_only_its_own_scoped_value(self, session: LocalPersistentSession) -> None:
         await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": "first"}))
 
-        assert await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": "second"})) == "second"
+        assert await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": "second"})) == _hex("second")
         assert await _read(session, "TOKEN_A", CommandEnv(scoped={})) == "<unset>"
 
     async def test_value_stays_literal(self, session: LocalPersistentSession) -> None:
-        assert await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": _TRICKY})) == _TRICKY
+        assert await _read(session, "TOKEN_A", CommandEnv(scoped={"TOKEN_A": _TRICKY})) == _hex(_TRICKY)
 
     async def test_scoped_value_is_removed_after_a_failing_command(self, session: LocalPersistentSession) -> None:
         result = await session.execute("false", env=CommandEnv(scoped={"TOKEN_A": "secret"}))
@@ -82,30 +90,30 @@ class TestScopedEnv:
         chunks = [
             chunk
             async for chunk in session.execute_stream(
-                "printf '%s' \"$TOKEN_A\"", env=CommandEnv(scoped={"TOKEN_A": "streamed"})
+                "printf '%s' \"$TOKEN_A\" | od -An -tx1 | tr -d ' \\n'", env=CommandEnv(scoped={"TOKEN_A": "streamed"})
             )
         ]
 
-        assert "streamed" in "".join(chunks)
+        assert _hex("streamed") in "".join(chunks)
         assert await _read(session, "TOKEN_A") == "<unset>"
 
     async def test_shell_state_the_command_made_is_kept(self, session: LocalPersistentSession) -> None:
         await session.execute("export KEPT=yes && cd /", env=CommandEnv(scoped={"TOKEN_A": "x"}))
 
-        assert await _read(session, "KEPT") == "yes"
+        assert await _read(session, "KEPT") == _hex("yes")
         assert (await session.execute("pwd")).stdout.strip() == "/"
 
 
 @needs_bash
 class TestStickyEnv:
     async def test_sticky_value_is_refreshed_on_every_command(self, session: LocalPersistentSession) -> None:
-        assert await _read(session, "ORG", CommandEnv(sticky={"ORG": "one"})) == "one"
-        assert await _read(session, "ORG", CommandEnv(sticky={"ORG": "two"})) == "two"
+        assert await _read(session, "ORG", CommandEnv(sticky={"ORG": "one"})) == _hex("one")
+        assert await _read(session, "ORG", CommandEnv(sticky={"ORG": "two"})) == _hex("two")
 
     async def test_sticky_value_stays_for_later_commands(self, session: LocalPersistentSession) -> None:
         await _read(session, "ORG", CommandEnv(sticky={"ORG": "kept"}))
 
-        assert await _read(session, "ORG") == "kept"
+        assert await _read(session, "ORG") == _hex("kept")
 
 
 class TestWrappedCommand:

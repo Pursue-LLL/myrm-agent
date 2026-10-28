@@ -5,6 +5,8 @@ and provides live chunks for SSE UI updates.
 
 [POS]
 Efficient byte stream buffer. Supports zero-copy boundary detection and memory-bounded head/tail retention.
+With a ``ValueMasker`` the credentials of the command are hidden before the text is retained or returned, so the
+final output, the tee file and the live stream, which all derive from it, never hold them.
 """
 
 from __future__ import annotations
@@ -13,12 +15,14 @@ import codecs
 from collections import deque
 
 from myrm_agent_harness.toolkits.code_execution.executors.common.executor_utils import MAX_OUTPUT_CHARS
+from myrm_agent_harness.toolkits.code_execution.session.value_masker import ValueMasker
 
 
 class ExecutionStreamBuffer:
     """A memory-efficient stream buffer with bounded footprint and marker detection."""
 
-    def __init__(self, max_chars: int = MAX_OUTPUT_CHARS, head_ratio: float = 0.3):
+    def __init__(self, max_chars: int = MAX_OUTPUT_CHARS, head_ratio: float = 0.3, masker: ValueMasker | None = None):
+        self._masker = masker
         self._max_chars = max_chars
         self._head_limit = int(max_chars * head_ratio)
         self._tail_limit = max_chars - self._head_limit
@@ -68,7 +72,7 @@ class ExecutionStreamBuffer:
                     self.exit_code = 1
                     self.parse_failed = True
 
-                safe_text = self._decoder.decode(safe_bytes, final=True)
+                safe_text = self._mask(self._decoder.decode(safe_bytes, final=True), final=True)
                 self.done = True
                 self._byte_buf.clear()
                 self._append_to_buffers(safe_text)
@@ -91,11 +95,18 @@ class ExecutionStreamBuffer:
             if safe_len > 0:
                 safe_bytes = self._byte_buf[:safe_len]
                 del self._byte_buf[:safe_len]
-                safe_text = self._decoder.decode(safe_bytes)
+                safe_text = self._mask(self._decoder.decode(safe_bytes))
                 self._append_to_buffers(safe_text)
                 return safe_text
 
         return ""
+
+    def _mask(self, text: str, final: bool = False) -> str:
+        """Hide the command's credentials in freshly decoded text; ``final`` releases what the masker still holds."""
+        if self._masker is None:
+            return text
+        masked = self._masker.feed(text)
+        return masked + self._masker.flush() if final else masked
 
     def _append_to_buffers(self, text: str) -> None:
         if not text:
@@ -130,11 +141,10 @@ class ExecutionStreamBuffer:
 
     def get_final_output(self) -> str:
         """Construct the final result with logical truncation awareness."""
-        if self._byte_buf:
-            # Last attempt decode remaining bytes
-            suffix = self._decoder.decode(self._byte_buf, final=True)
-            self._append_to_buffers(suffix)
-            self._byte_buf.clear()
+        # Last attempt decode remaining bytes; a stream that ended early also releases what the masker holds
+        suffix = self._decoder.decode(self._byte_buf, final=True) if self._byte_buf else ""
+        self._byte_buf.clear()
+        self._append_to_buffers(self._mask(suffix, final=True))
 
         head = "".join(self._head_buf)
         if not self._is_truncated:
