@@ -12783,7 +12783,7 @@
         "skills": "本地技能",
         "rules": "工作區規則",
         "hasMyrmConfig": "包含 .myrm 專案設定",
-        "repoCommands": "此資料夾允許免確認執行的命令",
+        "repoCommands": "此資料夾希望免確認執行的命令",
         "restrictedHint": "若選擇「不信任並關聯」，該資料夾內的本地技能、規則與 MCP 服務將保持停用，可在設定中稍後改為信任",
         "cancel": "取消",
         "restrict": "不信任並關聯",

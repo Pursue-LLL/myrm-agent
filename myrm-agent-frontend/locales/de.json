@@ -12783,7 +12783,7 @@
         "skills": "Lokale Skills",
         "rules": "Workspace-Regeln",
         "hasMyrmConfig": "Enthält .myrm-Projektkonfiguration",
-        "repoCommands": "Befehle, die ohne Rückfrage ausgeführt werden dürfen",
+        "repoCommands": "Befehle, die dieser Ordner ohne Rückfrage ausführen möchte",
         "restrictedHint": "Bei „Nicht vertrauen und verknüpfen“ bleiben lokale Skills, Regeln und MCP-Dienste in diesem Ordner deaktiviert; später in den Einstellungen änderbar",
         "cancel": "Abbrechen",
         "restrict": "Nicht vertrauen und verknüpfen",

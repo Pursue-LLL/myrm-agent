@@ -12783,7 +12783,7 @@
         "skills": "Local skills",
         "rules": "Workspace rules",
         "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Commands allowed to run without asking",
+        "repoCommands": "Commands this folder wants to run without asking",
         "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
         "cancel": "Cancel",
         "restrict": "Link without trusting",
