@@ -1,7 +1,7 @@
 """Model Call Cancel Middleware.
 
 [INPUT]
-- langchain.agents.middleware::AgentMiddleware, ModelRequest, ModelResponse (POS: Middleware base and model-call types)
+- langchain.agents.middleware::AgentMiddleware, AgentState, ModelRequest, ModelResponse (POS: Middleware base and model-call types)
 - utils.runtime.cancellation::run_until_cancelled (POS: Races an awaitable against the run's cancel token)
 
 [OUTPUT]
@@ -16,14 +16,13 @@ the tool leg.
 """
 
 from collections.abc import Awaitable, Callable
-from typing import Any
 
-from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
+from langchain.agents.middleware import AgentMiddleware, AgentState, ModelRequest, ModelResponse
 
 from myrm_agent_harness.utils.runtime.cancellation import run_until_cancelled
 
 
-class ModelCallCancelMiddleware(AgentMiddleware[Any, Any]):
+class ModelCallCancelMiddleware(AgentMiddleware[AgentState[object], None, object]):
     """Abort an in-flight model request as soon as the run's cancel token fires.
 
     The executor only reads the token when a stream chunk arrives, so a request that is silent (long prefill, hidden
@@ -33,7 +32,7 @@ class ModelCallCancelMiddleware(AgentMiddleware[Any, Any]):
 
     async def awrap_model_call(
         self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
-    ) -> ModelResponse:
+        request: ModelRequest[None],
+        handler: Callable[[ModelRequest[None]], Awaitable[ModelResponse[object]]],
+    ) -> ModelResponse[object]:
         return await run_until_cancelled(handler(request))
