@@ -278,20 +278,24 @@ async def apply_directory_resume_grant(
             continue
         if extensions.get("grantDirectory") is not True:
             continue
-        grant_meta = extensions.get("grantDirectoryMeta")
-        if isinstance(grant_meta, dict):
-            path_obj = grant_meta.get("path")
-            writable_obj = grant_meta.get("writable")
-            if isinstance(path_obj, str) and path_obj.strip():
-                if _apply_validated_grant(
-                    path_obj,
-                    writable=(bool(writable_obj) if isinstance(writable_obj, bool) else False),
-                    source="path_ask_grant",
-                    workspace_dir=workspace_dir,
-                    sandbox_active=sandbox_active,
-                    policy=policy,
-                ):
-                    granted = True
+        grants = extensions.get("grantDirectories")
+        if not isinstance(grants, list):
+            continue
+        for grant in grants:
+            if not isinstance(grant, dict):
+                continue
+            path_obj = grant.get("path")
+            if not isinstance(path_obj, str) or not path_obj.strip():
+                continue
+            if _apply_validated_grant(
+                path_obj,
+                writable=grant.get("writable") is True,
+                source="path_ask_grant",
+                workspace_dir=workspace_dir,
+                sandbox_active=sandbox_active,
+                policy=policy,
+            ):
+                granted = True
 
     if granted and chat_id:
         await persist_chat_session_access_roots(chat_id)

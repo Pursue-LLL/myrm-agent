@@ -9826,7 +9826,14 @@
       "allowDomainDesc": "이 도메인에 대한 향후 요청이 자동 승인됩니다 (현재 세션만)"
     },
     "grantDirectory": "폴더 접근도 허용",
-    "grantDirectoryDesc": "이 채팅 세션 동안 해당 폴더 접근을 허용합니다",
+    "grantDirectoryDesc": "이 채팅 세션 동안 아래 폴더에 대한 접근을 허용합니다",
+    "grantDirectoryReadOnly": "읽기 전용",
+    "grantDirectoryReadWrite": "읽기 및 쓰기",
+    "highRiskIntercepted": {
+      "title": "반자동 모드가 고위험 작업을 차단했습니다",
+      "description": "고위험 셸 또는 시스템 변경 작업이 감지되어 자동으로 차단되었습니다. 명시적인 승인이 필요합니다."
+    },
+    "autoApproving": "자동 승인 중...",
     "smartDenied": {
       "title": "보안 검토자가 거부를 권장합니다",
       "overrideOnce": "한 번만 허용"

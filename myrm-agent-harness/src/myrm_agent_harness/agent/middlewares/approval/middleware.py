@@ -131,6 +131,7 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
             approval_timeout_seconds=config.approval_timeout_seconds,
             timeout_behavior=config.approval_timeout_behavior,
             workspace_root=workspace_root,
+            path_policy=config.path_policy,
         )
 
         # Determine the action type based on agent context

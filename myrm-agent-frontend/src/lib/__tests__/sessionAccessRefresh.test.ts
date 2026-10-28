@@ -40,12 +40,30 @@ describe('refreshSessionAccessRoots', () => {
 
     const { refreshSessionAccessRoots } = await import('../sessionAccessRefresh');
     await refreshSessionAccessRoots('chat-1', {
-      optimistic: { path: '/tmp/new', writable: true, source: 'path_ask_grant' },
+      optimistic: [{ path: '/tmp/new', writable: true, source: 'path_ask_grant' }],
     });
 
     expect(setSessionAccessRootsMock).toHaveBeenCalledWith([
       { path: '/existing', writable: false },
       { path: '/tmp/new', writable: true, source: 'path_ask_grant' },
+    ]);
+  });
+
+  it('applies every optimistic root, replacing one already listed, when the GET fails', async () => {
+    getChatDetailMock.mockRejectedValue(new Error('offline'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const { refreshSessionAccessRoots } = await import('../sessionAccessRefresh');
+    await refreshSessionAccessRoots('chat-1', {
+      optimistic: [
+        { path: '/existing', writable: true, source: 'path_ask_grant' },
+        { path: '/tmp/new', writable: false, source: 'path_ask_grant' },
+      ],
+    });
+
+    expect(setSessionAccessRootsMock).toHaveBeenCalledWith([
+      { path: '/existing', writable: true, source: 'path_ask_grant' },
+      { path: '/tmp/new', writable: false, source: 'path_ask_grant' },
     ]);
   });
 });

@@ -17,29 +17,30 @@ import { normalizeSessionAccessRoots, type SessionAccessRoot } from '@/store/cha
 
 export interface RefreshSessionAccessRootsOptions {
   /** Applied when GET returns empty roots (eventual consistency after grant). */
-  optimistic?: SessionAccessRoot;
+  optimistic?: SessionAccessRoot[];
 }
 
 export async function refreshSessionAccessRoots(
   chatId: string,
   options?: RefreshSessionAccessRootsOptions,
 ): Promise<void> {
-  const optimistic = options?.optimistic;
+  const optimistic = options?.optimistic ?? [];
 
   const applyOptimistic = () => {
-    if (!optimistic) {
+    if (optimistic.length === 0) {
       return;
     }
+    const optimisticPaths = new Set(optimistic.map((root) => root.path));
     const current = useChatStore.getState().sessionAccessRoots;
     useChatStore
       .getState()
-      .setSessionAccessRoots([...current.filter((root) => root.path !== optimistic.path), optimistic]);
+      .setSessionAccessRoots([...current.filter((root) => !optimisticPaths.has(root.path)), ...optimistic]);
   };
 
   try {
     const detail = await getChatDetail(chatId, true);
     const refreshed = normalizeSessionAccessRoots(detail.chat.session_access_roots);
-    if (refreshed.length > 0 || !optimistic) {
+    if (refreshed.length > 0 || optimistic.length === 0) {
       useChatStore.getState().setSessionAccessRoots(refreshed);
       return;
     }

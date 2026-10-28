@@ -75,11 +75,7 @@ export function useDesktopFolderDrop(options: UseDesktopFolderDropOptions = {}) 
           if (chatId) {
             await grantSessionAccessRoot(chatId, targetPath, true);
             await refreshSessionAccessRoots(chatId, {
-              optimistic: {
-                path: targetPath,
-                writable: true,
-                source: 'desktop_drag_drop',
-              },
+              optimistic: [{ path: targetPath, writable: true, source: 'desktop_drag_drop' }],
             });
           }
           onFolderGranted?.(targetPath);

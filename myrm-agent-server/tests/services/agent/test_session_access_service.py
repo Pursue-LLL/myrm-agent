@@ -32,13 +32,16 @@ def _reset_session_roots() -> None:
     set_session_access_roots(())
 
 
-def _path_ask_grant(path: object, *, writable: bool = False) -> dict[str, object]:
-    """The resume payload of an approved path-ASK card that grants ``path``."""
+def _path_ask_grant(*paths: object, writable: bool = False) -> dict[str, object]:
+    """The resume payload of an approved path-ASK card that grants every folder in ``paths``."""
     return {
         "decisions": [
             {
                 "type": "approve",
-                "extensions": {"grantDirectory": True, "grantDirectoryMeta": {"path": str(path), "writable": writable}},
+                "extensions": {
+                    "grantDirectory": True,
+                    "grantDirectories": [{"path": str(path), "writable": writable} for path in paths],
+                },
             }
         ]
     }
@@ -85,28 +88,47 @@ async def test_path_ask_decision_grant_via_resume_payload(tmp_path) -> None:
     extra = tmp_path / "extra"
     extra.mkdir()
 
-    await apply_directory_resume_grant(
-        None,
-        {
-            "decisions": [
-                {
-                    "type": "approve",
-                    "extensions": {
-                        "grantDirectory": True,
-                        "grantDirectoryMeta": {
-                            "path": str(extra),
-                            "writable": False,
-                        },
-                    },
-                }
-            ]
-        },
-        workspace_dir=str(workspace),
-    )
+    await apply_directory_resume_grant(None, _path_ask_grant(extra), workspace_dir=str(workspace))
 
     roots = get_session_access_roots()
     assert len(roots) == 1
     assert roots[0].path == os.path.realpath(str(extra))
+
+
+@pytest.mark.asyncio
+async def test_every_folder_the_card_offered_is_granted_and_malformed_entries_are_skipped(tmp_path) -> None:
+    workspace = tmp_path / "ws"
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    for directory in (workspace, first, second):
+        directory.mkdir()
+    payload = _path_ask_grant(first, second)
+    extensions = payload["decisions"][0]["extensions"]  # type: ignore[index]
+    extensions["grantDirectories"] += ["not-a-dict", {"path": 7}, {"path": "  "}, {"writable": True}]
+
+    await apply_directory_resume_grant(None, payload, workspace_dir=str(workspace))
+
+    assert [root.path for root in get_session_access_roots()] == [
+        os.path.realpath(str(first)),
+        os.path.realpath(str(second)),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_resume_without_the_toggle_or_the_plan_grants_nothing(tmp_path) -> None:
+    workspace = tmp_path / "ws"
+    extra = tmp_path / "extra"
+    for directory in (workspace, extra):
+        directory.mkdir()
+    folders = [{"path": str(extra), "writable": False}]
+    toggle_off = {"decisions": [{"type": "approve", "extensions": {"grantDirectories": folders}}]}
+    no_plan = {"decisions": [{"type": "approve", "extensions": {"grantDirectory": True}}]}
+    rejected = {"decisions": [{"type": "reject", "extensions": {"grantDirectory": True, "grantDirectories": folders}}]}
+
+    for payload in (toggle_off, no_plan, rejected):
+        await apply_directory_resume_grant(None, payload, workspace_dir=str(workspace))
+
+    assert get_session_access_roots() == ()
 
 
 @pytest.mark.asyncio

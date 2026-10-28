@@ -195,7 +195,8 @@ class TestApplyApprovalDecisionsRare:
         pending = [(0, tc, "file_write", "Path outside allowed zones", None)]
         decisions = [{"type": "approve", "extensions": {"grantDirectory": True}}]
 
-        grant = MagicMock()
+        roots: list[MagicMock] = []
+        grant = MagicMock(side_effect=lambda *_, **__: roots.append(MagicMock()))
         with (
             patch(
                 "myrm_agent_harness.agent.middlewares._session_context.get_workspace_root",
@@ -207,7 +208,7 @@ class TestApplyApprovalDecisionsRare:
             ),
             patch(
                 "myrm_agent_harness.agent.security.session_access.get_session_access_roots",
-                side_effect=[[], [MagicMock()]],
+                side_effect=lambda: list(roots),
             ),
             patch(
                 "myrm_agent_harness.agent.security.session_access.grant_session_access_root",

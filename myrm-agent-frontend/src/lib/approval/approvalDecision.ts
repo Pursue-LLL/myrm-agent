@@ -1,4 +1,6 @@
 import type { AllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import type { SessionAccessRoot } from '@/store/chat/types/sessionAccess';
+import type { ApprovalGrantDirectory } from '@/store/chat/types/toolApproval';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 
@@ -15,17 +17,11 @@ export interface ApprovalDecision {
     ttlSeconds?: number;
     allowDomain?: boolean;
     grantDirectory?: boolean;
-    grantDirectoryMeta?: { path: string; writable: boolean };
+    grantDirectories?: ApprovalGrantDirectory[];
     actionDigest?: string;
     action_digest?: string;
     ephemeralCredentialHandles?: string[];
   };
-}
-
-export interface DirectoryGrantOptimistic {
-  path: string;
-  writable: boolean;
-  source: 'path_ask_grant';
 }
 
 export interface SpendReviewConfig {
@@ -68,9 +64,8 @@ export interface ToolApprovalResolveExtra {
   allow_always?: AllowAlwaysValue;
   ttl_seconds?: number;
   allow_domain?: boolean;
-  grant_directory?: boolean;
-  grant_directory_path?: string;
-  grant_directory_writable?: boolean;
+  /** Folders the user chose to also grant: the ones the approval card offered */
+  grant_directories?: ApprovalGrantDirectory[];
   action_digest?: string;
   actionDigest?: string;
   ephemeral_credential_handles?: string[];
@@ -88,23 +83,18 @@ export function resumeDecisionsIncludeDirectoryGrant(decisions: ApprovalDecision
   );
 }
 
-/** Optimistic root for path-ASK grantDirectory when GET may lag behind persist. */
-export function extractDirectoryGrantOptimistic(decisions: ApprovalDecision[]): DirectoryGrantOptimistic | undefined {
+/** Roots to show at once after a grant, while the chat row may still lag behind the persist. */
+export function extractDirectoryGrantOptimistic(decisions: ApprovalDecision[]): SessionAccessRoot[] {
+  const roots = new Map<string, SessionAccessRoot>();
   for (const decision of decisions) {
-    const meta = decision.extensions.grantDirectoryMeta;
-    if (
-      (decision.type === 'approve' || decision.type === 'edit') &&
-      decision.extensions.grantDirectory &&
-      meta?.path?.trim()
-    ) {
-      return {
-        path: meta.path.trim(),
-        writable: meta.writable,
-        source: 'path_ask_grant',
-      };
+    if ((decision.type !== 'approve' && decision.type !== 'edit') || !decision.extensions.grantDirectory) {
+      continue;
+    }
+    for (const { path, writable } of decision.extensions.grantDirectories ?? []) {
+      roots.set(path, { path, writable, source: 'path_ask_grant' });
     }
   }
-  return undefined;
+  return [...roots.values()];
 }
 
 export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprovalResolveExtra): ApprovalDecision {
@@ -133,15 +123,7 @@ export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprov
       ...(extra?.ephemeral_credential_handles && {
         ephemeralCredentialHandles: extra.ephemeral_credential_handles,
       }),
-      ...(extra?.grant_directory && {
-        grantDirectory: true,
-        ...(extra.grant_directory_path && {
-          grantDirectoryMeta: {
-            path: extra.grant_directory_path,
-            writable: extra.grant_directory_writable ?? false,
-          },
-        }),
-      }),
+      ...(extra?.grant_directories?.length ? { grantDirectory: true, grantDirectories: extra.grant_directories } : {}),
     },
   };
 }

@@ -9826,7 +9826,14 @@
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
     "grantDirectory": "Also grant folder access",
-    "grantDirectoryDesc": "Allow the agent to access this folder for the rest of this chat session",
+    "grantDirectoryDesc": "Allow the agent to access the folders listed below for the rest of this chat session",
+    "grantDirectoryReadOnly": "Read only",
+    "grantDirectoryReadWrite": "Read and write",
+    "highRiskIntercepted": {
+      "title": "Semi-auto mode blocked a high-risk action",
+      "description": "A high-risk shell or system change was detected and blocked automatically. It needs your explicit approval."
+    },
+    "autoApproving": "Auto-approving...",
     "smartDenied": {
       "title": "Security reviewer recommends denial",
       "overrideOnce": "Override Once"

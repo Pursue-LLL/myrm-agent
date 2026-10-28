@@ -3,7 +3,7 @@
  * ./sessionConfig::ActionMode (POS: 会话级 Agent 与模式配置类型)
  *
  * [OUTPUT]
- * ToolApprovalRequest, CompletionStatus.
+ * ApprovalGrantDirectory, ToolApprovalRequest, CompletionStatus.
  *
  * [POS]
  * 工具审批契约。
@@ -12,6 +12,12 @@
 import type { ActionMode } from './sessionConfig';
 
 export type { CommandSpan } from '@/lib/approval/shellCommandDisplay';
+
+/** A folder an approval can also grant for the rest of the chat; `writable` is false for read-only access */
+export interface ApprovalGrantDirectory {
+  path: string;
+  writable: boolean;
+}
 
 /** 工具审批请求（Permission Engine 触发） */
 export interface ToolApprovalRequest {
@@ -60,10 +66,8 @@ export interface ToolApprovalRequest {
   hideAllowAlways?: boolean;
   /** LLM reviewer's reason for denial */
   reviewerReason?: string;
-  /** Path-policy ASK: user may grant directory access alongside approval */
-  pathGrantEligible?: boolean;
-  pathGrantPath?: string;
-  pathGrantWritable?: boolean;
+  /** Folders the harness would add if the user also grants folder access; absent when the call needs none */
+  grantDirectories?: ApprovalGrantDirectory[];
   /** Script operand TOCTOU integrity protection */
   scriptOperandPath?: string;
   scriptOperandHash?: string;

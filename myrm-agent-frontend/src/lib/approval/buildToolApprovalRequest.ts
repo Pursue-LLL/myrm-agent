@@ -1,4 +1,4 @@
-import type { ToolApprovalRequest } from '@/store/chat/types';
+import type { ApprovalGrantDirectory, ToolApprovalRequest } from '@/store/chat/types';
 import type { ActionMode } from '@/store/chat/types/sessionConfig';
 
 import {
@@ -22,6 +22,7 @@ interface ApprovalActionPayload {
   reviewerReason?: string;
   scriptOperandPath?: string;
   scriptOperandHash?: string;
+  grantDirectories?: unknown;
 }
 
 interface ApprovalExtensionsPayload {
@@ -53,51 +54,19 @@ interface BuildToolApprovalRequestParams {
   interruptId?: string;
 }
 
-const ABSOLUTE_PATH_PATTERN = /^(?:\/|~|[A-Za-z]:\/)/;
-
-function isInsideRoot(path: string, root: string): boolean {
-  const base = root.replace(/\\/g, '/').replace(/\/+$/, '');
-  return Boolean(base) && (path === base || path.startsWith(`${base}/`));
-}
-
-/**
- * The file the approval asks about. A `paths` call lists several files; the one worth granting is the first
- * that sits outside the workspace, because that is what raised the card.
- */
-function resolveGrantSourcePath(args: Record<string, unknown>, workspaceRoot?: string): string {
-  const named = [args.path, args.file_path, args.target_path].filter(
-    (value): value is string => typeof value === 'string' && value.trim() !== '',
-  );
-  const listed = Array.isArray(args.paths)
-    ? args.paths.filter((value): value is string => typeof value === 'string' && value.trim() !== '')
-    : [];
-  const candidates = [...named, ...listed].map((value) => value.trim().replace(/\\/g, '/'));
-  const outside = candidates.find(
-    (value) => ABSOLUTE_PATH_PATTERN.test(value) && !(workspaceRoot && isInsideRoot(value, workspaceRoot)),
-  );
-  return outside ?? candidates[0] ?? '';
-}
-
-function resolvePathGrantMeta(
-  action: ApprovalActionPayload,
-  workspaceRoot?: string,
-): { eligible: boolean; path?: string; writable: boolean } {
-  const reason = action.description || action.reviewerReason || '';
-  if (!reason.includes('Path outside allowed zones')) {
-    return { eligible: false, writable: false };
+/** The folders the harness planned for "also grant folder access"; malformed entries are dropped. */
+function parseGrantDirectories(raw: unknown): ApprovalGrantDirectory[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
   }
-  const normalized = resolveGrantSourcePath(action.args, workspaceRoot);
-  if (!normalized) {
-    return { eligible: true, writable: false };
+  const directories: ApprovalGrantDirectory[] = [];
+  for (const item of raw) {
+    const path = (item as { path?: unknown } | null)?.path;
+    if (typeof path === 'string' && path.trim()) {
+      directories.push({ path: path.trim(), writable: (item as { writable?: unknown }).writable === true });
+    }
   }
-  const slash = normalized.lastIndexOf('/');
-  const grantPath = slash > 0 ? normalized.slice(0, slash) : normalized;
-  const writeTools = new Set(['file_write_tool', 'file_edit_tool', 'file_delete_tool']);
-  return {
-    eligible: true,
-    path: grantPath || normalized,
-    writable: writeTools.has(action.action),
-  };
+  return directories.length > 0 ? directories : undefined;
 }
 
 export function buildToolApprovalRequest({
@@ -121,7 +90,6 @@ export function buildToolApprovalRequest({
         : '';
 
   const commandSpans = parseCommandSpans(action.command_spans, shellCommand.length);
-  const pathGrant = resolvePathGrantMeta(action, extensions.workspaceRoot);
   const diff =
     typeof action.args.patch === 'string' && action.args.patch.trim()
       ? action.args.patch.trim()
@@ -163,9 +131,7 @@ export function buildToolApprovalRequest({
     smartDenied: reviewConfig?.smartDenied === true ? true : undefined,
     hideAllowAlways: reviewConfig?.hideAllowAlways === true ? true : undefined,
     reviewerReason: action.reviewerReason,
-    pathGrantEligible: pathGrant.eligible || undefined,
-    pathGrantPath: pathGrant.path,
-    pathGrantWritable: pathGrant.eligible ? pathGrant.writable : undefined,
+    grantDirectories: parseGrantDirectories(action.grantDirectories),
     scriptOperandPath:
       typeof action.scriptOperandPath === 'string' && action.scriptOperandPath ? action.scriptOperandPath : undefined,
     scriptOperandHash:

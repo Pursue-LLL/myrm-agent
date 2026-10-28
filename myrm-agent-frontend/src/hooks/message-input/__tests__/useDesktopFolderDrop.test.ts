@@ -104,11 +104,7 @@ describe('useDesktopFolderDrop', () => {
 
     expect(chatService.grantSessionAccessRoot).toHaveBeenCalledWith('test-chat-123', '/Users/test/workspace', true);
     expect(sessionAccessRefresh.refreshSessionAccessRoots).toHaveBeenCalledWith('test-chat-123', {
-      optimistic: {
-        path: '/Users/test/workspace',
-        writable: true,
-        source: 'desktop_drag_drop',
-      },
+      optimistic: [{ path: '/Users/test/workspace', writable: true, source: 'desktop_drag_drop' }],
     });
     expect(onGranted).toHaveBeenCalledWith('/Users/test/workspace');
   });

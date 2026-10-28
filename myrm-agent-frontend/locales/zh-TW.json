@@ -9826,7 +9826,14 @@
       "allowDomainDesc": "後續對該域名的請求將自動透過（僅當前會話）"
     },
     "grantDirectory": "同時授予資料夾存取",
-    "grantDirectoryDesc": "允許 Agent 在本會話後續輪次存取該資料夾",
+    "grantDirectoryDesc": "允許 Agent 在本會話後續輪次存取下列資料夾",
+    "grantDirectoryReadOnly": "唯讀",
+    "grantDirectoryReadWrite": "可讀寫",
+    "highRiskIntercepted": {
+      "title": "半自動模式高危操作攔截",
+      "description": "偵測到包含高危 Shell/系統修改操作，已自動阻斷，必須經人工明確審批確認。"
+    },
+    "autoApproving": "半自動放行中...",
     "smartDenied": {
       "title": "安全審查建議拒絕此操作",
       "overrideOnce": "覆寫一次"

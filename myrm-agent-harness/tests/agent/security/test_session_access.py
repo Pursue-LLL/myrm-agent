@@ -10,6 +10,7 @@ from myrm_agent_harness.agent.security.session_access import (
     grant_directories_for_call,
     grant_session_access_root,
     merge_path_policy_with_session_access,
+    plan_directory_grants,
     resolve_grant_directory_path,
     revoke_session_access_root,
     set_session_access_roots,
@@ -206,3 +207,84 @@ class TestGrantDirectoriesForCall:
             writable=False,
         )
         assert granted == []
+
+
+class TestPlanDirectoryGrants:
+    """The card offers exactly the folders the grant will add, so it never promises one the grant drops."""
+
+    @staticmethod
+    def _policy() -> PathPolicy:
+        return PathPolicy(forbidden_paths=frozenset(), access_roots=())
+
+    def test_the_plan_names_each_outside_directory_once_and_skips_inside_files(self, tmp_path) -> None:
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        downloads = tmp_path / "downloads"
+        for directory in (workspace, downloads):
+            directory.mkdir()
+        plan = plan_directory_grants(
+            {"paths": [f"{downloads}/a.csv", "src/inside.py", f"{downloads}/b.csv:1-5"]},
+            policy=self._policy(),
+            workspace_root=str(workspace),
+            writable=False,
+        )
+        assert [(root.path, root.writable) for root in plan] == [(os.path.realpath(downloads), False)]
+        assert get_session_access_roots() == (), "planning grants nothing"
+
+    def test_a_write_call_plans_a_read_write_grant(self, tmp_path) -> None:
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        reports = tmp_path / "reports"
+        for directory in (workspace, reports):
+            directory.mkdir()
+        plan = plan_directory_grants(
+            {"file_path": f"{reports}/out.csv"},
+            policy=self._policy(),
+            workspace_root=str(workspace),
+            writable=True,
+        )
+        assert [root.writable for root in plan] == [True]
+
+    def test_a_directory_the_policy_forbids_is_not_offered(self, tmp_path) -> None:
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        secret = tmp_path / "secret"
+        for directory in (workspace, secret):
+            directory.mkdir()
+        plan = plan_directory_grants(
+            {"path": f"{secret}/key.txt"},
+            policy=PathPolicy(forbidden_paths=frozenset({str(secret)})),
+            workspace_root=str(workspace),
+            writable=False,
+        )
+        assert plan == []
+
+    def test_a_directory_already_granted_is_not_offered_again(self, tmp_path) -> None:
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        downloads = tmp_path / "downloads"
+        for directory in (workspace, downloads):
+            directory.mkdir()
+        grant_session_access_root(AccessRoot(path=str(downloads), writable=False), workspace_root=str(workspace))
+        plan = plan_directory_grants(
+            {"path": f"{downloads}/a.csv"},
+            policy=merge_path_policy_with_session_access(self._policy()),
+            workspace_root=str(workspace),
+            writable=False,
+        )
+        assert plan == []
+        set_session_access_roots(())
+
+    def test_the_plan_stops_at_the_per_session_grant_limit(self, tmp_path) -> None:
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        workspace.mkdir()
+        files = []
+        for index in range(8):
+            directory = tmp_path / f"d{index}"
+            directory.mkdir()
+            files.append(f"{directory}/f.txt")
+        plan = plan_directory_grants(
+            {"paths": files}, policy=self._policy(), workspace_root=str(workspace), writable=False
+        )
+        assert len(plan) == 5

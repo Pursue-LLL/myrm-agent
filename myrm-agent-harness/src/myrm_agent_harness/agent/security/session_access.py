@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - get_session_access_roots / set_session_access_roots / grant_session_access_root
-- grant_directories_for_call
+- plan_directory_grants / grant_directories_for_call / PATH_WRITE_PERMISSION_TYPES
 - revoke_session_access_root
 - resolve_grant_directory_path
 - merge_path_policy_with_session_access
@@ -35,6 +35,9 @@ from myrm_agent_harness.core.security.tool_registry import host_file_paths
 logger = logging.getLogger(__name__)
 
 _MAX_GRANTS_PER_SESSION = 5
+
+# Permission types whose directory grant is read-write; every other file tool grants read-only.
+PATH_WRITE_PERMISSION_TYPES: frozenset[str] = frozenset({"file_write", "file_edit", "file_delete"})
 
 
 def get_session_access_roots() -> tuple[AccessRoot, ...]:
@@ -119,6 +122,37 @@ def grant_session_access_root(
     return updated
 
 
+def plan_directory_grants(
+    tool_input: dict[str, object],
+    *,
+    policy: PathPolicy,
+    workspace_root: str | None,
+    writable: bool,
+) -> list[AccessRoot]:
+    """The directories "also grant folder access" would add for this call, each once.
+
+    One per directory of a file the call names outside the allowed zones. Files inside the workspace or an
+    allowed root need no grant, so a batched call does not spend the per-session grant limit on them; a
+    directory the grant would be refused (forbidden zone, limit reached) is not offered either, so the
+    card never promises a folder the grant then drops. ``policy`` is the effective one for the turn.
+    """
+    room = _MAX_GRANTS_PER_SESSION - len(get_session_access_roots())
+    planned: dict[str, AccessRoot] = {}
+    for raw_path in host_file_paths(tool_input):
+        if len(planned) >= room:
+            break
+        action, _ = check_path_policy(raw_path, policy, workspace_root, require_write=writable)
+        if action != PermissionAction.ASK:
+            continue
+        grant_path = resolve_grant_directory_path(raw_path, workspace_root)
+        if not grant_path or grant_path in planned:
+            continue
+        if _grant_path_blocked_by_policy(grant_path, policy, workspace_root, require_write=writable):
+            continue
+        planned[grant_path] = AccessRoot(path=grant_path, writable=writable, source="path_ask_grant")
+    return list(planned.values())
+
+
 def grant_directories_for_call(
     tool_input: dict[str, object],
     *,
@@ -126,27 +160,13 @@ def grant_directories_for_call(
     workspace_root: str | None,
     writable: bool,
 ) -> list[str]:
-    """Grant the directory of every file the call names outside the allowed zones; return the directories granted.
-
-    Files inside the workspace or an allowed root need no grant, so a batched call does not spend the
-    per-session grant limit on them.
-    """
+    """Grant the directories ``plan_directory_grants`` names; return the ones actually added."""
     granted: list[str] = []
-    for raw_path in host_file_paths(tool_input):
-        action, _ = check_path_policy(raw_path, policy, workspace_root, require_write=writable)
-        if action != PermissionAction.ASK:
-            continue
-        grant_path = resolve_grant_directory_path(raw_path, workspace_root)
-        if not grant_path:
-            continue
+    for root in plan_directory_grants(tool_input, policy=policy, workspace_root=workspace_root, writable=writable):
         roots_before = get_session_access_roots()
-        grant_session_access_root(
-            AccessRoot(path=grant_path, writable=writable, source="path_ask_grant"),
-            policy=policy,
-            workspace_root=workspace_root,
-        )
+        grant_session_access_root(root, policy=policy, workspace_root=workspace_root)
         if len(get_session_access_roots()) > len(roots_before):
-            granted.append(grant_path)
+            granted.append(root.path)
     return granted
 
 

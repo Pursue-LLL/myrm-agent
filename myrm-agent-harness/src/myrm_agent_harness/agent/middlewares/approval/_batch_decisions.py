@@ -249,18 +249,21 @@ async def apply_approval_decisions(
                 record_decision(tool_name, "USER_APPROVED", reason)
                 record_approval(session_key)
 
-                if grant_directory and "Path outside allowed zones" in reason:
+                if grant_directory:
                     from myrm_agent_harness.agent.middlewares._session_context import (
                         get_workspace_root,
                     )
-                    from myrm_agent_harness.agent.security.session_access import grant_directories_for_call
+                    from myrm_agent_harness.agent.security.session_access import (
+                        PATH_WRITE_PERMISSION_TYPES,
+                        grant_directories_for_call,
+                    )
                     from myrm_agent_harness.agent.security.types import _default_path_policy
 
                     for granted_path in grant_directories_for_call(
                         tool_call.get("args", {}),
                         policy=config.path_policy if config else _default_path_policy(),
                         workspace_root=get_workspace_root() or None,
-                        writable=permission_type in ("file_write", "file_edit", "file_delete"),
+                        writable=permission_type in PATH_WRITE_PERMISSION_TYPES,
                     ):
                         record_decision(tool_name, "DIRECTORY_GRANTED", f"path: {granted_path}")
 

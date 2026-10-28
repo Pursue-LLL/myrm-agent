@@ -28,6 +28,7 @@ import RejectModeView from './approval/RejectModeView';
 import HandoverModeView from './approval/HandoverModeView';
 import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
+import PathGrantToggle from './approval/PathGrantToggle';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
@@ -234,14 +235,8 @@ export default function SingleApprovalCard({
 
   const directoryGrantExtra = useMemo(
     () =>
-      request.pathGrantEligible && grantDirectoryAccess
-        ? {
-            grant_directory: true,
-            ...(request.pathGrantPath && { grant_directory_path: request.pathGrantPath }),
-            grant_directory_writable: request.pathGrantWritable ?? false,
-          }
-        : undefined,
-    [request.pathGrantEligible, request.pathGrantPath, request.pathGrantWritable, grantDirectoryAccess],
+      grantDirectoryAccess && request.grantDirectories ? { grant_directories: request.grantDirectories } : undefined,
+    [request.grantDirectories, grantDirectoryAccess],
   );
 
   const handleApprove = useCallback(
@@ -461,9 +456,11 @@ export default function SingleApprovalCard({
             >
               <ShieldAlert className="h-4 w-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">半自动模式高危操作拦截</p>
+                <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">
+                  {t('highRiskIntercepted.title')}
+                </p>
                 <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5 break-words">
-                  检测到包含高危 Shell/系统修改操作，已自动阻断，必须经人工显式审批确认。
+                  {t('highRiskIntercepted.description')}
                 </p>
               </div>
             </div>
@@ -584,6 +581,15 @@ export default function SingleApprovalCard({
         </CollapsibleContent>
       </Collapsible>
 
+      {!request.smartDenied && request.grantDirectories && (
+        <PathGrantToggle
+          directories={request.grantDirectories}
+          checked={grantDirectoryAccess}
+          onCheckedChange={setGrantDirectoryAccess}
+          disabled={isLoading || isExpired}
+        />
+      )}
+
       <div className="flex flex-wrap gap-2">
         {request.smartDenied ? (
           <>
@@ -600,7 +606,7 @@ export default function SingleApprovalCard({
           <>
             <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired || isAutoApproved}>
               <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-              {isAutoApproved ? '半自动放行中...' : isSaveSkill ? t('saveSkill.approve') : t('approve')}
+              {isAutoApproved ? t('autoApproving') : isSaveSkill ? t('saveSkill.approve') : t('approve')}
             </Button>
             {!isSaveSkill && (
               <Button
@@ -640,18 +646,6 @@ export default function SingleApprovalCard({
                 <Globe className="mr-1 h-3.5 w-3.5" />
                 {t('domain.allowDomain')}
               </Button>
-            )}
-            {request.pathGrantEligible && (
-              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={grantDirectoryAccess}
-                  onChange={(event) => setGrantDirectoryAccess(event.target.checked)}
-                  disabled={isLoading || isExpired}
-                  className="h-3.5 w-3.5 rounded border-border accent-primary"
-                />
-                <span title={t('grantDirectoryDesc')}>{t('grantDirectory')}</span>
-              </label>
             )}
           </>
         )}

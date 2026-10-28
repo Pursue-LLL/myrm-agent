@@ -2,6 +2,7 @@
 
 [INPUT]
 - agent.security.engine::extract_url_domains (POS: the domains a call reaches, for per-domain approval)
+- agent.security.session_access::plan_directory_grants (POS: the folders a path approval can also grant)
 - core.security.redact::redact_for_display (POS: arguments shown to the human are redacted)
 - toolkits.code_execution.security.command_explainer.extract::build_shell_approval_fields (POS: shell command spans and risks)
 
@@ -22,6 +23,12 @@ from typing import Any
 from langchain_core.messages import ToolCall
 
 from myrm_agent_harness.agent.security.engine import extract_url_domains
+from myrm_agent_harness.agent.security.session_access import (
+    PATH_WRITE_PERMISSION_TYPES,
+    merge_path_policy_with_session_access,
+    plan_directory_grants,
+)
+from myrm_agent_harness.agent.security.types import PathPolicy
 from myrm_agent_harness.core.security.redact import redact_for_display
 
 logger = logging.getLogger(__name__)
@@ -37,6 +44,7 @@ def build_interrupt_payload(
     approval_timeout_seconds: int | None = None,
     timeout_behavior: str = _DEFAULT_TIMEOUT_BEHAVIOR,
     workspace_root: str | None = None,
+    path_policy: PathPolicy | None = None,
 ) -> tuple[dict[str, Any], list[int]]:
     """Build LangChain-standard interrupt payload for batch approval.
 
@@ -45,12 +53,16 @@ def build_interrupt_payload(
         session_key: session identifier for routing
         approval_timeout_seconds: seconds before auto-resolution (from SecurityConfig)
         timeout_behavior: "deny" or "allow" — action taken when timeout expires
+        workspace_root: the run's workspace, which relative paths resolve against
+        path_policy: the configured path policy; with it, a file call naming directories outside the allowed
+            zones carries ``grantDirectories`` — the folders "also grant folder access" would add
 
     Returns: (interrupt_payload, interrupt_indices)
     """
     action_requests = []
     review_configs = []
     interrupt_indices = []
+    effective_policy = merge_path_policy_with_session_access(path_policy) if path_policy is not None else None
 
     for idx, tool_call, permission_type, reason, extra_ctx in pending_approval:
         tool_name = tool_call.get("name", "unknown")
@@ -72,6 +84,16 @@ def build_interrupt_payload(
         domains = extract_url_domains(permission_type, tool_input)
         if domains:
             action_request["domains"] = domains
+
+        if effective_policy is not None:
+            grants = plan_directory_grants(
+                tool_input,
+                policy=effective_policy,
+                workspace_root=workspace_root,
+                writable=permission_type in PATH_WRITE_PERMISSION_TYPES,
+            )
+            if grants:
+                action_request["grantDirectories"] = [{"path": root.path, "writable": root.writable} for root in grants]
 
         from myrm_agent_harness.toolkits.code_execution.security.command_explainer.extract import (
             build_shell_approval_fields,

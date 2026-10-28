@@ -9826,7 +9826,14 @@
       "allowDomainDesc": "このドメインへの今後のリクエストは自動的に許可されます（現在のセッションのみ）"
     },
     "grantDirectory": "フォルダアクセスも許可",
-    "grantDirectoryDesc": "このチャットの残りのセッションでこのフォルダへのアクセスを許可",
+    "grantDirectoryDesc": "このチャットの残りのセッションで、下記のフォルダへのアクセスを許可",
+    "grantDirectoryReadOnly": "読み取りのみ",
+    "grantDirectoryReadWrite": "読み取りと書き込み",
+    "highRiskIntercepted": {
+      "title": "セミオートモードが高リスクの操作をブロックしました",
+      "description": "高リスクのシェル操作またはシステム変更を検出し、自動的にブロックしました。明示的な承認が必要です。"
+    },
+    "autoApproving": "自動承認中...",
     "smartDenied": {
       "title": "セキュリティレビューがこの操作の拒否を推奨しています",
       "overrideOnce": "一度だけ上書き"

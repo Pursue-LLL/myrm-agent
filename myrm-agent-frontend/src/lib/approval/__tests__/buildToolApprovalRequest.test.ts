@@ -205,78 +205,51 @@ describe('buildToolApprovalRequest', () => {
     expect(diffRequest.diff).toBe('@@ -1 +1 @@\n-1\n+2');
   });
 
-  describe('directory grant for file reads', () => {
-    const OUTSIDE = 'Path outside allowed zones: /Users/me/Downloads/bill.csv';
-
-    function grantFor(args: Record<string, unknown>, workspaceRoot?: string, action = 'file_read_tool') {
+  describe('folders the approval can also grant', () => {
+    function requestWith(grantDirectories: unknown, description = 'needs approval') {
       return buildToolApprovalRequest({
-        action: { action, args, description: OUTSIDE },
+        action: {
+          action: 'file_read_tool',
+          args: { paths: ['/Users/me/Downloads/bill.csv'] },
+          description,
+          grantDirectories,
+        },
         requestId: 'req-grant',
         messageId: 'msg-grant',
         chatId: 'chat-grant',
         actionMode: 'agent',
-        extensions: {
-          timeout: { seconds: 60, expiresAt: 1_700_000_000 },
-          displayMode: 'approval',
-          workspaceRoot,
-        },
+        extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
       });
     }
 
-    it('offers the directory of a single path', () => {
-      const request = grantFor({ path: '/Users/me/Downloads/bill.csv' });
-
-      expect(request.pathGrantEligible).toBe(true);
-      expect(request.pathGrantPath).toBe('/Users/me/Downloads');
-      expect(request.pathGrantWritable).toBe(false);
-    });
-
-    it('offers the directory of a file listed in paths', () => {
-      const request = grantFor({ paths: ['/Users/me/Downloads/bill.csv'], mode: 'preview' });
-
-      expect(request.pathGrantEligible).toBe(true);
-      expect(request.pathGrantPath).toBe('/Users/me/Downloads');
-    });
-
-    it('offers the first listed file that sits outside the workspace', () => {
-      const request = grantFor(
-        { paths: ['/Users/me/ws/src/a.py', 'notes.md', '/Users/me/Downloads/bill.csv'] },
-        '/Users/me/ws',
+    it('carries the folders the harness planned, whatever language the reason is in', () => {
+      const request = requestWith(
+        [
+          { path: '/Users/me/Downloads', writable: false },
+          { path: '/Users/me/reports', writable: true },
+        ],
+        '路径不在允许的目录内',
       );
 
-      expect(request.pathGrantPath).toBe('/Users/me/Downloads');
+      expect(request.grantDirectories).toEqual([
+        { path: '/Users/me/Downloads', writable: false },
+        { path: '/Users/me/reports', writable: true },
+      ]);
     });
 
-    it('falls back to the first listed file when none is absolute', () => {
-      const request = grantFor({ paths: ['../shared/a.csv'] });
-
-      expect(request.pathGrantPath).toBe('../shared');
+    it('offers nothing when the harness planned no folder', () => {
+      expect(requestWith(undefined).grantDirectories).toBeUndefined();
+      expect(requestWith([]).grantDirectories).toBeUndefined();
     });
 
-    it('marks write tools as writable grants', () => {
-      const request = grantFor({ path: '/Users/me/Downloads/out.csv' }, undefined, 'file_write_tool');
+    it('drops malformed entries and treats a missing writable flag as read-only', () => {
+      const request = requestWith([null, 'x', { path: 7 }, { path: '  ' }, { path: ' /Users/me/Downloads ' }]);
 
-      expect(request.pathGrantWritable).toBe(true);
+      expect(request.grantDirectories).toEqual([{ path: '/Users/me/Downloads', writable: false }]);
     });
 
-    it('stays eligible without a path when the call names no file', () => {
-      const request = grantFor({ pattern: '*.csv' }, undefined, 'glob_tool');
-
-      expect(request.pathGrantEligible).toBe(true);
-      expect(request.pathGrantPath).toBeUndefined();
-    });
-
-    it('offers nothing when the approval is not about a path outside the zones', () => {
-      const request = buildToolApprovalRequest({
-        action: { action: 'file_read_tool', args: { paths: ['/Users/me/Downloads/a'] }, description: 'needs approval' },
-        requestId: 'req-none',
-        messageId: 'msg-none',
-        chatId: 'chat-none',
-        actionMode: 'agent',
-        extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
-      });
-
-      expect(request.pathGrantEligible).toBeUndefined();
+    it('ignores a payload that is not a list', () => {
+      expect(requestWith({ path: '/Users/me/Downloads', writable: true }).grantDirectories).toBeUndefined();
     });
   });
 });

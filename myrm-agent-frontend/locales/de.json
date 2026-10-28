@@ -9826,7 +9826,14 @@
       "allowDomainDesc": "Zukünftige Anfragen an diese Domain werden automatisch genehmigt (nur aktuelle Sitzung)."
     },
     "grantDirectory": "Gewähren Sie außerdem Ordnerzugriff",
-    "grantDirectoryDesc": "Erlauben Sie dem Agenten, für den Rest dieser Chat-Sitzung auf diesen Ordner zuzugreifen",
+    "grantDirectoryDesc": "Erlauben Sie dem Agenten, für den Rest dieser Chat-Sitzung auf die unten aufgeführten Ordner zuzugreifen",
+    "grantDirectoryReadOnly": "Nur Lesen",
+    "grantDirectoryReadWrite": "Lesen und Schreiben",
+    "highRiskIntercepted": {
+      "title": "Halbautomatik hat eine riskante Aktion blockiert",
+      "description": "Ein riskanter Shell- oder Systemeingriff wurde erkannt und automatisch blockiert. Er erfordert Ihre ausdrückliche Freigabe."
+    },
+    "autoApproving": "Wird automatisch freigegeben...",
     "smartDenied": {
       "title": "Sicherheitsprüfer empfiehlt Ablehnung",
       "overrideOnce": "Einmal überschreiben"

@@ -110,24 +110,45 @@ describe('buildApprovalDecision', () => {
   it('detects directory grant in resume decisions', () => {
     expect(
       resumeDecisionsIncludeDirectoryGrant([
-        buildApprovalDecision('approve', { grant_directory: true, grant_directory_path: '/tmp' }),
+        buildApprovalDecision('approve', { grant_directories: [{ path: '/tmp', writable: false }] }),
       ]),
     ).toBe(true);
     expect(resumeDecisionsIncludeDirectoryGrant([buildApprovalDecision('approve')])).toBe(false);
     expect(resumeDecisionsIncludeDirectoryGrant([buildApprovalDecision('reject')])).toBe(false);
   });
 
-  it('extracts path-ASK optimistic root from grant decisions', () => {
+  it('sends every folder the card offered with the grant flag, and nothing when none was chosen', () => {
+    const folders = [
+      { path: '/tmp/a', writable: false },
+      { path: '/tmp/b', writable: true },
+    ];
+
+    expect(buildApprovalDecision('approve', { grant_directories: folders }).extensions).toMatchObject({
+      grantDirectory: true,
+      grantDirectories: folders,
+    });
+    const none = buildApprovalDecision('approve', { grant_directories: [] }).extensions;
+    expect(none.grantDirectory).toBeUndefined();
+    expect(none.grantDirectories).toBeUndefined();
+  });
+
+  it('extracts every optimistic root from the approved grant decisions, once per folder', () => {
     expect(
       extractDirectoryGrantOptimistic([
         buildApprovalDecision('approve', {
-          grant_directory: true,
-          grant_directory_path: '/tmp/proj',
-          grant_directory_writable: true,
+          grant_directories: [
+            { path: '/tmp/proj', writable: true },
+            { path: '/tmp/ref', writable: false },
+          ],
         }),
+        buildApprovalDecision('edit', { grant_directories: [{ path: '/tmp/proj', writable: true }] }),
+        buildApprovalDecision('reject', { grant_directories: [{ path: '/tmp/never', writable: true }] }),
       ]),
-    ).toEqual({ path: '/tmp/proj', writable: true, source: 'path_ask_grant' });
-    expect(extractDirectoryGrantOptimistic([buildApprovalDecision('approve')])).toBeUndefined();
+    ).toEqual([
+      { path: '/tmp/proj', writable: true, source: 'path_ask_grant' },
+      { path: '/tmp/ref', writable: false, source: 'path_ask_grant' },
+    ]);
+    expect(extractDirectoryGrantOptimistic([buildApprovalDecision('approve')])).toEqual([]);
   });
 
   it('binds action_digest in root and extensions for spend protection', () => {
