@@ -26,7 +26,7 @@ git runs a child ``status`` there that honours the submodule's own, separately s
 override of the parent's listing can reach. The listing is one extra git process, so subcommands that only read
 objects (``rev-parse``, ``log``, ``show``…) skip it.
 
-A filter that is switched off no longer transforms content (an LFS pointer, an encrypted blob). Commands whose result
+A filter that is switched off does not transform content (an LFS pointer, an encrypted blob). Commands whose result
 stays private or is raw by design (``status``, ``diff``, ``ls-files``, ``stash create``, and ``read-tree``, which puts
 back what ``stash create`` recorded) declare such a filter not required, so git carries on with the raw content. Every
 other command keeps the repository's own ``required`` flag: git then fails instead of committing or checking out
