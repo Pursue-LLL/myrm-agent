@@ -68,6 +68,12 @@ class TestPlainJson:
         assert '"nextPageToken":"CAEQAA"' in out
         assert '"tokenizer":"gpt2"' in out
 
+    @pytest.mark.parametrize("key", ["apiKey", "api_key", "token", "clientSecret", "Authorization"])
+    @pytest.mark.parametrize("empty", ['""', '"   "'])
+    def test_empty_value_stays_readable(self, key: str, empty: str) -> None:
+        text = f'{{"{key}": {empty}}}'
+        assert redact_sensitive_text(text) == text
+
     def test_escaped_quote_inside_value_is_captured_whole(self) -> None:
         out = redact_sensitive_text(r'{"clientSecret": "my\"secretvalue1234567890tail"}')
         assert out == r'{"clientSecret": "my\"se...tail"}'

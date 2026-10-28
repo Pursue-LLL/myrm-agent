@@ -88,7 +88,9 @@ def _is_secret_field_name(name: str) -> bool:
 
 
 def _redact_json_field(m: re.Match[str]) -> str:
-    """Replacement for ``_JSON_FIELD_RE``."""
+    """Replacement for ``_JSON_FIELD_RE``; an empty value is left as is, since "not set" is no secret and a reader needs it."""
+    if not m.group(2).strip():
+        return m.group(0)
     return f'{m.group(1)}: "{_mask_token(m.group(2))}"'
 
 
