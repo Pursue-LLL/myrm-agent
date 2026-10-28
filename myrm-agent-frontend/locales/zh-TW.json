@@ -8402,7 +8402,8 @@
     "blockedReason": {
       "parentMergeFailed": "前置任務的變更合併失敗，請先處理，再繼續",
       "usageLimit": "正在等待模型用量額度重置，重置後自動繼續",
-      "batchPause": "已隨批次一起暫停，批次恢復後繼續"
+      "batchPause": "已隨批次一起暫停，批次恢復後繼續",
+      "workdirTooBroad": "工作資料夾範圍過大，請改選更具體的資料夾，再繼續。"
     },
     "blockKind": {
       "human": "需要你處理",

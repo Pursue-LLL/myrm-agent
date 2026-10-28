@@ -8402,7 +8402,8 @@
     "blockedReason": {
       "parentMergeFailed": "A dependency's merge failed. Resolve it, then continue.",
       "usageLimit": "Waiting for the model usage limit to reset. Resumes automatically.",
-      "batchPause": "Paused with its batch. Resumes when the batch resumes."
+      "batchPause": "Paused with its batch. Resumes when the batch resumes.",
+      "workdirTooBroad": "The working folder is too broad. Choose a more specific folder, then continue."
     },
     "blockKind": {
       "human": "Needs you",

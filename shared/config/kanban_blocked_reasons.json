@@ -1,5 +1,6 @@
 {
   "parentMergeFailed": "Merging a dependency's changes failed; resolve it, then continue",
   "usageLimit": "Waiting for the model usage limit to reset; resumes automatically",
-  "batchPause": "batch_pause"
+  "batchPause": "batch_pause",
+  "workdirTooBroad": "The task's working folder is too broad to work in; choose a more specific folder, then continue"
 }

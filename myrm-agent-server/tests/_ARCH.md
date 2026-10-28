@@ -393,7 +393,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_effective_workspace_ssot.py` | 模块 | SSOT：GET chat / suggest / browse(chat_id) / PATCH 409 — project.workspace_path 优先于 stale chat.workspace_dir |
 | `api/chats/test_user_markup_api.py` | 模块 | 用户文字保留标记（真实 `TextSanitizerMiddleware` + 聊天路由 + 真 DB）：会话标题里的 `<think>` / `<function_calls>` / `<tool_call>` 原样存入，只去掉控制字符 |
 | `api/chats/test_rewind_api.py` | 模块 | POST `/chats/{id}/rewind`（真实路由 + 真 DB）：输入框文本逐字取回（含用户写的标签，仅去首尾空白）、助手消息被拒、对话/文件回退范围、检查点清除与失败传播、回退前快照与回滚补偿、会话忙 409、无可回退 400、失败 500 |
-| `services/workspace/test_workspace_path_policy.py` | 单元 | 工作区路径闸门：绝对路径 / 家目录与 `/` 过宽 / 凭据目录危险 / symlink 按目标判定 / 非目录；`allow_broad` 只豁免范围检查；读侧 `is_workspace_root_grantable`；400 带 `field` + `issue` |
+| `services/workspace/test_workspace_path_policy.py` | 单元 | 工作区路径闸门：绝对路径 / 家目录与 `/` 过宽 / 凭据目录危险 / symlink 按目标判定 / 非目录；`allow_broad` 只豁免范围检查；读侧 `is_workspace_root_grantable`；400 带 `field` + `issue`；可空字段 `resolve_optional_workspace_path`、定时任务允许根 `ensure_root_grantable`（文件与不存在的路径放行）与 `require_grantable_roots`（运行时复判，波浪号按所指目录判定） |
+| `api/kanban/test_workdir_gate_api.py` | 模块 | 看板任务 `workspace_path` 与 board `default_workdir` 的写入口（真实路由 + 真 DB）：家目录 / `/` / 凭据目录被 400 拒绝并带 `field` + `issue`，相对路径拒绝（`not_absolute`），普通目录按 realpath 规范化后保存，不带目录的任务不受影响；更新 board 时没带 `default_workdir` 的请求不重新判已存的值、显式 `null` 清除 |
+| `services/kanban/test_workdir_gate.py` | 模块 | 运行入口闸门 `hold_for_unusable_workdir`：任务自己的过宽目录（家目录、`/`）、继承自 board 的过宽默认目录与应用状态目录返回 HUMAN 阻塞（原因即 `WORKDIR_TOO_BROAD_REASON`），任务自己的普通目录优先于 board 的过宽默认，普通目录与没有目录的任务放行；`KanbanTaskRunner.run` 在构造任务上下文之前就返回该阻塞 |
+| `api/cron/test_cron_allowed_roots_gate.py` | 模块 | 定时任务 `allowed_roots` 的写入口（真实路由 + 内存 cron 存储）：create 与 PATCH 拒绝家目录、`/`、凭据目录（400 带 `field=allowed_roots` + `issue`），普通根按输入原样保存，根可以是单个文件，没有根的任务与不改根的更新不受影响 |
+| `core/cron/adapters/test_agent_runner_allowed_roots.py` | 模块 | 运行时再判允许根 `_resolve_effective_allowed_roots`：普通根原样使用，已存的含受保护位置的根使本次运行失败（`TOO_BROAD`），没有根时用所属项目的工作区、该工作区变得过宽同样失败，没有根也没有项目时为空 |
 | `api/chats/test_workspace_path_policy_api.py` | 模块 | 项目 create/adopt/update、会话工作区 PATCH、转录导入各入口拒绝过宽目录（真实路由 + 真 DB）；已存储的家目录工作区读侧回退到会话沙箱并落库自愈 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |

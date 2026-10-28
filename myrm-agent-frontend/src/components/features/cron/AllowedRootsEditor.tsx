@@ -6,6 +6,7 @@ import { FolderOpen, Plus, X } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { toast } from 'sonner';
+import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 import { updateCronJob } from '@/services/cron';
 import type { EditorProps } from './CronDeliveryEditors';
 
@@ -13,6 +14,7 @@ const COMMON_PATHS = ['~/Documents', '~/Desktop', '/tmp', '~/Downloads'] as cons
 
 export function AllowedRootsEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
+  const tIssue = useTranslations('common.workspacePathIssue');
   const serverRoots = useMemo(() => job.allowed_roots ?? [], [job.allowed_roots]);
   const [localRoots, setLocalRoots] = useState<string[]>(serverRoots);
   const [newPath, setNewPath] = useState('');
@@ -49,8 +51,9 @@ export function AllowedRootsEditor({ job, onUpdated }: EditorProps) {
       await updateCronJob(job.id, { allowed_roots: localRoots });
       onUpdated();
       toast.success(localRoots.length > 0 ? t('allowedRootsUpdated') : t('allowedRootsCleared'));
-    } catch {
-      toast.error(t('actionFail'));
+    } catch (error) {
+      const issueKey = workspacePathIssueMessageKey(error);
+      toast.error(issueKey ? tIssue(issueKey) : t('actionFail'));
     } finally {
       setSaving(false);
     }

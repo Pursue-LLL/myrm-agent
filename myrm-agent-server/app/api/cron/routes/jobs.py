@@ -6,6 +6,7 @@ Thin delegation layer: parameter parsing → CronManager → response conversion
 - cron.routes.helpers (POS: conversion utilities and manager accessor)
 - cron.schemas (POS: request/response Pydantic models)
 - services.risk.refusal::reject_if_risky (POS: refuses a job prompt a risk rule holds)
+- cron.routes.helpers::_check_allowed_roots (POS: allowed roots pass the workspace path gate before they are stored)
 
 [OUTPUT]
 - GET /  — list jobs (paginated)
@@ -98,6 +99,7 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
         validate_cron_workflow_template_binding,
     )
 
+    _h._check_allowed_roots(body.allowed_roots)
     mgr = _h._get_manager()
     try:
         validate_cron_workflow_template_binding(
@@ -171,6 +173,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
         validate_cron_workflow_template_binding,
     )
 
+    _h._check_allowed_roots(body.allowed_roots)
     mgr = _h._get_manager()
     try:
         if body.workflow_template_id:

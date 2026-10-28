@@ -39,6 +39,11 @@ from app.api.cron.schemas import (
     TriggerConfigResponse,
     WebhookTriggerResponse,
 )
+from app.services.workspace.workspace_path_policy import (
+    WorkspacePathValidationError,
+    ensure_root_grantable,
+    workspace_path_http_error,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
@@ -49,6 +54,15 @@ def _get_manager() -> CronManager:
     from app.core.cron.adapters.setup import get_cron_manager
 
     return get_cron_manager()
+
+
+def _check_allowed_roots(roots: list[str] | None) -> None:
+    """Refuse a root the workspace path gate would refuse (dangerous or too broad) before the job stores it."""
+    try:
+        for root in roots or ():
+            ensure_root_grantable(root)
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="allowed_roots") from exc
 
 
 def _resolve_cron_workflow_template_display_name(

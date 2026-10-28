@@ -5,13 +5,16 @@ import { workspacePathIssueMessageKey } from '../workspacePathIssue';
 const refused = (field: string, issue: string) => new ApiError('refused', 40001, [{ field, issue }]);
 
 describe('workspacePathIssueMessageKey', () => {
-  it('maps a too-broad folder on either workspace field', () => {
-    expect(workspacePathIssueMessageKey(refused('workspace_dir', 'too_broad'))).toBe('tooBroad');
-    expect(workspacePathIssueMessageKey(refused('workspace_path', 'too_broad'))).toBe('tooBroad');
-  });
+  it.each(['workspace_dir', 'workspace_path', 'default_workdir', 'allowed_roots'])(
+    'maps a too-broad folder on the %s field',
+    (field) => {
+      expect(workspacePathIssueMessageKey(refused(field, 'too_broad'))).toBe('tooBroad');
+    },
+  );
 
   it('maps a protected folder', () => {
     expect(workspacePathIssueMessageKey(refused('workspace_dir', 'dangerous'))).toBe('dangerous');
+    expect(workspacePathIssueMessageKey(refused('allowed_roots', 'dangerous'))).toBe('dangerous');
   });
 
   it('leaves other refusals to the caller generic message', () => {

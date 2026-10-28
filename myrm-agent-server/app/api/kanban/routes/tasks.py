@@ -5,6 +5,7 @@ app.api.kanban.http_common::router/get_kanban_service (POS: Kanban API 共享路
 app.api.kanban.routes.tasks_list::list_tasks (POS: 任务列表查询端点)
 app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
+app.services.workspace.workspace_path_policy::resolve_optional_workspace_path (POS: 任务工作目录与其他工作区入口共用的路径闸门)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
 app.services.risk.refusal::reject_if_risky (POS: 拒绝风险规则拦下的任务标题 / 描述 / 验收标准 / 结果 / 移交说明 / 驳回理由 / 回收理由)
 
@@ -50,6 +51,11 @@ from app.core.channel_bridge.model_resolver import validate_model_override
 from app.services.kanban import DependencyUnmetError
 from app.services.kanban.task_attachment_ids import save_task_attachment_ids as _save_task_attachment_ids
 from app.services.risk.refusal import reject_if_risky
+from app.services.workspace.workspace_path_policy import (
+    WorkspacePathValidationError,
+    resolve_optional_workspace_path,
+    workspace_path_http_error,
+)
 
 # ---------------------------------------------------------------------------
 # Task endpoints
@@ -126,6 +132,11 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
         await _validate_extra_skill_ids(body.extra_skill_ids)
 
     try:
+        workspace_path = resolve_optional_workspace_path(body.workspace_path)
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="workspace_path") from exc
+
+    try:
         task = await svc.add_task(
             board_id=board_id,
             title=body.title,
@@ -140,7 +151,7 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
             completion_criteria=body.completion_criteria,
             initial_status=initial_status,
             max_runtime_seconds=body.max_runtime_seconds,
-            workspace_path=body.workspace_path,
+            workspace_path=workspace_path,
             branch=body.branch,
             goal_mode=body.goal_mode,
             goal_max_turns=body.goal_max_turns,

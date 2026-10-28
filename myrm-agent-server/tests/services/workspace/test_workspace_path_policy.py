@@ -11,7 +11,10 @@ import pytest
 from app.services.workspace.workspace_path_policy import (
     WorkspacePathIssue,
     WorkspacePathValidationError,
+    ensure_root_grantable,
     is_workspace_root_grantable,
+    require_grantable_roots,
+    resolve_optional_workspace_path,
     resolve_workspace_path,
     workspace_path_http_error,
 )
@@ -128,6 +131,56 @@ class TestIsWorkspaceRootGrantable:
                 assert exc.issue is WorkspacePathIssue.TOO_BROAD
                 bindable = False
             assert bindable is is_workspace_root_grantable(folder), folder
+
+
+class TestResolveOptionalWorkspacePath:
+    @pytest.mark.parametrize("raw", [None, "", "   "])
+    def test_absent_and_blank_pass_unchanged(self, raw: str | None) -> None:
+        assert resolve_optional_workspace_path(raw) == raw
+
+    def test_a_value_goes_through_the_gate(self, tmp_path: Path) -> None:
+        assert resolve_optional_workspace_path(str(tmp_path)) == os.path.realpath(tmp_path)
+        with pytest.raises(WorkspacePathValidationError):
+            resolve_optional_workspace_path(HOME)
+
+
+class TestEnsureRootGrantable:
+    def test_a_file_or_a_missing_folder_is_fine(self, tmp_path: Path) -> None:
+        note = tmp_path / "todo.md"
+        note.write_text("x", encoding="utf-8")
+        ensure_root_grantable(str(note))
+        ensure_root_grantable(str(tmp_path / "later"))
+
+    @pytest.mark.parametrize(
+        ("raw", "issue"),
+        [
+            (HOME, WorkspacePathIssue.TOO_BROAD),
+            ("/", WorkspacePathIssue.TOO_BROAD),
+            (os.path.join(HOME, ".ssh", "id_rsa"), WorkspacePathIssue.DANGEROUS),
+            ("relative", WorkspacePathIssue.NOT_ABSOLUTE),
+        ],
+    )
+    def test_the_checks_that_protect_locations_still_apply(self, raw: str, issue: WorkspacePathIssue) -> None:
+        with pytest.raises(WorkspacePathValidationError) as excinfo:
+            ensure_root_grantable(raw)
+        assert excinfo.value.issue is issue
+
+
+class TestRequireGrantableRoots:
+    def test_ordinary_roots_pass(self, tmp_path: Path) -> None:
+        require_grantable_roots([str(tmp_path), "~/Documents"], subject="Job a")
+
+    def test_the_message_names_the_subject_and_the_root(self) -> None:
+        with pytest.raises(WorkspacePathValidationError) as excinfo:
+            require_grantable_roots(["/tmp", HOME], subject="Job a")
+        assert excinfo.value.issue is WorkspacePathIssue.TOO_BROAD
+        assert str(excinfo.value).startswith("Job a: ")
+        assert repr(HOME) in str(excinfo.value)
+
+    def test_a_tilde_root_is_judged_by_the_folder_it_names(self, state_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HOME", str(state_dir))
+        with pytest.raises(WorkspacePathValidationError):
+            require_grantable_roots(["~"], subject="Job a")
 
 
 def test_http_error_names_the_field_and_the_issue() -> None:

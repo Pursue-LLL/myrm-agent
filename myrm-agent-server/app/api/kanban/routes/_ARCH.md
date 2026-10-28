@@ -16,7 +16,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 |------|------|------|-------|
 | `__init__.py` | 入口 | 触发子模块路由注册 | — |
 | `boards.py` | 路由 | Board CRUD、summary、board 级 events | ✅ |
-| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject、retry（列表查询见 `tasks_list.py`） | ✅ |
+| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject、retry（列表查询见 `tasks_list.py`）；创建时 `workspace_path` 经工作区路径闸门（拒绝时 400 + `ErrorDetail(field=workspace_path, issue)`） | ✅ |
 | `tasks_list.py` | 路由 | `GET /boards/{board_id}/tasks`：列表查询 + stats/attachments/diagnostics DTO 富化装配 | ✅ |
 | `skill_ids.py` | 辅助 | `validate_extra_skill_ids`：任务技能 id 存在性校验（非法 400） | ✅ |
 | `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/delete；动作清单只有 `_BULK_HANDLERS` 一处，校验与分派共用，新增动作只加一个 handler | ✅ |
@@ -30,8 +30,8 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET/POST | `/boards` | GET 支持 `project_id` 过滤；POST 支持可选 `project_id` / `milestone_id` 作用域绑定（含一致性校验） |
-| GET/PATCH/DELETE | `/boards/{board_id}` | - |
+| GET/POST | `/boards` | GET 支持 `project_id` 过滤；POST 支持可选 `project_id` / `milestone_id` 作用域绑定（含一致性校验）；`default_workdir` 经工作区路径闸门（`resolve_optional_workspace_path`，拒绝时 400 + `ErrorDetail(field=default_workdir, issue)`） |
+| GET/PATCH/DELETE | `/boards/{board_id}` | PATCH 带上 `default_workdir` 时同样过闸，显式 `null` 即清除；没带的字段不重新过闸 |
 | GET | `/boards/{board_id}/summary` | - |
 | GET | `/boards/{board_id}/events` | - |
 

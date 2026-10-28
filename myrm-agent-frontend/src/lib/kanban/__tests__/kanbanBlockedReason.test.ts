@@ -11,6 +11,12 @@ describe('blockedReasonText', () => {
     );
   });
 
+  it('shows the interface-language text for a task whose working folder is too broad', () => {
+    expect(blockedReasonText(blockedReasons.workdirTooBroad, translate)).toBe(
+      'translated:blockedReason.workdirTooBroad',
+    );
+  });
+
   it('shows the interface-language text for a task waiting on the usage limit and for a batch pause', () => {
     expect(blockedReasonText(blockedReasons.usageLimit, translate)).toBe('translated:blockedReason.usageLimit');
     expect(blockedReasonText(blockedReasons.batchPause, translate)).toBe('translated:blockedReason.batchPause');

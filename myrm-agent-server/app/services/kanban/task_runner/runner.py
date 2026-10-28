@@ -13,7 +13,7 @@ tools, memory, security).
 - myrm_agent_harness.api.hooks::deferral_wait_s (POS: Waitable provider usage-limit window of an LLM error.)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Session-level goal management.)
 - task_runner.stream::build_multimodal_query (POS: Multimodal query assembly.)
-- task_runner.worktree::resolve_workspace, cleanup_worktree, merge_task_worktree, hold_for_unlanded_parents (POS: Git worktree isolation and the gate on parents' failed merges.)
+- task_runner.worktree::resolve_workspace, cleanup_worktree, merge_task_worktree, hold_for_unlanded_parents, hold_for_unusable_workdir (POS: Git worktree isolation and the run-entry gates on parents' failed merges and on a too-broad working folder.)
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
 
 [OUTPUT]
@@ -72,6 +72,7 @@ from app.services.kanban.task_runner.stream import (
 from app.services.kanban.task_runner.worktree import (
     cleanup_worktree,
     hold_for_unlanded_parents,
+    hold_for_unusable_workdir,
     merge_task_worktree,
     resolve_workspace,
 )
@@ -106,7 +107,10 @@ class KanbanTaskRunner:
         self._workspace_locks: dict[str, asyncio.Lock] = {}
 
     async def run(self, task: KanbanTask) -> tuple[bool, str] | TaskExecutionResult:
-        # Before anything is built or paid for: a parent whose code never landed holds the task for the user.
+        # Before anything is built or paid for: a working folder the workspace gate would refuse, or a parent whose
+        # code never landed, holds the task for the user.
+        if (held := await hold_for_unusable_workdir(self._store, task)) is not None:
+            return held
         if (held := await hold_for_unlanded_parents(self._store, task)) is not None:
             return held
         context = await build_task_context(self._store, task.task_id)

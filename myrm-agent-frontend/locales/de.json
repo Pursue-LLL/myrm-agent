@@ -8402,7 +8402,8 @@
     "blockedReason": {
       "parentMergeFailed": "Das Zusammenführen einer Abhängigkeit ist fehlgeschlagen. Beheben Sie das und fahren Sie dann fort.",
       "usageLimit": "Wartet auf das Zurücksetzen des Nutzungslimits des Modells. Wird automatisch fortgesetzt.",
-      "batchPause": "Mit dem Batch pausiert. Wird fortgesetzt, sobald der Batch fortgesetzt wird."
+      "batchPause": "Mit dem Batch pausiert. Wird fortgesetzt, sobald der Batch fortgesetzt wird.",
+      "workdirTooBroad": "Der Arbeitsordner ist zu weit gefasst. Wählen Sie einen konkreteren Ordner und fahren Sie dann fort."
     },
     "blockKind": {
       "human": "Wartet auf Sie",

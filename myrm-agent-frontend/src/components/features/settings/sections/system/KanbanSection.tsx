@@ -13,9 +13,11 @@ import { registerSettingsSubviewBack } from '@/components/features/settings/sett
 import { useProjectStore } from '@/store/useProjectStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 
 export default function KanbanSection() {
   const t = useTranslations('kanban');
+  const tIssue = useTranslations('common.workspacePathIssue');
   const searchParams = useSearchParams();
   const activeProjectId = useProjectStore((s) => (typeof s.activeFilter === 'string' ? s.activeFilter : null));
   const sourceChatParam = searchParams.get('source_chat')?.trim() || undefined;
@@ -177,10 +179,11 @@ export default function KanbanSection() {
       }
       await fetchBoards();
       toast.success(t('boardCreated'));
-    } catch {
-      toast.error(t('createBoardError'));
+    } catch (error) {
+      const issueKey = workspacePathIssueMessageKey(error);
+      toast.error(issueKey ? tIssue(issueKey) : t('createBoardError'));
     }
-  }, [newBoardName, newBoardDesc, newBoardWorkdir, activeProjectId, fetchBoards, t]);
+  }, [newBoardName, newBoardDesc, newBoardWorkdir, activeProjectId, fetchBoards, t, tIssue]);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deletingBoard) {
@@ -254,10 +257,11 @@ export default function KanbanSection() {
       setEditingBoard(null);
       await fetchBoards();
       toast.success(t('boardUpdated'));
-    } catch {
-      toast.error(t('updateBoardError'));
+    } catch (error) {
+      const issueKey = workspacePathIssueMessageKey(error);
+      toast.error(issueKey ? tIssue(issueKey) : t('updateBoardError'));
     }
-  }, [editingBoard, editName, editDesc, editMaxConcurrent, editDefaultWorkdir, fetchBoards, t]);
+  }, [editingBoard, editName, editDesc, editMaxConcurrent, editDefaultWorkdir, fetchBoards, t, tIssue]);
 
   if (selectedBoard) {
     return <KanbanBoardView key={selectedBoard.board_id} board={selectedBoard} onBack={() => selectBoard(null)} />;

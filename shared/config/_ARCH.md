@@ -19,7 +19,7 @@ Legacy storage id remap 在前后端使用**同一算法**（与 [`providers.py`
 |------|------|--------|
 | `provider_legacy_remap.json` | 遗留 providerId → canonical storage id | `providers.py` · `providerIdentityMigration.ts` · Docker `/shared` · PyInstaller bundle · vitest · pytest |
 | `kanban_move_guard.json` | 看板任务手动 move 的流转表：每个起点状态（含「原地不动」）服务端接受的目标状态 | [`kanban-transitions.ts`](../../myrm-agent-frontend/src/components/features/kanban/kanban-transitions.ts) 据此在发起前拦下必败的移动 · 服务端只在测试里读它，运行时不打包 |
-| `kanban_blocked_reasons.json` | 服务端自己拥有的看板任务阻塞原因（依赖合并失败、模型用量上限、批次暂停）的原文，按 key 命名 | [`kanbanBlockedReason.ts`](../../myrm-agent-frontend/src/lib/kanban/kanbanBlockedReason.ts) 按整句匹配译成界面语言 · 服务端只在测试里读它，运行时不打包 |
+| `kanban_blocked_reasons.json` | 服务端自己拥有的看板任务阻塞原因（依赖合并失败、模型用量上限、批次暂停、工作目录过宽）的原文，按 key 命名 | [`kanbanBlockedReason.ts`](../../myrm-agent-frontend/src/lib/kanban/kanbanBlockedReason.ts) 按整句匹配译成界面语言 · 服务端只在测试里读它，运行时不打包 |
 
 ## Kanban Blocked Reasons Contract
 

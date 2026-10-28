@@ -10,19 +10,24 @@
 - WorkspacePathIssue: machine-readable rejection reasons surfaced to clients as ``ErrorDetail.issue``
 - WorkspacePathValidationError: a rejected path, carrying its issue
 - resolve_workspace_path: expand, canonicalize and validate a path that may become a workspace
+- resolve_optional_workspace_path: the same gate for a field that may be absent or blank
+- ensure_root_grantable: the gate for a path-access root, where a file or a missing path is fine
 - is_workspace_root_grantable: read-side check that an already stored workspace may still be used (same breadth rule)
+- require_grantable_roots: read-side check that raises when a stored root may no longer be granted
 - workspace_path_http_error: 400 response for a rejected path
 
 [POS]
 Binding a workspace grants the sandbox write access to the whole folder tree. A folder that is, or
 contains, a credential or system root (home, a drive root, ``/``) or the application state directory
 must therefore never become a workspace, whichever entry point proposed it: project create/adopt, chat
-workspace PATCH, IM ``/bind`` or an imported transcript.
+workspace PATCH, IM ``/bind``, an imported transcript, a kanban task or board working folder, or a cron
+job's allowed roots. What was stored before a gate existed is checked again where it is used.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from enum import StrEnum
 from pathlib import Path
 
@@ -57,7 +62,7 @@ def _contains_state_dir(path: str) -> bool:
 
     state_dir = Path(os.path.realpath(get_settings().database.state_dir))
     try:
-        candidate = os.stat(path)
+        candidate = os.stat(os.path.expanduser(path))
         return any(os.path.samestat(candidate, os.stat(folder)) for folder in (state_dir, *state_dir.parents))
     except OSError:
         return False
@@ -103,6 +108,26 @@ def resolve_workspace_path(raw: str, *, require_directory: bool = False, allow_b
     return resolved
 
 
+def resolve_optional_workspace_path(raw: str | None) -> str | None:
+    """``resolve_workspace_path`` for a field that may be absent; ``None`` and blank (which clears it) pass unchanged."""
+    if raw is None or not raw.strip():
+        return raw
+    return resolve_workspace_path(raw)
+
+
+def ensure_root_grantable(raw: str) -> None:
+    """Refuse a path-access root that is dangerous or too broad, without requiring it to be an existing directory.
+
+    A granted root may name a single file or a folder created later, so only the checks that protect locations apply;
+    the directory check is the last one ``resolve_workspace_path`` makes, so skipping it never skips another.
+    """
+    try:
+        resolve_workspace_path(raw)
+    except WorkspacePathValidationError as exc:
+        if exc.issue is not WorkspacePathIssue.NOT_A_DIRECTORY:
+            raise
+
+
 def is_workspace_root_grantable(path: str) -> bool:
     """Whether an already stored workspace may still be handed to the sandbox as a write root.
 
@@ -112,6 +137,16 @@ def is_workspace_root_grantable(path: str) -> bool:
     container) stays usable: the gate's dangerous-path check is deliberately not repeated here.
     """
     return not _is_too_broad(path)
+
+
+def require_grantable_roots(roots: Iterable[str], *, subject: str) -> None:
+    """Raise when one of the stored ``roots`` of ``subject`` may no longer be granted; the message names the root."""
+    for root in roots:
+        if not is_workspace_root_grantable(root):
+            raise WorkspacePathValidationError(
+                WorkspacePathIssue.TOO_BROAD,
+                f"{subject}: {root!r} contains protected locations and is too broad to be a workspace",
+            )
 
 
 def workspace_path_http_error(exc: WorkspacePathValidationError, *, field: str) -> StandardHTTPException:

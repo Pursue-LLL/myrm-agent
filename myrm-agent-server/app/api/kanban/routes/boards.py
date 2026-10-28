@@ -4,6 +4,7 @@
 app.api.kanban.http_common::router/get_kanban_service/_board_to_response (POS: Kanban API 共享路由与 DTO 装配)
 app.api.kanban.schemas::BoardCreate/BoardUpdate/BoardResponse (POS: Kanban API Pydantic 模型)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
+app.services.workspace.workspace_path_policy::resolve_optional_workspace_path (POS: 看板默认工作目录与其他工作区入口共用的路径闸门)
 myrm_agent_harness.toolkits.kanban.types::BoardSettings (POS: Kanban 域类型)
 
 [OUTPUT]
@@ -34,6 +35,20 @@ from app.api.kanban.schemas import (
     PlanRevisionRequest,
     PlanRevisionResponse,
 )
+from app.services.workspace.workspace_path_policy import (
+    WorkspacePathValidationError,
+    resolve_optional_workspace_path,
+    workspace_path_http_error,
+)
+
+
+def _checked_default_workdir(raw: str | None) -> str | None:
+    """A board's new default working folder, through the gate every workspace path passes."""
+    try:
+        return resolve_optional_workspace_path(raw)
+    except WorkspacePathValidationError as exc:
+        raise workspace_path_http_error(exc, field="default_workdir") from exc
+
 
 # ---------------------------------------------------------------------------
 # Board endpoints
@@ -60,6 +75,7 @@ async def create_board(body: BoardCreate) -> BoardResponse:
     from myrm_agent_harness.toolkits.kanban.types import BoardSettings
 
     svc = get_kanban_service()
+    default_workdir = _checked_default_workdir(body.default_workdir)
     try:
         board = await svc.create_board(
             name=body.name,
@@ -72,7 +88,7 @@ async def create_board(body: BoardCreate) -> BoardResponse:
                 auto_block_after_consecutive_failures=body.auto_block_after_consecutive_failures,
                 specify_max_tokens=body.specify_max_tokens,
                 auto_specify_on_create=body.auto_specify_on_create,
-                default_workdir=body.default_workdir,
+                default_workdir=default_workdir,
                 block_recurrence_limit=body.block_recurrence_limit,
             ),
             project_id=body.project_id,
@@ -98,13 +114,14 @@ async def update_board(board_id: str, body: BoardUpdate) -> BoardResponse:
 
     svc = get_kanban_service()
     settings: BoardSettings | None = None
-    needs_settings = any(
+    # An explicit null clears the default folder, which an omitted field leaves alone.
+    workdir_given = "default_workdir" in body.model_fields_set
+    needs_settings = workdir_given or any(
         v is not None
         for v in (
             body.max_concurrent_tasks,
             body.specify_max_tokens,
             body.auto_specify_on_create,
-            body.default_workdir,
             body.block_recurrence_limit,
         )
     )
@@ -126,7 +143,7 @@ async def update_board(board_id: str, body: BoardUpdate) -> BoardResponse:
             auto_specify_on_create=(
                 body.auto_specify_on_create if body.auto_specify_on_create is not None else board.settings.auto_specify_on_create
             ),
-            default_workdir=(body.default_workdir if body.default_workdir is not None else board.settings.default_workdir),
+            default_workdir=(_checked_default_workdir(body.default_workdir) if workdir_given else board.settings.default_workdir),
             block_recurrence_limit=(
                 body.block_recurrence_limit if body.block_recurrence_limit is not None else board.settings.block_recurrence_limit
             ),

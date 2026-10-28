@@ -299,6 +299,28 @@ _ONE_DAY = timedelta(days=1)
 _OVERLOAD_RETRY_DELAY = timedelta(seconds=60)
 
 
+async def _resolve_effective_allowed_roots(job: CronJob) -> list[str]:
+    """The folders a run may work in: the job's own roots, else its project's workspace.
+
+    What was stored before the workspace path gate existed is judged again here, so a root that is, or contains,
+    a protected location fails the run with its reason instead of being granted.
+    """
+    from app.services.workspace.workspace_path_policy import require_grantable_roots
+
+    roots = list(job.allowed_roots)
+    if job.project_id and not roots:
+        try:
+            from app.services.project.project_service import ProjectService
+
+            project_model = await ProjectService.get_project(job.project_id)
+            if project_model and project_model.workspace_path:
+                roots.append(project_model.workspace_path)
+        except Exception as exc:
+            logger.warning("Failed to resolve project workspace for cron job %s: %s", job.id, exc)
+    require_grantable_roots(roots, subject=f"Cron job {job.id}")
+    return roots
+
+
 def _build_effective_prompt(job: CronJob) -> str:
     """Append [SILENT] instruction for recurring jobs."""
     prompt = job.prompt or ""
@@ -817,16 +839,7 @@ class AgentJobRunner:
 
                 await _ChatCrudMixin.ensure_chat_source(job.chat_id, "cron")
 
-            effective_allowed_roots = list(job.allowed_roots)
-            if job.project_id and not effective_allowed_roots:
-                try:
-                    from app.services.project.project_service import ProjectService
-
-                    project_model = await ProjectService.get_project(job.project_id)
-                    if project_model and project_model.workspace_path:
-                        effective_allowed_roots.append(project_model.workspace_path)
-                except Exception as exc:
-                    logger.warning("Failed to resolve project workspace for cron job %s: %s", job.id, exc)
+            effective_allowed_roots = await _resolve_effective_allowed_roots(job)
 
             params = GeneralAgentParams(
                 query=effective_prompt,
