@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - Real ``git`` runs against repositories whose config names marker-writing programs: each program vector fires on
-  the plain command and stays silent on the hardened one, while user-owned config keeps working.
+  the plain command and stays silent on the hardened one — including a bare repository nested in a working tree
+  and entered directly — while user-owned config keeps working.
 
 [POS]
 Enforcement tests for ``hardened_git_argv`` — the control run proves the vector is live on this git build, so a
@@ -130,6 +131,24 @@ class TestRepositoryProgramsAreNeutralised:
 
             assert fired(markers) == set(), f"submodule filter ran for `git {args[0]}`"
             assert hardened.returncode in (0, 1), hardened.stderr
+
+    @pytest.mark.parametrize("args", [("status", "--porcelain"), ("diff", "--stat")])
+    def test_bare_repository_nested_in_a_working_tree(
+        self, tmp_path: Path, markers: Path, args: tuple[str, ...]
+    ) -> None:
+        """A bare repository that names its own ``core.worktree`` is what git discovers when run from inside it."""
+        vendor = tmp_path / "vendor"
+        vendor.mkdir()
+        (vendor / "file.txt").write_text("one\n")
+        nested = tmp_path / "nested.git"
+        git(tmp_path, "init", "-q", "--bare", str(nested))
+        git(tmp_path, f"--git-dir={nested}", f"--work-tree={vendor}", "add", "file.txt")
+        git(nested, "config", "core.bare", "false")
+        git(nested, "config", "core.worktree", str(vendor))
+        git(nested, "config", "core.fsmonitor", program(markers, "fsmonitor"))
+        (vendor / "file.txt").write_text("one\ntwo\n")
+
+        _assert_vector(nested, markers, "fsmonitor", *args)
 
     def test_hooks_do_not_run(self, repo: Path, markers: Path) -> None:
         hook = repo / ".git" / "hooks" / "post-checkout"
