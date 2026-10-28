@@ -232,8 +232,9 @@ async def test_the_helper_runs_git_without_a_credential_prompt(repo: Path, monke
     real_run = subprocess.run
 
     def spy(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        if argv[-1] == "HEAD" and isinstance(kwargs.get("env"), dict):
-            environments.append(dict(kwargs["env"]))  # type: ignore[arg-type]
+        env = kwargs.get("env")
+        if argv[-1] == "HEAD" and isinstance(env, dict):
+            environments.append({str(key): str(value) for key, value in env.items()})
         return real_run(argv, **kwargs)  # type: ignore[call-overload,no-any-return]
 
     monkeypatch.setattr(subprocess, "run", spy)
