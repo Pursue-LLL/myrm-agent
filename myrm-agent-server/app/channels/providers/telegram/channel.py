@@ -43,10 +43,7 @@ from app.channels.core.credentials import (
 from app.channels.core.credentials import (
     credential_spec as build_credential_spec,
 )
-from app.channels.providers.telegram.notification import (
-    NotificationKwargs,
-    notification_kwargs,
-)
+from app.channels.providers.telegram.notification import NotificationKwargs, notification_kwargs
 from app.channels.reliability.retry import RetryConfig
 from app.channels.types import (
     ChannelCapabilities,
