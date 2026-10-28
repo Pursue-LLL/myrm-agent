@@ -1970,6 +1970,11 @@
     "diffTooLarge": "Die Änderung ist zu groß für einen zeilenweisen Vergleich. Vorher: {oldLines, plural, one {# Zeile} other {# Zeilen}}, nachher: {newLines, plural, one {# Zeile} other {# Zeilen}}."
   },
   "chat": {
+    "wakeupNotice": {
+      "degraded": "Eine Hintergrundaufgabe ist abgeschlossen. Automatische Folgeschritte sind pausiert – senden Sie eine Nachricht, um fortzufahren.",
+      "suppressed": "Eine Hintergrundaufgabe wurde abgeschlossen, während dieser Chat gestoppt war. Senden Sie eine Nachricht, um sie aufzugreifen.",
+      "failed": "Der automatische Folgeschritt zu einer abgeschlossenen Hintergrundaufgabe konnte nicht abgeschlossen werden. Senden Sie eine Nachricht, um fortzufahren."
+    },
     "specialtyRouting": {
       "codeSpecialty": "Code-Spezialisierung",
       "codeSpecialtyDesc": "Programmier-/Refaktorisierungs-/Debugging-Muster erkannt, automatisch an Code-Expertenmodell weitergeleitet",

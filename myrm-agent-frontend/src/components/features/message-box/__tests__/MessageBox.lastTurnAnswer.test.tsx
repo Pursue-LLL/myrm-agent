@@ -104,3 +104,27 @@ describe('MessageBox last-turn answer wiring', () => {
     expect(actionBarFlag(CONVERSATION[4])).toBe('false');
   });
 });
+
+describe('MessageBox wake notice rows', () => {
+  function renderNotice(kind: 'followup' | 'degraded' | 'suppressed') {
+    const note = message('wakeup_x', 'user', {
+      wakeupNotice: kind,
+      content: '<system_notification>raw</system_notification>',
+    });
+    storeMessages.current = [message('u1', 'user'), message('a1', 'assistant'), note];
+    return render(<MessageBox message={note} messageIndex={2} loading={false} isLast={false} />);
+  }
+
+  it('shows no bubble for the note that woke the agent and never its raw text', () => {
+    const { container } = renderNotice('followup');
+
+    expect(container.innerHTML).toBe('');
+  });
+
+  it.each(['degraded', 'suppressed'] as const)('shows a quiet line, not a user bubble, for a `%s` note', (kind) => {
+    renderNotice(kind);
+
+    expect(screen.getByTestId('wakeup-notice').getAttribute('data-kind')).toBe(kind);
+    expect(screen.queryByText(/system_notification/)).toBeNull();
+  });
+});

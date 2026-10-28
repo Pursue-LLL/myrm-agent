@@ -1970,6 +1970,11 @@
     "diffTooLarge": "This change is too large to compare line by line. Before: {oldLines, plural, one {# line} other {# lines}}, after: {newLines, plural, one {# line} other {# lines}}."
   },
   "chat": {
+    "wakeupNotice": {
+      "degraded": "A background task finished. Automatic follow-ups are paused for now; send a message to continue.",
+      "suppressed": "A background task finished while this chat was stopped. Send a message to pick it up.",
+      "failed": "The automatic follow-up on a finished background task did not complete. Send a message to continue."
+    },
     "specialtyRouting": {
       "codeSpecialty": "Code Specialty",
       "codeSpecialtyDesc": "Detected programming / refactoring / debugging features, routed silently to code expert model",

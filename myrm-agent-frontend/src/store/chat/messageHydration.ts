@@ -3,10 +3,11 @@
  * @/store/chat/clarificationState::normalizeHydratedClarification (POS: pending clarify restore)
  * @/components/features/message-box/memoryLifecyclePhases::resolveMessageCreatedAtMs (POS: message timestamp)
  * @/lib/utils/spillover::normalizeSpillover (POS: parked pasted-text metadata)
+ * @/lib/chat/wakeupNotice (POS: reading of the notes the server appends for settled background tasks)
  *
  * [OUTPUT]
  * parseMessages: Normalize persisted API messages into store Message objects (metadata, cited memory refs,
- *   system notice marker, parked pasted text).
+ *   system notice marker, wake notice kind, parked pasted text).
  *
  * [POS]
  * Pure hydration helpers for chat history; no store access.
@@ -16,6 +17,7 @@ import type { Message } from '@/store/chat/types';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
 import { normalizeSpillover } from '@/lib/utils/spillover';
+import { parseWakeupNoticeKind, WAKEUP_NOTICE_METADATA_KEY } from '@/lib/chat/wakeupNotice';
 
 /** Metadata keys the server sets on assistant rows it appends itself (its `SYSTEM_NOTICE_EXTRA_KEYS`). */
 const SYSTEM_NOTICE_METADATA_KEYS = ['background_job', 'voice_background_task'] as const;
@@ -56,6 +58,11 @@ export function parseMessages(raw: Message[]): Message[] {
 
     if (SYSTEM_NOTICE_METADATA_KEYS.some((key) => metadata[key] === true)) {
       parsed.isSystemNotice = true;
+    }
+
+    const wakeupNotice = parseWakeupNoticeKind(metadata[WAKEUP_NOTICE_METADATA_KEY]);
+    if (wakeupNotice) {
+      parsed.wakeupNotice = wakeupNotice;
     }
 
     if (parsed.clarification) {

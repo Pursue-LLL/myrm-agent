@@ -88,6 +88,9 @@ export interface CouncilResultView {
   error?: string;
 }
 
+/** What the server did with a settled background task: `followup` woke the agent, the others left the chat waiting for the user. */
+export type WakeupNoticeKind = 'followup' | 'degraded' | 'suppressed';
+
 export type Message = {
   messageId: string;
   /**
@@ -107,6 +110,8 @@ export type Message = {
   loading?: boolean;
   /** True for an assistant row the server appended on its own (background / voice task finished), not an answer to the turn. */
   isSystemNotice?: boolean;
+  /** Set on a user-role row the server wrote for a background task that settled: it is the system's note, not something the user typed. */
+  wakeupNotice?: WakeupNoticeKind;
   isCompactedSummaryView?: boolean;
   suggestions?: string[];
   sources?: Source[]; // 外部引用来源

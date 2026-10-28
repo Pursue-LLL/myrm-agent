@@ -9,6 +9,7 @@ import {
   resolveStreamLocale,
 } from '../streamHelpers';
 import { preloadNotificationCopy } from '@/lib/i18n/streamNotificationCopy';
+import { setGlobalTranslator } from '@/services/i18nToastService';
 
 describe('mergeMessageSources', () => {
   it('deduplicates by normalized final url after citation resolve', () => {
@@ -183,6 +184,12 @@ describe('getUserFriendlyError', () => {
     document.documentElement.lang = 'en-US';
     const result = await getUserFriendlyError('concurrency_limit', 'raw internal error');
     expect(result.message).toContain('Concurrency limit reached');
+  });
+
+  it('words a failed autonomous follow-up from the locale files, whatever the server sent', async () => {
+    setGlobalTranslator((key) => (key === 'chat.wakeupNotice.failed' ? 'follow-up did not complete' : key));
+    const result = await getUserFriendlyError('wake_turn_failed', 'The autonomous follow-up could not be completed.');
+    expect(result.message).toBe('follow-up did not complete');
   });
 
   it('passes through raw error for unknown kinds', async () => {

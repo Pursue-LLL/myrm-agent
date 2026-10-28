@@ -1970,6 +1970,11 @@
     "diffTooLarge": "變更太大，無法逐行比對。修改前 {oldLines, number} 行，修改後 {newLines, number} 行。"
   },
   "chat": {
+    "wakeupNotice": {
+      "degraded": "背景任務已完成。自動跟進已暫停，傳送訊息即可繼續。",
+      "suppressed": "你停止這次對話期間，背景任務已完成。傳送訊息即可接著處理。",
+      "failed": "背景任務完成後的自動跟進未能完成。傳送訊息即可繼續。"
+    },
     "specialtyRouting": {
       "codeSpecialty": "程式碼專長",
       "codeSpecialtyDesc": "命中程式碼編寫/重構/Debug特徵，已自動路由至程式碼專精模型",

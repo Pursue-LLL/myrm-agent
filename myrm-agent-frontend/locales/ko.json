@@ -1970,6 +1970,11 @@
     "diffTooLarge": "변경 내용이 너무 커서 줄 단위로 비교할 수 없습니다. 변경 전 {oldLines, number}줄, 변경 후 {newLines, number}줄."
   },
   "chat": {
+    "wakeupNotice": {
+      "degraded": "백그라운드 작업이 완료되었습니다. 자동 후속 처리가 일시 중지되었으니 메시지를 보내 계속하세요.",
+      "suppressed": "이 대화를 중지한 동안 백그라운드 작업이 완료되었습니다. 메시지를 보내면 이어서 처리합니다.",
+      "failed": "완료된 백그라운드 작업에 대한 자동 후속 처리가 끝나지 못했습니다. 메시지를 보내 계속하세요."
+    },
     "specialtyRouting": {
       "codeSpecialty": "코드 전문",
       "codeSpecialtyDesc": "프로그래밍/리팩토링/디버깅 특성을 감지하여 코드 전문 모델로 자동 라우팅했습니다",

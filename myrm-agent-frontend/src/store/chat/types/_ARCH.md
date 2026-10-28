@@ -22,7 +22,7 @@
 | `agentStream/part2.ts` | 核心 | SSE 事件（中段）                                                                                                                                                                                                                                    | ✅    |
 | `agentStream/part3.ts` | 核心 | SSE 事件（末段）                                                                                                                                                                                                                                    | ✅    |
 | `agentStream/union.ts` | 核心 | `AgentStreamEvent` union                                                                                                                                                                                                                            | ✅    |
-| `messages.ts`          | 核心 | `Message` / 历史 / @mention                                                                                                                                                                                                                         | ✅    |
+| `messages.ts`          | 核心 | `Message`（含后台完成通知种类 `WakeupNoticeKind`）/ 历史 / @mention                                                                                                                                                                                 | ✅    |
 | `chatState.ts`         | 核心 | `ChatState` + actions                                                                                                                                                                                                                               | ✅    |
 
 ## 依赖

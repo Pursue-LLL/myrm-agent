@@ -12,6 +12,8 @@ function message(messageId: string, role: Message['role'], extra: Partial<Messag
 const user = (id: string) => message(id, 'user');
 const answer = (id: string) => message(id, 'assistant');
 const notice = (id: string) => message(id, 'assistant', { isSystemNotice: true });
+const wakeNote = (id: string, kind: 'followup' | 'degraded' | 'suppressed') =>
+  message(id, 'user', { wakeupNotice: kind });
 
 describe('findLastTurnAnswerId', () => {
   it('returns the answer of the latest turn, not an earlier turn', () => {
@@ -42,5 +44,20 @@ describe('findLastTurnAnswerId', () => {
 
   it('picks the latest answer when the turn holds several', () => {
     expect(findLastTurnAnswerId([user('u1'), answer('a1'), answer('a2')])).toBe('a2');
+  });
+
+  it.each(['degraded', 'suppressed'] as const)(
+    'does not let a `%s` background note hide the answer before it, as the server skips it too',
+    (kind) => {
+      expect(findLastTurnAnswerId([user('u1'), answer('a1'), wakeNote('w1', kind)])).toBe('a1');
+    },
+  );
+
+  it('keeps the answer a follow-up note caused as the answer of the latest turn', () => {
+    expect(findLastTurnAnswerId([user('u1'), answer('a1'), wakeNote('w1', 'followup'), answer('a2')])).toBe('a2');
+  });
+
+  it('still treats a follow-up note without a reply yet as an unanswered turn', () => {
+    expect(findLastTurnAnswerId([user('u1'), answer('a1'), wakeNote('w1', 'followup')])).toBeNull();
   });
 });

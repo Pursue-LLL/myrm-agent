@@ -6,6 +6,7 @@
  * ./MarkdownContent (POS: Markdown answer renderer)
  * ./MessageActionBar (POS: Chat assistant message action surface)
  * ./userMessageResend (POS: Resend flows of a user bubble, retry of a failed send and edit-and-resend)
+ * ./WakeupNoticeRow (POS: Quiet transcript line for a settled background task that did not wake the agent)
  * components/features/task-card/{ImageTaskCard,VideoTaskCard} (POS: Async media task cards)
  *
  * [OUTPUT]
@@ -40,6 +41,7 @@ import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStag
 import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
+import { WakeupNoticeRow } from './WakeupNoticeRow';
 import { resendEditedUserMessage, retryFailedUserMessage } from './userMessageResend';
 import MarkdownContent from './MarkdownContent';
 import WaitingTtftIndicator from './WaitingTtftIndicator';
@@ -391,6 +393,11 @@ const MessageBox = ({
         timestamp={message.createdAt}
       />
     );
+  }
+
+  if (message.role === 'user' && message.wakeupNotice) {
+    // The note that woke the agent sits behind the reply it caused; the others leave the chat waiting for the user.
+    return message.wakeupNotice === 'followup' ? null : <WakeupNoticeRow kind={message.wakeupNotice} />;
   }
 
   if (message.role === 'user') {

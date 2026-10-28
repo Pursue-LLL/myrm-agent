@@ -11,6 +11,7 @@
  */
 
 import { getClarificationNotificationTitle, resolveStreamLocale } from '@/lib/i18n/streamNotificationCopy';
+import { translateI18nKey } from '@/services/i18nToastService';
 
 import type {
   Source,
@@ -170,6 +171,9 @@ interface FriendlyError {
 }
 
 export async function getUserFriendlyError(errorKind: ErrorKind | undefined, rawError: string): Promise<FriendlyError> {
+  if (errorKind === 'wake_turn_failed') {
+    return { message: translateI18nKey('chat.wakeupNotice.failed') };
+  }
   if (errorKind === 'concurrency_limit') {
     const isZh = typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh');
     return {

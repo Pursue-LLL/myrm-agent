@@ -109,6 +109,7 @@ export type ErrorKind =
   | 'safety_block'
   | 'response_format_error'
   | 'concurrency_limit'
+  | 'wake_turn_failed'
   | 'unknown';
 
 export interface DiagnosticResult {

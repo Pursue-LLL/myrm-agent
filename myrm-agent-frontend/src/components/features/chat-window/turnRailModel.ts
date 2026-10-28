@@ -15,6 +15,7 @@
  *
  * [POS]
  * 时间线导轨的纯函数模型，与 React 组件解耦，便于单测与复用。
+ * 后台任务完成后系统写入的通知行（`wakeupNotice`）不是用户发起的轮次，不进入导轨。
  */
 
 import type { Message } from '@/store/chat/types';
@@ -75,7 +76,7 @@ export function normalizeRailItems(messages: Message[], turnOutlines?: TurnOutli
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       const mId = String(msg.messageId || '');
-      if (msg.role === 'user' && mId && !outlineMsgIds.has(mId)) {
+      if (msg.role === 'user' && !msg.wakeupNotice && mId && !outlineMsgIds.has(mId)) {
         const cleanText = stripMarkdown(userMessageDisplayText(msg));
         items.push({
           turnIndex: nextTurnIndex++,
@@ -99,7 +100,7 @@ export function normalizeRailItems(messages: Message[], turnOutlines?: TurnOutli
   let currentTurn = 0;
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    if (msg.role === 'user' && msg.content) {
+    if (msg.role === 'user' && !msg.wakeupNotice && msg.content) {
       currentTurn++;
       const cleanText = stripMarkdown(userMessageDisplayText(msg));
       const msgId = String(msg.messageId || `turn-${currentTurn}`);

@@ -40,6 +40,8 @@ describe('turnRailModel', () => {
     it('falls back to extracting user turns from messages', () => fallbackCase());
 
     it('falls back to synthetic ids when message has no id', () => fallbackSyntheticIdCase());
+
+    it('never counts a background-task notice as a turn', () => wakeNoticeCase());
   });
 
   describe('calculateRailPitchWidth', () => {
@@ -121,4 +123,17 @@ function fallbackSyntheticIdCase() {
   } as unknown as Message;
   const items = normalizeRailItems([noId], undefined);
   expect(items[0].userMessageId).toBe('turn-1');
+}
+
+function wakeNoticeCase() {
+  const notice = {
+    ...msg('wakeup_followup_t1', 'user', '<system_notification/>', 2),
+    wakeupNotice: 'followup',
+  } as Message;
+  const messages: Message[] = [msg('u1', 'user', 'first', 0), msg('a1', 'assistant', 'reply', 1), notice];
+
+  // 大纲模式：通知行不被合成为 In-Flight 轮次
+  expect(normalizeRailItems(messages, [outline(1, 'u1', 'p1')])).toHaveLength(1);
+  // 降级模式：通知行不占轮次序号
+  expect(normalizeRailItems(messages, undefined)).toHaveLength(1);
 }

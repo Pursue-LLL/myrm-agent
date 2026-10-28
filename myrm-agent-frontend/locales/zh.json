@@ -1970,6 +1970,11 @@
     "diffTooLarge": "改动太大，无法逐行对比。修改前 {oldLines, number} 行，修改后 {newLines, number} 行。"
   },
   "chat": {
+    "wakeupNotice": {
+      "degraded": "后台任务已完成。自动跟进已暂停，发送消息即可继续。",
+      "suppressed": "你停止本次对话期间，后台任务已完成。发送消息即可接着处理。",
+      "failed": "后台任务完成后的自动跟进没有成功。发送消息即可继续。"
+    },
     "specialtyRouting": {
       "codeSpecialty": "代码专长",
       "codeSpecialtyDesc": "命中代码编写/重构/Debug特征，已自动路由至代码专精模型",
