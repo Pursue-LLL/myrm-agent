@@ -8911,6 +8911,7 @@
     "processingEmojiLabel": "Emoji wird verarbeitet",
     "completionEmojiLabel": "Abschluss-Emoji",
     "failureEmojiLabel": "Fehler-Emoji",
+    "reactionPlatformNote": "Einige Kanäle unterstützen nur eine feste Auswahl an Emojis. Ist das gewählte Emoji nicht verfügbar, wird das ähnlichste verwendet; passt keines, wird keine Reaktion angezeigt.",
     "channelConfigTitle": "Kanalkonfiguration",
     "channelConfigDesc": "Wählen Sie einen Kanal für die Konfiguration der Anmeldeinformationen und Verbindungstests aus.",
     "channelOverrideTitle": "Überschreibung der Kanalrichtlinie",

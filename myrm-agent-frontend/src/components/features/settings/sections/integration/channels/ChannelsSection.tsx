@@ -698,6 +698,10 @@ export default function ChannelsSection() {
               </div>
             </div>
           )}
+
+          {state.reactionLevel !== 'off' && (
+            <p className="text-xs leading-relaxed text-muted-foreground">{t('reactionPlatformNote')}</p>
+          )}
         </div>
       </SettingsSection>
     </div>

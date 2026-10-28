@@ -8911,6 +8911,7 @@
     "processingEmojiLabel": "处理中表情",
     "completionEmojiLabel": "完成表情",
     "failureEmojiLabel": "失败表情",
+    "reactionPlatformNote": "部分通道只支持固定的一组表情；不支持时会自动换成最接近的表情，没有合适的则不显示。",
     "channelConfigTitle": "通道配置",
     "channelConfigDesc": "选择一个通道进行凭证配置和连接测试。",
     "channelOverrideTitle": "策略覆盖",

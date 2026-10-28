@@ -8911,6 +8911,7 @@
     "processingEmojiLabel": "処理中表情",
     "completionEmojiLabel": "完了絵文字",
     "failureEmojiLabel": "失敗表情",
+    "reactionPlatformNote": "チャネルによっては使える絵文字が決まっています。選んだ絵文字が使えない場合は最も近いものに置き換わり、合うものがなければ表示されません。",
     "channelConfigTitle": "チャネル設定",
     "channelConfigDesc": "資格情報設定と接続テスト用にチャンネルを選択します。",
     "channelOverrideTitle": "ポリシー上書き",

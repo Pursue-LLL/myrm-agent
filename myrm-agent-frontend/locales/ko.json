@@ -8911,6 +8911,7 @@
     "processingEmojiLabel": "처리 이모지",
     "completionEmojiLabel": "완료 이모지",
     "failureEmojiLabel": "실패 이모지",
+    "reactionPlatformNote": "일부 채널은 지원하는 이모지가 정해져 있습니다. 선택한 이모지를 쓸 수 없으면 가장 가까운 이모지로 대체되고, 맞는 것이 없으면 표시되지 않습니다.",
     "channelConfigTitle": "채널 구성",
     "channelConfigDesc": "자격 증명 구성 및 연결 테스트를 위한 채널을 선택하세요.",
     "channelOverrideTitle": "채널 정책 재정의",

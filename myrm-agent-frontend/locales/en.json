@@ -8911,6 +8911,7 @@
     "processingEmojiLabel": "Processing Emoji",
     "completionEmojiLabel": "Completion Emoji",
     "failureEmojiLabel": "Failure Emoji",
+    "reactionPlatformNote": "Some channels only support a fixed set of emoji. If your pick isn't supported, the closest one is used instead; if none fits, no reaction is shown.",
     "channelConfigTitle": "Channel Configuration",
     "channelConfigDesc": "Select a channel for credential configuration and connection testing.",
     "channelOverrideTitle": "Channel Policy Override",
