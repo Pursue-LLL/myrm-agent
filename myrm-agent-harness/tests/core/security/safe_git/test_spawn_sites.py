@@ -90,11 +90,12 @@ _BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {
     ),
     "myrm_agent_harness/toolkits/wiki/portability/vault_git.py": (
         frozenset({_DYNAMIC}),
-        "assessed boundary, not a hardened site: the vault is an application-owned repository and `_ensure_repo` adopts "
-        "an existing `.git`, whose hooks then run on add/commit (measured: fsmonitor, post-commit and "
-        "reference-transaction ran); no path that places a foreign `.git` in the vault was found (imports scan only "
-        "`.md/.txt/.org` outside hidden directories, vault writes stay under `wiki/`, the macOS sandbox cannot write "
-        "the vault), so a new entry point that does must harden this flow first",
+        "assessed boundary, not a hardened site: the vault is an application-owned repository; a `.git` at its root "
+        "(`_ensure_repo` adopts it) and a repository nested below the root both make the commit flow run the programs "
+        "they name (measured: fsmonitor, post-commit and reference-transaction at the root, fsmonitor in a nested "
+        "repository); no route that places either was found (imports select no file inside hidden directories, the "
+        "macOS sandbox cannot write the vault), which is a reading of the code plus measurements and not a proof, so "
+        "a new entry point that writes into the vault must harden this flow first",
     ),
 }
 
