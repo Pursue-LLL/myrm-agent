@@ -8,7 +8,8 @@ Executors module for Agent-in-Sandbox mode.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Executors module for Agent-in-Sandbox mode. | — |
-| base.py | Core | Code executor base classes, including default file I/O, atomic replace file-write contract and `file_size` (regular-file size without reading content; refuses directories, FIFOs, devices and sockets). | ✅ |
+| base.py | Core | Code executor base classes, including default file I/O (`resolve_path` confines to the workspace plus granted directories), atomic replace file-write contract and `file_size` (regular-file size without reading content; refuses directories, FIFOs, devices and sockets). | ✅ |
+| granted_roots.py | Core | `granted_root_containing` / `refuse_write_into_readonly_grant`: the executor's boundary is the workspace plus the directories the user granted for this run (`session_access_roots_var`); a write into a directory granted read-only is refused (workspace paths never are), by `LocalFileOpsMixin._guard_write` (every mutation, `mkdir` included) and by the base class's shell-based writes. | ✅ |
 | gunzip.py | Core | `gunzip_bounded`: transparent `.gz` text reads decompress at most `MAX_GUNZIP_BYTES`, so one read cannot exhaust memory whatever the compression ratio. | ✅ |
 | middleware.py | Core | `CodeExecutorMiddleware`: decorator that forwards every executor operation to an inner executor; a new `CodeExecutor` operation must be forwarded here too. | ✅ |
 | execution_evidence.py | Core | Per-scope record that a process was actually launched; the verifier's PASS gate reads it. | ✅ |

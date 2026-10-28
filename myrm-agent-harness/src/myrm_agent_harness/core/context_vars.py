@@ -4,7 +4,7 @@ ContextVars defined here can be safely imported from any layer without
 introducing forbidden dependencies (e.g. toolkits/ → agent/).
 
 [INPUT]
-- (none — pure stdlib ContextVar definitions)
+- (none at runtime — stdlib ContextVar definitions; core.security.types::AccessRoot only for typing)
 
 [OUTPUT]
 - user_timezone_var: User timezone string (e.g. "Asia/Shanghai")
@@ -14,6 +14,7 @@ introducing forbidden dependencies (e.g. toolkits/ → agent/).
 - chat_id_var: Active chat/session id for per-session spill directories
 - approval_session_var: Approval-routing session key shared by agent/ and toolkits/
 - protected_paths_var: Goal-scoped protected path patterns every write channel must honour
+- session_access_roots_var: Directories the user granted for this run, beyond the workspace
 - current_tool_call_id_var: The call the tool body is running inside (set by the tool-call middleware)
 - approval_notes_var: The human's notes on this run's approvals, keyed by tool call id
 - publish_approval_notes / stash_approval_note / claim_approval_note: the note hand-off
@@ -29,6 +30,10 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.core.security.types import AccessRoot
 
 user_timezone_var: ContextVar[str | None] = ContextVar("user_timezone", default=None)
 datetime_injection_enabled_var: ContextVar[bool] = ContextVar("datetime_injection_enabled", default=True)
@@ -50,6 +55,11 @@ approval_session_var: ContextVar[str] = ContextVar("approval_session_key", defau
 # agent/middlewares/_session_context so the sandbox executor can enforce the same
 # rules as the file tools and the shell pre-flight without depending on agent/.
 protected_paths_var: ContextVar[tuple[str, ...]] = ContextVar("protected_paths", default=())
+
+# Directories the user granted for this run beyond the workspace, resolved and validated when granted
+# (agent/security/session_access.py owns the grants). Held here so the sandbox executor reaches the same
+# directories the permission engine judged by, without depending on agent/.
+session_access_roots_var: ContextVar[tuple[AccessRoot, ...]] = ContextVar("session_access_roots", default=())
 
 # The tool call the running tool body belongs to. The tool-call middleware sets it around
 # the dispatch so a gate can tell one call from another; tool bodies read it and never set it.

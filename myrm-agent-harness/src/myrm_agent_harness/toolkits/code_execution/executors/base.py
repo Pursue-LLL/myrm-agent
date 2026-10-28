@@ -7,6 +7,7 @@ Lifecycle: bind_workspace(path) -> execute()/execute_bash()/read_file()/... -> c
 
 [INPUT]
 - toolkits.code_execution.config::ExecutionConfig (POS: Code execution configuration layer. Defines execution modes, network policies, and runtime settings for the Agent-in-Sandbox architecture.)
+- toolkits.code_execution.executors.granted_roots (POS: the directories the user granted widen the workspace boundary; read-only ones refuse writes)
 
 [OUTPUT]
 - CodeExecutor: Abstract base class for code executors with async close lifecycle.
@@ -31,6 +32,10 @@ from contextvars import ContextVar, Token
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
+from myrm_agent_harness.toolkits.code_execution.executors.granted_roots import (
+    granted_root_containing,
+    refuse_write_into_readonly_grant,
+)
 from myrm_agent_harness.toolkits.code_execution.executors.gunzip import gunzip_bounded
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
@@ -187,7 +192,7 @@ class CodeExecutor(ABC):
 
     async def write_file_bytes(self, path: str, content: bytes) -> None:
         """Write binary content to a file."""
-        safe = await self.resolve_path(path)
+        safe = await self._resolve_for_write(path)
         await write_bytes_via_shell(self._exec_bash, safe, path, content)
 
     async def write_file_atomic(self, path: str, content: str) -> None:
@@ -221,12 +226,12 @@ class CodeExecutor(ABC):
 
     async def append_file(self, path: str, content: str) -> None:
         """Append text content to a file."""
-        safe = await self.resolve_path(path)
+        safe = await self._resolve_for_write(path)
         await write_bytes_via_shell(self._exec_bash, safe, path, content.encode(), append=True)
 
     async def delete_file(self, path: str) -> None:
         """Delete a file."""
-        safe = await self.resolve_path(path)
+        safe = await self._resolve_for_write(path)
         await self._exec_bash(f"rm -f {shlex.quote(safe)}")
 
     async def file_exists(self, path: str) -> bool:
@@ -265,7 +270,7 @@ class CodeExecutor(ABC):
 
     async def mkdir(self, path: str) -> None:
         """Create a directory (including parents)."""
-        safe = await self.resolve_path(path)
+        safe = await self._resolve_for_write(path)
         await self._exec_bash(f"mkdir -p {shlex.quote(safe)}")
 
     async def list_files(self, path: str = ".", pattern: str = "*") -> list[str]:
@@ -287,9 +292,15 @@ class CodeExecutor(ABC):
 
         from myrm_agent_harness.core.security.path import is_within_boundary
 
-        if not is_within_boundary(resolved, wp):
+        if not is_within_boundary(resolved, wp) and granted_root_containing(resolved) is None:
             raise ValueError(f"Path traversal detected: {relative_path} (workspace is {wp})")
         return str(resolved)
+
+    async def _resolve_for_write(self, path: str) -> str:
+        """``resolve_path`` for a mutation: a directory the user granted read-only refuses it."""
+        safe = await self.resolve_path(path)
+        refuse_write_into_readonly_grant(safe, self.workspace_path)
+        return safe
 
     async def is_available(self) -> bool:
         return True

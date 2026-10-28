@@ -5,11 +5,13 @@ infra.atomic_write::async_atomic_write (POS: Atomic file writing utility)
 core.security.path::is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_within_boundary (POS: path security domain)
 core.security.path.pattern::first_matching_pattern (POS: Path pattern matching — single source of truth for glob-style path protection)
 core.context_vars::protected_paths_var (POS: Foundation ContextVar registry)
+toolkits.code_execution.executors.granted_roots::refuse_write_into_readonly_grant (POS: read-only directory grants refuse writes)
 
 [OUTPUT]
 LocalFileOpsMixin: Mixin providing pathlib-based file I/O with a write guard that
-refuses credential paths, persona instruction files, read-only evidence and the
-active Goal's protected paths, alongside the executor's configured read-only roots.
+refuses credential paths, persona instruction files, read-only evidence, the
+active Goal's protected paths and directories granted read-only, alongside the
+executor's configured read-only roots. Directory creation takes the same guard.
 
 [POS]
 Native file operations for local executor. Provides zero-subprocess-overhead
@@ -26,6 +28,7 @@ from pathlib import Path
 
 from myrm_agent_harness.core.security.ocap import CapabilityAction, enforce_capability_access
 from myrm_agent_harness.infra.atomic_write import async_atomic_write
+from myrm_agent_harness.toolkits.code_execution.executors.granted_roots import refuse_write_into_readonly_grant
 from myrm_agent_harness.toolkits.code_execution.executors.gunzip import gunzip_bounded
 from myrm_agent_harness.toolkits.code_execution.interceptor import (
     trigger_destructive_action_hook,
@@ -100,6 +103,7 @@ class LocalFileOpsMixin:
         fail-closed direction for a surface that cannot ask.
         """
         enforce_capability_access(CapabilityAction.WRITE, resolved_path)
+        refuse_write_into_readonly_grant(resolved_path, self.workspace_path)  # type: ignore[attr-defined]
         if self._is_readonly(resolved_path):
             raise PermissionError(f"Write denied: path is read-only — {resolved_path}")
 
@@ -259,7 +263,7 @@ class LocalFileOpsMixin:
 
     async def mkdir(self, path: str) -> None:
         safe = await self.resolve_path(path)  # type: ignore[attr-defined]
-        enforce_capability_access(CapabilityAction.WRITE, safe)
+        self._guard_write(safe)
         Path(safe).mkdir(parents=True, exist_ok=True)
 
     async def list_files(self, path: str = ".", pattern: str = "*") -> list[str]:

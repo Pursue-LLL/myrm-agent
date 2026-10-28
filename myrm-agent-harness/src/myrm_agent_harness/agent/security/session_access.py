@@ -2,6 +2,7 @@
 
 [INPUT]
 - core.security.types::AccessRoot, PathPolicy
+- core.context_vars::session_access_roots_var (POS: the grants, shared with the sandbox executor)
 
 [OUTPUT]
 - get_session_access_roots / set_session_access_roots / grant_session_access_root
@@ -20,7 +21,6 @@ from __future__ import annotations
 
 import logging
 import os
-from contextvars import ContextVar
 from dataclasses import replace
 
 from myrm_agent_harness.agent.security.checks import check_path_policy
@@ -29,21 +29,20 @@ from myrm_agent_harness.agent.security.types import (
     PathPolicy,
     PermissionAction,
 )
+from myrm_agent_harness.core.context_vars import session_access_roots_var
 from myrm_agent_harness.core.security.tool_registry import host_file_paths
 
 logger = logging.getLogger(__name__)
 
 _MAX_GRANTS_PER_SESSION = 5
 
-_session_access_roots_var: ContextVar[tuple[AccessRoot, ...]] = ContextVar("session_access_roots", default=())
-
 
 def get_session_access_roots() -> tuple[AccessRoot, ...]:
-    return _session_access_roots_var.get()
+    return session_access_roots_var.get()
 
 
 def set_session_access_roots(roots: tuple[AccessRoot, ...]) -> None:
-    _session_access_roots_var.set(roots)
+    session_access_roots_var.set(roots)
 
 
 def resolve_grant_directory_path(
