@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-062 · 点「停止」后，被一并取消的后台子智能体在清理时又唤醒主智能体：服务端在停止之后自己追加一条续跑提示并起一轮没有取消令牌的运行
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（状态为 `CANCELLED` 的子智能体不再触发父智能体的异步唤醒；失败、超时、预算耗尽仍然唤醒）。 |
+| **发现时间** | 2026-10-28（评审 topic_10 #291 时追问「停止之后还有什么会重新开一轮」，用真实的 `SubagentManager` 与真实的自适应唤醒路由跑探针得到） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：不丢数据、不崩溃；但用户点了「停止」之后，服务端又自己续跑一轮，这一轮的运行没有取消令牌（`myrm-agent-server/app/services/agent/wakeup_handler.py:197`），界面上看来「停止没有停住」。探针结果：真实 `SubagentManager.cancel_all(include_detached=True)` 取消一个后台子智能体，唤醒被调用一次，参数里的状态是 `cancelled`；真实的自适应路由对同一个事件在没有手动停止标记时给出 `followup`。真实线上发生频率没有数据：本机开发库 3,069 条助手消息里没有任何取消记录；29 条唤醒行里有 8 条是「Async subagent 'bash_worker' … Cancelled」，但它们所在的聊天都以唤醒行开头，像是开发测试，不能归因到一次用户停止。 |
+| **关联产品** | roadmap topic_10 #291（第六轮）；`BUG-HARNESS-2026-10-28-058`（停止在静默的模型请求里读不到）。 |
+| **根因** | `SubagentManager._cleanup_child`（`agent/sub_agents/manager.py:436`）对每一个终态的子智能体都调用 `trigger_async_wakeup`，没有区分取消。用户停止时，运行收尾以 `include_detached=stats.was_cancelled` 取消子智能体（`agent/_internals/agent_runtime.py:748`），后台子智能体因此也被取消，它们的清理随即触发唤醒；服务端的处理器登记在 `myrm-agent-server/app/server/warmup.py:233`，自适应路由给出 `followup` 后，服务在聊天里追加一条 `Autonomous wake turn (n/3)` 提示并起一轮无令牌运行（`app/services/agent/adaptive_wakeup/service.py:152-183`）。路由里能压住这种唤醒的「用户已停止」标记只有手动按钮写得进去（`app/api/agents/adaptive_wakeup_router.py:78-83`），点「停止」不写它；它也没有自动清除的入口，所以把它接到「停止」上会让标记一直留着，这条路没有走。后台 bash 作业不受影响：被取消时 `kill_session_jobs` 杀掉作业，被杀的作业不发完成事件（`agent/meta_tools/bash/_tool/background_listeners.py:13`）。 |
+| **修复** | `agent/sub_agents/manager.py` 的 `_cleanup_child`：唤醒的条件加上 `result.status is not SubAgentStatus.CANCELLED`（两种取消路径都落在这个状态：任务被直接取消时 `:447-454` 构造 `CANCELLED`，执行器自己收尾时由 `agent/sub_agents/executor_retry_mixin.py:247` 返回 `CANCELLED`）。净增 0 行，文件保持在行数基线 591 行。取消的子智能体仍照常写入结果与拉取式通知，只是不再触发新的一轮。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 起初以为「停止会杀掉后台 bash 与子智能体，所以停止之后的唤醒已经被覆盖」，探针证明对子智能体不成立，只对 bash 成立。② 想过读 `_cancel_flags` 判断是不是用户取消：它在 `agent/sub_agents/_manager_spawn.py:208` 的 `finally` 里先被弹出，`_cleanup_child` 读不到；用结果状态判断更直接。③ 想过把「用户已停止」接到停止流程上：该标记没有自动清除的入口，会永久压住之后的合法唤醒，放弃。④ 前端只在已知事件类型清单里列了 `async_wakeup`，没有处理分支，所以跳过这个事件不影响界面。 |
+| **回归** | 新增 `tests/agent/sub_agents/test_manager_cancel_wakeup.py`（9 个，真实 `SubagentManager` 的清理路径，父智能体是只记录调用的桩）：未配置策略、`IMMEDIATE`、`GRACEFUL`（超时后强制取消）三种取消下不唤醒；执行器式「接住取消后返回 `CANCELLED` 结果」不唤醒；完成、失败（子任务抛异常）、超时、预算耗尽仍各唤醒一次。变异检查：去掉新条件后，4 个取消用例失败，5 个仍唤醒的用例照常通过。`tests/agent/sub_agents`、`tests/agent/test_base_agent_wakeup.py`、`tests/agent/coordination`：1513 通过、4 跳过。 |
+| **仍然存在** | ① 没有起真实服务端做「停止 → 无唤醒」的端到端验证；覆盖的是真实 `SubagentManager` 清理路径与桩父智能体，唤醒之后的服务端一段（路由、续跑）是此前用真实路由跑探针看到的，修复后该段不会被触达。② 子智能体被取消之后，用户希望父智能体继续处理其部分结果的场景不在此列：取消的子智能体不交付结果，拉取式通知仍在。③ 自适应唤醒里「宿主忙碌」状态没有任何生产代码设置（`set_host_activity` 无调用方），`INJECT` 通道走不到；这不属于本条，只记录。④ `mypy` 对 `manager.py` 报 3 处既有的类型错误（`:208`、`:212`、`:316`），不在本次改动的行里，没有处理。 |
+| **代码位置** | `agent/sub_agents/manager.py:436,545-548` · `agent/sub_agents/SUB_AGENT_SYSTEM.md` §17 · `agent/sub_agents/SUBAGENT_NOTIFICATION_STRATEGY.md` · `tests/agent/sub_agents/test_manager_cancel_wakeup.py` |
+
 ### BUG-HARNESS-2026-10-28-061 · 目录授权说的和执行器认的不是一回事：批准一次点名了工作区外路径的调用，执行器仍报 `Path traversal detected`；运行中授权的目录同一次运行里后面的节点看不到；bash 与后台进程碰不到授权目录；沙箱聊天的卡片照样给出文件夹授权；`.git/hooks` 与 `.git/config` 无人审批就能写
 
 | 字段 | 内容 |

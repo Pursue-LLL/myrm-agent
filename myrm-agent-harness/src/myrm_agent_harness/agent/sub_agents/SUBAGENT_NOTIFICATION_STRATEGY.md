@@ -17,7 +17,8 @@ Subagent completion uses **cache-safe delivery paths**: dynamic content never en
 1. **No dynamic `SystemMessage`** — subagent results must not append to the SystemMessage chain (see `PROMPT_CACHE_PRACTICE.md` §1253).
 2. **In-stream: SSE-only** — `StreamRecoveryContinuation._handle_subagent_notifications()` emits the event and returns `False` (no new turn, no `HumanMessage` append).
 3. **Background wakeup: user message** — `ServerWakeupHandler` calls `ChatService.ensure_chat_and_append_user_message()` with wrapped notification text; reloads as HumanMessage on the next run.
-4. **LLM retrieval guidance** — system prompt (`sub_agents/prompts.py`) and tool descriptions (`delegate_task_tool`, `subagent_control_tool`) instruct the model to call `subagent_control_tool` (mode=list) for async results.
+4. **A cancelled child never wakes the parent** — `SubagentManager._cleanup_child` skips `trigger_async_wakeup` when the child status is `CANCELLED` (user Stop, parent cancel, graceful-cancel timeout). Failed, timed-out and budget-cancelled children still wake it. Pull-based notifications for the cancelled child are unchanged.
+5. **LLM retrieval guidance** — system prompt (`sub_agents/prompts.py`) and tool descriptions (`delegate_task_tool`, `subagent_control_tool`) instruct the model to call `subagent_control_tool` (mode=list) for async results.
 
 ---
 

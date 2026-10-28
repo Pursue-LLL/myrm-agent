@@ -542,8 +542,8 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
                 ),
             )
 
-        # Idle Wakeup & Event-Driven Continuation (Trigger Parent Agent if supported)
-        if hasattr(self._parent_agent, "trigger_async_wakeup"):
+        # A cancelled child delivers no result, so it must not restart the parent.
+        if result.status is not SubAgentStatus.CANCELLED and hasattr(self._parent_agent, "trigger_async_wakeup"):
             # Trigger the parent agent with the background task result
             try:
                 # We do this asynchronously to avoid blocking cleanup
