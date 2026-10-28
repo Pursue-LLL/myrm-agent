@@ -10,7 +10,7 @@ capture group that holds the secret, so only the secret is replaced and the
 surrounding syntax (keys, quotes, flags, URL structure) stays intact.
 
 [INPUT]
-- core.security.redact.patterns (POS: Compiled regex patterns and the keyword guard shared with the runtime redactor)
+- core.security.redact.patterns (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 - core.security.redact.structured_fields (POS: Secret-named field detectors of the runtime redactor; its JSON member regex is the ``json_secret_field`` rule)
 
 [OUTPUT]

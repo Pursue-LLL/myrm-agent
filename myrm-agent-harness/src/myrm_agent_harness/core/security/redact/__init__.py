@@ -7,11 +7,15 @@ import surface: ``redact_sensitive_text``, ``redact_for_llm``,
 internal symbols re-exported by the ``agent.security.redact`` facade.
 
 [INPUT]
-- (none — aggregation facade)
+- engine::redact_sensitive_text, engine::redact_for_llm, engine::redact_for_display, engine::RedactingFormatter and the other public and internal symbols (POS: redaction pipeline and public API of the redactor)
+- patterns::_mask_token (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 
 [OUTPUT]
 - redact_sensitive_text / redact_for_llm / redact_for_display / escape_invisible_unicode / RedactingFormatter / set_redact_enabled — public API
 - _mask_token / _redact_pem_block / _redact_value_recursive / _replace_pattern_bounded — internal helpers
+
+[POS]
+Public facade of the redaction domain; ``agent/security/redact.py`` re-exports it.
 """
 
 from .engine import (

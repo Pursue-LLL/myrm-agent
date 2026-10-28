@@ -24,7 +24,7 @@ normally carry digits or run longer; the residual is a passphrase made of words
 and, rarely, a random URL-safe base64 value that happens to hold no digit.
 
 [INPUT]
-- patterns::_mask_token, patterns::_is_env_reference (POS: shared value masking and the variable-reference test of the redactor's pattern module)
+- patterns::_mask_token, patterns::_is_env_reference (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 
 [OUTPUT]
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)

@@ -2,15 +2,9 @@
 
 ## Overview
 
-Secret redaction domain — masks API keys, tokens, and credentials before they
-reach the LLM context or log files (Layer 2 output redaction). Four files by
-concern: `patterns.py` holds the compiled regexes (also consumed by
-`agent/skills/security/content_sanitizer.py`; the privacy tier's vendor-prefix
-table in `detection/leak_detector.py` is separate); `structured_fields.py`
-masks credential-named fields in JSON, JSON nested in a JSON string and Python
-repr diagnostics under one key policy; `engine.py` owns the bounded-replace
-pipeline and public APIs; `__init__.py` is the aggregation facade exposing the
-public `core.security.redact` import surface.
+Secret redaction domain — masks API keys, tokens and credentials before they reach the LLM context or log files (Layer 2 output redaction).
+`patterns.py` holds the compiled regexes and shared masking helpers, `structured_fields.py` masks credential-named fields in JSON, JSON nested in a JSON string and Python repr diagnostics under one key policy, `engine.py` owns the bounded-replace pipeline and public APIs.
+`__init__.py` is the aggregation facade exposing the public `core.security.redact` import surface.
 
 ## File & Submodule Index
 
@@ -23,7 +17,8 @@ public `core.security.redact` import surface.
 
 ## Key Dependencies
 
-- None within `core.security` (foundation layer)
+- None within `core.security` (foundation layer); the privacy tier's vendor-prefix table in `detection/leak_detector.py` is separate and maintained on its own
+- Inside the package: `__init__.py` imports `engine.py` and `patterns.py`; `engine.py` imports `patterns.py` and `structured_fields.py`; `structured_fields.py` imports `patterns.py`; `patterns.py` imports only `re`
 
 ## Consumers
 

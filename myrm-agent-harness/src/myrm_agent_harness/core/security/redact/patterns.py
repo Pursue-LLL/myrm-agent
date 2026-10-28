@@ -15,6 +15,10 @@ separately.
 - ``_mask_token`` / ``_redact_form_body`` / ``_redact_*_assignment`` — shared replacers
 - ``_is_env_reference`` — whether a value is entirely a variable reference (readable, never masked)
 - ``_is_word_start`` / ``_is_word_end`` / ``_key_has_secret_keyword`` — word-boundary key validation
+
+[POS]
+Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor; consumed by
+``engine.py``, ``structured_fields.py`` and ``agent/skills/security/content_sanitizer.py``.
 """
 
 from __future__ import annotations

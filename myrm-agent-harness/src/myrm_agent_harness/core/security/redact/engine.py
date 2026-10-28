@@ -5,7 +5,8 @@ before they reach the LLM context or log files. Acts as a second
 defense layer complementing ``sanitize_env`` (source removal).
 
 [INPUT]
-- (none — pure data + logic module)
+- patterns::_PREFIX_RE, patterns::_mask_token and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line (POS: structured-field detectors of the redaction engine)
 
 [OUTPUT]
 - redact_sensitive_text(text) -> str — apply all redaction patterns
@@ -16,6 +17,10 @@ defense layer complementing ``sanitize_env`` (source removal).
 
 Pattern definitions live in ``patterns.py``; this module owns the redaction
 engine (bounded replace, control-split guard, pipeline) and public APIs.
+
+[POS]
+Redaction pipeline and public API of the redactor; applies the pattern and
+structured-field detectors to tool output, error text, logs and approval displays.
 """
 
 from __future__ import annotations
