@@ -3,8 +3,8 @@
  * stopMessage must reach a turn the server started itself.
  *
  * Real scenario: a background subagent finishes while the chat is idle and the server wakes the agent. This client
- * never sent a message, so it holds no AbortController; the Stop button used to do nothing while the agent kept
- * working (and spending tokens).
+ * never sent a message, so it holds no AbortController; Stop has to reach the agent through the server, or the agent
+ * keeps working (and spending tokens).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
