@@ -1,7 +1,7 @@
 """Hardened git argv for the application's own, automatic git commands.
 
 [INPUT]
-- subprocess::run (POS: one short ``git config`` query per hardened command)
+- subprocess::run (POS: one short ``git config`` listing per hardened command, and a ``git rev-parse`` for a repository that names a work tree)
 
 [OUTPUT]
 - GitHardeningError: a repository's config cannot be neutralised safely, or sends git to work somewhere else, so git must not run
@@ -100,10 +100,11 @@ _HARDENED_KEYS = frozenset(item.partition("=")[0] for item in HARDENED_GIT_CONFI
 # become a prompt that stalls the command.
 HARDENED_GIT_ENV: Mapping[str, str] = MappingProxyType({"GIT_TERMINAL_PROMPT": "0"})
 
-# Per-name program keys: the names are chosen by the repository, so they are listed, not hard-coded. ``includeif`` is
-# listed to be refused: git evaluates its condition again in every child process. ``core.worktree`` is not a program;
-# it rides in the same listing so a repository that does not set it pays nothing more.
-_PROGRAM_KEY_PATTERN = (
+# Keys the repository controls that one listing must find: per-name program keys (the names are chosen by the
+# repository, so they are listed, not hard-coded), ``includeif`` (listed to be refused: git evaluates its condition
+# again in every child process) and ``core.worktree`` (not a program; it rides in the same listing so a repository that
+# does not set it pays nothing more).
+_REPOSITORY_KEY_PATTERN = (
     r"^(filter\..+\.(clean|smudge|process)|merge\..+\.driver"
     r"|lfs\.extension\..+\.(clean|smudge)|lfs\.customtransfer\..+\.path|includeif\..+\.path|core\.worktree)$"
 )
@@ -196,13 +197,13 @@ def _require_owned_worktree(repo_dir: str, env: Mapping[str, str] | None) -> Non
         raise GitHardeningError(f"Repository git configuration sends git to a work tree it does not own: {worktree!r}")
 
 
-def _repository_program_overrides(repo_dir: str, env: Mapping[str, str] | None, *, skip_filters: bool) -> list[str]:
+def _repository_overrides(repo_dir: str, env: Mapping[str, str] | None, *, skip_filters: bool) -> list[str]:
     """``-c`` overrides blanking every program the repository names, from one listing; refuses a repository whose
     configuration cannot be neutralised or sends git to a work tree it does not own."""
     completed = _query_git(
         repo_dir,
         env,
-        ("config", "--show-scope", "-z", "--get-regexp", _PROGRAM_KEY_PATTERN),
+        ("config", "--show-scope", "-z", "--get-regexp", _REPOSITORY_KEY_PATTERN),
         purpose="list repository git configuration",
     )
 
@@ -279,7 +280,7 @@ def hardened_git_argv(
     program_overrides = (
         []
         if args[0] in _FILTER_FREE_SUBCOMMANDS
-        else _repository_program_overrides(directory, env, skip_filters=_skips_blanked_filters(args))
+        else _repository_overrides(directory, env, skip_filters=_skips_blanked_filters(args))
     )
     argv = ["git"]
     for override in (*HARDENED_GIT_CONFIG, *program_overrides, *config):
