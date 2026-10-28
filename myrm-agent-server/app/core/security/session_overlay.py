@@ -10,8 +10,9 @@
 
 [POS]
 The persisted securityConfig is reloaded before every stream turn so a Settings change takes effect mid-session.
-The overlays that belong to the request (session preset, remote-exposed admission, /learn authoring) are kept as
-data on the agent and re-applied on top of every reload, so a saved config can never loosen them.
+The overlays that belong to the request (session preset, remote-exposed admission, /learn authoring, worktree
+isolation) are kept as data on the agent and re-applied on top of every reload, so a saved config can never
+loosen them.
 """
 
 from __future__ import annotations
@@ -90,6 +91,14 @@ def apply_session_preset(
     return merged
 
 
+def _lock_directory_grants(base: dict[str, object] | None) -> dict[str, object]:
+    """*base* with folder access locked: the agent stays in its workspace and declared roots, nothing can be granted."""
+    config = dict(base) if base else {}
+    path_policy = config.get("pathPolicy")
+    config["pathPolicy"] = {**(path_policy if isinstance(path_policy, dict) else {}), "allowDirectoryGrants": False}
+    return config
+
+
 class SecurityOverlaySpec(BaseModel):
     """The security overlays of one request, as plain data that survives serialization."""
 
@@ -99,9 +108,10 @@ class SecurityOverlaySpec(BaseModel):
     trust_zone: str | None = None
     admission_path: str | None = None
     learn_authoring: bool = False
+    sandbox_isolated: bool = False
 
     def apply(self, base: dict[str, object] | None) -> dict[str, object] | None:
-        """Layer the request overlays over *base* in the order: preset, remote admission, /learn authoring."""
+        """Layer the request overlays over *base*: preset, remote admission, /learn authoring, worktree isolation."""
         from app.core.channel_bridge.learn_handler import elevate_skill_manage_permission
         from app.remote_access.tool_policy import merge_remote_security_overlay
 
@@ -113,6 +123,8 @@ class SecurityOverlaySpec(BaseModel):
         )
         if self.learn_authoring:
             config = elevate_skill_manage_permission(config)
+        if self.sandbox_isolated:
+            config = _lock_directory_grants(config)
         return config
 
 

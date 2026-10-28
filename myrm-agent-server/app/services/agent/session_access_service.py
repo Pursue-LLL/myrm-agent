@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - bootstrap_session_access_roots / persist_chat_session_access_roots
-- grant_chat_session_access_root
+- grant_chat_session_access_root / DirectoryGrantRefusedError
 - revoke_chat_session_access_root
 - apply_directory_resume_grant
 - is_directory_grant_allowed_for_deployment
@@ -35,6 +35,10 @@ from myrm_agent_harness.agent.security.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class DirectoryGrantRefusedError(ValueError):
+    """A directory grant the deployment or the path policy refuses (sandbox mode, a write over a home directory)."""
 
 
 def access_roots_to_json(roots: tuple[AccessRoot, ...]) -> list[dict[str, object]]:
@@ -125,7 +129,11 @@ async def grant_chat_session_access_root(
     workspace_dir: str | None = None,
     sandbox_active: bool = False,
 ) -> tuple[AccessRoot, ...]:
-    """Add one session access root and persist to chat record."""
+    """Add one session access root and persist to chat record.
+
+    Raises ``DirectoryGrantRefusedError`` when the grant is refused; a folder the chat already holds (or one inside
+    a held folder, at the access asked for) is not a refusal.
+    """
     from app.services.chat.chat_service import ChatService
 
     chat = await ChatService.get_chat_metadata(chat_id)
@@ -135,16 +143,18 @@ async def grant_chat_session_access_root(
     persisted = access_roots_from_json(chat.session_access_roots)
     set_session_access_roots(persisted)
 
-    policy = _default_path_policy()
     _apply_validated_grant(
         raw_path,
         writable=writable,
         source=source,
         workspace_dir=workspace_dir,
         sandbox_active=sandbox_active,
-        policy=policy,
+        policy=_default_path_policy(),
     )
     updated = get_session_access_roots()
+    grant_path = resolve_grant_directory_path(raw_path, workspace_dir)
+    if not _holds_grant(updated, grant_path, writable=writable):
+        raise DirectoryGrantRefusedError(f"Folder access cannot be granted for this chat: {raw_path}")
     await persist_chat_session_access_roots(chat_id, updated)
     return updated
 
@@ -183,6 +193,11 @@ def _is_subpath(child: str, parent: str) -> bool:
     return child == parent or child.startswith(parent + os.sep)
 
 
+def _holds_grant(roots: tuple[AccessRoot, ...], grant_path: str, *, writable: bool) -> bool:
+    """Whether a held root already covers ``grant_path`` at the access asked for."""
+    return bool(grant_path) and any(_is_subpath(grant_path, root.path) and (root.writable or not writable) for root in roots)
+
+
 def is_directory_grant_allowed_for_deployment(
     grant_path: str,
     *,
@@ -190,11 +205,15 @@ def is_directory_grant_allowed_for_deployment(
     sandbox_active: bool,
     writable: bool = True,
 ) -> bool:
-    """Gate directory grants by deployment mode (cloud volume vs local desktop).
+    """Gate directory grants by deployment mode (sandbox worktree, cloud volume, local desktop).
 
+    A worktree-isolated chat refuses every grant: its file changes must stay in the temporary branch.
     ``writable`` selects the mount mode the gate checks: a write grant is also refused when it
     contains a dangerous root (a home directory, a drive root), a read-only grant is not.
     """
+    if sandbox_active:
+        return False
+
     from myrm_agent_harness.api.hooks import (
         MountMode,
         MountSpec,
@@ -259,10 +278,6 @@ async def apply_directory_resume_grant(
     workspace_dir: str | None = None,
 ) -> None:
     """Persist and bootstrap grants from path-ASK approval resume payloads."""
-    if sandbox_active:
-        logger.warning("Directory grant ignored: sandbox mode active (chat_id=%s)", chat_id)
-        return
-
     policy = _default_path_policy()
     granted = False
 

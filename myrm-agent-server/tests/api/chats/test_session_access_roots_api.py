@@ -30,7 +30,7 @@ async def async_client() -> httpx.AsyncClient:
         yield client
 
 
-async def _create_chat(chat_id: str) -> None:
+async def _create_chat(chat_id: str, *, sandbox_base_dir: str | None = None) -> None:
     from datetime import datetime, timezone
 
     from app.database.models.chat import Chat
@@ -44,6 +44,7 @@ async def _create_chat(chat_id: str) -> None:
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
             session_access_roots=[],
+            sandbox_base_dir=sandbox_base_dir,
         )
         db.add(chat)
         await db.commit()
@@ -107,3 +108,31 @@ async def test_session_access_roots_grant_and_revoke_api(
         json={"path": str(target_dir)},
     )
     assert bad_revoke_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_grant_the_server_refuses_answers_403_and_leaves_the_chat_unchanged(
+    async_client: httpx.AsyncClient,
+    tmp_path,
+) -> None:
+    sandbox_chat = f"test-grant-sandbox-{uuid.uuid4().hex[:8]}"
+    await _create_chat(sandbox_chat, sandbox_base_dir=str(tmp_path / "base"))
+    plain_chat = f"test-grant-plain-{uuid.uuid4().hex[:8]}"
+    await _create_chat(plain_chat)
+    folder = tmp_path / "dropped"
+    folder.mkdir()
+
+    in_sandbox = await async_client.post(
+        f"/api/v1/chats/{sandbox_chat}/session-access-roots", json={"path": str(folder), "writable": False}
+    )
+    over_home = await async_client.post(
+        f"/api/v1/chats/{plain_chat}/session-access-roots",
+        json={"path": os.path.expanduser("~"), "writable": True},
+    )
+
+    assert in_sandbox.status_code == 403
+    assert over_home.status_code == 403
+    still_empty = await async_client.post(
+        f"/api/v1/chats/{plain_chat}/session-access-roots", json={"path": str(folder), "writable": True}
+    )
+    assert [root["path"] for root in still_empty.json()["data"]["session_access_roots"]] == [os.path.realpath(str(folder))]

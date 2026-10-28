@@ -15,9 +15,11 @@ them, which keeps a caller from matching a half-remembered pattern list.
 - PROTECTED_INSTRUCTION_PATTERNS: tuple[str, ...] — persona/guardrail instruction files
 - EVIDENCE_READONLY_PATTERNS: tuple[str, ...] — read-only session evidence and user inputs
 - EXECUTABLE_GIT_METADATA: tuple[str, ...] — repo-relative entries a git client executes or trusts
+- EXECUTABLE_GIT_METADATA_PATTERNS: tuple[str, ...] — the same entries as match patterns, submodule git dirs included
 - is_sensitive_file(path) -> bool
 - is_protected_instruction_file(path) -> bool
 - is_evidence_readonly_file(path) -> bool
+- is_executable_git_metadata_file(path) -> bool
 
 [POS]
 Protected-path policy. Delegates matching to `pattern`, path coercion to `filesystem`.
@@ -33,9 +35,11 @@ from myrm_agent_harness.core.security.path.pattern import first_matching_pattern
 __all__ = (
     "EVIDENCE_READONLY_PATTERNS",
     "EXECUTABLE_GIT_METADATA",
+    "EXECUTABLE_GIT_METADATA_PATTERNS",
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
     "is_evidence_readonly_file",
+    "is_executable_git_metadata_file",
     "is_protected_instruction_file",
     "is_sensitive_file",
 )
@@ -137,6 +141,19 @@ EXECUTABLE_GIT_METADATA: tuple[str, ...] = (
     ".git/hooks",
 )
 
+# The entries above as match patterns, for a write gate that sees one path at a time: the entry itself, what lies
+# under it, and the same entries of a submodule's git directory (``.git/modules/<name>/``).
+EXECUTABLE_GIT_METADATA_PATTERNS: tuple[str, ...] = tuple(
+    pattern
+    for entry in EXECUTABLE_GIT_METADATA
+    for pattern in (
+        f"**/{entry}",
+        f"**/{entry}/**",
+        f"**/.git/modules/**/{entry.removeprefix('.git/')}",
+        f"**/.git/modules/**/{entry.removeprefix('.git/')}/**",
+    )
+)
+
 # ---------------------------------------------------------------------------
 # Predicates
 # ---------------------------------------------------------------------------
@@ -178,6 +195,17 @@ def is_protected_instruction_file(path: str) -> bool:
     if resolved == path:
         return False
     return first_matching_pattern(resolved, PROTECTED_INSTRUCTION_PATTERNS) is not None
+
+
+def is_executable_git_metadata_file(path: str) -> bool:
+    """Check if *path* is, or lies under, a git hook directory or a git config file.
+
+    A write there makes the next git call the host runs in that repository execute whatever was written, so a
+    write gate asks the human first. Matching ignores case: ``.GIT/Hooks`` is the same directory on APFS and NTFS.
+    """
+    if not path or not str(path).strip() or is_content_not_path(path):
+        return False
+    return first_matching_pattern(path, EXECUTABLE_GIT_METADATA_PATTERNS) is not None
 
 
 def is_evidence_readonly_file(path: str) -> bool:

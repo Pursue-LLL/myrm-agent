@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { toast as sonnerToast } from 'sonner';
 import { normalizeDesktopPath, useDesktopFolderDrop } from '../useDesktopFolderDrop';
 import * as tauriLib from '@/lib/tauri';
 import * as chatService from '@/services/chat';
@@ -107,5 +108,22 @@ describe('useDesktopFolderDrop', () => {
       optimistic: [{ path: '/Users/test/workspace', writable: true, source: 'desktop_drag_drop' }],
     });
     expect(onGranted).toHaveBeenCalledWith('/Users/test/workspace');
+  });
+
+  it('reports a folder the server refuses instead of showing it as granted', async () => {
+    (chatService.grantSessionAccessRoot as unknown as { mockRejectedValue: (v: unknown) => void }).mockRejectedValue(
+      new Error('Folder access cannot be granted for this chat'),
+    );
+
+    const onGranted = vi.fn();
+    const { result } = renderHook(() => useDesktopFolderDrop({ onFolderGranted: onGranted }));
+
+    await act(async () => {
+      await result.current.handleDroppedPaths(['/Users/test/workspace']);
+    });
+
+    expect(sonnerToast.error).toHaveBeenCalledTimes(1);
+    expect(sessionAccessRefresh.refreshSessionAccessRoots).not.toHaveBeenCalled();
+    expect(onGranted).not.toHaveBeenCalled();
   });
 });

@@ -119,10 +119,11 @@ def _parse_path_policy(raw: dict[str, object]) -> PathPolicy:
         {
             "forbiddenPaths": ["~/.ssh", "/etc/shadow"],
             "allowedRoots": ["~/.claude", "~/projects"],
-            "workspaceLabel": "My Projects"
+            "workspaceLabel": "My Projects",
+            "allowDirectoryGrants": false
         }
 
-    Missing fields use defaults.
+    Missing fields use defaults; ``allowDirectoryGrants`` is true unless it is explicitly false.
     """
     forbidden = _default_dangerous_paths()
     forbidden_raw = raw.get("forbiddenPaths")
@@ -143,6 +144,7 @@ def _parse_path_policy(raw: dict[str, object]) -> PathPolicy:
         forbidden_paths=forbidden,
         access_roots=access_roots_from_paths(allowed),
         workspace_label=workspace_label,
+        allow_directory_grants=raw.get("allowDirectoryGrants") is not False,
     )
 
 

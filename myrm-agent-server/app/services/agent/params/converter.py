@@ -991,7 +991,10 @@ async def convert_to_general_agent_params(
         logger.debug("Sweep of stale spill files failed for chat_id=%s", request.chat_id, exc_info=True)
 
     security_overlay = security_overlay.model_copy(
-        update={"learn_authoring": learn_authoring_prompt_text(final_query) is not None}
+        update={
+            "learn_authoring": learn_authoring_prompt_text(final_query) is not None,
+            "sandbox_isolated": bool(sandbox_base_dir or sandbox_worktree_dir),
+        }
     )
     security_config_dict = security_overlay.apply(security_config_dict)
 

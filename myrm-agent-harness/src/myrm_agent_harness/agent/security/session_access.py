@@ -30,6 +30,7 @@ from myrm_agent_harness.agent.security.types import (
     PermissionAction,
 )
 from myrm_agent_harness.core.context_vars import session_access_roots_var
+from myrm_agent_harness.core.security.path import covers_dangerous_path
 from myrm_agent_harness.core.security.tool_registry import host_file_paths
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,16 @@ def _realpath(path: str) -> str:
     return os.path.realpath(os.path.expanduser(path))
 
 
+def _grant_refused(grant_path: str, policy: PathPolicy, *, writable: bool) -> bool:
+    """Whether granting ``grant_path`` is refused outright, whatever the person answers.
+
+    A host that keeps the run inside its zones refuses every grant. A write grant that contains a dangerous root
+    (a home directory, ``/``) reaches it through the tree: the deployment gate refuses it after the person ticked
+    the folder, so it must not be offered. A read-only grant of the same folder cannot alter anything.
+    """
+    return not policy.allow_directory_grants or (writable and covers_dangerous_path(grant_path))
+
+
 def grant_session_access_root(
     root: AccessRoot,
     *,
@@ -105,6 +116,9 @@ def grant_session_access_root(
         return current
 
     if policy is not None:
+        if _grant_refused(normalized, policy, writable=root.writable):
+            logger.warning("Directory grant refused: %s", normalized)
+            return current
         block_reason = _grant_path_blocked_by_policy(
             normalized,
             policy,
@@ -141,9 +155,12 @@ def plan_directory_grants(
     One per directory of a file the call names outside the allowed zones; a write into a held read-only
     folder offers its upgrade to writable. Files inside the workspace or an allowed root need no grant, so
     a batched call does not spend the per-session grant limit on them; a directory the grant would be
-    refused (forbidden zone, limit reached) is not offered either, so the card never promises a folder the
-    grant then drops. ``policy`` is the effective one for the turn.
+    refused (forbidden zone, limit reached, a write over a home directory or a policy that allows no grants) is
+    not offered either, so the card never promises a folder the grant then drops. ``policy`` is the effective
+    one for the turn.
     """
+    if not policy.allow_directory_grants:
+        return []
     current = get_session_access_roots()
     held = {_realpath(root.path) for root in current}
     room = _MAX_GRANTS_PER_SESSION - len(current)
@@ -159,7 +176,9 @@ def plan_directory_grants(
         is_new = grant_path not in held
         if is_new and new_roots >= room:
             continue
-        if _grant_path_blocked_by_policy(grant_path, policy, workspace_root, require_write=writable):
+        if _grant_refused(grant_path, policy, writable=writable) or _grant_path_blocked_by_policy(
+            grant_path, policy, workspace_root, require_write=writable
+        ):
             continue
         planned[grant_path] = AccessRoot(path=grant_path, writable=writable, source="path_ask_grant")
         new_roots += is_new

@@ -298,19 +298,19 @@ def access_roots_from_paths(
 class PathPolicy:
     """Path-level access control for file operations.
 
-    Three-layer check: forbidden → access_roots → workspace.
-    forbidden_paths always wins (cannot be overridden by access_roots).
+    Three-layer check: forbidden → access_roots → workspace; ``forbidden_paths`` always wins and defaults to
+    ``security.path_security.DANGEROUS_PATHS``, the single source of truth for path-based security.
 
-    Default forbidden_paths comes from ``security.path_security.DANGEROUS_PATHS``
-    (single source of truth for all path-based security).
+    ``workspace_label`` is an optional human-readable workspace label the GUI shows.
 
-    ``workspace_label`` is an optional human-readable label for the workspace
-    (e.g., "My Projects", "Work") used by the GUI to display workspace context.
+    ``allow_directory_grants`` is False for a host that keeps a run inside its workspace and declared roots
+    (an isolated worktree): a path outside them is refused outright, and no folder access is offered or granted.
     """
 
     forbidden_paths: frozenset[str] = field(default_factory=_default_dangerous_paths)
     access_roots: tuple[AccessRoot, ...] = ()
     workspace_label: str | None = None
+    allow_directory_grants: bool = True
 
     @property
     def allowed_roots(self) -> tuple[str, ...]:

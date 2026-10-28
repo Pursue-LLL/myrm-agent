@@ -15,6 +15,7 @@ import re
 from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.security.path_security import (
+    is_executable_git_metadata_file,
     is_protected_instruction_file,
     is_sensitive_file,
     is_within_boundary,
@@ -50,7 +51,9 @@ def check_path_policy(
     Returns (ALLOW, "") if in a writable access root or workspace (when writing).
     Returns (ALLOW, "") for read-only roots when require_write is False.
     Returns (ASK, reason) for write attempts on read-only roots (triggers write escalation).
-    Returns (ASK, reason) if outside allowed zones, requiring user approval.
+    Returns (ASK, reason) if outside allowed zones, requiring user approval; (DENY, reason) instead when the
+    policy does not allow directory grants, since no approval could widen the zones.
+    Returns (ASK, reason) for a write to a protected instruction file or to git hook/config metadata.
     Relative paths are resolved against workspace_root when available.
     """
     # The executor reads ``/workspace/x`` as ``<workspace>/x``; judge the same file the tool will touch.
@@ -80,10 +83,19 @@ def check_path_policy(
     if workspace_root and _is_subpath(normalized, _normalize_path(workspace_root)):
         matched_writable = True
 
+    if not (matched_writable or matched_readonly) and not policy.allow_directory_grants:
+        return PermissionAction.DENY, f"Path outside allowed zones, and folder access cannot be granted: {raw_path}"
+
     if require_write and (is_protected_instruction_file(raw_path) or is_protected_instruction_file(normalized)):
         return (
             PermissionAction.ASK,
             f"Protected instruction file write requires human approval: {os.path.basename(raw_path)}",
+        )
+
+    if require_write and (is_executable_git_metadata_file(raw_path) or is_executable_git_metadata_file(normalized)):
+        return (
+            PermissionAction.ASK,
+            f"Git hook or config write requires human approval: {raw_path}",
         )
 
     if matched_writable:

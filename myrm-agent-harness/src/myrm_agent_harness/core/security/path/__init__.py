@@ -18,9 +18,10 @@ bypass the predicates that carry the security policy.
 
 [OUTPUT]
 - is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
-- is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file
+- is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_executable_git_metadata_file
 - DANGEROUS_PATHS, BLOCKED_DEVICE_NAMES, MAX_PATH_LENGTH
-- SENSITIVE_FILE_PATTERNS, PROTECTED_INSTRUCTION_PATTERNS, EVIDENCE_READONLY_PATTERNS, EXECUTABLE_GIT_METADATA
+- SENSITIVE_FILE_PATTERNS, PROTECTED_INSTRUCTION_PATTERNS, EVIDENCE_READONLY_PATTERNS
+- EXECUTABLE_GIT_METADATA, EXECUTABLE_GIT_METADATA_PATTERNS
 
 [POS]
 Aggregation facade for the path security domain.
@@ -63,6 +64,9 @@ from myrm_agent_harness.core.security.path.rules import (
     EXECUTABLE_GIT_METADATA as EXECUTABLE_GIT_METADATA,
 )
 from myrm_agent_harness.core.security.path.rules import (
+    EXECUTABLE_GIT_METADATA_PATTERNS as EXECUTABLE_GIT_METADATA_PATTERNS,
+)
+from myrm_agent_harness.core.security.path.rules import (
     PROTECTED_INSTRUCTION_PATTERNS as PROTECTED_INSTRUCTION_PATTERNS,
 )
 from myrm_agent_harness.core.security.path.rules import (
@@ -70,6 +74,9 @@ from myrm_agent_harness.core.security.path.rules import (
 )
 from myrm_agent_harness.core.security.path.rules import (
     is_evidence_readonly_file as is_evidence_readonly_file,
+)
+from myrm_agent_harness.core.security.path.rules import (
+    is_executable_git_metadata_file as is_executable_git_metadata_file,
 )
 from myrm_agent_harness.core.security.path.rules import (
     is_protected_instruction_file as is_protected_instruction_file,
@@ -83,6 +90,7 @@ __all__ = (
     "DANGEROUS_PATHS",
     "EVIDENCE_READONLY_PATTERNS",
     "EXECUTABLE_GIT_METADATA",
+    "EXECUTABLE_GIT_METADATA_PATTERNS",
     "MAX_PATH_LENGTH",
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
@@ -92,6 +100,7 @@ __all__ = (
     "is_content_not_path",
     "is_dangerous_path",
     "is_evidence_readonly_file",
+    "is_executable_git_metadata_file",
     "is_protected_instruction_file",
     "is_sensitive_file",
     "is_within_boundary",

@@ -17,6 +17,7 @@ from .messages import router as messages_router
 from .replay import router as replay_router
 from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
+from .session_access_roots import router as session_access_roots_router
 from .share import router as share_router
 from .thought_control import router as thought_control_router
 from .title import router as title_router
@@ -25,6 +26,7 @@ from .trash import router as trash_router
 from .turn import router as turn_router
 from .ui_interaction import router as ui_interaction_router
 from .zero_replay import router as zero_replay_router
+
 try:  # optional feature: its harness dependency may not be present yet
     from .command_matrix import router as command_matrix_router
 except ImportError:  # pragma: no cover - optional feature degradation
@@ -50,6 +52,7 @@ router.include_router(catchup_router)
 router.include_router(messages_router)
 router.include_router(memory_extract_router)
 router.include_router(core_router)
+router.include_router(session_access_roots_router)
 router.include_router(title_router)
 router.include_router(turn_router)
 router.include_router(loop_router)
@@ -77,4 +80,3 @@ if swarm_hud_router is not None:
     router.include_router(swarm_hud_router)
 
 __all__ = ["router"]
-

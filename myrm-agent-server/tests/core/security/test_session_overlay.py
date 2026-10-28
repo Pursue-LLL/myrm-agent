@@ -181,3 +181,31 @@ class TestSecurityOverlaySpec:
     def test_spec_is_immutable(self) -> None:
         with pytest.raises(ValueError):
             SecurityOverlaySpec().preset = "explore"  # type: ignore[misc]
+
+
+class TestSandboxIsolationOverlay:
+    """A worktree-isolated chat keeps the agent inside its workspace: no folder access can be granted."""
+
+    def test_isolation_locks_directory_grants_without_touching_other_path_policy_keys(self) -> None:
+        saved: dict[str, object] = {"pathPolicy": {"allowedRoots": ["~/skills"], "workspaceLabel": "Work"}}
+
+        result = SecurityOverlaySpec(sandbox_isolated=True).apply(saved)
+
+        assert result is not None
+        assert result["pathPolicy"] == {"allowedRoots": ["~/skills"], "workspaceLabel": "Work", "allowDirectoryGrants": False}
+        assert saved["pathPolicy"] == {"allowedRoots": ["~/skills"], "workspaceLabel": "Work"}
+
+    def test_isolation_applies_to_a_config_with_no_path_policy_and_to_no_config(self) -> None:
+        assert SecurityOverlaySpec(sandbox_isolated=True).apply(_SAVED)["pathPolicy"] == {"allowDirectoryGrants": False}  # type: ignore[index]
+        assert SecurityOverlaySpec(sandbox_isolated=True).apply(None) == {"pathPolicy": {"allowDirectoryGrants": False}}
+
+    def test_a_saved_config_cannot_loosen_the_lock(self) -> None:
+        saved: dict[str, object] = {"pathPolicy": {"allowDirectoryGrants": True}}
+
+        result = SecurityOverlaySpec(sandbox_isolated=True).apply(saved)
+
+        assert result is not None
+        assert result["pathPolicy"] == {"allowDirectoryGrants": False}
+
+    def test_without_isolation_the_saved_config_is_left_alone(self) -> None:
+        assert SecurityOverlaySpec().apply(_SAVED) is _SAVED
