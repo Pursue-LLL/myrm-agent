@@ -106,11 +106,16 @@ class TestFlagsFollowServerInfo:
         assert server.calls[0][1].get("method") is None
 
     @pytest.mark.asyncio
-    async def test_a_server_info_that_cannot_be_read_keeps_the_last_state(self) -> None:
+    @pytest.mark.parametrize(
+        "body",
+        [b"<html>proxy page</html>", b"", b"[]", b'{"status": 200}', b'{"data": null}', b'{"data": {}}'],
+        ids=["html", "empty", "list", "no-data", "null-data", "no-flags"],
+    )
+    async def test_a_server_info_without_the_flags_keeps_the_last_state(self, body: bytes) -> None:
         server = _FakeBlueBubbles()
         ch = await _running(server)
 
-        server.info_body = b"<html>proxy page</html>"
+        server.info_body = body
         assert await ch.health_check() is True
 
         assert (ch.private_api_available, ch.helper_connected) == (True, True)

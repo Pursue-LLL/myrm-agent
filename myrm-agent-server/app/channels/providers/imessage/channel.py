@@ -204,14 +204,14 @@ class IMessageChannel(BaseChannel):
         """Take private_api and helper_connected from a BlueBubbles server/info response.
 
         Called at start and by every health check, so the flags follow the server (the helper may connect after
-        start or drop later). A body that cannot be read keeps the last known state.
+        start or drop later). A body that cannot be read, or that carries neither flag, keeps the last known state.
         """
         try:
             data = resp.json().get("data", {})
         except Exception as exc:
             logger.debug("IMessageChannel: server/info body unreadable, keeping Private API state: %s", exc)
             return
-        if isinstance(data, dict):
+        if isinstance(data, dict) and ("private_api" in data or "helper_connected" in data):
             self._private_api_available = bool(data.get("private_api"))
             self._helper_connected = bool(data.get("helper_connected"))
 

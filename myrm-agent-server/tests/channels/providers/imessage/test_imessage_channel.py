@@ -199,7 +199,7 @@ class TestIMessageDiagnostics:
         ch._private_api_available = False
         ch._helper_connected = False
         issues = ch.collect_issues()
-        assert any("Private API is disabled" in i.message for i in issues)
+        assert any("Private API is disabled" in i.message and "quoted replies" in i.message for i in issues)
 
     def test_running_helper_disconnected(self) -> None:
         ch = _make_channel()
@@ -207,7 +207,7 @@ class TestIMessageDiagnostics:
         ch._private_api_available = True
         ch._helper_connected = False
         issues = ch.collect_issues()
-        assert any("Helper is disconnected" in i.message for i in issues)
+        assert any("Helper is disconnected" in i.message and "quoted replies" in i.message for i in issues)
 
 
 # ── Inbound: webhook ──────────────────────────────────────────

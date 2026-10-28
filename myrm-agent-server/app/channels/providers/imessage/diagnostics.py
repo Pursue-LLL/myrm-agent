@@ -14,6 +14,9 @@ from __future__ import annotations
 
 from app.channels.types import ChannelIssue, ChannelStatus, IssueKind, IssueSeverity
 
+# What BlueBubbles refuses without the Private API and its helper; the channel asks for none of these then.
+_UNAVAILABLE_FEATURES = "reactions, typing, read receipts, and quoted replies"
+
 
 def collect_imessage_issues(
     *,
@@ -58,7 +61,7 @@ def collect_imessage_issues(
                 ChannelIssue(
                     kind=IssueKind.CONFIG,
                     severity=IssueSeverity.WARNING,
-                    message="BlueBubbles Private API is disabled; reactions, typing, and read receipts are unavailable",
+                    message=f"BlueBubbles Private API is disabled; {_UNAVAILABLE_FEATURES} are unavailable",
                 )
             )
         elif not helper_connected:
@@ -66,7 +69,7 @@ def collect_imessage_issues(
                 ChannelIssue(
                     kind=IssueKind.RUNTIME,
                     severity=IssueSeverity.WARNING,
-                    message="BlueBubbles Private API Helper is disconnected; advanced messaging features may be limited",
+                    message=f"BlueBubbles Private API Helper is disconnected; {_UNAVAILABLE_FEATURES} are unavailable",
                 )
             )
     return issues

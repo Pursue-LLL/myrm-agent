@@ -32,6 +32,6 @@ iMessage bidirectional channel via BlueBubbles macOS HTTP API bridge.
 - Group chat wake-word regex matching and prefix cleaning for Prompt Caching efficiency
 - Tapback reactions mapped to standard reaction enum
 - Multipart attachment upload for media messages
-- BlueBubbles refuses Tapbacks, typing, read receipts and quoted replies unless `private_api` is on and the helper is connected (`checkPrivateApiStatus` in bluebubbles-server), so the channel asks for none of them otherwise; the state follows `/server/info` at every health check (the helper may connect late or drop), and an unreadable body keeps the last state
+- BlueBubbles refuses Tapbacks, typing, read receipts and quoted replies unless `private_api` is on and the helper is connected (`checkPrivateApiStatus` in bluebubbles-server), so the channel asks for none of them otherwise; the state follows `/server/info` at every health check (the helper may connect late or drop), and a body that is unreadable or carries neither flag keeps the last state
 - A skipped Tapback removal keeps its ledger entry, so a later removal still takes the Tapback off
 - Private API helper connectivity diagnostics reported in channel health issues
