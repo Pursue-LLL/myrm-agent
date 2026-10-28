@@ -32,6 +32,7 @@ class TestFieldNamePolicy:
             "private_key", "privateKey", "secret_key", "secret_value", "raw_secret", "secret_input", "key_material",
             "stripeSecretKey", "openaiApiKey", "dbPassword", "UserPassword", "sessionToken", "BRAVE_API_KEY",
             "SecretAccessKey", "secret_access_key", "aws_secret_access_key",
+            "passphrase", "ssh_passphrase", "keyStorePassPhrase", "pass-phrase",
             "appSecret", "app_secret", "feishuAppSecret", "signingSecret", "signing-secret", "SLACK_SIGNING_SECRET",
             "botToken", "bot_token", "telegram_bot_token", "verificationToken", "verification_token",
         ],
@@ -43,7 +44,8 @@ class TestFieldNamePolicy:
         "name",
         [
             "key", "tokenizer", "author", "nextPageToken", "pageToken", "csrfToken", "token_count", "max_tokens",
-            "password_policy", "passwordHint", "secretary", "status", "credentials", "githubToken", "keyboard",
+            "password_policy", "passwordHint", "passphraseHint", "passphrase_required", "secretary", "status",
+            "credentials", "githubToken", "keyboard",
             "file_token", "page_token", "nextToken", "cancel_token", "reply_token", "context_token", "state_token",
             "app_id", "app_name", "webhook_url", "secret_name", "bot_name", "signing_algorithm",
         ],
@@ -216,7 +218,7 @@ class TestChannelCredentials:
         assert value not in redact_sensitive_text(json.dumps({"appSecret": value}))
 
     @pytest.mark.parametrize(
-        "key", ["password", "api_key", "clientSecret", "bot_access_token", "secret", "authorization"]
+        "key", ["password", "passphrase", "api_key", "clientSecret", "bot_access_token", "secret", "authorization"]
     )
     def test_unambiguous_names_mask_a_label_shaped_value(self, key: str) -> None:
         """Only channel credential names get the label exemption; a password such as ``hunter two`` stays masked."""

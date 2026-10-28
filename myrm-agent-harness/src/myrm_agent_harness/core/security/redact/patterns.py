@@ -105,7 +105,7 @@ _PRIVATE_KEY_RE = re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?-----END
 
 # ── Contextual patterns (context-based detection) ────────────────
 
-_SECRET_ENV_NAMES = r"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH)"
+_SECRET_ENV_NAMES = r"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CREDENTIAL|AUTH)"
 # URL query 中的 `?token=` / `&token=` 是 URL 参数（由 _URL_QUERY_RE 处理），不是
 # ENV 赋值——负向后顾阻止贪婪吞掉 `&` 分隔的后续参数
 # （`?token=x&limit=50&page=2` 保持为 `?token=***&limit=50&page=2` 而非 `?token=***`）。
@@ -130,10 +130,10 @@ _ENV_ASSIGN_RE = re.compile(
 # （`openai_key_legacy=`），词边界校验兜底防 `db_pwx=` 类吞词误伤。
 # `(?<![?&])` 负向后顾（与 _ENV_ASSIGN_RE 一致）阻止 URL query 参数
 # （`?openai_key=`/`&openai_key=` 交给 _URL_QUERY_RE 处理），从而无需全局 URL 开关。
-# 前缀限长 `{1,64}`：无界 `[a-z0-9_.]+` 在无下划线长文本上逐位回溯 O(n²)（32KB
-# 纯文本 6s+），限长后恒 O(n·64)。
+# 前缀与后缀都限长 64：任一端无界，纯 `[a-z0-9_]` 长串（`key_key_…`）都会逐起点扫到串尾再回溯，
+# 耗时 O(n²)（8KB 14s）；限长后每个起点的工作量有常数上界，总耗时随长度线性增长。
 _ENV_ASSIGN_LOWER_RE = re.compile(
-    r"(?<![?&])([a-z0-9_.]{1,64}[_.](?:key|pass|pw|token|secret|password|passwd|credential|auth)[a-z0-9_]*)(?=[^a-z0-9_]|$)\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s&\"']+))",
+    r"(?<![?&])([a-z0-9_.]{1,64}[_.](?:key|pass|pw|token|secret|password|passwd|credential|auth)[a-z0-9_]{0,64})(?=[^a-z0-9_]|$)\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s&\"']+))",
     re.IGNORECASE,
 )
 
@@ -144,7 +144,7 @@ _ENV_ASSIGN_LOWER_RE = re.compile(
 # 覆盖 `auth: <secret>`，`author:`/`Authorization:` 由词边界校验（_key_has_secret_keyword）
 # 与 _AUTH_HEADER_RE 拦截，不误伤。可选引号保留引号结构：双引号支持 `\"` 转义，
 # 单引号支持 YAML `''` 转义，quoted 值含空格时整体捕获不部分泄漏。
-_YAML_CFG_NAMES = r"(?:api[ _.\-]?key|token|secret|passwd|password|credential|auth)"
+_YAML_CFG_NAMES = r"(?:api[ _.\-]?key|token|secret|passwd|password|pass[ _.\-]?phrase|credential|auth)"
 _YAML_ASSIGN_RE = re.compile(
     rf"(^[ \t]*+[A-Za-z0-9_.\-]*{_YAML_CFG_NAMES}[A-Za-z0-9_.\-]*+)([ \t]*+:[ \t]*+)((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\4)|(?:[^\s&\"']+))",
     re.IGNORECASE | re.MULTILINE,
@@ -155,9 +155,10 @@ _YAML_ASSIGN_RE = re.compile(
 # 副作用是 `secretary`/`tokenizer`/`authored` 等散文词也命中。keyword 只有落在词边界
 # （key 边缘、非字母旁、camelCase 转换、全大写缩写边界）才算凭据；内嵌于更长单词的
 # 不匹配。ALL-CAPS key 同样要求词边界——`MYTOKEN` 不匹配而 `MY_TOKEN` 匹配。
+# `passphrase` 排在 `pass` 之前：交替取最先匹配的分支，而 `pass` 后接字母过不了词尾校验。
 _KEY_KEYWORD_RE = re.compile(
     r"(?:api|auth|access|refresh|session|secret)[ _.\\-]?(?:key|token)"
-    r"|token|secret|passwd|password|pass|pw|credential|auth|key",
+    r"|token|secret|passwd|password|pass[ _.\-]?phrase|pass|pw|credential|auth|key",
     re.IGNORECASE,
 )
 
@@ -308,7 +309,7 @@ _URL_QUERY_RE = re.compile(rf"([?&](?:{_URL_QUERY_KEYS})=)([^&\s]+)", re.IGNOREC
 # 高频形式）与 `--api-key xxx`（空格分隔）；`--password=`/`--token=` 亦由
 # _ENV_ASSIGN_RE 覆盖（幂等）。
 _CLI_FLAG_RE = re.compile(
-    r"(--(?:api[-_]?key|hook[-_]?token|token|secret|password|passwd)(?:\s+|=))((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s\"']+))",
+    r"(--(?:api[-_]?key|hook[-_]?token|token|secret|password|passwd|pass[-_]?phrase)(?:\s+|=))((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s\"']+))",
     re.IGNORECASE,
 )
 

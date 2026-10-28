@@ -9,7 +9,7 @@ print diagnostics (pytest assertion introspection, final exception lines).
 One key policy serves all three. A field name is a credential when it is one of
 the bare credential words (``token``, ``secret``, ``bearer``, ``authorization``,
 ``cookie`` ...), or ends in an unambiguous credential noun (``api key``,
-``client secret``, ``refresh token``, ``secret access key``, ``password`` ...)
+``client secret``, ``refresh token``, ``secret access key``, ``password``, ``passphrase`` ...)
 in any spelling: snake, kebab, dotted, camel or Pascal case. Bare ``token`` and
 ``secret`` are not matched as suffixes, so pagination cursors such as
 ``nextPageToken``, identifiers such as ``file_token`` and metadata such as
@@ -71,6 +71,7 @@ _SUFFIX_NOUNS = "|".join(
         rf"(?:access|refresh|id|auth|session|bearer){_SEP}token",
         "password",
         "passwd",
+        rf"pass{_SEP}phrase",
     )
 )
 
