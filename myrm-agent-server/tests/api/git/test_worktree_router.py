@@ -24,9 +24,12 @@ from fastapi import FastAPI
 from httpx import ASGITransport
 
 from app.api.git.worktree_router import router as git_worktree_router
+from app.core.utils.errors import register_exception_handlers
+from app.core.utils.git_worktree import WorktreeErrorReason
 from app.services.git.worktree_service import (
     GitWorktreeInfo,
     GitWorktreeService,
+    WorktreeCreateFailed,
 )
 
 test_app = FastAPI()
@@ -104,6 +107,41 @@ async def test_create_worktree_success(async_client: httpx.AsyncClient) -> None:
         data = resp.json()
         assert data["branch"] == "experiment-v2"
         assert data["is_current"] is True
+
+
+@pytest.mark.asyncio
+async def test_create_worktree_refusal_carries_a_stable_code(async_client: httpx.AsyncClient) -> None:
+    refusal = WorktreeCreateFailed(WorktreeErrorReason.UNSAFE_REPOSITORY, "Failed to create worktree: unsafe")
+    with patch.object(GitWorktreeService, "create_worktree", new_callable=AsyncMock, side_effect=refusal):
+        resp = await async_client.post("/api/v1/git/worktrees", json={"branch": "lane"})
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == {"code": "unsafe-repository", "message": "Failed to create worktree: unsafe"}
+
+
+@pytest.mark.asyncio
+async def test_create_worktree_code_survives_the_global_error_handler() -> None:
+    """The product wires ``register_exception_handlers``; the frontend reads ``detail.code`` after it ran."""
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(git_worktree_router, prefix="/api/v1")
+    refusal = WorktreeCreateFailed(WorktreeErrorReason.BRANCH_EXISTS, "Failed to create worktree: branch-exists")
+
+    async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        with patch.object(GitWorktreeService, "create_worktree", new_callable=AsyncMock, side_effect=refusal):
+            resp = await client.post("/api/v1/git/worktrees", json={"branch": "lane"})
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["code"] == "branch-exists"
+
+
+@pytest.mark.asyncio
+async def test_create_worktree_plain_value_error_stays_a_message(async_client: httpx.AsyncClient) -> None:
+    with patch.object(GitWorktreeService, "create_worktree", new_callable=AsyncMock, side_effect=ValueError("bad input")):
+        resp = await async_client.post("/api/v1/git/worktrees", json={"branch": "lane"})
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "bad input"
 
 
 @pytest.mark.asyncio

@@ -39,7 +39,12 @@
     "touchedFilesTitle": "Session Touched Files",
     "searchFilesPlaceholder": "Filter touched files...",
     "allTypes": "All Types",
-    "noTouchedFilesFound": "No files matching criteria"
+    "noTouchedFilesFound": "No files matching criteria",
+    "createFailedUnsafeRepository": "This folder's git settings aren't safe to run, so no worktree was created. Clone the project fresh and try again.",
+    "createFailedBranchExists": "That branch name already exists. Choose another name.",
+    "createFailedAlreadyCheckedOut": "That branch is already open in another worktree.",
+    "createFailedPathExists": "A folder for this worktree already exists.",
+    "createFailedGeneric": "The worktree could not be created. Check that this workspace is a git repository and try again."
   },
   "curtain": {
     "board": {

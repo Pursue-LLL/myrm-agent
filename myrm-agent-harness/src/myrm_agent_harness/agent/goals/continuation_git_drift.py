@@ -4,7 +4,7 @@
 - .types::Goal, GoalStatus, ContinuationDecision (POS: Goal data types)
 - .protocols::GoalProvider (POS: Goal provider protocol)
 - agent.middlewares._session_context::get_workspace_root (POS: Workspace root accessor)
-- core.security.safe_git::hardened_git_argv_async (POS: git argv that runs no program the repository chose)
+- core.security.safe_git::hardened_git_argv_async / HARDENED_GIT_ENV (POS: git argv that runs no program the repository chose, and an environment in which a credential request fails instead of prompting)
 - asyncio.subprocess (POS: Git execution within workspace, no shell)
 
 [OUTPUT]
@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.security.safe_git import hardened_git_argv_async
+from myrm_agent_harness.core.security.safe_git import HARDENED_GIT_ENV, hardened_git_argv_async
 
 from .types import ContinuationDecision, GoalStatus
 
@@ -51,12 +52,15 @@ class GitDriftStatus:
 async def _run_git_cmd(args: list[str], cwd: str) -> tuple[int, str, str]:
     """Execute git without shell expansion, through the hardened argv.
 
-    A goal rebases with nobody watching, so the repository's own hooks, filters and transports must not run.
+    A goal rebases with nobody watching, so the repository's own hooks, filters and transports must not run and
+    nothing may wait for a person to answer a prompt.
     """
+    env = {**os.environ, **HARDENED_GIT_ENV}
     try:
         proc = await asyncio.create_subprocess_exec(
-            *await hardened_git_argv_async(args, repo_dir=cwd),
+            *await hardened_git_argv_async(args, repo_dir=cwd, env=env),
             cwd=cwd,
+            env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

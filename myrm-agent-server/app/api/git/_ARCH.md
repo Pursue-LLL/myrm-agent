@@ -6,5 +6,5 @@ Exposes REST endpoints for Git Worktree operations (list, create, switch, delete
 ## Components & Files
 | File | Role | Primary Consumers |
 |---|---|---|
-| `worktree_router.py` | FastAPI APIRouter for `/git` endpoints | `app/api/router.py` |
+| `worktree_router.py` | FastAPI APIRouter for `/git` endpoints; a refused create answers 400 with `detail={code, message}` (`code` is the `WorktreeErrorReason`, e.g. `unsafe-repository`) | `app/api/router.py` |
 | `__init__.py` | Package export facade | External importers |

@@ -39,7 +39,12 @@
     "touchedFilesTitle": "会话涉及的文件",
     "searchFilesPlaceholder": "筛选涉及的文件...",
     "allTypes": "全部类型",
-    "noTouchedFilesFound": "没有符合条件的文件"
+    "noTouchedFilesFound": "没有符合条件的文件",
+    "createFailedUnsafeRepository": "该文件夹的 git 设置存在安全风险，未创建工作树。请重新克隆该项目后再试。",
+    "createFailedBranchExists": "该分支名称已存在，请换一个名称。",
+    "createFailedAlreadyCheckedOut": "该分支已在另一个工作树中打开。",
+    "createFailedPathExists": "该工作树的目录已存在。",
+    "createFailedGeneric": "无法创建工作树。请确认当前工作区是 git 仓库后重试。"
   },
   "curtain": {
     "board": {

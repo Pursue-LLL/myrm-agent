@@ -52,6 +52,7 @@ describe('GitWorktreeDropdown', () => {
       activeWorktree: dummyWorktrees[0],
       loading: false,
       error: null,
+      errorReason: null,
       currentSessionAnchor: null,
       createModalOpen: false,
       fetchWorktrees: vi.fn(),
@@ -135,5 +136,47 @@ describe('GitWorktreeDropdown', () => {
         repo_path: undefined,
       });
     });
+  });
+
+  it.each([
+    ['unsafe-repository', 'createFailedUnsafeRepository'],
+    ['branch-exists', 'createFailedBranchExists'],
+    ['already-checked-out', 'createFailedAlreadyCheckedOut'],
+    ['path-exists', 'createFailedPathExists'],
+    ['not-git-repo', 'createFailedGeneric'],
+    ['error', 'createFailedGeneric'],
+  ] as const)('shows localized wording for a refused create (%s), not the server message', (reason, copyKey) => {
+    useWorktreeStore.setState({
+      createModalOpen: true,
+      error: 'Failed to create worktree: raw server text',
+      errorReason: reason,
+    });
+
+    render(<GitWorktreeDropdown />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(copyKey);
+    expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+  });
+
+  it('shows the stored message when the failure has no create reason', () => {
+    useWorktreeStore.setState({ createModalOpen: true, error: 'Failed to switch worktree', errorReason: null });
+
+    render(<GitWorktreeDropdown />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to switch worktree');
+  });
+
+  it('keeps the dialog open and names the failure when the create is refused', async () => {
+    const refused = vi.fn().mockRejectedValue(new Error('refused'));
+    useWorktreeStore.setState({ createModalOpen: true, createNewWorktree: refused });
+
+    render(<GitWorktreeDropdown />);
+    fireEvent.change(screen.getByLabelText(/branchName/i), { target: { value: 'lane' } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(refused).toHaveBeenCalled();
+    });
+    expect(useWorktreeStore.getState().createModalOpen).toBe(true);
   });
 });

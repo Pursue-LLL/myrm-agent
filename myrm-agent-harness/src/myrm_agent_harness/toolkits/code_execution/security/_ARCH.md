@@ -29,7 +29,7 @@ Execution security — shell command analysis, blacklists, validators, and C-lev
 | validator.py | Core | Unified security validator for code execution. | ✅ |
 | destructive_rules.py | Core | 细粒度破坏性命令静态规则分析器（rm/git/dd/mkfs/find/inline-script）与爆炸半径推导 | ✅ |
 | destructive_types.py | Core | 破坏性分析类型定义、不可逆常量命令集与爆炸半径数据结构 | ✅ |
-| workspace_snapshot.py | Core | 零拷贝原子工作区快照创建（create_workspace_snapshot）与一键撤销回滚（rollback_workspace_snapshot；回滚只接受完整提交哈希 `is_snapshot_commit_id`，且 git 经 `hardened_git_argv` 加固） | ✅ |
+| workspace_snapshot.py | Core | 零拷贝原子工作区快照创建（create_workspace_snapshot）与一键撤销回滚（rollback_workspace_snapshot；回滚只接受完整提交哈希 `is_snapshot_commit_id`，且 git 经 `hardened_git_argv` 加固，检出时并入 `HARDENED_GIT_ENV`） | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

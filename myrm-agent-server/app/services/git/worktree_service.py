@@ -9,6 +9,7 @@
 - GitWorktreeInfo: Pydantic model of a single git worktree
 - SessionCheckoutAnchorInfo: Pydantic model of session-to-worktree anchoring metadata
 - SessionTouchedFileInfo: Pydantic model of touched file items in session
+- WorktreeCreateFailed: ValueError carrying the stable ``WorktreeErrorReason`` a client maps to its own wording
 - GitWorktreeService / get_worktree_service(): Singleton accessor
 
 [POS]
@@ -30,6 +31,7 @@ from pydantic import BaseModel, Field
 
 from app.core.utils.git_worktree import (
     _GIT_ENV,
+    WorktreeErrorReason,
     _classify_git_error,
     _ensure_worktree_excluded,
     _remove_worktree,
@@ -38,6 +40,14 @@ from app.core.utils.git_worktree import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class WorktreeCreateFailed(ValueError):
+    """A worktree could not be created; ``reason`` is the code clients localise."""
+
+    def __init__(self, reason: WorktreeErrorReason, message: str) -> None:
+        super().__init__(message)
+        self.reason = reason
 
 
 class SessionTouchedFileInfo(BaseModel):
@@ -199,12 +209,15 @@ class GitWorktreeService:
         try:
             res = await _run_git(("worktree", "add", "-B", safe_branch, target_path, base_ref or "HEAD"), cwd=root, timeout=30)
         except GitHardeningError as exc:
-            raise ValueError(f"Failed to create worktree: git cannot be run safely in this repository - {exc}") from exc
+            raise WorktreeCreateFailed(
+                WorktreeErrorReason.UNSAFE_REPOSITORY,
+                f"Failed to create worktree: git cannot be run safely in this repository - {exc}",
+            ) from exc
 
         if res.returncode != 0:
             err = res.stderr.strip()
             reason = _classify_git_error(err)
-            raise ValueError(f"Failed to create worktree: {reason.value} - {err[:200]}")
+            raise WorktreeCreateFailed(reason, f"Failed to create worktree: {reason.value} - {err[:200]}")
 
         self._active_worktree_override[root] = target_path
         return GitWorktreeInfo(

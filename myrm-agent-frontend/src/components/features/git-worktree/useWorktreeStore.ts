@@ -1,7 +1,7 @@
 /**
  * Zustand Store for Git Worktree Management and Session Checkout Anchoring.
  *
- * [INPUT] zustand, ./worktreeTypes, ./worktreeService
+ * [INPUT] zustand, ./worktreeTypes, ./worktreeService, ./worktreeErrors
  * [OUTPUT] useWorktreeStore: Hook for state and actions across sidebar and session views.
  * [POS] src/components/features/git-worktree/useWorktreeStore.ts
  */
@@ -9,17 +9,19 @@
 import { create } from 'zustand';
 import type { CreateWorktreeDTO, GitWorktree, SessionCheckoutAnchor, WorktreeStore } from './worktreeTypes';
 import { worktreeService } from './worktreeService';
+import { WorktreeRequestError } from './worktreeErrors';
 
 export const useWorktreeStore = create<WorktreeStore>((set, get) => ({
   worktrees: [],
   activeWorktree: null,
   loading: false,
   error: null,
+  errorReason: null,
   currentSessionAnchor: null,
   createModalOpen: false,
 
   fetchWorktrees: async (repoPath?: string) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, errorReason: null });
     try {
       const list = await worktreeService.listWorktrees(repoPath);
       const active = list.find((w) => w.is_current) || list[0] || null;
@@ -31,7 +33,7 @@ export const useWorktreeStore = create<WorktreeStore>((set, get) => ({
   },
 
   switchActiveWorktree: async (worktreePath: string, repoPath?: string) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, errorReason: null });
     try {
       const switched = await worktreeService.switchWorktree(worktreePath, repoPath);
       const list = get().worktrees.map((w) => ({
@@ -60,7 +62,7 @@ export const useWorktreeStore = create<WorktreeStore>((set, get) => ({
   },
 
   createNewWorktree: async (dto: CreateWorktreeDTO): Promise<GitWorktree> => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, errorReason: null });
     try {
       const created = await worktreeService.createWorktree(dto);
       const list = [...get().worktrees.filter((w) => w.path !== created.path), created].map((w) => ({
@@ -76,13 +78,17 @@ export const useWorktreeStore = create<WorktreeStore>((set, get) => ({
       return created;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create worktree';
-      set({ error: msg, loading: false });
+      set({
+        error: msg,
+        errorReason: err instanceof WorktreeRequestError ? err.reason : 'error',
+        loading: false,
+      });
       throw err;
     }
   },
 
   removeWorktree: async (worktreePath: string, force = false) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, errorReason: null });
     try {
       await worktreeService.removeWorktree(worktreePath, force);
       const list = get().worktrees.filter((w) => w.path !== worktreePath);
@@ -143,6 +149,6 @@ export const useWorktreeStore = create<WorktreeStore>((set, get) => ({
   },
 
   resetError: () => {
-    set({ error: null });
+    set({ error: null, errorReason: null });
   },
 }));

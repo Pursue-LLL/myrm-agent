@@ -1,10 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { worktreeService } from '../worktreeService';
-import { apiRequest } from '@/lib/api';
+import { WorktreeRequestError } from '../worktreeErrors';
+import { ApiError, apiRequest } from '@/lib/api';
 
-vi.mock('@/lib/api', () => ({
-  apiRequest: vi.fn(),
-}));
+vi.mock('@/lib/api', () => {
+  class MockApiError extends Error {
+    constructor(
+      message: string,
+      public code: number,
+      public details: unknown[],
+      public traceId: string | undefined,
+      public businessCode?: string,
+    ) {
+      super(message);
+    }
+  }
+  return { apiRequest: vi.fn(), ApiError: MockApiError };
+});
 
 describe('worktreeService', () => {
   beforeEach(() => {
@@ -58,6 +70,38 @@ describe('worktreeService', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     expect(res).toEqual(created);
+  });
+
+  it('creates without the global error toast, the caller words the failure itself', async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ path: '/repo/.worktrees/x', branch: 'x' });
+
+    await worktreeService.createWorktree({ branch: 'x' });
+
+    expect(apiRequest).toHaveBeenCalledWith('/git/worktrees', expect.objectContaining({ silent: true }));
+  });
+
+  it('rejects with the server failure code instead of faking a created worktree', async () => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(
+      new ApiError('Failed to create worktree: unsafe', 400, [], undefined, 'unsafe-repository'),
+    );
+
+    const failure = await worktreeService.createWorktree({ branch: 'lane' }).catch((err: unknown) => err);
+
+    expect(failure).toBeInstanceOf(WorktreeRequestError);
+    expect((failure as WorktreeRequestError).reason).toBe('unsafe-repository');
+  });
+
+  it.each([
+    ['an unknown server code', new ApiError('boom', 500, [], undefined, 'something-new')],
+    ['a response without a code', new ApiError('boom', 500)],
+    ['a network failure', new Error('Failed to fetch')],
+  ])('maps %s to the generic failure and never to a created worktree', async (_label, error) => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(error);
+
+    const failure = await worktreeService.createWorktree({ branch: 'lane' }).catch((err: unknown) => err);
+
+    expect(failure).toBeInstanceOf(WorktreeRequestError);
+    expect((failure as WorktreeRequestError).reason).toBe('error');
   });
 
   it('switches worktree successfully', async () => {

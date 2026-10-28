@@ -5,37 +5,47 @@
 
 [OUTPUT]
 - GitHardeningError: a repository's config cannot be neutralised safely, so git must not run
-- HARDENED_GIT_CONFIG: ``-c`` overrides that switch off the programs git takes from fixed configuration keys, the network and signing
+- HARDENED_GIT_CONFIG: ``-c`` overrides that switch off the programs git and git-lfs take from fixed configuration keys, the network and signing
+- HARDENED_GIT_ENV: environment for commands that write the tree, so a credential request fails instead of prompting
 - hardened_git_argv / hardened_git_argv_async: full ``git`` argv for one command in one repository
 
 [POS]
 Foundation security primitive. A repository chooses programs git runs during ordinary commands —
 ``core.fsmonitor``, ``diff.external``, ``diff.<driver>.textconv|command``, ``filter.<name>.*``,
-``merge.<name>.driver``, and, whenever an object is missing from a partial clone, the remote's
-``uploadpack`` or ``core.sshCommand`` — so a folder that arrives with its ``.git`` directory can execute code the
-moment the application inspects or updates it, outside every sandbox and approval. Calls the application starts
-itself on a user- or agent-controlled working tree go through this argv; commands the user or agent types are
-governed by the sandbox and approvals instead, and a user's own global and system configuration is left alone.
+``merge.<name>.driver`` and, through git-lfs, credential helpers, ``core.askPass``, ``core.sshCommand``,
+``lfs.extension.<name>.*`` and ``lfs.customtransfer.<name>.path`` — so a folder that arrives with its ``.git``
+directory can execute code the moment the application inspects or updates it, outside every sandbox and approval.
+Calls the application starts itself on a user- or agent-controlled working tree go through this argv; commands the
+user or agent types are governed by the sandbox and approvals instead, and a user's own global and system
+configuration is left alone.
 
-Fixed keys are blanked with ``-c``; the repository-named ``filter.<name>`` and ``merge.<name>`` drivers are listed and
-blanked too. Every transport is refused, so an object a partial clone lacks is an error instead of a fetch.
-(``GIT_ALLOW_PROTOCOL``, if the operator exports it, takes precedence over configuration.) External diff and
-textconv cannot be blanked (git then fails with "cannot run"), so the patch-producing subcommands carry
-``--no-ext-diff --no-textconv`` instead. ``status`` and ``diff`` also stop descending into submodules' working trees:
-git runs a child ``status`` there that honours the submodule's own, separately stored configuration, which no
-override of the parent's listing can reach. The listing is one extra git process, so subcommands that only read
-objects (``rev-parse``, ``log``, ``show``…) skip it.
+Fixed keys are blanked with ``-c``; the ``filter.<name>``, ``merge.<name>``, ``lfs.extension.<name>`` and
+``lfs.customtransfer.<name>`` programs a repository names are listed and blanked too. A repository-local
+``includeIf`` is refused: git evaluates its condition again in every child process (for instance on a branch the
+command is about to create), so no listing can know which file it will pull in. Every git transport is refused, so an
+object a partial clone lacks is an error instead of a fetch. (``GIT_ALLOW_PROTOCOL``, if the operator exports it,
+takes precedence over configuration.) External diff and textconv cannot be blanked (git then fails with "cannot
+run"), so the patch-producing subcommands carry ``--no-ext-diff --no-textconv`` instead. ``status`` and ``diff`` also
+stop descending into submodules' working trees: git runs a child ``status`` there that honours the submodule's own,
+separately stored configuration, which no override of the parent's listing can reach (``submodule.recurse=false``
+does the same for the commands that update a tree). The listing is one extra git process, so subcommands that only
+read objects (``rev-parse``, ``log``, ``show``…) skip it.
 
 A filter that is switched off does not transform content (an LFS pointer, an encrypted blob). Commands whose result
 stays private or is raw by design (``status``, ``diff``, ``ls-files``, ``stash create``, and ``read-tree``, which puts
 back what ``stash create`` recorded) declare such a filter not required, so git carries on with the raw content. Every
 other command keeps the repository's own ``required`` flag: git then fails instead of committing or checking out
-content the filter would have transformed.
+content the filter would have transformed. A repository-local ``filter.lfs`` whose commands are exactly what
+``git lfs install`` writes is left active, because git-lfs is found on the user's PATH, which a repository cannot
+change.
 
-Out of reach: a program that git starts and that then reads the repository's own settings. git-lfs does — a
-repository-local ``lfs.extension.<name>.clean``, ``lfs.standalonetransferagent`` / ``lfs.customtransfer.<name>.path``
-and ``lfs.url`` make it run a program or connect to a host that the repository names, and the ``-c`` overrides here
-(which are for git's own keys) do not stop it. Only a machine with git-lfs installed is exposed.
+git-lfs is a separate program with its own transport, which ``protocol.<name>.allow`` does not govern: when an LFS
+object is missing locally it contacts the host the repository names. ``credential.helper``, ``core.askPass``,
+``core.sshCommand`` and ``lfs.standalonetransferagent`` are neutralised, so no program starts and the user's
+credential store is never asked (``core.sshCommand`` is ``false`` and not empty: an empty value makes git-lfs start
+the ``ssh`` found on PATH), and ``HARDENED_GIT_ENV`` makes git fail instead of prompting on a terminal. What remains
+is one unauthenticated request to a host the repository names. ``GIT_LFS_SKIP_SMUDGE`` is deliberately not set: it
+also replaces content git-lfs already holds locally with pointer files.
 """
 
 from __future__ import annotations
@@ -44,9 +54,11 @@ import asyncio
 import os
 import subprocess
 from collections.abc import Mapping, Sequence
+from types import MappingProxyType
 
 __all__ = [
     "HARDENED_GIT_CONFIG",
+    "HARDENED_GIT_ENV",
     "GitHardeningError",
     "hardened_git_argv",
     "hardened_git_argv_async",
@@ -64,11 +76,38 @@ HARDENED_GIT_CONFIG: tuple[str, ...] = (
     "gpg.x509.program=",
     "commit.gpgsign=false",
     *(f"protocol.{transport}.allow=never" for transport in _TRANSPORTS),
+    # git-lfs reads the repository's settings itself, so ``protocol.<name>.allow`` does not reach it. An empty
+    # ``credential.helper`` drops every helper configured so far, ``credential.<url>.helper`` included.
+    # ``core.sshCommand`` is ``false``, not empty: an empty value makes git-lfs start the ``ssh`` found on PATH.
+    "credential.helper=",
+    "core.askPass=",
+    "core.sshCommand=false",
+    "lfs.standalonetransferagent=",
+    # A submodule's own configuration is stored apart; no override of the parent's listing can reach it.
+    "submodule.recurse=false",
 )
 _HARDENED_KEYS = frozenset(item.partition("=")[0] for item in HARDENED_GIT_CONFIG)
 
-# Per-driver program keys: the driver names are chosen by the repository, so they are listed, not hard-coded.
-_PROGRAM_KEY_PATTERN = r"^(filter\..+\.(clean|smudge|process)|merge\..+\.driver)$"
+# A command that writes the tree can make git-lfs ask for credentials; with a controlling terminal that request would
+# become a prompt that stalls the command.
+HARDENED_GIT_ENV: Mapping[str, str] = MappingProxyType({"GIT_TERMINAL_PROMPT": "0"})
+
+# Per-name program keys: the names are chosen by the repository, so they are listed, not hard-coded. ``includeif`` is
+# listed to be refused: git evaluates its condition again in every child process.
+_PROGRAM_KEY_PATTERN = (
+    r"^(filter\..+\.(clean|smudge|process)|merge\..+\.driver"
+    r"|lfs\.extension\..+\.(clean|smudge)|lfs\.customtransfer\..+\.path|includeif\..+\.path)$"
+)
+_CONDITIONAL_INCLUDE_PREFIX = "includeif."
+# What ``git lfs install`` writes (``--skip-smudge`` adds ``--skip``). git-lfs is found on the user's PATH, which a
+# repository cannot change, so a repository-local filter with exactly these commands runs no program it chose.
+_STANDARD_LFS_COMMANDS: Mapping[str, frozenset[str]] = MappingProxyType(
+    {
+        "filter.lfs.clean": frozenset({"git-lfs clean -- %f"}),
+        "filter.lfs.smudge": frozenset({"git-lfs smudge -- %f", "git-lfs smudge --skip -- %f"}),
+        "filter.lfs.process": frozenset({"git-lfs filter-process", "git-lfs filter-process --skip"}),
+    }
+)
 # Subcommands that only read objects, never hash a working-tree file, so no ``filter.<name>`` driver can run and the
 # per-repository listing (one extra git process) is skipped. Anything not listed here pays for the listing.
 _FILTER_FREE_SUBCOMMANDS = frozenset({"rev-parse", "rev-list", "log", "show", "cat-file", "diff-tree", "ls-tree"})
@@ -105,7 +144,6 @@ def _repository_program_overrides(repo_dir: str, env: Mapping[str, str] | None, 
                 repo_dir,
                 "config",
                 "--show-scope",
-                "--name-only",
                 "-z",
                 "--get-regexp",
                 _PROGRAM_KEY_PATTERN,
@@ -131,13 +169,23 @@ def _repository_program_overrides(repo_dir: str, env: Mapping[str, str] | None, 
     if len(fields) % 2:
         raise GitHardeningError(f"Unexpected git configuration listing in {repo_dir}")
 
-    overrides: dict[str, None] = {}
-    for scope, key in zip(fields[0::2], fields[1::2], strict=True):
+    # key -> whether every occurrence is a standard LFS command (git uses the last occurrence, so one other is enough)
+    standard: dict[str, bool] = {}
+    for scope, entry in zip(fields[0::2], fields[1::2], strict=True):
         if scope not in _REPOSITORY_SCOPES:
             continue
-        if "=" in key or "\n" in key:
+        key, _, value = entry.partition("\n")
+        if key.startswith(_CONDITIONAL_INCLUDE_PREFIX):
+            raise GitHardeningError(f"Repository git configuration has a conditional include: {key!r}")
+        if "=" in key:
             # ``-c key=value`` splits on the first ``=``, so such a name could not be blanked reliably.
             raise GitHardeningError(f"Repository git configuration key cannot be neutralised: {key!r}")
+        standard[key] = standard.get(key, True) and value in _STANDARD_LFS_COMMANDS.get(key, ())
+
+    overrides: dict[str, None] = {}
+    for key, is_standard in standard.items():
+        if is_standard:
+            continue
         overrides[f"{key}="] = None
         if skip_filters and key.startswith("filter."):
             # A required filter with no command makes git fail instead of skipping it.

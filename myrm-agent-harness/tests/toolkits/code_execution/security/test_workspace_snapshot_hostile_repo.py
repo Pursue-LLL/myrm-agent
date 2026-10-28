@@ -118,3 +118,20 @@ def test_only_a_full_commit_id_ever_reaches_git(
 
     assert rollback_workspace_snapshot(workspace, snapshot_id) is False
     assert spawned == [], "git was spawned for a value that is not a commit id"
+
+
+def test_a_restore_never_waits_for_a_credential_prompt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Checking files out is where git-lfs may ask for credentials; with a terminal attached that would stall."""
+    workspace, snapshot_id = _workspace(tmp_path / "ws")
+    environments: list[dict[str, str]] = []
+    real_run = subprocess.run
+
+    def spy(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if "read-tree" in argv and isinstance(kwargs.get("env"), dict):
+            environments.append(dict(kwargs["env"]))  # type: ignore[arg-type]
+        return real_run(argv, **kwargs)  # type: ignore[call-overload,no-any-return]
+
+    monkeypatch.setattr(subprocess, "run", spy)
+
+    assert rollback_workspace_snapshot(workspace, snapshot_id)
+    assert [env.get("GIT_TERMINAL_PROMPT") for env in environments] == ["0"]

@@ -163,3 +163,23 @@ async def test_the_unattended_rebase_runs_no_hook_or_fsmonitor_the_repository_ch
     assert code == 0, stderr
     assert fired(markers) == set()
     assert (victim / "f.txt").read_text() == "dirty\n"
+
+
+@pytest.mark.asyncio
+async def test_the_unattended_rebase_never_waits_for_a_credential_prompt(tmp_path: Path) -> None:
+    """Nobody is there to answer: a credential request must fail, not wait on the terminal."""
+    seen: dict[str, object] = {}
+
+    async def fake_exec(*_argv: str, **kwargs: object) -> AsyncMock:
+        seen.update(kwargs)
+        process = AsyncMock()
+        process.communicate.return_value = (b"", b"")
+        process.returncode = 0
+        return process
+
+    with patch("asyncio.create_subprocess_exec", fake_exec):
+        await _run_git_cmd(["rebase", "@{u}"], str(tmp_path))
+
+    env = seen["env"]
+    assert isinstance(env, dict)
+    assert env["GIT_TERMINAL_PROMPT"] == "0"

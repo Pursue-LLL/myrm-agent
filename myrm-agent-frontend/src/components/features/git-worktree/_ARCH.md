@@ -7,7 +7,8 @@ Provides a sidebar multi-worktree switcher, session-to-checkout anchoring with m
 | File | Role | Primary Consumers |
 |---|---|---|
 | `worktreeTypes.ts` | Domain types for worktrees, anchors & touched files | Internal & UI consumers |
-| `worktreeService.ts` | Client API layer with safe offline fallback | `useWorktreeStore.ts` |
+| `worktreeErrors.ts` | `WorktreeRequestError`: the server's stable failure code for a refused worktree request | `worktreeService.ts`, `useWorktreeStore.ts` |
+| `worktreeService.ts` | Client API layer; creating a worktree rejects with `WorktreeRequestError` instead of faking success, the other calls keep their offline fallback | `useWorktreeStore.ts` |
 | `useWorktreeStore.ts` | Zustand store managing worktree list, active pointer & anchor synchronization | Dropdown & Banner |
 | `GitWorktreeDropdown.tsx` | Compact sidebar dropdown for switching & creating worktrees | Sidebar layout (`ChatSidebarContent`) |
 | `SessionCheckoutAnchorBanner.tsx` | Smart anchor banner alerting worktree drift on session load | Chat window & session detail |

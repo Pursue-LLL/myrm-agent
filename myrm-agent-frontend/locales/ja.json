@@ -39,7 +39,12 @@
     "touchedFilesTitle": "セッションで変更されたファイル",
     "searchFilesPlaceholder": "ファイルを絞り込み...",
     "allTypes": "すべての種類",
-    "noTouchedFilesFound": "条件に一致するファイルがありません"
+    "noTouchedFilesFound": "条件に一致するファイルがありません",
+    "createFailedUnsafeRepository": "このフォルダーの git 設定は安全に実行できないため、ワークツリーを作成しませんでした。プロジェクトを新しくクローンしてからやり直してください。",
+    "createFailedBranchExists": "そのブランチ名はすでに存在します。別の名前を選んでください。",
+    "createFailedAlreadyCheckedOut": "そのブランチはすでに別のワークツリーで開かれています。",
+    "createFailedPathExists": "このワークツリー用のフォルダーはすでに存在します。",
+    "createFailedGeneric": "ワークツリーを作成できませんでした。このワークスペースが git リポジトリであることを確認してやり直してください。"
   },
   "curtain": {
     "board": {

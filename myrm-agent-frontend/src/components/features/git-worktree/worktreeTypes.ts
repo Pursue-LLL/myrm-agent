@@ -41,11 +41,22 @@ export interface SessionCheckoutAnchor {
   created_at: string;
 }
 
+/** Stable failure codes of `POST /git/worktrees`; the UI owns the wording for each. */
+export type WorktreeFailureReason =
+  | 'unsafe-repository'
+  | 'branch-exists'
+  | 'already-checked-out'
+  | 'path-exists'
+  | 'not-git-repo'
+  | 'error';
+
 export interface WorktreeStoreState {
   worktrees: GitWorktree[];
   activeWorktree: GitWorktree | null;
   loading: boolean;
   error: string | null;
+  /** Set when `error` came from a failed create, so the UI can show localized wording instead of `error`. */
+  errorReason: WorktreeFailureReason | null;
   currentSessionAnchor: SessionCheckoutAnchor | null;
   createModalOpen: boolean;
 }

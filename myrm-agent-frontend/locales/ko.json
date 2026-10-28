@@ -39,7 +39,12 @@
     "touchedFilesTitle": "세션에서 다룬 파일",
     "searchFilesPlaceholder": "파일 필터...",
     "allTypes": "모든 유형",
-    "noTouchedFilesFound": "조건에 맞는 파일이 없습니다"
+    "noTouchedFilesFound": "조건에 맞는 파일이 없습니다",
+    "createFailedUnsafeRepository": "이 폴더의 git 설정은 안전하게 실행할 수 없어 워크트리를 만들지 않았습니다. 프로젝트를 새로 복제한 뒤 다시 시도하세요.",
+    "createFailedBranchExists": "이미 존재하는 브랜치 이름입니다. 다른 이름을 선택하세요.",
+    "createFailedAlreadyCheckedOut": "해당 브랜치는 이미 다른 워크트리에서 열려 있습니다.",
+    "createFailedPathExists": "이 워크트리용 폴더가 이미 존재합니다.",
+    "createFailedGeneric": "워크트리를 만들 수 없습니다. 이 워크스페이스가 git 저장소인지 확인한 뒤 다시 시도하세요."
   },
   "curtain": {
     "board": {

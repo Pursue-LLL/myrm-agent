@@ -22,6 +22,16 @@ import {
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useWorktreeStore } from './useWorktreeStore';
+import type { WorktreeFailureReason } from './worktreeTypes';
+
+const FAILURE_COPY_KEYS: Record<WorktreeFailureReason, string> = {
+  'unsafe-repository': 'createFailedUnsafeRepository',
+  'branch-exists': 'createFailedBranchExists',
+  'already-checked-out': 'createFailedAlreadyCheckedOut',
+  'path-exists': 'createFailedPathExists',
+  'not-git-repo': 'createFailedGeneric',
+  error: 'createFailedGeneric',
+};
 
 export interface GitWorktreeDropdownProps {
   className?: string;
@@ -38,6 +48,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
     activeWorktree,
     loading,
     error,
+    errorReason,
     createModalOpen,
     fetchWorktrees,
     switchActiveWorktree,
@@ -158,7 +169,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
           {activeWorktree?.is_dirty && (
             <span
               className="h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0"
-              title={t('dirtyChanges') || 'Uncommitted changes'}
+              title={t('dirtyChanges')}
             />
           )}
         </div>
@@ -181,7 +192,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
           )}
         >
           <div className="px-2.5 py-1.5 border-b border-border/40 text-[10px] text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-            <span>{t('worktrees') || 'Worktrees'}</span>
+            <span>{t('worktrees')}</span>
             <span className="font-mono text-[9px]">{worktrees.length}</span>
           </div>
 
@@ -237,7 +248,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
               )}
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>{t('newWorktree') || 'New Worktree'}</span>
+              <span>{t('newWorktree')}</span>
             </button>
           </div>
         </div>
@@ -257,7 +268,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
           <div className="flex items-center justify-between">
             <h3 id="worktree-create-modal-title" className="text-sm font-semibold flex items-center gap-1.5">
               <FolderGit2 className="h-4 w-4 text-primary" />
-              <span>{t('createTitle') || 'Create New Worktree'}</span>
+              <span>{t('createTitle')}</span>
             </h3>
             <button
               type="button"
@@ -265,22 +276,27 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
                 setCreateModalOpen(false);
               }}
               className="text-muted-foreground hover:text-foreground p-1 rounded-md"
-              aria-label={t('close') || 'Close'}
+              aria-label={t('close')}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
           {error && (
-            <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] flex items-center gap-1.5">
-              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{error}</span>
+            <div
+              role="alert"
+              className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] flex items-start gap-1.5"
+            >
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-px" />
+              <span className="min-w-0 break-words">
+                {errorReason ? t(FAILURE_COPY_KEYS[errorReason]) : error}
+              </span>
               <button
                 type="button"
                 onClick={resetError}
-                className="ml-auto text-xs underline"
+                className="ml-auto flex-shrink-0 text-xs underline"
               >
-                {t('dismiss') || 'Dismiss'}
+                {t('dismiss')}
               </button>
             </div>
           )}
@@ -288,7 +304,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
           <form onSubmit={handleCreateSubmit} className="flex flex-col gap-3">
             <div>
               <label htmlFor="wt-branch-input" className="block text-[11px] text-muted-foreground mb-1 font-medium">
-                {t('branchName') || 'Branch Name'}
+                {t('branchName')}
               </label>
               <input
                 id="wt-branch-input"
@@ -308,7 +324,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
 
             <div>
               <label htmlFor="wt-base-ref-input" className="block text-[11px] text-muted-foreground mb-1 font-medium">
-                {t('baseRef') || 'Base Ref (Branch or Commit)'}
+                {t('baseRef')}
               </label>
               <input
                 id="wt-base-ref-input"
@@ -333,7 +349,7 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
                 }}
                 className="px-3 py-1.5 text-xs rounded-lg hover:bg-muted text-muted-foreground"
               >
-                {t('cancel') || 'Cancel'}
+                {t('cancel')}
               </button>
               <button
                 type="submit"
@@ -346,10 +362,10 @@ export const GitWorktreeDropdown = memo(function GitWorktreeDropdown({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>{t('creating') || 'Creating...'}</span>
+                    <span>{t('creating')}</span>
                   </>
                 ) : (
-                  <span>{t('confirm') || 'Create Worktree'}</span>
+                  <span>{t('confirm')}</span>
                 )}
               </button>
             </div>

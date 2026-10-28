@@ -25,6 +25,7 @@ from app.services.git.worktree_service import (
     GitWorktreeService,
     SessionCheckoutAnchorInfo,
     SessionTouchedFileInfo,
+    WorktreeCreateFailed,
     get_worktree_service,
 )
 
@@ -88,6 +89,11 @@ async def create_worktree(
             worktree_path=body.worktree_path,
             base_ref=body.base_ref,
         )
+    except WorktreeCreateFailed as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": exc.reason.value, "message": str(exc)},
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

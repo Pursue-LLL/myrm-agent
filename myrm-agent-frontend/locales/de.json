@@ -39,7 +39,12 @@
     "touchedFilesTitle": "In der Sitzung berührte Dateien",
     "searchFilesPlaceholder": "Berührte Dateien filtern...",
     "allTypes": "Alle Typen",
-    "noTouchedFilesFound": "Keine passenden Dateien"
+    "noTouchedFilesFound": "Keine passenden Dateien",
+    "createFailedUnsafeRepository": "Die Git-Einstellungen dieses Ordners sind nicht sicher ausführbar, daher wurde kein Worktree erstellt. Klonen Sie das Projekt neu und versuchen Sie es erneut.",
+    "createFailedBranchExists": "Dieser Branch-Name existiert bereits. Wählen Sie einen anderen Namen.",
+    "createFailedAlreadyCheckedOut": "Dieser Branch ist bereits in einem anderen Worktree geöffnet.",
+    "createFailedPathExists": "Für diesen Worktree existiert bereits ein Ordner.",
+    "createFailedGeneric": "Der Worktree konnte nicht erstellt werden. Prüfen Sie, ob dieser Arbeitsbereich ein Git-Repository ist, und versuchen Sie es erneut."
   },
   "curtain": {
     "board": {

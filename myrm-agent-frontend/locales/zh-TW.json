@@ -39,7 +39,12 @@
     "touchedFilesTitle": "工作階段涉及的檔案",
     "searchFilesPlaceholder": "篩選涉及的檔案...",
     "allTypes": "全部類型",
-    "noTouchedFilesFound": "沒有符合條件的檔案"
+    "noTouchedFilesFound": "沒有符合條件的檔案",
+    "createFailedUnsafeRepository": "此資料夾的 git 設定存在安全風險，未建立工作樹。請重新複製該專案後再試。",
+    "createFailedBranchExists": "該分支名稱已存在，請換一個名稱。",
+    "createFailedAlreadyCheckedOut": "該分支已在另一個工作樹中開啟。",
+    "createFailedPathExists": "該工作樹的資料夾已存在。",
+    "createFailedGeneric": "無法建立工作樹。請確認目前工作區是 git 儲存庫後重試。"
   },
   "curtain": {
     "board": {

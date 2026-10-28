@@ -1,7 +1,7 @@
 """Shared git command helpers for worktree lifecycle (sandbox + kanban).
 
 [INPUT]
-- myrm_agent_harness.api.security::hardened_git_argv_async (POS: git argv that runs no program or transport the repository chose)
+- myrm_agent_harness.api.security::hardened_git_argv_async / HARDENED_GIT_ENV (POS: git argv that runs no program or transport the repository chose, and an environment in which a credential request fails instead of prompting)
 
 [OUTPUT]
 - _GIT_ENV: C-locale git environment for subprocess calls.
@@ -38,13 +38,14 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from myrm_agent_harness.api.security import hardened_git_argv_async
+from myrm_agent_harness.api.security import HARDENED_GIT_ENV, GitHardeningError, hardened_git_argv_async
 
 logger = logging.getLogger(__name__)
 
 # C-locale environment so git output stays byte-stable regardless of the
 # host locale (Chinese/other locales would otherwise localize git messages).
-_GIT_ENV: dict[str, str] = {**os.environ, "LANG": "C", "LC_ALL": "C"}
+# Hardened: nothing here may wait for a person to answer a credential prompt.
+_GIT_ENV: dict[str, str] = {**os.environ, "LANG": "C", "LC_ALL": "C", **HARDENED_GIT_ENV}
 
 # Per-base_dir merge locks shared by kanban and sandbox.  Git writes the
 # shared index in base_dir, so concurrent merges on the same repo race
@@ -203,6 +204,9 @@ async def _git_worktree_add(
             branch,
         )
         return worktree_path
+    except GitHardeningError as exc:
+        logger.warning("Refused to create %s worktree, git cannot be run safely: %s", context, exc)
+        return WorktreeCreateError(reason=WorktreeErrorReason.UNSAFE_REPOSITORY, message=str(exc)[:300])
     except Exception as exc:
         logger.warning("Failed to create %s worktree: %s", context, exc)
         return WorktreeCreateError(reason=WorktreeErrorReason.ERROR, message=str(exc)[:300])
@@ -373,6 +377,7 @@ class WorktreeErrorReason(str, Enum):
     ALREADY_CHECKED_OUT = "already-checked-out"
     PATH_EXISTS = "path-exists"
     NOT_GIT_REPO = "not-git-repo"
+    UNSAFE_REPOSITORY = "unsafe-repository"
     ERROR = "error"
 
 

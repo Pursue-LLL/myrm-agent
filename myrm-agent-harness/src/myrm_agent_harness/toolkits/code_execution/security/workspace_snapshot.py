@@ -20,13 +20,14 @@ Harness core execution security: workspace safety net and undo capability.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+from myrm_agent_harness.core.security.safe_git import HARDENED_GIT_ENV, hardened_git_argv
 
 logger = logging.getLogger(__name__)
 
@@ -183,13 +184,15 @@ def rollback_workspace_snapshot(workspace_path: Path | str, snapshot_id: str) ->
             return False
 
         # Attempt clean checkout / restore of the tree
+        env = {**os.environ, **HARDENED_GIT_ENV}
         restore_res = subprocess.run(
-            hardened_git_argv(("read-tree", "--reset", "-u", snapshot_id), repo_dir=wpath),
+            hardened_git_argv(("read-tree", "--reset", "-u", snapshot_id), repo_dir=wpath, env=env),
             cwd=str(wpath),
             capture_output=True,
             text=True,
             timeout=5.0,
             check=False,
+            env=env,
         )
         return restore_res.returncode == 0
 

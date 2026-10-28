@@ -6,5 +6,5 @@ Git services encapsulate multi-worktree lifecycle management, active worktree sw
 ## Components & Files
 | File | Role | Primary Callers |
 |---|---|---|
-| `worktree_service.py` | Worktree lifecycle (git runs through the hardened `_run_git`), active switching, checkout anchoring & touched files | `app/api/git/worktree_router.py` |
+| `worktree_service.py` | Worktree lifecycle (git runs through the hardened `_run_git`; a failed create raises `WorktreeCreateFailed` carrying the stable `WorktreeErrorReason`), active switching, checkout anchoring & touched files | `app/api/git/worktree_router.py` |
 | `__init__.py` | Export facade for git service layer | External modules |

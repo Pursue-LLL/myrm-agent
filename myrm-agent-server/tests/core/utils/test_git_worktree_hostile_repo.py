@@ -27,12 +27,13 @@ from myrm_agent_harness.api.security import GitHardeningError
 from app.core.utils import git_worktree
 from app.core.utils.git_worktree import (
     WorktreeCreateError,
+    WorktreeErrorReason,
     _git_worktree_add,
     _merge_branch_into_current,
     _run_git,
     _worktree_is_dirty,
 )
-from app.services.git.worktree_service import GitWorktreeService
+from app.services.git.worktree_service import GitWorktreeService, WorktreeCreateFailed
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX shell scripts and git"
@@ -189,8 +190,11 @@ async def test_a_repository_that_cannot_be_neutralised_is_reported_to_the_worktr
 
     monkeypatch.setattr("app.services.git.worktree_service._run_git", refuse)
 
-    with pytest.raises(ValueError, match="git cannot be run safely"):
+    with pytest.raises(ValueError, match="git cannot be run safely") as refused:
         await GitWorktreeService().create_worktree("lane", repo_path=str(repo))
+
+    assert isinstance(refused.value, WorktreeCreateFailed)
+    assert refused.value.reason is WorktreeErrorReason.UNSAFE_REPOSITORY
 
 
 @pytest.mark.asyncio
@@ -213,3 +217,49 @@ async def test_the_helper_passes_the_callers_config_after_the_hardened_overrides
     result = await _run_git(("config", "--get", "user.name"), cwd=str(repo), timeout=5, config=("user.name=Override",))
 
     assert result.stdout.strip() == "Override"
+
+
+@pytest.mark.asyncio
+async def test_the_helper_runs_git_without_a_credential_prompt(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Checking out a worktree can make git-lfs ask for credentials; the server has no one to answer."""
+    environments: list[dict[str, str]] = []
+    real_run = subprocess.run
+
+    def spy(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if argv[-1] == "HEAD" and isinstance(kwargs.get("env"), dict):
+            environments.append(dict(kwargs["env"]))  # type: ignore[arg-type]
+        return real_run(argv, **kwargs)  # type: ignore[call-overload,no-any-return]
+
+    monkeypatch.setattr(subprocess, "run", spy)
+
+    await _run_git(("rev-parse", "HEAD"), cwd=str(repo), timeout=5)
+
+    assert [env.get("GIT_TERMINAL_PROMPT") for env in environments] == ["0"]
+
+
+def _plant_conditional_include(repo: Path) -> None:
+    """A repository-local conditional include is the one config shape the helper cannot neutralise key by key."""
+    _git(repo, "config", "includeIf.onbranch:main.path", "/nonexistent/included.config")
+
+
+@pytest.mark.asyncio
+async def test_a_refused_repository_is_reported_as_unsafe_not_as_a_generic_failure(repo: Path, tmp_path: Path) -> None:
+    _plant_conditional_include(repo)
+    target = tmp_path / "wt"
+
+    outcome = await _git_worktree_add(str(repo), "lane", str(target), "wt", context="test")
+
+    assert isinstance(outcome, WorktreeCreateError)
+    assert outcome.reason is WorktreeErrorReason.UNSAFE_REPOSITORY
+    assert not target.exists()
+
+
+@pytest.mark.asyncio
+async def test_the_worktree_service_refuses_a_repository_with_a_conditional_include(repo: Path) -> None:
+    _plant_conditional_include(repo)
+
+    with pytest.raises(WorktreeCreateFailed) as refused:
+        await GitWorktreeService().create_worktree("lane", repo_path=str(repo))
+
+    assert refused.value.reason is WorktreeErrorReason.UNSAFE_REPOSITORY
+    assert not (repo / ".worktrees" / "lane").exists()
