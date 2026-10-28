@@ -5,7 +5,7 @@
  *
  * [OUTPUT]
  * loadOfflineQueue / saveOfflineQueue / clearOfflineQueue: the `localStorage` queue of changes that could not reach the backend.
- * takeUnpersistableOfflineEntries: lifts entries an older build wrote for non-allowlisted keys out of browser storage.
+ * takeUnpersistableOfflineEntries: lifts entries for non-allowlisted keys out of browser storage.
  * isNetworkError / isRecoverableSyncError: tell a transient failure (retry later) from a real one.
  *
  * [POS]
@@ -73,13 +73,13 @@ export function clearOfflineQueue(): void {
 
 /**
  * Removes entries for non-allowlisted keys from browser storage and returns them for in-memory replay.
- * An older build queued every key on disk; those leftovers must not wait there in clear text until the backend is
- * reachable again. Allowlisted entries are left in place.
+ * Such entries must not wait in browser storage in clear text until the backend is reachable again.
+ * Allowlisted entries are left in place.
  */
 export function takeUnpersistableOfflineEntries(): ConfigChange[] {
   const stored = loadOfflineQueue();
-  const legacy = stored.filter((change) => !isPersistable(change));
-  if (legacy.length === 0) {
+  const unpersistable = stored.filter((change) => !isPersistable(change));
+  if (unpersistable.length === 0) {
     return [];
   }
   try {
@@ -92,7 +92,7 @@ export function takeUnpersistableOfflineEntries(): ConfigChange[] {
   } catch (error) {
     console.warn('[ConfigSync] Failed to remove unpersistable offline entries:', error);
   }
-  return legacy;
+  return unpersistable;
 }
 
 export function isNetworkError(error: unknown): boolean {

@@ -52,8 +52,8 @@ class ConfigSyncManager {
   private cache: Map<ConfigKey, ConfigRecord> = new Map();
   private baseCache: Map<ConfigKey, ConfigRecord> = new Map();
   private changeQueue: ConfigChange[] = [];
-  /** 旧版本写进浏览器存储的非白名单条目：已从存储移出，只在内存里等待重放。 */
-  private legacyOfflineChanges: ConfigChange[] = [];
+  /** 非白名单键的待重放变更：不允许留在浏览器存储里，只在内存里等待重放。 */
+  private memoryOnlyOfflineChanges: ConfigChange[] = [];
   private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new ConfigListenerRegistry();
   private conflictResolver: ConfigConflictResolver | null = null;
@@ -101,8 +101,8 @@ class ConfigSyncManager {
     this._status = 'loading';
 
     try {
-      // 先于后端可达性检查：旧版本落盘的含密钥条目不能在后端不可达期间继续明文留在浏览器里。
-      this.legacyOfflineChanges.push(...takeUnpersistableOfflineEntries());
+      // 先于后端可达性检查：含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里。
+      this.memoryOnlyOfflineChanges.push(...takeUnpersistableOfflineEntries());
 
       if (isLocalMode()) {
         const ready = await ensureLocalBackendReady();
@@ -449,9 +449,9 @@ class ConfigSyncManager {
     }
   }
 
-  /** 待重放的离线变更：内存里的旧版本遗留条目 + 浏览器存储里的白名单条目。 */
+  /** 待重放的离线变更：内存里的非白名单条目 + 浏览器存储里的白名单条目。 */
   private collectOfflineChanges(): ConfigChange[] {
-    return [...this.legacyOfflineChanges, ...loadOfflineQueue()];
+    return [...this.memoryOnlyOfflineChanges, ...loadOfflineQueue()];
   }
 
   /** 服务端已前进的过期条目被丢弃（服务端值胜出）；其余乐观写入缓存后带着原基准版本同步。 */
@@ -461,7 +461,7 @@ class ConfigSyncManager {
     }
     console.warn(`[ConfigSync] Found ${pending.length} offline changes, syncing...`);
     const replayable = await partitionOfflineChanges(pending, this.cache, this.conflictResolver);
-    this.legacyOfflineChanges = [];
+    this.memoryOnlyOfflineChanges = [];
     clearOfflineQueue();
     if (replayable.length > 0) {
       this.applyPendingChangesToCache(replayable);
