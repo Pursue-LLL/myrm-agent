@@ -288,7 +288,7 @@ class RouterDeliveryMixin:
                 )
             await self._fx.stop_typing_keepalive(channel, chat_id)
             await self._fx.set_typing(channel, chat_id, composing=False)
-            await self._fx.set_reaction(channel, chat_id, message_id, "")
+            await self._fx.reactions.react(channel, chat_id, message_id, "")
 
         self._cleanups[key] = _CleanupEntry(
             cleanup=_do_cleanup,

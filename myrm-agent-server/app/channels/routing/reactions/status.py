@@ -1,7 +1,7 @@
 """The status reaction of one turn: a mark that the message was received, then exactly one verdict.
 
 [INPUT]
-- channels.routing.message_effects::MessageEffects (POS: best-effort reaction funnel with per-platform vocabulary negotiation)
+- channels.routing.reactions.funnel::ReactionFunnel (POS: best-effort reaction funnel with per-platform vocabulary negotiation)
 - channels.routing.router_models::ReactionPolicy (POS: which status reactions are on and the glyphs configured for them)
 
 [OUTPUT]
@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import enum
 
-from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.reactions.funnel import ReactionFunnel
 from app.channels.routing.router_models import ReactionPolicy
 
 # What a platform shows when it rejects the configured status glyph. A failure never falls back to a
@@ -50,13 +50,13 @@ class StatusReaction:
 
     def __init__(
         self,
-        effects: MessageEffects,
+        funnel: ReactionFunnel,
         policy: ReactionPolicy,
         channel: str,
         chat_id: str,
         message_id: str | None,
     ) -> None:
-        self._effects = effects
+        self._funnel = funnel
         self._policy = policy
         self._channel = channel
         self._chat_id = chat_id
@@ -70,12 +70,12 @@ class StatusReaction:
         """Start marking the message as received, when the policy asks for it and the platform accepts a glyph."""
         if self._marked or self._finished or not self._message_id or not self._policy.should_processing:
             return
-        glyph = self._effects.accepted_reaction(self._channel, self._policy.processing_emoji, _PROCESSING_FALLBACKS)
+        glyph = self._funnel.accepted(self._channel, self._policy.processing_emoji, _PROCESSING_FALLBACKS)
         if glyph:
             # Set before the request: a request that is cut short may still have reached the platform.
             self._marked = True
             self._mark_request = asyncio.get_running_loop().create_task(
-                self._effects.set_reaction(self._channel, self._chat_id, self._message_id, glyph)
+                self._funnel.react(self._channel, self._chat_id, self._message_id, glyph)
             )
 
     async def marked(self) -> None:
@@ -95,16 +95,16 @@ class StatusReaction:
         self._finished = True
         await self.marked()
         if self._marked:
-            await self._effects.set_reaction(self._channel, self._chat_id, self._message_id, "")
+            await self._funnel.react(self._channel, self._chat_id, self._message_id, "")
         glyph = self._verdict_glyph(outcome)
         if glyph:
-            await self._effects.set_reaction(self._channel, self._chat_id, self._message_id, glyph)
+            await self._funnel.react(self._channel, self._chat_id, self._message_id, glyph)
 
     def _verdict_glyph(self, outcome: TurnOutcome) -> str:
         if not self._policy.should_completion:
             return ""
         if outcome is TurnOutcome.COMPLETED:
-            return self._effects.accepted_reaction(self._channel, self._policy.completion_emoji, _SUCCESS_FALLBACKS)
+            return self._funnel.accepted(self._channel, self._policy.completion_emoji, _SUCCESS_FALLBACKS)
         if outcome is TurnOutcome.FAILED:
-            return self._effects.accepted_reaction(self._channel, self._policy.failure_emoji, _FAILURE_FALLBACKS)
+            return self._funnel.accepted(self._channel, self._policy.failure_emoji, _FAILURE_FALLBACKS)
         return ""

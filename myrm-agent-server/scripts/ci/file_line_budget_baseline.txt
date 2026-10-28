@@ -61,7 +61,6 @@ app/channels/providers/wecom/aibot_channel.py
 app/channels/providers/wecom/channel.py
 app/channels/routing/commands/commands.py
 app/channels/routing/commands/router_commands_approval.py
-app/channels/routing/message_effects.py
 app/channels/routing/policy_resolver.py
 app/channels/routing/router_stream.py
 app/channels/routing/stream_manager.py

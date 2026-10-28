@@ -11,8 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.channels.routing.message_effects import MessageEffects
-from app.channels.routing.reactions import StatusReaction, TurnOutcome
+from app.channels.routing.reactions import ReactionFunnel, StatusReaction, TurnOutcome
 from app.channels.routing.router_models import ReactionPolicy
 from tests.channels.providers.slack.test_slack_channel import _make_channel, _ok_json
 
@@ -23,7 +22,7 @@ def slack_status() -> Iterator[tuple[StatusReaction, AsyncMock]]:
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=slack)
     with patch.object(slack._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as post:
-        yield StatusReaction(MessageEffects(bus), ReactionPolicy(), "slack", "C1", "1.1"), post
+        yield StatusReaction(ReactionFunnel(bus), ReactionPolicy(), "slack", "C1", "1.1"), post
 
 
 def _calls(post: AsyncMock) -> list[tuple[str, str]]:

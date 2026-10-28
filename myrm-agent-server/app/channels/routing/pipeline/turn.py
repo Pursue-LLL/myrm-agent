@@ -125,7 +125,7 @@ class RouterTurnMixin:
                     if not is_resume:
                         await self._retire_open_approval(ctx)
 
-                    status = StatusReaction(self._fx, self._reaction_policy, msg.channel, chat_id, msg.message_id)
+                    status = StatusReaction(self._fx.reactions, self._reaction_policy, msg.channel, chat_id, msg.message_id)
                     status.received()
 
                     await self._execute_prepared_context(
@@ -283,5 +283,7 @@ class RouterTurnMixin:
                 friendly,
             )
         await self._fx.send_error_reply(exec_for_error, friendly)
-        verdict = status or StatusReaction(self._fx, self._reaction_policy, exec_for_error.channel, chat_id, msg.message_id)
+        verdict = status or StatusReaction(
+            self._fx.reactions, self._reaction_policy, exec_for_error.channel, chat_id, msg.message_id
+        )
         await verdict.finish(TurnOutcome.FAILED)

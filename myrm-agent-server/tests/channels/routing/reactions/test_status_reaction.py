@@ -12,8 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.channels.routing.message_effects import MessageEffects
-from app.channels.routing.reactions import StatusReaction, TurnOutcome
+from app.channels.routing.reactions import ReactionFunnel, StatusReaction, TurnOutcome
 from app.channels.routing.router_models import ReactionPolicy
 from app.channels.types import ChannelCapabilities, ReactionLevel
 
@@ -41,7 +40,7 @@ def _status(
     ch.react_to_message = AsyncMock()
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=ch)
-    status = StatusReaction(MessageEffects(bus), policy or ReactionPolicy(), "c", "chat", message_id)
+    status = StatusReaction(ReactionFunnel(bus), policy or ReactionPolicy(), "c", "chat", message_id)
     return status, ch.react_to_message
 
 

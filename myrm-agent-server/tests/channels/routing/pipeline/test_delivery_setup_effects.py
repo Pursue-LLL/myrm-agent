@@ -20,7 +20,7 @@ class _DeliveryHost(RouterDeliveryMixin):
 
     def __init__(self, policy: ReactionPolicy) -> None:
         self._fx: MessageEffects = MagicMock(
-            set_reaction=AsyncMock(),
+            reactions=MagicMock(react=AsyncMock()),
             send_placeholder=AsyncMock(return_value=None),
             set_typing=AsyncMock(),
             start_typing_keepalive=MagicMock(),
@@ -45,7 +45,7 @@ async def test_a_new_turn_leaves_the_processing_reaction_to_the_turn_ack() -> No
     deferred = await host._setup_message_effects(_message(), "telegram:chat-1", "chat-1", "m1", is_resume=False)
 
     try:
-        host._fx.set_reaction.assert_not_awaited()  # type: ignore[attr-defined]
+        host._fx.reactions.react.assert_not_awaited()  # type: ignore[attr-defined]
         assert isinstance(deferred, DeferredPlaceholder)
         assert "telegram:chat-1" in host._cleanups
     finally:

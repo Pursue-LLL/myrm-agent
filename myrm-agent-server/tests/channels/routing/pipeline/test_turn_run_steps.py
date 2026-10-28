@@ -173,7 +173,7 @@ async def test_reactions_follow_the_policy() -> None:
 
     await router._handle_merged(turn_msg())
 
-    router._fx.set_reaction.assert_not_awaited()
+    router._fx.reactions.react.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -187,7 +187,7 @@ async def test_a_message_without_a_platform_id_gets_no_reaction() -> None:
 
     await router._handle_merged(turn_msg(message_id=""))
 
-    router._fx.set_reaction.assert_not_awaited()
+    router._fx.reactions.react.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -199,7 +199,7 @@ async def test_a_turn_that_cannot_be_prepared_ends_quietly_and_still_frees_the_g
     await router._handle_merged(turn_msg())
 
     router._execute_prepared_context.assert_not_awaited()
-    router._fx.set_reaction.assert_not_awaited()
+    router._fx.reactions.react.assert_not_awaited()
     router._fx.send_error_reply.assert_not_awaited()
     journal.acknowledge.assert_called_once()
     router._gate.on_task_complete.assert_called_once()
@@ -254,7 +254,7 @@ async def test_a_failing_turn_sends_the_error_text_before_it_shows_the_failure_r
     router._execute_prepared_context = AsyncMock(side_effect=RuntimeError("boom"))
     order: list[str] = []
     router._fx.send_error_reply.side_effect = lambda *_: order.append("text")
-    router._fx.set_reaction.side_effect = lambda *args: order.append(f"reaction:{args[3] or 'off'}")
+    router._fx.reactions.react.side_effect = lambda *args: order.append(f"reaction:{args[3] or 'off'}")
 
     await router._handle_merged(turn_msg())
 

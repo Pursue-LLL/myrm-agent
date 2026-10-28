@@ -1,6 +1,6 @@
 """Message side-effect helpers for AgentRouter.
 
-Encapsulates typing indicators, reactions, placeholder management,
+Encapsulates typing indicators, placeholder management,
 and reply convenience methods. These are best-effort operations whose
 failures never fail the turn. Error replies use classified friendly messages
 instead of raw internal errors.
@@ -15,13 +15,14 @@ instead of raw internal errors.
 - channels.rendering.splitter::cap_stream_preview (POS: smart preview length cap for IM placeholders)
 - llms.errors.classifier::classify_error (POS: LLM error classification)
 - channels.routing.friendly_errors::friendly_error_message (POS: member-safe error wording with reference id)
+- channels.routing.reactions::ReactionFunnel (POS: the one place a reaction leaves the router)
 
 [OUTPUT]
-- MessageEffects: Helper for typing/keepalive/reaction/placeholder/reply/busy-ack operations
+- MessageEffects: Helper for typing/keepalive/placeholder/reply/busy-ack operations; ``reactions`` is its ReactionFunnel
 
 [POS]
 Message side-effect operations collection: every auxiliary channel interaction the router performs
-(typing, reactions, placeholders, replies, busy acks). Router holds an instance via composition.
+(typing, placeholders, replies, busy acks) and, through ``reactions``, its reactions. Router holds an instance via composition.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ from app.channels.reliability.retry import send_with_retry
 from app.channels.rendering.renderer import render
 from app.channels.rendering.splitter import cap_stream_preview
 from app.channels.routing.friendly_errors import friendly_error_message
+from app.channels.routing.reactions import ReactionFunnel
 from app.channels.types import (
     InboundMessage,
     MessagePriority,
@@ -49,10 +51,6 @@ from app.channels.types import (
 )
 
 logger = logging.getLogger(__name__)
-
-# A status reaction that keeps failing (missing permission, unsupported glyph) is reported once per
-# window per channel and error type; the turn never waits on or sees it.
-_REACTION_WARN_INTERVAL = 600.0
 
 
 def _reply_target(msg: InboundMessage) -> str | None:
@@ -64,16 +62,16 @@ def _reply_target(msg: InboundMessage) -> str | None:
 
 
 class MessageEffects:
-    """Stateless helper for message side-effects (typing, reactions, placeholders, replies).
+    """Helper for message side-effects (typing, placeholders, replies); ``reactions`` is the reaction funnel.
 
-    All operations are best-effort — a failure never reaches the caller. A failing status reaction is
-    reported at warning level once per window; the other effects log at debug level.
+    All operations are best-effort — a failure never reaches the caller. A failure is logged at debug level
+    here; the funnel reports a failing status reaction at warning level once per window.
     """
 
     def __init__(self, bus: MessageBus) -> None:
         self._bus = bus
         self._typing_keepalive_tasks: dict[str, asyncio.Task[None]] = {}
-        self._reaction_warned_at: dict[tuple[str, str], float] = {}
+        self.reactions = ReactionFunnel(bus)
 
     async def set_typing(self, channel: str, chat_id: str, *, composing: bool) -> None:
         """Best-effort typing indicator."""
@@ -272,44 +270,6 @@ class MessageEffects:
             logger.debug("progress edit failed for %s/%s: %s", channel, chat_id, exc)
             return False
 
-    async def set_reaction(
-        self,
-        channel: str,
-        chat_id: str,
-        message_id: object,
-        emoji: str,
-    ) -> None:
-        """Best-effort message reaction."""
-        if not isinstance(message_id, str) or not message_id:
-            return
-        ch = self._bus.get_channel(channel)
-        if not ch or not ch.capabilities.reactions:
-            return
-        try:
-            await ch.react_to_message(chat_id, message_id, emoji)
-        except Exception as exc:
-            self._report_reaction_failure(channel, exc)
-
-    def _report_reaction_failure(self, channel: str, exc: Exception) -> None:
-        key = (channel, type(exc).__name__)
-        now = time.monotonic()
-        last_warned = self._reaction_warned_at.get(key)
-        if last_warned is not None and now - last_warned < _REACTION_WARN_INTERVAL:
-            logger.debug("reaction failed on %s: %s", channel, exc)
-            return
-        self._reaction_warned_at[key] = now
-        logger.warning("Status reaction failed on %s (%s): %s", channel, key[1], str(exc)[:300])
-
-    def accepted_reaction(self, channel: str, preferred: str, fallbacks: tuple[str, ...]) -> str:
-        """First glyph of ``preferred`` then ``fallbacks`` the platform accepts; ``""`` skips the reaction.
-
-        An empty ``preferred`` means the status reaction is switched off, so no fallback applies.
-        """
-        ch = self._bus.get_channel(channel)
-        if not preferred or not ch:
-            return ""
-        return next((g for g in (preferred, *fallbacks) if ch.capabilities.accepts_reaction(g)), "")
-
     async def send_error_reply(self, msg: InboundMessage, error: str | Exception) -> None:
         """Send a classified, user-friendly error reply.
 
@@ -351,22 +311,18 @@ class MessageEffects:
 
     async def send_pending_reply(self, msg: InboundMessage) -> None:
         """Notify the sender that their pairing is pending approval."""
-        reply = OutboundMessage(
-            channel=msg.channel,
-            recipient_id=msg.sender_id,
-            content=get_text(msg, "pairing_pending"),
-            user_id="",
-            thread_id=msg.thread_id,
-            priority=MessagePriority.SYSTEM,
-        )
-        await self._bus.publish_outbound(reply)
+        await self._notify_pairing(msg, "pairing_pending")
 
     async def send_pairing_request_reply(self, msg: InboundMessage) -> None:
         """Notify the sender that a pairing request has been created."""
+        await self._notify_pairing(msg, "pairing_submitted")
+
+    async def _notify_pairing(self, msg: InboundMessage, text_key: str) -> None:
+        """Tell the sender, in their language, where their pairing stands; the reply belongs to no user yet."""
         reply = OutboundMessage(
             channel=msg.channel,
             recipient_id=msg.sender_id,
-            content=get_text(msg, "pairing_submitted"),
+            content=get_text(msg, text_key),
             user_id="",
             thread_id=msg.thread_id,
             priority=MessagePriority.SYSTEM,

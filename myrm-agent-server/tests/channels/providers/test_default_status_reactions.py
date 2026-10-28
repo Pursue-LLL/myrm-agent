@@ -11,8 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.providers.registry import get_channel_class
-from app.channels.routing.message_effects import MessageEffects
-from app.channels.routing.reactions import StatusReaction, TurnOutcome
+from app.channels.routing.reactions import ReactionFunnel, StatusReaction, TurnOutcome
 from app.channels.routing.router_models import ReactionPolicy
 
 EYES = "\U0001f440"
@@ -43,7 +42,7 @@ async def _shown(channel: str, *, state: str) -> str | None:
     ch.react_to_message = AsyncMock()
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=ch)
-    status = StatusReaction(MessageEffects(bus), ReactionPolicy(), channel, "chat", "m1")
+    status = StatusReaction(ReactionFunnel(bus), ReactionPolicy(), channel, "chat", "m1")
     if state == "processing":
         status.received()
         await status.marked()

@@ -334,46 +334,6 @@ class TestEditProgress:
         assert sent.endswith("…")
 
 
-class TestSetReaction:
-    @pytest.mark.asyncio
-    async def test_success(self) -> None:
-        ch = _make_channel_mock()
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.set_reaction("test", "chat-1", "msg-1", "\U0001f44d")
-        ch.react_to_message.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_non_string_message_id(self) -> None:
-        ch = _make_channel_mock()
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.set_reaction("test", "chat-1", 12345, "\U0001f44d")
-        ch.react_to_message.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_empty_message_id(self) -> None:
-        ch = _make_channel_mock()
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.set_reaction("test", "chat-1", "", "\U0001f44d")
-        ch.react_to_message.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_no_channel(self) -> None:
-        bus = _make_bus(None)
-        fx = MessageEffects(bus)
-        await fx.set_reaction("test", "chat-1", "msg-1", "\U0001f44d")
-
-    @pytest.mark.asyncio
-    async def test_error_silenced(self) -> None:
-        ch = _make_channel_mock()
-        ch.react_to_message = AsyncMock(side_effect=Exception("fail"))
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.set_reaction("test", "chat-1", "msg-1", "\U0001f44d")
-
-
 class TestTypingKeepalive:
     def test_no_channel_noop(self) -> None:
         bus = _make_bus(None)
