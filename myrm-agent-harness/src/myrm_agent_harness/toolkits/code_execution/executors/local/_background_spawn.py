@@ -99,6 +99,7 @@ async def spawn_background_process(
     Returns:
         AsyncProcessProtocol wrapping the spawned subprocess.
     """
+    from myrm_agent_harness.core.context_vars import standing_access_roots
     from myrm_agent_harness.toolkits.code_execution.sandbox import (
         detect_sandbox_provider,
     )
@@ -168,6 +169,7 @@ async def spawn_background_process(
             work_dir_str,
             readonly=context.readonly_workspace,
             allow_network=context.allow_network,
+            granted_roots=standing_access_roots(),
         )
         wrapped_cmd, wrapped_args = provider.wrap_command(cmd, tuple(args), work_dir_str, policy)
         full_cmd_array = [wrapped_cmd, *wrapped_args]

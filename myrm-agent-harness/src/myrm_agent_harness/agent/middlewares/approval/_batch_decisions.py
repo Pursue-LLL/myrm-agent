@@ -249,21 +249,29 @@ async def apply_approval_decisions(
                 record_decision(tool_name, "USER_APPROVED", reason)
                 record_approval(session_key)
 
-                if grant_directory:
-                    from myrm_agent_harness.agent.middlewares._session_context import (
-                        get_workspace_root,
-                    )
-                    from myrm_agent_harness.agent.security.session_access import (
-                        PATH_WRITE_PERMISSION_TYPES,
-                        grant_directories_for_call,
-                    )
-                    from myrm_agent_harness.agent.security.types import _default_path_policy
+                from myrm_agent_harness.agent.middlewares._session_context import (
+                    get_workspace_root,
+                )
+                from myrm_agent_harness.agent.security.session_access import (
+                    PATH_WRITE_PERMISSION_TYPES,
+                    grant_directories_for_call,
+                    grant_paths_once,
+                )
+                from myrm_agent_harness.agent.security.types import _default_path_policy
 
+                call_args: dict[str, object] = tool_call.get("args", {})
+                path_policy = config.path_policy if config else _default_path_policy()
+                grant_workspace = get_workspace_root() or None
+                grant_writable = permission_type in PATH_WRITE_PERMISSION_TYPES
+                # Approving the call opens the files it names for that call alone, as the card says; the
+                # "also grant folder access" choice is what keeps their folders for the session.
+                for opened_path in grant_paths_once(
+                    call_args, policy=path_policy, workspace_root=grant_workspace, writable=grant_writable
+                ):
+                    record_decision(tool_name, "PATH_OPENED_ONCE", f"path: {opened_path}")
+                if grant_directory:
                     for granted_path in grant_directories_for_call(
-                        tool_call.get("args", {}),
-                        policy=config.path_policy if config else _default_path_policy(),
-                        workspace_root=get_workspace_root() or None,
-                        writable=permission_type in PATH_WRITE_PERMISSION_TYPES,
+                        call_args, policy=path_policy, workspace_root=grant_workspace, writable=grant_writable
                     ):
                         record_decision(tool_name, "DIRECTORY_GRANTED", f"path: {granted_path}")
 

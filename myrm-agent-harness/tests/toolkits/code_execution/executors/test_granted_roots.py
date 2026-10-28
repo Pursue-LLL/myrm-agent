@@ -11,7 +11,13 @@ import pytest
 
 from myrm_agent_harness.agent.background_worker.shadow_context import ShadowExecutorMiddleware
 from myrm_agent_harness.agent.sub_agents.spawn_capability import derive_spawn_capability
-from myrm_agent_harness.core.context_vars import protected_paths_var, scoped_value, session_access_roots_var
+from myrm_agent_harness.core.context_vars import (
+    access_grants_var,
+    open_access_grants,
+    protected_paths_var,
+    scoped_value,
+    session_access_roots_var,
+)
 from myrm_agent_harness.core.security.ocap import CapabilityDeniedError, capability_scope
 from myrm_agent_harness.core.security.types import AccessRoot
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -139,6 +145,46 @@ class TestWritableGrant:
         await executor.mkdir(str(external / "newdir"))
         assert (external / "new.txt").read_text() == "x"
         assert (external / "newdir").is_dir()
+
+
+class TestRootsOfTheRunsOwnGrants:
+    """What the policy names and what one approval opened reach the executor as the engine judged them."""
+
+    async def test_a_root_the_policy_declares_is_reachable_and_writable(
+        self, executor: CodeExecutor, external: Path
+    ) -> None:
+        with scoped_value(access_grants_var, None):
+            open_access_grants((AccessRoot(path=str(external), writable=True, source="declared"),))
+            await executor.write_file(str(external / "out.txt"), "x")
+            assert await executor.read_file(str(external / "note.txt")) == "outside note"
+        assert (external / "out.txt").read_text() == "x"
+
+    async def test_a_file_approved_for_one_call_is_reachable_and_its_sibling_is_not(
+        self, executor: CodeExecutor, external: Path
+    ) -> None:
+        (external / "other.txt").write_text("not approved")
+        with scoped_value(access_grants_var, None):
+            grants = open_access_grants(())
+            grants.once = (AccessRoot(path=str(external / "note.txt"), writable=False, source="path_ask_once"),)
+            assert await executor.read_file(str(external / "note.txt")) == "outside note"
+            with pytest.raises(ValueError, match="Path traversal"):
+                await executor.read_file(str(external / "other.txt"))
+            with pytest.raises(PermissionError, match="granted read-only"):
+                await executor.write_file(str(external / "note.txt"), "x")
+
+            grants.once = ()
+            with pytest.raises(ValueError, match="Path traversal"):
+                await executor.read_file(str(external / "note.txt"))
+
+    async def test_a_writable_root_wins_over_a_read_only_one_for_the_same_directory(
+        self, executor: CodeExecutor, external: Path
+    ) -> None:
+        with scoped_value(access_grants_var, None):
+            grants = open_access_grants(())
+            grants.session = (AccessRoot(path=str(external), writable=False),)
+            grants.once = (AccessRoot(path=str(external), writable=True),)
+            await executor.write_file(str(external / "new.txt"), "x")
+        assert (external / "new.txt").read_text() == "x"
 
 
 async def test_creating_a_directory_obeys_the_active_goal_protection(workspace: Path) -> None:

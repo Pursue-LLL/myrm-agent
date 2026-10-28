@@ -62,6 +62,7 @@ class LocalPersistentSession(PersistentSession):
                 self.config.work_dir,
                 readonly=self.config.readonly_workspace,
                 allow_network=self.config.allow_network,
+                granted_roots=self.config.granted_roots,
             )
 
     @property

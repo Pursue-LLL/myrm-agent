@@ -34,6 +34,7 @@ Every decision is recorded via security.audit.record_decision() for post-hoc aud
 - approval.evaluation::APPROVAL_EVALUATION_KEY, evaluate_target, evaluation_matches, pending_calls, refused_calls, resolve_approval_target (POS: The verdicts the evaluation node stored for the latest model response, and the target they are about.)
 - approval.refusal::DenialCause, kept_tool_calls, refusal_answer (POS: Which calls the AI message keeps once some were approved, edited or refused, and the marked answer to a refused call.)
 - middlewares._session_context::get_is_shadow_agent, get_is_subagent, get_subagent_task_id (POS: Middleware session context — shared ContextVars for the middleware chain.)
+- security.session_access::drop_once_grants (POS: Closes the files an approved call opened for itself when the next model response arrives.)
 - langgraph.types::interrupt (POS: Pauses the node until the person answers.)
 
 [OUTPUT]
@@ -57,6 +58,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     get_is_shadow_agent,
     get_is_subagent,
 )
+from myrm_agent_harness.agent.security.session_access import drop_once_grants
 
 from .batch_processor import (
     apply_approval_decisions,
@@ -85,6 +87,8 @@ class ToolApprovalMiddleware(AgentMiddleware[Any, Any, Any]):
         Orchestrates batch approval flow: read verdicts → interrupt → apply decisions. This node is run again from
         its first line when the person has answered, so everything before ``interrupt()`` only reads.
         """
+        # A new model response has arrived: the files an earlier approval opened for its one call close again.
+        drop_once_grants()
         stored = state.get(APPROVAL_EVALUATION_KEY)
         # The verdicts are spent once this node finishes; they must not linger in every later checkpoint.
         spent: dict[str, Any] = {APPROVAL_EVALUATION_KEY: None} if stored is not None else {}

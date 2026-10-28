@@ -2,11 +2,12 @@
 
 [INPUT]
 - core.security.types::AccessRoot, PathPolicy
-- core.context_vars::session_access_roots_var (POS: the grants, shared with the sandbox executor)
+- core.context_vars::access_grants_var, session_access_roots_var (POS: the run's grants, shared with the sandbox executor)
 
 [OUTPUT]
 - get_session_access_roots / set_session_access_roots / grant_session_access_root
 - plan_directory_grants / grant_directories_for_call / PATH_WRITE_PERMISSION_TYPES
+- grant_paths_once / drop_once_grants (what approving a single call opens, until the next model response)
 - revoke_session_access_root
 - resolve_grant_directory_path
 - merge_path_policy_with_session_access
@@ -14,7 +15,7 @@
 
 [POS]
 Runtime mutable directory grants for the current agent run. Persisted by server on chat;
-loaded into ContextVar at turn start.
+seeded before the turn starts and held in the run's ``AccessGrants`` once it runs.
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ from myrm_agent_harness.agent.security.types import (
     PathPolicy,
     PermissionAction,
 )
-from myrm_agent_harness.core.context_vars import session_access_roots_var
-from myrm_agent_harness.core.security.path import covers_dangerous_path
+from myrm_agent_harness.core.context_vars import access_grants_var, session_access_roots_var
+from myrm_agent_harness.core.security.path import covers_dangerous_path, is_within_boundary
 from myrm_agent_harness.core.security.tool_registry import host_file_paths
 
 logger = logging.getLogger(__name__)
@@ -42,18 +43,20 @@ PATH_WRITE_PERMISSION_TYPES: frozenset[str] = frozenset({"file_write", "file_edi
 
 
 def get_session_access_roots() -> tuple[AccessRoot, ...]:
-    return session_access_roots_var.get()
+    grants = access_grants_var.get()
+    return grants.session if grants is not None else session_access_roots_var.get()
 
 
 def set_session_access_roots(roots: tuple[AccessRoot, ...]) -> None:
-    session_access_roots_var.set(roots)
+    grants = access_grants_var.get()
+    if grants is None:
+        session_access_roots_var.set(roots)
+    else:
+        grants.session = roots
 
 
-def resolve_grant_directory_path(
-    raw_path: str,
-    workspace_root: str | None,
-) -> str:
-    """Resolve a grant target to an absolute directory (workspace-relative when applicable)."""
+def _resolve_named_path(raw_path: str, workspace_root: str | None) -> str:
+    """The absolute, symlink-free path a tool call names (workspace-relative when applicable)."""
     trimmed = raw_path.strip()
     if not trimmed:
         return ""
@@ -61,10 +64,18 @@ def resolve_grant_directory_path(
         candidate = os.path.join(workspace_root, trimmed)
     else:
         candidate = trimmed
-    expanded = os.path.realpath(os.path.expanduser(candidate))
-    if os.path.isdir(expanded):
-        return expanded
-    return os.path.dirname(expanded)
+    return os.path.realpath(os.path.expanduser(candidate))
+
+
+def resolve_grant_directory_path(
+    raw_path: str,
+    workspace_root: str | None,
+) -> str:
+    """Resolve a grant target to an absolute directory (workspace-relative when applicable)."""
+    resolved = _resolve_named_path(raw_path, workspace_root)
+    if not resolved or os.path.isdir(resolved):
+        return resolved
+    return os.path.dirname(resolved)
 
 
 def _grant_path_blocked_by_policy(
@@ -199,6 +210,47 @@ def grant_directories_for_call(
         if grant_session_access_root(root, policy=policy, workspace_root=workspace_root) != roots_before:
             granted.append(root.path)
     return granted
+
+
+def grant_paths_once(
+    tool_input: dict[str, object],
+    *,
+    policy: PathPolicy,
+    workspace_root: str | None,
+    writable: bool,
+) -> list[str]:
+    """Open the files an approved call names outside the allowed zones, until the next model response.
+
+    The person approved this call, so the executor must let it reach what it names; nothing wider than the
+    named paths opens, and nothing a session grant or a policy already covers needs it. A path the
+    deployment never lets a grant widen (``_grant_refused``) stays closed, as it is in the plan.
+    """
+    grants = access_grants_var.get()
+    if grants is None or not policy.allow_directory_grants:
+        return []
+    effective = merge_path_policy_with_session_access(policy)
+    opened: dict[str, AccessRoot] = {_realpath(root.path): root for root in grants.once}
+    named: list[str] = []
+    for raw_path in host_file_paths(tool_input):
+        action, _ = check_path_policy(raw_path, effective, workspace_root, require_write=writable)
+        path = _resolve_named_path(raw_path, workspace_root)
+        if action != PermissionAction.ASK or not path or _grant_refused(path, policy, writable=writable):
+            continue
+        if workspace_root and is_within_boundary(path, workspace_root):
+            continue
+        held = opened.get(path)
+        if held is None or (writable and not held.writable):
+            opened[path] = AccessRoot(path=path, writable=writable, source="path_ask_once")
+            named.append(path)
+    grants.once = tuple(opened.values())
+    return named
+
+
+def drop_once_grants() -> None:
+    """Close what approving single calls opened; called as the next model response arrives."""
+    grants = access_grants_var.get()
+    if grants is not None and grants.once:
+        grants.once = ()
 
 
 def revoke_session_access_root(

@@ -4,6 +4,7 @@
 local._file_ops::LocalFileOpsMixin (POS: Native file I/O via pathlib with read-only guard)
 local._python_subprocess::run_python_subprocess (POS: Python subprocess with sandbox and timeout)
 local._background_spawn::spawn_background_process (POS: Background process spawning with sandbox)
+local._bash_sessions::get_or_create_bash_session, close_bash_sessions, shell_grants (POS: Which persistent shell serves a command, and the granted directories it may name)
 local._command_env::build_command_env (POS: What one bash command may read: skill settings and its credentials)
 executors.common::CommandRewriter, VenvManager, ExecutionHelper (POS: Shared execution utilities)
 executors.base::CodeExecutor (POS: Code executor abstract base)
@@ -47,6 +48,12 @@ from myrm_agent_harness.toolkits.code_execution.executors.common import (
     handle_execution_error,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.execution_evidence import record_execution
+from myrm_agent_harness.toolkits.code_execution.executors.local._bash_sessions import (
+    close_bash_sessions,
+    get_or_create_bash_session,
+    grant_command_paths,
+    shell_grants,
+)
 from myrm_agent_harness.toolkits.code_execution.executors.local._command_env import (
     build_command_env,
     scrubbed_user_env,
@@ -320,7 +327,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         validation_result = validate_command(
             validation_command,
             workspace_path=effective_cwd,
-            additional_paths=self._venv_manager.command_whitelist_paths(context.additional_readonly_paths),
+            additional_paths=self._command_whitelist(context),
             allowed_hosts=effective_allowed_hosts,
         )
 
@@ -439,7 +446,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         validation_result = validate_command(
             command,
             workspace_path=effective_cwd,
-            additional_paths=self._venv_manager.command_whitelist_paths(context.additional_readonly_paths),
+            additional_paths=self._command_whitelist(context),
             allowed_hosts=effective_allowed_hosts,
         )
 
@@ -478,62 +485,29 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
             scope_context=self._scoped_context,
         )
 
+    def _command_whitelist(self, context: ExecutionContext) -> list[Path]:
+        """The paths beside the workspace a bash command may name: the shared venv and skills, and the granted directories."""
+        workspace = str(self._current_workspace) if self._current_workspace else "/tmp"
+        return [
+            *(self._venv_manager.command_whitelist_paths(context.additional_readonly_paths) or ()),
+            *grant_command_paths(shell_grants(workspace)),
+        ]
+
     async def _get_or_create_bash_session(
         self, context: ExecutionContext, env: dict[str, str]
     ) -> "LocalPersistentSession":
-        """Get the healthy persistent shell for this context or start one.
-
-        A shell's sandbox is fixed when it starts, so a read-only run keeps its own shell and never
-        reuses the writable run's under the same session id.
-        """
-        from myrm_agent_harness.toolkits.code_execution.session import (
-            LocalPersistentSession,
-            SessionConfig,
-        )
-
-        session_key = f"{context.session_id or 'default'}{'_readonly' if context.readonly_workspace else ''}"
-        workspace_path = str(self._current_workspace) if self._current_workspace else "/tmp"
-        if session_key in self._bash_sessions:
-            session = self._bash_sessions[session_key]
-            if session.is_alive:
-                is_healthy = await session.check_health()
-                if is_healthy:
-                    logger.debug(f" [LocalExecutor] Reusing Bash session: {session_key}")
-                    return session
-                else:
-                    logger.warning(f" [LocalExecutor] Unhealthy Bash session, restarting: {session_key}")
-                    await session.close()
-                    del self._bash_sessions[session_key]
-
-        logger.info(f" [LocalExecutor] Creating new Bash session: {session_key}")
-        config = SessionConfig(
-            session_id=session_key,
-            work_dir=workspace_path,
-            timeout=context.timeout or 300,
-            env=env,
+        """Get the healthy persistent shell for this context or start one."""
+        return await get_or_create_bash_session(
+            self._bash_sessions,
+            context,
+            env,
+            workspace=self._current_workspace,
             max_memory_mb=self.config.local.max_memory_mb,
-            readonly_workspace=context.readonly_workspace,
-            allow_network=context.allow_network,
         )
-
-        session = LocalPersistentSession(config)
-        await session.start()
-        self._bash_sessions[session_key] = session
-        return session
 
     async def cleanup_bash_sessions(self) -> None:
         """Clean up all persistent Bash sessions."""
-        if not self._bash_sessions:
-            return
-
-        logger.info(f" [LocalExecutor] Cleaning up {len(self._bash_sessions)} Bash sessions")
-        for session_key, session in list(self._bash_sessions.items()):
-            try:
-                await session.close()
-            except Exception as e:
-                logger.warning(f" [LocalExecutor] Failed to close session {session_key}: {e}")
-            finally:
-                self._bash_sessions.pop(session_key, None)
+        await close_bash_sessions(self._bash_sessions)
 
     async def close(self) -> None:
         """Explicitly release bash sessions and local resources."""

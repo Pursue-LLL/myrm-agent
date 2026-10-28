@@ -1,7 +1,7 @@
-"""The directories the user granted for this run, as the executor reaches them.
+"""The directories this run may reach beyond its workspace, as the executor reaches them.
 
 [INPUT]
-- core.context_vars::session_access_roots_var (POS: the grants the permission engine also judges by)
+- core.context_vars::reachable_access_roots (POS: the policy's roots plus what the person granted, as the permission engine also judges)
 - core.security.path::is_within_boundary (POS: symlink-safe containment test)
 
 [OUTPUT]
@@ -9,8 +9,8 @@
 - refuse_write_into_readonly_grant: PermissionError for a write into a directory granted read-only
 
 [POS]
-The executor's boundary is the workspace plus these grants: the user's approval of a directory is the
-only thing that widens it, and a read-only grant never lets a write through.
+The executor's boundary is the workspace plus the roots the policy names and the person granted, so a path the
+engine lets through is a path the executor reaches; a read-only grant never lets a write through.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.context_vars import session_access_roots_var
+from myrm_agent_harness.core.context_vars import reachable_access_roots
 from myrm_agent_harness.core.security.path import is_within_boundary
 
 if TYPE_CHECKING:
@@ -26,12 +26,9 @@ if TYPE_CHECKING:
 
 
 def granted_root_containing(resolved: str | Path) -> AccessRoot | None:
-    """The most specific granted directory that holds ``resolved``, or None."""
-    best: AccessRoot | None = None
-    for root in session_access_roots_var.get():
-        if is_within_boundary(resolved, root.path) and (best is None or len(root.path) > len(best.path)):
-            best = root
-    return best
+    """The most specific directory that holds ``resolved`` (a writable one when two are as specific), or None."""
+    holding = [root for root in reachable_access_roots() if is_within_boundary(resolved, root.path)]
+    return max(holding, key=lambda root: (len(root.path), root.writable), default=None)
 
 
 def refuse_write_into_readonly_grant(resolved: str | Path, workspace: str | Path) -> None:

@@ -22,16 +22,12 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.core.security.path import filesystem as filesystem_module
-from myrm_agent_harness.core.security.types import AccessRoot
 from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate import (
     MountMode,
     MountSpec,
     MountViolationType,
     validate_and_sanitize_mounts,
     validate_mount_spec,
-)
-from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
-    build_sandbox_policy_from_path_policy,
 )
 
 
@@ -316,24 +312,3 @@ class TestBatchMountSanitizationAndPolicyBridge:
             paths = [s.source_path for s in sanitized]
             assert os.path.normpath(sub1) in paths
             assert os.path.normpath(sub2) in paths
-
-    def test_policy_bridge_integration(self) -> None:
-        with tempfile.TemporaryDirectory() as ws:
-            extra_valid = os.path.join(ws, "extra")
-            os.makedirs(extra_valid, exist_ok=True)
-
-            access_roots = (
-                AccessRoot(path=extra_valid, writable=True, source="test"),
-                AccessRoot(path="/etc/passwd", writable=True, source="malicious"),  # rejected
-            )
-
-            policy = build_sandbox_policy_from_path_policy(
-                work_dir=ws,
-                access_roots=access_roots,
-                extra_writable=("/dev/null",),  # rejected
-            )
-
-            assert os.path.normpath(ws) in policy.writable_paths
-            assert os.path.normpath(extra_valid) in policy.writable_paths
-            assert "/etc/passwd" not in policy.writable_paths
-            assert "/dev/null" not in policy.writable_paths

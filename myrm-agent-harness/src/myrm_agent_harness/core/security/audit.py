@@ -118,6 +118,7 @@ DecisionKind = Literal[
     "SCRIPT_INTEGRITY_REJECT",
     "SCRIPT_OPERAND_DRIFT_REJECT",
     "DIRECTORY_GRANTED",
+    "PATH_OPENED_ONCE",
     "USER_EDIT_REJECTED",
     # Middleware guards
     "GUARDRAIL_BLOCKED",

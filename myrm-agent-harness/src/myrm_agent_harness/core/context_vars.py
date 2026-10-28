@@ -14,7 +14,10 @@ introducing forbidden dependencies (e.g. toolkits/ → agent/).
 - chat_id_var: Active chat/session id for per-session spill directories
 - approval_session_var: Approval-routing session key shared by agent/ and toolkits/
 - protected_paths_var: Goal-scoped protected path patterns every write channel must honour
-- session_access_roots_var: Directories the user granted for this run, beyond the workspace
+- session_access_roots_var: The session grants as the host seeds them before a run starts
+- AccessGrants / access_grants_var / open_access_grants: Every directory this run may reach beyond the workspace
+  (declared, remembered for the session, approved for one call), mutable across graph nodes
+- standing_access_roots / reachable_access_roots: The ones that outlast a call, and all of them right now
 - current_tool_call_id_var: The call the tool body is running inside (set by the tool-call middleware)
 - approval_notes_var: The human's notes on this run's approvals, keyed by tool call id
 - publish_approval_notes / stash_approval_note / claim_approval_note: the note hand-off
@@ -30,6 +33,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -56,10 +60,52 @@ approval_session_var: ContextVar[str] = ContextVar("approval_session_key", defau
 # rules as the file tools and the shell pre-flight without depending on agent/.
 protected_paths_var: ContextVar[tuple[str, ...]] = ContextVar("protected_paths", default=())
 
-# Directories the user granted for this run beyond the workspace, resolved and validated when granted
-# (agent/security/session_access.py owns the grants). Held here so the sandbox executor reaches the same
-# directories the permission engine judged by, without depending on agent/.
+# The session grants a host seeds before a run starts, resolved and validated when granted
+# (agent/security/session_access.py owns them). Once the run opens its ``AccessGrants`` they live there.
 session_access_roots_var: ContextVar[tuple[AccessRoot, ...]] = ContextVar("session_access_roots", default=())
+
+
+@dataclass(slots=True)
+class AccessGrants:
+    """The directories one run may reach beyond its workspace, by how long the person's say-so lasts.
+
+    ``declared`` is what the policy names, fixed for the run; ``session`` is what the person asked to remember;
+    ``once`` is what the approval of a single call opened, dropped at the next model response.
+    """
+
+    declared: tuple[AccessRoot, ...] = ()
+    session: tuple[AccessRoot, ...] = ()
+    once: tuple[AccessRoot, ...] = ()
+
+
+# One mutable object per run, because LangGraph runs each node in a copy of the context: a grant rebound
+# in the approval node would never reach the tool node, a grant written into this object does. Held here so
+# the sandbox executor reaches the same directories the permission engine judged by, without depending on agent/.
+access_grants_var: ContextVar[AccessGrants | None] = ContextVar("access_grants", default=None)
+
+
+def open_access_grants(declared: tuple[AccessRoot, ...]) -> AccessGrants:
+    """Open this run's grants, keeping the session grants the host seeded. Called once per run, before the graph streams."""
+    held = access_grants_var.get()
+    session = held.session if held is not None else session_access_roots_var.get()
+    grants = AccessGrants(declared=declared, session=session)
+    access_grants_var.set(grants)
+    return grants
+
+
+def standing_access_roots() -> tuple[AccessRoot, ...]:
+    """The directories that outlast a single call: what the policy declares and what the session granted."""
+    grants = access_grants_var.get()
+    if grants is None:
+        return session_access_roots_var.get()
+    return (*grants.declared, *grants.session)
+
+
+def reachable_access_roots() -> tuple[AccessRoot, ...]:
+    """Every directory the run may reach beyond its workspace right now, a call's own approval included."""
+    grants = access_grants_var.get()
+    return (*standing_access_roots(), *(grants.once if grants is not None else ()))
+
 
 # The tool call the running tool body belongs to. The tool-call middleware sets it around
 # the dispatch so a gate can tell one call from another; tool bodies read it and never set it.

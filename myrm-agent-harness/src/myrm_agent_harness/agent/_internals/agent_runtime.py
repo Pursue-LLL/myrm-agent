@@ -58,7 +58,6 @@ from myrm_agent_harness.agent.middlewares.approval import (
     set_agent_id,
     set_approval_session,
     set_event_logger,
-    set_security_config,
 )
 from myrm_agent_harness.agent.streaming.source_tracker import SourceTracker
 from myrm_agent_harness.agent.streaming.stream_executor import (
@@ -91,6 +90,7 @@ from ._agent_build import (
 )
 from ._agent_helpers import (
     _fire_and_forget,
+    bind_run_security,
     effective_round_budget,
     extract_query_text,
     graph_recursion_limit,
@@ -216,7 +216,7 @@ async def run_agent_loop(
                 channel,
             )
             runtime_security = build_channel_security_config(channel, None, local_mode=True)
-        set_security_config(runtime_security)
+        bind_run_security(runtime_security)
         from myrm_agent_harness.agent.config.parsers import parse_litellm_model
         from myrm_agent_harness.agent.middlewares._session_context import (
             set_active_message_id,

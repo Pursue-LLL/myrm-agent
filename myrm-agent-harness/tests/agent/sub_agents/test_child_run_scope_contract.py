@@ -39,6 +39,10 @@ _RESET_REBINDING = frozenset(
 )
 
 
+# Contextvars a run opens afresh for itself; the scope binds the caller's back so a nested run never replaces them.
+_RESTORED_BINDINGS = frozenset({"access_grants_var"})
+
+
 def _calls_in(function: Callable[..., object]) -> list[ast.Call]:
     tree = ast.parse(textwrap.dedent(inspect.getsource(function)))
     return [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
@@ -60,7 +64,17 @@ def test_every_reset_that_clears_in_place_has_its_isolated_counterpart_in_the_gu
         for call in _calls_in(isolated_run_guards)
         if isinstance(call.func, ast.Attribute) and call.func.attr == "enter_context"
         for argument in call.args
-        if isinstance(argument, ast.Call) and (name := _name_of(argument))
+        if isinstance(argument, ast.Call) and (name := _name_of(argument)) and name != "scoped_value"
     }
 
     assert entered == set(_RESET_IN_PLACE.values())
+
+
+def test_every_binding_a_run_opens_afresh_is_handed_back_by_the_guard_scope() -> None:
+    restored = {
+        call.args[0].id
+        for call in _calls_in(isolated_run_guards)
+        if _name_of(call) == "scoped_value" and call.args and isinstance(call.args[0], ast.Name)
+    }
+
+    assert restored == _RESTORED_BINDINGS

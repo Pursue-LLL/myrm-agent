@@ -6,11 +6,12 @@ usage ledger initialization.
 [INPUT]
 - agent.middlewares (POS: guard/state reset functions)
 - agent.security (POS: security guard reset functions, loop guard default round budget)
-- core.context_vars (POS: scoped_value, approval_session_var)
+- core.context_vars (POS: scoped_value, approval_session_var, access_grants_var, open_access_grants)
 - agent.background_worker (POS: idle task scheduling)
 - utils.token_economics (POS: UsageLedger)
 
 [OUTPUT]
+- bind_run_security: Bind a run's security config and open its directory grants.
 - effective_round_budget: How many model rounds a run may take, from its configured recursion_limit.
 - graph_recursion_limit: The step limit that lets a compiled graph run a given number of model rounds.
 - reset_all_guards: Reset all per-request guard state before a new agent run.
@@ -32,15 +33,25 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine, Iterator
 from contextlib import ExitStack, contextmanager
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.security.guards.loop_guard import DEFAULT_ROUND_BUDGET
-from myrm_agent_harness.core.context_vars import approval_session_var, scoped_value
+from myrm_agent_harness.core.context_vars import (
+    access_grants_var,
+    approval_session_var,
+    open_access_grants,
+    scoped_value,
+)
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.token_economics.tracker import set_usage_ledger
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.core.security.types import SecurityConfig
 
 logger = get_agent_logger(__name__)
 
 __all__ = [
+    "bind_run_security",
     "child_run_scope",
     "effective_round_budget",
     "ephemeral_run_scope",
@@ -105,6 +116,18 @@ def graph_recursion_limit(round_budget: int, graph: object) -> int:
     per_round = _BARE_LOOP_STEPS + sum(name.endswith(_ROUND_HOOK_NODES) for name in names)
     per_run = sum(name.endswith(_RUN_HOOK_NODES) for name in names)
     return round_budget * per_round + per_run
+
+
+def bind_run_security(security: SecurityConfig) -> None:
+    """Bind a run's security config and open the run's directory grants.
+
+    The grants are one object every graph node shares: the roots the policy declares plus the session grants the host
+    seeded, so a grant made in one node is seen by the next (a rebound ContextVar would not be).
+    """
+    from myrm_agent_harness.agent.middlewares.approval import set_security_config
+
+    set_security_config(security)
+    open_access_grants(security.path_policy.access_roots)
 
 
 def reset_all_guards(
@@ -190,7 +213,9 @@ def isolated_run_guards(scope_key: str) -> Iterator[None]:
     completion guard's turn state; nested runs that overlap would also count each other's tool calls as their
     own. The nested run's loop guard is filed in the session registry under ``scope_key``.
 
-    Keep in step with ``reset_all_guards``: a guard that resets in place needs its isolated counterpart here.
+    A nested run opens grants of its own (the policy it runs under names its own roots); the caller's are bound
+    back when it ends. Keep in step with ``reset_all_guards``: a guard that resets in place needs its isolated
+    counterpart here.
     """
     from myrm_agent_harness.agent.middlewares._session_context import isolated_terminal_errors
     from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import isolated_run_state
@@ -206,6 +231,7 @@ def isolated_run_guards(scope_key: str) -> Iterator[None]:
         scope.enter_context(isolated_context_budget_guard())
         scope.enter_context(isolated_terminal_errors())
         scope.enter_context(isolated_run_state(scope_key))
+        scope.enter_context(scoped_value(access_grants_var, access_grants_var.get()))
         yield
 
 

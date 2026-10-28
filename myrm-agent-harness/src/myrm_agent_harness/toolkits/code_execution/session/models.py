@@ -1,7 +1,7 @@
 """Value types of a persistent shell session.
 
 [INPUT]
-- (none)
+core.security.types::AccessRoot (POS: A directory granted beside the workspace; only named for typing)
 
 [OUTPUT]
 SessionState: Lifecycle states enum.
@@ -18,6 +18,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.core.security.types import AccessRoot
 
 
 class SessionState(Enum):
@@ -71,3 +75,5 @@ class SessionConfig:
     max_memory_mb: int = 2048
     readonly_workspace: bool = False
     allow_network: bool = True
+    # Directories granted beside the workspace; the shell's sandbox is fixed when it starts, so they are fixed with it.
+    granted_roots: tuple[AccessRoot, ...] = ()

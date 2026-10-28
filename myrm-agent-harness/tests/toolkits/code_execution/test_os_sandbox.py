@@ -22,9 +22,6 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.detector import (
     _is_inside_container,
     detect_sandbox_provider,
 )
-from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
-    build_sandbox_policy_from_path_policy,
-)
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.bwrap import (
     BwrapProvider,
 )
@@ -702,42 +699,6 @@ class TestBwrapReadablePaths:
         ro_bound = [args[i + 1] for i in ro_bind_indices]
         assert "/opt/data" in ro_bound
         assert "/srv/cache" in ro_bound
-
-
-# ---------------------------------------------------------------------------
-# Policy bridge
-# ---------------------------------------------------------------------------
-
-
-class TestPolicyBridge:
-    def test_basic(self) -> None:
-        policy = build_sandbox_policy_from_path_policy("/workspace")
-        assert "/workspace" in policy.writable_paths
-
-    def test_allowed_roots_propagated(self) -> None:
-        from myrm_agent_harness.core.security.types import access_roots_from_paths
-
-        policy = build_sandbox_policy_from_path_policy(
-            "/workspace",
-            access_roots=access_roots_from_paths(("/home/user/data", "/opt/tools")),
-        )
-        assert "/home/user/data" in policy.writable_paths
-        assert "/opt/tools" in policy.writable_paths
-        assert "/workspace" in policy.writable_paths
-
-    def test_dedup(self) -> None:
-        from myrm_agent_harness.core.security.types import access_roots_from_paths
-
-        policy = build_sandbox_policy_from_path_policy(
-            "/workspace",
-            access_roots=access_roots_from_paths(("/workspace",)),
-            extra_writable=("/workspace",),
-        )
-        assert policy.writable_paths.count("/workspace") == 1
-
-    def test_network_control(self) -> None:
-        policy = build_sandbox_policy_from_path_policy("/ws", allow_network=False)
-        assert policy.allow_network is False
 
 
 # ---------------------------------------------------------------------------
