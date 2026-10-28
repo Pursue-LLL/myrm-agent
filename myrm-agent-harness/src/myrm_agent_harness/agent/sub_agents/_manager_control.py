@@ -3,6 +3,9 @@
 [INPUT]
 - manager::SubagentManager (POS: Access to internal state via self reference)
 - types::SubAgentStatus, CancellationStrategy, CouncilResult, SubagentConfig
+- agent.base_agent::BaseAgent (POS: Agent base class that owns a SubagentManager instance)
+- notifications::NotificationManager (POS: Push-based notification formatting for subagent completion events and active subagent context injection.)
+- utils.runtime.steering::SteeringToken (POS: Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain.)
 
 [OUTPUT]
 - SubagentControlMixin: Mixin providing cancel_child, cancel_all, steer_child,
