@@ -12,10 +12,8 @@ from pathlib import Path
 import pytest
 from langchain_core.messages import AIMessage, ToolCall
 
-from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-    apply_approval_decisions,
-    build_interrupt_payload,
-)
+from myrm_agent_harness.agent.middlewares.approval._batch_decisions import apply_approval_decisions
+from myrm_agent_harness.agent.middlewares.approval._interrupt_payload import build_interrupt_payload
 from myrm_agent_harness.agent.security.script_operand_verifier import (
     compute_file_content_digest,
 )
@@ -42,9 +40,7 @@ async def test_batch_approval_payload_includes_script_operand_meta(tmp_path: Pat
         "hide_allow_always": True,
     }
 
-    pending_approval = [
-        (0, tool_call, "bash", "Execute shell command", extra_ctx)
-    ]
+    pending_approval = [(0, tool_call, "bash", "Execute shell command", extra_ctx)]
 
     payload, interrupt_indices = build_interrupt_payload(
         pending_approval=pending_approval,
@@ -82,9 +78,7 @@ async def test_apply_approval_blocks_toctou_tampered_script(tmp_path: Path) -> N
         "script_operand_hash": original_digest,
     }
 
-    pending_approval = [
-        (0, tool_call, "python", "Run python script", extra_ctx)
-    ]
+    pending_approval = [(0, tool_call, "python", "Run python script", extra_ctx)]
 
     # Malicious actor or concurrent process modifies the script before user clicks approve
     script.write_text("import os; os.system('malicious_payload')")
@@ -128,9 +122,7 @@ async def test_apply_approval_allows_unmodified_script(tmp_path: Path) -> None:
         "script_operand_hash": original_digest,
     }
 
-    pending_approval = [
-        (0, tool_call, "bash", "Run bash script", extra_ctx)
-    ]
+    pending_approval = [(0, tool_call, "bash", "Run bash script", extra_ctx)]
 
     decisions = [{"action_id": "call_safe", "decision": "approve"}]
     ai_msg = AIMessage(content="", tool_calls=[tool_call])

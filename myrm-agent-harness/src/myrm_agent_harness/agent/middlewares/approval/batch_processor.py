@@ -6,7 +6,7 @@ Decides, for each tool call of a model turn, whether it runs, is refused or wait
 - agent.security::engine, checks, audit, approval_flow, command_allowlist_pattern, managed_policy_gates, path_security, ptc_verifier, script_operand_verifier, tool_registry, types, guards.{skill_approval_hook, taint_tracker, untrusted_ingress_fence}, workspace_trust.{context, gate, types} (POS: The layered security stack this processor orchestrates: permission engine, path and taint checks, allowlist, managed-policy and workspace-trust gates.)
 - core.security::readonly_research_sandbox, device_policy, spend_governance, remote_ops_ledger (POS: Foundation security primitives: read-only lease check, batch risk, spend rules, recovery hints.)
 - toolkits.code_execution.security::ast_parser, risk_classifier, workspace_snapshot; toolkits.computer_use::safety (POS: Shell AST and risk classification, pre-destructive snapshots, desktop control guardrails.)
-- agent.middlewares::_session_context; ._batch_review, ._batch_decisions, ._cron_policy::resolve_cron_ask, .denial_diagnostic_bridge::build_auto_review_denial_message, .helpers (POS: Shared middleware ContextVars, LLM review, interrupt payloads, cron settlement, the refusal text the model reads, denial tracking.)
+- agent.middlewares::_session_context; ._batch_review, ._batch_decisions, ._interrupt_payload, ._cron_policy::resolve_cron_ask, .denial_diagnostic_bridge::build_auto_review_denial_message, .helpers (POS: Shared middleware ContextVars, LLM review, interrupt payloads, cron settlement, the refusal text the model reads, denial tracking.)
 
 [OUTPUT]
 - register_security_reviewer, reset_runtime_domains: reviewer registration and the per-session runtime domain reset
@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from langchain_core.messages import ToolCall
 
@@ -70,7 +70,7 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
 )
 
 from . import _batch_review
-from ._batch_decisions import apply_approval_decisions, build_interrupt_payload
+from ._batch_decisions import apply_approval_decisions
 from ._batch_review import (
     _evaluate_skill_hooks_for_tool,
     _get_runtime_domains,
@@ -80,6 +80,7 @@ from ._batch_review import (
     reset_runtime_domains,
 )
 from ._cron_policy import resolve_cron_ask
+from ._interrupt_payload import build_interrupt_payload
 from .denial_diagnostic_bridge import build_auto_review_denial_message
 from .helpers import (
     ThresholdBreach,
@@ -87,9 +88,6 @@ from .helpers import (
     record_approval,
     record_denial,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

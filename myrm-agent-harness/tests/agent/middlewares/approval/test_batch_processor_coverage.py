@@ -2641,10 +2641,10 @@ class TestShellThreatHighRiskMarking:
         )
 
     @pytest.mark.asyncio
-    async def test_should_block_allow_always_guard(self):
-        """_should_block_allow_always returns True for high_risk extra_ctx."""
-        from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-            _should_block_allow_always,
+    async def testshould_block_allow_always_guard(self):
+        """should_block_allow_always returns True for high_risk extra_ctx."""
+        from myrm_agent_harness.agent.middlewares.approval._allow_always import (
+            should_block_allow_always,
         )
 
         tool_call = ToolCall(
@@ -2654,10 +2654,10 @@ class TestShellThreatHighRiskMarking:
             id="g1",
         )
 
-        assert _should_block_allow_always(tool_call, {"high_risk": True}) is True
-        assert _should_block_allow_always(tool_call, {"smart_denied": True}) is True
-        assert _should_block_allow_always(tool_call, None) is False
-        assert _should_block_allow_always(tool_call, {}) is False
+        assert should_block_allow_always(tool_call, {"high_risk": True}) is True
+        assert should_block_allow_always(tool_call, {"smart_denied": True}) is True
+        assert should_block_allow_always(tool_call, None) is False
+        assert should_block_allow_always(tool_call, {}) is False
 
     def test_high_risk_chmod_hides_allow_always(self):
         """Pending items with high_risk (chmod) should have hideAllowAlways in reviewConfig."""
@@ -2714,7 +2714,7 @@ class TestEditBranchBlocksAllowAlwaysForHighRisk:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.middlewares.approval._batch_decisions.add_to_allowlist_if_needed"
+            "myrm_agent_harness.agent.middlewares.approval._allow_always.add_to_allowlist_if_needed"
         ) as mock_add:
             revised, _messages, _guidance = await apply_approval_decisions(
                 decisions, last_ai_msg, [], pending, [0], {0: None}
@@ -2743,7 +2743,7 @@ class TestEditBranchBlocksAllowAlwaysForHighRisk:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.middlewares.approval._batch_decisions.add_to_allowlist_if_needed"
+            "myrm_agent_harness.agent.middlewares.approval._allow_always.add_to_allowlist_if_needed"
         ) as mock_add:
             revised, _messages, _guidance = await apply_approval_decisions(
                 decisions, last_ai_msg, [], pending, [0], {0: None}

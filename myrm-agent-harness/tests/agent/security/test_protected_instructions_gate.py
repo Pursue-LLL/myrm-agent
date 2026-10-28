@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-    _should_block_allow_always,
-)
+from myrm_agent_harness.agent.middlewares.approval._allow_always import should_block_allow_always
 from myrm_agent_harness.agent.security.checks import check_path_policy
 from myrm_agent_harness.agent.security.path_security import (
     is_protected_instruction_file,
@@ -163,14 +161,14 @@ class TestShellMutationAnalysis:
 
 
 class TestApprovalFlowPermanentExemptionGuard:
-    """Verify _should_block_allow_always forbids 'Always Allow' for protected instruction mutations."""
+    """Verify should_block_allow_always forbids 'Always Allow' for protected instruction mutations."""
 
     def test_blocks_allow_always_on_file_write_tool(self) -> None:
         tool_call = {
             "name": "file_write_tool",
             "args": {"path": "AGENTS.md", "content": "injected instructions"},
         }
-        assert _should_block_allow_always(tool_call, extra_ctx=None) is True
+        assert should_block_allow_always(tool_call, extra_ctx=None) is True
 
     def test_blocks_allow_always_with_protected_instruction_context(self) -> None:
         tool_call = {
@@ -178,11 +176,11 @@ class TestApprovalFlowPermanentExemptionGuard:
             "args": {"path": "safe.py"},
         }
         extra_ctx = {"protected_instruction": True}
-        assert _should_block_allow_always(tool_call, extra_ctx=extra_ctx) is True
+        assert should_block_allow_always(tool_call, extra_ctx=extra_ctx) is True
 
     def test_blocks_allow_always_on_shell_mutation_command(self) -> None:
         tool_call = {
             "name": "bash_code_execute_tool",
             "args": {"command": "echo malicious > SOUL.md"},
         }
-        assert _should_block_allow_always(tool_call, extra_ctx=None) is True
+        assert should_block_allow_always(tool_call, extra_ctx=None) is True

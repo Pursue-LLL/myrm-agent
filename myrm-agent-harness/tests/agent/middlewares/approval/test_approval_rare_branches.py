@@ -16,13 +16,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, ToolCall
 
+from myrm_agent_harness.agent.middlewares.approval._allow_always import (
+    _integration_mutation_blocks_allow_always,
+    should_block_allow_always,
+)
 from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
     _edited_shell_edit_block_reason,
-    _integration_mutation_blocks_allow_always,
-    _should_block_allow_always,
     apply_approval_decisions,
-    build_interrupt_payload,
 )
+from myrm_agent_harness.agent.middlewares.approval._interrupt_payload import build_interrupt_payload
 from myrm_agent_harness.agent.middlewares.approval.middleware import (
     ToolApprovalMiddleware,
 )
@@ -93,7 +95,7 @@ class TestShouldBlockAllowAlways:
                 return_value=True,
             ),
         ):
-            assert _should_block_allow_always({"args": {"command": "ls"}}, None) is True
+            assert should_block_allow_always({"args": {"command": "ls"}}, None) is True
 
     def test_high_risk_blocks(self) -> None:
         with (
@@ -106,7 +108,7 @@ class TestShouldBlockAllowAlways:
                 return_value=False,
             ),
         ):
-            assert _should_block_allow_always({"args": {}}, {"high_risk": True}) is True
+            assert should_block_allow_always({"args": {}}, {"high_risk": True}) is True
 
     def test_smart_denied_blocks(self) -> None:
         with (
@@ -119,7 +121,7 @@ class TestShouldBlockAllowAlways:
                 return_value=False,
             ),
         ):
-            assert _should_block_allow_always({"args": {}}, {"smart_denied": True}) is True
+            assert should_block_allow_always({"args": {}}, {"smart_denied": True}) is True
 
     def test_allows_otherwise(self) -> None:
         with (
@@ -136,7 +138,7 @@ class TestShouldBlockAllowAlways:
                 return_value=False,
             ),
         ):
-            assert _should_block_allow_always({"args": {"command": "ls"}}, None) is False
+            assert should_block_allow_always({"args": {"command": "ls"}}, None) is False
 
 
 class TestEditedShellEditBlockReasonNonShell:

@@ -17,10 +17,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.messages import ToolCall
 
-from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-    _should_block_allow_always,
-    build_interrupt_payload,
-)
+from myrm_agent_harness.agent.middlewares.approval._allow_always import should_block_allow_always
+from myrm_agent_harness.agent.middlewares.approval._interrupt_payload import build_interrupt_payload
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
     evaluate_tool_batch,
 )
@@ -253,15 +251,15 @@ async def test_auto_mode_suspended_propagates_to_review_config() -> None:
     assert action_requests[0].get("autoModeSuspended") == "consecutive"
 
 
-def test_should_block_allow_always_for_hardened_flags() -> None:
-    """_should_block_allow_always returns True for socially_irreversible, irreversible_destructive, and auto_mode_suspended."""
+def testshould_block_allow_always_for_hardened_flags() -> None:
+    """should_block_allow_always returns True for socially_irreversible, irreversible_destructive, and auto_mode_suspended."""
     tool_call = {"name": "bash", "args": {"command": "git push"}}
 
-    assert _should_block_allow_always(tool_call, {"socially_irreversible": True}) is True
-    assert _should_block_allow_always(tool_call, {"irreversible_destructive": True}) is True
-    assert _should_block_allow_always(tool_call, {"auto_mode_suspended": "consecutive"}) is True
-    assert _should_block_allow_always(tool_call, {"auto_mode_suspended": "total"}) is True
-    assert _should_block_allow_always(tool_call, {}) is False
+    assert should_block_allow_always(tool_call, {"socially_irreversible": True}) is True
+    assert should_block_allow_always(tool_call, {"irreversible_destructive": True}) is True
+    assert should_block_allow_always(tool_call, {"auto_mode_suspended": "consecutive"}) is True
+    assert should_block_allow_always(tool_call, {"auto_mode_suspended": "total"}) is True
+    assert should_block_allow_always(tool_call, {}) is False
 
 
 @pytest.mark.asyncio

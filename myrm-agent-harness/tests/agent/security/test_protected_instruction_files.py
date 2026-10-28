@@ -15,9 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-    _should_block_allow_always,
-)
+from myrm_agent_harness.agent.middlewares.approval._allow_always import should_block_allow_always
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
     evaluate_tool_batch,
 )
@@ -252,11 +250,11 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
         decisions = [e.decision for e in entries]
         assert "PROTECTED_INSTRUCTION_ATTEMPT" in decisions
 
-    def test_should_block_allow_always_enforced(self) -> None:
-        """Verify _should_block_allow_always denies permanent exemption."""
+    def testshould_block_allow_always_enforced(self) -> None:
+        """Verify should_block_allow_always denies permanent exemption."""
         # 1. Blocked via extra_ctx
         assert (
-            _should_block_allow_always(
+            should_block_allow_always(
                 tool_call={"name": "write_file", "args": {"path": "AGENTS.md"}},
                 extra_ctx={"protected_instruction": True},
             )
@@ -265,7 +263,7 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
 
         # 2. Blocked via path inspection fallback
         assert (
-            _should_block_allow_always(
+            should_block_allow_always(
                 tool_call={"name": "write_file", "args": {"path": "SOUL.md"}},
                 extra_ctx=None,
             )
@@ -274,7 +272,7 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
 
         # 3. Blocked via shell command inspection
         assert (
-            _should_block_allow_always(
+            should_block_allow_always(
                 tool_call={"name": "bash", "args": {"command": "echo bad > AGENTS.md"}},
                 extra_ctx=None,
             )
@@ -283,7 +281,7 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
 
         # 4. Safe operation not blocked
         assert (
-            _should_block_allow_always(
+            should_block_allow_always(
                 tool_call={"name": "write_file", "args": {"path": "src/app.py"}},
                 extra_ctx={},
             )

@@ -1,9 +1,9 @@
-"""Tests for high_risk → hideAllowAlways and _should_block_allow_always guard.
+"""Tests for high_risk → hideAllowAlways and should_block_allow_always guard.
 
 Covers:
 - Auto Mode Suspended sets extra_ctx["high_risk"] = True
 - build_interrupt_payload emits hideAllowAlways when high_risk
-- _should_block_allow_always blocks allow_always for high_risk/smart_denied
+- should_block_allow_always blocks allow_always for high_risk/smart_denied
 - apply_approval_decisions ignores allow_always when high_risk
 """
 
@@ -13,9 +13,7 @@ from langchain_core.messages import AIMessage, ToolCall
 from myrm_agent_harness.agent.middlewares.approval import (
     set_approval_user_id,
 )
-from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
-    _should_block_allow_always,
-)
+from myrm_agent_harness.agent.middlewares.approval._allow_always import should_block_allow_always
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
     apply_approval_decisions,
     build_interrupt_payload,
@@ -241,27 +239,27 @@ class TestBuildInterruptPayloadHighRisk:
 
 
 class TestShouldBlockAllowAlways:
-    """Unit tests for _should_block_allow_always guard."""
+    """Unit tests for should_block_allow_always guard."""
 
     def test_blocks_high_risk(self):
         tool_call = {"name": "bash_code_execute_tool", "args": {"command": "ls"}}
-        assert _should_block_allow_always(tool_call, {"high_risk": True}) is True
+        assert should_block_allow_always(tool_call, {"high_risk": True}) is True
 
     def test_blocks_smart_denied(self):
         tool_call = {"name": "bash_code_execute_tool", "args": {"command": "ls"}}
-        assert _should_block_allow_always(tool_call, {"smart_denied": True}) is True
+        assert should_block_allow_always(tool_call, {"smart_denied": True}) is True
 
     def test_allows_normal(self):
         tool_call = {"name": "file_write_tool", "args": {"path": "/tmp/x"}}
-        assert _should_block_allow_always(tool_call, None) is False
+        assert should_block_allow_always(tool_call, None) is False
 
     def test_allows_empty_extra_ctx(self):
         tool_call = {"name": "file_write_tool", "args": {"path": "/tmp/x"}}
-        assert _should_block_allow_always(tool_call, {}) is False
+        assert should_block_allow_always(tool_call, {}) is False
 
     def test_blocks_both_flags_set(self):
         tool_call = {"name": "bash_code_execute_tool", "args": {"command": "test"}}
-        assert _should_block_allow_always(tool_call, {"high_risk": True, "smart_denied": True}) is True
+        assert should_block_allow_always(tool_call, {"high_risk": True, "smart_denied": True}) is True
 
 
 class TestApplyDecisionsHighRiskBlocksAllowAlways:

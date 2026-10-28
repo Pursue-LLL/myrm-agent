@@ -1,152 +1,38 @@
-"""Batch approval decision handling — interrupt payload and decision application.
+"""Batch approval decision handling — applying the human's decisions to the pending tool calls.
 
 [INPUT]
 - agent.security (POS: security types, approval flow, audit, engine)
 - agent.security.script_operand_verifier::compute_file_content_digest, extract_script_file_operand (POS: TOCTOU Defense verification)
+- ._allow_always::try_add_to_allowlist (POS: remember an approved call as always-allowed unless a guard blocks it)
 - .refusal::DenialCause, refusal_answer, rejection_cause (POS: the answer to a refused call, marked with who refused)
 
 [OUTPUT]
-- build_interrupt_payload: Build LangChain-standard interrupt payload for batch approval (includes optional command_spans for shell tools).
 - apply_approval_decisions: Apply user decisions to tool_calls and generate ToolMessages (blocks unsafe shell edits).
 
 [POS]
-Batch approval decision handling — interrupt payload construction and decision application.
+The inbound half of batch approval — decision application; the interrupt payload is built by `_interrupt_payload`.
 """
 
 from __future__ import annotations
 
 import logging
-import time
 import uuid
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall, ToolMessage
 
-from myrm_agent_harness.agent.security.approval_flow import DEFAULT_USER_ID
 from myrm_agent_harness.agent.security.audit import record_decision
-from myrm_agent_harness.agent.security.command_allowlist_pattern import (
-    extract_shell_command,
-)
 from myrm_agent_harness.agent.security.engine import extract_url_domains
-from myrm_agent_harness.agent.security.path_security import (
-    is_protected_instruction_file,
-)
 from myrm_agent_harness.agent.security.types import SecurityConfig
-from myrm_agent_harness.core.security.redact import redact_for_display
 
+from ._allow_always import try_add_to_allowlist
 from .guidance_delivery import bounded_note
-from .helpers import add_to_allowlist_if_needed, record_approval, record_denial, record_rejection
+from .helpers import record_approval, record_denial, record_rejection
 from .refusal import DenialCause, refusal_answer, rejection_cause
 
 logger = logging.getLogger(__name__)
 
-
-def _integration_mutation_blocks_allow_always(tool_call: ToolCall | dict[str, object]) -> bool:
-    raw_args = tool_call.get("args", {})
-    if not isinstance(raw_args, dict):
-        return False
-    shell_cmd = str(raw_args.get("command", "") or raw_args.get("code", "")).strip()
-    if not shell_cmd:
-        return False
-    from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
-        is_integration_mutation_command,
-    )
-
-    return is_integration_mutation_command(shell_cmd)
-
-
-def _should_block_allow_always(
-    tool_call: ToolCall | dict[str, object],
-    extra_ctx: dict[str, Any] | None,
-) -> bool:
-    """Unified guard: returns True when allowAlways must be blocked."""
-    from myrm_agent_harness.agent.middlewares._session_context import (
-        get_managed_approval_policy,
-    )
-    from myrm_agent_harness.agent.security.managed_policy_gates import (
-        allow_always_writes_blocked,
-    )
-
-    if allow_always_writes_blocked(get_managed_approval_policy()):
-        return True
-    if extra_ctx and (
-        extra_ctx.get("high_risk")
-        or extra_ctx.get("smart_denied")
-        or extra_ctx.get("hide_allow_always")
-        or extra_ctx.get("requires_dual_insurance")
-        or extra_ctx.get("socially_irreversible")
-        or extra_ctx.get("irreversible_destructive")
-        or extra_ctx.get("auto_mode_suspended")
-        or extra_ctx.get("protected_instruction")
-    ):
-        return True
-
-    raw_args = tool_call.get("args") or tool_call.get("arguments") or {}
-    if isinstance(raw_args, dict):
-        p = str(raw_args.get("path", "") or raw_args.get("file_path", "") or raw_args.get("filepath", "")).strip()
-        if p and is_protected_instruction_file(p):
-            return True
-
-        cmd = str(raw_args.get("command", "") or raw_args.get("code", "")).strip()
-        if cmd:
-            from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
-                is_protected_instruction_mutation_command,
-            )
-
-            if is_protected_instruction_mutation_command(cmd):
-                return True
-
-    return _integration_mutation_blocks_allow_always(tool_call)
-
-
-async def _try_add_to_allowlist(
-    tool_call: ToolCall | dict[str, object],
-    extra_ctx: dict[str, Any] | None,
-    allow_always: bool | dict[str, bool],
-    permission_type: str,
-    allowlist_tool_name: str,
-    idx: int,
-    args_hashes: dict[int, str | None],
-    ttl_seconds: int | float | None = None,
-) -> None:
-    """Write to allowlist if allow_always is set and not blocked by security guards."""
-    if not allow_always:
-        return
-    if _should_block_allow_always(tool_call, extra_ctx):
-        tool_name = tool_call.get("name", "unknown")
-        logger.warning(
-            "[APPROVAL] Ignoring allow_always for high-risk/restricted operation on %s",
-            tool_name,
-        )
-        return
-    from myrm_agent_harness.agent.middlewares._session_context import (
-        get_agent_id,
-        get_approval_session,
-        get_approval_user_id,
-    )
-
-    user_id = get_approval_user_id() or DEFAULT_USER_ID
-    agent_id = get_agent_id() or None
-    session_id = get_approval_session() or None
-    tool_args = tool_call.get("args", {})
-    shell_command = extract_shell_command(tool_args if isinstance(tool_args, dict) else None)
-    await add_to_allowlist_if_needed(
-        allow_always,
-        user_id,
-        permission_type,
-        allowlist_tool_name,
-        args_hashes.get(idx),
-        tool_command=shell_command,
-        agent_id=agent_id,
-        ttl_seconds=ttl_seconds,
-        session_id=session_id,
-    )
-
-
-__all__ = ["apply_approval_decisions", "build_interrupt_payload"]
-
-_DEFAULT_APPROVAL_TIMEOUT_SECONDS = 600
-_DEFAULT_TIMEOUT_BEHAVIOR = "deny"
+__all__ = ["apply_approval_decisions"]
 
 _EDIT_REAPPROVAL_MESSAGE = (
     "Edited command requires new approval: modified shell commands with "
@@ -184,162 +70,6 @@ def _edited_shell_edit_block_reason(
     if classify_command_risk(edited_cmd) == CommandRiskLevel.SAFE:
         return None
     return _EDIT_REAPPROVAL_MESSAGE
-
-
-def build_interrupt_payload(
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
-    session_key: str,
-    *,
-    approval_timeout_seconds: int | None = None,
-    timeout_behavior: str = _DEFAULT_TIMEOUT_BEHAVIOR,
-    workspace_root: str | None = None,
-) -> tuple[dict[str, Any], list[int]]:
-    """Build LangChain-standard interrupt payload for batch approval.
-
-    Args:
-        pending_approval: list of (idx, tool_call, permission_type, reason, extra_ctx)
-        session_key: session identifier for routing
-        approval_timeout_seconds: seconds before auto-resolution (from SecurityConfig)
-        timeout_behavior: "deny" or "allow" — action taken when timeout expires
-
-    Returns: (interrupt_payload, interrupt_indices)
-    """
-    action_requests = []
-    review_configs = []
-    interrupt_indices = []
-
-    for idx, tool_call, permission_type, reason, extra_ctx in pending_approval:
-        tool_name = tool_call.get("name", "unknown")
-        tool_input = tool_call.get("args", {})
-
-        action_name = tool_name
-        if extra_ctx and "ptc_tool_name_full" in extra_ctx:
-            action_name = extra_ctx["ptc_tool_name_full"]
-
-        redacted_args = redact_for_display(tool_input)
-        action_request: dict[str, object] = {
-            "action": action_name,
-            "args": redacted_args,
-            "description": reason,
-        }
-        if extra_ctx and "ptc_annotations" in extra_ctx:
-            action_request["ptc_annotations"] = extra_ctx["ptc_annotations"]
-
-        domains = extract_url_domains(permission_type, tool_input)
-        if domains:
-            action_request["domains"] = domains
-
-        from myrm_agent_harness.toolkits.code_execution.security.command_explainer.extract import (
-            build_shell_approval_fields,
-        )
-
-        action_request.update(build_shell_approval_fields(tool_name, redacted_args))
-
-        is_smart_denied = bool(extra_ctx and extra_ctx.get("smart_denied"))
-        is_high_risk = bool(extra_ctx and extra_ctx.get("high_risk"))
-        from myrm_agent_harness.agent.middlewares._session_context import (
-            get_managed_approval_policy,
-        )
-        from myrm_agent_harness.agent.security.managed_policy_gates import (
-            allow_always_writes_blocked,
-        )
-
-        map_blocks_allow_always = allow_always_writes_blocked(get_managed_approval_policy())
-        if is_smart_denied:
-            review_config: dict[str, object] = {
-                "allowedDecisions": ["approve", "reject"],
-                "smartDenied": True,
-                "hideAllowAlways": True,
-            }
-            reviewer_reason = extra_ctx.get("reviewer_reason", "") if extra_ctx else ""
-            if reviewer_reason:
-                action_request["reviewerReason"] = reviewer_reason
-        else:
-            review_config = {
-                "allowedDecisions": ["approve", "reject", "edit"],
-            }
-            if is_high_risk or map_blocks_allow_always:
-                review_config["hideAllowAlways"] = True
-        if extra_ctx and extra_ctx.get("hide_allow_always"):
-            review_config["hideAllowAlways"] = True
-        if extra_ctx and extra_ctx.get("requires_dual_insurance"):
-            review_config["requiresDualInsurance"] = True
-        if extra_ctx and extra_ctx.get("batch_impact_summary"):
-            review_config["batchImpactSummary"] = extra_ctx.get("batch_impact_summary")
-        if extra_ctx and extra_ctx.get("recovery_hint"):
-            review_config["recoveryHint"] = extra_ctx.get("recovery_hint")
-        if extra_ctx and extra_ctx.get("is_spend"):
-            review_config["isSpend"] = True
-            review_config["spendAmount"] = extra_ctx.get("spend_amount")
-            review_config["spendCurrency"] = extra_ctx.get("spend_currency")
-            review_config["actionDigest"] = extra_ctx.get("action_digest")
-            review_config["hideAllowAlways"] = True
-        if extra_ctx and extra_ctx.get("auto_mode_suspended"):
-            review_config["autoModeSuspended"] = extra_ctx.get("auto_mode_suspended")
-            action_request["autoModeSuspended"] = extra_ctx.get("auto_mode_suspended")
-        if extra_ctx and extra_ctx.get("socially_irreversible"):
-            review_config["sociallyIrreversible"] = True
-            review_config["hideAllowAlways"] = True
-            action_request["sociallyIrreversible"] = True
-        if extra_ctx and extra_ctx.get("irreversible_destructive"):
-            review_config["irreversibleDestructive"] = True
-            review_config["hideAllowAlways"] = True
-            review_config["blastRadius"] = extra_ctx.get("blast_radius")
-            review_config["snapshotId"] = extra_ctx.get("snapshot_id")
-            action_request["irreversibleDestructive"] = True
-            if extra_ctx.get("snapshot_id"):
-                action_request["snapshotId"] = extra_ctx.get("snapshot_id")
-        if extra_ctx and extra_ctx.get("script_operand_path"):
-            action_request["scriptOperandPath"] = extra_ctx.get("script_operand_path")
-            action_request["scriptOperandHash"] = extra_ctx.get("script_operand_hash")
-            review_config["scriptOperandProtected"] = True
-        if extra_ctx and extra_ctx.get("script_content_hash"):
-            review_config["scriptTarget"] = extra_ctx.get("script_target")
-            review_config["scriptContentHash"] = extra_ctx.get("script_content_hash")
-            action_request["scriptTarget"] = extra_ctx.get("script_target")
-            action_request["scriptContentHash"] = extra_ctx.get("script_content_hash")
-            review_config["scriptOperandProtected"] = True
-        if domains:
-            review_config["domainApproval"] = True
-
-        action_requests.append(action_request)
-        review_configs.append(review_config)
-        interrupt_indices.append(idx)
-
-    logger.info(
-        "[BATCH_APPROVAL] Triggering interrupt for %d tools: %s",
-        len(action_requests),
-        [req["action"] for req in action_requests],
-    )
-
-    has_handover = any(perm_type == "browser_human_handover" for _, _, perm_type, _, _ in pending_approval)
-    display_mode = "handover" if has_handover else "approval"
-
-    effective_timeout = approval_timeout_seconds or _DEFAULT_APPROVAL_TIMEOUT_SECONDS
-    expires_at = time.time() + effective_timeout
-    request_id = str(uuid.uuid4())
-
-    payload: dict[str, Any] = {
-        "actionRequests": action_requests,
-        "reviewConfigs": review_configs,
-        "extensions": {
-            "timeout": {
-                "seconds": effective_timeout,
-                "expiresAt": expires_at,
-                "behavior": timeout_behavior,
-            },
-            "approval": {
-                "requestId": request_id,
-                "sessionKey": session_key,
-                "batchSize": len(action_requests),
-            },
-            "displayMode": display_mode,
-        },
-    }
-    if workspace_root:
-        payload["extensions"]["workspaceRoot"] = workspace_root
-
-    return payload, interrupt_indices
 
 
 async def apply_approval_decisions(
@@ -547,7 +277,7 @@ async def apply_approval_decisions(
                         )
                         record_decision(tool_name, "DOMAIN_APPROVED", f"domains: {domains}")
 
-                await _try_add_to_allowlist(
+                await try_add_to_allowlist(
                     tool_call,
                     extra_ctx,
                     allow_always,
@@ -603,7 +333,7 @@ async def apply_approval_decisions(
 
                 if edit_applied:
                     record_approval(session_key)
-                    await _try_add_to_allowlist(
+                    await try_add_to_allowlist(
                         tool_call,
                         extra_ctx,
                         allow_always,
