@@ -393,7 +393,13 @@ class BaseChannel(ABC, EventEmitter):
         """Stop the typing indicator. Override in subclasses."""
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        """Add/remove a reaction emoji on a message. Empty emoji removes the reaction."""
+        """Add a reaction emoji to a message; an empty emoji takes back the one this channel added.
+
+        The empty emoji removes only what this channel put on the message: nothing when it put nothing, and never
+        another member's reaction. A platform that refuses the request must raise, so the router reports it instead of
+        showing a bot that silently has no status reaction. A channel that hands the request to a process which does
+        not report back (the WhatsApp bridge) cannot raise for a refusal.
+        """
 
     async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
         """Send a placeholder message and return its message_id for later editing.
