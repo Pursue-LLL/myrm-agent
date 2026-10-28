@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-28 · 批准一次调用后到底开了什么：审批卡的文件夹勾选项只讲「本会话记住」，沙箱聊天的授权接口照样回 200；浏览器登录状态审批卡不管界面语言一律显示中文，还露出加密算法与存储路径
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端 `PathGrantToggle` 的文案、`BrowserSessionView` 与新增的 `lib/approval/browserSession.ts`、六种语言的 locales；服务端沙箱闸门与 403 在提交 `d1ada5c3d2`；harness 的「批准即开一次门」在 `46f4a857f1`，见 `myrm-agent-harness/BUGFIX_LOG.md` 的 `BUG-HARNESS-2026-10-28-061`；没有改提示词、工具描述与控制平面）。没有在真实模型与完整应用里端到端走过，见「仍然存在」。 |
+| **症状** | ① 路径审批卡的勾选项写「同时授予文件夹访问：允许 Agent 在本会话后续轮次访问下列文件夹」，只说了勾选的效果：harness 现在批准一次调用就让这一步操作用到它点名的文件夹，勾选才是「本会话记住」，卡片没把这两件事分开讲。② 沙箱（worktree 隔离）聊天里卡片照样提供文件夹授权，`POST session-access-roots` 回 200 加旧列表而不是拒绝（第一批已修）。③ 浏览器登录状态（保存 / 恢复 / 列出 / 删除）的审批卡：标题与说明写死中英两份，界面却永远取 `zh`，英文、日文、韩文、德文用户看到中文；说明里还有「AES-256-GCM」「Cookies 和 LocalStorage」「~/.myrm/sessions/」。 |
+| **根因** | ①「同时授予」是文件夹授权上线时的措辞，当时没有「一次」这一层；harness 增加 `once` 根后没有同步改卡片。③ 文案写在组件里（`SingleApprovalCard.tsx` 的 `actionLabels`），取值只用了 `zh`，没有走 locales，所以也没有六语言对照与「不露技术细节」的任何检查。 |
+| **修复** | ① `toolApproval.grantDirectory` / `grantDirectoryDesc` 六种语言改成「本会话记住这些文件夹」+「批准后，这一步操作可以使用它们；勾选后，本会话后续操作也可以使用」；键名、勾选逻辑、回传的 `grantDirectories` 都没动。② 见第一批。③ 新增 `lib/approval/browserSession.ts`（`resolveBrowserSession` 认出这四个动作与站点）；`BrowserSessionView` 只收 `action` 与 `domain`，标题、说明与存放位置全部读 `toolApproval.browserSession.actions.<动作>` 与 `storageInfo`，六种语言各一份，不再出现算法名、路径与浏览器存储术语；颜色改用主题变量（`text-warning`、`border-primary/20 bg-primary/5`）而不是写死的 `blue-*` / `amber-*`；`SingleApprovalCard.tsx` 删去内联的 `actionLabels`（HEAD 669 行 → 617 行）。 |
+| **回归证据** | [1] `vitest`：`browserSession.test.ts`（四个动作、缺站点按「全部」、其他动作与其他工具返回空）、`BrowserSessionView.test.tsx`（用六种语言的真实 locales 渲染：每个动作都显示标题与说明、不含 `AES|GCM|~/|.myrm|cookie|localstorage`、没有漏掉的键名），连同 `chat-window/approval`、`SingleApprovalCard*` 共 15 个文件 78 例通过。[2] `bun run typecheck` 全仓无错误；`verify:i18n`（六语言 parity、占位符、glossary）、`verify:icu-syntax`、`verify:theme-colors` 通过；触及文件 `oxlint` 与 `prettier --check` 通过。[3] 真实浏览器（`bun run dev` 的 3000 端口，临时预览页渲染真实的 `SingleApprovalCard`，截图后已删除）：中文深色桌面、中文浅色桌面、德文深色 375px、英文浅色 375px 四张，勾选项与文件夹列表、读写徽标、浏览器会话卡的文案与配色都对，375px 下 `scrollWidth` 等于 375（没有横向溢出），超长路径在文件夹列表里折行。 |
+| **仍然存在** | ① 卡片上的「原因：Path outside allowed zones」是 harness 给的英文理由，各语言界面都原样显示英文，本条没动。② 没有用真实模型触发一次「批准一次、再勾选记住」的完整流程，只有 harness 的真实图测试与前端单测，两头没有在完整应用里接过。③ 日文、韩文、德文的新文案是新译，没有母语者校对。④ `SingleApprovalCard.tsx` 仍有 617 行：同一个文件里另有别人未提交的「一次性凭据」改动，拆分会与它冲突，所以这一条只删了内联的浏览器会话文案；它在行数基线里，没有增长。⑤ `verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 在当前代码里本来就是红的（`ConnectionIndicator.tsx`、`features/approval/*` 等既有违规与基线漂移），本条触及的文件不在它们的报告里。⑥ 浏览器会话卡里 Lucide 图标（锁、盾、地球、终端）没换。 |
+
 ## 2026-10-28 · 认证审计日志的目录建不出或轮转器起不来，会把失败登录、锁定上报与已认证的请求变成 500（密码分享里使锁定生效的那一次错误猜测答 500）；对话分享内容页的外壳文案固定英文，不跟访客语言
 
 | 字段 | 内容 |

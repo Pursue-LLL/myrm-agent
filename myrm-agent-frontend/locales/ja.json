@@ -9747,7 +9747,25 @@
       "domain": "ドメイン",
       "action": "操作",
       "allDomains": "すべてのドメイン",
-      "storageInfo": "データは AES-256-GCM で暗号化され、ローカルのみに保存されます（~/.myrm/sessions/）。クラウドにはアップロードされません"
+      "storageInfo": "暗号化され、この端末にのみ保存されます。クラウドにはアップロードされません",
+      "actions": {
+        "save_session": {
+          "label": "ログイン状態を保存",
+          "desc": "現在のブラウザのログイン状態を保存し、後で復元できるようにします"
+        },
+        "restore_session": {
+          "label": "ログイン状態を復元",
+          "desc": "以前に保存したログイン状態を復元します"
+        },
+        "list_sessions": {
+          "label": "保存済みセッションを表示",
+          "desc": "ログイン状態が保存されているサイトをすべて表示します"
+        },
+        "delete_session": {
+          "label": "セッションを削除",
+          "desc": "指定したサイトの保存済みログイン状態を削除します"
+        }
+      }
     },
     "allowAlwaysAfterEdit": "同時に常に許可としてマーク",
     "editValidationError": "パラメータフォーマットエラー：{fields}",
@@ -9806,8 +9824,8 @@
       "allowDomain": "このドメインを常に許可",
       "allowDomainDesc": "このドメインへの今後のリクエストは自動的に許可されます（現在のセッションのみ）"
     },
-    "grantDirectory": "フォルダアクセスも許可",
-    "grantDirectoryDesc": "このチャットの残りのセッションで、下記のフォルダへのアクセスを許可",
+    "grantDirectory": "このチャットでフォルダを記憶",
+    "grantDirectoryDesc": "承認すると、この操作でこれらのフォルダを使えます。チェックすると、このチャットの以降の操作でも使えます。",
     "grantDirectoryReadOnly": "読み取りのみ",
     "grantDirectoryReadWrite": "読み取りと書き込み",
     "highRiskIntercepted": {

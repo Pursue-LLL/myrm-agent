@@ -31,6 +31,7 @@ import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
 import PathGrantToggle from './approval/PathGrantToggle';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
+import { resolveBrowserSession } from '@/lib/approval/browserSession';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
 import {
   extractShellCommand,
@@ -121,58 +122,10 @@ export default function SingleApprovalCard({
     [editedArgs, request.toolName],
   );
 
-  const isBrowserSession =
-    request.toolName === 'browser_manage' &&
-    typeof request.toolInput.action === 'string' &&
-    ['save_session', 'restore_session', 'list_sessions', 'delete_session'].includes(request.toolInput.action);
-
-  const browserSessionInfo = useMemo(() => {
-    if (!isBrowserSession) {
-      return null;
-    }
-    const action = String(request.toolInput.action);
-    const domain = String(request.toolInput.value ?? '');
-    const actionLabels: Record<string, { zh: string; en: string; desc: { zh: string; en: string } }> = {
-      save_session: {
-        zh: '保存登录状态',
-        en: 'Save Login State',
-        desc: {
-          zh: '将当前浏览器的 Cookies 和 LocalStorage 加密保存到本地（AES-256-GCM）',
-          en: 'Encrypt and save current browser Cookies and LocalStorage locally (AES-256-GCM)',
-        },
-      },
-      restore_session: {
-        zh: '恢复登录状态',
-        en: 'Restore Login State',
-        desc: {
-          zh: '从本地加密存储中恢复之前保存的登录状态',
-          en: 'Restore previously saved login state from local encrypted storage',
-        },
-      },
-      list_sessions: {
-        zh: '列出已保存的会话',
-        en: 'List Saved Sessions',
-        desc: {
-          zh: '查看所有已保存的域名会话列表',
-          en: 'View all saved domain sessions',
-        },
-      },
-      delete_session: {
-        zh: '删除会话',
-        en: 'Delete Session',
-        desc: {
-          zh: '从本地加密存储中删除指定域名的会话',
-          en: 'Delete the session for specified domain from local encrypted storage',
-        },
-      },
-    };
-    return {
-      action,
-      domain,
-      label: actionLabels[action]?.zh || action,
-      desc: actionLabels[action]?.desc,
-    };
-  }, [isBrowserSession, request.toolInput]);
+  const browserSession = useMemo(
+    () => resolveBrowserSession(request.toolName, request.toolInput),
+    [request.toolInput, request.toolName],
+  );
 
   const isSaveSkill = isSaveSkillApproval(request.toolName, request.toolInput);
 
@@ -405,13 +358,8 @@ export default function SingleApprovalCard({
 
   return (
     <div className={`space-y-3 ${isCompactSurface ? 'p-2' : 'rounded-lg border p-4'}`}>
-      {isBrowserSession && browserSessionInfo ? (
-        <BrowserSessionView
-          action={browserSessionInfo.action}
-          domain={browserSessionInfo.domain}
-          label={browserSessionInfo.label}
-          desc={browserSessionInfo.desc}
-        />
+      {browserSession ? (
+        <BrowserSessionView action={browserSession.action} domain={browserSession.domain} />
       ) : (
         <>
           <div className="flex items-center flex-wrap gap-2">

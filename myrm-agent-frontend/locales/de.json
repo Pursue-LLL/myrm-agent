@@ -9747,7 +9747,25 @@
       "domain": "Domäne",
       "action": "Aktion",
       "allDomains": "Alle Domänen",
-      "storageInfo": "Mit AES-256-GCM verschlüsselte Daten, nur lokal gespeichert (~/.myrm/sessions/), niemals in die Cloud hochgeladen"
+      "storageInfo": "Verschlüsselt und nur auf diesem Gerät gespeichert. Es wird nie in die Cloud hochgeladen.",
+      "actions": {
+        "save_session": {
+          "label": "Anmeldestatus speichern",
+          "desc": "Speichert die Anmeldungen des aktuellen Browsers, damit sie später wiederhergestellt werden können"
+        },
+        "restore_session": {
+          "label": "Anmeldestatus wiederherstellen",
+          "desc": "Stellt einen zuvor gespeicherten Anmeldestatus wieder her"
+        },
+        "list_sessions": {
+          "label": "Gespeicherte Sitzungen anzeigen",
+          "desc": "Zeigt alle Websites mit gespeichertem Anmeldestatus"
+        },
+        "delete_session": {
+          "label": "Sitzung löschen",
+          "desc": "Löscht den gespeicherten Anmeldestatus der angegebenen Website"
+        }
+      }
     },
     "allowAlwaysAfterEdit": "Auch als immer erlauben markieren",
     "editValidationError": "Parameterformatfehler: {fields}",
@@ -9806,8 +9824,8 @@
       "allowDomain": "Diese Domäne immer zulassen",
       "allowDomainDesc": "Zukünftige Anfragen an diese Domain werden automatisch genehmigt (nur aktuelle Sitzung)."
     },
-    "grantDirectory": "Gewähren Sie außerdem Ordnerzugriff",
-    "grantDirectoryDesc": "Erlauben Sie dem Agenten, für den Rest dieser Chat-Sitzung auf die unten aufgeführten Ordner zuzugreifen",
+    "grantDirectory": "Ordner für diesen Chat merken",
+    "grantDirectoryDesc": "Mit der Genehmigung darf diese Aktion die Ordner nutzen. Mit dem Häkchen stehen sie auch den weiteren Aktionen dieses Chats zur Verfügung.",
     "grantDirectoryReadOnly": "Nur Lesen",
     "grantDirectoryReadWrite": "Lesen und Schreiben",
     "highRiskIntercepted": {

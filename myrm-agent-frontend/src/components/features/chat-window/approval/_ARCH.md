@@ -2,22 +2,23 @@
 
 可视化工具审批（HITL）子视图：截图审批卡片、Shell/浏览器上下文、编辑/移交模式与屏幕高亮。
 
-| 文件                                                               | 职责                                                                                        |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `VisualApprovalInlineSection.tsx`                                  | 桌面聊天 inline 审批入口（消息级挂载；browser/desktop 预览经 scoped selector 按 chat 隔离） |
-| `VisualApprovalRequestRenderer.tsx`                                | loading/ready/unavailable 三态路由渲染                                                      |
-| `VisualApprovalArtifactCard.tsx`                                   | 截图 + BBox + 审批操作主卡片                                                                |
-| `VisualApprovalPendingCard.tsx`                                    | snapshot loading 占位卡                                                                     |
-| `VisualApprovalUnavailableCard.tsx`                                | snapshot 失败降级 + 重试                                                                    |
-| `VisualApprovalHighlight.tsx`                                      | 红框 overlay 高亮                                                                           |
-| `VisualApprovalAttentionBar.tsx`                                   | 滚动区外 pending 可达条                                                                     |
-| `HumanAttentionBar.tsx`                                            | 聚合 clarify / desktop gate / tool·visual 审批的统一条（多类型时）                          |
-| `VisualApprovalOsOverlaySync.tsx`                                  | Tauri OS overlay 生命周期同步（scoped browser + desktop viewData）                          |
-| `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx`               | 浏览器/命令上下文                                                                           |
-| `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置；Edit / Reject 随所属卡片的倒计时在超时后禁用确认并提示已超时） |
-| `AllowAlwaysConfirmDialog.tsx`                                     | 「始终允许」确认（支持 pattern 预览与 Session/15m/1h/Permanent 时效阶梯门禁）               |
-| `PathGrantToggle.tsx`                                              | 路径审批卡的「同时授予文件夹访问」勾选项，并列出将授权的每个文件夹及只读/可读写，授权范围说明直接显示在勾选项下方（文件夹列表来自 harness，不在前端推断） |
-| `LeaseProgressCapsule.tsx`                                         | 执行态配额进度 HUD 胶囊（显示剩余步数配额并在临近用尽时提供原地一键快捷续期）               |
-| `__tests__/AllowAlwaysConfirmDialog.test.tsx`                      | 单元测试：覆盖时效阶梯与高危永久授权防呆警示                                                |
-| `__tests__/EditModeView.test.tsx`                                  | 单元测试：覆盖 EditModeView 时效阶梯选择与确认回调行为                                      |
-| `__tests__/PathGrantToggle.test.tsx`                               | 单元测试：覆盖文件夹列表与读写范围展示、勾选/标签点击回调、禁用态不可切换                   |
+| 文件                                                               | 职责                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VisualApprovalInlineSection.tsx`                                  | 桌面聊天 inline 审批入口（消息级挂载；browser/desktop 预览经 scoped selector 按 chat 隔离）                                                                                                                           |
+| `VisualApprovalRequestRenderer.tsx`                                | loading/ready/unavailable 三态路由渲染                                                                                                                                                                                |
+| `VisualApprovalArtifactCard.tsx`                                   | 截图 + BBox + 审批操作主卡片                                                                                                                                                                                          |
+| `VisualApprovalPendingCard.tsx`                                    | snapshot loading 占位卡                                                                                                                                                                                               |
+| `VisualApprovalUnavailableCard.tsx`                                | snapshot 失败降级 + 重试                                                                                                                                                                                              |
+| `VisualApprovalHighlight.tsx`                                      | 红框 overlay 高亮                                                                                                                                                                                                     |
+| `VisualApprovalAttentionBar.tsx`                                   | 滚动区外 pending 可达条                                                                                                                                                                                               |
+| `HumanAttentionBar.tsx`                                            | 聚合 clarify / desktop gate / tool·visual 审批的统一条（多类型时）                                                                                                                                                    |
+| `VisualApprovalOsOverlaySync.tsx`                                  | Tauri OS overlay 生命周期同步（scoped browser + desktop viewData）                                                                                                                                                    |
+| `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx`               | 浏览器登录状态操作与命令的上下文；浏览器会话的动作标题、说明与存放位置都来自 locales、随界面语言显示，不出现加密算法与存储路径                                                                                        |
+| `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置；Edit / Reject 随所属卡片的倒计时在超时后禁用确认并提示已超时）                                                                                                       |
+| `AllowAlwaysConfirmDialog.tsx`                                     | 「始终允许」确认（支持 pattern 预览与 Session/15m/1h/Permanent 时效阶梯门禁）                                                                                                                                         |
+| `PathGrantToggle.tsx`                                              | 路径审批卡的「本会话记住这些文件夹」勾选项，并列出将授权的每个文件夹及只读/可读写；说明直接显示在勾选项下方：不勾选时批准只让这一步操作使用它们，勾选后本会话后续操作也可使用（文件夹列表来自 harness，不在前端推断） |
+| `LeaseProgressCapsule.tsx`                                         | 执行态配额进度 HUD 胶囊（显示剩余步数配额并在临近用尽时提供原地一键快捷续期）                                                                                                                                         |
+| `__tests__/AllowAlwaysConfirmDialog.test.tsx`                      | 单元测试：覆盖时效阶梯与高危永久授权防呆警示                                                                                                                                                                          |
+| `__tests__/EditModeView.test.tsx`                                  | 单元测试：覆盖 EditModeView 时效阶梯选择与确认回调行为                                                                                                                                                                |
+| `__tests__/PathGrantToggle.test.tsx`                               | 单元测试：覆盖文件夹列表与读写范围展示、勾选/标签点击回调、禁用态不可切换                                                                                                                                             |
+| `__tests__/BrowserSessionView.test.tsx`                            | 单元测试：六种语言的真实文案下，每个动作都有标题与说明，且不含算法名、存储路径、浏览器存储术语                                                                                                                        |

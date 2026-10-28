@@ -9747,7 +9747,25 @@
       "domain": "域名",
       "action": "操作",
       "allDomains": "所有域名",
-      "storageInfo": "数据使用 AES-256-GCM 加密，仅存储在本地设备（~/.myrm/sessions/），不会上传到云端"
+      "storageInfo": "已加密，仅保存在本设备，不会上传到云端",
+      "actions": {
+        "save_session": {
+          "label": "保存登录状态",
+          "desc": "把当前浏览器的登录状态保存下来，之后可以恢复"
+        },
+        "restore_session": {
+          "label": "恢复登录状态",
+          "desc": "恢复之前保存的登录状态"
+        },
+        "list_sessions": {
+          "label": "列出已保存的会话",
+          "desc": "查看所有已保存登录状态的网站"
+        },
+        "delete_session": {
+          "label": "删除会话",
+          "desc": "删除指定网站已保存的登录状态"
+        }
+      }
     },
     "allowAlwaysAfterEdit": "同时标记为始终允许",
     "editValidationError": "参数格式错误：{fields}",
@@ -9806,8 +9824,8 @@
       "allowDomain": "始终允许此域名",
       "allowDomainDesc": "后续对该域名的请求将自动通过（仅当前会话）"
     },
-    "grantDirectory": "同时授予文件夹访问",
-    "grantDirectoryDesc": "允许 Agent 在本会话后续轮次访问下列文件夹",
+    "grantDirectory": "本会话记住这些文件夹",
+    "grantDirectoryDesc": "批准后，这一步操作可以使用它们；勾选后，本会话后续操作也可以使用。",
     "grantDirectoryReadOnly": "只读",
     "grantDirectoryReadWrite": "可读写",
     "highRiskIntercepted": {

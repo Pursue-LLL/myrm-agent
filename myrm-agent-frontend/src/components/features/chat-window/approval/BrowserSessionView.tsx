@@ -1,49 +1,61 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - next-intl::useTranslations (POS: toolApproval 文案)
+ * - @/lib/approval/browserSession::BrowserSessionAction (POS: 浏览器会话审批的动作)
+ *
+ * [OUTPUT]
+ * - BrowserSessionView: 浏览器登录状态（保存 / 恢复 / 列出 / 删除）审批卡的上下文展示
+ *
+ * [POS]
+ * 动作标题、说明与存放位置都来自 locales，随界面语言显示；不出现加密算法、存储路径等技术细节。
+ */
+
+import { Globe, Lock, ShieldAlert, Terminal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { ShieldAlert, Terminal, Globe, Lock } from 'lucide-react';
+
+import type { BrowserSessionAction } from '@/lib/approval/browserSession';
 
 interface BrowserSessionViewProps {
-  action: string;
+  action: BrowserSessionAction;
   domain: string;
-  label: string;
-  desc: { zh: string; en: string } | undefined;
 }
 
-export default function BrowserSessionView({ action: _action, domain, label, desc }: BrowserSessionViewProps) {
+export default function BrowserSessionView({ action, domain }: BrowserSessionViewProps) {
   const t = useTranslations('toolApproval');
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Lock className="h-4 w-4 text-amber-500" />
+        <Lock className="h-4 w-4 shrink-0 text-warning" />
         <span className="text-sm font-medium">{t('browserSession.title')}</span>
       </div>
 
       <div className="space-y-2 rounded-md bg-muted/50 p-3 text-xs">
         <div className="flex items-center gap-2">
-          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="font-medium">{t('browserSession.domain')}:</span>
-          <span className="font-mono text-foreground">{domain || t('browserSession.allDomains')}</span>
+          <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="shrink-0 font-medium">{t('browserSession.domain')}:</span>
+          <span className="min-w-0 break-all font-mono text-foreground">
+            {domain || t('browserSession.allDomains')}
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="font-medium">{t('browserSession.action')}:</span>
-          <span className="text-foreground">{label}</span>
+          <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="shrink-0 font-medium">{t('browserSession.action')}:</span>
+          <span className="min-w-0 text-foreground">{t(`browserSession.actions.${action}.label`)}</span>
         </div>
       </div>
 
-      {desc && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-xs">
-          <div className="flex items-start gap-2">
-            <ShieldAlert className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="text-blue-900 dark:text-blue-100">{desc.zh}</p>
-              <p className="text-blue-700 dark:text-blue-300 text-[10px]">{t('browserSession.storageInfo')}</p>
-            </div>
+      <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs">
+        <div className="flex items-start gap-2">
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <div className="min-w-0 space-y-1">
+            <p className="text-foreground">{t(`browserSession.actions.${action}.desc`)}</p>
+            <p className="text-[11px] text-muted-foreground">{t('browserSession.storageInfo')}</p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

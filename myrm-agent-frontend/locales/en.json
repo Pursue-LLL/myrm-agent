@@ -9747,7 +9747,25 @@
       "domain": "Domain",
       "action": "Action",
       "allDomains": "All Domains",
-      "storageInfo": "Data encrypted with AES-256-GCM, stored locally only (~/.myrm/sessions/), never uploaded to cloud"
+      "storageInfo": "Encrypted and stored only on this device. Never uploaded to the cloud.",
+      "actions": {
+        "save_session": {
+          "label": "Save Login State",
+          "desc": "Save the logins of the current browser so they can be restored later"
+        },
+        "restore_session": {
+          "label": "Restore Login State",
+          "desc": "Restore a login state you saved earlier"
+        },
+        "list_sessions": {
+          "label": "List Saved Sessions",
+          "desc": "View every site that has a saved login state"
+        },
+        "delete_session": {
+          "label": "Delete Session",
+          "desc": "Delete the saved login state of this site"
+        }
+      }
     },
     "allowAlwaysAfterEdit": "Also mark as always allow",
     "editValidationError": "Parameter format error: {fields}",
@@ -9806,8 +9824,8 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
-    "grantDirectory": "Also grant folder access",
-    "grantDirectoryDesc": "Allow the agent to access the folders listed below for the rest of this chat session",
+    "grantDirectory": "Remember these folders for this chat",
+    "grantDirectoryDesc": "Approving lets this action use them. Tick to keep them available for the rest of this chat.",
     "grantDirectoryReadOnly": "Read only",
     "grantDirectoryReadWrite": "Read and write",
     "highRiskIntercepted": {

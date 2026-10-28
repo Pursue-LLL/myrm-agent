@@ -9747,7 +9747,25 @@
       "domain": "도메인",
       "action": "작업",
       "allDomains": "모든 도메인",
-      "storageInfo": "데이터는 AES-256-GCM으로 암호화되어 로컬에만 저장됩니다 (~/.myrm/sessions/), 클라우드에 업로드되지 않습니다"
+      "storageInfo": "암호화되어 이 기기에만 저장되며 클라우드에 업로드되지 않습니다",
+      "actions": {
+        "save_session": {
+          "label": "로그인 상태 저장",
+          "desc": "현재 브라우저의 로그인 상태를 저장해 나중에 복원할 수 있게 합니다"
+        },
+        "restore_session": {
+          "label": "로그인 상태 복원",
+          "desc": "이전에 저장한 로그인 상태를 복원합니다"
+        },
+        "list_sessions": {
+          "label": "저장된 세션 보기",
+          "desc": "로그인 상태가 저장된 모든 사이트를 봅니다"
+        },
+        "delete_session": {
+          "label": "세션 삭제",
+          "desc": "지정한 사이트의 저장된 로그인 상태를 삭제합니다"
+        }
+      }
     },
     "allowAlwaysAfterEdit": "항상 허용으로도 표시",
     "editValidationError": "매개변수 형식 오류: {fields}",
@@ -9806,8 +9824,8 @@
       "allowDomain": "이 도메인 항상 허용",
       "allowDomainDesc": "이 도메인에 대한 향후 요청이 자동 승인됩니다 (현재 세션만)"
     },
-    "grantDirectory": "폴더 접근도 허용",
-    "grantDirectoryDesc": "이 채팅 세션 동안 아래 폴더에 대한 접근을 허용합니다",
+    "grantDirectory": "이 채팅에서 폴더 기억하기",
+    "grantDirectoryDesc": "승인하면 이 작업에서 이 폴더를 사용할 수 있습니다. 선택하면 이 채팅의 이후 작업에서도 사용할 수 있습니다.",
     "grantDirectoryReadOnly": "읽기 전용",
     "grantDirectoryReadWrite": "읽기 및 쓰기",
     "highRiskIntercepted": {

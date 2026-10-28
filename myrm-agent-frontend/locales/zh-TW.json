@@ -9747,7 +9747,25 @@
       "domain": "域名",
       "action": "操作",
       "allDomains": "所有域名",
-      "storageInfo": "資料使用 AES-256-GCM 加密，僅儲存在本地裝置（~/.myrm/sessions/），不會上傳到雲端"
+      "storageInfo": "已加密，僅儲存在本裝置，不會上傳到雲端",
+      "actions": {
+        "save_session": {
+          "label": "儲存登入狀態",
+          "desc": "把目前瀏覽器的登入狀態儲存下來，之後可以還原"
+        },
+        "restore_session": {
+          "label": "還原登入狀態",
+          "desc": "還原之前儲存的登入狀態"
+        },
+        "list_sessions": {
+          "label": "列出已儲存的會話",
+          "desc": "查看所有已儲存登入狀態的網站"
+        },
+        "delete_session": {
+          "label": "刪除會話",
+          "desc": "刪除指定網站已儲存的登入狀態"
+        }
+      }
     },
     "allowAlwaysAfterEdit": "同時標記為始終允許",
     "editValidationError": "引數格式錯誤：{fields}",
@@ -9806,8 +9824,8 @@
       "allowDomain": "始終允許此域名",
       "allowDomainDesc": "後續對該域名的請求將自動透過（僅當前會話）"
     },
-    "grantDirectory": "同時授予資料夾存取",
-    "grantDirectoryDesc": "允許 Agent 在本會話後續輪次存取下列資料夾",
+    "grantDirectory": "本會話記住這些資料夾",
+    "grantDirectoryDesc": "核准後，這一步操作可以使用它們；勾選後，本會話後續操作也可以使用。",
     "grantDirectoryReadOnly": "唯讀",
     "grantDirectoryReadWrite": "可讀寫",
     "highRiskIntercepted": {
