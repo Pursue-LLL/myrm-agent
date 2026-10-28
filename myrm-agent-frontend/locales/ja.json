@@ -12783,7 +12783,7 @@
         "skills": "ローカルスキル",
         "rules": "ワークスペースルール",
         "hasMyrmConfig": ".myrm プロジェクト設定を含む",
-        "repoCommands": "リポジトリ宣言のコマンドショートカット",
+        "repoCommands": "確認なしでの実行を許可するコマンド",
         "restrictedHint": "「信頼せずに関連付け」を選ぶと、このフォルダ内のローカルスキル・ルール・MCP サービスは無効のままになり、設定で後から信頼に変更できます",
         "cancel": "キャンセル",
         "restrict": "信頼せずに関連付け",
@@ -12798,10 +12798,10 @@
       "bannerLabel": "フォルダの信頼に関する通知",
       "restrictedTitle": "制限モード",
       "restrictedMessage": "{path} は信頼されていません。このフォルダのスキル、ルール、ローカルツールはオフになっています。",
-      "pendingTitle": "コマンドショートカットの承認待ち",
-      "pendingMessage": "{path} に未確認のコマンドショートカットが追加されました。許可するまで有効になりません。",
+      "pendingTitle": "コマンドの承認待ち",
+      "pendingMessage": "{path} に、毎回確認せずに実行されるコマンドが含まれています。許可するまで有効になりません。",
       "pendingList": "承認待ち",
-      "shortcutsOnTrust": "このフォルダを信頼すると、次のコマンドショートカットも許可されます",
+      "shortcutsOnTrust": "このフォルダを信頼すると、次のコマンドも確認なしで実行されます",
       "turnedOffTitle": "このフォルダを信頼するまでオフ",
       "itemSkills": "ローカルスキル {count} 件",
       "itemRules": "ワークスペースルール {count} 件",
@@ -12810,9 +12810,9 @@
       "detailsToggle": "詳細",
       "trustAction": "フォルダを信頼",
       "trusting": "信頼しています…",
-      "allowAction": "ショートカットを許可",
+      "allowAction": "これらのコマンドを許可",
       "allowing": "許可しています…",
-      "shortcutsAllowed": "コマンドショートカットを許可しました。"
+      "shortcutsAllowed": "これらのコマンドは確認なしで実行できるようになりました。"
     }
   },
   "milestone": {

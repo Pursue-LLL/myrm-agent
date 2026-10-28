@@ -11,7 +11,7 @@
  *
  * [POS]
  * Displayed at the top of the chat interface in two cases: the folder is restricted and holds extensions that stay
- * off until it is trusted, or the folder is already trusted but declares command shortcuts the user has not seen yet.
+ * off until it is trusted, or the folder is already trusted but lists commands that would run without asking and the user has not seen them yet.
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';

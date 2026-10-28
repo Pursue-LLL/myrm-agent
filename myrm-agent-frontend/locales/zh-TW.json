@@ -12783,7 +12783,7 @@
         "skills": "本地技能",
         "rules": "工作區規則",
         "hasMyrmConfig": "包含 .myrm 專案設定",
-        "repoCommands": "儲存庫宣告的命令捷徑",
+        "repoCommands": "此資料夾允許免確認執行的命令",
         "restrictedHint": "若選擇「不信任並關聯」，該資料夾內的本地技能、規則與 MCP 服務將保持停用，可在設定中稍後改為信任",
         "cancel": "取消",
         "restrict": "不信任並關聯",
@@ -12798,10 +12798,10 @@
       "bannerLabel": "資料夾信任提示",
       "restrictedTitle": "受限模式",
       "restrictedMessage": "{path} 尚未受信任，其中的技能、規則與本機工具已被關閉。",
-      "pendingTitle": "命令捷徑待確認",
-      "pendingMessage": "{path} 新增了你還沒看過的命令捷徑，允許之前它們不會生效。",
+      "pendingTitle": "命令待你確認",
+      "pendingMessage": "{path} 列出了無需每次確認即可執行的命令，在你允許之前不會生效。",
       "pendingList": "等待你確認",
-      "shortcutsOnTrust": "信任此資料夾也會允許以下命令捷徑",
+      "shortcutsOnTrust": "信任此資料夾後，以下命令將無需確認直接執行",
       "turnedOffTitle": "信任此資料夾之前保持關閉",
       "itemSkills": "{count} 個本機技能",
       "itemRules": "{count} 條工作區規則",
@@ -12810,9 +12810,9 @@
       "detailsToggle": "詳情",
       "trustAction": "信任此資料夾",
       "trusting": "正在信任…",
-      "allowAction": "允許這些捷徑",
+      "allowAction": "允許這些命令",
       "allowing": "正在允許…",
-      "shortcutsAllowed": "已允許命令捷徑。"
+      "shortcutsAllowed": "這些命令現在無需確認即可執行。"
     }
   },
   "milestone": {

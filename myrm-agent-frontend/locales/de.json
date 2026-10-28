@@ -12783,7 +12783,7 @@
         "skills": "Lokale Skills",
         "rules": "Workspace-Regeln",
         "hasMyrmConfig": "Enthält .myrm-Projektkonfiguration",
-        "repoCommands": "Repository-deklarierte Befehlsverknüpfungen",
+        "repoCommands": "Befehle, die ohne Rückfrage ausgeführt werden dürfen",
         "restrictedHint": "Bei „Nicht vertrauen und verknüpfen“ bleiben lokale Skills, Regeln und MCP-Dienste in diesem Ordner deaktiviert; später in den Einstellungen änderbar",
         "cancel": "Abbrechen",
         "restrict": "Nicht vertrauen und verknüpfen",
@@ -12798,10 +12798,10 @@
       "bannerLabel": "Hinweis zum Ordnervertrauen",
       "restrictedTitle": "Eingeschränkter Modus",
       "restrictedMessage": "{path} ist nicht vertrauenswürdig. Skills, Regeln und lokale Tools daraus sind ausgeschaltet.",
-      "pendingTitle": "Befehlsverknüpfungen warten auf Freigabe",
-      "pendingMessage": "{path} enthält neue Befehlsverknüpfungen, die Sie noch nicht geprüft haben. Sie bleiben aus, bis Sie sie erlauben.",
+      "pendingTitle": "Befehle warten auf Freigabe",
+      "pendingMessage": "{path} listet Befehle auf, die ohne jedes Nachfragen ausgeführt würden. Sie bleiben aus, bis Sie sie erlauben.",
       "pendingList": "Warten auf Ihre Freigabe",
-      "shortcutsOnTrust": "Wenn Sie diesem Ordner vertrauen, werden auch diese Befehlsverknüpfungen erlaubt",
+      "shortcutsOnTrust": "Wenn Sie diesem Ordner vertrauen, laufen diese Befehle ebenfalls ohne Rückfrage",
       "turnedOffTitle": "Ausgeschaltet, bis Sie diesem Ordner vertrauen",
       "itemSkills": "{count, plural, one {# lokaler Skill} other {# lokale Skills}}",
       "itemRules": "{count, plural, one {# Workspace-Regel} other {# Workspace-Regeln}}",
@@ -12810,9 +12810,9 @@
       "detailsToggle": "Einzelheiten",
       "trustAction": "Ordner vertrauen",
       "trusting": "Wird vertraut…",
-      "allowAction": "Verknüpfungen erlauben",
+      "allowAction": "Befehle erlauben",
       "allowing": "Wird erlaubt…",
-      "shortcutsAllowed": "Befehlsverknüpfungen erlaubt."
+      "shortcutsAllowed": "Diese Befehle laufen jetzt ohne Rückfrage."
     }
   },
   "milestone": {

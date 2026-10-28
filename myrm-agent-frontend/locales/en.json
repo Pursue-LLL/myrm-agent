@@ -12783,7 +12783,7 @@
         "skills": "Local skills",
         "rules": "Workspace rules",
         "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Repo-declared command shortcuts",
+        "repoCommands": "Commands allowed to run without asking",
         "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
         "cancel": "Cancel",
         "restrict": "Link without trusting",
@@ -12798,10 +12798,10 @@
       "bannerLabel": "Folder trust notice",
       "restrictedTitle": "Restricted mode",
       "restrictedMessage": "{path} is not trusted. Its skills, rules and local tools are turned off.",
-      "pendingTitle": "Command shortcuts need approval",
-      "pendingMessage": "{path} added command shortcuts you haven't reviewed. They stay off until you allow them.",
+      "pendingTitle": "Commands waiting for your approval",
+      "pendingMessage": "{path} lists commands that would run without asking you each time. They stay off until you allow them.",
       "pendingList": "Waiting for your approval",
-      "shortcutsOnTrust": "Trusting this folder also allows these command shortcuts",
+      "shortcutsOnTrust": "Trusting this folder also lets these commands run without asking",
       "turnedOffTitle": "Turned off until you trust this folder",
       "itemSkills": "{count, plural, one {# local skill} other {# local skills}}",
       "itemRules": "{count, plural, one {# workspace rule} other {# workspace rules}}",
@@ -12810,9 +12810,9 @@
       "detailsToggle": "Details",
       "trustAction": "Trust folder",
       "trusting": "Trusting…",
-      "allowAction": "Allow shortcuts",
+      "allowAction": "Allow these commands",
       "allowing": "Allowing…",
-      "shortcutsAllowed": "Command shortcuts allowed."
+      "shortcutsAllowed": "These commands can now run without asking."
     }
   },
   "milestone": {
