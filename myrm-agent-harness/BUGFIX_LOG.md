@@ -2,6 +2,74 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-069 · `GIT_EXTERNAL_DIFF=… git diff` 这类带前缀赋值的命令被当成只读而免审批；`export BASH_ENV=…` 能把注入变量留在常驻 shell 里，让后面每条命令继承
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/code_execution/security/`：新增 `persistent_env.py`，`blacklist.py`、`safe_commands.py`、`risk_classifier.py`、`shell_command_analyzer.py` 改动，`shell_command_rules.py` 去掉 7 条手写规则；没有改任何提示词，没有改 server 与前端）。行为变化见「仍然存在」。 |
+| **发现时间** | 2026-10-28（核对「命令怎样通过只读判定」时，对前缀赋值与 `export` 的写法逐个探针） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：两个口子都让「看起来只读」的命令去执行外来程序。① `NAME=value cmd` 沿用 `cmd` 的只读身份，所以 `GIT_EXTERNAL_DIFF=<脚本> git diff` 免审批；脚本要先存在于可达位置，写入它本身是另一次动作。② `export` 一个注入变量，它在常驻 shell 里留到会话结束，之后任何被判只读的 `bash -c`、`git diff` 都带着它。实测见「回归」[1]。 |
+| **关联产品** | harness `toolkits/code_execution/security/`、`toolkits/mcp/env_guard.py`（共用 `DANGEROUS_ENV_VARS`）；品牌仓文档站安全架构页（en/zh/ko/ja） |
+| **根因** | ① `risk_classifier` 把开头的 `NAME=value` 剥掉再判后面的命令，赋值不影响判定。② 旧的 `export` 检查是 `shell_command_rules.py` 里 7 条手写正则，只认 `export LD_PRELOAD=`、`NODE_OPTIONS=`、`PYTHONPATH=`、`DYLD_*`、`PERL5OPT=`、`RUBYOPT=`、`LD_LIBRARY_PATH=` 这几个字面写法：不认 `BASH_ENV`、`GIT_EXTERNAL_DIFF`、`GIT_SSH_COMMAND`，不认带引号的名字、一条 `export` 里的多个名字、`declare -x`、`readonly`、不带值的 `export NAME`。 |
+| **修复** | ① 开头的赋值只有名字属于「只影响输出」的白名单才保持原判定（`LANG`、`LANGUAGE`、`TZ`、`TERM`、`COLUMNS`、`LINES`、`NO_COLOR`、`FORCE_COLOR`、`CLICOLOR`、`CLICOLOR_FORCE`、`CI`、`PYTHONUNBUFFERED`、`PYTHONDONTWRITEBYTECODE`、`PYTHONIOENCODING`、`GIT_TERMINAL_PROMPT`、`GIT_OPTIONAL_LOCKS`、`LC_*`，以及固定值的 `PAGER=cat`、`GIT_PAGER=cat`），其余一律回到审批。② `persistent_env_injection`（`persistent_env.py`）按 shell 的分词读 `export`、`readonly`、`declare/typeset -x`（含 `builtin`、`command` 前缀），名字来源统一用 `blacklist.py`：它按作用把环境变量分成「代码注入类」（导出即拒绝）与「重定向类」（代理、包源、`CC`，人设很正常，不拒绝），`PERL5OPT`、`RUBYOPT` 并入 `DANGEROUS_ENV_VARS`，所以 MCP 的 stdio 环境检查也会拒绝它们。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 白名单必须连值一起看：`PAGER`、`GIT_PAGER` 只放固定值 `cat`，`PAGER='cat; ./x.sh' git log` 仍回到审批（有用例钉住）。② `declare` 与 `typeset` 只有带 `-x` 的才是导出，不带的是局部变量，不能一概拒绝。③ 文档里把示例脚本单独写成以点斜线开头的相对路径，会被文档路径校验当成不存在的文件。 |
+| **回归** | [1] 对照实测（临时脚本，未入库），旧树为 `git archive 0e789bc010^`：`GIT_EXTERNAL_DIFF=./x git diff` 旧 SAFE、新 UNKNOWN；`FOO=bar ls` 旧 SAFE、新 UNKNOWN；`LC_ALL=C ls`、`PAGER=cat git log` 前后都 SAFE。`validate_command` 对 `export BASH_ENV=./x.sh`、`export "LD_PRELOAD=./x.so"`、`export 'LD_PRELOAD=./x.so'`、`export A=1 BASH_ENV=./x`、`declare -x BASH_ENV=./x`、`readonly BASH_ENV=./x`、`export BASH_ENV`、`export GIT_EXTERNAL_DIFF=./x`、`export GIT_SSH_COMMAND=./x` 旧树全部放行，新树全部拒绝；`export FOO=bar` 前后都放行；`export LD_PRELOAD=./x.so`、`export PERL5OPT=-Mx` 前后都拒绝。[2] `tests/toolkits/code_execution/security/test_persistent_env_injection.py` 73 例、`test_risk_classifier_command_reading.py` 162 例，及 `test_risk_classifier.py`、`test_flag_validation.py` 同步；其中钉住了 `blacklist.py` 的集合与前缀成员，防止有人静默删名字。 |
+| **仍然存在** | ① 行为变化是有意的：`FOO=bar ls` 这类赋值以前免审批，现在要审批；用户若习惯用 `NODE_ENV=production npm test` 之类，会多出审批提示，没有测量频率。② `export` 检查是绊线，不是边界：动态名字（`export "$NAME=x"`）、`eval`、`source` 一个自己 export 的文件都不判，真正的边界是沙箱。③ `BashASTParser` 给界面用的解释仍把带环境前缀的 `git diff` 标成只读；它只做解释、不参与放行，没有改。④ `PERL5OPT`、`RUBYOPT` 并入 `DANGEROUS_ENV_VARS` 后，MCP 配置里若设了它们会被拒绝，没有统计现有配置。 |
+| **代码位置** | `toolkits/code_execution/security/persistent_env.py`、`blacklist.py`、`safe_commands.py`（`is_safe_prefix_assignment`）、`risk_classifier.py`、`shell_command_analyzer.py`、`shell_command_rules.py` · `security/_ARCH.md` · `toolkits/code_execution/EXECUTION_SYSTEM.md` · 测试 `tests/toolkits/code_execution/security/test_persistent_env_injection.py`、`test_risk_classifier_command_reading.py` |
+
+### BUG-HARNESS-2026-10-28-068 · 送达给命令的凭据只按形状脱敏：`printenv GITHUB_TOKEN` 把令牌原样打进命令结果、实时输出和落盘文件
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/code_execution/session/`：新增 `value_masker.py`，`stream_buffer.py`、`command_stream.py`、`stream_output_processor.py` 接入；没有改任何提示词，没有改 server 与前端）。 |
+| **发现时间** | 2026-10-28（复核条目 066 之后：凭据能送达命令了，那命令把它打印出来会怎样） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：命令结果会交给模型和用户界面，实时输出与落盘文件还会被截图或共享。送达给命令的凭据值是已知的，但只靠「看起来像密钥」的形状规则去遮：用户为一条命令输入的密码、任意变量名下的令牌，只要命令不是以带名字的形状打印它就原样出现。实测见「回归」[1]。 |
+| **关联产品** | harness `toolkits/code_execution/session/`、`executors/local/`；品牌仓文档站安全架构页（en/zh/ko/ja） |
+| **根因** | `scrub_sensitive_info` 靠形状（名字绑定的赋值、已知前缀、私钥块）认密钥；凭据交付层知道准确的值（`CommandEnv.scoped`），输出处理层却不用它。结果、实时流、落盘文件三份拷贝都由 `ExecutionStreamBuffer` 派生，却没有任何一处按值遮。 |
+| **修复** | `ValueMasker`（`session/value_masker.py`）把 `CommandEnv.scoped` 里的值在解码后的输出上换成 `***`，挂在 `ExecutionStreamBuffer` 上，所以三份拷贝同口径；一次读取以某个值的开头结尾时，这一段扣到下一次读取，保证结果等于把整段输出一次性遮完，无论读取在哪里切开。长度小于 4 的值不遮（会弄坏普通输出，几乎没有保护价值）。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 读取边界：值被切在两次读取之间时，不扣留就两半都漏过；扣留的算法要和「整段一次遮」逐字相等，用随机切分对独立参照实现比对（`test_value_masker.py` 的 `test_random_streams_cut_at_random_places`）。原来靠「命令把凭据打印出来」证明凭据送达的测试，改为读十六进制（遮盖不认的形态）：harness 的 `test_executor_command_credentials.py`、`test_command_env.py`、`test_executor_shell_bleed_warning.py` 和 server 的 `test_approval_credentials.py`（后者在本条提交时漏改，由后续提交补上）。 |
+| **回归** | [1] 对照实测（临时脚本，未入库），凭据 `github-secret-1` 经 `user_credentials_ctx` 交付：遮盖前的树（`git archive 2e31098a40^`）`printenv GITHUB_TOKEN` 输出 `github-secret-1`，`echo "[$GITHUB_TOKEN]"` 输出 `[github-secret-1]`；遮盖后分别输出 `***`、`[***]`。[2] `tests/toolkits/code_execution/session/test_value_masker.py` 38 例（含随机切分对参照实现）、`test_credential_output_masking.py` 149 例（真实 bash 的执行结果、实时流、落盘文件三份拷贝）。[3] 吞吐（提交说明里记录的测量，脚本未入库，所以不可复现）：26.8 MB 输出、每次读 8 KiB，无值 1694 MB/s、一个值 815 MB/s、三个值 491 MB/s。 |
+| **仍然存在** | ① 长度小于 4 的值不遮。② 命令自己改写编码后的值（base64、十六进制、逐字符拆开）不遮，这一类由形状规则兜底，兜不住的就漏。③ 流在值的中途结束（命令被杀、输出被截断）时，扣留的片段原样放行。④ 只遮本次命令交付的值；用户自己写在命令里的密码不在交付环境里，由形状规则负责。 |
+| **代码位置** | `toolkits/code_execution/session/value_masker.py`、`stream_buffer.py`、`command_stream.py`、`stream_output_processor.py` · `session/_ARCH.md` · `toolkits/code_execution/EXECUTION_SYSTEM.md` · 测试 `tests/toolkits/code_execution/session/test_value_masker.py`、`test_credential_output_masking.py` |
+
+### BUG-HARNESS-2026-10-28-067 · 宿主出口代理的两个环境变量钩子（`MYRM_EGRESS_PROXY_URL`、`MYRM_EGRESS_CA_BUNDLE`）整个 monorepo 里没有任何设置者，却在每个新建的 shell 启动环境里留着一段分支
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（删除；条目 054 删掉出口代理本体时留下的最后一块）。 |
+| **发现时间** | 2026-10-28（复核条目 054「仍然存在 ①」：它说没有任何地方设置这两个钩子） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P3：死分支。仓库内没有设置者（对整个 monorepo、排除参考项目与依赖目录，只在本日志里出现这两个名字）；风险只在企业部署侧：如果宿主在部署环境里设了这两个变量，升级后 shell 不再指向它的代理。 |
+| **关联产品** | harness `toolkits/code_execution/executors/local/`、`core/security/spend/_ARCH.md`（旧名 egress） |
+| **根因** | 条目 054 删掉代理、哨兵和污点网关后，`LocalExecutor` 的启动环境构造里还留着「若设了 `MYRM_EGRESS_PROXY_URL` 就把 `http(s)_proxy`、`ALL_PROXY`、`NO_PROXY` 指向它；若设了 `MYRM_EGRESS_CA_BUNDLE` 就写入各语言运行时的 CA 变量」的分支，给一个不再存在的机制留接口。 |
+| **修复** | 删除这两段分支（`executor.py` 的 `_build_bash_env`，现位于 `_bash_exec.py` 的同名方法；删除前的两个用例 `test_executor_egress_env.py` 已在提交 `70e3f6f4df` 随文档订正删去），`_ARCH.md` 的「不处理凭据」一条改写为凭据只经命令级环境交付；出站限制由沙箱网络策略（`allow_network`、`allowed_hosts`）负责，本条没有改动它。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 条目 054 当时认为「它们存在是因为宿主可能需要」，没有宿主实测，也没有设置者；这次按「没有证据表明有人在用就删除」处理，依据是下面的全仓搜索，不是对宿主的了解。 |
+| **回归** | [1] 对照实测（临时脚本，未入库）：环境里设 `MYRM_EGRESS_PROXY_URL=http://127.0.0.1:9`，在新建的 shell 里 `printenv HTTPS_PROXY`：删除前的树（`git archive b1e93de700^`）输出 `http://127.0.0.1:9`，删除后输出 `NONE`。[2] 全仓搜索这两个变量名（排除参考项目、依赖与虚拟环境目录）：只剩本日志。[3] `tests/toolkits/code_execution/executors/local/` 全部通过。 |
+| **仍然存在** | ① 企业部署侧是否设置过这两个变量无法从仓库核实；有的话需要改用沙箱网络策略或在部署层配置代理。② 条目 054 的「仍然存在 ①」写的是删除前的状态，保留原文，以本条为准。 |
+| **代码位置** | `toolkits/code_execution/executors/local/_bash_exec.py`（`_build_bash_env`）· `core/security/spend/_ARCH.md` |
+
+### BUG-HARNESS-2026-10-28-066 · 在审批卡上录入的一次性密码永远到不了命令：执行器按「准备后的脚本」核对摘要，而卡片绑定的是批准的原文；聊天里的 bash 审批卡本来就没有录入口
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness 摘要同源与 `original_code`、server 暂存端点重做、前端聊天审批卡的录入区；没有改任何提示词）。 |
+| **发现时间** | 2026-10-28（逐节点核对「用户给一条命令输一次密码」的链路：卡片 → 暂存端点 → 存储 → 执行器） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：不是出错，是整条功能不可用——用户录入的一次性凭据，命令读到的永远是空，界面没有任何提示。对照实测见「回归」[1]。 |
+| **关联产品** | harness `core/security/ephemeral_credentials/`、`toolkits/code_execution/executors/`；server `myrm-agent-server/app/api/approvals/`；前端聊天审批卡；路线图 topic_03 #150 的现状 ① |
+| **根因** | ① 两侧对「哪一条命令」的理解不同：旧的 `credentials.py` 按审批记录里的命令文本算 sha256 绑在凭据上，执行器却在 `_prepare_bash_command` 之后才调用 `build_command_env`，按准备后的脚本（注入了韧性脚本等）算摘要，两个摘要不可能相等，`consume_credential` 核对失败，凭据不送达。② 聊天里的 `SingleApprovalCard.tsx` 没有任何凭据入口（旧文件对 credential 零匹配），入口只在抽屉卡 `PolymorphicApprovalCard.tsx` 里，并按审批记录的 `chat_id or thread_id` 推出会话键，而运行侧的会话键是 `chat_session_id(chat_id)`（`chat_<id>`）；两者是否相等取决于记录字段，本条没有单独验证。 |
+| **修复** | `command_digest` 成为唯一的摘要函数（`core/security/ephemeral_credentials/types.py`），暂存端点与执行器取凭据都调它；`ExecutionContext.original_code` 携带智能体发出、用户批准的原文，执行器按它核对而不是按准备后的脚本；暂存端点改为按 `chat_id` 与用户所见 `command` 暂存（会话键 `chat_session_id(chat_id)`，TTL 上限 600 秒，任一键名非法则整体拒绝），新增 `POST /api/v1/approvals/credentials/wipe`，在用户撤回、拒绝或改写命令时立即销毁；前端在聊天审批卡新增折叠的「一次性凭据」区（`OneTimeCredentialsSection`、`useStagedCredentials`），明文只经 `oneTimeCredentials.ts` 发往服务端内存，受保护变量名与 harness 校验对齐（`BASH_ENV`、`ENV`、`HOME`、`LOGNAME`、`PROMPT_COMMAND`、`USER` 新加入）；抽屉卡里的旧入口随之移除。同批把 `executor.py` 的 bash 路径原样搬到 `_bash_exec.py`（纯搬迁，行数基线条目随之移除）。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 摘要要两侧同时改：只改暂存端点，两边仍各算各的。② 凭据交付给命令之后，命令自己把它打印出来仍会进结果，这一点由条目 068 负责。③ 暂存状态由卡片持有，不放在录入表单里（`hooks/approval/_ARCH.md` 的约定），切到编辑或拒绝视图时才不会丢，改写命令时才能销毁已暂存的凭据。 |
+| **回归** | [1] 对照实测（临时脚本，未入库）：存入一个绑定「批准原文」摘要的凭据，把准备后的脚本交给执行器、会话键相同。改造前的树（`git archive b1e93de700^`）命令输出 `NONE`，凭据没有送达；改造后送达（条目 068 之后输出被遮成 `***`）。[2] `myrm-agent-server/tests/api/approvals/test_approval_credentials.py` 17 例，含真实 bash 执行器的端到端：批准的命令读到一次、第二次读不到；用户改写命令后读不到且凭据仍在；换一个聊天读不到；wipe 只销毁自己聊天的。harness `tests/toolkits/code_execution/executors/local/test_executor_command_credentials.py`。前端 `SingleApprovalCard.credentials.test.tsx`、`useStagedCredentials.test.ts`、`oneTimeCredentials.test.ts`、`MaskedCredentialInputCard.test.tsx`；浅色、深色，桌面、手机视口的截图核对过录入区（截图未入库）。 |
+| **仍然存在** | ① 全局抽屉里恢复出来的 bash 审批（`PolymorphicApprovalCard`）不再提供凭据录入，需要时在聊天卡上录入。② 没被消费的凭据靠 TTL 过期（默认 60 秒，上限 600 秒）；wipe 请求失败（网络断开）时，凭据在服务端内存里留到过期。③ 暂存在进程内存里，服务重启即丢，用户需要重录（有意：不落盘）。④ 命令把它读到的凭据打印出来这件事不由本条负责。 |
+| **代码位置** | `core/security/ephemeral_credentials/types.py`（`command_digest`）· `toolkits/code_execution/executors/local/_command_env.py`、`_bash_exec.py` · `myrm-agent-server/app/api/approvals/credentials.py`、`app/services/agent/params/workspace_resolve.py`（`chat_session_id`） · 前端 `myrm-agent-frontend/src/components/features/chat-window/SingleApprovalCard.tsx`、`myrm-agent-frontend/src/components/features/chat-window/approval/OneTimeCredentialsSection.tsx`、`myrm-agent-frontend/src/hooks/approval/useStagedCredentials.ts`、`myrm-agent-frontend/src/lib/approval/oneTimeCredentials.ts` |
+
 ### BUG-HARNESS-2026-10-28-065 · 脱敏器遇到口令里的 `&` 就停，`&` 之后的部分原样进入上下文；人选的长口令只遮中间，`BORG_PASSPHRASE=correct-horse-battery-staple` 变成 `correc...aple`
 
 | 字段 | 内容 |
@@ -202,7 +270,7 @@
 | **反复次数** | 第 1 次 |
 | **踩坑** | ① 仓库里还有一批名字带 sentinel 的无关模块（`memory_sentinel`、`abandonment_sentinel`、`disk_sentinel`、`fd_watermark_sentinel`、`task_lifecycle_sentinel`、`fanout_braking_sentinel`、桌面端的审批 runner），没有碰。② 没有选择「接上产品」而是删除：接上需要同时修 3.13 的 TLS 握手、给代理加真实 TLS 上游的端到端用例、再决定哪些凭据换值；它要防的场景（命令读到环境里的密钥）已经由条目 052 收窄为「只在声明过的命令执行期间存在」。 |
 | **回归** | [1] 新增 `TestCredentialShapedValuesGetNoExemption`（`tests/toolkits/code_execution/security/test_child_process_env_isolation.py`）：`GITHUB_TOKEN`、`MY_API_KEY` 的值设成 `myrm-sent-v1.AAAA….end` 时，`sanitize_env`（`ALL`、`CORE` 两种策略）、`build_isolated_child_env`、`LocalExecutor._build_bash_env` 都按名字剥掉。[2] 对照：把 `git archive HEAD` 导出的旧树放进 `PYTHONPATH` 跑同一组输入，旧树 `sanitize_env(ALL)` 与 `build_isolated_child_env` 原样保留这两个变量，`CORE` 策略本来就剥掉；当前树 `ALL` 下只剩 `PATH`。[3] `tests/toolkits/code_execution/executors/local/test_executor_egress_env.py` 2 例（钩子设了会进环境并指向宿主代理，没设则不出现）；`test_external_secrets.py` 的哨兵用例换成「引用解算成值」与「解算失败原样透传」两例。[4] 直接相关的 136 例通过（`test_child_process_env_isolation.py`、`executors/local`、`test_external_secrets.py`、`test_safe_exec.py`、`core/security/spend`、`test_permission_inheritance.py`、`test_bash_credential_scope.py`）；架构门禁里，`validate_arch_inventory`、`check_fractal_docs`、`check_import_resolvability`、`boundary_check` 通过，`tests/architecture` 的 1180 例里只有 `test_file_line_limit.py` 失败，原因是 `toolkits/computer_use/backends/windows.py` 595 行超过基线 591，不是本条改动（该文件不在本条改动里）；`check_module_reachability` 有 201 个单元无生产调用方，名单里没有本条涉及的任何模块。 |
-| **仍然存在** | ① 没有测量宿主自带出口代理的实际用法：仓库内没有任何地方设置这两个钩子，它们存在是因为宿主（企业部署）可能需要；没有宿主实测。② 命令里的密钥现在只在声明过的命令执行期间存在于 shell 环境，但这条命令本身仍能读到它并输出；这由脱敏（`redact`）与审批负责，不由本条负责。③ 品牌仓与内部材料里其余安全数字（覆盖率、测试数）是当日记录，没有复测。 |
+| **仍然存在** | ① 没有测量宿主自带出口代理的实际用法：仓库内没有任何地方设置这两个钩子，它们存在是因为宿主（企业部署）可能需要；没有宿主实测。〔2026-10-28 更正：这两个钩子已删除，见条目 067。〕② 命令里的密钥现在只在声明过的命令执行期间存在于 shell 环境，但这条命令本身仍能读到它并输出；这由脱敏（`redact`）与审批负责，不由本条负责。③ 品牌仓与内部材料里其余安全数字（覆盖率、测试数）是当日记录，没有复测。 |
 | **代码位置** | `core/security/spend/`（当时目录叫 egress；删除三个模块，保留花费治理）· `core/security/safe_exec.py:credential_env_overrides` · `toolkits/code_execution/security/env_isolation.py` · `toolkits/code_execution/executors/local/executor.py`、`_command_env.py`、`_python_subprocess.py` · `api/__init__.py`、`api/__init__.pyi` · 测试 `tests/toolkits/code_execution/security/test_child_process_env_isolation.py`、`tests/toolkits/code_execution/executors/local/test_executor_egress_env.py`、`tests/core/security/test_external_secrets.py` |
 
 ### BUG-HARNESS-2026-10-27-053 · 仓库声明的命令前缀按字符串开头匹配：声明 `npm run test` 连 `npm run testing` 也免审批，声明 `git` 连 `gitk` 也算
