@@ -6,6 +6,7 @@
 - channels.routing.context_document::enrich_context_document (POS: document-text enrichment right before the executor stream)
 - channels.routing.pending_approvals::resume_topic_context (POS: the topic context a resumed approval run is given)
 - channels.routing.router_models::_ActiveTask, _AgentTurnScratch, _RouterExecutionContext (POS: internal data classes)
+- channels.routing.session_gate::gate_key (POS: the session key of a message in the SessionGate, recorded on the running task for the watchdog's release)
 
 [OUTPUT]
 - RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``
@@ -39,6 +40,7 @@ from app.channels.routing.router_models import (
     _AgentTurnScratch,
     _RouterExecutionContext,
 )
+from app.channels.routing.session_gate import gate_key
 from app.channels.types import (
     InboundMessage,
     TopicContext,
@@ -192,6 +194,7 @@ class RouterExecutionMixin(RouterDeliveryMixin):
             if ctx.exec_msg.metadata and ctx.exec_msg.metadata.get("busy_input_mode")
             else None
         )
+        session_gate_key = gate_key(ctx.exec_msg)
         self._active_tasks[ctx.state_key] = _ActiveTask(
             task=current_task,
             cancel_token=cancel_token,
@@ -203,6 +206,8 @@ class RouterExecutionMixin(RouterDeliveryMixin):
             locale=resolve_message_locale(ctx.exec_msg),
             steering_token=steering_token,
             busy_input_mode=busy_input_mode,
+            gate_key=session_gate_key,
+            gate_turn=self._gate.running_turn(session_gate_key),
         )
 
         scratch.deferred_placeholder = await self._setup_message_effects(

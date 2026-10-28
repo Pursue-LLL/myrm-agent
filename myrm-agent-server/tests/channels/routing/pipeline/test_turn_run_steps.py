@@ -134,8 +134,6 @@ async def test_a_completed_turn_is_marked_then_shows_the_completion_reaction() -
     assert router._execute_prepared_context.await_args.kwargs == {"is_resume": False, "inbound_had_voice": False}
     router._fx.send_error_reply.assert_not_awaited()
     journal.acknowledge.assert_called_once()
-    router._gate.on_task_complete.assert_called_once()
-    assert router._gate.on_task_complete.call_args.args[0].channel == "telegram"
 
 
 @pytest.mark.asyncio
@@ -191,7 +189,7 @@ async def test_a_message_without_a_platform_id_gets_no_reaction() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_turn_that_cannot_be_prepared_ends_quietly_and_still_frees_the_gate() -> None:
+async def test_a_turn_that_cannot_be_prepared_ends_quietly() -> None:
     router = turn_router()
     journal = attach_journal(router)
     router._prepare_execution_context = AsyncMock(return_value=None)
@@ -202,7 +200,6 @@ async def test_a_turn_that_cannot_be_prepared_ends_quietly_and_still_frees_the_g
     router._fx.reactions.react.assert_not_awaited()
     router._fx.send_error_reply.assert_not_awaited()
     journal.acknowledge.assert_called_once()
-    router._gate.on_task_complete.assert_called_once()
 
 
 # --- the error path --------------------------------------------------------------------------------------------------
@@ -226,7 +223,6 @@ async def test_a_failing_run_is_reported_to_the_chat_with_the_message_the_run_us
         ("telegram", "chat-1", "m1", router._reaction_policy.failure_emoji),
     ]
     journal.acknowledge.assert_called_once()
-    router._gate.on_task_complete.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -245,7 +241,6 @@ async def test_a_failure_before_the_chat_is_known_reports_to_the_enriched_messag
     # No chat is known yet and nothing was marked: the failure is still shown on the message, and nothing is taken off.
     assert shown_reactions(router) == [("telegram", "", "m1", router._reaction_policy.failure_emoji)]
     router._fx.cleanup_placeholder.assert_not_awaited()
-    router._gate.on_task_complete.assert_called_once()
 
 
 @pytest.mark.asyncio

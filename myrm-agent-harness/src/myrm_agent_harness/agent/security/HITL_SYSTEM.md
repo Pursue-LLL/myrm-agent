@@ -161,7 +161,7 @@ Agent执行 → interrupt() → GraphInterrupt → SSE stream结束
 - 流式占位符编辑间隔：`routing/router_constants.py` 中 `_MIN_PROGRESS_INTERVAL`、`_MIN_STREAM_INTERVAL`；是否跳过单次编辑由 `routing/router_stream_throttle.py` 中 `should_skip_throttled_placeholder_edit` 判定（`RouterStreamMixin._try_throttled_edit` 使用）。
 - 会话级映射键（活跃任务、审批 message_id、`SessionGate.gate_key` 等）：`routing/router_keys.py` 的 `routing_session_key`（`channel` + peer；与按 `message_id` 的去重键不同）。
 - 入站带语音附件时，`_handle_merged` 先 `transcribe_inbound` 再 `_prepare_execution_context`。
-- 外层异常路径的 `send_error_reply` 使用 `exec_for_error`（转写成功后与 STT 后的 `msg` 一致，`prepare` 成功后为 `ctx.exec_msg`）；`SessionGate.on_task_complete` 使用 `finally` 中的 `msg`，键为 `gate_key(msg)`。
+- 外层异常路径的 `send_error_reply` 使用 `exec_for_error`（转写成功后与 STT 后的 `msg` 一致，`prepare` 成功后为 `ctx.exec_msg`）；回合在 `_handle_merged` 返回时由 `SessionGate` 自行结束；`_execute_prepared_context` 把 `gate_key(ctx.exec_msg)` 与回合号登记在 `_ActiveTask`，卡死看门狗据此调用 `release_turn` 只释放那一个回合。
 
 ### 审批请求
 ```

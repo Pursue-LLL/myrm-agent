@@ -44,10 +44,10 @@ group policies may rewrite InboundMessage (prefix stripping, context_messages, e
 with the rewritten message stored in `_RouterExecutionContext.exec_msg`. After successful
 `prepare`, `_execute_prepared_context` handles active task registration, side effects,
 streaming execution, and result delivery.
-`SessionGate.on_task_complete` uses the `msg` from the current `_handle_merged` scope
-(a new `replace` instance after voice transcription); `SessionGate` releases pending
-by `gate_key(msg)` regardless of object identity, and STT does not change channel/peer
-fields so the key matches the merged message.
+A turn ends for `SessionGate` when `_handle_merged` returns. `_execute_prepared_context`
+records the session (`gate_key(exec_msg)`) and turn id on `_ActiveTask`, so the stuck-task
+watchdog releases that exact turn; the key depends only on channel, peer and topic, which
+neither STT nor group rewriting change.
 Slash commands are handled via the commands module, completing the bidirectional conversation loop.
 Manages active task mapping, approval message IDs, and cleanup janitor.
 Each mixin uses Protocol constraints (`router_host`, `pipeline/hosts`) for the `self` attributes it needs.

@@ -2,8 +2,8 @@
 
 The gate hands the router one turn at a time. Text is merged into one turn, which builds a plain message, so an answer
 merged with text would lose its ``resume_value``; and any text turn of the session ends the run the answer belongs to,
-so text must not run before an answer that is waiting. The host here calls ``on_task_complete`` the way the router does
-when a turn ends.
+so text must not run before an answer that is waiting. The host here only runs each turn: the gate ends it when the
+callback returns.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def _answer(label: str = "answer") -> InboundMessage:
 
 
 class _Router:
-    """What the router does with the gate: runs each turn it is handed and signals its end."""
+    """What the router does with the gate: runs each turn it is handed."""
 
     def __init__(self, turn: Callable[[InboundMessage], Awaitable[None]] | None = None) -> None:
         self.turns: list[InboundMessage] = []
@@ -49,7 +49,6 @@ class _Router:
                 await self._turn(msg)
         finally:
             self.running -= 1
-            self.gate.on_task_complete(msg)
 
     def kinds(self) -> list[str]:
         """What ran, in order: the label of an answer, or the merged text of a text turn."""

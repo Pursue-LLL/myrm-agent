@@ -66,6 +66,9 @@ class _ActiveTask:
 
     ``started_at`` is a monotonic timestamp used by the janitor's stuck-task
     watchdog to detect tasks that exceed ``_STUCK_TASK_TIMEOUT``.
+
+    ``gate_key`` and ``gate_turn`` name the SessionGate session and turn this task runs
+    as, so the watchdog can release exactly that turn (``SessionGate.release_turn``).
     """
 
     task: asyncio.Task[None]
@@ -79,6 +82,8 @@ class _ActiveTask:
     steering_token: SteeringToken | None = None
     deferred_placeholder: object | None = None
     busy_input_mode: str | None = None
+    gate_key: str = ""
+    gate_turn: int = 0
 
 
 @dataclasses.dataclass(frozen=True, slots=True)

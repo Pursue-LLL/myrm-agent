@@ -282,7 +282,7 @@ class RouterStreamMixin:
                 )
             return result, last_edit_at
 
-    _EMOJI_APPROVAL_HINT = "\n\n\U0001f44d Allow once  ·  \u267e\ufe0f Allow always  ·  \U0001f44e Deny"
+    _EMOJI_APPROVAL_HINT: str = "\n\n\U0001f44d Allow once  ·  \u267e\ufe0f Allow always  ·  \U0001f44e Deny"
 
     async def _send_interactive_progress(
         self: RouterStreamHost,

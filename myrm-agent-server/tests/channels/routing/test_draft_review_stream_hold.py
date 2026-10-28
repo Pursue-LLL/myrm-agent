@@ -14,6 +14,7 @@ import pytest
 from app.channels.routing.pipeline import RouterExecutionMixin
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
+from app.channels.routing.session_gate import SessionGate, SessionGateConfig
 from app.channels.types import (
     InboundMessage,
     OutboundMessage,
@@ -98,6 +99,7 @@ class _TurnHost(RouterExecutionMixin):
 
     def __init__(self) -> None:
         self._active_tasks: dict[str, _ActiveTask] = {}
+        self._gate = SessionGate(SessionGateConfig(), on_ready=AsyncMock())
         self._bus = MagicMock(get_channel=MagicMock(return_value=None))
         self.stream_kwargs: dict[str, object] = {}
         self.deliver_kwargs: dict[str, object] = {}

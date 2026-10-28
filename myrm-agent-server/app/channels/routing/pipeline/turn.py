@@ -17,7 +17,7 @@
 - RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments`` (skipped for a sender the access policy refuses), the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
 
 [POS]
-Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it. The turn owns the status reaction of the message: it starts marking the message as the run begins, without waiting for the platform, and settles the mark once, after the run or in the error path.
+Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out. The turn ends for the gate when this coroutine returns (``SessionGate`` owns that signal), which also starts the messages queued behind it. The turn owns the status reaction of the message: it starts marking the message as the run begins, without waiting for the platform, and settles the mark once, after the run or in the error path.
 """
 
 from __future__ import annotations
@@ -168,7 +168,6 @@ class RouterTurnMixin:
             if status is not None:
                 status.cancel()
             self._acknowledge_inbound(journal_entry_id)
-            self._gate.on_task_complete(msg)
 
     def _journal_inbound(self: RouterTurnHost, msg: InboundMessage) -> str | None:
         """Write the message to the inbound journal and return the id of the entry to acknowledge afterwards.

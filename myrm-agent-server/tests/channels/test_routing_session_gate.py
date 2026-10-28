@@ -187,7 +187,7 @@ class TestSessionGateDebounce:
         assert len(received) == 2
 
     @pytest.mark.asyncio
-    async def test_on_task_complete_drains_pending(self) -> None:
+    async def test_the_end_of_a_turn_starts_the_pending_one(self) -> None:
         received: list[InboundMessage] = []
         hold = asyncio.Event()
 
@@ -197,13 +197,14 @@ class TestSessionGateDebounce:
                 await hold.wait()
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=0), on_ready=on_ready)
-        m1 = _msg("first")
-        gate.submit(m1)
+        gate.submit(_msg("first"))
         await asyncio.sleep(0.02)
         gate.submit(_msg("pending"))
+        await asyncio.sleep(0.1)
+        assert [m.content for m in received] == ["first"]
         hold.set()
         await asyncio.sleep(0.2)
-        assert len(received) >= 2
+        assert [m.content for m in received] == ["first", "pending"]
 
     @pytest.mark.asyncio
     async def test_clear_cancels_timers(self) -> None:

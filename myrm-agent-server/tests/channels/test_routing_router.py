@@ -359,7 +359,6 @@ class TestReapStuckTasks:
         router._fx.stop_typing_keepalive = AsyncMock()
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
@@ -427,7 +426,7 @@ class TestReapStuckTasks:
 
     @pytest.mark.asyncio
     async def test_session_gate_released(self) -> None:
-        """SessionGate.on_task_complete is called to unblock the session."""
+        """The SessionGate session and turn the task ran as are released to unblock the chat."""
         from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
         from app.channels.routing.router_models import _ActiveTask
 
@@ -443,24 +442,22 @@ class TestReapStuckTasks:
             chat_id="chat-1",
             placeholder_id=None,
             started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+            gate_key="test:chat-1",
+            gate_turn=7,
         )
 
         router._fx = MagicMock()
         router._fx.stop_typing_keepalive = AsyncMock()
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
-        router._gate.on_task_complete.assert_called_once()
-        call_msg = router._gate.on_task_complete.call_args[0][0]
-        assert call_msg.channel == "test"
-        assert call_msg.chat_id == "chat-1"
+        router._gate.release_turn.assert_called_once_with("test:chat-1", 7)
 
     @pytest.mark.asyncio
-    async def test_locale_preserved_in_synthetic_msg(self) -> None:
-        """Synthetic msg carries the original locale so i18n resolves correctly."""
+    async def test_timeout_notice_uses_the_locale_of_the_task(self) -> None:
+        """The notice is localized with the locale the task was started in."""
         from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
         from app.channels.routing.router_models import _ActiveTask
 
@@ -483,13 +480,11 @@ class TestReapStuckTasks:
         router._fx.stop_typing_keepalive = AsyncMock()
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
-        call_msg = router._gate.on_task_complete.call_args[0][0]
-        assert call_msg.metadata is not None
-        assert call_msg.metadata["locale"] == "ja"
+        notice = router._bus.publish_outbound.await_args.args[0]
+        assert notice.content.startswith("⏱ タスクが")
 
     @pytest.mark.asyncio
     async def test_typing_and_placeholder_cleaned(self) -> None:
@@ -516,7 +511,6 @@ class TestReapStuckTasks:
         router._fx.set_typing = AsyncMock()
         router._fx.cleanup_placeholder = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
@@ -552,12 +546,11 @@ class TestReapStuckTasks:
         router._fx.stop_typing_keepalive = AsyncMock()
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
         assert len(router._active_tasks) == 0
-        assert router._gate.on_task_complete.call_count == 3
+        assert router._gate.release_turn.call_count == 3
 
     @pytest.mark.asyncio
     async def test_approval_state_cleaned_on_stuck(self) -> None:
@@ -585,7 +578,6 @@ class TestReapStuckTasks:
         router._fx.stop_typing_keepalive = AsyncMock()
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
@@ -593,8 +585,8 @@ class TestReapStuckTasks:
         assert state_key not in router._pending_approvals
 
     @pytest.mark.asyncio
-    async def test_empty_locale_fallback_no_metadata(self) -> None:
-        """Empty locale produces a synthetic msg with empty metadata (i18n falls back to English)."""
+    async def test_empty_locale_falls_back_to_english_notice(self) -> None:
+        """A task without a locale gets the English notice."""
         from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
         from app.channels.routing.router_models import _ActiveTask
 
@@ -617,12 +609,11 @@ class TestReapStuckTasks:
         router._fx.stop_typing_keepalive = AsyncMock()
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
-        call_msg = router._gate.on_task_complete.call_args[0][0]
-        assert call_msg.metadata == {}
+        notice = router._bus.publish_outbound.await_args.args[0]
+        assert notice.content.startswith("⏱ Task timed out after")
 
     @pytest.mark.asyncio
     async def test_typing_error_does_not_block_gate_release(self) -> None:
@@ -648,11 +639,10 @@ class TestReapStuckTasks:
         router._fx.stop_typing_keepalive = AsyncMock(side_effect=RuntimeError("network down"))
         router._fx.set_typing = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 
-        router._gate.on_task_complete.assert_called_once()
+        router._gate.release_turn.assert_called_once()
         assert "test:chat-1" not in router._active_tasks
 
     @pytest.mark.asyncio
@@ -680,7 +670,6 @@ class TestReapStuckTasks:
         router._fx.set_typing = AsyncMock()
         router._fx.cleanup_placeholder = AsyncMock()
         router._gate = MagicMock()
-        router._gate.on_task_complete = MagicMock()
 
         await router._reap_stuck_tasks(time.monotonic())
 

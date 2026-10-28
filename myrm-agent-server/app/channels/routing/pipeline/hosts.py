@@ -315,6 +315,7 @@ class RouterExecutionHost(Protocol):
     _bus: MessageBus
     _fx: MessageEffects
     _resolver: PolicyResolver
+    _gate: SessionGate
     _active_tasks: dict[str, _ActiveTask]
     _new_session_peers: dict[str, float]
     _topic_resolver: TopicManager | None

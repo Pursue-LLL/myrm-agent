@@ -110,6 +110,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_resume_keeps_agent.py` | 集成 | 审批续跑回到提问回合的智能体会话（真实 `AgentRouter`、`SessionGate`、`ApprovalTimeoutScheduler` 加脚本化执行器）：绑定了专属智能体的聊天里批准后续跑、别名路由的回合批准后续跑、超时续跑，执行器拿到的话题上下文都是提问回合的智能体；委派任务（无智能体会话）的审批续跑不带话题上下文；提问后聊天换绑到别的智能体的不跟随；`resume_topic_context` 表驱动 7 例；带库测试把路由器交给执行器的上下文送进真实会话查找，续跑找到提问回合建立的聊天 |
 | `channels/routing/test_session_gate_answers.py` | 单元 | 真实 `SessionGate` 与审批应答：与文本同处一个防抖窗口时应答先跑且完整；多个应答各自单独、按到达顺序；回合进行中到达的应答先于同时排队的文本；排队文本已满时应答仍保留；应答不被当作「排在忙碌回合后面的消息」提示；回合从不重叠；纯文本仍合并排队 |
 | `channels/routing/test_session_gate_senders.py` | 单元 | 真实 `SessionGate` 与发送者：同一防抖窗口或排在忙碌回合后面的文字按发送者拆成回合（两种先后顺序，A-B-A 交错保持到达顺序，回合从不重叠），同一发送者的连发（群聊与私聊）仍合并成一个回合，审批应答仍单独且先于各发送者的文字；合并后的消息保留准入策略读取的标志：显式 @ 提及不依赖其在批次里的先后，机器人消息合并后仍是机器人（不会被当成真人触发回合），其余元数据仍取最后一条 |
+| `channels/routing/test_session_gate_turns.py` | 单元 | 真实 `SessionGate` 的回合身份：两个回合之间到达的消息排在第二个回合之后而不是另起第三个；无防抖窗口时同一事件循环刻的两条消息不重叠；按名字（`release_turn`）释放卡住的回合会启动排在后面的那个；被释放回合迟到的结束不会结束接手的回合（含会话记录已被丢弃后重建的情形，回合号不复用）；已结束的回合不能再被释放；空闲会话没有运行中的回合；回合失败或被取消后排队的回合仍启动 |
+| `channels/routing/pipeline/test_reap_releases_gate_turn.py` | 集成 | 真实 `AgentRouter` 加真实 `SessionGate` 上的卡死看门狗：运行中的任务登记其会话闸门键与回合号（私聊的闸门键按发送者、任务表按聊天，二者不同）；无视取消的回合只能由看门狗按登记的键与回合号释放，排队的消息随即运行；被回收回合迟到的收尾不会结束接手的回合 |
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |
 | `channels/test_router_busy_input_mode.py` | 单元 | `busy_input_mode` 的 steer / redirect 自动分发、斜杠命令不被转向；已结束、只因审批保留登记的回合不被转向，文字作为新的回合 |
 | `support/pending_approvals.py` | 辅助 | 路由器待决审批测试共用：`inbound_message`、`router_with_agent`（真实路由器配脚本化智能体，可记录续跑）、`said_by`（总线发出的文本）、`asked_in` / `waiting` / `empty_registry`（登记簿里的未决请求） |
@@ -126,7 +128,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/pipeline/turn_pipeline_testkit.py` | 辅助 | 回合流水线步骤测试的共享构建器：`turn_msg()`（消息）、`turn_router()`（准备返回上下文、执行与消息效果皆为记录器的 `AgentRouter`）、`prepared_message()`、`attach_journal()`、`tag_enricher()` / `tag_enricher_async()`（给内容打标记以显示富化顺序） |
 | `channels/routing/pipeline/test_turn_attachment_gate.py` | 单元 | 附件处理前的准入闸门：被访问策略拒绝的发送者，语音、视频、图片、联系人、文档与贴纸一概不处理（含读取所有者配置），消息原样交给准备步骤；放行的发送者照常处理且只查一次；准入判定本身出错时照常处理并记 WARNING；纯文本消息与审批答复不触发判定；另用真实 `PolicyResolver` 逐例钉住陌生人私聊、已配对成员、所有者、未启用群、启用群、访客模式 @mention 与无访客模式的 @mention |
 | `channels/routing/pipeline/test_turn_pipeline_steps.py` | 单元 | `_handle_merged` 在运行之前的步骤顺序（准备与执行换成记录器）：收件日志写入与确认（重放的消息不重写）、yolo 窗口与人格写进消息、各类附件按固定顺序富化且审批答复不富化 |
-| `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、状态反应（标记、撤标记、完成表情的调用顺序与策略；失败时先发错误文本再显示失败表情）、无法准备的回合静默结束并放开闸门、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
+| `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、状态反应（标记、撤标记、完成表情的调用顺序与策略；失败时先发错误文本再显示失败表情）、无法准备的回合静默结束、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
 | `channels/routing/pipeline/test_delivery_setup_effects.py` | 单元 | 新回合的投递准备不再重复设置「处理中」反应（该反应只由回合的 ack 步骤设置一次），同时仍登记占位符与清理 |
 | `channels/types/test_context_document.py` | 单元 | 参考文档契约：每种状态经元数据往返不变、元数据是纯 JSON 数据、非元数据形态的输入不当作文档、`clamped` 截断正文并保留原始长度、不超限原样返回 |
 | `channels/media/test_channel_image_retention.py` | 单元 | 渠道图片缓存的保留期：同一张图再次收到时重新计龄（不会被过期清扫）、清扫期间被删的文件会重新写入、缓存目录解析失败时按「无缓存」返回而不是报错；清扫只删超过保留期未再收到的文件、保留期内的保留，缓存目录不存在时无事发生，子目录不动，删不掉的文件留下并只汇总成一条警告（不妨碍其余文件被清扫），被别人先删掉的文件不算失败 |

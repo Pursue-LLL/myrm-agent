@@ -3,7 +3,7 @@
 Groups rapid-fire messages of one sender in a conversation into a single
 merged InboundMessage before forwarding to Agent execution.
 
-Five complementary mechanisms:
+Six complementary mechanisms:
 1. **Debounce Timer**: Accumulates messages within a configurable time
    window (default 300 ms). The timer resets on each new message.
 2. **Active-Session Pending Queue**: When a session already has an Agent
@@ -24,6 +24,12 @@ Five complementary mechanisms:
    messages of one sender form a turn, and text of another sender waits for a
    turn of its own, in arrival order. A group shares one gate key, a DM never
    has a second sender.
+6. **Turn Identity**: Every turn has a number that is unique across the gate. The
+   next turn is marked running in the step that picks it, so no message can slip
+   in between two turns of a session and start a third. A turn is ended by naming
+   it (``release_turn``): the turn ending on its own and the stuck-task watchdog
+   may both signal its end, and the signal that comes second must not end the
+   turn that has taken over.
 
 [INPUT]
 - channels.routing.router_keys::routing_state_key (POS: debounce grouping key format, consistent with Router ``state_key``)
@@ -31,6 +37,7 @@ Five complementary mechanisms:
 [OUTPUT]
 - Merged InboundMessage delivered via callback to Router
 - Busy ack notifications via ``on_busy_ack`` callback
+- ``running_turn`` / ``release_turn``: the number of the turn a session is running and the way to end that turn by name
 
 [POS]
 Sits between Router's consume loop and the per-message handler.
@@ -41,6 +48,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import itertools
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -79,6 +87,7 @@ class _SessionState:
     pending: list[InboundMessage] = dataclasses.field(default_factory=list)
     timer: asyncio.TimerHandle | None = None
     active: bool = False
+    turn: int = 0
 
 
 def _is_answer(msg: InboundMessage) -> bool:
@@ -186,8 +195,8 @@ class SessionGate:
         gate = SessionGate(config, on_ready=router._handle_merged)
         # In consume loop:
         gate.submit(msg)
-        # After agent completes (``gate_key`` is derived from the message; same channel/peer as merged inbound):
-        gate.on_task_complete(msg)
+
+    A turn ends when ``on_ready`` returns, whichever way; the next queued turn starts then.
     """
 
     def __init__(
@@ -202,6 +211,7 @@ class SessionGate:
         self._on_busy_ack = on_busy_ack
         self._sessions: dict[str, _SessionState] = {}
         self._last_ack_time: dict[str, float] = {}
+        self._turn_ids = itertools.count(1)
         self._loop: asyncio.AbstractEventLoop | None = None
 
     def _ensure_loop(self) -> asyncio.AbstractEventLoop:
@@ -239,7 +249,7 @@ class SessionGate:
 
         window = self._config.debounce_window_ms
         if window <= 0:
-            asyncio.ensure_future(self._fire(key, (msg,)))
+            self._begin(key, state, (msg,))
             return
 
         state.buffer.append(msg)
@@ -263,25 +273,26 @@ class SessionGate:
         state.pending[:0] = state.buffer
         state.buffer.clear()
         state.timer = None
-        state.active = True
-        asyncio.ensure_future(self._fire(key, msgs))
+        self._begin(key, state, msgs)
 
-    async def _fire(self, key: str, msgs: tuple[InboundMessage, ...]) -> None:
-        """Merge messages and invoke the on_ready callback.
+    def _begin(self, key: str, state: _SessionState, msgs: tuple[InboundMessage, ...]) -> None:
+        """Start the next turn of the session, marked running in the step that picks it.
 
-        After ``on_ready`` completes (success or failure), drains the pending
-        queue. ``on_task_complete`` also calls ``_drain_pending``; the method
-        is idempotent (no-op when ``state.active`` is already ``False``).
+        The turn itself runs in a task, one loop iteration later; a message that arrives before it has started finds
+        the session busy and queues behind it.
         """
-        state = self._get_state(key)
+        state.turn = next(self._turn_ids)
         state.active = True
-        merged = merge_messages(msgs)
+        asyncio.ensure_future(self._fire(key, msgs, state.turn))
+
+    async def _fire(self, key: str, msgs: tuple[InboundMessage, ...], turn: int) -> None:
+        """Merge messages and invoke the on_ready callback; however it ends, the turn is over and the session moves on."""
         try:
-            await self._on_ready(merged)
+            await self._on_ready(merge_messages(msgs))
         except Exception:
             logger.warning("SessionGate: on_ready callback failed for %s", key, exc_info=True)
         finally:
-            self._drain_pending(key)
+            self.release_turn(key, turn)
 
     def _emit_busy_ack(self, key: str, msg: InboundMessage, position: int, max_pending: int) -> None:
         """Fire the busy-ack callback with debounce (30s per session key)."""
@@ -299,31 +310,27 @@ class SessionGate:
         except Exception:
             logger.warning("SessionGate: on_busy_ack failed", exc_info=True)
 
-    def _drain_pending(self, key: str) -> None:
-        """After task completes, drain and re-dispatch pending messages.
+    def running_turn(self, key: str) -> int:
+        """The number of the turn the session is running, 0 when it is idle."""
+        state = self._sessions.get(key)
+        return state.turn if state is not None and state.active else 0
 
-        Idempotent: no-op if the session is not active (already drained).
+    def release_turn(self, key: str, turn: int) -> None:
+        """End turn ``turn`` of the session and start what waits behind it.
+
+        A no-op unless that turn is the one running: a turn is ended by itself and, when it is stuck, by the watchdog,
+        and the end signalled second must not end the turn that has taken over.
         """
         state = self._sessions.get(key)
-        if not state or not state.active:
+        if state is None or not state.active or state.turn != turn:
             return
         state.active = False
 
-        if not state.pending:
-            if not state.buffer:
-                self._sessions.pop(key, None)
-                self._last_ack_time.pop(key, None)
-            return
-
-        asyncio.ensure_future(self._fire(key, _take_next_turn(state.pending)))
-
-    def on_task_complete(self, msg: InboundMessage) -> None:
-        """Signal that the agent task for this session has completed.
-
-        Called by Router in the finally block after agent execution.
-        """
-        key = gate_key(msg)
-        self._drain_pending(key)
+        if state.pending:
+            self._begin(key, state, _take_next_turn(state.pending))
+        elif not state.buffer:
+            self._sessions.pop(key, None)
+            self._last_ack_time.pop(key, None)
 
     def pending_count(self, key: str) -> int:
         """Return the number of pending messages queued for a session key."""

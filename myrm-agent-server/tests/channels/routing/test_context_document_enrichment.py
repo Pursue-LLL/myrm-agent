@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -13,6 +13,7 @@ from app.channels.routing import context_document as enrichment
 from app.channels.routing.context_document import enrich_context_document
 from app.channels.routing.pipeline import RouterExecutionMixin
 from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
+from app.channels.routing.session_gate import SessionGate, SessionGateConfig
 from app.channels.types import (
     METADATA_CONTEXT_DOCUMENT_KEY,
     ContextDocument,
@@ -99,6 +100,7 @@ class _TurnHost(RouterExecutionMixin):
 
     def __init__(self, channel: BaseChannel) -> None:
         self._active_tasks: dict[str, _ActiveTask] = {}
+        self._gate = SessionGate(SessionGateConfig(), on_ready=AsyncMock())
         self._bus = MagicMock(get_channel=MagicMock(return_value=channel))
         self.streamed: InboundMessage | None = None
 

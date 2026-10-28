@@ -4,7 +4,7 @@ A group shares one gate key (the chat), but the router takes the identity of a t
 one: text of several senders merged into a single turn would run as its first sender, a stranger's words under the
 owner's tools. A merged message is also built by hand, so a sender-level flag it does not carry over is lost: the policy
 then reads a bot as a person, and the order of the messages decides whether an explicit mention counts. The host here
-calls ``on_task_complete`` the way the router does when a turn ends.
+only runs each turn: the gate ends it when the callback returns.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def _dm(sender: str, content: str) -> InboundMessage:
 
 
 class _Router:
-    """What the router does with the gate: runs each turn it is handed and signals its end."""
+    """What the router does with the gate: runs each turn it is handed."""
 
     def __init__(self, turn: Callable[[InboundMessage], Awaitable[None]] | None = None) -> None:
         self.turns: list[InboundMessage] = []
@@ -58,7 +58,6 @@ class _Router:
                 await self._turn(msg)
         finally:
             self.running -= 1
-            self.gate.on_task_complete(msg)
 
     def ran(self) -> list[tuple[str, str]]:
         """What ran, in order: (sender, merged text)."""

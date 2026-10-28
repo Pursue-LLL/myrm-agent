@@ -177,8 +177,9 @@ class RouterLifecycleMixin:
         """Cancel agent tasks that exceed _STUCK_TASK_TIMEOUT and release all held resources.
 
         For each stuck task: cancel the CancellationToken + asyncio.Task, stop typing
-        indicators, clean up placeholders, remove from _active_tasks, release SessionGate,
-        and notify the user with a localized timeout message.
+        indicators, clean up placeholders, remove from _active_tasks, release the SessionGate
+        turn the task ran as (a no-op when the cancelled task already ended it), and notify the
+        user with a localized timeout message.
         """
         stuck_entries: list[tuple[str, _ActiveTask]] = [
             (key, entry)
@@ -245,7 +246,7 @@ class RouterLifecycleMixin:
                         state_key,
                     )
 
-            self._gate.on_task_complete(synthetic_msg)
+            self._gate.release_turn(entry.gate_key, entry.gate_turn)
             logger.info("[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed)
 
         if stuck_entries:
