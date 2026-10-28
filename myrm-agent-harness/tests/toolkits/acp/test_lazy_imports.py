@@ -56,6 +56,30 @@ class TestLazyImports:
         with pytest.raises(AttributeError, match="has no attribute"):
             _ = runtime_pkg.NonExistentThing  # type: ignore[attr-defined]
 
+    def test_acp_runtime_package_lazy_acp_runtime(self) -> None:
+        import myrm_agent_harness.toolkits.acp.runtime.acp as acp_runtime_pkg
+        from myrm_agent_harness.toolkits.acp.runtime.acp.runtime import AcpRuntime
+
+        assert acp_runtime_pkg.AcpRuntime is AcpRuntime
+
+    def test_acp_runtime_package_unknown_raises(self) -> None:
+        import myrm_agent_harness.toolkits.acp.runtime.acp as acp_runtime_pkg
+
+        with pytest.raises(AttributeError, match="has no attribute"):
+            _ = acp_runtime_pkg.NonExistentThing  # type: ignore[attr-defined]
+
+    def test_cli_runtime_package_lazy_cli_runtime(self) -> None:
+        import myrm_agent_harness.toolkits.acp.runtime.cli as cli_runtime_pkg
+        from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
+
+        assert cli_runtime_pkg.CliRuntime is CliRuntime
+
+    def test_cli_runtime_package_unknown_raises(self) -> None:
+        import myrm_agent_harness.toolkits.acp.runtime.cli as cli_runtime_pkg
+
+        with pytest.raises(AttributeError, match="has no attribute"):
+            _ = cli_runtime_pkg.NonExistentThing  # type: ignore[attr-defined]
+
     def test_server_package_lazy_myrm_acp_server(self) -> None:
         import myrm_agent_harness.toolkits.acp.server as server_pkg
 
