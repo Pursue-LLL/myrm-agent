@@ -1,9 +1,9 @@
 """Variable references in credential-named values: a reference names a variable and holds no secret.
 
 Compose files, config templates and scripts say ``POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}``; masking
-that mangles the variable name the reader needs. Only a value that is entirely a reference is kept. A default after
-``:-`` is a literal, a real secret that merely starts with ``$`` must still be masked, and so must a mix of reference
-and literal.
+that mangles the variable name the reader needs. Only a value that is entirely a reference is kept; an empty default
+(``${TOKEN:-}``) holds no literal and counts as one. A non-empty default after ``:-`` is a literal, a real secret that
+merely starts with ``$`` must still be masked, and so must a mix of reference and literal.
 """
 
 from __future__ import annotations
@@ -26,6 +26,9 @@ class TestReferencesStayReadable:
             "--password=${DB_PASSWORD}",
             '{"apiKey": "${OPENAI_API_KEY}"}',
             '{"clientSecret": "$CLIENT_SECRET"}',
+            "PASSWORD=${PASSWORD:-}",
+            'DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN:-}"',
+            "TOKEN=${TOKEN-}",
         ],
     )
     def test_whole_value_reference_is_kept(self, text: str) -> None:
@@ -44,6 +47,9 @@ class TestSecretsStayMasked:
             ("SECRET=Zk3f$Q9xLm2Vb7TnWc4Rp", "Zk3f$Q9xLm2Vb7TnWc4Rp"),
             ('{"apiKey": "$Secret123"}', "$Secret123"),
             ('{"apiKey": "${X:-realSecretValue12345}"}', "realSecretValue12345"),
+            ("PASSWORD=${DB:?need}Zk3fQ9xLm2Vb7TnWc4Rp", "Zk3fQ9xLm2Vb7TnWc4Rp"),
+            ('{"password": "${DB:?need}Zk3fQ9xLm2Vb7TnWc4Rp"}', "Zk3fQ9xLm2Vb7TnWc4Rp"),
+            ("PASSWORD=${DB:-}Zk3fQ9xLm2Vb7TnWc4Rp", "Zk3fQ9xLm2Vb7TnWc4Rp"),
         ],
     )  # fmt: skip
     def test_literal_values_are_masked(self, text: str, secret: str) -> None:

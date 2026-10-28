@@ -13,6 +13,7 @@ separately.
 [OUTPUT]
 - compiled detection regexes (``_PREFIX_RE``, ``_ENV_ASSIGN_RE``, ...)
 - ``_mask_token`` / ``_redact_form_body`` / ``_redact_*_assignment`` — shared replacers
+- ``_is_env_reference`` — whether a value is entirely a variable reference (readable, never masked)
 - ``_is_word_start`` / ``_is_word_end`` / ``_key_has_secret_keyword`` — word-boundary key validation
 """
 
@@ -251,11 +252,13 @@ _ENV_LOOKUP_VALUE_RE = re.compile(
     r"^(?:os\.(?:getenv|environ)|process\.env|\$ENV\{)",
 )
 
-# Shell / compose variable references (`$DB_PASS`, `${DB_PASS}`, `${DB_PASS:?set it in .env}`) name a variable and hold
-# no value; masking them only mangles the name a reader needs. Only a value that is entirely a reference qualifies:
-# a `:-default` is a literal, and a real password such as `$Secret123` must stay masked, so a bare `$NAME` has to be
-# upper case like an environment variable. The `?` form tolerates a message cut at its first space by the callers.
-_ENV_REFERENCE_VALUE_RE = re.compile(r"\$(?:\{[A-Za-z_][A-Za-z0-9_]*(?:\}|:?\?.*)|[A-Z_][A-Z0-9_]*)")
+# Shell / compose variable references (`$DB_PASS`, `${DB_PASS}`, `${DB_PASS:?set it in .env}`, `${DB_PASS:-}`) name a
+# variable and hold no value; masking them only mangles the name a reader needs. Only a value that is entirely a
+# reference qualifies: a non-empty `:-default` is a literal, and a real password such as `$Secret123` must stay masked,
+# so a bare `$NAME` has to be upper case like an environment variable. The `?` form tolerates a message cut at its
+# first space by the callers, so its closing brace is optional; the message holds no brace, which keeps a literal
+# after the closing `}` masked.
+_ENV_REFERENCE_VALUE_RE = re.compile(r"\$(?:\{[A-Za-z_][A-Za-z0-9_]*(?:\}|:?\?[^}]*\}?|:?-\})|[A-Z_][A-Z0-9_]*)")
 
 
 def _is_env_reference(value: str) -> bool:

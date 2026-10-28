@@ -13,10 +13,14 @@ the bare credential words (``token``, ``secret``, ``bearer``, ``authorization``,
 in any spelling: snake, kebab, dotted, camel or Pascal case. Bare ``token`` and
 ``secret`` are not matched as suffixes, so pagination cursors such as
 ``nextPageToken``, identifiers such as ``file_token`` and metadata such as
-``token_count`` stay readable. Channel credential names (``appSecret``,
-``bot_token``, ``signing_secret`` ...) are deliberately absent: Myrm's own
-locale files key their form labels by those names, and a label such as
-``"feishuAppSecret": "App Secret"`` would be masked in every file an agent reads.
+``token_count`` stay readable.
+
+Channel credential nouns (``app secret``, ``signing secret``, ``bot token``,
+``verification token``) are credential names too, but locale files key their form
+labels by them (``"feishuAppSecret": "App Secret"``), so a field named by one of
+them keeps a plain label: letters of any script separated by spaces, ``-`` or
+``_``, no digits, and a single word shorter than 20 characters. Real credentials
+carry digits or run longer; the residual is a passphrase made of words.
 
 [INPUT]
 - patterns::_mask_token (value masking shared by every redactor), _is_env_reference (a variable reference is no secret)
@@ -26,6 +30,7 @@ locale files key their form labels by those names, and a label such as
 - ``_JSON_ESCAPED_FIELD_RE`` / ``_redact_json_escaped_field`` - JSON member inside a JSON-encoded string
 - ``_REPR_DIAGNOSTIC_LINE_RE`` / ``_redact_repr_diagnostic_line`` - Python repr entries on diagnostic lines
 - ``_is_secret_field_name`` - the shared key policy
+- ``_mask_field_value`` - value masking of the three detectors (variable references and plain labels stay readable)
 
 [POS]
 Structured-field detectors of the redaction engine; consumed by ``engine.py``
@@ -68,9 +73,25 @@ _SUFFIX_NOUNS = "|".join(
     )
 )
 
+# Channel credential nouns: also the keys of form labels in locale files, so their values pass ``_PLAIN_LABEL_RE``.
+_CHANNEL_NOUNS = "|".join(
+    (
+        rf"app{_SEP}secret",
+        rf"signing{_SEP}secret",
+        rf"(?:bot|verification){_SEP}token",
+    )
+)
+
 # The prefix is bounded so a long run of name characters cannot make matching quadratic.
-_FIELD_NAME = rf"(?:{_BARE_NAMES}|[A-Za-z0-9_.\-]{{0,48}}?(?:{_SUFFIX_NOUNS}))"
+_PREFIX = r"[A-Za-z0-9_.\-]{0,48}?"
+_FIELD_NAME = rf"(?:{_BARE_NAMES}|{_PREFIX}(?:{_SUFFIX_NOUNS}|{_CHANNEL_NOUNS}))"
 _FIELD_NAME_RE = re.compile(_FIELD_NAME, re.IGNORECASE)
+# Names that are credentials whatever their value; a credential name outside it is a channel credential name.
+_ALWAYS_SECRET_NAME_RE = re.compile(rf"(?:{_BARE_NAMES}|{_PREFIX}(?:{_SUFFIX_NOUNS}))", re.IGNORECASE)
+
+# A label is words of letters (any script) joined by spaces, ``-`` or ``_``; a lone word must be short, since a
+# credential never looks like ``Signing`` but can be a long run of letters.
+_PLAIN_LABEL_RE = re.compile(r"[^\W\d_]{1,19}|[^\W\d_]+(?:[\s_-]+[^\W\d_]+)+")
 
 # JSON string values accept ``\"`` escapes so ``{"password": "my\"secret"}`` is captured whole.
 _JSON_FIELD_RE = re.compile(rf'("{_FIELD_NAME}")\s*:\s*"((?:[^"\\\\]|\\.)*)"', re.IGNORECASE)
@@ -92,22 +113,35 @@ def _is_secret_field_name(name: str) -> bool:
     return _FIELD_NAME_RE.fullmatch(name) is not None
 
 
-def _mask_field_value(value: str) -> str:
-    """Mask a credential field's value; a variable reference such as ``${API_KEY}`` is a name, not a secret."""
-    return value if _is_env_reference(value) else _mask_token(value)
+def _mask_field_value(name: str, value: str) -> str:
+    """Mask the value of the credential field ``name``.
+
+    A variable reference such as ``${API_KEY}`` is a name, not a secret, and a channel credential field holding a
+    plain label (``"appSecret": "App Secret"``) is a form label.
+    """
+    if _is_env_reference(value):
+        return value
+    if _PLAIN_LABEL_RE.fullmatch(value) and _ALWAYS_SECRET_NAME_RE.fullmatch(name) is None:
+        return value
+    return _mask_token(value)
+
+
+def _unquoted(quoted_key: str) -> str:
+    """The key of a JSON member without its quotes and escape backslashes (plain or JSON-encoded)."""
+    return quoted_key.strip('"\\')
 
 
 def _redact_json_field(m: re.Match[str]) -> str:
     """Replacement for ``_JSON_FIELD_RE``; an empty value is left as is, since "not set" is no secret and a reader needs it."""
     if not m.group(2).strip():
         return m.group(0)
-    return f'{m.group(1)}: "{_mask_field_value(m.group(2))}"'
+    return f'{m.group(1)}: "{_mask_field_value(_unquoted(m.group(1)), m.group(2))}"'
 
 
 def _redact_json_escaped_field(m: re.Match[str]) -> str:
     """Replacement for ``_JSON_ESCAPED_FIELD_RE``; the escape depth of the original is preserved."""
     escape = m.group(2)
-    return f'{m.group(1)}: {escape}"{_mask_field_value(m.group(3))}{escape}"'
+    return f'{m.group(1)}: {escape}"{_mask_field_value(_unquoted(m.group(1)), m.group(3))}{escape}"'
 
 
 def _redact_repr_field(m: re.Match[str]) -> str:
@@ -116,8 +150,8 @@ def _redact_repr_field(m: re.Match[str]) -> str:
     if not _is_secret_field_name(key):
         return m.group(0)
     if single is not None:
-        return f"'{key}'{sep}'{_mask_field_value(single)}'"
-    return f"'{key}'{sep}\"{_mask_field_value(double)}\""
+        return f"'{key}'{sep}'{_mask_field_value(key, single)}'"
+    return f"'{key}'{sep}\"{_mask_field_value(key, double)}\""
 
 
 def _redact_repr_diagnostic_line(m: re.Match[str]) -> str:

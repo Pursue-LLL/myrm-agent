@@ -32,6 +32,8 @@ class TestFieldNamePolicy:
             "private_key", "privateKey", "secret_key", "secret_value", "raw_secret", "secret_input", "key_material",
             "stripeSecretKey", "openaiApiKey", "dbPassword", "UserPassword", "sessionToken", "BRAVE_API_KEY",
             "SecretAccessKey", "secret_access_key", "aws_secret_access_key",
+            "appSecret", "app_secret", "feishuAppSecret", "signingSecret", "signing-secret", "SLACK_SIGNING_SECRET",
+            "botToken", "bot_token", "telegram_bot_token", "verificationToken", "verification_token",
         ],
     )  # fmt: skip
     def test_credential_names_match(self, name: str) -> None:
@@ -162,14 +164,67 @@ class TestCloudCredentials:
         text = json.dumps({key: _OPAQUE})
         assert redact_sensitive_text(text) == text
 
+
+_CHANNEL_KEYS = [
+    "feishuAppSecret",
+    "app_secret",
+    "signingSecret",
+    "SLACK_SIGNING_SECRET",
+    "telegram_bot_token",
+    "botToken",
+    "verificationToken",
+]
+_REAL_VALUES = [
+    _OPAQUE,
+    "Zk3fQ9xLm2Vb7TnWc4RpAa8sD5fG1hJ0",
+    "123456789:AAEhBP0av18F1UXjpT9bHqkYzQ2xLmN8vWc",
+    "abcdefghijklmnopqrstuvwxyz",
+]
+
+
+class TestChannelCredentials:
+    """Channel credential names are credentials, yet locale files key their form labels by the very same names."""
+
+    @pytest.mark.parametrize("key", _CHANNEL_KEYS)
+    @pytest.mark.parametrize("value", _REAL_VALUES)
+    def test_real_value_is_masked_in_every_shape(self, key: str, value: str) -> None:
+        plain = json.dumps({key: value})
+        wrapped = json.dumps({"output": plain})
+        diagnostic = f"AssertionError: {{{key!r}: {value!r}}}"
+        for text in (plain, wrapped, diagnostic):
+            out = redact_sensitive_text(text)
+            assert value not in out
+            assert key in out
+
+    @pytest.mark.parametrize("key", _CHANNEL_KEYS)
     @pytest.mark.parametrize(
-        ("key", "label"),
-        [("feishuAppSecret", "App Secret"), ("telegram_bot_token", "Telegram-Bot-Token"), ("signingSecret", "Signing Secret")],
+        "label", ["App Secret", "Telegram-Bot-Token", "Signing Secret", "bot_token", "your-bot-token", "Token", "应用密钥", "ボットトークン"]
     )  # fmt: skip
-    def test_form_labels_keyed_by_channel_credential_names_stay_readable(self, key: str, label: str) -> None:
+    def test_form_label_stays_readable_in_every_shape(self, key: str, label: str) -> None:
         """The locale files of this very repo carry such keys; masking the labels would blind an agent editing them."""
-        text = json.dumps({key: label}, indent=2)
-        assert redact_sensitive_text(text) == text
+        plain = json.dumps({key: label}, indent=2, ensure_ascii=False)
+        wrapped = json.dumps({"output": json.dumps({key: label}, ensure_ascii=False)}, ensure_ascii=False)
+        diagnostic = f"AssertionError: {{{key!r}: {label!r}}}"
+        for text in (plain, wrapped, diagnostic):
+            assert redact_sensitive_text(text) == text
+
+    @pytest.mark.parametrize(
+        "value", ["abcdefghijklmnopqrst", "abcdefghijklmnopqrstuvwxyz", "Secret1", "token_2", "ab:cd"]
+    )
+    def test_value_that_is_not_a_label_is_masked(self, value: str) -> None:
+        """Twenty letters or more in one word, a digit or any other character is no form label."""
+        assert value not in redact_sensitive_text(json.dumps({"appSecret": value}))
+
+    @pytest.mark.parametrize(
+        "key", ["password", "api_key", "clientSecret", "bot_access_token", "secret", "authorization"]
+    )
+    def test_unambiguous_names_mask_a_label_shaped_value(self, key: str) -> None:
+        """Only channel credential names get the label exemption; a password such as ``hunter two`` stays masked."""
+        assert "hunter two" not in redact_sensitive_text(json.dumps({key: "hunter two"}))
+
+    def test_variable_reference_and_empty_value_stay_readable(self) -> None:
+        for text in ('{"appSecret": "${APP_SECRET}"}', '{"botToken": ""}'):
+            assert redact_sensitive_text(text) == text
 
 
 class TestBoundedWork:
@@ -179,12 +234,12 @@ class TestBoundedWork:
 
     def test_long_run_of_name_characters_stays_linear(self) -> None:
         text = '"' + "a" * 60_000 + '"' + " " + "b" * 60_000
-        start = time.perf_counter()
+        start = time.process_time()
         redact_sensitive_text(text)
-        assert time.perf_counter() - start < 2.0
+        assert time.process_time() - start < 2.0
 
     def test_many_quotes_stay_linear(self) -> None:
         text = '"aaaaaaaaaaaaaaaa' * 8_000
-        start = time.perf_counter()
+        start = time.process_time()
         redact_sensitive_text(text)
-        assert time.perf_counter() - start < 2.0
+        assert time.process_time() - start < 2.0
