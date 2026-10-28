@@ -71,7 +71,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
   }
 
   if (data.type === H.AgentEventType.AGENT_CANCELLED) {
-    const reason = (typeof data.data === 'object' && data.data?.reason) || 'user_cancelled';
+    const reason = (typeof data.data === 'object' ? data.data?.reason : undefined) || 'user_cancelled';
     const cancelText =
       reason === 'user_cancelled'
         ? translateI18nKey('progressSteps.runCancelled', 'Cancelled')

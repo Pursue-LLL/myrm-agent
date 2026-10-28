@@ -313,7 +313,7 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
             session_id=session_id,
             data=SubagentLifecycleData(
                 status="rejected",
-                budget=self._budget_state.snapshot(),
+                budget=to_json_object(self._budget_state.snapshot()),
                 extra={
                     "guard_type": guard_type,
                     "reason": reason,

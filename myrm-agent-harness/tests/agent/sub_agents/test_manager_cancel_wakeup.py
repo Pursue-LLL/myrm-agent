@@ -1,8 +1,8 @@
 """A cancelled child must not wake the parent; every other terminal status still does.
 
-A user Stop cancels detached children (``cancel_all(include_detached=True)``). Their cleanup
-used to trigger the parent's async wakeup, which starts a new autonomous run right after the
-user pressed Stop. These tests drive the real ``SubagentManager`` cleanup path.
+A user Stop cancels detached children (``cancel_all(include_detached=True)``). If their cleanup
+woke the parent, the server would start a new autonomous run right after the user pressed Stop.
+These tests drive the real ``SubagentManager`` cleanup path.
 """
 
 from __future__ import annotations

@@ -31,8 +31,11 @@ from myrm_agent_harness.agent.sub_agents.types import (
 )
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.base_agent import BaseAgent
     from myrm_agent_harness.agent.sub_agents.manager import SubagentTask
+    from myrm_agent_harness.agent.sub_agents.notifications import NotificationManager
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +48,15 @@ class SubagentControlMixin:
     _children_descriptions: dict[str, str]
     _children_configs: dict[str, SubagentConfig]
     _children_results: dict[str, SubAgentResult]
-    _children_steering: dict[str, object]
+    _children_steering: dict[str, SteeringToken]
     _children_internal: dict[str, bool]
     _cancel_flags: dict[str, bool]
     _graceful_cancel_timeouts: dict[str, asyncio.Task[None]]
     _background_tasks: set[asyncio.Task[object]]
-    _children_agents: dict[str, object]
+    _children_agents: dict[str, BaseAgent]
+    _children_observability: dict[str, dict[str, object]]
+    _children_detached: dict[str, bool]
+    _notification_manager: NotificationManager
 
     def list_children(self) -> list[dict[str, object]]:
         children: list[dict[str, object]] = []
@@ -200,7 +206,7 @@ class SubagentControlMixin:
                 return False
             logger.warning("Cannot steer task %s: no steering token (already completed?)", task_id)
             return False
-        st.steer(message)  # type: ignore[union-attr]
+        st.steer(message)
         logger.info("[subagent:%s] Steering message queued (%d chars)", task_id, len(message))
 
         if config_overlay:
@@ -232,7 +238,7 @@ class SubagentControlMixin:
         configs: list[tuple[str, SubagentConfig]],
         context: dict[str, object],
         tool_registry_getter: Callable[[], list[BaseTool]],
-        cancel_token: object | None = None,
+        cancel_token: CancellationToken | None = None,
     ) -> list[SubAgentResult]:
         """Spawn N subagents in parallel for the same task; return all results without auto-merging."""
         from .orchestrator import run_alternatives
@@ -251,7 +257,7 @@ class SubagentControlMixin:
         configs: list[tuple[str, SubagentConfig, str]],
         context: dict[str, object],
         tool_registry_getter: Callable[[], list[BaseTool]],
-        cancel_token: object | None = None,
+        cancel_token: CancellationToken | None = None,
     ) -> SubAgentResult:
         """Execute subagents in chain: A -> B -> C, each receiving previous result."""
         from .orchestrator import run_chain
@@ -269,7 +275,7 @@ class SubagentControlMixin:
         cross_review_rounds: int = 1,
         cross_review_prompt_template: str = "",
         chair_prompt_template: str = "",
-        cancel_token: object | None = None,
+        cancel_token: CancellationToken | None = None,
     ) -> CouncilResult:
         """Run a multi-expert council session with cross-review and chair synthesis."""
         from .orchestrator import run_council
@@ -328,4 +334,4 @@ class SubagentControlMixin:
 
     def drain_notifications(self) -> str | None:
         """Drain all pending completion notifications."""
-        return self._notification_manager.drain_notifications()  # type: ignore[attr-defined]
+        return self._notification_manager.drain_notifications()
