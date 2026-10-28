@@ -145,7 +145,6 @@ _DANGEROUS_COMMANDS: tuple[tuple[str, str], ...] = (
     (r"\bmount\s+", "Mounting filesystems"),
     (r"\bumount\s+", "Unmounting filesystems"),
     (r"\bchroot\b", "Changing root directory"),
-    (r"\bexport\s+LD_PRELOAD=", "LD_PRELOAD injection"),
     (r"\bexport\s+PATH=.*:", "PATH manipulation"),
     # --- encoded execution (piping decoded content to shell) ---
     (r"\becho\s+\S+\s*\|\s*base64\s+-d\s*\|\s*(ba)?sh\b", "Base64-encoded shell execution"),
@@ -159,13 +158,6 @@ _DANGEROUS_COMMANDS: tuple[tuple[str, str], ...] = (
     (r"\bphp\s+-r\s+", "PHP inline execution"),
     (r"\blua\s+-e\s+", "Lua inline execution"),
     (r"\bawk\s+'BEGIN\s*\{", "AWK inline program execution"),
-    # --- environment variable injection (beyond LD_PRELOAD/PATH) ---
-    (r"\bexport\s+NODE_OPTIONS=", "NODE_OPTIONS injection"),
-    (r"\bexport\s+PYTHONPATH=", "PYTHONPATH injection"),
-    (r"\bexport\s+DYLD_", "DYLD_* injection (macOS)"),
-    (r"\bexport\s+PERL5OPT=", "PERL5OPT injection"),
-    (r"\bexport\s+RUBYOPT=", "RUBYOPT injection"),
-    (r"\bexport\s+LD_LIBRARY_PATH=", "LD_LIBRARY_PATH injection"),
     # --- SQL destructive commands (often piped to sqlite3 or psql) ---
     (r"\bDROP\s+(TABLE|DATABASE)\b", "SQL DROP"),
     (r"\bDELETE\s+FROM\b(?!.*\bWHERE\b)", "SQL DELETE without WHERE"),

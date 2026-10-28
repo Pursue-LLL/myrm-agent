@@ -168,11 +168,13 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 
 | 层 | 组件 | 防护目标 |
 |----|------|---------|
-| 1 | `shell_command_analyzer` | Shell 注入检测、危险命令识别、可疑模式分析 |
-| 2 | `blacklist` | Python 模块黑名单（核心危险 + 网络模块）、环境变量黑名单 |
+| 1 | `shell_command_analyzer` | Shell 注入检测、危险命令识别（含向常驻 shell 持久导出代码注入类环境变量：`export` / `readonly` / `declare -x` / `typeset -x`，见 `persistent_env.py`）、可疑模式分析 |
+| 2 | `blacklist` | Python 模块黑名单（核心危险 + 网络模块）、环境变量黑名单（按作用分组：让程序执行外来代码的 `CODE_INJECTION_ENV_VARS`，与代理、TLS、包源等重定向类） |
 | 3 | `validator` | 路径白名单、域名白名单、命令验证 |
 | 4 | `sanitize_env` | 环境变量过滤（52 个精确变量名 + 4 个前缀 + 敏感名通配：链接器注入、模块注入、代理注入、TLS 绕过、包管理器重定向、Git/编译器劫持、`OTEL_*` 遥测路由；显式覆盖同样被剥离，模型运行的程序需要 OpenTelemetry 时在命令行内联设置 `OTEL_*`） |
 | 5 | `archive_sanitizer` | 压缩包解压安全增强（防止 zip bomb、路径遍历） |
+
+审批自动放行（`risk_classifier`）只信任不改变命令行为的行内前缀：`LC_ALL=C ls`、`PAGER=cat git log` 保持只读；`GIT_EXTERNAL_DIFF=./x git diff`、`FOO=bar ls` 等其余赋值一律回到审批，因为一次性赋值同样能让只读命令去执行脚本。
 
 ### 5. Workspace（工作空间）
 

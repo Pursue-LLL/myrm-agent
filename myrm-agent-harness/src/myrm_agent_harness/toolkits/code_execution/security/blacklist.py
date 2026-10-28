@@ -13,6 +13,9 @@ is handled by ``myrm_agent_harness.toolkits.code_execution.security.shell_comman
 
 [OUTPUT]
 - get_dangerous_modules: Get dangerous modules based on network configuration.
+- DANGEROUS_ENV_VARS / DANGEROUS_ENV_PREFIXES: Variables a child process or an MCP server must not receive.
+- CODE_INJECTION_ENV_VARS / CODE_INJECTION_ENV_PREFIXES / is_code_injection_env_name: The part of them that makes a
+  later program run what the value names (the shell validator denies setting these in a persistent shell).
 
 [POS]
 Security blacklists for code execution.
@@ -126,7 +129,9 @@ def get_dangerous_modules(allow_network: bool = False) -> frozenset[str]:
 # Dangerous environment variables (library injection / env pollution)
 # ============================================================
 
-DANGEROUS_ENV_VARS: frozenset[str] = frozenset(
+# Names that make a later program run what their value names. Setting one in a shell that outlives the command
+# turns every following command, including ones judged read-only, into a way to run it.
+_LINKER_INJECTION_ENV_VARS: frozenset[str] = frozenset(
     {
         # Dynamic linker injection (Linux)
         "LD_PRELOAD",
@@ -136,13 +141,63 @@ DANGEROUS_ENV_VARS: frozenset[str] = frozenset(
         "DYLD_INSERT_LIBRARIES",
         "DYLD_LIBRARY_PATH",
         "DYLD_FRAMEWORK_PATH",
+    }
+)
+
+_RUNTIME_INJECTION_ENV_VARS: frozenset[str] = frozenset(
+    {
         # Runtime hijacking / module injection
         "NODE_OPTIONS",
         "PYTHONHOME",
         "PYTHONPATH",
         "PYTHONSTARTUP",
-        # Shell environment pollution
+        "PERL5OPT",
+        "RUBYOPT",
+    }
+)
+
+_SHELL_STARTUP_ENV_VARS: frozenset[str] = frozenset(
+    {
+        # A script every non-interactive bash sources before it runs
         "BASH_ENV",
+    }
+)
+
+_GIT_PROGRAM_ENV_VARS: frozenset[str] = frozenset(
+    {
+        # Git command hijacking — arbitrary code execution via git hooks/editors
+        "GIT_SSH_COMMAND",
+        "GIT_SSH",
+        "GIT_PROXY_COMMAND",
+        "GIT_ASKPASS",
+        "GIT_EDITOR",
+        "GIT_SEQUENCE_EDITOR",
+        "GIT_EXTERNAL_DIFF",
+        "GIT_EXEC_PATH",
+        "GIT_TEMPLATE_DIR",
+    }
+)
+
+CODE_INJECTION_ENV_VARS: frozenset[str] = (
+    _LINKER_INJECTION_ENV_VARS | _RUNTIME_INJECTION_ENV_VARS | _SHELL_STARTUP_ENV_VARS | _GIT_PROGRAM_ENV_VARS
+)
+
+# Whole families of the same kind: every ``LD_*`` and ``DYLD_*`` variable steers the dynamic loader.
+CODE_INJECTION_ENV_PREFIXES: tuple[str, ...] = ("LD_", "DYLD_")
+
+
+def is_code_injection_env_name(name: str) -> bool:
+    """Whether a variable of this name makes a later program run what its value names (case-insensitive)."""
+    upper = name.upper()
+    return upper in CODE_INJECTION_ENV_VARS or upper.startswith(CODE_INJECTION_ENV_PREFIXES)
+
+
+# Names a host must not hand down and untrusted configuration must not set (shell pollution, key logging, traffic and
+# certificate redirection, package sources, compilers, credential isolation), yet that are ordinary for a person to
+# set in their own shell: a proxy, a package index, ``CC=clang``, an application's own ``ENV``.
+_REDIRECTION_ENV_VARS: frozenset[str] = frozenset(
+    {
+        # Shell environment pollution
         "ENV",
         "IFS",
         # TLS/SSL key logging
@@ -181,16 +236,6 @@ DANGEROUS_ENV_VARS: frozenset[str] = frozenset(
         "GONOSUMCHECK",
         "GONOSUMDB",
         "BUN_CONFIG_REGISTRY",
-        # Git command hijacking — arbitrary code execution via git hooks/editors
-        "GIT_SSH_COMMAND",
-        "GIT_SSH",
-        "GIT_PROXY_COMMAND",
-        "GIT_ASKPASS",
-        "GIT_EDITOR",
-        "GIT_SEQUENCE_EDITOR",
-        "GIT_EXTERNAL_DIFF",
-        "GIT_EXEC_PATH",
-        "GIT_TEMPLATE_DIR",
         # Compiler hijacking — arbitrary code execution during compilation
         "CC",
         "CXX",
@@ -204,6 +249,8 @@ DANGEROUS_ENV_VARS: frozenset[str] = frozenset(
         "SESSION_TOKEN",
     }
 )
+
+DANGEROUS_ENV_VARS: frozenset[str] = CODE_INJECTION_ENV_VARS | _REDIRECTION_ENV_VARS
 
 # ============================================================
 # Non-inheritable environment variables (Auth tokens, priv sockets, DB URLs)
@@ -242,7 +289,7 @@ NON_INHERITABLE_ENV_VARS: frozenset[str] = frozenset(
     }
 )
 
-DANGEROUS_ENV_PREFIXES: tuple[str, ...] = ("LD_", "DYLD_", "GIT_SSL_")
+DANGEROUS_ENV_PREFIXES: tuple[str, ...] = (*CODE_INJECTION_ENV_PREFIXES, "GIT_SSL_")
 
 DANGEROUS_ENV_WILDCARDS: tuple[str, ...] = (
     "KEY",

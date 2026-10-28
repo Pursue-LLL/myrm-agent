@@ -533,8 +533,8 @@ class TestFlagValidationEdgeCases:
         assert _validate_flag_value("anything", FlagArgType.NONE) is False
 
     def test_env_var_assignment_before_command(self) -> None:
-        """Environment variable assignment prefix: FOO=bar git status."""
-        assert classify_command_risk("FOO=bar git status") == CommandRiskLevel.SAFE
+        """Environment variable assignment prefix: LC_ALL=C git status."""
+        assert classify_command_risk("LC_ALL=C git status") == CommandRiskLevel.SAFE
 
     def test_only_env_var_assignments(self) -> None:
         """Only env vars with no actual command."""

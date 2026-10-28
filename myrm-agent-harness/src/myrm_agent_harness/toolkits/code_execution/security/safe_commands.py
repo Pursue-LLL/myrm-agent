@@ -13,6 +13,7 @@ SAFE is decided by the command that really runs, not by its first word: ``timeou
 - unwrap_transparent_wrapper: The words of the command a wrapper runs, ``[]`` when it runs nothing, None when the form is not understood.
 - is_guarded: Whether a SAFE command has arguments that can run a program or write a file.
 - has_unsafe_arguments: Whether such an argument is present.
+- is_safe_prefix_assignment: Whether a leading ``NAME=value`` word leaves a read-only command read-only.
 
 [POS]
 Allow-list data and argument guards of the shell risk classifier. Pure data and functions without I/O.
@@ -235,6 +236,44 @@ _GUARDS: Final[Mapping[str, _Guard]] = MappingProxyType(
         "volta": _RUNS_COMMANDS,
     }
 )
+
+
+# Variables a command may set for itself without losing its read-only standing: they only change the language,
+# the width or the colour of what a tool prints. Any other variable can make a read-only command run a program
+# (``GIT_EXTERNAL_DIFF``, ``GIT_SSH_COMMAND``, ``LD_PRELOAD``, ``PATH``, ``LESSOPEN``, a pager), so a command that sets
+# one is no longer vouched for.
+_SAFE_PREFIX_ENV: Final[frozenset[str]] = frozenset(
+    {
+        "LANG",
+        "LANGUAGE",
+        "TZ",
+        "TERM",
+        "COLUMNS",
+        "LINES",
+        "NO_COLOR",
+        "FORCE_COLOR",
+        "CLICOLOR",
+        "CLICOLOR_FORCE",
+        "CI",
+        "PYTHONUNBUFFERED",
+        "PYTHONDONTWRITEBYTECODE",
+        "PYTHONIOENCODING",
+        "GIT_TERMINAL_PROMPT",
+        "GIT_OPTIONAL_LOCKS",
+    }
+)
+_SAFE_PREFIX_ENV_FAMILIES: Final[tuple[str, ...]] = ("LC_",)
+# A pager is a program to run; only the one that runs nothing is harmless.
+_SAFE_PREFIX_ENV_PINNED: Final[Mapping[str, str]] = MappingProxyType({"PAGER": "cat", "GIT_PAGER": "cat"})
+
+
+def is_safe_prefix_assignment(word: str) -> bool:
+    """Whether a leading ``NAME=value`` word of a command leaves that command read-only."""
+    name, _, value = word.partition("=")
+    name = name.removesuffix("+")
+    if name in _SAFE_PREFIX_ENV or name.startswith(_SAFE_PREFIX_ENV_FAMILIES):
+        return True
+    return _SAFE_PREFIX_ENV_PINNED.get(name) == value
 
 
 def is_guarded(base: str) -> bool:

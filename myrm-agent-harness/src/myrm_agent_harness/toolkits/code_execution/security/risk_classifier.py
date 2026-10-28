@@ -59,6 +59,7 @@ from myrm_agent_harness.toolkits.code_execution.security.safe_commands import (
     TRANSPARENT_WRAPPERS,
     has_unsafe_arguments,
     is_guarded,
+    is_safe_prefix_assignment,
     unwrap_transparent_wrapper,
 )
 
@@ -309,10 +310,14 @@ def _classify_segment(segment: str) -> _Verdict:
     if words is None:
         return CommandRiskLevel.UNKNOWN, "unknown_command"
 
-    # Leading ``NAME=value`` words only set variables for the command that follows. After a wrapper the same
-    # word would be the program to run, so assignments are skipped here and nowhere else.
+    # Leading ``NAME=value`` words only set variables for the command that follows, which keeps its standing only
+    # for variables that change nothing but its output (``LC_ALL=C sort``): ``GIT_EXTERNAL_DIFF=./x git diff`` makes
+    # a read-only command run ``./x``. After a wrapper the same word would be the program to run, so assignments are
+    # skipped here and nowhere else.
     start = 0
     while start < len(words) and _ASSIGNMENT_RE.match(words[start]):
+        if not is_safe_prefix_assignment(words[start]):
+            return CommandRiskLevel.UNKNOWN, "unknown_command"
         start += 1
     return _classify_command(words[start:], expands=has_word_expansion(text), depth=0)
 

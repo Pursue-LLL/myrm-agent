@@ -64,10 +64,13 @@ class TestRedirectDetection:
 
 
 class TestEnvVarAssignment:
-    """Leading env var assignments should be skipped."""
+    """Leading assignments of output-shaping variables are skipped; any other revokes the standing."""
 
     def test_env_prefix_safe(self) -> None:
-        assert classify_command_risk("FOO=bar ls") == CommandRiskLevel.SAFE
+        assert classify_command_risk("LC_ALL=C ls") == CommandRiskLevel.SAFE
+
+    def test_env_prefix_of_an_arbitrary_name_is_not_vouched_for(self) -> None:
+        assert classify_command_risk("FOO=bar ls") == CommandRiskLevel.UNKNOWN
 
     def test_env_prefix_unsafe(self) -> None:
         assert classify_command_risk("FOO=bar rm file") == CommandRiskLevel.UNKNOWN

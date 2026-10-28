@@ -104,7 +104,7 @@ class TestTransparentWrappers:
             "timeout 30 git log --oneline",
             "timeout -s KILL 30 pytest -q",
             "time timeout 5 ls",
-            "FOO=1 timeout 5 ls",
+            "LC_ALL=C timeout 5 ls",
         ],
     )
     def test_wrapped_safe_command_stays_safe(self, command: str) -> None:
@@ -208,9 +208,54 @@ class TestFlagsAreReadAsTheShellPassesThem:
 
 
 class TestEnvironmentAssignmentPrefix:
-    @pytest.mark.parametrize("command", ["FOO=bar ls", "FOO=bar BAZ=1 ls", "_X1=1 pytest -q", "A+=b ls"])
-    def test_assignment_prefix_is_skipped(self, command: str) -> None:
+    """``NAME=value cmd`` keeps the standing of ``cmd`` only when ``NAME`` changes nothing but its output."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "LC_ALL=C ls",
+            "LC_ALL=C TZ=UTC ls",
+            "FORCE_COLOR=1 pytest -q",
+            "LANG+=x ls",
+            "PAGER=cat git log",
+            "GIT_PAGER=cat git log",
+            "GIT_OPTIONAL_LOCKS=0 git status",
+            "TZ=$HOME ls",
+            "PAGER='cat' git log",
+        ],
+    )
+    def test_assignment_that_only_shapes_output_is_skipped(self, command: str) -> None:
         assert classify_command_risk(command) is SAFE
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            # each of these made an auto-approved read-only command run a program
+            "GIT_EXTERNAL_DIFF=./x.sh git diff",
+            "GIT_SSH_COMMAND=./x.sh git log",
+            "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.external GIT_CONFIG_VALUE_0=./x.sh git diff",
+            "BASH_ENV=./x.sh ls",
+            "LD_PRELOAD=./x.so ls",
+            "PATH=./bin:$PATH ls",
+            "LESSOPEN='|./x.sh %s' less f",
+            "PAGER=./x.sh git log",
+            "GIT_PAGER='sh -c x' git log",
+            # a harmless name does not excuse a second, harmful one
+            "LC_ALL=C GIT_EXTERNAL_DIFF=./x.sh git diff",
+            # a harmless name does not excuse the command its value runs
+            "LC_ALL=$(rm -rf ./build) ls",
+            "TZ=`rm -rf ./build` date",
+            # a pager is a program; only `cat` runs nothing
+            "PAGER='cat; ./x.sh' git log",
+            # nothing is known about an arbitrary name
+            "FOO=bar ls",
+            "FOO=bar BAZ=1 ls",
+            "A+=b ls",
+        ],
+    )
+    def test_any_other_assignment_revokes_the_standing(self, command: str) -> None:
+        assert classify_command_risk(command) is UNKNOWN
+        assert classify_segment_risk_detail(command) == (UNKNOWN, "unknown_command")
 
     @pytest.mark.parametrize("command", ["./a=b ls", "/tmp/x=y ls", "1A=b ls", "a-b=c ls", "FOO=bar", "FOO=bar rm x"])
     def test_only_a_variable_assignment_is_skipped(self, command: str) -> None:
