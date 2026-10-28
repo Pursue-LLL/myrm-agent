@@ -187,4 +187,5 @@ def test_http_error_names_the_field_and_the_issue() -> None:
     error = WorkspacePathValidationError(WorkspacePathIssue.TOO_BROAD, "too broad")
     response = workspace_path_http_error(error, field="workspace_dir")
     assert response.status_code == 400
+    assert isinstance(response.detail, dict)
     assert response.detail["error"]["details"] == [{"field": "workspace_dir", "issue": "too_broad"}]

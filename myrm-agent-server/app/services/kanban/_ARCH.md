@@ -28,7 +28,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 |    ├─ `lifecycle.py` | ✅ 核心 | Worktree 生命周期编排：`resolve_base_dir`/`resolve_workspace`/`create_worktree`/`merge_task_worktree`/`_worktree_branch_name`（分支唯一化） | ❌ |
 |    ├─ `merge.py` | ✅ 核心 | merge 前置 git 辅助（`_branch_has_commits` / `_ensure_target_branch_checked_out` / `_is_valid_git_branch`） | ✅ |
 |    ├─ `cleanup.py` | ✅ 核心 | safe/force 清理（`cleanup_worktree`，dirty 保留防丢数据） | ✅ |
-|    ├─ `workdir_gate.py` | ✅ 核心 | `KanbanTaskRunner.run` 入口闸门 `hold_for_unusable_workdir`：任务（或 board `default_workdir`）解析出的工作目录经 `is_workspace_root_grantable` 复判，过宽（家目录、盘符根、含受保护位置或应用状态目录的上级）则返回 HUMAN 阻塞（原因 `WORKDIR_TOO_BROAD_REASON`，前端译成界面语言，与 `shared/config/kanban_blocked_reasons.json` 一致性由 `test_blocked_reason_contract.py` 保证）；写入口已拒绝这类路径，这里兜住闸门上线前存下的与直接写库的值；在构造上下文之前返回，不调用模型、不改变提示词 | ✅ |
+|    ├─ `workdir_gate.py` | ✅ 核心 | `KanbanTaskRunner.run` 入口闸门 `hold_for_unusable_workdir`：任务（或 board `default_workdir`）解析出的工作目录经 `is_workspace_root_grantable` 复判，过宽（家目录、盘符根、含受保护位置或应用状态目录的上级）则返回 HUMAN 阻塞（原因 `WORKDIR_TOO_BROAD_REASON`，前端译成界面语言，与 `shared/config/kanban_blocked_reasons.json` 一致性由 `test_blocked_reason_contract.py` 保证）；写入口已拒绝这类路径，这里兜住没经过写入口的值（导入实例、直接写库）；在构造上下文之前返回，不调用模型、不改变提示词 | ✅ |
 |    └─ `landing_gate.py` | ✅ 核心 | `KanbanTaskRunner.run` 入口闸门 `hold_for_unlanded_parents`：先等父任务在途合并，再按父任务事件流里最新的 `MERGE_CONFLICT` 事件判定其代码没进分支，命中且用户未确认则返回 HUMAN 阻塞；在构造上下文之前返回，不调用模型 | ✅ |
 | `diagnostics/` | ✅ 子包 | 诊断域（聚合出口即 `__init__.py`，保留原 `diagnostics.py` 公共 API） | - |
 | ├─ `__init__.py` | ✅ 核心 | 诊断引擎工厂、摘要（`create_diagnostic_engine`、`CARD_FAST_RULES`、`compute_diagnostics_summary`） | ✅ |

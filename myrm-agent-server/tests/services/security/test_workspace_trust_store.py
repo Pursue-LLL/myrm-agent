@@ -5,7 +5,7 @@
 - myrm_agent_harness.agent.security.workspace_trust (POS: run-start trust binding)
 
 [OUTPUT]
-- Persistence of the disclosed prefixes (round trip, entries saved before the field existed), the decisions that
+- Persistence of the disclosed prefixes (round trip, entries that record none), the decisions that
   record or clear them, and the run-start result for a folder whose config grows after the user trusted it.
 
 [POS]
@@ -128,9 +128,7 @@ class TestWhatIsRecorded:
             "make lint",
         )
 
-    async def test_an_entry_saved_before_the_field_existed_discloses_nothing(
-        self, config: _FakeConfigService, folder: Path
-    ) -> None:
+    async def test_an_entry_without_disclosed_prefixes_discloses_nothing(self, config: _FakeConfigService, folder: Path) -> None:
         canonical = str(folder.resolve())
         config.values[WORKSPACE_TRUST_CONFIG_KEY] = {
             "entries": {canonical: {"level": "TRUSTED", "decided_at": "2026-01-01T00:00:00+00:00", "manifest_hash": "abc"}}
@@ -190,7 +188,7 @@ class TestRunStartAfterTheAgentWroteTheConfig:
         apply_workspace_trust_for_root(str(folder))
         assert get_repo_command_prefixes() == ("curl",)
 
-    async def test_a_folder_trusted_before_the_field_existed_asks_once_more(
+    async def test_a_trusted_entry_without_disclosed_prefixes_asks_for_a_decision(
         self, config: _FakeConfigService, folder: Path
     ) -> None:
         _declare(folder, "npm run test")

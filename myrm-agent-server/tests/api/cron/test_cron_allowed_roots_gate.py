@@ -54,7 +54,7 @@ def _refusal(response: Response) -> str:
     assert response.status_code == 400, response.text
     (detail,) = response.json()["detail"]["error"]["details"]
     assert detail["field"] == "allowed_roots"
-    return detail["issue"]
+    return str(detail["issue"])
 
 
 class TestCreate:

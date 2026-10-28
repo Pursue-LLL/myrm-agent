@@ -398,6 +398,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/kanban/test_workdir_gate.py` | 模块 | 运行入口闸门 `hold_for_unusable_workdir`：任务自己的过宽目录（家目录、`/`）、继承自 board 的过宽默认目录与应用状态目录返回 HUMAN 阻塞（原因即 `WORKDIR_TOO_BROAD_REASON`），任务自己的普通目录优先于 board 的过宽默认，普通目录与没有目录的任务放行；`KanbanTaskRunner.run` 在构造任务上下文之前就返回该阻塞 |
 | `api/cron/test_cron_allowed_roots_gate.py` | 模块 | 定时任务 `allowed_roots` 的写入口（真实路由 + 内存 cron 存储）：create 与 PATCH 拒绝家目录、`/`、凭据目录（400 带 `field=allowed_roots` + `issue`），普通根按输入原样保存，根可以是单个文件，没有根的任务与不改根的更新不受影响 |
 | `core/cron/adapters/test_agent_runner_allowed_roots.py` | 模块 | 运行时再判允许根 `_resolve_effective_allowed_roots`：普通根原样使用，已存的含受保护位置的根使本次运行失败（`TOO_BROAD`），没有根时用所属项目的工作区、该工作区变得过宽同样失败，没有根也没有项目时为空 |
+| `services/chat/test_effective_workspace_grantable.py` | 单元 | `resolve_effective_chat_workspace` 不把已存的、绑定闸门会拒绝的目录交给沙箱：普通目录照用，含受保护位置的目录与应用状态目录（及其上级）被跳过，项目工作区不可用时让位给会话自己的目录 |
+| `services/security/test_workspace_trust_store.py` | 模块 | 文件夹信任条目记录用户在信任弹窗中看过的仓库声明命令前缀：信任时记录、受限时为空、撤销时清除、重载后保留，没有记录前缀的条目不披露任何前缀；预览清单只把信任之后新增的前缀列为待决；沙箱 agent 在信任之后写入的前缀在用户再次批准前不生效，没有记录前缀的已信任条目要求重新决定 |
+| `api/security/test_workspace_trust_api.py` | 模块 | 信任 REST：预览清单与干净目录自动信任、决定持久化、TRUSTED 决定缺少或带过期 `manifest_hash` 被 400 拒绝且不落库，RESTRICTED 不需要哈希、已信任列表 |
 | `api/chats/test_workspace_path_policy_api.py` | 模块 | 项目 create/adopt/update、会话工作区 PATCH、转录导入各入口拒绝过宽目录（真实路由 + 真 DB）；已存储的家目录工作区读侧回退到会话沙箱并落库自愈 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |

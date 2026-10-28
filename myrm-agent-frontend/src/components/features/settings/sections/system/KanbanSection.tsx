@@ -234,8 +234,7 @@ export default function KanbanSection() {
     });
   }, [deletingBoard, deleteSummary, t]);
 
-  const startEdit = useCallback((board: KanbanBoard, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const startEdit = useCallback((board: KanbanBoard) => {
     setEditingBoard(board);
     setEditName(board.name);
     setEditDesc(board.description);
@@ -340,38 +339,30 @@ export default function KanbanSection() {
             ) : (
               <div
                 key={board.board_id}
-                role="button"
-                tabIndex={0}
                 data-testid={`kanban-board-row-${board.board_id}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  selectBoard(board);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    selectBoard(board);
-                  }
-                }}
-                className="group flex items-center justify-between p-3 rounded-lg border hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors"
+                className="group flex items-center justify-between gap-2 rounded-lg border transition-colors hover:border-primary/30 hover:bg-primary/5"
               >
-                <div>
-                  <h3 className="text-sm font-medium">{board.name}</h3>
-                  {board.description && <p className="text-xs text-muted-foreground mt-0.5">{board.description}</p>}
-                </div>
-                <div className={cn('flex items-center gap-1 transition-all', REVEAL_ON_HOVER)}>
+                <button
+                  type="button"
+                  onClick={() => selectBoard(board)}
+                  className="min-w-0 flex-1 cursor-pointer rounded-lg p-3 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                >
+                  <span className="block text-sm font-medium">{board.name}</span>
+                  {board.description && (
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{board.description}</span>
+                  )}
+                </button>
+                <div className={cn('flex items-center gap-1 pr-3 transition-all', REVEAL_ON_HOVER)}>
                   <button
-                    onClick={(e) => startEdit(board, e)}
+                    type="button"
+                    onClick={() => startEdit(board)}
                     className="text-xs px-1.5 py-0.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
                   >
                     {t('edit')}
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startDelete(board);
-                    }}
+                    type="button"
+                    onClick={() => startDelete(board)}
                     className="text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     &times;

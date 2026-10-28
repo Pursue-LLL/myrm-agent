@@ -16,17 +16,17 @@ HOME = str(Path.home())
 _GET_PROJECT_TARGET = "app.services.project.project_service.ProjectService.get_project"
 
 
-def _job(**overrides: object) -> CronJob:
-    defaults: dict[str, object] = {
-        "id": "job-1",
-        "user_id": "default",
-        "name": "digest",
-        "job_type": JobType.AGENT,
-        "schedule": Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000),
-        "prompt": "summarize",
-    }
-    defaults.update(overrides)
-    return CronJob(**defaults)  # type: ignore[arg-type]
+def _job(*, allowed_roots: tuple[str, ...] = (), project_id: str | None = None) -> CronJob:
+    return CronJob(
+        id="job-1",
+        user_id="default",
+        name="digest",
+        job_type=JobType.AGENT,
+        schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000),
+        prompt="summarize",
+        allowed_roots=allowed_roots,
+        project_id=project_id,
+    )
 
 
 async def test_ordinary_roots_are_used_as_stored(tmp_path: Path) -> None:

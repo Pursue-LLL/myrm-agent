@@ -302,8 +302,8 @@ _OVERLOAD_RETRY_DELAY = timedelta(seconds=60)
 async def _resolve_effective_allowed_roots(job: CronJob) -> list[str]:
     """The folders a run may work in: the job's own roots, else its project's workspace.
 
-    What was stored before the workspace path gate existed is judged again here, so a root that is, or contains,
-    a protected location fails the run with its reason instead of being granted.
+    Stored roots are judged again here, so a root that is, or contains, a protected location fails the run with
+    its reason instead of being granted.
     """
     from app.services.workspace.workspace_path_policy import require_grantable_roots
 

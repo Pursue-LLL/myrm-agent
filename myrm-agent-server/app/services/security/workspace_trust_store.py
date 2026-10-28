@@ -10,8 +10,8 @@
 
 [POS]
 Server-side registry for folder trust decisions. Harness reads via lookup at run start.
-A TRUSTED entry also records the repo command prefixes the user was shown when trusting; an entry saved before that
-was recorded has none, so such a folder asks once more before its declared prefixes take effect.
+A TRUSTED entry also records the repo command prefixes the user was shown when trusting; an entry that records none
+discloses nothing, so the folder's declared prefixes wait for the user's decision before they take effect.
 """
 
 from __future__ import annotations

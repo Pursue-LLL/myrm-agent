@@ -25,4 +25,4 @@ Folder bind trust + side-channel execution control. Harness owns gate logic and 
 
 - 位于 `agent/security/workspace_trust/`，**非** `toolkits/`，**非** meta-tool。
 - Control plane 层：**零改动**。
-- 声明前缀的信任边界：沙箱内 agent 能写工作区的 `.myrm/config.toml`，所以仓库声明的命令前缀只在用户于信任弹窗中看过它之后才生效；文件夹信任本身不再自动覆盖之后新增的前缀。
+- 声明前缀的信任边界：沙箱内 agent 能写工作区的 `.myrm/config.toml`，所以仓库声明的命令前缀只在用户于信任弹窗中看过它之后才生效；文件夹信任只覆盖用户看过的前缀，之后新增的前缀不会自动生效。

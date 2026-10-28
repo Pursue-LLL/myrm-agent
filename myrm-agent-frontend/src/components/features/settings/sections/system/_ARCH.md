@@ -180,7 +180,7 @@
 | `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）；自定义提示词被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，输入保留，不另弹开关 / 保存失败提示                                                                                                                |
 | `CompanionSection.tsx`       | 伴侣模式配置                                                                                                                                                |
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
-| `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务；创建 / 编辑 board 的默认工作目录被服务端因过宽 / 受保护拒绝时，按 `workspacePathIssueMessageKey` 弹对应的本地化提示，测试 `__tests__/KanbanSection.workdirRefusal.test.tsx`） |
+| `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务；创建 / 编辑 board 的默认工作目录被服务端因过宽 / 受保护拒绝时，按 `workspacePathIssueMessageKey` 弹对应的本地化提示，测试 `__tests__/KanbanSection.workdirRefusal.test.tsx`；board 行是并列的「打开 / 编辑 / 删除」三个按钮而非嵌套交互元素，测试 `__tests__/KanbanSection.boardRow.test.tsx`） |
 | `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
 | `TimezoneSelector.tsx`       | 时区选择器                                                                                                                                                  |
 

@@ -21,7 +21,7 @@ Binding a workspace grants the sandbox write access to the whole folder tree. A 
 contains, a credential or system root (home, a drive root, ``/``) or the application state directory
 must therefore never become a workspace, whichever entry point proposed it: project create/adopt, chat
 workspace PATCH, IM ``/bind``, an imported transcript, a kanban task or board working folder, or a cron
-job's allowed roots. What was stored before a gate existed is checked again where it is used.
+job's allowed roots. A stored folder is judged again where it is used, however it got there.
 """
 
 from __future__ import annotations
@@ -132,8 +132,8 @@ def is_workspace_root_grantable(path: str) -> bool:
     """Whether an already stored workspace may still be handed to the sandbox as a write root.
 
     A path that is or contains a protected root or the application state directory is refused, exactly as
-    ``resolve_workspace_path`` refuses it as too broad, so data bound before that gate existed cannot grant
-    what the gate would deny. A workspace nested inside a protected root (``/root/workspace`` in a
+    ``resolve_workspace_path`` refuses it as too broad, so a stored folder the gate would deny cannot be
+    granted. A workspace nested inside a protected root (``/root/workspace`` in a
     container) stays usable: the gate's dangerous-path check is deliberately not repeated here.
     """
     return not _is_too_broad(path)

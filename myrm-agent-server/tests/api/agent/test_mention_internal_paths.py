@@ -182,9 +182,7 @@ def test_workspace_file_part_rejects_a_line_range_for_an_office_document(tmp_pat
     assert consumed == 0
 
 
-def test_workspace_file_part_reports_a_document_too_large_to_inline(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_workspace_file_part_reports_a_document_too_large_to_inline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     path = tmp_path / "report.docx"
     path.write_bytes(b"x")
     monkeypatch.setattr(mention, "_parse_document", lambda path, ext: "ready")
@@ -196,9 +194,7 @@ def test_workspace_file_part_reports_a_document_too_large_to_inline(
     assert consumed == 0
 
 
-def test_workspace_file_part_reports_content_too_large_to_inline(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_workspace_file_part_reports_content_too_large_to_inline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     path = tmp_path / "note.txt"
     path.write_text("x" * 64, encoding="utf-8")
     monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
@@ -419,9 +415,7 @@ async def test_wiki_concept_part_reports_a_read_failure(monkeypatch: pytest.Monk
 
 @pytest.mark.asyncio
 async def test_prior_chat_part_reports_a_missing_chat(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=None)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=None))
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
 
@@ -432,9 +426,7 @@ async def test_prior_chat_part_reports_a_missing_chat(monkeypatch: pytest.Monkey
 @pytest.mark.asyncio
 async def test_prior_chat_part_reports_a_missing_recall_index(monkeypatch: pytest.MonkeyPatch) -> None:
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
     monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=None))
     monkeypatch.setattr("app.database.repositories.uow.UnitOfWork", _NoSessionUow)
 
@@ -448,9 +440,7 @@ async def test_prior_chat_part_reports_a_missing_recall_index(monkeypatch: pytes
 async def test_prior_chat_part_reports_an_excluded_chat(monkeypatch: pytest.MonkeyPatch) -> None:
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     row = SimpleNamespace(is_excluded=True, title="T", summary="", snippet="")
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
     monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=row))
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
@@ -463,9 +453,7 @@ async def test_prior_chat_part_reports_an_excluded_chat(monkeypatch: pytest.Monk
 async def test_prior_chat_part_inlines_summary_and_snippet(monkeypatch: pytest.MonkeyPatch) -> None:
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     row = SimpleNamespace(is_excluded=False, title="T", summary="sum", snippet="snip")
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
     monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=row))
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
@@ -479,9 +467,7 @@ async def test_prior_chat_part_inlines_summary_and_snippet(monkeypatch: pytest.M
 async def test_prior_chat_part_reports_context_too_large(monkeypatch: pytest.MonkeyPatch) -> None:
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     row = SimpleNamespace(is_excluded=False, title="T", summary="sum", snippet="snip")
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
     monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=row))
     monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
 
@@ -494,9 +480,7 @@ async def test_prior_chat_part_reports_context_too_large(monkeypatch: pytest.Mon
 @pytest.mark.asyncio
 async def test_prior_chat_part_refuses_an_incognito_web_chat(monkeypatch: pytest.MonkeyPatch) -> None:
     chat = SimpleNamespace(is_incognito=True, source="web", title="T")
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
 
     part, _consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
 
@@ -519,9 +503,7 @@ async def test_prior_chat_part_rebuilds_the_recall_index_once(monkeypatch: pytes
         async def __aexit__(self, *args: object) -> bool:
             return False
 
-    monkeypatch.setattr(
-        "app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat)
-    )
+    monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
     monkeypatch.setattr("app.database.repositories.uow.UnitOfWork", _Uow)
     monkeypatch.setattr(
         "app.database.repositories.conversation_recall.lookup_repo.ConversationRecallLookupRepository.fetch_prior_chat_document",
@@ -753,9 +735,7 @@ async def test_context_requires_a_workspace_file_path(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_context_rejects_a_workspace_file_outside_the_workspace(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_context_rejects_a_workspace_file_outside_the_workspace(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     def _raise(base: object, rel: object) -> object:
         raise ValueError("outside")
 
@@ -854,9 +834,7 @@ async def test_context_reports_an_empty_artifact_selection(tmp_path: Path) -> No
 @pytest.mark.asyncio
 async def test_context_inlines_an_artifact_selection(tmp_path: Path) -> None:
     part, _warnings, total_bytes = await mention._build_mention_reference_context(
-        _context_refs(
-            MentionReferenceRequest(type="artifact_range", content="chosen lines", label="selection", range="1-2")
-        ),
+        _context_refs(MentionReferenceRequest(type="artifact_range", content="chosen lines", label="selection", range="1-2")),
         str(tmp_path),
     )
 
@@ -865,9 +843,7 @@ async def test_context_inlines_an_artifact_selection(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_context_reports_an_artifact_selection_too_large(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_context_reports_an_artifact_selection_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
@@ -888,9 +864,7 @@ async def test_context_reports_an_unsupported_reference(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_context_warns_when_the_hard_token_limit_is_exceeded(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_context_warns_when_the_hard_token_limit_is_exceeded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "note.txt").write_text("hello", encoding="utf-8")
     monkeypatch.setattr("myrm_agent_harness.utils.text_utils.get_token_count", lambda text: 100)
 
@@ -904,9 +878,7 @@ async def test_context_warns_when_the_hard_token_limit_is_exceeded(
 
 
 @pytest.mark.asyncio
-async def test_context_warns_when_the_soft_token_limit_is_exceeded(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_context_warns_when_the_soft_token_limit_is_exceeded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "note.txt").write_text("hello", encoding="utf-8")
     monkeypatch.setattr("myrm_agent_harness.utils.text_utils.get_token_count", lambda text: 10)
 

@@ -10,9 +10,9 @@
 - WORKDIR_TOO_BROAD_REASON, hold_for_unusable_workdir
 
 [POS]
-A task's own ``workspace_path`` and its board's ``default_workdir`` were stored before the workspace path gate
-covered them, and an imported instance carries whatever its source held. A task bound to a folder that is, or
-contains, a protected location would hand its agent write access to all of it. ``KanbanTaskRunner.run`` asks this
+A task's own ``workspace_path`` and its board's ``default_workdir`` can hold a folder that never met the workspace
+path gate (an imported instance, a direct write). A task bound to a folder that is, or contains, a protected
+location would hand its agent write access to all of it. ``KanbanTaskRunner.run`` asks this
 gate first: it returns a HUMAN block instead of running somewhere else or failing until the retries are spent, and
 unblocking the task after the folder was changed is the user's answer. A held task costs no model call.
 """

@@ -1,4 +1,4 @@
-"""Kanban working folders go through the workspace path gate, and a board's default folder can be cleared again.
+"""Kanban working folders go through the workspace path gate, and a board's default folder is cleared by an explicit null.
 
 A task's ``workspace_path`` and a board's ``default_workdir`` decide where the task's agent may write, so they
 are refused when they are, or contain, a protected location.
@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -26,20 +27,20 @@ HOME = str(Path.home())
 
 
 @pytest.fixture(autouse=True)
-def _reset_singleton() -> None:
+def _reset_singleton() -> Iterator[None]:
     KanbanService._instance = None
     yield
     KanbanService._instance = None
 
 
 @pytest.fixture(autouse=True)
-def _skip_agent_validation() -> None:  # type: ignore[misc]
+def _skip_agent_validation() -> Iterator[None]:
     with patch.object(KanbanService, "_validate_agent_id", new_callable=AsyncMock):
         yield
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
     app = FastAPI()
     app.include_router(kanban_router, prefix="/api/v1")
     with TestClient(app) as c:
@@ -51,13 +52,14 @@ def _refusal(response: Response, *, field: str) -> str:
     assert response.status_code == 400, response.text
     (detail,) = response.json()["detail"]["error"]["details"]
     assert detail["field"] == field
-    return detail["issue"]
+    return str(detail["issue"])
 
 
 def _create_board(client: TestClient, **body: object) -> dict[str, object]:
     response = client.post("/api/v1/kanban/boards", json={"name": "Board", **body})
     assert response.status_code == 201, response.text
-    return response.json()
+    board: dict[str, object] = response.json()
+    return board
 
 
 def _create_task(client: TestClient, board_id: str, **body: object) -> Response:
@@ -65,7 +67,7 @@ def _create_task(client: TestClient, board_id: str, **body: object) -> Response:
 
 
 def _store_default_workdir(board_id: str, path: str) -> None:
-    """Write straight to the table: how a board bound before the gate existed looks."""
+    """Write straight to the table, so the folder never meets the gate."""
 
     async def _write() -> None:
         async with get_session() as db:
@@ -114,7 +116,9 @@ class TestBoardDefaultWorkdir:
     def test_an_ordinary_default_folder_is_stored_canonicalized(self, client: TestClient, tmp_path: Path) -> None:
         board = _create_board(client, default_workdir=str(tmp_path))
 
-        assert board["settings"]["default_workdir"] == os.path.realpath(tmp_path)
+        settings = board["settings"]
+        assert isinstance(settings, dict)
+        assert settings["default_workdir"] == os.path.realpath(tmp_path)
 
     def test_changing_the_default_folder_to_a_broad_one_is_refused(self, client: TestClient) -> None:
         board = _create_board(client)
