@@ -8,6 +8,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import de from '../../../../locales/de.json';
+import en from '../../../../locales/en.json';
+import ja from '../../../../locales/ja.json';
+import ko from '../../../../locales/ko.json';
+import zh from '../../../../locales/zh.json';
+import zhTW from '../../../../locales/zh-TW.json';
 import useChatStore from '@/store/useChatStore';
 import { AdaptiveScheduler } from '../adaptiveScheduler';
 import { handleMessageStream, type StreamHandlerActions, type StreamHandlerState } from '../messageStreamHandler';
@@ -222,6 +228,53 @@ describe('stream handlers write through the live store', () => {
       const step = await lastStep(cancelled('constructor'));
 
       expect(step.error).toBe('工具调用已取消');
+    });
+  });
+
+  describe('agent_cancelled copy follows the reader language', () => {
+    const stoppedRun = (data: unknown): AgentStreamEvent[] => [
+      stepEvent('bash_code_execute_tool', 'call-1'),
+      { type: AgentEventType.AGENT_CANCELLED, messageId: MESSAGE_ID, data } as AgentStreamEvent,
+    ];
+
+    it.each([
+      ['en', en],
+      ['zh', zh],
+      ['zh-TW', zhTW],
+      ['de', de],
+      ['ja', ja],
+      ['ko', ko],
+    ])('%s: a user Stop and a forced end each read their own shipped words', async (_language, shipped) => {
+      const { runCancelled, runTerminated } = shipped.progressSteps;
+      locale.messages = { 'progressSteps.runCancelled': runCancelled, 'progressSteps.runTerminated': runTerminated };
+
+      const stopped = await lastStep(stoppedRun({ reason: 'user_cancelled' }));
+      useChatStore.setState({ chatId: CHAT_ID, messages: [] });
+      const forced = await lastStep(stoppedRun({ reason: 'estop' }));
+
+      expect(stopped).toMatchObject({
+        step_key: 'agent_cancelled',
+        status: 'cancelled',
+        items: [{ text: runCancelled }],
+      });
+      expect(forced).toMatchObject({ status: 'cancelled', items: [{ text: runTerminated }] });
+    });
+
+    it.each([
+      ['a text payload from the harness event', 'Cancelled after 3 nodes'],
+      ['no payload', undefined],
+    ])('%s reads as a user Stop', async (_name, data) => {
+      locale.messages = { 'progressSteps.runCancelled': '已取消' };
+
+      const step = await lastStep(stoppedRun(data));
+
+      expect(step.items).toEqual([{ text: '已取消' }]);
+    });
+
+    it('reads English before any translation is installed', async () => {
+      const step = await lastStep(stoppedRun({ reason: 'timeout' }));
+
+      expect(step.items).toEqual([{ text: 'Terminated' }]);
     });
   });
 

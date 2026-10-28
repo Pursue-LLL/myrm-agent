@@ -4119,6 +4119,8 @@
     "cancelledTimeout": "キャンセルされました（タイムアウト）",
     "cancelledSessionEnded": "キャンセルされました（セッション終了）",
     "cancelledDefault": "ツールの実行がキャンセルされました",
+    "runCancelled": "キャンセルされました",
+    "runTerminated": "終了しました",
     "model_failover": "バックアップモデルに切り替えました",
     "model_failover_rate_limit": "リクエスト制限が発生し、バックアップモデルに切り替えました",
     "model_failover_overloaded": "サービス過負荷のため、バックアップモデルに切り替えました",

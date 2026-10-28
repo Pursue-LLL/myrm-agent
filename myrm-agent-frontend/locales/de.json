@@ -4119,6 +4119,8 @@
     "cancelledTimeout": "Abgebrochen (Zeitüberschreitung)",
     "cancelledSessionEnded": "Abgebrochen (Sitzung beendet)",
     "cancelledDefault": "Tool-Ausführung wurde abgebrochen",
+    "runCancelled": "Abgebrochen",
+    "runTerminated": "Beendet",
     "model_failover": "Zu Backup-Modell gewechselt",
     "model_failover_rate_limit": "Ratenlimit erreicht, zu Backup-Modell gewechselt",
     "model_failover_overloaded": "Dienst überlastet, zu Backup-Modell gewechselt",

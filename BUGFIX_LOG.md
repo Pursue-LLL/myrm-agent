@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-28 · 点「停止」后留在步骤里的那一行「已取消」只有中文和英文：德语、日语、韩语界面读到英文，强制结束的「已终止」在繁体中文界面读到简体
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端 `messageStream/handlers/agentControlEvents.ts` 与六种语言的 `progressSteps.runCancelled` / `progressSteps.runTerminated`；没有改提示词、工具描述与服务端）。 |
+| **症状** | 每次点「停止」，服务端的 `agent_cancelled` 事件（`myrm-agent-server/app/services/agent/stream_session/stream_loop.py:476`，带 `reason`）都会让助手消息的步骤里多出一行「已取消」或「Cancelled」。这行字按页面 `lang` 是否以 `zh` 开头二选一写死，所以德语、日语、韩语界面读到英文；`reason` 不是 `user_cancelled`（如全局急停 `estop`、超时）时的「已终止」在繁体中文界面读到简体写法。 |
+| **根因** | 文案写在处理函数里，没有走 locales，也没有语言对照检查；工具步骤的取消文案此前已改走 locales（`toolLifecycleEvents.ts` 的 `describeCancellation`），这一行漏掉了。 |
+| **修复** | 两条文案改走 `translateI18nKey('progressSteps.runCancelled' / 'progressSteps.runTerminated')`，六种语言各一份；`reason` 的取值与分支不变。事件类型 `AgentCancelledStreamEvent.data` 改成 `{ reason?: string } | string`：别名到这个类型的 harness `cancelled` 事件带的是文字，处理函数先判断是不是对象再读 `reason`，文字载荷与无载荷都按「用户停止」处理（与改前一致）。 |
+| **回归证据** | `src/store/chat/__tests__/messageStreamLiveStore.test.ts` 新增 9 个用例（真实处理函数、真实聊天 store）：读取六个已发布的 locale 文件，用户停止与强制结束各自读到本语言的文案；文字载荷、无载荷读作用户停止；未安装翻译时读英文。变异检查：改回写死的两行后，7 个用例失败（`en` 本来就一样，所以不失败）。`bunx tsc --noEmit`、`bun run verify:i18n`、oxlint 通过。 |
+| **仍然存在** | ① 没有在浏览器里看渲染结果，只验证了写进消息的文案。② `verify:hardcoded-copy` 当前报告两个文件的基线「已改善但未收紧」（`ReasoningProcessAccordion.tsx`、`A2AInboundApprovalSection.tsx`），不是本次改动造成的，没有处理。③ 「停止」的真实使用频率没有数据。 |
+
 ## 2026-10-28 · 批准一次调用后到底开了什么：审批卡的文件夹勾选项只讲「本会话记住」，沙箱聊天的授权接口照样回 200；浏览器登录状态审批卡不管界面语言一律显示中文，还露出加密算法与存储路径
 
 | 字段 | 内容 |

@@ -82,7 +82,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'custom_message',
 ] as const;
 
-/** Harness name → frontend handler type (same payload shape). */
+/** Harness name → frontend handler type; the payload can be shaped differently, so handlers narrow `data` first. */
 export const HARNESS_SSE_EVENT_ALIASES: Readonly<Record<string, string>> = {
   cancelled: AgentEventType.AGENT_CANCELLED,
 };

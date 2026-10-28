@@ -3,6 +3,7 @@
  * Chat SSE event handler slice (agentControlEvents).
  */
 
+import { translateI18nKey } from '@/services/i18nToastService';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import * as H from './handlerDeps';
@@ -70,10 +71,11 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
   }
 
   if (data.type === H.AgentEventType.AGENT_CANCELLED) {
-    const reason = data.data?.reason || 'user_cancelled';
-    const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
-    const isZh = lang?.startsWith('zh');
-    const cancelText = reason === 'user_cancelled' ? (isZh ? '已取消' : 'Cancelled') : isZh ? '已终止' : 'Terminated';
+    const reason = (typeof data.data === 'object' && data.data?.reason) || 'user_cancelled';
+    const cancelText =
+      reason === 'user_cancelled'
+        ? translateI18nKey('progressSteps.runCancelled', 'Cancelled')
+        : translateI18nKey('progressSteps.runTerminated', 'Terminated');
 
     actions.setMessages((state) => {
       const cancelStep = {

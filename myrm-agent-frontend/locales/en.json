@@ -4119,6 +4119,8 @@
     "cancelledTimeout": "Cancelled (timeout)",
     "cancelledSessionEnded": "Cancelled (session ended)",
     "cancelledDefault": "Tool execution was cancelled",
+    "runCancelled": "Cancelled",
+    "runTerminated": "Terminated",
     "model_failover": "Switched to backup model",
     "model_failover_rate_limit": "Rate limited, switched to backup model",
     "model_failover_overloaded": "Service overloaded, switched to backup model",

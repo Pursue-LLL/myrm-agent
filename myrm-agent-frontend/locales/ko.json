@@ -4119,6 +4119,8 @@
     "cancelledTimeout": "취소됨(시간 초과)",
     "cancelledSessionEnded": "취소됨(세션 종료)",
     "cancelledDefault": "도구 실행이 취소되었습니다",
+    "runCancelled": "취소됨",
+    "runTerminated": "종료됨",
     "model_failover": "백업 모델로 전환됨",
     "model_failover_rate_limit": "속도 제한, 백업 모델로 전환됨",
     "model_failover_overloaded": "서비스 과부하, 백업 모델로 전환됨",

@@ -158,7 +158,8 @@ export interface RateLimitThrottledStreamEvent {
 
 export interface AgentCancelledStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.AGENT_CANCELLED;
-  data?: { reason?: string };
+  /** The server's own event carries `{ reason }`; the harness's `cancelled` event (aliased to this type) carries text. */
+  data?: { reason?: string } | string;
 }
 
 export interface TasksStepsStreamEvent extends BaseAgentEvent {
