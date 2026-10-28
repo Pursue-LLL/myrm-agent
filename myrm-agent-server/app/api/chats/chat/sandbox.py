@@ -22,7 +22,7 @@ import weakref
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from myrm_agent_harness.core.security.safe_git import hardened_git_argv_async
+from myrm_agent_harness.api.security import hardened_git_argv_async
 from pydantic import BaseModel
 
 from app.core.utils.response_utils import success_response

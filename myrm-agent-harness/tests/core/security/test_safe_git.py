@@ -291,3 +291,12 @@ class TestArgvShape:
         assert await hardened_git_argv_async(("status",), repo_dir=repo) == hardened_git_argv(
             ("status",), repo_dir=repo
         )
+
+
+def test_hosts_reach_the_hardened_argv_through_the_api_facade() -> None:
+    """The server imports ``api.security``; it must hand out the exact objects, not divergent copies."""
+    from myrm_agent_harness.api import security
+
+    assert security.hardened_git_argv is hardened_git_argv
+    assert security.hardened_git_argv_async is hardened_git_argv_async
+    assert security.GitHardeningError is GitHardeningError

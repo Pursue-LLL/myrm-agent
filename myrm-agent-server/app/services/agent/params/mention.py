@@ -31,7 +31,7 @@ import tempfile
 from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
-from myrm_agent_harness.core.security.safe_git import hardened_git_argv
+from myrm_agent_harness.api.security import hardened_git_argv
 
 from .models import MentionReferenceRequest, MultimodalQuery
 

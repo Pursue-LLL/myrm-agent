@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from myrm_agent_harness.core.security.safe_git import hardened_git_argv_async
+from myrm_agent_harness.api.security import hardened_git_argv_async
 
 logger = logging.getLogger(__name__)
 
