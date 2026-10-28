@@ -291,6 +291,10 @@ _SECRET_LINES = [
     ("https://user:hunter2pass@example.com/x", "hunter2pass"),
     ("git clone https://ghtokenvalue12345@example.com/r.git", "ghtokenvalue12345"),
     ("postgres://admin:s3cr3tpass@db.example.com/prod", "s3cr3tpass"),
+    ("REDIS_URL=redis://:s3cr3tpass99@cache.internal:6379/0", "s3cr3tpass99"),
+    ("proxy = socks5://svc:s3cr3tpass99@10.0.0.1:1080", "s3cr3tpass99"),
+    ("export PGPASSWORD=hunter2hunter2", "hunter2hunter2"),
+    ("SSHPASS=hunter2hunter2 sshpass -e ssh host", "hunter2hunter2"),
     (
         "https://api.telegram.org/bot123456789:ABCdefGhIJKlmNoPQRsTUVwxyz0123456789/send",
         "ABCdefGhIJKlmNoPQRsTUVwxyz0123456789",
@@ -390,6 +394,9 @@ class TestFindingKinds:
             ("password: hunter2hunter2", ["config_secret"]),
             ("OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz0123456789", ["api_token"]),
             ("DATABASE_URL=postgres://u:pw123456@db/x", ["database_credential"]),
+            ("CACHE_URL=redis://:pw123456@cache/0", ["database_credential"]),
+            ("DATABASE_URL=postgresql+asyncpg://u:pw123456@db/x", ["database_credential"]),
+            ("proxy = socks5://svc:pw123456@10.0.0.1:1080", ["url_credential"]),
             ("mycli --password=hunter2hunter2 /Users/alice/notes", ["cli_secret_flag", "absolute_path"]),
         ],
     )

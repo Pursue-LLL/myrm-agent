@@ -11,6 +11,7 @@ surrounding syntax (keys, quotes, flags, URL structure) stays intact.
 
 [INPUT]
 - core.security.redact.patterns (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- core.security.redact.url_credentials (POS: URL credential regexes and replacers of the runtime redactor)
 - core.security.redact.structured_fields (POS: Secret-named field detectors of the runtime redactor; its JSON member regex is the ``json_secret_field`` rule)
 
 [OUTPUT]
@@ -33,7 +34,6 @@ from typing import Literal, NamedTuple, TypedDict
 from myrm_agent_harness.core.security.redact.patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
-    _DB_CONNSTR_RE,
     _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
     _JWT_RE,
@@ -41,13 +41,12 @@ from myrm_agent_harness.core.security.redact.patterns import (
     _PRIVATE_KEY_RE,
     _SECRET_HEADER_RE,
     _TELEGRAM_BOT_RE,
-    _URL_BARE_TOKEN_RE,
     _URL_QUERY_RE,
-    _URL_USERINFO_RE,
     _YAML_ASSIGN_RE,
     _redact_value,
 )
 from myrm_agent_harness.core.security.redact.structured_fields import _JSON_FIELD_RE
+from myrm_agent_harness.core.security.redact.url_credentials import _DB_CONNSTR_RE, _URL_BARE_TOKEN_RE, _URL_USERINFO_RE
 
 logger = logging.getLogger(__name__)
 
@@ -110,16 +109,16 @@ class _SecretRule(NamedTuple):
     name_group: int = 0
 
 
-# Specific detectors come before the generic key=value ones: when several rules match the
-# same secret, the earliest rule supplies the kind shown in the review.
+# Specific detectors come before the generic ones: when several rules match the same secret, the longest
+# match supplies the kind shown in the review and, among equal ones, the earliest rule (``_merge_overlaps``).
 _SECRET_RULES: tuple[_SecretRule, ...] = (
     _SecretRule(_PREFIX_RE, "api_token", "<REDACTED_TOKEN>", 1),
     _SecretRule(_AUTH_HEADER_RE, "authorization_header", "<REDACTED_TOKEN>", 3),
     _SecretRule(_SECRET_HEADER_RE, "authorization_header", "<REDACTED_TOKEN>", 2),
     _SecretRule(_URL_QUERY_RE, "url_secret_parameter", "<REDACTED_PARAM>", 2),
+    _SecretRule(_DB_CONNSTR_RE, "database_credential", "***", 2),
     _SecretRule(_URL_USERINFO_RE, "url_credential", "***", 3),
     _SecretRule(_URL_BARE_TOKEN_RE, "url_credential", "<REDACTED_TOKEN>", 2),
-    _SecretRule(_DB_CONNSTR_RE, "database_credential", "***", 2),
     _SecretRule(_TELEGRAM_BOT_RE, "telegram_bot_token", "<REDACTED_BOT_TOKEN>", 2),
     _SecretRule(_JSON_FIELD_RE, "json_secret_field", "<REDACTED_SECRET>", 2),
     _SecretRule(_CLI_FLAG_RE, "cli_secret_flag", "<REDACTED_VALUE>", 2, 1),

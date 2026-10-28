@@ -14,11 +14,13 @@ separately.
 - compiled detection regexes (``_PREFIX_RE``, ``_ENV_ASSIGN_RE``, ...)
 - ``_redact_form_body`` / ``_redact_value`` / ``_redact_*_assignment`` — shared replacers
 - ``_is_env_reference`` — whether a value is entirely a variable reference (readable, never masked)
-- ``_is_word_start`` / ``_is_word_end`` / ``_key_has_secret_keyword`` — word-boundary key validation
+- ``_is_word_start`` / ``_is_word_end`` / ``_key_has_secret_keyword`` — key validation: a credential word at a word boundary, or a password noun / known credential variable as the end of the name
+- ``_CREDENTIAL_VARIABLE_NAMES`` — credential variables known by name (``SSHPASS``, ``MYSQL_PWD``), also read by ``structured_fields.py``
 
 [POS]
 Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor; consumed by
-``engine.py``, ``structured_fields.py`` and ``agent/skills/security/content_sanitizer.py``.
+``engine.py``, ``structured_fields.py`` and ``agent/skills/security/content_sanitizer.py``. The URL credential regexes
+live in ``url_credentials.py``.
 """
 
 from __future__ import annotations
@@ -107,7 +109,11 @@ _PRIVATE_KEY_RE = re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?-----END
 
 # ── Contextual patterns (context-based detection) ────────────────
 
-_SECRET_ENV_NAMES = r"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CREDENTIAL|AUTH)"
+# Credential variables known by name, which carry no password noun: ``sshpass -e`` reads ``SSHPASS`` and the ``mysql``
+# client reads ``MYSQL_PWD``. The ENV and YAML name lists, the keyword guard and the JSON bare names all read this tuple.
+_CREDENTIAL_VARIABLE_NAMES = ("sshpass", "mysql_pwd")
+_CREDENTIAL_VARIABLES = "|".join(_CREDENTIAL_VARIABLE_NAMES)
+_SECRET_ENV_NAMES = rf"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CREDENTIAL|AUTH|{_CREDENTIAL_VARIABLES})"
 # 未加引号的 value 到空白或引号为止；`&` 只在后面紧跟 `键=`（form body 的下一个参数，
 # `token=abc&page=1` 保持为 `token=***&page=1`）或 `amp;`（HTML 转义的同一分隔符）时才终止它，
 # 其余的 `&` 是口令自身的字符，其后的部分同样要打码，否则 `PASSWORD=ab&cd` 会泄漏 `&cd`。
@@ -151,7 +157,9 @@ _ENV_ASSIGN_LOWER_RE = re.compile(
 # 覆盖 `auth: <secret>`，`author:`/`Authorization:` 由词边界校验（_key_has_secret_keyword）
 # 与 _AUTH_HEADER_RE 拦截，不误伤。可选引号保留引号结构：双引号支持 `\"` 转义，
 # 单引号支持 YAML `''` 转义，quoted 值含空格时整体捕获不部分泄漏。
-_YAML_CFG_NAMES = r"(?:api[ _.\-]?key|token|secret|passwd|password|pass[ _.\-]?phrase|credential|auth)"
+_YAML_CFG_NAMES = (
+    rf"(?:api[ _.\-]?key|token|secret|passwd|password|pass[ _.\-]?phrase|credential|auth|{_CREDENTIAL_VARIABLES})"
+)
 _YAML_ASSIGN_RE = re.compile(
     rf"(^[ \t]*+[A-Za-z0-9_.\-]*{_YAML_CFG_NAMES}[A-Za-z0-9_.\-]*+)([ \t]*+:[ \t]*+)((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\4)|{_UNQUOTED_VALUE})",
     re.IGNORECASE | re.MULTILINE,
@@ -197,12 +205,23 @@ def _is_word_end(s: str, j: int, *, allow_plural: bool = True) -> bool:
     return False
 
 
+# 以口令名词结尾的名字即使连写也是凭据（`PGPASSWORD`/`DBPASSWD`/`BACKUPPASSPHRASE`）：这几个名词不像 `token`/`key`
+# 那样会嵌进别的词，词首校验对它们只会漏报；与 JSON 字段名策略（structured_fields 的 `_SUFFIX_NOUNS`，前缀不限）一致。
+# 按名字认定的凭据变量只在作为 key 的最后一个词时命中，`SSHPASS_FILE` 之类指向文件的名字不受影响。
+_CREDENTIAL_NAME_END_RE = re.compile(
+    rf"(?:password|passwd|passphrase|(?:^|[^a-z0-9])(?:{_CREDENTIAL_VARIABLES}))$",
+    re.IGNORECASE,
+)
+
+
 def _key_has_secret_keyword(key: str) -> bool:
-    """key 是否在词边界处含 secret 关键词。
+    """key 是否在词边界处含 secret 关键词，或以口令名词 / 已知凭据变量名结尾。
 
     过滤 `secretary`/`tokenizer`/`authored`/`KEYBOARD` 等嵌词误伤——关键词必须
     落在词边界（key 边缘、非字母旁、camelCase/缩写转换处）才算凭据。
     """
+    if _CREDENTIAL_NAME_END_RE.search(key):
+        return True
     return any(_is_word_start(key, m.start()) and _is_word_end(key, m.end()) for m in _KEY_KEYWORD_RE.finditer(key))
 
 
@@ -284,11 +303,6 @@ def _is_env_reference(value: str) -> bool:
 # 恰好 6+3+4 字符形态的概率可忽略（API token 字符集不含 `...`）。
 _MASKED_VALUE_RE = re.compile(r"^(?:\*{3}|[^\"']{6}\.{3}[^\"']{4})$")
 
-_DB_CONNSTR_RE = re.compile(
-    r"((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp)://[^:]+:)([^@]+)(@)",
-    re.IGNORECASE,
-)
-
 # ── URL Query parameters (OPT-2) ────────────────────────────────
 # key=value 分组捕获，替换仅作用于 value，避免 value 是 key 名字符子串时
 # `.replace()` 连带破坏 key 名（`?api_key=a` 误伤为 `?***pi_key=***`）。
@@ -322,21 +336,6 @@ _CLI_FLAG_RE = re.compile(
 
 # ── Telegram Bot URL (OPT-6) ────────────────────────────────────
 _TELEGRAM_BOT_RE = re.compile(r"\b(bot)(\d{6,}:[A-Za-z0-9_-]{20,})\b", re.IGNORECASE)
-
-# ── URL userinfo / bare-token (对齐 Hermes) ─────────────────────
-# `scheme://user:password@host` 的密码段掩码，用户名保留用于可读性。
-# 数据库协议（postgres/mysql/mongodb/redis/amqp）已由 _DB_CONNSTR_RE 覆盖。
-_URL_USERINFO_RE = re.compile(
-    r"(https?|wss?|ftp)://([^/\s:@]+):([^/\s@]+)@",
-    re.IGNORECASE,
-)
-
-# `scheme://TOKEN@host`（无冒号 bare-token userinfo，如 git 私有仓库 URL）。
-# 8+ 字符避免误伤短用户名。对齐 Hermes #6396。
-_URL_BARE_TOKEN_RE = re.compile(
-    r"((?:https?|wss?|git|ssh|ftp|ftps|sftp)://)([^\s:@/]{8,})(@[^\s]+)",
-    re.IGNORECASE,
-)
 
 # ── API-key 风格认证头 (对齐 Hermes _SECRET_HEADER_RE) ──────────
 _SECRET_HEADER_NAMES = r"(?:x-api-key|x-goog-api-key|api-key|apikey|x-api-token|x-auth-token|x-access-token)"

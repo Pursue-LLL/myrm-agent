@@ -8,6 +8,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 - masking::_mask_token, masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
 - patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 - structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line (POS: structured-field detectors of the redaction engine)
+- url_credentials::_DB_CONNSTR_RE, url_credentials::_URL_USERINFO_RE, url_credentials::_URL_BARE_TOKEN_RE and their replacers (POS: URL credential regexes and replacers of the runtime redactor)
 
 [OUTPUT]
 - redact_sensitive_text(text) -> str — apply all redaction patterns
@@ -35,7 +36,6 @@ from .patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
     _CONTROL_CHARS_RE,
-    _DB_CONNSTR_RE,
     _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
     _JWT_RE,
@@ -44,9 +44,7 @@ from .patterns import (
     _SECRET_HEADER_RE,
     _TELEGRAM_BOT_RE,
     _TOKEN_BODY_CHARS,
-    _URL_BARE_TOKEN_RE,
     _URL_QUERY_RE,
-    _URL_USERINFO_RE,
     _YAML_ASSIGN_RE,
     _redact_cli_flag,
     _redact_env_assignment,
@@ -60,6 +58,13 @@ from .structured_fields import (
     _redact_json_escaped_field,
     _redact_json_field,
     _redact_repr_diagnostic_line,
+)
+from .url_credentials import (
+    _DB_CONNSTR_RE,
+    _URL_BARE_TOKEN_RE,
+    _URL_USERINFO_RE,
+    _redact_db_connstr,
+    _redact_url_userinfo,
 )
 
 _REDACT_ENABLED = True
@@ -258,10 +263,10 @@ def redact_sensitive_text(text: str) -> str:
     # PEM block special handling: preserve header/footer for debugging (OPT-3)
     text = _replace_pattern_bounded(text, _PRIVATE_KEY_RE, lambda m: _redact_pem_block(m.group(0)))
 
-    text = _replace_pattern_bounded(text, _DB_CONNSTR_RE, lambda m: f"{m.group(1)}***{m.group(3)}")
+    text = _replace_pattern_bounded(text, _DB_CONNSTR_RE, _redact_db_connstr)
 
     # URL userinfo（`https://user:pass@host`）与 bare-token（`https://TOKEN@host`）
-    text = _replace_pattern_bounded(text, _URL_USERINFO_RE, lambda m: f"{m.group(1)}://{m.group(2)}:***@")
+    text = _replace_pattern_bounded(text, _URL_USERINFO_RE, _redact_url_userinfo)
     text = _replace_pattern_bounded(
         text,
         _URL_BARE_TOKEN_RE,

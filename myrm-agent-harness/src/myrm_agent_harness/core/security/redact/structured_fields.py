@@ -8,8 +8,9 @@ print diagnostics (pytest assertion introspection, final exception lines).
 
 One key policy serves all three. A field name is a credential when it is one of
 the bare credential words (``token``, ``secret``, ``bearer``, ``authorization``,
-``cookie`` ...), or ends in an unambiguous credential noun (``api key``,
-``client secret``, ``refresh token``, ``secret access key``, ``password``, ``passphrase`` ...)
+``cookie`` ... and the variables known by name, ``sshpass`` and ``mysql_pwd``),
+or ends in an unambiguous credential noun (``api key``, ``client secret``,
+``refresh token``, ``secret access key``, ``password``, ``passphrase`` ...)
 in any spelling: snake, kebab, dotted, camel or Pascal case. Bare ``token`` and
 ``secret`` are not matched as suffixes, so pagination cursors such as
 ``nextPageToken``, identifiers such as ``file_token`` and metadata such as
@@ -25,7 +26,7 @@ and, rarely, a random URL-safe base64 value that happens to hold no digit.
 
 [INPUT]
 - masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
-- patterns::_is_env_reference (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- patterns::_is_env_reference, patterns::_CREDENTIAL_VARIABLE_NAMES (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 
 [OUTPUT]
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)
@@ -44,7 +45,7 @@ from __future__ import annotations
 import re
 
 from .masking import _mask_secret
-from .patterns import _is_env_reference
+from .patterns import _CREDENTIAL_VARIABLE_NAMES, _is_env_reference
 
 _SEP = r"[-_.]?"
 
@@ -60,6 +61,7 @@ _BARE_NAMES = "|".join(
         rf"raw{_SEP}secret",
         rf"secret{_SEP}input",
         rf"key{_SEP}material",
+        *_CREDENTIAL_VARIABLE_NAMES,
     )
 )
 
