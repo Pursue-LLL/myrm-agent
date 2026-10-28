@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
+from unittest.mock import patch
 
 import pytest
 from starlette.requests import Request
@@ -87,3 +88,18 @@ def test_a_request_without_a_client_address_is_reported_as_unknown(audit_file: P
 
     [event] = _events(audit_file)
     assert event["ip"] == "unknown"
+
+
+def test_a_broken_audit_trail_never_fails_the_report(
+    audit_file: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _audit(monkeypatch, enabled=True)
+
+    with (
+        caplog.at_level(logging.WARNING, logger="app.services.audit.lockout_events"),
+        patch.object(Path, "mkdir", side_effect=PermissionError("read-only file system")),
+    ):
+        report_lockout("webui_login", client="10.0.0.1")
+
+    assert "Lockout engaged: scope=webui_login" in caplog.text
+    assert not audit_file.exists()

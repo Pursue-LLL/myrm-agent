@@ -154,6 +154,21 @@ def test_an_engaged_lock_reaches_the_auth_audit_trail_without_the_token(
     assert token not in audit_file.read_text(encoding="utf-8")
 
 
+def test_a_broken_audit_trail_does_not_change_what_the_gate_answers(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.middleware.auth_audit.AUDIT_LOG_FILE", tmp_path / "logs" / "auth_audit.jsonl")
+    monkeypatch.setattr(
+        "app.services.audit.lockout_events.get_deployment_capabilities", lambda: SimpleNamespace(enables_auth_audit=True)
+    )
+    token = _protected_token()
+
+    with patch.object(Path, "mkdir", side_effect=PermissionError("read-only file system")):
+        statuses = [_guess(client, token, "wrong").status_code for _ in range(7)]
+
+    assert statuses == [403, 403, 403, 403, 403, 429, 429]
+
+
 @pytest.mark.asyncio
 async def test_a_burst_of_concurrent_guesses_gets_exactly_five_tries(share_app: FastAPI) -> None:
     token = _protected_token()

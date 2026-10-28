@@ -7,6 +7,7 @@
 - app.core.security.share.share_hmac (POS: password-protection detection)
 - app.core.security.share.share_attempt_guard (POS: wrong-password lockout for the gate)
 - app.core.security.share.share_headers (POS: shared share privacy headers)
+- app.core.security.share.share_locale (POS: visitor language for the gate and the content page)
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
@@ -24,10 +25,10 @@ gate, so a dead password-protected link answers 404 to every visitor instead of 
 content that no longer exists. Wrong passwords are counted per share and client; after five the gate answers 429 with
 ``Retry-After`` and refuses further guesses (even a correct one) until the window passes, while visitors holding an
 unlock cookie keep their access; the wrong password that engages the lock is reported once through ``lockout_events``.
-Every served chat content page carries noindex/nofollow + no-store +
-Referrer-Policy: no-referrer (shared privacy headers) so shared conversations are never search-engine indexed,
-revoking a link cannot be bypassed by browser or CDN caches, and the token-bearing share URL never leaks to third
-parties via the Referer header. Expired, revoked, or missing share links answer browsers with a friendly status page
+The content page is written in the visitor's language like the gate pages. Every served chat content page carries
+noindex/nofollow + no-store + Referrer-Policy: no-referrer (shared privacy headers) so shared conversations are never
+search-engine indexed, revoking a link cannot be bypassed by browser or CDN caches, and the token-bearing share URL
+never leaks to third parties via the Referer header. Expired, revoked, or missing share links answer browsers with a friendly status page
 (and API clients with the JSON 404 contract) so link lifecycle failures never surface as raw JSON to end users.
 """
 
@@ -48,6 +49,7 @@ from app.core.security.share.share_hmac import (
     is_password_protected,
     token_fingerprint,
 )
+from app.core.security.share.share_locale import resolve_share_lang
 from app.core.security.share.share_password_page import (
     password_gate_response,
     resolve_gate_password,
@@ -239,7 +241,7 @@ async def get_public_chat_share(
             headers=_SHARE_RESPONSE_HEADERS,
         )
 
-    html_content = await render_share_html(claims.chat_id, db)
+    html_content = await render_share_html(claims.chat_id, db, lang=resolve_share_lang(request))
     if html_content is None:
         return share_not_found(
             request,

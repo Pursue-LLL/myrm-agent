@@ -7,11 +7,14 @@
 [OUTPUT]
 - ShareLang: languages the share pages are written in
 - resolve_share_lang: pick the page language for a request
+- HTML_LANG: the ``lang`` attribute of a page written in each language
+- SHARE_BRAND: the "shared via" line every share page ends with, in each language
 
 [POS]
-Public share links are opened by anonymous recipients, so the status, password-gate and lockout pages follow the
-browser's language instead of the owner's. Chinese and English are shipped; the highest-ranked supported language in
-Accept-Language wins and anything else (missing header, ``*``, malformed values, unsupported languages) reads as English.
+Public share links are opened by anonymous recipients, so the conversation, status, password-gate and lockout pages
+follow the browser's language instead of the owner's. Chinese and English are shipped; the highest-ranked supported
+language in Accept-Language wins and anything else (missing header, ``*``, malformed values, unsupported languages)
+reads as English. The two per-language values every page repeats live here so the pages cannot drift apart.
 """
 
 from __future__ import annotations
@@ -22,6 +25,10 @@ from myrm_agent_harness.utils.locale import is_chinese
 from starlette.requests import Request
 
 ShareLang = Literal["en", "zh"]
+
+HTML_LANG: dict[ShareLang, str] = {"en": "en", "zh": "zh-CN"}
+
+SHARE_BRAND: dict[ShareLang, str] = {"en": "Shared via Myrm Agent", "zh": "由 Myrm Agent 分享"}
 
 
 def _ranked_language_tags(header: str) -> list[str]:

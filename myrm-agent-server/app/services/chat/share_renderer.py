@@ -3,25 +3,30 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: chat metadata + messages)
 - app.database.models.agent::Agent (POS: agent identity)
+- app.core.security.share.share_locale (POS: page language and the language tables every share page shares)
 
 [OUTPUT]
-- render_share_html: generate self-contained HTML for a shared conversation
+- render_share_html: generate self-contained HTML for a shared conversation in the visitor's language
 
 [POS]
 Generates responsive, secure HTML pages for public conversation share links.
 Uses markdown-it-py for rich Markdown rendering (code blocks, tables, lists).
-Includes Agent identity card, message history, OG metadata, dark mode, and XSS protection.
+Includes Agent identity card, message history, OG metadata, dark mode, and XSS protection. The page chrome (role
+labels, message count, fallback title and agent names, footer, ``lang``) is written in the visitor's language like the
+password-gate and status pages; the conversation itself is shown as written.
 """
 
 from __future__ import annotations
 
 import html
+from dataclasses import dataclass
 from datetime import datetime
 
 from markdown_it import MarkdownIt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models.agent import Agent
 from app.services.chat.chat_helpers import exported_user_text
@@ -30,6 +35,44 @@ from app.services.chat.chat_service import ChatService
 _md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
 
 _OG_DESC_MAX = 200
+
+
+@dataclass(frozen=True, slots=True)
+class _Chrome:
+    """The page wording that is not conversation content."""
+
+    untitled: str
+    default_agent: str
+    agent: str
+    you: str
+    assistant: str
+    one_message: str
+    many_messages: str
+
+    def message_count(self, count: int) -> str:
+        return self.one_message if count == 1 else self.many_messages.format(count=count)
+
+
+_CHROME: dict[ShareLang, _Chrome] = {
+    "en": _Chrome(
+        untitled="Shared Conversation",
+        default_agent="Default Agent",
+        agent="Agent",
+        you="You",
+        assistant="Assistant",
+        one_message="1 message",
+        many_messages="{count} messages",
+    ),
+    "zh": _Chrome(
+        untitled="分享的对话",
+        default_agent="默认智能体",
+        agent="智能体",
+        you="你",
+        assistant="助手",
+        one_message="1 条消息",
+        many_messages="{count} 条消息",
+    ),
+}
 
 
 def _esc(text: str) -> str:
@@ -46,25 +89,25 @@ def _truncate(text: str, max_len: int = _OG_DESC_MAX) -> str:
     return text[: max_len - 1] + "\u2026"
 
 
-async def _get_agent_info(db: AsyncSession, agent_id: str | None) -> dict[str, str]:
+async def _get_agent_info(db: AsyncSession, agent_id: str | None, chrome: _Chrome) -> dict[str, str]:
     if not agent_id:
-        return {"name": "Default Agent", "model": "", "description": ""}
+        return {"name": chrome.default_agent, "model": "", "description": ""}
     stmt = select(Agent).where(Agent.id == agent_id)
     agent = (await db.execute(stmt)).scalars().first()
     if not agent:
-        return {"name": "Agent", "model": "", "description": ""}
+        return {"name": chrome.agent, "model": "", "description": ""}
     model_name = ""
     if agent.model_selection and isinstance(agent.model_selection, dict):
         model_name = str(agent.model_selection.get("model", ""))
     return {
-        "name": agent.name or "Agent",
+        "name": agent.name or chrome.agent,
         "model": model_name,
         "description": (agent.description or "")[:200],
     }
 
 
-def _render_message(role: str, content: str, ts: datetime) -> str:
-    role_label = "You" if role == "user" else "Assistant"
+def _render_message(role: str, content: str, ts: datetime, chrome: _Chrome) -> str:
+    role_label = chrome.you if role == "user" else chrome.assistant
     role_class = "user" if role == "user" else "assistant"
     time_str = _format_ts(ts)
     body_html = _md.render(content) if role == "assistant" else f"<p>{_esc(content)}</p>"
@@ -78,8 +121,10 @@ def _build_html(
     chat: ChatDTO,
     messages: list[MessageDTO],
     agent_info: dict[str, str],
+    lang: ShareLang,
 ) -> str:
-    title = _esc(chat.title or "Shared Conversation")
+    chrome = _CHROME[lang]
+    title = _esc(chat.title or chrome.untitled)
     og_desc = _esc(_truncate(chat.first_message or chat.title or ""))
 
     msg_html_parts: list[str] = []
@@ -88,7 +133,7 @@ def _build_html(
         if msg.role not in visible_roles:
             continue
         content = exported_user_text(msg) if msg.role == "user" else msg.content
-        msg_html_parts.append(_render_message(msg.role, content, msg.created_at))
+        msg_html_parts.append(_render_message(msg.role, content, msg.created_at, chrome))
 
     messages_html = "\n".join(msg_html_parts)
     agent_card = ""
@@ -100,7 +145,7 @@ def _build_html(
 </div>"""
 
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{HTML_LANG[lang]}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -166,10 +211,10 @@ body{{background:#111827;color:#e5e7eb}}
 {messages_html}
 <div class="footer">
 <div class="stats">
-<span class="stat">{len(msg_html_parts)} messages</span>
+<span class="stat">{chrome.message_count(len(msg_html_parts))}</span>
 <span class="stat">{_format_ts(chat.created_at)}</span>
 </div>
-<p>Shared via Myrm Agent</p>
+<p>{SHARE_BRAND[lang]}</p>
 </div>
 </div>
 </body>
@@ -179,13 +224,15 @@ body{{background:#111827;color:#e5e7eb}}
 async def render_share_html(
     chat_id: str,
     db: AsyncSession,
+    *,
+    lang: ShareLang,
 ) -> str | None:
-    """Generate HTML for a shared conversation. Returns None if chat not found."""
+    """Generate HTML for a shared conversation in *lang*. Returns None if chat not found."""
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
         return None
 
     messages = await ChatService.get_all_messages(chat_id)
-    agent_info = await _get_agent_info(db, chat.agent_id)
+    agent_info = await _get_agent_info(db, chat.agent_id, _CHROME[lang])
 
-    return _build_html(chat, messages, agent_info)
+    return _build_html(chat, messages, agent_info, lang)

@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-28 · 认证审计日志的目录建不出或轮转器起不来，会把失败登录、锁定上报与已认证的请求变成 500（密码分享里使锁定生效的那一次错误猜测答 500）；对话分享内容页的外壳文案固定英文，不跟访客语言
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server 业务层两处：认证审计写入器、对话分享内容页；不改 harness、控制平面、前端与提示词）。接着「分享页中英文」那一组里仍写死英文的对话内容页。没有在真实的沙箱 / 远程 WebUI 部署与反向代理里走过，见「仍然存在」。 |
+| **症状** | ① 审计开启（沙箱或远程 WebUI）且审计目录不可写时，`log_auth_event` 只有最后一步写入在 `try` 里，建目录与轮转器初始化 / 轮转的异常会冒出去。实测密码分享连续 7 次错误猜测的响应序列是 `[403,403,403,403,500,429,429]`：使锁定生效的第 5 次猜测答 500 而不是 403，等于告诉猜测者「锁在这一次生效」，同一个写入器还被失败 / 成功认证记录与 WebSocket 认证调用，不可写时 401 与已通过认证的请求同样会变成 500（`auth.py` 对非回环沙箱请求每次都记一条成功事件）。② 对话内容页的外壳全是英文：`<html lang="en">`、「You」「Assistant」、「N messages」（一条时也是「1 messages」）、无标题时的「Shared Conversation」、默认智能体名、页脚「Shared via Myrm Agent」；同一条链接的密码页、锁定页、状态页已经按访客语言显示。 |
+| **根因** | ① 「审计是尽力而为」只落实在最后一步写入，建目录、`_get_rotator()` 与 `should_rotate / rotate` 都在 `try` 之外，而所有调用方都按「不会抛」写。② 状态页与密码页各带一份中英文目录，内容页渲染器没有接入：`render_share_html` 没有语言参数，`<html lang>` 取值与页脚品牌行在两个页面里各存一份。 |
+| **修复** | ① `log_auth_event` 把建目录、轮转、写入放进同一个 `try`，失败只记 ERROR，从不抛出（改写入器一处，所有调用方一并受益）。② `share_locale.py` 持有各语言页共用的 `HTML_LANG` 与 `SHARE_BRAND`，状态页与密码页改用同一份；`render_share_html` 新增必填关键字参数 `lang`，外壳文案走 `_CHROME` 目录（中 / 英，一条消息用单数），用户自己给智能体取的名字与对话正文原样显示，路由传 `resolve_share_lang(request)`。 |
+| **回归证据** | [1] 先红后绿 ①：密码分享 7 次错误猜测的状态码，修前 `[403,403,403,403,500,429,429]`，修后 `[403,403,403,403,403,429,429]`（`test_chat_share_password_lockout.py::test_a_broken_audit_trail_does_not_change_what_the_gate_answers`）；`test_auth_audit.py` 两例（目录建不出、轮转器初始化失败都不抛、记 ERROR）与 `test_lockout_events.py` 一例（审计目录坏了，锁定上报仍写 WARNING）。[2] ②：渲染器测试 17 例（原 7 例补 `lang="en"`，新增 10 例：中英外壳逐项且不含另一种语言的片段、会话正文不翻译、一条消息的单数、无标题与无智能体的兜底、已删除智能体的兜底、自定义智能体名原样）；路由 3 例（`zh-CN`→`zh`、`en-US`→`en`、无头→`en`）。[3] 真实渲染器输出的中、英两页在 Chromium 里目视：375px 宽 `scrollWidth` 等于 `innerWidth`（无横向溢出），英文页在深色下，`<html lang>` 分别为 `zh-CN` 与 `en`。[4] 套件：`tests/middleware`、`services/audit`、`core/security`、`api/chats`、`api/files`、`services/chat`、`services/webui` 合跑 1824 通过、6 失败（见「仍然存在」③④，均不在本次改动的文件里）；`tests/services/chat` 单独跑 474 通过；触及文件 `ruff check`、`ruff format --check` 与触及的 `app` 文件 `mypy` 通过。 |
+| **仍然存在** | ① 聊天内容页里，粘贴过长文本的用户消息仍带英文说明「Pasted text of N characters; only its opening is shown.」：来自 `chat_helpers.exported_user_text`，与 Markdown 导出（`messages.py`）共用，导出没有访客语言，本次不动。② 审计目录是相对工作目录的 `.myrm/logs/auth_audit.jsonl`（与项目里其它 `.myrm/` 路径一致），没有核实真实部署里它的可写性，所以审计失败在线上出现的频率没有数据；内容页只有中英文，其它语言的访客读到英文；没有与竞品的分享页本地化做对比（无证据）。③ 合跑里 5 例 `test_chat_disposal*` 失败，单独跑与 `tests/services/chat` 整组都通过：`tests/middleware/test_auth_middleware.py:83,111` 与 `test_ws_auth.py:36` 调 `get_settings.cache_clear()` 后，`get_settings()` 返回新实例，而 `tests/services/chat/disposal_support.py:66` 只改模块全局 `settings` 的 `event_log_dir`，之后生产代码读到的是没被改过的新实例，临时目录里的日志没被删；这两组文件本次没有改，也没有修。④ `tests/api/chats/test_rich_media_preview_seed_fixture.py::test_seed_writes_all_fixture_files` 失败：种子夹具已含 `preview_large.svg`（提交 `7d27944271`），测试里的期望清单没有同步；与本次无关，没有修。 |
+
 ## 2026-10-28 · 云沙箱启动时的默认服务商 seed 把读不出的 providers 行覆盖成平台默认；云端先加载核心键，「配置读不出」横幅看不到后到的键
 
 | 字段 | 内容 |

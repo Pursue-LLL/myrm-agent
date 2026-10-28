@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
-from app.core.security.share.share_locale import ShareLang, resolve_share_lang
+from app.core.security.share.share_locale import HTML_LANG, ShareLang, resolve_share_lang
 
 _LOCK_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" '
@@ -88,7 +88,6 @@ button:disabled:hover{background:#6366f1}
 
 @dataclass(frozen=True, slots=True)
 class _GateCopy:
-    html_lang: str
     title: str
     prompt: str
     placeholder: str
@@ -99,7 +98,6 @@ class _GateCopy:
 
 _GATE_COPY: dict[ShareLang, _GateCopy] = {
     "en": _GateCopy(
-        html_lang="en",
         title="Password Required",
         prompt="This shared content is password-protected.",
         placeholder="Enter password",
@@ -108,7 +106,6 @@ _GATE_COPY: dict[ShareLang, _GateCopy] = {
         locked="Too many incorrect attempts. Try again in {seconds} seconds.",
     ),
     "zh": _GateCopy(
-        html_lang="zh-CN",
         title="需要密码",
         prompt="此分享内容受密码保护。",
         placeholder="输入密码",
@@ -140,7 +137,7 @@ def render_password_gate_html(
     else:
         message = ""
     return _TEMPLATE % {
-        "html_lang": copy.html_lang,
+        "html_lang": HTML_LANG[lang],
         "refresh": f'<meta http-equiv="refresh" content="{retry_after + 1}"/>' if retry_after is not None else "",
         "title": copy.title,
         "prompt": copy.prompt,

@@ -29,7 +29,7 @@ from enum import Enum
 from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from app.core.security.share.share_locale import ShareLang, resolve_share_lang
+from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang, resolve_share_lang
 
 _STATUS_ICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" '
@@ -90,10 +90,6 @@ class _StateCopy:
     message: str
 
 
-_HTML_LANG: dict[ShareLang, str] = {"en": "en", "zh": "zh-CN"}
-
-_BRAND: dict[ShareLang, str] = {"en": "Shared via Myrm Agent", "zh": "由 Myrm Agent 分享"}
-
 _STATE_COPY: dict[ShareLinkState, dict[ShareLang, _StateCopy]] = {
     ShareLinkState.REVOKED: {
         "en": _StateCopy("Link Revoked", "This share link has been revoked by its owner."),
@@ -122,11 +118,11 @@ def render_share_status_html(state: ShareLinkState, lang: ShareLang = "en") -> s
     """Return a self-contained HTML page for an unavailable share link."""
     copy = _STATE_COPY[state][lang]
     return _TEMPLATE % {
-        "html_lang": _HTML_LANG[lang],
+        "html_lang": HTML_LANG[lang],
         "icon": _STATUS_ICON_SVG,
         "title": copy.title,
         "message": copy.message,
-        "brand": _BRAND[lang],
+        "brand": SHARE_BRAND[lang],
     }
 
 

@@ -37,7 +37,7 @@ from app.core.security.share.share_hmac import (
     sign_share_token,
     token_fingerprint,
 )
-from app.core.security.share.share_locale import ShareLang, resolve_share_lang
+from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang, resolve_share_lang
 from app.core.security.share.share_password_page import (
     password_gate_response,
     render_password_gate_html,
@@ -57,6 +57,8 @@ from app.core.security.share.share_unlock import (
 )
 
 __all__ = [
+    "HTML_LANG",
+    "SHARE_BRAND",
     "SHARE_PRIVACY_HEADERS",
     "ShareLang",
     "ShareLinkState",

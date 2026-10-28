@@ -13,7 +13,9 @@ Only active in WebUI Remote and Sandbox modes (no value for local loopback).
 - AUDIT_LOG_FILE: path to the audit JSONL file
 
 [POS]
-Auth audit JSONL logger. Appends structured auth events to a rotated JSONL file.
+Auth audit JSONL logger. Appends structured auth events to a rotated JSONL file. Best-effort by contract: preparing the
+directory, rotating and writing all fail soft (an ERROR log line), so a broken audit directory never turns a failed
+login, a lockout report or an authenticated request into a server error.
 """
 
 from __future__ import annotations
@@ -65,7 +67,10 @@ def log_auth_event(
     auth_source: str | None = None,
     metadata: dict[str, object] | None = None,
 ) -> None:
-    """Append an auth event to the JSONL audit file.
+    """Append an auth event to the JSONL audit file; never raises.
+
+    The audit trail is a side channel: a failure while preparing the directory, rotating or writing is logged and
+    dropped so it cannot change the authentication outcome the event describes.
 
     Args:
         event_type: Event classification.
@@ -73,12 +78,6 @@ def log_auth_event(
         auth_source: How the request was authenticated (e.g. "sandbox_api_key").
         metadata: Optional extra context.
     """
-    AUDIT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    rotator = _get_rotator()
-    if rotator.should_rotate(AUDIT_LOG_FILE):
-        rotator.rotate(AUDIT_LOG_FILE)
-
     event: dict[str, object] = {
         "ts": round(time.time(), 3),
         "type": event_type.value,
@@ -90,6 +89,10 @@ def log_auth_event(
         event["meta"] = metadata
 
     try:
+        AUDIT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        rotator = _get_rotator()
+        if rotator.should_rotate(AUDIT_LOG_FILE):
+            rotator.rotate(AUDIT_LOG_FILE)
         with AUDIT_LOG_FILE.open("a", encoding="utf-8") as f:
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
     except Exception as e:

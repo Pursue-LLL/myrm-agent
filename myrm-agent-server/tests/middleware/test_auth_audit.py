@@ -105,3 +105,16 @@ class TestLogAuthEvent:
 
         with patch.object(type(tmp_audit_file), "open", side_effect=_failing_open):
             log_auth_event(AuthEventType.AUTH_FAILURE, "1.1.1.1")
+
+    def test_uncreatable_directory_does_not_raise(self, caplog: pytest.LogCaptureFixture):
+        """The audit trail is a side channel: a log directory that cannot be created never fails the caller."""
+        with patch.object(Path, "mkdir", side_effect=PermissionError("read-only file system")):
+            log_auth_event(AuthEventType.AUTH_FAILURE, "1.1.1.1")
+
+        assert "Failed to write auth audit log" in caplog.text
+
+    def test_rotation_setup_failure_does_not_raise(self, caplog: pytest.LogCaptureFixture):
+        with patch("app.middleware.auth_audit._get_rotator", side_effect=RuntimeError("settings unavailable")):
+            log_auth_event(AuthEventType.AUTH_FAILURE, "1.1.1.1")
+
+        assert "Failed to write auth audit log" in caplog.text

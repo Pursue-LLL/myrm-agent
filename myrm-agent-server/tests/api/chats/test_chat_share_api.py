@@ -510,6 +510,36 @@ class TestPublicSharePage:
             assert resp.headers["Cache-Control"] == "no-store"
             assert resp.headers["Referrer-Policy"] == "no-referrer"
 
+    @pytest.mark.parametrize(
+        ("accept_language", "expected"),
+        [("zh-CN,zh;q=0.9,en;q=0.8", "zh"), ("en-US,en;q=0.9", "en"), (None, "en")],
+    )
+    def test_content_page_is_rendered_in_the_visitor_language(
+        self, share_client: TestClient, accept_language: str | None, expected: str
+    ) -> None:
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        headers = {"Accept-Language": accept_language} if accept_language else {}
+
+        with (
+            patch(
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.public.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ) as render,
+        ):
+            resp = share_client.get(f"/public/chat-share/{token}", headers=headers)
+
+        assert resp.status_code == 200
+        assert render.await_args is not None
+        assert render.await_args.kwargs["lang"] == expected
+
     def test_expired_token_returns_404(self, share_client: TestClient) -> None:
         import time
 

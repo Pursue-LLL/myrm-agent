@@ -27,7 +27,7 @@ FastAPI 全局 HTTP 中间件。提供文本清洗、认证和缓存控制。
 | `e2ee.py` | ✅ 核心 | mobile remote E2EE 请求解密（pair token / JSON body）；活跃请求 sliding refresh session TTL | ✅ |
 | `auth.py` | ✅ 核心 | HTTP 单租户认证；local loopback 跳过 ingress DB；注入 admission_path/trust_zone/pair token/`pair_bound_chat_id` | ✅ |
 | `ws_auth.py` | ✅ 核心 | WebSocket ASGI 握手鉴权，注入 `scope.state.user_id` 与 pair 绑定 | ✅ |
-| `auth_audit.py` | ✅ 核心 | Auth 审计 JSONL（`auth.py` 在非回环认证时写入） | ✅ |
+| `auth_audit.py` | ✅ 核心 | Auth 审计 JSONL（`auth.py` 在非回环认证时写入）；建目录、轮转、写入任一步失败只记 ERROR 日志、从不抛出（审计故障不得改变认证结果，也不得把锁定上报变成 500） | ✅ |
 | `auth_alert.py` | ✅ 核心 | Auth 告警引擎（WebUI Remote / Sandbox） | ✅ |
 | `observability.py` | ✅ 核心 | 请求 Tracing 中间件：一次请求只有一个身份（`X-Trace-Id` 响应头 = 错误信封 `error.trace_id` = 日志 id = OpenTelemetry 根 span 的 trace id）。只采纳入站 `X-Trace-Id` / W3C `traceparent` 里合法的 32 位十六进制 trace id（统一小写；16/64 位、全零、含注入字符的一律弃用并换成新生成的 UUID4 hex）。从 URL 提取 session_id，注入 TracingContext（ContextVar），同时写入 `request.state.trace_id`：最外层的未捕获异常处理器运行在本中间件之外，ContextVar 已复位，只能从 `request.state` 取回（`request_trace_id`）。云托管场景下确保反代/APM 注入的 trace-id 在 Server 入口不断链。 |
 | `cache.py` | ✅ 辅助 | 缓存中间件（路径级 Cache-Control，仅 GET 请求） |
