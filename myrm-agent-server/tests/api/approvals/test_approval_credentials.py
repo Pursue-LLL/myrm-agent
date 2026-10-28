@@ -28,7 +28,10 @@ from app.core.types import ModelConfig
 from app.services.agent.params.workspace_resolve import chat_session_id
 
 CHAT_ID = "chat-cred-1"
-COMMAND = "printenv DB_PASSWORD || echo NONE"
+SECRET = "ProductionSuperSecret999!"
+# A delivered credential is masked in anything the command prints, so the command prints it as hex.
+COMMAND = "printenv DB_PASSWORD | tr -d '\\n' | od -An -tx1 | tr -d ' \\n' | grep . || echo NONE"
+SECRET_AS_HEX = SECRET.encode().hex()
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +46,7 @@ def _stage(client: TestClient, command: str = COMMAND, chat_id: str = CHAT_ID, *
     body: dict[str, object] = {
         "chat_id": chat_id,
         "command": command,
-        "credentials": [{"key": "DB_PASSWORD", "secret": "ProductionSuperSecret999!", **overrides}],
+        "credentials": [{"key": "DB_PASSWORD", "secret": SECRET, **overrides}],
     }
     resp = client.post("/api/v1/approvals/credentials", json=body)
     assert resp.status_code == 201, resp.text
@@ -54,7 +57,7 @@ class TestStaging:
     def test_credential_is_staged_for_the_command_digest_in_the_run_session(self, client: TestClient) -> None:
         data = _stage(client, ttl_seconds=45.0)
 
-        assert "ProductionSuperSecret999" not in str(data)
+        assert SECRET not in str(data)
         (item,) = data["staged"]
         assert item["handle_id"].startswith("cred_ephemeral_")
         assert item["key"] == "DB_PASSWORD"
@@ -179,7 +182,7 @@ class TestEndToEnd:
         approved = self._approved_command()
         _stage(client, command=approved)
 
-        assert await self._run(executor, tmp_path, approved) == "ProductionSuperSecret999!"
+        assert await self._run(executor, tmp_path, approved) == SECRET_AS_HEX
         assert await self._run(executor, tmp_path, approved) == "NONE"
 
     async def test_a_command_the_user_edited_after_staging_reads_nothing(
