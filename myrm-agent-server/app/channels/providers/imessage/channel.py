@@ -53,7 +53,7 @@ from .helpers import (
     MEDIA_TIMEOUT,
     SEND_TIMEOUT,
     TAPBACK_MAP,
-    TAPBACK_REMOVE_OFFSET,
+    TAPBACK_REMOVE_PREFIX,
     compile_mention_patterns,
     filename_from_url,
     quote_guid,
@@ -412,17 +412,17 @@ class IMessageChannel(BaseChannel):
             if tapback is None:
                 return
             await self._post_tapback(chat_id, message_id, tapback)
-            self._reactions.remember(chat_id, message_id, str(tapback))
+            self._reactions.remember(chat_id, message_id, tapback)
             return
         sent = self._reactions.take(chat_id, message_id)
         if sent:
-            await self._post_tapback(chat_id, message_id, int(sent) + TAPBACK_REMOVE_OFFSET)
+            await self._post_tapback(chat_id, message_id, f"{TAPBACK_REMOVE_PREFIX}{sent}")
 
-    async def _post_tapback(self, chat_id: str, message_id: str, code: int) -> None:
+    async def _post_tapback(self, chat_id: str, message_id: str, reaction: str) -> None:
         resp = await self._http.post(
             f"{self._api_url}/api/v1/message/react",
             params={"password": self._password},
-            json={"chatGuid": chat_id, "selectedMessageGuid": message_id, "reaction": code},
+            json={"chatGuid": chat_id, "selectedMessageGuid": message_id, "reaction": reaction},
             timeout=SEND_TIMEOUT,
         )
         if resp.status_code >= 400:
