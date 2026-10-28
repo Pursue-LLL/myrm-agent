@@ -2,11 +2,14 @@
 
 Seed a compound concept, open Settings → Wiki → Concepts → edit, then drive the
 split-pane editor like a real user:
-  - Monaco source loads (lazy @monaco-editor/react)
+  - Monaco source loads (lazy @monaco-editor/react) in the app's own theme, and
+    follows a runtime light/dark switch
   - typing into Monaco updates the live markdown preview (MarkdownContent)
-  - saving persists through the real apply-wiki endpoint
+  - saving persists through the real apply-wiki endpoint (read back over HTTP)
 
-Key paths are real browser interactions (CDP keyboard), no unit mocks.
+No LLM is involved. Clicks are dispatched DOM events and text goes in through the
+Monaco editor API (the E2E harness has no OS-level input), against the real app
+and backend, no unit mocks.
 """
 
 from __future__ import annotations
@@ -198,6 +201,39 @@ def _monaco_ready_js() -> str:
     })()"""
 
 
+# Monaco's built-in `vs-dark` / `vs` editor backgrounds; the app picks one from its theme.
+_MONACO_BACKGROUND = {"dark": "rgb(30, 30, 30)", "light": "rgb(255, 255, 254)"}
+
+
+def _app_theme_js() -> str:
+    return """(() => ({
+      theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+    }))()"""
+
+
+def _monaco_follows_theme_js(theme: str) -> str:
+    # `ready` only when the html class and the editor background both show `theme`.
+    return f"""(() => {{
+      const bg = document.querySelector('.monaco-editor .monaco-editor-background');
+      const color = bg ? getComputedStyle(bg).backgroundColor : null;
+      const appTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+      return {{
+        ready: appTheme === {theme!r} && color === {_MONACO_BACKGROUND[theme]!r},
+        appTheme,
+        color,
+      }};
+    }})()"""
+
+
+def _switch_app_theme_js(theme: str) -> str:
+    # next-themes applies a `storage` event for its own key to its state (the same
+    # path as a theme change made in another tab); nothing is written to storage.
+    return f"""(() => {{
+      window.dispatchEvent(new StorageEvent('storage', {{ key: 'theme', newValue: {theme!r} }}));
+      return {{ ok: true }};
+    }})()"""
+
+
 def _monaco_type_js(text: str) -> str:
     # Monaco ignores synthetic DOM events / execCommand on its hidden textarea.
     # Drive the editor instance directly via executeEdits (fires onDidChangeContent,
@@ -231,10 +267,11 @@ def _click_save_js() -> str:
             || (el.textContent || '').trim() === 'Save',
         );
       if (!btn) return { ok: false, reason: 'no-save-btn' };
+      // One click only: a second click re-sends the same `if_match` hash and the
+      // backend answers 409 because the first save already changed the page.
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
         btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
       }
-      try { btn.click(); } catch (_) {}
       return { ok: true };
     })()"""
 
@@ -317,6 +354,19 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         monaco = wait_for_state(client, page, _monaco_ready_js(), timeout_sec=60.0)
         assert isinstance(monaco, dict) and monaco.get("ready") is True, monaco
 
+        # One page-wide Monaco theme, chosen by the app theme and following a switch.
+        initial = client.evaluate(page, _app_theme_js(), timeout_sec=15.0)
+        assert isinstance(initial, dict) and initial.get("theme") in _MONACO_BACKGROUND, initial
+        app_theme = str(initial["theme"])
+        other_theme = "light" if app_theme == "dark" else "dark"
+        shown = app_theme
+        for theme in (app_theme, other_theme, app_theme):
+            if theme != shown:
+                client.evaluate(page, _switch_app_theme_js(theme), timeout_sec=15.0)
+                shown = theme
+            followed = wait_for_state(client, page, _monaco_follows_theme_js(theme), timeout_sec=30.0)
+            assert isinstance(followed, dict) and followed.get("ready") is True, (theme, followed)
+
         focused = client.evaluate(page, _monaco_type_js("LIVE PREVIEW CHECK"), timeout_sec=15.0)
         assert isinstance(focused, dict) and focused.get("ok") is True, focused
 
@@ -336,3 +386,10 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         assert isinstance(saved, dict) and saved.get("ok") is True, saved
         saved_state = wait_for_state(client, page, _edit_btn_gone_js(), timeout_sec=30.0)
         assert isinstance(saved_state, dict) and saved_state.get("ready") is True, saved_state
+
+        persisted = http_json(
+            "GET",
+            f"{api_url.rstrip('/')}/api/v1/wiki/concepts/{urllib.parse.quote(concept_name, safe='/')}",
+        )
+        assert isinstance(persisted, dict), persisted
+        assert "LIVE PREVIEW CHECK" in str(persisted.get("content")), persisted.get("content")
