@@ -1,26 +1,32 @@
 """Local git auto-commit for wiki vault directories.
 
 [INPUT]
+- myrm_agent_harness.core.security.safe_git::hardened_git_argv (POS: git argv that runs no program the repository chose)
 - myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure (POS: vault layout)
 - myrm_agent_harness.toolkits.wiki.core.config::WikiConfig (POS: version control knobs)
 
 [OUTPUT]
-- commit_vault_git_snapshot: Initialize repo if needed and commit vault changes
+- commit_vault_git_snapshot: Initialize repo if needed and commit vault changes; skipped_reason ``unsafe_repository``
+  when the vault's git configuration cannot be neutralised
 - maybe_commit_vault_git_snapshot: Gate on WikiConfig.enable_version_control
 
 [POS]
 Framework-level vault version discipline for Karpathy/Obsidian users who expect git log/blame.
-Uses a real .git inside the vault base_dir (not shadow git).
+Uses a real .git inside the vault base_dir (not shadow git). That ``.git``, and any repository nested below the vault
+root, may have arrived as plain files (a ZIP, a sync folder, a restored backup), so every command goes through
+``hardened_git_argv``: the programs their configuration names (fsmonitor, hooks, filters) do not run during a snapshot.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from myrm_agent_harness.core.security.safe_git import HARDENED_GIT_ENV, GitHardeningError, hardened_git_argv
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -50,11 +56,14 @@ class VaultGitCommitResult:
 
 
 def _run_git(vault_dir: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    """Run git in the vault without any program its configuration names; ``GitHardeningError`` if that is impossible."""
+    env = {**os.environ, **HARDENED_GIT_ENV}
     return subprocess.run(
-        ["git", "-C", str(vault_dir), *args],
+        hardened_git_argv(args, repo_dir=vault_dir, env=env),
         capture_output=True,
         text=True,
         check=check,
+        env=env,
     )
 
 
@@ -88,7 +97,10 @@ def commit_vault_git_snapshot(
     *,
     reason: str,
 ) -> VaultGitCommitResult:
-    """Commit current vault tree when git is available and files changed."""
+    """Commit current vault tree when git is available and files changed.
+
+    A vault whose git configuration cannot be neutralised (a conditional include) is skipped, never committed to.
+    """
     if not _git_available():
         return VaultGitCommitResult(committed=False, skipped_reason="git_unavailable")
 
@@ -121,6 +133,9 @@ def commit_vault_git_snapshot(
         stderr = (exc.stderr or exc.stdout or "").strip()
         logger.warning("Wiki vault git snapshot failed (%s): %s", reason, stderr)
         return VaultGitCommitResult(committed=False, skipped_reason="git_error")
+    except GitHardeningError as exc:
+        logger.warning("Wiki vault git snapshot skipped (%s): %s", reason, exc)
+        return VaultGitCommitResult(committed=False, skipped_reason="unsafe_repository")
 
 
 def maybe_commit_vault_git_snapshot(
