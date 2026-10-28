@@ -49,8 +49,10 @@ class CommandEnv:
     """Environment applied around one command of a shell that outlives it.
 
     ``sticky`` values (a skill's settings) are exported before every command and stay for the later ones.
-    ``scoped`` values (credentials) are exported before the command and unset right after it, so a later command
-    never reads what an earlier one was granted.
+    ``scoped`` values (credentials) are exported before the command and unset right after it, so the shell holds no
+    credential between commands and a later command is not handed what an earlier one was granted. All commands of a
+    conversation share the shell: this limits what is delivered, it does not contain a command that tampers with the
+    shell itself (a ``trap``, a function) and so observes what later commands are granted.
     """
 
     sticky: Mapping[str, str] = field(default_factory=dict)

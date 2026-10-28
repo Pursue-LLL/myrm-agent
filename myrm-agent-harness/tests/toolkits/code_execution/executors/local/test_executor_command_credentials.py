@@ -181,3 +181,26 @@ class TestPerCommandEnv:
         await _run(executor, tmp_path, "echo started", env={"MY_API_TOKEN": "leak"})
 
         assert await _run(executor, tmp_path, _read_command("MY_API_TOKEN"), env={"MY_API_TOKEN": "leak"}) == "NONE"
+
+
+class TestTracingCannotCarryCredentialsIntoOutput:
+    """bash prints every line it runs under ``set -x`` / ``set -v``, and the exports of a command's credentials are lines."""
+
+    @pytest.mark.parametrize("tracing", ["set -x", "set -v"])
+    async def test_tracing_left_on_by_an_earlier_command_does_not_print_later_credentials(
+        self, executor: LocalExecutor, tmp_path: Path, tracing: str
+    ) -> None:
+        await executor.execute_bash(
+            ExecutionContext(
+                code=tracing,
+                session_id="one-conversation",
+                work_dir=str(tmp_path),
+                workspace_root=str(tmp_path),
+                timeout=30,
+            )
+        )
+
+        with _credentials(_GITHUB):
+            output = await _run(executor, tmp_path, "echo hello", env={"ORG": "skill-secret-1"})
+
+        assert output == "hello"
