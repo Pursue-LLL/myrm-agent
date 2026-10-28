@@ -65,7 +65,6 @@ export interface WorktreeStoreActions {
   fetchWorktrees: (repoPath?: string) => Promise<void>;
   switchActiveWorktree: (worktreePath: string, repoPath?: string) => Promise<void>;
   createNewWorktree: (dto: CreateWorktreeDTO) => Promise<GitWorktree>;
-  removeWorktree: (worktreePath: string, force?: boolean) => Promise<void>;
   checkSessionAnchor: (sessionId: string, repoPath?: string) => Promise<SessionCheckoutAnchor>;
   syncSessionToAnchor: (sessionId: string) => Promise<void>;
   setCreateModalOpen: (open: boolean) => void;

@@ -34,7 +34,6 @@ from app.core.utils.git_worktree import (
     WorktreeErrorReason,
     _classify_git_error,
     _ensure_worktree_excluded,
-    _remove_worktree,
     _run_git,
     _worktree_is_dirty,
 )
@@ -242,19 +241,6 @@ class GitWorktreeService:
         if matched:
             return matched
         return GitWorktreeInfo(path=target, branch="active", is_current=True)
-
-    async def remove_worktree(self, worktree_path: str, repo_path: str | None = None, force: bool = False) -> bool:
-        """Safely remove a git worktree."""
-        root = self._resolve_repo_root(repo_path)
-        target = os.path.abspath(worktree_path)
-
-        if not force and await _worktree_is_dirty(target):
-            raise RuntimeError("Worktree has uncommitted modifications; cannot remove without force=True.")
-
-        ok = await _remove_worktree(root, target, context="worktree-switcher")
-        if root in self._active_worktree_override and self._active_worktree_override[root] == target:
-            self._active_worktree_override.pop(root, None)
-        return ok
 
     def get_session_checkout_anchor(self, session_id: str, repo_path: str | None = None) -> SessionCheckoutAnchorInfo:
         """Get anchor metadata for a session, checking if currently in sync."""

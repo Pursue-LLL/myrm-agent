@@ -87,22 +87,6 @@ export const useWorktreeStore = create<WorktreeStore>((set, get) => ({
     }
   },
 
-  removeWorktree: async (worktreePath: string, force = false) => {
-    set({ loading: true, error: null, errorReason: null });
-    try {
-      await worktreeService.removeWorktree(worktreePath, force);
-      const list = get().worktrees.filter((w) => w.path !== worktreePath);
-      let active = get().activeWorktree;
-      if (active?.path === worktreePath) {
-        active = list[0] || null;
-      }
-      set({ worktrees: list, activeWorktree: active, loading: false });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to remove worktree';
-      set({ error: msg, loading: false });
-    }
-  },
-
   checkSessionAnchor: async (sessionId: string, repoPath?: string): Promise<SessionCheckoutAnchor> => {
     try {
       const anchor = await worktreeService.getSessionCheckoutAnchor(sessionId, repoPath);

@@ -165,20 +165,6 @@ async def test_switch_worktree_success(async_client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_remove_worktree_success(async_client: httpx.AsyncClient) -> None:
-    with patch.object(GitWorktreeService, "remove_worktree", new_callable=AsyncMock) as mock_rm:
-        mock_rm.return_value = True
-        resp = await async_client.delete(
-            "/api/v1/git/worktrees",
-            params={"worktree_path": "/tmp/project/.worktrees/old-feature", "force": True},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["removed"] is True
-        assert data["path"] == "/tmp/project/.worktrees/old-feature"
-
-
-@pytest.mark.asyncio
 async def test_session_checkout_anchor_flow(async_client: httpx.AsyncClient) -> None:
     session_id = "test-session-anchor-999"
 

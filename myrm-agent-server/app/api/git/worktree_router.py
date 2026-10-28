@@ -1,7 +1,7 @@
 """FastAPI router for Git Worktree management and session checkout anchoring.
 
 [INPUT]
-- FastAPI endpoints for worktree listing, creation, switching, removal, and session checkout anchoring.
+- FastAPI endpoints for worktree listing, creation, switching, and session checkout anchoring.
 - Pydantic models for request payloads.
 
 [OUTPUT]
@@ -51,11 +51,6 @@ class BindCheckoutAnchorRequest(BaseModel):
     worktree_path: str = Field(..., description="Absolute worktree directory path")
     repo_path: str | None = Field(default=None, description="Optional repo root path")
     touched_files: list[SessionTouchedFileInfo] = Field(default_factory=list, description="Files touched by session")
-
-
-class RemoveWorktreeResponse(BaseModel):
-    removed: bool
-    path: str
 
 
 @router.get(
@@ -132,38 +127,6 @@ async def switch_worktree(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Worktree switch error: {exc}",
-        ) from exc
-
-
-@router.delete(
-    "/worktrees",
-    response_model=RemoveWorktreeResponse,
-    summary="Remove a git worktree",
-)
-async def remove_worktree(
-    worktree_path: Annotated[str, Query(description="Absolute path to worktree to remove")],
-    repo_path: Annotated[str | None, Query(description="Optional repo path")] = None,
-    force: Annotated[bool, Query(description="Force remove even if dirty")] = False,
-    service: GitWorktreeService = Depends(get_worktree_service),
-) -> RemoveWorktreeResponse:
-    """Remove an existing worktree directory."""
-    try:
-        ok = await service.remove_worktree(
-            worktree_path=worktree_path,
-            repo_path=repo_path,
-            force=force,
-        )
-        return RemoveWorktreeResponse(removed=ok, path=worktree_path)
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    except Exception as exc:
-        logger.error("Failed to remove worktree: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Worktree remove error: {exc}",
         ) from exc
 
 

@@ -103,23 +103,6 @@ export const worktreeService = {
   },
 
   /**
-   * Remove a git worktree
-   */
-  async removeWorktree(
-    worktreePath: string,
-    force = false,
-  ): Promise<{ removed: boolean; path: string }> {
-    const query = `?worktree_path=${encodeURIComponent(worktreePath)}&force=${force}`;
-    try {
-      return await apiRequest<{ removed: boolean; path: string }>(`/git/worktrees${query}`, {
-        method: 'DELETE',
-      });
-    } catch {
-      return { removed: true, path: worktreePath };
-    }
-  },
-
-  /**
    * Retrieve session checkout anchoring metadata and touched files
    */
   async getSessionCheckoutAnchor(

@@ -8,7 +8,6 @@ vi.mock('../worktreeService', () => ({
     listWorktrees: vi.fn(),
     createWorktree: vi.fn(),
     switchWorktree: vi.fn(),
-    removeWorktree: vi.fn(),
     getSessionCheckoutAnchor: vi.fn(),
     bindSessionCheckoutAnchor: vi.fn(),
   },

@@ -58,7 +58,6 @@ describe('GitWorktreeDropdown', () => {
       fetchWorktrees: vi.fn(),
       switchActiveWorktree: vi.fn(),
       createNewWorktree: vi.fn(),
-      removeWorktree: vi.fn(),
       checkSessionAnchor: vi.fn(),
       syncSessionToAnchor: vi.fn(),
       setCreateModalOpen: (open) => useWorktreeStore.setState({ createModalOpen: open }),
