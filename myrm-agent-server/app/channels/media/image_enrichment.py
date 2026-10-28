@@ -13,11 +13,13 @@ enriches an InboundMessage, called from Router._handle_merged.
 
 [INPUT]
 - channels.types::InboundMessage, MediaType, MediaAttachment (POS: inbound message types)
+- app.config.settings::settings (POS: 统一配置中心，提供状态目录 settings.database.state_dir)
 - myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-protected image download with size cap)
 
 [OUTPUT]
 - has_image_attachment(): check for image media
 - enrich_image_inbound(): download, compress, cache images as files into metadata
+- channel_image_cache_dir(): where the cached images live
 - sweep_channel_image_cache(): remove cached images unused for the retention period
 
 [POS]
@@ -153,7 +155,7 @@ async def _download_and_cache(
     if not mime.startswith("image/"):
         mime = "image/jpeg"
 
-    cached_path = _save_to_cache(raw_bytes, mime, msg)
+    cached_path = _save_to_cache(raw_bytes, mime)
     if cached_path is None:
         b64 = base64.b64encode(raw_bytes).decode("ascii")
         return {"data_url": f"data:{mime};base64,{b64}", "mime_type": mime}
@@ -168,14 +170,14 @@ def channel_image_cache_dir() -> Path:
     return Path(settings.database.state_dir) / "cache" / "channel_images"
 
 
-def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | None:
-    """Save image bytes to the channel image cache and return the absolute path.
+def _save_to_cache(raw_bytes: bytes, mime: str) -> str | None:
+    """Save image bytes to the channel image cache and return the absolute path, or None when it cannot be cached.
 
     Files are named with a content hash to enable deduplication. An image that is already cached is not written
     again, but its age restarts: the retention sweep counts from the last time an image was received.
     """
-    cache_dir = channel_image_cache_dir()
     try:
+        cache_dir = channel_image_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
         content_hash = hashlib.sha256(raw_bytes).hexdigest()[:16]
         ext = mime.split("/")[-1].replace("jpeg", "jpg")
@@ -195,26 +197,32 @@ def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | No
         return None
 
 
-def sweep_channel_image_cache(max_age_days: int = CHANNEL_IMAGE_RETENTION_DAYS) -> int:
-    """Remove cached images not received for ``max_age_days``; return how many were removed.
+def sweep_channel_image_cache() -> int:
+    """Remove cached images not received for ``CHANNEL_IMAGE_RETENTION_DAYS``; return how many were removed.
 
     History that still cites a removed image loses that picture: the harness resolver skips a missing file.
-    A file that cannot be removed is logged and left, so the others are still swept.
+    Files that cannot be removed (read-only volume, permissions) are left and reported in one warning, so the others
+    are still swept and a whole unwritable directory does not log once per file.
     """
     try:
         entries = list(channel_image_cache_dir().iterdir())
     except FileNotFoundError:
         return 0
 
-    cutoff = time.time() - max_age_days * _SECONDS_PER_DAY
+    cutoff = time.time() - CHANNEL_IMAGE_RETENTION_DAYS * _SECONDS_PER_DAY
     removed = 0
+    failures: list[str] = []
     for entry in entries:
         try:
             if entry.is_file() and entry.stat().st_mtime < cutoff:
                 entry.unlink()
                 removed += 1
+        except FileNotFoundError:
+            continue  # removed by someone else in between: nothing left to do
         except OSError as exc:
-            logger.warning("Failed to remove expired channel image %s: %s", entry, exc)
+            failures.append(f"{entry.name}: {exc}")
+    if failures:
+        logger.warning("Failed to remove %d expired channel images, first: %s", len(failures), failures[0])
     return removed
 
 

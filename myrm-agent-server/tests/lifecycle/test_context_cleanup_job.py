@@ -6,10 +6,14 @@ It also sweeps the cached channel images, and a failing sweep must not stop the 
 from __future__ import annotations
 
 import logging
+import os
+import time
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.channels.media.image_enrichment import CHANNEL_IMAGE_RETENTION_DAYS
 from app.lifecycle import schedulers
 
 
@@ -20,11 +24,12 @@ def _no_spillover_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def image_sweep(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """The channel image sweep must not touch the real data dir."""
-    sweep = MagicMock(return_value=0)
-    monkeypatch.setattr("app.channels.media.image_enrichment.sweep_channel_image_cache", sweep)
-    return sweep
+def image_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The channel image sweep runs for real, on a temporary directory instead of the real data dir."""
+    directory = tmp_path / "channel_images"
+    directory.mkdir()
+    monkeypatch.setattr("app.channels.media.image_enrichment.channel_image_cache_dir", lambda: directory)
+    return directory
 
 
 @pytest.fixture
@@ -65,20 +70,28 @@ async def test_cleanup_still_runs_by_modification_time_when_the_tracker_is_unava
     assert any("File access tracker unavailable" in record.getMessage() for record in caplog.records)
 
 
-@pytest.mark.usefixtures("tracker")
-async def test_the_cached_channel_images_are_swept(cleanup: AsyncMock, image_sweep: MagicMock) -> None:
-    image_sweep.return_value = 4
+@pytest.mark.usefixtures("cleanup", "tracker")
+async def test_cached_channel_images_past_their_retention_are_swept(image_cache: Path) -> None:
+    expired = image_cache / "expired.jpg"
+    fresh = image_cache / "fresh.jpg"
+    for image, unused_days in ((expired, CHANNEL_IMAGE_RETENTION_DAYS + 1), (fresh, 1)):
+        image.write_bytes(b"img")
+        stamp = time.time() - unused_days * 86400
+        os.utime(image, (stamp, stamp))
 
     await schedulers._context_cleanup_job()
 
-    image_sweep.assert_called_once_with()
+    assert not expired.exists()
+    assert fresh.exists()
 
 
 @pytest.mark.usefixtures("tracker")
 async def test_a_failing_image_sweep_does_not_fail_the_job(
-    cleanup: AsyncMock, image_sweep: MagicMock, caplog: pytest.LogCaptureFixture
+    monkeypatch: pytest.MonkeyPatch, cleanup: AsyncMock, caplog: pytest.LogCaptureFixture
 ) -> None:
-    image_sweep.side_effect = OSError("Input/output error")
+    monkeypatch.setattr(
+        "app.channels.media.image_enrichment.sweep_channel_image_cache", MagicMock(side_effect=OSError("Input/output error"))
+    )
 
     with caplog.at_level(logging.WARNING, logger=schedulers.logger.name):
         await schedulers._context_cleanup_job()

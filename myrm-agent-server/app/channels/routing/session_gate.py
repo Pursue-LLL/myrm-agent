@@ -8,7 +8,7 @@ Five complementary mechanisms:
    window (default 300 ms). The timer resets on each new message.
 2. **Active-Session Pending Queue**: When a session already has an Agent
    task in progress, new messages are held in a pending queue. After the
-   task completes, pending messages are merged and re-dispatched.
+   task completes, the next turn (see 5) is taken from it and dispatched.
 3. **Busy Ack Callback**: When a message is queued while the session is
    active (or dropped because the queue is full), an optional
    ``on_busy_ack`` callback notifies the caller so the Router can send
@@ -87,7 +87,7 @@ def _is_answer(msg: InboundMessage) -> bool:
 
 
 def _take_next_turn(queue: list[InboundMessage]) -> tuple[InboundMessage, ...]:
-    """Remove from ``queue`` what runs next: its oldest answer on its own, else the first sender's text as one turn.
+    """Remove from the non-empty ``queue`` what runs next: its oldest answer on its own, else the first sender's text.
 
     A turn runs as the sender of its first message, so only the consecutive text of that sender is taken; what another
     sender wrote stays queued, in order, for a turn of its own.
@@ -96,9 +96,9 @@ def _take_next_turn(queue: list[InboundMessage]) -> tuple[InboundMessage, ...]:
         if _is_answer(msg):
             return (queue.pop(index),)
     sender = queue[0].sender_id
-    size = next((index for index, msg in enumerate(queue) if msg.sender_id != sender), len(queue))
-    turn = tuple(queue[:size])
-    del queue[:size]
+    count = next((index for index, msg in enumerate(queue) if msg.sender_id != sender), len(queue))
+    turn = tuple(queue[:count])
+    del queue[:count]
     return turn
 
 
