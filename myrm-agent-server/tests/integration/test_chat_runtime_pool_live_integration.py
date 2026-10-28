@@ -84,6 +84,7 @@ async def test_live_guard_turn_serializes_concurrent_run_turn() -> None:
         *,
         mode: str = "persistent",
         mcp_servers: object = None,
+        images: object = None,
     ):
         order.append(f"{name}_start")
         gate.set()
@@ -173,6 +174,7 @@ async def test_live_facade_cancel_during_active_run_turn() -> None:
         *,
         mode: str = "persistent",
         mcp_servers: object = None,
+        images: object = None,
     ):
         entered.set()
         await unblock.wait()
@@ -226,6 +228,7 @@ async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
         *,
         mode: str = "persistent",
         mcp_servers: object = None,
+        images: object = None,
     ):
         entered.set()
         await unblock.wait()
@@ -289,6 +292,7 @@ async def test_live_parallel_run_turn_different_chats() -> None:
         *,
         mode: str = "persistent",
         mcp_servers: object = None,
+        images: object = None,
     ):
         label = session_id.split("-")[-1]
         order.append(f"{label}_start")
@@ -381,6 +385,7 @@ async def test_live_direct_delegate_stream_cancel_propagates() -> None:
         *,
         mode: str = "persistent",
         mcp_servers: object = None,
+        images: object = None,
     ):
         entered.set()
         while True:
