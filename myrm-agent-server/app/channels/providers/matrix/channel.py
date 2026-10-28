@@ -63,7 +63,6 @@ logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 65536
 _SEND_TIMEOUT = 30.0
-_REACTION_TIMEOUT = 5.0
 _MEMBERS_CACHE_TTL = 300.0  # 5 minutes
 _MAUTRIX_AVAILABLE = False
 
@@ -371,13 +370,13 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
             )
             sent = await asyncio.wait_for(
                 self._client.send_message_event(room, EventType.REACTION, annotation),
-                timeout=_REACTION_TIMEOUT,
+                timeout=_SEND_TIMEOUT,
             )
             self._reactions.remember(chat_id, message_id, str(sent))
             return
         reaction_id = self._reactions.take(chat_id, message_id)
         if reaction_id is not None:
-            await asyncio.wait_for(self._client.redact(room, EventID(reaction_id)), timeout=_REACTION_TIMEOUT)
+            await asyncio.wait_for(self._client.redact(room, EventID(reaction_id)), timeout=_SEND_TIMEOUT)
 
     async def start_typing(self, chat_id: str) -> None:
         if self._client:

@@ -9,6 +9,7 @@ Outbound: Bot Framework connector API (text/adaptive card/file attachment)
 [INPUT]
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.providers.msteams.api::BotFrameworkApi (POS: HTTP/OAuth layer)
 - channels.providers.msteams.helpers (POS: HTML parsing, message encoding, Adaptive Card building)

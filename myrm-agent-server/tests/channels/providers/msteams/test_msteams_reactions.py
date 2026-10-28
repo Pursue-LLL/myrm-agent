@@ -8,6 +8,8 @@ without an ID is never sent as another reaction, and a removal takes down what t
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import httpx
 import pytest
 
@@ -19,7 +21,8 @@ SERVICE_URL = "https://smba.example.net/emea"
 CONVERSATION = "19:conv@thread.tacv2"
 ACTIVITY = "1700000000000"
 
-# glyph -> reaction ID, copied from the Teams Emoji Reactions Reference.
+# glyph -> reaction ID, copied from the Teams Emoji Reactions Reference
+# (learn.microsoft.com/en-us/microsoftteams/platform/agents-in-teams/teams-reactions-reference).
 OFFICIAL_IDS = {
     "\U0001f440": "1f440_eyes",
     "\U0001f914": "think",
@@ -42,16 +45,32 @@ OFFICIAL_IDS = {
 _PATH_PREFIX = f"/emea/v3/conversations/{CONVERSATION}/activities/{ACTIVITY}/reactions/"
 
 
+_LOGIN_HOST = "login.microsoftonline.com"
+
+
+def _token_response() -> httpx.Response:
+    return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+
+
+def _refusing(request: httpx.Request) -> httpx.Response:
+    return _token_response() if request.url.host == _LOGIN_HOST else httpx.Response(403, text="forbidden")
+
+
+def _unreachable(request: httpx.Request) -> httpx.Response:
+    if request.url.host == _LOGIN_HOST:
+        return _token_response()
+    raise httpx.ConnectError("net", request=request)
+
+
 class _FakeConnector:
     """Serves the login endpoint and records the reaction calls the connector would accept."""
 
-    def __init__(self, status: int = 204) -> None:
+    def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
-        self._status = status
 
     def handle(self, request: httpx.Request) -> httpx.Response:
-        if request.url.host == "login.microsoftonline.com":
-            return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        if request.url.host == _LOGIN_HOST:
+            return _token_response()
         reaction = request.url.path.removeprefix(_PATH_PREFIX)
         accepted = (
             request.method in {"PUT", "DELETE"}
@@ -62,15 +81,13 @@ class _FakeConnector:
         if not accepted:
             return httpx.Response(405)
         self.calls.append((request.method, reaction))
-        return httpx.Response(self._status)
+        return httpx.Response(204)
 
 
-def _channel(
-    connector: _FakeConnector | None = None, transport: httpx.MockTransport | None = None
-) -> tuple[MSTeamsChannel, _FakeConnector]:
-    connector = connector or _FakeConnector()
+def _channel(handler: Callable[[httpx.Request], httpx.Response] | None = None) -> tuple[MSTeamsChannel, _FakeConnector]:
+    connector = _FakeConnector()
     ch = MSTeamsChannel(app_id="test_app_id", app_password="test_app_password")
-    client = httpx.AsyncClient(transport=transport or httpx.MockTransport(connector.handle))
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler or connector.handle))
     ch._http = client
     ch._api._http = client
     ch._api.cache_service_url(CONVERSATION, SERVICE_URL)
@@ -148,14 +165,7 @@ class TestReactToMessage:
 
     @pytest.mark.asyncio
     async def test_a_refused_reaction_raises_and_is_not_remembered(self) -> None:
-        refused = _FakeConnector()
-
-        def refuse(request: httpx.Request) -> httpx.Response:
-            if request.url.host == "login.microsoftonline.com":
-                return refused.handle(request)
-            return httpx.Response(403, text="forbidden")
-
-        ch, connector = _channel(transport=httpx.MockTransport(refuse))
+        ch, connector = _channel(_refusing)
         with pytest.raises(ChannelSendError):
             await ch.react_to_message(CONVERSATION, ACTIVITY, "\U0001f440")
         await ch.react_to_message(CONVERSATION, ACTIVITY, "")
@@ -163,13 +173,6 @@ class TestReactToMessage:
 
     @pytest.mark.asyncio
     async def test_a_transport_error_surfaces_as_a_send_error(self) -> None:
-        down = _FakeConnector()
-
-        def unreachable(request: httpx.Request) -> httpx.Response:
-            if request.url.host == "login.microsoftonline.com":
-                return down.handle(request)
-            raise httpx.ConnectError("net", request=request)
-
-        ch, _ = _channel(transport=httpx.MockTransport(unreachable))
+        ch, _ = _channel(_unreachable)
         with pytest.raises(ChannelSendError, match="ConnectError"):
             await ch.react_to_message(CONVERSATION, ACTIVITY, "\U0001f440")

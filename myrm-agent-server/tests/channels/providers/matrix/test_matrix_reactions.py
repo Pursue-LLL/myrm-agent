@@ -142,6 +142,6 @@ class TestFailures:
             return "$never"
 
         client.send_message_event = hang  # type: ignore[method-assign,assignment]
-        monkeypatch.setattr("app.channels.providers.matrix.channel._REACTION_TIMEOUT", 0.01)
+        monkeypatch.setattr("app.channels.providers.matrix.channel._SEND_TIMEOUT", 0.01)
         with pytest.raises(asyncio.TimeoutError):
             await ch.react_to_message(ROOM, MESSAGE, EYES)
