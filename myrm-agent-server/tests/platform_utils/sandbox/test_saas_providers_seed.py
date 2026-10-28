@@ -4,6 +4,7 @@
 - 全新沙箱（无 providers 配置）首次启动 seed 平台 lite provider + 默认模型
 - 已有 provider 且已设默认模型 -> 跳过（不覆盖用户配置）
 - 已有 provider 但未设默认模型 -> 跳过（回归保护：seed 条件与意图一致）
+- providers 行已加密但当前密钥解不开（unreadable）-> 跳过，不覆盖仍可恢复的密文
 - providers 为空数组 -> 按全新沙箱处理，重新 seed
 - 非 sandbox 部署模式 / 缺少环境变量 -> 直接返回，不触碰配置
 - _parse_lite_model_ref 解析规则
@@ -50,8 +51,8 @@ class _FakeConfigService:
         return None
 
 
-def _record(value: Mapping[str, object], version: str = "1_0") -> SimpleNamespace:
-    return SimpleNamespace(value=value, version=version)
+def _record(value: Mapping[str, object], version: str = "1_0", *, unreadable: bool = False) -> SimpleNamespace:
+    return SimpleNamespace(value=value, version=version, unreadable=unreadable)
 
 
 def _patch_service(monkeypatch: pytest.MonkeyPatch, fake: _FakeConfigService) -> None:
@@ -116,7 +117,7 @@ class TestSeedFreshSandbox:
 
     async def test_seeds_when_record_value_is_not_dict(self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         """record 存在但 value 非 dict（异常数据）时按全新沙箱处理 seed。"""
-        fake = _FakeConfigService(record=SimpleNamespace(value="corrupted", version="9_0"))
+        fake = _FakeConfigService(record=_record("corrupted", "9_0"))
         _patch_service(monkeypatch, fake)
 
         await seed_saas_platform_providers_if_needed()
@@ -171,6 +172,24 @@ class TestSeedSkipsExistingConfiguration:
         await seed_saas_platform_providers_if_needed()
 
         assert fake.set_calls == []
+
+
+class TestSeedKeepsUnreadableRecord:
+    async def test_skips_when_stored_providers_cannot_be_decrypted(
+        self,
+        sandbox_env: None,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """密文行被丢失的密钥封住时 value 为空；seed 若当作「未配置」会永久覆盖用户还能恢复的密钥。"""
+        fake = _FakeConfigService(record=_record({}, "4_0", unreadable=True))
+        _patch_service(monkeypatch, fake)
+
+        with caplog.at_level(logging.WARNING):
+            await seed_saas_platform_providers_if_needed()
+
+        assert fake.set_calls == []
+        assert "cannot be decrypted" in caplog.text
 
 
 class TestSeedGuardClauses:

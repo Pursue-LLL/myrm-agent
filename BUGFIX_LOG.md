@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-28 · 云沙箱启动时的默认服务商 seed 把读不出的 providers 行覆盖成平台默认；云端先加载核心键，「配置读不出」横幅看不到后到的键
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server 一处守卫、frontend 一处订阅范围；harness 的脱敏改动另记 `BUG-HARNESS-2026-10-28-060`；不改提示词与控制平面）。接着 2026-10-27「配置密钥丢失后，启动归一化把读不出的密文行覆盖成默认值……」那一条的「仍然存在 ② ③」。没有在真实云沙箱里走过，见「仍然存在」。 |
+| **症状** | ① 云沙箱的 `providers` 行被丢失的密钥封住（`unreadable=true`、`value` 为空）后重启：`seed_saas_platform_providers_if_needed` 把它当成「没配置」，用平台默认 lite 模型写回（`saas_providers_seed.py` 原 `:101-105`）。写入后这一行是用新密钥封的，运维即使把旧密钥找回来，用户自己的 Key 也读不回，只剩审计日志里的旧密文。② 云端先加载核心键（`providers`、`chatSettings`、`personalSettings`），其余键在后台预加载；横幅在 `initialize()` 返回后只刷新一次、只订阅当时已不可读的键。① 发生之后 `providers` 读得出而 `mcpServers`、`searchServices`、各渠道凭据仍读不出，这些键后到时没有人通知横幅，横幅不出现，用户看到空设置就重新填写并永久覆盖。 |
+| **根因** | ① seed 读到 record 后只看 `record.value`；上一条加的 `ConfigRecord.unreadable` 只让 `key_consolidation.py` 与备份调度认它，自动写入方里 seed 漏了。② 横幅订阅的集合是 `getUnreadableKeys()` 在首次刷新那一刻的结果（`config-unreadable-banner.tsx` 原 `:42-44`），而预加载写缓存后只通知各键自己的订阅者（`ConfigSyncManager.ts:137`）。 |
+| **修复** | server：`saas_providers_seed.py` 读到 record 后若 `unreadable` 直接返回并打一条英文 WARNING，不写入；`tests` 里的夹具补 `unreadable` 字段。frontend：横幅订阅 `ALL_CONFIG_KEYS` 全部键，任一键后到或被保存都重新判定；卸载时退订全部。 |
+| **回归证据** | [1] 先红后绿：`test_saas_providers_seed.py::TestSeedKeepsUnreadableRecord`（修前写入 1 次，修后 0 次）；横幅测试两例（后到的不可读键使横幅出现；卸载时退订全部 30 个键）。[2] 内存复现：4 种输入（不可读行 / 无行 / 可读空行 / 已有服务商）的写入次数修前 1、1、1、0，修后 0、1、1、0；加守卫后既有 17 个 seed 测试有 5 个失败，原因只是夹具对象没有 `unreadable` 属性，补上后 18 个全过。[3] 横幅两阶段复现（临时测试，已删）：修前 `providers` 可读、`mcpServers` 后到且不可读时横幅不出现；订阅全部键的版本出现。[4] 套件：server `tests/platform_utils` 与 `tests/services/config` 95 通过；frontend `app-shell`、`services/config`、`components/layout` 68 个文件 445 通过，`tsc --noEmit` 无报错，`verify:theme-colors` 通过，改动的文件 `oxlint` 与 `prettier` 无问题。 |
+| **仍然存在** | ① 只防覆盖，不恢复密钥；云沙箱换钥的托管在控制平面，本条不动。② seed 在线上被触发的频率没有数据。③ 横幅用模拟管理器的两阶段测试加读到的通知代码验证，没有在真实云沙箱与浏览器里走；横幅的样式与 DOM 没改，所以没有重做 375/1280 的浅深色目视检查。④ `ALL_CONFIG_KEYS` 之外按需读取的密封键（动态渠道实例的凭据）进缓存后不会触发横幅，要到下次刷新或重载才计入。⑤ 不经 `ConfigService.set` 直接写库的写入方没有改；自动写入方已逐个枚举，只有 seed 漏了守卫。 |
+
 ## 2026-10-28 · 代码编辑器（Monaco）的明暗主题由 15 个调用点各自传：深色模式下技能详情的编辑器是白底，后挂载的编辑器会把页面上所有编辑器改成它的主题；两处绕过懒加载包装，随包的 Monaco 没登记就回退到 CDN
 
 | 字段 | 内容 |

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ConfigKey } from '@/services/config/types';
+import { ALL_CONFIG_KEYS, type ConfigKey } from '@/services/config/types';
 import ConfigUnreadableBanner from '../config-unreadable-banner';
 
 vi.mock('next-intl', () => ({
@@ -75,12 +75,21 @@ describe('ConfigUnreadableBanner', () => {
     expect(screen.queryByTestId('config-unreadable-banner')).toBeNull();
   });
 
-  it('stops listening when it unmounts', async () => {
-    manager.unreadable = ['providers'];
+  it('shows up when an unreadable config arrives after the core configs were already loaded', async () => {
+    await renderBanner();
+    expect(screen.queryByTestId('config-unreadable-banner')).toBeNull();
+
+    manager.unreadable = ['mcpServers'];
+    act(() => manager.listeners.get('mcpServers')?.());
+
+    expect(screen.getByTestId('config-unreadable-banner')).toBeTruthy();
+  });
+
+  it('stops listening to every config key when it unmounts', async () => {
     const view = await renderBanner();
 
     view.unmount();
 
-    expect(manager.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(manager.unsubscribe).toHaveBeenCalledTimes(ALL_CONFIG_KEYS.length);
   });
 });

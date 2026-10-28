@@ -5,7 +5,7 @@
 - app.services.config.service::ConfigService (POS: 用户配置读写服务，管理 providers 等配置的存储与同步)
 
 [OUTPUT]
-- seed_saas_platform_providers_if_needed(): 沙箱启动时幂等 seed 平台 lite model provider
+- seed_saas_platform_providers_if_needed(): 沙箱启动时幂等 seed 平台 lite model provider；providers 行因密钥丢失不可读时不写入
 - _parse_lite_model_ref(): 解析 ``openrouter/provider/model`` 模型引用
 - 写入成功后调用 invalidate_user_configs_cache()，保证 channel_bridge 立即读到新配置
 
@@ -60,6 +60,11 @@ async def seed_saas_platform_providers_if_needed() -> None:
 
     service = ConfigService()
     record = await service.get("providers")
+    if record is not None and record.unreadable:
+        # The row is sealed under a key this sandbox no longer has; its value reads as empty, and writing a seed over it
+        # would destroy ciphertext the operator can still restore.
+        logger.warning("SaaS platform provider seed skipped: the stored providers cannot be decrypted with the current key")
+        return
     existing_value: dict[str, object] = {}
     if record is not None and isinstance(record.value, dict):
         existing_value = dict(record.value)

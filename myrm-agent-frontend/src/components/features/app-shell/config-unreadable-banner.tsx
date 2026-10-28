@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - `@/services/config/ConfigSyncManager` (`getConfigSyncManager`: `initialize`, `getUnreadableKeys`, `subscribe`)
+ * - `@/services/config/types` (`ALL_CONFIG_KEYS`: every key the banner re-checks when its config arrives or is saved)
  * - `next-intl` (`common.configUnreadable`, `common.close`)
  *
  * [OUTPUT]
@@ -16,7 +17,7 @@ import { useTranslations } from 'next-intl';
 import { AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
-import type { ConfigKey } from '@/services/config/types';
+import { ALL_CONFIG_KEYS, type ConfigKey } from '@/services/config/types';
 
 function useUnreadableConfigKeys(): ConfigKey[] {
   const [keys, setKeys] = useState<ConfigKey[]>([]);
@@ -37,8 +38,9 @@ function useUnreadableConfigKeys(): ConfigKey[] {
         return;
       }
       refresh();
-      // A key leaves the list once the user saves it, which notifies its subscribers.
-      for (const key of manager.getUnreadableKeys()) {
+      // Cloud loads the core configs first and preloads the rest afterwards, so a sealed config can arrive after the
+      // first refresh; a key also leaves the list once the user saves it. Both notify that key's subscribers.
+      for (const key of ALL_CONFIG_KEYS) {
         unsubscribers.push(manager.subscribe(key, refresh));
       }
     });
