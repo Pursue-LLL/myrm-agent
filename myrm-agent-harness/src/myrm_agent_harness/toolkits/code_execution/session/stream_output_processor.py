@@ -5,7 +5,7 @@ utils.text_utils::strip_ansi (POS: ANSI escape sequence stripping, ECMA-48 full 
 executors.models::scrub_sensitive_info (POS: absolute-path and credential scrubbing for output streams)
 
 [OUTPUT]
-StreamOutputProcessor: Handles auto-tee writing, SSE flood protection, and disk quota.
+StreamOutputProcessor: Handles auto-tee writing, SSE flood protection, whole-line scrubbing of live text, and disk quota.
 
 [POS]
 Single source of truth for output handling: tee file writing with 50MB quota,

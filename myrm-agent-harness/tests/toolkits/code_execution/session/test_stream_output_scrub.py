@@ -68,6 +68,14 @@ class TestSplitSecrets:
         assert shown == scrub_sensitive_info(_PEM)
         assert _PEM_BODY not in shown
 
+    @pytest.mark.parametrize("cut", range(1, len(_PEM.replace("\n", "\r\n"))))
+    def test_private_key_block_with_windows_line_ends_split_at_every_position(self, cut: int) -> None:
+        text = _PEM.replace("\n", "\r\n")
+        shown = _stream([text[:cut], text[cut:]])
+
+        assert shown == scrub_sensitive_info(text)
+        assert _PEM_BODY not in shown
+
     def test_secret_split_across_many_small_reads(self) -> None:
         text = f"before\ntoken {_KEY} end\nafter\n"
         shown = _stream(list(text))

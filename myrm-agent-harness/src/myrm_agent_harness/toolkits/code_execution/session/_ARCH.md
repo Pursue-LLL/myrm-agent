@@ -23,7 +23,7 @@ state (env vars, cwd) across commands.
 
 - `utils.text_utils.strip_ansi` — ANSI escape sequence stripping for clean SSE output
 - `executors.common.exit_classify` — Non-zero exit code semantic classification
-- `executors.models.scrub_sensitive_info` — path and credential scrubbing for real-time SSE streams (called by `StreamOutputProcessor`, not by `command_stream.py`)
+- `executors.models.scrub_sensitive_info` — path and credential scrubbing for real-time SSE streams (called by `StreamOutputProcessor`)
 - `security.script_armor.prepare_armored_command` — Script materialization & subprocess invocation armor
 - `security.script_armor.sweep_stale_materialized_scripts` — Stale orphan temporary script cleanup on startup
 - `utils.runtime.cancel_hook::cut_deadline_on_cancel` — brings the command deadline forward when the request's cancel token fires

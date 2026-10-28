@@ -3,7 +3,7 @@
 [INPUT]
 session.models::SessionExecutionResult, SessionState (POS: Plain session value types)
 session.shell_flavor::ShellFlavor (POS: Platform-specific shell command formatting)
-session.stream_output_processor::StreamOutputProcessor (POS: Unified tee/SSE output handling)
+session.stream_output_processor::StreamOutputProcessor (POS: Unified tee/SSE output handling; live text scrubbed on whole lines)
 session.stream_buffer::ExecutionStreamBuffer (POS: Zero-copy byte stream parsing)
 security.script_armor::prepare_armored_command (POS: Execution security armor wrapping script materialization)
 utils.runtime.cancel_hook::DeadlineCut, cut_deadline_on_cancel (POS: end a timeout scope as soon as the request token is cancelled)
