@@ -5,7 +5,7 @@
 - channels.routing.command_defs::CommandKind (POS: slash command enums)
 - channels.routing.commands::parse_topic_args (POS: slash command argument parsing)
 - channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it)
-- channels.routing.policy_resolver::PolicyResolver (POS: the access verdict ``is_sender_admitted`` that decides whether a sender's attachments are worth processing)
+- channels.routing.policy_resolver::PolicyResolver (POS: DM/group policy resolution + identity resolution)
 - channels.routing.router_models::_AgentTurnScratch (POS: per-turn state the error path reads)
 - channels.routing.reactions::StatusReaction, TurnOutcome (POS: the reaction the turn shows on the user's message)
 - channels.voice.handler::transcribe_inbound, transcribe_video_inbound, has_audio_attachment, has_video_with_audio (POS: voice processing)

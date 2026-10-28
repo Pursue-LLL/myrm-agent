@@ -19,8 +19,8 @@ pairing status, and WhatsApp LID fallback logic.
 Inbound policy resolution: decides whether a message reaches an agent turn and under which identity.
 Handles DM/group policy evaluation, user identity resolution, and pairing state management.
 Router holds an instance via composition and calls resolve_group_user / resolve_dm_user,
-and is_sender_admitted / is_untrusted_event_sender for work that must follow the access policy and the sender's
-trust level but runs before those resolvers.
+and is_sender_admitted / is_untrusted_event_sender for work that runs before those resolvers but must follow the
+access policy and the sender's trust level: event-triggered jobs and the processing of a turn's attachments.
 """
 
 from __future__ import annotations
