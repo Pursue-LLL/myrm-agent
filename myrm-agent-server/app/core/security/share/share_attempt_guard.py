@@ -13,10 +13,16 @@
 [POS]
 A password-protected share link is a self-contained signed token, so anyone holding it can try passwords at
 network speed. Failures are counted per token and client address: five wrong passwords lock that client out of that
-share for the rest of a 60-second window, during which even the correct password is refused so the lock never
-reveals whether a guess was right. Visitors who already hold an unlock cookie never reach the gate and are not
-affected. Behind a reverse proxy every visitor shares the proxy's address, so an attack on one link can briefly lock
-other visitors of that same link out of the password form. State is in-process and bounded.
+share for the rest of a five-minute window (longer than the login lock because the visitors are anonymous and a
+legitimate recipient only waits), during which even the correct password is refused so the lock never reveals
+whether a guess was right; the locked page reloads itself once the lock lifts. Visitors who already hold an unlock
+cookie never reach the gate and are not affected.
+
+The client address is ``request.client.host``. uvicorn rewrites it from X-Forwarded-For only for peers listed in
+FORWARDED_ALLOW_IPS (default 127.0.0.1), so behind a proxy on another host or container network every visitor
+shares the proxy's address and an attack on one link can briefly lock its other visitors out of the form, unless
+FORWARDED_ALLOW_IPS names that proxy (never ``*``: any client could then forge the header and dodge the lock).
+State is in-process and bounded, so a multi-process server (SERVER_MODE=granian) counts per process.
 """
 
 from __future__ import annotations
@@ -29,7 +35,14 @@ from app.core.security.share.share_hmac import token_fingerprint
 from app.core.security.share.share_locale import resolve_share_lang
 from app.core.security.share.share_password_page import render_password_gate_html
 
-_guard = FailedAttemptGuard()
+_LOCK_WINDOW_SECONDS = 300.0
+
+
+def _new_guard() -> FailedAttemptGuard:
+    return FailedAttemptGuard(window_seconds=_LOCK_WINDOW_SECONDS)
+
+
+_guard = _new_guard()
 
 
 def _attempt_key(request: Request, token: str) -> str:

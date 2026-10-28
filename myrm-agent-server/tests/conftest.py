@@ -535,9 +535,7 @@ def _isolate_share_password_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     module = sys.modules.get("app.core.security.share.share_attempt_guard")
     if module is not None:
-        from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
-
-        monkeypatch.setattr(module, "_guard", FailedAttemptGuard())
+        monkeypatch.setattr(module, "_guard", module._new_guard())
 
 
 @pytest.fixture(autouse=True)

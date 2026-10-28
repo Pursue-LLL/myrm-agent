@@ -73,7 +73,7 @@ def test_wrong_guesses_answer_403_then_the_sixth_attempt_is_429(client: TestClie
     locked = _guess(client, token, "wrong")
 
     assert locked.status_code == 429
-    assert 1 <= int(locked.headers["Retry-After"]) <= 60
+    assert 60 < int(locked.headers["Retry-After"]) <= 300
     assert "Too many incorrect attempts" in locked.text
 
 

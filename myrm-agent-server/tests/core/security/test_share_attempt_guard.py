@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 from starlette.requests import Request
 
+from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
 from app.core.security.share import share_attempt_guard
 from app.core.security.share.share_attempt_guard import (
     password_lockout_response,
@@ -31,9 +32,7 @@ def _fail(token: str, host: str | None, times: int) -> None:
 
 @pytest.fixture(autouse=True)
 def _fresh_guard(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
-
-    monkeypatch.setattr(share_attempt_guard, "_guard", FailedAttemptGuard())
+    monkeypatch.setattr(share_attempt_guard, "_guard", share_attempt_guard._new_guard())
 
 
 def test_no_lockout_before_the_failure_limit() -> None:
@@ -48,11 +47,36 @@ def test_lockout_page_is_a_429_with_retry_after_and_a_disabled_form() -> None:
 
     assert response is not None
     assert response.status_code == 429
-    assert 1 <= int(response.headers["Retry-After"]) <= 60
+    assert 60 < int(response.headers["Retry-After"]) <= 300
     body = bytes(response.body).decode()
     assert "Too many incorrect attempts" in body
     assert "autofocus disabled/>" in body
     assert 'type="submit" disabled>' in body
+
+
+def test_lockout_page_reloads_itself_once_the_lock_has_lifted() -> None:
+    _fail(_TOKEN, "10.0.0.1", 5)
+
+    response = password_lockout_response(_request(), _TOKEN)
+
+    assert response is not None
+    retry_after = int(response.headers["Retry-After"])
+    assert f'<meta http-equiv="refresh" content="{retry_after + 1}"/>' in bytes(response.body).decode()
+
+
+def test_lock_lasts_five_minutes(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = [1000.0]
+    monkeypatch.setattr(
+        share_attempt_guard,
+        "_guard",
+        FailedAttemptGuard(window_seconds=share_attempt_guard._LOCK_WINDOW_SECONDS, clock=lambda: now[0]),
+    )
+    _fail(_TOKEN, "10.0.0.1", 5)
+
+    now[0] += 299
+    assert password_lockout_response(_request(), _TOKEN) is not None
+    now[0] += 2
+    assert password_lockout_response(_request(), _TOKEN) is None
 
 
 def test_lockout_page_follows_the_visitor_language() -> None:
