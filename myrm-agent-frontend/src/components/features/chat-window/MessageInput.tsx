@@ -38,10 +38,7 @@ import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
 import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
 import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityButton';
-import {
-  ThinkingBudgetEffortSlider,
-  PermissionModeTierSwitcher,
-} from './thinking-permission';
+import { ThinkingBudgetEffortSlider, PermissionModeTierSwitcher } from './thinking-permission';
 import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
@@ -82,6 +79,7 @@ import ClarificationInput from '../message-box/ClarificationInput';
 import SessionAccessRootsBar from './SessionAccessRootsBar';
 import ProjectBoundaryBadge from './ProjectBoundaryBadge';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
+import { selectChatGenerating } from '@/store/chat/serverTurn';
 import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -123,6 +121,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const commandsT = useTranslations('commands');
   const messages = useChatStore((s) => s.messages);
   const chatId = useChatStore((s) => s.chatId);
+  const serverTurnActive = useChatStore(selectChatGenerating);
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
   const projects = useProjectStore((s) => s.projects);
   const projectsLoaded = useProjectStore((s) => s.loaded);
@@ -213,6 +212,17 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const busyPlaceholderKey = resolveBusyPlaceholderKey(
     resolveBusySubmitMode(files.length > 0, agentConfig?.busyInputMode),
     isExpanded,
+  );
+
+  const stopButton = (
+    <button
+      type="button"
+      onClick={stopMessage}
+      className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
+      aria-label={chatT('input.stop')}
+    >
+      <Square size={17} />
+    </button>
   );
 
   const { pendingExplicitSkillActivation, setPendingExplicitSkillActivation } = useChatStore(
@@ -692,31 +702,28 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                             </button>
                           </>
                         ) : null}
-                        <button
-                          type="button"
-                          onClick={stopMessage}
-                          className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
-                          aria-label={chatT('input.stop')}
-                        >
-                          <Square size={17} />
-                        </button>
+                        {stopButton}
                       </div>
                     ) : (
-                      <span className="brand-elevation-slot">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleSubmit();
-                          }}
-                          disabled={
-                            inputMessage.trim().length === 0 && files.length === 0 && !pendingExplicitSkillActivation
-                          }
-                          className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
-                          aria-label={commonT('send')}
-                        >
-                          <ArrowRight size={17} />
-                        </button>
-                      </span>
+                      <>
+                        {/* A turn the server started itself (a wake after background work) runs without `loading`; Stop still reaches it. */}
+                        {serverTurnActive && stopButton}
+                        <span className="brand-elevation-slot">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleSubmit();
+                            }}
+                            disabled={
+                              inputMessage.trim().length === 0 && files.length === 0 && !pendingExplicitSkillActivation
+                            }
+                            className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
+                            aria-label={commonT('send')}
+                          >
+                            <ArrowRight size={17} />
+                          </button>
+                        </span>
+                      </>
                     )}
                   </div>
                 </div>

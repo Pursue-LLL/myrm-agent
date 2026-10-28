@@ -1417,11 +1417,6 @@ export const ExportedLiveTeamSupervisionKanban = dynamic(
   { ssr: false },
 );
 
-export const ExportedAdaptiveWakeupIndicator = dynamic(
-  () => import('./AdaptiveWakeupIndicator').then((module) => ({ default: module.AdaptiveWakeupIndicator })),
-  { ssr: false },
-);
-
 export const ExportedSubagentWatermarkAlertChip = dynamic(
   () => import('./SubagentWatermarkAlertChip').then((module) => ({ default: module.SubagentWatermarkAlertChip })),
   { ssr: false },

@@ -26,6 +26,7 @@ import { useGoalPlanSync } from '@/components/features/chat-window/goals/useGoal
 import { useGoalSync } from '@/components/features/chat-window/goals/useGoalSync';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
+import { selectChatGenerating } from '@/store/chat/serverTurn';
 import { MobileStatusApprovalsSection } from './MobileStatusApprovalsSection';
 import { MobileStatusMessageBody } from './MobileStatusMessageBody';
 import { MobilePushDiscoveryBanner } from './MobilePushDiscoveryBanner';
@@ -49,6 +50,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
     })),
   );
 
+  const serverTurnActive = useChatStore(selectChatGenerating);
   const approvalQueue = useToolApprovalStore((s) => s.queue);
   const desktopViewData = useDesktopInspectorStore((state) => selectScopedDesktopViewData(state.viewData, chatId));
   const browserViewData = useBrowserInspectorStore((state) => selectScopedBrowserViewData(state.viewData, chatId));
@@ -282,7 +284,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
           onOpenAdvisor={handleOpenAdvisor}
         />
 
-        {loading && (
+        {(loading || serverTurnActive) && (
           <div className="px-3 pb-3">
             <Button variant="destructive" className="w-full h-11 text-sm font-medium rounded-xl" onClick={stopMessage}>
               <Square className="mr-2 h-4 w-4 fill-current" />

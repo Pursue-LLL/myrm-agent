@@ -25,6 +25,7 @@ import {
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import { postTurnInstruction } from './chat/turnInstruction';
+import { cancelChatTurn, selectChatGenerating } from './chat/serverTurn';
 import { useMessageQueueStore } from './chat/useMessageQueueStore';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
@@ -687,17 +688,16 @@ const useChatStore = create<ChatState>()(
         }
 
         if (!chatAbortController) {
+          if (selectChatGenerating(get())) {
+            // The server started this turn itself (a wake after background work): no local controller, only the chat id reaches it.
+            void cancelChatTurn(chatId);
+            useMessageQueueStore.getState().pauseOnStop(chatId);
+            void releaseTurnInspectorControls(chatId);
+          }
           return;
         }
 
-        void (async () => {
-          try {
-            await cancelActiveChatAgent(chatId);
-            showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
-          } catch {
-            showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
-          }
-        })();
+        void cancelChatTurn(chatId);
         useMessageQueueStore.getState().pauseOnStop(chatId);
         chatAbortController.abort();
         void releaseTurnInspectorControls(chatId);
@@ -710,10 +710,7 @@ const useChatStore = create<ChatState>()(
           }
         });
       },
-      steerMessage: async (
-        message: string,
-        options?: { mode?: string; quotedRef?: string },
-      ) => {
+      steerMessage: async (message: string, options?: { mode?: string; quotedRef?: string }) => {
         const { chatId } = get();
         if (!chatId) {
           return false;

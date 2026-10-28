@@ -79,7 +79,9 @@ vi.mock('@/store/chat/goals/useGoalStore', () => ({
   useGoalStore: () => null,
 }));
 
-let chatStoreState = {
+let chatStoreState: Record<string, unknown> = {
+  chatId: 'stop-chat-1',
+  sessionStatuses: {} as Record<string, string>,
   messages: [],
   loading: false,
   stopMessage: vi.fn(),
@@ -207,5 +209,58 @@ describe('MobileStatusBoard command submit', () => {
 
     expect(toastError).toHaveBeenCalledWith('commandNotAccepted');
     expect(getInput().value).toBe(COMMAND);
+  });
+});
+
+describe('MobileStatusBoard stop button', () => {
+  const stopMessage = vi.fn();
+  const stopButton = () => screen.queryByRole('button', { name: 'stopTask' });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    sessionStatuses({});
+    chatStoreState = { ...chatStoreState, loading: false, stopMessage };
+  });
+
+  function sessionStatuses(statuses: Record<string, string>): void {
+    chatStoreState = { ...chatStoreState, chatId: 'stop-chat-1', sessionStatuses: statuses };
+  }
+
+  it('offers no stop while the agent is idle', async () => {
+    await act(async () => {
+      render(<MobileStatusBoard chatId="stop-chat-1" />);
+    });
+
+    expect(stopButton()).toBeNull();
+  });
+
+  it('offers stop for a turn this client started', async () => {
+    chatStoreState = { ...chatStoreState, loading: true };
+    await act(async () => {
+      render(<MobileStatusBoard chatId="stop-chat-1" />);
+    });
+
+    expect(stopButton()).not.toBeNull();
+  });
+
+  it('offers stop for a turn the server started itself, such as a wake after background work', async () => {
+    sessionStatuses({ 'stop-chat-1': 'generating' });
+    await act(async () => {
+      render(<MobileStatusBoard chatId="stop-chat-1" />);
+    });
+
+    fireEvent.click(stopButton() as HTMLElement);
+
+    expect(stopMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no stop for a turn running in another chat', async () => {
+    sessionStatuses({ 'other-chat': 'generating' });
+    await act(async () => {
+      render(<MobileStatusBoard chatId="stop-chat-1" />);
+    });
+
+    expect(stopButton()).toBeNull();
   });
 });
