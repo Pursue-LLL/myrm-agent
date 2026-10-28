@@ -158,6 +158,40 @@ class TestSensitiveSecretStripping:
         assert "SSLKEYLOGFILE" not in sanitized
 
 
+class TestCredentialShapedValuesGetNoExemption:
+    """A secret-named variable is stripped whatever its value looks like (no value-shape escape hatch)."""
+
+    _VOUCHER_SHAPED = "myrm-sent-v1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.end"
+
+    @pytest.mark.parametrize("policy", [EnvInheritPolicy.ALL, EnvInheritPolicy.CORE])
+    def test_sanitize_env_strips_a_secret_named_variable_with_a_voucher_shaped_value(
+        self, policy: EnvInheritPolicy
+    ) -> None:
+        raw_env = {"PATH": "/usr/bin", "GITHUB_TOKEN": self._VOUCHER_SHAPED, "MY_API_KEY": self._VOUCHER_SHAPED}
+
+        assert sanitize_env(raw_env, inherit_policy=policy) == {"PATH": "/usr/bin"}
+
+    def test_build_isolated_child_env_strips_voucher_shaped_overrides(self) -> None:
+        child_env = build_isolated_child_env(
+            base_env={"PATH": "/usr/bin"},
+            extra_env={"GITHUB_TOKEN": self._VOUCHER_SHAPED, "NORMAL_VAR": "val"},
+            inherit_policy=EnvInheritPolicy.ALL,
+        )
+
+        assert child_env == {"PATH": "/usr/bin", "NORMAL_VAR": "val"}
+
+    def test_local_executor_shell_env_strips_a_voucher_shaped_user_env_value(self) -> None:
+        from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
+        from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
+
+        executor = LocalExecutor(config=ExecutionConfig(), workspace_path="/tmp")
+
+        built_env = executor._build_bash_env(user_env={"GITHUB_TOKEN": self._VOUCHER_SHAPED, "KEPT": "yes"})
+
+        assert "GITHUB_TOKEN" not in built_env
+        assert built_env["KEPT"] == "yes"
+
+
 class TestBuildIsolatedChildEnvOverrides:
     """Tests build_isolated_child_env with explicit caller extras."""
 

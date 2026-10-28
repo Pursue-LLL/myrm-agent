@@ -106,7 +106,7 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 
 | 条款 | 偏离 | 证据 |
 |---|---|---|
-| §3 第1条 不留兼容包袱 | 24 个文件保留 `Backward-compatible alias` / `Legacy alias` | `core/security/egress/tainted_gateway.py`、`core/security/missing_semantics.py`、`toolkits/browser/pool/extension_bridge.py` 等 |
+| §3 第1条 不留兼容包袱 | 7 个文件保留 `Backward-compatible alias` / `Legacy alias` | `core/security/missing_semantics.py`、`toolkits/browser/pool/extension_bridge.py` 等 |
 | §3 第2条 走持久化抽象 | 子 agent checkpoint 直接落文件系统，不经 `StorageProvider` | `agent/sub_agents/checkpoint/saver.py` 只用 `MYRM_DATA_DIR/checkpoints` + `atomic_write` |
 | §3 第3条 / §4 零拷贝契约 | 两处产出 `ArtifactVault` 无法解析的指针：`vault://{chat_id}/turns/{i}/transcript.log`（从不落盘）、`vault://artifacts/{task}/result.json`（`default_worker_runner` 的模拟实现） | `agent/context_management/strategies/summary/turn_refetcher.py`、`agent/sub_agents/swarm_offload/offload_dispatcher.py`（该包在 `src/` 内无任何引用方，仅单测使用） |
 | §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |

@@ -1,4 +1,4 @@
-"""Unit tests for ExternalSecretsManager, Single-Flight concurrency, and Sentinel integration."""
+"""Unit tests for ExternalSecretsManager, Single-Flight concurrency, and credential env resolution."""
 
 from __future__ import annotations
 
@@ -81,8 +81,8 @@ def test_ttl_expiration(mock_run: MagicMock) -> None:
 
 
 @patch("subprocess.run")
-def test_safe_exec_sentinel_voucher_wrapping(mock_run: MagicMock) -> None:
-    """Ensure safe_exec wraps resolved external secrets into AES-256-GCM Sentinel vouchers."""
+def test_credential_env_overrides_resolves_external_secret_reference(mock_run: MagicMock) -> None:
+    """A token that is an external secret reference reaches the environment as its resolved value."""
     mock_proc = MagicMock()
     mock_proc.returncode = 0
     mock_proc.stdout = "sk-live-github-token-secret\n"
@@ -95,16 +95,17 @@ def test_safe_exec_sentinel_voucher_wrapping(mock_run: MagicMock) -> None:
         ),
     )
 
-    # When use_sentinel is False, returns plaintext
-    env_plain = credential_env_overrides(creds, use_sentinel=False)
-    assert env_plain["GITHUB_TOKEN"] == "sk-live-github-token-secret"
+    assert credential_env_overrides(creds)["GITHUB_TOKEN"] == "sk-live-github-token-secret"
 
-    # When use_sentinel is True, returns an opaque Sentinel voucher
-    env_sentinel = credential_env_overrides(creds, use_sentinel=True)
-    voucher = env_sentinel["GITHUB_TOKEN"]
-    assert voucher.startswith("myrm-sent-v1.")
-    assert voucher.endswith(".end")
-    assert "sk-live-github" not in voucher
+
+@patch("subprocess.run")
+def test_credential_env_overrides_passes_an_unresolvable_reference_through(mock_run: MagicMock) -> None:
+    mock_run.side_effect = subprocess.CalledProcessError(1, "op")
+    reference = "op://Engineering/GitHub/personal_access_token"
+
+    creds = (EphemeralUserCredential(issuer="github", token=reference),)
+
+    assert credential_env_overrides(creds)["GITHUB_TOKEN"] == reference
 
 
 def test_invalidate_and_clear_cache() -> None:
@@ -202,4 +203,3 @@ def test_cache_capacity_eviction(mock_run: MagicMock) -> None:
     assert len(manager._cache) == 256
     assert "op://V/I/k0" not in manager._cache
     assert "op://V/I/new_secret" in manager._cache
-

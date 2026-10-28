@@ -105,7 +105,6 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         self._current_workspace: Path | None = None
         self._readonly_paths: list[str] = []
         self._bash_sessions: dict[str, LocalPersistentSession] = {}
-        self._egress_proxy: object | None = None
         self._closed: bool = False
 
         if workspace_path:
@@ -507,28 +506,6 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
                     del self._bash_sessions[session_key]
 
         logger.info(f" [LocalExecutor] Creating new Bash session: {session_key}")
-        # Sentinel Egress Guard: automatically wire loopback egress proxy when sentinels exist
-        proxy_url = await self._ensure_egress_proxy()
-        if proxy_url:
-            env["HTTP_PROXY"] = proxy_url
-            env["HTTPS_PROXY"] = proxy_url
-            env["http_proxy"] = proxy_url
-            env["https_proxy"] = proxy_url
-            env["ALL_PROXY"] = proxy_url
-            env["all_proxy"] = proxy_url
-            env["NODE_USE_ENV_PROXY"] = "1"
-            no_proxy_val = "localhost,127.0.0.1,::1,[::1],_MYRM_PTC_*"
-            env["NO_PROXY"] = no_proxy_val
-            env["no_proxy"] = no_proxy_val
-            from myrm_agent_harness.core.security.egress.proxy_server import LoopbackEgressProxy
-
-            if isinstance(self._egress_proxy, LoopbackEgressProxy) and self._egress_proxy.ca_bundle_path:
-                ca_path = self._egress_proxy.ca_bundle_path
-                env["SSL_CERT_FILE"] = ca_path
-                env["REQUESTS_CA_BUNDLE"] = ca_path
-                env["CURL_CA_BUNDLE"] = ca_path
-                env["NODE_EXTRA_CA_CERTS"] = ca_path
-
         config = SessionConfig(
             session_id=session_key,
             work_dir=workspace_path,
@@ -564,37 +541,6 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
             return
         self._closed = True
         await self.cleanup_bash_sessions()
-        if self._egress_proxy is not None:
-            try:
-                from myrm_agent_harness.core.security.egress.proxy_server import LoopbackEgressProxy
-
-                if isinstance(self._egress_proxy, LoopbackEgressProxy):
-                    await self._egress_proxy.stop()
-            except Exception as e:
-                logger.warning(f" [LocalExecutor] Failed to stop egress proxy: {e}")
-            finally:
-                self._egress_proxy = None
-
-    async def _ensure_egress_proxy(self) -> str | None:
-        """Ensure loopback egress proxy is running if sentinels are tracked."""
-        from myrm_agent_harness.core.security.egress.sentinel import get_global_sentinel_manager
-
-        sentinel_mgr = get_global_sentinel_manager()
-        if not sentinel_mgr.has_sentinels():
-            return None
-
-        if self._egress_proxy is None:
-            from myrm_agent_harness.core.security.egress.proxy_server import LoopbackEgressProxy
-
-            proxy = LoopbackEgressProxy(sentinel_manager=sentinel_mgr)
-            await proxy.start()
-            self._egress_proxy = proxy
-
-        from myrm_agent_harness.core.security.egress.proxy_server import LoopbackEgressProxy
-
-        if isinstance(self._egress_proxy, LoopbackEgressProxy):
-            return self._egress_proxy.proxy_url
-        return None
 
     async def _prepare_bash_command(self, command: str) -> str:
         """Rewrite workspace paths, search commands, and pip commands for the local environment."""
@@ -633,7 +579,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         )
 
         for k in list(env.keys()):
-            if is_non_inheritable_env_var(k, env.get(k)):
+            if is_non_inheritable_env_var(k):
                 env.pop(k, None)
 
         try:
@@ -645,7 +591,7 @@ class LocalExecutor(LocalFileOpsMixin, CodeExecutor):
         except LookupError:
             pass
 
-        # Inject Egress Proxy environment if proxy is running
+        # A host-provided egress proxy (and its CA bundle) is part of the environment a shell starts with
         egress_proxy_url = os.getenv("MYRM_EGRESS_PROXY_URL")
         if egress_proxy_url:
             env["http_proxy"] = egress_proxy_url

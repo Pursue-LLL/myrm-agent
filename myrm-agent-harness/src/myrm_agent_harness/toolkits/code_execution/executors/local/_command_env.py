@@ -37,11 +37,7 @@ def scrubbed_user_env(user_env: Mapping[str, str] | None) -> dict[str, str]:
     from myrm_agent_harness.toolkits.code_execution.security.env_isolation import is_non_inheritable_env_var
     from myrm_agent_harness.toolkits.code_execution.security.validator import sanitize_env
 
-    return {
-        name: value
-        for name, value in sanitize_env(dict(user_env)).items()
-        if not is_non_inheritable_env_var(name, value)
-    }
+    return {name: value for name, value in sanitize_env(dict(user_env)).items() if not is_non_inheritable_env_var(name)}
 
 
 def collect_command_credentials(allowed_issuers: list[str] | None, command: str | None) -> dict[str, str]:

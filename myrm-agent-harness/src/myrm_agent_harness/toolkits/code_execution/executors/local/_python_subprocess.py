@@ -143,7 +143,7 @@ async def run_python_subprocess(
         for k in list(process_env.keys()):
             if k == "PYTHONPATH" and ptc_session:
                 continue
-            if is_non_inheritable_env_var(k, process_env.get(k)):
+            if is_non_inheritable_env_var(k):
                 process_env.pop(k, None)
 
         logger.info(f" [LocalExecutor] Using Python: {python_executable}")

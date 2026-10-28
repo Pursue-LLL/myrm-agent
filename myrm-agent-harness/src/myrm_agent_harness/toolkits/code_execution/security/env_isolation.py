@@ -289,20 +289,12 @@ def _is_sensitive_key(key: str) -> bool:
     return _matches_wildcard(key)
 
 
-def is_non_inheritable_env_var(key: str, value: str | None = None) -> bool:
+def is_non_inheritable_env_var(key: str) -> bool:
     """Return True if the environment variable name is forbidden from child process inheritance.
 
     Implements case-insensitive detection for privilege escalation vectors, sensitive
     sockets (SSH/GPG), tokens, and cloud launch context (Codex PR #38941 & #37607 parity).
-    When ``value`` is provided and matches an ephemeral sentinel voucher (myrm-sent-v1.*),
-    it is explicitly permitted as safe child process token.
     """
-    if value is not None:
-        from myrm_agent_harness.core.security.egress.sentinel import is_sentinel_voucher
-
-        if is_sentinel_voucher(str(value)):
-            return False
-
     return _is_sensitive_key(key)
 
 
@@ -350,11 +342,6 @@ def sanitize_env(
 
         # Sensitive check
         if _is_sensitive_key(key):
-            from myrm_agent_harness.core.security.egress.sentinel import is_sentinel_voucher
-
-            if is_sentinel_voucher(value):
-                filtered[key] = value
-                continue
             blocked.append(key)
             continue
 
@@ -404,13 +391,6 @@ def build_isolated_child_env(
             if upper in ("NODE_OPTIONS", "PYTHONSTARTUP"):
                 logger.warning("Blocked interpreter startup injection override in child env: %s", k)
                 continue
-            # Ephemeral sentinel voucher (AES-256-GCM) contains no raw secret and is safely substituted at the proxy egress boundary
-            from myrm_agent_harness.core.security.egress.sentinel import is_sentinel_voucher
-
-            if is_sentinel_voucher(str(v)):
-                sanitized[k] = str(v)
-                continue
-
             # Codex PR #38941 & #37607 parity: auth tokens and launch context cannot be restored via overrides
             if _is_sensitive_key(k):
                 logger.warning("Blocked non-inheritable override in child env: %s", k)
@@ -418,12 +398,7 @@ def build_isolated_child_env(
             sanitized[k] = str(v)
 
     # Post-override scrubbing guarantee: re-check all keys to prevent case-variant injection
-    from myrm_agent_harness.core.security.egress.sentinel import is_sentinel_voucher
-
     for k in list(sanitized.keys()):
-        val = sanitized[k]
-        if is_sentinel_voucher(val):
-            continue
         if _is_sensitive_key(k):
             logger.warning("Stripped non-inheritable variable from child env: %s", k)
             sanitized.pop(k, None)

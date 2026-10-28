@@ -17,7 +17,7 @@
 - 零外部三方依赖，纯单机无耦合
 
 ## Consumers
-- `myrm_agent_harness.core.security.safe_exec` — 自动置换 Sentinel Voucher
+- `myrm_agent_harness.core.security.safe_exec` — `credential_env_overrides` 把外部密钥引用解算成值再注入子进程环境
 - `myrm_agent_harness.backends.secrets` — 统一重导出门面
 - `myrm_agent_harness.toolkits.llms.secrets` — 保持兼容重导出
 - `myrm-agent-server.app.services.agent.backends.secret_backend` — MCP 与 Agent 凭据解算

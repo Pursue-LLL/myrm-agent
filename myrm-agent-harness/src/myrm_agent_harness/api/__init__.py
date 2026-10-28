@@ -327,10 +327,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.toolkits.memory.consolidation",
         "create_consolidation_cleanup_task",
     ),
-    "TaintedEgressGateway": ("myrm_agent_harness.core.security.egress", "TaintedEgressGateway"),
-    "TaintedEgressDecision": ("myrm_agent_harness.core.security.egress", "TaintedEgressDecision"),
-    "TaintedEgressBlockedError": ("myrm_agent_harness.core.security.egress", "TaintedEgressBlockedError"),
-    "TaintedEgressBlockedException": ("myrm_agent_harness.core.security.egress", "TaintedEgressBlockedException"),
     "RestrictedAccessibilityBrowserSession": (
         "myrm_agent_harness.toolkits.browser.session",
         "RestrictedAccessibilityBrowserSession",

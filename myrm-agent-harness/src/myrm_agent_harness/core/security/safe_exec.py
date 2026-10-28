@@ -72,58 +72,49 @@ def credential_env_overrides(
     credentials: tuple[EphemeralUserCredential, ...],
     *,
     allowed_issuers: list[str] | None = None,
-    use_sentinel: bool = False,
 ) -> dict[str, str]:
     """Map EphemeralUserCredential issuers to process env vars (post-sanitize injection).
 
-    When ``use_sentinel`` is True, secrets are protected via AES-256-GCM ephemeral vouchers
-    (AgentSentinelEgressGuard) rather than injected as raw plaintext.
+    A token that is an external secret reference is resolved to its value; one that cannot be resolved is passed
+    through unchanged.
     """
     overrides: dict[str, str] = {}
     normalized_allowed: set[str] | None = None
     if allowed_issuers is not None:
         normalized_allowed = {issuer.lower() for issuer in allowed_issuers}
 
-    from myrm_agent_harness.core.security.egress.sentinel import get_global_sentinel_manager
-
-    sentinel_mgr = get_global_sentinel_manager() if use_sentinel else None
-
     from myrm_agent_harness.core.security.external_secrets import (
         is_external_secret_reference,
         resolve_external_secret,
     )
 
-    def _wrap_val(raw_secret: str, key_name: str) -> str:
-        actual_secret = raw_secret
-        if is_external_secret_reference(raw_secret):
-            try:
-                actual_secret = resolve_external_secret(raw_secret)
-            except Exception as exc:
-                logger.warning("Failed to resolve external secret reference '%s': %s", raw_secret, exc)
-                return raw_secret
-
-        if sentinel_mgr is not None and actual_secret:
-            return sentinel_mgr.create_sentinel(actual_secret, metadata={"key": key_name})
-        return actual_secret
+    def _resolve(raw_secret: str) -> str:
+        if not is_external_secret_reference(raw_secret):
+            return raw_secret
+        try:
+            return resolve_external_secret(raw_secret)
+        except Exception as exc:
+            logger.warning("Failed to resolve external secret reference '%s': %s", raw_secret, exc)
+            return raw_secret
 
     for cred in credentials:
         if normalized_allowed is not None and cred.issuer.lower() not in normalized_allowed:
             continue
         if cred.issuer == "feishu":
-            overrides["FEISHU_USER_ACCESS_TOKEN"] = _wrap_val(cred.token, "FEISHU_USER_ACCESS_TOKEN")
+            overrides["FEISHU_USER_ACCESS_TOKEN"] = _resolve(cred.token)
         elif cred.issuer == "dingtalk":
-            overrides["DINGTALK_USER_ACCESS_TOKEN"] = _wrap_val(cred.token, "DINGTALK_USER_ACCESS_TOKEN")
+            overrides["DINGTALK_USER_ACCESS_TOKEN"] = _resolve(cred.token)
         elif cred.issuer == "github":
-            overrides["GITHUB_TOKEN"] = _wrap_val(cred.token, "GITHUB_TOKEN")
+            overrides["GITHUB_TOKEN"] = _resolve(cred.token)
         elif cred.issuer == "google_workspace":
-            overrides["GOOGLE_WORKSPACE_TOKEN"] = _wrap_val(cred.token, "GOOGLE_WORKSPACE_TOKEN")
+            overrides["GOOGLE_WORKSPACE_TOKEN"] = _resolve(cred.token)
         elif cred.issuer == "xai":
-            overrides["XAI_API_KEY"] = _wrap_val(cred.token, "XAI_API_KEY")
+            overrides["XAI_API_KEY"] = _resolve(cred.token)
             if cred.scope:
                 overrides["XAI_BASE_URL"] = cred.scope
         else:
             key_name = f"{cred.issuer.upper()}_TOKEN"
-            overrides[key_name] = _wrap_val(cred.token, key_name)
+            overrides[key_name] = _resolve(cred.token)
     return overrides
 
 

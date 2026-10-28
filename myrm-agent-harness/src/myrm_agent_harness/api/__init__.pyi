@@ -158,18 +158,6 @@ from myrm_agent_harness.core.artifacts.fact_check import (
 from myrm_agent_harness.core.artifacts.fact_check import (
     SourceClaim as SourceClaim,
 )
-from myrm_agent_harness.core.security.egress import (
-    TaintedEgressBlockedError as TaintedEgressBlockedError,
-)
-from myrm_agent_harness.core.security.egress import (
-    TaintedEgressBlockedException as TaintedEgressBlockedException,
-)
-from myrm_agent_harness.core.security.egress import (
-    TaintedEgressDecision as TaintedEgressDecision,
-)
-from myrm_agent_harness.core.security.egress import (
-    TaintedEgressGateway as TaintedEgressGateway,
-)
 from myrm_agent_harness.core.security.ephemeral_credentials import (
     EphemeralCredential as EphemeralCredential,
 )

@@ -53,6 +53,57 @@
 | **仍然存在** | ① 权重只对 `o200k_base` 拟合，样本是仓库文件、合成数据与重复句子，不是真实用户粘贴；cl100k、Claude、Qwen 对非拉丁文字与中文的词元数更多，宽字符权重 1.8 因此没有缩小。② 全大写与标题式大写的散文被高估 2～3 倍（真实/估算 0.35 与 0.51），更早落盘。③ harness 默认 16,000 字符 / 8,000 压力的调用方（渠道第三方文档）里，稠密文档会更早落盘；这是预期，没有统计影响了多少真实文档。 |
 | **代码位置** | `agent/context_guard/types.py:53,63,77`（权重、分类、估算）· `tests/agent/context_guard/test_token_pressure.py`（权重与带宽）· `agent/context_guard/_ARCH.md`（设计说明） |
 
+### BUG-HARNESS-2026-10-27-054 · 「凭据哨兵」整套机制（密文凭证、本地出口代理换值、污点网关，共 1145 行）自 2026-09-05 起没有生效过，文档却写成「沙箱里没有明文密钥」；它还在 `env_isolation` 里留了 4 处「值长得像凭证就放行」的口子
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（删除；凭据由条目 052 的命令级环境交给命令，不再有第二套机制）。 |
+| **发现时间** | 2026-10-27（逐节点核对「凭据怎么进沙箱」时，从 `credential_env_overrides` 的调用方往回查） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2（文档承诺与代码不符）加 P3（放行口子）。没有运行时错误：哨兵从未被创建，所以代理从未启动，用户凭据一直是明文写进 shell 环境变量（条目 052 把它收窄到单条命令）。放行口子的实际影响很窄：只有变量值恰好是 `myrm-sent-v1.<…>.end` 形状时才放行，值是调用方给的，不是哨兵管理器签发的。 |
+| **关联产品** | harness `core/security/egress/`、`core/security/safe_exec.py`、`toolkits/code_execution/security/env_isolation.py`、`toolkits/code_execution/executors/local/`、`api/`；品牌仓文档站安全架构页与竞品对比页（en/zh/ko/ja）；内部材料 `SECURITY_ADVANTAGE.md` |
+| **根因** | ① 哨兵只在 `credential_env_overrides(..., use_sentinel=True)` 时创建，参数默认 `False`，`git grep use_sentinel HEAD` 在整个 monorepo 里只有定义与函数内的一处读取，没有任何调用方传 `True`。② `LocalExecutor._ensure_egress_proxy` 在 `has_sentinels()` 为假时直接返回 `None`，所以 `LoopbackEgressProxy` 从未启动。`use_sentinel` 这个名字出现在 2026-09-05 的两个提交里（`4374648f57`、`98a9890eb7`），此后默认值没有变过。③ 即便启用，HTTPS 也换不了值：`proxy_server.py` 的 `start_tls(..., server_side=True)` 在 Python 3.13 抛 `TypeError`，退成盲转发（条目 046「仍然存在 ①」）。④ `TaintedEgressGateway` 本来就没有接入产品（条目 046 ②）。⑤ `env_isolation.py` 在 `is_non_inheritable_env_var(key, value)`、`sanitize_env` 的敏感名分支、`build_isolated_child_env` 的覆盖循环与后置扫描 4 处，对 `is_sentinel_voucher(value)` 为真的值跳过敏感名过滤。 |
+| **修复** | 删除 `sentinel.py`（264 行）、`proxy_server.py`（635 行）、`tainted_gateway.py`（246 行）与 4 个测试文件（565 行）；删除 `use_sentinel` 参数与 `credential_env_overrides` 里的哨兵分支（现在只做一件事：外部密钥引用解算成值，解算失败则原样透传）；`LocalExecutor` 去掉 `_egress_proxy`、`_ensure_egress_proxy` 与关闭时的代理停止；`is_non_inheritable_env_var(key)` 不再收 `value`；4 处放行口子删除，敏感名一律按名字过滤；`egress/__init__.py` 与 `api/` 去掉对应导出（`api` 的 `TaintedEgress*` 4 个名字，惰性表与 `.pyi` 同步）；`egress/` 目录只剩 `spend_governor.py` 与 `spend_contracts.py`，`_ARCH.md`、`core/security/_ARCH.md`、`external_secrets/_ARCH.md`、`FRAMEWORK_DESIGN_PRINCIPLES.md`（兼容别名清单）按现状改写；`file_line_baseline.txt` 去掉 `proxy_server.py` 一行，`executor.py` 的上限 759 收紧到 648。**保留**：`MYRM_EGRESS_PROXY_URL` 与 `MYRM_EGRESS_CA_BUNDLE` 两个环境变量钩子（宿主自带出口代理时，shell 启动环境指向它），此前没有测试，现在有 2 例。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 仓库里还有一批名字带 sentinel 的无关模块（`memory_sentinel`、`abandonment_sentinel`、`disk_sentinel`、`fd_watermark_sentinel`、`task_lifecycle_sentinel`、`fanout_braking_sentinel`、桌面端的审批 runner），没有碰。② 没有选择「接上产品」而是删除：接上需要同时修 3.13 的 TLS 握手、给代理加真实 TLS 上游的端到端用例、再决定哪些凭据换值；它要防的场景（命令读到环境里的密钥）已经由条目 052 收窄为「只在声明过的命令执行期间存在」。 |
+| **回归** | [1] 新增 `TestCredentialShapedValuesGetNoExemption`（`tests/toolkits/code_execution/security/test_child_process_env_isolation.py`）：`GITHUB_TOKEN`、`MY_API_KEY` 的值设成 `myrm-sent-v1.AAAA….end` 时，`sanitize_env`（`ALL`、`CORE` 两种策略）、`build_isolated_child_env`、`LocalExecutor._build_bash_env` 都按名字剥掉。[2] 对照：把 `git archive HEAD` 导出的旧树放进 `PYTHONPATH` 跑同一组输入，旧树 `sanitize_env(ALL)` 与 `build_isolated_child_env` 原样保留这两个变量，`CORE` 策略本来就剥掉；当前树 `ALL` 下只剩 `PATH`。[3] `tests/toolkits/code_execution/executors/local/test_executor_egress_env.py` 2 例（钩子设了会进环境并指向宿主代理，没设则不出现）；`test_external_secrets.py` 的哨兵用例换成「引用解算成值」与「解算失败原样透传」两例。[4] 直接相关的 136 例通过（`test_child_process_env_isolation.py`、`executors/local`、`test_external_secrets.py`、`test_safe_exec.py`、`core/security/egress`、`test_permission_inheritance.py`、`test_bash_credential_scope.py`）；架构门禁里，`validate_arch_inventory`、`check_fractal_docs`、`check_import_resolvability`、`boundary_check` 通过，`tests/architecture` 的 1180 例里只有 `test_file_line_limit.py` 失败，原因是 `toolkits/computer_use/backends/windows.py` 595 行超过基线 591，不是本条改动（该文件不在本条改动里）；`check_module_reachability` 有 201 个单元无生产调用方，名单里没有本条涉及的任何模块。 |
+| **仍然存在** | ① 没有测量宿主自带出口代理的实际用法：仓库内没有任何地方设置这两个钩子，它们存在是因为宿主（企业部署）可能需要；没有宿主实测。② 命令里的密钥现在只在声明过的命令执行期间存在于 shell 环境，但这条命令本身仍能读到它并输出；这由脱敏（`redact`）与审批负责，不由本条负责。③ 品牌仓与内部材料里其余安全数字（覆盖率、测试数）是当日记录，没有复测。 |
+| **代码位置** | `core/security/egress/`（删除三个模块，保留花费治理）· `core/security/safe_exec.py:credential_env_overrides` · `toolkits/code_execution/security/env_isolation.py` · `toolkits/code_execution/executors/local/executor.py`、`_command_env.py`、`_python_subprocess.py` · `api/__init__.py`、`api/__init__.pyi` · 测试 `tests/toolkits/code_execution/security/test_child_process_env_isolation.py`、`tests/toolkits/code_execution/executors/local/test_executor_egress_env.py`、`tests/core/security/test_external_secrets.py` |
+
+### BUG-HARNESS-2026-10-27-053 · 仓库声明的命令前缀按字符串开头匹配：声明 `npm run test` 连 `npm run testing` 也免审批，声明 `git` 连 `gitk` 也算
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（`matches_repo_command_prefix` 的前缀必须落在词边界上；同时删掉一个没有用的 `tomli` 回退）。 |
+| **发现时间** | 2026-10-27（对照工作区信任门的前缀匹配实现时） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P3：前缀是仓库作者在受信工作区里声明的，攻击面是「声明的范围比作者想的宽」，不是任意命令放行；复合命令（管道、`&&`、命令替换）本来就不匹配。 |
+| **关联产品** | harness `agent/security/workspace_trust/gate.py`、`repo_policy.py` |
+| **根因** | `matches_repo_command_prefix` 对每个前缀只做 `command.startswith(prefix)`，没有看前缀后面的字符；空白前缀（`""`、`"  "`）对任何命令都为真。 |
+| **修复** | 新增 `_starts_with_command_words`：前缀去掉首尾空白后，命令必须正好等于它，或下一个字符是空白；空白前缀什么也不匹配。`repo_policy.py` 删掉 `tomli` 回退（`pyproject.toml` 的 `requires-python` 是 `>=3.13`，`tomllib` 一定在）。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 无。 |
+| **回归** | [1] `tests/agent/security/test_workspace_trust_gate.py` 新增词边界用例（`npm run testing`/`npm run test`、`git status-all`/`git status`、`lsof -i`/`ls`、`gitk`/`git`）、首尾空白、空白前缀；[2] `tests/agent/security/test_workspace_trust_repo_policy.py` 10 例（字符串与列表两种写法、合并去重、配置畸形或无关）。[3] 对照：旧树（`git archive 0c369539f0^`）上这两个文件 6 例失败、24 例通过；当前树 30 例全部通过。 |
+| **仍然存在** | ① 前缀仍是按空白分词的纯字符串比较：`npm run test --force` 这类带危险参数的命令仍被声明的前缀覆盖，这是前缀语义本身的取舍，没有改。② 没有统计真实仓库里声明了多少前缀、有多少会因此少匹配一些命令。 |
+| **代码位置** | `agent/security/workspace_trust/gate.py`（`_starts_with_command_words`、`matches_repo_command_prefix`）· `agent/security/workspace_trust/repo_policy.py` · 测试 `tests/agent/security/test_workspace_trust_gate.py`、`tests/agent/security/test_workspace_trust_repo_policy.py` |
+
+### BUG-HARNESS-2026-10-27-052 · 凭据在 bash shell 创建时写入环境变量就再也不变：之后到达或刷新的令牌进不去，技能命令读得到前一条普通命令带进去的别家凭据，一次性凭据在建 shell 的那条命令上被消耗掉
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（命令级环境；PowerShell 与 cmd 只做了字符串级测试，没有在真实 Windows 上跑，见「仍然存在」）。 |
+| **发现时间** | 2026-10-27（逐节点核对「凭据怎么进沙箱」时，对照 shell 的生命周期与凭据的生命周期） |
+| **修复时间** | 2026-10-27 |
+| **严重程度** | P2：一个会话的 bash shell 创建一次、复用到会话结束，而凭据是「哪条命令能读到什么」的属性。后果有三：用户授权或令牌刷新发生在 shell 创建之后，命令读到的是旧值或读不到；技能命令声明了 `allowed_credential_issuers`，却仍能读到前面一条没声明的命令留在 shell 里的凭据；一次性凭据按「建 shell 时的命令」的摘要核对并消耗，后面真正被授权的那条命令拿不到。 |
+| **关联产品** | harness `toolkits/code_execution/executors/local/`、`session/`；server 不改。 |
+| **根因** | `LocalExecutor._build_bash_env(user_env, allowed_credential_issuers, command)` 把用户 OAuth 凭据（`credential_env_overrides`）与一次性凭据（`consume_credential`，核对 `sha256(command)`）合进 shell 的启动环境；`_get_or_create_bash_session` 只在新建时用这份环境，之后每条命令都复用同一个 shell。 |
+| **修复** | 每条命令带一个 `CommandEnv`：`sticky`（技能设置等，每条命令前导出并保留）与 `scoped`（用户 OAuth 与一次性凭据，命令前导出、结束标记之后 `unset`）；shell 启动环境不含任何凭据。bash、PowerShell（`Remove-Item Env:`）、cmd（`set K=`）各有一套导出与撤销语句，导出与撤销都包在同一把锁里（流式路径持有 `_lock`），退出码与提前返回的路径不变（bash 的导出写在命令块内部、撤销写在结束标记之后，`test_bash_exports_inside_the_block_and_unsets_after_the_end_marker` 固定这个位置）。PowerShell 的值一律写成带引号的字面量，并把 U+2018/2019/201A/201B 加倍，避免一个裸词被当成命令执行。新增 `executors/local/_command_env.py`（`build_command_env`、`collect_command_credentials`、`scrubbed_user_env`）。后台进程（`_background_spawn.py`）自己建环境，没有凭据注入，没有改。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 一次性凭据的摘要核对依赖命令文本，所以必须在 `build_command_env` 里按当前命令计算，不能再放在建 shell 时。 |
+| **回归** | [1] `tests/toolkits/code_execution/executors/local/test_executor_command_credentials.py` 9 例，真实 bash，同一个复用的 shell 里连续跑多条命令：后到的凭据能读到、刷新后换成新值、命令结束后读不到、技能命令只读到声明的发放者、流式路径同样、一次性凭据只投递一次、后一条命令的环境变量到得了运行中的 shell。[2] `tests/toolkits/code_execution/session/test_command_env.py` 18 例（真实 bash 里 scoped 与 sticky 的行为，含失败命令、`exit N`、流式结束后撤销，以及三种 shell 的包装语句、PowerShell 字面量、非法变量名不输出）；`tests/agent/meta_tools/bash/test_bash_credential_scope.py` 3 例。[3] 对照：旧树（`git archive 7e3b120b3e^`）上 `test_executor_command_credentials.py` 9 例里 8 例失败（唯一通过的是 `test_secret_named_env_is_still_stripped`，它守的是原有行为：带密钥名字的用户环境变量仍被剥掉）；当前树全部通过。 |
+| **仍然存在** | ① PowerShell 与 cmd 的导出、撤销语句只做了字符串级测试，本机没有 `pwsh`，没有在真实 Windows 上跑。② 行为变化是有意的：技能命令看不到它没声明的发放者的凭据，而此前前面的普通命令带进 shell 的凭据会残留在后面的技能命令里；如果有技能依赖了这个残留，它现在要自己声明发放者。③ 后台进程没有凭据注入（`_background_spawn.py` 自己建环境，沿用原状）。④ 命令内部仍能读到并输出自己的凭据，这由脱敏与审批负责。 |
+| **代码位置** | `toolkits/code_execution/executors/local/_command_env.py`、`executor.py`（`_build_bash_env`、`execute_bash`、流式路径） · `session/models.py`（`CommandEnv`）、`session/shell_flavor.py`、`session/persistent_session.py`、`session/command_stream.py` · 测试 `tests/toolkits/code_execution/session/test_command_env.py`、`tests/toolkits/code_execution/executors/local/test_executor_command_credentials.py`、`tests/agent/meta_tools/bash/test_bash_credential_scope.py` |
+
 ### BUG-HARNESS-2026-10-27-051 · 脱敏引擎的 JSON 成员规则只认 12 个整名：`clientSecret`、`Authorization`、`refreshToken` 这类常见凭据字段名、嵌在 JSON 字符串里的 JSON、pytest 打印的 Python 字典，值都原样通过
 
 | 字段 | 内容 |
@@ -152,8 +203,8 @@
 | **反复次数** | 第 1 次 |
 | **踩坑** | ① 条目 040、`SECURITY_ADVANTAGE.md` 与 `topic_03` 里的旧引用指向已删文件，改成不带反引号的历史说明，避免被当成现存路径。② `SECURITY_ADVANTAGE.md` 第 17 条的「暗桩 94%」合计数字随模块作废，只保留熔断器那一半，并标注其余数字是当日记录、未复测。③ 文档站章节标题改了，用 `rg` 查过没有锚点链接引用旧标题。 |
 | **回归** | 没有新增行为，所以没有新增用例；被删的 4 处分支删除前被 `has_tokens()` 挡住，没有调用方会让它为真。删除后 `tests/core/security` 全部通过（1434 例，工作区内运行），`ruff check`、`ruff format` 通过；`mypy` 对 egress 目录报 1 处，是本条之前就存在的（见「仍然存在」①）。 |
-| **仍然存在** | ① **出口代理的 TLS 拦截在 Python 3.13 上不工作**：`proxy_server.py` 的 `writer.start_tls(server_ssl_ctx, server_side=True)` 传了 `StreamWriter.start_tls` 不接受的参数（该方法的签名是 `(sslcontext, *, server_hostname, ssl_handshake_timeout, ssl_shutdown_timeout)`，是否为服务端由连接是怎么建立的决定），抛 `TypeError`，被外层 `except Exception` 吞掉后只在 DEBUG 日志里写一行 `TLS interception fallback to blind tunnel`，再退成盲转发。实测：起一个 `enable_tls_interception=True` 的代理，对 `api.example.test:443` 发 CONNECT，代理回 200 后日志出现 `StreamWriter.start_tls() got an unexpected keyword argument 'server_side'`。盲转发不解密，所以 HTTPS 请求里的哨兵凭据不会被替换成真实密钥；开启 TLS 拦截的用例（`tests/core/security/test_sentinel_egress.py`）只测了启动与环境变量，没有走过握手；走过请求转发的用例（`tests/core/security/egress/test_sentinel_egress.py`）关掉了 TLS 拦截。产品里 `toolkits/code_execution/executors/local/executor.py:599` 构造代理时用默认值，即拦截开启。**没有修**：删掉这个参数就会第一次启用一条从没跑过的中间人路径（`_forward_tls_http_stream` 只处理带 `Content-Length` 的请求体，处理完一个请求就退出循环），需要带真实 TLS 上游的端到端用例先行，不适合夹在删死代码里。没有测量产品里有多少调用会走到这条路径。② `TaintedEgressGateway` 仍未接入产品，文档站已如实写「闸门处于关闭状态」。 |
-| **代码位置** | `core/security/egress/proxy_server.py`、`core/security/egress/__init__.py`、`core/security/egress/_ARCH.md` · `scripts/file_line_baseline.txt` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx` · 根仓内部材料 SECURITY_ADVANTAGE.md 与 topic_03 路线图 |
+| **仍然存在** | ① **出口代理的 TLS 拦截在 Python 3.13 上不工作**：`proxy_server.py` 的 `writer.start_tls(server_ssl_ctx, server_side=True)` 传了 `StreamWriter.start_tls` 不接受的参数（该方法的签名是 `(sslcontext, *, server_hostname, ssl_handshake_timeout, ssl_shutdown_timeout)`，是否为服务端由连接是怎么建立的决定），抛 `TypeError`，被外层 `except Exception` 吞掉后只在 DEBUG 日志里写一行 `TLS interception fallback to blind tunnel`，再退成盲转发。实测：起一个 `enable_tls_interception=True` 的代理，对 `api.example.test:443` 发 CONNECT，代理回 200 后日志出现 `StreamWriter.start_tls() got an unexpected keyword argument 'server_side'`。盲转发不解密，所以 HTTPS 请求里的哨兵凭据不会被替换成真实密钥；开启 TLS 拦截的用例（`tests/core/security/test_sentinel_egress.py`）只测了启动与环境变量，没有走过握手；走过请求转发的用例（`tests/core/security/egress/test_sentinel_egress.py`）关掉了 TLS 拦截。产品里 `toolkits/code_execution/executors/local/executor.py:599` 构造代理时用默认值，即拦截开启。**没有修**：删掉这个参数就会第一次启用一条从没跑过的中间人路径（`_forward_tls_http_stream` 只处理带 `Content-Length` 的请求体，处理完一个请求就退出循环），需要带真实 TLS 上游的端到端用例先行，不适合夹在删死代码里。没有测量产品里有多少调用会走到这条路径。② `TaintedEgressGateway` 仍未接入产品，文档站已如实写「闸门处于关闭状态」。（BUG-HARNESS-2026-10-27-054 已消除：出口代理、哨兵与污点网关整套删除，①②随之不存在。） |
+| **代码位置** | proxy_server.py（已于条目 054 删除）、`core/security/egress/__init__.py`、`core/security/egress/_ARCH.md` · `scripts/file_line_baseline.txt` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx` · 根仓内部材料 SECURITY_ADVANTAGE.md 与 topic_03 路线图 |
 
 ### BUG-HARNESS-2026-10-27-045 · 安全审查员的「最近工具调用」里混进了被拒绝、根本没执行过的调用，审查员看到的是没发生过的动作
 
@@ -255,7 +306,7 @@
 | **踩坑** | 最初只把「金丝雀不拼接系统提示词」当成问题，范围是 3 处文档；追查 `generate_sandbox_canaries` 的调用方后才发现暗桩、403 闸门、TCP RST、前端卡片都不成立，范围扩到官网与内部材料。 |
 | **回归** | `test_canary_guard.py` 41 例、test_honeytoken.py（已于条目 046 删除）11 例通过（删除 2 个死函数测试）；没有新增行为，所以没有新增用例。 |
 | **仍然存在** | ① 没有测量金丝雀令牌对跨会话提示缓存命中的影响，文档只陈述「每会话不同」。② 暗桩诱饵没有接入产品：接入会把假凭证写进沙箱环境变量，可能覆盖用户真实的 `OPENAI_API_KEY`、`GITHUB_TOKEN`，这一点没有评估（条目 046 起该模块已删除）；条目 054 又删除了出口代理与凭据哨兵。③ `SECURITY_ADVANTAGE.md` 里其他处的「Prompt Cache 100% 命中」（执行内核、洋葱圈过滤）没有逐条核对；其中 2026-09-28 的「2347 项测试」「94% 覆盖率」是历史记录，没有复测。④ 文档站与官网其余安全数字没有逐条验证。 |
-| **代码位置** | `agent/security/detection/canary_guard.py` · `agent/middlewares/security/security_guardrail_middleware.py:_guard_canary` · `core/security/egress/proxy_server.py`、`core/security/egress/_ARCH.md`、honeytoken.py（已于条目 046 删除） · `toolkits/code_execution/executors/local/executor.py:_ensure_egress_proxy` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx`、`myrm-website/locales/*.json` |
+| **代码位置** | `agent/security/detection/canary_guard.py` · `agent/middlewares/security/security_guardrail_middleware.py:_guard_canary` · proxy_server.py（已于条目 054 删除）、`core/security/egress/_ARCH.md`、honeytoken.py（已于条目 046 删除） · `toolkits/code_execution/executors/local/executor.py:_ensure_egress_proxy` · 品牌仓 `myrm-docs/docs/{,zh/}core-concepts/security-architecture.mdx`、`myrm-website/locales/*.json` |
 
 ### BUG-HARNESS-2026-10-27-039 · 委托给 Claude 或 Codex 命令行的回合带不了图片（运行时协议没有这一项）；`agent` 门面里 44 个导出名一用就 AttributeError，`LatencyStats` 指向了错的模块；9 个惰性导出的包对类型检查器是 `object`
 
