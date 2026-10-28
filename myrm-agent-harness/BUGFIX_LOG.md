@@ -43,15 +43,15 @@
 | **状态** | FIXED（脱敏从两处调用方移进 `StreamOutputProcessor`，改在累积之后、只对整行进行；落盘日志仍是原文）。 |
 | **发现时间** | topic_10 #291 第五轮验证时 `test_persistent_session.py::test_stream_path_scrubs_sensitive_info` 偶发失败（6 次运行 2 次）；2026-10-28 用真实 shell（`printf` 前半段、`sleep 0.4`、再 `printf` 后半段）稳定复现 |
 | **修复时间** | 2026-10-28 |
-| **严重程度** | P2：漏出的是用户自己会话的实时输出里的半截凭据，不进给模型的最终结果（那条路径对整段文本脱敏）；界面输出可能被截图、共享屏幕或随步骤落盘（落盘是否包含实时片段未核实）。 |
+| **严重程度** | P2：漏出的是用户自己会话的实时输出里的半截凭据，不进给模型的最终结果（那条路径对整段文本脱敏）；界面输出可能被截图、共享屏幕或随步骤落盘（已核实会落盘：`myrm-agent-server/app/services/agent/streaming_support/stream_collector.py:676-683` 把 `tool_stdout_chunk` 拼进该工具步骤的 `stdout`）。 |
 | **关联产品** | roadmap topic_03 `LiveCommandOutputWholeLineScrubSuite`；topic_10 #291（验证记录里的偶发失败） |
 | **根因** | `scrub_sensitive_info`（`toolkits/code_execution/executors/models.py:372`）只在一段完整文本里认得出密钥与私钥块，而输出按任意大小的读取交给处理器（`session/stream_buffer.py:78-86` 按「缓冲长度减标记回看长度」切分，不按行对齐）。旧的 `session/command_stream.py` 在两条读取路径上都先对每个片段单独脱敏、再交给 `accumulate_sse`：被切成两段的密钥两半都不匹配，原样漏过；私钥块的前半段同理。 |
 | **修复** | `session/stream_output_processor.py`：`accumulate_sse`（`:129`）先清掉 ANSI、累积，再由 `_take_emittable`（`:160`）取出可发的部分——只发完整的行（换行或回车结束）；未结束的最后一行、开头出现 `-----BEGIN` 而还没见到 `-----END` 的私钥块（连同它所在的整行）先暂存，暂存满 16 384 个字符就原样放行；取出的文本交给 `scrub_sensitive_info` 后才发出；节流窗口只在真正发出内容时才消耗；`flush()`（`:172`）把剩余部分整体脱敏。`command_stream.py` 去掉两处自己的脱敏与两处局部导入。行为变化：实时输出按整行出现，不带换行的提示符要等到换行、命令结束或暂存满上限才出现；用回车刷新的进度条不受影响。 |
 | **反复次数** | 第 1 次 |
 | **踩坑** | ① 第一版设想「尾部按时间释放」：发出是由新到的片段触发的，没有新片段就没有定时器，时间释放永远不会触发，放弃，改为只发整行并在 `flush()` 释放。② 既有处理器测试假设无换行的文本立刻发出，按新语义给输入补换行（含义不变）。③ 提交前后各跑一遍：把提交前的两个源文件换进来，两个真实 shell 用例失败（密钥后半段原样出现），换回后通过。 |
 | **回归** | 新增 `tests/toolkits/code_execution/session/test_stream_output_scrub.py`（508 个用例）：整行密钥在每一个切分位置、私钥块（含 Windows 换行）在每一个切分位置、逐字符输入，输出都等于对整段原文脱敏的结果；未结束的行等换行、`flush()` 脱敏尾部、回车不被扣住、私钥块未闭合时整块（含前缀）暂存、闭合后放行、暂存上限放行、无内容可发时不消耗节流窗口、落盘仍是原文；真实 shell 的执行与流式两条路径各一个用例。变异检查：8 个变异（去掉私钥块暂存、去掉暂存上限、`flush()` 不脱敏、回车不算行尾、无内容可发时仍消耗节流窗口、发出前不脱敏、不按行暂存、暂存从私钥块所在行的中间截断）全部被杀。`tests/toolkits/code_execution` 与 `tests/agent/streaming/test_stream_dispatcher.py`：2521 通过、275 跳过、1 失败（`test_destructive_hard_stop.py` 的快照耗时断言，776 ms 对 500 ms，与本改动无关，没有在改动前的提交上对照）；`test_stream_path_scrubs_sensitive_info` 连续 12 次单独运行全部通过。 |
-| **仍然存在** | ① 没有在 Linux 沙箱下实测。② 实时片段是否随步骤落盘没有核实；若落盘，此前已落盘的内容不会被修正。③ 超过 16 384 个字符的单行或私钥块不受保护（上限放行）；`-----BEGIN` 以外的多行凭据格式没有暂存。④ 开销（临时脚本，未入库，不可复现）：对 8 KB 的日志读取，每次读取耗时中位数 5.07 ms（旧：调用方逐片段脱敏）对 5.86 ms（新），含一个密钥的片段 6.60 ms 对 5.18 ms，最小值 4.75 ms 对 4.83 ms，噪声盖过差别，耗时由脱敏函数本身主导；输出超过 500 KB 阀门后新实现不再对被丢弃的输出脱敏（50 次读取 × 15 轮，机器负载未控制；临时脚本，未入库，所以这组数字不可复现）。⑤ 不换行的交互提示符在前端上的观感没有看。 |
-| **代码位置** | `session/stream_output_processor.py:129,160,172` · `session/command_stream.py`（两条读取路径只调用 `accumulate_sse` 与 `flush`）· `session/_ARCH.md` · `tests/toolkits/code_execution/session/test_stream_output_scrub.py` |
+| **仍然存在** | ① 没有在 Linux 沙箱下实测。② 此前已落盘的实时片段不会被修正（本机开发库 129 条已落盘输出用现在的脱敏规则重扫，0 条发生变化，样本很小）。③ 超过 16 384 个字符的单行或私钥块不受保护（上限放行）；`-----BEGIN` 以外的多行凭据格式没有暂存。④ 开销（临时脚本，未入库，不可复现）：对 8 KB 的日志读取，每次读取耗时中位数 5.07 ms（旧：调用方逐片段脱敏）对 5.86 ms（新），含一个密钥的片段 6.60 ms 对 5.18 ms，最小值 4.75 ms 对 4.83 ms，噪声盖过差别，耗时由脱敏函数本身主导；输出超过 500 KB 阀门后新实现不再对被丢弃的输出脱敏（50 次读取 × 15 轮，机器负载未控制；临时脚本，未入库，所以这组数字不可复现）。⑤ 不换行的交互提示符在前端上的观感没有看。 |
+| **代码位置** | `session/stream_output_processor.py:129,160,172` · `session/command_stream.py:143,148`（生产路径 `_execute_core_stream`）与 `:284,288`（`execute_stream`，公开接口 `execute_bash_stream` 的实现，仓库内无生产调用方）只调用 `accumulate_sse` 与 `flush`· `session/_ARCH.md` · `tests/toolkits/code_execution/session/test_stream_output_scrub.py` |
 
 ### BUG-HARNESS-2026-10-28-058 · 「停止」在模型请求静默期间读不到：长预填充、隐藏推理或限流等待里点停止，后台执行器要等请求自己返回，会话期间仍被占用
 
