@@ -20,7 +20,8 @@ from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[3] / "src"
 
-# Subcommands that read the index or working tree, or check a tree out: where git consults repository-chosen programs.
+# Subcommands that read or write the index or working tree, or can fetch an object: where git consults
+# repository-chosen programs.
 _TREE_TOUCHING = frozenset(
     {
         "status",
@@ -41,6 +42,21 @@ _TREE_TOUCHING = frozenset(
         "pull",
         "reset",
         "clean",
+        "switch",
+        "restore",
+        "apply",
+        "am",
+        "revert",
+        "mv",
+        "rm",
+        # Reading history can fetch a missing object from a partial clone's remote, through a program its config names.
+        "show",
+        "log",
+        "cat-file",
+        "diff-tree",
+        "blame",
+        "grep",
+        "archive",
     }
 )
 _DYNAMIC = "*"
@@ -57,23 +73,13 @@ _BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {
         "`git --version` availability probe: reads no repository",
     ),
     "myrm_agent_harness/agent/file_snapshot/shadow_git_store.py": (
-        frozenset({_DYNAMIC, "add", "diff-index", "read-tree", "checkout-index", "checkout"}),
+        frozenset({_DYNAMIC, "add", "diff-index", "diff-tree", "log", "read-tree", "checkout-index", "checkout"}),
         "runs against the snapshot store's own bare repository (GIT_DIR points at it), so the workspace's `.git/config` "
         "is never read",
     ),
     "myrm_agent_harness/agent/file_snapshot/shadow_git_maintenance.py": (
-        frozenset({"ls-files"}),
+        frozenset({"ls-files", "rm"}),
         "same snapshot store: its own bare repository",
-    ),
-    "myrm_agent_harness/agent/goals/continuation_git_drift.py": (
-        frozenset({_DYNAMIC}),
-        "`rev-parse` / `rev-list` run no program; `rebase --autostash` is the goal's own write flow and keeps the "
-        "repository's hooks and filters, like commit and merge",
-    ),
-    "myrm_agent_harness/toolkits/code_execution/security/workspace_snapshot.py": (
-        frozenset({"read-tree"}),
-        "restoring a snapshot writes the working tree through the repository's own smudge filters; blanking them "
-        "would write pointer files over real content",
     ),
     "myrm_agent_harness/toolkits/wiki/portability/vault_git.py": (
         frozenset({_DYNAMIC}),

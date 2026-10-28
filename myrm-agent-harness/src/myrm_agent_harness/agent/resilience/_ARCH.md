@@ -10,7 +10,7 @@ Harness resilience subsystem providing autonomous error self-correction and the 
 | `__init__.py` | Package | Exports resilience types and `ErrorSelfCorrectionGovernor` | — |
 | `types.py` | Types | Domain models: `RecoveryActionType`, `DiagnosticHypothesis`, `ErrorCorrectionOutcome` | ✅ |
 | `error_recovery.py` | Core | `ErrorSelfCorrectionGovernor` autonomous diagnosis, hypothesis testing, and error recovery engine | ✅ |
-| `task_airbag.py` | Core | 长任务与无人值守挂机安全气囊管理器（双轨自适应快照武装、反向 Diff 账本汇总、翻车现场救援快照捕获与原子时光倒流一键重置） | ✅ |
+| `task_airbag.py` | Core | 长任务与无人值守挂机安全气囊管理器（双轨自适应快照武装、反向 Diff 账本汇总、翻车现场救援快照捕获与原子时光倒流一键重置；反向 Diff 只接受完整提交哈希作为基线，manifest 里的选项式字符串不会到达 git） | ✅ |
 | `failure_reasons.py` | Core | 闭集强类型失败原因分级裁决与三态重试决策枚举模块。 | ✅ |
 | `in_session_compactor.py` | Core | 同会话就地轨迹关键帧三明治压缩器模块。 | ✅ |
 | `long_horizon_guard_middleware.py` | Core | Long Horizon Execution Guard Middleware and Terminal Output Barrier Governor. | ✅ |

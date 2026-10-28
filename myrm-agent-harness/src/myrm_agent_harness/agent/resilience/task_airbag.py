@@ -9,6 +9,7 @@ user draft protection, and crash-resilient rollback.
 - toolkits.code_execution.security.workspace_snapshot::create_workspace_snapshot (POS: Git 零拷贝快照与重置树还原器)
 - toolkits.code_execution.security.workspace_snapshot::rollback_workspace_snapshot (POS: Git 零拷贝快照与重置树还原器)
 - toolkits.code_execution.security.workspace_snapshot::is_git_repo (POS: Git 仓库探测器)
+- toolkits.code_execution.security.workspace_snapshot::is_snapshot_commit_id (POS: 持久化快照 id 的格式闸门)
 
 [OUTPUT]
 - TaskAirbagStatus: Enum representing airbag lifecycle state (ARMED, DISMISSED, ROLLED_BACK).
@@ -40,6 +41,7 @@ from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
     create_workspace_snapshot,
     is_git_repo,
+    is_snapshot_commit_id,
     rollback_workspace_snapshot,
 )
 
@@ -243,7 +245,7 @@ async def get_task_airbag_diff(manifest: TaskAirbagManifest) -> TaskAirbagDiffSu
             can_rollback=False,
         )
 
-    if manifest.is_git_repo and is_git_repo(wpath):
+    if manifest.is_git_repo and is_snapshot_commit_id(manifest.base_snapshot_id) and is_git_repo(wpath):
         try:
             # Query git diff status between baseline commit and current working tree
             diff_res = subprocess.run(

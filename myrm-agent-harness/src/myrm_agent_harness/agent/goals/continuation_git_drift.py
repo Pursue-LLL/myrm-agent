@@ -4,7 +4,8 @@
 - .types::Goal, GoalStatus, ContinuationDecision (POS: Goal data types)
 - .protocols::GoalProvider (POS: Goal provider protocol)
 - agent.middlewares._session_context::get_workspace_root (POS: Workspace root accessor)
-- asyncio.subprocess / shlex / subprocess (POS: Safe Git execution within workspace)
+- core.security.safe_git::hardened_git_argv_async (POS: git argv that runs no program the repository chose)
+- asyncio.subprocess (POS: Git execution within workspace, no shell)
 
 [OUTPUT]
 - check_git_drift_and_rebase: Detects upstream branch drift and performs safe rebase or pauses for human review.
@@ -23,6 +24,8 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.core.security.safe_git import hardened_git_argv_async
 
 from .types import ContinuationDecision, GoalStatus
 
@@ -46,11 +49,13 @@ class GitDriftStatus:
 
 
 async def _run_git_cmd(args: list[str], cwd: str) -> tuple[int, str, str]:
-    """Execute git command safely without shell expansion."""
+    """Execute git without shell expansion, through the hardened argv.
+
+    A goal rebases with nobody watching, so the repository's own hooks, filters and transports must not run.
+    """
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git",
-            *args,
+            *await hardened_git_argv_async(args, repo_dir=cwd),
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -168,7 +173,7 @@ async def check_git_drift_and_rebase(
 
     escalation_reason = (
         f"Base branch drift conflict: {status.behind_count} commits behind {status.upstream}. "
-        "Safe rebase failed with conflict; workspace cleanly preserved and rolled back. "
+        "Safe rebase did not complete (conflict or git refusal); workspace cleanly preserved and rolled back. "
         "DRIFT_CONFLICT_HUMAN_ESCALATION required."
     )
 

@@ -9,6 +9,7 @@ Creates lightweight shadow commits/stashes before executing irreversible destruc
 
 [OUTPUT]
 - WorkspaceSnapshotResult: Outcome containing snapshot identifier and status metadata.
+- is_snapshot_commit_id: True for a full commit id, the only form a git snapshot id ever has.
 - create_workspace_snapshot: Create atomic pre-execution snapshot.
 - rollback_workspace_snapshot: Restore workspace to captured shadow point.
 
@@ -19,6 +20,7 @@ Harness core execution security: workspace safety net and undo capability.
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import time
 from dataclasses import dataclass
@@ -27,6 +29,14 @@ from pathlib import Path
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
 logger = logging.getLogger(__name__)
+
+_SNAPSHOT_ID = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
+
+
+def is_snapshot_commit_id(value: str) -> bool:
+    """True for a full commit id. A persisted snapshot id is read back from disk, so anything else (an option such as
+    ``--output=...``, a ref name) must never reach a git command line."""
+    return _SNAPSHOT_ID.fullmatch(value) is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,13 +166,13 @@ def create_workspace_snapshot(workspace_path: Path | str) -> WorkspaceSnapshotRe
 def rollback_workspace_snapshot(workspace_path: Path | str, snapshot_id: str) -> bool:
     """Restore workspace working tree to the state of the captured snapshot ID."""
     wpath = Path(workspace_path).resolve()
-    if not wpath.exists() or not snapshot_id or not is_git_repo(wpath):
+    if not wpath.exists() or not is_snapshot_commit_id(snapshot_id) or not is_git_repo(wpath):
         return False
 
     try:
         # Check if snapshot_id is valid object
         verify_res = subprocess.run(
-            ["git", "cat-file", "-t", snapshot_id],
+            hardened_git_argv(("cat-file", "-t", snapshot_id), repo_dir=wpath),
             cwd=str(wpath),
             capture_output=True,
             text=True,
@@ -174,7 +184,7 @@ def rollback_workspace_snapshot(workspace_path: Path | str, snapshot_id: str) ->
 
         # Attempt clean checkout / restore of the tree
         restore_res = subprocess.run(
-            ["git", "read-tree", "--reset", "-u", snapshot_id],
+            hardened_git_argv(("read-tree", "--reset", "-u", snapshot_id), repo_dir=wpath),
             cwd=str(wpath),
             capture_output=True,
             text=True,
