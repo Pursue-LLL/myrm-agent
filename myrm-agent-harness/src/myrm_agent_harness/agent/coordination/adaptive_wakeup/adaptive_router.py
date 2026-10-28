@@ -4,11 +4,11 @@ Routes background asynchronous settlements by the user's stop flag and the bound
 consecutive wake budget; the host decides when a followup actually runs.
 
 [INPUT]
-- budget_tracker
-- types
+- budget_tracker::WakeupBudgetTracker (POS: per-session consecutive-wake budget and the user's stop flag)
+- types::RoutingDecision, WakeupChannel, WakeupEvent (POS: typed settlement events and routing outcomes)
 
 [OUTPUT]
-- AdaptiveWakeupRouter
+- AdaptiveWakeupRouter: decides what a settled background task does to its session (followup / degrade / suppress)
 
 [POS]
 Adaptive wakeup router deciding between followup, degradation, or suppression.

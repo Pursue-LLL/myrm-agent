@@ -33,9 +33,7 @@ class WakeupBudgetTracker:
         """Retrieve a copy of current budget state for the session."""
         with self._lock:
             if session_id not in self._states:
-                self._states[session_id] = WakeupBudgetState(
-                    max_consecutive_wakes=self._default_max_consecutive_wakes
-                )
+                self._states[session_id] = WakeupBudgetState(max_consecutive_wakes=self._default_max_consecutive_wakes)
             state = self._states[session_id]
             return WakeupBudgetState(
                 consecutive_wakes=state.consecutive_wakes,
