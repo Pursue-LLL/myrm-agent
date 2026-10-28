@@ -2,6 +2,7 @@
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class; supplies _emit_inbound / _build_inbound)
+- channels.providers.signal.addressing::MessageAuthors (POS: remembers who wrote each group message for reactions)
 - channels.providers.signal.api::SignalClient (POS: Signal CLI REST API client)
 - channels.providers.signal.helpers (POS: envelope TypedDict structures, constants and mention rendering)
 - channels.types::MediaAttachment, guess_media_type (POS: channel message value types)
@@ -21,6 +22,7 @@ import time
 from typing import cast
 
 from app.channels.core.base import BaseChannel
+from app.channels.providers.signal.addressing import MessageAuthors
 from app.channels.providers.signal.api import SignalClient
 from app.channels.providers.signal.helpers import (
     _POLL_INTERVAL,
@@ -48,6 +50,7 @@ class SignalInboundMixin(BaseChannel):
     """
 
     _api: SignalClient
+    _authors: MessageAuthors
     _api_url: str
     _phone: str
     _account_uuid: str
@@ -170,6 +173,8 @@ class SignalInboundMixin(BaseChannel):
             return
 
         ts = str(data_msg.get("timestamp", ""))
+        if is_group and ts:
+            self._authors.note(chat_id, ts, source)
 
         metadata: dict[str, object] = {}
         if edit_target_ts:

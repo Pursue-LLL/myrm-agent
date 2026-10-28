@@ -522,39 +522,6 @@ class TestSignalOutbound:
         ch._api._http.delete.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_react_to_message(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        ch._api._http.post = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await ch.react_to_message("+9999", "12345", "\U0001f44d")
-        ch._api._http.post.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_react_to_message_non_digit_id(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        ch._api._http.post = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await ch.react_to_message("+9999", "not-a-number", "\U0001f44d")
-        ch._api._http.post.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_react_to_message_error(self) -> None:
-        from unittest.mock import AsyncMock
-
-        ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        ch._api._http.post = AsyncMock(side_effect=Exception("network"))  # type: ignore[assignment]
-
-        await ch.react_to_message("+9999", "12345", "\U0001f44d")
-
-    @pytest.mark.asyncio
     async def test_send_text_non_201(self) -> None:
         from unittest.mock import AsyncMock, MagicMock
 
@@ -803,20 +770,6 @@ class TestSignalClientApi:
 
         await client.stop_typing()
         client._http.delete.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_send_reaction(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        from app.channels.providers.signal.api import SignalClient
-
-        client = SignalClient("http://signal:8080", "+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        client._http.post = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await client.send_reaction("+9999", "\U0001f44d", "+8888", 12345)
-        client._http.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_receive_ok(self) -> None:

@@ -9,6 +9,8 @@ reaction handling, mention parsing, edit-message detection.
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji takes it back)
+- .addressing::wire_recipient, MessageAuthors (POS: recipient form on the wire; who wrote each group message)
 - .helpers::TypedDict structures, constants, _render_mentions (POS: types and pure functions)
 - .inbound::SignalInboundMixin (POS: WebSocket / polling receive loops and envelope parsing)
 
@@ -19,7 +21,7 @@ reaction handling, mention parsing, edit-message detection.
 Signal integration. Implemented via Signal CLI REST API:
 - Inbound: WebSocket ws:///v1/receive/{phone} (real-time), fallback HTTP polling
 - Outbound: /v2/send (text + base64 attachments)
-- Reactions: /v1/reactions
+- Reactions: POST/DELETE /v1/reactions (a bare group id is sent as ``group.`` + base64)
 - Groups: /v1/groups
 """
 
@@ -37,6 +39,8 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
+from app.channels.core.reaction_ledger import ReactionLedger
+from app.channels.providers.signal.addressing import MessageAuthors, wire_recipient
 from app.channels.providers.signal.api import SignalClient
 from app.channels.providers.signal.helpers import (
     _MAX_TEXT_LENGTH,
@@ -104,6 +108,8 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
         self._phone = phone_number
         self._account_uuid = account_uuid
         self._api = SignalClient(api_url, phone_number)
+        self._reactions = ReactionLedger()
+        self._authors = MessageAuthors()
         self._inbound_task: asyncio.Task[None] | None = None
         self._using_websocket = False
         self._bot_id = phone_number
@@ -218,7 +224,7 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
             payload: dict[str, str | list[str]] = {
                 "message": chunk,
                 "number": self._phone,
-                "recipients": [msg.recipient_id],
+                "recipients": [wire_recipient(msg.recipient_id)],
             }
             if index == 0 and encoded:
                 payload["base64_attachments"] = encoded
@@ -295,11 +301,22 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
     # ---- reaction ---------------------------------------------------------
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        try:
-            ts = int(message_id) if message_id.isdigit() else 0
-            await self._api.send_reaction(chat_id, emoji, chat_id, ts)
-        except Exception as exc:
-            logger.warning("Signal react failed (%s on %s): %s", emoji, message_id, exc)
+        """React to a message; an empty emoji takes back the reaction this channel added to it.
+
+        A message id is the sent timestamp, and the reaction names the message's author, which is unknown
+        for a group message this channel never received; such a message cannot be reacted to.
+        """
+        timestamp = int(message_id) if message_id.isdigit() else 0
+        author = self._authors.author_of(chat_id, message_id)
+        if timestamp == 0 or author is None:
+            return
+        if emoji:
+            await self._api.send_reaction(chat_id, emoji, author, timestamp)
+            self._reactions.remember(chat_id, message_id, emoji)
+            return
+        sent = self._reactions.take(chat_id, message_id)
+        if sent is not None:
+            await self._api.remove_reaction(chat_id, sent, author, timestamp)
 
     # ---- diagnostics ------------------------------------------------------
 

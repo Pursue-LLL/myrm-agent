@@ -5,10 +5,12 @@ messaging, typing indicators, reactions, groups, health check,
 WebSocket real-time receiving, and HTTP polling fallback.
 
 [INPUT]
+- channels.core.exceptions::ChannelSendError (POS: raised when the wrapper refuses a reaction)
+- .addressing::wire_recipient (POS: the recipient form signal-cli-rest-api accepts for a chat)
 - .helpers::constants, TypedDict structures (POS: Signal envelope type definitions and pure functions.)
 
 [OUTPUT]
-- SignalClient: HTTP + WebSocket client for Signal CLI REST API
+- SignalClient: HTTP + WebSocket client for Signal CLI REST API (reactions are POST/DELETE /v1/reactions with a flat ``reaction`` string)
 
 [POS]
 Signal HTTP/WS layer. Provides REST messaging, WebSocket stream_events(), and HTTP polling fallback. Called by channel.py via self._api.
@@ -22,6 +24,8 @@ from collections.abc import AsyncGenerator
 
 import httpx
 
+from app.channels.core.exceptions import ChannelSendError
+from app.channels.providers.signal.addressing import wire_recipient
 from app.channels.providers.signal.helpers import (
     _HEALTH_TIMEOUT,
     _POLL_INTERVAL,
@@ -112,19 +116,44 @@ class SignalClient:
         target_author: str,
         timestamp: int,
     ) -> None:
-        payload = {
-            "recipient": chat_id,
-            "reaction": {
-                "emoji": emoji,
-                "target_author": target_author,
-                "timestamp": timestamp,
-            },
+        """React to a message; raises ``ChannelSendError`` when the wrapper refuses it."""
+        await self._reaction_call("POST", chat_id, emoji, target_author, timestamp)
+
+    async def remove_reaction(
+        self,
+        chat_id: str,
+        emoji: str,
+        target_author: str,
+        timestamp: int,
+    ) -> None:
+        """Take back a reaction; raises ``ChannelSendError`` when the wrapper refuses it."""
+        await self._reaction_call("DELETE", chat_id, emoji, target_author, timestamp)
+
+    async def _reaction_call(
+        self,
+        method: str,
+        chat_id: str,
+        emoji: str,
+        target_author: str,
+        timestamp: int,
+    ) -> None:
+        payload: dict[str, str | int] = {
+            "recipient": wire_recipient(chat_id),
+            "reaction": emoji,
+            "target_author": target_author,
+            "timestamp": timestamp,
         }
-        await self._http.post(
-            f"{self._api_url}/v1/reactions/{self._phone}",
-            json=payload,
-            timeout=_SEND_TIMEOUT,
-        )
+        try:
+            resp = await self._http.request(
+                method,
+                f"{self._api_url}/v1/reactions/{self._phone}",
+                json=payload,
+                timeout=_SEND_TIMEOUT,
+            )
+        except httpx.HTTPError as exc:
+            raise ChannelSendError(f"Signal reaction request failed: {type(exc).__name__}", channel="signal") from exc
+        if resp.status_code >= 400:
+            raise ChannelSendError.from_http_status("signal", resp.status_code, resp.text)
 
     # ── WebSocket ─────────────────────────────────────────────────────
 
