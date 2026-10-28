@@ -8,7 +8,6 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
@@ -32,7 +31,6 @@ interface DiffPreviewProps {
  * 支持 inline（单栏）和 side-by-side（双栏）两种展示模式。
  */
 const DiffPreview: React.FC<DiffPreviewProps> = ({ currentContent, versions, viewingVersionIndex, language }) => {
-  const { resolvedTheme } = useTheme();
   const t = useTranslations('artifacts');
   const [renderSideBySide, setRenderSideBySide] = useState(
     () => typeof window !== 'undefined' && window.innerWidth >= MOBILE_BREAKPOINT,
@@ -102,7 +100,6 @@ const DiffPreview: React.FC<DiffPreviewProps> = ({ currentContent, versions, vie
           original={original}
           modified={modified}
           language={language ?? 'plaintext'}
-          theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
           options={{
             readOnly: true,
             renderSideBySide,

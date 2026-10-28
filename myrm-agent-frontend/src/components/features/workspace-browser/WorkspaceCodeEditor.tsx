@@ -26,7 +26,6 @@
 
 import React, { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { useTheme } from 'next-themes';
 import type { EditorProps, Monaco, OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
@@ -87,7 +86,6 @@ function configureLanguageServices(monaco: Monaco): void {
 }
 
 export const WorkspaceCodeEditor: React.FC<WorkspaceCodeEditorProps> = memo(({ value, label, onChange }) => {
-  const { resolvedTheme } = useTheme();
   const [initialText] = useState(value);
   const [modelPath] = useState(() => `inmemory://workspace/${nextModelId++}/${encodeURIComponent(label)}`);
   const options = useMemo(() => ({ ...EDITOR_OPTIONS, ariaLabel: label }), [label]);
@@ -154,7 +152,6 @@ export const WorkspaceCodeEditor: React.FC<WorkspaceCodeEditorProps> = memo(({ v
         defaultValue={initialText}
         path={modelPath}
         saveViewState={false}
-        theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
         options={options}
         loading={null}
         onMount={handleMount}

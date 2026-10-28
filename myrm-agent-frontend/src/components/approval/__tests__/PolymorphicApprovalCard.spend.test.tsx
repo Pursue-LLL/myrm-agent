@@ -28,10 +28,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ resolvedTheme: 'light' }),
-}));
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));

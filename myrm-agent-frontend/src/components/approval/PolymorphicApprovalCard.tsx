@@ -70,7 +70,6 @@ import {
   parseCommandSpans,
   parsePlainExplanation,
 } from '@/lib/approval/shellCommandDisplay';
-import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
 import { MaskedCredentialInputCard } from '@/components/approval/MaskedCredentialInputCard';
 import { DestructiveConfirmationBanner } from '@/components/approval/DestructiveConfirmationBanner';
@@ -184,7 +183,6 @@ function SkillApprovalContent({
   content,
   originalContent,
   language,
-  isDark,
   label,
   viewChangesLabel,
   hideChangesLabel,
@@ -193,7 +191,6 @@ function SkillApprovalContent({
   content?: string;
   originalContent?: string;
   language: string;
-  isDark: boolean;
   label: string;
   viewChangesLabel: string;
   hideChangesLabel: string;
@@ -218,7 +215,6 @@ function SkillApprovalContent({
             <DiffEditor
               height="400px"
               language={language}
-              theme={isDark ? 'vs-dark' : 'light'}
               original={String(originalContent)}
               modified={String(content || '')}
               options={{
@@ -231,7 +227,6 @@ function SkillApprovalContent({
             <Editor
               height="400px"
               language={language}
-              theme={isDark ? 'vs-dark' : 'light'}
               value={String(content || '')}
               options={{
                 readOnly: true,
@@ -296,9 +291,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   );
   const [stagedCredentialHandles, setStagedCredentialHandles] = useState<string[]>([]);
   const [destructiveConfirmed, setDestructiveConfirmed] = useState(false);
-  const { resolvedTheme } = useTheme();
-
-  const isDark = resolvedTheme === 'dark';
   const isSubagentApproval = approval.action_type === 'subagent_approval';
   const hasAnySmartDenied = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
@@ -588,7 +580,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                         filePath={filePath}
                         content={content}
                         language={language}
-                        isDark={isDark}
                         viewChangesLabel={t('viewChanges')}
                         hideChangesLabel={t('hideChanges')}
                         scopeNote={scope.text}
@@ -739,7 +730,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             content={content}
             originalContent={originalContent}
             language={language}
-            isDark={isDark}
             label={t('skillGrowthPending')}
             viewChangesLabel={t('viewChanges')}
             hideChangesLabel={t('hideChanges')}
@@ -766,7 +756,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 <Editor
                   height="200px"
                   language="json"
-                  theme={isDark ? 'vs-dark' : 'light'}
                   value={editedArgs}
                   onChange={(val) => setEditedArgs(val || '')}
                   options={{

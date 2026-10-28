@@ -157,7 +157,6 @@ export default function CasesTab({ casesDraft = '', onDraftChange }: CasesTabPro
         <Editor
           height="100%"
           defaultLanguage="json"
-          theme="vs-dark"
           value={casesDraft}
           onChange={(value) => onDraftChange(value || '')}
           options={{ minimap: { enabled: false }, wordWrap: 'on' }}

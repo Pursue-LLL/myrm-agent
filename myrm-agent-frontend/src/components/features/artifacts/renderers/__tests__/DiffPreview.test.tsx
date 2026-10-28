@@ -3,10 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import type { ArtifactVersion } from '@/store/chat/types';
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ resolvedTheme: 'dark' }),
-}));
-
 vi.mock('next-intl', () => ({
   useTranslations: () => {
     const t = (key: string) => {

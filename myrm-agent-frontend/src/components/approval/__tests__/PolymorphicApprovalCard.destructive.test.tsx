@@ -33,10 +33,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'zh',
 }));
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ resolvedTheme: 'light' }),
-}));
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import Editor, { useMonaco } from '@monaco-editor/react';
-import { useTheme } from 'next-themes';
+import type { OnMount } from '@monaco-editor/react';
 import { Loader2, History } from 'lucide-react';
+import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { useLocale, useTranslations } from 'next-intl';
@@ -16,6 +16,8 @@ import {
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 
 import type { editor } from 'monaco-editor';
+
+type MonacoNamespace = typeof import('monaco-editor');
 
 interface ProfileHistory {
   id: string;
@@ -47,8 +49,7 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
 }) => {
   const t = useTranslations('agent.configEditor');
   const locale = useLocale();
-  const { resolvedTheme } = useTheme();
-  const monaco = useMonaco();
+  const [monaco, setMonaco] = useState<MonacoNamespace | null>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiInput, setShowAiInput] = useState(false);
@@ -121,8 +122,9 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
     };
   }, []);
 
-  const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor) => {
-    editorRef.current = editor;
+  const handleEditorDidMount: OnMount = (mountedEditor, mountedMonaco) => {
+    editorRef.current = mountedEditor;
+    setMonaco(mountedMonaco);
   };
 
   const handleAiSubmit = () => {
@@ -213,10 +215,9 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
 
       {/* Editor */}
       <div className="relative flex-1 min-h-[200px]">
-        <Editor
+        <LazyMonacoEditor
           height="100%"
           language="markdown"
-          theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
           value={value}
           onChange={(val) => onChange(val || '')}
           onMount={handleEditorDidMount}

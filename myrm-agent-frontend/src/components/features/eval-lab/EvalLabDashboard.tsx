@@ -402,7 +402,6 @@ export default function EvalLabDashboard() {
             <TabsContent value="diff" className="h-full p-0 m-0">
               <DiffEditor
                 height="100%"
-                theme="vs-dark"
                 original={casesEval.diffView.expected}
                 modified={casesEval.diffView.actual}
                 options={{ readOnly: true, minimap: { enabled: false } }}

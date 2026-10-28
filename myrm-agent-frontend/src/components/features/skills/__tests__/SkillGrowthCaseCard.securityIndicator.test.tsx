@@ -40,10 +40,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ theme: 'light', resolvedTheme: 'light' }),
-}));
-
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));

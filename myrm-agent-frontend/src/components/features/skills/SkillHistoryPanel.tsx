@@ -18,7 +18,6 @@ import {
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
 import { toast } from '@/hooks/shared/useToast';
-import { useTheme } from 'next-themes';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { apiRequest } from '@/lib/api';
 import { rollbackSkillEvolution } from '@/services/skill/growth';
@@ -45,7 +44,6 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState<string | null>(null);
   const [pendingRollback, setPendingRollback] = useState<{ id: string; name: string } | null>(null);
-  const { resolvedTheme } = useTheme();
   const appLocale = useLocale();
 
   const fetchHistory = useCallback(async () => {
@@ -186,7 +184,6 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                         height="300px"
                         original={record.original_content}
                         modified={record.evolved_content}
-                        theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
                         options={{
                           readOnly: true,
                           renderSideBySide: false,

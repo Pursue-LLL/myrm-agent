@@ -23,7 +23,6 @@ interface CompactFileWriteApprovalRowProps {
   filePath: string;
   content: string;
   language: string;
-  isDark: boolean;
   viewChangesLabel: string;
   hideChangesLabel: string;
   scopeNote?: string;
@@ -35,7 +34,6 @@ export default function CompactFileWriteApprovalRow({
   filePath,
   content,
   language,
-  isDark,
   viewChangesLabel,
   hideChangesLabel,
   scopeNote,
@@ -80,7 +78,6 @@ export default function CompactFileWriteApprovalRow({
               <Editor
                 height="100%"
                 language={language}
-                theme={isDark ? 'vs-dark' : 'light'}
                 value={content}
                 options={{
                   readOnly: true,

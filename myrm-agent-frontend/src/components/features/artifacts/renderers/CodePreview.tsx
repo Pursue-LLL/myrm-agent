@@ -2,10 +2,9 @@
 
 import React, { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
-import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
-import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
+import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import useArtifactPortalStore, { useIsGenerating } from '@/store/useArtifactPortalStore';
 import SelectionToolbar from '../portal/SelectionToolbar';
 
@@ -19,7 +18,6 @@ type MonacoNamespace = typeof import('monaco-editor');
 
 /** 可编辑的代码预览组件 (基于 Monaco Editor)，集成 SelectionToolbar 选中精准编辑。 */
 const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artifactId }) => {
-  const { resolvedTheme } = useTheme();
   const t = useTranslations('artifacts');
   const [editableContent, setEditableContent] = useState(content);
   const [debouncedContent] = useDebounce(editableContent, 2000);
@@ -212,10 +210,9 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
         </div>
       )}
       <div className="flex-1 overflow-hidden relative">
-        <Editor
+        <LazyMonacoEditor
           height="100%"
           language={monacoLanguage}
-          theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
           value={editableContent}
           onChange={(val) => setEditableContent(val || '')}
           onMount={handleEditorDidMount}

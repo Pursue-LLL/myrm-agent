@@ -14,7 +14,6 @@ import { GrowthCaseEvidence } from '@/components/features/skills/growth-card/Gro
 import { GrowthCaseTitleRow } from '@/components/features/skills/growth-card/GrowthCaseTitleRow';
 import { GrowthRevisionEditor } from '@/components/features/skills/growth-card/GrowthRevisionEditor';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
-import { useTheme } from 'next-themes';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -45,7 +44,6 @@ export default function SkillGrowthCaseCard({
   onRevise,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
-  const { resolvedTheme } = useTheme();
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -57,7 +55,6 @@ export default function SkillGrowthCaseCard({
   const modifiedEditorRef = useRef<{ getValue: () => string } | null>(null);
   const isSimple = viewMode === 'simple';
 
-  const isDark = resolvedTheme === 'dark';
   const isMobile = useIsMobile();
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
@@ -299,7 +296,6 @@ export default function SkillGrowthCaseCard({
           originalContent={originalContent ?? ''}
           editedContent={editedContent}
           isProcessing={isProcessing}
-          isDark={isDark}
           isMobile={isMobile}
           onMount={handleDiffEditorMount}
           onCancel={handleCancelEdit}

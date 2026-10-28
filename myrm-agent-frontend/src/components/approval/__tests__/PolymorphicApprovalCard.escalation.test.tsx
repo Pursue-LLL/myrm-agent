@@ -19,10 +19,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ resolvedTheme: 'light' }),
-}));
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));

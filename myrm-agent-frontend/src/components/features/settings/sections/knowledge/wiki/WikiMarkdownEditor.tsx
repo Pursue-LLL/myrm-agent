@@ -2,7 +2,6 @@
 
 import { useDeferredValue, useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useTheme } from 'next-themes';
 import { Button } from '@/components/primitives/button';
 import { IconEdit, IconEye } from '@/components/features/icons/PremiumIcons';
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';
@@ -35,7 +34,6 @@ export function WikiMarkdownEditor({
   className,
 }: WikiMarkdownEditorProps) {
   const t = useTranslations('settings.wiki.editor');
-  const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
   const [mobileMode, setMobileMode] = useState<'edit' | 'preview'>('edit');
 
@@ -214,7 +212,6 @@ export function WikiMarkdownEditor({
         <LazyMonacoEditor
           height="100%"
           language="markdown"
-          theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
           value={value}
           onChange={(val) => onChange(val ?? '')}
           onMount={handleEditorDidMount}

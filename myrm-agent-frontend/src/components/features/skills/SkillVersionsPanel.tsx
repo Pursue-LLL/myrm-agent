@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { skillVersionOriginLabel } from '@/lib/skills/versionOrigin';
 import { ChevronDown, GitCompare, History, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -38,7 +37,6 @@ export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVer
   const t = useTranslations('settings.skillOptimization.versions');
   const tSkills = useTranslations('settings.skills');
   const appLocale = useLocale();
-  const { resolvedTheme } = useTheme();
 
   const [versions, setVersions] = useState<SkillVersionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -208,7 +206,6 @@ export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVer
                 <DiffEditor
                   original={diffContent.original}
                   modified={diffContent.modified}
-                  theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
                   options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false }}
                 />
               </div>

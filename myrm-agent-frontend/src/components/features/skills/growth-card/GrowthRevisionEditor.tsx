@@ -15,7 +15,6 @@ interface GrowthRevisionEditorProps {
   originalContent: string;
   editedContent: string;
   isProcessing: boolean;
-  isDark: boolean;
   isMobile: boolean;
   onMount: DiffOnMount;
   onCancel: () => void;
@@ -26,7 +25,6 @@ export function GrowthRevisionEditor({
   originalContent,
   editedContent,
   isProcessing,
-  isDark,
   isMobile,
   onMount,
   onCancel,
@@ -54,7 +52,6 @@ export function GrowthRevisionEditor({
           height="100%"
           original={originalContent}
           modified={editedContent}
-          theme={isDark ? 'vs-dark' : 'light'}
           onMount={onMount}
           options={{
             readOnly: false,

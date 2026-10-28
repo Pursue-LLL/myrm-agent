@@ -7,7 +7,6 @@ interface MonacoProps {
   defaultValue?: string;
   value?: string;
   path?: string;
-  theme?: string;
   saveViewState?: boolean;
   options?: Record<string, unknown> & {
     ariaLabel?: string;
@@ -19,9 +18,8 @@ interface MonacoProps {
   onMount?: (editor: unknown, monaco: unknown) => void;
 }
 
-const { mounted, appTheme } = vi.hoisted(() => ({
+const { mounted } = vi.hoisted(() => ({
   mounted: { props: null as MonacoProps | null },
-  appTheme: { resolved: 'light' as string | undefined },
 }));
 
 vi.mock('@/components/features/app-shell/lazy-monaco-editor', () => ({
@@ -30,7 +28,6 @@ vi.mock('@/components/features/app-shell/lazy-monaco-editor', () => ({
     return <div data-testid="monaco" />;
   },
 }));
-vi.mock('next-themes', () => ({ useTheme: () => ({ resolvedTheme: appTheme.resolved }) }));
 
 import { WorkspaceCodeEditor } from '../WorkspaceCodeEditor';
 
@@ -82,7 +79,6 @@ function mountEditor(initial: string, monaco = fakeMonaco()) {
 
 beforeEach(() => {
   mounted.props = null;
-  appTheme.resolved = 'light';
 });
 
 describe('WorkspaceCodeEditor', () => {
@@ -185,18 +181,6 @@ describe('WorkspaceCodeEditor', () => {
     type('ab');
 
     expect(later).toHaveBeenCalledWith('ab');
-  });
-
-  it.each([
-    ['dark', 'vs-dark'],
-    ['light', 'light'],
-    [undefined, 'light'],
-  ])('follows the app theme (%s)', (resolved, expected) => {
-    appTheme.resolved = resolved;
-
-    render(<WorkspaceCodeEditor value="" label="notes.md" onChange={vi.fn()} />);
-
-    expect(mounted.props?.theme).toBe(expected);
   });
 
   it('behaves as a file editor rather than an IDE', () => {
