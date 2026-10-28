@@ -9836,7 +9836,7 @@
     "grantDirectoryReadWrite": "읽기 및 쓰기",
     "highRiskIntercepted": {
       "title": "반자동 모드가 고위험 작업을 차단했습니다",
-      "description": "고위험 셸 또는 시스템 변경 작업이 감지되어 자동으로 차단되었습니다. 명시적인 승인이 필요합니다."
+      "description": "되돌리기 어려운 변경이 생길 수 있어 자동으로 일시 중지했습니다. 승인하셔야만 실행됩니다."
     },
     "autoApproving": "자동 승인 중...",
     "smartDenied": {

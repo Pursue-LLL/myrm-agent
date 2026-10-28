@@ -30,6 +30,15 @@ describe('PathGrantToggle', () => {
     expect(screen.getByText('Read and write')).toBeTruthy();
   });
 
+  it('shows the scope of the grant next to the toggle and ties it to the checkbox', () => {
+    render(<PathGrantToggle directories={directories} checked={false} onCheckedChange={vi.fn()} />);
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Also grant folder access' });
+    const description = document.getElementById(checkbox.getAttribute('aria-describedby') ?? '');
+
+    expect(description?.textContent).toBe(messages.grantDirectoryDesc);
+  });
+
   it('reports the new state when the checkbox is clicked', () => {
     const onCheckedChange = vi.fn();
     render(<PathGrantToggle directories={directories} checked={false} onCheckedChange={onCheckedChange} />);

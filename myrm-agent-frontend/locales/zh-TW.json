@@ -9836,7 +9836,7 @@
     "grantDirectoryReadWrite": "可讀寫",
     "highRiskIntercepted": {
       "title": "半自動模式高危操作攔截",
-      "description": "偵測到包含高危 Shell/系統修改操作，已自動阻斷，必須經人工明確審批確認。"
+      "description": "此操作可能造成難以復原的變更，已自動暫停，需經你確認後才會執行。"
     },
     "autoApproving": "半自動放行中...",
     "smartDenied": {

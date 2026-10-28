@@ -243,12 +243,12 @@ def _apply_validated_grant(
 
     roots_before = get_session_access_roots()
     effective_policy = policy or _default_path_policy()
-    grant_session_access_root(
+    updated = grant_session_access_root(
         AccessRoot(path=grant_path, writable=writable, source=source),
         policy=effective_policy,
         workspace_root=workspace_dir,
     )
-    return len(get_session_access_roots()) > len(roots_before)
+    return updated != roots_before
 
 
 async def apply_directory_resume_grant(

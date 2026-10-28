@@ -9836,7 +9836,7 @@
     "grantDirectoryReadWrite": "読み取りと書き込み",
     "highRiskIntercepted": {
       "title": "セミオートモードが高リスクの操作をブロックしました",
-      "description": "高リスクのシェル操作またはシステム変更を検出し、自動的にブロックしました。明示的な承認が必要です。"
+      "description": "元に戻しにくい変更を伴う可能性があるため、自動的に一時停止しました。承認した場合のみ実行されます。"
     },
     "autoApproving": "自動承認中...",
     "smartDenied": {

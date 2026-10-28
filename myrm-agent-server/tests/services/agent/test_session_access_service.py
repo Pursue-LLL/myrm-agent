@@ -32,15 +32,15 @@ def _reset_session_roots() -> None:
     set_session_access_roots(())
 
 
-def _path_ask_grant(*paths: object, writable: bool = False) -> dict[str, object]:
-    """The resume payload of an approved path-ASK card that grants every folder in ``paths``."""
+def _path_ask_grant(*paths: object, writable: bool = False, junk: tuple[object, ...] = ()) -> dict[str, object]:
+    """The resume payload of an approved path-ASK card that grants every folder in ``paths`` (plus ``junk``)."""
     return {
         "decisions": [
             {
                 "type": "approve",
                 "extensions": {
                     "grantDirectory": True,
-                    "grantDirectories": [{"path": str(path), "writable": writable} for path in paths],
+                    "grantDirectories": [{"path": str(path), "writable": writable} for path in paths] + list(junk),
                 },
             }
         ]
@@ -102,9 +102,7 @@ async def test_every_folder_the_card_offered_is_granted_and_malformed_entries_ar
     second = tmp_path / "second"
     for directory in (workspace, first, second):
         directory.mkdir()
-    payload = _path_ask_grant(first, second)
-    extensions = payload["decisions"][0]["extensions"]  # type: ignore[index]
-    extensions["grantDirectories"] += ["not-a-dict", {"path": 7}, {"path": "  "}, {"writable": True}]
+    payload = _path_ask_grant(first, second, junk=("not-a-dict", {"path": 7}, {"path": "  "}, {"writable": True}))
 
     await apply_directory_resume_grant(None, payload, workspace_dir=str(workspace))
 
@@ -112,6 +110,24 @@ async def test_every_folder_the_card_offered_is_granted_and_malformed_entries_ar
         os.path.realpath(str(first)),
         os.path.realpath(str(second)),
     ]
+
+
+@pytest.mark.asyncio
+async def test_a_write_grant_on_a_held_read_only_folder_is_applied_and_persisted(tmp_path) -> None:
+    workspace = tmp_path / "ws"
+    docs = tmp_path / "docs"
+    for directory in (workspace, docs):
+        directory.mkdir()
+    set_session_access_roots((AccessRoot(path=os.path.realpath(docs), writable=False, source="desktop_drag_drop"),))
+
+    with patch(
+        "app.services.agent.session_access_service.persist_chat_session_access_roots",
+        new_callable=AsyncMock,
+    ) as mock_persist:
+        await apply_directory_resume_grant("chat-upgrade", _path_ask_grant(docs, writable=True), workspace_dir=str(workspace))
+        mock_persist.assert_awaited_once_with("chat-upgrade")
+
+    assert [(root.path, root.writable) for root in get_session_access_roots()] == [(os.path.realpath(docs), True)]
 
 
 @pytest.mark.asyncio

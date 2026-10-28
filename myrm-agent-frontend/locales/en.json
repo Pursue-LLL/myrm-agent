@@ -9836,7 +9836,7 @@
     "grantDirectoryReadWrite": "Read and write",
     "highRiskIntercepted": {
       "title": "Semi-auto mode blocked a high-risk action",
-      "description": "A high-risk shell or system change was detected and blocked automatically. It needs your explicit approval."
+      "description": "This action could make changes that are hard to undo, so it was paused automatically. It only runs if you approve it."
     },
     "autoApproving": "Auto-approving...",
     "smartDenied": {

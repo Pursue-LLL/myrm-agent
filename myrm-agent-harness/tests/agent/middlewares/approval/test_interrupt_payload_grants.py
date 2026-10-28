@@ -1,7 +1,7 @@
 """The approval payload names the folders "also grant folder access" would add, and the grant follows the plan.
 
-The card used to guess the folder from the tool arguments and gate itself on an English phrase of the reason;
-the harness now plans the grant once and both the card and the grant read that plan.
+The harness plans the grant once from the tool arguments and the effective path policy; the card shows that
+plan and the approval applies it, independent of how the approval reason is worded.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from myrm_agent_harness.agent.middlewares.approval._interrupt_payload import bui
 from myrm_agent_harness.agent.security.session_access import (
     get_session_access_roots,
     grant_session_access_root,
+    merge_path_policy_with_session_access,
     set_session_access_roots,
 )
 from myrm_agent_harness.agent.security.types import AccessRoot, PathPolicy, SecurityConfig
@@ -130,6 +131,44 @@ async def test_approving_without_the_toggle_grants_nothing(dirs: tuple[Path, Pat
 
     await apply_approval_decisions(
         [{"type": "approve", "extensions": {}}],
+        AIMessage(content="", tool_calls=[call]),
+        [],
+        [(0, call, "file_read", "needs approval", None)],
+        [0],
+        {},
+        config=SecurityConfig(path_policy=_POLICY),
+    )
+
+    assert get_session_access_roots() == ()
+
+
+async def test_a_write_into_a_read_only_grant_is_offered_and_applied_as_an_upgrade(dirs: tuple[Path, Path]) -> None:
+    workspace, downloads = dirs
+    grant_session_access_root(AccessRoot(path=str(downloads), writable=False), workspace_root=str(workspace))
+    call = _call("file_write_tool", {"file_path": f"{downloads}/out.csv"})
+
+    request = _payload(call, "file_write", workspace, merge_path_policy_with_session_access(_POLICY))
+    assert request["grantDirectories"] == [{"path": os.path.realpath(downloads), "writable": True}]
+
+    await apply_approval_decisions(
+        [{"type": "approve", "extensions": {"grantDirectory": True}}],
+        AIMessage(content="", tool_calls=[call]),
+        [],
+        [(0, call, "file_write", "needs approval", None)],
+        [0],
+        {},
+        config=SecurityConfig(path_policy=_POLICY),
+    )
+
+    assert [(root.path, root.writable) for root in get_session_access_roots()] == [(os.path.realpath(downloads), True)]
+
+
+async def test_an_edited_approval_grants_nothing(dirs: tuple[Path, Path]) -> None:
+    _, downloads = dirs
+    call = _call("file_read_tool", {"paths": [f"{downloads}/a.csv"]})
+
+    await apply_approval_decisions(
+        [{"type": "edit", "args": {"paths": [f"{downloads}/b.csv"]}, "extensions": {"grantDirectory": True}}],
         AIMessage(content="", tool_calls=[call]),
         [],
         [(0, call, "file_read", "needs approval", None)],

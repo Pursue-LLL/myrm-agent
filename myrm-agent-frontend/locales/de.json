@@ -9836,7 +9836,7 @@
     "grantDirectoryReadWrite": "Lesen und Schreiben",
     "highRiskIntercepted": {
       "title": "Halbautomatik hat eine riskante Aktion blockiert",
-      "description": "Ein riskanter Shell- oder Systemeingriff wurde erkannt und automatisch blockiert. Er erfordert Ihre ausdrückliche Freigabe."
+      "description": "Diese Aktion könnte schwer rückgängig zu machende Änderungen verursachen und wurde automatisch angehalten. Sie wird nur nach Ihrer Freigabe ausgeführt."
     },
     "autoApproving": "Wird automatisch freigegeben...",
     "smartDenied": {

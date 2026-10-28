@@ -16,7 +16,7 @@
 | `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx`               | 浏览器/命令上下文                                                                           |
 | `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置；Edit / Reject 随所属卡片的倒计时在超时后禁用确认并提示已超时） |
 | `AllowAlwaysConfirmDialog.tsx`                                     | 「始终允许」确认（支持 pattern 预览与 Session/15m/1h/Permanent 时效阶梯门禁）               |
-| `PathGrantToggle.tsx`                                              | 路径审批卡的「同时授予文件夹访问」勾选项，并列出将授权的每个文件夹及只读/可读写（文件夹列表来自 harness，不在前端推断） |
+| `PathGrantToggle.tsx`                                              | 路径审批卡的「同时授予文件夹访问」勾选项，并列出将授权的每个文件夹及只读/可读写，授权范围说明直接显示在勾选项下方（文件夹列表来自 harness，不在前端推断） |
 | `LeaseProgressCapsule.tsx`                                         | 执行态配额进度 HUD 胶囊（显示剩余步数配额并在临近用尽时提供原地一键快捷续期）               |
 | `__tests__/AllowAlwaysConfirmDialog.test.tsx`                      | 单元测试：覆盖时效阶梯与高危永久授权防呆警示                                                |
 | `__tests__/EditModeView.test.tsx`                                  | 单元测试：覆盖 EditModeView 时效阶梯选择与确认回调行为                                      |

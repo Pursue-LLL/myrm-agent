@@ -71,23 +71,16 @@ export interface ToolApprovalResolveExtra {
   ephemeral_credential_handles?: string[];
 }
 
-/**
- * [INPUT] Decision type + optional edited args / feedback / allow flags
- * [OUTPUT] LangGraph-compatible approval decision object
- * [POS] Shared payload builder for single and bulk approval resume
- */
+/** True when an approved decision asks the server to persist its folder grants. */
 export function resumeDecisionsIncludeDirectoryGrant(decisions: ApprovalDecision[]): boolean {
-  return decisions.some(
-    (decision) =>
-      (decision.type === 'approve' || decision.type === 'edit') && decision.extensions.grantDirectory === true,
-  );
+  return decisions.some((decision) => decision.type === 'approve' && decision.extensions.grantDirectory === true);
 }
 
 /** Roots to show at once after a grant, while the chat row may still lag behind the persist. */
 export function extractDirectoryGrantOptimistic(decisions: ApprovalDecision[]): SessionAccessRoot[] {
   const roots = new Map<string, SessionAccessRoot>();
   for (const decision of decisions) {
-    if ((decision.type !== 'approve' && decision.type !== 'edit') || !decision.extensions.grantDirectory) {
+    if (decision.type !== 'approve' || !decision.extensions.grantDirectory) {
       continue;
     }
     for (const { path, writable } of decision.extensions.grantDirectories ?? []) {
@@ -97,6 +90,11 @@ export function extractDirectoryGrantOptimistic(decisions: ApprovalDecision[]): 
   return [...roots.values()];
 }
 
+/**
+ * [INPUT] Decision type + optional edited args / feedback / allow flags
+ * [OUTPUT] LangGraph-compatible approval decision object
+ * [POS] Shared payload builder for single and bulk approval resume
+ */
 export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprovalResolveExtra): ApprovalDecision {
   const allowAlwaysVal = extra?.allow_always ?? false;
   const ttlFromAllowAlways =

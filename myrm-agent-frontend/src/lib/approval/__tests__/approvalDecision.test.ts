@@ -132,7 +132,7 @@ describe('buildApprovalDecision', () => {
     expect(none.grantDirectories).toBeUndefined();
   });
 
-  it('extracts every optimistic root from the approved grant decisions, once per folder', () => {
+  it('extracts every optimistic root from the approved grant decisions only, once per folder', () => {
     expect(
       extractDirectoryGrantOptimistic([
         buildApprovalDecision('approve', {
@@ -141,7 +141,8 @@ describe('buildApprovalDecision', () => {
             { path: '/tmp/ref', writable: false },
           ],
         }),
-        buildApprovalDecision('edit', { grant_directories: [{ path: '/tmp/proj', writable: true }] }),
+        buildApprovalDecision('approve', { grant_directories: [{ path: '/tmp/proj', writable: true }] }),
+        buildApprovalDecision('edit', { grant_directories: [{ path: '/tmp/edited', writable: true }] }),
         buildApprovalDecision('reject', { grant_directories: [{ path: '/tmp/never', writable: true }] }),
       ]),
     ).toEqual([

@@ -84,19 +84,24 @@ def _grant_path_blocked_by_policy(
     return None
 
 
+def _realpath(path: str) -> str:
+    return os.path.realpath(os.path.expanduser(path))
+
+
 def grant_session_access_root(
     root: AccessRoot,
     *,
     policy: PathPolicy | None = None,
     workspace_root: str | None = None,
 ) -> tuple[AccessRoot, ...]:
-    """Append a HITL-granted root (dedupe by normalized path). Returns updated tuple."""
+    """Add a HITL-granted root, or raise a held read-only one to writable (dedupe by normalized path)."""
     current = get_session_access_roots()
-    if len(current) >= _MAX_GRANTS_PER_SESSION:
-        return current
-
     normalized = resolve_grant_directory_path(root.path, workspace_root)
     if not normalized:
+        return current
+
+    held_index = next((i for i, held in enumerate(current) if _realpath(held.path) == normalized), None)
+    if held_index is None and len(current) >= _MAX_GRANTS_PER_SESSION:
         return current
 
     if policy is not None:
@@ -114,10 +119,12 @@ def grant_session_access_root(
             )
             return current
 
-    for existing in current:
-        if os.path.realpath(os.path.expanduser(existing.path)) == normalized:
-            return current
-    updated = (*current, replace(root, path=normalized))
+    if held_index is None:
+        updated = (*current, replace(root, path=normalized))
+    elif root.writable and not current[held_index].writable:
+        updated = (*current[:held_index], replace(current[held_index], writable=True), *current[held_index + 1 :])
+    else:
+        return current
     set_session_access_roots(updated)
     return updated
 
@@ -129,27 +136,33 @@ def plan_directory_grants(
     workspace_root: str | None,
     writable: bool,
 ) -> list[AccessRoot]:
-    """The directories "also grant folder access" would add for this call, each once.
+    """The directories "also grant folder access" would add or upgrade for this call, each once.
 
-    One per directory of a file the call names outside the allowed zones. Files inside the workspace or an
-    allowed root need no grant, so a batched call does not spend the per-session grant limit on them; a
-    directory the grant would be refused (forbidden zone, limit reached) is not offered either, so the
-    card never promises a folder the grant then drops. ``policy`` is the effective one for the turn.
+    One per directory of a file the call names outside the allowed zones; a write into a held read-only
+    folder offers its upgrade to writable. Files inside the workspace or an allowed root need no grant, so
+    a batched call does not spend the per-session grant limit on them; a directory the grant would be
+    refused (forbidden zone, limit reached) is not offered either, so the card never promises a folder the
+    grant then drops. ``policy`` is the effective one for the turn.
     """
-    room = _MAX_GRANTS_PER_SESSION - len(get_session_access_roots())
+    current = get_session_access_roots()
+    held = {_realpath(root.path) for root in current}
+    room = _MAX_GRANTS_PER_SESSION - len(current)
     planned: dict[str, AccessRoot] = {}
+    new_roots = 0
     for raw_path in host_file_paths(tool_input):
-        if len(planned) >= room:
-            break
         action, _ = check_path_policy(raw_path, policy, workspace_root, require_write=writable)
         if action != PermissionAction.ASK:
             continue
         grant_path = resolve_grant_directory_path(raw_path, workspace_root)
         if not grant_path or grant_path in planned:
             continue
+        is_new = grant_path not in held
+        if is_new and new_roots >= room:
+            continue
         if _grant_path_blocked_by_policy(grant_path, policy, workspace_root, require_write=writable):
             continue
         planned[grant_path] = AccessRoot(path=grant_path, writable=writable, source="path_ask_grant")
+        new_roots += is_new
     return list(planned.values())
 
 
@@ -160,12 +173,11 @@ def grant_directories_for_call(
     workspace_root: str | None,
     writable: bool,
 ) -> list[str]:
-    """Grant the directories ``plan_directory_grants`` names; return the ones actually added."""
+    """Grant the directories ``plan_directory_grants`` names; return the ones actually added or upgraded."""
     granted: list[str] = []
     for root in plan_directory_grants(tool_input, policy=policy, workspace_root=workspace_root, writable=writable):
         roots_before = get_session_access_roots()
-        grant_session_access_root(root, policy=policy, workspace_root=workspace_root)
-        if len(get_session_access_roots()) > len(roots_before):
+        if grant_session_access_root(root, policy=policy, workspace_root=workspace_root) != roots_before:
             granted.append(root.path)
     return granted
 
@@ -182,7 +194,7 @@ def revoke_session_access_root(
 
     target = os.path.realpath(normalized)
     current = get_session_access_roots()
-    updated = tuple(root for root in current if os.path.realpath(os.path.expanduser(root.path)) != target)
+    updated = tuple(root for root in current if _realpath(root.path) != target)
     if len(updated) == len(current):
         return current
     set_session_access_roots(updated)
@@ -194,9 +206,9 @@ def merge_path_policy_with_session_access(policy: PathPolicy) -> PathPolicy:
     session_roots = get_session_access_roots()
     if not session_roots:
         return policy
-    by_path: dict[str, AccessRoot] = {os.path.realpath(os.path.expanduser(r.path)): r for r in policy.access_roots}
+    by_path: dict[str, AccessRoot] = {_realpath(r.path): r for r in policy.access_roots}
     for root in session_roots:
-        key = os.path.realpath(os.path.expanduser(root.path))
+        key = _realpath(root.path)
         by_path[key] = root
     return replace(policy, access_roots=tuple(by_path.values()))
 
@@ -213,8 +225,8 @@ def render_session_access_context(
     if workspace_root:
         lines.append(f"- {workspace_root} [read-write] — primary workspace")
     for root in effective.access_roots:
-        ws_norm = os.path.realpath(os.path.expanduser(workspace_root)) if workspace_root else ""
-        root_norm = os.path.realpath(os.path.expanduser(root.path))
+        ws_norm = _realpath(workspace_root) if workspace_root else ""
+        root_norm = _realpath(root.path)
         if ws_norm and root_norm == ws_norm:
             continue
         access = "read-write" if root.writable else "read-only"

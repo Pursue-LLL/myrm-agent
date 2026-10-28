@@ -279,6 +279,15 @@ const resumeValue = { decisions };
 4. **TaintTracking** - 数据流污染检测
 5. **ToolApproval** - 人类审批
 
+### 目录授权（path-ASK grant）
+文件工具点名工作区与允许根之外的目录时，PathPolicy 返回 ASK，审批卡片提供「同时授予文件夹访问」勾选项：
+
+- **一份计划**：`session_access.plan_directory_grants` 统一规划授权目录（每个目录一次；写入类工具为可读写，其余只读）。`build_interrupt_payload` 把计划放进动作请求的 `grantDirectories`（`[{path, writable}]`），卡片只展示不推断；用户批准并勾选时，`apply_approval_decisions` 按同一计划授权，与审批理由的语言无关。禁区目录与超出每会话 5 个授权根上限的目录不会被提供。
+- **升级**：对已持有的只读根发起写入时，计划提供升级为可读写，授权后原地改为可写，不占名额；授权永远不会把可写根降为只读。
+- **范围**：只有 `approve` 决议授权，`edit` 与 `reject` 不授权；「全部批准」不携带授权。
+- **生效面**：授权根存放在 `session_access_roots_var`，权限引擎与沙箱执行器共用（执行器边界见 `EXECUTION_SYSTEM.md`「文件操作边界」）。
+- **持久化与部署边界**：授权的持久化与部署边界（云卷、沙箱模式）由业务层 `session_access_service` 负责；harness 在批准后对当次运行的授权不经过部署边界检查，该检查只约束业务层的持久化。
+
 ### 工具级AST安全门禁
 `browser_execute_script_tool` 在脚本执行前进行AST静态分析，检测绕过域名过滤/HITL守卫的特权API：
 - `page.request.*` (bypasses context.route())

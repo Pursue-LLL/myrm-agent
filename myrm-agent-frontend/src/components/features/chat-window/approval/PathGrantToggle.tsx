@@ -28,31 +28,34 @@ interface PathGrantToggleProps {
 
 export default function PathGrantToggle({ directories, checked, onCheckedChange, disabled }: PathGrantToggleProps) {
   const t = useTranslations('toolApproval');
-  const checkboxId = useId();
+  const id = useId();
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
 
   return (
-    <div className="space-y-1.5 rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+      <label className={`flex items-start gap-2.5 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
         <Checkbox
-          id={checkboxId}
+          className="mt-0.5"
           checked={checked}
           disabled={disabled}
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
           onCheckedChange={(next) => onCheckedChange(next === true)}
         />
-        <label
-          htmlFor={checkboxId}
-          title={t('grantDirectoryDesc')}
-          className="cursor-pointer text-xs font-medium text-foreground"
-        >
-          {t('grantDirectory')}
-        </label>
-      </div>
+        <span className="min-w-0 space-y-0.5">
+          <span id={titleId} className="block text-xs font-medium text-foreground">
+            {t('grantDirectory')}
+          </span>
+          <span id={descriptionId} className="block text-[11px] leading-snug text-muted-foreground">
+            {t('grantDirectoryDesc')}
+          </span>
+        </span>
+      </label>
       <ul className="space-y-1 pl-6">
         {directories.map(({ path, writable }) => (
-          <li key={path} className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="min-w-0 flex-1 truncate font-mono" title={path}>
-              {path}
-            </span>
+          <li key={path} className="flex min-w-0 items-start gap-2 text-[11px] text-muted-foreground">
+            <span className="min-w-0 flex-1 break-all font-mono">{path}</span>
             <Badge
               variant={writable ? 'outline' : 'secondary'}
               className={`h-4 shrink-0 px-1 text-[10px] ${writable ? 'border-warning/40 bg-warning/10 text-warning' : ''}`}
