@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 
+from ..constants import MAX_FILE_READ_SIZE_BYTES, MAX_RANGED_READ_SIZE_BYTES
 from .binary_validator import BinaryValidator
 from .client_secret_validator import ClientSecretWriteValidator
 from .config_protection_validator import ConfigProtectionValidator
@@ -45,6 +46,7 @@ class ValidatorChain:
         allowed_base_paths: list[str] | None = None,
         io_config: FileIOConfig | None = None,
         block_sensitive_reads: bool = False,
+        ranged_read: bool = False,
     ) -> None:
         """初始化验证器链
 
@@ -53,6 +55,7 @@ class ValidatorChain:
             allowed_base_paths: 允许的基础路径列表（可选）
             io_config: I/O 配置（可选，默认使用全局配置）
             block_sensitive_reads: 是否阻止敏感文件读取（默认 False，仅警告）
+            ranged_read: 是否是带行号范围的读取；它是读大文件的唯一出路，所以文件大小上限高于整文件读取
         """
         config = io_config or DEFAULT_FILE_IO_CONFIG
 
@@ -71,9 +74,9 @@ class ValidatorChain:
             SensitiveFileValidator(config, block_sensitive_reads)
         ).set_next(ConfigProtectionValidator()).set_next(ClientSecretWriteValidator()).set_next(
             BinaryValidator()
-        ).set_next(SizeValidator(strategy)).set_next(
-            PermissionValidator(strategy)
-        )
+        ).set_next(
+            SizeValidator(strategy, MAX_RANGED_READ_SIZE_BYTES if ranged_read else MAX_FILE_READ_SIZE_BYTES)
+        ).set_next(PermissionValidator(strategy))
 
     async def validate(self, context: OperationContext, path: str) -> None:
         """执行验证链

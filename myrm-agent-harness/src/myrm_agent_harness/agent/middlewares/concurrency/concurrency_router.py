@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from myrm_agent_harness.agent.security.tool_registry import SafetyMetadata, resolve_safety_metadata
+from myrm_agent_harness.core.security.tool_registry import PATHS_ALIAS_KEYS, coerce_path_list
 from myrm_agent_harness.toolkits.mcp.config import parse_mcp_tool_name
 
 _PATH_SCOPED_TOOLS = frozenset(
@@ -222,44 +223,12 @@ def _clean_path_scope_target(raw_target: str) -> str:
 
 def _extract_file_read_scope_paths(function_args: dict[str, Any]) -> tuple[Path, ...]:
     """Extract path reservations for file_read_tool from diverse aliases and payload types."""
-    import json
-
+    # ``paths`` wins; otherwise the first single-path spelling that carries something (as FileReadInput folds them).
     raw_candidates: list[str] = []
-
-    # 1. Primary field: paths (list, JSON string, or single string)
-    raw_paths = function_args.get("paths")
-    if isinstance(raw_paths, str) and raw_paths.strip():
-        try:
-            parsed = json.loads(raw_paths)
-            if isinstance(parsed, list):
-                raw_candidates.extend(str(p) for p in parsed if isinstance(p, str))
-            else:
-                raw_candidates.append(raw_paths)
-        except (json.JSONDecodeError, ValueError):
-            raw_candidates.append(raw_paths)
-    elif isinstance(raw_paths, list):
-        raw_candidates.extend(str(p) for p in raw_paths if isinstance(p, str))
-
-    # 2. Supported aliases (mirrors FileReadInput.normalize_input_aliases)
-    if not raw_candidates:
-        alias_keys = ("filePath", "file_path", "path", "file", "files", "filename", "target", "path_list")
-        for key in alias_keys:
-            val = function_args.get(key)
-            if val is None:
-                continue
-            if isinstance(val, list):
-                raw_candidates.extend(str(p) for p in val if isinstance(p, str))
-                break
-            if isinstance(val, str) and val.strip():
-                try:
-                    parsed = json.loads(val)
-                    if isinstance(parsed, list):
-                        raw_candidates.extend(str(p) for p in parsed if isinstance(p, str))
-                    else:
-                        raw_candidates.append(val)
-                except (json.JSONDecodeError, ValueError):
-                    raw_candidates.append(val)
-                break
+    for key in ("paths", *PATHS_ALIAS_KEYS):
+        raw_candidates = [p for p in coerce_path_list(function_args.get(key)) or () if isinstance(p, str) and p.strip()]
+        if raw_candidates:
+            break
 
     cleaned_paths = [_clean_path_scope_target(p) for p in raw_candidates]
     return _normalize_scope_paths([p for p in cleaned_paths if p])

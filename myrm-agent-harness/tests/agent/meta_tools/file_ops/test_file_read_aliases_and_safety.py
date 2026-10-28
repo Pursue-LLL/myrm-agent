@@ -49,6 +49,20 @@ class TestFileReadInputAliases:
         model = FileReadInput.model_validate({"target": "README.md"})
         assert model.paths == ["README.md"]
 
+    def test_json_array_text_is_the_array(self) -> None:
+        assert FileReadInput.model_validate({"paths": '["a.txt", "b.txt:1-5"]'}).paths == ["a.txt", "b.txt:1-5"]
+        assert FileReadInput.model_validate({"file_path": '["a.txt"]'}).paths == ["a.txt"]
+
+    def test_text_that_is_not_an_array_is_one_path(self) -> None:
+        assert FileReadInput.model_validate({"paths": "[draft].md"}).paths == ["[draft].md"]
+
+    def test_every_alias_is_judged_by_the_permission_engine(self) -> None:
+        from myrm_agent_harness.core.security.tool_registry.file_args import FILE_ARG_KEYS, PATHS_ALIAS_KEYS
+
+        for key in PATHS_ALIAS_KEYS:
+            assert key in FILE_ARG_KEYS
+            assert FileReadInput.model_validate({key: "x.txt"}).paths == ["x.txt"]
+
 
 class TestParsePathWithRangeValidation:
     """Verify parse_path_with_range validates positive line numbers and ordered ranges."""

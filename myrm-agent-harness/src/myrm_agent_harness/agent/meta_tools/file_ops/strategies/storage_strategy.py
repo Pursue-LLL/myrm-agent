@@ -160,13 +160,7 @@ class StorageBackendStrategy(FileSystemStrategy):
         if not await self.storage.exists(path):
             raise FileNotFoundError(f"File not found: {path}")
 
-        try:
-            info = await self.storage.info(path)
-            return info.size
-        except Exception:
-            # 回退：读取内容计算大小
-            content = await self.storage.read_text(path)
-            return len(content.encode("utf-8"))
+        return (await self.storage.info(path)).size
 
     def get_actual_path(self, path: str) -> str:
         """获取实际文件路径

@@ -13,6 +13,8 @@ from myrm_agent_harness.agent.artifacts.vault import VAULT_PREFIX
 from myrm_agent_harness.core.security.tool_registry import compute_canonical_args_hash
 from myrm_agent_harness.core.security.tool_registry.file_args import (
     FILE_ARG_KEYS,
+    PATHS_ALIAS_KEYS,
+    coerce_path_list,
     file_arg_values,
     host_file_paths,
     is_url,
@@ -92,3 +94,39 @@ def test_glob_approval_hash_covers_the_searched_directory() -> None:
     inside = compute_canonical_args_hash("glob_tool", {"pattern": "*.pem", "path": "certs"})
     outside = compute_canonical_args_hash("glob_tool", {"pattern": "*.pem", "path": "/Users/me/.ssh"})
     assert inside != outside
+
+
+def test_every_alias_the_read_tool_folds_into_paths_is_a_judged_argument() -> None:
+    """A file the tool opens under a name the verdict does not read would never be judged."""
+    assert set(PATHS_ALIAS_KEYS) <= set(FILE_ARG_KEYS)
+
+
+class TestCoercePathList:
+    def test_a_list_stays_a_list(self) -> None:
+        assert coerce_path_list(["a", "b"]) == ["a", "b"]
+
+    def test_a_json_array_string_becomes_the_array(self) -> None:
+        assert coerce_path_list(' ["/etc/hosts", "b.txt:1-5"] ') == ["/etc/hosts", "b.txt:1-5"]
+
+    @pytest.mark.parametrize("text", ["a.txt", "", "[draft].md", '{"paths": ["a"]}', "[1, 2", '"a.txt"', "42", "null"])
+    def test_any_other_string_is_one_path(self, text: str) -> None:
+        assert coerce_path_list(text) == [text]
+
+    def test_pathologically_nested_text_does_not_crash(self) -> None:
+        text = "[" * 100_000
+        assert coerce_path_list(text) == [text]
+
+    @pytest.mark.parametrize("value", [None, 7, 1.5, True, {"a": 1}])
+    def test_a_non_path_value_is_none(self, value: object) -> None:
+        assert coerce_path_list(value) is None
+
+
+class TestJsonArrayStringArguments:
+    @pytest.mark.parametrize("key", FILE_ARG_KEYS)
+    def test_every_spelling_reads_the_array_inside(self, key: str) -> None:
+        args: dict[str, object] = {key: '["/etc/hosts", " b.txt:1-5 "]'}
+        assert list(file_arg_values(args)) == ["/etc/hosts", "b.txt:1-5"]
+        assert host_file_paths(args) == ["/etc/hosts", "b.txt"]
+
+    def test_the_text_of_the_array_is_not_a_path_itself(self) -> None:
+        assert host_file_paths({"paths": '["a.txt"]'}) == ["a.txt"]

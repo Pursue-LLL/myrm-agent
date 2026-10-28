@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..constants import MAX_FILE_READ_SIZE_BYTES as MAX_FILE_SIZE_BYTES
-from ..constants import MAX_FILE_SIZE_MB
+from ..constants import MAX_FILE_READ_SIZE_BYTES, MAX_RANGED_READ_SIZE_BYTES
 from ..core.operation_context import OperationType
 from .base import Validator
 
@@ -32,14 +31,16 @@ class SizeValidator(Validator):
     验证文件大小是否超过限制。
     """
 
-    def __init__(self, strategy: FileSystemStrategy) -> None:
+    def __init__(self, strategy: FileSystemStrategy, limit_bytes: int = MAX_FILE_READ_SIZE_BYTES) -> None:
         """初始化验证器
 
         Args:
             strategy: 文件系统策略
+            limit_bytes: 允许的最大文件大小；带行号范围的读取使用更高的上限
         """
         super().__init__()
         self.strategy = strategy
+        self.limit_bytes = limit_bytes
 
     async def _do_validate(self, context: OperationContext, path: str) -> None:
         """验证文件大小"""
@@ -63,12 +64,16 @@ class SizeValidator(Validator):
         try:
             file_size = await self.strategy.get_file_size(path)
 
-            if file_size > MAX_FILE_SIZE_BYTES:
+            if file_size > self.limit_bytes:
                 size_mb = file_size / (1024 * 1024)
-                raise ValueError(
-                    f"File too large: {path} ({size_mb:.1f}MB > {MAX_FILE_SIZE_MB:.0f}MB). "
+                limit_mb = self.limit_bytes / (1024 * 1024)
+                # A line range is the way past the plain limit; past the ranged limit only search and shell tools remain.
+                advice = (
                     "Use line range syntax to read specific lines."
+                    if self.limit_bytes < MAX_RANGED_READ_SIZE_BYTES
+                    else "Too large even for a line range: search it with grep_tool or read pieces with shell commands."
                 )
+                raise ValueError(f"File too large: {path} ({size_mb:.1f}MB > {limit_mb:.0f}MB). {advice}")
         except FileNotFoundError:
             # 文件不存在，由其他验证器处理
             pass

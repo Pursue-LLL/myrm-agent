@@ -21,10 +21,12 @@ the shell pre-flight.
 from __future__ import annotations
 
 import logging
+import stat
 from pathlib import Path
 
 from myrm_agent_harness.core.security.ocap import CapabilityAction, enforce_capability_access
 from myrm_agent_harness.infra.atomic_write import async_atomic_write
+from myrm_agent_harness.toolkits.code_execution.executors.gunzip import gunzip_bounded
 from myrm_agent_harness.toolkits.code_execution.interceptor import (
     trigger_destructive_action_hook,
 )
@@ -137,11 +139,20 @@ class LocalFileOpsMixin:
             raise FileNotFoundError(f"File not found: {path}")
 
         if safe.endswith(".gz"):
-            import gzip
-
-            return gzip.decompress(p.read_bytes()).decode("utf-8")
+            return gunzip_bounded(p.read_bytes()).decode("utf-8")
 
         return p.read_text(encoding="utf-8")
+
+    async def file_size(self, path: str) -> int:
+        safe = await self.resolve_path(path)  # type: ignore[attr-defined]
+        enforce_capability_access(CapabilityAction.READ, safe)
+        try:
+            st = Path(safe).stat()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"File not found: {path}") from None
+        if not stat.S_ISREG(st.st_mode):
+            raise OSError(f"Not a regular file: {path}")
+        return st.st_size
 
     async def read_file_bytes(self, path: str) -> bytes:
         safe = await self.resolve_path(path)  # type: ignore[attr-defined]

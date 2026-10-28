@@ -5,13 +5,13 @@ import pytest
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import (
     CodeExecutor,
-    CodeExecutorMiddleware,
     clear_and_close_stashed_executor,
     clear_stashed_executor,
     get_stashed_executor,
     stash_executor_for_session,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
+from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.appcontainer import AppContainerProvider
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.bwrap import BwrapProvider
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import NullProvider
@@ -108,7 +108,9 @@ def test_appcontainer_provider_cleanup_sync_safety() -> None:
     provider._container_sid = "S-1-15-2-12345"
     provider._acl_paths = [("/tmp/nonexistent_path_for_test", "")]
 
-    with patch("myrm_agent_harness.toolkits.code_execution.sandbox.providers.appcontainer._remove_acl_sync") as mock_remove:
+    with patch(
+        "myrm_agent_harness.toolkits.code_execution.sandbox.providers.appcontainer._remove_acl_sync"
+    ) as mock_remove:
         with patch("os.path.exists", return_value=True):
             provider.cleanup()
         mock_remove.assert_called_once_with("/tmp/nonexistent_path_for_test", "S-1-15-2-12345")

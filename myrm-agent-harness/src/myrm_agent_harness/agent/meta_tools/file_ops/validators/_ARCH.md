@@ -22,7 +22,7 @@ Validators module.
 | path_validator.py | Core | Path security validator with symlink detection and actionable error hints for LLM self-correction. | ✅ |
 | permission_validator.py | Core | Provides PermissionValidator. | ✅ |
 | sensitive_file_validator.py | Core | Sensitive file validator — resolves `SENSITIVE_FILE_PATTERNS` through `core.security.path.pattern` so its verdict is identical to `path_security.is_sensitive_file()`. | ✅ |
-| size_validator.py | Core | Provides SizeValidator. | ✅ |
+| size_validator.py | Core | Provides SizeValidator: rejects a file over its limit (`ValidatorChain(ranged_read=True)` raises the limit to `MAX_RANGED_READ_SIZE_BYTES`); the refusal points to the line range, or to search and shell tools when even a range is too large. | ✅ |
 | validator_chain.py | Core | Provides ValidatorChain. | ✅ |
 
 ## Tests

@@ -11,6 +11,7 @@ Verifies:
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -112,12 +113,18 @@ class TestPrivacyLadder:
             PrivacyLadderViolationType.WORKSPACE_ESCAPE,
         )
 
-    def test_tier_1_blocked_device_paths(self, workspace: str) -> None:
+    @pytest.mark.parametrize("device_path", ["/dev/sda", "/dev/null", "/proc/self/mem"])
+    def test_tier_1_blocked_device_paths(self, workspace: str, device_path: str) -> None:
         scope = PrivacyLadderScope()
-        res = validate_privacy_ladder("CON", scope, workspace)
+        res = validate_privacy_ladder(device_path, scope, workspace)
         assert not res.is_allowed
         assert res.tier == PrivacyTier.TIER_1_FILE
         assert res.violation == PrivacyLadderViolationType.BLOCKED_DEVICE
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Windows reserves the name")
+    def test_a_windows_reserved_name_is_an_ordinary_file_name_off_windows(self, workspace: str) -> None:
+        res = validate_privacy_ladder("CON", PrivacyLadderScope(), workspace)
+        assert res.violation != PrivacyLadderViolationType.BLOCKED_DEVICE
 
     def test_tier_3_workspace_escape_blocked(self, workspace: str) -> None:
         scope = PrivacyLadderScope()
@@ -150,6 +157,7 @@ class TestPrivacyLadder:
             assert res.violation == PrivacyLadderViolationType.WORKSPACE_ESCAPE
         finally:
             import shutil
+
             shutil.rmtree(outside_dir, ignore_errors=True)
 
     def test_valid_workspace_files_allowed(self, workspace: str) -> None:

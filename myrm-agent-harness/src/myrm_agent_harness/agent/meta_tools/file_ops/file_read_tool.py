@@ -26,7 +26,6 @@ logic and the read-scope guards live in core/file_read/.
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
@@ -48,6 +47,7 @@ from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
 from myrm_agent_harness.agent.security.path_security import is_blocked_device_path
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 from myrm_agent_harness.core.context_vars import workspace_root_var
+from myrm_agent_harness.core.security.tool_registry import PATHS_ALIAS_KEYS, coerce_path_list
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor, get_executor
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
@@ -122,40 +122,17 @@ class FileReadInput(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def normalize_input_aliases(cls, data: object) -> object:
-        if isinstance(data, dict):
-            alias_keys = (
-                "filePath",
-                "file_path",
-                "path",
-                "file",
-                "files",
-                "filename",
-                "target",
-                "path_list",
-            )
-            if "paths" not in data or data["paths"] is None:
-                for k in alias_keys:
-                    if k in data and data[k] is not None:
-                        data["paths"] = data[k]
-                        break
+        if isinstance(data, dict) and data.get("paths") is None:
+            for k in PATHS_ALIAS_KEYS:
+                if data.get(k) is not None:
+                    data["paths"] = data[k]
+                    break
         return data
 
     @field_validator("paths", mode="before")
     @classmethod
-    def normalize_paths(cls, v: list[str] | str | None) -> list[str] | None:
-        if v is None:
-            return None
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, list):
-                    return parsed
-            except json.JSONDecodeError:
-                pass
-            return [v]
-        return None
+    def normalize_paths(cls, v: object) -> list[object] | None:
+        return coerce_path_list(v)
 
 
 _FILE_READ_TOOL_DESCRIPTION_ZH = """读取文件内容或目录列表。支持图片（png/jpg/gif/webp）、PDF、Office 文档（docx/xlsx/xls）和 Jupyter Notebook（ipynb）。

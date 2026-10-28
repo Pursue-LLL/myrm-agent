@@ -15,12 +15,12 @@ preserving the flat-module import surface for all consumers.
 - TOOL_PERMISSION_MAP / AUTO_APPROVED_BUILTIN_TOOLS / EXPLICIT_MCP_FALLBACK_TOOLS / DYNAMICALLY_RESOLVED_TOOL_NAMES / RULESET_COVERAGE_WHITELIST — governance audit declarations
 - SafetyMetadata / MCPAnnotations / resolve_safety_metadata / resolve_permission_type
 - register_ptc_safety_metadata / get_ptc_safety_metadata / compute_canonical_args_hash
-- host_file_paths / is_url — the host files a file-tool call may open (``file_args.py``)
+- host_file_paths / is_url / coerce_path_list / PATHS_ALIAS_KEYS — the host files a file-tool call may open (``file_args.py``)
 - check_safety_coverage / _check_safety_coverage — module-load safety gate
 - _FAIL_CLOSED_DEFAULTS / _PTC_* — internal helpers
 """
 
-from .file_args import host_file_paths, is_url
+from .file_args import PATHS_ALIAS_KEYS, coerce_path_list, host_file_paths, is_url
 from .registry import (
     _PTC_SAFETY_METADATA,
     _PTC_TOOL_FLAT_INDEX,
@@ -70,10 +70,12 @@ __all__ = [
     "_FAIL_CLOSED_DEFAULTS",
     "_PTC_SAFETY_METADATA",
     "_PTC_TOOL_FLAT_INDEX",
+    "PATHS_ALIAS_KEYS",
     "MCPAnnotations",
     "SafetyMetadata",
     "_check_safety_coverage",
     "check_safety_coverage",
+    "coerce_path_list",
     "compute_canonical_args_hash",
     "evict_skill_safety_metadata",
     "get_ptc_safety_metadata",

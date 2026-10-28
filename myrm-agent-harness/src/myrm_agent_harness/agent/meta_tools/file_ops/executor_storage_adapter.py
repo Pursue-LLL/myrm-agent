@@ -78,12 +78,9 @@ class ExecutorStorageAdapter(StorageProvider):
         return await self._executor.list_files(path)
 
     async def info(self, key: str) -> FileInfo:
-        if not await self._executor.file_exists(key):
-            raise FileNotFoundError(f"File not found: {key}")
-        content = await self._executor.read_file(key)
         return FileInfo(
             key=key,
-            size=len(content.encode("utf-8")),
+            size=await self._executor.file_size(key),
             last_modified=datetime.now(),
             content_type=None,
         )

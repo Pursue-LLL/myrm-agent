@@ -114,22 +114,27 @@ _FILE_READ_CACHE: OrderedDict[tuple[str, float, int], str] = OrderedDict()
 _CACHE_STATS = CacheStats()
 
 
-async def read_file_chunked(file_path: Path, chunk_size_mb: int = 10) -> str:
+async def read_file_chunked(file_path: Path, chunk_size_mb: int = 10, max_chars: int | None = None) -> str:
     """分块读取文件（防止OOM）
 
     Args:
         file_path: 文件路径
         chunk_size_mb: 块大小（MB）
+        max_chars: 读到超过该字符数就停止（None 表示读完整个文件）
 
     Returns:
-        完整文件内容
+        完整文件内容；设置 max_chars 时，返回前 max_chars + 1 个字符
+        （多出的一个字符让调用方知道文件还有后续）
 
     Note:
-        内部分块读取，但返回完整内容。相比一次性read()，避免大文件OOM。
+        内部分块读取。相比一次性read()，避免大文件OOM。
         使用aiofiles异步IO，避免阻塞事件循环。
     """
     chunk_size = chunk_size_mb * 1024 * 1024
+    if max_chars is not None:
+        chunk_size = min(chunk_size, max_chars + 1)
     chunks: list[str] = []
+    gathered = 0
 
     async with aiofiles.open(file_path, encoding="utf-8", errors="replace") as f:
         while True:
@@ -137,6 +142,9 @@ async def read_file_chunked(file_path: Path, chunk_size_mb: int = 10) -> str:
             if not chunk:
                 break
             chunks.append(chunk)
+            gathered += len(chunk)
+            if max_chars is not None and gathered > max_chars:
+                break
 
     return "".join(chunks)
 

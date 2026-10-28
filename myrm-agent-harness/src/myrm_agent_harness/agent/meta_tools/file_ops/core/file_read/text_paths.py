@@ -9,6 +9,7 @@
 - file_read.truncation::truncate_file_output (POS: output truncation)
 - file_read.outline::extract_file_outline (POS: structure-mode outline)
 - streaming::read_file_chunked, read_file_preview (POS: large-file streaming reader)
+- constants::MAX_RANGED_READ_SIZE_BYTES (POS: the size past which a read falls back to preview)
 - utils.vault_read::path_base (POS: strips the ``:range`` suffix from a path)
 - validators.path_validator::PathValidator (POS: traversal, symlink, dangerous- and device-path gate the file service applies)
 - core.security.ocap.guard::enforce_capability_access (POS: capability scope of the running spawn)
@@ -36,6 +37,7 @@ from myrm_agent_harness.agent.context_management.context import AgentContext, ex
 from myrm_agent_harness.core.security.ocap.guard import enforce_capability_access
 from myrm_agent_harness.core.security.ocap.types import CapabilityAction
 
+from ...constants import MAX_RANGED_READ_SIZE_BYTES
 from ...streaming import read_file_chunked, read_file_preview
 from ...utils.vault_read import path_base
 from ...validators.path_validator import PathValidator
@@ -56,6 +58,10 @@ logger = logging.getLogger(__name__)
 # The outline is read from the whole file, so it reads past the display line cap.
 _STRUCTURE_READ_MAX_LINES = 5000
 _OUTLINE_MAX_SYMBOLS = 100
+
+# Characters ``stream`` reads per page token before it measures the page: enough that even sparse text (blanks,
+# one-character tokens) fills a page, and far below the size of the files ``stream`` exists for.
+_STREAM_READ_CHARS_PER_PAGE_TOKEN = 8
 
 
 async def _dispatch_truncation_event(
@@ -128,6 +134,36 @@ async def _read_via_service(
     if was_truncated:
         await _dispatch_truncation_event(meta, tool="file_read" if not is_dir else "list_dir", config=config)
     return truncated_text
+
+
+async def _read_stream_page(path: Path, display_path: str, chunk_size_mb: int, *, config: RunnableConfig) -> str:
+    """The first page of a file read in ``stream`` mode, and how to read on from it.
+
+    A file past the plain read limit cannot go to the model whole: it overflows any window and freezes the agent
+    while it is read and redacted. The page is sized like a parked paste's page, by the model's window, and ends
+    on a whole line; the line-range syntax reads the rest.
+    """
+    page_tokens = page_token_budget(_context_window_tokens(config))
+    read_cap = page_tokens * _STREAM_READ_CHARS_PER_PAGE_TOKEN
+    sample = await read_file_chunked(path, chunk_size_mb=chunk_size_mb, max_chars=read_cap)
+    page_chars = parked_page_chars(sample, page_tokens)
+    continues = len(sample) > read_cap or page_chars < len(sample)
+    page = sample[:page_chars]
+    if continues and "\n" in page:
+        page = page[: page.rfind("\n")]
+    text = _clamp_multiline(page, DEFAULT_FILE_IO_CONFIG.max_read_line_length)
+    if not continues:
+        return text
+    if "\n" not in page:
+        return (
+            f"{text}\n\n... (file continues; its first line alone fills a page. "
+            "Search it with grep_tool or read pieces with shell commands.)"
+        )
+    shown = page.count("\n") + 1
+    return (
+        f"{text}\n\n... (file continues, showing the first {shown:,} lines)\n\n"
+        f"Tip: File is large. Use line range syntax to read the next lines: '{display_path}:{shown + 1}-{shown + 1000}'"
+    )
 
 
 async def _direct_read_admitted(
@@ -234,15 +270,16 @@ async def process_text_paths(
                 )
                 continue
 
-            file_size_mb = workspace_path.stat().st_size / (1024 * 1024)
+            file_size = workspace_path.stat().st_size
             # preview and stream bypass the page cap and clamp long lines: a parked paste is always read as pages.
             effective_mode = "all" if is_parked_path(base_path_str) else mode
-            if file_size_mb > 100 and effective_mode == "all":
+            if file_size > MAX_RANGED_READ_SIZE_BYTES and effective_mode == "all":
                 effective_mode = "preview"
                 logger.warning(
-                    "File %s is %.1fMB (>100MB). Auto-fallback to preview mode to prevent OOM.",
+                    "File %s is %.1fMB (>%dMB). Auto-fallback to preview mode to prevent OOM.",
                     base_path_str,
-                    file_size_mb,
+                    file_size / (1024 * 1024),
+                    MAX_RANGED_READ_SIZE_BYTES // (1024 * 1024),
                 )
 
             if effective_mode != "all" and not await _direct_read_admitted(workspace_path, executor, skills, reason):
@@ -259,8 +296,7 @@ async def process_text_paths(
                 guard = get_file_integrity_guard(executor)
                 if guard is not None:
                     guard.record_read_marker(str(workspace_path))
-                content = await read_file_chunked(workspace_path, chunk_size_mb=chunk_size_mb)
-                content = _clamp_multiline(content, DEFAULT_FILE_IO_CONFIG.max_read_line_length)
+                content = await _read_stream_page(workspace_path, base_path_str, chunk_size_mb, config=config)
                 text_content_parts.append(f"=== {base_path_str} ===\n{content}")
             else:
                 text_content_parts.append(

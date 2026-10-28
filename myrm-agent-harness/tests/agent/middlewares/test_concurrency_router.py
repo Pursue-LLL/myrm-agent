@@ -131,6 +131,30 @@ def test_should_not_parallelize_read_paths_list_with_overlapping_write():
     assert not should_parallelize_tool_batch(calls)
 
 
+def test_should_not_parallelize_read_json_array_text_with_overlapping_write():
+    calls = [
+        {"name": "file_read_tool", "args": {"paths": '["src/a.ts", "src/b.ts"]'}},
+        {"name": "file_write_tool", "args": {"path": "src/a.ts"}},
+    ]
+    assert not should_parallelize_tool_batch(calls)
+
+
+def test_should_parallelize_read_json_array_text_without_overlapping_write():
+    calls = [
+        {"name": "file_read_tool", "args": {"paths": '["src/a.ts", "tests/b.ts"]'}},
+        {"name": "file_write_tool", "args": {"path": "docs/c.md"}},
+    ]
+    assert should_parallelize_tool_batch(calls)
+
+
+def test_should_not_parallelize_read_alias_json_array_text_with_overlapping_write():
+    calls = [
+        {"name": "file_read_tool", "args": {"file_path": '["src/a.ts"]'}},
+        {"name": "file_write_tool", "args": {"path": "src/a.ts"}},
+    ]
+    assert not should_parallelize_tool_batch(calls)
+
+
 def test_should_parallelize_read_paths_list_without_overlapping_write():
     calls = [
         {"name": "file_read_tool", "args": {"paths": ["src/a.ts", "tests/b.ts"]}},
@@ -361,7 +385,3 @@ def test_build_tool_execution_stages_isolates_windows_path_line_range():
         {"name": "file_write_tool", "args": {"path": r"C:\workspace\proj3\main.py", "file_text": "data"}},
     ]
     assert build_tool_execution_stages(calls) == [[0], [1]]
-
-
-
-

@@ -7,6 +7,8 @@ refused, never asked about and never matched against the ``*.env`` and ``*.pem``
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from myrm_agent_harness.agent.security.engine import check_tool_path_policy, evaluate_tool_call, merge
@@ -100,3 +102,28 @@ class TestCheckToolPathPolicy:
 
     def test_write_permission_still_checks_path(self) -> None:
         assert _verdict({"path": "/Users/me/Downloads/a.txt"}, permission="file_write") == PermissionAction.ASK
+
+
+@pytest.mark.parametrize("key", FILE_ARG_KEYS)
+class TestJsonArrayStringIsJudgedLikeTheList:
+    """Models often send an array argument as its JSON text; the tool reads it as the array, so the verdict must too."""
+
+    @pytest.mark.parametrize(
+        "files",
+        [
+            ["/Users/me/.ssh/id_rsa"],
+            ["/Users/me/Downloads/bill.csv"],
+            ["src/a.py", "/Users/me/ws/b.py"],
+            ["src/a.py", "/Users/me/Downloads/b.csv"],
+            ["config/.env"],
+            ["../skills/off/SKILL.md"],
+        ],
+    )
+    def test_same_verdict_as_the_list(self, key: str, files: list[str]) -> None:
+        assert _verdict({key: json.dumps(files)}) == _verdict({key: files})
+
+    def test_outside_file_inside_the_text_asks(self, key: str) -> None:
+        assert _verdict({key: '["/Users/me/Downloads/bill.csv"]'}) == PermissionAction.ASK
+
+    def test_forbidden_file_inside_the_text_is_denied(self, key: str) -> None:
+        assert _verdict({key: '["src/a.py", "/Users/me/.ssh/id_rsa"]'}) == PermissionAction.DENY

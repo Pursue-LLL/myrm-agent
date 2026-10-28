@@ -6,7 +6,7 @@ Enforces execution-layer isolation via ContextVar-scoped executor wrapping:
 - Marks the async context as a shadow agent so approval middleware auto-denies.
 
 [INPUT]
-- toolkits.code_execution.executors.base::CodeExecutorMiddleware (POS: Executor middleware base class)
+- toolkits.code_execution.executors.middleware::CodeExecutorMiddleware (POS: Executor middleware base class)
 - middlewares._session_context::set_is_shadow_agent (POS: Middleware session context)
 
 [OUTPUT]
@@ -31,13 +31,13 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     set_is_shadow_agent,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.base import (
-    CodeExecutorMiddleware,
     ExecutionContext,
     ExecutionResult,
     get_executor,
     reset_executor,
     set_executor,
 )
+from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

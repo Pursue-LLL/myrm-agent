@@ -5,7 +5,6 @@ Provides LocalExecutor for in-container code execution.
 
 from myrm_agent_harness.toolkits.code_execution.executors.base import (
     CodeExecutor,
-    CodeExecutorMiddleware,
     ExecutionContext,
     ExecutionMetrics,
     ExecutionResult,
@@ -16,6 +15,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import (
     set_executor,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.local import LocalExecutor
+from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
 from myrm_agent_harness.toolkits.code_execution.executors.models import classify_execution_error
 
 __all__ = [
