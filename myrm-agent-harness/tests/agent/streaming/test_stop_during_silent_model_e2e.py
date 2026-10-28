@@ -21,13 +21,19 @@ from langchain.agents import create_agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from langchain_core.tools import BaseTool, tool
 
 from myrm_agent_harness.agent.middlewares.model_call_cancel import ModelCallCancelMiddleware
 from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
 from myrm_agent_harness.agent.streaming.stream_executor import STREAM_DONE, StreamContext, StreamExecutor
 from myrm_agent_harness.agent.types import AgentRunStatistics
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
-from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason, set_cancel_token
+from myrm_agent_harness.utils.runtime.cancellation import (
+    CancellationToken,
+    CancelReason,
+    get_cancel_token,
+    set_cancel_token,
+)
 
 _SETTLE_S = 30.0
 _SILENCE_S = 3600.0
@@ -114,8 +120,10 @@ def _clean_run_state() -> Iterator[None]:
     set_cancel_token(None)
 
 
-def _run(model: BaseChatModel, token: CancellationToken) -> tuple[StreamExecutor, _FakeCompactor, AgentRunStatistics]:
-    agent = create_agent(model, tools=[], middleware=[ModelCallCancelMiddleware()])
+def _run(
+    model: BaseChatModel, token: CancellationToken, tools: list[BaseTool] | None = None
+) -> tuple[StreamExecutor, _FakeCompactor, AgentRunStatistics]:
+    agent = create_agent(model, tools=tools or [], middleware=[ModelCallCancelMiddleware()])
     stats = AgentRunStatistics()
     compactor = _FakeCompactor()
     context = {
@@ -240,3 +248,54 @@ async def test_a_run_nobody_stops_gets_the_answer_of_the_same_model() -> None:
     assert "cancelled" not in compactor.types()
     answers = [event for event in compactor.events if getattr(event, "type", None) == "message"]
     assert answers, "the answer of the uninterrupted request must be streamed to the consumer"
+
+
+@pytest.mark.asyncio
+async def test_a_stop_still_cuts_the_request_that_follows_a_tool_which_cleared_its_own_token() -> None:
+    """A tool step runs in a context of its own (a sub-agent run ends by clearing the token there), not in the run's."""
+    token = CancellationToken("e2e_stop_after_tool")
+    probe = _Probe()
+    seen: list[CancellationToken | None] = []
+
+    @tool
+    def finish_child() -> str:
+        """Ends the way a sub-agent run does: the token of the calling context is cleared."""
+        set_cancel_token(None)
+        return "child done"
+
+    class _ToolThenSilentModel(BaseChatModel):
+        @property
+        def _llm_type(self) -> str:
+            return "scripted-tool-then-silent"
+
+        def bind_tools(self, tools: object, **kwargs: object) -> _ToolThenSilentModel:
+            return self
+
+        def _generate(
+            self, messages: list[BaseMessage], stop: list[str] | None = None, run_manager: Any = None, **kwargs: Any
+        ) -> ChatResult:
+            raise NotImplementedError
+
+        async def _agenerate(
+            self, messages: list[BaseMessage], stop: list[str] | None = None, run_manager: Any = None, **kwargs: Any
+        ) -> ChatResult:
+            probe.requests += 1
+            if probe.requests == 1:
+                call = {"name": "finish_child", "args": {}, "id": "call_1"}
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content="", tool_calls=[call]))])
+            seen.append(get_cancel_token())
+            probe.started.set()
+            await asyncio.sleep(_SILENCE_S)
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content="late"))])
+
+    executor, compactor, stats = _run(_ToolThenSilentModel(), token, tools=[finish_child])
+    set_cancel_token(token)
+    executing = asyncio.create_task(executor.execute())
+
+    ended_after = await _stop_when_started(probe, token, executing)
+
+    assert seen == [token], "the request after the tool must still see the run's token"
+    assert ended_after < _CUT_WITHIN_S
+    assert stats.was_cancelled
+    assert compactor.types().count("cancelled") == 1
+    assert probe.requests == 2
