@@ -5,6 +5,7 @@
 - app.services.chat.chat_service::ChatService (POS: message persistence)
 - app.database.models.chat::BACKGROUND_JOB_NOTICE_KEY (POS: system-notice marker on the persisted message)
 - app.services.event.app_event_bus (POS: SSE bus)
+- app.services.agent.params.workspace_resolve::chat_id_from_session_id (POS: the chat a harness session key belongs to)
 - app.services.agent.goals.goal_wait_background_resume::maybe_resume_goal_after_background_job (POS: WAIT exit + headless resume)
 
 [OUTPUT]
@@ -25,6 +26,7 @@ from myrm_agent_harness.utils.locale import normalize_locale, resolve_locale
 
 from app.channels.i18n.engine import channel_t
 from app.database.models.chat import BACKGROUND_JOB_NOTICE_KEY
+from app.services.agent.params.workspace_resolve import chat_id_from_session_id
 from app.services.chat.chat_service import ChatService
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
@@ -141,6 +143,8 @@ class ServerBackgroundJobFinishHandler:
         await self._process(result)
 
     async def _process(self, result: BackgroundJobFinishResult) -> None:
+        # The harness reports the session key of the run that started the job; the chat is what holds the rows.
+        chat_id = chat_id_from_session_id(result.session_id)
         try:
             locale = await _resolve_user_locale()
             content = _format_finish_message(result, locale)
@@ -149,7 +153,7 @@ class ServerBackgroundJobFinishHandler:
             sent_at = datetime.now(tz=timezone.utc)
 
             await ChatService.append_message(
-                chat_id=result.session_id,
+                chat_id=chat_id,
                 role="assistant",
                 content=content,
                 sent_at=sent_at,
@@ -179,11 +183,7 @@ class ServerBackgroundJobFinishHandler:
                 from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 
                 job_identifier = str(result.job_id or result.pid)
-                is_success = (
-                    (result.exit_code == 0)
-                    if result.exit_code is not None
-                    else (result.status == "exited")
-                )
+                is_success = (result.exit_code == 0) if result.exit_code is not None else (result.status == "exited")
                 summary_text = (
                     f"Background process '{job_identifier}' finished with status '{result.status}'"
                     f"{f', exit code {result.exit_code}' if result.exit_code is not None else ''}."
@@ -191,14 +191,13 @@ class ServerBackgroundJobFinishHandler:
                 event = WakeupEvent(
                     source_type=WakeupSourceType.BACKGROUND_JOB,
                     source_id=job_identifier,
-                    session_id=result.session_id,
+                    session_id=chat_id,
                     success=is_success,
                     summary=summary_text,
                     exit_code=result.exit_code,
                     error=result.error_category,
                 )
                 await get_adaptive_wakeup_service().handle_settlement(event)
-
 
             get_event_bus().publish(
                 AppEvent(
@@ -208,7 +207,7 @@ class ServerBackgroundJobFinishHandler:
                         "message": content,
                         "meta_data": {
                             "kind": "background_job_finish",
-                            "chat_id": result.session_id,
+                            "chat_id": chat_id,
                             "message_id": message_id,
                             "pid": result.pid,
                             "status": result.status,
@@ -218,13 +217,13 @@ class ServerBackgroundJobFinishHandler:
             )
             logger.info(
                 "Background job finish recorded for chat=%s pid=%s status=%s",
-                result.session_id,
+                chat_id,
                 result.pid,
                 result.status,
             )
         except Exception:
             logger.exception(
                 "Failed to record background job finish chat=%s pid=%s",
-                result.session_id,
+                chat_id,
                 result.pid,
             )

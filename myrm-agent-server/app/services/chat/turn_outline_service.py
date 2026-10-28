@@ -24,7 +24,7 @@ from myrm_agent_harness.utils.text_sanitizer import (
 from app.database.dto import MessageDTO, TurnOutlineItem
 from app.database.repositories.uow import UnitOfWork
 from app.services.chat._base import _ChatServiceBase
-from app.services.chat.chat_helpers import shown_user_text
+from app.services.chat.chat_helpers import is_wakeup_notice, shown_user_text
 
 _PROMPT_PREVIEW_LIMIT = 50
 _REPLY_PREVIEW_LIMIT = 120
@@ -65,7 +65,8 @@ class TurnOutlineProjectionService(_ChatServiceBase):
         turn_index = 0
 
         for msg in messages:
-            if msg.role == "user":
+            # A settled background task's note is the system's, so it opens no turn a person could jump to.
+            if msg.role == "user" and not is_wakeup_notice(msg):
                 # Close previous turn if exists
                 if current_user_msg is not None:
                     turn_index += 1

@@ -12,6 +12,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 
 from app.platform_utils import _reset_checkpointer_for_testing
+from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 from app.services.chat import chat_disposal
 from app.services.chat.chat_disposal import ChatFilesRemoval
 from tests.services.chat.disposal_support import (
@@ -187,3 +188,14 @@ async def test_a_failing_event_log_removal_does_not_stop_the_remaining_disposal_
     assert not is_granted()
     spies.memory_purge.assert_awaited_once_with(CHAT_ID)
     spies.workspace.assert_awaited_once_with([CHAT_ID])
+
+
+@pytest.mark.asyncio
+async def test_clear_runtime_caches_forgets_the_wake_budget_and_stop_flag_of_the_chat(spies: Spies) -> None:
+    service = get_adaptive_wakeup_service()
+    service.record_user_stop(CHAT_ID)
+
+    await chat_disposal.clear_runtime_caches(CHAT_ID)
+
+    spies.runtime_pool.assert_awaited_once_with(CHAT_ID)
+    assert not service.get_budget_state(CHAT_ID).is_user_stopped

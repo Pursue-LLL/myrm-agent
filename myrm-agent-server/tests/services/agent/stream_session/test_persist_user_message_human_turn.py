@@ -22,7 +22,7 @@ def chat_id() -> Iterator[str]:
     chat = f"human-{uuid.uuid4().hex[:8]}"
     get_adaptive_wakeup_service().record_user_stop(chat)
     yield chat
-    get_adaptive_wakeup_service().reset_session(chat)
+    get_adaptive_wakeup_service().forget_chat(chat)
 
 
 def request_for(chat_id: str, **overrides: object) -> AgentRequest:

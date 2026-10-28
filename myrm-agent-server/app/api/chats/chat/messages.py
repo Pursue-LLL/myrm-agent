@@ -20,7 +20,7 @@ from app.database.dto import (
     MessageResponse,
 )
 from app.schemas.responses import StandardSuccessResponse
-from app.services.chat.chat_helpers import exported_user_text, filter_messages
+from app.services.chat.chat_helpers import exported_user_text, filter_messages, is_wakeup_notice
 from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
@@ -184,7 +184,8 @@ async def export_chat(
 
         messages = await ChatService.get_all_messages(chat_id)
 
-        filtered_messages = filter_messages(messages, api_key=None)
+        # The system's notes about settled background tasks are not part of the conversation an export reads.
+        filtered_messages = [msg for msg in filter_messages(messages, api_key=None) if not is_wakeup_notice(msg)]
 
         from myrm_agent_harness.utils.text_sanitizer import (
             extract_and_strip_think_blocks,

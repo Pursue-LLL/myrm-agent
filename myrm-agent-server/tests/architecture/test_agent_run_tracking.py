@@ -20,7 +20,7 @@ _APP = Path(__file__).resolve().parents[2] / "app"
 # Run through ``AgentGateway.execute_stream`` (counted in ``agents.activeCount``).
 _GATEWAY_COUNTED = {
     "services/agent/streaming.py": 1,
-    "services/agent/wakeup_handler.py": 1,
+    "services/agent/adaptive_wakeup/wake_turn_stream.py": 1,
 }
 # Call the pipeline directly; the file must wrap the run in ``track_background_agent_run``.
 _TRACKED = {

@@ -114,6 +114,24 @@ async def test_persist_and_load_history_spills_into_the_workspace_the_agent_runs
 
 
 @pytest.mark.asyncio
+async def test_a_message_from_an_im_user_lifts_the_stop_and_restores_the_wake_budget() -> None:
+    from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
+
+    service = get_adaptive_wakeup_service()
+    service.forget_chat("im-chat-wake")
+    while service.router.claim_wake_turn("im-chat-wake"):
+        pass
+    service.record_user_stop("im-chat-wake")
+    try:
+        await _persisted_with_spill_workspace("im-chat-wake")
+
+        state = service.get_budget_state("im-chat-wake")
+        assert (state.is_user_stopped, state.consecutive_wakes) == (False, 0)
+    finally:
+        service.forget_chat("im-chat-wake")
+
+
+@pytest.mark.asyncio
 async def test_persist_and_load_history_keeps_the_default_spill_dir_for_an_id_that_cannot_name_a_workspace(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

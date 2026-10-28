@@ -227,3 +227,35 @@ def test_build_outline_lists_a_parked_paste_by_its_opening_lines() -> None:
 
     assert first.prompt_preview == "Q3 review of the roadmap"
     assert second.prompt_preview == "plain question"
+
+
+def test_a_settled_background_tasks_note_opens_no_turn_a_person_could_jump_to() -> None:
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    def row(message_id: str, role: str, content: str, extra: dict[str, object] | None = None) -> MessageDTO:
+        return MessageDTO(
+            id=message_id,
+            chat_id="chat-1",
+            role=role,
+            content=content,
+            extra_data=extra,
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
+        )
+
+    messages = [
+        row("m1", "user", "start the long job"),
+        row("m2", "assistant", "started"),
+        row("wakeup_followup_t1", "user", "<system_notification>done</system_notification>", {"wakeup_notice": "followup"}),
+        row("m3", "assistant", "the job finished"),
+        row("wakeup_degraded_t2", "user", "<system_notification>again</system_notification>", {"wakeup_notice": "degraded"}),
+        row("m4", "user", "thanks"),
+    ]
+
+    outlines = TurnOutlineProjectionService.build_outline_from_messages(messages)
+
+    assert [(item.user_message_id, item.prompt_preview) for item in outlines] == [("m1", "start the long job"), ("m4", "thanks")]
+    # The reply the note caused still belongs to the turn it follows.
+    assert outlines[0].assistant_message_id == "m3"
+    assert outlines[0].message_count == 5

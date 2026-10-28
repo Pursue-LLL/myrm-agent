@@ -30,7 +30,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.base_agent import BaseAgent
     from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent
     from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
     from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
@@ -103,7 +102,7 @@ class ActiveSessionInfo:
     chat_id: str
     agent_type: str
     started_at: float = field(default_factory=time.monotonic)
-    agent: "weakref.ReferenceType[BaseAgent] | None" = None
+    agent: "weakref.ReferenceType[object] | None" = None
     current_message_id: str | None = None
     agent_id: str | None = None
     reserved_only: bool = False
@@ -525,7 +524,7 @@ class AgentGateway:
         *,
         agent_type: str,
         session_id: str | None = None,
-        agent_instance: "BaseAgent | None" = None,
+        agent_instance: object | None = None,
         active_message_id: str | None = None,
         goal_active: bool = False,
         fission_active: bool = False,
@@ -537,7 +536,7 @@ class AgentGateway:
             stream: Bound agent event stream (from agent.process_stream).
             agent_type: Agent category for logging ("general").
             session_id: Optional chat/session ID for concurrency protection.
-            agent_instance: Optional BaseAgent for weak-ref tracking.
+            agent_instance: Optional agent object tracked by weak reference (read back for its live browser/desktop sessions).
             goal_active: When True, disables execution timeout to allow
                 long-running goals (code refactoring, large-scale analysis)
                 to complete without interruption.

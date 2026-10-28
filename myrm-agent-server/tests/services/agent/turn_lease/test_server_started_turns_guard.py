@@ -33,8 +33,10 @@ SERVER_STARTED: dict[str, int] = {
 }
 
 # The wake turn a settled background task starts is a server-started turn too, but it streams through the agent
-# itself rather than ``ai_agent_service_stream``; the scheduler is the one place that starts it, under the lease.
-WAKE_TURN_STARTER = "app/services/agent/adaptive_wakeup/wake_turn_scheduler.py"
+# itself rather than ``ai_agent_service_stream``. The scheduler takes the lease and hands the chat to the runner the
+# service gives it; that runner is the one place that streams the turn.
+WAKE_TURN_STARTER = "app/services/agent/adaptive_wakeup/service.py"
+WAKE_TURN_LEASE_HOLDER = "app/services/agent/adaptive_wakeup/wake_turn_scheduler.py"
 
 # The only places that may take a chat or register a cancel token themselves.
 CLAIM_OWNERS: frozenset[str] = frozenset(
@@ -49,7 +51,14 @@ CLAIM_OWNERS: frozenset[str] = frozenset(
 
 
 # Only modules that mention one of these can make a call the guard looks for; parsing the rest would only slow it down.
-_NEEDLES = ("ai_agent_service_stream", "reserve_session", "CancellationRegistry", "server_turn_lease", "stream_wake_turn")
+_NEEDLES = (
+    "ai_agent_service_stream",
+    "reserve_session",
+    "CancellationRegistry",
+    "server_turn_lease",
+    "stream_wake_turn",
+    "schedule_wake_turn",
+)
 
 
 @cache
@@ -93,6 +102,7 @@ def test_only_the_lease_and_the_chat_turn_take_a_chat_or_register_a_cancel_token
     assert claimers <= CLAIM_OWNERS, f"take the chat and the token through server_turn_lease: {sorted(claimers - CLAIM_OWNERS)}"
 
 
-def test_the_wake_turn_is_started_only_by_the_scheduler_and_only_under_the_lease() -> None:
-    assert set(_files_calling(lambda callee: callee.endswith(".stream_wake_turn"))) == {WAKE_TURN_STARTER}
-    assert "server_turn_lease" in _calls(SERVER_ROOT / WAKE_TURN_STARTER)
+def test_the_wake_turn_is_queued_and_streamed_only_through_the_scheduler_and_only_under_the_lease() -> None:
+    assert set(_files_calling(lambda callee: callee.endswith("stream_wake_turn"))) == {WAKE_TURN_STARTER}
+    assert set(_files_calling(lambda callee: callee.endswith("schedule_wake_turn"))) == {WAKE_TURN_STARTER}
+    assert "server_turn_lease" in _calls(SERVER_ROOT / WAKE_TURN_LEASE_HOLDER)

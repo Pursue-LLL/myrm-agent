@@ -3,6 +3,7 @@
 [INPUT]
 myrm_agent_harness.agent.security.message_filtering::MessageFilterPipeline (POS: framework message filtering pipeline)
 app.database.dto::MessageDTO (POS: 聊天与消息数据传输对象)
+app.database.models.chat::WAKEUP_NOTICE_KEY (POS: extra_data marker of the notice rows written for settled background tasks)
 
 [OUTPUT]
 filter_messages: Filter chat messages before model context construction.
@@ -10,6 +11,7 @@ _sanitize_snippet: Sanitize highlighted FTS snippets for UI output.
 RetryResult, RegenerateResult, UndoResult, TruncateResult, ChannelHistoryEntry: Chat service result DTOs.
 WAKEUP_MESSAGE_ID_PREFIX: Id prefix of the system-injected user rows that carry async task results back to a chat.
 SPILLOVER_EXTRA_KEY: Extra-data key of a user row whose pasted text was parked in a file.
+is_wakeup_notice: Whether a row is the system's note about a settled background task, not something a person typed.
 shown_user_text: The text a user row is listed by (turn outline, chat lists).
 exported_user_text: The text a user row reads as outside the app (export, share page).
 
@@ -32,6 +34,7 @@ from myrm_agent_harness.agent.security.message_filtering import (
 
 from app.config.settings import settings
 from app.database.dto import MessageDTO
+from app.database.models.chat import WAKEUP_NOTICE_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,15 @@ WAKEUP_MESSAGE_ID_PREFIX = "wakeup_"
 
 # A user row whose pasted text was parked in a file keeps its path, size, hash and opening lines under this key.
 SPILLOVER_EXTRA_KEY = "spillover"
+
+
+def is_wakeup_notice(message: MessageDTO) -> bool:
+    """Whether a row is the system's note about a settled background task, which no person typed.
+
+    Such a note belongs to the model's context, not to the conversation a person reads: lists, exports and shared
+    pages leave it out.
+    """
+    return bool((message.extra_data or {}).get(WAKEUP_NOTICE_KEY))
 
 
 def _parked_paste(message: MessageDTO) -> dict[str, object] | None:

@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - chat_session_id(): the session key of a chat's agent runs (pure)
+- chat_id_from_session_id(): the chat a session key of an agent run belongs to (pure; the inverse of chat_session_id)
 - default_workspaces_root(): directory holding every JIT chat workspace (pure)
 - default_chat_workspace_path(): where a chat's JIT workspace lives, without creating it (pure; rejects ids that cannot name a directory)
 - resolve_default_chat_workspace_dir(): JIT workspace path for a chat session
@@ -38,9 +39,21 @@ def _chat_workspace_service() -> WorkspaceService:
     return create_workspace_service(root_dir=Path(get_settings().database.harness_dir))
 
 
+_CHAT_SESSION_PREFIX = "chat_"
+
+
 def chat_session_id(chat_id: str) -> str:
     """The session key of a chat's agent runs: it names the chat's workspace and scopes its approvals and credentials."""
-    return f"chat_{chat_id}"
+    return f"{_CHAT_SESSION_PREFIX}{chat_id}"
+
+
+def chat_id_from_session_id(session_id: str) -> str:
+    """The chat an agent run's session key belongs to: what a harness callback reports for a run is its session key.
+
+    Only the one prefix ``chat_session_id`` adds is removed, so a chat whose own id starts with ``chat_`` maps back
+    to itself.
+    """
+    return session_id.removeprefix(_CHAT_SESSION_PREFIX)
 
 
 def default_workspaces_root() -> Path:

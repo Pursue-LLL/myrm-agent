@@ -29,7 +29,7 @@ _ACCUMULATES_HERE = {
     "core/cron/adapters/agent_runner.py",
     "lifecycle/auto_continue.py",
     "services/agent/streaming_support/hitl_timeout.py",
-    "services/agent/wakeup_handler.py",
+    "services/agent/adaptive_wakeup/wake_turn_stream.py",
 }
 # The call site hands each event to a collaborator that accumulates the answer.
 _DELEGATES = {

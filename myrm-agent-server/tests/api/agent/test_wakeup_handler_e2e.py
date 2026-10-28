@@ -96,7 +96,7 @@ async def test_server_wakeup_handler_e2e(client: TestClient) -> None:
     # 应该至少有一条初始化消息，一条 system_notification 和一条 assistant 的回复
     assert len(history) >= 3
 
-    system_msg = next((msg for msg in history if msg[0] == "human" and "async_result" in msg[1]), None)
+    system_msg = next((msg for msg in history if msg[0] == "human" and "adaptive_wakeup_followup" in msg[1]), None)
     assert system_msg is not None, "Should have found system_notification"
     assert "task-e2e-001" in system_msg[1]
 

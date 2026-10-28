@@ -21,7 +21,7 @@ _EXEMPT = {
     "core/eval/executor.py": "evaluation replays developer-authored cases; masking would distort the comparison",
 }
 # Builds the run params by copying an existing instance instead of calling the constructor.
-_COPY_CARRIERS = ("services/agent/wakeup_handler.py",)
+_COPY_CARRIERS = ("services/agent/adaptive_wakeup/wake_turn_stream.py",)
 
 
 def _is_name(node: ast.expr, name: str) -> bool:

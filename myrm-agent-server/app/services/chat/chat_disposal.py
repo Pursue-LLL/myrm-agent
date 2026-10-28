@@ -7,6 +7,7 @@
 - app.config.settings::get_settings (POS: location of the event log directory)
 - app.services.agent.execution_cache::close_execution_cache_for_chat_all_agents (POS: per-chat agent execution scopes)
 - app.services.external_agents.runtime_pool_registry::close_external_agent_pool_for_chat (POS: per-chat external agent runtimes)
+- app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: the wake budget and stop flag kept in memory per chat)
 - app.core.memory::get_cascade_memory_manager (POS: memory store used for deletion cascades)
 - app.services.chat.sandbox_worktree::cleanup_sandbox_worktree (POS: git worktree lifecycle of chat sandboxes)
 - app.services.infra.sandbox_cleanup::cleanup_chat_workspaces (POS: storage workspace and artifact vault cleanup, one vault scan per batch)
@@ -14,7 +15,7 @@
 [OUTPUT]
 - clear_conversation_state: checkpoint threads, session grants and the denial counter of a chat
 - reset_external_agent_sessions: the in-memory conversation of a chat's external agents
-- clear_runtime_caches: running pools, execution scopes and ephemeral session deltas of a chat
+- clear_runtime_caches: running pools, execution scopes, ephemeral session deltas, wake budget and stop flag of a chat
 - remove_chat_event_log: the event log file of a chat
 - clear_extract_retry_queue: pending memory-extraction retries of a chat
 - forget_chat_memories: memories derived from a chat plus its retry queue
@@ -89,9 +90,12 @@ async def reset_external_agent_sessions(chat_id: str) -> None:
 
 async def clear_runtime_caches(chat_id: str) -> None:
     """Stop what is still running for a chat and evict its in-memory state."""
+    from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
+
     await close_external_agent_pool_for_chat(chat_id)
     await close_execution_cache_for_chat_all_agents(chat_id)
     _clear_ephemeral_deltas(chat_id)
+    get_adaptive_wakeup_service().forget_chat(chat_id)
 
 
 async def remove_chat_event_log(chat_id: str) -> None:

@@ -275,6 +275,37 @@ async def test_a_parked_paste_reads_as_its_opening_and_size_on_the_shared_page(m
     assert ".myrm" not in html
 
 
+async def test_the_systems_notes_about_settled_background_tasks_are_not_on_the_shared_page(mock_db) -> None:
+    now = datetime.now(timezone.utc)
+    note = MessageDTO(
+        id="wakeup_followup_t1",
+        chat_id="chat-1",
+        role="user",
+        content="<system_notification type='adaptive_wakeup_followup'>job done</system_notification>",
+        extra_data={"wakeup_notice": "followup"},
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+    )
+    typed = MessageDTO(
+        id="m1", chat_id="chat-1", role="user", content="what the user typed", sent_at=now, sent_timezone="UTC", created_at=now
+    )
+    with (
+        patch(
+            "app.services.chat.share_renderer.ChatService.get_chat_metadata", new_callable=AsyncMock, return_value=_make_chat()
+        ),
+        patch(
+            "app.services.chat.share_renderer.ChatService.get_all_messages", new_callable=AsyncMock, return_value=[typed, note]
+        ),
+    ):
+        html = await render_share_html("chat-1", mock_db, lang="en")
+
+    assert html is not None
+    assert "what the user typed" in html
+    assert "adaptive_wakeup_followup" not in html
+    assert "system_notification" not in html
+
+
 def _user_message(content: str) -> MessageDTO:
     now = datetime.now(timezone.utc)
     return MessageDTO(id="m1", chat_id="chat-1", role="user", content=content, sent_at=now, sent_timezone="UTC", created_at=now)

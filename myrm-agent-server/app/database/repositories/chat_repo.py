@@ -3,6 +3,7 @@
 [INPUT]
 app.database.models::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
 app.database.models.chat::SYSTEM_NOTICE_EXTRA_KEYS (POS: 系统通知行的 extra_data 标记键，重试与版本计数不把这些行当作回答)
+app.database.models.chat::WAKEUP_NOTICE_KEY, WAKEUP_NOTICE_INERT_KINDS (POS: 后台任务结算行的标记键与不开启回合的取值，重试/重新生成/撤销跳过这些行)
 app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository (POS: 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略)
 
 [OUTPUT]
@@ -46,7 +47,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models import Chat, Message
-from app.database.models.chat import SYSTEM_NOTICE_EXTRA_KEYS
+from app.database.models.chat import SYSTEM_NOTICE_EXTRA_KEYS, WAKEUP_NOTICE_INERT_KINDS, WAKEUP_NOTICE_KEY
 from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository, MessageFtsSearchRow
 
 logger = logging.getLogger(__name__)
@@ -348,9 +349,19 @@ class ChatRepository:
 
     @staticmethod
     async def get_last_user_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:
+        """The latest row a person (or a wake turn's followup notice) opened a turn with.
+
+        A settlement the wake router degraded or suppressed starts no turn, so its notice row is skipped: retry,
+        regenerate and undo act on the turn before it.
+        """
+        notice_kind = func.json_extract(Message.extra_data, f"$.{WAKEUP_NOTICE_KEY}")
         result = await db.execute(
             select(Message)
-            .where(Message.chat_id == chat_id, Message.role == "user")
+            .where(
+                Message.chat_id == chat_id,
+                Message.role == "user",
+                or_(notice_kind.is_(None), notice_kind.not_in(WAKEUP_NOTICE_INERT_KINDS)),
+            )
             .order_by(Message.created_at.desc(), Message.id.desc())
             .limit(1)
         )

@@ -1,6 +1,6 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支, SYSTEM_NOTICE_EXTRA_KEYS: 系统通知行的 extra_data 标记键
+[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支, SYSTEM_NOTICE_EXTRA_KEYS: 系统通知行的 extra_data 标记键, WAKEUP_NOTICE_KEY / WAKEUP_NOTICE_{FOLLOWUP,DEGRADED,SUPPRESSED} / WAKEUP_NOTICE_INERT_KINDS: 后台完成通知用户行的标记及其种类（降级、抑制两种不起回合）
 [POS] 会话与消息域模型。管理聊天会话、消息记录和对话分支。
 """
 
@@ -28,6 +28,15 @@ from .base import Base
 BACKGROUND_JOB_NOTICE_KEY = "background_job"
 VOICE_BACKGROUND_TASK_NOTICE_KEY = "voice_background_task"
 SYSTEM_NOTICE_EXTRA_KEYS: tuple[str, ...] = (BACKGROUND_JOB_NOTICE_KEY, VOICE_BACKGROUND_TASK_NOTICE_KEY)
+
+# `extra_data` key of the user row the server appends for a settled background task; its value is what the wake router
+# did with the settlement. A followup starts a wake turn that answers the row. A degraded or suppressed settlement starts
+# none, so such a row is a note for the next turn and never "the last thing the user said".
+WAKEUP_NOTICE_KEY = "wakeup_notice"
+WAKEUP_NOTICE_FOLLOWUP = "followup"
+WAKEUP_NOTICE_DEGRADED = "degraded"
+WAKEUP_NOTICE_SUPPRESSED = "suppressed"
+WAKEUP_NOTICE_INERT_KINDS: tuple[str, ...] = (WAKEUP_NOTICE_DEGRADED, WAKEUP_NOTICE_SUPPRESSED)
 
 
 class Chat(Base):

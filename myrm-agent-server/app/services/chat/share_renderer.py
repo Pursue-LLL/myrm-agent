@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models.agent import Agent
-from app.services.chat.chat_helpers import exported_user_text
+from app.services.chat.chat_helpers import exported_user_text, is_wakeup_notice
 from app.services.chat.chat_service import ChatService
 
 _md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
@@ -130,7 +130,7 @@ def _build_html(
     msg_html_parts: list[str] = []
     visible_roles = {"user", "assistant"}
     for msg in messages[-200:]:
-        if msg.role not in visible_roles:
+        if msg.role not in visible_roles or is_wakeup_notice(msg):
             continue
         content = exported_user_text(msg) if msg.role == "user" else msg.content
         msg_html_parts.append(_render_message(msg.role, content, msg.created_at, chrome))

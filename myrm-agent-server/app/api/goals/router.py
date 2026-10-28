@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
-- app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal, wait_for_stopped_turn (POS: Goal control rules shared with IM)
+- app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal, note_goal_resumed, stop_goal_turn, wait_for_stopped_turn (POS: Goal control rules shared with IM)
 - app.api.goals.schemas (POS: request/response bodies of the endpoints)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
@@ -28,6 +28,7 @@ from app.api.dependencies import get_optional_llm_for_user
 from app.services.agent.goals.goal_controls import (
     NON_TERMINAL_GOAL_STATUSES,
     continue_resumed_goal,
+    note_goal_resumed,
     select_cancellable_goal,
     stop_goal_turn,
     wait_for_stopped_turn,
@@ -255,6 +256,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
                 await provider.resume_goal(goal.goal_id, reset_turns=True)
             else:
                 await provider.update_status(goal.goal_id, GoalStatus.ACTIVE)
+            note_goal_resumed(session_id)
             await continue_resumed_goal(session_id, provider, goal.goal_id)
         elif request.action == "cancel":
             await provider.update_status(goal.goal_id, GoalStatus.CANCELLED)

@@ -25,7 +25,7 @@ def chat_id() -> Iterator[str]:
     chat = f"stop-{uuid.uuid4().hex[:8]}"
     yield chat
     get_agent_gateway().release_session(chat)
-    get_adaptive_wakeup_service().reset_session(chat)
+    get_adaptive_wakeup_service().forget_chat(chat)
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ async def test_a_stop_only_holds_the_chat_it_stopped(chat_id: str, running_turn:
     await cancel_agent_request(running_turn)
 
     assert not stopped(other)
-    get_adaptive_wakeup_service().reset_session(other)
+    get_adaptive_wakeup_service().forget_chat(other)
 
 
 @pytest.mark.asyncio

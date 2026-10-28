@@ -266,7 +266,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_goal_to_resume")
 
-        from app.services.agent.goals.goal_controls import wait_for_stopped_turn
+        from app.services.agent.goals.goal_controls import note_goal_resumed, wait_for_stopped_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
@@ -286,6 +286,7 @@ class ChannelGoalCommandHandler:
         if not await wait_for_stopped_turn(chat_id):
             return get_text(msg, "goal_resume_stopping")
         await provider.resume_goal(goal.goal_id)
+        note_goal_resumed(chat_id)
         return get_text(msg, "goal_resumed", objective=goal.objective[:60])
 
     async def _clear_goal(self, msg: InboundMessage, chat_id: str | None) -> str:

@@ -3,13 +3,15 @@
 [INPUT]
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal persistence and lifecycle)
 - app.services.agent.gateway::get_agent_gateway (POS: in-flight session, interrupt signal and drain state)
+- app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: a pause or cancel holds the chat's autonomous wakes, a resume lifts the hold)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: cancels the running message)
 - app.services.agent.goals.unattended::trigger_goal_stream_with_failure_policy (POS: unattended goal continuation stream)
 
 [OUTPUT]
 - NON_TERMINAL_GOAL_STATUSES: statuses a goal can still leave
 - select_cancellable_goal: the goal a "cancel" / "clear" control acts on
-- stop_goal_turn: stop the turn a goal was working on after it was paused or cancelled
+- stop_goal_turn: stop the turn a goal was working on after it was paused or cancelled, and keep background results from waking the chat
+- note_goal_resumed: the user put the goal back to work, so autonomous wakes are allowed again
 - is_turn_stopping: whether the session's turn was told to stop and has not wound down yet
 - wait_for_stopped_turn: let a turn that was told to stop finish winding down before the goal is resumed
 - can_start_goal_turn: whether the session can take a new turn now
@@ -29,6 +31,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancelReason
 
+from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 from app.services.agent.gateway import get_agent_gateway
 from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 
@@ -70,7 +73,11 @@ def stop_goal_turn(session_id: str, goal_before_change: Goal) -> bool:
     turn of its own running, so a goal that was waiting, in review or budget-limited leaves the session's
     current turn (a message the user sent meanwhile) alone. The continuation guard sees no active goal and
     starts no further turn. Side effects the turn already produced stay.
+
+    Whatever the goal's state, a pause or cancel is the user's stop: a background result that settles afterwards
+    waits for the user instead of waking the chat (the goal may have been waiting on exactly that result).
     """
+    get_adaptive_wakeup_service().record_user_stop(session_id)
     if goal_before_change.status is not GoalStatus.ACTIVE:
         return False
     gateway = get_agent_gateway()
@@ -78,6 +85,11 @@ def stop_goal_turn(session_id: str, goal_before_change: Goal) -> bool:
     interrupted = gateway.interrupt_session(session_id)
     cancelled = message_id is not None and CancellationRegistry.cancel(message_id, CancelReason.USER_CANCELLED)
     return interrupted or cancelled
+
+
+def note_goal_resumed(session_id: str) -> None:
+    """The user resumed the goal: the stop that came with its pause no longer holds the chat's wakes back."""
+    get_adaptive_wakeup_service().record_human_turn(session_id)
 
 
 def can_start_goal_turn(session_id: str) -> bool:

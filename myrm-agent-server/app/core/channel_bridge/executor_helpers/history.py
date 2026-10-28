@@ -4,6 +4,7 @@
 - app.services.chat.chat_service::ChatService (POS: Chat history persistence)
 - app.services.chat.stale_compact_gate::run_pre_reply_stale_compact_gate (POS: pre-reply idle stale compaction gate)
 - executor_helpers.agent_workspace::agent_workspace (POS: the workspace the channel agent runs in)
+- app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: a message from the user restores the chat's wake budget)
 
 [OUTPUT]
 - ChannelChatHistory: the agent-facing chat history shape
@@ -69,6 +70,7 @@ async def persist_and_load_history(
 ) -> tuple[str, list[ChannelHistoryEntry]]:
     """Persist the user message and load chat history in a single DB session."""
     from app.database.connection import get_session
+    from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
     from app.services.chat.chat_service import ChatService
 
     async with get_session() as session:
@@ -101,6 +103,8 @@ async def persist_and_load_history(
             sent_timezone,
             spill_workspace=agent_workspace(chat.id),
         )
+        # A message from the user, here as in the web chat, restores the wake budget and lifts a stop.
+        get_adaptive_wakeup_service().record_human_turn(chat.id)
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()
         logger.info(

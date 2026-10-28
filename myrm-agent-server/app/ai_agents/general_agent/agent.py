@@ -468,7 +468,7 @@ class GeneralAgent(ToolSetupMixin):
     async def process_stream(
         self,
         query: object,
-        chat_history: list[list[str]] | list[list[str | object]] | None = None,
+        chat_history: list[list[str]] | list[list[str | object]] | list[BaseMessage] | None = None,
         message_id: str | None = None,
         chat_id: str | None = None,
         cancel_token: "CancellationToken | None" = None,

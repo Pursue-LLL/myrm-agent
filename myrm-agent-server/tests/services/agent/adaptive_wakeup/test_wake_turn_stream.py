@@ -16,10 +16,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken, CancelReason
 
-from app.services.agent import wakeup_handler
+from app.services.agent.adaptive_wakeup import wake_turn_stream
+from app.services.agent.adaptive_wakeup.wake_turn_stream import WAKE_TURN_FAILED_ERROR_KIND, stream_wake_turn
 from app.services.agent.gateway import get_agent_gateway
 from app.services.agent.turn_lease import server_turn_lease
-from app.services.agent.wakeup_handler import ServerWakeupHandler
 
 Events = list[dict[str, object]]
 
@@ -85,9 +85,13 @@ def stores(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """The stores and builders around the agent; nothing here needs a model or a database."""
     persisted = AsyncMock()
     finalized = AsyncMock()
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.get_chat_metadata",
+        AsyncMock(return_value=SimpleNamespace(agent_id="agent-1")),
+    )
     monkeypatch.setattr("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[]))
     monkeypatch.setattr("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", persisted)
-    monkeypatch.setattr(wakeup_handler, "convert_chat_history", AsyncMock(return_value=[]))
+    monkeypatch.setattr(wake_turn_stream, "convert_chat_history", AsyncMock(return_value=[]))
     monkeypatch.setattr("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=None))
     monkeypatch.setattr("app.services.agent.runtime_context.build_agent_runtime_context", AsyncMock(return_value={}))
     monkeypatch.setattr("app.services.agent.execution_cache.finalize_agent_session", finalized)
@@ -98,7 +102,10 @@ def stores(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
     monkeypatch.setattr("app.services.agent.session_credential_assembler.session_credentials_scope", no_credentials)
 
+    requests: list[SimpleNamespace] = []
+
     async def convert(request: SimpleNamespace, _history: object) -> tuple[FakeParams, None, None, None, list[str], list[object]]:
+        requests.append(request)
         return FakeParams(request.chat_id, request.message_id), None, None, None, [], []
 
     monkeypatch.setattr("app.services.agent.params.convert_to_general_agent_params", convert)
@@ -108,8 +115,8 @@ def stores(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     async def instant_retry(_seconds: float) -> None:
         await real_sleep(0)
 
-    monkeypatch.setattr(wakeup_handler.asyncio, "sleep", instant_retry)
-    return SimpleNamespace(persisted=persisted, finalized=finalized)
+    monkeypatch.setattr(wake_turn_stream.asyncio, "sleep", instant_retry)
+    return SimpleNamespace(persisted=persisted, finalized=finalized, requests=requests)
 
 
 def use_agent(monkeypatch: pytest.MonkeyPatch, agent: ScriptedAgent) -> None:
@@ -118,7 +125,7 @@ def use_agent(monkeypatch: pytest.MonkeyPatch, agent: ScriptedAgent) -> None:
 
 async def run_wake_turn(chat_id: str, turn_id: str) -> None:
     async with server_turn_lease(chat_id, turn_id) as token:
-        await ServerWakeupHandler().stream_wake_turn(chat_id, "agent-1", turn_id, token)
+        await stream_wake_turn(chat_id, turn_id, token)
 
 
 @pytest.mark.asyncio
@@ -216,7 +223,7 @@ async def test_a_stopped_turn_is_not_started_over_when_it_fails_on_the_way_out(
 
 
 @pytest.mark.asyncio
-async def test_a_failed_run_is_retried_and_only_the_last_attempt_is_kept(
+async def test_a_failed_run_that_said_nothing_is_retried_and_only_the_last_attempt_is_kept(
     chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
 ) -> None:
     async def failing(_token: CancellationToken) -> AsyncIterator[dict[str, object]]:
@@ -234,7 +241,7 @@ async def test_a_failed_run_is_retried_and_only_the_last_attempt_is_kept(
 
 
 @pytest.mark.asyncio
-async def test_a_run_that_keeps_failing_gives_up_after_the_last_attempt(
+async def test_a_run_that_keeps_failing_ends_in_an_error_event_and_an_error_reply_instead_of_silence(
     chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
 ) -> None:
     async def failing(_token: CancellationToken) -> AsyncIterator[dict[str, object]]:
@@ -247,6 +254,57 @@ async def test_a_run_that_keeps_failing_gives_up_after_the_last_attempt(
     await run_wake_turn(chat_id, "turn-1")
 
     assert len(agent.calls) == 3
-    stores.persisted.assert_not_awaited()
+    assert [chunk["type"] for chunk in published] == ["error"]
+    assert published[0]["error_kind"] == WAKE_TURN_FAILED_ERROR_KIND
+    assert published[0]["messageId"] == "turn-1"
+    # The reply row is what a reload shows, so the failure outlives the open chat.
+    stores.persisted.assert_awaited_once()
+    assert stores.persisted.await_args.args[:2] == (chat_id, "")
+    assert stores.persisted.await_args.kwargs["extra_data"]["completionStatus"] == "error"
     stores.finalized.assert_awaited_once()
     assert not get_agent_gateway().is_session_active(chat_id)
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_fails_after_it_said_something_is_not_started_over_so_nothing_is_shown_twice(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    async def breaks_midway(_token: CancellationToken) -> AsyncIterator[dict[str, object]]:
+        yield message("first half")
+        raise RuntimeError("stream cut")
+
+    agent = ScriptedAgent(breaks_midway, lambda _token: plays(message("never started")))
+    use_agent(monkeypatch, agent)
+
+    await run_wake_turn(chat_id, "turn-1")
+
+    assert len(agent.calls) == 1
+    assert [chunk["type"] for chunk in published] == ["message", "error"]
+    assert stores.persisted.await_args.args[:2] == (chat_id, "first half")
+    assert stores.persisted.await_args.kwargs["extra_data"]["completionStatus"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_a_chat_that_is_gone_gets_no_wake_turn(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    monkeypatch.setattr("app.services.chat.chat_service.ChatService.get_chat_metadata", AsyncMock(return_value=None))
+    agent = ScriptedAgent(lambda _token: plays(message("never")))
+    use_agent(monkeypatch, agent)
+
+    await run_wake_turn(chat_id, "turn-1")
+
+    assert agent.calls == []
+    assert published == []
+    stores.persisted.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_the_turn_belongs_to_the_agent_the_chat_is_bound_to(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    use_agent(monkeypatch, ScriptedAgent(lambda _token: plays(message("done"))))
+
+    await run_wake_turn(chat_id, "turn-1")
+
+    assert [(request.chat_id, request.agent_id) for request in stores.requests] == [(chat_id, "agent-1")]

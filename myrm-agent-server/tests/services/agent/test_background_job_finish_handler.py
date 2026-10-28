@@ -90,6 +90,50 @@ async def test_handler_appends_message_and_publishes_event() -> None:
 
 
 @pytest.mark.asyncio
+async def test_a_job_started_by_a_chat_run_is_recorded_in_that_chat_not_under_the_session_key() -> None:
+    handler = ServerBackgroundJobFinishHandler()
+    # The harness reports the session key of the run that started the job: the chat id behind the ``chat_`` prefix.
+    result = BackgroundJobFinishResult(
+        session_id="chat_abc-uuid-1",
+        pid=7,
+        command="sleep 1",
+        status="exited",
+        exit_code=0,
+        error_category=None,
+        job_id=_TEST_JOB_ID,
+    )
+    wakeup_service = MagicMock()
+    wakeup_service.handle_settlement = AsyncMock()
+    mock_bus = MagicMock()
+
+    with (
+        patch(
+            "app.services.agent.background_job.background_job_finish_handler._resolve_user_locale",
+            AsyncMock(return_value="en"),
+        ),
+        patch(
+            "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
+            AsyncMock(),
+        ) as mock_append,
+        patch(
+            "app.services.agent.goals.goal_wait_background_resume.maybe_resume_goal_after_background_job",
+            AsyncMock(return_value=False),
+        ),
+        patch("app.services.agent.adaptive_wakeup.get_adaptive_wakeup_service", return_value=wakeup_service),
+        patch(
+            "app.services.agent.background_job.background_job_finish_handler.get_event_bus",
+            return_value=mock_bus,
+        ),
+    ):
+        await handler._process(result)
+
+    assert mock_append.await_args.kwargs["chat_id"] == "abc-uuid-1"
+    settled = wakeup_service.handle_settlement.await_args.args[0]
+    assert settled.session_id == "abc-uuid-1"
+    assert mock_bus.publish.call_args[0][0].data["meta_data"]["chat_id"] == "abc-uuid-1"
+
+
+@pytest.mark.asyncio
 async def test_on_background_job_finish_delegates_to_process() -> None:
     handler = ServerBackgroundJobFinishHandler()
     result = BackgroundJobFinishResult(
