@@ -112,8 +112,10 @@ _PRIVATE_KEY_RE = re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?-----END
 # Credential variables known by name, which carry no password noun: ``sshpass -e`` reads ``SSHPASS`` and the ``mysql``
 # client reads ``MYSQL_PWD``. The ENV and YAML name lists, the keyword guard and the JSON bare names all read this tuple.
 _CREDENTIAL_VARIABLE_NAMES = ("sshpass", "mysql_pwd")
-_CREDENTIAL_VARIABLES = "|".join(_CREDENTIAL_VARIABLE_NAMES)
-_SECRET_ENV_NAMES = rf"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CREDENTIAL|AUTH|{_CREDENTIAL_VARIABLES})"
+_CREDENTIAL_VARIABLE_ALTERNATION = "|".join(_CREDENTIAL_VARIABLE_NAMES)
+_SECRET_ENV_NAMES = (
+    rf"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CREDENTIAL|AUTH|{_CREDENTIAL_VARIABLE_ALTERNATION})"
+)
 # 未加引号的 value 到空白或引号为止；`&` 只在后面紧跟 `键=`（form body 的下一个参数，
 # `token=abc&page=1` 保持为 `token=***&page=1`）或 `amp;`（HTML 转义的同一分隔符）时才终止它，
 # 其余的 `&` 是口令自身的字符，其后的部分同样要打码，否则 `PASSWORD=ab&cd` 会泄漏 `&cd`。
@@ -157,9 +159,7 @@ _ENV_ASSIGN_LOWER_RE = re.compile(
 # 覆盖 `auth: <secret>`，`author:`/`Authorization:` 由词边界校验（_key_has_secret_keyword）
 # 与 _AUTH_HEADER_RE 拦截，不误伤。可选引号保留引号结构：双引号支持 `\"` 转义，
 # 单引号支持 YAML `''` 转义，quoted 值含空格时整体捕获不部分泄漏。
-_YAML_CFG_NAMES = (
-    rf"(?:api[ _.\-]?key|token|secret|passwd|password|pass[ _.\-]?phrase|credential|auth|{_CREDENTIAL_VARIABLES})"
-)
+_YAML_CFG_NAMES = rf"(?:api[ _.\-]?key|token|secret|passwd|password|pass[ _.\-]?phrase|credential|auth|{_CREDENTIAL_VARIABLE_ALTERNATION})"
 _YAML_ASSIGN_RE = re.compile(
     rf"(^[ \t]*+[A-Za-z0-9_.\-]*{_YAML_CFG_NAMES}[A-Za-z0-9_.\-]*+)([ \t]*+:[ \t]*+)((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\4)|{_UNQUOTED_VALUE})",
     re.IGNORECASE | re.MULTILINE,
@@ -209,7 +209,7 @@ def _is_word_end(s: str, j: int, *, allow_plural: bool = True) -> bool:
 # 那样会嵌进别的词，词首校验对它们只会漏报；与 JSON 字段名策略（structured_fields 的 `_SUFFIX_NOUNS`，前缀不限）一致。
 # 按名字认定的凭据变量只在作为 key 的最后一个词时命中，`SSHPASS_FILE` 之类指向文件的名字不受影响。
 _CREDENTIAL_NAME_END_RE = re.compile(
-    rf"(?:password|passwd|passphrase|(?:^|[^a-z0-9])(?:{_CREDENTIAL_VARIABLES}))$",
+    rf"(?:password|passwd|passphrase|(?:^|[^a-z0-9])(?:{_CREDENTIAL_VARIABLE_ALTERNATION}))$",
     re.IGNORECASE,
 )
 
