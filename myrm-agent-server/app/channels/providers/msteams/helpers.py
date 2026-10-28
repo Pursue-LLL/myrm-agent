@@ -41,20 +41,28 @@ _HTML_ENTITIES: dict[str, str] = {
     "&amp;": "&",
 }
 
-# Teams' six native reaction types, keyed by ``reaction_key`` glyph. Only glyphs that mean the type
-# are listed: a glyph without a faithful type is not sent at all rather than shown as "like".
+# Teams reaction IDs (Microsoft Learn, "Teams Emoji Reactions Reference"), keyed by ``reaction_key`` glyph.
+# Teams names far more reactions than the router can send, so the table holds the glyphs the status reactions
+# can reach: the defaults, their fallbacks and the settings pickers. A glyph without an ID is not sent at all
+# rather than shown as another reaction.
 EMOJI_TO_TEAMS_REACTION: dict[str, str] = {
+    "\U0001f440": "1f440_eyes",
+    "\U0001f914": "think",
+    "\U0001f4ad": "1f4ad_thoughtballoon",
+    "\U0001f9e0": "1f9e0_brain",
+    "\u2728": "2728_sparkles",
+    "\u2705": "2705_whiteheavycheckmark",
     "\U0001f44d": "like",
-    "\u2764": "heart",
-    "\U0001faf6": "heart",
-    "\U0001f602": "laugh",
-    "\U0001f923": "laugh",
-    "\U0001f62e": "surprised",
-    "\U0001f632": "surprised",
-    "\U0001f622": "sad",
-    "\U0001f62d": "sad",
-    "\U0001f620": "angry",
-    "\U0001f621": "angry",
+    "\U0001f389": "1f389_partypopper",
+    "\U0001f4af": "1f4af_hundredpointssymbol",
+    "\U0001f64c": "handsinair",
+    "\u274c": "274c_crossmark",
+    "\u26a0": "26a0_warningsign",
+    "\U0001f494": "brokenheart",
+    "\U0001f6ab": "1f6ab_noentrysign",
+    "\u26d4": "26d4_noentry",
+    "\U0001f635": "1f635_dizzyface",
+    "\U0001f622": "cry",
 }
 
 

@@ -29,6 +29,7 @@ from app.channels.types import MediaAttachment
 logger = logging.getLogger(__name__)
 
 _SEND_TIMEOUT = 15.0
+_REACTION_TIMEOUT = 5.0
 _TOKEN_REFRESH_BUFFER = 300
 _LOGIN_URL = "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token"
 _SERVICE_URL_CACHE_MAX = 500
@@ -242,11 +243,37 @@ class BotFrameworkApi:
         activity_id: str,
         reaction_type: str,
     ) -> None:
+        """Put the reaction on the activity; raises ``ChannelSendError`` when the connector refuses it."""
+        await self._reaction_call("PUT", service_url, conversation_id, activity_id, reaction_type)
+
+    async def remove_reaction(
+        self,
+        service_url: str,
+        conversation_id: str,
+        activity_id: str,
+        reaction_type: str,
+    ) -> None:
+        """Take the reaction off the activity; raises ``ChannelSendError`` when the connector refuses it."""
+        await self._reaction_call("DELETE", service_url, conversation_id, activity_id, reaction_type)
+
+    async def _reaction_call(
+        self,
+        method: str,
+        service_url: str,
+        conversation_id: str,
+        activity_id: str,
+        reaction_type: str,
+    ) -> None:
         await self.ensure_token()
-        url = f"{service_url.rstrip('/')}/v3/conversations/{conversation_id}/activities/{activity_id}/reactions"
-        await self._http.post(
-            url,
-            headers=self._auth_headers(),
-            json={"type": reaction_type},
-            timeout=5.0,
-        )
+        url = f"{service_url.rstrip('/')}/v3/conversations/{conversation_id}/activities/{activity_id}/reactions/{reaction_type}"
+        try:
+            resp = await self._http.request(
+                method,
+                url,
+                headers={"Authorization": f"Bearer {self._access_token}"},
+                timeout=_REACTION_TIMEOUT,
+            )
+        except httpx.HTTPError as exc:
+            raise ChannelSendError(f"Teams reaction request failed: {type(exc).__name__}", channel="teams") from exc
+        if resp.status_code >= 400:
+            raise ChannelSendError.from_http_status("teams", resp.status_code, resp.text)

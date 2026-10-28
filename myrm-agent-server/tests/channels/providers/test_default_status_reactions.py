@@ -24,7 +24,7 @@ CRYING = "\U0001f622"
 # (processing, success, failure); None = the platform has no faithful glyph, so nothing is shown.
 EXPECTED: dict[str, tuple[str | None, str, str]] = {
     "telegram": (EYES, THUMBS_UP, THUMBS_DOWN),
-    "teams": (None, THUMBS_UP, CRYING),
+    "teams": (EYES, CHECK, CROSS),
     "imessage": (None, THUMBS_UP, THUMBS_DOWN),
     "feishu": (EYES, CHECK, CROSS),
     "slack": (EYES, CHECK, CROSS),

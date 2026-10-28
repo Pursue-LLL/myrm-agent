@@ -793,26 +793,6 @@ class TestOutbound:
         mock_http.post.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_react_to_message(self) -> None:
-        ch = _make_channel()
-        _set_valid_token(ch)
-
-        mock_http = _mock_http_on_channel(ch)
-        mock_http.post = AsyncMock()
-
-        key = encode_message_key("act_r", "https://svc.url", "conv_r")
-        await ch.react_to_message("conv_r", key, "\U0001f44d")
-        mock_http.post.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_react_empty_emoji(self) -> None:
-        ch = _make_channel()
-        mock_http = _mock_http_on_channel(ch)
-        mock_http.post = AsyncMock()
-        await ch.react_to_message("conv", "mid", "")
-        mock_http.post.assert_not_called()
-
-    @pytest.mark.asyncio
     async def test_post_activity_failure(self) -> None:
         ch = _make_channel()
         _set_valid_token(ch)

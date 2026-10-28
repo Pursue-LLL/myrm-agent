@@ -9,9 +9,9 @@ Microsoft Teams 渠道 Provider 实现（入站/出站、凭证、路由）。�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `api.py` | 模块 | Bot Framework HTTP layer. Wraps OAuth token management, serviceUrl caching, activity POST/PUT/DELETE, providing low-level API capabilities for MSTeamsChannel. " | ✅ |
+| `api.py` | 模块 | Bot Framework HTTP layer. Wraps OAuth token management, serviceUrl caching, activity POST/PUT/DELETE and reaction PUT/DELETE, providing low-level API capabilities for MSTeamsChannel. " | ✅ |
 | `auth.py` | 模块 | app.channels.providers.msteams.auth — Bot Framework JWT validator. Fetches public keys via OpenID Connect metadata, verifies JWT signature, issuer, audience, an | ✅ |
 | `channel.py` | 模块 | MSTeams Bot channel implementation. Supports message edit/delete, Adaptive Card interactive components, file attachments, typing indicator, and placeholder streaming. `edit_placeholder_message` uses first render chunk only (Item 46). | ✅ |
-| `helpers.py` | 模块 | Stateless helpers for MSTeamsChannel; channel.py stays focused on the Channel lifecycle and I/O. `EMOJI_TO_TEAMS_REACTION` maps only glyphs that mean one of Teams' six reaction types. | ✅ |
+| `helpers.py` | 模块 | Stateless helpers for MSTeamsChannel; channel.py stays focused on the Channel lifecycle and I/O. `EMOJI_TO_TEAMS_REACTION` maps the glyphs the status reactions can reach to Teams reaction IDs (Teams Emoji Reactions Reference); a glyph without an ID is not sent. | ✅ |
 | `inbound.py` | 模块 | `MSTeamsInboundMixin`: Bot Framework activity parsing, JWT verification, invoke / conversationUpdate handling and the webhook route (`register_routes`). | ✅ |
 | `models.py` | 模块 | Pydantic models for Microsoft Bot Framework activity payloads. | ✅ |

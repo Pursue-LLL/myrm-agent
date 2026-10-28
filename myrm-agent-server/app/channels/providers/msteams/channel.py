@@ -34,6 +34,7 @@ from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers.msteams.api import BotFrameworkApi
 from app.channels.providers.msteams.auth import BotFrameworkJwtVerifier
 from app.channels.providers.msteams.helpers import (
@@ -106,6 +107,7 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
         self._prompt_starters = prompt_starters
         self._http = httpx.AsyncClient()
         self._api = BotFrameworkApi(app_id, app_password, self._http)
+        self._reactions = ReactionLedger()
         self._jwt_verifier = BotFrameworkJwtVerifier(app_id, self._http)
 
     # ── Lifecycle ──────────────────────────────────────────────
@@ -285,10 +287,26 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
     # ── Reaction ───────────────────────────────────────────────
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        reaction_type = EMOJI_TO_TEAMS_REACTION.get(reaction_key(emoji), "")
-        if not reaction_type:
+        """React with a Teams reaction ID; an empty emoji removes the one this channel put on the message."""
+        if emoji:
+            reaction_type = EMOJI_TO_TEAMS_REACTION.get(reaction_key(emoji))
+            if reaction_type is None:
+                return
+            target = self._reaction_target(chat_id, message_id)
+            if target is None:
+                return
+            await self._api.add_reaction(*target, reaction_type)
+            self._reactions.remember(chat_id, message_id, reaction_type)
             return
+        sent = self._reactions.take(chat_id, message_id)
+        if sent is None:
+            return
+        target = self._reaction_target(chat_id, message_id)
+        if target is not None:
+            await self._api.remove_reaction(*target, sent)
 
+    def _reaction_target(self, chat_id: str, message_id: str) -> tuple[str, str, str] | None:
+        """``(service_url, conversation_id, activity_id)`` of the message, ``None`` while its service URL is unknown."""
         decoded = decode_message_key(message_id)
         if decoded:
             activity_id, service_url, conversation_id = decoded
@@ -296,8 +314,4 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
             activity_id = message_id
             service_url = self._api.resolve_service_url(chat_id)
             conversation_id = chat_id
-
-        if not service_url:
-            return
-
-        await self._api.add_reaction(service_url, conversation_id, activity_id, reaction_type)
+        return (service_url, conversation_id, activity_id) if service_url else None
