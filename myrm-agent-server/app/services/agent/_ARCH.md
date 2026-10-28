@@ -50,7 +50,7 @@ Design notes:
 | `stream_session/` | ✅ 核心 | General Agent SSE 流式会话编排 | [_ARCH.md](stream_session/_ARCH.md) |
 | `turn_lease/` | ✅ 核心 | 服务端自启回合（目标续跑、审批超时恢复、崩溃重放）的会话占用 + 取消令牌租约，被取消时结束后台任务 | [_ARCH.md](turn_lease/_ARCH.md) |
 | `streaming_support/` | ✅ 核心 | SSE 格式化、Failover、内容收集、Multiplexer | [_ARCH.md](streaming_support/_ARCH.md) |
-| `adaptive_wakeup/` | ✅ 核心 | 后台长任务与子智能体完成后的自适应唤醒。`service.py`：按有界轮次预算（连续 3 次）决定每次完成的去向 — 预算内 FOLLOWUP（写一条通知行并调度唤醒回合）、超额 DEGRADE 与用户已按 Stop 的 SUPPRESS（只写通知行，下一条用户消息从历史里看到结果）；用户发言（`chat_history_bootstrap.persist_user_message`）重置预算并解除 Stop 保持。`wake_turn_scheduler.py`：唤醒回合的唯一发起处 — 同一会话已有排队唤醒时合并（只刷新完成时刻）、会话忙时有界等待（`GOAL_ACTIVE_TIMEOUT_SECONDS`）、轮到时在 `server_turn_lease` 下运行（Stop 因此能按会话 / 回合 id 找到并终止它），启动前再核对跳过条件（E-Stop 生效、用户在通知之后按过 Stop 或又发言、日预算超额） | - |
+| `adaptive_wakeup/` | ✅ 核心 | 后台任务与子智能体完成后的自适应唤醒：有界预算决定每次完成的去向、每次完成都留一条通知行、唤醒回合在会话空闲且用户没有叫停时于 `server_turn_lease` 下运行，详见 [adaptive_wakeup/_ARCH.md](adaptive_wakeup/_ARCH.md) | - |
 
 > **API 边界**：预置智能体模板实例化（`instantiate-template`）在 `app/api/agents/templates.py`，不在本 services 层。
 

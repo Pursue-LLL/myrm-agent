@@ -11,8 +11,9 @@
 [POS]
 A chat turn takes its session and registers a cancel token before its agent is built, so the Stop button, a pause
 and the emergency stop can find it; a stopped chat turn also ends the background jobs it started. A turn the server
-starts itself (goal continuation, an approval that timed out, a turn replayed after a restart) has no HTTP request
-to carry any of that, so it takes the same things here and gives them back however it ends.
+starts itself (goal continuation, an approval that timed out, a turn replayed after a restart, the wake turn after
+background work settled) has no HTTP request to carry any of that, so it takes the same things here and gives them
+back however it ends.
 """
 
 from __future__ import annotations

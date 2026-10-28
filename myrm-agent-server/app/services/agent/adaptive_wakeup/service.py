@@ -1,10 +1,10 @@
 """Adaptive Wakeup Service coordinating background settlement deliveries and bounded wakes.
 
 [INPUT]
-- myrm_agent_harness.agent.coordination.adaptive_wakeup::{AdaptiveWakeupRouter, RoutingDecision, WakeupBudgetState, WakeupChannel, WakeupEvent}
+- myrm_agent_harness.agent.coordination.adaptive_wakeup::{AdaptiveWakeupRouter, RoutingDecision, WakeupBudgetState, WakeupChannel, WakeupEvent} (POS: bounded consecutive-wake budget and the followup / degrade / suppress decision)
 - app.services.agent.adaptive_wakeup.wake_turn_scheduler::schedule_wake_turn (POS: starts the one wake turn once the chat is free)
-- app.services.chat.chat_service::ChatService
-- app.services.event.app_event_bus::{AppEvent, AppEventType, get_event_bus}
+- app.services.chat.chat_service::ChatService (POS: chat business facade; appends the notice row)
+- app.services.event.app_event_bus::{AppEvent, AppEventType, get_event_bus} (POS: in-process event bus the UI listens to)
 
 [OUTPUT]
 - AdaptiveWakeupService singleton coordinating settlement channel decisions,

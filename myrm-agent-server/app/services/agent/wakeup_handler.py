@@ -7,7 +7,9 @@
 - app.core.utils.chat_utils::convert_chat_history (POS: frontend-style chat tuples → LangChain messages)
 - app.core.security.privacy_settings::privacy_agent_params (POS: persisted privacy switch → agent privacy params)
 - app.services.agent.gateway::get_agent_gateway (POS: counts the run and reports the chat as generating / idle)
-- ChatService history persistence primitives
+- app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: turns streamed events into the durable assistant message)
+- app.services.chat.chat_service::ChatService (POS: chat business facade; loads the history, keeps the assistant reply)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: how a Stop, a goal pause and the emergency stop reach a turn)
 
 [OUTPUT]
 - ServerWakeupHandler.on_async_wakeup: hand a finished background subagent to the adaptive wakeup service
@@ -82,7 +84,6 @@ class ServerWakeupHandler:
                 summary=f"Subagent '{result.agent_type}' {status_str}",
                 duration_seconds=result.duration_seconds,
                 error=result.error,
-                details={"result_text": result.result[:2000]},
             )
 
             await get_adaptive_wakeup_service().handle_settlement(event, agent_id=agent_id)
