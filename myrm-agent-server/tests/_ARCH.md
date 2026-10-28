@@ -129,6 +129,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、状态反应（标记、撤标记、完成表情的调用顺序与策略；失败时先发错误文本再显示失败表情）、无法准备的回合静默结束并放开闸门、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
 | `channels/routing/pipeline/test_delivery_setup_effects.py` | 单元 | 新回合的投递准备不再重复设置「处理中」反应（该反应只由回合的 ack 步骤设置一次），同时仍登记占位符与清理 |
 | `channels/types/test_context_document.py` | 单元 | 参考文档契约：每种状态经元数据往返不变、元数据是纯 JSON 数据、非元数据形态的输入不当作文档、`clamped` 截断正文并保留原始长度、不超限原样返回 |
+| `channels/media/test_channel_image_retention.py` | 单元 | 渠道图片缓存的保留期：同一张图再次收到时重新计龄（不会被过期清扫）、清扫期间被删的文件会重新写入；清扫只删超过保留期未再收到的文件、保留期内的保留，缓存目录不存在时无事发生，子目录不动，一个文件删不掉不妨碍其余文件被清扫 |
 | `channels/routing/test_context_document_enrichment.py` | 单元 | 路由器的晚读：渠道给的文档放进新的元数据字典（到达消息不变）、超长正文截断并保留全文长度、无文档或无渠道原样返回、渠道读取故障只丢文档不丢回合、渠道默认没有文档；真实 `RouterExecutionMixin` 回合里 agent 流拿到文档而到达消息没有、续跑回合不询问渠道 |
 | `channels/providers/feishu/comment/test_document.py` | 单元 | 飞书评论回合的文档读取：docx 按 Markdown 读取、没有 Markdown 导出的类型不读、拒绝码映射成告知模型的原因、读取失败不抛出、慢文档超时放弃、运营日志说明原因但不带正文、评论回合拿到所评文档的正文、普通聊天消息没有文档也不调接口；应用没有读文档权限时改读纯文本并在日志点名权限、纯文本也失败时按原因映射 |
 | `channels/providers/test_emoji_shortnames.py` | 单元 | Slack / Mattermost 共用的反应表情短名转换：路由器默认的处理中 / 完成 / 失败表情都有短名，冒号与变体选择符不影响匹配，未知值原样透传，表中短名都满足平台的名字规则 |
@@ -251,7 +252,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
 | `lifecycle/test_remote_backup_sync_schedule.py` | 模块 | 调度器注册云端记忆定时备份检查：任务 id `remote_backup_auto_sync`、每小时间隔、启动后约 5 分钟首次触发；任务把已存设置交给 tick（从未配置时按「未设置」交付，被已丢失密钥封存的设置经真实 `ConfigService.get` 按「不可读」交付并暂停同步）；任务内任何失败都不逃逸给调度器 |
-| `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
+| `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告；同时清扫渠道图片缓存，清扫失败只记录警告、不影响其余清理 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
 | `services/risk/test_refusal.py` | 模块 | REST 拒绝契约：命中时抛 400 `risk_held`，载荷只含规则 id、名称、严重度而没有原文；空 / `None` / 干净文本放行；同一请求的多个字段逐段过闸，不拼成一句话（跨字段不会凑出赋值）；内置规则的载荷不含密钥 |

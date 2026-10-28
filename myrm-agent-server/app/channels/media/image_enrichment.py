@@ -18,11 +18,13 @@ enriches an InboundMessage, called from Router._handle_merged.
 [OUTPUT]
 - has_image_attachment(): check for image media
 - enrich_image_inbound(): download, compress, cache images as files into metadata
+- sweep_channel_image_cache(): remove cached images unused for the retention period
 
 [POS]
 Image attachment data preparation for channel router.
 Stores file path references in ``msg.metadata["image_data_list"]`` for
 downstream multimodal query construction in the business layer.
+Owns the lifetime of the cache it fills: the daily context cleanup job calls the sweep.
 """
 
 from __future__ import annotations
@@ -32,6 +34,8 @@ import base64
 import dataclasses
 import hashlib
 import logging
+import os
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -51,6 +55,9 @@ COMPRESS_QUALITY = 0.7
 MAX_DIMENSION_PX = 1568
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 DOWNLOAD_TIMEOUT = 15.0
+# Long enough that a conversation resumed after weeks still shows its pictures, short enough to bound the directory.
+CHANNEL_IMAGE_RETENTION_DAYS = 30
+_SECONDS_PER_DAY = 86400
 
 
 def has_image_attachment(msg: InboundMessage) -> bool:
@@ -90,7 +97,7 @@ async def enrich_image_inbound(
 
     image_data_list: list[dict[str, str]] = []
     for idx, result in enumerate(results):
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             logger.warning(
                 "Image enrichment: download failed for image %d (%s/%s): %s",
                 idx + 1,
@@ -154,19 +161,20 @@ async def _download_and_cache(
     return {"data_url": f"file://{cached_path}", "mime_type": mime}
 
 
+def channel_image_cache_dir() -> Path:
+    """``{state_dir}/cache/channel_images/``: the images of received messages, one file per distinct image."""
+    from app.config.settings import settings
+
+    return Path(settings.database.state_dir) / "cache" / "channel_images"
+
+
 def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | None:
-    """Save image bytes to a local cache directory and return the absolute path.
+    """Save image bytes to the channel image cache and return the absolute path.
 
-    Cache location: ``{DATA_DIR}/cache/channel_images/``
-    Files are named with a content hash to enable deduplication.
+    Files are named with a content hash to enable deduplication. An image that is already cached is not written
+    again, but its age restarts: the retention sweep counts from the last time an image was received.
     """
-    try:
-        from app.config.settings import settings as _settings
-
-        cache_dir = Path(_settings.data_dir) / "cache" / "channel_images"
-    except Exception:
-        cache_dir = Path.home() / ".myrm" / "cache" / "channel_images"
-
+    cache_dir = channel_image_cache_dir()
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         content_hash = hashlib.sha256(raw_bytes).hexdigest()[:16]
@@ -174,7 +182,10 @@ def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | No
         filename = f"{content_hash}.{ext}"
         file_path = cache_dir / filename
 
-        if not file_path.exists():
+        try:
+            # utime, not touch: a file removed in between must not come back as an empty image.
+            os.utime(file_path)
+        except FileNotFoundError:
             file_path.write_bytes(raw_bytes)
             logger.debug("Cached channel image: %s (%d bytes)", file_path, len(raw_bytes))
 
@@ -182,6 +193,29 @@ def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | No
     except Exception as exc:
         logger.warning("Failed to cache channel image: %s", exc)
         return None
+
+
+def sweep_channel_image_cache(max_age_days: int = CHANNEL_IMAGE_RETENTION_DAYS) -> int:
+    """Remove cached images not received for ``max_age_days``; return how many were removed.
+
+    History that still cites a removed image loses that picture: the harness resolver skips a missing file.
+    A file that cannot be removed is logged and left, so the others are still swept.
+    """
+    try:
+        entries = list(channel_image_cache_dir().iterdir())
+    except FileNotFoundError:
+        return 0
+
+    cutoff = time.time() - max_age_days * _SECONDS_PER_DAY
+    removed = 0
+    for entry in entries:
+        try:
+            if entry.is_file() and entry.stat().st_mtime < cutoff:
+                entry.unlink()
+                removed += 1
+        except OSError as exc:
+            logger.warning("Failed to remove expired channel image %s: %s", entry, exc)
+    return removed
 
 
 async def _download_image_bytes(
@@ -214,12 +248,8 @@ async def _download_via_channel_api(
     if get_channel_fn is None:
         return None
 
-    ch = get_channel_fn(channel)
-    if ch is None or not hasattr(ch, "_client"):
-        return None
-
-    client = ch._client  # type: ignore[attr-defined]
-    if not (hasattr(client, "get_file") and hasattr(client, "download_file")):
+    client = getattr(get_channel_fn(channel), "_client", None)
+    if client is None or not (hasattr(client, "get_file") and hasattr(client, "download_file")):
         return None
 
     try:
@@ -227,7 +257,8 @@ async def _download_via_channel_api(
         file_path = str(file_info.get("file_path", ""))
         if not file_path:
             return None
-        return await client.download_file(file_path, timeout=DOWNLOAD_TIMEOUT)  # type: ignore[return-value]
+        data = await client.download_file(file_path, timeout=DOWNLOAD_TIMEOUT)
+        return data if isinstance(data, bytes) else None
     except Exception as exc:
         logger.warning("Image download via channel API failed: %s", exc)
         return None

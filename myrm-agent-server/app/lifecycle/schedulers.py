@@ -72,6 +72,15 @@ async def _context_cleanup_job() -> None:
     except Exception as e:
         logger.warning(f"ContextGuard transient spillover sweep failed: {e}")
 
+    try:
+        from app.channels.media.image_enrichment import sweep_channel_image_cache
+
+        removed_images = await asyncio.to_thread(sweep_channel_image_cache)
+        if removed_images > 0:
+            logger.info("Context cleanup: removed %d expired channel images", removed_images)
+    except Exception as e:
+        logger.warning(f"Channel image cache sweep failed: {e}")
+
 
 async def start_cron_scheduler() -> None:
     """启动 Cron Scheduler（定时任务调度器）"""
