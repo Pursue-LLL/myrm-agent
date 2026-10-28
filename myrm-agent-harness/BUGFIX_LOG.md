@@ -2,6 +2,22 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-064 · 自适应唤醒路由里「宿主忙碌 / 注入」两个分支永远走不到，会话的「宿主状态」与「注入收件箱」只增不减；子智能体控制 mixin 把 `self` 传给要求完整管理器的编排函数，5 处类型报错
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/coordination/adaptive_wakeup/`：`adaptive_router.py`、`types.py`、两处 `__init__.py` 与两份 `_ARCH.md`；`agent/sub_agents/_manager_control.py`）。 |
+| **发现时间** | 2026-10-28（评审 topic_10 #291 的唤醒链路时，用 `rg` 查 `set_host_activity` 的调用方，全仓只有路由与服务各自的定义和测试，没有生产调用方） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P3：没有用户可感知的失败；删掉的是不可达分支和随之只增不减的两张表，同时消除 5 个 mypy 报错。 |
+| **关联产品** | `myrm-agent-server` 的「后台任务完成后唤醒」，见 `myrm-agent/BUGFIX_LOG.md` 同日第一条（唤醒回合改在 `server_turn_lease` 下运行）；`BUG-HARNESS-2026-10-28-062` 「仍然存在」③。 |
+| **根因** | ① `AdaptiveWakeupRouter` 为每个会话记「宿主是否忙碌」（`_host_states`）与「待注入事件」（`_injected_inboxes`），状态只能由 `set_host_activity` 写入，生产代码没有调用它，`BUSY → INJECT` 因而不可达；`drain_injected_events` 也无人调用。② `_manager_control.py` 是只在 `SubagentManager` 里使用的 mixin，`wait_children`、`run_alternatives`、`run_chain`、`run_council`、`run_with_verification` 五处把 `self` 直接传给声明为 `SubagentManager` 的编排函数，类型检查器看到的是 mixin 本身。 |
+| **修复** | ① 删除 `HostActivityState`、`WakeupChannel.INJECT`、`set_host_activity` / `get_host_activity`、`drain_injected_events`、`_injected_inboxes` 与保护它们的锁；路由只剩三个去向：用户已停止 → `SUPPRESS`，预算内 → `FOLLOWUP`，超额 → `DEGRADE`；`reset_session` 只清预算。② 新增 `_as_manager()`（`cast("SubagentManager", self)`），五处调用改传它；这是类型层面的声明，没有加运行时检查。 |
+| **反复次数** | 第 1 次 |
+| **回归** | `tests/agent/coordination/test_adaptive_wakeup.py` 5 例：预算内 `FOLLOWUP`、超额 `DEGRADE`、用户发言后恢复 `FOLLOWUP` 且连续次数从 1 起、停止 → `SUPPRESS` 且不消耗额度、用户发言解除、会话重置；`tests/agent/coordination` 与 `tests/agent/sub_agents` 合跑 1509 例通过、4 例跳过；`_manager_control.py` 的 mypy 无报错；`ruff check` 通过。全仓 `rg` 已无 `HostActivityState`、`set_host_activity`、`drain_injected_events`、`WakeupChannel.INJECT` 的引用（不含本日志）。 |
+| **仍然存在** | ① 删掉的是 `agent.coordination.adaptive_wakeup` 的公开导出：仓内没有其他引用，仓外使用者没有核实。② `ruff format` 对 `adaptive_wakeup/budget_tracker.py` 与 `coordination/__init__.py` 仍有改动前就存在的格式差异，没有动。③ 没有测量路由改动前后的内存或耗时，不声称提升。 |
+| **代码位置** | `src/myrm_agent_harness/agent/coordination/adaptive_wakeup/adaptive_router.py`、`types.py`、`__init__.py`、`_ARCH.md`；`agent/coordination/__init__.py`、`_ARCH.md`；`agent/sub_agents/_manager_control.py`；测试 `tests/agent/coordination/test_adaptive_wakeup.py`。 |
+
 ### BUG-HARNESS-2026-10-28-063 · 脱敏引擎不认 `passphrase`：Borg、duplicity、gpg、SSH 的口令在环境变量、YAML、JSON、命令行里原样进入上下文；小写 `name_key=` 检测对「关键词加下划线」的长串耗时随长度的平方增长
 
 | 字段 | 内容 |
@@ -33,7 +49,7 @@
 | **反复次数** | 第 1 次 |
 | **踩坑** | ① 起初以为「停止会杀掉后台 bash 与子智能体，所以停止之后的唤醒已经被覆盖」，探针证明对子智能体不成立，只对 bash 成立。② 想过读 `_cancel_flags` 判断是不是用户取消：它在 `agent/sub_agents/_manager_spawn.py:208` 的 `finally` 里先被弹出，`_cleanup_child` 读不到；用结果状态判断更直接。③ 想过把「用户已停止」接到停止流程上：该标记没有自动清除的入口，会永久压住之后的合法唤醒，放弃。④ 前端只在已知事件类型清单里列了 `async_wakeup`，没有处理分支，所以跳过这个事件不影响界面。 |
 | **回归** | 新增 `tests/agent/sub_agents/test_manager_cancel_wakeup.py`（9 个，真实 `SubagentManager` 的清理路径，父智能体是只记录调用的桩）：未配置策略、`IMMEDIATE`、`GRACEFUL`（超时后强制取消）三种取消下不唤醒；执行器式「接住取消后返回 `CANCELLED` 结果」不唤醒；完成、失败（子任务抛异常）、超时、预算耗尽仍各唤醒一次。变异检查：去掉新条件后，4 个取消用例失败，5 个仍唤醒的用例照常通过。`tests/agent/sub_agents`、`tests/agent/test_base_agent_wakeup.py`、`tests/agent/coordination`：1513 通过、4 跳过。 |
-| **仍然存在** | ① 没有起真实服务端做「停止 → 无唤醒」的端到端验证；覆盖的是真实 `SubagentManager` 清理路径与桩父智能体，唤醒之后的服务端一段（路由、续跑）是此前用真实路由跑探针看到的，修复后该段不会被触达。② 子智能体被取消之后，用户希望父智能体继续处理其部分结果的场景不在此列：取消的子智能体不交付结果，拉取式通知仍在。③ 自适应唤醒里「宿主忙碌」状态没有任何生产代码设置（`set_host_activity` 无调用方），`INJECT` 通道走不到；这不属于本条，只记录。④ `agent/sub_agents/_manager_control.py` 还有 5 处既有的 `mypy` 错误（把 `self` 当作 `SubagentManager` 传给 orchestrator 的 5 个函数）：根上是 orchestrator 只用到 `spawn_child`、`child_results`、`children` 三个成员却要求具体的管理器类型，要给它一个协议类型，不在本条范围，没有用 `cast` 糊过去。 |
+| **仍然存在** | ① 没有起真实服务端做「停止 → 无唤醒」的端到端验证；覆盖的是真实 `SubagentManager` 清理路径与桩父智能体，唤醒之后的服务端一段（路由、续跑）是此前用真实路由跑探针看到的，修复后该段不会被触达。② 子智能体被取消之后，用户希望父智能体继续处理其部分结果的场景不在此列：取消的子智能体不交付结果，拉取式通知仍在。③ 自适应唤醒里「宿主忙碌」状态没有任何生产代码设置（`set_host_activity` 无调用方），`INJECT` 通道走不到；这不属于本条，只记录。（已在 `BUG-HARNESS-2026-10-28-064` 删除。）④ `agent/sub_agents/_manager_control.py` 还有 5 处既有的 `mypy` 错误（把 `self` 当作 `SubagentManager` 传给 orchestrator 的 5 个函数）：根上是 orchestrator 只用到 `spawn_child`、`child_results`、`children` 三个成员却要求具体的管理器类型，要给它一个协议类型，不在本条范围，没有用 `cast` 糊过去。 |
 | **代码位置** | `agent/sub_agents/manager.py:436,545-548` · `agent/sub_agents/_manager_control.py` · `agent/sub_agents/SUB_AGENT_SYSTEM.md` §17 · `agent/sub_agents/SUBAGENT_NOTIFICATION_STRATEGY.md` · `tests/agent/sub_agents/test_manager_cancel_wakeup.py` |
 
 ### BUG-HARNESS-2026-10-28-061 · 目录授权说的和执行器认的不是一回事：批准一次点名了工作区外路径的调用，执行器仍报 `Path traversal detected`；运行中授权的目录同一次运行里后面的节点看不到；bash 与后台进程碰不到授权目录；沙箱聊天的卡片照样给出文件夹授权；`.git/hooks` 与 `.git/config` 无人审批就能写

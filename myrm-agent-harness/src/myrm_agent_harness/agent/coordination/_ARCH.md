@@ -16,7 +16,7 @@ Session-scoped in-memory queues with optional workspace JSONL persistence (`team
 |------|------|------|-------|
 | `types.py` | 核心 | `TeammateMessage` dataclass | ✅ |
 | `mailbox.py` | 核心 | `TeammateMailbox`, send/drain/history/group | ✅ |
-| `adaptive_wakeup/` | 核心 | 自适应唤醒驱动与有界轮次熔断保护 (types, budget_tracker, adaptive_router) | ✅ |
+| `adaptive_wakeup/` | 核心 | 后台任务完成后的自适应唤醒路由：用户停止抑制、有界连续唤醒预算（FOLLOWUP / DEGRADE / SUPPRESS）(types, budget_tracker, adaptive_router) | ✅ |
 | `bot_mode/` | 核心 | 具名智能体工位花名册、Bot-to-Bot 异步发信与 @mention 寻址投递信箱中继协议 (types, roster, mailbox_relay) | ✅ |
 | `squad_composition/` | 核心 | 总编排智能体自动组队、Model 留白两阶段向导与动态算力预算切分引擎 (types, budget_allocator, blueprint_composer) | ✅ |
 | `workspace_blueprint/` | 核心 | 按项目/工作区自动复用团队 Blueprint 绑定与解析引擎 (types, binding_store) | ✅ |
@@ -32,5 +32,5 @@ Session-scoped in-memory queues with optional workspace JSONL persistence (`team
 - `agent.sub_agents.manager` — spawn registers / complete unregisters roster on mailbox
 - `agent.meta_tools.spawn_subagent.send_teammate_tool` — LLM send path
 - `app.api.agents.subagents` — API hydrate via `list_teammate_history`
-- `app.services.agent.wakeup_handler` & `background_job_finish_handler` — adaptive followup/inject dispatching
+- `app.services.agent.wakeup_handler` & `background_job_finish_handler` — adaptive followup dispatching
 

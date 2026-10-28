@@ -1,6 +1,6 @@
 """Strongly-typed DTOs and Enums for Adaptive Wakeup Driver.
 
-Provides channel definitions, host activity states, and wakeup budget representations.
+Provides channel definitions and wakeup budget representations.
 
 [INPUT]
 - dataclasses
@@ -9,7 +9,6 @@ Provides channel definitions, host activity states, and wakeup budget representa
 
 [OUTPUT]
 - WakeupChannel
-- HostActivityState
 - WakeupSourceType
 - WakeupEvent
 - WakeupBudgetState
@@ -27,18 +26,9 @@ from enum import StrEnum
 class WakeupChannel(StrEnum):
     """The settlement delivery route determined by the adaptive wakeup driver."""
 
-    INJECT = "inject"
     FOLLOWUP = "followup"
     SUPPRESS = "suppress"
     DEGRADE = "degrade"
-
-
-class HostActivityState(StrEnum):
-    """The real-time execution state of the host agent."""
-
-    IDLE = "idle"
-    BUSY = "busy"
-    STOPPED = "stopped"
 
 
 class WakeupSourceType(StrEnum):

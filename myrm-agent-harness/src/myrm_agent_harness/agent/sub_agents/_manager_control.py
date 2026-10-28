@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from langchain_core.tools import BaseTool
 
@@ -35,7 +35,7 @@ from myrm_agent_harness.agent.sub_agents.types import (
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.base_agent import BaseAgent
-    from myrm_agent_harness.agent.sub_agents.manager import SubagentTask
+    from myrm_agent_harness.agent.sub_agents.manager import SubagentManager, SubagentTask
     from myrm_agent_harness.agent.sub_agents.notifications import NotificationManager
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
@@ -60,6 +60,10 @@ class SubagentControlMixin:
     _children_observability: dict[str, dict[str, object]]
     _children_detached: dict[str, bool]
     _notification_manager: NotificationManager
+
+    def _as_manager(self) -> SubagentManager:
+        """This mixin only exists inside ``SubagentManager``; the orchestrators take the whole manager."""
+        return cast("SubagentManager", self)
 
     def list_children(self) -> list[dict[str, object]]:
         children: list[dict[str, object]] = []
@@ -233,7 +237,7 @@ class SubagentControlMixin:
         """Wait for multiple child tasks to complete and aggregate results."""
         from .orchestrator import wait_children
 
-        return await wait_children(self, task_ids, min_success_rate, timeout)
+        return await wait_children(self._as_manager(), task_ids, min_success_rate, timeout)
 
     async def run_alternatives(
         self,
@@ -247,7 +251,7 @@ class SubagentControlMixin:
         from .orchestrator import run_alternatives
 
         return await run_alternatives(
-            self,
+            self._as_manager(),
             task_description,
             configs,
             context,
@@ -265,7 +269,7 @@ class SubagentControlMixin:
         """Execute subagents in chain: A -> B -> C, each receiving previous result."""
         from .orchestrator import run_chain
 
-        return await run_chain(self, configs, context, tool_registry_getter, cancel_token=cancel_token)
+        return await run_chain(self._as_manager(), configs, context, tool_registry_getter, cancel_token=cancel_token)
 
     async def run_council(
         self,
@@ -284,7 +288,7 @@ class SubagentControlMixin:
         from .orchestrator import run_council
 
         return await run_council(
-            self,
+            self._as_manager(),
             task_description=task_description,
             expert_configs=expert_configs,
             context=context,
@@ -321,7 +325,7 @@ class SubagentControlMixin:
         from .orchestrator import run_with_verification
 
         return await run_with_verification(
-            self,
+            self._as_manager(),
             worker_type=worker_type,
             worker_config=worker_config,
             worker_task=worker_task,

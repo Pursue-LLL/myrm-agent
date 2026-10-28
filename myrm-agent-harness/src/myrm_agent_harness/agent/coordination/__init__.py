@@ -1,6 +1,5 @@
 from .adaptive_wakeup import (
     AdaptiveWakeupRouter,
-    HostActivityState,
     RoutingDecision,
     WakeupBudgetState,
     WakeupBudgetTracker,
@@ -25,7 +24,6 @@ from .types import TeammateMessage, TeammateSendResult
 
 __all__ = [
     "AdaptiveWakeupRouter",
-    "HostActivityState",
     "RoutingDecision",
     "TeammateMailbox",
     "TeammateMessage",

@@ -16,7 +16,6 @@ Adaptive Wakeup Driver package for bounded autonomous settlements.
 from .adaptive_router import AdaptiveWakeupRouter
 from .budget_tracker import WakeupBudgetTracker
 from .types import (
-    HostActivityState,
     RoutingDecision,
     WakeupBudgetState,
     WakeupChannel,
@@ -26,7 +25,6 @@ from .types import (
 
 __all__ = [
     "AdaptiveWakeupRouter",
-    "HostActivityState",
     "RoutingDecision",
     "WakeupBudgetState",
     "WakeupBudgetTracker",
