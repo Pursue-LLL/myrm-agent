@@ -24,6 +24,7 @@ from .turn_pipeline_testkit import (
     TURN,
     attach_journal,
     prepared_message,
+    shown_reactions,
     tag_enricher_async,
     turn_msg,
     turn_router,
@@ -111,7 +112,7 @@ async def test_a_command_that_is_not_an_agent_alias_is_left_as_it_is() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_completed_turn_is_acknowledged_and_completed_with_reactions() -> None:
+async def test_a_completed_turn_is_marked_then_shows_the_completion_reaction() -> None:
     router = turn_router()
     journal = attach_journal(router)
     policy = router._reaction_policy
@@ -124,16 +125,11 @@ async def test_a_completed_turn_is_acknowledged_and_completed_with_reactions() -
 
     await router._handle_merged(inbound)
 
-    router._fx.ack_reaction.assert_awaited_once_with("telegram", "chat-1", "m1", emoji=policy.processing_emoji)
-    router._fx.completion_reaction.assert_awaited_once_with(
-        "telegram",
-        "chat-1",
-        "m1",
-        success=True,
-        success_emoji=policy.completion_emoji,
-        failure_emoji=policy.failure_emoji,
-        had_ack=True,
-    )
+    assert shown_reactions(router) == [
+        ("telegram", "chat-1", "m1", policy.processing_emoji),
+        ("telegram", "chat-1", "m1", ""),
+        ("telegram", "chat-1", "m1", policy.completion_emoji),
+    ]
     router._retire_open_approval.assert_awaited_once()
     assert router._execute_prepared_context.await_args.kwargs == {"is_resume": False, "inbound_had_voice": False}
     router._fx.send_error_reply.assert_not_awaited()
@@ -143,13 +139,16 @@ async def test_a_completed_turn_is_acknowledged_and_completed_with_reactions() -
 
 
 @pytest.mark.asyncio
-async def test_a_turn_that_did_not_complete_gets_no_completion_reaction() -> None:
+async def test_a_turn_that_did_not_complete_has_its_mark_taken_off_and_gets_no_completion_reaction() -> None:
     router = turn_router()
+    policy = router._reaction_policy
 
     await router._handle_merged(turn_msg())
 
-    router._fx.ack_reaction.assert_awaited_once()
-    router._fx.completion_reaction.assert_not_awaited()
+    assert shown_reactions(router) == [
+        ("telegram", "chat-1", "m1", policy.processing_emoji),
+        ("telegram", "chat-1", "m1", ""),
+    ]
 
 
 @pytest.mark.asyncio
@@ -174,12 +173,11 @@ async def test_reactions_follow_the_policy() -> None:
 
     await router._handle_merged(turn_msg())
 
-    router._fx.ack_reaction.assert_not_awaited()
-    router._fx.completion_reaction.assert_not_awaited()
+    router._fx.set_reaction.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_a_message_without_a_platform_id_gets_no_completion_reaction() -> None:
+async def test_a_message_without_a_platform_id_gets_no_reaction() -> None:
     router = turn_router()
 
     async def finish(_ctx: object, scratch: _AgentTurnScratch, **_: object) -> None:
@@ -189,7 +187,7 @@ async def test_a_message_without_a_platform_id_gets_no_completion_reaction() -> 
 
     await router._handle_merged(turn_msg(message_id=""))
 
-    router._fx.completion_reaction.assert_not_awaited()
+    router._fx.set_reaction.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -201,7 +199,7 @@ async def test_a_turn_that_cannot_be_prepared_ends_quietly_and_still_frees_the_g
     await router._handle_merged(turn_msg())
 
     router._execute_prepared_context.assert_not_awaited()
-    router._fx.ack_reaction.assert_not_awaited()
+    router._fx.set_reaction.assert_not_awaited()
     router._fx.send_error_reply.assert_not_awaited()
     journal.acknowledge.assert_called_once()
     router._gate.on_task_complete.assert_called_once()
@@ -222,10 +220,11 @@ async def test_a_failing_run_is_reported_to_the_chat_with_the_message_the_run_us
     reported, friendly = router._fx.send_error_reply.await_args.args
     assert reported.content == "policy output"
     assert "[ref:" in friendly
-    router._fx.completion_reaction.assert_awaited_once()
-    assert router._fx.completion_reaction.await_args.args == ("telegram", "chat-1", "m1")
-    assert router._fx.completion_reaction.await_args.kwargs["success"] is False
-    assert router._fx.completion_reaction.await_args.kwargs["had_ack"] is True
+    assert shown_reactions(router) == [
+        ("telegram", "chat-1", "m1", router._reaction_policy.processing_emoji),
+        ("telegram", "chat-1", "m1", ""),
+        ("telegram", "chat-1", "m1", router._reaction_policy.failure_emoji),
+    ]
     journal.acknowledge.assert_called_once()
     router._gate.on_task_complete.assert_called_once()
 
@@ -243,9 +242,24 @@ async def test_a_failure_before_the_chat_is_known_reports_to_the_enriched_messag
 
     reported, _ = router._fx.send_error_reply.await_args.args
     assert reported.content == "look+image"
-    assert router._fx.completion_reaction.await_args.args == ("telegram", "", "m1")
+    # No chat is known yet and nothing was marked: the failure is still shown on the message, and nothing is taken off.
+    assert shown_reactions(router) == [("telegram", "", "m1", router._reaction_policy.failure_emoji)]
     router._fx.cleanup_placeholder.assert_not_awaited()
     router._gate.on_task_complete.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_a_failing_turn_sends_the_error_text_before_it_shows_the_failure_reaction() -> None:
+    router = turn_router()
+    router._execute_prepared_context = AsyncMock(side_effect=RuntimeError("boom"))
+    order: list[str] = []
+    router._fx.send_error_reply.side_effect = lambda *_: order.append("text")
+    router._fx.set_reaction.side_effect = lambda *args: order.append(f"reaction:{args[3] or 'off'}")
+
+    await router._handle_merged(turn_msg())
+
+    policy = router._reaction_policy
+    assert order == [f"reaction:{policy.processing_emoji}", "text", "reaction:off", f"reaction:{policy.failure_emoji}"]
 
 
 @pytest.mark.asyncio

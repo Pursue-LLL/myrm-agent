@@ -301,6 +301,5 @@ class RouterExecutionMixin(RouterDeliveryMixin):
                 ctx.state_key,
                 ctx.chat_id,
                 ctx.exec_msg.channel,
-                ctx.message_id,
                 placeholder_id,
             )

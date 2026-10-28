@@ -41,8 +41,8 @@ def turn_router(*, prepared_chat_id: str = "chat-1", exec_content: str | None = 
     router = make_router()
     router._gate = MagicMock()
     router._fx = MagicMock(
-        ack_reaction=AsyncMock(),
-        completion_reaction=AsyncMock(),
+        accepted_reaction=MagicMock(side_effect=lambda _channel, preferred, _fallbacks: preferred),
+        set_reaction=AsyncMock(),
         cleanup_placeholder=AsyncMock(),
         send_error_reply=AsyncMock(),
     )
@@ -55,6 +55,11 @@ def turn_router(*, prepared_chat_id: str = "chat-1", exec_content: str | None = 
     router._execute_prepared_context = AsyncMock()
     router._retire_open_approval = AsyncMock()
     return router
+
+
+def shown_reactions(router: AgentRouter) -> list[tuple[str, str, str, str]]:
+    """Every reaction call the turn made, as (channel, chat, message, emoji); an empty emoji takes the reaction off."""
+    return [tuple(call.args) for call in router._fx.set_reaction.await_args_list]  # type: ignore[misc]
 
 
 def prepared_message(router: AgentRouter) -> InboundMessage:

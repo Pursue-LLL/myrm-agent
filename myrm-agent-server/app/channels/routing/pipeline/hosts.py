@@ -10,6 +10,7 @@ instance, so it type-checks without importing the router (see also ``router_host
 - channels.routing.command_registry::CommandRegistry, ResolvedCommand (POS: central O(1) command lookup)
 - channels.routing.commands::ApprovalDecision, DenyWithReason, TopicCommand (POS: parsed slash-command arguments)
 - channels.routing.placeholder_strategy::DeferredPlaceholder (POS: deferred placeholder handle)
+- channels.routing.reactions::StatusReaction (POS: the reaction a turn shows on its message)
 - channels.routing.router_models::_ActiveTask, _CleanupEntry, _AgentTurnScratch, _RouterExecutionContext, ReactionPolicy (POS: internal data classes)
 - channels.protocols.*::LocaleProvider, SkillCommandHandler, TopicManager (POS: business-layer injection points)
 - channels.types::InboundMessage, OutboundMessage, VoiceConfig, TopicContext (POS: channel message and routing types)
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from app.channels.routing.pending_approvals import PendingApprovals
     from app.channels.routing.placeholder_strategy import DeferredPlaceholder
     from app.channels.routing.policy_resolver import PolicyResolver
+    from app.channels.routing.reactions import StatusReaction
     from app.channels.routing.router_models import (
         ReactionPolicy,
         _ActiveTask,
@@ -253,6 +255,7 @@ class RouterTurnHost(Protocol):
         exec_for_error: InboundMessage,
         chat_id: str,
         scratch: _AgentTurnScratch,
+        status: StatusReaction | None,
     ) -> None: ...
 
     async def _handle_topic_command(self, msg: InboundMessage, cmd: TopicCommand) -> None: ...
@@ -357,6 +360,5 @@ class RouterExecutionHost(Protocol):
         state_key: str,
         chat_id: str,
         channel: str,
-        message_id: str | None,
         placeholder_id: str | None,
     ) -> None: ...

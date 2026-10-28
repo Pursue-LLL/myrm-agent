@@ -50,13 +50,6 @@ from app.channels.types import (
 
 logger = logging.getLogger(__name__)
 
-# What a platform shows when it rejects the configured status glyph. A failure never falls back to a
-# success glyph or to a thumbs-down (a verdict on the user's message, not on the turn); when no
-# candidate is accepted the status reaction is skipped.
-_PROCESSING_FALLBACKS = ("\U0001f440", "\U0001f914")
-_SUCCESS_FALLBACKS = ("\u2705", "\U0001f44d", "\U0001f389")
-_FAILURE_FALLBACKS = ("\u274c", "\U0001f622")
-
 # A status reaction that keeps failing (missing permission, unsupported glyph) is reported once per
 # window per channel and error type; the turn never waits on or sees it.
 _REACTION_WARN_INTERVAL = 600.0
@@ -307,45 +300,7 @@ class MessageEffects:
         self._reaction_warned_at[key] = now
         logger.warning("Status reaction failed on %s (%s): %s", channel, key[1], str(exc)[:300])
 
-    async def ack_reaction(
-        self,
-        channel: str,
-        chat_id: str,
-        message_id: str | None,
-        emoji: str = "",
-    ) -> None:
-        """Add receive-acknowledgement reaction (used by ReactionPolicy.FULL)."""
-        if not message_id:
-            return
-        glyph = self._accepted_reaction(channel, emoji, _PROCESSING_FALLBACKS)
-        if glyph:
-            await self.set_reaction(channel, chat_id, message_id, glyph)
-
-    async def completion_reaction(
-        self,
-        channel: str,
-        chat_id: str,
-        message_id: str | None,
-        *,
-        success: bool,
-        success_emoji: str = "",
-        failure_emoji: str = "",
-        had_ack: bool = False,
-    ) -> None:
-        """Add completion/failure reaction and remove prior ack if present."""
-        if not message_id:
-            return
-        if had_ack:
-            await self.set_reaction(channel, chat_id, message_id, "")
-        glyph = (
-            self._accepted_reaction(channel, success_emoji, _SUCCESS_FALLBACKS)
-            if success
-            else self._accepted_reaction(channel, failure_emoji, _FAILURE_FALLBACKS)
-        )
-        if glyph:
-            await self.set_reaction(channel, chat_id, message_id, glyph)
-
-    def _accepted_reaction(self, channel: str, preferred: str, fallbacks: tuple[str, ...]) -> str:
+    def accepted_reaction(self, channel: str, preferred: str, fallbacks: tuple[str, ...]) -> str:
         """First glyph of ``preferred`` then ``fallbacks`` the platform accepts; ``""`` skips the reaction.
 
         An empty ``preferred`` means the status reaction is switched off, so no fallback applies.

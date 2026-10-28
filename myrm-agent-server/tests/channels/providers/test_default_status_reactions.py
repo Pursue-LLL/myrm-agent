@@ -12,6 +12,7 @@ import pytest
 
 from app.channels.providers.registry import get_channel_class
 from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.reactions import StatusReaction, TurnOutcome
 from app.channels.routing.router_models import ReactionPolicy
 
 EYES = "\U0001f440"
@@ -42,19 +43,11 @@ async def _shown(channel: str, *, state: str) -> str | None:
     ch.react_to_message = AsyncMock()
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=ch)
-    fx = MessageEffects(bus)
-    policy = ReactionPolicy()
+    status = StatusReaction(MessageEffects(bus), ReactionPolicy(), channel, "chat", "m1")
     if state == "processing":
-        await fx.ack_reaction(channel, "chat", "m1", policy.processing_emoji)
+        await status.received()
     else:
-        await fx.completion_reaction(
-            channel,
-            "chat",
-            "m1",
-            success=state == "success",
-            success_emoji=policy.completion_emoji,
-            failure_emoji=policy.failure_emoji,
-        )
+        await status.finish(TurnOutcome.COMPLETED if state == "success" else TurnOutcome.FAILED)
     return ch.react_to_message.await_args.args[2] if ch.react_to_message.await_args else None
 
 

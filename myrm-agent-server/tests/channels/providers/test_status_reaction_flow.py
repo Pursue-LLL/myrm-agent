@@ -1,8 +1,7 @@
 """A whole turn's status reactions on a platform that removes reactions by name (Slack).
 
-``_cleanup_effects`` (end of every turn, ``/stop``, stuck-task janitor, TTL) and the completion
-reaction both clear the processing reaction with an empty emoji. The first clear must remove it
-from the message, and the second must not call the platform again.
+The turn's status reaction takes the processing reaction off with an empty emoji; the platform is asked to
+remove exactly the reaction that was added, and a turn that never added one asks nothing.
 """
 
 from __future__ import annotations
@@ -13,20 +12,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.reactions import StatusReaction, TurnOutcome
+from app.channels.routing.router_models import ReactionPolicy
 from tests.channels.providers.slack.test_slack_channel import _make_channel, _ok_json
-
-EYES = "\U0001f440"
-CHECK = "\u2705"
-CROSS = "\u274c"
 
 
 @pytest.fixture
-def slack_effects() -> Iterator[tuple[MessageEffects, AsyncMock]]:
+def slack_status() -> Iterator[tuple[StatusReaction, AsyncMock]]:
     slack = _make_channel()
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=slack)
     with patch.object(slack._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as post:
-        yield MessageEffects(bus), post
+        yield StatusReaction(MessageEffects(bus), ReactionPolicy(), "slack", "C1", "1.1"), post
 
 
 def _calls(post: AsyncMock) -> list[tuple[str, str]]:
@@ -34,24 +31,23 @@ def _calls(post: AsyncMock) -> list[tuple[str, str]]:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("success", "final"), [(True, "white_check_mark"), (False, "x")])
+@pytest.mark.parametrize(("outcome", "final"), [(TurnOutcome.COMPLETED, "white_check_mark"), (TurnOutcome.FAILED, "x")])
 async def test_a_finished_turn_swaps_the_processing_reaction_for_the_result(
-    slack_effects: tuple[MessageEffects, AsyncMock], success: bool, final: str
+    slack_status: tuple[StatusReaction, AsyncMock], outcome: TurnOutcome, final: str
 ) -> None:
-    fx, post = slack_effects
+    status, post = slack_status
 
-    await fx.ack_reaction("slack", "C1", "1.1", EYES)
-    await fx.set_reaction("slack", "C1", "1.1", "")
-    await fx.completion_reaction("slack", "C1", "1.1", success=success, success_emoji=CHECK, failure_emoji=CROSS, had_ack=True)
+    await status.received()
+    await status.finish(outcome)
 
     assert _calls(post) == [("reactions.add", "eyes"), ("reactions.remove", "eyes"), ("reactions.add", final)]
 
 
 @pytest.mark.asyncio
-async def test_a_stopped_turn_leaves_no_processing_reaction_behind(slack_effects: tuple[MessageEffects, AsyncMock]) -> None:
-    fx, post = slack_effects
+async def test_a_stopped_turn_leaves_no_processing_reaction_behind(slack_status: tuple[StatusReaction, AsyncMock]) -> None:
+    status, post = slack_status
 
-    await fx.ack_reaction("slack", "C1", "1.1", EYES)
-    await fx.set_reaction("slack", "C1", "1.1", "")
+    await status.received()
+    await status.finish(TurnOutcome.ABANDONED)
 
     assert _calls(post) == [("reactions.add", "eyes"), ("reactions.remove", "eyes")]

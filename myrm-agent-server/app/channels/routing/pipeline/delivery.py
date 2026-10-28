@@ -246,10 +246,9 @@ class RouterDeliveryMixin:
         state_key: str,
         chat_id: str,
         channel: str,
-        message_id: str | None,
         placeholder_id: str | None,
     ) -> None:
-        """Cleanup task registration, callbacks, typing, and reaction.
+        """Cleanup task registration, callbacks and typing; the status reaction is settled by the turn.
 
         Preserves _active_tasks entry when a pending approval exists for this
         session so that numeric shortcut replies (e.g. "1") are correctly
@@ -261,7 +260,6 @@ class RouterDeliveryMixin:
         if not placeholder_id:
             await self._fx.stop_typing_keepalive(channel, chat_id)
             await self._fx.set_typing(channel, chat_id, composing=False)
-        await self._fx.set_reaction(channel, chat_id, message_id, "")
 
     def _register_cleanup(
         self: RouterDeliveryHost,

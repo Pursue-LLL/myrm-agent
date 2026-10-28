@@ -6,6 +6,7 @@
 - channels.routing.commands::parse_topic_args (POS: slash command argument parsing)
 - channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it)
 - channels.routing.router_models::_AgentTurnScratch (POS: per-turn state the error path reads)
+- channels.routing.reactions::StatusReaction, TurnOutcome (POS: the reaction the turn shows on the user's message)
 - channels.voice.handler::transcribe_inbound, transcribe_video_inbound, has_audio_attachment, has_video_with_audio (POS: voice processing)
 - channels.media.*::image, video, contact, document and sticker enrichment (POS: attachment enrichment before the agent reads the message)
 - channels.core.outbound_prepare::set_correlation_context (POS: correlation context of the turn's outbound messages)
@@ -15,7 +16,7 @@
 - RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments``, the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
 
 [POS]
-Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it.
+Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it. The turn owns the status reaction of the message: it marks the message before the run and settles the mark once, after the run or in the error path.
 """
 
 from __future__ import annotations
@@ -54,6 +55,7 @@ from app.channels.routing.friendly_errors import friendly_error_message
 from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.pipeline.hosts import RouterTurnHost
 from app.channels.routing.placeholder_strategy import DeferredPlaceholder
+from app.channels.routing.reactions import StatusReaction, TurnOutcome
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.routing.router_models import _AgentTurnScratch
 from app.channels.types import InboundMessage
@@ -93,6 +95,7 @@ class RouterTurnMixin:
         msg = self._apply_session_state(msg)
 
         scratch = _AgentTurnScratch()
+        status: StatusReaction | None = None
         chat_id: str = ""
         is_resume = bool(msg.resume_value)
         inbound_had_voice = has_audio_attachment(msg) if not is_resume else False
@@ -122,14 +125,8 @@ class RouterTurnMixin:
                     if not is_resume:
                         await self._retire_open_approval(ctx)
 
-                    rp = self._reaction_policy
-                    if rp.should_processing:
-                        await self._fx.ack_reaction(
-                            msg.channel,
-                            chat_id,
-                            msg.message_id,
-                            emoji=rp.processing_emoji,
-                        )
+                    status = StatusReaction(self._fx, self._reaction_policy, msg.channel, chat_id, msg.message_id)
+                    await status.received()
 
                     await self._execute_prepared_context(
                         ctx,
@@ -138,19 +135,12 @@ class RouterTurnMixin:
                         inbound_had_voice=inbound_had_voice,
                     )
 
-                    if scratch.completed and msg.message_id and rp.should_completion:
-                        await self._fx.completion_reaction(
-                            msg.channel,
-                            chat_id,
-                            msg.message_id,
-                            success=True,
-                            success_emoji=rp.completion_emoji,
-                            failure_emoji=rp.failure_emoji,
-                            had_ack=rp.should_processing,
-                        )
+                    await status.finish(TurnOutcome.COMPLETED if scratch.completed else TurnOutcome.ABANDONED)
 
                 except Exception as e:
-                    await self._report_turn_failure(e, msg=msg, exec_for_error=exec_for_error, chat_id=chat_id, scratch=scratch)
+                    await self._report_turn_failure(
+                        e, msg=msg, exec_for_error=exec_for_error, chat_id=chat_id, scratch=scratch, status=status
+                    )
         finally:
             self._acknowledge_inbound(journal_entry_id)
             self._gate.on_task_complete(msg)
@@ -264,8 +254,13 @@ class RouterTurnMixin:
         exec_for_error: InboundMessage,
         chat_id: str,
         scratch: _AgentTurnScratch,
+        status: StatusReaction | None,
     ) -> None:
-        """Tell the chat the turn failed, in words that carry a reference and no internals: reaction, placeholder, reply."""
+        """Tell the chat the turn failed, in words that carry a reference and no internals: placeholder, reply, reaction.
+
+        The words come first: they are what the user needs, and a platform slow to take the reaction must not delay them.
+        A turn that failed before it had a chat has no status reaction yet; the failure is still shown on the message.
+        """
         friendly, ref_id = friendly_error_message(error, msg=exec_for_error)
         logger.error(
             "AgentRouter: failed to handle message from %s/%s [ref: %s]: %s",
@@ -275,17 +270,6 @@ class RouterTurnMixin:
             error,
             exc_info=error,
         )
-        rp = self._reaction_policy
-        if msg.message_id and rp.should_completion:
-            await self._fx.completion_reaction(
-                exec_for_error.channel,
-                chat_id,
-                msg.message_id,
-                success=False,
-                success_emoji=rp.completion_emoji,
-                failure_emoji=rp.failure_emoji,
-                had_ack=rp.should_processing,
-            )
         resolved_placeholder: str | None = None
         if isinstance(scratch.deferred_placeholder, DeferredPlaceholder):
             resolved_placeholder = await scratch.deferred_placeholder.wait_for_id()
@@ -297,3 +281,5 @@ class RouterTurnMixin:
                 friendly,
             )
         await self._fx.send_error_reply(exec_for_error, friendly)
+        verdict = status or StatusReaction(self._fx, self._reaction_policy, exec_for_error.channel, chat_id, msg.message_id)
+        await verdict.finish(TurnOutcome.FAILED)

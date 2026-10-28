@@ -253,7 +253,7 @@ components: []
 
 **状态表情（处理中 / 完成 / 失败）**：
 
-`MessageEffects` 是唯一出口（`routing/message_effects.py`）。每个渠道只接受自己的表情词表：固定词表的渠道在 `ChannelCapabilities.reaction_glyphs` 声明（Telegram 官方 73 个、Teams 官方反应 ID 子集、iMessage 6 种 Tapback、飞书官方 emoji_type 子集），其余渠道（Slack / Mattermost / Discord / Matrix / Signal / WhatsApp / DingTalk）不设限。路由按角色取第一个被接受的表情：处理中 配置值→👀→🤔，成功 配置值→✅→👍→🎉，失败 配置值→❌→😢（失败不用 👎：那是对用户消息的评价，不是对回合的），都不被接受就不发。传空串表示撤销自己加的那个：Slack / Discord / Mattermost / 飞书 / 钉钉 / iMessage / Teams / Signal / Matrix 用 `core/reaction_ledger.py` 记住「加了什么」（Matrix 记的是反应事件 id，撤销就是 redact 它），空串只撤销它，没加过就不发请求；Telegram 与 WhatsApp 用平台自带的空值清除。各渠道按平台真实协议发送：iMessage 走 BlueBubbles 的 Tapback 名称、Teams 走 `PUT/DELETE …/reactions/{反应 ID}`、Signal 走 signal-cli-rest-api 的扁平 `reaction` 字符串（群聊 id 先转成 `group.` 形式并带上被回应消息的作者）；各渠道的 `react_to_message` 都不吞异常，平台拒绝时由 `MessageEffects` 统一告警。表情失败不影响回合；同一渠道同类错误 10 分钟内只告警一次，因此 Slack 缺 `reactions:write` 范围、飞书缺反应权限会在日志里可见。
+`MessageEffects.set_reaction` 是唯一出口（`routing/message_effects.py`），一个回合在用户消息上的状态表情由回合自己持有（`routing/reactions/status.py` 的 `StatusReaction`，`pipeline/turn.py` 是唯一负责人）：运行前标记一次，结束时撤标记并显示结果一次，所以一个回合对平台只有三次表情请求；被 `/stop` 停止的回合只撤标记、不显示结果；失败的回合先发出错误文本，再撤标记并显示失败表情。每个渠道只接受自己的表情词表：固定词表的渠道在 `ChannelCapabilities.reaction_glyphs` 声明（Telegram 官方 73 个、Teams 官方反应 ID 子集、iMessage 6 种 Tapback、飞书官方 emoji_type 子集），其余渠道（Slack / Mattermost / Discord / Matrix / Signal / WhatsApp / DingTalk）不设限。路由按角色取第一个被接受的表情：处理中 配置值→👀→🤔，成功 配置值→✅→👍→🎉，失败 配置值→❌→😢（失败不用 👎：那是对用户消息的评价，不是对回合的），都不被接受就不发。传空串表示撤销自己加的那个：Slack / Discord / Mattermost / 飞书 / 钉钉 / iMessage / Teams / Signal / Matrix 用 `core/reaction_ledger.py` 记住「加了什么」（Matrix 记的是反应事件 id，撤销就是 redact 它），空串只撤销它，没加过就不发请求；Telegram 与 WhatsApp 用平台自带的空值清除。各渠道按平台真实协议发送：iMessage 走 BlueBubbles 的 Tapback 名称、Teams 走 `PUT/DELETE …/reactions/{反应 ID}`、Signal 走 signal-cli-rest-api 的扁平 `reaction` 字符串（群聊 id 先转成 `group.` 形式并带上被回应消息的作者）；各渠道的 `react_to_message` 都不吞异常，平台拒绝时由 `MessageEffects` 统一告警。表情失败不影响回合；同一渠道同类错误 10 分钟内只告警一次，因此 Slack 缺 `reactions:write` 范围、飞书缺反应权限会在日志里可见。
 
 **审批命令（emoji reaction）**：
 
@@ -393,11 +393,13 @@ AgentRouter.consume()
     ├── 语音转写 (transcribe_inbound, 含音频时 STT → 文本)
     ├── 策略解析 (DM/群聊策略, 身份解析, 群组启用)
     ├── Topic 路由 (thread_id → agent_id)
-    ├── 副作用 (reaction 👀, placeholder 🤔, typing + keepalive)
+    ├── 标记 (reaction 👀，回合持有)
+    ├── 副作用 (placeholder 🤔, typing + keepalive)
     ├── Agent 执行 (execute_stream + CancellationToken)
     │   ├── ProgressUpdate → edit_placeholder (进度)
     │   └── OutboundMessage → maybe_tts (语音回复) → edit_placeholder (回复)
-    └── 清理 (reaction 移除, _active_tasks 清理)
+    ├── 清理 (typing, _active_tasks 清理)
+    └── 结算 (撤标记 + 完成 / 失败表情；失败时错误文本先于表情)
 ```
 
 **Email 转发邮件解析**：

@@ -124,20 +124,21 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/pipeline/test_inbound_steering_steps.py` | 单元 | 回合已在运行或发送者在转交任务时消息的去向：忙时 steer / redirect 的模式来源、80 字预览、群聊引用与私聊不引用、按线程找回合；委派请求仅属主、缺任务时的提示、置信度门槛；转向进行中的委派任务的前置条件与顺序 |
 | `channels/routing/pipeline/turn_pipeline_testkit.py` | 辅助 | 回合流水线步骤测试的共享构建器：`turn_msg()`（消息）、`turn_router()`（准备返回上下文、执行与消息效果皆为记录器的 `AgentRouter`）、`prepared_message()`、`attach_journal()`、`tag_enricher()` / `tag_enricher_async()`（给内容打标记以显示富化顺序） |
 | `channels/routing/pipeline/test_turn_pipeline_steps.py` | 单元 | `_handle_merged` 在运行之前的步骤顺序（准备与执行换成记录器）：收件日志写入与确认（重放的消息不重写）、yolo 窗口与人格写进消息、各类附件按固定顺序富化且审批答复不富化 |
-| `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、处理中 / 完成反应与策略、无法准备的回合静默结束并放开闸门、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
+| `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、状态反应（标记、撤标记、完成表情的调用顺序与策略；失败时先发错误文本再显示失败表情）、无法准备的回合静默结束并放开闸门、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
 | `channels/routing/pipeline/test_delivery_setup_effects.py` | 单元 | 新回合的投递准备不再重复设置「处理中」反应（该反应只由回合的 ack 步骤设置一次），同时仍登记占位符与清理 |
 | `channels/types/test_context_document.py` | 单元 | 参考文档契约：每种状态经元数据往返不变、元数据是纯 JSON 数据、非元数据形态的输入不当作文档、`clamped` 截断正文并保留原始长度、不超限原样返回 |
 | `channels/routing/test_context_document_enrichment.py` | 单元 | 路由器的晚读：渠道给的文档放进新的元数据字典（到达消息不变）、超长正文截断并保留全文长度、无文档或无渠道原样返回、渠道读取故障只丢文档不丢回合、渠道默认没有文档；真实 `RouterExecutionMixin` 回合里 agent 流拿到文档而到达消息没有、续跑回合不询问渠道 |
 | `channels/providers/feishu/comment/test_document.py` | 单元 | 飞书评论回合的文档读取：docx 按 Markdown 读取、没有 Markdown 导出的类型不读、拒绝码映射成告知模型的原因、读取失败不抛出、慢文档超时放弃、运营日志说明原因但不带正文、评论回合拿到所评文档的正文、普通聊天消息没有文档也不调接口；应用没有读文档权限时改读纯文本并在日志点名权限、纯文本也失败时按原因映射 |
-| `core/channel_bridge/test_execute_preamble_context_document.py` | 单元 | 参考文档并入本轮查询：短文档在数据边界内跟在查询之后、文档里的文字冒充不了边界标记、长文档存进智能体工作区且只显示路径（真实文件往返）、截断时说明显示了多少、缺失与空文档如实告知、无可用文档与多模态查询原样不变、工作区写不了降级为缺失、不能当目录名的会话不会落到别处、能放下的文档不留文件 |
 | `channels/providers/test_emoji_shortnames.py` | 单元 | Slack / Mattermost 共用的反应表情短名转换：路由器默认的处理中 / 完成 / 失败表情都有短名，冒号与变体选择符不影响匹配，未知值原样透传，表中短名都满足平台的名字规则 |
 | `channels/providers/slack/test_slack_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Slack `reactions.add` 时是短名（eyes / white_check_mark / x）而不是 unicode 字形 |
 | `channels/providers/mattermost/test_mattermost_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Mattermost 反应接口时是短名而不是 unicode 字形 |
-| `channels/routing/test_reaction_vocabulary.py` | 单元 | 状态表情按渠道词表选字：未声明词表的渠道原样发送，声明了词表的渠道只收词表内的表情（变体选择符不影响），被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌😢），都不被接受就不发；失败绝不回退成成功表情或 👎；配置为空串表示关闭、不回退；候选全被拒时仍撤销已加的处理中表情 |
+| `channels/routing/test_reaction_vocabulary.py` | 单元 | 渠道词表的接受规则：未声明词表的渠道接受一切，声明了词表的渠道只接受词表内的表情（变体选择符不影响） |
+| `channels/routing/reactions/test_status_reaction.py` | 单元 | 一个回合的状态表情 `StatusReaction`：按渠道词表选字，被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌😢），都不被接受就不发；失败绝不回退成成功表情或 👎；配置为空串表示关闭、不回退；只有 FULL 档标记、SIMPLE 只显示结果、OFF 什么都不显示；标记只加一次、结果只显示一次，没加过标记就不撤；被停止的回合只撤标记；请求被中断时仍撤标记；候选全被拒时仍撤销已加的标记 |
+| `channels/routing/reactions/test_turn_reaction_sequence.py` | 集成 | 真实 `_handle_merged` 加真实 `_execute_prepared_context`（运行本身是脚本）在类 Telegram 渠道上，用户消息上的平台表情调用序列：完成的回合是「标记、撤标记、结果」各一次（共 3 次），失败的回合先发出错误文本再撤标记并显示失败表情，被停止的回合只有标记与撤标记 |
 | `channels/routing/test_reaction_failure_visibility.py` | 单元 | 表情请求失败不进入回合，但按「渠道 + 错误类型」每 10 分钟告警一次（其余只记 debug）：另一个渠道、同渠道另一类错误各自告警，窗口过后再次告警，成功时不记日志 |
 | `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
-| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
-| `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束清理与完成表情都用空串清除处理中表情，第一次真撤销、第二次不发请求；结束的回合以结果表情替换处理中表情，被停止的回合不留处理中表情 |
+| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
+| `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束的回合以结果表情替换处理中表情（先按名撤销刚加的那一个），被停止的回合不留处理中表情 |
 | `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
 | `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 反应走 Bot Framework 连接器：状态表情按官方反应 ID 以 `PUT …/reactions/{ID}` 发送，没有官方 ID 的表情不发送；空串按记账 `DELETE` 同一个 ID 且只撤一次、没发过或服务地址未知不发请求；被拒与传输错误抛出且不记账；假连接器按 Teams SDK 的方法、路径、令牌规则校验 |
 | `channels/providers/imessage/test_imessage_reactions.py` | 单元 | iMessage Tapback：BlueBubbles 只收六个名称，按名称发送，非 Tapback 的表情不发送；空串用 `-名称` 撤销本渠道发出的那个且只撤销一次，没发过不发请求；被拒的 Tapback 抛出且不记账，传输错误上抛；假 BlueBubbles 按其校验器规则拒绝非法请求 |
@@ -149,6 +150,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/discord/test_discord_reaction_lifecycle.py` | 单元 | Discord `Message.remove_reaction`：空串撤销已加的反应且只撤一次，没加过不碰消息，添加失败抛出且不记账，没有机器人用户时无从撤销 |
 | `channels/providers/feishu/test_feishu_webhook_routes.py` | 单元 | 飞书 webhook 路由注册在路由注册器上，不是注册器的对象被忽略 |
 | `channels/routing/test_reply_target.py` | 单元 | 系统回复（静音、忙碌、配额）引用的消息号：到达消息号优先，其次是元数据里的消息号（数字转成文本），都没有则不引用 |
+| `core/channel_bridge/test_execute_preamble_context_document.py` | 单元 | 参考文档并入本轮查询：短文档在数据边界内跟在查询之后、文档里的文字冒充不了边界标记、长文档存进智能体工作区且只显示路径（真实文件往返）、截断时说明显示了多少、缺失与空文档如实告知、无可用文档与多模态查询原样不变、工作区写不了降级为缺失、不能当目录名的会话不会落到别处、能放下的文档不留文件 |
 | `core/channel_bridge/test_executor_helpers_agent_workspace.py` | 单元 | `agent_workspace`：就是会话的 JIT 工作区目录；不能当目录名的 id（`..`、`a/b`、`x\y` 等）没有工作区并记 WARNING |
 | `services/chat/test_chat_message_spill_workspace.py` | 集成 | `ChatService.append_message(spill_workspace=…)`：超长用户消息存进调用方指定工作区的 `.myrm/pastes/`（文件内容与原文一致、消息里是落盘提示与路径、`extra_data.spillover` 带路径/字数/预览、HOME 下什么都没写）；存下的粘贴躲过 24h 清扫而活跃回合的外溢被清掉、智能体路径策略放行；工作区是 git 项目时存下的粘贴不出现在 `git status`；chat 的 title/last_message/first_message 是预览而非指针；Web 路径同样落在聊天工作区；短消息原样入库不写文件也不查工作区；助手消息从不落盘；带附件发送的长粘贴，库里的行与历史回放都不含全文；工作区写不了文件时消息原样留在库里；首次运行建的沙箱接纳已存有粘贴的目录；不超过人写文本停车线的长消息原样入库、不写文件也不建工作区 |
 | `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由；所有者触发的作业不带围栏，已配对成员与开放策略下的访客触发的作业带围栏，信任判定失败时按带围栏处理并记 WARNING，路由不受影响 |
@@ -165,12 +167,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/approvals/test_registry_concurrency.py` | 集成 | 生产同构 SQLite（WAL + 延迟 BEGIN 升级写锁）上的并发定案：批准与拒绝同时、TTL 清理与点击同时，每条被扣留回复恰好定案并收尾一次，落败方读到已定案状态而不是 `database is locked` |
 | `core/notifications/test_approval_card.py` | 单元 | 审批通知卡片：草稿正文预览（截断/附件摘要/自动发送提示/剩余时间）不含内部标识与链接，仅 Telegram 带批准/拒绝按钮、其他渠道提示打开应用，按用户语言渲染 |
 | `channels/reliability/test_durable_outbound_poison_isolation.py` | 单元 | 持久化出站队列：带按钮的消息重启后完整读回；无法解码的记录隔离到失败桶，不拖垮其余记录、仅一次性上报永久失败且绝不重发，网关启动不受影响 |
+| `channels/reliability/test_durable_outbound_persist_failure.py` | 单元 | 持久化出站写盘失败（磁盘满等）时降级为不落盘的内存发送并记 WARNING：原消息原样返回、`mark_attempting` / `ack` 为空操作、真实总线仍把消息投递出去；取消信号不被吞掉 |
 | `api/memory/test_pending_proposal_seed.py` | 单元 | `POST /memory/test/seed-pending-proposal` 契约（local-only 404 · correct/delete 入队 · 目标不存在或非语义记忆 404 · 重复提案 409） |
 | `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ 已退役的 JSON 导入导出与工作区文件束路由不再对外提供（404/405 守卫） |
 | `integration/test_expert_export_i18n_sync.py` | 模块 | 跨层同步：专家导出的 `Omit` 原因码与 `OmittedKind` 种类须与 6 个 locale 的 `agent.expertExport.omitReason` / `omittedKinds` 键完全一致，避免导出对话框显示原始 key |
 | `integration/test_readiness_i18n_sync.py` | 模块 | 跨层同步：`ReadinessCode` 须与 6 个 locale 的 `Agent.readiness.reasons` 键完全一致，`ExportErrorCode`（重试流程码除外）须被 `agent.expertExport.errors` 覆盖，文案均非空，避免新增错误码在界面上静默降级为通用句 |
 | `integration/test_skill_scan_threat_i18n_sync.py` | 模块 | 跨层同步：技能扫描器可报告的威胁类别（正则分组 + Unicode/AST/LLM 审计/包审计）须与 6 个 locale 的 `settings.skills.scanRisk.threat` 键完全一致，避免待审卡片把扫描发现显示为「其他风险」 |
-| `channels/reliability/test_durable_outbound_persist_failure.py` | 单元 | 持久化出站写盘失败（磁盘满等）时降级为不落盘的内存发送并记 WARNING：原消息原样返回、`mark_attempting` / `ack` 为空操作、真实总线仍把消息投递出去；取消信号不被吞掉 |
 | `services/plugins/test_export_acceptance.py` | 模块 | 专家导出验收（以官方冻结 schema 与归档字节为判据，不对内部结构做断言）：`plugin.json`/`mcp.json` schema 合规与 `ai.myrm` 独占扩展 · 归档路径安全 · 脱敏只触及秘密（其余字节不变）· 未带出清单对账（含反例）· 导出→导入→再导出定点往返 · 本地导出→云端导入的 stdio 降级 |
 | `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |

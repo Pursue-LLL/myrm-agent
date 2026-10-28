@@ -425,60 +425,6 @@ class TestTypingKeepalive:
         await fx.stop_typing_keepalive("test", "chat-1")
 
 
-class TestAckAndCompletionReaction:
-    @pytest.mark.asyncio
-    async def test_ack_reaction(self) -> None:
-        ch = _make_channel_mock()
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.ack_reaction("test", "chat-1", "msg-1", "\U0001f44d")
-        ch.react_to_message.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_ack_reaction_no_message_id(self) -> None:
-        bus = _make_bus(_make_channel_mock())
-        fx = MessageEffects(bus)
-        await fx.ack_reaction("test", "chat-1", None, "\U0001f44d")
-
-    @pytest.mark.asyncio
-    async def test_completion_reaction_success_with_ack(self) -> None:
-        ch = _make_channel_mock()
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.completion_reaction(
-            "test",
-            "chat-1",
-            "msg-1",
-            success=True,
-            success_emoji="\u2705",
-            failure_emoji="\u274c",
-            had_ack=True,
-        )
-        assert ch.react_to_message.await_count == 2
-
-    @pytest.mark.asyncio
-    async def test_completion_reaction_failure(self) -> None:
-        ch = _make_channel_mock()
-        bus = _make_bus(ch)
-        fx = MessageEffects(bus)
-        await fx.completion_reaction(
-            "test",
-            "chat-1",
-            "msg-1",
-            success=False,
-            success_emoji="\u2705",
-            failure_emoji="\u274c",
-            had_ack=False,
-        )
-        ch.react_to_message.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_completion_reaction_no_message_id(self) -> None:
-        bus = _make_bus(_make_channel_mock())
-        fx = MessageEffects(bus)
-        await fx.completion_reaction("test", "chat-1", None, success=True, success_emoji="\u2705")
-
-
 class TestSendMuteReply:
     @pytest.mark.asyncio
     async def test_dm_mute_reply(self) -> None:
