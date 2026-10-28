@@ -9,13 +9,17 @@ print diagnostics (pytest assertion introspection, final exception lines).
 One key policy serves all three. A field name is a credential when it is one of
 the bare credential words (``token``, ``secret``, ``bearer``, ``authorization``,
 ``cookie`` ...), or ends in an unambiguous credential noun (``api key``,
-``client secret``, ``refresh token``, ``password`` ...) in any spelling: snake,
-kebab, dotted, camel or Pascal case. Bare ``token`` and ``secret`` are not
-matched as suffixes, so pagination cursors such as ``nextPageToken`` and
-metadata such as ``token_count`` stay readable.
+``client secret``, ``refresh token``, ``secret access key``, ``password`` ...)
+in any spelling: snake, kebab, dotted, camel or Pascal case. Bare ``token`` and
+``secret`` are not matched as suffixes, so pagination cursors such as
+``nextPageToken``, identifiers such as ``file_token`` and metadata such as
+``token_count`` stay readable. Channel credential names (``appSecret``,
+``bot_token``, ``signing_secret`` ...) are deliberately absent: Myrm's own
+locale files key their form labels by those names, and a label such as
+``"feishuAppSecret": "App Secret"`` would be masked in every file an agent reads.
 
 [INPUT]
-- patterns::_mask_token (value masking shared by every redactor)
+- patterns::_mask_token (value masking shared by every redactor), _is_env_reference (a variable reference is no secret)
 
 [OUTPUT]
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)
@@ -32,7 +36,7 @@ from __future__ import annotations
 
 import re
 
-from .patterns import _mask_token
+from .patterns import _is_env_reference, _mask_token
 
 _SEP = r"[-_.]?"
 
@@ -56,6 +60,7 @@ _SUFFIX_NOUNS = "|".join(
     (
         rf"api{_SEP}(?:key|token)",
         rf"(?:secret|private){_SEP}key",
+        rf"secret{_SEP}access{_SEP}key",
         rf"client{_SEP}secret",
         rf"(?:access|refresh|id|auth|session|bearer){_SEP}token",
         "password",
@@ -87,17 +92,22 @@ def _is_secret_field_name(name: str) -> bool:
     return _FIELD_NAME_RE.fullmatch(name) is not None
 
 
+def _mask_field_value(value: str) -> str:
+    """Mask a credential field's value; a variable reference such as ``${API_KEY}`` is a name, not a secret."""
+    return value if _is_env_reference(value) else _mask_token(value)
+
+
 def _redact_json_field(m: re.Match[str]) -> str:
     """Replacement for ``_JSON_FIELD_RE``; an empty value is left as is, since "not set" is no secret and a reader needs it."""
     if not m.group(2).strip():
         return m.group(0)
-    return f'{m.group(1)}: "{_mask_token(m.group(2))}"'
+    return f'{m.group(1)}: "{_mask_field_value(m.group(2))}"'
 
 
 def _redact_json_escaped_field(m: re.Match[str]) -> str:
     """Replacement for ``_JSON_ESCAPED_FIELD_RE``; the escape depth of the original is preserved."""
     escape = m.group(2)
-    return f'{m.group(1)}: {escape}"{_mask_token(m.group(3))}{escape}"'
+    return f'{m.group(1)}: {escape}"{_mask_field_value(m.group(3))}{escape}"'
 
 
 def _redact_repr_field(m: re.Match[str]) -> str:
@@ -106,8 +116,8 @@ def _redact_repr_field(m: re.Match[str]) -> str:
     if not _is_secret_field_name(key):
         return m.group(0)
     if single is not None:
-        return f"'{key}'{sep}'{_mask_token(single)}'"
-    return f"'{key}'{sep}\"{_mask_token(double)}\""
+        return f"'{key}'{sep}'{_mask_field_value(single)}'"
+    return f"'{key}'{sep}\"{_mask_field_value(double)}\""
 
 
 def _redact_repr_diagnostic_line(m: re.Match[str]) -> str:

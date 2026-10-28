@@ -7,6 +7,7 @@ print a settings dict. The keep-lists pin what must stay readable: pagination cu
 
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
@@ -30,6 +31,7 @@ class TestFieldNamePolicy:
             "access_token", "accessToken", "refresh_token", "refreshToken", "id_token", "idToken", "auth_token",
             "private_key", "privateKey", "secret_key", "secret_value", "raw_secret", "secret_input", "key_material",
             "stripeSecretKey", "openaiApiKey", "dbPassword", "UserPassword", "sessionToken", "BRAVE_API_KEY",
+            "SecretAccessKey", "secret_access_key", "aws_secret_access_key",
         ],
     )  # fmt: skip
     def test_credential_names_match(self, name: str) -> None:
@@ -40,6 +42,8 @@ class TestFieldNamePolicy:
         [
             "key", "tokenizer", "author", "nextPageToken", "pageToken", "csrfToken", "token_count", "max_tokens",
             "password_policy", "passwordHint", "secretary", "status", "credentials", "githubToken", "keyboard",
+            "file_token", "page_token", "nextToken", "cancel_token", "reply_token", "context_token", "state_token",
+            "app_id", "app_name", "webhook_url", "secret_name", "bot_name", "signing_algorithm",
         ],
     )  # fmt: skip
     def test_metadata_and_cursor_names_do_not_match(self, name: str) -> None:
@@ -129,6 +133,43 @@ class TestPythonReprDiagnostics:
     def test_non_credential_entries_on_a_diagnostic_line_are_kept(self) -> None:
         line = "KeyError: {'token_count': 'abc', 'name': 'keepme'}"
         assert redact_sensitive_text(line) == line
+
+
+class TestCloudCredentials:
+    """Credential fields a cloud CLI prints."""
+
+    def test_aws_session_output_masks_the_secret_access_key(self) -> None:
+        text = json.dumps(
+            {
+                "Credentials": {
+                    "AccessKeyId": "ASIAIOSFODNN7EXAMPLE",
+                    "SecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                    "SessionToken": "IQoJb3JpZ2luX2VjEJr" + "x" * 60,
+                    "Expiration": "2026-10-28T12:00:00Z",
+                }
+            },
+            indent=2,
+        )
+        out = redact_sensitive_text(text)
+        assert "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" not in out
+        assert "x" * 20 not in out
+        assert '"Expiration": "2026-10-28T12:00:00Z"' in out
+
+    @pytest.mark.parametrize(
+        "key", ["file_token", "page_token", "nextToken", "cancel_token", "reply_token", "context_token", "state_token", "app_id"]
+    )  # fmt: skip
+    def test_identifiers_named_like_tokens_stay_readable(self, key: str) -> None:
+        text = json.dumps({key: _OPAQUE})
+        assert redact_sensitive_text(text) == text
+
+    @pytest.mark.parametrize(
+        ("key", "label"),
+        [("feishuAppSecret", "App Secret"), ("telegram_bot_token", "Telegram-Bot-Token"), ("signingSecret", "Signing Secret")],
+    )  # fmt: skip
+    def test_form_labels_keyed_by_channel_credential_names_stay_readable(self, key: str, label: str) -> None:
+        """The locale files of this very repo carry such keys; masking the labels would blind an agent editing them."""
+        text = json.dumps({key: label}, indent=2)
+        assert redact_sensitive_text(text) == text
 
 
 class TestBoundedWork:

@@ -251,6 +251,18 @@ _ENV_LOOKUP_VALUE_RE = re.compile(
     r"^(?:os\.(?:getenv|environ)|process\.env|\$ENV\{)",
 )
 
+# Shell / compose variable references (`$DB_PASS`, `${DB_PASS}`, `${DB_PASS:?set it in .env}`) name a variable and hold
+# no value; masking them only mangles the name a reader needs. Only a value that is entirely a reference qualifies:
+# a `:-default` is a literal, and a real password such as `$Secret123` must stay masked, so a bare `$NAME` has to be
+# upper case like an environment variable. The `?` form tolerates a message cut at its first space by the callers.
+_ENV_REFERENCE_VALUE_RE = re.compile(r"\$(?:\{[A-Za-z_][A-Za-z0-9_]*(?:\}|:?\?.*)|[A-Z_][A-Z0-9_]*)")
+
+
+def _is_env_reference(value: str) -> bool:
+    """Whether ``value`` is entirely a variable reference (``_ENV_REFERENCE_VALUE_RE``)."""
+    return _ENV_REFERENCE_VALUE_RE.fullmatch(value) is not None
+
+
 # 已掩码形态（`***` 或 `xxxxxx...xxxx`）：双重匹配的正则（ENV_LOWER 与 ENV 重叠的
 # `client_secret=`、ENV 与 CLI 重叠的 `--password=`）二次 `_mask_token` 会把可读的
 # `mysecr...5678` 折叠成 `***`，这里识别并保持。明文 secret 含 `...` 中段或
@@ -337,8 +349,8 @@ def _mask_token(token: str) -> str:
 def _redact_value(name: str, value: str) -> str | None:
     """Mask a secret value under a secret ``name``, or return None to keep original.
 
-    Programmatic lookups (``os.getenv('X')``) and prose keys (``author=Smith``)
-    are kept intact. Quoted values (``KEY="secret"``, including values with
+    Programmatic lookups (``os.getenv('X')``), variable references (``${X}``)
+    and prose keys (``author=Smith``) are kept intact. Quoted values (``KEY="secret"``, including values with
     spaces) preserve their quotes. Shared by ENV / YAML / CLI replacers.
 
     Values already in masked shape (``***`` or ``xxxxxx...xxxx``) are left
@@ -350,7 +362,7 @@ def _redact_value(name: str, value: str) -> str | None:
         inner, quote = value[1:-1], value[0]
     else:
         inner, quote = value, ""
-    if _ENV_LOOKUP_VALUE_RE.match(inner):
+    if _ENV_LOOKUP_VALUE_RE.match(inner) or _is_env_reference(inner):
         return None
     if _MASKED_VALUE_RE.match(inner):
         return None

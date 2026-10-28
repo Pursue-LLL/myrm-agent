@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-060 · 脱敏引擎把变量引用（`${DB_PASSWORD}`、`${X:?msg}`）当成密钥遮掉，云 CLI 输出里的 `SecretAccessKey` 却原样通过
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（harness `core/security/redact`：`patterns.py` 一条引用豁免、`structured_fields.py` 一个名词；server 不改；没有改任何提示词）。 |
+| **发现时间** | 2026-10-28（评审时拿官方 `aws sts` 输出形状、compose 文件与竞品脱敏器逐种重放） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：这是工具输出进入模型上下文之前的文本层脱敏。漏的是 `SecretAccessKey`（不带厂商前缀的 40 位值）；多遮的是纯变量引用，读 compose / 脚本的人看到被截断的变量名。 |
+| **关联产品** | 所有调用 `redact_sensitive_text` 的路径（bash、grep、文件读取输出）。 |
+| **根因** | ① ENV / YAML / CLI 三条规则只豁免 `os.getenv(...)` 这类程序化查找（`_ENV_LOOKUP_VALUE_RE`），不认 shell 与 compose 的变量引用，`${POSTGRES_PASSWORD:?set it in .env}` 被改写成 `${POST...?set POSTGRES_PASSWORD in .env}`；JSON 成员路径直接调 `_mask_token`，没有任何豁免。② 字段名策略的名词表里有 `secret key`，没有 `secret access key`，AWS 输出的 `SecretAccessKey` 不命中。 |
+| **修复** | `patterns.py`：`_is_env_reference` 判断整个值是否就是一个变量引用（`$UPPER_NAME`、`${name}`、`${name:?msg}`），ENV / YAML / CLI 的 `_redact_value` 与三个 JSON / repr 字段替换器（`structured_fields._mask_field_value`）都先问它。裸 `$NAME` 只认大写的环境变量写法，带花括号的任意大小写；`${X:-默认值}` 不豁免，默认值是字面量。`structured_fields.py`：名词表加 `secret access key`。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 首版把裸 `$NAME` 任意大小写都放行，`PASSWORD=$Secret123`、`PASSWORD=$uperpass` 这种以 `$` 开头的真实口令因此漏遮；改成裸 `$` 只认大写。② 首版把渠道凭据名（`appSecret`、`bot_token`、`signing_secret` 等）也加进名词表，对照 HEAD 在 6 个 locale 文件里新增遮住 138 行表单标签（如 `"feishuAppSecret": "App Secret"`）；先前的误伤扫描没把 locale 目录算进去，所以当时报了「0 行」，这是漏扫。撤回渠道名，只留 `secret access key`，并用测试钉住这些标签保持可读。③ compose 的 `${X:?带空格的提示}` 传进遮蔽函数时已在第一个空格处截断、不带 `}`，`?` 形式必须容忍未闭合。④ 在内存里热替换模块做对照时，`importlib.reload` 会就地改写同一个模块命名空间，「修前」函数也跟着变，必须先把修前输出算出来存好再重载。 |
+| **回归** | [1] 测试：新增 `tests/core/security/redact/test_env_references.py` 17 例（9 例引用原样保留，覆盖 ENV / YAML / CLI / 引号 / JSON；8 例必须仍遮：`$Secret123`、`$uperpass`、`:-默认值`、引用加字面量、bcrypt、值内含 `$`、JSON 里同形态）；`test_structured_fields.py` 共 119 例，新增 AWS `sts` 输出、`aws_secret_access_key` 命名、形似令牌的标识符（`file_token`、`page_token`、`nextToken`……）保持可读、locale 标签保持可读。先红后绿：修前 32 例失败（含已撤回的渠道名用例），修后全过。[2] 对照 HEAD（取提交内容的副本在同一台机器上跑）：产品文件里「含密钥名且含 `$变量`」的 131 行，被遮 45 → 37，新遮 0；连测试文件 164 行，61 → 42，新遮 0；json / md / yaml / toml 共 1387 个文件（含 6 个 locale 文件）4.4 MB，输出不同的行 0；AWS `SecretAccessKey` 修前原样、修后遮蔽。[3] 套件：`tests/core/security`、`tests/agent/security`、`test_content_sanitizer.py`、`tests/agent/meta_tools/file_search` 与 `bash` 共 6196 通过；另有 1 失败 2 报错来自别人尚未提交的 `loop_guard` 改动（`tag_last_verification`、`VerificationOutcome`）与 `test_read_exit_code.py`，与本条无关。`ruff` 与 `mypy` 对 `redact` 目录无问题。 |
+| **仍然存在** | ① 以 `$` 开头、全大写加数字的真实口令（如 `$ECRETPASS1`）会被当成引用放行，概率很低，已写进 `redact/_ARCH.md`。② 渠道凭据字段名（`app_secret`、`bot_token`、`signing_secret`）的 JSON 值仍不遮：这些名字同时是本仓 locale 文件里表单标签的键，遮了就让改文案的 agent 看不到标签。③ `.netrc` 的 `machine … password X` 不遮（Myrm 与 Hermes 都不遮；正文里「password reset」一类文字误伤风险高）。④ 只用合成值与官方示例形状验证，没有拿真实 `aws sts` 输出与真实模型走过。⑤ 名词表只多一条，没有单独测延迟。 |
+| **代码位置** | `src/myrm_agent_harness/core/security/redact/patterns.py`（`_ENV_REFERENCE_VALUE_RE`、`_is_env_reference`、`_redact_value`）、`redact/structured_fields.py`（`_mask_field_value`、名词表）、`redact/_ARCH.md`；测试 `tests/core/security/redact/test_env_references.py`、`test_structured_fields.py`。 |
+
 ### BUG-HARNESS-2026-10-28-059 · 实时命令输出的脱敏按每次读到的片段单独进行：密钥或私钥块恰好被切在两次读取之间时，两半都不匹配，界面上看到半截没脱敏的密钥
 
 | 字段 | 内容 |
