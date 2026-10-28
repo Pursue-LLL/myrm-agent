@@ -8,7 +8,7 @@
 - agent.streaming.interrupt_identity::announced_rounds (POS: 本次运行各中断所处的轮次)
 
 [OUTPUT]
-- StreamDispatcherMixin: dispatches events and forwards structured agent_status fields.
+- StreamDispatcherMixin: dispatches events, forwards structured agent_status fields and records a run's cancellation.
 
 [POS]
 StreamDispatcherMixin dispatches astream chunks to the output_queue and preserves GUI-safe status payload fields.
@@ -417,3 +417,17 @@ class StreamDispatcherMixin:
             if event_type.startswith("tool_") and "tool_name" not in event_data:
                 return
             await ctx.event_logger.log(event_type, event_data)
+
+    async def _record_cancellation(self) -> None:
+        """Mark the run stopped and tell the consumer; shared by the stream loop and the model-call cut."""
+        ctx = self._ctx
+        ctx.stats.was_cancelled = True
+        nodes = ctx.stats.node_execution_count
+        logger.warning(" Cancelled during execution: nodes=%d", nodes)
+        await self._compactor.put(
+            {
+                "type": AgentEventType.CANCELLED.value,
+                "data": f"Cancelled after {nodes} nodes",
+                "messageId": ctx.message_id,
+            }
+        )

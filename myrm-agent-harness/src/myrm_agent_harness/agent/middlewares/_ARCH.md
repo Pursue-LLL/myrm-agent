@@ -23,6 +23,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `progress_middleware.py` | Core | Append-Only active todo focus injection into current HumanMessage (SystemMessages behind it, such as the boundary rules, are skipped) with KV cache preservation; only for an agent that holds `todo_write`. | ✅ |
 | `goal_focus_middleware.py` | Core | ACTIVE goal objective injection into last HumanMessage. | ✅ |
 | `moa_advisor_middleware.py` | Core | Agent-loop MoA advisor overlay — ref fan-out, cache-safe transient prompt tail injection with KV-cache preservation, skip SSE for budget pressure and insufficient refs (`moa_overlay_skipped`), supports injected `privacy_redactor` for reference PII/secret scrubbing. | ✅ |
+| `model_call_cancel.py` | Core | Outermost model-call wrapper (first in `build_middlewares`): a Stop while the request is in flight aborts it within one poll interval (`run_until_cancelled`) and raises `OperationCancelledError`, which the stream executor leaves as a Stop, not as a model failure. | ✅ |
 | `rate_limit.py` | Core | Proactive provider 429 throttling. | ✅ |
 | `replan_middleware.py` | Core | Dynamic replan loop on tool errors. | ✅ |
 | `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before a model call when the history does not carry it yet (marker dedup); returns only the new message. | ✅ |

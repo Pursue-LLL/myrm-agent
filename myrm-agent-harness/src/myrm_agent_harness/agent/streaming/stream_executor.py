@@ -45,6 +45,7 @@ from myrm_agent_harness.toolkits.llms.errors import (
 from myrm_agent_harness.toolkits.llms.errors.classifier import classify_error
 from myrm_agent_harness.toolkits.llms.errors.provider_window import ProviderWindowHint, extract_provider_window
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
+from myrm_agent_harness.utils.runtime.cancellation import OperationCancelledError
 
 from .reasoning_scrubber import ReasoningScrubber
 from .recovery.context_pressure_gate import (
@@ -271,18 +272,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                         stream_mode=["updates", "messages", "custom"],
                     ):
                         if ctx.cancel_token and ctx.cancel_token.is_cancelled:
-                            ctx.stats.was_cancelled = True
-                            logger.warning(
-                                " Cancelled during execution: nodes=%d",
-                                ctx.stats.node_execution_count,
-                            )
-                            await self._compactor.put(
-                                {
-                                    "type": AgentEventType.CANCELLED.value,
-                                    "data": f"Cancelled after {ctx.stats.node_execution_count} nodes",
-                                    "messageId": ctx.message_id,
-                                }
-                            )
+                            await self._record_cancellation()
                             break
 
                         if ctx.steering_token and ctx.steering_token.redirect_requested:
@@ -308,6 +298,11 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                         # tuples per LangGraph docs; cast narrows the overly-wide
                         # dict[str, Any] | Any signature down to the runtime shape.
                         await self._dispatch_chunk(cast("tuple[str, object]", chunk), ctx, collected_messages)
+
+                except OperationCancelledError:
+                    # A Stop cut the model request itself: leave as a Stop seen on a chunk does, not through the
+                    # failover handlers below (this is an Exception, so they would treat it as a model failure).
+                    await self._record_cancellation()
 
                 except Exception as astream_exc:
                     iteration_limit_hit = await self._handle_iteration_limit(astream_exc, collected_messages)

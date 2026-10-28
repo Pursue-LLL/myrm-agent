@@ -32,6 +32,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.capabiliti
 from myrm_agent_harness.agent.middlewares.concurrency.safety_dispatcher import (
     create_safety_dispatcher,
 )
+from myrm_agent_harness.agent.middlewares.model_call_cancel import ModelCallCancelMiddleware
 from myrm_agent_harness.agent.middlewares.security.security_boundary_middleware import (
     SecurityBoundaryMiddleware,
 )
@@ -70,10 +71,12 @@ def build_middlewares(
 ) -> list[Any]:
     """Build the full middleware chain for a BaseAgent.
 
-    The ordering matters: dedup -> dangling -> subagent-limit -> interceptor ->
+    The ordering matters: model-call-cancel -> dedup -> dangling -> subagent-limit -> interceptor ->
     approval -> approval-evaluation -> clarification-guard -> completion -> progress ->
     goal-focus -> replan -> call-limits -> budget -> security -> user -> completion-directive ->
     safety -> skill-attenuation -> debug.
+    The first middleware wraps every later model-call wrapper, so model-call-cancel sits first to cut a model request
+    that is still in flight, retries and backoff waits of the wrappers inside it included, the moment the run is stopped.
     LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
     response meets the completion guard first, the clarification guard next, then the evaluation
     of the tool calls and last the approval that may ask the user: a call the guards hold back or
@@ -113,6 +116,7 @@ def build_middlewares(
     capabilities = capabilities_of(registry)
 
     middlewares: list[object] = [
+        ModelCallCancelMiddleware(),
         tool_history_hygiene_middleware,
         dangling_tool_call_middleware,
         subagent_limit_middleware,

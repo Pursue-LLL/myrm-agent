@@ -39,13 +39,17 @@ dispatcher  handlers      events         recovery*
 
 | Mixin / 模块 | 职责 |
 |--------------|------|
-| `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由） |
+| `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
 | `recovery/stream_recovery.py` | 主恢复策略组合（overflow/failover/escalation/retry/iteration-limit） |
 | `recovery/stream_recovery_truncation.py` | max-token 续写、被截断或被扣留（参数不完整/无法解析）的 tool-call 重试 |
 | `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
 | `recovery/stream_recovery_continuation.py` | steering、subagent 完成、goal continuation |
 | `stream_compactor.py` | 高频流式文本片段合并缓冲（容量/时间/事件类型变更/显式 flush，后台看门狗防幽灵延迟） |
 | `stream_buffer.py` | SSE 断线重连回复缓冲：内存滑动窗口 + GlobalStreamRegistry（Last-Event-ID 短断连复连，无磁盘持久化） |
+
+### Stop 与在途模型请求
+
+取消令牌只在 `astream` 产出 chunk 时被执行器读取，在途请求静默（长 prefill、隐藏推理、限流等待）期间读不到。`middlewares/model_call_cancel.py` 是链上最外层的模型调用包装，用 `run_until_cancelled` 把请求与令牌竞速：令牌触发后一个轮询周期内取消请求并抛 `OperationCancelledError`。执行器在 `except OperationCancelledError` 中与循环内读到的 Stop 走同一收尾（`_record_cancellation`），不进入 failover/重试处理器（该异常是 `Exception`，否则会被当作模型故障）；其后的 goal continuation 照常给出 `cancelled` 判定。真实的模型错误不经此路径，仍走各恢复处理器。
 
 ### 并行中断与按卡片 id 作答
 

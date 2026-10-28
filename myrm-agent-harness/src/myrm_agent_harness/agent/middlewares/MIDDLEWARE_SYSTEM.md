@@ -20,6 +20,7 @@
     │
     ▼
 ┌─────────────────────────────────────────┐
+│ model_call_cancel                       │  ← Stop 打断在途模型请求（最外层）
 │ context_pipeline_middleware (context_pipeline/) │  ← 上下文压缩/摘要链
 │ memory_context_middleware (memory_context/)  │  ← 用户记忆注入（编排）
 │   └─ memory_context_format.py         │  ← stable/learned 格式化纯函数
@@ -75,6 +76,7 @@
 | `moa_advisor_middleware.py` | Agent 环 MoA 顾问叠加（支持 `risk_triggered` 模式自适应路由接入；`moa_overlay_active` 透传 `trigger_reason` + 渐进 SSE `moa_ref_done` + 6s 硬超时静默降级 + 瞬态 Cache-Safe 尾注入与 KV-Cache 保全 + `privacy_filter` display/full 分流） |
 | `replan_middleware.py` | 动态重规划循环（导出 `get_replan_error_summary` 与 `get_max_consecutive_replan_errors` 只读遥测） |
 
+| `model_call_cancel.py` | 最外层模型调用包装：Stop 时在一个轮询周期内中断在途模型请求（含其内侧中间件的限流等待与重试），抛 `OperationCancelledError`，执行器按 Stop 收尾 |
 | `rate_limit.py` | Provider 级主动 sleep |
 | `debug_logger_middleware.py` | 完整消息 debug 日志 |
 
