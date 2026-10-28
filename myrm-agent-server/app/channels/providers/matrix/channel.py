@@ -6,6 +6,7 @@
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction event sent per message so an empty emoji can redact it)
 - channels.providers.matrix.connection::MatrixConnectionMixin (POS: mautrix client setup, authentication, E2EE and sync-event wiring)
 - channels.providers.matrix.auth / handlers / html / media (POS: login and sync, inbound events, markdown payloads, uploads)
+- channels.providers.matrix.diagnostics::collect_matrix_issues (POS: configuration, dependency and login diagnosis)
 - mautrix.client::Client (POS: Matrix client SDK, optional dependency)
 
 [OUTPUT]
@@ -13,7 +14,8 @@
 
 [POS]
 Core Matrix channel class. Delegates to connection.py (client setup and event wiring over auth.py, handlers.py,
-crypto.py), html.py (markdown), media.py (uploads); this class owns the lifecycle entry points, outbound and diagnostics.
+crypto.py), html.py (markdown), media.py (uploads), diagnostics.py (issue reporting); this class owns the lifecycle
+entry points and outbound.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ from app.channels.providers.matrix.auth import (
     refresh_dm_cache,
 )
 from app.channels.providers.matrix.connection import MatrixConnectionMixin
+from app.channels.providers.matrix.diagnostics import collect_matrix_issues
 from app.channels.providers.matrix.handlers import (
     auto_join,
 )
@@ -52,8 +55,6 @@ from app.channels.types import (
     ChannelCapabilities,
     ChannelIssue,
     ChannelStatus,
-    IssueKind,
-    IssueSeverity,
     MediaAttachment,
     OutboundMessage,
     RenderStyle,
@@ -185,75 +186,14 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
             return False
 
     def collect_issues(self) -> list[ChannelIssue]:
-        issues: list[ChannelIssue] = []
-        if not self._homeserver:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.ERROR,
-                    message="homeserver URL not configured.",
-                )
-            )
-            return issues
-
-        if not self._access_token and not self._password:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.ERROR,
-                    message="access_token or password not configured.",
-                )
-            )
-
-        if not _MAUTRIX_AVAILABLE:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.DEPENDENCY,
-                    severity=IssueSeverity.ERROR,
-                    message="mautrix not installed. Run: uv sync --extra matrix",
-                    fix="uv sync --extra matrix",
-                )
-            )
-
-        if self._encryption:
-            from app.channels.providers.matrix.crypto import (
-                check_e2ee_deps,
-            )
-
-            if not check_e2ee_deps():
-                issues.append(
-                    ChannelIssue(
-                        kind=IssueKind.DEPENDENCY,
-                        severity=IssueSeverity.ERROR,
-                        message=(
-                            "E2EE enabled but mautrix[encryption] not installed. "
-                            "Run: uv sync --extra matrix --extra matrix-e2ee "
-                            "(requires libolm C library)"
-                        ),
-                        fix="uv sync --extra matrix --extra matrix-e2ee",
-                    )
-                )
-            elif not self._device_id:
-                issues.append(
-                    ChannelIssue(
-                        kind=IssueKind.CONFIG,
-                        severity=IssueSeverity.WARNING,
-                        message=(
-                            "device_id not set. E2EE sessions won't persist across "
-                            "restarts. Set a stable device_id for key persistence."
-                        ),
-                    )
-                )
-
-        if self._status == ChannelStatus.ERROR:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.AUTH,
-                    severity=IssueSeverity.ERROR,
-                    message="Matrix authentication failed. Check credentials.",
-                )
-            )
-        return issues
+        return collect_matrix_issues(
+            homeserver=self._homeserver,
+            has_credentials=bool(self._access_token or self._password),
+            mautrix_available=_MAUTRIX_AVAILABLE,
+            encryption=self._encryption,
+            device_id=self._device_id,
+            status=self._status,
+        )
 
     # ── Outbound ──
 
@@ -299,30 +239,14 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
             payload["m.relates_to"] = {"m.in_reply_to": {"event_id": reply_to_id}}
 
         try:
-            event_id = await asyncio.wait_for(
-                self._client.send_message_event(
-                    RoomID(room_id),
-                    EventType.ROOM_MESSAGE,
-                    payload,
-                ),
-                timeout=_SEND_TIMEOUT,
-            )
-            return str(event_id) if event_id else None
+            return await self._post_message(self._client, room_id, payload)
         except Exception as exc:
             if not (self._encryption and getattr(self._client, "crypto", None)):
                 raise ChannelSendError(f"Matrix send failed: {exc}", channel=self.name) from exc
             # Retry after sharing E2EE keys
             try:
                 await self._client.crypto.share_keys()
-                event_id = await asyncio.wait_for(
-                    self._client.send_message_event(
-                        RoomID(room_id),
-                        EventType.ROOM_MESSAGE,
-                        payload,
-                    ),
-                    timeout=_SEND_TIMEOUT,
-                )
-                return str(event_id) if event_id else None
+                return await self._post_message(self._client, room_id, payload)
             except Exception as retry_exc:
                 raise ChannelSendError(f"Matrix send failed after key share retry: {retry_exc}", channel=self.name) from retry_exc
 
@@ -337,14 +261,7 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
             "m.relates_to": {"rel_type": "m.replace", "event_id": message_id},
         }
         try:
-            await asyncio.wait_for(
-                self._client.send_message_event(
-                    RoomID(chat_id),
-                    EventType.ROOM_MESSAGE,
-                    payload,
-                ),
-                timeout=_SEND_TIMEOUT,
-            )
+            await self._post_message(self._client, chat_id, payload)
         except Exception as exc:
             logger.debug("Matrix edit failed: %s", exc)
 
@@ -389,6 +306,18 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
                 await self._client.set_typing(RoomID(chat_id), timeout=0)
 
     # ── Helpers ──
+
+    @staticmethod
+    async def _post_message(client: MautrixClient, room_id: str, content: dict[str, object]) -> str | None:
+        """Create one ``m.room.message`` event and return its id; the send is cut short after ``_SEND_TIMEOUT``.
+
+        mautrix serialises a plain dict content as it is, although its signature names only its own content classes.
+        """
+        event_id = await asyncio.wait_for(
+            client.send_message_event(RoomID(room_id), EventType.ROOM_MESSAGE, content),  # type: ignore[arg-type]
+            timeout=_SEND_TIMEOUT,
+        )
+        return str(event_id) if event_id else None
 
     async def _get_room_members(self, room_id: str) -> dict[str, str]:
         """Get room members mapping: displayname -> qualified Matrix ID."""
