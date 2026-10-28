@@ -189,39 +189,42 @@ class RouterCommandsModesMixin:
         msg: InboundMessage,
         raw_args: str,
     ) -> None:
-        """Handle /steer command: inject a new instruction into the running agent mid-execution."""
+        """Handle /steer command: inject a new instruction into the running agent mid-execution.
+
+        In a group the run belongs to the person whose message started it, so only that person can steer it. With no
+        run to steer, a finished turn kept registered only so its approval can be answered included, the instruction
+        is a turn of its own.
+        """
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         instruction = raw_args.strip()
 
-        if not instruction:
-            reply = OutboundMessage(
-                channel=msg.channel,
-                recipient_id=chat_id,
-                content=get_text(msg, "usage_steer"),
-                user_id=msg.user_id or "",
-                thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        async def reply(content: str) -> None:
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=msg.channel,
+                    recipient_id=chat_id,
+                    content=content,
+                    user_id=msg.user_id or "",
+                    thread_id=msg.thread_id,
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                )
             )
-            await self._bus.publish_outbound(reply)
+
+        if not instruction:
+            await reply(get_text(msg, "usage_steer"))
             return
 
         active = self._active_tasks.get(session_key)
-        if active and active.steering_token:
-            active.steering_token.steer(instruction)
-            preview = instruction[:80] + "..." if len(instruction) > 80 else instruction
-            reply = OutboundMessage(
-                channel=msg.channel,
-                recipient_id=chat_id,
-                content=get_text(msg, "steering_applied", preview=preview),
-                user_id=msg.user_id or "",
-                thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-            )
-            await self._bus.publish_outbound(reply)
-        else:
-            # Idle fallback: no active task, submit as normal message
+        token = active.steering_token if active is not None and not active.task.done() else None
+        if active is None or token is None:
             self._gate.submit(dataclasses.replace(msg, content=instruction))
+        elif msg.is_group and (not active.requester_id or msg.sender_id != active.requester_id):
+            await reply(get_text(msg, "steer_requester_only"))
+        else:
+            token.steer(instruction)
+            preview = instruction[:80] + "..." if len(instruction) > 80 else instruction
+            await reply(get_text(msg, "steering_applied", preview=preview))
 
     async def _handle_queue_command(
         self: RouterCommandsHost,

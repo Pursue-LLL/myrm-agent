@@ -107,7 +107,7 @@ async def test_a_delegated_approval_reaches_the_chat_and_the_chats_answer_resume
     assert [q.text for q in prompt.quick_replies] == ["/approve", "/deny"]
     entry = router._active_tasks[_STATE_KEY]
     assert entry.requester_id == "u1"
-    assert entry.steering_token is None and entry.busy_input_mode is None
+    assert entry.steering_token is None
     assert router._pending_approvals.card_message_id(_STATE_KEY) == "prompt-1"
     assert len(_said(bus)) == 1  # the receipt; the run has not finished, so no completion notice
 

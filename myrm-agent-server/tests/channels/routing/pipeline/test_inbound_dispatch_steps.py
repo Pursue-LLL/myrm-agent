@@ -201,17 +201,17 @@ async def test_event_triggers_run_for_an_admitted_sender_under_the_senders_fence
 
 
 @pytest.mark.asyncio
-async def test_event_triggers_see_a_message_that_is_then_steered_into_the_running_turn() -> None:
+async def test_event_triggers_see_a_message_that_then_waits_for_the_gate_behind_a_running_turn() -> None:
     router = dispatch_router()
     router._is_sender_admitted = AsyncMock(return_value=True)
     router._is_untrusted_event_sender = AsyncMock(return_value=False)
-    token = running_turn(router, mode="steer")
+    running_turn(router)
 
     with patch(f"{PIPELINE}.dispatch_cron_event_for_inbound_message", new=AsyncMock()) as dispatch:
         await run_dispatch(router, inbound_msg("only the 2026 rows"))
 
     dispatch.assert_awaited_once()
-    assert token.activate() == ["only the 2026 rows"]
+    assert len(gate_submissions(router)) == 1
 
 
 # --- sender checks that fail -----------------------------------------------------------------------------------------

@@ -59,7 +59,7 @@ def dispatch_router() -> AgentRouter:
     return router
 
 
-def running_turn(router: AgentRouter, *, mode: str | None, thread_id: str | None = None) -> SteeringToken:
+def running_turn(router: AgentRouter, *, thread_id: str | None = None, requester_id: str = "") -> SteeringToken:
     token = SteeringToken()
     task = asyncio.current_task()
     assert task is not None
@@ -71,7 +71,7 @@ def running_turn(router: AgentRouter, *, mode: str | None, thread_id: str | None
         placeholder_id=None,
         started_at=0.0,
         steering_token=token,
-        busy_input_mode=mode,
+        requester_id=requester_id,
     )
     return token
 

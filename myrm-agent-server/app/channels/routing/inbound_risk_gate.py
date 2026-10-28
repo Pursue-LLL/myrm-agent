@@ -10,7 +10,7 @@
 - hold_risky_inbound: screens one piece of text a sender typed; when a rule holds it, tells the sender and returns True
 
 [POS]
-Every place the router hands a sender's text to an agent (a new turn, a steer or redirect into a running one, a delegated
+Every place the router hands a sender's text to an agent (a new turn, a steer into a running one, a delegated
 task, the reason of a denied approval) asks this gate first, so a message that one path would hold is held on all of
 them. The caller drops the text when this returns True; the reply is one fixed notice, in the sender's language, that
 names no rule.

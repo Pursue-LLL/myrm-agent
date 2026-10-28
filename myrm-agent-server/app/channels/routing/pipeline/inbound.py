@@ -13,7 +13,7 @@
 - channels.types::InboundMessage, OutboundMessage (POS: channel message envelopes)
 
 [OUTPUT]
-- RouterInboundMixin: ``_dispatch_inbound_message``, the sequence of steps one message passes (dedup, group activity, locale, then the steps that may claim it: ``_claim_approval_input``, ``_claim_command``, ``_claim_steering``, ``_claim_delegation``, ``_claim_delegated_task_steering``, with ``_fire_event_triggers`` between the commands and the steering, then ``_divert_group_chatter``, and finally the session gate); the sender checks (``_check_admin_permission``, ``_is_sender_admitted``, ``_is_untrusted_event_sender``, all fail closed), ``_enrich_message_locale`` and ``_is_duplicate``
+- RouterInboundMixin: ``_dispatch_inbound_message``, the sequence of steps one message passes (dedup, group activity, locale, then the steps that may claim it: ``_claim_approval_input``, ``_claim_command``, ``_claim_delegation``, ``_claim_delegated_task_steering``, with ``_fire_event_triggers`` between the commands and the delegation, then ``_divert_group_chatter``, and finally the session gate); the sender checks (``_check_admin_permission``, ``_is_sender_admitted``, ``_is_untrusted_event_sender``, all fail closed), ``_enrich_message_locale`` and ``_is_duplicate``
 
 [POS]
 Inbound segment of ``AgentRouter``. Runs on the consume loop, one message at a time, so every check here must either finish fast or hand off to a task.
@@ -41,7 +41,6 @@ from app.core.cron.adapters.inbound_event_dispatch import dispatch_cron_event_fo
 
 logger = logging.getLogger("app.channels.routing.router")
 
-_STEER_PREVIEW_CHARS = 80
 _DELEGATION_MIN_CONFIDENCE = 0.85
 
 
@@ -73,7 +72,7 @@ class RouterInboundMixin:
         if self._claim_approval_input(msg) or await self._claim_command(msg):
             return
         await self._fire_event_triggers(msg)
-        if await self._claim_steering(msg) or await self._claim_delegation(msg) or await self._claim_delegated_task_steering(msg):
+        if await self._claim_delegation(msg) or await self._claim_delegated_task_steering(msg):
             return
         if await self._divert_group_chatter(msg):
             return
@@ -162,31 +161,6 @@ class RouterInboundMixin:
         except Exception:
             logger.warning("Chatter check failed for %s/%s, queueing the message", msg.channel, msg.chat_id, exc_info=True)
             return False
-
-    async def _claim_steering(self: RouterInboundHost, msg: InboundMessage) -> bool:
-        """Take text typed while a turn runs into that turn, when the turn's busy-input mode is steer or redirect.
-
-        A finished turn that stays registered only to keep its approval answerable has no run to steer: the text is a
-        turn of its own.
-        """
-        active = self._active_tasks.get(routing_state_key(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id))
-        token = active.steering_token if active is not None and not active.task.done() else None
-        clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
-        if active is None or token is None or not clean_content or clean_content.startswith("/"):
-            return False
-
-        mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
-        if mode not in ("steer", "redirect"):
-            return False
-        if await hold_risky_inbound(self._bus, msg, clean_content):
-            return True
-        if mode == "steer":
-            token.steer(clean_content)
-        else:
-            token.redirect(clean_content)
-        preview = clean_content[:_STEER_PREVIEW_CHARS] + "..." if len(clean_content) > _STEER_PREVIEW_CHARS else clean_content
-        self._reply_in_background(msg, get_text(msg, "steering_applied", preview=preview), quote_in_group=True)
-        return True
 
     async def _claim_delegation(self: RouterInboundHost, msg: InboundMessage) -> bool:
         """Start a delegated task when the owner asks for one (mobile-to-desktop asynchronous delegation).

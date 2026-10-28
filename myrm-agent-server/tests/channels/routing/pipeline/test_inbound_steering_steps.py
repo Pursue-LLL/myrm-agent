@@ -1,5 +1,5 @@
-"""Where a message goes once a turn is already running or the sender is handing work over: steering the running turn,
-handing a request to a delegated task, and steering a delegated task.
+"""Where a message goes once a turn is already running or the sender is handing work over: text typed while a turn
+runs, handing a request to a delegated task, and steering a delegated task.
 
 Runs the real ``AgentRouter`` dispatch with the handlers each step hands off to replaced by recorders (see
 ``inbound_dispatch_testkit``), so what is pinned is the order of the steps and what each one does with the message.
@@ -25,90 +25,27 @@ from .inbound_dispatch_testkit import (
     running_turn,
 )
 
-# --- steering a running turn -----------------------------------------------------------------------------------------
+# --- text typed while a turn runs ------------------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("mode", ["steer", "redirect"])
-async def test_text_typed_while_a_turn_runs_is_taken_in_and_acknowledged(mode: str) -> None:
+async def test_text_typed_while_a_turn_runs_is_left_for_the_gate() -> None:
     router = dispatch_router()
-    token = running_turn(router, mode=mode, thread_id="th-1")
-
-    await run_dispatch(router, inbound_msg("  focus on 2026  ", is_group=True, message_id="m-77", thread_id="th-1"))
-
-    assert token.has_pending
-    assert token.redirect_requested == (mode == "redirect")
-    assert token.activate() == ["focus on 2026"]
-    [reply] = published_messages(router)
-    assert "focus on 2026" in reply.content
-    assert (reply.channel, reply.recipient_id, reply.thread_id, reply.reply_to_id) == ("telegram", "chat-1", "th-1", "m-77")
-    assert gate_submissions(router) == []
-
-
-@pytest.mark.asyncio
-async def test_the_acknowledgement_of_a_direct_message_quotes_nothing() -> None:
-    router = dispatch_router()
-    running_turn(router, mode="steer")
-
-    await run_dispatch(router, inbound_msg("focus on 2026", user_id="owner-1"))
-
-    [reply] = published_messages(router)
-    assert reply.reply_to_id is None
-    assert reply.user_id == "owner-1"
-
-
-@pytest.mark.asyncio
-async def test_a_long_steer_is_previewed_in_eighty_characters() -> None:
-    router = dispatch_router()
-    running_turn(router, mode="steer")
-
-    await run_dispatch(router, inbound_msg("x" * 200))
-
-    [reply] = published_messages(router)
-    assert "x" * 80 + "..." in reply.content
-    assert "x" * 81 not in reply.content
-
-
-@pytest.mark.asyncio
-async def test_the_mode_can_come_from_the_message_when_the_turn_names_none() -> None:
-    router = dispatch_router()
-    token = running_turn(router, mode=None)
-
-    await run_dispatch(router, inbound_msg("narrow it down", metadata={"busy_input_mode": "steer"}))
-
-    assert token.activate() == ["narrow it down"]
-    assert gate_submissions(router) == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("mode", [None, "queue"])
-async def test_a_turn_without_a_steering_mode_leaves_the_message_for_the_gate(mode: str | None) -> None:
-    router = dispatch_router()
-    token = running_turn(router, mode=mode)
+    token = running_turn(router)
 
     await run_dispatch(router, inbound_msg("narrow it down"))
 
     assert not token.has_pending
+    assert published_messages(router) == []
     assert len(gate_submissions(router)) == 1
 
 
 @pytest.mark.asyncio
 async def test_a_slash_message_is_not_steered_into_the_running_turn() -> None:
     router = dispatch_router()
-    token = running_turn(router, mode="steer")
+    token = running_turn(router)
 
     await run_dispatch(router, inbound_msg("/unknown thing"))
-
-    assert not token.has_pending
-    assert len(gate_submissions(router)) == 1
-
-
-@pytest.mark.asyncio
-async def test_steering_looks_up_the_turn_of_the_thread_the_message_is_in() -> None:
-    router = dispatch_router()
-    token = running_turn(router, mode="steer")  # registered under the chat, not under thread th-1
-
-    await run_dispatch(router, inbound_msg("narrow it down", thread_id="th-1"))
 
     assert not token.has_pending
     assert len(gate_submissions(router)) == 1
@@ -222,7 +159,7 @@ async def test_a_turn_registered_in_the_chat_keeps_the_text_from_the_delegated_t
     router = dispatch_router()
     router._check_admin_permission = AsyncMock(return_value=True)
     coordinator = _delegated_task(router, injected=True)
-    running_turn(router, mode=None)
+    running_turn(router)
 
     await run_dispatch(router, inbound_msg("also check the totals"))
 
@@ -241,16 +178,3 @@ async def test_only_the_owners_plain_text_steers_a_delegated_task(content: str, 
 
     coordinator.inject_steering.assert_not_called()
     assert len(gate_submissions(router)) == 1
-
-
-@pytest.mark.asyncio
-async def test_a_running_turn_is_steered_before_a_delegated_task_is_considered() -> None:
-    router = dispatch_router()
-    router._check_admin_permission = AsyncMock(return_value=True)
-    coordinator = _delegated_task(router, injected=True)
-    token = running_turn(router, mode="steer")
-
-    await run_dispatch(router, inbound_msg("also check the totals"))
-
-    assert token.activate() == ["also check the totals"]
-    coordinator.find_active_task.assert_not_called()

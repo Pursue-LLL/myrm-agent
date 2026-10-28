@@ -111,7 +111,7 @@ async def test_a_long_clean_paste_reaches_the_turn_whole(monkeypatch: pytest.Mon
     router._bus.publish_outbound.assert_not_awaited()
 
 
-def _running_agent(router: AgentRouter, mode: str | None) -> SteeringToken:
+def _running_agent(router: AgentRouter) -> SteeringToken:
     chat_id = "chat-1"
     token = SteeringToken()
     router._active_tasks[routing_session_key("telegram", chat_id)] = _ActiveTask(
@@ -122,7 +122,6 @@ def _running_agent(router: AgentRouter, mode: str | None) -> SteeringToken:
         placeholder_id=None,
         started_at=0.0,
         steering_token=token,
-        busy_input_mode=mode,
     )
     return token
 
@@ -138,33 +137,9 @@ def _typed(content: str, message_id: str = "m1") -> InboundMessage:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("mode", ["steer", "redirect"])
-async def test_secret_typed_while_the_agent_runs_is_held_not_steered(mode: str) -> None:
-    router = make_router()
-    token = _running_agent(router, mode)
-
-    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
-        await _consume_one(router, _typed(f"use {SECRET} instead"))
-
-    assert not token.has_pending
-    router._bus.publish_outbound.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_clean_text_typed_while_the_agent_runs_still_steers() -> None:
-    router = make_router()
-    token = _running_agent(router, "steer")
-
-    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
-        await _consume_one(router, _typed("only keep the 2026 rows"))
-
-    assert token.activate() == ["only keep the 2026 rows"]
-
-
-@pytest.mark.asyncio
 async def test_slash_steer_with_a_secret_is_held() -> None:
     router = make_router()
-    token = _running_agent(router, None)
+    token = _running_agent(router)
     router._check_admin_permission = AsyncMock(return_value=True)
 
     with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):

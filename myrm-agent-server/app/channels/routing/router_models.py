@@ -81,7 +81,6 @@ class _ActiveTask:
     locale: str = ""
     steering_token: SteeringToken | None = None
     deferred_placeholder: object | None = None
-    busy_input_mode: str | None = None
     gate_key: str = ""
     gate_turn: int = 0
 

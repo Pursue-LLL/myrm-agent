@@ -189,11 +189,6 @@ class RouterExecutionMixin(RouterDeliveryMixin):
         steering_token = SteeringToken()
         current_task = asyncio.current_task()
         assert current_task is not None
-        busy_input_mode = (
-            str(ctx.exec_msg.metadata.get("busy_input_mode", "")).strip()
-            if ctx.exec_msg.metadata and ctx.exec_msg.metadata.get("busy_input_mode")
-            else None
-        )
         session_gate_key = gate_key(ctx.exec_msg)
         self._active_tasks[ctx.state_key] = _ActiveTask(
             task=current_task,
@@ -205,7 +200,6 @@ class RouterExecutionMixin(RouterDeliveryMixin):
             requester_id=ctx.exec_msg.sender_id or "",
             locale=resolve_message_locale(ctx.exec_msg),
             steering_token=steering_token,
-            busy_input_mode=busy_input_mode,
             gate_key=session_gate_key,
             gate_turn=self._gate.running_turn(session_gate_key),
         )
