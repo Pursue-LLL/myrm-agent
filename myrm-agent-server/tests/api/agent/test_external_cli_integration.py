@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -122,15 +123,23 @@ def _delegate_stream_started(events: list[dict[str, object]]) -> bool:
     return False
 
 
-def _stream_error_text(events: list[dict[str, object]]) -> str:
-    chunks: list[str] = []
+def _error_types(events: list[dict[str, object]]) -> list[str]:
+    """The ``diagnostic_result.error_type`` of every error event: the stable code a refusal travels under."""
+    types: list[str] = []
     for event in events:
-        if event.get("type") != "error":
-            continue
-        data = event.get("data")
-        if isinstance(data, str) and data:
-            chunks.append(data)
-    return " ".join(chunks)
+        diagnostic = event.get("diagnostic_result")
+        if event.get("type") == "error" and isinstance(diagnostic, dict):
+            types.append(str(diagnostic.get("error_type")))
+    return types
+
+
+def _policy_block_log(caplog: pytest.LogCaptureFixture) -> str:
+    """The policy engine's own wording, which stays in the log instead of the user-facing error."""
+    return " ".join(
+        record.getMessage().lower()
+        for record in caplog.records
+        if record.name == "app.ai_agents.general_agent.forced_delegate" and record.levelno == logging.WARNING
+    )
 
 
 @pytest.mark.e2e
@@ -158,6 +167,7 @@ def test_readonly_security_config_spawn_allow_invoke_deny_engine() -> None:
 def test_workspace_security_config_blocks_force_external_on_ask(
     client: TestClient,
     mock_load_user_configs: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Lane-C: workspace invoke_external_agent=ASK must block direct force_external routing."""
     from tests.api.agent.conftest import _build_mock_user_configs
@@ -191,9 +201,10 @@ def test_workspace_security_config_blocks_force_external_on_ask(
         "timezone": "UTC",
     }
     events = _collect_agent_stream(client, payload)
-    error_text = _stream_error_text(events).lower()
-    assert "external agent delegation denied" in error_text, events
-    assert "ask" in error_text or "denied" in error_text
+    assert _error_types(events) == ["external_agent_denied"], events
+    blocked = _policy_block_log(caplog)
+    assert "blocked by security policy" in blocked
+    assert "ask" in blocked or "denied" in blocked
     assert not _delegate_stream_started(events), events
 
 
@@ -238,8 +249,7 @@ def test_readonly_security_config_blocks_force_external_delegate_stream(
         "timezone": "UTC",
     }
     events = _collect_agent_stream(client, payload)
-    error_text = _stream_error_text(events).lower()
-    assert "external agent delegation denied" in error_text, events
+    assert _error_types(events) == ["external_agent_denied"], events
     assert not _delegate_stream_started(events), events
 
 
@@ -250,6 +260,7 @@ def test_readonly_security_config_blocks_force_external_delegate_stream(
 )
 def test_explore_preset_blocks_force_external_delegate_stream(
     client: TestClient,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Lane-C: explore preset deny invoke_external_agent must block force_external_agent path."""
     chat_id = f"test_explore_ext_block_{uuid.uuid4().hex[:8]}"
@@ -268,9 +279,9 @@ def test_explore_preset_blocks_force_external_delegate_stream(
         "timezone": "UTC",
     }
     events = _collect_agent_stream(client, payload)
-    error_text = _stream_error_text(events).lower()
-    assert "external agent delegation denied" in error_text, events
-    assert "invoke_external_agent" in error_text or "denied" in error_text
+    assert _error_types(events) == ["external_agent_denied"], events
+    blocked = _policy_block_log(caplog)
+    assert "invoke_external_agent" in blocked or "denied" in blocked
     assert not _delegate_stream_started(events), events
 
 
@@ -282,6 +293,7 @@ def test_explore_preset_blocks_force_external_delegate_stream(
 def test_missing_security_config_blocks_force_external_delegate_stream(
     client: TestClient,
     mock_load_user_configs: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Lane-C: missing security config must fail-closed block force_external_agent routing."""
     from tests.api.agent.conftest import _build_mock_user_configs
@@ -305,9 +317,8 @@ def test_missing_security_config_blocks_force_external_delegate_stream(
         "timezone": "UTC",
     }
     events = _collect_agent_stream(client, payload)
-    error_text = _stream_error_text(events).lower()
-    assert "external agent delegation denied" in error_text, events
-    assert "security config missing" in error_text, events
+    assert _error_types(events) == ["external_agent_denied"], events
+    assert "security config missing" in _policy_block_log(caplog), events
     assert not _delegate_stream_started(events), events
 
 
