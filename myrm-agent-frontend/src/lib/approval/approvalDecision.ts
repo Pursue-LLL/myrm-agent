@@ -11,7 +11,6 @@ export interface ApprovalDecision {
   guidance?: string;
   action_digest?: string;
   actionDigest?: string;
-  ephemeral_credential_handles?: string[];
   extensions: {
     allowAlways: AllowAlwaysValue;
     ttlSeconds?: number;
@@ -20,7 +19,6 @@ export interface ApprovalDecision {
     grantDirectories?: ApprovalGrantDirectory[];
     actionDigest?: string;
     action_digest?: string;
-    ephemeralCredentialHandles?: string[];
   };
 }
 
@@ -68,7 +66,6 @@ export interface ToolApprovalResolveExtra {
   grant_directories?: ApprovalGrantDirectory[];
   action_digest?: string;
   actionDigest?: string;
-  ephemeral_credential_handles?: string[];
 }
 
 /** True when an approved decision asks the server to persist its folder grants. */
@@ -110,17 +107,11 @@ export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprov
     feedback: extra?.feedback,
     ...(extra?.guidance && { guidance: extra.guidance }),
     ...(resolvedDigest && { action_digest: resolvedDigest, actionDigest: resolvedDigest }),
-    ...(extra?.ephemeral_credential_handles && {
-      ephemeral_credential_handles: extra.ephemeral_credential_handles,
-    }),
     extensions: {
       allowAlways: allowAlwaysVal,
       ...(effectiveTtl !== undefined && { ttlSeconds: effectiveTtl }),
       ...(extra?.allow_domain && { allowDomain: true }),
       ...(resolvedDigest && { actionDigest: resolvedDigest, action_digest: resolvedDigest }),
-      ...(extra?.ephemeral_credential_handles && {
-        ephemeralCredentialHandles: extra.ephemeral_credential_handles,
-      }),
       ...(extra?.grant_directories?.length ? { grantDirectory: true, grantDirectories: extra.grant_directories } : {}),
     },
   };

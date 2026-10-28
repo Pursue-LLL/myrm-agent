@@ -56,8 +56,6 @@ export interface ApprovalPayloadData {
   command?: string;
   /** Shell approval payload: originating session id, used for scoped grants. */
   session_id?: string;
-  /** Explicit list of environment credential keys required by the command/tool. */
-  required_credentials?: string[];
   plan_items?: PlanItem[];
   total_items?: number;
   goal?: string;

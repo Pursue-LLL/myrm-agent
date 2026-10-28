@@ -168,6 +168,9 @@ from myrm_agent_harness.core.security.ephemeral_credentials import (
     EphemeralCredentialSummary as EphemeralCredentialSummary,
 )
 from myrm_agent_harness.core.security.ephemeral_credentials import (
+    command_digest as command_digest,
+)
+from myrm_agent_harness.core.security.ephemeral_credentials import (
     get_ephemeral_credential_store as get_ephemeral_credential_store,
 )
 from myrm_agent_harness.core.security.ephemeral_credentials import (

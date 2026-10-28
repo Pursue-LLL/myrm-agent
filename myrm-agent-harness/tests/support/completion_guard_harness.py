@@ -98,7 +98,7 @@ def runtime(workspace: Path, security: SecurityConfig | None = None) -> Runtime:
 async def verdict(guard: CompletionGuard, messages: dict[str, object], at: Runtime) -> dict[str, object] | None:
     """What the guard does with one completion attempt, over a run that has called no tool yet."""
     with patch(LOOP_GUARD_PATCH) as loop_guard:
-        loop_guard.return_value._window = []
+        loop_guard.return_value.recorded_calls.return_value = []
         return await guard.aafter_model(messages, at)
 
 

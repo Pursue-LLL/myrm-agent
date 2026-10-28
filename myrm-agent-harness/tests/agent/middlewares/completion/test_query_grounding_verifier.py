@@ -287,7 +287,7 @@ async def test_completion_guard_blocks_multi_entity_missing_one_query() -> None:
         success_level=SuccessLevel.FULL_SUCCESS,
     )
     with patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard") as mock_lg:
-        mock_lg.return_value._window = [rec]
+        mock_lg.return_value.recorded_calls.return_value = [rec]
         guard = CompletionGuard(enabled=True)
         messages = [
             HumanMessage(content="帮我查一下订单 OD-9921 和工单 TK-8802 的状态"),

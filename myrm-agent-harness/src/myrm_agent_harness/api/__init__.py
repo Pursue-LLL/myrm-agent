@@ -75,6 +75,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "get_ephemeral_credential_store",
     ),
     "validate_credential_key": ("myrm_agent_harness.core.security.ephemeral_credentials", "validate_credential_key"),
+    "command_digest": ("myrm_agent_harness.core.security.ephemeral_credentials", "command_digest"),
     "SingleUseTicket": ("myrm_agent_harness.agent.security.single_use_tickets", "SingleUseTicket"),
     "SingleUseTicketManager": ("myrm_agent_harness.agent.security.single_use_tickets", "SingleUseTicketManager"),
     "TicketStatus": ("myrm_agent_harness.agent.security.single_use_tickets", "TicketStatus"),

@@ -15,7 +15,7 @@
 | `HighRiskEvidenceScreenshot.tsx`  | UI   | 高危 UI 动作证据截图卡（百分比定位红色圆圈标注目标，响应式、桌面/浏览器双通道）           |
 | `CompactFileWriteApprovalRow.tsx` | UI   | Subagent 本地文件写 compact 行 + 折叠 Monaco 预览                                         |
 | `SaveSkillApprovalPreview.tsx`    | UI   | save_skill / skill_manage save 审批 bundle 预览（#8）                                     |
-| `MaskedCredentialInputCard.tsx`   | UI   | 敏感凭证安全掩码隔离提交卡片（单次票据徽章、短 TTL、投毒白名单校验、一键撤回）            |
+| `MaskedCredentialInputCard.tsx`   | UI   | 命令审批卡内的一次性密码/密钥录入表单（受控：暂存状态由 `useStagedCredentials` 持有；倒计时、受保护变量名预检、可撤回；仅 `SingleApprovalCard` 的 bash 命令入口使用） |
 | `ApprovalScopeNoteLine.tsx`       | UI   | `resolveScopeNote` 单行展示（Drawer / CLI 审批）                                          |
 | `PtcHintBadges.tsx`               | UI   | MCP PTC read-only/destructive/open-world 注解 badge                                       |
 | `__tests__/`                      | 测试 | 组件级测试                                                                                |

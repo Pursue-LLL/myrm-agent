@@ -303,7 +303,7 @@ async def _maybe_auto_enter_wait_for_background_bash(
         find_latest_background_spawn_in_window,
     )
 
-    spawn = find_latest_background_spawn_in_window(list(get_loop_guard()._window))
+    spawn = find_latest_background_spawn_in_window(get_loop_guard().recorded_calls())
     if spawn is None:
         return None
 

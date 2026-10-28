@@ -60,7 +60,6 @@ from .types import (
     LoopKind,
     LoopVerdict,
     SuccessLevel,
-    VerificationCategory,
 )
 
 try:
@@ -372,12 +371,35 @@ class LoopGuard(LoopDetectorMixin):
             )
         return VERDICT_ALLOW
 
-    def record_result(self, tool_name: str, args: dict[str, object], result_text: str) -> LoopVerdict:
-        """Record a completed tool call and check for no-progress loops."""
-        if not self._window:
+    def latest_record(self) -> CallRecord | None:
+        """The record the most recent ``pre_check`` opened.
+
+        A caller that runs tool calls concurrently keeps this handle and gives it back to ``record_result``,
+        because by the time a result arrives other calls have opened records after its own.
+        """
+        return self._window[-1] if self._window else None
+
+    def recorded_calls(self) -> list[CallRecord]:
+        """Snapshot of the recorded calls in the window, oldest first."""
+        return list(self._window)
+
+    def record_result(
+        self,
+        tool_name: str,
+        args: dict[str, object],
+        result_text: str,
+        *,
+        record: CallRecord | None = None,
+    ) -> LoopVerdict:
+        """Record a completed tool call and check for no-progress loops.
+
+        ``record`` is the call the result belongs to (see ``latest_record``); without it the result goes to the
+        latest record, which is right only when calls do not overlap.
+        """
+        rec = record if record is not None else self.latest_record()
+        if rec is None:
             return VERDICT_ALLOW
 
-        rec = self._window[-1]
         rec.result_hash = _result_hash(tool_name, result_text)
         rec.result_content = result_text
         success_level = evaluate_success_level(tool_name, result_text)
@@ -395,12 +417,15 @@ class LoopGuard(LoopDetectorMixin):
             if verdict.action != LoopAction.ALLOW:
                 return verdict
 
-        return self._check_no_progress(list(self._window), tool_name)
+        return self._check_no_progress(self._window_through(rec), tool_name)
 
-    def tag_last_verification(self, vtype: VerificationCategory) -> None:
-        """Mark the most recent CallRecord as a verification execution."""
-        if self._window:
-            self._window[-1].verification_type = vtype
+    def _window_through(self, rec: CallRecord) -> list[CallRecord]:
+        """The window up to and including ``rec``: the detectors read the call that just finished as the last one."""
+        calls = list(self._window)
+        for index in range(len(calls) - 1, -1, -1):
+            if calls[index] is rec:
+                return calls[: index + 1]
+        return [rec]
 
     def get_metrics(self) -> LoopGuardMetrics:
         """Get current detection metrics."""

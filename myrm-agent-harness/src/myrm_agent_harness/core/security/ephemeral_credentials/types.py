@@ -7,6 +7,7 @@
 - EphemeralCredential: Encapsulated credential with physical memory wipe capability.
 - EphemeralCredentialSummary: Safe metadata summary without secret exposure.
 - SanitizedCredentialKey: Validated environment key safe from shell injection.
+- command_digest: The digest a credential is bound to, computed from the command text a person approved.
 
 [POS]
 Foundational memory security models in core/security/ephemeral_credentials/.
@@ -15,6 +16,7 @@ Zero external dependencies, supports ctypes.memset zeroization.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import time
 from dataclasses import dataclass, field
@@ -22,6 +24,12 @@ from dataclasses import dataclass, field
 _VALID_KEY_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 _BLOCKED_ENV_KEYS = frozenset(
     {
+        "BASH_ENV",
+        "ENV",
+        "HOME",
+        "LOGNAME",
+        "PROMPT_COMMAND",
+        "USER",
         "PATH",
         "LD_PRELOAD",
         "LD_LIBRARY_PATH",
@@ -54,6 +62,15 @@ def validate_credential_key(key: str) -> str:
             f"Blocked credential key '{key}'. Overriding critical system environment variables is strictly forbidden."
         )
     return normalized
+
+
+def command_digest(command: str) -> str:
+    """Return the digest an ephemeral credential is bound to: the command a person approved, trimmed.
+
+    The approval layer (which stages the credential) and the executor (which consumes it) both call this on the
+    command as the agent issued it, so the two sides cannot disagree about which command a credential belongs to.
+    """
+    return hashlib.sha256(command.strip().encode("utf-8")).hexdigest()
 
 
 @dataclass

@@ -15,4 +15,4 @@ Spend governance for agent commerce: a pure, deterministic budget state machine 
 
 1. **Zero-Float Accounting**: All commerce spending operations enforce integer USD Cents calculations to eliminate floating point rounding errors.
 2. **No Prompt Cache Impact**: Spend governance evaluates strictly in the interceptor layer outside LLM prompts.
-3. **No Credential Handling**: Credentials are not tokenized or proxied here. They reach a command through the executor's command-scoped environment (`toolkits/code_execution/executors/local/_command_env.py`); a host that runs its own egress proxy points the shell at it with `MYRM_EGRESS_PROXY_URL` / `MYRM_EGRESS_CA_BUNDLE`.
+3. **No Credential Handling**: Credentials are not tokenized or proxied here. They reach a command through the executor's command-scoped environment (`toolkits/code_execution/executors/local/_command_env.py`).

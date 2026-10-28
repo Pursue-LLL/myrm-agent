@@ -1,50 +1,46 @@
 'use client';
 
-import React, { useState, useCallback, useId } from 'react';
+/**
+ * [INPUT]
+ * - @/hooks/approval/useStagedCredentials::StagedCredentials (POS: 审批卡上已暂存凭据的状态)
+ * - next-intl::useTranslations (POS: toolApproval.maskedCredentials 文案)
+ *
+ * [OUTPUT]
+ * - MaskedCredentialInputCard: 为审批卡所示的那一条命令录入一次性密码/密钥，显示倒计时、可撤回
+ *
+ * [POS]
+ * 审批卡内的凭据录入表单。明文只存在于输入框本地状态，暂存成功后立刻清空；暂存状态与到期销毁由上层 hook 持有。
+ */
+
+import { AlertTriangle, CheckCircle2, Clock, Eye, EyeOff, Key, Lock, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Key, ShieldCheck, Eye, EyeOff, Plus, Trash2, Clock, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
+import { useCallback, useEffect, useId, useState } from 'react';
+
+import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
-import { Badge } from '@/components/primitives/badge';
+import type { StagedCredentials } from '@/hooks/approval/useStagedCredentials';
+import {
+  BLOCKED_CREDENTIAL_KEYS,
+  OneTimeCredentialError,
+  type CredentialToStage,
+} from '@/lib/approval/oneTimeCredentials';
 import { toast } from '@/lib/utils/toast';
-import { API_BASE_URL } from '@/lib/api';
 
-const BLOCKED_SYSTEM_KEYS = new Set([
-  'PATH',
-  'LD_PRELOAD',
-  'LD_LIBRARY_PATH',
-  'PYTHONPATH',
-  'NODE_OPTIONS',
-  'BASH_ENV',
-  'ENV',
-  'PROMPT_COMMAND',
-  'HOME',
-  'SHELL',
-  'USER',
-  'LOGNAME',
-]);
-
-export interface CredentialDraft {
+interface CredentialDraft {
   id: string;
   key: string;
   secret: string;
   ttlSeconds: number;
-  singleUse: boolean;
   showSecret: boolean;
 }
 
-export interface StagedCredentialSummary {
-  handleId: string;
-  key: string;
-  singleUse: boolean;
-  expiresAt: number;
-}
-
 export interface MaskedCredentialInputCardProps {
-  approvalId: string;
-  stagedHandles: string[];
-  onStagedChange: (handles: string[]) => void;
-  suggestedKeys?: string[];
+  staged: StagedCredentials | null;
+  /** Rejects when the credentials could not be staged. */
+  onStage: (credentials: CredentialToStage[]) => Promise<void>;
+  /** Rejects when the staged credentials could not be destroyed. */
+  onRevoke: () => Promise<void>;
   disabled?: boolean;
   className?: string;
 }
@@ -59,6 +55,13 @@ const TTL_OPTIONS = [
   { seconds: 300, labelKey: 'ttl300' },
 ] as const;
 
+let draftCounter = 0;
+
+function newDraft(): CredentialDraft {
+  draftCounter += 1;
+  return { id: `credential-draft-${draftCounter}`, key: '', secret: '', ttlSeconds: 60, showSecret: false };
+}
+
 function validateKeyName(key: string): KeyValidation {
   const trimmed = key.trim().toUpperCase();
   if (!trimmed) {
@@ -67,48 +70,37 @@ function validateKeyName(key: string): KeyValidation {
   if (!/^[A-Z_][A-Z0-9_]*$/.test(trimmed)) {
     return { isValid: false, error: 'format' };
   }
-  if (BLOCKED_SYSTEM_KEYS.has(trimmed)) {
+  if (BLOCKED_CREDENTIAL_KEYS.has(trimmed)) {
     return { isValid: false, error: 'blocked' };
   }
   return { isValid: true };
 }
 
 export function MaskedCredentialInputCard({
-  approvalId,
-  stagedHandles,
-  onStagedChange,
-  suggestedKeys,
+  staged,
+  onStage,
+  onRevoke,
   disabled = false,
   className = '',
 }: MaskedCredentialInputCardProps) {
   const t = useTranslations('toolApproval.maskedCredentials');
-  const initialId = useId();
-  const [drafts, setDrafts] = useState<CredentialDraft[]>(() => [
-    {
-      id: initialId,
-      key: suggestedKeys && suggestedKeys.length > 0 ? suggestedKeys[0] : '',
-      secret: '',
-      ttlSeconds: 60,
-      singleUse: true,
-      showSecret: false,
-    },
-  ]);
+  const firstDraftId = useId();
+  const [drafts, setDrafts] = useState<CredentialDraft[]>(() => [{ ...newDraft(), id: firstDraftId }]);
   const [isStaging, setIsStaging] = useState(false);
-  const [stagedSummaries, setStagedSummaries] = useState<StagedCredentialSummary[]>([]);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const expiresAtMs = staged?.expiresAtMs;
 
-  const handleAddRow = useCallback(() => {
-    setDrafts((prev) => [
-      ...prev,
-      {
-        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        key: '',
-        secret: '',
-        ttlSeconds: 60,
-        singleUse: true,
-        showSecret: false,
-      },
-    ]);
-  }, []);
+  useEffect(() => {
+    if (expiresAtMs === undefined) {
+      return;
+    }
+    const tick = () => setRemainingSeconds(Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [expiresAtMs]);
+
+  const handleAddRow = useCallback(() => setDrafts((prev) => [...prev, newDraft()]), []);
 
   const handleRemoveRow = useCallback((id: string) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
@@ -132,200 +124,110 @@ export function MaskedCredentialInputCard({
     }
   };
 
+  const errorMessage = (err: unknown): string => {
+    if (err instanceof OneTimeCredentialError) {
+      return err.detail ?? t('errorServerStatus', { status: err.status });
+    }
+    return err instanceof Error ? err.message : t('errorUnknown');
+  };
+
   const handleStageCredentials = async () => {
-    // Validate all drafts
-    const validDrafts = drafts.filter((d) => d.key.trim() && d.secret);
-    if (validDrafts.length === 0) {
+    const filled = drafts.filter((d) => d.key.trim() && d.secret);
+    if (filled.length === 0) {
       toast.warning(t('toastNoCredential'));
       return;
     }
-
-    for (const d of validDrafts) {
-      const val = validateKeyName(d.key);
-      if (!val.isValid) {
-        toast.error(keyErrorMessage(val.error, d.key));
+    for (const d of filled) {
+      const validation = validateKeyName(d.key);
+      if (!validation.isValid) {
+        toast.error(keyErrorMessage(validation.error, d.key));
         return;
       }
     }
 
     setIsStaging(true);
     try {
-      const payload = {
-        credentials: validDrafts.map((d) => ({
-          key: d.key.trim().toUpperCase(),
-          secret: d.secret,
-          ttl_seconds: d.ttlSeconds,
-          single_use: d.singleUse,
-        })),
-      };
-
-      const resp = await fetch(`${API_BASE_URL}/approvals/${approvalId}/credentials`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      if (!resp.ok) {
-        const errorData = (await resp.json().catch(() => ({}))) as { detail?: string };
-        throw new Error(errorData.detail || t('errorServerStatus', { status: resp.status }));
-      }
-
-      const resData = (await resp.json()) as {
-        staged: Array<{
-          handle_id: string;
-          key: string;
-          single_use: boolean;
-          expires_at: number;
-        }>;
-      };
-
-      const newHandles = resData.staged.map((s) => s.handle_id);
-      const newSummaries: StagedCredentialSummary[] = resData.staged.map((s) => ({
-        handleId: s.handle_id,
-        key: s.key,
-        singleUse: s.single_use,
-        expiresAt: s.expires_at,
-      }));
-
-      // Immediately clear in-memory plaintext secrets from the UI state
-      setDrafts([]);
-      setStagedSummaries(newSummaries);
-      onStagedChange([...stagedHandles, ...newHandles]);
+      await onStage(
+        filled.map((d) => ({ key: d.key.trim().toUpperCase(), secret: d.secret, ttlSeconds: d.ttlSeconds })),
+      );
+      // Plaintext leaves the UI state the moment the server holds it; the form returns empty if the credentials go away.
+      setDrafts([newDraft()]);
       toast.success(t('toastStaged'));
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t('errorUnknown');
-      toast.error(t('toastStageFailed', { message }));
+      toast.error(t('toastStageFailed', { message: errorMessage(err) }));
     } finally {
       setIsStaging(false);
     }
   };
 
-  const handleRevokeStaged = () => {
-    setStagedSummaries([]);
-    onStagedChange([]);
-    setDrafts([
-      {
-        id: `draft-${Date.now()}`,
-        key: '',
-        secret: '',
-        ttlSeconds: 60,
-        singleUse: true,
-        showSecret: false,
-      },
-    ]);
-    toast.info(t('toastCleared'));
+  const handleRevoke = async () => {
+    try {
+      await onRevoke();
+      toast.info(t('toastCleared'));
+    } catch (err: unknown) {
+      toast.error(t('toastWipeFailed', { message: errorMessage(err) }));
+    }
   };
 
-  const hasStaged = stagedSummaries.length > 0;
-
   return (
-    <div
-      className={`rounded-lg border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 transition-colors ${className}`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 pb-3 border-b border-amber-500/20">
-        <div className="flex items-center gap-2">
-          <Key className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+    <div className={`rounded-lg border border-warning/30 bg-warning/5 p-4 transition-colors ${className}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-warning/20 pb-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Key className="h-4 w-4 shrink-0 text-warning" />
           <span className="text-sm font-medium text-foreground">{t('title')}</span>
-          <Badge
-            variant="outline"
-            className="flex items-center gap-1 border-amber-500/40 text-[11px] text-amber-700 dark:text-amber-300"
-          >
+          <Badge variant="outline" className="flex items-center gap-1 border-warning/40 text-[11px] text-warning">
             <ShieldCheck className="h-3 w-3" />
-            {t('badgeZeroDisk')}
+            {t('badgeNeverSaved')}
           </Badge>
         </div>
 
-        {hasStaged && (
+        {staged && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={handleRevokeStaged}
+            onClick={handleRevoke}
             disabled={disabled}
             className="h-7 text-xs text-muted-foreground hover:text-destructive"
           >
-            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
             {t('revoke')}
           </Button>
         )}
       </div>
 
-      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{t('description')}</p>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t('description')}</p>
 
-      {/* Staged summaries view */}
-      {hasStaged ? (
-        <div className="mt-3 space-y-2">
-          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-950/30 p-2.5">
-            <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-1.5">
+      {staged ? (
+        <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2.5">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
               {t('stagedReady')}
-            </div>
-            <ul className="space-y-1">
-              {stagedSummaries.map((s) => (
-                <li
-                  key={s.handleId}
-                  className="flex items-center justify-between text-[11px] font-mono text-muted-foreground"
-                >
-                  <span className="font-semibold text-foreground">{s.key}</span>
-                  <span className="truncate max-w-[200px] text-xs text-muted-foreground">
-                    {s.handleId.slice(0, 20)}...
-                  </span>
-                  <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4">
-                    {t('singleUseBadge')}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
+            </span>
+            <span className="flex items-center gap-1 font-normal tabular-nums">
+              <Clock className="h-3 w-3" />
+              {t('expiresIn', { seconds: remainingSeconds })}
+            </span>
           </div>
+          <ul className="space-y-1">
+            {staged.items.map((s) => (
+              <li key={s.handleId} className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                <span className="min-w-0 break-all font-semibold text-foreground">{s.key}</span>
+                <Badge variant="secondary" className="h-4 shrink-0 px-1.5 py-0 text-[10px]">
+                  {t('singleUseBadge')}
+                </Badge>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : (
         <>
-          {/* Suggested Keys chips */}
-          {suggestedKeys && suggestedKeys.length > 0 && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Key className="h-3 w-3 text-amber-500" />
-                {t('suggested')}
-              </span>
-              {suggestedKeys.map((sKey) => (
-                <button
-                  key={sKey}
-                  type="button"
-                  onClick={() => {
-                    setDrafts((prev) => {
-                      const emptyIdx = prev.findIndex((d) => !d.key.trim());
-                      if (emptyIdx >= 0) {
-                        return prev.map((d, i) => (i === emptyIdx ? { ...d, key: sKey } : d));
-                      }
-                      return [
-                        ...prev,
-                        {
-                          id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                          key: sKey,
-                          secret: '',
-                          ttlSeconds: 60,
-                          singleUse: true,
-                          showSecret: false,
-                        },
-                      ];
-                    });
-                  }}
-                  className="px-2 py-0.5 text-[10px] font-mono rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer"
-                >
-                  {sKey}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Input drafts form */}
           <div className="mt-3 space-y-3">
             {drafts.map((draft, idx) => {
               const keyValidation: KeyValidation = draft.key ? validateKeyName(draft.key) : { isValid: true };
               return (
-                <div key={draft.id} className="rounded-md border border-border/60 bg-background/80 p-2.5 space-y-2">
+                <div key={draft.id} className="space-y-2 rounded-md border border-border/60 bg-background/80 p-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-medium text-muted-foreground">
                       {t('credentialIndex', { index: idx + 1 })}
@@ -345,12 +247,11 @@ export function MaskedCredentialInputCard({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {/* Key input */}
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <div>
                       <label
                         htmlFor={`cred-key-${draft.id}`}
-                        className="text-[11px] text-muted-foreground block mb-0.5"
+                        className="mb-0.5 block text-[11px] text-muted-foreground"
                       >
                         {t('keyLabel')}
                       </label>
@@ -361,21 +262,20 @@ export function MaskedCredentialInputCard({
                         value={draft.key}
                         onChange={(e) => handleUpdateDraft(draft.id, 'key', e.target.value.toUpperCase())}
                         disabled={disabled || isStaging}
-                        className="h-8 text-xs font-mono"
+                        className="h-8 font-mono text-xs"
                       />
                       {!keyValidation.isValid && (
-                        <p className="mt-1 text-[10px] text-destructive flex items-center gap-1">
+                        <p className="mt-1 flex items-center gap-1 text-[10px] text-destructive">
                           <AlertTriangle className="h-3 w-3 shrink-0" />
                           {keyErrorMessage(keyValidation.error, draft.key)}
                         </p>
                       )}
                     </div>
 
-                    {/* Secret input */}
                     <div>
                       <label
                         htmlFor={`cred-secret-${draft.id}`}
-                        className="text-[11px] text-muted-foreground block mb-0.5"
+                        className="mb-0.5 block text-[11px] text-muted-foreground"
                       >
                         {t('secretLabel')}
                       </label>
@@ -384,16 +284,17 @@ export function MaskedCredentialInputCard({
                           id={`cred-secret-${draft.id}`}
                           type={draft.showSecret ? 'text' : 'password'}
                           placeholder="••••••••••••"
+                          autoComplete="off"
                           value={draft.secret}
                           onChange={(e) => handleUpdateDraft(draft.id, 'secret', e.target.value)}
                           disabled={disabled || isStaging}
-                          className="h-8 text-xs pr-8 font-mono"
+                          className="h-8 pr-8 font-mono text-xs"
                         />
                         <button
                           type="button"
                           onClick={() => handleUpdateDraft(draft.id, 'showSecret', !draft.showSecret)}
                           aria-label={draft.showSecret ? t('hideSecret') : t('showSecret')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
                           tabIndex={-1}
                         >
                           {draft.showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -402,8 +303,7 @@ export function MaskedCredentialInputCard({
                     </div>
                   </div>
 
-                  {/* TTL & Policy info */}
-                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-1 text-[11px]">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       <span>{t('ttlLabel')}</span>
@@ -411,7 +311,7 @@ export function MaskedCredentialInputCard({
                         value={draft.ttlSeconds}
                         onChange={(e) => handleUpdateDraft(draft.id, 'ttlSeconds', Number(e.target.value))}
                         disabled={disabled || isStaging}
-                        className="bg-transparent border border-border/60 rounded px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none"
+                        className="rounded border border-border/60 bg-transparent px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none"
                       >
                         {TTL_OPTIONS.map(({ seconds, labelKey }) => (
                           <option key={seconds} value={seconds}>
@@ -422,7 +322,7 @@ export function MaskedCredentialInputCard({
                     </div>
 
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <Lock className="h-3 w-3 text-amber-500" />
+                      <Lock className="h-3 w-3 text-warning" />
                       <span>{t('singleUseEnforced')}</span>
                     </div>
                   </div>
@@ -430,7 +330,6 @@ export function MaskedCredentialInputCard({
               );
             })}
 
-            {/* Action buttons */}
             <div className="flex items-center justify-between gap-2 pt-1">
               <Button
                 type="button"
@@ -440,7 +339,7 @@ export function MaskedCredentialInputCard({
                 disabled={disabled || isStaging}
                 className="h-7 text-xs"
               >
-                <Plus className="h-3.5 w-3.5 mr-1" />
+                <Plus className="mr-1 h-3.5 w-3.5" />
                 {t('addRow')}
               </Button>
 
@@ -449,9 +348,9 @@ export function MaskedCredentialInputCard({
                 size="sm"
                 onClick={handleStageCredentials}
                 disabled={disabled || isStaging || drafts.every((d) => !d.key.trim() || !d.secret)}
-                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                className="h-7 bg-warning text-xs text-warning-foreground hover:bg-warning/90"
               >
-                <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                <ShieldCheck className="mr-1 h-3.5 w-3.5" />
                 {isStaging ? t('staging') : t('stage')}
               </Button>
             </div>

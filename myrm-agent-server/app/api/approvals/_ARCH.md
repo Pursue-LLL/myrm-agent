@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `router.py` | 路由 | 统一审批入口：`GET /approvals`、`POST /{id}/resolve`、挂载 `test_routes` / `batch` / `credentials` 子路由 | ✅ |
-| `credentials.py` | 路由 | `POST /{approval_id}/credentials` 瞬态敏感凭证内存暂存与 handle 签发 | ✅ |
+| `credentials.py` | 路由 | `POST /credentials`、`POST /credentials/wipe`：为审批卡所示的一条命令（`chat_id` + `command`）内存暂存一次性凭据，摘要与会话键与执行器侧同源，无密文落地与回显 | ✅ |
 | `test_routes.py` | 路由 | local/test-only 调试与 E2E 辅助端点：`POST /test/seed-mock`、`/test/seed-hardened-mock`、`/test/cleanup-hardened-mock`（`is_local_mode()` 守卫，非 local 返回 404） | ✅ |
 | `knowledge_patch.py` | 辅助 | 知识补丁审批通过后的 Wiki/Procedural 规则写入处理 | ✅ |
 ## 路由（前缀 `/api/v1/approvals`）
@@ -18,7 +18,8 @@
 | 方法 | 路径 | 职责 |
 |------|------|------|
 | GET | `` | 分页列出 pending（`limit` 1–100，`offset`）；排除无 `thread_id` 的后台 growth draft |
-| POST | `/{id}/credentials` | 内存暂存一次性执行凭据，返回 handle_id 引用，无密文落地与回显 |
+| POST | `/credentials` | 按 `chat_id` + `command` 内存暂存一次性执行凭据（会话键 `chat_session_id(chat_id)`，绑定 `command_digest(command)`，TTL 上限 600 秒，任一键非法则整体拒绝），返回 handle_id 引用，无密文落地与回显 |
+| POST | `/credentials/wipe` | 按 `chat_id` + `handle_ids` 立即销毁用户撤回或被拒绝/改写的审批所暂存的凭据 |
 | POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args,pattern,duration,ttl_seconds}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
 | POST | `/batch-resolve` | 批量 `approval_ids` + `decision`；逐条 resolve 并对有 `thread_id` 项发事件 |
 | POST | `/tiered-risk/evaluate` | 三级风险自适应判决（READ/WRITE/HIGH_RISK），挂起高危操作并颁发 confirmation_token |
@@ -30,6 +31,7 @@
 
 - **全局 Drawer recovery**：仅 `ApprovalRegistry.list_pending` 过滤后的项；growth inbox 走 `GET /api/v1/skills/drafts`。
 - **Web `subagent_approval`**：前端 `resumeDrawerApprovalStream` **先于**本接口 resolve，与主聊天 HITL 同机制。
+- **一次性凭据与审批决策解耦**：暂存发生在批准之前、绑定的是用户所见的命令文本；`resolve` 不携带也不处理凭据 handle。命令被改写后不再匹配摘要，凭据不会送达，由前端在编辑/拒绝时调用 wipe 销毁。
 - **IM 渠道**：审批回调由 `channels/routing` 下发 `Command(resume=...)`，不经本 REST 路径。
 
 ## 模块依赖

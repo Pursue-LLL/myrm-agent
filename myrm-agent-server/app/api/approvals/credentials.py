@@ -1,15 +1,18 @@
-"""Ephemeral credential staging endpoint for tool approval subsystem.
+"""One-time credential staging for the command a tool approval card asks about.
 
 [INPUT]
-- app.services.approvals.registry::ApprovalRegistry (POS: Approval record lookup)
-- myrm_agent_harness.api::EphemeralCredentialStore, get_ephemeral_credential_store, validate_credential_key
+- app.services.agent.params.workspace_resolve::chat_session_id (POS: the session key of a chat's agent runs)
+- myrm_agent_harness.api::command_digest, get_ephemeral_credential_store, validate_credential_key
 
 [OUTPUT]
-- POST /api/v1/approvals/{approval_id}/credentials: Staging masked credentials in memory
+- POST /api/v1/approvals/credentials: stage credentials in memory for one command of one chat
+- POST /api/v1/approvals/credentials/wipe: discard staged credentials the user took back
 
 [POS]
 app/api/approvals/credentials.py
-Business layer endpoint for zero-leakage, zero-disk credential staging.
+Business layer endpoints for zero-leakage, zero-disk credential staging. A credential is bound to the digest of the
+command the user is looking at and to the session of the chat that asked, so only that command, in that chat, can
+ever read it.
 """
 
 from __future__ import annotations
@@ -18,32 +21,34 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 from myrm_agent_harness.api import (
+    command_digest,
     get_ephemeral_credential_store,
     validate_credential_key,
 )
 from pydantic import BaseModel, Field
 
-from app.services.approvals.registry import ApprovalRegistry
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["approvals-credentials"])
 
+_MAX_TTL_SECONDS = 600.0
+
 
 class StagedCredentialInput(BaseModel):
-    """Payload for staging an ephemeral credential."""
+    """One credential to stage."""
 
     key: str = Field(..., description="Credential environment key name (e.g., DB_PASSWORD)")
-    secret: str = Field(..., description="Plaintext secret material to stage in memory")
-    ttl_seconds: float = Field(60.0, description="Time-to-live before automatic zeroization")
+    secret: str = Field(..., min_length=1, description="Plaintext secret material to stage in memory")
+    ttl_seconds: float = Field(60.0, gt=0, le=_MAX_TTL_SECONDS, description="Time-to-live before zeroization")
     single_use: bool = Field(True, description="Whether to wipe memory after single consumption")
-    client_nonce: str | None = Field(None, description="Optional idempotency key preventing replay")
 
 
 class StageCredentialsRequest(BaseModel):
-    """Batch request for staging ephemeral credentials against an approval."""
+    """Credentials for the one command an approval card shows."""
 
-    credentials: list[StagedCredentialInput]
+    chat_id: str = Field(..., min_length=1, description="Chat whose agent run asked for the approval")
+    command: str = Field(..., min_length=1, description="The command text exactly as the approval card shows it")
+    credentials: list[StagedCredentialInput] = Field(..., min_length=1)
 
 
 class StagedCredentialItem(BaseModel):
@@ -57,65 +62,63 @@ class StagedCredentialItem(BaseModel):
 
 
 class StageCredentialsResponse(BaseModel):
-    """Response containing staged credential handles."""
+    """Handles of the staged credentials."""
 
-    approval_id: str
-    session_id: str
     staged: list[StagedCredentialItem]
 
 
+class WipeCredentialsRequest(BaseModel):
+    """Staged credentials the user took back."""
+
+    chat_id: str = Field(..., min_length=1)
+    handle_ids: list[str] = Field(..., min_length=1)
+
+
+class WipeCredentialsResponse(BaseModel):
+    """How many of the requested handles were still staged."""
+
+    wiped: int
+
+
+def _session_key(chat_id: str) -> str:
+    from app.services.agent.params.workspace_resolve import chat_session_id
+
+    return chat_session_id(chat_id)
+
+
 @router.post(
-    "/{approval_id}/credentials",
+    "/credentials",
     response_model=StageCredentialsResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def stage_approval_credentials(
-    approval_id: str,
-    req: StageCredentialsRequest,
-) -> StageCredentialsResponse:
-    """Stage masked credentials into session memory for single-use tool execution.
+async def stage_command_credentials(req: StageCredentialsRequest) -> StageCredentialsResponse:
+    """Stage credentials in session memory for single-use delivery to one approved command.
 
-    Secrets are stored in-memory in EphemeralCredentialStore with zero disk I/O,
-    and bound to the approval's chat session.
+    Secrets live only in ``EphemeralCredentialStore`` (no disk I/O). The command digest is computed by the same
+    harness function the executor checks it with, so a command that is edited after staging gets nothing.
     """
-    record = await ApprovalRegistry.get_approval(approval_id)
-    if not record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Approval record '{approval_id}' not found.",
-        )
+    if not req.command.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Command must not be blank.")
 
-    session_id = record.chat_id or record.thread_id or f"approval_session_{approval_id}"
+    try:
+        keys = [validate_credential_key(item.key) for item in req.credentials]
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+    session_id = _session_key(req.chat_id)
+    digest = command_digest(req.command)
     store = get_ephemeral_credential_store()
 
     staged_items: list[StagedCredentialItem] = []
-
-    for item in req.credentials:
-        try:
-            valid_key = validate_credential_key(item.key)
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e),
-            ) from e
-
-        # Compute expected action digest if approval payload specifies command
-        expected_digest: str | None = None
-        cmd = record.payload.get("command") or record.payload.get("cmd")
-        if isinstance(cmd, str) and cmd.strip():
-            import hashlib
-
-            expected_digest = hashlib.sha256(cmd.strip().encode("utf-8")).hexdigest()
-
+    for key, item in zip(keys, req.credentials, strict=True):
         cred = store.store_credential(
             session_id=session_id,
-            key=valid_key,
+            key=key,
             secret=item.secret,
             ttl_seconds=item.ttl_seconds,
             single_use=item.single_use,
-            expected_action_digest=expected_digest,
+            expected_action_digest=digest,
         )
-
         staged_items.append(
             StagedCredentialItem(
                 handle_id=cred.handle_id,
@@ -126,15 +129,13 @@ async def stage_approval_credentials(
             )
         )
 
-    logger.info(
-        "[APPROVAL_CREDENTIALS] Staged %d credentials for approval %s (session %s)",
-        len(staged_items),
-        approval_id,
-        session_id,
-    )
+    logger.info("[APPROVAL_CREDENTIALS] Staged %d credentials for chat %s", len(staged_items), req.chat_id)
+    return StageCredentialsResponse(staged=staged_items)
 
-    return StageCredentialsResponse(
-        approval_id=approval_id,
-        session_id=session_id,
-        staged=staged_items,
-    )
+
+@router.post("/credentials/wipe", response_model=WipeCredentialsResponse)
+async def wipe_command_credentials(req: WipeCredentialsRequest) -> WipeCredentialsResponse:
+    """Zeroize staged credentials of a chat that the user revoked or whose approval was rejected or edited."""
+    wiped = get_ephemeral_credential_store().wipe_handles(_session_key(req.chat_id), req.handle_ids)
+    logger.info("[APPROVAL_CREDENTIALS] Wiped %d staged credentials for chat %s", wiped, req.chat_id)
+    return WipeCredentialsResponse(wiped=wiped)

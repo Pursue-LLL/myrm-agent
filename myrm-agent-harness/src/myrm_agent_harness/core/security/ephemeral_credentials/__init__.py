@@ -1,7 +1,7 @@
 """Ephemeral in-memory credentials subsystem with physical memory zeroization.
 
 [INPUT]
-- .types::EphemeralCredential, EphemeralCredentialSummary, validate_credential_key
+- .types::EphemeralCredential, EphemeralCredentialSummary, command_digest, validate_credential_key
 - .store::EphemeralCredentialStore, get_ephemeral_credential_store
 
 [OUTPUT]
@@ -18,6 +18,7 @@ from .store import EphemeralCredentialStore, get_ephemeral_credential_store
 from .types import (
     EphemeralCredential,
     EphemeralCredentialSummary,
+    command_digest,
     validate_credential_key,
 )
 
@@ -25,6 +26,7 @@ __all__ = [
     "EphemeralCredential",
     "EphemeralCredentialStore",
     "EphemeralCredentialSummary",
+    "command_digest",
     "get_ephemeral_credential_store",
     "validate_credential_key",
 ]

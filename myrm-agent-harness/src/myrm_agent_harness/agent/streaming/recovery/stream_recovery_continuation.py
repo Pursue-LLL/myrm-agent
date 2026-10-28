@@ -289,7 +289,7 @@ class StreamContinuationRecoveryMixin:
         )
 
         guard = get_loop_guard()
-        records = list(guard._window)
+        records = guard.recorded_calls()
 
         files: set[str] = set()
         verifications: list[dict[str, object]] = []

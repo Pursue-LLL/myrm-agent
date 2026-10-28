@@ -29,10 +29,13 @@ import HandoverModeView from './approval/HandoverModeView';
 import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
 import PathGrantToggle from './approval/PathGrantToggle';
+import OneTimeCredentialsSection from './approval/OneTimeCredentialsSection';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import { resolveBrowserSession } from '@/lib/approval/browserSession';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
+import { supportsOneTimeCredentials } from '@/lib/approval/oneTimeCredentials';
+import { useStagedCredentials } from '@/hooks/approval/useStagedCredentials';
 import {
   extractShellCommand,
   getShellEditInputEntries,
@@ -116,6 +119,12 @@ export default function SingleApprovalCard({
     () => (isShellApprovalTool(request.toolName) ? extractShellCommand(request.toolInput) : ''),
     [request.toolInput, request.toolName],
   );
+
+  const credentials = useStagedCredentials({
+    chatId: request.chatId,
+    command: shellCommand,
+    onExpired: () => toast.warning(t('maskedCredentials.toastExpired')),
+  });
 
   const editedShellCommand = useMemo(
     () => (isShellApprovalTool(request.toolName) ? extractShellCommand(editedArgs as Record<string, unknown>) : ''),
@@ -264,6 +273,10 @@ export default function SingleApprovalCard({
     const guidanceValue = guidance.trim() || undefined;
     if (hasChanges) {
       const editedArgsPayload = shellCommand ? mergeShellEditedArgs(request.toolInput, parsed) : parsed;
+      if (credentials.staged && extractShellCommand(editedArgsPayload).trim() !== shellCommand.trim()) {
+        credentials.discard();
+        toast.info(t('maskedCredentials.droppedOnEdit'));
+      }
       await onResolve(request.requestId, 'edit', {
         edited_args: editedArgsPayload,
         allow_always: allowAlwaysValue,
@@ -291,14 +304,15 @@ export default function SingleApprovalCard({
     request.toolInput,
     request.toolName,
     shellCommand,
+    credentials,
     onResolve,
     t,
   ]);
 
-  const handleConfirmReject = useCallback(
-    async () => await onResolve(request.requestId, 'reject', { feedback: feedback || undefined }),
-    [feedback, request.requestId, onResolve],
-  );
+  const handleConfirmReject = useCallback(async () => {
+    credentials.discard();
+    await onResolve(request.requestId, 'reject', { feedback: feedback || undefined });
+  }, [credentials, feedback, request.requestId, onResolve]);
 
   if (mode === 'editing') {
     return (
@@ -534,6 +548,15 @@ export default function SingleApprovalCard({
           directories={request.grantDirectories}
           checked={grantDirectoryAccess}
           onCheckedChange={setGrantDirectoryAccess}
+          disabled={isLoading || isExpired}
+        />
+      )}
+
+      {!request.smartDenied && shellCommand && supportsOneTimeCredentials(request.toolName) && (
+        <OneTimeCredentialsSection
+          staged={credentials.staged}
+          onStage={credentials.stage}
+          onRevoke={credentials.revoke}
           disabled={isLoading || isExpired}
         />
       )}

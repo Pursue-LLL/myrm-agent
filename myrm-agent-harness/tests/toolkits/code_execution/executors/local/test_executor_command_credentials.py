@@ -8,7 +8,6 @@ one reused shell and assert what each of them can read.
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import sys
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -16,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.core.context_vars import approval_session_var
-from myrm_agent_harness.core.security.ephemeral_credentials import get_ephemeral_credential_store
+from myrm_agent_harness.core.security.ephemeral_credentials import command_digest, get_ephemeral_credential_store
 from myrm_agent_harness.core.security.types import EphemeralUserCredential, user_credentials_ctx
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
@@ -161,12 +160,89 @@ class TestEphemeralCredentials:
             approval_session,
             "DB_PASSWORD",
             "one-time-pw",
-            expected_action_digest=hashlib.sha256(command.encode()).hexdigest(),
+            expected_action_digest=command_digest(command),
         )
 
         assert await _run(executor, tmp_path, command) == "one-time-pw"
         assert store.list_summaries(approval_session) == []
         assert await _run(executor, tmp_path, command) == "NONE"
+
+    async def test_credential_follows_the_approved_command_through_script_preparation(
+        self, executor: LocalExecutor, tmp_path: Path, approval_session: str
+    ) -> None:
+        """The agent issues one text, the bash tool prepares a longer script from it; the approval is about the first."""
+        issued = _read_command("DB_PASSWORD")
+        prepared = f"export CI=1\n\n{issued}"
+        get_ephemeral_credential_store().store_credential(
+            approval_session, "DB_PASSWORD", "one-time-pw", expected_action_digest=command_digest(issued)
+        )
+
+        result = await executor.execute_bash(
+            ExecutionContext(
+                code=prepared,
+                original_code=issued,
+                session_id="one-conversation",
+                work_dir=str(tmp_path),
+                workspace_root=str(tmp_path),
+                timeout=30,
+            )
+        )
+
+        assert result.success, result.error
+        assert result.stdout.strip() == "one-time-pw"
+
+    async def test_credential_follows_the_approved_command_when_workspace_paths_are_rewritten(
+        self, executor: LocalExecutor, tmp_path: Path, approval_session: str
+    ) -> None:
+        issued = "printenv DB_PASSWORD && echo /workspace/data.csv"
+        get_ephemeral_credential_store().store_credential(
+            approval_session, "DB_PASSWORD", "one-time-pw", expected_action_digest=command_digest(issued)
+        )
+
+        output = await _run(executor, tmp_path, issued)
+
+        credential_line, path_line = output.splitlines()
+        assert credential_line == "one-time-pw"
+        assert path_line.endswith("/data.csv")
+        assert not path_line.startswith("/workspace/")
+
+    async def test_stream_path_follows_the_approved_command_through_script_preparation(
+        self, executor: LocalExecutor, tmp_path: Path, approval_session: str
+    ) -> None:
+        issued = _read_command("DB_PASSWORD")
+        get_ephemeral_credential_store().store_credential(
+            approval_session, "DB_PASSWORD", "one-time-pw", expected_action_digest=command_digest(issued)
+        )
+
+        chunks = [
+            chunk
+            async for chunk in executor.execute_bash_stream(
+                ExecutionContext(
+                    code=f"export CI=1\n\n{issued}",
+                    original_code=issued,
+                    session_id="one-conversation",
+                    work_dir=str(tmp_path),
+                    workspace_root=str(tmp_path),
+                    timeout=30,
+                )
+            )
+        ]
+
+        assert "one-time-pw" in "".join(chunks)
+
+    async def test_credential_is_not_delivered_to_a_command_that_was_not_approved(
+        self, executor: LocalExecutor, tmp_path: Path, approval_session: str
+    ) -> None:
+        store = get_ephemeral_credential_store()
+        store.store_credential(
+            approval_session,
+            "DB_PASSWORD",
+            "one-time-pw",
+            expected_action_digest=command_digest(_read_command("DB_PASSWORD")),
+        )
+
+        assert await _run(executor, tmp_path, f"{_read_command('DB_PASSWORD')} # edited") == "NONE"
+        assert len(store.list_summaries(approval_session)) == 1
 
 
 class TestPerCommandEnv:

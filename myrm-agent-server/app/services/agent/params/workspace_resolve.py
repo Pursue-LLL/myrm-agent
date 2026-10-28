@@ -6,6 +6,7 @@
 - app.services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: agent profile SSOT resolver)
 
 [OUTPUT]
+- chat_session_id(): the session key of a chat's agent runs (pure)
 - default_workspaces_root(): directory holding every JIT chat workspace (pure)
 - default_chat_workspace_path(): where a chat's JIT workspace lives, without creating it (pure; rejects ids that cannot name a directory)
 - resolve_default_chat_workspace_dir(): JIT workspace path for a chat session
@@ -37,7 +38,8 @@ def _chat_workspace_service() -> WorkspaceService:
     return create_workspace_service(root_dir=Path(get_settings().database.harness_dir))
 
 
-def _chat_session_id(chat_id: str) -> str:
+def chat_session_id(chat_id: str) -> str:
+    """The session key of a chat's agent runs: it names the chat's workspace and scopes its approvals and credentials."""
     return f"chat_{chat_id}"
 
 
@@ -57,7 +59,7 @@ def default_chat_workspace_path(chat_id: str) -> Path:
     """
     from myrm_agent_harness.toolkits.code_execution.security import validate_path_component
 
-    session_id = _chat_session_id(chat_id)
+    session_id = chat_session_id(chat_id)
     validation = validate_path_component(session_id, "chat workspace id")
     if not validation.is_safe:
         raise ValueError(validation.reason)
@@ -78,7 +80,7 @@ async def resolve_default_chat_workspace_dir(
         from app.services.chat.chat_service import ChatService
 
         workspace_svc = _chat_workspace_service()
-        workspace = await workspace_svc.get_or_create(session_id=_chat_session_id(chat_id))
+        workspace = await workspace_svc.get_or_create(session_id=chat_session_id(chat_id))
         chat_workspace_dir = workspace_svc.get_workspace_absolute_path(workspace)
         if persist_workspace:
             await ChatService.update_chat_fields(chat_id, {"workspace_dir": chat_workspace_dir})
@@ -109,14 +111,7 @@ async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) ->
         if not profile:
             return
 
-        engine_params: dict[str, object] | None = None
-        if hasattr(profile, "engine_params") and isinstance(profile.engine_params, dict):
-            engine_params = profile.engine_params
-        elif hasattr(profile, "metadata") and isinstance(profile.metadata, dict):
-            raw_engine = profile.metadata.get("engine_params")
-            if isinstance(raw_engine, dict):
-                engine_params = raw_engine
-
+        engine_params = profile.engine_params
         if not engine_params:
             return
 

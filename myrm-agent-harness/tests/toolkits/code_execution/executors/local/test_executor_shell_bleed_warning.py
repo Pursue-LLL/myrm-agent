@@ -30,7 +30,7 @@ async def test_local_executor_bash_shell_bleed_warning():
     )
 
     with patch(
-        "myrm_agent_harness.toolkits.code_execution.executors.local.executor.logger.warning"
+        "myrm_agent_harness.toolkits.code_execution.executors.local._bash_exec.logger.warning"
     ) as mock_warning, patch.object(
         executor, "_get_or_create_bash_session", new_callable=AsyncMock
     ) as mock_get_session:

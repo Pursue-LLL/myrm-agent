@@ -199,7 +199,7 @@ class CompletionGuard(AgentMiddleware):
             get_loop_guard,
         )
 
-        window = [r for r in get_loop_guard()._window if not r.tool_name.startswith("_")]
+        window = [r for r in get_loop_guard().recorded_calls() if not r.tool_name.startswith("_")]
         records = record_evidence(window)
         latest_user_text = extract_latest_human_text(messages)
         content_str = last_ai_msg.content if isinstance(last_ai_msg.content, str) else str(last_ai_msg.content or "")
