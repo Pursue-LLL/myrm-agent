@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 import os
 
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
+
 from .base import FileOperationObserver
 
 logger = logging.getLogger(__name__)
@@ -29,9 +31,7 @@ def _resolve_actual_workspace_path(path: str) -> str:
         from pathlib import Path as _Path
 
         wp = _Path(executor.workspace_path).resolve()
-        clean = path
-        if clean.startswith("/workspace"):
-            clean = clean[len("/workspace") :].lstrip("/") or "."
+        clean = WorkspacePathResolver.container_relative(path) or path
         if not _Path(clean).is_absolute():
             actual_path = str((wp / clean).resolve())
     return actual_path

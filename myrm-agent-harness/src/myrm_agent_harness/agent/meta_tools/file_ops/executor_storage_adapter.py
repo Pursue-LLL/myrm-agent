@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 from myrm_agent_harness.toolkits.storage.base import FileInfo, StorageProvider
 
 if TYPE_CHECKING:
@@ -40,9 +41,7 @@ class ExecutorStorageAdapter(StorageProvider):
         from pathlib import Path as _Path
 
         wp = _Path(self._executor.workspace_path).resolve()
-        clean = path
-        if clean.startswith("/workspace"):
-            clean = clean[len("/workspace") :].lstrip("/") or "."
+        clean = WorkspacePathResolver.container_relative(path) or path
         if _Path(clean).is_absolute():
             return str(_Path(clean).resolve())
         return str((wp / clean).resolve())

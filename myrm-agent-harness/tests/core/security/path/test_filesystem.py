@@ -18,6 +18,7 @@ from myrm_agent_harness.core.security.path import (
     is_dangerous_path,
     safe_join_path,
 )
+from myrm_agent_harness.core.security.path import filesystem as filesystem_module
 
 
 class TestCoerceFilesystemPath:
@@ -253,20 +254,56 @@ class TestBlockedDevicePath:
         assert is_blocked_device_path("/dev/zero") is True
         assert is_blocked_device_path("/dev/null") is True
         assert is_blocked_device_path("/dev/urandom") is True
-        assert is_blocked_device_path("dev/random") is True
+        assert is_blocked_device_path("/dev") is True
         assert is_blocked_device_path("/proc/kcore") is True
         assert is_blocked_device_path("/sys/kernel") is True
 
-    def test_windows_device_names(self) -> None:
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "dev/notes.txt",
+            "dev/random",
+            "proc/log.md",
+            "sys/config.yaml",
+            "docs/aux.md",
+            "src/utils/con.txt",
+            "nul.json",
+        ],
+    )
+    def test_relative_project_paths_are_not_devices(self, path: str) -> None:
+        # Workspace-relative names that merely look like a device are ordinary project files.
+        assert is_blocked_device_path(path) is False
+
+    @pytest.mark.skipif(not Path("/dev/random").exists(), reason="needs a POSIX /dev")
+    def test_relative_path_that_really_reaches_dev_is_blocked(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir("/")
+        assert is_blocked_device_path("dev/random") is True
+
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs POSIX FIFOs")
+    def test_fifo_is_blocked_by_stat_mode(self, tmp_path: Path) -> None:
+        fifo = tmp_path / "pipe"
+        os.mkfifo(fifo)
+        assert is_blocked_device_path(str(fifo)) is True
+
+    @pytest.mark.skipif(not Path("/dev/null").exists(), reason="needs a POSIX /dev")
+    def test_symlink_into_dev_is_blocked_by_realpath(self, tmp_path: Path) -> None:
+        link = tmp_path / "innocent.txt"
+        link.symlink_to("/dev/null")
+        assert is_blocked_device_path(str(link)) is True
+
+    def test_windows_device_names(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(filesystem_module, "_IS_WINDOWS", True)
         assert is_blocked_device_path("CON") is True
         assert is_blocked_device_path("con.txt") is True
         assert is_blocked_device_path("NUL") is True
         assert is_blocked_device_path("nul.json") is True
         assert is_blocked_device_path("aux.py") is True
         assert is_blocked_device_path("COM1") is True
+        assert is_blocked_device_path("src/utils/con.txt") is True
+
+    def test_windows_device_namespaces_are_blocked_everywhere(self) -> None:
         assert is_blocked_device_path(r"\\.\COM1") is True
         assert is_blocked_device_path(r"//./NUL") is True
-        assert is_blocked_device_path("src/utils/con.txt") is True
 
     def test_safe_regular_paths_not_blocked(self) -> None:
         assert is_blocked_device_path("src/index.ts") is False

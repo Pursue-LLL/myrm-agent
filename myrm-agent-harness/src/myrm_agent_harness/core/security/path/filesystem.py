@@ -10,7 +10,7 @@ only needs to resolve a path safely does not pull protection policy into scope.
 
 [OUTPUT]
 - DANGEROUS_PATHS: frozenset[str] — normalised dangerous root paths
-- BLOCKED_DEVICE_NAMES: frozenset[str] — Windows reserved device names
+- BLOCKED_DEVICE_NAMES: frozenset[str] — Windows reserved device names (enforced on Windows only)
 - MAX_PATH_LENGTH: int — maximum allowed path length (4096 bytes)
 - is_content_not_path(value) -> bool — disambiguates multiline/oversized text from filesystem path
 - coerce_filesystem_path(value) -> Path | None — runtime path coercion; rejects unittest.mock objects and text content
@@ -146,22 +146,15 @@ _WINDOWS_DEVICE_NAMESPACE_PREFIXES: tuple[str, ...] = (
     "//?/",
 )
 
-_POSIX_SPECIAL_FILESYSTEM_PREFIXES: tuple[str, ...] = (
-    "/dev/",
-    "dev/",
-    "/proc/",
-    "proc/",
-    "/sys/",
-    "sys/",
-)
-
+# Absolute spellings only. A workspace-relative ``dev/notes.txt`` is an ordinary project file; a relative path that
+# really reaches a special filesystem (the process runs in ``/``, or a symlink points into it) is caught by the
+# ``lstat`` and ``realpath`` checks in ``is_blocked_device_path``.
 _POSIX_SPECIAL_FILESYSTEM_ROOTS: tuple[str, ...] = ("/dev", "/proc", "/sys")
 
-# Bare spellings of the same roots (no trailing separator), both absolute and
-# workspace-relative, so `dev/urandom` is blocked alongside `/dev/urandom`.
-_POSIX_SPECIAL_FILESYSTEM_BARE_NAMES: frozenset[str] = frozenset(
-    {root for root in _POSIX_SPECIAL_FILESYSTEM_ROOTS} | {root.lstrip("/") for root in _POSIX_SPECIAL_FILESYSTEM_ROOTS}
-)
+_POSIX_SPECIAL_FILESYSTEM_PREFIXES: tuple[str, ...] = tuple(f"{root}/" for root in _POSIX_SPECIAL_FILESYSTEM_ROOTS)
+
+# ``CON``/``AUX``/``NUL``... are reserved only by Windows; elsewhere ``docs/aux.md`` is a normal file.
+_IS_WINDOWS = os.name == "nt"
 
 # ---------------------------------------------------------------------------
 # Path boundary and safe join checks
@@ -327,9 +320,11 @@ def covers_dangerous_path(path: str) -> bool:
 def is_blocked_device_path(path: str) -> bool:
     """Check if *path* refers to a blocked character/block/special or Windows device.
 
-    Performs pre-IO static inspection of path patterns (Windows device names,
-    POSIX special filesystems) as well as filesystem stat mode checks when the
-    path exists. Immune to trailing spaces, slashes, or alternate casings.
+    Performs pre-IO static inspection of path patterns (Windows device names on
+    Windows, absolute POSIX special filesystems) as well as filesystem stat mode
+    checks and a realpath check when the path exists. Relative names such as
+    ``dev/notes.txt`` or ``docs/aux.md`` are ordinary files and pass. Immune to
+    trailing spaces, slashes, or alternate casings.
     """
     if not path or not path.strip() or is_content_not_path(path):
         return False
@@ -341,18 +336,18 @@ def is_blocked_device_path(path: str) -> bool:
     if cleaned.startswith(_WINDOWS_DEVICE_NAMESPACE_PREFIXES):
         return True
 
-    # 2. POSIX special system device prefixes (/dev/, /proc/, /sys/, dev/, proc/, sys/)
-    if norm_slash.startswith(_POSIX_SPECIAL_FILESYSTEM_PREFIXES):
-        return True
-    if norm_slash.rstrip("/") in _POSIX_SPECIAL_FILESYSTEM_BARE_NAMES:
+    # 2. Absolute POSIX special filesystems (/dev, /proc, /sys)
+    if (
+        norm_slash.startswith(_POSIX_SPECIAL_FILESYSTEM_PREFIXES)
+        or norm_slash.rstrip("/") in _POSIX_SPECIAL_FILESYSTEM_ROOTS
+    ):
         return True
 
     # 3. Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9) with or without extensions
-    segments = [seg for seg in norm_slash.split("/") if seg]
-    for seg in segments:
-        base_name = seg.split(".")[0].upper()
-        if base_name in BLOCKED_DEVICE_NAMES:
-            return True
+    if _IS_WINDOWS:
+        for seg in norm_slash.split("/"):
+            if seg and seg.split(".")[0].upper() in BLOCKED_DEVICE_NAMES:
+                return True
 
     # 4. OS filesystem stat mode verification (if path exists on disk, check non-regular special file types)
     try:

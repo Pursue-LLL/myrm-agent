@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.core.security.path import filesystem as filesystem_module
 from myrm_agent_harness.core.security.types import AccessRoot
 from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate import (
     MountMode,
@@ -65,18 +66,21 @@ class TestMountValidationRules:
 
     def test_blocked_device_paths(self) -> None:
         devices = [
-            "CON",
-            "NUL",
-            "COM1",
             "\\\\.\\PhysicalDrive0",
             "/dev/sda",
-            "dev/urandom",
         ]
         for dev in devices:
             spec = MountSpec(source_path=dev)
             result = validate_mount_spec(spec)
             assert result.is_valid is False
             assert result.violation_type == MountViolationType.BLOCKED_DEVICE
+
+    @pytest.mark.parametrize("name", ["CON", "NUL", "COM1"])
+    def test_windows_reserved_names_are_blocked_on_windows(self, name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(filesystem_module, "_IS_WINDOWS", True)
+        result = validate_mount_spec(MountSpec(source_path=name))
+        assert result.is_valid is False
+        assert result.violation_type == MountViolationType.BLOCKED_DEVICE
 
     def test_dangerous_paths_rejection(self) -> None:
         dangerous = ["/etc", "/etc/passwd", "~/.ssh", "~/.ssh/id_rsa", "~/.aws"]
@@ -303,7 +307,7 @@ class TestBatchMountSanitizationAndPolicyBridge:
                 MountSpec(source_path=sub1, mode=MountMode.RW),
                 MountSpec(source_path=sub2, mode=MountMode.RO),
                 MountSpec(source_path="/etc/shadow"),  # dangerous -> rejected
-                MountSpec(source_path="CON"),  # device -> rejected
+                MountSpec(source_path="/dev/sda"),  # device -> rejected
                 MountSpec(source_path=sub1, mode=MountMode.RW),  # duplicate
             ]
 

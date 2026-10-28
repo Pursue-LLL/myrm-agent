@@ -161,7 +161,7 @@ def _resolve_referenced_python_path(script_ref: str, workspace_root: str | None)
     if not cleaned.endswith(".py"):
         return None
 
-    if cleaned.startswith("/workspace"):
+    if WorkspacePathResolver.is_container_path(cleaned):
         local_path = WorkspacePathResolver.to_local_path(cleaned, workspace_root)
         return local_path.resolve() if local_path is not None else None
 

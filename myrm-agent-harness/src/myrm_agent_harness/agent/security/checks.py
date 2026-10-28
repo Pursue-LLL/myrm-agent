@@ -20,6 +20,7 @@ from myrm_agent_harness.agent.security.path_security import (
     is_within_boundary,
 )
 from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
 # ---------------------------------------------------------------------------
 # Path Policy — forbidden/access path zones for file operations (Layer 2.5)
@@ -52,6 +53,10 @@ def check_path_policy(
     Returns (ASK, reason) if outside allowed zones, requiring user approval.
     Relative paths are resolved against workspace_root when available.
     """
+    # The executor reads ``/workspace/x`` as ``<workspace>/x``; judge the same file the tool will touch.
+    container_relative = WorkspacePathResolver.container_relative(raw_path) if workspace_root else None
+    if container_relative is not None:
+        raw_path = container_relative
     if workspace_root and not os.path.isabs(os.path.expanduser(raw_path)):
         normalized = _normalize_path(os.path.join(workspace_root, raw_path))
     else:

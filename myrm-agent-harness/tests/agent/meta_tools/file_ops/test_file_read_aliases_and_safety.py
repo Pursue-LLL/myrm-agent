@@ -14,6 +14,7 @@ from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.file_utils import parse_path_with_range
 from myrm_agent_harness.core.context_vars import workspace_root_var
+from myrm_agent_harness.core.security.path import filesystem as filesystem_module
 from myrm_agent_harness.utils.errors import ToolError
 
 
@@ -96,7 +97,12 @@ class TestFileReadPreIODevicesAndUnicode:
         with pytest.raises(ToolError, match="Access to device path is blocked"):
             await tool.ainvoke({"paths": ["/dev/zero"]}, config=config)
 
-        # Windows device
+    @pytest.mark.asyncio
+    async def test_windows_reserved_names_are_blocked_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(filesystem_module, "_IS_WINDOWS", True)
+        tool = create_file_read_tool()
+        config = {"configurable": {"context": {}}}
+
         with pytest.raises(ToolError, match="Access to device path is blocked"):
             await tool.ainvoke({"paths": ["CON"]}, config=config)
 

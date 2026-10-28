@@ -22,6 +22,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
+
 from .base import FileOperationObserver
 
 logger = logging.getLogger(__name__)
@@ -213,9 +215,7 @@ class FormatObserver(FileOperationObserver):
             from pathlib import Path as _Path
 
             wp = _Path(executor.workspace_path).resolve()
-            clean = path
-            if clean.startswith("/workspace"):
-                clean = clean[len("/workspace") :].lstrip("/") or "."
+            clean = WorkspacePathResolver.container_relative(path) or path
             if not _Path(clean).is_absolute():
                 actual_path = str((wp / clean).resolve())
                 cwd = str(wp)

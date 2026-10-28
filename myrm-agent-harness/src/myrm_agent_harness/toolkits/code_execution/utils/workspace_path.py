@@ -29,11 +29,13 @@ from myrm_agent_harness.core.context_vars import workspace_root_var
 
 logger = logging.getLogger(__name__)
 
+_CONTAINER_ROOT = "/workspace"
+
 
 class WorkspaceResolutionError(Exception):
     """Raised when workspace root cannot be resolved."""
 
-    def __init__(self, message: str, details: dict, suggestions: list[str]):
+    def __init__(self, message: str, details: dict[str, object], suggestions: list[str]):
         super().__init__(message)
         self.details = details
         self.suggestions = suggestions
@@ -184,7 +186,7 @@ class WorkspacePathResolver:
         return None
 
     @staticmethod
-    def _generate_diagnostics() -> dict:
+    def _generate_diagnostics() -> dict[str, object]:
         """Generate detailed diagnostic information for troubleshooting."""
         cwd = Path.cwd()
         markers = [".git", "pyproject.toml", "package.json", ".myrm"]
@@ -297,25 +299,33 @@ class WorkspacePathResolver:
 
         workspace_root = Path(workspace_root)
 
-        if container_path == "/workspace":
-            return workspace_root
+        relative_path = WorkspacePathResolver.container_relative(container_path)
+        if relative_path is None:
+            return Path(container_path)
+        resolved_path = workspace_root / relative_path
+        logger.info(f" Work dir resolved: {container_path} -> {resolved_path}")
+        return resolved_path
 
-        if container_path.startswith("/workspace/"):
-            relative_path = container_path[len("/workspace/") :]
-            resolved_path = workspace_root / relative_path
-            logger.info(f" Work dir resolved: {container_path} -> {resolved_path}")
-            return resolved_path
+    @staticmethod
+    def container_relative(path: str) -> str | None:
+        """Return the part of *path* below ``/workspace`` (``.`` for the root itself), or None.
 
-        return Path(container_path)
+        Matches whole path segments, so ``/workspace2/x`` is not a container path.
+        """
+        if path == _CONTAINER_ROOT:
+            return "."
+        if path.startswith(f"{_CONTAINER_ROOT}/"):
+            return path[len(_CONTAINER_ROOT) + 1 :].lstrip("/") or "."
+        return None
 
     @staticmethod
     def is_container_path(path: str) -> bool:
-        """Check if a path is a container abstract path (/workspace prefix).
+        """Check if a path is a container abstract path (``/workspace`` or below).
 
         Args:
             path: Path string.
 
         Returns:
-            True if the path starts with /workspace.
+            True if the path is ``/workspace`` or lies below it.
         """
-        return path == "/workspace" or path.startswith("/workspace/")
+        return WorkspacePathResolver.container_relative(path) is not None

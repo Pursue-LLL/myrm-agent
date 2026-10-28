@@ -45,6 +45,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.shell_file_transfer im
     read_bytes_via_shell,
     write_bytes_via_shell,
 )
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
 logger = logging.getLogger(__name__)
 
@@ -261,10 +262,7 @@ class CodeExecutor(ABC):
         """Resolve a relative path to absolute, with path traversal detection."""
         wp = Path(self.workspace_path).resolve()
 
-        clean = relative_path
-        if clean.startswith("/workspace"):
-            clean = clean[len("/workspace") :].lstrip("/")
-            clean = clean or "."
+        clean = WorkspacePathResolver.container_relative(relative_path) or relative_path
 
         if Path(clean).is_absolute():
             resolved = Path(clean).resolve()
