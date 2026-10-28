@@ -50,11 +50,12 @@ from app.channels.types import (
 
 logger = logging.getLogger(__name__)
 
-# What a platform shows when it rejects the configured status glyph. A failure never falls back
-# to a success glyph; when no candidate is accepted the status reaction is skipped.
+# What a platform shows when it rejects the configured status glyph. A failure never falls back to a
+# success glyph or to a thumbs-down (a verdict on the user's message, not on the turn); when no
+# candidate is accepted the status reaction is skipped.
 _PROCESSING_FALLBACKS = ("\U0001f440", "\U0001f914")
 _SUCCESS_FALLBACKS = ("\u2705", "\U0001f44d", "\U0001f389")
-_FAILURE_FALLBACKS = ("\u274c", "\U0001f44e", "\U0001f622")
+_FAILURE_FALLBACKS = ("\u274c", "\U0001f622")
 
 # A status reaction that keeps failing (missing permission, unsupported glyph) is reported once per
 # window per channel and error type; the turn never waits on or sees it.

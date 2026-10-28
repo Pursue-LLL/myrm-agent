@@ -1,7 +1,7 @@
 """Status reactions are sent in the glyph a platform accepts, or not at all.
 
-Each platform accepts its own reaction vocabulary (Telegram a fixed list, Teams six types,
-iMessage six tapbacks). A glyph outside it is rejected or, worse, silently turned into another
+Each platform accepts its own reaction vocabulary (Telegram a fixed list, Teams and iMessage
+fixed reaction sets). A glyph outside it is rejected or, worse, silently turned into another
 one, so the funnel walks a per-role candidate chain and sends the first accepted glyph.
 """
 
@@ -95,10 +95,10 @@ class TestCompletionReaction:
         assert _sent(react) == ["", THUMBS_UP]
 
     @pytest.mark.asyncio
-    async def test_failure_falls_back_to_a_thumbs_down_when_the_cross_is_rejected(self) -> None:
+    async def test_a_failure_is_never_sent_as_a_thumbs_down(self) -> None:
         fx, react = _effects(frozenset({THUMBS_UP, THUMBS_DOWN}))
         await fx.completion_reaction("c", "chat", "m1", success=False, success_emoji=CHECK, failure_emoji=CROSS)
-        assert _sent(react) == [THUMBS_DOWN]
+        react.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_a_failure_is_never_sent_as_a_success_glyph(self) -> None:
@@ -119,7 +119,7 @@ class TestCompletionReaction:
         assert _sent(react) == [PARTY]
 
     @pytest.mark.asyncio
-    async def test_crying_face_is_the_last_failure_candidate(self) -> None:
-        fx, react = _effects(frozenset({CRYING}))
+    async def test_failure_falls_back_to_the_crying_face_when_the_cross_is_rejected(self) -> None:
+        fx, react = _effects(frozenset({THUMBS_DOWN, CRYING}))
         await fx.completion_reaction("c", "chat", "m1", success=False, success_emoji=CHECK, failure_emoji=CROSS)
         assert _sent(react) == [CRYING]

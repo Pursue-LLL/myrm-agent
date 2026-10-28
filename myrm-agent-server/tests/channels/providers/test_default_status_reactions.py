@@ -1,7 +1,7 @@
 """What each reaction-capable channel shows for the router's default status reactions.
 
-A platform with its own reaction vocabulary shows the nearest accepted glyph (or nothing for the
-processing state), never a rejected glyph and never a success glyph for a failure.
+A platform with its own reaction vocabulary shows the nearest accepted glyph (or nothing when it has
+none), never a rejected glyph and never a success glyph or a thumbs-down for a failure.
 """
 
 from __future__ import annotations
@@ -18,14 +18,13 @@ EYES = "\U0001f440"
 CHECK = "\u2705"
 CROSS = "\u274c"
 THUMBS_UP = "\U0001f44d"
-THUMBS_DOWN = "\U0001f44e"
 CRYING = "\U0001f622"
 
 # (processing, success, failure); None = the platform has no faithful glyph, so nothing is shown.
-EXPECTED: dict[str, tuple[str | None, str, str]] = {
-    "telegram": (EYES, THUMBS_UP, THUMBS_DOWN),
+EXPECTED: dict[str, tuple[str | None, str, str | None]] = {
+    "telegram": (EYES, THUMBS_UP, CRYING),
     "teams": (EYES, CHECK, CROSS),
-    "imessage": (None, THUMBS_UP, THUMBS_DOWN),
+    "imessage": (None, THUMBS_UP, None),
     "feishu": (EYES, CHECK, CROSS),
     "slack": (EYES, CHECK, CROSS),
     "mattermost": (EYES, CHECK, CROSS),
