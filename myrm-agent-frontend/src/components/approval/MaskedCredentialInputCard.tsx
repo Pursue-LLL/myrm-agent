@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - @/hooks/approval/useStagedCredentials::StagedCredentials (POS: 审批卡上已暂存凭据的状态)
+ * - @/lib/approval/oneTimeCredentials::BLOCKED_CREDENTIAL_KEYS, OneTimeCredentialError, CredentialToStage (POS: 变量名预检、服务端拒绝的状态、暂存请求形状)
  * - next-intl::useTranslations (POS: toolApproval.maskedCredentials 文案)
  *
  * [OUTPUT]
@@ -124,12 +125,11 @@ export function MaskedCredentialInputCard({
     }
   };
 
-  const errorMessage = (err: unknown): string => {
-    if (err instanceof OneTimeCredentialError) {
-      return err.detail ?? t('errorServerStatus', { status: err.status });
-    }
-    return err instanceof Error ? err.message : t('errorUnknown');
-  };
+  // Server and network wording never reaches the user: a refused request means "check the input", anything else "retry".
+  const stageFailureReason = (err: unknown): string =>
+    err instanceof OneTimeCredentialError && (err.status === 400 || err.status === 422)
+      ? t('errorRejected')
+      : t('errorUnavailable');
 
   const handleStageCredentials = async () => {
     const filled = drafts.filter((d) => d.key.trim() && d.secret);
@@ -154,7 +154,7 @@ export function MaskedCredentialInputCard({
       setDrafts([newDraft()]);
       toast.success(t('toastStaged'));
     } catch (err: unknown) {
-      toast.error(t('toastStageFailed', { message: errorMessage(err) }));
+      toast.error(t('toastStageFailed', { message: stageFailureReason(err) }));
     } finally {
       setIsStaging(false);
     }
@@ -165,7 +165,7 @@ export function MaskedCredentialInputCard({
       await onRevoke();
       toast.info(t('toastCleared'));
     } catch (err: unknown) {
-      toast.error(t('toastWipeFailed', { message: errorMessage(err) }));
+      toast.error(t('toastWipeFailed'));
     }
   };
 

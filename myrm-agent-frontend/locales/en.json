@@ -9956,16 +9956,16 @@
       "keyErrorBlocked": "\"{key}\" is reserved by the system and cannot be used",
       "toastNoCredential": "Enter at least one variable name and value.",
       "toastStaged": "Ready. It will be used when you approve this command.",
-      "toastStageFailed": "Could not prepare it: {message}",
+      "toastStageFailed": "Could not prepare it. {message}",
       "toastCleared": "Removed.",
-      "toastWipeFailed": "Could not remove it: {message}",
+      "toastWipeFailed": "Could not remove it. It stops working on its own when its validity runs out.",
       "toastExpired": "The password or key expired before it was used. Enter it again.",
       "expiresIn": "Expires in {seconds}s",
-      "open": "This command needs a password or key",
+      "open": "Add a password or key for this command",
       "readyCount": "Password or key ready ({count})",
       "droppedOnEdit": "The password or key was removed because the command changed. Enter it again if it is still needed.",
-      "errorUnknown": "Unknown error",
-      "errorServerStatus": "Server responded with {status}"
+      "errorRejected": "Check the variable name and value, then try again.",
+      "errorUnavailable": "Please try again in a moment."
     }
   },
   "notifications": {

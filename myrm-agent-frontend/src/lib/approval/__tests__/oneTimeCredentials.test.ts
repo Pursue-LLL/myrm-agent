@@ -80,25 +80,19 @@ describe('stageOneTimeCredentials', () => {
     });
   });
 
-  it('throws the server explanation when it gives one', async () => {
-    vi.stubGlobal('fetch', respond({ detail: 'Blocked credential key' }, { ok: false, status: 400 }));
+  it.each([
+    [400, 'Blocked credential key'],
+    [422, [{ msg: 'bad' }]],
+  ])('throws an error that carries only the status %i, never the server wording', async (status, detail) => {
+    vi.stubGlobal('fetch', respond({ detail }, { ok: false, status }));
 
     const error = await stageOneTimeCredentials('chat-1', 'x', [{ key: 'PATH', secret: 's', ttlSeconds: 60 }]).catch(
       (e: unknown) => e,
     );
 
     expect(error).toBeInstanceOf(OneTimeCredentialError);
-    expect(error).toMatchObject({ status: 400, detail: 'Blocked credential key' });
-  });
-
-  it('keeps only the status when the explanation is not text (validation errors are lists)', async () => {
-    vi.stubGlobal('fetch', respond({ detail: [{ msg: 'bad' }] }, { ok: false, status: 422 }));
-
-    const error = await stageOneTimeCredentials('chat-1', 'x', [{ key: 'K', secret: 's', ttlSeconds: 60 }]).catch(
-      (e: unknown) => e,
-    );
-
-    expect(error).toMatchObject({ status: 422, detail: undefined });
+    expect(error).toMatchObject({ status, message: `HTTP ${status}` });
+    expect(JSON.stringify(error)).not.toContain('Blocked credential key');
   });
 });
 

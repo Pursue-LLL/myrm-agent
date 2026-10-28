@@ -9956,16 +9956,16 @@
       "keyErrorBlocked": "\"{key}\"은(는) 시스템 예약 이름이라 사용할 수 없습니다",
       "toastNoCredential": "변수 이름과 값을 하나 이상 입력해 주세요.",
       "toastStaged": "준비되었습니다. 이 명령을 승인하면 사용됩니다.",
-      "toastStageFailed": "준비하지 못했습니다: {message}",
+      "toastStageFailed": "준비하지 못했습니다. {message}",
       "toastCleared": "제거했습니다.",
-      "toastWipeFailed": "제거하지 못했습니다: {message}",
+      "toastWipeFailed": "제거하지 못했습니다. 유효 시간이 지나면 자동으로 사용할 수 없게 됩니다.",
       "toastExpired": "사용하기 전에 비밀번호 또는 키가 만료되었습니다. 다시 입력해 주세요.",
       "expiresIn": "{seconds}초 후 만료",
-      "open": "이 명령에 비밀번호 또는 키가 필요합니다",
+      "open": "이 명령에 쓸 비밀번호 또는 키 추가",
       "readyCount": "비밀번호 또는 키 준비됨 ({count})",
       "droppedOnEdit": "명령이 변경되어 비밀번호 또는 키를 제거했습니다. 여전히 필요하면 다시 입력해 주세요.",
-      "errorUnknown": "알 수 없는 오류",
-      "errorServerStatus": "서버가 {status} 응답을 반환했습니다"
+      "errorRejected": "변수 이름과 값을 확인한 뒤 다시 시도해 주세요.",
+      "errorUnavailable": "잠시 후 다시 시도해 주세요."
     }
   },
   "notifications": {

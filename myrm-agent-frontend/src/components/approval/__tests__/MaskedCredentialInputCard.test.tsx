@@ -138,40 +138,43 @@ describe('MaskedCredentialInputCard', () => {
     await waitFor(() => expect(toastMock.info).toHaveBeenCalledWith('toastCleared'));
   });
 
-  it('tells the user when the credentials could not be destroyed', async () => {
+  it('tells the user when the credentials could not be destroyed, without echoing the failure', async () => {
     const { onRevoke } = renderCard({ staged: STAGED });
-    onRevoke.mockRejectedValue(new Error('unreachable'));
+    onRevoke.mockRejectedValue(new TypeError('Failed to fetch'));
 
     fireEvent.click(screen.getByText('revoke'));
 
     await waitFor(() => {
-      expect(toastMock.error).toHaveBeenCalledWith('toastWipeFailed:{"message":"unreachable"}');
+      expect(toastMock.error).toHaveBeenCalledWith('toastWipeFailed');
     });
     expect(toastMock.info).not.toHaveBeenCalled();
   });
 
-  it('surfaces the server explanation through the translated failure toast and keeps the form', async () => {
+  it('words a refused request as "check the input" and keeps the form', async () => {
     const { onStage } = renderCard();
-    onStage.mockRejectedValue(new OneTimeCredentialError(400, 'Blocked credential key'));
+    onStage.mockRejectedValue(new OneTimeCredentialError(400));
 
     fill('TEST_API_KEY', 'secret');
     fireEvent.click(screen.getByText('stage'));
 
     await waitFor(() => {
-      expect(toastMock.error).toHaveBeenCalledWith('toastStageFailed:{"message":"Blocked credential key"}');
+      expect(toastMock.error).toHaveBeenCalledWith('toastStageFailed:{"message":"errorRejected"}');
     });
     expect(screen.getByPlaceholderText('API_SECRET_KEY')).toBeDefined();
   });
 
-  it('falls back to the translated status message when the server gives no explanation', async () => {
+  it.each([
+    ['a server error', new OneTimeCredentialError(503)],
+    ['a network failure', new TypeError('Failed to fetch')],
+  ])('words %s as "try again" without echoing it', async (_label, failure) => {
     const { onStage } = renderCard();
-    onStage.mockRejectedValue(new OneTimeCredentialError(503));
+    onStage.mockRejectedValue(failure);
 
     fill('TEST_API_KEY', 'secret');
     fireEvent.click(screen.getByText('stage'));
 
     await waitFor(() => {
-      expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('errorServerStatus'));
+      expect(toastMock.error).toHaveBeenCalledWith('toastStageFailed:{"message":"errorUnavailable"}');
     });
   });
 

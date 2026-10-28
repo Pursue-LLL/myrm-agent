@@ -241,7 +241,7 @@ _GUARDS: Final[Mapping[str, _Guard]] = MappingProxyType(
 # Variables a command may set for itself without losing its read-only standing: they only change the language,
 # the width or the colour of what a tool prints. Any other variable can make a read-only command run a program
 # (``GIT_EXTERNAL_DIFF``, ``GIT_SSH_COMMAND``, ``LD_PRELOAD``, ``PATH``, ``LESSOPEN``, a pager), so a command that sets
-# one is no longer vouched for.
+# one is not vouched for.
 _SAFE_PREFIX_ENV: Final[frozenset[str]] = frozenset(
     {
         "LANG",

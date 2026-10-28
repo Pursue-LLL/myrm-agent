@@ -1,7 +1,7 @@
 """Spend Governor and Atomic Lease Controller for Agent Commerce.
 
 [INPUT]
-- .spend_contracts::SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, is_spend_voucher (POS: 预算保险箱数据模型与契约)
+- .spend_contracts::SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, SpendMetrics, is_spend_voucher (POS: 预算保险箱数据模型与契约)
 - base64::base64 (POS: Python 标准 base64 编解码库)
 - fnmatch::fnmatch (POS: 域名通配符模式匹配库)
 - hashlib, hmac (POS: Python 加密散列与签名标准库)
@@ -10,10 +10,10 @@
 
 [OUTPUT]
 - SpendGovernor: 纯状态机预算保险箱控制器
-- SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, is_spend_voucher: 重新导出契约
+- SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, SpendMetrics, is_spend_voucher: 重新导出契约
 
 [POS]
-Harness core security egress layer. Enforces pure deterministic micro-spending limits,
+Harness core spend layer. Enforces pure deterministic micro-spending limits,
 merchant domain whitelisting, atomic lease reservations, and zero-float USD Cents accounting.
 """
 
@@ -38,6 +38,7 @@ from .spend_contracts import (
     SpendGovernorConfig,
     SpendLease,
     SpendLeaseResult,
+    SpendMetrics,
     is_spend_voucher,
 )
 
@@ -52,6 +53,7 @@ __all__ = [
     "SpendGovernorConfig",
     "SpendLease",
     "SpendLeaseResult",
+    "SpendMetrics",
     "is_spend_voucher",
 ]
 
@@ -64,7 +66,7 @@ class SpendGovernor:
     2. Atomic reservation: concurrency cannot breach the daily or per-action cap.
     3. Merchant domain allowlist: strict domain and wildcard glob verification.
     4. Auto-expiry release: uncommitted leases automatically expire and release budget.
-    5. Process-level tamper-evident HMAC vouchers for downstream egress proxies.
+    5. Process-level tamper-evident HMAC vouchers, checked by ``verify_spend_voucher``.
     """
 
     def __init__(
@@ -362,7 +364,7 @@ class SpendGovernor:
             logger.debug("Failed decoding spend voucher %s", voucher[:20])
         return None
 
-    def get_metrics(self, now: float | None = None) -> dict[str, object]:
+    def get_metrics(self, now: float | None = None) -> SpendMetrics:
         """Produce real-time metrics for observability and UI state."""
         current_time = time.time() if now is None else now
         self._roll_day_if_needed(current_time)

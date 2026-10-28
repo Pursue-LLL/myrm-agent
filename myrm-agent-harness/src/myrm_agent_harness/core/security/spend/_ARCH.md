@@ -7,8 +7,8 @@ Spend governance for agent commerce: a pure, deterministic budget state machine 
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `__init__.py` | Package | Public aggregation facade exposing `SpendGovernor`, `SpendGovernorConfig`, `SpendLease`, `SpendLeaseResult`, `SpendCommitResult` and the spend-voucher helpers. | — |
-| `spend_contracts.py` | Core | Immutable data models and token primitives (`SpendGovernorConfig`, `SpendLease`, `SpendLeaseResult`, `SpendCommitResult`, `is_spend_voucher`) for zero-float commerce accounting. | ✅ |
+| `__init__.py` | Package | Public aggregation facade exposing `SpendGovernor`, `SpendGovernorConfig`, `SpendLease`, `SpendLeaseResult`, `SpendCommitResult`, `SpendMetrics` and the spend-voucher helpers. | — |
+| `spend_contracts.py` | Core | Immutable data models and token primitives (`SpendGovernorConfig`, `SpendLease`, `SpendLeaseResult`, `SpendCommitResult`, `SpendMetrics`, `is_spend_voucher`) for zero-float commerce accounting. | ✅ |
 | `spend_governor.py` | Core | Pure deterministic micro-spending state machine (`SpendGovernor`) enforcing merchant allowlists, per-action/daily caps in USD Cents, atomic leases, and voucher generation. | ✅ |
 
 ## Key Invariants

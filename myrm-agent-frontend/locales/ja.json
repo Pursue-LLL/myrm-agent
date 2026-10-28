@@ -9956,16 +9956,16 @@
       "keyErrorBlocked": "「{key}」はシステム予約のため使用できません",
       "toastNoCredential": "変数名と値を1つ以上入力してください。",
       "toastStaged": "準備できました。このコマンドを承認すると使用されます。",
-      "toastStageFailed": "準備に失敗しました：{message}",
+      "toastStageFailed": "準備に失敗しました。{message}",
       "toastCleared": "削除しました。",
-      "toastWipeFailed": "削除に失敗しました：{message}",
+      "toastWipeFailed": "削除に失敗しました。有効時間が過ぎると自動的に使えなくなります。",
       "toastExpired": "パスワードまたはキーが使用前に期限切れになりました。もう一度入力してください。",
       "expiresIn": "あと{seconds}秒で期限切れ",
-      "open": "このコマンドにパスワードまたはキーが必要",
+      "open": "このコマンド用にパスワードまたはキーを追加",
       "readyCount": "パスワードまたはキー準備完了（{count}）",
       "droppedOnEdit": "コマンドが変更されたため、パスワードまたはキーを削除しました。必要な場合は入力し直してください。",
-      "errorUnknown": "不明なエラー",
-      "errorServerStatus": "サーバーが {status} を返しました"
+      "errorRejected": "変数名と値を確認して、もう一度お試しください。",
+      "errorUnavailable": "しばらくしてからもう一度お試しください。"
     }
   },
   "notifications": {

@@ -9956,16 +9956,16 @@
       "keyErrorBlocked": "「{key}」为系统保留名称，不能使用",
       "toastNoCredential": "请至少填写一个变量名和值。",
       "toastStaged": "已准备好，你批准这条命令时会使用它。",
-      "toastStageFailed": "准备失败：{message}",
+      "toastStageFailed": "准备失败。{message}",
       "toastCleared": "已移除。",
-      "toastWipeFailed": "移除失败：{message}",
+      "toastWipeFailed": "移除失败。有效时间结束后它会自动失效。",
       "toastExpired": "密码或密钥在使用前已过期，请重新填写。",
       "expiresIn": "{seconds} 秒后过期",
-      "open": "这条命令需要密码或密钥",
+      "open": "为这条命令添加密码或密钥",
       "readyCount": "密码或密钥已就绪（{count}）",
       "droppedOnEdit": "因为命令已被修改，密码或密钥已移除。如仍需要，请重新填写。",
-      "errorUnknown": "未知错误",
-      "errorServerStatus": "服务器返回状态 {status}"
+      "errorRejected": "请检查变量名和值后重试。",
+      "errorUnavailable": "请稍后重试。"
     }
   },
   "notifications": {

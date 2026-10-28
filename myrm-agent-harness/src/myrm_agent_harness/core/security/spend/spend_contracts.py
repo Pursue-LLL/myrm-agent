@@ -2,25 +2,28 @@
 
 [INPUT]
 - dataclasses::dataclass (POS: Python 标准数据模型构造库)
+- typing::TypedDict (POS: 指标快照的键值类型声明)
 
 [OUTPUT]
 - SPEND_VOUCHER_PREFIX: 微支付凭证固定前缀
 - SPEND_VOUCHER_SUFFIX: 微支付凭证固定后缀
 - DEFAULT_SPEND_HMAC_SALT: 默认凭据防伪签名盐
 - SpendGovernorConfig: 预算约束模型（单笔/日累计上限、商户白名单、冻结状态）
+- SpendMetrics: 预算实时指标快照（键名为对外观测契约）
 - SpendLease: 原子预占租约数据模型
 - SpendLeaseResult: 租约申请判定结果契约
 - SpendCommitResult: 租约核销结果契约
 - is_spend_voucher: 微支付凭据快速格式判定函数
 
 [POS]
-Harness core security egress layer. Defines immutable data transfer models and token formats
+Harness core spend layer. Defines immutable data transfer models and token formats
 for autonomous spending governors, ensuring zero-float integer accounting.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypedDict
 
 SPEND_VOUCHER_PREFIX: str = "myrm-spend-v1."
 SPEND_VOUCHER_SUFFIX: str = ".end"
@@ -45,6 +48,21 @@ class SpendGovernorConfig:
     currency: str = "USD"
     is_frozen: bool = False
     lease_ttl_seconds: int = 120
+
+
+class SpendMetrics(TypedDict):
+    """Point-in-time budget snapshot; the camelCase keys are the observability contract read by the server."""
+
+    dailyCapCents: int
+    perActionCapCents: int
+    dailySpentCents: int
+    activeReservedCents: int
+    remainingCents: int
+    currency: str
+    isFrozen: bool
+    allowedMerchantsCount: int
+    allowedMerchants: list[str]
+    totalLeasesTracked: int
 
 
 @dataclass(slots=True)

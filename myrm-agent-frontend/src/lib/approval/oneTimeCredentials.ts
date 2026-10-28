@@ -5,7 +5,7 @@
  * [OUTPUT]
  * - stageOneTimeCredentials: 为审批卡上展示的那一条命令暂存一次性凭据，返回 handle 引用
  * - wipeOneTimeCredentials: 立即销毁已暂存的凭据（撤回、拒绝、命令被改写）
- * - OneTimeCredentialError: 服务端拒绝时抛出，带 HTTP 状态与服务端说明
+ * - OneTimeCredentialError: 服务端拒绝时抛出，只带 HTTP 状态（服务端的英文说明不进入界面）
  * - supportsOneTimeCredentials: 哪个工具的审批卡可以录入一次性凭据
  * - BLOCKED_CREDENTIAL_KEYS: 不允许作为凭据名的系统环境变量（预检，权威校验在服务端）
  *
@@ -57,13 +57,10 @@ interface StageResponse {
   staged: Array<{ handle_id: string; key: string }>;
 }
 
-/** The server refused a request; `detail` is its explanation when it gave one. */
+/** The server refused a request. Only the status is kept: the UI words the failure itself, in the user's language. */
 export class OneTimeCredentialError extends Error {
-  constructor(
-    readonly status: number,
-    readonly detail?: string,
-  ) {
-    super(detail ?? `HTTP ${status}`);
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
     this.name = 'OneTimeCredentialError';
   }
 }
@@ -76,8 +73,7 @@ async function postJson(path: string, body: unknown): Promise<Response> {
     body: JSON.stringify(body),
   });
   if (!resp.ok) {
-    const detail = ((await resp.json().catch(() => ({}))) as { detail?: unknown }).detail;
-    throw new OneTimeCredentialError(resp.status, typeof detail === 'string' ? detail : undefined);
+    throw new OneTimeCredentialError(resp.status);
   }
   return resp;
 }

@@ -319,7 +319,6 @@ def test_spend_governor_edge_cases_and_error_handling() -> None:
     assert governor.verify_spend_voucher(tampered_sig) is None
 
 
-
 def test_spend_governor_concurrent_reserves_thread_safety() -> None:
     """Test thread-safety of concurrent reservations against daily cap limit."""
     import concurrent.futures
@@ -350,5 +349,3 @@ def test_spend_governor_concurrent_reserves_thread_safety() -> None:
     assert governor.get_active_reserved_cents() == 1000
     metrics = governor.get_metrics()
     assert metrics["remainingCents"] == 0
-
-

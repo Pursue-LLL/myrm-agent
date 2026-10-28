@@ -126,15 +126,15 @@ class CommerceBudgetService:
         with self._lock:
             metrics = self._governor.get_metrics()
             return CommerceBudgetStatusDTO(
-                daily_cap_cents=int(metrics["dailyCapCents"]),  # type: ignore[arg-type]
-                per_action_cap_cents=int(metrics["perActionCapCents"]),  # type: ignore[arg-type]
-                daily_spent_cents=int(metrics["dailySpentCents"]),  # type: ignore[arg-type]
-                active_reserved_cents=int(metrics["activeReservedCents"]),  # type: ignore[arg-type]
-                remaining_cents=int(metrics["remainingCents"]),  # type: ignore[arg-type]
-                currency=str(metrics["currency"]),
-                is_frozen=bool(metrics["isFrozen"]),
-                allowed_merchants=list(metrics["allowedMerchants"]),  # type: ignore[arg-type]
-                total_leases_tracked=int(metrics["totalLeasesTracked"]),  # type: ignore[arg-type]
+                daily_cap_cents=metrics["dailyCapCents"],
+                per_action_cap_cents=metrics["perActionCapCents"],
+                daily_spent_cents=metrics["dailySpentCents"],
+                active_reserved_cents=metrics["activeReservedCents"],
+                remaining_cents=metrics["remainingCents"],
+                currency=metrics["currency"],
+                is_frozen=metrics["isFrozen"],
+                allowed_merchants=metrics["allowedMerchants"],
+                total_leases_tracked=metrics["totalLeasesTracked"],
             )
 
     def update_config(self, config: CommerceBudgetConfigDTO) -> CommerceBudgetStatusDTO:

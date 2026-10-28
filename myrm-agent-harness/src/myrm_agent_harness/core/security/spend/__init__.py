@@ -2,11 +2,11 @@
 
 [INPUT]
 - core.security.spend.spend_governor::SpendGovernor, SpendGovernorConfig, SpendLease, SpendLeaseResult,
-  SpendCommitResult, SPEND_VOUCHER_PREFIX, SPEND_VOUCHER_SUFFIX, is_spend_voucher
+  SpendCommitResult, SpendMetrics, SPEND_VOUCHER_PREFIX, SPEND_VOUCHER_SUFFIX, is_spend_voucher
   (POS: 确定性微额支出状态机与契约)
 
 [OUTPUT]
-- SpendGovernor, SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult
+- SpendGovernor, SpendGovernorConfig, SpendLease, SpendLeaseResult, SpendCommitResult, SpendMetrics
 - SPEND_VOUCHER_PREFIX, SPEND_VOUCHER_SUFFIX, is_spend_voucher
 
 [POS]
@@ -24,6 +24,7 @@ from .spend_governor import (
     SpendGovernorConfig,
     SpendLease,
     SpendLeaseResult,
+    SpendMetrics,
     is_spend_voucher,
 )
 
@@ -35,5 +36,6 @@ __all__ = [
     "SpendGovernorConfig",
     "SpendLease",
     "SpendLeaseResult",
+    "SpendMetrics",
     "is_spend_voucher",
 ]
