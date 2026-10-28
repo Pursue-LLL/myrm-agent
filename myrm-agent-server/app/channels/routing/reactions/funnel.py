@@ -4,7 +4,7 @@
 - channels.core.bus::MessageBus (POS: async message bus that resolves a channel by name)
 
 [OUTPUT]
-- ReactionFunnel: ``react`` sets or takes off a reaction without ever failing the caller, ``accepted`` picks the first glyph a platform takes
+- ReactionFunnel: ``react`` sets or takes off a reaction without ever failing the caller or waiting on a silent platform for more than 30 seconds, ``accepted`` picks the first glyph a platform takes
 
 [POS]
 Every reaction the router makes goes through here (``StatusReaction`` and the TTL janitor). A reaction decorates a
@@ -14,6 +14,7 @@ still made visible, once per window per channel and error type, instead of looki
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -22,6 +23,9 @@ from app.channels.core.bus import MessageBus
 logger = logging.getLogger(__name__)
 
 _WARN_INTERVAL = 600.0
+# A platform that never answers must not hold the turn open: ``StatusReaction.finish`` waits for the reaction
+# requests, and the turn does not end before ``finish`` does.
+_REACTION_TIMEOUT = 30.0
 
 
 class ReactionFunnel:
@@ -32,14 +36,17 @@ class ReactionFunnel:
         self._warned_at: dict[tuple[str, str], float] = {}
 
     async def react(self, channel: str, chat_id: str, message_id: object, emoji: str) -> None:
-        """Best-effort message reaction; an empty ``emoji`` takes off what this channel added."""
+        """Best-effort message reaction; an empty ``emoji`` takes off what this channel added.
+
+        A platform that has not answered within ``_REACTION_TIMEOUT`` is reported like any other failure.
+        """
         if not isinstance(message_id, str) or not message_id:
             return
         ch = self._bus.get_channel(channel)
         if not ch or not ch.capabilities.reactions:
             return
         try:
-            await ch.react_to_message(chat_id, message_id, emoji)
+            await asyncio.wait_for(ch.react_to_message(chat_id, message_id, emoji), timeout=_REACTION_TIMEOUT)
         except Exception as exc:
             self._report_failure(channel, exc)
 

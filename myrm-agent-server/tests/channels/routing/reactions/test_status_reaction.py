@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.routing.reactions import ReactionFunnel, StatusReaction, TurnOutcome
+from app.channels.routing.reactions import funnel as funnel_module
 from app.channels.routing.router_models import ReactionPolicy
 from app.channels.types import ChannelCapabilities, ReactionLevel
 
@@ -293,6 +294,17 @@ class TestMarkRequestRunsBesideTheTurn:
         status.received()
 
         await status.finish(TurnOutcome.COMPLETED)
+
+        assert _sent(react) == [EYES, OFF, CHECK]
+
+    @pytest.mark.asyncio
+    async def test_a_platform_that_never_answers_does_not_hold_the_turn_open(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(funnel_module, "_REACTION_TIMEOUT", 0.05)
+        status, react = _status()
+        self._slow_platform(react)
+        status.received()
+
+        await asyncio.wait_for(status.finish(TurnOutcome.COMPLETED), timeout=2)
 
         assert _sent(react) == [EYES, OFF, CHECK]
 

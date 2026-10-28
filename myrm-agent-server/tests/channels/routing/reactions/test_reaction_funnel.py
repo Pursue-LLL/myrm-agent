@@ -7,6 +7,7 @@ warned about once per window per channel and error type, not swallowed and not s
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from unittest.mock import AsyncMock, MagicMock
@@ -14,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.routing.reactions import ReactionFunnel
+from app.channels.routing.reactions import funnel as funnel_module
 from app.channels.types import ChannelCapabilities
 
 EYES = "\U0001f440"
@@ -122,6 +124,38 @@ class TestReact:
         funnel._bus.get_channel.return_value.capabilities = ChannelCapabilities(reactions=False)
         await funnel.react("slack", "C1", "m1", EYES)
         react.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_platform_that_never_answers_is_given_up_on_and_reported(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr(funnel_module, "_REACTION_TIMEOUT", 0.05)
+        funnel, react = _funnel()
+
+        async def never_answers(*_args: str) -> None:
+            await asyncio.Event().wait()
+
+        react.side_effect = never_answers
+        with caplog.at_level(logging.DEBUG, logger=LOGGER):
+            await asyncio.wait_for(funnel.react("slack", "C1", "m1", EYES), timeout=2)
+
+        [warning] = _warnings(caplog)
+        assert "slack" in warning
+        assert "TimeoutError" in warning
+
+    @pytest.mark.asyncio
+    async def test_a_cancelled_caller_is_not_swallowed_by_the_timeout(self) -> None:
+        funnel, react = _funnel()
+
+        async def never_answers(*_args: str) -> None:
+            await asyncio.Event().wait()
+
+        react.side_effect = never_answers
+        request = asyncio.create_task(funnel.react("slack", "C1", "m1", EYES))
+        await asyncio.sleep(0)
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
 
     @pytest.mark.asyncio
     async def test_an_unknown_channel_is_skipped(self) -> None:
