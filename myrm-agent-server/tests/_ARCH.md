@@ -133,14 +133,16 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/test_emoji_shortnames.py` | 单元 | Slack / Mattermost 共用的反应表情短名转换：路由器默认的处理中 / 完成 / 失败表情都有短名，冒号与变体选择符不影响匹配，未知值原样透传，表中短名都满足平台的名字规则 |
 | `channels/providers/slack/test_slack_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Slack `reactions.add` 时是短名（eyes / white_check_mark / x）而不是 unicode 字形 |
 | `channels/providers/mattermost/test_mattermost_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Mattermost 反应接口时是短名而不是 unicode 字形 |
-| `channels/routing/test_reaction_vocabulary.py` | 单元 | 状态表情按渠道词表选字：未声明词表的渠道原样发送，声明了词表的渠道只收词表内的表情（变体选择符不影响），被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌👎😢），都不被接受就不发；失败绝不回退成成功表情；配置为空串表示关闭、不回退；候选全被拒时仍撤销已加的处理中表情 |
+| `channels/routing/test_reaction_vocabulary.py` | 单元 | 状态表情按渠道词表选字：未声明词表的渠道原样发送，声明了词表的渠道只收词表内的表情（变体选择符不影响），被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌😢），都不被接受就不发；失败绝不回退成成功表情或 👎；配置为空串表示关闭、不回退；候选全被拒时仍撤销已加的处理中表情 |
 | `channels/routing/test_reaction_failure_visibility.py` | 单元 | 表情请求失败不进入回合，但按「渠道 + 错误类型」每 10 分钟告警一次（其余只记 debug）：另一个渠道、同渠道另一类错误各自告警，窗口过后再次告警，成功时不记日志 |
 | `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
-| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情）；每个支持反应的渠道都在表里 |
+| `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
 | `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束清理与完成表情都用空串清除处理中表情，第一次真撤销、第二次不发请求；结束的回合以结果表情替换处理中表情，被停止的回合不留处理中表情 |
 | `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
-| `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 六种反应类型：六个原生表情按各自类型发送，没有对应类型的表情不发送、绝不当作点赞；请求失败抛给调用方 |
-| `channels/providers/imessage/test_imessage_reactions.py` | 单元 | iMessage 六种 Tapback：按各自代码发送，非 Tapback 的表情不发送；空串撤销本渠道发出的那个（代码 +1000）且只撤销一次，没发过不发请求；被拒的 Tapback 抛出且不记账，传输错误上抛 |
+| `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 反应走 Bot Framework 连接器：状态表情按官方反应 ID 以 `PUT …/reactions/{ID}` 发送，没有官方 ID 的表情不发送；空串按记账 `DELETE` 同一个 ID 且只撤一次、没发过或服务地址未知不发请求；被拒与传输错误抛出且不记账；假连接器按 Teams SDK 的方法、路径、令牌规则校验 |
+| `channels/providers/imessage/test_imessage_reactions.py` | 单元 | iMessage Tapback：BlueBubbles 只收六个名称，按名称发送，非 Tapback 的表情不发送；空串用 `-名称` 撤销本渠道发出的那个且只撤销一次，没发过不发请求；被拒的 Tapback 抛出且不记账，传输错误上抛；假 BlueBubbles 按其校验器规则拒绝非法请求 |
+| `channels/providers/signal/test_signal_reactions.py` | 单元 | Signal 反应走 signal-cli-rest-api：扁平 `reaction` 字符串 `POST`、按记账 `DELETE` 撤销（只撤一次，替换后撤最新的）；私聊作者即聊天，群聊作者取自入站消息、没收到过的群消息不发；群 id 转成 `group.` 形式（回复同样），号码与 UUID 原样；被拒与传输错误抛出且不记账；假网关按其必填字段与收件人规则校验 |
+| `channels/providers/matrix/test_matrix_reactions.py` | 单元 | Matrix 反应是 `m.annotation` 事件：对目标消息按表情标注；空串 redact 的是反应事件而不是消息、只撤一次、撤后可再加同一表情；重复标注、目标不存在、redact 失败都抛出而不吞掉，不记账；服务器不响应按反应超时抛出；假房间按 Matrix 规则校验 |
 | `channels/providers/imessage/test_imessage_media_type.py` | 单元 | iMessage 附件类型：声明类型优先于下载类型，都没有时按二进制流发送；消息没有聊天时不标记已读 |
 | `channels/providers/slack/test_slack_reaction_lifecycle.py` | 单元 | Slack `reactions.remove`：空串撤销已加的反应且只撤一次，没加过不发请求；缺权限的错误带上所需范围抛出，失败的添加不记账，已处于目标状态不算错误 |
 | `channels/providers/mattermost/test_mattermost_reaction_lifecycle.py` | 单元 | Mattermost 按用户、帖子、名称删除自己加的反应：空串撤销已加的，没加过不发请求，添加失败抛出且不记账 |
