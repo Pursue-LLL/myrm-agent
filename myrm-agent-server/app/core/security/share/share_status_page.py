@@ -2,7 +2,7 @@
 
 [INPUT]
 - starlette.requests::Request (POS: Accept negotiation)
-- app.core.security.share.share_locale (POS: visitor language)
+- app.core.security.share.share_locale (POS: visitor language and the language tables every share page shares)
 
 [OUTPUT]
 - ShareLinkState: why a share link cannot be served

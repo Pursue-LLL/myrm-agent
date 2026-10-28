@@ -2,7 +2,7 @@
 
 [INPUT]
 - starlette.requests::Request (POS: password-gate form submission)
-- app.core.security.share.share_locale (POS: visitor language)
+- app.core.security.share.share_locale (POS: visitor language and the language tables every share page shares)
 
 [OUTPUT]
 - render_password_gate_html: returns a self-contained HTML page in the visitor's language (optionally in the locked-out variant)

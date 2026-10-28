@@ -9,7 +9,8 @@
   - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, decode_unverified_payload
   - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
-  - share_locale: visitor language negotiation (Accept-Language) for the share pages
+  - share_locale: visitor language negotiation (Accept-Language) for the share pages, plus the per-language
+    ``<html lang>`` and footer brand line every share page uses
   - share_status_page: browser-friendly share 404 page (state catalog in English/Chinese) + Accept-based JSON fallback
   - share_unlock: per-share unlock-cookie name/credential mechanics
   - share_password_page: self-contained bilingual password-gate HTML + submission parsing
