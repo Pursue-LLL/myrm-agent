@@ -108,15 +108,15 @@ _PRIVATE_KEY_RE = re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?-----END
 # ── Contextual patterns (context-based detection) ────────────────
 
 _SECRET_ENV_NAMES = r"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CREDENTIAL|AUTH)"
-# URL query 中的 `?token=` / `&token=` 是 URL 参数（由 _URL_QUERY_RE 处理），不是
-# ENV 赋值——负向后顾阻止贪婪吞掉 `&` 分隔的后续参数
-# （`?token=x&limit=50&page=2` 保持为 `?token=***&limit=50&page=2` 而非 `?token=***`）。
 # 未加引号的 value 到空白或引号为止；`&` 只在后面紧跟 `键=`（form body 的下一个参数，
 # `token=abc&page=1` 保持为 `token=***&page=1`）或 `amp;`（HTML 转义的同一分隔符）时才终止它，
 # 其余的 `&` 是口令自身的字符，其后的部分同样要打码，否则 `PASSWORD=ab&cd` 会泄漏 `&cd`。
 # 首字符不是 `&`，`password: &anchor` 的 YAML 锚点因此保持原样；`&` 之后至少跟一个值字符，
 # 空白、引号、另一个 `&` 或行尾前的 `&` 不并入。键名字符集与 _FORM_BODY_RE 一致，限长 64 使每个 `&` 的前瞻有常数上界。
 _UNQUOTED_VALUE = r"(?:[^\s&\"']+(?:&(?=[^\s&\"'])(?!amp;|[A-Za-z_][A-Za-z0-9_.\-]{0,63}=)[^\s&\"']*)*)"
+# URL query 中的 `?token=` / `&token=` 是 URL 参数（由 _URL_QUERY_RE 处理），不是
+# ENV 赋值——负向后顾阻止贪婪吞掉 `&` 分隔的后续参数
+# （`?token=x&limit=50&page=2` 保持为 `?token=***&limit=50&page=2` 而非 `?token=***`）。
 # 引号值整体捕获（`KEY="my secret pass"` 含空格）——quote 分支吞到 closing quote，避免部分匹配
 # 把 `"my` 打码而泄漏尾部 ` secret pass"`；值内 `\"`/`\'` 反斜杠转义与 `''` 转义
 # 均完整消费不截断。

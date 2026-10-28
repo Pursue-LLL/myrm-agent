@@ -32,7 +32,7 @@ and, rarely, a random URL-safe base64 value that happens to hold no digit.
 - ``_JSON_ESCAPED_FIELD_RE`` / ``_redact_json_escaped_field`` - JSON member inside a JSON-encoded string
 - ``_REPR_DIAGNOSTIC_LINE_RE`` / ``_redact_repr_diagnostic_line`` - Python repr entries on diagnostic lines
 - ``_is_secret_field_name`` - the shared key policy
-- ``_mask_field_value`` - value masking of the three detectors (variable references and plain labels stay readable)
+- ``_mask_field_value`` - value masking of the three detectors (a password or passphrase is hidden completely; variable references and plain labels stay readable)
 
 [POS]
 Structured-field detectors of the redaction engine; consumed by ``engine.py``

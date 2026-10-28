@@ -3,7 +3,8 @@
 Backup and key tooling calls its secret a passphrase: ``BORG_PASSPHRASE`` in a backup script, ``PASSPHRASE=`` for
 duplicity, ``gpg --batch --passphrase``, ``ssh_passphrase`` in a config file or a JSON settings dump. The word has no
 ``key``, ``token``, ``secret`` or ``password`` in it, so each detector needs it by name. The keep-list pins what a
-reader still needs to see: variable references, hint and flag fields, and prose.
+reader still needs to see: variable references, hint and flag fields, and prose. A passphrase is hidden
+completely: the output is the input with the value replaced by ``***``, not merely free of the whole value.
 """
 
 from __future__ import annotations
@@ -16,33 +17,29 @@ from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 _VALUE = "correct-horse-91-Zk3fQ9xL"
 
-
-# shape -> (text, the name that must stay visible)
-_SHAPES: dict[str, tuple[str, str]] = {
-    "json": (json.dumps({"ssh_passphrase": _VALUE, "host": "backup.example"}), "ssh_passphrase"),
-    "json-camel": (json.dumps({"keyStorePassPhrase": _VALUE}), "keyStorePassPhrase"),
-    "json-in-json": (json.dumps({"output": json.dumps({"passphrase": _VALUE})}), "passphrase"),
-    "repr": (f"E   assert {{'passphrase': '{_VALUE}'}} == {{}}", "passphrase"),
-    "env-export": (f"export BORG_PASSPHRASE='{_VALUE}'\nborg create ::{{now}} ~/Documents", "BORG_PASSPHRASE"),
-    "env-inline": (f"PASSPHRASE={_VALUE} duplicity /home s3://bucket", "PASSPHRASE"),
-    "env-split-word": (f"export PASS_PHRASE={_VALUE}", "PASS_PHRASE"),
-    "env-dotted": (f"app.ssh.passphrase={_VALUE}", "app.ssh.passphrase"),
-    "yaml": (f"vault_passphrase: {_VALUE}", "vault_passphrase"),
-    "yaml-quoted": (f'ssh_passphrase: "{_VALUE}"', "ssh_passphrase"),
-    "cli-space": (f"gpg --batch --passphrase {_VALUE} -d secrets.gpg", "--passphrase"),
-    "cli-equals": (f"gpg --batch --passphrase={_VALUE} -d secrets.gpg", "--passphrase"),
-    "cli-hyphenated": (f"tool --pass-phrase {_VALUE}", "--pass-phrase"),
-    "url-query": (f"https://backup.example/restore?passphrase={_VALUE}&dest=/tmp", "passphrase"),
+_SHAPES: dict[str, str] = {
+    "json": json.dumps({"ssh_passphrase": _VALUE, "host": "backup.example"}),
+    "json-camel": json.dumps({"keyStorePassPhrase": _VALUE}),
+    "json-in-json": json.dumps({"output": json.dumps({"passphrase": _VALUE})}),
+    "repr": f"E   assert {{'passphrase': '{_VALUE}'}} == {{}}",
+    "env-export": f"export BORG_PASSPHRASE='{_VALUE}'\nborg create ::{{now}} ~/Documents",
+    "env-inline": f"PASSPHRASE={_VALUE} duplicity /home s3://bucket",
+    "env-split-word": f"export PASS_PHRASE={_VALUE}",
+    "env-dotted": f"app.ssh.passphrase={_VALUE}",
+    "yaml": f"vault_passphrase: {_VALUE}",
+    "yaml-quoted": f'ssh_passphrase: "{_VALUE}"',
+    "cli-space": f"gpg --batch --passphrase {_VALUE} -d secrets.gpg",
+    "cli-equals": f"gpg --batch --passphrase={_VALUE} -d secrets.gpg",
+    "cli-hyphenated": f"tool --pass-phrase {_VALUE}",
+    "url-query": f"https://backup.example/restore?passphrase={_VALUE}&dest=/tmp",
 }
 
 
 class TestPassphraseIsMasked:
     @pytest.mark.parametrize("shape", _SHAPES)
-    def test_value_is_masked_and_name_is_kept(self, shape: str) -> None:
-        text, name = _SHAPES[shape]
-        out = redact_sensitive_text(text)
-        assert _VALUE not in out
-        assert name in out
+    def test_value_is_replaced_and_everything_else_is_kept(self, shape: str) -> None:
+        text = _SHAPES[shape]
+        assert redact_sensitive_text(text) == text.replace(_VALUE, "***")
 
     def test_short_value_is_masked_completely(self) -> None:
         assert redact_sensitive_text("export BORG_PASSPHRASE=hunter2hunter") == "export BORG_PASSPHRASE=***"
