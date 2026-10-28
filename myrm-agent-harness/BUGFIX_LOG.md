@@ -2,6 +2,40 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-059 · 实时命令输出的脱敏按每次读到的片段单独进行：密钥或私钥块恰好被切在两次读取之间时，两半都不匹配，界面上看到半截没脱敏的密钥
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（脱敏从两处调用方移进 `StreamOutputProcessor`，改在累积之后、只对整行进行；落盘日志仍是原文）。 |
+| **发现时间** | topic_10 #291 第五轮验证时 `test_persistent_session.py::test_stream_path_scrubs_sensitive_info` 偶发失败（6 次运行 2 次）；2026-10-28 用真实 shell（`printf` 前半段、`sleep 0.4`、再 `printf` 后半段）稳定复现 |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：漏出的是用户自己会话的实时输出里的半截凭据，不进给模型的最终结果（那条路径对整段文本脱敏）；界面输出可能被截图、共享屏幕或随步骤落盘（落盘是否包含实时片段未核实）。 |
+| **关联产品** | roadmap topic_03 `LiveCommandOutputWholeLineScrubSuite`；topic_10 #291（验证记录里的偶发失败） |
+| **根因** | `scrub_sensitive_info`（`toolkits/code_execution/executors/models.py:372`）只在一段完整文本里认得出密钥与私钥块，而输出按任意大小的读取交给处理器（`session/stream_buffer.py:78-86` 按「缓冲长度减标记回看长度」切分，不按行对齐）。旧的 `session/command_stream.py` 在两条读取路径上都先对每个片段单独脱敏、再交给 `accumulate_sse`：被切成两段的密钥两半都不匹配，原样漏过；私钥块的前半段同理。 |
+| **修复** | `session/stream_output_processor.py`：`accumulate_sse`（`:129`）先清掉 ANSI、累积，再由 `_take_emittable`（`:160`）取出可发的部分——只发完整的行（换行或回车结束）；未结束的最后一行、开头出现 `-----BEGIN` 而还没见到 `-----END` 的私钥块（连同它所在的整行）先暂存，暂存满 16 384 个字符就原样放行；取出的文本交给 `scrub_sensitive_info` 后才发出；节流窗口只在真正发出内容时才消耗；`flush()`（`:172`）把剩余部分整体脱敏。`command_stream.py` 去掉两处自己的脱敏与两处局部导入。行为变化：实时输出按整行出现，不带换行的提示符要等到换行、命令结束或暂存满上限才出现；用回车刷新的进度条不受影响。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 第一版设想「尾部按时间释放」：发出是由新到的片段触发的，没有新片段就没有定时器，时间释放永远不会触发，放弃，改为只发整行并在 `flush()` 释放。② 既有处理器测试假设无换行的文本立刻发出，按新语义给输入补换行（含义不变）。③ 提交前后各跑一遍：把提交前的两个源文件换进来，两个真实 shell 用例失败（密钥后半段原样出现），换回后通过。 |
+| **回归** | 新增 `tests/toolkits/code_execution/session/test_stream_output_scrub.py`（295 个用例）：整行密钥在每一个切分位置、私钥块在每一个切分位置、逐字符输入，输出都等于对整段原文脱敏的结果；未结束的行等换行、`flush()` 脱敏尾部、回车不被扣住、私钥块未闭合时整块（含前缀）暂存、闭合后放行、暂存上限放行、无内容可发时不消耗节流窗口、落盘仍是原文；真实 shell 的执行与流式两条路径各一个用例。变异检查：8 个变异（去掉私钥块暂存、去掉暂存上限、`flush()` 不脱敏、回车不算行尾、无内容可发时仍消耗节流窗口、发出前不脱敏、不按行暂存、暂存从私钥块所在行的中间截断）全部被杀。`tests/toolkits/code_execution` 与 `tests/agent/streaming/test_stream_dispatcher.py`：2521 通过、275 跳过、1 失败（`test_destructive_hard_stop.py` 的快照耗时断言，776 ms 对 500 ms，与本改动无关，没有在改动前的提交上对照）；`test_stream_path_scrubs_sensitive_info` 连续 12 次单独运行全部通过。 |
+| **仍然存在** | ① 没有在 Linux 沙箱下实测。② 实时片段是否随步骤落盘没有核实；若落盘，此前已落盘的内容不会被修正。③ 超过 16 384 个字符的单行或私钥块不受保护（上限放行）；`-----BEGIN` 以外的多行凭据格式没有暂存。④ 新增的按行扫描开销没有测量。⑤ 不换行的交互提示符在前端上的观感没有看。 |
+| **代码位置** | `session/stream_output_processor.py:129,160,172` · `session/command_stream.py`（两条读取路径只调用 `accumulate_sse` 与 `flush`）· `session/_ARCH.md` · `tests/toolkits/code_execution/session/test_stream_output_scrub.py` |
+
+### BUG-HARNESS-2026-10-28-058 · 「停止」在模型请求静默期间读不到：长预填充、隐藏推理或限流等待里点停止，后台执行器要等请求自己返回，会话期间仍被占用
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED（链上最外层新增模型调用包装，执行器把它的取消当作「停止」收尾）。 |
+| **发现时间** | 2026-10-28（评审 topic_10 #291 时沿「停止」的整条链读代码，并用只会静默的模型复现） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2：不丢数据、不崩溃；界面上的「停止」立即生效，但执行器在静默的请求里继续跑到请求自己返回。实测（只会静默的模型，停止发生在请求发出之后）：停止到执行器结束 10.99 秒；修复后 0.25 秒。静默时长的真实分布没有直接数据，已落盘会话里能算出的上界（n=517，含非模型耗时）：中位数 6.78 秒、p90 23.14 秒、p95 53.91 秒。取消后供应商是否还计费、金额多少，没有实测；「停止」的真实发生频率没有数据。 |
+| **关联产品** | roadmap topic_10 #291（第六轮）；同一轮的前端提交 `b783cc0e38`（取消步骤文案六语言） |
+| **根因** | ① 执行器只在 `astream` 产出一个片段时才读取取消令牌（`agent/streaming/stream_executor.py:274`），模型请求本身静默时没有片段，读不到。② `agent/_internals/agent_runtime.py:628` 的消费者只 `await output_queue.get()`，消费者关闭时不取消执行任务。③ 链上没有任何包装把模型请求与取消令牌竞速。 |
+| **修复** | 新增 `agent/middlewares/model_call_cancel.py` 的 `ModelCallCancelMiddleware`（`:26,39`）：用 `run_until_cancelled`（`utils/runtime/cancellation.py:365`）让模型请求与请求的取消令牌竞速，令牌被取消后一个轮询周期（0.25 秒）内取消请求并抛 `OperationCancelledError`；没有令牌的运行原样等待。它在 `build_middlewares` 里排第一（`agent/_internals/_agent_build.py:119`），LangChain 里列表第一个是最外层，所以内层包装的重试与退避等待一并被切断。执行器新增 `except OperationCancelledError`（`agent/streaming/stream_executor.py:302-305`），与循环内看到令牌被取消同一收尾 `_record_cancellation`（`agent/streaming/stream_dispatcher.py:421`）：一次取消事件、标记已取消、不报错、不再发起下一次模型请求；真实的模型报错仍走原有路径。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① `OperationCancelledError` 是 `Exception` 的子类（`utils/runtime/cancellation.py:340`），没有这个早退分支时它会落进故障转移处理，最后经 `_emit_fatal_error`（`stream_executor.py:508`）以模型失败收场。② 早退分支只需要「落出」`try`，不用 `break`：落出后与循环内取消走同一批后置处理（转向、目标续跑守卫；守卫在令牌被取消时把目标置为暂停，`agent/goals/continuation.py:410-413`）。③ LangChain 的 `wrap_model_call` 组合里列表第一个是最外层；只实现异步的中间件由 `apply_sync_hook_parity` 补同步直通。 |
+| **回归** | 新增 `tests/agent/middlewares/test_model_call_cancel.py`（6 个）与 `tests/agent/streaming/test_stop_during_silent_model_e2e.py`（5 个；真实 `create_agent`、生产 `StreamExecutor`、只会静默的模型）：静默的请求被切断且回合以取消收尾、流在产出片段之后转为静默时只报告一次取消、请求发出前已停止则模型不被问、真实的模型报错仍按失败处理、没人停止的对照运行拿到回答。变异检查：对包装、装配、执行器、分发器四处各做一个变异，全部被杀。每次模型调用多出的开销：包装约 553 微秒、取消监视约 36.7 微秒。`tests/agent/streaming` 与 `tests/agent/middlewares` 另有失败（25 个失败加 5 个错误；另一组 2 个失败加 2 个错误），把我改动的三个源文件换回提交前的版本后失败数相同，判定来自同工作区他人未提交的改动。 |
+| **仍然存在** | ① 真实 provider 连接在取消后是否确实关闭，没有验证；真实检查点存储下取消后的状态没有验证。② 子智能体是否共用这条中间件链、子智能体运行器如何对待 `OperationCancelledError`，没有核对。③ 压缩与摘要所用的模型调用不在这条链上，停止期间的耗时没有实测。④ `agent_runtime` 在消费者关闭时仍不取消孤儿执行任务（评估后不改）。⑤ 没有走真实服务端 + 浏览器的「停止后立即重发」。⑥ Linux 沙箱没测。 |
+| **代码位置** | `agent/middlewares/model_call_cancel.py:26,39` · `agent/_internals/_agent_build.py:119` · `agent/streaming/stream_executor.py:274,302-305` · `agent/streaming/stream_dispatcher.py:421` · `utils/runtime/cancellation.py:340,365` · `tests/agent/middlewares/test_model_call_cancel.py` · `tests/agent/streaming/test_stop_during_silent_model_e2e.py` |
+
 ### BUG-HARNESS-2026-10-27-057 · `file_read_tool` 按 `paths` 传文件时，权限引擎与审批哈希都读不到路径：禁止区、工作区外、`.env` 全部放行且不弹审批卡；`preview` / `stream` 直读通道还能读到 `mode=all` 拒绝的路径
 
 | 字段 | 内容 |
