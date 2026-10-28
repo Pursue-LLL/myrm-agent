@@ -144,6 +144,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/imessage/test_imessage_reactions.py` | 单元 | iMessage Tapback：BlueBubbles 只收六个名称，按名称发送，非 Tapback 的表情不发送；空串用 `-名称` 撤销本渠道发出的那个且只撤销一次，没发过不发请求；被拒的 Tapback 抛出且不记账，传输错误上抛；假 BlueBubbles 按其校验器规则拒绝非法请求 |
 | `channels/providers/signal/test_signal_reactions.py` | 单元 | Signal 反应走 signal-cli-rest-api：扁平 `reaction` 字符串 `POST`、按记账 `DELETE` 撤销（只撤一次，替换后撤最新的）；私聊作者即聊天，群聊作者取自入站消息、没收到过的群消息不发；群 id 转成 `group.` 形式（回复同样），号码与 UUID 原样；被拒与传输错误抛出且不记账；假网关按其必填字段与收件人规则校验 |
 | `channels/providers/signal/test_signal_typing.py` | 单元 | Signal 打字指示走 signal-cli-rest-api 上游规则的假服务（`PUT`/`DELETE /v1/typing-indicator` 都要 JSON 体里的 `recipient`，空体的 `DELETE` 是 400；群 id 必须是 `group.` 形式）：私聊与群聊的开始、停止请求都带对 `recipient`；被拒绝的请求由客户端抛出、渠道只记 debug 日志而不影响聊天 |
+| `channels/providers/whatsapp/test_whatsapp_reaction_key.py` | 单元 | WhatsApp 反应带上入站消息的 Baileys key：私聊、群聊（带发送者 `participant`）、LID 聊天（保留原始 `remoteJid`、聊天 id 仍是手机号）、自聊（`fromMe`）与撤销都原样引用收到时的 key，没见过的消息、别的聊天里同 id 的消息只按聊天与消息 id 定位；记忆有上限、最旧的先丢；桥脚本里的 `react` 分支用 `cmd.key`（源码守卫，桥进程没有运行时测试） |
 | `channels/providers/matrix/test_matrix_reactions.py` | 单元 | Matrix 反应是 `m.annotation` 事件：对目标消息按表情标注；空串 redact 的是反应事件而不是消息、只撤一次、撤后可再加同一表情；重复标注、目标不存在、redact 失败都抛出而不吞掉，不记账；服务器不响应按发送超时抛出；假房间按 Matrix 规则校验 |
 | `channels/providers/imessage/test_imessage_media_type.py` | 单元 | iMessage 附件类型：声明类型优先于下载类型，都没有时按二进制流发送；消息没有聊天时不标记已读 |
 | `channels/providers/slack/test_slack_reaction_lifecycle.py` | 单元 | Slack `reactions.remove`：空串撤销已加的反应且只撤一次，没加过不发请求；缺权限的错误带上所需范围抛出，失败的添加不记账，已处于目标状态不算错误 |

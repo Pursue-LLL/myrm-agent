@@ -8,6 +8,7 @@ DM + group messages, LID→PN resolution, mention/reply-to-bot detection.
 - channels.providers.whatsapp.inbound::WhatsAppInboundMixin (POS: bridge event dispatch, connection state, group sync, message parsing)
 - channels.providers.whatsapp.login::WhatsAppLoginMixin (POS: QR-code login event stream)
 - channels.providers.whatsapp.bridge::BridgeProcessMixin (POS: Node.js bridge subprocess and IPC)
+- channels.providers.whatsapp.message_keys::MessageKeys (POS: Baileys key of each inbound message, quoted back by reactions)
 
 [OUTPUT]
 - WhatsAppChannel: WhatsApp Web bidirectional communication Channel (Baileys 7.x bridge)
@@ -42,6 +43,7 @@ from app.channels.providers.whatsapp.helpers import (
 )
 from app.channels.providers.whatsapp.inbound import WhatsAppInboundMixin
 from app.channels.providers.whatsapp.login import WhatsAppLoginMixin
+from app.channels.providers.whatsapp.message_keys import MessageKeys
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -111,6 +113,7 @@ class WhatsAppChannel(WhatsAppInboundMixin, WhatsAppLoginMixin, BaseChannel, Cac
         self._sent_futures: dict[str, asyncio.Future[dict[str, object]]] = {}
         self._media_download_futures: dict[str, asyncio.Future[str]] = {}
         self._lid_to_pn: dict[str, str] = {}
+        self._message_keys = MessageKeys()
 
     @property
     def qr_code(self) -> str | None:
@@ -377,9 +380,17 @@ class WhatsAppChannel(WhatsAppInboundMixin, WhatsAppLoginMixin, BaseChannel, Cac
             self._write_cmd({"type": "typing", "to": chat_id, "status": "paused"})
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        """Add or remove a reaction emoji on a WhatsApp message."""
+        """Add or remove a reaction emoji on a WhatsApp message.
+
+        A message seen inbound is addressed by the key Baileys gave it, which a group message needs for its
+        ``participant``; any other message is addressed by chat and id alone. The bridge reports no outcome.
+        """
         if self._process and self._connected.is_set():
-            self._write_cmd({"type": "react", "to": chat_id, "messageId": message_id, "emoji": emoji})
+            cmd: dict[str, object] = {"type": "react", "to": chat_id, "messageId": message_id, "emoji": emoji}
+            key = self._message_keys.get(chat_id, message_id)
+            if key:
+                cmd["key"] = key
+            self._write_cmd(cmd)
 
     def resolve_lids_for_pns(self, pns: list[str]) -> None:
         """Send known PN JIDs to the bridge for LID pre-resolution."""

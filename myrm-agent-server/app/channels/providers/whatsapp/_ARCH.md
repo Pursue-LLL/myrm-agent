@@ -15,4 +15,5 @@ WhatsApp 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `helpers.py` | 模块 | WhatsApp JID normalization, mention detection, self-chat detection, and path constants. Shared by channel.py and bridge.py. | ✅ |
 | `inbound.py` | 模块 | `WhatsAppInboundMixin`: bridge event dispatch, connection state, group sync, and message / reaction parsing into `InboundMessage`. | ✅ |
 | `login.py` | 模块 | `WhatsAppLoginMixin`: QR-code pairing events streamed to the frontend as `LoginEvent` (AsyncLoginProtocol). | ✅ |
+| `message_keys.py` | 模块 | Baileys key of each inbound message (`inbound_message_key`) and the bounded `MessageKeys` memory the channel fills on inbound and `react_to_message` reads, so a reaction quotes the key as received (group `participant`, raw LID `remoteJid`). | ✅ |
 | `bridge/` | 子目录 | Node.js Baileys bridge 子进程（`whatsapp-bridge.js`）及其 npm 依赖。见 [`bridge/_ARCH.md`](bridge/_ARCH.md)。 | — |

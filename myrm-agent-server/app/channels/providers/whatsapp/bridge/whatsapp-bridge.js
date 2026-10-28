@@ -524,7 +524,7 @@ rl.on("line", async (line) => {
       await sock.sendMessage(jid, {
         react: {
           text: cmd.emoji || "",
-          key: { remoteJid: jid, id: cmd.messageId },
+          key: cmd.key || { remoteJid: jid, id: cmd.messageId },
         },
       });
     }

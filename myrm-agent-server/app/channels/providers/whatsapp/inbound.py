@@ -3,6 +3,7 @@
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class; supplies _emit_inbound / _build_inbound / _set_connected)
 - channels.providers.whatsapp.helpers (POS: JID normalisation, mention and self-chat detection)
+- channels.providers.whatsapp.message_keys (POS: the Baileys key of each inbound message, kept for reactions)
 - channels.types::GroupInfo, InboundMessage, MediaAttachment, ReplyContext (POS: channel message value types)
 
 [OUTPUT]
@@ -27,6 +28,7 @@ from app.channels.providers.whatsapp.helpers import (
     check_mentioned,
     is_self_chat,
 )
+from app.channels.providers.whatsapp.message_keys import MessageKeys, inbound_message_key
 from app.channels.types import (
     ChannelStatus,
     GroupInfo,
@@ -51,6 +53,7 @@ class WhatsAppInboundMixin(BaseChannel):
     _sent_futures: dict[str, asyncio.Future[dict[str, object]]]
     _media_download_futures: dict[str, asyncio.Future[str]]
     _lid_to_pn: dict[str, str]
+    _message_keys: MessageKeys
 
     if TYPE_CHECKING:
 
@@ -311,6 +314,9 @@ class WhatsAppInboundMixin(BaseChannel):
             message_id=str(wa_msg_id) if wa_msg_id else None,
             reply_to=reply_to,
         )
+        key = inbound_message_key(event, from_jid)
+        if key:
+            self._message_keys.note(chat_id, str(key["id"]), key)
         await self._emit_inbound(inbound)
 
     async def _handle_inbound_reaction(self, event: dict[str, object]) -> None:
