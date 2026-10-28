@@ -221,6 +221,13 @@ class AgentGateway:
         info = self._session_info.get(chat_id)
         return info.current_message_id if info else None
 
+    def get_session_id_by_message(self, message_id: str) -> str | None:
+        """The chat whose running turn carries ``message_id``, if any."""
+        for chat_id, info in self._session_info.items():
+            if info.current_message_id == message_id:
+                return chat_id
+        return None
+
     def get_active_sessions(self) -> list[dict[str, object]]:
         """Get active session info for a specific user (for Multi-Pane status)."""
         return [info.to_dict() for info in self._session_info.values()]

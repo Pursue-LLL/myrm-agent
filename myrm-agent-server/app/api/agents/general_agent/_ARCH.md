@@ -12,5 +12,5 @@ GeneralAgent 流式对话、重连与离线 durable 任务 HTTP 层。上级文�
 | `active_sessions.py` | 模块 | attach SSE；pair auth 时校验 `require_mobile_pair_chat_access` | ✅ |
 | `phase_response.py` | 模块 | 阶段响应端点：`/clarify-response`（澄清）+ `/plan-confirm-response`（计划确认 HITL，支持 confirm/edit/skip）+ `/human-gate-response`（Dynamic Workflow 中途人机门控） | ✅ |
 | `media_config.py` | 模块 | 媒体设置页凭证端点：`/test-media-config`（图像/视频/TTS 凭证与连通性探测）+ `/media-provider-status`（视频 Provider 密钥与健康状态）；配置读取失败降级为空配置，不返回 500 | ✅ |
-| `streaming.py` | 模块 | agent-stream / steer / redirect（指令文本先过风险闸门，命中返回 `success:false`，不送达回合）/ **chat cancel（interrupt + registry）** / message cancel（desktop）；pair auth 时校验 scoped chat 绑定 | ✅ |
+| `streaming.py` | 模块 | agent-stream / steer / redirect（指令文本先过风险闸门，命中返回 `success:false`，不送达回合）/ **chat cancel（interrupt + registry）** / message cancel（desktop）— 两个 Stop 端点成功后都对该会话调用 `record_user_stop`（按消息 id 的端点先经网关反查会话），此后到期的后台完成只落通知行、不再自行唤醒，直到用户下一条消息；pair auth 时校验 scoped chat 绑定 | ✅ |
 | `prewarm.py` | 模块 | `POST/DELETE /chats/{chat_id}/prewarm` — turn1 冷启动 proactive warm | ✅ |

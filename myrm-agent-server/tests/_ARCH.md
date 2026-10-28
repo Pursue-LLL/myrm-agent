@@ -235,7 +235,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
 | `services/agent/goals/unattended/test_headless_goal_turn.py` | 模块 | 服务端自启的目标回合在构建 agent 之前预留会话并注册取消令牌（真实 `AgentGateway` 与 `CancellationRegistry`，仅 agent 流为替身）：暂停与 E-Stop 能取消该回合的令牌、回合以任何方式结束都归还会话与令牌、暂停后结束该回合启动的后台任务而跑完的回合不动它们、会话已被消息占用时不构建也不夺走对方的预留、二次启动不扰动首个回合、应用排空不算目标失败 |
 | `services/agent/turn_lease/test_lease.py` | 模块 | 服务端自启回合的租约（真实 `AgentGateway` 与真实 `CancellationRegistry`，仅后台任务注册表为替身）：持有期间会话在途且令牌按回合 id 可被停止、结束/失败都归还、会话被占用或应用排空时拒绝且不动对方的预留、期间被消息抢到的会话不被释放、被取消的回合结束该会话的后台任务而跑完的不动、注册表失败也不留住会话 |
-| `services/agent/turn_lease/test_server_started_turns_guard.py` | 模块 | 架构守卫：`app/` 下每个 `ai_agent_service_stream` 调用点必须登记为「请求绑定」或「服务端自启」，服务端自启的三处都在 `server_turn_lease` 下运行，只有租约与聊天回合可以自己占会话、注册取消令牌 |
+| `services/agent/turn_lease/test_server_started_turns_guard.py` | 模块 | 架构守卫：`app/` 下每个 `ai_agent_service_stream` 调用点必须登记为「请求绑定」或「服务端自启」，服务端自启的三处都在 `server_turn_lease` 下运行，只有租约与聊天回合可以自己占会话、注册取消令牌；唤醒回合只能由调度器在租约下发起 |
+| `services/agent/adaptive_wakeup/test_wake_turn_scheduler.py` | 模块 | 唤醒回合调度（真实网关、取消注册表与唤醒预算，仅唤醒流本身为替身）：回合持有会话与可停止的令牌、会话忙时等待而不叠加、同一会话的多次完成合并为一轮、唤醒期间到达的完成排在其后不重叠、唤醒期间的 Stop 令牌翻转并结束后台任务、等待期间的 Stop / 用户在通知之后发言 / E-Stop / 日预算超额都跳过、等待有上限、应用排空时放弃、失败的唤醒把会话还回去 |
+| `services/agent/adaptive_wakeup/test_wake_turn_stream.py` | 模块 | 唤醒回合的流式执行（真实网关、取消注册表与流收集器，智能体为脚本化替身）：在调用方租约内流式执行并按会话发布事件、Stop 以 `agent_cancelled` 收尾且留住已说的部分并立即还会话、结束于 Stop 后的失败不重来、普通失败重试且只留最后一次、连续失败三次后放弃 |
+| `services/agent/adaptive_wakeup/test_service.py` | 模块 | 一次后台完成的去向（真实路由与唤醒预算）：预算内落通知行并调度唤醒、超额与 Stop 之后只落通知行不唤醒、用户下一条消息解除 Stop 并恢复额度 |
+| `services/agent/stream_session/test_persist_user_message_human_turn.py` | 模块 | 已有会话里的新用户消息解除 Stop 并恢复唤醒额度，新会话、审批续跑与重新生成不算 |
+| `api/agents/general_agent/test_stop_holds_autonomous_wakes.py` | 模块 | 两个 Stop 端点（真实网关与取消注册表）终止回合并让该会话不再自行唤醒，只影响被停的会话，什么都没在跑时不动预算；网关按消息 id 反查会话 |
 | `lifecycle/test_auto_continue_turn_lease.py` | 模块 | 崩溃自动续跑的重放回合在租约下运行：持有会话且取消令牌可被停止、无论成败都归还、被停止时结束后台任务、会话已被消息占用时不在其上重放（按失败通知） |
 | `services/agent/goals/unattended/test_trigger_profile.py` | 模块 | 无人值守目标流继承聊天绑定的智能体档案：韩语正式体后缀、Team 协议与成员、没有绑定智能体、安全覆盖，以及 `trigger_goal_stream` 把档案、`goal_provider` 与记忆开关注入 `GeneralAgentParams` |
 | `core/channel_bridge/test_goal_status_view.py` | 模块 | IM `/goal status` 回复（`render_goal_status`）：只有目标与状态时两行，预算/约束/验收标准/子目标按固定顺序追加，没有上限的预算不加预算行 |

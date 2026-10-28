@@ -10,6 +10,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry
 from pydantic import BaseModel
 from pydantic.alias_generators import to_camel
 
+from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 from app.services.agent.params import AgentRequest
 from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import run_agent_stream
@@ -36,6 +37,12 @@ def _record_dedup_call_id(call_id: str) -> None:
             _PROCESSED_STEER_CALL_IDS.popitem(last=False)
 
 
+def _hold_autonomous_wakes(chat_id: str | None) -> None:
+    """A stopped chat must not restart itself: background results that settle after the Stop wait for the user."""
+    if chat_id:
+        get_adaptive_wakeup_service().record_user_stop(chat_id)
+
+
 async def _risk_refusal(message: str, chat_id: str) -> JSONResponse | None:
     """A refusal when a risk rule holds what the user typed into a running turn, else None.
 
@@ -59,7 +66,8 @@ async def agent_stream(
     require_mobile_pair_chat_access(http_request, request.chat_id)
     from app.services.loop.session_turn_arbiter import SessionTurnArbiter
 
-    SessionTurnArbiter.get_instance().record_user_activity(request.chat_id)
+    if request.chat_id:
+        SessionTurnArbiter.get_instance().record_user_activity(request.chat_id)
     return await run_agent_stream(request, http_request)
 
 
@@ -82,11 +90,14 @@ async def cancel_agent_request(
     from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
     from app.core.utils.response_utils import error_response, success_response
+    from app.services.agent.gateway import get_agent_gateway
 
+    chat_id = get_agent_gateway().get_session_id_by_message(message_id)
     success = CancellationRegistry.cancel(message_id, CancelReason.USER_CANCELLED)
 
     if success:
         logger.info("User cancelled agent request: message_id=%s", message_id)
+        _hold_autonomous_wakes(chat_id)
         return success_response(data={"cancelled": True, "message_id": message_id})
 
     return error_response(message="Agent request not found or already completed", code=404)
@@ -241,6 +252,7 @@ async def cancel_active_chat_agent(
         chat_id,
         message_id,
     )
+    _hold_autonomous_wakes(chat_id)
     return success_response(
         data={
             "cancelled": True,

@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.agent.params::AgentRequest (POS: chat_id, query, resume/regenerate flags)
 - app.services.chat.chat_service::ChatService (POS: persist user message + load history)
+- app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: a message from the user restores the wake budget and lifts a stop)
 
 [OUTPUT]
 - persist_user_message: append user turn and commit it before any turn setup
@@ -19,6 +20,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.core.types.business import ChatHistoryReq
+from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 from app.services.agent.params import AgentRequest, _extract_text_from_query
 from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 from app.services.chat.chat_service import ChatService
@@ -105,6 +107,7 @@ async def persist_user_message(
             request.message_id,
             msg.id,
         )
+        get_adaptive_wakeup_service().record_human_turn(request.chat_id)
         return BootstrappedMessageId(msg.id, pending_draft=None)
 
     # Defer persistence for new session until first assistant event

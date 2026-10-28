@@ -1,38 +1,84 @@
 """Adaptive Wakeup Service coordinating background settlement deliveries and bounded wakes.
 
 [INPUT]
-- myrm_agent_harness.agent.coordination.adaptive_wakeup::{AdaptiveWakeupRouter, HostActivityState, RoutingDecision, WakeupBudgetState, WakeupChannel, WakeupEvent, WakeupSourceType}
+- myrm_agent_harness.agent.coordination.adaptive_wakeup::{AdaptiveWakeupRouter, RoutingDecision, WakeupBudgetState, WakeupChannel, WakeupEvent}
+- app.services.agent.adaptive_wakeup.wake_turn_scheduler::schedule_wake_turn (POS: starts the one wake turn once the chat is free)
 - app.services.chat.chat_service::ChatService
 - app.services.event.app_event_bus::{AppEvent, AppEventType, get_event_bus}
 
 [OUTPUT]
 - AdaptiveWakeupService singleton coordinating settlement channel decisions,
-  headless wakeups, in-flight injections, and human budget resets.
+  wake turns, the user's stop flag, and human budget resets.
 
 [POS]
 - Bridge between background jobs / subagent settlements and the chat execution engine.
+  Every settlement lands in the chat as a notice row, whatever channel it takes, so the next turn sees it.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import UTC, datetime
 
 from myrm_agent_harness.agent.coordination.adaptive_wakeup import (
     AdaptiveWakeupRouter,
-    HostActivityState,
     RoutingDecision,
     WakeupBudgetState,
     WakeupChannel,
     WakeupEvent,
 )
 
+from app.services.agent.adaptive_wakeup.wake_turn_scheduler import schedule_wake_turn
 from app.services.chat.chat_helpers import WAKEUP_MESSAGE_ID_PREFIX
 from app.services.chat.chat_service import ChatService
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 logger = logging.getLogger(__name__)
+
+_NOTICE_KIND = {
+    WakeupChannel.FOLLOWUP: "followup",
+    WakeupChannel.DEGRADE: "degraded",
+    WakeupChannel.SUPPRESS: "suppressed",
+}
+_NOTICE_TYPE = {
+    WakeupChannel.FOLLOWUP: "adaptive_wakeup_followup",
+    WakeupChannel.DEGRADE: "adaptive_settlement_degraded",
+    WakeupChannel.SUPPRESS: "adaptive_settlement_suppressed",
+}
+
+
+def _notice_message_id(event: WakeupEvent, decision: RoutingDecision) -> str:
+    """Row id of the notice; the prefix keeps it apart from what the user typed."""
+    suffix = f"_{decision.consecutive_wakes}" if decision.channel == WakeupChannel.FOLLOWUP else ""
+    return f"{WAKEUP_MESSAGE_ID_PREFIX}{_NOTICE_KIND[decision.channel]}_{event.source_id}{suffix}"
+
+
+def _notice_content(event: WakeupEvent, decision: RoutingDecision) -> str:
+    """The system notification the model reads for a settlement, by what the router decided to do with it."""
+    source = event.source_type.value
+    if decision.channel == WakeupChannel.FOLLOWUP:
+        status_desc = "succeeded" if event.success else "failed"
+        body = f"Background {source} '{event.source_id}' {status_desc}.\nSummary: {event.summary}\n"
+        if event.error:
+            body += f"Error: {event.error}\n"
+        if event.exit_code is not None:
+            body += f"Exit code: {event.exit_code}\n"
+        body += (
+            f"Autonomous wake turn ({decision.consecutive_wakes}/3). "
+            "Please inspect and proceed with the next step of the workflow.\n"
+        )
+    elif decision.channel == WakeupChannel.DEGRADE:
+        body = (
+            f"[{source.upper()}] {event.summary}\n"
+            f"Autonomous wakeup paused: reached consecutive wake limit ({decision.consecutive_wakes}).\n"
+            "Please send a message to continue.\n"
+        )
+    else:
+        body = (
+            f"[{source.upper()}] {event.summary}\n"
+            "Autonomous wakeup skipped: the user stopped this session. Please send a message to continue.\n"
+        )
+    return f"<system_notification type='{_NOTICE_TYPE[decision.channel]}' source_id='{event.source_id}'>\n{body}</system_notification>"
 
 
 class AdaptiveWakeupService:
@@ -41,9 +87,7 @@ class AdaptiveWakeupService:
     _instance: AdaptiveWakeupService | None = None
 
     def __init__(self, default_max_consecutive_wakes: int = 3) -> None:
-        self._router: AdaptiveWakeupRouter = AdaptiveWakeupRouter(
-            default_max_consecutive_wakes=default_max_consecutive_wakes
-        )
+        self._router: AdaptiveWakeupRouter = AdaptiveWakeupRouter(default_max_consecutive_wakes=default_max_consecutive_wakes)
 
     @classmethod
     def get_instance(cls) -> AdaptiveWakeupService:
@@ -57,31 +101,19 @@ class AdaptiveWakeupService:
         """Underlying router engine."""
         return self._router
 
-    def set_host_activity(self, session_id: str, state: HostActivityState) -> None:
-        """Update host agent real-time activity (IDLE, BUSY, or STOPPED)."""
-        self._router.set_host_activity(session_id, state)
-
-    def get_host_activity(self, session_id: str) -> HostActivityState:
-        """Query host agent real-time activity."""
-        return self._router.get_host_activity(session_id)
-
     def record_human_turn(self, session_id: str) -> None:
-        """Reset wake budget when human user sends a verified message."""
+        """Reset the wake budget and lift a stop when the user sends a message."""
         self._router.record_human_turn(session_id)
-        logger.info("Adaptive wake budget reset for session=%s following human turn", session_id)
+        logger.debug("Adaptive wake budget reset for session=%s following human turn", session_id)
 
     def record_user_stop(self, session_id: str) -> None:
-        """Suppress subsequent autonomous wakes when user explicitly stops/cancels."""
+        """Keep settlements from starting a turn on their own until the user writes again."""
         self._router.record_user_stop(session_id)
         logger.info("Adaptive wake suppressed for session=%s following user stop request", session_id)
 
     def get_budget_state(self, session_id: str) -> WakeupBudgetState:
         """Retrieve current session autonomous wake budget state."""
         return self._router.budget_tracker.get_budget_state(session_id)
-
-    def drain_injected_events(self, session_id: str) -> list[WakeupEvent]:
-        """Atomically retrieve and clear queued injected settlement events."""
-        return self._router.drain_injected_events(session_id)
 
     async def handle_settlement(
         self,
@@ -120,67 +152,19 @@ class AdaptiveWakeupService:
             )
         )
 
-        # 2. Channel actions
-        if decision.channel == WakeupChannel.SUPPRESS:
-            logger.debug("Settlement suppressed for session=%s", session_id)
-            return decision
+        # 2. The chat keeps every settlement as a notice row, so the next turn (woken or typed) sees it
+        await ChatService.ensure_chat_and_append_user_message(
+            chat_id=session_id,
+            content=_notice_content(event, decision),
+            sent_at=datetime.now(tz=UTC),
+            sent_timezone="UTC",
+            message_id=_notice_message_id(event, decision),
+            action_mode="general",
+        )
 
-        if decision.channel == WakeupChannel.INJECT:
-            # Staged in router injected inboxes; host will consume at turn end / checkpoint
-            logger.debug("Settlement injected for active session=%s", session_id)
-            return decision
-
-        if decision.channel == WakeupChannel.DEGRADE:
-            # Budget exhausted: append notification to chat history so user can review and resume
-            notice_content = (
-                f"<system_notification type='adaptive_settlement_degraded' source_id='{event.source_id}'>\n"
-                f"[{event.source_type.value.upper()}] {event.summary}\n"
-                f"Autonomous wakeup paused: reached consecutive wake limit ({decision.consecutive_wakes}).\n"
-                f"Please send a message to continue.\n"
-                f"</system_notification>"
-            )
-            await ChatService.ensure_chat_and_append_user_message(
-                chat_id=session_id,
-                content=notice_content,
-                sent_at=datetime.now(tz=UTC),
-                sent_timezone="UTC",
-                message_id=f"{WAKEUP_MESSAGE_ID_PREFIX}degraded_{event.source_id}",
-                action_mode="general",
-            )
-            return decision
-
+        # 3. Only a followup starts a turn; it waits for the chat to be free and shares one turn with its neighbours
         if decision.channel == WakeupChannel.FOLLOWUP:
-            # Append prompt for agent continuation
-            status_desc = "succeeded" if event.success else "failed"
-            continuation_prompt = (
-                f"<system_notification type='adaptive_wakeup_followup' source_id='{event.source_id}'>\n"
-                f"Background {event.source_type.value} '{event.source_id}' {status_desc}.\n"
-                f"Summary: {event.summary}\n"
-            )
-            if event.error:
-                continuation_prompt += f"Error: {event.error}\n"
-            if event.exit_code is not None:
-                continuation_prompt += f"Exit code: {event.exit_code}\n"
-            continuation_prompt += (
-                f"Autonomous wake turn ({decision.consecutive_wakes}/3). "
-                f"Please inspect and proceed with the next step of the workflow.\n"
-                f"</system_notification>"
-            )
-
-            await ChatService.ensure_chat_and_append_user_message(
-                chat_id=session_id,
-                content=continuation_prompt,
-                sent_at=datetime.now(tz=UTC),
-                sent_timezone="UTC",
-                message_id=f"{WAKEUP_MESSAGE_ID_PREFIX}followup_{event.source_id}_{decision.consecutive_wakes}",
-                action_mode="general",
-            )
-
-            # Trigger detached headless execution
-            from app.services.agent.wakeup_handler import ServerWakeupHandler
-
-            handler = ServerWakeupHandler()
-            asyncio.create_task(handler._run_headless_agent(session_id, agent_id))
+            schedule_wake_turn(session_id, agent_id)
 
         return decision
 
