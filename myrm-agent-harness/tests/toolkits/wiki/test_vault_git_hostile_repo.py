@@ -4,9 +4,10 @@
 - toolkits.wiki.portability.vault_git (POS: local git auto-commit of the wiki vault)
 
 [OUTPUT]
-- Real ``git`` runs: ``core.fsmonitor`` and hooks of a ``.git`` that arrived with the vault (ZIP, sync folder, restored
-  backup) and ``core.fsmonitor`` of a repository nested below the vault root fire on the plain snapshot commands and
-  stay silent during ``commit_vault_git_snapshot``; a conditional include is skipped as ``unsafe_repository``.
+- Real ``git`` runs: ``core.fsmonitor``, hooks and clean filters of a ``.git`` that arrived with the vault (ZIP, sync
+  folder, restored backup), the same when ``.git`` is a file pointing at another directory, and ``core.fsmonitor`` of a
+  repository nested below the vault root fire on the plain snapshot commands and stay silent during
+  ``commit_vault_git_snapshot``; a conditional include is skipped as ``unsafe_repository``.
 
 [POS]
 Enforcement tests for the vault commit flow, the one flow that adopts a repository the user may have received as files.
@@ -53,12 +54,12 @@ def _identity(repo: Path) -> None:
     git(repo, "config", "user.name", "a")
 
 
-def _delivered_vault(tmp_path: Path, name: str) -> WikiStructure:
+def _delivered_vault(tmp_path: Path, name: str, *, git_dir_as_file: bool = False) -> WikiStructure:
     """A vault whose root already holds a repository, with one commit and a page edited since."""
     structure = WikiStructure(tmp_path / name)
     structure.ensure_structure()
     root = structure.base_dir
-    git(root, "init", "-q")
+    git(root, "init", "-q", *((f"--separate-git-dir={tmp_path / f'{name}-gitdir'}",) if git_dir_as_file else ()))
     _identity(root)
     page = root / "wiki" / "page.md"
     page.write_text("one\n")
@@ -68,8 +69,20 @@ def _delivered_vault(tmp_path: Path, name: str) -> WikiStructure:
     return structure
 
 
-def _plant_root_programs(root: Path, markers: Path) -> None:
+def _plant_fsmonitor(root: Path, markers: Path) -> None:
     git(root, "config", "core.fsmonitor", program(markers, "fsmonitor"))
+    clear(markers)
+
+
+def _plant_clean_filter(root: Path, markers: Path) -> None:
+    (root / ".gitattributes").write_text("*.md filter=evil\n")
+    git(root, "config", "filter.evil.clean", program(markers, "filter-clean", passthrough="cat"))
+    git(root, "config", "filter.evil.smudge", program(markers, "filter-smudge", passthrough="cat"))
+    clear(markers)
+
+
+def _plant_root_programs(root: Path, markers: Path) -> None:
+    _plant_fsmonitor(root, markers)
     for hook in ("post-commit", "reference-transaction"):
         script = root / ".git" / "hooks" / hook
         script.write_text(f"#!/bin/sh\ntouch '{markers}/hook-{hook}'\n")
@@ -119,7 +132,43 @@ def test_programs_of_a_repository_delivered_with_the_vault_stay_silent(tmp_path:
     result = commit_vault_git_snapshot(victim, reason="session archive")
 
     assert result.committed is True
-    assert result.commit_hash == _head(victim.base_dir) != before
+    assert result.commit_hash == _head(victim.base_dir)
+    assert result.commit_hash != before
+    assert fired(markers) == set()
+
+
+def test_a_clean_filter_named_by_the_delivered_repository_stays_silent(tmp_path: Path, markers: Path) -> None:
+    control = _delivered_vault(tmp_path, "control").base_dir
+    _plant_clean_filter(control, markers)
+    _plain_snapshot(control)
+    if "filter-clean" not in fired(markers):
+        pytest.skip("this git build does not run a clean filter while staging")
+    clear(markers)
+
+    victim = _delivered_vault(tmp_path, "victim")
+    _plant_clean_filter(victim.base_dir, markers)
+
+    result = commit_vault_git_snapshot(victim, reason="session archive")
+
+    assert result.committed is True
+    assert fired(markers) == set()
+
+
+def test_a_fsmonitor_of_a_repository_whose_git_directory_is_a_file_stays_silent(tmp_path: Path, markers: Path) -> None:
+    control = _delivered_vault(tmp_path, "control", git_dir_as_file=True).base_dir
+    _plant_fsmonitor(control, markers)
+    _plain_snapshot(control)
+    if "fsmonitor" not in fired(markers):
+        pytest.skip("this git build does not run fsmonitor during a snapshot")
+    clear(markers)
+
+    victim = _delivered_vault(tmp_path, "victim", git_dir_as_file=True)
+    assert (victim.base_dir / ".git").is_file()
+    _plant_fsmonitor(victim.base_dir, markers)
+
+    result = commit_vault_git_snapshot(victim, reason="session archive")
+
+    assert result.committed is True
     assert fired(markers) == set()
 
 

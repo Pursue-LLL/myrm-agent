@@ -116,15 +116,7 @@ def commit_vault_git_snapshot(
 
         timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         message = f"myrm: {reason}\n\ntimestamp={timestamp}"
-        commit = _run_git(
-            vault_dir,
-            "commit",
-            "-m",
-            message,
-            "--no-gpg-sign",
-            "--no-verify",
-        )
-        _ = commit.stdout
+        _run_git(vault_dir, "commit", "-m", message, "--no-gpg-sign", "--no-verify")
         rev = _run_git(vault_dir, "rev-parse", "HEAD")
         commit_hash = rev.stdout.strip()
         logger.info("Wiki vault git snapshot committed (%s): %s", reason, commit_hash)
