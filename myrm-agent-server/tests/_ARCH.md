@@ -111,6 +111,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_session_gate_answers.py` | 单元 | 真实 `SessionGate` 与审批应答：与文本同处一个防抖窗口时应答先跑且完整；多个应答各自单独、按到达顺序；回合进行中到达的应答先于同时排队的文本；排队文本已满时应答仍保留；应答不被当作「排在忙碌回合后面的消息」提示；回合从不重叠；纯文本仍合并排队 |
 | `channels/routing/test_session_gate_senders.py` | 单元 | 真实 `SessionGate` 与发送者：同一防抖窗口或排在忙碌回合后面的文字按发送者拆成回合（两种先后顺序，A-B-A 交错保持到达顺序，回合从不重叠），同一发送者的连发（群聊与私聊）仍合并成一个回合，审批应答仍单独且先于各发送者的文字；合并后的消息保留准入策略读取的标志：显式 @ 提及不依赖其在批次里的先后，机器人消息合并后仍是机器人（不会被当成真人触发回合），其余元数据仍取最后一条 |
 | `channels/routing/test_session_gate_turns.py` | 单元 | 真实 `SessionGate` 的回合身份：两个回合之间到达的消息排在第二个回合之后而不是另起第三个；无防抖窗口时同一事件循环刻的两条消息不重叠；按名字（`release_turn`）释放卡住的回合会启动排在后面的那个；被释放回合迟到的结束不会结束接手的回合（含会话记录已被丢弃后重建的情形，回合号不复用）；已结束的回合不能再被释放；空闲会话没有运行中的回合；回合失败或被取消后排队的回合仍启动 |
+| `channels/routing/test_group_chatter_while_busy.py` | 集成 | 真实 `AgentRouter`、`SessionGate` 与解析器，执行器卡住首个回合：群里回合进行中到达的闲聊纯文本不占排队名额、不被回复「已排队」、成为下一回合的上下文且只记录一次为非触发；被点名的文本与带附件的消息照常排队并提示；群聊未启用或策略关闭时走原路径；空闲时的闲聊仍走原路径且根本不做触发判定；审批应答即使带文字也照常排队；判定出错时仍照常排队；`commit=False` 的触发判定遇到禁言词不禁言，`commit=True` 才禁言 |
 | `channels/routing/pipeline/test_reap_releases_gate_turn.py` | 集成 | 真实 `AgentRouter` 加真实 `SessionGate` 上的卡死看门狗：运行中的任务登记其会话闸门键与回合号（私聊的闸门键按发送者、任务表按聊天，二者不同）；无视取消的回合只能由看门狗按登记的键与回合号释放，排队的消息随即运行；被回收回合迟到的收尾不会结束接手的回合 |
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |
 | `channels/test_router_busy_input_mode.py` | 单元 | `busy_input_mode` 的 steer / redirect 自动分发、斜杠命令不被转向；已结束、只因审批保留登记的回合不被转向，文字作为新的回合 |

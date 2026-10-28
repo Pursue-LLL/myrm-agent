@@ -312,8 +312,14 @@ async def should_respond_in_group_support(
     tracker: GroupFollowUpTracker,
     fx: MessageEffects,
     msg: InboundMessage,
+    *,
+    commit: bool = True,
 ) -> tuple[bool, str]:
-    """Determine whether the bot should respond in group based on trigger config."""
+    """Determine whether the bot should respond in group based on trigger config.
+
+    ``commit=False`` only reads the verdict: a mute word of an active thread still counts as a trigger, but the
+    thread is not muted and the chat is not told, which the turn that handles the message does.
+    """
     # 0. Bot-sender gate: a bot-authored message never triggers a turn unless it
     #    explicitly addresses this bot. Co-resident bots (alert feeds, sign-in
     #    bots, other AI agents) must not burn LLM turns in free-response groups,
@@ -334,11 +340,12 @@ async def should_respond_in_group_support(
     if cleaned_content in ("/mute", "/shutup", "闭嘴", "别吵"):
         thread_key = f"{msg.channel}:{msg.chat_id}:{msg.thread_id}" if msg.thread_id else None
         if thread_key and tracker.is_active(thread_key):
-            tracker.mute(thread_key)
-            from app.channels.routing.follow_up import mute_tracked_thread
+            if commit:
+                tracker.mute(thread_key)
+                from app.channels.routing.follow_up import mute_tracked_thread
 
-            mute_tracked_thread(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
-            await fx.send_mute_reply(msg)
+                mute_tracked_thread(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
+                await fx.send_mute_reply(msg)
             return True, "___MUTE_CONFIRMED___"
 
     # 3. Explicit Mention Trigger

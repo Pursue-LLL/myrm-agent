@@ -38,6 +38,7 @@ Six complementary mechanisms:
 - Merged InboundMessage delivered via callback to Router
 - Busy ack notifications via ``on_busy_ack`` callback
 - ``running_turn`` / ``release_turn``: the number of the turn a session is running and the way to end that turn by name
+- ``is_busy``: whether a message's session is running a turn (the message would queue behind it)
 
 [POS]
 Sits between Router's consume loop and the per-message handler.
@@ -314,6 +315,10 @@ class SessionGate:
         """The number of the turn the session is running, 0 when it is idle."""
         state = self._sessions.get(key)
         return state.turn if state is not None and state.active else 0
+
+    def is_busy(self, msg: InboundMessage) -> bool:
+        """Whether the session ``msg`` belongs to is running a turn, so that the message would queue behind it."""
+        return self.running_turn(gate_key(msg)) > 0
 
     def release_turn(self, key: str, turn: int) -> None:
         """End turn ``turn`` of the session and start what waits behind it.

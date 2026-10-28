@@ -13,7 +13,7 @@
 - channels.types::InboundMessage, OutboundMessage (POS: channel message envelopes)
 
 [OUTPUT]
-- RouterInboundMixin: ``_dispatch_inbound_message``, the sequence of steps one message passes (dedup, group activity, locale, then the steps that may claim it: ``_claim_approval_input``, ``_claim_command``, ``_claim_steering``, ``_claim_delegation``, ``_claim_delegated_task_steering``, with ``_fire_event_triggers`` between the commands and the steering, and finally the session gate); the sender checks (``_check_admin_permission``, ``_is_sender_admitted``, ``_is_untrusted_event_sender``, all fail closed), ``_enrich_message_locale`` and ``_is_duplicate``
+- RouterInboundMixin: ``_dispatch_inbound_message``, the sequence of steps one message passes (dedup, group activity, locale, then the steps that may claim it: ``_claim_approval_input``, ``_claim_command``, ``_claim_steering``, ``_claim_delegation``, ``_claim_delegated_task_steering``, with ``_fire_event_triggers`` between the commands and the steering, then ``_divert_group_chatter``, and finally the session gate); the sender checks (``_check_admin_permission``, ``_is_sender_admitted``, ``_is_untrusted_event_sender``, all fail closed), ``_enrich_message_locale`` and ``_is_duplicate``
 
 [POS]
 Inbound segment of ``AgentRouter``. Runs on the consume loop, one message at a time, so every check here must either finish fast or hand off to a task.
@@ -74,6 +74,8 @@ class RouterInboundMixin:
             return
         await self._fire_event_triggers(msg)
         if await self._claim_steering(msg) or await self._claim_delegation(msg) or await self._claim_delegated_task_steering(msg):
+            return
+        if await self._divert_group_chatter(msg):
             return
         self._gate.submit(msg)
 
@@ -144,6 +146,22 @@ class RouterInboundMixin:
                 msg.user_id or "",
                 untrusted=await self._is_untrusted_event_sender(msg),
             )
+
+    async def _divert_group_chatter(self: RouterInboundHost, msg: InboundMessage) -> bool:
+        """Settle group chatter that arrives while the chat's turn runs, instead of queueing it behind that turn.
+
+        Queued, it would take one of the pending slots, make the chat read "Agent is busy, your message has been queued"
+        for a message nobody addressed to the bot, and still end as context for the next turn. Only text qualifies:
+        the attachments of a queued message are processed before the trigger is decided, and their text is context
+        too. Fails open: an error here queues the message as it always was.
+        """
+        if not (msg.is_group and msg.content and not msg.media and msg.resume_value is None and self._gate.is_busy(msg)):
+            return False
+        try:
+            return await self._resolver.divert_group_chatter(msg)
+        except Exception:
+            logger.warning("Chatter check failed for %s/%s, queueing the message", msg.channel, msg.chat_id, exc_info=True)
+            return False
 
     async def _claim_steering(self: RouterInboundHost, msg: InboundMessage) -> bool:
         """Take text typed while a turn runs into that turn, when the turn's busy-input mode is steer or redirect.

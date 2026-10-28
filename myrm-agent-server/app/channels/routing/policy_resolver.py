@@ -14,6 +14,7 @@ pairing status, and WhatsApp LID fallback logic.
 
 [OUTPUT]
 - PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus the read-only is_sender_admitted / is_untrusted_event_sender
+- ``divert_group_chatter``: records group text that would not trigger a turn as context and says so (the router uses it for text that arrives while the chat's turn runs)
 
 [POS]
 Inbound policy resolution: decides whether a message reaches an agent turn and under which identity.
@@ -164,20 +165,7 @@ class PolicyResolver:
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
-            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
-            # Buffer human chatter only: bot/alert noise crowds out human
-            # context and can seed bot-to-bot loops. Persistence above stays
-            # unconditional for DWD completeness.
-            if not msg.is_bot:
-                self._context_buffer.append(
-                    chat_id,
-                    ContextEntry(
-                        sender_id=msg.sender_id,
-                        content=msg.content,
-                        timestamp=time.monotonic(),
-                        sender_name=msg.sender_name,
-                    ),
-                )
+            self._record_chatter(msg, chat_id)
             return None
 
         asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
@@ -208,6 +196,45 @@ class PolicyResolver:
                 return await resolve_group_sender_identity(self._pairing, self._fx, msg, default_uid, self._tracker)
 
         return None
+
+    async def divert_group_chatter(self, msg: InboundMessage) -> bool:
+        """Settle a group message that would start no turn, for a caller that would queue it behind a running one.
+
+        Applies to a chat the group gates of ``resolve_group_user`` admit (a control-plane forward and a chat the
+        policy refuses keep the normal path) and only when the trigger verdict, read without its side effects, is
+        "no turn": what is recorded is what ``resolve_group_user`` records for the same message. Returns whether the
+        message was settled; a settled message must not be submitted again.
+        """
+        if msg.user_id and is_control_plane_forward(msg):
+            return False
+        if (
+            await self._get_group_policy(msg.channel) == GroupPolicy.DISABLED
+            or msg.chat_id not in await self._get_enabled_groups()
+        ):
+            return False
+        should_respond, _ = await should_respond_in_group_support(self._policy, self._tracker, self._fx, msg, commit=False)
+        if should_respond:
+            return False
+        self._record_chatter(msg, msg.chat_id or msg.sender_id)
+        return True
+
+    def _record_chatter(self, msg: InboundMessage, chat_id: str) -> None:
+        """Keep a group message that starts no turn: the ledger records it, a person's text becomes context of the next turn."""
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
+        # Buffer human chatter only: bot/alert noise crowds out human context and can seed bot-to-bot loops.
+        # Persistence above stays unconditional for DWD completeness.
+        if not msg.is_bot:
+            self._context_buffer.append(
+                chat_id,
+                ContextEntry(
+                    sender_id=msg.sender_id,
+                    content=msg.content,
+                    timestamp=time.monotonic(),
+                    sender_name=msg.sender_name,
+                ),
+            )
 
     async def resolve_dm_user(self, msg: InboundMessage) -> str | None:
         """Resolve the sender's system user_id via DM policy + PairingStore.
