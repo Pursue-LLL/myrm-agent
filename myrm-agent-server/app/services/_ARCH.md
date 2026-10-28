@@ -81,7 +81,6 @@
 | `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
 | `swarm/` | ✅ 核心 | 多智能体蜂群并发协同、记忆规则唤醒 HUD 与店主风险清单核验服务 | [_ARCH.md](swarm/_ARCH.md) |
 | `analytics/` | ✅ 核心 | 生产力与可量化 ROI 分析服务（工时折算、Token 成本核算、替代价值与高收益流程） | [_ARCH.md](analytics/_ARCH.md) |
-| `git/` | ✅ 核心 | Git 多工作区生命周期、侧边栏 Worktree 切换、会话检出锚定与文件触达分析服务 | [_ARCH.md](git/_ARCH.md) |
 | `session_export/` | ✅ 核心 | 会话交互式单文件 HTML 导出器与只读 Web 分享桥（零网络依赖自包含 HTML、凭证自动脱敏、折叠卡片与代码复制） | [_ARCH.md](session_export/_ARCH.md) |
 | `sandbox_wake/` | ✅ 辅助 | 云托管沙箱到点唤醒上报（目标额度窗口 / cron 的下一次必须运行时间 → 控制平面 `wake-schedule`） | [_ARCH.md](sandbox_wake/_ARCH.md) |
 ---

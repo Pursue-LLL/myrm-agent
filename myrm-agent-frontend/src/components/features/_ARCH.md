@@ -61,7 +61,6 @@
 | `canvas/`                                     | Canvas 画布文件严格沙箱隔离与交互式脚本动态鉴权体系（Strict CSP、iframe sandbox、出网审批门禁） | [_ARCH.md](canvas/_ARCH.md)                                                       |
 | `quad-graph/`                                 | 四图分层动态拓扑视界与可观测图控制台（Task/Workflow/Team/Communication 四重视角切换、节点光晕点亮与实时 Steer 驾驶舱） | [_ARCH.md](quad-graph/_ARCH.md)                                                   |
 | `roi-dashboard/`                              | 智能体可量化 ROI 生产力大盘与已节省时间价值看板（显性化工时大盘、投入产出比、任务分类贡献与高收益预置流程） | [_ARCH.md](roi-dashboard/_ARCH.md)                                               |
-| `git-worktree/`                               | Git Worktree 侧边栏多工作区切换器、项目级会话聚合与历史 Checkout 自动锚定套件（分支下拉切换、会话锚定提示、文件触达视图） | [_ARCH.md](git-worktree/_ARCH.md)                                                 |
 | `extension-widgets/`                          | 扩展小组件 ANSI 颜色渲染器与微型组件挂载宿主（Nano-Context 上下文占用表、Todo 任务清单） | [_ARCH.md](extension-widgets/_ARCH.md)                                           |
 | `model-tester/`                               | 模型配置一键测速与连通性自检器（首字延迟 TTFT、TPS 吞吐量、呼吸状态健康徽标） | [_ARCH.md](model-tester/_ARCH.md)                                                 |
 | `agent-assembler/`                           | “搭积木式”可视化智能体装配工作台与模块化能力编排器（六维积木卡片池、交互式拼装画布、即时微沙箱演练调试台） | [_ARCH.md](agent-assembler/_ARCH.md)                                             |

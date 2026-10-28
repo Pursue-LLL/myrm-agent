@@ -56,7 +56,6 @@ from app.api.files.artifact_share_api import (
 )
 from app.api.files.router import router as files_router
 from app.api.files.vault_proxy import router as vault_proxy_router
-from app.api.git import router as git_worktree_router
 from app.api.goals.router import router as goals_router
 from app.api.health.router import router as health_router
 from app.api.instance_archive.router import router as instance_archive_router
@@ -395,7 +394,6 @@ api_router.include_router(system_durable_budget_ledger_router, prefix="/system",
 api_router.include_router(system_unattended_coverage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_model_ping_router)
 api_router.include_router(system_roi_analytics_router)
-api_router.include_router(git_worktree_router)
 api_router.include_router(remote_access_router, prefix="/remote-access", tags=["remote-access"])
 
 api_router.include_router(budget_router, prefix="/budget", tags=["budget"])

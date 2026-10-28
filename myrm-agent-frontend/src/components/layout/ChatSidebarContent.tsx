@@ -31,7 +31,6 @@ import SessionImportModal from '@/components/features/sidebar/SessionImportModal
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
 import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
 import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWorkspaceFiles';
-import { GitWorktreeDropdown } from '@/components/features/git-worktree/GitWorktreeDropdown';
 import useChatStore from '@/store/useChatStore';
 import { type FileEntry } from '@/services/chat';
 import { ExtensionSlot } from '@/components/features/extension-slots';
@@ -215,11 +214,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               onOpenDialog={() => setSearchDialogOpen(true)}
             />
           </SearchDialog>
-        </div>
-
-        {/* Git Worktree Switcher */}
-        <div className="px-3 pb-2 flex-shrink-0">
-          <GitWorktreeDropdown />
         </div>
 
         {/* New Chat & Import Session Buttons */}

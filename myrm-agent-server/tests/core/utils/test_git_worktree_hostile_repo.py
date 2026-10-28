@@ -35,7 +35,6 @@ from app.core.utils.git_worktree import (
     _run_git,
     _worktree_is_dirty,
 )
-from app.services.git.worktree_service import GitWorktreeService, WorktreeCreateFailed
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX shell scripts and git"
@@ -205,22 +204,6 @@ async def test_creating_a_worktree_in_a_partial_clone_does_not_fetch_through_the
 
 
 @pytest.mark.asyncio
-async def test_a_repository_that_cannot_be_neutralised_is_reported_to_the_worktree_service_as_a_value_error(
-    repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async def refuse(*_args: object, **_kwargs: object) -> None:
-        raise GitHardeningError("Repository git configuration key cannot be neutralised: 'filter.a=b.clean'")
-
-    monkeypatch.setattr("app.services.git.worktree_service._run_git", refuse)
-
-    with pytest.raises(ValueError, match="git cannot be run safely") as refused:
-        await GitWorktreeService().create_worktree("lane", repo_path=str(repo))
-
-    assert isinstance(refused.value, WorktreeCreateFailed)
-    assert refused.value.reason is WorktreeErrorReason.UNSAFE_REPOSITORY
-
-
-@pytest.mark.asyncio
 async def test_a_refused_lane_read_is_a_failed_command_not_an_exception(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     async def refuse(*_args: object, **_kwargs: object) -> None:
         raise GitHardeningError("refused")
@@ -275,14 +258,3 @@ async def test_a_refused_repository_is_reported_as_unsafe_not_as_a_generic_failu
     assert isinstance(outcome, WorktreeCreateError)
     assert outcome.reason is WorktreeErrorReason.UNSAFE_REPOSITORY
     assert not target.exists()
-
-
-@pytest.mark.asyncio
-async def test_the_worktree_service_refuses_a_repository_with_a_conditional_include(repo: Path) -> None:
-    _plant_conditional_include(repo)
-
-    with pytest.raises(WorktreeCreateFailed) as refused:
-        await GitWorktreeService().create_worktree("lane", repo_path=str(repo))
-
-    assert refused.value.reason is WorktreeErrorReason.UNSAFE_REPOSITORY
-    assert not (repo / ".worktrees" / "lane").exists()
