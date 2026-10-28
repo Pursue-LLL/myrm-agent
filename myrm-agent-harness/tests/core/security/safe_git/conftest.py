@@ -1,4 +1,4 @@
-"""Fixtures for the tests that drive a real ``git`` (``test_safe_git*.py``).
+"""Fixtures for the tests that drive a real ``git`` (``test_hardening.py``, ``test_hostile_repos.py``).
 
 [INPUT]
 - pytest: tmp_path / monkeypatch
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from ._git_probe import git
+from tests.support.git_probe import git
 
 
 @pytest.fixture

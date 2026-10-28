@@ -8,7 +8,7 @@
 - program / fired / clear: marker-writing scripts and a record of which of them ran
 
 [POS]
-Shared by ``test_safe_git*.py``: a program that ran leaves a marker file, so "the hardened command ran nothing" is an
+Shared by the real-git hardening tests (``core/security/safe_git``, snapshot rollback, goal rebase): a program that ran leaves a marker file, so "the hardened command ran nothing" is an
 observation and not an inference.
 """
 

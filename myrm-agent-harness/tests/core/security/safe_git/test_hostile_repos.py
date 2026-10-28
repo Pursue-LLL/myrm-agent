@@ -22,8 +22,7 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.core.security.safe_git import GitHardeningError, hardened_git_argv
-
-from ._git_probe import clear, fired, git, plain, program, run
+from tests.support.git_probe import clear, fired, git, plain, program, run
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX shell scripts and git"

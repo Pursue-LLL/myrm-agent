@@ -12,7 +12,7 @@ from myrm_agent_harness.agent.goals.continuation_git_drift import (
     inspect_git_drift,
 )
 from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
-from tests.core.security._git_probe import clear, fired, git, plain, program, run
+from tests.support.git_probe import clear, fired, git, plain, program, run
 
 
 @pytest.fixture

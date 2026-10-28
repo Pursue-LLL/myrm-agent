@@ -1,4 +1,4 @@
-"""Hardened git argv: a repository's own config can no longer pick a program that runs during a read.
+"""Hardened git argv: a repository's own config cannot pick a program that runs during an application git command.
 
 [INPUT]
 - core.security.safe_git (POS: hardened argv for the application's automatic git commands)
@@ -27,8 +27,7 @@ from myrm_agent_harness.core.security.safe_git import (
     hardened_git_argv,
     hardened_git_argv_async,
 )
-
-from ._git_probe import clear, fired, git, plain, program, run
+from tests.support.git_probe import clear, fired, git, plain, program, run
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX shell scripts and git"

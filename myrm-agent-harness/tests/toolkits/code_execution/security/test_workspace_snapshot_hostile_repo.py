@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot impo
     create_workspace_snapshot,
     rollback_workspace_snapshot,
 )
-from tests.core.security._git_probe import clear, fired, git, plain, program, run
+from tests.support.git_probe import clear, fired, git, plain, program, run
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX shell scripts and git"

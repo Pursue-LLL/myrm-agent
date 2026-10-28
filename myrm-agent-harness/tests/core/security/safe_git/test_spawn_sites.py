@@ -18,7 +18,7 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parents[3] / "src"
+_SRC = Path(__file__).resolve().parents[4] / "src"
 
 # Subcommands that read or write the index or working tree, or can fetch an object: where git consults
 # repository-chosen programs.
