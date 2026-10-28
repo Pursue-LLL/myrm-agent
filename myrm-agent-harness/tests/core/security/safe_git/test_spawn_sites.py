@@ -69,9 +69,13 @@ _SPAWN_CALLS = frozenset({"run", "Popen", "check_output", "check_call", "create_
 
 # path under src/ -> (subcommands spawned bare there, why that is correct)
 _BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {
-    "myrm_agent_harness/core/security/safe_git.py": (
+    "myrm_agent_harness/core/security/safe_git/argv.py": (
         frozenset({_DYNAMIC}),
         "builds the hardened argv itself",
+    ),
+    "myrm_agent_harness/core/security/safe_git/query.py": (
+        frozenset({_DYNAMIC}),
+        "the read-only configuration and layout queries that run ahead of the hardened argv",
     ),
     "myrm_agent_harness/agent/file_snapshot/factory.py": (
         frozenset({_DYNAMIC}),

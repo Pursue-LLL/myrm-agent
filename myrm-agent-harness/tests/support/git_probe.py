@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - git / run / plain: run git, or build a plain (un-hardened) argv for the control run
+- repository: a repository with one commit
 - program / fired / clear: marker-writing scripts and a record of which of them ran
 
 [POS]
@@ -20,6 +21,18 @@ from pathlib import Path
 
 def git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True)
+
+
+def repository(path: Path, *, keep: str = "f.txt") -> Path:
+    """A repository at *path* (created, with its parents) holding one commit that adds *keep*."""
+    path.mkdir(parents=True)
+    git(path, "init", "-q")
+    git(path, "config", "user.email", "a@example.com")
+    git(path, "config", "user.name", "a")
+    (path / keep).write_text("one\n")
+    git(path, "add", keep)
+    git(path, "commit", "-q", "-m", "init")
+    return path
 
 
 def program(markers: Path, name: str, *, passthrough: str = "") -> str:

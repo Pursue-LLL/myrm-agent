@@ -13,7 +13,7 @@ External consumers import here instead of reaching into ``agent.security``.
 - toolkits.computer_use.types::ScreenLockState (POS: 锁屏状态共享类型)
 - core.security.guards.privacy_ladder::PrivacyFailClosedViolationError (POS: 隐私梯度阻断异常，宿主按类型拦截并提示用户)
 - core.security.missing_semantics::MissingSemanticsBlockedError (POS: 缺失语义门禁阻断异常，宿主按类型拦截并提示用户)
-- core.security.safe_git::GitHardeningError / HARDENED_GIT_ENV / hardened_git_argv / hardened_git_argv_async (POS: 应用自己发起的 git 命令所用的加固 argv 与写树命令的无提示环境，仓库自带配置无法借此执行程序)
+- core.security.safe_git::GitHardeningError / HARDENED_GIT_ENV / hardened_git_argv / hardened_git_argv_async / require_own_repository (POS: 应用自己发起的 git 命令所用的加固 argv 与写树命令的无提示环境，仓库自带配置无法借此执行程序，且文件夹的仓库必须是它自己的)
 
 [OUTPUT]
 - myrm_agent_harness.api.security → server 统一安全策略、隐私策略预演、挂机安全气囊、锁屏/在场探针与遮罩窗截图排除、隐私与缺失语义门禁阻断异常、加固 git 命令 argv 导出接口
@@ -74,6 +74,7 @@ from myrm_agent_harness.core.security.safe_git import (
     GitHardeningError,
     hardened_git_argv,
     hardened_git_argv_async,
+    require_own_repository,
 )
 from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
     WorkspaceSnapshotResult,
@@ -134,6 +135,7 @@ __all__ = [
     "load_managed_approval_policy_from_env",
     "preview_privacy_policy",
     "register_blocked_hostnames",
+    "require_own_repository",
     "rollback_task_airbag",
     "rollback_task_airbag_with_rescue",
     "rollback_workspace_snapshot",

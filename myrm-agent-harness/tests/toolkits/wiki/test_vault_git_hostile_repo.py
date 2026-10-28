@@ -8,7 +8,8 @@
   folder, restored backup) and ``core.fsmonitor`` of a repository nested below the vault root fire on the plain
   snapshot commands and stay silent during ``commit_vault_git_snapshot``; a conditional include is skipped as
   ``unsafe_repository``. So is a vault whose repository is not its own (``.git`` a file or a symlink, a ``commondir``
-  file, a ``core.worktree``): the plain snapshot commits into another repository, the vault's never does.
+  file, a ``core.worktree``, a separate git directory): the plain snapshot commits into another repository, the
+  vault's never does. A vault that is a linked worktree of another repository is snapshotted on its own branch.
 
 [POS]
 Enforcement tests for the vault commit flow, the one flow that adopts a repository the user may have received as files.
@@ -247,6 +248,22 @@ def test_a_vault_whose_repository_is_not_its_own_is_skipped_not_committed_to(tmp
     assert result.committed is False
     assert result.skipped_reason == "unsafe_repository"
     assert _head(extended) == before
+    assert not (victim.base_dir / ".gitignore").exists()
+
+
+def test_a_vault_that_is_a_linked_worktree_is_snapshotted_on_its_own_branch(tmp_path: Path) -> None:
+    other = _other_repository(tmp_path, "other")
+    structure = WikiStructure(tmp_path / "vault")
+    git(other, "worktree", "add", "-q", "-b", "vault-branch", str(structure.base_dir))
+    structure.ensure_structure()
+    (structure.base_dir / "wiki" / "page.md").write_text("one\n")
+    other_before = _head(other)
+
+    result = commit_vault_git_snapshot(structure, reason="session archive")
+
+    assert result.committed is True
+    assert result.commit_hash == _head(structure.base_dir)
+    assert _head(other) == other_before
 
 
 def test_a_fsmonitor_of_a_repository_nested_below_the_vault_root_stays_silent(tmp_path: Path, markers: Path) -> None:

@@ -7,8 +7,8 @@
 - Real ``git`` runs: a ``core.worktree`` aimed at an empty directory, another repository, the parent directory, a
   relative path, or a directory whose ``.git`` file names another repository makes the plain ``checkout`` write there
   and the hardened argv refuse to be built, leaving that directory untouched; a path that does not exist is refused
-  too. A submodule's checkout, a repository whose work tree is itself, a linked worktree, a separate git directory and a
-  subdirectory still get their commands, and only a repository that sets ``core.worktree`` pays a second git process.
+  too. A submodule's checkout, a repository whose work tree is itself, a linked worktree and a subdirectory still get
+  their commands, and only a repository that sets ``core.worktree`` pays a second git process.
 
 [POS]
 Enforcement tests for the redirect guard of ``hardened_git_argv``. Every redirect first writes through the plain
@@ -28,7 +28,7 @@ from unittest.mock import patch
 import pytest
 
 from myrm_agent_harness.core.security.safe_git import GitHardeningError, hardened_git_argv
-from tests.support.git_probe import git, plain, run
+from tests.support.git_probe import git, plain, repository, run
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX git")
 
@@ -38,17 +38,6 @@ def _isolated_user_config(isolated_git_config: Path) -> Path:
     return isolated_git_config
 
 
-def _repository(path: Path, *, keep: str = "f.txt") -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-q")
-    git(path, "config", "user.email", "a@example.com")
-    git(path, "config", "user.name", "a")
-    (path / keep).write_text("one\n")
-    git(path, "add", keep)
-    git(path, "commit", "-q", "-m", "init")
-    return path
-
-
 def _empty_directory(base: Path) -> tuple[Path, str]:
     target = base / "target"
     target.mkdir()
@@ -56,7 +45,7 @@ def _empty_directory(base: Path) -> tuple[Path, str]:
 
 
 def _another_repository(base: Path) -> tuple[Path, str]:
-    target = _repository(base / "target", keep="keep.txt")
+    target = repository(base / "target", keep="keep.txt")
     return target, str(target)
 
 
@@ -65,7 +54,7 @@ def _parent_directory(base: Path) -> tuple[Path, str]:
 
 
 def _directory_with_a_pointer_to_another_repository(base: Path) -> tuple[Path, str]:
-    other = _repository(base / "other", keep="keep.txt")
+    other = repository(base / "other", keep="keep.txt")
     target = base / "target"
     target.mkdir()
     (target / ".git").write_text(f"gitdir: {other / '.git'}\n")
@@ -93,7 +82,7 @@ _CHECKOUT = ("checkout", "HEAD", "--", ":/f.txt")
 def _redirected(tmp_path: Path, name: str, kind: str) -> tuple[Path, Path]:
     """A repository whose ``core.worktree`` names the directory *kind* describes, and that directory."""
     base = tmp_path / name
-    workspace = _repository(base / "ws")
+    workspace = repository(base / "ws")
     target, value = _REDIRECTS[kind](base)
     git(workspace, "config", "core.worktree", value)
     return workspace, target
@@ -120,7 +109,7 @@ def test_a_work_tree_the_repository_does_not_own_is_refused(tmp_path: Path, kind
 
 
 def test_a_work_tree_that_does_not_exist_is_refused(tmp_path: Path) -> None:
-    workspace = _repository(tmp_path / "ws")
+    workspace = repository(tmp_path / "ws")
     git(workspace, "config", "core.worktree", str(tmp_path / "nowhere"))
 
     with pytest.raises(GitHardeningError):
@@ -137,34 +126,27 @@ def test_objects_are_still_readable_when_the_work_tree_is_redirected(tmp_path: P
 
 
 def _own_work_tree(tmp_path: Path) -> Path:
-    workspace = _repository(tmp_path / "ws")
+    workspace = repository(tmp_path / "ws")
     git(workspace, "config", "core.worktree", str(workspace))
     return workspace
 
 
 def _submodule_checkout(tmp_path: Path) -> Path:
-    inner = _repository(tmp_path / "inner")
-    outer = _repository(tmp_path / "outer")
+    inner = repository(tmp_path / "inner")
+    outer = repository(tmp_path / "outer")
     git(outer, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(inner), "sub")
     return outer / "sub"
 
 
 def _linked_worktree(tmp_path: Path) -> Path:
-    main = _repository(tmp_path / "main")
+    main = repository(tmp_path / "main")
     linked = tmp_path / "linked"
     git(main, "worktree", "add", "-q", "--detach", str(linked))
     return linked
 
 
-def _separate_git_directory(tmp_path: Path) -> Path:
-    workspace = tmp_path / "ws"
-    workspace.mkdir()
-    git(workspace, "init", "-q", f"--separate-git-dir={tmp_path / 'gitdir'}")
-    return workspace
-
-
 def _subdirectory(tmp_path: Path) -> Path:
-    workspace = _repository(tmp_path / "ws")
+    workspace = repository(tmp_path / "ws")
     (workspace / "pkg").mkdir()
     return workspace / "pkg"
 
@@ -174,7 +156,6 @@ _HONEST_LAYOUTS: dict[str, tuple[Callable[[Path], Path], bool]] = {
     "work-tree-is-the-repository-itself": (_own_work_tree, True),
     "submodule-checkout": (_submodule_checkout, True),
     "linked-worktree": (_linked_worktree, False),
-    "separate-git-directory": (_separate_git_directory, False),
     "subdirectory": (_subdirectory, False),
 }
 
@@ -196,7 +177,7 @@ def test_an_honest_layout_still_gets_its_commands(tmp_path: Path, layout: str) -
 
 
 def test_only_a_repository_that_sets_a_work_tree_pays_for_the_check(tmp_path: Path) -> None:
-    ordinary = _repository(tmp_path / "ordinary")
+    ordinary = repository(tmp_path / "ordinary")
     submodule = _submodule_checkout(tmp_path)
 
     with patch.object(subprocess, "run", wraps=subprocess.run) as spawned:
