@@ -1,13 +1,14 @@
 """Shared git command helpers for worktree lifecycle (sandbox + kanban).
 
 [INPUT]
-- (none; stdlib only)
+- myrm_agent_harness.api.security::hardened_git_argv_async (POS: git argv that runs no program or transport the repository chose)
 
 [OUTPUT]
 - _GIT_ENV: C-locale git environment for subprocess calls.
+- _run_git: One git command in a worktree or repo, through the hardened argv.
 - _get_merge_lock: Per-base_dir merge lock shared across kanban/sandbox merges.
 - _worktree_is_dirty: Fail-closed dirty check for a worktree.
-- _git_identity: Per-repo ``-c user.name/-c user.email`` overrides for missing identity.
+- _git_identity: ``user.name=`` / ``user.email=`` settings for the identity keys a repo is missing.
 - _ensure_worktree_excluded: Add a worktree directory name to .git/info/exclude.
 - _git_worktree_add: Create a worktree (exclude + ``git worktree add --force -B``).
 - _auto_commit_dirty_worktree: Commit uncommitted worktree edits before a merge.
@@ -22,7 +23,8 @@
 [POS]
 通用工具层的共享 git worktree 命令基础设施：sandbox 与 kanban 的 worktree
 生命周期共用同一份实现，避免两处语义漂移。被 chat.sandbox_worktree 与
-kanban task_runner 直接引用。
+kanban task_runner 直接引用。每条会读写工作树的 git 命令都经 ``_run_git``：用户带着 ``.git`` 目录
+交来的文件夹，其配置不能让服务端在沙箱之外运行程序或联网。
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ import asyncio
 import logging
 import os
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -58,18 +61,31 @@ def _get_merge_lock(base_dir: str) -> asyncio.Lock:
     return lock
 
 
+async def _run_git(
+    args: Sequence[str], *, cwd: str, timeout: float, config: Sequence[str] = ()
+) -> subprocess.CompletedProcess[str]:
+    """Run one git command in *cwd* with the hardened argv.
+
+    The folder may have arrived with its ``.git`` directory, whose config can name programs (hooks, filters, merge
+    drivers, fsmonitor) and, through a partial clone, remotes to fetch from; none of them may run here, outside the
+    agent sandbox. Raises ``GitHardeningError`` (an ``OSError``) when the config cannot be neutralised.
+    """
+    argv = await hardened_git_argv_async(args, repo_dir=cwd, env=_GIT_ENV, config=config)
+    return await asyncio.to_thread(
+        subprocess.run,
+        argv,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=_GIT_ENV,
+    )
+
+
 async def _worktree_is_dirty(path: str) -> bool:
     """True when a worktree has uncommitted changes (untracked, modified, staged)."""
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            await hardened_git_argv_async(("status", "--porcelain"), repo_dir=path),
-            cwd=path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
+        result = await _run_git(("status", "--porcelain"), cwd=path, timeout=10)
         return result.returncode == 0 and bool(result.stdout.strip())
     except Exception:
         # Fail-closed: an unreachable git status must not let cleanup force-delete
@@ -78,7 +94,7 @@ async def _worktree_is_dirty(path: str) -> bool:
 
 
 async def _git_identity(repo_dir: str) -> list[str]:
-    """Return ``-c key=value`` overrides for identity keys missing on the repo.
+    """Return ``key=value`` settings for the identity keys missing on the repo.
 
     Fresh ``git init``/``git clone`` repos often have no user identity
     configured, which makes ``git commit`` fail with "Please tell me who you
@@ -86,7 +102,7 @@ async def _git_identity(repo_dir: str) -> list[str]:
     repo's own config (local + global) and only the missing ones are injected,
     so a configured author is never overwritten.
     """
-    overrides: list[str] = []
+    settings: list[str] = []
     for key, fallback in (
         ("user.name", "Myrm Agent"),
         ("user.email", "agent@myrm.local"),
@@ -105,8 +121,8 @@ async def _git_identity(repo_dir: str) -> list[str]:
                 continue
         except Exception:
             return []
-        overrides.extend(("-c", f"{key}={fallback}"))
-    return overrides
+        settings.append(f"{key}={fallback}")
+    return settings
 
 
 def _ensure_worktree_excluded(base_dir: str, dir_name: str) -> None:
@@ -167,24 +183,7 @@ async def _git_worktree_add(
         os.makedirs(os.path.dirname(worktree_path), exist_ok=True)
         await asyncio.to_thread(_ensure_worktree_excluded, base_dir, dir_name)
 
-        result = await asyncio.to_thread(
-            subprocess.run,
-            [
-                "git",
-                "worktree",
-                "add",
-                "--force",
-                "-B",
-                branch,
-                worktree_path,
-                "HEAD",
-            ],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
+        result = await _run_git(("worktree", "add", "--force", "-B", branch, worktree_path, "HEAD"), cwd=base_dir, timeout=30)
         if result.returncode != 0:
             stderr = result.stderr.strip()
             reason = _classify_git_error(stderr)
@@ -222,27 +221,11 @@ async def _auto_commit_dirty_worktree(worktree_path: str, *, commit_message: str
     accurate when this shared helper is reused.
     """
     try:
-        status = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "status", "--porcelain"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
+        status = await _run_git(("status", "--porcelain"), cwd=worktree_path, timeout=10)
         if status.returncode != 0 or not status.stdout.strip():
             return status.returncode == 0
 
-        add_result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "add", "-A"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
+        add_result = await _run_git(("add", "-A"), cwd=worktree_path, timeout=10)
         if add_result.returncode != 0:
             logger.warning(
                 "git add -A failed in worktree %s: %s",
@@ -251,15 +234,8 @@ async def _auto_commit_dirty_worktree(worktree_path: str, *, commit_message: str
             )
             return False
 
-        identity = await _git_identity(worktree_path)
-        commit = await asyncio.to_thread(
-            subprocess.run,
-            ["git", *identity, "commit", "-m", commit_message],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            env=_GIT_ENV,
+        commit = await _run_git(
+            ("commit", "-m", commit_message), cwd=worktree_path, timeout=15, config=await _git_identity(worktree_path)
         )
         if commit.returncode == 0:
             logger.info("Auto-committed dirty worktree at %s", worktree_path)
@@ -285,15 +261,11 @@ async def _merge_branch_into_current(base_dir: str, branch: str, merge_message: 
     message vs task event).
     """
     try:
-        identity = await _git_identity(base_dir)
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", *identity, "merge", "--no-ff", branch, "-m", merge_message],
+        result = await _run_git(
+            ("merge", "--no-ff", branch, "-m", merge_message),
             cwd=base_dir,
-            capture_output=True,
-            text=True,
             timeout=60,
-            env=_GIT_ENV,
+            config=await _git_identity(base_dir),
         )
         if result.returncode == 0:
             return True, [], ""
@@ -311,15 +283,7 @@ async def _merge_branch_into_current(base_dir: str, branch: str, merge_message: 
 async def _collect_conflict_files(base_dir: str) -> list[str]:
     """List files with unresolved merge conflicts in base_dir, or [] when none."""
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "diff", "--name-only", "--diff-filter=U"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
+        result = await _run_git(("diff", "--name-only", "--diff-filter=U"), cwd=base_dir, timeout=10)
         if result.returncode != 0:
             return []
         return [line.strip() for line in result.stdout.splitlines() if line.strip()]
@@ -335,15 +299,7 @@ async def _abort_merge(base_dir: str) -> None:
     every later merge on the repo is not silently missed.
     """
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "merge", "--abort"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            env=_GIT_ENV,
-        )
+        result = await _run_git(("merge", "--abort"), cwd=base_dir, timeout=15)
         if result.returncode != 0:
             stderr = result.stderr.strip()
             if "MERGE_HEAD missing" not in stderr:
@@ -364,15 +320,7 @@ async def _remove_worktree(base_dir: str, worktree_path: str, *, context: str) -
     dirty check before calling; this helper only runs the removal command.
     """
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "worktree", "remove", "--force", worktree_path],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
+        result = await _run_git(("worktree", "remove", "--force", worktree_path), cwd=base_dir, timeout=30)
         if result.returncode == 0:
             logger.info("Cleaned up %s worktree at %s", context, worktree_path)
             return True

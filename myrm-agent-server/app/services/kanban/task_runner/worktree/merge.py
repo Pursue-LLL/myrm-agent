@@ -1,7 +1,7 @@
 """Git command helpers for merging a task worktree back into its target branch.
 
 [INPUT]
-- app.core.utils.git_worktree (POS: 共享 git 环境 `_GIT_ENV`)
+- app.core.utils.git_worktree (POS: 共享 git 环境 `_GIT_ENV` 与加固的 `_run_git`)
 
 [OUTPUT]
 - _branch_has_commits, _ensure_target_branch_checked_out, _is_valid_git_branch
@@ -19,7 +19,7 @@ import logging
 import re
 import subprocess
 
-from app.core.utils.git_worktree import _GIT_ENV
+from app.core.utils.git_worktree import _GIT_ENV, _run_git
 
 logger = logging.getLogger(__name__)
 
@@ -110,18 +110,8 @@ async def _ensure_target_branch_checked_out(base_dir: str, target_branch: str) -
             timeout=10,
             env=_GIT_ENV,
         )
-        checkout = (
-            ["git", "checkout", target_branch] if branch_exists.returncode == 0 else ["git", "checkout", "-b", target_branch]
-        )
-        result = await asyncio.to_thread(
-            subprocess.run,
-            checkout,
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
+        checkout = ("checkout", target_branch) if branch_exists.returncode == 0 else ("checkout", "-b", target_branch)
+        result = await _run_git(checkout, cwd=base_dir, timeout=30)
         if result.returncode != 0:
             logger.warning(
                 "Failed to switch base_dir to target branch %s: %s",

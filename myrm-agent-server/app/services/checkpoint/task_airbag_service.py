@@ -83,7 +83,7 @@ class TaskAirbagService:
                 return None
             content = path.read_text(encoding="utf-8")
             data = json.loads(content)
-            return TaskAirbagManifest(
+            manifest = TaskAirbagManifest(
                 task_id=data["task_id"],
                 workspace_path=data["workspace_path"],
                 base_snapshot_id=data["base_snapshot_id"],
@@ -93,6 +93,12 @@ class TaskAirbagService:
                 external_effects=tuple(data.get("external_effects", [])),
                 rescue_snapshot_id=data.get("rescue_snapshot_id"),
             )
+            # The file lives in the workspace and travels with it: a manifest copied in from elsewhere must not be able
+            # to point a rollback at another task's baseline or another folder.
+            if manifest.task_id != task_id or Path(manifest.workspace_path).resolve() != Path(workspace_path).resolve():
+                logger.warning("Ignoring airbag manifest %s: it names another task or workspace", path)
+                return None
+            return manifest
         except Exception as exc:
             logger.warning("Failed to load airbag manifest for task '%s': %s", task_id, exc)
             return None

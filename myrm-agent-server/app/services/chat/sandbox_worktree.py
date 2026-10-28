@@ -167,7 +167,7 @@ async def _merge_sandbox_to_parent_locked(base_dir: str, chat_id: str) -> tuple[
     worktree_path = get_sandbox_worktree_path(base_dir, chat_id)
     if Path(worktree_path).exists():
         if not await _auto_commit_dirty_worktree(worktree_path):
-            # Auto-commit was rejected (e.g. pre-commit hook); merging would
+            # Auto-commit was refused (e.g. a repository filter that must run); merging would
             # drop the uncommitted edits when cleanup runs, so preserve the
             # worktree and let the user handle it instead.
             logger.warning(
@@ -183,6 +183,6 @@ async def _merge_sandbox_to_parent_locked(base_dir: str, chat_id: str) -> tuple[
         return True, f"Successfully merged sandbox to {parent_branch}"
     if conflicts:
         return False, f"Merge conflict in {len(conflicts)} file(s)"
-    # Non-conflict merge failure (e.g. rejected by a merge hook); surface the
+    # Non-conflict merge failure (e.g. a refused merge driver); surface the
     # actual reason so the user is not told it was a conflict.
     return False, f"Merge failed: {stderr[:200]}" if stderr else "Merge failed"

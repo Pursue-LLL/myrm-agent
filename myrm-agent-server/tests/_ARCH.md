@@ -154,7 +154,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由；所有者触发的作业不带围栏，已配对成员与开放策略下的访客触发的作业带围栏，信任判定失败时按带围栏处理并记 WARNING，路由不受影响 |
 | `channels/test_topic_state_isolation.py` | 单元 | 同一群的两个 forum topic 绑不同 Agent 时运行时状态互不覆盖：活跃任务两项共存、在一个 topic 执行 `/stop` 只取消它自己的那一轮、YOLO 开关不跨 topic 泄漏、防抖队列按 topic 分组、DM 的键保持旧格式不受影响 |
 | `channels/test_router_keys.py` | 单元 | 路由状态键：无 topic 时与旧格式一致（DM 与未开 topic 的群状态不重置）、同群两个 topic 生成不同键、同一 thread 在不同群不混淆、空 peer 保留、chat 级历史键仍可用 |
-| `architecture/test_git_spawn_sites.py` | 架构 | 读取索引或工作树的 git 命令（`status`/`diff`/`ls-files`/`add`/`commit`…）必须经 harness 的 `hardened_git_argv`（仓库自己的配置能指定 git 读取时运行的程序），或登记在 `_BARE_GIT_SITES` 并写明理由（commit/merge/worktree 流程、对象到对象的读取）；登记项消失即失败；自带扫描器正反例 |
+| `architecture/test_git_spawn_sites.py` | 架构 | 读取或改写索引与工作树的 git 命令（`status`/`diff`/`add`/`commit`/`merge`/`checkout`/`worktree`…）命令一律经 harness 的 `hardened_git_argv`（仓库自己的配置能指定 git 运行的程序、钩子、过滤器、合并驱动、签名程序，部分克隆还能借惰性抓取联网），或登记在 `_BARE_GIT_SITES` 并写明理由；现登记项为空，已登记项消失即失败；自带扫描器正反例 |
 | `architecture/test_router_mixin_surface.py` | 架构 | `AgentRouter` 由多个 mixin 多继承拼装，断言它保留路由循环直接调用的方法（模块级语句误插进类体会提前结束类体、后置方法变成嵌套函数而导入仍成功）；另断言前缀查询寄居在 `ChatService`、`_attach_web_handoff` 签名只接受 `(result, msg)`，防止 peer 参数回流 |
 | `core/cron/adapters/test_research_lease.py` | 模块 | 定时任务的只读研究租约策略对真实 harness 租约登记：声明为空或只含读取类能力（`file_read`、`web_search_tool`、`net_fetch`）的作业判为只读，声明了写入、命令、代码或未知能力的不是；只读作业与不可信发送者触发的运行各拿一把私有会话键（`cron:{作业}:{后缀}`）的租约，放行默认的五个只读工具、拒绝其余，租约比运行超时多留 60 秒；同一作业的并发运行互不撤销，释放后租约与覆盖层都被清空且清理失败不抛出；声明了写入类能力的所有者运行不挂租约、保留原会话键 |
 | `core/cron/adapters/test_sqlalchemy_store_write_contention.py` | 模块 | `save_job` 与 `save_monitor_state` 读后写在另一个写者先提交时不丢写（真实事务策略的文件库）：被认领任务的下次触发时间、监控任务的新基线在读写之间被别的提交打断会以 SQLITE_BUSY_SNAPSHOT 丢掉（任务从此不再触发 / 这一轮算监控失败且基线没存）；写者持锁时两者先等锁再读，写者提交后写入成功并落库 |
@@ -176,6 +176,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
 | `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
+| `core/utils/test_git_worktree_hostile_repo.py` | 集成 | 用真实 git 与会运行程序的恶意仓库配置（`core.fsmonitor`、合并驱动、部分克隆的 `uploadpack`）验证 worktree 脏检查、合并、创建都不会运行仓库指定的程序，且被拒时映射为稳定的错误；车道 diff 的拒绝映射为失败退出码 |
 | `e2e/test_control_ui_error_redaction_flow_e2e.py` | E2E | Task Flow E2E：Control UI 错误脱敏跨渠道测试连通性与 FastAPI 入口/出口全局防护全链路测试 |
 | `e2e/test_error_redaction_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Control UI Toast 弹窗与设置界面敏感凭据打码防护测试 |
 | `e2e/test_mermaid_preview_sanitize_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Mermaid 图表严格净化与 XSS 物理阻断端到端测试 |

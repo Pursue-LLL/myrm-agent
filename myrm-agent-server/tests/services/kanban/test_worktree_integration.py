@@ -279,14 +279,19 @@ async def test_merge_lands_on_explicit_target_branch(git_repo: Path) -> None:
     assert "feature-x-tg" not in branches
 
 
+def _common_git_dir(repo: Path) -> Path:
+    return Path(_run_git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip())
+
+
 @pytest.mark.asyncio
 async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> None:
-    """When the pre-merge auto-commit is rejected, the worktree (and the
+    """When the pre-merge auto-commit is refused, the worktree (and the
     agent's uncommitted edits inside it) must be preserved, not deleted.
 
-    This reproduces a data-loss bug: a blocking pre-commit hook made the
-    auto-commit fail, after which the merge path treated the branch as empty
-    and cleaned up the worktree, silently dropping the agent's edits.
+    This reproduces a data-loss bug: a failed auto-commit made the merge path
+    treat the branch as empty and clean up the worktree, silently dropping the
+    agent's edits. The refusal here is a repository filter that must run: the
+    server never runs programs a repository names, so staging cannot proceed.
     """
     store = InMemoryKanbanStore()
     task = await _seed_task(store, task_id="th", base=str(git_repo), branch="main")
@@ -296,22 +301,44 @@ async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> N
     # Agent edited a file with file tools but never committed it.
     (Path(wt) / "precious.txt").write_text("AGENT_UNCOMMITTED_DATA\n", encoding="utf-8")
 
-    # A pre-commit hook that rejects every commit.
-    common_dir = _run_git(git_repo, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
-    hooks = Path(common_dir) / "hooks"
-    hooks.mkdir(exist_ok=True)
-    hook = hooks / "pre-commit"
-    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    hook.chmod(0o755)
+    info = _common_git_dir(git_repo) / "info"
+    info.mkdir(exist_ok=True)
+    (info / "attributes").write_text("*.txt filter=must\n", encoding="utf-8")
+    _run_git(git_repo, "config", "filter.must.clean", "cat")
+    _run_git(git_repo, "config", "filter.must.smudge", "cat")
+    _run_git(git_repo, "config", "filter.must.required", "true")
 
-    try:
-        merged, _ = await merge_task_worktree(store, task)
-        assert merged is False
-        # Worktree and the uncommitted file survive.
-        assert Path(wt).exists()
-        assert (Path(wt) / "precious.txt").read_text(encoding="utf-8").startswith("AGENT_UNCOMMITTED_DATA")
-    finally:
-        hook.unlink(missing_ok=True)
+    merged, _ = await merge_task_worktree(store, task)
+
+    assert merged is False
+    # Worktree and the uncommitted file survive.
+    assert Path(wt).exists()
+    assert (Path(wt) / "precious.txt").read_text(encoding="utf-8").startswith("AGENT_UNCOMMITTED_DATA")
+
+
+@pytest.mark.asyncio
+async def test_merge_auto_commit_runs_no_hook_the_repository_ships(git_repo: Path, tmp_path: Path) -> None:
+    """A hook in a folder that arrived with its ``.git`` directory is arbitrary code: the server's own
+    auto-commit and merge outside the agent sandbox must not run it."""
+    store = InMemoryKanbanStore()
+    task = await _seed_task(store, task_id="tk", base=str(git_repo), branch="main")
+    wt = await create_worktree(str(git_repo), "main", task.task_id)
+    assert isinstance(wt, str)
+    (Path(wt) / "work.txt").write_text("done\n", encoding="utf-8")
+
+    marker = tmp_path / "hook-ran"
+    hooks = _common_git_dir(git_repo) / "hooks"
+    hooks.mkdir(exist_ok=True)
+    for name in ("pre-commit", "post-commit", "pre-merge-commit", "post-merge"):
+        hook = hooks / name
+        hook.write_text(f"#!/bin/sh\ntouch '{marker}'\n", encoding="utf-8")
+        hook.chmod(0o755)
+
+    merged, _ = await merge_task_worktree(store, task)
+
+    assert merged is True
+    assert not marker.exists()
+    assert (git_repo / "work.txt").read_text(encoding="utf-8") == "done\n"
 
 
 @pytest.mark.asyncio
@@ -530,7 +557,7 @@ async def test_git_identity_injects_only_missing_keys(tmp_path: Path) -> None:
     sw._GIT_ENV.update(isolated)
     try:
         overrides = await sw._git_identity(str(repo))
-        assert overrides == ["-c", "user.email=agent@myrm.local"]
+        assert overrides == ["user.email=agent@myrm.local"]
     finally:
         sw._GIT_ENV.clear()
         sw._GIT_ENV.update(original)

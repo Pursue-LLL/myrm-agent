@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.kanban.race_orchestrator (POS: RaceError, _get_race_parent)
 - myrm_agent_harness.toolkits.kanban.types (POS: KanbanTask domain type)
-- app.core.utils.git_worktree (POS: _GIT_ENV for safe git subprocess env)
+- app.core.utils.git_worktree (POS: _run_git, the hardened git runner)
 
 [OUTPUT]
 - LaneFileChange: dataclass — one file changed by a lane, with line counts
@@ -19,15 +19,16 @@ show` against the lane worktree base dir, with path-safety and size guards.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from myrm_agent_harness.api.security import GitHardeningError
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.core.utils.git_worktree import _GIT_ENV
+from app.core.utils.git_worktree import _run_git
 from app.services.kanban.race_orchestrator import RaceError, _get_race_parent
 
 if TYPE_CHECKING:
@@ -58,16 +59,13 @@ def _is_safe_repo_path(path: str) -> bool:
     return True
 
 
-async def _run_git(base_dir: str, args: list[str], timeout: int = 15) -> subprocess.CompletedProcess[str]:
-    return await asyncio.to_thread(
-        subprocess.run,
-        ["git", *args],
-        cwd=base_dir,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=_GIT_ENV,
-    )
+async def _run_lane_git(base_dir: str, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return await _run_git(args, cwd=base_dir, timeout=15)
+    except GitHardeningError as exc:
+        # The repository's config cannot be neutralised: report a failed command so callers keep their own handling.
+        logger.warning("Lane git refused to run in %s: %s", base_dir, exc)
+        return subprocess.CompletedProcess(list(args), 1, "", str(exc))
 
 
 async def _get_lane_context(
@@ -99,7 +97,7 @@ async def get_lane_changes(svc: KanbanService, board_id: str, parent_task_id: st
     target = parent.branch or lane.branch
     if not target:
         raise RaceError("race_requires_branch", "Race target branch is missing")
-    result = await _run_git(base_dir, ["diff", "--numstat", f"{target}...{lane_branch}", "--"])
+    result = await _run_lane_git(base_dir, ("diff", "--numstat", f"{target}...{lane_branch}", "--"))
     if result.returncode != 0:
         raise RaceError("diff_failed", "All file differences were not computed")
     changes: list[LaneFileChange] = []
@@ -140,7 +138,7 @@ async def get_lane_file_contents(
         raise RaceError("race_requires_branch", "Race target branch is missing")
 
     async def show(ref: str) -> tuple[str, bool]:
-        result = await _run_git(base_dir, ["show", f"{ref}:{path}"])
+        result = await _run_lane_git(base_dir, ("show", f"{ref}:{path}"))
         if result.returncode != 0:
             return "", False
         content = result.stdout

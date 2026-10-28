@@ -3,6 +3,7 @@
 [INPUT]
 - app.config.settings::settings (POS: 系统全局运行时配置)
 - myrm_agent_harness::__version__ (POS: 执行引擎版本号)
+- myrm_agent_harness.api.security::hardened_git_argv (POS: 不运行仓库配置所选程序的 git argv)
 
 [OUTPUT]
 - router: GET /api/v1/health/update-status
@@ -26,6 +27,7 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter
+from myrm_agent_harness.api.security import hardened_git_argv
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +100,7 @@ def split_changelog(body: str) -> dict[str, object]:
             fixed.append(item)
         else:
             other.append(item)
-    is_security = bool(
-        re.search(r"\b(cve-\d+|security|vulnerability|critical vulnerability)\b", body or "", re.IGNORECASE)
-    )
+    is_security = bool(re.search(r"\b(cve-\d+|security|vulnerability|critical vulnerability)\b", body or "", re.IGNORECASE))
     if not fixed and not other:
         return {"fixed": [], "other": [], "grouped": False, "is_security": is_security, "raw": (body or "")[:2000]}
     return {
@@ -180,14 +180,14 @@ async def _git_behind() -> dict[str, object] | None:
             return None
         try:
             count_out = subprocess.run(
-                ["git", "rev-list", "--count", "HEAD..@{u}"],
+                hardened_git_argv(("rev-list", "--count", "HEAD..@{u}"), repo_dir=repo_root),
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
                 timeout=_GIT_TIMEOUT_SEC,
             )
             log_out = subprocess.run(
-                ["git", "log", "--oneline", "-5", "HEAD..@{u}"],
+                hardened_git_argv(("log", "--oneline", "-5", "HEAD..@{u}"), repo_dir=repo_root),
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
@@ -221,7 +221,8 @@ async def update_status(force: bool = False) -> dict[str, object]:
     repo = os.getenv(_RELEASE_REPO_ENV, _DEFAULT_RELEASE_REPO)
 
     now = time.monotonic()
-    cached_at = float(_latest_cache.get("fetched_at") or 0.0)
+    fetched_at = _latest_cache.get("fetched_at")
+    cached_at = float(fetched_at) if isinstance(fetched_at, int | float) else 0.0
     cached_payload = _latest_cache.get("payload")
     cached_dict = cached_payload if isinstance(cached_payload, dict) else None
     if not force and cached_dict is not None and now - cached_at < _LATEST_TTL_SEC:

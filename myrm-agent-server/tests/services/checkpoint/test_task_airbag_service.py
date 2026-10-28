@@ -6,6 +6,7 @@ task's first start until the airbag is rolled back or dismissed.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -179,3 +180,61 @@ async def test_dismissed_airbag_no_longer_reports_status(workspace: Path) -> Non
 
     assert await service.get_airbag_status("task-1") is None
     assert await TaskAirbagService().get_airbag_status("task-1", str(workspace)) is None
+
+
+def _manifest_file(workspace: Path, task_id: str) -> Path:
+    return workspace / ".myrm" / "airbag" / f"{task_id}.json"
+
+
+async def test_a_manifest_that_names_another_workspace_cannot_aim_a_rollback_at_it(workspace: Path, tmp_path: Path) -> None:
+    """Folder contents must not steer a destructive action: the manifest copied in from elsewhere is ignored."""
+    await TaskAirbagService().arm_airbag("task-1", str(workspace))
+    _edit(workspace, "console.log('work to keep');\n")
+    delivered = tmp_path / "delivered"
+    delivered.mkdir()
+    target = _manifest_file(delivered, "task-1")
+    target.parent.mkdir(parents=True)
+    target.write_text(_manifest_file(workspace, "task-1").read_text(encoding="utf-8"), encoding="utf-8")
+
+    restarted = TaskAirbagService()
+
+    assert await restarted.rollback_airbag("task-1", str(delivered)) is False
+    assert await restarted.get_airbag_status("task-1", str(delivered)) is None
+    assert restarted.dismiss_airbag("task-1", str(delivered)) is False
+    assert _read(workspace) == "console.log('work to keep');\n"
+
+
+async def test_a_manifest_filed_under_another_task_id_is_ignored(workspace: Path) -> None:
+    await TaskAirbagService().arm_airbag("task-1", str(workspace))
+    swapped = _manifest_file(workspace, "task-2")
+    swapped.write_text(_manifest_file(workspace, "task-1").read_text(encoding="utf-8"), encoding="utf-8")
+    _edit(workspace, "console.log('work to keep');\n")
+
+    assert await TaskAirbagService().rollback_airbag("task-2", str(workspace)) is False
+    assert _read(workspace) == "console.log('work to keep');\n"
+
+
+async def test_a_manifest_snapshot_id_that_is_a_git_option_never_reaches_git(workspace: Path, tmp_path: Path) -> None:
+    await TaskAirbagService().arm_airbag("task-1", str(workspace))
+    path = _manifest_file(workspace, "task-1")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    victim = tmp_path / "overwritten.txt"
+    victim.write_text("precious\n", encoding="utf-8")
+    data["base_snapshot_id"] = f"--output={victim}"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    summary = await TaskAirbagService().get_airbag_status("task-1", str(workspace))
+
+    assert summary is not None
+    assert victim.read_text(encoding="utf-8") == "precious\n"
+    assert await TaskAirbagService().rollback_airbag("task-1", str(workspace)) is False
+
+
+async def test_a_manifest_reached_through_a_symlinked_path_still_loads(workspace: Path, tmp_path: Path) -> None:
+    await TaskAirbagService().arm_airbag("task-1", str(workspace))
+    link = tmp_path / "link"
+    link.symlink_to(workspace, target_is_directory=True)
+    _edit(workspace, "console.log('after');\n")
+
+    assert await TaskAirbagService().rollback_airbag("task-1", str(link)) is True
+    assert _read(workspace) == _INITIAL

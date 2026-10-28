@@ -18,7 +18,6 @@ app/services/git/worktree_service.py: 核心 Git 多工作区与会话检出锚�
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import subprocess
@@ -26,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import ClassVar
 
+from myrm_agent_harness.api.security import GitHardeningError
 from pydantic import BaseModel, Field
 
 from app.core.utils.git_worktree import (
@@ -33,6 +33,7 @@ from app.core.utils.git_worktree import (
     _classify_git_error,
     _ensure_worktree_excluded,
     _remove_worktree,
+    _run_git,
     _worktree_is_dirty,
 )
 
@@ -108,15 +109,7 @@ class GitWorktreeService:
         """List all worktrees for repository using `git worktree list --porcelain`."""
         root = self._resolve_repo_root(repo_path)
         try:
-            res = await asyncio.to_thread(
-                subprocess.run,
-                ["git", "worktree", "list", "--porcelain"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=_GIT_ENV,
-            )
+            res = await _run_git(("worktree", "list", "--porcelain"), cwd=root, timeout=10)
             if res.returncode != 0:
                 logger.warning("git worktree list failed: %s", res.stderr.strip())
                 return [
@@ -203,16 +196,10 @@ class GitWorktreeService:
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
         _ensure_worktree_excluded(root, ".worktrees")
 
-        cmd = ["git", "worktree", "add", "-B", safe_branch, target_path, base_ref or "HEAD"]
-        res = await asyncio.to_thread(
-            subprocess.run,
-            cmd,
-            cwd=root,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
+        try:
+            res = await _run_git(("worktree", "add", "-B", safe_branch, target_path, base_ref or "HEAD"), cwd=root, timeout=30)
+        except GitHardeningError as exc:
+            raise ValueError(f"Failed to create worktree: git cannot be run safely in this repository - {exc}") from exc
 
         if res.returncode != 0:
             err = res.stderr.strip()

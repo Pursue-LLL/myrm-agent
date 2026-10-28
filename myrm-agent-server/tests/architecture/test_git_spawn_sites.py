@@ -21,7 +21,8 @@ from pathlib import Path
 
 _APP = Path(__file__).resolve().parents[2] / "app"
 
-# Subcommands that read the index or working tree, or check a tree out: where git consults repository-chosen programs.
+# Subcommands that read or write the index or working tree, or can fetch an object: where git consults
+# repository-chosen programs.
 _TREE_TOUCHING = frozenset(
     {
         "status",
@@ -42,33 +43,29 @@ _TREE_TOUCHING = frozenset(
         "pull",
         "reset",
         "clean",
+        "switch",
+        "restore",
+        "apply",
+        "am",
+        "revert",
+        "mv",
+        "rm",
+        # Reading history can fetch a missing object from a partial clone's remote, through a program its config names.
+        "show",
+        "log",
+        "cat-file",
+        "diff-tree",
+        "blame",
+        "grep",
+        "archive",
     }
 )
 _DYNAMIC = "*"
 _SPAWN_CALLS = frozenset({"run", "Popen", "check_output", "check_call", "create_subprocess_exec"})
 
-# path under app/ -> (subcommands spawned bare there, why that is correct)
-_BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {
-    "core/utils/git_worktree.py": (
-        frozenset({"worktree", "status", "add", "commit", "merge", "diff"}),
-        "the worktree create / commit / merge flow: the repository's own hooks and filters take part in a commit, "
-        "which a hardened argv would switch off; its status and conflict listing sit inside that flow",
-    ),
-    "services/git/worktree_service.py": (
-        frozenset({"worktree"}),
-        "`worktree list` reads no tree; `worktree add` checks one out, with the repository's own post-checkout hook "
-        "and smudge filters",
-    ),
-    "services/kanban/task_runner/worktree/merge.py": (
-        frozenset({"checkout"}),
-        "the merge flow checks out the target branch with the repository's own hooks and filters",
-    ),
-    "services/kanban/race_lane_diff.py": (
-        frozenset({_DYNAMIC}),
-        "only `diff --numstat A...B` and `show <ref>:<path>`: object-to-object reads that touch neither the index nor "
-        "the working tree and run no configured program",
-    ),
-}
+# path under app/ -> (subcommands spawned bare there, why that is correct). Empty: every command that touches a tree or
+# can fetch an object runs through ``core.utils.git_worktree._run_git`` or ``hardened_git_argv``.
+_BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {}
 
 
 def _is_git(node: ast.expr) -> bool:

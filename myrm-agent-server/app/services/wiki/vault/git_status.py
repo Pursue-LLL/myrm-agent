@@ -3,6 +3,7 @@
 [INPUT]
 myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure
 myrm_agent_harness.toolkits.wiki.core.config::WikiConfig
+myrm_agent_harness.api.security::hardened_git_argv (POS: git argv that runs no program the repository chose)
 
 [OUTPUT]
 VaultGitStatus: enabled/initialized/last commit summary for /wiki/stats
@@ -17,6 +18,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
+from myrm_agent_harness.api.security import hardened_git_argv
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
@@ -42,7 +44,7 @@ def read_vault_git_status(structure: WikiStructure, config: WikiConfig) -> Vault
 
     try:
         proc = subprocess.run(
-            ["git", "-C", str(vault_dir), "log", "-1", "--format=%h %s"],
+            hardened_git_argv(("log", "-1", "--format=%h %s"), repo_dir=vault_dir),
             capture_output=True,
             text=True,
             check=True,
