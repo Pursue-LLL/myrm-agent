@@ -50,7 +50,6 @@ class WakeupEvent:
     exit_code: int | None = None
     duration_seconds: float | None = None
     error: str | None = None
-    details: dict[str, str] = field(default_factory=dict)
     created_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 

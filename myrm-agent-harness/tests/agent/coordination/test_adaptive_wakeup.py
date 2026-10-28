@@ -64,8 +64,8 @@ def test_budget_tracker_user_stop_suppression() -> None:
     assert tracker.consume_wake_budget(session_id) is True
 
 
-def test_router_followup_and_degradation() -> None:
-    """Validate that settlements get FOLLOWUP until the budget reaches max, then DEGRADE."""
+def test_router_reads_the_budget_and_claiming_a_wake_turn_spends_it() -> None:
+    """Settlements do not spend the budget; each wake turn the host starts does, so shared turns cost one wake."""
     router = AdaptiveWakeupRouter(default_max_consecutive_wakes=2)
     session_id = "test-session-idle"
 
@@ -77,30 +77,31 @@ def test_router_followup_and_degradation() -> None:
         summary="Subagent code review finished",
     )
 
-    # 1st wake -> FOLLOWUP
-    d1 = router.route(event_subagent)
-    assert d1.channel == WakeupChannel.FOLLOWUP
-    assert d1.consecutive_wakes == 1
-    assert d1.budget_remaining == 1
+    # Five settlements that share one wake turn all follow up and leave the budget untouched
+    decisions = [router.route(event_subagent) for _ in range(5)]
+    assert {d.channel for d in decisions} == {WakeupChannel.FOLLOWUP}
+    assert {d.consecutive_wakes for d in decisions} == {0}
+    assert {d.budget_remaining for d in decisions} == {2}
 
-    # 2nd wake -> FOLLOWUP
-    d2 = router.route(event_subagent)
-    assert d2.channel == WakeupChannel.FOLLOWUP
-    assert d2.consecutive_wakes == 2
-    assert d2.budget_remaining == 0
+    # Two wake turns start; the budget is spent
+    assert router.claim_wake_turn(session_id) is True
+    assert router.route(event_subagent).budget_remaining == 1
+    assert router.claim_wake_turn(session_id) is True
 
-    # 3rd wake -> DEGRADE (budget exhausted)
+    # A settlement after the budget is spent degrades, and no further turn can be claimed
     d3 = router.route(event_subagent)
     assert d3.channel == WakeupChannel.DEGRADE
     assert "degraded" in d3.reason.lower()
     assert d3.consecutive_wakes == 2
     assert d3.budget_remaining == 0
+    assert router.claim_wake_turn(session_id) is False
 
     # A human turn restores the budget, so the next settlement is a FOLLOWUP again
     router.record_human_turn(session_id)
     d4 = router.route(event_subagent)
     assert d4.channel == WakeupChannel.FOLLOWUP
-    assert d4.consecutive_wakes == 1
+    assert d4.consecutive_wakes == 0
+    assert router.claim_wake_turn(session_id) is True
 
 
 def test_router_user_stop_suppresses_wakeup() -> None:
@@ -123,9 +124,11 @@ def test_router_user_stop_suppresses_wakeup() -> None:
     assert "suppressed" in decision.reason.lower()
     assert decision.consecutive_wakes == 0
 
-    # Suppression does not spend the budget, and a human turn lifts it
+    # A stopped session cannot claim a wake turn either; a human turn lifts the stop
+    assert router.claim_wake_turn(session_id) is False
     router.record_human_turn(session_id)
     assert router.route(event).channel == WakeupChannel.FOLLOWUP
+    assert router.claim_wake_turn(session_id) is True
 
 
 def test_router_session_reset() -> None:
@@ -133,14 +136,7 @@ def test_router_session_reset() -> None:
     router = AdaptiveWakeupRouter(default_max_consecutive_wakes=3)
     session_id = "test-session-reset"
 
-    event = WakeupEvent(
-        source_type=WakeupSourceType.SUBAGENT,
-        source_id="sub-1",
-        session_id=session_id,
-        success=True,
-        summary="Done",
-    )
-    router.route(event)
+    router.claim_wake_turn(session_id)
     router.record_user_stop(session_id)
     assert router.budget_tracker.get_budget_state(session_id).consecutive_wakes == 1
 

@@ -508,7 +508,7 @@ config = SubagentConfig(
 1. **状态挂起**：当大模型派发任务 `wait=False` 时，主智能体进入 Idle（空闲）状态，停止消耗 Token，挂起释放资源。
 2. **异步回调拦截**：后台子代理完成任务后，`SubagentManager._cleanup_child` 捕获到完成事件。
 3. **事件反转注入**：通过 `self._parent_agent.trigger_async_wakeup(result)` 向主智能体所在的 Session 注入一条系统事件 `ASYNC_WAKEUP`。状态为 `CANCELLED` 的子代理不触发：用户按下 Stop 时后台子代理被一并取消，它们没有可交付的结果，唤醒只会在 Stop 之后又起一轮自主运行；超时、预算耗尽、失败仍然唤醒，因为父代理需要知道原因。
-4. **重新唤醒**：业务层（`myrm-agent-server/app/services/agent/wakeup_handler.py`）收到 `ASYNC_WAKEUP` 后，将子任务结果包在 `<system_notification type='async_result'>` 中追加为 **user/HumanMessage**（写入 chat history），再触发 headless GeneralAgent 续跑。不使用 `SystemMessage`，避免破坏 System 前缀 cache。
+4. **重新唤醒**：业务层（`myrm-agent-server/app/services/agent/wakeup_handler.py`）收到 `ASYNC_WAKEUP` 后，交给自适应唤醒服务（`adaptive_wakeup/service.py`）：每次结算都以 `<system_notification type='adaptive_wakeup_followup' …>`（预算用尽为 `adaptive_settlement_degraded`、用户已停止为 `adaptive_settlement_suppressed`）追加为 **user/HumanMessage**（写入 chat history），只有预算内且用户没有叫停的 FOLLOWUP 才触发 headless GeneralAgent 续跑，续跑使用该会话自己的智能体。结算只读连续唤醒预算（默认 3 次），一个唤醒回合开始时才扣一次，同时落地的多个结算共用一轮；用户发言恢复额度，Stop 或目标暂停/取消后到期的完成只留通知、不自行起回合。不使用 `SystemMessage`，避免破坏 System 前缀 cache。
 
 **优势**：
 - ✅ **异步并发**：主 agent 可挂起长耗时子任务并等待事件唤醒。

@@ -1,14 +1,15 @@
 """Adaptive wakeup router deciding between followup, degradation, or suppression.
 
 Routes background asynchronous settlements by the user's stop flag and the bounded
-consecutive wake budget; the host decides when a followup actually runs.
+consecutive wake budget. A settlement only reads the budget; the host spends one unit
+when a wake turn actually starts, so settlements that share one turn cost one wake.
 
 [INPUT]
 - budget_tracker::WakeupBudgetTracker (POS: per-session consecutive-wake budget and the user's stop flag)
 - types::RoutingDecision, WakeupChannel, WakeupEvent (POS: typed settlement events and routing outcomes)
 
 [OUTPUT]
-- AdaptiveWakeupRouter: decides what a settled background task does to its session (followup / degrade / suppress)
+- AdaptiveWakeupRouter: decides what a settled background task does to its session (followup / degrade / suppress) and spends the wake budget of a turn the host starts
 
 [POS]
 Adaptive wakeup router deciding between followup, degradation, or suppression.
@@ -59,34 +60,35 @@ class AdaptiveWakeupRouter:
             )
 
         # 2. Followup while the autonomous wake budget lasts, degradation once it is spent
-        acquired = self._tracker.consume_wake_budget(event.session_id)
-        latest_budget = self._tracker.get_budget_state(event.session_id)
-
-        if acquired:
+        if not budget_state.is_exhausted:
             return RoutingDecision(
                 channel=WakeupChannel.FOLLOWUP,
                 reason=(
                     f"Followup: autonomous wake budget available "
-                    f"({latest_budget.consecutive_wakes}/{latest_budget.max_consecutive_wakes})"
+                    f"({budget_state.consecutive_wakes}/{budget_state.max_consecutive_wakes} used)"
                 ),
                 session_id=event.session_id,
                 source_id=event.source_id,
-                consecutive_wakes=latest_budget.consecutive_wakes,
-                budget_remaining=latest_budget.budget_remaining,
+                consecutive_wakes=budget_state.consecutive_wakes,
+                budget_remaining=budget_state.budget_remaining,
             )
 
         return RoutingDecision(
             channel=WakeupChannel.DEGRADE,
             reason=(
                 f"Degraded: consecutive autonomous wake budget exhausted "
-                f"({latest_budget.consecutive_wakes}/{latest_budget.max_consecutive_wakes}), "
+                f"({budget_state.consecutive_wakes}/{budget_state.max_consecutive_wakes}), "
                 "awaiting human input"
             ),
             session_id=event.session_id,
             source_id=event.source_id,
-            consecutive_wakes=latest_budget.consecutive_wakes,
-            budget_remaining=latest_budget.budget_remaining,
+            consecutive_wakes=budget_state.consecutive_wakes,
+            budget_remaining=budget_state.budget_remaining,
         )
+
+    def claim_wake_turn(self, session_id: str) -> bool:
+        """Spend one wake of the budget for a wake turn about to start; False when none is left or the user stopped."""
+        return self._tracker.consume_wake_budget(session_id)
 
     def reset_session(self, session_id: str) -> None:
         """Clear all router state for a session."""
