@@ -25,7 +25,7 @@
 | `feishu/` | 包 | Feishu/Lark channel with dual transport (webhook / WebSocket). Inbound and outbound mixins, interactive cards, document comment handling, SDK wrappers. See `feishu/_ARCH.md`. | ✅ |
 | `github/` | 包 | GitHub channel, outbound only: posts messages as issue/PR comments via REST API (personal access token). Receives nothing from GitHub. See `github/_ARCH.md`. | ✅ |
 | `googlechat/` | 包 | Google Chat channel — Webhook inbound + Chat API v1 outbound. See `googlechat/_ARCH.md`. | ✅ |
-| `imessage/` | 包 | iMessage channel via BlueBubbles API. Quoted replies, Tapback reactions, typing indicator, webhook auto-registration, read receipts, structured diagnostics. Submodules: channel.py, helpers.py, parser.py, webhook.py. | ✅ |
+| `imessage/` | 包 | iMessage channel via BlueBubbles API. Quoted replies, Tapback reactions, typing indicator, webhook auto-registration, read receipts, structured diagnostics; the Private API features follow the state BlueBubbles reports at every health check. See `imessage/_ARCH.md`. | ✅ |
 | `irc.py` | 模块 | IRC channel implementation. Raw asyncio TCP connection, supports SSL/TLS, NickServ authentication, nick collision auto-recovery, control character filtering, ou | ✅ |
 | `line/` | 包 | LINE channel via Webhook + Messaging API. Webhook event parsing lives in the inbound mixin. See `line/_ARCH.md`. | ✅ |
 | `matrix/` | 包 | Matrix channel via the mautrix SDK with optional E2EE. The connection mixin builds and tears down the client. See `matrix/_ARCH.md`. | ✅ |

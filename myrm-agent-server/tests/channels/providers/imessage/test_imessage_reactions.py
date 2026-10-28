@@ -47,9 +47,11 @@ class _FakeBlueBubbles:
 
 
 def _channel(handler: httpx.MockTransport | None = None) -> tuple[IMessageChannel, _FakeBlueBubbles]:
+    """A channel whose server reports the Private API and its helper as up (without them no Tapback is sent)."""
     server = _FakeBlueBubbles()
     ch = IMessageChannel(api_url="http://localhost:1234", password=_PASSWORD)
     ch._http = httpx.AsyncClient(transport=handler or httpx.MockTransport(server.handle))
+    ch._private_api_available = ch._helper_connected = True
     return ch, server
 
 

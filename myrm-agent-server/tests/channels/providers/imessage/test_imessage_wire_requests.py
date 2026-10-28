@@ -281,7 +281,7 @@ class TestTapbackRequest:
     @pytest.mark.asyncio
     async def test_a_tapback_names_the_chat_the_message_and_the_reaction(self) -> None:
         server = _FakeBlueBubbles(httpx.Response(200, json={}))
-        await _channel(server).react_to_message(_CHAT, "msg-guid", "\U0001f44d")
+        await _channel(server, private_api=True, helper=True).react_to_message(_CHAT, "msg-guid", "\U0001f44d")
 
         (request,) = server.requests
         assert (request.method, request.url.path) == ("POST", "/api/v1/message/react")
@@ -293,6 +293,6 @@ class TestTapbackRequest:
     async def test_a_refused_tapback_names_the_status(self) -> None:
         server = _FakeBlueBubbles(httpx.Response(400, json={}))
         with pytest.raises(ChannelSendError) as excinfo:
-            await _channel(server).react_to_message(_CHAT, "msg-guid", "\U0001f44d")
+            await _channel(server, private_api=True, helper=True).react_to_message(_CHAT, "msg-guid", "\U0001f44d")
         assert str(excinfo.value) == "iMessage reaction failed: HTTP 400"
         assert (excinfo.value.channel, excinfo.value.status_code) == ("imessage", 400)

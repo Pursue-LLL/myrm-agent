@@ -20,7 +20,8 @@
  *   {"type":"edit","to":"...@s.whatsapp.net","key":{remoteJid,id,fromMe},"text":"new text"}
  *   {"type":"delete","to":"...@s.whatsapp.net","key":{remoteJid,id,fromMe}}
  *   {"type":"typing","to":"...@s.whatsapp.net","status":"composing"|"paused"}
- *   {"type":"react","to":"...@g.us","messageId":"...","emoji":"👀"|""}
+ *   {"type":"react","to":"...@g.us","messageId":"...","emoji":"👀"|"","key":{remoteJid,id,fromMe,participant?}}
+ *     key is optional: the inbound message's Baileys key as received; without it the key is rebuilt from to + messageId
  *   {"type":"download_media","messageId":"..."}
  *   {"type":"list_groups"}
  *   {"type":"stop"}

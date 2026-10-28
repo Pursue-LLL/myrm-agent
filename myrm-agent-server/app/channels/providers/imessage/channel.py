@@ -115,6 +115,11 @@ class IMessageChannel(BaseChannel):
     def helper_connected(self) -> bool:
         return self._helper_connected
 
+    @property
+    def _private_api_ready(self) -> bool:
+        """BlueBubbles refuses Tapbacks, typing, read receipts and quoted replies unless both hold."""
+        return self._private_api_available and self._helper_connected
+
     # ── Lifecycle ─────────────────────────────────────────────────────
 
     async def start(self) -> None:
@@ -186,6 +191,7 @@ class IMessageChannel(BaseChannel):
             )
             ok = resp.status_code == 200
             if ok:
+                self._detect_private_api(resp)
                 self.health.record_success()
             else:
                 self.health.record_failure(f"HTTP {resp.status_code}")
@@ -195,19 +201,23 @@ class IMessageChannel(BaseChannel):
             return False
 
     def _detect_private_api(self, resp: httpx.Response) -> None:
-        """Extract private_api and helper availability from BlueBubbles server/info."""
+        """Take private_api and helper_connected from a BlueBubbles server/info response.
+
+        Called at start and by every health check, so the flags follow the server (the helper may connect after
+        start or drop later). A body that cannot be read keeps the last known state.
+        """
         try:
-            body = resp.json()
-            data = body.get("data", {})
-            if isinstance(data, dict):
-                self._private_api_available = bool(data.get("private_api"))
-                self._helper_connected = bool(data.get("helper_connected"))
-        except Exception:
-            pass
+            data = resp.json().get("data", {})
+        except Exception as exc:
+            logger.debug("IMessageChannel: server/info body unreadable, keeping Private API state: %s", exc)
+            return
+        if isinstance(data, dict):
+            self._private_api_available = bool(data.get("private_api"))
+            self._helper_connected = bool(data.get("helper_connected"))
 
     async def _mark_read(self, chat_guid: str) -> None:
         """Send a read receipt for the chat (requires Private API + helper)."""
-        if not self._private_api_available or not self._helper_connected or not chat_guid:
+        if not self._private_api_ready or not chat_guid:
             return
         try:
             await self._http.post(
@@ -229,7 +239,7 @@ class IMessageChannel(BaseChannel):
     # ── Typing Indicator ──────────────────────────────────────────────
 
     async def start_typing(self, chat_id: str) -> None:
-        if not self._private_api_available or not self._helper_connected:
+        if not self._private_api_ready:
             return
         try:
             await self._http.post(
@@ -241,7 +251,7 @@ class IMessageChannel(BaseChannel):
             logger.debug("iMessage start_typing failed for %s: %s", chat_id[:20], exc)
 
     async def stop_typing(self, chat_id: str) -> None:
-        if not self._private_api_available or not self._helper_connected:
+        if not self._private_api_ready:
             return
         try:
             await self._http.request(
@@ -294,7 +304,7 @@ class IMessageChannel(BaseChannel):
 
         last_guid: str | None = None
         # Quoting needs the Private API helper; without it a reply is sent as a plain message.
-        quote = msg.reply_to_id if msg.reply_to_id and self._private_api_available and self._helper_connected else None
+        quote = msg.reply_to_id if msg.reply_to_id and self._private_api_ready else None
 
         if msg.content:
             for chunk in render(msg, self.render_style):
@@ -317,7 +327,14 @@ class IMessageChannel(BaseChannel):
         message_id: str,
         emoji: str,
     ) -> None:
-        """Send a Tapback via the BlueBubbles Private API; an empty emoji removes the one this channel sent."""
+        """Send a Tapback via the BlueBubbles Private API; an empty emoji removes the one this channel sent.
+
+        Without the Private API and its helper BlueBubbles refuses every Tapback, so none is sent (the channel
+        diagnostics report the cause); a skipped removal keeps its ledger entry, so a later removal still takes
+        the Tapback off.
+        """
+        if not self._private_api_ready:
+            return
         post = partial(post_tapback, self._http, self._api_url, self._password, chat_id, message_id)
         if emoji:
             tapback = TAPBACK_MAP.get(reaction_key(emoji))

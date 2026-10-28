@@ -18,7 +18,7 @@ iMessage bidirectional channel via BlueBubbles macOS HTTP API bridge.
 | File | Responsibility |
 |------|----------------|
 | `__init__.py` | Facade exporting `IMessageChannel` |
-| `channel.py` | Core channel implementation: lifecycle, inbound webhook, send orchestration (render chunks, quote only the first, deliver attachments), Tapback bookkeeping |
+| `channel.py` | Core channel implementation: lifecycle, inbound webhook, send orchestration (render chunks, quote only the first, deliver attachments), Tapback bookkeeping; `_private_api_ready` is the one check Tapbacks, typing, read receipts and quoted replies share, and `_detect_private_api` refreshes it from `/server/info` at start and at every health check |
 | `outbound.py` | The wire contract with BlueBubbles `/api/v1/message/*`: text (Private API quote), multipart attachment upload, Tapback; functions take `http, api_url, password` per call so a replaced client is honoured |
 | `diagnostics.py` | `collect_imessage_issues`: pure diagnosis of configuration, status and Private API / helper state |
 | `parser.py` | Inbound webhook payload parsing |
@@ -32,4 +32,6 @@ iMessage bidirectional channel via BlueBubbles macOS HTTP API bridge.
 - Group chat wake-word regex matching and prefix cleaning for Prompt Caching efficiency
 - Tapback reactions mapped to standard reaction enum
 - Multipart attachment upload for media messages
+- BlueBubbles refuses Tapbacks, typing, read receipts and quoted replies unless `private_api` is on and the helper is connected (`checkPrivateApiStatus` in bluebubbles-server), so the channel asks for none of them otherwise; the state follows `/server/info` at every health check (the helper may connect late or drop), and an unreadable body keeps the last state
+- A skipped Tapback removal keeps its ledger entry, so a later removal still takes the Tapback off
 - Private API helper connectivity diagnostics reported in channel health issues
