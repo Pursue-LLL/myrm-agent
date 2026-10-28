@@ -15,7 +15,10 @@
 
 import { API_BASE_URL } from '@/lib/api';
 
-/** Mirrors harness `validate_credential_key`: names that would let a credential hijack the shell. */
+/**
+ * Pre-check for the system names a person is likely to type by mistake (`USER`, `PATH`, ...), so the card can say so
+ * before the request. The server refuses a longer list (`validate_credential_key`) and stays the authority.
+ */
 export const BLOCKED_CREDENTIAL_KEYS: ReadonlySet<string> = new Set([
   'BASH_ENV',
   'DYLD_INSERT_LIBRARIES',

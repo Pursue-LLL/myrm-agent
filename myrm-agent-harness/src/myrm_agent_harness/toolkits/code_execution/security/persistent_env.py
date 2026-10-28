@@ -6,7 +6,7 @@ later ``git diff`` or ``bash -c`` run the script. Setting the variable for one c
 does not outlive that command and is judged by the risk classifier instead.
 
 [INPUT]
-- blacklist::is_code_injection_env_name (POS: The environment variables that make a program run what the value names)
+- core.security.process_env.code_injection_env::is_code_injection_env_name (POS: The environment variables that make a program run what the value names)
 - core.security.shell_command_lexer::shell_words, split_command_spans (POS: Quote-aware command splitting)
 
 [OUTPUT]
@@ -21,8 +21,8 @@ what contains a command that builds one.
 
 from __future__ import annotations
 
+from myrm_agent_harness.core.security.process_env.code_injection_env import is_code_injection_env_name
 from myrm_agent_harness.core.security.shell_command_lexer import shell_words, split_command_spans
-from myrm_agent_harness.toolkits.code_execution.security.blacklist import is_code_injection_env_name
 
 # ``builtin`` and ``command`` only hand the next word to the shell, so ``command export X`` exports as well.
 _PASSTHROUGH = frozenset({"builtin", "command"})

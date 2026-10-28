@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-28-071 · 一次性凭据可以用 `GIT_EXTERNAL_DIFF`、`GIT_SSH_COMMAND`、`PYTHONSTARTUP` 这类会让程序去运行变量值的名字暂存，再被一条判为只读的命令吃到
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `core/security/process_env/`：新增，`ephemeral_credentials/types.py`、`toolkits/code_execution/security/blacklist.py`、`persistent_env.py` 与三份 `_ARCH.md`、`EXECUTION_SYSTEM.md`；前端只改了一处注释；没有改任何提示词，server 只加了测试用例）。 |
+| **发现时间** | 2026-10-28（条目 069 之后，逐个核对「还有哪些入口没有用同一份注入变量名表」） |
+| **修复时间** | 2026-10-28 |
+| **严重程度** | P2（与条目 069 同级）：一个暂存的变量会送到它绑定的那条命令里，而那条命令可以是被判为只读的命令。实测见「回归」[1]。暂存接口在本地模式下把回环请求当本地管理员（`app/middleware/auth.py:77`），但代理从回环发起的 `curl`、`wget`、`python3` 实测都是 `unknown`（要审批），所以利用需要一次被批准的回环调用，或某个已批准命令里的子进程直接请求 `127.0.0.1`。HTTP 全链路没有端到端跑过：接口层校验放行、执行器层注入并执行，是分两段验证的。 |
+| **关联产品** | harness `core/security/ephemeral_credentials/`、`toolkits/code_execution/security/`、`toolkits/mcp/env_guard.py`（共用 `DANGEROUS_ENV_VARS`）；server `app/api/approvals/credentials.py`（共用同一个校验函数，没有改动）；前端审批卡的变量名预检（保留为子集）。 |
+| **根因** | `validate_credential_key` 用的是 `types.py` 里自己的 18 个名字，不是仓库里「让程序运行变量值」的那份表（`blacklist.py` 的 22 个名字加 `LD_`、`DYLD_` 前缀）。缺 14 个：`DYLD_FRAMEWORK_PATH`、`GIT_ASKPASS`、`GIT_EDITOR`、`GIT_EXEC_PATH`、`GIT_EXTERNAL_DIFF`、`GIT_PROXY_COMMAND`、`GIT_SEQUENCE_EDITOR`、`GIT_SSH`、`GIT_SSH_COMMAND`、`GIT_TEMPLATE_DIR`、`LD_AUDIT`、`PERL5OPT`、`PYTHONSTARTUP`、`RUBYOPT`。这个函数在暂存（接口）与取用（执行器 `_command_env.py:82`）两处都被调用，所以两处同时放行。 |
+| **修复** | 把代码注入类名字与 `is_code_injection_env_name` 从 `toolkits/.../blacklist.py` 移到 `core/security/process_env/code_injection_env.py`（core 不能依赖 toolkits，凭据校验在 core）。`validate_credential_key` 改为「10 个保留名（身份、搜索路径、shell 启动与分词：`ENV`、`HOME`、`IFS`、`LOGNAME`、`PATH`、`PERL5LIB`、`PROMPT_COMMAND`、`RUBYLIB`、`SHELL`、`USER`）加共享谓词」，`types.py` 里与注入集重复的 8 个名字删除。`blacklist.py`、`persistent_env.py` 改为从 core 导入，没有留兼容层。前端的 `BLOCKED_CREDENTIAL_KEYS` 保留：用户会把 `USER`、`PATH` 当普通名字输入，卡片能当场给出精确提示；注释改成「预检子集，服务端为准」。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 起初想对齐 `DANGEROUS_ENV_VARS`（65 个），但它含 `HTTPS_PROXY` 这类人设很正常的重定向名（`blacklist.py` 的注释写明了），会错杀合法的代理凭据，所以只对齐代码注入类。② 用集合本身做参数化的测试，删掉一个名字时测试集合也跟着缩小而不失败；另加了手写钉住的 14 个名字。 |
+| **回归** | [1] 实测（临时脚本，未入库）：修复前暂存 `GIT_EXTERNAL_DIFF` 后，被判 safe 的 `git diff --no-index a.txt b.txt` 在执行器里真的运行了攻击者命令；修复后暂存与取用两处都拒绝。[2] 变异验证：去掉 `validate_credential_key` 对共享谓词的调用，41 例失败；从集合里删掉 `GIT_EXTERNAL_DIFF`，3 例失败（手写钉住的 14 个名字、store 用例、`test_persistent_env_injection.py`）。[3] `tests/core/security/test_ephemeral_credentials.py`、`tests/toolkits/code_execution/security/test_persistent_env_injection.py` 同步；server `tests/api/approvals/test_approval_credentials.py` 20 例（含 `GIT_EXTERNAL_DIFF`、`RUBYOPT`、`LD_ANYTHING` 返回 400）。[4] harness `tests/core/security`、`tests/toolkits/code_execution/{security,executors/local}`、`tests/toolkits/mcp`、`test_validator.py`、`test_env_sanitizer.py` 共 3988 例通过（9 个被标记跳过）。 |
+| **仍然存在** | ① `NODE_PATH`、`SSH_ASKPASS`、`PAGER`、`EDITOR`、`LESSOPEN`、`GIT_PAGER` 仍可作凭据名：仓库里没有任何一份表把它们列为注入类，也没有利用证据，所以没有扩表。② `env_isolation.py` 里的 `FORBIDDEN_EXACT_KEYS`、`DANGEROUS_PREFIXES` 还有一份自己的 `LD_*`、`DYLD_*` 名字，没有并入共享集：并入会改变子进程环境的剥离范围，没有评估。③ 前端预检列表比服务端短，没有预检到的名字会在点击后得到通用的「请检查变量名和值」。 |
+| **代码位置** | `core/security/process_env/code_injection_env.py`、`core/security/ephemeral_credentials/types.py:validate_credential_key`、`toolkits/code_execution/security/blacklist.py`、`persistent_env.py` · `core/security/_ARCH.md`、`process_env/_ARCH.md`、`ephemeral_credentials/_ARCH.md`、`toolkits/code_execution/security/_ARCH.md` · 测试 `tests/core/security/test_ephemeral_credentials.py`、`tests/toolkits/code_execution/security/test_persistent_env_injection.py`、server `tests/api/approvals/test_approval_credentials.py` |
+
 ### BUG-HARNESS-2026-10-28-070 · 脱敏器不认连写的凭据变量名（`PGPASSWORD`、`SSHPASS`、`MYSQL_PWD`），也不认没有用户名或 scheme 不在固定名单里的连接串（`redis://:口令@host`、`postgresql+asyncpg://`、`amqps`、`ssh`、`socks5` 等）
 
 | 字段 | 内容 |

@@ -1,7 +1,7 @@
 """Types and data structures for ephemeral credentials.
 
 [INPUT]
-- None (foundation security types)
+- core.security.process_env.code_injection_env::is_code_injection_env_name (POS: Names that make a program run what the value names)
 
 [OUTPUT]
 - EphemeralCredential: Encapsulated credential with physical memory wipe capability.
@@ -11,7 +11,7 @@
 
 [POS]
 Foundational memory security models in core/security/ephemeral_credentials/.
-Zero external dependencies, supports ctypes.memset zeroization.
+Depends only on the standard library and the shared code-injection name set; supports ctypes.memset zeroization.
 """
 
 from __future__ import annotations
@@ -21,27 +21,23 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from myrm_agent_harness.core.security.process_env.code_injection_env import is_code_injection_env_name
+
 _VALID_KEY_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
-_BLOCKED_ENV_KEYS = frozenset(
+# Names that shape the shell or the process a command starts in: who runs it, where programs are found, how the shell
+# starts and splits words. They are not code-injection names in the shared sense, but no credential belongs under them.
+_RESERVED_ENV_KEYS = frozenset(
     {
-        "BASH_ENV",
         "ENV",
         "HOME",
+        "IFS",
         "LOGNAME",
-        "PROMPT_COMMAND",
-        "USER",
         "PATH",
-        "LD_PRELOAD",
-        "LD_LIBRARY_PATH",
-        "PYTHONPATH",
-        "PYTHONHOME",
-        "DYLD_INSERT_LIBRARIES",
-        "DYLD_LIBRARY_PATH",
-        "NODE_OPTIONS",
         "PERL5LIB",
+        "PROMPT_COMMAND",
         "RUBYLIB",
         "SHELL",
-        "IFS",
+        "USER",
     }
 )
 
@@ -57,7 +53,7 @@ def validate_credential_key(key: str) -> str:
         raise ValueError(
             f"Invalid credential key '{key}'. Must start with a letter and contain only alphanumeric characters and underscores (max 64 chars)."
         )
-    if normalized in _BLOCKED_ENV_KEYS:
+    if normalized in _RESERVED_ENV_KEYS or is_code_injection_env_name(normalized):
         raise ValueError(
             f"Blocked credential key '{key}'. Overriding critical system environment variables is strictly forbidden."
         )

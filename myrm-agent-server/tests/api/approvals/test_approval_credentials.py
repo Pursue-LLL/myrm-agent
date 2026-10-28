@@ -81,7 +81,7 @@ class TestStaging:
 
         assert context["session_id"] == chat_session_id(CHAT_ID)
 
-    @pytest.mark.parametrize("key", ["LD_PRELOAD", "BASH_ENV", "PATH", "1BAD"])
+    @pytest.mark.parametrize("key", ["LD_PRELOAD", "BASH_ENV", "PATH", "1BAD", "GIT_EXTERNAL_DIFF", "RUBYOPT", "LD_ANYTHING"])
     def test_a_key_that_could_hijack_the_shell_is_refused_and_nothing_is_staged(self, client: TestClient, key: str) -> None:
         resp = client.post(
             "/api/v1/approvals/credentials",

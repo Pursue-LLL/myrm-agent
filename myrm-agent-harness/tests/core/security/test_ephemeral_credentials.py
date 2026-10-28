@@ -10,6 +10,7 @@ from myrm_agent_harness.core.security.ephemeral_credentials import (
     EphemeralCredentialStore,
     validate_credential_key,
 )
+from myrm_agent_harness.core.security.process_env import CODE_INJECTION_ENV_VARS
 
 
 def test_validate_credential_key_success_and_blocked() -> None:
@@ -24,6 +25,67 @@ def test_validate_credential_key_success_and_blocked() -> None:
 
     with pytest.raises(ValueError, match="Invalid credential key"):
         validate_credential_key("123_INVALID")
+
+
+@pytest.mark.parametrize(
+    "name", sorted(CODE_INJECTION_ENV_VARS | {"LD_ANYTHING", "dyld_whatever", "git_external_diff"})
+)
+def test_a_credential_cannot_be_named_after_a_variable_that_makes_a_program_run_its_value(name: str) -> None:
+    """A staged variable reaches every command it is bound to, including one the risk classifier judged read-only.
+
+    ``GIT_EXTERNAL_DIFF=hook`` makes ``git diff --no-index a b`` run ``hook``, so each name of the shared
+    code-injection set is refused, not only the handful that used to be listed here.
+    """
+    with pytest.raises(ValueError, match="Blocked credential key"):
+        validate_credential_key(name)
+
+
+# Names the credential check used to let through although the rest of the code base already refused them.
+_FORMERLY_ACCEPTED = (
+    "DYLD_FRAMEWORK_PATH",
+    "GIT_ASKPASS",
+    "GIT_EDITOR",
+    "GIT_EXEC_PATH",
+    "GIT_EXTERNAL_DIFF",
+    "GIT_PROXY_COMMAND",
+    "GIT_SEQUENCE_EDITOR",
+    "GIT_SSH",
+    "GIT_SSH_COMMAND",
+    "GIT_TEMPLATE_DIR",
+    "LD_AUDIT",
+    "PERL5OPT",
+    "PYTHONSTARTUP",
+    "RUBYOPT",
+)
+
+
+@pytest.mark.parametrize("name", _FORMERLY_ACCEPTED)
+def test_the_names_the_credential_check_used_to_miss_are_refused(name: str) -> None:
+    """Pinned by hand: deleting a name from the shared set must fail here, not shrink the derived test above."""
+    with pytest.raises(ValueError, match="Blocked credential key"):
+        validate_credential_key(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["ENV", "HOME", "IFS", "LOGNAME", "PATH", "PERL5LIB", "PROMPT_COMMAND", "RUBYLIB", "SHELL", "USER"]
+)
+def test_a_credential_cannot_be_named_after_a_variable_that_shapes_the_shell(name: str) -> None:
+    with pytest.raises(ValueError, match="Blocked credential key"):
+        validate_credential_key(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["PGPASSWORD", "GITHUB_TOKEN", "AWS_SECRET_ACCESS_KEY", "HTTPS_PROXY", "OLD_PRELOAD", "BASH_ENVIRON"]
+)
+def test_names_a_person_legitimately_stages_are_accepted(name: str) -> None:
+    assert validate_credential_key(name) == name
+
+
+def test_the_store_refuses_a_code_injection_name_before_it_holds_any_secret() -> None:
+    store = EphemeralCredentialStore()
+    with pytest.raises(ValueError, match="Blocked credential key"):
+        store.store_credential(session_id="s", key="GIT_EXTERNAL_DIFF", secret="./hook.sh", ttl_seconds=30.0)
+    assert store.list_summaries("s") == []
 
 
 def test_store_and_consume_single_use_zeroization() -> None:
@@ -137,4 +199,3 @@ def test_wipe_handles_immediately_zeroes() -> None:
     assert len(store.list_summaries(sess)) == 1
     store.wipe_handles(sess, [cred2.handle_id])
     assert store.list_summaries(sess) == []
-

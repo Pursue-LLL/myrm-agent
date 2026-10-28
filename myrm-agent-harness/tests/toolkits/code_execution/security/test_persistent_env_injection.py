@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import pytest
 
+from myrm_agent_harness.core.security.process_env import CODE_INJECTION_ENV_VARS, is_code_injection_env_name
 from myrm_agent_harness.toolkits.code_execution.security.blacklist import (
-    CODE_INJECTION_ENV_VARS,
     CORE_SAFE_ENV_VARS,
     DANGEROUS_ENV_PREFIXES,
     DANGEROUS_ENV_VARS,
-    is_code_injection_env_name,
 )
 from myrm_agent_harness.toolkits.code_execution.security.persistent_env import persistent_env_injection
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import ThreatLevel, analyze_command

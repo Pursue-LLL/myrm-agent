@@ -10,9 +10,9 @@
 |------|------|------|-------|
 | `__init__.py` | 核心 | 导出瞬态凭证模型、摘要对象与存储管理器单例入口 | ✅ |
 | `store.py` | 核心 | 会话隔离内存凭据保险库、线程安全存取、TTL 扫描与会话级批量清理 | ✅ |
-| `types.py` | 核心 | 凭据模型定义、密钥命名白名单校验、命令摘要（`command_digest`：暂存方与执行器共用同一函数）与内存物理覆写清零实现 | ✅ |
+| `types.py` | 核心 | 凭据模型定义、密钥命名校验（格式，加上拒绝 `core/security/process_env` 的代码注入类变量名与 `PATH`/`HOME` 等保留名）、命令摘要（`command_digest`：暂存方与执行器共用同一函数）与内存物理覆写清零实现 | ✅ |
 
 ## 模块依赖
 
-- 内部依赖：`core/security/ephemeral_credentials/types.py`
+- 内部依赖：`core/security/ephemeral_credentials/types.py`；`core/security/process_env/code_injection_env.py`（`types.py` 用它拒绝会让程序执行变量值的名字）
 - 外部依赖：标准库 `dataclasses`, `logging`, `re`, `threading`, `time`, `uuid`

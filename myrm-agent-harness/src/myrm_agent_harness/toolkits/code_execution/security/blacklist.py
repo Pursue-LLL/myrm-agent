@@ -9,17 +9,20 @@ Shell command security (dangerous patterns, injection vectors, operators)
 is handled by ``myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer``.
 
 [INPUT]
-- (none)
+- core.security.process_env.code_injection_env::CODE_INJECTION_ENV_VARS, CODE_INJECTION_ENV_PREFIXES (POS: The names that make a program run what the value names; the redirection names below are added to them)
 
 [OUTPUT]
 - get_dangerous_modules: Get dangerous modules based on network configuration.
 - DANGEROUS_ENV_VARS / DANGEROUS_ENV_PREFIXES: Variables a child process or an MCP server must not receive.
-- CODE_INJECTION_ENV_VARS / CODE_INJECTION_ENV_PREFIXES / is_code_injection_env_name: The part of them that makes a
-  later program run what the value names (the shell validator denies setting these in a persistent shell).
 
 [POS]
 Security blacklists for code execution.
 """
+
+from myrm_agent_harness.core.security.process_env.code_injection_env import (
+    CODE_INJECTION_ENV_PREFIXES,
+    CODE_INJECTION_ENV_VARS,
+)
 
 # ============================================================
 # Core dangerous Python modules (always blocked)
@@ -128,69 +131,6 @@ def get_dangerous_modules(allow_network: bool = False) -> frozenset[str]:
 # ============================================================
 # Dangerous environment variables (library injection / env pollution)
 # ============================================================
-
-# Names that make a later program run what their value names. Setting one in a shell that outlives the command
-# turns every following command, including ones judged read-only, into a way to run it.
-_LINKER_INJECTION_ENV_VARS: frozenset[str] = frozenset(
-    {
-        # Dynamic linker injection (Linux)
-        "LD_PRELOAD",
-        "LD_LIBRARY_PATH",
-        "LD_AUDIT",
-        # Dynamic linker injection (macOS)
-        "DYLD_INSERT_LIBRARIES",
-        "DYLD_LIBRARY_PATH",
-        "DYLD_FRAMEWORK_PATH",
-    }
-)
-
-_RUNTIME_INJECTION_ENV_VARS: frozenset[str] = frozenset(
-    {
-        # Runtime hijacking / module injection
-        "NODE_OPTIONS",
-        "PYTHONHOME",
-        "PYTHONPATH",
-        "PYTHONSTARTUP",
-        "PERL5OPT",
-        "RUBYOPT",
-    }
-)
-
-_SHELL_STARTUP_ENV_VARS: frozenset[str] = frozenset(
-    {
-        # A script every non-interactive bash sources before it runs
-        "BASH_ENV",
-    }
-)
-
-_GIT_PROGRAM_ENV_VARS: frozenset[str] = frozenset(
-    {
-        # Git command hijacking — arbitrary code execution via git hooks/editors
-        "GIT_SSH_COMMAND",
-        "GIT_SSH",
-        "GIT_PROXY_COMMAND",
-        "GIT_ASKPASS",
-        "GIT_EDITOR",
-        "GIT_SEQUENCE_EDITOR",
-        "GIT_EXTERNAL_DIFF",
-        "GIT_EXEC_PATH",
-        "GIT_TEMPLATE_DIR",
-    }
-)
-
-CODE_INJECTION_ENV_VARS: frozenset[str] = (
-    _LINKER_INJECTION_ENV_VARS | _RUNTIME_INJECTION_ENV_VARS | _SHELL_STARTUP_ENV_VARS | _GIT_PROGRAM_ENV_VARS
-)
-
-# Whole families of the same kind: every ``LD_*`` and ``DYLD_*`` variable steers the dynamic loader.
-CODE_INJECTION_ENV_PREFIXES: tuple[str, ...] = ("LD_", "DYLD_")
-
-
-def is_code_injection_env_name(name: str) -> bool:
-    """Whether a variable of this name makes a later program run what its value names (case-insensitive)."""
-    upper = name.upper()
-    return upper in CODE_INJECTION_ENV_VARS or upper.startswith(CODE_INJECTION_ENV_PREFIXES)
-
 
 # Names a host must not hand down and untrusted configuration must not set (shell pollution, key logging, traffic and
 # certificate redirection, package sources, compilers, credential isolation), yet that are ordinary for a person to
