@@ -9,7 +9,7 @@ Deterministic full-vault ZIP export for `WikiStructure`. No Obsidian or HTTP dep
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `vault_archive.py` | 核心 | Walk `base_dir` (raw + wiki), exclude caches, emit manifest v2 ZIP | ✅ |
-| `vault_git.py` | 核心 | Local `.git` init + auto-commit on vault mutations when `WikiConfig.enable_version_control`; every git command goes through `core.security.safe_git` so no hook, `core.fsmonitor` or filter named by a `.git` that arrived with the vault (or a repository nested below it) runs, and a vault config that cannot be neutralised is skipped as `unsafe_repository` | ✅ |
+| `vault_git.py` | 核心 | Local `.git` init + auto-commit on vault mutations when `WikiConfig.enable_version_control`; every git command goes through `core.security.safe_git` so no hook, `core.fsmonitor` or filter named by a `.git` that arrived with the vault (or a repository nested below it) runs, and a vault config that cannot be neutralised, or a vault whose repository is not its own (`.git` is a symlink or a file, a `commondir` file, a `core.worktree`, a separate git directory, a linked worktree — checked by one `rev-parse` before `add -A`), is skipped as `unsafe_repository` instead of committing to another repository | ✅ |
 | `obsidian_canvas.py` | 核心 | 纯文件格式工具：JSON Canvas (.canvas) 文本节点提取、[[Wikilinks]] 解析（经 `core.link_extraction`，代码块内不算链接）与 1-Hop 依赖展开 | ✅ |
 | `__init__.py` | 入口 | Public exports (`build_vault_archive_zip`, `commit_vault_git_snapshot`, `extract_canvas_text_nodes`, …) | ✅ |
 

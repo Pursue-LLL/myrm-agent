@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - commit_vault_git_snapshot: Initialize repo if needed and commit vault changes; skipped_reason ``unsafe_repository``
-  when the vault's git configuration cannot be neutralised
+  when the vault's git configuration cannot be neutralised or its repository is not the vault's own
 - maybe_commit_vault_git_snapshot: Gate on WikiConfig.enable_version_control
 
 [POS]
@@ -15,6 +15,10 @@ Framework-level vault version discipline for Karpathy/Obsidian users who expect 
 Uses a real .git inside the vault base_dir (not shadow git). That ``.git``, and any repository nested below the vault
 root, may have arrived as plain files (a ZIP, a sync folder, a restored backup), so every command goes through
 ``hardened_git_argv``: the programs their configuration names (fsmonitor, hooks, filters) do not run during a snapshot.
+The vault also commits only into a repository of its own: ``.git`` must be a real directory inside the vault and git's
+top level, git directory and common directory must all be that directory, so a ``.git`` file or symlink, a
+``commondir`` file or a ``core.worktree`` cannot make a snapshot land on another repository's branch or read another
+folder's files. A vault laid out differently (a separate git directory, a linked worktree) is skipped, not adopted.
 """
 
 from __future__ import annotations
@@ -71,12 +75,38 @@ def _git_available() -> bool:
     return shutil.which("git") is not None
 
 
+def _same_path(vault_dir: Path, reported: str, expected: Path) -> bool:
+    """``reported`` is what git printed from inside the vault, so a relative one (``.git``) is relative to the vault."""
+    try:
+        return os.path.samefile(vault_dir / reported, expected)
+    except OSError:
+        return False
+
+
+def _require_own_repository(vault_dir: Path) -> None:
+    """``.git`` is a real directory inside the vault and git itself reports that directory as every root it uses."""
+    git_dir = vault_dir / ".git"
+    reported = _run_git(
+        vault_dir, "rev-parse", "--show-toplevel", "--absolute-git-dir", "--git-common-dir"
+    ).stdout.split("\n")
+    if reported and reported[-1] == "":
+        reported.pop()
+    expected = (vault_dir, git_dir, git_dir)
+    if len(reported) != len(expected) or not all(
+        _same_path(vault_dir, got, want) for got, want in zip(reported, expected, strict=True)
+    ):
+        raise GitHardeningError(f"The vault's git repository is not its own: {reported!r}")
+
+
 def _ensure_repo(vault_dir: Path) -> None:
     git_dir = vault_dir / ".git"
+    if git_dir.is_symlink() or (git_dir.exists() and not git_dir.is_dir()):
+        raise GitHardeningError(f"The vault's .git is not a plain directory: {git_dir}")
     if not git_dir.exists():
         _run_git(vault_dir, "init", "--initial-branch=main")
         _run_git(vault_dir, "config", "user.name", _GIT_AUTHOR_NAME)
         _run_git(vault_dir, "config", "user.email", _GIT_AUTHOR_EMAIL)
+    _require_own_repository(vault_dir)
 
     gitignore_path = vault_dir / ".gitignore"
     if not gitignore_path.exists():
@@ -99,7 +129,8 @@ def commit_vault_git_snapshot(
 ) -> VaultGitCommitResult:
     """Commit current vault tree when git is available and files changed.
 
-    A vault whose git configuration cannot be neutralised (a conditional include) is skipped, never committed to.
+    A vault whose git configuration cannot be neutralised (a conditional include) or whose repository is not its own
+    (see the module docstring) is skipped, never committed to.
     """
     if not _git_available():
         return VaultGitCommitResult(committed=False, skipped_reason="git_unavailable")

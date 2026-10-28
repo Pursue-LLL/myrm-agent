@@ -4,7 +4,7 @@
 - subprocess::run (POS: one short ``git config`` query per hardened command)
 
 [OUTPUT]
-- GitHardeningError: a repository's config cannot be neutralised safely, so git must not run
+- GitHardeningError: a repository's config cannot be neutralised safely, or sends git to work somewhere else, so git must not run
 - HARDENED_GIT_CONFIG: ``-c`` overrides that switch off the programs git and git-lfs take from fixed configuration keys, the network and signing
 - HARDENED_GIT_ENV: environment for commands that write the tree, so a credential request fails instead of prompting
 - hardened_git_argv / hardened_git_argv_async: full ``git`` argv for one command in one repository
@@ -30,6 +30,14 @@ stop descending into submodules' working trees: git runs a child ``status`` ther
 separately stored configuration, which no override of the parent's listing can reach (``submodule.recurse=false``
 does the same for the commands that update a tree). The listing is one extra git process, so subcommands that only
 read objects (``rev-parse``, ``log``, ``show``…) skip it.
+
+A repository also chooses where git works. A ``core.worktree`` that names a directory the repository does not own
+makes ``checkout``, ``merge``, ``reset`` or ``add`` write into, or read from, that directory instead of the folder the
+caller passed. The same listing finds the key, and it is accepted only when ``<work tree>/.git`` leads back to the git
+directory in use (a submodule's checkout does); anything else is refused. A ``.git`` that is a file or a symlink, or a
+``commondir`` file, aims a repository at another git directory too, but linked worktrees and submodules are built
+exactly that way, so this primitive accepts them: a caller that adopts a folder as its own repository checks that the
+layout is its own (``vault_git`` does).
 
 A filter that is switched off does not transform content (an LFS pointer, an encrypted blob). Commands whose result
 stays private or is raw by design (``status``, ``diff``, ``ls-files``, ``stash create``, and ``read-tree``, which puts
@@ -93,12 +101,16 @@ _HARDENED_KEYS = frozenset(item.partition("=")[0] for item in HARDENED_GIT_CONFI
 HARDENED_GIT_ENV: Mapping[str, str] = MappingProxyType({"GIT_TERMINAL_PROMPT": "0"})
 
 # Per-name program keys: the names are chosen by the repository, so they are listed, not hard-coded. ``includeif`` is
-# listed to be refused: git evaluates its condition again in every child process.
+# listed to be refused: git evaluates its condition again in every child process. ``core.worktree`` is not a program;
+# it rides in the same listing so a repository that does not set it pays nothing more.
 _PROGRAM_KEY_PATTERN = (
     r"^(filter\..+\.(clean|smudge|process)|merge\..+\.driver"
-    r"|lfs\.extension\..+\.(clean|smudge)|lfs\.customtransfer\..+\.path|includeif\..+\.path)$"
+    r"|lfs\.extension\..+\.(clean|smudge)|lfs\.customtransfer\..+\.path|includeif\..+\.path|core\.worktree)$"
 )
 _CONDITIONAL_INCLUDE_PREFIX = "includeif."
+_WORKTREE_KEY = "core.worktree"
+_GITFILE_PREFIX = "gitdir:"
+_GITFILE_MAX_BYTES = 4096
 # What ``git lfs install`` writes (``--skip-smudge`` adds ``--skip``). git-lfs is found on the user's PATH, which a
 # repository cannot change, so a repository-local filter with exactly these commands runs no program it chose.
 _STANDARD_LFS_COMMANDS: Mapping[str, frozenset[str]] = MappingProxyType(
@@ -135,26 +147,64 @@ class GitHardeningError(OSError):
     """The repository's configuration cannot be neutralised safely, so no git command may run in it."""
 
 
-def _repository_program_overrides(repo_dir: str, env: Mapping[str, str] | None, *, skip_filters: bool) -> list[str]:
+def _query_git(
+    repo_dir: str, env: Mapping[str, str] | None, args: Sequence[str], *, purpose: str
+) -> subprocess.CompletedProcess[bytes]:
+    """One read-only ``git`` query; a git that cannot even be started or answered in time refuses the command."""
     try:
-        completed = subprocess.run(
-            [
-                "git",
-                "-C",
-                repo_dir,
-                "config",
-                "--show-scope",
-                "-z",
-                "--get-regexp",
-                _PROGRAM_KEY_PATTERN,
-            ],
+        return subprocess.run(
+            ["git", "-C", repo_dir, *args],
             capture_output=True,
             timeout=_QUERY_TIMEOUT_SECONDS,
             check=False,
             env=None if env is None else dict(env),
         )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise GitHardeningError(f"Cannot list repository git configuration in {repo_dir}: {exc}") from exc
+        raise GitHardeningError(f"Cannot {purpose} in {repo_dir}: {exc}") from exc
+
+
+def _leads_back_to(dot_git: str, git_dir: str) -> bool:
+    """Whether ``dot_git`` is the git directory itself or a file that names it (a submodule's or worktree's pointer)."""
+    try:
+        if os.path.isdir(dot_git):
+            return os.path.samefile(dot_git, git_dir)
+        with open(dot_git, "rb") as handle:
+            first_line = os.fsdecode(handle.read(_GITFILE_MAX_BYTES)).split("\n", 1)[0].strip()
+        if not first_line.startswith(_GITFILE_PREFIX):
+            return False
+        target = first_line[len(_GITFILE_PREFIX) :].strip()
+        return os.path.samefile(os.path.join(os.path.dirname(dot_git), target), git_dir)
+    except OSError:
+        return False
+
+
+def _require_owned_worktree(repo_dir: str, env: Mapping[str, str] | None) -> None:
+    """Refuse a ``core.worktree`` whose directory does not point back at this repository's git directory."""
+    completed = _query_git(
+        repo_dir,
+        env,
+        ("rev-parse", "--show-toplevel", "--absolute-git-dir"),
+        purpose="locate the repository's work tree",
+    )
+    lines = completed.stdout.decode("utf-8", "surrogateescape").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    if completed.returncode != 0 or len(lines) != 2:
+        raise GitHardeningError(f"Cannot locate the work tree of the repository in {repo_dir}")
+    worktree, git_dir = lines
+    if not _leads_back_to(os.path.join(worktree, ".git"), git_dir):
+        raise GitHardeningError(f"Repository git configuration sends git to a work tree it does not own: {worktree!r}")
+
+
+def _repository_program_overrides(repo_dir: str, env: Mapping[str, str] | None, *, skip_filters: bool) -> list[str]:
+    """``-c`` overrides blanking every program the repository names, from one listing; refuses a repository whose
+    configuration cannot be neutralised or sends git to a work tree it does not own."""
+    completed = _query_git(
+        repo_dir,
+        env,
+        ("config", "--show-scope", "-z", "--get-regexp", _PROGRAM_KEY_PATTERN),
+        purpose="list repository git configuration",
+    )
 
     if completed.returncode in _NOTHING_TO_LIST_EXIT_CODES:
         return []
@@ -171,16 +221,23 @@ def _repository_program_overrides(repo_dir: str, env: Mapping[str, str] | None, 
 
     # key -> whether every occurrence is a standard LFS command (git uses the last occurrence, so one other is enough)
     standard: dict[str, bool] = {}
+    redirected = False
     for scope, entry in zip(fields[0::2], fields[1::2], strict=True):
         if scope not in _REPOSITORY_SCOPES:
             continue
         key, _, value = entry.partition("\n")
+        if key == _WORKTREE_KEY:
+            redirected = True
+            continue
         if key.startswith(_CONDITIONAL_INCLUDE_PREFIX):
             raise GitHardeningError(f"Repository git configuration has a conditional include: {key!r}")
         if "=" in key:
             # ``-c key=value`` splits on the first ``=``, so such a name could not be blanked reliably.
             raise GitHardeningError(f"Repository git configuration key cannot be neutralised: {key!r}")
         standard[key] = standard.get(key, True) and value in _STANDARD_LFS_COMMANDS.get(key, ())
+
+    if redirected:
+        _require_owned_worktree(repo_dir, env)
 
     overrides: dict[str, None] = {}
     for key, is_standard in standard.items():

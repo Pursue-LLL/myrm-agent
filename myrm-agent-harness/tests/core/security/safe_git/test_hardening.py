@@ -5,8 +5,8 @@
 
 [OUTPUT]
 - Real ``git`` runs against repositories whose config names marker-writing programs: each program vector fires on
-  the plain command and stays silent on the hardened one — including a bare repository nested in a working tree
-  and entered directly — while user-owned config keeps working.
+  the plain command and stays silent on the hardened one while user-owned config keeps working; a bare repository
+  nested in a working tree and entered directly names a work tree that is not its own, so its commands are refused.
 
 [POS]
 Enforcement tests for ``hardened_git_argv`` — the control run proves the vector is live on this git build, so a
@@ -136,7 +136,8 @@ class TestRepositoryProgramsAreNeutralised:
     def test_bare_repository_nested_in_a_working_tree(
         self, tmp_path: Path, markers: Path, args: tuple[str, ...]
     ) -> None:
-        """A bare repository that names its own ``core.worktree`` is what git discovers when run from inside it."""
+        """What git discovers when run from inside a bare repository that names a ``core.worktree``: the work tree is
+        another directory with no ``.git`` leading back, so the hardened argv is refused instead of run against it."""
         vendor = tmp_path / "vendor"
         vendor.mkdir()
         (vendor / "file.txt").write_text("one\n")
@@ -148,7 +149,14 @@ class TestRepositoryProgramsAreNeutralised:
         git(nested, "config", "core.fsmonitor", program(markers, "fsmonitor"))
         (vendor / "file.txt").write_text("one\ntwo\n")
 
-        _assert_vector(nested, markers, "fsmonitor", *args)
+        run(plain(nested, *args), nested)
+        if "fsmonitor" not in fired(markers):
+            pytest.skip(f"this git build does not run fsmonitor for `git {' '.join(args)}`")
+        clear(markers)
+
+        with pytest.raises(GitHardeningError):
+            hardened_git_argv(args, repo_dir=nested)
+        assert fired(markers) == set()
 
     def test_hooks_do_not_run(self, repo: Path, markers: Path) -> None:
         hook = repo / ".git" / "hooks" / "post-checkout"

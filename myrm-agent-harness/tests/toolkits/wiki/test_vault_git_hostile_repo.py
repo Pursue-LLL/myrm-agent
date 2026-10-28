@@ -1,13 +1,14 @@
-"""A vault snapshot runs no program the vault's repositories name, and skips a vault it cannot make safe.
+"""A vault snapshot runs no program the vault's repositories name, and skips a vault it cannot make safe or own.
 
 [INPUT]
 - toolkits.wiki.portability.vault_git (POS: local git auto-commit of the wiki vault)
 
 [OUTPUT]
 - Real ``git`` runs: ``core.fsmonitor``, hooks and clean filters of a ``.git`` that arrived with the vault (ZIP, sync
-  folder, restored backup), the same when ``.git`` is a file pointing at another directory, and ``core.fsmonitor`` of a
-  repository nested below the vault root fire on the plain snapshot commands and stay silent during
-  ``commit_vault_git_snapshot``; a conditional include is skipped as ``unsafe_repository``.
+  folder, restored backup) and ``core.fsmonitor`` of a repository nested below the vault root fire on the plain
+  snapshot commands and stay silent during ``commit_vault_git_snapshot``; a conditional include is skipped as
+  ``unsafe_repository``. So is a vault whose repository is not its own (``.git`` a file or a symlink, a ``commondir``
+  file, a ``core.worktree``): the plain snapshot commits into another repository, the vault's never does.
 
 [POS]
 Enforcement tests for the vault commit flow, the one flow that adopts a repository the user may have received as files.
@@ -19,6 +20,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -104,6 +106,60 @@ def _vault_with_nested_repository(tmp_path: Path, name: str, markers: Path) -> W
     return structure
 
 
+def _other_repository(tmp_path: Path, name: str) -> Path:
+    other = tmp_path / name
+    other.mkdir()
+    git(other, "init", "-q")
+    _identity(other)
+    (other / "app.py").write_text("print('hello')\n")
+    git(other, "add", "app.py")
+    git(other, "commit", "-q", "-m", "someone else's work")
+    return other
+
+
+def _git_directory_symlink(structure: WikiStructure, other: Path) -> Path:
+    (structure.base_dir / ".git").symlink_to(other / ".git")
+    return other
+
+
+def _git_directory_file(structure: WikiStructure, other: Path) -> Path:
+    (structure.base_dir / ".git").write_text(f"gitdir: {other / '.git'}\n")
+    return other
+
+
+def _common_directory_file(structure: WikiStructure, other: Path) -> Path:
+    (structure.base_dir / ".git" / "commondir").write_text(f"{other / '.git'}\n")
+    return other
+
+
+def _work_tree_setting(structure: WikiStructure, other: Path) -> Path:
+    git(structure.base_dir, "config", "core.worktree", str(other))
+    return structure.base_dir
+
+
+# kind -> (whether the vault arrives with a repository of its own, how it is aimed at another one; the result is the
+# repository whose history a plain snapshot would extend)
+_REDIRECTS: dict[str, tuple[bool, Callable[[WikiStructure, Path], Path]]] = {
+    "git-directory-is-a-symlink": (False, _git_directory_symlink),
+    "git-directory-is-a-file": (False, _git_directory_file),
+    "commondir-names-another-repository": (True, _common_directory_file),
+    "work-tree-names-another-directory": (True, _work_tree_setting),
+}
+
+
+def _redirected_vault(tmp_path: Path, name: str, kind: str) -> tuple[WikiStructure, Path]:
+    """A vault with a page to commit whose repository is not its own, and the repository a plain snapshot extends."""
+    other = _other_repository(tmp_path, f"{name}-other")
+    has_own_repository, aim = _REDIRECTS[kind]
+    if has_own_repository:
+        structure = _delivered_vault(tmp_path, name)
+    else:
+        structure = WikiStructure(tmp_path / name)
+        structure.ensure_structure()
+        (structure.base_dir / "wiki" / "page.md").write_text("one\n")
+    return structure, aim(structure, other)
+
+
 def _plain_snapshot(root: Path) -> None:
     """The vault's own commands, written the plain way (with no commit yet, git asks for ``status`` instead)."""
     run(plain(root, "add", "-A"), root)
@@ -154,7 +210,7 @@ def test_a_clean_filter_named_by_the_delivered_repository_stays_silent(tmp_path:
     assert fired(markers) == set()
 
 
-def test_a_fsmonitor_of_a_repository_whose_git_directory_is_a_file_stays_silent(tmp_path: Path, markers: Path) -> None:
+def test_a_repository_whose_git_directory_is_a_file_is_skipped_and_runs_nothing(tmp_path: Path, markers: Path) -> None:
     control = _delivered_vault(tmp_path, "control", git_dir_as_file=True).base_dir
     _plant_fsmonitor(control, markers)
     _plain_snapshot(control)
@@ -165,11 +221,32 @@ def test_a_fsmonitor_of_a_repository_whose_git_directory_is_a_file_stays_silent(
     victim = _delivered_vault(tmp_path, "victim", git_dir_as_file=True)
     assert (victim.base_dir / ".git").is_file()
     _plant_fsmonitor(victim.base_dir, markers)
+    before = _head(victim.base_dir)
 
     result = commit_vault_git_snapshot(victim, reason="session archive")
 
-    assert result.committed is True
+    assert result.committed is False
+    assert result.skipped_reason == "unsafe_repository"
+    assert _head(victim.base_dir) == before
     assert fired(markers) == set()
+
+
+@pytest.mark.parametrize("kind", list(_REDIRECTS))
+def test_a_vault_whose_repository_is_not_its_own_is_skipped_not_committed_to(tmp_path: Path, kind: str) -> None:
+    control, extended = _redirected_vault(tmp_path, "control", kind)
+    before = _head(extended)
+    _plain_snapshot(control.base_dir)
+    if _head(extended) == before:
+        pytest.skip("this git build does not follow this redirect during a snapshot")
+
+    victim, extended = _redirected_vault(tmp_path, "victim", kind)
+    before = _head(extended)
+
+    result = commit_vault_git_snapshot(victim, reason="session archive")
+
+    assert result.committed is False
+    assert result.skipped_reason == "unsafe_repository"
+    assert _head(extended) == before
 
 
 def test_a_fsmonitor_of_a_repository_nested_below_the_vault_root_stays_silent(tmp_path: Path, markers: Path) -> None:
