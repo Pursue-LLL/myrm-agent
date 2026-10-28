@@ -13,6 +13,7 @@ import logging
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -73,8 +74,7 @@ def _router_deciding(verdict: bool | Exception) -> AgentRouter:
 
 
 def _admission_checks(router: AgentRouter) -> AsyncMock:
-    check: AsyncMock = router._resolver.is_sender_admitted  # type: ignore[assignment]
-    return check
+    return cast("AsyncMock", router._resolver.is_sender_admitted)
 
 
 class TestARefusedSender:
