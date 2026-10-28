@@ -4,14 +4,16 @@ Based on official Telegram Bot API documentation (2026):
 https://core.telegram.org/bots/api
 
 [INPUT]
-- (none)
+- app.channels.types::reaction_key (POS: canonical reaction glyph form)
 
 [OUTPUT]
-- (none)
+- TELEGRAM_REACTION_EMOJI: the emoji a bot may set as a message reaction
 
 [POS]
 Telegram Bot API constants and limits.
 """
+
+from app.channels.types import reaction_key
 
 # File size limits (Telegram Bot API restrictions)
 TELEGRAM_VOICE_MAX_SIZE = 50 * 1024 * 1024  # 50MB for sendVoice
@@ -36,3 +38,22 @@ AUDIO_MIME_TYPES = frozenset(
         "audio/m4a",  # M4A (alternative MIME)
     )
 )
+
+# Reaction emoji Telegram accepts on a message (``ReactionTypeEmoji`` in the Bot API); any other
+# value is rejected with REACTION_INVALID. Kept in ``reaction_key`` form, like the capability set.
+_PLAIN_REACTION_EMOJI = (
+    "❤ 👍 👎 🔥 🥰 👏 😁 🤔 🤯 😱 🤬 😢 🎉 🤩 🤮 💩 🙏 "
+    "👌 🕊 🤡 🥱 🥴 😍 🐳 🌚 🌭 💯 🤣 ⚡ 🍌 🏆 💔 🤨 😐 "
+    "🍓 🍾 💋 🖕 😈 😴 😭 🤓 👻 👀 🎃 🙈 😇 😨 🤝 ✍ 🤗 "
+    "🫡 🎅 🎄 ☃ 💅 🤪 🗿 🆒 💘 🙉 🦄 😘 💊 🙊 😎 👾 🤷 "
+    "😡"
+).split()
+# The four zero-width-joiner sequences are spelled out so the invisible joiner survives editing.
+_JOINED_REACTION_EMOJI = (
+    "\u2764\u200d\U0001f525",
+    "\U0001f468\u200d\U0001f4bb",
+    "\U0001f937\u200d\u2642",
+    "\U0001f937\u200d\u2640",
+)
+
+TELEGRAM_REACTION_EMOJI = frozenset(reaction_key(glyph) for glyph in (*_PLAIN_REACTION_EMOJI, *_JOINED_REACTION_EMOJI))

@@ -16,7 +16,7 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `topics.py` | 模块 | Forum Topic mixin: create/rename/close/reopen, auto-topic per user, name sync. | ✅ |
 | `hooks.py` | 模块 | Pre-emit hook mixin: /agent command, inline agent picker, auto-topic routing. | ✅ |
 | `webhook.py` | 模块 | Webhook mixin: signature verify, setWebhook lifecycle, FastAPI POST /webhook route. | ✅ |
-| `constants.py` | 模块 | Telegram Bot API constants and limits. | ✅ |
+| `constants.py` | 模块 | Telegram Bot API constants and limits, and `TELEGRAM_REACTION_EMOJI`: the 73 emoji a bot may set as a reaction (anything else is `REACTION_INVALID`). | ✅ |
 | `exceptions.py` | 模块 | Telegram-specific exceptions for file size validation and API errors. | ✅ |
 | `helpers.py` | 模块 | Telegram module-level utility functions, constants, and data structures. | ✅ |
 | `html_converter.py` | 模块 | Markdown to Telegram HTML converter. GFM table degradation, 4096-char HTML-aware splitting with bare CJK punctuation breakpoints (`CJK_BOUNDARY_CHARS` from splitter), Rich Message splitting (32768 UTF-8). | ✅ |

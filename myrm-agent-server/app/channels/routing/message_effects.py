@@ -1,8 +1,8 @@
 """Message side-effect helpers for AgentRouter.
 
 Encapsulates typing indicators, reactions, placeholder management,
-and reply convenience methods. These are best-effort operations that
-silently ignore failures. Error replies use classified friendly messages
+and reply convenience methods. These are best-effort operations whose
+failures never fail the turn. Error replies use classified friendly messages
 instead of raw internal errors.
 
 [INPUT]
@@ -50,16 +50,28 @@ from app.channels.types import (
 
 logger = logging.getLogger(__name__)
 
+# What a platform shows when it rejects the configured status glyph. A failure never falls back
+# to a success glyph; when no candidate is accepted the status reaction is skipped.
+_PROCESSING_FALLBACKS = ("\U0001f440", "\U0001f914")
+_SUCCESS_FALLBACKS = ("\u2705", "\U0001f44d", "\U0001f389")
+_FAILURE_FALLBACKS = ("\u274c", "\U0001f44e", "\U0001f622")
+
+# A status reaction that keeps failing (missing permission, unsupported glyph) is reported once per
+# window per channel and error type; the turn never waits on or sees it.
+_REACTION_WARN_INTERVAL = 600.0
+
 
 class MessageEffects:
     """Stateless helper for message side-effects (typing, reactions, placeholders, replies).
 
-    All operations are best-effort — failures are logged at debug level and silently ignored.
+    All operations are best-effort — a failure never reaches the caller. A failing status reaction is
+    reported at warning level once per window; the other effects log at debug level.
     """
 
     def __init__(self, bus: MessageBus) -> None:
         self._bus = bus
         self._typing_keepalive_tasks: dict[str, asyncio.Task[None]] = {}
+        self._reaction_warned_at: dict[tuple[str, str], float] = {}
 
     async def set_typing(self, channel: str, chat_id: str, *, composing: bool) -> None:
         """Best-effort typing indicator."""
@@ -274,7 +286,17 @@ class MessageEffects:
         try:
             await ch.react_to_message(chat_id, message_id, emoji)
         except Exception as exc:
-            logger.debug("reaction failed for %s/%s: %s", channel, chat_id, exc)
+            self._report_reaction_failure(channel, exc)
+
+    def _report_reaction_failure(self, channel: str, exc: Exception) -> None:
+        key = (channel, type(exc).__name__)
+        now = time.monotonic()
+        last_warned = self._reaction_warned_at.get(key)
+        if last_warned is not None and now - last_warned < _REACTION_WARN_INTERVAL:
+            logger.debug("reaction failed on %s: %s", channel, exc)
+            return
+        self._reaction_warned_at[key] = now
+        logger.warning("Status reaction failed on %s (%s): %s", channel, key[1], str(exc)[:300])
 
     async def ack_reaction(
         self,
@@ -286,7 +308,9 @@ class MessageEffects:
         """Add receive-acknowledgement reaction (used by ReactionPolicy.FULL)."""
         if not message_id:
             return
-        await self.set_reaction(channel, chat_id, message_id, emoji)
+        glyph = self._accepted_reaction(channel, emoji, _PROCESSING_FALLBACKS)
+        if glyph:
+            await self.set_reaction(channel, chat_id, message_id, glyph)
 
     async def completion_reaction(
         self,
@@ -304,7 +328,23 @@ class MessageEffects:
             return
         if had_ack:
             await self.set_reaction(channel, chat_id, message_id, "")
-        await self.set_reaction(channel, chat_id, message_id, success_emoji if success else failure_emoji)
+        glyph = (
+            self._accepted_reaction(channel, success_emoji, _SUCCESS_FALLBACKS)
+            if success
+            else self._accepted_reaction(channel, failure_emoji, _FAILURE_FALLBACKS)
+        )
+        if glyph:
+            await self.set_reaction(channel, chat_id, message_id, glyph)
+
+    def _accepted_reaction(self, channel: str, preferred: str, fallbacks: tuple[str, ...]) -> str:
+        """First glyph of ``preferred`` then ``fallbacks`` the platform accepts; ``""`` skips the reaction.
+
+        An empty ``preferred`` means the status reaction is switched off, so no fallback applies.
+        """
+        ch = self._bus.get_channel(channel)
+        if not preferred or not ch:
+            return ""
+        return next((g for g in (preferred, *fallbacks) if ch.capabilities.accepts_reaction(g)), "")
 
     async def send_error_reply(self, msg: InboundMessage, error: str | Exception) -> None:
         """Send a classified, user-friendly error reply.

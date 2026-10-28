@@ -26,6 +26,25 @@ def test_the_routers_default_reactions_have_a_short_name(emoji: str, name: str) 
     assert to_shortname(emoji) == name
 
 
+# The glyphs the reaction settings page offers (ChannelsSection.tsx) plus the funnel's last failure fallback.
+@pytest.mark.parametrize(
+    ("emoji", "name"),
+    [
+        pytest.param("\u23f3", "hourglass_flowing_sand", id="hourglass"),
+        pytest.param("\U0001f4ad", "thought_balloon", id="thought-balloon"),
+        pytest.param("\u2728", "sparkles", id="sparkles"),
+        pytest.param("\U0001f64c", "raised_hands", id="raised-hands"),
+        pytest.param("\U0001f494", "broken_heart", id="broken-heart"),
+        pytest.param("\U0001f6ab", "no_entry_sign", id="no-entry-sign"),
+        pytest.param("\u26d4", "no_entry", id="no-entry"),
+        pytest.param("\U0001f635", "dizzy_face", id="dizzy-face"),
+        pytest.param("\U0001f622", "cry", id="crying-face"),
+    ],
+)
+def test_every_glyph_the_settings_page_offers_has_a_short_name(emoji: str, name: str) -> None:
+    assert to_shortname(emoji) == name
+
+
 @pytest.mark.parametrize(
     ("emoji", "name"),
     [

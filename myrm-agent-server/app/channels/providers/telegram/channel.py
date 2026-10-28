@@ -64,6 +64,7 @@ from app.channels.types.notification import (
 )
 
 from .api import TelegramApiError, TelegramClient
+from .constants import TELEGRAM_REACTION_EMOJI
 from .helpers import (
     MAX_TEXT_LENGTH,
     BotCommand,
@@ -122,6 +123,7 @@ class TelegramChannel(
         edit=True,
         delete=True,
         reactions=True,
+        reaction_glyphs=TELEGRAM_REACTION_EMOJI,
         typing_indicator=True,
         typing_keepalive_interval=4.0,
         max_text_length=MAX_TEXT_LENGTH,

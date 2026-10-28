@@ -41,10 +41,11 @@ _HTML_ENTITIES: dict[str, str] = {
     "&amp;": "&",
 }
 
+# Teams' six native reaction types, keyed by ``reaction_key`` glyph. Only glyphs that mean the type
+# are listed: a glyph without a faithful type is not sent at all rather than shown as "like".
 EMOJI_TO_TEAMS_REACTION: dict[str, str] = {
     "\U0001f44d": "like",
-    "\U0001f44e": "like",
-    "\u2764\ufe0f": "heart",
+    "\u2764": "heart",
     "\U0001faf6": "heart",
     "\U0001f602": "laugh",
     "\U0001f923": "laugh",
@@ -54,9 +55,6 @@ EMOJI_TO_TEAMS_REACTION: dict[str, str] = {
     "\U0001f62d": "sad",
     "\U0001f620": "angry",
     "\U0001f621": "angry",
-    "\U0001f440": "like",
-    "\u2705": "like",
-    "\U0001f914": "like",
 }
 
 

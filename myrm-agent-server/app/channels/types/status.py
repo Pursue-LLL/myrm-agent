@@ -155,6 +155,11 @@ class ChannelIssue:
     fix: str = ""
 
 
+def reaction_key(glyph: str) -> str:
+    """Canonical form of a reaction glyph: variation selectors dropped, so a heart with and without its emoji selector compares equal."""
+    return glyph.replace("\ufe0e", "").replace("\ufe0f", "")
+
+
 @dataclass(frozen=True, slots=True)
 class ChannelCapabilities:
     """Declares what a channel supports (used by Router for format decisions).
@@ -173,6 +178,8 @@ class ChannelCapabilities:
     - ``edit``: channel implements edit_message
     - ``delete``: channel implements delete_message
     - ``reactions``: channel implements react_to_message
+    - ``reaction_glyphs``: the unicode glyphs the platform accepts as a reaction, in ``reaction_key``
+      form (``None`` = accepts any glyph, e.g. Slack/Discord/Mattermost map or take free emoji)
     - ``typing_indicator``: channel supports start_typing / stop_typing
     - ``typing_keepalive_interval``: seconds between periodic typing refreshes
       (0 = no keepalive; platforms like WeChat auto-dismiss after ~5 s)
@@ -196,11 +203,16 @@ class ChannelCapabilities:
     edit: bool = False
     delete: bool = False
     reactions: bool = False
+    reaction_glyphs: frozenset[str] | None = None
     typing_indicator: bool = True
     typing_keepalive_interval: float = 0.0
     max_text_length: int = 4000
     send_rate_limit: float = 0.0
     message_ids: bool = True
+
+    def accepts_reaction(self, glyph: str) -> bool:
+        """True when the platform takes ``glyph`` as a reaction."""
+        return self.reaction_glyphs is None or reaction_key(glyph) in self.reaction_glyphs
 
 
 @dataclass(frozen=True, slots=True)

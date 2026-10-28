@@ -187,10 +187,10 @@ class TestReactions:
 
     @pytest.mark.asyncio
     async def test_add_reaction_failure(self, client: FeishuClient) -> None:
-        resp = _mock_response(200, {"code": 99})
+        resp = _mock_response(200, {"code": 231001, "msg": "reaction type is invalid"})
         client._http.post = AsyncMock(return_value=resp)
-        rid = await client.add_reaction("msg_001")
-        assert rid is None
+        with pytest.raises(FeishuSendError, match="231001.*reaction type is invalid"):
+            await client.add_reaction("msg_001")
 
     @pytest.mark.asyncio
     async def test_add_reaction_no_reaction_id(self, client: FeishuClient) -> None:
@@ -203,15 +203,15 @@ class TestReactions:
     async def test_delete_reaction_success(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0})
         client._http.delete = AsyncMock(return_value=resp)
-        result = await client.delete_reaction("msg_001", "r_001")
-        assert result is True
+        await client.delete_reaction("msg_001", "r_001")
+        client._http.delete.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_delete_reaction_failure(self, client: FeishuClient) -> None:
-        resp = _mock_response(200, {"code": 99})
+        resp = _mock_response(200, {"code": 99, "msg": "denied"})
         client._http.delete = AsyncMock(return_value=resp)
-        result = await client.delete_reaction("msg_001", "r_001")
-        assert result is False
+        with pytest.raises(FeishuSendError, match="99.*denied"):
+            await client.delete_reaction("msg_001", "r_001")
 
 
 class TestGetMessage:

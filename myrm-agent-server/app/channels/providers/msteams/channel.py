@@ -52,6 +52,7 @@ from app.channels.types import (
     IssueSeverity,
     OutboundMessage,
     RenderStyle,
+    reaction_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
         edit=True,
         delete=True,
         reactions=True,
+        reaction_glyphs=frozenset(EMOJI_TO_TEAMS_REACTION),
         typing_indicator=True,
         max_text_length=_MAX_TEXT_LENGTH,
     )
@@ -283,7 +285,7 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
     # ── Reaction ───────────────────────────────────────────────
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        reaction_type = EMOJI_TO_TEAMS_REACTION.get(emoji, "like") if emoji else ""
+        reaction_type = EMOJI_TO_TEAMS_REACTION.get(reaction_key(emoji), "")
         if not reaction_type:
             return
 
@@ -298,7 +300,4 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
         if not service_url:
             return
 
-        try:
-            await self._api.add_reaction(service_url, conversation_id, activity_id, reaction_type)
-        except Exception:
-            pass
+        await self._api.add_reaction(service_url, conversation_id, activity_id, reaction_type)

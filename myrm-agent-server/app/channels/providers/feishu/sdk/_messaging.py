@@ -190,7 +190,7 @@ class FeishuMessagingMixin:
         return True
 
     async def add_reaction(self, message_id: str, emoji_type: str = "OK") -> str | None:
-        """Add an emoji reaction to a message."""
+        """Add an emoji reaction; returns its id. Raises ``FeishuSendError`` with Feishu's reason when refused."""
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.post(
@@ -199,28 +199,30 @@ class FeishuMessagingMixin:
             json={"reaction_type": {"emoji_type": emoji_type}},
         )
         body = self._safe_json(resp, "add_reaction")
-        if body.get("code", -1) != 0:
-            logger.debug("Feishu add_reaction failed: %s", body.get("msg"))
-            return None
+        self._raise_for_reaction_error(body, "add_reaction", resp.status_code)
         data = body.get("data", {})
         if isinstance(data, dict):
             rid = data.get("reaction_id")
             return str(rid) if rid else None
         return None
 
-    async def delete_reaction(self, message_id: str, reaction_id: str) -> bool:
-        """Remove an emoji reaction from a message."""
+    async def delete_reaction(self, message_id: str, reaction_id: str) -> None:
+        """Remove an emoji reaction. Raises ``FeishuSendError`` with Feishu's reason when refused."""
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.delete(
             f"{self.api_base}/im/v1/messages/{message_id}/reactions/{reaction_id}",
             headers=self._auth(token),
         )
-        body = self._safe_json(resp, "delete_reaction")
-        if body.get("code", -1) != 0:
-            logger.debug("Feishu delete_reaction failed: %s", body.get("msg"))
-            return False
-        return True
+        self._raise_for_reaction_error(self._safe_json(resp, "delete_reaction"), "delete_reaction", resp.status_code)
+
+    @staticmethod
+    def _raise_for_reaction_error(body: dict[str, object], action: str, status_code: int) -> None:
+        code = body.get("code", -1)
+        if code != 0:
+            raise FeishuSendError(
+                f"Feishu {action} failed: {code} {body.get('msg', '')}".rstrip(), status_code=status_code, retriable=False
+            )
 
     async def get_message(self, message_id: str) -> dict[str, object] | None:
         """Fetch a message by ID and return its body content."""

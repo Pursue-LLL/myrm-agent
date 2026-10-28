@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 _API_BASE = "https://slack.com/api"
 _SEND_TIMEOUT = 15.0
+# The reaction is already in the state the call asked for.
+_SETTLED_REACTION_ERRORS = frozenset({"already_reacted", "no_reaction"})
 _UPLOAD_TIMEOUT = 60.0
 
 
@@ -156,14 +158,26 @@ class SlackClient:
             return False
         return True
 
-    async def add_reaction(self, channel: str, ts: str, emoji_name: str) -> bool:
+    async def add_reaction(self, channel: str, ts: str, emoji_name: str) -> None:
+        await self._reaction_call("reactions.add", channel, ts, emoji_name)
+
+    async def remove_reaction(self, channel: str, ts: str, emoji_name: str) -> None:
+        await self._reaction_call("reactions.remove", channel, ts, emoji_name)
+
+    async def _reaction_call(self, method: str, channel: str, ts: str, emoji_name: str) -> None:
+        """Call a reactions.* method; raises with the missing scope named so a bot without it is diagnosable."""
         payload = {"channel": channel, "timestamp": ts, "name": emoji_name}
-        resp = await self._http.post(f"{_API_BASE}/reactions.add", json=payload, timeout=_SEND_TIMEOUT)
+        resp = await self._http.post(f"{_API_BASE}/{method}", json=payload, timeout=_SEND_TIMEOUT)
         data = resp.json()
-        if not data.get("ok"):
-            logger.debug("Slack react failed: %s", data.get("error"))
-            return False
-        return True
+        if data.get("ok"):
+            return
+        error = str(data.get("error", "unknown"))
+        if error in _SETTLED_REACTION_ERRORS:
+            return
+        needed = f" (needs scope {data['needed']})" if data.get("needed") else ""
+        raise ChannelSendError(
+            f"Slack {method} failed: {error}{needed}", channel="slack", status_code=resp.status_code, retriable=False
+        )
 
     # ── Streaming ──────────────────────────────────────────────
 

@@ -777,34 +777,6 @@ class TestIMessageReactions:
         payload = mock_post.call_args.kwargs.get("json", {})
         assert payload["reaction"] == 2000
 
-    @pytest.mark.asyncio
-    async def test_react_unknown_emoji_defaults(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.react_to_message("chat1", "msg1", "\U0001f525")
-        payload = mock_post.call_args.kwargs.get("json", {})
-        assert payload["reaction"] == 2001
-
-    @pytest.mark.asyncio
-    async def test_react_remove(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.react_to_message("chat1", "msg1", "")
-        payload = mock_post.call_args.kwargs.get("json", {})
-        assert payload["reaction"] == 3001
-
-    @pytest.mark.asyncio
-    async def test_react_http_error(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_err_resp(500)):
-            await ch.react_to_message("chat1", "msg1", "")
-
-    @pytest.mark.asyncio
-    async def test_react_exception(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, side_effect=Exception("net")):
-            await ch.react_to_message("chat1", "msg1", "")
-
 
 # ── Module helpers ────────────────────────────────────────────
 

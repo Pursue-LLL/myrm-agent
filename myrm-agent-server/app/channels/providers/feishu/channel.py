@@ -6,6 +6,8 @@
 - app.channels.protocols.route_registrar::HttpMethod, RouteMetadata (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
 - app.channels.security::SecurityLimits, (POS: Delegates SSRF logic to agent.security.guards.ssrf_guard (single source of truth). Adds media-specific concerns: max-length filenames, path traversal prevention, extension allowlisting.)
 - app.channels.providers.feishu.inbound::FeishuInboundMixin (POS: webhook / websocket event handling)
+- app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
+- app.channels.providers.feishu.reactions::FEISHU_REACTION_GLYPHS (POS: glyphs Feishu has an emoji_type for)
 - app.channels.providers.feishu.outbound::FeishuOutboundMixin (POS: message send, media upload, streaming cards)
 - app.channels.core.base::BaseChannel, DedupMode (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
 - app.channels.security.errors::WebhookResponseError (POS: Webhook error response layer. Provides RFC 7807 standardized error format, supporting machine-parsable and human-readable output without leaking sensitive data.)
@@ -30,6 +32,7 @@ from fastapi import Request
 from app.channels.core.allow_policy import AllowPolicy, ChatPolicy
 from app.channels.core.base import BaseChannel, DedupMode
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
     ChannelCapabilities,
@@ -44,6 +47,7 @@ from app.channels.types import (
 from .api import FeishuClient
 from .inbound import FeishuInboundMixin
 from .outbound import FeishuOutboundMixin
+from .reactions import FEISHU_REACTION_GLYPHS
 from .user_resolver import FeishuUserResolver
 
 if TYPE_CHECKING:
@@ -85,6 +89,7 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         edit=True,
         delete=True,
         reactions=True,
+        reaction_glyphs=FEISHU_REACTION_GLYPHS,
         typing_indicator=False,
         max_text_length=_MAX_TEXT_LENGTH,
     )
@@ -140,7 +145,7 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         self._ws_transport: FeishuWSTransport | None = None  # lazy import
         self._streaming_seq: dict[str, int] = {}
         self._streaming_card_ids: dict[str, str] = {}
-        self._reaction_ids: dict[str, str] = {}  # message_id → reaction_id for removal
+        self._reactions = ReactionLedger()  # reaction ids, so an empty emoji can remove what was added
 
         self._dedup_mode = DedupMode.LRU
         self._dedup_capacity = 1000
@@ -184,7 +189,6 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         if self._ws_transport:
             await self._ws_transport.stop()
             self._ws_transport = None
-        self._reaction_ids.clear()
         self._set_connected(False)
         self._status = ChannelStatus.STOPPED
         await self._client.close()

@@ -19,7 +19,7 @@ iMessage bidirectional channel via BlueBubbles macOS HTTP API bridge.
 |------|----------------|
 | `channel.py` | Core channel implementation (send/receive/webhook) |
 | `parser.py` | Inbound webhook payload parsing |
-| `helpers.py` | Utility functions (media MIME, formatting) |
+| `helpers.py` | Utility functions (media MIME, formatting); `TAPBACK_MAP` is the six Tapbacks (a glyph outside it is not sent; removal posts code + 1000) |
 | `webhook.py` | Webhook signature verification |
 
 ## Design Notes

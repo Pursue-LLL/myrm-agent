@@ -26,6 +26,7 @@ Core infrastructure: BaseChannel, MessageBus, ChannelGateway, EventEmitter, Cred
 | outbound_media.py | Core | Lifecycle of temporary attachment files: `discard_ephemeral_media` deletes `ephemeral` attachments (inside the system temp dir only) except paths a failure record still references. | ✅ |
 | outbound_prepare.py | Core | Pure outbound transformations shared by every send path: correlation lineage, `prepare_outbound` (sensitive-attachment guard, capability-based component/media downgrade, then outbound risk gate), delivery verdict (`delivery_unconfirmed`), partial-delivery remainder and localized attachment notes. | ✅ |
 | rate_limit.py | Core | Rate limiting for inbound messages. | ✅ |
+| reaction_ledger.py | Core | `ReactionLedger`: bounded memory of the reaction handle (name, glyph, id or tapback code) a channel added per `(chat_id, message_id)`, so `react_to_message("")` removes exactly what it added and makes no call when it added nothing. | ✅ |
 | user_resolver.py | Core | Generic user resolver protocol and cache implementation. Protocol-first framework design | ✅ |
 
 ## Key Dependencies

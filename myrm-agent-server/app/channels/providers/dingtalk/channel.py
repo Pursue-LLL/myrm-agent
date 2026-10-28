@@ -7,6 +7,7 @@ Outbound: OpenAPI (Markdown/text/image/file) with DM/group routing
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - channels.providers.dingtalk.inbound::DingTalkInboundMixin (POS: webhook / Stream API inbound)
 - channels.providers.dingtalk.cards::DingTalkCardMixin (POS: AI Card streaming)
 - channels.reliability.reconnect::reconnect_loop (POS: auto-reconnect)
@@ -32,6 +33,7 @@ from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -121,7 +123,7 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         self._group_conversations: set[str] = set()
         self._chat_sender_map: dict[str, str] = {}
         self._streaming_cards: dict[str, str] = {}
-        self._reaction_cache: dict[str, str] = {}
+        self._reactions = ReactionLedger()
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
@@ -328,20 +330,17 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
 
         Uses DingTalk's Robot Emotion API. Requires both message_id (msgId)
         and chat_id (openConversationId) which are captured during inbound parsing.
+        An empty emoji recalls the one this channel added.
         """
         if not message_id or not chat_id:
             return
-        try:
-            if emoji:
-                await self._api.send_emotion(message_id, chat_id, emoji)
-            else:
-                prev = self._reaction_cache.pop(message_id, "")
-                if prev:
-                    await self._api.recall_emotion(message_id, chat_id, prev)
-                return
-            self._reaction_cache[message_id] = emoji
-        except Exception:
-            logger.debug("DingTalk react_to_message failed: msg=%s", message_id[:24])
+        if emoji:
+            await self._api.send_emotion(message_id, chat_id, emoji)
+            self._reactions.remember(chat_id, message_id, emoji)
+            return
+        added = self._reactions.take(chat_id, message_id)
+        if added:
+            await self._api.recall_emotion(message_id, chat_id, added)
 
     # ── Diagnostics ───────────────────────────────────────────────────
 

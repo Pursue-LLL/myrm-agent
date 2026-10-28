@@ -1011,7 +1011,8 @@ class TestSlackDeleteReact:
     async def test_react_to_message_failure(self) -> None:
         ch = _make_channel()
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json()):
-            await ch.react_to_message("C_CHAN", "1234.5678", "wave")
+            with pytest.raises(ChannelSendError, match="reactions.add failed"):
+                await ch.react_to_message("C_CHAN", "1234.5678", "wave")
 
 
 class TestSlackInbound:

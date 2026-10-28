@@ -24,7 +24,7 @@ import uuid
 
 import httpx
 
-from app.channels.core.exceptions import ChannelAuthError
+from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 
 from .helpers import normalize_file_type
 
@@ -346,48 +346,15 @@ class DingTalkApiClient:
 
     # ── Emotion (Reaction) ─────────────────────────────────────────────
 
-    async def send_emotion(
-        self,
-        open_msg_id: str,
-        open_conversation_id: str,
-        emoji_name: str,
-    ) -> bool:
-        """Add an emoji reaction to a message."""
-        await self.ensure_token()
-        body: dict[str, object] = {
-            "robotCode": self._robot_code,
-            "openMsgId": open_msg_id,
-            "openConversationId": open_conversation_id,
-            "emotionType": 2,
-            "emotionName": emoji_name,
-            "textEmotion": {
-                "emotionId": "2659900",
-                "emotionName": emoji_name,
-                "text": emoji_name,
-                "backgroundId": "im_bg_1",
-            },
-        }
-        resp = await self._http.post(
-            f"{_API_NEW}/v1.0/robot/emotion/reply",
-            json=body,
-            headers={
-                "x-acs-dingtalk-access-token": self._access_token,
-                "Content-Type": "application/json",
-            },
-            timeout=_SEND_TIMEOUT,
-        )
-        if resp.status_code >= 400:
-            logger.debug("DingTalk emotion reply failed: HTTP %d", resp.status_code)
-            return False
-        return True
+    async def send_emotion(self, open_msg_id: str, open_conversation_id: str, emoji_name: str) -> None:
+        """Add an emoji reaction to a message. Raises ``ChannelSendError`` with DingTalk's answer when refused."""
+        await self._emotion_call("reply", open_msg_id, open_conversation_id, emoji_name)
 
-    async def recall_emotion(
-        self,
-        open_msg_id: str,
-        open_conversation_id: str,
-        emoji_name: str,
-    ) -> bool:
-        """Remove (recall) an emoji reaction from a message."""
+    async def recall_emotion(self, open_msg_id: str, open_conversation_id: str, emoji_name: str) -> None:
+        """Remove (recall) an emoji reaction from a message. Raises ``ChannelSendError`` when refused."""
+        await self._emotion_call("recall", open_msg_id, open_conversation_id, emoji_name)
+
+    async def _emotion_call(self, action: str, open_msg_id: str, open_conversation_id: str, emoji_name: str) -> None:
         await self.ensure_token()
         body: dict[str, object] = {
             "robotCode": self._robot_code,
@@ -403,7 +370,7 @@ class DingTalkApiClient:
             },
         }
         resp = await self._http.post(
-            f"{_API_NEW}/v1.0/robot/emotion/recall",
+            f"{_API_NEW}/v1.0/robot/emotion/{action}",
             json=body,
             headers={
                 "x-acs-dingtalk-access-token": self._access_token,
@@ -412,9 +379,12 @@ class DingTalkApiClient:
             timeout=_SEND_TIMEOUT,
         )
         if resp.status_code >= 400:
-            logger.debug("DingTalk emotion recall failed: HTTP %d", resp.status_code)
-            return False
-        return True
+            raise ChannelSendError(
+                f"DingTalk emotion {action} failed: HTTP {resp.status_code} {resp.text[:200]}".rstrip(),
+                channel="dingtalk",
+                status_code=resp.status_code,
+                retriable=False,
+            )
 
     # ── Stream API ────────────────────────────────────────────────────
 

@@ -40,6 +40,7 @@ from app.channels.core.credentials import (
     credential_field,
     credential_spec,
 )
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
@@ -193,6 +194,7 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
         super().__init__()
         self.config: DiscordChannelConfig = config
         self._client: discord.Client | None = None
+        self._reactions = ReactionLedger()
         self._gateway_task: asyncio.Task[None] | None = None
         self._voice_manager: VoiceManager | None = None
         self._command_tree: discord.app_commands.CommandTree | None = None

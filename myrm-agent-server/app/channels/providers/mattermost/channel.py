@@ -14,6 +14,7 @@ and inbound media attachment parsing.
 - app.channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy.)
 - app.channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
 - app.channels.core.mixins::CachedGroupMixin (POS: Reusable channel capability mixin components.)
+- app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - app.channels.providers._emoji_shortnames::to_shortname (POS: reaction glyph -> the short name the reactions API accepts)
 - app.channels.providers.mattermost.inbound::MattermostInboundMixin (POS: WebSocket event parsing and inbound media)
 
@@ -38,6 +39,7 @@ from app.channels.core.attachment_delivery import attempt_attachments
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers._emoji_shortnames import to_shortname
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
@@ -98,6 +100,7 @@ class MattermostChannel(MattermostInboundMixin, BaseChannel, CachedGroupMixin):
         BaseChannel.__init__(self)
         CachedGroupMixin.__init__(self, groups_cache_ttl=groups_cache_ttl)
         self._api = MattermostClient(server_url, access_token)
+        self._reactions = ReactionLedger()
         self._ws_task: asyncio.Task[None] | None = None
         self._bot_name: str = ""
 
@@ -262,15 +265,18 @@ class MattermostChannel(MattermostInboundMixin, BaseChannel, CachedGroupMixin):
             logger.warning("Mattermost delete failed: %s", exc)
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        if not emoji or not self._bot_id:
+        """Add a reaction; an empty emoji removes the one this channel added."""
+        if not self._bot_id:
             return
-        emoji_name = to_shortname(emoji)
-        if not emoji_name:
+        if emoji:
+            emoji_name = to_shortname(emoji)
+            if emoji_name:
+                await self._api.add_reaction(self._bot_id, message_id, emoji_name)
+                self._reactions.remember(chat_id, message_id, emoji_name)
             return
-        try:
-            await self._api.add_reaction(self._bot_id, message_id, emoji_name)
-        except Exception as exc:
-            logger.debug("Mattermost react failed: %s", exc)
+        added = self._reactions.take(chat_id, message_id)
+        if added:
+            await self._api.remove_reaction(self._bot_id, message_id, added)
 
     # ── Groups / Channels ─────────────────────────────────────────
 

@@ -139,6 +139,11 @@ class MattermostClient:
         )
         resp.raise_for_status()
 
+    async def remove_reaction(self, user_id: str, post_id: str, emoji_name: str) -> None:
+        """DELETE /users/{user_id}/posts/{post_id}/reactions/{emoji_name} — remove the user's own reaction."""
+        resp = await self._get_http().delete(f"{self.api_url}/users/{user_id}/posts/{post_id}/reactions/{emoji_name}")
+        resp.raise_for_status()
+
     # ── Files ─────────────────────────────────────────────────────
 
     async def upload_file(

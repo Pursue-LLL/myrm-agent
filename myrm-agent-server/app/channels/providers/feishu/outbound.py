@@ -5,7 +5,8 @@
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.exceptions::ChannelSendError, RateLimitError (POS: delivery failure classification)
 - channels.providers.feishu.cards (POS: card / post content builders)
-- channels.providers.feishu.reactions::UNICODE_TO_FEISHU_EMOJI (POS: reaction emoji vocabulary)
+- channels.providers.feishu.reactions::feishu_emoji_type (POS: reaction emoji vocabulary)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
 - channels.rendering.renderer::render (POS: channel message rendering pipeline)
 - channels.types::OutboundMessage, MediaAttachment (POS: channel message value types)
 
@@ -29,6 +30,7 @@ from functools import partial
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError, RateLimitError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     MediaAttachment,
@@ -46,7 +48,7 @@ from .cards import (
     has_rich_text,
     wrap_text_as_card,
 )
-from .reactions import UNICODE_TO_FEISHU_EMOJI
+from .reactions import feishu_emoji_type
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,7 @@ class FeishuOutboundMixin(BaseChannel):
     render_style: RenderStyle
     _client: FeishuClient
     _render_mode: str
-    _reaction_ids: dict[str, str]
+    _reactions: ReactionLedger
     _streaming_card_ids: dict[str, str]
     _streaming_seq: dict[str, int]
 
@@ -325,18 +327,17 @@ class FeishuOutboundMixin(BaseChannel):
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         if not message_id:
             return
-        try:
-            if not emoji:
-                reaction_id = self._reaction_ids.pop(message_id, "")
-                if reaction_id:
-                    await self._client.delete_reaction(message_id, reaction_id)
+        if emoji:
+            feishu_emoji = feishu_emoji_type(emoji)
+            if feishu_emoji is None:
                 return
-            feishu_emoji = UNICODE_TO_FEISHU_EMOJI.get(emoji, emoji)
             rid = await self._client.add_reaction(message_id, feishu_emoji)
             if rid:
-                self._reaction_ids[message_id] = rid
-        except Exception:
-            logger.debug("Feishu reaction failed for %s (emoji=%s)", message_id, emoji)
+                self._reactions.remember(chat_id, message_id, rid)
+            return
+        reaction_id = self._reactions.take(chat_id, message_id)
+        if reaction_id:
+            await self._client.delete_reaction(message_id, reaction_id)
 
     async def _streaming_update(self, message_id: str, text: str) -> bool:
         """Push incremental streaming; returns False to fall back to edit."""

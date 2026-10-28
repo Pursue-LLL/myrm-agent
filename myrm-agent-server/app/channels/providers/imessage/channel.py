@@ -6,6 +6,7 @@ Outbound: REST API (text + multipart attachment) with Tapback reactions
 [INPUT]
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 
 [OUTPUT]
 - IMessageChannel: iMessage bidirectional Channel (via BlueBubbles macOS bridge)
@@ -31,6 +32,7 @@ from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelConnectionError, ChannelSendError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -43,6 +45,7 @@ from app.channels.types import (
     OutboundMessage,
     RenderStyle,
     ToolSummaryDisplay,
+    reaction_key,
 )
 
 from .helpers import (
@@ -50,6 +53,7 @@ from .helpers import (
     MEDIA_TIMEOUT,
     SEND_TIMEOUT,
     TAPBACK_MAP,
+    TAPBACK_REMOVE_OFFSET,
     compile_mention_patterns,
     filename_from_url,
     quote_guid,
@@ -80,6 +84,7 @@ class IMessageChannel(BaseChannel):
         media=True,
         file_upload=True,
         reactions=True,
+        reaction_glyphs=frozenset(TAPBACK_MAP),
         typing_keepalive_interval=55.0,
         max_text_length=MAX_TEXT_LENGTH,
     )
@@ -102,6 +107,7 @@ class IMessageChannel(BaseChannel):
         self._webhook_url = webhook_url.strip() if webhook_url else ""
         self._mention_patterns = compile_mention_patterns(mention_patterns)
         self._http = httpx.AsyncClient()
+        self._reactions = ReactionLedger()
         self._private_api_available = False
         self._helper_connected = False
 
@@ -399,28 +405,29 @@ class IMessageChannel(BaseChannel):
         message_id: str,
         emoji: str,
     ) -> None:
-        """Send a Tapback reaction via BlueBubbles Private API."""
-        tapback = TAPBACK_MAP.get(emoji)
-        if tapback is None:
-            tapback = 2001
-        if not emoji:
-            tapback = tapback + 1000
+        """Send a Tapback via the BlueBubbles Private API; an empty emoji removes the one this channel sent."""
+        if emoji:
+            tapback = TAPBACK_MAP.get(reaction_key(emoji))
+            if tapback is None:
+                return
+            await self._post_tapback(chat_id, message_id, tapback)
+            self._reactions.remember(chat_id, message_id, str(tapback))
+            return
+        sent = self._reactions.take(chat_id, message_id)
+        if sent:
+            await self._post_tapback(chat_id, message_id, int(sent) + TAPBACK_REMOVE_OFFSET)
 
-        try:
-            resp = await self._http.post(
-                f"{self._api_url}/api/v1/message/react",
-                params={"password": self._password},
-                json={
-                    "chatGuid": chat_id,
-                    "selectedMessageGuid": message_id,
-                    "reaction": tapback,
-                },
-                timeout=SEND_TIMEOUT,
+    async def _post_tapback(self, chat_id: str, message_id: str, code: int) -> None:
+        resp = await self._http.post(
+            f"{self._api_url}/api/v1/message/react",
+            params={"password": self._password},
+            json={"chatGuid": chat_id, "selectedMessageGuid": message_id, "reaction": code},
+            timeout=SEND_TIMEOUT,
+        )
+        if resp.status_code >= 400:
+            raise ChannelSendError(
+                f"iMessage reaction failed: HTTP {resp.status_code}", channel=self.name, status_code=resp.status_code
             )
-            if resp.status_code >= 400:
-                logger.warning("iMessage reaction failed: HTTP %d", resp.status_code)
-        except Exception as exc:
-            logger.warning("iMessage reaction error: %s", exc)
 
     # ── Diagnostics ───────────────────────────────────────────────────
 

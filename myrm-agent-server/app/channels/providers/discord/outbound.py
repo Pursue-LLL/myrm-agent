@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.channels.core.exceptions::ChannelSendError (POS: classified send failures; carries partial-delivery details)
+- app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - app.channels.providers.discord.helpers::build_discord_media, derive_thread_name, is_forum_channel, reply_reference (POS: attachments, forum detection and native reply targets)
 - app.channels.rendering.renderer::render (POS: style-aware text chunking)
 
@@ -22,6 +23,7 @@ import discord
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers.discord.helpers import build_discord_media, derive_thread_name, is_forum_channel, reply_reference
 from app.channels.rendering.renderer import render
 from app.channels.types import OutboundMessage
@@ -38,6 +40,7 @@ class DiscordOutboundMixin(BaseChannel):
 
     render_style: RenderStyle
     _client: discord.Client | None
+    _reactions: ReactionLedger
 
     async def _resolve_channel(self, chat_id: str) -> discord.abc.Messageable | None:
         """Resolve a channel ID to a Messageable, using cache then API fallback."""
@@ -184,16 +187,23 @@ class DiscordOutboundMixin(BaseChannel):
             logger.error("Failed to delete message %s: %s", message_id, exc)
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        if not emoji:
+        """Add a reaction; an empty emoji removes the one this channel added. ``discord.DiscordException`` propagates."""
+        if emoji:
+            channel = await self._resolve_channel(chat_id)
+            if not channel:
+                return
+            msg = await channel.fetch_message(int(message_id))
+            await msg.add_reaction(emoji)
+            self._reactions.remember(chat_id, message_id, emoji)
+            return
+        added = self._reactions.take(chat_id, message_id)
+        if not added or not self._client or not self._client.user:
             return
         channel = await self._resolve_channel(chat_id)
         if not channel:
             return
-        try:
-            msg = await channel.fetch_message(int(message_id))
-            await msg.add_reaction(emoji)
-        except Exception as exc:
-            logger.error("Failed to react to message %s: %s", message_id, exc)
+        msg = await channel.fetch_message(int(message_id))
+        await msg.remove_reaction(added, self._client.user)
 
     async def start_typing(self, chat_id: str) -> None:
         channel = await self._resolve_channel(chat_id)

@@ -20,7 +20,7 @@
 | `models.py` | 模块 | Pydantic models for Feishu/Lark event subscription webhook payloads. | ✅ |
 | `outbound.py` | 模块 | Feishu outbound mixin. Message send (text / post / card), media upload, CardKit streaming, placeholder edit and reactions. | ✅ |
 | `parser.py` | 模块 | Feishu inbound message parser. Converts Feishu event JSON to structured data. Supports post rich-text -> Markdown, @mention detection, and image/media key extra | ✅ |
-| `reactions.py` | 模块 | Feishu reaction emoji vocabulary shared by the inbound and outbound mixins. | ✅ |
+| `reactions.py` | 模块 | Feishu reaction emoji vocabulary shared by the inbound and outbound mixins: glyph → official `emoji_type` (case-sensitive; Feishu rejects other names), `FEISHU_REACTION_GLYPHS` for the channel capability, and the approval alphabet read inbound (no ♾️/⭐ type exists, so `allow_always` uses the text aliases). | ✅ |
 | `registration.py` | 模块 | Channel provider utility. Encapsulates the Feishu device-code registration flow for automated bot app provisioning. Used by server-layer endpoints. | ✅ |
 | `sdk/` | 子包 | 飞书 OpenAPI 客户端与按领域拆分的 API Mixin，详见 [sdk/_ARCH.md](sdk/_ARCH.md)。 | ✅ |
 | `streaming_dashboard.py` | 模块 | Feishu CardKit streaming dashboard, tool execution header state machine, and 300ms adaptive throttler. | ✅ |

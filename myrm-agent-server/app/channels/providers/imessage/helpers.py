@@ -16,16 +16,18 @@ SEND_TIMEOUT = 15.0
 MEDIA_TIMEOUT = 30.0
 MAX_TEXT_LENGTH = 10000
 
+# The six Tapbacks, keyed by ``reaction_key`` glyph. A glyph that is not one of them has no faithful
+# Tapback, so it is not sent at all; removing a Tapback posts its code plus 1000.
 TAPBACK_MAP: dict[str, int] = {
-    "\u2764\ufe0f": 2000,
+    "\u2764": 2000,
     "\U0001f44d": 2001,
     "\U0001f44e": 2002,
     "\U0001f602": 2003,
     "\u2757": 2004,
-    "\u203c\ufe0f": 2004,
+    "\u203c": 2004,
     "\u2753": 2005,
-    "\U0001f440": 2001,
 }
+TAPBACK_REMOVE_OFFSET = 1000
 TAPBACK_CODE_TO_EMOJI: dict[int, str] = {
     2000: "\u2764\ufe0f",
     2001: "\U0001f44d",

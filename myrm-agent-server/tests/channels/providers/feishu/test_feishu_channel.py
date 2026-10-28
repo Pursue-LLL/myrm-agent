@@ -1012,13 +1012,13 @@ class TestReactToMessage:
         mock.add_reaction.return_value = "react_id_1"
         await ch.react_to_message("oc_chat1", "om_msg1", "\U0001f44d")
         mock.add_reaction.assert_called_once()
-        assert ch._reaction_ids["om_msg1"] == "react_id_1"
+        assert ch._reactions.take("oc_chat1", "om_msg1") == "react_id_1"
 
     @pytest.mark.asyncio
     async def test_remove_reaction(self) -> None:
         ch = _make_channel()
         mock = _mock_client(ch)
-        ch._reaction_ids["om_msg1"] = "react_id_1"
+        ch._reactions.remember("oc_chat1", "om_msg1", "react_id_1")
         await ch.react_to_message("oc_chat1", "om_msg1", "")
         mock.delete_reaction.assert_called_once_with("om_msg1", "react_id_1")
 

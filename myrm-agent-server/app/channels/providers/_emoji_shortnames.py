@@ -32,6 +32,15 @@ _SHORTNAME_BY_GLYPH: dict[str, str] = {
     "\u26a0": "warning",
     "\U0001f9e0": "brain",
     "\U0001f4bb": "computer",
+    "\u23f3": "hourglass_flowing_sand",
+    "\U0001f4ad": "thought_balloon",
+    "\u2728": "sparkles",
+    "\U0001f64c": "raised_hands",
+    "\U0001f494": "broken_heart",
+    "\U0001f6ab": "no_entry_sign",
+    "\u26d4": "no_entry",
+    "\U0001f635": "dizzy_face",
+    "\U0001f622": "cry",
 }
 
 # U+FE0E / U+FE0F pick the text or emoji presentation of a glyph; they must not keep it from matching its base glyph.

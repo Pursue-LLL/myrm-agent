@@ -62,6 +62,7 @@ from .status import (
     IssueSeverity,
     ReactionLevel,
     StartMode,
+    reaction_key,
 )
 from .streaming import (
     METADATA_APPROVAL_WINDOW_SECONDS_KEY,
@@ -140,6 +141,7 @@ __all__ = [
     "extract_cron_context",
     "guess_media_type",
     "parse_notification_mode",
+    "reaction_key",
     "render_components_as_text",
     "render_quick_replies_as_text",
     "should_notify",

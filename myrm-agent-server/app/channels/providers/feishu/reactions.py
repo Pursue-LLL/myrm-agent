@@ -1,11 +1,13 @@
 """Feishu reaction emoji vocabulary shared by the inbound and outbound paths.
 
 [INPUT]
-- (none)
+- app.channels.types::reaction_key (POS: canonical reaction glyph form)
 
 [OUTPUT]
 - UNICODE_TO_FEISHU_EMOJI: outbound unicode emoji → Feishu ``emoji_type``
 - FEISHU_EMOJI_TO_UNICODE: inbound Feishu ``emoji_type`` → unicode emoji
+- FEISHU_REACTION_GLYPHS: the glyphs Feishu has an ``emoji_type`` for, in ``reaction_key`` form
+- feishu_emoji_type: glyph → ``emoji_type`` (``None`` when Feishu has none)
 
 [POS]
 Static vocabulary for Feishu message reactions. Keeps the inbound mixin and the outbound mixin
@@ -14,6 +16,8 @@ free of each other's imports. Feishu rejects an ``emoji_type`` outside its offic
 """
 
 from __future__ import annotations
+
+from app.channels.types import reaction_key
 
 UNICODE_TO_FEISHU_EMOJI: dict[str, str] = {
     "\u2705": "DONE",
@@ -36,3 +40,11 @@ FEISHU_EMOJI_TO_UNICODE: dict[str, str] = {
     **{v: k for k, v in UNICODE_TO_FEISHU_EMOJI.items()},
     "MUSCLE": "\U0001f4aa",
 }
+
+_TYPE_BY_GLYPH_KEY: dict[str, str] = {reaction_key(glyph): name for glyph, name in UNICODE_TO_FEISHU_EMOJI.items()}
+FEISHU_REACTION_GLYPHS: frozenset[str] = frozenset(_TYPE_BY_GLYPH_KEY)
+
+
+def feishu_emoji_type(glyph: str) -> str | None:
+    """Official ``emoji_type`` for ``glyph`` (variation selectors ignored), ``None`` when Feishu has none."""
+    return _TYPE_BY_GLYPH_KEY.get(reaction_key(glyph))

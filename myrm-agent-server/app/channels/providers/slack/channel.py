@@ -14,6 +14,7 @@ Outbound:
 [INPUT]
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - channels.providers._emoji_shortnames::to_shortname (POS: reaction glyph -> the short name reactions.add accepts)
 - channels.providers.slack.api::SlackClient (POS: HTTP/API layer)
 - channels.providers.slack.inbound::SlackInboundMixin (POS: Events API / interactive payload parsing)
@@ -44,6 +45,7 @@ from app.channels.core.credentials import (
     credential_spec,
 )
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers._emoji_shortnames import to_shortname
 from app.channels.providers.slack.api import SlackClient
 from app.channels.providers.slack.thread_tracker import (
@@ -122,6 +124,7 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         super().__init__()
         self._signing_secret = signing_secret
         self._api = SlackClient(bot_token, app_token=app_token)
+        self._reactions = ReactionLedger()
         self._bot_user_id: str = ""
         self._team_id: str = ""
         self._socket_task: asyncio.Task[None] | None = None
@@ -361,9 +364,15 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         await self._clear_assistant_status(chat_id)
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
-        if not emoji:
+        """Add a reaction; an empty emoji removes the one this channel added."""
+        if emoji:
+            name = to_shortname(emoji)
+            await self._api.add_reaction(chat_id, message_id, name)
+            self._reactions.remember(chat_id, message_id, name)
             return
-        await self._api.add_reaction(chat_id, message_id, to_shortname(emoji))
+        added = self._reactions.take(chat_id, message_id)
+        if added:
+            await self._api.remove_reaction(chat_id, message_id, added)
 
     async def _clear_assistant_status(self, chat_id: str) -> None:
         """Clear assistant thread status if one was set for this chat."""

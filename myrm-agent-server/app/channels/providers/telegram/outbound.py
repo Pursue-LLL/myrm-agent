@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
-from app.channels.types import MediaAttachment, OutboundMessage, RenderStyle
+from app.channels.types import MediaAttachment, OutboundMessage, RenderStyle, reaction_key
 
 from .api import TelegramApiError
 from .helpers import build_inline_keyboard, send_media_attachment
@@ -469,7 +469,7 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         """Add or remove a reaction via setMessageReaction (Bot API 7.2+)."""
-        reaction = [{"type": "emoji", "emoji": emoji}] if emoji else []
+        reaction = [{"type": "emoji", "emoji": reaction_key(emoji)}] if emoji else []
         await self._client.set_message_reaction(chat_id, int(message_id), reaction)
 
     async def pin_message(self, chat_id: str, message_id: str) -> None:

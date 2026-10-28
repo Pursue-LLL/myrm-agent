@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.dingtalk import DingTalkChannel
 
 
@@ -18,7 +19,7 @@ def _channel_with_http(status_code: int = 200) -> tuple[DingTalkChannel, AsyncMo
     ch = DingTalkChannel(app_key="test_key", app_secret="test_secret", robot_code="robot1")
     ch._api._access_token = "mock_token"
     ch._api._token_expires_at = 9999999999.0
-    post = AsyncMock(return_value=MagicMock(status_code=status_code))
+    post = AsyncMock(return_value=MagicMock(status_code=status_code, text="denied"))
     ch._api._http = MagicMock(post=post)
     return ch, post
 
@@ -41,3 +42,34 @@ class TestEmotionEndpoints:
         await ch.react_to_message("conv1", "msg1", "")
         paths = [call.args[0].rsplit("/", 1)[-1] for call in post.await_args_list]
         assert paths == ["reply", "recall"]
+
+
+class TestLifecycle:
+    @pytest.mark.asyncio
+    async def test_an_empty_emoji_recalls_the_glyph_that_was_added(self) -> None:
+        ch, post = _channel_with_http()
+        await ch.react_to_message("conv1", "msg1", "\U0001f440")
+        await ch.react_to_message("conv1", "msg1", "")
+        await ch.react_to_message("conv1", "msg1", "")
+        assert len(post.await_args_list) == 2
+        assert post.await_args_list[1].kwargs["json"]["emotionName"] == "\U0001f440"
+
+    @pytest.mark.asyncio
+    async def test_an_empty_emoji_calls_nothing_when_no_reaction_was_added(self) -> None:
+        ch, post = _channel_with_http()
+        await ch.react_to_message("conv1", "msg1", "")
+        post.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_refused_add_raises_with_the_status_and_is_not_remembered(self) -> None:
+        ch, post = _channel_with_http(status_code=403)
+        with pytest.raises(ChannelSendError, match="HTTP 403"):
+            await ch.react_to_message("conv1", "msg1", "\U0001f440")
+        await ch.react_to_message("conv1", "msg1", "")
+        assert len(post.await_args_list) == 1
+
+    @pytest.mark.asyncio
+    async def test_a_message_without_a_conversation_is_skipped(self) -> None:
+        ch, post = _channel_with_http()
+        await ch.react_to_message("", "msg1", "\U0001f440")
+        post.assert_not_awaited()

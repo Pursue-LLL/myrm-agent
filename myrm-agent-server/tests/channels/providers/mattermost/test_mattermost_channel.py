@@ -281,7 +281,8 @@ class TestMattermostOutbound:
     async def test_react_failure(self) -> None:
         ch = _make_channel()
         with patch.object(ch._api, "add_reaction", new_callable=AsyncMock, side_effect=Exception("err")):
-            await ch.react_to_message("ch_1", "msg_1", "wave")
+            with pytest.raises(Exception, match="err"):
+                await ch.react_to_message("ch_1", "msg_1", "wave")
 
 
 class TestMattermostInbound:
