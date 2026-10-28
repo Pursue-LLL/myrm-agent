@@ -1,7 +1,7 @@
 """Tool Gateway configuration — framework-agnostic gateway config.
 
 Provides ToolGatewayConfig for routing third-party tool requests (Search, Image Gen, TTS, Browser)
-through the Control Plane's Unified Tool Gateway, enabling zero-config BYOK fallback.
+through a Unified Tool Gateway, enabling zero-config BYOK fallback.
 """
 
 from __future__ import annotations
@@ -15,11 +15,11 @@ class ToolGatewayConfig(BaseModel):
     """Tool Gateway configuration.
 
     Defines whether a specific tool should route its traffic through the Unified Tool Gateway
-    and provides the necessary gateway URL and authentication token (VirtualKey or PAT).
+    and provides the necessary gateway URL and authentication token (virtual key or personal access token).
 
     Environment variables (MYRM_GATEWAY_ prefix):
-    - MYRM_GATEWAY_URL: Base URL of the Unified Tool Gateway (e.g., https://control-plane.myrm.ai/tool-relay)
-    - MYRM_GATEWAY_TOKEN: Authentication token (VirtualKey for SaaS, PAT for Local/Desktop)
+    - MYRM_GATEWAY_URL: Base URL of the Unified Tool Gateway (e.g., https://gateway.example.com/tool-relay)
+    - MYRM_GATEWAY_TOKEN: Authentication token (virtual key or personal access token)
 
     Example:
         >>> config = ToolGatewayConfig(use_gateway=True, gateway_url="...", auth_token="...")
@@ -35,7 +35,7 @@ class ToolGatewayConfig(BaseModel):
     )
     auth_token: str | None = Field(
         default=None,
-        description="Authentication token for the gateway (VirtualKey or PAT, required if use_gateway is True)",
+        description="Authentication token for the gateway (virtual key or personal access token, required if use_gateway is True)",
     )
 
     model_config = {

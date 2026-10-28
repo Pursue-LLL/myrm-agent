@@ -8,7 +8,7 @@
 ## 1. 框架与业务分离
 
 - **零业务规则**：不含用户体系、计费、渠道校验、多租户调度。
-- **零反向依赖**：`src/myrm_agent_harness/**` 只允许 import 自身与第三方包。`myrm_agent_server` / `myrm_control_plane` / `app` 前缀被 `scripts/boundary_config.py` 的 `BANNED_PREFIXES` 硬拦截，由 pre-commit `harness-boundary-check` 与 CI `harness-boundary.yml` 全量执行。
+- **零反向依赖**：`src/myrm_agent_harness/**` 只允许 import 自身与第三方包。业务层与宿主包前缀（以 `scripts/boundary_config.py` 的 `BANNED_PREFIXES` 为准）被硬拦截，由 pre-commit `harness-boundary-check` 与 CI `harness-boundary.yml` 全量执行。
 - **核心依赖 24 项**：`[project].dependencies` 只有 24 个运行时包，由 `tests/architecture/test_core_dependencies.py::test_core_dependency_count_is_stable` 锁定。浏览器、Qdrant、检索、OCR、FastAPI 宿主适配全部是 optional extras；harness 源码不 import `fastapi`。
 - **契约优先**：跨层扩展点用 `Protocol` 或 Pydantic 模型定义（`api/protocols.py`、`api/hooks.py`、`toolkits/**/protocols.py`）。业务系统实现契约，框架不反向读取业务文件。
 - **单实例、单用户**：一个 agent 实例服务一个用户；多用户靠多进程 / 多容器 / 多实例横向扩展。框架内不得引入租户隔离、跨用户共享状态或隐式 `user_id`。
@@ -17,7 +17,7 @@
 
 目标是 `mypy --strict` 全绿、`ruff check` 零告警；配置已就位（`pyproject.toml` 的 `[tool.mypy] strict = true` 与 `[tool.ruff.lint]`）。
 
-当前实测（3191 个源文件）：
+当前实测（3232 个源文件）：
 
 | 项 | 实测 |
 |---|---|
@@ -55,8 +55,6 @@
 - 平台矩阵：`harness_packaging/platforms.py` 的 8 个 key（含 2 个 musl），与仓库根 `.github/core-platform-matrix.json` 一致。
 - `verify-harness-distribution` 校验「包能导入 + 公开 API 可解析」；发行模式下额外由 `runtime.install_guard.probe` 校验 release/core 版本与平台 key 一致。
 - 本地等价流程：`uv sync --group build && .venv/bin/python scripts/assemble_production.py`（`--install` 可直接装进消费方 venv）。
-
-当前发行缺口：PyPI 上最新为 **0.1.0rc5**，`pyproject.toml` 已是 **0.1.0rc6**。`[compiled-core]` 与 `[compiled-core-musl]` 声明的 rc6 平台包尚未发布，两个 musl 项目的 PyPI 记录不存在，装 `[compiled-core]` 会解析失败。
 
 **公开面**：外部消费者只允许 `from myrm_agent_harness.api import ...`（`api/__init__.py` 的 `_EXPORTS` 惰性导出 + `api/__init__.pyi` 类型镜像，由 `tests/api/test_public_surface.py` 校验一致性）。其余子模块是内部实现，不构成兼容承诺。
 
@@ -96,9 +94,9 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 - PTC 的三级渐进披露：L1 元数据 → L2 SKILL.md（带工具签名，超预算退化为仅列名）→ L3 单工具文档（`agent/skills/mcp/core_generator.py`）。
 - **禁止第三路径**：`catalog_invoke` / `capability_invoke_tool` /「一个 invoke 工具代理所有 deferred MCP」/ RUNTIME 池 + Turn1 proxy gateway。`mcp_surface_mode=catalog_invoke` 会被解析成 `auto` 并打 WARNING（`agent/_factory/mcp_surface.py`）。
 - **禁止第三档阈值**：11,250（单服）与 15,000（合计）之外不得再加灰色档位。
-- 竞品可吸收的只有工程细节（连接稳定性、OAuth、stdio 生命周期、重试）；工具暴露模型与动作空间设计不引入。
+- 工具暴露模型与动作空间固定为上述两个结局；连接稳定性、OAuth、stdio 生命周期、重试属于实现细节，可独立演进。
 
-**门禁现状**：`tests/architecture/test_mcp_routing_two_outcomes.py`（4 个断言）跑在 `harness-test.yml` 的全量单测里；该文件未打 `architecture` marker，`harness-boundary.yml` 的 `-m "architecture and not slow"` 会把它 deselect（实测 4 deselected）。63 个架构测试文件中有 16 个处于同样状态。
+**门禁现状**：`tests/architecture/test_mcp_routing_two_outcomes.py`（4 个断言）跑在 `harness-test.yml` 的全量单测里；该文件未打 `architecture` marker，`harness-boundary.yml` 的 `-m "architecture and not slow"` 会把它 deselect（实测 4 deselected）。65 个架构测试文件中有 16 个处于同样状态。
 
 ## 8. 已知偏离（规则已定，代码未达）
 
@@ -109,7 +107,7 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 | §3 第1条 不留兼容包袱 | 7 个文件保留 `Backward-compatible alias` / `Legacy alias` | `core/security/missing_semantics.py`、`toolkits/browser/pool/extension_bridge.py` 等 |
 | §3 第2条 走持久化抽象 | 子 agent checkpoint 直接落文件系统，不经 `StorageProvider` | `agent/sub_agents/checkpoint/saver.py` 只用 `MYRM_DATA_DIR/checkpoints` + `atomic_write` |
 | §3 第3条 / §4 零拷贝契约 | 两处产出 `ArtifactVault` 无法解析的指针：`vault://{chat_id}/turns/{i}/transcript.log`（从不落盘）、`vault://artifacts/{task}/result.json`（`default_worker_runner` 的模拟实现） | `agent/context_management/strategies/summary/turn_refetcher.py`、`agent/sub_agents/swarm_offload/offload_dispatcher.py`（该包在 `src/` 内无任何引用方，仅单测使用） |
-| §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |
+| §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在，装 `[compiled-core]` 会解析失败 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |
 | §2 类型目标 | 无 lint / 类型门禁；mypy 2252、ruff 1331 未清 | 见 §2 实测表 |
 | §7 门禁覆盖 | MCP 双结局门禁未进入 `-m architecture` job | 见 §7 门禁现状 |
 | §1 零反向依赖的精神（底层不依赖上层） | 子进程环境白名单（`EnvInheritPolicy` / `sanitize_env`）的 SSOT 放在 `toolkits/code_execution/security/env_isolation.py`；更底层的 `core/security/safe_exec.py` 与同级的 `toolkits/acp`、`toolkits/computer_use`、`agent/hooks` 都靠函数内延迟 import 取用，应下沉到 `core/security/` | `core/security/safe_exec.py:194`、`agent/hooks/executor.py:182`、`toolkits/computer_use/backends/cua_driver.py:90`、`toolkits/acp/runtime/_base.py` 的 `build_safe_env`；`scripts/boundary_config.py` 只拦截业务层前缀，不检查 harness 内部分层 |
