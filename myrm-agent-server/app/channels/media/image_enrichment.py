@@ -21,12 +21,13 @@ enriches an InboundMessage, called from Router._handle_merged.
 - enrich_image_inbound(): download, compress, cache images as files into metadata
 - channel_image_cache_dir(): where the cached images live
 - sweep_channel_image_cache(): remove cached images unused for the retention period
+- sweep_channel_image_cache_at_startup(): that sweep as a maintenance-daemon task, submitted when the server starts
 
 [POS]
 Image attachment data preparation for channel router.
 Stores file path references in ``msg.metadata["image_data_list"]`` for
 downstream multimodal query construction in the business layer.
-Owns the lifetime of the cache it fills: the daily context cleanup job calls the sweep.
+Owns the lifetime of the cache it fills: the daily context cleanup job and the server's startup call the sweep.
 """
 
 from __future__ import annotations
@@ -224,6 +225,17 @@ def sweep_channel_image_cache() -> int:
     if failures:
         logger.warning("Failed to remove %d expired channel images, first: %s", len(failures), failures[0])
     return removed
+
+
+async def sweep_channel_image_cache_at_startup() -> None:
+    """Sweep once when the server starts, as a unit of work for the maintenance daemon.
+
+    The daily cleanup job runs at 03:00 only while the server is up, so a machine that is off at that hour would never
+    sweep and its cache would only grow. Listing and removing files blocks, so it runs in a worker thread.
+    """
+    removed = await asyncio.to_thread(sweep_channel_image_cache)
+    if removed > 0:
+        logger.info("Startup: removed %d expired channel images", removed)
 
 
 async def _download_image_bytes(

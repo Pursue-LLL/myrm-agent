@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from app.channels.media.image_enrichment import (
     _save_to_cache,
     logger,
     sweep_channel_image_cache,
+    sweep_channel_image_cache_at_startup,
 )
 
 _DAY_S = 86400.0
@@ -146,3 +148,45 @@ class TestSweep:
         assert removed == 0
         assert not vanished.exists()
         assert not caplog.records
+
+
+class TestStartupSweep:
+    """The daily job runs at 03:00 only while the server is up; a machine that is off then still gets its sweep."""
+
+    async def test_expired_images_are_removed_and_recent_ones_kept(self, cache_dir: Path) -> None:
+        expired = _expired(cache_dir, "expired.jpg")
+        kept = _image(cache_dir, "kept.jpg", unused_days=CHANNEL_IMAGE_RETENTION_DAYS - 1)
+
+        await sweep_channel_image_cache_at_startup()
+
+        assert not expired.exists()
+        assert kept.exists()
+
+    async def test_the_removal_is_reported_only_when_something_was_removed(
+        self, cache_dir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.INFO, logger=logger.name):
+            await sweep_channel_image_cache_at_startup()
+            assert not caplog.records
+
+            _expired(cache_dir, "expired.jpg")
+            await sweep_channel_image_cache_at_startup()
+
+        [record] = caplog.records
+        assert "removed 1 expired channel images" in record.getMessage()
+
+    async def test_the_sweep_does_not_run_on_the_event_loop_thread(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ran_on: list[int] = []
+
+        def record_thread() -> int:
+            ran_on.append(threading.get_ident())
+            return 0
+
+        monkeypatch.setattr("app.channels.media.image_enrichment.sweep_channel_image_cache", record_thread)
+
+        await sweep_channel_image_cache_at_startup()
+
+        assert ran_on
+        assert ran_on != [threading.get_ident()]
