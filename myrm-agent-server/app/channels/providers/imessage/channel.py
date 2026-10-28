@@ -108,14 +108,6 @@ class IMessageChannel(BaseChannel):
         self._helper_connected = False
 
     @property
-    def private_api_available(self) -> bool:
-        return self._private_api_available
-
-    @property
-    def helper_connected(self) -> bool:
-        return self._helper_connected
-
-    @property
     def _private_api_ready(self) -> bool:
         """BlueBubbles refuses Tapbacks, typing, read receipts and quoted replies unless both hold."""
         return self._private_api_available and self._helper_connected

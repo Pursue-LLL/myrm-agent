@@ -5,6 +5,7 @@
 - channels.routing.command_defs::CommandKind (POS: slash command enums)
 - channels.routing.commands::parse_topic_args (POS: slash command argument parsing)
 - channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it)
+- channels.routing.policy_resolver::PolicyResolver (POS: the access verdict ``is_sender_admitted`` that decides whether a sender's attachments are worth processing)
 - channels.routing.router_models::_AgentTurnScratch (POS: per-turn state the error path reads)
 - channels.routing.reactions::StatusReaction, TurnOutcome (POS: the reaction the turn shows on the user's message)
 - channels.voice.handler::transcribe_inbound, transcribe_video_inbound, has_audio_attachment, has_video_with_audio (POS: voice processing)
@@ -13,7 +14,7 @@
 - channels.types.topics::METADATA_ROUTE_AGENT_KEY (POS: alias route marker)
 
 [OUTPUT]
-- RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments``, the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
+- RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments`` (skipped for a sender the access policy refuses), the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
 
 [POS]
 Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it. The turn owns the status reaction of the message: it starts marking the message as the run begins, without waiting for the platform, and settles the mark once, after the run or in the error path.
@@ -25,6 +26,7 @@ import asyncio
 import dataclasses
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from app.channels.core.outbound_prepare import set_correlation_context
 from app.channels.media.contact_enrichment import (
@@ -67,7 +69,28 @@ from app.channels.voice.handler import (
     transcribe_video_inbound,
 )
 
+if TYPE_CHECKING:
+    from app.channels.routing.policy_resolver import PolicyResolver
+
 logger = logging.getLogger("app.channels.routing.router")
+
+
+async def _is_refused(resolver: PolicyResolver, msg: InboundMessage) -> bool:
+    """Whether the access policy refuses ``msg``'s sender.
+
+    Fails open, unlike the check that guards event triggers: this verdict only saves work, so an error in it must not
+    turn an admitted sender's voice message into an empty one.
+    """
+    try:
+        admitted = await resolver.is_sender_admitted(msg)
+    except Exception:
+        logger.warning(
+            "Admission check failed for %s/%s, processing the attachments anyway", msg.channel, msg.sender_id, exc_info=True
+        )
+        return False
+    if not admitted:
+        logger.debug("Sender %s/%s is not admitted, skipping the processing of their attachments", msg.channel, msg.sender_id)
+    return not admitted
 
 
 class RouterTurnMixin:
@@ -194,8 +217,13 @@ class RouterTurnMixin:
     ) -> InboundMessage:
         """Turn the attachments of a new turn into text the agent can read: transcripts, descriptions, extracted text.
 
-        The answer to an approval carries no new attachments, so only a sticker is described then.
+        A sender the access policy refuses gets none of it: the processing costs an API bill, bandwidth, disk or a read of
+        the owner's configuration, and the resolvers that refuse the sender run only after this step. Their message goes
+        on as it came. The answer to an approval carries no new attachments, so only a sticker is described then.
         """
+        if not is_resume and (msg.media or msg.metadata.get("is_sticker")) and await _is_refused(self._resolver, msg):
+            return msg
+
         if inbound_had_voice:
             msg = await transcribe_inbound(msg, self._voice, self._bus.get_channel)
 

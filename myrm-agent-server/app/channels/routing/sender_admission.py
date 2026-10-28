@@ -12,8 +12,8 @@
 [POS]
 The admission gates of PolicyResolver.resolve_group_user / resolve_dm_user, and the identity those resolvers would
 assign, without their side effects (replies, quota, pending-pairing creation, LID binding, ledger writes).
-AgentRouter relies on it for work that must follow the access policy and the sender's trust level but runs before
-those resolvers, such as event-triggered cron jobs.
+AgentRouter relies on it for work that must follow the access policy (and, for a triggered job, the sender's trust
+level) but runs before those resolvers: event-triggered cron jobs and the processing of a turn's attachments.
 """
 
 from __future__ import annotations

@@ -229,6 +229,7 @@ class RouterTurnHost(Protocol):
     _fx: MessageEffects
     _gate: SessionGate
     _registry: CommandRegistry
+    _resolver: PolicyResolver
     _semaphore: asyncio.Semaphore
     _inbound_journal: InboundJournal | None
     _reaction_policy: ReactionPolicy

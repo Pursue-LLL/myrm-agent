@@ -123,6 +123,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/pipeline/test_inbound_dispatch_steps.py` | 单元 | 一条入站消息的路由顺序（真实路由器，各步骤交出去的处理器换成记录器）：重复消息先被丢；群里有话题管理器才记群活动；按钮点击、反应（永不成回合）、显式与裸审批词、斜杠命令与裸 shell 命令各自认领消息，认领后不进会话闸门；事件触发只对放行的发送者按其围栏触发且不认领；准入、可信或所有者检查出错时失败即关闭（跳过触发、按不可信围栏、拒绝委派），消息仍到会话闸门 |
 | `channels/routing/pipeline/test_inbound_steering_steps.py` | 单元 | 回合已在运行或发送者在转交任务时消息的去向：忙时 steer / redirect 的模式来源、80 字预览、群聊引用与私聊不引用、按线程找回合；委派请求仅属主、缺任务时的提示、置信度门槛；转向进行中的委派任务的前置条件与顺序 |
 | `channels/routing/pipeline/turn_pipeline_testkit.py` | 辅助 | 回合流水线步骤测试的共享构建器：`turn_msg()`（消息）、`turn_router()`（准备返回上下文、执行与消息效果皆为记录器的 `AgentRouter`）、`prepared_message()`、`attach_journal()`、`tag_enricher()` / `tag_enricher_async()`（给内容打标记以显示富化顺序） |
+| `channels/routing/pipeline/test_turn_attachment_gate.py` | 单元 | 附件处理前的准入闸门：被访问策略拒绝的发送者，语音、视频、图片、联系人、文档与贴纸一概不处理（含读取所有者配置），消息原样交给准备步骤；放行的发送者照常处理且只查一次；准入判定本身出错时照常处理并记 WARNING；纯文本消息与审批答复不触发判定；另用真实 `PolicyResolver` 逐例钉住陌生人私聊、已配对成员、所有者、未启用群、启用群、访客模式 @mention 与无访客模式的 @mention |
 | `channels/routing/pipeline/test_turn_pipeline_steps.py` | 单元 | `_handle_merged` 在运行之前的步骤顺序（准备与执行换成记录器）：收件日志写入与确认（重放的消息不重写）、yolo 窗口与人格写进消息、各类附件按固定顺序富化且审批答复不富化 |
 | `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、状态反应（标记、撤标记、完成表情的调用顺序与策略；失败时先发错误文本再显示失败表情）、无法准备的回合静默结束并放开闸门、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
 | `channels/routing/pipeline/test_delivery_setup_effects.py` | 单元 | 新回合的投递准备不再重复设置「处理中」反应（该反应只由回合的 ack 步骤设置一次），同时仍登记占位符与清理 |

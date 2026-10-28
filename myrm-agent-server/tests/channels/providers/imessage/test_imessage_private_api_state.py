@@ -62,6 +62,13 @@ def _quoted() -> OutboundMessage:
     return OutboundMessage(channel="imessage", recipient_id=_CHAT, content="hi", user_id="U", reply_to_id="orig-guid")
 
 
+async def _tapback_goes_out(server: _FakeBlueBubbles, ch: IMessageChannel) -> bool:
+    """Whether the channel asks BlueBubbles for a Tapback: it does only while the server reports both flags."""
+    server.calls.clear()
+    await ch.react_to_message(_CHAT, "msg-1", _THUMBS_UP)
+    return server.names() == ["tapback"]
+
+
 async def _every_feature(ch: IMessageChannel) -> None:
     await ch.start_typing(_CHAT)
     await ch.stop_typing(_CHAT)
@@ -73,9 +80,12 @@ async def _every_feature(ch: IMessageChannel) -> None:
 class TestFlagsFollowServerInfo:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(("private_api", "helper"), [(True, True), (True, False), (False, False), (False, True)])
-    async def test_start_takes_the_flags_from_the_server(self, private_api: bool, helper: bool) -> None:
-        ch = await _running(_FakeBlueBubbles(private_api=private_api, helper=helper))
-        assert (ch.private_api_available, ch.helper_connected) == (private_api, helper)
+    async def test_start_enables_the_features_only_when_the_server_reports_both_flags(
+        self, private_api: bool, helper: bool
+    ) -> None:
+        server = _FakeBlueBubbles(private_api=private_api, helper=helper)
+        ch = await _running(server)
+        assert await _tapback_goes_out(server, ch) is (private_api and helper)
 
     @pytest.mark.asyncio
     async def test_a_helper_that_connects_after_start_is_picked_up_by_the_next_health_check(self) -> None:
@@ -89,7 +99,6 @@ class TestFlagsFollowServerInfo:
         assert await ch.health_check() is True
         await ch.send(_quoted())
 
-        assert ch.helper_connected is True
         assert server.calls[-1][1]["method"] == "private-api"
         assert server.calls[-1][1]["selectedMessageGuid"] == "orig-guid"
 
@@ -118,7 +127,7 @@ class TestFlagsFollowServerInfo:
         server.info_body = body
         assert await ch.health_check() is True
 
-        assert (ch.private_api_available, ch.helper_connected) == (True, True)
+        assert await _tapback_goes_out(server, ch) is True
 
     @pytest.mark.asyncio
     async def test_a_failed_health_check_keeps_the_last_state(self) -> None:
@@ -128,7 +137,7 @@ class TestFlagsFollowServerInfo:
         server.private_api, server.info_status = False, 500
         assert await ch.health_check() is False
 
-        assert (ch.private_api_available, ch.helper_connected) == (True, True)
+        assert await _tapback_goes_out(server, ch) is True
 
 
 class TestEveryPrivateApiFeatureUsesTheSameState:
