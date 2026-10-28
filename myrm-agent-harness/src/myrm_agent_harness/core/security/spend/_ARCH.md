@@ -1,4 +1,4 @@
-# core/security/egress/
+# core/security/spend/
 
 ## Overview
 Spend governance for agent commerce: a pure, deterministic budget state machine that decides whether an agent purchase may proceed, with merchant allowlists, per-action and daily caps in integer USD cents, and atomic leases.

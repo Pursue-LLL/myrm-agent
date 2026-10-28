@@ -1,7 +1,7 @@
 """Commerce Budget Service for Autonomous Agent Spending.
 
 [INPUT]
-- myrm_agent_harness.core.security.egress.spend_governor::SpendGovernor, SpendGovernorConfig
+- myrm_agent_harness.core.security.spend.spend_governor::SpendGovernor, SpendGovernorConfig
 - app.commerce.spending_ledger::SpendingLedgerEntry, SpendingLedgerStore, get_spending_ledger_store
 - pydantic::BaseModel, Field
 

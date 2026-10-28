@@ -18,7 +18,7 @@ def custom_service(tmp_path: pytest.TempPathFactory) -> CommerceBudgetService:
     """Fixture providing an isolated CommerceBudgetService instance with temp ledger storage."""
     temp_ledger_file = tmp_path / "test_spending_ledger.json"
     store = SpendingLedgerStore(storage_path=temp_ledger_file)
-    from myrm_agent_harness.core.security.egress.spend_governor import (
+    from myrm_agent_harness.core.security.spend.spend_governor import (
         SpendGovernor,
         SpendGovernorConfig,
     )
@@ -193,7 +193,7 @@ class TestCommerceSpendingApi:
         store = SpendingLedgerStore(storage_path=temp_ledger_file)
 
         # Record a committed entry directly in store
-        from myrm_agent_harness.core.security.egress.spend_governor import (
+        from myrm_agent_harness.core.security.spend.spend_governor import (
             SpendGovernor,
             SpendGovernorConfig,
         )

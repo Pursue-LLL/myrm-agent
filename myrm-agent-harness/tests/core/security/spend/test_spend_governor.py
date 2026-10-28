@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.core.security.egress.spend_governor import (
+from myrm_agent_harness.core.security.spend.spend_governor import (
     SPEND_VOUCHER_PREFIX,
     SPEND_VOUCHER_SUFFIX,
     SpendGovernor,

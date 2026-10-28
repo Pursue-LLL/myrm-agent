@@ -1,7 +1,7 @@
 """Spend governance for agent commerce.
 
 [INPUT]
-- core.security.egress.spend_governor::SpendGovernor, SpendGovernorConfig, SpendLease, SpendLeaseResult,
+- core.security.spend.spend_governor::SpendGovernor, SpendGovernorConfig, SpendLease, SpendLeaseResult,
   SpendCommitResult, SPEND_VOUCHER_PREFIX, SPEND_VOUCHER_SUFFIX, is_spend_voucher
   (POS: 确定性微额支出状态机与契约)
 
@@ -10,7 +10,7 @@
 - SPEND_VOUCHER_PREFIX, SPEND_VOUCHER_SUFFIX, is_spend_voucher
 
 [POS]
-Public surface of the core egress package: the spend governor that gates agent purchases. Credentials
+Public surface of the core spend package: the spend governor that gates agent purchases. Credentials
 reach a child process only through the command-scoped environment of the executor, never through this package.
 """
 

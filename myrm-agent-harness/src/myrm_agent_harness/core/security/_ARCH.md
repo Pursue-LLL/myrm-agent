@@ -34,7 +34,7 @@ Foundational security primitives used across all layers. Zero dependency on agen
 | privacy/ | 3-Level fail-closed privacy ladder validator for sandbox and workspace persistence ([privacy/_ARCH.md](privacy/_ARCH.md)). |
 | integrity/ | Persistence write integrity, corruption detection, and atomic sealing validation ([integrity/_ARCH.md](integrity/_ARCH.md)). |
 | guards/ | Session-level security guards — privacy tracker, unified SSRF (`ssrf.py`), skill DLP allowlist (`url_allowlist.py`). |
-| egress/ | Spend governance for agent commerce: merchant allowlists, per-action and daily caps in integer USD cents, atomic leases ([egress/_ARCH.md](egress/_ARCH.md)). |
+| spend/ | Spend governance for agent commerce: merchant allowlists, per-action and daily caps in integer USD cents, atomic leases ([spend/_ARCH.md](spend/_ARCH.md)). |
 | http/ | SSRF-protected outbound HTTP fetch — DNS pinning and redirect validation (`secure_fetch.py`). |
 | external_secrets/ | Zero-disk plaintext external secrets vault gateway (1Password/Bitwarden) with LRU caching and 401 rotation ([external_secrets/_ARCH.md](external_secrets/_ARCH.md)). |
 | ephemeral_credentials/ | Session-isolated ephemeral credential store and single-use zero-disk injection primitives with memory wipe ([ephemeral_credentials/_ARCH.md](ephemeral_credentials/_ARCH.md)). |
@@ -78,7 +78,7 @@ detail never sits flat at a package root.
 - **One file for a domain** → a single flat module named after the domain
   (`audit.py`, `safe_exec.py`, `spend_governance.py`).
 - **More than one file for a domain** → a subdirectory named after the domain
-  (`detection/`, `egress/`, `redact/`, `path/`). Two files is already enough to warrant
+  (`detection/`, `spend/`, `redact/`, `path/`). Two files is already enough to warrant
   a subdirectory; the pattern is not reserved for large domains.
 - **Renaming a domain's public import path** is a breaking change for every consumer,
   including sibling repositories. Add the subpackage, move the implementation, and

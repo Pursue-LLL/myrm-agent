@@ -63,10 +63,6 @@ from myrm_agent_harness.agent.security.managed_approval_policy import (
     get_process_managed_approval_revision,
     load_managed_approval_policy_from_env,
 )
-from myrm_agent_harness.core.security.egress.spend_governor import (
-    SpendGovernor,
-    SpendGovernorConfig,
-)
 from myrm_agent_harness.core.security.guards.privacy_ladder import PrivacyFailClosedViolationError
 from myrm_agent_harness.core.security.missing_semantics import MissingSemanticsBlockedError
 from myrm_agent_harness.core.security.safe_git import (
@@ -75,6 +71,10 @@ from myrm_agent_harness.core.security.safe_git import (
     hardened_git_argv,
     hardened_git_argv_async,
     require_own_repository,
+)
+from myrm_agent_harness.core.security.spend.spend_governor import (
+    SpendGovernor,
+    SpendGovernorConfig,
 )
 from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
     WorkspaceSnapshotResult,

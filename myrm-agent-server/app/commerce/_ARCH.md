@@ -14,5 +14,5 @@ Commerce domain services and session state isolation for transactional AI agents
 ## Invariants
 - **Role Crossover Prohibited**: A session ID registered for a consumer shopping flow cannot simultaneously operate as a merchant session, and vice versa.
 - **Auditability**: All state modifications track `last_activity_at` in UTC.
-- **Framework Protocol Binding**: Consumes `myrm_agent_harness.core.security.egress` and `myrm_agent_harness.backends.commerce` protocols directly.
+- **Framework Protocol Binding**: Consumes `myrm_agent_harness.core.security.spend` and `myrm_agent_harness.backends.commerce` protocols directly.
 - **Zero-Float Financial Safety**: All monetary values are managed strictly in USD Cents integer units.
