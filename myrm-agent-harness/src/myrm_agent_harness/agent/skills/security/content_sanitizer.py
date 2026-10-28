@@ -11,6 +11,7 @@ surrounding syntax (keys, quotes, flags, URL structure) stays intact.
 
 [INPUT]
 - core.security.redact.patterns (POS: Compiled regex patterns and the keyword guard shared with the runtime redactor)
+- core.security.redact.structured_fields (POS: Secret-named field detectors of the runtime redactor; its JSON member regex is the ``json_secret_field`` rule)
 
 [OUTPUT]
 - SecretKind: Literal — closed set of finding kinds; callers render them in their own language

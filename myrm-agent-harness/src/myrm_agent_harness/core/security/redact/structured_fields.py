@@ -23,7 +23,7 @@ them keeps a plain label: letters of any script separated by spaces, ``-`` or
 carry digits or run longer; the residual is a passphrase made of words.
 
 [INPUT]
-- patterns::_mask_token (value masking shared by every redactor), _is_env_reference (a variable reference is no secret)
+- patterns::_mask_token, patterns::_is_env_reference (POS: shared value masking and the variable-reference test of the redactor's pattern module)
 
 [OUTPUT]
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)

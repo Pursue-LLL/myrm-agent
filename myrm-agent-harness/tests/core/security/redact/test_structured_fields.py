@@ -2,7 +2,7 @@
 
 Each case is a shape a tool result really takes: OAuth token responses (snake, camel and kebab spellings), config
 dumps with provider-prefixed names, MCP results that wrap a JSON document in a JSON string, and pytest failures that
-print a settings dict. The keep-lists pin what must stay readable: pagination cursors, metadata and source code.
+print a settings dict. The keep-lists pin what must stay readable: pagination cursors, metadata, form labels and source code.
 """
 
 from __future__ import annotations
