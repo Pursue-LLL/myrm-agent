@@ -3,6 +3,7 @@
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstraction every provider implements)
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with partial-failure reporting)
+- channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction event sent per message so an empty emoji can redact it)
 - channels.providers.matrix.connection::MatrixConnectionMixin (POS: mautrix client setup, authentication, E2EE and sync-event wiring)
 - channels.providers.matrix.auth / handlers / html / media (POS: login and sync, inbound events, markdown payloads, uploads)
 - mautrix.client::Client (POS: Matrix client SDK, optional dependency)
@@ -31,6 +32,7 @@ from app.channels.core.credentials import (
     parse_bool,
 )
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers.matrix.auth import (
     refresh_dm_cache,
 )
@@ -61,12 +63,13 @@ logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 65536
 _SEND_TIMEOUT = 30.0
+_REACTION_TIMEOUT = 5.0
 _MEMBERS_CACHE_TTL = 300.0  # 5 minutes
 _MAUTRIX_AVAILABLE = False
 
 try:
     from mautrix.client import Client as MautrixClient
-    from mautrix.types import EventType, RoomID
+    from mautrix.types import EventID, EventType, ReactionEventContent, RelatesTo, RelationType, RoomID
 
     _MAUTRIX_AVAILABLE = True
 except ImportError:
@@ -124,6 +127,7 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
         self._proxy = proxy
 
         self._client: MautrixClient | None = None
+        self._reactions = ReactionLedger()
         self._sync_task: asyncio.Task[None] | None = None
         self._dm_rooms: dict[str, bool] = {}
         self._joined_rooms: set[str] = set()
@@ -349,28 +353,31 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
         if not self._client:
             return
         try:
-            await self._client.redact(RoomID(chat_id), message_id, reason="deleted by bot")
+            await self._client.redact(RoomID(chat_id), EventID(message_id), reason="deleted by bot")
         except Exception as exc:
             logger.debug("Matrix delete failed: %s", exc)
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
+        """React with an annotation event; an empty emoji redacts the one this channel sent.
+
+        Matrix has no remove call: a reaction is an event of its own, so it is taken back by redacting that event.
+        """
         if not self._client:
             return
-        payload = {
-            "m.relates_to": {
-                "rel_type": "m.annotation",
-                "event_id": message_id,
-                "key": emoji,
-            },
-        }
-        try:
-            await self._client.send_message_event(
-                RoomID(chat_id),
-                EventType.find("m.reaction"),
-                payload,
+        room = RoomID(chat_id)
+        if emoji:
+            annotation = ReactionEventContent(
+                relates_to=RelatesTo(rel_type=RelationType.ANNOTATION, event_id=EventID(message_id), key=emoji)
             )
-        except Exception as exc:
-            logger.debug("Matrix react failed: %s", exc)
+            sent = await asyncio.wait_for(
+                self._client.send_message_event(room, EventType.REACTION, annotation),
+                timeout=_REACTION_TIMEOUT,
+            )
+            self._reactions.remember(chat_id, message_id, str(sent))
+            return
+        reaction_id = self._reactions.take(chat_id, message_id)
+        if reaction_id is not None:
+            await asyncio.wait_for(self._client.redact(room, EventID(reaction_id)), timeout=_REACTION_TIMEOUT)
 
     async def start_typing(self, chat_id: str) -> None:
         if self._client:

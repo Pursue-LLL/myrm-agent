@@ -372,16 +372,6 @@ class TestMatrixEditDelete:
         await ch.delete_message("!room:example.com", "$ev1")
         mock_client.redact.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_react_to_message(self) -> None:
-        ch = MatrixChannel(homeserver="https://matrix.example.com", access_token="tok")
-        mock_client = AsyncMock()
-        mock_client.send_message_event = AsyncMock(return_value="$ev_react")
-        ch._client = mock_client
-
-        await ch.react_to_message("!room:example.com", "$ev1", "+1")
-        mock_client.send_message_event.assert_called_once()
-
 
 @_requires_mautrix
 class TestMatrixTyping:

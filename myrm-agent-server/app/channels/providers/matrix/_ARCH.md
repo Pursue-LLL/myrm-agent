@@ -10,7 +10,7 @@ Matrix 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 |------|------|------|-------|
 | `__init__.py` | 入口 | Matrix channel provider with optional E2E encryption (E2EE). | ✅ |
 | `auth.py` | 模块 | Extracted auth/init helpers for MatrixChannel. Handles aiohttp session creation (with HTTP/SOCKS proxy support), token validation via whoami, password login, in | ✅ |
-| `channel.py` | 模块 | Matrix channel — mautrix SDK with optional E2EE: lifecycle entry points, outbound, diagnostics; composes `MatrixConnectionMixin`. | ✅ |
+| `channel.py` | 模块 | Matrix channel — mautrix SDK with optional E2EE: lifecycle entry points, outbound, diagnostics; composes `MatrixConnectionMixin`. A reaction is an annotation event whose id is remembered so an empty emoji redacts it; failures propagate to the reaction funnel. | ✅ |
 | `connection.py` | 模块 | `MatrixConnectionMixin`: mautrix client setup, authentication, E2EE initialisation and cleanup, and the room-message / invite / reaction event wrappers. | ✅ |
 | `crypto.py` | 模块 | E2EE initialization for Matrix channel. Sets up OlmMachine with SQLite-backed CryptoStore, handles device key verification, cross-signing bootstrap, and recover | ✅ |
 | `handlers.py` | 模块 | Event handling for MatrixChannel. Processes inbound m.room.message events (text, image, audio, video, file), parses relations (reply-to, thread), identifies DMs | ✅ |
