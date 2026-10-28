@@ -19,8 +19,9 @@ Channel credential nouns (``app secret``, ``signing secret``, ``bot token``,
 ``verification token``) are credential names too, but locale files key their form
 labels by them (``"feishuAppSecret": "App Secret"``), so a field named by one of
 them keeps a plain label: letters of any script separated by spaces, ``-`` or
-``_``, no digits, and a single word shorter than 20 characters. Real credentials
-carry digits or run longer; the residual is a passphrase made of words.
+``_``, no digits, and a single word shorter than 20 characters. Credentials
+normally carry digits or run longer; the residual is a passphrase made of words
+and, rarely, a random URL-safe base64 value that happens to hold no digit.
 
 [INPUT]
 - patterns::_mask_token, patterns::_is_env_reference (POS: shared value masking and the variable-reference test of the redactor's pattern module)
