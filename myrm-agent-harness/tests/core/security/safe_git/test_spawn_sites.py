@@ -1,10 +1,10 @@
-"""A git command that reads the index or the working tree goes through the hardened argv, or is listed here with why.
+"""A git command that reads or writes the index, the working tree or a ref goes through the hardened argv, or is listed here with why.
 
 [INPUT]
 - src/myrm_agent_harness/**/*.py: every ``git`` argv written as a list literal or as the first argument of a spawn call
 
 [OUTPUT]
-- Fails when a command that reads or writes the working tree is spawned with a bare ``git`` argv and is not listed
+- Fails when a command that touches the tree, a ref or an object is spawned with a bare ``git`` argv and is not listed
   below with its reason, or when a listed site no longer exists (so the list cannot rot).
 
 [POS]
@@ -20,9 +20,9 @@ from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[4] / "src"
 
-# Subcommands that read or write the index or working tree, or can fetch an object: where git consults
-# repository-chosen programs.
-_TREE_TOUCHING = frozenset(
+# Subcommands that read or write the index, the working tree or a ref, or can fetch an object: where git consults
+# repository-chosen programs (a ref update runs the repository's ``reference-transaction`` hook).
+_RUNS_REPOSITORY_PROGRAMS = frozenset(
     {
         "status",
         "diff",
@@ -49,6 +49,11 @@ _TREE_TOUCHING = frozenset(
         "revert",
         "mv",
         "rm",
+        "branch",
+        "tag",
+        "update-ref",
+        "pack-refs",
+        "gc",
         # Reading history can fetch a missing object from a partial clone's remote, through a program its config names.
         "show",
         "log",
@@ -73,17 +78,21 @@ _BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {
         "`git --version` availability probe: reads no repository",
     ),
     "myrm_agent_harness/agent/file_snapshot/shadow_git_store.py": (
-        frozenset({_DYNAMIC, "add", "diff-index", "diff-tree", "log", "read-tree", "checkout-index", "checkout"}),
+        frozenset(
+            {_DYNAMIC, "add", "diff-index", "diff-tree", "log", "read-tree", "checkout-index", "checkout", "update-ref"}
+        ),
         "runs against the snapshot store's own bare repository (GIT_DIR points at it), so the workspace's `.git/config` "
         "is never read",
     ),
     "myrm_agent_harness/agent/file_snapshot/shadow_git_maintenance.py": (
-        frozenset({"ls-files", "rm"}),
+        frozenset({"ls-files", "rm", "update-ref"}),
         "same snapshot store: its own bare repository",
     ),
     "myrm_agent_harness/toolkits/wiki/portability/vault_git.py": (
         frozenset({_DYNAMIC}),
-        "the wiki vault is a repository the application created for itself and commits to",
+        "KNOWN GAP, not a safe site: the vault commit flow adopts an existing `.git` (`_ensure_repo` only inits when it is "
+        "absent), so a vault delivered with its own `.git` runs the programs it names on add/commit (measured: fsmonitor, "
+        "post-commit and reference-transaction ran)",
     ),
 }
 
@@ -136,7 +145,7 @@ def test_every_tree_touching_bare_git_spawn_is_listed_with_its_reason() -> None:
         f"{path}: git {subcommand}"
         for path, subcommands in _found().items()
         for subcommand in sorted(subcommands)
-        if (subcommand in _TREE_TOUCHING or subcommand == _DYNAMIC)
+        if (subcommand in _RUNS_REPOSITORY_PROGRAMS or subcommand == _DYNAMIC)
         and subcommand not in _BARE_GIT_SITES.get(path, (frozenset(), ""))[0]
     ]
 

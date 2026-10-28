@@ -1,10 +1,10 @@
-"""A git command that reads the index or the working tree goes through the hardened argv, or is listed here with why.
+"""A git command that reads or writes the index, the working tree or a ref goes through the hardened argv, or is listed here with why.
 
 [INPUT]
 - app/**/*.py: every ``git`` argv written as a list literal or as the first argument of a spawn call
 
 [OUTPUT]
-- Fails when a command that reads or writes the working tree is spawned with a bare ``git`` argv and is not listed
+- Fails when a command that touches the tree, a ref or an object is spawned with a bare ``git`` argv and is not listed
   below with its reason, or when a listed site no longer exists (so the list cannot rot).
 
 [POS]
@@ -21,9 +21,9 @@ from pathlib import Path
 
 _APP = Path(__file__).resolve().parents[2] / "app"
 
-# Subcommands that read or write the index or working tree, or can fetch an object: where git consults
-# repository-chosen programs.
-_TREE_TOUCHING = frozenset(
+# Subcommands that read or write the index, the working tree or a ref, or can fetch an object: where git consults
+# repository-chosen programs (a ref update runs the repository's ``reference-transaction`` hook).
+_RUNS_REPOSITORY_PROGRAMS = frozenset(
     {
         "status",
         "diff",
@@ -50,6 +50,11 @@ _TREE_TOUCHING = frozenset(
         "revert",
         "mv",
         "rm",
+        "branch",
+        "tag",
+        "update-ref",
+        "pack-refs",
+        "gc",
         # Reading history can fetch a missing object from a partial clone's remote, through a program its config names.
         "show",
         "log",
@@ -116,7 +121,7 @@ def test_every_tree_touching_bare_git_spawn_is_listed_with_its_reason() -> None:
         f"{path}: git {subcommand}"
         for path, subcommands in _found().items()
         for subcommand in sorted(subcommands)
-        if (subcommand in _TREE_TOUCHING or subcommand == _DYNAMIC)
+        if (subcommand in _RUNS_REPOSITORY_PROGRAMS or subcommand == _DYNAMIC)
         and subcommand not in _BARE_GIT_SITES.get(path, (frozenset(), ""))[0]
     ]
 

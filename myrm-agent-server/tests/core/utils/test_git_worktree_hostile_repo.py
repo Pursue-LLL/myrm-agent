@@ -5,8 +5,9 @@
 - app.services.kanban.race_lane_diff (POS: lane diff review reads)
 
 [OUTPUT]
-- Real ``git`` runs in repositories whose config names marker-writing programs: fsmonitor, a merge driver and a partial
-  clone's upload-pack each fire on the plain command and stay silent through the helpers.
+- Real ``git`` runs in repositories whose config or hooks name marker-writing programs: fsmonitor, a merge driver, a
+  partial clone's upload-pack and a ``reference-transaction`` hook each fire on the plain command and stay silent
+  through the helpers.
 
 [POS]
 Wiring tests for ``_run_git``: the architecture guard proves no bare spawn exists, these prove the hardened argv is the
@@ -28,6 +29,7 @@ from app.core.utils import git_worktree
 from app.core.utils.git_worktree import (
     WorktreeCreateError,
     WorktreeErrorReason,
+    _delete_git_branch,
     _git_worktree_add,
     _merge_branch_into_current,
     _run_git,
@@ -129,6 +131,27 @@ async def test_a_merge_driver_the_repository_names_does_not_run(repo: Path, mark
     assert merged is False
     assert _fired(markers) == set()
     assert _git(repo, "status", "--porcelain").stdout == "", "a refused merge must leave the repository usable"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("merged_only", [False, True])
+async def test_deleting_a_branch_does_not_run_the_repositorys_reference_transaction_hook(
+    repo: Path, markers: Path, merged_only: bool
+) -> None:
+    """Every ref the application deletes after a lane or chat sandbox ends fires this hook on the plain command."""
+    _git(repo, "branch", "control")
+    _git(repo, "branch", "lane")
+    hook = repo / ".git" / "hooks" / "reference-transaction"
+    shutil.copy(_program(markers, "reference-transaction"), hook)
+    _git(repo, "branch", "-D", "control")
+    if "reference-transaction" not in _fired(markers):
+        pytest.skip("this git build does not run the reference-transaction hook for `git branch -D`")
+    _clear(markers)
+
+    assert await _delete_git_branch(str(repo), "lane", merged_only=merged_only) is True
+
+    assert _fired(markers) == set()
+    assert _git(repo, "branch", "--list", "lane").stdout.strip() == "", "the branch must still be deleted"
 
 
 @pytest.mark.asyncio

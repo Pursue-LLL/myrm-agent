@@ -16,14 +16,14 @@
 - _collect_conflict_files: List files with unresolved merge conflicts.
 - _abort_merge: Roll back an in-progress merge so the repo stays usable.
 - _remove_worktree: Remove a worktree directory with ``git worktree remove --force``.
-- _delete_git_branch: Delete a local branch, unconditionally or only when its commits are merged.
+- _delete_git_branch: Delete a local branch through ``_run_git``, unconditionally or only when its commits are merged.
 - WorktreeErrorReason / WorktreeCreateError: Structured worktree creation error types.
 - _classify_git_error: Map git stderr to a WorktreeErrorReason.
 
 [POS]
 通用工具层的共享 git worktree 命令基础设施：sandbox 与 kanban 的 worktree
 生命周期共用同一份实现，避免两处语义漂移。被 chat.sandbox_worktree 与
-kanban task_runner 直接引用。每条会读写工作树的 git 命令都经 ``_run_git``：用户带着 ``.git`` 目录
+kanban task_runner 直接引用。每条会读写工作树或更新引用的 git 命令都经 ``_run_git``：用户带着 ``.git`` 目录
 交来的文件夹，其配置不能让服务端在沙箱之外运行程序或联网。
 """
 
@@ -350,15 +350,7 @@ async def _delete_git_branch(base_dir: str, branch: str, *, merged_only: bool = 
     branch does not exist.
     """
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "branch", "-d" if merged_only else "-D", branch],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
+        result = await _run_git(("branch", "-d" if merged_only else "-D", branch), cwd=base_dir, timeout=10)
         if result.returncode != 0:
             logger.debug(
                 "Branch %s already gone or not deletable: %s",
@@ -367,6 +359,9 @@ async def _delete_git_branch(base_dir: str, branch: str, *, merged_only: bool = 
             )
             return False
         return True
+    except GitHardeningError as exc:
+        logger.warning("Refused to delete branch %s, git cannot be run safely: %s", branch, exc)
+        return False
     except Exception as exc:
         logger.debug("Branch delete failed for %s: %s", branch, exc)
         return False
