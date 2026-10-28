@@ -14,6 +14,13 @@ import { handleMessageStream, type StreamHandlerActions, type StreamHandlerState
 import { AgentEventType, type AgentStreamEvent, type Message, type ProgressItem } from '../types';
 
 const processSuggestions = vi.hoisted(() => vi.fn(async () => undefined));
+// The locale the reader sees: empty means no translation is installed, so every key resolves to its fallback.
+const locale = vi.hoisted(() => ({ messages: {} as Record<string, string> }));
+
+vi.mock('@/services/i18nToastService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/i18nToastService')>()),
+  translateI18nKey: (key: string, fallback: string = key) => locale.messages[key] ?? fallback,
+}));
 
 // A finished turn also notifies, plays its sound and refreshes the workspace; none of that is under test here.
 vi.mock('@/services/notification', () => ({ notificationService: { notify: vi.fn() } }));
@@ -80,6 +87,7 @@ describe('stream handlers write through the live store', () => {
   beforeEach(() => {
     useChatStore.setState({ chatId: CHAT_ID, messages: [] });
     processSuggestions.mockClear();
+    locale.messages = {};
   });
 
   describe('tool_end', () => {
@@ -180,6 +188,41 @@ describe('stream handlers write through the live store', () => {
     ]);
 
     expect(step).toMatchObject({ status: 'warning', error: 'Cancelled by user' });
+  });
+
+  describe('tool_cancelled copy follows the reader language', () => {
+    const cancelled = (cancelReason?: string): AgentStreamEvent[] => [
+      stepEvent('bash_code_execute_tool', 'call-1'),
+      {
+        type: AgentEventType.TOOL_CANCELLED,
+        messageId: MESSAGE_ID,
+        tool_name: 'bash_code_execute_tool',
+        error: 'Tool execution was cancelled',
+        cancel_reason: cancelReason,
+      },
+    ];
+
+    it.each([
+      ['user_cancelled', 'progressSteps.cancelledByUser', '已由用户取消'],
+      ['timeout', 'progressSteps.cancelledTimeout', '已取消（超时）'],
+      ['session_ended', 'progressSteps.cancelledSessionEnded', '已取消（会话已结束）'],
+      ['unknown', 'progressSteps.cancelledDefault', '工具调用已取消'],
+      [undefined, 'progressSteps.cancelledDefault', '工具调用已取消'],
+    ])('reason %s reads %s from the locale', async (cancelReason, key, text) => {
+      locale.messages = { [key]: text };
+
+      const step = await lastStep(cancelled(cancelReason));
+
+      expect(step).toMatchObject({ status: 'warning', error: text });
+    });
+
+    it('a reason named like an Object member still reads as the default copy', async () => {
+      locale.messages = { 'progressSteps.cancelledDefault': '工具调用已取消' };
+
+      const step = await lastStep(cancelled('constructor'));
+
+      expect(step.error).toBe('工具调用已取消');
+    });
   });
 
   it('tool_stdout_chunk streams terminal output into the step', async () => {

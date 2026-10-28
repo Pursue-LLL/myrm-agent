@@ -12,6 +12,7 @@
  * holds the assistant message of the running turn.
  */
 
+import { translateI18nKey } from '@/services/i18nToastService';
 import type { ProgressItem } from '@/store/chat/types';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
@@ -45,17 +46,18 @@ function appendStdout(step: ProgressItem, chunk: string): void {
     (newlineIndex !== -1 ? tail.substring(newlineIndex + 1) : tail);
 }
 
-function describeCancellation(cancelReason: string | undefined, error: string | undefined): string {
-  if (cancelReason === 'user_cancelled') {
-    return 'Cancelled by user';
+/** What the step shows for a cancelled call, in the reader's language; the event's own `error` text is a fixed English constant. */
+function describeCancellation(cancelReason: string | undefined): string {
+  switch (cancelReason) {
+    case 'user_cancelled':
+      return translateI18nKey('progressSteps.cancelledByUser', 'Cancelled by user');
+    case 'timeout':
+      return translateI18nKey('progressSteps.cancelledTimeout', 'Cancelled (timeout)');
+    case 'session_ended':
+      return translateI18nKey('progressSteps.cancelledSessionEnded', 'Cancelled (session ended)');
+    default:
+      return translateI18nKey('progressSteps.cancelledDefault', 'Tool execution was cancelled');
   }
-  if (cancelReason === 'timeout') {
-    return 'Cancelled (timeout)';
-  }
-  if (cancelReason === 'session_ended') {
-    return 'Cancelled (session ended)';
-  }
-  return error || 'Tool execution was cancelled';
 }
 
 export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -132,7 +134,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
         lastStep.duration_ms = data.duration_ms;
       }
       lastStep.status = 'warning';
-      lastStep.error = describeCancellation(data.cancel_reason, data.error);
+      lastStep.error = describeCancellation(data.cancel_reason);
     });
     return done(ctx);
   }
