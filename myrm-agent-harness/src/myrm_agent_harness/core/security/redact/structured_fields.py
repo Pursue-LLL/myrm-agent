@@ -24,7 +24,8 @@ normally carry digits or run longer; the residual is a passphrase made of words
 and, rarely, a random URL-safe base64 value that happens to hold no digit.
 
 [INPUT]
-- patterns::_mask_token, patterns::_is_env_reference (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
+- patterns::_is_env_reference (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 
 [OUTPUT]
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)
@@ -42,7 +43,8 @@ from __future__ import annotations
 
 import re
 
-from .patterns import _is_env_reference, _mask_token
+from .masking import _mask_secret
+from .patterns import _is_env_reference
 
 _SEP = r"[-_.]?"
 
@@ -119,13 +121,13 @@ def _mask_field_value(name: str, value: str) -> str:
     """Mask the value of the credential field ``name``.
 
     A variable reference such as ``${API_KEY}`` is a name, not a secret, and a channel credential field holding a
-    plain label (``"appSecret": "App Secret"``) is a form label.
+    plain label (``"appSecret": "App Secret"``) is a form label. The rest is masked by ``_mask_secret``.
     """
     if _is_env_reference(value):
         return value
     if _PLAIN_LABEL_RE.fullmatch(value) and _ALWAYS_SECRET_NAME_RE.fullmatch(name) is None:
         return value
-    return _mask_token(value)
+    return _mask_secret(name, value)
 
 
 def _unquoted(quoted_key: str) -> str:

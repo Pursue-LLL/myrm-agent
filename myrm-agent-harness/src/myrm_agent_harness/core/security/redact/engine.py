@@ -5,7 +5,8 @@ before they reach the LLM context or log files. Acts as a second
 defense layer complementing ``sanitize_env`` (source removal).
 
 [INPUT]
-- patterns::_PREFIX_RE, patterns::_mask_token and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- masking::_mask_token, masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
+- patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 - structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line (POS: structured-field detectors of the redaction engine)
 
 [OUTPUT]
@@ -29,6 +30,7 @@ import logging
 import re
 from collections.abc import Callable
 
+from .masking import _mask_secret, _mask_token
 from .patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
@@ -46,7 +48,6 @@ from .patterns import (
     _URL_QUERY_RE,
     _URL_USERINFO_RE,
     _YAML_ASSIGN_RE,
-    _mask_token,
     _redact_cli_flag,
     _redact_env_assignment,
     _redact_form_body,
@@ -268,7 +269,9 @@ def redact_sensitive_text(text: str) -> str:
     )
 
     # URL query parameters (OPT-2)
-    text = _replace_pattern_bounded(text, _URL_QUERY_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
+    text = _replace_pattern_bounded(
+        text, _URL_QUERY_RE, lambda m: f"{m.group(1)}{_mask_secret(m.group(1), m.group(2))}"
+    )
 
     # CLI flags (OPT-5)
     text = _replace_pattern_bounded(text, _CLI_FLAG_RE, _redact_cli_flag)

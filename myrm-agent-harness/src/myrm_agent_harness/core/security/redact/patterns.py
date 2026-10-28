@@ -8,11 +8,11 @@ value-masking helpers. It is one of two vendor-prefix tables: the privacy tier
 separately.
 
 [INPUT]
-- (none — pure pattern + helper definitions)
+- masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
 
 [OUTPUT]
 - compiled detection regexes (``_PREFIX_RE``, ``_ENV_ASSIGN_RE``, ...)
-- ``_mask_token`` / ``_redact_form_body`` / ``_redact_*_assignment`` — shared replacers
+- ``_redact_form_body`` / ``_redact_value`` / ``_redact_*_assignment`` — shared replacers
 - ``_is_env_reference`` — whether a value is entirely a variable reference (readable, never masked)
 - ``_is_word_start`` / ``_is_word_end`` / ``_key_has_secret_keyword`` — word-boundary key validation
 
@@ -24,6 +24,8 @@ Compiled regex patterns, keyword guard and shared value-masking helpers of the r
 from __future__ import annotations
 
 import re
+
+from .masking import _mask_secret
 
 # ── Structural patterns (token-structure detection) ──────────────
 
@@ -109,16 +111,19 @@ _SECRET_ENV_NAMES = r"(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS_?PHRASE|CRED
 # URL query 中的 `?token=` / `&token=` 是 URL 参数（由 _URL_QUERY_RE 处理），不是
 # ENV 赋值——负向后顾阻止贪婪吞掉 `&` 分隔的后续参数
 # （`?token=x&limit=50&page=2` 保持为 `?token=***&limit=50&page=2` 而非 `?token=***`）。
-# value 用 `[^\s&"']` 而非 `\S+`：IGNORECASE 下 form body 的 `token=abc&page=1` 会被
-# `\S+` 吞掉 `&page=1` 导致参数破坏，`[^\s&]+` 在 `&` 处截断，配合 _redact_form_body
-# 逐对脱敏（对齐 Hermes 非 IGNORECASE 正则的天然行为）。引号值整体捕获
-# （`KEY="my secret pass"` 含空格）——quote 分支吞到 closing quote，避免部分匹配
+# 未加引号的 value 到空白或引号为止；`&` 只在后面紧跟 `键=`（form body 的下一个参数，
+# `token=abc&page=1` 保持为 `token=***&page=1`）或 `amp;`（HTML 转义的同一分隔符）时才终止它，
+# 其余的 `&` 是口令自身的字符，其后的部分同样要打码，否则 `PASSWORD=ab&cd` 会泄漏 `&cd`。
+# 首字符不是 `&`，`password: &anchor` 的 YAML 锚点因此保持原样；`&` 之后至少跟一个值字符，
+# 空白、引号、另一个 `&` 或行尾前的 `&` 不并入。键名字符集与 _FORM_BODY_RE 一致，限长 64 使每个 `&` 的前瞻有常数上界。
+_UNQUOTED_VALUE = r"(?:[^\s&\"']+(?:&(?=[^\s&\"'])(?!amp;|[A-Za-z_][A-Za-z0-9_.\-]{0,63}=)[^\s&\"']*)*)"
+# 引号值整体捕获（`KEY="my secret pass"` 含空格）——quote 分支吞到 closing quote，避免部分匹配
 # 把 `"my` 打码而泄漏尾部 ` secret pass"`；值内 `\"`/`\'` 反斜杠转义与 `''` 转义
 # 均完整消费不截断。
 # key 必须含 secret 关键词且关键词落在词边界（`author=`/`tokenizer=` 等散文词
 # 不误伤，见 _key_has_secret_keyword）。
 _ENV_ASSIGN_RE = re.compile(
-    rf"(?<![?&])([A-Za-z_]{{0,50}}{_SECRET_ENV_NAMES}[A-Za-z0-9_]{{0,50}})\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s&\"']+))",
+    rf"(?<![?&])([A-Za-z_]{{0,50}}{_SECRET_ENV_NAMES}[A-Za-z0-9_]{{0,50}})\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|{_UNQUOTED_VALUE})",
     re.IGNORECASE,
 )
 
@@ -133,7 +138,9 @@ _ENV_ASSIGN_RE = re.compile(
 # 前缀与后缀都限长 64：任一端无界，纯 `[a-z0-9_]` 长串（`key_key_…`）都会让每个起点扫到串尾再回溯，
 # 耗时随长度平方增长；限长后每个起点的工作量有常数上界，总耗时随长度线性增长。
 _ENV_ASSIGN_LOWER_RE = re.compile(
-    r"(?<![?&])([a-z0-9_.]{1,64}[_.](?:key|pass|pw|token|secret|password|passwd|credential|auth)[a-z0-9_]{0,64})(?=[^a-z0-9_]|$)\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s&\"']+))",
+    r"(?<![?&])([a-z0-9_.]{1,64}[_.](?:key|pass|pw|token|secret|password|passwd|credential|auth)[a-z0-9_]{0,64})(?=[^a-z0-9_]|$)\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|"
+    + _UNQUOTED_VALUE
+    + ")",
     re.IGNORECASE,
 )
 
@@ -146,7 +153,7 @@ _ENV_ASSIGN_LOWER_RE = re.compile(
 # 单引号支持 YAML `''` 转义，quoted 值含空格时整体捕获不部分泄漏。
 _YAML_CFG_NAMES = r"(?:api[ _.\-]?key|token|secret|passwd|password|pass[ _.\-]?phrase|credential|auth)"
 _YAML_ASSIGN_RE = re.compile(
-    rf"(^[ \t]*+[A-Za-z0-9_.\-]*{_YAML_CFG_NAMES}[A-Za-z0-9_.\-]*+)([ \t]*+:[ \t]*+)((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\4)|(?:[^\s&\"']+))",
+    rf"(^[ \t]*+[A-Za-z0-9_.\-]*{_YAML_CFG_NAMES}[A-Za-z0-9_.\-]*+)([ \t]*+:[ \t]*+)((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\4)|{_UNQUOTED_VALUE})",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -245,7 +252,7 @@ def _redact_form_body(text: str) -> str:
     for pair in stripped.split("&"):
         key, sep, value = pair.partition("=")
         if key.lower() in _SENSITIVE_BODY_KEYS:
-            parts.append(f"{key}{sep}{_mask_token(value)}")
+            parts.append(f"{key}{sep}{_mask_secret(key, value)}")
         else:
             parts.append(pair)
     return f"{prefix}{'&'.join(parts)}{suffix}"
@@ -272,7 +279,7 @@ def _is_env_reference(value: str) -> bool:
 
 
 # 已掩码形态（`***` 或 `xxxxxx...xxxx`）：双重匹配的正则（ENV_LOWER 与 ENV 重叠的
-# `client_secret=`、ENV 与 CLI 重叠的 `--password=`）二次 `_mask_token` 会把可读的
+# `client_secret=`、ENV 与 CLI 重叠的 `--password=`）二次 `_mask_secret` 会把可读的
 # `mysecr...5678` 折叠成 `***`，这里识别并保持。明文 secret 含 `...` 中段或
 # 恰好 6+3+4 字符形态的概率可忽略（API token 字符集不含 `...`）。
 _MASKED_VALUE_RE = re.compile(r"^(?:\*{3}|[^\"']{6}\.{3}[^\"']{4})$")
@@ -347,13 +354,6 @@ _CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f\u200b-\u200f\u2028-\u202f\u2060\
 _TOKEN_BODY_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.")
 
 
-def _mask_token(token: str) -> str:
-    """Mask a token: fully hide short ones, preserve head/tail for long ones."""
-    if len(token) < 18:
-        return "***"
-    return f"{token[:6]}...{token[-4:]}"
-
-
 def _redact_value(name: str, value: str) -> str | None:
     """Mask a secret value under a secret ``name``, or return None to keep original.
 
@@ -376,7 +376,7 @@ def _redact_value(name: str, value: str) -> str | None:
         return None
     if not _key_has_secret_keyword(name):
         return None
-    return f"{quote}{_mask_token(inner)}{quote}"
+    return f"{quote}{_mask_secret(name, inner)}{quote}"
 
 
 def _redact_env_assignment(m: re.Match[str]) -> str:

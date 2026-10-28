@@ -1,14 +1,14 @@
 """Public facade for the secret redaction domain.
 
 Aggregates the redaction engine (``engine.py``) and shared masking helpers
-(``patterns.py``) behind ``core.security.redact``, exposing a stable public
+(``masking.py``) behind ``core.security.redact``, exposing a stable public
 import surface: ``redact_sensitive_text``, ``redact_for_llm``,
 ``redact_for_display``, ``RedactingFormatter``, ``set_redact_enabled``, plus the
 internal symbols re-exported by the ``agent.security.redact`` facade.
 
 [INPUT]
 - engine::redact_sensitive_text, engine::redact_for_llm, engine::redact_for_display, engine::RedactingFormatter and the other public and internal symbols (POS: redaction pipeline and public API of the redactor)
-- patterns::_mask_token (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- masking::_mask_token (POS: Leaf value-masking helpers of the runtime redactor)
 
 [OUTPUT]
 - redact_sensitive_text / redact_for_llm / redact_for_display / escape_invisible_unicode / RedactingFormatter / set_redact_enabled — public API
@@ -29,7 +29,7 @@ from .engine import (
     redact_sensitive_text,
     set_redact_enabled,
 )
-from .patterns import _mask_token
+from .masking import _mask_token
 
 __all__ = [
     "RedactingFormatter",
