@@ -12,8 +12,8 @@
 [POS]
 Renders a lightweight, self-contained password prompt page for public share
 endpoints and resolves the submitted password. The form posts the password as
-a body field so it never appears in the URL (CWE-598); the legacy ``p`` query
-parameter is still accepted so links shared before the change keep unlocking.
+a body field so it never appears in the URL (CWE-598); a GET also accepts the ``p`` query
+parameter for links that carry the password in the URL.
 The page is written in the visitor's language (English or Chinese). The
 locked-out variant disables the form and reloads itself once the lock has
 lifted, so a visitor who waits is never left on a dead page.

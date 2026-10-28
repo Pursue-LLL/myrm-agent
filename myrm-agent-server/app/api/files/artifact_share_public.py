@@ -7,6 +7,7 @@
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
+- app.services.audit.lockout_events (POS: lockout log/audit report)
 - app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share.share_registry (POS: revocation gate check)
 - app.services.artifacts.share.share_token::ArtifactShareClaims (POS: HMAC claims)
@@ -35,7 +36,8 @@ resolve the right media type when the browser re-authenticates via the unlock
 cookie instead of a password parameter. Wrong passwords are counted per share and
 client; after five the gate answers 429 with ``Retry-After`` and refuses further
 guesses (even a correct one) until the window passes, while visitors holding an
-unlock cookie keep their access.
+unlock cookie keep their access. The guess that engages the lock is reported once through
+``lockout_events``.
 """
 
 from __future__ import annotations

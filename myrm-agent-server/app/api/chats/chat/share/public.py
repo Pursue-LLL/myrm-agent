@@ -10,6 +10,7 @@
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
+- app.services.audit.lockout_events (POS: lockout log/audit report)
 
 [OUTPUT]
 - public_router: unauthenticated HTML share page
@@ -22,7 +23,8 @@ refreshed or revisited without re-entering the password. Revoked or deleted link
 gate, so a dead password-protected link answers 404 to every visitor instead of presenting a password prompt for
 content that no longer exists. Wrong passwords are counted per share and client; after five the gate answers 429 with
 ``Retry-After`` and refuses further guesses (even a correct one) until the window passes, while visitors holding an
-unlock cookie keep their access. Every served chat content page carries noindex/nofollow + no-store +
+unlock cookie keep their access; the wrong password that engages the lock is reported once through ``lockout_events``.
+Every served chat content page carries noindex/nofollow + no-store +
 Referrer-Policy: no-referrer (shared privacy headers) so shared conversations are never search-engine indexed,
 revoking a link cannot be bypassed by browser or CDN caches, and the token-bearing share URL never leaks to third
 parties via the Referer header. Expired, revoked, or missing share links answer browsers with a friendly status page
