@@ -13,8 +13,10 @@ Mark: @pytest.mark.integration — skipped unless --run-integration flag is pass
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
+import subprocess
 import sys
 
 import pytest
@@ -53,6 +55,30 @@ skip_no_codex = pytest.mark.skipif(not _HAS_CODEX, reason="codex CLI not install
 skip_no_gemini = pytest.mark.skipif(not _HAS_GEMINI, reason="gemini CLI not installed")
 
 pytestmark = pytest.mark.integration
+
+_CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_CODE_")
+
+
+def _claude_credentials() -> dict[str, str]:
+    """What a host injects for Claude Code: a delegated CLI does not inherit provider keys from its parent."""
+    return {key: value for key, value in os.environ.items() if key.startswith(_CLAUDE_ENV_PREFIXES)}
+
+
+def _claude_can_answer() -> bool:
+    """Whether a turn gets an answer: an injected key, or the login of the CLI itself."""
+    if _claude_credentials():
+        return True
+    status = subprocess.run(["claude", "auth", "status"], capture_output=True, text=True, timeout=30, check=False)
+    try:
+        return json.loads(status.stdout).get("loggedIn") is True
+    except json.JSONDecodeError:
+        return False
+
+
+@pytest.fixture(scope="module")
+def claude_can_answer() -> None:
+    if not _claude_can_answer():
+        pytest.skip("claude answers only with a login of its own or ANTHROPIC_* variables in the environment")
 
 
 # ── BackendDetector ─────────────────────────────────────────────────────
@@ -116,9 +142,13 @@ class TestClaudeCliReal:
             "timeout_seconds": TIMEOUT,
             "max_turns": 1,
         }
+        credentials = _claude_credentials()
+        if credentials:
+            defaults.update(env=credentials, auth_mode="api_key")
         defaults.update(overrides)
         return RuntimeConfig(**defaults)  # type: ignore[arg-type]
 
+    @pytest.mark.usefixtures("claude_can_answer")
     @pytest.mark.asyncio
     async def test_basic_prompt_returns_text(self) -> None:
         rt = CliRuntime("claude-test", self._make_config())
@@ -138,6 +168,7 @@ class TestClaudeCliReal:
         )
         assert len(text) > 0, "Should receive non-empty text response"
 
+    @pytest.mark.usefixtures("claude_can_answer")
     @pytest.mark.asyncio
     async def test_usage_events_present(self) -> None:
         rt = CliRuntime("claude-usage", self._make_config())
