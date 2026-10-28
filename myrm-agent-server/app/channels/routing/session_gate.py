@@ -1,9 +1,9 @@
 """Session-level message debounce and concurrency gate.
 
-Groups rapid-fire messages from the same conversation into a single
+Groups rapid-fire messages of one sender in a conversation into a single
 merged InboundMessage before forwarding to Agent execution.
 
-Four complementary mechanisms:
+Five complementary mechanisms:
 1. **Debounce Timer**: Accumulates messages within a configurable time
    window (default 300 ms). The timer resets on each new message.
 2. **Active-Session Pending Queue**: When a session already has an Agent
@@ -19,6 +19,11 @@ Four complementary mechanisms:
    dropped because the queue is full, and runs before any text waiting
    beside it. Merging builds a plain message, which would lose the answer,
    and any other turn of the session ends the run the answer belongs to.
+5. **One Turn, One Sender**: A turn runs as the sender of its first message
+   (identity and tool permissions), so text is merged per sender: consecutive
+   messages of one sender form a turn, and text of another sender waits for a
+   turn of its own, in arrival order. A group shares one gate key, a DM never
+   has a second sender.
 
 [INPUT]
 - channels.routing.router_keys::routing_state_key (POS: debounce grouping key format, consistent with Router ``state_key``)
@@ -42,6 +47,7 @@ from collections.abc import Awaitable, Callable
 
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import (
+    METADATA_EXPLICIT_MENTION_KEY,
     ContextEntry,
     InboundMessage,
     MediaAttachment,
@@ -81,12 +87,18 @@ def _is_answer(msg: InboundMessage) -> bool:
 
 
 def _take_next_turn(queue: list[InboundMessage]) -> tuple[InboundMessage, ...]:
-    """Remove from ``queue`` what runs next: its oldest answer on its own, else all of its text as one turn."""
+    """Remove from ``queue`` what runs next: its oldest answer on its own, else the first sender's text as one turn.
+
+    A turn runs as the sender of its first message, so only the consecutive text of that sender is taken; what another
+    sender wrote stays queued, in order, for a turn of its own.
+    """
     for index, msg in enumerate(queue):
         if _is_answer(msg):
             return (queue.pop(index),)
-    turn = tuple(queue)
-    queue.clear()
+    sender = queue[0].sender_id
+    size = next((index for index, msg in enumerate(queue) if msg.sender_id != sender), len(queue))
+    turn = tuple(queue[:size])
+    del queue[:size]
     return turn
 
 
@@ -104,15 +116,17 @@ def gate_key(msg: InboundMessage) -> str:
 
 
 def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
-    """Merge multiple InboundMessages from the same session into one.
+    """Merge multiple InboundMessages of one sender in one session into one.
 
     Guarantees:
     - ``content``: newline-joined (preserves user's segmentation intent)
     - ``media``: concatenated in arrival order
     - ``context_messages``: concatenated in arrival order
-    - ``metadata``: from the *last* message (keeps final message_id for reaction)
+    - ``metadata``: from the *last* message (keeps final message_id for reaction), plus the explicit-mention flag
+      when any message carries it: admission must not depend on which message came last
+    - ``mentioned``: true when any message is
     - ``thread_id``: first non-None value
-    - Other fields (channel, sender_id, chat_id, is_group, mentioned): from first message
+    - Other fields (channel, sender_id, chat_id, is_group, is_bot): from first message, which is the sender of all
     """
     if len(msgs) == 1:
         return msgs[0]
@@ -125,6 +139,7 @@ def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
     all_context: list[ContextEntry] = []
     thread_id: str | None = None
     mentioned = False
+    explicit_mention = False
 
     for m in msgs:
         if m.content.strip():
@@ -135,6 +150,12 @@ def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
             thread_id = m.thread_id
         if m.mentioned:
             mentioned = True
+        if m.metadata.get(METADATA_EXPLICIT_MENTION_KEY) == "1":
+            explicit_mention = True
+
+    metadata = dict(last.metadata)
+    if explicit_mention:
+        metadata[METADATA_EXPLICIT_MENTION_KEY] = "1"
 
     return InboundMessage(
         channel=first.channel,
@@ -144,9 +165,10 @@ def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
         user_id=first.user_id,
         sender_name=first.sender_name,
         is_group=first.is_group,
+        is_bot=first.is_bot,
         mentioned=mentioned,
         media=tuple(all_media),
-        metadata=dict(last.metadata),
+        metadata=metadata,
         reply_to_id=first.reply_to_id,
         thread_id=thread_id,
         context_messages=tuple(all_context),

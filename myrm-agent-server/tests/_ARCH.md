@@ -109,6 +109,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_new_input_ends_suspended_run.py` | 单元 | 审批收口所依赖的 LangGraph 约定，钉在已安装版本上：停在审批的线程，答复到来时执行该步；停着时来了新输入，该步不再续跑，之后晚到的答复什么也不改变（最小图，不含产品的智能体构建） |
 | `channels/routing/test_resume_keeps_agent.py` | 集成 | 审批续跑回到提问回合的智能体会话（真实 `AgentRouter`、`SessionGate`、`ApprovalTimeoutScheduler` 加脚本化执行器）：绑定了专属智能体的聊天里批准后续跑、别名路由的回合批准后续跑、超时续跑，执行器拿到的话题上下文都是提问回合的智能体；委派任务（无智能体会话）的审批续跑不带话题上下文；提问后聊天换绑到别的智能体的不跟随；`resume_topic_context` 表驱动 7 例；带库测试把路由器交给执行器的上下文送进真实会话查找，续跑找到提问回合建立的聊天 |
 | `channels/routing/test_session_gate_answers.py` | 单元 | 真实 `SessionGate` 与审批应答：与文本同处一个防抖窗口时应答先跑且完整；多个应答各自单独、按到达顺序；回合进行中到达的应答先于同时排队的文本；排队文本已满时应答仍保留；应答不被当作「排在忙碌回合后面的消息」提示；回合从不重叠；纯文本仍合并排队 |
+| `channels/routing/test_session_gate_senders.py` | 单元 | 真实 `SessionGate` 与发送者：同一防抖窗口或排在忙碌回合后面的文字按发送者拆成回合（两种先后顺序，A-B-A 交错保持到达顺序，回合从不重叠），同一发送者的连发（群聊与私聊）仍合并成一个回合，审批应答仍单独且先于各发送者的文字；合并后的消息保留准入策略读取的标志：显式 @ 提及不依赖其在批次里的先后，机器人消息合并后仍是机器人（不会被当成真人触发回合），其余元数据仍取最后一条 |
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |
 | `channels/test_router_busy_input_mode.py` | 单元 | `busy_input_mode` 的 steer / redirect 自动分发、斜杠命令不被转向；已结束、只因审批保留登记的回合不被转向，文字作为新的回合 |
 | `support/pending_approvals.py` | 辅助 | 路由器待决审批测试共用：`inbound_message`、`router_with_agent`（真实路由器配脚本化智能体，可记录续跑）、`said_by`（总线发出的文本）、`asked_in` / `waiting` / `empty_registry`（登记簿里的未决请求） |
