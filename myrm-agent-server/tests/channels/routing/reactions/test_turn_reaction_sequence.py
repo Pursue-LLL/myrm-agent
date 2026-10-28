@@ -85,14 +85,14 @@ async def test_a_completed_turn_marks_takes_the_mark_off_and_shows_the_result_on
 
 
 @pytest.mark.asyncio
-async def test_a_failed_turn_tells_the_user_in_words_before_it_is_marked() -> None:
+async def test_a_failed_turn_tells_the_user_in_words_before_the_mark_comes_off() -> None:
     router, log = _world(_break)
 
     await router._handle_merged(_inbound())
 
-    kinds = [kind for kind, _ in log]
+    reply_at = next(i for i, (kind, _) in enumerate(log) if kind == "reply")
     assert _reactions(log) == [EYES, CLEARED, CRYING]
-    assert kinds == ["react", "reply", "react", "react"]
+    assert reply_at < log.index(("react", CLEARED)) < log.index(("react", CRYING))
 
 
 @pytest.mark.asyncio
@@ -112,3 +112,66 @@ async def test_a_stopped_turn_leaves_no_mark_and_no_verdict() -> None:
     await turn
 
     assert _reactions(log) == [EYES, CLEARED]
+
+
+@pytest.mark.asyncio
+async def test_the_agent_starts_before_the_platform_has_answered_the_mark() -> None:
+    release = asyncio.Event()
+    mark_answered_when_run_began: list[bool] = []
+    answered: list[str] = []
+
+    async def run(*_: object, **__: object) -> tuple[OutboundMessage | None, float]:
+        mark_answered_when_run_began.append(bool(answered))
+        release.set()
+        return None, 0.0
+
+    router, log = _world(run)
+
+    async def slow_react(_chat_id: str, _message_id: str, emoji: str) -> None:
+        if emoji == EYES:
+            await release.wait()
+            answered.append(emoji)
+        log.append(("react", emoji))
+
+    router._bus.get_channel("telegram").react_to_message = slow_react
+
+    await asyncio.wait_for(router._handle_merged(_inbound()), timeout=5)
+
+    assert mark_answered_when_run_began == [False]
+    assert _reactions(log) == [EYES, CLEARED, THUMBS_UP]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_while_the_platform_is_slow_leaves_no_request_running() -> None:
+    mark_started = asyncio.Event()
+    mark_cancelled = asyncio.Event()
+
+    async def hang(*_: object, **__: object) -> tuple[OutboundMessage | None, float]:
+        await mark_started.wait()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    router, log = _world(hang)
+
+    async def unresponsive_react(_chat_id: str, _message_id: str, emoji: str) -> None:
+        if emoji == EYES:
+            mark_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                mark_cancelled.set()
+                raise
+        log.append(("react", emoji))
+
+    router._bus.get_channel("telegram").react_to_message = unresponsive_react
+    turn = asyncio.create_task(router._handle_merged(_inbound()))
+    await mark_started.wait()
+
+    turn.cancel()  # the user stops the turn; settling it now waits for the platform
+    await asyncio.sleep(0.05)
+    assert not turn.done()
+    turn.cancel()  # the service shuts down while the platform is still silent
+    with pytest.raises(asyncio.CancelledError):
+        await turn
+
+    assert mark_cancelled.is_set()

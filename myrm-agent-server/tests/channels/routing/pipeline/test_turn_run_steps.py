@@ -259,7 +259,11 @@ async def test_a_failing_turn_sends_the_error_text_before_it_shows_the_failure_r
     await router._handle_merged(turn_msg())
 
     policy = router._reaction_policy
-    assert order == [f"reaction:{policy.processing_emoji}", "text", "reaction:off", f"reaction:{policy.failure_emoji}"]
+    mark = f"reaction:{policy.processing_emoji}"
+    assert order.count(mark) == 1
+    assert order.index(mark) < order.index("reaction:off")
+    assert order.index("text") < order.index("reaction:off")
+    assert order[-2:] == ["reaction:off", f"reaction:{policy.failure_emoji}"]
 
 
 @pytest.mark.asyncio

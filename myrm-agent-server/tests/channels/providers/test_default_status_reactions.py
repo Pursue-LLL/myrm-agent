@@ -45,7 +45,8 @@ async def _shown(channel: str, *, state: str) -> str | None:
     bus.get_channel = MagicMock(return_value=ch)
     status = StatusReaction(MessageEffects(bus), ReactionPolicy(), channel, "chat", "m1")
     if state == "processing":
-        await status.received()
+        status.received()
+        await status.marked()
     else:
         await status.finish(TurnOutcome.COMPLETED if state == "success" else TurnOutcome.FAILED)
     return ch.react_to_message.await_args.args[2] if ch.react_to_message.await_args else None

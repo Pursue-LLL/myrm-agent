@@ -133,8 +133,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/slack/test_slack_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Slack `reactions.add` 时是短名（eyes / white_check_mark / x）而不是 unicode 字形 |
 | `channels/providers/mattermost/test_mattermost_reaction_names.py` | 单元 | 路由器默认的三种反应表情到达 Mattermost 反应接口时是短名而不是 unicode 字形 |
 | `channels/routing/test_reaction_vocabulary.py` | 单元 | 渠道词表的接受规则：未声明词表的渠道接受一切，声明了词表的渠道只接受词表内的表情（变体选择符不影响） |
-| `channels/routing/reactions/test_status_reaction.py` | 单元 | 一个回合的状态表情 `StatusReaction`：按渠道词表选字，被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌😢），都不被接受就不发；失败绝不回退成成功表情或 👎；配置为空串表示关闭、不回退；只有 FULL 档标记、SIMPLE 只显示结果、OFF 什么都不显示；标记只加一次、结果只显示一次，没加过标记就不撤；被停止的回合只撤标记；请求被中断时仍撤标记；候选全被拒时仍撤销已加的标记 |
-| `channels/routing/reactions/test_turn_reaction_sequence.py` | 集成 | 真实 `_handle_merged` 加真实 `_execute_prepared_context`（运行本身是脚本）在类 Telegram 渠道上，用户消息上的平台表情调用序列：完成的回合是「标记、撤标记、结果」各一次（共 3 次），失败的回合先发出错误文本再撤标记并显示失败表情，被停止的回合只有标记与撤标记 |
+| `channels/routing/reactions/test_status_reaction.py` | 单元 | 一个回合的状态表情 `StatusReaction`：按渠道词表选字，被拒时按角色依次回退（处理中 👀🤔、成功 ✅👍🎉、失败 ❌😢），都不被接受就不发；失败绝不回退成成功表情或 👎；配置为空串表示关闭、不回退；只有 FULL 档标记、SIMPLE 只显示结果、OFF 什么都不显示；标记只加一次、结果只显示一次，没加过标记就不撤；被停止的回合只撤标记；请求被中断时仍撤标记；候选全被拒时仍撤销已加的标记；标记是与回合并行的请求：平台没回应时回合不被拖住，撤标记一定等标记落定之后，标记被拒不影响结果表情，回合离开时（`cancel`）仍在途的请求被取消 |
+| `channels/routing/reactions/test_turn_reaction_sequence.py` | 集成 | 真实 `_handle_merged` 加真实 `_execute_prepared_context`（运行本身是脚本）在类 Telegram 渠道上，用户消息上的平台表情调用序列：完成的回合是「标记、撤标记、结果」各一次（共 3 次），失败的回合先发出错误文本再撤标记并显示失败表情，被停止的回合只有标记与撤标记；平台还没回应标记时智能体已开始运行、顺序仍是「标记、撤标记、结果」；服务关停时平台一直不应答的标记请求被取消而不遗留 |
 | `channels/routing/test_reaction_failure_visibility.py` | 单元 | 表情请求失败不进入回合，但按「渠道 + 错误类型」每 10 分钟告警一次（其余只记 debug）：另一个渠道、同渠道另一类错误各自告警，窗口过后再次告警，成功时不记日志 |
 | `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
 | `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |

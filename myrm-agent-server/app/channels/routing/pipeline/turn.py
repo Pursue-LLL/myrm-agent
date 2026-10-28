@@ -16,7 +16,7 @@
 - RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments``, the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
 
 [POS]
-Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it. The turn owns the status reaction of the message: it marks the message before the run and settles the mark once, after the run or in the error path.
+Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out and the gate is told the turn is done, which also drains the messages queued behind it. The turn owns the status reaction of the message: it starts marking the message as the run begins, without waiting for the platform, and settles the mark once, after the run or in the error path.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ class RouterTurnMixin:
                         await self._retire_open_approval(ctx)
 
                     status = StatusReaction(self._fx, self._reaction_policy, msg.channel, chat_id, msg.message_id)
-                    await status.received()
+                    status.received()
 
                     await self._execute_prepared_context(
                         ctx,
@@ -142,6 +142,8 @@ class RouterTurnMixin:
                         e, msg=msg, exec_for_error=exec_for_error, chat_id=chat_id, scratch=scratch, status=status
                     )
         finally:
+            if status is not None:
+                status.cancel()
             self._acknowledge_inbound(journal_entry_id)
             self._gate.on_task_complete(msg)
 

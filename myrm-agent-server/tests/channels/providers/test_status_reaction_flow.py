@@ -37,7 +37,9 @@ async def test_a_finished_turn_swaps_the_processing_reaction_for_the_result(
 ) -> None:
     status, post = slack_status
 
-    await status.received()
+    status.received()
+
+    await status.marked()
     await status.finish(outcome)
 
     assert _calls(post) == [("reactions.add", "eyes"), ("reactions.remove", "eyes"), ("reactions.add", final)]
@@ -47,7 +49,9 @@ async def test_a_finished_turn_swaps_the_processing_reaction_for_the_result(
 async def test_a_stopped_turn_leaves_no_processing_reaction_behind(slack_status: tuple[StatusReaction, AsyncMock]) -> None:
     status, post = slack_status
 
-    await status.received()
+    status.received()
+
+    await status.marked()
     await status.finish(TurnOutcome.ABANDONED)
 
     assert _calls(post) == [("reactions.add", "eyes"), ("reactions.remove", "eyes")]
