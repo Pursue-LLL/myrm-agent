@@ -50,7 +50,7 @@ const BANNER_COPY = {
     message: 'pendingMessage',
     action: 'allowAction',
     busy: 'allowing',
-    done: 'shortcutsAllowed',
+    done: 'commandsAllowed',
   },
 } as const satisfies Record<BannerMode, Record<string, string>>;
 
@@ -61,12 +61,12 @@ function resolveBannerMode(manifest: WorkspaceTrustManifest): BannerMode | null 
   return manifest.requires_trust ? 'restricted' : null;
 }
 
-interface CommandShortcutListProps {
+interface CommandPrefixListProps {
   label: string;
   prefixes: string[];
 }
 
-const CommandShortcutList = ({ label, prefixes }: CommandShortcutListProps) => (
+const CommandPrefixList = ({ label, prefixes }: CommandPrefixListProps) => (
   <div className="mt-2 rounded-md border border-amber-500/20 bg-background/50 p-2 text-xs">
     <p className="font-medium text-foreground">{label}</p>
     <ul aria-label={label} className="mt-1.5 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
@@ -204,7 +204,7 @@ export const WorkspaceTrustBanner = memo(({ workspacePath, onTrustChanged, class
         </div>
       </div>
 
-      {!isRestricted && <CommandShortcutList label={t('pendingList')} prefixes={pendingPrefixes} />}
+      {!isRestricted && <CommandPrefixList label={t('pendingList')} prefixes={pendingPrefixes} />}
 
       {canExpand && expanded && (
         <>
@@ -224,7 +224,7 @@ export const WorkspaceTrustBanner = memo(({ workspacePath, onTrustChanged, class
             </div>
           )}
           {pendingPrefixes.length > 0 && (
-            <CommandShortcutList label={t('shortcutsOnTrust')} prefixes={pendingPrefixes} />
+            <CommandPrefixList label={t('commandsOnTrust')} prefixes={pendingPrefixes} />
           )}
         </>
       )}

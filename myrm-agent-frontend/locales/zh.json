@@ -12801,7 +12801,7 @@
       "pendingTitle": "命令待你确认",
       "pendingMessage": "{path} 列出了无需每次确认即可运行的命令，在你允许之前不会生效。",
       "pendingList": "等待你确认",
-      "shortcutsOnTrust": "信任此文件夹后，以下命令将无需确认直接运行",
+      "commandsOnTrust": "信任此文件夹后，以下命令将无需确认直接运行",
       "turnedOffTitle": "信任此文件夹之前保持关闭",
       "itemSkills": "{count} 个本地技能",
       "itemRules": "{count} 条工作区规则",
@@ -12812,7 +12812,7 @@
       "trusting": "正在信任…",
       "allowAction": "允许这些命令",
       "allowing": "正在允许…",
-      "shortcutsAllowed": "这些命令现在无需确认即可运行。"
+      "commandsAllowed": "这些命令现在无需确认即可运行。"
     }
   },
   "milestone": {

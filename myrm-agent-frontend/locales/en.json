@@ -12801,7 +12801,7 @@
       "pendingTitle": "Commands waiting for your approval",
       "pendingMessage": "{path} lists commands that would run without asking you each time. They stay off until you allow them.",
       "pendingList": "Waiting for your approval",
-      "shortcutsOnTrust": "Trusting this folder also lets these commands run without asking",
+      "commandsOnTrust": "Trusting this folder also lets these commands run without asking",
       "turnedOffTitle": "Turned off until you trust this folder",
       "itemSkills": "{count, plural, one {# local skill} other {# local skills}}",
       "itemRules": "{count, plural, one {# workspace rule} other {# workspace rules}}",
@@ -12812,7 +12812,7 @@
       "trusting": "Trusting…",
       "allowAction": "Allow these commands",
       "allowing": "Allowing…",
-      "shortcutsAllowed": "These commands can now run without asking."
+      "commandsAllowed": "These commands can now run without asking."
     }
   },
   "milestone": {

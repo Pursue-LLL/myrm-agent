@@ -12801,7 +12801,7 @@
       "pendingTitle": "명령 승인 대기",
       "pendingMessage": "{path}에 매번 확인하지 않고 실행되는 명령이 있습니다. 허용하기 전에는 작동하지 않습니다.",
       "pendingList": "승인 대기 중",
-      "shortcutsOnTrust": "이 폴더를 신뢰하면 다음 명령도 확인 없이 실행됩니다",
+      "commandsOnTrust": "이 폴더를 신뢰하면 다음 명령도 확인 없이 실행됩니다",
       "turnedOffTitle": "이 폴더를 신뢰하기 전까지 꺼짐",
       "itemSkills": "로컬 스킬 {count}개",
       "itemRules": "워크스페이스 규칙 {count}개",
@@ -12812,7 +12812,7 @@
       "trusting": "신뢰하는 중…",
       "allowAction": "이 명령 허용",
       "allowing": "허용하는 중…",
-      "shortcutsAllowed": "이제 이 명령은 확인 없이 실행됩니다."
+      "commandsAllowed": "이제 이 명령은 확인 없이 실행됩니다."
     }
   },
   "milestone": {

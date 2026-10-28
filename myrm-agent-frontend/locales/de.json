@@ -12801,7 +12801,7 @@
       "pendingTitle": "Befehle warten auf Freigabe",
       "pendingMessage": "{path} listet Befehle auf, die ohne jedes Nachfragen ausgeführt würden. Sie bleiben aus, bis Sie sie erlauben.",
       "pendingList": "Warten auf Ihre Freigabe",
-      "shortcutsOnTrust": "Wenn Sie diesem Ordner vertrauen, laufen diese Befehle ebenfalls ohne Rückfrage",
+      "commandsOnTrust": "Wenn Sie diesem Ordner vertrauen, laufen diese Befehle ebenfalls ohne Rückfrage",
       "turnedOffTitle": "Ausgeschaltet, bis Sie diesem Ordner vertrauen",
       "itemSkills": "{count, plural, one {# lokaler Skill} other {# lokale Skills}}",
       "itemRules": "{count, plural, one {# Workspace-Regel} other {# Workspace-Regeln}}",
@@ -12812,7 +12812,7 @@
       "trusting": "Wird vertraut…",
       "allowAction": "Befehle erlauben",
       "allowing": "Wird erlaubt…",
-      "shortcutsAllowed": "Diese Befehle laufen jetzt ohne Rückfrage."
+      "commandsAllowed": "Diese Befehle laufen jetzt ohne Rückfrage."
     }
   },
   "milestone": {

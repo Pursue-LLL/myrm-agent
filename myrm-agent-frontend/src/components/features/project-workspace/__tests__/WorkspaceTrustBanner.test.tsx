@@ -69,7 +69,7 @@ describe('WorkspaceTrustBanner', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders nothing for a trusted folder whose shortcuts the user has already seen', async () => {
+  it('renders nothing for a trusted folder whose commands the user has already seen', async () => {
     const preview = vi
       .spyOn(workspaceTrustService, 'previewWorkspaceTrustManifest')
       .mockResolvedValue(
@@ -99,7 +99,7 @@ describe('WorkspaceTrustBanner', () => {
       expect(screen.getByText('itemRules:{"count":1}')).toBeTruthy();
     });
 
-    it('lists the command shortcuts that trusting would also allow', async () => {
+    it('lists the commands that trusting would also allow', async () => {
       vi.spyOn(workspaceTrustService, 'previewWorkspaceTrustManifest').mockResolvedValue(
         manifest({
           skill_count: 1,
@@ -113,7 +113,7 @@ describe('WorkspaceTrustBanner', () => {
       expect(screen.queryByText('npm run test')).toBeNull();
 
       fireEvent.click(screen.getByRole('button', { name: /detailsToggle/ }));
-      expect(screen.getByLabelText('shortcutsOnTrust').textContent).toContain('npm run test');
+      expect(screen.getByLabelText('commandsOnTrust').textContent).toContain('npm run test');
     });
 
     it('trusts the previewed folder state and notifies the caller', async () => {
@@ -136,7 +136,7 @@ describe('WorkspaceTrustBanner', () => {
     });
   });
 
-  describe('trusted folder with command shortcuts the user has not seen', () => {
+  describe('trusted folder with commands the user has not seen', () => {
     const pending = () =>
       manifest({
         current_level: 'TRUSTED',
@@ -146,7 +146,7 @@ describe('WorkspaceTrustBanner', () => {
         manifest_hash: 'hash-pending',
       });
 
-    it('shows the shortcuts waiting for approval without any click', async () => {
+    it('shows the commands waiting for approval without any click', async () => {
       vi.spyOn(workspaceTrustService, 'previewWorkspaceTrustManifest').mockResolvedValue(pending());
 
       render(<WorkspaceTrustBanner workspacePath="/tmp/repo" />);
@@ -168,7 +168,7 @@ describe('WorkspaceTrustBanner', () => {
 
       await waitFor(() => expect(decide).toHaveBeenCalledWith('/tmp/repo', 'TRUSTED', 'hash-pending'));
       expect(onTrustChanged).toHaveBeenCalledWith('TRUSTED');
-      expect(toast).toHaveBeenCalledWith({ title: 'shortcutsAllowed' });
+      expect(toast).toHaveBeenCalledWith({ title: 'commandsAllowed' });
     });
 
     it('reports a refused decision and shows the folder as it is now', async () => {

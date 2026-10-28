@@ -12801,7 +12801,7 @@
       "pendingTitle": "コマンドの承認待ち",
       "pendingMessage": "{path} に、毎回確認せずに実行されるコマンドが含まれています。許可するまで有効になりません。",
       "pendingList": "承認待ち",
-      "shortcutsOnTrust": "このフォルダを信頼すると、次のコマンドも確認なしで実行されます",
+      "commandsOnTrust": "このフォルダを信頼すると、次のコマンドも確認なしで実行されます",
       "turnedOffTitle": "このフォルダを信頼するまでオフ",
       "itemSkills": "ローカルスキル {count} 件",
       "itemRules": "ワークスペースルール {count} 件",
@@ -12812,7 +12812,7 @@
       "trusting": "信頼しています…",
       "allowAction": "これらのコマンドを許可",
       "allowing": "許可しています…",
-      "shortcutsAllowed": "これらのコマンドは確認なしで実行できるようになりました。"
+      "commandsAllowed": "これらのコマンドは確認なしで実行できるようになりました。"
     }
   },
   "milestone": {
