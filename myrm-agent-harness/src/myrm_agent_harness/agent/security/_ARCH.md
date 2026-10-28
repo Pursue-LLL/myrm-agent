@@ -42,6 +42,9 @@ Detailed design: [SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)
 | Submodule | Description |
 |-----------|-------------|
 | workspace_trust/ | Folder bind trust + side-channel gate. See [workspace_trust/_ARCH.md](workspace_trust/_ARCH.md). |
+| audit_pack/ | Legal-grade audit pack and non-repudiation evidence export suite. See [audit_pack/_ARCH.md](audit_pack/_ARCH.md). |
+| delegation/ | Triad delegation identity: subject identities and the privilege intersection guard that blocks privilege amplification. See [delegation/_ARCH.md](delegation/_ARCH.md). |
+| jit_gate/ | JIT dual verification gate: a fast metadata check plus a deep SHA-256 comparison right before a tool call resumes. See [jit_gate/_ARCH.md](jit_gate/_ARCH.md). |
 | detection/ | Detection submodule. |
 | guards/ | Session-level security guards integrated into tool_interceptor_middleware. |
 | message_filtering/ | Message filtering framework for AI safety and compliance. |
