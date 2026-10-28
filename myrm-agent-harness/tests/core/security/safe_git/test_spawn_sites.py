@@ -90,9 +90,11 @@ _BARE_GIT_SITES: dict[str, tuple[frozenset[str], str]] = {
     ),
     "myrm_agent_harness/toolkits/wiki/portability/vault_git.py": (
         frozenset({_DYNAMIC}),
-        "KNOWN GAP, not a safe site: the vault commit flow adopts an existing `.git` (`_ensure_repo` only inits when it is "
-        "absent), so a vault delivered with its own `.git` runs the programs it names on add/commit (measured: fsmonitor, "
-        "post-commit and reference-transaction ran)",
+        "assessed boundary, not a hardened site: the vault is an application-owned repository and `_ensure_repo` adopts "
+        "an existing `.git`, whose hooks then run on add/commit (measured: fsmonitor, post-commit and "
+        "reference-transaction ran); no path that places a foreign `.git` in the vault was found (imports scan only "
+        "`.md/.txt/.org` outside hidden directories, vault writes stay under `wiki/`, the macOS sandbox cannot write "
+        "the vault), so a new entry point that does must harden this flow first",
     ),
 }
 
