@@ -2,12 +2,14 @@
  * [INPUT]
  * - @/components/primitives/dialog::* (Radix Dialog primitive)
  * - @/store/chat/types::ProgressItem
+ * - ./utils::getDisplayStatus, getStatusLabelKey, WARNING_NOTICE (POS: How a step's outcome is named and toned)
  *
  * [OUTPUT]
  * - StepDetailModal: Detailed drill-down modal for inspected progress steps.
  *
  * [POS]
  * MessageBox progress-step inspection modal. Displays structured inputs, diagnostic advice, stdout, and raw JSON payload.
+ * A call someone refused (declined, not answered in time) is named and drawn as a warning, like in the step list.
  */
 
 'use client';
@@ -18,8 +20,9 @@ import { Check, Copy, Terminal, Activity, AlertCircle, Wrench, Clock, User } fro
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
+import { cn } from '@/lib/utils/classnameUtils';
 import type { ProgressItem } from '@/store/chat/types';
-import { getDisplayStatus } from './utils';
+import { getDisplayStatus, getStatusLabelKey, WARNING_NOTICE } from './utils';
 
 interface StepDetailModalProps {
   step: ProgressItem | null;
@@ -29,6 +32,7 @@ interface StepDetailModalProps {
 
 export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalProps) {
   const t = useTranslations('progressSteps.detailModal');
+  const tSteps = useTranslations('progressSteps');
   const [copied, setCopied] = useState(false);
 
   if (!step) {
@@ -36,6 +40,8 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
   }
 
   const displayStatus = getDisplayStatus(step);
+  const statusLabelKey = getStatusLabelKey(step);
+  const isWarning = displayStatus === 'warning';
 
   const handleCopyRaw = async () => {
     try {
@@ -89,14 +95,14 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
                 <span className="text-xs font-mono">{durationText}</span>
               </div>
             )}
-            {displayStatus && (
+            {statusLabelKey && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{t('status')}:</span>
                 <Badge
-                  variant={displayStatus === 'error' ? 'destructive' : 'secondary'}
-                  className="text-[11px] font-mono capitalize"
+                  variant={displayStatus === 'error' ? 'destructive' : isWarning ? 'outline' : 'secondary'}
+                  className={cn('text-[11px]', isWarning && WARNING_NOTICE.badge)}
                 >
-                  {displayStatus}
+                  {tSteps(statusLabelKey)}
                 </Badge>
               </div>
             )}
@@ -115,11 +121,23 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
           {/* Diagnostic or Error */}
           {(step.error_hint || typeof step.error === 'string') && (
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-destructive flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'text-xs font-medium flex items-center gap-1.5',
+                  isWarning ? WARNING_NOTICE.text : 'text-destructive',
+                )}
+              >
                 <AlertCircle className="w-3.5 h-3.5" />
                 {t('diagnostic')}
               </span>
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive leading-relaxed whitespace-pre-wrap">
+              <div
+                className={cn(
+                  'p-3 rounded-lg border text-xs leading-relaxed whitespace-pre-wrap',
+                  isWarning
+                    ? cn(WARNING_NOTICE.box, WARNING_NOTICE.text)
+                    : 'bg-destructive/10 border-destructive/20 text-destructive',
+                )}
+              >
                 {step.error_hint || String(step.error)}
               </div>
             </div>

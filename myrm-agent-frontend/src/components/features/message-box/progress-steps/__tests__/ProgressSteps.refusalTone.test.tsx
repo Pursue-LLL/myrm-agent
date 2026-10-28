@@ -50,6 +50,25 @@ describe('ProgressSteps refusal tone', () => {
     },
   );
 
+  it.each([
+    ['user_declined', 'text-amber-700', 'text-destructive'],
+    ['policy_denied', 'text-destructive', 'text-amber-700'],
+  ])('draws the hint of a %s step in its own tone', async (category, shown, notShown) => {
+    const HINT = 'Ask again when you are ready.';
+    render(
+      <ProgressSteps messageId="msg-hint" steps={[{ ...refusedStep(category), error_hint: HINT }]} loading={false} />,
+    );
+    await expand();
+
+    const label = screen.getByText('diagnosticHint:');
+    expect(label.className).toContain(shown);
+    expect(label.className).not.toContain(notShown);
+    expect(label.parentElement?.className).toContain(
+      category === 'user_declined' ? 'border-amber' : 'border-destructive',
+    );
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+  });
+
   it('keeps a policy denial in the error tone, collapsed and expanded', async () => {
     render(<ProgressSteps messageId="msg-denied" steps={[refusedStep('policy_denied')]} loading={false} />);
 

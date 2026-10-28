@@ -4307,6 +4307,16 @@
       "grader": "Evaluation issue",
       "owner": "Input or configuration issue"
     },
+    "statusLabels": {
+      "success": "Succeeded",
+      "error": "Failed",
+      "warning": "Notice",
+      "cancelled": "Cancelled",
+      "complete": "Completed",
+      "blocked": "Blocked",
+      "running": "Running",
+      "done": "Done"
+    },
     "errorCategories": {
       "oom": "Out of Memory",
       "oom_killed": "OOM Killed",

@@ -4292,6 +4292,16 @@
       "grader": "評估側問題",
       "owner": "輸入或配置問題"
     },
+    "statusLabels": {
+      "success": "成功",
+      "error": "失敗",
+      "warning": "提醒",
+      "cancelled": "已取消",
+      "complete": "已完成",
+      "blocked": "已阻擋",
+      "running": "進行中",
+      "done": "已完成"
+    },
     "errorCategories": {
       "oom": "記憶體溢位 (OOM)",
       "oom_killed": "OOM 強殺",

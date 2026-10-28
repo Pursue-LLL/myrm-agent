@@ -25,6 +25,7 @@ import { StepDetailModal } from './StepDetailModal';
 import { useScrollbarStyles } from './useScrollbarStyles';
 import {
   getDisplayStatus,
+  WARNING_NOTICE,
   getStepTitle,
   isDelegationToolLine,
   isTextItems,
@@ -286,7 +287,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 variant={isWarningStep ? 'outline' : 'destructive'}
                 className={cn(
                   'ml-1 h-4 px-1.5 text-[9px] uppercase tracking-wider font-bold shrink-0',
-                  isWarningStep && 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
+                  isWarningStep && WARNING_NOTICE.badge,
                 )}
               >
                 {t(`errorCategories.${step.error_category}`)}
@@ -374,21 +375,30 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                   className={cn(
                     'mt-2 p-2.5 rounded-lg border',
                     isWarningStep
-                      ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/40'
+                      ? WARNING_NOTICE.box
                       : 'bg-destructive/5 dark:bg-destructive/10 border-destructive/20',
                   )}
                 >
                   <div
                     className={cn(
                       'text-xs break-all leading-relaxed whitespace-pre-wrap',
-                      isWarningStep ? 'text-amber-700 dark:text-amber-400' : 'text-destructive',
+                      isWarningStep ? WARNING_NOTICE.text : 'text-destructive',
                     )}
                   >
                     {linkifyErrorText(step.error)}
                   </div>
                   {step.error_hint && (
-                    <div className="mt-2 text-[11px] opacity-80 border-t border-destructive/10 pt-2 flex items-start gap-1.5 leading-relaxed">
-                      <span className="font-bold shrink-0 text-destructive">{t('diagnosticHint')}:</span>
+                    <div
+                      className={cn(
+                        'mt-2 text-[11px] opacity-80 border-t pt-2 flex items-start gap-1.5 leading-relaxed',
+                        isWarningStep ? WARNING_NOTICE.rule : 'border-destructive/10',
+                      )}
+                    >
+                      <span
+                        className={cn('font-bold shrink-0', isWarningStep ? WARNING_NOTICE.text : 'text-destructive')}
+                      >
+                        {t('diagnosticHint')}:
+                      </span>
                       <span className="italic text-foreground/80">{step.error_hint}</span>
                     </div>
                   )}
@@ -710,7 +720,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 variant={isCollapsedWarning ? 'outline' : 'destructive'}
                 className={cn(
                   'ml-1 h-4 px-1.2 text-[8px] uppercase tracking-wider font-bold shrink-0',
-                  isCollapsedWarning && 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
+                  isCollapsedWarning && WARNING_NOTICE.badge,
                 )}
               >
                 {t(`errorCategories.${collapsedStep.error_category}`)}

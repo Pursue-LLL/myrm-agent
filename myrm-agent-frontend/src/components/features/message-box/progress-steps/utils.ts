@@ -161,14 +161,36 @@ export const isDelegationToolLine = (step: ProgressItem): boolean =>
 // Refusals that are someone's decision (a person said no, or nobody answered in time), not a failure of the work.
 const DECISION_REFUSAL_CATEGORIES: ReadonlySet<string> = new Set(['user_declined', 'approval_timeout']);
 
+type StatusFields = Pick<ProgressItem, 'status' | 'error_category'>;
+
+const isDecisionRefusal = (step: StatusFields): boolean =>
+  step.status === 'error' && !!step.error_category && DECISION_REFUSAL_CATEGORIES.has(step.error_category);
+
 /**
  * The status a step is shown with. The stream (and the stored history) keeps `error` for every refused call; a
  * decision refusal reads as a warning, so live and reloaded chats look the same and a "No" never looks like a crash.
  */
-export const getDisplayStatus = (step: Pick<ProgressItem, 'status' | 'error_category'>): ProgressItem['status'] =>
-  step.status === 'error' && step.error_category && DECISION_REFUSAL_CATEGORIES.has(step.error_category)
-    ? 'warning'
-    : step.status;
+export const getDisplayStatus = (step: StatusFields): ProgressItem['status'] =>
+  isDecisionRefusal(step) ? 'warning' : step.status;
+
+/**
+ * The `progressSteps` message that names how a step ended, or null while it has no status. A decision refusal says
+ * what happened ("Declined by User") instead of the generic "Warning" its colour comes from.
+ */
+export const getStatusLabelKey = (step: StatusFields): string | null => {
+  if (isDecisionRefusal(step)) {
+    return `errorCategories.${step.error_category}`;
+  }
+  return step.status ? `statusLabels.${step.status}` : null;
+};
+
+/** The amber look of the notice a decision refusal is drawn in, so the step list and the detail modal agree. */
+export const WARNING_NOTICE = {
+  box: 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/40',
+  text: 'text-amber-700 dark:text-amber-400',
+  rule: 'border-amber-300/60 dark:border-amber-800/40',
+  badge: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
+} as const;
 
 /**
  * 根据 step_key 获取步骤标题

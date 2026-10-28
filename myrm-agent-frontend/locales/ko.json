@@ -4292,6 +4292,16 @@
       "grader": "평가 측 문제",
       "owner": "입력 또는 설정 문제"
     },
+    "statusLabels": {
+      "success": "성공",
+      "error": "실패",
+      "warning": "주의",
+      "cancelled": "취소됨",
+      "complete": "완료",
+      "blocked": "차단됨",
+      "running": "실행 중",
+      "done": "완료"
+    },
     "errorCategories": {
       "oom": "메모리 부족",
       "oom_killed": "OOM 종료됨",

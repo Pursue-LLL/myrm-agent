@@ -4307,6 +4307,16 @@
       "grader": "评估侧问题",
       "owner": "输入或配置问题"
     },
+    "statusLabels": {
+      "success": "成功",
+      "error": "失败",
+      "warning": "提醒",
+      "cancelled": "已取消",
+      "complete": "已完成",
+      "blocked": "已阻止",
+      "running": "进行中",
+      "done": "已完成"
+    },
     "errorCategories": {
       "oom": "内存溢出 (OOM)",
       "oom_killed": "OOM 强杀",

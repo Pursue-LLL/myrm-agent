@@ -4292,6 +4292,16 @@
       "grader": "評価側の問題",
       "owner": "入力または設定の問題"
     },
+    "statusLabels": {
+      "success": "成功",
+      "error": "失敗",
+      "warning": "注意",
+      "cancelled": "キャンセル済み",
+      "complete": "完了",
+      "blocked": "ブロック済み",
+      "running": "実行中",
+      "done": "完了"
+    },
     "errorCategories": {
       "oom": "メモリ不足 (OOM)",
       "oom_killed": "OOM 強制終了",

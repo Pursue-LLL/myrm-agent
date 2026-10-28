@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { EvidenceStageHUD } from '../EvidenceStageHUD';
@@ -126,5 +126,70 @@ describe('EvidenceStageHUD Component', () => {
 
     render(<EvidenceStageHUD steps={refused('policy_denied')} loading={false} />);
     expect(screen.getByTestId('evidence-stage-executing').className).toContain('rose');
+  });
+
+  describe('step outcome in the evidence drawer', () => {
+    const openDrawer = (steps: ProgressItem[], loading = false) => {
+      render(<EvidenceStageHUD steps={steps} loading={loading} defaultExpanded />);
+      return within(screen.getByTestId('evidence-snapshot-drawer'));
+    };
+
+    it('names a declined call by what happened, in the warning tone', () => {
+      const drawer = openDrawer([
+        {
+          step_key: 'tool_bash',
+          tool_name: 'bash_code_execute_tool',
+          status: 'error',
+          error_category: 'user_declined',
+        },
+      ]);
+
+      const badge = drawer.getByText('progressSteps.errorCategories.user_declined');
+      expect(badge.className).toContain('amber');
+      expect(badge.className).not.toContain('rose');
+    });
+
+    it('names a failed call a failure, in the error tone', () => {
+      const drawer = openDrawer([
+        {
+          step_key: 'tool_bash',
+          tool_name: 'bash_code_execute_tool',
+          status: 'error',
+          error_category: 'policy_denied',
+        },
+      ]);
+
+      expect(drawer.getByText('progressSteps.statusLabels.error').className).toContain('rose');
+    });
+
+    it('says a succeeded call succeeded in words of the interface language', () => {
+      const drawer = openDrawer([{ step_key: 'tool_edit', tool_name: 'edit_file', status: 'success' }]);
+
+      expect(drawer.getByText('progressSteps.statusLabels.success').className).toContain('emerald');
+      expect(drawer.queryByText('success')).toBeNull();
+    });
+
+    it('says a call without a status is running while the turn runs and done after it', () => {
+      const steps: ProgressItem[] = [{ step_key: 'tool_edit', tool_name: 'edit_file' }];
+
+      const running = render(<EvidenceStageHUD steps={steps} loading defaultExpanded />);
+      expect(screen.getByText('progressSteps.statusLabels.running')).toBeInTheDocument();
+      running.unmount();
+
+      render(<EvidenceStageHUD steps={steps} loading={false} defaultExpanded />);
+      expect(screen.getByText('progressSteps.statusLabels.done')).toBeInTheDocument();
+    });
+
+    it('says whose side a problem is on in words of the interface language, and says nothing for an unknown side', () => {
+      const drawer = openDrawer([
+        { step_key: 'tool_a', tool_name: 'tool_a', status: 'error', fault_side: 'harness_tool' },
+        { step_key: 'tool_b', tool_name: 'tool_b', status: 'error', fault_side: 'unknown' },
+      ]);
+
+      expect(drawer.getByText('progressSteps.faultSides.harness_tool')).toBeInTheDocument();
+      expect(drawer.queryByText('harness_tool')).toBeNull();
+      expect(drawer.queryByText('unknown')).toBeNull();
+      expect(drawer.queryByText('progressSteps.faultSides.unknown')).toBeNull();
+    });
   });
 });

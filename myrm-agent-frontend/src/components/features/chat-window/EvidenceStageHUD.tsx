@@ -5,6 +5,7 @@
  * - @/store/chat/types::ProgressItem (POS: Progress step with tool/plan execution metadata)
  * - @/components/features/icons/PremiumIcons (POS: Premium status icons)
  * - next-intl::useTranslations (POS: i18n support)
+ * - message-box/progress-steps/utils::getDisplayStatus, getStatusLabelKey (POS: How a step's outcome is named and toned)
  *
  * [OUTPUT]
  * - EvidenceStageHUD: Visual four-state stage progression bar (Prepared -> Executing -> Observed -> Verified)
@@ -18,7 +19,7 @@
 import React, { memo, useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getDisplayStatus } from '@/components/features/message-box/progress-steps/utils';
+import { getDisplayStatus, getStatusLabelKey } from '@/components/features/message-box/progress-steps/utils';
 import type { ProgressItem } from '@/store/chat/types/progress';
 import {
   IconBrain,
@@ -54,9 +55,30 @@ interface EvidenceStageHUDProps {
 
 const VERIFY_TOOL_REGEX = /(test|pytest|check|verify|lint|typecheck|eval|audit|assertion)/i;
 
+const OUTCOME_TONES = {
+  success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  error: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+  warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+} as const;
+
+/** How an evidence step ended, in the words and tone the step list uses (a refused call is a warning, not a crash). */
+const StepOutcome = memo<{ step: ProgressItem; loading: boolean }>(({ step, loading }) => {
+  const tSteps = useTranslations('progressSteps');
+  const status = getDisplayStatus(step);
+  const labelKey = getStatusLabelKey(step) ?? (loading ? 'statusLabels.running' : 'statusLabels.done');
+  const tone = status === 'success' || status === 'error' || status === 'warning' ? OUTCOME_TONES[status] : null;
+  return (
+    <span className={cn('px-1.5 py-0.2 rounded font-medium', tone ?? 'bg-muted text-muted-foreground')}>
+      {tSteps(labelKey)}
+    </span>
+  );
+});
+StepOutcome.displayName = 'StepOutcome';
+
 export const EvidenceStageHUD = memo<EvidenceStageHUDProps>(
   ({ steps = [], loading = false, className = '', defaultExpanded = false }) => {
     const t = useTranslations('evidenceStageHUD');
+    const tSteps = useTranslations('progressSteps');
     const [expanded, setExpanded] = useState(defaultExpanded);
     const [selectedStage, setSelectedStage] = useState<EvidenceStageKey | null>(null);
 
@@ -320,9 +342,9 @@ export const EvidenceStageHUD = memo<EvidenceStageHUDProps>(
                       <div className="flex items-center gap-1.5 font-medium text-foreground truncate">
                         <IconWrench className="w-3 h-3 text-primary/70 shrink-0" />
                         <span className="truncate">{step.tool_name || step.step_key}</span>
-                        {step.fault_side && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono">
-                            {step.fault_side}
+                        {step.fault_side && step.fault_side !== 'unknown' && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            {tSteps(`faultSides.${step.fault_side}`)}
                           </span>
                         )}
                       </div>
@@ -330,20 +352,7 @@ export const EvidenceStageHUD = memo<EvidenceStageHUDProps>(
                         {(step.duration_ms ?? step.elapsed_ms ?? 0) > 0 && (
                           <span>{step.duration_ms ?? step.elapsed_ms}ms</span>
                         )}
-                        <span
-                          className={cn(
-                            'px-1.5 py-0.2 rounded font-medium',
-                            getDisplayStatus(step) === 'success'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : getDisplayStatus(step) === 'error'
-                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                                : getDisplayStatus(step) === 'warning'
-                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                  : 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          {getDisplayStatus(step) || (loading ? 'running' : 'done')}
-                        </span>
+                        <StepOutcome step={step} loading={loading} />
                       </div>
                     </div>
 

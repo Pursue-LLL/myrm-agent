@@ -4292,6 +4292,16 @@
       "grader": "Problem bei der Bewertung",
       "owner": "Problem bei Eingabe oder Konfiguration"
     },
+    "statusLabels": {
+      "success": "Erfolgreich",
+      "error": "Fehlgeschlagen",
+      "warning": "Hinweis",
+      "cancelled": "Abgebrochen",
+      "complete": "Abgeschlossen",
+      "blocked": "Blockiert",
+      "running": "Läuft",
+      "done": "Fertig"
+    },
     "errorCategories": {
       "oom": "Nicht genügend Speicher",
       "oom_killed": "OOM getötet",
