@@ -368,7 +368,7 @@ class DingTalkApiClient:
             },
         }
         resp = await self._http.post(
-            f"{_API_NEW}/v1.0/robot/emotions/reply",
+            f"{_API_NEW}/v1.0/robot/emotion/reply",
             json=body,
             headers={
                 "x-acs-dingtalk-access-token": self._access_token,
@@ -403,7 +403,7 @@ class DingTalkApiClient:
             },
         }
         resp = await self._http.post(
-            f"{_API_NEW}/v1.0/robot/emotions/recall",
+            f"{_API_NEW}/v1.0/robot/emotion/recall",
             json=body,
             headers={
                 "x-acs-dingtalk-access-token": self._access_token,

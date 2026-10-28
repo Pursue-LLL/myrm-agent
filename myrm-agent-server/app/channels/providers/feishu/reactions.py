@@ -9,7 +9,8 @@
 
 [POS]
 Static vocabulary for Feishu message reactions. Keeps the inbound mixin and the outbound mixin
-free of each other's imports.
+free of each other's imports. Feishu rejects an ``emoji_type`` outside its official list (error
+231001) and the names are case-sensitive, so every value here is a spelling taken from that list.
 """
 
 from __future__ import annotations
@@ -20,16 +21,18 @@ UNICODE_TO_FEISHU_EMOJI: dict[str, str] = {
     "\U0001f44d": "THUMBSUP",
     "\u2764\ufe0f": "HEART",
     "\U0001f389": "JIAYI",
-    "\U0001f440": "EYES",
+    "\U0001f440": "Typing",
+    "\U0001f914": "THINKING",
+    "\U0001f4af": "Hundred",
+    "\u274c": "CrossMark",
+    "\U0001f44e": "ThumbsDown",
+    "\U0001f494": "HEARTBROKEN",
+    "\U0001f635": "DIZZY",
 }
-# Inbound coverage extends beyond the outbound vocabulary because reaction
-# events arrive with the platform's full emoji_type set; aligning with
-# ``parse_approval_command``'s three tiers (allow_once / allow_always / deny)
-# avoids silent drops when an IM user reacts with the documented vocabulary.
+# Reaction events carry the platform's full emoji_type set. Approval by reaction reads the
+# allow_once / allow_always / deny alphabet of ``parse_approval_command``; Feishu has no type for
+# the allow_always glyphs (♾️ ⭐), so that tier is only reachable through the text aliases.
 FEISHU_EMOJI_TO_UNICODE: dict[str, str] = {
     **{v: k for k, v in UNICODE_TO_FEISHU_EMOJI.items()},
-    "THUMBSDOWN": "\U0001f44e",
-    "NO": "\u274c",
-    "INFINITY": "\u267e",
-    "STAR": "\u2b50",
+    "MUSCLE": "\U0001f4aa",
 }

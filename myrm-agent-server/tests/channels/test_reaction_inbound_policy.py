@@ -24,9 +24,10 @@ This module pins three contracts:
    ``_REACTION_EMOJI_MAP``, Matrix ``_REACTION_EMOJI_MAP``, Feishu
    ``_FEISHU_EMOJI_TO_UNICODE``) must map every emoji that
    ``parse_approval_command`` recognises across all three decision tiers
-   so the IM-side approval feature is actually usable. iMessage tapback is
-   the platform-locked exception (six fixed reactions; users fall back to
-   the textual ``aa`` / ``always`` aliases for ``allow_always``).
+   so the IM-side approval feature is actually usable. iMessage tapback
+   (six fixed reactions) and Feishu (its official reaction list has no
+   ♾️/⭐ type) are the platform-locked exceptions for ``allow_always``;
+   users fall back to the textual ``aa`` / ``always`` aliases.
 """
 
 from __future__ import annotations
@@ -153,31 +154,31 @@ class TestThreeTierEmojiCoverage:
     """
 
     @pytest.mark.parametrize(
-        "table_path,decoded",
+        "table_path,supports_always",
         [
             pytest.param(
                 "app.channels.providers.slack.channel.SlackChannel._SLACK_EMOJI_MAP",
-                None,
+                True,
                 id="slack",
             ),
             pytest.param(
                 "app.channels.providers.mattermost.channel.MattermostChannel._REACTION_EMOJI_MAP",
-                None,
+                True,
                 id="mattermost",
             ),
             pytest.param(
                 "app.channels.providers.matrix.handlers._REACTION_EMOJI_MAP",
-                None,
+                True,
                 id="matrix",
             ),
             pytest.param(
                 "app.channels.providers.feishu.inbound.FEISHU_EMOJI_TO_UNICODE",
-                None,
+                False,  # official list has no ♾️/⭐ type; allow_always uses the text aliases
                 id="feishu",
             ),
         ],
     )
-    def test_table_covers_three_tiers(self, table_path: str, decoded: None) -> None:
+    def test_table_covers_three_tiers(self, table_path: str, supports_always: bool) -> None:
         from importlib import import_module
 
         module_path, _, attr_path = table_path.rpartition(".")
@@ -214,8 +215,9 @@ class TestThreeTierEmojiCoverage:
         normalised = {value.replace("\ufe0f", "") for value in decoded_emojis}
 
         assert normalised & approve_once, f"{table_path}: zero emoji maps to allow_once decision"
-        assert normalised & approve_always, (
-            f"{table_path}: zero emoji maps to allow_always decision; "
-            f"users will not be able to grant 'Always allow' via reactions"
-        )
+        if supports_always:
+            assert normalised & approve_always, (
+                f"{table_path}: zero emoji maps to allow_always decision; "
+                f"users will not be able to grant 'Always allow' via reactions"
+            )
         assert normalised & deny_set, f"{table_path}: zero emoji maps to deny decision"

@@ -26,6 +26,10 @@ normalised away by `normalize_approval_emoji`):
 | `allow_always`  | ♾️, ⭐                                         | `/approve-always`, `/always`, `aa`, `!y`, 永远允许 |
 | `deny`          | 👎, ❌, 🚫                                      | `/deny`, `/deny <reason>`, `2`, `n`/`no`, 拒绝, 不行 |
 
+Platforms whose reaction vocabulary lacks a glyph cannot express that tier by reaction: iMessage
+(six tapbacks) and Feishu (official list has no ♾️/⭐ type) reach `allow_always` only through the
+text aliases.
+
 `_is_reaction_approval_valid` in `commands/router_commands_approval.py` enforces a layered gate:
 1. **Pending-approval check** — the chat must have an active interrupted task and an open
    request in `_pending_approvals`.
