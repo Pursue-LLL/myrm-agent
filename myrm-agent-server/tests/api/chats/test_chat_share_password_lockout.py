@@ -44,9 +44,10 @@ def client() -> Iterator[TestClient]:
     app.dependency_overrides[get_db] = _no_db
     with (
         patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata", new=AsyncMock(side_effect=lambda chat_id: _chat(chat_id))
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
+            new=AsyncMock(side_effect=lambda chat_id: _chat(chat_id)),
         ),
-        patch("app.api.chats.chat.share.render_share_html", new=AsyncMock(return_value="<html>shared</html>")),
+        patch("app.api.chats.chat.share.public.render_share_html", new=AsyncMock(return_value="<html>shared</html>")),
         TestClient(app) as test_client,
     ):
         yield test_client

@@ -120,7 +120,7 @@ def _token_for_exp(exp: int, *, password: str | None = None) -> str:
 class TestCreateChatShare:
     def test_create_share_returns_url(self, share_client: TestClient) -> None:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -135,7 +135,7 @@ class TestCreateChatShare:
 
     def test_create_share_chat_not_found(self, share_client: TestClient) -> None:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -144,7 +144,7 @@ class TestCreateChatShare:
 
     def test_create_share_ttl_validation(self, share_client: TestClient) -> None:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -158,7 +158,7 @@ class TestCreateChatShare:
         """share_url is built from the public-ingress SSOT when configured."""
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
@@ -177,7 +177,7 @@ class TestCreateChatShare:
         """Empty ingress degrades to the request origin so local links still work."""
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
@@ -195,7 +195,7 @@ class TestCreateChatShare:
     def test_create_persists_expiry_and_protected_flag(self, share_client: TestClient) -> None:
         """Create persists the display metadata the status endpoint needs."""
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -212,7 +212,7 @@ class TestCreateChatShare:
     def test_create_persists_unprotected_flag(self, share_client: TestClient) -> None:
         """An unprotected share persists a False protected flag (not NULL)."""
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -253,7 +253,7 @@ class TestRebuildChatShareToken:
 class TestGetChatShareStatus:
     def _get_status(self, share_client: TestClient, chat: ChatDTO) -> dict[str, object]:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=chat,
         ):
@@ -362,7 +362,7 @@ class TestGetChatShareStatus:
 
     def test_chat_not_found(self, share_client: TestClient) -> None:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -373,7 +373,7 @@ class TestGetChatShareStatus:
         """Ingress resolution failure must not fail share creation."""
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
@@ -392,7 +392,7 @@ class TestGetChatShareStatus:
 class TestRevokeChatShare:
     def test_revoke_share(self, share_client: TestClient) -> None:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -401,7 +401,7 @@ class TestRevokeChatShare:
 
     def test_revoke_share_not_found(self, share_client: TestClient) -> None:
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -417,7 +417,7 @@ class TestRevokeChatShare:
         active = _make_chat_dto(share_token_fingerprint=token_fingerprint(token))
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=active,
         ):
@@ -440,7 +440,7 @@ class TestRevokeChatShare:
         active = _make_chat_dto(share_token_fingerprint=old_fp)
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=active,
         ):
@@ -469,7 +469,7 @@ class TestRevokeChatShare:
         )
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=revoked,
         ):
@@ -491,12 +491,12 @@ class TestPublicSharePage:
 
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -528,7 +528,7 @@ class TestPublicSharePage:
         revoked_chat = _make_chat_dto(share_revoked_at=datetime.now(timezone.utc))
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=revoked_chat,
         ):
@@ -566,7 +566,7 @@ class TestPublicSharePage:
         revoked_chat = _make_chat_dto(share_revoked_at=datetime.now(timezone.utc))
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=revoked_chat,
         ):
@@ -603,7 +603,7 @@ class TestPublicSharePage:
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -619,7 +619,7 @@ class TestPublicSharePage:
         revoked_chat = _make_chat_dto(share_revoked_at=datetime.now(timezone.utc))
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=revoked_chat,
         ):
@@ -637,7 +637,7 @@ class TestPublicSharePage:
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -686,12 +686,12 @@ class TestPublicSharePage:
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -711,12 +711,12 @@ class TestPublicSharePage:
 
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -736,12 +736,12 @@ class TestPublicSharePage:
 
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -758,12 +758,12 @@ class TestPublicSharePage:
         cookie = unlock.headers["set-cookie"].split(";")[0].split("=", 1)[1]
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -789,12 +789,12 @@ class TestPublicSharePage:
         )
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -815,12 +815,12 @@ class TestPublicSharePage:
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -856,12 +856,12 @@ class TestPublicSharePage:
         )
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=reshared,
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -882,7 +882,7 @@ class TestPublicSharePage:
             share_revoked_fingerprints=[token_fingerprint(old_token)],
         )
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=reshared,
         ):
@@ -909,12 +909,12 @@ class TestPublicSharePage:
         )
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=state,
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -937,12 +937,12 @@ class TestPublicSharePage:
         )
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=reshared,
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value="<html><body>Shared</body></html>",
             ),
@@ -961,7 +961,7 @@ class TestPublicSharePage:
         from app.core.security.share.share_unlock import unlock_cookie_name
 
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -988,7 +988,7 @@ class TestPublicSharePage:
             exp=int(time.time()) + 300,
         )
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=_make_chat_dto(),
         ):
@@ -1005,7 +1005,7 @@ class TestPublicSharePage:
 
         token, _ = create_chat_share_token("chat-ghost", ttl_seconds=3600)
         with patch(
-            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -1023,12 +1023,12 @@ class TestPublicSharePage:
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
         with (
             patch(
-                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                "app.services.chat.chat_service.ChatService.get_chat_metadata",
                 new_callable=AsyncMock,
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.render_share_html",
+                "app.api.chats.chat.share.public.render_share_html",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
