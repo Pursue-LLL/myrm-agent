@@ -18,9 +18,10 @@ from app.core.security.share.share_attempt_guard import (
 _TOKEN = "token-a"
 
 
-def _request(host: str | None = "10.0.0.1") -> Request:
+def _request(host: str | None = "10.0.0.1", accept_language: str | None = None) -> Request:
     client = SimpleNamespace(host=host) if host is not None else None
-    return cast(Request, SimpleNamespace(client=client))
+    headers = {"accept-language": accept_language} if accept_language is not None else {}
+    return cast(Request, SimpleNamespace(client=client, headers=headers))
 
 
 def _fail(token: str, host: str | None, times: int) -> None:
@@ -52,6 +53,18 @@ def test_lockout_page_is_a_429_with_retry_after_and_a_disabled_form() -> None:
     assert "Too many incorrect attempts" in body
     assert "autofocus disabled/>" in body
     assert 'type="submit" disabled>' in body
+
+
+def test_lockout_page_follows_the_visitor_language() -> None:
+    _fail(_TOKEN, "10.0.0.1", 5)
+
+    response = password_lockout_response(_request(accept_language="zh-CN,zh;q=0.9"), _TOKEN)
+
+    assert response is not None
+    body = bytes(response.body).decode()
+    assert "错误次数过多" in body
+    assert "Too many incorrect attempts" not in body
+    assert '<html lang="zh-CN">' in body
 
 
 def test_lockout_is_scoped_to_token_and_client() -> None:

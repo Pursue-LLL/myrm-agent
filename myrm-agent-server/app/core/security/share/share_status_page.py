@@ -2,9 +2,11 @@
 
 [INPUT]
 - starlette.requests::Request (POS: Accept negotiation)
+- app.core.security.share.share_locale (POS: visitor language)
 
 [OUTPUT]
-- render_share_status_html: self-contained HTML status page
+- ShareLinkState: why a share link cannot be served
+- render_share_status_html: self-contained HTML status page in the visitor's language
 - wants_html: detect browser clients from the Accept header
 - share_not_found: browser-friendly HTML 404 or API JSON 404
 
@@ -13,14 +15,21 @@ Server business layer. Shared links are time-limited and revocable, so every
 public share surface must answer expired/revoked/unavailable links with a
 friendly HTML page for browser visitors instead of a raw JSON error, while
 keeping the JSON 404 contract for API clients. The page is self-contained
-(inline styles + dark mode), carries noindex privacy meta, and never exposes
-internal details such as token format or storage internals.
+(inline styles + dark mode), written in the visitor's language (English or
+Chinese), carries noindex privacy meta, and never exposes internal details
+such as token format or storage internals. The wording of every state lives in
+one catalog here so the chat and artifact share routes cannot drift apart.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import Enum
+
 from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
+
+from app.core.security.share.share_locale import ShareLang, resolve_share_lang
 
 _STATUS_ICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" '
@@ -32,7 +41,7 @@ _STATUS_ICON_SVG = (
 
 _TEMPLATE = """\
 <!DOCTYPE html>
-<html lang="en">
+<html lang="%(html_lang)s">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -59,18 +68,65 @@ p{font-size:.875rem;color:#666;line-height:1.5;margin-bottom:1.25rem}
 <div class="icon">%(icon)s</div>
 <h1>%(title)s</h1>
 <p>%(message)s</p>
-<p class="brand">Shared via Myrm Agent</p>
+<p class="brand">%(brand)s</p>
 </div>
 </body>
 </html>"""
 
 
-def render_share_status_html(*, title: str, message: str) -> str:
+class ShareLinkState(Enum):
+    """Why a public share link cannot be served."""
+
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+    CONTENT_UNAVAILABLE = "content_unavailable"
+    FILE_UNAVAILABLE = "file_unavailable"
+    CONVERSATION_UNAVAILABLE = "conversation_unavailable"
+
+
+@dataclass(frozen=True, slots=True)
+class _StateCopy:
+    title: str
+    message: str
+
+
+_HTML_LANG: dict[ShareLang, str] = {"en": "en", "zh": "zh-CN"}
+
+_BRAND: dict[ShareLang, str] = {"en": "Shared via Myrm Agent", "zh": "由 Myrm Agent 分享"}
+
+_STATE_COPY: dict[ShareLinkState, dict[ShareLang, _StateCopy]] = {
+    ShareLinkState.REVOKED: {
+        "en": _StateCopy("Link Revoked", "This share link has been revoked by its owner."),
+        "zh": _StateCopy("链接已撤销", "分享者已撤销此链接。"),
+    },
+    ShareLinkState.EXPIRED: {
+        "en": _StateCopy("Link Expired", "This share link has expired or is no longer valid."),
+        "zh": _StateCopy("链接已过期", "此分享链接已过期或已失效。"),
+    },
+    ShareLinkState.CONTENT_UNAVAILABLE: {
+        "en": _StateCopy("Content Unavailable", "The shared content is no longer available."),
+        "zh": _StateCopy("内容不可用", "所分享的内容已不可用。"),
+    },
+    ShareLinkState.FILE_UNAVAILABLE: {
+        "en": _StateCopy("Content Unavailable", "The shared file is no longer available."),
+        "zh": _StateCopy("内容不可用", "所分享的文件已不可用。"),
+    },
+    ShareLinkState.CONVERSATION_UNAVAILABLE: {
+        "en": _StateCopy("Content Unavailable", "The shared conversation is no longer available."),
+        "zh": _StateCopy("内容不可用", "所分享的对话已不可用。"),
+    },
+}
+
+
+def render_share_status_html(state: ShareLinkState, lang: ShareLang = "en") -> str:
     """Return a self-contained HTML page for an unavailable share link."""
+    copy = _STATE_COPY[state][lang]
     return _TEMPLATE % {
+        "html_lang": _HTML_LANG[lang],
         "icon": _STATUS_ICON_SVG,
-        "title": title,
-        "message": message,
+        "title": copy.title,
+        "message": copy.message,
+        "brand": _BRAND[lang],
     }
 
 
@@ -83,18 +139,17 @@ def share_not_found(
     request: Request,
     *,
     detail: str,
-    title: str,
-    message: str,
+    state: ShareLinkState,
     headers: dict[str, str],
 ) -> Response:
     """Answer a 404 for an unavailable share link.
 
-    Browser visitors get a friendly HTML status page; API clients keep the
-    JSON 404 contract.
+    Browser visitors get a friendly HTML status page in their language; API
+    clients keep the English JSON 404 contract (``detail``).
     """
     if wants_html(request):
         return HTMLResponse(
-            content=render_share_status_html(title=title, message=message),
+            content=render_share_status_html(state, resolve_share_lang(request)),
             status_code=404,
             headers=headers,
         )

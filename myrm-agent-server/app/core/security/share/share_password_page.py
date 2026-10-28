@@ -2,9 +2,11 @@
 
 [INPUT]
 - starlette.requests::Request (POS: password-gate form submission)
+- app.core.security.share.share_locale (POS: visitor language)
 
 [OUTPUT]
-- render_password_gate_html: returns a self-contained HTML page (optionally in the locked-out variant)
+- render_password_gate_html: returns a self-contained HTML page in the visitor's language (optionally in the locked-out variant)
+- password_gate_response: the 403 gate page for a request, optionally flagging a wrong password
 - resolve_gate_password: resolves the gate password from a POST form / GET query
 
 [POS]
@@ -12,11 +14,19 @@ Renders a lightweight, self-contained password prompt page for public share
 endpoints and resolves the submitted password. The form posts the password as
 a body field so it never appears in the URL (CWE-598); the legacy ``p`` query
 parameter is still accepted so links shared before the change keep unlocking.
+The page is written in the visitor's language (English or Chinese). The
+locked-out variant disables the form and reloads itself once the lock has
+lifted, so a visitor who waits is never left on a dead page.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from starlette.requests import Request
+from starlette.responses import HTMLResponse
+
+from app.core.security.share.share_locale import ShareLang, resolve_share_lang
 
 _LOCK_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" '
@@ -28,11 +38,11 @@ _LOCK_SVG = (
 
 _TEMPLATE = """\
 <!DOCTYPE html>
-<html lang="en">
+<html lang="%(html_lang)s">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Password Required</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>%(refresh)s
+<title>%(title)s</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -64,11 +74,11 @@ button:disabled:hover{background:#6366f1}
 <body>
 <div class="card">
 <div class="icon">%(lock_svg)s</div>
-<h1>Password Required</h1>
-<p>This shared content is password-protected.</p>
+<h1>%(title)s</h1>
+<p>%(prompt)s</p>
 <form method="post" action="">
-<input type="password" name="p" placeholder="Enter password" required autofocus%(disabled)s/>
-<button type="submit"%(disabled)s>Unlock</button>
+<input type="password" name="p" placeholder="%(placeholder)s" required autofocus%(disabled)s/>
+<button type="submit"%(disabled)s>%(button)s</button>
 </form>
 <div class="err">%(err_msg)s</div>
 </div>
@@ -76,24 +86,79 @@ button:disabled:hover{background:#6366f1}
 </html>"""
 
 
-def render_password_gate_html(*, wrong_password: bool = False, retry_after: int | None = None) -> str:
+@dataclass(frozen=True, slots=True)
+class _GateCopy:
+    html_lang: str
+    title: str
+    prompt: str
+    placeholder: str
+    button: str
+    wrong_password: str
+    locked: str
+
+
+_GATE_COPY: dict[ShareLang, _GateCopy] = {
+    "en": _GateCopy(
+        html_lang="en",
+        title="Password Required",
+        prompt="This shared content is password-protected.",
+        placeholder="Enter password",
+        button="Unlock",
+        wrong_password="Incorrect password. Please try again.",
+        locked="Too many incorrect attempts. Try again in {seconds} seconds.",
+    ),
+    "zh": _GateCopy(
+        html_lang="zh-CN",
+        title="需要密码",
+        prompt="此分享内容受密码保护。",
+        placeholder="输入密码",
+        button="解锁",
+        wrong_password="密码错误，请重试。",
+        locked="错误次数过多，请 {seconds} 秒后重试。",
+    ),
+}
+
+
+def render_password_gate_html(
+    *,
+    lang: ShareLang = "en",
+    wrong_password: bool = False,
+    retry_after: int | None = None,
+) -> str:
     """Return self-contained HTML for the password gate page.
 
-    ``retry_after`` renders the locked-out variant: the form is disabled and the
-    visitor is told how many seconds remain before another attempt is accepted.
+    ``retry_after`` renders the locked-out variant: the form is disabled, the
+    visitor is told how many seconds remain before another attempt is accepted,
+    and the page reloads itself just after that moment (the remaining time is
+    truncated to whole seconds, so one extra second lands after the lock lifts).
     """
+    copy = _GATE_COPY[lang]
     if retry_after is not None:
-        message = f"Too many incorrect attempts. Try again in {retry_after} seconds."
+        message = copy.locked.format(seconds=retry_after)
     elif wrong_password:
-        message = "Incorrect password. Please try again."
+        message = copy.wrong_password
     else:
         message = ""
     return _TEMPLATE % {
+        "html_lang": copy.html_lang,
+        "refresh": f'<meta http-equiv="refresh" content="{retry_after + 1}"/>' if retry_after is not None else "",
+        "title": copy.title,
+        "prompt": copy.prompt,
+        "placeholder": copy.placeholder,
+        "button": copy.button,
         "lock_svg": _LOCK_SVG,
         "err_display": "block" if message else "none",
         "err_msg": message,
         "disabled": " disabled" if retry_after is not None else "",
     }
+
+
+def password_gate_response(request: Request, *, wrong_password: bool = False) -> HTMLResponse:
+    """The 403 password gate page for *request*, in the visitor's language."""
+    return HTMLResponse(
+        render_password_gate_html(lang=resolve_share_lang(request), wrong_password=wrong_password),
+        status_code=403,
+    )
 
 
 async def resolve_gate_password(request: Request) -> str | None:

@@ -43,7 +43,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
@@ -55,10 +55,10 @@ from app.core.security.share.share_attempt_guard import (
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import is_password_protected
 from app.core.security.share.share_password_page import (
-    render_password_gate_html,
+    password_gate_response,
     resolve_gate_password,
 )
-from app.core.security.share.share_status_page import share_not_found
+from app.core.security.share.share_status_page import ShareLinkState, share_not_found
 from app.core.security.share.share_unlock import (
     attach_unlock_cookie,
     parse_unlock_credential,
@@ -191,16 +191,14 @@ async def _serve_share_bundle(
             return share_not_found(
                 request,
                 detail=str(exc),
-                title="Content Unavailable",
-                message="The shared content is no longer available.",
+                state=ShareLinkState.CONTENT_UNAVAILABLE,
                 headers=_SHARE_RESPONSE_HEADERS,
             )
         except FileNotFoundError:
             return share_not_found(
                 request,
                 detail="Artifact content not found",
-                title="Content Unavailable",
-                message="The shared content is no longer available.",
+                state=ShareLinkState.CONTENT_UNAVAILABLE,
                 headers=_SHARE_RESPONSE_HEADERS,
             )
         except Exception as exc:
@@ -212,8 +210,7 @@ async def _serve_share_bundle(
         return share_not_found(
             request,
             detail="Shared file not found",
-            title="Content Unavailable",
-            message="The shared file is no longer available.",
+            state=ShareLinkState.FILE_UNAVAILABLE,
             headers=_SHARE_RESPONSE_HEADERS,
         )
 
@@ -241,7 +238,7 @@ def _auth_or_gate(
             unlocked_claims = _unlock_claims_from_cookie(unlock)
             if unlocked_claims is not None:
                 return unlocked_claims
-        return HTMLResponse(render_password_gate_html(), status_code=403)
+        return password_gate_response(request)
 
     guessing = protected and bool(password)
     if guessing and (locked := password_lockout_response(request, token)) is not None:
@@ -251,15 +248,11 @@ def _auth_or_gate(
     if claims is None:
         if guessing:
             record_password_failure(request, token)
-            return HTMLResponse(
-                render_password_gate_html(wrong_password=True),
-                status_code=403,
-            )
+            return password_gate_response(request, wrong_password=True)
         return share_not_found(
             request,
             detail="Share link is invalid or expired",
-            title="Link Expired",
-            message="This share link has expired or is no longer valid.",
+            state=ShareLinkState.EXPIRED,
             headers=_SHARE_RESPONSE_HEADERS,
         )
     if guessing:
@@ -288,8 +281,7 @@ async def _ensure_not_revoked(
         return share_not_found(
             request,
             detail="Share link has been revoked",
-            title="Link Revoked",
-            message="This share link has been revoked by its owner.",
+            state=ShareLinkState.REVOKED,
             headers=_SHARE_RESPONSE_HEADERS,
         )
     return None

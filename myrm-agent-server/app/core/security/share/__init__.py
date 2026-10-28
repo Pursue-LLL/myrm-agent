@@ -9,9 +9,10 @@
   - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, decode_unverified_payload
   - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
-  - share_status_page: browser-friendly share 404 page + Accept-based JSON fallback
+  - share_locale: visitor language negotiation (Accept-Language) for the share pages
+  - share_status_page: browser-friendly share 404 page (state catalog in English/Chinese) + Accept-based JSON fallback
   - share_unlock: per-share unlock-cookie name/credential mechanics
-  - share_password_page: self-contained password-gate HTML + submission parsing
+  - share_password_page: self-contained bilingual password-gate HTML + submission parsing
 
 [POS]
 Server business layer. Single shared-link security domain consumed by both the
@@ -36,11 +37,14 @@ from app.core.security.share.share_hmac import (
     sign_share_token,
     token_fingerprint,
 )
+from app.core.security.share.share_locale import ShareLang, resolve_share_lang
 from app.core.security.share.share_password_page import (
+    password_gate_response,
     render_password_gate_html,
     resolve_gate_password,
 )
 from app.core.security.share.share_status_page import (
+    ShareLinkState,
     render_share_status_html,
     share_not_found,
     wants_html,
@@ -54,6 +58,8 @@ from app.core.security.share.share_unlock import (
 
 __all__ = [
     "SHARE_PRIVACY_HEADERS",
+    "ShareLang",
+    "ShareLinkState",
     "attach_unlock_cookie",
     "b64url_decode",
     "b64url_encode",
@@ -63,12 +69,14 @@ __all__ = [
     "is_password_protected",
     "parse_share_token",
     "parse_unlock_credential",
+    "password_gate_response",
     "password_lockout_response",
     "record_password_failure",
     "record_password_success",
     "render_password_gate_html",
     "render_share_status_html",
     "resolve_gate_password",
+    "resolve_share_lang",
     "share_not_found",
     "sign_share_token",
     "token_fingerprint",

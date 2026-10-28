@@ -74,10 +74,10 @@ from app.core.security.share.share_hmac import (
     token_fingerprint,
 )
 from app.core.security.share.share_password_page import (
-    render_password_gate_html,
+    password_gate_response,
     resolve_gate_password,
 )
-from app.core.security.share.share_status_page import share_not_found
+from app.core.security.share.share_status_page import ShareLinkState, share_not_found
 from app.core.security.share.share_unlock import (
     attach_unlock_cookie,
     parse_unlock_credential,
@@ -367,8 +367,7 @@ async def get_public_chat_share(
         return share_not_found(
             request,
             detail="This share link has been revoked",
-            title="Link Revoked",
-            message="This share link has been revoked by its owner.",
+            state=ShareLinkState.REVOKED,
             headers=_SHARE_RESPONSE_HEADERS,
         )
 
@@ -384,11 +383,10 @@ async def get_public_chat_share(
                 return share_not_found(
                     request,
                     detail="Conversation not found",
-                    title="Content Unavailable",
-                    message="The shared conversation is no longer available.",
+                    state=ShareLinkState.CONVERSATION_UNAVAILABLE,
                     headers=_SHARE_RESPONSE_HEADERS,
                 )
-            return HTMLResponse(render_password_gate_html(), status_code=403)
+            return password_gate_response(request)
     else:
         guessing = protected and bool(password)
         if guessing and (locked := password_lockout_response(request, token)) is not None:
@@ -397,15 +395,11 @@ async def get_public_chat_share(
         if claims is None:
             if guessing:
                 record_password_failure(request, token)
-                return HTMLResponse(
-                    render_password_gate_html(wrong_password=True),
-                    status_code=403,
-                )
+                return password_gate_response(request, wrong_password=True)
             return share_not_found(
                 request,
                 detail="Share link is invalid or expired",
-                title="Link Expired",
-                message="This share link has expired or is no longer valid.",
+                state=ShareLinkState.EXPIRED,
                 headers=_SHARE_RESPONSE_HEADERS,
             )
         if guessing:
@@ -417,8 +411,7 @@ async def get_public_chat_share(
         return share_not_found(
             request,
             detail="Conversation not found",
-            title="Content Unavailable",
-            message="The shared conversation is no longer available.",
+            state=ShareLinkState.CONVERSATION_UNAVAILABLE,
             headers=_SHARE_RESPONSE_HEADERS,
         )
 
@@ -427,8 +420,7 @@ async def get_public_chat_share(
         return share_not_found(
             request,
             detail="Conversation not found",
-            title="Content Unavailable",
-            message="The shared conversation is no longer available.",
+            state=ShareLinkState.CONVERSATION_UNAVAILABLE,
             headers=_SHARE_RESPONSE_HEADERS,
         )
 

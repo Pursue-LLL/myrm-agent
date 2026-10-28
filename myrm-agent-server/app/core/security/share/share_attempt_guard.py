@@ -3,6 +3,7 @@
 [INPUT]
 - app.core.security.auth.failed_attempt_guard (POS: failure counter with lockout window)
 - app.core.security.share.share_hmac::token_fingerprint (POS: non-reversible token key)
+- app.core.security.share.share_locale (POS: visitor language)
 - app.core.security.share.share_password_page (POS: locked-out gate page)
 
 [OUTPUT]
@@ -25,6 +26,7 @@ from starlette.responses import HTMLResponse
 
 from app.core.security.auth.failed_attempt_guard import FailedAttemptGuard
 from app.core.security.share.share_hmac import token_fingerprint
+from app.core.security.share.share_locale import resolve_share_lang
 from app.core.security.share.share_password_page import render_password_gate_html
 
 _guard = FailedAttemptGuard()
@@ -41,7 +43,7 @@ def password_lockout_response(request: Request, token: str) -> HTMLResponse | No
     if retry_after is None:
         return None
     return HTMLResponse(
-        render_password_gate_html(retry_after=retry_after),
+        render_password_gate_html(lang=resolve_share_lang(request), retry_after=retry_after),
         status_code=429,
         headers={"Retry-After": str(retry_after)},
     )

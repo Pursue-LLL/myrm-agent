@@ -77,6 +77,28 @@ def test_wrong_guesses_answer_403_then_the_sixth_attempt_is_429(client: TestClie
     assert "Too many incorrect attempts" in locked.text
 
 
+def test_gate_lock_and_status_pages_follow_the_visitor_language(client: TestClient) -> None:
+    token = _protected_token()
+    zh = {"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"}
+
+    gate = client.get(f"{_BASE}/{token}", headers=zh)
+    assert gate.status_code == 403
+    assert "需要密码" in gate.text
+
+    for _ in range(4):
+        client.get(f"{_BASE}/{token}", params={"p": "wrong"}, headers=zh)
+    wrong = client.get(f"{_BASE}/{token}", params={"p": "wrong"}, headers=zh)
+    assert "密码错误，请重试。" in wrong.text
+
+    locked = client.get(f"{_BASE}/{token}", params={"p": "wrong"}, headers=zh)
+    assert locked.status_code == 429
+    assert "错误次数过多" in locked.text
+
+    invalid = client.get(f"{_BASE}/not-a-share-token", headers={**zh, "Accept": "text/html"})
+    assert invalid.status_code == 404
+    assert "链接已过期" in invalid.text
+
+
 def test_locked_share_rejects_even_the_correct_password(client: TestClient) -> None:
     token = _protected_token()
     for _ in range(5):
