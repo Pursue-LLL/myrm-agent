@@ -10,7 +10,7 @@ Signal 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 |------|------|------|-------|
 | `__init__.py` | 入口 | Signal channel provider via Signal CLI REST API. | ✅ |
 | `addressing.py` | 模块 | Signal addressing: `wire_recipient` turns signal-cli's bare group id into the `group.` form the REST wrapper accepts (numbers/UUIDs pass through); `MessageAuthors` remembers who wrote each group message so a reaction can name its target author. | ✅ |
-| `api.py` | 模块 | Signal HTTP/WS layer. Provides REST messaging, WebSocket stream_events(), and HTTP polling fallback. Called by channel.py via self._api. | ✅ |
+| `api.py` | 模块 | Signal HTTP/WS layer. Provides REST messaging, typing indicators (`PUT`/`DELETE /v1/typing-indicator`, both with the recipient in a JSON body in the wrapper's group form; a refusal raises), reactions, WebSocket stream_events(), and HTTP polling fallback. Called by channel.py via self._api. | ✅ |
 | `channel.py` | 模块 | Signal integration. Implemented via Signal CLI REST API: credentials, lifecycle, inbound mode selection, outbound, groups and diagnostics; composes `SignalInboundMixin`. | ✅ |
 | `helpers.py` | 模块 | Signal envelope type definitions, constants (timeouts, WS settings), and pure functions. Referenced by channel.py, inbound.py and api.py. | ✅ |
 | `inbound.py` | 模块 | `SignalInboundMixin`: WebSocket / HTTP polling receive loops, envelope routing, reaction and data-message parsing (records group message authors), mention and attachment handling. | ✅ |

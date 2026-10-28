@@ -10,7 +10,7 @@ WebSocket real-time receiving, and HTTP polling fallback.
 - .helpers::constants, TypedDict structures (POS: Signal envelope type definitions and pure functions.)
 
 [OUTPUT]
-- SignalClient: HTTP + WebSocket client for Signal CLI REST API (reactions are POST/DELETE /v1/reactions with a flat ``reaction`` string)
+- SignalClient: HTTP + WebSocket client for Signal CLI REST API (reactions are POST/DELETE /v1/reactions with a flat ``reaction`` string; typing is PUT/DELETE /v1/typing-indicator with the recipient in a JSON body)
 
 [POS]
 Signal HTTP/WS layer. Provides REST messaging, WebSocket stream_events(), and HTTP polling fallback. Called by channel.py via self._api.
@@ -95,17 +95,20 @@ class SignalClient:
     # ── Typing ────────────────────────────────────────────────────────
 
     async def start_typing(self, chat_id: str) -> None:
-        await self._http.put(
-            f"{self._api_url}/v1/typing-indicator/{self._phone}",
-            json={"recipient": chat_id},
-            timeout=_TYPING_TIMEOUT,
-        )
+        await self._typing("PUT", chat_id)
 
-    async def stop_typing(self) -> None:
-        await self._http.delete(
+    async def stop_typing(self, chat_id: str) -> None:
+        await self._typing("DELETE", chat_id)
+
+    async def _typing(self, method: str, chat_id: str) -> None:
+        """Both calls name the chat in a JSON body; the wrapper answers 400 to a DELETE that has none."""
+        resp = await self._http.request(
+            method,
             f"{self._api_url}/v1/typing-indicator/{self._phone}",
+            json={"recipient": wire_recipient(chat_id)},
             timeout=_TYPING_TIMEOUT,
         )
+        resp.raise_for_status()
 
     # ── Reactions ─────────────────────────────────────────────────────
 

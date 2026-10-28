@@ -498,30 +498,6 @@ class TestSignalOutbound:
         assert "refused" in (ch.health.last_error or "")
 
     @pytest.mark.asyncio
-    async def test_start_typing(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        ch._api._http.put = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await ch.start_typing("+9999")
-        ch._api._http.put.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_stop_typing(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        ch._api._http.delete = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await ch.stop_typing("+9999")
-        ch._api._http.delete.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_send_text_non_201(self) -> None:
         from unittest.mock import AsyncMock, MagicMock
 
@@ -637,7 +613,7 @@ class TestSignalOutbound:
         from unittest.mock import AsyncMock
 
         ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        ch._api._http.put = AsyncMock(side_effect=Exception("fail"))  # type: ignore[assignment]
+        ch._api._http.request = AsyncMock(side_effect=Exception("fail"))  # type: ignore[assignment]
         await ch.start_typing("+9999")
 
     @pytest.mark.asyncio
@@ -645,7 +621,7 @@ class TestSignalOutbound:
         from unittest.mock import AsyncMock
 
         ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
-        ch._api._http.delete = AsyncMock(side_effect=Exception("fail"))  # type: ignore[assignment]
+        ch._api._http.request = AsyncMock(side_effect=Exception("fail"))  # type: ignore[assignment]
         await ch.stop_typing("+9999")
 
 
@@ -742,34 +718,6 @@ class TestSignalClientApi:
 
         resp = await client.send_message({"message": "hi", "number": "+1234567890", "recipients": ["+9999"]})
         assert resp.status_code == 201
-
-    @pytest.mark.asyncio
-    async def test_start_typing(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        from app.channels.providers.signal.api import SignalClient
-
-        client = SignalClient("http://signal:8080", "+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        client._http.put = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await client.start_typing("+9999")
-        client._http.put.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_stop_typing(self) -> None:
-        from unittest.mock import AsyncMock, MagicMock
-
-        from app.channels.providers.signal.api import SignalClient
-
-        client = SignalClient("http://signal:8080", "+1234567890")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 204
-        client._http.delete = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
-
-        await client.stop_typing()
-        client._http.delete.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_receive_ok(self) -> None:

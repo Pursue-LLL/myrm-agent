@@ -294,7 +294,7 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
 
     async def stop_typing(self, chat_id: str) -> None:
         try:
-            await self._api.stop_typing()
+            await self._api.stop_typing(chat_id)
         except Exception as exc:
             logger.debug("Signal typing stop failed for %s: %s", chat_id, exc)
 
