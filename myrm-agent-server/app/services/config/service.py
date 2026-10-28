@@ -120,7 +120,7 @@ def _decrypt_with_status(config: UserConfig) -> tuple[dict[str, object], bool]:
             if decrypted is None:
                 return {}, True
 
-    return decrypted, False  # type: ignore[return-value]
+    return decrypted, False
 
 
 def _decrypt_if_needed(config: UserConfig) -> dict[str, object]:

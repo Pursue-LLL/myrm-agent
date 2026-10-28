@@ -9,7 +9,7 @@
 [POS] 配置服务 API 数据模型层。定义请求、响应结构以及 Omni-Config 强类型校验 Schema。
 """
 
-from typing import Literal, Self, cast
+from typing import Literal, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.config import JsonDict
@@ -148,7 +148,7 @@ def _personal_settings_field[T](
         json_schema_extra["x-ui-visible-if"] = visible_if
     if requires_field is not None:
         json_schema_extra["x-ui-requires-field"] = requires_field
-    return cast(T, Field(default=default, description=description, json_schema_extra=json_schema_extra))
+    return Field(default=default, description=description, json_schema_extra=json_schema_extra)
 
 
 class PersonalSettingsConfigValue(BaseModel):

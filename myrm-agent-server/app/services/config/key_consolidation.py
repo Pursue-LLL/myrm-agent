@@ -11,7 +11,8 @@ standalone rows into `providers` and deletes the split keys.
 - consolidate_split_providers_keys: merge split keys into providers bundle
 
 [POS]
-Startup migration for legacy provider config rows. Runs once per server boot.
+Startup migration for legacy provider config rows. Runs once per server boot; leaves everything untouched while the
+stored `providers` row cannot be decrypted.
 """
 
 from __future__ import annotations
@@ -46,6 +47,11 @@ async def consolidate_split_providers_keys() -> dict[str, int]:
         return stats
 
     providers_record = await config_service.get("providers")
+    if providers_record is not None and providers_record.unreadable:
+        # Merging into the empty value of a row sealed under a lost key would overwrite what the user can still restore.
+        logger.warning("Skipping providers consolidation: the stored providers cannot be decrypted with the current key")
+        stats["skipped"] = 1
+        return stats
     providers_value: dict[str, Any] = _as_dict(providers_record.value if providers_record else None)
     original_providers = dict(providers_value)
 

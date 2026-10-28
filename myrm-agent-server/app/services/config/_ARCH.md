@@ -16,7 +16,7 @@
 | `service.py` | 核心 | 配置 CRUD：set/get/get_all/sync/delete，含加密/解密管道和版本冲突检测；`create_initial_version` / `increment_version` 是版本号的唯一生成处，启动迁移同用 | ✅ |
 | `encryption.py` | 核心 | 业务层加密策略：密钥注入、敏感配置判定、encrypt/decrypt 委托到 harness ConfigCrypto | ✅ |
 | `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级；`seal_stored_configs` 是启动时的整体入口（一个会话里先封配置行、再封审计历史、最后迁移本地模型密钥） | ✅ |
-| `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle | ✅ |
+| `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle；providers 行因密钥丢失读不出（`unreadable`）时整体跳过，不覆盖也不删子键 | ✅ |
 | `onboarding.py` | 核心 | 首次配置 onboarding：检查状态、标记完成、推荐 provider、probe 本地模型与搜索（SearXNG/DuckDuckGo） | ✅ |
 | `searxng_setup.py` | 辅助 | 本地 SearXNG 启动（Docker Compose，local/tauri deploy only）+ 启动后轮询探测可用性 | ✅ |
 
@@ -40,7 +40,7 @@
 1. 当前 key 解密 → 成功则返回
 2. 如果失败，尝试 legacy device-fingerprint key → 成功则记录 WARNING 日志
 3. 双重加密检测：解密后如果仍是 `{"_cipher": "..."}` 结构，自动再解密一层
-4. 全部失败（封存它的密钥已丢失）→ 值为 `{}`，`ConfigRecord.unreadable = True`。`{}` 与「从未保存」「保存的就是空」无法区分，所以靠这个显式标志：前端据此不把默认值回写覆盖该行并提示用户，远程备份调度据此不把它当成未配置
+4. 全部失败（封存它的密钥已丢失）→ 值为 `{}`，`ConfigRecord.unreadable = True`。`{}` 与「从未保存」「保存的就是空」无法区分，所以靠这个显式标志：前端据此不把默认值回写覆盖该行并提示用户，远程备份调度据此不把它当成未配置，启动期的 providers 子键合并据此跳过
 
 ### 2. 加密策略 (`encryption.py`)
 
