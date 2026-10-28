@@ -5,7 +5,7 @@ contends with shared ``:8080`` agent-stream lock while parallel LIVE pytest runs
 
 Formal run::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_allowlist_pattern_live_chrome_e2e.py
 """
 

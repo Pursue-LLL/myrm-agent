@@ -208,7 +208,7 @@ async def test_muse_spark_responses_wire_two_turn_tool_loop(
     """Real WebUI: muse-spark Turn1 web_search tool loop → Turn2 reasoning replay."""
     api_key, base_url = _require_muse_spark_e2e()
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
+        pytest.fail("Provider readiness gate failed — run ./myrm-dev ready --chrome")
 
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)

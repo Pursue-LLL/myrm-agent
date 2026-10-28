@@ -1,7 +1,7 @@
 """Real Chrome MCP E2E for Research Studio three-column workbench.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
 
 Covers:
   T1 - /research page loads with correct three-column layout (PC mode)

@@ -612,7 +612,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
         pytest.fail(
-            "Provider config not ready for live smart-routing E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
+            "Provider config not ready for live smart-routing E2E — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome"
         )
 
     backup = fetch_config_value("providers", api_url=api_url)

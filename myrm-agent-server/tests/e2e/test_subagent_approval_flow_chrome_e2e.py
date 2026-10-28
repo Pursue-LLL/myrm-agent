@@ -17,7 +17,7 @@ YOLO to skip HITL entirely.
 
 Formal run::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_subagent_approval_flow_chrome_e2e.py
 """
 

@@ -3,7 +3,7 @@
 Single-session anti-mux (READ×1): one attach covers all scenarios — badge,
 CreateDialog live preview, and chat-page banner visibility (absent=green, present=yellow/red).
 Parallel E2E: do NOT split into per-scenario tests (each would re-attach).
-Run: `./myrm test -m chrome_e2e tests/e2e/test_cron_observability_chrome_e2e.py`
+Run: `./myrm-dev test -m chrome_e2e tests/e2e/test_cron_observability_chrome_e2e.py`
 """
 
 from __future__ import annotations

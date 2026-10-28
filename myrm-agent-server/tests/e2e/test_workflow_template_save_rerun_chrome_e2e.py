@@ -155,7 +155,7 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
     _ = e2e_resource_ledger
     if not wait_e2e_provider_ready(timeout_sec=90.0):
         pytest.fail(
-            "Provider not ready — run ./myrm ready --chrome then ./myrm test -m chrome_e2e "
+            "Provider not ready — run ./myrm-dev ready --chrome then ./myrm-dev test -m chrome_e2e "
             "myrm-agent/myrm-agent-server/tests/e2e/test_workflow_template_save_rerun_chrome_e2e.py",
         )
 

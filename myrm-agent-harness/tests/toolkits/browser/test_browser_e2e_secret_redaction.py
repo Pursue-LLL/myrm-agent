@@ -12,7 +12,7 @@ navigate / execute_script.
 The navigate test targets a real external URL (OAuth callback semantics) and
 skips itself when the network is unavailable.
 
-Run with: ./myrm test -m e2e tests/toolkits/browser/test_browser_e2e_secret_redaction.py
+Run with: ./myrm-dev test -m e2e tests/toolkits/browser/test_browser_e2e_secret_redaction.py
 """
 
 from __future__ import annotations

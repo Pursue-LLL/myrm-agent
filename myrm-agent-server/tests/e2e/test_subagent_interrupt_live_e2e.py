@@ -7,7 +7,7 @@ approval middleware + ``ApprovalRegistry`` are fully wired.
 
 Formal run::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_subagent_interrupt_live_e2e.py
 """
 

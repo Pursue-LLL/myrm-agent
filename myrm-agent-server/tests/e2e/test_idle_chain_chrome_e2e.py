@@ -5,7 +5,7 @@ heartbeat that pauses background maintenance), the tab is closed, and the idle t
 turn queued must run to completion once the foreground pause lapses.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   WebUI default model configured (E2E Chrome profile DB)
 """
 
@@ -142,7 +142,7 @@ async def test_chrome_ui_turn_idle_chain_completes(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for the live idle-chain E2E; run via ./myrm test -m chrome_e2e"
+            "Provider config not ready for the live idle-chain E2E; run via ./myrm-dev test -m chrome_e2e"
         )
 
     started = time.time()

@@ -12,7 +12,7 @@ Covers:
               Stop aborts it so the shared stack is never left evaluating.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
 """
 
 from __future__ import annotations

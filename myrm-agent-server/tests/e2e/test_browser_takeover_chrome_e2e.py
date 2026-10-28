@@ -259,13 +259,13 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
     """
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live browser takeover Chrome E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
+            "Provider config not ready for live browser takeover Chrome E2E — run via ./myrm-dev test -m chrome_e2e "
+            "after ./myrm-dev ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
         )
 
     if not wait_e2e_cdp_ready(timeout_sec=45.0):
         pytest.fail(
-            "E2E Chrome CDP not ready for browser takeover LIVE test — run ./myrm ready --chrome "
+            "E2E Chrome CDP not ready for browser takeover LIVE test — run ./myrm-dev ready --chrome "
             "(MYRM Chrome on :9333 must respond to /json/version)",
         )
 

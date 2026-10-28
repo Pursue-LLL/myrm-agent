@@ -30,6 +30,6 @@ def assert_chrome_mcp_mux_entry_allowed() -> None:
         return
     raise RuntimeError(
         f"{E2E_CHROME_MCP_ENTRY_DENIED_TOKEN}: mux Chrome MCP is disabled on the E2E "
-        "profile — use MYRM_BROWSER_ORCHESTRATOR=1 ./myrm test -m chrome_e2e, or set "
+        "profile — use MYRM_BROWSER_ORCHESTRATOR=1 ./myrm-dev test -m chrome_e2e, or set "
         "MYRM_CHROME_MCP_DIAGNOSTIC=1 for one-shot manual diagnosis only"
     )

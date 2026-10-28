@@ -162,7 +162,7 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
         time.sleep(0.25)
     raise RuntimeError(
         "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
-        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm-dev ready --chrome"
     )
 
 
@@ -354,7 +354,7 @@ def _wait_daemon_operation_credit(*, budget_sec: float) -> None:
         if snap is None:
             raise RuntimeError(
                 "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
-                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm-dev ready --chrome"
             )
         available_raw = snap.get("operation_credits_available", 0)
         available = available_raw if isinstance(available_raw, int) else 0

@@ -431,7 +431,7 @@ def run_ui_heal_cli(
     flock_wait_sec: float = 120.0,
     slow_sec: float = 5.0,
 ) -> int:
-    """Global single-flight ./myrm ui-heal — wave-safe, parallel pytest may continue."""
+    """Global single-flight ./myrm-dev ui-heal — wave-safe, parallel pytest may continue."""
     if _shared_ui_probe_ok(timeout_sec=slow_sec):
         before = "ok"
     else:

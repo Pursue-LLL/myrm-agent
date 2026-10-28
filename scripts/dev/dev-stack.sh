@@ -843,7 +843,7 @@ cmd_attach() {
   }
 
   probe_sec="$(_attach_wall_remaining)" || {
-    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm-dev ready" >&2
     exit 1
   }
   if _api_healthy "${probe_sec}" && _frontend_healthy "${probe_sec}"; then
@@ -852,7 +852,7 @@ cmd_attach() {
   fi
 
   remaining="$(_attach_wall_remaining)" || {
-    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm-dev ready" >&2
     exit 1
   }
   if _wait_stack_warm "${remaining}"; then
@@ -861,14 +861,14 @@ cmd_attach() {
   fi
 
   remaining="$(_attach_wall_remaining)" || {
-    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm-dev ready" >&2
     exit 1
   }
   if _wait_stack_health "${remaining}"; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
     exit 0
   fi
-  echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+  echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm-dev ready" >&2
   exit 1
 }
 
@@ -888,7 +888,7 @@ _try_optional_client_hot() {
     echo "STACK_OK: client_hot during ensure"
     return 0
   fi
-  echo "STACK_WARN: client_hot failed during ensure — run: ./myrm ready --chrome" >&2
+  echo "STACK_WARN: client_hot failed during ensure — run: ./myrm-dev ready --chrome" >&2
   return 0
 }
 
@@ -911,7 +911,7 @@ cmd_ensure() {
       echo "STACK_ATTACH_TIMEOUT: stack not shell_hot within ${ATTACH_WAIT_SEC}s during wave pin" >&2
       exit 1
     fi
-    echo "STACK_FAIL: ensure denied while wave pins stack — use: ./myrm ready --attach --chrome" >&2
+    echo "STACK_FAIL: ensure denied while wave pins stack — use: ./myrm-dev ready --attach --chrome" >&2
     exit 1
   fi
 
@@ -1326,7 +1326,7 @@ _supervisor_delegate_or_fail() {
   if bash "${SCRIPT_DIR}/stack-supervisor.sh" rpc "${cmd}"; then
     return 0
   fi
-  echo "STACK_FAIL: supervisor rpc ${cmd} failed — run: bash ${SCRIPT_DIR}/stack-supervisor.sh start && cd open-perplexity && ./myrm ready" >&2
+  echo "STACK_FAIL: supervisor rpc ${cmd} failed — run: bash ${SCRIPT_DIR}/stack-supervisor.sh start && cd open-perplexity && ./myrm-dev ready" >&2
   exit 1
 }
 

@@ -1,7 +1,7 @@
 """Chrome E2E for the Memory A/B run-history model disclosure in Eval Lab.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   .env.test with BASIC_* credentials
 
 The disclosure is verified honestly end-to-end: providers and the embedding

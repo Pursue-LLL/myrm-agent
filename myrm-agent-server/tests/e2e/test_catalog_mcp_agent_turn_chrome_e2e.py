@@ -243,7 +243,7 @@ def test_catalog_mcp_bound_agent_calls_tool_in_live_turn(tmp_path: Path, e2e_res
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     _connect_microsoft_learn_via_ui()
 

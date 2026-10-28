@@ -172,7 +172,7 @@ def _wait_daemon_ready(daemon: BrowserOrchestratorClient) -> None:
         time.sleep(0.5)
     raise RuntimeError(
         "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running after respawn — "
-        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm-dev ready --chrome"
     )
 
 

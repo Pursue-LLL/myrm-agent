@@ -93,7 +93,7 @@ case "${1:-status}" in
   stop) cmd_stop ;;
   open) cmd_open ;;
   *)
-    echo "Usage: ./myrm browser {status|stop|open}" >&2
+    echo "Usage: ./myrm-dev browser {status|stop|open}" >&2
     echo "  status  Summary of all running browser instances" >&2
     echo "  stop    Cascade stop all browsers and clear Dock" >&2
     echo "  open    Launch/reveal visible browser window on desktop" >&2

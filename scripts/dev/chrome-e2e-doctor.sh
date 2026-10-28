@@ -28,7 +28,7 @@ echo "CHROME_E2E_DOCTOR: starting"
 if chrome_e2e_cdp_healthy && chrome_e2e_process_owns_port; then
   ok "cdp port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
 else
-  fail "cdp not healthy on :${MYRM_CHROME_E2E_PORT} — run: ./myrm ready --chrome"
+  fail "cdp not healthy on :${MYRM_CHROME_E2E_PORT} — run: ./myrm-dev ready --chrome"
 fi
 
 if [[ -f "${_CHROME_E2E_DIR}/surface.py" ]] && chrome_e2e_cdp_healthy; then
@@ -83,7 +83,7 @@ if [[ -f "${SCRIPT_DIR}/lib/mux/responsive_probe.py" ]]; then
     --socket "${MUX_SOCKET}" 2>/dev/null; then
     ok "mux runtime upstream timeout effective (180000ms)"
   else
-    fail "mux runtime timeout not effective — run: ./myrm restart --chrome"
+    fail "mux runtime timeout not effective — run: ./myrm-dev restart --chrome"
   fi
 fi
 
@@ -126,11 +126,11 @@ from e2e_core.runtime_identity import attach_endpoint_errors
 print(','.join(attach_endpoint_errors('http://127.0.0.1:3000', 'http://127.0.0.1:8080')))
 " 2>/dev/null || true)"
 if [[ "${endpoint_errors}" == *"ui=half_dead"* ]]; then
-  fail "STACK_UI_HALF_DEAD :3000 listening but HTTP unreachable — run: ./myrm restart --chrome (do not stop other pytest)"
+  fail "STACK_UI_HALF_DEAD :3000 listening but HTTP unreachable — run: ./myrm-dev restart --chrome (do not stop other pytest)"
 elif [[ "${endpoint_errors}" == *"ui=unreachable"* ]]; then
-  fail "shared UI unreachable — run: ./myrm ready --chrome"
+  fail "shared UI unreachable — run: ./myrm-dev ready --chrome"
 elif [[ "${endpoint_errors}" == *"api=unreachable"* ]]; then
-  fail "shared API unreachable — run: ./myrm ready --chrome"
+  fail "shared API unreachable — run: ./myrm-dev ready --chrome"
 fi
 
 if [[ "${failures}" -eq 0 ]]; then

@@ -6,7 +6,7 @@ click on one of them sends it as the next question.
 
 Formal run::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_follow_up_suggestions_live_agent_chrome_e2e.py
 """
 
@@ -298,7 +298,7 @@ def test_finished_answer_offers_follow_ups_and_a_click_asks_one(tmp_path: Path, 
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     suffix = uuid.uuid4().hex[:8]
     agent_id = _create_agent(api_url, suffix)

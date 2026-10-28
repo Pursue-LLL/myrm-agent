@@ -50,7 +50,7 @@ _ONBOARDING_DOC = (
     "Step 1: setup the dev environment with uv and bun. The dev environment "
     "setup is the foundation for everything.\n"
     "Step 2: read the team wiki. The team wiki holds our verified facts.\n"
-    "Step 3: run ./myrm ready to verify the dev environment and the wiki mount."
+    "Step 3: run ./myrm-dev ready to verify the dev environment and the wiki mount."
 )
 
 # A reasoning model needs one to three minutes to write a single article under load, and the worker compiles the

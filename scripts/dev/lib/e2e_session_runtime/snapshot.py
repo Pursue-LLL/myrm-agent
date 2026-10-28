@@ -8,7 +8,7 @@
 - nodeStartedMonotonic + node elapsed for e2e_stall_guard (R96-B6)
 
 [POS]
-Dev Gate layer — parallel-safe progress for ./myrm e2e-context and hung pytest reap.
+Dev Gate layer — parallel-safe progress for ./myrm-dev e2e-context and hung pytest reap.
 """
 
 from __future__ import annotations

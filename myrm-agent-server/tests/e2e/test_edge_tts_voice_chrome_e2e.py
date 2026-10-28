@@ -1,10 +1,10 @@
 """Chrome E2E: Edge TTS GPL isolation + Voice Settings UX through MCP mux.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   Wave READ lease recommended when parallel agents are active.
   Run one test at a time: path::test_name (whole-file batch denied by E2E_FILE_BATCH_DENIED).
-  Chrome UI tests also need: ./myrm test -m chrome_e2e path::test_name
+  Chrome UI tests also need: ./myrm-dev test -m chrome_e2e path::test_name
 
 Covers:
   - Voice Settings: no amber banner when edge_tts_available=true
@@ -154,7 +154,7 @@ def _require_live_stack() -> None:
         if _server_reachable():
             return
         time.sleep(2.0)
-    pytest.fail("Live E2E API not reachable — run via ./myrm test -m e2e after ./myrm ready --chrome")
+    pytest.fail("Live E2E API not reachable — run via ./myrm-dev test -m e2e after ./myrm-dev ready --chrome")
 
 
 def _ensure_voice_feature_enabled() -> None:

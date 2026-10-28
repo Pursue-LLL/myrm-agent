@@ -269,7 +269,7 @@ def test_agent_svg_artifact_preview_chrome_e2e() -> None:
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     seeded = http_json(
         "POST",

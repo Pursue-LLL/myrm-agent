@@ -11,7 +11,7 @@ Lane-B (frontend/page contract) + real API chain, zero mocks:
   T6 - Cleanup removes every temp agent (no residue).
 
 Prerequisite:
-  ./myrm isolate <id> ready --chrome
+  ./myrm-dev isolate <id> ready --chrome
 """
 
 from __future__ import annotations

@@ -9,7 +9,7 @@
 - CLI: emit (shell tokens), check (exit 0/2)
 
 [POS]
-Single readiness predicate shared by ./myrm ready --chrome, ./myrm e2e-context,
+Single readiness predicate shared by ./myrm-dev ready --chrome, ./myrm-dev e2e-context,
 launch-check, and chrome-e2e-preflight attach gate. Prevents blocked context from
 returning unconditional E2E_LAUNCH_OK.
 """
@@ -110,11 +110,11 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
         return (
             "browser data plane not observable after auto-converge; "
             "read dataPlane.agentRule — do not wait for peer; "
-            "wave idle: ./myrm restart --chrome if converge failed"
+            "wave idle: ./myrm-dev restart --chrome if converge failed"
         )
     if next_action == "FAIL_FAST":
         return (
-            "cluster has hung chrome_e2e peer — run ./myrm e2e-context; "
+            "cluster has hung chrome_e2e peer — run ./myrm-dev e2e-context; "
             "do not stop other pytest"
         )
     if next_action == "PARALLEL_OK":
@@ -399,7 +399,7 @@ def launch_denial_line(verdict: ChromeE2eReadinessVerdict) -> str | None:
         return None
     return (
         f"E2E_LAUNCH_DENIED: {verdict.token}; {verdict.reason}; "
-        "run ./myrm e2e-context json and execute agent_rule (do not force launch "
+        "run ./myrm-dev e2e-context json and execute agent_rule (do not force launch "
         "or stop other pytest)"
     )
 
@@ -488,7 +488,7 @@ def _cmd_check(_args: argparse.Namespace) -> int:
     reason = fields.get("MYRM_READINESS_REASON", proc.stderr.strip() or "launch denied")
     sys.stderr.write(
         f"E2E_LAUNCH_DENIED: {token}; {reason}; "
-        "run ./myrm e2e-context json and execute agent_rule (do not force launch "
+        "run ./myrm-dev e2e-context json and execute agent_rule (do not force launch "
         "or stop other pytest)\n"
     )
     return 2

@@ -469,7 +469,7 @@ def format_queue_human(
         f"waiting={headroom['privateWaiting']} active_tests={active_test_count}). "
         f"{queue_contract} "
         "NEVER stop/kill other pytest. "
-        "Do NOT pipe './myrm test' to tail|head — hides progress."
+        "Do NOT pipe './myrm-dev test' to tail|head — hides progress."
     )
 
 

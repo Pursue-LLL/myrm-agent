@@ -195,7 +195,7 @@ def evaluate_mux_health(
             owner_pid=owner_pid,
             socket_path=sock,
             probe_ok=False,
-            agent_rule="MUX_CORRUPT_PID: reap stale mux stamps then ./myrm restart --chrome",
+            agent_rule="MUX_CORRUPT_PID: reap stale mux stamps then ./myrm-dev restart --chrome",
             detail=f"daemon.pid={stamp_pid} daemon.lock.pid={owner_pid}",
         )
 
@@ -205,7 +205,7 @@ def evaluate_mux_health(
             owner_pid=owner_pid,
             socket_path=sock,
             probe_ok=False,
-            agent_rule="MUX_CORRUPT_PID: reap stale mux stamps then ./myrm restart --chrome",
+            agent_rule="MUX_CORRUPT_PID: reap stale mux stamps then ./myrm-dev restart --chrome",
             detail="daemon.pid is not numeric",
         )
 
@@ -235,7 +235,7 @@ def evaluate_mux_health(
             probe_ok=False,
             agent_rule=(
                 f"MUX_ZOMBIE_REAP: orphan mux pid={candidate_pid} alive without socket; "
-                "auto-reap then ./myrm restart --chrome"
+                "auto-reap then ./myrm-dev restart --chrome"
             ),
             detail="pid alive, unix socket missing",
         )
@@ -248,7 +248,7 @@ def evaluate_mux_health(
                 owner_pid=candidate_pid,
                 socket_path=sock,
                 probe_ok=False,
-                agent_rule="MUX_DEAD: ./myrm restart --chrome",
+                agent_rule="MUX_DEAD: ./myrm-dev restart --chrome",
                 detail="no pid, no socket, mux status not ok",
             )
 
@@ -271,7 +271,7 @@ def evaluate_mux_health(
             probe_ok=False,
             agent_rule=(
                 f"MUX_ZOMBIE_REAP: mux pid={candidate_pid} unresponsive; "
-                "auto-reap then ./myrm restart --chrome"
+                "auto-reap then ./myrm-dev restart --chrome"
             ),
             detail="pid alive, probe failed",
         )
@@ -281,7 +281,7 @@ def evaluate_mux_health(
         owner_pid=candidate_pid,
         socket_path=sock,
         probe_ok=False,
-        agent_rule="MUX_DEAD: ./myrm restart --chrome",
+        agent_rule="MUX_DEAD: ./myrm-dev restart --chrome",
         detail="probe failed, pid not alive",
     )
 

@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      echo "Usage: ./myrm runtime-drift --expect <runtimeId>"
+      echo "Usage: ./myrm-dev runtime-drift --expect <runtimeId>"
       echo "  Compare current dev stack runtimeId to the snapshot from CHROME_E2E_HEALTH_JSON."
       echo "  Exit 0 on match; exit 2 on RUNTIME_DRIFT."
       exit 0

@@ -11,7 +11,7 @@ edit-only test (`test_agent_max_iterations_edit_persists_via_ui`) does not:
   T5 - Cleanup removes the created agent.
 
 Prerequisite:
-  ./myrm isolate <id> ready --chrome
+  ./myrm-dev isolate <id> ready --chrome
 """
 
 from __future__ import annotations

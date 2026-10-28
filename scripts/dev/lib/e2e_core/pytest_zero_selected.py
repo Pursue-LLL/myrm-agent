@@ -15,7 +15,7 @@ _SKIPPED_SUMMARY_RE = re.compile(r"=+ (\d+) skipped in", re.MULTILINE)
 
 
 def chrome_e2e_session_active() -> bool:
-    """True when ./myrm test has entered formal chrome_e2e attach."""
+    """True when ./myrm-dev test has entered formal chrome_e2e attach."""
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     if not lease_id or lease_id == "myrm-llm-e2e-local":
         return False

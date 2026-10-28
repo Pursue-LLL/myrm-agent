@@ -11,7 +11,7 @@ frontmost_app() {
 }
 
 if ! curl -sf --max-time 3 "http://127.0.0.1:${MYRM_CHROME_AGENT_PORT}/proxy/status" >/dev/null; then
-  echo "CHROME_AGENT_FOCUS_FAIL: ChromeAgent proxy not reachable on :${MYRM_CHROME_AGENT_PORT} — run ./myrm ready --chrome-agent" >&2
+  echo "CHROME_AGENT_FOCUS_FAIL: ChromeAgent proxy not reachable on :${MYRM_CHROME_AGENT_PORT} — run ./myrm-dev ready --chrome-agent" >&2
   exit 1
 fi
 

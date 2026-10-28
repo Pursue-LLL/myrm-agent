@@ -137,7 +137,7 @@ async def test_live_extension_x_com_product_acceptance(
         pytest.fail("Provider not ready — configure MiniMax in WebUI / .env.test")
 
     if not wait_e2e_cdp_ready(timeout_sec=45.0):
-        pytest.fail("E2E Chrome CDP not ready — run ./myrm ready --chrome")
+        pytest.fail("E2E Chrome CDP not ready — run ./myrm-dev ready --chrome")
 
     ensure_e2e_yolo_mode()
     ensure_e2e_memory_disabled()

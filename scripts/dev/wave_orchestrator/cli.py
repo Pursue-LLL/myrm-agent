@@ -4,7 +4,7 @@
 - wave_orchestrator.core (POS: wave/lease business logic + stack write gate)
 
 [OUTPUT]
-- `./myrm wave` subcommands — JSON stdout, gate exit 3 on deny
+- `./myrm-dev wave` subcommands — JSON stdout, gate exit 3 on deny
 
 [POS]
 Maintainer CLI entry for Chrome MCP parallel UI E2E wave orchestration.
@@ -212,12 +212,12 @@ def cmd_check_stack_write(_args: argparse.Namespace) -> int:
             )
     if stack_pin is not None:
         print(
-            "WAVE_STACK_PIN_HINT: ./myrm wave close --force or acquire STACK_WRITE lease",
+            "WAVE_STACK_PIN_HINT: ./myrm-dev wave close --force or acquire STACK_WRITE lease",
             file=sys.stderr,
         )
     elif blockers:
         print(
-            "WAVE_STACK_WRITE_HINT: ./myrm wave close --force or wait for lease TTL",
+            "WAVE_STACK_WRITE_HINT: ./myrm-dev wave close --force or wait for lease TTL",
             file=sys.stderr,
         )
     return 3

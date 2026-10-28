@@ -349,5 +349,5 @@ def run_drift_check(expected: str) -> int:
         f"RUNTIME_DRIFT: expected={expected_id} current={current}",
         file=sys.stderr,
     )
-    print("RUNTIME_DRIFT_HINT: ./myrm ready --chrome", file=sys.stderr)
+    print("RUNTIME_DRIFT_HINT: ./myrm-dev ready --chrome", file=sys.stderr)
     return 2

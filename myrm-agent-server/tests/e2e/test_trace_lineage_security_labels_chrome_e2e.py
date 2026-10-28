@@ -1,7 +1,7 @@
 """Chrome E2E: Tool-Call Instruction Lineage + 步骤级安全标签传播 (roadmap item#2).
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   WebUI default model configured (E2E Chrome profile DB)
 
 Covers item#2 front-end chain end to end with a real LLM turn that invokes a

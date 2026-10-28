@@ -597,7 +597,7 @@ async def test_tools_panel_shows_semantic_layer_badges_after_tools_snapshot(
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=90.0):
         pytest.fail(
             "Provider config not ready for tools_panel Chrome LIVE E2E — "
-            "run via ./myrm test -m chrome_e2e after ./myrm ready --chrome",
+            "run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome",
         )
 
     prepare_e2e_ui_session(api_url)

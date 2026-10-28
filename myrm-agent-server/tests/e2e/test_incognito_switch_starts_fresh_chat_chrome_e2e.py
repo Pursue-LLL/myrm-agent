@@ -9,7 +9,7 @@ the real toggle, covering the three transitions the fix is about:
 
 Formal run::
 
-    ./myrm test -m chrome_e2e \\
+    ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_incognito_switch_starts_fresh_chat_chrome_e2e.py
 """
 

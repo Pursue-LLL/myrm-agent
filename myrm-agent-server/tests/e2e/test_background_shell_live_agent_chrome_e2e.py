@@ -5,7 +5,7 @@ Teardown cancels the spawned shell via ``POST /background-tasks/{task_id}/cancel
 
 Formal run (``-m chrome_e2e``; WebUI ``defaultModelConfig``; no ``modelSelection`` in request)::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_background_shell_live_agent_chrome_e2e.py
 """
 

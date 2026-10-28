@@ -1988,7 +1988,7 @@ def pytest_argv_needs_live_chrome_e2e(
     *,
     run_e2e_tests: bool = False,
 ) -> bool:
-    """True when ./myrm test argv selects formal chrome_e2e (marker or *_chrome_e2e.py).
+    """True when ./myrm-dev test argv selects formal chrome_e2e (marker or *_chrome_e2e.py).
 
     Must not match unit-test node ids or -k filters that merely contain the substring
     ``chrome_e2e`` (R99 gate tests live under scripts/dev/tests/).

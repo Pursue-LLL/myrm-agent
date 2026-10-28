@@ -1,7 +1,7 @@
 """Chrome E2E: user edits "Max Iterations" in the agent Capabilities tab and it persists.
 
 Prerequisites:
-  ./myrm isolate <id> ready --chrome
+  ./myrm-dev isolate <id> ready --chrome
 
 Covers item#1 "Per-Agent Recursion Limit" front-end chain end to end:
   T1 - Settings > Agents opens the agent editor for a seeded agent.

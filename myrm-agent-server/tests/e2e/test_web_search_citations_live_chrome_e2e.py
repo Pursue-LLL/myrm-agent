@@ -293,7 +293,7 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
     _ensure_search_services(api_base)
 
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
+        pytest.fail("Provider readiness gate failed — run ./myrm-dev ready --chrome")
 
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=90.0)
@@ -354,7 +354,7 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
     _ensure_search_services(api_base)
 
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
+        pytest.fail("Provider readiness gate failed — run ./myrm-dev ready --chrome")
 
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=90.0)

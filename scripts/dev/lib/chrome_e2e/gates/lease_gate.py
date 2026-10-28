@@ -84,7 +84,7 @@ def resolve_required_lease_id(*, explicit: str | None = None) -> str:
         return ""
     raise RuntimeError(
         f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: MYRM_E2E_LEASE_ID required — "
-        "launch via ./myrm test -m chrome_e2e"
+        "launch via ./myrm-dev test -m chrome_e2e"
     )
 
 

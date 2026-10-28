@@ -1,7 +1,7 @@
 """Chrome E2E for Eval Lab R6: history table columns, click-to-detail, manifest display.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
 
 Covers:
   T1 - /eval-lab page loads with correct title and tabs

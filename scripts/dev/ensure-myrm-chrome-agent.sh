@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Launch or verify ChromeAgent pipe-proxy (:9410, no macOS focus theft).
-# Preferred path is the LaunchAgent daemon (./myrm ready --chrome-agent --daemon);
+# Preferred path is the LaunchAgent daemon (./myrm-dev ready --chrome-agent --daemon);
 # this script health-checks first and only falls back to a nohup proxy when no
 # daemon is installed. All runtime paths resolve from the machine-level
 # `current` symlink, so the repo can be moved or deleted afterwards.
@@ -47,7 +47,7 @@ fi
 if [[ ! -L "${CURRENT_DIR}" ]] || [[ ! -f "${CURRENT_DIR}/pipe-cdp-proxy.mjs" ]]; then
   echo "MYRM_CHROME_AGENT_AUTO_INSTALL: installing machine-level bundle..." >&2
   bash "${SCRIPT_DIR}/chrome-agent/myrm-chrome-agent.sh" install \
-    || fail "machine-level install failed — run ./myrm ready --chrome-agent --daemon"
+    || fail "machine-level install failed — run ./myrm-dev ready --chrome-agent --daemon"
 fi
 
 if chrome_agent_launchagent_loaded; then

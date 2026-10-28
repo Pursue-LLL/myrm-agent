@@ -13,5 +13,5 @@ def assert_mux_diagnostic_only(*, operation: str) -> None:
         return
     raise RuntimeError(
         f"{E2E_MUX_RECOVERY_REMOVED_TOKEN}: mux {operation} removed — "
-        "use MYRM_BROWSER_ORCHESTRATOR=1 ./myrm test -m chrome_e2e"
+        "use MYRM_BROWSER_ORCHESTRATOR=1 ./myrm-dev test -m chrome_e2e"
     )

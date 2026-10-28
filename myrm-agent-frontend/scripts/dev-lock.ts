@@ -212,8 +212,8 @@ export function assertDevLockAvailable(port: number): void {
     console.error(`❌ Dev server already running (PID ${existing.pid}, port ${existing.port})`);
     console.error(`   Started: ${existing.startedAt}`);
     console.error(`   CWD: ${existing.cwd}`);
-    console.error('   Parallel attach: ./myrm ready --attach');
-    console.error('   Reset stack: ./myrm stop && ./myrm ready');
+    console.error('   Parallel attach: ./myrm-dev ready --attach');
+    console.error('   Reset stack: ./myrm stop && ./myrm-dev ready');
     process.exit(1);
   }
 

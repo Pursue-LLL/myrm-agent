@@ -5,7 +5,7 @@ real ``ArtifactVault`` — no mocking of the critical read/truncate path. Covers
 the three read outputs (chars / lines / per-line length) across every read mode
 (all / preview / stream) and the vault:// continuation hint consistency.
 
-Run under the harness monorepo via ``./myrm test -m integration``.
+Run under the harness monorepo via ``./myrm-dev test -m integration``.
 """
 
 from __future__ import annotations

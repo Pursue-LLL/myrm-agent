@@ -21,7 +21,7 @@
 - probe_chrome_agent_focus(): macOS focus theft mechanical check
 
 [POS]
-Harness lib for ./myrm doctor --mcp-isolation [--fix] and static SSOT tests.
+Harness lib for ./myrm-dev doctor --mcp-isolation [--fix] and static SSOT tests.
 Agent layer only — never checks E2E :9333 mux.
 """
 
@@ -59,7 +59,7 @@ CHROME_AGENT_FOCUS_PROBES = 5
 FIX_CHROME_AGENT_HINT = (
     "Set chrome-devtools to: npx -y chrome-devtools-mcp@latest "
     f"--browserUrl http://127.0.0.1:{AGENT_CDP_PORT} --no-usage-statistics "
-    "(see scripts/dev/CHROME_MCP_E2E.md; run ./myrm ready --chrome-agent)"
+    "(see scripts/dev/CHROME_MCP_E2E.md; run ./myrm-dev ready --chrome-agent)"
 )
 FIX_AUTO_CONNECT_HINT = FIX_CHROME_AGENT_HINT
 
@@ -586,7 +586,7 @@ def probe_chrome_agent_launchagent() -> LiveProbe:
             "ok": False,
             "detail": (
                 f"LaunchAgent {label} check failed — "
-                "run ./myrm ready --chrome-agent --daemon"
+                "run ./myrm-dev ready --chrome-agent --daemon"
             ),
         }
     if completed.returncode != 0:
@@ -594,7 +594,7 @@ def probe_chrome_agent_launchagent() -> LiveProbe:
             "ok": False,
             "detail": (
                 f"LaunchAgent {label} not loaded — "
-                "run ./myrm ready --chrome-agent --daemon"
+                "run ./myrm-dev ready --chrome-agent --daemon"
             ),
         }
     if "state = running" not in completed.stdout:
@@ -614,7 +614,7 @@ def probe_chrome_agent_install() -> LiveProbe:
     """
     install_base = _real_home() / ".local/lib/myrm-chrome-agent"
     current = install_base / "current"
-    hint = "run ./myrm ready --chrome-agent --daemon"
+    hint = "run ./myrm-dev ready --chrome-agent --daemon"
     if not current.is_symlink():
         return {
             "ok": False,
@@ -719,7 +719,7 @@ def probe_chrome_agent_reachable() -> ChromeProbe:
             "ok": False,
             "detail": (
                 f"ChromeAgent pipe-proxy not reachable on :{AGENT_CDP_PORT} — "
-                "run ./myrm ready --chrome-agent"
+                "run ./myrm-dev ready --chrome-agent"
             ),
             "port": None,
         }
@@ -969,7 +969,7 @@ def main(argv: list[str] | None = None) -> int:
             print("CURSOR_MCP_ISOLATION_FIX: already OK (no changes)")
         print(
             "Next: Cmd+Q Cursor to reload MCP processes, then "
-            "./myrm doctor --mcp-isolation --strict-live"
+            "./myrm-dev doctor --mcp-isolation --strict-live"
         )
 
     report = build_doctor_report(

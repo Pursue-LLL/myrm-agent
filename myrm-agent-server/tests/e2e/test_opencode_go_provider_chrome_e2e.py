@@ -153,7 +153,7 @@ def test_opencode_go_settings_fetch_models_dialog(
     """Real WebUI: Settings → OpenCode Go → 获取模型 → provider API list visible."""
     _require_opencode_go_config()
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
+        pytest.fail("Provider readiness gate failed — run ./myrm-dev ready --chrome")
 
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)
@@ -205,7 +205,7 @@ async def test_opencode_go_chat_reply_ok(
     """Real WebUI chat using DB-configured OpenCode Go deepseek-v4-flash."""
     _require_opencode_go_config()
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
+        pytest.fail("Provider readiness gate failed — run ./myrm-dev ready --chrome")
 
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=_warm_ui_parallel_wait_sec(30.0))

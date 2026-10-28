@@ -76,8 +76,8 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
+            "Provider config not ready for live E2E — run via ./myrm-dev test -m chrome_e2e "
+            "after ./myrm-dev ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
         )
 
     async def run_chat_flow(chat: McpChatSession) -> tuple[int, str]:

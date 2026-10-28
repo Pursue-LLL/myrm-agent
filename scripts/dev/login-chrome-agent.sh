@@ -60,4 +60,4 @@ sleep 2
 osascript -e 'tell application "Google Chrome" to activate' >/dev/null 2>&1 || true
 
 ok "login window opened profile=${DATA_DIR} url=${LOGIN_URL}"
-echo "MYRM_CHROME_AGENT_LOGIN: ① 在此窗口完成 X 登录  ② 关窗口(Cmd+W，勿 Cmd+Q)  ③ 运行: ./myrm ready --chrome-agent --daemon" >&2
+echo "MYRM_CHROME_AGENT_LOGIN: ① 在此窗口完成 X 登录  ② 关窗口(Cmd+W，勿 Cmd+Q)  ③ 运行: ./myrm-dev ready --chrome-agent --daemon" >&2

@@ -239,8 +239,8 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url):
         pytest.fail(
-            "Provider config not ready for live clarify Chrome E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
+            "Provider config not ready for live clarify Chrome E2E — run via ./myrm-dev test -m chrome_e2e "
+            "after ./myrm-dev ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
         )
     # Clarify skip assertions do not depend on shared search-service policy hydration.
     os.environ.pop("MYRM_E2E_SEARCH_POLICY", None)

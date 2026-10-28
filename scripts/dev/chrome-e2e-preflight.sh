@@ -169,7 +169,7 @@ if snap.state.value != PlaneHealthState.OBSERVABLE.value:
         flush=True,
     )
     sys.exit(1)
-" || fail "browser data plane not observable — run ./myrm restart --chrome when wave idle (verify-api does not heal mux/orch/shared :8080)"
+" || fail "browser data plane not observable — run ./myrm-dev restart --chrome when wave idle (verify-api does not heal mux/orch/shared :8080)"
 }
 
 _attach_health_require_args() {
@@ -624,7 +624,7 @@ _attach_epoch_pin_fast_path() {
     API_BASE="${SHARED_API_BASE}"
     return 1
   fi
-  fail "epoch pin attach did not become ready within ${wait_sec}s — wave idle: ./myrm restart --chrome; parallel: wait for drift apply (verify-api does not heal shared :8080)"
+  fail "epoch pin attach did not become ready within ${wait_sec}s — wave idle: ./myrm-dev restart --chrome; parallel: wait for drift apply (verify-api does not heal shared :8080)"
 }
 
 _maybe_reseal_auth_template_after_attach() {
@@ -722,7 +722,7 @@ _attach_fast_path() {
     echo "CHROME_E2E_ATTACH: READ lane stack-core attach uses monotonic BOOTSTRAP remaining=${wait_sec}s (no independent 150s gate)" >&2
   fi
   if [[ "${wait_sec}" -le 0 ]]; then
-    fail "BOOTSTRAP attach budget exhausted before stack-core gate — do not stop other pytest; run ./myrm e2e-context"
+    fail "BOOTSTRAP attach budget exhausted before stack-core gate — do not stop other pytest; run ./myrm-dev e2e-context"
   fi
   local wait_started=$SECONDS drift_cap=0
   drift_cap="$(_epoch_drift_shared_attach_cap_sec "${active_leases}")"
@@ -749,7 +749,7 @@ print(int(elapsed_wall_sec()))
     if [[ "${active_leases}" -gt 0 ]]; then
       echo "epoch drift attach cap ${drift_cap}s exceeded (${active_leases} active leases defer shared reload) — keep this session; retry attach after leases drain; do not stop other pytest"
     else
-      echo "epoch drift attach cap ${drift_cap}s exceeded with no active leases — run ./myrm restart --chrome when wave idle (plane STALE/mux=0: verify-api does not heal shared or mux); do not stop other pytest"
+      echo "epoch drift attach cap ${drift_cap}s exceeded with no active leases — run ./myrm-dev restart --chrome when wave idle (plane STALE/mux=0: verify-api does not heal shared or mux); do not stop other pytest"
     fi
   }
   if _attach_drift_cap_exceeded; then
@@ -764,7 +764,7 @@ print(int(elapsed_wall_sec()))
     fi
     if [[ "${wait_sec}" -le 0 ]]; then
       echo "${health}" >&2
-      fail "parallel attach health snapshot did not recover within monotonic BOOTSTRAP budget — wait for shared hot recovery; do not stop other pytest; solo warmup: ./myrm ready --chrome"
+      fail "parallel attach health snapshot did not recover within monotonic BOOTSTRAP budget — wait for shared hot recovery; do not stop other pytest; solo warmup: ./myrm-dev ready --chrome"
     fi
     if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
       --auto-probe \
@@ -843,7 +843,7 @@ _wait_shared_ui_reachable() {
       _heal_dead_shared_ui_port
     fi
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
-      fail "shared UI not reachable at ${shared_ui} within ${wait_sec}s — run: ./myrm ready --chrome"
+      fail "shared UI not reachable at ${shared_ui} within ${wait_sec}s — run: ./myrm-dev ready --chrome"
     fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: shared UI recovering ${waited}/${wait_sec}s (${shared_ui})" >&2
@@ -907,7 +907,7 @@ _wait_shared_stack_healthy_before_ready() {
       return 0
     fi
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
-      fail "shared stack not healthy within ${wait_sec}s (leases=${active_leases}; seed_failed=${MYRM_E2E_MODEL_SEED_FAILED:-0}) — do not stop other pytest; retry ADMIT or ./myrm ui-heal when idle"
+      fail "shared stack not healthy within ${wait_sec}s (leases=${active_leases}; seed_failed=${MYRM_E2E_MODEL_SEED_FAILED:-0}) — do not stop other pytest; retry ADMIT or ./myrm-dev ui-heal when idle"
     fi
     if [[ "${waited}" -ge 30 && $((waited % 30)) -eq 0 ]]; then
       echo "E2E_SHARED_STACK_RECOVERY_WAIT: shared :3000/:8080 or model seed not ready ${waited}/${wait_sec}s (leases=${active_leases}; do not stop other pytest)" >&2
@@ -928,7 +928,7 @@ _private_backend_attach_path() {
   _wait_shared_ui_reachable "${shared_ui}"
   _seed_providers_for_runtime
   _wait_shared_stack_healthy_before_ready || return $?
-  myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
+  myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm-dev ready --chrome"
   ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
   local mux_pid_file="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}/daemon.pid"
   if [[ -f "${mux_pid_file}" ]]; then
@@ -980,7 +980,7 @@ _preflight_readiness_gate() {
   )" || rc=$?
   echo "${py_out}" >&2
   if [[ "${rc}" -eq 2 ]]; then
-    fail "cluster readiness FAIL — run ./myrm e2e-context; do not stop other pytest"
+    fail "cluster readiness FAIL — run ./myrm-dev e2e-context; do not stop other pytest"
   fi
 }
 
@@ -1049,7 +1049,7 @@ sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_core.runtime_identity import format_attach_endpoint_failure
 print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.split(',') if p.strip()]))
 ")"
-      fail "${attach_msg} — first Agent must run: ./myrm ready --chrome"
+      fail "${attach_msg} — first Agent must run: ./myrm-dev ready --chrome"
     fi
   fi
 elif [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && "${MYRM_MUX_FORCE_ATTACH_RESTART:-}" != "1" ]] \
@@ -1069,7 +1069,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] && ! curl -sf --max-time 10 "$API_BA
       || bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure \
       || true
   fi
-  curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm ready"
+  curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm-dev ready"
 fi
 ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
 _preflight_progress "dev_servers"
@@ -1091,7 +1091,7 @@ fi
 
 # 2. Legacy second Chrome / debug launchers (attach reuses :9333 SSOT — skip under parallel E2E)
 if [[ "${MYRM_CHROME_E2E_ATTACH:-}" != "1" ]] && pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
-  fail "MyrmChromeMcp Chrome detected — quit it; use ./myrm ready --chrome (Myrm E2E profile on :9333)"
+  fail "MyrmChromeMcp Chrome detected — quit it; use ./myrm-dev ready --chrome (Myrm E2E profile on :9333)"
 fi
 
 # 3. Ensure dedicated E2E Chrome (no Allow — launched with --remote-debugging-port)
@@ -1419,7 +1419,7 @@ _ensure_mux_upstream() {
     fi
   fi
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-    fail "mux not ready for parallel attach (upstreamReady or CDP ws drift) — first Agent must run: ./myrm ready --chrome"
+    fail "mux not ready for parallel attach (upstreamReady or CDP ws drift) — first Agent must run: ./myrm-dev ready --chrome"
   fi
   if _mux_ws_stamp_matches; then
     echo "CHROME_E2E_WAIT: mux upstreamReady=false — waiting for daemon self-heal" >&2
@@ -1455,7 +1455,7 @@ _ensure_mux_upstream() {
       return 0
     fi
   done
-  fail "cdmcp-mux upstreamReady still false — Cmd+Q Cursor, then: ./myrm ready --chrome"
+  fail "cdmcp-mux upstreamReady still false — Cmd+Q Cursor, then: ./myrm-dev ready --chrome"
 }
 
 _mux_timeout_stamp_matches() {
@@ -1617,9 +1617,9 @@ _ensure_mux_cold_start_if_absent() {
   fi
   if ! myrm_chrome_e2e_cdp_healthy; then
     if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-      fail "cdmcp-mux daemon not running during attach — Myrm E2E Chrome CDP not reachable — first Agent must run: ./myrm ready --chrome"
+      fail "cdmcp-mux daemon not running during attach — Myrm E2E Chrome CDP not reachable — first Agent must run: ./myrm-dev ready --chrome"
     fi
-    fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
+    fail "Myrm E2E Chrome CDP not reachable — run: ./myrm-dev ready --chrome"
   fi
   echo "CHROME_E2E_WARN: cold-starting cdmcp-mux daemon (idempotent; no peer restart)" >&2
   if ! PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
@@ -1635,7 +1635,7 @@ raise SystemExit(0 if ensure_mux_daemon_if_absent() else 1)
       ok "cdmcp-mux daemon cold-start raced with a peer but the daemon is present"
       return 0
     fi
-    fail "cdmcp-mux daemon cold-start failed — run: ./myrm restart --chrome"
+    fail "cdmcp-mux daemon cold-start failed — run: ./myrm-dev restart --chrome"
   fi
   local attempt mux_count
   for attempt in $(seq 1 15); do
@@ -1774,11 +1774,11 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
     if [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]]; then
       echo "CHROME_E2E_WARN: legacy vanilla chrome-devtools-mcp (${VANILLA_MCP_COUNT}) ignored — formal E2E uses browser orchestrator RPC-only" >&2
     else
-      fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use ChromeAgent :9410 (./myrm doctor --mcp-isolation --strict-live)"
+      fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use ChromeAgent :9410 (./myrm-dev doctor --mcp-isolation --strict-live)"
     fi
   fi
   if [[ ! -f "${MUX_PID_FILE}" ]]; then
-    fail "cdmcp-mux daemon not running — run: ./myrm ready --chrome"
+    fail "cdmcp-mux daemon not running — run: ./myrm-dev ready --chrome"
   fi
   mux_pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
   if ! kill -0 "${mux_pid}" 2>/dev/null; then
@@ -1788,13 +1788,13 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
   mux_count="$(_mux_daemon_count)"
   if [[ "${mux_count}" != "1" ]]; then
     if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-      fail "mux daemon count=${mux_count} during attach — first Agent: ./myrm ready --chrome (attach must not kill mux)"
+      fail "mux daemon count=${mux_count} during attach — first Agent: ./myrm-dev ready --chrome (attach must not kill mux)"
     fi
     _restart_mux_safely "expected one owned daemon, found ${mux_count}"
     sleep 1
     _ensure_mux_upstream
     mux_count="$(_mux_daemon_count)"
-    [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm ready --chrome"
+    [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm-dev ready --chrome"
   fi
   ok "cdmcp-mux daemon pid=${mux_pid} (parallel Agent tabs OK)"
 else
@@ -1802,7 +1802,7 @@ else
     fail "Too many vanilla chrome-devtools-mcp processes (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor windows using Agent browser MCP"
   fi
   if [[ "${VANILLA_MCP_COUNT}" -eq 1 ]]; then
-    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — Agent MCP must use ChromeAgent :9410 (./myrm doctor --mcp-isolation --strict-live); E2E uses ./myrm ready --chrome" >&2
+    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — Agent MCP must use ChromeAgent :9410 (./myrm-dev doctor --mcp-isolation --strict-live); E2E uses ./myrm-dev ready --chrome" >&2
   fi
 fi
 
@@ -1834,7 +1834,7 @@ _print_e2e_health_json() {
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   _heal_shared_ui_if_stale || true
   if [[ "$(_frontend_client_hot_status)" != "yes" ]]; then
-    fail "client_hot missing during attach — first Agent must finish ./myrm ready --chrome"
+    fail "client_hot missing during attach — first Agent must finish ./myrm-dev ready --chrome"
   fi
   echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
   CHROME_E2E_CLI="${SCRIPT_DIR}/chrome-e2e/cli.sh"
@@ -1857,7 +1857,7 @@ if [[ -f "$ACTIVE_PORT_FILE" ]]; then
   ok "DevToolsActivePort port=${raw_port}"
 else
   if ! myrm_chrome_e2e_cdp_healthy; then
-    fail "CDP not reachable on port ${MYRM_CHROME_E2E_PORT} — run: ./myrm ready --chrome"
+    fail "CDP not reachable on port ${MYRM_CHROME_E2E_PORT} — run: ./myrm-dev ready --chrome"
   fi
   ok "CDP /json/version port=${MYRM_CHROME_E2E_PORT} (no DevToolsActivePort file)"
 fi
@@ -1877,7 +1877,7 @@ PY
 )"
 fi
 export WS_URI="${ws_uri}"
-"${PREFLIGHT_PY}" - <<'PY' || fail "CDP WebSocket unreachable — run: ./myrm ready --chrome"
+"${PREFLIGHT_PY}" - <<'PY' || fail "CDP WebSocket unreachable — run: ./myrm-dev ready --chrome"
 import asyncio
 import os
 import sys
@@ -1942,7 +1942,7 @@ if [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]]; then
       _restart_mux_safely "orchestrator preflight: expected one mux daemon, found ${mux_count}"
       sleep 1
       mux_count="$(_mux_daemon_count 2>/dev/null || echo 0)"
-      [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm ready --chrome"
+      [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm-dev ready --chrome"
     fi
   fi
 fi
@@ -1958,4 +1958,4 @@ while [[ "${health_attempt}" -lt 3 ]]; do
     sleep 2
   fi
 done
-fail "final runtime health snapshot rejected — retry: ./myrm ready --chrome"
+fail "final runtime health snapshot rejected — retry: ./myrm-dev ready --chrome"

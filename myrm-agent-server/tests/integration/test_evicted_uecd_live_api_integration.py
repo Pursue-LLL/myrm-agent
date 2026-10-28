@@ -50,7 +50,7 @@ def _assert_evicted_expired_404(payload: dict[str, object]) -> None:
 
 @pytest.mark.integration
 class TestEvictedUecdLiveServerIntegration:
-    """Hit running backend when ./myrm ready is up — critical path uses real disk + HTTP."""
+    """Hit running backend when ./myrm-dev ready is up — critical path uses real disk + HTTP."""
 
     @pytest.mark.skipif(
         os.environ.get("MYRM_SKIP_LIVE_SERVER") == "1",
@@ -68,7 +68,7 @@ class TestEvictedUecdLiveServerIntegration:
         )
         if not isinstance(seed, dict) or "chat_id" not in seed:
             pytest.skip(
-                "Live server missing seed route — stack pinned by wave; run ./myrm restart when leases idle to pick up new code"
+                "Live server missing seed route — stack pinned by wave; run ./myrm-dev restart when leases idle to pick up new code"
             )
         chat_id = str(seed["chat_id"])
         filename = str(seed["filename"])

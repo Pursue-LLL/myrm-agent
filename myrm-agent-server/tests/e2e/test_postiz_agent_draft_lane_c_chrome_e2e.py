@@ -200,7 +200,7 @@ def test_postiz_agent_turn_creates_draft_with_preview_link(tmp_path: Path, e2e_r
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     enabled = http_json("POST", f"{api_url}/api/v1/skills/{_SKILL_ID}/enable")
     assert isinstance(enabled, dict), enabled

@@ -1,4 +1,4 @@
-"""Tab hygiene report for ./myrm doctor --chrome.
+"""Tab hygiene report for ./myrm-dev doctor --chrome.
 
 [INPUT]
 - CDP /json/list page count

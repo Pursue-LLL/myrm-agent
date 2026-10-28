@@ -9,7 +9,7 @@
 
 [POS]
 Used by phase-c ramp and maintainer epoch preflight loops.
-Never trusts ./myrm ready --chrome exit code; uses resolve_e2e_api_context() as SSOT.
+Never trusts ./myrm-dev ready --chrome exit code; uses resolve_e2e_api_context() as SSOT.
 """
 
 from __future__ import annotations

@@ -23,7 +23,7 @@ What the hook side effects prove (they are written by the hooks, not by the mode
 
 Formal run::
 
-    ./myrm test -m chrome_e2e \\
+    ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_skill_hooks_live_chrome_e2e.py::<test_name>
 """
 

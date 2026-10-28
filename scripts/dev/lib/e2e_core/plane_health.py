@@ -536,13 +536,13 @@ def _build_agent_rule(
         )
     if not epoch_match and drift_pending and wave_leases == 0:
         return (
-            "DRIFT_PENDING: wave idle — run ./myrm restart --chrome to apply workspace "
+            "DRIFT_PENDING: wave idle — run ./myrm-dev restart --chrome to apply workspace "
             "epoch, or declare PRIVATE for workspace backend code; do not stop other pytest"
         )
     if state in {PlaneHealthState.STALE, PlaneHealthState.FAILED_LATCHED}:
         if wave_leases == 0:
             return (
-                "PLANE_STALE: mux/orchestrator unhealthy — run ./myrm restart --chrome "
+                "PLANE_STALE: mux/orchestrator unhealthy — run ./myrm-dev restart --chrome "
                 "or wait for plane converge; verify-api does not heal mux/orch; "
                 "do not stop other pytest"
             )
@@ -556,10 +556,10 @@ def _build_agent_rule(
         return (
             "PLANE_UNKNOWN: orchestrator snapshot unavailable while mux is alive — "
             "transient under parallel load; launch proceeds and attach retries. "
-            "If it persists with no active tests, run ./myrm e2e-context json then "
-            "./myrm restart --chrome"
+            "If it persists with no active tests, run ./myrm-dev e2e-context json then "
+            "./myrm-dev restart --chrome"
         )
-    return "PLANE_UNKNOWN: run ./myrm e2e-context json and execute agent_rule"
+    return "PLANE_UNKNOWN: run ./myrm-dev e2e-context json and execute agent_rule"
 
 
 def plane_health_snapshot(

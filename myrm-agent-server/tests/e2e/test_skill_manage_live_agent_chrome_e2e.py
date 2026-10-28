@@ -6,7 +6,7 @@ Steps undo hint needs; the user opens the hint, confirms the rollback, and the s
 
 Formal run::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_skill_manage_live_agent_chrome_e2e.py
 """
 
@@ -270,7 +270,7 @@ def test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps(
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     suffix = uuid.uuid4().hex[:8]
     skill_name = f"e2e-manage-{suffix}"

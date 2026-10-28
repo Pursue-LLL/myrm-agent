@@ -60,7 +60,7 @@ const ALLOW_E2E_URLS = process.env.MYRM_CHROME_AGENT_ALLOW_E2E_URLS === '1';
 
 const E2E_URL_REJECT_MESSAGE =
     'CHROME_AGENT_E2E_URL_REJECTED: ChromeAgent :9410 is for Agent tasks (e.g. URL extraction) only; '
-    + 'chrome_e2e must use ./myrm test harness → ChromeE2E :9333';
+    + 'chrome_e2e must use ./myrm-dev test harness → ChromeE2E :9333';
 
 /** Block localhost UI URLs that belong on ChromeE2E :9333, not ChromeAgent :9410. */
 function isForbiddenE2eUrl(rawUrl) {

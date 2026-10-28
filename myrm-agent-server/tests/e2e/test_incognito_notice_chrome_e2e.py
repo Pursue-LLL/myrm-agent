@@ -6,7 +6,7 @@ widening the page, and disappear again when switched off.
 
 Formal run::
 
-    ./myrm test -m chrome_e2e \\
+    ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_incognito_notice_chrome_e2e.py
 """
 

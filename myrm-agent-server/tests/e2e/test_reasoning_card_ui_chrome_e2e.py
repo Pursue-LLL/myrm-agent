@@ -20,6 +20,7 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
+    guarded_urlopen,
     open_mcp_page,
     prepare_e2e_ui_session,
 )
@@ -60,7 +61,7 @@ def _request(method: str, url: str, payload: dict[str, object] | None, timeout: 
         method=method,
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with guarded_urlopen(request, timeout_sec=timeout) as response:
             return response.status, response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as error:
         return error.code, error.read().decode("utf-8", "replace")

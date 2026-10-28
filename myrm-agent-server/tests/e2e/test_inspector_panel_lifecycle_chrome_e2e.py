@@ -252,7 +252,7 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live inspector E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
+            "Provider config not ready for live inspector E2E — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome"
         )
 
     api_base = get_e2e_api_url()

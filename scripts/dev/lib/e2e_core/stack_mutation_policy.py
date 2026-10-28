@@ -272,7 +272,7 @@ def _run_harness_install(
     *, root: Path, env: dict[str, str]
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["./myrm", "harness", "install"],
+        ["./myrm-dev", "harness", "install"],
         capture_output=True,
         text=True,
         timeout=240,
@@ -857,7 +857,7 @@ def main(argv: list[str] | None = None) -> int:
     run_flock.add_argument(
         "cmd",
         nargs=argparse.REMAINDER,
-        help="Command after -- (e.g. run-heal-flocked -- ./myrm ready --chrome)",
+        help="Command after -- (e.g. run-heal-flocked -- ./myrm-dev ready --chrome)",
     )
     run_flock.set_defaults(handler=_cmd_run_heal_flocked)
 

@@ -1,7 +1,7 @@
 """Chrome E2E: the WebUI collapses motion when the OS asks for reduced motion.
 
 Prerequisites:
-  ./myrm ready --attach --chrome
+  ./myrm-dev ready --attach --chrome
 
 Covers the guard chain this task shipped, against the real dev server:
   T1 - With no preference an infinite decorative animation really runs (so T2 cannot pass vacuously).

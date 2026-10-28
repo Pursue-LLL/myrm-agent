@@ -1,7 +1,7 @@
 """Chrome E2E: Goal mode via real WebUI and MCP mux.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   WebUI default model configured (E2E Chrome profile DB)
 """
 
@@ -44,8 +44,8 @@ async def test_chrome_ui_goal_mode_stream(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live Goal E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome (preflight seeds model; "
+            "Provider config not ready for live Goal E2E — run via ./myrm-dev test -m chrome_e2e "
+            "after ./myrm-dev ready --chrome (preflight seeds model; "
             "API /api/v1/config/readiness provider.is_ready must be true)"
         )
 

@@ -1493,7 +1493,7 @@ async def _run_fast_evicted_read_live_e2e(
     """Shared LIVE Chrome flow for fast + normal/deep search_depth."""
     api_base = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_base):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome; WebUI must have search + LLM configured")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome; WebUI must have search + LLM configured")
     _ensure_private_search_configured(api_base)
     _ensure_private_providers_configured(api_base)
     private_search = fetch_config_value("searchServices", api_url=api_base)

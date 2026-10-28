@@ -160,8 +160,8 @@ async def test_org_mcp_tool_invoked_in_live_chat(
     """Org-pushed MCP server's tool is actually called and its result surfaces."""
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
+            "Provider config not ready for live E2E — run via ./myrm-dev test -m chrome_e2e "
+            "after ./myrm-dev ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
         )
 
     api_url = get_e2e_api_url()

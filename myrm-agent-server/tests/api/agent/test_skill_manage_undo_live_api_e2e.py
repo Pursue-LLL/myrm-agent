@@ -12,7 +12,7 @@ expects the patch to land and its undo to put the text back.
 
 Run::
 
-    ./myrm test -m e2e myrm-agent/myrm-agent-server/tests/api/agent/test_skill_manage_undo_live_api_e2e.py
+    ./myrm-dev test -m e2e myrm-agent/myrm-agent-server/tests/api/agent/test_skill_manage_undo_live_api_e2e.py
 """
 
 from __future__ import annotations

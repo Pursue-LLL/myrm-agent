@@ -10,7 +10,7 @@ real file mtime:
 - a write invalidates dedup so the next read is fresh (MISS)
 - an mtime change (external edit) also forces a fresh read (MISS)
 
-Run under the harness monorepo via ``./myrm test -m integration``.
+Run under the harness monorepo via ``./myrm-dev test -m integration``.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Chrome E2E: Goal v2.1 UI flows — pause+note, draft composer bind, bg-finish refresh.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   WebUI default model configured (E2E Chrome profile DB)
 """
 
@@ -47,7 +47,7 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
+        pytest.fail("Provider config not ready — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome")
 
     async def _resolve_bound_api_base(chat: McpChatSession) -> str:
         page_api = await chat.evaluate(

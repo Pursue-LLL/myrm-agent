@@ -6,7 +6,7 @@ UI mount/toggle SSOT is covered by READ lane ``test_skill_mount_builtin_gate_chr
 
 Formal run::
 
-    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_skill_marketplace_live_agent_chrome_e2e.py
 """
 
@@ -225,7 +225,7 @@ def test_live_agent_skill_marketplace_search_in_real_ui(
     if not wait_e2e_provider_ready():
         pytest.fail(
             "Provider config not ready for live skill marketplace Chrome E2E — run via "
-            "./myrm test -m chrome_e2e after ./myrm ready --chrome",
+            "./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome",
         )
 
     api_base = get_e2e_api_url()

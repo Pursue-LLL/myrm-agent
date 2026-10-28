@@ -2,7 +2,7 @@
 
 SSOT: ``ifm/profile.yaml`` browser-mcp · ``CHROME_MCP_E2E.md`` Playbook 6.
 
-并行是目标：多个 ``./myrm test`` 同时运行是正常用法；日常 LIVE workload 并行由
+并行是目标：多个 ``./myrm-dev test`` 同时运行是正常用法；日常 LIVE workload 并行由
 ``wave_orchestrator/lanes.py`` 的并发上限（SHPOIB cap=4 / shared_hot 共享）控制，
 门禁只拒错误 launch（同 run id、FAIL_FAST），不拒并行。
 
@@ -57,7 +57,7 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
     if not probe_ok:
         return (
             f"SOLO_LAUNCH_DENIED: {ui_base} TCP+HTML probe failed after retries; "
-            "run ./myrm ready --chrome / ui-heal before LIVE signoff"
+            "run ./myrm-dev ready --chrome / ui-heal before LIVE signoff"
         )
 
     from browser_orchestrator import (

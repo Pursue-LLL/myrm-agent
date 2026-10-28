@@ -16,7 +16,7 @@ Three scenarios on seeded conversations, plus one with a real model:
 
 Formal run::
 
-    ./myrm test -m chrome_e2e \\
+    ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_catchup_presence_chrome_e2e.py
 """
 

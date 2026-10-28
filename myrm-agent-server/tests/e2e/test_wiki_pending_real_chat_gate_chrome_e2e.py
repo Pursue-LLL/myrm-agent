@@ -448,7 +448,7 @@ def test_real_chat_draft_lands_in_pending_panel_and_ui_review() -> None:
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     warm_ui_route("/settings")
     warm_ui_route("/settings/wiki")

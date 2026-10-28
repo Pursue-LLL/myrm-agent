@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acquire/release an access-scoped lease for ./myrm test -m chrome_e2e.
+# Acquire/release an access-scoped lease for ./myrm-dev test -m chrome_e2e.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,7 +31,7 @@ case "${1:-}" in
     elif [[ "${lane}" == "RESOURCE_WRITE" ]]; then
       namespace="${MYRM_E2E_NAMESPACE:-${MYRM_E2E_RUN_ID:-}}"
       [[ -n "${namespace}" ]] || {
-        echo "E2E_NAMESPACE_REQUIRED: ./myrm test must provide MYRM_E2E_NAMESPACE" >&2
+        echo "E2E_NAMESPACE_REQUIRED: ./myrm-dev test must provide MYRM_E2E_NAMESPACE" >&2
         exit 2
       }
     fi

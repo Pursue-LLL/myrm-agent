@@ -107,7 +107,7 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         return (
             f"E2E_LAUNCH_DENIED: WAIT:READINESS_PROBE_TIMEOUT; "
             f"readiness probe exceeded {int(wall)}s; "
-            "run ./myrm e2e-context json and execute agent_rule (do not force "
+            "run ./myrm-dev e2e-context json and execute agent_rule (do not force "
             "launch or stop other pytest)"
         )
     fields = _parse_emit_fields(proc.stdout)
@@ -122,7 +122,7 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     reason = fields.get("MYRM_READINESS_REASON", proc.stderr.strip() or "launch denied")
     return (
         f"E2E_LAUNCH_DENIED: {token}; {reason}; "
-        "run ./myrm e2e-context json and execute agent_rule (do not force launch "
+        "run ./myrm-dev e2e-context json and execute agent_rule (do not force launch "
         "or stop other pytest)"
     )
 

@@ -2,7 +2,7 @@
 
 The full crawl path is unmocked: SSRF/DNS-pin validation -> scrapling HTTP
 fetch -> content pipeline. Requires the ``[web]`` extra (scrapling) in the
-running interpreter — the server venv (``./myrm test``) has it.
+running interpreter — the server venv (``./myrm-dev test``) has it.
 """
 
 from __future__ import annotations

@@ -533,7 +533,7 @@ def _resolve_session_id() -> str:
         return f"orchestrator-diagnostic-{os.getpid()}-{uuid.uuid4().hex[:8]}"
     raise RuntimeError(
         f"{E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN}: MYRM_E2E_LEASE_ID, "
-        "MYRM_E2E_AGENT_ID, or MYRM_E2E_RUN_ID required — launch via ./myrm test -m chrome_e2e"
+        "MYRM_E2E_AGENT_ID, or MYRM_E2E_RUN_ID required — launch via ./myrm-dev test -m chrome_e2e"
     )
 
 
@@ -900,7 +900,7 @@ def _wait_orchestrator_daemon_ready(
         time.sleep(0.5)
     raise RuntimeError(
         "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
-        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
+        "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm-dev ready --chrome"
     )
 
 

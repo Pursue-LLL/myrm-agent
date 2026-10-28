@@ -2248,7 +2248,7 @@ def _require_orchestrator_for_formal_e2e() -> None:
 
     raise RuntimeError(
         f"{BROWSER_ORCHESTRATOR_REQUIRED_TOKEN}: formal chrome_e2e requires "
-        "MYRM_BROWSER_ORCHESTRATOR=1 — launch via ./myrm test, not raw pytest/mux"
+        "MYRM_BROWSER_ORCHESTRATOR=1 — launch via ./myrm-dev test, not raw pytest/mux"
     )
 
 
@@ -2452,7 +2452,7 @@ def open_mcp_page(
 
     raise RuntimeError(
         f"{BROWSER_ORCHESTRATOR_REQUIRED_TOKEN}: Dev Gate chrome_e2e requires "
-        "MYRM_BROWSER_ORCHESTRATOR=1 — launch via ./myrm test -m chrome_e2e"
+        "MYRM_BROWSER_ORCHESTRATOR=1 — launch via ./myrm-dev test -m chrome_e2e"
     )
 
 

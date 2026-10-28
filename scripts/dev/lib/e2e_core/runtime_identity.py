@@ -379,7 +379,7 @@ def format_attach_endpoint_failure(errors: list[str]) -> str:
     if any(error.strip() == "ui=half_dead" for error in errors):
         return (
             "STACK_UI_HALF_DEAD: shared UI listening but HTTP unreachable — "
-            "ADMIT queue waited; when wave_leases=0 run: ./myrm restart --chrome "
+            "ADMIT queue waited; when wave_leases=0 run: ./myrm-dev restart --chrome "
             "(do not stop other pytest)"
         )
     return "CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors)

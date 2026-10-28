@@ -256,7 +256,7 @@ def test_memory_keyword_recall_cross_chat_live() -> None:
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     suffix = uuid.uuid4().hex[:8]
     agent_id = _create_agent(api_url, f"Memory Recall Probe {suffix}")
@@ -305,7 +305,7 @@ def test_memory_keyword_recall_cross_chat_cjk_live() -> None:
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     suffix = uuid.uuid4().hex[:8]
     agent_id = _create_agent(api_url, f"Memory Recall CJK Probe {suffix}")

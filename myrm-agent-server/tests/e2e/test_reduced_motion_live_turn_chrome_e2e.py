@@ -1,7 +1,7 @@
 """Chrome E2E: a real turn still works while the OS asks for reduced motion.
 
 Prerequisites:
-  ./myrm ready --attach --chrome   (needs BASIC_API_KEY / BASIC_MODEL in .env.test)
+  ./myrm-dev ready --attach --chrome   (needs BASIC_API_KEY / BASIC_MODEL in .env.test)
 
 This is the user-facing scenario the guards could plausibly break: a person with "reduce motion"
 turned on sends a real prompt and must still get a real model reply, with the streamed answer

@@ -5,7 +5,7 @@ Flow:
   → click Allow once / Allow always → tool resumes → assistant replies DONE.
 
 Prerequisites:
-  ./myrm ready --chrome  (macOS, Accessibility granted, provider ready)
+  ./myrm-dev ready --chrome  (macOS, Accessibility granted, provider ready)
 
 Implementation modules: tests/e2e/desktop_approval/
 """

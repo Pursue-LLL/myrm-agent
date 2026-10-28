@@ -7,7 +7,7 @@ keep the old chat, because its row already existed as a normal one.
 
 Formal run::
 
-    ./myrm test -m chrome_e2e \\
+    ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_incognito_switch_after_live_turn_chrome_e2e.py
 """
 
@@ -182,7 +182,7 @@ def test_switching_incognito_after_a_live_turn_starts_a_fresh_chat() -> None:
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
 
     chat_id = _seed_conversation(api_url)
     chat_url = f"{ui_url.rstrip('/')}/{chat_id}"

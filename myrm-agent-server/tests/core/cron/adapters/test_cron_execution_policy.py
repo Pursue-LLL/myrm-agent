@@ -50,11 +50,11 @@ class TestLifecycleGuard:
         assert contains_myrm_lifecycle_command("") is False
 
     def test_detects_myrm_restart(self) -> None:
-        assert contains_myrm_lifecycle_command("./myrm restart --chrome") is True
+        assert contains_myrm_lifecycle_command("./myrm-dev restart --chrome") is True
 
     def test_assert_rejects_restart_in_prompt(self) -> None:
         with pytest.raises(ValueError, match="lifecycle commands"):
-            assert_cron_job_lifecycle_safe(prompt="Run ./myrm restart nightly", command=None)
+            assert_cron_job_lifecycle_safe(prompt="Run ./myrm-dev restart nightly", command=None)
 
     def test_assert_rejects_restart_in_command(self) -> None:
         with pytest.raises(ValueError, match="lifecycle commands"):
@@ -65,7 +65,7 @@ class TestLifecycleGuard:
             assert_cron_job_lifecycle_safe(
                 prompt=None,
                 command=None,
-                pre_condition_script='import os; os.system("./myrm restart")',
+                pre_condition_script='import os; os.system("./myrm-dev restart")',
             )
 
 
@@ -185,7 +185,7 @@ class TestCronExecutionPolicyApi:
                 "name": "Bad restart job",
                 "job_type": "agent",
                 "schedule": {"kind": "cron", "expr": "0 9 * * *"},
-                "prompt": "Please run ./myrm restart every night",
+                "prompt": "Please run ./myrm-dev restart every night",
             },
         )
         assert resp.status_code == 400
@@ -199,7 +199,7 @@ class TestCronExecutionPolicyApi:
                 "job_type": "agent",
                 "schedule": {"kind": "cron", "expr": "0 9 * * *"},
                 "prompt": "Check status",
-                "pre_condition_script": 'import os; os.system("./myrm restart")',
+                "pre_condition_script": 'import os; os.system("./myrm-dev restart")',
             },
         )
         assert resp.status_code == 400
@@ -245,7 +245,7 @@ class TestCronExecutionPolicyApi:
 
         patch_resp = guarded_cron_client.patch(
             f"/cron/{job_id}",
-            json={"pre_condition_script": 'import os; os.system("./myrm restart")'},
+            json={"pre_condition_script": 'import os; os.system("./myrm-dev restart")'},
         )
         assert patch_resp.status_code == 400
         assert "lifecycle" in patch_resp.json()["detail"].lower()

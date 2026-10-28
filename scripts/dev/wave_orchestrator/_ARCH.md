@@ -21,7 +21,7 @@ Chrome MCP UI E2E 的 **Immutable Test Wave** 状态机。冻结 `runtimeId`、�
 | `resource_cleanup.py` | chat 等资源 HTTP 清理驱动；503/500 指数退避重试 | ✅ |
 | `stack_pin.py` | `wave open` 写入 `stack-pin.json`；`probe_stack_pids` 读 `{state}/backend.pid` + `{state}/frontend.pid`；gate 阻断无 STACK_WRITE 的栈变更 | ✅ |
 | `core.py` | Wave/lease 编排 façade + `check_stack_write_gate`（含 stack pin）；`waveId` 比较均使用 `.get()` 防御性访问 | ✅ |
-| `cli.py` | `./myrm wave` 子命令 | ✅ |
+| `cli.py` | `./myrm-dev wave` 子命令 | ✅ |
 | `__main__.py` | `python -m wave_orchestrator` 入口 | — |
 
 ## CLI（`../wave.sh`）
@@ -46,25 +46,25 @@ Chrome MCP UI E2E 的 **Immutable Test Wave** 状态机。冻结 `runtimeId`、�
 | `READ` | UI 只读并行 | 多租约；GLOBAL_WRITE / STACK_WRITE 阻断 |
 | `RESOURCE_WRITE` | namespace 资源写 | 同 namespace 独占；可与私池 LIVE_AGENT 并行；GLOBAL_WRITE / STACK_WRITE 阻断 |
 | `GLOBAL_WRITE` | 全局配置写入 | 共享栈全局独占；阻断 READ / LIVE_AGENT / RESOURCE_WRITE；PRIVATE 后端使用 `e2e:private:<run>` namespace，仅保留本 lease 生命周期/ledger 约束，不阻断共享栈或其他私池 |
-| `LIVE_AGENT` | API E2E / 真实模型流 | `./myrm test` 默认双路真实并行；环境变量可显式调到 4 |
+| `LIVE_AGENT` | API E2E / 真实模型流 | `./myrm-dev test` 默认双路真实并行；环境变量可显式调到 4 |
 | `STACK_WRITE` | reset/restart | 全局独占 |
 
-`./myrm test` 先向 Dev Gate coordinator 注册显式 execution/access/workload，再使用 `wave-e2e-lease.sh acquire`。页面 READ lease 通过 `parentLeaseId` 归属当前 Session；trap 只级联本 Session 子 lease/page。Wave 负责资源写冲突与 stack pin，不负责浏览器 session admission。共享逻辑 session 不限量；mux 固定 4 个物理 worker。PRIVATE 的昂贵后端由 coordinator 按机器容量限制为 1–4 credits，容量满自动排队。
+`./myrm-dev test` 先向 Dev Gate coordinator 注册显式 execution/access/workload，再使用 `wave-e2e-lease.sh acquire`。页面 READ lease 通过 `parentLeaseId` 归属当前 Session；trap 只级联本 Session 子 lease/page。Wave 负责资源写冲突与 stack pin，不负责浏览器 session admission。共享逻辑 session 不限量；mux 固定 4 个物理 worker。PRIVATE 的昂贵后端由 coordinator 按机器容量限制为 1–4 credits，容量满自动排队。
 
 PRIVATE session 的 root wave lease（以及其 page/context 子 lease）带有 `e2e:private:<run>` namespace。它们仍参与 ownership、heartbeat、ledger 和最终 cleanup，但不会阻断共享后端的 epoch/heal/stack-write 决策；只有共享 lease 才能 pin 共享栈。
 
-**Resource Ledger**：`RESOURCE_WRITE` 或 `GLOBAL_WRITE` 租约创建 chat 等业务资源后，须 `./myrm wave ledger register <leaseId> chat <chatId>`；`lease release` / TTL 过期自动 HTTP 清理（`resource_cleanup.py` → `DELETE /api/v1/chats/...`）。
+**Resource Ledger**：`RESOURCE_WRITE` 或 `GLOBAL_WRITE` 租约创建 chat 等业务资源后，须 `./myrm-dev wave ledger register <leaseId> chat <chatId>`；`lease release` / TTL 过期自动 HTTP 清理（`resource_cleanup.py` → `DELETE /api/v1/chats/...`）。
 
 状态文件锁只保护快照和结果提交；CDP/HTTP 清理在锁外执行，失败记录为 `failed` 并由后续 reaper 重试。`bind_browser_lease` 在 bind 新 target 前锁外 HTTP close 旧 targetId。`wave reap` 调用 `infra_browser_registry.prune_infra_registry()`。清理认证必须显式设置 `MYRM_E2E_ADMIN_PASSWORD` 或 `E2E_ADMIN_PASSWORD`，源码不含默认密码。需要浏览器状态隔离时为每个活跃 lease 绑定唯一 `contextId`；不同 tab 本身仍共享 Cookie/localStorage。
 
-全局选项 `--agent` 须放在子命令前：`./myrm wave --agent my-id lease acquire READ`。
+全局选项 `--agent` 须放在子命令前：`./myrm-dev wave --agent my-id lease acquire READ`。
 
 ## 集成
 
 - `dev-stack.sh` `cmd_reset` / `_kill_frontend_supervisor` / `_repair_orphan_frontend` 调用 `check-stack-write`（`MYRM_WAVE_GATE_BYPASS=1` 仅测试）
 - `stack_supervisor/daemon.py` — watchdog 每 30s 直接 Python 调用 `wave_orchestrator.core.reap()` + `check_stack_write_gate()`（无 bash 子进程，避免 venv 路径/超时引起的静默失败）
 - `ifm/profile.yaml` browser-mcp — Agent 正式流程
-- [../lib/e2e_core/runtime_probe.py](../lib/e2e_core/runtime_probe.py) — `runtimeId` 探针；`core.probe_runtime_id()` 与 `e2e_bootstrap` / `e2e_runtime_guard` 同源；正式 `./myrm test` chrome E2E 会话期间 `reap_runtime_drift` 仅 heal 或 no-op，**永不** drift-invalidate 共享 immutable wave
+- [../lib/e2e_core/runtime_probe.py](../lib/e2e_core/runtime_probe.py) — `runtimeId` 探针；`core.probe_runtime_id()` 与 `e2e_bootstrap` / `e2e_runtime_guard` 同源；正式 `./myrm-dev test` chrome E2E 会话期间 `reap_runtime_drift` 仅 heal 或 no-op，**永不** drift-invalidate 共享 immutable wave
 
 ## Lease TTL 策略
 

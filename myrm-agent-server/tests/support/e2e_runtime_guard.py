@@ -118,7 +118,7 @@ def _private_backend_runtime_pinned() -> bool:
 
 
 def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
-    """Allow in-place wave heal for ./myrm test chrome_e2e parent sessions."""
+    """Allow in-place wave heal for ./myrm-dev test chrome_e2e parent sessions."""
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
@@ -380,7 +380,7 @@ def _require_e2e_runtime_lease_once(
 ) -> E2ERuntimeLease:
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     if not lease_id:
-        raise RuntimeError("E2E_LEASE_REQUIRED: run live tests via ./myrm test -m e2e; direct pytest/uv entry is blocked")
+        raise RuntimeError("E2E_LEASE_REQUIRED: run live tests via ./myrm-dev test -m e2e; direct pytest/uv entry is blocked")
     state_path = _wave_state_path()
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -394,7 +394,7 @@ def _require_e2e_runtime_lease_once(
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} is not active")
     expected_agent = os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
     if not expected_agent:
-        raise RuntimeError("E2E_AGENT_REQUIRED: run live tests via ./myrm test -m e2e")
+        raise RuntimeError("E2E_AGENT_REQUIRED: run live tests via ./myrm-dev test -m e2e")
     if lease.get("agentId") != expected_agent:
         raise RuntimeError(
             f"E2E_LEASE_INVALID: lease {lease_id} owner={lease.get('agentId')} does not match MYRM_E2E_AGENT_ID={expected_agent}"

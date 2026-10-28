@@ -81,7 +81,7 @@ def _live_parallel_shared_ui_load() -> int:
     """Live parallel chrome_e2e load for shared :3000 hydrate serialization.
 
     ``wave_active_lease_count`` alone under-report during pytest peers that hold
-    no *wave* lease (daily ``./myrm test`` parallelism), which let the bridge cap
+    no *wave* lease (daily ``./myrm-dev test`` parallelism), which let the bridge cap
     fall back to the serial 60s budget while 4-12 peers were compiling :3000 —
     surfacing as ``E2E_SHARED_UI_SESSION_BRIDGE: bridge-ready-timeout``.
     """

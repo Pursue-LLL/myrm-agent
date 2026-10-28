@@ -21,7 +21,7 @@ from pathlib import Path
 from e2e_core.cursor_mcp_isolation import AGENT_CDP_PORT, E2E_CDP_PORT
 
 CANONICAL_AGENT_HINT = (
-    f"ChromeAgent :{AGENT_CDP_PORT} " "(./myrm doctor --mcp-isolation --strict-live)"
+    f"ChromeAgent :{AGENT_CDP_PORT} " "(./myrm-dev doctor --mcp-isolation --strict-live)"
 )
 
 FORBIDDEN_AGENT_RECOMMEND_PATTERNS: tuple[str, ...] = (
@@ -173,7 +173,7 @@ def validate_cross_file_contract(root: Path | None = None) -> list[str]:
                 rel = f"{target.path}:{option_id}"
                 if option_id == "测啥了" and "mux MCP" in block:
                     violations.append(
-                        f"{rel}: UI E2E must use ./myrm test -m chrome_e2e, not mux MCP"
+                        f"{rel}: UI E2E must use ./myrm-dev test -m chrome_e2e, not mux MCP"
                     )
                 for line_no, line in enumerate(block.splitlines(), start=1):
                     for pattern in FORBIDDEN_AGENT_RECOMMEND_PATTERNS:

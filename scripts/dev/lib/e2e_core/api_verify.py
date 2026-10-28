@@ -60,7 +60,7 @@ AGENT_NEVER_SAY: Final[str] = (
 CHROME_AGENT_MCP_PORT: Final[int] = 9410
 CHROME_E2E_HARNESS_PORT: Final[int] = 9333
 CHROME_INSTANCE_ISOLATION_RULE: Final[str] = (
-    "CHROME_INSTANCE_ISOLATION: chrome_e2e/parallel E2E must use ./myrm test harness "
+    "CHROME_INSTANCE_ISOLATION: chrome_e2e/parallel E2E must use ./myrm-dev test harness "
     f"→ ChromeE2E :{CHROME_E2E_HARNESS_PORT}; do NOT call chrome-devtools MCP "
     f"(:{CHROME_AGENT_MCP_PORT} ChromeAgent). ChromeAgent is for URL-extraction Agent tasks only."
 )
@@ -80,7 +80,7 @@ def browser_isolation_payload() -> dict[str, object]:
         "e2eHarness": {
             "port": CHROME_E2E_HARNESS_PORT,
             "profile": "ChromeE2E",
-            "entry": "./myrm test -m chrome_e2e",
+            "entry": "./myrm-dev test -m chrome_e2e",
         },
     }
 
@@ -740,13 +740,13 @@ def _build_context_from_resolution(
     ]
     if unobservable:
         action = (
-            "Preserve the runtime and peers; rerun through the normal ./myrm test "
+            "Preserve the runtime and peers; rerun through the normal ./myrm-dev test "
             "harness where loopback health is observable; never infer a crash or restart"
         )
     elif not healthy:
         action = (
-            "Run ./myrm ready --attach --chrome for single-flight backend-only crash heal, "
-            "then reread ./myrm e2e-context json"
+            "Run ./myrm-dev ready --attach --chrome for single-flight backend-only crash heal, "
+            "then reread ./myrm-dev e2e-context json"
         )
     elif stale:
         action = (
@@ -1406,7 +1406,7 @@ def _context_to_dict(
         queue_rule = " ".join(rules)
         payload["agent_rule"] = (
             f"{payload.get('agent_rule', ctx.agent_rule)} {queue_rule} "
-            "Do not stop/kill peer pytest; do not pipe ./myrm test to tail|head."
+            "Do not stop/kill peer pytest; do not pipe ./myrm-dev test to tail|head."
         )
     if headroom.get("queueLayer") == "operation":
         depth = headroom.get("operationQueueDepth", 0)
@@ -1687,7 +1687,7 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
             )
         else:
             sys.stderr.write(
-                "Hint: retry with ./myrm verify-api --ensure-backend … "
+                "Hint: retry with ./myrm-dev verify-api --ensure-backend … "
                 "(parallel leases defer shared reload; do not stop other pytest).\n"
             )
         return 2

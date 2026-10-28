@@ -81,8 +81,8 @@ async def run_desktop_approval_chrome_e2e(
     if not wait_e2e_provider_ready(timeout_sec=180.0, poll_interval_sec=2.0):
         readiness = fetch_provider_readiness_snapshot()
         pytest.fail(
-            "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
-            f"after ./myrm ready --chrome (readiness={readiness})"
+            "Provider config not ready for live E2E — run via ./myrm-dev test -m chrome_e2e "
+            f"after ./myrm-dev ready --chrome (readiness={readiness})"
         )
     perms = desktop_permissions()
     initial_ax = bool(perms.get("accessibility"))
@@ -91,7 +91,7 @@ async def run_desktop_approval_chrome_e2e(
             "macOS Accessibility permission missing for the backend: "
             "Open System Settings → Privacy & Security → Accessibility, "
             "grant the capability to the terminal/IDE hosting the backend "
-            "(and to /usr/bin/osascript), then retry after ./myrm restart"
+            "(and to /usr/bin/osascript), then retry after ./myrm-dev restart"
         )
     if not perms.get("screen_recording"):
         # Soft warn: primary approval flow is AX-only (snapshot @drefs + interact);

@@ -6,7 +6,7 @@ opened on a stored conversation, left alone for a few seconds, then a question i
 
 No model is involved. Formal run::
 
-    ./myrm test -m chrome_e2e \\
+    ./myrm-dev test -m chrome_e2e \\
       myrm-agent/myrm-agent-server/tests/e2e/test_chat_view_stays_mounted_chrome_e2e.py
 """
 

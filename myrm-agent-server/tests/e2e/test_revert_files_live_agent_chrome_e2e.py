@@ -332,7 +332,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live revert E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
+            "Provider config not ready for live revert E2E — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome"
         )
 
     api_base = get_e2e_api_url()

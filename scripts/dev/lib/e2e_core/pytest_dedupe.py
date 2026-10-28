@@ -386,7 +386,7 @@ def acquire_session_lock(
     if duplicate is not None:
         print(
             f"E2E_DEDUPE_HOLDER_RUNNING: holder_pid={duplicate} fingerprint={fingerprint} — "
-            "existing chrome_e2e run in progress; read ./myrm e2e-context "
+            "existing chrome_e2e run in progress; read ./myrm-dev e2e-context "
             "E2E_TEST_PROGRESS (do not relaunch; do not stop other pytest)",
             file=sys.stderr,
         )

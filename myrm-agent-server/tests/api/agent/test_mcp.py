@@ -4,12 +4,12 @@
 
 运行方式：
 -----------
-   ./myrm test -m e2e tests/api/agent/test_mcp.py -v -s
-   # 单测例：./myrm test -m e2e tests/api/agent/test_mcp.py::TestAgentMCP::test_agent_with_12306_python_mcp
+   ./myrm-dev test -m e2e tests/api/agent/test_mcp.py -v -s
+   # 单测例：./myrm-dev test -m e2e tests/api/agent/test_mcp.py::TestAgentMCP::test_agent_with_12306_python_mcp
 
 注意事项：
 -----------
-- 禁止 `uv run pytest`；monorepo 根目录用 `./myrm test`
+- 禁止 `uv run pytest`；monorepo 根目录用 `./myrm-dev test`
 - 需要 `.env.test` 中 BASIC_*（及可选 LITE_*、搜索服务配置）
 - 12306 MCP 须 Node `12306-mcp`（`npm install -g 12306-mcp`）；禁止 uvx 版 Python mcp-server-12306
 - 其他 MCP 服务器可用（如 amap-maps）

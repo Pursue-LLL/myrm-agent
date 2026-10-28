@@ -420,7 +420,7 @@ async def test_image_upload_stream_assistant_replies(
 ) -> None:
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
-        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
+        pytest.fail("Provider config not ready — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome")
 
     backup = fetch_config_value("providers", api_url=api_url)
     try:
@@ -469,7 +469,7 @@ async def test_image_upload_stream_empty_prompt_fallback(
     """
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
-        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
+        pytest.fail("Provider config not ready — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome")
 
     backup = fetch_config_value("providers", api_url=api_url)
     try:

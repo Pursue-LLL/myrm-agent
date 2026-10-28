@@ -211,7 +211,7 @@ def setup_skill_chat(
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
     if not yolo:
         _pin_hitl_on_private_api(api_url)
 

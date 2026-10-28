@@ -1,7 +1,7 @@
 """Real Chrome MCP E2E for Hermes migration wizard → builtin-economy dry-run.
 
 Prerequisites:
-  ./myrm ready --chrome
+  ./myrm-dev ready --chrome
   Local Hermes source discoverable at ~/.hermes (or other path returned by discovery API)
 
 Covers:

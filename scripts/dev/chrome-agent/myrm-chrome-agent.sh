@@ -4,7 +4,7 @@
 # Subcommands:
 #   install|upgrade  Sync repo bundle → ~/.local/lib/myrm-chrome-agent, flip
 #                    `current` symlink atomically, install LaunchAgent, verify.
-#   daemon           LaunchAgent start (alias of ./myrm ready --chrome-agent --daemon).
+#   daemon           LaunchAgent start (alias of ./myrm-dev ready --chrome-agent --daemon).
 #   login            Open OAuth-safe login window (alias of --chrome-agent --login).
 #   status           Read-only report of sha / current / LaunchAgent / health.
 #   uninstall        Stop LaunchAgent and remove plist (keeps profile + versions).

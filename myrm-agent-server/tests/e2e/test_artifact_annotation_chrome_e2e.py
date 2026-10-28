@@ -334,7 +334,7 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     prepare_e2e_ui_session(api_url)
     seed_live_e2e_providers(api_url)
     if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready - run ./myrm ready --chrome")
+        pytest.fail("Provider not ready - run ./myrm-dev ready --chrome")
 
     intent = "E2E review note: verify this paragraph"
     chat_id = ""
