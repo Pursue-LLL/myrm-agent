@@ -130,8 +130,8 @@ _ENV_ASSIGN_RE = re.compile(
 # （`openai_key_legacy=`），词边界校验兜底防 `db_pwx=` 类吞词误伤。
 # `(?<![?&])` 负向后顾（与 _ENV_ASSIGN_RE 一致）阻止 URL query 参数
 # （`?openai_key=`/`&openai_key=` 交给 _URL_QUERY_RE 处理），从而无需全局 URL 开关。
-# 前缀与后缀都限长 64：任一端无界，纯 `[a-z0-9_]` 长串（`key_key_…`）都会逐起点扫到串尾再回溯，
-# 耗时 O(n²)（8KB 14s）；限长后每个起点的工作量有常数上界，总耗时随长度线性增长。
+# 前缀与后缀都限长 64：任一端无界，纯 `[a-z0-9_]` 长串（`key_key_…`）都会让每个起点扫到串尾再回溯，
+# 耗时随长度平方增长；限长后每个起点的工作量有常数上界，总耗时随长度线性增长。
 _ENV_ASSIGN_LOWER_RE = re.compile(
     r"(?<![?&])([a-z0-9_.]{1,64}[_.](?:key|pass|pw|token|secret|password|passwd|credential|auth)[a-z0-9_]{0,64})(?=[^a-z0-9_]|$)\s*=\s*((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:[^\s&\"']+))",
     re.IGNORECASE,

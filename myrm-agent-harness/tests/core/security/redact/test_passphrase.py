@@ -53,6 +53,8 @@ class TestPassphraseKeepList:
         "text",
         [
             "export BORG_PASSPHRASE=${BORG_PASSPHRASE}",
+            "gpg --batch --passphrase-file ~/.gpg-pass -d secrets.gpg",
+            "gpg --batch --passphrase-fd 0 -d secrets.gpg",
             "vault_passphrase: ${VAULT_PASSPHRASE:?set it in .env}",
             'export BORG_PASSCOMMAND="cat $HOME/.borg-passphrase"',
             json.dumps({"passphraseHint": "At least 8 characters.", "passphrase_required": "Enter it to continue."}),

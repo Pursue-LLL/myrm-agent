@@ -1,8 +1,8 @@
 """The lower-case ``name_key=value`` detector does a bounded amount of work per start position.
 
-A long run of ``[a-z0-9_]`` made of credential words and underscores (``key_key_key_…``) gave every start position a
-match attempt that scanned to the end of the run, so the cost grew with the square of the length: 8 KB took seconds.
-Names are bounded on both sides, so the same input now costs time proportional to its length.
+On a long run of ``[a-z0-9_]`` made of credential words and underscores (``key_key_key_…``) every start position
+would scan to the end of the run if the name suffix were unbounded, and the cost would grow with the square of the
+length (seconds for 8 KB). Names are bounded on both sides, so the cost is proportional to the length.
 """
 
 from __future__ import annotations
