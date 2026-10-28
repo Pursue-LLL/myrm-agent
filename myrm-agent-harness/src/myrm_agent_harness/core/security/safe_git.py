@@ -31,6 +31,11 @@ stays private or is raw by design (``status``, ``diff``, ``ls-files``, ``stash c
 back what ``stash create`` recorded) declare such a filter not required, so git carries on with the raw content. Every
 other command keeps the repository's own ``required`` flag: git then fails instead of committing or checking out
 content the filter would have transformed.
+
+Out of reach: a program that git starts and that then reads the repository's own settings. git-lfs does — a
+repository-local ``lfs.extension.<name>.clean``, ``lfs.standalonetransferagent`` / ``lfs.customtransfer.<name>.path``
+and ``lfs.url`` make it run a program or connect to a host that the repository names, and the ``-c`` overrides here
+(which are for git's own keys) do not stop it. Only a machine with git-lfs installed is exposed.
 """
 
 from __future__ import annotations
