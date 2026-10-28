@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     class _AsyncWritable(Protocol):
         """Minimal protocol for an async file-like object with a write method."""
 
-        async def write(self, data: str) -> int: ...
+        async def write(self, data: str, /) -> int: ...
 
 
 logger = logging.getLogger(__name__)
