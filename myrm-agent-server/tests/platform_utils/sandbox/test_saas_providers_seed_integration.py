@@ -6,11 +6,12 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import AsyncIterator
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.config.deploy_mode import get_deploy_mode
 from app.core.channel_bridge.config_cache import _config_cache, _get_cached
@@ -19,6 +20,8 @@ from app.platform_utils.sandbox.saas_providers_seed import (
     _PLATFORM_PROVIDER_ID,
     seed_saas_platform_providers_if_needed,
 )
+from app.services.config import service as config_service_module
+from app.services.config.encryption import ConfigEncryptionService
 from app.services.config.service import ConfigService
 
 _LITE_MODEL = "openrouter/anthropic/claude-sonnet-4"
@@ -94,3 +97,38 @@ class TestSeedIntegration:
         await seed_saas_platform_providers_if_needed()
 
         assert _get_cached("sandbox") is None
+
+    async def test_seed_leaves_an_unreadable_providers_row_untouched(
+        self, sandbox_db: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """providers 行由当前沙箱已不持有的密钥加密：seed 不得覆盖这份仍可恢复的密文，密钥恢复后原配置完好。"""
+        original: dict[str, object] = {
+            "providers": [{"id": "anthropic", "providerType": "anthropic", "isEnabled": True}],
+            "defaultModelConfig": {"baseModel": {"primary": {"providerId": "anthropic", "model": "claude-opus"}}},
+        }
+        service = ConfigService()
+        await service.set("providers", original, "test-device")
+        sealed_before = await _stored_row()
+
+        other_key = ConfigEncryptionService(encryption_key=os.urandom(32), is_sandbox=False, is_local=True)
+        with monkeypatch.context() as swapped:
+            swapped.setattr(config_service_module, "get_encryption_service", lambda: other_key)
+            unreadable = await service.get("providers")
+            assert unreadable is not None and unreadable.unreadable and unreadable.value == {}
+
+            await seed_saas_platform_providers_if_needed()
+
+            assert await _stored_row() == sealed_before
+
+        restored = await service.get("providers")
+        assert restored is not None and not restored.unreadable
+        assert restored.value == original
+
+
+async def _stored_row() -> tuple[object, str]:
+    """providers 行的落库原文（密文）与版本，用于断言未被改写。"""
+    from app.database.connection import get_session_factory
+
+    async with get_session_factory()() as session:
+        row = (await session.execute(select(UserConfig).where(UserConfig.config_key == "providers"))).scalar_one()
+        return row.config_value, row.version

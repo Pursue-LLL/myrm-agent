@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-`app/platform_utils/sandbox`（平台适配层沙箱子模块）的业务逻辑回归测试。覆盖 SaaS 沙箱启动时平台 provider seed 全分支（全新沙箱写入、已有配置跳过、守卫子句）与沙箱 tool gateway 凭据合并。
+`app/platform_utils/sandbox`（平台适配层沙箱子模块）的业务逻辑回归测试。覆盖 SaaS 沙箱启动时平台 provider seed 全分支（全新沙箱写入、已有配置跳过、providers 行不可读时不写入、守卫子句）与沙箱 tool gateway 凭据合并。
 
 ---
 
@@ -12,8 +12,8 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `test_saas_providers_seed.py` | 核心 | `seed_saas_platform_providers_if_needed` 全分支（14 例）：全新沙箱 seed / providers 空数组 seed / record.value 非 dict 防御 seed / 有 provider 跳过（含未设默认模型回归保护）/ 仅默认模型跳过 / 非 sandbox 返回 / 缺 env 返回（WARNING 锚点）/ 非法 ref 返回 / `_parse_lite_model_ref` 4 例 |
-| `test_saas_providers_seed_integration.py` | 核心 | seed 集成（3 例）：真实 `ConfigService` + 共享测试 DB 全链路——platform provider 加密落库并读回、已有用户 provider 不被覆盖、seed 写入后 config cache 失效（channel_bridge 立即读到新配置）。关键路径（真实 ConfigService 读写）不 mock，仅清理 providers 行隔离状态 |
+| `test_saas_providers_seed.py` | 核心 | `seed_saas_platform_providers_if_needed` 全分支（15 例）：全新沙箱 seed / providers 空数组 seed / record.value 非 dict 防御 seed / 有 provider 跳过（含未设默认模型回归保护）/ 仅默认模型跳过 / providers 行不可读（`unreadable`）不写入 / 非 sandbox 返回 / 缺 env 返回（WARNING 锚点）/ 非法 ref 返回 / `_parse_lite_model_ref` 4 例 |
+| `test_saas_providers_seed_integration.py` | 核心 | seed 集成（4 例）：真实 `ConfigService` + 共享测试 DB 全链路——platform provider 加密落库并读回、已有用户 provider 不被覆盖、seed 写入后 config cache 失效（channel_bridge 立即读到新配置）、真实加密换钥匙后 providers 行不可读时 seed 不改写落库密文与版本、钥匙换回后原配置完好。关键路径（真实 ConfigService 读写）不 mock，仅清理 providers 行隔离状态 |
 | `test_tool_gateway.py` | 核心 | 沙箱 tool gateway 凭据 fetch + merge 单测（非 sandbox 透传、sandbox 平台覆盖、SSRF/格式守卫） |
 
 ---
