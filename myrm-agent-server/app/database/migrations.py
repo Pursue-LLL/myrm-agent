@@ -5,7 +5,7 @@ myrm_agent_harness.utils.db.migration_engine::StatefulMigrationEngine/MigrationS
 sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（旧版为循环守卫暂停留下的 PENDING 审批行置为 REJECTED）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -37,6 +37,14 @@ BACKFILL_LEGACY_WAKEUP_NOTICE_SQL = (
     "'$.wakeup_notice', 'followup') "
     "WHERE role = 'user' AND id >= 'wakeup_' AND id < 'wakeup`' "
     "AND json_extract(extra_data, '$.wakeup_notice') IS NULL"
+)
+
+# A loop-guard pause (``action_type`` ``tool_stuck``) is not an approval and gets no approval row. Rows an earlier build
+# recorded for it are PENDING without ``expires_at``, so no expiry sweep reaches them and each one keeps its chat
+# refusing new messages; rejecting them frees the chat. Only PENDING rows of that exact action type change.
+REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL = (
+    "UPDATE approvals SET status = 'REJECTED', resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP "
+    "WHERE action_type = 'tool_stuck' AND status = 'PENDING'"
 )
 
 # 数据库迁移语句（按顺序执行）
@@ -710,6 +718,7 @@ MIGRATION_STATEMENTS: list[str] = [
     # New DBs get the column from create_all; this append-only ALTER covers existing databases.
     "ALTER TABLE chats ADD COLUMN external_cli_sessions JSON",
     BACKFILL_LEGACY_WAKEUP_NOTICE_SQL,
+    REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL,
 ]
 
 # 创建索引的SQL语句列表
