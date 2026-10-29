@@ -8,6 +8,7 @@ internal symbols re-exported by the ``agent.security.redact`` facade.
 
 [INPUT]
 - engine::redact_sensitive_text, engine::redact_for_llm, engine::redact_for_display, engine::RedactingFormatter and the other public and internal symbols (POS: redaction pipeline and public API of the redactor)
+- bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
 - file_view::redact_file_text (POS: per-file redaction by file type, shared by the tools that show a file's text)
 - masking::_mask_token (POS: Leaf value-masking helpers of the runtime redactor)
 
@@ -19,11 +20,11 @@ internal symbols re-exported by the ``agent.security.redact`` facade.
 Public facade of the redaction domain; ``agent/security/redact.py`` re-exports it.
 """
 
+from .bounded_replace import _replace_pattern_bounded
 from .engine import (
     RedactingFormatter,
     _redact_pem_block,
     _redact_value_recursive,
-    _replace_pattern_bounded,
     escape_invisible_unicode,
     redact_for_display,
     redact_for_llm,

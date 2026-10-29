@@ -11,6 +11,7 @@ surrounding syntax (keys, quotes, flags, URL structure) stays intact.
 
 [INPUT]
 - core.security.redact.patterns (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
+- core.security.redact.header_patterns (POS: Header rules of the runtime redactor; its API-key header regex is an ``authorization_header`` rule)
 - core.security.redact.url_credentials (POS: URL credential regexes and replacers of the runtime redactor)
 - core.security.redact.structured_fields (POS: Secret-named field detectors of the runtime redactor; its JSON member regex is the ``json_secret_field`` rule)
 
@@ -31,6 +32,7 @@ import re
 from dataclasses import dataclass
 from typing import Literal, NamedTuple, TypedDict
 
+from myrm_agent_harness.core.security.redact.header_patterns import _SECRET_HEADER_RE
 from myrm_agent_harness.core.security.redact.patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
@@ -39,7 +41,6 @@ from myrm_agent_harness.core.security.redact.patterns import (
     _JWT_RE,
     _PREFIX_RE,
     _PRIVATE_KEY_RE,
-    _SECRET_HEADER_RE,
     _TELEGRAM_BOT_RE,
     _URL_QUERY_RE,
     _YAML_ASSIGN_RE,

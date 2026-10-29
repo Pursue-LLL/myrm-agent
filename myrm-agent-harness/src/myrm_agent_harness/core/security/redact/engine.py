@@ -6,6 +6,8 @@ defense layer complementing ``sanitize_env`` (source removal).
 
 [INPUT]
 - masking::_mask_token, masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
+- bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
+- header_patterns::_redact_secret_headers (POS: Header rules of the runtime redactor)
 - patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 - structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line (POS: structured-field detectors of the redaction engine)
 - url_credentials::_DB_CONNSTR_RE, url_credentials::_URL_USERINFO_RE, url_credentials::_URL_BARE_TOKEN_RE and their replacers (POS: URL credential regexes and replacers of the runtime redactor)
@@ -17,8 +19,8 @@ defense layer complementing ``sanitize_env`` (source removal).
 - redact_for_display(args) -> dict — recursive redaction for approval UI
 - RedactingFormatter — logging.Formatter subclass for production logs
 
-Pattern definitions live in ``patterns.py``; this module owns the redaction
-engine (bounded replace, control-split guard, pipeline) and public APIs.
+Pattern definitions live in ``patterns.py`` and its sibling rule modules; this module owns the redaction
+engine (control-split guard, pipeline) and public APIs.
 
 [POS]
 Redaction pipeline and public API of the redactor; applies the pattern and
@@ -31,25 +33,23 @@ import logging
 import re
 from collections.abc import Callable
 
+from .bounded_replace import _replace_pattern_bounded
+from .header_patterns import _redact_secret_headers
 from .masking import _mask_secret, _mask_token
 from .patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
     _CONTROL_CHARS_RE,
-    _COOKIE_HEADER_LINE_RE,
-    _COOKIE_HEADER_QUOTED_RE,
     _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
     _JWT_RE,
     _PREFIX_RE,
     _PRIVATE_KEY_RE,
-    _SECRET_HEADER_RE,
     _TELEGRAM_BOT_RE,
     _TOKEN_BODY_CHARS,
     _URL_QUERY_RE,
     _YAML_ASSIGN_RE,
     _redact_cli_flag,
-    _redact_cookie_header,
     _redact_env_assignment,
     _redact_form_body,
     _redact_yaml_assignment,
@@ -72,11 +72,6 @@ from .url_credentials import (
 
 _REDACT_ENABLED = True
 
-# ── Bounded replace constants (防ReDoS) ──────────────────────────
-_REDACT_REGEX_CHUNK_THRESHOLD = 32768  # 32KB
-_REDACT_REGEX_CHUNK_SIZE = 16384  # 16KB
-_CHUNK_OVERLAP = 4096  # covers RSA-4096 PEM (~3200 chars) + margin
-
 # An assigned string literal of eight characters or more, no f-string prefix: a shorter literal or a template is
 # not a credential, and the lines without one are the bulk of the false masks in source code.
 _STRING_LITERAL_RE = re.compile(r"""[:=]\s*[bru]*["'][^"'\s]{8,}["']""", re.IGNORECASE)
@@ -86,70 +81,6 @@ def set_redact_enabled(enabled: bool) -> None:
     """Configure secret redaction at startup. Enabled by default."""
     global _REDACT_ENABLED
     _REDACT_ENABLED = enabled
-
-
-def _replace_pattern_bounded(
-    text: str,
-    pattern: re.Pattern[str],
-    replacer: str | Callable[[re.Match[str]], str],
-    chunk_threshold: int = _REDACT_REGEX_CHUNK_THRESHOLD,
-    chunk_size: int = _REDACT_REGEX_CHUNK_SIZE,
-) -> str:
-    """Replace pattern with bounded chunking to prevent ReDoS.
-
-    Each chunk extends by ``_CHUNK_OVERLAP`` bytes into the next chunk
-    so patterns spanning a boundary are matched intact.  Deduplication
-    via ``seen_starts`` ensures overlap-region matches are not applied
-    twice.  Results are assembled with a single forward join (O(n)).
-
-    Args:
-        text: Input text
-        pattern: Compiled regex pattern
-        replacer: Replacement string or callable
-        chunk_threshold: Min text length to trigger chunking (default: 32KB)
-        chunk_size: Size of each chunk (default: 16KB)
-
-    Returns:
-        Redacted text
-    """
-    if len(text) <= chunk_threshold:
-        return pattern.sub(replacer, text)
-
-    matches: list[tuple[int, int, str]] = []
-    seen_starts: set[int] = set()
-
-    pos = 0
-    while pos < len(text):
-        chunk_end = min(pos + chunk_size + _CHUNK_OVERLAP, len(text))
-        chunk = text[pos:chunk_end]
-
-        for m in pattern.finditer(chunk):
-            abs_start = pos + m.start()
-            if abs_start in seen_starts:
-                continue
-            seen_starts.add(abs_start)
-            abs_end = pos + m.end()
-            repl = replacer(m) if callable(replacer) else m.expand(replacer)
-            matches.append((abs_start, abs_end, repl))
-
-        pos += chunk_size
-
-    if not matches:
-        return text
-
-    parts: list[str] = []
-    last_end = 0
-    for abs_start, abs_end, repl in matches:
-        # 分块重叠区可能产出区间重叠的 match（如 IGNORECASE 下 `[A-Z_]` 前缀贪婪
-        # 吃掉 `KEY` 前 50 个连续字母产生长 key match，与后续短 key match 区间重叠）。
-        # 重叠 match 若一并拼接会把文本重复插入，须跳过（seen_starts 只防同 start）。
-        if abs_start < last_end:
-            continue
-        parts.append(text[last_end:abs_start])
-        parts.append(repl)
-        last_end = abs_end
-    parts.append(text[last_end:])
-    return "".join(parts)
 
 
 def _redact_pem_block(block: str) -> str:
@@ -231,13 +162,6 @@ def _redact_name_assignments(text: str) -> str:
     # Unquoted / quoted YAML-colon config（`password: secret`、`password: "hunter2!"`）。
     # 正则锚定行首且 key 字符类不含 `:`/`/`/`?`，天然不匹配 URL 行，无需全局 URL 开关。
     return _replace_pattern_bounded(text, _YAML_ASSIGN_RE, _redact_yaml_assignment)
-
-
-def _redact_secret_headers(text: str) -> str:
-    """Mask the value of an API-key style header or property (``x-api-key: …``) and of a cookie header line."""
-    text = _replace_pattern_bounded(text, _SECRET_HEADER_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
-    text = _replace_pattern_bounded(text, _COOKIE_HEADER_LINE_RE, _redact_cookie_header)
-    return _replace_pattern_bounded(text, _COOKIE_HEADER_QUOTED_RE, _redact_cookie_header)
 
 
 def _redact_by_name(text: str, redact: Callable[[str], str], *, source_code: bool) -> str:

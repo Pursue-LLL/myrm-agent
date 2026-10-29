@@ -978,7 +978,7 @@ class TestRedactCoverageBranches:
         assert _redact_pem_block("-----BEGIN RSA PRIVATE KEY-----") == "***"
 
     def test_large_text_chunk_dedup_single_mask(self) -> None:
-        """>32KB 文本分块重叠去重（engine.py::_replace_pattern_bounded），token 只掩码一次。"""
+        """>32KB 文本分块重叠去重（bounded_replace.py::_replace_pattern_bounded），token 只掩码一次。"""
         prefix = "a" * 32768
         text = f"{prefix}TOKEN=mysecretvalue12345678"
         result = redact_sensitive_text(text)
@@ -986,7 +986,7 @@ class TestRedactCoverageBranches:
         assert result.count("mysecr...5678") == 1
 
     def test_large_text_same_start_dedup(self) -> None:
-        """>32KB 文本同一 abs_start 被多 chunk 匹配时去重（engine.py::_replace_pattern_bounded）。"""
+        """>32KB 文本同一 abs_start 被多 chunk 匹配时去重（bounded_replace.py::_replace_pattern_bounded）。"""
         jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig1234567890123456789012345678901234567890123"
         # JWT 落点须同时完整落在 chunk2(16384-36864) 与 chunk3(32768-53248)
         text = "a" * 32800 + jwt
