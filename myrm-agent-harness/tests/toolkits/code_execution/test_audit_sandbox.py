@@ -103,6 +103,59 @@ def test_file_isolation_writes_blocked_outside_workspace(audit_hook):
         hook("os.remove", (outside_path, None))
 
 
+# Containment is decided on the resolved path string alone, so a workspace that does not exist on disk
+# is enough. It must sit outside the system temp dir, or every sibling would be allowed through the temp root.
+_FAKE_WORKSPACE = "/srv/agent-workspace"
+
+
+def _install_hook(**options):
+    hook_capture = []
+    with patch("sys.addaudithook", side_effect=hook_capture.append):
+        install(workspace_path=_FAKE_WORKSPACE, allow_network=False, **options)
+    assert not os.path.realpath(_FAKE_WORKSPACE).startswith(os.path.realpath(tempfile.gettempdir()))
+    return hook_capture[0]
+
+
+def test_a_sibling_named_like_the_workspace_is_outside_it():
+    """A path that merely starts with the workspace path names another directory, not a place inside it."""
+    hook = _install_hook()
+
+    for sibling in (f"{_FAKE_WORKSPACE}-backup", f"{_FAKE_WORKSPACE}x"):
+        target = os.path.join(sibling, "f.txt")
+        with pytest.raises(SecurityError, match="Write operation outside allowed workspace blocked"):
+            hook("open", (target, "w", 0))
+        with pytest.raises(
+            SecurityError, match=r"Destructive file operation \(os\.remove\) outside allowed workspace blocked"
+        ):
+            hook("os.remove", (target, None))
+        with pytest.raises(SecurityError, match="Read access to sensitive file blocked"):
+            hook("open", (os.path.join(sibling, ".ssh", "id_rsa"), "r", 0))
+
+    # The workspace itself and what lies below it stay inside.
+    hook("os.chmod", (_FAKE_WORKSPACE, 0o755, None))
+    hook("open", (os.path.join(_FAKE_WORKSPACE, "sub", "f.txt"), "w", 0))
+
+
+def test_a_sibling_named_like_the_system_tmpdir_is_outside_it():
+    hook = _install_hook()
+    tmpdir = os.path.realpath(tempfile.gettempdir())
+
+    with pytest.raises(SecurityError, match="Write operation outside allowed workspace blocked"):
+        hook("open", (os.path.join(f"{tmpdir}-other", "f.txt"), "w", 0))
+
+    hook("open", (os.path.join(tmpdir, "f.txt"), "w", 0))
+
+
+def test_readonly_workspace_does_not_mistake_a_sibling_for_the_workspace():
+    """Under readonly_workspace the sibling is judged as outside, like any other directory, not as the workspace."""
+    hook = _install_hook(readonly_workspace=True)
+
+    with pytest.raises(SecurityError, match="Write operation outside allowed workspace blocked"):
+        hook("open", (os.path.join(f"{_FAKE_WORKSPACE}-backup", "f.txt"), "w", 0))
+    with pytest.raises(SecurityError, match="Write operation inside workspace blocked by readonly_workspace policy"):
+        hook("open", (os.path.join(_FAKE_WORKSPACE, "f.txt"), "w", 0))
+
+
 def test_file_isolation_writes_allowed_in_tmpdir(audit_hook):
     hook, _ = audit_hook
     tmp_path = os.path.join(tempfile.gettempdir(), "test.txt")

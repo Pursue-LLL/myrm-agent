@@ -32,6 +32,43 @@ describe('buildToolApprovalRequest', () => {
     expect(request.toolName).toBe('bash_code_execute_tool');
   });
 
+  it('carries the stable reason code and its subject beside the English description', () => {
+    const request = buildToolApprovalRequest({
+      action: {
+        action: 'file_read_tool',
+        args: { paths: ['/data/a.csv'] },
+        description: 'Path outside allowed zones: /data/a.csv',
+        reasonCode: 'path_outside_zones',
+        reasonSubject: ' /data/a.csv ',
+      },
+      requestId: 'req-1',
+      messageId: 'msg-1',
+      chatId: 'chat-1',
+      actionMode: 'agent',
+      extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
+    });
+
+    expect(request.reason).toBe('Path outside allowed zones: /data/a.csv');
+    expect(request.reasonCode).toBe('path_outside_zones');
+    expect(request.reasonSubject).toBe('/data/a.csv');
+  });
+
+  it('leaves the code out when the harness sent none or one the card has no copy for', () => {
+    for (const reasonCode of [undefined, 'a_future_code', 3]) {
+      const request = buildToolApprovalRequest({
+        action: { action: 'shell', args: {}, description: 'needs approval', reasonCode, reasonSubject: '' },
+        requestId: 'req-1',
+        messageId: 'msg-1',
+        chatId: 'chat-1',
+        actionMode: 'agent',
+        extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
+      });
+
+      expect(request.reasonCode).toBeUndefined();
+      expect(request.reasonSubject).toBeUndefined();
+    }
+  });
+
   it('keeps the interrupt the card was announced for', () => {
     const request = buildToolApprovalRequest({
       action: { action: 'bash_code_execute_tool', args: { command: 'ls' }, description: 'needs approval' },

@@ -1,12 +1,13 @@
 """The approval card of a channel turn: worded in the sender's language, honest about the time limit.
 
-Tool names and the harness-supplied reasons are shown as they come; the sentence around them, the timeout line, the
-security-reviewer prefix and the buttons come from the channel catalog.
+Tool names and the reasons the harness did not code are shown as they come; the sentence around them, a coded reason,
+the timeout line, the security-reviewer prefix and the buttons come from the channel catalog.
 """
 
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode
 
 from app.channels.types import ApprovalExpiry
 from app.core.channel_bridge.agent_executor.approval_card import build_approval_card
@@ -120,3 +121,49 @@ def test_a_language_without_a_catalog_reads_in_english() -> None:
     card = build_approval_card(_ONE_TOOL, locale="xx", session_key=_SESSION)
 
     assert card.label == build_approval_card(_ONE_TOOL, locale="en", session_key=_SESSION).label
+
+
+def _coded(code: str, subject: str = "") -> dict[str, object]:
+    request: dict[str, object] = {"action": "file_read_tool", "description": "Path outside allowed zones: /x", "reasonCode": code}
+    if subject:
+        request["reasonSubject"] = subject
+    return {**_ONE_TOOL, "actionRequests": [request]}
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+@pytest.mark.parametrize("code", list(ApprovalReasonCode))
+def test_every_code_the_harness_can_send_is_worded_in_every_catalog_language(code: ApprovalReasonCode, locale: str) -> None:
+    card = build_approval_card(_coded(code.value, "/data/spec.md"), locale=locale, session_key=_SESSION)
+    english = build_approval_card(_coded(code.value, "/data/spec.md"), locale="en", session_key=_SESSION)
+
+    first_line = card.label.split("\n")[0]
+    assert "approval_reason_" not in first_line and "Path outside allowed zones" not in first_line
+    if code is not ApprovalReasonCode.SHELL_THREAT:
+        assert "/data/spec.md" in first_line  # the subject sits inside the sentence
+    if locale != "en":
+        assert first_line != english.label.split("\n")[0]
+
+
+def test_a_code_the_catalog_does_not_know_shows_the_reason_as_written() -> None:
+    card = build_approval_card(_coded("a_future_code", "/x"), locale="zh-CN", session_key=_SESSION)
+
+    assert "Path outside allowed zones: /x" in card.label
+
+
+def test_a_batch_words_each_coded_reason_and_keeps_the_others_as_written() -> None:
+    data = {
+        **_ONE_TOOL,
+        "actionRequests": [
+            {
+                "action": "web_fetch",
+                "description": "Domain 'a.org' requires approval",
+                "reasonCode": "domain_requires_approval",
+                "reasonSubject": "a.org",
+            },
+            {"action": "shell", "description": "run the build"},
+        ],
+    }
+
+    first_line = build_approval_card(data, locale="en", session_key=_SESSION).label.split("\n")[0]
+
+    assert first_line == "web_fetch, shell needs approval: This domain is not on the allowed list: a.org; run the build"

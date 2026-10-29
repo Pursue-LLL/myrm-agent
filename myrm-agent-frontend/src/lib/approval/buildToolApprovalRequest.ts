@@ -1,6 +1,7 @@
 import type { ApprovalGrantDirectory, ToolApprovalRequest } from '@/store/chat/types';
 import type { ActionMode } from '@/store/chat/types/sessionConfig';
 
+import { parseApprovalReasonCode } from '@/lib/approval/approvalReasonCode';
 import {
   parseCommandSpanReasons,
   parseCommandSpanRisks,
@@ -12,6 +13,8 @@ interface ApprovalActionPayload {
   action: string;
   args: Record<string, unknown>;
   description: string;
+  reasonCode?: unknown;
+  reasonSubject?: unknown;
   domains?: string[];
   ptc_annotations?: Record<string, boolean>;
   command_spans?: unknown;
@@ -69,6 +72,16 @@ function parseGrantDirectories(raw: unknown): ApprovalGrantDirectory[] | undefin
   return directories.length > 0 ? directories : undefined;
 }
 
+/** The reason's stable code with its subject; neither when the code is absent or one the card has no copy for. */
+function parseReasonCode(code: unknown, subject: unknown): Pick<ToolApprovalRequest, 'reasonCode' | 'reasonSubject'> {
+  const reasonCode = parseApprovalReasonCode(code);
+  if (!reasonCode) {
+    return {};
+  }
+  const reasonSubject = typeof subject === 'string' ? subject.trim() : '';
+  return { reasonCode, reasonSubject: reasonSubject || undefined };
+}
+
 export function buildToolApprovalRequest({
   action,
   reviewConfig,
@@ -103,6 +116,7 @@ export function buildToolApprovalRequest({
     toolInput: action.args,
     diff,
     reason: action.description,
+    ...parseReasonCode(action.reasonCode, action.reasonSubject),
     timeoutSeconds: extensions?.timeout?.seconds ?? 60,
     expiresAt: extensions?.timeout?.expiresAt ?? 0,
     timeoutBehavior: extensions?.timeout?.behavior || 'deny',

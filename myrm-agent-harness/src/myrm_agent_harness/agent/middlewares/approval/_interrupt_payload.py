@@ -1,6 +1,7 @@
 """The approval interrupt payload the client renders its card from.
 
 [INPUT]
+- agent.security.approval_reason::CodedReason (POS: an engine reason that remembers its stable code, for the card to word)
 - agent.security.engine::extract_url_domains (POS: the domains a call reaches, for per-domain approval)
 - agent.security.session_access::plan_directory_grants (POS: the folders a path approval can also grant)
 - core.security.redact::redact_for_display (POS: arguments shown to the human are redacted)
@@ -22,6 +23,7 @@ from typing import Any
 
 from langchain_core.messages import ToolCall
 
+from myrm_agent_harness.agent.security.approval_reason import CodedReason
 from myrm_agent_harness.agent.security.engine import extract_url_domains
 from myrm_agent_harness.agent.security.session_access import (
     PATH_WRITE_PERMISSION_TYPES,
@@ -49,7 +51,9 @@ def build_interrupt_payload(
     """Build LangChain-standard interrupt payload for batch approval.
 
     Args:
-        pending_approval: list of (idx, tool_call, permission_type, reason, extra_ctx)
+        pending_approval: list of (idx, tool_call, permission_type, reason, extra_ctx); a reason the engine
+            wrote as it stands (a ``CodedReason``) also reaches the card as ``reasonCode`` and ``reasonSubject``,
+            so the card words it in the viewer's language instead of showing the English text
         session_key: session identifier for routing
         approval_timeout_seconds: seconds before auto-resolution (from SecurityConfig)
         timeout_behavior: "deny" or "allow" — action taken when timeout expires
@@ -76,8 +80,12 @@ def build_interrupt_payload(
         action_request: dict[str, object] = {
             "action": action_name,
             "args": redacted_args,
-            "description": reason,
+            "description": str(reason),
         }
+        if isinstance(reason, CodedReason):
+            action_request["reasonCode"] = reason.code.value
+            if reason.subject:
+                action_request["reasonSubject"] = reason.subject
         if extra_ctx and "ptc_annotations" in extra_ctx:
             action_request["ptc_annotations"] = extra_ctx["ptc_annotations"]
 

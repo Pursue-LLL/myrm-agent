@@ -29,6 +29,7 @@ from __future__ import annotations
 from fnmatch import fnmatch
 from urllib.parse import urlparse
 
+from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.command_rules import (
     COMMAND_BEARING_PERMISSIONS,
     check_command_denylist,
@@ -170,7 +171,9 @@ def _check_domain_policy(
         return None, ""
     if _domain_in_allowlist(hostname, network_allowlist):
         return None, ""
-    return PermissionAction.ASK, f"Domain '{hostname}' requires approval"
+    return PermissionAction.ASK, CodedReason(
+        f"Domain '{hostname}' requires approval", ApprovalReasonCode.DOMAIN_REQUIRES_APPROVAL, hostname
+    )
 
 
 def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name: str | None = None) -> str:

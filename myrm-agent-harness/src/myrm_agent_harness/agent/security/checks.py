@@ -14,6 +14,7 @@ import os
 import re
 from urllib.parse import urlparse
 
+from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.path_security import (
     is_executable_git_metadata_file,
     is_protected_instruction_file,
@@ -54,6 +55,7 @@ def check_path_policy(
     Returns (ASK, reason) if outside allowed zones, requiring user approval; (DENY, reason) instead when the
     policy does not allow directory grants, since no approval could widen the zones.
     Returns (ASK, reason) for a write to a protected instruction file or to git hook/config metadata.
+    Every ASK reason is a ``CodedReason``, so the approval card can word it in the viewer's language.
     Relative paths are resolved against workspace_root when available.
     """
     # The executor reads ``/workspace/x`` as ``<workspace>/x``; judge the same file the tool will touch.
@@ -87,33 +89,58 @@ def check_path_policy(
         return PermissionAction.DENY, f"Path outside allowed zones, and folder access cannot be granted: {raw_path}"
 
     if require_write and (is_protected_instruction_file(raw_path) or is_protected_instruction_file(normalized)):
+        name = os.path.basename(raw_path)
         return (
             PermissionAction.ASK,
-            f"Protected instruction file write requires human approval: {os.path.basename(raw_path)}",
+            CodedReason(
+                f"Protected instruction file write requires human approval: {name}",
+                ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE,
+                name,
+            ),
         )
 
     if require_write and (is_executable_git_metadata_file(raw_path) or is_executable_git_metadata_file(normalized)):
         return (
             PermissionAction.ASK,
-            f"Git hook or config write requires human approval: {raw_path}",
+            CodedReason(
+                f"Git hook or config write requires human approval: {raw_path}",
+                ApprovalReasonCode.GIT_METADATA_WRITE,
+                raw_path,
+            ),
         )
 
     if matched_writable:
         if is_sensitive_file(raw_path):
-            return PermissionAction.ASK, f"Sensitive file: {os.path.basename(raw_path)}"
+            return PermissionAction.ASK, _sensitive_file_reason(raw_path)
         return PermissionAction.ALLOW, ""
 
     if matched_readonly:
         if require_write:
             return (
                 PermissionAction.ASK,
-                f"Path is read-only, write permission required: {raw_path}",
+                CodedReason(
+                    f"Path is read-only, write permission required: {raw_path}",
+                    ApprovalReasonCode.PATH_READ_ONLY,
+                    raw_path,
+                ),
             )
         if is_sensitive_file(raw_path):
-            return PermissionAction.ASK, f"Sensitive file: {os.path.basename(raw_path)}"
+            return PermissionAction.ASK, _sensitive_file_reason(raw_path)
         return PermissionAction.ALLOW, ""
 
-    return PermissionAction.ASK, f"Path outside allowed zones: {raw_path}"
+    return (
+        PermissionAction.ASK,
+        CodedReason(
+            f"Path outside allowed zones: {raw_path}",
+            ApprovalReasonCode.PATH_OUTSIDE_ZONES,
+            raw_path,
+        ),
+    )
+
+
+def _sensitive_file_reason(raw_path: str) -> CodedReason:
+    name = os.path.basename(raw_path)
+    return CodedReason(f"Sensitive file: {name}", ApprovalReasonCode.SENSITIVE_FILE, name)
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +242,7 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
         return None, ""
 
     first = threats[0]
+    reason = f"Shell threat [{first.category}]: {first.detail}"
     if first.level == ThreatLevel.BLOCK:
-        return PermissionAction.DENY, f"Shell threat [{first.category}]: {first.detail}"
-    return PermissionAction.ASK, f"Shell threat [{first.category}]: {first.detail}"
+        return PermissionAction.DENY, reason
+    return PermissionAction.ASK, CodedReason(reason, ApprovalReasonCode.SHELL_THREAT)

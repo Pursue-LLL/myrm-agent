@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * ./sessionConfig::ActionMode (POS: 会话级 Agent 与模式配置类型)
+ * @/lib/approval/approvalReasonCode::ApprovalReasonCode (POS: 审批理由的稳定标识)
  *
  * [OUTPUT]
  * ApprovalGrantDirectory, ToolApprovalRequest, CompletionStatus.
@@ -8,6 +9,8 @@
  * [POS]
  * 工具审批契约。
  */
+
+import type { ApprovalReasonCode } from '@/lib/approval/approvalReasonCode';
 
 import type { ActionMode } from './sessionConfig';
 
@@ -24,7 +27,12 @@ export interface ToolApprovalRequest {
   requestId: string;
   toolName: string;
   toolInput: Record<string, unknown>;
+  /** The harness's English reason, shown as written when it carries no `reasonCode` */
   reason: string;
+  /** Stable code of the engine decision behind `reason`; the card words it in the viewer's language */
+  reasonCode?: ApprovalReasonCode;
+  /** What the coded reason is about (a path, a file name or a domain), shown inside the worded reason */
+  reasonSubject?: string;
   timeoutSeconds: number;
   expiresAt: number;
   /** Action to take when timeout expires: "deny" (default) or "allow" */

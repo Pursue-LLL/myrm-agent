@@ -46,11 +46,20 @@ def install(
     # Also explicitly allow the workspace's local .tmp if configured and not in readonly mode
     workspace_tmp = os.path.realpath(os.path.join(workspace_real, ".tmp"))
 
-    # Disallow ctypes globally to prevent C-level escape.
-    sys.modules["ctypes"] = None
-    sys.modules["_ctypes"] = None
+    workspace_roots = (workspace_real, workspace_tmp)
+    writable_roots = (workspace_real, tmpdir_real, workspace_tmp)
 
-    def audit_hook(event: str, args: tuple) -> None:
+    def within_any(path: str, roots: tuple[str, ...]) -> bool:
+        # Whole-component match: a sibling whose name merely starts with a root's name
+        # (``/work`` vs ``/work-evil``) is another directory, not a place inside the root.
+        return any(path == root or path.startswith(root.rstrip(os.sep) + os.sep) for root in roots)
+
+    # Disallow ctypes globally to prevent C-level escape.
+    # A None entry makes ``import ctypes`` raise ImportError.
+    sys.modules["ctypes"] = None  # type: ignore[assignment]
+    sys.modules["_ctypes"] = None  # type: ignore[assignment]
+
+    def audit_hook(event: str, args: tuple[object, ...]) -> None:
         # 1. Process / Command Execution
         if event in (
             "os.system",
@@ -126,19 +135,13 @@ def install(
                         pass
 
                 # If readonly_workspace is enabled, writes are blocked in workspace as well
-                if readonly_workspace and (
-                    resolved_path.startswith(workspace_real) or resolved_path.startswith(workspace_tmp)
-                ):
+                if readonly_workspace and within_any(resolved_path, workspace_roots):
                     raise SecurityError(
                         f"Destructive file operation ({event}) in workspace blocked by readonly_workspace policy: {resolved_path}"
                     )
 
                 # Destructive operations are ONLY allowed in workspace/temp
-                if not (
-                    resolved_path.startswith(workspace_real)
-                    or resolved_path.startswith(tmpdir_real)
-                    or resolved_path.startswith(workspace_tmp)
-                ):
+                if not within_any(resolved_path, writable_roots):
                     raise SecurityError(
                         f"Destructive file operation ({event}) outside allowed workspace blocked: {resolved_path}"
                     )
@@ -154,7 +157,7 @@ def install(
                 is_write = any(m in mode for m in ("w", "a", "+", "x"))
             elif isinstance(flags, int):
                 # O_WRONLY = 1, O_RDWR = 2, O_CREAT = 64 (0o100), O_APPEND = 1024 (0o2000)
-                is_write = (flags & os.O_WRONLY) or (flags & os.O_RDWR) or (flags & os.O_CREAT) or (flags & os.O_APPEND)
+                is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND))
 
             if is_write:
                 try:
@@ -163,20 +166,18 @@ def install(
                     resolved_path = str(path)
 
                 # If readonly_workspace is enabled, writes inside workspace are blocked
-                if readonly_workspace and (
-                    resolved_path.startswith(workspace_real) or resolved_path.startswith(workspace_tmp)
-                ):
+                if readonly_workspace and within_any(resolved_path, workspace_roots):
                     raise SecurityError(
                         f"Write operation inside workspace blocked by readonly_workspace policy: {resolved_path}"
                     )
 
                 # Allow writes to workspace, system temp, and workspace temp
                 # Exception for standard pipes
-                if not (
-                    resolved_path.startswith(workspace_real)
-                    or resolved_path.startswith(tmpdir_real)
-                    or resolved_path.startswith(workspace_tmp)
-                ) and resolved_path not in ("/dev/null", "/dev/stdout", "/dev/stderr"):
+                if not within_any(resolved_path, writable_roots) and resolved_path not in (
+                    "/dev/null",
+                    "/dev/stdout",
+                    "/dev/stderr",
+                ):
                     raise SecurityError(f"Write operation outside allowed workspace blocked: {resolved_path}")
 
             else:
@@ -187,7 +188,7 @@ def install(
                     resolved_path = str(path)
 
                 # Credential shield: block reading sensitive developer credentials outside workspace
-                if not resolved_path.startswith(workspace_real):
+                if not within_any(resolved_path, (workspace_real,)):
                     sensitive_keywords = [
                         "/.ssh/",
                         "/.aws/",

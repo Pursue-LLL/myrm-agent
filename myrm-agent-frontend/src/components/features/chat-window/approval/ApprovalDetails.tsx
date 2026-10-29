@@ -4,6 +4,7 @@
  * [INPUT]
  * - @/store/chat/types::ToolApprovalRequest (POS: 要展示的审批请求)
  * - @/lib/humanize (POS: 审批标题与 scope 说明)
+ * - @/lib/approval/approvalReasonCode (POS: 审批理由的稳定标识，按码取文案)
  * - @/lib/approval/visualApprovalContext (POS: 桌面/浏览器视觉审批上下文)
  *
  * [OUTPUT]
@@ -75,6 +76,11 @@ export default function ApprovalDetails({
     [browserViewData, desktopViewData, request],
   );
 
+  // A coded reason is worded in the viewer's language; one the harness did not code is shown as written.
+  const reasonText = request.reasonCode
+    ? t(`reasons.${request.reasonCode}`, { subject: request.reasonSubject ?? '' })
+    : request.reason;
+
   const approvalTitle = useMemo(
     () => humanizeApprovalTitle(request.toolName, request.toolInput, tHumanize),
     [request.toolInput, request.toolName, tHumanize],
@@ -138,9 +144,9 @@ export default function ApprovalDetails({
         </div>
       )}
 
-      {request.reason && (
+      {reasonText && (
         <div className="text-xs text-muted-foreground">
-          <span className="font-medium">{t('reason')}:</span> {request.reason}
+          <span className="font-medium">{t('reason')}:</span> {reasonText}
         </div>
       )}
 

@@ -11,7 +11,8 @@
 [POS]
 Turns the harness approval payload into the card the chat shows: what needs approval, how long the wait lasts and what
 the timeout decides, plus the answer buttons. The wording and the buttons come from the channel catalog in the sender's
-language; tool names and the harness-supplied reasons are shown as they are. The time limit also travels as
+language; tool names are shown as they are. A reason the harness coded is worded from the catalog too, and one it
+did not code is shown as written. The time limit also travels as
 ``ProgressUpdate.expiry`` so the router times the wait out with the same number the card states, and the session of the
 asking run as ``ProgressUpdate.session_key`` so the answer resumes that session's chat.
 """
@@ -40,9 +41,9 @@ def build_approval_card(data: dict[str, object], *, locale: str, session_key: st
 
     if isinstance(action_requests, list) and action_requests:
         tool_names = [str(req.get("action", "unknown")) for req in action_requests if isinstance(req, dict)]
-        reasons = [str(req["description"]) for req in action_requests if isinstance(req, dict) and req.get("description")]
+        reasons = [_reason_text(req, locale) for req in action_requests if isinstance(req, dict)]
         tools = ", ".join(tool_names) if tool_names else "unknown"
-        reason = "; ".join(reasons)
+        reason = "; ".join(text for text in reasons if text)
     else:
         tools = str(data.get("tool_name", "unknown"))
         reason = str(data.get("reason", ""))
@@ -64,6 +65,17 @@ def build_approval_card(data: dict[str, object], *, locale: str, session_key: st
         expiry=ApprovalExpiry(seconds=seconds, behavior=behavior),
         session_key=session_key,
     )
+
+
+def _reason_text(request: dict[str, object], locale: str) -> str:
+    """One request's reason in ``locale`` when the harness coded it and the catalog words that code, else as written."""
+    code = request.get("reasonCode")
+    if isinstance(code, str):
+        key = f"approval_reason_{code}"
+        worded = str(channel_t(locale, key, subject=str(request.get("reasonSubject") or "")))
+        if worded != key:
+            return worded
+    return str(request.get("description") or "")
 
 
 def _security_reviewer_recommends_denial(data: dict[str, object]) -> bool:
