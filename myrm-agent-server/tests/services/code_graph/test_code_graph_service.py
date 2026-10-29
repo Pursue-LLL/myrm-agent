@@ -5,7 +5,10 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from app.services.code_graph.ast_extractor import JsTsRegexExtractor, PythonAstExtractor
+from app.services.code_graph.models import SymbolKind
 from app.services.code_graph.service import CodeGraphService
 
 
@@ -73,6 +76,42 @@ export function validateInput(val: string) {
     assert len(extractor.calls) >= 1
     callee_names = [c.callee for c in extractor.calls]
     assert "checkToken" in callee_names
+
+
+@pytest.mark.parametrize(
+    ("declaration", "name"),
+    [
+        ("function plain(a) {", "plain"),
+        ("export function exported(a) {", "exported"),
+        ("async function bare(a) {", "bare"),
+        ("export async function loader(a) {", "loader"),
+        ("export const arrow = (a) => {", "arrow"),
+        ("const asyncArrow = async (a) => {", "asyncArrow"),
+    ],
+)
+def test_jsts_regex_extractor_emits_a_function_symbol_for_each_declaration_form(declaration: str, name: str) -> None:
+    extractor = JsTsRegexExtractor("util.ts", f"// header\n{declaration}\n  return a;\n}}\n")
+    extractor.extract()
+
+    symbol = {s.qualified_name: s for s in extractor.symbols}[f"util.{name}"]
+    assert (symbol.name, symbol.kind, symbol.file_path, symbol.line_start) == (name, SymbolKind.FUNCTION, "util.ts", 2)
+
+
+def test_code_graph_service_indexes_typescript_functions(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "auth.ts").write_text(
+        "export function validateInput(val: string) {\n  return val.length > 0;\n}\n",
+        encoding="utf-8",
+    )
+    service = CodeGraphService(tmp_path / "graph.db")
+
+    service.index_directory(root)
+
+    definition = service.definition("auth.validateInput")
+    assert definition is not None
+    assert (definition["kind"], definition["file_path"], definition["line_start"]) == ("function", "auth.ts", 1)
+    assert [r["qualified_name"] for r in service.resolve("auth.ts:1")][0] == "auth.validateInput"
 
 
 def test_code_graph_service_e2e():

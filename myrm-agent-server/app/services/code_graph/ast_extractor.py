@@ -212,7 +212,7 @@ class JsTsRegexExtractor:
             )
         )
 
-        # 2. 正则提取 class, interface, function, method
+        # 2. 正则提取顶层 class 与 function（含 `const f = (...) =>` 箭头函数）
         fn_pattern = re.compile(
             r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(",
             re.MULTILINE,
@@ -226,6 +226,7 @@ class JsTsRegexExtractor:
             re.MULTILINE,
         )
 
+        function_at_line: dict[int, str] = {}
         for i, line in enumerate(self.lines, start=1):
             cls_match = cls_pattern.search(line)
             if cls_match:
@@ -253,6 +254,22 @@ class JsTsRegexExtractor:
                     )
                 continue
 
+            fn_match = fn_pattern.search(line) or const_fn_pattern.search(line)
+            if fn_match:
+                fn_name = fn_match.group(1)
+                fn_qname = f"{self.module_name}.{fn_name}"
+                function_at_line[i] = fn_qname
+                self.symbols.append(
+                    SymbolNode(
+                        qualified_name=fn_qname,
+                        name=fn_name,
+                        kind=SymbolKind.FUNCTION,
+                        file_path=self.file_path,
+                        line_start=i,
+                        line_end=i,
+                    )
+                )
+
         # 3. 提取调用点 (Calls)
         call_pattern = re.compile(
             r"(?:([A-Za-z0-9_$]+)\.)?([A-Za-z0-9_$]+)\s*\(",
@@ -260,9 +277,7 @@ class JsTsRegexExtractor:
 
         current_fn = self.module_name
         for i, line in enumerate(self.lines, start=1):
-            fn_match = fn_pattern.search(line) or const_fn_pattern.search(line)
-            if fn_match:
-                current_fn = f"{self.module_name}.{fn_match.group(1)}"
+            current_fn = function_at_line.get(i, current_fn)
 
             # 扫描函数调用
             stripped = line.strip()

@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 代码图谱的 TypeScript/JavaScript 抽取器不产出函数符号：`definition` 与 `path:line` 解析找不到任何函数，只找得到类
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | ① [测试输出] `tests/services/code_graph/test_code_graph_service.py::test_jsts_regex_extractor` 在提交前的代码上失败：`assert "auth.validateInput" in symbols`，符号表里只有模块 `auth` 与类 `auth.AuthService`。② [实测] 用提交前的抽取器对六种声明写法（`function`、`export function`、`async function`、`export async function`、`export const f = (…) =>`、`const f = async (…) =>`）各跑一遍，函数符号 0/6；因此 `CodeGraphService.definition("auth.validateInput")` 取不到定义，`resolve("auth.ts:1")` 只回模块。预置技能 `repo-call-graph` 对外写的是支持 TypeScript/JavaScript，调用链的 `callers`、`callees` 以符号名为入口，函数没有符号就无法按符号名定位。 |
+| **根因** | JS/TS 抽取器的声明阶段只匹配类；两条函数声明的正则（`function` 与 `const f = (…) =>`）只在后面的调用阶段用来更新「当前所在函数」，从不产出符号。 |
+| **修复** | 声明阶段对每个行首无缩进的函数声明产出一个 `function` 符号（限定名 `<模块>.<函数名>`，行号为声明行，与类符号同口径），并记下「行号 → 函数限定名」；调用阶段改为查这张表，不再重复匹配同样的正则。代码位置见 `ast_extractor.py` 的 `JsTsRegexExtractor.extract`。 |
+| **回归证据** | [1] 先红后绿：`test_jsts_regex_extractor` 修复前失败、修复后通过；新增 7 例（六种声明写法各一例，加上经 `index_directory` 进入存储后 `definition` 与 `resolve("auth.ts:1")` 命中函数的一例）；六种写法在提交前的抽取器上 0/6、现在 6/6。[2] `tests/services/code_graph` 12 例通过；`ruff check` 与 `ruff format --check` 对 `app/services/code_graph` 与 `tests/services/code_graph` 通过；mypy 对 `ast_extractor.py` 0 报告（该目录的 `graph_store.py` 原有 6 个报告，修复前后一致）。[3] 真实源码：对前端 `myrm-agent-frontend/src` 的 4,817 个 `.ts`、`.tsx`、`.js`、`.jsx` 文件逐个抽取，得到 6,155 个函数符号、76 个类、4,817 个模块，共 7.7 秒（本机，含调用抽取，没有与提交前对比，不作性能结论）；抽样的 `hooks/useOrgModelPolicySync.ts` 里 `useOrgModelPolicySync.refetchOrgModelPolicy` 等名字与行号和源码一致。 |
+| **仍然存在** | ① 只识别行首无缩进的声明：类方法、嵌套函数、`export default function`、带泛型的 `function f<T>(` 仍不产出符号（用 6 行样例实测确认），`_ARCH.md` 已写明。② 函数符号的 `line_end` 等于声明行（类符号也是），`definition` 返回的源码为空；`resolve("文件:行")` 对函数体内的行只回模块。③ 6,155 个符号没有逐个对照源码，只抽查了一个文件。 |
+| **代码位置** | `myrm-agent-server/app/services/code_graph/ast_extractor.py` · `myrm-agent-server/app/services/code_graph/_ARCH.md` · `myrm-agent-server/tests/services/code_graph/test_code_graph_service.py` · `myrm-agent-server/tests/_ARCH.md` |
+
 ## 2026-10-29 · 私有引用守卫只随 server 或 harness 的改动运行：只改前端、桌面、脚本或根目录文档的提交绕过它
 
 | 字段 | 内容 |
