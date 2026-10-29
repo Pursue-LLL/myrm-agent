@@ -12,6 +12,8 @@ Covers:
 from __future__ import annotations
 
 import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -248,7 +250,7 @@ class TestInvokeActionDispatch:
 
         with (
             patch.dict("sys.modules", {"pyatspi": mock_pyatspi}),
-            patch("subprocess.run") as mock_run,
+            patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0)) as mock_run,
         ):
             from importlib import reload
 
@@ -263,6 +265,31 @@ class TestInvokeActionDispatch:
         call_args = mock_run.call_args[0][0]
         assert "xdotool" in call_args
         assert "world" in call_args
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="the stand-in xdotool is a POSIX shell script")
+    def test_fill_fallback_reports_a_failing_xdotool_without_echoing_the_text(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A real subprocess exiting non-zero must fail the action, and the typed text stays out of the error."""
+        fake = tmp_path / "xdotool"
+        fake.write_text("#!/bin/sh\nexit 1\n")
+        fake.chmod(0o755)
+        monkeypatch.setenv("PATH", str(tmp_path))
+        mock_pyatspi, mock_button = self._make_interactive_desktop()
+        mock_button.getRoleName.return_value = "entry"
+        mock_button.queryEditableText.side_effect = Exception("no editable")
+
+        with patch.dict("sys.modules", {"pyatspi": mock_pyatspi}):
+            from importlib import reload
+
+            from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
+
+            reload(linux_ax)
+            result = linux_ax.invoke_ax_element("0", "type", "s3cret-text")
+
+        assert result.success is False
+        assert "xdotool" in (result.error or "")
+        assert "s3cret-text" not in (result.error or "")
 
     def test_getstate_exception_skips_node(self) -> None:
         """Node whose getState() raises should be skipped in _collect (mirrors walk)."""
@@ -332,9 +359,7 @@ class TestInvokeTargetApp:
         slack_app.getRoleName.return_value = "application"
         slack_app.name = "Slack"
         slack_app.childCount = 1
-        slack_app.getChildAtIndex.side_effect = lambda i: (
-            slack_button if i == 0 else None
-        )
+        slack_app.getChildAtIndex.side_effect = lambda i: slack_button if i == 0 else None
 
         notes_app = MagicMock()
         notes_app.getRoleName.return_value = "application"
@@ -398,17 +423,13 @@ class TestCaptureTargetApp:
         slack_window.getRoleName.return_value = "frame"
         slack_window.name = "Slack #general"
         slack_window.childCount = 1
-        slack_window.getChildAtIndex.side_effect = lambda i: (
-            slack_button if i == 0 else None
-        )
+        slack_window.getChildAtIndex.side_effect = lambda i: slack_button if i == 0 else None
 
         slack_app = MagicMock()
         slack_app.getRoleName.return_value = "application"
         slack_app.name = "Slack"
         slack_app.childCount = 1
-        slack_app.getChildAtIndex.side_effect = lambda i: (
-            slack_window if i == 0 else None
-        )
+        slack_app.getChildAtIndex.side_effect = lambda i: slack_window if i == 0 else None
 
         notes_app = MagicMock()
         notes_app.getRoleName.return_value = "application"
@@ -446,9 +467,7 @@ class TestCaptureTargetApp:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            with pytest.raises(
-                AXTreeEmptyError, match="target scope requires app_name"
-            ):
+            with pytest.raises(AXTreeEmptyError, match="target scope requires app_name"):
                 linux_ax.capture_ax_snapshot("target")
 
     def test_target_not_found_raises(self) -> None:
@@ -654,9 +673,7 @@ class TestCaptureXdotoolFallback:
     def test_xdotool_has_title_raises_atspi_unavailable(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
-        proc = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout="Slack #general\n", stderr=""
-        )
+        proc = subprocess.CompletedProcess(args=[], returncode=0, stdout="Slack #general\n", stderr="")
         with (
             patch.object(linux_ax, "_try_pyatspi_snapshot", return_value=None),
             patch("shutil.which", return_value="/usr/bin/xdotool"),
@@ -705,7 +722,7 @@ class TestInvokeRemainingEdges:
         button2 = self._make_interactive_button("New")
         app2.getChildAtIndex.side_effect = lambda i: button2 if i == 0 else None
 
-        mock_desktop.getChildAtIndex.side_effect = lambda i: ([app1, app2][i])
+        mock_desktop.getChildAtIndex.side_effect = lambda i: [app1, app2][i]
         mock_pyatspi.Registry.getDesktop.return_value = mock_desktop
 
         with patch.dict("sys.modules", {"pyatspi": mock_pyatspi}):
@@ -827,9 +844,7 @@ class TestLinuxInspectForeground:
         from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
         with (
-            patch.object(
-                linux_ax, "capture_ax_snapshot", side_effect=AXTreeEmptyError("boom")
-            ),
+            patch.object(linux_ax, "capture_ax_snapshot", side_effect=AXTreeEmptyError("boom")),
         ):
             result = linux_ax.inspect_foreground()
         assert result["app_name"] == ""
@@ -843,9 +858,7 @@ class TestLinuxInspectForeground:
         )
         from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
-        meta = SnapshotMeta(
-            ref_count=2, app_name="nautilus", window_title="Files", scope="foreground"
-        )
+        meta = SnapshotMeta(ref_count=2, app_name="nautilus", window_title="Files", scope="foreground")
         refs = {
             "d0": ElementRef(
                 ref_id="d0",

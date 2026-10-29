@@ -68,20 +68,21 @@ class LinuxBackend:
         self._display_num = display_num if display_num is not None else _parse_display_num()
         self._display_prefix = f"DISPLAY=:{self._display_num} " if self._display_num is not None else ""
 
-    async def _run_cmd(self, cmd: str) -> tuple[str, str, int]:
-        """Run a shell command with display prefix."""
+    async def _run_cmd(self, cmd: str, stdin: str | None = None) -> tuple[str, str, int]:
+        """Run a shell command with display prefix; `stdin` is piped instead of placed on the command line."""
         full_cmd = f"{self._display_prefix}{cmd}"
         proc = await asyncio.create_subprocess_shell(
             full_cmd,
+            stdin=asyncio.subprocess.PIPE if stdin is not None else None,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        stdout, stderr = await proc.communicate(stdin.encode("utf-8") if stdin is not None else None)
         return stdout.decode(), stderr.decode(), proc.returncode or 0
 
-    async def _run_input(self, cmd: str) -> None:
+    async def _run_input(self, cmd: str, stdin: str | None = None) -> None:
         """Run an input-injection command; a non-zero exit (e.g. xdotool missing) must not look like success."""
-        _, stderr, code = await self._run_cmd(cmd)
+        _, stderr, code = await self._run_cmd(cmd, stdin)
         if code != 0:
             raise RuntimeError(f"{cmd.split()[0]} failed (exit {code}): {stderr.strip()}")
 
@@ -169,15 +170,8 @@ class LinuxBackend:
 
         try:
             if secret_text.isascii():
-                proc = await asyncio.create_subprocess_shell(
-                    f"{self._display_prefix}xdotool type --delay 12 --file -",
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                _stdout, stderr = await proc.communicate(secret_text.encode("utf-8"))
-                if proc.returncode != 0:
-                    raise RuntimeError(f"xdotool type failed: {stderr.decode()}")
+                # 凭据只走 stdin，不进命令行参数（进程列表可见）。
+                await self._run_input("xdotool type --delay 12 --file -", stdin=secret_text)
             else:
                 await self._paste_text_xclip(secret_text)
             return ActionResult(success=True)

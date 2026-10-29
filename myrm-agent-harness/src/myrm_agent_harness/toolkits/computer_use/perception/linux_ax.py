@@ -257,11 +257,10 @@ def invoke_ax_element(
                 action_if = target.queryAction()  # type: ignore[attr-defined]
                 if action_if.getNActions() > 0:  # type: ignore[attr-defined]
                     action_if.doAction(0)  # type: ignore[attr-defined]
-                subprocess.run(
-                    ["xdotool", "type", "--clearmodifiers", text],
-                    timeout=5,
-                    check=False,
-                )
+                typed = subprocess.run(["xdotool", "type", "--clearmodifiers", text], timeout=5, check=False)
+                if typed.returncode != 0:
+                    # 不用 check=True：CalledProcessError 的文本会带上整条命令，也就是输入的内容。
+                    raise RuntimeError(f"xdotool type failed (exit {typed.returncode})") from None
         elif normalized in {
             "click",
             "press",
