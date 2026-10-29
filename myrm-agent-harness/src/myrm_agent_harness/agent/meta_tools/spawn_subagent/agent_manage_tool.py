@@ -148,13 +148,13 @@ def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:
                             f"Subagent {task_id} still running after {timeout}s. Poll action=list again or wait longer."
                         ),
                     }
-                # Reached only by a child that finished (failed, timed out on its own budget): the agent now has its outcome.
+                # Reached only by a child that finished (failed, timed out on its own budget): returned whole, partial
+                # result and handover state included, as a success is, so the read mark below is true.
+                entry["success"] = False
+                entry.setdefault("task_id", task_id)
+                entry.setdefault("error", "Wait failed")
                 _report_settled_results_read(parent_agent, [entry])
-                return {
-                    "success": False,
-                    "task_id": task_id,
-                    "error": entry.get("error", "Wait failed"),
-                }
+                return entry
             return {
                 "success": False,
                 "task_id": task_id,

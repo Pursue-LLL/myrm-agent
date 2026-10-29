@@ -128,15 +128,38 @@ async def test_waiting_for_a_child_that_completed_reports_its_result_as_read(han
 @pytest.mark.parametrize(
     "status", [SubAgentStatus.FAILED, SubAgentStatus.TIMED_OUT, SubAgentStatus.CANCELLED_BY_BUDGET]
 )
-async def test_waiting_for_a_child_that_ended_without_a_result_reports_its_outcome_as_read(
+async def test_waiting_for_a_child_that_failed_hands_over_its_whole_outcome_and_reports_it_read(
     handler: _Handler, status: SubAgentStatus
 ) -> None:
-    ended: dict[str, object] = {"task_id": "broke", "status": status.value, "error": "gave up"}
+    ended: dict[str, object] = {
+        "task_id": "broke",
+        "success": False,
+        "status": status.value,
+        "result": "two of three files done",
+        "error": "gave up",
+        "handover_state": {"summary": "stopped at the third file"},
+    }
     tool = create_subagent_control_tool(_waiting({"results": [], "failures": [ended]}))
 
     outcome = await tool.ainvoke({"action": "wait", "task_id": "broke"})
 
-    assert outcome == {"success": False, "task_id": "broke", "error": "gave up"}
+    assert outcome == ended
+    assert handler.reads == [(("broke",), "chat-1")]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_wait_names_the_task_and_the_error_when_the_outcome_lacks_them(handler: _Handler) -> None:
+    ended: dict[str, object] = {"status": SubAgentStatus.FAILED.value}
+    tool = create_subagent_control_tool(_waiting({"results": [], "failures": [ended]}))
+
+    outcome = await tool.ainvoke({"action": "wait", "task_id": "broke"})
+
+    assert outcome == {
+        "success": False,
+        "task_id": "broke",
+        "status": SubAgentStatus.FAILED.value,
+        "error": "Wait failed",
+    }
     assert handler.reads == [(("broke",), "chat-1")]
 
 
