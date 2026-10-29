@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 对话分享：连续创建两次链接后，第一条链接撤销不掉，并在再次分享后复活
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/api/chats/chat/share/manage.py`、新增 `tests/api/chats/test_chat_share_revocation_lifecycle.py`、更新 `test_chat_share_api.py`；文档：`share/_ARCH.md`、`app/services/chat/_ARCH.md`、`database/models/chat.py` 注释、官网 `security-architecture.mdx`（中英）） |
+| **症状** | 对同一个会话连续创建两次分享链接（例如两个标签页里的对话框都停在「未分享」，或脚本重复调用接口）后，第一条链接不再被记录为当前链接：用户撤销时只有第二条被撤销，第一条在它自己的有效期（最长 30 天）内仍可打开；之后再次分享清掉会话级撤销标记，第一条链接重新生效，对话框却一直显示「已撤回」。官网安全页写着「撤销过的 token 永不复活」。 |
+| **根因** | `create_chat_share_token` 之后，创建接口把 `share_token_fingerprint` 直接覆盖成新指纹，旧指纹既不在当前字段里，也没有进已撤销集合，之后任何一次撤销都找不到它；代码注释和一条测试（`test_create_keeps_previous_token_valid`）把「新建不处理旧链接」写成了有意的行为，而撤销的文档写的是「撤销该会话的所有分享链接」。 |
+| **修复** | `manage.py` 新增 `_with_retired`（把一个指纹加入已撤销集合，已在集合里就不重复），创建接口在写入新指纹的同一条 `update` 里把被替换的旧指纹移入集合（一个会话同一时刻只有一条有效链接）；撤销接口改用同一个函数。同一秒内、同参数重复创建会签出完全相同的 token，新旧指纹相同时不退役（否则新链接会被自己撤销）。原来钉住旧行为的测试改为断言旧链接被退役。 |
+| **回归证据** | [1] 先红后绿：新增的 6 个生命周期用例（真实的创建 / 撤销 / 公开三类路由，对着内存里的一行会话数据）修复前 4 红 2 绿（红：创建 A、B、撤销、再创建 C 之后 A 仍返回 200；创建 B 后 A 仍可访问；密码保护的 A 同样；已撤销集合少记一条），绿的两个是「同秒重复创建不退役」与「撤销当前链接」两个守卫。[2] 变异检查 5/5 被杀（创建不退役 6 红、去掉同 token 守卫 1 红、集合不去重 1 红、撤销不退役 3 红、退役的是新链接 6 红）。[3] `tests/api/chats` 与 `tests/services/chat` 共 889 例通过、1 例失败（`test_rich_media_preview_seed_fixture`，与本次无关：预览夹具文件清单不符）；`ruff check` 与 `ruff format --check` 对改动的文件干净，`mypy` 对 `manage.py` 与新测试无报错。 |
+| **仍然存在** | ① 并发创建：两个请求同时读到同一份旧指纹，各自写入自己的新指纹，后写入的覆盖先写入的，先写入的链接既不是当前链接也没有被退役；这需要原子的读改写或唯一约束，本次没有做，也没有复现测试。② 同一秒内「创建、撤销、再创建」同参数会签出同一个 token，而它的指纹已在已撤销集合里，新链接一出生就是 404；确定性来自 `rebuild_chat_share_token` 要靠过期时间重建链接，该情形只能靠脚本触发，没有单独测试，是读 `share_token.py` 与 `_token_for_exp` 的说明得出的推断。③ 已撤销集合只增不减，没有上限，也没有随会话清理。④ 在指纹字段加入之前创建的旧链接没有指纹，无法退役。⑤ 对话框本身没有改动：「未分享」状态下仍可创建，替换旧链接时不会提示。 |
+| **代码位置** | `myrm-agent-server/app/api/chats/chat/share/manage.py:48-54,101-104,139` · `tests/api/chats/test_chat_share_revocation_lifecycle.py` · `tests/api/chats/test_chat_share_api.py`（`test_create_retires_the_link_it_replaces`、`test_create_does_not_list_a_retired_link_twice`） |
+
 ## 2026-10-29 · 导出的 HTML 文件里 `javascript:` 链接可执行（会话内容与来源列表）；导出页浅色 7 处、深色 4 处文字对比度不足 4.5
 
 | 字段 | 内容 |

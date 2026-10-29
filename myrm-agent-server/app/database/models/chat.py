@@ -124,9 +124,10 @@ class Chat(Base):
     # Fingerprint of the currently active share token (written on create).
     share_token_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
-    # Fingerprints of share tokens that were revoked and must never become valid
-    # again. Monotonic append-only JSON list: recreating a share for the same
-    # chat issues a fresh token but cannot resurrect a previously revoked link.
+    # Fingerprints of share tokens that were revoked or replaced by a newer link
+    # and must never become valid again. Monotonic append-only JSON list:
+    # recreating a share for the same chat issues a fresh token but cannot
+    # resurrect a link that was revoked or replaced.
     share_revoked_fingerprints: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     # Unix seconds at which the active share token expires. Persisted on create

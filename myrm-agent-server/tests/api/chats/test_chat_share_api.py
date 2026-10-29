@@ -430,8 +430,8 @@ class TestRevokeChatShare:
         assert values[0]["share_token_fingerprint"] is None
         assert "share_revoked_at" in values[0]
 
-    def test_create_keeps_previous_token_valid(self, share_client: TestClient) -> None:
-        """A fresh share persists the new fingerprint without retiring old links."""
+    def test_create_retires_the_link_it_replaces(self, share_client: TestClient) -> None:
+        """A fresh share persists the new fingerprint and moves the replaced link into the revoked set."""
         from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
@@ -451,9 +451,28 @@ class TestRevokeChatShare:
         assert len(values) == 1
         new_fp = values[0]["share_token_fingerprint"]
         assert isinstance(new_fp, str) and new_fp != old_fp
-        # Previously issued links are not retired: the revoked set is untouched.
-        assert "share_revoked_fingerprints" not in values[0]
+        assert values[0]["share_revoked_fingerprints"] == [old_fp]
         assert "share_revoked_at" not in values[0]
+
+    def test_create_does_not_list_a_retired_link_twice(self, share_client: TestClient) -> None:
+        """A replaced link already in the revoked set is not appended again."""
+        from app.core.security.share.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        old_token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        old_fp = token_fingerprint(old_token)
+        active = _make_chat_dto(share_token_fingerprint=old_fp, share_revoked_fingerprints=["older", old_fp])
+
+        with patch(
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=active,
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+
+        values = _update_values_from_executes(share_client._mock_db)
+        assert values[0]["share_revoked_fingerprints"] == ["older", old_fp]
 
     def test_create_after_revoke_keeps_old_fingerprint_revoked(self, share_client: TestClient) -> None:
         """Recreating a share after revoke clears the flag but keeps the set."""

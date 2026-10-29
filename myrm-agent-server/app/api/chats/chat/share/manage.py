@@ -10,10 +10,10 @@
 - router: authenticated create/revoke/status endpoints
 
 [POS]
-Enables GUI users to share conversations via time-limited read-only URLs, optionally password-protected. Revocation
-is per-token: the active token fingerprint is persisted on create and moved into an append-only revoked-fingerprint
-set on revoke, so recreating a share for the same chat can never resurrect a previously revoked link; previously
-issued (non-revoked) links keep working until their own TTL expires. The status endpoint reports the current share
+Enables GUI users to share conversations via time-limited read-only URLs, optionally password-protected. A chat has
+one live link: the active token fingerprint is persisted on create, and both creating a new link (which replaces the
+current one) and revoking move the fingerprint that stops being live into an append-only revoked-fingerprint set, so a
+link the owner replaced or revoked can never come back by sharing again. The status endpoint reports the current share
 state (unshared / revoked / active / password-protected) so the GUI can reopen the share dialog with the live link
 and a working revoke entry; unprotected links are rebuilt deterministically from the persisted expiry,
 password-protected shares return a status only (their token cannot be rebuilt because the password is never
@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.infra.ingress import resolve_share_url_base
 from app.core.security.share.share_hmac import token_fingerprint
 from app.database.connection import get_db
+from app.database.dto import ChatDTO
 from app.database.models.chat import Chat
 from app.services.chat.chat_service import ChatService
 from app.services.chat.share_token import create_chat_share_token, rebuild_chat_share_token
@@ -42,6 +43,14 @@ router = APIRouter()
 
 _DEFAULT_TTL_DAYS = 7
 _MAX_TTL_DAYS = 30
+
+
+def _with_retired(chat: ChatDTO, fingerprint: str) -> list[str]:
+    """The chat's revoked-fingerprint set with *fingerprint* added (each link is listed once)."""
+    retired = list(chat.share_revoked_fingerprints or [])
+    if fingerprint not in retired:
+        retired.append(fingerprint)
+    return retired
 
 
 class CreateChatShareRequest(BaseModel):
@@ -78,16 +87,21 @@ async def create_chat_share(
 
     # Persist the active token fingerprint and its display metadata so revoke
     # can permanently retire it and the GUI can surface the current share state
-    # (rebuilding unprotected links deterministically). A fresh share does not
-    # touch previously issued links (they stay valid until their own TTL expires
-    # or the chat is revoked, matching pre-existing behaviour). Recreating after
-    # a revoke only clears the chat-level flag; the revoked-fingerprint set is
-    # left untouched so old tokens stay dead.
+    # (rebuilding unprotected links deterministically). The link this one replaces
+    # is retired into the revoked set: it is no longer tracked as the active link,
+    # so a later revoke could not reach it and re-sharing would bring it back.
+    # Recreating after a revoke only clears the chat-level flag; the revoked set
+    # already holds every retired link.
+    new_fingerprint = token_fingerprint(token)
     values: dict[str, object] = {
-        "share_token_fingerprint": token_fingerprint(token),
+        "share_token_fingerprint": new_fingerprint,
         "share_token_expires_at": expires_at,
         "share_token_protected": body.password is not None,
     }
+    replaced = chat.share_token_fingerprint
+    # The same chat, ttl and password within one second sign the identical token: that is the new link, not a replaced one.
+    if replaced is not None and replaced != new_fingerprint:
+        values["share_revoked_fingerprints"] = _with_retired(chat, replaced)
     if chat.share_revoked_at is not None:
         values["share_revoked_at"] = None
     stmt = update(Chat).where(Chat.id == chat_id).values(**values)
@@ -116,16 +130,13 @@ async def revoke_chat_share(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    revoked = list(chat.share_revoked_fingerprints or [])
     active = chat.share_token_fingerprint
-    if active and active not in revoked:
-        revoked.append(active)
     values: dict[str, object] = {
         "share_revoked_at": datetime.now(timezone.utc),
         "share_token_fingerprint": None,
     }
-    if revoked:
-        values["share_revoked_fingerprints"] = revoked
+    if active:
+        values["share_revoked_fingerprints"] = _with_retired(chat, active)
     stmt = update(Chat).where(Chat.id == chat_id).values(**values)
     await db.execute(stmt)
     await db.commit()
