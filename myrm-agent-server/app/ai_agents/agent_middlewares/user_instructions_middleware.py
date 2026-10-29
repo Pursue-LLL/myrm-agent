@@ -50,7 +50,7 @@ Agent context["user_instructions"]
 ```
 [0] SystemMessage: system prompt          ← 固定，跨用户缓存
 [1] SystemMessage: <user_instructions>    ← 本中间件注入（per-user, stable）
-[2] SystemMessage: <workspace_context>    ← workspace_rules_middleware（per-workspace, stable, 可无）
+[2] SystemMessage: <workspace_context>    ← workspace_rules_middleware（per-thread, stable, 可无）
 [3] SystemMessage: Stable `<user_memory_context>` ← memory_context_middleware（Stable）
 [4] HumanMessage（可选）: Learned <<<UNTRUSTED_DATA>>> ← memory_context_middleware（在同用户 Stable 前缀之后）
 [5] HumanMessage: 用户消息               ← 每轮变化

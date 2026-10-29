@@ -26,10 +26,11 @@ kept in a private, checkpointed state key that every later call reads back.
 1. agent/context_management/PROMPT_CACHE_PRACTICE.md §2
 
 [INPUT]
-- agent.workspace_rules.scanner::scan_workspace_rules, RuleFile
-- agent.middlewares._session_context::get_workspace_root
-- agent.security.workspace_trust.gate / context::blocks_workspace_side_channels, get_workspace_trust_level (POS: the gate that keeps repo-local side channels closed)
-- toolkits.code_execution.sandbox_snapshot::generate_sandbox_bootstrap_snapshot, format_bootstrap_snapshot_xml (POS: sandbox bootstrap snapshot)
+- agent.workspace_rules.scanner::scan_workspace_rules, RuleFile (POS: workspace rule file scanner)
+- agent.middlewares._session_context::get_workspace_root (POS: shared ContextVars for the middleware chain)
+- agent.security.workspace_trust.gate::blocks_workspace_side_channels (POS: pure predicate layer of the workspace_trust gate; unknown trust is restricted)
+- agent.security.workspace_trust.context::get_workspace_trust_level (POS: run-scoped state holder of the workspace_trust gate)
+- toolkits.code_execution.sandbox_snapshot::generate_sandbox_bootstrap_snapshot, format_bootstrap_snapshot_xml (POS: sandbox snapshot generator)
 
 [OUTPUT]
 - WorkspaceContextState: the private state keys that hold the snapshot of a chat thread and the workspace it describes

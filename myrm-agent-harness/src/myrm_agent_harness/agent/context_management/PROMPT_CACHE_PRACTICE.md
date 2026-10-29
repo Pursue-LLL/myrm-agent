@@ -266,7 +266,7 @@ def _find_system_insert_idx(messages):
 ```
 System: core prompt
 System: `<user_instructions>` …
-System: `<workspace_context>` …                 ← per-workspace Stable（可无）
+System: `<workspace_context>` …                 ← 同对话线程内 Stable（可无）
 System: `<user_memory_context>` … stable …    ← per-user Stable
 Human: <<<UNTRUSTED_DATA>>> learned …         ← advisory（可无）
 Human: 用户第一句 …                             ← varies

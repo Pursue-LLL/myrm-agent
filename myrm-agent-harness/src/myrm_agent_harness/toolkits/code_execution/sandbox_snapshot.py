@@ -2,11 +2,11 @@
 
 Captures initial workspace state (working directory, top-level directory entries,
 git status, installed language runtimes, package managers, and recommended PM)
-without deep recursive traversals. The two git probes are synchronous and capped at 1 s each; in a
-repository they took 0.1-0.3 s here, so callers take the snapshot once per chat thread, not per model call.
+without deep recursive traversals. Each process-starting probe (two git commands, up to five runtime version
+commands) is synchronous and capped at 1 s; a whole snapshot took 0.1-0.3 s in a git repository (macOS, git 2.38.1).
 
 Injected into initial task context / observation (never polluting immutable
-system prompt) to eliminate 2-5 blind exploration turns (pwd, ls, which).
+system prompt) so the agent does not spend turns on pwd, ls and which.
 
 [INPUT]
 - workspace_path: str | Path to workspace directory
@@ -283,8 +283,8 @@ def generate_sandbox_bootstrap_snapshot(
 ) -> SandboxBootstrapSnapshot:
     """Generate a lightweight, non-recursive bootstrap snapshot of the sandbox environment.
 
-    Execution time is bounded by the git probes' 1 s timeouts, not by a cheap listing. Any probe failure is
-    handled gracefully to guarantee non-crashing execution.
+    Each process-starting probe is capped at 1 s, so a snapshot can block for several seconds when a binary hangs.
+    Any probe failure is handled gracefully to guarantee non-crashing execution.
 
     Args:
         workspace_path: Path to the workspace root directory.
@@ -301,19 +301,19 @@ def generate_sandbox_bootstrap_snapshot(
             total_entries_count=0,
         )
 
-    # 1. Scan top-level workspace entries (<5ms)
+    # 1. Scan top-level workspace entries
     top_entries, total_count = _scan_top_level_entries(path, max_entries=max_entries)
 
-    # 2. Check git state (<10ms)
+    # 2. Check git state
     branch, is_dirty = _probe_git_state(path)
 
-    # 3. Detect installed runtimes (<10ms)
+    # 3. Detect installed runtimes
     runtimes = _probe_runtimes()
 
-    # 4. Detect package managers and recommend primary choice (<5ms)
+    # 4. Detect package managers and recommend primary choice
     package_managers, recommended_pm = _probe_package_managers(path)
 
-    # 5. Detect core CLI utilities (<2ms)
+    # 5. Detect core CLI utilities
     tools = _probe_tools()
 
     return SandboxBootstrapSnapshot(

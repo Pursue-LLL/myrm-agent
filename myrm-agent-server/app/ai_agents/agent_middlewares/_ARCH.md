@@ -24,7 +24,7 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 
 | 中间件 | 路径 | 说明 |
 |------|------|------|
-| `workspace_rules_middleware` | `myrm_agent_harness.agent.workspace_rules` | Workspace 规则注入（扫描 `.myrm/rules/*.md`，KV Cache 位置优化） |
+| `workspace_rules_middleware` | `myrm_agent_harness.agent.workspace_rules` | Workspace 上下文注入（实时读取项目规则文件，沙箱快照按对话线程取一次，KV Cache 位置优化） |
 | `memory_context_middleware` | `myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware` | Stable：`<user_memory_context>` SystemMessage；Learned：`<<<UNTRUSTED_DATA>>>` HumanMessage（wrap_untrusted，对齐 SecurityBoundary）；Stable+Learned 共享统一预算 |
 
 `__init__.py` 从框架层导入 `memory_context_middleware` 并统一导出。`workspace_rules_middleware` 由 `GeneralAgent` 直接从框架层导入。
@@ -35,7 +35,7 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 System Prompt (固定, 跨用户缓存)              ← KV Cache ✅
 user_instructions (用户指令, 同用户稳定)        ← KV Cache ✅
 project_scoped_workspace (项目作用域边界, 同项目稳定) ← KV Cache ✅
-workspace_context (工作区规则, 同workspace稳定) ← KV Cache ✅
+workspace_context (工作区规则与沙箱快照, 同对话线程稳定) ← KV Cache ✅
 project_roadmap (项目路线图, 同项目稳定)       ← KV Cache ✅
 Stable `<user_memory_context>` (System, 同用户稳定) ← KV Cache ✅；可选 Learned(`<<<UNTRUSTED_DATA>>>` Human advisory)
 对话消息...                                   ← 每轮变化
