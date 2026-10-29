@@ -109,8 +109,17 @@ def test_a_first_index_written_in_batches_stores_exactly_what_a_single_write_sto
     assert batched_stats.updated_files == single_stats.updated_files == count
 
 
-def test_a_batch_is_also_cut_by_the_source_bytes_it_holds(root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _populate(root, 7)
+@pytest.mark.parametrize(
+    ("count", "expected_writes"),
+    [
+        pytest.param(7, [(3, True), (3, False), (1, False)], id="last-batch-is-partial"),
+        pytest.param(6, [(3, True), (3, False)], id="files-fill-the-batches-exactly"),
+    ],
+)
+def test_a_batch_is_also_cut_by_the_source_bytes_it_holds(
+    root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, count: int, expected_writes: list[tuple[int, bool]]
+) -> None:
+    _populate(root, count)
     file_bytes = (root / "pkg" / "m0.py").stat().st_size
     single = CodeGraphService(tmp_path / "single.db")
     single_stats = single.index_directory(root)
@@ -121,9 +130,9 @@ def test_a_batch_is_also_cut_by_the_source_bytes_it_holds(root: Path, tmp_path: 
     writes = _spy_on_writes(batched, monkeypatch)
     batched_stats = batched.index_directory(root)
 
-    assert writes == [(3, True), (3, False), (1, False)]
+    assert writes == expected_writes
     assert _dump(tmp_path / "batched.db") == _dump(tmp_path / "single.db")
-    assert batched_stats.updated_files == single_stats.updated_files == 7
+    assert batched_stats.updated_files == single_stats.updated_files == count
 
 
 def test_leftovers_without_a_file_record_are_cleared_once_not_by_every_batch(
