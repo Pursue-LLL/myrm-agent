@@ -38,8 +38,6 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | workflow_throttle/ | 海量并发 Agent 编排流水线实时 Token 燃速度量与阶梯式动态风控限流熔断引擎：滑窗燃速平滑、50%/80%/100% 阶梯治理与自适应降级。参见 [workflow_throttle/_ARCH.md](workflow_throttle/_ARCH.md)。 |
 | coordination_friction/ | 人机协调摩擦度量、人工介入衰减曲线与协同效率 ROI 量化记分板引擎：HITL 介入密度统计、多轮监督衰减曲线与注意力时间净节省折算。参见 [coordination_friction/_ARCH.md](coordination_friction/_ARCH.md)。 |
 | cron_doctor/ | Cron 自动化任务舰队全景健康体检医生与预防性隐患自查引擎：6 大健康门禁只读扫描（执行/交付/回执/调度逾期/脚本/工作区）、隐患聚合诊断与外科手术式修复指引。参见 [cron_doctor/_ARCH.md](cron_doctor/_ARCH.md)。 |
-| cumulative_delivery_budget/ | 多智能体整轮交付全生命周期成本核算、未知用量审计账本与硬预算熔断管理包：二元双账本（Trial vs Cumulative）、未计量调用保守计提与 70%/100% 阶梯熔断。参见 [cumulative_delivery_budget/_ARCH.md](cumulative_delivery_budget/_ARCH.md)。 |
-| agentic_traffic/ | AI Agent 流量精准解构、跳出归因与静默审判可观测性套件：Cursor/Claude/Windsurf 等高精识别、AEO 页面诊断探针与 4 阶梯转化漏斗。参见 [agentic_traffic/_ARCH.md](agentic_traffic/_ARCH.md)。 |
 | sanitized_debug_dump/ | 一键安全脱敏诊断包生成、敏感凭据物理抹除与加密阅后即焚分享管理包：Zero-Leak 正则抹除、环境体征快照与 48h/3次自毁分享短链。参见 [sanitized_debug_dump/_ARCH.md](sanitized_debug_dump/_ARCH.md)。 |
 | token_economics/ | 长任务 Token 经济学透明透视、99% 缓存节流真实收益与算力账单防刺客引擎：多模型 Prompt 缓存成本 ROI 换算、单位成本滑动基线漂移归因与软硬预算熔断刹车。参见 [token_economics/_ARCH.md](token_economics/_ARCH.md)。 |
 | delivery_dossier/ | 跨智能体任务交付证据卷宗、资产真实有效性与摩擦浪费可观测性引擎：5大维度不可变交付证据（Spec/指纹/工具/物理凭证/验收）、分层资产效能度量与摩擦刺客资产识别。参见 [delivery_dossier/_ARCH.md](delivery_dossier/_ARCH.md)。 |

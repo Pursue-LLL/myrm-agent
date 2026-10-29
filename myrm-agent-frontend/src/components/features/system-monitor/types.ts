@@ -7,16 +7,12 @@
  * - TraceSpanNode, CausalTraceData: 因果 Trace 树数据契约
  * - TierLevel, HealthStatus, ProbeResultItem, MultiTierHealthReportData: 分层健康数据契约
  * - CronDoctor: 定时任务舰队巡检与快速修复
- * - CumulativeDeliveryBudget: 整轮交付累计预算与未知用量审计契约
- * - AgenticTraffic: AI Agent 流量识别、AEO 诊断与静默审判漏斗
  *
  * [POS]
- * src/components/features/system-monitor/types.ts — 系统监控、端口冲突、因果链路、分层健康、交付累计预算与 Agent 流量类型。
+ * src/components/features/system-monitor/types.ts — 系统监控、端口冲突、因果链路与分层健康类型。
  */
 
 export * from './cronDoctorTypes';
-export * from './deliveryBudgetTypes';
-export * from './agenticTrafficTypes';
 
 
 export interface PortProcessInfo {

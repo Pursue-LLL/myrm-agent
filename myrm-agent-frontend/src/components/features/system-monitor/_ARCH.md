@@ -30,12 +30,6 @@
 | `cronDoctorTypes.ts` | 类型 | 定时任务舰队巡检、6 大防御门禁与外科手术式修复类型契约 | ✅ |
 | `CronFleetHealthDeck.tsx` | 组件 | 定时任务舰队全景健康体态顶栏胶囊看板与静默故障隐患告警卡片 | ✅ |
 | `CronDoctorReportDrawer.tsx` | 组件 | 定时任务隐患详情自查抽屉、修复指引与外科手术式快速治愈执行视窗 | ✅ |
-| `deliveryBudgetTypes.ts` | 类型 | 多智能体整轮交付全生命周期成本核算、未知用量审计与硬预算熔断契约 | ✅ |
-| `TrialLedgerBreakdownTable.tsx` | 组件 | 单次 Worker 尝试流水明细表，支持未知用量保守计提醒目提示与分类审计 | ✅ |
-| `CumulativeDeliveryLedgerCard.tsx` | 组件 | 整轮交付全生命周期成本核算大盘、双账本聚合透视与硬预算保护熔断交互卡片 | ✅ |
-| `agenticTrafficTypes.ts` | 类型 | AI Agent 流量识别、4 阶段漏斗与 AEO 静默审判诊断契约 | ✅ |
-| `AgenticTrafficDeck.tsx` | 组件 | AI Agent 流量精准解构、活跃 Coding Agent 分布与 4 阶梯转化漏斗大盘 | ✅ |
-| `AbandonmentAttributionView.tsx` | 组件 | 静默审判流失缺陷排行榜与页面 AEO 即时诊断透视组件 | ✅ |
 | `sanitizedDebugTypes.ts` | 类型 | 零数据外泄物理脱敏诊断包、SHA256 签名与 48h 阅后即焚短链契约定义 | ✅ |
 | `SanitizedDebugShareModal.tsx` | 组件 | 零外泄调试包导出与阅后即焚分享弹窗，支持抹除审计透视与 .myrmdiag 导出 | ✅ |
 | `tokenEconomicsTypes.ts` | 类型 | 长任务 Token 经济学、99% 缓存节流真实收益与单位成本漂移契约定义 | ✅ |

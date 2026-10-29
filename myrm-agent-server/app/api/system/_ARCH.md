@@ -22,8 +22,6 @@
 | `workflow_burn_api.py` | 路由 | 海量并发 Agent 编排流水线实时 Token 燃速全景 HUD 查询 (`GET /workflow-burn/{workflow_id}`)、执行检查点平滑上报 (`POST /workflow-burn/record-checkpoint`) 与阶梯预算动态调整恢复 (`POST /workflow-burn/{workflow_id}/adjust-budget`) | ✅ |
 | `coordination_friction_api.py` | 路由 | 人机协调摩擦度与监督衰减全景记分板 (`GET /coordination-friction/scoreboard`)、人工介入与打回重做事件上报 (`POST /coordination-friction/record-intervention`) 以及模板监督衰减曲线查询 (`GET /coordination-friction/decay-curve/{template_type}`) | ✅ |
 | `cron_doctor_api.py` | 路由 | Cron 自动化任务舰队全景健康体检巡检 (`POST /cron/doctor`，扫描执行/交付/回执/逾期/脚本/工作区六大门禁) 与外科手术式一键修复 (`POST /cron/{job_id}/quick-fix`) | ✅ |
-| `delivery_budget_api.py` | 路由 | 多智能体整轮交付全生命周期成本核算、未知用量审计账本 (`GET /delivery-budget/{delivery_id}`)、尝试记录上报 (`POST /delivery-budget/record-trial`) 与硬预算熔断调整 (`POST /delivery-budget/{delivery_id}/adjust-budget`) | ✅ |
-| `agentic_traffic_api.py` | 路由 | AI Agent 流量精准解构、跳出归因与静默审判大盘 (`GET /agentic-traffic/analytics`)、访问记录上报 (`POST /agentic-traffic/record-visit`) 与 AEO 页面诊断 (`POST /agentic-traffic/diagnose-page`) | ✅ |
 | `debug_share_api.py` | 路由 | 一键安全脱敏诊断包生成 (`POST /debug-share/dump`)、加密阅后即焚分享短链 (`POST /debug-share/ephemeral-link`) 与自毁消费读取 (`GET /debug-share/view/{share_token}`) | ✅ |
 | `token_economics_api.py` | 路由 | 长任务 Token 经济学透明透视 (`POST /token-economics/evaluate`)、单位成本基线漂移归因 (`POST /token-economics/drift-audit`) 与算力防刺客熔断刹车 (`POST /token-economics/guard-check`) | ✅ |
 | `delivery_dossier_api.py` | 路由 | 跨智能体交付证据卷宗归档 (`POST /delivery-dossier/archive`)、根据 ID/Task 检索卷宗 (`GET /delivery-dossier/{id}`) 与分层资产摩擦指数度量 (`GET /delivery-dossier/asset-friction/all`) | ✅ |
