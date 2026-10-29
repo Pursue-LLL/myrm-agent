@@ -1,4 +1,4 @@
-"""Unit tests for ClientSideSecretScanner, ClientSecretWriteValidator, and BffAutoRefactorEngine."""
+"""Unit tests for ClientSideSecretScanner and ClientSecretWriteValidator."""
 
 from __future__ import annotations
 
@@ -12,9 +12,6 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import 
 from myrm_agent_harness.agent.meta_tools.file_ops.validators.client_secret_validator import (
     ClientSecretLeakViolationError,
     ClientSecretWriteValidator,
-)
-from myrm_agent_harness.toolkits.code_execution.security.bff_refactor import (
-    BffAutoRefactorEngine,
 )
 from myrm_agent_harness.toolkits.code_execution.security.client_secret_scanner import (
     ClientSideSecretScanner,
@@ -135,45 +132,3 @@ export function Header() {
         paths=["src/components/Header.tsx"],
     )
     await validator.validate(view_ctx, "src/components/Header.tsx")
-
-
-def test_bff_auto_refactor_engine() -> None:
-    """Verify automated extraction to .env and Next.js / Node.js BFF proxy generation."""
-    leaked_code = """
-import React from 'react';
-
-export function Assistant() {
-  const apiKey = "sk-proj-1234567890123456789012345678901234567890";
-
-  async function callAI() {
-    return await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}` },
-      body: JSON.stringify({ prompt: "Hello" })
-    });
-  }
-  return <div>AI</div>;
-}
-"""
-    findings = ClientSideSecretScanner.scan_code(leaked_code, "src/app/assistant/page.tsx")
-    assert len(findings) >= 1
-
-    result = BffAutoRefactorEngine.refactor(
-        code=leaked_code,
-        file_path="src/app/assistant/page.tsx",
-        findings=findings,
-    )
-
-    # 1. Assert extracted .env entries
-    assert "OPENAI_API_KEY" in result.extracted_env_entries
-    assert "OPENAI_API_KEY=" in result.suggested_env_file_content
-
-    # 2. Assert generated server proxy route
-    assert result.server_proxy_file_path == "src/app/api/proxy/route.ts"
-    assert "export async function POST" in result.server_proxy_code
-    assert "process.env.OPENAI_API_KEY" in result.server_proxy_code
-
-    # 3. Assert client code refactoring
-    assert "/api/proxy" in result.refactored_client_code
-    assert "https://api.openai.com/v1/chat/completions" not in result.refactored_client_code
-    assert "Authorization handled securely by server-side BFF proxy" in result.refactored_client_code
