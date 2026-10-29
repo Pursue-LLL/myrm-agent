@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-094 · macOS 非 ASCII 文本靠「读剪贴板文本再 Cmd+V」输入：清掉用户的图片与文件、写入静默失败、凭据明文进剪贴板历史
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/macos_pasteboard.py`（新）、`toolkits/computer_use/backends/macos.py`、`toolkits/computer_use/backends/_ARCH.md`、`pyproject.toml`、`scripts/file_line_baseline.txt`；测试 `tests/toolkits/computer_use/test_macos_pasteboard.py`（新）、`test_macos_backend_branches.py`；没有改提示词、工具与控制平面，不影响提示词缓存）。**未在真实窗口里验证**：没有向任何应用投递过 Cmd+V，也没有碰通用剪贴板。 |
+| **发现时间** | 2026-10-29（评估 092 的遗留限制时，对 `macos.py:_paste_text` 逐行核对，并在私有剪贴板上做了往返实测） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：macOS 上所有非 ASCII 文本（含中文）与含非 ASCII 字符的凭据都走这条路径；装了 cua-driver 时输入委托给它，本问题只出现在原生兜底路径上。 |
+| **关联产品** | 桌面控制（macOS）原生后端 `type_text` / `type_credential` 的非 ASCII 分支。 |
+| **根因** | 旧 `_paste_text` 是「`pbpaste` 读文本 → `pbcopy` 写目标文本 → Cmd+V → 睡 0.1 秒 → `pbcopy` 写回文本」：① 只读写文本，用户剪贴板里是图片或文件时 `pbpaste` 返回空串，被「还原」成空串，图片和文件丢失；② 还原前不检查剪贴板有没有变，用户在这段时间新复制的内容会被旧文本覆盖；③ `_set_clipboard` 吞掉所有异常，`pbcopy` 失败时 Cmd+V 粘进去的是旧剪贴板内容，调用方还拿到 `success=True`，原有测试 `test_set_clipboard_swallows_failure` 把这个行为固化成了「期望」；④ 密码或 TOTP 含非 ASCII 字符时明文写进剪贴板，没有 `org.nspasteboard.*` 标记，剪贴板历史工具会记录；⑤ Cmd+V 投递失败时旧代码不还原，凭据文本会留在剪贴板里。 |
+| **修复** | 新增 `macos_pasteboard.py`：`snapshot` 读取全部 item 的全部类型字节；`write_text` 用 `NSPasteboardItem` 写文本，总带 `TransientType`，`concealed=True`（凭证）再带 `ConcealedType`，任何一步失败抛 `RuntimeError`；`restore` 在 `changeCount` 与写入后的值不一致时放弃并返回 `False`，写入未完成（计数为 `None`）时直接还原。`macos.py:_paste_text` 只做编排：快照、写入、Cmd+V、等待 `_PASTE_SETTLE_SECONDS`，`finally` 里还原，因此 Cmd+V 失败或写入失败也会还原；`type_credential` 传 `concealed=True`。删除 `_get_clipboard` / `_set_clipboard`；`macos.py` 从 505 行降到 491 行，基线条目一并移除。`AppKit` / `Foundation` 加入 mypy 的无 stubs 名单，与 `Quartz` 同理。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 私有剪贴板 `pasteboardWithUniqueName()` 上实测：2 个 item、3 种类型（文本、PNG、自定义类型）快照后还原，逐字节一致；静态数据快照加还原的耗时 1 MB 约 3 毫秒、50 MB 约 15 毫秒、200 MB 约 175 毫秒。② 另一类方案是「延迟数据提供者」：目标应用真正读取时才提供文本，借此确认粘贴发生。它依赖写入方进程的主线程 run loop 响应其他进程的读取请求；本机实测写入方主线程不跑 run loop 时，另一进程读取被卡住 8 秒超时、读到 `None`，主线程跑 run loop 时才读到文本。harness 里没有任何 `NSRunLoop` 调用，照搬会让目标应用读剪贴板时卡住，所以没有采用。③ 变异验证：去掉 `changeCount` 守卫、去掉 Transient 标记、去掉 Concealed 标记、写入失败不抛错、快照只取第一个类型、快照丢掉后续 item、还原时不清空、还原不放进 `finally`、`concealed` 不下传、`type_credential` 不传 `concealed`，共 10 种，对应用例全部失败。 |
+| **回归** | `tests/toolkits/computer_use/test_macos_pasteboard.py`（仅 macOS，全部在私有剪贴板上）：多 item 多类型字节级往返、空剪贴板往返、用户中途新复制时放弃还原、`None` 计数无条件还原、临时标记、凭证标记、返回的 `changeCount`、写入失败抛错；`test_macos_backend_branches.py` 的 `TestPasteTextOrchestration`：顺序、`concealed` 下传、Cmd+V 失败仍还原、写入失败不粘贴且无条件还原、`type_text` 报告失败。旧的 4 个剪贴板辅助函数用例随函数删除。 |
+| **仍然存在** | ① 固定等待 `_PASTE_SETTLE_SECONDS`（0.1 秒）仍是猜测：目标应用读取剪贴板比它慢时，会读到还原后的内容；没有可用的无 run loop 确认手段，不声称已修复。② Excel、Photoshop 这类「延迟提供数据」的应用，读取全部类型可能比上面的静态数据慢，没有测过。③ 没有验证剪贴板历史工具是否都遵守 `TransientType` / `ConcealedType`，只验证了标记确实写入。④ 输入法组合状态、真实窗口里的端到端效果无法在本机安全验证。⑤ Linux 的 `linux.py:_paste_text_xclip` 仍是「读文本、写文本、粘贴、写回文本」，同类缺陷未处理。 |
+| **代码位置** | `toolkits/computer_use/backends/macos_pasteboard.py:48-100` · `toolkits/computer_use/backends/macos.py:58,208,213-222`。 |
+
 ### BUG-HARNESS-2026-10-29-093 · 每个被判为验证类的 bash 调用在后置守卫抛 `AttributeError`：并发改造删掉了 `tag_last_verification`，调用方没有跟着迁移
 
 | 字段 | 内容 |
@@ -33,7 +50,7 @@
 | **反复次数** | 第 1 次。 |
 | **踩坑** | ① 现有 mock 测试只数调用次数、检查位置参数的值，`MagicMock` 的 Quartz 接受任意个数的参数，并且「事件是否有效」永远为真，所以这两个 bug 一直没被测到；新增的真实 Quartz 测试在 macOS 上构造事件（`write` 还用 `CGEventKeyboardGetUnicodeString` 读回文本），`_post_event` 被替换为收集器，只构造、不投递，不会向本机注入按键。② 长度参数要与字符的 UTF-16 单元数一致：BMP 字符声明 2 会报 `ValueError`，emoji 声明 1 读回失败，声明 2 读回正确。③ 变异验证：长度改回 1，2 个用例失败；把事件当事件源传入，4 个用例失败；垂直滚动改回「两个值、`wheel_count` 为 1」，真实 Quartz 2 个用例和 mock 1 个用例失败。 |
 | **回归** | `tests/toolkits/computer_use/test_macos_input.py`：新增 `test_write_declares_utf16_length_and_uses_no_event_source`、`test_scroll_wheel_values_match_wheel_count`（所有平台跑）与 `TestRealQuartzEvents`（仅 macOS：`write` 的 ASCII / 中文 / emoji 三例，click / move_to / press / hotkey / scroll / hscroll / drag 共 12 例）；该文件 44 例全过。 |
-| **仍然存在** | ① 只验证了事件对象有效、携带的文本正确，没有向真实输入框或窗口投递过；没有验证中文输入法处于组合状态时这类「键码 0 加 Unicode 字符串」的事件是否会被输入法截获；也没有验证滚动方向（`macos.py` 把 up / left 映射为正值）是否与 Quartz 的约定一致。② 因此 macOS 非 ASCII 文本仍走剪贴板（`macos.py` 的 `_paste_text`），与 087 ⑥ 描述的缺陷相同，不改路由。 |
+| **仍然存在** | ① 只验证了事件对象有效、携带的文本正确，没有向真实输入框或窗口投递过；没有验证中文输入法处于组合状态时这类「键码 0 加 Unicode 字符串」的事件是否会被输入法截获；也没有验证滚动方向（`macos.py` 把 up / left 映射为正值）是否与 Quartz 的约定一致。② 因此 macOS 非 ASCII 文本仍走剪贴板（`macos.py` 的 `_paste_text`），不改路由；该路径的剪贴板缺陷见 `BUG-HARNESS-2026-10-29-094`。 |
 | **代码位置** | `toolkits/computer_use/backends/macos_input.py:239-252,287-302` · `toolkits/computer_use/backends/macos.py:171,202,240-264`（调用方）。 |
 
 ### BUG-HARNESS-2026-10-29-091 · 智能体用 `subagent_control_tool(list)` 读过的子智能体结果，完成事件仍唤醒父智能体再答一遍：harness 不上报「结果已被读走」
@@ -116,7 +133,7 @@
 | **根因** | 旧 `_paste_text` 是「读剪贴板文本 → 写入目标文本 → Ctrl+V → 睡 0.1 秒 → 恢复文本」，有五处缺陷：① 只读写 `CF_UNICODETEXT`，用户剪贴板里的文件、图片被清掉且不恢复；② 固定 0.1 秒后就恢复旧文本，目标应用处理 Ctrl+V 慢于 0.1 秒时粘进去的是旧内容；③ 没有前台窗口时 `OpenClipboard(None)` 之后 `SetClipboardData` 必定失败（微软 `EmptyClipboard` 文档：NULL 窗口句柄打开剪贴板会让所有者为 NULL，`SetClipboardData` 随之失败），而写入函数外层 `except Exception: pass`，调用方得不到失败信号，Ctrl+V 粘进旧内容；④ 密码或 TOTP 含非 ASCII 字符时明文进入剪贴板；⑤ ctypes 没声明 `GlobalLock` / `GlobalAlloc` 等原型，64 位指针按 32 位 int 读取（本机 libc 实测：未声明 `restype` 时 `malloc` 返回 `0x1514040`，声明 `c_void_p` 后返回 `0x600001514340`，两次是不同分配，只说明默认读法在 64 位下只剩低 32 位）。 |
 | **修复** | `windows_text_io.py:type_unicode_text` 用 `SendInput` + `KEYEVENTF_UNICODE` 输入非 ASCII 文本：每个 UTF-16 代码单元一对按下/抬起事件（非 BMP 字符自然发成代理对）；`\r\n`、`\r`、`\n` 先归一再折成一次真实的 Return 键；按 `chunk_size` 分块、块间睡 `delay_ms`；`SendInput` 实际插入条数少于请求时抛 `OSError`，由 `type_text` / `type_credential` 转成失败的 `ActionResult`。`INPUT` 结构体按 Win32 定义成含 `MOUSEINPUT` / `KEYBDINPUT` / `HARDWAREINPUT` 的联合体并全部用定宽字段，`sizeof == 40`；原型挂在 `functools.cache` 缓存的私有 `ctypes.WinDLL(\"user32\", use_last_error=True)` 上，不改共享的 `ctypes.windll`。ASCII 路径（`pyautogui.write`）不动。剪贴板读写与相关原型、测试整体删除。`perception/windows_process.py` 的 `OpenProcess` 原型同样改挂私有 `kernel32` 实例。 |
 | **反复次数** | 第 1 次。 |
-| **踩坑** | ① 结构体字段不能用 `wintypes.DWORD` / `LONG`：它们在 macOS / Linux 是 8 字节，同一份定义算出 `INPUT` 为 56 字节，用定宽整数才能在任何平台上断言 40。② 微软 `SendInput` 文档：UIPI 阻挡时返回值与 `GetLastError` 都不会提示，所以返回条数检查抓不到「向更高权限窗口输入被拦」，这与原来的 `pyautogui.write` 路径一致，不是新增回归。③ `cua-driver` 的 Windows 实现也在 `ConsoleWindowClass` + ARM64 上遇到过「`KEYEVENTF_UNICODE` 报告成功但提示符没变」；本仓库 `safety.py` 的敏感应用名单已把 `cmd`、`powershell`、`windows terminal` 拦在输入之前。④ 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 在前后 `cache_clear()`。⑤ 变异验证：去掉 `dwExtraInfo` 字段、去掉换行归一、截断代理对、块后多睡一次、忽略短插入、改回共享 `windll`、写死 `cbSize`、调换 `windows.py` 的参数顺序，对应用例分别失败 2 / 2 / 1 / 2 / 1 / 11 / 1 / 1 个。⑥ macOS 的 `macos.py:_paste_text`、Linux 的 `linux.py:_paste_text_xclip` 仍是同样的「写剪贴板再粘贴」，含非 ASCII 字符的密码会经过剪贴板；macOS 已有逐字符 Unicode 事件原语 `macos_input.write`（092 已修正其构造与长度），但输入法组合状态下的行为无法在本机安全验证，路由不改，保留为已知限制。 |
+| **踩坑** | ① 结构体字段不能用 `wintypes.DWORD` / `LONG`：它们在 macOS / Linux 是 8 字节，同一份定义算出 `INPUT` 为 56 字节，用定宽整数才能在任何平台上断言 40。② 微软 `SendInput` 文档：UIPI 阻挡时返回值与 `GetLastError` 都不会提示，所以返回条数检查抓不到「向更高权限窗口输入被拦」，这与原来的 `pyautogui.write` 路径一致，不是新增回归。③ `cua-driver` 的 Windows 实现也在 `ConsoleWindowClass` + ARM64 上遇到过「`KEYEVENTF_UNICODE` 报告成功但提示符没变」；本仓库 `safety.py` 的敏感应用名单已把 `cmd`、`powershell`、`windows terminal` 拦在输入之前。④ 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 在前后 `cache_clear()`。⑤ 变异验证：去掉 `dwExtraInfo` 字段、去掉换行归一、截断代理对、块后多睡一次、忽略短插入、改回共享 `windll`、写死 `cbSize`、调换 `windows.py` 的参数顺序，对应用例分别失败 2 / 2 / 1 / 2 / 1 / 11 / 1 / 1 个。⑥ macOS 的 `macos.py:_paste_text`、Linux 的 `linux.py:_paste_text_xclip` 仍是「写剪贴板再粘贴」：macOS 的剪贴板缺陷由 `BUG-HARNESS-2026-10-29-094` 处理，Linux 未处理；macOS 已有逐字符 Unicode 事件原语 `macos_input.write`（092 已修正其构造与长度），但输入法组合状态下的行为无法在本机安全验证，路由不改，保留为已知限制。 |
 
 ### BUG-HARNESS-2026-10-29-086 · Windows 的 UI Automation 感知调用了 uiautomation 库里并不存在的 `GetProcessNameByPid`：进程名恒为空，应用标识 `app_id` 恒为空，信任键退化成窗口标题
 

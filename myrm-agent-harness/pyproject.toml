@@ -261,8 +261,8 @@ explicit_package_bases = true
 files = ["src/myrm_agent_harness"]
 
 [[tool.mypy.overrides]]
-# pyobjc Quartz 无类型 stubs（官方包未带 py.typed）；仅在 backends/macos_input.py 惰性导入。
-module = "Quartz"
+# pyobjc Quartz / AppKit / Foundation 无类型 stubs（官方包未带 py.typed）；仅在 computer_use/backends 的 macOS 模块中惰性导入。
+module = ["Quartz", "AppKit", "Foundation"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -9,6 +9,7 @@ arm64 (Apple Silicon) due to a missing `objc_msgSendSuper_stret` symbol
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
 - backends.macos_input (POS: Quartz CGEvent keyboard/mouse primitives, global HID unless a target pid is set)
+- backends.macos_pasteboard (POS: NSPasteboard snapshot, temporary text write and guarded restore for clipboard-paste typing)
 - backends.macos_background (POS: window targeting, window-only capture, foreground guard, event-post permission, overlay-window probe)
 - backends.macos_ax_scripts (POS: AppleScript sources of the accessibility probes)
 - backends.macos_permissions (POS: TCC permission probes — Accessibility, Screen Recording, capture usability)
@@ -30,7 +31,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos_input
+from myrm_agent_harness.toolkits.computer_use.backends import macos_input, macos_pasteboard
 from myrm_agent_harness.toolkits.computer_use.backends.macos_ax_scripts import AX_DIALOG_SCRIPT, AX_TEXT_SCRIPT
 from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
     _capture_screen_excluding_titles,
@@ -52,6 +53,9 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Cmd+V 投递后留给目标应用读取剪贴板的时间，之后才还原用户剪贴板。
+_PASTE_SETTLE_SECONDS = 0.1
 
 _MODIFIER_TO_QUARTZ_KEY: dict[ModifierKey, str] = {
     "ctrl": "ctrl",
@@ -201,21 +205,21 @@ class MacOSBackend:
                 # Quartz unicode input — direct OS event injection, no subprocess exposure
                 await asyncio.to_thread(macos_input.write, secret_text, interval=interval)
             else:
-                await self._paste_text(secret_text)
+                await self._paste_text(secret_text, concealed=True)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
 
-    async def _paste_text(self, text: str) -> None:
-        """Type non-ASCII text via clipboard paste (Cmd+V), preserving original clipboard."""
-        saved = await asyncio.to_thread(_get_clipboard)
-
-        await asyncio.to_thread(_set_clipboard, text)
-        await asyncio.to_thread(macos_input.hotkey, "command", "v")
-        await asyncio.sleep(0.1)
-
-        if saved is not None:
-            await asyncio.to_thread(_set_clipboard, saved)
+    async def _paste_text(self, text: str, *, concealed: bool = False) -> None:
+        """Type non-ASCII text via clipboard paste (Cmd+V); the user's pasteboard is restored afterwards."""
+        saved = await asyncio.to_thread(macos_pasteboard.snapshot)
+        written: int | None = None
+        try:
+            written = await asyncio.to_thread(macos_pasteboard.write_text, text, concealed=concealed)
+            await asyncio.to_thread(macos_input.hotkey, "command", "v")
+            await asyncio.sleep(_PASTE_SETTLE_SECONDS)
+        finally:
+            await asyncio.to_thread(macos_pasteboard.restore, saved, written)
 
     async def key(self, keys: str) -> ActionResult:
         try:
@@ -485,21 +489,3 @@ def _has_blocking_dialog(target_app_names: list[str] | None = None) -> bool:
     except Exception as e:
         logger.debug("Failed to check for blocking dialog: %s", e)
         return False
-
-
-def _get_clipboard() -> str | None:
-    """Read current clipboard text."""
-    try:
-        result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=2)
-        return result.stdout if result.returncode == 0 else None
-    except Exception:
-        return None
-
-
-def _set_clipboard(text: str) -> None:
-    """Set clipboard text."""
-    try:
-        proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
-        proc.communicate(text.encode("utf-8"), timeout=2)
-    except Exception:
-        pass
