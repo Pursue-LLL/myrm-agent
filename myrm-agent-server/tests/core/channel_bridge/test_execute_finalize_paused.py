@@ -7,6 +7,7 @@ mapper into the real finalize, the way ``ChannelAgentExecutor`` does.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 
@@ -102,6 +103,26 @@ async def test_a_paused_turn_stays_flagged_so_a_delegated_task_is_not_reported_a
     assert is_error_reply(reply)
     assert reply.metadata is not None
     assert reply.metadata[ERROR_TYPE_METADATA_KEY] == "tool_stuck"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "events",
+    [
+        pytest.param((_PAUSE,), id="without_text"),
+        pytest.param(({"type": "message", "data": "Let me read that file."}, _PAUSE), id="after_text"),
+    ],
+)
+async def test_a_paused_turn_leaves_a_log_line_naming_the_sender(
+    events: tuple[dict[str, object], ...], caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        await _run_turn(*events)
+
+    logged = [r.getMessage() for r in caplog.records if "user-1" in r.getMessage()]
+    assert len(logged) == 1
+    assert "loop guard" in logged[0]
+    assert "empty LLM response" not in logged[0]
 
 
 @pytest.mark.asyncio

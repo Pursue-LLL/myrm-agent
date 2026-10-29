@@ -18,7 +18,8 @@ cost recording, metadata, media attachments, and artifact deep-link buttons. A f
 replies with the member-safe wording of its error kind and a reference id (after any text that had
 already streamed, so a cut-off answer is never presented as complete); the raw error text only
 goes to the operator log under the same id. A turn the loop guard paused replies with its own notice instead of the
-empty-turn placeholder, and is flagged the same way so a delegated task is not reported as done.
+empty-turn placeholder, is flagged the same way so a delegated task is not reported as done, and leaves a log line
+for the sender like every other turn that ends without an answer.
 """
 
 from __future__ import annotations
@@ -85,10 +86,13 @@ def _stopped_turn_wording(
 ) -> tuple[str, str]:
     """Wording of a turn that stopped early and its error type; a fatal error outranks a loop guard pause.
 
-    A pause is no failure of the run, but the error type still flags it so a delegated task is not reported as done.
+    A pause is no failure of the run, but the error type still flags it so a delegated task is not reported as done,
+    and the log line lets an operator match the notice a member saw to a turn.
     """
     if acc.error_message:
         return _failed_turn_wording(acc, msg, account_guidance=account_guidance)
+
+    logger.warning("ChannelAgentExecutor: loop guard paused the turn for %s", msg.sender_id)
 
     from app.channels.i18n import channel_t, resolve_message_locale
 
