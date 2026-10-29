@@ -31,7 +31,7 @@ from myrm_agent_harness.api import (
     is_alert_or_bot_sender,
 )
 from myrm_agent_harness.toolkits.memory import MemoryManager
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.channel_message import ChannelMessageModel
@@ -151,7 +151,7 @@ class BehavioralMeasurementService:
             .where(
                 ChannelMessageModel.learning_eligible.is_(True),
             )
-            .order_by(desc(ChannelMessageModel.created_at))
+            .order_by(ChannelMessageModel.created_at.desc())
             .limit(max_messages)
         )
         channel_res = await self._db.execute(channel_stmt)

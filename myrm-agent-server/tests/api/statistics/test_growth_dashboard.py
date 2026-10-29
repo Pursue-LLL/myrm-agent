@@ -8,6 +8,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.cron.manager import CronManager
+from myrm_agent_harness.toolkits.cron.types import CronRunRecord, RunStatus
 
 from app.api.statistics.growth_dashboard import (
     ActivityDay,
@@ -41,13 +43,13 @@ from app.services.skills.growth.case_types import (
 class TestGrowthDashboardSchemas:
     """Test Pydantic response schemas for correctness."""
 
-    def test_snapshot_defaults(self):
+    def test_snapshot_defaults(self) -> None:
         snap = GrowthSnapshot()
         assert snap.total_memories == 0
         assert snap.memory_health_score == 100
         assert snap.memory_by_type == {}
 
-    def test_snapshot_with_data(self):
+    def test_snapshot_with_data(self) -> None:
         snap = GrowthSnapshot(
             total_memories=150,
             memory_by_type={"semantic": 100, "episodic": 50},
@@ -63,12 +65,12 @@ class TestGrowthDashboardSchemas:
         assert snap.memory_by_type["semantic"] == 100
         assert snap.max_streak == 7
 
-    def test_activity_day(self):
+    def test_activity_day(self) -> None:
         day = ActivityDay(date="2026-04-20", count=3)
         assert day.date == "2026-04-20"
         assert day.count == 3
 
-    def test_weekly_summary_defaults(self):
+    def test_weekly_summary_defaults(self) -> None:
         ws = WeeklySummary()
         assert ws.cron_executions == 0
         assert ws.conversations == 0
@@ -78,7 +80,7 @@ class TestGrowthDashboardSchemas:
         assert ws.previous_cron_executions == 0
         assert ws.previous_tool_calls == 0
 
-    def test_weekly_summary_with_delta(self):
+    def test_weekly_summary_with_delta(self) -> None:
         ws = WeeklySummary(
             conversations=12,
             messages_sent=48,
@@ -97,7 +99,7 @@ class TestGrowthDashboardSchemas:
         assert dumped["tool_calls"] == 156
         assert dumped["previous_tool_calls"] == 133
 
-    def test_skill_evolution_event(self):
+    def test_skill_evolution_event(self) -> None:
         event = SkillEvolutionEvent(
             skill_id="sk-001",
             skill_name="Web Search",
@@ -110,7 +112,7 @@ class TestGrowthDashboardSchemas:
         assert event.source == "draft"
         assert event.status == "AUTO_APPLIED"
 
-    def test_skill_health_item_schema(self):
+    def test_skill_health_item_schema(self) -> None:
         """SkillHealthItem carries the evidence (observed outcomes and the minimum) behind the verdict."""
         item = SkillHealthItem(
             skill_name="search_web",
@@ -129,7 +131,7 @@ class TestGrowthDashboardSchemas:
         dumped = item.model_dump()
         assert dumped["actionable_recommendation"] == "🌟 Star asset with zero friction."
 
-    def test_full_dashboard_response(self):
+    def test_full_dashboard_response(self) -> None:
         resp = GrowthDashboardResponse(
             snapshot=GrowthSnapshot(total_memories=10),
             activity_heatmap=[ActivityDay(date="2026-04-20", count=1)],
@@ -143,7 +145,7 @@ class TestGrowthDashboardSchemas:
         assert dumped["weekly_summary"]["tool_calls"] == 20
         assert dumped["weekly_summary"]["previous_conversations"] == 3
 
-    def test_activity_snapshot_defaults(self):
+    def test_activity_snapshot_defaults(self) -> None:
         snap = _ActivitySnapshot()
         assert snap.active_days == 0
         assert snap.max_streak == 0
@@ -151,7 +153,7 @@ class TestGrowthDashboardSchemas:
         assert snap.tool_calls_this_week == 0
         assert snap.tool_calls_prev_week == 0
 
-    def test_activity_snapshot_with_data(self):
+    def test_activity_snapshot_with_data(self) -> None:
         snap = _ActivitySnapshot(
             active_days=15,
             max_streak=5,
@@ -164,7 +166,7 @@ class TestGrowthDashboardSchemas:
         assert snap.tool_calls_prev_week == 133
         assert len(snap.heatmap) == 1
 
-    def test_snapshot_week_delta_renders(self):
+    def test_snapshot_week_delta_renders(self) -> None:
         """Verify memory_week_delta field is properly serialized."""
         snap = GrowthSnapshot(
             total_memories=100,
@@ -173,7 +175,7 @@ class TestGrowthDashboardSchemas:
         dumped = snap.model_dump()
         assert dumped["memory_week_delta"] == 15
 
-    def test_snapshot_week_delta_zero(self):
+    def test_snapshot_week_delta_zero(self) -> None:
         """Week delta defaults to 0."""
         snap = GrowthSnapshot()
         assert snap.memory_week_delta == 0
@@ -452,17 +454,27 @@ async def test_fetch_weekly_summary_normal() -> None:
     mock_db.execute = AsyncMock(side_effect=lambda q: next(execute_results))
 
     now = datetime.now(UTC)
-    recent_ts = now.timestamp()
-    older_ts = (now - timedelta(days=10)).timestamp()
 
-    fake_history = [
-        SimpleNamespace(started_at=recent_ts),
-        SimpleNamespace(started_at=recent_ts),
-        SimpleNamespace(started_at=older_ts),
+    def run(started_at: datetime) -> CronRunRecord:
+        return CronRunRecord(
+            id="run",
+            job_id="job",
+            started_at=started_at,
+            finished_at=started_at,
+            duration_ms=1,
+            status=RunStatus.OK,
+        )
+
+    # SQLite hands back run times without a zone, so the count has to read a bare time as UTC.
+    runs = [
+        run(now),
+        run(now.replace(tzinfo=None) - timedelta(hours=1)),
+        run(now - timedelta(days=10)),
+        run(now - timedelta(days=30)),
     ]
 
-    mock_cron_mgr = AsyncMock()
-    mock_cron_mgr.get_execution_history = AsyncMock(return_value=fake_history)
+    mock_cron_mgr = AsyncMock(spec=CronManager)
+    mock_cron_mgr.list_runs = AsyncMock(return_value=runs)
 
     with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_cron_mgr):
         result = await _fetch_weekly_summary(mock_db)
@@ -473,6 +485,7 @@ async def test_fetch_weekly_summary_normal() -> None:
     assert result.previous_messages_sent == 15
     assert result.cron_executions == 2
     assert result.previous_cron_executions == 1
+    mock_cron_mgr.list_runs.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -531,12 +544,12 @@ async def test_fetch_skill_evolution_data_exception(
 
 
 class TestSkillEvolutionSnapshot:
-    def test_defaults(self):
+    def test_defaults(self) -> None:
         snap = SkillEvolutionSnapshot()
         assert snap.total_skills == 0
         assert snap.events == []
 
-    def test_with_data(self):
+    def test_with_data(self) -> None:
         snap = SkillEvolutionSnapshot(
             total_skills=3,
             approved=2,
@@ -613,7 +626,7 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
 
     import json
 
-    body = json.loads(response.body)
+    body = json.loads(bytes(response.body))
     data = body["data"]
 
     assert data["snapshot"]["total_memories"] == 50
@@ -666,7 +679,7 @@ async def test_get_growth_dashboard_endpoint_error(
 
 
 class TestCostSummary:
-    def test_defaults(self):
+    def test_defaults(self) -> None:
         cs = CostSummary()
         assert cs.total_cost_usd == 0.0
         assert cs.cache_savings_usd == 0.0
@@ -674,7 +687,7 @@ class TestCostSummary:
         assert cs.routing_savings_percent == 0.0
         assert cs.total_savings_usd == 0.0
 
-    def test_with_data(self):
+    def test_with_data(self) -> None:
         cs = CostSummary(
             total_cost_usd=1.25,
             cache_savings_usd=0.45,
@@ -687,7 +700,7 @@ class TestCostSummary:
         dumped = cs.model_dump()
         assert dumped["routing_savings_percent"] == 24.0
 
-    def test_dashboard_response_includes_cost_summary(self):
+    def test_dashboard_response_includes_cost_summary(self) -> None:
         resp = GrowthDashboardResponse(
             snapshot=GrowthSnapshot(),
             activity_heatmap=[],
@@ -698,7 +711,7 @@ class TestCostSummary:
         dumped = resp.model_dump()
         assert dumped["cost_summary"]["total_savings_usd"] == 1.50
 
-    def test_dashboard_response_cost_summary_none(self):
+    def test_dashboard_response_cost_summary_none(self) -> None:
         resp = GrowthDashboardResponse(
             snapshot=GrowthSnapshot(),
             activity_heatmap=[],

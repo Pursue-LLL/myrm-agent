@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.api.statistics.skill_growth::(fetch_skill_evolution_data, fetch_skill_trends, fetch_skill_health) (POS: 技能侧看板数据域)
+- app.core.cron.adapters.setup::get_cron_manager (POS: 定时任务管理器；周摘要按它的运行记录数定时任务执行次数)
 - app.database.connection::get_db (POS: 异步数据库会话依赖)
 - app.database.models.chat::NOT_WAKEUP_NOTICE (POS: 排除后台完成通知行，周消息数只数用户亲自发的消息)
 
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, Query
@@ -52,6 +53,9 @@ from app.database.models.chat import NOT_WAKEUP_NOTICE
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+_CRON_USER_ID = "default"
+_CRON_RUN_SCAN_LIMIT = 400
 
 # ── Response schemas ─────────────────────────────────────────────────
 
@@ -208,7 +212,7 @@ class _ActivitySnapshot:
 
 async def _fetch_activity_data(
     time_range_days: int,
-    tz_info: datetime.tzinfo | None = None,
+    tz_info: tzinfo | None = None,
     tz_name: str | None = None,
 ) -> _ActivitySnapshot:
     """Fetch activity metrics from EventLog including weekly tool_calls aggregation."""
@@ -280,6 +284,10 @@ async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
         return 0
 
 
+def _as_float(value: object) -> float:
+    return float(value) if isinstance(value, int | float) else 0.0
+
+
 async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
     """Aggregate cost savings from message extra_data within the time range."""
     try:
@@ -321,9 +329,9 @@ async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSum
         if acc.calls == 0:
             return None
 
-        routing_savings_data = compute_estimated_savings(tier_accs)
-        routing_savings = float(routing_savings_data["savings"]) if routing_savings_data else 0.0
-        routing_savings_pct = float(routing_savings_data["savingsPercent"]) if routing_savings_data else 0.0
+        routing_savings_data = compute_estimated_savings(tier_accs) or {}
+        routing_savings = _as_float(routing_savings_data.get("savings"))
+        routing_savings_pct = _as_float(routing_savings_data.get("savingsPercent"))
 
         total_savings = acc.cache_savings_usd + routing_savings
         if total_savings <= 0 and acc.cost_usd <= 0:
@@ -385,14 +393,13 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
 
             cron_mgr = get_cron_manager()
             if cron_mgr:
-                history = await cron_mgr.get_execution_history(limit=400)
-                week_start_ts = week_start.timestamp()
-                prev_week_start_ts = prev_week_start.timestamp()
-                for h in history:
-                    started = getattr(h, "started_at", 0)
-                    if started >= week_start_ts:
+                # Newest first, so a fortnight with more than the cap's worth of runs undercounts its oldest ones.
+                for run in await cron_mgr.list_runs(_CRON_USER_ID, limit=_CRON_RUN_SCAN_LIMIT):
+                    # SQLite returns run times without a zone; they are stored as UTC.
+                    started = run.started_at if run.started_at.tzinfo else run.started_at.replace(tzinfo=UTC)
+                    if started >= week_start:
                         cron_count += 1
-                    elif started >= prev_week_start_ts:
+                    elif started >= prev_week_start:
                         cron_prev += 1
         except Exception as exc:
             logger.debug("Failed to count cron executions: %s", exc)
@@ -427,24 +434,23 @@ async def get_growth_dashboard(
     """
     try:
         tz_info, tz_name = resolve_user_timezone(timezone, x_timezone)
+        # Two typed gathers of at most six awaitables each: ``asyncio.gather`` is only typed up to six arguments.
         (
-            (memory_by_type, health_score, health_dims, week_delta),
-            activity,
-            weekly,
-            skill_snapshot,
-            cost_summary,
-            skill_trends,
-            skill_health,
-            memory_citations_7d,
+            ((memory_by_type, health_score, health_dims, week_delta), activity, weekly, skill_snapshot),
+            (cost_summary, skill_trends, skill_health, memory_citations_7d),
         ) = await asyncio.gather(
-            _fetch_memory_snapshot(),
-            _fetch_activity_data(days, tz_info, tz_name),
-            _fetch_weekly_summary(db),
-            fetch_skill_evolution_data(),
-            _fetch_cost_summary(db, days),
-            fetch_skill_trends(days, tz_info),
-            fetch_skill_health(),
-            _fetch_memory_citations_7d(db),
+            asyncio.gather(
+                _fetch_memory_snapshot(),
+                _fetch_activity_data(days, tz_info, tz_name),
+                _fetch_weekly_summary(db),
+                fetch_skill_evolution_data(),
+            ),
+            asyncio.gather(
+                _fetch_cost_summary(db, days),
+                fetch_skill_trends(days, tz_info),
+                fetch_skill_health(),
+                _fetch_memory_citations_7d(db),
+            ),
         )
 
         total_memories = sum(memory_by_type.values())

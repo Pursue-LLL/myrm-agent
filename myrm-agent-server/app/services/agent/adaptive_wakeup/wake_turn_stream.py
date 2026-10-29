@@ -1,7 +1,7 @@
 """Run one wake turn of a chat: build its agent, relay the run to the chat and keep what it said.
 
 [INPUT]
-- app.services.chat.chat_service::ChatService (POS: the chat row (its agent), the history, the durable assistant reply)
+- app.services.chat.chat_service::ChatService (POS: the chat row (its agent and incognito flag), the history, the durable assistant reply)
 - app.services.agent.params::AgentRequest / convert_to_general_agent_params (POS: chat config -> GeneralAgentParams)
 - app.ai_agents::AgentFactory (POS: instantiate the chat's GeneralAgent)
 - app.core.utils.chat_utils::convert_chat_history (POS: frontend-style chat tuples -> LangChain messages)
@@ -18,7 +18,8 @@
 [POS]
 The streaming half of a wake turn. The turn belongs to the chat's own agent, streams to the chat through the app event
 bus, and runs under the caller's turn lease, so the chat's Stop button, a goal pause and the emergency stop reach it
-like any other turn. A run is retried only while it has shown the user nothing; a run that fails for good leaves an
+like any other turn. It runs incognito exactly when its chat is, so a private chat's follow-up leaves no memory either.
+A run is retried only while it has shown the user nothing; a run that fails for good leaves an
 error event in the chat and on its saved reply instead of silence.
 """
 

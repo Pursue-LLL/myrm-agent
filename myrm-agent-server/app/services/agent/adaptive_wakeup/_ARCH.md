@@ -20,7 +20,7 @@
 - 预算与停止标记按会话记在 harness 的 `AdaptiveWakeupRouter`（`agent/coordination/adaptive_wakeup/`），本包不重复持有；`service.py` 经路由的 `claim_wake_turn` 在回合真正开始时扣一次额度。
 - 用户发言的登记点是 `stream_session/chat_history_bootstrap.persist_user_message`（Web）与 `core/channel_bridge/executor_helpers/history.persist_and_load_history`（IM）；Stop 的登记点是 `api/agents/general_agent/streaming.py` 的两个取消端点与 `goals/goal_controls.stop_goal_turn`（暂停/取消目标），目标恢复经 `note_goal_resumed` 解除；会话销毁经 `services/chat/chat_disposal.clear_runtime_caches` 调 `forget_chat`。
 - 通知行的种类标记常量在 `app/database/models/chat.py`（`WAKEUP_NOTICE_*`），判定函数 `is_wakeup_notice` 在 `app/services/chat/chat_helpers.py`；没起回合的种类（降级、抑制）不算用户轮次，`get_last_user_message` 跳过它们。
-- 通知行是 `role=user` 的行，所以凡是统计「人说了什么」的读取处都要把它排除：SQL 侧用 `app/database/models/chat.py` 的 `NOT_WAKEUP_NOTICE`（陪伴活跃天数与消息数、成长看板的周消息数、会话分析的消息计数、行为测量的 Web 会话收集），Python 侧用 `is_wakeup_notice`（重试记忆提取找最近一轮）。旧版本写下、没有标记的通知行（消息 id 以 `wakeup_` 开头）由 `app/database/migrations.py::BACKFILL_LEGACY_WAKEUP_NOTICE_SQL` 一次性补上 `followup` 标记。
+- 通知行是 `role=user` 的行，所以凡是统计「人说了什么」的读取处都要把它排除：SQL 侧用 `app/database/models/chat.py` 的 `NOT_WAKEUP_NOTICE`（陪伴活跃天数与消息数、成长看板的周消息数、会话分析的消息计数、行为测量的 Web 会话收集），Python 侧用 `is_wakeup_notice`（重试记忆提取找最近一轮）。消息 id 以 `wakeup_` 开头、没有标记的通知行由 `app/database/migrations.py::BACKFILL_LEGACY_WAKEUP_NOTICE_SQL` 一次性补上 `followup` 标记。
 - 唤醒回合的回复只落进该会话：来自 IM 的会话里，回复在 WebUI 可见，不会回推到 IM（IM 回复要经过路由的静默过滤与草稿审核，回推路径需要原始收件人和话题策略，会话键里只有被清洗并转小写的 peer id）。
 
 ## 依赖

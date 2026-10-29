@@ -1,7 +1,7 @@
-"""Notices a background task left before the notice marker existed get the marker, once and only on their own rows.
+"""A user row with a ``wakeup_<task id>`` id and no marker gets the followup marker, once and only on its own rows.
 
-The released wake path wrote the note as a user row with a ``wakeup_<task id>`` id and no marker. The wake each of them
-started always ran, so the backfill marks them as followup notices; nothing a person or the agent wrote changes.
+The wake each such notice started always ran, so the backfill marks it as a followup notice; nothing a person or the
+agent wrote changes.
 """
 
 from __future__ import annotations

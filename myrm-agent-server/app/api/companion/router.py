@@ -281,12 +281,12 @@ def _sprite_from_raw(raw: object) -> SpriteConfigValue | None:
 
 
 def _companion_value_from_record(val: dict[str, object]) -> CompanionConfigValue:
-    sprite_raw = val.get("sprite")
+    name, species, hat = val.get("name"), val.get("species"), val.get("hat")
     return CompanionConfigValue(
-        name=val.get("name") if isinstance(val.get("name"), str) else None,
-        species=val.get("species") if isinstance(val.get("species"), str) else None,
-        hat=val.get("hat") if isinstance(val.get("hat"), str) else None,
-        sprite=_sprite_from_raw(sprite_raw),
+        name=name if isinstance(name, str) else None,
+        species=species if isinstance(species, str) else None,
+        hat=hat if isinstance(hat, str) else None,
+        sprite=_sprite_from_raw(val.get("sprite")),
     )
 
 

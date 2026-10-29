@@ -5,7 +5,7 @@ myrm_agent_harness.utils.db.migration_engine::StatefulMigrationEngine/MigrationS
 sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（旧版后台完成通知行补 followup 标记）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -27,9 +27,10 @@ CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL = (
     "UPDATE projects SET workspace_path = NULL WHERE workspace_path LIKE '/persistent/workspace/project_%'"
 )
 
-# Wake notices written before the notice marker existed carry only their ``wakeup_`` id prefix. The wake each of them
-# started always ran, so they are followup notices. Selecting the prefix as an id range (up to the character after
-# ``_``) scans the primary key instead of the table, and a row that already has a marker is left alone.
+# A user row whose id starts with ``wakeup_`` is a wake notice; one without the ``wakeup_notice`` marker is a followup
+# notice (the wake it started always ran), so it gets that marker and every reader that skips notices recognises it.
+# Selecting the prefix as an id range (up to the character after ``_``) scans the primary key instead of the table,
+# and a row that already has a marker is left alone.
 BACKFILL_LEGACY_WAKEUP_NOTICE_SQL = (
     "UPDATE messages "
     "SET extra_data = json_set(CASE WHEN json_type(extra_data) = 'object' THEN extra_data ELSE '{}' END, "

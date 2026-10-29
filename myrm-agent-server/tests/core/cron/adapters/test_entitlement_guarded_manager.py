@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.cron.types import CronRunRecord
 
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
@@ -92,10 +93,21 @@ async def test_duplicate_job_maps_entitlement_error_to_value_error() -> None:
 
 def test_getattr_delegates_to_inner() -> None:
     inner = MagicMock()
-    inner.list_runs = MagicMock(return_value="runs-a")
+    inner.count_runs = MagicMock(return_value="runs-a")
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert mgr.list_runs is inner.list_runs
+    assert mgr.count_runs is inner.count_runs
+
+
+@pytest.mark.asyncio
+async def test_list_runs_forwards_every_argument() -> None:
+    runs: list[CronRunRecord] = []
+    inner = MagicMock()
+    inner.list_runs = AsyncMock(return_value=runs)
+    mgr = EntitlementGuardedCronManager(inner)
+
+    assert await mgr.list_runs("user-1", job_id="job-1", limit=5, offset=2, status="ok") is runs
+    inner.list_runs.assert_awaited_once_with("user-1", job_id="job-1", limit=5, offset=2, status="ok")
 
 
 @pytest.mark.asyncio
