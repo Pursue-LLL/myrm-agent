@@ -14,7 +14,6 @@ Channel system protocols — interfaces for business-layer injection.
 | compact.py | Core | Business-layer handler protocol for the /compact slash command. Framework parses user_id | ✅ |
 | goal_command.py | Core | Business-layer handler protocol for /goal slash commands. Framework parses subcommands and delegates goal lifecycle operations via this protocol; kickoff messages start the work after /goal set and /goal resume. | ✅ |
 | inbound_profile.py | Core | Per-channel inbound/outbound transport profile — SSOT for which channels need public Ingress when configured. Covers every built-in registry channel (list completeness guarded by test), and each configured_field is asserted to match the channel's real credential db_key (drift-guard test). | ✅ |
-| metrics.py | Core | Protocol layer for route observability. Enables business layer to | ✅ |
 | pairing.py | Core | Storage protocol for Channel user identity binding and group access policies (`get_guest_mode`, enabled groups). Framework resolves inbound | ✅ |
 | rate_limiter.py | Core | Protocol layer for route-level rate limiting. Enables business layer | ✅ |
 | route_registrar.py | Core | Protocol layer for dynamic HTTP route registration. Enables channels to declare | ✅ |

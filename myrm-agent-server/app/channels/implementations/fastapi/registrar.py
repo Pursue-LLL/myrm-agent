@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from typing import cast
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.channels.implementations.fastapi.adapters import (
@@ -54,6 +55,8 @@ from app.channels.testing.route_testing import (
 )
 
 logger = logging.getLogger(__name__)
+
+ChannelHandler = Callable[[GenericRequest], Awaitable[GenericResponse]]
 
 
 class FastAPIRouteRegistrar:
@@ -120,7 +123,7 @@ class FastAPIRouteRegistrar:
         self,
         method: HttpMethod,
         path: str,
-        handler: Callable[[GenericRequest], Awaitable[GenericResponse]],
+        handler: ChannelHandler,
         metadata: RouteMetadata | None = None,
     ) -> None:
         """Register a single HTTP route.
@@ -194,10 +197,8 @@ class FastAPIRouteRegistrar:
             cors_config: CORSConfig object with CORS settings
         """
 
-        async def options_handler(request: Request):
+        async def options_handler(request: Request) -> Response:
             """Handle CORS preflight OPTIONS request."""
-            from fastapi.responses import Response
-
             response = Response(status_code=204)
             self._apply_cors_headers(response, cors_config, request)
             return response
@@ -216,7 +217,7 @@ class FastAPIRouteRegistrar:
             extra={"channel": self.channel_name, "path": full_path},
         )
 
-    def _apply_cors_headers(self, response: JSONResponse, cors_config: object, request: Request) -> None:
+    def _apply_cors_headers(self, response: Response, cors_config: object, request: Request) -> None:
         """Apply CORS headers to response.
 
         CRITICAL: Access-Control-Allow-Origin does NOT support comma-separated
@@ -224,7 +225,7 @@ class FastAPIRouteRegistrar:
         matching origin or "*".
 
         Args:
-            response: FastAPI JSONResponse to modify
+            response: Response to modify
             cors_config: CORSConfig object with CORS settings
             request: FastAPI Request to get Origin header
         """
@@ -255,205 +256,70 @@ class FastAPIRouteRegistrar:
 
         response.headers["Access-Control-Max-Age"] = str(cors_config.max_age)
 
-    def _wrap_handler(
+    def _error_response(
         self,
-        handler: Callable[[GenericRequest], Awaitable[GenericResponse]],
+        request: Request,
         metadata: RouteMetadata,
-    ) -> Callable:
-        """Wrap handler with adapters, middleware, and error handling.
+        status_code: int,
+        message: str,
+        headers: dict[str, str] | None = None,
+    ) -> JSONResponse:
+        """Build a JSON error body that carries the route's CORS headers when configured."""
+        response = JSONResponse({"error": message}, status_code=status_code, headers=headers)
+        if metadata.cors_config:
+            self._apply_cors_headers(response, metadata.cors_config, request)
+        return response
 
-        Args:
-            handler: Original generic handler
-            metadata: Route metadata for middleware configuration
+    async def _dispatch(
+        self,
+        request: Request,
+        handler: ChannelHandler,
+        metadata: RouteMetadata,
+        client_id: str,
+        user_id: str | None = None,
+    ) -> Response:
+        """Rate-limit one request, run the channel handler and adapt its response.
 
-        Returns:
-            FastAPI-compatible handler function
+        Handler failures are logged and answered with a generic 500 so internals
+        never reach the caller.
         """
+        if metadata.rate_limit_policy:
+            allowed, _ = await self.rate_limiter.check_limit(
+                route_path=request.url.path,
+                client_id=client_id,
+                limit_config=metadata.rate_limit_policy,
+            )
+            if not allowed:
+                return self._error_response(request, metadata, 429, "Rate limit exceeded", headers={"X-RateLimit-Remaining": "0"})
 
+        try:
+            generic_response = await handler(self.request_adapter.adapt(request))
+            response = self.response_adapter.adapt(generic_response)
+            if metadata.cors_config:
+                self._apply_cors_headers(response, metadata.cors_config, request)
+            return response
+        except Exception as e:
+            context: dict[str, str] = {"channel": self.channel_name, "path": request.url.path, "error": str(e)}
+            if user_id is not None:
+                context["user_id"] = user_id
+            logger.error("Channel route handler error", extra=context, exc_info=True)
+            return self._error_response(request, metadata, 500, "Internal server error")
+
+    def _wrap_handler(self, handler: ChannelHandler, metadata: RouteMetadata) -> Callable[..., Awaitable[Response]]:
+        """Wrap a channel handler as a FastAPI endpoint.
+
+        Authenticated routes resolve the user through the injected dependency and
+        rate-limit per user; open routes rate-limit per client address.
+        """
         if metadata.requires_auth and self.auth_dependency is not None:
 
-            async def wrapped(request: Request, user_id: str = self.auth_dependency):
-                import time
+            async def authenticated(request: Request, user_id: str = cast(str, self.auth_dependency)) -> Response:
+                return await self._dispatch(request, handler, metadata, client_id=user_id, user_id=user_id)
 
-                start_time = time.monotonic()
+            return authenticated
 
-                if metadata.required_permissions and self.permission_checker:
-                    has_permission = await self.permission_checker(user_id, metadata.required_permissions)
-                    if not has_permission:
-                        latency_ms = (time.monotonic() - start_time) * 1000
-                        self.metrics.record_request(
-                            route_path=request.url.path,
-                            method=request.method,
-                            status_code=403,
-                            latency_ms=latency_ms,
-                            error="Insufficient permissions",
-                        )
+        async def open_route(request: Request) -> Response:
+            client_id = request.client.host if request.client else "unknown"
+            return await self._dispatch(request, handler, metadata, client_id=client_id)
 
-                        error_response = JSONResponse(
-                            {"error": "Forbidden: Insufficient permissions"},
-                            status_code=403,
-                        )
-
-                        if metadata.cors_config:
-                            self._apply_cors_headers(error_response, metadata.cors_config, request)
-
-                        return error_response
-
-                if metadata.rate_limit_policy:
-                    allowed, remaining = await self.rate_limiter.check_limit(
-                        route_path=request.url.path,
-                        client_id=user_id,
-                        limit_config=metadata.rate_limit_policy,
-                    )
-
-                    if not allowed:
-                        latency_ms = (time.monotonic() - start_time) * 1000
-                        self.metrics.record_request(
-                            route_path=request.url.path,
-                            method=request.method,
-                            status_code=429,
-                            latency_ms=latency_ms,
-                            error="Rate limit exceeded",
-                        )
-
-                        error_response = JSONResponse(
-                            {"error": "Rate limit exceeded"},
-                            status_code=429,
-                            headers={"X-RateLimit-Remaining": "0"},
-                        )
-
-                        if metadata.cors_config:
-                            self._apply_cors_headers(error_response, metadata.cors_config, request)
-
-                        return error_response
-
-                try:
-                    generic_request = self.request_adapter.adapt(request)
-                    generic_response = await handler(generic_request)
-                    fastapi_response = self.response_adapter.adapt(generic_response)
-
-                    latency_ms = (time.monotonic() - start_time) * 1000
-                    self.metrics.record_request(
-                        route_path=request.url.path,
-                        method=request.method,
-                        status_code=generic_response.status_code,
-                        latency_ms=latency_ms,
-                    )
-
-                    if metadata.cors_config:
-                        self._apply_cors_headers(fastapi_response, metadata.cors_config, request)
-
-                    return fastapi_response
-                except Exception as e:
-                    latency_ms = (time.monotonic() - start_time) * 1000
-                    self.metrics.record_request(
-                        route_path=request.url.path,
-                        method=request.method,
-                        status_code=500,
-                        latency_ms=latency_ms,
-                        error=str(e),
-                    )
-
-                    logger.error(
-                        "Channel route handler error",
-                        extra={
-                            "channel": self.channel_name,
-                            "path": request.url.path,
-                            "user_id": user_id,
-                            "error": str(e),
-                        },
-                        exc_info=True,
-                    )
-                    error_response = JSONResponse(
-                        {"error": "Internal server error"},
-                        status_code=500,
-                    )
-
-                    if metadata.cors_config:
-                        self._apply_cors_headers(error_response, metadata.cors_config, request)
-
-                    return error_response
-
-        else:
-
-            async def wrapped(request: Request):
-                import time
-
-                start_time = time.monotonic()
-
-                if metadata.rate_limit_policy:
-                    client_id = request.client.host if request.client else "unknown"
-                    allowed, remaining = await self.rate_limiter.check_limit(
-                        route_path=request.url.path,
-                        client_id=client_id,
-                        limit_config=metadata.rate_limit_policy,
-                    )
-
-                    if not allowed:
-                        latency_ms = (time.monotonic() - start_time) * 1000
-                        self.metrics.record_request(
-                            route_path=request.url.path,
-                            method=request.method,
-                            status_code=429,
-                            latency_ms=latency_ms,
-                            error="Rate limit exceeded",
-                        )
-
-                        error_response = JSONResponse(
-                            {"error": "Rate limit exceeded"},
-                            status_code=429,
-                            headers={"X-RateLimit-Remaining": "0"},
-                        )
-
-                        if metadata.cors_config:
-                            self._apply_cors_headers(error_response, metadata.cors_config, request)
-
-                        return error_response
-
-                try:
-                    generic_request = self.request_adapter.adapt(request)
-                    generic_response = await handler(generic_request)
-                    fastapi_response = self.response_adapter.adapt(generic_response)
-
-                    latency_ms = (time.monotonic() - start_time) * 1000
-                    self.metrics.record_request(
-                        route_path=request.url.path,
-                        method=request.method,
-                        status_code=generic_response.status_code,
-                        latency_ms=latency_ms,
-                    )
-
-                    if metadata.cors_config:
-                        self._apply_cors_headers(fastapi_response, metadata.cors_config, request)
-
-                    return fastapi_response
-                except Exception as e:
-                    latency_ms = (time.monotonic() - start_time) * 1000
-                    self.metrics.record_request(
-                        route_path=request.url.path,
-                        method=request.method,
-                        status_code=500,
-                        latency_ms=latency_ms,
-                        error=str(e),
-                    )
-
-                    logger.error(
-                        "Channel route handler error",
-                        extra={
-                            "channel": self.channel_name,
-                            "path": request.url.path,
-                            "error": str(e),
-                        },
-                        exc_info=True,
-                    )
-                    error_response = JSONResponse(
-                        {"error": "Internal server error"},
-                        status_code=500,
-                    )
-
-                    if metadata.cors_config:
-                        self._apply_cors_headers(error_response, metadata.cors_config, request)
-
-                    return error_response
-
-        return wrapped
+        return open_route

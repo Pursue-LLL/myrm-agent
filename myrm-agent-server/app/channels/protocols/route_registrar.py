@@ -85,26 +85,14 @@ class RouteMetadata:
     Provides information for API documentation, authentication,
     rate limiting policy, CORS configuration, and deprecation tracking.
 
-    Rate Limiting Policy (Agent-in-Sandbox Architecture):
-        The rate_limit_policy field declares the desired rate limiting
-        strategy for this route. Actual enforcement depends on deployment:
-        - Agent-in-Sandbox (default): NoOpRateLimiter (single-user sandbox)
-        - Multi-user Server: InMemoryRateLimiter or RedisRateLimiter
-        - Control plane: IP-based rate limiting at webhook entry
-
-        Business layer injects appropriate RateLimiterProtocol implementation
-        into RouteRegistrar based on deployment mode.
-
-    Permission Control (RBAC Support):
-        The required_permissions field enables fine-grained access control.
-        Business layer should check user permissions before allowing access.
-        Example: required_permissions=["channel:write", "admin"] means user
-        needs BOTH permissions to access this route.
+    Rate limiting: ``rate_limit_policy`` declares the desired limit for the
+    route. Enforcement is up to the ``RateLimiterProtocol`` injected into the
+    registrar (``NoOpRateLimiter`` by default, ``InMemoryRateLimiter`` when one
+    process serves several clients).
     """
 
     description: str = ""
     requires_auth: bool = False
-    required_permissions: list[str] = field(default_factory=list)
     rate_limit_policy: RateLimitConfig | None = None
     cors_config: CORSConfig | None = None
     tags: list[str] = field(default_factory=list)
