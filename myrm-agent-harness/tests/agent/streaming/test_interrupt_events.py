@@ -7,7 +7,8 @@ from types import SimpleNamespace
 import pytest
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import interrupt
@@ -101,13 +102,14 @@ async def test_the_card_id_names_the_interrupt_langgraph_resumes_the_pending_pau
     calls = [{"name": "ask", "args": {"topic": topic}, "id": f"call-{topic}"} for topic in ("alpha", "beta")]
     model = _ScriptedModel(responses=[AIMessage(content="", tool_calls=calls), AIMessage(content="done")])
     agent = create_agent(model=model, tools=[ask], checkpointer=InMemorySaver())
-    config = {"configurable": {"thread_id": "chat"}}
+    config: RunnableConfig = {"configurable": {"thread_id": "chat"}}
 
     announced: dict[str, str] = {}
-    async for chunk in agent.astream({"messages": [("user", "go")]}, config, stream_mode="updates"):
+    async for chunk in agent.astream({"messages": [HumanMessage("go")]}, config, stream_mode="updates"):
         if "__interrupt__" in chunk:
             for event in interrupt_events(chunk["__interrupt__"], "msg-1", {}):
-                announced[event["data"]["actionRequests"][0]["action"]] = event[INTERRUPT_ID_KEY]  # type: ignore[index]
+                action = event["data"]["actionRequests"][0]["action"]  # type: ignore[index]
+                announced[action] = str(event[INTERRUPT_ID_KEY])
 
     pending = {i.value["actionRequests"][0]["action"]: i.id for i in (await agent.aget_state(config)).interrupts}
     assert set(announced) == {"alpha", "beta"}

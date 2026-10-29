@@ -23,7 +23,6 @@ def _minimal_params(chat_id: str = "chat-attention-test") -> GeneralAgentParams:
     return GeneralAgentParams(
         query="hello",
         model_cfg=ModelConfig(
-            provider="openai",
             model="gpt-4o-mini",
             api_key="test-key",
         ),
@@ -250,6 +249,8 @@ async def test_a_loop_guard_pause_is_not_filed_as_an_approval_nor_announced_as_a
 
     pauses = [event for event in events if isinstance(event, dict) and event.get("type") == "approval_required"]
     assert len(pauses) == 1
-    assert "approval_id" not in pauses[0]["data"]
+    pause_data = pauses[0]["data"]
+    assert isinstance(pause_data, dict)
+    assert "approval_id" not in pause_data
     create_approval.assert_not_awaited()
     mock_multiplexer.publish_session_status.assert_not_called()

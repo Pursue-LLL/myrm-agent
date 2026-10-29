@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 
 from app.services.agent.params.models import TurnCapabilityTelemetryRequest
 from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
 from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
-from app.services.copilot.run_digest_store import RunDigestPhase
 
 CHAT_ID = "chat-tool-stuck-finalize"
 PAUSED_STEP = {"step_key": "tool_stuck_paused", "items": [], "status": "error"}
@@ -116,7 +116,9 @@ async def test_a_tool_stuck_pause_is_stored_with_the_step_that_says_why() -> Non
     outcome = await _finalize(session)
 
     outcome.persist.assert_awaited_once()
-    assert outcome.persist.await_args.kwargs["extra_data"]["progressSteps"] == [PAUSED_STEP]
+    persisted = outcome.persist.await_args
+    assert persisted is not None
+    assert persisted.kwargs["extra_data"]["progressSteps"] == [PAUSED_STEP]
 
 
 @pytest.mark.asyncio

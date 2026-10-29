@@ -7,7 +7,7 @@ from app.services.agent.approval_payload import extract_approval_registry_payloa
 
 class TestExtractApprovalRegistryPayload:
     def test_nested_payload_passthrough(self) -> None:
-        data = {
+        data: dict[str, object] = {
             "action_type": "skill_draft",
             "payload": {"content": "patch", "artifact_id": "a1"},
             "reason": "review",
