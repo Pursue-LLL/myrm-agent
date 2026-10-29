@@ -9,6 +9,7 @@
 - KEY_START / ASSIGNMENT_OPERATOR / ASSIGNED_VALUE: the parts every ``key = value`` rule is built from; the rule's pattern
   names the ``key`` group, these name where it may start and what ``value`` is
 - API_KEY_PATTERN: vendor-prefixed credentials
+- URL_WITH_PASSWORD_PATTERN: a URL of any scheme that carries a password (``scheme://user:password@host``)
 
 [POS]
 A rule that matches an assignment (``password = ...``, ``Authorization: Bearer ...``) captures its ``key`` and ``value``
@@ -38,6 +39,21 @@ ASSIGNED_VALUE = r"""(?P<value>[^\s"']+)"""
 # table of shapes a prefix identifies on its own.
 API_KEY_PATTERN = (
     TOKEN_START + "(?:sk-[A-Za-z0-9_-]{20,}" + "".join(f"|{pattern.pattern}" for _, pattern in DISTINCTIVE_KEY_PATTERNS) + ")"
+)
+
+# A URL that carries a password (``scheme://user:password@host``) puts it in the ``value`` group, up to the last ``@`` so a
+# raw ``@`` inside it is part of it. The scheme starts at a word start (one lookbehind, so a long run of letters is scanned
+# once) and may carry a driver (``postgresql+asyncpg``). The password never crosses ``/``. A database or queue URL
+# may hold ``?`` and ``#`` in it, which generated passwords do; for any other scheme they end it, because otherwise
+# ``https://host:8080?next=a@b.com`` reads ``8080?next=a`` as a password. The length cap keeps a long run of
+# ``redis://:`` linear.
+_URL_SCHEME_START = r"(?<![a-z0-9+.\-])"
+_DATABASE_URL_SCHEME = r"(?:mysql|postgres(?:ql)?|mongodb(?:\+srv)?|redis|rediss|amqps?|kafka)(?:\+[a-z0-9_]+)?"
+URL_WITH_PASSWORD_PATTERN = (
+    rf"(?i){_URL_SCHEME_START}(?:"
+    rf"{_DATABASE_URL_SCHEME}://[^\s:@/]*:(?P<value>[^\s\"'`<>/]{{1,1024}})"
+    rf"|[a-z][a-z0-9+.\-]*://[^\s:@/]*:(?P<value>[^\s\"'`<>/?#]{{1,1024}})"
+    r")@\S+"
 )
 
 

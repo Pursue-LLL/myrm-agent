@@ -25,7 +25,15 @@ from myrm_agent_harness.core.security.detection.pii_patterns import CHINA_ID_RE,
 from .builtin_business_rules import BUSINESS_RULES
 from .constants import RiskCategory, RiskSeverity, RuleSeed
 from .match_checks import PASSWORD_PHRASE_RULE_ID
-from .patterns import API_KEY_PATTERN, ASSIGNED_VALUE, ASSIGNMENT_OPERATOR, KEY_START, detector_pattern, keyword_pattern
+from .patterns import (
+    API_KEY_PATTERN,
+    ASSIGNED_VALUE,
+    ASSIGNMENT_OPERATOR,
+    KEY_START,
+    URL_WITH_PASSWORD_PATTERN,
+    detector_pattern,
+    keyword_pattern,
+)
 
 
 def builtin_risk_rules() -> list[RuleSeed]:
@@ -181,7 +189,7 @@ def builtin_risk_rules() -> list[RuleSeed]:
             "rule_id": "db_connection_string",
             "display_name": "URL with an embedded password",
             "description": "Detect a URL of any scheme (database, cache, queue, http, smtp) that embeds a password.",
-            "pattern": r"(?i)(?<![a-z0-9+.\-])[a-z][a-z0-9+.\-]*://[^\s:@/]*:(?P<value>[^\s\"'`<>/?#]{1,1024})@\S+",
+            "pattern": URL_WITH_PASSWORD_PATTERN,
             "severity": RiskSeverity.HIGH,
             "category": RiskCategory.SECURITY,
             "sort_order": 150,

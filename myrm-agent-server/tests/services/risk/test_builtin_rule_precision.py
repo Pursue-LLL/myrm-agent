@@ -235,6 +235,9 @@ URLS_WITH_A_PASSWORD = {
     "ftp": "ftp://deploy:Zk9mango42x@files.internal/releases",
     "scheme with a driver and dots": "jdbc+mysql.v2://app:Zk9mango42x@db.internal/app",
     "raw @ in the password": "https://root:Zk9@mango42x@api.internal/v1",
+    "database password with a #": "postgres://app:Zk9#mango42x@db.internal/app",
+    "database password with a ?": "mysql://app:Pa55?w0rd9@db.internal/app",
+    "queue password with punctuation": "redis://:ab!c#d9Xk2@cache.internal:6379/0",
 }
 
 

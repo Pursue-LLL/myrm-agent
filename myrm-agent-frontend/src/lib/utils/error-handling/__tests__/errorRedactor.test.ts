@@ -77,6 +77,45 @@ describe('errorRedactor', () => {
     expect(redacted).toBe('postgres://u:***REDACTED***@db1 failed, contact admin@corp.example');
   });
 
+  it.each([
+    [
+      'a SQL Server URL',
+      'mssql://sa:Zk9mango42x@db.internal:1433/app',
+      'mssql://sa:***REDACTED***@db.internal:1433/app',
+    ],
+    [
+      'basic auth in an https URL',
+      'GET https://admin:Zk9mango42x@api.internal/v1 failed',
+      'https://admin:***REDACTED***@api.internal/v1 failed',
+    ],
+    ['an smtps URL', 'smtps://mailer:Zk9mango42x@smtp.internal:465', 'smtps://mailer:***REDACTED***@smtp.internal:465'],
+    ['an ftp URL', 'ftp://deploy:Zk9mango42x@files.internal/r', 'ftp://deploy:***REDACTED***@files.internal/r'],
+    [
+      'a raw @ in the password',
+      'https://root:Zk9@mango42x@api.internal/v1',
+      'https://root:***REDACTED***@api.internal/v1',
+    ],
+  ])('redacts the password of %s', (_name, raw, expected) => {
+    const redacted = redactErrorMessage(raw);
+    expect(redacted).not.toContain('mango42x');
+    expect(redacted).toContain(expected);
+  });
+
+  it.each([
+    'https://example.com:8080?contact=dev@example.com',
+    'ssh://git@github.com:22/org/repo.git',
+    'https://example.com/users/@alice and https://example.com:8443/docs',
+  ])('leaves a URL without a password as it is: %s', (raw) => {
+    expect(redactErrorMessage(raw)).toBe(raw);
+  });
+
+  it('scans a long run of URL prefixes of any scheme in bounded time', () => {
+    const started = performance.now();
+    redactErrorMessage('https://u:'.repeat(4000));
+    redactErrorMessage('a-'.repeat(20000) + '://');
+    expect(performance.now() - started).toBeLessThan(400);
+  });
+
   it('scans a long run of database URI prefixes in bounded time', () => {
     const raw = 'redis://:'.repeat(4000);
     const started = performance.now();

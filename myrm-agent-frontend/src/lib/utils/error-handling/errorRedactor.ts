@@ -43,12 +43,17 @@ const PATTERNS = {
   dbUriCredentials:
     /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?)(?:\+[a-z0-9_]+)?:\/\/[^\s/@:]*:)([^\s"'`<>]{1,1024})(@)/gi,
 
-  // 7. 本地用户主目录路径 (macOS / Linux / Windows)
+  // 7. 其余 scheme 的 URL 密码 (https://user:password@host、mssql://、smtps://、ftp://)
+  // 密码不跨 `/`，且在 `?`、`#` 处结束：否则 `https://host:8080?next=a@b.com` 会把 `8080?next=a` 当成密码。
+  // 数据库 URI 的密码可含 `?`、`#`（生成的密码常有），由上一条处理。scheme 前的负向后行断言让长字母串只在词首扫描一次。
+  urlCredentials: /(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/@:]*:)([^\s"'`<>/?#]{1,1024})(@)/gi,
+
+  // 8. 本地用户主目录路径 (macOS / Linux / Windows)
   macHomePaths: /(^|[\s"'(])\/Users\/[^/\s"')]+/g,
   linuxHomePaths: /(^|[\s"'(])\/home\/[^/\s"')]+/g,
   windowsHomePaths: /(^|[\s"'(])[A-Za-z]:\\Users\\[^\\/\s"')]+/g,
 
-  // 8. 错误信息中内网私有 IP 地址端点 (RFC1918)
+  // 9. 错误信息中内网私有 IP 地址端点 (RFC1918)
   privateEndpoints:
     /\b(https?:\/\/)(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?\b/gi,
 };
@@ -103,11 +108,13 @@ export function redactErrorMessage(input: unknown): string {
       .replace(PATTERNS.keyValueSecrets, (_match, key, sep) => `${key}${sep}${REDACTION_MASK}`)
       // 6. 数据库 URI 密码打码
       .replace(PATTERNS.dbUriCredentials, (_match, prefix, _pwd, suffix) => `${prefix}${REDACTION_MASK}${suffix}`)
-      // 7. 本地主目录路径打码为 ~
+      // 7. 其余 scheme 的 URL 密码打码
+      .replace(PATTERNS.urlCredentials, (_match, prefix, _pwd, suffix) => `${prefix}${REDACTION_MASK}${suffix}`)
+      // 8. 本地主目录路径打码为 ~
       .replace(PATTERNS.macHomePaths, '$1~')
       .replace(PATTERNS.linuxHomePaths, '$1~')
       .replace(PATTERNS.windowsHomePaths, '$1~')
-      // 8. 私有内网 IP 端点打码
+      // 9. 私有内网 IP 端点打码
       .replace(PATTERNS.privateEndpoints, '$1[private-ip]$2')
   );
 }

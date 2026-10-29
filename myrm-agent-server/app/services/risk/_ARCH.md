@@ -30,6 +30,6 @@
 | `refusal.py` | 核心 | REST 入口的拒绝契约：`reject_if_risky(*texts)` 逐段过闸、命中即抛 HTTP 400 `risk_held`；`risk_rules_payload` 是 REST 与聊天 SSE 共用的规则载荷（id、名称、严重度） | `ingress.py` |
 | `match_checks.py` | 辅助 | 内置规则 pattern 命中后的确认（身份证校验位、示例值排除、赋值的 value 截到自己的范围后是否为密钥，且不是被省略号截短的示例、文档里的占位或密钥库指针；会话 / 访问令牌要求长而随机，`Cookie` 请求头只看凭证类 cookie）；`first_confirmed_span` 是引擎读一条规则命中的入口，句中的密码规则的命中是 harness 启发式对整段文本找到的密码，其余规则逐个确认 pattern 的命中 | harness `pii_patterns` / `secret_value` / `password_heuristic` |
 | `constants.py` | 辅助 | 风险等级、分类常量、默认启用的分类与就地检测的字符上限 `INLINE_DETECT_CHARS` | — |
-| `patterns.py` | 辅助 | 构造规则 pattern 的工具（隐私检测器源、关键词整词匹配）与共用片段（键的起点、赋值、厂商前缀密钥；密钥的起点读 harness 的 `TOKEN_START`，与脱敏用同一条边界） | harness `leak_detector.DISTINCTIVE_KEY_PATTERNS`、`token_start.TOKEN_START` |
+| `patterns.py` | 辅助 | 构造规则 pattern 的工具（隐私检测器源、关键词整词匹配）与共用片段（键的起点、赋值、厂商前缀密钥、任意 scheme 的带口令 URL；密钥的起点读 harness 的 `TOKEN_START`，与脱敏用同一条边界） | harness `leak_detector.DISTINCTIVE_KEY_PATTERNS`、`token_start.TOKEN_START` |
 | `builtin_rules.py` | 辅助 | 个人信息与安全凭证内置规则的定义，汇总出全部 32 条 | harness `pii_patterns` / `card_context` |
 | `builtin_business_rules.py` | 辅助 | 公司、客户、财务法务、政治军事内置规则的定义 | — |
