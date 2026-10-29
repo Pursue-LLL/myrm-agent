@@ -7,7 +7,7 @@
 [OUTPUT]
 - InboundMessage, OutboundMessage: inbound/outbound messages
 - MediaAttachment, MediaType: media attachments
-- RenderStyle, ToolSummaryDisplay: rendering configuration
+- RenderStyle, LengthUnit, ToolSummaryDisplay: rendering configuration (LengthUnit: the unit a channel's text limit is counted in)
 
 [POS]
 Core message type definitions shared by every channel; topic routing, stream
@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass, field, fields, is_dataclass, replace
 from enum import IntEnum, StrEnum
 from pathlib import PurePath
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from .components import ActionButton, ButtonStyle, ComponentRow, QuickReply, SelectMenu, SelectOption, ToolStep
 from .status import ChannelCapabilities
@@ -137,6 +137,10 @@ class ToolSummaryDisplay(StrEnum):
     DETAILED = "detailed"
 
 
+# Unit a channel counts its message limit in: Python characters, or UTF-8 bytes (a CJK character is three bytes).
+LengthUnit = Literal["chars", "utf8"]
+
+
 @dataclass(frozen=True, slots=True)
 class RenderStyle:
     """Declares how a channel renders outbound text.
@@ -151,7 +155,8 @@ class RenderStyle:
 
     format: str = "markdown"  # "markdown" | "plaintext" | "mrkdwn" | "whatsapp"
     use_emoji: bool = True
-    max_text_length: int = 4000
+    max_text_length: int = 4000  # counted in ``length_unit``
+    length_unit: LengthUnit = "chars"
     supports_code_fence: bool = True
     supports_links: bool = True
     supports_latex: bool = False

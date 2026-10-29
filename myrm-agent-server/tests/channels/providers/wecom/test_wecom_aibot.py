@@ -124,12 +124,13 @@ async def test_guardian_loop_20s_jitter(channel):
 
 
 @pytest.mark.asyncio
-async def test_guardian_loop_280s_truncation(channel):
+@pytest.mark.parametrize("unit_char", ["A", "中"])
+async def test_guardian_loop_280s_truncation(channel, unit_char):
     channel._ws = AsyncMock()
     stream_id = "stream_1"
     now = time.time()
 
-    long_text = "A" * 19995
+    long_text = unit_char * 19995
     channel._active_streams[stream_id] = WeComStreamState(
         stream_id=stream_id,
         chat_id="chat_1",
@@ -152,7 +153,7 @@ async def test_guardian_loop_280s_truncation(channel):
     assert sent_frame["cmd"] == "aibot_respond_msg"
     assert sent_frame["body"]["stream"]["finish"] is True
     sent_content = sent_frame["body"]["stream"]["content"]
-    assert len(sent_content) <= _MAX_TEXT_LENGTH
+    assert len(sent_content.encode()) <= _MAX_TEXT_LENGTH  # the platform limit counts UTF-8 bytes
     assert "处理时间较长" in sent_content
 
 

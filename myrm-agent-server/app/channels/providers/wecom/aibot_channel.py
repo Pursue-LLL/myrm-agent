@@ -7,6 +7,7 @@ Outbound: aibot_respond_msg frames with stream support, aibot_send_msg for proac
 - channels.core.base::BaseChannel (POS: Provides FileOperationObserver.)
 - channels.providers.wecom.aibot_inbound::WeComAiBotInboundMixin (POS: WebSocket session and inbound parsing)
 - channels.reliability.reconnect::reconnect_loop (POS: Reconnect loop with exponential backoff + jitter for long-lived connections.)
+- channels.rendering.splitter::cap_stream_preview (POS: Smart long-message splitter, preview cap in characters or UTF-8 bytes)
 
 [OUTPUT]
 - WeComAiBotChannel: WeCom AI Bot WebSocket longconnect Channel
@@ -14,7 +15,7 @@ Outbound: aibot_respond_msg frames with stream support, aibot_send_msg for proac
 [POS]
 WeCom AI Bot channel: WebSocket long-lived connection, no public IP required,
 native streaming replies. Supports message/event callbacks, welcome messages,
-template cards, and proactive push.
+template cards, and proactive push. Its text limit is counted in UTF-8 bytes.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
+from app.channels.rendering.splitter import cap_stream_preview
 from app.channels.types import (
     ChannelCapabilities,
     ChannelStatus,
@@ -51,6 +53,7 @@ from .aibot_inbound import WeComAiBotInboundMixin
 
 logger = logging.getLogger(__name__)
 
+# UTF-8 bytes: the platform limits a message to 20480 bytes, a CJK character is three of them.
 _MAX_TEXT_LENGTH = 20000
 
 
@@ -92,6 +95,7 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
     render_style = RenderStyle(
         format="markdown",
         max_text_length=_MAX_TEXT_LENGTH,
+        length_unit="utf8",
     )
 
     def __init__(
@@ -317,9 +321,11 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
 
                         if total_duration > 280.0:
                             fallback_suffix = "\n\n> *(处理时间较长，已转入后台运行，稍后推送最终结果)*"
-                            safe_len = _MAX_TEXT_LENGTH - len(fallback_suffix)
-                            safe_text = (
-                                state.last_full_text[:safe_len] if len(state.last_full_text) > safe_len else state.last_full_text
+                            safe_text = cap_stream_preview(
+                                state.last_full_text,
+                                _MAX_TEXT_LENGTH - len(fallback_suffix.encode()),
+                                suffix="",
+                                unit="utf8",
                             )
                             fallback_text = safe_text + fallback_suffix
 

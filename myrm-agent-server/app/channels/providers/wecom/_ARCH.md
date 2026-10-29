@@ -9,9 +9,9 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | WeCom (Enterprise WeChat) channel providers. | ✅ |
-| `aibot_channel.py` | 模块 | WeCom AI Bot channel: WebSocket long-lived connection, no public IP required, native streaming replies. Supports message/event callbacks, welcome messages, temp | ✅ |
+| `aibot_channel.py` | 模块 | WeCom AI Bot channel: WebSocket long-lived connection, no public IP required, native streaming replies. Supports message/event callbacks, welcome messages, template cards and proactive push. Text limit counted in UTF-8 bytes. | ✅ |
 | `aibot_inbound.py` | 模块 | WeCom AI Bot inbound mixin. WebSocket session (subscribe + heartbeat + frame loop), callback dispatch and inbound message / quote parsing. | ✅ |
-| `channel.py` | 模块 | WeCom self-built app channel: AES encrypted callbacks, multimedia send/receive, @mention detection, OAuth token management. | ✅ |
+| `channel.py` | 模块 | WeCom self-built app channel: AES encrypted callbacks, multimedia send/receive, @mention detection, OAuth token management. Text limit counted in UTF-8 bytes. | ✅ |
 | `constants.py` | 模块 | WeCom self-built application API constants (base URL, HTTP timeouts, token refresh buffer) shared by the channel and its inbound mixin. | ✅ |
 | `crypto.py` | 模块 | WeCom message encryption/decryption. Implements AES-CBC + PKCS7 padding + SHA1 signature verification for Webhook callback message security. | ✅ |
 | `inbound.py` | 模块 | WeCom self-built app inbound mixin. Webhook signature verification, encrypted XML callback handling and inbound media download. | ✅ |

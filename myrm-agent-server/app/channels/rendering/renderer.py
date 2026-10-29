@@ -80,7 +80,7 @@ def render(msg: OutboundMessage, style: RenderStyle) -> list[str]:
         return [msg.content]
     prepared = _prepare(msg, style)
     text = _format(prepared, style)
-    return split_message(text, style.max_text_length)
+    return split_message(text, style.max_text_length, unit=style.length_unit)
 
 
 def mark_rendered(msg: OutboundMessage, chunk: str) -> OutboundMessage:

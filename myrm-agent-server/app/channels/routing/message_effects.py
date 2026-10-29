@@ -261,7 +261,7 @@ class MessageEffects:
         if not ch:
             return False
         max_len = ch.render_style.max_text_length or ch.capabilities.max_text_length or 4096
-        capped_label = cap_stream_preview(label, max_len)
+        capped_label = cap_stream_preview(label, max_len, unit=ch.render_style.length_unit)
         try:
             await ch.edit_message(chat_id, placeholder_id, capped_label)
             return True

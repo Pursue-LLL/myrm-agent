@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-30 · 企业微信的消息上限是字节，分片却按字符数，一条长中文回复的每个分片都超限
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | [实测，真实 `render()` 加企业微信自建应用的渲染风格] 3000 个中文字符的回复按旧逻辑得到两个分片：2046 字符 / 954 字符，即 6138 / 2862 UTF-8 字节，都超过 2048。官方文档把自建应用消息 `content` 的上限写成 2048 字节（developer.work.weixin.qq.com/document/path/90372、path/96458，文本消息超限「会被截断」），智能机器人消息写成 20480 字节（path/101463）；一个汉字是 3 字节，所以纯中文回复实际能放的字数只有声明值的三分之一。 |
+| **根因** | `RenderStyle.max_text_length` 只有一个数，`split_message` 与 `cap_stream_preview` 一律按 Python 字符数计，没有任何地方能说「这个渠道按字节算」。企业微信两个渠道把 2048 与 20000 当字符数用；智能机器人 280 秒兜底还用 `last_full_text[:safe_len]` 按字符截。 |
+| **修复** | `types/messages.py:141,159` 新增 `LengthUnit`（`chars` 默认、`utf8`）与 `RenderStyle.length_unit`；`rendering/splitter.py:68-100` 提供按字节的度量（`_utf8_len` 用 `surrogatepass`，孤立代理对计 3 字节而不抛异常；`_fit_end` 按字符逐个累计，单字比上限还贵时也单独成块，保证循环终止），`split_message`（`:172`）与 `cap_stream_preview`（`:153`）的块长、围栏标记、收尾预留、长行切分都按同一度量；`renderer.py:83` 与 `routing/message_effects.py:264` 传入渠道声明的单位；`providers/wecom/channel.py:87` 与 `aibot_channel.py:97` 声明 `utf8`，智能机器人兜底改用 `cap_stream_preview(..., unit="utf8")`（`aibot_channel.py:323-328`）。其他渠道不声明，行为不变。 |
+| **回归证据** | [1] 红绿：`tests/channels/test_splitter_units.py` 20 例（字节切分、ASCII 不缩水、4 字节字符、混合宽度、围栏内 CJK 长行、CJK 围栏标签、孤立代理对、固定种子 300 个 CJK 随机文档、预览按字节、进度编辑按渠道单位、企业微信两个渠道的真实 `render()`）；去掉自建应用声明后 2 例失败，去掉智能机器人声明后 2 例失败；`test_wecom_aibot.py` 的 280 秒兜底用例加了中文参数并改为数字节。[2] 同一段 3000 字中文：旧 `[(2046, 6138), (954, 2862)]`，新 `[(682, 2046) × 4, (272, 816)]`，全部不超过 2048 字节。[3] 差分：字符单位下新旧 `split_message` 与 `cap_stream_preview` 在 3000 个随机文档（含围栏、中文、emoji）上输出逐一相同，不是只靠原有用例。[4] 15 个变异体（单位被忽略、度量退化成字符数、标记与重开按字符算、emoji 按 3 字节、两个渠道丢声明、预览与进度编辑丢单位、兜底按字符、孤立代理对抛异常、单字下限去掉、累计按字符）全部被杀；其中 2 个（重开标记、围栏行段长）起初存活，补了 CJK 围栏标签的两例后被杀；单字下限去掉后死循环，靠超时杀死。[5] 耗时：30 万字符文档字符单位新旧 0.96 ms 对 0.95 ms，没有变慢也不声称变快；字节单位 1.42 ms；6 万字中文单行字节单位 6.95 ms（逐字循环，一次回复一次，可接受）。 |
+| **仍然存在** | ① 没有在真实企业微信上验证超限行为，文档只写了文本消息超限会被截断，没查到 markdown 消息的行为；修复依据是官方文档标明的字节上限，不是实测拒收。② 智能机器人流式回复把各块累加成一条再发（`aibot_channel.py:208-211`），全文超过 20480 字节时最后一帧仍然超限，平台对超限帧的行为没有核实，没处理。③ 其他平台的计数口径没有核实（Discord 文档写 2000「characters」，没说是码点还是 UTF-16），仍按字符计。 |
+| **代码位置** | `myrm-agent-server/app/channels/rendering/splitter.py:68-100,153,172` · `types/messages.py:141,159` · `rendering/renderer.py:83` · `routing/message_effects.py:264` · `providers/wecom/channel.py:55,87` · `providers/wecom/aibot_channel.py:56,97,323-328` · `tests/channels/test_splitter_units.py` · `tests/channels/splitter_testkit.py` |
+
 ## 2026-10-30 · 围栏里的超长代码行让分片超过平台上限，并多出只有围栏标记的空代码块消息
 
 | 字段 | 内容 |

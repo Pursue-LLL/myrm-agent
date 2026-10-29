@@ -12,7 +12,7 @@ Outbound: message/send API (text/markdown/media).
 
 [POS]
 WeCom self-built app channel: AES encrypted callbacks, multimedia send/receive,
-@mention detection, OAuth token management.
+@mention detection, OAuth token management. Its text limit is counted in UTF-8 bytes.
 """
 
 from __future__ import annotations
@@ -51,6 +51,7 @@ from .inbound import WeComInboundMixin
 
 logger = logging.getLogger(__name__)
 
+# The platform limits ``content`` to 2048 bytes, so the limit is counted in UTF-8 bytes (a CJK character is three).
 _MAX_TEXT_LENGTH = 2048
 
 
@@ -83,6 +84,7 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
     render_style = RenderStyle(
         format="markdown",
         max_text_length=_MAX_TEXT_LENGTH,
+        length_unit="utf8",
     )
 
     def __init__(
@@ -344,7 +346,7 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
             if resp.status_code >= 400:
                 logger.debug("WeCom user/get failed: HTTP %d", resp.status_code)
                 return None
-            data = resp.json()
+            data: dict[str, object] = resp.json()
             if data.get("errcode", 0) != 0:
                 logger.debug("WeCom user/get error: %s", data.get("errmsg"))
                 return None
