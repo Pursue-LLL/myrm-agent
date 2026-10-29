@@ -14,6 +14,16 @@ source "${SCRIPT_DIR}/lib/start_server.sh"
 source "${SCRIPT_DIR}/lib/cn_mirrors.sh"
 resolve_agent_paths "${PROJECT_ROOT}"
 
+# `myrm start|dev|stop` run the user's own stack: a runtime namespace and state dir of its own,
+# so maintainer/test tooling (`./myrm-dev`, namespace `shared` or an isolated id) treats its
+# processes as foreign and `myrm stop` can never signal a dev stack. Its data stays ~/.myrm.
+export MYRM_RUNTIME_NAMESPACE="${MYRM_RUNTIME_NAMESPACE:-user}"
+if [[ "${MYRM_RUNTIME_NAMESPACE}" == "user" && -z "${MYRM_DEV_STATE_DIR:-}" ]]; then
+    # Subshell: dev_state_paths.sh sets `-u`/`pipefail`, which this CLI must not inherit.
+    MYRM_DEV_STATE_DIR="$(source "${SCRIPT_DIR}/dev/lib/dev_state_paths.sh" && user_runtime_state_dir)"
+    export MYRM_DEV_STATE_DIR
+fi
+
 COMPOSE_FILE="${SERVER_DIR}/docker-compose.yaml"
 MYRM_PROCESS_PATTERN='[m]yrm-agent-server/run.py|[m]yrm-agent-server/.venv.*run.py'
 

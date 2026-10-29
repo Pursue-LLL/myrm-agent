@@ -1,11 +1,12 @@
-"""Positive proof that a process was started by a dev-stack runtime.
+"""Positive proof that a process was started by the runtime that is about to act on it.
 
 The dev stack stamps every process it spawns with ``MYRM_RUNTIME_NAMESPACE`` and
-``MYRM_DEV_STATE_DIR`` (inherited through the environment). The desktop sidecar and
-``myrm start`` runtimes never carry that stamp, so the stamp is what separates a
-dev-owned listener from a user's runtime that merely sits on a dev default port
-(8080 / 3000). Dev tooling may adopt, record or signal a listener only after this
-module returns ``owned``; ``foreign`` and ``unknown`` both fail closed.
+``MYRM_DEV_STATE_DIR`` (inherited through the environment). ``myrm start`` runs in the
+namespace ``user``, the maintainers' stacks in ``shared`` or an isolated id, and the
+desktop sidecar carries no stamp at all, so the stamp separates a runtime's own listener
+from any other runtime that merely sits on a default port (8080 / 3000). A runtime may
+adopt, record or signal a listener only after this module returns ``owned``; ``foreign``
+and ``unknown`` both fail closed.
 
 stdlib only: bash dev primitives call it from any interpreter, so psutil is an
 optional accelerator, never a requirement.

@@ -21,9 +21,28 @@ except (KeyError, OSError):
   printf '%s' "${real_home}"
 }
 
-# Data root of the shared dev stack. Never `~/.myrm`: that is the real user's database (desktop
-# sidecar, `./myrm start`); two servers on one SQLite file corrupt it, and E2E provider seeding
-# rewrites the backend's provider config and restores it afterwards.
+# Runtime namespace that identifies the real user's own stack (`myrm start|dev|stop`). The OSS
+# CLI exports it; every maintainer entry (`./myrm-dev`, tests, isolated runtimes) uses another
+# namespace, so each side classifies the other's processes as foreign and never signals them.
+USER_RUNTIME_NAMESPACE="user"
+
+dev_runtime_namespace() {
+  printf '%s' "${MYRM_RUNTIME_NAMESPACE:-shared}"
+}
+
+dev_is_user_runtime() {
+  [[ "$(dev_runtime_namespace)" == "${USER_RUNTIME_NAMESPACE}" ]]
+}
+
+# State root of the real user's stack: disjoint from the maintainers' `myrm-dev` state dir so
+# pid files, locks and the supervisor of the two stacks can never overwrite each other.
+user_runtime_state_dir() {
+  printf '%s/.local/state/myrm' "$(real_user_home)"
+}
+
+# Data root of every non-user runtime that does not bring its own (the shared dev stack). Never
+# `~/.myrm`: that is the real user's database (desktop sidecar, `myrm start`); two servers on one
+# SQLite file corrupt it, and E2E provider seeding rewrites the backend's provider config.
 dev_default_data_dir() {
   printf '%s/.local/share/myrm-dev/data' "$(real_user_home)"
 }
@@ -42,6 +61,8 @@ _canonical_dir() {
 export_spawn_home() {
   HOME="$(real_user_home)"
   export HOME
+  # The user's own stack keeps the backend's default data dir (~/.myrm) — that is its whole point.
+  dev_is_user_runtime && return 0
   # Isolated runtimes pre-set MYRM_DATA_DIR to their own dataDir; do not clobber.
   if [[ -z "${MYRM_DATA_DIR:-}" ]]; then
     MYRM_DATA_DIR="$(dev_default_data_dir)"
@@ -160,7 +181,7 @@ dev_listener_pids() {
 dev_filter_owned_pids() {
   [[ "$#" -gt 0 ]] || return 0
   python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_core/dev_ownership.py" filter \
-    --runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" "$@"
+    --runtime-id "$(dev_runtime_namespace)" "$@"
 }
 
 # Stop the dev-owned listeners on a port; anything else holding it is left running.
