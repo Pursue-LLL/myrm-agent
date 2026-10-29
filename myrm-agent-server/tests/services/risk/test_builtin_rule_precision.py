@@ -95,6 +95,11 @@ CODE_THAT_NAMES_SECRETS = [
     "DATABASE_URL=postgres://app:${DB_PASSWORD}@db:5432/app",
     "postgres://user:<password>@host/db",
     "postgres://user:password@localhost/db",
+    "https://user:password@example.com/path",
+    "curl https://admin:${API_PASSWORD}@api.internal/v1",
+    "git clone ssh://git@github.com:22/org/repo.git",
+    "open https://example.com:8080?contact=dev@example.com in a browser",
+    "https://example.com/users/@alice and https://example.com:8443/docs",
     # An identifier that happens to begin with the prefix of a vendor key.
     "const vercel_deployment_inspector_url_builder = 1",
     "fal_ai_client_request_handler_configuration_object = make()",
@@ -221,6 +226,21 @@ async def test_only_credential_rules_start_enabled(session_factory: async_sessio
 @pytest.mark.parametrize("text", EVERYDAY_TEXT + CODE_THAT_NAMES_SECRETS)
 async def test_everyday_text_and_code_pass_the_default_rules(build_engine: EngineBuilder, text: str) -> None:
     assert not _hits(await build_engine(), text)
+
+
+URLS_WITH_A_PASSWORD = {
+    "sql server": "mssql://sa:Zk9mango42x@db.internal:1433/app",
+    "https basic auth": "curl https://admin:Zk9mango42x@api.internal/v1",
+    "smtps": "smtps://mailer:Zk9mango42x@smtp.internal:465",
+    "ftp": "ftp://deploy:Zk9mango42x@files.internal/releases",
+    "scheme with a driver and dots": "jdbc+mysql.v2://app:Zk9mango42x@db.internal/app",
+    "raw @ in the password": "https://root:Zk9@mango42x@api.internal/v1",
+}
+
+
+@pytest.mark.parametrize("text", URLS_WITH_A_PASSWORD.values(), ids=URLS_WITH_A_PASSWORD.keys())
+async def test_a_url_with_a_password_is_held_whatever_its_scheme(build_engine: EngineBuilder, text: str) -> None:
+    assert "db_connection_string" in _hits(await build_engine(), text)
 
 
 @pytest.mark.parametrize("text", CREDENTIALS.values(), ids=CREDENTIALS.keys())

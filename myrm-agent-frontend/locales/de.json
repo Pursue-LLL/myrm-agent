@@ -16583,8 +16583,8 @@
             "desc": "Sitzungs-IDs, Sitzungs-Cookies, Zugriffs- oder Refresh-Token und Authorization-Header mit Wert erkennen."
           },
           "db_connection_string": {
-            "name": "Datenbank-Verbindungsstring",
-            "desc": "Verbindungszeichenfolgen für Datenbanken, Caches und Queues mit eingebettetem Passwort erkennen."
+            "name": "URL mit eingebettetem Passwort",
+            "desc": "URLs mit eingebettetem Passwort erkennen, unabhängig vom Schema: Datenbank, Cache, Queue, HTTP oder Mail."
           },
           "kubeconfig_content": {
             "name": "Kubeconfig-Inhalt",

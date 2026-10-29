@@ -179,9 +179,9 @@ def builtin_risk_rules() -> list[RuleSeed]:
         },
         {
             "rule_id": "db_connection_string",
-            "display_name": "Database or queue connection string",
-            "description": "Detect connection strings for databases, caches, and queues that embed a password.",
-            "pattern": r"(?i)\b(?:mysql|postgres(?:ql)?|mongodb(?:\+srv)?|redis|rediss|amqps?|kafka)(?:\+[a-z0-9_]+)?://[^\s:@/]*:(?P<value>[^\s\"'`<>/]{1,1024})@\S+",
+            "display_name": "URL with an embedded password",
+            "description": "Detect a URL of any scheme (database, cache, queue, http, smtp) that embeds a password.",
+            "pattern": r"(?i)(?<![a-z0-9+.\-])[a-z][a-z0-9+.\-]*://[^\s:@/]*:(?P<value>[^\s\"'`<>/?#]{1,1024})@\S+",
             "severity": RiskSeverity.HIGH,
             "category": RiskCategory.SECURITY,
             "sort_order": 150,

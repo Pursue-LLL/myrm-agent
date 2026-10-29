@@ -16583,8 +16583,8 @@
             "desc": "检测带有取值的会话 ID、会话 Cookie、访问或刷新令牌和 Authorization 请求头"
           },
           "db_connection_string": {
-            "name": "数据库连接串",
-            "desc": "检测内嵌密码的数据库、缓存和消息队列连接串"
+            "name": "内嵌密码的 URL",
+            "desc": "检测内嵌密码的 URL，不限协议：数据库、缓存、消息队列、HTTP、邮件等"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 配置",

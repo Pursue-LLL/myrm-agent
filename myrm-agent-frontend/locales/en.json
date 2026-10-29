@@ -16583,8 +16583,8 @@
             "desc": "Detect session IDs, session cookies, access or refresh tokens, and authorization headers that carry a value."
           },
           "db_connection_string": {
-            "name": "Database connection string",
-            "desc": "Detect connection strings for databases, caches, and queues that embed a password."
+            "name": "URL with an embedded password",
+            "desc": "Detect URLs that embed a password, whatever the scheme: database, cache, queue, HTTP or mail."
           },
           "kubeconfig_content": {
             "name": "Kubeconfig content",

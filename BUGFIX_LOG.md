@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · server 文本入口风险门只认 7 类 scheme 的带口令连接串：`mssql://`、`https://user:pw@`、`smtps://` 放行
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server 业务层 `myrm-agent-server/app/services/risk/builtin_rules.py` 的 `db_connection_string` 与 `tests/services/risk/test_builtin_rule_precision.py`；前端 6 份 `locales/*.json` 里该规则的名称与说明） |
+| **症状** | `db_connection_string` 是默认启用的 SECURITY 规则（`constants.py:40`），但 pattern 只列了 `mysql / postgres(ql) / mongodb(+srv) / redis(s) / amqp(s) / kafka`。`mssql://sa:Zk9mango42x@…`、`curl https://admin:Zk9mango42x@…`、`smtps://mailer:…@…`、`ftp://…` 带着明文口令通过风险门；同样 4 条样例，harness 脱敏器全部遮住，两层对同一类输入行为不一致。 |
+| **根因** | scheme 白名单：规则出自「数据库连接串」的设想，带口令的 URL 不止数据库。 |
+| **修复** | pattern 原地改成任意 scheme：`(?<![a-z0-9+.\-])[a-z][a-z0-9+.\-]*://` 开头（前置边界让长字母串只在词首扫一次），用户名段不跨 `:@/`，口令段不跨空白、引号、`/`、`?`、`#`、上限 1024，口令仍是 `(?P<value>)` 组，占位符、`${ENV}` 引用、普通单词由 `match_checks._assigns_secret` 判掉。`rule_id` 不变（`match_checks.py:49` 按它识别赋值类规则，用户已存的开关也按它保存）；`display_name` / `description` 与 6 份 locale 的 name / desc 改成「内嵌密码的 URL」。 |
+| **回归证据** | [1] 先红后绿：新增 `test_a_url_with_a_password_is_held_whatever_its_scheme`，`mssql://` 样例改前红、改后 6 条绿（含 `ftp://`、`jdbc+mysql.v2://`、口令里带原始 `@` 的 `https://`）。[2] 新增 5 条放行样例：`https://user:password@…`、`${API_PASSWORD}` 引用、`ssh://git@github.com:22/…`、`https://example.com:8443/docs`，以及 `https://example.com:8080?contact=dev@example.com`——第一版 pattern 把后者当成口令误拦（值 `8080?contact=dev`），口令段因此排除 `?` 与 `#`。[3] `uv run pytest tests/services/risk` 246 通过，ruff、format、mypy 通过；`bun run verify:i18n` 通过。[4] 最坏输入耗时（`redis://:` ×4000、4 万个字母、4 万字符 `a-`、3 万字符口令）均 ≤ 3.3 ms。[5] 改前对 67 条日常文本与代码样本做过只读试验：新增误报 0 条。 |
+| **仍然存在** | ① 口令里带原始 `?` 或 `#` 的 URL 不被拦（按 RFC 这两个字符须百分号编码；放开会把 `host:8080?x=a@b` 误当口令）。② 已存库的规则 `display_name` 不随种子更新（`seed_builtin_rules` 只刷新 pattern，名称是用户可改的字段），界面显示的名称来自 locale，不受影响。③ `rule_id` 里的 `db_` 前缀名不副实，换 id 会让用户已存的开关失效，保留。 |
+
 ## 2026-10-29 · 连接串密码里带原始 `@`：前端错误提示只遮前半截，server 的文本入口风险门放行；`postgresql+asyncpg://` 在 server 门里不命中；一个只验证自己拼出的字符串的 e2e
 
 | 字段 | 内容 |

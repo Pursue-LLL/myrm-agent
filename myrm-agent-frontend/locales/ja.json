@@ -16583,8 +16583,8 @@
             "desc": "値を伴うセッション ID、セッション Cookie、アクセス／リフレッシュトークン、Authorization ヘッダーを検出します。"
           },
           "db_connection_string": {
-            "name": "データベース接続文字列",
-            "desc": "パスワードを含むデータベース、キャッシュ、キューの接続文字列を検出"
+            "name": "パスワードを含む URL",
+            "desc": "パスワードを含む URL を検出（データベース、キャッシュ、キュー、HTTP、メールなど、スキームを問わない）"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 設定",
