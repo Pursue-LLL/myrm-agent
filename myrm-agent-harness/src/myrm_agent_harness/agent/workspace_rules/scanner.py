@@ -15,8 +15,8 @@ Discovery traverses upward from workspace_root toward the git root
 to find rule files in parent directories (max 5 levels).
 
 [INPUT]
-- agent.security.detection.prompt_guard::scan_input (POS: Input-side injection detector)
-- agent.security.detection.content_boundary::sanitize, detect_suspicious, strip_invisible_unicode (POS: Boundary sanitization and security marker detection)
+- agent.workspace_rules.content_safety::check_content_safety (POS: Safety verdict for workspace rule file text, remembered per content digest)
+- agent.security.detection.content_boundary::sanitize, strip_invisible_unicode (POS: Boundary sanitization and security marker detection)
 - agent.workspace_rules.adr_scanner::scan_adr_rules (POS: Living architecture decision record scanner and MADR status filter)
 
 [OUTPUT]
@@ -41,6 +41,8 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from myrm_agent_harness.agent.workspace_rules.content_safety import check_content_safety
 
 logger = logging.getLogger(__name__)
 
@@ -104,40 +106,6 @@ def _find_git_root(start: Path) -> Path | None:
             break
         current = parent
     return None
-
-
-def _check_content_safety(content: str, filepath: str) -> tuple[bool, list[str]]:
-    """Run security scans on rule file content.
-
-    Returns (safe, blocked_patterns) where blocked_patterns is non-empty
-    only when the content is blocked (safe=False).
-    """
-    from myrm_agent_harness.agent.security.detection.content_boundary import (
-        detect_suspicious,
-    )
-    from myrm_agent_harness.agent.security.detection.prompt_guard import (
-        scan_input,
-    )
-
-    guard_result = scan_input(content)
-    if guard_result.block_score >= 0.8:
-        logger.warning(
-            "Workspace rule file blocked (injection detected): %s patterns=%s score=%.2f",
-            filepath,
-            ",".join(guard_result.patterns),
-            guard_result.block_score,
-        )
-        return False, guard_result.patterns
-
-    suspicious = detect_suspicious(content)
-    if suspicious:
-        logger.warning(
-            "Workspace rule file suspicious patterns: %s patterns=%s",
-            filepath,
-            ",".join(suspicious),
-        )
-
-    return True, []
 
 
 def _strip_yaml_frontmatter(text: str) -> str:
@@ -216,7 +184,7 @@ def _load_rule_file(filepath: Path, source: str) -> RuleFile | None:
     content = _strip_yaml_frontmatter(content)
     content = sanitize(content)
 
-    safe, blocked_patterns = _check_content_safety(content, str(filepath))
+    safe, blocked_patterns = check_content_safety(content, str(filepath))
     if not safe:
         filename = os.path.basename(str(filepath))
         patterns_str = ", ".join(blocked_patterns)
