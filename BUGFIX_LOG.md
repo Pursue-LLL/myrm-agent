@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 连接串密码里带原始 `@`：前端错误提示只遮前半截，server 的文本入口风险门放行；`postgresql+asyncpg://` 在 server 门里不命中；一个只验证自己拼出的字符串的 e2e
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端 `src/lib/utils/error-handling/errorRedactor.ts` 与它的单测；server 业务层 `app/services/risk/builtin_rules.py` 的 `db_connection_string` 与 `tests/services/risk/test_builtin_rule_precision.py`；删除 `tests/e2e/test_ui_error_redaction_chrome_e2e.py`；不改 harness、控制平面、提示词与任何文案，没有界面改动） |
+| **症状** | ① 前端：`redactErrorMessage('postgres://root:p@ssw0rd123@localhost:5432/prod')` 输出 `postgres://root:***REDACTED***@ssw0rd123@localhost:5432/prod`，口令后半截显示在错误提示里；`redis://:pw@host`（无用户名）与 `postgresql+asyncpg://…`（带驱动）整条不遮（用旧正则在 `bun` 里逐条实测，4 条样例漏 3 条）。② server：用户发送 `postgres://root:Zk9@mango42x@db.internal:5432/prod` 与 `DATABASE_URL=postgresql+asyncpg://app:Pa55w0rd@db.internal:5432/app`，默认启用的文本入口风险门不拦（`detect(...)` 返回 `blocked=False`，先红）。③ `test_ui_error_redaction_chrome_e2e.py` 里的「已脱敏」字符串是测试自己用 `slice` / `replace` 拼出来再挂到页面上的，没调用任何产品代码，永远通过；文件里两个 JS 常量没有被使用。 |
+| **根因** | ① 前端 DSN 正则的口令段是 `[^@\s]+`，在第一个 `@` 停；用户名段要求至少一个字符，也没有驱动后缀。② server 规则的口令段 `[^\s@/]+` 同样在第一个 `@` 停，值只取到 `Zk9`（被当作非密钥），scheme 之后不接受 `+driver`。③ 该 e2e 在 DOM 里验证的是自己构造的字符串。 |
+| **修复** | ① 前端正则与 harness 的 DSN 规则对齐：用户名可为空，可带 `+driver`，口令取到同一段无空白、无引号文本里的最后一个 `@`，长度上限 1024（重复的 `redis://:` 长串扫描保持线性）。② server 规则加可选 `+driver`，口令取到最后一个 `@`，仍不跨 `/`（`postgres://localhost:5432/mydb, …` 一类日常文本不命中，`EVERYDAY_TEXT` 守卫仍过），长度上限 1024。③ 删除这个 e2e：真实流水线的覆盖在 `tests/e2e/test_control_ui_error_redaction_flow_e2e.py`，前端的 Toast 集成覆盖在 `errorRedactor.test.ts` 的 `toast error redaction integration`。 |
+| **回归证据** | [1] 先红后绿：server 两条新样例改前红、改后绿；前端新增 3 种口令形态（原始 `@`、空用户名、带驱动）、URI 之后的邮箱保持原样、4000 次重复 `redis://:` 的耗时守卫共 5 条，旧正则下前 3 条漏遮（`bun` 实测输出见症状）。[2] `vitest run src/lib/utils/error-handling` 23 通过；`tests/services/risk` 235 通过。[3] 最坏输入（重复 `redis://:`，36 KB）：前端新正则 7.9 ms，server 规则 2.1 ms。[4] `tsc`、`oxlint`、`ruff`、`mypy`（改动文件）通过。 |
+| **仍然存在** | ① `tests/architecture/test_text_entry_risk_gate.py::test_every_instruction_text_endpoint_is_an_entry_or_an_exemption` 当前失败，原因是别的改动里有未登记的写入端点，与本条无关。② 口令里含 `/` 的连接串在 server 门里仍只取到 `/` 之前（为了不误拦 `postgres://localhost:5432/mydb`）。③ 前端与 harness、server 的 DSN 正则是三份各自维护的拷贝，没有共享来源（三层不能互相引用）。 |
+
 ## 2026-10-29 · 加密发布的解锁页：按钮白字 4.10、占位符约 3.9、输入框边缘约 1.4，半透明底色让对比度算不出固定值；文档查看器说明行 3.73
 
 | 字段 | 内容 |

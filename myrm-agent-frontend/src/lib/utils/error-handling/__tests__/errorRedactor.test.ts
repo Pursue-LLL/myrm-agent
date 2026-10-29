@@ -52,6 +52,38 @@ describe('errorRedactor', () => {
     expect(redacted).toContain('postgresql://admin:***REDACTED***@10.0.0.8:5432/myrm_db');
   });
 
+  it.each([
+    [
+      'a raw @ in the password',
+      'db=postgres://root:p@ssw0rd123@localhost:5432/prod',
+      'ssw0rd123',
+      'postgres://root:***REDACTED***@localhost:5432/prod',
+    ],
+    ['an empty user name', 'cache=redis://:Zx9PwQ7r@cache:6379/0', 'Zx9PwQ7r', 'redis://:***REDACTED***@cache:6379/0'],
+    [
+      'a driver suffix',
+      'url=postgresql+asyncpg://app:Zx9PwQ7r@db/app',
+      'Zx9PwQ7r',
+      'postgresql+asyncpg://app:***REDACTED***@db/app',
+    ],
+  ])('redacts the whole database password with %s', (_name, raw, secret, expected) => {
+    const redacted = redactErrorMessage(raw);
+    expect(redacted).not.toContain(secret);
+    expect(redacted).toContain(expected);
+  });
+
+  it('keeps text after a database URI, including an e-mail address', () => {
+    const redacted = redactErrorMessage('postgres://u:pw1234@db1 failed, contact admin@corp.example');
+    expect(redacted).toBe('postgres://u:***REDACTED***@db1 failed, contact admin@corp.example');
+  });
+
+  it('scans a long run of database URI prefixes in bounded time', () => {
+    const raw = 'redis://:'.repeat(4000);
+    const started = performance.now();
+    redactErrorMessage(raw);
+    expect(performance.now() - started).toBeLessThan(400);
+  });
+
   it('redacts local user home directory absolute paths across macOS, Linux, and Windows', () => {
     const macRaw = 'Failed to load script at /Users/john_doe/projects/secret/index.js';
     expect(redactErrorMessage(macRaw)).toContain('~/projects/secret/index.js');

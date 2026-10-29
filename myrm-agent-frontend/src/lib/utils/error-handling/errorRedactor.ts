@@ -38,8 +38,10 @@ const PATTERNS = {
     /\b(token|password|secret|api_key|apikey|auth_token|client_secret)\s*([:=])\s*["']?([^\s"',;]{6,})["']?/gi,
 
   // 6. 数据库与消息队列 URI 密码 (postgres://user:password@host)
+  // 用户名可为空 (redis://:password@host)，可带驱动 (postgresql+asyncpg://)；密码取到同一段无空白、无引号文本里的最后一个 @，
+  // 所以密码里的原始 @ 整体打码，URI 之后的邮箱不被吞；长度上限让重复的 `redis://:` 长串扫描保持线性。
   dbUriCredentials:
-    /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?):\/\/[^:\s/]+:)([^@\s]+)(@)/gi,
+    /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?)(?:\+[a-z0-9_]+)?:\/\/[^\s/@:]*:)([^\s"'`<>]{1,1024})(@)/gi,
 
   // 7. 本地用户主目录路径 (macOS / Linux / Windows)
   macHomePaths: /(^|[\s"'(])\/Users\/[^/\s"')]+/g,

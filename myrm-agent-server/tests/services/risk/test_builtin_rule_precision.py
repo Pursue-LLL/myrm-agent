@@ -149,6 +149,8 @@ CREDENTIALS = {
     "refresh token json": '{"refresh_token": "' + _token(40, _URLSAFE) + '"}',
     "postgres url": "DATABASE_URL=postgres://admin:S3cret!pw@db.internal:5432/app",
     "redis url without user": "redis://:p4ssw0rd@cache.internal:6379/0",
+    "postgres url with a raw @ in the password": "postgres://root:Zk9@mango42x@db.internal:5432/prod",
+    "sqlalchemy url with a driver": "DATABASE_URL=postgresql+asyncpg://app:Pa55w0rd@db.internal:5432/app",
     "mongodb srv url": "mongodb+srv://user:Pa55w0rd@cluster0.mongodb.net/test",
     "jwt": ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"),
     "private key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA",
