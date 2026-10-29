@@ -13,14 +13,15 @@ Generates responsive, secure HTML pages for public conversation share links.
 Uses markdown-it-py for rich Markdown rendering (code blocks, tables, lists).
 Includes Agent identity card, message history, OG metadata, dark mode, and XSS protection. The page chrome (role
 labels, message count, fallback title and agent names, footer, ``lang``) is written in the visitor's language like the
-password-gate and status pages; the conversation itself is shown as written.
+password-gate and status pages; the conversation itself is shown as written. A very long conversation shows its latest
+messages and says how many there are; the page runs no script, so message times are printed in UTC and labelled so.
 """
 
 from __future__ import annotations
 
 import html
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from markdown_it import MarkdownIt
 from sqlalchemy import select
@@ -36,6 +37,11 @@ _md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
 
 _OG_DESC_MAX = 200
 
+# The page is rendered on every visit (about 0.3-0.55 ms of CPU per message, nothing cached), so a very long
+# conversation shows its latest messages and says how many there are.
+_MAX_SHARED_MESSAGES = 200
+_VISIBLE_ROLES = frozenset({"user", "assistant"})
+
 
 @dataclass(frozen=True, slots=True)
 class _Chrome:
@@ -48,9 +54,13 @@ class _Chrome:
     assistant: str
     one_message: str
     many_messages: str
+    truncated: str
 
     def message_count(self, count: int) -> str:
         return self.one_message if count == 1 else self.many_messages.format(count=count)
+
+    def truncation_notice(self, shown: int, total: int) -> str:
+        return self.truncated.format(shown=shown, total=total)
 
 
 _CHROME: dict[ShareLang, _Chrome] = {
@@ -62,6 +72,7 @@ _CHROME: dict[ShareLang, _Chrome] = {
         assistant="Assistant",
         one_message="1 message",
         many_messages="{count} messages",
+        truncated="Showing the latest {shown} of {total} messages",
     ),
     "zh": _Chrome(
         untitled="分享的对话",
@@ -71,6 +82,7 @@ _CHROME: dict[ShareLang, _Chrome] = {
         assistant="助手",
         one_message="1 条消息",
         many_messages="{count} 条消息",
+        truncated="仅显示最近 {shown} 条，共 {total} 条消息",
     ),
 }
 
@@ -80,7 +92,9 @@ def _esc(text: str) -> str:
 
 
 def _format_ts(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%d %H:%M")
+    """Stored times are UTC (naive ones too) and the page runs no script, so it cannot show the visitor's own zone."""
+    utc = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+    return utc.strftime("%Y-%m-%d %H:%M UTC")
 
 
 def _truncate(text: str, max_len: int = _OG_DESC_MAX) -> str:
@@ -127,15 +141,15 @@ def _build_html(
     title = _esc(chat.title or chrome.untitled)
     og_desc = _esc(_truncate(chat.first_message or chat.title or ""))
 
-    msg_html_parts: list[str] = []
-    visible_roles = {"user", "assistant"}
-    for msg in messages[-200:]:
-        if msg.role not in visible_roles or is_wakeup_notice(msg):
-            continue
-        content = exported_user_text(msg) if msg.role == "user" else msg.content
-        msg_html_parts.append(_render_message(msg.role, content, msg.created_at, chrome))
-
-    messages_html = "\n".join(msg_html_parts)
+    readable = [msg for msg in messages if msg.role in _VISIBLE_ROLES and not is_wakeup_notice(msg)]
+    shown = readable[-_MAX_SHARED_MESSAGES:]
+    messages_html = "\n".join(
+        _render_message(msg.role, exported_user_text(msg) if msg.role == "user" else msg.content, msg.created_at, chrome)
+        for msg in shown
+    )
+    notice = ""
+    if len(readable) > len(shown):
+        notice = f'<div class="notice" role="note">{_esc(chrome.truncation_notice(len(shown), len(readable)))}</div>'
     agent_card = ""
     if agent_info["name"]:
         model_line = f'<span class="model">{_esc(agent_info["model"])}</span>' if agent_info["model"] else ""
@@ -163,6 +177,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .agent-card{{background:#f3f4f6;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem}}
 .agent-name{{font-weight:600;color:#374151}}
 .model{{font-size:0.8rem;color:#6b7280;background:#e5e7eb;padding:2px 8px;border-radius:4px}}
+.notice{{margin-bottom:1rem;padding:0.5rem 0.75rem;border-radius:8px;background:#f3f4f6;color:#4b5563;font-size:0.8rem;text-align:center}}
 .msg{{margin-bottom:1rem;padding:1rem;border-radius:8px}}
 .msg.user{{background:#eff6ff}}
 .msg.assistant{{background:#ffffff;border:1px solid #e5e7eb}}
@@ -191,6 +206,7 @@ body{{background:#111827;color:#e5e7eb}}
 .agent-card{{background:#1f2937}}
 .agent-name{{color:#e5e7eb}}
 .model{{background:#374151;color:#d1d5db}}
+.notice{{background:#1f2937;color:#9ca3af}}
 .msg.user{{background:#1e3a5f}}
 .msg.assistant{{background:#1f2937;border-color:#374151}}
 .role{{color:#e5e7eb}}
@@ -208,10 +224,11 @@ body{{background:#111827;color:#e5e7eb}}
 <div class="container">
 <div class="header"><h1>{title}</h1></div>
 {agent_card}
+{notice}
 {messages_html}
 <div class="footer">
 <div class="stats">
-<span class="stat">{chrome.message_count(len(msg_html_parts))}</span>
+<span class="stat">{chrome.message_count(len(readable))}</span>
 <span class="stat">{_format_ts(chat.created_at)}</span>
 </div>
 <p>{SHARE_BRAND[lang]}</p>
