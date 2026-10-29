@@ -108,7 +108,6 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
 SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
     {
         "agent",
-        "analytics",
         "artifacts",
         "auth",
         "background",

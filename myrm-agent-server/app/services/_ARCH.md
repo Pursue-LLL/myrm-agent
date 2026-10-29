@@ -79,7 +79,6 @@
 | `hosting/` | ✅ 核心 | Artifact 多目标发布业务层（Vercel/CF Pages/Netlify/HTTP Webhook、SSRF 防护） | [_ARCH.md](hosting/_ARCH.md) |
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
 | `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
-| `analytics/` | ✅ 核心 | 生产力与可量化 ROI 分析服务（工时折算、Token 成本核算、替代价值与高收益流程） | [_ARCH.md](analytics/_ARCH.md) |
 | `sandbox_wake/` | ✅ 辅助 | 云托管沙箱到点唤醒上报（目标额度窗口 / cron 的下一次必须运行时间 → 控制平面 `wake-schedule`） | [_ARCH.md](sandbox_wake/_ARCH.md) |
 ---
 

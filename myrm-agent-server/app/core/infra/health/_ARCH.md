@@ -27,8 +27,6 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | qdrant.py | Core | Qdrant path verifier only; the data directory lock is an OS file lock released when its holder exits, and an in-memory fallback is reported by `system_status.vector_degraded`. | ✅ |
 | sqlite.py | Core | SQLite health checker with PRAGMA quick_check integrity verification and backup-based recovery via SQLiteBackupManager. | ✅ |
 | browser.py | Core | Browser & driver automation pool health checker delegating to Harness authoritative orphans doctor. Tests: `tests/core/infra/health/test_browser_health_checker.py`. | ✅ |
-| multi_tier_health.py | Core | 组件层 (Component) 与入口网关层 (Ingress) 分层健康巡检、自愈调度与硬核裁决引擎。 | ✅ |
-| failure_triage.py | Core | Agent 四大经典失效表象六断点自动分诊决策树、负例语义分类与就地重发服务。 | ✅ |
 | coordinator.py | Core | Business-level health check coordinator that instantiates and runs all checkers; recovery (`auto_recover`) is requested only by the startup check, `GET /health/resources` runs it read-only. | ✅ |
 
 ## Module Dependencies

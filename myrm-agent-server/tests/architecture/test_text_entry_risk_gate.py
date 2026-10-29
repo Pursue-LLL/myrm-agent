@@ -134,10 +134,6 @@ _EXEMPT: dict[tuple[str, str], str] = {
         "compile_desktop_plan",
     ): "compiles a recorded plan into SKILL.md text and returns it; nothing is stored or sent to a model",
     (
-        "api/system/issue_ticketing_api.py",
-        "submit_diagnostic_ticket",
-    ): ("the logs are checked against their signature, summarised by fixed rules and kept in a ticket list; no model reads them"),
-    (
         "api/tasks/timeline_router.py",
         "interrupt_task",
     ): "the instruction is only recorded in the task timeline and returned when it is read; nothing delivers it to an agent",

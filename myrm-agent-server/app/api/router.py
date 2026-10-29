@@ -102,15 +102,9 @@ from app.api.ssh_vault.router import router as ssh_vault_router
 from app.api.statistics import build_statistics_router
 from app.api.stt.router import router as stt_router
 from app.api.stt.ws_stream import router as stt_ws_router
-from app.api.system.cron_doctor_api import router as system_cron_doctor_router
-from app.api.system.failure_triage_api import router as system_failure_triage_router
-from app.api.system.issue_ticketing_api import router as system_issue_ticketing_router
 from app.api.system.model_ping_api import router as system_model_ping_router
-from app.api.system.multi_tier_health_api import router as system_multi_tier_health_router
-from app.api.system.roi_analytics_api import router as system_roi_analytics_router
 from app.api.system.router import router as system_router
 from app.api.system.shutdown import router as system_shutdown_router
-from app.api.system.unattended_coverage_api import router as system_unattended_coverage_router
 from app.api.system_assistant import router as system_assistant_router
 from app.api.tasks.router import router as tasks_router
 from app.api.theme.router import router as theme_router
@@ -299,13 +293,7 @@ api_router.include_router(build_statistics_router(), prefix="/statistics", tags=
 api_router.include_router(system_router, prefix="/system", tags=["system"])
 api_router.include_router(instance_archive_router, prefix="/instance-archive", tags=["instance-archive"])
 api_router.include_router(system_shutdown_router, prefix="/system", tags=["system"])
-api_router.include_router(system_multi_tier_health_router, prefix="/system", tags=["system"])
-api_router.include_router(system_failure_triage_router, prefix="/system", tags=["system"])
-api_router.include_router(system_issue_ticketing_router, prefix="/system", tags=["system"])
-api_router.include_router(system_cron_doctor_router, prefix="/system", tags=["system"])
-api_router.include_router(system_unattended_coverage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_model_ping_router)
-api_router.include_router(system_roi_analytics_router)
 api_router.include_router(remote_access_router, prefix="/remote-access", tags=["remote-access"])
 
 api_router.include_router(budget_router, prefix="/budget", tags=["budget"])

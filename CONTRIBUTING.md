@@ -177,7 +177,6 @@ Called from other HTTP trees or lifecycle hooks:
 | `services/` | Typical caller |
 |-------------|----------------|
 | `auth/` | middleware, `api/webui/`, OAuth callbacks |
-| `analytics/` | `api/system/roi_analytics_api.py` — time-saved, token-cost and ROI summaries |
 | `compliance/` | WeChat official-account compliance scan (`api/channels/wechat_official`) |
 | `code_graph/` | Code repository AST symbols & call-graph indexing (CLI / internal) |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
