@@ -57,6 +57,12 @@
 
 ---
 
+## 子目录
+
+| 目录 | 内容 | 文档 |
+|------|------|------|
+| `wysiwyg-editor/` | 组件 `FloatingStyleToolbar`、`WysiwygArtifactEditorOverlay`、`ZeroTokenSaveBanner`；状态仓库 `useWysiwygEditorStore` | [_ARCH.md](wysiwyg-editor/_ARCH.md) |
+
 ## 依赖关系
 
 - `@/services/hosting.ts`：targets CRUD、publish、publications、WS URL

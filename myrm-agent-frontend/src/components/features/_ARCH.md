@@ -71,9 +71,11 @@
 | `activity-feed/` | 组件 `ActivityFeedAggregatorDeck`、`ActivityFeedStreamCard`；状态仓库 `useActivityFeedStore` | [_ARCH.md](activity-feed/_ARCH.md) |
 | `approval/` | 组件 `ExecutiveApprovalCard`、`VisualGatekeepingDeck`；状态仓库 `useExecutiveApprovalStore` | [_ARCH.md](approval/_ARCH.md) |
 | `arena/` | 组件 `AdoptSynthesizeBar`、`LocalProjectWorkspaceCard`、`MultiModelSplitArenaView`；状态仓库 `useArenaStore` | [_ARCH.md](arena/_ARCH.md) |
+| `artifact-sandbox/` | 组件 `FinancialSandplayWidget`、`InteractiveArtifactSandbox`、`NewsletterRichStyler`；状态仓库 `useArtifactSandboxStore` | [_ARCH.md](artifact-sandbox/_ARCH.md) |
 | `command-center/` | 组件 `CommandCenterHeaderTrigger`、`CommandCenterMaintenanceTab`、`CommandCenterModal`、`CommandCenterSessionsTab` 等 6 个；状态仓库 `useCommandCenterStore` | [_ARCH.md](command-center/_ARCH.md) |
 | `element-editor/` | 组件 `ElementInspectorOverlay`、`ElementVisualEditorContainer`、`InPlaceEditPopover`、`VisualVersionRollbackDeck`；状态仓库 `useElementEditorStore` | [_ARCH.md](element-editor/_ARCH.md) |
 | `mobile-companion/` | 组件 `MobileRemoteSteeringBar`、`MobileTaskCompanionView`、`QrCodePairingModal`；状态仓库 `useMobileCompanionStore` | [_ARCH.md](mobile-companion/_ARCH.md) |
+| `three-mode-switcher/` | 组件 `ThreeModeCapsuleSwitcher`、`ThreeModeIntentGuidanceToast`、`ThreeModePermissionMatrixDeck`；状态仓库 `useThreeModeStore` | [_ARCH.md](three-mode-switcher/_ARCH.md) |
 | `threejs-sandbox/` | 组件 `ThreeJsCanvasViewer`、`ThreeJsConsoleDrawer`、`ThreeJsPerformancePanel`；状态仓库 `useThreeJsSandboxStore` | [_ARCH.md](threejs-sandbox/_ARCH.md) |
 
 上表覆盖当前全部 feature 子目录。新增目录须同步本表并添加目录级 `_ARCH.md`。

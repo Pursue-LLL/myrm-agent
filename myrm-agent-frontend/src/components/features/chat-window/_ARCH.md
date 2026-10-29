@@ -213,6 +213,7 @@
 | 目录 | 内容 | 文档 |
 |------|------|------|
 | `ambient-activity/` | 组件 `AmbientActivityDeck`、`BotCommunicationInspectionDrawer`；状态仓库 `useAmbientActivityStore` | [_ARCH.md](ambient-activity/_ARCH.md) |
+| `cli-passthrough/` | 组件 `CliCommandPreviewDrawer`；状态仓库 `useCliPassthroughStore` | [_ARCH.md](cli-passthrough/_ARCH.md) |
 | `presentation-tool/` | 组件 `InteractiveSuggestionChips`、`StructuredPresentationCard`；状态仓库 `usePresentationToolStore` | [_ARCH.md](presentation-tool/_ARCH.md) |
 | `token-economics/` | 组件 `ProviderBalanceModal`、`SessionTokenCapsule`；状态仓库 `useTokenEconomicsStore` | [_ARCH.md](token-economics/_ARCH.md) |
 
