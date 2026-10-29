@@ -146,3 +146,25 @@ def new_caller(x: int):
         new_caller_names = [c["caller"] for c in new_callers]
         assert any("new_caller" in c for c in new_caller_names)
         assert not any("process_order" in c for c in new_caller_names)
+
+
+def test_index_directory_ignores_excluded_names_above_the_scan_root(tmp_path: Path) -> None:
+    """A workspace that lives under a directory named like an excluded one is still indexed."""
+    root = tmp_path / "build" / "proj"
+    (root / "pkg").mkdir(parents=True)
+    (root / "pkg" / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+
+    stats = CodeGraphService(tmp_path / "graph.db").index_directory(root)
+
+    assert stats.total_files == 1
+
+
+def test_index_directory_skips_excluded_directories_inside_the_scan_root(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    for rel in ("keep.py", "node_modules/dep.js", "dist/out.js", ".venv/lib.py"):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text("x = 1\n", encoding="utf-8")
+
+    stats = CodeGraphService(tmp_path / "graph.db").index_directory(root)
+
+    assert stats.total_files == 1

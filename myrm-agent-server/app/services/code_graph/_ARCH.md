@@ -7,7 +7,7 @@
 - `models.py`: 核心数据模型（`SymbolNode`, `CallEdge`, `CallSite`, `IndexStats`）。
 - `ast_extractor.py`: 基于 Python 原生 `ast` 模块与正则规则的高性能符号与调用抽取器。
 - `graph_store.py`: 基于 SQLite WAL 模式的符号表与关系存储，支持 8 大确定性图遍历操作。
-- `service.py`: 对外业务服务门面，集成全量目录扫描与单文件增量更新。
+- `service.py`: 对外业务服务门面，集成全量目录扫描与单文件增量更新；全量扫描只按相对扫描根的路径片段排除 `EXCLUDE_DIRS`（`.git`、`node_modules`、`dist`、`build` 等），根目录自身的祖先目录名不参与判断。
 - `cli.py`: 面向 Agent 沙箱或本地终端的命令行操作入口。
 
 ## 架构边界

@@ -34,7 +34,6 @@ class CodeGraphService:
         "dist",
         "build",
         ".cursor",
-        "temp-docs",
     }
 
     def __init__(self, db_path: str | Path):
@@ -54,11 +53,12 @@ class CodeGraphService:
         for path in root.rglob("*"):
             if not path.is_file():
                 continue
-            # 排除黑名单目录
-            if any(part in self.EXCLUDE_DIRS for part in path.parts):
+            rel = path.relative_to(root)
+            # 只按扫描根目录之内的目录名排除：根目录自身的祖先（如 ~/build/app）不参与判断
+            if any(part in self.EXCLUDE_DIRS for part in rel.parts):
                 continue
 
-            rel_path = str(path.relative_to(root))
+            rel_path = str(rel)
 
             if path.suffix == ".py":
                 try:

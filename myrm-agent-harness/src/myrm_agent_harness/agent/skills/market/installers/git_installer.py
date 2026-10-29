@@ -151,18 +151,20 @@ def _find_skill_md(root: Path, max_depth: int = 3) -> Path | None:
 
 
 def _walk_skill_dir(skill_dir: Path) -> list[Path]:
-    """收集技能目录中的所有文件（排除隐藏文件和常见垃圾目录）"""
-    excluded_dirs = {".git", ".venv", "__pycache__", "node_modules", ".mypy_cache"}
+    """收集技能目录中的所有文件（排除隐藏文件和常见垃圾目录）
+
+    只看技能目录之内的路径片段：技能目录自身的祖先（如以点开头的临时目录）不参与排除。
+    """
+    excluded_dirs = {"__pycache__", "node_modules"}
     files: list[Path] = []
 
     try:
         for item in skill_dir.rglob("*"):
-            if (
-                item.is_file()
-                and not any(part.startswith(".") or part in excluded_dirs for part in item.parts)
-                and item.relative_to(skill_dir).parts[0] not in excluded_dirs
-            ):
-                files.append(item)
+            if not item.is_file():
+                continue
+            if any(part.startswith(".") or part in excluded_dirs for part in item.relative_to(skill_dir).parts):
+                continue
+            files.append(item)
     except PermissionError:
         pass
 

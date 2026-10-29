@@ -130,6 +130,16 @@ class TestWalkHelpers:
 
         assert names == {"ok.txt"}
 
+    def test_collects_files_when_an_ancestor_of_the_skill_dir_is_hidden(self, tmp_path: Path) -> None:
+        skill_dir = tmp_path / ".cache" / "skill_git_x"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_bytes(b"x")
+        (skill_dir / "run.py").write_bytes(b"x")
+
+        names = {p.name for p in _walk_skill_dir(skill_dir)}
+
+        assert names == {"SKILL.md", "run.py"}
+
     def test_find_skill_md_respects_depth(self, tmp_path: Path) -> None:
         deep = tmp_path / "a" / "b" / "c" / "d"
         deep.mkdir(parents=True)

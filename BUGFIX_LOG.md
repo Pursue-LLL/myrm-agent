@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 代码图谱扫描按绝对路径判断排除目录：工作区路径的任一祖先叫 `build`、`dist` 等名字时，传绝对路径扫描得到空索引且不报错
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 2 项未处理。 |
+| **症状** | `CodeGraphService.index_directory` 对 `root.rglob("*")` 的每个文件用 `any(part in EXCLUDE_DIRS for part in path.parts)` 判断排除；`path` 带着根目录的全部祖先，所以根目录以绝对路径传入、且路径里任一层叫 `.git`、`.venv`、`node_modules`、`__pycache__`、`.next`、`dist`、`build`、`.cursor` 时，所有文件都被排除。实测同一个含一个函数的 `a.py`：放在 `<tmp>/build/proj` 下用绝对路径扫描 `total_files=0`、`total_symbols=0`，放在 `<tmp>/src/proj` 下 `total_files=1`、`total_symbols=2`；根目录写成 `.`（命令行 `--dir` 的默认值）不受影响。排除常量里还写着一个与产品无关的内部目录名。 |
+| **根因** | 排除判断用了带祖先的绝对路径片段，而不是相对扫描根的片段。`tests/services/code_graph/test_code_graph_service.py` 在此之前对排除目录没有任何用例（对 `exclude`、`node_modules`、`build`、`dist` 零命中），测试用的临时目录路径里也没有这些名字，所以一直是绿的。 |
+| **修复** | `app/services/code_graph/service.py`：先算 `rel = path.relative_to(root)`，排除判断与 `rel_path` 共用它；`EXCLUDE_DIRS` 删去那个内部目录名。新增 2 个用例：扫描根的祖先叫 `build` 仍被索引；扫描根内部的 `node_modules`、`dist`、`.venv` 仍被排除。副作用：扫描根内部名为那个内部目录名的目录不再被跳过。 |
+| **回归证据** | [1] 红绿：祖先用例在修复前失败（`total_files=0`），修复后通过；[2] 原型对比（临时目录，未改仓库代码）：祖先叫 `build` 的绝对根与相对 `.` 根得到同一批文件（`a.py`、`src/b.py`），根内的 `node_modules`、`dist` 仍被排除；[3] `tests/services/code_graph` 与 `tests/integration/test_repo_call_graph_integration.py` 共 6 例，5 例通过，失败的 1 例是 `test_jsts_regex_extractor`，改动前就失败，不在本次改动里；[4] ruff check 与 format 通过，分形文档三道门禁通过。 |
+| **仍然存在** | ① 智能体实际怎么传 `--dir`、用户工作区路径里是否常有这些名字，没有数据；只有传绝对路径且祖先命中时才触发。② `reingest_file` 不做目录排除（只有 `index_directory` 有），没有复现出真实后果，没改。 |
+| **代码位置** | `myrm-agent-server/app/services/code_graph/service.py`（`EXCLUDE_DIRS`、`index_directory`） · `myrm-agent-server/tests/services/code_graph/test_code_graph_service.py` |
+
 ## 2026-10-29 · 服务关闭时排队的消息无声丢失，关闭途中还会把队列里的下一条当作新回合启动
 
 | 字段 | 内容 |

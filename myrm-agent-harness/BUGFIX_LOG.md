@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-113 · 技能从 git 安装时，临时目录的祖先以点开头就收集到 0 个文件：`_walk_skill_dir` 用带祖先的绝对路径判断「隐藏」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`；测试 `tests/agent/skills/market/installers/test_installers.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（排查同类写法：在 server `app` 与 harness `src` 里找「路径片段配排除集合」，13 处里用绝对路径的只有两处，另一处是代码图谱的目录排除） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：触发需要 `tempfile.mkdtemp` 所在目录的某个祖先以点开头（用户或部署自己把 `TMPDIR` 设到点目录下）；产品代码不设置 `TMPDIR`，线上没有触发的证据。触发后该函数不报错，返回空集合。 |
+| **关联产品** | 技能市场的 git 安装（`GitInstaller.download` → `_collect_skill_files`）。 |
+| **根因** | `any(part.startswith(".") ... for part in item.parts)` 里的 `item` 来自 `skill_dir.rglob("*")`，带着 `skill_dir` 的全部祖先；原有用例用 `tmp_path`，路径里没有点开头的目录，所以一直是绿的。实测同一个含 `SKILL.md`、`run.py` 的技能目录：普通路径下返回两个文件，祖先目录叫 `.cache` 时返回 `[]`。 |
+| **修复** | 判断改用 `item.relative_to(skill_dir).parts`；顺带删掉被它覆盖的第三个条件，以及排除集合里本来就以点开头、已被「隐藏」规则覆盖的 `.git`、`.venv`、`.mypy_cache`。新增 1 个用例。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 调用方是否校验空文件集合，我没有读完整个安装流程：`file_install.py:186` 只在 `SKILL.md` 存在时解析版本，该文件里没有找到空集合校验。 |
+| **回归** | 新增 `TestWalkHelpers.test_collects_files_when_an_ancestor_of_the_skill_dir_is_hidden`：修复前返回空集合而失败，修复后通过；原型对比（临时目录）普通路径下新旧结果相同，原有 `test_excludes_hidden_and_junk_dirs` 仍通过；`tests/agent/skills/market` 667 例通过；ruff check 与 format 通过。 |
+| **仍然存在** | ① 触发所需的 `TMPDIR` 设置在线上是否存在，没有证据。② 没有改调用方去拒绝空文件集合（没有读到该处的完整流程）。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/installers/git_installer.py`（`_walk_skill_dir`） · `myrm-agent-harness/tests/agent/skills/market/installers/test_installers.py`（`TestWalkHelpers`） |
+
 ### BUG-HARNESS-2026-10-29-112 · `ComputerBackend.type_credential` 无人调用却声称「安全地从凭据库输入」，配套的 macOS `ConcealedType` 标记因此从未生效，Linux 的凭据测试在测一个没人调用的接口
 
 | 字段 | 内容 |
