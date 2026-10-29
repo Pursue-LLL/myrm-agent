@@ -9,11 +9,11 @@ from __future__ import annotations
 import asyncio
 import os
 import stat
-import subprocess
 import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+import psutil
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.backends import linux as linux_module
@@ -170,7 +170,23 @@ class TestClipboardPaste:
         assert fake_x_tools["seen"].read_text() == "你好"
         # The unreadable original cannot be restored; the pasted text must still not stay behind.
         assert fake_x_tools["clip"].read_text() == ""
-        assert subprocess.run(["pgrep", "-f", f"sleep {stuck_read}"], capture_output=True).returncode == 1
+        assert not [p for p in psutil.process_iter(["cmdline"]) if stuck_read in " ".join(p.info["cmdline"] or [])]
+
+
+class TestRunCmdTimeout:
+    @pytest.mark.asyncio
+    async def test_timeout_that_lands_after_the_process_exited_is_still_reported_as_a_timeout(
+        self, backend: LinuxBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def expire_after_the_command_finished(awaitable: Awaitable[object], timeout: float | None) -> object:
+            await awaitable
+            raise TimeoutError
+
+        monkeypatch.setattr(linux_module.asyncio, "wait_for", expire_after_the_command_finished)
+
+        stdout, _, code = await backend._run_cmd("true", timeout=1)
+
+        assert (stdout, code) == ("", 124)
 
 
 class _Vault:

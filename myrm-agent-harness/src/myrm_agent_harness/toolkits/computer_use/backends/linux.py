@@ -16,6 +16,7 @@ Linux-specific screen I/O. Loaded for detect_platform().os_type == "linux".
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import shlex
@@ -96,7 +97,9 @@ class LinuxBackend:
                 proc.communicate(stdin.encode("utf-8") if stdin is not None else None), timeout
             )
         except TimeoutError:
-            proc.kill()
+            # 超时与进程自然退出可能同时发生，此时 kill 会抛 ProcessLookupError。
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
             await proc.wait()
             # 命令行可能带着输入的文本，所以日志里不写它。
             logger.warning("An X11 helper command timed out after %ss and was killed", timeout)
