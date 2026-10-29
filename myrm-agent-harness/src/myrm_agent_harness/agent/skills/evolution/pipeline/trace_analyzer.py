@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - TraceAnalyzer: Extracts and formats full trajectories to inform LLM of exact failure steps.
+- SliceResult: The formatted trace of one tool-call slice and whether it is a coherent workflow.
 
 [POS]
 Trace Analyzer for Skill Evolution. Provides progressive disclosure analysis.
@@ -15,7 +16,7 @@ Trace Analyzer for Skill Evolution. Provides progressive disclosure analysis.
 
 import logging
 import time
-from typing import Any
+from dataclasses import dataclass
 
 from myrm_agent_harness.agent.event_log.analytics_queries import (
     get_session_summary,
@@ -27,6 +28,16 @@ from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 
 logger = logging.getLogger(__name__)
 
+# A tool call's arguments can be a whole file, and the slice goes to a model: the arguments are clipped
+# like the result and the error of the same call.
+_ARGS_PREVIEW_CHARS = 500
+
+
+@dataclass(frozen=True)
+class SliceResult:
+    formatted_trace: str
+    is_coherent: bool
+
 
 class TraceAnalyzer:
     """Extracts and formats full trajectories to inform LLM of exact failure steps.
@@ -37,7 +48,7 @@ class TraceAnalyzer:
     def __init__(self, backend: EventLogBackend) -> None:
         self._backend = backend
 
-    async def analyze_slice(self, session_id: str, tool_call_ids: list[str]) -> Any:
+    async def analyze_slice(self, session_id: str, tool_call_ids: list[str]) -> SliceResult | None:
         """Analyze a specific slice of the execution trace.
 
         Args:
@@ -45,15 +56,8 @@ class TraceAnalyzer:
             tool_call_ids: List of specific tool call IDs that form the slice
 
         Returns:
-            An object with `formatted_trace` and `is_coherent` properties, or None if failed.
+            The formatted slice and whether it is coherent, or None when the log holds none of the calls.
         """
-        from dataclasses import dataclass
-
-        @dataclass
-        class SliceResult:
-            formatted_trace: str
-            is_coherent: bool
-
         if not self._backend or not tool_call_ids:
             return None
 
@@ -81,8 +85,10 @@ class TraceAnalyzer:
         for evt in slice_events:
             if evt.event_type == "tool_start":
                 last_tool = evt.data.get("tool_name", "unknown")
-                tool_input = evt.data.get("args", {})
-                lines.append(f"\n[Action] {last_tool}({tool_input})")
+                args_text = str(evt.data.get("args", {}))
+                if len(args_text) > _ARGS_PREVIEW_CHARS:
+                    args_text = args_text[:_ARGS_PREVIEW_CHARS] + "..."
+                lines.append(f"\n[Action] {last_tool}({args_text})")
                 tool_call_count += 1
             elif evt.event_type == "tool_end":
                 lines.append(f"[Success] -> {str(evt.data.get('result', ''))[:200]}...")
@@ -138,7 +144,7 @@ class TraceAnalyzer:
             pre_url = evt.data.get("pre_url", "")
             post_url = evt.data.get("post_url", "")
             duration = evt.data.get("duration_s", 0)
-            post_aria = evt.data.get("post_aria_tree", "")
+            post_aria = str(evt.data.get("post_aria_tree", ""))
 
             lines.append(f"\n### 接管记录 (duration: {duration}s)")
             if reason:

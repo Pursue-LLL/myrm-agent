@@ -77,3 +77,22 @@ async def test_the_slice_the_analyzer_hands_to_the_model_holds_no_credential_the
     assert result is not None
     assert "cat .env" in result.formatted_trace
     assert _PASSWORD not in result.formatted_trace
+
+
+@pytest.mark.asyncio
+async def test_a_huge_argument_is_clipped_in_the_slice_handed_to_the_model(tmp_path: Path) -> None:
+    backend = FileEventLogBackend(tmp_path, _SESSION_ID)
+    event_logger = EventLogger(backend, _SESSION_ID)
+    await event_logger.start()
+    broadcaster = ToolCallBroadcaster(event_logger)
+    call = {"tool_name": "write_file", "tool_call_id": "c1", "session_id": _SESSION_ID}
+    content = "x = 1\n" * 5_000
+    await broadcaster.on_pre_tool_use("pre_tool_use", {**call, "tool_input": {"path": "a.py", "content": content}})
+    await broadcaster.on_post_tool_use("post_tool_use", {**call, "tool_output": "ok"})
+    await event_logger.close()
+
+    result = await TraceAnalyzer(backend).analyze_slice(_SESSION_ID, ["c1"])
+
+    assert result is not None
+    assert result.formatted_trace.startswith("\n[Action] write_file({'path': 'a.py'")
+    assert len(result.formatted_trace) < 1000

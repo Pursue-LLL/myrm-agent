@@ -1,9 +1,9 @@
 """Architecture gate: an event log query names only event types the logger writes.
 
-A query for a type nothing writes returns an empty list without an error, so the code behind it never runs and no test
-that hand-builds the event notices (the skill evolution slice analyzer queried ``pre_tool_use`` for as long as it
-existed, while the broadcaster writes ``tool_start``). Every string in an ``event_types=`` argument must be a type
-``EventLogger.log`` persists or one of the types the logger writes itself.
+A query for a type nothing writes returns an empty list without an error, so the code behind it never runs, and a test
+that hand-builds an event of that name stays green. Every string in an ``event_types=`` argument must be a type
+``EventLogger.log`` persists or one of the types the logger writes itself. Only literals are read: an argument that is a
+name or a call carries no string to check.
 """
 
 from __future__ import annotations
