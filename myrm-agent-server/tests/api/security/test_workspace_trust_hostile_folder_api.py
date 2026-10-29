@@ -7,8 +7,9 @@
 
 [OUTPUT]
 - Fails when the disclosure of a folder that holds a FIFO as ``SKILL.md`` and sparse multi-megabyte ``mcp.json`` and
-  ``.myrm/config.toml`` does not come back with the counts of the honest files, when its hash differs between two previews, or
-  when trusting the folder with the hash the user was shown is refused.
+  ``.myrm/config.toml`` does not come back with the counts of the honest files, when its hash differs between two previews,
+  when trusting the folder with the hash the user was shown is refused, or when a folder named with a space, Chinese characters,
+  accents or URL-special characters is not the same folder in its preview, its decision, the list and its removal.
 
 [POS]
 The folder preview is the first thing a user meets for a folder they have not trusted, and the server builds it on the event
@@ -128,3 +129,40 @@ def test_a_folder_that_changed_after_the_preview_cannot_be_trusted_with_the_old_
 
     assert refused.status_code == 400, refused.text
     assert "out of date" in refused.text
+
+
+@pytest.mark.parametrize(
+    "folder_name",
+    ["my project", "\u6211\u7684\u9879\u76ee", "caf\u00e9", "cafe\u0301", "a&b=c#d%20e"],
+    ids=["space", "chinese", "composed-accent", "decomposed-accent", "url-special-characters"],
+)
+def test_a_folder_with_a_name_a_url_would_mangle_is_disclosed_trusted_listed_and_removed_by_its_own_path(
+    client: TestClient, tmp_path: Path, folder_name: str
+) -> None:
+    """The path travels in a JSON body and in a query string, and must come back as the same folder each time."""
+    folder = tmp_path / folder_name
+    folder.mkdir()
+    (folder / "AGENTS.md").write_text("# \u89c4\u5219\n\u7528\u5236\u8868\u7b26\u3002\n", encoding="utf-8")
+    skill = folder / "skills" / "\u6280\u80fd"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(_SKILL.format(name="skill-zh"), encoding="utf-8")
+
+    shown, _ = _preview(client, folder)
+    assert (shown["rule_count"], shown["skill_count"]) == (1, 1)
+    assert Path(str(shown["canonical_path"])).name == folder.resolve().name
+
+    try:
+        decided = client.post(
+            f"{BASE}/decide",
+            json={"path": str(folder), "level": "TRUSTED", "manifest_hash": shown["manifest_hash"]},
+        )
+        assert decided.status_code == 200, decided.text
+        listed = client.get(BASE).json()["data"]
+        assert [entry["level"] for entry in listed if entry["path"] == shown["canonical_path"]] == ["TRUSTED"]
+
+        removed = client.delete(BASE, params={"path": str(folder), "remove": "true"})
+        assert removed.status_code == 200, removed.text
+        after = client.get(BASE).json()["data"]
+        assert [entry for entry in after if entry["path"] == shown["canonical_path"]] == []
+    finally:
+        client.delete(BASE, params={"path": str(folder), "remove": "true"})

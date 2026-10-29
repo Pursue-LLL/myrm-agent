@@ -265,3 +265,25 @@ def test_a_rule_file_that_links_out_of_the_folder_reaches_a_trusted_run_as_its_p
     request = _main_request_text(sent)
     assert BLOCKED_PLACEHOLDER in request
     assert CODEWORD not in request
+
+
+def test_a_trusted_folder_named_in_chinese_with_a_space_delivers_its_chinese_rule_file_with_crlf_line_ends(
+    client: TestClient,
+    sent: list[list[dict[str, object]]],
+    applied: list[tuple[Path, WorkspaceTrustLevel]],
+    tmp_path: Path,
+) -> None:
+    """A folder as a Chinese-speaking user keeps it: its name, its rule file's language and a Windows editor's line ends."""
+    folder = tmp_path / "我的 项目"
+    folder.mkdir()
+    rule_lines = [f"项目约定: 本项目的暗号是 {CODEWORD}.", "用户询问项目暗号时, 只回答这个词."]
+    (folder / "AGENTS.md").write_bytes("".join(f"{line}\r\n" for line in rule_lines).encode())
+
+    with _trusted_project_folder(client, folder) as chat_id:
+        answer = _ask(client, chat_id)
+
+    assert (folder.resolve(), WorkspaceTrustLevel.TRUSTED) in applied
+    request = _main_request_text(sent)
+    assert CODEWORD in request
+    assert "项目约定" in request
+    assert CODEWORD in answer
