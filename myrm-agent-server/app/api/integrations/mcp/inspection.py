@@ -1,15 +1,17 @@
-"""MCP server options, static scan, verify and resource endpoints.
+"""MCP server options, static scan and verify endpoints.
 
 [INPUT]
-- app.api.integrations.mcp.probe_registry::router, DTOs (POS: Registry proxy, local probe and verify/scan response models)
+- app.api.integrations.mcp.probe_registry::router (POS: Registry proxy and local probe routes mounted on this router)
+- app.api.integrations.mcp.resource::router (POS: MCP App UI resource proxy mounted on this router)
+- app.api.integrations.mcp.schemas::MCPScanData, MCPToolDetail, MCPVerifyData, scan_result_to_data (POS: Verify and scan response models)
 - app.services.integrations.mcp_posture::enforce_mcp_config_posture, enforce_mcp_runtime_posture, resolve_mcp_config_scan (POS: Deployment-mode MCP posture and config scan)
 - myrm_agent_harness.toolkits.mcp::MCPAgent (POS: MCP client used for the single-handshake verify)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: Deployment mode capabilities)
 
 [OUTPUT]
-- router: FastAPI APIRouter with /options, /scan, /scan-batch, /verify, /resource and the probe/registry routes mounted from probe_registry
+- router: FastAPI APIRouter with /options, /scan, /scan-batch, /verify and the resource, registry and probe routes mounted from the sub-routers
 - MCPOptionsData, MCPScanBatchBody, MCPScanBatchData
-- get_mcp_agent, get_mcp_options, scan_mcp_config_endpoint, scan_mcp_config_batch_endpoint, verify_mcp_service, read_mcp_resource
+- get_mcp_agent, get_mcp_options, scan_mcp_config_endpoint, scan_mcp_config_batch_endpoint, verify_mcp_service
 
 [POS]
 Inspection side of the integrations MCP API; mounted by ``app.api.integrations.router`` under /mcp.
@@ -32,27 +34,9 @@ from myrm_agent_harness.toolkits.mcp.security import (
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
-from app.api.integrations.mcp.probe_registry import (
-    MCPProbeBody,
-    MCPProbeData,
-    MCPScanData,
-    MCPScanFindingData,
-    MCPToolDetail,
-    MCPVerifyData,
-    RegistryDetailData,
-    RegistryEnvVarData,
-    RegistrySearchData,
-    RegistryServerData,
-    _is_network_unreachable_connect_error,
-    _is_tls_verification_connect_error,
-    _scan_result_to_data,
-    probe_mcp_endpoint,
-    registry_detail,
-    registry_search,
-)
-from app.api.integrations.mcp.probe_registry import (
-    router as _probe_registry_router,
-)
+from app.api.integrations.mcp.probe_registry import router as _probe_registry_router
+from app.api.integrations.mcp.resource import router as _resource_router
+from app.api.integrations.mcp.schemas import MCPScanData, MCPToolDetail, MCPVerifyData, scan_result_to_data
 from app.config.settings import settings
 from app.core.types import MCPServerConfig
 from app.core.utils.errors import (
@@ -96,7 +80,7 @@ def _get_response_validator() -> MCPResponseValidator:
 
 
 def _config_scan_to_data(result: MCPConfigScanResult) -> MCPScanData:
-    return _scan_result_to_data(
+    return scan_result_to_data(
         result,
         allow_save=result.allow_save,
         requires_acknowledgement=result.requires_acknowledgement,
@@ -104,7 +88,7 @@ def _config_scan_to_data(result: MCPConfigScanResult) -> MCPScanData:
 
 
 def _runtime_scan_to_data(result: MCPRuntimeScanResult) -> MCPScanData:
-    return _scan_result_to_data(
+    return scan_result_to_data(
         result,
         allow_save=result.allow_use,
         requires_acknowledgement=not result.allow_use,
@@ -333,91 +317,5 @@ async def verify_mcp_service(
         raise external_service_error("MCP", f"Verification failed: {str(e)}") from e
 
 
-@router.get("/resource")
-async def read_mcp_resource(
-    uri: str = Query(..., description="MCP resource URI (e.g. ui://server/path)"),
-    server: str = Query(..., description="MCP server name that owns the resource"),
-) -> JSONResponse:
-    """Proxy endpoint for frontend to fetch MCP App UI resources."""
-    import base64
-
-    from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
-
-    manager = MCPConnectionManager._instance
-    if manager is None:
-        raise external_service_error("MCP", "MCP connection pool not initialized")
-
-    connections = manager._connections
-    if not connections:
-        raise external_service_error("MCP", "No active MCP connections")
-
-    resource_bytes: bytes | None = None
-    last_error: str = ""
-    for conn in connections.values():
-        try:
-            resource_bytes = await asyncio.wait_for(
-                conn.read_resource(server, uri),
-                timeout=settings.mcp.verify_timeout,
-            )
-            break
-        except RuntimeError as e:
-            last_error = str(e)
-            continue
-        except asyncio.TimeoutError as exc:
-            raise timeout_error(operation="MCP resource read") from exc
-        except Exception as e:
-            last_error = str(e)
-            logger.warning("MCP resource read failed for server '%s': %s", server, e)
-            continue
-
-    if resource_bytes is None:
-        raise external_service_error("MCP", f"Resource not found: {last_error}")
-
-    content_b64 = base64.b64encode(resource_bytes).decode("ascii")
-    mime_type = "text/html"
-    if uri.endswith(".js"):
-        mime_type = "application/javascript"
-    elif uri.endswith(".css"):
-        mime_type = "text/css"
-    elif uri.endswith(".json"):
-        mime_type = "application/json"
-
-    return success_response(
-        data={
-            "content": content_b64,
-            "mime_type": mime_type,
-            "uri": uri,
-            "server": server,
-        }
-    )
-
-
+router.include_router(_resource_router)
 router.include_router(_probe_registry_router)
-
-__all__ = [
-    "MCPOptionsData",
-    "MCPProbeBody",
-    "MCPProbeData",
-    "MCPScanBatchBody",
-    "MCPScanBatchData",
-    "MCPScanData",
-    "MCPScanFindingData",
-    "MCPToolDetail",
-    "MCPVerifyData",
-    "RegistryDetailData",
-    "RegistryEnvVarData",
-    "RegistrySearchData",
-    "RegistryServerData",
-    "_is_network_unreachable_connect_error",
-    "_is_tls_verification_connect_error",
-    "get_mcp_agent",
-    "get_mcp_options",
-    "probe_mcp_endpoint",
-    "read_mcp_resource",
-    "registry_detail",
-    "registry_search",
-    "router",
-    "scan_mcp_config_batch_endpoint",
-    "scan_mcp_config_endpoint",
-    "verify_mcp_service",
-]

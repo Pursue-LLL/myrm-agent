@@ -11,8 +11,6 @@
 Settings Hardware Cookbook 使用的 Ollama 模型规格数据源。
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 import time

@@ -19,7 +19,6 @@ app/api/files/browse.py
 app/api/files/workspace_ops.py
 app/api/health/router.py
 app/api/integrations/llms.py
-app/api/integrations/mcp/inspection.py
 app/api/kanban/schemas.py
 app/api/memory/operations/shared_context/shared_contexts.py
 app/api/skills/discovery.py
