@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pytest-only helpers for harness test teardown, local dev hygiene, live MCP transport tests, and store doubles. Not shipped in the harness wheel.
+Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
 
 ## File Index
 
