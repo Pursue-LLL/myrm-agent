@@ -27,6 +27,12 @@ from tests.api.agent.utils import (
     build_memory_e2e_embedding_retrieval_dict,
     hide_sse_heartbeats,
 )
+from tests.support.real_model_workspace_turns import (  # noqa: F401  (fixtures of the real-model workspace tests)
+    applied,
+    routes_and_trust,
+    sent,
+    stuck_turn_report,
+)
 from tests.support.session_mock_guard import restore_leaked_session_mocks
 from tests.support.test_secrets import resolve_test_env
 

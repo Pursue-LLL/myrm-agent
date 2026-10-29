@@ -121,6 +121,14 @@ _GATE_STATE_JS = """(() => {
 
 _GATE_CLOSED_JS = """(() => ({ ready: !document.querySelector('[role="alertdialog"]') }))()"""
 
+# What the page tells the user while the project is still not linked: the dialog that is still open and any toast or alert.
+_PAGE_FEEDBACK_JS = """(() => ({
+  ready: true,
+  dialog: (document.querySelector('[role="alertdialog"]')?.innerText || '').slice(0, 400),
+  notices: Array.from(document.querySelectorAll('[data-sonner-toast], [role="status"], [role="alert"]'))
+    .map((el) => (el.innerText || '').trim()).filter(Boolean).slice(0, 5),
+}))()"""
+
 
 def _plant_hostile_folder(root: Path) -> None:
     (root / ".myrm").mkdir(parents=True)
@@ -190,7 +198,7 @@ def _linked_workspace(api_url: str, project_id: str) -> str:
     raise AssertionError(f"project {project_id} not listed")
 
 
-def _wait_until_linked(api_url: str, project_id: str, expected: str) -> None:
+def _wait_until_linked(client: ChromeMcpClient, page: McpPage, api_url: str, project_id: str, expected: str) -> None:
     deadline = time.monotonic() + LINK_WITHIN_SECONDS
     linked = ""
     while time.monotonic() < deadline:
@@ -198,7 +206,12 @@ def _wait_until_linked(api_url: str, project_id: str, expected: str) -> None:
         if linked == expected:
             return
         time.sleep(0.5)
-    raise AssertionError(f"project workspace is {linked!r}, expected {expected!r}")
+    # A timeout alone cannot tell a decision the server refused from a click that never reached it.
+    shown = wait_for_state(client, page, _PAGE_FEEDBACK_JS, timeout_sec=5.0)
+    raise AssertionError(
+        f"project workspace is {linked!r}, expected {expected!r}; the page shows {shown}; "
+        f"the trust decision of the folder is {_trust_entries(api_url).get(expected)}"
+    )
 
 
 def _trust_entries(api_url: str) -> dict[str, dict[str, object]]:
@@ -277,7 +290,7 @@ def test_answering_the_gate_links_the_folder_to_the_project_and_records_the_deci
             _pick_folder(client, page, name, folder)
             _step(client, page, _GATE_STATE_JS, timeout_sec=GATE_WITHIN_SECONDS)
             _step(client, page, _CLICK_BY_TEXT_JS.replace("__PATTERN__", json.dumps(answer_pattern)))
-            _wait_until_linked(api_url, project_id, resolved)
+            _wait_until_linked(client, page, api_url, project_id, resolved)
             _step(client, page, _GATE_CLOSED_JS)
 
         recorded = _trust_entries(api_url).get(resolved)

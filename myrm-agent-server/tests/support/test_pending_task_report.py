@@ -12,6 +12,8 @@ import pytest
 
 from tests.support.pending_task_report import pending_task_report, report_pending_tasks_after
 
+_REPORT_WITHIN_SECONDS = 10.0
+
 
 @contextmanager
 def _loop_with_a_task_parked_on_an_event() -> Iterator[None]:
@@ -48,10 +50,15 @@ def test_the_report_names_the_task_and_the_await_it_is_parked_on() -> None:
 
 
 def test_a_block_that_outlives_the_deadline_writes_the_report(capfd: pytest.CaptureFixture[str]) -> None:
+    """The report walks every live object, which takes longer the bigger the process is (0.7 s with 1.1 million objects), so the test waits for it."""
+    written = ""
     with _loop_with_a_task_parked_on_an_event(), report_pending_tasks_after(0.05):
-        time.sleep(0.5)
+        give_up_at = time.monotonic() + _REPORT_WITHIN_SECONDS
+        while "stuck-turn" not in written and time.monotonic() < give_up_at:
+            time.sleep(0.05)
+            written += capfd.readouterr().err
 
-    assert "stuck-turn" in capfd.readouterr().err
+    assert "stuck-turn" in written
 
 
 def test_a_block_that_ends_in_time_writes_nothing(capfd: pytest.CaptureFixture[str]) -> None:
