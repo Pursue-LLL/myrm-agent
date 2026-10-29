@@ -6,7 +6,7 @@ the scan of a workspace that is not trusted yet as well. One guard serves one sc
 the budgets.
 
 [INPUT]
-- core.security.path::is_within_boundary (POS: boundary check on real paths, immune to symlink escape)
+- core.security.path::read_text_bounded, ReadRefusal (POS: boundary-checked text read that stops at a character limit and never waits on a FIFO or device)
 
 [OUTPUT]
 - RuleReadGuard: reads one rule file at a time within the boundary and the budgets of its scan
@@ -14,9 +14,9 @@ the budgets.
 - MAX_RULE_FILE_READ_CHARS, MAX_RULE_FILES_PER_SCAN, MAX_RULE_CHARS_PER_SCAN, MAX_REFUSAL_NOTES: the limits
 
 [POS]
-Read guard of the workspace rule scan. Decides whether a candidate file may be read, reads it in text mode up to the per-file limit (so its text is
-what ``Path.read_text`` returns, line endings included) and charges the scan's file and character budgets. A refusal, and a scan that runs out
-of budget, are warned about the first time this process sees them.
+Read guard of the workspace rule scan. Decides whether a candidate file may be read, reads it through the bounded reader up to the per-file limit (so its
+text is what ``Path.read_text`` returns, line endings included) and charges the scan's file and character budgets. A refusal, and a scan that runs out
+of budget, are warned about the first time this process sees them; a candidate that is not a regular file is skipped without a note.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.core.security.path import is_within_boundary
+from myrm_agent_harness.core.security.path import ReadRefusal, read_text_bounded
 
 logger = logging.getLogger(__name__)
 
@@ -88,14 +88,15 @@ class RuleReadGuard:
             self._log_exhaustion(path)
             return RuleRead(None)
         self._files_left -= 1
-        if not is_within_boundary(path, self._boundary):
+        result = read_text_bounded(path, MAX_RULE_FILE_READ_CHARS, boundary=self._boundary, errors="replace")
+        self._chars_left -= result.chars_read
+        if result.refusal is None:
+            return RuleRead(result.text)
+        if result.refusal is ReadRefusal.OUTSIDE_BOUNDARY:
             return self._refuse(path, "the file is outside this workspace")
-        with path.open(encoding="utf-8", errors="replace") as handle:
-            text = handle.read(MAX_RULE_FILE_READ_CHARS + 1)
-        self._chars_left -= len(text)
-        if len(text) > MAX_RULE_FILE_READ_CHARS:
+        if result.refusal is ReadRefusal.TOO_LARGE:
             return self._refuse(path, f"the file is larger than {MAX_RULE_FILE_READ_CHARS} characters")
-        return RuleRead(text)
+        return RuleRead(None)
 
     def _refuse(self, path: Path, reason: str) -> RuleRead:
         logger.log(_log_level(reason, path), "Workspace rule file not loaded (%s): %r", reason, str(path))

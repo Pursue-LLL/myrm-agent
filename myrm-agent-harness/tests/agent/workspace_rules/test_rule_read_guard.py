@@ -16,10 +16,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from collections.abc import Callable
 from pathlib import Path
-from types import TracebackType
-from typing import IO
 
 import pytest
 
@@ -32,6 +29,7 @@ from myrm_agent_harness.agent.workspace_rules.rule_read_guard import (
     RuleRead,
     RuleReadGuard,
 )
+from tests.support.read_spy import record_opened, record_read_sizes
 
 
 @pytest.fixture(autouse=True)
@@ -57,50 +55,14 @@ def outside(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def opened(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Names of the files opened for reading through ``Path.open`` (which is also what ``Path.read_text`` goes through)."""
-    names: list[str] = []
-    real_open: Callable[..., object] = Path.open
-
-    def recording(self: Path, mode: str = "r", *args: object, **kwargs: object) -> object:
-        if "r" in mode:
-            names.append(self.name)
-        return real_open(self, mode, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "open", recording)
-    return names
+    """Names of the files the bounded reader opens for reading."""
+    return record_opened(monkeypatch)
 
 
 @pytest.fixture()
 def read_sizes(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """The size argument of every ``read`` on a file opened through ``Path.open``: -1 is a read of the whole file."""
-    sizes: list[int] = []
-    real_open: Callable[..., IO[str]] = Path.open
-
-    class _Handle:
-        def __init__(self, handle: IO[str]) -> None:
-            self._handle = handle
-
-        def __enter__(self) -> _Handle:
-            self._handle.__enter__()
-            return self
-
-        def __exit__(
-            self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None
-        ) -> None:
-            self._handle.__exit__(exc_type, exc, tb)
-
-        def read(self, size: int = -1) -> str:
-            sizes.append(size)
-            return self._handle.read(size)
-
-        def write(self, text: str) -> int:
-            return self._handle.write(text)
-
-    def recording(self: Path, *args: object, **kwargs: object) -> _Handle:
-        return _Handle(real_open(self, *args, **kwargs))
-
-    monkeypatch.setattr(Path, "open", recording)
-    return sizes
+    """The size argument of every ``read`` of those files: -1 is a read of the whole file."""
+    return record_read_sizes(monkeypatch)
 
 
 class TestLimitsSitAboveRealRepositories:

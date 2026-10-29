@@ -7,6 +7,7 @@
 - adapters.tool_recovery (POS: tool call argument recovery + stream-completeness signal)
 - adapters.chat_model.exceptions (POS: role patterns and EmptyChoicesError)
 - adapters.chat_model.outbound_guard (POS: Extension point between the LLM adapter and the policy layers above it; the adapter knows nothing of the policy.)
+- adapters.chat_model.wire_encoding (POS: makes every string of a request encodable as UTF-8 before it leaves the process)
 
 [OUTPUT]
 - ChatLiteLLMMessageMixin: _create_message_dicts, normalize, stamp, ChatResult assembly
@@ -31,6 +32,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyChoicesError,
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import apply_outbound_message_guard
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.wire_encoding import replace_lone_surrogates
 from myrm_agent_harness.toolkits.llms.adapters.converters import (
     convert_dict_to_message,
     convert_message_to_dict,
@@ -209,6 +211,7 @@ class ChatLiteLLMMessageMixin:
         self._stamp_missing_reasoning_content(message_dicts)
         self._sanitize_image_urls(message_dicts)
         self._sanitize_outbound_wire_messages(message_dicts)
+        replace_lone_surrogates(message_dicts)
         apply_outbound_message_guard(message_dicts)
         return message_dicts, params
 

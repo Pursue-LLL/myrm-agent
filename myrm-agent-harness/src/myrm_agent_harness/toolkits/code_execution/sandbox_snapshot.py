@@ -102,13 +102,17 @@ class SandboxBootstrapSnapshot:
 
 
 def _run_quick_command(cmd: Sequence[str], timeout: float = 1.0, *, merge_stderr: bool = False) -> tuple[int, str]:
-    """Run a fast subprocess command with a strict timeout; ``merge_stderr`` is for a tool that reports on stderr."""
+    """Run a fast subprocess command with a strict timeout; ``merge_stderr`` is for a tool that reports on stderr.
+
+    The output is decoded leniently: a branch or path that is not valid UTF-8 shows as ``U+FFFD`` instead of raising.
+    """
     try:
         proc = subprocess.run(
             list(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT if merge_stderr else subprocess.PIPE,
             text=True,
+            errors="replace",
             timeout=timeout,
             check=False,
         )

@@ -19,7 +19,7 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 | curator_config.py | Core | `CuratorConfig`: curator knobs, defaults and construction-time range validation (`ValueError` outside the safe ranges). | ✅ |
 | forgetting_strategy.py | Core | Curator forgetting strategies (pinned exemption, grace, stale/archive, low quality); `evolution_locked` guards content rewrites only and does not stop the lifecycle sweep; installed-skill exemption is applied by the engine from the caller's `installed_names`. | ✅ |
 | skill_doctor.py | Core | Skill library health report for the curator doctor: `evaluate_skill_health_findings` flags frequently failing skills (needs enough observed run outcomes) and idle pinned skills. Each finding carries a type code plus `details` parameters that the UI phrases itself; read-only, never changes lifecycle state. | ✅ |
-| local.py | Core | Local filesystem skill backend; filters archived skills via lifecycle stats. | ✅ |
+| local.py | Core | Local filesystem skill backend; filters archived skills via lifecycle stats. The workspace scan (`scan_workspace_skills`) reads each SKILL.md through `core.security.path.read_text_bounded`, because a repository chooses what sits under that name: a FIFO, a device or a file over 1 MiB is skipped instead of read, and a SKILL.md that is not valid UTF-8 is skipped as before. | ✅ |
 | memory.py | Core | In-memory skill backend for dynamic and MCP-generated skills. | ✅ |
 | permission_templates.py | Core | Out-of-the-box permission templates for skill declarations. | ✅ |
 | permission_validator.py | Core | Maps skill permissions to tool calls without user identity coupling. | ✅ |
@@ -48,4 +48,4 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 - `toolkits` (storage, shared exceptions)
 - `utils` (crypto, db, coercion)
 - `infra` (atomic_write for config_version persistence)
-- `core` (hooks types for SkillMetadata hook fields)
+- `core` (hooks types for SkillMetadata hook fields; `core.security.path.read_text_bounded` for the workspace scan)

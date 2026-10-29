@@ -6,8 +6,9 @@
 - logging::logging (POS: Python 标准日志库)
 - os::os (POS: Python 路径与文件系统标准库)
 - pathlib::Path (POS: Python 面向对象路径标准库)
-- agent.security.workspace_trust.repo_policy::load_repo_command_prefixes, partition_command_prefixes
+- agent.security.workspace_trust.repo_policy::MAX_WORKSPACE_CONFIG_CHARS, load_repo_command_prefixes, partition_command_prefixes
   (POS: 仓库声明命令前缀读取与批准划分层)
+- core.security.path::read_text_bounded (POS: text read that stops at a character limit and never waits on a FIFO or device)
 - agent.security.workspace_trust.types::WorkspaceTrustLevel, WorkspaceTrustManifest
   (POS: 工作区信任级别与披露载荷类型)
 
@@ -19,7 +20,9 @@
 [POS]
 Disclosure layer of the workspace_trust gate: it tells the user what a folder would gain
 before trust is granted. Skill and rule scans are advisory and fail open to zero counts so
-a broken scanner can never block the trust prompt; the hash changes when scope changes.
+a broken scanner can never block the trust prompt; the hash changes when scope changes. Every file it reads sits in a
+folder the user has not trusted yet, so MCP configs are read through the bounded reader and a config that cannot be read
+in full still counts as one server.
 """
 
 from __future__ import annotations
@@ -30,7 +33,13 @@ import logging
 import os
 from pathlib import Path
 
-from .repo_policy import load_repo_command_prefixes, partition_command_prefixes
+from myrm_agent_harness.core.security.path import read_text_bounded
+
+from .repo_policy import (
+    MAX_WORKSPACE_CONFIG_CHARS,
+    load_repo_command_prefixes,
+    partition_command_prefixes,
+)
 from .types import WorkspaceTrustLevel, WorkspaceTrustManifest
 
 logger = logging.getLogger(__name__)
@@ -68,6 +77,16 @@ def _count_workspace_rules(workspace_root: str) -> int:
         return 0
 
 
+def _count_declared_servers(config: Path) -> int:
+    """Servers an MCP config declares; one that cannot be read or parsed counts as one, so it still shows up."""
+    try:
+        text = read_text_bounded(config, MAX_WORKSPACE_CONFIG_CHARS).text
+        servers = json.loads(text).get("mcpServers", {}) if text is not None else None
+    except Exception:
+        return 1
+    return len(servers) if isinstance(servers, dict) and servers else 1
+
+
 def _count_workspace_mcps(workspace_root: str) -> int:
     try:
         count = 0
@@ -80,15 +99,7 @@ def _count_workspace_mcps(workspace_root: str) -> int:
         ]
         for cfg in candidate_paths:
             if cfg.is_file():
-                try:
-                    data = json.loads(cfg.read_text(encoding="utf-8"))
-                    servers = data.get("mcpServers", {})
-                    if isinstance(servers, dict) and servers:
-                        count += len(servers)
-                    else:
-                        count += 1
-                except Exception:
-                    count += 1
+                count += _count_declared_servers(cfg)
         return count
     except Exception as exc:
         logger.debug("workspace trust manifest: mcp scan failed: %s", exc)

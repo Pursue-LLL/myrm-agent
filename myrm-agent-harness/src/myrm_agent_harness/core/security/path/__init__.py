@@ -1,10 +1,11 @@
 """Path security domain — the single import surface for every path protection rule.
 
-Three modules, one responsibility each:
+Four modules, one responsibility each:
 
 - ``pattern``    — glob matcher engine (`*`/`?`/`**`/character classes, case-insensitive by default)
 - ``filesystem`` — generic path safety: dangerous roots, device names, boundary, safe join, coercion
 - ``rules``      — protected-path policy: which files must not be touched, and the predicates that read the rules
+- ``bounded_read`` — text reads of untrusted files that cannot exhaust memory or block on a FIFO or device
 
 Consumers import predicates from this package (``core.security.path``) and reach for
 ``core.security.path.pattern`` only when they need the raw matcher. ``__all__`` is
@@ -13,11 +14,13 @@ it, a wildcard re-export would also republish ``os``/``Path`` and invite callers
 bypass the predicates that carry the security policy.
 
 [INPUT]
+- path.bounded_read (POS: Bounded text read of files in an untrusted folder)
 - path.filesystem (POS: Generic filesystem path safety — no product protection policy)
 - path.rules (POS: Protected-path policy)
 
 [OUTPUT]
 - is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
+- read_text_bounded, BoundedRead, ReadRefusal
 - is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_executable_git_metadata_file
 - DANGEROUS_PATHS, BLOCKED_DEVICE_NAMES, MAX_PATH_LENGTH
 - SENSITIVE_FILE_PATTERNS, PROTECTED_INSTRUCTION_PATTERNS, EVIDENCE_READONLY_PATTERNS
@@ -27,6 +30,15 @@ bypass the predicates that carry the security policy.
 Aggregation facade for the path security domain.
 """
 
+from myrm_agent_harness.core.security.path.bounded_read import (
+    BoundedRead as BoundedRead,
+)
+from myrm_agent_harness.core.security.path.bounded_read import (
+    ReadRefusal as ReadRefusal,
+)
+from myrm_agent_harness.core.security.path.bounded_read import (
+    read_text_bounded as read_text_bounded,
+)
 from myrm_agent_harness.core.security.path.filesystem import (
     BLOCKED_DEVICE_NAMES as BLOCKED_DEVICE_NAMES,
 )
@@ -94,6 +106,8 @@ __all__ = (
     "MAX_PATH_LENGTH",
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
+    "BoundedRead",
+    "ReadRefusal",
     "coerce_filesystem_path",
     "covers_dangerous_path",
     "is_blocked_device_path",
@@ -104,5 +118,6 @@ __all__ = (
     "is_protected_instruction_file",
     "is_sensitive_file",
     "is_within_boundary",
+    "read_text_bounded",
     "safe_join_path",
 )

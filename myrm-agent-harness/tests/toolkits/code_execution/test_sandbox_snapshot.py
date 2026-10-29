@@ -12,9 +12,12 @@ Tests:
 
 from __future__ import annotations
 
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from myrm_agent_harness.toolkits.code_execution.sandbox_snapshot import (
     SandboxBootstrapSnapshot,
@@ -160,6 +163,19 @@ def test_run_quick_command_failure_and_timeout() -> None:
         rc, out = _run_quick_command(["sleep", "10"], timeout=1.0)
         assert rc == -1
         assert out == ""
+
+
+@pytest.mark.parametrize("merge_stderr", [False, True])
+def test_run_quick_command_survives_output_that_is_not_utf8(merge_stderr: bool) -> None:
+    """A tool that prints a name made of invalid UTF-8 must not crash the snapshot (a branch or path can be any bytes)."""
+    from myrm_agent_harness.toolkits.code_execution.sandbox_snapshot import _run_quick_command
+
+    stream = "stderr" if merge_stderr else "stdout"
+    program = f"import sys; sys.{stream}.buffer.write(b'branch-\\xff\\xfe-end')"
+
+    rc, out = _run_quick_command([sys.executable, "-c", program], timeout=10.0, merge_stderr=merge_stderr)
+
+    assert (rc, out) == (0, "branch-\ufffd\ufffd-end")
 
 
 def test_package_manager_lockfiles_and_fallbacks() -> None:

@@ -421,10 +421,11 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 ### 执行注入点（harness）
 
 1. **Run 生命周期**：`run_lifecycle.apply_workspace_trust_for_root()` 在 agent run 开始时注入 `ContextVar` trust level + repo command prefixes。
-2. **Skills**：`backends/skills/local.py` — RESTRICTED 时跳过 workspace skill 加载。
+2. **Skills**：`backends/skills/local.py` — RESTRICTED 时跳过 workspace skill 加载；放行（含信任前的 FolderGate 披露）后 SKILL.md 仍是仓库作者可控的输入，经 `core/security/path/bounded_read.py` 的 `read_text_bounded` 读取：FIFO、设备（如指向 `/dev/zero` 的符号链接）与超过 1 MiB 的文件被跳过，不等待也不读到底。
 3. **Rules**：`workspace_rules/middleware.py` — RESTRICTED 时跳过 rules 注入。放行之后规则文件仍是仓库作者可控的输入：`workspace_rules/rule_read_guard.py` 让一次扫描（含信任前的 FolderGate 披露）只读真实路径落在边界之内的文件（边界是 git 根，没有 git 根时是工作区根；指向边界外的符号链接只得到占位文本，不读内容），单文件最多读 256,000 字符，一次扫描最多 512 个文件、2,000,000 字符；规则文件名经 `core/security/detection/display_name.py` 压成单行纯文本后才进入系统消息与工具结果。
-4. **MCP spawn**：`toolkits/mcp/transport.py` — `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
-5. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor.py` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
+4. **信任前披露读取**：`workspace_trust/manifest.py` 在用户决定之前读取工作区内的 `mcp.json`（四个位置）与 `.myrm/config.toml`，大小与种类同样由仓库决定，所以同样经 `read_text_bounded`，上限 1,048,576 字符：超限的 MCP 配置按一个 server 计，超限的 `config.toml` 记 warning 并视为未声明前缀；披露对任何扫描失败降级为零计数，不阻塞弹窗。
+5. **MCP spawn**：`toolkits/mcp/transport.py` — `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
+6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor.py` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
 
 ### 持久化与 API（server）
 

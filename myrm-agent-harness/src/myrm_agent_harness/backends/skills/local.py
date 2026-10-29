@@ -6,6 +6,7 @@
 - types::SkillMetadata, SkillTrust (POS: 技能元数据类型和信任枚举)
 - _utils::parse_skill_frontmatter (POS: 解析 SKILL.md frontmatter)
 - _runtime::build_skill_metadata (POS: 构建完整 SkillMetadata 的工厂函数)
+- core.security.path::read_text_bounded (POS: text read that stops at a character limit and never waits on a FIFO or device)
 
 [OUTPUT]
 - LocalSkillBackend: 本地技能后端实现（从本地文件系统加载技能）
@@ -13,6 +14,8 @@
 
 [POS]
 Local skill backend. Loads skills from local paths following the official Claude Skills specification.
+The workspace scan reads SKILL.md of folders that may not be trusted yet, so it reads through the bounded reader:
+a SKILL.md that is a FIFO, a device or larger than the limit is skipped instead of read.
 
 """
 
@@ -33,6 +36,7 @@ from myrm_agent_harness.backends.skills.types import (
     SkillTrust,
     SkillUsageStats,
 )
+from myrm_agent_harness.core.security.path import read_text_bounded
 
 _STATS_FILENAME = ".stats.json"
 
@@ -358,7 +362,12 @@ def _try_load_skill(
     if file_size > _MAX_SKILL_FILE_SIZE:
         return
     try:
-        content = skill_md.read_text(encoding="utf-8")
+        content = read_text_bounded(skill_md, _MAX_SKILL_FILE_SIZE).text
+        if content is None:
+            logger.debug(
+                "Skipping workspace skill '%s': SKILL.md is not a regular file or is too large", skill_dir.name
+            )
+            return
         frontmatter = parse_skill_frontmatter(content, skill_dir.name)
         meta = build_skill_metadata(
             skill_name=skill_dir.name,
