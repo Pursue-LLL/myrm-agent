@@ -30,7 +30,7 @@ loopback HTTP client — the same bytes a browser consumes.
 
 Prerequisite:
   ./myrm-dev isolate <id> ready --chrome   (workspace backend epoch on a PRIVATE
-  runtime — the shared :8080 is pinned to a deployed epoch that predates the
+  runtime — the shared backend is pinned to a deployed epoch that predates the
   share-status endpoint, so this test cannot run SHARED)
 """
 

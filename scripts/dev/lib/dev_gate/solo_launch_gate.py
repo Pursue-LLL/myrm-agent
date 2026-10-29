@@ -9,10 +9,10 @@ SSOT: ``ifm/profile.yaml`` browser-mcp · ``CHROME_MCP_E2E.md`` Playbook 6.
 显式 ``E2E_SIGNOFF=1`` 或 ``MYRM_E2E_SOLO_SIGNOFF=1`` 时强制 solo（desktop soak 等）：
 
 - 有其他 LIVE lease 在跑 → 拒绝
-- ``:3000`` TCP+HTML probe 不绿 → 拒绝
+- 共享 UI TCP+HTML probe 不绿 → 拒绝
 - browser orchestrator daemon 非 READY → 拒绝
 
-日常 LIVE（无上述标记）仅保留环境健康检查（:3000 + orchestrator READY），不拦截并行。
+日常 LIVE（无上述标记）仅保留环境健康检查（共享 UI + orchestrator READY），不拦截并行。
 """
 
 from __future__ import annotations

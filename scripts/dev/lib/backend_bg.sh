@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start myrm-agent-server on :8080 in background. Sets SERVER_DIR, writes pid/log under server dir.
+# Start myrm-agent-server in background on the namespace's backend port. Sets SERVER_DIR, writes pid/log under server dir.
 # Health-aware self-healing (R61/R61-A):
 #   - port truth SSOT: the lsof listener on the backend port is the only
 #     authority for liveness; a desynced pid record is re-synced to the port
@@ -182,7 +182,7 @@ _start_backend_bg() {
             # A healthy SHARED backend is immutable for daily attach, watchdog,
             # coordinator and crash-heal paths. Source changes belong to a
             # PRIVATE epoch; only an explicit maintenance command may promote
-            # them to :8080, and even that must fail closed while any logical
+            # them to the shared backend, and even that must fail closed while any logical
             # SHARED session is live (PREPARING included, not just wave leases).
             drift_action="$(python3 "${policy_py}" decide-drift \
               --active-leases "${active_leases}" --drift-pending 1 2>/dev/null || echo defer)"

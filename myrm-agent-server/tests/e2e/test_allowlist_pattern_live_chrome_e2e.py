@@ -1,7 +1,7 @@
 """Chrome LIVE_AGENT E2E: bash approval → allow-always pattern → Settings list.
 
 Uses ``private_backend=True`` so chat/agent-stream hit an isolated ``:180xx`` API — never
-contends with shared ``:8080`` agent-stream lock while parallel LIVE pytest runs.
+contends with the shared backend agent-stream lock while parallel LIVE pytest runs.
 
 Formal run::
 
@@ -136,7 +136,7 @@ def _hitl_probe(api_url: str, *, chat_id: str | None = None) -> dict[str, object
 
 
 def _pin_and_verify_hitl_mode(api_url: str) -> None:
-    """Pin global securityConfig on private API and shared :8080 (YOLO drift guard)."""
+    """Pin global securityConfig on private API and shared backend (YOLO drift guard)."""
     ensure_e2e_hitl_mode(api_url=api_url)
     targets: list[str] = [api_url.rstrip("/")]
     shared = shared_hot_e2e_api_base()
@@ -372,13 +372,13 @@ async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0
 
 
 async def _assert_stream_api_binding(chat: McpChatSession, *, expected_api: str) -> None:
-    """Fail fast when chat stream would hit Next /api/v1 proxy (:8080 YOLO drift)."""
+    """Fail fast when chat stream would hit Next /api/v1 proxy (shared-backend YOLO drift)."""
     expected_origin = _api_origin(expected_api)
     raw = await chat.evaluate(STREAM_API_BINDING_JS, intent=EvaluateIntent.SYNC_PROBE)
     binding = raw if isinstance(raw, dict) else {}
     if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
         raise AssertionError(
-            "SHPOIB stream binding missing — agent-stream may hit shared :8080; "
+            "SHPOIB stream binding missing — agent-stream may hit shared backend; "
             f"binding={binding!r}; expected={expected_origin!r}"
         )
     bound = str(binding.get("origin") or "").strip()

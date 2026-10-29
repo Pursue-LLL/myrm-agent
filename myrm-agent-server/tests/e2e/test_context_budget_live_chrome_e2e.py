@@ -9,7 +9,7 @@ observe what the runtime computes. ``turn_count`` is produced by the checkpoint 
 and only reaches the payload when the thread's checkpoint is readable, so a live turn is
 the only way to confirm the server value actually lands in the UI.
 
-Bypasses nothing: real Chrome (:9333), real WebUI (:3000), real backend (:8080), real LLM.
+Bypasses nothing: real Chrome (:9333), real shared dev WebUI and backend, real LLM.
 """
 
 from __future__ import annotations

@@ -11,7 +11,7 @@ Covers:
   - Voice Settings: no local STT banner when local_stt_available=true and provider=local
   - Live health/info local_stt_available + GET /stt/status
   - Live TTS API success with channel ttsMode=off (Web read-aloud path)
-  - Read-aloud browser fetch to /tts/synthesize via :3000 proxy (webTtsProvider=edge)
+  - Read-aloud browser fetch to /tts/synthesize via the shared UI proxy (webTtsProvider=edge)
   - Parallel isolated tabs: voice banner + read-aloud fetch concurrently
 """
 

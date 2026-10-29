@@ -151,14 +151,14 @@ def _first_enabled_model_from_providers(shared: dict[str, object]) -> tuple[str,
 
 
 def _mirror_shared_providers_to_private(api_url: str) -> None:
-    """Mirror shared :8080 providers to the PRIVATE backend using the first enabled model."""
+    """Mirror shared backend providers to the PRIVATE backend using the first enabled model."""
     shared_base = shared_hot_e2e_api_base()
     try:
         shared = fetch_config_value("providers", api_url=shared_base)
     except (OSError, TimeoutError) as exc:  # pragma: no cover - env dependent
-        pytest.fail(f"shared :8080 providers unavailable: {exc}")
+        pytest.fail(f"shared backend providers unavailable: {exc}")
     if not isinstance(shared, dict) or not shared:
-        pytest.fail("shared :8080 providers config is empty")
+        pytest.fail("shared backend providers config is empty")
 
     provider_id, model_name = _first_enabled_model_from_providers(shared)
 

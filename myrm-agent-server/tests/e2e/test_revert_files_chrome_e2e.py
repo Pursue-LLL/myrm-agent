@@ -153,7 +153,7 @@ def _ensure_revert_changes_ready(
     min_changes: int,
     timeout_sec: float = 45.0,
 ) -> None:
-    """Poll :8080 before Chrome fetch; attach stack may restart backend briefly."""
+    """Poll the shared backend before Chrome fetch; attach stack may restart backend briefly."""
     deadline = time.monotonic() + timeout_sec
     last_error = "timeout"
     while time.monotonic() < deadline:

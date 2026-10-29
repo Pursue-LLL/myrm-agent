@@ -379,7 +379,7 @@ def _shared_stack_env() -> dict[str, str]:
     and MYRM_BACKEND_PORT at the private runtime. Running `dev-stack.sh backend-only
     ensure` with that inherited env writes the shared backend's identity into the
     private runtime dir (runtimeId=shared) and, when the private runtime's
-    stack-epoch file is absent, leaves the shared :8080 health probe without a
+    stack-epoch file is absent, leaves the shared backend health probe without a
     stack_epoch fingerprint — the §26.28-B "private pool occupies :8080" loop.
     """
     env = {k: v for k, v in os.environ.items() if k not in _PRIVATE_RUNTIME_ENV_KEYS}
@@ -560,7 +560,7 @@ def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> 
         **_shared_stack_env(),
         "MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC": "600",
     }
-    # Parallel attach: more attempts + post-ensure api poll — transient :8080 flap under peers.
+    # Parallel attach: more attempts + post-ensure api poll — transient shared-backend flap under peers.
     parallel_busy = active_leases > 0
     max_attempts = 5 if parallel_busy else 3
     backoff_schedule = (0, 8, 15, 25, 40) if parallel_busy else (0, 5, 10)
@@ -832,7 +832,7 @@ def main(argv: list[str] | None = None) -> int:
         "--shpoib",
         choices=("0", "1"),
         default="0",
-        help="1 when caller is SHPOIB lane (skip shared :8080 heal)",
+        help="1 when caller is SHPOIB lane (skip shared backend heal)",
     )
     crash.set_defaults(handler=_cmd_attach_crash_heal)
 
@@ -846,7 +846,7 @@ def main(argv: list[str] | None = None) -> int:
         "--shpoib",
         choices=("0", "1"),
         default="0",
-        help="1 when caller is SHPOIB lane (skip shared :8080 preflight)",
+        help="1 when caller is SHPOIB lane (skip shared backend preflight)",
     )
     preflight.set_defaults(handler=_cmd_attach_health_preflight)
 

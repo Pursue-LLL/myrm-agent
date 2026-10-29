@@ -14,7 +14,7 @@ source_fingerprint matches the workspace fingerprint. Fail-closed when no match.
 - CLI: context-json, context-human, launch-check, verify-api (proxy curl; optional --ensure-backend seed)
 
 [POS]
-Agent-facing SSOT for API verification — eliminates stale :8080 / stale private pool false results.
+Agent-facing SSOT for API verification — eliminates stale shared-backend / stale private pool false results.
 """
 
 from __future__ import annotations
@@ -703,8 +703,8 @@ def _build_context_from_resolution(
         else:
             rule = (
                 "verify-api routed to an epoch-matched isolated backend; this proves "
-                "API-only readiness, not SHARED browser readiness because shared :3000 "
-                "always proxies :8080; follow next_action and do not stop peers"
+                "API-only readiness, not SHARED browser readiness because shared UI "
+                "always proxies the shared backend; follow next_action and do not stop peers"
             )
         return E2eApiContext(
             verify_api_base=verify.api_base,
@@ -759,7 +759,7 @@ def _build_context_from_resolution(
         action = "Follow the node planner result and preserve the deployed shared epoch"
     rule = (
         f"BLOCKED: {blocked_reason}. {action}; "
-        "do not curl shared :8080 or stop other tests."
+        "do not curl shared backend or stop other tests."
     )
     return E2eApiContext(
         verify_api_base=fallback_base,
@@ -975,7 +975,7 @@ def _compute_next_action(
     shared_healthy = any(candidate.health_ok for candidate in shared_candidates)
     if shared_candidates and not shared_healthy:
         # Crash heal must win over hung-peer FAIL_FAST: peers stuck in bootstrap
-        # while :8080 is down cannot block the single-flight backend-only recovery.
+        # while the shared backend is down cannot block the single-flight backend-only recovery.
         return "ATTACH_CRASH_HEAL"
     for row in active_tests:
         wall_phase = str(row.get("wall_phase") or "").strip().lower()

@@ -113,7 +113,7 @@ class TestEvictedUecdLiveServerIntegration:
 
 @pytest.mark.integration
 class TestEvictedUecdSeedFixtureIntegration:
-    """Seed fixture contract via in-process app (DB + disk, no live :8080)."""
+    """Seed fixture contract via in-process app (DB + disk, no live backend)."""
 
     def test_seed_fixture_persists_progress_steps_and_spill_file(self, init_test_database) -> None:
         import asyncio

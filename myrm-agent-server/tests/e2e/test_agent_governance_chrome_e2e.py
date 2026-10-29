@@ -83,7 +83,7 @@ _FILL_AND_SAVE_JS = """((args) => {
 def _api_base() -> str:
     # The browser writes through the lane-injected E2E runtime binding
     # (window.__MYRM_E2E_API_BASE__, honored by deploy-mode.ts), which points
-    # at the isolated per-run backend — not the shared :8080. Readback must
+    # at the isolated per-run backend — not the shared backend. Readback must
     # use the same base or created agents are invisible by construction.
     try:
         base = get_e2e_api_url()

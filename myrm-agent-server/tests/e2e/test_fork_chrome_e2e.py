@@ -5,8 +5,8 @@ verify child workspace resets to repo root, check UI navigation.
 
 Prerequisites:
   - Chrome E2E running: ./myrm-dev ready --chrome
-  - Live server running on :8080 with frontend on :3000
-  - A :3000 tab open in Chrome E2E
+  - Live shared dev stack (backend and frontend) running
+  - A shared UI tab open in Chrome E2E
   - At least one chat with sandbox enabled (see conftest or manual setup)
 
 Run: ./myrm-dev ready --chrome && .venv/bin/python -m pytest tests/e2e/ -v --timeout=45

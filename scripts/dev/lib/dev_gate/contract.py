@@ -183,7 +183,7 @@ E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
 PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
 PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
 PROVIDER_READINESS_GATE_MAX_SEC: Final[float] = 180.0
-# R214: desktop leg soak — shared :8080 config_load_timeout under parallel chrome_e2e.
+# R214: desktop leg soak — shared backend config_load_timeout under parallel chrome_e2e.
 PROVIDER_READINESS_GATE_DESKTOP_SOAK_LEASE_SCALE_SEC: Final[float] = 40.0
 PROVIDER_READINESS_GATE_DESKTOP_SOAK_MAX_SEC: Final[float] = 480.0
 # Physical work is bounded; logical shared sessions are deliberately unlimited.
@@ -599,7 +599,7 @@ def provider_readiness_gate_wait_sec(*, active_leases: int | None = None) -> flo
 
     Solo 60s; under parallel wave load min(180, 60+leases×15)s — aligns
     ``run_desktop_approval_chrome_e2e`` entry probe and avoids
-    ``config_load_timeout`` flakes when shared :8080 is busy.
+    ``config_load_timeout`` flakes when shared backend is busy.
     """
     leases = (
         active_leases if active_leases is not None else _parallel_chrome_e2e_pressure()
@@ -664,7 +664,7 @@ def signoff_hitl_pin_request_timeout_sec(*, active_leases: int | None = None) ->
 
 
 def attach_ui_liveness_probe_timeout_sec() -> float:
-    """Short :3000 probe for LISTEN-but-hung / post-heal streak (R150).
+    """Short shared-UI probe for LISTEN-but-hung / post-heal streak (R150).
 
     Never uses the 210s cold-compile budget — hung TCP must fail fast so parallel
     chrome_e2e does not block for hours on HTTP 000.
@@ -687,7 +687,7 @@ def attach_ui_liveness_probe_timeout_sec() -> float:
     return min(15.0, 8.0 + pressure * 2.0)
 
 
-# A :3000 probe that fails decides to restart the shared frontend, so a host that is merely
+# A shared-UI probe that fails decides to restart the shared frontend, so a host that is merely
 # busy must not be read as "half dead". Wave leases are not the only load source: a solo
 # session on a host whose cores are already saturated sees the same seconds-long answers.
 # Measured 2026-10-17 (12 cores): `/` answered HTTP 200 in 0.67s idle, 8.11s and 23.29s at
@@ -785,7 +785,7 @@ def attach_ui_stale_slow_sec() -> float:
 
 
 def attach_ui_probe_timeout_sec() -> float:
-    """Shared :3000 HTTP probe timeout; scales under parallel chrome_e2e (R148).
+    """Shared UI HTTP probe timeout; scales under parallel chrome_e2e (R148).
 
     Solo 8s; under load min(25, 8+pressure×2)s for SHPOIB.
     READ shared-hot parallel + attach frontend heal allow cold compile (≤210s).
@@ -1334,7 +1334,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
 
 
 def shpoib_rebind_location_wait_cap_sec() -> float:
-    """SHPOIB navigate location settle; signoff scales under parallel :3000 compile."""
+    """SHPOIB navigate location settle; signoff scales under parallel shared-UI compile."""
     if not is_e2e_signoff_runtime():
         return 45.0
     base = float(SIGNOFF_SHPOIB_REBIND_LOCATION_WAIT_SEC)
@@ -1461,7 +1461,7 @@ def signoff_mux_transport_wait_budget_sec(
 
 
 def shared_ui_hydrate_wait_sec() -> int:
-    """SHPOIB shared :3000 hydrate burst queue; dev ADMIT 900s."""
+    """SHPOIB shared UI hydrate burst queue; dev ADMIT 900s."""
     override = os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", "").strip()
     if override.isdigit() and int(override) > 0:
         return int(override)
@@ -1912,7 +1912,7 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
 
 
 def chrome_e2e_skips_shared_approval_preflight(*, lane: str, shpoib: bool) -> bool:
-    """True when LIVE E2E uses SHPOIB private backend — skip shared :8080 approval preflight."""
+    """True when LIVE E2E uses SHPOIB private backend — skip shared backend approval preflight."""
     return lane == "LIVE_AGENT" and shpoib
 
 

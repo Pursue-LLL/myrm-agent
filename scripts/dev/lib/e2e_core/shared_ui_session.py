@@ -1,4 +1,4 @@
-"""Shared :3000 UI session contract for parallel chrome_e2e (Dev Gate SSOT).
+"""Shared UI session contract for parallel chrome_e2e (Dev Gate SSOT).
 
 [INPUT]
 cdp_chat.support::ensure_e2e_search_cleared_in_browser (POS: E2E API/chat 消息 SSOT)

@@ -21,7 +21,7 @@ matching how the shared backend is configured.
 
 This test drives the real dev stack and the real command-center API (no mock on
 the critical path). It runs PRIVATE because the workspace backend carries the
-new ``vector_persistence`` field that is not yet deployed to the shared :8080
+new ``vector_persistence`` field that is not yet deployed to the shared backend
 epoch.
 """
 

@@ -123,7 +123,7 @@ def _shared_epoch_aligned(ctx: object) -> bool:
 
 
 def needs_epoch_pin_backend(ctx: object) -> bool:
-    """True when shared :8080 is not at workspace epoch (UI must pin verify API)."""
+    """True when shared backend is not at workspace epoch (UI must pin verify API)."""
     return not _shared_epoch_aligned(ctx)
 
 

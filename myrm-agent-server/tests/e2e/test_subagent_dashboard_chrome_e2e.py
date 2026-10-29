@@ -189,7 +189,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             timeout_sec=30.0,
         )
         # Shared-UI page reuse can race the SHPOIB private-API binding: the UI
-        # then resolves getApiBaseUrl() to the shared :8080 origin and 404s the
+        # then resolves getApiBaseUrl() to the shared backend origin and 404s the
         # private chat. _attach_chat_with_private_api re-asserts the binding and
         # retries until every request targets the fixture's private backend.
         _attach_chat_with_private_api(client, page, chat_id)
@@ -303,7 +303,7 @@ def _attach_chat_with_private_api(
     """Attach the shared UI to a private chat, healing the SHPOIB binding.
 
     Shared-UI page reuse can race the SHPOIB private-API binding: the UI then
-    resolves ``getApiBaseUrl()`` to the shared :8080 origin and 404s the
+    resolves ``getApiBaseUrl()`` to the shared backend origin and 404s the
     private chat (``getChatShellState`` -> ``notFound``). A shared-UI reload
     during attach can also clear the binding mid-flight. Re-assert the binding
     and retry the whole attach+shell cycle until the chat loads against the

@@ -196,7 +196,7 @@ def _ensure_shpoib_api_binding(
     *,
     timeout_sec: float = 90.0,
 ) -> None:
-    """Inject and wait for SHPOIB API binding on shared :3000 UI."""
+    """Inject and wait for SHPOIB API binding on shared UI."""
     from cdp_chat.support import (
         E2E_API_BINDING_PROBE_JS,
         e2e_api_base_inject_js,

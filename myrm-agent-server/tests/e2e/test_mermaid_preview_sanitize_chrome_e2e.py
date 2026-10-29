@@ -2,7 +2,7 @@
 
 [INPUT]
 - Chrome MCP remote debugging port (9333) attached to real Chrome instance
-- WebUI Chat / Settings Session on http://localhost:3000
+- WebUI Chat / Settings Session on the shared dev UI
 - Inject Mermaid diagram container with malicious script/foreignObject/event payloads
 
 [OUTPUT]

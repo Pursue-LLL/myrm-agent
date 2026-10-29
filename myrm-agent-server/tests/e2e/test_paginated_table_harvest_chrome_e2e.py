@@ -2,7 +2,7 @@
 
 [INPUT]
 - Chrome MCP remote debugging port (9333) attached to real Chrome instance
-- WebUI Chat Session on http://localhost:3000
+- WebUI Chat Session on the shared dev UI
 - Inject dynamic paginated table into browser DOM with simulated SPA "Next" button and terminal repeating state
 
 [OUTPUT]

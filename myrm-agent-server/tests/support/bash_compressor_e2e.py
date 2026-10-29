@@ -47,7 +47,7 @@ def _backend_runtime_data_dir(backend_url: str) -> Path | None:
     """Resolve the isolated-runtime dataDir backing ``backend_url``, if any.
 
     verify-api private runtimes are registered under
-    ``{isolated_root}/registry.json`` keyed by backend port. Shared :8080 has no
+    ``{isolated_root}/registry.json`` keyed by backend port. The shared backend has no
     registry entry and returns None. Only isolated runtimes are safe to mutate
     (seed providers / read workspace), so this guard keeps shared stacks untouched.
     """
@@ -96,7 +96,7 @@ def seed_providers_from_test_env(backend_url: str) -> bool:
     verify-api private backends boot with an empty database (no providers), so
     model-selection probes fail until providers are seeded. This is idempotent:
     it only writes when the backend has no default base model, and only touches
-    backends registered in the isolated runtime registry (never shared :8080).
+    backends registered in the isolated runtime registry (never shared backend).
     """
     data_dir = _backend_runtime_data_dir(backend_url)
     if data_dir is None:

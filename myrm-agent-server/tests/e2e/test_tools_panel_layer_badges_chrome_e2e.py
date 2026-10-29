@@ -397,7 +397,7 @@ async def _assert_private_api_binding(chat: McpChatSession, *, api_url: str) -> 
     binding = stream_binding if isinstance(stream_binding, dict) else {}
     if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
         raise AssertionError(
-            f"SHPOIB stream binding missing — agent-stream may hit shared :8080; binding={binding!r}; expected={api_url!r}"
+            f"SHPOIB stream binding missing — agent-stream may hit shared backend; binding={binding!r}; expected={api_url!r}"
         )
 
 

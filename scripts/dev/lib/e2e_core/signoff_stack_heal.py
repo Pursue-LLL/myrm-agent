@@ -92,7 +92,7 @@ def run_signoff_attach_crash_heal(
     root: Path | None = None,
     wait_sec: float | None = None,
 ) -> int:
-    """Shared :8080 crash heal via StackHealCoordinator (single-writer)."""
+    """Shared backend crash heal via StackHealCoordinator (single-writer)."""
     repo = root or _monorepo_root()
     sys.path.insert(0, str(repo / "myrm-agent/scripts/dev/lib"))
     from dev_gate.contract import load_scaled_budget_sec

@@ -1,7 +1,7 @@
 """Real Chrome MCP E2E for Chat to Eval Case Capture Workflow.
 
 Tests the full end-to-end task flow:
-1. Opens real Chrome browser on WebUI http://localhost:3000.
+1. Opens real Chrome browser on WebUI the shared dev UI.
 2. Creates or seeds a chat session with authentic messages.
 3. Invokes the chat actions dropdown menu on the sidebar.
 4. Triggers "沉淀为评测用例" / "Capture as Eval Case" action.

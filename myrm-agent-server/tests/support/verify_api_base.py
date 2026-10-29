@@ -23,7 +23,7 @@ if str(_DEV_LIB) not in sys.path:
 
 
 def resolve_verify_api_base(*, ensure_backend: bool = True) -> str:
-    """Return loopback API base for live server-route tests (parallel-safe, not shared :8080)."""
+    """Return loopback API base for live server-route tests (parallel-safe, not shared backend)."""
     import pytest
     from e2e_core.api_verify import monorepo_root, resolve_e2e_api_context  # noqa: PLC0415
     from e2e_core.verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415

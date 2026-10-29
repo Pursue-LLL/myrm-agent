@@ -860,7 +860,7 @@ def test_open_page_attempt_count_allows_read_lane_parallel_retry(
 
 
 def test_warm_heal_guard_launch_force_before_debounced_call() -> None:
-    """§26.31 / R291+: warm_ui heal skips launch-force only when :3000 is reachable."""
+    """§26.31 / R291+: warm_ui heal skips launch-force only when the shared UI is reachable."""
     from pathlib import Path
 
     source = Path(__file__).resolve().parent / "chrome_mcp_e2e.py"

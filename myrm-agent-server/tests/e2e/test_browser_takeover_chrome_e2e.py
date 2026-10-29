@@ -254,8 +254,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
 ) -> None:
     """Real model + WebUI send → browser_ask_human SSE → in-chat banner → Done → DONE.
 
-    Uses private_backend=True (SHPOIB): shared :3000 UI + isolated :180xx API — no shared
-    :8080 agent-stream lock contention with parallel LIVE pytest.
+    Uses private_backend=True (SHPOIB): shared UI + isolated :180xx API — no shared
+    shared-backend agent-stream lock contention with parallel LIVE pytest.
     """
     if not wait_e2e_provider_ready():
         pytest.fail(

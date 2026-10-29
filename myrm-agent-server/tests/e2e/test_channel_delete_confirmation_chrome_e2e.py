@@ -19,7 +19,7 @@ and assert on real API effects (logout / instance removal / 404-on-missing).
 
 Execution mode is PRIVATE because the flows depend on the workspace backend
 code (WeChat channel registered as enabled by default; ``list_channel_instances``
-exposing bare instance ids that the delete API accepts). The shared :8080 epoch
+exposing bare instance ids that the delete API accepts). The shared backend epoch
 may run older code where the primary WeChat channel is persisted as ``disabled``
 (hiding its config panel by design), which would make the flow untestable there.
 

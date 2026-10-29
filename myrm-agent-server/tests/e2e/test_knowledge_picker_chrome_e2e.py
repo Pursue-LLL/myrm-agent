@@ -1,7 +1,7 @@
 """Chrome E2E: Unified Knowledge Base Picker & Popover Mounting in Real WebUI.
 
 Tests the full end-to-end task flow:
-1. Opens real Chrome browser on http://localhost:3000.
+1. Opens real Chrome browser on the shared dev UI.
 2. Seeds a test shared context (knowledge base) via API.
 3. Navigates to a chat session.
 4. Finds and clicks the KnowledgePicker toggle button ([data-testid="knowledge-picker-toggle"]).

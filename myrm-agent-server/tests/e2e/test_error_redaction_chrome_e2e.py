@@ -2,7 +2,7 @@
 
 [INPUT]
 - Chrome MCP remote debugging port (9333) attached to real Chrome instance
-- WebUI Settings Session on http://localhost:3000
+- WebUI Settings Session on the shared dev UI
 - Inject sensitive error dispatch via toast.error and inspect rendered DOM element
 
 [OUTPUT]

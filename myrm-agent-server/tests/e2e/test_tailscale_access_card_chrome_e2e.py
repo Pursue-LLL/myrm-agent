@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - test_tailscale_access_card_chrome_e2e: Real Chrome MCP E2E validation of TailscaleAccessCard
-  in Settings -> System section (:3000/settings/system).
+  in Settings -> System section (/settings/system).
 
 [POS]
 Validates that Tailscale Access status, zero-trust badges, direct/HTTPS connection modes,
@@ -70,7 +70,7 @@ _VERIFY_TAILSCALE_CARD_JS = """(() => {
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_tailscale_access_card_chrome_e2e() -> None:
-    """Validate Tailscale Access Card renders and operates in real Chrome WebUI (:3000/settings/system)."""
+    """Validate Tailscale Access Card renders and operates in real Chrome WebUI (/settings/system)."""
     api_url = get_e2e_api_url()
 
     # 1. Verify backend API returns 200

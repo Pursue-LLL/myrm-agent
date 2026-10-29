@@ -1474,7 +1474,7 @@ def maybe_reap_orphan_shared_backends(
     """§26.28-A: reap orphaned shared-backend run.py that no longer serve their port.
 
     Root cause: high load + repeated drift applies left stale `run.py` processes
-    (PPID=1, no session lease, either never bound :8080 or lost it after a failed
+    (PPID=1, no session lease, either never bound the shared port or lost it after a failed
     restart). They write the shared backend.log, hold sqlite shm, and cause
     `STACK_FAIL: private backend port :8080 still busy` on the next restart —
     the observed "backend repeatedly crashing / BLOCKED" loop.
@@ -1482,7 +1482,7 @@ def maybe_reap_orphan_shared_backends(
     Safety invariants (port-truth SSOT, matching backend_bg.sh):
     - Only consider pids recorded in {state}/backend.pid or backend-process.json.
     - Only when that pid's env declares the shared state dir (never a private runtime).
-    - Never kill the live :8080 LISTEN owner (that is the authoritative backend).
+    - Never kill the live LISTEN owner of the shared port (that is the authoritative backend).
     - Skip pids referenced by any live e2e session (owner_pid).
     """
     if not _coordinator_reap_authorized():

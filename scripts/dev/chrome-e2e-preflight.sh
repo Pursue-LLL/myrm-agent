@@ -550,7 +550,7 @@ print(attach_parallel_wait_sec(${active_leases}, base=${base}))
 }
 
 _attach_epoch_pin_drop_stale_when_shared_aligned() {
-  # R280: test.sh may pin a verify-api port before shared :8080 heals; drop stale pin when aligned.
+  # R280: test.sh may pin a verify-api port before shared backend heals; drop stale pin when aligned.
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
     "${PREFLIGHT_PY}" -c "
 import sys
@@ -903,7 +903,7 @@ _wait_shared_stack_healthy_before_ready() {
         ok "shared stack healthy before READY (model seed recovered)"
         return 0
       fi
-      # R214: idempotent seed may time out under parallel load while :3000/:8080 stay healthy.
+      # R214: idempotent seed may time out under parallel load while the shared stack stays healthy.
       MYRM_E2E_MODEL_SEED_FAILED=0
       ok "shared stack healthy before READY (endpoints ok; parallel seed timeout non-fatal)"
       return 0
@@ -957,7 +957,7 @@ _ensure_stack_epoch_file() {
   _bump_stack_epoch "${backend_pid}" "${SERVER_DIR}" >/dev/null || true
 }
 
-# 0. API-only SHPOIB (signoff clarify pool / cron LIVE): seed private API only — never probe shared :3000.
+# 0. API-only SHPOIB (signoff clarify pool / cron LIVE): seed private API only — never probe shared UI.
 if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
   curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null \
     || fail "private backend not reachable at ${API_BASE}"
@@ -1746,7 +1746,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   fi
   if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
     # Crash recovery is independent of source promotion and remains available
-    # under parallel load. Both helpers are idempotent when :8080 is healthy;
+    # under parallel load. Both helpers are idempotent when the shared backend is healthy;
     # drift handling records metadata only and never restarts the pinned backend.
     _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"

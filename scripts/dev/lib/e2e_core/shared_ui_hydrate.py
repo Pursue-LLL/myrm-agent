@@ -1,4 +1,4 @@
-"""Serialize shared :3000 UI navigate/reload bursts for parallel SHPOIB Chrome E2E.
+"""Serialize shared UI navigate/reload bursts for parallel SHPOIB Chrome E2E.
 
 R36: the flock guards **navigate/reload bursts** only — not MCP probe polling loops.
 Holding the lock during long probe loops caused 180s×retry silent blocking (BUG-022).
@@ -78,11 +78,11 @@ def shpoib_shared_ui_queue_enabled() -> bool:
 
 
 def _live_parallel_shared_ui_load() -> int:
-    """Live parallel chrome_e2e load for shared :3000 hydrate serialization.
+    """Live parallel chrome_e2e load for shared UI hydrate serialization.
 
     ``wave_active_lease_count`` alone under-report during pytest peers that hold
     no *wave* lease (daily ``./myrm-dev test`` parallelism), which let the bridge cap
-    fall back to the serial 60s budget while 4-12 peers were compiling :3000 —
+    fall back to the serial 60s budget while 4-12 peers were compiling the shared UI —
     surfacing as ``E2E_SHARED_UI_SESSION_BRIDGE: bridge-ready-timeout``.
     """
     load = 0
@@ -104,7 +104,7 @@ def _live_parallel_shared_ui_load() -> int:
 
 
 def parallel_shared_ui_hydrate_queue_enabled() -> bool:
-    """Serialize shared :3000 compile bursts for parallel Chrome E2E (SHPOIB + READ shared-hot)."""
+    """Serialize shared UI compile bursts for parallel Chrome E2E (SHPOIB + READ shared-hot)."""
     if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
         return False
     if shpoib_shared_ui_queue_enabled():

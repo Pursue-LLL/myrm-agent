@@ -143,7 +143,7 @@ def _shell_probe_ready(probe: dict[str, object]) -> bool:
 
 
 def _blank_chat_shell_probe(probe: dict[str, object]) -> bool:
-    """True when shared :3000 tab lost chat shell under parallel UI hydrate."""
+    """True when shared UI tab lost chat shell under parallel UI hydrate."""
     if probe.get("skeleton"):
         return False
     if probe.get("hasInput") or probe.get("hasBridge"):
@@ -395,7 +395,6 @@ class CdpChatBootstrap(CdpChatTransport):
             file=sys.stderr,
             flush=True,
         )
-        last: dict[str, object] = {}
         cdp_cap = min(30.0, max(5.0, deadline - time.monotonic()))
         await asyncio.wait_for(self.cdp("Runtime.enable"), timeout=cdp_cap)
         await asyncio.wait_for(self.cdp("Page.enable"), timeout=cdp_cap)

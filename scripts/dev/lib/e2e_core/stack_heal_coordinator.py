@@ -57,7 +57,7 @@ def request_attach_crash_heal(
     if shpoib_active:
         _emit(
             "SKIPPED_SHPOIB",
-            detail="shared :8080 down — SHPOIB lane uses private backend; do not stop other pytest",
+            detail="shared backend down — SHPOIB lane uses private backend; do not stop other pytest",
         )
         return 0
 
@@ -120,7 +120,7 @@ def run_attach_health_preflight(
 ) -> int:
     """R145 attach health probe — no shared-stack drift dogpile during parallel ADMIT.
 
-    SHPOIB lanes never wait on shared :8080. Shared lanes use StackHealCoordinator
+    SHPOIB lanes never wait on shared backend. Shared lanes use StackHealCoordinator
     only; pending drift apply runs exclusively when wave leases == 0.
     """
     from e2e_core.stack_mutation_policy import (  # noqa: PLC0415
@@ -131,7 +131,7 @@ def run_attach_health_preflight(
     if _shpoib_lane_active(shpoib=shpoib):
         _emit(
             "SKIPPED_SHPOIB",
-            detail="attach health preflight uses private backend; shared :8080 ignored",
+            detail="attach health preflight uses private backend; shared backend ignored",
         )
         return 0
 

@@ -1,4 +1,4 @@
-"""Live API integration: MCP config PUT/GET roundtrip on running backend (:8080)."""
+"""Live API integration: MCP config PUT/GET roundtrip on running shared dev backend."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ def _list_server_names() -> list[str]:
 
 @pytest.mark.integration
 def test_live_mcp_config_put_get_roundtrip() -> None:
-    """Real PUT/GET /config/mcpServers persists probe server on live :8080 backend."""
+    """Real PUT/GET /config/mcpServers persists probe server on the live shared dev backend."""
     _require_live_backend()
     original_names = _list_server_names()
 

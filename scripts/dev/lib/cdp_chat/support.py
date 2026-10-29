@@ -51,7 +51,7 @@ def _connection_refused(exc: BaseException) -> bool:
 
 
 def _maybe_heal_shared_api_on_refused() -> None:
-    """One-shot shared :8080 crash heal when parallel E2E reloads the dev backend."""
+    """One-shot shared backend crash heal when parallel E2E reloads the dev backend."""
     try:
         from e2e_core.stack_mutation_policy import attach_backend_crash_heal_inner
 
@@ -154,7 +154,7 @@ def cancel_e2e_chat_agent_via_api(chat_id: str, *, api_url: str | None = None) -
 
 
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
-    """Shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000.
+    """Shell hydration budget for parallel SHPOIB chrome_e2e on shared UI.
 
     R73-A: cap at bootstrap wall — never 420s outer deadline that
     defeats SHELL_PROBE_STALL_FAIL_FAST_SEC skeleton fail-fast.
@@ -1921,7 +1921,7 @@ def _pin_yolo_on_api(api_url: str) -> None:
 def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
     """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate).
 
-    Pins private SHPOIB API **and** shared ``:8080`` (HITL dual-target SSOT).
+    Pins private SHPOIB API **and** the shared backend (HITL dual-target SSOT).
     Parallel LIVE HITL tests may leave ``computer_use: ask`` on shared; Next
     may briefly proxy via shared before ``__MYRM_E2E_API_BASE__`` inject.
     """
@@ -2077,7 +2077,7 @@ def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
     (merge uses OR). LIVE approval E2E must pin global securityConfig on the
     target API (including SHPOIB private ``:180xx`` backends).
 
-    Also pins shared ``:8080`` when it differs from the private API — SHPOIB UI
+    Also pins the shared backend when it differs from the private API — SHPOIB UI
     may briefly stream via Next ``/api/v1`` proxy before ``__MYRM_E2E_API_BASE__``
     inject completes, and parallel LIVE tests leave YOLO on the shared backend.
 

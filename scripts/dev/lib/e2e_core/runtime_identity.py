@@ -453,7 +453,7 @@ def filter_shpoib_attach_wait_errors(errors: list[str]) -> list[str]:
 
 
 def attach_wait_errors(ui_base: str, api_base: str) -> list[str]:
-    """Attach ADMIT wait probe; SHPOIB ignores flaky shared :8080 under parallel load."""
+    """Attach ADMIT wait probe; SHPOIB ignores flaky shared backend under parallel load."""
     return filter_shpoib_attach_wait_errors(attach_endpoint_errors(ui_base, api_base))
 
 

@@ -279,7 +279,7 @@ def _search_configs_from_value(value: dict[str, object]) -> list[dict[str, objec
 
 
 def _try_fetch_shared_config(config_key: str) -> dict[str, object] | None:
-    """Read shared hot config when :8080 is reachable; None during parallel stack heal."""
+    """Read shared hot config when the shared backend is reachable; None during parallel stack heal."""
     try:
         value = fetch_config_value(config_key, api_url=shared_hot_e2e_api_base())
     except (OSError, urllib.error.URLError, TimeoutError):
@@ -304,7 +304,7 @@ def _fetch_config_resilient(config_key: str, api_url: str, *, attempts: int = 5)
 
 
 def _minimal_e2e_search_services() -> dict[str, object]:
-    """Minimal searchServices for SHPOIB when shared :8080 has no configs."""
+    """Minimal searchServices for SHPOIB when shared backend has no configs."""
     search_service = resolve_test_env("SEARCH_SERVICE", "tavily") or "tavily"
     api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env("SEARCH_API_KEY", "")
     item: dict[str, object] = {
@@ -338,7 +338,7 @@ def _wait_search_services_persisted(api_base: str, *, timeout_sec: float = 15.0)
 
 
 def _ensure_private_search_configured(api_base: str) -> None:
-    """SHPOIB private pools start empty; mirror shared :8080 or seed minimal search."""
+    """SHPOIB private pools start empty; mirror shared backend or seed minimal search."""
     private = _fetch_config_resilient("searchServices", api_base)
     if _search_configs_from_value(private):
         return

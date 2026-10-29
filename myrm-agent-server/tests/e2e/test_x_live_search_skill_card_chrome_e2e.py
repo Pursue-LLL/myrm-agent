@@ -85,7 +85,7 @@ def _ensure_skill_enabled() -> None:
     assert entry, f"{_SKILL_ID} missing from /api/v1/skills/available after enable"
 
 
-# PRIVATE+exclusive_backend: workspace harness often drifts from shared :8080;
+# PRIVATE+exclusive_backend: workspace harness often drifts from shared backend;
 # SHARED would epoch-skip under PRIVATE_EPOCH_REQUIRED (TAB-9 requires private_reason).
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",

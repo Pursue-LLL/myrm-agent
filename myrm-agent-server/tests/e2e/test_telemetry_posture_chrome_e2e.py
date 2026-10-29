@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - test_telemetry_posture_card_chrome_e2e: Real Chrome MCP E2E validation of TelemetryPostureCard
-  in Settings -> Developer section (:3000/settings/developer).
+  in Settings -> Developer section (/settings/developer).
 
 [POS]
 E2E browser integration test verifying that the measured OpenTelemetry export posture renders
@@ -80,7 +80,7 @@ _VERIFY_TELEMETRY_CARD_JS = """(() => {
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_telemetry_posture_card_chrome_e2e() -> None:
-    """Validate OpenTelemetry Posture card renders in real Chrome WebUI (:3000/settings/developer)."""
+    """Validate OpenTelemetry Posture card renders in real Chrome WebUI (/settings/developer)."""
     api_url = get_e2e_api_url()
 
     # Verify backend API returns 200 first

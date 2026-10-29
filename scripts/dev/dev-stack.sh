@@ -693,7 +693,7 @@ _frontend_turbopack_panic_residue() {
 
 _heal_stale_next_dev_lock() {
   # Next.js dev-server.lock can reference a stale next-server PID on an alt port
-  # (e.g. :13301) while :3000 stays dead — kills the stale PID once per ensure.
+  # (e.g. :13301) while the shared UI stays dead — kills the stale PID once per ensure.
   [[ -f "${FRONTEND_LOG}" ]] || return 1
   local tail_log=""
   tail_log="$(tail -n 120 "${FRONTEND_LOG}" 2>/dev/null || true)"
@@ -1154,7 +1154,7 @@ _repair_orphan_private_backend() {
   fi
   # Port ownership truth: refuse reclaim only when the shared backend (default
   # state dir) is the actual LISTEN owner on BACKEND_PORT — not merely alive on
-  # :8080 while a private orphan occupies :18080.
+  # its own port while a private orphan occupies a private one.
   local shared_pid_file shared_pid
   shared_pid_file="$(_real_home_default_state_dir)/backend.pid"
   shared_pid=""

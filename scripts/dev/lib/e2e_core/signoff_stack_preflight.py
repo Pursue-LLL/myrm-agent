@@ -46,7 +46,7 @@ def _myrm_cmd(monorepo_root: Path, *parts: str) -> list[str]:
 
 
 def shared_stack_ports_reachable() -> bool:
-    """True when shared :8080 health + :3000 UI respond — attach-safe without full heal."""
+    """True when shared backend health + UI respond — attach-safe without full heal."""
     from e2e_core.runtime_identity import api_health_errors, classify_ui_endpoint_error
 
     api_base = os.environ.get("E2E_API_BASE", shared_api_base())

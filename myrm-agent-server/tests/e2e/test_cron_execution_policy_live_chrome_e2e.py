@@ -1,7 +1,7 @@
 """Chrome E2E LIVE_AGENT: restricted cron job runs real LLM on private backend.
 
 Uses ``private_backend=True`` so trigger/poll hit an isolated ``:180xx`` API — never
-contends with shared ``:8080`` while parallel READ/LIVE pytest sessions run.
+contends with the shared backend while parallel READ/LIVE pytest sessions run.
 
 Formal run::
 
