@@ -1,0 +1,35 @@
+name: Public tree guards
+
+# Guards that read the whole tracked tree. They run on every push to main and every pull request,
+# with no path filter: a change under any directory (frontend, desktop, scripts, root documents)
+# is covered, not only the ones the per-module workflows watch.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-tree-guards-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-references:
+    name: No references to the private dev shell
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+
+      # The guard needs only git, the standard library and pytest, so it runs without installing the
+      # server project; --noconftest and -c /dev/null keep the project's pytest configuration out.
+      - name: Scan tracked files
+        run: >-
+          uv run --no-project --python 3.13 --with pytest==9.1.1 --
+          pytest myrm-agent-server/tests/architecture/test_no_private_references.py
+          --noconftest -c /dev/null -p no:cacheprovider
