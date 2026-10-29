@@ -5,16 +5,20 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import Response
 from myrm_agent_harness.toolkits.mcp.security import MCPResponseError, URLValidationError
 
 from app.api.integrations.mcp import inspection as mcp_mod
+from app.config.settings import settings
 from app.core.types import MCPServerConfig
 from tests.support.minimal_app import build_minimal_app
+
+if TYPE_CHECKING:
+    from httpx2 import Response  # the response type starlette's TestClient returns
 
 app = build_minimal_app(preset="integrations")
 
@@ -190,7 +194,7 @@ class TestMCPVerifyRequestBody:
 
 class TestMCPVerifyErrorMapping:
     def test_stdio_is_blocked_when_the_deployment_forbids_it(self, client: TestClient) -> None:
-        with patch.object(mcp_mod.settings.mcp, "allow_stdio", False):
+        with patch.object(settings.mcp, "allow_stdio", False):
             response = client.post(
                 _VERIFY_URL,
                 json={"name": "local", "type": "stdio", "command": "npx", "args": ["-y", "demo"]},

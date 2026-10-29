@@ -1,4 +1,4 @@
-"""Full public API surface as OpenAPI, generated once per process.
+"""The public API as OpenAPI, generated once per process: every router except the ones `app.main` mounts itself.
 
 [INPUT]
 - app.api.router.api_router (POS: 全部 REST 路由聚合)
@@ -11,7 +11,7 @@
 - API_VERBS: 计入「操作」的 HTTP 方法
 
 [POS]
-架构测试共享的全量路由快照；不 import app.main（见 test_no_app_main_in_tests）。
+架构测试共享的路由快照；不 import app.main（见 test_no_app_main_in_tests），所以 `app/main.py` 直接挂载的内部/管理路由、`/mem0`、OpenAI 兼容接口与 `/health` 不在其中。
 单次生成并缓存，因为 FastAPI 只在首次 `openapi()` 时发出重复 operationId 警告。端点函数经 `fastapi.routing.iter_route_contexts`
 从同一个应用读出：函数名相同的端点（`create_task`、`create_job`）无法靠 operationId 区分文件。
 """

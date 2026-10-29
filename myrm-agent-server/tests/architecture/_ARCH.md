@@ -66,7 +66,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `data/memory_default_mounts.txt` | 无条件挂载的记忆子路由台账：裸行是门禁引入前的存量，只许删除；`挂载名 \| 调用方 file:line` 是引入后经论证放行的新增 |
 | `test_public_mutating_routes.py` | 变更类路由（POST/PUT/PATCH/DELETE）跳过认证中间件只有一种合法理由：handler 自己认证调用方；此类路由必须登记在测试内的表里并写明认证方式，未登记（例如公开前缀把运维动作一并放行）或登记后不再公开都会失败 |
 | `test_openapi_operation_ids.py` | 全量公开 API 的 OpenAPI operationId 必须唯一：同一 (method, path) 重复注册（后者被静默遮蔽）或单个 `api_route` 挂多个 method 都会失败，一个路径只允许一个 handler |
-| `test_openapi_schema_refs.py` | 全量公开 API 的 OpenAPI 里每个 `#/components/schemas/…` 引用都必须在组件表里：请求或响应模型含任意类、生成不出 JSON schema 时，FastAPI 会放弃该组件却留下引用，`/openapi.json` 与 Swagger UI 就解析不了那个操作的请求体；运行时注入的字段要用 `SkipJsonSchema` 藏起来 |
+| `test_openapi_schema_refs.py` | 公开 API 快照（`tests/support/public_api_app.py`，不含 `app/main.py` 直接挂载的内部/管理/兼容路由）的 OpenAPI 里每个 `#/components/schemas/…` 引用都必须在组件表里：请求或响应模型含任意类、生成不出 JSON schema 时，FastAPI 会放弃该组件却留下引用，`/openapi.json` 与 Swagger UI 就解析不了那个操作的请求体；只有服务端独自注入、客户端从不发送的字段才可以用 `SkipJsonSchema` 藏起来 |
 | `test_api_services_vocabulary.py` | `app/api/` 与 `app/services/` 顶域分区 + 别名表与 `CONTRIBUTING.md` 同步 |
 | `test_calendar_schema_retired.py` | 磁盘无 calendar ORM/API；`migrations.py` 尾部 DROP calendar_events 表/索引 |
 | `test_project_legacy_workspace_migration.py` | `CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL` 须注册于 `MIGRATION_STATEMENTS` 尾部 |
