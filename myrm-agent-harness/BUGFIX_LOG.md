@@ -2901,14 +2901,14 @@
 | **状态** | FIXED |
 | **发现时间** | 2026-10-14（风控规则统一邮箱正则时，全仓搜索同形正则） |
 | **修复时间** | 2026-10-14 |
-| **症状** | `toolkits/computer_use/recording/synthesizer.py` 的 `extract_parameter_slots` 与 `observability/diagnostics_bundle/packager.py` 的脱敏用的邮箱正则 `[A-Za-z0-9._%+-]+@…` 对不含 `@` 的点号连续串回溯，耗时随长度平方增长；诊断包脱敏处理的是任意日志文本 |
-| **关联产品** | myrm-agent-harness `toolkits/computer_use/recording`、`observability/diagnostics_bundle`；server 台账 `BUG-AGENT-2026-10-14-019`（同批次的风控规则）；同一问题在隐私管线里的修复见 `BUG-HARNESS-2026-10-14-017` |
+| **症状** | `toolkits/computer_use/recording/synthesizer.py` 的 `extract_parameter_slots` 与 observability/diagnostics_bundle/packager.py（该包已于 2026-10-29 删除）的脱敏用的邮箱正则 `[A-Za-z0-9._%+-]+@…` 对不含 `@` 的点号连续串回溯，耗时随长度平方增长；诊断包脱敏处理的是任意日志文本 |
+| **关联产品** | myrm-agent-harness `toolkits/computer_use/recording`、observability/diagnostics_bundle（已于 2026-10-29 删除）；server 台账 `BUG-AGENT-2026-10-14-019`（同批次的风控规则）；同一问题在隐私管线里的修复见 `BUG-HARNESS-2026-10-14-017` |
 | **根因** | 两处各写了一份没有长度上限的邮箱正则，没有读隐私检测的单一来源 `core/security/detection/pii_patterns.py::EMAIL_RE`（长度有界） |
 | **修复** | 两处都改为导入 `EMAIL_RE`，替换文本仍是 `***@***.***`；`packager.py` 所在的 `diagnostics_bundle/` 目录当时是未提交的新目录，改动只在工作区，没有被本次提交带走 |
 | **反复次数** | 同一个正则第 2、3 处（隐私管线为第 1 处） |
 | **踩坑** | 实测（同一台机器，`findall` 耗时）：2 万字符点号串旧诊断包正则 784.9 毫秒、旧录制正则 303.2 毫秒、`EMAIL_RE` 2.0 毫秒；4 万字符 1551.1 / 1301.3 / 5.1 毫秒；10 万字符的普通文本（1695 个邮箱）三者都约 1.4 毫秒，结果相同。行为差异：本地部分超过 64 个字符的串（不是合法邮箱）旧正则整段脱敏，`EMAIL_RE` 只脱敏末尾 64 个字符，前面的字符会留下 |
 | **回归** | `tests/toolkits/computer_use/test_desktop_skill_recording.py::test_a_long_dotted_value_does_not_stall_slot_extraction`（2 万字符点号串在 0.1 秒内完成且不产生参数槽）；该文件与 `tests/observability/test_diagnostics_bundle.py` 共 11 例通过，`ruff` 通过；回归用例的耗时阈值依赖机器，旧正则在本机是 0.30 秒 |
-| **代码位置** | `toolkits/computer_use/recording/synthesizer.py` · `observability/diagnostics_bundle/packager.py`（未提交） |
+| **代码位置** | `toolkits/computer_use/recording/synthesizer.py` · observability/diagnostics_bundle/packager.py（未提交；该包已于 2026-10-29 删除） |
 
 ### BUG-HARNESS-2026-10-14-019 · 指挥中心「无噪声记忆」卡片的“清除记忆”和“提交事实”只改一个进程内字典：界面提示已清除、代次加一、事实列表清零，用户真正的记忆一条没动，提交的事实也没进任何记忆库
 
@@ -2954,7 +2954,7 @@
 | **根因** | `[a-zA-Z0-9._%+\-]+@…` 的本地部分没有上界：一段 n 个地址字符且不含 `@` 的文本，从每个起点都要一路扫到这段字符的末尾才发现没有 `@`，起点数 × 扫描长度 = O(n²)。该模式自初始导入起如此 |
 | **修复** | 本地部分限 `{1,64}`、域名限 `{1,255}`（RFC 5321 的上限），每个起点最多扫 64 个字符，耗时随文本长度线性增长；`pii_patterns.py` 的注释写明上界的用途，`detection/_ARCH.md` 补一句口径 |
 | **反复次数** | 第 1 次发现 |
-| **踩坑** | ① 先试了开头加 `(?<![a-zA-Z0-9._%+\-])` 的负向后顾，同样线性，但两个邮箱用 `.`、`-`、`_` 粘在一起时（`john@acme.com-jane@acme.org.txt`、`a@b.com_c@d.com`）第二个会漏：上一个匹配结束处仍在地址字符之内，不能再作为起点；隐私检测宁可慢也不能漏，弃用；② 有上界版本与原正则只在本地部分超过 64 个字符时不同：匹配只取最后 64 个字符加域名，前面的部分不被遮；用 30 万条随机串（字母表 `ab1._-%+@` 加空格、逗号、中文）和 5903 个含 `@` 的项目文件（1.1 亿字符、1603 处命中）逐处对比，两者的命中区间 0 处不同；③ 修复后（同一台机器、同一批文本）：3 万字符 `classify_content` 697 → 21 ms，`redact_pii` 744 → 21 ms；30 万字符 218 / 211 ms；100 万字符 796 / 714 ms；真实文本（上述 1.1 亿字符）扫描耗时 2.80 → 2.76 s，持平；④ 同形状的邮箱正则在 PII 表之外还有三处，不属于隐私检测管线，本次没改：`observability/diagnostics_bundle/packager.py:38`、已随 `sanitized_debug_dump` 整体删除的脱敏器（原 `redactor.py` 第 42 行）、`toolkits/computer_use/recording/synthesizer.py:33`，同样的文本 2 万 / 4 万字符 42 / 306 / 43 ms → 170 / 1119 / 172 ms（×4.0 / ×3.7 / ×4.0） |
+| **踩坑** | ① 先试了开头加 `(?<![a-zA-Z0-9._%+\-])` 的负向后顾，同样线性，但两个邮箱用 `.`、`-`、`_` 粘在一起时（`john@acme.com-jane@acme.org.txt`、`a@b.com_c@d.com`）第二个会漏：上一个匹配结束处仍在地址字符之内，不能再作为起点；隐私检测宁可慢也不能漏，弃用；② 有上界版本与原正则只在本地部分超过 64 个字符时不同：匹配只取最后 64 个字符加域名，前面的部分不被遮；用 30 万条随机串（字母表 `ab1._-%+@` 加空格、逗号、中文）和 5903 个含 `@` 的项目文件（1.1 亿字符、1603 处命中）逐处对比，两者的命中区间 0 处不同；③ 修复后（同一台机器、同一批文本）：3 万字符 `classify_content` 697 → 21 ms，`redact_pii` 744 → 21 ms；30 万字符 218 / 211 ms；100 万字符 796 / 714 ms；真实文本（上述 1.1 亿字符）扫描耗时 2.80 → 2.76 s，持平；④ 同形状的邮箱正则在 PII 表之外还有三处，不属于隐私检测管线，本次没改：observability/diagnostics_bundle/packager.py:38（该包已于 2026-10-29 删除）、已随 `sanitized_debug_dump` 整体删除的脱敏器（原 `redactor.py` 第 42 行）、`toolkits/computer_use/recording/synthesizer.py:33`，同样的文本 2 万 / 4 万字符 42 / 306 / 43 ms → 170 / 1119 / 172 ms（×4.0 / ×3.7 / ×4.0） |
 | **回归** | `tests/agent/security/test_pii_patterns.py::TestEmailPattern` 11 例（常见写法与带标签的地址、用逗号与用 `.`、`-`、`_` 粘连的两个地址都找全、64 位本地部分、不完整的域名不算；5 种形状的 20 万字符连续文本在 3 秒内扫完，改前同形状 4 万字符就要 1 秒以上）· `tests/agent/security`、`tests/core/security` 全绿 |
 | **代码位置** | `core/security/detection/pii_patterns.py::EMAIL_RE` |
 
