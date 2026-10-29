@@ -276,7 +276,13 @@ from myrm_agent_harness.core.security.redact.command_line import (
     command_preview as command_preview,
 )
 from myrm_agent_harness.core.security.redact.engine import (
+    redact_field_text as redact_field_text,
+)
+from myrm_agent_harness.core.security.redact.engine import (
     redact_sensitive_text as redact_sensitive_text,
+)
+from myrm_agent_harness.core.security.redact.nested import (
+    redact_nested as redact_nested,
 )
 from myrm_agent_harness.core.security.tool_registry.registry import (
     MCPAnnotations as MCPAnnotations,

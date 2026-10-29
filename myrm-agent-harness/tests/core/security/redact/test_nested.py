@@ -164,3 +164,25 @@ class TestRedactForDisplay:
         args["self"] = args
 
         assert redact_for_display(args) == {"command": "ls", "self": CIRCULAR}
+
+
+class TestMaskKeys:
+    def test_a_dict_key_is_left_alone_unless_the_caller_asks_for_it(self) -> None:
+        assert redact_nested({_TOKEN: "x"}, lambda _key, _text: "masked") == {_TOKEN: "masked"}
+
+    def test_a_key_that_is_a_credential_is_masked_on_request(self) -> None:
+        result = redact_nested({"env": {_TOKEN: "prod"}}, redact_field_text, mask_keys=True)
+
+        assert result == {"env": {f"{_TOKEN[:6]}...{_TOKEN[-4:]}": "prod"}}
+
+    def test_the_value_under_a_masked_key_still_sees_the_original_field_name(self) -> None:
+        calls = _Calls()
+
+        redact_nested({"Cookie": "v", "inner": {"password": "w"}}, calls, mask_keys=True)
+
+        assert ("Cookie", "v") in calls.seen
+        assert ("password", "w") in calls.seen
+        assert ("", "Cookie") in calls.seen
+
+    def test_a_key_that_is_not_text_is_kept(self) -> None:
+        assert redact_nested({7: "x"}, lambda _key, _text: "m", mask_keys=True) == {7: "m"}

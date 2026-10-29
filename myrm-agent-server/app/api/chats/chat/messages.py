@@ -215,7 +215,7 @@ async def export_chat(
 
         tool_summary = await build_tool_summary(chat_id, db)
         agent_info = await build_agent_info(chat.agent_id, db)
-        tool_call_details = await build_tool_call_details(chat_id, db)
+        tool_call_details = await build_tool_call_details(chat_id, db, redact_secrets=redact_secrets)
 
         payload_data: dict[str, object] = {
             "chat": {"id": chat.id, "title": chat.title, "source": chat.source, "createdAt": chat.created_at.isoformat()},

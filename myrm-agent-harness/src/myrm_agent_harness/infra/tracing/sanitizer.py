@@ -96,15 +96,7 @@ class TraceSpanSanitizer:
                     sanitized_dict = self.sanitize_payload(parsed)
                     val = json.dumps(sanitized_dict, ensure_ascii=False)
                 elif isinstance(parsed, list):
-                    sanitized_list = [
-                        (
-                            self.sanitize_payload(item)
-                            if isinstance(item, Mapping)
-                            else (self.sanitize_string_value(item) if isinstance(item, str) else item)
-                        )
-                        for item in parsed
-                    ]
-                    val = json.dumps(sanitized_list, ensure_ascii=False)
+                    val = json.dumps(self._sanitize_value(parsed), ensure_ascii=False)
             except Exception:
                 pass
 
@@ -161,24 +153,21 @@ class TraceSpanSanitizer:
                 str_k.startswith(p) for p in self._safe_prefixes
             ):
                 sanitized[k] = "[REDACTED_SENSITIVE_KEY]"
-            elif isinstance(v, str):
-                sanitized[k] = self.sanitize_string_value(v)
-            elif isinstance(v, (int, float, bool)) or v is None:
-                sanitized[k] = v
-            elif isinstance(v, Mapping):
-                sanitized[k] = self.sanitize_payload(v)
-            elif isinstance(v, (list, tuple)):
-                sanitized[k] = [
-                    (
-                        self.sanitize_string_value(item)
-                        if isinstance(item, str)
-                        else (self.sanitize_payload(item) if isinstance(item, Mapping) else item)
-                    )
-                    for item in v
-                ]
             else:
-                sanitized[k] = self.sanitize_string_value(str(v))
+                sanitized[k] = self._sanitize_value(v)
         return sanitized
+
+    def _sanitize_value(self, value: object) -> object:
+        """Scrub one payload value at any depth: a list or tuple is rebuilt item by item, whatever the items are."""
+        if isinstance(value, str):
+            return self.sanitize_string_value(value)
+        if isinstance(value, (int, float, bool)) or value is None:
+            return value
+        if isinstance(value, Mapping):
+            return self.sanitize_payload(value)
+        if isinstance(value, (list, tuple)):
+            return [self._sanitize_value(item) for item in value]
+        return self.sanitize_string_value(str(value))
 
 
 _DEFAULT_SANITIZER = TraceSpanSanitizer()

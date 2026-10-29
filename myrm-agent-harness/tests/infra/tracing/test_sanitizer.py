@@ -117,3 +117,25 @@ def test_single_attribute_entry_point_applies_all_three_layers() -> None:
     # Layer 3
     truncated = sanitizer.sanitize_attribute("gen_ai.request.model", "Z" * 1000)
     assert isinstance(truncated, str) and "[TRUNCATED:len=1000:sha256=" in truncated
+
+
+_SECRET = "zk93jf02kd83hf92kd03jf82kd"
+
+
+def test_a_list_inside_a_list_is_scrubbed_like_the_list_that_holds_it() -> None:
+    sanitized = sanitize_trace_payload(
+        {
+            "headers": [["Authorization", f"Bearer {_SECRET}"]],
+            "rows": [[{"password": _SECRET}]],
+            "pair": ("password", f"Bearer {_SECRET}"),
+        }
+    )
+
+    assert _SECRET not in str(sanitized)
+    assert sanitized["rows"] == [[{"password": "[REDACTED_SENSITIVE_KEY]"}]]
+
+
+def test_a_value_of_an_unknown_type_is_scrubbed_as_text_at_any_depth() -> None:
+    sanitized = sanitize_trace_payload({"items": [{f"Bearer {_SECRET}"}], "bare": {f"Bearer {_SECRET}"}})
+
+    assert _SECRET not in str(sanitized)

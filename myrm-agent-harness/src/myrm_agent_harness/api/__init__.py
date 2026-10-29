@@ -224,6 +224,8 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "is_registered_action_tool": ("myrm_agent_harness.agent.tool_management.tool_layers", "is_registered_action_tool"),
     "command_preview": ("myrm_agent_harness.core.security.redact.command_line", "command_preview"),
     "redact_connector_url": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "redact_connector_url"),
+    "redact_field_text": ("myrm_agent_harness.core.security.redact.engine", "redact_field_text"),
+    "redact_nested": ("myrm_agent_harness.core.security.redact.nested", "redact_nested"),
     "redact_sensitive_text": ("myrm_agent_harness.core.security.redact.engine", "redact_sensitive_text"),
     "register_ptc_safety_metadata": (
         "myrm_agent_harness.core.security.tool_registry.registry",

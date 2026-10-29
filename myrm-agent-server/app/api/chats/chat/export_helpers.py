@@ -4,7 +4,7 @@
 app.database.models.agent::Agent
 myrm_agent_harness.agent.event_log.backends.file_backend::FileEventLogBackend
 myrm_agent_harness.agent.event_log.trace_builder::build_trace
-myrm_agent_harness.api::redact_sensitive_text
+myrm_agent_harness.api::redact_nested, redact_field_text (POS: shared walker and field-aware credential masking of the redaction domain)
 sqlalchemy.ext.asyncio::AsyncSession
 
 [OUTPUT]
@@ -18,12 +18,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Final
+from typing import Final, cast
 
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
 from myrm_agent_harness.agent.event_log.trace_types import ToolCallRecord
-from myrm_agent_harness.api import redact_sensitive_text
+from myrm_agent_harness.api import redact_field_text, redact_nested
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,35 +34,12 @@ from app.database.models.chat import Message
 _ARG_SUMMARY_MAX_LEN: Final[int] = 200
 
 
-def _deep_redact_sensitive(data: object, max_depth: int = 15) -> object:
-    """Recursively sanitize secrets across any nested dict, list, or string structure."""
-    if max_depth <= 0:
-        return data
-
-    if isinstance(data, str):
-        return redact_sensitive_text(data)
-
-    if isinstance(data, dict):
-        return {
-            (redact_sensitive_text(k) if isinstance(k, str) else k): _deep_redact_sensitive(v, max_depth - 1)
-            for k, v in data.items()
-        }
-
-    if isinstance(data, list):
-        return [_deep_redact_sensitive(item, max_depth - 1) for item in data]
-
-    if isinstance(data, tuple):
-        return tuple(_deep_redact_sensitive(item, max_depth - 1) for item in data)
-
-    return data
-
-
 def redact_export_payload(payload: dict[str, object]) -> dict[str, object]:
-    """Sanitize secrets across all exported chat structures recursively."""
-    sanitized = _deep_redact_sensitive(payload)
-    if isinstance(sanitized, dict):
-        return sanitized
-    return payload
+    """Mask credentials in every string and key of an export payload, by the name of the field that holds it.
+
+    A container nested deeper than the walker's limit is replaced by a marker, never exported as it is.
+    """
+    return cast("dict[str, object]", redact_nested(payload, redact_field_text, mask_keys=True))
 
 
 async def load_tool_calls(chat_id: str) -> list[ToolCallRecord]:
@@ -113,9 +90,8 @@ async def build_agent_info(agent_id: str | None, db: AsyncSession) -> dict[str, 
     if not agent:
         return None
 
-    model_name: str | None = None
-    if agent.model_selection and isinstance(agent.model_selection, dict):
-        model_name = agent.model_selection.get("model")
+    model = agent.model_selection.get("model") if isinstance(agent.model_selection, dict) else None
+    model_name = model if isinstance(model, str) else None
 
     return {
         "name": agent.name,
@@ -163,7 +139,14 @@ def assistant_turn_index_at(start_time: float, windows: list[tuple[float, int]])
     return windows[-1][1] if windows else 0
 
 
-async def build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[str, object]] | None:
+def _args_of(call: ToolCallRecord, *, redact_secrets: bool) -> dict[str, object]:
+    """Tool input of ``call``; credentials are masked while the fields still have names, before the flat summary."""
+    if not redact_secrets:
+        return call.input_data
+    return cast("dict[str, object]", redact_nested(call.input_data, redact_field_text))
+
+
+async def build_tool_call_details(chat_id: str, db: AsyncSession, *, redact_secrets: bool) -> list[dict[str, object]] | None:
     """Fetch per-tool-call details from the harness event log."""
     tool_calls = await load_tool_calls(chat_id)
     if not tool_calls:
@@ -188,7 +171,7 @@ async def build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[s
             {
                 "turnIndex": turn_index,
                 "name": call.tool_name,
-                "argsSummary": build_args_summary(call.input_data),
+                "argsSummary": build_args_summary(_args_of(call, redact_secrets=redact_secrets)),
                 "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
                 "success": call.success,
             }
