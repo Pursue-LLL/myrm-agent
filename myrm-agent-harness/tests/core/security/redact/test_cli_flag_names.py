@@ -160,25 +160,24 @@ class TestCostStaysLinear:
         assert large < max(small * 12, 0.5)
 
 
-class TestTheValueIsOneShellWord:
-    """An unquoted value ends where the shell word ends: at a separator, a closing bracket or a backtick. A backslash
-    keeps the next character inside the value."""
+class TestTheValueRunsToTheEndOfTheWord:
+    """An unquoted value is masked up to the next whitespace or quote. An argument list printed without its quoting
+    (``ps``, a logged ``argv``) shows no difference between a separator inside the value and one between two commands,
+    and a value cut at the separator would leave the rest of the credential readable. A backslash keeps the next
+    character inside the value."""
 
-    @pytest.mark.parametrize(
-        ("text", "masked"),
-        [
-            ("tool --token abc123xyz;echo ok", "tool --token ***;echo ok"),
-            ("tool --token abc123xyz|grep ok", "tool --token ***|grep ok"),
-            ("tool --token abc123xyz&&next", "tool --token ***&&next"),
-            ("tool --token abc123xyz>out.txt", "tool --token ***>out.txt"),
-            ("tool --token abc123xyz<in.txt", "tool --token ***<in.txt"),
-            ("x=$(tool --token abc123xyz) && next", "x=$(tool --token ***) && next"),
-            ("(tool --token abc123xyz)", "(tool --token ***)"),
-            ("Run `tool --password hunter2pw`, then stop.", "Run `tool --password ***`, then stop."),
-        ],
-    )  # fmt: skip
-    def test_the_text_after_the_value_is_kept(self, text: str, masked: str) -> None:
-        assert redact_sensitive_text(text) == masked
+    @pytest.mark.parametrize("character", [";", "|", "&", "<", ">", "(", ")", "`", "$", "\\"])
+    def test_a_value_that_holds_a_separator_is_masked_whole(self, character: str) -> None:
+        text = f"tool --password hunter2{character}Prod99xyz next"
+        assert redact_sensitive_text(text) == "tool --password *** next"
+
+    @pytest.mark.parametrize("flag", ["--api-key", "--client-secret", "--auth-token", "--token"])
+    @pytest.mark.parametrize("character", [";", "|", "&", "<", ">", "(", ")", "`"])
+    def test_the_middle_of_a_long_value_is_masked_after_a_separator(self, flag: str, character: str) -> None:
+        text = f"tool {flag} abcdef{character}MIDSECRETWORD{character}wxyz next"
+        result = redact_sensitive_text(text)
+        assert "MIDSECRETWORD" not in result
+        assert result.endswith(" next")
 
     @pytest.mark.parametrize("character", [";", "|", "&", "<", ">", "(", ")", "`", " ", "\\"])
     def test_an_escaped_character_is_part_of_the_value(self, character: str) -> None:

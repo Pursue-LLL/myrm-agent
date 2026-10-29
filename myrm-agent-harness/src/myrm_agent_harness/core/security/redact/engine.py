@@ -186,6 +186,8 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
 
     Key features:
     - Bounded regex replace to prevent ReDoS (OPT-1)
+    - Command-line credential redaction (``curl -u/-b``, ``sshpass -p``, ``mysql -p``) first, while the command name
+      is still in the text
     - Control/zero-width split-token masking before prefix matching
     - Form-urlencoded body pair-wise redaction (no parameter swallowing)
     - YAML/colon config redaction (unquoted + quoted values)
@@ -193,7 +195,6 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
     - PEM block special handling to preserve header/footer (OPT-3)
     - URL query parameter redaction (OPT-2)
     - CLI flag redaction (OPT-5)
-    - Command-line credential redaction (``curl -u/-b``, ``sshpass -p``, ``mysql -p``)
     - Telegram Bot URL redaction (OPT-6)
     - Extended token prefix coverage (Groq, Slack App, Anthropic) (OPT-4)
     """

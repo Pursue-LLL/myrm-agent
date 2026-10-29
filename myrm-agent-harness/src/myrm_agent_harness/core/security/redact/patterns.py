@@ -12,7 +12,7 @@ separately.
 
 [OUTPUT]
 - compiled detection regexes (``_PREFIX_RE``, ``_ENV_ASSIGN_RE``, ...)
-- ``_CLI_FLAG_RE`` — a command-line flag that names a credential (``--db-password``, ``--client-secret``, ``--auth-token``) with its value; groups 1 / 2 / 3 are the flag, the value and its opening quote; ``_SHELL_WORD`` is the regex of one unquoted shell word, shared with ``command_line.py``
+- ``_CLI_FLAG_RE`` — a command-line flag that names a credential (``--db-password``, ``--client-secret``, ``--auth-token``) with its value; groups 1 / 2 / 3 are the flag, the value and its opening quote
 - ``_redact_form_body`` / ``_redact_value`` / ``_redact_*_assignment`` — shared replacers
 - ``_is_env_reference`` — whether a value is entirely a variable reference (readable, never masked)
 - ``_is_word_start`` / ``_is_word_end`` / ``_key_has_secret_keyword`` — key validation: a credential word at a word boundary, or a password noun / known credential variable as the end of the name
@@ -329,13 +329,13 @@ _URL_QUERY_RE = re.compile(rf"([?&](?:{_URL_QUERY_KEYS})=)([^&\s]+)", re.IGNOREC
 # flag 名、分隔符（空格或 `=`）、值分组捕获，替换仅作用于值，避免短值误伤 flag 名（`--secret s` 误伤为 `--***ecret ***`）。
 # flag 名以口令名词结尾（`--db-password`/`--client-secret`/`--aws-secret-access-key`），或以 `token` 结尾且前有凭据词（`--auth-token`；
 # `--failure-token` 这类程序自己的 token 不算）；`--password-file`/`--secret-name` 后接别的词、`--no-password`/`--skip-…` 表示不用口令，均不命中；`--password=`/`--token=` 亦由 _ENV_ASSIGN_RE 覆盖（幂等）。
-# 无引号的值是一个 shell 词（`_SHELL_WORD`）：止于空白、引号、`; | & < > ( )` 与反引号，其后的命令名因此不被吞掉；反斜杠转义下一个字符（`pa\;ss` 是一个词）。
-_SHELL_WORD = r"(?:\\.|[^\s\"'`;|&<>()\\])+"
+# 无引号的值延伸到空白或引号为止：口令里可以有分隔符与括号，而不带引号打印的参数列表（`ps`、日志里的 argv）看不出它们与命令之间的分隔符有何不同，
+# 在分隔符处截断会让口令的其余部分原样留下；反斜杠转义下一个字符，空格也在内（`pa\ ss` 是一个值）。
 _CLI_FLAG_RE = re.compile(
     r"(--(?!(?:no|skip|disable|without)[-_])(?:"
     r"(?:[a-z0-9]+[-_]){0,5}(?:password|passwd|pass[-_]?phrase|secret|(?:api|access|secret)[-_]?key)"
     r"|(?:[a-z0-9]+[-_]){0,3}(?:auth|access|api|bot|hook|refresh|session|bearer|id|private|personal|oauth|admin|secret)[-_]?token"
-    r"|token)(?:\s+|=))((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|" + _SHELL_WORD + r")",
+    r"|token)(?:\s+|=))((?:(['\"])(?:[^'\"\\\\]|''|\\.)*\3)|(?:\\.|[^\s\"'\\])+)",
     re.IGNORECASE,
 )
 

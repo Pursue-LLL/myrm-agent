@@ -10,7 +10,6 @@ a file or a tool result, while a text known to be a command masks it.
 [INPUT]
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
 - engine::redact_sensitive_text (POS: Redaction pipeline and public API of the redactor)
-- patterns::_SHELL_WORD (POS: Regex of one unquoted shell word, shared with the CLI-flag pattern)
 
 [OUTPUT]
 - redact_command_line(command) -> str — the command with every credential masked; whitespace and line breaks as written
@@ -26,14 +25,17 @@ import re
 
 from .bounded_replace import _replace_pattern_bounded
 from .engine import redact_sensitive_text
-from .patterns import _SHELL_WORD
 
-# The names are matched as substrings of a parameter, so ``key`` and ``auth`` also name ``--key`` and ``--auth``.
+# A long option is named by one of these words (``--key``, ``--auth``); an assignment by a name that ends in one (``MY_TOKEN=x``).
 _KEYWORDS = (
     "token", "password", "passwd", "pwd", "api_key", "apikey", "api-key", "secret", "key", "auth",
     "credential", "credentials", "access_key", "access-key", "private_key", "private-key", "bearer", "authorization",
 )  # fmt: skip
 _NAMES = "|".join(re.escape(keyword) for keyword in _KEYWORDS)
+
+# A value is one shell word: it ends at whitespace, a quote, a separator, a bracket or a backtick, and a backslash keeps
+# the next character in it. The command is known to be one, so the words after a value stay as written.
+_SHELL_WORD = r"(?:\\.|[^\s\"'`;|&<>()\\])+"
 
 # ``--token=x`` / ``--token x`` / ``--token="x"`` and the environment form ``TOKEN=x``. A short option (``-t x``) has no
 # name to go by: the command rules and the shared redactor handle those, this pass does not guess.

@@ -146,11 +146,11 @@ class TestAValueThatTouchesASeparatorDoesNotHideTheNextCommand:
     ) -> None:
         assert _PASSWORD not in redact_sensitive_text(f"{first}{separator}{second}")
 
-    def test_the_command_word_after_the_value_is_kept(self) -> None:
-        assert (
-            redact_sensitive_text(f"tool --token abc123xyz;curl -u a:{_PASSWORD} x")
-            == "tool --token ***;curl -u a:*** x"
-        )
+    def test_a_word_glued_to_the_value_is_part_of_it_for_the_shared_redactor(self) -> None:
+        """The shared redactor reads text of any kind: it masks to the end of the word and keeps no command word glued
+        to a value; the command rules ran before it, so the credential of that command is masked all the same."""
+        result = redact_sensitive_text(f"tool --client-secret abc123xyz;curl -u a:{_PASSWORD} x")
+        assert result == "tool --client-secret *** -u a:*** x"
 
     def test_the_entry_is_idempotent(self) -> None:
         once = redact_command_line(f"tool --key abc123xyz;curl -u a:{_PASSWORD} x")
