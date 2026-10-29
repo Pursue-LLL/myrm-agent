@@ -425,6 +425,7 @@ async def run_post_call_guards(
         return result
 
     result_text = extract_text_content(result.content)
+    untruncated_text = result_text
 
     if not result_text.strip():
         result_text = "(no output)"
@@ -583,14 +584,12 @@ async def run_post_call_guards(
 
     freq_guard.record(tool_name)
 
-    if tool_name == "bash_code_execute_tool":
+    if tool_name == "bash_code_execute_tool" and call_record is not None:
         from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import (
-            classify_verification,
+            tag_verification_call,
         )
 
-        vtype = classify_verification(tool_args)
-        if vtype is not None and call_record is not None:
-            call_record.verification_type = vtype
+        tag_verification_call(call_record, tool_args, untruncated_text)
 
     warnings: list[str] = []
     if loop_verdict.action == LoopAction.WARN or post_verdict.action == LoopAction.WARN:

@@ -1,29 +1,42 @@
-"""Verification command classification: is a bash command a test, lint, type-check or build run.
+"""Verification command classification: is a bash command a test, lint, type-check or build run, and did it fail.
 
 [INPUT]
 - agent.security.guards.loop_guard::VerificationCategory (POS: the kinds of verification a command can be)
+- agent.security.guards.loop_guard::CallRecord, SuccessLevel (POS: the recorded call and how its output was judged)
 
 [OUTPUT]
 - classify_verification(): the verification category of a bash tool call, or None
+- tag_verification_call(): records the category on a finished bash call and fails it when its exit code says so
 
 [POS]
-Tells the guard which recorded bash calls count as verification of code the run wrote. A command is split into
-shell segments (quote-aware, on ``&&`` ``||`` ``;`` ``&``), each segment is stripped of what only launches the real
-program (environment assignments, ``timeout``, ``uv run``, ``npx``, interpreter and ``.venv/bin`` paths), and the
-program plus its leading arguments are matched on whole tokens. Token matching keeps ``pip install pytest`` and
-``npm test-helper`` from counting; the stripping keeps ``FOO=1 npm test`` and ``uv run pytest`` from being missed.
+Tells the guard which recorded bash calls count as verification of code the run wrote, and whether each passed.
+A command is split into shell segments (quote-aware, on ``&&`` ``||`` ``;`` ``&``), each segment is stripped of what
+only launches the real program (environment assignments, ``timeout``, ``uv run``, ``npx``, interpreter and
+``.venv/bin`` paths), and the program plus its leading arguments are matched on whole tokens. Token matching keeps
+``pip install pytest`` and ``npm test-helper`` from counting; the stripping keeps ``FOO=1 npm test`` and
+``uv run pytest`` from being missed.
+The output judge reads text for failure keywords, which ruff, tsc and a summary-only pytest run do not print; the
+exit code the bash tool appends is what marks those runs failed.
 """
 
 from __future__ import annotations
 
 import re
 
-from myrm_agent_harness.agent.security.guards.loop_guard import VerificationCategory
+from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, SuccessLevel, VerificationCategory
 
 _TEST = VerificationCategory.TEST
 _LINT = VerificationCategory.LINT
 _TYPECHECK = VerificationCategory.TYPECHECK
 _BUILD = VerificationCategory.BUILD
+
+# The bash tool ends the result of a command that exited non-zero with ``[exit_code: N]``.
+_EXIT_MARKER = re.compile(r"\[exit_code: (-?\d+)")
+# 124 is a timeout and 137 a SIGKILL (the tool's own hints); above 127 or negative is a signal. Those say the
+# run was cut short, not that the checks it runs failed.
+_TIMED_OUT = 124
+_LAST_PROGRAM_EXIT = 127
+_JUDGED_PASSING = frozenset({SuccessLevel.FULL_SUCCESS, SuccessLevel.PARTIAL_SUCCESS})
 
 _PATTERNS: dict[tuple[str, ...], VerificationCategory] = {
     ("pytest",): _TEST,
@@ -217,4 +230,31 @@ def classify_verification(tool_args: dict[str, object]) -> VerificationCategory 
     return None
 
 
-__all__ = ["classify_verification"]
+def _exited_with_failure(result_text: str) -> bool:
+    """True when the bash tool reported a program exit code that means the command's checks failed.
+
+    The last marker is the shell's own: the tool appends it after all output, so earlier text that quotes one is
+    output. A result without a marker (exit 0, or a run still going in the background) is not a failure.
+    """
+    markers = _EXIT_MARKER.findall(result_text)
+    if not markers:
+        return False
+    code = int(markers[-1])
+    return 1 <= code <= _LAST_PROGRAM_EXIT and code != _TIMED_OUT
+
+
+def tag_verification_call(record: CallRecord, tool_args: dict[str, object], result_text: str) -> None:
+    """Record which kind of verification a finished bash call was; a failing exit code overrules a passing read.
+
+    ``result_text`` is the untruncated tool result: budget truncation can cut the exit line off. Only a call the
+    output judge read as passing is changed, so an empty verification (no tests collected) keeps its own verdict.
+    """
+    category = classify_verification(tool_args)
+    if category is None:
+        return
+    record.verification_type = category
+    if record.success_level in _JUDGED_PASSING and _exited_with_failure(result_text):
+        record.success_level = SuccessLevel.FAILURE
+
+
+__all__ = ["classify_verification", "tag_verification_call"]
