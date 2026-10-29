@@ -1,7 +1,17 @@
-"""
-@input: 接收源代码文件路径与 AST 节点请求
-@output: 提供基础数据结构定义（SymbolNode, CallEdge, CallSite, ParsedFile, IndexStats）
-@pos: 代码图谱领域数据模型与契约
+"""Domain data model of the code graph.
+
+[INPUT]
+- 无内部依赖（仅标准库 dataclasses、enum）
+
+[OUTPUT]
+- SymbolKind: 符号种类枚举
+- SymbolNode、CallEdge、InheritanceEdge、ImportEdge: 符号以及调用、继承、导入关系的记录
+- CallSite: 一次调用在源码中的位置、参数个数与关键字参数名
+- ParsedFile: 单个文件的解析结果及其指纹（决定是否需要重新解析）
+- IndexStats: 一次索引同步后的统计
+
+[POS]
+代码图谱领域数据模型与契约。定义符号、调用、继承、导入关系，单文件解析结果与同步统计，供抽取器、存储与服务共用。
 """
 
 from dataclasses import asdict, dataclass, field

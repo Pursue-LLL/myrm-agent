@@ -1,7 +1,16 @@
-"""
-@input: 接收源代码文件与 AST 解析请求
-@output: 针对 Python 与 TypeScript/JavaScript 文件的 AST 符号、调用关系抽取器；module_name_for（两个抽取器共用的相对路径到点分模块名规则）
-@pos: 代码图谱静态 AST 解析核心
+"""Static extraction of symbols and relations from one Python or TypeScript/JavaScript source file.
+
+[INPUT]
+- models.py::(CallEdge, CallSite, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
+- ast、re、pathlib（标准库）
+
+[OUTPUT]
+- module_name_for: 相对路径到点分模块名的规则，两个抽取器共用
+- PythonAstExtractor: 基于原生 ast 的 Python 符号、调用、继承、导入抽取；不是合法 Python 时返回 False
+- JsTsRegexExtractor: 基于按行正则的 TypeScript/JavaScript 符号与调用抽取，调用归属是近似的
+
+[POS]
+静态解析层。把单个源文件的路径与源码文本解析为符号和关系，不读取文件系统与存储。
 """
 
 import ast

@@ -1,8 +1,8 @@
 """Code graph SQLite store for persistent AST symbols and deterministic call edges.
 
 [INPUT]
-- models.py::(ParsedFile, SymbolKind, SymbolNode)
-- sqlite3
+- models.py::(ParsedFile, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
+- sqlite3（标准库）
 
 [OUTPUT]
 - CodeGraphStore: SQLite WAL 持久化代码图谱存储：按文件指纹增量同步与确定性图遍历查询

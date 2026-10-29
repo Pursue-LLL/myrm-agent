@@ -1,9 +1,9 @@
 """Code graph service orchestration facade for AST indexing and graph queries.
 
 [INPUT]
-- ast_extractor.py::(JsTsRegexExtractor, PythonAstExtractor)
-- graph_store.py::CodeGraphStore
-- models.py::(IndexStats, ParsedFile)
+- ast_extractor.py::(JsTsRegexExtractor, PythonAstExtractor) (POS: 静态解析层，把单个源文件解析为符号与关系)
+- graph_store.py::CodeGraphStore (POS: 本地轻量级代码 AST 符号图谱与调用关系持久化存储库)
+- models.py::(IndexStats, ParsedFile) (POS: 代码图谱领域数据模型与契约)
 - myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer (POS: git-aware workspace file lister)
 
 [OUTPUT]
