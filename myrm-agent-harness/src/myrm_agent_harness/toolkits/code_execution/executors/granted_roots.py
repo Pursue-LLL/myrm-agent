@@ -10,7 +10,9 @@
 
 [POS]
 The executor's boundary is the workspace plus the roots the policy names and the person granted, so a path the
-engine lets through is a path the executor reaches; a read-only grant never lets a write through.
+engine lets through is a path the executor reaches; a read-only grant never lets a write through. A root is a real
+path from the moment it is granted, so a path is tested against the root as stored: a link put in the root's
+place later does not move the root.
 """
 
 from __future__ import annotations
@@ -27,7 +29,11 @@ if TYPE_CHECKING:
 
 def granted_root_containing(resolved: str | Path) -> AccessRoot | None:
     """The most specific directory that holds ``resolved`` (a writable one when two are as specific), or None."""
-    holding = [root for root in reachable_access_roots() if is_within_boundary(resolved, root.path)]
+    try:
+        target = Path(resolved).resolve()
+    except (OSError, RuntimeError):
+        return None
+    holding = [root for root in reachable_access_roots() if target.is_relative_to(root.path)]
     return max(holding, key=lambda root: (len(root.path), root.writable), default=None)
 
 

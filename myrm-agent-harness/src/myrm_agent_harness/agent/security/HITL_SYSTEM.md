@@ -288,8 +288,8 @@ const resumeValue = { decisions };
 - **生效面**：授权根存放在本次运行的 `AccessGrants` 容器（`core.context_vars.access_grants_var`；运行入口 `open_access_grants` 打开一次，之后只原地修改，因为图的每个节点在复制的上下文里运行，重新绑定的 ContextVar 对后续节点不可见），权限引擎与沙箱执行器共用（执行器边界见 `EXECUTION_SYSTEM.md`「文件操作边界」）。容器分三层：`declared`（`PathPolicy.access_roots`，整个运行固定）、`session`（用户选择记住的目录，业务层在运行前也会预置）、`once`（见下）。
 - **仅本次与本会话记住**：批准一次调用，就为这次调用点名的路径开一次门：`grant_paths_once` 把该调用点名、且 PathPolicy 判为 ASK 的路径所在目录登记为 `once` 根（写入类工具为可读写，审计记 `PATH_OPENED_ONCE`），否则执行器会拒绝一个刚被人批准的调用；`once` 根在下一次模型响应到达 `ToolApprovalMiddleware.aafter_model` 时丢弃，不延续到后续调用。勾选「同时授予文件夹访问」才登记 `session` 根（记住）。`edit` 决议不开门（改写后的路径没有被人看过）；被拒绝的路径（禁区、锁定策略）与工作区内的路径不登记；bash 只认 `declared` 与 `session` 根，不认 `once` 根。
 - **不提供的授权**：可写且包含危险根的目录（主目录、盘符根、`/`，经其子树可触达 `~/.ssh`）不会被提供，也不会被授权；同一目录的只读授权不受影响。计划与授权共用这条判断，卡片不会承诺一个勾选后被丢弃的文件夹。
-- **锁定**：`PathPolicy.allow_directory_grants=False`（配置键 `pathPolicy.allowDirectoryGrants`）供需要把运行限制在工作区与声明根之内的宿主使用（如 worktree 隔离的沙箱模式）：工作区与声明根之外的路径由引擎直接 DENY（没有任何审批能放宽它，不再弹一个注定失败的 ASK），计划为空、授权被拒。
-- **持久化与部署边界**：授权的持久化与部署边界（沙箱模式、云卷、危险根）由业务层 `session_access_service` 负责：沙箱模式拒绝一切授权，在轮次启动（bootstrap）、拖拽授权（`POST session-access-roots`，被拒返回 403 而不是 200 加原列表）与审批恢复三处同一道闸门；沙箱模式同时经 `SecurityOverlaySpec.sandbox_isolated` 把策略锁定，使卡片不再提供文件夹。harness 在批准后对当次运行的授权不经过部署边界检查，该检查只约束业务层的持久化。
+- **锁定**：`PathPolicy.allow_directory_grants=False`（配置键 `pathPolicy.allowDirectoryGrants`）供需要把运行限制在工作区与声明根之内的宿主使用（如 worktree 隔离的沙箱模式）：工作区与声明根之外的路径由引擎直接 DENY（没有任何审批能放宽它，所以不会弹出注定失败的询问），计划为空、授权被拒。
+- **持久化与部署边界**：授权的持久化与部署边界（沙箱模式、云卷、危险根）由业务层 `session_access_service` 负责：沙箱模式拒绝一切授权，在轮次启动（bootstrap）、拖拽授权（`POST session-access-roots`，被拒返回 403）与审批恢复三处同一道闸门；沙箱模式同时经 `SecurityOverlaySpec.sandbox_isolated` 把策略锁定，卡片因此不提供文件夹授权。harness 在批准后对当次运行的授权不经过部署边界检查，该检查只约束业务层的持久化。
 - **Git 钩子与配置**：向 `.git/hooks` 与 `.git/config`（含子模块 `.git/modules/**`）的写入、编辑，在所有渠道预设下一律 ASK（`is_executable_git_metadata_file`，与受保护指令文件同一道写入闸门）：它们决定用户下一次 `git commit` 会执行什么，注入的提示词不能在 agent 监督之外悄悄写入。读取不受影响。
 
 ### 工具级AST安全门禁

@@ -176,6 +176,31 @@ def test_the_same_file_is_opened_once_and_a_write_upgrades_it(run: tuple[Path, P
     assert _once_paths(grants) == [(os.path.join(outside, "a.csv"), True)]
 
 
+async def test_calls_of_one_response_approved_together_stay_open_until_the_next_response(
+    run: tuple[Path, Path, AccessGrants],
+) -> None:
+    _, outside, grants = run
+    read = _call("file_read_tool", {"paths": [f"{outside}/a.csv"]})
+    write = ToolCall(type="tool_call", name="file_write_tool", args={"file_path": f"{outside}/b.csv"}, id="c2")
+
+    await apply_approval_decisions(
+        [{"type": "approve", "extensions": {}}, {"type": "approve", "extensions": {}}],
+        AIMessage(content="", tool_calls=[read, write]),
+        [],
+        [(0, read, "file_read", "needs approval", None), (1, write, "file_write", "needs approval", None)],
+        [0, 1],
+        {},
+        config=SecurityConfig(path_policy=_POLICY),
+    )
+
+    assert sorted(_once_paths(grants)) == [
+        (os.path.join(outside, "a.csv"), False),
+        (os.path.join(outside, "b.csv"), True),
+    ]
+    drop_once_grants()
+    assert grants.once == ()
+
+
 def test_the_next_model_response_closes_what_an_approval_opened(run: tuple[Path, Path, AccessGrants]) -> None:
     workspace, outside, grants = run
     grant_paths_once({"paths": [f"{outside}/a.csv"]}, policy=_POLICY, workspace_root=str(workspace), writable=False)

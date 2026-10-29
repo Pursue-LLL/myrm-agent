@@ -145,3 +145,17 @@ async def test_without_a_sandbox_a_command_still_cannot_name_a_granted_directory
 
     assert not read.success
     assert "blocked" in (read.error or "").lower()
+
+
+def test_a_shell_is_never_given_what_one_approval_opened(
+    places: tuple[Path, Path, Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace, writable, readable, ungranted = places
+    grants = access_grants_var.get()
+    assert grants is not None
+    grants.once = (AccessRoot(path=str(ungranted), writable=True),)
+    monkeypatch.setattr(_bash_sessions, "sandbox_enforces", lambda: True)
+
+    given = {root.path for root in _bash_sessions.shell_grants(str(workspace))}
+
+    assert given == {str(writable), str(readable)}

@@ -16,7 +16,8 @@ introducing forbidden dependencies (e.g. toolkits/ → agent/).
 - protected_paths_var: Goal-scoped protected path patterns every write channel must honour
 - session_access_roots_var: The session grants as the host seeds them before a run starts
 - AccessGrants / access_grants_var / open_access_grants: Every directory this run may reach beyond the workspace
-  (declared, remembered for the session, approved for one call), mutable across graph nodes
+  (declared, remembered for the session, approved for one call), mutable across graph nodes; declared roots are
+  real paths from the moment the run opens
 - standing_access_roots / reachable_access_roots: The ones that outlast a call, and all of them right now
 - current_tool_call_id_var: The call the tool body is running inside (set by the tool-call middleware)
 - approval_notes_var: The human's notes on this run's approvals, keyed by tool call id
@@ -30,10 +31,11 @@ by providing a neutral location for runtime context that both layers need.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -85,10 +87,15 @@ access_grants_var: ContextVar[AccessGrants | None] = ContextVar("access_grants",
 
 
 def open_access_grants(declared: tuple[AccessRoot, ...]) -> AccessGrants:
-    """Open this run's grants, keeping the session grants the host seeded. Called once per run, before the graph streams."""
+    """Open this run's grants, keeping the session grants the host seeded. Called once per run, before the graph streams.
+
+    The declared roots become real paths here, as the session and one-call roots already are when they are granted:
+    a root is then the directory it named at that moment, and a link put in its place later does not move it.
+    """
     held = access_grants_var.get()
     session = held.session if held is not None else session_access_roots_var.get()
-    grants = AccessGrants(declared=declared, session=session)
+    real_declared = tuple(replace(root, path=os.path.realpath(os.path.expanduser(root.path))) for root in declared)
+    grants = AccessGrants(declared=real_declared, session=session)
     access_grants_var.set(grants)
     return grants
 

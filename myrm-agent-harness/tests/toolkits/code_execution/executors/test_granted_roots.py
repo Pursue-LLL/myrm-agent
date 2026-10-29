@@ -215,3 +215,41 @@ async def test_a_shadow_executor_still_refuses_writes_outside_the_workspace(work
     with pytest.raises(PermissionError, match="shadow context"):
         await ShadowExecutorMiddleware(ex).write_file(str(external / "new.txt"), "x")
     assert not (external / "new.txt").exists()
+
+
+async def test_a_file_one_approval_opened_is_not_reached_once_it_is_swapped_for_a_link(
+    executor: CodeExecutor, external: Path, tmp_path: Path
+) -> None:
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret")
+    approved = external / "approved.txt"
+    approved.write_text("approved")
+    with scoped_value(access_grants_var, None):
+        open_access_grants(()).once = (AccessRoot(path=str(approved), writable=False),)
+        assert await executor.read_file(str(approved)) == "approved"
+
+        approved.unlink()
+        approved.symlink_to(secret)
+
+        with pytest.raises(ValueError, match="Path traversal"):
+            await executor.read_file(str(approved))
+
+
+async def test_a_declared_root_named_through_a_link_stays_the_directory_it_named_when_the_run_opened(
+    executor: CodeExecutor, external: Path, tmp_path: Path
+) -> None:
+    link = tmp_path / "shared-link"
+    link.symlink_to(external)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "loot.txt").write_text("loot")
+    with scoped_value(access_grants_var, None):
+        grants = open_access_grants((AccessRoot(path=str(link), writable=False),))
+        assert grants.declared[0].path == str(external)
+        assert await executor.read_file(str(link / "note.txt")) == "outside note"
+
+        link.unlink()
+        link.symlink_to(elsewhere)
+
+        with pytest.raises(ValueError, match="Path traversal"):
+            await executor.read_file(str(link / "loot.txt"))
