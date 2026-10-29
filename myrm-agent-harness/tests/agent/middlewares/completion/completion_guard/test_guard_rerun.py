@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -79,6 +80,48 @@ class TestIndependentRerun:
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_rerun_logs_the_command_masked(self, caplog: pytest.LogCaptureFixture) -> None:
+        """The re-run line quotes a command the model wrote, so it shows the command masked."""
+        caplog.set_level(logging.INFO)
+        records = [
+            CallRecord(
+                tool_name="file_write_tool",
+                args_hash="w1",
+                args={"path": "/src/app.py"},
+                success_level=SuccessLevel.FULL_SUCCESS,
+            ),
+            CallRecord(
+                tool_name="bash_code_execute_tool",
+                args_hash="v1",
+                args={"command": "pytest tests/ --key Zx81qpLm"},
+                success_level=SuccessLevel.FULL_SUCCESS,
+                verification_type=VerificationCategory.TEST,
+            ),
+            CallRecord(
+                tool_name="file_edit_tool",
+                args_hash="w2",
+                args={"path": "/src/app.py"},
+                success_level=SuccessLevel.FULL_SUCCESS,
+            ),
+        ]
+        mock_executor = MagicMock()
+        mock_executor.execute_bash = AsyncMock(return_value=MagicMock(exit_code=0, stdout="OK", stderr=""))
+
+        state = make_state([AIMessage(content="Done.")])
+        with (
+            patch(LOOP_GUARD_PATCH) as mock_guard,
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.executors.base.get_executor",
+                return_value=mock_executor,
+            ),
+        ):
+            mock_guard.return_value.recorded_calls.return_value = records
+            assert await self.guard.aafter_model(state, None) is None
+
+        assert "Independent re-run" in caplog.text
+        assert "Zx81qpLm" not in caplog.text
 
     @pytest.mark.asyncio
     async def test_rerun_fails_blocks_completion(self) -> None:

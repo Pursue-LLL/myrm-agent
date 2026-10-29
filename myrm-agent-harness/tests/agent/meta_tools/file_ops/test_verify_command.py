@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -150,3 +151,61 @@ class TestVerifyCommand:
             mock_executor.execute_bash.assert_awaited_once()
             assert mock_strategy.write_file.await_count == 2
             mock_strategy.write_file.assert_any_await("test.py", "old")
+
+
+class TestVerifyCommandLog:
+    """The verify command is a command the model wrote; a log line quotes it masked."""
+
+    @pytest.mark.asyncio
+    async def test_create_logs_the_command_masked(self, mock_executor, caplog):
+        caplog.set_level(logging.INFO)
+        mock_executor.execute_bash.return_value = ExecutionResult(success=True, exit_code=0, stdout="ok", stderr="")
+        ctx = OperationContext(
+            operation=OperationType.CREATE,
+            path="test.py",
+            file_text="print('hello')",
+            verify_command="pytest tests/ --key Zx81qpLm",
+            executor=mock_executor,
+        )
+        with patch(
+            "myrm_agent_harness.agent.meta_tools.file_ops.strategies.strategy_factory.FileSystemStrategyFactory.create_strategy"
+        ) as mock_factory:
+            mock_strategy = AsyncMock()
+            mock_strategy.exists.return_value = False
+            mock_strategy.read_file.return_value = ["print('hello')"]
+            mock_factory.return_value = mock_strategy
+            await FileOperationService(ctx)._execute_create()
+
+        assert "Running verify_command" in caplog.text
+        assert "Zx81qpLm" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_edit_logs_the_command_masked(self, mock_executor, caplog):
+        caplog.set_level(logging.INFO)
+        mock_executor.execute_bash.return_value = ExecutionResult(success=True, exit_code=0, stdout="ok", stderr="")
+        ctx = OperationContext(
+            operation=OperationType.STR_REPLACE,
+            path="test.py",
+            edits=(StrReplaceEdit(old_str="old", new_str="new"),),
+            verify_command="pytest tests/ --key Zx81qpLm",
+            executor=mock_executor,
+        )
+        with (
+            patch(
+                "myrm_agent_harness.agent.meta_tools.file_ops.strategies.strategy_factory.FileSystemStrategyFactory.create_strategy"
+            ) as mock_factory,
+            patch(
+                "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.get_file_integrity_guard",
+                return_value=None,
+            ),
+        ):
+            mock_strategy = AsyncMock()
+            mock_strategy.exists.return_value = True
+            mock_strategy.is_directory.return_value = False
+            mock_strategy.get_file_size.return_value = 100
+            mock_strategy.read_file.return_value = ["old"]
+            mock_factory.return_value = mock_strategy
+            await FileOperationService(ctx)._execute_str_replace()
+
+        assert "Running verify_command" in caplog.text
+        assert "Zx81qpLm" not in caplog.text

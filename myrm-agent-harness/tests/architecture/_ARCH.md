@@ -72,6 +72,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_pytest_warning_gate.py` | Gate | Pytest 零告警容忍（Zero-Warning / filterwarnings = error）CI 门禁 | — |
 | `test_toolkits_llms_media_layout.py` | Gate | LLM 媒体理解归属 `toolkits/llms/`，禁止顶层平铺 | — |
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
+| `test_command_log_masking.py` | Gate | AST：`src/` 内日志调用不得直接引用名字里带 `command` / `cmd` 一词的变量，须经 `command_preview` 或 `redact_command_line`；按名字拦截，是绊线而不是证明；允许清单以 `路径::函数::变量` 登记且过期条目报错；自带检测器正反例 | — |
 
 ## 运行
 

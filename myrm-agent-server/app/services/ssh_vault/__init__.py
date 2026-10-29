@@ -2,12 +2,12 @@
 
 [INPUT]
 - .models::SSHHostConfig, SSHProbeResult, SSHCommandPayload, SSHCommandResult, SFTPTransferResult, SSHAssetSummary
-- .change_window::ProtectedChangeWindowService, BreakGlassTokenData, BreakGlassAuditRecord
+- .change_window::ProtectedChangeWindowService, BreakGlassTokenData
 - .service::SSHAssetService, get_ssh_asset_service
 
 [OUTPUT]
 - SSHHostConfig, SSHProbeResult, SSHCommandPayload, SSHCommandResult, SFTPTransferResult, SSHAssetSummary
-- ProtectedChangeWindowService, BreakGlassTokenData, BreakGlassAuditRecord
+- ProtectedChangeWindowService, BreakGlassTokenData
 - SSHAssetService, get_ssh_asset_service
 
 [POS]
@@ -15,7 +15,6 @@ Domain package in app/services/ssh_vault/.
 """
 
 from app.services.ssh_vault.change_window import (
-    BreakGlassAuditRecord,
     BreakGlassTokenData,
     ProtectedChangeWindowService,
 )
@@ -33,7 +32,6 @@ from app.services.ssh_vault.service import (
 )
 
 __all__ = [
-    "BreakGlassAuditRecord",
     "BreakGlassTokenData",
     "ProtectedChangeWindowService",
     "SFTPTransferResult",

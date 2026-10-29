@@ -55,6 +55,7 @@ LangGraph executes nodes in copied contexts, which prevents ContextVar state fro
 - agent.middlewares.completion.deliverable.write_verifier::check_deliverable_write_claim (POS: Zero-call deliverable write claim detection for CompletionGuard)
 - agent.middlewares.completion.execution_claim.verifier::check_execution_claim (POS: Completion-claim grounding against this run's tool records)
 - agent.middlewares._run_workspace::run_workspace (POS: the workspace of the current run)
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 - CompletionGuard: after_model middleware for critical completion verification + independent re-run; a held-back answer routes the run back to the model with the instruction pending in the turn state
@@ -122,6 +123,7 @@ from myrm_agent_harness.agent.middlewares.completion.execution_claim.verifier im
 from myrm_agent_harness.agent.middlewares.completion.query_grounding_verifier import (
     check_query_grounding_claim,
 )
+from myrm_agent_harness.core.security.redact import command_preview
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +257,10 @@ class CompletionGuard(AgentMiddleware):
         if checklist.causes == {CriticalCause.STALE_VERIFICATION} and not blocked_by_a_check:
             rerun_cmd = find_last_successful_verification_command(records)
             if rerun_cmd and await rerun_verification_in_sandbox(rerun_cmd):
-                logger.info("[CompletionGuard] Independent re-run of '%s' passed — allowing completion.", rerun_cmd)
+                logger.info(
+                    "[CompletionGuard] Independent re-run of '%s' passed — allowing completion.",
+                    command_preview(rerun_cmd, 200),
+                )
                 return None
 
         # --- CRITICAL BLOCKING MODE ---

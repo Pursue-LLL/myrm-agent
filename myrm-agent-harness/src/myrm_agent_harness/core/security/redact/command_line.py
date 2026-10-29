@@ -17,8 +17,8 @@ module adds the ones whose name only hints at it (``--key``, ``--auth``, ``--bea
 
 [POS]
 Entry of the commands the audit log and the background-job registry keep (``agent/meta_tools/bash`` calls it for both)
-and the preview of the commands a log line quotes (bash, code execution, ``safe_exec``, the CLI agent runtime, skill
-dynamic context and the SSH vault call it).
+and the preview of the commands a log line quotes (bash, file operations, the completion guard, code execution,
+``safe_exec``, the CLI agent runtime, skill dynamic context and the SSH vault call it).
 """
 
 from __future__ import annotations

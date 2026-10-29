@@ -6,7 +6,7 @@
 - app.services.ssh_vault::SSHAssetService, SSHHostConfig, ProtectedChangeWindowService
 
 [OUTPUT]
-- Test suite verifying read-only enforcement, single-use break-glass token lifecycle, and policy APIs
+- Test suite verifying read-only enforcement, single-use break-glass token lifecycle, policy APIs, and that no copy of a command or full token is retained or logged
 
 [POS]
 Unit & integration tests in tests/services/ssh_vault/.
@@ -272,3 +272,33 @@ def test_a_consumed_break_glass_token_is_logged_masked(
     assert is_valid
     assert "BREAK_GLASS_CONSUMED" in caplog.text
     assert "abc123xyz" not in caplog.text
+
+
+def test_break_glass_service_keeps_no_copy_of_the_command(change_window_service: ProtectedChangeWindowService) -> None:
+    command = "systemctl restart nginx --key Zx81qpLm"
+    altered = "systemctl restart nginx --key Other999"
+    token_data = change_window_service.issue_break_glass_token(
+        host_alias="prod-server-01", command=command, reason="Emergency", ttl_seconds=300
+    )
+    rejected, _ = change_window_service.verify_and_consume_token(
+        token=token_data.token, host_alias="prod-server-01", command=altered
+    )
+    unknown, _ = change_window_service.verify_and_consume_token(token="bg_unknown", host_alias="prod-server-01", command=altered)
+    consumed, _ = change_window_service.verify_and_consume_token(
+        token=token_data.token, host_alias="prod-server-01", command=command
+    )
+    assert (rejected, unknown, consumed) == (False, False, True)
+    held = repr(vars(change_window_service)) + repr(token_data)
+    assert "Zx81qpLm" not in held
+    assert "Other999" not in held
+
+
+def test_an_issued_break_glass_token_is_not_logged(
+    change_window_service: ProtectedChangeWindowService, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    token_data = change_window_service.issue_break_glass_token(
+        host_alias="prod-server-01", command="systemctl restart nginx", reason="Emergency", ttl_seconds=300
+    )
+    assert "BREAK_GLASS_ISSUED" in caplog.text
+    assert token_data.token not in caplog.text

@@ -18,6 +18,7 @@
 - file_activity_tracker::get_file_activity_tracker (POS: 文件活动跟踪器,行级冲突检测)
 - context_management.infra.session_lock::get_current_chat_id (POS: 当前会话上下文)
 - utils.token_estimation::estimate_content_tokens (POS: 文件内容 token 估算)
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 - context_management.tracking.task_metrics::ArchiveRefetchDecision, evaluate_archive_refetch_for_path (POS: 归档上下文读取预算)
 - core.archive_restore_guard::evaluate_archive_full_read_before_content, format_archive_restore_block (POS: 归档恢复读取守卫)
 - core.file_conflict_guard::check_conflict_pre_write (POS: 文件并发编辑冲突守卫)
@@ -47,6 +48,7 @@ from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 from myrm_agent_harness.agent.context_management.infra.session_lock import (
     get_current_chat_id,
 )
+from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.utils.token_estimation import (
     estimate_content_tokens,
 )
@@ -413,9 +415,7 @@ class FileOperationService:
             )
 
             logger.info(
-                "Running verify_command on %s: %s",
-                resolved_path,
-                self.context.verify_command,
+                "Running verify_command on %s: %s", resolved_path, command_preview(self.context.verify_command, 200)
             )
             exec_ctx = ExecutionContext(code=self.context.verify_command, work_dir=".")
             result = await self.context.executor.execute_bash(exec_ctx)
@@ -543,9 +543,7 @@ class FileOperationService:
             )
 
             logger.info(
-                "Running verify_command on %s: %s",
-                resolved_path,
-                self.context.verify_command,
+                "Running verify_command on %s: %s", resolved_path, command_preview(self.context.verify_command, 200)
             )
             exec_ctx = ExecutionContext(code=self.context.verify_command, work_dir=".")
             result = await self.context.executor.execute_bash(exec_ctx)
