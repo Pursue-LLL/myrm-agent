@@ -384,6 +384,8 @@ async def test_file_read_tool_text_preserve_in_context(tmp_path: Path) -> None:
 async def test_file_read_tool_redacts_secrets(tmp_path: Path) -> None:
     f = tmp_path / "config.txt"
     f.write_text("config", encoding="utf-8")
+    g = tmp_path / "deploy.txt"
+    g.write_text("deploy", encoding="utf-8")
     mock_executor = MagicMock()
     mock_executor.workspace_path = str(tmp_path)
 
@@ -420,7 +422,7 @@ async def test_file_read_tool_redacts_secrets(tmp_path: Path) -> None:
         ),
     ):
         result = await tool.ainvoke(
-            {"paths": [str(f)]},
+            {"paths": [str(f), str(g)]},
             config=_DUMMY_CONFIG,
         )
     assert isinstance(result, str)

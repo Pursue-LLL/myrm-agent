@@ -11,7 +11,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 - url_credentials::_DB_CONNSTR_RE, url_credentials::_URL_USERINFO_RE, url_credentials::_URL_BARE_TOKEN_RE and their replacers (POS: URL credential regexes and replacers of the runtime redactor)
 
 [OUTPUT]
-- redact_sensitive_text(text) -> str — apply all redaction patterns
+- redact_sensitive_text(text, *, source_code=False) -> str — apply all redaction patterns; ``source_code`` limits the name-based assignment passes to lines with a string literal
 - redact_for_llm(value) -> str — recursive redaction of nested diagnostic values, flattened to str (LLM error formatting)
 - escape_invisible_unicode(text) -> str — escape invisible chars to \\u{XXXX}
 - redact_for_display(args) -> dict — recursive redaction for approval UI
@@ -73,6 +73,10 @@ _REDACT_ENABLED = True
 _REDACT_REGEX_CHUNK_THRESHOLD = 32768  # 32KB
 _REDACT_REGEX_CHUNK_SIZE = 16384  # 16KB
 _CHUNK_OVERLAP = 4096  # covers RSA-4096 PEM (~3200 chars) + margin
+
+# An assigned string literal of eight characters or more, no f-string prefix: a shorter literal or a template is
+# not a credential, and the lines without one are the bulk of the false masks in source code.
+_STRING_LITERAL_RE = re.compile(r"""[:=]\s*[bru]*["'][^"'\s]{8,}["']""", re.IGNORECASE)
 
 
 def set_redact_enabled(enabled: bool) -> None:
@@ -208,11 +212,45 @@ def _mask_control_split_tokens(text: str) -> str:
     return "".join(out)
 
 
-def redact_sensitive_text(text: str) -> str:
+def _redact_name_assignments(text: str) -> str:
+    """Mask the value of every credential-named ENV, JSON, repr-diagnostic and YAML assignment in ``text``."""
+    text = _replace_pattern_bounded(text, _ENV_ASSIGN_RE, _redact_env_assignment)
+
+    # 小写/短名 env（`db_pw=`/`openai_key=`）。`(?<![?&])` 负向后顾已阻止 URL query
+    # 参数（由 _URL_QUERY_RE 处理），此处无条件执行——含 URL 的混合文本同样脱敏。
+    text = _replace_pattern_bounded(text, _ENV_ASSIGN_LOWER_RE, _redact_env_assignment)
+
+    # Credential-named fields in JSON, in JSON nested inside a JSON string, and in Python repr diagnostics
+    text = _replace_pattern_bounded(text, _JSON_FIELD_RE, _redact_json_field)
+    text = _replace_pattern_bounded(text, _JSON_ESCAPED_FIELD_RE, _redact_json_escaped_field)
+    text = _replace_pattern_bounded(text, _REPR_DIAGNOSTIC_LINE_RE, _redact_repr_diagnostic_line)
+
+    # Unquoted / quoted YAML-colon config（`password: secret`、`password: "hunter2!"`）。
+    # 正则锚定行首且 key 字符类不含 `:`/`/`/`?`，天然不匹配 URL 行，无需全局 URL 开关。
+    return _replace_pattern_bounded(text, _YAML_ASSIGN_RE, _redact_yaml_assignment)
+
+
+def _redact_secret_headers(text: str) -> str:
+    """Mask the value of an API-key style header or property (``x-api-key: …``, ``apiKey: …``)."""
+    return _replace_pattern_bounded(text, _SECRET_HEADER_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
+
+
+def _redact_by_name(text: str, redact: Callable[[str], str], *, source_code: bool) -> str:
+    """Run a name-based pass over ``text``; in source mode only over the lines that carry a string literal."""
+    if not source_code:
+        return redact(text)
+    return "\n".join(redact(line) if _STRING_LITERAL_RE.search(line) else line for line in text.split("\n"))
+
+
+def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
     """Apply all redaction patterns to a block of text.
 
     Pure function, thread-safe. Returns the input unchanged when
     redaction is disabled via ``MYRM_REDACT_SECRETS=false``.
+
+    ``source_code=True`` is for the text of a source file, which names credentials all the time
+    (``total_api_tokens = 0``) and keeps a secret only as a string literal: the name-based passes (assignments,
+    API-key headers) run on the lines that carry one, the value-shape passes on every line.
 
     Key features:
     - Bounded regex replace to prevent ReDoS (OPT-1)
@@ -239,20 +277,7 @@ def redact_sensitive_text(text: str) -> str:
     # Use bounded replace for all patterns to prevent ReDoS (OPT-1)
     text = _replace_pattern_bounded(text, _PREFIX_RE, lambda m: _mask_token(m.group(1)))
 
-    text = _replace_pattern_bounded(text, _ENV_ASSIGN_RE, _redact_env_assignment)
-
-    # 小写/短名 env（`db_pw=`/`openai_key=`）。`(?<![?&])` 负向后顾已阻止 URL query
-    # 参数（由 _URL_QUERY_RE 处理），此处无条件执行——含 URL 的混合文本同样脱敏。
-    text = _replace_pattern_bounded(text, _ENV_ASSIGN_LOWER_RE, _redact_env_assignment)
-
-    # Credential-named fields in JSON, in JSON nested inside a JSON string, and in Python repr diagnostics
-    text = _replace_pattern_bounded(text, _JSON_FIELD_RE, _redact_json_field)
-    text = _replace_pattern_bounded(text, _JSON_ESCAPED_FIELD_RE, _redact_json_escaped_field)
-    text = _replace_pattern_bounded(text, _REPR_DIAGNOSTIC_LINE_RE, _redact_repr_diagnostic_line)
-
-    # Unquoted / quoted YAML-colon config（`password: secret`、`password: "hunter2!"`）。
-    # 正则锚定行首且 key 字符类不含 `:`/`/`/`?`，天然不匹配 URL 行，无需全局 URL 开关。
-    text = _replace_pattern_bounded(text, _YAML_ASSIGN_RE, _redact_yaml_assignment)
+    text = _redact_by_name(text, _redact_name_assignments, source_code=source_code)
 
     text = _replace_pattern_bounded(
         text,
@@ -285,7 +310,7 @@ def redact_sensitive_text(text: str) -> str:
     text = _replace_pattern_bounded(text, _TELEGRAM_BOT_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
 
     # API-key 风格认证头（x-api-key 等）
-    text = _replace_pattern_bounded(text, _SECRET_HEADER_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
+    text = _redact_by_name(text, _redact_secret_headers, source_code=source_code)
 
     # JWT token（eyJ… 无 key 上下文的裸 JWT）
     text = _replace_pattern_bounded(text, _JWT_RE, lambda m: _mask_token(m.group(0)))
