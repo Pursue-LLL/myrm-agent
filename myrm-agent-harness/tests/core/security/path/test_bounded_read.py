@@ -89,6 +89,30 @@ class TestRegularFiles:
 
         assert (result.text, result.refusal) == ("a" * 10, None)
 
+    def test_a_long_file_of_wide_characters_and_crlf_line_ends_reads_as_read_text_does(self, tmp_path: Path) -> None:
+        """Three- and four-byte characters and CR LF pairs fall across every buffer boundary of a file this long."""
+        payload = (
+            "\u4e2d\u6587\u89c4\u5219\uff1a\u4e0d\u8981\u63d0\u5bc6\u7801\r\n" + "\U0001f600 emoji line\r\n"
+        ) * 3000
+        path = tmp_path / "f.txt"
+        path.write_bytes(payload.encode())
+
+        result = read_text_bounded(path, 1_000_000)
+
+        assert result.refusal is None
+        assert result.text == path.read_text(encoding="utf-8")
+        assert result.chars_read == len(path.read_text(encoding="utf-8"))
+
+    def test_the_limit_counts_characters_and_not_bytes(self, tmp_path: Path) -> None:
+        path = tmp_path / "f.txt"
+        path.write_text("\u4e2d" * 1000, encoding="utf-8")
+
+        within = read_text_bounded(path, 1000)
+        over = read_text_bounded(path, 999)
+
+        assert (within.text, within.refusal) == ("\u4e2d" * 1000, None)
+        assert (over.text, over.refusal, over.chars_read) == (None, ReadRefusal.TOO_LARGE, 1000)
+
     def test_a_file_one_character_over_the_limit_is_refused_and_charged_one_past_it(self, tmp_path: Path) -> None:
         path = tmp_path / "f.txt"
         path.write_text("a" * 11, encoding="utf-8")
