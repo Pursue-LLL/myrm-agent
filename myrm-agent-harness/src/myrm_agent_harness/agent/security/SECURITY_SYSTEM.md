@@ -422,7 +422,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 1. **Run 生命周期**：`run_lifecycle.apply_workspace_trust_for_root()` 在 agent run 开始时注入 `ContextVar` trust level + repo command prefixes。
 2. **Skills**：`backends/skills/local.py` — RESTRICTED 时跳过 workspace skill 加载。
-3. **Rules**：`workspace_rules/middleware.py` — RESTRICTED 时跳过 rules 注入。
+3. **Rules**：`workspace_rules/middleware.py` — RESTRICTED 时跳过 rules 注入。放行之后规则文件仍是仓库作者可控的输入：`workspace_rules/rule_read_guard.py` 让一次扫描（含信任前的 FolderGate 披露）只读真实路径落在边界之内的文件（边界是 git 根，没有 git 根时是工作区根；指向边界外的符号链接只得到占位文本，不读内容），单文件最多读 256,000 字符，一次扫描最多 512 个文件、2,000,000 字符；规则文件名经 `core/security/detection/display_name.py` 压成单行纯文本后才进入系统消息与工具结果。
 4. **MCP spawn**：`toolkits/mcp/transport.py` — `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
 5. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor.py` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
 

@@ -7,6 +7,7 @@ while filtering out deprecated, superseded, or rejected records.
 [INPUT]
 - pathlib::Path (POS: Python filesystem path standard library)
 - agent.workspace_rules.scanner::RuleFile, _load_rule_file, _inode_key (POS: Workspace rule file models and low-level inode loading)
+- agent.workspace_rules.rule_read_guard::RuleReadGuard (POS: Boundary-checked, bounded reads of the rule files of one scan)
 
 [OUTPUT]
 - scan_adr_rules(): Discover and filter accepted ADR files, returns list[RuleFile]
@@ -21,10 +22,12 @@ from __future__ import annotations
 
 import logging
 import re
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.workspace_rules.rule_read_guard import RuleReadGuard
     from myrm_agent_harness.agent.workspace_rules.scanner import RuleFile
 
 logger = logging.getLogger(__name__)
@@ -38,9 +41,7 @@ _ADR_SUBDIRS: tuple[str, ...] = (
 )
 
 # Active status keywords that qualify an ADR for context injection
-_ACCEPTED_STATUSES: frozenset[str] = frozenset(
-    {"accepted", "approved", "active", "adopted", "valid"}
-)
+_ACCEPTED_STATUSES: frozenset[str] = frozenset({"accepted", "approved", "active", "adopted", "valid"})
 
 # Inactive status keywords to explicitly reject
 _INACTIVE_STATUSES: frozenset[str] = frozenset(
@@ -76,14 +77,23 @@ def is_adr_active(content: str) -> bool:
     return True
 
 
+def _is_active_record(name: str, content: str) -> bool:
+    """``is_adr_active`` with the skipped record named in the debug log."""
+    if is_adr_active(content):
+        return True
+    logger.debug("Skipping inactive ADR record: %s (status=%s)", name, parse_adr_status(content))
+    return False
+
+
 def scan_adr_rules(
     directory: Path,
     seen_inodes: set[tuple[int, int]],
+    guard: RuleReadGuard,
 ) -> list[RuleFile]:
     """Scan directory for MADR architectural decision records.
 
     Traverses known decision directories, ignores non-accepted (e.g. deprecated/superseded)
-    records, and returns loaded RuleFile instances.
+    records, and returns loaded RuleFile instances. Each record is read once, through ``guard``.
     """
     from myrm_agent_harness.agent.workspace_rules.scanner import (
         _inode_key,
@@ -107,23 +117,14 @@ def scan_adr_rules(
                 if key in seen_inodes:
                     continue
 
-                try:
-                    raw_text = adr_path.read_text(encoding="utf-8", errors="replace")
-                except OSError as exc:
-                    logger.warning("Failed to inspect ADR file %s: %s", adr_path, exc)
-                    continue
-
-                if not is_adr_active(raw_text):
-                    logger.debug(
-                        "Skipping inactive ADR record: %s (status=%s)",
-                        adr_path.name,
-                        parse_adr_status(raw_text),
-                    )
-                    continue
-
-                seen_inodes.add(key)
-                rule = _load_rule_file(adr_path, source=f"{subdir}/{adr_path.name}")
+                rule = _load_rule_file(
+                    adr_path,
+                    f"{subdir}/{adr_path.name}",
+                    guard,
+                    is_wanted=partial(_is_active_record, adr_path.name),
+                )
                 if rule:
+                    seen_inodes.add(key)
                     results.append(rule)
         except OSError as exc:
             logger.warning("Failed to traverse ADR directory %s: %s", subdir, exc)

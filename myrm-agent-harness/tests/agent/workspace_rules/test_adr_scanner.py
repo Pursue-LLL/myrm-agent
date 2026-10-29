@@ -9,6 +9,7 @@ from myrm_agent_harness.agent.workspace_rules.adr_scanner import (
     parse_adr_status,
     scan_adr_rules,
 )
+from myrm_agent_harness.agent.workspace_rules.rule_read_guard import RuleReadGuard
 
 
 class TestADRStatusParser:
@@ -103,7 +104,7 @@ class TestScanADRRules:
         )
 
         seen_inodes: set[tuple[int, int]] = set()
-        rules = scan_adr_rules(tmp_path, seen_inodes)
+        rules = scan_adr_rules(tmp_path, seen_inodes, RuleReadGuard(tmp_path))
 
         assert len(rules) == 1
         assert "0001-use-uv.md" in rules[0].path
@@ -112,7 +113,7 @@ class TestScanADRRules:
 
     def test_skips_when_no_adr_directory(self, tmp_path: Path) -> None:
         seen_inodes: set[tuple[int, int]] = set()
-        rules = scan_adr_rules(tmp_path, seen_inodes)
+        rules = scan_adr_rules(tmp_path, seen_inodes, RuleReadGuard(tmp_path))
         assert rules == []
 
     def test_scans_adrs_latest_first(self, tmp_path: Path) -> None:
@@ -126,10 +127,9 @@ class TestScanADRRules:
             )
 
         seen_inodes: set[tuple[int, int]] = set()
-        rules = scan_adr_rules(tmp_path, seen_inodes)
+        rules = scan_adr_rules(tmp_path, seen_inodes, RuleReadGuard(tmp_path))
         assert len(rules) == 3
         # Ensure latest ADR (0003) appears first
         assert "0003-decision.md" in rules[0].path
         assert "0002-decision.md" in rules[1].path
         assert "0001-decision.md" in rules[2].path
-

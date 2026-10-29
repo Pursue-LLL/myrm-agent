@@ -16,12 +16,14 @@ to find rule files in parent directories (max 5 levels).
 
 [INPUT]
 - agent.workspace_rules.content_safety::check_content_safety (POS: Safety verdict for workspace rule file text, remembered per content digest)
+- agent.workspace_rules.rule_read_guard::RuleReadGuard (POS: Boundary-checked, bounded reads of the rule files of one scan)
 - agent.security.detection.content_boundary::sanitize, strip_invisible_unicode (POS: Boundary sanitization and security marker detection)
+- core.security.detection.display_name::neutralize_name (POS: untrusted file and directory names as prompt text)
 - agent.workspace_rules.adr_scanner::scan_adr_rules (POS: Living architecture decision record scanner and MADR status filter)
 
 [OUTPUT]
 - scan_workspace_rules(): Discover and load all rule files, returns list[RuleFile]
-- RuleFile: Dataclass holding path, content, source type, blocked flag
+- RuleFile: Dataclass holding path, content, source type, blocked flag; display_name is its file name as prompt text
 
 [POS]
 Workspace rule file scanner. Discovers project-level context files
@@ -30,8 +32,10 @@ Workspace rule file scanner. Discovers project-level context files
 .cursor/rules/*.mdc, .claude/CLAUDE.md, .github/copilot-instructions.md),
 performs security scanning, YAML frontmatter stripping, and returns
 loaded content for middleware injection. Blocked files (injection
-detected) return a placeholder RuleFile with blocked=True instead of
-being silently skipped.
+detected, outside the workspace, or too large to read) return a
+placeholder RuleFile with blocked=True instead of being silently skipped.
+One RuleReadGuard serves one scan, so the files read stay inside the
+workspace and inside the file and character budgets.
 """
 
 from __future__ import annotations
@@ -39,10 +43,13 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from myrm_agent_harness.agent.workspace_rules.content_safety import check_content_safety
+from myrm_agent_harness.agent.workspace_rules.rule_read_guard import RuleReadGuard
+from myrm_agent_harness.core.security.detection.display_name import neutralize_name
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +91,11 @@ _COPILOT_INSTRUCTIONS_FILE = ".github/copilot-instructions.md"
 _KNOWN_ISSUES_FILENAMES: tuple[str, ...] = ("KNOWN_ISSUES.md", "known_issues.md")
 
 
+def _display_name(path: str | Path) -> str:
+    """The file name of ``path`` as text a model may be shown: a name is chosen by the repository's author."""
+    return neutralize_name(os.path.basename(path))
+
+
 @dataclass(frozen=True, slots=True)
 class RuleFile:
     """A discovered and loaded workspace rule file."""
@@ -93,6 +105,11 @@ class RuleFile:
     source: str
     truncated: bool = False
     blocked: bool = False
+
+    @property
+    def display_name(self) -> str:
+        """The file name as one line of plain text, safe to put in a prompt or a tool result."""
+        return _display_name(self.path)
 
 
 def _find_git_root(start: Path) -> Path | None:
@@ -159,20 +176,36 @@ def _truncate_with_markdown_repair(
     return f"{head}\n\n[...truncated {filename}: kept {len(head)}+{len(tail)} of {len(content)} chars]\n\n{tail}"
 
 
-def _load_rule_file(filepath: Path, source: str) -> RuleFile | None:
+def _blocked_rule_file(filepath: Path, source: str, reason: str) -> RuleFile:
+    """Placeholder for a file that is not loaded, so that a missing rule is visible to the model and the user."""
+    placeholder = f"[BLOCKED: {_display_name(filepath)} — {reason}. Content not loaded for safety.]"
+    return RuleFile(path=str(filepath), content=placeholder, source=source, blocked=True)
+
+
+def _load_rule_file(
+    filepath: Path,
+    source: str,
+    guard: RuleReadGuard,
+    is_wanted: Callable[[str], bool] | None = None,
+) -> RuleFile | None:
     """Load, sanitize, and validate a single rule file.
 
-    Returns None if the file is missing, empty, or unreadable.
-    Returns RuleFile(blocked=True) if prompt injection patterns are detected.
+    Returns None if the file is missing, empty, unreadable, beyond the budget of the scan, or not wanted by ``is_wanted``
+    (a test of the raw text, so a record the caller filters out is read once).
+    Returns RuleFile(blocked=True) if the file is outside the workspace or too large to read, or prompt injection patterns are detected.
     Truncates content exceeding MAX_RULE_FILE_CHARS with Markdown fence repair.
     """
     try:
-        raw = filepath.read_text(encoding="utf-8", errors="replace")
+        read = guard.read(filepath)
     except OSError as exc:
         logger.warning("Failed to read workspace rule file %s: %s", filepath, exc)
         return None
 
-    if not raw.strip():
+    if read.text is None:
+        return _blocked_rule_file(filepath, source, read.refusal) if read.refusal else None
+
+    raw = read.text
+    if not raw.strip() or (is_wanted is not None and not is_wanted(raw)):
         return None
 
     from myrm_agent_harness.agent.security.detection.content_boundary import (
@@ -186,24 +219,15 @@ def _load_rule_file(filepath: Path, source: str) -> RuleFile | None:
 
     safe, blocked_patterns = check_content_safety(content, str(filepath))
     if not safe:
-        filename = os.path.basename(str(filepath))
-        patterns_str = ", ".join(blocked_patterns)
-        placeholder = (
-            f"[BLOCKED: {filename} — potential prompt injection detected "
-            f"({patterns_str}). Content not loaded for safety.]"
-        )
-        return RuleFile(
-            path=str(filepath),
-            content=placeholder,
-            source=source,
-            blocked=True,
+        return _blocked_rule_file(
+            filepath, source, f"potential prompt injection detected ({', '.join(blocked_patterns)})"
         )
 
     was_truncated = False
     if len(content) > MAX_RULE_FILE_CHARS:
         content = _truncate_with_markdown_repair(
             content=content,
-            filename=os.path.basename(str(filepath)),
+            filename=_display_name(filepath),
             max_chars=MAX_RULE_FILE_CHARS,
         )
         was_truncated = True
@@ -227,6 +251,7 @@ def _scan_rules_subdir(
     subdir: str,
     glob_pattern: str,
     seen_inodes: set[tuple[int, int]],
+    guard: RuleReadGuard,
 ) -> list[RuleFile]:
     """Scan a subdirectory for rule files matching the glob pattern."""
     rules_dir = directory / subdir
@@ -241,7 +266,7 @@ def _scan_rules_subdir(
                 if key in seen_inodes:
                     continue
                 seen_inodes.add(key)
-                rule = _load_rule_file(rule_file, source=subdir)
+                rule = _load_rule_file(rule_file, subdir, guard)
                 if rule:
                     results.append(rule)
     except OSError as exc:
@@ -249,7 +274,7 @@ def _scan_rules_subdir(
     return results
 
 
-def _scan_directory(directory: Path) -> list[RuleFile]:
+def _scan_directory(directory: Path, guard: RuleReadGuard) -> list[RuleFile]:
     """Scan a single directory for rule files.
 
     Uses First-Match-Wins for global rule files to prevent conflicts,
@@ -259,14 +284,14 @@ def _scan_directory(directory: Path) -> list[RuleFile]:
     seen_inodes: set[tuple[int, int]] = set()
 
     # 1. Load specific rule directories (always loaded)
-    results.extend(_scan_rules_subdir(directory, _MYRM_RULES_DIR, "*.md", seen_inodes))
-    results.extend(_scan_rules_subdir(directory, _CURSOR_RULES_DIR, "*.mdc", seen_inodes))
-    results.extend(_scan_rules_subdir(directory, _TRAE_RULES_DIR, "*.md", seen_inodes))
+    results.extend(_scan_rules_subdir(directory, _MYRM_RULES_DIR, "*.md", seen_inodes, guard))
+    results.extend(_scan_rules_subdir(directory, _CURSOR_RULES_DIR, "*.mdc", seen_inodes, guard))
+    results.extend(_scan_rules_subdir(directory, _TRAE_RULES_DIR, "*.md", seen_inodes, guard))
 
     # 2. Load living architectural decision records (MADR / docs/decisions/*.md)
     from myrm_agent_harness.agent.workspace_rules.adr_scanner import scan_adr_rules
 
-    results.extend(scan_adr_rules(directory, seen_inodes))
+    results.extend(scan_adr_rules(directory, seen_inodes, guard))
 
     # 3. Load living known issues and environment pitfalls (KNOWN_ISSUES.md)
     for filename in _KNOWN_ISSUES_FILENAMES:
@@ -275,7 +300,7 @@ def _scan_directory(directory: Path) -> list[RuleFile]:
             key = _inode_key(filepath)
             if key not in seen_inodes:
                 seen_inodes.add(key)
-                rule = _load_rule_file(filepath, source=filename)
+                rule = _load_rule_file(filepath, filename, guard)
                 if rule:
                     results.append(rule)
                     break
@@ -287,7 +312,7 @@ def _scan_directory(directory: Path) -> list[RuleFile]:
             key = _inode_key(filepath)
             if key not in seen_inodes:
                 seen_inodes.add(key)
-                rule = _load_rule_file(filepath, source=filename)
+                rule = _load_rule_file(filepath, filename, guard)
                 if rule:
                     results.append(rule)
                     return results  # Stop after finding the highest priority global file
@@ -299,7 +324,7 @@ def _scan_directory(directory: Path) -> list[RuleFile]:
             key = _inode_key(filepath)
             if key not in seen_inodes:
                 seen_inodes.add(key)
-                rule = _load_rule_file(filepath, source=subdir_file)
+                rule = _load_rule_file(filepath, subdir_file, guard)
                 if rule:
                     results.append(rule)
                     return results  # Stop after finding the highest priority fallback
@@ -334,7 +359,8 @@ def scan_workspace_rules(workspace_root: str) -> list[RuleFile]:
     total_chars = 0
 
     git_root = _find_git_root(root)
-    ceiling = git_root if git_root else root
+    ceiling = git_root if git_root else root.resolve()
+    guard = RuleReadGuard(ceiling)
 
     current = root.resolve()
     for _ in range(MAX_UPWARD_LEVELS):
@@ -342,7 +368,7 @@ def scan_workspace_rules(workspace_root: str) -> list[RuleFile]:
             break
         scanned.add(current)
 
-        for rule in _scan_directory(current):
+        for rule in _scan_directory(current, guard):
             if total_chars + len(rule.content) > MAX_TOTAL_CHARS:
                 logger.info("Workspace rules total budget exceeded, skipping: %s", rule.path)
                 continue
@@ -357,7 +383,7 @@ def scan_workspace_rules(workspace_root: str) -> list[RuleFile]:
         logger.info(
             "Loaded %d workspace rule file(s): %s",
             len(results),
-            ", ".join(os.path.basename(r.path) for r in results),
+            ", ".join(r.display_name for r in results),
         )
 
     return results

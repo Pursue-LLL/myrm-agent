@@ -12,6 +12,7 @@ context, without modifying the system prompt (preserving KV Cache).
 
 [INPUT]
 - agent.workspace_rules.scanner::_CLAUDE_SUBDIR_FILE, _COPILOT_INSTRUCTIONS_FILE, _RULE_FILENAMES, _load_rule_file (POS: Rule file discovery and loading)
+- agent.workspace_rules.rule_read_guard::RuleReadGuard (POS: Boundary-checked, bounded reads of the rule files of one scan)
 
 [OUTPUT]
 - SubdirectoryContextTracker: stateful tracker, one per session
@@ -29,6 +30,8 @@ from __future__ import annotations
 import logging
 from contextvars import ContextVar
 from pathlib import Path
+
+from myrm_agent_harness.agent.workspace_rules.rule_read_guard import RuleReadGuard
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +89,7 @@ class SubdirectoryContextTracker:
             _scan_directory,
         )
 
+        guard = RuleReadGuard(Path(self._workspace_root))
         discovered_rules: list[str] = []
         total_chars = 0
 
@@ -98,7 +102,7 @@ class SubdirectoryContextTracker:
             if not self._is_within_workspace(directory):
                 continue
 
-            rules = _scan_directory(directory)
+            rules = _scan_directory(directory, guard)
             for rule in rules:
                 if total_chars >= _MAX_APPEND_CHARS:
                     break
@@ -109,10 +113,10 @@ class SubdirectoryContextTracker:
                 if len(content) > remaining:
                     # Truncate to fit remaining budget
                     content = (
-                        content[:remaining] + f"\n\n[...truncated {Path(rule.path).name}: exceeded total append budget]"
+                        content[:remaining] + f"\n\n[...truncated {rule.display_name}: exceeded total append budget]"
                     )
 
-                discovered_rules.append(f"[Discovered {Path(rule.path).name} in {directory}]\n{content}")
+                discovered_rules.append(f"[Discovered {rule.display_name} in {directory}]\n{content}")
                 total_chars += len(content)
 
         if not discovered_rules:

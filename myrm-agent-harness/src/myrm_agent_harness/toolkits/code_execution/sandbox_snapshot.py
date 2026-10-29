@@ -14,7 +14,7 @@ system prompt) so the agent does not spend turns on pwd, ls and which.
 [INPUT]
 - workspace_path: str | Path to workspace directory
 - max_entries: int = 25 (max top-level entries to report)
-- core.security.detection.content_boundary::sanitize, detect_suspicious, strip_invisible_unicode (POS: untrusted-text neutralisation)
+- core.security.detection.display_name::neutralize_name (POS: untrusted file and directory names as prompt text)
 
 [OUTPUT]
 - SandboxBootstrapSnapshot: Dataclass holding structured sandbox metadata
@@ -37,11 +37,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.core.security.detection.content_boundary import (
-    detect_suspicious,
-    sanitize,
-    strip_invisible_unicode,
-)
+from myrm_agent_harness.core.security.detection.display_name import neutralize_name
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
 logger = logging.getLogger(__name__)
@@ -81,13 +77,6 @@ _CORE_TOOLS: tuple[str, ...] = ("git", "curl", "jq", "docker", "make", "tar", "r
 
 # ``None`` means the status probe gave no answer (timeout, refused layout, git missing): that is never reported as clean.
 _GIT_STATE_LABEL: dict[bool | None, str] = {True: "dirty", False: "clean", None: "unknown"}
-
-# A top-level entry name is third-party text in a system message, so it is shown as one short line of plain text:
-# line breaks, control and bidirectional characters become spaces, framing markers are neutralised, a name that reads as an
-# instruction is withheld, and a long name is cut.
-_MAX_ENTRY_NAME_CHARS = 80
-_LINE_BREAKS_AND_CONTROLS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u202a-\u202e\u2066-\u2069]")
-_WITHHELD_ENTRY_NAME = "[name withheld]"
 
 # ``java -version`` prints e.g. ``openjdk version "21.0.4" 2024-07-16`` or ``java version "1.8.0_391"``.
 _JAVA_VERSION = re.compile(r'version "([^"]+)"')
@@ -340,16 +329,6 @@ def generate_sandbox_bootstrap_snapshot(
     )
 
 
-def _display_entry_name(name: str) -> str:
-    """The entry name as it may appear in the prompt; an ordinary name comes back unchanged."""
-    cleaned = sanitize(_LINE_BREAKS_AND_CONTROLS.sub(" ", strip_invisible_unicode(name)))
-    if detect_suspicious(cleaned):
-        return _WITHHELD_ENTRY_NAME
-    if len(cleaned) > _MAX_ENTRY_NAME_CHARS:
-        return cleaned[:_MAX_ENTRY_NAME_CHARS] + "..."
-    return cleaned
-
-
 def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
     """Format the snapshot into a clean, compact XML observation for the initial prompt/observation.
 
@@ -366,7 +345,7 @@ def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
 
     # Top-level workspace entries
     if snapshot.top_level_entries:
-        entries_str = ", ".join(_display_entry_name(entry) for entry in snapshot.top_level_entries)
+        entries_str = ", ".join(neutralize_name(entry) for entry in snapshot.top_level_entries)
         if snapshot.total_entries_count > len(snapshot.top_level_entries):
             entries_str += f" ... (+{snapshot.total_entries_count - len(snapshot.top_level_entries)} more)"
         lines.append(f"Workspace Contents: {entries_str}")

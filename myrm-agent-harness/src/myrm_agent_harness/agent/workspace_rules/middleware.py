@@ -147,16 +147,13 @@ def _find_workspace_insert_idx(messages: Sequence[object]) -> int:
 
 def _format_rules_content(rules: Sequence[object]) -> str:
     """Format loaded rule files into a single SystemMessage content."""
-    import os
-
     from myrm_agent_harness.agent.workspace_rules.scanner import RuleFile
 
     sections: list[str] = []
     for rule in rules:
         if not isinstance(rule, RuleFile):
             continue
-        filename = os.path.basename(rule.path)
-        sections.append(f"### {filename}\n{rule.content}")
+        sections.append(f"### {rule.display_name}\n{rule.content}")
 
     body = "\n\n".join(sections)
     return (
