@@ -13,6 +13,8 @@
 [POS]
 Presentation of approval requests for IM notification targets. Pure functions over the event data.
 The card says what is being asked: the request's ``reason`` as the registry publishes it, quoted and capped.
+Every quoted text comes from a request or a held message, not from us, so it is shown without the syntax that
+would make a chat platform ping a whole channel or label a link as something else.
 A held channel reply (``outbound_draft``) shows the incoming message and the drafted text, so the
 reviewer can decide without opening the app; where there are no buttons it also spells out the
 ``/draft`` commands that decide it in chat.
@@ -21,6 +23,7 @@ reviewer can decide without opening the app; where there are no buttons it also 
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import PurePath
@@ -39,6 +42,12 @@ _INCOMING_PREVIEW_CHARS = 300
 _REPLY_PREVIEW_CHARS = 800
 _REASON_PREVIEW_CHARS = 500
 _MAX_ATTACHMENT_NAMES = 5
+
+# On Slack and Discord ``<!channel>``, ``<@id>`` and ``<url|label>`` are live, as are ``@everyone`` / ``@here`` and a
+# markdown ``[label](url)``. A zero-width space right after the opening character keeps the text readable and makes
+# none of them syntax.
+_LIVE_MARKUP = re.compile(r"(<|\](?=\()|(?<!\w)@(?=(?:everyone|here)\b))", re.IGNORECASE)
+_ZERO_WIDTH_SPACE = "\u200b"
 
 
 def build_approval_card(
@@ -128,7 +137,11 @@ def _mapping(value: object) -> Mapping[str, object]:
 
 def _preview(value: object, limit: int) -> str:
     text = value.strip() if isinstance(value, str) else ""
-    return text if len(text) <= limit else f"{text[:limit].rstrip()}…"
+    return _defang(text if len(text) <= limit else f"{text[:limit].rstrip()}…")
+
+
+def _defang(text: str) -> str:
+    return _LIVE_MARKUP.sub(f"\\1{_ZERO_WIDTH_SPACE}", text)
 
 
 def _quote(text: str) -> str:
@@ -146,7 +159,7 @@ def _attachment_names(payload: Mapping[str, object]) -> str:
         if isinstance(name, str) and name:
             names.append(name)
     shown = ", ".join(names[:_MAX_ATTACHMENT_NAMES])
-    return f"{shown}, …" if len(names) > _MAX_ATTACHMENT_NAMES else shown
+    return _defang(f"{shown}, …" if len(names) > _MAX_ATTACHMENT_NAMES else shown)
 
 
 def _basename(path: object) -> str | None:

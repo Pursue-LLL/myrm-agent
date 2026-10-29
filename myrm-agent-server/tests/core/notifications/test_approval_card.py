@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.channels.providers.slack.format_converter import md_to_slack_mrkdwn
 from app.channels.types.components import ActionButton, ButtonStyle
 from app.core.notifications import approval_card
 from app.core.notifications.approval_card import APPROVAL_CLICK_CHANNELS, build_approval_card
@@ -252,6 +253,30 @@ class TestGenericApprovalCard:
 
         quoted = content.split("\n\n", 1)[1]
         assert quoted == f"> {'x' * 500}…"
+
+    @pytest.mark.parametrize("channel", ["slack", "discord", "telegram"])
+    def test_a_reason_cannot_ping_a_channel_or_relabel_a_link(self, channel: str) -> None:
+        reason = "<!channel> <@U1> <https://evil.example|Approve in the app> [Approve](https://evil.example) @everyone @here"
+
+        content, _ = build_approval_card({**self.DATA, "reason": reason}, channel, "en")
+
+        for live in ("<!", "<@", "<https", "](", "@everyone", "@here"):
+            assert live not in content
+
+    def test_an_email_address_in_a_reason_is_left_alone(self) -> None:
+        content, _ = build_approval_card({**self.DATA, "reason": "ask ops@here.example"}, "slack", "en")
+
+        assert "> ask ops@here.example" in content
+
+    def test_the_slack_converter_leaves_no_live_markup_in_the_card(self) -> None:
+        reason = "<!channel> <https://evil.example|Approve in the app> [Approve](https://evil.example)"
+        content, _ = build_approval_card({**self.DATA, "reason": reason}, "slack", "en")
+
+        mrkdwn = md_to_slack_mrkdwn(content)
+
+        assert "<!channel>" not in mrkdwn
+        assert "<https://evil" not in mrkdwn
+        assert "](https://evil" not in mrkdwn
 
     def test_a_missing_reason_leaves_only_the_header(self) -> None:
         data = {key: value for key, value in self.DATA.items() if key != "reason"}
