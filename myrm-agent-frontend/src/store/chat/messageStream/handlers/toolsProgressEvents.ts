@@ -191,6 +191,8 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     // The loop guard paused the run after repeated tool failures: nothing to approve, a new message continues it.
     // The title comes from the catalog; `tool_name` stays off the step so it is not titled as a tool row.
     const isToolStuckPause = payload?.action_type === 'tool_stuck';
+    // Parallel tool calls can stop together and send the pause twice; the turn says it once.
+    let repeatsPause = false;
 
     actions.setMessages((state) => {
       const cancelStep = isToolStuckPause
@@ -201,11 +203,16 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps.push(cancelStep);
+        repeatsPause =
+          isToolStuckPause &&
+          state.messages[messageIndex].progressSteps.some((step) => step.step_key === cancelStep.step_key);
+        if (!repeatsPause) {
+          state.messages[messageIndex].progressSteps.push(cancelStep);
+        }
       }
     });
     actions.setLoading(false);
-    if (isToolStuckPause) {
+    if (isToolStuckPause && !repeatsPause) {
       // The step sits in the collapsed task list and the run produced no answer, so say it where it is seen.
       const { showI18nToast } = await import('@/services/i18nToastService');
       showI18nToast('progressSteps.tool_stuck_paused', undefined, { type: 'warning', duration: 8000 });

@@ -83,6 +83,27 @@ describe('toolsProgressEvents tool_stuck pause', () => {
     });
   });
 
+  it('says it once when parallel tool calls stop together', async () => {
+    const state = makeMessagesState();
+
+    await toolsProgressEvents(makeCtx(TOOL_STUCK_PAYLOAD, state));
+    await toolsProgressEvents(
+      makeCtx({ ...TOOL_STUCK_PAYLOAD, tool_name: 'file_read_tool', tool_call_id: 'call-2' }, state),
+    );
+
+    expect(state.messages[0].progressSteps).toEqual([{ step_key: 'tool_stuck_paused', items: [], status: 'error' }]);
+    expect(showI18nToast).toHaveBeenCalledTimes(1);
+  });
+
+  it('still adds a step for every other approval_required pause', async () => {
+    const state = makeMessagesState();
+
+    await toolsProgressEvents(makeCtx({ type: 'manual', message: 'First' }, state));
+    await toolsProgressEvents(makeCtx({ type: 'manual', message: 'Second' }, state));
+
+    expect(state.messages[0].progressSteps).toHaveLength(2);
+  });
+
   it('keeps the message of any other approval_required pause', async () => {
     const state = makeMessagesState();
 
