@@ -113,6 +113,42 @@ class TestSlackPlaceholder:
         assert calls[1][1] == {"channel": "D1", "text": "Thinking...", "thread_ts": "9.9"}
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("error", "raised"),
+        [
+            ("cant_update_message", ChannelSendError),
+            ("message_not_found", ChannelSendError),
+            ("edit_window_closed", ChannelSendError),
+            ("ratelimited", RateLimitError),
+            ("token_revoked", ChannelAuthError),
+        ],
+    )
+    async def test_an_edit_that_slack_rejects_is_raised_not_swallowed(self, error: str, raised: type[Exception]) -> None:
+        ch = _make_channel()
+        reply = OutboundMessage(channel="slack", recipient_id="D1", content="The answer is 42.", user_id="U1")
+        rejected = _err_json(error, headers={"Retry-After": "5"})
+
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=rejected):
+            with pytest.raises(raised):
+                await ch.edit_placeholder_message("D1", "1.1", reply)
+            with pytest.raises(raised):
+                await ch.edit_message("D1", "1.1", "Searching the web")
+
+    @pytest.mark.asyncio
+    async def test_a_rejected_edit_keeps_the_retry_hints_of_a_rejected_send(self) -> None:
+        ch = _make_channel()
+        rate_limited = _err_json("ratelimited", headers={"Retry-After": "5"})
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=rate_limited):
+            with pytest.raises(RateLimitError) as limited:
+                await ch.edit_message("D1", "1.1", "text")
+        assert limited.value.retry_after == 5.0
+
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json("internal_error")):
+            with pytest.raises(ChannelSendError) as failed:
+                await ch.edit_message("D1", "1.1", "text")
+        assert failed.value.retriable is True
+
+    @pytest.mark.asyncio
     async def test_the_thread_of_a_placeholder_is_one_the_bot_took_part_in(self) -> None:
         ch = _make_channel()
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})):

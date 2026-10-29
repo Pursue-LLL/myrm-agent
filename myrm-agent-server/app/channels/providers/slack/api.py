@@ -20,6 +20,7 @@ providing low-level API capabilities for SlackChannel.
 from __future__ import annotations
 
 import logging
+from typing import NoReturn
 
 import httpx
 
@@ -127,29 +128,33 @@ class SlackClient:
         )
         data = resp.json()
         if not data.get("ok"):
-            error = str(data.get("error", "unknown"))
-            if error in ("token_revoked", "invalid_auth", "not_authed"):
-                raise ChannelAuthError(f"Slack send auth error: {error}", channel="slack")
-            if error == "ratelimited":
-                ra = float(resp.headers.get("Retry-After", "1"))
-                raise RateLimitError("Slack rate limited", channel="slack", retry_after=ra)
-            raise ChannelSendError(
-                f"Slack send failed: {error}",
-                channel="slack",
-                status_code=resp.status_code,
-                retriable=error in ("internal_error", "fatal_error", "request_timeout"),
-            )
+            self._raise_message_error(resp, data, "send")
         ts = data.get("ts")
         return str(ts) if ts else None
 
-    async def update_message(self, channel: str, ts: str, text: str) -> bool:
+    async def update_message(self, channel: str, ts: str, text: str) -> None:
+        """Replace the text of a message. Raises like ``post_message``, so a caller can post the text instead."""
         payload: dict[str, object] = {"channel": channel, "ts": ts, "text": text}
         resp = await self._http.post(f"{_API_BASE}/chat.update", json=payload, timeout=_SEND_TIMEOUT)
         data = resp.json()
         if not data.get("ok"):
-            logger.debug("Slack editMessage failed: %s", data.get("error"))
-            return False
-        return True
+            self._raise_message_error(resp, data, "edit")
+
+    @staticmethod
+    def _raise_message_error(resp: httpx.Response, data: dict[str, object], action: str) -> NoReturn:
+        """Raise the typed error for a chat.postMessage / chat.update reply whose ``ok`` is false."""
+        error = str(data.get("error", "unknown"))
+        if error in ("token_revoked", "invalid_auth", "not_authed"):
+            raise ChannelAuthError(f"Slack {action} auth error: {error}", channel="slack")
+        if error == "ratelimited":
+            retry_after = float(resp.headers.get("Retry-After", "1"))
+            raise RateLimitError("Slack rate limited", channel="slack", retry_after=retry_after)
+        raise ChannelSendError(
+            f"Slack {action} failed: {error}",
+            channel="slack",
+            status_code=resp.status_code,
+            retriable=error in ("internal_error", "fatal_error", "request_timeout"),
+        )
 
     async def delete_message(self, channel: str, ts: str) -> bool:
         payload = {"channel": channel, "ts": ts}

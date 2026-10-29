@@ -68,6 +68,26 @@ class TestSlackFinalReply:
         assert str(update["text"]).count(_SUMMARY) == 1
 
     @pytest.mark.asyncio
+    async def test_a_reply_that_slack_will_not_edit_in_is_published_as_a_new_message(self) -> None:
+        channel = _slack()
+        reply = _reply("slack")
+        bus = _bus(channel)
+        rejected = AsyncMock(return_value=httpx.Response(200, json={"ok": False, "error": "cant_update_message"}))
+
+        with patch.object(channel._api._http, "post", rejected):
+            await MessageEffects(bus).edit_placeholder("slack", "C1", "9.9", reply)
+
+        assert [message.content for message in _published(bus)] == [reply.content]
+
+    @pytest.mark.asyncio
+    async def test_a_progress_edit_that_slack_rejects_is_reported_as_failed(self) -> None:
+        channel = _slack()
+        rejected = AsyncMock(return_value=httpx.Response(200, json={"ok": False, "error": "message_not_found"}))
+
+        with patch.object(channel._api._http, "post", rejected):
+            assert await MessageEffects(_bus(channel)).edit_progress("slack", "C1", "9.9", "Searching") is False
+
+    @pytest.mark.asyncio
     async def test_a_reply_posted_normally_is_still_decorated_once(self) -> None:
         channel = _slack()
         post = AsyncMock(return_value=httpx.Response(200, json={"ok": True, "ts": "2.2"}))
