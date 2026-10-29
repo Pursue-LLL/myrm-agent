@@ -16,6 +16,7 @@
 Trusting a folder of hostile files starts with its preview, which reads the folder's skills, rules and config: on a source without the
 bounded reads that preview never returns. The turn that follows has to run at the level the user decided, and that level has to still
 hold where the rules are put into the request. The chat workspace nobody trusted is the contrast: its rules stay out of the request.
+A turn that stops answering writes the tasks it is parked on to stderr before the thread timeout ends the run.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ from app.platform_utils.workspace_session import to_workspace_session_id
 from app.services.security.workspace_trust_store import ConfigWorkspaceTrustLookup, get_workspace_trust_store
 from tests.api.agent.test_workspace_rules_e2e import perform_agent_stream
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+from tests.support.pending_task_report import report_pending_tasks_after
 
 SPARSE_BYTES = 64 * 1024 * 1024
 CODEWORD = "KRAKATOA-7731"
@@ -58,14 +60,22 @@ BLOCKED_PLACEHOLDER = "[BLOCKED: AGENTS.md"
 # Longer than the 256_000 characters a rule file may have before it is refused instead of truncated.
 OVERSIZED_RULE_CHARS = 300_000
 PROMPT = "Do not use any tools. What is the project codeword? Answer with the codeword only."
+TURN_TIMEOUT_SECONDS = 240
 
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(sys.platform == "win32", reason="FIFOs and sparse files are POSIX"),
     pytest.mark.skipif(not os.environ.get("LITE_API_KEY"), reason="E2E test requires LITE_API_KEY"),
     # A blocked read stalls the turn inside the event loop; the thread method ends the run with a stack dump.
-    pytest.mark.timeout(240, method="thread"),
+    pytest.mark.timeout(TURN_TIMEOUT_SECONDS, method="thread"),
 ]
+
+
+@pytest.fixture(autouse=True)
+def _name_the_await_of_a_stuck_turn() -> Iterator[None]:
+    """The thread stacks of a run ended by the timeout show an idle loop; the tasks parked on an await say which one."""
+    with report_pending_tasks_after(TURN_TIMEOUT_SECONDS - 40):
+        yield
 
 
 @pytest.fixture(autouse=True)
