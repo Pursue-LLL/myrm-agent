@@ -291,6 +291,28 @@ class TestInvokeActionDispatch:
         assert "xdotool" in (result.error or "")
         assert "s3cret-text" not in (result.error or "")
 
+    def test_fill_fallback_timeout_does_not_echo_the_text(self) -> None:
+        """TimeoutExpired renders the whole command; the typed text must not reach the error."""
+        mock_pyatspi, mock_button = self._make_interactive_desktop()
+        mock_button.getRoleName.return_value = "entry"
+        mock_button.queryEditableText.side_effect = Exception("no editable")
+        timeout = subprocess.TimeoutExpired(["xdotool", "type", "--clearmodifiers", "s3cret-text"], 5)
+
+        with (
+            patch.dict("sys.modules", {"pyatspi": mock_pyatspi}),
+            patch("subprocess.run", side_effect=timeout),
+        ):
+            from importlib import reload
+
+            from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
+
+            reload(linux_ax)
+            result = linux_ax.invoke_ax_element("0", "type", "s3cret-text")
+
+        assert result.success is False
+        assert "timed out" in (result.error or "")
+        assert "s3cret-text" not in (result.error or "")
+
     def test_getstate_exception_skips_node(self) -> None:
         """Node whose getState() raises should be skipped in _collect (mirrors walk)."""
         mock_pyatspi = MagicMock()

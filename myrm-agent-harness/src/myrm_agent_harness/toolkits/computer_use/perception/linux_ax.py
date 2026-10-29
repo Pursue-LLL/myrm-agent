@@ -257,9 +257,12 @@ def invoke_ax_element(
                 action_if = target.queryAction()  # type: ignore[attr-defined]
                 if action_if.getNActions() > 0:  # type: ignore[attr-defined]
                     action_if.doAction(0)  # type: ignore[attr-defined]
-                typed = subprocess.run(["xdotool", "type", "--clearmodifiers", text], timeout=5, check=False)
+                # 异常文本（CalledProcessError、TimeoutExpired）会带上整条命令，也就是输入的内容，所以不让它们透出去。
+                try:
+                    typed = subprocess.run(["xdotool", "type", "--clearmodifiers", text], timeout=5, check=False)
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError("xdotool type timed out") from None
                 if typed.returncode != 0:
-                    # 不用 check=True：CalledProcessError 的文本会带上整条命令，也就是输入的内容。
                     raise RuntimeError(f"xdotool type failed (exit {typed.returncode})") from None
         elif normalized in {
             "click",
