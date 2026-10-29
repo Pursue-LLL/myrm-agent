@@ -4,7 +4,7 @@ Mixin providing all inbound-related methods used by TelegramChannel.
 Handles message, edited_message, callback_query, sticker, location, venue, and media groups.
 
 [INPUT]
-- channels.types::InboundMessage, MediaAttachment, ReplyContext
+- channels.types::InboundMessage, MediaAttachment, ReplyContext, ChannelHealth (type-check only)
 - telegram.models::TgUpdate, (POS: Pydantic models for Telegram Bot API webhook payloads.)
 
 [OUTPUT]
@@ -50,6 +50,8 @@ from .helpers import (
 from .models import TgCallbackQuery, TgEntity, TgMessage, TgMessageReactionUpdated, TgUpdate
 
 if TYPE_CHECKING:
+    from app.channels.types import ChannelHealth
+
     from .api import TelegramClient
     from .helpers import _MediaGroupBuffer
 
@@ -106,6 +108,17 @@ class TelegramInboundMixin:
     _background_tasks: set[asyncio.Task[None]]
     _status: ChannelStatus
     _offset: int
+
+    if TYPE_CHECKING:
+        # Provided by the host channel (BaseChannel, its inbound pipeline, TelegramHooksMixin); declared with
+        # their signatures for the type checker.
+        health: ChannelHealth
+
+        def _build_inbound(self, sender_id: str, content: str, chat_id: str, **kwargs: object) -> InboundMessage: ...
+        async def _emit_inbound(self, msg: InboundMessage) -> None: ...
+        def _set_connected(self, connected: bool) -> None: ...
+        def _redact(self, text: str) -> str: ...
+        async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage | None: ...
 
     def _parse_update(self, update: dict[str, object]) -> InboundMessage | None:
         """Parse a Telegram Update into an InboundMessage using Pydantic validation."""
@@ -470,7 +483,7 @@ class TelegramInboundMixin:
         return self._build_inbound(
             sender_id=first.sender_id,
             content="\n".join(contents),
-            chat_id=first.chat_id,
+            chat_id=first.chat_id or "",
             sender_name=first.sender_name,
             is_group=first.is_group,
             mentioned=first.mentioned,

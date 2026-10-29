@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from tests.channels.providers.telegram.telegram_client_mocks import _mock_client, _ok_response
+from tests.channels.providers.telegram.telegram_client_mocks import mock_client, ok_response
 
 
 class TestSendMedia:
@@ -14,8 +14,8 @@ class TestSendMedia:
 
     @pytest.mark.asyncio
     async def test_send_media_bytes_uses_files(self) -> None:
-        client, http = _mock_client()
-        http.post = AsyncMock(return_value=_ok_response({"message_id": 1}))
+        client, http = mock_client()
+        http.post = AsyncMock(return_value=ok_response({"message_id": 1}))
         result = await client._send_media(
             "sendPhoto",
             "photo",
@@ -30,8 +30,8 @@ class TestSendMedia:
 
     @pytest.mark.asyncio
     async def test_send_media_url_uses_json(self) -> None:
-        client, http = _mock_client()
-        http.post = AsyncMock(return_value=_ok_response({"message_id": 2}))
+        client, http = mock_client()
+        http.post = AsyncMock(return_value=ok_response({"message_id": 2}))
         result = await client._send_media(
             "sendPhoto",
             "photo",
@@ -48,8 +48,8 @@ class TestVoiceAudioSizeValidation:
 
     @pytest.mark.asyncio
     async def test_send_voice_normal_size(self) -> None:
-        client, http = _mock_client()
-        http.post = AsyncMock(return_value=_ok_response({"message_id": 1}))
+        client, http = mock_client()
+        http.post = AsyncMock(return_value=ok_response({"message_id": 1}))
 
         voice_data = b"ogg_data" * 100  # Small voice file
         result = await client.send_voice(123, voice_data, filename="v.ogg")
@@ -63,7 +63,7 @@ class TestVoiceAudioSizeValidation:
             VoiceMessageTooLargeError,
         )
 
-        client, http = _mock_client()
+        client, http = mock_client()
 
         voice_data = b"x" * (51 * 1024 * 1024)  # 51MB > 50MB limit
 
@@ -76,7 +76,7 @@ class TestVoiceAudioSizeValidation:
 
     @pytest.mark.asyncio
     async def test_send_voice_invalid_mime_type_raises(self) -> None:
-        client, http = _mock_client()
+        client, http = mock_client()
 
         with pytest.raises(ValueError) as exc_info:
             await client.send_voice(123, b"data", mime_type="audio/mpeg")  # MP3 not supported
@@ -86,8 +86,8 @@ class TestVoiceAudioSizeValidation:
 
     @pytest.mark.asyncio
     async def test_send_voice_opus_mime_type(self) -> None:
-        client, http = _mock_client()
-        http.post = AsyncMock(return_value=_ok_response({"message_id": 1}))
+        client, http = mock_client()
+        http.post = AsyncMock(return_value=ok_response({"message_id": 1}))
 
         result = await client.send_voice(123, b"opus_data", mime_type="audio/opus")
 
@@ -95,8 +95,8 @@ class TestVoiceAudioSizeValidation:
 
     @pytest.mark.asyncio
     async def test_send_audio_normal_size(self) -> None:
-        client, http = _mock_client()
-        http.post = AsyncMock(return_value=_ok_response({"message_id": 1}))
+        client, http = mock_client()
+        http.post = AsyncMock(return_value=ok_response({"message_id": 1}))
 
         audio_data = b"mp3_data" * 100
         result = await client.send_audio(123, audio_data, filename="song.mp3")
@@ -109,7 +109,7 @@ class TestVoiceAudioSizeValidation:
             AudioFileTooLargeError,
         )
 
-        client, http = _mock_client()
+        client, http = mock_client()
 
         audio_data = b"x" * (51 * 1024 * 1024)  # 51MB
 
@@ -121,7 +121,7 @@ class TestVoiceAudioSizeValidation:
 
     @pytest.mark.asyncio
     async def test_send_audio_invalid_mime_type_raises(self) -> None:
-        client, http = _mock_client()
+        client, http = mock_client()
 
         with pytest.raises(ValueError) as exc_info:
             await client.send_audio(123, b"data", mime_type="audio/ogg")  # OGG not supported
@@ -131,8 +131,8 @@ class TestVoiceAudioSizeValidation:
 
     @pytest.mark.asyncio
     async def test_send_audio_m4a_mime_type(self) -> None:
-        client, http = _mock_client()
-        http.post = AsyncMock(return_value=_ok_response({"message_id": 1}))
+        client, http = mock_client()
+        http.post = AsyncMock(return_value=ok_response({"message_id": 1}))
 
         result = await client.send_audio(123, b"m4a_data", mime_type="audio/m4a")
 

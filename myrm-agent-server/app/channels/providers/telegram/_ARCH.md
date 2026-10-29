@@ -18,7 +18,7 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `outbound_rich.py` | 模块 | Rich Message send mixin: sendRichMessage with HTML fallback on capability or parse errors of the first part; later parts go through `deliver_chunks`, so one that fails is a partial delivery, not a fallback. | ✅ |
 | `topics.py` | 模块 | Forum Topic mixin: create/rename/close/reopen, auto-topic per user, name sync. | ✅ |
 | `hooks.py` | 模块 | Pre-emit hook mixin: /agent command, inline agent picker, auto-topic routing. | ✅ |
-| `webhook.py` | 模块 | Webhook mixin: signature verify, setWebhook lifecycle, FastAPI POST /webhook route. | ✅ |
+| `webhook.py` | 模块 | Webhook mixin: signature verify, setWebhook lifecycle, POST /webhook route on a route registrar (any other object is ignored with a warning). | ✅ |
 | `constants.py` | 模块 | Telegram Bot API constants and limits, and `TELEGRAM_REACTION_EMOJI`: the 73 emoji a bot may set as a reaction (anything else is `REACTION_INVALID`). | ✅ |
 | `exceptions.py` | 模块 | Telegram-specific exceptions for file size validation and API errors. | ✅ |
 | `helpers.py` | 模块 | Telegram module-level utility functions, constants, and data structures. | ✅ |

@@ -4,7 +4,7 @@ Mixin providing webhook lifecycle and HTTP endpoint registration for TelegramCha
 
 [INPUT]
 - channels.security::WebhookSecurityMiddleware, WebhookResponseError
-- channels.protocols.route_registrar::HttpMethod, RouteMetadata
+- channels.protocols.route_registrar::HttpMethod, RouteMetadata, RouteRegistrar, GenericRequest, GenericResponse
 - fastapi::Request
 - telegram.inbound::_ALLOWED_UPDATES
 
@@ -19,8 +19,10 @@ Telegram webhook mixin. Validates X-Telegram-Bot-Api-Secret-Token, registers POS
 from __future__ import annotations
 
 import hmac
+import json
 import logging
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, cast
 
 from fastapi import Request
 
@@ -30,10 +32,22 @@ from .api_core import TelegramApiError
 from .inbound import _ALLOWED_UPDATES
 
 if TYPE_CHECKING:
+    from app.channels.protocols.route_registrar import GenericRequest, GenericResponse
+    from app.channels.types import InboundMessage
+
     from .api import TelegramClient
     from .helpers import BotCommand
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class _JsonResponse:
+    """Webhook HTTP response implementing the GenericResponse protocol."""
+
+    status_code: int
+    body: bytes
+    headers: dict[str, str] = field(default_factory=dict)
 
 
 class TelegramWebhookMixin:
@@ -51,6 +65,15 @@ class TelegramWebhookMixin:
     _token: str
     _webhook_url: str
     _commands: list[BotCommand]
+
+    if TYPE_CHECKING:
+        # Provided by the host channel and its other mixins; declared with their signatures for the type checker.
+        @property
+        def webhook_secret(self) -> str: ...
+        def _redact(self, text: str) -> str: ...
+        def _parse_update(self, update: dict[str, object]) -> InboundMessage | None: ...
+        async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage | None: ...
+        async def _buffer_or_emit(self, msg: InboundMessage, update: dict[str, object]) -> None: ...
 
     async def verify(self, request: Request, body: bytes) -> None:
         """SignatureVerifier Protocol: validate X-Telegram-Bot-Api-Secret-Token header."""
@@ -113,13 +136,17 @@ class TelegramWebhookMixin:
         from app.channels.protocols.route_registrar import (
             HttpMethod,
             RouteMetadata,
+            RouteRegistrar,
         )
         from app.channels.security import (
             SecurityLimits,
             SecurityProtocols,
-            WebhookResponseError,
             WebhookSecurityMiddleware,
         )
+
+        if not isinstance(registrar, RouteRegistrar):
+            logger.warning("TelegramChannel: registrar does not implement RouteRegistrar; webhook route not registered")
+            return
 
         middleware = WebhookSecurityMiddleware(
             limits=SecurityLimits(
@@ -130,48 +157,24 @@ class TelegramWebhookMixin:
             protocols=SecurityProtocols(signature_verifier=self),
         )
 
-        async def webhook_handler(request):
+        async def webhook_handler(request: GenericRequest) -> GenericResponse:
             """Handle Telegram webhook updates."""
-            import json
-
             try:
-                ctx = await middleware.process_request(request, "telegram")
+                # The registrar hands over an adapter that forwards every FastAPI Request attribute the middleware reads.
+                ctx = await middleware.process_request(cast("Request", request), "telegram")
 
                 if ctx.parsed_data is None:
-
-                    class _ErrorResponse:
-                        status_code = 400
-                        headers = {}
-                        body = b'{"ok": false, "error": "Invalid JSON"}'
-
-                    return _ErrorResponse()
+                    return _JsonResponse(400, b'{"ok": false, "error": "Invalid JSON"}')
 
                 await self.handle_webhook_update(ctx.parsed_data)
 
             except WebhookResponseError as e:
-
-                class _WebhookErrorResponse:
-                    status_code = e.status_code
-                    headers = {}
-                    body = json.dumps(e.to_dict()).encode("utf-8")
-
-                return _WebhookErrorResponse()
+                return _JsonResponse(e.status_code, json.dumps(e.to_dict()).encode("utf-8"))
             except Exception as e:
                 logger.warning("Telegram webhook error: %s", e, exc_info=True)
+                return _JsonResponse(500, json.dumps({"ok": False, "error": "Internal error"}).encode("utf-8"))
 
-                class _InternalErrorResponse:
-                    status_code = 500
-                    headers = {}
-                    body = json.dumps({"ok": False, "error": "Internal error"}).encode("utf-8")
-
-                return _InternalErrorResponse()
-
-            class _SuccessResponse:
-                status_code = 200
-                headers = {}
-                body = b'{"ok": true}'
-
-            return _SuccessResponse()
+            return _JsonResponse(200, b'{"ok": true}')
 
         registrar.add_route(
             method=HttpMethod.POST,

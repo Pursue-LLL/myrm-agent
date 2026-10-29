@@ -9,7 +9,7 @@ import httpx
 from app.channels.providers.telegram.api import TelegramClient
 
 
-def _mock_client() -> tuple[TelegramClient, AsyncMock]:
+def mock_client() -> tuple[TelegramClient, AsyncMock]:
     """A client wired to a mocked HTTP layer, returned with that layer so tests can script and inspect its calls."""
     client = TelegramClient("test-token")
     http = AsyncMock(spec=httpx.AsyncClient)
@@ -18,13 +18,13 @@ def _mock_client() -> tuple[TelegramClient, AsyncMock]:
     return client, http
 
 
-def _ok_response(result: object = None) -> httpx.Response:
+def ok_response(result: object = None) -> httpx.Response:
     """Build a mock Telegram API success response."""
 
     body = {"ok": True, "result": result or {}}
     return httpx.Response(200, json=body)
 
 
-def _error_response(code: int = 400, desc: str = "Bad Request") -> httpx.Response:
+def error_response(code: int = 400, desc: str = "Bad Request") -> httpx.Response:
     body = {"ok": False, "error_code": code, "description": desc}
     return httpx.Response(code, json=body)

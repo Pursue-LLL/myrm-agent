@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.channels.core.base import BaseChannel, ChannelStatus
+from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.telegram import TelegramChannel
 from app.channels.providers.telegram.api import TelegramClient
@@ -19,6 +20,8 @@ from app.channels.providers.telegram.models import (
 )
 from app.channels.types import (
     METADATA_EXPLICIT_MENTION_KEY,
+    ChannelStatus,
+    InboundMessage,
     MediaAttachment,
     MediaType,
     OutboundMessage,
@@ -885,13 +888,13 @@ class TestBufferOrEmit:
     @pytest.mark.asyncio
     async def test_non_media_group_emits_directly(self) -> None:
         ch = _make_channel()
-        received = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg):
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
-        ch._status = "running"
+        ch._status = ChannelStatus.RUNNING
 
         raw = {
             "update_id": 1,
@@ -910,13 +913,13 @@ class TestBufferOrEmit:
     @pytest.mark.asyncio
     async def test_media_group_buffers(self) -> None:
         ch = _make_channel()
-        received = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg):
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
-        ch._status = "running"
+        ch._status = ChannelStatus.RUNNING
 
         raw = {
             "update_id": 1,
@@ -1475,13 +1478,13 @@ class TestTelegramChannelOutbound:
     @pytest.mark.asyncio
     async def test_handle_webhook_update(self) -> None:
         ch = _make_channel()
-        received: list[object] = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg: object) -> None:
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
-        ch._status = "running"
+        ch._status = ChannelStatus.RUNNING
 
         update = {
             "update_id": 1,
@@ -1586,8 +1589,7 @@ class TestTelegramStopFull:
         ch._client.delete_my_commands = AsyncMock()
         ch._poll_task = None
 
-        from app.channels.providers.telegram.channel import _MediaGroupBuffer
-        from app.channels.types import InboundMessage
+        from app.channels.providers.telegram.helpers import _MediaGroupBuffer
 
         buf = _MediaGroupBuffer()
         buf.messages.append(
@@ -1642,7 +1644,7 @@ class TestTelegramStopFull:
 
     @pytest.mark.asyncio
     async def test_stop_deletes_commands(self) -> None:
-        from app.channels.providers.telegram.channel import BotCommand
+        from app.channels.providers.telegram.helpers import BotCommand
 
         ch = _make_channel()
         ch._status = ChannelStatus.RUNNING
@@ -1887,7 +1889,7 @@ class TestTelegramDownloadVoice:
 class TestTelegramRegisterCommands:
     @pytest.mark.asyncio
     async def test_register_commands_success(self) -> None:
-        from app.channels.providers.telegram.channel import BotCommand
+        from app.channels.providers.telegram.helpers import BotCommand
 
         ch = _make_channel()
         ch._commands = [BotCommand(command="help", description="Help")]
@@ -1909,7 +1911,7 @@ class TestTelegramRegisterCommands:
 
     @pytest.mark.asyncio
     async def test_register_commands_error_silenced(self) -> None:
-        from app.channels.providers.telegram.channel import BotCommand
+        from app.channels.providers.telegram.helpers import BotCommand
 
         ch = _make_channel()
         ch._commands = [BotCommand(command="help", description="Help")]
@@ -2163,6 +2165,12 @@ from app.channels.types.components import (  # noqa: E402
 )
 
 
+def _keyboard_rows(msg: OutboundMessage) -> list[list[dict[str, str]]]:
+    keyboard = build_inline_keyboard(msg)
+    assert keyboard is not None
+    return cast("list[list[dict[str, str]]]", keyboard["inline_keyboard"])
+
+
 class TestBuildInlineKeyboard:
     def test_no_elements(self) -> None:
         msg = OutboundMessage(
@@ -2183,9 +2191,7 @@ class TestBuildInlineKeyboard:
             user_id="U",
             quick_replies=(QuickReply(label="Yes", text="yes"), QuickReply(label="No", text="no")),
         )
-        result = build_inline_keyboard(msg)
-        assert result is not None
-        assert len(result["inline_keyboard"]) == 2
+        assert len(_keyboard_rows(msg)) == 2
 
     def test_action_button_url(self) -> None:
         btn = ActionButton(action_id="a1", label="Visit", url="https://example.com")
@@ -2196,9 +2202,7 @@ class TestBuildInlineKeyboard:
             user_id="U",
             components=((btn,),),
         )
-        result = build_inline_keyboard(msg)
-        assert result is not None
-        rows = result["inline_keyboard"]
+        rows = _keyboard_rows(msg)
         assert rows[0][0]["url"] == "https://example.com"
 
     def test_action_button_callback(self) -> None:
@@ -2210,9 +2214,7 @@ class TestBuildInlineKeyboard:
             user_id="U",
             components=((btn,),),
         )
-        result = build_inline_keyboard(msg)
-        assert result is not None
-        rows = result["inline_keyboard"]
+        rows = _keyboard_rows(msg)
         assert rows[0][0]["callback_data"].startswith("act:")
 
     def test_select_menu(self) -> None:
@@ -2231,9 +2233,7 @@ class TestBuildInlineKeyboard:
             user_id="U",
             components=((menu,),),
         )
-        result = build_inline_keyboard(msg)
-        assert result is not None
-        rows = result["inline_keyboard"]
+        rows = _keyboard_rows(msg)
         assert len(rows[0]) == 2
 
 
@@ -2347,15 +2347,16 @@ class TestSendMediaAttachment:
 # ══════════════════════════════════════════════════════════════════
 
 
-def _make_topic_channel(*, auto_topic: bool = False) -> TelegramChannel:
+def _make_topic_channel(*, auto_topic: bool = False) -> tuple[TelegramChannel, MagicMock]:
     ch = TelegramChannel(
         bot_token=FAKE_TELEGRAM_BOT_TOKEN,
         auto_topic=auto_topic,
     )
     ch._bot_username = "testbot"
     ch._tg_bot_id = 123456789
-    ch._client = MagicMock(spec=TelegramClient)
-    return ch
+    client = MagicMock(spec=TelegramClient)
+    ch._client = client
+    return ch, client
 
 
 class TestForumTopicChannel:
@@ -2363,61 +2364,61 @@ class TestForumTopicChannel:
 
     @pytest.mark.asyncio
     async def test_create_topic_success(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 99, "name": "Alice"})
+        ch, client = _make_topic_channel()
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 99, "name": "Alice"})
         result = await ch.create_topic("-100123", "Alice")
         assert result == 99
         assert ch._topic_name_cache["-100123:99"] == "Alice"
 
     @pytest.mark.asyncio
     async def test_create_topic_failure(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.create_forum_topic = AsyncMock(side_effect=TelegramApiError(403, "Forbidden: not enough rights"))
+        ch, client = _make_topic_channel()
+        client.create_forum_topic = AsyncMock(side_effect=TelegramApiError(403, "Forbidden: not enough rights"))
         result = await ch.create_topic("-100123", "Alice")
         assert result is None
 
     @pytest.mark.asyncio
     async def test_create_topic_no_thread_id(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.create_forum_topic = AsyncMock(return_value={"name": "Alice"})
+        ch, client = _make_topic_channel()
+        client.create_forum_topic = AsyncMock(return_value={"name": "Alice"})
         result = await ch.create_topic("-100123", "Alice")
         assert result is None
 
     @pytest.mark.asyncio
     async def test_rename_topic_success(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.edit_forum_topic = AsyncMock(return_value=True)
+        ch, client = _make_topic_channel()
+        client.edit_forum_topic = AsyncMock(return_value=True)
         assert await ch.rename_topic("-100123", 99, "Bob") is True
         assert ch._topic_name_cache["-100123:99"] == "Bob"
 
     @pytest.mark.asyncio
     async def test_rename_topic_failure(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.edit_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: topic not found"))
+        ch, client = _make_topic_channel()
+        client.edit_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: topic not found"))
         assert await ch.rename_topic("-100123", 99, "Bob") is False
 
     @pytest.mark.asyncio
     async def test_close_topic_success(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.close_forum_topic = AsyncMock(return_value=True)
+        ch, client = _make_topic_channel()
+        client.close_forum_topic = AsyncMock(return_value=True)
         assert await ch.close_topic("-100123", 99) is True
 
     @pytest.mark.asyncio
     async def test_close_topic_failure(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.close_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "error"))
+        ch, client = _make_topic_channel()
+        client.close_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "error"))
         assert await ch.close_topic("-100123", 99) is False
 
     @pytest.mark.asyncio
     async def test_reopen_topic_success(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.reopen_forum_topic = AsyncMock(return_value=True)
+        ch, client = _make_topic_channel()
+        client.reopen_forum_topic = AsyncMock(return_value=True)
         assert await ch.reopen_topic("-100123", 99) is True
 
     @pytest.mark.asyncio
     async def test_reopen_topic_failure(self) -> None:
-        ch = _make_topic_channel()
-        ch._client.reopen_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "error"))
+        ch, client = _make_topic_channel()
+        client.reopen_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "error"))
         assert await ch.reopen_topic("-100123", 99) is False
 
 
@@ -2426,14 +2427,14 @@ class TestAutoTopicCreation:
 
     @pytest.mark.asyncio
     async def test_ensure_topic_disabled(self) -> None:
-        ch = _make_topic_channel(auto_topic=False)
+        ch, client = _make_topic_channel(auto_topic=False)
         result = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert result is None
 
     @pytest.mark.asyncio
     async def test_ensure_topic_creates(self) -> None:
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 55, "name": "Alice"})
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 55, "name": "Alice"})
         result = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert result == 55
         assert ch._user_topic_map["-100123:42"] == 55
@@ -2441,60 +2442,58 @@ class TestAutoTopicCreation:
     @pytest.mark.asyncio
     async def test_ensure_topic_reuses_existing(self) -> None:
         """Second call for same user should reuse cached topic, not create new one."""
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 55, "name": "Alice"})
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 55, "name": "Alice"})
         first = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         second = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert first == second == 55
-        assert ch._client.create_forum_topic.call_count == 1
+        assert client.create_forum_topic.call_count == 1
 
     @pytest.mark.asyncio
     async def test_ensure_topic_concurrent_lock(self) -> None:
         """Concurrent calls for the same user should serialize and only create once."""
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
 
         async def mock_create(*_a: object, **_kw: object) -> dict[str, object]:
             await asyncio.sleep(0.01)
             return {"message_thread_id": 61, "name": "Alice"}
 
-        ch._client.create_forum_topic = AsyncMock(side_effect=mock_create)
+        client.create_forum_topic = AsyncMock(side_effect=mock_create)
         results = await asyncio.gather(
             ch.ensure_topic_for_user("-100123", "Alice", "42"),
             ch.ensure_topic_for_user("-100123", "Alice", "42"),
         )
         assert all(r == 61 for r in results)
-        assert ch._client.create_forum_topic.call_count == 1
+        assert client.create_forum_topic.call_count == 1
 
     @pytest.mark.asyncio
     async def test_sync_topic_name_no_change(self) -> None:
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         ch._topic_name_cache["-100123:99"] = "Alice"
-        ch._client.edit_forum_topic = AsyncMock(return_value=True)
+        client.edit_forum_topic = AsyncMock(return_value=True)
         await ch.sync_topic_name("-100123", 99, "Alice")
-        ch._client.edit_forum_topic.assert_not_called()
+        client.edit_forum_topic.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_sync_topic_name_changed(self) -> None:
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         ch._topic_name_cache["-100123:99"] = "Alice"
-        ch._client.edit_forum_topic = AsyncMock(return_value=True)
+        client.edit_forum_topic = AsyncMock(return_value=True)
         await ch.sync_topic_name("-100123", 99, "Alice Smith")
-        ch._client.edit_forum_topic.assert_called_once_with("-100123", 99, name="Alice Smith")
+        client.edit_forum_topic.assert_called_once_with("-100123", 99, name="Alice Smith")
 
     @pytest.mark.asyncio
     async def test_sync_topic_name_disabled(self) -> None:
-        ch = _make_topic_channel(auto_topic=False)
-        ch._client.edit_forum_topic = AsyncMock()
+        ch, client = _make_topic_channel(auto_topic=False)
+        client.edit_forum_topic = AsyncMock()
         await ch.sync_topic_name("-100123", 99, "Alice")
-        ch._client.edit_forum_topic.assert_not_called()
+        client.edit_forum_topic.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_pre_emit_hook_forum_no_thread(self) -> None:
         """Forum message without thread_id should trigger auto-create."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 77, "name": "Bob"})
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 77, "name": "Bob"})
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2506,17 +2505,16 @@ class TestAutoTopicCreation:
             metadata={"is_forum": True},
         )
         result = await ch._pre_emit_hook(msg)
+        assert result is not None
         assert result.thread_id == "77"
-        ch._client.create_forum_topic.assert_called_once()
+        client.create_forum_topic.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_pre_emit_hook_forum_with_thread(self) -> None:
         """Forum message with existing thread_id should populate user_topic_map and trigger name sync."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         ch._topic_name_cache["-100123:99"] = "Old Name"
-        ch._client.edit_forum_topic = AsyncMock(return_value=True)
+        client.edit_forum_topic = AsyncMock(return_value=True)
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2531,14 +2529,12 @@ class TestAutoTopicCreation:
         assert result is msg
         assert ch._user_topic_map["-100123:42"] == 99
         await asyncio.sleep(0.05)
-        ch._client.edit_forum_topic.assert_called_once_with("-100123", 99, name="New Name")
+        client.edit_forum_topic.assert_called_once_with("-100123", 99, name="New Name")
 
     @pytest.mark.asyncio
     async def test_pre_emit_hook_non_forum(self) -> None:
         """Non-forum messages pass through unchanged."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2553,9 +2549,7 @@ class TestAutoTopicCreation:
     @pytest.mark.asyncio
     async def test_pre_emit_hook_disabled(self) -> None:
         """Auto-topic disabled passes through unchanged."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=False)
+        ch, client = _make_topic_channel(auto_topic=False)
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2594,8 +2588,8 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_ensure_topic_create_fails(self) -> None:
         """ensure_topic_for_user returns None when create_topic fails."""
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(side_effect=TelegramApiError(403, "Bot is not admin"))
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(side_effect=TelegramApiError(403, "Bot is not admin"))
         result = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert result is None
         assert "-100123:42" not in ch._user_topic_map
@@ -2603,9 +2597,7 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_apply_auto_topic_dm_message(self) -> None:
         """DM (non-group) messages pass through even if auto_topic is on."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2620,9 +2612,7 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_apply_auto_topic_no_sender_id(self) -> None:
         """Forum message without sender_id passes through unchanged."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         msg = InboundMessage(
             channel="telegram",
             sender_id="",
@@ -2638,29 +2628,29 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_sync_topic_name_rename_fails(self) -> None:
         """sync_topic_name handles rename failure gracefully."""
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         ch._topic_name_cache["-100123:99"] = "Old"
-        ch._client.edit_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "Topic not found"))
+        client.edit_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "Topic not found"))
         await ch.sync_topic_name("-100123", 99, "New Name")
         assert ch._topic_name_cache["-100123:99"] == "Old"
 
     @pytest.mark.asyncio
     async def test_sync_topic_name_no_cache(self) -> None:
         """sync_topic_name calls rename when no cache entry exists."""
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.edit_forum_topic = AsyncMock(return_value=True)
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.edit_forum_topic = AsyncMock(return_value=True)
         await ch.sync_topic_name("-100123", 99, "Alice")
-        ch._client.edit_forum_topic.assert_called_once_with("-100123", 99, name="Alice")
+        client.edit_forum_topic.assert_called_once_with("-100123", 99, name="Alice")
         assert ch._topic_name_cache["-100123:99"] == "Alice"
 
     @pytest.mark.asyncio
     async def test_create_topic_with_icon(self) -> None:
         """create_topic passes icon parameters to API."""
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 88, "name": "Test"})
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 88, "name": "Test"})
         result = await ch.create_topic("-100123", "Test", icon_color=0x6FB9F0, icon_custom_emoji_id="5368324170671202286")
         assert result == 88
-        ch._client.create_forum_topic.assert_called_once_with(
+        client.create_forum_topic.assert_called_once_with(
             "-100123",
             "Test",
             icon_color=0x6FB9F0,
@@ -2670,11 +2660,11 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_ensure_topic_empty_sender_name(self) -> None:
         """Fallback to 'User {id}' when sender_name is empty."""
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 66, "name": "User 42"})
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 66, "name": "User 42"})
         result = await ch.ensure_topic_for_user("-100123", "", "42")
         assert result == 66
-        ch._client.create_forum_topic.assert_called_once_with(
+        client.create_forum_topic.assert_called_once_with(
             "-100123",
             "User 42",
             icon_color=None,
@@ -2684,10 +2674,8 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_pre_emit_hook_preserves_all_fields(self) -> None:
         """When auto-create triggers, all original message fields are preserved."""
-        from app.channels.types import InboundMessage
-
-        ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 99, "name": "Alice"})
+        ch, client = _make_topic_channel(auto_topic=True)
+        client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 99, "name": "Alice"})
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2703,6 +2691,7 @@ class TestAutoTopicEdgeCases:
             message_id="12345",
         )
         result = await ch._pre_emit_hook(msg)
+        assert result is not None
         assert result.thread_id == "99"
         assert result.sender_id == "42"
         assert result.content == "test content"
@@ -2719,7 +2708,7 @@ class TestAutoTopicEdgeCases:
     @pytest.mark.asyncio
     async def test_user_topic_map_different_chats(self) -> None:
         """Different chat_ids create separate topics for the same user."""
-        ch = _make_topic_channel(auto_topic=True)
+        ch, client = _make_topic_channel(auto_topic=True)
         call_count = 0
 
         async def mock_create(chat_id: str, name: str, **_kw: object) -> dict[str, object]:
@@ -2727,11 +2716,11 @@ class TestAutoTopicEdgeCases:
             call_count += 1
             return {"message_thread_id": 100 + call_count, "name": name}
 
-        ch._client.create_forum_topic = AsyncMock(side_effect=mock_create)
+        client.create_forum_topic = AsyncMock(side_effect=mock_create)
         r1 = await ch.ensure_topic_for_user("-100A", "Alice", "42")
         r2 = await ch.ensure_topic_for_user("-100B", "Alice", "42")
         assert r1 != r2
-        assert ch._client.create_forum_topic.call_count == 2
+        assert client.create_forum_topic.call_count == 2
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -2778,9 +2767,6 @@ class TestIsPollingConflict:
         assert TelegramChannel._is_polling_conflict(err) is True
 
 
-import app.channels.providers.telegram.inbound as _tg_inbound_mod  # noqa: E402
-
-
 class TestPollLoopConflictRecovery:
     """Integration tests for _poll_loop conflict error handling."""
 
@@ -2797,7 +2783,7 @@ class TestPollLoopConflictRecovery:
         ch._client = MagicMock()
         ch._client.get_updates = AsyncMock(side_effect=TelegramApiError(409, "Conflict: terminated by other getUpdates request"))
 
-        with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
 
         assert ch._status == ChannelStatus.ERROR
@@ -2833,7 +2819,7 @@ class TestPollLoopConflictRecovery:
         ch._client.get_updates = AsyncMock(side_effect=get_updates_side_effect)
         ch.set_inbound_handler(AsyncMock())
 
-        with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
 
         assert ch._status == ChannelStatus.STOPPED
@@ -2869,7 +2855,7 @@ class TestPollLoopNetworkRecovery:
 
         ch._client.get_updates = AsyncMock(side_effect=get_updates_side_effect)
 
-        with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
 
         assert ch._status == ChannelStatus.STOPPED
@@ -2895,7 +2881,7 @@ class TestPollLoopNetworkRecovery:
 
         ch._client.get_updates = AsyncMock(side_effect=get_updates_side_effect)
 
-        with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
 
         assert ch._status == ChannelStatus.STOPPED
@@ -2925,7 +2911,7 @@ class TestPollLoopNetworkRecovery:
 
         ch._client.get_updates = AsyncMock(side_effect=get_updates_side_effect)
 
-        with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
 
         # Must have polled beyond threshold (proves DEGRADED didn't exit loop)
@@ -2969,7 +2955,7 @@ class TestPollLoopNetworkRecovery:
 
         ch._client.get_updates = AsyncMock(side_effect=get_updates_side_effect)
 
-        with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
 
         assert ch._status == ChannelStatus.STOPPED

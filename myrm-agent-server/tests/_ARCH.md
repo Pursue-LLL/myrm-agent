@@ -166,6 +166,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 七家 Provider（Slack、钉钉、LINE、Telegram、SMS、Zalo、Signal）经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线：建立不了的连接（`httpx.ConnectError`）都按重试策略重试，等答复时的读、写超时、连接被重置、协议错误都只发一次，不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`；把错误包成 `ChannelSendError` 的四家（LINE、Zalo、Signal、SMS）对连接超时、连接池超时、代理拒绝同样重试 |
 | `channels/providers/zalo/test_zalo_upload_errors.py` | 单元 | Zalo 上传附件时的传输错误：连接失败可重试，读超时不重试 |
 | `channels/providers/telegram/test_telegram_api.py` | 单元 | Telegram 客户端只调用一个端点：传输错误（连接失败、连接超时、读超时）在对官方主机发出一次请求后原样抛出，业务错误一次请求后抛出，下载不带 Host 覆盖 |
+| `channels/providers/telegram/test_telegram_webhook_route.py` | 单元 | Telegram webhook 路由经真实请求适配与安全中间件：有效更新返回 200 并分发；错误密钥返回 403、坏 JSON 返回 4xx 且都不分发；处理异常返回 500；路由为未鉴权的 POST webhook；不是路由注册器的对象被忽略 |
 | `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
 | `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 反应走 Bot Framework 连接器：状态表情按官方反应 ID 以 `PUT …/reactions/{ID}` 发送，没有官方 ID 的表情不发送；空串按记账 `DELETE` 同一个 ID 且只撤一次、没发过或服务地址未知不发请求；被拒与传输错误抛出且不记账；假连接器按 Teams SDK 的方法、路径、令牌规则校验 |
 | `channels/providers/imessage/test_imessage_private_api_state.py` | 单元 | iMessage 跟随 BlueBubbles 报告的 Private API 与助手状态：启动与每次健康检查都从 `/server/info` 取标志（助手晚连会在下次检查后恢复引用回复与 Tapback，助手掉线后全部停用），读不出或不含标志的响应体与失败的检查保留上次状态；Tapback、输入中、已读回执、引用回复共用同一个就绪判断，未就绪时只发普通文本；未就绪时跳过的撤销保留台账，就绪后仍可撤销 |
