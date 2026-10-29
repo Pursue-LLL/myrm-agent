@@ -3,8 +3,8 @@
 ``redact_command_line`` is the entry of the commands the audit log and the background-job registry keep: the command
 rules (``curl -u``, ``sshpass -p``, ...) run first, because their anchor is the command name and a value that touches a
 separator would otherwise swallow it; the credential-named parameters follow; the shared redactor finishes. The value
-of a parameter is one shell word as the shell reads it: a quoted string holds whatever is typed inside it, and outside
-quotes a separator, a closing bracket or a backtick ends the word while a backslash makes the next character part of it.
+of a parameter is one quoted string, which holds whatever is typed inside it, or one run of unquoted characters, which a
+quote, a separator, a closing bracket or a backtick ends while a backslash makes the next character part of it.
 """
 
 from __future__ import annotations
@@ -213,22 +213,6 @@ class TestAQuotedValueIsOneUnit:
         """A single-quoted string ends at the next ``'`` whatever precedes it: ``'a\\'`` is one complete word."""
         assert _redact_named_parameters("tool --key 'a\\' next") == "tool --key=***REDACTED*** next"
 
-    @pytest.mark.parametrize(
-        "command",
-        [
-            f"tool --key {_FIRST_HALF}'x y'{_SECOND_HALF} next",
-            f'tool --key "{_FIRST_HALF} x"{_SECOND_HALF} next',
-            f"tool --key '{_FIRST_HALF}'\\''{_SECOND_HALF}' next",
-            f"tool KEY={_FIRST_HALF}'a;b'\"c d\" next",
-        ],
-    )  # fmt: skip
-    def test_a_word_made_of_quoted_and_unquoted_parts_is_one_value(self, command: str) -> None:
-        """``'pa'\\''ss'`` is how a shell word holds a single quote: three parts, one word."""
-        result = redact_command_line(command)
-        assert _FIRST_HALF not in result
-        assert _SECOND_HALF not in result
-        assert result.endswith(" next")
-
     def test_a_command_after_a_quoted_value_keeps_its_own_credential_masked(self) -> None:
         result = redact_command_line(f"tool --key '{_FIRST_HALF};x' && curl -u me:{_PASSWORD} https://x.io")
         assert _FIRST_HALF not in result
@@ -238,6 +222,41 @@ class TestAQuotedValueIsOneUnit:
     def test_an_unterminated_quote_is_left_as_written(self) -> None:
         """Without a closing quote there is no end to the value: the pass does not guess one."""
         command = f"tool --key '{_FIRST_HALF} {_SECOND_HALF} next"
+        assert _redact_named_parameters(command) == command
+
+
+class TestTheCommandKeepsItsShape:
+    """The stored command is the record of what ran: a value is masked and the arguments after it are not swallowed.
+
+    A credential typed inside an argument that is itself quoted is followed by the quote that closes that argument; that
+    quote does not open a next part of the value, or the text up to the next quote would vanish with it.
+    """
+
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            ('echo "token=abc123" && ls "dir with space"', 'echo "token=***REDACTED***" && ls "dir with space"'),
+            ('docker run -e "API_KEY=abc123" -e "OTHER=1" image', 'docker run -e "API_KEY=***REDACTED***" -e "OTHER=1" image'),
+            ('bash -c "export TOKEN=abc123" && echo "done"', 'bash -c "export TOKEN=***REDACTED***" && echo "done"'),
+            (
+                'curl --data-urlencode "password=abc123" --data-urlencode "user=bob" https://x.io',
+                'curl --data-urlencode "password=***REDACTED***" --data-urlencode "user=bob" https://x.io',
+            ),
+            ('ssh host "export KEY=abc123" "ls -la"', 'ssh host "export KEY=***REDACTED***" "ls -la"'),
+            ("sh -c 'TOKEN=abc123 ./run.sh' && echo 'ok'", "sh -c 'TOKEN=***REDACTED*** ./run.sh' && echo 'ok'"),
+            (
+                'git commit -m "rotate key=abc123" && git push origin "main"',
+                'git commit -m "rotate key=***REDACTED***" && git push origin "main"',
+            ),
+        ],
+    )  # fmt: skip
+    def test_the_arguments_after_the_value_stay(self, command: str, expected: str) -> None:
+        assert _redact_named_parameters(command) == expected
+
+    @pytest.mark.parametrize(
+        "command", ['tool --key "" next', "tool --key '' next", 'tool TOKEN="" next', "tool TOKEN='' next"]
+    )
+    def test_an_empty_value_has_nothing_to_mask(self, command: str) -> None:
         assert _redact_named_parameters(command) == command
 
 

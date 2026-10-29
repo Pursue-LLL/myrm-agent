@@ -32,17 +32,19 @@ _KEYWORDS = (
 )  # fmt: skip
 _NAMES = "|".join(re.escape(keyword) for keyword in _KEYWORDS)
 
-# A value is one shell word, the way the shell reads it: a run of quoted strings and unquoted characters. A single-quoted
-# string ends at the next ``'``, a double-quoted one at the next ``"`` that no backslash escapes, and what is inside holds
-# anything (a space, a separator, the other kind of quote). An unquoted character is anything but whitespace, a quote, a
-# separator, a bracket or a backtick, and a backslash keeps the next character in the word. The command is known to be
-# one, so the words after a value stay as written; a quote that never closes has no end to mask and is not matched.
-_SHELL_WORD = r"""(?:'[^']*'|"(?:[^"\\]|\\.)*"|\\.|[^\s"'`;|&<>()\\])+"""
+# A value is one quoted string or one run of unquoted characters. A single-quoted string ends at the next ``'``, a
+# double-quoted one at the next ``"`` that no backslash escapes, and what is inside holds anything (a space, a separator,
+# the other kind of quote). A run of unquoted characters ends at whitespace, a quote, a separator, a bracket or a
+# backtick, and a backslash keeps the next character in it. A quote that follows a value is never read as its next part:
+# a credential typed inside a quoted argument (``-e "API_KEY=x" -e "B=1"``) is followed by the quote that closes that
+# argument, and the arguments after the value stay as written. A quoted string that is empty or never closes has nothing
+# or no end to mask and is not matched.
+_VALUE = r"""(?:'[^']+'|"(?:[^"\\]|\\.)+"|(?:\\.|[^\s"'`;|&<>()\\])+)"""
 
 # ``--token=x`` / ``--token x`` / ``--token="x"`` and the environment form ``TOKEN=x``. A short option (``-t x``) has no
 # name to go by: the command rules and the shared redactor handle those, this pass does not guess.
-_LONG_OPTION_RE = re.compile(rf"--({_NAMES})[=\s]+{_SHELL_WORD}", re.IGNORECASE)
-_ASSIGNMENT_RE = re.compile(rf"({_NAMES})={_SHELL_WORD}", re.IGNORECASE)
+_LONG_OPTION_RE = re.compile(rf"--({_NAMES})[=\s]+{_VALUE}", re.IGNORECASE)
+_ASSIGNMENT_RE = re.compile(rf"({_NAMES})={_VALUE}", re.IGNORECASE)
 
 
 def _redact_named_parameters(command: str) -> str:
