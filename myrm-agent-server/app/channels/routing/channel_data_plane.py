@@ -171,8 +171,13 @@ class ChannelDataPlaneService:
         channel: str,
         chat_id: str,
         limit: int = 20,
+        *,
+        since: datetime | None = None,
     ) -> list[ContextEntry]:
-        """Fetch chronological recent messages as ContextEntry instances for agent prompt injection."""
+        """Fetch chronological observed messages created after ``since`` as ContextEntry instances for prompt injection.
+
+        Messages that started a turn are left out: the session transcript carries them.
+        """
         try:
             async with get_session() as session:
                 rows = await ChannelMessageRepository.get_recent_context(
@@ -180,6 +185,8 @@ class ChannelDataPlaneService:
                     channel=channel,
                     chat_id=chat_id,
                     limit=limit,
+                    since=since,
+                    observed_only=True,
                 )
 
             entries: list[ContextEntry] = []

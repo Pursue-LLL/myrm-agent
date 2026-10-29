@@ -125,7 +125,8 @@ class PolicyResolver:
         Returns (user_id, possibly-modified msg) or None to skip.
         Flow: groupPolicy → enabled_groups → trigger check → context buffer → default_user_id.
         The admission gates (control-plane forward, group policy, enabled groups, guest mention) are mirrored
-        side-effect-free in ``sender_admission``; change them together.
+        side-effect-free in ``sender_admission``; the verdict on whether the message starts a turn, apart from the
+        BotLoopGuard count, is mirrored in ``is_group_chatter``. Change them together.
         """
         if msg.user_id and is_control_plane_forward(msg):
             return msg.user_id, msg

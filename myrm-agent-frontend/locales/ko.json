@@ -14642,6 +14642,8 @@
   },
   "uiAlignment": {
     "addAnnotationTitle": "주석 추가",
+    "canvasLabel": "시각 주석 캔버스",
+    "drawingSurfaceLabel": "드래그하여 주석 상자 그리기",
     "annotateMode": "주석 모드",
     "annotationsCount": "개의 주석",
     "cancelAnnotation": "취소",

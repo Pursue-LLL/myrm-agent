@@ -14642,6 +14642,8 @@
   },
   "uiAlignment": {
     "addAnnotationTitle": "Anmerkung hinzufügen",
+    "canvasLabel": "Canvas für visuelle Anmerkungen",
+    "drawingSurfaceLabel": "Rahmen für eine Anmerkung aufziehen",
     "annotateMode": "Annotieren",
     "annotationsCount": "Anmerkungen",
     "cancelAnnotation": "Abbrechen",

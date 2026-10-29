@@ -7,9 +7,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Sequence
+from typing import Sequence, cast
 
 from sqlalchemy import Integer, delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,20 +50,27 @@ class ChannelMessageRepository:
         channel: str,
         chat_id: str,
         limit: int = 30,
+        *,
+        since: datetime | None = None,
+        observed_only: bool = False,
     ) -> list[ChannelMessageModel]:
-        """Fetch the most recent N messages for a chat, ordered chronologically (oldest to newest)."""
-        stmt = (
-            select(ChannelMessageModel)
-            .where(
-                ChannelMessageModel.channel == channel,
-                ChannelMessageModel.chat_id == chat_id,
-                # Agent's own replies already live in the session transcript;
-                # re-injecting them here would duplicate turns in the prompt.
-                ChannelMessageModel.is_self.is_not(True),
-            )
-            .order_by(ChannelMessageModel.created_at.desc())
-            .limit(limit)
-        )
+        """Fetch the most recent N messages for a chat, ordered chronologically (oldest to newest).
+
+        ``since`` keeps only rows created after it. ``observed_only`` drops the rows that started an agent turn: the
+        session transcript already carries their text, so re-injecting it as observed chatter would repeat the turn.
+        """
+        conditions = [
+            ChannelMessageModel.channel == channel,
+            ChannelMessageModel.chat_id == chat_id,
+            # Agent's own replies already live in the session transcript;
+            # re-injecting them here would duplicate turns in the prompt.
+            ChannelMessageModel.is_self.is_not(True),
+        ]
+        if since is not None:
+            conditions.append(ChannelMessageModel.created_at > since)
+        if observed_only:
+            conditions.append(ChannelMessageModel.is_trigger.is_(False))
+        stmt = select(ChannelMessageModel).where(*conditions).order_by(ChannelMessageModel.created_at.desc()).limit(limit)
         result = await session.execute(stmt)
         messages: Sequence[ChannelMessageModel] = result.scalars().all()
         # Return in ascending order for natural prompt turn reconstruction
@@ -97,7 +105,7 @@ class ChannelMessageRepository:
         """Prune messages older than retention_days. Returns the number of pruned rows."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
         stmt = delete(ChannelMessageModel).where(ChannelMessageModel.created_at < cutoff)
-        result = await session.execute(stmt)
+        result = cast(CursorResult[tuple[object, ...]], await session.execute(stmt))
         await session.flush()
         return int(result.rowcount or 0)
 
@@ -109,14 +117,11 @@ class ChannelMessageRepository:
     ) -> int:
         """Count the number of trigger messages sent by a sender on a channel today (UTC)."""
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        stmt = (
-            select(func.count(ChannelMessageModel.id))
-            .where(
-                ChannelMessageModel.channel == channel,
-                ChannelMessageModel.sender_id == sender_id,
-                ChannelMessageModel.is_trigger.is_(True),
-                ChannelMessageModel.created_at >= today_start,
-            )
+        stmt = select(func.count(ChannelMessageModel.id)).where(
+            ChannelMessageModel.channel == channel,
+            ChannelMessageModel.sender_id == sender_id,
+            ChannelMessageModel.is_trigger.is_(True),
+            ChannelMessageModel.created_at >= today_start,
         )
         result = await session.execute(stmt)
         return int(result.scalar() or 0)
@@ -177,6 +182,6 @@ class ChannelMessageRepository:
         stmt = delete(ChannelMessageModel).where(ChannelMessageModel.channel == channel)
         if chat_id:
             stmt = stmt.where(ChannelMessageModel.chat_id == chat_id)
-        result = await session.execute(stmt)
+        result = cast(CursorResult[tuple[object, ...]], await session.execute(stmt))
         await session.flush()
         return int(result.rowcount or 0)

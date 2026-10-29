@@ -14,8 +14,8 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `uiAlignmentTypes.ts` | 类型 | 领域类型定义：UiVariantItem、VisualAnnotationItem、VisualContractItem、UiAlignmentState |
-| `useUiAlignmentStore.ts` | 状态 | Zustand 状态管理：变体与批注拉取、注册、标注添加、契约固化 |
-| `VisualAnnotationOverlay.tsx` | 组件 | 画布交互批注层，支持矩形选框绘制、批注保存与 Tooltip 悬浮展示 |
+| `useUiAlignmentStore.ts` | 状态 | Zustand 状态管理：变体与批注拉取、注册、标注添加、契约固化；批注评论被服务端风控拦下时只出共享提示（不另记失败），返回 null |
+| `VisualAnnotationOverlay.tsx` | 组件 | 画布交互批注层，支持矩形选框绘制、批注保存与 Tooltip 悬浮展示；保存未成功（含被风控拦下）时保留输入框与已填评论，便于修改后重存 |
 | `UiVariantCompareViewer.tsx` | 组件 | 多变体并排比选卡片、高亮选定方案、一键开启批注与契约固化操作栏 |
 | `index.ts` | 门面 | 聚合导出模块内组件与状态 Hook |
 | `_ARCH.md` | 文档 | 模块架构描述与文件清单 |
@@ -27,4 +27,5 @@
 - `lucide-react`（矢量图标）
 - `next-intl`（国际化）
 - `zustand`（前端状态管理）
+- `@/services/riskHeldToast`（被风控拦下的文字的统一提示）
 - `/api/v1/chats/{chat_id}/ui-variants` 后端 API 路由

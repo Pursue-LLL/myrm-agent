@@ -1,4 +1,12 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { installEnglishToastTranslator, jsonResponse, riskHeldRefusalBody, riskHeldTitle } from '@/test-utils/riskHeld';
+
+const toastMock = vi.hoisted(() =>
+  Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+);
+
+vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
+
 import { useUiAlignmentStore } from '../useUiAlignmentStore';
 import type { UiVariantItem, VisualAnnotationItem, VisualContractItem } from '../uiAlignmentTypes';
 
@@ -135,6 +143,43 @@ describe('useUiAlignmentStore', () => {
 
     await useUiAlignmentStore.getState().fetchAnnotations('chat_test', 'var_01');
     expect(useUiAlignmentStore.getState().annotations['var_01']).toEqual([mockAnnotation]);
+  });
+
+  it('leaves a held annotation to the shared risk notice and records no failure of its own', async () => {
+    installEnglishToastTranslator();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse(400, riskHeldRefusalBody));
+
+    const added = await useUiAlignmentStore.getState().addAnnotation('chat_test', 'var_01', {
+      x: 10,
+      y: 10,
+      width: 40,
+      height: 20,
+      comment: 'use key sk-AAAAAABBBBBBCCCCCCDDDD-0',
+      label: 'accessibility',
+    });
+
+    expect(added).toBeNull();
+    expect(toastMock.error).toHaveBeenCalledTimes(1);
+    expect(toastMock.error.mock.calls[0]?.[0]).toBe(riskHeldTitle);
+    expect(useUiAlignmentStore.getState().error).toBeNull();
+    expect(useUiAlignmentStore.getState().annotations['var_01']).toBeUndefined();
+  });
+
+  it('records the failure of any other refused annotation and shows no risk notice', async () => {
+    toastMock.error.mockClear();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse(500, { detail: 'boom' }));
+
+    const added = await useUiAlignmentStore.getState().addAnnotation('chat_test', 'var_01', {
+      x: 10,
+      y: 10,
+      width: 40,
+      height: 20,
+      comment: 'fine',
+    });
+
+    expect(added).toBeNull();
+    expect(toastMock.error).not.toHaveBeenCalled();
+    expect(useUiAlignmentStore.getState().error).toBe('Failed to add annotation: 500');
   });
 
   it('finalizes contract and updates activeContract in store', async () => {

@@ -14642,6 +14642,8 @@
   },
   "uiAlignment": {
     "addAnnotationTitle": "添加批注",
+    "canvasLabel": "视觉批注画布",
+    "drawingSurfaceLabel": "拖动绘制批注框",
     "annotateMode": "批注",
     "annotationsCount": "条批注",
     "cancelAnnotation": "取消",

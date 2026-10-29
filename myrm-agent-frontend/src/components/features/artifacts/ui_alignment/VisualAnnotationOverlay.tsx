@@ -4,14 +4,13 @@
  * - chatId: string
  * - annotations: VisualAnnotationItem[]
  * - isAnnotating: boolean
- * - onAnnotationAdded?: () => void
  *
  * [OUTPUT]
  * - VisualAnnotationOverlay: Interactive canvas drawing overlay for placing bounding-box visual annotations
  *
  * [POS]
  * Visual annotation interactive component for Multi-Turn UI Design Visual Alignment (Item 39 P0).
- * Strictly under 240 lines. Zero `any`.
+ * A comment the server refuses stays in the box for editing; only a saved annotation closes it.
  */
 
 import React, { useState, useRef, useCallback } from "react";
@@ -104,7 +103,7 @@ export const VisualAnnotationOverlay: React.FC<VisualAnnotationOverlayProps> = (
     if (!pendingBox || !comment.trim()) {
       return;
     }
-    await addAnnotation(chatId, variantId, {
+    const created = await addAnnotation(chatId, variantId, {
       x: pendingBox.x,
       y: pendingBox.y,
       width: pendingBox.width,
@@ -112,6 +111,10 @@ export const VisualAnnotationOverlay: React.FC<VisualAnnotationOverlayProps> = (
       comment: comment.trim(),
       label: label.trim(),
     });
+    // A refused comment stays in the box so the user can edit it and save again.
+    if (!created) {
+      return;
+    }
     setPendingBox(null);
     setComment("");
   };
@@ -124,14 +127,14 @@ export const VisualAnnotationOverlay: React.FC<VisualAnnotationOverlayProps> = (
   return (
     <section
       ref={containerRef}
-      aria-label="Visual Annotation Canvas"
+      aria-label={t("canvasLabel")}
       className="absolute inset-0 z-20 pointer-events-none"
     >
       {/* Interactive Drawing Capture Surface */}
       {isAnnotating && !pendingBox && (
         <button
           type="button"
-          aria-label="Interactive Drawing Canvas Surface"
+          aria-label={t("drawingSurfaceLabel")}
           className="absolute inset-0 cursor-crosshair select-none bg-indigo-950/10 pointer-events-auto border-none p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}

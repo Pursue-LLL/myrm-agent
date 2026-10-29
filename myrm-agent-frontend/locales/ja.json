@@ -14642,6 +14642,8 @@
   },
   "uiAlignment": {
     "addAnnotationTitle": "注釈を追加",
+    "canvasLabel": "ビジュアル注釈キャンバス",
+    "drawingSurfaceLabel": "ドラッグして注釈の枠を描く",
     "annotateMode": "注釈モード",
     "annotationsCount": "件の注釈",
     "cancelAnnotation": "キャンセル",

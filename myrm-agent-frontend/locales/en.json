@@ -14642,6 +14642,8 @@
   },
   "uiAlignment": {
     "addAnnotationTitle": "Add annotation",
+    "canvasLabel": "Visual annotation canvas",
+    "drawingSurfaceLabel": "Draw a box to annotate",
     "annotateMode": "Annotate",
     "annotationsCount": "annotations",
     "cancelAnnotation": "Cancel",

@@ -3,18 +3,21 @@
 [INPUT]
 - httpx, ASGITransport
 - app.api.chats.chat.ui_alignment::router
+- tests.support.risk_gate (POS: a detection service with injected rules)
 
 [OUTPUT]
-- Pytest test cases verifying variant registration, annotation attachment, and visual contract finalization.
+- Pytest test cases verifying variant registration, annotation attachment, annotation risk refusal, and visual contract
+  finalization.
 
 [POS]
-Server-side integration test suite for Item 39 P0. Strictly under 160 lines. Zero `Any`.
+Server-side integration test suite for Item 39 P0. Zero `Any`.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncGenerator
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -22,6 +25,8 @@ from fastapi import FastAPI
 from httpx import ASGITransport
 
 from app.api.chats.chat.ui_alignment import router as ui_alignment_router
+from app.services.risk.refusal import RISK_HELD_CODE
+from tests.support.risk_gate import API_KEY_RULE, SECRET, build_service_with_rules
 
 test_app = FastAPI()
 test_app.include_router(ui_alignment_router, prefix="/api/v1/chats")
@@ -105,13 +110,32 @@ async def test_add_and_list_visual_annotations(async_client: httpx.AsyncClient) 
     assert "typography" in anno_data["label"]
 
     # List annotations
-    list_resp = await async_client.get(
-        f"/api/v1/chats/{chat_id}/ui-variants/var_dark_01/annotations"
-    )
+    list_resp = await async_client.get(f"/api/v1/chats/{chat_id}/ui-variants/var_dark_01/annotations")
     assert list_resp.status_code == 200
     annotations = list_resp.json()["data"]
     assert len(annotations) == 1
     assert annotations[0]["annotation_id"] == anno_data["annotation_id"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["comment", "label"])
+async def test_annotation_with_a_secret_is_refused_and_not_stored(async_client: httpx.AsyncClient, field: str) -> None:
+    chat_id = f"chat_{uuid.uuid4().hex[:8]}"
+    await async_client.post(
+        f"/api/v1/chats/{chat_id}/ui-variants",
+        json={"title": "Guarded", "html_content": "<main></main>", "variant_id": "var_guard_01"},
+    )
+    annotation = {"x": 1.0, "y": 1.0, "width": 5.0, "height": 5.0, "comment": "tighten spacing", "label": "spacing"}
+    annotation[field] = f"use {SECRET}"
+    annotations_url = f"/api/v1/chats/{chat_id}/ui-variants/var_guard_01/annotations"
+
+    with patch("app.services.risk.detection.get_detection_service", return_value=build_service_with_rules([API_KEY_RULE])):
+        refused = await async_client.post(annotations_url, json=annotation)
+
+    assert refused.status_code == 400
+    assert refused.json()["detail"]["code"] == RISK_HELD_CODE
+    assert SECRET not in refused.text
+    assert (await async_client.get(annotations_url)).json()["data"] == []
 
 
 @pytest.mark.asyncio

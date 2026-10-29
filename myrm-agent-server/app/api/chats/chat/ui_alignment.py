@@ -2,18 +2,18 @@
 - Path parameters: chat_id, variant_id
 - Request bodies: RegisterVariantRequest, AddAnnotationRequest, FinalizeContractRequest
 - UiVisualAlignmentService: Domain service
+- app.services.risk.refusal::reject_if_risky (POS: refuses annotation text a risk rule holds)
 
 [OUTPUT]
 - GET /chats/{chat_id}/ui-variants: List variants
 - POST /chats/{chat_id}/ui-variants: Register new variant
-- POST /chats/{chat_id}/ui-variants/{variant_id}/annotations: Add visual annotation
+- POST /chats/{chat_id}/ui-variants/{variant_id}/annotations: Add visual annotation (400 risk_held when its text is held)
 - GET /chats/{chat_id}/ui-variants/{variant_id}/annotations: List annotations for variant
 - POST /chats/{chat_id}/ui-variants/finalize: Finalize approved variant into VisualContract
 - GET /chats/{chat_id}/ui-variants/contract: Get latest visual contract
 
 [POS]
-API route layer for Multi-Turn UI Design Visual Alignment Workflow (Item 39 P0).
-Strictly under 200 lines. Zero `Any`.
+API route layer for Multi-Turn UI Design Visual Alignment Workflow (Item 39 P0). Zero `Any`.
 """
 
 from __future__ import annotations
@@ -27,15 +27,16 @@ from pydantic import BaseModel, Field
 from app.core.utils.response_utils import error_response, success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.artifacts.ui_alignment import UiVisualAlignmentService
+from app.services.risk.refusal import reject_if_risky
 
 router = APIRouter()
 
 
 class RegisterVariantRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=120, description="Title of the UI variant")
-    style_theme: Literal[
-        "modern_bento", "minimal_dark", "glassmorphism", "neo_brutalism", "custom"
-    ] = Field(default="modern_bento", description="Visual design theme")
+    style_theme: Literal["modern_bento", "minimal_dark", "glassmorphism", "neo_brutalism", "custom"] = Field(
+        default="modern_bento", description="Visual design theme"
+    )
     html_content: str = Field(..., description="High fidelity HTML / Tailwind mock structure")
     css_tokens: dict[str, str] = Field(default_factory=dict, description="Design tokens and palette")
     description: str = Field(default="", description="Design notes or layout rationale")
@@ -117,6 +118,8 @@ async def add_visual_annotation(
     variant_id: str = Path(..., description="Target UI variant ID"),
 ) -> JSONResponse:
     """Attaches a visual bounding box feedback annotation to a specific variant."""
+    # The comment and label are written into the contract prompt a coding agent is told to follow.
+    await reject_if_risky(payload.comment, payload.label, session_id=chat_id)
     service = UiVisualAlignmentService.get_instance()
     variant = service.get_variant(chat_id, variant_id)
     if variant is None:

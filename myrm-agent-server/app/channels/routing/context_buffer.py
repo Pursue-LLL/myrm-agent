@@ -15,13 +15,16 @@ giving the Agent conversational context from the group chat.
 [POS]
 Group chat context accumulation. append() records non-trigger chatter in memory; drain() takes
 it back for injection into the next trigger turn, and drain_async() prefers the persisted data
-plane, keeping the in-memory entries whenever that plane has nothing to return.
+plane, keeping the in-memory entries whenever that plane has nothing to return. Both paths hand
+out a message once and only while it is younger than the expiry: the persisted path remembers when
+a chat was last taken instead of deleting ledger rows.
 """
 
 from __future__ import annotations
 
 import time
 from collections import deque
+from datetime import datetime, timedelta, timezone
 
 from app.channels.types import ContextEntry
 
@@ -36,7 +39,7 @@ class GroupContextBuffer:
     asyncio event loop via AgentRouter.
     """
 
-    __slots__ = ("_max_age", "_max_per_group", "_store")
+    __slots__ = ("_drained_at", "_max_age", "_max_per_group", "_store")
 
     def __init__(
         self,
@@ -44,6 +47,8 @@ class GroupContextBuffer:
         max_age_seconds: float = _DEFAULT_MAX_AGE_SECONDS,
     ) -> None:
         self._store: dict[str, deque[ContextEntry]] = {}
+        # (channel, chat_id) -> when its persisted context was last taken; what a turn took is in its transcript.
+        self._drained_at: dict[tuple[str, str], datetime] = {}
         self._max_per_group = max_per_group
         self._max_age = max_age_seconds
 
@@ -69,6 +74,11 @@ class GroupContextBuffer:
 
     async def drain_async(self, channel: str, chat_id: str) -> tuple[ContextEntry, ...]:
         """Asynchronously load context from persistent data plane with in-memory fallback."""
+        taken_at = datetime.now(timezone.utc)
+        since = taken_at - timedelta(seconds=self._max_age)
+        last_taken_at = self._drained_at.get((channel, chat_id))
+        if last_taken_at is not None and last_taken_at > since:
+            since = last_taken_at
         try:
             from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
@@ -76,11 +86,13 @@ class GroupContextBuffer:
                 channel=channel,
                 chat_id=chat_id,
                 limit=self._max_per_group,
+                since=since,
             )
             if persisted:
                 # Clear in-memory buffer only when the data plane actually answered, so an
                 # empty result cannot discard context the in-memory buffer still holds.
                 self._store.pop(chat_id, None)
+                self._drained_at[(channel, chat_id)] = taken_at
                 return tuple(persisted)
         except Exception:
             pass
@@ -91,7 +103,9 @@ class GroupContextBuffer:
     def clear(self, chat_id: str) -> None:
         """Explicitly clear a group's buffer (e.g. when group is disabled)."""
         self._store.pop(chat_id, None)
+        self._drained_at = {key: at for key, at in self._drained_at.items() if key[1] != chat_id}
 
     def clear_all(self) -> None:
         """Clear all buffers (e.g. on shutdown)."""
         self._store.clear()
+        self._drained_at.clear()

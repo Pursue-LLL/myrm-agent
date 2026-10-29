@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - UiAlignmentState, UiVariantItem, VisualAnnotationItem, VisualContractItem
+ * - @/services/riskHeldToast::riskHeldErrorFromResponse (POS: the one notice for a text the server holds)
  *
  * [OUTPUT]
  * - useUiAlignmentStore: Global state management hook for UI visual alignment workflow
@@ -11,6 +12,7 @@
  */
 
 import { create } from "zustand";
+import { riskHeldErrorFromResponse } from "@/services/riskHeldToast";
 import type {
   UiAlignmentState,
   UiVariantItem,
@@ -144,6 +146,10 @@ export const useUiAlignmentStore = create<UiAlignmentState>((set, get) => ({
         body: JSON.stringify(annotation),
       });
       if (!resp.ok) {
+        // A held comment has been explained by the shared notice; a failure of our own would repeat it.
+        if (await riskHeldErrorFromResponse(resp)) {
+          return null;
+        }
         throw new Error(`Failed to add annotation: ${resp.status}`);
       }
       const json = await resp.json();
