@@ -64,7 +64,7 @@ Use `code_graph_tool` for structural questions about Python and TypeScript/JavaS
 - `match: exact` means the call text equals the name you asked for. `match: name` means only the last part matches (`obj.save()` matches `save`). When `definitions` is above 1, a `match: name` row may call a different function with the same name; read the call site and decide.
 - `callees` returns call text as written. It does not say which definition is called; run `resolve` on a name to find out.
 - `tests_calling` lists direct callers inside test files only. A test that reaches the function through other functions is not listed; follow `callers` one level at a time or search with `grep_tool`.
-- `total` larger than the rows shown means the list was cut at 50. Use a more specific name, such as a qualified name.
+- `total` larger than the rows shown means the list was cut at 50. Follow the hint in `notes`: what narrows the result depends on the action.
 - No rows: check spelling and case, try `resolve` with a shorter name, then use `grep_tool`. An empty `callers` result does not prove a function is unused, because calls made through `getattr`, strings, bare `@decorator` lines or dependency injection are not seen.
 
 ## Limits
