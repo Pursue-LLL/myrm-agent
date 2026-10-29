@@ -70,7 +70,8 @@ MAX_TEXT_LENGTH = 2000
 _HEALTH_PROBE_TIMEOUT = 10.0
 
 # Guests steer the agent's text and the bot usually holds more permissions than they do, so a reply must never be
-# able to notify @everyone or a role. User pings stay on so a reply still reaches the person it answers.
+# able to notify @everyone or a role. User mentions stay on so the owner can have the agent notify a named person;
+# replied_user keeps the ping on the author of the message a reply answers.
 _ALLOWED_MENTIONS = discord.AllowedMentions(everyone=False, roles=False, users=True, replied_user=True)
 
 
