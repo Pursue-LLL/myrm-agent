@@ -5,6 +5,7 @@
 - compression_intent (POS: 压缩意图构建)
 - llm_factory (POS: LLM 实例创建工厂)
 - core.memory.adapters.setup (POS: 记忆系统适配器)
+- app.services.agent.params.workspace_resolve::chat_session_id (POS: the session key of a chat's agent runs)
 
 [OUTPUT]
 - GeneralAgent: 通用 Agent 主类
@@ -118,7 +119,7 @@ class GeneralAgent(ToolSetupMixin):
         desktop_unattended_fail_fast: bool = False,
         auto_restore_domains: list[str] | None = None,
         skill_ids: list[str] | None = None,
-        skill_configs: dict[str, dict] | None = None,
+        skill_configs: dict[str, dict[str, object]] | None = None,
         fetch_raw_webpage: bool = False,
         enable_memory: bool = True,
         security_config_raw: dict[str, object] | None = None,
@@ -381,6 +382,7 @@ class GeneralAgent(ToolSetupMixin):
     ) -> dict[str, object]:
         """Build server-layer runtime context passed into the harness."""
         context: dict[str, object] = {}
+        from app.services.agent.params.workspace_resolve import chat_session_id
         from app.services.context.context_assembly import ContextAssemblyService
 
         bundle = ContextAssemblyService.build_facade(ensure_layout=False)
@@ -395,7 +397,7 @@ class GeneralAgent(ToolSetupMixin):
         if self.locale:
             context["prompt_locale"] = self.locale
 
-        session_id = f"chat_{effective_chat_id}"
+        session_id = chat_session_id(effective_chat_id)
         context["session_id"] = session_id
 
         if self.declared_allowed_roots:

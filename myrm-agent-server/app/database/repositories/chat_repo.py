@@ -71,6 +71,9 @@ _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
 # An incognito chat never stores them, so no current or future listing can show what the user chose to keep private.
 _INCOGNITO_BLANKED_FIELDS: frozenset[str] = frozenset({"title", "first_message", "last_message"})
 
+# What the system's note about a settled background task says it was (NULL on every row a person or the agent wrote).
+_WAKEUP_NOTICE_KIND = func.json_extract(Message.extra_data, f"$.{WAKEUP_NOTICE_KEY}")
+
 
 def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
     """Answers of the turn *last_user* opened: every assistant message ordered after it, active or not.
@@ -354,13 +357,12 @@ class ChatRepository:
         A settlement the wake router degraded or suppressed starts no turn, so its notice row is skipped: retry,
         regenerate and undo act on the turn before it.
         """
-        notice_kind = func.json_extract(Message.extra_data, f"$.{WAKEUP_NOTICE_KEY}")
         result = await db.execute(
             select(Message)
             .where(
                 Message.chat_id == chat_id,
                 Message.role == "user",
-                or_(notice_kind.is_(None), notice_kind.not_in(WAKEUP_NOTICE_INERT_KINDS)),
+                or_(_WAKEUP_NOTICE_KIND.is_(None), _WAKEUP_NOTICE_KIND.not_in(WAKEUP_NOTICE_INERT_KINDS)),
             )
             .order_by(Message.created_at.desc(), Message.id.desc())
             .limit(1)
@@ -391,10 +393,12 @@ class ChatRepository:
         return deleted_ids
 
     @staticmethod
-    async def get_latest_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:
-        result = await db.execute(
-            select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.desc(), Message.id.desc()).limit(1)
-        )
+    async def get_latest_message(db: AsyncSession, chat_id: str, *, conversation_only: bool = False) -> MessageDTO | None:
+        """The newest row of a chat; ``conversation_only`` leaves out the system's notes about settled background tasks."""
+        query = select(Message).where(Message.chat_id == chat_id)
+        if conversation_only:
+            query = query.where(_WAKEUP_NOTICE_KIND.is_(None))
+        result = await db.execute(query.order_by(Message.created_at.desc(), Message.id.desc()).limit(1))
         msg = result.scalar_one_or_none()
         return MessageDTO.model_validate(msg) if msg else None
 

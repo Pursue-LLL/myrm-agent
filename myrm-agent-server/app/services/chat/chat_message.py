@@ -4,6 +4,7 @@
 - _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
 - database.dto::MessageDTO (POS: 消息数据传输对象)
 - chat_helpers::ALLOWED_MESSAGE_ROLES (POS: 合法消息角色集合)
+- chat_helpers::is_wakeup_notice (POS: 「用户行是系统写的后台完成通知」的唯一判定)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 - chat_usage_sync::sync_chat_usage (POS: Chat.total_* 用量缓存重建)
 - chat_memory_events::record_memory_influence_event (POS: 记忆影响账本投影)
@@ -28,7 +29,7 @@ from app.database.dto import ChatDTO, MessageDTO
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
-from .chat_helpers import ALLOWED_MESSAGE_ROLES, SPILLOVER_EXTRA_KEY
+from .chat_helpers import ALLOWED_MESSAGE_ROLES, SPILLOVER_EXTRA_KEY, is_wakeup_notice
 from .chat_memory_events import record_memory_influence_event
 from .chat_usage_sync import sync_chat_usage
 from .conversation_recall_index_service import ConversationRecallIndexService
@@ -297,14 +298,20 @@ class _ChatMessageMixin(_ChatServiceBase):
                 created_at=datetime.utcnow(),
             )
             await _ChatServiceBase._cr(uow).add_message(msg)
-            last_updates: dict[str, object] = {
-                "last_message": shown_text[:100],
-                "first_message": shown_text,
-                "title": shown_text[:50],
-            }
-            if chat and chat.first_message:  # already had first message
-                last_updates.pop("first_message")
-                last_updates.pop("title")
+            last_updates: dict[str, object]
+            if is_wakeup_notice(msg):
+                # The system's note about a settled task is not something a person said, so it is neither the chat
+                # list's preview nor the chat's title; the chat still counts as active.
+                last_updates = {"updated_at": datetime.utcnow()}
+            else:
+                last_updates = {
+                    "last_message": shown_text[:100],
+                    "first_message": shown_text,
+                    "title": shown_text[:50],
+                }
+                if chat and chat.first_message:  # already had first message
+                    last_updates.pop("first_message")
+                    last_updates.pop("title")
             if mark_read:  # a person typed this message, so they are present in the chat right now
                 last_updates["last_read_at"] = datetime.utcnow()
             await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, last_updates)

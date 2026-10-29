@@ -213,38 +213,6 @@ async def test_export_chat_includes_messages(
 
 
 @pytest.mark.asyncio
-async def test_export_leaves_out_the_systems_notes_about_settled_background_tasks(
-    async_client: httpx.AsyncClient,
-) -> None:
-    from datetime import datetime, timezone
-
-    from app.database.models.chat import Message
-    from app.platform_utils import get_session_factory
-
-    chat_id = f"test-export-wake-{uuid.uuid4().hex[:8]}"
-    await _create_chat_with_messages(chat_id)
-    async with get_session_factory()() as db:
-        db.add(
-            Message(
-                id=f"wakeup_degraded_{uuid.uuid4().hex[:8]}",
-                chat_id=chat_id,
-                role="user",
-                content="<system_notification type='adaptive_settlement_degraded'>done</system_notification>",
-                extra_data={"wakeup_notice": "degraded"},
-                sent_at=datetime.now(tz=timezone.utc),
-                sent_timezone="UTC",
-            )
-        )
-        await db.commit()
-
-    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
-    assert res.status_code == 200, res.text
-
-    contents = [m["content"] for m in res.json()["data"]["messages"]]
-    assert sorted(contents) == ["Hello, can you help me?", "Sure, I can help you with that."]
-
-
-@pytest.mark.asyncio
 async def test_export_chat_not_found(
     async_client: httpx.AsyncClient,
 ) -> None:

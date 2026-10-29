@@ -32,5 +32,5 @@ Session-scoped in-memory queues with optional workspace JSONL persistence (`team
 - `agent.sub_agents.manager` — spawn registers / complete unregisters roster on mailbox
 - `agent.meta_tools.spawn_subagent.send_teammate_tool` — LLM send path
 - `app.api.agents.subagents` — API hydrate via `list_teammate_history`
-- `app.services.agent.wakeup_handler` & `background_job_finish_handler` — adaptive followup dispatching
+- `app.services.agent.wakeup_handler` & `background_job_finish_handler` — hand settlements to `adaptive_wakeup/service.py`, which decides the followup (the router only reads the budget; the wake turn spends it)
 

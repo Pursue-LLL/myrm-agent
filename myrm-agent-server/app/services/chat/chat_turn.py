@@ -36,8 +36,8 @@ class _ChatTurnMixin(_ChatServiceBase):
 
     @staticmethod
     async def _refresh_last_message(uow: UnitOfWork, chat_id: str) -> None:
-        """Update the chat's last_message preview after message deletion."""
-        remaining = await _ChatServiceBase._cr(uow).get_latest_message(chat_id)
+        """Update the chat's last_message preview after message deletion (a note about a settled task is no preview)."""
+        remaining = await _ChatServiceBase._cr(uow).get_latest_message(chat_id, conversation_only=True)
         new_last = ""
         if remaining:
             from myrm_agent_harness.utils.text_sanitizer import (
