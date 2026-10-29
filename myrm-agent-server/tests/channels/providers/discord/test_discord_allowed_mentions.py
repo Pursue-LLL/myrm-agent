@@ -25,6 +25,7 @@ async def test_gateway_client_cannot_notify_everyone_or_roles() -> None:
 
     # What discord.py puts on the wire for a send or an edit that sets no mention policy of its own.
     with handle_message_parameters(content="@everyone <@&1> <@2>", previous_allowed_mentions=client_default) as params:
+        assert params.payload is not None
         wire = params.payload["allowed_mentions"]
 
     # A reply still notifies the person it answers.
