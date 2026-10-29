@@ -6,13 +6,13 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness `toolkits/computer_use/backends/linux.py`、`backends/linux_probes.py`（新）、`backends/_ARCH.md`；测试 `tests/toolkits/computer_use/test_linux_exit_codes.py`；没有改提示词与工具 schema，不影响提示词缓存）。**未验证**：修复后的代码没有在真实 X11 会话里跑过。 |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/linux.py`、`toolkits/computer_use/backends/linux_probes.py`（新）、`backends/_ARCH.md`；测试 `tests/toolkits/computer_use/test_linux_exit_codes.py`；没有改提示词与工具 schema，不影响提示词缓存）。**未验证**：修复后的代码没有在真实 X11 会话里跑过。 |
 | **发现时间** | 2026-10-29（终审：在容器里用真实 Xvfb、xclip 实测「选区所有者被暂停时 `xclip -o` 的行为」） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P3：触发条件是剪贴板所有者进程卡死（例如刚复制过内容的应用挂起），线上触发频率没有数据。后果是这一次输入一直等到上层工具超时（`_tool_helpers.py` 的 `get_tool_timeout` 默认 60 秒），期间持有粘贴锁，取消后留下孤儿 `xclip` 进程；没有凭据泄漏（卡在读，此时还没有写入任何内容）。 |
 | **关联产品** | 桌面控制（Linux）`type_text` / `type_credential` 的非 ASCII 路径。 |
 | **根因** | `_run_cmd` 只有 `proc.communicate()`，没有超时；`_paste_text_xclip` 第一步用它读原剪贴板。实测（ubuntu:24.04，Xvfb，真 xclip）：写入后给选区所有者发 SIGSTOP，`timeout 5 xclip -selection clipboard -o` 到 5 秒仍阻塞，退出码 124。 |
-| **修复** | `_run_cmd` 新增可选参数 `timeout`：到时 `proc.kill()`、`await proc.wait()`，返回空 stdout 与退出码 124，日志里不写命令行（可能带着输入的文本）。只有读原剪贴板这一步传 `_CLIPBOARD_READ_TIMEOUT_S = 3.0`，超时后按「读不到原内容」处理，粘贴后写回空串。其余 `_run_cmd` 调用默认不超时，行为不变。加上这些后 `linux.py` 达到 509 行，超过 500 行的上限，所以把两个只读探测函数原样移到新文件 `backends/linux_probes.py`（`probe_linux_capturable`、`detect_linux_resolution`），`linux.py` 变为 463 行。 |
+| **修复** | `_run_cmd` 新增可选参数 `timeout`：到时 `proc.kill()`、`await proc.wait()`，返回空 stdout 与退出码 124，日志里不写命令行（可能带着输入的文本）。只有读原剪贴板这一步传 `_CLIPBOARD_READ_TIMEOUT_S = 3.0`，超时后按「读不到原内容」处理，粘贴后写回空串。其余 `_run_cmd` 调用默认不超时，行为不变。加上这些后 `linux.py` 达到 509 行，超过 500 行的上限，所以把两个只读探测函数原样移到新文件 `toolkits/computer_use/backends/linux_probes.py`（`probe_linux_capturable`、`detect_linux_resolution`），`linux.py` 变为 463 行。 |
 | **反复次数** | 第 1 次。 |
 | **踩坑** | ① 起初想把命令改成 `timeout 3 xclip ...`，但 macOS 没有 `timeout`，开发机上用假 xclip 跑的整组 Linux 测试会全红，所以改成 Python 侧的 `asyncio.wait_for` 加 `proc.kill()`。② 先让假 xclip 把自己的 pid 写进文件、再查进程是否还在：0.3 秒的测试超时在机器负载高时先于脚本写文件，文件不存在，用例误报失败；改成给假 xclip 一个按测试进程号区分的睡眠时长（`sleep 30.<pid>`），用 `pgrep -f` 查，这样脚本没来得及启动也不会误报。③ 终审时我曾说「超时能清掉密码」，不对：卡的是读，那时还没写入任何内容。 |
 | **回归** | [1] 新增 `test_unresponsive_clipboard_owner_cannot_stall_the_paste`：修复前红（`TimeoutError`），修复后连跑 3 次整个文件都绿（18 passed）。[2] 变异 A：去掉 `proc.kill()`，该用例变红；变异 B：读原剪贴板不传超时，该用例变红；都已还原且与备份一致。[3] 容器实测：python:3.13-slim 的 `/bin/sh` 是 dash，`create_subprocess_shell("DISPLAY=:0 sleep 31")` 在 `proc.kill()` 后没有残留进程（带与不带 `DISPLAY=` 前缀都是 0），即杀到的是真正的命令而不是外层 shell。 |
