@@ -76,7 +76,6 @@
 | `browser_recording/` | ✅ 辅助 | 浏览器录制会话业务层（session 生命周期、Harness capture 序列化、技能草稿生成） | [_ARCH.md](browser_recording/_ARCH.md) |
 | `web_fetch/` | ✅ 辅助 | Web Fetch Escalation Layer（Jina/Firecrawl L4 远程读取 fallback，默认 OFF） | [_ARCH.md](web_fetch/_ARCH.md) |
 | `workflow_templates/` | ✅ 辅助 | WorkflowTemplateStore server adapter（与 DW 引擎共享 workflow_events.db） | [_ARCH.md](workflow_templates/_ARCH.md) |
-| `workflow/` | ✅ 辅助 | 工作流执行轨迹与从指定节点重放（进程内存放，预置示例工作流） | [_ARCH.md](workflow/_ARCH.md) |
 | `backup/` | ✅ 辅助 | 全资产快照存档导出与凭据脱敏、相对基线清单的增量备份、导入前体检与恢复 | [_ARCH.md](backup/_ARCH.md) |
 | `hosting/` | ✅ 核心 | Artifact 多目标发布业务层（Vercel/CF Pages/Netlify/HTTP Webhook、SSRF 防护） | [_ARCH.md](hosting/_ARCH.md) |
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |

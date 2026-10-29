@@ -65,7 +65,6 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "webhook",
         "webui",
         "wiki",
-        "workflow",
         "workflow_templates",
         "workspace",
     }

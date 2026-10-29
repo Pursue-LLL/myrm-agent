@@ -160,7 +160,6 @@ from app.api.webhook.routes import router as lifecycle_webhook_router
 from app.api.widget_storage import router as widget_storage_router
 from app.api.wiki import router as wiki_router
 from app.api.workbench import workbench_router
-from app.api.workflow.trace_router import router as workflow_trace_router
 from app.api.workflow_templates import router as workflow_templates_router
 from app.api.workspace.router import router as workspace_router
 from app.config.deploy_mode import is_local_mode
@@ -400,7 +399,6 @@ api_router.include_router(companion_router, prefix="/companion", tags=["companio
 api_router.include_router(companion_doctor_router, prefix="/companion", tags=["companion"])
 api_router.include_router(compounding_playbook_router, tags=["compounding-playbook"])
 api_router.include_router(workflow_templates_router, tags=["workflow-templates"])
-api_router.include_router(workflow_trace_router, tags=["workflow-trace"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
 
