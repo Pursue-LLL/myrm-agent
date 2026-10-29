@@ -1,7 +1,20 @@
+"""Tests for WorkspacePathIndexer: git and directory-walk listings, the enumeration cap and its truncation verdict.
+
+[INPUT]
+- myrm_agent_harness.toolkits.filesystem_suggest.indexer::WorkspacePathIndexer (POS: workspace file lister)
+
+[OUTPUT]
+- pytest suite covering the git listing, the directory-walk fallback, and ``is_truncated`` at, below and past the cap.
+
+[POS]
+myrm-agent-harness/tests/toolkits/filesystem_suggest/test_indexer.py
+"""
+
 from __future__ import annotations
 
 import os
 import subprocess
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -11,13 +24,13 @@ from myrm_agent_harness.toolkits.filesystem_suggest.indexer import WorkspacePath
 
 
 @pytest.fixture(autouse=True)
-def plain_git_argv(monkeypatch):
+def plain_git_argv(monkeypatch: pytest.MonkeyPatch) -> None:
     """The hardened argv builder runs its own git probe; keep it out of the mocked ``subprocess.run`` sequence."""
     monkeypatch.setattr(indexer_module, "hardened_git_argv", lambda args, repo_dir: ["git", *args])
 
 
 @pytest.fixture
-def mock_non_git_repo(tmp_path):
+def mock_non_git_repo(tmp_path: Path) -> Path:
     repo_dir = tmp_path / "nongit"
     repo_dir.mkdir()
     (repo_dir / "file1.txt").touch()
@@ -32,7 +45,7 @@ def mock_non_git_repo(tmp_path):
     return repo_dir
 
 
-def test_list_files_non_git_fallback(mock_non_git_repo):
+def test_list_files_non_git_fallback(mock_non_git_repo: Path) -> None:
     WorkspacePathIndexer.clear_cache(mock_non_git_repo)
     files = WorkspacePathIndexer.list_files(mock_non_git_repo)
 
@@ -44,7 +57,7 @@ def test_list_files_non_git_fallback(mock_non_git_repo):
 
 
 @mock.patch("myrm_agent_harness.toolkits.filesystem_suggest.indexer.subprocess.run")
-def test_list_files_git_success(mock_run, tmp_path):
+def test_list_files_git_success(mock_run: mock.MagicMock, tmp_path: Path) -> None:
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     (repo_dir / ".git").mkdir()
@@ -63,7 +76,7 @@ def test_list_files_git_success(mock_run, tmp_path):
 
 
 @mock.patch("myrm_agent_harness.toolkits.filesystem_suggest.indexer.subprocess.run")
-def test_list_files_git_failure_fallback(mock_run, mock_non_git_repo):
+def test_list_files_git_failure_fallback(mock_run: mock.MagicMock, mock_non_git_repo: Path) -> None:
     mock_run.side_effect = subprocess.TimeoutExpired(cmd="git", timeout=2.0)
 
     WorkspacePathIndexer.clear_cache(mock_non_git_repo)
@@ -76,7 +89,9 @@ def test_list_files_git_failure_fallback(mock_run, mock_non_git_repo):
         assert "subdir/file3.js" in files
 
 
-def test_directory_walk_stops_at_the_cap_and_reports_truncation(mock_non_git_repo, monkeypatch):
+def test_directory_walk_stops_at_the_cap_and_reports_truncation(
+    mock_non_git_repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(indexer_module, "_MAX_LISTED_FILES", 2)
 
     WorkspacePathIndexer.clear_cache(mock_non_git_repo)
@@ -87,7 +102,9 @@ def test_directory_walk_stops_at_the_cap_and_reports_truncation(mock_non_git_rep
 
 
 @mock.patch("myrm_agent_harness.toolkits.filesystem_suggest.indexer.subprocess.run")
-def test_git_listing_stops_at_the_cap_and_reports_truncation(mock_run, tmp_path, monkeypatch):
+def test_git_listing_stops_at_the_cap_and_reports_truncation(
+    mock_run: mock.MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     (repo_dir / ".git").mkdir()
@@ -104,14 +121,16 @@ def test_git_listing_stops_at_the_cap_and_reports_truncation(mock_run, tmp_path,
     assert WorkspacePathIndexer.is_truncated(files) is True
 
 
-def test_a_listing_below_the_cap_is_not_truncated(mock_non_git_repo):
+def test_a_listing_below_the_cap_is_not_truncated(mock_non_git_repo: Path) -> None:
     WorkspacePathIndexer.clear_cache(mock_non_git_repo)
     files = WorkspacePathIndexer.list_files(mock_non_git_repo)
 
     assert WorkspacePathIndexer.is_truncated(files) is False
 
 
-def test_a_listing_that_exactly_fills_the_cap_counts_as_truncated(mock_non_git_repo, monkeypatch):
+def test_a_listing_that_exactly_fills_the_cap_counts_as_truncated(
+    mock_non_git_repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(indexer_module, "_MAX_LISTED_FILES", 3)
 
     WorkspacePathIndexer.clear_cache(mock_non_git_repo)

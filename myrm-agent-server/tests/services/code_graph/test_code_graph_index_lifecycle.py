@@ -22,6 +22,7 @@ from functools import partial
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 
 from app.services.code_graph import service as service_module
 from app.services.code_graph.ast_extractor import PythonAstExtractor
@@ -168,7 +169,7 @@ def test_a_run_reports_when_the_file_listing_reached_its_cap(
         listing_seen.append(files)
         return len(files) >= 4
 
-    monkeypatch.setattr(service_module.WorkspacePathIndexer, "is_truncated", staticmethod(is_truncated))
+    monkeypatch.setattr(WorkspacePathIndexer, "is_truncated", staticmethod(is_truncated))
 
     full = graph.index_directory(root)
     (root / "c.py").unlink()
