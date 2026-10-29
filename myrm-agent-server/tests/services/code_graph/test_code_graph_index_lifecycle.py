@@ -221,7 +221,7 @@ def _run_together(work: Callable[[], object], threads: int) -> list[str]:
 
 
 def test_several_agents_opening_a_new_store_at_once_all_succeed(tmp_path: Path) -> None:
-    # Opening one new store from 8 threads failed in about 1 round out of 18 before the WAL retry.
+    # A single WAL-switch attempt fails in about 1 of 18 such rounds, so 100 rounds make a missing retry show up.
     for round_number in range(100):
         assert _run_together(partial(CodeGraphStore, tmp_path / f"round_{round_number}.db"), threads=8) == []
 
