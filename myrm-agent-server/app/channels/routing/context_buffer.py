@@ -17,7 +17,7 @@ Group chat context accumulation. append() records non-trigger chatter in memory;
 it back for injection into the next trigger turn, and drain_async() prefers the persisted data
 plane, keeping the in-memory entries whenever that plane has nothing to return. Both paths hand
 out a message once and only while it is younger than the expiry: the persisted path remembers when
-a chat was last taken instead of deleting ledger rows.
+a chat was last taken and never deletes ledger rows.
 """
 
 from __future__ import annotations

@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.channels.protocols.pairing import DmPolicy, GroupPolicy, GroupTriggerMode, PairingRole, PairingStatus
+from app.channels.protocols.pairing import DmPolicy, GroupPolicy, GroupTriggerMode, PairingStore
 from app.channels.routing.context_buffer import GroupContextBuffer
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver import PolicyResolver
@@ -29,36 +29,11 @@ _RECORD_INBOUND = "app.channels.routing.channel_data_plane.ChannelDataPlaneServi
 _MUTE_THREAD = "app.channels.routing.follow_up.mute_tracked_thread"
 
 
-class _Pairing:
+def _pairing() -> PairingStore:
     """Every sender resolves to the owner's default user, so an admitted trigger always starts a turn."""
-
-    async def resolve(self, channel: str, sender_id: str) -> str | None:
-        return "owner"
-
-    async def touch_display_name(self, channel: str, sender_id: str, display_name: str) -> None:
-        return None
-
-    async def bind(
-        self,
-        channel: str,
-        sender_id: str,
-        user_id: str,
-        *,
-        status: PairingStatus = PairingStatus.ACTIVE,
-        display_name: str | None = None,
-        role: PairingRole = PairingRole.MEMBER,
-        daily_quota: int | None = None,
-    ) -> None:
-        return None
-
-    async def unbind(self, channel: str, sender_id: str) -> None:
-        return None
-
-    async def get_status(self, channel: str, sender_id: str) -> PairingStatus | None:
-        return None
-
-    async def get_pairing_detail(self, channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, int | None] | None:
-        return None
+    pairing = MagicMock(spec=PairingStore)
+    pairing.resolve = AsyncMock(return_value="owner")
+    return pairing
 
 
 @dataclass(frozen=True)
@@ -159,7 +134,7 @@ def _resolver(case: _Case) -> PolicyResolver:
     fx = MagicMock(spec=MessageEffects)
     fx.send_mute_reply = AsyncMock()
     resolver = PolicyResolver(
-        pairing=_Pairing(),
+        pairing=_pairing(),
         policy=_Policy(case),
         context_buffer=GroupContextBuffer(),
         fx=fx,
