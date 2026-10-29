@@ -7,11 +7,13 @@ the command-line redactor, the one the bash event already uses, so both events o
 
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.logger import EventLogger
+from myrm_agent_harness.agent.streaming.broadcast.tool_call_broadcaster import ToolCallBroadcaster
 from myrm_agent_harness.core.security.redact import redact_command_line
 
 _VALUE = "Summer2024!"
@@ -52,8 +54,11 @@ def test_a_string_under_another_key_is_left_as_it_is(key: str) -> None:
     assert EventLogger._sanitize(payload) == payload
 
 
-def test_strings_of_a_list_under_a_command_key_are_masked() -> None:
-    sanitized = EventLogger._sanitize({"args": {"command": ["ok", f"tool --key {_VALUE}"]}})
+@pytest.mark.parametrize(
+    "sequence", [["ok", f"tool --key {_VALUE}"], ("ok", f"tool --key {_VALUE}")], ids=["list", "tuple"]
+)
+def test_strings_of_a_sequence_under_a_command_key_are_masked(sequence: list[str] | tuple[str, ...]) -> None:
+    sanitized = EventLogger._sanitize({"args": {"command": sequence}})
 
     assert _VALUE not in str(sanitized)
     assert sanitized["args"]["command"][0] == "ok"  # type: ignore[index]
@@ -73,14 +78,22 @@ def test_a_command_the_bash_event_already_masked_is_unchanged() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_logged_tool_command_reaches_the_file_masked(tmp_path: Path) -> None:
-    backend = FileEventLogBackend(tmp_path, "sess-1")
-    event_logger = EventLogger(backend, "sess-1")
+async def test_the_tool_start_the_broadcaster_persists_has_its_command_masked(tmp_path: Path) -> None:
+    event_logger = EventLogger(FileEventLogBackend(tmp_path, "sess-1"), "sess-1")
+    broadcaster = ToolCallBroadcaster(event_logger=event_logger)
+    broadcaster._event_bus = AsyncMock()
     await event_logger.start()
-    await event_logger.log("tool_start", _args("verify_command", f"tool --key {_VALUE}"))
+    await broadcaster.on_pre_tool_use(
+        "pre_tool_use",
+        {
+            "tool_name": "bash_code_execute_tool",
+            "tool_input": {"command": f"tool --key {_VALUE}"},
+            "tool_call_id": "call-1",
+        },
+    )
     await event_logger.close()
 
     lines = (tmp_path / "sess-1.jsonl").read_text(encoding="utf-8").splitlines()
     started = next(event for event in map(json.loads, lines) if event["type"] == "tool_start")
     assert _VALUE not in "".join(lines)
-    assert started["data"]["args"]["verify_command"].startswith("tool --key")
+    assert started["data"]["args"]["command"].startswith("tool --key")
