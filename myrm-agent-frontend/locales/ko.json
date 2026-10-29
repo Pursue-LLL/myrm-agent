@@ -14978,25 +14978,6 @@
       "expand": "더보기"
     }
   },
-  "modelOverrides": {
-    "title": "모델 컨텍스트 및 가격 오버라이드 관리",
-    "hermesParity": "런타임에 실시간으로 반영됩니다",
-    "cloneTemplate": "2026년 기준 모델 SKU 템플릿(클릭하여 복제):",
-    "modelIdLabel": "대상 모델 ID / 별칭",
-    "currencyLabel": "가격 통화",
-    "contextWindowLabel": "컨텍스트 윈도우(토큰)",
-    "maxOutputLabel": "최대 출력 토큰 수",
-    "inputPriceLabel": "입력 비용(100만 토큰당)",
-    "outputPriceLabel": "출력 비용(100만 토큰당)",
-    "calcTitle": "BYOK 실시간 토큰 경제성 및 비용 계산기",
-    "calcInputTokens": "예상 입력 토큰 수",
-    "calcOutputTokens": "예상 출력 토큰 수",
-    "calcComputeBtn": "실행 비용 계산",
-    "activeOverrides": "활성 모델 오버라이드:",
-    "loadToForm": "편집",
-    "close": "닫기",
-    "saveAndApply": "저장 후 즉시 적용"
-  },
   "roiDashboard": {
     "cardTitle": "생산성 및 절감 시간 ROI HUD",
     "cardSubtitle": "측정 가능한 화이트칼라 업무 대체, 컴퓨팅 비용 및 ROI 배수",

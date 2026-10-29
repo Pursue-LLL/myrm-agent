@@ -191,7 +191,6 @@ Called from other HTTP trees or lifecycle hooks:
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `swarm/` | `api/chats/chat/swarm_hud.py` — swarm session config, recalled-rules HUD, owner-action checklist |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
-| `models/` | `api/config/model_overrides_router.py` — model capability, context configuration and pricing overrides |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
 | `backup/` | Disaster-recovery wizard, full-stack snapshot exporter, incremental backup engine — library only, exercised by `tests/unit/core/backup`, no HTTP route yet |
 | `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |

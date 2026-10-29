@@ -14978,25 +14978,6 @@
       "expand": "Mehr"
     }
   },
-  "modelOverrides": {
-    "title": "Verwaltung von Modellkontext- & Preis-Overrides",
-    "hermesParity": "Wird zur Laufzeit sofort übernommen",
-    "cloneTemplate": "Aktuelle Basis-Modell-SKU-Vorlagen 2026 (zum Klonen anklicken):",
-    "modelIdLabel": "Ziel-Modell-ID / Alias",
-    "currencyLabel": "Preiswährung",
-    "contextWindowLabel": "Kontextfenster (Tokens)",
-    "maxOutputLabel": "Maximale Ausgabe-Tokens",
-    "inputPriceLabel": "Eingabekosten (pro 1 Mio. Tokens)",
-    "outputPriceLabel": "Ausgabekosten (pro 1 Mio. Tokens)",
-    "calcTitle": "BYOK-Live-Token-Wirtschaftlichkeit & Kostenrechner",
-    "calcInputTokens": "Erwartete Eingabe-Tokens",
-    "calcOutputTokens": "Erwartete Ausgabe-Tokens",
-    "calcComputeBtn": "Laufkosten berechnen",
-    "activeOverrides": "Aktive Modell-Overrides:",
-    "loadToForm": "Bearbeiten",
-    "close": "Schließen",
-    "saveAndApply": "Speichern & sofort anwenden"
-  },
   "roiDashboard": {
     "cardTitle": "Produktivitäts- & Zeitersparnis-ROI-HUD",
     "cardSubtitle": "Messbarer Ersatz von Büroarbeit, Rechenkosten & ROI-Faktor",

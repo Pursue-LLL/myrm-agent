@@ -14978,25 +14978,6 @@
       "expand": "More"
     }
   },
-  "modelOverrides": {
-    "title": "Model Context & Pricing Overrides Manager",
-    "hermesParity": "Applies live at runtime",
-    "cloneTemplate": "Modern 2026 Baseline Model SKU Templates (Click to clone):",
-    "modelIdLabel": "Target Model ID / Alias",
-    "currencyLabel": "Pricing Currency",
-    "contextWindowLabel": "Context Window (tokens)",
-    "maxOutputLabel": "Max Output Tokens",
-    "inputPriceLabel": "Input Cost (per 1M tokens)",
-    "outputPriceLabel": "Output Cost (per 1M tokens)",
-    "calcTitle": "BYOK Live Token Economics & Cost Calculator",
-    "calcInputTokens": "Projected Input Tokens",
-    "calcOutputTokens": "Projected Output Tokens",
-    "calcComputeBtn": "Calculate Run Cost",
-    "activeOverrides": "Active Model Overrides:",
-    "loadToForm": "Edit",
-    "close": "Close",
-    "saveAndApply": "Save & Apply Live"
-  },
   "roiDashboard": {
     "cardTitle": "Productivity & Hours Saved ROI HUD",
     "cardSubtitle": "Measurable white-collar labor substitution, compute costs & ROI multiplier",

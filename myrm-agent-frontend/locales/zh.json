@@ -14978,25 +14978,6 @@
       "expand": "展开更多"
     }
   },
-  "modelOverrides": {
-    "title": "模型 Context 与价格自定义管理",
-    "hermesParity": "运行时实时生效",
-    "cloneTemplate": "2026 主流新模型 SKU 预置模板（点击一键克隆）:",
-    "modelIdLabel": "目标模型 ID / 别名",
-    "currencyLabel": "计费币种",
-    "contextWindowLabel": "上下文窗口（Token）",
-    "maxOutputLabel": "Max Output Tokens (输出上限)",
-    "inputPriceLabel": "输入单价 (每 1M tokens)",
-    "outputPriceLabel": "输出单价 (每 1M tokens)",
-    "calcTitle": "BYOK 实时用量与成本计算器",
-    "calcInputTokens": "预估输入 Tokens",
-    "calcOutputTokens": "预估输出 Tokens",
-    "calcComputeBtn": "计算单次费用",
-    "activeOverrides": "已保存的模型覆写列表:",
-    "loadToForm": "加载编辑",
-    "close": "关闭",
-    "saveAndApply": "保存并实时生效"
-  },
   "roiDashboard": {
     "cardTitle": "生产力与已节省时间价值大盘",
     "cardSubtitle": "显性化白领自动化工时替代、算力成本与投资回报率",

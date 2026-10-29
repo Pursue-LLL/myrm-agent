@@ -14978,25 +14978,6 @@
       "expand": "その他"
     }
   },
-  "modelOverrides": {
-    "title": "モデルコンテキスト＆料金オーバーライド管理",
-    "hermesParity": "実行中に即時反映されます",
-    "cloneTemplate": "2026 年版の基準モデル SKU テンプレート（クリックで複製）:",
-    "modelIdLabel": "対象モデル ID / エイリアス",
-    "currencyLabel": "料金の通貨",
-    "contextWindowLabel": "コンテキストウィンドウ（トークン）",
-    "maxOutputLabel": "最大出力トークン数",
-    "inputPriceLabel": "入力コスト（100 万トークンあたり）",
-    "outputPriceLabel": "出力コスト（100 万トークンあたり）",
-    "calcTitle": "BYOK のリアルタイムトークン経済＆コスト計算",
-    "calcInputTokens": "想定入力トークン数",
-    "calcOutputTokens": "想定出力トークン数",
-    "calcComputeBtn": "実行コストを計算",
-    "activeOverrides": "有効なモデルオーバーライド:",
-    "loadToForm": "編集",
-    "close": "閉じる",
-    "saveAndApply": "保存してすぐに適用"
-  },
   "roiDashboard": {
     "cardTitle": "生産性＆削減時間 ROI HUD",
     "cardSubtitle": "測定可能なホワイトカラー業務の代替、計算コスト、ROI 倍率",

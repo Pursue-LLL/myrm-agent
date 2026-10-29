@@ -40,7 +40,6 @@ from app.api.companion.doctor_router import router as companion_doctor_router
 from app.api.companion.router import router as companion_router
 from app.api.compounding_playbook import router as compounding_playbook_router
 from app.api.config.artifact_mappings import router as artifact_mappings_router
-from app.api.config.model_overrides_router import model_overrides_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
 from app.api.context.omni_reference import router as omni_reference_router
@@ -322,11 +321,6 @@ api_router.include_router(plugins_export_router, prefix="/plugins", tags=["plugi
 api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])
 api_router.include_router(connect_router, tags=["connect"])
 api_router.include_router(config_router, prefix="/config", tags=["config"])
-api_router.include_router(
-    model_overrides_router,
-    prefix="/settings/model-overrides",
-    tags=["settings", "model-overrides"],
-)
 api_router.include_router(allowlist_router, prefix="/security/allowlist", tags=["security"])
 api_router.include_router(workspace_trust_router, prefix="/security/workspace-trust", tags=["security"])
 api_router.include_router(security_estop_router, tags=["security"])
