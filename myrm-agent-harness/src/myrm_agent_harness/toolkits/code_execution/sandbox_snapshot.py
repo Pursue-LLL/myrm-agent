@@ -321,7 +321,8 @@ def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
     # Working Directory and Git
     wd_line = f"Working Directory: {snapshot.working_dir}"
     if snapshot.git_branch:
-        dirty_str = "dirty" if snapshot.git_dirty else "clean"
+        # ``None`` means the status probe produced no answer (timeout, refused layout, git missing): never claim clean.
+        dirty_str = "unknown" if snapshot.git_dirty is None else ("dirty" if snapshot.git_dirty else "clean")
         wd_line += f" (Git: {snapshot.git_branch}, {dirty_str})"
     lines.append(wd_line)
 

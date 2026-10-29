@@ -5,22 +5,27 @@ Tests:
 - Normal directory structure scanning (file/dir distinction)
 - Ignored directory filtering (.git, node_modules, etc.)
 - Recommended package manager inference from lockfiles
-- Git state detection
+- Git state detection (a working tree whose status could not be read is reported as unknown, never as clean)
 - XML formatting output and safety
 - Large workspace truncation limit protection
 """
 
 from __future__ import annotations
 
+import shutil
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from myrm_agent_harness.toolkits.code_execution.sandbox_snapshot import (
     SandboxBootstrapSnapshot,
     format_bootstrap_snapshot_xml,
     generate_sandbox_bootstrap_snapshot,
 )
+from tests.support.git_probe import git, plain, repository, run
 
 
 def test_empty_workspace() -> None:
@@ -68,7 +73,10 @@ def test_recommended_package_manager_inference() -> None:
         root = Path(tmpdir)
         (root / "pnpm-lock.yaml").write_text("lockfileVersion: 5.4")
 
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("pnpm", "npm", "uv") else None):
+        with patch(
+            "shutil.which",
+            side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("pnpm", "npm", "uv") else None,
+        ):
             snapshot = generate_sandbox_bootstrap_snapshot(root)
             assert "pnpm" in snapshot.package_managers
             assert snapshot.recommended_package_manager == "pnpm"
@@ -82,7 +90,9 @@ def test_uv_lock_recommendation() -> None:
         root = Path(tmpdir)
         (root / "uv.lock").write_text("version = 1")
 
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("uv", "pip") else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("uv", "pip") else None
+        ):
             snapshot = generate_sandbox_bootstrap_snapshot(root)
             assert "uv" in snapshot.package_managers
             assert snapshot.recommended_package_manager == "uv"
@@ -114,7 +124,10 @@ def test_git_branch_probing() -> None:
                 return 0, "M test.py"
             return 0, "3.12.0"
 
-        with patch("myrm_agent_harness.toolkits.code_execution.sandbox_snapshot._run_quick_command", side_effect=_custom_quick_command):
+        with patch(
+            "myrm_agent_harness.toolkits.code_execution.sandbox_snapshot._run_quick_command",
+            side_effect=_custom_quick_command,
+        ):
             snapshot = generate_sandbox_bootstrap_snapshot(root)
             assert snapshot.git_branch == "feature/sandbox-eval"
             assert snapshot.git_dirty is True
@@ -157,7 +170,9 @@ def test_package_manager_lockfiles_and_fallbacks() -> None:
         root = Path(tmpdir)
         # Test bun lockfile
         (root / "bun.lockb").write_text("bun")
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("bun", "npm") else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("bun", "npm") else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "bun"
 
@@ -165,7 +180,9 @@ def test_package_manager_lockfiles_and_fallbacks() -> None:
         root = Path(tmpdir)
         # Test yarn lockfile
         (root / "yarn.lock").write_text("yarn")
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("yarn", "npm") else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("yarn", "npm") else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "yarn"
 
@@ -173,7 +190,9 @@ def test_package_manager_lockfiles_and_fallbacks() -> None:
         root = Path(tmpdir)
         # Test package-lock.json
         (root / "package-lock.json").write_text("{}")
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("npm",) else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("npm",) else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "npm"
 
@@ -181,7 +200,9 @@ def test_package_manager_lockfiles_and_fallbacks() -> None:
         root = Path(tmpdir)
         # Test pyproject.toml fallback when no lockfile exists
         (root / "pyproject.toml").write_text("[project]")
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("uv", "pip") else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("uv", "pip") else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "uv"
 
@@ -189,7 +210,9 @@ def test_package_manager_lockfiles_and_fallbacks() -> None:
         root = Path(tmpdir)
         # Test Cargo.lock
         (root / "Cargo.lock").write_text("[[package]]")
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("cargo",) else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("cargo",) else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "cargo"
 
@@ -197,7 +220,9 @@ def test_package_manager_lockfiles_and_fallbacks() -> None:
         root = Path(tmpdir)
         # Test Cargo.toml fallback
         (root / "Cargo.toml").write_text("[package]")
-        with patch("shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("cargo",) else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/usr/bin/" + bin_name if bin_name in ("cargo",) else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "cargo"
 
@@ -229,6 +254,70 @@ def test_git_cli_missing_fallback() -> None:
             assert snap.git_dirty is None
 
 
+@pytest.mark.parametrize(("dirty", "stated"), [(True, "dirty"), (False, "clean"), (None, "unknown")])
+def test_cleanliness_is_stated_only_when_it_was_determined(dirty: bool | None, stated: str) -> None:
+    xml = format_bootstrap_snapshot_xml(
+        SandboxBootstrapSnapshot(
+            working_dir="/w", top_level_entries=(), total_entries_count=0, git_branch="main", git_dirty=dirty
+        )
+    )
+
+    assert f"(Git: main, {stated})" in xml
+
+
+def test_a_status_that_timed_out_is_not_reported_as_clean() -> None:
+    def _quick_command(cmd: list[str], timeout: float = 1.0) -> tuple[int, str]:
+        return (0, "main") if "rev-parse" in cmd else (-1, "")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        (root / ".git").mkdir()
+        with patch(
+            "myrm_agent_harness.toolkits.code_execution.sandbox_snapshot._run_quick_command", side_effect=_quick_command
+        ):
+            snapshot = generate_sandbox_bootstrap_snapshot(root)
+
+    assert snapshot.git_dirty is None
+    assert "(Git: main, unknown)" in format_bootstrap_snapshot_xml(snapshot)
+
+
+@pytest.mark.skipif(sys.platform == "win32" or shutil.which("git") is None, reason="needs POSIX git")
+class TestSnapshotOfARealRepository:
+    @pytest.fixture(autouse=True)
+    def _isolated_user_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        user_config = tmp_path / "user.gitconfig"
+        user_config.write_text("")
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(user_config))
+
+    def test_an_edited_repository_is_dirty(self, tmp_path: Path) -> None:
+        workspace = repository(tmp_path / "ws")
+        (workspace / "f.txt").write_text("one\ntwo\n")
+
+        snapshot = generate_sandbox_bootstrap_snapshot(workspace)
+
+        assert snapshot.git_dirty is True
+        assert f"(Git: {snapshot.git_branch}, dirty)" in format_bootstrap_snapshot_xml(snapshot)
+
+    def test_a_repository_the_application_will_not_run_git_in_is_unknown_not_clean(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "ws"
+        workspace.mkdir()
+        git(workspace, "init", "-q", f"--separate-git-dir={tmp_path / 'gitdir'}")
+        git(workspace, "config", "user.email", "a@example.com")
+        git(workspace, "config", "user.name", "a")
+        (workspace / "f.txt").write_text("one\n")
+        git(workspace, "add", "f.txt")
+        git(workspace, "commit", "-q", "-m", "init")
+        (workspace / "f.txt").write_text("one\ntwo\n")
+        assert run(plain(workspace, "status", "--porcelain"), workspace).stdout.strip(), "the control must see the edit"
+
+        snapshot = generate_sandbox_bootstrap_snapshot(workspace)
+
+        assert snapshot.git_branch is not None
+        assert snapshot.git_dirty is None
+        assert f"(Git: {snapshot.git_branch}, unknown)" in format_bootstrap_snapshot_xml(snapshot)
+
+
 def test_runtimes_and_version_probing() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
@@ -253,7 +342,10 @@ def test_runtimes_and_version_probing() -> None:
 
         with (
             patch("shutil.which", side_effect=mock_which),
-            patch("myrm_agent_harness.toolkits.code_execution.sandbox_snapshot._run_quick_command", side_effect=mock_run_quick),
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.sandbox_snapshot._run_quick_command",
+                side_effect=mock_run_quick,
+            ),
         ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert any("Python 3.12.3" in r for r in snap.runtimes)
@@ -270,7 +362,9 @@ def test_package_manager_config_fallbacks() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         (root / "package.json").write_text("{}")
-        with patch("shutil.which", side_effect=lambda bin_name: "/bin/" + bin_name if bin_name in ("bun", "npm") else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/bin/" + bin_name if bin_name in ("bun", "npm") else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "bun"
 
@@ -293,8 +387,8 @@ def test_package_manager_config_fallbacks() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         (root / "poetry.lock").write_text("version = 1")
-        with patch("shutil.which", side_effect=lambda bin_name: "/bin/" + bin_name if bin_name in ("poetry", "pip") else None):
+        with patch(
+            "shutil.which", side_effect=lambda bin_name: "/bin/" + bin_name if bin_name in ("poetry", "pip") else None
+        ):
             snap = generate_sandbox_bootstrap_snapshot(root)
             assert snap.recommended_package_manager == "poetry"
-
-
