@@ -47,7 +47,7 @@ OVERSIZED_RULE_CHARS = 300_000
 PROMPT = "Do not use any tools. What is the project codeword? Answer with the codeword only."
 
 pytestmark = [
-    pytest.mark.usefixtures("routes_and_trust", "stuck_turn_report", "approval_trail"),
+    pytest.mark.usefixtures("routes_and_trust", "stuck_turn_report"),
     pytest.mark.e2e,
     pytest.mark.skipif(sys.platform == "win32", reason="FIFOs and sparse files are POSIX"),
     pytest.mark.skipif(not os.environ.get("LITE_API_KEY"), reason="E2E test requires LITE_API_KEY"),

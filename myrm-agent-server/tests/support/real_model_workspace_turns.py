@@ -6,21 +6,20 @@
 - ChatLiteLLM message building and the run's trust binding (POS: recorded where the request is built and the trust is decided)
 
 [OUTPUT]
-- stuck_turn_report, approval_trail, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
-- new_chat, trusted_project_folder, harness_workspace, ask, main_request_text: the steps of a turn
+- stuck_turn_report, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
+- new_chat, trusted_project_folder, harness_workspace, stream_turn, perform_agent_stream, ask, main_request_text: the steps of a turn
 - TRUST_API, PROJECT_API, TURN_TIMEOUT_SECONDS: shared constants
 
 [POS]
-Server pytest-only. ``tests/api/agent/conftest.py`` imports the fixtures, so ``test_workspace_hostile_folder_e2e.py`` and
-``test_workspace_subdirectory_rules_e2e.py`` get them by name; those two modules switch ``routes_and_trust``, ``stuck_turn_report`` and ``approval_trail`` on
-with ``usefixtures``, because the other tests of the directory must not run behind the project and trust routes.
+Server pytest-only. ``tests/api/agent/conftest.py`` imports the fixtures, so ``test_workspace_hostile_folder_e2e.py``,
+``test_workspace_subdirectory_rules_e2e.py`` and ``test_workspace_rules_e2e.py`` get them by name; those modules switch ``routes_and_trust`` and
+``stuck_turn_report`` on with ``usefixtures``, because the other tests of the directory must not run behind the project and trust routes.
 """
 
 from __future__ import annotations
 
 import copy
 import json
-import logging
 import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -29,6 +28,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from langchain_core.messages import BaseMessage
 from myrm_agent_harness.agent.security.workspace_trust import runtime as trust_runtime
 from myrm_agent_harness.agent.security.workspace_trust.provider import (
     get_workspace_trust_lookup,
@@ -44,18 +44,19 @@ from app.api.security import workspace_trust as workspace_trust_module
 from app.config.settings import get_settings
 from app.platform_utils.workspace_session import to_workspace_session_id
 from app.services.security.workspace_trust_store import ConfigWorkspaceTrustLookup, get_workspace_trust_store
-from tests.api.agent.test_workspace_rules_e2e import perform_agent_stream
-from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+from tests.api.agent.utils import (
+    build_approval_resume_value,
+    check_e2e_errors,
+    get_lite_model_selection,
+    get_model_selection,
+)
 from tests.support.pending_task_report import report_pending_tasks_after
 
 TRUST_API = "/api/v1/security/workspace-trust"
 PROJECT_API = "/api/v1/projects"
 TURN_TIMEOUT_SECONDS = 240
-_APPROVAL_LOGGERS = (
-    "myrm_agent_harness.agent.middlewares.approval.scheduler",
-    "app.services.agent.streaming_support.hitl_timeout",
-    "app.services.agent.stream_session.orchestrator",
-)
+_APPROVAL_EVENT_TYPES = ("approval_required", "tool_approval_request")
+_MAX_APPROVAL_ROUNDS = 10
 
 
 @pytest.fixture
@@ -63,19 +64,6 @@ def stuck_turn_report() -> Iterator[None]:
     """The thread stacks of a run ended by the timeout show an idle loop; the tasks parked on an await say which one."""
     with report_pending_tasks_after(TURN_TIMEOUT_SECONDS - 40):
         yield
-
-
-@pytest.fixture
-def approval_trail() -> Iterator[None]:
-    """A model that ignores "do not use tools" can stop the turn at an approval; a resume refused as already resolved is explained by the
-    INFO lines of the timer and the resume (who armed or claimed the chat's key, and when), which the default WARNING level drops."""
-    loggers = [logging.getLogger(name) for name in _APPROVAL_LOGGERS]
-    previous = [logger.level for logger in loggers]
-    for logger in loggers:
-        logger.setLevel(logging.DEBUG)
-    yield
-    for logger, level in zip(loggers, previous, strict=True):
-        logger.setLevel(level)
 
 
 @pytest.fixture
@@ -97,7 +85,7 @@ def sent(monkeypatch: pytest.MonkeyPatch) -> list[list[dict[str, object]]]:
     build = ChatLiteLLM._create_message_dicts
 
     def record(
-        self: ChatLiteLLM, messages: list[object], stop: list[str] | None
+        self: ChatLiteLLM, messages: list[BaseMessage], stop: list[str] | None
     ) -> tuple[list[dict[str, object]], dict[str, object]]:
         message_dicts, params = build(self, messages, stop)
         requests.append(copy.deepcopy(message_dicts))
@@ -182,6 +170,74 @@ def trusted_project_folder(client: TestClient, folder: Path, trusted_as: Path | 
             client.delete(TRUST_API, params={"path": str(trusted_path), "remove": "true"})
     finally:
         client.delete(f"{PROJECT_API}/{project_id}")
+
+
+def stream_turn(client: TestClient, request_data: dict[str, object]) -> list[dict[str, object]]:
+    """Stream one agent turn and collect SSE events."""
+    collected: list[dict[str, object]] = []
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0) as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if line.startswith("data: "):
+                raw = line[6:]
+                if raw == "[DONE]":
+                    break
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(data, dict):
+                    collected.append(data)
+    return collected
+
+
+def _awaits_approval(events: Sequence[Mapping[str, object]]) -> bool:
+    return any(event.get("type") in _APPROVAL_EVENT_TYPES for event in events)
+
+
+def perform_agent_stream(
+    client: TestClient,
+    query: str,
+    chat_id: str,
+    model_selection: dict[str, object] | None = None,
+) -> tuple[str, list[dict[str, object]], int]:
+    """Run a turn to its end: a model that goes for a gated tool stops the turn at an approval, and each approval is approved once.
+
+    Only the latest stream says whether an approval is pending: the events of a stream that was answered stay in ``collected``.
+    A resume goes out under an id of its own, because under the id of the stopped turn the server replays that turn's buffered events,
+    approval included, and drops what follows. The server refuses a second resume of one approval with 409 once the turn behind the
+    first has ended.
+    """
+    request_data: dict[str, object] = {
+        "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
+        "chatId": chat_id,
+        "query": query,
+        "modelSelection": model_selection or get_model_selection(),
+        "actionMode": "agent",
+        "memoryRequireConfirmation": False,
+        "enableMemoryAutoExtraction": False,
+    }
+
+    latest = stream_turn(client, request_data)
+    collected = list(latest)
+    for _ in range(_MAX_APPROVAL_ROUNDS):
+        if not _awaits_approval(latest):
+            break
+        resume_request = {
+            **request_data,
+            "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
+            "query": "",
+            "resumeValue": build_approval_resume_value(),
+        }
+        latest = stream_turn(client, resume_request)
+        collected.extend(latest)
+    assert not _awaits_approval(latest), f"the turn is still waiting for an approval after {_MAX_APPROVAL_ROUNDS} were answered"
+
+    answer = "".join(
+        str(event["data"]) for event in collected if event.get("type") in ("message", "reasoning") and event.get("data")
+    )
+    tool_call_count = sum(1 for event in collected if event.get("type") == "tasks_steps" and event.get("tool_name") is not None)
+    return answer, collected, tool_call_count
 
 
 def ask(client: TestClient, chat_id: str, prompt: str) -> str:

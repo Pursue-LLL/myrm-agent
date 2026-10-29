@@ -43,7 +43,7 @@ READS = {
 reads = pytest.mark.parametrize("prompt", list(READS.values()), ids=list(READS))
 
 pytestmark = [
-    pytest.mark.usefixtures("routes_and_trust", "stuck_turn_report", "approval_trail"),
+    pytest.mark.usefixtures("routes_and_trust", "stuck_turn_report"),
     pytest.mark.e2e,
     pytest.mark.skipif(sys.platform == "win32", reason="the model is told to run a POSIX shell command"),
     pytest.mark.skipif(not os.environ.get("LITE_API_KEY"), reason="E2E test requires LITE_API_KEY"),

@@ -1,142 +1,61 @@
-import json
+"""Real-model check that of the rule files of a trusted folder only the first match reaches the agent.
+
+[INPUT]
+- A folder the user links to a project, previews and trusts through the project and folder-trust API (POS: the workspace root of the turn)
+- POST /api/v1/agents/agent-stream with the LITE model (POS: the whole server path, a real provider call, SSE back)
+- The messages ChatLiteLLM sends to the provider (POS: recorded where they are built)
+
+[OUTPUT]
+- Fails when the request of the turn lacks the codeword of ``AGENTS.md`` or holds the one of ``.cursorrules``, or when the model's answer does not
+  follow the same two.
+
+[POS]
+The rules of a folder nobody trusted stay out of the request, so the rule files sit in a folder the user trusted. The request is what the server
+decides; the answer also depends on the model following what it was given.
+"""
+
+from __future__ import annotations
+
 import os
-import uuid
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
-from app.config.settings import get_settings
-from app.platform_utils.workspace_session import to_workspace_session_id
-from tests.api.agent.utils import (
-    build_approval_resume_value,
-    get_lite_model_selection,
-    get_model_selection,
-)
+from tests.support.real_model_workspace_turns import TURN_TIMEOUT_SECONDS, ask, main_request_text, trusted_project_folder
 
+HIGH_PRIORITY_CODEWORD = "WUBBALUBBADUBDUB"
+LOW_PRIORITY_CODEWORD = "BAZINGA"
+PROMPT = "Do not use any tools. Write a simple python script that prints hello world. Answer with the code only."
 
-def _stream_once(
-    client: TestClient,
-    request_data: dict[str, object],
-) -> list[dict]:
-    """Stream one agent turn and collect SSE events."""
-    collected: list[dict] = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0) as response:
-        assert response.status_code == 200
-        for line in response.iter_lines():
-            if line.startswith("data: "):
-                raw = line[6:]
-                if raw == "[DONE]":
-                    break
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(data, dict):
-                    collected.append(data)
-    return collected
+pytestmark = [
+    pytest.mark.usefixtures("routes_and_trust", "stuck_turn_report"),
+    pytest.mark.e2e,
+    pytest.mark.skipif(not os.environ.get("LITE_API_KEY"), reason="E2E test requires LITE_API_KEY"),
+    pytest.mark.timeout(TURN_TIMEOUT_SECONDS, method="thread"),
+]
 
 
-def perform_agent_stream(
-    client: TestClient,
-    query: str,
-    chat_id: str,
-    model_selection: dict[str, object] | None = None,
-) -> tuple[str, list[dict], int]:
-    request_data: dict[str, object] = {
-        "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
-        "chatId": chat_id,
-        "query": query,
-        "modelSelection": model_selection or get_model_selection(),
-        "actionMode": "agent",
-        "memoryRequireConfirmation": False,
-        "enableMemoryAutoExtraction": False,
-    }
-
-    collected: list[dict] = []
-    collected.extend(_stream_once(client, request_data))
-
-    for _ in range(10):
-        approval_required = any(d.get("type") in ("approval_required", "tool_approval_request") for d in reversed(collected))
-        if not approval_required:
-            break
-        resume_request = dict(request_data)
-        resume_request["resumeValue"] = build_approval_resume_value()
-        collected.extend(_stream_once(client, resume_request))
-
-    message_chunks: list[str] = []
-    tool_call_count = 0
-    for data in collected:
-        event_type = data.get("type", "unknown")
-        if event_type in ("message", "reasoning"):
-            content = data.get("data", "")
-            if content:
-                message_chunks.append(content)
-        elif event_type == "tasks_steps":
-            if data.get("tool_name") is not None:
-                tool_call_count += 1
-
-    full_answer = "".join(message_chunks)
-    return full_answer, collected, tool_call_count
+def _rule(codeword: str) -> str:
+    return f"Project Convention: When writing any code, you MUST include the comment '# {codeword}' at the top."
 
 
-class TestWorkspaceRulesE2E:
-    """E2E tests for workspace rules injection (First-Match-Wins).
+def test_first_match_wins_agents_md_over_cursorrules(
+    client: TestClient, sent: list[list[dict[str, object]]], tmp_path: Path
+) -> None:
+    folder = tmp_path / "linked"
+    folder.mkdir()
+    (folder / ".cursorrules").write_text(_rule(LOW_PRIORITY_CODEWORD), encoding="utf-8")
+    (folder / "AGENTS.md").write_text(_rule(HIGH_PRIORITY_CODEWORD), encoding="utf-8")
 
-    Requires a real LLM (agent-stream), so it is gated behind the ``e2e``
-    marker and an API-key skip to keep the default CI suite hermetic.
-    """
+    # Rule adherence depends on the model's instruction-following ability; the default BASIC_MODEL (agnes flash)
+    # is too weak to reliably honor injected rules, so this E2E uses the stronger LITE_MODEL.
+    with trusted_project_folder(client, folder) as chat_id:
+        answer = ask(client, chat_id, PROMPT)
 
-    async def _harness_workspace(self, chat_id: str) -> Path:
-        """Resolve the harness workspace dir bound to ``chat_{chat_id}``.
-
-        Workspace rules are scanned from the harness workspace (set via
-        ``run_lifecycle.set_workspace_root``), so rule files must be seeded
-        there rather than in a mocked server-side chat workspace dir.
-        """
-        harness_root = Path(get_settings().database.harness_dir)
-        workspace_svc = create_workspace_service(root_dir=harness_root)
-        workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
-        return Path(workspace_svc.get_workspace_absolute_path(workspace))
-
-    @pytest.mark.e2e
-    @pytest.mark.skipif(
-        not os.environ.get("BASIC_API_KEY"),
-        reason="E2E test requires BASIC_API_KEY environment variable",
-    )
-    @pytest.mark.asyncio
-    async def test_first_match_wins_e2e(self, client: TestClient) -> None:
-        """Test that AGENTS.md overrides .cursorrules due to First-Match-Wins."""
-        chat_id = f"wrules-{uuid.uuid4().hex[:10]}"
-        create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
-        assert create_response.status_code == 200
-
-        workspace_path = await self._harness_workspace(chat_id)
-        workspace_path.mkdir(parents=True, exist_ok=True)
-
-        # Create a low priority rule file
-        (workspace_path / ".cursorrules").write_text(
-            "Project Convention: When writing any code, you MUST include the comment '# BAZINGA' at the top."
-        )
-
-        # Create a high priority rule file
-        (workspace_path / "AGENTS.md").write_text(
-            "Project Convention: When writing any code, you MUST include the comment '# WUBBALUBBADUBDUB' at the top."
-        )
-
-        query = "Write a simple python script that prints hello world."
-
-        # Workspace-rule adherence depends on the model's instruction-following
-        # ability; the default BASIC_MODEL (agnes flash) is too weak to reliably
-        # honor injected rules, so this E2E uses the stronger LITE_MODEL.
-        full_answer, collected_data, _tool_call_count = perform_agent_stream(
-            client,
-            query,
-            chat_id,
-            model_selection=get_lite_model_selection(),
-        )
-
-        # The agent should follow the high priority rule (AGENTS.md) and ignore the low priority one (.cursorrules)
-        assert "WUBBALUBBADUBDUB" in full_answer.upper()
-        assert "BAZINGA" not in full_answer.upper()
+    request = main_request_text(sent, PROMPT).upper()
+    assert request, "the question of the turn never reached a provider"
+    assert HIGH_PRIORITY_CODEWORD in request
+    assert LOW_PRIORITY_CODEWORD not in request
+    assert HIGH_PRIORITY_CODEWORD in answer
+    assert LOW_PRIORITY_CODEWORD not in answer
