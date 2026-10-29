@@ -11,6 +11,7 @@ Outbound: OpenAPI (Markdown/text/image/file) with DM/group routing
 - channels.providers.dingtalk.inbound::DingTalkInboundMixin (POS: webhook / Stream API inbound)
 - channels.providers.dingtalk.cards::DingTalkCardMixin (POS: AI Card streaming)
 - channels.reliability.reconnect::reconnect_loop (POS: auto-reconnect)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - DingTalkChannel: DingTalk Robot bidirectional Channel
@@ -31,6 +32,7 @@ from pathlib import Path
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.reaction_ledger import ReactionLedger
@@ -198,8 +200,12 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         if msg.content:
             cron = extract_cron_context(msg)
             title = cron.job_name if cron else "Reply"
-            for chunk in render(msg, self.render_style):
+
+            async def send_chunk(chunk: str, _index: int) -> str | None:
                 await self._send_text(recipient, title, chunk, is_group=is_group, metadata=msg.metadata)
+                return None
+
+            await deliver_chunks(self, render(msg, self.render_style), send_chunk)
 
         await deliver_attachments(
             self.name,

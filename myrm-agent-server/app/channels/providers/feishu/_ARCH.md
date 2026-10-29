@@ -12,7 +12,7 @@
 | `action_fallback.py` | 模块 | Local/intranet ActionButton fallback to numbered text options with (chat,user) session scoping. | ✅ |
 | `api.py` | 模块 | Re-export of Feishu SDK public surface. Canonical source: .sdk.client. | ✅ |
 | `cards.py` | 模块 | Feishu card builders, post format builders, streaming text utilities, and contact disambiguation / deliverable handoff cards. | ✅ |
-| `channel.py` | 模块 | Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging. Outbound `send()` uses `render()` multi-chunk delivery (Item 46). Default transport: **websocket** (outbound, no public IP). | ✅ |
+| `channel.py` | 模块 | Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging. Outbound `send()` uses `render()` multi-chunk delivery through `deliver_chunks`. Default transport: **websocket** (outbound, no public IP). | ✅ |
 | `comment/` | 子包 | 云文档评论回合：评论事件转成一轮对话、回复按评论位置送回、读取所评文档正文；`__init__.py` 为门面，详见 [comment/_ARCH.md](comment/_ARCH.md)。 | ✅ |
 | `contact_fuzzy.py` | 模块 | High-precision phonetic & Levenshtein contact fuzzy matching and disambiguation engine. | ✅ |
 | `doctor.py` | 模块 | Feishu channel Doctor diagnostic suite (CardKit streaming permissions, tokens, transport reachability). | ✅ |

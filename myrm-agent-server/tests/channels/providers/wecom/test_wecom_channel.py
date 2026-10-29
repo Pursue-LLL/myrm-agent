@@ -12,6 +12,7 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.media.downloader import MediaDownloadResult
 from app.channels.providers.wecom.channel import WeComChannel
+from app.channels.reliability.retry import RetryConfig
 from app.channels.types import (
     ChannelStatus,
     InboundMessage,
@@ -481,20 +482,33 @@ class TestWeComSend:
         assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
 
     @pytest.mark.asyncio
-    async def test_send_chunk_retry_failure(self) -> None:
-        from app.channels.core.exceptions import ChannelSendError
-
+    async def test_a_first_chunk_failure_is_raised_as_it_is_for_the_bus_to_retry(self) -> None:
         ch = _make_channel()
+        api_send = AsyncMock(side_effect=ChannelSendError("simulated error", channel="wecom"))
 
-        # Mock _api_send to raise an exception
-        async def mock_api_send(*args, **kwargs):
-            raise ChannelSendError("simulated error", channel="wecom")
-
-        with patch.object(ch, "_api_send", side_effect=mock_api_send):
+        with patch.object(ch, "_api_send", api_send):
             msg = OutboundMessage(channel="wecom", recipient_id="user1", content="Hello", user_id="U")
             with pytest.raises(ChannelSendError) as exc_info:
                 await ch.send(msg)
-            assert exc_info.value.retriable is False
+
+        assert (exc_info.value.accepted, exc_info.value.retriable) == (False, True)
+        assert api_send.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_a_later_chunk_failing_for_good_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        ch.retry_config = RetryConfig(max_retries=2, base_delay=0.0, max_delay=0.0, jitter=0.0)
+        api_send = AsyncMock(
+            side_effect=[True, ChannelSendError("down", channel="wecom"), ChannelSendError("down", channel="wecom")]
+        )
+
+        with patch.object(ch, "_api_send", api_send):
+            msg = OutboundMessage(channel="wecom", recipient_id="user1", content="x" * 3000, user_id="U")
+            with pytest.raises(ChannelSendError) as exc_info:
+                await ch.send(msg)
+
+        assert (exc_info.value.accepted, exc_info.value.retriable) == (True, False)
+        assert api_send.await_count == 3  # the first chunk once, the second chunk twice
 
     @pytest.mark.asyncio
     async def test_send_text(self) -> None:

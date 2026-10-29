@@ -9,6 +9,7 @@ DM + group messages, LID→PN resolution, mention/reply-to-bot detection.
 - channels.providers.whatsapp.login::WhatsAppLoginMixin (POS: QR-code login event stream)
 - channels.providers.whatsapp.bridge::BridgeProcessMixin (POS: Node.js bridge subprocess and IPC)
 - channels.providers.whatsapp.message_keys::MessageKeys (POS: Baileys key of each inbound message, quoted back by reactions)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - WhatsAppChannel: WhatsApp Web bidirectional communication Channel (Baileys 7.x bridge)
@@ -30,6 +31,7 @@ from pathlib import Path
 from app.channels.core.allow_policy import OPEN_POLICY
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
 from app.channels.core.rate_limit import DEFAULT_RATE_LIMIT
@@ -195,20 +197,23 @@ class WhatsAppChannel(WhatsAppInboundMixin, WhatsAppLoginMixin, BaseChannel, Cac
         if msg.content:
             chunks = list(render(msg, self.render_style))
             quoted_key = self._parse_quoted_key(msg.reply_to_id) if msg.reply_to_id else None
-            for idx, chunk in enumerate(chunks):
+
+            async def send_chunk(chunk: str, index: int) -> str | None:
                 nonce = uuid.uuid4().hex[:12]
                 loop = asyncio.get_running_loop()
                 fut: asyncio.Future[dict[str, object]] = loop.create_future()
                 self._sent_futures[nonce] = fut
                 cmd: dict[str, object] = {"type": "send", "to": jid, "text": chunk, "nonce": nonce}
-                if quoted_key and idx == 0:
+                if quoted_key and index == 0:
                     cmd["quoted_key"] = quoted_key
                 self._write_cmd(cmd)
                 try:
-                    key = await asyncio.wait_for(fut, timeout=10.0)
-                    last_key = json.dumps(key)
+                    return json.dumps(await asyncio.wait_for(fut, timeout=10.0))
                 except TimeoutError:
                     self._sent_futures.pop(nonce, None)
+                return None  # no acknowledgement within the timeout, so there is no id to report
+
+            last_key = await deliver_chunks(self, chunks, send_chunk)
 
         await deliver_attachments(
             self.name,

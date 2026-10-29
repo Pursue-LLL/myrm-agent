@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from websockets.protocol import State
 
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.onebot.channel import OneBotChannel
@@ -15,7 +16,7 @@ from app.channels.types import MediaAttachment, MediaType, OutboundMessage
 def _channel(*responses: dict[str, object]) -> OneBotChannel:
     ch = OneBotChannel(host="127.0.0.1", port=3001)
     ch._active_ws = MagicMock()
-    ch._active_ws.closed = False
+    ch._active_ws.state = State.OPEN
     ch._call_api = AsyncMock(side_effect=list(responses) or [{"status": "ok", "data": {"message_id": 1}}])
     return ch
 
@@ -68,15 +69,26 @@ class TestRequestFailures:
         assert exc_info.value.retriable is True
 
     @pytest.mark.asyncio
-    async def test_a_failing_later_chunk_is_raised_not_swallowed(self) -> None:
-        ch = _channel({"status": "ok", "data": {"message_id": 1}}, {"status": "failed", "retcode": 100})
+    async def test_a_later_chunk_failing_for_good_is_a_partial_delivery_not_a_replay(self) -> None:
+        failed = {"status": "failed", "retcode": 100}
+        ch = _channel({"status": "ok", "data": {"message_id": 1}}, failed, failed, failed)
         with (
             patch("app.channels.providers.onebot.channel.render", return_value=["one", "two"]),
             patch("app.channels.providers.onebot.channel.asyncio.sleep", new_callable=AsyncMock),
             pytest.raises(ChannelSendError) as exc_info,
         ):
             await ch.send(_message(content="long"))
-        assert exc_info.value.retriable is True
+
+        assert exc_info.value.accepted is True
+        assert exc_info.value.retriable is False
+        assert "Delivered 1 of 2" in str(exc_info.value)
+        # the first chunk went out once; only the failing one was retried
+        assert [call.args[1]["message"][0]["data"]["text"] for call in ch._call_api.await_args_list] == [
+            "one",
+            "two",
+            "two",
+            "two",
+        ]
 
 
 class TestAttachments:

@@ -8,6 +8,7 @@ Outbound: text → Twilio Messages REST API → recipient phone
 - channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 - channels.providers._twilio_utils::verify_twilio_signature (POS: Twilio signature verification)
 - channels.core.credentials::credential_field, credential_spec (POS: Credential declarations)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - SMSChannel: Twilio SMS bidirectional text Channel
@@ -25,6 +26,7 @@ import urllib.parse
 import httpx
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers._twilio_utils import verify_twilio_signature
@@ -230,16 +232,16 @@ class SMSChannel(BaseChannel):
         if not chunks:
             return None
 
-        last_sid: str | None = None
-        for chunk in chunks:
+        async def send_chunk(chunk: str, _index: int) -> str | None:
             try:
-                last_sid = await self._send_sms(to_number, chunk) or last_sid
+                sid = await self._send_sms(to_number, chunk)
             except ChannelSendError:
                 self.health.record_failure(f"SMS send failed to {_redact_phone(to_number)}")
                 raise
             self.health.record_success()
+            return sid
 
-        return last_sid
+        return await deliver_chunks(self, chunks, send_chunk)
 
     async def _send_sms(self, to: str, body: str) -> str | None:
         """Send a single SMS via Twilio REST API; raises ``ChannelSendError`` when Twilio does not accept it."""
@@ -291,7 +293,7 @@ class SMSChannel(BaseChannel):
             if hasattr(headers, "get"):
                 sig = headers.get("x-twilio-signature", "")
 
-            webhook_url = str(request.url) if hasattr(request, "url") else ""  # type: ignore[attr-defined]
+            webhook_url = str(request.url) if hasattr(request, "url") else ""
 
             accepted = await self.handle_inbound_webhook(
                 url=webhook_url,

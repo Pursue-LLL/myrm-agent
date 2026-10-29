@@ -6,6 +6,7 @@ Outbound: message/send API (text/markdown/media).
 [INPUT]
 - channels.core.base::BaseChannel, (POS: Provides FileOperationObserver.)
 - channels.providers.wecom.inbound::WeComInboundMixin (POS: webhook verification and encrypted callback handling)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - WeComChannel: WeCom self-built application bidirectional Channel
@@ -27,6 +28,7 @@ import httpx
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.providers.wecom.crypto import WeComCrypto
@@ -189,27 +191,12 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
         await self._ensure_token()
 
         if msg.content:
-            from app.channels.reliability.retry import send_with_retry
 
-            chunks = render(msg, self.render_style)
-            for chunk in chunks:
-                try:
-                    await send_with_retry(
-                        self._api_send,
-                        msg.recipient_id,
-                        "markdown",
-                        {"content": chunk},
-                        config=self.retry_config,
-                        should_retry=self.should_retry,
-                        label="wecom:chunk",
-                    )
-                except Exception as exc:
-                    logger.error("WeCom chunk send failed after retries: %s", exc)
-                    raise ChannelSendError(
-                        f"WeCom chunk send failed: {exc}",
-                        channel=self.name,
-                        retriable=False,
-                    ) from exc
+            async def send_chunk(chunk: str, _index: int) -> str | None:
+                await self._api_send(msg.recipient_id, "markdown", {"content": chunk})
+                return None
+
+            await deliver_chunks(self, render(msg, self.render_style), send_chunk)
 
         await deliver_attachments(
             self.name,

@@ -10,6 +10,7 @@ Mixin providing all outbound-related methods used by TelegramChannel.
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - telegram.html_converter::md_to_telegram_html, split_message (POS: Markdown to Telegram HTML conversion and splitting.)
 - telegram.outbound_rich::TelegramRichOutboundMixin (POS: Rich Message send with HTML fallback.)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - TelegramOutboundMixin: send, edit, delete, react, pin, draft preview helpers
@@ -26,6 +27,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from app.channels.core.attachment_delivery import deliver_attachments
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
 from app.channels.types import MediaAttachment, OutboundMessage, RenderStyle, reaction_key
@@ -119,7 +121,6 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
         Rich Messages (Bot API 10.1) render tables/math/headings natively and fall back transparently
         to the HTML path on capability or parse errors.
         """
-        last_message_id: str | None = None
         reply_markup = build_inline_keyboard(msg)
         reply_to = int(msg.reply_to_id) if msg.reply_to_id else None
         thread_id = int(msg.thread_id) if msg.thread_id else None
@@ -130,42 +131,41 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
                 return rich_id
 
         chunks = render(msg, self.render_style)
-        for i, chunk in enumerate(chunks):
-            html_text = md_to_telegram_html(chunk)
-            for part in split_message(html_text):
-                markup = reply_markup if (i == len(chunks) - 1 and reply_markup) else None
-                try:
-                    result = await self._client.send_message(
-                        chat_id,
-                        part,
-                        reply_to_message_id=reply_to,
-                        message_thread_id=thread_id,
-                        reply_markup=markup,
-                        **notify_kwargs,
-                    )
-                    mid = result.get("message_id")
-                    if mid is not None:
-                        last_message_id = str(mid)
-                    reply_to = None
-                except TelegramApiError as exc:
-                    if exc.is_parse_error:
-                        logger.warning("TelegramChannel: HTML parse failed, retrying as plain text")
-                        result = await self._client.send_message(
-                            chat_id,
-                            part,
-                            parse_mode="",
-                            reply_to_message_id=reply_to,
-                            message_thread_id=thread_id,
-                            **notify_kwargs,
-                        )
-                        mid = result.get("message_id")
-                        if mid is not None:
-                            last_message_id = str(mid)
-                        reply_to = None
-                    else:
-                        raise
+        parts = [
+            (part, index == len(chunks) - 1)
+            for index, chunk in enumerate(chunks)
+            for part in split_message(md_to_telegram_html(chunk))
+        ]
 
-        return last_message_id
+        async def send_part(item: tuple[str, bool], index: int) -> str | None:
+            part, in_last_chunk = item
+            markup = reply_markup if in_last_chunk and reply_markup else None
+            quote = reply_to if index == 0 else None
+            try:
+                result = await self._client.send_message(
+                    chat_id,
+                    part,
+                    reply_to_message_id=quote,
+                    message_thread_id=thread_id,
+                    reply_markup=markup,
+                    **notify_kwargs,
+                )
+            except TelegramApiError as exc:
+                if not exc.is_parse_error:
+                    raise
+                logger.warning("TelegramChannel: HTML parse failed, retrying as plain text")
+                result = await self._client.send_message(
+                    chat_id,
+                    part,
+                    parse_mode="",
+                    reply_to_message_id=quote,
+                    message_thread_id=thread_id,
+                    **notify_kwargs,
+                )
+            mid = result.get("message_id")
+            return None if mid is None else str(mid)
+
+        return await deliver_chunks(self, parts, send_part)
 
     def _allocate_draft_id(self) -> int:
         self._draft_counter = (self._draft_counter % 2_147_483_647) + 1

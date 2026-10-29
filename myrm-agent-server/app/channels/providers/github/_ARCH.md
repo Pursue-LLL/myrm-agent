@@ -9,5 +9,5 @@ GitHub Channel Provider，仅出站：把消息作为 Issue / PR 评论发出（
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | GitHub channel provider package. | ✅ |
-| `channel.py` | 模块 | GitHubChannel: outbound-only. `send()` uses `render()` multi-chunk per issue comment; the only credential is the personal access token (the base-class `from_credentials` builds the channel from it). | ✅ |
+| `channel.py` | 模块 | GitHubChannel: outbound-only. `send()` uses `render()` multi-chunk per issue comment, delivered through `deliver_chunks`; the only credential is the personal access token (the base-class `from_credentials` builds the channel from it). | ✅ |
 | `helpers.py` | 模块 | Minimal GitHub REST API client: `post_issue_comment` raises `ChannelSendError` unless GitHub accepted the comment. | ✅ |

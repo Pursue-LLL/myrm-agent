@@ -12,6 +12,7 @@ Outbound: REST API (text/markdown + 2-step rich media upload)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.reliability.reconnect::reconnect_loop (POS: automatic reconnection)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - QQChannel: QQ Official Bot bidirectional messaging Channel (WebSocket + REST API)
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
@@ -188,18 +190,17 @@ class QQChannel(BaseChannel):
         last_id: str | None = None
 
         if msg.content:
-            chunks = render(msg, self.render_style)
-            for chunk in chunks:
-                text = sanitize_urls(chunk) if is_group else chunk
-                mid = await self._api.send_text(
+
+            async def send_chunk(chunk: str, _index: int) -> str | None:
+                return await self._api.send_text(
                     msg.recipient_id,
-                    text,
+                    sanitize_urls(chunk) if is_group else chunk,
                     chat_type,
                     self._last_msg_ids.get(msg.recipient_id),
                     self._next_seq(msg.recipient_id),
                 )
-                if mid:
-                    last_id = mid
+
+            last_id = await deliver_chunks(self, render(msg, self.render_style), send_chunk)
 
         attachment_id = await deliver_attachments(
             self.name,
@@ -232,10 +233,11 @@ class QQChannel(BaseChannel):
         """Process a QQ Bot webhook callback (fallback when WebSocket unavailable)."""
         op = body.get("op")
         if op == 13:
-            d = body.get("d", {})
+            d = body.get("d")
+            challenge = d if isinstance(d, dict) else {}
             return {
                 "op": 13,
-                "d": {"plain_token": d.get("plain_token"), "event_ts": d.get("event_ts")},
+                "d": {"plain_token": challenge.get("plain_token"), "event_ts": challenge.get("event_ts")},
             }
 
         event_type = str(body.get("t", ""))

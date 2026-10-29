@@ -13,6 +13,7 @@ reaction handling, mention parsing, edit-message detection.
 - .addressing::wire_recipient, MessageAuthors (POS: recipient form on the wire; who wrote each group message)
 - .helpers::TypedDict structures, constants, _render_mentions (POS: types and pure functions)
 - .inbound::SignalInboundMixin (POS: WebSocket / polling receive loops and envelope parsing)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - SignalChannel: Signal CLI REST API bidirectional messaging Channel (credentials, lifecycle, outbound, groups, diagnostics); inbound comes from the mixin
@@ -36,6 +37,7 @@ import httpx
 
 from app.channels.core.attachment_delivery import attempt_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
@@ -219,8 +221,10 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
         encoded = list(attempts.results)
         chunks = render(msg, self.render_style) if msg.content else ([""] if encoded else [])
 
-        timestamp: str | None = None
-        for index, chunk in enumerate(chunks):
+        timestamp: str | None = None  # the first chunk's: it identifies the message
+
+        async def send_chunk(chunk: str, index: int) -> str | None:
+            nonlocal timestamp
             payload: dict[str, str | list[str]] = {
                 "message": chunk,
                 "number": self._phone,
@@ -230,7 +234,9 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
                 payload["base64_attachments"] = encoded
             sent_at = await self._post_send(payload)
             timestamp = timestamp or sent_at
+            return sent_at
 
+        await deliver_chunks(self, chunks, send_chunk)
         attempts.raise_for_failures(self.name, delivered_any=bool(chunks))
         return timestamp
 

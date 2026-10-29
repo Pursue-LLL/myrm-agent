@@ -6,6 +6,7 @@ Outbound: sanitize → PRIVMSG command
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - IRCChannel: IRC bidirectional messaging Channel
@@ -24,6 +25,7 @@ import uuid
 from typing import Self
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
@@ -178,11 +180,14 @@ class IRCChannel(BaseChannel):
             raise ChannelSendError("IRC is not connected", channel=self.name)
         target = msg.recipient_id
         if msg.content:
-            chunks = render(msg, self.render_style)
-            for chunk in chunks:
+
+            async def send_chunk(chunk: str, _index: int) -> str | None:
                 sanitized = _sanitize_outbound(chunk)
                 if sanitized:
                     await self._send_raw(f"PRIVMSG {target} :{sanitized}")
+                return None
+
+            await deliver_chunks(self, render(msg, self.render_style), send_chunk)
         return None
 
     async def _connect_once(self) -> None:

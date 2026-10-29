@@ -14,6 +14,7 @@ enables zero-intrusion integration with the existing agent pipeline:
 - providers.feishu.api::FeishuClient (POS: Feishu OpenAPI client)
 - providers.feishu.models::FeishuCommentEvent (POS: comment event model)
 - providers.feishu.comment.content (POS: comment content extraction and prompt construction)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - CommentHandler: orchestrates comment event processing
@@ -36,6 +37,8 @@ import time as _time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.channels.core.chunk_delivery import deliver_chunks
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.feishu.comment.content import (
     _extract_docs_links,
     _extract_reply_text,
@@ -49,6 +52,7 @@ from app.channels.providers.feishu.comment.content import (
 )
 
 if TYPE_CHECKING:
+    from app.channels.core.chunk_delivery import ChunkChannel
     from app.channels.providers.feishu.api import FeishuClient
 
 logger = logging.getLogger(__name__)
@@ -119,43 +123,35 @@ def chunk_text(text: str, limit: int = _REPLY_CHUNK_SIZE) -> list[str]:
 
 
 async def deliver_comment_reply(
+    channel: ChunkChannel,
     client: FeishuClient,
     route: CommentRouteInfo,
     text: str,
-) -> bool:
+) -> None:
     """Route agent reply to the correct comment API, chunking long text.
 
     - Whole comment -> add_whole_comment
     - Local comment -> reply_to_comment, fallback to add_whole_comment on 1069302
-    """
-    chunks = chunk_text(text)
-    is_whole = route.is_whole
-    all_ok = True
 
-    for chunk in chunks:
+    Raises ``ChannelSendError`` when a chunk is not posted; one that fails after the first is a partial delivery.
+    """
+    is_whole = route.is_whole
+
+    async def post_chunk(chunk: str, _index: int) -> str | None:
+        nonlocal is_whole
         if is_whole:
             ok = await client.add_whole_comment(route.file_token, route.file_type, chunk)
         else:
-            success, code = await client.reply_to_comment(
-                route.file_token,
-                route.file_type,
-                route.comment_id,
-                chunk,
-            )
-            if success:
-                ok = True
-            elif code == 1069302:
+            ok, code = await client.reply_to_comment(route.file_token, route.file_type, route.comment_id, chunk)
+            if not ok and code == 1069302:
                 logger.info("Feishu comment reply not allowed (1069302), falling back to add_whole_comment")
                 ok = await client.add_whole_comment(route.file_token, route.file_type, chunk)
                 is_whole = True
-            else:
-                ok = False
-
         if not ok:
-            all_ok = False
-            break
+            raise ChannelSendError(f"Feishu comment reply failed for comment {route.comment_id}", channel=channel.name)
+        return None
 
-    return all_ok
+    await deliver_chunks(channel, chunk_text(text), post_chunk)
 
 
 # ── Main event handler ─────────────────────────────────────────

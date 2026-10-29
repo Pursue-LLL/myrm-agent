@@ -85,6 +85,21 @@ class ChannelSendError(ChannelError):
         )
 
     @classmethod
+    def for_text_chunks(cls, channel: str, *, delivered: int, total: int, cause: BaseException) -> ChannelSendError:
+        """Error for a reply whose text stopped after ``delivered`` of ``total`` chunks.
+
+        The recipient already holds the first chunks, so the failure is a partial delivery: never retried,
+        because a replay would send those chunks a second time.
+        """
+        return cls(
+            f"Delivered {delivered} of {total} text chunks, the next one failed: {cause}",
+            channel=channel,
+            status_code=cause.status_code if isinstance(cause, ChannelSendError) else 0,
+            retriable=False,
+            accepted=True,
+        )
+
+    @classmethod
     def from_http_status(cls, channel: str, status_code: int, detail: str = "") -> ChannelSendError:
         """Error for an HTTP rejection: timeouts, throttling and server faults may succeed on a re-send, other 4xx never."""
         suffix = f": {detail[:200]}" if detail else ""

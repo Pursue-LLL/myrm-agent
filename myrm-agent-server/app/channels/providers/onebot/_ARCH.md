@@ -9,5 +9,5 @@ OneBot 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | OneBot v11 Channel Provider. | ✅ |
-| `channel.py` | 模块 | OneBot v11 channel adapter. WebSocket reverse server for NapCatQQ/go-cqhttp. Outbound `send()` uses `render()` multi-chunk delivery (Item 46). | ✅ |
+| `channel.py` | 模块 | OneBot v11 channel adapter. WebSocket reverse server for NapCatQQ/go-cqhttp. Outbound `send()` uses `render()` multi-chunk delivery through `deliver_chunks`. | ✅ |
 | `helpers.py` | 模块 | Pure-function helpers for the OneBot channel. Handles bidirectional conversion between OneBot v11 message segments and framework message objects; `can_send_media` says which attachments (image/voice/video with a URL or local file) can ride in a segment. | ✅ |

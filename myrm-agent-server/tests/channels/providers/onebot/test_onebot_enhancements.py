@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
+from websockets.protocol import State
 
 from app.channels.core.credentials import (
     credential_field,
@@ -227,7 +228,7 @@ class TestOneBotChannelRenderDelivery:
 
         channel = OneBotChannel(host="127.0.0.1", port=3001)
         channel._active_ws = MagicMock()
-        channel._active_ws.closed = False
+        channel._active_ws.state = State.OPEN
 
         long_body = "OneBot QQ long reply。" * 500
         msg = OutboundMessage(

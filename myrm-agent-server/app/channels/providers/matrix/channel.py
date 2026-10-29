@@ -8,6 +8,7 @@
 - channels.providers.matrix.auth / handlers / html / media (POS: login and sync, inbound events, markdown payloads, uploads)
 - channels.providers.matrix.diagnostics::collect_matrix_issues (POS: configuration, dependency and login diagnosis)
 - mautrix.client::Client (POS: Matrix client SDK, optional dependency)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - MatrixChannel: lifecycle, text and media send, edit/delete, reactions, typing indicator and diagnostics for Matrix rooms
@@ -30,6 +31,7 @@ from functools import partial
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import (
     credential_field,
     credential_spec,
@@ -203,9 +205,11 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
         last_event_id: str | None = None
 
         if msg.content:
-            chunks = render(msg, self.render_style)
-            for chunk in chunks:
-                last_event_id = await self._send_text(room_id, chunk, msg.reply_to_id) or last_event_id
+            last_event_id = await deliver_chunks(
+                self,
+                render(msg, self.render_style),
+                lambda chunk, _index: self._send_text(room_id, chunk, msg.reply_to_id),
+            )
 
         attachment_event_id = await deliver_attachments(
             self.name,

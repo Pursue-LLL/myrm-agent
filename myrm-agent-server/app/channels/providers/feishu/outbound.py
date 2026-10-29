@@ -9,6 +9,7 @@
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
 - channels.rendering.renderer::render (POS: channel message rendering pipeline)
 - channels.types::OutboundMessage, MediaAttachment (POS: channel message value types)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - FeishuOutboundMixin: send, placeholder / edit / delete, media upload and CardKit streaming used by FeishuChannel
@@ -29,6 +30,7 @@ from functools import partial
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.exceptions import ChannelSendError, RateLimitError
 from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.rendering.renderer import render
@@ -59,6 +61,13 @@ _TABLE_RE = re.compile(
 )
 
 
+def _channel_error(exc: FeishuSendError, channel: str) -> ChannelSendError:
+    """The channel-level error for a failed Feishu API call; a rate limit keeps its retry-after."""
+    if isinstance(exc, FeishuRateLimitError):
+        return RateLimitError(str(exc), channel=channel, retry_after=exc.retry_after)
+    return ChannelSendError(str(exc), channel=channel, status_code=exc.status_code, retriable=exc.retriable)
+
+
 class FeishuOutboundMixin(BaseChannel):
     """Feishu outbound message delivery for ``FeishuChannel``.
 
@@ -84,10 +93,8 @@ class FeishuOutboundMixin(BaseChannel):
             if chat_id.startswith(COMMENT_DOC_PREFIX):
                 return await self._send_comment_reply(chat_id, msg)
             return await self._send_chat_message(chat_id, msg)
-        except FeishuRateLimitError as exc:
-            raise RateLimitError(str(exc), channel=self.name, retry_after=exc.retry_after) from exc
         except FeishuSendError as exc:
-            raise ChannelSendError(str(exc), channel=self.name, status_code=exc.status_code, retriable=exc.retriable) from exc
+            raise _channel_error(exc, self.name) from exc
 
     async def _send_chat_message(self, chat_id: str, msg: OutboundMessage) -> str | None:
         """Send the text first, then each attachment: attachment failures are then a partial delivery."""
@@ -104,8 +111,8 @@ class FeishuOutboundMixin(BaseChannel):
                 # In card mode, apply table slicing and Lark Markdown protection across 24KB boundaries
                 content_chunks = slice_card_markdown(msg.content)
 
-            for i, chunk in enumerate(content_chunks):
-                is_last = i == len(content_chunks) - 1
+            async def send_chunk(chunk: str, index: int) -> str | None:
+                is_last = index == len(content_chunks) - 1
                 chunk_msg = dataclasses.replace(
                     msg,
                     content=chunk,
@@ -114,15 +121,18 @@ class FeishuOutboundMixin(BaseChannel):
                     metadata=msg.metadata if is_last else None,
                 )
                 msg_type, content = self._format_outbound(chunk_msg)
-                mid_str = await self._client.send_message(
-                    chat_id,
-                    msg_type,
-                    content,
-                    receive_id_type=receive_type,
-                    reply_in_thread=bool(msg.reply_to_id),
-                )
-                if mid_str:
-                    last_msg_id = mid_str
+                try:
+                    return await self._client.send_message(
+                        chat_id,
+                        msg_type,
+                        content,
+                        receive_id_type=receive_type,
+                        reply_in_thread=bool(msg.reply_to_id),
+                    )
+                except FeishuSendError as exc:
+                    raise _channel_error(exc, self.name) from exc
+
+            last_msg_id = await deliver_chunks(self, content_chunks, send_chunk)
 
         await deliver_attachments(
             self.name,
@@ -151,8 +161,7 @@ class FeishuOutboundMixin(BaseChannel):
             logger.info("FeishuChannel: comment NO_REPLY, skipping delivery")
             return recipient_id
 
-        if not await deliver_comment_reply(self._client, route, content):
-            raise ChannelSendError(f"Feishu comment reply failed for {recipient_id}", channel=self.name)
+        await deliver_comment_reply(self, self._client, route, content)
         logger.info("FeishuChannel: comment reply delivered to %s", recipient_id)
         return recipient_id
 

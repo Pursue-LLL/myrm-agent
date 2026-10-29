@@ -13,7 +13,7 @@ Discord 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 | `config.py` | 模块 | Discord channel configuration. | ✅ |
 | `helpers.py` | 模块 | Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects; forum detection, thread titles and native reply targets. | ✅ |
 | `inbound.py` | 模块 | `DiscordInboundMixin`: gateway message / reaction / interaction parsing, reply context, media extraction, auto-threading and history fetch. | ✅ |
-| `outbound.py` | 模块 | `DiscordOutboundMixin`: REST sending with `render()` multi-chunk delivery (Item 46), forum threads (tags via `ForumChannel.flags.require_tag`), placeholder / edit / delete / react / typing. | ✅ |
+| `outbound.py` | 模块 | `DiscordOutboundMixin`: REST sending with `render()` multi-chunk delivery through `deliver_chunks`, forum threads (tags via `ForumChannel.flags.require_tag`), placeholder / edit / delete / react / typing. | ✅ |
 | `voice_control.py` | 模块 | `DiscordVoiceMixin`: opus loading, `VoiceManager` wiring, join / leave / play_audio, voice-input emission and the `/voice` slash command. | ✅ |
 
 ## Reply Threading / Quote 保真

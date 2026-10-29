@@ -8,6 +8,7 @@ Outbound: aibot_respond_msg frames with stream support, aibot_send_msg for proac
 - channels.providers.wecom.aibot_inbound::WeComAiBotInboundMixin (POS: WebSocket session and inbound parsing)
 - channels.reliability.reconnect::reconnect_loop (POS: Reconnect loop with exponential backoff + jitter for long-lived connections.)
 - channels.rendering.splitter::cap_stream_preview (POS: Smart long-message splitter, preview cap in characters or UTF-8 bytes)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - WeComAiBotChannel: WeCom AI Bot WebSocket longconnect Channel
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     import websockets
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
@@ -219,8 +221,12 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
                         channel=self.name,
                         retriable=False,
                     )
-                for chunk in chunks:
+
+                async def send_chunk(chunk: str, _index: int) -> str | None:
                     self._require_sent(await self._send_proactive_msg(chat_id, chunk))
+                    return None
+
+                await deliver_chunks(self, chunks, send_chunk)
         return None
 
     async def send_placeholder(

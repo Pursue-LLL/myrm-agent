@@ -11,6 +11,7 @@ and thread-based replies.
 - app.channels.types::ChannelCapabilities (POS: Channel capability and artifact type definitions.)
 - app.channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy.)
 - app.channels.security.errors::WebhookResponseError (POS: RFC 7807 webhook error responses.)
+- app.channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - GoogleChatChannel: Google Chat bidirectional channel (Webhook inbound + Chat API outbound).
@@ -27,6 +28,7 @@ import httpx
 from fastapi import Request
 
 from app.channels import BaseChannel, InboundMessage, OutboundMessage
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
@@ -208,15 +210,18 @@ class GoogleChatChannel(BaseChannel):
         if not thread_key and msg.metadata and isinstance(msg.metadata, dict):
             thread_key = str(msg.metadata.get("thread_id", "")) or None
 
-        last_name: str | None = None
+        last_name = await deliver_chunks(
+            self,
+            render(msg, self.render_style),
+            lambda chunk, _index: self._send_chunk(space, chunk, thread_key),
+        )
+        self.health.record_success()
+        return last_name
+
+    async def _send_chunk(self, space: str, chunk: str, thread_key: str | None) -> str | None:
+        """Send one chunk and return its message name; raises ``ChannelSendError`` when Google Chat does not take it."""
         try:
-            for chunk in render(msg, self.render_style):
-                result = await self._api.send_message(space, chunk, thread_key=thread_key)
-                if isinstance(result, dict):
-                    name = result.get("name")
-                    if name:
-                        last_name = str(name)
-            self.health.record_success()
+            result = await self._api.send_message(space, chunk, thread_key=thread_key)
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
             self.health.record_failure(f"HTTP {status}")
@@ -232,8 +237,8 @@ class GoogleChatChannel(BaseChannel):
                 f"Google Chat send failed: {exc}",
                 channel=self.name,
             ) from exc
-
-        return last_name
+        name = result.get("name") if isinstance(result, dict) else None
+        return str(name) if name else None
 
     async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
         try:

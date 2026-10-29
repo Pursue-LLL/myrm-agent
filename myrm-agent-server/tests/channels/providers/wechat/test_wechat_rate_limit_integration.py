@@ -96,6 +96,18 @@ def _official_rate_limit_response(errcode: int = 45015) -> httpx.Response:
     )
 
 
+async def _send_as_the_bus_does(ch: WeChatOfficialChannel, msg: OutboundMessage) -> str | None:
+    """The first chunk of a reply is retried by the bus, not inside ``send()``."""
+    return await send_with_retry(
+        ch.send,
+        msg,
+        config=ch.retry_config,
+        should_retry=ch.should_retry,
+        extract_retry_after=ch.extract_retry_after,
+        label="wechat_official",
+    )
+
+
 def _official_success_response() -> httpx.Response:
     return httpx.Response(
         200,
@@ -261,13 +273,13 @@ class TestILinkTransportErrorMix:
         assert call_count == 2
 
 
-# ── 3. Official: RateLimitError → send_with_retry inside send() ──────
+# ── 3. Official: RateLimitError → send_with_retry around send() ──────
 
 
 class TestOfficialRateLimitRetryChain:
     @pytest.mark.asyncio
-    async def test_all_retries_exhausted_becomes_channel_send_error(self) -> None:
-        """send() wraps exhausted RateLimitError as ChannelSendError."""
+    async def test_all_retries_exhausted_reaches_the_bus_as_a_rate_limit_error(self) -> None:
+        """An exhausted rate limit on the first chunk is raised as RateLimitError, with its retry-after."""
         ch = _make_official_channel()
         ch._http = AsyncMock()
         ch._http.post = AsyncMock(return_value=_official_rate_limit_response(45015))
@@ -276,25 +288,22 @@ class TestOfficialRateLimitRetryChain:
 
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
 
-        with pytest.raises(ChannelSendError) as exc_info:
-            await ch.send(msg)
+        with pytest.raises(RateLimitError) as exc_info:
+            await _send_as_the_bus_does(ch, msg)
 
-        assert "WeChat chunk send failed" in str(exc_info.value)
-        cause = exc_info.value.__cause__
-        assert isinstance(cause, RateLimitError)
-        assert cause.retry_after == 5.0
+        assert exc_info.value.retry_after == 5.0
         assert ch._http.post.call_count == 2
 
     @pytest.mark.asyncio
     async def test_rate_limit_recovery_on_second_attempt(self) -> None:
-        """First call rate-limited, second succeeds → no exception from send()."""
+        """First call rate-limited, second succeeds → the bus delivers the reply."""
         ch = _make_official_channel()
         ch._http = AsyncMock()
         ch._http.post = AsyncMock(side_effect=[_official_rate_limit_response(45011), _official_success_response()])
         ch.retry_config = RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.05, jitter=0.0)
 
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
-        await ch.send(msg)
+        await _send_as_the_bus_does(ch, msg)
 
         assert ch._http.post.call_count == 2
 
@@ -308,7 +317,7 @@ class TestOfficialRateLimitRetryChain:
             ch.retry_config = RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.05, jitter=0.0)
 
             msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
-            await ch.send(msg)
+            await _send_as_the_bus_does(ch, msg)
             assert ch._http.post.call_count == 2, f"errcode={errcode} should trigger exactly 1 retry"
 
 
@@ -349,7 +358,7 @@ class TestOfficialTokenExpiredThenRateLimit:
         ch.retry_config = RetryConfig(max_retries=5, base_delay=0.01, max_delay=0.05, jitter=0.0)
 
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
-        await ch.send(msg)
+        await _send_as_the_bus_does(ch, msg)
 
         assert call_count == 3
         assert ch._access_token == "refreshed-token"
@@ -376,7 +385,7 @@ class TestOfficialHttp4xxError:
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
 
         with pytest.raises(ChannelSendError) as exc_info:
-            await ch.send(msg)
+            await _send_as_the_bus_does(ch, msg)
         assert isinstance(exc_info.value.__cause__, ChannelConnectionError)
 
 
@@ -400,7 +409,7 @@ class TestOfficialNonRateLimitErrcode:
 
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
         with pytest.raises(ChannelSendError) as exc_info:
-            await ch.send(msg)
+            await _send_as_the_bus_does(ch, msg)
 
         cause = exc_info.value.__cause__
         assert isinstance(cause, ChannelConnectionError)

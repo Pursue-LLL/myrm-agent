@@ -11,6 +11,7 @@ from app.channels.core.allow_policy import AllowPolicy, ChatPolicy
 from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.line import LINEChannel, _ReplyToken
+from app.channels.reliability.retry import RetryConfig
 from app.channels.types import (
     ChannelStatus,
     InboundMessage,
@@ -686,18 +687,24 @@ class TestSendPush:
         assert "Invalid originalContentUrl" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_a_failing_later_batch_is_reported_not_swallowed(self) -> None:
+    async def test_a_later_batch_failing_for_good_is_a_partial_delivery_not_a_replay(self) -> None:
         ch, _ = _make_channel()
+        ch.retry_config = RetryConfig(max_retries=2, base_delay=0.0, max_delay=0.0, jitter=0.0)
         ch._api.push = AsyncMock(
             side_effect=[
                 _mock_response(200, {"sentMessages": [{"id": "mid-batch-1"}]}),
+                _mock_response(500),
                 _mock_response(500),
             ],
         )
 
         with pytest.raises(ChannelSendError) as exc_info:
             await ch.send(_outbound(content="LINE long reply segment.\n" * 1100))
-        assert exc_info.value.retriable is True
+
+        assert exc_info.value.accepted is True
+        assert exc_info.value.retriable is False
+        assert "Delivered 1 of 2" in str(exc_info.value)
+        assert ch._api.push.await_count == 3  # batch 1 once, batch 2 on both of its attempts
 
     @pytest.mark.asyncio
     async def test_long_message_uses_batch_push(self) -> None:

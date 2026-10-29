@@ -5,6 +5,7 @@
 - app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - app.channels.providers.discord.helpers::build_discord_media, derive_thread_name, is_forum_channel, reply_reference (POS: attachments, forum detection and native reply targets)
 - app.channels.rendering.renderer::render (POS: style-aware text chunking)
+- app.channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - DiscordOutboundMixin: channel resolution, send / placeholder / edit / delete / react / typing used by DiscordChannel
@@ -22,6 +23,7 @@ from collections.abc import Sequence
 import discord
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.providers.discord.helpers import build_discord_media, derive_thread_name, is_forum_channel, reply_reference
@@ -125,21 +127,26 @@ class DiscordOutboundMixin(BaseChannel):
         files: list[discord.File],
     ) -> str | None:
         """Send the text in chunks with ``files`` on the first one (or files alone); return the last message id."""
-        last_sent_id: str | None = None
         if message.content:
-            for i, chunk in enumerate(render(message, self.render_style)):
-                first = i == 0
+
+            async def send_chunk(chunk: str, index: int) -> str | None:
+                first = index == 0
                 chunk_files = files if first and files else discord.utils.MISSING
                 reference = reply_reference(channel, message.reply_to_id) if first and message.reply_to_id else None
-                if reference is None:
-                    sent = await channel.send(content=chunk, files=chunk_files)
-                else:
-                    sent = await channel.send(content=chunk, files=chunk_files, reference=reference)
-                last_sent_id = str(sent.id)
-        elif files:
+                try:
+                    if reference is None:
+                        sent = await channel.send(content=chunk, files=chunk_files)
+                    else:
+                        sent = await channel.send(content=chunk, files=chunk_files, reference=reference)
+                except discord.DiscordException as exc:
+                    raise _discord_error(exc, self.name, "send") from exc
+                return str(sent.id)
+
+            return await deliver_chunks(self, render(message, self.render_style), send_chunk)
+        if files:
             sent = await channel.send(files=files)
-            last_sent_id = str(sent.id)
-        return last_sent_id
+            return str(sent.id)
+        return None
 
     async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
         channel = await self._resolve_channel(chat_id)

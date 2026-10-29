@@ -5,6 +5,7 @@
 - channels.types.messages::InboundMessage, (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
 - channels.types.status::ChannelCapabilities (POS: Channel status and diagnostic type definitions. Used for Gateway health checks, issue collection, and capability negotiation.)
 - channels.providers.onebot.helpers::parse_onebot_message, build_onebot_message (POS: OneBot message converters)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - OneBotChannel: OneBot v11 channel implementation class
@@ -24,8 +25,11 @@ import uuid
 from typing import Self
 
 import websockets
+from websockets.asyncio.server import Server, ServerConnection
+from websockets.protocol import State
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.onebot.helpers import (
@@ -128,8 +132,8 @@ class OneBotChannel(BaseChannel):
         self._port = port
         self._access_token = access_token
 
-        self._server: websockets.server.WebSocketServer | None = None
-        self._active_ws: websockets.server.WebSocketServerProtocol | None = None
+        self._server: Server | None = None
+        self._active_ws: ServerConnection | None = None
         self._pending_requests: dict[str, asyncio.Future[dict[str, object]]] = {}
         self._bot_id: str = ""
 
@@ -223,7 +227,7 @@ class OneBotChannel(BaseChannel):
             self.health.record_failure("WebSocket server is not running")
             return False
 
-        if not self._active_ws or self._active_ws.closed:
+        if self._active_ws is None or self._active_ws.state is not State.OPEN:
             # Server is running but no client connected yet. We consider this "idle" but healthy enough
             self.health.record_success()
             return True
@@ -231,11 +235,11 @@ class OneBotChannel(BaseChannel):
         self.health.record_success()
         return True
 
-    async def _ws_handler(self, websocket: websockets.server.WebSocketServerProtocol) -> None:
+    async def _ws_handler(self, websocket: ServerConnection) -> None:
         """Handle incoming WebSocket connections from OneBot clients."""
         # 1. Authentication
         if self._access_token:
-            auth_header = websocket.request_headers.get("Authorization", "")
+            auth_header = websocket.request.headers.get("Authorization", "") if websocket.request else ""
             expected = f"Bearer {self._access_token}"
             if auth_header != expected:
                 logger.warning("OneBotChannel: Client authentication failed")
@@ -246,7 +250,7 @@ class OneBotChannel(BaseChannel):
         logger.info("OneBotChannel: Client connected from %s", websocket.remote_address)
 
         # If there's already an active connection, close it (we only support one bot per port for now)
-        if self._active_ws and not self._active_ws.closed:
+        if self._active_ws is not None and self._active_ws.state is State.OPEN:
             logger.warning("OneBotChannel: Closing previous connection")
             await self._active_ws.close()
 
@@ -312,7 +316,8 @@ class OneBotChannel(BaseChannel):
         message_type = data.get("message_type")  # "private" or "group"
         is_group = message_type == "group"
 
-        sender_info = data.get("sender", {})
+        sender_raw = data.get("sender")
+        sender_info = sender_raw if isinstance(sender_raw, dict) else {}
         sender_id = str(sender_info.get("user_id", ""))
         sender_name = sender_info.get("nickname") or sender_info.get("card")
 
@@ -320,8 +325,8 @@ class OneBotChannel(BaseChannel):
         message_id = str(data.get("message_id", ""))
 
         # Parse content and media
-        raw_message = data.get("message", [])
-        text, media = parse_onebot_message(raw_message)
+        raw_message = data.get("message")
+        text, media = parse_onebot_message(raw_message if isinstance(raw_message, (list, str)) else [])
 
         # Check mentions and replies
         mentioned = False
@@ -359,7 +364,7 @@ class OneBotChannel(BaseChannel):
 
     async def _call_api(self, action: str, params: dict[str, object], timeout: float = 10.0) -> dict[str, object]:
         """Call a OneBot API endpoint and wait for response."""
-        if not self._active_ws or self._active_ws.closed:
+        if self._active_ws is None or self._active_ws.state is not State.OPEN:
             raise RuntimeError("No OneBot client connected")
 
         echo = uuid.uuid4().hex
@@ -387,7 +392,7 @@ class OneBotChannel(BaseChannel):
         Images, voice and video ride with the first chunk; any other attachment is reported after the
         rest went out, so the bus never replays text the recipient already has.
         """
-        if not self._active_ws or self._active_ws.closed:
+        if self._active_ws is None or self._active_ws.state is not State.OPEN:
             raise ChannelSendError("No OneBot client connected", channel=self.name)
         try:
             target_id = int(msg.recipient_id)
@@ -407,14 +412,15 @@ class OneBotChannel(BaseChannel):
         if not chunks and sendable:
             chunks = [""]
 
-        last_message_id: str | None = None
-        for i, chunk in enumerate(chunks):
-            chunk_msg = dataclasses.replace(msg, content=chunk, media=sendable if i == 0 else ())
+        async def send_chunk(chunk: str, index: int) -> str | None:
+            chunk_msg = dataclasses.replace(msg, content=chunk, media=sendable if index == 0 else ())
             params: dict[str, object] = {id_key: target_id, "message": build_onebot_message(chunk_msg)}
-            last_message_id = await self._send_chunk(action, params) or last_message_id
-            if i < len(chunks) - 1:
-                await asyncio.sleep(0.5)
+            message_id = await self._send_chunk(action, params)
+            if index < len(chunks) - 1:
+                await asyncio.sleep(0.5)  # a short pause between chunks
+            return message_id
 
+        last_message_id = await deliver_chunks(self, chunks, send_chunk)
         if last_message_id is not None:
             self.health.record_success()
         if unsupported:

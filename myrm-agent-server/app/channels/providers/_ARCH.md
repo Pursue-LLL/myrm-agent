@@ -52,10 +52,11 @@
 |------|------|
 | 成功才返回 | 只有平台确认接受后才正常返回平台消息 id；未连接、无收件人、平台拒绝一律抛 `ChannelSendError`，`except` 内不得 `return None`。 |
 | id 声明 | 平台不回传消息 id 的渠道声明 `ChannelCapabilities.message_ids=False`：DingTalk、IRC、VoiceCall、WeChat iLink、WeChat 公众号、企业微信智能机器人、企业微信应用、Webhook。其余渠道返回 `None` 视为未确认（纯媒体消息豁免）。 |
+| 多段文本 | 逐段单独成请求的 Provider 经 `../core/chunk_delivery.py` 的 `deliver_chunks` 投递：首段失败原样抛出，由总线重试整条（此时尚无内容送达）；后续各段单独重试（用渠道自己的 `retry_config` / `should_retry`），仍失败则抛 `ChannelSendError.for_text_chunks`（`accepted=True`、不可重试），总线不会重发收件人已收到的段。多段合并为一次请求的渠道（邮件、语音、WeChat iLink）不适用。 |
 | 先文本后附件 | 附件逐个独立尝试（`../core/attachment_delivery.py` 的 `attempt_attachments` / `deliver_attachments`），一个失败不阻塞其余；LINE 例外：单次请求，媒体消息在前。 |
 | 失败具名上报 | 附件失败汇总为一次 `ChannelSendError.for_attachments`：文本或其他附件已送达则 `accepted=True` 并列出 `failed_attachments`，由总线只重投未送达部分；否则按失败性质决定是否重试。 |
 | 永久 vs 临时 | 仅"重试不可能改变结果"的失败判永久：类型不支持、本地文件缺失/不可读/为空、无可用来源、平台校验拒绝（`ChannelSendError.from_http_status` 对 4xx 同理，408/425/429/5xx 为临时）。URL 下载失败与网络错误按临时失败重试。 |
 | 不静默丢弃 | 不支持的附件不得被悄悄略过；永久失败由总线剥离媒体并向收件人发本地化说明。 |
 | 能力即行为 | `capabilities.media` / `file_upload` 必须与真实发送行为一致，`downgrade_components` 据此剥离。 |
 
-守卫测试：`tests/channels/providers/test_send_contract.py`（`message_ids` 声明与 `send()` 内不吞错）。已知局限：多段文本中途失败不标记 `accepted`，重试会重发已送达的段（宁重复不缺失）；WhatsApp 桥接对媒体无送达回执。
+守卫测试：`tests/channels/providers/test_send_contract.py`（`message_ids` 声明与 `send()` 内不吞错）、`test_chunk_delivery_contract.py`（渲染出多段的 Provider 必须经 `deliver_chunks` 投递，例外逐项写明理由）。已知局限：多段文本在后段失败时，其后的附件不再发送且不在错误中具名；WhatsApp 桥接对媒体无送达回执。

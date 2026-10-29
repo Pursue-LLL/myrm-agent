@@ -8,6 +8,7 @@ Outbound: text via message/cs, media via upload + attachment template
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - ZaloChannel: Zalo Official Account bidirectional messaging Channel
@@ -28,6 +29,7 @@ import httpx
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
@@ -129,9 +131,11 @@ class ZaloChannel(BaseChannel):
         last_msg_id: str | None = None
 
         if msg.content:
-            chunks = render(msg, self.render_style)
-            for chunk in chunks:
-                last_msg_id = await self._send_text(msg.recipient_id, chunk) or last_msg_id
+            last_msg_id = await deliver_chunks(
+                self,
+                render(msg, self.render_style),
+                lambda chunk, _index: self._send_text(msg.recipient_id, chunk),
+            )
 
         attachment_id = await deliver_attachments(
             self.name,

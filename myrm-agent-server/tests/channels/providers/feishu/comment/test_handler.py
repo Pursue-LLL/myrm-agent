@@ -22,6 +22,7 @@ from app.channels.providers.feishu.comment.handler import (
 from app.channels.providers.feishu.models import (
     FeishuCommentEvent,
 )
+from app.channels.reliability.retry import RetryConfig
 from app.channels.types import OutboundMessage
 
 
@@ -112,8 +113,7 @@ class TestDeliverCommentReply:
         client = AsyncMock(spec=FeishuClient)
         client.reply_to_comment.return_value = (True, 0)
         route = CommentRouteInfo("docx", "tok", "cid", False)
-        ok = await deliver_comment_reply(client, route, "Hello!")
-        assert ok is True
+        await deliver_comment_reply(_make_channel(), client, route, "Hello!")
         client.reply_to_comment.assert_called_once_with("tok", "docx", "cid", "Hello!")
 
     @pytest.mark.asyncio
@@ -121,8 +121,7 @@ class TestDeliverCommentReply:
         client = AsyncMock(spec=FeishuClient)
         client.add_whole_comment.return_value = True
         route = CommentRouteInfo("doc", "tok", "cid", True)
-        ok = await deliver_comment_reply(client, route, "World")
-        assert ok is True
+        await deliver_comment_reply(_make_channel(), client, route, "World")
         client.add_whole_comment.assert_called_once_with("tok", "doc", "World")
 
     @pytest.mark.asyncio
@@ -131,8 +130,7 @@ class TestDeliverCommentReply:
         client.reply_to_comment.return_value = (False, 1069302)
         client.add_whole_comment.return_value = True
         route = CommentRouteInfo("docx", "tok", "cid", False)
-        ok = await deliver_comment_reply(client, route, "Fallback")
-        assert ok is True
+        await deliver_comment_reply(_make_channel(), client, route, "Fallback")
         client.add_whole_comment.assert_called_once()
 
     @pytest.mark.asyncio
@@ -141,18 +139,47 @@ class TestDeliverCommentReply:
         client.add_whole_comment.return_value = True
         route = CommentRouteInfo("doc", "tok", "cid", True)
         long_text = "a" * 8000
-        ok = await deliver_comment_reply(client, route, long_text)
-        assert ok is True
+        await deliver_comment_reply(_make_channel(), client, route, long_text)
         assert client.add_whole_comment.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_failure_stops_chunking(self) -> None:
+    async def test_a_chunk_failing_for_good_is_a_partial_delivery_and_the_first_is_not_posted_again(self) -> None:
         client = AsyncMock(spec=FeishuClient)
-        client.add_whole_comment.side_effect = [True, False]
+        client.add_whole_comment.side_effect = [True, False, False]
         route = CommentRouteInfo("doc", "tok", "cid", True)
-        long_text = "a\n" * 6000
-        ok = await deliver_comment_reply(client, route, long_text)
-        assert ok is False
+        ch = _make_channel()
+        ch.retry_config = RetryConfig(max_retries=2, base_delay=0.0, max_delay=0.0, jitter=0.0)
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await deliver_comment_reply(ch, client, route, "a\n" * 6000)
+
+        assert exc_info.value.accepted is True
+        assert "Delivered 1 of 3" in str(exc_info.value)
+        assert client.add_whole_comment.call_count == 3  # chunk one once, chunk two on both attempts; chunk three never
+
+    @pytest.mark.asyncio
+    async def test_the_first_chunk_failing_is_raised_for_the_bus_to_retry(self) -> None:
+        client = AsyncMock(spec=FeishuClient)
+        client.add_whole_comment.return_value = False
+        route = CommentRouteInfo("doc", "tok", "cid", True)
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await deliver_comment_reply(_make_channel(), client, route, "a\n" * 6000)
+
+        assert exc_info.value.accepted is False
+        assert client.add_whole_comment.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_a_fallback_to_a_whole_comment_holds_for_the_chunks_after_it(self) -> None:
+        client = AsyncMock(spec=FeishuClient)
+        client.reply_to_comment.return_value = (False, 1069302)
+        client.add_whole_comment.return_value = True
+        route = CommentRouteInfo("docx", "tok", "cid", False)
+
+        await deliver_comment_reply(_make_channel(), client, route, "a\n" * 6000)
+
+        assert client.reply_to_comment.call_count == 1  # only the first chunk tried the local reply
+        assert client.add_whole_comment.call_count == 3
 
 
 # ── Pydantic models ────────────────────────────────────────────

@@ -15,6 +15,7 @@ Outbound: Bot Framework connector API (text/adaptive card/file attachment)
 - channels.providers.msteams.helpers (POS: HTML parsing, message encoding, Adaptive Card building)
 - channels.providers.msteams.auth::BotFrameworkJwtVerifier (POS: JWT verification)
 - channels.providers.msteams.inbound::MSTeamsInboundMixin (POS: activity parsing, JWT verification and the webhook route)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - MSTeamsChannel: Microsoft Teams Bot bidirectional messaging Channel (credentials, lifecycle, outbound); inbound comes from the mixin
@@ -33,6 +34,7 @@ import httpx
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.reaction_ledger import ReactionLedger
@@ -196,8 +198,11 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
             )
             last_id = await self._api.post_activity(service_url, conversation_id, payload)
         elif msg.content:
-            for chunk in render(msg, self.render_style):
-                last_id = await self._api.send_text_activity(service_url, conversation_id, chunk) or last_id
+            last_id = await deliver_chunks(
+                self,
+                render(msg, self.render_style),
+                lambda chunk, _index: self._api.send_text_activity(service_url, conversation_id, chunk),
+            )
 
         attachment_id = await deliver_attachments(
             self.name,

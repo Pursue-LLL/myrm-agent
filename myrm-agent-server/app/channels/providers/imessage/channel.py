@@ -9,6 +9,7 @@ Outbound: REST API (text + multipart attachment) with Tapback reactions
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base)
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - IMessageChannel: iMessage bidirectional Channel (via BlueBubbles macOS bridge)
@@ -29,6 +30,7 @@ import httpx
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelConnectionError, ChannelSendError
 from app.channels.core.reaction_ledger import ReactionLedger
@@ -299,9 +301,14 @@ class IMessageChannel(BaseChannel):
         quote = msg.reply_to_id if msg.reply_to_id and self._private_api_ready else None
 
         if msg.content:
-            for chunk in render(msg, self.render_style):
-                last_guid = await send_text(self._http, self._api_url, self._password, chat_guid, chunk, quote=quote) or last_guid
-                quote = None  # only the first chunk quotes the message
+
+            async def send_chunk(chunk: str, index: int) -> str | None:
+                # only the first chunk quotes the message
+                return await send_text(
+                    self._http, self._api_url, self._password, chat_guid, chunk, quote=quote if index == 0 else None
+                )
+
+            last_guid = await deliver_chunks(self, render(msg, self.render_style), send_chunk)
 
         attachment_guid = await deliver_attachments(
             self.name,

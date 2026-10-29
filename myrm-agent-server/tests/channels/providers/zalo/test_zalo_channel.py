@@ -159,11 +159,12 @@ class TestZaloSend:
         ch = ZaloChannel(access_token="tok123")
         msg = OutboundMessage(channel="zalo", recipient_id="user123", content="x" * 5000, user_id="u1")
 
-        sent = AsyncMock(side_effect=["mid1", ChannelSendError("rejected", channel="zalo")])
-        with patch.object(ch, "_send_text", sent), pytest.raises(ChannelSendError):
+        sent = AsyncMock(side_effect=["mid1", ChannelSendError("rejected", channel="zalo", retriable=False)])
+        with patch.object(ch, "_send_text", sent), pytest.raises(ChannelSendError) as excinfo:
             await ch.send(msg)
 
         assert sent.await_count == 2
+        assert excinfo.value.accepted is True  # the first chunk arrived, so the bus must not replay the message
 
     @pytest.mark.asyncio
     async def test_failed_attachment_after_delivered_text_is_a_partial_delivery(self) -> None:

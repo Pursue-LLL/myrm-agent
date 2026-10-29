@@ -17,6 +17,7 @@ and inbound media attachment parsing.
 - app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - app.channels.providers._emoji_shortnames::to_shortname (POS: reaction glyph -> the short name the reactions API accepts)
 - app.channels.providers.mattermost.inbound::MattermostInboundMixin (POS: WebSocket event parsing and inbound media)
+- app.channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - MattermostChannel: Mattermost bidirectional channel (credentials, lifecycle, REST API v4 outbound, groups, diagnostics); WebSocket inbound comes from the mixin.
@@ -36,6 +37,7 @@ import httpx
 
 from app.channels import BaseChannel, OutboundMessage
 from app.channels.core.attachment_delivery import attempt_attachments
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
@@ -157,25 +159,27 @@ class MattermostChannel(MattermostInboundMixin, BaseChannel, CachedGroupMixin):
         if not root_id and msg.metadata and isinstance(msg.metadata, dict):
             root_id = str(msg.metadata.get("thread_id", "")) or ""
 
-        last_id: str | None = None
-        try:
-            uploads = await attempt_attachments(self.name, msg.media, partial(self._upload_attachment, channel_id))
-            file_ids = list(uploads.results)
-            chunks = list(render(msg, self.render_style)) if msg.content else []
-            if file_ids and not chunks:
-                chunks = [""]  # a files-only message is one post that only carries the files
+        uploads = await attempt_attachments(self.name, msg.media, partial(self._upload_attachment, channel_id))
+        file_ids = list(uploads.results)
+        chunks = list(render(msg, self.render_style)) if msg.content else []
+        if file_ids and not chunks:
+            chunks = [""]  # a files-only message is one post that only carries the files
 
-            for chunk in chunks:
-                result = await self._api.create_post(
-                    channel_id,
-                    chunk,
-                    root_id=root_id,
-                    file_ids=file_ids if file_ids and last_id is None else None,
-                )
-                pid = result.get("id")
-                if isinstance(pid, str) and pid:
-                    last_id = pid
-            self.health.record_success()
+        last_id = await deliver_chunks(
+            self,
+            chunks,
+            lambda chunk, index: self._create_post(
+                channel_id, chunk, root_id=root_id, file_ids=file_ids if file_ids and index == 0 else None
+            ),
+        )
+        self.health.record_success()
+        uploads.raise_for_failures(self.name, delivered_any=last_id is not None)
+        return last_id
+
+    async def _create_post(self, channel_id: str, chunk: str, *, root_id: str, file_ids: list[str] | None) -> str | None:
+        """Create one post and return its id; raises ``ChannelSendError`` when Mattermost does not take it."""
+        try:
+            result = await self._api.create_post(channel_id, chunk, root_id=root_id, file_ids=file_ids)
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
             self.health.record_failure(f"HTTP {status}")
@@ -191,9 +195,8 @@ class MattermostChannel(MattermostInboundMixin, BaseChannel, CachedGroupMixin):
                 f"Mattermost send failed: {exc}",
                 channel=self.name,
             ) from exc
-
-        uploads.raise_for_failures(self.name, delivered_any=last_id is not None)
-        return last_id
+        pid = result.get("id")
+        return pid if isinstance(pid, str) and pid else None
 
     async def _upload_attachment(self, channel_id: str, attachment: MediaAttachment) -> str:
         """Upload one attachment and return its file id; raises ``ChannelSendError`` when Mattermost does not take it."""

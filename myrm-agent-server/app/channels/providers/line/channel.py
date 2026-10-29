@@ -6,6 +6,7 @@ Outbound: Reply (free) → Push (paid) fallback.
 [INPUT]
 - channels.core.base::BaseChannel, (POS: Provides FileOperationObserver.)
 - channels.providers.line.inbound::LINEInboundMixin (POS: webhook signature check, event routing and message / postback parsing)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - LINEChannel: LINE Messaging API bidirectional communication Channel (credentials, lifecycle, Reply / Push outbound); webhook inbound comes from the mixin
@@ -21,6 +22,7 @@ import logging
 import httpx
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.line.api import LineClient
@@ -184,22 +186,20 @@ class LINEChannel(LINEInboundMixin, BaseChannel):
         reply_entry = self._reply_tokens.pop(chat_id, None)
         quote_token = self._quote_tokens.pop(chat_id, None)
 
-        last_msg_id: str | None = None
-        offset = 0
-        batch_index = 0
+        batches = [
+            all_messages[offset : offset + _MAX_MESSAGES_PER_REQUEST]
+            for offset in range(0, len(all_messages), _MAX_MESSAGES_PER_REQUEST)
+        ]
 
-        while offset < len(all_messages):
-            batch = all_messages[offset : offset + _MAX_MESSAGES_PER_REQUEST]
-            offset += len(batch)
-
-            if batch_index == 0 and quote_token:
+        async def send_batch(batch: list[dict[str, object]], index: int) -> str | None:
+            if index == 0 and quote_token:
                 first = batch[0]
                 if first.get("type") == "text":
                     first["quoteToken"] = quote_token
 
             resp: httpx.Response | None = None
             pushed = False
-            if batch_index == 0 and reply_entry and not reply_entry.expired:
+            if index == 0 and reply_entry and not reply_entry.expired:
                 resp = await self._call_reply(reply_entry.token, batch)
                 if resp is None:
                     logger.debug("LINE reply token failed, falling back to push")
@@ -208,13 +208,13 @@ class LINEChannel(LINEInboundMixin, BaseChannel):
                 pushed = True
 
             data = self._parse_response(resp)
-            if data:
-                last_msg_id = self._extract_message_id_from(data) or last_msg_id
-                if pushed:
-                    self._store_quote_token(chat_id, data)
-            batch_index += 1
+            if not data:
+                return None
+            if pushed:
+                self._store_quote_token(chat_id, data)
+            return self._extract_message_id_from(data)
 
-        return last_msg_id
+        return await deliver_chunks(self, batches, send_batch)
 
     def _build_outbound_messages(
         self,

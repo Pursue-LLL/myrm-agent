@@ -19,6 +19,7 @@ Outbound:
 - channels.providers.slack.format_converter::neutralize_broadcast_mentions (POS: escapes the tokens that notify a whole audience)
 - channels.providers.slack.inbound::SlackInboundMixin (POS: Events API / interactive payload parsing)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
 [OUTPUT]
 - SlackChannel: Slack Bot bidirectional messaging Channel (Events API + Socket Mode)
@@ -40,6 +41,7 @@ from myrm_agent_harness.infra.tracing import get_meter
 
 from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.core.credentials import (
     credential_field,
     credential_spec,
@@ -259,7 +261,8 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         try:
             if msg.content:
                 chunks = render(msg, self.render_style)
-                for i, chunk in enumerate(chunks):
+
+                async def post_chunk(chunk: str, index: int) -> str | None:
                     payload: dict[str, object] = {
                         "channel": channel_id,
                         "text": chunk,
@@ -268,17 +271,18 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
                         payload["thread_ts"] = thread_ts
                     elif msg.reply_to_id:
                         payload["thread_ts"] = msg.reply_to_id
-                    if i == len(chunks) - 1 and (blocks := build_message_blocks(chunk, msg)):
+                    if index == len(chunks) - 1 and (blocks := build_message_blocks(chunk, msg)):
                         payload["blocks"] = blocks
 
                     ts = await self._api.post_message(payload)
-                    if ts:
-                        last_ts = ts
 
                     # Track thread participation
                     actual_thread_ts = payload.get("thread_ts")
                     if actual_thread_ts and isinstance(actual_thread_ts, str):
                         self._thread_tracker.add(actual_thread_ts)
+                    return ts
+
+                last_ts = await deliver_chunks(self, chunks, post_chunk)
 
             await deliver_attachments(
                 self.name,
