@@ -5,6 +5,7 @@ This module contains type definitions used across the business layer.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Literal, Self
 
 from myrm_agent_harness.agent.config.llm import CustomModelDef
@@ -12,6 +13,7 @@ from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProto
 from myrm_agent_harness.toolkits.mcp.config import MCPAuthProvider
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
+from pydantic.json_schema import SkipJsonSchema
 
 # Chat history types
 ContentItem = str | list[dict[str, object]] | dict[str, object]
@@ -238,17 +240,19 @@ class MCPServerConfig(BaseModel):
             "Passphrase for an encrypted client private key. Encrypted at rest with the rest of mcpServers config; never logged."
         ),
     )
-    auth_provider: MCPAuthProvider | None = Field(
+    # Runtime-injected, never part of a request body: hidden from the JSON schema, and the callable check rejects
+    # any JSON value a client might send for them.
+    auth_provider: SkipJsonSchema[MCPAuthProvider | None] = Field(
         default=None,
         exclude=True,
         description="Authentication provider for remote connections (business layer injects)",
     )
-    oversized_result_handler: object | None = Field(
+    oversized_result_handler: SkipJsonSchema[Callable[..., object] | None] = Field(
         default=None,
         exclude=True,
         description="Callback to persist oversized MCP tool outputs (business layer injects)",
     )
-    elicitation_handler: object | None = Field(
+    elicitation_handler: SkipJsonSchema[Callable[..., object] | None] = Field(
         default=None,
         exclude=True,
         description="Async callback for MCP elicitation (MRTR user confirmation, business layer injects)",

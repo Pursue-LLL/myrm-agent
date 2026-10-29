@@ -167,6 +167,27 @@ class TestMCPVerifySingleHandshake:
         assert response.json()["data"]["instructions"] is None
 
 
+class TestMCPVerifyRequestBody:
+    """The handler fields are injected by the business layer; a request body cannot carry them."""
+
+    @pytest.mark.parametrize("field", ["oversizedResultHandler", "elicitationHandler"])
+    def test_client_supplied_handler_is_rejected(self, client: TestClient, field: str) -> None:
+        agent = _StubAgent(tools=[_tool("search", "safe search tool")])
+
+        response = _verify(client, agent, name="forged", **{field: "not-callable"})
+
+        assert response.status_code == 422, response.text
+        assert agent.enumerated == [], "a rejected body must never reach the MCP agent"
+
+    def test_null_handlers_are_accepted(self, client: TestClient) -> None:
+        agent = _StubAgent(tools=[_tool("search", "safe search tool")])
+
+        response = _verify(client, agent, name="plain", oversizedResultHandler=None, elicitationHandler=None)
+
+        assert response.status_code == 200, response.text
+        assert agent.enumerated == [["plain"]]
+
+
 class TestMCPVerifyErrorMapping:
     def test_stdio_is_blocked_when_the_deployment_forbids_it(self, client: TestClient) -> None:
         with patch.object(mcp_mod.settings.mcp, "allow_stdio", False):

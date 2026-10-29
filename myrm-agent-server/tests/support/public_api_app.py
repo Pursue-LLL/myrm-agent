@@ -6,7 +6,7 @@
 - app.api.internal.org_policy_sync / app.api.memory.operations.command_center* (POS: 条件挂载的路由)
 
 [OUTPUT]
-- public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告
+- public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告 + 指向不存在组件的 `$ref`
 - public_api_handlers(): 每个操作背后的端点函数（`app/` 下的文件 + 函数名 + 方法 + 客户端路径）
 - API_VERBS: 计入「操作」的 HTTP 方法
 
@@ -31,12 +31,14 @@ from fastapi.routing import iter_route_contexts
 API_PREFIX = "/api/v1"
 API_VERBS = frozenset({"GET", "POST", "PUT", "DELETE", "PATCH"})
 _APP_DIR = Path(__file__).resolve().parents[2] / "app"
+_SCHEMA_REF_PREFIX = "#/components/schemas/"
 
 
 @dataclass(frozen=True, slots=True)
 class PublicApiOpenApi:
     paths: dict[str, dict[str, object]]
     duplicate_operation_ids: tuple[str, ...]
+    unresolved_schema_refs: tuple[str, ...]
 
 
 @cache
@@ -59,6 +61,27 @@ def _build_app() -> FastAPI:
     return app
 
 
+def _collect_schema_refs(node: object, refs: set[str]) -> None:
+    """Add the component name of every ``$ref`` under ``node`` that points into ``#/components/schemas``."""
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith(_SCHEMA_REF_PREFIX):
+            refs.add(ref.removeprefix(_SCHEMA_REF_PREFIX))
+        for value in node.values():
+            _collect_schema_refs(value, refs)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_schema_refs(item, refs)
+
+
+def _unresolved_schema_refs(schema: dict[str, object]) -> tuple[str, ...]:
+    components = schema.get("components")
+    defined = components.get("schemas", {}) if isinstance(components, dict) else {}
+    referenced: set[str] = set()
+    _collect_schema_refs(schema, referenced)
+    return tuple(sorted(referenced - set(defined)))
+
+
 @cache
 def public_api_openapi() -> PublicApiOpenApi:
     app = _build_app()
@@ -66,7 +89,11 @@ def public_api_openapi() -> PublicApiOpenApi:
         warnings.simplefilter("always")
         schema = app.openapi()
     duplicates = tuple(str(w.message) for w in caught if "Duplicate Operation ID" in str(w.message))
-    return PublicApiOpenApi(paths=schema["paths"], duplicate_operation_ids=duplicates)
+    return PublicApiOpenApi(
+        paths=schema["paths"],
+        duplicate_operation_ids=duplicates,
+        unresolved_schema_refs=_unresolved_schema_refs(schema),
+    )
 
 
 class ApiHandler(NamedTuple):
