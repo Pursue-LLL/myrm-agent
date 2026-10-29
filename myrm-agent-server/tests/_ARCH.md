@@ -126,7 +126,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_group_chatter_parity.py` | 单元 | `is_group_chatter` 与 `resolve_group_user` 对「这条群消息是否起回合」的判定一致：群策略（开放/关闭）、群是否启用、触发方式（仅 @/前缀/全部/自由应答群）、是否被点名、是否带前缀、是否禁言词、线程是否在跟进、是否 bot 的全部组合，凡被准入的群，`is_group_chatter` 为真当且仅当解析器把消息记为非触发；未准入的群恒为假；只问判定不禁言线程、不写账本；矩阵两种判定都出现 |
 | `channels/routing/test_steer_command_scope.py` | 集成 | 真实 `AgentRouter` 派发 `/steer`：群里只有发起该次运行的人能转向（他人收到本地化的拒绝提示，运行与会话闸门都不受影响；运行没有记录发起人时无人可转向），私聊不查发起人；已结束、只因审批保留登记的回合没有可转向的运行，指令作为新的回合交给会话闸门；排队确认文案提示发起人用 `/steer` 改变方向（en / zh-CN / ja），拒绝提示各语言齐全 |
 | `channels/routing/pipeline/test_reap_releases_gate_turn.py` | 集成 | 真实 `AgentRouter` 加真实 `SessionGate` 上的卡死看门狗：运行中的任务登记其会话闸门键与回合号（私聊的闸门键按发送者、任务表按聊天，二者不同）；无视取消的回合只能由看门狗按登记的键与回合号释放，排队的消息随即运行；被回收回合迟到的收尾不会结束接手的回合 |
-| `channels/routing/pipeline/test_stop_parks_unstarted_messages.py` | 集成 | 已启动的真实 `AgentRouter` 加真实 `SessionGate` 与真实 SQLite 入站日志上的停机：排队消息按到达顺序写入日志（通道、会话、发送者齐全）；被停机取消的回合结束时不会启动排在后面的消息，无日志时同样；重放消息保留原条目、不重复写；审批应答不入日志 |
+| `channels/routing/pipeline/test_stop_parks_unstarted_messages.py` | 集成 | 已启动的真实 `AgentRouter` 加真实 `SessionGate` 与真实 SQLite 入站日志上的停机：排队消息按到达顺序写入日志（通道、会话、发送者齐全）；被停机取消的回合结束时不会启动排在后面的消息，无日志时同样；重放消息保留原条目、不重复写；审批应答不入日志；停机取消的运行中回合，其聊天收到「请重新发送」的通知，没有运行中的回合则不发 |
 | `services/agent/test_sse_failover_emitter.py` | 模块 | 故障转移事件的 SSE 序列化与主流合并：事件写入收集器历史、关闭后不再入队；合并时主流 chunk 原样透出、故障转移事件在主流阻塞时仍即时插入、主流结束后补发已入队事件；主流每一步共用一个上下文：它在某一步设下的 `ContextVar` 后续步骤（含两步之间插入故障转移 chunk 的情形）仍可见，调用方在合并前设下的值主流看得到，主流设下的值不泄漏给调用方；同一事件循环里并发的两路合并互不可见对方设下的值（一路受信一路不受信时信任不串）；主流在某一步设下、在之后的步骤里 `reset` 不报错；主流在后面的步骤里抛错时错误原样抛给消费方，随后的新合并不受影响 |
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |
 | `support/pending_approvals.py` | 辅助 | 路由器待决审批测试共用：`inbound_message`、`router_with_agent`（真实路由器配脚本化智能体，可记录续跑）、`said_by`（总线发出的文本）、`asked_in` / `waiting` / `empty_registry`（登记簿里的未决请求） |
@@ -196,6 +196,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/approvals/test_outbound_draft.py` | 单元 | 被扣留回复定案后的收尾：按评审后的正文发出（含仅附件），无快照、快照不可解码或无内容则不发；批准后发不出去时告知 owner（错误 toast 与通知中心，按 owner 语言）且永不抛出；拒绝或超时不发送并释放临时附件；关闭发送方的“待审核”占位消息（无占位则不动，平台不可编辑则删除，平台挂起有时限，网关不可达不撤销决定） |
 | `services/approvals/test_registry_concurrency.py` | 集成 | 生产同构 SQLite（WAL + 延迟 BEGIN 升级写锁）上的并发定案：批准与拒绝同时、TTL 清理与点击同时，每条被扣留回复恰好定案并收尾一次，落败方读到已定案状态而不是 `database is locked` |
 | `core/notifications/test_approval_card.py` | 单元 | 审批通知卡片：草稿正文预览（截断/附件摘要/自动发送提示/剩余时间）不含内部标识与链接，仅 Telegram 带批准/拒绝按钮、其他渠道提示打开应用，按用户语言渲染 |
+| `channels/reliability/test_inbound_replay.py` | 集成 | 入站日志的重放保真：按生产路径（回合开始写日志条目 → SQLite → 网关启动恢复 → 路由闸门）走一遍，重放回来的消息与原消息逐字段相等（仅多出 `is_recovery` 标记）；无聊天标识的消息仍无；yolo 窗口不跨重启；本地文件已不存在的附件有 url 则保留 url、否则从附件里去掉并在正文里点名；无法解码的条目不拖垮其后的条目；另一种列结构的表在打开时重建，日志继续可用 |
+| `channels/inbound_message_testkit.py` | 辅助 | `full_message()`：每个会持久化的字段都取非默认值的 `InboundMessage`（含两层嵌套的引用回复、群上下文、关联上下文与一个本地附件），`test_inbound_wire.py` 与 `test_inbound_replay.py` 共用 |
+| `channels/types/test_inbound_wire.py` | 单元 | `InboundMessage` 线格式：夹具覆盖全部会持久化的字段、经 JSON 往返后逐字段相等、`channel_capabilities` 不持久化、最小消息往返、TypedDict 键集与 dataclass 字段集一致 |
 | `channels/reliability/test_durable_outbound_poison_isolation.py` | 单元 | 持久化出站队列：带按钮的消息重启后完整读回；无法解码的记录隔离到失败桶，不拖垮其余记录、仅一次性上报永久失败且绝不重发，网关启动不受影响 |
 | `channels/reliability/test_durable_outbound_persist_failure.py` | 单元 | 持久化出站写盘失败（磁盘满等）时降级为不落盘的内存发送并记 WARNING：原消息原样返回、`mark_attempting` / `ack` 为空操作、真实总线仍把消息投递出去；取消信号不被吞掉 |
 | `api/memory/test_pending_proposal_seed.py` | 单元 | `POST /memory/test/seed-pending-proposal` 契约（local-only 404 · correct/delete 入队 · 目标不存在或非语义记忆 404 · 重复提案 409） |

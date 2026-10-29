@@ -245,6 +245,11 @@ belong to a run the stop ends) and writes each to the inbound journal through `_
 replays them at the next start. The gate is emptied before the running turns are cancelled because a cancelled turn's end
 starts the next queued turn: with the queue still full, the shutdown would run a new agent turn.
 
+A turn the stop cancels is not replayed: re-running a half-done turn would repeat the steps that already had effects. Its
+chat is told instead: `stop` publishes `turn_interrupted_by_restart` (`channels/i18n`) to the chat of every turn it
+cancelled, and `ChannelGateway.stop` drains the outbound queue before closing the channels, so the notice is sent while
+they are still up. The notice is best effort; a failed publish is logged at debug level and does not hold the shutdown up.
+
 What a stop does not park: a message that reaches the bus after the stop has begun. `ChannelGateway.stop` stops the router
 first, drains the outbound queue for up to 5 seconds, and only then stops the channels (`core/gateway.py`), so the channels
 keep delivering while the router no longer consumes. The consume loop ends only near the end of `stop`; a message it takes
@@ -255,6 +260,15 @@ What the journal replays: a turn that was running when the process died (its ent
 `finally` ran to acknowledge it), and the messages a stop parked. A turn that ended is acknowledged and not replayed
 (`pipeline/turn.py`, the `finally` of `_handle_merged`): completed, failed, ended by `/stop`, or cancelled by a stop. Entries
 past their TTL (`inbound_journal.py`, 10 minutes) are dropped at recovery.
+
+What a replay is: the message as it arrived, not its text alone. An entry holds the whole `InboundMessage` in its wire form
+(`types/inbound_wire.py`), so attachments, the quoted reply, group context, thread, sender, timestamps and an approval answer's
+`resume_value` come back. Two things are left out because the replayed turn derives them again: `channel_capabilities` (read
+from the live channel) and the yolo window (a stale window must not outlive its restart). `restore_inbound` rebuilds the
+message and marks it `is_recovery`; an attachment whose local file no longer exists keeps its url when it has one, otherwise it is
+dropped and named in the message text so the agent does not wait for a file that cannot arrive. An entry that cannot be
+decoded is logged and skipped, the others still replay. The journal table holds one JSON payload per entry; a table of another
+column set is dropped when the journal opens (entries live ten minutes, so there is nothing to migrate) and the drop is logged.
 
 ## Stuck Task Watchdog
 
@@ -284,7 +298,7 @@ deadlocks when an agent execution hangs without crashing.
 Co-resident bots (alert feeds, sign-in bots, other AI agents) share group
 chats with humans. Unchecked, they burn LLM turns on free-response groups and
 two automation agents replying to each other can loop forever. Defense in
-depth, mirroring Hermes v0.20.5 semantics:
+depth:
 
 1. **Sender gate (layer 0)** — `should_respond_in_group_support`
    (policy_resolver_support.py): a bot-authored message never triggers a turn

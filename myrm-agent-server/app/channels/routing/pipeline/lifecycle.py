@@ -7,12 +7,13 @@
 - channels.i18n::get_text (POS: localized channel copy)
 - core.infra.background_task::spawn_observed_task (POS: background task whose failure is logged)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message envelopes)
+- channels.core.bus::MessageBus (POS: the outbound queue the notices to a chat go through; type only)
 
 [OUTPUT]
 - RouterLifecycleMixin: ``start`` / ``stop`` / ``is_consume_loop_alive``, the consume loop that hands every inbound message to dispatch, the janitor (expired callbacks, streaming-session TTL, stale session state) and the stuck-task reaper
 
 [POS]
-Run-loop segment of ``AgentRouter``. ``stop`` parks the messages its gate still holds, those that have not started a turn, in the inbound journal, then ends every in-flight turn and approval wait; the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
+Run-loop segment of ``AgentRouter``. ``stop`` parks the messages its gate still holds, those that have not started a turn, in the inbound journal, then ends every in-flight turn and approval wait and tells each turn's chat to send the request again (an ended turn is not replayed); the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
 from app.channels.routing.pipeline.hosts import RouterLifecycleHost
@@ -33,7 +35,29 @@ from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage, OutboundMessage
 from app.core.infra.background_task import spawn_observed_task
 
+if TYPE_CHECKING:
+    from app.channels.core.bus import MessageBus
+
 logger = logging.getLogger("app.channels.routing.router")
+
+
+def _locale_probe(entry: _ActiveTask) -> InboundMessage:
+    """An empty message carrying the chat's locale: what ``get_text`` resolves the language of a notice from."""
+    return InboundMessage(
+        channel=entry.channel,
+        sender_id="",
+        content="",
+        chat_id=entry.chat_id,
+        metadata={"locale": entry.locale} if entry.locale else {},
+    )
+
+
+async def _notify_chat(bus: MessageBus, entry: _ActiveTask, text: str) -> None:
+    """Tell the chat of ``entry`` something; a failed send must not hold up a shutdown or a janitor sweep."""
+    try:
+        await bus.publish_outbound(OutboundMessage(channel=entry.channel, recipient_id=entry.chat_id, content=text, user_id=""))
+    except Exception:
+        logger.debug("Notice to %s/%s failed (non-critical)", entry.channel, entry.chat_id)
 
 
 class RouterLifecycleMixin:
@@ -68,21 +92,25 @@ class RouterLifecycleMixin:
         replays them; taking them out of the gate also keeps the turns cancelled below from starting the next ones. A message
         that reaches the bus after this has begun is not journaled: the gateway keeps the channels open until the router and
         the outbound drain are done. Delegated tasks are interrupted next, while the channels are still up, so each tells its
-        chat the work was cut short.
+        chat the work was cut short. A turn the stop cancels is not replayed, so its chat is told to send the request again.
         """
         self._running = False
         for msg in self._gate.drain_unstarted():
             self._journal_inbound(msg)
         await self._delegation_coordinator.interrupt_all()
 
+        interrupted: list[_ActiveTask] = []
         for entry in self._active_tasks.values():
             entry.cancel_token.cancel("Router stopping")
             if not entry.task.done():
                 entry.task.cancel()
+                interrupted.append(entry)
 
         self._active_tasks.clear()
         self._cleanups.clear()
         self._pending_approvals.clear()
+        for entry in interrupted:
+            await _notify_chat(self._bus, entry, get_text(_locale_probe(entry), "turn_interrupted_by_restart"))
 
         await self._stop_janitor()
 
@@ -210,25 +238,13 @@ class RouterLifecycleMixin:
             self._cleanups.pop(state_key, None)
             self._pending_approvals.pop(state_key)
 
-            synthetic_msg = InboundMessage(
-                channel=entry.channel,
-                sender_id="",
-                content="",
-                chat_id=entry.chat_id,
-                metadata={"locale": entry.locale} if entry.locale else {},
-            )
-
             try:
                 await self._fx.stop_typing_keepalive(entry.channel, entry.chat_id)
                 await self._fx.set_typing(entry.channel, entry.chat_id, composing=False)
             except Exception:
                 logger.debug("[JANITOR] Typing cleanup failed for %s (non-critical)", state_key)
 
-            timeout_msg = get_text(
-                synthetic_msg,
-                "stuck_task_timeout_user_message",
-                elapsed=elapsed,
-            )
+            timeout_msg = get_text(_locale_probe(entry), "stuck_task_timeout_user_message", elapsed=elapsed)
             if entry.placeholder_id:
                 try:
                     await self._fx.cleanup_placeholder(entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg)
@@ -238,19 +254,7 @@ class RouterLifecycleMixin:
                         state_key,
                     )
             else:
-                try:
-                    reply = OutboundMessage(
-                        channel=entry.channel,
-                        recipient_id=entry.chat_id,
-                        content=timeout_msg,
-                        user_id="",
-                    )
-                    await self._bus.publish_outbound(reply)
-                except Exception:
-                    logger.debug(
-                        "[JANITOR] Timeout notification failed for %s (non-critical)",
-                        state_key,
-                    )
+                await _notify_chat(self._bus, entry, timeout_msg)
 
             self._gate.release_turn(entry.gate_key, entry.gate_turn)
             logger.info("[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed)

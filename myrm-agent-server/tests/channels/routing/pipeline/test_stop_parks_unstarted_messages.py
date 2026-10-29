@@ -3,7 +3,7 @@
 Runs on a started ``AgentRouter`` (its consume loop and janitor are the awaits during which the cancelled turn unwinds),
 the real ``SessionGate`` and a real SQLite journal. The sender of a queued message was told it is queued: the next start
 replays it from the journal, and the turn ending under the cancellation of the stop must not pick it up as a new turn on
-the way out.
+the way out. The turn the stop cancels is not replayed, so its chat is told to send the request again.
 """
 
 from __future__ import annotations
@@ -11,13 +11,20 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
-from app.channels.reliability.inbound_journal import JournalEntry, SqliteInboundJournal
+from app.channels.i18n import channel_t
+from app.channels.reliability.inbound_journal import (
+    JournalEntry,
+    SqliteInboundJournal,
+    create_journal_entry_from_inbound,
+    restore_inbound,
+)
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.routing.session_gate import SessionGate, SessionGateConfig
@@ -41,9 +48,9 @@ class _Harness:
     def __init__(self, journal: SqliteInboundJournal | None) -> None:
         self.ran: list[str] = []
         self.release = asyncio.Event()
-        bus = make_bus()
-        bus.consume_inbound = _no_inbound
-        self.router: AgentRouter = make_router(bus)
+        self.bus = make_bus()
+        self.bus.consume_inbound = _no_inbound
+        self.router: AgentRouter = make_router(self.bus)
         if journal is not None:
             self.router.set_inbound_journal(journal)
         self.router._gate = SessionGate(SessionGateConfig(debounce_window_ms=0), on_ready=self._run)
@@ -90,8 +97,12 @@ async def harness(journal: SqliteInboundJournal) -> AsyncIterator[_Harness]:
     await asyncio.sleep(0.05)
 
 
+def _replays(entries: list[JournalEntry]) -> list[InboundMessage]:
+    return [restore_inbound(entry) for entry in entries]
+
+
 def _contents(entries: list[JournalEntry]) -> list[str]:
-    return [entry.content for entry in entries]
+    return [msg.content for msg in _replays(entries)]
 
 
 @pytest.mark.asyncio
@@ -106,7 +117,7 @@ async def test_queued_messages_are_in_the_journal_in_arrival_order_after_a_stop(
 
     parked = journal.scan_pending()
     assert _contents(parked) == ["queued-1", "queued-2"]
-    assert {(entry.channel, entry.chat_id, entry.sender_id) for entry in parked} == {("telegram", "chat-1", "u1")}
+    assert {(msg.channel, msg.chat_id, msg.sender_id) for msg in _replays(parked)} == {("telegram", "chat-1", "u1")}
 
 
 @pytest.mark.asyncio
@@ -138,21 +149,7 @@ async def test_a_replayed_message_keeps_its_entry_and_is_not_written_twice(
 ) -> None:
     replay = _dm("replayed", is_recovery=True, recovery_entry_id="entry-1")
     await harness.start_running_turn_with_queue(replay)
-    journal.write(
-        JournalEntry(
-            id="entry-1",
-            channel="telegram",
-            chat_id="chat-1",
-            sender_id="u1",
-            user_id="",
-            content="replayed",
-            metadata_json="{}",
-            media_json="[]",
-            thread_id=None,
-            is_group=False,
-            created_at=time.time(),
-        )
-    )
+    journal.write(replace(create_journal_entry_from_inbound(_dm("replayed")), id="entry-1"))
 
     await harness.router.stop()
 
@@ -173,3 +170,22 @@ async def test_an_answer_to_a_tool_approval_is_not_parked(harness: _Harness, jou
     await harness.router.stop()
 
     assert _contents(journal.scan_pending()) == ["queued"]
+
+
+@pytest.mark.asyncio
+async def test_the_chat_of_a_turn_the_stop_cancels_is_told_to_send_the_request_again(harness: _Harness) -> None:
+    await harness.start_running_turn_with_queue()
+
+    await harness.router.stop()
+
+    notice = channel_t("en", "turn_interrupted_by_restart")
+    assert notice != "turn_interrupted_by_restart"
+    sent = [call.args[0] for call in harness.bus.publish_outbound.await_args_list]
+    assert [(msg.channel, msg.recipient_id, msg.content) for msg in sent] == [("telegram", "chat-1", notice)]
+
+
+@pytest.mark.asyncio
+async def test_a_stop_with_no_turn_running_sends_no_notice(harness: _Harness) -> None:
+    await harness.router.stop()
+
+    harness.bus.publish_outbound.assert_not_awaited()

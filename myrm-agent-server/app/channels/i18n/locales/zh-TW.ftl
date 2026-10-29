@@ -326,6 +326,7 @@ draft_cmd_ambiguous = ℹ 有多則待審核回覆與 `{ $code }` 相符，請�
 draft_cmd_error = ❌ 沒能處理，請稍後重試。
 placeholder_execution_error =  錯誤：{ $error }
 placeholder_request_timeout =  請求超時。
+turn_interrupted_by_restart = ⚠️ 服務已停止，這次請求未能完成。服務恢復後請重新傳送。
 placeholder_retrying =
     
     

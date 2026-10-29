@@ -326,6 +326,7 @@ draft_cmd_ambiguous = ℹ `{ $code }` に一致するレビュー待ちの返信
 draft_cmd_error = ❌ 処理できませんでした。しばらくしてからもう一度お試しください。
 placeholder_execution_error =  エラー：{ $error }
 placeholder_request_timeout =  リクエストがタイムアウトしました。
+turn_interrupted_by_restart = ⚠️ サービスが停止したため、このリクエストは完了できませんでした。復旧後にもう一度送信してください。
 placeholder_retrying =
     
     

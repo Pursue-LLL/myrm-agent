@@ -15,6 +15,7 @@ Health loop:
 - channels.core.bus::MessageBus (POS: async message bus)
 - channels.core.base::BaseChannel (POS: channel abstract base class)
 - channels.core.outbound_media::discard_ephemeral_media (POS: drop the temp attachments of a follow-up that cannot be delivered)
+- channels.reliability.inbound_journal::InboundJournal, restore_inbound (POS: interrupted-message persistence, and the rebuild of a journal entry into the message to replay)
 - channels.routing.router::AgentRouter (POS: inbound message routing hub)
 - channels.routing.command_defs::CommandDef (POS: slash command data model)
 - channels.types::ChannelStatus, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
@@ -52,6 +53,7 @@ from app.channels.core.bus import MessageBus
 from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.reliability.inbound_journal import (
     InboundJournal,
+    restore_inbound,
 )
 from app.channels.types import (
     ChannelCapabilities,
@@ -828,35 +830,17 @@ class ChannelGateway:
         if not entries:
             return
 
-        import json
-
-        from app.channels.types import InboundMessage
-
         logger.info("InboundJournal: recovering %d interrupted message(s)", len(entries))
 
         for entry in entries:
             try:
-                metadata = json.loads(entry.metadata_json) if entry.metadata_json else {}
-                metadata["is_recovery"] = True
-                metadata["recovery_entry_id"] = entry.id
-
-                recovery_msg = InboundMessage(
-                    channel=entry.channel,
-                    sender_id=entry.sender_id,
-                    content=entry.content,
-                    chat_id=entry.chat_id,
-                    user_id=entry.user_id,
-                    is_group=entry.is_group,
-                    metadata=metadata,
-                    thread_id=entry.thread_id,
-                )
-
+                recovery_msg = restore_inbound(entry)
                 self._router._gate.submit(recovery_msg)
 
                 logger.info(
                     "InboundJournal: recovered message for %s/%s",
-                    entry.channel,
-                    entry.chat_id,
+                    recovery_msg.channel,
+                    recovery_msg.chat_id or recovery_msg.sender_id,
                 )
             except Exception as e:
                 logger.warning("InboundJournal: failed to recover entry %s: %s", entry.id, e)

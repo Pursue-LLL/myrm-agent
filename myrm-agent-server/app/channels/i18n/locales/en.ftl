@@ -326,6 +326,7 @@ draft_cmd_ambiguous = ℹ More than one reply awaiting review matches `{ $code }
 draft_cmd_error = ❌ Could not process that. Please try again.
 placeholder_execution_error =  Error: { $error }
 placeholder_request_timeout =  Request timed out.
+turn_interrupted_by_restart = ⚠️ The service stopped before this request finished. Please send it again once it is back.
 placeholder_retrying =
     
     

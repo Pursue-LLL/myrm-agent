@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -17,32 +19,24 @@ from app.channels.types import (
     MediaAttachment,
     MediaType,
 )
+from app.channels.types.inbound_wire import inbound_to_wire
 
 
 @pytest.fixture
-def journal(tmp_path) -> SqliteInboundJournal:
+def journal(tmp_path: Path) -> SqliteInboundJournal:
     return SqliteInboundJournal(db_path=tmp_path / "test_journal.db")
 
 
 def _make_entry(
     entry_id: str = "entry-001",
-    channel: str = "discord",
-    chat_id: str = "chat-123",
-    content: str = "Hello agent",
+    payload: str = "Hello agent",
     ttl_seconds: int = 600,
     created_at: float | None = None,
 ) -> JournalEntry:
+    """The journal treats the payload as opaque text; it is decoded only by ``restore_inbound``."""
     return JournalEntry(
         id=entry_id,
-        channel=channel,
-        chat_id=chat_id,
-        sender_id="user-456",
-        user_id="user-456",
-        content=content,
-        metadata_json='{"key": "value"}',
-        media_json="[]",
-        thread_id=None,
-        is_group=False,
+        payload_json=json.dumps({"content": payload}),
         created_at=created_at or time.time(),
         ttl_seconds=ttl_seconds,
     )
@@ -58,9 +52,7 @@ class TestSqliteInboundJournal:
         pending = journal.scan_pending()
         assert len(pending) == 1
         assert pending[0].id == "entry-001"
-        assert pending[0].channel == "discord"
-        assert pending[0].content == "Hello agent"
-        assert pending[0].metadata_json == '{"key": "value"}'
+        assert json.loads(pending[0].payload_json) == {"content": "Hello agent"}
 
     def test_acknowledge_removes_entry(self, journal: SqliteInboundJournal) -> None:
         entry = _make_entry()
@@ -108,15 +100,12 @@ class TestSqliteInboundJournal:
         assert pending[0].id == "fresh"
 
     def test_write_same_id_replaces(self, journal: SqliteInboundJournal) -> None:
-        entry1 = _make_entry(content="original")
-        journal.write(entry1)
-
-        entry2 = _make_entry(content="updated")
-        journal.write(entry2)
+        journal.write(_make_entry(payload="original"))
+        journal.write(_make_entry(payload="updated"))
 
         pending = journal.scan_pending()
         assert len(pending) == 1
-        assert pending[0].content == "updated"
+        assert json.loads(pending[0].payload_json) == {"content": "updated"}
 
     def test_multiple_entries_ordered_by_created_at(self, journal: SqliteInboundJournal) -> None:
         now = time.time()
@@ -126,48 +115,6 @@ class TestSqliteInboundJournal:
 
         pending = journal.scan_pending()
         assert [e.id for e in pending] == ["a", "b", "c"]
-
-    def test_is_group_stored_correctly(self, journal: SqliteInboundJournal) -> None:
-        entry = JournalEntry(
-            id="group-entry",
-            channel="telegram",
-            chat_id="group-999",
-            sender_id="user-1",
-            user_id="user-1",
-            content="group msg",
-            metadata_json="{}",
-            media_json="[]",
-            thread_id="thread-5",
-            is_group=True,
-            created_at=time.time(),
-            ttl_seconds=600,
-        )
-        journal.write(entry)
-
-        pending = journal.scan_pending()
-        assert pending[0].is_group is True
-        assert pending[0].thread_id == "thread-5"
-
-    def test_extra_json_roundtrip(self, journal: SqliteInboundJournal) -> None:
-        entry = JournalEntry(
-            id="extra-entry",
-            channel="slack",
-            chat_id="c",
-            sender_id="s",
-            user_id="u",
-            content="hi",
-            metadata_json="{}",
-            media_json="[]",
-            thread_id=None,
-            is_group=False,
-            created_at=time.time(),
-            ttl_seconds=600,
-            extra={"custom_key": "custom_value"},
-        )
-        journal.write(entry)
-
-        pending = journal.scan_pending()
-        assert pending[0].extra == {"custom_key": "custom_value"}
 
 
 class TestJournalEntryModel:
@@ -184,35 +131,27 @@ class TestJournalEntryModel:
     def test_frozen_dataclass(self) -> None:
         entry = _make_entry()
         with pytest.raises(AttributeError):
-            entry.content = "modified"  # type: ignore[misc]
+            entry.payload_json = "modified"  # type: ignore[misc]
 
 
 class TestCreateJournalEntryFromInbound:
     """Tests for the helper function that converts InboundMessage to JournalEntry."""
 
-    def test_basic_conversion(self) -> None:
+    def test_entry_holds_the_message_as_its_wire_form(self) -> None:
         msg = InboundMessage(
             channel="discord",
             sender_id="user-123",
             content="Hello world",
             chat_id="chat-456",
             user_id="user-123",
-            is_group=False,
             metadata={"key": "val"},
             thread_id="thread-1",
         )
 
         entry = create_journal_entry_from_inbound(msg)
 
-        assert entry.channel == "discord"
-        assert entry.sender_id == "user-123"
-        assert entry.content == "Hello world"
-        assert entry.chat_id == "chat-456"
-        assert entry.user_id == "user-123"
-        assert entry.is_group is False
-        assert entry.thread_id == "thread-1"
+        assert json.loads(entry.payload_json) == inbound_to_wire(msg)
         assert entry.ttl_seconds == 600
-        assert '"key": "val"' in entry.metadata_json
 
     def test_strips_yolo_state(self) -> None:
         msg = InboundMessage(
@@ -223,32 +162,26 @@ class TestCreateJournalEntryFromInbound:
         )
 
         entry = create_journal_entry_from_inbound(msg)
-        assert "yolo_state" not in entry.metadata_json
-        assert "other" in entry.metadata_json
 
-    def test_media_serialization(self) -> None:
+        assert json.loads(entry.payload_json)["metadata"] == {"other": "keep"}
+        assert "yolo_state" in msg.metadata
+
+    def test_media_keeps_its_local_path(self) -> None:
         msg = InboundMessage(
             channel="slack",
             sender_id="s",
             content="image",
-            media=[
-                MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", mime_type="image/png"),
-            ],
+            media=(MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", path="/tmp/img.png"),),
         )
 
-        entry = create_journal_entry_from_inbound(msg)
-        assert "https://example.com/img.png" in entry.media_json
-        assert "image/png" in entry.media_json
+        [media] = json.loads(create_journal_entry_from_inbound(msg).payload_json)["media"]
+
+        assert (media["url"], media["path"]) == ("https://example.com/img.png", "/tmp/img.png")
 
     def test_custom_ttl(self) -> None:
         msg = InboundMessage(channel="c", sender_id="s", content="x")
         entry = create_journal_entry_from_inbound(msg, ttl_seconds=120)
         assert entry.ttl_seconds == 120
-
-    def test_fallback_chat_id(self) -> None:
-        msg = InboundMessage(channel="c", sender_id="sender-abc", content="x")
-        entry = create_journal_entry_from_inbound(msg)
-        assert entry.chat_id == "sender-abc"
 
 
 class TestThreadSafety:
@@ -262,7 +195,7 @@ class TestThreadSafety:
                 for i in range(20):
                     entry = _make_entry(
                         entry_id=f"batch-{batch_id}-{i}",
-                        content=f"msg-{batch_id}-{i}",
+                        payload=f"msg-{batch_id}-{i}",
                     )
                     journal.write(entry)
             except Exception as e:
@@ -314,7 +247,7 @@ class TestThreadSafety:
 class TestErrorHandling:
     """Test graceful error handling (never raises, only logs)."""
 
-    def test_write_survives_db_error(self, tmp_path, caplog) -> None:
+    def test_write_survives_db_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         journal = SqliteInboundJournal(db_path=tmp_path / "test.db")
         journal._conn.close()
 
@@ -322,14 +255,14 @@ class TestErrorHandling:
         journal.write(entry)
         assert "failed to write" in caplog.text
 
-    def test_acknowledge_survives_db_error(self, tmp_path, caplog) -> None:
+    def test_acknowledge_survives_db_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         journal = SqliteInboundJournal(db_path=tmp_path / "test.db")
         journal._conn.close()
 
         journal.acknowledge("some-id")
         assert "failed to acknowledge" in caplog.text
 
-    def test_scan_survives_db_error(self, tmp_path, caplog) -> None:
+    def test_scan_survives_db_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         journal = SqliteInboundJournal(db_path=tmp_path / "test.db")
         journal._conn.close()
 
@@ -337,7 +270,7 @@ class TestErrorHandling:
         assert result == []
         assert "scan_pending failed" in caplog.text
 
-    def test_prune_survives_db_error(self, tmp_path, caplog) -> None:
+    def test_prune_survives_db_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         journal = SqliteInboundJournal(db_path=tmp_path / "test.db")
         journal._conn.close()
 
@@ -349,13 +282,13 @@ class TestErrorHandling:
 class TestDbInitialization:
     """Test database creation and persistence."""
 
-    def test_creates_db_directory(self, tmp_path) -> None:
+    def test_creates_db_directory(self, tmp_path: Path) -> None:
         db_path = tmp_path / "nested" / "dir" / "journal.db"
         journal = SqliteInboundJournal(db_path=db_path)
         journal.write(_make_entry())
         assert db_path.exists()
 
-    def test_persistence_across_instances(self, tmp_path) -> None:
+    def test_persistence_across_instances(self, tmp_path: Path) -> None:
         db_path = tmp_path / "journal.db"
 
         journal1 = SqliteInboundJournal(db_path=db_path)
