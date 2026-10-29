@@ -115,12 +115,11 @@ class GitInstaller:
             raise ValueError(f"Git clone failed: {error_msg}")
 
     def _collect_skill_files(self, skill_dir: Path) -> InstalledSkillFiles:
-        skill_md_path = skill_dir / "SKILL.md"
-        if not skill_md_path.exists():
-            skill_md_path = _find_skill_md(skill_dir)
-            if not skill_md_path:
+        if not (skill_dir / "SKILL.md").exists():
+            found = _find_skill_md(skill_dir)
+            if found is None:
                 raise ValueError(f"SKILL.md not found in {skill_dir}")
-            skill_dir = skill_md_path.parent
+            skill_dir = found.parent
 
         files: dict[str, bytes] = {}
         name = skill_dir.name
