@@ -136,10 +136,6 @@ dev_backend_log_file() {
   echo "${MYRM_BACKEND_LOG_FILE:-$(dev_state_dir)/backend.log}"
 }
 
-dev_frontend_pid_file() {
-  echo "${MYRM_FRONTEND_PID_FILE:-$(dev_state_dir)/frontend.pid}"
-}
-
 dev_frontend_log_file() {
   echo "${MYRM_FRONTEND_LOG_FILE:-$(dev_state_dir)/frontend.log}"
 }
@@ -165,25 +161,6 @@ dev_pid_alive() {
 
 read_backend_dev_pid() {
   _read_pid_from_file "$(dev_backend_pid_file)" 2>/dev/null || return 1
-}
-
-read_frontend_dev_pid() {
-  _read_pid_from_file "$(dev_frontend_pid_file)" 2>/dev/null || return 1
-}
-
-_kill_pid_gracefully() {
-  local pid="$1"
-  [[ -n "${pid}" ]] || return 0
-  dev_pid_alive "${pid}" || return 0
-  kill -TERM "-${pid}" 2>/dev/null || kill -TERM "${pid}" 2>/dev/null || true
-  pkill -TERM -P "${pid}" 2>/dev/null || true
-  local i
-  for i in $(seq 1 15); do
-    dev_pid_alive "${pid}" || return 0
-    sleep 1
-  done
-  pkill -9 -P "${pid}" 2>/dev/null || true
-  kill -9 "-${pid}" 2>/dev/null || kill -9 "${pid}" 2>/dev/null || true
 }
 
 dev_port_in_use() {
@@ -289,37 +266,3 @@ resolve_frontend_lock_path() {
   echo "${frontend_dir}/${MYRM_NEXT_DIST_DIR}/dev-server.lock"
 }
 
-cleanup_legacy_dev_artifacts() {
-  local server_dir="${1:-}"
-  local frontend_dir="${2:-}"
-  local agent_root=""
-  if [[ -n "${server_dir}" ]]; then
-    rm -f "${server_dir}/.myrm-dev-backend.pid" "${server_dir}/.myrm-dev-backend.log"
-    agent_root="$(dirname "${server_dir}")"
-    rm -f "${agent_root}/.myrm-dev-backend.pid" "${agent_root}/.myrm-dev-backend.log"
-  fi
-  if [[ -n "${frontend_dir}" ]]; then
-    rm -f "${frontend_dir}/.myrm-dev-frontend.pid" "${frontend_dir}/.myrm-dev-frontend.log" \
-      "${frontend_dir}/.myrm-dev-frontend-fg.log"
-    [[ -n "${agent_root}" ]] || agent_root="$(dirname "${frontend_dir}")"
-  fi
-  if [[ -n "${agent_root}" && -d "${agent_root}/scripts/dev" ]]; then
-    rm -rf "${agent_root}/scripts/dev/myrm-agent-server" "${agent_root}/scripts/dev/myrm-agent-frontend"
-  fi
-}
-
-prune_stale_isolated_next_dirs() {
-  local frontend_dir="${1:-}"
-  [[ -n "${frontend_dir}" && -d "${frontend_dir}" ]] || return 0
-  local active_dist
-  active_dist="$(resolve_myrm_next_dist_dir)"
-  local entry name
-  shopt -s nullglob
-  for entry in "${frontend_dir}"/.next-isolated-*; do
-    [[ -d "${entry}" ]] || continue
-    name="$(basename "${entry}")"
-    [[ "${name}" == "${active_dist}" ]] && continue
-    rm -rf "${entry}" 2>/dev/null || true
-  done
-  shopt -u nullglob
-}

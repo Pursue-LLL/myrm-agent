@@ -12,7 +12,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `install-remote.sh` | Unix | `curl \| bash` 入口：clone → `install.sh` |
 | `install.ps1` | Windows | 同上（PowerShell 原生） |
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |
-| `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status`（curl `/api/v1/health` JSON）/ `update` / `doctor` / `searxng`；monorepo 下 `setup` 自动 editable harness，否则 PyPI |
+| `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status`（curl `/api/v1/health` JSON，端口默认随 namespace：`user` 8080、其余 28080，`PORT` 可显式覆盖）/ `update` / `doctor` / `searxng`；monorepo 下 `setup` 自动 editable harness，否则 PyPI；`stop` 只停本 namespace 的栈（缺 `dev-stack.sh` 直接报错，没有按进程名 pattern 的兜底 kill），`user` namespace 下不会触发 E2E Chrome / browser-orchestrator / cdmcp mux 的 stop（那是所有并行测试 Agent 共享的设施，由 `./myrm-dev stop` 负责） |
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |
 | `dev/` | 双平台 | 栈启动 / MCP Chrome E2E 胶水 · 完整清单见 [dev/_ARCH.md](dev/_ARCH.md) |
 | `lib/resolve_agent_root.sh` | Unix | 嵌套目录与独立 clone 的根路径解析 |

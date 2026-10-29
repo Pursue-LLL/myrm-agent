@@ -286,6 +286,24 @@ def evaluate_mux_health(
     )
 
 
+_MUX_DAEMON_COMMAND_MARKER = "cdmcp-mux-autoconnect"
+
+
+def _is_mux_daemon(pid: int) -> bool:
+    """The pid file can outlive the daemon and name a pid some other process now owns."""
+    try:
+        probe = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=3.0,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return _MUX_DAEMON_COMMAND_MARKER in probe.stdout
+
+
 def _terminate_pid(pid: int) -> bool:
     if not _process_alive(pid):
         return False
@@ -355,7 +373,7 @@ def reap_unhealthy_mux_daemon(
 
     pid = current.owner_pid
     reaped = False
-    if pid is not None and _process_alive(pid):
+    if pid is not None and _process_alive(pid) and _is_mux_daemon(pid):
         reaped = _terminate_pid(pid)
 
     stamp_removed = _unlink_stale_stamps(

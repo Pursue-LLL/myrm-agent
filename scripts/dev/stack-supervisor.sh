@@ -222,15 +222,10 @@ cmd_stop() {
   if _supervisor_responsive; then
     "${PY}" -m stack_supervisor shutdown >/dev/null 2>&1 || true
   fi
-  local pid=""
-  if [[ -f "${PID_FILE}" ]]; then
-    pid="$(tr -d '[:space:]' <"${PID_FILE}")"
-  fi
+  # Signal only daemons whose command line proves they are this state dir's supervisor: the pid
+  # file can name a pid some unrelated process has since recycled.
   local daemon_pid daemon_pids remaining=0
   daemon_pids="$(_supervisor_daemon_pids)"
-  if [[ -n "${pid}" ]]; then
-    kill -TERM "${pid}" 2>/dev/null || true
-  fi
   while IFS= read -r daemon_pid; do
     [[ -n "${daemon_pid}" ]] && kill -TERM "${daemon_pid}" 2>/dev/null || true
   done <<<"${daemon_pids}"

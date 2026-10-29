@@ -116,8 +116,12 @@ _acquire_dir_lock() {
       age=$((now - lock_mtime))
       if [[ "${reclaim_hung}" == "1" && "${age}" -gt "${wait_sec}" ]]; then
         echo "STACK_WARN: reclaiming hung lock ${lockdir} owner=${owner} age=${age}s" >&2
-        kill -TERM "${owner}" 2>/dev/null || true
-        sleep 1
+        # A stale lock can name a pid that any other process has since recycled; only the
+        # process that took the lock (same start time) is ever signalled.
+        if _lock_owner_is_holder "${lockdir}" "${owner}"; then
+          kill -TERM "${owner}" 2>/dev/null || true
+          sleep 1
+        fi
         _release_dir_lock "${lockdir}"
       fi
     elif [[ -z "${owner}" ]] || ! dev_pid_alive "${owner}"; then
@@ -129,6 +133,7 @@ _acquire_dir_lock() {
   for i in $(seq 1 "${wait_sec}"); do
     if mkdir "${lockdir}" 2>/dev/null; then
       echo "$$" >"${lockdir}/pid"
+      _pid_start_time "$$" >"${lockdir}/start"
       return 0
     fi
     sleep 1
@@ -136,9 +141,20 @@ _acquire_dir_lock() {
   return 1
 }
 
+_pid_start_time() {
+  ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ' || true
+}
+
+# True when `owner` is still the process that took the lock (its start time was recorded with it).
+_lock_owner_is_holder() {
+  local recorded
+  recorded="$(cat "$1/start" 2>/dev/null || true)"
+  [[ -n "${recorded}" && "$(_pid_start_time "$2")" == "${recorded}" ]]
+}
+
 _release_dir_lock() {
   local lockdir="$1"
-  rm -f "${lockdir}/pid" 2>/dev/null || true
+  rm -f "${lockdir}/pid" "${lockdir}/start" 2>/dev/null || true
   rmdir "${lockdir}" 2>/dev/null || true
 }
 
@@ -712,10 +728,9 @@ _heal_stale_next_dev_lock() {
   if ! kill -0 "${stale_pid}" 2>/dev/null; then
     return 1
   fi
-  # The pid comes from a log line of an earlier run; a recycled pid must never be signalled.
-  local stale_cmd=""
-  stale_cmd="$(ps -p "${stale_pid}" -o command= 2>/dev/null || true)"
-  if [[ "${stale_cmd}" != *next* ]]; then
+  # The pid comes from a log line of an earlier run: it may have been recycled by any process, so
+  # only one this stack started (the dev stamp, never the command line) is ever signalled.
+  if [[ -z "$(dev_filter_owned_pids "${stale_pid}" 2>/dev/null)" ]]; then
     return 1
   fi
   echo "STACK_HEAL: stale Next.js dev lock PID ${stale_pid} — terminating orphan next-server" >&2
@@ -912,6 +927,11 @@ cmd_attach() {
 }
 
 _try_optional_client_hot() {
+  # The warmup navigates and re-focuses the E2E Chrome, a browser every parallel test agent shares;
+  # the user's own stack (`myrm start`) never touches it.
+  if dev_is_user_runtime; then
+    return 0
+  fi
   local cdp_port="${MYRM_CHROME_E2E_PORT:-9333}"
   local py="${SERVER_DIR}/.venv/bin/python"
   if ! curl -sf --max-time 2 "http://127.0.0.1:${cdp_port}/json/version" >/dev/null 2>&1; then

@@ -140,12 +140,20 @@ def _restart_coordinator_for_code_drift(
     *,
     live_pid: int,
     socket_target: Path,
+    database_target: Path,
     pid_path: Path,
 ) -> None:
-    try:
-        os.kill(live_pid, signal.SIGTERM)
-    except OSError:
-        pass
+    # The pid file can outlive the coordinator and name a pid some other process now owns: only a
+    # serve process bound to this socket/database is ever signalled.
+    serve_pids = _list_coordinator_serve_pids(
+        socket_target=socket_target,
+        database_target=database_target,
+    )
+    if live_pid in serve_pids:
+        try:
+            os.kill(live_pid, signal.SIGTERM)
+        except OSError:
+            pass
     deadline = time.monotonic() + 5.0
     while time.monotonic() < deadline:
         if not _pid_alive(live_pid):
@@ -426,6 +434,7 @@ def ensure_coordinator(
             _restart_coordinator_for_code_drift(
                 live_pid=live_pid,
                 socket_target=socket_target,
+                database_target=database_target,
                 pid_path=pid_path,
             )
             live_pid = None
