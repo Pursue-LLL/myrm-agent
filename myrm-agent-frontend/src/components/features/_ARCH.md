@@ -63,9 +63,6 @@
 | `roi-dashboard/`                              | 智能体可量化 ROI 生产力大盘与已节省时间价值看板（显性化工时大盘、投入产出比、任务分类贡献与高收益预置流程） | [_ARCH.md](roi-dashboard/_ARCH.md)                                               |
 | `extension-widgets/`                          | 扩展小组件 ANSI 颜色渲染器与微型组件挂载宿主（Nano-Context 上下文占用表、Todo 任务清单） | [_ARCH.md](extension-widgets/_ARCH.md)                                           |
 | `model-tester/`                               | 模型配置一键测速与连通性自检器（首字延迟 TTFT、TPS 吞吐量、呼吸状态健康徽标） | [_ARCH.md](model-tester/_ARCH.md)                                                 |
-| `agent-assembler/`                           | “搭积木式”可视化智能体装配工作台与模块化能力编排器（六维积木卡片池、交互式拼装画布、即时微沙箱演练调试台） | [_ARCH.md](agent-assembler/_ARCH.md)                                             |
-| `agent-avatar/`                              | 智能体头像生成工坊与 Dice 骰子锁定小部件（确定性 SVG 生成算法、4 种风格预设、骰子随机生图防误触锁定、AI 生图支持） | [_ARCH.md](agent-avatar/_ARCH.md)                                                 |
-| `memory-hub/`                                | 智能体四大类记忆资产装备中心与细粒度 ACL 授权面板（Chat Memory/Skill/Wiki/CodeGraph 四类资产、4 槽位游戏化装备挂载与卸载、Private/Team/Project 三级 ACL 隔离） | [_ARCH.md](memory-hub/_ARCH.md)                                                   |
 | `session-export/`                            | 全量会话交互式单文件 HTML 导出器与脱敏加密一键分享桥（零外部依赖 Standalone HTML、敏感凭据自动脱敏、折叠卡片与代码复制） | [_ARCH.md](session-export/_ARCH.md)                                               |
 | `runtime/`                                  | 纯函数式多端状态投影中枢、实时运行时控制台与 Attempt 状态变迁透视抽屉（Quad-Surface 视图切换、Attempt 水位线与故障诊断） | [_ARCH.md](runtime/_ARCH.md)                                                     |
 | `browser-annotation/`                       | 内置预览浏览器「点选圈批」与 DOM/CSS 元素精准批注系统（选区高亮、编号 Pin、DOM 特征提取、脱敏与子树分组并行修复） | [_ARCH.md](browser-annotation/_ARCH.md)                                           |
