@@ -287,3 +287,25 @@ def test_a_trusted_folder_named_in_chinese_with_a_space_delivers_its_chinese_rul
     assert CODEWORD in request
     assert "项目约定" in request
     assert CODEWORD in answer
+
+
+def test_trust_removed_between_two_turns_of_a_chat_applies_to_the_next_turn(
+    client: TestClient, applied: list[tuple[Path, WorkspaceTrustLevel]], tmp_path: Path
+) -> None:
+    """A user who withdraws trust from a folder does not have to start another chat for the next turn to stop trusting it."""
+    folder = tmp_path / "linked"
+    folder.mkdir()
+    (folder / "AGENTS.md").write_text(_codeword_rule(), encoding="utf-8")
+
+    with _trusted_project_folder(client, folder) as chat_id:
+        _ask(client, chat_id)
+        assert applied[-1] == (folder.resolve(), WorkspaceTrustLevel.TRUSTED)
+
+        removed = client.delete(TRUST_API, params={"path": str(folder), "remove": "true"})
+        assert removed.status_code == 200, removed.text
+        _ask(client, chat_id)
+
+    assert [level for root, level in applied if root == folder.resolve()] == [
+        WorkspaceTrustLevel.TRUSTED,
+        WorkspaceTrustLevel.RESTRICTED,
+    ]
