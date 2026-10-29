@@ -5,7 +5,7 @@
 - backends.macos::MacOSBackend (POS: macOS 平台 backend 实现)
 
 [OUTPUT]
-- 多 item 多类型往返、空剪贴板、临时标记、凭证标记、写入失败抛错、changeCount 守卫，以及
+- 多 item 多类型往返、空剪贴板、临时标记、写入失败抛错、changeCount 守卫，以及
   `MacOSBackend._paste_text` 在真实剪贴板上的端到端（用读剪贴板的替身 Cmd+V 代替目标应用）的回归保护
 
 [POS]

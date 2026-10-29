@@ -4,7 +4,7 @@
 - backends.macos::MacOSBackend（POS: macOS 平台 backend 实现）
 
 [OUTPUT]
-- 窗口目标解析、输入原语错误路径、凭证输入（vault 集成）、剪贴板粘贴编排、
+- 窗口目标解析、输入原语错误路径、剪贴板粘贴编排、
   DPI 检测回退链、截屏可捕获探针、平台探测委托
 
 [POS]
