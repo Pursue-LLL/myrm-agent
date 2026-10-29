@@ -108,6 +108,28 @@ async def test_the_agents_own_list_call_stands_the_queued_wake_down(chat_id: str
 
 
 @pytest.mark.asyncio
+async def test_the_agents_own_wait_on_a_settled_child_stands_the_queued_wake_down(chat_id: str, streamed: AsyncMock) -> None:
+    """The child settled before the agent waited for it, so its settlement queued a wake the wait's result makes pointless."""
+    parent = MagicMock()
+    parent.wait_children = AsyncMock(
+        return_value={"results": [{"task_id": "task-1", "status": SubAgentStatus.COMPLETED.value}], "failures": []}
+    )
+    parent._last_context = {"session_id": chat_session_id(chat_id)}
+    set_global_wakeup_handler(ServerWakeupHandler())
+    try:
+        get_agent_gateway().reserve_session(chat_id, active_message_id="user-turn")
+        await get_adaptive_wakeup_service().handle_settlement(settlement(chat_id, "task-1"))
+
+        await create_subagent_control_tool(parent).ainvoke({"action": "wait", "task_id": "task-1"})
+        get_agent_gateway().release_session(chat_id)
+        await settle()
+    finally:
+        set_global_wakeup_handler(None)
+
+    streamed.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_a_result_the_agent_did_not_read_is_still_delivered(chat_id: str, streamed: AsyncMock) -> None:
     service = get_adaptive_wakeup_service()
     get_agent_gateway().reserve_session(chat_id, active_message_id="user-turn")

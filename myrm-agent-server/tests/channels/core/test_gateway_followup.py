@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
 from collections.abc import AsyncIterator
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
-from app.channels.types import ChannelCapabilities, InboundMessage, OutboundMessage
+from app.channels.types import ChannelCapabilities, InboundMessage, MediaAttachment, MediaType, OutboundMessage
 
 _ORIGIN = InboundMessage(channel="pingchat", sender_id="u1", chat_id="room-1", content="research it", metadata={"locale": "en"})
 
@@ -58,5 +60,31 @@ async def test_the_reply_reaches_the_channel_of_the_conversation(
 
 
 @pytest.mark.asyncio
-async def test_a_gateway_without_a_router_delivers_nothing() -> None:
-    assert await ChannelGateway().deliver_followup(_ORIGIN, "done") is False
+async def test_a_gateway_without_a_router_delivers_nothing_and_leaves_no_temp_attachment_behind() -> None:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
+        handle.write(b"image")
+    path = Path(handle.name)
+    attachment = MediaAttachment(media_type=MediaType.IMAGE, path=str(path), filename=path.name, ephemeral=True)
+
+    try:
+        assert await ChannelGateway().deliver_followup(_ORIGIN, "done", (attachment,)) is False
+
+        assert not path.exists()
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_a_gateway_without_a_router_runs_no_turn_for_any_conversation() -> None:
+    assert ChannelGateway().is_session_busy(_ORIGIN) is False
+
+
+def test_the_gateway_reports_what_its_router_says_about_the_conversation(
+    running_gateway: tuple[ChannelGateway, _RecordingChannel],
+) -> None:
+    gateway, _channel = running_gateway
+    router = gateway._router
+    assert router is not None
+    router.is_session_busy = MagicMock(return_value=True)  # type: ignore[method-assign]
+
+    assert gateway.is_session_busy(_ORIGIN) is True
+    router.is_session_busy.assert_called_once_with(_ORIGIN)

@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.agent.gateway::get_agent_gateway, AgentGateway, AgentDrainingError (POS: whether a turn holds the chat)
+- app.services.agent.adaptive_wakeup.chat_busy::is_chat_busy (POS: whether an IM turn, which the gateway cannot see, holds the chat)
 - app.services.agent.turn_lease::server_turn_lease (POS: the wake turn takes the chat and a cancel token like any server-started turn)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: how a Stop, a goal pause and the emergency stop reach the turn)
 
@@ -26,6 +27,7 @@ from datetime import UTC, datetime
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
+from app.services.agent.adaptive_wakeup.chat_busy import is_chat_busy
 from app.services.agent.gateway import AgentDrainingError, AgentGateway, get_agent_gateway
 from app.services.agent.turn_lease import server_turn_lease
 
@@ -91,11 +93,15 @@ async def _wake_when_free(chat_id: str, run: WakeTurnRunner, queued: _QueuedWake
 
 
 async def _wait_until_free(chat_id: str) -> bool:
-    """Wait until no turn holds the chat; False when it stayed busy for ``_MAX_WAIT_SECONDS``."""
+    """Wait until no turn holds the chat; False when it stayed busy for ``_MAX_WAIT_SECONDS``.
+
+    A turn holds the chat when the agent gateway says so (the app's own turns, goal turns, other wake turns) or when
+    the channel router runs one for it (a member talking in an IM chat).
+    """
     gateway = get_agent_gateway()
     loop = asyncio.get_running_loop()
     deadline = loop.time() + _MAX_WAIT_SECONDS
-    while gateway.is_session_active(chat_id):
+    while gateway.is_session_active(chat_id) or is_chat_busy(chat_id):
         if loop.time() >= deadline:
             return False
         await asyncio.sleep(_POLL_INTERVAL_SECONDS)

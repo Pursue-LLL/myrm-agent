@@ -1,4 +1,4 @@
-"""`subagent_control_tool action=list` hands the agent every settled result, so it reports them as read."""
+"""`subagent_control_tool` `list` and `wait` hand the agent the final results of settled subagents, so they report them as read."""
 
 from __future__ import annotations
 
@@ -95,13 +95,78 @@ async def test_a_handler_that_fails_does_not_fail_the_listing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_the_other_actions_report_nothing(handler: _Handler) -> None:
+async def test_cancel_and_steer_report_nothing(handler: _Handler) -> None:
     parent = _parent([_done("done-1")])
     parent.cancel_child.return_value = False
-    parent.wait_children = AsyncMock(return_value={"results": [], "failures": []})
+    parent.steer_child.return_value = False
     tool = create_subagent_control_tool(parent)
 
     await tool.ainvoke({"action": "cancel", "task_id": "done-1"})
-    await tool.ainvoke({"action": "wait", "task_id": "done-1", "timeout_seconds": 1})
+    await tool.ainvoke({"action": "steer", "task_id": "done-1", "message": "narrow it down"})
 
+    assert handler.reads == []
+
+
+def _waiting(outcome: dict[str, list[dict[str, object]]], context: dict[str, object] | None = None) -> MagicMock:
+    """A parent whose ``wait_children`` returns ``outcome``, the way the orchestrator sorts a waited child."""
+    parent = _parent([], context)
+    parent.wait_children = AsyncMock(return_value={"success": True, **outcome})
+    return parent
+
+
+@pytest.mark.asyncio
+async def test_waiting_for_a_child_that_completed_reports_its_result_as_read(handler: _Handler) -> None:
+    tool = create_subagent_control_tool(_waiting({"results": [_done("done-1")], "failures": []}))
+
+    outcome = await tool.ainvoke({"action": "wait", "task_id": "done-1"})
+
+    assert outcome["success"] is True
+    assert handler.reads == [(("done-1",), "chat-1")]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status", [SubAgentStatus.FAILED, SubAgentStatus.TIMED_OUT, SubAgentStatus.CANCELLED_BY_BUDGET]
+)
+async def test_waiting_for_a_child_that_ended_without_a_result_reports_its_outcome_as_read(
+    handler: _Handler, status: SubAgentStatus
+) -> None:
+    ended: dict[str, object] = {"task_id": "broke", "status": status.value, "error": "gave up"}
+    tool = create_subagent_control_tool(_waiting({"results": [], "failures": [ended]}))
+
+    outcome = await tool.ainvoke({"action": "wait", "task_id": "broke"})
+
+    assert outcome == {"success": False, "task_id": "broke", "error": "gave up"}
+    assert handler.reads == [(("broke",), "chat-1")]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure",
+    [
+        # The wait ran out while the child kept going: its real result is still to come, and it will wake the parent.
+        {"task_id": "slow", "status": SubAgentStatus.TIMED_OUT.value, "still_running": True, "error": "Wait timeout"},
+        {"task_id": "slow", "status": SubAgentStatus.PENDING_APPROVAL.value},
+        {"task_id": "slow", "status": SubAgentStatus.CANCELLED.value, "error": "cancelled"},
+        {"task_id": "slow", "error": "Task not found"},
+    ],
+    ids=["still-running", "pending-approval", "cancelled", "unknown-task"],
+)
+async def test_waiting_for_a_child_with_no_final_result_reports_nothing(
+    handler: _Handler, failure: dict[str, object]
+) -> None:
+    tool = create_subagent_control_tool(_waiting({"results": [], "failures": [failure]}))
+
+    await tool.ainvoke({"action": "wait", "task_id": "slow"})
+
+    assert handler.reads == []
+
+
+@pytest.mark.asyncio
+async def test_a_wait_without_a_task_id_reports_nothing(handler: _Handler) -> None:
+    tool = create_subagent_control_tool(_waiting({"results": [_done("done-1")], "failures": []}))
+
+    outcome = await tool.ainvoke({"action": "wait"})
+
+    assert outcome["success"] is False
     assert handler.reads == []

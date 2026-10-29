@@ -1,16 +1,21 @@
-"""A reply that no message just asked for is delivered the way the answer to a message is.
+"""A reply that no message just asked for is delivered the way the answer to a message is; a conversation is busy while its turn runs.
 
 The real router delivers; the bus, the topic store, the web hand-off lookup and the data-plane ledger are recorders.
 """
 
 from __future__ import annotations
 
+import asyncio
+import dataclasses
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.channels.routing.router import AgentRouter
-from app.channels.types import InboundMessage, OutboundMessage, ReplyMode, TopicContext
+from app.channels.routing.session_gate import SessionGateConfig
+from app.channels.types import InboundMessage, MediaAttachment, MediaType, OutboundMessage, ReplyMode, TopicContext
 
 
 def _topics(topic: TopicContext | None) -> MagicMock:
@@ -107,6 +112,42 @@ async def test_a_topic_that_was_disabled_since_gets_nothing(monkeypatch: pytest.
     delivery.draft.assert_not_awaited()
 
 
+def _temp_file() -> Path:
+    """A file in the system temp directory, where the router may delete ephemeral attachments."""
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
+        handle.write(b"image")
+    return Path(handle.name)
+
+
+def _attachment(path: Path, *, ephemeral: bool) -> MediaAttachment:
+    return MediaAttachment(media_type=MediaType.IMAGE, path=str(path), filename=path.name, ephemeral=ephemeral)
+
+
+@pytest.mark.asyncio
+async def test_the_attachments_travel_with_the_reply(delivery: _Delivery) -> None:
+    attached = _attachment(_temp_file(), ephemeral=False)
+    try:
+        assert await delivery.router.deliver_followup(_origin(), "The chart is attached.", (attached,)) is True
+
+        (sent,) = delivery.sent
+        assert sent.media == (attached,)
+    finally:
+        Path(attached.path or "").unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_a_topic_that_was_disabled_since_leaves_no_temp_attachment_behind(monkeypatch: pytest.MonkeyPatch) -> None:
+    delivery = _Delivery(monkeypatch, TopicContext(topic_id="chat-1", enabled=False))
+    path = _temp_file()
+
+    try:
+        assert await delivery.router.deliver_followup(_origin(), "done", (_attachment(path, ephemeral=True),)) is False
+
+        assert not path.exists()
+    finally:
+        path.unlink(missing_ok=True)
+
+
 @pytest.mark.asyncio
 async def test_a_topic_that_holds_replies_for_review_gets_a_draft_and_the_reply_is_not_sent(
     monkeypatch: pytest.MonkeyPatch,
@@ -135,3 +176,30 @@ async def test_a_reply_that_cannot_be_held_for_review_is_withheld_never_sent_unr
     assert await delivery.router.deliver_followup(_origin(), "Refund approved.") is False
 
     assert delivery.sent == []
+
+
+@pytest.mark.asyncio
+async def test_a_conversation_is_busy_exactly_while_its_turn_runs() -> None:
+    turn_may_end = asyncio.Event()
+
+    async def turn(_msg: InboundMessage) -> None:
+        await turn_may_end.wait()
+
+    router = AgentRouter(
+        bus=MagicMock(),
+        pairing_store=MagicMock(),
+        agent_executor=MagicMock(),
+        session_gate_config=SessionGateConfig(debounce_window_ms=0),
+    )
+    router._gate._on_ready = turn
+    origin = _origin()
+    assert router.is_session_busy(origin) is False
+
+    router._gate.submit(origin)
+
+    assert router.is_session_busy(origin) is True
+    assert router.is_session_busy(dataclasses.replace(origin, sender_id="u2")) is False
+    turn_may_end.set()
+    async with asyncio.timeout(5):
+        while router.is_session_busy(origin):
+            await asyncio.sleep(0.01)

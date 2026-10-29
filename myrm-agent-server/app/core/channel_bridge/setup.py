@@ -8,12 +8,13 @@ mode so internal channel ingress can execute through the same route.
 [INPUT]
 - channel_factory::create_all_channels, flatten_credential_strings
 - app.config.deploy_mode::is_local_mode
-- app.core.channel_bridge.wake_return::ChannelWakeReplyReturner (POS: carries a wake turn's reply to IM)
+- app.core.channel_bridge.wake_return::ChannelWakeReplyReturner, ChannelChatBusyProbe (POS: carries a wake turn's reply to IM; tells it the member is mid-conversation)
 - app.services.agent.adaptive_wakeup.reply_return::set_wake_reply_returner (POS: where that carrier is registered)
+- app.services.agent.adaptive_wakeup.chat_busy::set_chat_busy_probe (POS: where that probe is registered)
 
 [OUTPUT]
-- start_channel_gateway / stop_channel_gateway: lifecycle entry points; the gateway running also means a wake turn's
-  reply is returned to the IM chat it belongs to
+- start_channel_gateway / stop_channel_gateway: lifecycle entry points; the gateway running also means a wake turn
+  waits for the member's turn in an IM chat and returns its reply to that chat
 - refresh_reaction_policy: reload ReactionPolicy from DB into running AgentRouter
 
 [POS]
@@ -67,7 +68,7 @@ async def start_channel_gateway() -> None:
         channel_gateway.register(channel)
 
     await _enable_core_router()
-    _register_wake_reply_returner()
+    _register_wake_im_ports()
 
     from app.services.event.app_event_bus import get_event_bus
 
@@ -151,9 +152,7 @@ async def stop_channel_gateway() -> None:
         finally:
             _notification_dispatcher = None
 
-    from app.services.agent.adaptive_wakeup.reply_return import set_wake_reply_returner
-
-    set_wake_reply_returner(None)
+    _clear_wake_im_ports()
 
     try:
         await channel_gateway.stop()
@@ -162,12 +161,24 @@ async def stop_channel_gateway() -> None:
         logger.warning("Failed to stop channel gateway: %s", e)
 
 
-def _register_wake_reply_returner() -> None:
-    """Let a wake turn's reply go back to the IM chat it belongs to for as long as the gateway runs."""
-    from app.core.channel_bridge.wake_return import ChannelWakeReplyReturner, get_wake_origins
+def _register_wake_im_ports() -> None:
+    """For as long as the gateway runs, a wake turn waits for the member's turn in an IM chat and replies in that chat."""
+    from app.core.channel_bridge.wake_return import ChannelChatBusyProbe, ChannelWakeReplyReturner, get_wake_origins
+    from app.services.agent.adaptive_wakeup.chat_busy import set_chat_busy_probe
     from app.services.agent.adaptive_wakeup.reply_return import set_wake_reply_returner
 
-    set_wake_reply_returner(ChannelWakeReplyReturner(channel_gateway, get_wake_origins()))
+    origins = get_wake_origins()
+    set_wake_reply_returner(ChannelWakeReplyReturner(channel_gateway, origins))
+    set_chat_busy_probe(ChannelChatBusyProbe(channel_gateway, origins))
+
+
+def _clear_wake_im_ports() -> None:
+    """Once the gateway stops there is no router to ask and no channel to reply in."""
+    from app.services.agent.adaptive_wakeup.chat_busy import set_chat_busy_probe
+    from app.services.agent.adaptive_wakeup.reply_return import set_wake_reply_returner
+
+    set_wake_reply_returner(None)
+    set_chat_busy_probe(None)
 
 
 async def _enable_core_router() -> None:

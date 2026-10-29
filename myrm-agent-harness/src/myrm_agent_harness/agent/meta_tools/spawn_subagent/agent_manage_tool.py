@@ -9,8 +9,8 @@
 
 [POS]
 Subagent runtime observability and control exposed as a single LLM tool surface.
-`list` hands the agent the final result of every settled subagent, so those results count as read: a wake turn queued
-only to deliver them is told it has nothing left to say.
+`list` and `wait` hand the agent the final result of a settled subagent, so those results count as read: a wake turn
+queued only to deliver them is told it has nothing left to say.
 """
 
 from __future__ import annotations
@@ -113,8 +113,6 @@ def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:
             }
 
         if action == "wait":
-            from myrm_agent_harness.agent.sub_agents.types import SubAgentStatus
-
             timeout = min(timeout_seconds or 30, 120)
             result = await parent_agent.wait_children(
                 [task_id],
@@ -126,6 +124,7 @@ def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:
             if isinstance(results, list) and results:
                 entry = results[0] if isinstance(results[0], dict) else {}
                 entry["success"] = True
+                _report_settled_results_read(parent_agent, [entry])
                 return entry
             if isinstance(failures, list) and failures:
                 entry = failures[0] if isinstance(failures[0], dict) else {}
@@ -149,6 +148,8 @@ def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:
                             f"Subagent {task_id} still running after {timeout}s. Poll action=list again or wait longer."
                         ),
                     }
+                # Reached only by a child that finished (failed, timed out on its own budget): the agent now has its outcome.
+                _report_settled_results_read(parent_agent, [entry])
                 return {
                     "success": False,
                     "task_id": task_id,

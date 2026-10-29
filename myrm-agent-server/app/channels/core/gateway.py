@@ -14,6 +14,7 @@ Health loop:
 [INPUT]
 - channels.core.bus::MessageBus (POS: async message bus)
 - channels.core.base::BaseChannel (POS: channel abstract base class)
+- channels.core.outbound_media::discard_ephemeral_media (POS: drop the temp attachments of a follow-up that cannot be delivered)
 - channels.routing.router::AgentRouter (POS: inbound message routing hub)
 - channels.routing.command_defs::CommandDef (POS: slash command data model)
 - channels.types::ChannelStatus, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
@@ -22,8 +23,8 @@ Health loop:
 - channels.protocols.pairing::PairingStore (POS: identity binding protocol)
 
 [OUTPUT]
-- ChannelGateway: singleton gateway managing all channel lifecycles; ``deliver_followup`` hands the router a reply no
-  message just asked for
+- ChannelGateway: singleton gateway managing all channel lifecycles; ``deliver_followup`` hands the router a reply (with
+  its attachments) no message just asked for, and ``is_session_busy`` says whether a conversation is running a turn
 
 [POS]
 Channel system entry point. Manages all channel lifecycles, health checks, and error isolation.
@@ -48,6 +49,7 @@ from myrm_agent_harness.infra.delivery.storage import QueuedDelivery
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
+from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.reliability.inbound_journal import (
     InboundJournal,
 )
@@ -56,6 +58,7 @@ from app.channels.types import (
     ChannelIssue,
     ChannelStatus,
     GroupInfo,
+    MediaAttachment,
     OutboundMessage,
 )
 from app.core.infra.background_task import spawn_observed_task
@@ -272,14 +275,19 @@ class ChannelGateway:
         if self._router is not None:
             self._router.set_reaction_policy(policy)
 
-    async def deliver_followup(self, origin: InboundMessage, content: str) -> bool:
-        """Say ``content`` in the conversation ``origin`` came from, under the delivery rules of a normal reply.
+    async def deliver_followup(self, origin: InboundMessage, content: str, media: tuple[MediaAttachment, ...] = ()) -> bool:
+        """Say ``content`` with ``media`` in the conversation ``origin`` came from, under the delivery rules of a normal reply.
 
         Returns True when the reply was sent; False when it was withheld or the router is not enabled.
         """
         if self._router is None:
+            discard_ephemeral_media(media)
             return False
-        return await self._router.deliver_followup(origin, content)
+        return await self._router.deliver_followup(origin, content, media)
+
+    def is_session_busy(self, origin: InboundMessage) -> bool:
+        """Whether the conversation ``origin`` came from is running a turn; False when the router is not enabled."""
+        return self._router is not None and self._router.is_session_busy(origin)
 
     async def publish(self, msg: OutboundMessage) -> None:
         """Publish an outbound message (convenience wrapper)."""

@@ -1,6 +1,7 @@
 """Agent execution: resolve the topic, prepare the context, run the turn.
 
 [INPUT]
+- channels.core.outbound_media::discard_ephemeral_media (POS: drop the temp attachments of a follow-up that is not sent)
 - channels.routing.pipeline.delivery::RouterDeliveryMixin (POS: typing/placeholder effects, reply delivery, draft hold, cleanup)
 - channels.routing.pipeline.hosts::RouterExecutionHost (POS: typing protocol for the router attributes this mixin uses)
 - channels.routing.context_document::enrich_context_document (POS: document-text enrichment right before the executor stream)
@@ -9,8 +10,9 @@
 - channels.routing.session_gate::gate_key (POS: the session key of a message in the SessionGate, recorded on the running task for the watchdog's release)
 
 [OUTPUT]
-- RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``, and
-  ``deliver_followup`` (the one way to say something in a conversation that no message just asked for)
+- RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``,
+  ``deliver_followup`` (the one way to say something, with its attachments, in a conversation that no message just
+  asked for) and ``is_session_busy`` (whether a message sent there would queue behind a running turn)
 
 [POS]
 Execution segment of ``AgentRouter``, composed into it via multiple inheritance. It builds on ``RouterDeliveryMixin``
@@ -27,6 +29,7 @@ import time
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
+from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.i18n import get_text, resolve_message_locale
 from app.channels.routing.context_document import enrich_context_document
 from app.channels.routing.pending_approvals import METADATA_APPROVAL_TIMED_OUT_KEY, resume_topic_context
@@ -44,6 +47,7 @@ from app.channels.routing.router_models import (
 from app.channels.routing.session_gate import gate_key
 from app.channels.types import (
     InboundMessage,
+    MediaAttachment,
     TopicContext,
 )
 from app.channels.types.topics import METADATA_ROUTE_AGENT_KEY
@@ -97,12 +101,15 @@ class RouterExecutionMixin(RouterDeliveryMixin):
 
         return None
 
-    async def deliver_followup(self: RouterExecutionHost, origin: InboundMessage, content: str) -> bool:
-        """Say ``content`` in the conversation ``origin`` came from, though no message just asked for it.
+    async def deliver_followup(
+        self: RouterExecutionHost, origin: InboundMessage, content: str, media: tuple[MediaAttachment, ...] = ()
+    ) -> bool:
+        """Say ``content`` with ``media`` in the conversation ``origin`` came from, though no message just asked for it.
 
         The reply goes out like the answer to a message: the silent-reply filter, the web hand-off button and draft
         review all apply (a topic that holds replies for review gets a draft, and the reply is withheld when it cannot
-        be held), and a topic that has been disabled since gets nothing.
+        be held), and a topic that has been disabled since gets nothing. The temp files of ``ephemeral`` attachments
+        belong to the delivery from here on: a reply that is not sent leaves none behind.
 
         Returns True when the reply was sent to the channel.
         """
@@ -112,9 +119,16 @@ class RouterExecutionMixin(RouterDeliveryMixin):
             logger.warning(
                 "AgentRouter: topic %s disabled in %s/%s, follow-up not sent", origin.thread_id, origin.channel, chat_id
             )
+            discard_ephemeral_media(media)
             return False
-        reply = dataclasses.replace(origin.get_or_create_correlation_context().create_reply(content), recipient_id=chat_id)
+        reply = dataclasses.replace(
+            origin.get_or_create_correlation_context().create_reply(content, media=media), recipient_id=chat_id
+        )
         return await self._deliver_agent_result(reply, None, origin, chat_id, 0.0, False, topic_ctx=topic_ctx)
+
+    def is_session_busy(self: RouterExecutionHost, origin: InboundMessage) -> bool:
+        """Whether the conversation ``origin`` came from is running a turn, so a message said there now would queue behind it."""
+        return self._gate.is_busy(origin)
 
     async def _prepare_execution_context(self: RouterExecutionHost, inbound: InboundMessage) -> _RouterExecutionContext | None:
         """Prepare execution context: identity resolution, session check, topic validation.

@@ -18,6 +18,7 @@ import pytest
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken, CancelReason
 
 from app.services.agent.adaptive_wakeup import wake_turn_scheduler
+from app.services.agent.adaptive_wakeup.chat_busy import set_chat_busy_probe
 from app.services.agent.adaptive_wakeup.wake_turn_scheduler import schedule_wake_turn
 from app.services.agent.gateway import get_agent_gateway
 
@@ -257,4 +258,52 @@ async def test_a_failing_wake_turn_gives_the_chat_back(
     assert chat_id not in wake_turn_scheduler._waiting
     schedule_wake_turn(chat_id, run)
     await settle()
+    assert len(ran) == 1
+
+
+class _IMTurns:
+    """A probe that reports the chats whose member is mid-conversation in an IM channel."""
+
+    def __init__(self, busy: set[str]) -> None:
+        self.busy = busy
+
+    def is_busy(self, chat_id: str) -> bool:
+        return chat_id in self.busy
+
+
+@pytest.fixture
+def im_turns() -> Iterator[_IMTurns]:
+    probe = _IMTurns(set())
+    set_chat_busy_probe(probe)
+    yield probe
+    set_chat_busy_probe(None)
+
+
+@pytest.mark.asyncio
+async def test_a_chat_the_member_is_talking_in_over_im_is_woken_only_after_that_turn_ends(
+    chat_id: str, ran: list[RunCall], run: wake_turn_scheduler.WakeTurnRunner, im_turns: _IMTurns
+) -> None:
+    # The IM turn is not a gateway turn: the gateway sees the chat as free the whole time.
+    im_turns.busy.add(chat_id)
+    assert not get_agent_gateway().is_session_active(chat_id)
+
+    schedule_wake_turn(chat_id, run)
+    await asyncio.sleep(0.1)
+    assert ran == []
+
+    im_turns.busy.discard(chat_id)
+    await settle()
+
+    assert len(ran) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_chat_the_probe_does_not_report_is_not_delayed(
+    chat_id: str, ran: list[RunCall], run: wake_turn_scheduler.WakeTurnRunner, im_turns: _IMTurns
+) -> None:
+    im_turns.busy.add("another-chat")
+
+    schedule_wake_turn(chat_id, run)
+    await settle()
+
     assert len(ran) == 1
