@@ -10,13 +10,14 @@
 - CodeGraphService: 代码图谱业务管理与确定性图遍历服务门面
 
 [POS]
-Server 业务服务层。按文件指纹增量同步目录索引（幂等，新增、改动、删除的文件各自处理），提供 7 种确定性图查询。
+Server 业务服务层。按文件指纹增量同步目录索引（幂等，新增、改动、删除的文件各自处理；首次索引分批落库；同一索引库的同步在进程内串行），提供 7 种确定性图查询。
 """
 
 from __future__ import annotations
 
 import logging
 import stat
+import threading
 import time
 from pathlib import Path, PurePosixPath
 
@@ -31,6 +32,19 @@ logger = logging.getLogger(__name__)
 SOURCE_SUFFIXES = frozenset({".py", ".ts", ".tsx", ".js", ".jsx"})
 # 超过该大小的源文件基本是生成的打包产物，行扫描既慢又没有导航价值。
 MAX_SOURCE_BYTES = 1_000_000
+# 每解析这么多个文件就落库一次，首次索引大型仓库时内存里只留一批解析结果。
+INDEX_BATCH_FILES = 500
+
+# 同一索引库的同步在进程内串行：一次运行会在内存里持有一批解析结果，而被取消的工具调用留下的线程并不会停，
+# 若不串行，下一次调用会与它同时解析同一个工作区；串行后它转而等待并复用已落库的成果。
+_INDEX_LOCKS: dict[str, threading.Lock] = {}
+_INDEX_LOCKS_GUARD = threading.Lock()
+
+
+def _index_lock(db_path: str | Path) -> threading.Lock:
+    key = str(Path(db_path).expanduser().resolve())
+    with _INDEX_LOCKS_GUARD:
+        return _INDEX_LOCKS.setdefault(key, threading.Lock())
 
 
 class CodeGraphService:
@@ -51,6 +65,7 @@ class CodeGraphService:
 
     def __init__(self, db_path: str | Path):
         self.store = CodeGraphStore(db_path)
+        self._index_lock = _index_lock(db_path)
 
     def index_directory(self, root_dir: str | Path) -> IndexStats:
         """让索引与目录一致：解析新增与改动的文件，忘掉已删除的文件。
@@ -61,8 +76,14 @@ class CodeGraphService:
         无法读取或不是合法 Python 的文件计入 ``skipped_files`` 且不记录指纹，每次运行都会重试；
         文件清单达到 ``WorkspacePathIndexer`` 的枚举上限时 ``IndexStats.truncated`` 为真，超出的文件不被索引；
         大小与修改时间都没变的改写看不到。
+
+        每解析 ``INDEX_BATCH_FILES`` 个文件落库一次，中途失败后已落库的文件带着指纹，下一次运行不再解析它们。
+        同一索引库的运行在进程内串行：前一次运行的线程还在跑时，下一次调用等它结束并复用它的成果。
         """
-        root = Path(root_dir).expanduser().resolve()
+        with self._index_lock:
+            return self._sync(Path(root_dir).expanduser().resolve())
+
+    def _sync(self, root: Path) -> IndexStats:
         start_time = time.perf_counter()
         known = self.store.get_file_fingerprints()
 
@@ -70,7 +91,10 @@ class CodeGraphService:
         WorkspacePathIndexer.clear_cache(root)
         seen: set[str] = set()
         parsed: list[ParsedFile] = []
+        updated = 0
         skipped = 0
+        # 空库（没有任何文件记录）第一次落库时清掉没有来源的残留条目，之后各批只替换自己的文件。
+        reset = not known
         listing = WorkspacePathIndexer.list_files(root)
         for rel_path in listing:
             parts = PurePosixPath(rel_path)
@@ -94,13 +118,17 @@ class CodeGraphService:
             parsed_file = self._parse(root, rel_path, fingerprint)
             if parsed_file is None:
                 skipped += 1
-            else:
-                parsed.append(parsed_file)
+                continue
+            parsed.append(parsed_file)
+            if len(parsed) == INDEX_BATCH_FILES:
+                self.store.apply_changes(removed=[], parsed=parsed, reset=reset)
+                updated += len(parsed)
+                parsed, reset = [], False
 
         removed = [path for path in known if path not in seen]
-        reset = not known
         if parsed or removed or reset:
             self.store.apply_changes(removed=removed, parsed=parsed, reset=reset)
+        updated += len(parsed)
 
         totals = self.store.count_totals()
         return IndexStats(
@@ -108,7 +136,7 @@ class CodeGraphService:
             total_symbols=totals["total_symbols"],
             total_calls=totals["total_calls"],
             elapsed_ms=(time.perf_counter() - start_time) * 1000.0,
-            updated_files=len(parsed),
+            updated_files=updated,
             removed_files=len(removed),
             skipped_files=skipped,
             truncated=WorkspacePathIndexer.is_truncated(listing),

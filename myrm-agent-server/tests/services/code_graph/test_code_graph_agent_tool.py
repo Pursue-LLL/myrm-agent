@@ -2,10 +2,12 @@
 
 [INPUT]
 - app.services.code_graph.agent_tool (POS: agent-facing code graph tool and its conditional mount)
+- app.services.code_graph.service::CodeGraphService (POS: incremental directory index and graph queries)
 
 [OUTPUT]
 - pytest suite covering the skill/workspace mount gate, match and ambiguity labels, per-call index freshness,
-  row caps, empty and failing queries, index placement outside the workspace, and static tool schema.
+  row caps, empty and failing queries, a call asked again after a cancelled one, index placement outside the
+  workspace, and static tool schema.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_agent_tool.py
@@ -14,7 +16,9 @@ myrm-agent-server/tests/services/code_graph/test_code_graph_agent_tool.py
 from __future__ import annotations
 
 import ast
+import asyncio
 import json
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast, get_args
@@ -34,6 +38,8 @@ from app.services.code_graph.agent_tool import (
     append_code_graph_tool,
     create_code_graph_tool,
 )
+from app.services.code_graph.models import ParsedFile
+from app.services.code_graph.service import CodeGraphService
 
 Row = dict[str, object]
 
@@ -307,3 +313,37 @@ def test_tool_definition_stays_within_its_prompt_budget(tmp_path: Path) -> None:
     definition = tool.description + json.dumps(_schema(tool))
 
     assert len(definition) <= 2_100
+
+
+async def test_a_call_asked_again_after_a_cancelled_one_waits_for_the_index_run_still_in_flight(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write(workspace, "m.py", "def f():\n    return 1\n\ndef g():\n    f()\n")
+    parsing, release = threading.Event(), threading.Event()
+    parsed: list[str] = []
+    real_parse = CodeGraphService._parse
+
+    def parse(root: Path, rel_path: str, fingerprint: tuple[int, int]) -> ParsedFile | None:
+        parsed.append(rel_path)
+        parsing.set()
+        release.wait(10)
+        return real_parse(root, rel_path, fingerprint)
+
+    monkeypatch.setattr(CodeGraphService, "_parse", staticmethod(parse))
+    tool = create_code_graph_tool(workspace)
+    try:
+        first = asyncio.create_task(_ask(tool, "callers", "f"))
+        assert await asyncio.to_thread(parsing.wait, 10)
+        first.cancel()  # the worker thread of a cancelled call keeps indexing
+        with pytest.raises(asyncio.CancelledError):
+            await first
+
+        second = asyncio.create_task(_ask(tool, "callers", "f"))
+        await asyncio.sleep(0.2)  # a second run that is not held back would start parsing within this time
+        assert parsed == ["m.py"]
+    finally:
+        release.set()
+
+    answer = await second
+    assert parsed == ["m.py"]
+    assert len(answer.rows) == 1

@@ -173,6 +173,7 @@ class _Navigator:
     def __init__(self, workspace_root: Path) -> None:
         self._root = workspace_root
         self._service: CodeGraphService | None = None
+        # Queues the callers of this tool without holding a thread each; index runs are serialised by the service.
         self._lock = asyncio.Lock()
 
     async def ask(self, action: CodeGraphAction, target: str) -> dict[str, object]:

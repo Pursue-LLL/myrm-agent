@@ -154,11 +154,14 @@ class CodeGraphStore:
     def apply_changes(self, *, removed: Iterable[str], parsed: Sequence[ParsedFile], reset: bool = False) -> None:
         """Forget ``removed`` files, replace every entry of the ``parsed`` files, all in one transaction.
 
-        ``reset`` empties the store first, for a store whose entries have no recorded provenance.
+        ``reset`` empties the store first, for a store whose entries have no recorded provenance. It is judged inside
+        the transaction and does nothing once any file is recorded, so a run that started on an empty store cannot
+        erase the batches another run has stored since.
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            if reset:
+            cursor.execute("BEGIN IMMEDIATE")
+            if reset and cursor.execute("SELECT 1 FROM files LIMIT 1").fetchone() is None:
                 for table in _INDEX_TABLES:
                     cursor.execute(f"DELETE FROM {table}")
             else:
