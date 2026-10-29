@@ -11,7 +11,6 @@ from app.services.session_export.export_types import (
     InteractiveHtmlExportResult,
     RedactedPatternDetail,
     RedactionSummary,
-    RedactPreviewRequest,
     ShareLinkRequest,
     ShareLinkResponse,
 )
@@ -24,6 +23,7 @@ from app.services.session_export.secret_redactor import (
 )
 from app.services.session_export.session_export_service import (
     SessionExportService,
+    SessionNotFoundError,
     session_export_service,
 )
 
@@ -32,11 +32,11 @@ __all__ = [
     "ExportTurnMessage",
     "InteractiveHtmlCompiler",
     "InteractiveHtmlExportResult",
-    "RedactPreviewRequest",
     "RedactedPatternDetail",
     "RedactionSummary",
     "SecretRedactor",
     "SessionExportService",
+    "SessionNotFoundError",
     "ShareLinkRequest",
     "ShareLinkResponse",
     "secret_redactor",

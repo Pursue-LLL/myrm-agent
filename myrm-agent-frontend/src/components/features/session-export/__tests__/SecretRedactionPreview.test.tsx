@@ -1,8 +1,8 @@
 /**
  * Unit tests for SecretRedactionPreview component.
  *
- * [INPUT] SecretRedactionPreview, RedactionSummary
- * [OUTPUT] Full coverage for detection badge, pattern breakdown, and redaction toggle switch.
+ * [INPUT] SecretRedactionPreview, RedactionScan
+ * [OUTPUT] Full coverage for the four scan states (scanning, unavailable, clean, found), pattern breakdown, and redaction toggle switch.
  * [POS] src/components/features/session-export/__tests__/SecretRedactionPreview.test.tsx
  */
 
@@ -14,6 +14,8 @@ import type { RedactionSummary } from '../sessionExportTypes';
 const stableT = (key: string, values?: Record<string, unknown>) => {
   const translations: Record<string, string> = {
     cleanNoSecrets: 'Clean session: no credentials detected',
+    scanningSecrets: 'Scanning this session for credentials...',
+    scanUnavailable: "Couldn't scan this session for credentials",
     redactionActiveHint: 'API keys, passwords, and private IPs will be automatically scrubbed upon export.',
     redactionDisabledHint: 'Warning: sensitive keys will be exported in plaintext.',
     autoRedact: 'Auto-Redact',
@@ -38,7 +40,7 @@ describe('SecretRedactionPreview', () => {
     };
 
     render(
-      <SecretRedactionPreview redactionSummary={cleanSummary} enableRedaction={true} onToggleRedaction={onToggle} />,
+      <SecretRedactionPreview scan={{ status: 'ready', summary: cleanSummary }} enableRedaction={true} onToggleRedaction={onToggle} />,
     );
 
     expect(screen.getByText('Clean session: no credentials detected')).toBeDefined();
@@ -59,7 +61,7 @@ describe('SecretRedactionPreview', () => {
     };
 
     render(
-      <SecretRedactionPreview redactionSummary={dirtySummary} enableRedaction={true} onToggleRedaction={onToggle} />,
+      <SecretRedactionPreview scan={{ status: 'ready', summary: dirtySummary }} enableRedaction={true} onToggleRedaction={onToggle} />,
     );
 
     expect(screen.getByText('3 sensitive credentials detected')).toBeDefined();
@@ -76,11 +78,34 @@ describe('SecretRedactionPreview', () => {
     };
 
     render(
-      <SecretRedactionPreview redactionSummary={dirtySummary} enableRedaction={true} onToggleRedaction={onToggle} />,
+      <SecretRedactionPreview scan={{ status: 'ready', summary: dirtySummary }} enableRedaction={true} onToggleRedaction={onToggle} />,
     );
 
     const checkbox = screen.getByTestId('redaction-checkbox');
     fireEvent.click(checkbox);
+    expect(onToggle).toHaveBeenCalledWith(false);
+  });
+
+  it('says the scan is running instead of calling the session clean while it is', () => {
+    render(<SecretRedactionPreview scan={{ status: 'scanning' }} enableRedaction={true} onToggleRedaction={vi.fn()} />);
+
+    expect(screen.getByText('Scanning this session for credentials...')).toBeDefined();
+    expect(screen.queryByText('Clean session: no credentials detected')).toBeNull();
+  });
+
+  it('says the scan could not be done instead of calling the session clean when it failed', () => {
+    render(<SecretRedactionPreview scan={{ status: 'failed' }} enableRedaction={true} onToggleRedaction={vi.fn()} />);
+
+    expect(screen.getByText("Couldn't scan this session for credentials")).toBeDefined();
+    expect(screen.queryByText('Clean session: no credentials detected')).toBeNull();
+  });
+
+  it('keeps the auto-redact switch usable while the scan is running or unavailable', () => {
+    const onToggle = vi.fn();
+    render(<SecretRedactionPreview scan={{ status: 'failed' }} enableRedaction={true} onToggleRedaction={onToggle} />);
+
+    fireEvent.click(screen.getByTestId('redaction-checkbox'));
+
     expect(onToggle).toHaveBeenCalledWith(false);
   });
 });

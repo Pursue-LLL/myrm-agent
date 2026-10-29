@@ -166,3 +166,18 @@ def test_the_footer_names_the_product_and_nothing_about_how_the_file_is_built() 
     footer = _PAGE.split('<div class="footer">')[1].split("</div>")[0]
 
     assert re.sub(r"<[^>]+>", "", footer).strip() == "Exported with Myrm Agent"
+
+
+def test_the_summary_counts_one_entry_per_pattern_however_many_messages_carry_it() -> None:
+    key = "sk-abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+    messages = [
+        ExportTurnMessage(role="user", content=f"first {key}", created_at="t0"),
+        ExportTurnMessage(role="assistant", content=f"again {key}", created_at="t1", thinking=f"weighing {key}"),
+    ]
+
+    summary = InteractiveHtmlCompiler.compile_session(
+        chat_id="chat-0123456789", title="Review", agent_name="AI Agent", messages=messages, options=ExportHtmlOptions()
+    ).redaction_summary
+
+    assert summary.total_redacted == 3
+    assert [(d.pattern_type, d.count) for d in summary.details] == [("api_key", 3)]

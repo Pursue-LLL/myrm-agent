@@ -9844,6 +9844,15 @@
     "grantDirectoryDesc": "承認すると、この操作でこれらのフォルダを使えます。チェックすると、このチャットの以降の操作でも使えます。",
     "grantDirectoryReadOnly": "読み取りのみ",
     "grantDirectoryReadWrite": "読み取りと書き込み",
+    "reasons": {
+      "path_outside_zones": "この操作は、このチャットで使えるフォルダの外にアクセスします：{subject}",
+      "path_read_only": "この操作は、読み取り専用の場所を変更します：{subject}",
+      "protected_instruction_write": "この操作は、エージェントの動作を左右する指示ファイルを編集します：{subject}",
+      "git_metadata_write": "この操作は、後からコマンドを実行しうる Git の設定を変更します：{subject}",
+      "sensitive_file": "このファイルには個人情報が含まれている可能性があります：{subject}",
+      "domain_requires_approval": "このドメインは許可リストにありません：{subject}",
+      "shell_threat": "このコマンドは、実行前にあなたの確認が必要です"
+    },
     "highRiskIntercepted": {
       "title": "セミオートモードが高リスクの操作をブロックしました",
       "description": "元に戻しにくい変更を伴う可能性があるため、自動的に一時停止しました。承認した場合のみ実行されます。"
@@ -15184,7 +15193,11 @@
     "cleanNoSecrets": "問題のないセッション: 認証情報は検出されませんでした",
     "redactionActiveHint": "API キー、パスワード、プライベート IP はエクスポート時に自動的に除去されます。",
     "redactionDisabledHint": "警告: 機密性の高いキーが平文でエクスポートされます。",
-    "autoRedact": "自動マスク"
+    "autoRedact": "自動マスク",
+    "scanningSecrets": "セッション内の認証情報を検出しています...",
+    "scanUnavailable": "セッション内の認証情報を検出できませんでした",
+    "exportFailed": "HTML ファイルを作成できませんでした。もう一度お試しください。",
+    "shareLinkFailed": "共有リンクを作成できませんでした。もう一度お試しください。"
   },
   "skillAlignment": {
     "title": "実行前の好みの擦り合わせ",

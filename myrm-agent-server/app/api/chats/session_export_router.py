@@ -1,23 +1,24 @@
 """Session Export & Share Link API Router.
 
 [INPUT]
-- ExportHtmlOptions, RedactPreviewRequest, ShareLinkRequest
+- ExportHtmlOptions, ShareLinkRequest
 
 [OUTPUT]
 - InteractiveHtmlExportResult, RedactionSummary, ShareLinkResponse
 
 [POS]
 app/api/chats/session_export_router.py: REST endpoints for standalone interactive HTML export,
-secret credential preview, and secure share link generation.
+credential preview of the stored conversation, and secure share link generation.
 """
 
 from fastapi import APIRouter, Request, status
 
+from app.core.utils.errors import not_found_error
 from app.services.session_export import (
     ExportHtmlOptions,
     InteractiveHtmlExportResult,
-    RedactPreviewRequest,
     RedactionSummary,
+    SessionNotFoundError,
     ShareLinkRequest,
     ShareLinkResponse,
     session_export_service,
@@ -36,24 +37,28 @@ async def export_chat_interactive_html(
     chat_id: str,
     options: ExportHtmlOptions,
 ) -> InteractiveHtmlExportResult:
-    """Compile multi-turn conversation into zero-dependency standalone HTML bundle."""
-    return await session_export_service.export_interactive_html(
-        chat_id=chat_id,
-        options=options,
-    )
+    """Compile the stored conversation into a zero-dependency standalone HTML bundle."""
+    try:
+        return await session_export_service.export_interactive_html(
+            chat_id=chat_id,
+            options=options,
+        )
+    except SessionNotFoundError as exc:
+        raise not_found_error("Conversation") from exc
 
 
 @router.post(
-    "/export/redact-preview",
+    "/{chat_id}/export/redact-preview",
     response_model=RedactionSummary,
     status_code=status.HTTP_200_OK,
-    summary="Preview detected sensitive credentials in candidate text",
+    summary="Preview the sensitive credentials stored in a conversation",
 )
-def preview_secret_redaction(
-    req: RedactPreviewRequest,
-) -> RedactionSummary:
-    """Scan candidate text and return summary of sensitive credentials without modification."""
-    return session_export_service.preview_redaction(req.text)
+async def preview_secret_redaction(chat_id: str) -> RedactionSummary:
+    """Scan the stored conversation and report the credentials the export would scrub."""
+    try:
+        return await session_export_service.preview_redaction(chat_id)
+    except SessionNotFoundError as exc:
+        raise not_found_error("Conversation") from exc
 
 
 @router.post(

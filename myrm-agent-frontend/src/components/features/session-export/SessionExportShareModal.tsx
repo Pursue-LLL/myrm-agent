@@ -9,27 +9,17 @@
  */
 
 import { memo, useState, useCallback, useEffect } from 'react';
-import {
-  Download,
-  Share2,
-  FileCode,
-  Check,
-  Copy,
-  X,
-  Loader2,
-  Lock,
-  Calendar,
-  Sparkles,
-} from 'lucide-react';
+import { Download, Share2, FileCode, X, Loader2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type {
   ExportHtmlOptions,
-  RedactionSummary,
+  RedactionScan,
   ShareLinkResponse,
 } from './sessionExportTypes';
 import { sessionExportService } from './sessionExportService';
 import { SecretRedactionPreview } from './SecretRedactionPreview';
+import { ShareLinkPanel } from './ShareLinkPanel';
 
 export interface SessionExportShareModalProps {
   chatId: string;
@@ -56,7 +46,8 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
   const [enableRedaction, setEnableRedaction] = useState(true);
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
   const [isExporting, setIsExporting] = useState(false);
-  const [redactionSummary, setRedactionSummary] = useState<RedactionSummary | null>(null);
+  const [scan, setScan] = useState<RedactionScan>({ status: 'scanning' });
+  const [actionError, setActionError] = useState<'export' | 'share' | null>(null);
 
   // Share Link State
   const [ttlDays, setTtlDays] = useState<number>(7);
@@ -65,19 +56,38 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
   const [shareResult, setShareResult] = useState<ShareLinkResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Initial secret detection preview on open
+  // Scan the stored conversation for credentials whenever the modal opens for a chat
   useEffect(() => {
-    if (isOpen && chatId) {
-      void sessionExportService
-        .previewRedaction(chatTitle || 'chat content sample sk-default')
-        .then((sum) => {
-          setRedactionSummary(sum);
-        });
+    if (!isOpen) {
+      return;
     }
-  }, [isOpen, chatId, chatTitle]);
+    let cancelled = false;
+    void sessionExportService
+      .previewRedaction(chatId)
+      .then((summary) => {
+        if (!cancelled) {
+          setScan({ status: 'ready', summary });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScan({ status: 'failed' });
+        }
+      });
+    return () => {
+      cancelled = true;
+      setScan({ status: 'scanning' });
+    };
+  }, [isOpen, chatId]);
+
+  const selectTab = useCallback((tab: 'html' | 'share') => {
+    setActiveTab(tab);
+    setActionError(null);
+  }, []);
 
   const handleExportHtml = useCallback(async () => {
     setIsExporting(true);
+    setActionError(null);
     try {
       const options: ExportHtmlOptions = {
         include_thinking: includeThinking,
@@ -88,6 +98,8 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
       const result = await sessionExportService.exportInteractiveHtml(chatId, options);
       sessionExportService.triggerDownload(result.file_name, result.html_content);
       onClose();
+    } catch {
+      setActionError('export');
     } finally {
       setIsExporting(false);
     }
@@ -95,12 +107,15 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
 
   const handleGenerateShareLink = useCallback(async () => {
     setIsGeneratingLink(true);
+    setActionError(null);
     try {
       const res = await sessionExportService.createShareLink(chatId, {
         ttl_seconds: ttlDays * 24 * 3600,
         password: sharePassword.trim() || null,
       });
       setShareResult(res);
+    } catch {
+      setActionError('share');
     } finally {
       setIsGeneratingLink(false);
     }
@@ -140,7 +155,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             </div>
             <div>
               <h3 className="font-semibold text-xs">
-                {t('modalTitle') || 'Session Export & Interactive Share Bridge'}
+                {t('modalTitle')}
               </h3>
               <p className="text-[10px] text-muted-foreground truncate max-w-[280px]">
                 {chatTitle || chatId}
@@ -164,7 +179,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             type="button"
             data-testid="tab-html-export"
             onClick={() => {
-              setActiveTab('html');
+              selectTab('html');
             }}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all',
@@ -174,14 +189,14 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             )}
           >
             <Download className="h-3.5 w-3.5 text-primary" />
-            <span>{t('tabDownloadHtml') || 'Interactive HTML Bundle'}</span>
+            <span>{t('tabDownloadHtml')}</span>
           </button>
 
           <button
             type="button"
             data-testid="tab-share-link"
             onClick={() => {
-              setActiveTab('share');
+              selectTab('share');
             }}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all',
@@ -191,7 +206,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             )}
           >
             <Share2 className="h-3.5 w-3.5 text-sky-500" />
-            <span>{t('tabShareLink') || 'Read-Only Web Link'}</span>
+            <span>{t('tabShareLink')}</span>
           </button>
         </div>
 
@@ -202,7 +217,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             <div className="flex flex-col gap-2 p-3 rounded-xl border border-border/80 bg-muted/20 text-xs">
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="font-medium text-foreground">
-                  {t('includeThinking') || 'Include Reasoning & Thinking Traces'}
+                  {t('includeThinking')}
                 </span>
                 <input
                   type="checkbox"
@@ -216,7 +231,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
 
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="font-medium text-foreground">
-                  {t('includeToolCalls') || 'Include Tool Call Inputs & Outputs'}
+                  {t('includeToolCalls')}
                 </span>
                 <input
                   type="checkbox"
@@ -230,7 +245,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
 
               <div className="flex items-center justify-between pt-1 border-t border-border/40">
                 <span className="font-medium text-foreground">
-                  {t('themePreset') || 'Default HTML Theme'}
+                  {t('themePreset')}
                 </span>
                 <select
                   value={theme}
@@ -239,16 +254,16 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
                   }}
                   className="px-2 py-0.5 rounded border border-border bg-background text-xs text-foreground focus:outline-none"
                 >
-                  <option value="system">{t('themeSystem') || 'System Auto'}</option>
-                  <option value="light">{t('themeLight') || 'Light'}</option>
-                  <option value="dark">{t('themeDark') || 'Dark'}</option>
+                  <option value="system">{t('themeSystem')}</option>
+                  <option value="light">{t('themeLight')}</option>
+                  <option value="dark">{t('themeDark')}</option>
                 </select>
               </div>
             </div>
 
             {/* Secret Redaction Preview */}
             <SecretRedactionPreview
-              redactionSummary={redactionSummary}
+              scan={scan}
               enableRedaction={enableRedaction}
               onToggleRedaction={setEnableRedaction}
             />
@@ -256,7 +271,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
               <span>
-                {t('zeroDepHint') || 'Generated HTML is completely self-contained with inlined CSS & Vanilla JS. Opens offline in any browser.'}
+                {t('zeroDepHint')}
               </span>
             </div>
           </div>
@@ -264,78 +279,25 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
 
         {/* Tab 2: Share Link */}
         {activeTab === 'share' && (
-          <div className="p-4 flex flex-col gap-3 max-h-[75vh] overflow-y-auto text-xs">
-            <div className="flex flex-col gap-2 p-3 rounded-xl border border-border/80 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-primary" />
-                  <span>{t('linkExpiry') || 'Link Expiration Window'}</span>
-                </span>
-                <select
-                  value={ttlDays}
-                  onChange={(e) => {
-                    setTtlDays(Number(e.target.value));
-                  }}
-                  className="px-2 py-0.5 rounded border border-border bg-background text-xs text-foreground focus:outline-none"
-                >
-                  <option value={7}>{t('expiry7Days') || '7 Days'}</option>
-                  <option value={30}>{t('expiry30Days') || '30 Days'}</option>
-                </select>
-              </div>
+          <ShareLinkPanel
+            ttlDays={ttlDays}
+            onTtlDaysChange={setTtlDays}
+            password={sharePassword}
+            onPasswordChange={setSharePassword}
+            result={shareResult}
+            copied={copied}
+            onCopy={handleCopyLink}
+          />
+        )}
 
-              <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
-                <span className="font-medium text-foreground flex items-center gap-1">
-                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{t('optionalPassword') || 'Optional Passcode Protection'}</span>
-                </span>
-                <input
-                  type="password"
-                  value={sharePassword}
-                  onChange={(e) => {
-                    setSharePassword(e.target.value);
-                  }}
-                  placeholder={t('passwordPlaceholder') || 'Leave empty for public link...'}
-                  className="w-full px-2.5 py-1 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground"
-                />
-              </div>
-            </div>
-
-            {/* Generated Share Link Result Card */}
-            {shareResult && (
-              <div className="flex flex-col gap-1.5 p-3 rounded-xl border border-primary/30 bg-primary/5">
-                <span className="font-semibold text-[11px] text-primary">
-                  {t('shareLinkReady') || 'Secure Share Link Ready'}
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={shareResult.share_url}
-                    className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-border bg-background font-mono text-foreground"
-                    data-testid="share-url-input"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCopyLink}
-                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 shadow-xs transition-all"
-                    data-testid="copy-link-btn"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-3.5 w-3.5" />
-                        <span>{t('copied') || 'Copied'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        <span>{t('copy') || 'Copy'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+        {actionError && (
+          <p
+            role="alert"
+            data-testid="session-export-error"
+            className="mx-4 mb-3 px-3 py-2 rounded-lg border border-destructive/30 bg-destructive/10 text-xs text-destructive"
+          >
+            {actionError === 'export' ? t('exportFailed') : t('shareLinkFailed')}
+          </p>
         )}
 
         {/* Footer Actions */}
@@ -345,7 +307,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             onClick={onClose}
             className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
-            {t('cancel') || 'Cancel'}
+            {t('cancel')}
           </button>
 
           {activeTab === 'html' ? (
@@ -359,12 +321,12 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
               {isExporting ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>{t('compiling') || 'Compiling...'}</span>
+                  <span>{t('compiling')}</span>
                 </>
               ) : (
                 <>
                   <Download className="h-3.5 w-3.5" />
-                  <span>{t('compileAndDownload') || 'Compile & Download HTML'}</span>
+                  <span>{t('compileAndDownload')}</span>
                 </>
               )}
             </button>
@@ -379,12 +341,12 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
               {isGeneratingLink ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>{t('generating') || 'Generating...'}</span>
+                  <span>{t('generating')}</span>
                 </>
               ) : (
                 <>
                   <Share2 className="h-3.5 w-3.5" />
-                  <span>{t('generateLink') || 'Generate Share Link'}</span>
+                  <span>{t('generateLink')}</span>
                 </>
               )}
             </button>

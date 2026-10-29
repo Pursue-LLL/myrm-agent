@@ -38,8 +38,7 @@ class InteractiveHtmlCompiler:
         options: ExportHtmlOptions,
     ) -> InteractiveHtmlExportResult:
         """Compile messages into self-contained HTML with search, toggle, and code-copy capabilities."""
-        total_redacted = 0
-        details_list = []
+        summaries: list[RedactionSummary] = []
         rendered_messages: list[str] = []
 
         for idx, msg in enumerate(messages):
@@ -49,14 +48,12 @@ class InteractiveHtmlCompiler:
 
             # Apply credential redaction if enabled
             if options.enable_redaction:
-                content, sum_content = secret_redactor.redact_text(content)
-                total_redacted += sum_content.total_redacted
-                details_list.extend(sum_content.details)
+                content, content_summary = secret_redactor.redact_text(content)
+                summaries.append(content_summary)
 
                 if thinking:
-                    thinking, sum_think = secret_redactor.redact_text(thinking)
-                    total_redacted += sum_think.total_redacted
-                    details_list.extend(sum_think.details)
+                    thinking, thinking_summary = secret_redactor.redact_text(thinking)
+                    summaries.append(thinking_summary)
 
             rendered_messages.append(
                 cls._render_message(
@@ -69,11 +66,7 @@ class InteractiveHtmlCompiler:
                 )
             )
 
-        redaction_summary = RedactionSummary(
-            total_redacted=total_redacted,
-            has_secrets=total_redacted > 0,
-            details=details_list,
-        )
+        redaction_summary = secret_redactor.merge_summaries(summaries)
 
         html_body = "\n".join(rendered_messages)
         full_html = cls._build_document(

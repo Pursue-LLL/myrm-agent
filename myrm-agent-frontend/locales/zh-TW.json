@@ -9844,6 +9844,15 @@
     "grantDirectoryDesc": "核准後，這一步操作可以使用它們；勾選後，本會話後續操作也可以使用。",
     "grantDirectoryReadOnly": "唯讀",
     "grantDirectoryReadWrite": "可讀寫",
+    "reasons": {
+      "path_outside_zones": "這一步操作要存取本會話可用資料夾之外的位置：{subject}",
+      "path_read_only": "這一步操作要修改唯讀位置：{subject}",
+      "protected_instruction_write": "這一步操作要修改會影響 Agent 行為的指令檔案：{subject}",
+      "git_metadata_write": "這一步操作要修改 Git 設定，這些設定之後可能自動執行指令：{subject}",
+      "sensitive_file": "該檔案可能包含隱私資訊：{subject}",
+      "domain_requires_approval": "該域名不在已允許的名單中：{subject}",
+      "shell_threat": "這條指令需要你確認後才會執行"
+    },
     "highRiskIntercepted": {
       "title": "半自動模式高危操作攔截",
       "description": "此操作可能造成難以復原的變更，已自動暫停，需經你確認後才會執行。"
@@ -15184,7 +15193,11 @@
     "cleanNoSecrets": "安全會話：未檢測到明文敏感憑據",
     "redactionActiveHint": "匯出時將自動替換脫敏 API Key、密碼與內網 IP 等敏感資料。",
     "redactionDisabledHint": "警告：匯出檔案將保留原始明文敏感金鑰。",
-    "autoRedact": "自動脫敏"
+    "autoRedact": "自動脫敏",
+    "scanningSecrets": "正在檢測會話中的敏感憑據...",
+    "scanUnavailable": "暫時無法檢測會話中的敏感憑據",
+    "exportFailed": "HTML 檔案生成失敗，請稍後重試。",
+    "shareLinkFailed": "分享連結生成失敗，請稍後重試。"
   },
   "skillAlignment": {
     "title": "前置需求結構化對齊",

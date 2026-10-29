@@ -59,12 +59,6 @@ class InteractiveHtmlExportResult(BaseModel):
     redaction_summary: RedactionSummary
 
 
-class RedactPreviewRequest(BaseModel):
-    """Request to preview credential scrubbing on text."""
-
-    text: str
-
-
 class ShareLinkRequest(BaseModel):
     """Request payload to create a secure time-limited share link."""
 

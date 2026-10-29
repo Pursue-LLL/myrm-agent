@@ -9844,6 +9844,15 @@
     "grantDirectoryDesc": "Approving lets this action use them. Tick to keep them available for the rest of this chat.",
     "grantDirectoryReadOnly": "Read only",
     "grantDirectoryReadWrite": "Read and write",
+    "reasons": {
+      "path_outside_zones": "This action reaches outside the folders available to this chat: {subject}",
+      "path_read_only": "This action would change a read-only location: {subject}",
+      "protected_instruction_write": "This action would edit a file that steers how the agent behaves: {subject}",
+      "git_metadata_write": "This action would change Git settings that can run commands later: {subject}",
+      "sensitive_file": "This file may contain private information: {subject}",
+      "domain_requires_approval": "This domain is not on the allowed list: {subject}",
+      "shell_threat": "This command needs your confirmation before it runs"
+    },
     "highRiskIntercepted": {
       "title": "Semi-auto mode blocked a high-risk action",
       "description": "This action could make changes that are hard to undo, so it was paused automatically. It only runs if you approve it."
@@ -15184,7 +15193,11 @@
     "cleanNoSecrets": "Clean session: no credentials detected",
     "redactionActiveHint": "API keys, passwords, and private IPs will be automatically scrubbed upon export.",
     "redactionDisabledHint": "Warning: sensitive keys will be exported in plaintext.",
-    "autoRedact": "Auto-Redact"
+    "autoRedact": "Auto-Redact",
+    "scanningSecrets": "Scanning this session for credentials...",
+    "scanUnavailable": "Couldn't scan this session for credentials",
+    "exportFailed": "The HTML file couldn't be created. Please try again.",
+    "shareLinkFailed": "The share link couldn't be created. Please try again."
   },
   "skillAlignment": {
     "title": "Pre-Flight Preference Alignment",

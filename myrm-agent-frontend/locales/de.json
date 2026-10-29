@@ -9844,6 +9844,15 @@
     "grantDirectoryDesc": "Mit der Genehmigung darf diese Aktion die Ordner nutzen. Mit dem Häkchen stehen sie auch den weiteren Aktionen dieses Chats zur Verfügung.",
     "grantDirectoryReadOnly": "Nur Lesen",
     "grantDirectoryReadWrite": "Lesen und Schreiben",
+    "reasons": {
+      "path_outside_zones": "Diese Aktion greift auf Orte außerhalb der Ordner zu, die diesem Chat zur Verfügung stehen: {subject}",
+      "path_read_only": "Diese Aktion würde einen schreibgeschützten Ort ändern: {subject}",
+      "protected_instruction_write": "Diese Aktion würde eine Datei bearbeiten, die das Verhalten des Agents steuert: {subject}",
+      "git_metadata_write": "Diese Aktion würde Git-Einstellungen ändern, die später Befehle ausführen können: {subject}",
+      "sensitive_file": "Diese Datei kann private Informationen enthalten: {subject}",
+      "domain_requires_approval": "Diese Domäne steht nicht auf der Liste erlaubter Domänen: {subject}",
+      "shell_threat": "Dieser Befehl muss bestätigt werden, bevor er ausgeführt wird"
+    },
     "highRiskIntercepted": {
       "title": "Halbautomatik hat eine riskante Aktion blockiert",
       "description": "Diese Aktion könnte schwer rückgängig zu machende Änderungen verursachen und wurde automatisch angehalten. Sie wird nur nach Ihrer Freigabe ausgeführt."
@@ -15184,7 +15193,11 @@
     "cleanNoSecrets": "Sauberer Sitzungsinhalt: keine Zugangsdaten erkannt",
     "redactionActiveHint": "API-Schlüssel, Passwörter und private IPs werden beim Export automatisch entfernt.",
     "redactionDisabledHint": "Warnung: Sensible Schlüssel werden im Klartext exportiert.",
-    "autoRedact": "Automatisch schwärzen"
+    "autoRedact": "Automatisch schwärzen",
+    "scanningSecrets": "Sitzung wird auf Zugangsdaten geprüft...",
+    "scanUnavailable": "Die Sitzung konnte nicht auf Zugangsdaten geprüft werden",
+    "exportFailed": "Die HTML-Datei konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "shareLinkFailed": "Der Freigabelink konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
   },
   "skillAlignment": {
     "title": "Präferenzabstimmung vor dem Start",

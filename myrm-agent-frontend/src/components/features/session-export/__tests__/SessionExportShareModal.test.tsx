@@ -6,11 +6,11 @@
  * [POS] src/components/features/session-export/__tests__/SessionExportShareModal.test.tsx
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionExportShareModal } from '../SessionExportShareModal';
 import { sessionExportService } from '../sessionExportService';
-import type { InteractiveHtmlExportResult, ShareLinkResponse } from '../sessionExportTypes';
+import type { InteractiveHtmlExportResult, RedactionSummary, ShareLinkResponse } from '../sessionExportTypes';
 
 const stableT = (key: string) => {
   const translations: Record<string, string> = {
@@ -38,6 +38,10 @@ const stableT = (key: string) => {
     generating: 'Generating...',
     generateLink: 'Generate Share Link',
     cleanNoSecrets: 'Clean session: no credentials detected',
+    scanningSecrets: 'Scanning this session for credentials...',
+    scanUnavailable: "Couldn't scan this session for credentials",
+    exportFailed: "The HTML file couldn't be created. Please try again.",
+    shareLinkFailed: "The share link couldn't be created. Please try again.",
     redactionActiveHint: 'Auto-redact active',
     autoRedact: 'Auto-Redact',
   };
@@ -179,5 +183,85 @@ describe('SessionExportShareModal', () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('http://localhost:3000/share/test-hmac-token');
       expect(screen.getByText('Copied')).toBeDefined();
     });
+  });
+
+  it('scans the stored conversation of the chat, not its title', async () => {
+    render(<SessionExportShareModal chatId="chat-123" chatTitle="Debug Python Sandbox" isOpen={true} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(sessionExportService.previewRedaction).toHaveBeenCalledWith('chat-123');
+    });
+    expect(sessionExportService.previewRedaction).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('Clean session: no credentials detected')).toBeDefined();
+  });
+
+  it('does not call the session clean when the scan fails', async () => {
+    vi.spyOn(sessionExportService, 'previewRedaction').mockRejectedValue(new Error('offline'));
+
+    render(<SessionExportShareModal chatId="chat-123" isOpen={true} onClose={vi.fn()} />);
+
+    expect(await screen.findByText("Couldn't scan this session for credentials")).toBeDefined();
+    expect(screen.queryByText('Clean session: no credentials detected')).toBeNull();
+  });
+
+  it('keeps the dialog open, downloads nothing and says so when the export fails', async () => {
+    vi.spyOn(sessionExportService, 'exportInteractiveHtml').mockRejectedValueOnce(new Error('offline'));
+    const triggerDownloadSpy = vi.spyOn(sessionExportService, 'triggerDownload').mockImplementation(() => {});
+    const onClose = vi.fn();
+
+    render(<SessionExportShareModal chatId="chat-123" isOpen={true} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('compile-html-btn'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe("The HTML file couldn't be created. Please try again.");
+    expect(triggerDownloadSpy).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect((screen.getByTestId('compile-html-btn') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('shows no link and says so when the share link cannot be created', async () => {
+    vi.spyOn(sessionExportService, 'createShareLink').mockRejectedValueOnce(new Error('unauthorized'));
+
+    render(<SessionExportShareModal chatId="chat-123" isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('tab-share-link'));
+    fireEvent.click(screen.getByTestId('generate-link-btn'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe("The share link couldn't be created. Please try again.");
+    expect(screen.queryByTestId('share-url-input')).toBeNull();
+  });
+
+  it('drops a failure notice when the user moves to the other tab', async () => {
+    vi.spyOn(sessionExportService, 'exportInteractiveHtml').mockRejectedValueOnce(new Error('offline'));
+
+    render(<SessionExportShareModal chatId="chat-123" isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('compile-html-btn'));
+    await screen.findByRole('alert');
+
+    fireEvent.click(screen.getByTestId('tab-share-link'));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('ignores a scan that finishes after the user opened another chat', async () => {
+    let resolveFirst: (summary: RedactionSummary) => void = () => {};
+    const previewSpy = vi.spyOn(sessionExportService, 'previewRedaction');
+    previewSpy.mockReturnValueOnce(new Promise<RedactionSummary>((resolve) => { resolveFirst = resolve; }));
+    previewSpy.mockResolvedValueOnce({ total_redacted: 0, has_secrets: false, details: [] });
+
+    const { rerender } = render(<SessionExportShareModal chatId="chat-a" isOpen={true} onClose={vi.fn()} />);
+    rerender(<SessionExportShareModal chatId="chat-b" isOpen={true} onClose={vi.fn()} />);
+    await screen.findByText('Clean session: no credentials detected');
+
+    await act(async () => {
+      resolveFirst({
+        total_redacted: 1,
+        has_secrets: true,
+        details: [{ pattern_type: 'api_key', count: 1, placeholder: '[REDACTED_API_KEY]' }],
+      });
+    });
+
+    expect(screen.queryByText('api_key: 1')).toBeNull();
+    expect(screen.getByText('Clean session: no credentials detected')).toBeDefined();
   });
 });

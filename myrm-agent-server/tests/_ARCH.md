@@ -514,7 +514,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate.py` | 模块 | HITL pending 审批守卫单元测（5 态：pending 拦截 / 0 pending 放行 / resume 绕过 / store 异常 fail-open / 无 chat_id 跳过） |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate_integration.py` | 模块 | HITL pending 审批守卫真 DB 集成（关键路径禁 mock：真 `ApprovalRecord` → 真 `count_pending_for_chat` → SSE AgentBusyError 且预留前触发；APPROVED/growth/他 chat 不拦；resume 带真 pending 放行） |
 | `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测；`test_decryptor_shell_contrast.py` 与 `test_viewer_scaffold_contrast.py` 钉住加密发布解锁页、文档查看器的文字、按钮、输入框边缘与聚焦标记对比度（解锁页另守卫「颜色只写在样式表里」）；`test_decryptor_shell.py` 钉住解锁页的提示播报、输入去空白、文案无机制名词与标题转义；`test_crypto_packager.py` 钉住 PBKDF2 迭代下限与「按载荷自带迭代数解密」 |
-| `services/session_export/test_interactive_html_compiler.py` | 模块 | 会话导出页：26 组文字与底色在浅 / 深色下的对比度、搜索框边缘、聚焦环在页面 / 消息 / 抽屉 / 表头五种底色上的对比度与复制按钮内圈环、聚焦轮廓不得被去掉、每个 `pre` 是复制按钮的定位容器、工具栏窄屏换行、主题只接受 `system` / `light` / `dark`、会话里的文字不会变成标签 |
+| `services/session_export/test_secret_redactor.py` | 模块 | 凭据摘要：干净文字摘要为空、检测不改原文、多段文字合并成每类一条、空输入为空摘要 |
+| `api/chats/test_session_export_api.py` | 模块 | 会话导出与凭据预检 API：渲染已存会话、未知会话 404 而不是拼出的会话、读库失败是 500 而不是文档、导出脱敏、预检看会话正文而非标题且同类凭据只出一条、预检与导出的脱敏数一致、分享链接 |
+| `services/session_export/test_interactive_html_compiler.py` | 模块 | 会话导出页：26 组文字与底色在浅 / 深色下的对比度、搜索框边缘、聚焦环在页面 / 消息 / 抽屉 / 表头五种底色上的对比度与复制按钮内圈环、聚焦轮廓不得被去掉、每个 `pre` 是复制按钮的定位容器、工具栏窄屏换行、主题只接受 `system` / `light` / `dark`、会话里的文字不会变成标签、摘要里同类凭据只出一条 |
 | `api/webui/test_welcome_page.py` | 模块 | 局域网欢迎页：二维码地址在属性、脚本、可见文字三处各自的编码、主机名里的标记注入（脚本标签只有一对）、单一配色、文字与按钮底色 / 边缘 / 聚焦环对比度、颜色不写在行内或脚本里 |
 | `api/integrations/test_oauth_result_page.py` | 模块 | OAuth 结果页：五种结果的状态码、中英双语片段、无机制名词、视口与 noindex、错误描述转义且为空时不出元素、仅成功页自动关闭标签、无行内样式、正文与图标色在浅 / 深色下的对比度、色调集合固定 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |

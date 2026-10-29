@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | 挂载 `chat/` 子路由 | ✅ |
 | `test_fixtures/` | 测试 | local-only Chrome E2E seed 子包（`__init__.py` 聚合 + `_inline_core`/`_kanban`/21 个 seed 子模块） | ✅ |
 | `chat/` | 子模块 | 单会话消息、搜索、分支、turn 等子路由 | [chat/_ARCH.md](chat/_ARCH.md) |
-| `session_export_router.py` | 路由 | 会话自包含交互式 HTML 导出、敏感凭证脱敏预检与只读 HMAC 分享链接 API | ✅ |
+| `session_export_router.py` | 路由 | 会话自包含交互式 HTML 导出、按会话 id 预检已存会话里的敏感凭证（`POST /chats/{chat_id}/export/redact-preview`）与只读 HMAC 分享链接 API；会话不存在返回 404 | ✅ |
 | `group_chat_router.py` | 路由 | Bot Mode 多 Agent 协同群聊、@-mention 路由与 Hermes peer 对等私信归档 API | ✅ |
 
 ## 依赖
