@@ -54,7 +54,7 @@ _URL_USERINFO_RE = re.compile(
 )
 
 # `scheme://TOKEN@host`（无冒号 bare-token userinfo，如 git 私有仓库 URL）。
-# 8+ 字符避免误伤短用户名。对齐 Hermes #6396。
+# 8+ 字符避免误伤短用户名。
 _URL_BARE_TOKEN_RE = re.compile(
     r"((?:https?|wss?|git|ssh|ftp|ftps|sftp)://)([^\s:@/]{8,})(@[^\s]+)",
     re.IGNORECASE,

@@ -60,7 +60,7 @@ _PREFIX_PATTERNS: tuple[str, ...] = (
     r"fc-[A-Za-z0-9]{10,}",
     r"dop_v1_[A-Za-z0-9]{10,}",
     r"doo_v1_[A-Za-z0-9]{10,}",
-    # 以下为对齐 Hermes _PREFIX_PATTERNS 补充的服务商前缀
+    # 以下为补充的服务商前缀
     r"bb_live_[A-Za-z0-9_-]{10,}",  # BrowserBase
     r"gAAAA[A-Za-z0-9_=-]{20,}",  # Codex encrypted tokens
     r"am_[A-Za-z0-9_-]{10,}",  # AgentMail
@@ -136,10 +136,10 @@ _ENV_ASSIGN_RE = re.compile(
 )
 
 # 小写/短名 env 赋值（`db_pw=`/`openai_key=`/`FAL_KEY=`）：key 以下划线或点分隔短名形式
-# （点分隔覆盖 `app.api.key=`/`s3.secret-key=` 等点分配置，对齐 Hermes _CFG_DOTTED_RE；
+# （点分隔覆盖 `app.api.key=`/`s3.secret-key=` 等点分配置；
 # `end.key=` 由 _key_has_secret_keyword 词边界校验放行，`file.txt=` 因 `txt` 非关键词不匹配）。
 # 裸 `password=`/`token=`/`secret=` 不匹配——它们出现在散文、URL query 与 form body
-# 中（对齐 Hermes issue #77484）。`[a-z0-9_]*` 后缀覆盖下划线续接名
+# 中。`[a-z0-9_]*` 后缀覆盖下划线续接名
 # （`openai_key_legacy=`），词边界校验兜底防 `db_pwx=` 类吞词误伤。
 # `(?<![?&])` 负向后顾（与 _ENV_ASSIGN_RE 一致）阻止 URL query 参数
 # （`?openai_key=`/`&openai_key=` 交给 _URL_QUERY_RE 处理），从而无需全局 URL 开关。
@@ -155,7 +155,7 @@ _ENV_ASSIGN_LOWER_RE = re.compile(
 # YAML / 冒号式配置（`password: secret`、`spring.datasource.password: hunter2`、
 # `password: "hunter2!"`、`password : secret`）。secret 关键词必须在 key 中
 # （锚定行首/缩进），value 为单个无空白 token——`note: secret meeting`
-# （关键词在 value）与 `error: token expired` 不匹配。裸 `auth`（对齐 Hermes）
+# （关键词在 value）与 `error: token expired` 不匹配。裸 `auth`
 # 覆盖 `auth: <secret>`，`author:`/`Authorization:` 由词边界校验（_key_has_secret_keyword）
 # 与 _AUTH_HEADER_RE 拦截，不误伤。可选引号保留引号结构：双引号支持 `\"` 转义，
 # 单引号支持 YAML `''` 转义，quoted 值含空格时整体捕获不部分泄漏。
@@ -165,7 +165,7 @@ _YAML_ASSIGN_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 
-# ── 词边界校验（对齐 Hermes issue #6129）───────────────────────
+# ── 词边界校验 ───────────────────────
 # key 类允许关键词带任意字母数字前后缀（`client_secret`/`clientSecret`/`s3.secret-key`），
 # 副作用是 `secretary`/`tokenizer`/`authored` 等散文词也命中。keyword 只有落在词边界
 # （key 边缘、非字母旁、camelCase 转换、全大写缩写边界）才算凭据；内嵌于更长单词的
@@ -278,7 +278,7 @@ def _redact_form_body(text: str) -> str:
 
 
 # 程序化 env 引用（`os.getenv('X')` / `os.environ[...]` / `process.env.X` / `$ENV{X}`）
-# 是变量名引用而非凭据值——掩码会破坏代码示例的可读性（对齐 Hermes 的 guard）。
+# 是变量名引用而非凭据值——掩码会破坏代码示例的可读性。
 _ENV_LOOKUP_VALUE_RE = re.compile(
     r"^(?:os\.(?:getenv|environ)|process\.env|\$ENV\{)",
 )
@@ -314,7 +314,7 @@ _MASKED_VALUE_RE = re.compile(r"^(?:\*{3}|[^\"']{6}\.{3}[^\"']{4})$")
 # `x-api-key`/`api-key` 等连字符形式必须显式列出——`api[-_.]?key` 从 `?` 后锚定
 # 无法覆盖带 `x-` 前缀的 key，且与 _SECRET_HEADER_NAMES 的 header 名单对齐
 # （header 覆盖了 query 却漏掉即造成明文泄漏）。
-# 与 Hermes _SENSITIVE_QUERY_PARAMS（redact.py:27-44）对齐：`code`（OAuth 授权码）/
+# 敏感查询参数名单：`code`（OAuth 授权码）/
 # `signature`（预签名 URL 签名）/`x-amz-signature`（AWS S3 预签名）/`session`（会话
 # 凭据）均为明文即可盗用的敏感参数。IGNORECASE 下 `X-Amz-Signature` 亦命中。
 # `_SECRET_ENV_NAMES` 带 `[A-Z0-9_]{0,64}` 后缀对齐 _ENV_ASSIGN_RE 的前后缀设计——
@@ -337,7 +337,7 @@ _CLI_FLAG_RE = re.compile(
 # ── Telegram Bot URL (OPT-6) ────────────────────────────────────
 _TELEGRAM_BOT_RE = re.compile(r"\b(bot)(\d{6,}:[A-Za-z0-9_-]{20,})\b", re.IGNORECASE)
 
-# ── API-key 风格认证头 (对齐 Hermes _SECRET_HEADER_RE) ──────────
+# ── API-key 风格认证头 ──────────
 _SECRET_HEADER_NAMES = r"(?:x-api-key|x-goog-api-key|api-key|apikey|x-api-token|x-auth-token|x-access-token)"
 _SECRET_HEADER_RE = re.compile(rf"({_SECRET_HEADER_NAMES}\s*:\s*)(\S+)", re.IGNORECASE)
 
@@ -360,10 +360,10 @@ _COOKIE_HEADER_QUOTED_RE = re.compile(
     re.IGNORECASE,
 )
 
-# ── JWT token (对齐 Hermes _JWT_RE) ──────────────────────────────
+# ── JWT token ──────────────────────────────
 _JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_=-]{4,}){0,2}")
 
-# ── 控制字符拆分 token 防护 (对齐 Hermes issue #77484) ─────────
+# ── 控制字符拆分 token 防护 ─────────
 # 控制/零宽字符（ESC、零宽空格、换行等）可拆分 token body，使 _PREFIX_RE 无法
 # 连续匹配 —— `sk-abc\x1bdef…` 凭据因此绕过脱敏泄漏。策略：剥离控制字符后
 # 匹配，再映射回原文对应 span 掩码；仅当 span 内全部为 token-body 或控制
