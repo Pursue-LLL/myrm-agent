@@ -5,8 +5,9 @@
 - app.services.code_graph.graph_store::CodeGraphStore (POS: SQLite store of the index)
 
 [OUTPUT]
-- pytest suite covering a first index written in batches (same rows as one write, a single reset, resume after a
-  failure), a reset that spares the files another run stored, and index runs that never overlap per database.
+- pytest suite covering a first index written in batches cut by file count and by source bytes (same rows as one
+  write, a single reset, resume after a failure), a reset that spares the files another run stored, and index runs
+  that never overlap per database.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_index_batching.py
@@ -106,6 +107,23 @@ def test_a_first_index_written_in_batches_stores_exactly_what_a_single_write_sto
     assert writes == expected_writes
     assert _dump(tmp_path / "batched.db") == _dump(tmp_path / "single.db")
     assert batched_stats.updated_files == single_stats.updated_files == count
+
+
+def test_a_batch_is_also_cut_by_the_source_bytes_it_holds(root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _populate(root, 7)
+    file_bytes = (root / "pkg" / "m0.py").stat().st_size
+    single = CodeGraphService(tmp_path / "single.db")
+    single_stats = single.index_directory(root)
+
+    # Every module has the same size, so three of them add up to exactly the limit and the batch is cut there.
+    monkeypatch.setattr(service_module, "INDEX_BATCH_BYTES", 3 * file_bytes)
+    batched = CodeGraphService(tmp_path / "batched.db")
+    writes = _spy_on_writes(batched, monkeypatch)
+    batched_stats = batched.index_directory(root)
+
+    assert writes == [(3, True), (3, False), (1, False)]
+    assert _dump(tmp_path / "batched.db") == _dump(tmp_path / "single.db")
+    assert batched_stats.updated_files == single_stats.updated_files == 7
 
 
 def test_leftovers_without_a_file_record_are_cleared_once_not_by_every_batch(
