@@ -57,7 +57,7 @@ _AGENT_HINT_MARKERS: tuple[str, ...] = (
 )
 
 _PROFILE_OPTION_IDS: tuple[str, ...] = (
-    "测啥了",
+    "继续测",
     "提取热帖",
 )
 
@@ -171,7 +171,7 @@ def validate_cross_file_contract(root: Path | None = None) -> list[str]:
             for option_id in _PROFILE_OPTION_IDS:
                 block = _extract_profile_option_block(profile_text, option_id)
                 rel = f"{target.path}:{option_id}"
-                if option_id == "测啥了" and "mux MCP" in block:
+                if option_id == "继续测" and "mux MCP" in block:
                     violations.append(
                         f"{rel}: UI E2E must use ./myrm-dev test -m chrome_e2e, not mux MCP"
                     )
