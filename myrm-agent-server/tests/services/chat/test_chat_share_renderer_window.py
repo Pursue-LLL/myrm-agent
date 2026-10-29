@@ -51,6 +51,21 @@ async def test_a_long_conversation_shows_its_latest_messages_and_says_how_many_t
     assert footer in html
 
 
+@pytest.mark.parametrize(
+    ("lang", "footer"),
+    [("en", '<span class="stat">0 messages</span>'), ("zh", '<span class="stat">0 条消息</span>')],
+    ids=["en", "zh"],
+)
+async def test_an_empty_conversation_says_there_are_no_messages_and_has_no_notice(
+    mock_db: MagicMock, lang: ShareLang, footer: str
+) -> None:
+    html = await render_page(mock_db, lang, messages=[])
+
+    assert _message_blocks(html) == 0
+    assert _NOTICE not in html
+    assert footer in html
+
+
 async def test_a_conversation_that_fits_is_shown_whole_without_a_notice(mock_db: MagicMock) -> None:
     html = await render_page(mock_db, "en", messages=_turns(_CAP))
 

@@ -13,19 +13,24 @@
 [POS]
 Generates responsive, secure HTML pages for public conversation share links.
 Uses markdown-it-py for rich Markdown rendering (code blocks, tables, lists).
-Includes Agent identity card, message history, OG metadata, dark mode, and XSS protection. The page chrome (role
-labels, message count, fallback title and agent names, footer, ``lang``) is written in the visitor's language like the
-password-gate and status pages; the conversation itself is shown as written. A very long conversation shows its latest
-messages and says how many there are; the page runs no script, so message times are printed in UTC and labelled so.
+Includes Agent identity card, message history, OG metadata, dark mode, and XSS protection. A wide table scrolls inside its
+message bubble. The page chrome (role labels, message count, fallback title and agent names, footer, ``lang``) is
+written in the visitor's language like the password-gate and status pages; the conversation itself is shown as
+written. A very long conversation shows its latest messages and says how many there are; the page runs no script,
+so message times are printed in UTC and labelled so.
 """
 
 from __future__ import annotations
 
 import html
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from markdown_it import MarkdownIt
+from markdown_it.renderer import RendererHTML
+from markdown_it.token import Token
+from markdown_it.utils import EnvType, OptionsDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +40,22 @@ from app.database.models.agent import Agent
 from app.services.chat.chat_helpers import exported_user_text, is_wakeup_notice
 from app.services.chat.chat_service import ChatService
 
+_TABLE_OPEN = '<div class="table-wrap">'
+_TABLE_CLOSE = "</div>"
+
+
+def _open_table(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
+    return _TABLE_OPEN + renderer.renderToken(tokens, idx, options, env)
+
+
+def _close_table(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
+    return renderer.renderToken(tokens, idx, options, env) + _TABLE_CLOSE
+
+
 _md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
+# A wide table scrolls inside its message bubble; left alone the browser squeezes every column down to a few characters.
+_md.add_render_rule("table_open", _open_table)
+_md.add_render_rule("table_close", _close_table)
 
 _OG_DESC_MAX = 200
 
@@ -178,27 +198,28 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .header h1{{font-size:1.25rem;font-weight:600;color:#111827}}
 .agent-card{{background:#f3f4f6;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem}}
 .agent-name{{font-weight:600;color:#374151}}
-.model{{font-size:0.8rem;color:#6b7280;background:#e5e7eb;padding:2px 8px;border-radius:4px}}
+.model{{font-size:0.8rem;color:#4b5563;background:#e5e7eb;padding:2px 8px;border-radius:4px}}
 .notice{{margin-bottom:1rem;padding:0.5rem 0.75rem;border-radius:8px;background:#f3f4f6;color:#4b5563;font-size:0.8rem;text-align:center}}
 .msg{{margin-bottom:1rem;padding:1rem;border-radius:8px}}
 .msg.user{{background:#eff6ff}}
 .msg.assistant{{background:#ffffff;border:1px solid #e5e7eb}}
 .msg-header{{display:flex;justify-content:space-between;margin-bottom:0.5rem}}
 .role{{font-weight:600;font-size:0.85rem;color:#374151}}
-.time{{font-size:0.75rem;color:#9ca3af}}
+.time{{font-size:0.75rem;color:#4b5563}}
 .msg-body{{font-size:0.9rem;word-break:break-word}}
 .msg-body p{{margin-bottom:0.5rem}}
 .msg-body ul,.msg-body ol{{margin:0.5rem 0;padding-left:1.5rem}}
 .msg-body pre{{background:#1e293b;color:#e2e8f0;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;margin:0.5rem 0;font-family:'SF Mono',Menlo,Monaco,monospace;font-size:0.82rem;line-height:1.5}}
 .msg-body code{{background:#f1f5f9;padding:1px 4px;border-radius:3px;font-family:'SF Mono',Menlo,Monaco,monospace;font-size:0.85em}}
 .msg-body pre code{{background:transparent;padding:0;font-size:inherit}}
-.msg-body table{{border-collapse:collapse;width:100%;margin:0.5rem 0;font-size:0.85rem}}
-.msg-body th,.msg-body td{{border:1px solid #e5e7eb;padding:0.4rem 0.6rem;text-align:left}}
+.msg-body .table-wrap{{overflow-x:auto;margin:0.5rem 0}}
+.msg-body table{{border-collapse:collapse;width:100%;font-size:0.85rem}}
+.msg-body th,.msg-body td{{border:1px solid #e5e7eb;padding:0.4rem 0.6rem;text-align:left;word-break:normal}}
 .msg-body th{{background:#f9fafb;font-weight:600}}
 .msg-body blockquote{{border-left:3px solid #d1d5db;padding-left:0.75rem;margin:0.5rem 0;color:#6b7280}}
 .msg-body strong{{font-weight:600}}
 .msg-body h1,.msg-body h2,.msg-body h3{{margin:0.75rem 0 0.25rem;font-weight:600}}
-.footer{{text-align:center;padding:1.5rem 0;border-top:1px solid #e5e7eb;margin-top:1.5rem;color:#9ca3af;font-size:0.8rem}}
+.footer{{text-align:center;padding:1.5rem 0;border-top:1px solid #e5e7eb;margin-top:1.5rem;color:#6b7280;font-size:0.8rem}}
 .stats{{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:0.5rem}}
 .stat{{font-size:0.75rem;color:#6b7280}}
 @media(prefers-color-scheme:dark){{
@@ -212,12 +233,13 @@ body{{background:#111827;color:#e5e7eb}}
 .msg.user{{background:#1e3a5f}}
 .msg.assistant{{background:#1f2937;border-color:#374151}}
 .role{{color:#e5e7eb}}
+.time{{color:#9ca3af}}
 .msg-body code{{background:#374151;color:#e2e8f0}}
 .msg-body pre{{background:#0f172a}}
 .msg-body th{{background:#1f2937}}
 .msg-body th,.msg-body td{{border-color:#374151}}
 .msg-body blockquote{{border-color:#4b5563;color:#9ca3af}}
-.footer{{border-color:#374151;color:#6b7280}}
+.footer{{border-color:#374151;color:#9ca3af}}
 .stat{{color:#9ca3af}}
 }}
 </style>
