@@ -15,7 +15,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
+import threading
+import time
 from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -33,6 +36,7 @@ pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="NSPasteboard i
 _PNG = "public.png"
 _CUSTOM = "com.example.custom"
 _TEXT = "public.utf8-plain-text"
+_MARKERS = ("org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType")
 
 
 @pytest.fixture()
@@ -137,6 +141,59 @@ class TestWriteText:
             macos_pasteboard.write_text("你好", pb=RejectingPasteboard())
 
 
+class TestPasteText:
+    def test_runs_snapshot_write_paste_restore_in_order(self, pb: NSPasteboard) -> None:
+        from AppKit import NSPasteboardTypeString
+
+        original = [{_TEXT: b"old", _PNG: b"\x89PNG\x00"}]
+        _fill(pb, original)
+        seen: list[tuple[str, set[str]]] = []
+
+        def press() -> None:
+            seen.append((str(pb.stringForType_(NSPasteboardTypeString)), _types(pb)))
+
+        macos_pasteboard.paste_text("你好", press, concealed=True, settle_seconds=0, pb=pb)
+
+        assert seen == [("你好", {_TEXT, "NSStringPboardType", *_MARKERS})]
+        assert macos_pasteboard.snapshot(pb).items == tuple(original)
+
+    def test_waits_for_the_target_to_read_before_restoring(self, pb: NSPasteboard) -> None:
+        _fill(pb, [{_TEXT: b"old"}])
+        started = time.monotonic()
+
+        macos_pasteboard.paste_text("你好", lambda: None, settle_seconds=0.2, pb=pb)
+
+        assert time.monotonic() - started >= 0.2
+
+    def test_pasteboard_is_restored_when_pressing_paste_fails(self, pb: NSPasteboard) -> None:
+        _fill(pb, [{_TEXT: b"old"}])
+
+        def press() -> None:
+            raise RuntimeError("no permission")
+
+        with pytest.raises(RuntimeError, match="no permission"):
+            macos_pasteboard.paste_text("你好", press, settle_seconds=0, pb=pb)
+
+        assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"old"},)
+
+    def test_failed_write_never_pastes_and_still_restores(self, pb: NSPasteboard) -> None:
+        _fill(pb, [{_TEXT: b"old"}])
+        pressed: list[bool] = []
+
+        def clear_then_fail(*_args: object, **_kwargs: object) -> int:
+            pb.clearContents()
+            raise RuntimeError("Failed to write text to the macOS pasteboard")
+
+        with (
+            patch.object(macos_pasteboard, "write_text", clear_then_fail),
+            pytest.raises(RuntimeError, match="write text"),
+        ):
+            macos_pasteboard.paste_text("你好", lambda: pressed.append(True), settle_seconds=0, pb=pb)
+
+        assert pressed == []
+        assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"old"},)
+
+
 class TestPasteTextEndToEnd:
     """真实剪贴板上跑完整的 `_paste_text`：Cmd+V 的替身像目标应用那样读剪贴板，不投递任何按键。"""
 
@@ -180,3 +237,77 @@ class TestPasteTextEndToEnd:
         await self._paste(pb, "你好", concealed=False, during_paste=lambda: _fill(pb, [{_TEXT: b"copied meanwhile"}]))
 
         assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"copied meanwhile"},)
+
+    @pytest.mark.asyncio()
+    @pytest.mark.parametrize("slow_stage", ["write", "paste"])
+    async def test_cancelled_paste_still_runs_to_a_consistent_end(self, pb: NSPasteboard, slow_stage: str) -> None:
+        """任务在写入或粘贴进行时被取消：目标应用仍读到文本，随后用户内容回来，不会交错残留。"""
+        from AppKit import NSPasteboardTypeString
+
+        _fill(pb, [{_TEXT: b"user text"}])
+        read_by_target: list[str] = []
+        finished = threading.Event()
+        real_write, real_restore = macos_pasteboard.write_text, macos_pasteboard.restore
+
+        def write(text: str, *, concealed: bool = False, pb: NSPasteboard | None = None) -> int:
+            if slow_stage == "write":
+                time.sleep(0.3)
+            return real_write(text, concealed=concealed, pb=pb)
+
+        def hotkey(*_keys: str) -> None:
+            if slow_stage == "paste":
+                time.sleep(0.3)
+            read_by_target.append(str(pb.stringForType_(NSPasteboardTypeString)))
+
+        def restore(saved: macos_pasteboard.PasteboardSnapshot, written: int | None, *, pb: NSPasteboard) -> bool:
+            try:
+                return real_restore(saved, written, pb=pb)
+            finally:
+                finished.set()
+
+        with (
+            patch.object(macos_pasteboard, "_resolve", return_value=pb),
+            patch.object(macos_pasteboard, "write_text", write),
+            patch.object(macos_pasteboard, "restore", restore),
+            patch.object(macos_mod.macos_input, "hotkey", side_effect=hotkey),
+            patch.object(macos_mod, "_PASTE_SETTLE_SECONDS", 0),
+        ):
+            task = asyncio.create_task(macos_mod.MacOSBackend()._paste_text("你好", concealed=True))
+            await asyncio.sleep(0.1)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            # 剪贴板只在工作线程结束后才读，避免测试自己与工作线程并发访问同一个 NSPasteboard。
+            assert await asyncio.to_thread(finished.wait, 5)
+
+        assert read_by_target == ["你好"]
+        assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"user text"},)
+
+    def test_overlapping_pastes_are_serialized(self, pb: NSPasteboard) -> None:
+        """取消后立刻重试：第二轮必须等第一轮还原完，否则会把临时文本当成用户内容。"""
+        from AppKit import NSPasteboardTypeString
+
+        _fill(pb, [{_TEXT: b"user text"}])
+        order: list[str] = []
+
+        def press(label: str) -> Callable[[], None]:
+            def _press() -> None:
+                order.append(f"{label}:{pb.stringForType_(NSPasteboardTypeString)}")
+                time.sleep(0.15)
+
+            return _press
+
+        threads = [
+            threading.Thread(
+                target=macos_pasteboard.paste_text, args=(text, press(text)), kwargs={"settle_seconds": 0, "pb": pb}
+            )
+            for text in ("第一轮", "第二轮")
+        ]
+        for thread in threads:
+            thread.start()
+            time.sleep(0.05)
+        for thread in threads:
+            thread.join(5)
+
+        assert order == ["第一轮:第一轮", "第二轮:第二轮"]
+        assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"user text"},)

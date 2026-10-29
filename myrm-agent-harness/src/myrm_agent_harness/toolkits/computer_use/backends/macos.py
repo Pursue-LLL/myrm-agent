@@ -211,15 +211,17 @@ class MacOSBackend:
             return ActionResult(success=False, error=str(e))
 
     async def _paste_text(self, text: str, *, concealed: bool = False) -> None:
-        """Type non-ASCII text via clipboard paste (Cmd+V); the user's pasteboard is restored afterwards."""
-        saved = await asyncio.to_thread(macos_pasteboard.snapshot)
-        written: int | None = None
-        try:
-            written = await asyncio.to_thread(macos_pasteboard.write_text, text, concealed=concealed)
-            await asyncio.to_thread(macos_input.hotkey, "command", "v")
-            await asyncio.sleep(_PASTE_SETTLE_SECONDS)
-        finally:
-            await asyncio.to_thread(macos_pasteboard.restore, saved, written)
+        """Type non-ASCII text via clipboard paste (Cmd+V); the user's pasteboard is restored afterwards.
+
+        The whole sequence runs in one worker thread, so a cancelled call still finishes the paste and the restore.
+        """
+        await asyncio.to_thread(
+            macos_pasteboard.paste_text,
+            text,
+            lambda: macos_input.hotkey("command", "v"),
+            concealed=concealed,
+            settle_seconds=_PASTE_SETTLE_SECONDS,
+        )
 
     async def key(self, keys: str) -> ActionResult:
         try:

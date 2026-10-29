@@ -11,14 +11,14 @@ Platform-specific implementations of the ComputerBackend protocol. Provides macO
 | protocols.py | Core | ComputerBackend protocol — abstract interface for platform backends. | ✅ |
 | macos.py | Core | macOS backend — screencapture + Quartz CGEvent + NSScreen DPI + AX text; window-targeted capture (`screencapture -l`) and foreground guard via `macos_background`, `check_permissions` via `macos_permissions`; `set_excluded_capture_window_titles` 帷幕排除通道注入；帷幕在屏时全局 HID 坐标类指针动作（click/mouse_move/scroll/drag）fail-closed（`_pointer_occluded`，定向投递与键盘不受影响）. | ✅ |
 | macos_input.py | Core | macOS input primitives — Quartz CGEvent keyboard/mouse (replaces pyautogui); PID-targeted delivery via single post router; `has_input_target()` 判定当前任务是否定向投递. | ✅ |
-| macos_pasteboard.py | Core | macOS 剪贴板借用原语 — `snapshot` 读取全部 item 的全部类型、`write_text` 写临时文本（总带 `TransientType`，凭证再带 `ConcealedType`，失败抛 `RuntimeError`）、`restore` 以 `changeCount` 守卫还原（用户在粘贴期间新复制则放弃）；`macos.py:_paste_text` 编排；AppKit 调用期惰性导入. | ✅ |
+| macos_pasteboard.py | Core | macOS 剪贴板借用原语 — `snapshot` 读取全部 item 的全部类型、`write_text` 写临时文本（总带 `TransientType`，凭证再带 `ConcealedType`，失败抛 `RuntimeError`）、`restore` 以 `changeCount` 守卫还原（用户在粘贴期间新复制则放弃）；`paste_text` 在一个同步函数里完成快照、写入、按键回调、等待、`finally` 还原，模块锁串行重叠调用（`macos.py:_paste_text` 只用一次 `to_thread` 调用它）；AppKit 调用期惰性导入. | ✅ |
 | macos_background.py | Core | macOS background ops — window resolve, `screencapture -l` capture, foreground guard, post-event permission, EnhancedUI (crash-contained probe); `_capture_screen_excluding_titles` Quartz below-window 截图通道（帷幕窗排除，失败降级原 screencapture 路径）. | ✅ |
 | macos_ax_scripts.py | Core | macOS accessibility probe scripts — AppleScript sources (`AX_TEXT_SCRIPT` window text, `AX_DIALOG_SCRIPT` blocking dialog) consumed by `macos.py`; parsing and timeouts stay with the callers. | — |
 | macos_permissions.py | Core | macOS TCC permission probes — Accessibility (`AXIsProcessTrusted` + osascript capability probe), Screen Recording (`CGPreflightScreenCaptureAccess`), optional capture-usability probe, post-event access, System Settings deeplinks (`_MACOS_DEEPLINKS`, also consumed by `perception/macos_ax.py`); consumed by `macos.py` `check_permissions`. | ✅ |
 | windows.py | Core | Windows backend — mss + pyautogui + ctypes/user32 + uiautomation; `set_excluded_capture_window_titles` 帷幕排除注入；帷幕在屏时全局指针动作 fail-closed（`_pointer_occluded`）；全屏截图合并 `SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES`（视觉审批高亮）. | ✅ |
 | windows_text_io.py | Core | Windows 文本桥 — `type_unicode_text`（`SendInput` Unicode 键事件逐 UTF-16 代码单元输入，换行折成一次 Return，分块发送，不碰剪贴板；UIPI 拦截不可检测）、`extract_window_text`（uiautomation 前台窗口文本，递归收集有深度/数量上限）；Win32 与 uiautomation 调用期解析，跨平台可导入. | ✅ |
 | windows_background.py | Core | Windows overlay ops — `_lowest_overlay_hwnd` title 探测；`_capture_screen_excluding_titles` mss 路径（帷幕 WDA 已由桌面端设置）. | ✅ |
-| linux.py | Core | Linux backend — scrot/gnome-screenshot + xdotool + DISPLAY auto-detection. | ✅ |
+| linux.py | Core | Linux backend — scrot/gnome-screenshot + xdotool + DISPLAY auto-detection；输入命令经 `_run_input` 校验退出码（缺工具即失败），非 ASCII 经 xclip 粘贴并在 `finally` 还原文本剪贴板. | ✅ |
 | cua_driver.py | Enhancement | Background-input backend via cua-driver MCP. Wraps a native backend. | ✅ |
 | cua_driver_spawn.py | Enhancement | MCP stdio argv policy — ``--no-overlay`` defaults and ``--help`` capability probe. | ✅ |
 

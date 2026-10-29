@@ -166,75 +166,35 @@ class TestCredentialTyping:
         paste.assert_awaited_once_with("密钥", concealed=True)
 
 
-class TestPasteTextOrchestration:
-    """_paste_text 的编排：先快照，再写入，Cmd+V 之后无论成败都还原。"""
-
-    @pytest.fixture()
-    def calls(self) -> list[str]:
-        return []
-
-    @pytest.fixture()
-    def pasteboard(self, calls: list[str]) -> MagicMock:
-        board = MagicMock()
-        board.snapshot.side_effect = lambda: calls.append("snapshot") or "SAVED"
-        board.write_text.side_effect = lambda text, concealed: calls.append(f"write:{text}:{concealed}") or 7
-        board.restore.side_effect = lambda saved, written: calls.append(f"restore:{saved}:{written}")
-        return board
+class TestPasteTextDelegation:
+    """_paste_text 把整个借用过程交给 macos_pasteboard.paste_text，在一个工作线程里跑完。"""
 
     @pytest.mark.asyncio()
-    async def test_snapshot_write_paste_restore_in_order(
-        self, backend: MacOSBackend, calls: list[str], pasteboard: MagicMock
-    ) -> None:
+    @pytest.mark.parametrize("concealed", [False, True])
+    async def test_delegates_once_with_settle_time_and_cmd_v(self, backend: MacOSBackend, concealed: bool) -> None:
         with (
-            patch.object(macos_mod, "macos_pasteboard", pasteboard),
-            patch.object(macos_mod.macos_input, "hotkey", side_effect=lambda *keys: calls.append(f"hotkey:{keys}")),
-            patch.object(macos_mod, "_PASTE_SETTLE_SECONDS", 0),
-        ):
-            await backend._paste_text("你好")
-        assert calls == ["snapshot", "write:你好:False", "hotkey:('command', 'v')", "restore:SAVED:7"]
-
-    @pytest.mark.asyncio()
-    async def test_concealed_flag_reaches_the_pasteboard(self, backend: MacOSBackend, pasteboard: MagicMock) -> None:
-        with (
-            patch.object(macos_mod, "macos_pasteboard", pasteboard),
-            patch.object(macos_mod.macos_input, "hotkey"),
-            patch.object(macos_mod, "_PASTE_SETTLE_SECONDS", 0),
-        ):
-            await backend._paste_text("密钥", concealed=True)
-        pasteboard.write_text.assert_called_once_with("密钥", concealed=True)
-
-    @pytest.mark.asyncio()
-    async def test_pasteboard_is_restored_when_the_hotkey_fails(
-        self, backend: MacOSBackend, calls: list[str], pasteboard: MagicMock
-    ) -> None:
-        with (
-            patch.object(macos_mod, "macos_pasteboard", pasteboard),
-            patch.object(macos_mod.macos_input, "hotkey", side_effect=RuntimeError("no permission")),
-            pytest.raises(RuntimeError, match="no permission"),
-        ):
-            await backend._paste_text("你好")
-        assert calls[-1] == "restore:SAVED:7"
-
-    @pytest.mark.asyncio()
-    async def test_failed_write_restores_unconditionally_and_never_pastes(
-        self, backend: MacOSBackend, calls: list[str], pasteboard: MagicMock
-    ) -> None:
-        pasteboard.write_text.side_effect = RuntimeError("pasteboard write failed")
-        with (
-            patch.object(macos_mod, "macos_pasteboard", pasteboard),
+            patch.object(macos_mod.macos_pasteboard, "paste_text") as paste_text,
             patch.object(macos_mod.macos_input, "hotkey") as hotkey,
-            pytest.raises(RuntimeError, match="pasteboard write failed"),
         ):
-            await backend._paste_text("你好")
-        hotkey.assert_not_called()
-        pasteboard.restore.assert_called_once_with("SAVED", None)
+            await backend._paste_text("你好", concealed=concealed)
+
+            paste_text.assert_called_once()
+            args, kwargs = paste_text.call_args
+            assert args[0] == "你好"
+            assert kwargs == {"concealed": concealed, "settle_seconds": macos_mod._PASTE_SETTLE_SECONDS}
+            args[1]()  # 必须在补丁生效期间调用，否则会向本机真实投递 Cmd+V
+            hotkey.assert_called_once_with("command", "v")
 
     @pytest.mark.asyncio()
-    async def test_type_text_reports_write_failure(self, backend: MacOSBackend) -> None:
-        with patch.object(backend, "_paste_text", AsyncMock(side_effect=RuntimeError("pasteboard write failed"))):
+    async def test_type_text_reports_paste_failure(self, backend: MacOSBackend) -> None:
+        with patch.object(
+            macos_mod.macos_pasteboard,
+            "paste_text",
+            side_effect=RuntimeError("Failed to write text to the macOS pasteboard"),
+        ):
             result = await backend.type_text("你好")
         assert result.success is False
-        assert "pasteboard write failed" in (result.error or "")
+        assert "Failed to write text" in (result.error or "")
 
 
 class TestPlatformDelegation:

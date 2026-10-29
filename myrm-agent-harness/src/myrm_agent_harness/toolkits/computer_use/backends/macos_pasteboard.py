@@ -10,6 +10,7 @@
 [OUTPUT]
 - PasteboardSnapshot: 剪贴板全部 item 的全部类型字节快照
 - snapshot / write_text / restore: 快照、写入临时文本（失败即抛错）、changeCount 守卫还原
+- paste_text: 同步编排「快照、写入、粘贴、等待、还原」，调用方被取消时仍完整跑完
 
 [POS]
 macOS 剪贴板借用原语。仅被 backends/macos.py 的 `_paste_text` 引用。
@@ -19,6 +20,9 @@ macOS 剪贴板借用原语。仅被 backends/macos.py 的 `_paste_text` 引用�
 from __future__ import annotations
 
 import logging
+import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -30,6 +34,9 @@ logger = logging.getLogger(__name__)
 # nspasteboard.org 约定：剪贴板历史工具应忽略带这两个标记的内容。
 _TRANSIENT_TYPE = "org.nspasteboard.TransientType"
 _CONCEALED_TYPE = "org.nspasteboard.ConcealedType"
+
+# 同一时刻只允许一轮借用：取消后立刻重试时，新一轮必须等上一轮还原完，否则会把我方临时文本当成用户内容快照下来。
+_PASTE_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -98,3 +105,28 @@ def restore(saved: PasteboardSnapshot, written_change_count: int | None, *, pb: 
         logger.warning("Failed to restore the macOS pasteboard after pasting text")
         return False
     return True
+
+
+def paste_text(
+    text: str,
+    press_paste: Callable[[], None],
+    *,
+    concealed: bool = False,
+    settle_seconds: float,
+    pb: NSPasteboard | None = None,
+) -> None:
+    """借用剪贴板粘贴文本：快照、写入、`press_paste()`、等待目标应用读取、还原。
+
+    整个过程是一个同步函数，由调用方放进单个工作线程：异步调用方被取消时线程仍会跑完，
+    目标应用读到的一定是我们写的文本，随后用户的内容一定回来，不会出现写入与还原交错；
+    进程内的并发调用经 `_PASTE_LOCK` 串行。
+    """
+    with _PASTE_LOCK:
+        saved = snapshot(pb)
+        written: int | None = None
+        try:
+            written = write_text(text, concealed=concealed, pb=pb)
+            press_paste()
+            time.sleep(settle_seconds)
+        finally:
+            restore(saved, written, pb=pb)

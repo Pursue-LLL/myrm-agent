@@ -70,6 +70,7 @@ async def test_type_text_non_ascii(backend):
     ):
         mock_proc = AsyncMock()
         mock_proc.communicate.return_value = (b"", b"")
+        mock_proc.returncode = 0
         mock_shell.return_value = mock_proc
         res = await backend.type_text("你好")
         assert res.success is True

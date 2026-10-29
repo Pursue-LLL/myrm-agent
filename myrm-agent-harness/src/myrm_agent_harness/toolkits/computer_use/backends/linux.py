@@ -79,6 +79,12 @@ class LinuxBackend:
         stdout, stderr = await proc.communicate()
         return stdout.decode(), stderr.decode(), proc.returncode or 0
 
+    async def _run_input(self, cmd: str) -> None:
+        """Run an input-injection command; a non-zero exit (e.g. xdotool missing) must not look like success."""
+        _, stderr, code = await self._run_cmd(cmd)
+        if code != 0:
+            raise RuntimeError(f"{cmd.split()[0]} failed (exit {code}): {stderr.strip()}")
+
     async def resolve_window_target(self, app_name: str, window_index: int = 0) -> tuple[int, int, int, int] | None:
         """Window targeting is unsupported here: no window can be resolved."""
         return None
@@ -115,16 +121,16 @@ class LinuxBackend:
         xdotool_mods = [_MODIFIER_TO_XDOTOOL[m] for m in modifiers] if modifiers else []
         try:
             btn = CLICK_BUTTONS.get(button, "1")
-            await self._run_cmd(f"xdotool mousemove --sync {x} {y}")
+            await self._run_input(f"xdotool mousemove --sync {x} {y}")
 
             for mod in xdotool_mods:
-                await self._run_cmd(f"xdotool keydown {mod}")
+                await self._run_input(f"xdotool keydown {mod}")
 
             if clicks > 1:
                 repeat_flag = f"--repeat {clicks} --delay 100"
-                await self._run_cmd(f"xdotool click {repeat_flag} {btn}")
+                await self._run_input(f"xdotool click {repeat_flag} {btn}")
             else:
-                await self._run_cmd(f"xdotool click {btn}")
+                await self._run_input(f"xdotool click {btn}")
 
             return ActionResult(success=True)
         except Exception as e:
@@ -139,7 +145,7 @@ class LinuxBackend:
             if text.isascii():
                 for i in range(0, len(text), chunk_size):
                     chunk = text[i : i + chunk_size]
-                    await self._run_cmd(f"xdotool type --delay {delay_ms} -- {shlex.quote(chunk)}")
+                    await self._run_input(f"xdotool type --delay {delay_ms} -- {shlex.quote(chunk)}")
             else:
                 await self._paste_text_xclip(text)
             return ActionResult(success=True)
@@ -178,37 +184,40 @@ class LinuxBackend:
         except Exception as e:
             return ActionResult(success=False, error=str(e))
 
+    async def _xclip_write(self, text: str) -> None:
+        """Replace the clipboard contents. xclip stays unpiped: its forked selection owner would keep a pipe open forever."""
+        proc = await asyncio.create_subprocess_shell(
+            f"{self._display_prefix}xclip -selection clipboard", stdin=asyncio.subprocess.PIPE
+        )
+        await proc.communicate(text.encode("utf-8"))
+        if proc.returncode != 0:
+            raise RuntimeError(f"xclip failed (exit {proc.returncode})")
+
     async def _paste_text_xclip(self, text: str) -> None:
         """Type non-ASCII text via xclip + Ctrl+V, preserving original clipboard."""
         saved_stdout, _, _ = await self._run_cmd("xclip -selection clipboard -o")
-
-        proc = await asyncio.create_subprocess_shell(
-            f"{self._display_prefix}xclip -selection clipboard",
-            stdin=asyncio.subprocess.PIPE,
-        )
-        await proc.communicate(text.encode("utf-8"))
-
-        await self._run_cmd("xdotool key ctrl+v")
-        await asyncio.sleep(0.1)
-
-        if saved_stdout:
-            restore_proc = await asyncio.create_subprocess_shell(
-                f"{self._display_prefix}xclip -selection clipboard",
-                stdin=asyncio.subprocess.PIPE,
-            )
-            await restore_proc.communicate(saved_stdout.encode("utf-8"))
+        try:
+            await self._xclip_write(text)
+            await self._run_input("xdotool key ctrl+v")
+            await asyncio.sleep(0.1)
+        finally:
+            if saved_stdout:
+                try:
+                    await self._xclip_write(saved_stdout)
+                except Exception:
+                    logger.warning("Failed to restore the X11 clipboard after paste", exc_info=True)
 
     async def key(self, keys: str) -> ActionResult:
         try:
             xdotool_keys = keys.replace("+", " ")
-            await self._run_cmd(f"xdotool key -- {xdotool_keys}")
+            await self._run_input(f"xdotool key -- {xdotool_keys}")
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
 
     async def mouse_move(self, x: int, y: int) -> ActionResult:
         try:
-            await self._run_cmd(f"xdotool mousemove --sync {x} {y}")
+            await self._run_input(f"xdotool mousemove --sync {x} {y}")
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
@@ -223,15 +232,15 @@ class LinuxBackend:
     ) -> ActionResult:
         xdotool_mods = [_MODIFIER_TO_XDOTOOL[m] for m in modifiers] if modifiers else []
         try:
-            await self._run_cmd(f"xdotool mousemove --sync {x} {y}")
+            await self._run_input(f"xdotool mousemove --sync {x} {y}")
 
             for mod in xdotool_mods:
-                await self._run_cmd(f"xdotool keydown {mod}")
+                await self._run_input(f"xdotool keydown {mod}")
 
             scroll_map = {"up": "4", "down": "5", "left": "6", "right": "7"}
             btn = scroll_map.get(direction, "5")
             for _ in range(amount):
-                await self._run_cmd(f"xdotool click {btn}")
+                await self._run_input(f"xdotool click {btn}")
 
             return ActionResult(success=True)
         except Exception as e:
@@ -251,9 +260,9 @@ class LinuxBackend:
         xdotool_mods = [_MODIFIER_TO_XDOTOOL[m] for m in modifiers] if modifiers else []
         try:
             for mod in xdotool_mods:
-                await self._run_cmd(f"xdotool keydown {mod}")
+                await self._run_input(f"xdotool keydown {mod}")
 
-            await self._run_cmd(
+            await self._run_input(
                 f"xdotool mousemove --sync {start_x} {start_y} mousedown 1 mousemove --sync {end_x} {end_y} mouseup 1"
             )
 
