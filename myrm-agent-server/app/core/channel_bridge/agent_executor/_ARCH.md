@@ -30,7 +30,7 @@
 - `tests/core/channel_bridge/test_deliverable_scanner.py` — 路径扫描、超限压缩/提示与文本剥离
 - `tests/core/channel_bridge/test_deliverable_media.py` — 附件大小上限格式化与渐进压缩（透明保留、失败回退）
 - `tests/core/channel_bridge/test_stream_events.py` — harness 流事件映射；致命错误事件的原始文本与错误类型记录（后一条错误覆盖前一条、缺失或未知的类型按 UNKNOWN）；模型切换重放替换半截回答、工具步骤之前的文字保留；loop guard 暂停只记 `tool_stuck_paused` 不出卡片，真实审批与其他事件不会被当成暂停
-- `tests/core/channel_bridge/test_execute_finalize_paused.py` — 真实事件映射接真实 finalize：暂停的回合无文字时回复「已停下」文案（不是「未生成回复」）、已有文字时保留并附文案、随成员语言、文案不含工具名与调用编号、带失败回合标记、同时有致命错误时报错误、真空回合与真实审批请求不受影响
+- `tests/core/channel_bridge/test_execute_finalize_paused.py` — harness 的真实中断翻译器生成的暂停事件经真实事件映射接真实 finalize：暂停的回合无文字时回复「已停下」文案（不是「未生成回复」）、已有文字时保留并附文案、随成员语言、文案不含工具名与调用编号、带失败回合标记、同时有致命错误时报错误、真空回合与真实审批请求不受影响
 - `tests/core/channel_bridge/test_approval_card.py` — 审批卡按发送者语言（en/ja/zh-CN/zh-TW）出句式、超时行、安全审查前缀与按钮，工具名与未编码的理由原样、编码的理由按码出句（harness 的每个理由码在四种语言都有句子，不认识的码回退原文，批量里各请求各自出句）；批量按钮、无理由不带悬空冒号、超时自动批准/拒绝的措辞、长时限不带千分位、时限缺失或不可读回退默认 300 秒/拒绝、无目录的语言读英文
 - `tests/core/channel_bridge/test_executor_approval_card_locale.py` — 真实执行器停在审批请求处，卡片按发送者的 locale 出，并带 `expiry` 与本回合的会话键
 - `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable、Outcome XOR）

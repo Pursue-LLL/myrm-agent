@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 
 import pytest
 from myrm_agent_harness.agent.errors import ToolStuckException
+from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ApprovalExpiry, FissionTopologyNode, FissionTopologyUpdate, ProgressUpdate, StreamingText
@@ -242,10 +244,9 @@ async def test_later_error_event_replaces_the_earlier_one() -> None:
 @pytest.mark.asyncio
 async def test_loop_guard_pause_is_recorded_without_a_card() -> None:
     """The pause arrives as ``approval_required`` but waits on no answer: nothing to approve, so no card."""
-    pause: dict[str, object] = {
-        "type": "approval_required",
-        "data": ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1"),
-    }
+    payload = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
+    pause = interrupt_events([SimpleNamespace(value=payload, id="interrupt-1")], "msg-1", {})[0]
+    assert pause["type"] == "approval_required"
     acc = StreamAccumulator()
     progress = [item async for item in iter_channel_stream_progress(_events(pause), acc, locale="en", session_key="")]
 
