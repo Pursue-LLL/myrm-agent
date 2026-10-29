@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.channels.types import MediaAttachment
+from app.core.notifications.adaptive_cards import format_notification
 from app.database.models.approval import ApprovalRecord
 from app.database.models.base import Base
 from app.services.approvals.registry import ApprovalRegistry
@@ -464,3 +465,25 @@ class TestChannelNativeApprovalBlock:
             )
 
         gateway.publish.assert_not_awaited()
+
+
+class TestPublishedApprovalEvent:
+    @pytest.mark.asyncio
+    async def test_the_notification_card_built_from_the_event_carries_the_reason(self) -> None:
+        """The card is built from what the registry publishes, so it reads the keys the registry writes."""
+        bus = MagicMock()
+        with patch("app.services.approvals.registry.get_event_bus", return_value=bus):
+            await ApprovalRegistry.create_approval(
+                agent_id="agent-1",
+                chat_id=None,
+                thread_id="thread-1",
+                action_type="script_privileged_api",
+                payload={},
+                reason="The script reads cookies",
+                severity="warning",
+            )
+
+        card = format_notification(bus.publish.call_args.args[0], channel="slack", locale="en")
+
+        assert card is not None
+        assert "> The script reads cookies" in card.content

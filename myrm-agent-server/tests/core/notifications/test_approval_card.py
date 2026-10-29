@@ -78,7 +78,7 @@ class TestOutboundDraftCard:
 
         assert "有一条回复等待你审核" in content
         assert "若 5 分钟内无人处理，该回复将被丢弃。" in content
-        assert [button.label for button in _buttons(components)] == ["批准", "拒绝"]
+        assert [button.label for button in _buttons(components)] == ["✅ 批准", "❌ 拒绝"]
 
     def test_every_line_of_a_multi_line_message_is_quoted(self) -> None:
         content, _ = build_approval_card(_draft(draft_content="Line one\n\nLine three"), "telegram", "en")
@@ -143,8 +143,12 @@ class TestDecisionButtons:
         _, components = build_approval_card(_draft(), "telegram", "en")
 
         approve, deny = _buttons(components)
-        assert (approve.label, approve.action_id, approve.style) == ("Approve", "approval:approve:appr_123", ButtonStyle.PRIMARY)
-        assert (deny.label, deny.action_id, deny.style) == ("Deny", "approval:deny:appr_123", ButtonStyle.DANGER)
+        assert (approve.label, approve.action_id, approve.style) == (
+            "✅ Approve",
+            "approval:approve:appr_123",
+            ButtonStyle.PRIMARY,
+        )
+        assert (deny.label, deny.action_id, deny.style) == ("❌ Deny", "approval:deny:appr_123", ButtonStyle.DANGER)
 
     @pytest.mark.parametrize("channel", ["slack", "discord", "feishu", "whatsapp", "teams", "wecom", None])
     def test_channels_whose_clicks_are_not_handled_get_a_pointer_to_the_app(self, channel: str | None) -> None:
@@ -216,17 +220,17 @@ class TestGenericApprovalCard:
         "approval_id": "appr_9",
         "action_type": "delete_database",
         "severity": "critical",
-        "description": "Drop table users in prod",
+        "reason": "Drop table users in prod",
     }
 
-    def test_english_card_lists_action_severity_and_description(self) -> None:
+    def test_english_card_lists_action_severity_and_reason(self) -> None:
         content, components = build_approval_card(self.DATA, "telegram", "en")
 
         assert content == "⚠️ **Approval Required: delete_database**\nSeverity: `critical`\n\n> Drop table users in prod"
         assert [button.action_id for button in _buttons(components)] == ["approval:approve:appr_9", "approval:deny:appr_9"]
 
     def test_other_channels_point_to_the_app(self) -> None:
-        content, components = build_approval_card({**self.DATA, "description": ""}, "slack", "en")
+        content, components = build_approval_card({**self.DATA, "reason": ""}, "slack", "en")
 
         assert components == ()
         assert content == (
@@ -237,3 +241,21 @@ class TestGenericApprovalCard:
         content, _ = build_approval_card(self.DATA, "telegram", "zh-CN")
 
         assert content.startswith("⚠️ **需要审批：delete_database**\n级别：`critical`")
+
+    def test_a_multi_line_reason_is_quoted_line_by_line(self) -> None:
+        content, _ = build_approval_card({**self.DATA, "reason": "first line\nsecond line"}, "telegram", "en")
+
+        assert content.endswith("\n\n> first line\n> second line")
+
+    def test_a_long_reason_is_cut_so_the_card_stays_readable(self) -> None:
+        content, _ = build_approval_card({**self.DATA, "reason": "x" * 2000}, "telegram", "en")
+
+        quoted = content.split("\n\n", 1)[1]
+        assert quoted == f"> {'x' * 500}…"
+
+    def test_a_missing_reason_leaves_only_the_header(self) -> None:
+        data = {key: value for key, value in self.DATA.items() if key != "reason"}
+
+        content, _ = build_approval_card(data, "telegram", "en")
+
+        assert content == "⚠️ **Approval Required: delete_database**\nSeverity: `critical`"

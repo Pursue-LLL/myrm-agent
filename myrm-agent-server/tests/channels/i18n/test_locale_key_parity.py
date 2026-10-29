@@ -109,6 +109,19 @@ def _illegal_references(body: str) -> list[str]:
 
 
 @pytest.mark.architecture
+def test_ftl_locales_define_each_key_once() -> None:
+    """A repeated key is kept once and dropped for the rest, so the wording a user sees depends on file order."""
+    for locale in _locale_names():
+        keys = [
+            match.group(1)
+            for line in (_LOCALES_DIR / f"{locale}.ftl").read_text(encoding="utf-8").splitlines()
+            if (match := _KEY_RE.match(line))
+        ]
+        repeated = sorted({key for key in keys if keys.count(key) > 1})
+        assert not repeated, f"{locale}.ftl defines these keys more than once: {repeated}"
+
+
+@pytest.mark.architecture
 def test_ftl_locales_share_identical_key_sets() -> None:
     """Every channel locale must expose the exact same message keys."""
     locales = _locale_names()
@@ -200,16 +213,25 @@ def test_ftl_locales_have_no_orphaned_keys() -> None:
     across all four files.  ``cmd_*``/``cat_*`` are generated at runtime from
     ``SYSTEM_COMMANDS`` so they are validated through the registry in both
     directions: an orphaned ``cmd_*`` key (registered but never rendered) and
-    a registered command missing its translation both break /help.
+    a registered command missing its translation both break /help.  The same
+    holds for ``approval_reason_*``, keyed by the engine's ``ApprovalReasonCode``.
     """
+    from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode
+
     from app.channels.routing.command_defs import SYSTEM_COMMANDS
 
     keys = frozenset(_message_bodies(_REFERENCE_LOCALE))
     referenced = _referenced_keys()
 
-    dynamic = {f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS} | {
-        f"cat_{cmd.category.replace(' ', '_')}" for cmd in SYSTEM_COMMANDS
-    }
+    reason_keys = {f"approval_reason_{code.value}" for code in ApprovalReasonCode}
+    unworded = sorted(reason_keys - keys)
+    assert not unworded, f"The engine can send reason codes the channel catalog has no wording for: {unworded}"
+
+    dynamic = (
+        {f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS}
+        | {f"cat_{cmd.category.replace(' ', '_')}" for cmd in SYSTEM_COMMANDS}
+        | reason_keys
+    )
 
     orphaned = sorted(keys - referenced - dynamic)
     assert not orphaned, (
@@ -302,6 +324,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "status": "running",
     "steps": "a\nb",
     "style": "s",
+    "subject": "s",
     "target": "t",
     "task_id": "t1",
     "task_ids": "[3f9a1c2e]",

@@ -14,7 +14,9 @@
  * [POS]
  * Idle Approval Alert — bridges the gap between "approval waiting in UI" and
  * "user doesn't know because window is background". Prevents approval timeout
- * deny from silently killing tasks.
+ * deny from silently killing tasks. A request's body names its reason as written
+ * and the time left; a coded reason (English engine text) is left out because
+ * only the approval card words it in the viewer's language.
  */
 
 import type { Locale } from '@/i18n/config';
@@ -98,10 +100,11 @@ function buildNotificationBody(requests: ToolApprovalRequest[]): { title: string
   if (requests.length === 1) {
     const req = requests[0];
     const remaining = Math.max(0, Math.round(req.expiresAt - Date.now() / 1000));
-    return {
-      title: `${strings.pending} - ${req.toolName}`,
-      body: `${req.reason}, ${strings.remaining.replace('{seconds}', String(remaining))}`,
-    };
+    const remainingText = strings.remaining.replace('{seconds}', String(remaining));
+    // A coded reason is English engine text that the approval card words in the viewer's language; this notification
+    // has no such copy, so it states the time left instead of the English text.
+    const body = req.reasonCode || !req.reason ? remainingText : `${req.reason}, ${remainingText}`;
+    return { title: `${strings.pending} - ${req.toolName}`, body };
   }
   return {
     title: strings.pendingMulti.replace('{count}', String(requests.length)),

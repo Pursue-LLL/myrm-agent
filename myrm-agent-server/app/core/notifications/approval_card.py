@@ -1,4 +1,4 @@
-"""Approval notification card: localized copy, reply preview and channel-aware decision buttons.
+"""Approval notification card: localized copy, the request's reason, reply preview and channel-aware decision buttons.
 
 [INPUT]
 - app.channels.i18n::channel_t (POS: localized channel copy catalog)
@@ -12,6 +12,7 @@
 
 [POS]
 Presentation of approval requests for IM notification targets. Pure functions over the event data.
+The card says what is being asked: the request's ``reason`` as the registry publishes it, quoted and capped.
 A held channel reply (``outbound_draft``) shows the incoming message and the drafted text, so the
 reviewer can decide without opening the app; where there are no buttons it also spells out the
 ``/draft`` commands that decide it in chat.
@@ -36,6 +37,7 @@ APPROVAL_CLICK_CHANNELS: frozenset[str] = frozenset({"telegram"})
 _OUTBOUND_DRAFT = "outbound_draft"
 _INCOMING_PREVIEW_CHARS = 300
 _REPLY_PREVIEW_CHARS = 800
+_REASON_PREVIEW_CHARS = 500
 _MAX_ATTACHMENT_NAMES = 5
 
 
@@ -91,8 +93,8 @@ def _generic_content(data: Mapping[str, object], action_type: str, locale: str |
             _t(locale, "approval_card_severity", severity=str(data.get("severity") or "medium")),
         )
     )
-    description = str(data.get("description") or "")
-    return f"{header}\n\n> {description}" if description else header
+    reason = _preview(data.get("reason"), _REASON_PREVIEW_CHARS)
+    return f"{header}\n\n{_quote(reason)}" if reason else header
 
 
 def _outbound_draft_content(data: Mapping[str, object], locale: str | None) -> str:

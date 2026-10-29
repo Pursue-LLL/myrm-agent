@@ -2,6 +2,30 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · IM 审批通知卡片从来不写请求原因（卡片读 `description`，事件写的是 `reason`）；桌面审批通知把英文引擎原文拼进其它语言的正文
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/core/notifications/approval_card.py`、`_ARCH.md`；测试 `tests/core/notifications/test_approval_card.py`、`test_adaptive_cards.py`、`tests/services/approvals/test_registry_lifecycle.py`；frontend：`src/lib/approval/approvalAlertService.ts`、`__tests__/approvalAlertService.test.ts`、`_ARCH.md`） |
+| **症状** | ① 审批请求推到 IM 渠道的通知卡片只有标题和级别，没有「要批准什么」。② 桌面系统通知的正文是「原因、剩余时间」：理由码对应的原因是英文引擎原文（审批卡按码本地化），非英文用户收到的是半英文半本地化的一句话；没有原因的请求（规则命中且原因为空）正文以逗号开头。 |
+| **根因** | ① 注册表发布 `APPROVAL_REQUIRED` 时写的键是 `reason`（`app/services/approvals/registry.py:146`），卡片的通用分支读的却是 `description`，永远取到空串；卡片的单测用 `description` 造数据，测试与实现互相印证，一直是绿的。② 桌面通知没有访问语言包的途径，原因文本只能原样拼接。 |
+| **修复** | 卡片读 `reason`，作为引用块逐行加 `> `，超过 500 字符截断；桌面通知对带理由码的请求只写本地化的剩余时间，没有原因时也不再带开头逗号，无码的原因仍按原文显示（与审批卡「无码按原文」的规则一致）。 |
+| **回归证据** | [1] 新增契约测试：通过 `ApprovalRegistry.create_approval` 发布真实事件，再交给 `format_notification` 生成卡片，断言卡片含该原因。把卡片读取的键改回 `description` 后，这个用例与卡片的 3 个用例共 4 个失败，改回后 38 个通过。[2] 卡片新增多行引用、超长截断、缺少原因 3 例。[3] 前端新增「带码」「无原因」2 例，去掉判断后 2 例失败，恢复后该文件 25 例通过；`tsc --noEmit`、prettier、oxlint 无输出。[4] server 的 `tests/channels`、`tests/core/notifications`、`tests/services/approvals`、`tests/core/channel_bridge`、两个架构守卫共 9119 通过、2 失败（`test_btw_notifier` 的移动端状态按钮、`test_execute_errors_cooldown` 的等待时长文案；它们断言的内容与本次改动无关，所在模块另有他人未提交的改动，本次没有碰）。 |
+| **仍然存在** | ① 卡片里的 action_type 与级别按原值显示：action_type 的取值是开放的（技能草稿、知识补丁、MCP 询问等十几类），没有逐一做本地化文案。② 桌面通知对带码原因只给剩余时间，没有本地化的原因文案。③ 没有在真实 IM 渠道上发过一张卡片，卡片内容只由单测与契约测试覆盖。 |
+| **代码位置** | `myrm-agent-server/app/core/notifications/approval_card.py:40,89-97` · `app/services/approvals/registry.py:139-148` · `myrm-agent-frontend/src/lib/approval/approvalAlertService.ts`（`buildNotificationBody`） |
+
+## 2026-10-29 · 通道文案目录里 `approval_button_approve` / `approval_button_deny` 在四个语言文件里各定义两次；两个目录守卫因动态拼出的键长期失败
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/channels/i18n/locales/{en,zh-CN,zh-TW,ja}.ftl`；测试 `tests/channels/i18n/test_locale_key_parity.py`、`tests/core/notifications/test_approval_card.py`、`test_adaptive_cards.py`） |
+| **症状** | 四个语言文件里这两个键各出现两次（第 33、34 行带图标，第 313、314 行不带），生效的是先出现的带图标那份，后一份是永远不会显示的死文案。通知卡片的 3 个测试按不带图标的文案断言，一直失败；孤儿键守卫把 7 个 `approval_reason_*` 键判为孤儿，渲染守卫在 `approval_reason_*` 上抛 `KeyError: 'subject'`。 |
+| **根因** | 目录解析函数把重复键静默覆盖，没有任何用例检查「一个键只定义一次」，两份定义由不同提交先后加入；`approval_reason_<code>` 是按引擎理由码在运行时拼出的键，孤儿扫描只认字面量，守卫的动态键集合里没有登记它，渲染守卫的示例参数里也没有 `subject`。 |
+| **修复** | 删除四个文件里靠后的那份重复定义（用户看到的按钮文案不变，因为先出现的那份一直在生效）；新增 `test_ftl_locales_define_each_key_once`；孤儿键守卫把 `approval_reason_<code>` 按 harness 的 `ApprovalReasonCode` 枚举并入动态键，并反向检查「引擎能发的每个码在目录里都有文案」；渲染守卫补 `subject` 示例；通知卡片的 3 个测试按实际带图标的文案断言。 |
+| **回归证据** | [1] 新守卫在删除重复定义之前先红（四个语言文件都报这两个键），删除后通过。[2] 脚本统计四个文件各 373 条键定义，出现两次的只有这两个。[3] `tests/channels/i18n` 全部通过，两个原先失败的守卫转绿。 |
+| **仍然存在** | 渲染守卫对 `ApprovalReasonCode` 以外的动态键族没有统一登记方式，下一个按运行时拼键的功能仍要手工加进守卫的动态集合。 |
+| **代码位置** | `myrm-agent-server/app/channels/i18n/locales/*.ftl`（`approval_button_*` 现各只定义一次） · `tests/channels/i18n/test_locale_key_parity.py`（`test_ftl_locales_define_each_key_once`、`test_ftl_locales_have_no_orphaned_keys`） |
+
 ## 2026-10-29 · 路由「外部调用方」登记里 10 条证据指向的行早已不是那条路由（含一条没有任何调用方的 `DELETE /system/drain`）
 
 | 字段 | 内容 |

@@ -18,7 +18,7 @@ def test_approval_required_adaptive_card() -> None:
             "approval_id": "appr_123",
             "action_type": "delete_database",
             "severity": "critical",
-            "description": "Drop table users in prod",
+            "reason": "Drop table users in prod",
         },
     )
     res = format_notification(event, channel="telegram")
@@ -34,12 +34,12 @@ def test_approval_required_adaptive_card() -> None:
     assert len(row) == 2
     approve_btn, reject_btn = row
     assert isinstance(approve_btn, ActionButton)
-    assert approve_btn.label == "Approve"
+    assert approve_btn.label == "✅ Approve"
     assert approve_btn.action_id == "approval:approve:appr_123"
     assert approve_btn.style == ButtonStyle.PRIMARY
 
     assert isinstance(reject_btn, ActionButton)
-    assert reject_btn.label == "Deny"
+    assert reject_btn.label == "❌ Deny"
     assert reject_btn.action_id == "approval:deny:appr_123"
     assert reject_btn.style == ButtonStyle.DANGER
 

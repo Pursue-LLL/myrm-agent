@@ -260,6 +260,16 @@ describe('approvalAlertService', () => {
       expect(mockNotificationInstances[0].body).toMatch(/remaining \d+s/);
     });
 
+    it('a coded reason is left out so the notification stays in the viewer language', () => {
+      notifyIdleApproval([makeRequest({ reason: 'Sensitive file: .env', reasonCode: 'sensitive_file' })]);
+      expect(mockNotificationInstances[0].body).toMatch(/^remaining \d+s$/);
+    });
+
+    it('a request without a reason shows only the time left', () => {
+      notifyIdleApproval([makeRequest({ reason: '' })]);
+      expect(mockNotificationInstances[0].body).toMatch(/^remaining \d+s$/);
+    });
+
     it('multiple requests shows count and tool names', () => {
       const requests = [
         makeRequest({ requestId: 'r1', toolName: 'file_write_tool', batchId: 'b1' }),
