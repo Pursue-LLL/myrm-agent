@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-091 · 智能体用 `subagent_control_tool(list)` 读过的子智能体结果，完成事件仍唤醒父智能体再答一遍：harness 不上报「结果已被读走」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/meta_tools/spawn_subagent/agent_manage_tool.py`、`utils/runtime/wakeup_registry.py`；测试 `tests/agent/meta_tools/spawn_subagent/test_subagent_control_read_ack.py`（新）、`tests/utils/runtime/test_wakeup_registry.py`；文档 `spawn_subagent/_ARCH.md`、`utils/runtime/_ARCH.md`、`sub_agents/SUB_AGENT_SYSTEM.md`、`sub_agents/SUBAGENT_NOTIFICATION_STRATEGY.md`；不改工具 schema 与提示词，不影响提示词缓存）。server 侧的消费方与测试记在产品台账 `myrm-agent/BUGFIX_LOG.md` 同日条目「后台完成通知的收尾」。 |
+| **发现时间** | 2026-10-29（对 `BUG-HARNESS-2026-10-29-082` 的「仍然存在 ②」做收益复审：智能体已经用 `list` 读到的结果，完成事件仍排唤醒回合） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：不丢数据、不崩溃；多花一轮模型调用和一份唤醒额度，用户可能看到同一份结果被汇报两次。 |
+| **关联产品** | roadmap topic_12 #330（后台子智能体完成唤醒）；082（调用方阻塞等待的子智能体不唤醒；本条补上「已经读走」）。 |
+| **根因** | `_cleanup_child` 对每个非取消、没有被等待的子智能体调用 `trigger_async_wakeup`；`subagent_control_tool(action=list)` 把每个已结算子智能体的最终结果交给了模型，harness 却没有任何出口把这件事告诉接收唤醒的一方。 |
+| **修复** | `wakeup_registry.py` 新增 `report_results_read(task_ids, session_id)`，`AsyncWakeupHandler` 协议新增 `on_results_read`；handler 抛错只记警告，不让读取结果的工具调用失败。`agent_manage_tool.py::_report_settled_results_read` 在 `list` 返回前上报状态为完成、失败、超时、预算取消的子智能体的 task_id；会话 id 取自 `parent_agent._last_context["session_id"]`，没有则传 `None`。等待审批的子智能体会恢复后再次结算，所以不算已读；其余状态（yielded、interrupted、blocked 等）也不上报，维持原来的唤醒，宁可多唤醒一次也不吞掉没读到的结果。 |
+| **反复次数** | 第 2 次（接 082：同一个唤醒条件，082 处理被等待，这次处理被读走）。 |
+| **踩坑** | ① 上报的是「工具返回了这些结果」，不是「模型完整看到了」；工具结果被中间件截断时不区分，没有核对。② `AsyncWakeupHandler` 协议多了一个方法，没有实现它的 handler 会在上报时 `AttributeError`，被 `report_results_read` 的 `except Exception` 记警告后丢弃，不影响 `list`。 |
+| **回归** | [1] `test_subagent_control_read_ack.py` 5 例（只报有最终结果的子智能体、没有已结算的不上报、没有会话 id 报 `None`、handler 抛错不让 `list` 失败、其余动作不上报）与 `test_wakeup_registry.py` 合计 10 例通过。[2] 变异：把等待审批算终态、把运行中的也算已读，2/2 被杀；还原后文件与备份逐字节一致。[3] `tests/utils/runtime`、`tests/agent/meta_tools/spawn_subagent`、`tests/agent/sub_agents`、`tests/agent/test_base_agent_wakeup.py` 共 1582 通过、4 跳过；`ruff`、`ruff format --check`、`mypy --follow-imports=silent` 对 4 个改动文件通过；`check_fractal_docs.py`、`boundary_check.py`、`check_package_root_layout.py`、`validate_arch_inventory.py --md-refs` 通过。 |
+| **仍然存在** | ① 只有 `list` 上报；其他读取子智能体结果的入口不上报（`wait` 路径由 082 的持有处理）。② 没有用真实模型跑「智能体 list 之后子智能体完成 → 不再多起一轮」，只在 `ServerWakeupHandler` + 调度器 + 网关（模型回合为替身）层验证。③ `check_file_line_limit.py` 当前报 `agent/skills/market/service.py` 超基线 3 行，不是本次改动的文件（`agent_manage_tool.py` 201 行、`wakeup_registry.py` 81 行）。 |
+| **代码位置** | `agent/meta_tools/spawn_subagent/agent_manage_tool.py:33-52,98-103`（`_FINAL_RESULT_STATUSES`、`_report_settled_results_read`、`list` 分支） · `utils/runtime/wakeup_registry.py`（`on_results_read`、`report_results_read`） · 测试 `tests/agent/meta_tools/spawn_subagent/test_subagent_control_read_ack.py` |
+
 ### BUG-HARNESS-2026-10-29-090 · 同一类前缀判断还有三处：技能安装目标检查、技能隔离区写入、项目提升写入用字符串前缀判断「在不在目录里」，与目录同名前缀的同级目录被当成里面
 
 | 字段 | 内容 |
