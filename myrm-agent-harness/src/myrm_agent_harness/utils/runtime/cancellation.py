@@ -14,7 +14,7 @@
 [OUTPUT]
 - CancelReason: 取消原因枚举（DISCONNECT/USER_CANCELLED/TIMEOUT/ERROR/ESTOP）
 - CancellationToken: 取消令牌类，用于在异步操作中传递取消状态
-- CancellationMonitor: 取消监控器，定期检查客户端连接状态 + 监控指标
+- CancellationMonitor: 取消监控器，定期检查客户端连接状态 + 监控指标；stop() 靠停止标志结束循环，不依赖 cancel() 一定送达
 - CancellationRegistry: 全局取消令牌注册表，支持单条 cancel、is_cancelled 查询、cancel_all（E-Stop）+ TTL清理
 - CancellationMetrics: 监控数据结构（re-export）
 - create_cancellation_context(): 创建取消上下文（令牌 + 监控器工厂）
@@ -143,25 +143,32 @@ class CancellationMonitor:
         self._disconnect_checker = disconnect_checker
         self._check_interval = 0.1 if immediate_mode else check_interval
         self._task: asyncio.Task[None] | None = None
+        self._stopped = asyncio.Event()
         self.metrics = CancellationMetrics()
 
     async def start(self) -> None:
         """启动监控任务"""
         self.metrics.active_monitors += 1
+        self._stopped.clear()
         self._task = asyncio.create_task(self._monitor_loop())
 
     async def stop(self) -> None:
-        """停止监控任务"""
-        if self._task and not self._task.done():
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._task
-        self.metrics.active_monitors = max(0, self.metrics.active_monitors - 1)
+        """停止监控任务；调用方自己被取消时，取消照常向上传播"""
+        try:
+            if self._task and not self._task.done():
+                # cancel() 只是催促：轮询里的 anyio cancel scope（Starlette 的 Request.is_disconnected 就是）会把同一步里到达的
+                # 这次取消连同自己的一起吞掉，循环便继续轮询，stop() 等不到它结束。停止标志不依赖取消送达，循环下一次判断必退。
+                self._stopped.set()
+                self._task.cancel()
+                # 用 wait 而不是 await 任务本身：任务因被取消而结束不是错误，但调用方自己被取消必须抛出来。
+                await asyncio.wait({self._task})
+        finally:
+            self.metrics.active_monitors = max(0, self.metrics.active_monitors - 1)
 
     async def _monitor_loop(self) -> None:
         """监控循环，定期检查客户端连接状态 + 收集监控指标"""
         try:
-            while not self._token.is_cancelled:
+            while not (self._token.is_cancelled or self._stopped.is_set()):
                 try:
                     # Record check operation
                     start_time = time.perf_counter()
@@ -184,7 +191,9 @@ class CancellationMonitor:
                         logger.debug(f"Disconnect checker failed (ignoring): {e}")
                     break
 
-                await asyncio.sleep(self._check_interval)
+                # 停止标志置位时立即醒来，而不是睡满一个轮询间隔
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(self._stopped.wait(), self._check_interval)
         except asyncio.CancelledError:
             pass
         except BaseException as e:

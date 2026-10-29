@@ -2,11 +2,13 @@
 
 import asyncio
 
+import anyio
 import pytest
 
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationMonitor,
     CancellationToken,
+    CancelReason,
     create_cancellation_context,
 )
 
@@ -68,6 +70,79 @@ class TestCancellationMonitor:
 
         # stop 应该正常返回（不抛异常）
         await monitor.stop()
+
+
+class TestStopWhenTheCheckerPollsInsideACancelledScope:
+    """``Request.is_disconnected`` polls inside a cancel scope that is already cancelled. For one loop step the monitor task is
+    cancelled by that scope and, when ``stop()`` runs in the same step, by ``stop()`` as well; the two cancellations merge into the
+    scope's own one, which the scope swallows. A monitor that relied on that single cancel kept polling and ``stop()`` waited for it
+    for as long as the client stayed connected."""
+
+    @pytest.mark.asyncio
+    async def test_stop_returns_when_the_scope_swallows_its_cancel(self) -> None:
+        token = CancellationToken(request_id="test")
+        inside_scope = asyncio.Event()
+
+        async def checker_polling_like_starlette() -> bool:
+            with anyio.CancelScope() as scope:
+                scope.cancel()
+                inside_scope.set()
+                await asyncio.Event().wait()
+            return False
+
+        monitor = CancellationMonitor(token, checker_polling_like_starlette, check_interval=0.05)
+        await monitor.start()
+        await inside_scope.wait()
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        try:
+            # A hang is cut off by this timeout, but the old stop() swallowed that cancel as well and returned normally, so the
+            # elapsed time is what tells a monitor that ended from one that was given up on.
+            await asyncio.wait_for(monitor.stop(), timeout=2.0)
+            elapsed = loop.time() - started
+            disconnect_reported = token.is_cancelled
+        finally:
+            token.cancel(CancelReason.ERROR)  # ends a loop that stop() left running
+            await asyncio.sleep(0.1)
+
+        assert elapsed < 1.0, f"stop() took {elapsed:.2f}s"
+        assert not disconnect_reported
+
+
+class TestStopPropagatesItsCallersCancellation:
+    @pytest.mark.asyncio
+    async def test_cancelling_the_task_that_awaits_stop_is_not_swallowed(self) -> None:
+        token = CancellationToken(request_id="test")
+        release = asyncio.Event()
+        in_checker = asyncio.Event()
+
+        async def checker_that_absorbs_cancels() -> bool:
+            while True:
+                try:
+                    in_checker.set()
+                    await release.wait()
+                    return False
+                except asyncio.CancelledError:
+                    continue
+
+        monitor = CancellationMonitor(token, checker_that_absorbs_cancels, check_interval=0.05)
+        await monitor.start()
+        await in_checker.wait()
+
+        stopper = asyncio.ensure_future(monitor.stop())
+        await asyncio.sleep(0.05)
+        assert not stopper.done()  # the monitor is still absorbing stop()'s cancel
+
+        stopper.cancel()
+        try:
+            await asyncio.wait({stopper}, timeout=2.0)
+            cancelled = stopper.cancelled()
+        finally:
+            release.set()
+            token.cancel(CancelReason.ERROR)
+            await asyncio.sleep(0.1)
+
+        assert cancelled, "stop() swallowed the cancellation of the task that was awaiting it"
 
 
 class TestCreateCancellationContext:
