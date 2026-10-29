@@ -36,26 +36,38 @@ def _encodable(text: str) -> str:
     return text
 
 
-def _scrub(value: object) -> object:
-    """*value* with every string inside it made encodable; containers are rewritten in place and returned."""
-    if isinstance(value, str):
-        return _encodable(value)
-    if isinstance(value, dict):
-        for key, item in value.items():
-            cleaned = _scrub(item)
-            if cleaned is not item:
-                value[key] = cleaned
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            cleaned = _scrub(item)
-            if cleaned is not item:
-                value[index] = cleaned
-    return value
+type _Container = dict[str, object] | list[object]
+
+
+def _clean(item: object, pending: list[_Container]) -> object:
+    """The encodable form of a string; any other value is returned as it is, a container after queueing it for its own pass."""
+    if isinstance(item, str):
+        return _encodable(item)
+    if isinstance(item, dict | list):
+        pending.append(item)
+    return item
 
 
 def replace_lone_surrogates(message_dicts: list[dict[str, object]]) -> None:
     """Make every string value of the wire messages encodable as UTF-8, replacing each lone surrogate with ``U+FFFD``.
 
-    Dict keys and tuples are not visited.
+    The walk keeps its own stack, so how deeply a value is nested is not bounded by the interpreter's, and a container
+    reachable twice (or from itself) is visited once. Dict keys and tuples are not visited.
     """
-    _scrub(message_dicts)
+    pending: list[_Container] = list(message_dicts)
+    seen: set[int] = set()
+    while pending:
+        container = pending.pop()
+        if id(container) in seen:
+            continue
+        seen.add(id(container))
+        if isinstance(container, dict):
+            for key, item in container.items():
+                cleaned = _clean(item, pending)
+                if cleaned is not item:
+                    container[key] = cleaned
+        else:
+            for index, item in enumerate(container):
+                cleaned = _clean(item, pending)
+                if cleaned is not item:
+                    container[index] = cleaned

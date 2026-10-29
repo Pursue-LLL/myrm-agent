@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - Fails when a lone surrogate (what Python gives a file name or output that was not valid UTF-8) survives into the wire
-  messages, when a text that was already encodable is copied, or when the outbound guard sees unscrubbed text.
+  messages, when a text that was already encodable is copied, when the outbound guard sees unscrubbed text, or when a very deeply nested or self-referencing value makes the scrub raise or loop.
 
 [POS]
 One undecodable file name in a tool result or workspace listing would otherwise fail every later model call of the
@@ -111,7 +111,9 @@ class TestReplaceLoneSurrogates:
         replace_lone_surrogates(messages)
 
         assert message["content"] is content
-        assert message["blocks"][0] is content  # type: ignore[index]
+        blocks = message["blocks"]
+        assert isinstance(blocks, list)
+        assert blocks[0] is content
 
     def test_values_that_are_not_text_are_left_alone(self) -> None:
         payload = {
@@ -135,6 +137,35 @@ class TestReplaceLoneSurrogates:
         replace_lone_surrogates(messages)
 
         assert messages == []
+
+    def test_nesting_deeper_than_the_interpreter_stack_is_scrubbed(self) -> None:
+        # json.dumps still encodes a nesting this deep; the scrub must not be the step that fails a request.
+        leaf: dict[str, object] = {"text": f"x{LONE}"}
+        deepest: object = leaf
+        for _ in range(5000):
+            deepest = {"next": [deepest]}
+        messages: list[dict[str, object]] = [{"role": "user", "content": deepest}]
+
+        replace_lone_surrogates(messages)
+
+        assert leaf["text"] == f"x{REPLACED}"
+
+    def test_a_structure_that_contains_itself_terminates(self) -> None:
+        loop: dict[str, object] = {"text": f"x{LONE}"}
+        loop["again"] = [loop]
+        messages: list[dict[str, object]] = [{"role": "user", "content": [loop]}]
+
+        replace_lone_surrogates(messages)
+
+        assert loop["text"] == f"x{REPLACED}"
+
+    def test_a_value_reachable_twice_is_scrubbed(self) -> None:
+        shared: list[object] = [f"x{LONE}"]
+        messages: list[dict[str, object]] = [{"role": "user", "content": shared}, {"role": "tool", "content": shared}]
+
+        replace_lone_surrogates(messages)
+
+        assert shared == [f"x{REPLACED}"]
 
 
 class TestThroughTheFunnel:

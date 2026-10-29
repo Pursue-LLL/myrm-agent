@@ -8,8 +8,8 @@
 
 [OUTPUT]
 - Fails when the manifest of a folder holding an endless device, a FIFO or a multi-gigabyte sparse file as ``SKILL.md``,
-  ``mcp.json`` or ``.myrm/config.toml`` does not finish within a bounded amount of memory and time, or when a readable
-  folder is no longer disclosed exactly as before.
+  ``mcp.json`` or ``.myrm/config.toml`` does not finish within a bounded amount of memory and time, or when a folder of ordinary
+  files is disclosed with other counts or prefixes than the files declare.
 
 [POS]
 The trust prompt is the first thing a user sees for a folder they have not trusted yet, so everything the manifest reads
@@ -74,7 +74,8 @@ def _manifest_in_child(root: Path) -> dict[str, object]:
     assert not run.over_memory, f"the scan held {run.peak_rss_mb:.0f} MB"
     assert not run.timed_out, "the scan did not finish"
     assert run.returncode == 0, run.stderr
-    return json.loads(run.stdout)  # type: ignore[no-any-return]
+    manifest: dict[str, object] = json.loads(run.stdout)
+    return manifest
 
 
 @POSIX_ONLY

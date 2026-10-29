@@ -36,9 +36,9 @@ def read_sizes(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     return record_read_sizes(monkeypatch)
 
 
-def _within_deadline(call: Callable[[], object], seconds: float = 5.0) -> object:
+def _within_deadline[T](call: Callable[[], T], seconds: float = 5.0) -> T:
     """Run *call* on a thread and fail instead of hanging when it does not return in *seconds*."""
-    outcome: list[object] = []
+    outcome: list[T] = []
     worker = threading.Thread(target=lambda: outcome.append(call()), daemon=True)
     worker.start()
     worker.join(seconds)
@@ -140,7 +140,7 @@ class TestKindOfFile:
 
         result = _within_deadline(lambda: read_text_bounded(fifo, 10))
 
-        assert result.refusal is ReadRefusal.NOT_A_REGULAR_FILE  # type: ignore[attr-defined]
+        assert result.refusal is ReadRefusal.NOT_A_REGULAR_FILE
 
     @POSIX_ONLY
     def test_a_symlink_to_a_fifo_is_refused_without_waiting(self, tmp_path: Path) -> None:
@@ -151,7 +151,7 @@ class TestKindOfFile:
 
         result = _within_deadline(lambda: read_text_bounded(link, 10))
 
-        assert result.refusal is ReadRefusal.NOT_A_REGULAR_FILE  # type: ignore[attr-defined]
+        assert result.refusal is ReadRefusal.NOT_A_REGULAR_FILE
 
     @POSIX_ONLY
     def test_a_symlink_to_an_endless_device_is_refused_unread(self, tmp_path: Path, read_sizes: list[int]) -> None:
@@ -160,7 +160,7 @@ class TestKindOfFile:
 
         result = _within_deadline(lambda: read_text_bounded(link, 10))
 
-        assert result.refusal is ReadRefusal.NOT_A_REGULAR_FILE  # type: ignore[attr-defined]
+        assert result.refusal is ReadRefusal.NOT_A_REGULAR_FILE
         assert read_sizes == []
 
     @POSIX_ONLY
