@@ -64,7 +64,6 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "autonomous_visualization",
                 "bundle_warmup",
                 "curator",
-                "history",
                 "market",
                 "mcp",
                 "optimization",
@@ -84,7 +83,6 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "desktop_repl",
                 "downshift",
                 "infra",
-                "pinning",
                 "prefix_caching_ledger",
                 "scratchpad_promotion",
                 "strategies",
@@ -107,23 +105,18 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "conversation_search",
                 "_internal",
                 "agent_surface",
-                "governance",
                 "external_providers",
                 "handoff",
                 "onboarding",
-                "reembedding",
                 # Feature packages shipped as readable source; list a package in core_manifest.yaml to compile it.
                 "budget_packing",
                 "chunking",
                 "ephemeral",
                 "ephemeral_delta",
                 "mem_cube",
-                "migration",
                 "private_notebook",
                 "score_honesty",
                 "two_layer_dialectic",
-                # Deep-research evidence tree: shipped as readable source, consumed by
-                # agent/deep_research (not part of the compiled core).
             }
         ),
     ),
@@ -168,6 +161,22 @@ def manifest_watch_violations() -> tuple[str, ...]:
             violations.append(rel)
 
     return tuple(violations)
+
+
+def stale_public_subdirs() -> tuple[str, ...]:
+    """Return ``<zone>/<name>`` allowlist entries that no longer name a directory.
+
+    A name outliving its directory would exempt any directory later created under it
+    from the manifest-or-marker check in ``manifest_watch_violations``.
+    """
+    src_root = repo_root() / "src" / "myrm_agent_harness"
+    return tuple(
+        f"{parent_prefix}{name}"
+        for parent_prefix, public_subdirs in _PARENT_WATCH_ZONES
+        if (src_root / parent_prefix).is_dir()
+        for name in sorted(public_subdirs)
+        if not (src_root / parent_prefix / name).is_dir()
+    )
 
 
 class DistributionWheelRole(StrEnum):

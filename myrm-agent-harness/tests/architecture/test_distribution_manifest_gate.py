@@ -10,7 +10,7 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
-from harness_packaging.integrity import DISTRIBUTION_PUBLIC_MARKER, manifest_watch_violations
+from harness_packaging.integrity import DISTRIBUTION_PUBLIC_MARKER, manifest_watch_violations, stale_public_subdirs
 
 _GATE_HINT = (
     f"Add the directory to harness_packaging/core_manifest.yaml or mark the module with "
@@ -30,3 +30,14 @@ def test_algorithm_zone_modules_are_manifest_covered_or_public() -> None:
     if violations:
         joined = "\n  - ".join(violations)
         pytest.fail(f"Algorithm-zone modules missing manifest coverage or public marker:\n  - {joined}\n{_GATE_HINT}")
+
+
+@pytest.mark.architecture
+def test_public_subdir_allowlists_name_existing_directories() -> None:
+    """A public-subdir name without a directory would silently exempt a directory created under it later."""
+    stale = stale_public_subdirs()
+    if stale:
+        joined = "\n  - ".join(stale)
+        pytest.fail(
+            f"Public-subdir allowlist entries with no directory (remove them from _PARENT_WATCH_ZONES):\n  - {joined}"
+        )

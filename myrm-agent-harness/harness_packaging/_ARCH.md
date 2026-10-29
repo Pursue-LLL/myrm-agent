@@ -16,7 +16,7 @@ Build and release tooling for package distribution: compiled-core manifest, plat
 | pypi_index.py | Core | PyPI JSON probes (package exists, compiled-core extra) |
 | release.py | Core | Build source wheel, strip manifest `.py`, finalize strip+verify |
 | assemble.py | Core | Unified production wheel assembly (strip+verify release) + venv install + post-install verify |
-| integrity.py | Core | Manifest import paths; algorithm-zone drift gate; wheel artifact zip verify (core wheel stamped `__platform_key__`) |
+| integrity.py | Core | Manifest import paths; algorithm-zone drift gate (manifest-or-marker check plus stale public-subdir allowlist names); wheel artifact zip verify (core wheel stamped `__platform_key__`) |
 | component_snapshots.py | Core | 4 大核心组件快照导出器与语义有界差分（Bounded Diff）引擎 |
 
 ## Scripts
