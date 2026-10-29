@@ -1466,7 +1466,7 @@ Cron 是非交互式的，运行时无人可以审批。因此：
 1. **声明式能力围栏** — `CronJob.required_capabilities: tuple[str, ...]` 在创建时声明所需能力
 2. **声明式路径授权** — `CronJob.allowed_roots: tuple[str, ...]` 在创建时声明可访问的文件路径根目录
 3. **强制声明** — 每个 Cron Job 必须声明能力和路径，空声明 = 无能力 + 仅 workspace 内路径
-4. **fail-closed 策略** — Cron 渠道不再强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor.py` 的 cron 分支决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
+4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor.py` 的 cron 分支决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
 
 ```python
 # channel_presets.py — Cron 构建声明式能力集; declared_allowed_roots 适用于所有渠道
