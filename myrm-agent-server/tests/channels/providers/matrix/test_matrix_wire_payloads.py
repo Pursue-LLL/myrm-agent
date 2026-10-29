@@ -2,7 +2,8 @@
 
 The channel hands plain dicts to the mautrix client (which serialises a non-``Serializable`` content as it is), so the
 JSON a homeserver sees is exactly what these tests pin: a plain or HTML-formatted ``m.text`` event, a reply relation, an
-edit that carries the new content, one retry after sharing E2EE keys, and a send that is cut short at the timeout.
+edit that carries the new content, the ``m.mentions`` that decide who is pinged, one retry after sharing E2EE keys, and
+a send that is cut short at the timeout.
 """
 
 from __future__ import annotations
@@ -16,7 +17,8 @@ from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.matrix import MatrixChannel
 from app.channels.providers.matrix import channel as matrix_channel
 from app.channels.providers.matrix.channel import _MAUTRIX_AVAILABLE
-from app.channels.types import ChannelStatus, OutboundMessage
+from app.channels.providers.matrix.media import send_media_event
+from app.channels.types import ChannelStatus, MediaType, OutboundMessage
 
 pytestmark = pytest.mark.skipif(not _MAUTRIX_AVAILABLE, reason="mautrix not installed")
 
@@ -33,6 +35,11 @@ class _Crypto:
 
 
 @dataclass
+class _Member:
+    displayname: str
+
+
+@dataclass
 class _Homeserver:
     """The slice of the mautrix client a text send or edit uses; records the room events it was asked to create."""
 
@@ -40,6 +47,7 @@ class _Homeserver:
     never_answers: bool = False
     events: list[tuple[str, str, dict[str, object]]] = field(default_factory=list)
     crypto: _Crypto = field(default_factory=_Crypto)
+    members: dict[str, object] = field(default_factory=dict)
 
     async def send_message_event(self, room_id: str, event_type: object, content: dict[str, object]) -> str:
         if self.never_answers:
@@ -51,7 +59,7 @@ class _Homeserver:
         return f"$event{len(self.events)}"
 
     async def get_joined_members(self, room_id: str) -> dict[str, object]:
-        return {}
+        return self.members
 
 
 def _channel(homeserver: _Homeserver, *, encryption: bool = False) -> MatrixChannel:
@@ -70,7 +78,7 @@ class TestTextSend:
     async def test_plain_text_is_an_m_text_event(self) -> None:
         server = _Homeserver()
         assert await _channel(server).send(_message("hello")) == "$event1"
-        assert server.events == [(ROOM, "m.room.message", {"msgtype": "m.text", "body": "hello"})]
+        assert server.events == [(ROOM, "m.room.message", {"msgtype": "m.text", "body": "hello", "m.mentions": {}})]
 
     @pytest.mark.asyncio
     async def test_markdown_is_sent_with_its_html_form(self) -> None:
@@ -80,7 +88,13 @@ class TestTextSend:
             (
                 ROOM,
                 "m.room.message",
-                {"msgtype": "m.text", "body": "**done**", "format": HTML, "formatted_body": "<strong>done</strong>"},
+                {
+                    "msgtype": "m.text",
+                    "body": "**done**",
+                    "format": HTML,
+                    "formatted_body": "<strong>done</strong>",
+                    "m.mentions": {},
+                },
             )
         ]
 
@@ -91,6 +105,7 @@ class TestTextSend:
         assert server.events[0][2] == {
             "msgtype": "m.text",
             "body": "ok",
+            "m.mentions": {},
             "m.relates_to": {"m.in_reply_to": {"event_id": "$question"}},
         }
 
@@ -99,7 +114,7 @@ class TestTextSend:
         server = _Homeserver(refusals=1)
         assert await _channel(server, encryption=True).send(_message("hello")) == "$event1"
         assert server.crypto.shared == 1
-        assert server.events == [(ROOM, "m.room.message", {"msgtype": "m.text", "body": "hello"})]
+        assert server.events == [(ROOM, "m.room.message", {"msgtype": "m.text", "body": "hello", "m.mentions": {}})]
 
     @pytest.mark.asyncio
     async def test_a_send_refused_again_after_sharing_keys_is_a_failed_send(self) -> None:
@@ -134,11 +149,13 @@ class TestEdit:
                 {
                     "msgtype": "m.text",
                     "body": "* **fixed**",
+                    "m.mentions": {},
                     "m.new_content": {
                         "msgtype": "m.text",
                         "body": "**fixed**",
                         "format": HTML,
                         "formatted_body": "<strong>fixed</strong>",
+                        "m.mentions": {},
                     },
                     "m.relates_to": {"rel_type": "m.replace", "event_id": "$old"},
                 },
@@ -155,3 +172,57 @@ class TestEdit:
         monkeypatch.setattr(matrix_channel, "_SEND_TIMEOUT", 0.05)
         with pytest.raises(ChannelSendError, match="edit failed"):
             await _channel(_Homeserver(never_answers=True)).edit_message(ROOM, "$old", "fixed")
+
+
+class TestMentions:
+    """``m.mentions`` names exactly the users the text addresses; without it homeservers fall back to keyword rules."""
+
+    @staticmethod
+    def _room(*names: str) -> _Homeserver:
+        return _Homeserver(members={f"@{name}:matrix.org": _Member(name) for name in names})
+
+    @pytest.mark.asyncio
+    async def test_a_named_room_member_is_mentioned_by_user_id(self) -> None:
+        server = self._room("alice")
+        await _channel(server).send(_message("hi @alice"))
+        content = server.events[0][2]
+        assert (content["body"], content["m.mentions"]) == ("hi @alice:matrix.org", {"user_ids": ["@alice:matrix.org"]})
+
+    @pytest.mark.asyncio
+    async def test_each_member_is_listed_once_in_the_order_they_are_named(self) -> None:
+        server = self._room("alice", "bob")
+        await _channel(server).send(_message("@bob, @alice and @bob again"))
+        assert server.events[0][2]["m.mentions"] == {"user_ids": ["@bob:matrix.org", "@alice:matrix.org"]}
+
+    @pytest.mark.asyncio
+    async def test_a_reply_keeps_both_its_relation_and_its_mentions(self) -> None:
+        server = self._room("alice")
+        await _channel(server).send(_message("@alice ok", reply_to="$question"))
+        content = server.events[0][2]
+        assert content["m.mentions"] == {"user_ids": ["@alice:matrix.org"]}
+        assert content["m.relates_to"] == {"m.in_reply_to": {"event_id": "$question"}}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "text",
+        ["hi @carol", "```\n@alice\n```", "@room look at this", "plain words"],
+        ids=["not-a-member", "inside-a-code-block", "whole-room", "no-mention"],
+    )
+    async def test_text_that_addresses_no_member_mentions_nobody(self, text: str) -> None:
+        server = self._room("alice")
+        await _channel(server).send(_message(text))
+        assert server.events[0][2]["m.mentions"] == {}
+
+    @pytest.mark.asyncio
+    async def test_an_edit_mentions_nobody_even_when_its_text_names_a_member(self) -> None:
+        server = self._room("alice")
+        await _channel(server).edit_message(ROOM, "$old", "hi @alice")
+        content = server.events[0][2]
+        assert content["m.mentions"] == {}
+        assert content["m.new_content"]["m.mentions"] == {}  # type: ignore[index]
+
+    @pytest.mark.asyncio
+    async def test_a_media_event_mentions_nobody_whatever_its_file_name_says(self) -> None:
+        server = self._room("alice")
+        await send_media_event(server, ROOM, "mxc://example.com/abc", "report @alice.pdf", "application/pdf", MediaType.DOCUMENT)
+        assert server.events[0][2]["m.mentions"] == {}

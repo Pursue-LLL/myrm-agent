@@ -15,7 +15,7 @@
 [POS]
 Core Matrix channel class. Delegates to connection.py (client setup and event wiring over auth.py, handlers.py,
 crypto.py), html.py (markdown), media.py (uploads), diagnostics.py (issue reporting); this class owns the lifecycle
-entry points and outbound.
+entry points and outbound. A text send lists the members it addresses in ``m.mentions``; an edit sends an empty one.
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ from app.channels.providers.matrix.handlers import (
 from app.channels.providers.matrix.html import (
     build_text_payload,
     convert_matrix_mentions,
+    mentioned_user_ids,
 )
 from app.channels.providers.matrix.media import (
     send_media,
@@ -231,10 +232,8 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
             raise ChannelSendError("Matrix channel is not running", channel=self.name)
 
         members = await self._get_room_members(room_id)
-        if members:
-            text = convert_matrix_mentions(text, members)
-
-        payload = build_text_payload(text)
+        mentioned = mentioned_user_ids(text, members)
+        payload = build_text_payload(convert_matrix_mentions(text, members), mentioned)
         if reply_to_id:
             payload["m.relates_to"] = {"m.in_reply_to": {"event_id": reply_to_id}}
 
@@ -257,6 +256,7 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
         payload: dict[str, object] = {
             "msgtype": "m.text",
             "body": f"* {text}",
+            "m.mentions": {},
             "m.new_content": new_content,
             "m.relates_to": {"rel_type": "m.replace", "event_id": message_id},
         }

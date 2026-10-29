@@ -12,7 +12,8 @@
 [POS]
 Media handling for MatrixChannel. Uploads files, encrypts attachments in E2EE
 rooms, and sends m.image/m.audio/m.video/m.file events. Handles mxc:// URL
-pass-through for already-uploaded media.
+pass-through for already-uploaded media. Every event carries an empty
+``m.mentions`` so a file name never pings anyone.
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ async def send_media(
             raise ChannelSendError(f"Matrix cannot read {att.display_name}", channel="matrix", retriable=False)
         data = p.read_bytes()
     else:
-        if att.url.startswith("mxc://"):
+        if att.url and att.url.startswith("mxc://"):
             return await send_media_event(
                 client,
                 room_id,
@@ -77,7 +78,7 @@ async def send_media(
     )
 
     try:
-        mxc_url = await client.upload_media(  # type: ignore[union-attr]
+        mxc_url = await client.upload_media(  # type: ignore[attr-defined]
             upload_data,
             mime_type=content_type,
             filename=filename,
@@ -158,10 +159,12 @@ async def send_media_event(
         "msgtype": msg_type,
         "body": filename,
         "info": {"mimetype": content_type, "size": file_size},
+        # A file name is never an address; without this homeservers ping on display names found in it.
+        "m.mentions": {},
     }
 
     if encrypted_file is not None:
-        file_payload = encrypted_file.serialize()  # type: ignore[union-attr]
+        file_payload = encrypted_file.serialize()  # type: ignore[attr-defined]
         file_payload["url"] = mxc_url
         payload["file"] = file_payload
     else:
@@ -169,7 +172,7 @@ async def send_media_event(
 
     try:
         event_id = await asyncio.wait_for(
-            client.send_message_event(  # type: ignore[union-attr]
+            client.send_message_event(  # type: ignore[attr-defined]
                 RoomID(room_id),
                 EventType.ROOM_MESSAGE,
                 payload,

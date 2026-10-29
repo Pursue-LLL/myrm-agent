@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.channels.providers.matrix.html import (
     convert_matrix_mentions,
+    mentioned_user_ids,
     strip_matrix_mention,
 )
 
@@ -188,6 +189,23 @@ End @alice"""
         text = "Hi @alice"
         result = convert_matrix_mentions(text, members)
         assert result == "Hi @alice:server.com:8448"
+
+
+class TestMentionedUserIds:
+    """The IDs to ping are exactly the ones ``convert_matrix_mentions`` writes into the text."""
+
+    MEMBERS = {"alice": "@alice:matrix.org", "bob": "@bob:server.com"}
+
+    def test_lists_each_member_once_in_order_of_appearance(self) -> None:
+        assert mentioned_user_ids("@bob, @alice, @bob", self.MEMBERS) == ["@bob:server.com", "@alice:matrix.org"]
+
+    def test_skips_unknown_names_and_code_blocks(self) -> None:
+        assert mentioned_user_ids("@carol\n```\n@alice\n```\n`@bob`", self.MEMBERS) == []
+
+    def test_agrees_with_what_the_conversion_replaced(self) -> None:
+        text = "@alice and @carol and ```@bob```"
+        converted = convert_matrix_mentions(text, self.MEMBERS)
+        assert [uid for uid in self.MEMBERS.values() if uid in converted] == mentioned_user_ids(text, self.MEMBERS)
 
 
 class TestStripMatrixMention:

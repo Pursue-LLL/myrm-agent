@@ -5,14 +5,16 @@
 
 [OUTPUT]
 - md_to_matrix_html: Markdown → HTML subset (or None for plain text)
-- build_text_payload: Matrix m.text payload with optional formatted_body
+- build_text_payload: Matrix m.text payload with optional formatted_body and the ``m.mentions`` that decide who is pinged
 - convert_matrix_mentions: Convert @user to @user:server.com (code-block-aware)
+- mentioned_user_ids: The qualified IDs ``convert_matrix_mentions`` puts in a text
 - strip_matrix_mention: Strip bot's own Matrix mention from text
 
 [POS]
 Lightweight regex-based Markdown→HTML converter for Matrix ``org.matrix.custom.html``.
 Supports: code blocks, inline code, bold, italic, strikethrough, links, headings,
-unordered/ordered lists, blockquotes, mentions (@user → qualified Matrix ID).
+unordered/ordered lists, blockquotes, mentions (@user → qualified Matrix ID, and the
+``m.mentions`` user_ids that ping exactly those members).
 Zero external dependencies for HTML conversion; uses text_utils for code block protection.
 """
 
@@ -20,6 +22,7 @@ from __future__ import annotations
 
 import html
 import re
+from collections.abc import Sequence
 
 from app.channels.rendering.text_utils import extract_safe_regions
 
@@ -118,9 +121,17 @@ def md_to_matrix_html(text: str) -> str | None:
     return result
 
 
-def build_text_payload(text: str) -> dict[str, object]:
-    """Build Matrix m.text payload with optional HTML formatting."""
-    payload: dict[str, object] = {"msgtype": "m.text", "body": text}
+def build_text_payload(text: str, mentioned_user_ids: Sequence[str] = ()) -> dict[str, object]:
+    """Build Matrix m.text payload with optional HTML formatting.
+
+    ``m.mentions`` always names the users to ping (never the whole room): left out, homeservers fall back to keyword
+    rules that ping on any display name found in the body.
+    """
+    payload: dict[str, object] = {
+        "msgtype": "m.text",
+        "body": text,
+        "m.mentions": {"user_ids": list(mentioned_user_ids)} if mentioned_user_ids else {},
+    }
     if formatted := md_to_matrix_html(text):
         payload["format"] = MATRIX_HTML_FORMAT
         payload["formatted_body"] = formatted
@@ -176,25 +187,21 @@ def convert_matrix_mentions(
         >>> convert_matrix_mentions(text, members)
         "Hi @alice:matrix.org, check ```@bob in code```"
     """
-    matches = extract_safe_regions(text, _MENTION_RE)
-    if not matches:
-        return text
-
-    replacements: list[tuple[int, int, str]] = []
-
-    for match in matches:
-        username = match.group(1)
-        qualified_id = room_members.get(username)
-        if qualified_id:
-            replacements.append((match.start(), match.end(), qualified_id))
-
-    if not replacements:
-        return text
-
-    replacements.sort(reverse=True)
-
     result = text
-    for start, end, replacement in replacements:
-        result = result[:start] + replacement + result[end:]
-
+    for start, end, qualified_id in sorted(_mention_replacements(text, room_members), reverse=True):
+        result = result[:start] + qualified_id + result[end:]
     return result
+
+
+def mentioned_user_ids(text: str, room_members: dict[str, str]) -> list[str]:
+    """Qualified IDs that ``convert_matrix_mentions`` puts in ``text``, each once, in order of appearance."""
+    return list(dict.fromkeys(qualified_id for _, _, qualified_id in _mention_replacements(text, room_members)))
+
+
+def _mention_replacements(text: str, room_members: dict[str, str]) -> list[tuple[int, int, str]]:
+    """Span and qualified ID of every @name outside code blocks that is a room member."""
+    replacements: list[tuple[int, int, str]] = []
+    for match in extract_safe_regions(text, _MENTION_RE):
+        if qualified_id := room_members.get(match.group(1)):
+            replacements.append((match.start(), match.end(), qualified_id))
+    return replacements
