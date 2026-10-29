@@ -112,6 +112,14 @@ class TestRead:
         with pytest.raises(OSError):
             RuleReadGuard(repo).read(repo / "missing.md")
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Windows refuses to open a directory, so the read raises instead"
+    )
+    def test_a_path_that_is_not_a_regular_file_is_skipped_without_a_reason(self, repo: Path) -> None:
+        (repo / "AGENTS.md").mkdir()
+
+        assert RuleReadGuard(repo).read(repo / "AGENTS.md") == RuleRead(text=None, refusal=None)
+
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
 class TestBoundary:

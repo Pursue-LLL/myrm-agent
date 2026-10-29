@@ -18,6 +18,7 @@ Tests mirroring `src/myrm_agent_harness/backends/` — profiles, secrets, and sk
 | File | Role |
 |------|------|
 | `skills/test_config_version.py` | `MYRM_DATA_DIR/.skill_config_version` bump/get, corrupt-file fallback + WARNING log |
+| `skills/test_local_backend_edge_cases.py` | Local skill backend and workspace scan on untidy folders: one bad skill costs only itself, archived skills hidden, snapshot path, resource lookups |
 | `test_watcher.py` | SkillWatcher debounced snapshot updates |
 | `test_snapshot.py` | SQLite skill snapshot CRUD |
 
