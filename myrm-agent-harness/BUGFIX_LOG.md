@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-092 · macOS 原生后端的 ASCII 文本输入构造不出键盘事件：`write` 把一个事件当成「事件源」传入，`CGEventCreateKeyboardEvent` 返回空；非 BMP 字符的长度也传错
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/macos_input.py`；测试 `tests/toolkits/computer_use/test_macos_input.py`；不改工具 schema 与提示词，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（为核对 `write` 的 Unicode 长度参数，在本机读回事件内容时发现事件本身是空的） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：只影响没装 cua-driver 的 macOS 兜底路径（`toolkits/computer_use/backends/macos.py` 的 `type_text` / `type_credential` 的 ASCII 分支，调用 `macos_input.write`）；装了 cua-driver 时输入委托给它。 |
+| **关联产品** | 桌面控制（macOS）原生后端 `type_text` / `type_credential`。 |
+| **根因** | ① `write` 用 `CGEventCreate(None)` 的返回值（一个 `CGEventRef`）当作 `CGEventCreateKeyboardEvent` 的第一个参数，而该参数要的是 `CGEventSourceRef`。本机实测：传入这个值时 `CGEventCreateKeyboardEvent` 返回 `None`，传 `None` 或真实事件源则返回有效事件；其余键鼠原语（`_post_key_event` 等）一直传 `None`，只有 `write` 不是。得到空事件后，`CGEventKeyboardSetUnicodeString` 没有作用，`_post_event` 投出的也是空事件。② `CGEventKeyboardSetUnicodeString` 的长度是 UTF-16 代码单元数，`write` 对每个 Python 字符都传 1；非 BMP 字符（如 emoji）占 2 个单元，读回事件内容时直接 `UnicodeDecodeError`。该分支此前没有调用方（`macos.py` 先用 `isascii()` 分流），所以单独看不到影响，但函数文档写的是「任意 Unicode 均可靠」。 |
+| **修复** | `write` 不再构造事件源，两个键盘事件都以 `None` 为源，与其余原语一致；长度改为 `len(char.encode("utf-16-le")) // 2`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 现有 mock 测试只数调用次数，用 `MagicMock` 的 Quartz 时「事件是否有效」永远是真，所以这个 bug 一直没被测到；新增的真实 Quartz 测试在 macOS 上构造事件并用 `CGEventKeyboardGetUnicodeString` 读回，只构造、不投递，不会向本机注入按键。② 长度参数要与字符的 UTF-16 单元数一致：BMP 字符声明 2 会报 `ValueError`，emoji 声明 1 读回失败，声明 2 读回正确。③ 变异验证：长度改回 1，2 个用例失败；把事件当事件源传入，4 个用例失败。 |
+| **回归** | `tests/toolkits/computer_use/test_macos_input.py`：新增 `test_write_declares_utf16_length_and_uses_no_event_source`（所有平台跑）与 `TestWriteWithRealQuartz`（仅 macOS，ASCII / 中文 / emoji 三例）；该文件 30 例全过。 |
+| **仍然存在** | ① 只验证了事件对象有效、携带的文本正确，没有向真实输入框投递过，也没有验证中文输入法处于组合状态时这类「键码 0 加 Unicode 字符串」的事件是否会被输入法截获。② 因此 macOS 非 ASCII 文本仍走剪贴板（`macos.py` 的 `_paste_text`），与 087 ⑥ 描述的缺陷相同，不改路由。 |
+| **代码位置** | `toolkits/computer_use/backends/macos_input.py:297-312` · `toolkits/computer_use/backends/macos.py:171,202`（唯一调用方）。 |
+
 ### BUG-HARNESS-2026-10-29-091 · 智能体用 `subagent_control_tool(list)` 读过的子智能体结果，完成事件仍唤醒父智能体再答一遍：harness 不上报「结果已被读走」
 
 | 字段 | 内容 |
@@ -82,7 +99,7 @@
 | **根因** | 旧 `_paste_text` 是「读剪贴板文本 → 写入目标文本 → Ctrl+V → 睡 0.1 秒 → 恢复文本」，有五处缺陷：① 只读写 `CF_UNICODETEXT`，用户剪贴板里的文件、图片被清掉且不恢复；② 固定 0.1 秒后就恢复旧文本，目标应用处理 Ctrl+V 慢于 0.1 秒时粘进去的是旧内容；③ 没有前台窗口时 `OpenClipboard(None)` 之后 `SetClipboardData` 必定失败（微软 `EmptyClipboard` 文档：NULL 窗口句柄打开剪贴板会让所有者为 NULL，`SetClipboardData` 随之失败），而写入函数外层 `except Exception: pass`，调用方得不到失败信号，Ctrl+V 粘进旧内容；④ 密码或 TOTP 含非 ASCII 字符时明文进入剪贴板；⑤ ctypes 没声明 `GlobalLock` / `GlobalAlloc` 等原型，64 位指针按 32 位 int 读取（本机 libc 实测：未声明 `restype` 时 `malloc` 返回 `0x1514040`，声明 `c_void_p` 后返回 `0x600001514340`，两次是不同分配，只说明默认读法在 64 位下只剩低 32 位）。 |
 | **修复** | `windows_text_io.py:type_unicode_text` 用 `SendInput` + `KEYEVENTF_UNICODE` 输入非 ASCII 文本：每个 UTF-16 代码单元一对按下/抬起事件（非 BMP 字符自然发成代理对）；`\r\n`、`\r`、`\n` 先归一再折成一次真实的 Return 键；按 `chunk_size` 分块、块间睡 `delay_ms`；`SendInput` 实际插入条数少于请求时抛 `OSError`，由 `type_text` / `type_credential` 转成失败的 `ActionResult`。`INPUT` 结构体按 Win32 定义成含 `MOUSEINPUT` / `KEYBDINPUT` / `HARDWAREINPUT` 的联合体并全部用定宽字段，`sizeof == 40`；原型挂在 `functools.cache` 缓存的私有 `ctypes.WinDLL(\"user32\", use_last_error=True)` 上，不改共享的 `ctypes.windll`。ASCII 路径（`pyautogui.write`）不动。剪贴板读写与相关原型、测试整体删除。`perception/windows_process.py` 的 `OpenProcess` 原型同样改挂私有 `kernel32` 实例。 |
 | **反复次数** | 第 1 次。 |
-| **踩坑** | ① 结构体字段不能用 `wintypes.DWORD` / `LONG`：它们在 macOS / Linux 是 8 字节，同一份定义算出 `INPUT` 为 56 字节，用定宽整数才能在任何平台上断言 40。② 微软 `SendInput` 文档：UIPI 阻挡时返回值与 `GetLastError` 都不会提示，所以返回条数检查抓不到「向更高权限窗口输入被拦」，这与原来的 `pyautogui.write` 路径一致，不是新增回归。③ `cua-driver` 的 Windows 实现也在 `ConsoleWindowClass` + ARM64 上遇到过「`KEYEVENTF_UNICODE` 报告成功但提示符没变」；本仓库 `safety.py` 的敏感应用名单已把 `cmd`、`powershell`、`windows terminal` 拦在输入之前。④ 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 在前后 `cache_clear()`。⑤ 变异验证：去掉 `dwExtraInfo` 字段、去掉换行归一、截断代理对、块后多睡一次、忽略短插入、改回共享 `windll`、写死 `cbSize`、调换 `windows.py` 的参数顺序，对应用例分别失败 2 / 2 / 1 / 2 / 1 / 11 / 1 / 1 个。⑥ macOS 的 `macos.py:_paste_text`、Linux 的 `linux.py:_paste_text_xclip` 仍是同样的「写剪贴板再粘贴」，含非 ASCII 字符的密码会经过剪贴板；没有可验证的替代方案，保留为已知限制。 |
+| **踩坑** | ① 结构体字段不能用 `wintypes.DWORD` / `LONG`：它们在 macOS / Linux 是 8 字节，同一份定义算出 `INPUT` 为 56 字节，用定宽整数才能在任何平台上断言 40。② 微软 `SendInput` 文档：UIPI 阻挡时返回值与 `GetLastError` 都不会提示，所以返回条数检查抓不到「向更高权限窗口输入被拦」，这与原来的 `pyautogui.write` 路径一致，不是新增回归。③ `cua-driver` 的 Windows 实现也在 `ConsoleWindowClass` + ARM64 上遇到过「`KEYEVENTF_UNICODE` 报告成功但提示符没变」；本仓库 `safety.py` 的敏感应用名单已把 `cmd`、`powershell`、`windows terminal` 拦在输入之前。④ 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 在前后 `cache_clear()`。⑤ 变异验证：去掉 `dwExtraInfo` 字段、去掉换行归一、截断代理对、块后多睡一次、忽略短插入、改回共享 `windll`、写死 `cbSize`、调换 `windows.py` 的参数顺序，对应用例分别失败 2 / 2 / 1 / 2 / 1 / 11 / 1 / 1 个。⑥ macOS 的 `macos.py:_paste_text`、Linux 的 `linux.py:_paste_text_xclip` 仍是同样的「写剪贴板再粘贴」，含非 ASCII 字符的密码会经过剪贴板；macOS 已有逐字符 Unicode 事件原语 `macos_input.write`（092 已修正其构造与长度），但输入法组合状态下的行为无法在本机安全验证，路由不改，保留为已知限制。 |
 
 ### BUG-HARNESS-2026-10-29-086 · Windows 的 UI Automation 感知调用了 uiautomation 库里并不存在的 `GetProcessNameByPid`：进程名恒为空，应用标识 `app_id` 恒为空，信任键退化成窗口标题
 

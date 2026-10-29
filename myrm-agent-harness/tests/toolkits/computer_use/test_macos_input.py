@@ -10,6 +10,7 @@ Covers:
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -97,15 +98,11 @@ class TestKeyboardPrimitives:
     @patch("time.sleep")
     def test_key_down_posts_keycode(self, _mock_sleep, _patch_quartz) -> None:
         macos_input.key_down("a")
-        _patch_quartz.CGEventCreateKeyboardEvent.assert_called_once_with(
-            None, 0x00, True
-        )
+        _patch_quartz.CGEventCreateKeyboardEvent.assert_called_once_with(None, 0x00, True)
         _patch_quartz.CGEventPost.assert_called_once()
 
     @patch("time.sleep")
-    def test_key_down_shift_character_adds_shift(
-        self, _mock_sleep, _patch_quartz
-    ) -> None:
+    def test_key_down_shift_character_adds_shift(self, _mock_sleep, _patch_quartz) -> None:
         macos_input.key_down("A")
         calls = _patch_quartz.CGEventCreateKeyboardEvent.call_args_list
         assert calls[0].args[1] == macos_input._KEYCODES["shift"]
@@ -116,14 +113,10 @@ class TestKeyboardPrimitives:
     @patch("time.sleep")
     def test_key_up_posts_release(self, _mock_sleep, _patch_quartz) -> None:
         macos_input.key_up("b")
-        _patch_quartz.CGEventCreateKeyboardEvent.assert_called_once_with(
-            None, 0x0B, False
-        )
+        _patch_quartz.CGEventCreateKeyboardEvent.assert_called_once_with(None, 0x0B, False)
 
     @patch("time.sleep")
-    def test_key_up_shift_character_releases_shift(
-        self, _mock_sleep, _patch_quartz
-    ) -> None:
+    def test_key_up_shift_character_releases_shift(self, _mock_sleep, _patch_quartz) -> None:
         macos_input.key_up("!")
         calls = _patch_quartz.CGEventCreateKeyboardEvent.call_args_list
         assert calls[0].args[1] == macos_input._KEYCODES["1"]
@@ -166,6 +159,38 @@ class TestKeyboardPrimitives:
         macos_input.write("abc", interval=0.01)
         # 3 chars → 3 sleeps (plus key primitives don't sleep here)
         assert _mock_sleep.call_count >= 3
+
+    @patch("time.sleep")
+    def test_write_declares_utf16_length_and_uses_no_event_source(self, _mock_sleep, _patch_quartz) -> None:
+        macos_input.write("a\u4e2d\N{GRINNING FACE}")
+        lengths = [c.args[1] for c in _patch_quartz.CGEventKeyboardSetUnicodeString.call_args_list]
+        assert lengths == [1, 1, 2]
+        sources = {c.args[0] for c in _patch_quartz.CGEventCreateKeyboardEvent.call_args_list}
+        assert sources == {None}
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="Quartz is only available on macOS")
+class TestWriteWithRealQuartz:
+    """write() 构造的事件在真实 Quartz 下必须有效并携带所输入的文本（只构造、不投递）。"""
+
+    @pytest.fixture(autouse=True)
+    def _patch_quartz(self):  # type: ignore[override]
+        yield  # 覆盖模块级 fixture，使用真实 Quartz
+
+    @pytest.mark.parametrize("text", ["a", "\u4e2d", "\N{GRINNING FACE}"])
+    def test_events_carry_the_typed_text(self, text: str) -> None:
+        quartz = pytest.importorskip("Quartz")
+        posted: list[object] = []
+        with (
+            patch.object(macos_input, "_post_event", side_effect=posted.append),
+            patch("myrm_agent_harness.toolkits.computer_use.safety.ensure_screen_safe"),
+        ):
+            macos_input.write(text)
+
+        assert len(posted) == 2  # key down + key up
+        assert all(event is not None for event in posted)
+        units = len(text.encode("utf-16-le")) // 2
+        assert quartz.CGEventKeyboardGetUnicodeString(posted[0], 10, None, None) == (units, text)
 
 
 class TestMousePrimitives:
@@ -220,10 +245,7 @@ class TestMousePrimitives:
         macos_input.scroll(25)
         # 25 → two 10-chunks + one 5-remainder = 3 events
         assert _patch_quartz.CGEventCreateScrollWheelEvent.call_count == 3
-        verticals = [
-            c.args[3]
-            for c in _patch_quartz.CGEventCreateScrollWheelEvent.call_args_list
-        ]
+        verticals = [c.args[3] for c in _patch_quartz.CGEventCreateScrollWheelEvent.call_args_list]
         assert verticals == [10, 10, 5]
 
     @patch("time.sleep")
@@ -239,9 +261,7 @@ class TestMousePrimitives:
         "myrm_agent_harness.toolkits.computer_use.backends.macos_input.position",
         return_value=_Point(10, 20),
     )
-    def test_drag_from_current_position(
-        self, _mock_position, _mock_sleep, _patch_quartz
-    ) -> None:
+    def test_drag_from_current_position(self, _mock_position, _mock_sleep, _patch_quartz) -> None:
         macos_input.drag(100, 200)
         events = _patch_quartz.CGEventCreateMouseEvent.call_args_list
         assert events[0].args[1] == _patch_quartz.kCGEventLeftMouseDown
@@ -256,9 +276,7 @@ class TestMousePrimitives:
         "myrm_agent_harness.toolkits.computer_use.backends.macos_input.position",
         return_value=_Point(10, 20),
     )
-    def test_drag_zero_duration_single_step(
-        self, _mock_position, _mock_sleep, _patch_quartz
-    ) -> None:
+    def test_drag_zero_duration_single_step(self, _mock_position, _mock_sleep, _patch_quartz) -> None:
         macos_input.drag(10, 10, duration=0.0)
         events = _patch_quartz.CGEventCreateMouseEvent.call_args_list
         # down + 1 step + up

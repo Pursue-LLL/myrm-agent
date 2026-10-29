@@ -296,17 +296,17 @@ def hotkey(*keys: str) -> None:
 
 def write(text: str, interval: float = 0.0) -> None:
     """逐字符输入文本（CGEventKeyboardSetUnicodeString，任意 Unicode 均可靠）。"""
-    from Quartz import CGEventCreate, CGEventCreateKeyboardEvent, CGEventKeyboardSetUnicodeString
+    from Quartz import CGEventCreateKeyboardEvent, CGEventKeyboardSetUnicodeString
 
     from myrm_agent_harness.toolkits.computer_use.safety import ensure_screen_safe
 
-    source = CGEventCreate(None)
     for char in text:
         ensure_screen_safe()
-        down = CGEventCreateKeyboardEvent(source, 0, True)
-        CGEventKeyboardSetUnicodeString(down, 1, char)
+        down = CGEventCreateKeyboardEvent(None, 0, True)
+        # 长度按 UTF-16 代码单元计：非 BMP 字符（如 emoji）占 2 个，传 1 会得到损坏的事件
+        CGEventKeyboardSetUnicodeString(down, len(char.encode("utf-16-le")) // 2, char)
         _post_event(down)
-        up = CGEventCreateKeyboardEvent(source, 0, False)
+        up = CGEventCreateKeyboardEvent(None, 0, False)
         _post_event(up)
         if interval:
             time.sleep(interval)
