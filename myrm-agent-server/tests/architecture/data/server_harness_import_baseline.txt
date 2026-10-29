@@ -266,11 +266,9 @@ myrm_agent_harness.infra.tracing
 myrm_agent_harness.infra.tracing.id_generator
 myrm_agent_harness.infra.tracing.metrics
 myrm_agent_harness.observability
-myrm_agent_harness.observability.cron_doctor
 myrm_agent_harness.observability.diagnostics.gateway_health
 myrm_agent_harness.observability.diagnostics.manager
 myrm_agent_harness.observability.diagnostics.protocols
-myrm_agent_harness.observability.diagnostics_bundle
 myrm_agent_harness.observability.metrics
 myrm_agent_harness.observability.metrics.db_pool_collector
 myrm_agent_harness.observability.storage_governance
