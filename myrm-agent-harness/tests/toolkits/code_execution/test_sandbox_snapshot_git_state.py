@@ -43,7 +43,7 @@ def test_cleanliness_is_stated_only_when_it_was_determined(dirty: bool | None, s
 
 
 def test_a_status_that_timed_out_is_not_reported_as_clean() -> None:
-    def _quick_command(cmd: list[str], timeout: float = 1.0) -> tuple[int, str]:
+    def _quick_command(cmd: list[str], timeout: float = 1.0, *, merge_stderr: bool = False) -> tuple[int, str]:
         return (0, "main") if "rev-parse" in cmd else (-1, "")
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,7 +74,9 @@ class TestSnapshotOfARealRepository:
         # The probe's 1.0 s limit is not what this test is about: a loaded runner must not turn dirty into unknown.
         run_probe = sandbox_snapshot._run_quick_command
         with patch.object(
-            sandbox_snapshot, "_run_quick_command", side_effect=lambda cmd, timeout=1.0: run_probe(cmd, timeout=30.0)
+            sandbox_snapshot,
+            "_run_quick_command",
+            side_effect=lambda cmd, timeout=1.0, **kw: run_probe(cmd, timeout=30.0, **kw),
         ):
             snapshot = generate_sandbox_bootstrap_snapshot(workspace)
 

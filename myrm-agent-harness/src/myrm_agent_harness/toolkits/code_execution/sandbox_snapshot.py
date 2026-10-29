@@ -2,8 +2,10 @@
 
 Captures initial workspace state (working directory, top-level directory entries,
 git status, installed language runtimes, package managers, and recommended PM)
-without deep recursive traversals. Each process-starting probe (two git commands, up to five runtime version
-commands) is synchronous and capped at 1 s; a whole snapshot took 0.1-0.3 s in a git repository (macOS, git 2.38.1).
+without deep recursive traversals. Each process-starting probe (two git commands, one version command per runtime
+binary found, up to seven) is synchronous and capped at 1 s; a whole snapshot took 0.3-0.6 s in a git repository
+(15 runs, macOS, git 2.38.1). A runtime is listed only when its binary ran and reported a version; package managers and
+CLI tools are listed by their presence on PATH.
 
 Injected into initial task context / observation (never polluting immutable
 system prompt) so the agent does not spend turns on pwd, ls and which.
@@ -86,6 +88,9 @@ _MAX_ENTRY_NAME_CHARS = 80
 _LINE_BREAKS_AND_CONTROLS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u202a-\u202e\u2066-\u2069]")
 _WITHHELD_ENTRY_NAME = "[name withheld]"
 
+# ``java -version`` prints e.g. ``openjdk version "21.0.4" 2024-07-16`` or ``java version "1.8.0_391"``.
+_JAVA_VERSION = re.compile(r'version "([^"]+)"')
+
 
 @dataclass(frozen=True)
 class SandboxBootstrapSnapshot:
@@ -106,12 +111,13 @@ class SandboxBootstrapSnapshot:
         return self.git_branch is not None
 
 
-def _run_quick_command(cmd: Sequence[str], timeout: float = 1.0) -> tuple[int, str]:
-    """Run a fast subprocess command with a strict timeout."""
+def _run_quick_command(cmd: Sequence[str], timeout: float = 1.0, *, merge_stderr: bool = False) -> tuple[int, str]:
+    """Run a fast subprocess command with a strict timeout; ``merge_stderr`` is for a tool that reports on stderr."""
     try:
         proc = subprocess.run(
             list(cmd),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT if merge_stderr else subprocess.PIPE,
             text=True,
             timeout=timeout,
             check=False,
@@ -148,17 +154,16 @@ def _probe_git_state(workspace: Path) -> tuple[str | None, bool | None]:
 
 
 def _probe_runtimes() -> list[str]:
-    """Probe installed programming language runtimes and their major/minor versions."""
+    """The runtimes whose binary ran and reported a version.
+
+    A binary on PATH that does not run (a toolchain proxy with nothing installed, a launcher stub) is not an installed runtime,
+    so it is left out and the next binary of the same runtime is tried.
+    """
     detected: list[str] = []
     for _runtime_id, label, binaries in _CORE_RUNTIMES:
         for bin_name in binaries:
-            if shutil.which(bin_name):
-                # Attempt to get version string quickly
-                version_str = _probe_runtime_version(bin_name)
-                if version_str:
-                    detected.append(f"{label} {version_str}")
-                else:
-                    detected.append(label)
+            if shutil.which(bin_name) and (version := _probe_runtime_version(bin_name)):
+                detected.append(f"{label} {version}")
                 break
     return detected
 
@@ -189,6 +194,10 @@ def _probe_runtime_version(bin_name: str) -> str:
             parts = out.split()
             if len(parts) >= 2:
                 return parts[1]
+    elif bin_name == "java":
+        rc, out = _run_quick_command(["java", "-version"], merge_stderr=True)
+        if rc == 0 and (match := _JAVA_VERSION.search(out)):
+            return match.group(1)
     return ""
 
 
@@ -283,8 +292,8 @@ def generate_sandbox_bootstrap_snapshot(
 ) -> SandboxBootstrapSnapshot:
     """Generate a lightweight, non-recursive bootstrap snapshot of the sandbox environment.
 
-    Each process-starting probe is capped at 1 s, so a snapshot can block for several seconds when a binary hangs.
-    Any probe failure is handled gracefully to guarantee non-crashing execution.
+    Each process-starting probe is capped at 1 s, so a snapshot can block for several seconds when a binary hangs:
+    call it from a thread when an event loop is running. Any probe failure is handled gracefully to guarantee non-crashing execution.
 
     Args:
         workspace_path: Path to the workspace root directory.
@@ -342,7 +351,8 @@ def _display_entry_name(name: str) -> str:
 def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
     """Format the snapshot into a clean, compact XML observation for the initial prompt/observation.
 
-    Designed for maximum model adherence and zero ambiguity while maintaining token efficiency (~80-120 tokens).
+    Designed for maximum model adherence and zero ambiguity while maintaining token efficiency (about 250 tokens for a repository
+    with a full 25-entry listing).
     """
     lines: list[str] = ["<sandbox_environment_snapshot>"]
 

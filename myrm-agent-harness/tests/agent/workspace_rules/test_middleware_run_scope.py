@@ -1,4 +1,5 @@
-"""Real-loop tests for the workspace context a chat thread is shown: the sandbox snapshot is taken once per thread and stays byte-identical, the rules stay live.
+"""Real-loop tests for the workspace context a chat thread is shown: the sandbox snapshot is taken once per thread, off the event loop, without an extra checkpoint, and stays
+byte-identical, the rules stay live.
 
 [INPUT]
 - agent.workspace_rules.middleware::WorkspaceRulesMiddleware (POS: workspace context injection middleware under test)
@@ -7,7 +8,8 @@
 
 [OUTPUT]
 - Fails when a model call regenerates the snapshot, when the text of the workspace context changes because the agent edited the workspace, when a workspace switch or a new thread is
-  served a stale snapshot, when the rules stop being read live, or when a workspace the trust gate blocks is probed or injected.
+  served a stale snapshot, when the rules stop being read live, when a workspace the trust gate blocks is probed or injected, when taking the snapshot stalls the event loop or adds
+  checkpoints to the thread, or when an interrupted and resumed run is sent another snapshot than it started with.
 
 [POS]
 The injection is a per-request override and never lands in the graph state, so only a run through the real loop shows what the model is sent on each call. Every scripted turn edits
@@ -16,7 +18,9 @@ the workspace between its two model calls, which is what a coding session does.
 
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,9 +31,11 @@ from langchain.agents import create_agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command, interrupt
 from pydantic import Field
 
 from myrm_agent_harness.agent.security.workspace_trust.context import set_workspace_trust_level
@@ -48,9 +54,11 @@ def _snapshot_block(workspace_context: str) -> str:
 
 
 class _ScriptedModel(BaseChatModel):
-    """Calls the tool at the start of every turn, answers once the tool has replied, and records the workspace context each request carried."""
+    """Calls ``tool_name`` at the start of every turn, answers once the tool has replied, and records the workspace context each request carried; its first ``failing_calls`` calls fail."""
 
     workspace_contexts: list[str] = Field(default_factory=list)
+    tool_name: str = "add_file"
+    failing_calls: int = 0
 
     @property
     def _llm_type(self) -> str:
@@ -64,20 +72,29 @@ class _ScriptedModel(BaseChatModel):
     ) -> ChatResult:
         carried = [str(m.content) for m in messages if "<workspace_context" in str(m.content)]
         self.workspace_contexts.append("\n".join(carried))
+        if len(self.workspace_contexts) <= self.failing_calls:
+            raise RuntimeError("provider unavailable")
         if isinstance(messages[-1], ToolMessage):
             reply = AIMessage(content="done")
         else:
             reply = AIMessage(
-                content="", tool_calls=[{"name": "add_file", "args": {}, "id": f"call-{len(self.workspace_contexts)}"}]
+                content="",
+                tool_calls=[{"name": self.tool_name, "args": {}, "id": f"call-{len(self.workspace_contexts)}"}],
             )
         return ChatResult(generations=[ChatGeneration(message=reply)])
 
 
 class _Session:
-    """One agent with the middleware under test; every ``turn`` is one ``ainvoke`` on a chat thread."""
+    """One agent, with the middleware under test unless ``with_middleware`` is off; every ``turn`` is one run on a chat thread."""
 
-    def __init__(self, checkpointer: BaseCheckpointSaver[str]) -> None:
-        self.model = _ScriptedModel()
+    def __init__(
+        self,
+        checkpointer: BaseCheckpointSaver[str],
+        *,
+        model: _ScriptedModel | None = None,
+        with_middleware: bool = True,
+    ) -> None:
+        self.model = model or _ScriptedModel()
         self._edited_root: Path | None = None
 
         @tool
@@ -90,21 +107,30 @@ class _Session:
         self.agent = create_agent(
             self.model,
             tools=[add_file],
-            middleware=[WorkspaceRulesMiddleware()],
+            middleware=[WorkspaceRulesMiddleware()] if with_middleware else [],
             checkpointer=checkpointer,
             system_prompt="system",
         )
 
-    async def turn(self, root: Path, thread_id: str = "chat-1") -> list[str]:
-        """Run one turn in ``root``; return the workspace context of each model call the turn made."""
+    async def turn(self, root: Path, thread_id: str = "chat-1", *, streaming: bool = False) -> list[str]:
+        """Run one turn in ``root``, streamed as the product does or not; return the workspace context of each model call the turn made."""
         self._edited_root = root
         already_seen = len(self.model.workspace_contexts)
-        await self.agent.ainvoke(
-            {"messages": [HumanMessage(content="go")]},
-            {"configurable": {"thread_id": thread_id}},
-            # The product passes a plain dict as the run context and declares no schema for it.
-            context={"workspace_path": str(root)},  # type: ignore[call-overload]
-        )
+        # The product passes a plain dict as the run context and declares no schema for it.
+        if streaming:
+            async for _chunk in self.agent.astream(
+                {"messages": [HumanMessage(content="go")]},
+                {"configurable": {"thread_id": thread_id}},
+                context={"workspace_path": str(root)},  # type: ignore[call-overload]
+                stream_mode=["messages", "updates"],
+            ):
+                pass
+        else:
+            await self.agent.ainvoke(
+                {"messages": [HumanMessage(content="go")]},
+                {"configurable": {"thread_id": thread_id}},
+                context={"workspace_path": str(root)},  # type: ignore[call-overload]
+            )
         return self.model.workspace_contexts[already_seen:]
 
 
@@ -198,6 +224,124 @@ class TestSnapshotIsTakenOncePerThread:
 
         assert len(set(sent)) == 1
         assert generated == [str(workspace)]
+
+    async def test_the_streamed_run_the_product_uses_takes_and_keeps_it_too(
+        self, session: _Session, workspace: Path, generated: list[str]
+    ) -> None:
+        with _trust(WorkspaceTrustLevel.TRUSTED):
+            sent = [context for _ in range(2) for context in await session.turn(workspace, streaming=True)]
+
+        assert len(sent) == 4
+        assert len(set(sent)) == 1
+        assert "<sandbox_environment_snapshot>" in sent[0]
+        assert generated == [str(workspace)]
+
+
+class TestTakingTheSnapshotCostsTheRunNothingElse:
+    async def test_a_slow_probe_does_not_stall_the_event_loop(self, session: _Session, workspace: Path) -> None:
+        probe_seconds = 0.6
+        real = sandbox_snapshot.generate_sandbox_bootstrap_snapshot
+
+        def slow(workspace_path: str | Path, max_entries: int = 25) -> sandbox_snapshot.SandboxBootstrapSnapshot:
+            time.sleep(probe_seconds)
+            return real(workspace_path, max_entries=max_entries)
+
+        gaps: list[float] = []
+        running = True
+
+        async def heartbeat() -> None:
+            last = time.perf_counter()
+            while running:
+                await asyncio.sleep(0.01)
+                now = time.perf_counter()
+                gaps.append(now - last)
+                last = now
+
+        with (
+            patch.object(sandbox_snapshot, "generate_sandbox_bootstrap_snapshot", slow),
+            _trust(WorkspaceTrustLevel.TRUSTED),
+        ):
+            beat = asyncio.create_task(heartbeat())
+            started = time.perf_counter()
+            await session.turn(workspace)
+            elapsed = time.perf_counter() - started
+            running = False
+            await beat
+
+        assert elapsed >= probe_seconds, "the slow probe really ran inside the turn"
+        assert max(gaps) < probe_seconds / 2, (
+            f"another task was kept waiting {max(gaps):.2f} s while the snapshot was taken"
+        )
+
+    async def test_the_thread_is_checkpointed_as_often_as_without_the_middleware(self, workspace: Path) -> None:
+        async def checkpoints_after_two_turns(*, with_middleware: bool) -> int:
+            session = _Session(MemorySaver(), with_middleware=with_middleware)
+            with _trust(WorkspaceTrustLevel.TRUSTED):
+                for _ in range(2):
+                    await session.turn(workspace)
+            config: RunnableConfig = {"configurable": {"thread_id": "chat-1"}}
+            return len([state async for state in session.agent.aget_state_history(config)])
+
+        baseline = await checkpoints_after_two_turns(with_middleware=False)
+        with_it = await checkpoints_after_two_turns(with_middleware=True)
+
+        assert baseline > 0
+        assert with_it == baseline, (
+            "keeping the snapshot in the thread must not add a graph step, and with it a checkpoint, to each model call"
+        )
+
+
+class TestInterruptedAndFailedRuns:
+    async def test_a_resumed_run_is_sent_the_snapshot_it_started_with(
+        self, workspace: Path, tmp_path: Path, generated: list[str]
+    ) -> None:
+        @tool
+        def ask_the_user() -> str:
+            """Ask the user to approve."""
+            return str(interrupt("approve?"))
+
+        checkpointer, cleanup = await create_checkpointer(
+            mode="sqlite", sqlite_db_path=str(tmp_path / "checkpoints.db")
+        )
+        model = _ScriptedModel(tool_name="ask_the_user")
+        try:
+            agent = create_agent(
+                model,
+                tools=[ask_the_user],
+                middleware=[WorkspaceRulesMiddleware()],
+                checkpointer=checkpointer,
+                system_prompt="system",
+            )
+            config: RunnableConfig = {"configurable": {"thread_id": "chat-1"}}
+            context = {"workspace_path": str(workspace)}
+            with _trust(WorkspaceTrustLevel.TRUSTED):
+                await agent.ainvoke({"messages": [HumanMessage(content="go")]}, config, context=context)  # type: ignore[call-overload]
+                (workspace / "added_while_waiting.txt").write_text("x")
+                await agent.ainvoke(Command(resume="approved"), config, context=context)  # type: ignore[call-overload]
+        finally:
+            await cleanup()
+
+        assert len(model.workspace_contexts) == 2, "one call before the interrupt, one after the resume"
+        assert len(set(model.workspace_contexts)) == 1
+        assert "<sandbox_environment_snapshot>" in model.workspace_contexts[0]
+        assert generated == [str(workspace)]
+
+    async def test_a_failed_first_call_leaves_nothing_behind_and_the_retry_is_served_a_snapshot(
+        self, workspace: Path, generated: list[str]
+    ) -> None:
+        session = _Session(MemorySaver(), model=_ScriptedModel(failing_calls=1))
+        with _trust(WorkspaceTrustLevel.TRUSTED):
+            with pytest.raises(RuntimeError, match="provider unavailable"):
+                await session.turn(workspace)
+            generated_before_retry = len(generated)
+            retried = await session.turn(workspace)
+
+        assert len(retried) == 2
+        assert all("<sandbox_environment_snapshot>" in context for context in retried)
+        assert len(set(retried)) == 1
+        assert len(generated) - generated_before_retry <= 1, (
+            "the retry takes the snapshot at most once; its second call reads it back"
+        )
 
 
 class TestRulesStayLive:

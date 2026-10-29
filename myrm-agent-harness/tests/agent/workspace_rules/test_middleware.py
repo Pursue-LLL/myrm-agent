@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain.agents.middleware import ExtendedModelResponse, ModelResponse
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.workspace_rules.middleware import (
     SNAPSHOT_KEY,
@@ -73,6 +74,38 @@ class TestFormatRulesContent:
         result = _format_rules_content([])
         assert "<workspace_context" in result
         assert "</workspace_context>" in result
+
+
+_GATE = "myrm_agent_harness.agent.security.workspace_trust.gate.blocks_workspace_side_channels"
+_GENERATE = "myrm_agent_harness.toolkits.code_execution.sandbox_snapshot.generate_sandbox_bootstrap_snapshot"
+
+
+def _runtime(workspace: object) -> MagicMock:
+    runtime = MagicMock()
+    runtime.context = {"workspace_path": str(workspace)}
+    return runtime
+
+
+def _holding(root: object) -> WorkspaceContextState:
+    return WorkspaceContextState(messages=[], workspace_snapshot="<held/>", workspace_snapshot_root=str(root))
+
+
+def _request(workspace: object, state: WorkspaceContextState) -> MagicMock:
+    request = MagicMock()
+    request.messages = [SystemMessage(content="System"), HumanMessage(content="Hello")]
+    request.state = state
+    request.runtime = _runtime(workspace)
+    request.override = MagicMock(return_value=request)
+    return request
+
+
+def _sent(request: MagicMock) -> str:
+    """The workspace context message the model call was sent: it follows the leading system prompt."""
+    return str(request.override.call_args[1]["messages"][1].content)
+
+
+def _response() -> ModelResponse:
+    return ModelResponse(result=[AIMessage(content="ok")])
 
 
 class TestWorkspaceRulesMiddleware:
@@ -143,7 +176,7 @@ class TestWorkspaceRulesMiddleware:
             SystemMessage(content="System prompt"),
             HumanMessage(content="Hello"),
         ]
-        request.state = {"messages": []}
+        request.state = _holding(tmp_path)
         request.override = MagicMock(return_value=request)
 
         with (
@@ -163,69 +196,89 @@ class TestWorkspaceRulesMiddleware:
         workspace_msgs = [m for m in injected if isinstance(m, SystemMessage) and "<workspace_context" in m.content]
         assert len(workspace_msgs) == 1
         assert "Project Rules" in workspace_msgs[0].content
+        assert "<held/>" in workspace_msgs[0].content
 
 
-_GATE = "myrm_agent_harness.agent.security.workspace_trust.gate.blocks_workspace_side_channels"
-_GENERATE = "myrm_agent_harness.toolkits.code_execution.sandbox_snapshot.generate_sandbox_bootstrap_snapshot"
-
-
-def _runtime(workspace: object) -> MagicMock:
-    runtime = MagicMock()
-    runtime.context = {"workspace_path": str(workspace)}
-    return runtime
-
-
-def _holding(root: object) -> WorkspaceContextState:
-    return WorkspaceContextState(messages=[], workspace_snapshot="<held/>", workspace_snapshot_root=str(root))
-
-
-class TestBeforeModel:
-    def test_takes_the_snapshot_of_a_trusted_workspace(self, tmp_path: Path) -> None:
+class TestSnapshotCapture:
+    @pytest.mark.asyncio
+    async def test_the_first_call_of_a_thread_takes_the_snapshot_and_hands_it_to_the_state(
+        self, tmp_path: Path
+    ) -> None:
+        response = _response()
+        request = _request(tmp_path, WorkspaceContextState(messages=[]))
         with patch(_GATE, return_value=False):
-            update = WorkspaceRulesMiddleware().before_model(WorkspaceContextState(messages=[]), _runtime(tmp_path))
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=response))
 
-        assert update is not None
+        assert isinstance(result, ExtendedModelResponse)
+        assert result.model_response is response
+        assert result.command is not None
+        update = result.command.update
+        assert isinstance(update, dict)
         assert update[SNAPSHOT_ROOT_KEY] == str(tmp_path)
         assert update[SNAPSHOT_KEY].startswith("<sandbox_environment_snapshot>")
+        assert update[SNAPSHOT_KEY] in _sent(request), (
+            "the call that takes the snapshot is sent what later calls read back"
+        )
 
-    def test_keeps_the_snapshot_the_thread_already_holds(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_the_snapshot_a_thread_holds_is_sent_and_nothing_is_taken(self, tmp_path: Path) -> None:
+        response = _response()
+        request = _request(tmp_path, _holding(tmp_path))
         with patch(_GATE, return_value=False), patch(_GENERATE) as generate:
-            update = WorkspaceRulesMiddleware().before_model(_holding(tmp_path), _runtime(tmp_path))
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=response))
 
-        assert update is None
+        assert result is response
         generate.assert_not_called()
+        assert "<held/>" in _sent(request)
 
-    def test_takes_a_new_snapshot_when_the_workspace_changed(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_a_changed_workspace_takes_a_new_snapshot(self, tmp_path: Path) -> None:
         other = tmp_path / "other"
         other.mkdir()
+        request = _request(other, _holding(tmp_path))
         with patch(_GATE, return_value=False):
-            update = WorkspaceRulesMiddleware().before_model(_holding(tmp_path), _runtime(other))
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=_response()))
 
-        assert update is not None
-        assert update[SNAPSHOT_ROOT_KEY] == str(other)
+        assert isinstance(result, ExtendedModelResponse)
+        assert result.command is not None
+        assert isinstance(result.command.update, dict)
+        assert result.command.update[SNAPSHOT_ROOT_KEY] == str(other)
+        assert "<held/>" not in _sent(request)
 
-    def test_does_not_probe_a_workspace_the_trust_gate_blocks(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_a_workspace_the_trust_gate_blocks_is_not_probed_and_is_sent_unchanged(self, tmp_path: Path) -> None:
+        response = _response()
+        handler = AsyncMock(return_value=response)
+        request = _request(tmp_path, WorkspaceContextState(messages=[]))
         with patch(_GATE, return_value=True), patch(_GENERATE) as generate:
-            update = WorkspaceRulesMiddleware().before_model(WorkspaceContextState(messages=[]), _runtime(tmp_path))
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, handler)
 
-        assert update is None
+        assert result is response
         generate.assert_not_called()
+        handler.assert_called_once_with(request)
+        request.override.assert_not_called()
 
-    def test_does_nothing_without_a_workspace_root(self) -> None:
+    @pytest.mark.asyncio
+    async def test_without_a_workspace_root_nothing_is_probed(self) -> None:
+        response = _response()
+        request = _request("", WorkspaceContextState(messages=[]))
         with (
             patch.object(WorkspaceRulesMiddleware, "_resolve_workspace_root", return_value=""),
             patch(_GENERATE) as generate,
         ):
-            update = WorkspaceRulesMiddleware().before_model(WorkspaceContextState(messages=[]), MagicMock())
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=response))
 
-        assert update is None
+        assert result is response
         generate.assert_not_called()
 
-    def test_a_failed_probe_stores_nothing_so_the_next_call_tries_again(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_a_failed_probe_stores_nothing_so_the_next_call_tries_again(self, tmp_path: Path) -> None:
+        response = _response()
+        request = _request(tmp_path, WorkspaceContextState(messages=[]))
         with patch(_GATE, return_value=False), patch(_GENERATE, side_effect=OSError("probe failed")):
-            update = WorkspaceRulesMiddleware().before_model(WorkspaceContextState(messages=[]), _runtime(tmp_path))
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=response))
 
-        assert update is None
+        assert result is response, "no state update is handed back"
 
 
 class TestResolveWorkspaceRoot:

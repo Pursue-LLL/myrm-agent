@@ -112,7 +112,9 @@ def test_git_branch_probing() -> None:
         root = Path(tmpdir)
         (root / ".git").mkdir()
 
-        def _custom_quick_command(cmd: list[str], timeout: float = 1.0) -> tuple[int, str]:
+        def _custom_quick_command(
+            cmd: list[str], timeout: float = 1.0, *, merge_stderr: bool = False
+        ) -> tuple[int, str]:
             if "rev-parse" in cmd:
                 return 0, "feature/sandbox-eval"
             if "status" in cmd:
@@ -258,7 +260,9 @@ def test_runtimes_and_version_probing() -> None:
                 return f"/usr/local/bin/{bin_name}"
             return None
 
-        def mock_run_quick(cmd: list[str], timeout: float = 1.0) -> tuple[int, str]:
+        def mock_run_quick(cmd: list[str], timeout: float = 1.0, *, merge_stderr: bool = False) -> tuple[int, str]:
+            if "java" in cmd[0]:
+                return 0, 'openjdk version "22.0.2" 2024-07-16'
             if "node" in cmd[0]:
                 return 0, "v20.10.0"
             if "bun" in cmd[0]:
@@ -284,6 +288,7 @@ def test_runtimes_and_version_probing() -> None:
             assert any("Bun 1.1.20" in r for r in snap.runtimes)
             assert any("Go 1.22.1" in r for r in snap.runtimes)
             assert any("Rust 1.78.0" in r for r in snap.runtimes)
+            assert any("Java 22.0.2" in r for r in snap.runtimes)
             assert "git" in snap.available_tools
             assert "curl" in snap.available_tools
 

@@ -16,11 +16,13 @@ This preserves the KV Cache prefix hierarchy:
     [4+] Messages                        ← per-turn
 
 The injection is a per-request override and never reaches the graph state, so it is rebuilt on every
-model call. The rules are cheap to read and are read live. The snapshot probes git and the file system
-and describes a workspace the agent edits while it works, so rebuilding it per call would run the probes
-on the event loop each time and move the text at [2], which drops the cached prefix behind it. It is
-therefore taken once per chat thread (again when the thread's workspace changes) by ``before_model`` and
-kept in a private, checkpointed state key that every later call reads back.
+model call. The rules are cheap to read and are read live. The snapshot starts processes and describes a
+workspace the agent edits while it works, so rebuilding it per call would move the text at [2], which
+drops the cached prefix behind it. It is therefore taken once per chat thread (again when the thread's
+workspace changes): the first model call that finds none takes it in a worker thread, so the event loop is
+not held while the processes run, and hands it to the graph state with its response. Every later call
+reads it back from a private, checkpointed state key. A hook node would write the same key but would add a
+graph step, and a checkpoint, to every model call of every run.
 
 ⚠️ Self-update reminder: if this file changes, update:
 1. agent/context_management/PROMPT_CACHE_PRACTICE.md §2
@@ -44,14 +46,15 @@ for KV Cache optimization.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Annotated, NotRequired
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain.agents.middleware.types import AgentState, PrivateStateAttr
+from langchain.agents.middleware.types import AgentState, ExtendedModelResponse, PrivateStateAttr
 from langchain_core.messages import SystemMessage
-from langgraph.runtime import Runtime
+from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
 
@@ -142,24 +145,13 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
     """Workspace context injection middleware.
 
     Every model call is sent the project rules, read live, and the sandbox snapshot. The snapshot is taken once
-    per chat thread and kept in the graph state, so the text at this position of the prefix does not move while
-    the agent edits the workspace.
+    per chat thread, by the first call that finds none for the thread's workspace, and kept in the graph state,
+    so the text at this position of the prefix does not move while the agent edits the workspace. A call whose
+    model request fails stores nothing: the retry takes the snapshot again. A trust-gated workspace is never probed.
     """
 
     name = "workspace_rules_middleware"
     state_schema = WorkspaceContextState
-
-    def before_model(self, state: WorkspaceContextState, runtime: Runtime[None]) -> dict[str, str] | None:
-        """Take the snapshot when this thread has none for its workspace; a trust-gated workspace is never probed."""
-        workspace_root = self._resolve_workspace_root(runtime)
-        if not workspace_root or _snapshot_of(state, workspace_root) is not None:
-            return None
-        if _trust_gate_blocks():
-            return None
-        snapshot = _take_snapshot(workspace_root)
-        if snapshot is None:
-            return None
-        return {SNAPSHOT_KEY: snapshot, SNAPSHOT_ROOT_KEY: workspace_root}
 
     def wrap_model_call(
         self,
@@ -172,7 +164,7 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
         self,
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
-    ) -> ModelResponse:
+    ) -> ModelResponse | ExtendedModelResponse:
         workspace_root = self._resolve_workspace_root(request.runtime)
         if not workspace_root:
             return await handler(request)
@@ -195,6 +187,11 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
             content_parts.append(_format_rules_content(rules))
 
         snapshot = _snapshot_of(request.state, workspace_root)
+        taken: dict[str, str] | None = None
+        if snapshot is None:
+            snapshot = await asyncio.to_thread(_take_snapshot, workspace_root)
+            if snapshot is not None:
+                taken = {SNAPSHOT_KEY: snapshot, SNAPSHOT_ROOT_KEY: workspace_root}
         if snapshot is not None:
             content_parts.append(snapshot)
 
@@ -218,7 +215,10 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
             insert_idx,
         )
 
-        return await handler(request)
+        response = await handler(request)
+        if taken is None:
+            return response
+        return ExtendedModelResponse(model_response=response, command=Command(update=taken))
 
     @staticmethod
     def _resolve_workspace_root(runtime: object | None) -> str:
