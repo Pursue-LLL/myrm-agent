@@ -6,7 +6,7 @@
 - agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 
 [OUTPUT]
-- ShareableArtifact, StreamAccumulator, step_to_label
+- ShareableArtifact, StreamAccumulator (incl. ``tool_stuck_paused``: the loop guard stopped the turn), step_to_label
 
 [POS]
 Channel executor 辅助：流式响应累积与 IM 进度标签转换。
@@ -54,6 +54,8 @@ class StreamAccumulator:
     # The provider's raw error text: operator logs only, never shown to channel members.
     error_message: str | None = None
     error_kind: ErrorKind = ErrorKind.UNKNOWN
+    # The loop guard stopped the turn on repeated tool failures: nothing waits on an answer, and the reply says so.
+    tool_stuck_paused: bool = False
     last_image_base64: str | None = None
     last_image_url: str | None = None
     last_image_mime: str = "image/jpeg"

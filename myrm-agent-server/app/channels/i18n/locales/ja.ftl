@@ -298,6 +298,7 @@ component_options_prefix = オプション
 component_quick_reply_instruction = ↩ 番号を入力して選択
 placeholder_thinking =  考え中...
 placeholder_no_response =  応答が生成されませんでした。
+placeholder_tool_stuck_paused =  この手順が続けて失敗したため、ここで止めました。どう進めるか教えてください。
 draft_review_pending = ✏️ 返信の下書きが完了しました — 送信前にレビューをお待ちしています。
 draft_review_reason = AI 生成の返信はチャンネルに送信する前にレビューが必要です。
 knowledge_patch_review_reason = 過去の会話で見つかった知識の不足を補う更新の提案: { $title }

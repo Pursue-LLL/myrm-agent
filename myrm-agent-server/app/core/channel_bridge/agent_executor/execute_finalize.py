@@ -17,7 +17,8 @@ Finalizes a completed harness stream into a channel OutboundMessage: content cle
 cost recording, metadata, media attachments, and artifact deep-link buttons. A failed turn
 replies with the member-safe wording of its error kind and a reference id (after any text that had
 already streamed, so a cut-off answer is never presented as complete); the raw error text only
-goes to the operator log under the same id.
+goes to the operator log under the same id. A turn the loop guard paused replies with its own notice instead of the
+empty-turn placeholder, and is flagged the same way so a delegated task is not reported as done.
 """
 
 from __future__ import annotations
@@ -56,6 +57,8 @@ from .deliverable import (
 
 logger = logging.getLogger(__name__)
 
+_TOOL_STUCK_ERROR_TYPE = "tool_stuck"
+
 
 def _failed_turn_wording(
     acc: StreamAccumulator,
@@ -72,6 +75,25 @@ def _failed_turn_wording(
         acc.error_message,
     )
     return wording, acc.error_kind.value
+
+
+def _stopped_turn_wording(
+    acc: StreamAccumulator,
+    msg: InboundMessage,
+    *,
+    account_guidance: bool,
+) -> tuple[str, str]:
+    """Wording of a turn that stopped early and its error type; a fatal error outranks a loop guard pause.
+
+    A pause is no failure of the run, but the error type still flags it so a delegated task is not reported as done.
+    """
+    if acc.error_message:
+        return _failed_turn_wording(acc, msg, account_guidance=account_guidance)
+
+    from app.channels.i18n import channel_t, resolve_message_locale
+
+    notice = str(channel_t(resolve_message_locale(msg), "placeholder_tool_stuck_paused")).strip()
+    return notice, _TOOL_STUCK_ERROR_TYPE
 
 
 async def finalize_channel_stream_reply(
@@ -172,15 +194,15 @@ async def finalize_channel_stream_reply(
         if artifact_components or media_list:
             locale = resolve_message_locale(msg)
             content = str(channel_t(locale, "deliverable_attached_only"))
-        elif acc.error_message:
-            content, error_type = _failed_turn_wording(acc, msg, account_guidance=account_guidance)
+        elif acc.error_message or acc.tool_stuck_paused:
+            content, error_type = _stopped_turn_wording(acc, msg, account_guidance=account_guidance)
         else:
             logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
             content = str(channel_t(resolve_message_locale(msg), "placeholder_no_response")).strip()
             error_type = "empty_response"
-    elif acc.error_message:
-        # The stream broke after text had gone out: keep that text, but say it is incomplete.
-        notice, error_type = _failed_turn_wording(acc, msg, account_guidance=account_guidance)
+    elif acc.error_message or acc.tool_stuck_paused:
+        # The turn stopped after text had gone out: keep that text, but say it is incomplete.
+        notice, error_type = _stopped_turn_wording(acc, msg, account_guidance=account_guidance)
         content = f"{content.strip()}\n\n{notice}" if content.strip() else notice
 
     content = append_deliverable_notes(

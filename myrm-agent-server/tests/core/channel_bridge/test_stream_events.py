@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import pytest
+from myrm_agent_harness.agent.errors import ToolStuckException
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ApprovalExpiry, FissionTopologyNode, FissionTopologyUpdate, ProgressUpdate, StreamingText
@@ -40,7 +41,7 @@ async def test_message_event_yields_writing_progress_and_streaming_text() -> Non
 @pytest.mark.asyncio
 async def test_tool_approval_request_carries_its_time_limit_and_the_session_of_the_run() -> None:
     acc = StreamAccumulator()
-    event = {
+    event: dict[str, object] = {
         "type": "tool_approval_request",
         "data": {
             "actionRequests": [{"action": "bash", "description": "run ls"}],
@@ -67,7 +68,7 @@ async def test_tool_approval_request_carries_its_time_limit_and_the_session_of_t
 async def test_tool_approval_request_defaults_to_denying_after_the_default_window(
     extensions: dict[str, object], expected: ApprovalExpiry
 ) -> None:
-    event = {
+    event: dict[str, object] = {
         "type": "tool_approval_request",
         "data": {"actionRequests": [{"action": "bash", "description": "run ls"}], "extensions": extensions},
     }
@@ -81,7 +82,7 @@ async def test_tool_approval_request_defaults_to_denying_after_the_default_windo
 @pytest.mark.asyncio
 async def test_capability_gap_web_search_not_configured_yields_progress_update() -> None:
     acc = StreamAccumulator()
-    event = {
+    event: dict[str, object] = {
         "type": "capability_gap",
         "data": {
             "tool_id": "web_search",
@@ -99,7 +100,7 @@ async def test_capability_gap_web_search_not_configured_yields_progress_update()
 @pytest.mark.asyncio
 async def test_capability_gap_web_search_unreachable_yields_progress_update() -> None:
     acc = StreamAccumulator()
-    event = {
+    event: dict[str, object] = {
         "type": "capability_gap",
         "data": {
             "tool_id": "web_search",
@@ -116,7 +117,7 @@ async def test_capability_gap_web_search_unreachable_yields_progress_update() ->
 @pytest.mark.asyncio
 async def test_capability_gap_web_search_skipped_when_display_message_empty() -> None:
     acc = StreamAccumulator()
-    event = {
+    event: dict[str, object] = {
         "type": "capability_gap",
         "data": {
             "tool_id": "web_search",
@@ -236,3 +237,33 @@ async def test_later_error_event_replaces_the_earlier_one() -> None:
 
     assert acc.error_message == "third"
     assert acc.error_kind is ErrorKind.UNKNOWN
+
+
+@pytest.mark.asyncio
+async def test_loop_guard_pause_is_recorded_without_a_card() -> None:
+    """The pause arrives as ``approval_required`` but waits on no answer: nothing to approve, so no card."""
+    pause: dict[str, object] = {
+        "type": "approval_required",
+        "data": ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1"),
+    }
+    acc = StreamAccumulator()
+    progress = [item async for item in iter_channel_stream_progress(_events(pause), acc, locale="en", session_key="")]
+
+    assert progress == []
+    assert acc.tool_stuck_paused is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "event",
+    [
+        {"type": "approval_required", "data": {"action_type": "bash"}},
+        {"type": "approval_required"},
+        {"type": "tool_approval_request", "data": {"actionRequests": [{"action": "bash", "description": "run ls"}]}},
+        {"type": "message", "data": "hello"},
+    ],
+)
+async def test_other_events_do_not_mark_the_turn_as_paused(event: dict[str, object]) -> None:
+    acc = await _consume(event)
+
+    assert acc.tool_stuck_paused is False

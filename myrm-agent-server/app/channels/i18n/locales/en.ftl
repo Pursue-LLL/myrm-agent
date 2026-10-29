@@ -298,6 +298,7 @@ component_options_prefix = Options
 component_quick_reply_instruction = ↩ Reply with a number to select
 placeholder_thinking =  Thinking...
 placeholder_no_response =  No response generated.
+placeholder_tool_stuck_paused =  That step kept failing, so I stopped here. Tell me how you'd like to go on.
 draft_review_pending = ✏️ Reply drafted — awaiting review before sending.
 draft_review_reason = AI-generated reply requires review before sending to channel.
 knowledge_patch_review_reason = Knowledge update suggested from a gap in past conversations: { $title }

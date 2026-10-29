@@ -6,13 +6,16 @@
 - agent_executor.approval_card::build_approval_card (POS: the localized approval card with its time limit)
 - llms.errors.classifier::ErrorKind (POS: LLM error classification)
 - agent_executor.deliverable::collect_channel_artifacts (POS: Artifact delivery helpers for ChannelAgentExecutor.)
+- app.services.agent.approval_payload::is_tool_stuck_pause (POS: tells a loop guard pause from an approval)
 
 [OUTPUT]
 - iter_channel_stream_progress: maps harness stream events to channel progress yields (a tool approval becomes the card
   worded for ``locale``, carrying its time limit as ``ProgressUpdate.expiry`` and the run's ``session_key``); answer text goes through
   ``acc.draft`` so a recovery that replays the in-flight segment does not duplicate it;
   capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
-  leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator
+  leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator;
+  a loop guard pause (``approval_required`` of action type ``tool_stuck``) yields no card and only marks
+  ``acc.tool_stuck_paused``
 
 [POS]
 Stream event loop extracted from ChannelAgentExecutor.execute_stream. Converts
@@ -28,6 +31,7 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import FissionTopologyUpdate, ProgressUpdate, StreamingText, ToolStep
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, step_to_label
+from app.services.agent.approval_payload import is_tool_stuck_pause
 
 from .approval_card import build_approval_card
 from .deliverable import collect_channel_artifacts
@@ -84,6 +88,10 @@ async def iter_channel_stream_progress(
             data = event.get("data", {})
             if isinstance(data, dict):
                 yield build_approval_card(data, locale=locale, session_key=session_key)
+
+        elif event_type == "approval_required" and is_tool_stuck_pause(event.get("data")):
+            # Not an approval: no card, nothing to answer. The turn ends here and the final reply says why.
+            acc.tool_stuck_paused = True
 
         elif event_type == "tool_image_output":
             img_data = event.get("data", {})

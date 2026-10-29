@@ -298,6 +298,7 @@ component_options_prefix = 选项
 component_quick_reply_instruction = ↩ 回复数字选择
 placeholder_thinking =  思考中...
 placeholder_no_response =  未生成回复。
+placeholder_tool_stuck_paused =  这一步连续失败，我先停在这里了。告诉我接下来怎么处理吧。
 draft_review_pending = ✏️ 回复已生成草稿，等待审核后发送。
 draft_review_reason = AI 生成的回复需要审核后才能发送至频道。
 knowledge_patch_review_reason = 会话盲点知识转正建议: { $title }

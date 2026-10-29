@@ -12,7 +12,7 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 | `history.py` | 模块 | 频道聊天历史持久化、标题生成；**入站新 turn 前 `run_pre_reply_stale_compact_gate`**；persist/resume 时 sync topic workspace；入站 user 消息持久化时把超大文本外溢到频道智能体实际运行的 JIT 工作区（`agent_workspace()`），智能体事后能读回；`persist_and_load_history` 同时登记「用户发言」，恢复自适应唤醒额度并解除停止压制 | ✅ |
 | `agent_workspace.py` | 模块 | `agent_workspace(chat_id)`：频道聊天的智能体实际运行目录（JIT 工作区，纯路径计算不建目录；频道智能体参数不带绑定工作区，topic 绑定不影响它；不能命名目录的 id 返回 None）。给智能体停放文件的所有调用方（超大入站文本、参考文档）共用这一个答案 | ✅ |
 | `topic_workspace_sync.py` | 模块 | Topic 绑定目录写入/清空 chat SSOT（project_id / workspace_dir） | ✅ |
-| `stream.py` | 模块 | StreamAccumulator（回复文本 `draft` 是 harness 的 `AnswerDraft`：恢复重放只丢最近一次工具步骤之后的在途段落；含致命错误的原始文本 `error_message` 与错误类型 `error_kind`）、进度标签、ShareableArtifact | ✅ |
+| `stream.py` | 模块 | StreamAccumulator（回复文本 `draft` 是 harness 的 `AnswerDraft`：恢复重放只丢最近一次工具步骤之后的在途段落；含致命错误的原始文本 `error_message` 与错误类型 `error_kind`、loop guard 暂停了本回合的标记 `tool_stuck_paused`）、进度标签、ShareableArtifact | ✅ |
 | `quick_replies.py` | 模块 | 快捷回复建议、externalAgents 解析 | ✅ |
 
 ## 测试

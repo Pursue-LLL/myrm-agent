@@ -9,7 +9,8 @@
 - is_tool_stuck_pause: whether an interrupt is a loop guard pause, which is no approval
 
 [POS]
-Shared approval payload normalization for streaming.py, the stream collector and approval persistence tests.
+Shared approval payload normalization for streaming.py, the stream collector, the voice bridge, the channel stream
+mapper and approval persistence tests.
 """
 
 from __future__ import annotations

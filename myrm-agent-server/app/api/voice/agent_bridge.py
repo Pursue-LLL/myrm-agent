@@ -6,6 +6,7 @@ sentence-split and piped to TTS in real-time.
 
 [INPUT]
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent SSE streaming)
+- app.services.agent.approval_payload::is_tool_stuck_pause (POS: tells a loop guard pause from an approval)
 - app.services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: Agent profile resolver)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
 - app.core.channel_bridge.config_parsers (POS: config extraction utilities)
@@ -17,7 +18,8 @@ sentence-split and piped to TTS in real-time.
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: cancellation primitive)
 
 [OUTPUT]
-- VoiceAgentBridge: server-side Agent execution bridge for voice sessions
+- VoiceAgentBridge: server-side Agent execution bridge for voice sessions (an approval request is spoken as a request
+  to confirm on screen; a loop guard pause, which waits on no answer, is spoken as a stop; both events reach the client)
 
 [POS]
 Agent execution bridge for voice sessions. Handles parameter assembly,
@@ -67,6 +69,8 @@ _FALLBACK_ZH = "抱歉，处理时出了点问题，请再试一次"
 _FALLBACK_EN = "Sorry, something went wrong. Please try again"
 _APPROVAL_HINT_ZH = "这个操作需要您在屏幕上确认"
 _APPROVAL_HINT_EN = "This action requires your confirmation on screen"
+_TOOL_STUCK_HINT_ZH = "刚才的操作连续失败，我先停下来了，您可以换个说法再试一次"
+_TOOL_STUCK_HINT_EN = "That step kept failing, so I stopped. You can try again in a different way"
 _HANDOFF_HINT_ZH = "这个任务需要较长时间，已转入后台继续处理，完成后会主动提醒您"
 _HANDOFF_HINT_EN = "This task requires more time and has been moved to the background. I will notify you when it finishes"
 
@@ -592,7 +596,8 @@ class VoiceAgentBridge:
                         )
 
             elif event_type == "tool_use":
-                tool_name = event.get("data", {}).get("name", "") if isinstance(event.get("data"), dict) else ""
+                tool_data = event.get("data")
+                tool_name = tool_data.get("name", "") if isinstance(tool_data, dict) else ""
                 await self._send_json(
                     {
                         "type": "agent_tool_use",
@@ -630,12 +635,20 @@ class VoiceAgentBridge:
         Handles both ``approval_required`` (generic interrupt) and
         ``tool_approval_request`` (structured HITL) events. The original
         event type is preserved so the frontend can dispatch accordingly.
+        A loop guard pause arrives as ``approval_required`` but waits on no answer, so it is
+        spoken as a stop rather than as a request to confirm on screen.
         """
+        from app.services.agent.approval_payload import is_tool_stuck_pause
+
         event_type = event.get("type", "approval_required")
         approval_data = event.get("data", {})
 
         lang = (self._voice_config.stt_language or "").lower()
-        hint = _APPROVAL_HINT_ZH if "zh" in lang or "cn" in lang else _APPROVAL_HINT_EN
+        speaks_chinese = "zh" in lang or "cn" in lang
+        if is_tool_stuck_pause(approval_data):
+            hint = _TOOL_STUCK_HINT_ZH if speaks_chinese else _TOOL_STUCK_HINT_EN
+        else:
+            hint = _APPROVAL_HINT_ZH if speaks_chinese else _APPROVAL_HINT_EN
         await self._stream_tts_segment(hint, turn_id)
 
         ws_payload: dict[str, object] = {

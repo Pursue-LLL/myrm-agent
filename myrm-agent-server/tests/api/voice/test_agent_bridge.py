@@ -19,6 +19,7 @@ from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.errors import ToolStuckException
 
 from app.api.voice.agent_bridge import (
     VoiceAgentBridge,
@@ -127,25 +128,28 @@ def _make_bridge(ws: AsyncMock | None = None) -> VoiceAgentBridge:
 class TestVoiceAgentBridgeSendJson:
     @pytest.mark.asyncio
     async def test_send_json_success(self) -> None:
-        bridge = _make_bridge()
+        ws = AsyncMock()
+        bridge = _make_bridge(ws)
         await bridge._send_json({"type": "test"})
-        bridge._ws.send_text.assert_awaited_once()
-        sent = json.loads(bridge._ws.send_text.call_args[0][0])
+        ws.send_text.assert_awaited_once()
+        sent = json.loads(ws.send_text.call_args[0][0])
         assert sent["type"] == "test"
 
     @pytest.mark.asyncio
     async def test_send_json_error_sets_closed(self) -> None:
-        bridge = _make_bridge()
-        bridge._ws.send_text.side_effect = RuntimeError("WS closed")
+        ws = AsyncMock()
+        bridge = _make_bridge(ws)
+        ws.send_text.side_effect = RuntimeError("WS closed")
         await bridge._send_json({"type": "test"})
         assert bridge._closed is True
 
     @pytest.mark.asyncio
     async def test_send_json_skips_when_closed(self) -> None:
-        bridge = _make_bridge()
+        ws = AsyncMock()
+        bridge = _make_bridge(ws)
         bridge._closed = True
         await bridge._send_json({"type": "test"})
-        bridge._ws.send_text.assert_not_awaited()
+        ws.send_text.assert_not_awaited()
 
 
 class TestVoiceAgentBridgeCancelTts:
@@ -252,7 +256,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
 
         mock_params = MagicMock()
 
-        async def fake_stream(params: object, cancel_token: object, **kwargs) -> AsyncIterator[dict[str, object]]:
+        async def fake_stream(params: object, cancel_token: object, **kwargs: object) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Hello."}
 
         with (
@@ -296,7 +300,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         async def fake_stream_with_approval(
             params: object,
             cancel_token: object,
-            **kwargs,
+            **kwargs: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {
                 "type": "approval_required",
@@ -327,7 +331,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         async def fake_stream_tool_approval(
             params: object,
             cancel_token: object,
-            **kwargs,
+            **kwargs: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {
                 "type": "tool_approval_request",
@@ -384,6 +388,46 @@ class TestHandleApprovalRequired:
         mock_tts.assert_awaited_once()
         hint_text = mock_tts.call_args[0][0]
         assert "confirmation" in hint_text.lower() or "screen" in hint_text.lower()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("stt_language", "stop_wording"),
+        [("zh-CN", "连续失败"), ("en", "kept failing")],
+    )
+    async def test_loop_guard_pause_is_spoken_as_a_stop_not_as_a_confirmation(self, stt_language: str, stop_wording: str) -> None:
+        """A loop guard pause waits on no answer: the hint says the step was stopped, never to confirm on screen."""
+        bridge = _make_bridge()
+        bridge._voice_config = _FakeVoiceConfig(stt_language=stt_language)  # type: ignore[assignment]
+        bridge._current_turn = "turn-1"
+        pause = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
+
+        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
+            await bridge._handle_approval_required({"type": "approval_required", "data": pause}, "turn-1")
+
+        mock_tts.assert_awaited_once()
+        hint_text = mock_tts.call_args[0][0]
+        assert stop_wording in hint_text
+        assert "屏幕" not in hint_text
+        assert "confirm" not in hint_text.lower()
+
+    @pytest.mark.asyncio
+    async def test_loop_guard_pause_event_still_reaches_the_client(self) -> None:
+        """The client gets the pause event unchanged; only the spoken hint differs from an approval's."""
+        bridge = _make_bridge()
+        bridge._current_turn = "turn-1"
+        pause = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
+        sent_payloads: list[dict[str, object]] = []
+
+        async def capture_send(data: dict[str, object]) -> None:
+            sent_payloads.append(data)
+
+        with (
+            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
+            patch.object(bridge, "_send_json", side_effect=capture_send),
+        ):
+            await bridge._handle_approval_required({"type": "approval_required", "data": pause}, "turn-1")
+
+        assert sent_payloads == [{"type": "approval_required", "turn_id": "turn-1", "data": pause}]
 
     @pytest.mark.asyncio
     async def test_ws_payload_structure(self) -> None:
@@ -520,7 +564,7 @@ class TestConsumeAgentStreamApproval:
         async def fake_stream(
             params: object,
             cancel_token: object,
-            **kwargs,
+            **kwargs: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "I need to run a command."}
             yield {"type": "approval_required", "data": {"action_type": "bash"}}
@@ -553,7 +597,7 @@ class TestConsumeAgentStreamApproval:
         async def fake_stream(
             params: object,
             cancel_token: object,
-            **kwargs,
+            **kwargs: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "approval_required", "data": {"action_type": "bash"}}
             yield {"type": "tool_approval_request", "data": {"actionRequests": []}}
@@ -585,7 +629,7 @@ class TestConsumeAgentStreamApproval:
         async def fake_stream(
             params: object,
             cancel_token: object,
-            **kwargs,
+            **kwargs: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Running command."}
             yield {"type": "approval_required", "data": {}}
