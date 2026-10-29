@@ -42,10 +42,8 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
       padding: 1rem;
     }}
     .card {{
-      background: rgba(255, 255, 255, 0.04);
+      background: #20202b;
       border: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
       border-radius: 1.25rem;
       padding: 2.25rem;
       width: 100%;
@@ -70,22 +68,24 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
     input[type="password"] {{
       width: 100%;
       padding: 0.75rem 1rem;
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #17171e;
+      border: 1px solid #6b7280;
       border-radius: 0.75rem;
       color: #fff;
       font-size: 0.95rem;
       outline: none;
       transition: all 0.2s;
     }}
+    input[type="password"]::placeholder {{ color: #9ca3af; opacity: 1; }}
     input[type="password"]:focus {{
       border-color: #38bdf8;
       box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+      outline: 2px solid transparent;
     }}
     button {{
       width: 100%;
       padding: 0.75rem 1rem;
-      background: #0284c7;
+      background: #0369a1;
       color: #fff;
       border: none;
       border-radius: 0.75rem;
@@ -94,7 +94,7 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
       cursor: pointer;
       transition: background 0.2s, transform 0.1s;
     }}
-    button:hover {{ background: #0369a1; }}
+    button:hover {{ background: #075985; }}
     button:active {{ transform: scale(0.99); }}
     button:disabled {{ background: #374151; cursor: not-allowed; }}
     .error {{

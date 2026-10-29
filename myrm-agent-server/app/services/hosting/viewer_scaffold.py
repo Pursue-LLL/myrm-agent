@@ -230,7 +230,7 @@ def render_standalone_viewer_html(primary_file: str, title: str | None = None) -
     }}
     .doc-meta {{
       font-size: 0.8125rem;
-      color: #64748b;
+      color: #7c8ba1;
       margin-bottom: 1.5rem;
     }}
     .btn-primary {{

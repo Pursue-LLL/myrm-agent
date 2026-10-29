@@ -128,3 +128,48 @@ def test_a_mark_needs_three_to_one_and_text_needs_four_and_a_half() -> None:
         assert_visible(_THREE_TO_ONE, "light", "q", ("color",), ".card")
     with pytest.raises(AssertionError, match=r"is 3\.033:1"):
         assert_readable(_THREE_TO_ONE, "light", "p", ".card")
+
+
+_PRETTY = """\
+.card {
+  background: #20202b;
+  border: 1px solid #6b7280;
+}
+    button {
+      color: #fff;
+      background: #0369a1;
+    }
+button:hover { background: #075985; }
+.page button { color: #123456; }
+h1 { font-size: 1rem; color: #fff; }
+"""
+
+
+def test_a_pretty_printed_stylesheet_reads_like_a_minified_one() -> None:
+    assert declared(_PRETTY, ".card", "background") == "#20202b"
+    assert declared(_PRETTY, ".card", "border") == "#6b7280"
+    assert declared(_PRETTY, "button", "color") == "#ffffff"
+    assert declared(_PRETTY, "button:hover", "background") == "#075985"
+    assert declared(_PRETTY, "h1", "color") == "#ffffff"
+
+
+def test_indentation_does_not_let_a_selector_match_a_longer_or_deeper_rule() -> None:
+    assert declared(_PRETTY, "button", "background") == "#0369a1"
+    assert declared("  button:hover { background: #075985; }", "button", "background") is None
+    assert declared("  .page button { color: #123456; }", "button", "color") is None
+    assert declared("  .card-title { color: #123456; }", ".card", "color") is None
+    assert declared("button { border-color: #123456; }", "button", "border") is None
+
+
+def test_a_pretty_printed_rule_is_read_in_the_last_rule_wins_order() -> None:
+    css = "button {\n  color: #111;\n}\n  button {\n  color: #222;\n}\n"
+
+    assert declared(css, "button", "color") == "#222222"
+
+
+def test_a_pretty_printed_page_is_checked_against_the_bar() -> None:
+    page = "<style>\n  .card {\n    background: #ffffff;\n  }\n  p {\n    color: #767676;\n  }\n  q { color: #777777; }\n</style>"
+
+    assert_readable(page, "light", "p", ".card")
+    with pytest.raises(AssertionError, match=r"is 4\.4\d\d:1"):
+        assert_readable(page, "light", "q", ".card")

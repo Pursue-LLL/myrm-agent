@@ -13,8 +13,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
 | `support/risk_gate.py` | 辅助 | 风险闸门测试的共享常量与构建器：`SECRET`、`API_KEY_RULE`、`PHONE_RULE`、`build_service_with_rules(...)`（按给定规则构造检测引擎，供各入口的闸门测试 patch `get_detection_service`） |
-| `support/wcag_contrast.py` | 辅助 | 页面对比度检查的共享断言：`split_themes` 把渲染出的内联样式拆成浅 / 深两半（深色取 `prefers-color-scheme: dark` 块），`effective` 读选择器声明的颜色（`#rgb` / `#rrggbb`，也读 `border:1px solid #hex`、`box-shadow:… #hex` 这类简写，同一属性的多种写法按给定顺序取；深色规则覆盖浅色；找不到声明、值不是恰好一个 hex、读不懂的 `prefers-color-scheme` 写法都直接抛错），`assert_readable` 按 WCAG 公式不取整地断言文字在其底色上 ≥ 4.5，`assert_visible` 断言控件边缘、聚焦标记等非文字标记在底色上 ≥ 3；对话页、密码页、状态页的对比度测试共用 |
-| `support/test_wcag_contrast.py` | 单元 | 对比度检查自检：3 位十六进制、简写里的颜色、裸选择器不吃后代规则、深色覆盖与回退、同一属性多种写法的取值顺序、缺声明 / 值不是恰好一个 hex（`rgb()`、命名色、变量、无颜色、两个颜色）/ 读不懂的深色块抛错、深色里的非 hex 写法不会退回浅色值、对比度与 WCAG 公布值一致（黑白 21:1，`#767676` 过线而 `#777777` 不过）、文字 4.5 与非文字 3 两条线 |
+| `support/wcag_contrast.py` | 辅助 | 页面对比度检查的共享断言：`split_themes` 把渲染出的内联样式拆成浅 / 深两半（深色取 `prefers-color-scheme: dark` 块），`effective` 读选择器声明的颜色（压缩的和带缩进、`{` 前带空格的样式表都读；`#rgb` / `#rrggbb`，也读 `border:1px solid #hex`、`box-shadow:… #hex` 这类简写，同一属性的多种写法按给定顺序取；深色规则覆盖浅色；找不到声明、值不是恰好一个 hex、读不懂的 `prefers-color-scheme` 写法都直接抛错），`assert_readable` 按 WCAG 公式不取整地断言文字在其底色上 ≥ 4.5，`assert_visible` 断言控件边缘、聚焦标记等非文字标记在底色上 ≥ 3；对话页、密码页、状态页、加密发布解锁页、文档查看器的对比度测试共用 |
+| `support/test_wcag_contrast.py` | 单元 | 对比度检查自检：3 位十六进制、简写里的颜色、裸选择器不吃后代规则、带缩进的样式表读法（缩进下选择器仍不吃更长或更深的规则，后写的规则胜出）、深色覆盖与回退、同一属性多种写法的取值顺序、缺声明 / 值不是恰好一个 hex（`rgb()`、命名色、变量、无颜色、两个颜色）/ 读不懂的深色块抛错、深色里的非 hex 写法不会退回浅色值、对比度与 WCAG 公布值一致（黑白 21:1，`#767676` 过线而 `#777777` 不过）、文字 4.5 与非文字 3 两条线 |
 | `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
 | `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/fake_secrets.py` | 辅助 | 厂商格式假凭据夹具 SSOT：`stripe_live_key(body)`、`slack_bot_token(body)` 在调用时才拼出厂商前缀，源码里不出现完整 token（GitHub push protection 会拒绝含完整厂商 token 的推送，假值也不例外）；脱敏与泄漏检测类测试共用，由 `architecture/test_no_provider_shaped_secrets_in_tests.py` 守卫 |
@@ -510,7 +510,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/statistics/test_usage_aggregation_savings.py` | 模块 | 路由省钱估算：按 token 加权的金标准值、路由更贵/标准档样本不足/无标准档 token 时隐藏、`aggregate_usage` 端到端 |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate.py` | 模块 | HITL pending 审批守卫单元测（5 态：pending 拦截 / 0 pending 放行 / resume 绕过 / store 异常 fail-open / 无 chat_id 跳过） |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate_integration.py` | 模块 | HITL pending 审批守卫真 DB 集成（关键路径禁 mock：真 `ApprovalRecord` → 真 `count_pending_for_chat` → SSE AgentBusyError 且预留前触发；APPROVED/growth/他 chat 不拦；resume 带真 pending 放行） |
-| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |
+| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测；`test_decryptor_shell_contrast.py` 与 `test_viewer_scaffold_contrast.py` 钉住加密发布解锁页、文档查看器的文字、按钮、输入框边缘与聚焦标记对比度 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist / tailscale_guard 单测（21 文件） |

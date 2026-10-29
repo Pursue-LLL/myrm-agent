@@ -1,8 +1,8 @@
 """WCAG 2 contrast checks for tests that read the colours a rendered HTML page declares.
 
 [INPUT]
-- the page's inline ``<style>`` block (POS: the server-rendered share pages built by ``share_renderer``,
-  ``share_password_page`` and ``share_status_page``)
+- the page's inline ``<style>`` block (POS: the server-rendered pages built by ``share_renderer``,
+  ``share_password_page``, ``share_status_page`` and the hosting ``decryptor_shell``)
 
 [OUTPUT]
 - stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme
@@ -11,8 +11,8 @@
   mark, against the background they sit on
 
 [POS]
-Shared by the contrast tests of every share page, so each page is held to the same reading of its stylesheet and the
-same bar. A stylesheet it cannot read raises instead of passing.
+Shared by the contrast tests of every server-rendered page, so each page is held to the same reading of its stylesheet
+and the same bar. A stylesheet it cannot read raises instead of passing.
 """
 
 from __future__ import annotations
@@ -66,10 +66,12 @@ def split_themes(css: str) -> tuple[str, str]:
 def declared(css: str, selector: str, prop: str) -> str | None:
     """The colour the rule for exactly *selector* gives *prop* in *css* (the last rule wins), as ``#rrggbb``.
 
-    The value may be a shorthand around its colour (``border:1px solid #ddd``). A value that does not hold exactly one
-    hex colour is an error, so a colour written in another notation can never read as not declared.
+    The stylesheet may be minified or pretty-printed (indentation, a space before the brace); a rule for a longer or
+    deeper selector (``button:hover``, ``.page button``) is a different rule. The value may be a shorthand around its
+    colour (``border:1px solid #ddd``). A value that does not hold exactly one hex colour is an error, so a colour
+    written in another notation can never read as not declared.
     """
-    pattern = r"(?m)(?:^|(?<=\}))" + re.escape(selector) + r"\{[^}]*?(?<=[{;\s])" + re.escape(prop) + r":([^;}]*)"
+    pattern = r"(?m)(?:^|(?<=\}))\s*" + re.escape(selector) + r"\s*\{[^}]*?(?<=[{;\s])" + re.escape(prop) + r":([^;}]*)"
     found = re.findall(pattern, css)
     if not found:
         return None

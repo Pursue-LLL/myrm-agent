@@ -35,6 +35,14 @@ def test_password_gate_placeholder_is_readable_in_the_field(theme: Theme) -> Non
     assert_readable(render_password_gate_html(), theme, f"{_FIELD}::placeholder", _FIELD)
 
 
+def test_the_placeholder_is_not_dimmed_below_its_colour() -> None:
+    # Some browsers fade a placeholder by default; the colour that was checked must be the one painted.
+    placeholder_rule = re.search(rf"{re.escape(_FIELD)}::placeholder\{{[^}}]*\}}", stylesheet(render_password_gate_html()))
+
+    assert placeholder_rule is not None
+    assert "opacity:1" in placeholder_rule.group(0)
+
+
 @_THEMES
 @pytest.mark.parametrize(
     ("mark", "props", "surface"),
