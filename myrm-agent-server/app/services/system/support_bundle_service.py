@@ -14,6 +14,7 @@
 [POS]
 Generates a structured, self-contained, and deeply redacted diagnostic ZIP package
 for developer support, issue reporting, and cluster health auditing.
+Every piece of text leaves through ``_scrub``: credentials are masked and the home folder is written as ``~``.
 """
 
 from __future__ import annotations
@@ -24,11 +25,13 @@ import json
 import logging
 import os
 import platform
+import re
 import shutil
 import sys
 import zipfile
 from datetime import datetime, timezone
-from pathlib import Path
+from functools import lru_cache
+from pathlib import Path, PurePath
 
 from myrm_agent_harness.api import redact_sensitive_text
 from myrm_agent_harness.observability.diagnostics.protocols import redact_health_report
@@ -51,10 +54,39 @@ _MARKER_FIELDS = ("seq", "ts", "type")  # when and what kind of event was omitte
 _MARKER_FIELD_MAX_CHARS = 64
 
 
+def _home_forms(home: PurePath) -> tuple[str, ...]:
+    """The ways ``home`` is written in text: as the OS spells it, with a JSON string's doubled backslashes, with forward slashes.
+
+    Longest first, so one form never hides inside another. A root or empty home names nobody and is not replaced.
+    """
+    native = str(home)
+    if len(native) <= 1:
+        return ()
+    return tuple(sorted({native, native.replace("\\", "\\\\"), home.as_posix()}, key=lambda form: (-len(form), form)))
+
+
+@lru_cache(maxsize=4)
+def _home_pattern(forms: tuple[str, ...]) -> re.Pattern[str] | None:
+    """The home folder as a whole path component: a longer name that starts with it (``/Users/ann2``) is not it."""
+    if not forms:
+        return None
+    flags = re.IGNORECASE if os.name == "nt" else 0
+    return re.compile(rf"(?<![\w.~-])(?:{'|'.join(map(re.escape, forms))})(?![\w.-])", flags)
+
+
+def _scrub(text: str) -> str:
+    """Mask credentials and write the home folder as ``~``: the one exit of every piece of text that enters a bundle."""
+    masked = redact_sensitive_text(text)
+    try:
+        pattern = _home_pattern(_home_forms(Path.home()))
+    except RuntimeError:  # no home folder can be determined
+        return masked
+    return pattern.sub("~", masked) if pattern else masked
+
+
 def _safe_json_dumps(data: object) -> str:
-    """Serialize object to formatted JSON string, applying sensitive text redaction."""
-    raw_str = json.dumps(data, indent=2, ensure_ascii=False, default=str)
-    return redact_sensitive_text(raw_str)
+    """Serialize object to formatted JSON string, scrubbed of credentials and the home folder."""
+    return _scrub(json.dumps(data, indent=2, ensure_ascii=False, default=str))
 
 
 def _event_marker(line: str, size: int) -> str:
@@ -201,9 +233,9 @@ class SupportBundleService:
             for file_path in files:
                 try:
                     recent = _read_log_tail(file_path, _TRACE_SCAN_BYTES)
-                    traces[file_path.name] = redact_sensitive_text(_newest_whole_events(recent, _MAX_BYTES_PER_EVENT_LOG))
+                    traces[file_path.name] = _scrub(_newest_whole_events(recent, _MAX_BYTES_PER_EVENT_LOG))
                 except OSError as err:
-                    traces[file_path.name] = f"[Read error: {err}]"
+                    traces[file_path.name] = _scrub(f"[Read error: {err}]")
         except Exception as exc:
             logger.warning("Failed to scan event logs: %s", exc)
 
