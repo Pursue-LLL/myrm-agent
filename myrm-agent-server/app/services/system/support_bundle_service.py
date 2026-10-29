@@ -41,7 +41,7 @@ from app.services.agent.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
 
-_COLLECTION_TIMEOUT_SECONDS = 30.0  # the Doctor probes take up to ~8 s on a cold start
+_COLLECTION_TIMEOUT_SECONDS = 30.0  # the serial Doctor probes took 3-10 s on a loaded dev machine
 _MAX_PROFILES = 50
 _MAX_EVENT_LOG_FILES = 10
 _MAX_BYTES_PER_EVENT_LOG = 64 * 1024  # 64 KB per session trace sample
