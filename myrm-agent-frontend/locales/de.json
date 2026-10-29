@@ -14531,26 +14531,6 @@
     "themeLight": "Hell",
     "widgetTitle": "Assistent"
   },
-  "omniReference": {
-    "empty": "Noch nichts zum Referenzieren",
-    "keysHint": "Pfeiltasten zum Bewegen, Enter zum Auswählen, Esc zum Schließen",
-    "loading": "Referenzen werden geladen",
-    "title": "Referenz",
-    "slice": {
-      "provenance": "Quelle",
-      "title": "Referenzierter Inhalt",
-      "truncated": "Gekürzt, um das Kontext-Token-Budget zu schützen"
-    },
-    "searchPlaceholder": "Dateien, Sitzungen, Artefakte, Agents oder Aufgaben suchen...",
-    "dimensions": {
-      "all": "Alle",
-      "file": "Quelldateien",
-      "session": "Frühere Sitzungen",
-      "artifact": "Artefakte",
-      "agent": "Agenten",
-      "task": "Aufgaben"
-    }
-  },
   "reconnectProtocol": {
     "close": "Schließen",
     "connected": "Live-Stream verbunden",
@@ -14592,32 +14572,6 @@
     "promoteDialogTitle": "Projekt-Beförderung bestätigen",
     "promoteDialogDesc": "Das System legt automatisch Projektverzeichnis, README und die Herkunftsdatei docs/scratchpad_origin.md in Ihrer Arbeitsbereich-Sandbox an.",
     "openScratchpad": "Schnelles Notizfeld"
-  },
-  "swarmExecution": {
-    "activeCountLabel": "{count} aktiv",
-    "collapse": "Einklappen",
-    "confirmed": "Bestätigt",
-    "disableRule": "Regel deaktivieren",
-    "disabled": "Deaktiviert",
-    "enableRule": "Regel aktivieren",
-    "enabled": "Aktiviert",
-    "expand": "Ausklappen",
-    "markConfirmed": "Als bestätigt markieren",
-    "markUnconfirmed": "Als unbestätigt markieren",
-    "ownerRiskCardTitle": "Risikoprüfung der Eigentümeraktion",
-    "ownerRiskDescriptionNotice": "Prüfen Sie jedes Risiko, bevor der Agent in Ihrem Namen handelt",
-    "recallBadgeAriaLabel": "{count} abgerufene Regeln",
-    "recalledRulesTitle": "{count} abgerufene Regeln, {active} aktiv",
-    "remediationHintLabel": "Empfohlene Behebung",
-    "riskChecklistAriaLabel": "Risiko-Checkliste",
-    "riskProgressCue": "{confirmed} von {total} Risiken bestätigt",
-    "rulesInspectorHint": "Aus dem Gedächtnis abgerufene Regeln, die diesen Lauf beeinflussen",
-    "swarmModeAriaLabel": "Schwarmmodus umschalten",
-    "swarmModeLabel": "Schwarm",
-    "swarmModeTooltipDesc": "Teilt die Aufgabe auf bis zu {quota} parallele Agenten auf",
-    "swarmModeTooltipTitle": "Schwarmmodus",
-    "verifyNow": "Jetzt prüfen",
-    "viewDetails": "Details anzeigen"
   },
   "taskInspector": {
     "bargeInButton": "Unterbrechen und senden",

@@ -14531,26 +14531,6 @@
     "themeLight": "浅色",
     "widgetTitle": "智能助手"
   },
-  "omniReference": {
-    "empty": "暂无可引用的内容",
-    "keysHint": "上下键移动，回车选择，Esc 关闭",
-    "loading": "正在加载引用",
-    "title": "引用",
-    "slice": {
-      "provenance": "来源",
-      "title": "已引用内容",
-      "truncated": "已根据 Token 预算保护截断"
-    },
-    "searchPlaceholder": "搜索文件、历史会话、工件、智能体或任务...",
-    "dimensions": {
-      "all": "全部",
-      "file": "代码文件",
-      "session": "历史会话",
-      "artifact": "生成工件",
-      "agent": "专家智能体",
-      "task": "看板任务"
-    }
-  },
   "reconnectProtocol": {
     "close": "关闭",
     "connected": "实时流已连接",
@@ -14592,32 +14572,6 @@
     "promoteDialogTitle": "确认升格为正式工程",
     "promoteDialogDesc": "系统将自动生成项目目录、README 资产与血缘追溯文件 docs/scratchpad_origin.md，并将其持久化到您的工作区沙箱中。",
     "openScratchpad": "极速便签"
-  },
-  "swarmExecution": {
-    "activeCountLabel": "{count} 条生效",
-    "collapse": "收起",
-    "confirmed": "已确认",
-    "disableRule": "停用规则",
-    "disabled": "已停用",
-    "enableRule": "启用规则",
-    "enabled": "已启用",
-    "expand": "展开",
-    "markConfirmed": "标记为已确认",
-    "markUnconfirmed": "标记为未确认",
-    "ownerRiskCardTitle": "所有者操作风险确认",
-    "ownerRiskDescriptionNotice": "在智能体代你执行操作前，请逐项确认风险",
-    "recallBadgeAriaLabel": "已召回 {count} 条规则",
-    "recalledRulesTitle": "已召回 {count} 条规则，{active} 条生效",
-    "remediationHintLabel": "修复建议",
-    "riskChecklistAriaLabel": "风险清单",
-    "riskProgressCue": "已确认 {confirmed} / {total} 项风险",
-    "rulesInspectorHint": "从记忆中召回、影响本次运行的规则",
-    "swarmModeAriaLabel": "切换集群模式",
-    "swarmModeLabel": "集群",
-    "swarmModeTooltipDesc": "将任务拆分给最多 {quota} 个并行智能体",
-    "swarmModeTooltipTitle": "集群模式",
-    "verifyNow": "立即验证",
-    "viewDetails": "查看详情"
   },
   "taskInspector": {
     "bargeInButton": "打断并发送",

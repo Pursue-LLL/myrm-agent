@@ -14531,26 +14531,6 @@
     "themeLight": "淺色",
     "widgetTitle": "智慧助手"
   },
-  "omniReference": {
-    "empty": "暫無可引用的內容",
-    "keysHint": "上下鍵移動，回車選擇，Esc 關閉",
-    "loading": "正在載入引用",
-    "title": "引用",
-    "slice": {
-      "provenance": "來源",
-      "title": "已引用內容",
-      "truncated": "已根據 Token 預算保護截斷"
-    },
-    "searchPlaceholder": "搜尋檔案、歷史會話、工件、智慧體或任務...",
-    "dimensions": {
-      "all": "全部",
-      "file": "程式碼檔案",
-      "session": "歷史會話",
-      "artifact": "生成工件",
-      "agent": "專家智慧體",
-      "task": "看板任務"
-    }
-  },
   "reconnectProtocol": {
     "close": "關閉",
     "connected": "即時流已連線",
@@ -14592,32 +14572,6 @@
     "promoteDialogTitle": "確認升格為正式工程",
     "promoteDialogDesc": "系統將自動生成專案目錄、README 資產與血緣追溯檔案 docs/scratchpad_origin.md，並將其持久化到您的工作區沙箱中。",
     "openScratchpad": "極速便籤"
-  },
-  "swarmExecution": {
-    "activeCountLabel": "{count} 條生效",
-    "collapse": "收起",
-    "confirmed": "已確認",
-    "disableRule": "停用規則",
-    "disabled": "已停用",
-    "enableRule": "啟用規則",
-    "enabled": "已啟用",
-    "expand": "展開",
-    "markConfirmed": "標記為已確認",
-    "markUnconfirmed": "標記為未確認",
-    "ownerRiskCardTitle": "所有者操作風險確認",
-    "ownerRiskDescriptionNotice": "在智慧體代你執行操作前，請逐項確認風險",
-    "recallBadgeAriaLabel": "已召回 {count} 條規則",
-    "recalledRulesTitle": "已召回 {count} 條規則，{active} 條生效",
-    "remediationHintLabel": "修復建議",
-    "riskChecklistAriaLabel": "風險清單",
-    "riskProgressCue": "已確認 {confirmed} / {total} 項風險",
-    "rulesInspectorHint": "從記憶中召回、影響本次執行的規則",
-    "swarmModeAriaLabel": "切換叢集模式",
-    "swarmModeLabel": "叢集",
-    "swarmModeTooltipDesc": "將任務拆分給最多 {quota} 個並行智慧體",
-    "swarmModeTooltipTitle": "叢集模式",
-    "verifyNow": "立即驗證",
-    "viewDetails": "檢視詳情"
   },
   "taskInspector": {
     "bargeInButton": "打斷併發送",

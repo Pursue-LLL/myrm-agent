@@ -14531,26 +14531,6 @@
     "themeLight": "Light",
     "widgetTitle": "Assistant"
   },
-  "omniReference": {
-    "empty": "Nothing to reference yet",
-    "keysHint": "Up and down to move, Enter to select, Esc to close",
-    "loading": "Loading references",
-    "title": "Reference",
-    "slice": {
-      "provenance": "Source",
-      "title": "Referenced content",
-      "truncated": "Truncated to protect context token budget"
-    },
-    "searchPlaceholder": "Search files, sessions, artifacts, agents, or tasks...",
-    "dimensions": {
-      "all": "All",
-      "file": "Source Files",
-      "session": "Prior Sessions",
-      "artifact": "Artifacts",
-      "agent": "Agents",
-      "task": "Tasks"
-    }
-  },
   "reconnectProtocol": {
     "close": "Close",
     "connected": "Live stream connected",
@@ -14592,32 +14572,6 @@
     "promoteDialogTitle": "Confirm Project Promotion",
     "promoteDialogDesc": "System will automatically scaffold project directory, README, and provenance tracking file docs/scratchpad_origin.md into your workspace sandbox.",
     "openScratchpad": "Quick Scratchpad"
-  },
-  "swarmExecution": {
-    "activeCountLabel": "{count} active",
-    "collapse": "Collapse",
-    "confirmed": "Confirmed",
-    "disableRule": "Disable rule",
-    "disabled": "Disabled",
-    "enableRule": "Enable rule",
-    "enabled": "Enabled",
-    "expand": "Expand",
-    "markConfirmed": "Mark as confirmed",
-    "markUnconfirmed": "Mark as unconfirmed",
-    "ownerRiskCardTitle": "Owner action risk check",
-    "ownerRiskDescriptionNotice": "Review each risk before the agent acts on your behalf",
-    "recallBadgeAriaLabel": "{count} recalled rules",
-    "recalledRulesTitle": "{count} recalled rules, {active} active",
-    "remediationHintLabel": "Suggested fix",
-    "riskChecklistAriaLabel": "Risk checklist",
-    "riskProgressCue": "{confirmed} of {total} risks confirmed",
-    "rulesInspectorHint": "Rules recalled from memory that shape this run",
-    "swarmModeAriaLabel": "Toggle swarm mode",
-    "swarmModeLabel": "Swarm",
-    "swarmModeTooltipDesc": "Split the task across up to {quota} parallel agents",
-    "swarmModeTooltipTitle": "Swarm mode",
-    "verifyNow": "Verify now",
-    "viewDetails": "View details"
   },
   "taskInspector": {
     "bargeInButton": "Interrupt and send",

@@ -14531,26 +14531,6 @@
     "themeLight": "라이트",
     "widgetTitle": "어시스턴트"
   },
-  "omniReference": {
-    "empty": "아직 참조할 항목이 없습니다",
-    "keysHint": "위아래 키로 이동, Enter로 선택, Esc로 닫기",
-    "loading": "참조를 불러오는 중",
-    "title": "참조",
-    "slice": {
-      "provenance": "출처",
-      "title": "참조된 콘텐츠",
-      "truncated": "컨텍스트 토큰 예산을 보호하기 위해 잘렸습니다"
-    },
-    "searchPlaceholder": "파일, 세션, 아티팩트, 에이전트, 작업 검색...",
-    "dimensions": {
-      "all": "전체",
-      "file": "소스 파일",
-      "session": "이전 세션",
-      "artifact": "아티팩트",
-      "agent": "에이전트",
-      "task": "작업"
-    }
-  },
   "reconnectProtocol": {
     "close": "닫기",
     "connected": "실시간 스트림 연결됨",
@@ -14592,32 +14572,6 @@
     "promoteDialogTitle": "프로젝트 승격 확인",
     "promoteDialogDesc": "시스템이 프로젝트 디렉터리, README, 출처 추적 파일 docs/scratchpad_origin.md를 워크스페이스 샌드박스에 자동으로 생성합니다.",
     "openScratchpad": "빠른 스크래치패드"
-  },
-  "swarmExecution": {
-    "activeCountLabel": "{count}개 활성",
-    "collapse": "접기",
-    "confirmed": "확인됨",
-    "disableRule": "규칙 비활성화",
-    "disabled": "비활성",
-    "enableRule": "규칙 활성화",
-    "enabled": "활성",
-    "expand": "펼치기",
-    "markConfirmed": "확인됨으로 표시",
-    "markUnconfirmed": "미확인으로 표시",
-    "ownerRiskCardTitle": "소유자 작업 위험 확인",
-    "ownerRiskDescriptionNotice": "에이전트가 대신 실행하기 전에 각 위험을 확인하세요",
-    "recallBadgeAriaLabel": "규칙 {count}개 호출됨",
-    "recalledRulesTitle": "규칙 {count}개 호출, {active}개 활성",
-    "remediationHintLabel": "권장 해결 방법",
-    "riskChecklistAriaLabel": "위험 체크리스트",
-    "riskProgressCue": "위험 {total}개 중 {confirmed}개 확인됨",
-    "rulesInspectorHint": "메모리에서 호출되어 이번 실행에 영향을 주는 규칙",
-    "swarmModeAriaLabel": "스웜 모드 전환",
-    "swarmModeLabel": "스웜",
-    "swarmModeTooltipDesc": "작업을 최대 {quota}개의 병렬 에이전트로 나눕니다",
-    "swarmModeTooltipTitle": "스웜 모드",
-    "verifyNow": "지금 검증",
-    "viewDetails": "상세 보기"
   },
   "taskInspector": {
     "bargeInButton": "중단하고 전송",

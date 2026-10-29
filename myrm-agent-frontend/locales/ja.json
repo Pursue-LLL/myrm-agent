@@ -14531,26 +14531,6 @@
     "themeLight": "ライト",
     "widgetTitle": "アシスタント"
   },
-  "omniReference": {
-    "empty": "参照できる項目がまだありません",
-    "keysHint": "上下キーで移動、Enterで選択、Escで閉じる",
-    "loading": "参照を読み込み中",
-    "title": "参照",
-    "slice": {
-      "provenance": "出典",
-      "title": "参照されたコンテンツ",
-      "truncated": "コンテキストのトークン予算を守るため切り詰めました"
-    },
-    "searchPlaceholder": "ファイル、セッション、成果物、エージェント、タスクを検索...",
-    "dimensions": {
-      "all": "すべて",
-      "file": "ソースファイル",
-      "session": "過去のセッション",
-      "artifact": "成果物",
-      "agent": "エージェント",
-      "task": "タスク"
-    }
-  },
   "reconnectProtocol": {
     "close": "閉じる",
     "connected": "ライブストリーム接続済み",
@@ -14592,32 +14572,6 @@
     "promoteDialogTitle": "プロジェクト昇格の確認",
     "promoteDialogDesc": "システムがプロジェクトディレクトリ、README、出自を記録するファイル docs/scratchpad_origin.md をワークスペースのサンドボックスに自動で作成します。",
     "openScratchpad": "クイックスクラッチパッド"
-  },
-  "swarmExecution": {
-    "activeCountLabel": "{count} 件有効",
-    "collapse": "折りたたむ",
-    "confirmed": "確認済み",
-    "disableRule": "ルールを無効にする",
-    "disabled": "無効",
-    "enableRule": "ルールを有効にする",
-    "enabled": "有効",
-    "expand": "展開",
-    "markConfirmed": "確認済みにする",
-    "markUnconfirmed": "未確認に戻す",
-    "ownerRiskCardTitle": "オーナー操作のリスク確認",
-    "ownerRiskDescriptionNotice": "エージェントがあなたに代わって実行する前に、各リスクを確認してください",
-    "recallBadgeAriaLabel": "{count} 件のルールを呼び出し済み",
-    "recalledRulesTitle": "{count} 件のルールを呼び出し、{active} 件が有効",
-    "remediationHintLabel": "推奨される対処",
-    "riskChecklistAriaLabel": "リスクチェックリスト",
-    "riskProgressCue": "{total} 件中 {confirmed} 件のリスクを確認済み",
-    "rulesInspectorHint": "記憶から呼び出され、今回の実行に影響するルール",
-    "swarmModeAriaLabel": "スウォームモードを切り替える",
-    "swarmModeLabel": "スウォーム",
-    "swarmModeTooltipDesc": "タスクを最大 {quota} 個の並列エージェントに分割します",
-    "swarmModeTooltipTitle": "スウォームモード",
-    "verifyNow": "今すぐ検証",
-    "viewDetails": "詳細を表示"
   },
   "taskInspector": {
     "bargeInButton": "割り込んで送信",
