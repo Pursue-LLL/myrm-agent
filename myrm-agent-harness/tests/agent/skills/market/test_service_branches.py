@@ -391,6 +391,34 @@ class TestQuarantineInstallBranches:
         assert (install_dir / "broken" / "SKILL.md").exists()
 
     @pytest.mark.asyncio
+    async def test_plugin_unpack_failure_propagates_and_installs_nothing(
+        self,
+        service: BaseSkillMarketService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        import myrm_agent_harness.agent.skills.market.service as service_mod
+
+        install_dir = tmp_path / "skills"
+        install_dir.mkdir()
+        monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
+        caplog.set_level("WARNING")
+
+        files = {"plugin.json": b"{}", "SKILL.md": _skill_md("pdfsuite")}
+        with (
+            patch(
+                "myrm_agent_harness.agent.plugins.parser.AgentPluginParser.parse_files",
+                side_effect=RuntimeError("boom"),
+            ),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await service.install_files("acme/skills/pdfsuite", "pdfsuite", files, source="github")
+
+        assert list(install_dir.iterdir()) == []
+        assert "Failed to unpack Agent Plugin sub-skills for pdfsuite" in caplog.text
+
+    @pytest.mark.asyncio
     async def test_reuses_existing_install_and_reads_current_version(
         self,
         service: BaseSkillMarketService,
