@@ -437,7 +437,9 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             "ko": "당일 회고를 프로젝트/지식/방법/비교 4차원 지식 초안으로 편찬하여 인간 검토 대기",
         },
         "prompt_template": {
-            "ja": ("デイリーレビュー知識化ジョブ（router モード）。サーバー生成の要約をそのまま配信。入力がなければ [SILENT] のみ。"),
+            "ja": (
+                "デイリーレビュー知識化ジョブ（router モード）。サーバー生成の要約をそのまま配信。入力がなければ [SILENT] のみ。"
+            ),
             "de": (
                 "Tagesreview-Veredelungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
                 "Ohne Eingabe nur [SILENT]."

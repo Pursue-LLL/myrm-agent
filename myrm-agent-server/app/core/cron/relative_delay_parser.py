@@ -9,7 +9,7 @@
 - RelativeDelayParseError: 表达式非法时抛出
 
 [POS]
-延迟只在注册那一刻按基准时间换算一次，之后任务保存的是绝对时间戳，服务重启不会让它漂移。
+延迟只按基准时间换算一次，得到不可变的绝对时间戳，结果与之后的时钟无关。
 """
 
 from __future__ import annotations

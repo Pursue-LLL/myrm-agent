@@ -11,7 +11,7 @@
 - TaskLedgerError, TaskNotFoundError: 账本异常
 
 [POS]
-活跃任务与归档任务分开存放，一次性任务做完即离开活跃队列，同时熄灭它所点亮的智能体活跃标记，账本不会无界增长。
+活跃任务与归档任务分开存放，一次性任务做完即离开活跃队列，同时熄灭它所点亮的智能体活跃标记；归档任务留在内存里，直到调用方用 `clean_expired_archives` 清理。
 """
 
 from __future__ import annotations

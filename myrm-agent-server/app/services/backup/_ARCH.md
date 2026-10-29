@@ -9,14 +9,15 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出导出器、增量引擎、恢复向导及其清单 / 报告类型 | ✅ |
-| `full_stack_snapshot_exporter.py` | 核心 | `FullStackSnapshotExporter.export_snapshot`：生成 `BackupArchiveBundle`（`BackupManifest` 含备份标识、应用版本、整包校验和与逐项文件哈希）；`scrub_credentials` 默认开启，键名含 `api_key` / `token` / `secret` / `password` 等的值替换为 `***REDACTED***` | ✅ |
-| `incremental_backup_engine.py` | 核心 | `IncrementalBackupEngine.compute_incremental_diff`：把当前全量快照与基线清单逐项比对 SHA-256 指纹，只收录新增与修改项，并记录父级基线的备份标识；`IncrementalDiffSummary` 统计新增、修改与未变化数量 | ✅ |
-| `disaster_recovery_wizard.py` | 核心 | `DisasterRecoveryWizard`：`preflight_validate` 重算校验和与逐文件哈希并比对应用版本（主版本高于当前系统则拒绝，次版本不同只警告）；`restore` 体检不过则拒绝，dry-run 只统计数量，真实恢复先快照目标存储，写入抛错时按快照还原 | ✅ |
+| `full_stack_snapshot_exporter.py` | 未接入 | `FullStackSnapshotExporter.export_snapshot`：生成 `BackupArchiveBundle`（`BackupManifest` 含备份标识、应用版本、整包校验和与逐项文件哈希）；`scrub_credentials` 默认开启，键名含 `api_key` / `token` / `secret` / `password` 等的值替换为 `***REDACTED***` | ✅ |
+| `incremental_backup_engine.py` | 未接入 | `IncrementalBackupEngine.compute_incremental_diff`：把当前全量快照与基线清单逐项比对 SHA-256 指纹，只收录新增与修改项，并记录父级基线的备份标识；`IncrementalDiffSummary` 统计新增、修改与未变化数量 | ✅ |
+| `disaster_recovery_wizard.py` | 未接入 | `DisasterRecoveryWizard`：`preflight_validate` 重算校验和与逐文件哈希并比对应用版本（主版本高于当前系统则拒绝，次版本不同只警告）；`restore` 体检不过则拒绝，dry-run 只统计数量，真实恢复先快照目标存储，写入抛错时按快照还原 | ✅ |
 
 ## 边界
 
 - 恢复向导复用导出器定义的存档类型，导出器不依赖另外两个模块。
 - 存档只做校验和，不做加密。
+- 「未接入」：`app/` 内没有本包以外的导入，只有下面的测试引用。
 
 ## 测试
 
