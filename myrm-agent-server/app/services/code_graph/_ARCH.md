@@ -6,7 +6,7 @@
 两条贯穿全模块的事实：
 
 - 调用点的被调用者只记录调用处的原文（`Name` 或点分属性链），不解析到具体定义。因此 `callers` 按「整串相等」或「最后一段同名」匹配，每行用 `match`（`exact` / `name`）标明，并由 `count_definitions` 给出同名定义数；同名定义数大于 1 时，`match=name` 的行只是候选。
-- 索引按文件指纹增量同步：`index_directory` 可以反复运行，目录没变时只有一次文件列举和每个文件一次 `stat`；首次索引每解析 `INDEX_BATCH_FILES` 个文件落库一次，内存里只留一批解析结果，同一索引库的同步在进程内串行。
+- 索引按文件指纹增量同步：`index_directory` 可以反复运行，目录没变时只有一次文件列举和每个文件一次 `stat`；每解析 `INDEX_BATCH_FILES` 个文件落库一次（首次索引与大批改动一样），内存里只留一批解析结果，同一索引库的同步在进程内串行。
 
 ## 核心文件清单
 - `models.py`: 数据模型（`SymbolNode`、`CallEdge`、`InheritanceEdge`、`ImportEdge`、一个文件的解析结果 `ParsedFile`、同步统计 `IndexStats`）。
@@ -23,7 +23,8 @@
 - 不是合法 Python 的文件（例如 Python 2）得不到任何符号。
 - 文件清单受 `WorkspacePathIndexer` 的文件数上限约束，超出部分不被索引；触及上限时工具结果的 `notes` 会提示，此时「没有调用方」只是未确认。
 - 首次索引大型仓库需要数秒到数十秒，之后只处理变化的文件。
-- 串行只在进程内；两个进程同时首次索引同一个库时各自解析一遍，结果一致，只是重复耗时。
+- 串行只在进程内；两个进程同时首次索引同一个库时各自解析一遍，最终结果一致，只是重复耗时。
+- 超过一批的同步不是单个原子事务：同步进行中，不持有同步锁的读者可能看到新旧混合的图；`code_graph_tool` 在查询前先等待同步完成，不受影响。
 
 ## 架构边界
 属于 Server 业务层提供的预置代码智能能力，不侵入 Harness 核心执行框架；对 Harness 只使用公开的 `WorkspacePathIndexer` 与持久卷根路径。Agent 侧的挂载点在 `app/ai_agents/general_agent/factory.py`，工具层级登记在 `tools/_tool_layer_bootstrap.py`（EXTERNAL）。
