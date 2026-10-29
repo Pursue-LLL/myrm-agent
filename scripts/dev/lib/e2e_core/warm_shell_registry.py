@@ -4,6 +4,7 @@
 - api_verify workspace fingerprint + epoch_match
 - MYRM_E2E_EXECUTION_MODE / MYRM_E2E_ACCESS_SCOPE env
 - verify-api / warm_ui_route HTTP probes
+- e2e_core.dev_ports::is_shared_api_base / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - seal_platform_shell / platform_shell_fresh / shared_read_hot_path_decision / live_sealed_target_ids

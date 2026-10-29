@@ -9,7 +9,7 @@ dev_gate.contract (POS: Dev Gate v2 合约常量 SSOT)
 dev_gate.cli (POS: Unix socket 协调器自动启动客户端)
 mux.load (POS: mux context / wave lease 负载探针)
 mux.upstream_admission (POS: mux cold attach 准入)
-browser_orchestrator.client (POS: Browser Orchestrator daemon Unix socket JSON-RPC 客户端)
+browser_orchestrator.client (POS: Browser Orchestrator daemon Unix socket JSON-RPC 客户端); e2e_core.dev_ports::shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 ChromeMcpClient: 同步 MCP JSON-RPC 客户端（shim 进程管理、transport recovery、generation check、page lease；MYRM_BROWSER_ORCHESTRATOR=1 时通过 daemon 分发）

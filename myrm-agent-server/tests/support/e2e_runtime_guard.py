@@ -1,4 +1,4 @@
-"""@input: e2e_core.resource_ledger::E2EResourceLedger (POS: E2E 资源账本), e2e_session_runtime.heartbeat (POS: 统一 session heartbeat), e2e_core.runtime_identity (POS: stack-scoped runtime id SSOT)
+"""@input: e2e_core.resource_ledger::E2EResourceLedger (POS: E2E 资源账本), e2e_session_runtime.heartbeat (POS: 统一 session heartbeat), e2e_core.runtime_identity (POS: stack-scoped runtime id SSOT), e2e_core.dev_ports::shared_api_base / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 @output: assert_e2e_runtime_guard(), assert_chrome_attach_health(), E2EResourceLedger re-export, lease heartbeat context managers
 @pos: [T] LIVE Chrome E2E runtime guard — immutable-wave lease validation and Chrome mux/CDP attach health fail-fast.
 """

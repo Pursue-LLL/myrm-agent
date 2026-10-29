@@ -12,6 +12,18 @@ API, or a private one?"), so every such comparison goes through the helpers here
 literal. ``MYRM_SHARED_BACKEND_PORT`` / ``MYRM_SHARED_FRONTEND_PORT`` override the defaults.
 
 stdlib only; ``scripts/dev/tests/test_dev_ports_contract.py`` pins parity with the bash and mjs mirrors.
+
+[INPUT]
+- Process environment (POS: runtime namespace and port overrides exported by the launchers): MYRM_RUNTIME_NAMESPACE, MYRM_SHARED_BACKEND_PORT, MYRM_SHARED_FRONTEND_PORT, MYRM_BACKEND_PORT
+
+[OUTPUT]
+- shared_backend_port / shared_frontend_port / shared_api_base / shared_ui_base: ports and loopback bases of the shared dev stack
+- default_backend_port / default_frontend_port / current_backend_port / current_api_base: namespace-aware defaults (user -> 8080 / 3000, anything else -> shared)
+- is_shared_api_base: sentinel check for "is this URL the shared API"
+- cors_origins: CORS_ORIGINS for a backend whose UI is not on a product port (CLI: ``dev_ports.py cors-origins --ui-port N``)
+
+[POS]
+Default ports of the user, shared dev and isolated stacks — SSOT; mirrored by dev_state_paths.sh and dev-ports.mjs.
 """
 
 from __future__ import annotations

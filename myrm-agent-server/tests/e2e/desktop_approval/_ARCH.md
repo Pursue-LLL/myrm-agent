@@ -11,7 +11,7 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 | `__init__.py` | Package | Docstring-only package marker (`tests/conftest.py` owns dev lib path) | ✅ |
 | `conftest.py` | Guard | Session fcntl lock — one desktop approval E2E pytest at a time | ✅ |
 | `constants.py` | Core | Timeouts (incl. `APPROVAL_CLICK_DEADLINE_SEC` SSOT with gate env), prompts, infra abort markers, `progress()` | ✅ |
-| `infra_retry.py` | Core | `heal_chrome_attach_before_reopen`（R46 attach SSOT）+ `open_mcp_chat_page`（about:blank→navigate → recover → direct :3000）；`is_retriable_page_transport` | ✅ |
+| `infra_retry.py` | Core | `heal_chrome_attach_before_reopen`（R46 attach SSOT）+ `open_mcp_chat_page`（about:blank→navigate → recover → direct shared UI）；`is_retriable_page_transport` | ✅ |
 | `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (foreground for AX @drefs during agent tools)；AX 空树触发 degraded cooldown，且按当前 pytest scope 隔离，避免跨用例污染与重复高耗时重建；strict 模式下（`MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE=1`）AX 不可用直接 fail-fast | ✅ |
 | `trust_api.py` | Core | HTTP helpers（统一走 `cdp_chat_support._e2e_api_urlopen` loopback 校验 + 重试）+ `desktop_permissions()`（完整权限状态）+ `fetch_pending_approval_request_ids` + safe revoke `data-testid` selector JS | ✅ |
 | `gate_probe.py` | Core | Desktop tool activity, idle fail-fast, TextEdit foreground during api_only wait, nudge routing；API poll `to_thread + wait_for` wall-timeout guard，防止 shared_hot 长阻塞；fallback budget（synthetic dref / pending seed）超限 fail-fast，支持 strict 模式（`MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE=1`）验真并在 signoff 默认开启；pending seed 增加服务端存活闸（`_server_side_turn_alive`，R-ax15）：turn 全静默时拒种并走诚实 fail-fast，避免合成 pending 掩盖 dead send；返回 `pendingSource` 区分真实/合成 pending | ✅ |

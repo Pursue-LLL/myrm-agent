@@ -2,6 +2,7 @@
 
 [INPUT]
 - wave_orchestrator.types::ResourceKind / ResourceRecord (POS: ledger schema)
+- e2e_core.dev_ports::shared_api_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - cleanup_resource_ref() — invoke server API to remove a registered test resource

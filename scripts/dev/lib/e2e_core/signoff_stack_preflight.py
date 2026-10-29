@@ -2,6 +2,7 @@
 
 [INPUT]
 - gate_epoch_preflight.SoloSnapshot, api_verify, runtime_identity hot state
+- e2e_core.dev_ports::shared_api_base / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - run_signoff_ready_under_flock() → exit rc for subprocess myrm ready

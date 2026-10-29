@@ -2,7 +2,7 @@
 
 [INPUT]
 - stack-epoch.sh::_wave_active_lease_count (POS: Wave lease 计数)
-- dev_gate/contract.py::chrome_e2e_pytest_safe_timeout_sec (POS: session 预算 SSOT)
+- dev_gate/contract.py::chrome_e2e_pytest_safe_timeout_sec (POS: session 预算 SSOT); e2e_core.dev_ports::default_backend_port (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - decide_drift_heal / pending-stack-drift.json persistence

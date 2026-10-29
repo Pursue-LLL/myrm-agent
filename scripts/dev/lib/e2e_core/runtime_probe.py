@@ -2,6 +2,7 @@
 
 [INPUT]
 - runtime_identity.py epoch readers (POS: Runtime Identity SSOT)
+- e2e_core.dev_ports::shared_api_base / shared_backend_port / shared_frontend_port / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - probe_runtime_context() / read_current_runtime_id() / _read_shared_hot_stack_runtime_id() / run_drift_check()

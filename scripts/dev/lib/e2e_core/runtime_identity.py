@@ -4,7 +4,7 @@
 - stack-epoch.json via stack-epoch.sh (POS: Backend generation SSOT for parallel Agent drift)
 - frontend <distDir>/dev-server.lock via frontend-warmup.sh (POS: Frontend compile warmth gate)
 - CDP GET /json/version on :9333 (POS: Myrm E2E Chrome attach endpoint)
-- ~/.local/state/cdmcp-mux daemon.pid + upstream-ws-url (POS: mux daemon generation stamp)
+- ~/.local/state/cdmcp-mux daemon.pid + upstream-ws-url (POS: mux daemon generation stamp); e2e_core.dev_ports::current_backend_port / shared_api_base / shared_backend_port / shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - `build_health_json()` / CLI: unified `CHROME_E2E_HEALTH_JSON` with `runtimeId` and four epochs

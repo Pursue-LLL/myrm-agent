@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Dev stack pid/log path SSOT. State under MYRM_DEV_STATE_DIR
-# (default: real user home, mirroring wave_orchestrator/paths.py `_real_user_home()`
-# which bypasses sandboxed HOME such as ~/.cursor-3 injected by the Cursor runtime).
+# Dev runtime namespace, default ports and pid/log path SSOT (bash mirror of e2e_core/dev_ports.py).
+# State under MYRM_DEV_STATE_DIR (default: real user home, mirroring wave_orchestrator/paths.py
+# `_real_user_home()` which bypasses sandboxed HOME such as ~/.cursor-3 injected by the Cursor runtime).
 set -euo pipefail
 
 # Resolve the real login user home, bypassing sandboxed HOME (e.g. Cursor's

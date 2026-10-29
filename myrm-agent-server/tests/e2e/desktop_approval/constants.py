@@ -2,6 +2,7 @@
 
 [INPUT]
 - os / sys (stdlib)
+- e2e_core.dev_ports::shared_ui_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - BASE_URL, timeouts, E2E prompts, infra abort markers, progress()

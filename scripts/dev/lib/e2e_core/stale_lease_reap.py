@@ -3,7 +3,7 @@
 [INPUT]
 - stack_mutation_policy.wave_active_lease_count (POS: active wave lease tally)
 - e2e_session_runtime.registry list_live_e2e_sessions (R144/R146 SSOT — ADMIT+BODY sidecar)
-- e2e_session_runtime.snapshot body_elapsed / progress stall (R62 Phase B)
+- e2e_session_runtime.snapshot body_elapsed / progress stall (R62 Phase B); e2e_core.dev_ports::shared_backend_port (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - maybe_reap_excess_wave_leases: run wave reap when leases exceed live tests + slack

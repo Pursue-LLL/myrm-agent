@@ -3,6 +3,7 @@
 [INPUT]
 - api_verify.resolve_e2e_api_context (POS: epoch / verify candidate SSOT)
 - verify_backend_seed.ensure_verify_backend_seed (POS: backend-only isolated runtime)
+- e2e_core.dev_ports::shared_api_base (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - evaluate_epoch_pin_eligibility / needs_epoch_pin_backend

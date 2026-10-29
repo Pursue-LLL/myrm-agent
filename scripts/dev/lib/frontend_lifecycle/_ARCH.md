@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-共享 Next dev server（`:3000`，Turbopack，`turbopackFileSystemCacheForDev:false`）的**重启准入门**。冷编译 `/` 实测 85–282s（`dev_gate/contract.py`），而各调用方的等待预算（60/90/120/180s）更短；任何「探针超时 → SIGTERM → 冷编译重来」的路径都会形成正反馈风暴。本包把「能否 SIGTERM 前端」收敛为单一决策点：慢不等于死，只有**停滞证据**才放行启发式重启。
+共享 Next dev server（共享 dev UI 端口，Turbopack，`turbopackFileSystemCacheForDev:false`）的**重启准入门**。冷编译 `/` 实测 85–282s（`dev_gate/contract.py`），而各调用方的等待预算（60/90/120/180s）更短；任何「探针超时 → SIGTERM → 冷编译重来」的路径都会形成正反馈风暴。本包把「能否 SIGTERM 前端」收敛为单一决策点：慢不等于死，只有**停滞证据**才放行启发式重启。
 
 调用链：`dev-stack.sh` 的 kill 原语（`_kill_frontend_supervisor` / `_repair_orphan_frontend`）→ `python -m frontend_lifecycle admit`。所有决策与实际 kill 写入 `<state-dir>/frontend-restart-journal.jsonl`（含调用链 `ps` 祖先），用于归因。
 

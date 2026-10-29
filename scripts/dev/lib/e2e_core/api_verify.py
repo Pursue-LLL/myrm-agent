@@ -7,7 +7,7 @@ source_fingerprint matches the workspace fingerprint. Fail-closed when no match.
 - runtime_identity._backend_source_fingerprint (workspace FP SSOT)
 - isolated_runtime.registry (private backend ports + stateDir)
 - stack-epoch.json per backend state dir (stored FP SSOT)
-- stack_mutation_policy (pending drift, active lease count)
+- stack_mutation_policy (pending drift, active lease count); e2e_core.dev_ports::shared_backend_port (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - resolve_e2e_api_context / resolve_verify_api_base

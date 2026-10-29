@@ -587,11 +587,11 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 | 单元 | 无 / 快测 | 单模块逻辑 | 否 | 否 | 收集 | `./myrm test -n0 <路径>` |
 | integration | `@pytest.mark.integration` | 跨模块 wiring（registry、mount、converter、HTTP 契约） | 通常否 | 否 | 收集 | `./myrm test -n0 <路径>` |
 | e2e | `@pytest.mark.e2e` | Agent-stream 全回合（SSE、MCP stdio、工具链） | 是（`.env.test`） | 否 | **排除** | `./myrm test -m e2e <路径>` |
-| chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（`:3000` + MCP mux） | 常要 | 是 | **排除** | `./myrm ready --chrome` + `./myrm test -m chrome_e2e …` |
+| chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（共享 dev UI + MCP mux） | 常要 | 是 | **排除** | `./myrm ready --chrome` + `./myrm test -m chrome_e2e …` |
 
 - 入口统一 **`./myrm test`**（`test.sh` → `run-pytest-safe.sh` → `.venv/bin/python -m pytest`）；禁止 `uv run pytest`。
 - 维护者速查：`scripts/dev/MAINTAINER_QUICKSTART.md`「测试分层速查」。
-- **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必 `:8080` live server。
+- **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必起 live server。
 - **harness**（`myrm-agent-harness/tests/`）：默认 `-m 'not integration and not e2e …'` → monorepo `./myrm test -m integration …`。
 - `-m e2e` 与 `-m chrome_e2e` 互不包含；缺 marker 时带 e2e 标签的 node 会 deselect。
 
@@ -615,7 +615,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（`test.sh` 对非 chrome 路径自动设 `MYRM_E2E_LEASE_ID`；如 `tests/api/agent/test_kanban_agent_stream_e2e.py`）
 - **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（`execution_mode=SHARED` ×14：看板列渲染 + `?source_chat=` 深链 + Chat 成功卡 → 过滤看板 + stats bar running `N/M` 并发占用 + ready 排队 badge ±（并发占满时显示 / 未满不显示）+ 多 ready 同时排队 badge（1 running + 2 ready 全部显示）+ 真实执行排队释放闭环（UI 建卡 → dispatcher 真实 LLM 执行 → 占槽 badge 出现 → 释放后 badge 消失 → 双双完成）+ 队列按序释放 badge 递减（3 任务单槽：2 badge→1 badge→0 badge）+ model_override UI 建卡/抽屉徽章编辑清除 + 技能选择器 UI 建卡（picker 搜索选择真实技能 → `extra_skill_ids` 持久化）+ 抽屉技能编辑保存（chips → 编辑态 → picker 增选 → 保存 → 退出编辑态且 API 持久化）。marker 已用现代 profile 字段（`execution_mode/access_scope/workload`），不再支持 legacy `private_backend` 字段（`scripts/dev/e2e_session/profile.py` 强制）。
-- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享 `:8080`（`private_backend=False`）；**`private_backend=True`（SHPOIB）测例走私池 :180xx，并行窗口内无需 restart 共享栈**；仅共享 READ 写库测例新增 server 路由后须 `./myrm restart` 或 **`./myrm isolate <id> ready --chrome`**。
+- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享后端（`private_backend=False`）；**`private_backend=True`（SHPOIB）测例走私池 :180xx，并行窗口内无需 restart 共享栈**；仅共享 READ 写库测例新增 server 路由后须 `./myrm restart` 或 **`./myrm isolate <id> ready --chrome`**。
 - **Clarify refresh Chrome E2E**：`tests/e2e/test_clarify_refresh_chrome_e2e.py`（READ×4 SHPOIB：`POST /chats/test/seed-clarify-refresh-fixture?variant=pending|answered|regenerate_sibling|structured_form` → 深链 `/{chat_id}` → `__MYRM_E2E_CHAT__.turnSnapshot` + DOM（`data-clarification-form` / `data-chat-input`）→ `client.reload` 二次断言；无 LLM）。HTTP 覆盖：`tests/api/chats/test_clarify_refresh_seed_fixture.py`（5 项 mock）。产品 hydrate SSOT：`clarificationState.ts` + `hitl_timeout.mark_pending_clarification_answered`。
 - **Clarify skip LIVE Chrome E2E**：`tests/e2e/test_clarify_skip_chrome_e2e.py`（LIVE×1 SHPOIB：真实 LLM HITL → Skip → agent resume；`E2E_SIGNOFF=1` 时 API fallback 加长 SSE 预算）。日常：`./myrm test -m chrome_e2e tests/e2e/test_clarify_skip_chrome_e2e.py`。**注**：M3 `test_clarify_signoff_api_e2e`（stub LLM 签收腿）已删除（2026-08-11）。
 - **Inspector 面板生命周期 Chrome E2E**：`tests/e2e/test_inspector_panel_lifecycle_chrome_e2e.py`（PRIVATE+LIVE×1：真实前端 SSE handler 驱动 turn-engagement 状态机——`simulateBrowserToolStart`/`simulateBrowserViewUpdate` 经生产 handler 注入 TOOL_START/BROWSER_VIEW_UPDATE（engage turn + open panel + `sourceChatId` 绑定）→ 真实 LLM turn MESSAGE_END 触发 `releaseTurnInspectorControls(chatId)` 回收本 turn viewData → 手动打开的 desktop 面板（无 engagement）在 turn 结束时存活；`__MYRM_E2E_CHAT__` bridge 仅注入 view-data 制造步，全部断言落在真实 store/DOM）

@@ -8,7 +8,7 @@
  * - `waitForChromeE2eBackendBinding`: wait for private Backend health before UI probes
  *
  * [POS]
- * Suppresses false "backend unreachable" banners on shared :3000 during SHPOIB E2E runs.
+ * Suppresses false "backend unreachable" banners on the shared dev UI during SHPOIB E2E runs.
  */
 const E2E_RUNTIME_PREFIX = 'myrm-e2e-v1:';
 const E2E_BIND_POLL_MS = 200;
