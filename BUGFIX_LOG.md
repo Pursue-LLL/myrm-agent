@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 集成接口根目录里 MCP 两个文件、硬件三个文件散着放：收进 `mcp/`、`hardware/`；搬动时发现「规格文件路径」没有任何测试覆盖
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/api/integrations/mcp/{inspection,probe_registry}.py`、`hardware/{cookbook,calculator,model_specs}.py` 与两个 `__init__.py`、两份 `_ARCH.md`；测试同步移到 `tests/api/integrations/{mcp,hardware}/`；数据：`scripts/ci/file_line_budget_baseline.txt`、`tests/architecture/data/fractal_header_baseline.txt`） |
+| **症状** | `app/api/integrations/` 根目录里 `mcp.py` + `mcp_probe_registry.py`、`hardware.py` + `hardware_calculator.py` + `model_specs.py` 是两组同域多文件，没有收进子目录（同目录的 OAuth 那组已经收进 `oauth/`）。直接搬动会悄悄弄坏一处：`model_specs.py` 用 `Path(__file__).parents[3]` 找 `assets/cookbook_specs.json`，搬进 `hardware/` 后多了一层，实际指向 `app/assets/`；而硬件接口的全部测试都替换了 `get_dynamic_model_specs`，没有一个测试真的读这个文件，搬错了也全绿，到线上才会读不到规格表。 |
+| **根因** | 规格文件的位置只由一行相对路径决定，没有任何测试读过真实文件；`mcp.py` 里的 DTO 与路由、`hardware.py` 里的端点与硬件探测缓存混在同一级目录，按域归档的规则没有执行到这两组。 |
+| **修复** | ① `mcp.py` → `mcp/inspection.py`，`mcp_probe_registry.py` → `mcp/probe_registry.py`；`hardware.py` → `hardware/cookbook.py`，`hardware_calculator.py` → `hardware/calculator.py`，`model_specs.py` → `hardware/model_specs.py`；两个包的 `__init__.py` 只导出 `router`，`integrations/router.py` 不变。② `model_specs.py` 的路径改为 `parents[4]`，并新增 `tests/api/integrations/hardware/test_model_specs.py` 读真实文件（路径存在、文件名、非空列表）。③ 顺手处理被搬动文件里已有的告警：`inspection.py` 补文件头并从文件头存量清单里移除；`cookbook.py` 的 11 条 mypy 错误（`spec` 是 `dict[str, object]` 导致的 `float(object)`、`_stream_pull` 缺返回类型）用 `ModelSpec` 字典类型与 `AsyncIterator[bytes]` 标注消除；`calculator.py` 文件头里的输出名与旧文件名订正。④ 引用同步：集成目录 `_ARCH.md` 与两个新子包文档、行数存量清单的路径、路线图 25 个条目里的引用（硬件接口的行号后移 1 行，`inspection.py` 的行号按现状重新取）、竞品对比页（韩文 3 处、中文 1 处）、两份素材。 |
+| **回归证据** | [1] 先红后绿：只搬文件、不改路径时新增的 `test_model_specs.py` 2 条失败（其余 101 条通过）；改为 `parents[4]` 后 `tests/api/integrations` 406 通过、2 跳过、3 排除。[2] 接口契约：把挂到空 FastAPI 上的 OpenAPI 在搬动前（`git worktree` 取 HEAD）与搬动后各导出一份，`/integrations/hardware*`、`/integrations/mcp*` 共 16 条路径里 15 条内容哈希一致，1 条（`/integrations/mcp/scan-batch`）只差一个字符串：请求体引用名 `app__api__integrations__mcp__MCPScanBatchBody-Input__1` 变成 `app__api__integrations__mcp__inspection__MCPScanBatchBody-Input__1`（pydantic 把模块路径写进引用名）；20 个相关组件定义一致；仓库内没有任何地方引用这个名字。[3] `ruff check`、`ruff format --check` 对两个新包与其测试无告警；`mypy` 对两个新包 0 条（`cookbook.py` 原有 11 条已消除）。[4] `validate_arch_inventory --md-refs` 通过；`roadmap_ref_lint` 里本次搬动造成的 10 条未解析引用清零；`roadmap_integrity` 干净。 |
+| **仍然存在** | ① `scan-batch` 请求体在 OpenAPI 里的引用名指向的组件定义根本不存在（搬动前后都是，两份导出的组件表里都没有名字含 `ScanBatchBody` 的条目），按这份文档生成的客户端拿不到该请求体的类型；原有问题，未处理。② `topic_08` 的 #195、#196、#199 仍写着旧路径 `integrations/mcp.py`：路线图编辑工具拒绝改它们（缺「借鉴的关键原文描述」「借鉴的源代码位置标注」两个必填字段，改动前就如此），没有绕过工具手改。③ `roadmap_ref_lint` 还剩 3 条 `integrations/mcp_oauth.py`（`topic_03` 一条、`topic_08` 两条），来自更早的 OAuth 搬迁，不是这次造成的，未处理。④ `mcp/probe_registry.py` 468 行、`mcp/inspection.py` 423 行，都超过 400 行预算（搬动前 468 与 406 行；`inspection.py` 因补文件头多了 17 行，仍在存量清单里），没有借机拆分。⑤ 路线图里没有写全路径、只写了 `hardware.py:212-213` 这类裸文件名的旧条目没有改（无法判断指的是服务端还是 harness 的 `hardware.py`）；本日志与更早条目里的旧文件名（如上方 OAuth 搬迁条目）是当时的记录，也没有改。⑥ 页面、真实浏览器与真实 Ollama 都没有测过：硬件接口与 MCP 接口只测了路由层与替换后的外部调用。 |
+| **代码位置** | `myrm-agent-server/app/api/integrations/mcp/` · `app/api/integrations/hardware/model_specs.py:43-45`（路径）· `tests/api/integrations/hardware/test_model_specs.py` · `app/api/integrations/hardware/_ARCH.md` · `app/api/integrations/mcp/_ARCH.md` |
+
 ## 2026-10-29 · IM 审批通知卡片从来不写请求原因（卡片读 `description`，事件写的是 `reason`）；桌面审批通知把英文引擎原文拼进其它语言的正文
 
 | 字段 | 内容 |

@@ -5,15 +5,16 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-# Import the router directly instead of the whole app to avoid FastAPI app initialization issues in tests
-from app.api.integrations.hardware import router as hardware_router
-from app.api.integrations.hardware_calculator import (
+from app.api.integrations.hardware.calculator import (
     calculate_kv_cache_vram_gb,
     derive_hardware_rung,
 )
-from app.api.integrations.hardware_calculator import (
+from app.api.integrations.hardware.calculator import (
     estimate_tok_per_sec as _estimate_tok_per_sec,
 )
+
+# Import the router directly instead of the whole app to avoid FastAPI app initialization issues in tests
+from app.api.integrations.hardware.cookbook import router as hardware_router
 from app.config.deploy_mode import DeployMode
 
 app = FastAPI()
@@ -181,7 +182,7 @@ async def test_hardware_recommendations_sandbox_mode():
 async def test_hardware_recommendations_local_mode():
     """Test recommendations in local mode with mocked hardware profile"""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
+        with patch("app.api.integrations.hardware.cookbook._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "macos"
             mock_profile_obj.cpu_arch = "arm64"
@@ -195,10 +196,10 @@ async def test_hardware_recommendations_local_mode():
             mock_profile_obj.memory_bandwidth_gbps = 400.0  # M1 Max bandwidth
             mock_profile.return_value = mock_profile_obj
 
-            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
+            with patch("app.api.integrations.hardware.cookbook._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, ["qwen2.5:0.5b"])
 
-                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
+                with patch("app.api.integrations.hardware.cookbook.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",
@@ -260,7 +261,7 @@ async def test_hardware_recommendations_local_mode():
 async def test_hardware_recommendations_no_bandwidth():
     """When GPU bandwidth is unknown, est_tok_per_sec should be None for all models."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
+        with patch("app.api.integrations.hardware.cookbook._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "windows"
             mock_profile_obj.cpu_arch = "AMD64"
@@ -274,10 +275,10 @@ async def test_hardware_recommendations_no_bandwidth():
             mock_profile_obj.memory_bandwidth_gbps = None  # Unknown GPU, no bandwidth data
             mock_profile.return_value = mock_profile_obj
 
-            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
+            with patch("app.api.integrations.hardware.cookbook._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, [])
 
-                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
+                with patch("app.api.integrations.hardware.cookbook.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",
@@ -317,7 +318,7 @@ async def test_ollama_delete_sandbox_mode():
 async def test_ollama_delete_local_mode_success():
     """Test successful DELETE /hardware/ollama/models in local mode"""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware.httpx.AsyncClient.request") as mock_request:
+        with patch("app.api.integrations.hardware.cookbook.httpx.AsyncClient.request") as mock_request:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_request.return_value = mock_response
@@ -351,7 +352,7 @@ async def test_ollama_delete_local_mode_success_proper_mock():
             return await original_request(self, method, url, **kwargs)
 
         with patch(
-            "app.api.integrations.hardware.httpx.AsyncClient.request",
+            "app.api.integrations.hardware.cookbook.httpx.AsyncClient.request",
             new=mock_request_func,
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -370,7 +371,7 @@ async def test_ollama_delete_local_mode_success_proper_mock():
 async def test_hardware_recommendations_sorting_same_fit_level_largest_params_first():
     """Within same fit_level, largest params_b model ranks first."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
+        with patch("app.api.integrations.hardware.cookbook._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "macos"
             mock_profile_obj.cpu_arch = "arm64"
@@ -384,10 +385,10 @@ async def test_hardware_recommendations_sorting_same_fit_level_largest_params_fi
             mock_profile_obj.memory_bandwidth_gbps = 400.0
             mock_profile.return_value = mock_profile_obj
 
-            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
+            with patch("app.api.integrations.hardware.cookbook._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (False, [])
 
-                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
+                with patch("app.api.integrations.hardware.cookbook.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",
@@ -431,7 +432,7 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
       With active_params_b=7:   ~141 tok/s (accurate, user sees GREEN/fast)
     """
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
+        with patch("app.api.integrations.hardware.cookbook._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "windows"
             mock_profile_obj.cpu_arch = "AMD64"
@@ -445,10 +446,10 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
             mock_profile_obj.memory_bandwidth_gbps = 1008.0  # RTX 4090
             mock_profile.return_value = mock_profile_obj
 
-            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
+            with patch("app.api.integrations.hardware.cookbook._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, ["deepseek-r1:32b"])
 
-                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
+                with patch("app.api.integrations.hardware.cookbook.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/deepseek-r1:32b",
@@ -484,7 +485,7 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
 async def test_hardware_recommendations_params_b_in_response():
     """params_b must be present in every recommendation item (required for sorting)."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
+        with patch("app.api.integrations.hardware.cookbook._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "linux"
             mock_profile_obj.cpu_arch = "x86_64"
@@ -498,10 +499,10 @@ async def test_hardware_recommendations_params_b_in_response():
             mock_profile_obj.memory_bandwidth_gbps = 760.0  # RTX 3080
             mock_profile.return_value = mock_profile_obj
 
-            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
+            with patch("app.api.integrations.hardware.cookbook._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (False, [])
 
-                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
+                with patch("app.api.integrations.hardware.cookbook.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen3:8b",
@@ -546,7 +547,7 @@ async def test_ollama_pull_sandbox_mode():
 async def test_ollama_pull_success_creates_agentic_modelfile():
     """Test that pull_ollama_model creates an agentic Modelfile after success chunk."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._ensure_agentic_modelfile") as mock_ensure:
+        with patch("app.api.integrations.hardware.cookbook._ensure_agentic_modelfile") as mock_ensure:
             mock_ensure.return_value = True
 
             # Mock httpx response stream for Ollama pull
@@ -607,7 +608,7 @@ async def test_ollama_delete_cleans_agentic_model():
 async def test_ollama_pull_failure_does_not_create_agentic_modelfile():
     """Edge case: Ollama pull failure stream should NOT trigger _ensure_agentic_modelfile."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("app.api.integrations.hardware._ensure_agentic_modelfile") as mock_ensure:
+        with patch("app.api.integrations.hardware.cookbook._ensure_agentic_modelfile") as mock_ensure:
 
             async def mock_stream_bytes():
                 yield b'{"status": "pulling layer"}\n'

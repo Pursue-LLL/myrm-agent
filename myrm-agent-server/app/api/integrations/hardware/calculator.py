@@ -1,11 +1,11 @@
 """
 [INPUT]
-- hardware.py (POS: 硬件推荐纯计算逻辑分离)
+- app.api.integrations.hardware.cookbook (POS: 硬件推荐端点，本模块是其纯计算部分)
 
 [OUTPUT]
-- _estimate_tok_per_sec
+- estimate_tok_per_sec
 - calculate_kv_cache_vram_gb
-- derive_hardware_rung
+- derive_hardware_rung, _FIT_PRIORITY
 
 [POS]
 硬件指标与 KV Cache 显存测算纯函数工具模块。

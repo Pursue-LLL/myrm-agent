@@ -1,7 +1,7 @@
 """
 [INPUT]
 - myrm_agent_harness.runtime.maintenance::detect_hardware_profile (POS: 跨平台硬件探针能力)
-- app.api.integrations.model_specs::get_dynamic_model_specs (POS: Ollama 模型规格数据源)
+- app.api.integrations.hardware.model_specs::get_dynamic_model_specs (POS: Ollama 模型规格数据源)
 
 [OUTPUT]
 - get_hardware_recommendations: 获取基于硬件的 64K 上下文 KV Cache 显存透视、Reference Ladder 段位与模型推荐
@@ -15,19 +15,20 @@
 import asyncio
 import logging
 import time
+from collections.abc import AsyncIterator
 
 import httpx
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.api.integrations.hardware_calculator import (
+from app.api.integrations.hardware.calculator import (
     _FIT_PRIORITY,
     calculate_kv_cache_vram_gb,
     derive_hardware_rung,
     estimate_tok_per_sec,
 )
-from app.api.integrations.model_specs import get_dynamic_model_specs
+from app.api.integrations.hardware.model_specs import get_dynamic_model_specs
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.config.onboarding import get_ollama_base_url
@@ -162,7 +163,7 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
 
     base_url = get_ollama_base_url()
 
-    async def _stream_pull():
+    async def _stream_pull() -> AsyncIterator[bytes]:
         pull_succeeded = False
         try:
             async with httpx.AsyncClient(timeout=600.0) as client:

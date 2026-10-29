@@ -13,7 +13,7 @@ from httpx import Response
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 from myrm_agent_harness.toolkits.mcp.security import MCPResponseError, URLValidationError
 
-from app.api.integrations import mcp as mcp_mod
+from app.api.integrations.mcp import inspection as mcp_mod
 from app.core.types import MCPServerConfig
 from tests.support.minimal_app import build_minimal_app
 
@@ -66,7 +66,7 @@ def _tool(name: str, description: str, metadata: dict[str, bool] | None = None) 
 
 
 def _verify(client: TestClient, agent: _StubAgent, *, name: str, **overrides: object) -> Response:
-    with patch("app.api.integrations.mcp.get_mcp_agent", return_value=agent):
+    with patch("app.api.integrations.mcp.inspection.get_mcp_agent", return_value=agent):
         return client.post(_VERIFY_URL, json={"name": name, **_SSE_BODY, **overrides})
 
 
@@ -84,7 +84,7 @@ def _bypass_ssrf_check() -> Iterator[None]:
     """Bypass SSRF URL validation so tests reach the runtime scan stage."""
     fake = _FakeResolved(resolved_ips=["93.184.216.34"], hostname="mcp.example.com")
     with patch(
-        "app.api.integrations.mcp.MCPURLValidator.validate_url",
+        "app.api.integrations.mcp.inspection.MCPURLValidator.validate_url",
         new=AsyncMock(return_value=fake),
     ):
         yield
@@ -97,8 +97,8 @@ def size_validation() -> Iterator[MagicMock]:
     capabilities.validates_mcp_response_size = True
     validator = MagicMock()
     with (
-        patch("app.api.integrations.mcp.get_deployment_capabilities", return_value=capabilities),
-        patch("app.api.integrations.mcp._get_response_validator", return_value=validator),
+        patch("app.api.integrations.mcp.inspection.get_deployment_capabilities", return_value=capabilities),
+        patch("app.api.integrations.mcp.inspection._get_response_validator", return_value=validator),
     ):
         yield validator
 
@@ -182,7 +182,7 @@ class TestMCPVerifyErrorMapping:
     def test_ssrf_validation_failure_returns_400(self, client: TestClient) -> None:
         blocked = URLValidationError("SSRF blocked", "https://169.254.169.254", "metadata ip")
         with patch(
-            "app.api.integrations.mcp.MCPURLValidator.validate_url",
+            "app.api.integrations.mcp.inspection.MCPURLValidator.validate_url",
             new=AsyncMock(side_effect=blocked),
         ):
             response = client.post(

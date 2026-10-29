@@ -14,7 +14,7 @@ from myrm_agent_harness.toolkits.mcp.config_scan import (
     MCPScanSeverity,
 )
 
-from app.api.integrations.mcp import _config_scan_to_data, _runtime_scan_to_data
+from app.api.integrations.mcp.inspection import _config_scan_to_data, _runtime_scan_to_data
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")

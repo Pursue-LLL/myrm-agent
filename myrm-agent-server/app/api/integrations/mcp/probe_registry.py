@@ -13,7 +13,7 @@
 - _is_tls_verification_connect_error, _is_network_unreachable_connect_error
 
 [POS]
-Sub-router included by ``app.api.integrations.mcp``.
+Sub-router included by ``app.api.integrations.mcp.inspection``.
 """
 
 from __future__ import annotations

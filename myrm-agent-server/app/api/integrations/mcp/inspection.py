@@ -1,3 +1,20 @@
+"""MCP server options, static scan, verify and resource endpoints.
+
+[INPUT]
+- app.api.integrations.mcp.probe_registry::router, DTOs (POS: Registry proxy, local probe and verify/scan response models)
+- app.services.integrations.mcp_posture::enforce_mcp_config_posture, enforce_mcp_runtime_posture, resolve_mcp_config_scan (POS: Deployment-mode MCP posture and config scan)
+- myrm_agent_harness.toolkits.mcp::MCPAgent (POS: MCP client used for the single-handshake verify)
+- app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: Deployment mode capabilities)
+
+[OUTPUT]
+- router: FastAPI APIRouter with /options, /scan, /scan-batch, /verify, /resource and the probe/registry routes mounted from probe_registry
+- MCPOptionsData, MCPScanBatchBody, MCPScanBatchData
+- get_mcp_agent, get_mcp_options, scan_mcp_config_endpoint, scan_mcp_config_batch_endpoint, verify_mcp_service, read_mcp_resource
+
+[POS]
+Inspection side of the integrations MCP API; mounted by ``app.api.integrations.router`` under /mcp.
+"""
+
 import asyncio
 import logging
 
@@ -15,7 +32,7 @@ from myrm_agent_harness.toolkits.mcp.security import (
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
-from app.api.integrations.mcp_probe_registry import (
+from app.api.integrations.mcp.probe_registry import (
     MCPProbeBody,
     MCPProbeData,
     MCPScanData,
@@ -33,7 +50,7 @@ from app.api.integrations.mcp_probe_registry import (
     registry_detail,
     registry_search,
 )
-from app.api.integrations.mcp_probe_registry import (
+from app.api.integrations.mcp.probe_registry import (
     router as _probe_registry_router,
 )
 from app.config.settings import settings

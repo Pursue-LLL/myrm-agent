@@ -22,7 +22,7 @@ from httpx import Response
 from myrm_agent_harness.toolkits.mcp import MCPAgent
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 
-from app.api.integrations import mcp as mcp_mod
+from app.api.integrations.mcp import inspection as mcp_mod
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")

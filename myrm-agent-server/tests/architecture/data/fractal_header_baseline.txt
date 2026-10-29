@@ -53,7 +53,6 @@ app/api/files/vault_proxy.py
 app/api/health/router.py
 app/api/integrations/catalog.py
 app/api/integrations/llms.py
-app/api/integrations/mcp.py
 app/api/integrations/router.py
 app/api/integrations/search.py
 app/api/kanban/routes/bulk.py

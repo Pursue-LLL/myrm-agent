@@ -4,6 +4,7 @@
 - myrm-agent-server/assets/cookbook_specs.json (POS: 产品资产目录中的 bundled 规格表)
 
 [OUTPUT]
+- ModelSpec: 单个模型规格条目的类型
 - get_dynamic_model_specs: 带缓存的 bundled 模型规格列表
 
 [POS]
@@ -16,17 +17,35 @@ import asyncio
 import json
 import time
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
-_CACHE: tuple[float, list[dict[str, object]]] | None = None
+
+class ModelSpec(TypedDict):
+    """One entry of ``cookbook_specs.json``; the optional keys fall back to defaults in the cookbook."""
+
+    id: str
+    name: str
+    description: str
+    req_vram_gb: float
+    params_b: NotRequired[float]
+    active_params_b: NotRequired[float]
+    disk_size_gb: NotRequired[float]
+    min_rung: NotRequired[int]
+    num_layers: NotRequired[int]
+    kv_heads: NotRequired[int]
+    head_dim: NotRequired[int]
+
+
+_CACHE: tuple[float, list[ModelSpec]] | None = None
 _LOCK = asyncio.Lock()
 
 
 def _bundled_specs_path() -> Path:
-    server_root = Path(__file__).resolve().parents[3]
+    server_root = Path(__file__).resolve().parents[4]
     return server_root / "assets" / "cookbook_specs.json"
 
 
-def _load_bundled_specs() -> list[dict[str, object]]:
+def _load_bundled_specs() -> list[ModelSpec]:
     path = _bundled_specs_path()
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
@@ -35,7 +54,7 @@ def _load_bundled_specs() -> list[dict[str, object]]:
     return raw
 
 
-async def get_dynamic_model_specs() -> list[dict[str, object]]:
+async def get_dynamic_model_specs() -> list[ModelSpec]:
     """Return cached model specs from bundled assets."""
     global _CACHE
     now = time.monotonic()

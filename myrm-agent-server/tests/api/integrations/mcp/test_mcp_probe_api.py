@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.integrations.mcp_probe_registry import _iter_exception_chain
+from app.api.integrations.mcp.probe_registry import _iter_exception_chain
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -262,7 +262,7 @@ class TestMCPProbeEndpoint:
 
         with (
             patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")),
-            patch("app.api.integrations.mcp_probe_registry.logger.exception") as mock_logger_exception,
+            patch("app.api.integrations.mcp.probe_registry.logger.exception") as mock_logger_exception,
         ):
             response = client.post(
                 "/api/v1/integrations/mcp/probe",
@@ -281,7 +281,7 @@ class TestMCPProbeEndpoint:
 
         with (
             patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")),
-            patch("app.api.integrations.mcp_probe_registry.logger.exception") as mock_logger_exception,
+            patch("app.api.integrations.mcp.probe_registry.logger.exception") as mock_logger_exception,
         ):
             response = client.post(
                 "/api/v1/integrations/mcp/probe",
