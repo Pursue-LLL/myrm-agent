@@ -78,7 +78,7 @@
 | `workflow_templates/` | ✅ 辅助 | WorkflowTemplateStore server adapter（与 DW 引擎共享 workflow_events.db） | [_ARCH.md](workflow_templates/_ARCH.md) |
 | `hosting/` | ✅ 核心 | Artifact 多目标发布业务层（Vercel/CF Pages/Netlify/HTTP Webhook、SSRF 防护） | [_ARCH.md](hosting/_ARCH.md) |
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
-| `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
+| `code_graph/` | ✅ 核心 | 代码结构索引与 Agent 工具 `code_graph_tool`（符号定义、调用方、被调用、子类、导入方、直接调用它的测试；按文件指纹增量同步） | [_ARCH.md](code_graph/_ARCH.md) |
 | `sandbox_wake/` | ✅ 辅助 | 云托管沙箱到点唤醒上报（目标额度窗口 / cron 的下一次必须运行时间 → 控制平面 `wake-schedule`） | [_ARCH.md](sandbox_wake/_ARCH.md) |
 ---
 

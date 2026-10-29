@@ -1,11 +1,11 @@
 """Code graph SQLite store for persistent AST symbols and deterministic call edges.
 
 [INPUT]
-- models.py::(CallEdge, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode)
+- models.py::(ParsedFile, SymbolKind, SymbolNode)
 - sqlite3
 
 [OUTPUT]
-- CodeGraphStore: SQLite WAL 持久化代码图谱存储与 8 大确定性图遍历操作
+- CodeGraphStore: SQLite WAL 持久化代码图谱存储：按文件指纹增量同步与确定性图遍历查询
 
 [POS]
 Server 业务服务层。提供本地轻量级代码 AST 符号图谱与调用关系持久化存储库。
@@ -14,18 +14,22 @@ Server 业务服务层。提供本地轻量级代码 AST 符号图谱与调用�
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.services.code_graph.models import (
-    CallEdge,
-    ImportEdge,
-    InheritanceEdge,
-    SymbolKind,
-    SymbolNode,
-)
+from app.services.code_graph.models import ParsedFile, SymbolKind, SymbolNode
+
+# 测试文件按路径约定识别：tests/ 或 __tests__/ 目录、test_*.py、*_test.py、*.test.* 与 *.spec.*。
+_TEST_FILE_PATTERN = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)test_[^/]*\.py$|_test\.py$|\.(test|spec)\.[jt]sx?$")
+_INDEX_TABLES = ("symbols", "calls", "inheritances", "imports", "files")
+
+
+def _escape_like(text: str) -> str:
+    """Make ``text`` match literally inside a LIKE pattern (``_`` and ``%`` are wildcards otherwise)."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 class CodeGraphStore:
@@ -113,54 +117,57 @@ class CodeGraphStore:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_imp_symbol ON imports(imported_symbol);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_imp_file ON imports(file_path);")
 
+            # 5. 文件指纹：增量同步据此判断哪些文件变了、没了
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS files (
+                    file_path TEXT PRIMARY KEY,
+                    mtime_ns INTEGER NOT NULL,
+                    size INTEGER NOT NULL
+                );
+            """)
+
             conn.commit()
 
-    def delete_file_entries(self, file_path: str) -> None:
-        """增量重析前提：清除单个文件的旧符号与边。"""
+    def get_file_fingerprints(self) -> dict[str, tuple[int, int]]:
+        """Indexed files with the (mtime_ns, size) they had when they were parsed."""
+        with self._get_conn() as conn:
+            rows = conn.execute("SELECT file_path, mtime_ns, size FROM files").fetchall()
+            return {row["file_path"]: (row["mtime_ns"], row["size"]) for row in rows}
+
+    def apply_changes(self, *, removed: Iterable[str], parsed: Sequence[ParsedFile], reset: bool = False) -> None:
+        """Forget ``removed`` files, replace every entry of the ``parsed`` files, all in one transaction.
+
+        ``reset`` empties the store first, for a store whose entries have no recorded provenance.
+        """
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM symbols WHERE file_path = ?", (file_path,))
-            cursor.execute("DELETE FROM calls WHERE file_path = ?", (file_path,))
-            cursor.execute("DELETE FROM inheritances WHERE file_path = ?", (file_path,))
-            cursor.execute("DELETE FROM imports WHERE file_path = ?", (file_path,))
-            conn.commit()
+            if reset:
+                for table in _INDEX_TABLES:
+                    cursor.execute(f"DELETE FROM {table}")
+            else:
+                stale = [(path,) for path in (*removed, *(f.file_path for f in parsed))]
+                for table in _INDEX_TABLES:
+                    cursor.executemany(f"DELETE FROM {table} WHERE file_path = ?", stale)
 
-    def batch_insert(
-        self,
-        symbols: list[SymbolNode],
-        calls: list[CallEdge],
-        inheritances: list[InheritanceEdge],
-        imports: list[ImportEdge],
-    ) -> None:
-        with self._get_conn() as conn:
-            cursor = conn.cursor()
-
-            # 插入符号
+            cursor.executemany(
+                "INSERT OR REPLACE INTO files (file_path, mtime_ns, size) VALUES (?, ?, ?)",
+                [(f.file_path, f.mtime_ns, f.size) for f in parsed],
+            )
             cursor.executemany(
                 """
-                INSERT OR REPLACE INTO symbols 
+                INSERT OR REPLACE INTO symbols
                 (qualified_name, name, kind, file_path, line_start, line_end, docstring, source)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
-                    (
-                        s.qualified_name,
-                        s.name,
-                        s.kind.value,
-                        s.file_path,
-                        s.line_start,
-                        s.line_end,
-                        s.docstring,
-                        s.source,
-                    )
-                    for s in symbols
+                    (s.qualified_name, s.name, s.kind.value, s.file_path, s.line_start, s.line_end, s.docstring, s.source)
+                    for f in parsed
+                    for s in f.symbols
                 ],
             )
-
-            # 插入调用
             cursor.executemany(
                 """
-                INSERT INTO calls 
+                INSERT INTO calls
                 (caller, callee, file_path, line, col, end_line, end_col, arg_count, kwarg_names)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -176,40 +183,22 @@ class CodeGraphStore:
                         c.call_site.arg_count,
                         json.dumps(c.call_site.kwarg_names),
                     )
-                    for c in calls
+                    for f in parsed
+                    for c in f.calls
                 ],
             )
-
-            # 插入继承
             cursor.executemany(
-                """
-                INSERT OR IGNORE INTO inheritances 
-                (sub_type, super_type, file_path, line)
-                VALUES (?, ?, ?, ?)
-                """,
-                [(inh.sub_type, inh.super_type, inh.file_path, inh.line) for inh in inheritances],
+                "INSERT OR IGNORE INTO inheritances (sub_type, super_type, file_path, line) VALUES (?, ?, ?, ?)",
+                [(i.sub_type, i.super_type, i.file_path, i.line) for f in parsed for i in f.inheritances],
             )
-
-            # 插入导入
             cursor.executemany(
                 """
-                INSERT INTO imports 
+                INSERT INTO imports
                 (importer_module, imported_symbol, file_path, line, col, alias)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                [
-                    (
-                        imp.importer_module,
-                        imp.imported_symbol,
-                        imp.file_path,
-                        imp.line,
-                        imp.col,
-                        imp.alias,
-                    )
-                    for imp in imports
-                ],
+                [(i.importer_module, i.imported_symbol, i.file_path, i.line, i.col, i.alias) for f in parsed for i in f.imports],
             )
-
             conn.commit()
 
     def get_symbol(self, qualified_name: str) -> SymbolNode | None:
@@ -233,7 +222,8 @@ class CodeGraphStore:
                 source=row["source"] or "",
             )
 
-    def resolve_names(self, target: str) -> list[dict[str, object]]:
+    def resolve_names(self, target: str, limit: int = 20) -> list[dict[str, object]]:
+        suffix = f"%.{_escape_like(target)}"
         with self._get_conn() as conn:
             cursor = conn.cursor()
             # 1. path:line 模式
@@ -261,20 +251,26 @@ class CodeGraphStore:
                 SELECT qualified_name, name, kind, file_path, line_start, line_end,
                 CASE 
                     WHEN qualified_name = ? THEN 1
-                    WHEN qualified_name LIKE ? THEN 2
+                    WHEN qualified_name LIKE ? ESCAPE '\\' THEN 2
                     WHEN name = ? THEN 3
                     ELSE 4
                 END as priority
                 FROM symbols
-                WHERE qualified_name = ? OR qualified_name LIKE ? OR name = ?
+                WHERE qualified_name = ? OR qualified_name LIKE ? ESCAPE '\\' OR name = ?
                 ORDER BY priority ASC, qualified_name ASC
-                LIMIT 20
+                LIMIT ?
                 """,
-                (target, f"%.{target}", target, target, f"%.{target}", target),
+                (target, suffix, target, target, suffix, target, limit),
             )
             return [dict(r) for r in cursor.fetchall()]
 
     def get_callers(self, callee_name: str) -> list[dict[str, object]]:
+        """Call sites whose callee text is ``callee_name`` or ends with its last component.
+
+        The callee is recorded as written at the call site and is never resolved to a definition, so
+        ``match`` is ``exact`` only when that text equals ``callee_name``; a ``name`` row shares just the
+        last component and may call a different function of the same name.
+        """
         bare_name = callee_name.split(".")[-1]
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -282,18 +278,29 @@ class CodeGraphStore:
                 """
                 SELECT caller, callee, file_path, line, col, end_line, end_col, arg_count, kwarg_names
                 FROM calls
-                WHERE callee = ? OR callee = ? OR callee LIKE ?
+                WHERE callee = ? OR callee = ? OR callee LIKE ? ESCAPE '\\'
                 ORDER BY file_path ASC, line ASC
                 """,
-                (callee_name, bare_name, f"%.{bare_name}"),
+                (callee_name, bare_name, f"%.{_escape_like(bare_name)}"),
             )
             rows = cursor.fetchall()
             results = []
             for r in rows:
                 item = dict(r)
                 item["kwarg_names"] = json.loads(item["kwarg_names"]) if item["kwarg_names"] else []
+                item["match"] = "exact" if item["callee"] == callee_name else "name"
                 results.append(item)
             return results
+
+    def count_definitions(self, name: str) -> int:
+        """Functions, methods and classes sharing the last component of ``name``."""
+        bare_name = name.split(".")[-1]
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM symbols WHERE name = ? AND kind IN (?, ?, ?)",
+                (bare_name, SymbolKind.FUNCTION.value, SymbolKind.METHOD.value, SymbolKind.CLASS.value),
+            ).fetchone()
+            return int(row["n"])
 
     def get_callees(self, caller_qname: str) -> list[dict[str, object]]:
         with self._get_conn() as conn:
@@ -323,10 +330,10 @@ class CodeGraphStore:
                 """
                 SELECT sub_type, super_type, file_path, line
                 FROM inheritances
-                WHERE super_type = ? OR super_type = ? OR super_type LIKE ?
+                WHERE super_type = ? OR super_type = ? OR super_type LIKE ? ESCAPE '\\'
                 ORDER BY sub_type ASC
                 """,
-                (super_type_name, bare_name, f"%.{bare_name}"),
+                (super_type_name, bare_name, f"%.{_escape_like(bare_name)}"),
             )
             return [dict(r) for r in cursor.fetchall()]
 
@@ -337,57 +344,29 @@ class CodeGraphStore:
                 """
                 SELECT importer_module, imported_symbol, file_path, line, col, alias
                 FROM imports
-                WHERE imported_symbol = ? OR imported_symbol LIKE ?
+                WHERE imported_symbol = ? OR imported_symbol LIKE ? ESCAPE '\\'
                 ORDER BY file_path ASC, line ASC
                 """,
-                (module_name, f"{module_name}.%"),
+                (module_name, f"{_escape_like(module_name)}.%"),
             )
             return [dict(r) for r in cursor.fetchall()]
 
-    def get_tests_reaching(self, target_qname: str) -> list[dict[str, object]]:
-        """基于反向调用图追溯所有直接或间接可触达该符号的测试函数或文件。"""
-        callers = self.get_callers(target_qname)
-        visited_callers: set[str] = set()
-        reaching_tests: list[dict[str, object]] = []
+    def get_tests_calling(self, target_qname: str) -> list[dict[str, object]]:
+        """Call sites of ``target_qname`` that sit in test files, one row per call site.
 
-        queue = [(c["caller"], c["file_path"], c["line"], 1) for c in callers]
-
-        while queue:
-            caller_sym, f_path, line, depth = queue.pop(0)
-            if caller_sym in visited_callers:
-                continue
-            visited_callers.add(caller_sym)
-
-            # 判断是否为测试
-            is_test = (
-                "test" in f_path.lower()
-                or "spec" in f_path.lower()
-                or "test_" in caller_sym.lower()
-                or "_test" in caller_sym.lower()
-            )
-            if is_test:
-                reaching_tests.append(
-                    {
-                        "test_symbol": caller_sym,
-                        "file_path": f_path,
-                        "line": line,
-                        "distance": depth,
-                    }
-                )
-
-            # 递归上一级（最多追溯 4 层深度以防成环或暴风雪）
-            if depth < 4:
-                parent_callers = self.get_callers(caller_sym)
-                for pc in parent_callers:
-                    if pc["caller"] not in visited_callers:
-                        queue.append((pc["caller"], pc["file_path"], pc["line"], depth + 1))
-
-        return reaching_tests
+        Callers are matched by name (see ``get_callers``), so following them through further hops
+        would add unrelated same-named functions; only direct callers are reported.
+        """
+        return [
+            {"test_symbol": row["caller"], "file_path": row["file_path"], "line": row["line"], "match": row["match"]}
+            for row in self.get_callers(target_qname)
+            if _TEST_FILE_PATTERN.search(Path(str(row["file_path"])).as_posix())
+        ]
 
     def count_totals(self) -> dict[str, int]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(DISTINCT file_path) as total_files FROM symbols")
+            cursor.execute("SELECT COUNT(*) as total_files FROM files")
             tf = cursor.fetchone()["total_files"]
             cursor.execute("SELECT COUNT(*) as total_symbols FROM symbols")
             ts = cursor.fetchone()["total_symbols"]

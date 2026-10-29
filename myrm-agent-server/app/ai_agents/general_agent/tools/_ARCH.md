@@ -15,4 +15,4 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `_tool_layer_bootstrap.py` | 核心 | Server 业务专有 LLM 工具通过 `ToolRegistry.register_external_layer_specs` 注册到 Harness `_TOOL_LAYERS` EXTERNAL 层；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承） | ✅ |
+| `_tool_layer_bootstrap.py` | 核心 | Server 业务专有 LLM 工具通过 `ToolRegistry.register_external_layer_specs` 注册到 Harness `_TOOL_LAYERS` EXTERNAL 层；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承）；`code_graph_tool` 登记为 EXTERNAL，由 `factory.py` 在用户启用预置技能 `repo-call-graph` 且 Agent 有工作区时挂载 | ✅ |

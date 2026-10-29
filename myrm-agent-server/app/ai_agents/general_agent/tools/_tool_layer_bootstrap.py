@@ -13,7 +13,7 @@
 
 [POS]
 Registers server-layer business tools (third-party SDKs, ChannelGateway outbound,
-product media LangChain adapters) into the harness registry at import time and explicit startup.
+product media LangChain adapters, code graph navigation) into the harness registry at import time and explicit startup.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     "video_tool": ToolLayer.EXTERNAL,
     "tts_generate": ToolLayer.EXTERNAL,
     "artifact_publish": ToolLayer.EXTERNAL,
+    "code_graph_tool": ToolLayer.EXTERNAL,
 }
 
 

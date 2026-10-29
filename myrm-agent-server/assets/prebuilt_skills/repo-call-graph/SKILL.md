@@ -1,72 +1,74 @@
 ---
 name: repo-call-graph
 description: >-
-  Deterministic code call graph navigator and impact analyzer. Provides 8 exact
-  AST-level navigation tools (resolve, definition, callers, callees, implementors,
-  overrides, importers, tests_reaching) and single-file incremental reingest.
-  Replaces grep guesswork with 100% accurate symbol references and test blast radius.
-version: 1.0.0
+  Structural navigation of Python and TypeScript/JavaScript code through code_graph_tool: where a symbol is
+  defined, which call sites call a function, what a function calls, which classes extend a class, which files
+  import a module, and which test files call a function. Use it before changing a function signature, behavior
+  or location, when plain-text search would return too many unrelated matches.
+version: 2.0.0
 category: development
 tags:
   - code-intelligence
   - call-graph
-  - ast
   - refactoring
   - impact-analysis
-allowed-tools: bash_code_execute_tool file_read_tool grep_tool
 contract:
   steps:
-    - "Phase 1: Index — run code graph scan or ensure the repository call graph is built"
-    - "Phase 2: Resolve — resolve target symbols or file:line to exact qualified names"
-    - "Phase 3: Trace — query callers, callees, or implementors to map the dependency tree"
-    - "Phase 4: Blast Radius — call tests_reaching to determine affected test suites before editing"
-    - "Phase 5: Validate — run only affected tests to verify changes with minimum latency"
+    - "Phase 1: Resolve — turn the name into one qualified name and location (action resolve)"
+    - "Phase 2: Trace — list callers, callees, implementors or importers of that symbol"
+    - "Phase 3: Verify — open every location you rely on and check match=name rows before acting on them"
+    - "Phase 4: Cover — list the test files that call the function directly and state what that list does not cover"
   potential_traps:
-    - description: "Using plain text grep when exact AST references are required"
-      mitigation: "Always prefer callers() or definition() over grep for symbol tracing"
+    - description: "Treating match=name rows as certain call sites when several functions share the name"
+      mitigation: "Read each call site; when definitions is above 1 decide per row which function is called"
+      severity: high
+    - description: "Concluding a function is unused because callers returned nothing"
+      mitigation: "Dynamic calls (getattr, strings, decorators, injection) are not seen; confirm with grep_tool"
+      severity: high
+    - description: "Trusting the calling function of a TypeScript/JavaScript row"
+      mitigation: "Open the location; for JS/TS the enclosing function can be wrong"
       severity: medium
-    - description: "Forgetting to reingest modified files during multi-step refactoring"
-      mitigation: "Trigger reingest_file after modifying functions or class definitions"
-      severity: low
   verification_steps:
-    - step_id: exact_callers_identified
-      description: "All genuine call sites were verified using AST call graph"
-      validation_method: "Inspect caller file paths and line numbers returned by the graph store"
+    - step_id: call_sites_opened
+      description: "Every call site that drives an edit was read in its file"
+      validation_method: "file_read_tool output exists for each location cited"
       is_required: true
-    - step_id: reaching_tests_executed
-      description: "Tests reaching the modified code were executed"
-      validation_method: "Verification test output confirms reaching tests passed"
+    - step_id: coverage_stated
+      description: "The report says which kinds of callers the graph cannot see"
+      validation_method: "Final answer names dynamic calls and indirect tests as not covered"
       is_required: true
-  success_criteria: "Complete symbol call chain identified and verified with zero hallucinated references"
-  estimated_duration_seconds: 600
+  success_criteria: "Every affected call site and direct test is identified, and the limits of the search are stated"
+  estimated_duration_seconds: 300
 ---
 
-# Repo Call Graph AST Navigator
+# Repo Call Graph
 
-Deterministic AST-level code navigation for Python and TypeScript/JavaScript.
+Use `code_graph_tool` for structural questions about Python and TypeScript/JavaScript code: who calls a function, what a function calls, which classes extend a class, which files import a module, which test files call a function. It reads the workspace you are working in and brings its index up to date on every call, so there is nothing to build or refresh.
 
-## Bash execution contract
+## When to use it
 
-When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+- Before changing a function's signature, behavior or location: find every caller.
+- Before refactoring a class: find its subclasses and the files that import it.
+- After a change: find the test files that call the changed function directly and run those first.
+- Use `grep_tool` instead for plain text, string literals, comments, config files, and languages other than Python and TypeScript/JavaScript.
 
-## When to Use
+## Workflow
 
-1. **Refactoring Functions or Methods**: Find all genuine callers and their call sites before changing signatures.
-2. **Impact Analysis & Blast Radius**: Trace which unit or integration tests directly or indirectly execute a modified block (`tests_reaching`).
-3. **Class Hierarchy Navigation**: Find all subclasses or interface implementations (`implementors`).
-4. **Module Dependency Tracing**: Find all modules importing a target symbol (`importers`).
+1. Call `resolve` with the plain name. Pick the row you mean by file path. If several rows still fit, ask the user which one.
+2. Ask the question about that symbol: `callers` (plain function name), `callees` (the qualified name from step 1), `implementors`, `importers`, or `tests_calling`.
+3. Open each location you will rely on with `file_read_tool` before you edit anything.
+4. In your answer, say what you checked and what the graph cannot see.
 
-## Available Deterministic Operations
+## Reading results
 
-The skill executes through python script invocation against `app.services.code_graph`:
+- `match: exact` means the call text equals the name you asked for. `match: name` means only the last part matches (`obj.save()` matches `save`). When `definitions` is above 1, a `match: name` row may call a different function with the same name; read the call site and decide.
+- `callees` returns call text as written. It does not say which definition is called; run `resolve` on a name to find out.
+- `tests_calling` lists direct callers inside test files only. A test that reaches the function through other functions is not listed; follow `callers` one level at a time or search with `grep_tool`.
+- `total` larger than the rows shown means the list was cut at 50. Use a more specific name, such as a qualified name.
+- No rows: check spelling and case, try `resolve` with a shorter name, then use `grep_tool`. An empty `callers` result does not prove a function is unused, because calls made through `getattr`, strings, decorators or dependency injection are not seen.
 
-- `python -m app.services.code_graph.cli resolve --target <symbol_or_path:line>`
-- `python -m app.services.code_graph.cli callers --callee <qualified_name>`
-- `python -m app.services.code_graph.cli callees --caller <qualified_name>`
-- `python -m app.services.code_graph.cli definition --symbol <qualified_name>`
-- `python -m app.services.code_graph.cli implementors --type <super_type>`
-- `python -m app.services.code_graph.cli importers --module <module_name>`
-- `python -m app.services.code_graph.cli tests_reaching --target <qualified_name>`
-- `python -m app.services.code_graph.cli reingest --file <rel_file_path>`
+## Limits
 
-Always check `tests_reaching` before refactoring core shared functions.
+- Calls are matched by name. The tool does not follow imports or infer types.
+- Python results are normally right about which function contains a call. TypeScript/JavaScript results are approximate and that function can be wrong.
+- Files ignored by git, dependency and build folders, files over 1 MB, and symbolic links are not indexed.

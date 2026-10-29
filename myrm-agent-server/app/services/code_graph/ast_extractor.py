@@ -1,6 +1,6 @@
 """
 @input: 接收源代码文件与 AST 解析请求
-@output: 针对 Python 与 TypeScript/JavaScript 文件的 AST 符号、调用关系抽取器
+@output: 针对 Python 与 TypeScript/JavaScript 文件的 AST 符号、调用关系抽取器；module_name_for（两个抽取器共用的相对路径到点分模块名规则）
 @pos: 代码图谱静态 AST 解析核心
 """
 
@@ -18,6 +18,17 @@ from app.services.code_graph.models import (
 )
 
 
+def module_name_for(file_path: str) -> str:
+    """Dotted module name from a path relative to the index root.
+
+    Both extractors use this rule so that two files with the same basename in different
+    directories keep different qualified names.
+    """
+    path = Path(file_path)
+    parts = [part for part in path.with_suffix("").parts if part not in (".", "/")]
+    return ".".join(parts) if parts else path.stem
+
+
 class PythonAstExtractor:
     """基于 Python 3.13 原生 ast 模块的高性能静态分析抽取器。"""
 
@@ -25,19 +36,12 @@ class PythonAstExtractor:
         self.file_path = file_path
         self.source_code = source_code
         self.lines = source_code.splitlines()
-        self.module_name = self._compute_module_name(file_path)
+        self.module_name = module_name_for(file_path)
 
         self.symbols: list[SymbolNode] = []
         self.calls: list[CallEdge] = []
         self.inheritances: list[InheritanceEdge] = []
         self.imports: list[ImportEdge] = []
-
-    def _compute_module_name(self, file_path: str) -> str:
-        p = Path(file_path)
-        parts = list(p.with_suffix("").parts)
-        if parts and parts[0] in (".", "/"):
-            parts = parts[1:]
-        return ".".join(parts) if parts else p.stem
 
     def extract(self) -> None:
         try:
@@ -184,16 +188,12 @@ class JsTsRegexExtractor:
         self.file_path = file_path
         self.source_code = source_code
         self.lines = source_code.splitlines()
-        self.module_name = self._compute_module_name(file_path)
+        self.module_name = module_name_for(file_path)
 
         self.symbols: list[SymbolNode] = []
         self.calls: list[CallEdge] = []
         self.inheritances: list[InheritanceEdge] = []
         self.imports: list[ImportEdge] = []
-
-    def _compute_module_name(self, file_path: str) -> str:
-        p = Path(file_path)
-        return p.stem
 
     def extract(self) -> None:
         # 1. Module

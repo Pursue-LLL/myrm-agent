@@ -1,6 +1,6 @@
 """
 @input: 接收源代码文件路径与 AST 节点请求
-@output: 提供基础数据结构定义（SymbolNode, CallEdge, CallSite, IndexStats）
+@output: 提供基础数据结构定义（SymbolNode, CallEdge, CallSite, ParsedFile, IndexStats）
 @pos: 代码图谱领域数据模型与契约
 """
 
@@ -86,11 +86,29 @@ class ImportEdge:
 
 
 @dataclass
+class ParsedFile:
+    """One source file's extraction result, with the fingerprint that decides whether it must be parsed again."""
+
+    file_path: str
+    mtime_ns: int
+    size: int
+    symbols: list[SymbolNode]
+    calls: list[CallEdge]
+    inheritances: list[InheritanceEdge]
+    imports: list[ImportEdge]
+
+
+@dataclass
 class IndexStats:
+    """State of the index after a run: the totals are index-wide, the other counters describe this run."""
+
     total_files: int
     total_symbols: int
     total_calls: int
     elapsed_ms: float
+    updated_files: int = 0
+    removed_files: int = 0
+    skipped_files: int = 0
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

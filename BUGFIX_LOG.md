@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-30 · 代码图谱：重复索引让调用方成倍增加、删除的文件留下幽灵符号、同名文件互相覆盖，`_` 被当通配符，Agent 没有可用的入口
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交见本条所在提交；未 push）。「仍然存在」里的 6 项未处理。 |
+| **症状** | [复现，从 HEAD 取出旧版 `CodeGraphService`，同一份 4 个文件的目录] ① 连续 `index_directory` 3 次，`callers("f")` 依次返回 1、2、3 行；删掉 `gone.py` 再索引，`resolve("ghost")` 仍返回 `gone.ghost`。② `web/index.ts` 与 `admin/index.ts` 各有 `load`，限定名都是 `index.load`，`resolve("load")` 只剩 `admin/index.ts` 一个。③ 源码里有 `o.get_user()` 与 `o.getXuser()`，`callers("get_user")` 两个都返回（后缀匹配的 `LIKE` 没有转义，`_` 是单字符通配符）。④ [上一轮实测] 旧版用 `rglob` 遍历 harness 仓库，5 分钟没有跑完；`tests_reaching` 沿「按最后一段名字匹配」的调用边多跳回溯，三个样本函数深度 2 分别返回 10 / 22 / 57 个测试文件，`rg` 查到的直接调用测试文件是 7 / 2 / 2 个，深度 4 要数分钟。⑤ 预置技能 `repo-call-graph` 要 Agent 自己跑命令行，列了不存在的 `overrides`，写「100% 准确」；官网对比页写了仓库里没有的 `CallGraphCard.tsx`（全库 0 命中）与「提效 95%」。 |
+| **根因** | ① `index_directory` 只往库里追加，没有「这个文件原来有什么」的记录，也没有处理已删除的文件。② JS/TS 的模块名只取文件名，不含目录。③ 查询里的 `LIKE` 直接拼名字。④ 文件清单用 `rglob` 且不遵循忽略规则；调用边里被调用者只是调用处的原文、从不解析到定义，把这些边当作可传递的依赖去多跳，每多一跳就混入更多同名函数。⑤ 能力写在文档里，没有进入 Agent 的工具列表，也没有测试把文档与代码对上。 |
+| **修复** | `graph_store.py:131` `get_file_fingerprints` 与 `:137` `apply_changes`：每个文件记 `(mtime_ns, size)`，一个事务内先删掉消失与改动的文件的全部行再写入新结果；`service.py:55` `index_directory` 幂等，文件清单改用 harness 的 `WorkspacePathIndexer`（git 仓库遵循 `.gitignore` 并含未跟踪文件，否则遍历），跳过符号链接、特殊文件与超过 `MAX_SOURCE_BYTES`（`:33`）的文件，无法解析的文件计入 `skipped_files`；`ast_extractor.py:21` `module_name_for` 由相对路径得到点分模块名，两个抽取器共用；`graph_store.py:30` `_escape_like` 与全部 `LIKE ... ESCAPE`；`:267` `get_callers` 每行带 `match`（`exact` / `name`），`:295` `count_definitions` 给出同名定义数；`:354` `get_tests_calling` 取代 `tests_reaching`，只返回路径约定判定为测试文件内的直接调用点；删除命令行入口 `cli.py`。新增 `agent_tool.py`：`code_graph_tool` 七个动作，每次调用先同步索引，结果最多 50 行并带提示，索引库放在持久卷下不写入工作区；`factory.py:210` 仅在用户启用 `repo-call-graph` 且有工作区时挂载，`_tool_layer_bootstrap.py` 登记为 EXTERNAL；重写 SKILL.md（不声明 `allowed-tools`，避免技能激活时把编辑与执行工具从该轮的可用列表里去掉），改正官网对比页（`zh/getting-started/competitor-comparison.mdx`）。 |
+| **回归证据** | [1] 同一脚本在新版：3 次索引后 `callers("f")` 都是 1 行，后两次 `updated_files` 为 0；删除后 `resolve("ghost")` 为空；`resolve("load")` 返回 `admin.index.load` 与 `web.index.load`；旧版 `callers("get_user")` 返回 `o.getXuser` 与 `o.get_user`，新版只返回 `o.get_user`（`test_names_match_literally_so_underscores_and_percent_signs_are_not_wildcards`）。[2] 真实仓库（harness：6,046 个源文件、80,812 个符号、294,600 个调用点，本机）：首次索引 11.1 s，再次 0.69 s 且更新 0 个文件，单次 `callers` 查询 49 ms。[3] `tests/services/code_graph` + `tests/integration/test_repo_call_graph_integration.py` 共 43 个用例通过（新增 `test_code_graph_index_lifecycle.py` 11 个、`test_code_graph_agent_tool.py` 17 个）；`test_tool_layer_bootstrap.py` 登记用例通过；`tests/architecture/test_prebuilt_skills_frontmatter_keys.py` 与 `test_prebuilt_skill_bash_contract.py` 通过；ruff、mypy（改动的文件）、pyright 无报错。 |
+| **仍然存在** | ① JS/TS 抽取器仍是按行正则，调用归属近似（结果里带提示）；没有换成基于编译器的实现。② 大小与修改时间都没变的改写看不到。③ `WorkspacePathIndexer` 的文件数上限（50,000）会静默截断超大仓库的文件清单。④ 首次对大型仓库调用工具时会等到索引完成才返回，没有超时。⑤ 索引库路径取自 `get_persistent_root()`，没有在桌面模式下实机验证。⑥ 没有用真实模型验证「有这个工具」是否比只用 `grep` 更省 Token、更少出错，也没有核对技能被激活时的真实提示词。 |
+| **代码位置** | `myrm-agent-server/app/services/code_graph/graph_store.py:30,131,137,267,295,354` · `service.py:33,55,114` · `ast_extractor.py:21` · `agent_tool.py:139,162,201,212` · `app/ai_agents/general_agent/factory.py:210-213` · `tools/_tool_layer_bootstrap.py` · `assets/prebuilt_skills/repo-call-graph/SKILL.md` · `tests/services/code_graph/` · `tests/integration/test_repo_call_graph_integration.py` |
+
 ## 2026-10-30 · Matrix 文本里的邮箱地址被当成提及并被改写，已写成完整 Matrix ID 的提及被再拼一遍服务器名
 
 | 字段 | 内容 |

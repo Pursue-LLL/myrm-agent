@@ -12,7 +12,7 @@ from app.services.code_graph.models import SymbolKind
 from app.services.code_graph.service import CodeGraphService
 
 
-def test_python_ast_extractor():
+def test_python_ast_extractor() -> None:
     sample_code = """
 class BaseService:
     def execute(self):
@@ -50,7 +50,7 @@ def standalone_helper():
     assert "services.user.standalone_helper" in callers
 
 
-def test_jsts_regex_extractor():
+def test_jsts_regex_extractor() -> None:
     sample_ts = """
 export class AuthService extends BaseAuth {
   async login(token: string) {
@@ -150,7 +150,7 @@ def test_code_graph_service_returns_each_typescript_call_once(tmp_path: Path) ->
     assert [(c["caller"], c["line"]) for c in service.callers("checkToken")] == [("auth.validateInput", 2)]
 
 
-def test_code_graph_service_e2e():
+def test_code_graph_service_e2e() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         root_path = Path(tmp_dir)
         src_dir = root_path / "app"
@@ -194,16 +194,17 @@ def test_order_flow():
         # 2. 验证 callers
         callers = service.callers("core_calculator")
         assert len(callers) >= 1
-        caller_names = [c["caller"] for c in callers]
+        caller_names = [str(c["caller"]) for c in callers]
         assert any("process_order" in c for c in caller_names)
 
-        # 3. 验证 tests_reaching 拓扑触达
-        reaching = service.tests_reaching("core_calculator")
-        assert len(reaching) >= 1
-        assert any("test_order_flow" in r["test_symbol"] for r in reaching)
-        assert any("test_service.py" in r["file_path"] for r in reaching)
+        # 3. 验证 tests_calling 只报告直接调用目标的测试
+        calling = service.tests_calling("process_order")
+        assert [(r["test_symbol"], r["file_path"]) for r in calling] == [
+            ("tests.test_service.test_order_flow", "tests/test_service.py")
+        ]
+        assert service.tests_calling("core_calculator") == []
 
-        # 4. 验证增量 reingest
+        # 4. 验证增量同步：只重新解析改动的文件
         svc_file.write_text(
             """
 def core_calculator(x: int) -> int:
@@ -214,11 +215,11 @@ def new_caller(x: int):
 """,
             encoding="utf-8",
         )
-        reingest_res = service.reingest_file(root_path, "app/service.py")
-        assert reingest_res["status"] == "updated"
+        refresh = service.index_directory(root_path)
+        assert (refresh.updated_files, refresh.removed_files) == (1, 0)
 
         new_callers = service.callers("core_calculator")
-        new_caller_names = [c["caller"] for c in new_callers]
+        new_caller_names = [str(c["caller"]) for c in new_callers]
         assert any("new_caller" in c for c in new_caller_names)
         assert not any("process_order" in c for c in new_caller_names)
 

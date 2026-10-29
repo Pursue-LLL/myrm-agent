@@ -1,12 +1,12 @@
-"""Integration test for RepoCallGraphAstMcpSkillPack.
+"""Integration test for the code graph task flow.
 
 Tests the full deterministic toolchain and task flow:
 1. Indexing a multi-language project repository.
 2. Resolving target symbols and path:line.
 3. Querying callers with exact call site arguments and locations.
 4. Querying callees and implementors.
-5. Inverting call graph to find direct & indirect reaching test suites.
-6. Incremental file reingestion consistency.
+5. Finding the tests that call a function directly.
+6. Incremental re-indexing after a file changes.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 from app.services.code_graph.service import CodeGraphService
 
 
-def test_repo_call_graph_full_task_flow_integration():
+def test_repo_call_graph_full_task_flow_integration() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         root_path = Path(tmp_dir)
         backend_dir = root_path / "app" / "services"
@@ -80,7 +80,7 @@ def test_helper():
         # 5. 测试 1：精确解析符号（resolve）
         resolved = service.resolve("UserAuthService")
         assert len(resolved) >= 1
-        assert any("UserAuthService" in r["qualified_name"] for r in resolved)
+        assert any("UserAuthService" in str(r["qualified_name"]) for r in resolved)
 
         # 6. 测试 2：确定性定位所有调用点（callers）
         callers = service.callers("verify_token")
@@ -88,27 +88,29 @@ def test_helper():
         assert "app.services.auth.UserAuthService.login" in caller_names
         assert "app.services.auth.helper_authenticate" in caller_names
 
-        # 7. 测试 3：测试影响面与爆炸半径追溯（tests_reaching）
-        reaching = service.tests_reaching("verify_token")
-        assert len(reaching) >= 2
-        test_symbols = [r["test_symbol"] for r in reaching]
-        assert "tests.unit.test_auth_flow.test_user_login" in test_symbols
-        assert "tests.unit.test_auth_flow.test_helper" in test_symbols
+        # 7. 测试 3：直接调用目标的测试（tests_calling）
+        assert [r["test_symbol"] for r in service.tests_calling("helper_authenticate")] == [
+            "tests.unit.test_auth_flow.test_helper"
+        ]
+        assert [(r["test_symbol"], r["match"]) for r in service.tests_calling("login")] == [
+            ("tests.unit.test_auth_flow.test_user_login", "name")
+        ]
+        assert service.tests_calling("verify_token") == []
 
         # 8. 测试 4：继承与派生发现（implementors）
         impls = service.implementors("BaseAuthenticator")
         assert len(impls) >= 1
-        assert any("UserAuthService" in im["sub_type"] for im in impls)
+        assert any("UserAuthService" in str(im["sub_type"]) for im in impls)
 
-        # 9. 测试 5：单文件毫秒级增量更新（reingest_file）
+        # 9. 测试 5：改动一个文件后的增量同步
         modified_auth_code = """
 class UserAuthService:
     def brand_new_login(self, token: str):
         return self.verify_token(token)
 """
         (backend_dir / "auth.py").write_text(modified_auth_code, encoding="utf-8")
-        reingest_result = service.reingest_file(root_path, "app/services/auth.py")
-        assert reingest_result["status"] == "updated"
+        refresh = service.index_directory(root_path)
+        assert (refresh.updated_files, refresh.removed_files) == (1, 0)
 
         # 再次查 callers，验证旧调用已清空，新调用已生效
         updated_callers = service.callers("verify_token")

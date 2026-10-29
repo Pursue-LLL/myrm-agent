@@ -55,7 +55,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `mcp_vault_handler.py` | ✅ 辅助 | Server 层 MCP 大结果 vault spill handler 工厂。`build_mcp_vault_handler(workspace_root)` 返回 `OversizedResultHandler` 闭包，在 `factory.py` 注入到 MCP 配置，使 harness `_timeout_wrapper` 将超量结果持久化至 ArtifactVault 而非截断丢弃。 | ✅ |
 | `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/search 模式跳过注入；lean/full 在有 UNTRUSTED 来源时注入 |
 | `agent_middlewares/tool_selection_middleware.py` | ✅ 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 |
-| `tools/_tool_layer_bootstrap.py` | ✅ 核心 | Server 专属工具向 harness `_TOOL_LAYERS` 注册（x_search、channel_notify、image/video/tts media 工具） |
+| `tools/_tool_layer_bootstrap.py` | ✅ 核心 | Server 专属工具向 harness `_TOOL_LAYERS` 注册（x_search、channel_notify、image/video/tts media 工具、code_graph_tool） |
 
 ---
 
