@@ -12,7 +12,7 @@
 - RouterLifecycleMixin: ``start`` / ``stop`` / ``is_consume_loop_alive``, the consume loop that hands every inbound message to dispatch, the janitor (expired callbacks, streaming-session TTL, stale session state) and the stuck-task reaper
 
 [POS]
-Run-loop segment of ``AgentRouter``. ``stop`` ends every in-flight turn and approval wait; the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
+Run-loop segment of ``AgentRouter``. ``stop`` parks the messages that have not started a turn in the inbound journal, then ends every in-flight turn and approval wait; the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
 """
 
 from __future__ import annotations
@@ -64,9 +64,13 @@ class RouterLifecycleMixin:
     async def stop(self: RouterLifecycleHost) -> None:
         """Stop the consumption loop and cancel all in-flight agent tasks.
 
-        Delegated tasks are interrupted first, while the channels are still up, so each tells its chat the work was cut short.
+        Messages that have not started a turn go to the inbound journal first, so the next start replays them; taking them
+        out of the gate also keeps the turns cancelled below from starting the next ones. Delegated tasks are interrupted
+        next, while the channels are still up, so each tells its chat the work was cut short.
         """
         self._running = False
+        for msg in self._gate.drain_unstarted():
+            self._journal_inbound(msg)
         await self._delegation_coordinator.interrupt_all()
 
         for entry in self._active_tasks.values():

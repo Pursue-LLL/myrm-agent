@@ -41,6 +41,7 @@ Six complementary mechanisms:
 - Busy ack notifications via ``on_busy_ack`` callback
 - ``running_turn`` / ``release_turn``: the number of the turn a session is running and the way to end that turn by name
 - ``is_busy``: whether a message's session is running a turn (the message would queue behind it)
+- ``drain_unstarted``: the text messages that have not started a turn, taken out for a shutdown to park
 
 [POS]
 Sits between Router's consume loop and the per-message handler.
@@ -367,6 +368,23 @@ class SessionGate:
         count = len(state.pending)
         state.pending.clear()
         return count
+
+    def drain_unstarted(self) -> list[InboundMessage]:
+        """Take out every text message that has not started a turn, oldest first per session, and stop the debounce timers.
+
+        For a shutdown: the senders of these messages may have been told they are queued, so the caller parks them where
+        the next start finds them. Answers to a tool approval are not taken, they belong to a run the shutdown ends. Turns
+        already running are left alone, and with nothing queued behind them, ending them starts no further turn.
+        """
+        drained: list[InboundMessage] = []
+        for state in self._sessions.values():
+            if state.timer is not None:
+                state.timer.cancel()
+                state.timer = None
+            drained.extend(msg for msg in (*state.buffer, *state.pending) if not _is_answer(msg))
+            state.buffer.clear()
+            state.pending.clear()
+        return drained
 
     def clear(self) -> None:
         """Cancel all timers and clear state (called on Router.stop)."""
