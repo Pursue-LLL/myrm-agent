@@ -47,7 +47,6 @@ import type {
   ContextOverflowResetStreamEvent,
   ContextReferenceWarningStreamEvent,
   CouncilPhaseStreamEvent,
-  DagStateUpdateStreamEvent,
   GoalStatusStreamEvent,
   IterationLimitReachedStreamEvent,
   MascotXpUpdateStreamEvent,
@@ -145,7 +144,6 @@ export type AgentStreamEvent =
   | BrowserTakeoverRequestedStreamEvent
   | BrowserTakeoverCompletedStreamEvent
   | MascotXpUpdateStreamEvent
-  | DagStateUpdateStreamEvent
   | IterationLimitReachedStreamEvent
   | ContextOverflowResetStreamEvent
   | ContextReferenceWarningStreamEvent

@@ -1,15 +1,14 @@
 """What the General Agent stream adds to an event before it reaches the client.
 
-Real scenario: a tool asks for approval with a timeout and the approval is filed with the moment it lapses; a browser
+Real scenario: a tool asks for approval and the card the client shows carries the id of the filed approval; a browser
 takeover request carries the link that opens the live browser on a phone; every event also carries the mascot status
-the UI animates. An event whose fields have an unexpected shape must still reach the client, filed and animated,
-rather than losing its record or its status.
+the UI animates. An event whose fields have an unexpected shape must still reach the client animated, rather than
+losing its status.
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -67,46 +66,20 @@ def _approval(**data: object) -> dict[str, object]:
     return {"type": "approval_required", "data": {"action_type": "shell_execute", "reason": "run it", **data}}
 
 
-def _filed_expiry(create_approval: AsyncMock) -> datetime | None:
-    call = create_approval.await_args
-    assert call is not None
-    expires_at: datetime | None = call.kwargs["expires_at"]
-    return expires_at
-
-
 def _of_type(events: list[dict[str, object]], event_type: str) -> dict[str, object]:
     (found,) = [event for event in events if event.get("type") == event_type]
     return found
 
 
 @pytest.mark.asyncio
-async def test_an_approval_with_a_timeout_is_filed_with_the_moment_it_lapses() -> None:
-    before = datetime.now(timezone.utc)
-
-    _, create_approval = await _stream(_approval(approval_timeout_seconds=30))
-
-    expires_at = _filed_expiry(create_approval)
-    assert expires_at is not None
-    assert before + timedelta(seconds=30) <= expires_at <= datetime.now(timezone.utc) + timedelta(seconds=30)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("data", [{}, {"approval_timeout_seconds": 0}, {"approval_timeout_seconds": None}])
-async def test_an_approval_without_a_usable_timeout_is_filed_without_an_expiry(data: dict[str, object]) -> None:
-    _, create_approval = await _stream(_approval(**data))
-
-    assert _filed_expiry(create_approval) is None
-
-
-@pytest.mark.asyncio
-async def test_an_approval_with_a_malformed_timeout_is_still_filed_and_still_reaches_the_client() -> None:
-    events, create_approval = await _stream(_approval(approval_timeout_seconds="soon"))
+async def test_an_approval_is_filed_and_reaches_the_client_with_the_id_of_its_record() -> None:
+    events, create_approval = await _stream(_approval())
 
     create_approval.assert_awaited_once()
-    assert _filed_expiry(create_approval) is None
     data = _of_type(events, "approval_required")["data"]
     assert isinstance(data, dict)
     assert data["approval_id"] == "approval-1"
+    assert data["messageId"] == "msg-enrichment"
 
 
 @pytest.mark.asyncio

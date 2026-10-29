@@ -87,9 +87,6 @@ interface CompanionState {
   mascotNextLevelXp: number;
   mascotUnlockedTools: string[];
 
-  // DAG State
-  dagData: Record<string, unknown> | null;
-
   // Sprite overlay state
   spriteEnabled: boolean;
   spriteConfig: SpriteConfig | null;
@@ -109,8 +106,6 @@ interface CompanionActions {
   setMood: (mood: Mood) => void;
   touchInteraction: () => void;
   setMascotXpState: (state: { level: number; xp: number; next_level_xp: number; unlocked_tools: string[] }) => void;
-  setDagData: (data: Record<string, unknown> | null) => void;
-
   hatch: () => void;
   pet: () => void;
   setReaction: (reaction: string | null) => void;
@@ -164,8 +159,6 @@ const useCompanionStore = create<CompanionStore>()(
       mascotNextLevelXp: 100,
       mascotUnlockedTools: [],
 
-      dagData: null,
-
       spriteEnabled: false,
       spriteConfig: null,
       petPaletteOpen: false,
@@ -186,8 +179,6 @@ const useCompanionStore = create<CompanionStore>()(
           mascotNextLevelXp: state.next_level_xp,
           mascotUnlockedTools: state.unlocked_tools,
         }),
-      setDagData: (dagData) => set({ dagData }),
-
       hatch: () => {
         if (!get().hatchedAt) {
           set({ hatchedAt: Date.now(), enabled: true });

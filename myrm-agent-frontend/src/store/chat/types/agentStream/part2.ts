@@ -427,10 +427,4 @@ export interface MascotXpUpdateStreamEvent {
   };
 }
 
-export interface DagStateUpdateStreamEvent {
-  type: typeof AgentEventType.DAG_STATE_UPDATE;
-  messageId?: string;
-  data: unknown;
-}
-
 export type { CatchupSnapshotStreamEvent } from './part2Catchup';

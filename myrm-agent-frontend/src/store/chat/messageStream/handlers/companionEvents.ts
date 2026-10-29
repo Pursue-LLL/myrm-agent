@@ -19,17 +19,6 @@ export async function companionEvents(ctx: StreamCtx): Promise<StreamTurn | null
     return done(ctx);
   }
 
-  // Handle DAG state updates
-  if (data.type === 'dag_state_update') {
-    try {
-      const companionStore = (await import('@/store/useCompanionStore')).default;
-      companionStore.getState().setDagData(data.data as Record<string, unknown> | null);
-    } catch {
-      // safe fallback
-    }
-    return done(ctx);
-  }
-
   if (data.type === 'catchup_snapshot') {
     const snap = data.data;
     actions.setMessages((state) => {

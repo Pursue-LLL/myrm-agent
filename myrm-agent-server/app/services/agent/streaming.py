@@ -267,13 +267,6 @@ async def _ai_agent_service_stream_inner(
                                 **approval_payload,
                                 "messageId": params.message_id,
                             }
-                        timeout_seconds = approval_payload.get("approval_timeout_seconds")
-                        expires_at = None
-                        if isinstance(timeout_seconds, int | float) and timeout_seconds:
-                            from datetime import datetime, timedelta, timezone
-
-                            expires_at = datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds)
-
                         record = await ApprovalRegistry.create_approval(
                             agent_id=params.agent_id or "default",
                             chat_id=params.chat_id,
@@ -283,7 +276,6 @@ async def _ai_agent_service_stream_inner(
                             reason=approval_data.get("reason"),
                             severity=approval_data.get("severity", "warning"),
                             status="PENDING",
-                            expires_at=expires_at,
                         )
                         # Enrich event with approval_id so frontend knows which ID to resolve
 
@@ -338,16 +330,6 @@ async def _ai_agent_service_stream_inner(
                     event = event_dict
             except Exception as ex:
                 logger.warning("Failed to inject mascot status to event: %s", ex)
-
-            # Broadcast DAG state updates if present
-            try:
-                event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
-                if event_type == "dag_state_update":
-                    (getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {}))
-                    # We yield it so the SSE connection can push it to the client
-                    # The frontend should listen for this event type
-            except Exception as ex:
-                logger.warning("Failed to process event state update: %s", ex)
 
             yield event
     except Exception:
