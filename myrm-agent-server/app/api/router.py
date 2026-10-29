@@ -106,7 +106,6 @@ from app.api.system.aborted_usage_ledger_api import router as system_aborted_usa
 from app.api.system.active_skill_telemetry_api import router as system_active_skill_telemetry_router
 from app.api.system.composite_usage_ledger_api import router as system_composite_usage_ledger_router
 from app.api.system.context_breakdown_api import router as system_context_breakdown_router
-from app.api.system.context_savings_api import router as system_context_savings_router
 from app.api.system.coordination_friction_api import router as system_coordination_friction_router
 from app.api.system.cron_doctor_api import router as system_cron_doctor_router
 from app.api.system.custom_agent_insights_api import router as system_custom_agent_insights_router
@@ -123,7 +122,6 @@ from app.api.system.issue_ticketing_api import router as system_issue_ticketing_
 from app.api.system.knowledge_compounding_api import router as system_knowledge_compounding_router
 from app.api.system.model_ping_api import router as system_model_ping_router
 from app.api.system.multi_tier_health_api import router as system_multi_tier_health_router
-from app.api.system.multimodal_trace_api import router as system_multimodal_trace_router
 from app.api.system.org_spend_limit_api import router as system_org_spend_limit_router
 from app.api.system.rate_limit_governor_api import router as system_rate_limit_governor_router
 from app.api.system.rate_limit_split_api import router as system_rate_limit_split_router
@@ -131,7 +129,6 @@ from app.api.system.resource_ledger_api import router as system_resource_ledger_
 from app.api.system.retrieval_trace_api import router as system_retrieval_trace_router
 from app.api.system.roi_analytics_api import router as system_roi_analytics_router
 from app.api.system.router import router as system_router
-from app.api.system.runtime_zombie_reaper_api import router as system_runtime_zombie_reaper_router
 from app.api.system.sandbox_hardware_telemetry_api import router as system_sandbox_hardware_telemetry_router
 from app.api.system.shutdown import router as system_shutdown_router
 from app.api.system.stream_metrics_api import router as system_stream_metrics_router
@@ -139,7 +136,6 @@ from app.api.system.token_economics_api import router as system_token_economics_
 from app.api.system.turn_context_provenance_api import router as system_turn_context_provenance_router
 from app.api.system.unattended_coverage_api import router as system_unattended_coverage_router
 from app.api.system.unattended_reliability_api import router as system_unattended_reliability_router
-from app.api.system.visual_flight_recorder_api import router as system_visual_flight_recorder_router
 from app.api.system.workflow_burn_api import router as system_workflow_burn_router
 from app.api.system_assistant import router as system_assistant_router
 from app.api.tasks.router import router as tasks_router
@@ -158,7 +154,6 @@ from app.api.workspace.router import router as workspace_router
 from app.config.deploy_mode import is_local_mode
 
 from .system.ambient_auxiliary_accounting_api import router as system_ambient_auxiliary_router
-from .system.cross_period_milestone_api import router as system_cross_period_milestone_router
 
 api_router = APIRouter()
 
@@ -344,7 +339,6 @@ api_router.include_router(system_debug_share_router, prefix="/system", tags=["sy
 api_router.include_router(system_token_economics_router, prefix="/system", tags=["system"])
 api_router.include_router(system_delivery_dossier_router, prefix="/system", tags=["system"])
 api_router.include_router(system_rate_limit_governor_router, prefix="/system", tags=["system"])
-api_router.include_router(system_context_savings_router, prefix="/system", tags=["system"])
 api_router.include_router(system_org_spend_limit_router, prefix="/system", tags=["system"])
 api_router.include_router(system_knowledge_compounding_router, prefix="/system", tags=["system"])
 api_router.include_router(system_turn_context_provenance_router, prefix="/system", tags=["system"])
@@ -358,12 +352,8 @@ api_router.include_router(system_custom_agent_insights_router, prefix="/system",
 api_router.include_router(system_evidence_cross_verification_router, prefix="/system", tags=["system"])
 api_router.include_router(system_composite_usage_ledger_router, prefix="/system", tags=["system"])
 api_router.include_router(system_ambient_auxiliary_router, prefix="/system", tags=["system"])
-api_router.include_router(system_cross_period_milestone_router, prefix="/system", tags=["system"])
 api_router.include_router(system_event_causality_lineage_router, prefix="/system", tags=["system"])
-api_router.include_router(system_multimodal_trace_router, prefix="/system", tags=["system"])
-api_router.include_router(system_visual_flight_recorder_router, prefix="/system", tags=["system"])
 api_router.include_router(system_sandbox_hardware_telemetry_router, prefix="/system", tags=["system"])
-api_router.include_router(system_runtime_zombie_reaper_router, prefix="/system", tags=["system"])
 api_router.include_router(system_delegation_billing_router, prefix="/system", tags=["system"])
 api_router.include_router(system_aborted_usage_ledger_router, prefix="/system", tags=["system"])
 api_router.include_router(system_active_skill_telemetry_router, prefix="/system", tags=["system"])
