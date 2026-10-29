@@ -173,6 +173,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/mattermost/test_mattermost_reaction_lifecycle.py` | 单元 | Mattermost 按用户、帖子、名称删除自己加的反应：空串撤销已加的，没加过不发请求，添加失败抛出且不记账 |
 | `channels/providers/discord/test_discord_reaction_lifecycle.py` | 单元 | Discord `Message.remove_reaction`：空串撤销已加的反应且只撤一次，没加过不碰消息，添加失败抛出且不记账，没有机器人用户时无从撤销 |
 | `channels/providers/feishu/test_feishu_webhook_routes.py` | 单元 | 飞书 webhook 路由注册在路由注册器上，不是注册器的对象被忽略 |
+| `channels/providers/feishu/sdk/test_at_all_defused.py` | 单元 | 智能体文本里的「@所有人」标记（`<at user_id="all">`、`<at id=all>`，含单引号、等号两侧空白、大小写、换行写法）不会通知整个飞书群：文本、富文本、卡片三种消息体经发送、回复、编辑、更新四条路径，以及流式卡片更新，一律在出口处被拆开；指向具体用户、`all_hands` 之类的标记与普通文本原样发出 |
+| `channels/providers/googlechat/test_googlechat_all_mention.py` | 单元 | 智能体文本里的 `<users/all>` 与 `<chat-user data-user="users/all">`（含大小写、单引号、无引号、等号两侧空白）不会通知整个 Google Chat 空间：创建与更新消息时都在出口处被拆开；`<users/allen>`、`<users/all_hands>`、指向具体用户的标记与普通文本原样发出 |
 | `channels/routing/test_reply_target.py` | 单元 | 系统回复（静音、忙碌、配额）引用的消息号：到达消息号优先，其次是元数据里的消息号（数字转成文本），都没有则不引用 |
 | `core/channel_bridge/test_execute_preamble_context_document.py` | 单元 | 参考文档并入本轮查询：短文档在数据边界内跟在查询之后、文档里的文字冒充不了边界标记、长文档存进智能体工作区且只显示路径（真实文件往返）、截断时说明显示了多少、缺失与空文档如实告知、无可用文档与多模态查询原样不变、工作区写不了降级为缺失、不能当目录名的会话不会落到别处、能放下的文档不留文件 |
 | `core/channel_bridge/test_executor_helpers_agent_workspace.py` | 单元 | `agent_workspace`：就是会话的 JIT 工作区目录；不能当目录名的 id（`..`、`a/b`、`x\y` 等）没有工作区并记 WARNING |

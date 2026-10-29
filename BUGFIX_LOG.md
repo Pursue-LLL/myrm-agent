@@ -2,6 +2,42 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 飞书与 Google Chat 发出的文本能通知整个群或空间：智能体文本里的「@所有人」标记原样发出
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 5 项未处理。 |
+| **症状** | 飞书官方文档（2026-10-29 联网检索）写明：文本消息里的 `<at user_id="all">…</at>`、卡片 markdown 里的 `<at id=all></at>` 会 @所有人；Google Chat 官方文档写明 Chat 标记 `<users/all>` 与 Markdown 写法 `<chat-user data-user="users/all">` 会通知整个空间。智能体文本来自模型，可由网页、邮件、群聊里的提示注入间接控制。飞书的文本进入 `feishu/sdk/_messaging.py` 的 `send_message`、`reply_message`、`edit_message`、`patch_message` 与 `documents/_cardkit.py` 的 `streaming_card_update`，Google Chat 的进入 `googlechat/api.py` 的 `send_message`、`update_message`，两处此前都把文本原样放进请求体。上面 Mattermost 那条记录的「仍然存在」已把这两个渠道列为「没有核对」。 |
+| **根因** | 这些客户端方法是全部文本的出口，里面没有任何处理；各渠道的 `render()` 也不改写提及。 |
+| **修复** | 飞书新增 `sdk/_mentions.py:24` `defuse_at_all`：在 `<at …id=all…>` 的 `<` 后插入零宽空格，别的文本不动；在上述五个方法里对 `content` 调用（`_messaging.py:67,111,157,173`、`_cardkit.py:58`），所以文本、富文本、卡片三种消息体经发送、回复、编辑、补丁以及流式卡片更新全部覆盖。`content` 是 JSON，引号与换行以转义形式出现，所以标记名后要求空白（真实空白或 `\n` `\t` 转义）、属性名取以 `id` 结尾的任意名字（`user_id`、`id`）、`all` 必须是完整的词（`all_hands` 不处理）、大小写不敏感、单双引号、等号两侧可有空白。Google Chat 新增 `googlechat/mentions.py:25` `defuse_all_mention`，处理 `<users/all>` 与 `<chat-user data-user="users/all">` 两种写法（同样大小写不敏感、`users/allen`、`users/all_hands` 不处理），在 `api.py:181,199` 的创建与更新里调用。 |
+| **回归证据** | [1] 先红：新增 `tests/channels/providers/feishu/sdk/test_at_all_defused.py` 与 `tests/channels/providers/googlechat/test_googlechat_all_mention.py` 共 189 例，实现前 156 例失败、33 例（无关文本原样发出）通过，失败原因是断言命中「@所有人」标记。[2] 飞书侧：八种写法 × 文本、富文本、卡片、结果卡片四种消息体 × 发送、回复、编辑、补丁四条路径，以及流式卡片更新的八种写法 × 是否最终，经真实 `FeishuClient` 加 `httpx.MockTransport` 取实际请求体，断言解码后的每个字符串都不含标记、去掉零宽空格后与原内容相同；富文本把换行拆成两个元素，标记本来就已被拆开，所以那一种组合不要求出现零宽空格。Google Chat 侧：六种写法 × 创建与更新。[3] 变异：23 个（五个出口各自不处理、大小写、转义引号、转义空白、标记名后的空白、`all` 词界、属性名、等号两侧空白、替换丢掉 `<`、Google Chat 两个分支与各自的词界、无引号、等号空白）全部被打红；第一轮出现过一个存活（属性名前的词界判断，多处理而不漏处理）与一个模式匹配歧义，前者通过简化正则去掉该判断（`<at xid=all>` 这类并非飞书属性的写法现在也会被多处理一个不可见字符），后者改用更精确的替换串后重跑。[4] `tests/channels/providers/feishu`、`googlechat` 共 876 通过；`ruff check`、`ruff format --check` 通过，新增与改动的模块 `mypy` 无报错（顺带修掉 `googlechat/api.py` 两处 `no-any-return`）。 |
+| **仍然存在** | ① 没有在真实飞书或 Google Chat 验证：判定依据是官方文档里写明的几种写法，零宽空格是否让平台不再解析为「@所有人」没有实测。② 飞书文档评论回复（`documents/_comments.py`）没有处理：没有找到官方文档里评论内容的提及语义，属无证据。③ 飞书富文本里结构化的 `{"tag":"at","user_id":"all"}` 元素不在处理范围：只确认了 `build_post_content` 对含标记的文本产出的是 `text` 元素，没有逐个检查其他消息构造器。④ 没有渠道级开关：主人让代理代发「@所有人」公告时也不会通知。⑤ 其余有「@所有人」语义的渠道（Matrix、Teams、钉钉、企业微信等）没有核对。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/feishu/sdk/_mentions.py:24` · `feishu/sdk/_messaging.py:67,111,157,173` · `feishu/sdk/documents/_cardkit.py:58` · `app/channels/providers/googlechat/mentions.py:25` · `googlechat/api.py:181,199` · `tests/channels/providers/feishu/sdk/test_at_all_defused.py` · `tests/channels/providers/googlechat/test_googlechat_all_mention.py` |
+
+## 2026-10-29 · 云端 Discord 的长回复被截断、Telegram 的长回复被整条丢弃：控制平面的客户端不管单条消息的长度上限
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-control-plane` 本地提交 `53d4112`；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | 云端实例里 Discord、Telegram 的出站经控制平面的 `ChannelEgress` 到各自的平台客户端。改动前 Discord 客户端对发送与编辑都做 `content[:_MAX_LEN]`（`_MAX_LEN = 2000`），超过 2000 字的回复被切掉结尾且没有任何提示；Telegram 客户端把整段文本交给 `sendMessage`，官方文档写明文本为 1–4096 字符，超限按文档不被接受，客户端只记一条日志并返回 `None`，整条回复丢失。本地与桌面模式走服务端自己的渠道实现，那边按渠道上限拆分，不受影响。 |
+| **根因** | 两个客户端把「一条回复」当成「一条平台消息」，没有拆分步骤；Discord 用切片掩盖了超限，Telegram 把失败当成普通错误日志。 |
+| **修复** | 新增 `gateway/channels/text_chunks.py:25` `split_text(text, limit)`：在每段后半部分里最后一个换行（没有则最后一个空格）处切，没有这样的位置才在上限处硬切；跨越切口的代码围栏在前一段末尾关闭、后一段开头重开；不产出只含空白的片段；上限小于 128 抛 `ValueError`。`discord/client.py` 与 `telegram/client.py` 的 `send_message` 按上限拆成多条依次发出，只有第一条带回复引用（Telegram 每条都留在同一话题里），某一条被拒绝就停止发送，返回第一条的消息号并记录丢失的尾部；`update_message`/`edit_message` 装不进一条消息时拒绝（返回 `False` 并记日志）而不是截断，因为一次编辑拆不成多条。 |
+| **回归证据** | [1] 新增 `tests/unit/gateway/test_egress_long_text.py` 23 例：拆分的内容保全、各片段不超限、换行与空格优先、围栏跨段的关闭与重开、空白片段、下限；Discord 与 Telegram 的发送（多条、回复引用只在第一条、话题保留、中途被拒绝返回第一条的消息号）与编辑（刚好等于上限放行、多一个字拒绝且不发请求）。[2] 变异 20 个（切口窗口少一、围栏不关闭或不重开、不重切、空白片段保留、下限检查去掉、短文本也拆、每条都带回复、失败返回 `None`、编辑上限差一或再次截断、Telegram 话题只在第一条、两个平台上限改小）全部被打红；第一轮存活的「空白尾部保留」与「短文本提前返回」补了用例后同样被打红。[3] `ruff`、`mypy` 对改动文件无报错；控制平面单元测试整体 1601 通过、1 失败（`test_sandbox_runtime_protocol.py::test_unpause_delegates`，在 `infra/compute/docker_operations/lifecycle.py:121` 抛 `RuntimeError: Container did not become running`，这两个提交只改了 `gateway/` 与 `tests/unit/gateway/`）。 |
+| **仍然存在** | ① 没有在真实 Discord、Telegram 上验证：上限取自官方文档，客户端只用 `httpx` 替身验证。② 云端编辑装不进一条消息时现在返回 `False`；服务端收到这个失败后是否回退为新消息（服务端只在编辑抛出时回退，见上方「渠道的编辑被平台拒绝时不报错」一条），没有端到端核对。③ 长度按 Python 字符（码点）计，Telegram 文档写的是解析实体之后的字符数，含 emoji 等非 BMP 字符时的计数差异没有核对。 |
+| **代码位置** | `myrm-control-plane/src/myrm_control_plane/gateway/channels/text_chunks.py:25` · `gateway/channels/discord/client.py:25,68-100` · `gateway/channels/telegram/client.py:26,69-101` · `tests/unit/gateway/test_egress_long_text.py` |
+
+## 2026-10-29 · 云端实例的 Slack、Discord、飞书出站能通知整个频道或服务器：控制平面的客户端不处理广播提及
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-control-plane` 本地提交 `91acad6`；未 push）。「仍然存在」里的 2 项未处理。 |
+| **症状** | 云端实例里飞书、Slack、Discord、Telegram 的出站经控制平面的 `ChannelEgress` 到各自的平台客户端，服务端渠道目录里为 Slack、Discord、Mattermost 做的广播提及处理管不到这条路径。改动前 Slack 客户端的 `chat.postMessage`、`chat.update` 把文本原样放进 `text`；Discord 客户端的发送与编辑没有 `allowed_mentions`，Discord 对没带该字段的消息按文本里的提及全部解析（官方文档的 Allowed Mentions 一节）；飞书出站用 `json.dumps({"text": reply.content})` 直接拼文本消息（`pipeline/egress.py`）。智能体文本可由提示注入间接控制，非主人发送者（`sender_admission.py` 支持的访客、配对成员）因此能借云端机器人发出 `<!channel>`、`@everyone`、`<at user_id="all">`。 |
+| **根因** | 同一个渠道在服务端与控制平面有两份出站实现，之前的修复只改了服务端那份。 |
+| **修复** | Slack 客户端新增 `neutralize_broadcast_mentions`（`slack/client.py:29`，把 `<!here>`、`<!channel>`、`<!everyone>`、`<!subteam^…>` 的 `&`、`<`、`>` 转义成 `&amp;`、`&lt;`、`&gt;`：Slack 把它们显示成字符本身，所以读起来不变但不再通知；已转义的不再匹配，重复调用结果不变），`chat.postMessage` 与 `chat.update` 都经过它（`:82,:100`）。Discord 客户端常量 `_ALLOWED_MENTIONS = {"parse": ["users"], "replied_user": True}`（`discord/client.py:28`）随发送与编辑一起发出，只放行用户提及与被回复者提醒。飞书客户端新增 `text_message_content`（`feishu/client.py:36`）：在 `<at user_id="all">` 的 `<` 后插入零宽空格，`pipeline/egress.py` 的发送、回复、更新三处改用它。Telegram 没有核对，未处理。 |
+| **回归证据** | [1] 新增 `tests/unit/gateway/test_egress_mentions.py` 31 例：Slack 各种广播令牌与普通提及、`&` 转义与幂等、发送与更新的请求体；Discord 发送与编辑的 `allowed_mentions` 精确值；飞书各种 `user_id=all` 写法（大小写、引号、等号空白）与无关的 `<at>` 标记原样，经 `egress` 的发送、回复、更新。[2] 变异 13 个（Slack 两条路径不处理、大小写、不转义 `&`；Discord 发送与编辑不带字段、放开角色、去掉 `replied_user`；飞书等号空白、大小写、`all` 词界、更新与发送路径用回原写法）全部被打红。[3] `ruff`、`mypy` 对改动文件无报错。 |
+| **仍然存在** | ① 没有在真实 Slack、Discord、飞书上验证，只验证了请求体。② 飞书只处理文本消息里的 `user_id="all"` 写法：控制平面的飞书出站只发 `msg_type: "text"`（`pipeline/egress.py`），卡片 markdown 里的 `<at id=all>` 不在这条路径上；之后若发卡片需要补。 |
+| **代码位置** | `myrm-control-plane/src/myrm_control_plane/gateway/channels/slack/client.py:29,82,100` · `gateway/channels/discord/client.py:28,77,100` · `gateway/channels/feishu/client.py:32,36` · `gateway/pipeline/egress.py` · `tests/unit/gateway/test_egress_mentions.py` |
+
 ## 2026-10-29 · 带按钮的 Slack 消息正文不显示：只有 actions 块、没有正文块，占位改写成最终回复时按钮被丢掉，Slack 拒绝块时整条消息连正文一起丢失
 
 | 字段 | 内容 |

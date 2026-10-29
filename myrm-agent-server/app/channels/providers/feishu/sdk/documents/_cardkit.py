@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 
+from .._mentions import defuse_at_all
 from ._host import FeishuHost
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class FeishuCardKitMixin(FeishuHost):
         token = await self.ensure_token()
         http = self._get_http()
         payload: dict[str, object] = {
-            "content": content,
+            "content": defuse_at_all(content),
             "seq": seq,
         }
         if is_final:

@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPubl
 from cryptography.x509 import load_pem_x509_certificate
 
 from app.channels.providers._http_timeout import resolve_timeout
+from app.channels.providers.googlechat.mentions import defuse_all_mention
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ class GoogleChatClient:
         """Create a message in a space (format: ``spaces/XXXXX``)."""
         http = self._get_http()
         url = f"{_CHAT_API}/{space}/messages"
-        body: dict[str, object] = {"text": text}
+        body: dict[str, object] = {"text": defuse_all_mention(text)}
         params: dict[str, str] = {}
 
         if thread_key:
@@ -186,7 +187,8 @@ class GoogleChatClient:
 
         resp = await http.post(url, json=body, params=params, headers=await self._auth_headers())
         resp.raise_for_status()
-        return resp.json()
+        message: dict[str, object] = resp.json()
+        return message
 
     async def update_message(self, name: str, text: str) -> dict[str, object]:
         """Update an existing message (format: ``spaces/XXXXX/messages/YYYYY``)."""
@@ -194,12 +196,13 @@ class GoogleChatClient:
         url = f"{_CHAT_API}/{name}"
         resp = await http.put(
             url,
-            json={"text": text},
+            json={"text": defuse_all_mention(text)},
             params={"updateMask": "text"},
             headers=await self._auth_headers(),
         )
         resp.raise_for_status()
-        return resp.json()
+        message: dict[str, object] = resp.json()
+        return message
 
     async def delete_message(self, name: str) -> None:
         http = self._get_http()

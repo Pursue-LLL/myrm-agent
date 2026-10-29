@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from app.channels.providers.feishu.sdk._mentions import defuse_at_all
 from app.channels.providers.feishu.sdk.exceptions import (
     FeishuRateLimitError,
     FeishuSendError,
@@ -63,7 +64,7 @@ class FeishuMessagingMixin:
         payload: dict[str, object] = {
             "receive_id": receive_id,
             "msg_type": msg_type,
-            "content": content,
+            "content": defuse_at_all(content),
         }
         if reply_in_thread:
             payload["reply_in_thread"] = True
@@ -107,7 +108,7 @@ class FeishuMessagingMixin:
         token = await self.ensure_token()
         payload: dict[str, object] = {
             "msg_type": msg_type,
-            "content": content,
+            "content": defuse_at_all(content),
         }
         if reply_in_thread:
             payload["reply_in_thread"] = True
@@ -153,7 +154,7 @@ class FeishuMessagingMixin:
         resp = await http.put(
             f"{self.api_base}/im/v1/messages/{message_id}",
             headers=self._auth(token),
-            json={"msg_type": msg_type, "content": content},
+            json={"msg_type": msg_type, "content": defuse_at_all(content)},
         )
 
         body = self._safe_json(resp, "edit")
@@ -169,7 +170,7 @@ class FeishuMessagingMixin:
         resp = await http.patch(
             f"{self.api_base}/im/v1/messages/{message_id}",
             headers=self._auth(token),
-            json={"msg_type": msg_type, "content": content},
+            json={"msg_type": msg_type, "content": defuse_at_all(content)},
         )
         if resp.status_code >= 400:
             logger.debug("Feishu patch failed: HTTP %d", resp.status_code)
