@@ -41,11 +41,13 @@ from app.services.agent.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
 
-_COLLECTION_TIMEOUT_SECONDS = 30.0  # the serial Doctor probes took 3-10 s on a loaded dev machine
+_COLLECTION_TIMEOUT_SECONDS = 30.0  # a Doctor snapshot took 3-10 s on a loaded dev machine, mostly in the probes that call out
 _MAX_PROFILES = 50
 _MAX_EVENT_LOG_FILES = 10
 _MAX_BYTES_PER_EVENT_LOG = 64 * 1024  # 64 KB per session trace sample
-_TRACE_OMITTED_NOTICE = "[trace omitted: the newest event is larger than the per-file size limit]\n"
+_MAX_BYTES_PER_TRACE_LINE = _MAX_BYTES_PER_EVENT_LOG // 8  # a longer event is replaced by a marker
+_MARKER_FIELDS = ("seq", "ts", "type")  # when and what kind of event was omitted
+_MARKER_FIELD_MAX_CHARS = 64
 
 
 def _safe_json_dumps(data: object) -> str:
@@ -54,22 +56,43 @@ def _safe_json_dumps(data: object) -> str:
     return redact_sensitive_text(raw_str)
 
 
-def _tail_complete_lines(text: str, max_bytes: int) -> str:
-    """Newest whole lines of ``text`` that fit in ``max_bytes`` of UTF-8.
+def _event_marker(line: str, size: int) -> str:
+    """Stand-in for an event too long to publish: when it happened, its kind and how long it was, never its payload."""
+    marker: dict[str, object] = {}
+    try:
+        event = json.loads(line)
+    except ValueError:
+        event = None
+    if isinstance(event, dict):
+        for field in _MARKER_FIELDS:
+            value = event.get(field)
+            if isinstance(value, int | float | str) and len(str(value)) <= _MARKER_FIELD_MAX_CHARS:
+                marker[field] = value
+    marker["omitted_bytes"] = size
+    return json.dumps(marker, ensure_ascii=False)
 
-    A window that starts mid-line would carry the tail of a credential without the key name or
-    prefix the redactor needs to recognise it, so the partial first line is dropped.
+
+def _newest_whole_events(text: str, max_bytes: int) -> str:
+    """Newest complete JSONL events of ``text`` that fit in ``max_bytes`` of UTF-8, oldest first.
+
+    Lines are never cut: a window that began inside a line would carry the tail of a credential without the
+    key name or prefix the redactor needs, and the unterminated last line is a write still in progress. An event
+    longer than ``_MAX_BYTES_PER_TRACE_LINE`` (a full prompt, an unbounded command output) becomes a marker, so a
+    single one cannot push the tool calls and errors around it out of the window. Splitting on ``\\n`` only keeps a
+    line separator character inside a JSON string from ending the event early.
     """
-    raw = text.encode("utf-8")
-    if len(raw) <= max_bytes:
-        return text
-    cut = len(raw) - max_bytes
-    window = raw[cut:]
-    if raw[cut - 1 : cut] != b"\n":
-        _, newline, window = window.partition(b"\n")
-        if not newline:
-            return ""
-    return window.decode("utf-8", errors="replace")
+    kept: list[str] = []
+    used = 0
+    for line in reversed(text.split("\n")[:-1]):
+        if not line.strip():
+            continue
+        size = len(line.encode("utf-8"))
+        entry = (line if size <= _MAX_BYTES_PER_TRACE_LINE else _event_marker(line, size)) + "\n"
+        used += len(entry.encode("utf-8"))
+        if used > max_bytes:
+            break
+        kept.append(entry)
+    return "".join(reversed(kept))
 
 
 class SupportBundleService:
@@ -159,10 +182,7 @@ class SupportBundleService:
             for file_path in files:
                 try:
                     raw_content = file_path.read_text(encoding="utf-8", errors="replace")
-                    tail = _tail_complete_lines(raw_content, _MAX_BYTES_PER_EVENT_LOG)
-                    if raw_content and not tail:
-                        tail = _TRACE_OMITTED_NOTICE
-                    traces[file_path.name] = redact_sensitive_text(tail)
+                    traces[file_path.name] = redact_sensitive_text(_newest_whole_events(raw_content, _MAX_BYTES_PER_EVENT_LOG))
                 except OSError as err:
                     traces[file_path.name] = f"[Read error: {err}]"
         except Exception as exc:
