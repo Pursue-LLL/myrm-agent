@@ -9,7 +9,8 @@
 - Fails when the disclosure of a folder that holds a FIFO as ``SKILL.md`` and sparse multi-megabyte ``mcp.json`` and
   ``.myrm/config.toml`` does not come back with the counts of the honest files, when its hash differs between two previews,
   when trusting the folder with the hash the user was shown is refused, or when a folder named with a space, Chinese characters,
-  accents or URL-special characters is not the same folder in its preview, its decision, the list and its removal.
+  accents or URL-special characters, or one reached through a symlink, is not the same folder in its preview, its decision, the
+  list and its removal.
 
 [POS]
 The folder preview is the first thing a user meets for a folder they have not trusted, and the server builds it on the event
@@ -166,3 +167,38 @@ def test_a_folder_with_a_name_a_url_would_mangle_is_disclosed_trusted_listed_and
         assert [entry for entry in after if entry["path"] == shown["canonical_path"]] == []
     finally:
         client.delete(BASE, params={"path": str(folder), "remove": "true"})
+
+
+def test_a_folder_reached_through_a_symlink_is_trusted_and_removed_as_the_folder_it_points_to(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A user who keeps projects behind a link and opens the link path trusts the real folder, not a second entry."""
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "AGENTS.md").write_text("# Rules\nUse tabs.\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+
+    shown, _ = _preview(client, link)
+    assert shown["canonical_path"] == str(real.resolve())
+
+    try:
+        decided = client.post(
+            f"{BASE}/decide",
+            json={"path": str(link), "level": "TRUSTED", "manifest_hash": shown["manifest_hash"]},
+        )
+        assert decided.status_code == 200, decided.text
+        trusted_paths = [entry["path"] for entry in client.get(BASE).json()["data"] if entry["level"] == "TRUSTED"]
+        assert trusted_paths.count(str(real.resolve())) == 1
+        assert str(link) not in trusted_paths
+
+        again, _ = _preview(client, real)
+        assert again["current_level"] == "TRUSTED"
+
+        removed = client.delete(BASE, params={"path": str(real), "remove": "true"})
+        assert removed.status_code == 200, removed.text
+        after_removal, _ = _preview(client, link)
+        assert after_removal["current_level"] is None
+    finally:
+        client.delete(BASE, params={"path": str(link), "remove": "true"})
+        client.delete(BASE, params={"path": str(real), "remove": "true"})
