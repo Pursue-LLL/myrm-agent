@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -16,6 +16,7 @@ from app.channels.providers.wecom.aibot_channel import (
     WeComStreamState,
 )
 from app.channels.providers.wecom.channel import WeComChannel
+from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.session_gate import SessionGateConfig
 from app.channels.types import (
@@ -72,37 +73,38 @@ class StubStreamingExecutor:
 
 
 @pytest.mark.asyncio
-async def test_wecom_aibot_overflow_chunks_lifecycle_integration() -> None:
-    """Integration: super-long answers split into chunks, morphing first chunk and sending rest via proactive."""
+async def test_wecom_aibot_long_answer_finishes_the_stream_with_chunk_one_and_sends_the_rest_in_order() -> None:
+    """The router finalizes the placeholder with the first chunk and publishes every further chunk as a message."""
+    bus = MessageBus()
     ch = WeComAiBotChannel(bot_id="test_bot", secret="test_secret")
     mock_ws = AsyncMock()
     ch._ws = mock_ws
+    bus.register_channel(ch)
+    await bus.start()
+    try:
+        stream_id = await ch.send_placeholder("chat_long", "Thinking...", thread_id="req_long")
+        assert stream_id is not None
 
-    # Seed placeholder stream
-    stream_id = await ch.send_placeholder("chat_long", "Thinking...", thread_id="req_long")
-    assert stream_id is not None
-    assert stream_id in ch._active_streams
+        # CJK text counts 3 UTF-8 bytes a character, so this answer needs three chunks of the byte limit.
+        answer = "长" * (ch.render_style.max_text_length // 3 * 2 + 100)
+        msg = OutboundMessage(channel="wecom_aibot", recipient_id="chat_long", content=answer, user_id="u_long")
+        await MessageEffects(bus).edit_placeholder("wecom_aibot", "chat_long", stream_id, msg)
 
-    # Edit placeholder with multi-chunk message
-    with patch(
-        "app.channels.providers.wecom.aibot_channel.render",
-        return_value=["Chunk 1", "Chunk 2", "Chunk 3"],
-    ):
-        msg = OutboundMessage(
-            channel="wecom_aibot",
-            recipient_id="chat_long",
-            content="Chunk 1 content\n\nChunk 2 overflow\n\nChunk 3 overflow",
-            user_id="u_long",
-        )
-        await ch.edit_placeholder_message("chat_long", stream_id, msg)
+        proactive: list[dict[str, object]] = []
+        for _ in range(100):
+            sent_payloads = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]
+            proactive = [p for p in sent_payloads if p.get("cmd") == "aibot_send_msg"]
+            if len(proactive) == 2:
+                break
+            await asyncio.sleep(0.02)
+    finally:
+        await bus.stop()
 
-    # Assert 1 respond_msg (first chunk finished) + 2 proactive aibot_send_msg
-    sent_payloads = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]
-    respond_msgs = [p for p in sent_payloads if p.get("cmd") == "aibot_respond_msg"]
-    proactive_msgs = [p for p in sent_payloads if p.get("cmd") == "aibot_send_msg"]
-
-    assert any(p.get("body", {}).get("stream", {}).get("finish") is True for p in respond_msgs)
-    assert len(proactive_msgs) == 2
+    respond = [p for p in sent_payloads if p.get("cmd") == "aibot_respond_msg"]
+    finished = [p["body"]["stream"]["content"] for p in respond if p["body"]["stream"].get("finish") is True]
+    assert len(finished) == 1
+    assert len(proactive) == 2
+    assert finished[0] + "".join(p["body"]["text"]["content"] for p in proactive) == answer
 
 
 @pytest.mark.asyncio

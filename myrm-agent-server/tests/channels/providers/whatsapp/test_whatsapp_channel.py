@@ -19,6 +19,7 @@ from app.channels.providers.whatsapp.helpers import (
     check_mentioned,
     is_self_chat,
     parse_message_key,
+    parse_quoted_key,
 )
 from app.channels.types import (
     ChannelStatus,
@@ -571,6 +572,32 @@ class TestWhatsAppSend:
         assert key["id"] == "key_123"
 
     @pytest.mark.asyncio
+    async def test_send_quotes_the_replied_message_on_the_first_chunk_only(self) -> None:
+        ch = _make_channel()
+        sent: list[dict[str, object]] = []
+
+        def _write(cmd: dict[str, object]) -> None:
+            sent.append(cmd)
+            ch._sent_futures[str(cmd["nonce"])].set_result({"id": f"key_{len(sent)}"})
+
+        quoted = {"id": "orig", "remoteJid": "999@s.whatsapp.net"}
+        msg = OutboundMessage(
+            channel="whatsapp",
+            recipient_id="999@s.whatsapp.net",
+            content="body",
+            user_id="U",
+            reply_to_id=json.dumps(quoted),
+        )
+        with (
+            patch.object(ch, "_write_cmd", side_effect=_write),
+            patch("app.channels.providers.whatsapp.channel.render", return_value=["first", "second"]),
+        ):
+            await ch.send(msg)
+
+        assert [cmd["text"] for cmd in sent] == ["first", "second"]
+        assert [cmd.get("quoted_key") for cmd in sent] == [quoted, None]
+
+    @pytest.mark.asyncio
     async def test_send_not_connected(self) -> None:
         ch = _make_channel()
         ch._connected.clear()
@@ -902,6 +929,22 @@ class TestWhatsAppParseKey:
 
     def test_parse_key_not_dict(self) -> None:
         assert parse_message_key(json.dumps([1, 2])) is None
+
+
+class TestWhatsAppParseQuotedKey:
+    """parse_quoted_key: only a serialized key that names a message can be quoted."""
+
+    def test_a_serialized_key_is_quoted(self) -> None:
+        assert parse_quoted_key(json.dumps({"id": "k1", "fromMe": True})) == {"id": "k1", "fromMe": True}
+
+    def test_a_plain_message_id_names_no_key(self) -> None:
+        assert parse_quoted_key("3EB0ABCDEF") is None
+
+    def test_a_dict_without_an_id_names_no_key(self) -> None:
+        assert parse_quoted_key(json.dumps({"remoteJid": "x@s.whatsapp.net"})) is None
+
+    def test_a_json_value_that_is_not_a_dict_names_no_key(self) -> None:
+        assert parse_quoted_key(json.dumps([1, 2])) is None
 
 
 # ------------------------------------------------------------------

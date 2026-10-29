@@ -13,6 +13,8 @@
 [POS]
 Rich Message send helper mixin. Attempts sendRichMessage first; sets
 _rich_send_available and returns None to trigger HTML fallback on the host channel.
+The parts of every rendered chunk are one ordered delivery: only a failure of the first
+part falls back to HTML, a later part that fails is a partial delivery.
 """
 
 from __future__ import annotations
@@ -59,11 +61,14 @@ class TelegramRichOutboundMixin:
         reply_markup: dict[str, object] | None,
         notify_kwargs: NotificationKwargs,
     ) -> str | None:
-        """Attempt to send via ``sendRichMessage``. Returns message_id or None to fall back."""
+        """Attempt to send via ``sendRichMessage``. Returns message_id or None to fall back.
+
+        The parts of every rendered chunk go out as one ordered delivery: the quote rides the first part, the
+        buttons the last. Only a failure of the first part falls back to HTML; a later one is a partial delivery.
+        """
         from .html_converter import split_markdown_rich
 
-        chunks = render(msg, self._rich_render_style)
-        parts = split_markdown_rich(chunks[0]) if chunks else []
+        parts = [part for chunk in render(msg, self._rich_render_style) for part in split_markdown_rich(chunk)]
         if not parts:
             return None
 
@@ -82,7 +87,7 @@ class TelegramRichOutboundMixin:
             return None if mid is None else str(mid)
 
         try:
-            last_mid = await deliver_chunks(self, parts, send_part)
+            return await deliver_chunks(self, parts, send_part)
         except TelegramApiError as exc:
             # Only the first part raises it as is: nothing has been sent, so the HTML path can take over.
             if exc.is_method_not_found:
@@ -93,20 +98,3 @@ class TelegramRichOutboundMixin:
                 logger.warning("TelegramChannel: sendRichMessage rejected (%s), falling back to HTML", exc.description)
                 return None
             raise
-
-        for remaining_chunk in chunks[1:]:
-            for part in split_markdown_rich(remaining_chunk):
-                try:
-                    result = await self._client.send_rich_message(
-                        chat_id,
-                        part,
-                        message_thread_id=thread_id,
-                        **notify_kwargs,
-                    )
-                    mid = result.get("message_id")
-                    if mid is not None:
-                        last_mid = str(mid)
-                except TelegramApiError:
-                    break
-
-        return last_mid

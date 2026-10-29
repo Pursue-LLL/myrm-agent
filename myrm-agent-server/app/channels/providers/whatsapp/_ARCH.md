@@ -12,7 +12,7 @@ WhatsApp 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `bridge.py` | 模块 | Bridge process management. WhatsAppChannel inherits spawn/read/write/kill via Mixin; channel.py and inbound.py focus on business logic (messaging, event dispatch). | ✅ |
 | `channel.py` | 模块 | WhatsApp integration core: lifecycle, outbound bridge stdin commands and media/group/typing/reaction requests; composes `WhatsAppInboundMixin`, `WhatsAppLoginMixin` and `BridgeProcessMixin`. | ✅ |
 | `format_converter.py` | 模块 | WhatsApp format conversion. Protects code blocks/inline code, converts formatting markers, restores protected content. | ✅ |
-| `helpers.py` | 模块 | WhatsApp JID normalization, mention detection, self-chat detection, and path constants. Shared by channel.py and bridge.py. | ✅ |
+| `helpers.py` | 模块 | WhatsApp JID normalization, mention detection, self-chat detection, message-key and quote parsing, and path constants. Shared by channel.py and bridge.py. | ✅ |
 | `inbound.py` | 模块 | `WhatsAppInboundMixin`: bridge event dispatch, connection state, group sync, and message / reaction parsing into `InboundMessage`. | ✅ |
 | `login.py` | 模块 | `WhatsAppLoginMixin`: QR-code pairing events streamed to the frontend as `LoginEvent` (AsyncLoginProtocol). | ✅ |
 | `message_keys.py` | 模块 | Baileys key of each inbound message (`inbound_message_key`) and the bounded `MessageKeys` memory the channel fills on inbound and `react_to_message` reads, so a reaction quotes the key as received (group `participant`, raw LID `remoteJid`). | ✅ |

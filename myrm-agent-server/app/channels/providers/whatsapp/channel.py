@@ -42,6 +42,7 @@ from app.channels.providers.whatsapp.helpers import (
     _default_auth_dir,
     _normalize_jid,
     parse_message_key,
+    parse_quoted_key,
 )
 from app.channels.providers.whatsapp.inbound import WhatsAppInboundMixin
 from app.channels.providers.whatsapp.login import WhatsAppLoginMixin
@@ -196,7 +197,7 @@ class WhatsAppChannel(WhatsAppInboundMixin, WhatsAppLoginMixin, BaseChannel, Cac
 
         if msg.content:
             chunks = list(render(msg, self.render_style))
-            quoted_key = self._parse_quoted_key(msg.reply_to_id) if msg.reply_to_id else None
+            quoted_key = parse_quoted_key(msg.reply_to_id) if msg.reply_to_id else None
 
             async def send_chunk(chunk: str, index: int) -> str | None:
                 nonce = uuid.uuid4().hex[:12]
@@ -223,23 +224,6 @@ class WhatsAppChannel(WhatsAppInboundMixin, WhatsAppLoginMixin, BaseChannel, Cac
         )
         logger.info("WhatsAppChannel: sent to %s (media=%d)", jid, len(msg.media))
         return last_key
-
-    @staticmethod
-    def _parse_quoted_key(reply_to_id: str) -> dict[str, object] | None:
-        """Parse a reply_to_id into a Baileys message key for quoting.
-
-        reply_to_id can be a JSON-serialized Baileys key (from send_placeholder)
-        or a raw message ID string. Returns the key dict if valid, None otherwise.
-        """
-        if not reply_to_id:
-            return None
-        try:
-            key = json.loads(reply_to_id)
-            if isinstance(key, dict) and "id" in key:
-                return key
-        except (json.JSONDecodeError, TypeError):
-            pass
-        return None
 
     async def _send_media(self, jid: str, attachment: MediaAttachment) -> None:
         """Hand one attachment to the bridge; raises ``ChannelSendError`` when it has no file or URL to send."""

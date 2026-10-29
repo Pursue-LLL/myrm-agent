@@ -7,10 +7,10 @@ Stateless utilities shared by the channel and bridge modules.
 [OUTPUT]
 - Constants: _MAX_TEXT_LENGTH, _BRIDGE_DIR, _BRIDGE_SCRIPT, _PROCESS_STOP_TIMEOUT
 - Functions: _default_auth_dir, _prefer_pn_jid, _strip_device_suffix, _normalize_jid,
-             check_mentioned, is_self_chat, parse_message_key
+             check_mentioned, is_self_chat, parse_message_key, parse_quoted_key
 
 [POS]
-WhatsApp JID normalization, mention detection, self-chat detection, and path constants.
+WhatsApp JID normalization, mention detection, self-chat detection, message-key and quote parsing, and path constants.
 Shared by channel.py and bridge.py.
 """
 
@@ -143,3 +143,12 @@ def parse_message_key(message_id: str) -> dict[str, object] | None:
     except (json.JSONDecodeError, TypeError):
         logger.warning("WhatsApp: invalid message key: %s", message_id[:50])
         return None
+
+
+def parse_quoted_key(reply_to_id: str) -> dict[str, object] | None:
+    """The Baileys key a reply quotes: a JSON-serialized key (what ``send_placeholder`` returns); a plain id names none."""
+    try:
+        key = json.loads(reply_to_id)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return key if isinstance(key, dict) and "id" in key else None

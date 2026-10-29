@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from app.channels.core.exceptions import ChannelSendError
@@ -35,6 +38,19 @@ def _message(reply_to_id: str | None = None) -> OutboundMessage:
 
 def _texts(mock: AsyncMock) -> list[str]:
     return [call.args[1] for call in mock.await_args_list]
+
+
+@contextmanager
+def _rich_reply(chunks: list[str], parts_of: dict[str, list[str]] | None = None) -> Iterator[None]:
+    """The rich path sees ``chunks`` as the rendered reply; a chunk splits into ``parts_of[chunk]`` or stays one part."""
+    with (
+        patch("app.channels.providers.telegram.outbound_rich.render", return_value=chunks),
+        patch(
+            "app.channels.providers.telegram.html_converter.split_markdown_rich",
+            side_effect=lambda text: (parts_of or {}).get(text, [text]),
+        ),
+    ):
+        yield
 
 
 @pytest.mark.asyncio
@@ -146,3 +162,64 @@ async def test_a_later_rich_part_rejected_is_a_partial_delivery_not_a_silent_tru
     client.send_message.assert_not_awaited()  # no HTML fallback that would resend part one
     assert exc_info.value.accepted is True
     assert "Delivered 1 of 3" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_a_flood_limited_chunk_after_the_first_rich_chunk_is_retried_alone_and_the_order_holds() -> None:
+    ch, client = _channel(rich=True)
+    limited = TelegramApiError(429, "Too Many Requests", {"retry_after": 0})
+    client.send_rich_message = AsyncMock(side_effect=[{"message_id": 1}, limited, {"message_id": 2}, {"message_id": 3}])
+    with _rich_reply(["one", "two", "three"]):
+        result = await ch.send(_message())
+
+    assert _texts(client.send_rich_message) == ["one", "two", "two", "three"]
+    assert result == "3"
+    client.send_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_chunk_after_the_first_rich_chunk_refused_for_good_ends_the_reply_without_a_hole() -> None:
+    ch, client = _channel(rich=True)
+    client.send_rich_message = AsyncMock(side_effect=[{"message_id": 1}, TelegramApiError(403, "Forbidden: bot was blocked")])
+    with _rich_reply(["one", "two", "three"]), pytest.raises(ChannelSendError) as exc_info:
+        await ch.send(_message())
+
+    assert _texts(client.send_rich_message) == ["one", "two"]
+    assert exc_info.value.accepted is True
+    assert "Delivered 1 of 3" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_a_transport_error_after_the_first_rich_chunk_is_a_partial_delivery() -> None:
+    ch, client = _channel(rich=True)
+    client.send_rich_message = AsyncMock(side_effect=[{"message_id": 1}, httpx.ConnectError("down")])
+    with _rich_reply(["one", "two"]), pytest.raises(ChannelSendError) as exc_info:
+        await ch.send(_message())
+
+    assert _texts(client.send_rich_message) == ["one", "two"]
+    assert exc_info.value.accepted is True
+
+
+@pytest.mark.asyncio
+async def test_a_connection_reset_after_the_first_rich_chunk_is_retried_alone_not_resent_whole() -> None:
+    ch, client = _channel(rich=True)
+    client.send_rich_message = AsyncMock(side_effect=[{"message_id": 1}, OSError("reset"), {"message_id": 2}])
+    with _rich_reply(["one", "two"]):
+        await ch.send(_message())
+
+    assert _texts(client.send_rich_message) == ["one", "two", "two"]
+
+
+@pytest.mark.asyncio
+async def test_the_rich_quote_rides_the_first_part_and_the_buttons_the_last_part_of_the_whole_reply() -> None:
+    ch, client = _channel(rich=True)
+    with (
+        _rich_reply(["one", "two"], {"one": ["one-a", "one-b"]}),
+        patch("app.channels.providers.telegram.outbound.build_inline_keyboard", return_value=_BUTTONS),
+    ):
+        await ch.send(_message(reply_to_id="7"))
+
+    calls = client.send_rich_message.await_args_list
+    assert _texts(client.send_rich_message) == ["one-a", "one-b", "two"]
+    assert [c.kwargs["reply_to_message_id"] for c in calls] == [7, None, None]
+    assert [c.kwargs["reply_markup"] for c in calls] == [None, None, _BUTTONS]

@@ -16,7 +16,8 @@ Outbound: aibot_respond_msg frames with stream support, aibot_send_msg for proac
 [POS]
 WeCom AI Bot channel: WebSocket long-lived connection, no public IP required,
 native streaming replies. Supports message/event callbacks, welcome messages,
-template cards, and proactive push. Its text limit is counted in UTF-8 bytes.
+template cards, and proactive push. Its text limit is counted in UTF-8 bytes. A stream is
+finalized with the one chunk the router hands over; any further chunk is a message of its own.
 """
 
 from __future__ import annotations
@@ -270,34 +271,23 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        """Finalize a streaming message with the full content, handling multi-chunk pagination."""
+        """Finalize a streaming message with its one rendered chunk; the router sends any further chunk as a message of its own."""
         state = self._active_streams.pop(message_id, None)
 
         chunks = render(msg, self.render_style)
-        if not chunks:
-            chunks = [msg.content] if msg.content else []
-
-        first_chunk = chunks[0] if chunks else ""
-        overflow_chunks = chunks[1:] if len(chunks) > 1 else []
+        final_text = chunks[0] if chunks else (msg.content or "")
 
         if not state:
-            # No active stream; send everything via proactive message
-            for chunk in chunks:
-                if chunk:
-                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
+            # No active stream; send it as a proactive message
+            if final_text:
+                self._require_sent(await self._send_proactive_msg(chat_id, final_text))
         elif state.is_force_closed:
-            # Stream was closed by sentinel; deliver first chunk via respond_msg, rest proactive
-            self._require_sent(await self._send_respond_msg(state.req_id, first_chunk, finish=True))
-            for chunk in overflow_chunks:
-                if chunk:
-                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
+            # Stream was closed by sentinel; the final text goes out as a reply to the original request
+            self._require_sent(await self._send_respond_msg(state.req_id, final_text, finish=True))
         elif self._ws:
-            # Active stream; morph first chunk in place, send remaining chunks proactively
-            sent = await self._send_respond_msg(state.req_id, first_chunk, finish=True, stream_id=message_id)
+            # Active stream; morph it in place
+            sent = await self._send_respond_msg(state.req_id, final_text, finish=True, stream_id=message_id)
             self._require_sent(sent)
-            for chunk in overflow_chunks:
-                if chunk:
-                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
         else:
             raise ChannelSendError("WeCom AI Bot is not connected", channel=self.name)
 

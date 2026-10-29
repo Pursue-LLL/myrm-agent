@@ -1,7 +1,9 @@
-"""Static guard: a provider that renders a reply into chunks delivers them through ``deliver_chunks``.
+"""Static guard: a provider file that renders a reply into chunks calls ``deliver_chunks``.
 
 Posting the chunks in a loop of its own leaves the first chunks to be sent again when a later one fails and
-the message bus retries ``send()`` as a whole. The files below render a reply but never post it chunk by chunk.
+the message bus retries ``send()`` as a whole. The check only proves that the file calls the helper: a second
+hand-written loop in the same file passes it, so the behaviour of each path is pinned by the provider's own
+delivery tests. The files below render a reply but never post it chunk by chunk.
 """
 
 from __future__ import annotations

@@ -45,7 +45,7 @@ tracer = get_tracer(__name__)
 _T = TypeVar("_T")
 
 DEFAULT_RETRYABLE = (
-    OSError,  # covers ConnectionError, httpx.ConnectError, etc.
+    OSError,  # covers ConnectionError and socket errors; httpx transport errors are not OSError subclasses
     TimeoutError,  # covers asyncio.TimeoutError (alias since 3.11)
 )
 
