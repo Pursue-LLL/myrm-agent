@@ -19,10 +19,9 @@ class TestDiscordSplitterIntegration:
         # Verify splitting occurred
         assert len(chunks) >= 2, "Long message should be split"
 
-        # Verify all chunks are under limit (with small overflow tolerance)
+        # Discord rejects a message over 2000 characters
         for i, chunk in enumerate(chunks):
-            # Allow 20% overflow (overflow_tolerance default)
-            assert len(chunk) <= 2000 * 1.2, f"Chunk {i + 1} exceeds limit: {len(chunk)} chars"
+            assert len(chunk) <= 2000, f"Chunk {i + 1} exceeds limit: {len(chunk)} chars"
 
         # Verify all chunks have balanced fences
         for i, chunk in enumerate(chunks):

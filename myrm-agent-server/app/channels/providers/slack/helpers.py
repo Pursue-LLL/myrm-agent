@@ -111,7 +111,7 @@ def build_message_blocks(body: str, msg: OutboundMessage) -> list[dict[str, obje
         return None
     sections: list[dict[str, object]] = [
         {"type": "section", "text": {"type": "mrkdwn", "text": part}}
-        for part in split_message(body, _SECTION_TEXT_LIMIT, overflow_tolerance=0.0)
+        for part in split_message(body, _SECTION_TEXT_LIMIT)
         if part.strip()
     ]
     return [*sections, *actions]

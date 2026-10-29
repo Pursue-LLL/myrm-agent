@@ -13,8 +13,8 @@ are properly closed and reopened across chunk boundaries.
 
 [POS]
 Smart long-message splitter for IM outbound delivery. Line-by-line fence state machine
-(auto-close/reopen ``` and ~~~ fences across chunks), ASCII/CJK punctuation boundaries,
-overflow tolerance, and shared boundary-char exports for provider-specific splitters.
+(auto-close/reopen ``` and ~~~ fences across chunks), a hard per-chunk length limit,
+ASCII/CJK punctuation boundaries, and shared boundary-char exports for provider-specific splitters.
 """
 
 from __future__ import annotations
@@ -45,6 +45,21 @@ def _detect_fence(line: str) -> tuple[bool, str]:
     if match:
         return True, match.group(0)
     return False, ""
+
+
+def _fence_symbol(fence_marker: str) -> str:
+    """The run of fence characters of a marker: "```python" -> "```"."""
+    match = re.match(r"^[`~]+", fence_marker)
+    return match.group(0) if match else "```"
+
+
+def _close_fence(body: str, fence_marker: str) -> str:
+    """``body`` closed with the fence symbol of ``fence_marker``; unchanged when no fence is open."""
+    if not fence_marker:
+        return body
+    if body and not body.endswith("\n"):
+        body += "\n"
+    return body + _fence_symbol(fence_marker)
 
 
 def _smart_split_line(line: str, max_len: int) -> list[str]:
@@ -114,174 +129,95 @@ def cap_stream_preview(text: str, max_len: int, *, suffix: str = _PREVIEW_TRUNC_
     return head + suffix
 
 
-def split_message(
-    content: str,
-    max_len: int = 4096,
-    overflow_tolerance: float = 0.2,
-    fence_patterns: re.Pattern | None = None,
-) -> list[str]:
-    """Split content into chunks with perfect fence-aware semantic preservation.
+def split_message(content: str, max_len: int = 4096) -> list[str]:
+    """Split content into chunks of at most ``max_len`` characters, keeping code fences intact.
 
-    Features:
-        1. Fence state tracking: ``` and ~~~ (3-10 symbols) support
-        2. Long lines inside fences retain fence protection across chunk boundaries
-        3. Smart splitting: Prefers whitespace/punctuation boundaries
-        4. Configurable overflow tolerance for semantic integrity
+    A chunk that ends inside a fence closes it and the next chunk reopens it with the same marker. A code line
+    too long for a chunk of its own is cut at whitespace or punctuation and every piece is fenced. A fence marker
+    never ends up alone in a chunk. Only a ``max_len`` smaller than one fenced character cannot be honoured.
 
     Priority order:
         1. Line boundary with fence integrity
         2. Smart split at whitespace/punctuation
-        3. Hard split for extreme cases (with fence wrapper if inside fence)
+        3. Hard split for lines with no boundary (fence-wrapped when inside a fence)
 
     Args:
         content: Text to split
-        max_len: Maximum chunk length (soft limit, can be exceeded for fence integrity)
-        overflow_tolerance: Allowed overflow ratio for semantic preservation (default 0.2 = 20%)
-        fence_patterns: Optional custom fence regex pattern (default: ``` or ~~~, 3-10 symbols)
+        max_len: Maximum chunk length, the platform's message limit
 
     Returns:
-        List of chunks, each properly fence-wrapped if needed
-
-    Examples:
-        >>> # Discord with strict limit
-        >>> split_message(text, max_len=2000, overflow_tolerance=0.15)
-
-        >>> # Slack with more flexibility
-        >>> split_message(text, max_len=4000, overflow_tolerance=0.3)
+        List of non-empty chunks, each at most ``max_len`` long and fence-balanced
     """
     if len(content) <= max_len:
         return [content]
 
-    # Use custom pattern or default
-    fence_pattern = fence_patterns or _CODE_FENCE
-
-    # Reserve space for closing fence
-    fence_close_len = 4  # "\n```" or "\n~~~"
-
-    # Helper function with custom pattern support
-    def _detect_fence_local(line: str) -> tuple[bool, str]:
-        """Local fence detection using configurable pattern."""
-        match = fence_pattern.match(line.strip())
-        if match:
-            return True, match.group(0)
-        return False, ""
-
     chunks: list[str] = []
     current: list[str] = []
     current_len = 0
-    fence_open = ""  # Tracks the opening fence marker (e.g., "```python")
+    fence_open = ""  # Marker of the fence the scan is inside, e.g. "```python"
 
-    def _get_fence_symbol(fence_marker: str) -> str:
-        """Extract fence symbol from marker (e.g., "```python" -> "```")."""
-        match = re.match(r"^[`~]+", fence_marker)
-        return match.group(0) if match else "```"
-
-    def _append_fence_close(body: str, fence_state: str) -> str:
-        if not fence_state:
-            return body
-        fence_symbol = _get_fence_symbol(fence_state)
-        if body and not body.endswith("\n"):
-            body += "\n"
-        return body + fence_symbol
-
-    def _flush(fence_state_to_use: str = "") -> None:
-        """Flush current buffer to chunks, closing fence if needed.
-
-        Args:
-            fence_state_to_use: Fence state to use for closing (defaults to current fence_open)
-        """
-        nonlocal fence_open
-        if not current:
-            return
-
-        # Use provided fence state, or default to current fence_open
-        state_to_check = fence_state_to_use if fence_state_to_use is not None else fence_open
-
-        body = _append_fence_close("".join(current), state_to_check)
-        chunks.append(body)
+    def _flush(fence_state: str) -> None:
+        """Emit the buffer closed with the fence still open in it; a trailing opener with no code under it is dropped."""
+        nonlocal current_len
+        if fence_state and current and current[-1].strip() == fence_state:
+            current.pop()
+            fence_state = ""
+        body = "".join(current)
         current.clear()
+        current_len = 0
+        if body.strip():
+            chunks.append(_close_fence(body, fence_state))
 
     lines = content.split("\n")
-    for line_idx, line in enumerate(lines):
-        if line_idx < len(lines) - 1:
-            line_with_nl = line + "\n"
-        else:
-            line_with_nl = line
-        stripped = line.strip()
+    last_idx = len(lines) - 1
+    for idx, line in enumerate(lines):
+        line_with_nl = line if idx == last_idx else line + "\n"
+        fence_before = fence_open
 
-        # Detect fence toggle
-        is_fence, fence_marker = _detect_fence_local(stripped)
-
-        # Store fence state before this line
-        fence_open_before = fence_open
-
+        is_fence, marker = _detect_fence(line)
         if is_fence:
-            if fence_open:
-                # Check if this is the closing fence (same symbol)
-                if _get_fence_symbol(fence_marker) == _get_fence_symbol(fence_open):
-                    fence_open = ""
-            else:
-                # Opening fence
-                fence_open = fence_marker
+            if not fence_open:
+                fence_open = marker
+            elif _fence_symbol(marker) == _fence_symbol(fence_open):
+                fence_open = ""
 
-        # Check if we need to flush before adding this line
-        reserved = fence_close_len if fence_open else 0
-        if current and current_len + len(line_with_nl) + reserved > max_len:
-            saved_fence = fence_open_before  # Use fence state BEFORE this line
-            _flush(fence_state_to_use=saved_fence)  # Flush with correct fence state
-            current_len = 0
-
-            if saved_fence:
-                # Re-open fence in next chunk
-                fence_open = saved_fence
-                reopener = saved_fence + "\n"
-                current.append(reopener)
-                current_len += len(reopener)
-
-        # Long lines inside an open fence: preserve fence wrapper per segment
-        if len(line_with_nl) > max_len:
-            if fence_open:
-                # ===== CRITICAL: Preserve fence integrity for long lines =====
-                fence_symbol = _get_fence_symbol(fence_open)
-                fence_overhead = len(fence_open) + 2 + len(fence_symbol) + 1
-                total_len = len(line) + fence_overhead
-
-                # Flush current buffer first (will auto-close fence)
-                if current:
-                    _flush(fence_state_to_use=fence_open)
-                    current_len = 0
-
-                if total_len <= max_len * (1 + overflow_tolerance):
-                    # Strategy 1: Keep entire line as single chunk (slight overflow ok)
-                    chunks.append(f"{fence_open}\n{line}\n{fence_symbol}")
+        if fence_before and not fence_open:
+            # Closing fence: a chunk still holding code takes it; a full one was closed by its flush, which
+            # leaves nothing to close here.
+            if current:
+                if current_len + len(line_with_nl) <= max_len:
+                    current.append(line_with_nl)
+                    current_len += len(line_with_nl)
                 else:
-                    # Strategy 2: Smart split with fence wrapper for each segment
-                    available_len = max_len - fence_overhead
-                    segments = _smart_split_line(line, max(available_len, 100))
+                    _flush(fence_before)
+            continue
 
-                    for seg in segments:
-                        # Each segment wrapped in fence
-                        chunks.append(f"{fence_open}\n{seg}\n{fence_symbol}")
+        symbol_len = len(_fence_symbol(fence_open)) if fence_open else 0
+        close_len = symbol_len + 1 if fence_open else 0  # "\n" and the symbol that close the chunk
+        if current and current_len + len(line_with_nl) + close_len > max_len:
+            _flush(fence_before)
 
-                # After handling long line, re-open fence in current for subsequent lines
-                # (fence_open state is unchanged, so fence is still logically open)
-                current.append(fence_open + "\n")
-                current_len += len(fence_open) + 1
-            else:
-                if current:
-                    _flush(fence_state_to_use=fence_open_before)
-                    current_len = 0
-                for seg in _smart_split_line(line, max_len):
-                    if seg.strip():
-                        chunks.append(seg)
-        else:
-            # Normal-length line
+        if current:
             current.append(line_with_nl)
             current_len += len(line_with_nl)
+            continue
 
-    # Final flush
-    if current:
-        body = _append_fence_close("".join(current), fence_open)
-        chunks.append(body)
+        # First line of a chunk: a code line continues the fence, so it is preceded by the fence marker.
+        reopen_len = len(fence_before) + 1 if fence_before else 0
+        if reopen_len + len(line_with_nl) + close_len <= max_len:
+            if fence_before:
+                current.append(fence_before + "\n")
+            current.append(line_with_nl)
+            current_len = reopen_len + len(line_with_nl)
+        elif fence_before:
+            segment_len = max(max_len - len(fence_before) - symbol_len - 2, 1)
+            chunks.extend(
+                f"{fence_before}\n{segment}\n{_fence_symbol(fence_before)}"
+                for segment in _smart_split_line(line, segment_len)
+                if segment.strip()
+            )
+        else:
+            chunks.extend(segment for segment in _smart_split_line(line, max_len) if segment.strip())
 
-    return [c for c in chunks if c.strip()]
+    _flush(fence_open)
+    return chunks
