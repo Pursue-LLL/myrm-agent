@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 对话公开分享页原样展示聊天里粘贴过的密钥（导出有遮蔽、分享页没有）；分享对话框不提示「之后的新消息也会显示」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/services/chat/share_renderer.py`、新增 `tests/services/chat/test_chat_share_renderer_redaction.py`；frontend：`ShareConversationDialog.tsx`、`locales/{en,zh,zh-TW,ja,ko,de}.json` 的 `chat.share.exposureNotice`、对话框单测；文档：`app/services/chat/_ARCH.md`、`sidebar/_ARCH.md`、官网 `security-architecture.mdx`（中英）与 `zh/guides/chat-history.mdx`；路线图 topic_03 #505 补「实施进展」） |
+| **症状** | ① 在聊天里粘贴 `sk-proj-…`、`AKIA…`、`glpat-…` 之后创建分享链接，公开页的消息正文、会话标题、`og:description` 三处都原样带着密钥；同一段对话经「导出」会被 harness 的 `redact_sensitive_text` 遮蔽，分享页没有。② 分享对话框只有有效期、密码与撤销，不说链接会显示之后新增的消息，也不说撤回无法收回他人已存的副本。 |
+| **根因** | `share_renderer._build_html` 把 `msg.content`、`chat.title`、`chat.first_message` 直接写进页面，没有走导出已在用的遮蔽（`app/api/chats/chat/export_helpers.py` → harness `redact_sensitive_text`）。路线图 #505 草案点名要复用的 `secret_redactor.detect_secrets` 属于没有产品入口的旧导出弹窗那一套，不是用户导出实际用的引擎。 |
+| **修复** | ① `share_renderer.py:147-149` 新增 `_shared_text`：用户消息先取「应用外所见的文字」再遮蔽，助手消息直接遮蔽；`:170` 标题、`:172` 链接预览（先遮蔽再截断，截断位置切不出半截密钥）一并遮蔽；智能体名片不遮蔽（名称与模型名是用户自己配置的，不是对话里粘贴的内容）。② 遮蔽是正则密集型（见下），`:286` 把整页构建放进 `asyncio.to_thread`，不占事件循环。③ 对话框在加载完成后的每个状态（未分享 / 有效 / 密码保护 / 已撤回）都显示曝光提示，六个语言包各一条文案。 |
+| **回归证据** | [1] 把遮蔽关掉后新测试 6 例中 4 红（用户粘贴、助手 Markdown、标题与预览、预览边界），普通文字不变与「不在事件循环线程构建」两例本就是绿的，后者由变异检查覆盖。[2] 变异检查 7/7 被杀（含各出站面不遮蔽、先截断后遮蔽、去掉 `to_thread`）；「先截断后遮蔽」一例第一版存活（半截密钥 13 字符仍被识别），把填充加长到半截只剩 11 字符后被杀。[3] server `tests/services/chat` + `test_chat_share_api.py` 共 584 例通过；`ruff check` / `ruff format --check` 干净，两个文件无 mypy 报错。[4] 前端 `sidebar` 目录 98 例通过（新增 5 例：四个非加载状态都有提示、加载中没有）；`verify:i18n`、`verify:theme-colors`、prettier 通过。[5] 实测（本机，200 条消息、约 650 KB 文字，负载偏高）：构建一页中位 440 ms，其中遮蔽约 400 ms（不遮蔽 36 ms）；放进工作线程前后，构建期间事件循环的最长停顿 486 / 572 ms → 24 / 13 ms。 |
+| **仍然存在** | ① 遮蔽只是尽力而为：不认识的凭据格式、不足 13 字符的残片不会被遮蔽，对话框已如实告知。② 页面仍实时渲染，之后新增的消息照样可见；冻结快照、发布前命中清单与确认勾选没有做（路线图 #505 保持待分析）。③ 每次访问都重新遮蔽，200 条消息的页面约 0.44 s CPU，没有缓存（公开接口按 IP 限流 30 次/分钟）；是否值得缓存没有真实流量数据可依。④ 智能体名片不遮蔽。⑤ 没有在真实浏览器里看过带提示的对话框，只有组件测试。 |
+| **代码位置** | `myrm-agent-server/app/services/chat/share_renderer.py:147-149,170-172,286` · `tests/services/chat/test_chat_share_renderer_redaction.py` · `myrm-agent-frontend/src/components/features/sidebar/ShareConversationDialog.tsx:148-151` · `locales/*.json` 的 `chat.share.exposureNotice` |
+
 ## 2026-10-29 · 后台完成通知的收尾：智能体自己读过的结果仍被唤醒回合再说一遍；IM 里发起的任务，唤醒回合的回复到不了 IM；成长看板的定时任务次数把跳过的节拍也算上、并发取数共用一个会话；`companion/router.py` 超过 500 行
 
 | 字段 | 内容 |

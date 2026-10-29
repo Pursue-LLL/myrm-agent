@@ -144,6 +144,12 @@ export function ShareConversationDialog({
               </div>
             </div>
           )}
+          {!loading && (
+            <div className="flex items-start gap-2 rounded-md border bg-muted p-3">
+              <Info size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">{t('chat.share.exposureNotice')}</p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex-row gap-2 sm:justify-between">

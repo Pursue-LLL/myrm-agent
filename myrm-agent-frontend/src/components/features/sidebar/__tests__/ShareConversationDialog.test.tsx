@@ -84,6 +84,23 @@ describe('ShareConversationDialog', () => {
     expect(screen.queryByRole('button', { name: 'chat.share.revoke' })).not.toBeInTheDocument();
   });
 
+  it.each([
+    ['an unshared chat', {}],
+    ['an active link', { shareUrl: 'https://share.example.com/api/v1/public/chat-share/abc' }],
+    ['a password-protected link', { passwordProtected: true }],
+    ['a revoked link', { revoked: true }],
+  ])('tells the user what a link exposes for %s', (_label, props) => {
+    renderDialog(props);
+
+    expect(screen.getByText('chat.share.exposureNotice')).toBeInTheDocument();
+  });
+
+  it('does not show the exposure notice while the status query runs', () => {
+    renderDialog({ loading: true });
+
+    expect(screen.queryByText('chat.share.exposureNotice')).not.toBeInTheDocument();
+  });
+
   it('creates a link with the selected TTL and password', () => {
     const { onCreateLink } = renderDialog();
 

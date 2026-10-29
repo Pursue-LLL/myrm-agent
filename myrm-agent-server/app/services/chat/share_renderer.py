@@ -6,6 +6,7 @@
 - app.database.dto::ChatDTO, MessageDTO (POS: data transfer object definitions)
 - app.services.chat.chat_helpers (POS: what a message reads as outside the app, and which rows are the system's notes)
 - app.core.security.share.share_locale (POS: page language and the language tables every share page shares)
+- myrm_agent_harness.api::redact_sensitive_text (POS: the credential masker the chat export already applies)
 
 [OUTPUT]
 - render_share_html: generate self-contained HTML for a shared conversation in the visitor's language
@@ -13,12 +14,14 @@
 [POS]
 Generates responsive, script-free HTML pages for public conversation share links: markdown-it-py Markdown messages (code blocks
 and tables that scroll inside their bubble), an Agent identity card, OG metadata, dark mode and XSS protection.
-The page chrome is written in the visitor's language while the conversation is shown as written; a very long conversation
-shows its latest messages with the total count, and message times are printed in UTC because the page cannot know the visitor's zone.
+The page chrome is written in the visitor's language while the conversation is shown as written, except that credentials in the
+messages, the title and the link preview are masked (best effort: the page is public). A very long conversation shows its latest
+messages with the total count, and message times are printed in UTC because the page cannot know the visitor's zone.
 """
 
 from __future__ import annotations
 
+import asyncio
 import html
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -28,6 +31,7 @@ from markdown_it import MarkdownIt
 from markdown_it.renderer import RendererHTML
 from markdown_it.token import Token
 from markdown_it.utils import EnvType, OptionsDict
+from myrm_agent_harness.api import redact_sensitive_text
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,8 +60,9 @@ _md.add_render_rule("table_close", _close_table)
 
 _OG_DESC_MAX = 200
 
-# The page is rendered synchronously on every visit, nothing is cached, and the cost grows linearly with the
-# message count, so a very long conversation shows its latest messages and says how many there are.
+# The page is rendered on every visit (in a worker thread, so masking credentials never stalls the event loop), nothing is
+# cached, and the cost grows linearly with the message count, so a very long conversation shows its latest messages and says
+# how many there are.
 _MAX_SHARED_MESSAGES = 200
 _VISIBLE_ROLES = frozenset({"user", "assistant"})
 
@@ -139,6 +144,11 @@ async def _get_agent_info(db: AsyncSession, agent_id: str | None, chrome: _Chrom
     }
 
 
+def _shared_text(msg: MessageDTO) -> str:
+    """What a visitor reads of *msg*: the text as it reads outside the app, with credentials masked."""
+    return redact_sensitive_text(exported_user_text(msg) if msg.role == "user" else msg.content)
+
+
 def _render_message(role: str, content: str, ts: datetime, chrome: _Chrome) -> str:
     role_label = chrome.you if role == "user" else chrome.assistant
     role_class = "user" if role == "user" else "assistant"
@@ -157,15 +167,13 @@ def _build_html(
     lang: ShareLang,
 ) -> str:
     chrome = _CHROME[lang]
-    title = _esc(chat.title or chrome.untitled)
-    og_desc = _esc(_truncate(chat.first_message or chat.title or ""))
+    title = _esc(redact_sensitive_text(chat.title or chrome.untitled))
+    # Masked before it is cut: a credential cut in half no longer matches a pattern and would be left in the preview.
+    og_desc = _esc(_truncate(redact_sensitive_text(chat.first_message or chat.title or "")))
 
     visible = [msg for msg in messages if msg.role in _VISIBLE_ROLES and not is_wakeup_notice(msg)]
     shown = visible[-_MAX_SHARED_MESSAGES:]
-    messages_html = "\n".join(
-        _render_message(msg.role, exported_user_text(msg) if msg.role == "user" else msg.content, msg.created_at, chrome)
-        for msg in shown
-    )
+    messages_html = "\n".join(_render_message(msg.role, _shared_text(msg), msg.created_at, chrome) for msg in shown)
     notice = ""
     if len(visible) > len(shown):
         notice = f'<div class="notice" role="note">{_esc(chrome.truncation_notice(len(shown), len(visible)))}</div>'
@@ -275,4 +283,4 @@ async def render_share_html(
     messages = await ChatService.get_all_messages(chat_id)
     agent_info = await _get_agent_info(db, chat.agent_id, _CHROME[lang])
 
-    return _build_html(chat, messages, agent_info, lang)
+    return await asyncio.to_thread(_build_html, chat, messages, agent_info, lang)
