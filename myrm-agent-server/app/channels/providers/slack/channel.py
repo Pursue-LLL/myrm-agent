@@ -17,6 +17,7 @@ Outbound:
 - channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction added per message so an empty emoji removes it)
 - channels.providers._emoji_shortnames::to_shortname (POS: reaction glyph -> the short name reactions.add accepts)
 - channels.providers.slack.api::SlackClient (POS: HTTP/API layer)
+- channels.providers.slack.format_converter::neutralize_broadcast_mentions (POS: escapes the tokens that notify a whole audience)
 - channels.providers.slack.inbound::SlackInboundMixin (POS: Events API / interactive payload parsing)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 
@@ -67,6 +68,7 @@ from app.channels.types import (
     ToolSummaryDisplay,
 )
 
+from .format_converter import neutralize_broadcast_mentions
 from .helpers import (
     build_blocks,
 )
@@ -304,6 +306,7 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         *,
         thread_id: str | None = None,
     ) -> str | None:
+        text = neutralize_broadcast_mentions(text)
         if thread_id:
             self._active_thread_status[chat_id] = thread_id
             await self._api.set_thread_status(chat_id, thread_id, "is thinking...")
@@ -320,6 +323,8 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         return await self._api.post_message(payload)
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
+        # The complete text, before the stream delta: a token can be split across two chunks.
+        text = neutralize_broadcast_mentions(text)
         if message_id in self._stream_sent:
             prev = self._stream_sent[message_id]
             if text.startswith(prev):

@@ -21,10 +21,12 @@ class TestIsAllowedSlackToken:
     def test_channel_reference(self) -> None:
         assert _is_allowed_slack_token("<#C123456>") is True
 
-    def test_special_mentions(self) -> None:
-        assert _is_allowed_slack_token("<!here>") is True
-        assert _is_allowed_slack_token("<!channel>") is True
-        assert _is_allowed_slack_token("<!everyone>") is True
+    def test_tokens_that_notify_an_audience_are_not_allowed(self) -> None:
+        for token in ("<!here>", "<!channel>", "<!everyone>", "<!subteam^S123>", "<!here|here>"):
+            assert _is_allowed_slack_token(token) is False
+
+    def test_date_formatting_is_allowed(self) -> None:
+        assert _is_allowed_slack_token("<!date^1392734382^{date_num}|Feb 18>") is True
 
     def test_http_links(self) -> None:
         assert _is_allowed_slack_token("<http://example.com>") is True

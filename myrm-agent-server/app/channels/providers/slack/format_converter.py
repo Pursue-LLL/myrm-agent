@@ -7,12 +7,15 @@ and CJK formatting boundary insertion.
 
 [OUTPUT]
 - str: Slack mrkdwn-formatted text
+- neutralize_broadcast_mentions(): text with the tokens that notify a whole audience escaped
 
 [POS]
 Markdown → Slack mrkdwn converter. Escapes special chars (&, <, >),
 protects Slack angle-bracket tokens (<@mention>, <#channel>, <http://...>),
 converts Markdown links to Slack format, handles bold/strike formatting,
-and inserts zero-width spaces at CJK formatting boundaries.
+and inserts zero-width spaces at CJK formatting boundaries. Text the agent writes never notifies a
+whole channel, workspace or user group: ``<!here>``, ``<!channel>``, ``<!everyone>`` and ``<!subteam^ID>``
+are escaped wherever they appear, and a Markdown link cannot aim at a mention, a channel or a special token.
 """
 
 from __future__ import annotations
@@ -25,6 +28,10 @@ _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"\*(?!\*)([^*]+?)\*(?!\*)")  # *italic* (not **bold**)
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+# Tokens that notify everyone in a channel, the workspace or a user group (each may carry a ``|label``).
+_BROADCAST_TOKEN_RE = re.compile(r"<!(?:here|channel|everyone|subteam\^[^>\n|]*)(?:\|[^>\n]*)?>", re.IGNORECASE)
+# A Markdown link target starting with one of these is a mention, a channel or a special token, not a URL.
+_NON_URL_LINK_TARGETS = ("@", "#", "!")
 
 # CJK / Hangul character range for word-boundary insertion.
 # Slack mrkdwn formatting chars (*, _, ~) need word boundaries to render;
@@ -43,7 +50,7 @@ def _is_allowed_slack_token(token: str) -> bool:
     Allowed tokens:
     - <@USER_ID>: User mentions
     - <#CHANNEL_ID>: Channel references
-    - <!here>, <!channel>, <!everyone>: Special mentions
+    - <!date^...>: Date formatting (the other ``<!...>`` tokens notify an audience and are escaped)
     - <http://...>, <https://...>: Links
     - <mailto:...>, <tel:...>: Protocol links
     - <slack://...>: Slack deep links
@@ -54,7 +61,7 @@ def _is_allowed_slack_token(token: str) -> bool:
     Returns:
         True if token should be preserved, False if it should be escaped
     """
-    if not token.startswith("<") or not token.endswith(">"):
+    if not token.startswith("<") or not token.endswith(">") or _BROADCAST_TOKEN_RE.fullmatch(token):
         return False
 
     inner = token[1:-1]
@@ -76,6 +83,16 @@ def _escape_slack_segment(text: str) -> str:
     Escapes: & → &amp;, < → &lt;, > → &gt;
     """
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def neutralize_broadcast_mentions(text: str) -> str:
+    """Escape the tokens that notify a whole audience, leaving all other text as it is.
+
+    For text that reaches Slack without passing the converter (placeholders and stream edits). It works on
+    complete text, never on a fragment, because a token can be split across two chunks; escaped text no longer
+    matches, so applying it twice changes nothing.
+    """
+    return _BROADCAST_TOKEN_RE.sub(lambda match: _escape_slack_segment(match.group(0)), text)
 
 
 def _escape_slack_content(text: str) -> str:
@@ -118,46 +135,6 @@ def _escape_slack_content(text: str) -> str:
     return "".join(parts)
 
 
-def _escape_slack_content_fence_aware(text: str) -> str:
-    """Escape content while preserving code fence internals.
-
-    Code fences (```...```) should not have their content escaped.
-    This prevents `<div>` from becoming `&lt;div&gt;` inside code blocks.
-
-    Strategy:
-    1. Split text into lines
-    2. Track fence state (in_fence vs outside)
-    3. Escape only lines outside code fences
-    4. Preserve fence lines and content inside fences as-is
-
-    Args:
-        text: Input text (may contain code fences and special chars)
-
-    Returns:
-        Text with special chars escaped outside fences, fences preserved
-    """
-    if not text:
-        return ""
-
-    lines = text.split("\n")
-    result_lines: list[str] = []
-    in_fence = False
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Check if this line is a fence delimiter
-        if _CODE_FENCE_RE.match(stripped):
-            in_fence = not in_fence
-            result_lines.append(line)  # Fence line itself, no escape
-        elif in_fence:
-            result_lines.append(line)  # Inside fence, no escape
-        else:
-            result_lines.append(_escape_slack_content(line))  # Outside fence, escape
-
-    return "\n".join(result_lines)
-
-
 def _fix_cjk_formatting_boundaries(text: str) -> str:
     """Insert zero-width spaces between CJK chars and Slack formatting markers.
 
@@ -192,11 +169,13 @@ def _convert_markdown_link(match: re.Match[str]) -> str:
 
     Only converts if text != url (to avoid redundant <url|url> format).
     """
-    text = match.group(1).strip()
+    text = neutralize_broadcast_mentions(match.group(1).strip())
     url = match.group(2).strip()
 
     if not url:
         return match.group(0)
+    if url.startswith(_NON_URL_LINK_TARGETS):
+        return text
 
     comparable_url = url[len("mailto:") :] if url.startswith("mailto:") else url
 
@@ -246,8 +225,8 @@ def md_to_slack_mrkdwn(text: str) -> str:
             continue
 
         if in_fence:
-            # Inside fence: no transformations, no escape
-            result_lines.append(line)
+            # Inside fence: no transformations; only broadcast tokens are escaped
+            result_lines.append(neutralize_broadcast_mentions(line))
         else:
             # Outside fence: apply all transformations
             # 1. Bold (with temporary marker)
