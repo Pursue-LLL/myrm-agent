@@ -2,10 +2,11 @@
 
 Captures initial workspace state (working directory, top-level directory entries,
 git status, installed language runtimes, package managers, and recommended PM)
-without deep recursive traversals. Each process-starting probe (two git commands, one version command per runtime
-binary found, up to seven) is synchronous and capped at 1 s; a whole snapshot took 0.3-0.6 s in a git repository
-(15 runs, macOS, git 2.38.1). A runtime is listed only when its binary ran and reported a version; package managers and
-CLI tools are listed by their presence on PATH.
+without deep recursive traversals. A snapshot starts up to ten processes in turn: three git commands (the ``git config``
+listing behind the status command is capped at 5 s, the others at 1 s) and one version command per runtime binary
+found, up to seven, at 1 s each; for an ordinary repository layout the caps add up to 14 s. In a git repository it
+took 0.3-0.7 s typically and 1.5 s at most (four batches, macOS, machine load 11-26). A runtime is listed only when
+its binary ran and reported a version; package managers and CLI tools are listed by their presence on PATH.
 
 Injected into initial task context / observation (never polluting immutable
 system prompt) so the agent does not spend turns on pwd, ls and which.
@@ -67,13 +68,13 @@ _IGNORED_DIRS: frozenset[str] = frozenset(
     }
 )
 
-_CORE_RUNTIMES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("python", "Python", ("python3", "python")),
-    ("node", "Node.js", ("node",)),
-    ("bun", "Bun", ("bun",)),
-    ("go", "Go", ("go",)),
-    ("rust", "Rust", ("rustc",)),
-    ("java", "Java", ("java",)),
+_CORE_RUNTIMES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Python", ("python3", "python")),
+    ("Node.js", ("node",)),
+    ("Bun", ("bun",)),
+    ("Go", ("go",)),
+    ("Rust", ("rustc",)),
+    ("Java", ("java",)),
 )
 
 _CORE_TOOLS: tuple[str, ...] = ("git", "curl", "jq", "docker", "make", "tar", "rg")
@@ -160,7 +161,7 @@ def _probe_runtimes() -> list[str]:
     installed runtime, so it is left out and the next binary of the same runtime is tried.
     """
     detected: list[str] = []
-    for _runtime_id, label, binaries in _CORE_RUNTIMES:
+    for label, binaries in _CORE_RUNTIMES:
         for bin_name in binaries:
             if shutil.which(bin_name) and (version := _probe_runtime_version(bin_name)):
                 detected.append(f"{label} {version}")
@@ -292,9 +293,9 @@ def generate_sandbox_bootstrap_snapshot(
 ) -> SandboxBootstrapSnapshot:
     """Generate a lightweight, non-recursive bootstrap snapshot of the sandbox environment.
 
-    Each process-starting probe is capped at 1 s, so a snapshot can block for several seconds when a binary hangs:
-    call it from a thread when an event loop is running. Any probe failure is handled gracefully to guarantee
-    non-crashing execution.
+    Process-starting probes are capped at 1 s each, the ``git config`` listing behind the status command at 5 s, so a
+    snapshot can block for 14 s when binaries hang: call it from a thread when an event loop is running and bound
+    the wait. Any probe failure is handled gracefully to guarantee non-crashing execution.
 
     Args:
         workspace_path: Path to the workspace root directory.

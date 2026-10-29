@@ -21,8 +21,10 @@ workspace the agent edits while it works, so rebuilding it per call would move t
 drops the cached prefix behind it. It is therefore taken once per chat thread (again when the thread's
 workspace changes): the first model call that finds none takes it in a worker thread, so the event loop is
 not held while the processes run, and hands it to the graph state with its response. Every later call
-reads it back from a private, checkpointed state key. A hook node would write the same key but would add a
-graph step, and a checkpoint, to every model call of every run.
+reads it back from a private, checkpointed state key. The probe runs under a deadline: one that has not
+answered by then is abandoned on its daemon thread and the thread keeps an empty snapshot for good, so a
+hung git or binary holds up one first call, never every call and never the exit. A hook node would write
+the same key but would add a graph step, and a checkpoint, to every model call of every run.
 
 ⚠️ Self-update reminder: if this file changes, update:
 1. agent/context_management/PROMPT_CACHE_PRACTICE.md §2
@@ -33,6 +35,7 @@ graph step, and a checkpoint, to every model call of every run.
 - agent.security.workspace_trust.gate::blocks_workspace_side_channels (POS: pure predicate layer of the workspace_trust gate; unknown trust is restricted)
 - agent.security.workspace_trust.context::get_workspace_trust_level (POS: run-scoped state holder of the workspace_trust gate)
 - toolkits.code_execution.sandbox_snapshot::generate_sandbox_bootstrap_snapshot, format_bootstrap_snapshot_xml (POS: sandbox snapshot generator)
+- infra.tracing.otlp.lifecycle::run_bounded (POS: runs a blocking action on a daemon thread under a deadline)
 
 [OUTPUT]
 - WorkspaceContextState: the private state keys that hold the snapshot of a chat thread and the workspace it describes
@@ -56,14 +59,20 @@ from langchain.agents.middleware.types import AgentState, ExtendedModelResponse,
 from langchain_core.messages import SystemMessage
 from langgraph.types import Command
 
+from myrm_agent_harness.infra.tracing.otlp.lifecycle import run_bounded
+
 logger = logging.getLogger(__name__)
 
 SNAPSHOT_KEY = "workspace_snapshot"
 SNAPSHOT_ROOT_KEY = "workspace_snapshot_root"
+# A snapshot takes 0.3-0.7 s in a git repository and took 1.5 s at most in four measured batches; twice that is the
+# longest wait a first model call is made to accept.
+_SNAPSHOT_DEADLINE_MS = 3000.0
 
 
 class WorkspaceContextState(AgentState[object]):
-    """The agent state plus the sandbox snapshot of this chat thread and the workspace it describes. Private: not part of the graph's input or output."""
+    """The agent state plus the sandbox snapshot of this chat thread and the workspace it describes (empty when
+    the probe outran its deadline). Private: not part of the graph's input or output."""
 
     workspace_snapshot: NotRequired[Annotated[str, PrivateStateAttr]]
     workspace_snapshot_root: NotRequired[Annotated[str, PrivateStateAttr]]
@@ -93,6 +102,24 @@ def _take_snapshot(workspace_root: str) -> str | None:
     except Exception:
         logger.debug("Failed to generate sandbox bootstrap snapshot", exc_info=True)
         return None
+
+
+async def _acquire_snapshot(workspace_root: str) -> str | None:
+    """The snapshot of ``workspace_root``: ``None`` when the probe failed, empty when it outran the deadline.
+
+    The probe runs on a daemon thread that is waited for at most ``_SNAPSHOT_DEADLINE_MS``; a late probe is
+    abandoned and its result dropped. A failure is left to be retried, an overrun is not: a retry would wait for
+    the deadline again on every call and move the snapshot into a thread that has been served without one.
+    """
+    taken: list[str | None] = []
+    in_time = await asyncio.to_thread(
+        run_bounded,
+        lambda: taken.append(_take_snapshot(workspace_root)),
+        thread_name="workspace-snapshot",
+        timeout_ms=_SNAPSHOT_DEADLINE_MS,
+        label="Workspace snapshot",
+    )
+    return taken[0] if in_time else ""
 
 
 def _snapshot_of(state: Mapping[str, object], workspace_root: str) -> str | None:
@@ -147,7 +174,8 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
     Every model call is sent the project rules, read live, and the sandbox snapshot. The snapshot is taken once
     per chat thread, by the first call that finds none for the thread's workspace, and kept in the graph state,
     so the text at this position of the prefix does not move while the agent edits the workspace. A call whose
-    model request fails stores nothing: the retry takes the snapshot again. A trust-gated workspace is never probed.
+    model request fails stores nothing: the retry takes the snapshot again. A probe that outruns the deadline is
+    abandoned and the thread keeps an empty snapshot. A trust-gated workspace is never probed.
     """
 
     name = "workspace_rules_middleware"
@@ -189,31 +217,25 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
         snapshot = _snapshot_of(request.state, workspace_root)
         taken: dict[str, str] | None = None
         if snapshot is None:
-            snapshot = await asyncio.to_thread(_take_snapshot, workspace_root)
+            snapshot = await _acquire_snapshot(workspace_root)
             if snapshot is not None:
                 taken = {SNAPSHOT_KEY: snapshot, SNAPSHOT_ROOT_KEY: workspace_root}
-        if snapshot is not None:
+        if snapshot:
             content_parts.append(snapshot)
 
-        if not content_parts:
-            return await handler(request)
-
-        combined_content = "\n\n".join(content_parts)
-        rules_msg = SystemMessage(content=combined_content)
-
-        new_messages = list(request.messages)
-        insert_idx = _find_workspace_insert_idx(new_messages)
-        new_messages.insert(insert_idx, rules_msg)
-
-        request = request.override(messages=new_messages)
-
-        logger.info(
-            "Injected workspace context (%d rule files, %d chars, snapshot=%s) at position %d",
-            len(rules),
-            len(combined_content),
-            snapshot is not None,
-            insert_idx,
-        )
+        if content_parts:
+            combined_content = "\n\n".join(content_parts)
+            new_messages = list(request.messages)
+            insert_idx = _find_workspace_insert_idx(new_messages)
+            new_messages.insert(insert_idx, SystemMessage(content=combined_content))
+            request = request.override(messages=new_messages)
+            logger.info(
+                "Injected workspace context (%d rule files, %d chars, snapshot=%s) at position %d",
+                len(rules),
+                len(combined_content),
+                bool(snapshot),
+                insert_idx,
+            )
 
         response = await handler(request)
         if taken is None:

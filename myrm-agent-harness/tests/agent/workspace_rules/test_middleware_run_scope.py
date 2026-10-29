@@ -44,6 +44,7 @@ from pydantic import Field
 
 from myrm_agent_harness.agent.security.workspace_trust.context import set_workspace_trust_level
 from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustLevel
+from myrm_agent_harness.agent.workspace_rules import middleware
 from myrm_agent_harness.agent.workspace_rules.middleware import WorkspaceRulesMiddleware
 from myrm_agent_harness.runtime.checkpointing.factory import create_checkpointer
 from myrm_agent_harness.toolkits.code_execution import sandbox_snapshot
@@ -379,6 +380,43 @@ class TestInterruptedAndFailedRuns:
         assert session.model.workspace_contexts == [], "the stopped run never reached the model"
         config: RunnableConfig = {"configurable": {"thread_id": "chat-1"}}
         assert "workspace_snapshot" not in (await session.agent.aget_state(config)).values
+
+
+class TestAProbeThatNeverReturns:
+    async def test_the_thread_goes_on_without_a_snapshot_and_is_never_made_to_wait_again(self, workspace: Path) -> None:
+        release = threading.Event()
+        started: list[str] = []
+        real = sandbox_snapshot.generate_sandbox_bootstrap_snapshot
+
+        def hung(workspace_path: str | Path, max_entries: int = 25) -> sandbox_snapshot.SandboxBootstrapSnapshot:
+            started.append(str(workspace_path))
+            release.wait(5.0)
+            return real(workspace_path, max_entries=max_entries)
+
+        saver = MemorySaver()
+        session = _Session(saver)
+        with (
+            patch.object(sandbox_snapshot, "generate_sandbox_bootstrap_snapshot", hung),
+            patch.object(middleware, "_SNAPSHOT_DEADLINE_MS", 300.0),
+            _trust(WorkspaceTrustLevel.TRUSTED),
+        ):
+            try:
+                started_at = time.perf_counter()
+                first = await session.turn(workspace)
+                first_turn_seconds = time.perf_counter() - started_at
+                second = await session.turn(workspace)
+            finally:
+                release.set()
+
+        assert first_turn_seconds < 3.0, f"the first turn waited {first_turn_seconds:.1f} s for the probe"
+        assert len(started) == 1, "the probe is abandoned for the thread, not retried by the later calls"
+        for context in (*first, *second):
+            assert "Use type hints." in context, "the rules are still sent"
+            assert "<sandbox_environment_snapshot>" not in context
+        config: RunnableConfig = {"configurable": {"thread_id": "chat-1"}}
+        held = saver.get_tuple(config)
+        assert held is not None
+        assert held.checkpoint["channel_values"]["workspace_snapshot"] == ""
 
 
 class TestRulesStayLive:

@@ -246,7 +246,7 @@ def _find_system_insert_idx(messages):
 [5] HumanMessage: ...                     ← 每轮变化
 ```
 
-`<workspace_context>` 里的沙箱快照（`Git:` 状态、顶层文件列表）会随 agent 自己的改动变化，注入又只是对单次请求的 override、不写回图状态，若每次模型调用都重算，agent 一改文件位置 [2] 的字节就变，其后的前缀缓存在那次调用失效。因此快照按对话线程只生成一次：第一次发现线程里没有快照的模型调用在工作线程里生成它，并随这次调用的响应存入检查点状态的私有键 `workspace_snapshot` / `workspace_snapshot_root`（工作区变了才重新生成），之后每次调用读回同一份文本，约 250 token（`myrm-agent` 仓库实测 940 字符）；不用 `before_model` 之类的钩子节点，因为它会给每次模型调用多写一条检查点；规则文件仍每次实时读取。真实循环里的用例：`tests/agent/workspace_rules/test_middleware_run_scope.py`。
+`<workspace_context>` 里的沙箱快照（`Git:` 状态、顶层文件列表）会随 agent 自己的改动变化，注入又只是对单次请求的 override、不写回图状态，若每次模型调用都重算，agent 一改文件位置 [2] 的字节就变，其后的前缀缓存在那次调用失效。因此快照按对话线程只生成一次：第一次发现线程里没有快照的模型调用在工作线程里生成它（限时 3 秒：超时的探测被抛弃，线程存下空串并冻结，此后不再探测、不注入快照块，位置 [2] 同样不动），并随这次调用的响应存入检查点状态的私有键 `workspace_snapshot` / `workspace_snapshot_root`（工作区变了才重新生成），之后每次调用读回同一份文本，约 250 token（`myrm-agent` 仓库实测 940 字符）；不用 `before_model` 之类的钩子节点，因为它会给每次模型调用多写一条检查点；规则文件仍每次实时读取。真实循环里的用例：`tests/agent/workspace_rules/test_middleware_run_scope.py`。
 
 如果 `user_instructions` 在 system prompt **之前**（`insert(0, ...)`），不同用户的前缀从第一个 token 就不同，system prompt 的跨用户缓存完全失效。
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,6 +20,7 @@ from myrm_agent_harness.agent.workspace_rules.middleware import (
     _format_rules_content,
 )
 from myrm_agent_harness.agent.workspace_rules.scanner import RuleFile
+from myrm_agent_harness.toolkits.code_execution import sandbox_snapshot
 
 
 class TestFindWorkspaceInsertIdx:
@@ -78,6 +81,8 @@ class TestFormatRulesContent:
 
 _GATE = "myrm_agent_harness.agent.security.workspace_trust.gate.blocks_workspace_side_channels"
 _GENERATE = "myrm_agent_harness.toolkits.code_execution.sandbox_snapshot.generate_sandbox_bootstrap_snapshot"
+_DEADLINE = "myrm_agent_harness.agent.workspace_rules.middleware._SNAPSHOT_DEADLINE_MS"
+_REAL_GENERATE = sandbox_snapshot.generate_sandbox_bootstrap_snapshot
 
 
 def _runtime(workspace: object) -> MagicMock:
@@ -106,6 +111,20 @@ def _sent(request: MagicMock) -> str:
 
 def _response() -> ModelResponse:
     return ModelResponse(result=[AIMessage(content="ok")])
+
+
+class _HungProbe:
+    """A snapshot generator that does not answer until ``release`` is set, or five seconds pass, so a call that
+    does not bound its wait fails the test instead of hanging it."""
+
+    def __init__(self) -> None:
+        self.release = threading.Event()
+        self.calls = 0
+
+    def __call__(self, workspace_path: str | Path, max_entries: int = 25) -> sandbox_snapshot.SandboxBootstrapSnapshot:
+        self.calls += 1
+        self.release.wait(5.0)
+        return _REAL_GENERATE(workspace_path, max_entries=max_entries)
 
 
 class TestWorkspaceRulesMiddleware:
@@ -279,6 +298,63 @@ class TestSnapshotCapture:
             result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=response))
 
         assert result is response, "no state update is handed back"
+
+
+class TestAProbeThatOutrunsTheDeadline:
+    @pytest.mark.asyncio
+    async def test_it_is_abandoned_and_the_thread_goes_on_without_a_snapshot(self, tmp_path: Path) -> None:
+        response = _response()
+        handler = AsyncMock(return_value=response)
+        request = _request(tmp_path, WorkspaceContextState(messages=[]))
+        probe = _HungProbe()
+        started = time.perf_counter()
+        try:
+            with patch(_GATE, return_value=False), patch(_GENERATE, probe), patch(_DEADLINE, 100.0):
+                result = await WorkspaceRulesMiddleware().awrap_model_call(request, handler)
+            waited = time.perf_counter() - started
+        finally:
+            probe.release.set()
+
+        assert waited < 2.0, f"the call waited {waited:.1f} s for a probe that never answered"
+        assert isinstance(result, ExtendedModelResponse)
+        assert result.model_response is response
+        assert result.command is not None
+        assert result.command.update == {SNAPSHOT_KEY: "", SNAPSHOT_ROOT_KEY: str(tmp_path)}, (
+            "with nothing else to inject, the empty snapshot must still reach the state"
+        )
+        handler.assert_called_once_with(request)
+        request.override.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_the_rules_are_still_sent_without_the_snapshot(self, tmp_path: Path) -> None:
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "AGENTS.md").write_text("# Project Rules\nUse type hints.")
+        request = _request(tmp_path, WorkspaceContextState(messages=[]))
+        probe = _HungProbe()
+        try:
+            with patch(_GATE, return_value=False), patch(_GENERATE, probe), patch(_DEADLINE, 100.0):
+                result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=_response()))
+        finally:
+            probe.release.set()
+
+        sent = _sent(request)
+        assert "Use type hints." in sent
+        assert "<sandbox_environment_snapshot>" not in sent
+        assert isinstance(result, ExtendedModelResponse)
+        assert result.command is not None
+        assert result.command.update == {SNAPSHOT_KEY: "", SNAPSHOT_ROOT_KEY: str(tmp_path)}
+
+    @pytest.mark.asyncio
+    async def test_a_thread_without_a_snapshot_is_not_probed_again(self, tmp_path: Path) -> None:
+        response = _response()
+        state = WorkspaceContextState(messages=[], workspace_snapshot="", workspace_snapshot_root=str(tmp_path))
+        request = _request(tmp_path, state)
+        with patch(_GATE, return_value=False), patch(_GENERATE) as generate:
+            result = await WorkspaceRulesMiddleware().awrap_model_call(request, AsyncMock(return_value=response))
+
+        assert result is response, "nothing new is handed to the state"
+        generate.assert_not_called()
+        request.override.assert_not_called()
 
 
 class TestResolveWorkspaceRoot:
