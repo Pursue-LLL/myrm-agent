@@ -16,6 +16,8 @@
 Core Matrix channel class. Delegates to connection.py (client setup and event wiring over auth.py, handlers.py,
 crypto.py), html.py (markdown), media.py (uploads), diagnostics.py (issue reporting); this class owns the lifecycle
 entry points and outbound. A text send lists the members it addresses, never the bot itself, in ``m.mentions``; an edit sends an empty one.
+A reply is cut at the default 4000 characters: the homeserver refuses an event over 65,536 bytes and an encrypted room sends the
+content again as base64 of its ASCII-escaped JSON, so a larger limit would let a long CJK reply through uncut and get it refused.
 """
 
 from __future__ import annotations
@@ -63,7 +65,6 @@ from app.channels.types import (
 
 logger = logging.getLogger(__name__)
 
-_MAX_TEXT_LENGTH = 65536
 _SEND_TIMEOUT = 30.0
 _MEMBERS_CACHE_TTL = 300.0  # 5 minutes
 _MAUTRIX_AVAILABLE = False
@@ -100,12 +101,8 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
         edit=True,
         delete=True,
         reactions=True,
-        max_text_length=_MAX_TEXT_LENGTH,
     )
-    render_style = RenderStyle(
-        format="markdown",
-        max_text_length=_MAX_TEXT_LENGTH,
-    )
+    render_style = RenderStyle(format="markdown")
 
     def __init__(
         self,

@@ -2,13 +2,14 @@
 
 The channel hands plain dicts to the mautrix client (which serialises a non-``Serializable`` content as it is), so the
 JSON a homeserver sees is exactly what these tests pin: a plain or HTML-formatted ``m.text`` event, a reply relation, an
-edit that carries the new content, the ``m.mentions`` that decide who is pinged, one retry after sharing E2EE keys, and
-a send that is cut short at the timeout.
+edit that carries the new content, the ``m.mentions`` that decide who is pinged, the size of each event of a long reply,
+one retry after sharing E2EE keys, and a send that is cut short at the timeout.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 
 import pytest
@@ -172,6 +173,32 @@ class TestEdit:
         monkeypatch.setattr(matrix_channel, "_SEND_TIMEOUT", 0.05)
         with pytest.raises(ChannelSendError, match="edit failed"):
             await _channel(_Homeserver(never_answers=True)).edit_message(ROOM, "$old", "fixed")
+
+
+class TestEventSize:
+    """A homeserver refuses an event over 65,536 bytes (``M_TOO_LARGE``). In an encrypted room mautrix encrypts the
+    ASCII-escaped JSON of the content (a CJK character costs 6 bytes) and sends it as base64, 4/3 as large, so a long
+    reply is cut into events whose escaped content leaves room for that growth and the envelope."""
+
+    ESCAPED_CONTENT_BUDGET = 48_000
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "unit",
+        [
+            "这是一个中文测试句子，没有任何标记。",
+            "## 标题\n- **要点一**：这是说明文字 `code` 内容\n- *要点二*：另一行说明\n> 引用的一行文字\n",
+            "```python\nif a < b and c > d:\n    print('x & y')\n```\n",
+            "a < b && c > d | x <T> & y\n",
+        ],
+        ids=["cjk-prose", "cjk-markdown", "code-block", "angle-brackets"],
+    )
+    async def test_every_event_of_a_long_reply_fits_the_budget(self, unit: str) -> None:
+        server = _Homeserver()
+        await _channel(server).send(_message((unit * 20_000)[:20_000]))
+        sizes = [len(json.dumps(content)) for _, _, content in server.events]
+        assert len(sizes) > 1
+        assert max(sizes) <= self.ESCAPED_CONTENT_BUDGET
 
 
 class TestMentions:
