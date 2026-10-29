@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backend :8080 + frontend dev server :3000 (both background).
+# Backend + frontend dev server (both background; ports follow the runtime namespace, see lib/dev_state_paths.sh).
 # Usage: myrm start  →  dev-stack ensure (idempotent, mkdir lock serialized)
 set -euo pipefail
 

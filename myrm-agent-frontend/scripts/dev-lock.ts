@@ -7,6 +7,7 @@
  * - DevLockRecord persistence in `<distDir>/dev-server.lock`
  * - evaluateDevServerHealth / isDevServerHealthy / tryAttachToHealthyDevServer
  * - assertDevLockAvailable / acquireDevLock / releaseDevLock
+ * - isDistDirInUse: whether a dist dir's lock names a live supervisor (callers must not prune it)
  *
  * [POS]
  * Frontend dev-server lock and health gate. Prevents parallel `bun run dev` from
@@ -109,6 +110,16 @@ export function readDevLock(): DevLockRecord | null {
     return parsed;
   } catch {
     return null;
+  }
+}
+
+/** A dist dir whose lock names a live supervisor belongs to a running dev server (any runtime): never prune it. */
+export function isDistDirInUse(distDir: string): boolean {
+  try {
+    const record = JSON.parse(fs.readFileSync(path.join(distDir, 'dev-server.lock'), 'utf8')) as Partial<DevLockRecord>;
+    return typeof record.pid === 'number' && isProcessAlive(record.pid);
+  } catch {
+    return false;
   }
 }
 

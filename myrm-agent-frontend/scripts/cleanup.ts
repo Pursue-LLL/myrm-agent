@@ -1,24 +1,30 @@
 /**
  * [INPUT]
- * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: shared :3000)
+ * - cleanup-targets::resolveCleanupPort / filterOwnedPids (POS: what cleanup may touch — shared dev UI, own stamped processes)
+ * - port-cleanup::listPidsOnPort (POS: LISTEN PID discovery)
+ * - dev-lock::isDistDirInUse (POS: dev-server lock gate)
  * - frontend_dev_pause.py write (POS: shared pause stamp, 8h default)
  *
  * [OUTPUT]
- * - Shared :3000 cleared; orphan/isolated next cleared; FRONTEND_DEV_PAUSED stamp (8h default)
+ * - Shared dev UI cleared; this runtime's orphan next trees cleared; unused `.next-isolated-*` removed;
+ *   FRONTEND_DEV_PAUSED stamp (8h default, dev namespaces only)
  *
  * [POS]
- * Manual frontend resource reclaim. Isolated E2E runtimes allocate UI ports in
- * 13000–14000 — cleanup discovers them via process cmdline (not 1001× lsof).
+ * Manual frontend resource reclaim for the shared dev stack. Only processes carrying this runtime's
+ * dev stamp are signalled: the user's `myrm start` stack, the desktop client and other runtimes'
+ * isolated stacks (reclaimed by their own reaper) are left alone.
  */
 import { execSync, spawnSync } from 'child_process';
 import { basename, dirname, join, resolve } from 'path';
 import { readdirSync, rmSync, statSync, truncateSync } from 'fs';
-import { clearDevLock, clearStaleDevLock } from './dev-lock';
-import { APP_DEV_PORT, killListenersOnPort, listPidsOnPort } from './port-cleanup';
+import { filterOwnedPids, resolveCleanupPort } from './cleanup-targets';
+import { clearDevLock, clearStaleDevLock, isDistDirInUse } from './dev-lock';
+import { listPidsOnPort } from './port-cleanup';
 
 const ROOT = join(import.meta.dir, '..');
 const DEFAULT_PAUSE_SEC = '28800';
 const FRONTEND_MARKER = 'myrm-agent-frontend';
+const CLEANUP_PORT = resolveCleanupPort();
 
 function resolveActiveIsolatedDirName(): string | null {
   const explicit = process.env.MYRM_NEXT_DIST_DIR?.trim();
@@ -39,7 +45,7 @@ function resolveActiveIsolatedDirName(): string | null {
 }
 
 console.log(
-  `🧹 Cleaning up myrm-agent-frontend next-server (shared :${APP_DEV_PORT} + isolated orphans)...\n`,
+  `🧹 Cleaning up myrm-agent-frontend next-server (shared dev UI :${CLEANUP_PORT} + own orphans)...\n`,
 );
 
 if (clearStaleDevLock()) {
@@ -110,7 +116,22 @@ function signalPid(pid: string, label: string): boolean {
   }
 }
 
-/** Kill next-server / next / scripts/dev.ts belonging to this frontend (any port). */
+/** SIGKILL the listeners on `port` that this runtime's stack started; any other holder keeps running. */
+function killOwnedListeners(port: number): number {
+  let killed = 0;
+  for (const pid of filterOwnedPids(listPidsOnPort(port))) {
+    console.log(`🔪 Killing listener PID ${pid} on port ${port}`);
+    try {
+      execSync(`kill -9 ${pid}`);
+      killed += 1;
+    } catch {
+      // already gone
+    }
+  }
+  return killed;
+}
+
+/** Kill this runtime's next-server / next / scripts/dev.ts trees of this frontend (any port). */
 function killOrphanFrontendNextTrees(): number {
   let killed = 0;
   const pids = new Set<string>();
@@ -142,9 +163,15 @@ function killOrphanFrontendNextTrees(): number {
     // empty
   }
 
+  const owned = new Set(filterOwnedPids([...pids]));
   for (const pid of pids) {
+    if (!owned.has(pid)) {
+      continue;
+    }
     const cmd = readCommand(pid);
-    if (!cmd) continue;
+    if (!cmd) {
+      continue;
+    }
     if (!cmd.includes(FRONTEND_MARKER) && !ancestorHasFrontendMarker(pid)) {
       continue;
     }
@@ -155,8 +182,8 @@ function killOrphanFrontendNextTrees(): number {
   return killed;
 }
 
-showPortProcesses(APP_DEV_PORT);
-let cleanedCount = killListenersOnPort(APP_DEV_PORT, true);
+showPortProcesses(CLEANUP_PORT);
+let cleanedCount = killOwnedListeners(CLEANUP_PORT);
 cleanedCount += killOrphanFrontendNextTrees();
 
 try {
@@ -164,7 +191,7 @@ try {
 } catch {
   // ignore
 }
-cleanedCount += killListenersOnPort(APP_DEV_PORT, true);
+cleanedCount += killOwnedListeners(CLEANUP_PORT);
 cleanedCount += killOrphanFrontendNextTrees();
 
 console.log('📊 Current memory usage:');
@@ -174,16 +201,24 @@ try {
   // ignore
 }
 
-console.log(`\n✨ Cleanup complete! Terminated ${cleanedCount} process(es) (shared + isolated).`);
+console.log(`\n✨ Cleanup complete! Terminated ${cleanedCount} process(es) of this runtime.`);
 console.log('ℹ️  Other ports (e.g. myrm-website :3002) are untouched.');
 
 function cleanIsolatedNextDirs(): number {
   const activeName = resolveActiveIsolatedDirName();
   let removed = 0;
   for (const entry of readdirSync(ROOT)) {
-    if (!entry.startsWith('.next-isolated-')) continue;
-    if (activeName && entry === activeName) continue;
+    if (!entry.startsWith('.next-isolated-')) {
+      continue;
+    }
+    if (activeName && entry === activeName) {
+      continue;
+    }
     const target = join(ROOT, entry);
+    // A dist dir with a live dev-server lock backs a running stack (the user's `myrm start`, or another runtime).
+    if (isDistDirInUse(target)) {
+      continue;
+    }
     try {
       rmSync(target, { recursive: true, force: true });
       removed += 1;

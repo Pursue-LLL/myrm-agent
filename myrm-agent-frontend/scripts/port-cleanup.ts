@@ -5,10 +5,10 @@
  * [OUTPUT]
  * - listPidsOnPort: LISTEN PIDs on a port
  * - killListenersOnPort: terminate LISTEN holders only (not Chrome ESTABLISHED clients)
- * - APP_DEV_PORT constant (3000)
+ * - APP_DEV_PORT constant (MYRM_FRONTEND_PORT, default 3000)
  *
  * [POS]
- * Scoped port cleanup for myrm-agent-frontend dev (:3000). Avoids killing unrelated apps on other ports.
+ * Scoped port cleanup for the dev server's own port. Avoids killing unrelated apps on other ports.
  */
 import { execSync } from 'child_process';
 
@@ -23,7 +23,9 @@ export const APP_DEV_PORT = resolveDevPort();
 export function listPidsOnPort(port: number): string[] {
   try {
     const pids = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -t`, { encoding: 'utf-8' }).trim();
-    if (!pids) return [];
+    if (!pids) {
+      return [];
+    }
     return [...new Set(pids.split('\n').filter(Boolean))];
   } catch {
     return [];
@@ -33,7 +35,9 @@ export function listPidsOnPort(port: number): string[] {
 /** Terminate listeners on `port`. Returns number of PIDs signalled. */
 export function killListenersOnPort(port: number, force = false): number {
   const pidList = listPidsOnPort(port);
-  if (pidList.length === 0) return 0;
+  if (pidList.length === 0) {
+    return 0;
+  }
 
   const cmd = force ? `kill -9 ${pidList.join(' ')}` : `kill ${pidList.join(' ')}`;
   console.log(`🔪 Killing process(es) on port ${port}${force ? ' (force)' : ''}: ${pidList.join(', ')}`);

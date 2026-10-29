@@ -18,6 +18,7 @@ def isolated_pause_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("MYRM_FRONTEND_DEV_PAUSE_DIR", str(state))
     monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "isolate-state"))
     monkeypatch.delenv("MYRM_FRONTEND_DEV_FORCE", raising=False)
+    monkeypatch.delenv("MYRM_RUNTIME_NAMESPACE", raising=False)
     return state
 
 
@@ -48,6 +49,18 @@ def test_force_env_does_not_bypass_pause(isolated_pause_dir: Path, monkeypatch: 
     monkeypatch.setenv("MYRM_FRONTEND_DEV_FORCE", "1")
     assert pause.is_frontend_dev_paused() is True
     assert pause.force_allowed() is False
+
+
+def test_user_runtime_is_never_paused(isolated_pause_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pause.write_frontend_dev_pause(600.0)
+    # `myrm start` (namespace user) must come up even while the dev side holds a pause stamp.
+    monkeypatch.setenv("MYRM_RUNTIME_NAMESPACE", "user")
+    assert pause.is_frontend_dev_paused() is False
+    assert pause.main(["check"]) == 1
+    assert pause.main(["status"]) == 0
+    for dev_namespace in ("shared", "isolated-a1"):
+        monkeypatch.setenv("MYRM_RUNTIME_NAMESPACE", dev_namespace)
+        assert pause.is_frontend_dev_paused() is True
 
 
 def test_expired_pause_auto_clears(isolated_pause_dir: Path) -> None:

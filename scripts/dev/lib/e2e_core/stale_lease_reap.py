@@ -1476,7 +1476,7 @@ def maybe_reap_orphan_shared_backends(
     Root cause: high load + repeated drift applies left stale `run.py` processes
     (PPID=1, no session lease, either never bound the shared port or lost it after a failed
     restart). They write the shared backend.log, hold sqlite shm, and cause
-    `STACK_FAIL: private backend port :8080 still busy` on the next restart —
+    `STACK_FAIL: private backend port :<port> still busy` on the next restart —
     the observed "backend repeatedly crashing / BLOCKED" loop.
 
     Safety invariants (port-truth SSOT, matching backend_bg.sh):

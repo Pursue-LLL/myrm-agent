@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - dev-lock::tryAttachToHealthyDevServer / acquireDevLock (POS: dev-server lock gate)
+ * - dev-lock::tryAttachToHealthyDevServer / acquireDevLock / isDistDirInUse (POS: dev-server lock gate)
  * - frontend-dev-pause-gate::probeFrontendDevPause / enforceFrontendDevNotPaused (POS: TS pause gate SSOT)
  * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: LISTEN-only port cleanup)
  *
@@ -17,6 +17,7 @@ import path from 'path';
 import {
   acquireDevLock,
   assertDevLockAvailable,
+  isDistDirInUse,
   readDevLock,
   releaseDevLock,
   tryAttachToHealthyDevServer,
@@ -103,7 +104,9 @@ function pruneStaleIsolatedNextDirs(): void {
     const target = path.join(process.cwd(), entry.name);
     try {
       const ageMs = now - fs.statSync(target).mtimeMs;
-      if (ageMs < STALE_ISOLATED_NEXT_MAX_AGE_MS) {
+      // A directory's mtime only moves when its top-level entries change, so an old dist dir
+      // can still back a long-running server (e.g. the user's `myrm start` stack).
+      if (ageMs < STALE_ISOLATED_NEXT_MAX_AGE_MS || isDistDirInUse(target)) {
         continue;
       }
       fs.rmSync(target, { recursive: true, force: true });

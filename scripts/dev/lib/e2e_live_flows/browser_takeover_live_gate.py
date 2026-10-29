@@ -46,7 +46,7 @@ RECOVER_BROWSER_TAKEOVER_JS = """(async () => {
 BANNER_ASSERT_JS = """(() => {
   const alert = document.querySelector('[role="alert"]');
   const text = alert?.innerText || '';
-  const backendUnreachable = /后端未响应|Backend not reachable|API_PORT=8080/i.test(text);
+  const backendUnreachable = /后端未响应|Backend not reachable|API_PORT=[0-9]+/i.test(text);
   if (backendUnreachable) {
     return {
       ready: false,

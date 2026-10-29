@@ -10,6 +10,13 @@ DEV_STACK="${SCRIPT_DIR}/dev-stack.sh"
 PAUSE_DIR="$(mktemp -d)"
 PROBE_PORT="${MYRM_FRONTEND_DEV_PAUSE_PROBE_PORT:-13099}"
 
+# A paused dev-stack reclaims the frontend it finds on its port. Own namespace, state dir and port
+# keep that reclaim away from the shared dev stack (:23000) and the user's stack (:3000).
+mkdir -p "${PAUSE_DIR}/state"
+export MYRM_RUNTIME_NAMESPACE="verify-pause-gate"
+export MYRM_DEV_STATE_DIR="${PAUSE_DIR}/state"
+export MYRM_FRONTEND_PORT="${PROBE_PORT}"
+
 cleanup_probe() {
   set +e
   export MYRM_FRONTEND_DEV_PAUSE_DIR="${PAUSE_DIR}"

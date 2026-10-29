@@ -1,7 +1,9 @@
 """Gate frontend cold-start after manual cleanup (prevents Agent respawn loops).
 
 Pause stamp lives in the *shared* myrm-dev state dir so isolated runtimes
-(MYRM_DEV_STATE_DIR override, ports 13000–14000) cannot bypass the gate.
+(MYRM_DEV_STATE_DIR override) cannot bypass the gate. The user's own stack
+(`myrm start`, namespace ``user``) is never paused: the stamp exists to stop dev Agent
+waves from respawning a dev frontend, not to take the user's WebUI down.
 Override for tests: MYRM_FRONTEND_DEV_PAUSE_DIR.
 Lift pause: ``dev-stack.sh frontend-only clear-pause`` (FORCE env cannot bypass).
 """
@@ -19,6 +21,7 @@ if __package__ in (None, ""):
     if _lib_root not in sys.path:
         sys.path.insert(0, _lib_root)
 
+from e2e_core.dev_ports import is_user_runtime
 from e2e_core.real_user_home import real_user_home
 
 # 8h: overnight Agent waves must not respawn next-server after manual cleanup
@@ -65,7 +68,7 @@ def read_pause_until() -> float | None:
 
 
 def is_frontend_dev_paused() -> bool:
-    if force_allowed():
+    if force_allowed() or is_user_runtime():
         return False
     until = read_pause_until()
     if until is None:

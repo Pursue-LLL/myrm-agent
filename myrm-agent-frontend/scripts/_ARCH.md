@@ -67,12 +67,13 @@
 | `merge-locale-namespaces.mjs` | `split-locale-namespaces.mjs` 的逆操作：按 `locales/namespaces/manifest.json` 把 `locales/namespaces/{lang}/` 重建为单文件 `locales/{lang}.json`。由 `split` 的 `ensureMonolithLocales` 在单文件 locale 损坏时自动调用（`split-locale-namespaces.mjs:74`），也可手动执行以从命名空间树恢复 |
 | `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
 | `dev.ts` | locale split（启动时 + `fs.watch` 监听 `locales/*.json` 防抖重生成，避免长驻 dev server 的 namespaces 陈旧导致 ENOENT/hydration 超时）+ Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者；仅在 Node 运行时且显式设置 `NODE_MAX_OLD_SPACE` 时才追加 `--max-old-space-size`——Bun 是 JSC，不认 V8 堆参数，开发内存大头是 Turbopack 原生模块图而非 JS 堆） |
-| `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
+| `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定；`isDistDirInUse(distDir)` 判定某 dist 目录的 lock 是否仍属存活 supervisor——`dev.ts` 的过期 `.next-isolated-*` 清理与 `cleanup.ts` 据此跳过运行中的栈（如用户的 `myrm start`，其 dist 目录 mtime 可以很旧） |
 | `frontend-dev-pause-gate.ts` | TS pause gate SSOT（probe / enforce / reclaim）；`dev.ts` + `next.config.ts` |
 | `locale-content-version.ts` | `locales/*.json` 内容哈希 → `NEXT_PUBLIC_LOCALE_VERSION`（`next.config.ts` 注入；`/api/i18n/deferred` 缓存键） |
 | `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py`；**并在 Next 载入前把 `next-env.d.ts` 固定到本 lane 的 `MYRM_NEXT_DIST_DIR`** —— Next 无条件重写该文件且不读 tsconfig（无 `extends` 逃生门），若不预置，lane B 会读到 lane A 残留的 `.next-isolated-<A>/dev/types` 死路径直至自身改写。幂等、保留未知标记行，`:3000` 主 lane 字节级不变 |
-| `port-cleanup.ts` | `:3000` LISTEN-only 清理 |
-| `cleanup.ts` | dev 残留清理（next 进程、stale lock、`.next-isolated-*`、dev log、pause stamp 8h 默认、stamp write 失败 exit 非零） |
+| `port-cleanup.ts` | dev server 自身端口（`MYRM_FRONTEND_PORT`，缺省 3000）的 LISTEN-only 清理，`dev.ts` / `dev-lock.ts` 使用 |
+| `cleanup-targets.ts` | `bun run cleanup` 的动手范围：`resolveCleanupPort`（显式 `MYRM_FRONTEND_PORT` 优先，否则共享 dev UI 端口，取自 `scripts/dev/lib/dev-ports.mjs`，绝不默认指向用户栈的 3000）· `filterOwnedPids`（经 `dev_ownership.py filter` 只保留带本 runtime 戳的进程，读不到戳一律不动）；单测 `__tests__/cleanup-targets.test.ts` |
+| `cleanup.ts` | 共享 dev 栈的残留清理（本 runtime 戳下的 next 进程树与共享 UI 端口 listener、stale lock、未被运行中栈占用的 `.next-isolated-*`、dev log、pause stamp 8h 默认、stamp write 失败 exit 非零）；用户的 `myrm start` 栈、桌面端、其它 runtime 的 isolated 栈不碰（后者由各自 reaper 回收） |
 | `strip_isolated_tsconfig.py` | 清除 dev lane 写入共享 TS 配置的残留并重置 `next-env.d.ts` 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`。**`tsconfig.json` 现已结构性豁免**（声明 `extends` 使 Next 跳过配置重写，见根 `_ARCH.md` 的 tsconfig 分层约束），故实际主要是 `next-env.d.ts`（Next 无条件重写、不读 tsconfig）与历史遗留 tsconfig 脏 glob 的兜底；由 E2E `release_runtime` teardown、`cleanup.ts` 与 dev 栈启动 `workspace_hygiene.heal_isolated_tsconfig` 调用 |
 | `generate-artifact-types.ts` | 工件类型生成 |
 | `export-known-sse-event-types.ts` | SSE 事件类型导出对齐 |

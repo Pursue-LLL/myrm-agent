@@ -343,7 +343,7 @@ def _api_health_url() -> str:
 # 私池 runtime env 变量由 isolated_runtime.allocator.runtime_environment 注入。
 # 共享栈 drift apply / crash heal 必须显式清除这些，否则继承私池 state dir /
 # namespace / 后端端口，导致 backend_bg.sh 把共享后端写入私池 identity、
-# 或 8080 owner 缺失共享 stack-epoch 指纹（§26.28-B 根因）。
+# 或共享后端端口的 owner 缺失共享 stack-epoch 指纹（§26.28-B 根因）。
 _PRIVATE_RUNTIME_ENV_KEYS: Final[tuple[str, ...]] = (
     "MYRM_RUNTIME_NAMESPACE",
     "MYRM_AGENT_ROOT",
@@ -380,7 +380,7 @@ def _shared_stack_env() -> dict[str, str]:
     ensure` with that inherited env writes the shared backend's identity into the
     private runtime dir (runtimeId=shared) and, when the private runtime's
     stack-epoch file is absent, leaves the shared backend health probe without a
-    stack_epoch fingerprint — the §26.28-B "private pool occupies :8080" loop.
+    stack_epoch fingerprint — the §26.28-B "private pool occupies the shared port" loop.
     """
     env = {k: v for k, v in os.environ.items() if k not in _PRIVATE_RUNTIME_ENV_KEYS}
     env.update(
