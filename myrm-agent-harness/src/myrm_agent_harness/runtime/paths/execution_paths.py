@@ -56,14 +56,12 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from myrm_agent_harness.core.paths import (  # noqa: F401  re-exported path roots
-    DEFAULT_PERSISTENT_ROOT,
-    PERSISTENT_ROOT_ENV,
-    get_context_root,
-    get_memories_root,
-    get_persistent_root,
-    get_workspace_root,
-)
+from myrm_agent_harness.core.paths import DEFAULT_PERSISTENT_ROOT as DEFAULT_PERSISTENT_ROOT
+from myrm_agent_harness.core.paths import PERSISTENT_ROOT_ENV as PERSISTENT_ROOT_ENV
+from myrm_agent_harness.core.paths import get_context_root as get_context_root
+from myrm_agent_harness.core.paths import get_memories_root as get_memories_root
+from myrm_agent_harness.core.paths import get_persistent_root as get_persistent_root
+from myrm_agent_harness.core.paths import get_workspace_root as get_workspace_root
 
 # ============ Core Path Roots ============
 #
