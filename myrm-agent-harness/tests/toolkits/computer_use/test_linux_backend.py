@@ -64,14 +64,7 @@ async def test_type_text_ascii(backend):
 
 @pytest.mark.asyncio
 async def test_type_text_non_ascii(backend):
-    with (
-        patch.object(backend, "_run_cmd", return_value=("", "", 0)),
-        patch("asyncio.create_subprocess_shell") as mock_shell,
-    ):
-        mock_proc = AsyncMock()
-        mock_proc.communicate.return_value = (b"", b"")
-        mock_proc.returncode = 0
-        mock_shell.return_value = mock_proc
+    with patch.object(backend, "_run_cmd", return_value=("", "", 0)):
         res = await backend.type_text("你好")
         assert res.success is True
 

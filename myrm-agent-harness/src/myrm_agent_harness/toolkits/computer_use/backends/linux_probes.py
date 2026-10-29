@@ -44,12 +44,13 @@ def probe_linux_capturable() -> bool:
         tmp_path.unlink(missing_ok=True)
 
 
-def detect_linux_resolution(display_prefix: str) -> tuple[int, int]:
-    """Detect screen resolution via xdpyinfo or xrandr."""
-    for cmd in [f"{display_prefix}xdpyinfo", f"{display_prefix}xrandr"]:
+def detect_linux_resolution(env: dict[str, str] | None) -> tuple[int, int]:
+    """Detect screen resolution via xdpyinfo or xrandr, run under `env` (None inherits the current environment)."""
+    for cmd in ("xdpyinfo", "xrandr"):
         try:
             result = subprocess.run(
-                cmd.split(),
+                [cmd],
+                env=env,
                 capture_output=True,
                 text=True,
                 timeout=5,

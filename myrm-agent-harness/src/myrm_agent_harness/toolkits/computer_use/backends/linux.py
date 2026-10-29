@@ -1,4 +1,4 @@
-"""Linux backend — scrot/gnome-screenshot + xdotool (+ xclip for non-ASCII text).
+"""Linux backend — scrot/gnome-screenshot + xdotool.
 
 Covers both native Linux desktops and SaaS sandbox environments (which run Linux).
 
@@ -16,10 +16,8 @@ Linux-specific screen I/O. Loaded for detect_platform().os_type == "linux".
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 import os
-import shlex
 import shutil
 import subprocess
 import tempfile
@@ -41,9 +39,8 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 
 logger = logging.getLogger(__name__)
 
-# 剪贴板所有者卡死时 `xclip -o` 会一直阻塞；正常所有者毫秒级响应，超过这个时间就按「读不到原内容」处理。
-_CLIPBOARD_READ_TIMEOUT_S = 3.0
-_TIMEOUT_EXIT_CODE = 124
+# 我们总是以 UTF-8 收发字节。xdotool 按所在 locale 解码，不是 UTF-8 时遇到第一个非 ASCII 字符就报错并中断，所以显式指定。
+_UTF8_LOCALE = "LC_CTYPE=C.UTF-8"
 
 CLICK_BUTTONS = {
     "left": "1",
@@ -77,33 +74,19 @@ class LinuxBackend:
         self._screen_info: ScreenInfo | None = None
         self._display_num = display_num if display_num is not None else _parse_display_num()
         self._display_prefix = f"DISPLAY=:{self._display_num} " if self._display_num is not None else ""
-        # 粘贴会临时占用剪贴板；重叠的调用会把对方的临时文本当成用户原内容存下并「还原」，所以一次只允许一轮。
-        self._clipboard_lock = asyncio.Lock()
+        # Shell-less subprocess calls take the display through the environment; an inline `DISPLAY=:N` would be argv[0].
+        self._env = {**os.environ, "DISPLAY": f":{self._display_num}"} if self._display_num is not None else None
 
-    async def _run_cmd(self, cmd: str, stdin: str | None = None, timeout: float | None = None) -> tuple[str, str, int]:
-        """Run a shell command with display prefix; `stdin` is piped instead of placed on the command line.
-
-        With `timeout`, a command that has not finished by then is killed and reported as exit 124.
-        """
-        full_cmd = f"{self._display_prefix}{cmd}"
+    async def _run_cmd(self, cmd: str, stdin: str | None = None) -> tuple[str, str, int]:
+        """Run a shell command under the selected display and a UTF-8 locale; `stdin` is piped, not put on the command line."""
+        full_cmd = f"{_UTF8_LOCALE} {self._display_prefix}{cmd}"
         proc = await asyncio.create_subprocess_shell(
             full_cmd,
             stdin=asyncio.subprocess.PIPE if stdin is not None else None,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(stdin.encode("utf-8") if stdin is not None else None), timeout
-            )
-        except TimeoutError:
-            # 超时与进程自然退出可能同时发生，此时 kill 会抛 ProcessLookupError。
-            with contextlib.suppress(ProcessLookupError):
-                proc.kill()
-            await proc.wait()
-            # 命令行可能带着输入的文本，所以日志里不写它。
-            logger.warning("An X11 helper command timed out after %ss and was killed", timeout)
-            return "", f"timed out after {timeout}s", _TIMEOUT_EXIT_CODE
+        stdout, stderr = await proc.communicate(stdin.encode("utf-8") if stdin is not None else None)
         return stdout.decode(), stderr.decode(), proc.returncode or 0
 
     async def _run_input(self, cmd: str, stdin: str | None = None) -> None:
@@ -166,15 +149,15 @@ class LinuxBackend:
             for mod in reversed(xdotool_mods):
                 await self._run_cmd(f"xdotool keyup {mod}")
 
+    async def _xdotool_type(self, text: str, delay_ms: int) -> None:
+        """Type text through xdotool. It goes over stdin: out of the process list and independent of shell quoting."""
+        await self._run_input(f"xdotool type --delay {delay_ms} --file -", stdin=text)
+
     async def type_text(self, text: str, delay_ms: int = 12, chunk_size: int = 50) -> ActionResult:
-        """Type text — xdotool type for ASCII, xdotool key + xclip for non-ASCII."""
+        """Type text (any script) as key events, in chunks so a long text is not one uninterruptible call."""
         try:
-            if text.isascii():
-                for i in range(0, len(text), chunk_size):
-                    chunk = text[i : i + chunk_size]
-                    await self._run_input(f"xdotool type --delay {delay_ms} -- {shlex.quote(chunk)}")
-            else:
-                await self._paste_text_xclip(text)
+            for i in range(0, len(text), chunk_size):
+                await self._xdotool_type(text[i : i + chunk_size], delay_ms)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
@@ -195,38 +178,11 @@ class LinuxBackend:
             return ActionResult(success=False, error=f"Failed to retrieve credential for label '{label}'")
 
         try:
-            if secret_text.isascii():
-                # 凭据只走 stdin，不进命令行参数（进程列表可见）。
-                await self._run_input("xdotool type --delay 12 --file -", stdin=secret_text)
-            else:
-                await self._paste_text_xclip(secret_text)
+            # 凭据不进命令行参数（进程列表可见），也不经剪贴板（剪贴板历史工具会记下来）。
+            await self._xdotool_type(secret_text, 12)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
-
-    async def _xclip_write(self, text: str) -> None:
-        """Replace the clipboard contents. xclip stays unpiped: its forked selection owner would keep a pipe open forever."""
-        proc = await asyncio.create_subprocess_shell(
-            f"{self._display_prefix}xclip -selection clipboard", stdin=asyncio.subprocess.PIPE
-        )
-        await proc.communicate(text.encode("utf-8"))
-        if proc.returncode != 0:
-            raise RuntimeError(f"xclip failed (exit {proc.returncode})")
-
-    async def _paste_text_xclip(self, text: str) -> None:
-        """Type non-ASCII text via xclip + Ctrl+V, preserving original clipboard."""
-        async with self._clipboard_lock:
-            saved_stdout, _, _ = await self._run_cmd("xclip -selection clipboard -o", timeout=_CLIPBOARD_READ_TIMEOUT_S)
-            try:
-                await self._xclip_write(text)
-                await self._run_input("xdotool key ctrl+v")
-                await asyncio.sleep(0.1)
-            finally:
-                # 原剪贴板为空（或不是文本）时也要写回空串，否则粘贴的文本（含凭据）会一直留在剪贴板里。
-                try:
-                    await self._xclip_write(saved_stdout)
-                except Exception:
-                    logger.warning("Failed to restore the X11 clipboard after paste", exc_info=True)
 
     async def key(self, keys: str) -> ActionResult:
         try:
@@ -306,7 +262,7 @@ class LinuxBackend:
         height = int(os.getenv("HEIGHT", "0"))
 
         if not width or not height:
-            width, height = detect_linux_resolution(self._display_prefix)
+            width, height = detect_linux_resolution(self._env)
 
         self._screen_info = ScreenInfo(width=width, height=height, dpi_scale=1.0)
         return self._screen_info
@@ -314,7 +270,8 @@ class LinuxBackend:
     def screen_context(self) -> ScreenContext:
         try:
             result = subprocess.run(
-                f"{self._display_prefix}xdotool getactivewindow getwindowname".split(),
+                ["xdotool", "getactivewindow", "getwindowname"],
+                env=self._env,
                 capture_output=True,
                 text=True,
                 timeout=2,
@@ -325,7 +282,8 @@ class LinuxBackend:
 
         try:
             result = subprocess.run(
-                f"{self._display_prefix}xdotool getmouselocation".split(),
+                ["xdotool", "getmouselocation"],
+                env=self._env,
                 capture_output=True,
                 text=True,
                 timeout=2,

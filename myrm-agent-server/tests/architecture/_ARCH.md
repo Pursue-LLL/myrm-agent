@@ -42,7 +42,6 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `../fixtures/frontend_sse_event_types.json` | 由 frontend `scripts/export-known-sse-event-types.ts` 生成 |
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；禁止 import 含 ``._`` 的 harness 私有模块路径；并校验每个被 import 的 harness 模块在 harness 源包里**真实存在**（harness 单侧改名/移动时，服务端测试期即红，而不是等首个真实回合 `ImportError`） |
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |
-| `test_runtime_image_x11_tools.py` | 两个运行时镜像（`Dockerfile`、`docker/Dockerfile.official`）的 `apt-get install` 必须在 xdotool 旁同时装 xclip（harness Linux 后端非 ASCII 输入走 xclip 粘贴，缺失则中日韩文本整体失败） |
 | `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source；lock 只含 `pypi.org`/`files.pythonhosted.org`；禁止 GPL/optional 包与 harness 已 pin 的 `litellm`/`langchain`/`langchain-core` 回流 main |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
 | `test_no_temp_docs_links.py` | 跟踪的 `*.md` 禁止 `temp-docs/` 相对路径（私有开发壳） |
