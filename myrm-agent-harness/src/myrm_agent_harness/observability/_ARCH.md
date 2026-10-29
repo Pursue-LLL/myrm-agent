@@ -52,7 +52,6 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | diagnostic_stream/ | run-stream 协议诊断事件分离与正常消息流解耦套件：双轨物理隔离正轨用户消息与旁路诊断告警，提供 ACP 会话 Hook 与多维分类统计。参见 [diagnostic_stream/_ARCH.md](diagnostic_stream/_ARCH.md)。 |
 | turn_usage/ | 回合级 Billed Usage 双计数核心架构：绝对累加账单（summed_with）与最新缓存状态（merged_with）严格解耦，支持自适应格式回写。参见 [turn_usage/_ARCH.md](turn_usage/_ARCH.md)。 |
 | context_breakdown/ | 上下文用量七分类精准解析与 60%/90% 警戒线判定核心架构：识别真实注入标签，消除余量黑盒，支持估算与提供商实报并列对比。参见 [context_breakdown/_ARCH.md](context_breakdown/_ARCH.md)。 |
-| local_sink/ | OpenTelemetry 缺失降级与 Opt-in 本地盘兜底落盘引擎：支持本地离线/沙箱环境 JSONL 落盘与定长环形内存回放，零主业务中断风险。参见 [local_sink/_ARCH.md](local_sink/_ARCH.md)。 |
 | rate_limit_split/ | 限流来源拆分与失败归因套件：429 按自身限流 (myrm) 与上游拒绝 (upstream) 拆分，失败按模型厂商 (provider) 打标，未打标总数严格保持不变。参见 [rate_limit_split/_ARCH.md](rate_limit_split/_ARCH.md)。 |
 | enterprise_credit_cockpit/ | 企业用量与风险运营驾驶舱引擎：统一企业 Credit 池跨端治理、人-时-数-险同链路审计留痕与穿透式治理大盘。参见 [enterprise_credit_cockpit/_ARCH.md](enterprise_credit_cockpit/_ARCH.md)。 |
 | unattended_reliability/ | 无人值守可靠性三联自证套件：量化与自证重启续跑率、重复执行零副作用率与阻塞如实上报率，杜绝幻觉伪成功，支持一键复现验收跑分。参见 [unattended_reliability/_ARCH.md](unattended_reliability/_ARCH.md)。 |
@@ -66,12 +65,8 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | visual_flight_recorder/ | 智能体视觉故障黑匣子录制器与卡顿状态短循环切片回放套件：滚动 15 秒 (5fps/75帧) 低开销环形内存缓冲、异常卡顿自动截断切片生成与带时间轴微动图胶卷。参见 [visual_flight_recorder/_ARCH.md](visual_flight_recorder/_ARCH.md)。 |
 | dual_domain_metering/ | 双域透明计量边界界定、平台交互与沙箱执行穿透式成本核算套件：管控网关域与沙箱执行域边界明确划分、大模型Token/沙箱算力/第三方工具三维穿透核算与SHA-256防篡改财务对账凭证。参见 [dual_domain_metering/_ARCH.md](dual_domain_metering/_ARCH.md)。 |
 | cross_period_milestone/ | 多智能体跨周期透视报表、多维用量核算与游戏化人效进阶里程碑套件：周/月/季度周期报表、按专属智能体堆叠拆分、环比上期增幅与经验值等级勋章体系。参见 [cross_period_milestone/_ARCH.md](cross_period_milestone/_ARCH.md)。 |
-| cardinality_cap/ | 热点路径指标基数封顶与溢出桶治理套件：动态参数规整、单指标标签基数上限约束（如256）、溢出桶归并与防内存爆炸守护。参见 [cardinality_cap/_ARCH.md](cardinality_cap/_ARCH.md)。 |
-| code_freshness/ | 运行时代码新鲜度三态判定维与防恒真式测试套件：进程生命周期 vs 磁盘源码 mtime 比对、热部署旧代码静默执行侦测、不可判定原因显式表达与量级哨兵自证。参见 [code_freshness/_ARCH.md](code_freshness/_ARCH.md)。 |
 | runtime_zombie_reaper/ | 智能体因果树拓扑驾驶舱、父子孤儿进程自动回收、死锁轮询主动熔断与跨 Profile 资源大盘套件：PGID 进程树追踪、孤儿辅助进程级联强杀、死亡子代理死锁中断与失败任务回溯流。参见 [runtime_zombie_reaper/_ARCH.md](runtime_zombie_reaper/_ARCH.md)。 |
 | delegation_billing/ | 外部委托用量计费口径透明化套件：双形态 TokenUsage 事件适配、订阅委托 vs API 计费双轨分流、用户订阅节省额度估算与跨会话委托账本大盘。参见 [delegation_billing/_ARCH.md](delegation_billing/_ARCH.md)。 |
-| audit_theater/ | 用户面审计剧场与数据访问台账套件：对话内动作时间线、文件/记忆/MCP/网络四维资源访问台账、后端权威事件真实对账与撒谎免疫 SHA-256 签名。参见 [audit_theater/_ARCH.md](audit_theater/_ARCH.md)。 |
-| memory_backend_metrics/ | 记忆操作与细粒度召回阶段的多后端维度标签套件：支持 memories_backend opt-in 标签控制、分后端 P50/P95 延迟对比、成功率与降级预警。参见 [memory_backend_metrics/_ARCH.md](memory_backend_metrics/_ARCH.md)。 |
 | aborted_usage_ledger/ | 中止辅助模型调用账本套件：中止或异常无用量返回时强制记为 usage-unknown，严禁全零 token 伪免费，聚合时隔离已知消耗并暴露潜在财务风险。参见 [aborted_usage_ledger/_ARCH.md](aborted_usage_ledger/_ARCH.md)。 |
 | active_skill_telemetry/ | 活跃技能 Span 遥测处理器套件：ContextVar 绑定当前活跃技能，自动向下游全链路 Span 注入 myrm.skill.active 属性，按技能聚合 P95 耗时与故障归因。参见 [active_skill_telemetry/_ARCH.md](active_skill_telemetry/_ARCH.md)。 |
 | durable_budget_ledger/ | 持久化每日预算账本套件：从持久账本恢复当日用量，防止重试/回退/删消息导致已发生成本消失低估预算，对账会话实际账单。参见 [durable_budget_ledger/_ARCH.md](durable_budget_ledger/_ARCH.md)。 |
