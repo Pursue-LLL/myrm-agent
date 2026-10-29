@@ -1,6 +1,7 @@
 """Return a wake turn's reply to the IM chat its conversation lives in.
 
 [INPUT]
+- myrm_agent_harness.utils.text_utils::strip_internal_markers (POS: removes the security boundary markers a model may echo; every IM reply goes through it)
 - app.channels.core.gateway::ChannelGateway (POS: ``deliver_followup``, the router's delivery rules for a reply no message asked for)
 - app.core.channel_bridge.wake_return.origins::WakeOrigins (POS: the message the chat was last talked in)
 - app.services.agent.adaptive_wakeup.reply_return::WakeReplyReturner (POS: the port this implements)
@@ -10,13 +11,16 @@
 
 [POS]
 IM carrier of the wake-turn port, registered while the channel gateway runs. A chat the memory does not know (it
-started in the app, or before the last restart) is left alone: its reply is in the chat for the web UI.
+started in the app, or before the last restart) is left alone: its reply is in the chat for the web UI. The reply is
+cleaned the way the answer to an IM message is before it leaves the app.
 """
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
 if TYPE_CHECKING:
     from app.channels.core.gateway import ChannelGateway
@@ -36,6 +40,10 @@ class ChannelWakeReplyReturner:
     async def return_reply(self, chat_id: str, reply: str) -> None:
         origin = self._origins.get(chat_id)
         if origin is None:
+            return
+        # The model may echo the boundary markers that wrap untrusted data; an IM reader must not see them.
+        reply = strip_internal_markers(reply).strip()
+        if not reply:
             return
         delivered = await self._gateway.deliver_followup(origin, reply)
         logger.info("Wake turn reply returned to %s: delivered=%s, session=%s", origin.channel, delivered, chat_id)

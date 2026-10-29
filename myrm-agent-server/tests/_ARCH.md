@@ -275,7 +275,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `database/test_legacy_wakeup_notice_backfill.py` | 模块 | 旧版通知行补标记迁移对真实 SQLite：没有标记、标记为 JSON null 或带其他字段的 `wakeup_` 用户行补上 `followup` 且保留原字段；已有标记（`followup` / `degraded`）的行、助手行、真人发言行、大小写或前缀不同的 id 都不动；重复执行不再改动任何行；迁移已登记在迁移列表里 |
 | `core/channel_bridge/test_idle_session_key.py` | 模块 | 空闲重置策略对真实 SQLite：窗口内续用本会话的聊天（含裸键），超时或首条消息开新纪元；更长对端、同对端的话题与智能体、`_` 通配符的聊天不被续用，且本会话的聊天优先于更新的邻居 |
 | `core/channel_bridge/test_wake_origins.py` | 单元 | `WakeOrigins`：记录送达所需的路由字段、同一会话以最新一条为准、只留回复用得上的内容（去附件、引用、续跑值、非字符串元数据，正文截断）、`web` / `chat` / `voice` 渠道不记、容量有界且写入最久的先丢、各回合共用同一份记忆 |
-| `core/channel_bridge/test_wake_reply_returner.py` | 单元 | `ChannelWakeReplyReturner`：有来源则经网关送入对应对话，没有来源不送，路由拒收不算错误 |
+| `core/channel_bridge/test_wake_reply_returner.py` | 单元 | `ChannelWakeReplyReturner`：有来源则经网关送入对应对话，没有来源不送，路由拒收不算错误，模型照抄的安全边界标记不进对话、只剩标记的回复不送 |
 | `core/channel_bridge/test_wake_return_wiring.py` | 集成 | 渠道桥装配登记承载方（回合登记的来源与承载方读取的是同一份）：聊过的会话的唤醒回复送到网关、没聊过的不送；`stop_channel_gateway` 之后唤醒回复不再离开应用 |
 | `core/channel_bridge/test_execute_preamble_wake_origin.py` | 模块 | 谁登记 IM 来源：所有者私聊的回合登记；群聊、访客、续跑、会话打不开的回合不登记（唤醒回合带着所有者的全部记忆，回复不能进入记忆隔离舱里的对话） |
 | `core/channel_bridge/test_execute_preamble_resume_session.py` | 模块 | 审批续跑对真实 SQLite：纪元已翻篇后仍接回提问回合的聊天、纪元内首条消息的续跑不被当成新对话（不播报 reset）、聊天已不存在时回一条标记失败的说明、工作区打不开时回失败回合；没有会话键的续跑仍按本条消息自己的会话解析 |

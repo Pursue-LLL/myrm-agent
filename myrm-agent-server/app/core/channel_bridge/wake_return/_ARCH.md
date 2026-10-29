@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `ChannelWakeReplyReturner`、`WakeOrigins`、`get_wake_origins` | ✅ |
 | `origins.py` | 核心 | `WakeOrigins`：每个会话记最近一条 IM 消息（容量 256，写入最久的先丢，重写刷新）；记的是消息本身，因为会话行只存会话键，而会话键被清洗并转小写，还原不出渠道要用的 peer id。存入前去掉附件、引用上下文、续跑值与非字符串元数据，正文截到 500 字符（草稿审核最多展示这么多）；`web` / `chat` / `voice` 渠道不是可以回去的对话，不记。进程内存，重启即空：重启之后的唤醒回合只留在会话里。`get_wake_origins()` 是进程级实例 | ✅ |
-| `returner.py` | 核心 | `ChannelWakeReplyReturner`：实现端口 `WakeReplyReturner`。查会话的来源消息，没有就什么都不做；有则调 `ChannelGateway.deliver_followup`，由路由按普通回复的规则送出（静默过滤、网页接力按钮、话题草稿审核；送不出去只是返回 `False`） | ✅ |
+| `returner.py` | 核心 | `ChannelWakeReplyReturner`：实现端口 `WakeReplyReturner`。查会话的来源消息，没有就什么都不做；有则先去掉模型可能照抄的安全边界标记（`strip_internal_markers`，与 IM 普通回复出门前一致），清完为空就不送；再调 `ChannelGateway.deliver_followup`，由路由按普通回复的规则送出（静默过滤、网页接力按钮、话题草稿审核；送不出去只是返回 `False`） | ✅ |
 
 ## 边界
 
@@ -21,7 +21,7 @@
 ## 测试
 
 - `tests/core/channel_bridge/test_wake_origins.py` — 记录内容、去掉的字段、不可回去的渠道、容量与淘汰
-- `tests/core/channel_bridge/test_wake_reply_returner.py` — 有来源则送入对应对话，没有则不送，路由拒收不算错误
+- `tests/core/channel_bridge/test_wake_reply_returner.py` — 有来源则送入对应对话，没有则不送，路由拒收不算错误，照抄的安全边界标记不进对话、只剩标记的回复不送
 - `tests/core/channel_bridge/test_execute_preamble_wake_origin.py` — 谁登记、谁不登记
 - `tests/core/channel_bridge/test_wake_return_wiring.py` — 网关启动 / 停止与承载方的注册 / 清除
 - `tests/services/agent/adaptive_wakeup/test_wake_reply_to_im.py` — 从结算到渠道收到消息的整条链路（真实服务、调度、承载方、网关、路由、总线；模型与平台是替身）

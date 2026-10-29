@@ -49,3 +49,29 @@ async def test_a_reply_the_router_withheld_is_not_an_error() -> None:
     await returner.return_reply("chat-db-1", "[SILENT]")
 
     deliver.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_the_boundary_markers_a_model_echoed_do_not_reach_the_chat() -> None:
+    origins = WakeOrigins()
+    origins.remember("chat-db-1", _MSG)
+    returner, deliver = _returner(origins)
+
+    await returner.return_reply(
+        "chat-db-1",
+        '<<<UNTRUSTED_DATA id="a1b2">>>The research is done.<<<END_UNTRUSTED_DATA>>> [[SANITIZED]]',
+    )
+
+    assert deliver.await_args is not None
+    assert deliver.await_args.args[1] == "The research is done."
+
+
+@pytest.mark.asyncio
+async def test_a_reply_that_was_only_markers_is_not_sent() -> None:
+    origins = WakeOrigins()
+    origins.remember("chat-db-1", _MSG)
+    returner, deliver = _returner(origins)
+
+    await returner.return_reply("chat-db-1", "<<<TOOL_OUTPUT>>><<<END_TOOL_OUTPUT>>> [[SANITIZED]]")
+
+    deliver.assert_not_awaited()
