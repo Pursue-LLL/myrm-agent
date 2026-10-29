@@ -8,6 +8,7 @@ Handles the OAuth 2.0 + PKCE authorization flow for remote MCP servers:
 5. DELETE /{name}       — Disconnect (revoke) OAuth for a server
 
 [INPUT]
+- app.api.integrations.oauth.result_page::oauth_result_response (POS: the one place the OAuth callbacks write their HTML)
 - app.services.agent.backends.mcp_oauth_store (POS: token persistence)
 - myrm_agent_harness.toolkits.mcp.oauth (POS: PKCE + URL generation)
 

@@ -13,7 +13,7 @@ POST /public/artifact-share/{token}/ | share link unlock form submitted by its r
 GET /public/artifact-share/{token}/{asset_path} | assets of a shared page loaded by the recipient's browser (myrm-agent-server/app/api/files/artifact_share_public.py:106-107)
 POST /public/artifact-share/{token}/{asset_path} | share link unlock form submitted by its recipient (myrm-agent-server/app/api/files/artifact_share_public.py:106-107)
 POST /extension/pairing/consume | browser extension consumes the pairing code through the consume_url the pairing response returns (myrm-agent-server/app/api/extension/router.py:366)
-GET /integrations/google-workspace/oauth/callback | Google redirects the browser here after consent (myrm-agent-server/app/api/integrations/oauth/google_workspace_flow.py:99)
+GET /integrations/google-workspace/oauth/callback | Google redirects the browser here after consent (myrm-agent-server/app/api/integrations/oauth/google_workspace_flow.py:84-85)
 GET /config/artifact-mappings | frontend type codegen script fetches the mapping (myrm-agent-frontend/scripts/generate-artifact-types.ts:29)
 GET /security/inbound-quarantine/records/{quarantine_id} | release URL the harness quarantine gate embeds in its notices (myrm-agent-harness/src/myrm_agent_harness/core/security/inbound_quarantine/gate.py:34)
 POST /security/inbound-quarantine/records/{quarantine_id}/release | release URL the harness quarantine gate embeds in its notices (myrm-agent-harness/src/myrm_agent_harness/core/security/inbound_quarantine/gate.py:34)

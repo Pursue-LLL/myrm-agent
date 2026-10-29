@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.api.integrations.oauth.google_workspace_flow (POS: PKCE state, scopes, redirect URI, skill enablement)
+- app.api.integrations.oauth.result_page::oauth_result_response (POS: the one place the OAuth callbacks write their HTML)
 - app.services.integrations.oauth_store (POS: encrypted oauthCredentials persistence)
 - myrm_agent_harness.toolkits.mcp.oauth::generate_pkce_pair (POS: PKCE pair for /start)
 
