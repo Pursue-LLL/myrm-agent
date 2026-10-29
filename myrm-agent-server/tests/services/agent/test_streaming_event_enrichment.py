@@ -62,8 +62,8 @@ class _EventObject:
         return {"type": self.type, "data": dict(self.data)}
 
 
-def _approval(**data: object) -> dict[str, object]:
-    return {"type": "approval_required", "data": {"action_type": "shell_execute", "reason": "run it", **data}}
+def _approval_data() -> dict[str, object]:
+    return {"action_type": "shell_execute", "reason": "run it"}
 
 
 def _of_type(events: list[dict[str, object]], event_type: str) -> dict[str, object]:
@@ -73,13 +73,39 @@ def _of_type(events: list[dict[str, object]], event_type: str) -> dict[str, obje
 
 @pytest.mark.asyncio
 async def test_an_approval_is_filed_and_reaches_the_client_with_the_id_of_its_record() -> None:
-    events, create_approval = await _stream(_approval())
+    events, create_approval = await _stream({"type": "approval_required", "data": _approval_data()})
 
     create_approval.assert_awaited_once()
     data = _of_type(events, "approval_required")["data"]
     assert isinstance(data, dict)
     assert data["approval_id"] == "approval-1"
     assert data["messageId"] == "msg-enrichment"
+
+
+@pytest.mark.asyncio
+async def test_an_approval_that_is_an_object_event_reaches_the_client_with_the_id_of_its_record() -> None:
+    events, create_approval = await _stream(_EventObject("approval_required", _approval_data()))
+
+    create_approval.assert_awaited_once()
+    data = _of_type(events, "approval_required")["data"]
+    assert isinstance(data, dict)
+    assert data["approval_id"] == "approval-1"
+    assert data["messageId"] == "msg-enrichment"
+
+
+@pytest.mark.asyncio
+async def test_an_approval_still_gets_the_id_of_its_record_when_the_takeover_link_cannot_be_signed() -> None:
+    with patch(
+        "app.services.agent.streaming.inject_takeover_live_assist_url",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("pairing service down"),
+    ):
+        events, create_approval = await _stream(_EventObject("approval_required", _approval_data()))
+
+    create_approval.assert_awaited_once()
+    data = _of_type(events, "approval_required")["data"]
+    assert isinstance(data, dict)
+    assert data["approval_id"] == "approval-1"
 
 
 @pytest.mark.asyncio
