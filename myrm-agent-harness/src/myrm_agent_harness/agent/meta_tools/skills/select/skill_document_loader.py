@@ -4,6 +4,7 @@
 - backends.skills.protocols::SkillBackend (POS: skill content + resources)
 - backends.skills.types::SkillMetadata, SkillInstance (POS: metadata + instance config)
 - l1_disclosure_footer::build_l1_disclosure_footer (POS: L1 footer append)
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 - get_skill_document: processed SOP + L1 footer for context injection
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
 
 from myrm_agent_harness.backends.skills.types import SkillInstance, SkillMetadata
+from myrm_agent_harness.core.security.redact import command_preview
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +245,7 @@ async def _resolve_dynamic_context(content: str) -> str:
     replacements: list[tuple[int, int, str]] = []
     for match in matches:
         cmd = match.group(1).strip()
-        logger.info("Dynamic context injection: executing '%s'", cmd)
+        logger.info("Dynamic context injection: executing '%s'", command_preview(cmd, 500))
         output = await _execute_cmd(cmd)
         replacements.append((match.start(), match.end(), output))
 

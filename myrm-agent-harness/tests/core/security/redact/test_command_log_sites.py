@@ -23,7 +23,10 @@ from myrm_agent_harness.agent.meta_tools.bash._security.preflight_checks import 
     check_install_packages,
     check_myrm_tools_import,
 )
+from myrm_agent_harness.agent.meta_tools.skills.select.skill_document_loader import _resolve_dynamic_context
 from myrm_agent_harness.core.security.safe_exec import safe_exec
+from myrm_agent_harness.toolkits.acp.runtime.cli.runtime import CliRuntime
+from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.common.command_rewriter import CommandRewriter
 from myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager import VenvManager
@@ -149,3 +152,24 @@ class TestLocalExecutor:
         finally:
             await executor.close()
         _assert_line_masked(caplog, "Bash exit code")
+
+
+class TestSkillDynamicContext:
+    @pytest.mark.asyncio
+    async def test_an_injected_command_shows_a_masked_command(self, caplog: pytest.LogCaptureFixture) -> None:
+        caplog.set_level(logging.INFO)
+        await _resolve_dynamic_context(f"Current: !`echo {_KEY}`")
+        _assert_line_masked(caplog, "Dynamic context injection")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the launch path resolves a POSIX executable")
+class TestCliRuntime:
+    @pytest.mark.asyncio
+    async def test_a_failed_launch_shows_a_masked_command(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.WARNING)
+        config = RuntimeConfig(backend_type="cli", command=f"{tmp_path}/not-installed {_KEY}", cwd=str(tmp_path))
+        events = [event async for event in CliRuntime("t", config).run_turn("hello", "s1")]
+        assert events
+        _assert_line_masked(caplog, "cli_launch_failed")

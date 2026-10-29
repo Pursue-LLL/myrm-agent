@@ -5,6 +5,7 @@ that prints newline-delimited JSON events. The CLI's own session id is what carr
 it is stored the moment the CLI announces it and replayed through the CLI's resume syntax (see ``dialect``).
 
 [INPUT]
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 - toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities, CliSessionRecord, CliSessionStore, ContinuityStatus (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 - toolkits.acp.runtime._base::KEEPALIVE_SECONDS, BaseRuntime, build_safe_env, working_status (POS: Base class for RuntimeBackend implementations)
 - toolkits.acp.runtime.cli.dialect::dialect_for, is_session_id (POS: Per-CLI launch knowledge of CliRuntime)
@@ -32,6 +33,7 @@ from collections.abc import AsyncGenerator, Sequence
 from contextlib import aclosing
 from dataclasses import dataclass
 
+from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.acp.auth._profiles import resolve_cli_args
 from myrm_agent_harness.toolkits.acp.runtime._base import (
     KEEPALIVE_SECONDS,
@@ -205,7 +207,7 @@ class CliRuntime(BaseRuntime):
                     async for event in events:
                         yield event
         except CliLaunchError as exc:
-            logger.warning("cli_launch_failed name=%s command=%s", self._name, command)
+            logger.warning("cli_launch_failed name=%s command=%s", self._name, command_preview(command, 200))
             yield create_event(
                 RuntimeEventType.ERROR,
                 session_id,
