@@ -80,6 +80,7 @@ def _write_named(directory: Path, name: str, text: str) -> Path:
         pytest.skip(f"this file system refuses the name {name!r}")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
 class TestFilesThatLeaveTheWorkspace:
     def test_a_root_rule_file_linked_to_a_file_outside_is_not_loaded(self, repo: Path, outside: Path) -> None:
         (repo / "AGENTS.md").symlink_to(outside / "secret.md")

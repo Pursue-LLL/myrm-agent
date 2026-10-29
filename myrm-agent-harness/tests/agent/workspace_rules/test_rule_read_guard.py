@@ -15,6 +15,7 @@ Pins the guard in isolation; ``test_hostile_workspace.py`` pins the scanner, the
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
@@ -31,6 +32,12 @@ from myrm_agent_harness.agent.workspace_rules.rule_read_guard import (
     RuleRead,
     RuleReadGuard,
 )
+
+
+@pytest.fixture(autouse=True)
+def _forget_warned_events(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Which refusals this process has already warned about is process-wide state; every test starts without any."""
+    monkeypatch.setattr(rule_read_guard, "_remembered_events", set())
 
 
 @pytest.fixture()
@@ -144,6 +151,7 @@ class TestRead:
             RuleReadGuard(repo).read(repo / "missing.md")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
 class TestBoundary:
     def test_a_symlink_to_a_file_outside_is_refused_and_never_read(
         self, repo: Path, outside: Path, opened: list[str]
@@ -195,6 +203,7 @@ class TestBudgets:
         assert [read.refusal for read in reads[3:]] == [None, None]
         assert opened == ["r0.md", "r1.md", "r2.md"]
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
     def test_a_refused_file_counts_against_the_file_budget(
         self, repo: Path, outside: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -234,6 +243,7 @@ class TestBudgets:
         assert guard.read(repo / "big.md").text is None
         assert guard.read(repo / "small.md") == RuleRead(text=None, refusal=None)
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
     def test_only_the_first_refusals_carry_a_reason(self, repo: Path, outside: Path) -> None:
         for index in range(MAX_REFUSAL_NOTES + 2):
             (repo / f"r{index}.md").symlink_to(outside / "secret.md")
@@ -266,3 +276,56 @@ class TestBudgets:
 
         assert RuleReadGuard(repo).read(repo / "a.md").text == "rule\n"
         assert RuleReadGuard(repo).read(repo / "a.md").text == "rule\n"
+
+
+class TestWarningsAreNotRepeated:
+    """A scan runs on every model call: a refusal that stays true is a warning once per process and a debug line after that."""
+
+    def test_the_same_refusal_is_a_warning_once(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr(rule_read_guard, "MAX_RULE_FILE_READ_CHARS", 10)
+        (repo / "big.md").write_text("x" * 50)
+
+        with caplog.at_level(logging.DEBUG, logger=rule_read_guard.logger.name):
+            for _ in range(3):
+                RuleReadGuard(repo).read(repo / "big.md")
+
+        assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.DEBUG, logging.DEBUG]
+
+    def test_another_file_is_warned_about_again(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr(rule_read_guard, "MAX_RULE_FILE_READ_CHARS", 10)
+        (repo / "a.md").write_text("x" * 50)
+        (repo / "b.md").write_text("x" * 50)
+
+        with caplog.at_level(logging.DEBUG, logger=rule_read_guard.logger.name):
+            RuleReadGuard(repo).read(repo / "a.md")
+            RuleReadGuard(repo).read(repo / "b.md")
+
+        assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.WARNING]
+
+    def test_running_out_of_budget_is_a_warning_once_across_scans(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr(rule_read_guard, "MAX_RULE_FILES_PER_SCAN", 1)
+        (repo / "a.md").write_text("rule\n")
+        (repo / "b.md").write_text("rule\n")
+
+        with caplog.at_level(logging.DEBUG, logger=rule_read_guard.logger.name):
+            for _ in range(2):
+                guard = RuleReadGuard(repo)
+                guard.read(repo / "a.md")
+                guard.read(repo / "b.md")
+
+        assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.DEBUG]
+
+    def test_what_is_remembered_is_bounded(self, repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(rule_read_guard, "_MAX_REMEMBERED_EVENTS", 2)
+        monkeypatch.setattr(rule_read_guard, "MAX_RULE_FILE_READ_CHARS", 10)
+        for index in range(5):
+            (repo / f"r{index}.md").write_text("x" * 50)
+            RuleReadGuard(repo).read(repo / f"r{index}.md")
+
+        assert len(rule_read_guard._remembered_events) <= 2

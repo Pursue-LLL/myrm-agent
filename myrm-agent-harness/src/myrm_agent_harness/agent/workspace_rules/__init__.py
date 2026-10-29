@@ -17,6 +17,9 @@ Provides two mechanisms for workspace rule file support:
 
 [INPUT]
 - scanner.py: Rule file discovery and loading
+- adr_scanner.py: Architectural decision record discovery
+- content_safety.py: Injection verdict for rule file text
+- rule_read_guard.py: Workspace boundary and read budgets of one scan
 - middleware.py: LLM middleware for workspace context injection
 - tracker.py: Progressive subdirectory discovery
 

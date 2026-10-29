@@ -15,12 +15,14 @@ the budgets.
 
 [POS]
 Read guard of the workspace rule scan. Decides whether a candidate file may be read, reads it in text mode up to the per-file limit (so its text is
-what ``Path.read_text`` returns, line endings included) and charges the scan's file and character budgets.
+what ``Path.read_text`` returns, line endings included) and charges the scan's file and character budgets. A refusal, and a scan that runs out
+of budget, are warned about the first time this process sees them.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,6 +39,24 @@ MAX_RULE_CHARS_PER_SCAN = 2_000_000
 # prompt with them.
 MAX_REFUSAL_NOTES = 3
 
+# A scan runs on every model call, so a refusal that stays true would be warned about on every call. It is a warning the first time this
+# process sees it and a debug line after that; the memory of what was warned is bounded.
+_MAX_REMEMBERED_EVENTS = 256
+_remembered_lock = threading.Lock()
+_remembered_events: set[tuple[str, str]] = set()
+
+
+def _log_level(kind: str, path: Path) -> int:
+    """WARNING the first time this process sees ``kind`` for ``path``, DEBUG after that."""
+    event = (kind, str(path))
+    with _remembered_lock:
+        if event in _remembered_events:
+            return logging.DEBUG
+        if len(_remembered_events) >= _MAX_REMEMBERED_EVENTS:
+            _remembered_events.clear()
+        _remembered_events.add(event)
+    return logging.WARNING
+
 
 @dataclass(frozen=True, slots=True)
 class RuleRead:
@@ -47,7 +67,11 @@ class RuleRead:
 
 
 class RuleReadGuard:
-    """The boundary and the budgets of one scan. The budgets are checked before each read, so the last read may pass them by one file."""
+    """The boundary and the budgets of one scan.
+
+    Every file asked about counts against the file budget, a refused one included. The character budget is checked before each read, so the last
+    read can pass it by one file.
+    """
 
     __slots__ = ("_boundary", "_chars_left", "_exhaustion_logged", "_files_left", "_refusal_notes_left")
 
@@ -74,18 +98,18 @@ class RuleReadGuard:
         return RuleRead(text)
 
     def _refuse(self, path: Path, reason: str) -> RuleRead:
+        logger.log(_log_level(reason, path), "Workspace rule file not loaded (%s): %r", reason, str(path))
         if self._refusal_notes_left <= 0:
-            logger.debug("Workspace rule file not loaded (%s): %r", reason, str(path))
             return RuleRead(None)
         self._refusal_notes_left -= 1
-        logger.warning("Workspace rule file not loaded (%s): %r", reason, str(path))
         return RuleRead(None, reason)
 
     def _log_exhaustion(self, path: Path) -> None:
         if self._exhaustion_logged:
             return
         self._exhaustion_logged = True
-        logger.warning(
+        logger.log(
+            _log_level("scan budget", path),
             "Workspace rule scan stopped at its budget of %d files or %d characters; first file not loaded: %r",
             MAX_RULE_FILES_PER_SCAN,
             MAX_RULE_CHARS_PER_SCAN,
