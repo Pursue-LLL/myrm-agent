@@ -9,11 +9,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.hosting.viewer_scaffold import render_standalone_viewer_html
-from tests.support.wcag_contrast import Theme, assert_readable, stylesheet
-
-# The page ships one palette and no prefers-color-scheme block, so the helper reads its single stylesheet as its
-# "light" half. test_the_page_has_one_palette fails when a second one appears, so no theme goes unchecked.
-_THEME: Theme = "light"
+from tests.support.wcag_contrast import SINGLE_PALETTE, assert_readable, assert_single_palette
 
 
 @pytest.fixture(scope="module")
@@ -22,7 +18,7 @@ def page() -> str:
 
 
 def test_the_page_has_one_palette(page: str) -> None:
-    assert "prefers-color-scheme" not in stylesheet(page)
+    assert_single_palette(page)
     assert 'class="doc-meta"' in page
 
 
@@ -56,4 +52,4 @@ def test_the_page_has_one_palette(page: str) -> None:
     ],
 )
 def test_text_is_readable_on_its_surface(page: str, text: str, surface: str) -> None:
-    assert_readable(page, _THEME, text, surface)
+    assert_readable(page, SINGLE_PALETTE, text, surface)

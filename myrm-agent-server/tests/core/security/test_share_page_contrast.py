@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-import re
-
 import pytest
 
 from app.core.security.share.share_password_page import render_password_gate_html
 from app.core.security.share.share_status_page import ShareLinkState, render_share_status_html
-from tests.support.wcag_contrast import Theme, assert_readable, assert_visible, stylesheet
+from tests.support.wcag_contrast import Theme, assert_readable, assert_visible, declared_value, split_themes, stylesheet
 
 _THEMES = pytest.mark.parametrize("theme", ["light", "dark"])
 _FIELD = "input[type=password]"
+
+
+def _light_css() -> str:
+    """The password gate's stylesheet without its dark-theme blocks."""
+    return split_themes(stylesheet(render_password_gate_html()))[0]
 
 
 @_THEMES
@@ -37,10 +40,7 @@ def test_password_gate_placeholder_is_readable_in_the_field(theme: Theme) -> Non
 
 def test_the_placeholder_is_not_dimmed_below_its_colour() -> None:
     # Some browsers fade a placeholder by default; the colour that was checked must be the one painted.
-    placeholder_rule = re.search(rf"{re.escape(_FIELD)}::placeholder\{{[^}}]*\}}", stylesheet(render_password_gate_html()))
-
-    assert placeholder_rule is not None
-    assert "opacity:1" in placeholder_rule.group(0)
+    assert declared_value(_light_css(), f"{_FIELD}::placeholder", "opacity") == "1"
 
 
 @_THEMES
@@ -60,10 +60,7 @@ def test_password_gate_field_edge_and_focus_stand_out(theme: Theme, mark: str, p
 
 def test_the_focused_field_keeps_an_outline_that_forced_colour_modes_draw() -> None:
     # Those modes drop the ring's box-shadow; a transparent outline is what they paint in its place.
-    focus_rule = re.search(rf"{re.escape(_FIELD)}:focus\{{[^}}]*\}}", stylesheet(render_password_gate_html()))
-
-    assert focus_rule is not None
-    assert "outline:2px solid transparent" in focus_rule.group(0)
+    assert declared_value(_light_css(), f"{_FIELD}:focus", "outline") == "2px solid transparent"
 
 
 @_THEMES

@@ -6,7 +6,7 @@ wrapped with a zero-dependency Web Crypto AES-256-GCM HTML bootstrap shell.
 [INPUT]
 - dict[str, PublishFile]: Raw static files for the artifact
 - str: User provided password
-- app.services.hosting.decryptor_shell::render_decryptor_shell (POS: the visitor-side decryptor page with the lock card and the in-browser decrypt-and-mount script)
+- app.services.hosting.decryptor_shell::render_decryptor_shell (POS: the page every visitor of an encrypted publish opens: a lock card plus the in-browser decrypt-and-mount script)
 
 [OUTPUT]
 - dict[str, PublishFile]: Single index.html containing encrypted payload + decryptor shell

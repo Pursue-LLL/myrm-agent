@@ -6,12 +6,16 @@ import pytest
 
 from tests.support.wcag_contrast import (
     MIN_TEXT_CONTRAST,
+    SINGLE_PALETTE,
     assert_readable,
+    assert_single_palette,
     assert_visible,
     contrast,
     declared,
+    declared_value,
     effective,
     split_themes,
+    stylesheet,
 )
 
 _PAGE = """\
@@ -173,3 +177,30 @@ def test_a_pretty_printed_page_is_checked_against_the_bar() -> None:
     assert_readable(page, "light", "p", ".card")
     with pytest.raises(AssertionError, match=r"is 4\.4\d\d:1"):
         assert_readable(page, "light", "q", ".card")
+
+
+def test_a_declared_value_is_the_text_of_the_last_matching_rule_not_only_a_colour() -> None:
+    css = "input:focus{outline:2px solid transparent;opacity:1}\ninput:focus {\n  outline: 1px dotted #fff;\n}\n"
+
+    assert declared_value(css, "input:focus", "outline") == "1px dotted #fff"
+    assert declared_value(css, "input:focus", "opacity") == "1"
+    assert declared_value(css, "input:focus", "color") is None
+    assert declared_value(css, "input", "outline") is None
+
+
+def test_a_page_with_one_palette_is_read_as_the_single_palette() -> None:
+    page = "<style>p{color:#111}</style>"
+    light, dark = split_themes(stylesheet(page))
+
+    assert effective(light, dark, SINGLE_PALETTE, "p", "color") == "#111111"
+    assert_single_palette(page)
+
+
+@pytest.mark.parametrize(
+    "block",
+    ["@media(prefers-color-scheme:dark){p{color:#eee}}", "@media (prefers-color-scheme: dark) { p { color: #eee } }"],
+    ids=["minified", "spaced"],
+)
+def test_a_second_palette_is_an_error(block: str) -> None:
+    with pytest.raises(AssertionError, match="prefers-color-scheme"):
+        assert_single_palette(f"<style>p{{color:#111}}{block}</style>")

@@ -6,6 +6,9 @@
 
 [OUTPUT]
 - stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme
+- declared_value: the raw text of one declaration, for checks that are not about a colour (an outline, an opacity)
+- SINGLE_PALETTE / assert_single_palette: the theme a one-palette page is read as, and the guard that fails once a
+  second palette appears
 - contrast: the WCAG ratio of two colours
 - assert_readable / assert_visible: the 4.5:1 check of a text colour, and the 3:1 check of a control's edge or focus
   mark, against the background they sit on
@@ -21,6 +24,9 @@ import re
 from typing import Literal
 
 Theme = Literal["light", "dark"]
+
+# A page without a prefers-color-scheme block has one palette; its single stylesheet is read as this theme.
+SINGLE_PALETTE: Theme = "light"
 
 # WCAG 2.2 SC 1.4.3: normal-size text needs 4.5:1, compared unrounded.
 MIN_TEXT_CONTRAST = 4.5
@@ -63,21 +69,29 @@ def split_themes(css: str) -> tuple[str, str]:
     return "".join(light), "".join(dark)
 
 
-def declared(css: str, selector: str, prop: str) -> str | None:
-    """The colour the rule for exactly *selector* gives *prop* in *css* (the last rule wins), as ``#rrggbb``.
+def declared_value(css: str, selector: str, prop: str) -> str | None:
+    """The text the rule for exactly *selector* gives *prop* in *css* (the last rule wins), or ``None`` if none does.
 
     The stylesheet may be minified or pretty-printed (indentation, a space before the brace); a rule for a longer or
-    deeper selector (``button:hover``, ``.page button``) is a different rule. The value may be a shorthand around its
-    colour (``border:1px solid #ddd``). A value that does not hold exactly one hex colour is an error, so a colour
-    written in another notation can never read as not declared.
+    deeper selector (``button:hover``, ``.page button``) is a different rule.
     """
     pattern = r"(?m)(?:^|(?<=\}))\s*" + re.escape(selector) + r"\s*\{[^}]*?(?<=[{;\s])" + re.escape(prop) + r":([^;}]*)"
     found = re.findall(pattern, css)
-    if not found:
+    return found[-1].strip() if found else None
+
+
+def declared(css: str, selector: str, prop: str) -> str | None:
+    """The colour the rule for exactly *selector* gives *prop* in *css* (the last rule wins), as ``#rrggbb``.
+
+    The value may be a shorthand around its colour (``border:1px solid #ddd``). A value that does not hold exactly one
+    hex colour is an error, so a colour written in another notation can never read as not declared.
+    """
+    value = declared_value(css, selector, prop)
+    if value is None:
         return None
-    colours = re.findall(_HEX, found[-1])
+    colours = re.findall(_HEX, value)
     if len(colours) != 1:
-        raise AssertionError(f"{selector} gives {prop} {found[-1].strip()!r}, which is not exactly one hex colour")
+        raise AssertionError(f"{selector} gives {prop} {value!r}, which is not exactly one hex colour")
     digits = colours[0]
     return "#" + (digits if len(digits) == 6 else "".join(digit * 2 for digit in digits)).lower()
 
@@ -93,6 +107,12 @@ def effective(light: str, dark: str, theme: Theme, selector: str, *props: str) -
             if (value := declared(half, selector, prop)) is not None:
                 return value
     raise AssertionError(f"{selector!r} declares no {'/'.join(props)} in the {theme} stylesheet")
+
+
+def assert_single_palette(html: str) -> None:
+    """Fail when *html* declares a ``prefers-color-scheme`` block, so a second palette is never left unchecked."""
+    if "prefers-color-scheme" in stylesheet(html):
+        raise AssertionError(f"the page declares a prefers-color-scheme block; check each theme, not only {SINGLE_PALETTE}")
 
 
 def _luminance(hex_color: str) -> float:
