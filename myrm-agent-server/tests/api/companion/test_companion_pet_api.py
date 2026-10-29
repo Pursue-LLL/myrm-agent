@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.services.companion.pet_store import InstalledPet
@@ -12,7 +13,7 @@ from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.fixture
-def companion_app():
+def companion_app() -> FastAPI:
     return build_minimal_app(preset="companion")
 
 
@@ -24,7 +25,7 @@ def pet_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.mark.asyncio
 async def test_companion_pet_install_and_serve_api(
-    companion_app,
+    companion_app: FastAPI,
     pet_data_dir: Path,
 ) -> None:
     from myrm_agent_harness.core.features import init_features
@@ -50,7 +51,7 @@ async def test_companion_pet_install_and_serve_api(
                 new=AsyncMock(return_value=installed),
             ),
             patch(
-                "app.api.companion.router._persist_sprite_selection",
+                "app.api.companion.pets.router.persist_sprite_selection",
                 new=AsyncMock(),
             ) as persist_mock,
         ):
@@ -74,7 +75,7 @@ async def test_companion_pet_install_and_serve_api(
 
 @pytest.mark.asyncio
 async def test_companion_pet_uninstall_clears_matching_sprite_config(
-    companion_app,
+    companion_app: FastAPI,
     pet_data_dir: Path,
 ) -> None:
     from myrm_agent_harness.core.features import init_features

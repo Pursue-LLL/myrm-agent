@@ -8,9 +8,12 @@ mode so internal channel ingress can execute through the same route.
 [INPUT]
 - channel_factory::create_all_channels, flatten_credential_strings
 - app.config.deploy_mode::is_local_mode
+- app.core.channel_bridge.wake_return::ChannelWakeReplyReturner (POS: carries a wake turn's reply to IM)
+- app.services.agent.adaptive_wakeup.reply_return::set_wake_reply_returner (POS: where that carrier is registered)
 
 [OUTPUT]
-- start_channel_gateway / stop_channel_gateway: lifecycle entry points
+- start_channel_gateway / stop_channel_gateway: lifecycle entry points; the gateway running also means a wake turn's
+  reply is returned to the IM chat it belongs to
 - refresh_reaction_policy: reload ReactionPolicy from DB into running AgentRouter
 
 [POS]
@@ -35,6 +38,7 @@ from app.core.notifications.dispatcher import NotificationDispatcher
 from app.core.web_push.dispatcher import WebPushDispatcher
 
 if TYPE_CHECKING:
+    from app.channels.media.sticker_vision import StickerVisionService
     from app.channels.routing.command_defs import CommandDef
     from app.channels.routing.router_models import (
         ReactionPolicy,
@@ -63,6 +67,7 @@ async def start_channel_gateway() -> None:
         channel_gateway.register(channel)
 
     await _enable_core_router()
+    _register_wake_reply_returner()
 
     from app.services.event.app_event_bus import get_event_bus
 
@@ -146,11 +151,23 @@ async def stop_channel_gateway() -> None:
         finally:
             _notification_dispatcher = None
 
+    from app.services.agent.adaptive_wakeup.reply_return import set_wake_reply_returner
+
+    set_wake_reply_returner(None)
+
     try:
         await channel_gateway.stop()
         logger.info("Channel Gateway stopped")
     except Exception as e:
         logger.warning("Failed to stop channel gateway: %s", e)
+
+
+def _register_wake_reply_returner() -> None:
+    """Let a wake turn's reply go back to the IM chat it belongs to for as long as the gateway runs."""
+    from app.core.channel_bridge.wake_return import ChannelWakeReplyReturner, get_wake_origins
+    from app.services.agent.adaptive_wakeup.reply_return import set_wake_reply_returner
+
+    set_wake_reply_returner(ChannelWakeReplyReturner(channel_gateway, get_wake_origins()))
 
 
 async def _enable_core_router() -> None:
@@ -319,7 +336,7 @@ async def _load_reaction_policy() -> ReactionPolicy:
         return _defaults
 
 
-async def _load_sticker_vision_service() -> object | None:
+async def _load_sticker_vision_service() -> StickerVisionService | None:
     """Create StickerVisionService from user's visionFallbackModel config.
 
     Returns None if vision fallback model is not configured.

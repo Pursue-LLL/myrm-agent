@@ -4,12 +4,13 @@
 preamble 子模块 types / session / agent / instructions (POS: preamble 编排）
 app.core.channel_bridge.config_loader (POS: UserConfig 加载)
 app.channels.routing.identity_scope::resolve_turn_memory_scope (POS: 渠道 turn 记忆 compartment 解析)
+app.core.channel_bridge.wake_return::get_wake_origins (POS: 记住会话所在的 IM 私聊，供唤醒回合的回复回到那里)
 
 [OUTPUT]
 prepare_channel_execution(): 预算/会话/Agent 创建前置；返回 PrepareChannelExecutionResult（prep 或 pre_events 早退）。
 
 [POS]
-渠道 Agent 执行 preamble 编排门面：串联子模块完成 InboundMessage → GeneralAgent。
+渠道 Agent 执行 preamble 编排门面：串联子模块完成 InboundMessage → GeneralAgent；所有者私聊的会话在记忆范围确定后登记其 IM 来源（群聊与访客会话运行在记忆隔离舱里，不登记）。
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from app.core.channel_bridge.config_parsers import (
     extract_vision_fallback_model_config,
     merge_org_mcp_configs,
 )
+from app.core.channel_bridge.wake_return import get_wake_origins
 from app.services.agent.profile.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     ResolvedAgentProfile,
@@ -186,6 +188,10 @@ async def prepare_channel_execution(
         untrusted=untrusted_sender,
         profile_policy=resolved_profile.memory_policy if resolved_profile else None,
     )
+    # A wake turn runs with the owner's whole memory, so its reply may only go back into a conversation that memory is
+    # not walled off from: the owner's own direct chat, never a group or a guest's chat (those run in a compartment).
+    if not is_resume and not memory_scope.is_compartment:
+        get_wake_origins().remember(session_ctx.chat_id, msg)
 
     agent_outcome = await build_channel_execution_agent(
         msg,

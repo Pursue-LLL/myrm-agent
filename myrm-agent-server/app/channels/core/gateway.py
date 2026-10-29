@@ -22,7 +22,8 @@ Health loop:
 - channels.protocols.pairing::PairingStore (POS: identity binding protocol)
 
 [OUTPUT]
-- ChannelGateway: singleton gateway managing all channel lifecycles
+- ChannelGateway: singleton gateway managing all channel lifecycles; ``deliver_followup`` hands the router a reply no
+  message just asked for
 
 [POS]
 Channel system entry point. Manages all channel lifecycles, health checks, and error isolation.
@@ -99,7 +100,7 @@ if TYPE_CHECKING:
     from app.channels.routing.router_models import (
         ReactionPolicy,
     )
-    from app.channels.types import VoiceConfig
+    from app.channels.types import InboundMessage, VoiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +271,15 @@ class ChannelGateway:
         """Apply a new reaction policy to the running AgentRouter, if enabled."""
         if self._router is not None:
             self._router.set_reaction_policy(policy)
+
+    async def deliver_followup(self, origin: InboundMessage, content: str) -> bool:
+        """Say ``content`` in the conversation ``origin`` came from, under the delivery rules of a normal reply.
+
+        Returns True when the reply was sent; False when it was withheld or the router is not enabled.
+        """
+        if self._router is None:
+            return False
+        return await self._router.deliver_followup(origin, content)
 
     async def publish(self, msg: OutboundMessage) -> None:
         """Publish an outbound message (convenience wrapper)."""

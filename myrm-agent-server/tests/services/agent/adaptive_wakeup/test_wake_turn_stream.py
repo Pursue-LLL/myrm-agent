@@ -1,4 +1,5 @@
 """The wake turn streams to the chat under the caller's lease, and a Stop ends it like it ends a chat turn.
+It hands back what it said only when it finished its answer.
 
 Checked against the real gateway, cancellation registry and stream collector; the agent is a scripted stand-in (it
 needs a model), and so are the stores, the event bus and the pooled-session release.
@@ -123,9 +124,9 @@ def use_agent(monkeypatch: pytest.MonkeyPatch, agent: ScriptedAgent) -> None:
     monkeypatch.setattr("app.ai_agents.AgentFactory.create_general_agent", staticmethod(lambda _params: agent))
 
 
-async def run_wake_turn(chat_id: str, turn_id: str) -> None:
+async def run_wake_turn(chat_id: str, turn_id: str) -> str | None:
     async with server_turn_lease(chat_id, turn_id) as token:
-        await stream_wake_turn(chat_id, turn_id, token)
+        return await stream_wake_turn(chat_id, turn_id, token)
 
 
 @pytest.mark.asyncio
@@ -324,3 +325,75 @@ async def test_the_turn_keeps_the_incognito_flag_of_the_chat_it_wakes(
     await run_wake_turn(chat_id, "turn-1")
 
     assert [request.incognito_mode for request in stores.requests] == [incognito]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_finishes_hands_back_what_it_said_after_saving_it(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    use_agent(monkeypatch, ScriptedAgent(lambda _token: plays(message("  The report is ready.\n"))))
+
+    reply = await run_wake_turn(chat_id, "turn-1")
+
+    assert reply == "The report is ready."
+    # What is returned outside the app is already in the chat's history.
+    assert stores.persisted.await_args.args[:2] == (chat_id, "  The report is ready.\n")
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_said_nothing_hands_back_nothing(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    use_agent(monkeypatch, ScriptedAgent(lambda _token: plays(message("  \n"))))
+
+    assert await run_wake_turn(chat_id, "turn-1") is None
+
+
+@pytest.mark.asyncio
+async def test_a_stopped_turn_hands_back_nothing_of_what_it_had_said(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    async def script(_token: CancellationToken) -> AsyncIterator[dict[str, object]]:
+        yield message("partial")
+        assert CancellationRegistry.cancel("turn-1", CancelReason.USER_CANCELLED)
+        yield message("never shown")
+
+    use_agent(monkeypatch, ScriptedAgent(script))
+
+    assert await run_wake_turn(chat_id, "turn-1") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("keeps_failing", [True, False])
+async def test_a_turn_that_failed_for_good_hands_back_nothing(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace, keeps_failing: bool
+) -> None:
+    async def breaks(_token: CancellationToken) -> AsyncIterator[dict[str, object]]:
+        if not keeps_failing:
+            yield message("first half")
+        raise RuntimeError("stream cut")
+
+    use_agent(monkeypatch, ScriptedAgent(breaks))
+
+    assert await run_wake_turn(chat_id, "turn-1") is None
+
+
+@pytest.mark.asyncio
+async def test_a_turn_whose_run_reported_an_error_hands_back_nothing(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    run = plays(message("Looking into it"), {"type": "error", "error": "provider refused the request"})
+    use_agent(monkeypatch, ScriptedAgent(lambda _token: run))
+
+    assert await run_wake_turn(chat_id, "turn-1") is None
+    # What it said before the error still reaches the chat.
+    assert stores.persisted.await_args.args[:2] == (chat_id, "Looking into it")
+
+
+@pytest.mark.asyncio
+async def test_a_chat_that_is_gone_hands_back_nothing(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace
+) -> None:
+    monkeypatch.setattr("app.services.chat.chat_service.ChatService.get_chat_metadata", AsyncMock(return_value=None))
+
+    assert await run_wake_turn(chat_id, "turn-1") is None

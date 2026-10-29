@@ -23,6 +23,7 @@ Typing protocols: host instance attributes required by Router Mixins (stream, co
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -115,20 +116,26 @@ class RouterStreamHost(Protocol):
 
 
 class PersonalityInfo(Protocol):
-    """Minimal personality template info required by the command handler."""
+    """Minimal personality template info required by the command handler (read-only, so a template whose ``name`` is a narrower literal type fits)."""
 
-    name: str
-    emoji: str
-    display_name: str
-    display_name_zh: str
-    description: str
-    description_zh: str
+    @property
+    def name(self) -> str: ...
+    @property
+    def emoji(self) -> str: ...
+    @property
+    def display_name(self) -> str: ...
+    @property
+    def display_name_zh(self) -> str: ...
+    @property
+    def description(self) -> str: ...
+    @property
+    def description_zh(self) -> str: ...
 
 
 class PersonalityProvider(Protocol):
     """Business-layer injectable personality template provider."""
 
-    def list_all(self) -> list[PersonalityInfo]: ...
+    def list_all(self) -> Sequence[PersonalityInfo]: ...
     def get(self, style: str) -> PersonalityInfo | None: ...
 
 

@@ -10,7 +10,6 @@ from httpx import ASGITransport, AsyncClient
 
 from app.api.statistics.growth_dashboard import WeeklySummary, _ActivitySnapshot
 from app.api.statistics.skill_growth import SkillEvolutionSnapshot, SkillTrendPoint, SkillTrendSeries
-from app.database.connection import get_db
 from tests.support.minimal_app import build_minimal_app
 
 
@@ -32,7 +31,6 @@ async def dashboard_client(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tup
     monkeypatch.setattr(f"{module}.fetch_skill_trends", trends)
 
     app = build_minimal_app(preset="statistics")
-    app.dependency_overrides[get_db] = lambda: AsyncMock()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client, trends
 
@@ -46,6 +44,7 @@ async def test_selected_range_is_the_trend_window(dashboard_client: tuple[AsyncC
 
     assert response.status_code == 200
     trends.assert_awaited_once()
+    assert trends.await_args is not None
     assert trends.await_args.args[0] == days
 
 

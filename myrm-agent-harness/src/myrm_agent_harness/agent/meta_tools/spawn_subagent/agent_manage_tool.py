@@ -2,12 +2,15 @@
 
 [INPUT]
 - agent.base_agent::BaseAgent (POS: Agent base class with list/cancel/steer/wait child APIs)
+- utils.runtime.wakeup_registry::report_results_read (POS: tells the wakeup handler which settled results the agent read itself)
 
 [OUTPUT]
 - create_subagent_control_tool: Unified LLM tool (action=list|cancel|steer|wait)
 
 [POS]
 Subagent runtime observability and control exposed as a single LLM tool surface.
+`list` hands the agent the final result of every settled subagent, so those results count as read: a wake turn queued
+only to deliver them is told it has nothing left to say.
 """
 
 from __future__ import annotations
@@ -17,12 +20,36 @@ from typing import TYPE_CHECKING, Literal
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 
+from myrm_agent_harness.agent.sub_agents.types import SubAgentStatus
+from myrm_agent_harness.utils.runtime.wakeup_registry import report_results_read
+
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
     from myrm_agent_harness.agent.base_agent import BaseAgent
 
 _MAX_STEER_MESSAGE_CHARS = 4000
+
+# A child waiting for approval is not done: it resumes and settles again, so reading its status delivers no final result.
+_FINAL_RESULT_STATUSES = frozenset(
+    {
+        SubAgentStatus.COMPLETED.value,
+        SubAgentStatus.FAILED.value,
+        SubAgentStatus.TIMED_OUT.value,
+        SubAgentStatus.CANCELLED_BY_BUDGET.value,
+    }
+)
+
+
+def _report_settled_results_read(parent_agent: BaseAgent, children: list[dict[str, object]]) -> None:
+    """Tell the wakeup handler that the agent just received the final result of every settled child in ``children``."""
+    settled = [
+        task_id
+        for child in children
+        if child.get("status") in _FINAL_RESULT_STATUSES and isinstance(task_id := child.get("task_id"), str)
+    ]
+    session_id = (getattr(parent_agent, "_last_context", None) or {}).get("session_id")
+    report_results_read(settled, session_id if isinstance(session_id, str) else None)
 
 
 def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:
@@ -71,6 +98,7 @@ def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:
     ) -> dict[str, object]:
         if action == "list":
             children = parent_agent.list_children()
+            _report_settled_results_read(parent_agent, children)
             return {
                 "total": len(children),
                 "running": sum(1 for c in children if c.get("status") == "running"),

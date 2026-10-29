@@ -13,14 +13,16 @@
 
 [OUTPUT]
 - WAKE_TURN_FAILED_ERROR_KIND: the ``error_kind`` of the stream event that tells the chat a wake turn failed for good
-- stream_wake_turn: build the agent of a chat and stream one wake turn the caller holds the chat for
+- stream_wake_turn: build the agent of a chat, stream one wake turn the caller holds the chat for, and return what the
+  turn said when it finished normally (``None`` after a Stop, a failure or an empty answer)
 
 [POS]
 The streaming half of a wake turn. The turn belongs to the chat's own agent, streams to the chat through the app event
 bus, and runs under the caller's turn lease, so the chat's Stop button, a goal pause and the emergency stop reach it
 like any other turn. It runs incognito exactly when its chat is, so a private chat's follow-up leaves no memory either.
 A run is retried only while it has shown the user nothing; a run that fails for good leaves an
-error event in the chat and on its saved reply instead of silence.
+error event in the chat and on its saved reply instead of silence. The reply is saved before it is returned, so
+whoever carries it outside the app finds it in the chat's history too.
 """
 
 from __future__ import annotations
@@ -48,9 +50,13 @@ WAKE_TURN_FAILED_ERROR_KIND = "wake_turn_failed"
 
 _MAX_ATTEMPTS = 3
 
+# How a run that did not finish its answer ends (as ``completionStatus`` and as the category of its stop reason);
+# what such a run said is not an answer to hand to anyone.
+_UNFINISHED_ENDINGS = frozenset({"cancelled", "error"})
 
-async def stream_wake_turn(chat_id: str, turn_id: str, cancel_token: CancellationToken) -> None:
-    """Build the agent of ``chat_id`` and stream one wake turn.
+
+async def stream_wake_turn(chat_id: str, turn_id: str, cancel_token: CancellationToken) -> str | None:
+    """Build the agent of ``chat_id`` and stream one wake turn; return its reply when the run finished normally.
 
     The caller holds ``chat_id`` under ``server_turn_lease`` for ``turn_id``; ``cancel_token`` is the lease's token,
     which is what a Stop, a pause or the emergency stop flips.
@@ -65,7 +71,7 @@ async def stream_wake_turn(chat_id: str, turn_id: str, cancel_token: Cancellatio
     chat = await ChatService.get_chat_metadata(chat_id)
     if chat is None:
         logger.warning("Wake turn not run, the chat no longer exists: session=%s", chat_id)
-        return
+        return None
 
     request = AgentRequest(
         message_id=turn_id,
@@ -97,7 +103,7 @@ async def stream_wake_turn(chat_id: str, turn_id: str, cancel_token: Cancellatio
         providers_dict=user_cfgs.providers_dict if user_cfgs else None,
     ):
         try:
-            await _stream_with_retries(chat_id, agent, params, runtime_context, cancel_token)
+            return await _stream_with_retries(chat_id, agent, params, runtime_context, cancel_token)
         finally:
             await finalize_agent_session(
                 agent,
@@ -113,8 +119,11 @@ async def _stream_with_retries(
     params: GeneralAgentParams,
     runtime_context: dict[str, object],
     cancel_token: CancellationToken,
-) -> None:
-    """Relay the agent run to the chat, retry a run that failed before saying anything, and keep what it said."""
+) -> str | None:
+    """Relay the agent run to the chat, retry a run that failed before saying anything, and keep what it said.
+
+    Returns the reply of a run that finished normally; a stopped or failed run returns ``None``.
+    """
     converted_history = await convert_chat_history(params.chat_history)
     collector = StreamContentCollector()
     try:
@@ -123,12 +132,12 @@ async def _stream_with_retries(
             try:
                 await _relay(chat_id, agent, params, runtime_context, converted_history, cancel_token, collector)
                 logger.info("Headless wakeup agent run completed for session %s", chat_id)
-                return
+                return _finished_reply(collector, cancel_token)
             except Exception as e:
                 logger.error("Headless wakeup stream error on attempt %d/%d: %s", attempt + 1, _MAX_ATTEMPTS, e)
                 if cancel_token.is_cancelled:
                     # A stopped turn is over; starting it again would undo the stop.
-                    return
+                    return None
                 # What the run already streamed stays in the chat, so starting over would show it twice.
                 if collector.has_active_generation or attempt == _MAX_ATTEMPTS - 1:
                     logger.error("Headless wakeup failed permanently for session %s after %d attempt(s).", chat_id, attempt + 1)
@@ -143,8 +152,9 @@ async def _stream_with_retries(
                         },
                     )
                     collector.mark_stream_completion_error()
-                    return
+                    return None
                 await asyncio.sleep(2**attempt)
+        return None
     finally:
         if collector.has_persistable_turn:
             await ChatService.persist_assistant_message_safe(
@@ -154,6 +164,19 @@ async def _stream_with_retries(
                 timezone=params.timezone,
                 request_message_id=params.message_id,
             )
+
+
+def _finished_reply(collector: StreamContentCollector, cancel_token: CancellationToken) -> str | None:
+    """What the run said, when it ended on its own with an answer; ``None`` after a Stop, an error or an empty answer."""
+    if cancel_token.is_cancelled:
+        return None
+    extra_data = collector.extra_data or {}
+    if extra_data.get("completionStatus") in _UNFINISHED_ENDINGS:
+        return None
+    stop_reason = extra_data.get("stopReason")
+    if isinstance(stop_reason, dict) and stop_reason.get("category") in _UNFINISHED_ENDINGS:
+        return None
+    return collector.content.strip() or None
 
 
 async def _relay(

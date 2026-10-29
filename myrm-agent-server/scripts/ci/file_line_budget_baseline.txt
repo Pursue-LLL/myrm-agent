@@ -10,7 +10,6 @@ app/api/approvals/router.py
 app/api/channels/router.py
 app/api/channels/test_connections.py
 app/api/chats/chat/core.py
-app/api/companion/router.py
 app/api/config/router.py
 app/api/cron/routes/helpers.py
 app/api/cron/schemas.py

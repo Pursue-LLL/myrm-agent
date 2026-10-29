@@ -3,6 +3,8 @@
 [INPUT]
 - myrm_agent_harness.agent.coordination.adaptive_wakeup::{AdaptiveWakeupRouter, RoutingDecision, WakeupBudgetState, WakeupChannel, WakeupEvent} (POS: bounded consecutive-wake budget and the followup / degrade / suppress decision)
 - myrm_agent_harness.agent.security.guards.estop::check_estop (POS: the emergency stop keeps wake turns from starting)
+- app.services.agent.adaptive_wakeup.reply_return::return_wake_reply (POS: hands the reply of a finished wake turn to whoever carries it back outside the app)
+- app.services.agent.adaptive_wakeup.settled_results::SettledResults (POS: which settlements a wake turn answers and which of their results the agent already read)
 - app.services.agent.adaptive_wakeup.wake_turn_scheduler::schedule_wake_turn (POS: starts the one wake turn once the chat is free)
 - app.services.agent.adaptive_wakeup.wake_turn_stream::stream_wake_turn (POS: builds the chat's agent and streams the wake turn)
 - app.services.budget.enforcer::should_block_execution (POS: the daily spend limit keeps wake turns from starting)
@@ -18,12 +20,15 @@
 - Bridge between background jobs / subagent settlements and the chat execution engine.
   Every settlement lands in the chat as a notice row, whatever channel it takes, so the next turn sees it.
   A settlement only reads the wake budget; a wake turn spends one unit of it when it actually starts.
+  A wake turn whose every result the agent already read in its own turn does not start. What a wake turn says is also
+  returned to the place outside the app where its chat was started, when there is one.
 """
 
 from __future__ import annotations
 
 import html
 import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from myrm_agent_harness.agent.coordination.adaptive_wakeup import (
@@ -42,6 +47,8 @@ from app.database.models.chat import (
     WAKEUP_NOTICE_KEY,
     WAKEUP_NOTICE_SUPPRESSED,
 )
+from app.services.agent.adaptive_wakeup.reply_return import return_wake_reply
+from app.services.agent.adaptive_wakeup.settled_results import SettledResults
 from app.services.agent.adaptive_wakeup.wake_turn_scheduler import schedule_wake_turn
 from app.services.agent.adaptive_wakeup.wake_turn_stream import stream_wake_turn
 from app.services.budget.enforcer import should_block_execution
@@ -116,6 +123,7 @@ class AdaptiveWakeupService:
 
     def __init__(self, default_max_consecutive_wakes: int = 3) -> None:
         self._router: AdaptiveWakeupRouter = AdaptiveWakeupRouter(default_max_consecutive_wakes=default_max_consecutive_wakes)
+        self._settled = SettledResults()
 
     @classmethod
     def get_instance(cls) -> AdaptiveWakeupService:
@@ -143,9 +151,14 @@ class AdaptiveWakeupService:
         """Retrieve current session autonomous wake budget state."""
         return self._router.budget_tracker.get_budget_state(chat_id)
 
+    def note_results_read(self, chat_id: str, task_ids: Iterable[str]) -> None:
+        """The agent read these settled results in a tool call of its own, so no wake turn needs to deliver them."""
+        self._settled.mark_read(chat_id, task_ids)
+
     def forget_chat(self, chat_id: str) -> None:
-        """Drop the wake budget and stop flag of a chat that is gone."""
+        """Drop the wake budget, stop flag and unanswered settlements of a chat that is gone."""
         self._router.reset_session(chat_id)
+        self._settled.forget(chat_id)
 
     async def handle_settlement(self, event: WakeupEvent) -> RoutingDecision | None:
         """Route a settlement of ``event.session_id`` (a chat id) and queue the wake turn it calls for.
@@ -204,21 +217,26 @@ class AdaptiveWakeupService:
 
         # 3. Only a followup starts a turn; it waits for the chat to be free and shares one turn with its neighbours
         if decision.channel == WakeupChannel.FOLLOWUP:
+            self._settled.queue(chat_id, event.source_id)
             schedule_wake_turn(chat_id, self._run_wake_turn)
 
         return decision
 
     async def _run_wake_turn(self, chat_id: str, turn_id: str, cancel_token: CancellationToken, settled_at: datetime) -> None:
         """Start the wake turn the scheduler holds the chat for, unless the situation changed while it waited."""
-        if (reason := await self._skip_reason(chat_id, settled_at)) is not None:
+        # Before any await: a settlement that lands from here on belongs to the next wake turn.
+        results_read = self._settled.take_all_read(chat_id)
+        if (reason := await self._skip_reason(chat_id, settled_at, results_read=results_read)) is not None:
             logger.info("Wake turn skipped, %s: session=%s", reason, chat_id)
             return
-        await stream_wake_turn(chat_id, turn_id, cancel_token)
+        if (reply := await stream_wake_turn(chat_id, turn_id, cancel_token)) is not None:
+            await return_wake_reply(chat_id, reply)
 
-    async def _skip_reason(self, chat_id: str, settled_at: datetime) -> str | None:
+    async def _skip_reason(self, chat_id: str, settled_at: datetime, *, results_read: bool) -> str | None:
         """Why the wake turn must not start now (``None`` to start it, spending one unit of the wake budget).
 
-        The settlement was routed earlier; the user may have stopped, written, or switched everything off since.
+        The settlement was routed earlier; the user may have stopped, written, or switched everything off since, and
+        the agent may have read every result the turn would deliver.
         """
         if check_estop() is not None:
             return "the emergency stop is on"
@@ -227,6 +245,8 @@ class AdaptiveWakeupService:
             return "the user stopped the session"
         if state.last_human_reset_time is not None and state.last_human_reset_time > settled_at:
             return "the user wrote after the notice"
+        if results_read:
+            return "the agent already read every result this turn would deliver"
         if await should_block_execution():
             return "the daily budget is exceeded"
         # Claimed last: a turn that does not start must not use up the budget.

@@ -9,7 +9,8 @@
 - channels.routing.session_gate::gate_key (POS: the session key of a message in the SessionGate, recorded on the running task for the watchdog's release)
 
 [OUTPUT]
-- RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``
+- RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``, and
+  ``deliver_followup`` (the one way to say something in a conversation that no message just asked for)
 
 [POS]
 Execution segment of ``AgentRouter``, composed into it via multiple inheritance. It builds on ``RouterDeliveryMixin``
@@ -95,6 +96,25 @@ class RouterExecutionMixin(RouterDeliveryMixin):
             return dataclasses.replace(ctx, matched_by="channel_binding")
 
         return None
+
+    async def deliver_followup(self: RouterExecutionHost, origin: InboundMessage, content: str) -> bool:
+        """Say ``content`` in the conversation ``origin`` came from, though no message just asked for it.
+
+        The reply goes out like the answer to a message: the silent-reply filter, the web hand-off button and draft
+        review all apply (a topic that holds replies for review gets a draft, and the reply is withheld when it cannot
+        be held), and a topic that has been disabled since gets nothing.
+
+        Returns True when the reply was sent to the channel.
+        """
+        chat_id = origin.chat_id or origin.sender_id
+        topic_ctx = await self._resolve_topic(origin)
+        if topic_ctx is not None and not topic_ctx.enabled:
+            logger.warning(
+                "AgentRouter: topic %s disabled in %s/%s, follow-up not sent", origin.thread_id, origin.channel, chat_id
+            )
+            return False
+        reply = dataclasses.replace(origin.get_or_create_correlation_context().create_reply(content), recipient_id=chat_id)
+        return await self._deliver_agent_result(reply, None, origin, chat_id, 0.0, False, topic_ctx=topic_ctx)
 
     async def _prepare_execution_context(self: RouterExecutionHost, inbound: InboundMessage) -> _RouterExecutionContext | None:
         """Prepare execution context: identity resolution, session check, topic validation.

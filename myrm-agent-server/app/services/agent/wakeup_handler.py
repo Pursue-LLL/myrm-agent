@@ -1,12 +1,13 @@
 """Harness async wakeup bridge — hands a finished background subagent to the adaptive wakeup service.
 
 [INPUT]
-- app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: routes a settlement, writes its notice row, queues the wake turn)
+- app.services.agent.adaptive_wakeup::get_adaptive_wakeup_service (POS: routes a settlement, writes its notice row, queues the wake turn, learns which results the agent read itself)
 - app.services.agent.params.workspace_resolve::chat_id_from_session_id (POS: the chat a harness session key belongs to)
 - myrm_agent_harness.agent.sub_agents.types::SubAgentResult (POS: the settled subagent)
 
 [OUTPUT]
 - ServerWakeupHandler.on_async_wakeup: settle a finished background subagent into its chat
+- ServerWakeupHandler.on_results_read: record that the agent read settled subagent results in a tool call of its own
 
 [POS]
 Business orchestration hook for Harness `ASYNC_WAKEUP`; runs per isolated server instance without Control Plane scheduling.
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Collection
 
 from myrm_agent_harness.agent.coordination.adaptive_wakeup import WakeupEvent, WakeupSourceType
 from myrm_agent_harness.agent.sub_agents.types import SubAgentResult
@@ -49,6 +51,15 @@ class ServerWakeupHandler:
         task = asyncio.create_task(self._process_wakeup(result, chat_id))
         _tasks.add(task)
         task.add_done_callback(_tasks.discard)
+
+    def on_results_read(self, task_ids: Collection[str], session_id: str | None) -> None:
+        """Called by Harness when the agent's own tool call returned the results of these settled subagents.
+
+        The wake turn queued to deliver them stands down once it holds nothing the agent has not seen.
+        """
+        if not session_id:
+            return
+        get_adaptive_wakeup_service().note_results_read(chat_id_from_session_id(session_id), task_ids)
 
     @staticmethod
     async def _process_wakeup(result: SubAgentResult, chat_id: str) -> None:

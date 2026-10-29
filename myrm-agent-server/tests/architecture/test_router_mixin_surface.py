@@ -32,6 +32,7 @@ _REQUIRED_ROUTER_METHODS = (
     "_resolve_topic",
     "_prepare_execution_context",
     "_execute_prepared_context",
+    "deliver_followup",
     # pipeline/delivery.py
     "_deliver_agent_result",
     "_attach_web_handoff",

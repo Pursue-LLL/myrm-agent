@@ -61,8 +61,7 @@ async def test_the_evolution_metrics_count_only_what_the_person_typed(chat_id: s
 
 
 async def test_the_weekly_summary_counts_only_what_the_person_typed(chat_id: str) -> None:
-    async with connection.get_session() as db:
-        summary = await _fetch_weekly_summary(db)
+    summary = await _fetch_weekly_summary()
 
     assert summary.messages_sent == 1
 

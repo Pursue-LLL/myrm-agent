@@ -93,9 +93,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批：列表对纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加；目标已变化的提案以用户语言提示，`approve all` 汇报未通过数量 |
 | `channels/routing/test_stream_reply_tracing.py` | 单元 | 一次流式回复就是一条 trace：真实路由器消费真实事件序列，agent 运行与每次编辑都挂在唯一的 `stream_reply` 根 span 下（流式文本事件自己不单开 span），会话统计（更新判定数、编辑数、失败编辑数）落在该 span 上，失败只记录异常类名（消息可能回显发送者原文），取消不算错误，连续 3 次编辑失败只在第 3 次留下一次回退事件，日志里的 `trace_id` 就是该 span 的 trace id，无记录型 tracer 时回复照常流式 |
 | `channels/routing/test_router_reassurance.py` | 单元 | 静默心跳 `run_reassurance_loop`：首条发送、之后原地编辑；编辑失败时改发新消息，渠道不能编辑时只发首条；调用方可自带间隔、次数与消息文案（间隔次数覆盖前台默认值）；发送未返回消息号时下一次重新发送而不编辑；优先级 NORMAL（不触发推送）；最近有活动则不打扰；发送异常不使循环崩溃（下一轮重试）；无渠道只发一次 |
+| `channels/routing/test_deliver_followup.py` | 单元 | 没有消息问起的回复按普通回复的规则送出（真实路由器，总线、话题存储、网页接力查询与数据面账本为记录替身）：送到来源对话与话题、私聊无会话 id 时送给发送者、带网页接力、`[SILENT]` 不送、话题已停用不送、待审话题只生成草稿而不发送、草稿落不下就扣下（不会未经审阅发出） |
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
 | `channels/core/test_outbound_drain.py` | 单元 | `MessageBus.drain_outbound`：等到排队与正在发送的消息都投递完才返回、队列为空与未启动时立即返回、发送永不返回时在时限处放弃、投递循环没在跑时不空等 |
+| `channels/core/test_gateway_followup.py` | 集成 | 真实 `ChannelGateway.deliver_followup`：回复经路由与总线送到对话来源渠道的原对话；没有路由的网关什么都不送 |
 | `channels/core/test_gateway_shutdown.py` | 集成 | 真实 `ChannelGateway.stop()`：路由器在停止时发出的委托任务中断通知，在发送本身要花时间的渠道（0.3 秒）上也先于渠道关闭送达 |
 | `channels/delegation/test_delegation_interruption.py` | 集成 | 服务停止时的委托任务：真实路由器 `stop()` 让运行中的委托任务各自按发送者语言（en/ja/zh-CN）在原聊天与话题里收到「已中断、请重发」通知并释放配额，运行仍能收尾；用户刚 `/stop`、刚到时限、已完成的任务不会被重复通知；不肯停的运行不会拖住关停（有限宽限期）；通知发不出去也不让关停失败 |
 | `channels/delegation/test_delegation_launch_failure.py` | 集成 | `/delegate` 的回执发不出去时不留任务也不占并发名额：真实路由器下，回执发送抛错后协调器无任务、配额仍可用；连续失败超过配额上限后仍能正常委派；回执在登记任务与占名额之前发出 |
@@ -242,9 +244,13 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/turn_lease/test_lease.py` | 模块 | 服务端自启回合的租约（真实 `AgentGateway` 与真实 `CancellationRegistry`，仅后台任务注册表为替身）：持有期间会话在途且令牌按回合 id 可被停止、结束/失败都归还、会话被占用或应用排空时拒绝且不动对方的预留、期间被消息抢到的会话不被释放、被取消的回合结束该会话的后台任务而跑完的不动、注册表失败也不留住会话 |
 | `services/agent/turn_lease/test_server_started_turns_guard.py` | 模块 | 架构守卫：`app/` 下每个 `ai_agent_service_stream` 调用点必须登记为「请求绑定」或「服务端自启」，服务端自启的三处都在 `server_turn_lease` 下运行，只有租约与聊天回合可以自己占会话、注册取消令牌；唤醒回合只能由调度器在租约下发起 |
 | `services/agent/adaptive_wakeup/test_wake_turn_scheduler.py` | 模块 | 后台任务完成后只在会话空闲时唤醒一次，并在停止按钮能触达的租约下运行（真实网关与取消注册表，仅回合执行者为替身）：空闲会话在租约下被唤醒、忙的会话在其回合结束后才唤醒、排队中落地的多次完成共用一轮并回答最新一次、唤醒期间到达的完成排在其后、其后到达的汇入已排的那一轮、唤醒期间的 Stop 令牌翻转并结束后台任务、等待过久的唤醒被丢弃且不动会话、应用排空时不起新唤醒、失败的唤醒把会话还回去 |
-| `services/agent/adaptive_wakeup/test_wake_turn_stream.py` | 模块 | 唤醒回合的流式执行（真实网关、取消注册表与流收集器，智能体为脚本化替身）：在调用方租约内流式执行并按会话发布事件、Stop 以 `agent_cancelled` 收尾且留住已说的部分、结束于 Stop 后的失败不重来、没说任何内容就失败的运行重试且只留最后一次、说了内容后失败不重来（不重复展示）、重试用尽以错误事件（`wake_turn_failed`）与错误回复收尾而不是沉默、会话已不存在不起回合、回合属于会话绑定的智能体、回合沿用会话行的无痕标记（无痕与非无痕两种都核对） |
+| `services/agent/adaptive_wakeup/test_wake_turn_stream.py` | 模块 | 唤醒回合的流式执行（真实网关、取消注册表与流收集器，智能体为脚本化替身）：在调用方租约内流式执行并按会话发布事件、Stop 以 `agent_cancelled` 收尾且留住已说的部分、结束于 Stop 后的失败不重来、没说任何内容就失败的运行重试且只留最后一次、说了内容后失败不重来（不重复展示）、重试用尽以错误事件（`wake_turn_failed`）与错误回复收尾而不是沉默、会话已不存在不起回合、回合属于会话绑定的智能体、回合沿用会话行的无痕标记（无痕与非无痕两种都核对）、正常结束的回合把说的话（去掉首尾空白）交回调用方且已先落库，被 Stop、以错误结束（流中错误事件）、失败到底、回复为空、会话已不在的回合交回 `None` |
 | `services/agent/adaptive_wakeup/test_service.py` | 模块 | 一次后台完成的去向（真实路由与唤醒预算，仅会话存储、事件总线、调度器为替身）：预算内落通知行并调度唤醒、结算只读预算故起跑前落地的都算 followup、超额与 Stop 之后只落带「没起回合」标记的通知行、用户下一条消息解除 Stop 并恢复额度、已删会话的结算不留痕、`forget_chat` 清停止标记与已用额度、通知文本转义与限长（含属性里的引号） |
-| `services/agent/adaptive_wakeup/test_wake_turn_policy.py` | 模块 | 唤醒回合何时起、起一次花多少（真实服务、路由、调度器与网关；替身只有构建并流式执行 agent、会话存储、紧急停止文件与日预算）：起跑的回合扣一份额度、共用一轮的多次结算合扣一份、预算用尽后下一次结算降级、等待期间的 Stop / 通知之后的用户发言 / 被禁止都不起且不扣、通知之前的用户消息不拦 |
+| `services/agent/adaptive_wakeup/test_wake_turn_policy.py` | 模块 | 唤醒回合何时起、起一次花多少（真实服务、路由、调度器与网关；替身只有构建并流式执行 agent、会话存储、紧急停止文件与日预算）：起跑的回合扣一份额度、共用一轮的多次结算合扣一份、预算用尽后下一次结算降级、等待期间的 Stop / 通知之后的用户发言 / 被禁止都不起且不扣、通知之前的用户消息不拦；回合说的话交给回复端口的承载方，被 Stop 或失败的回合、没起的回合不交，没有承载方时只留在会话里 |
+| `services/agent/adaptive_wakeup/test_reply_return.py` | 模块 | 唤醒回复的出口端口：没有承载方不做事、承载方拿到会话与回复、换注册后只问新的、承载方抛错只记警告不影响回合 |
+| `services/agent/adaptive_wakeup/test_wake_reply_to_im.py` | 集成 | 从结算到渠道收到消息的整条链路（真实服务、调度器、承载方、网关、路由与总线；替身只有回合流式执行、会话存储、预算与渠道本身）：所有者 IM 私聊的会话收到唤醒回复且送到原对话，在应用里开始的会话不向渠道发任何东西 |
+| `services/agent/adaptive_wakeup/test_settled_results.py` | 单元 | 结算与「已读结果」记录：全部读过才算读完、有一个没读就照常起、没排队的不算读完、先读后结算也算读过、取走时清掉这一轮的排队与已读标记、会话之间互不共享、每会话已读标记有上限且最旧先丢、重复读刷新新近度、`forget` 两边都清 |
+| `services/agent/adaptive_wakeup/test_wake_turn_read_results.py` | 集成 | 智能体在自己回合里读过的结果不再被唤醒回合重复交付（真实调度器、网关、服务与 handler；替身只有会话存储、事件总线、预算与被唤醒的回合）：回合运行期间读过的结果不再交付且不扣额度、经 harness `subagent_control_tool(list)` 的真实读取同样让排队的唤醒作罢、没读的结果照常交付、先读后路由的结算同样作罢、读过一次不让下一次结算沉默、没有会话的读取被忽略 |
 | `services/agent/adaptive_wakeup/test_wakeup_handler.py` | 模块 | 后台子智能体完成后结算进启动它的会话而不是 harness 的会话键：会话键换回会话 id（含自身以 `chat_` 开头的 id）、没有会话的子智能体不结算、结算失败不逃出分离的任务 |
 | `services/agent/goals/test_goal_controls_wake_hold.py` | 模块 | 目标暂停 / 取消就是用户对该会话自主唤醒的停止，恢复目标解除：任何状态下暂停或取消都压住该会话的唤醒、不影响别的会话、恢复解除并恢复额度 |
 | `api/agent/test_last_user_message_wake_notices.py` | 模块 | 后台结算落在最后一个真实回合之后时，重试 / 重新生成 / 撤销作用的用户行（真实 SQLite）：没起回合的通知行（降级、抑制）不算回合，起了回合的通知行算 |
@@ -268,6 +274,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `database/test_channel_key_match.py` | 模块 | 渠道会话键的边界匹配对真实 SQLite：续接匹配含自身与话题、智能体、纪元，纪元匹配只含自身与 `:e=` 键；更长的对端、相邻对端与 `_` 通配符都不被匹配；解析器与交接写出的各策略纪元键都被纪元匹配命中 |
 | `database/test_legacy_wakeup_notice_backfill.py` | 模块 | 旧版通知行补标记迁移对真实 SQLite：没有标记、标记为 JSON null 或带其他字段的 `wakeup_` 用户行补上 `followup` 且保留原字段；已有标记（`followup` / `degraded`）的行、助手行、真人发言行、大小写或前缀不同的 id 都不动；重复执行不再改动任何行；迁移已登记在迁移列表里 |
 | `core/channel_bridge/test_idle_session_key.py` | 模块 | 空闲重置策略对真实 SQLite：窗口内续用本会话的聊天（含裸键），超时或首条消息开新纪元；更长对端、同对端的话题与智能体、`_` 通配符的聊天不被续用，且本会话的聊天优先于更新的邻居 |
+| `core/channel_bridge/test_wake_origins.py` | 单元 | `WakeOrigins`：记录送达所需的路由字段、同一会话以最新一条为准、只留回复用得上的内容（去附件、引用、续跑值、非字符串元数据，正文截断）、`web` / `chat` / `voice` 渠道不记、容量有界且写入最久的先丢、各回合共用同一份记忆 |
+| `core/channel_bridge/test_wake_reply_returner.py` | 单元 | `ChannelWakeReplyReturner`：有来源则经网关送入对应对话，没有来源不送，路由拒收不算错误 |
+| `core/channel_bridge/test_wake_return_wiring.py` | 集成 | 渠道桥装配登记承载方（回合登记的来源与承载方读取的是同一份）：聊过的会话的唤醒回复送到网关、没聊过的不送；`stop_channel_gateway` 之后唤醒回复不再离开应用 |
+| `core/channel_bridge/test_execute_preamble_wake_origin.py` | 模块 | 谁登记 IM 来源：所有者私聊的回合登记；群聊、访客、续跑、会话打不开的回合不登记（唤醒回合带着所有者的全部记忆，回复不能进入记忆隔离舱里的对话） |
 | `core/channel_bridge/test_execute_preamble_resume_session.py` | 模块 | 审批续跑对真实 SQLite：纪元已翻篇后仍接回提问回合的聊天、纪元内首条消息的续跑不被当成新对话（不播报 reset）、聊天已不存在时回一条标记失败的说明、工作区打不开时回失败回合；没有会话键的续跑仍按本条消息自己的会话解析 |
 | `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |

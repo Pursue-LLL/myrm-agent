@@ -17,6 +17,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service, wake_turn_scheduler
 from app.services.agent.adaptive_wakeup import service as service_module
+from app.services.agent.adaptive_wakeup.reply_return import set_wake_reply_returner
 from app.services.agent.gateway import get_agent_gateway
 
 
@@ -47,11 +48,42 @@ def streamed(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """The chats whose wake turn actually streamed."""
     chats: list[str] = []
 
-    async def fake_stream(chat: str, _turn: str, _token: CancellationToken) -> None:
+    async def fake_stream(chat: str, _turn: str, _token: CancellationToken) -> str | None:
         chats.append(chat)
+        return None
 
     monkeypatch.setattr(service_module, "stream_wake_turn", fake_stream)
     return chats
+
+
+class Carrier:
+    """Stands in for the channel bridge: remembers what a wake turn asked it to carry outside the app."""
+
+    def __init__(self) -> None:
+        self.carried: list[tuple[str, str]] = []
+
+    async def return_reply(self, chat_id: str, reply: str) -> None:
+        self.carried.append((chat_id, reply))
+
+
+@pytest.fixture
+def carrier() -> Iterator[Carrier]:
+    carrier = Carrier()
+    set_wake_reply_returner(carrier)
+    yield carrier
+    set_wake_reply_returner(None)
+
+
+def replying(monkeypatch: pytest.MonkeyPatch, reply: str | None) -> list[str]:
+    """Make the wake turn say ``reply`` (``None``: it was stopped or failed); returns the chats whose turn ran."""
+    ran: list[str] = []
+
+    async def fake_stream(chat: str, _turn: str, _token: CancellationToken) -> str | None:
+        ran.append(chat)
+        return reply
+
+    monkeypatch.setattr(service_module, "stream_wake_turn", fake_stream)
+    return ran
 
 
 def settlement(chat_id: str, source_id: str = "task-1") -> WakeupEvent:
@@ -194,3 +226,55 @@ async def test_the_wake_does_not_run_while_it_is_forbidden_and_costs_nothing(
     assert reason in caplog.text
     assert service.get_budget_state(chat_id).consecutive_wakes == 0
     assert not get_agent_gateway().is_session_active(chat_id)
+
+
+@pytest.mark.asyncio
+async def test_what_the_wake_turn_said_is_returned_to_where_the_chat_was_started(
+    chat_id: str, carrier: Carrier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    replying(monkeypatch, "The report is ready.")
+
+    await get_adaptive_wakeup_service().handle_settlement(settlement(chat_id))
+    await settle()
+
+    assert carrier.carried == [(chat_id, "The report is ready.")]
+
+
+@pytest.mark.asyncio
+async def test_a_wake_turn_that_was_stopped_or_failed_returns_nothing(
+    chat_id: str, carrier: Carrier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ran = replying(monkeypatch, None)
+
+    await get_adaptive_wakeup_service().handle_settlement(settlement(chat_id))
+    await settle()
+
+    assert ran == [chat_id]
+    assert carrier.carried == []
+
+
+@pytest.mark.asyncio
+async def test_a_wake_turn_that_does_not_start_returns_nothing(
+    chat_id: str, carrier: Carrier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ran = replying(monkeypatch, "never said")
+    service = get_adaptive_wakeup_service()
+    service.record_user_stop(chat_id)
+
+    await service.handle_settlement(settlement(chat_id))
+    await settle()
+
+    assert ran == []
+    assert carrier.carried == []
+
+
+@pytest.mark.asyncio
+async def test_a_wake_turn_without_a_carrier_keeps_its_reply_in_the_chat_only(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ran = replying(monkeypatch, "The report is ready.")
+
+    await get_adaptive_wakeup_service().handle_settlement(settlement(chat_id))
+    await settle()
+
+    assert ran == [chat_id]

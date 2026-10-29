@@ -2,15 +2,17 @@
 
 [INPUT]
 - app.api.statistics.skill_growth::(fetch_skill_evolution_data, fetch_skill_trends, fetch_skill_health) (POS: 技能侧看板数据域)
-- app.core.cron.adapters.setup::get_cron_manager (POS: 定时任务管理器；周摘要按它的运行记录数定时任务执行次数)
-- app.database.connection::get_db (POS: 异步数据库会话依赖)
+- app.database.connection::get_session (POS: 数据库会话上下文管理器；AsyncSession 不支持并发共用，并发取数各开一个)
 - app.database.models.chat::NOT_WAKEUP_NOTICE (POS: 排除后台完成通知行，周消息数只数用户亲自发的消息)
+- app.database.models.cron::CronRunModel (POS: 定时任务执行记录表；周摘要按它数真正执行过的运行次数)
+- myrm_agent_harness.toolkits.cron.types::RunStatus (POS: 运行记录状态；跳过与熔断的节拍不算执行)
 
 [OUTPUT]
 - router: FastAPI 路由，提供 GET /statistics/growth-dashboard
 
 [POS]
 成长进化中心看板后端聚合 API。零新增存储，纯聚合内存/本地 SQLite 指标；技能侧数据（进化、趋势、健康）由 skill_growth 子包提供。
+需要数据库的取数各自打开会话，在同一个 asyncio.gather 里并发运行而互不干扰。
 """
 
 from __future__ import annotations
@@ -20,13 +22,13 @@ import logging
 from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log import EventLogAnalytics
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+from myrm_agent_harness.toolkits.cron.types import RunStatus
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, case, func, select
 
 from app.api.statistics.skill_growth import (
     SkillEvolutionEvent,
@@ -47,15 +49,16 @@ from app.api.statistics.usage_aggregation import (
 from app.config.settings import settings
 from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
-from app.database.connection import get_db
+from app.database.connection import get_session
 from app.database.models import Chat, Message
 from app.database.models.chat import NOT_WAKEUP_NOTICE
+from app.database.models.cron import CronRunModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_CRON_USER_ID = "default"
-_CRON_RUN_SCAN_LIMIT = 400
+# A skipped tick or a circuit-broken attempt did not run the job, so only these runs count as executions.
+_EXECUTED_RUN_STATUSES = (RunStatus.OK.value, RunStatus.ERROR.value)
 
 # ── Response schemas ─────────────────────────────────────────────────
 
@@ -256,7 +259,7 @@ async def _fetch_activity_data(
         return _ActivitySnapshot()
 
 
-async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
+async def _fetch_memory_citations_7d() -> int:
     """Count memory citations persisted on messages within the last 7 days."""
     try:
         week_start = datetime.now(UTC) - timedelta(days=7)
@@ -268,7 +271,8 @@ async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
             )
             .limit(5000)
         )
-        rows = (await db.execute(stmt)).scalars().all()
+        async with get_session() as db:
+            rows = (await db.execute(stmt)).scalars().all()
         total = 0
         for extra_data in rows:
             if not isinstance(extra_data, dict):
@@ -288,7 +292,7 @@ def _as_float(value: object) -> float:
     return float(value) if isinstance(value, int | float) else 0.0
 
 
-async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
+async def _fetch_cost_summary(time_range_days: int) -> CostSummary | None:
     """Aggregate cost savings from message extra_data within the time range."""
     try:
         cutoff = datetime.now(UTC) - timedelta(days=time_range_days)
@@ -304,8 +308,8 @@ async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSum
             .order_by(Message.created_at.desc())
             .limit(10000)
         )
-        result = await db.execute(stmt)
-        rows = result.scalars().all()
+        async with get_session() as db:
+            rows = (await db.execute(stmt)).scalars().all()
 
         if not rows:
             return None
@@ -349,7 +353,7 @@ async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSum
         return None
 
 
-async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
+async def _fetch_weekly_summary() -> WeeklySummary:
     """Fetch this-week and previous-week conversation/message/cron counts from DB."""
     try:
         now = datetime.now(UTC)
@@ -381,34 +385,26 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
             )
         )
 
-        conv_count = (await db.execute(conv_this_q)).scalar() or 0
-        conv_prev = (await db.execute(conv_prev_q)).scalar() or 0
-        msg_count = (await db.execute(msg_this_q)).scalar() or 0
-        msg_prev = (await db.execute(msg_prev_q)).scalar() or 0
+        cron_q = select(
+            func.coalesce(func.sum(case((CronRunModel.started_at >= week_start, 1), else_=0)), 0),
+            func.coalesce(func.sum(case((CronRunModel.started_at < week_start, 1), else_=0)), 0),
+        ).where(
+            CronRunModel.status.in_(_EXECUTED_RUN_STATUSES),
+            CronRunModel.started_at >= prev_week_start,
+        )
 
-        cron_count = 0
-        cron_prev = 0
-        try:
-            from app.core.cron.adapters.setup import get_cron_manager
-
-            cron_mgr = get_cron_manager()
-            if cron_mgr:
-                # Newest first, so a fortnight with more than the cap's worth of runs undercounts its oldest ones.
-                for run in await cron_mgr.list_runs(_CRON_USER_ID, limit=_CRON_RUN_SCAN_LIMIT):
-                    # SQLite returns run times without a zone; they are stored as UTC.
-                    started = run.started_at if run.started_at.tzinfo else run.started_at.replace(tzinfo=UTC)
-                    if started >= week_start:
-                        cron_count += 1
-                    elif started >= prev_week_start:
-                        cron_prev += 1
-        except Exception as exc:
-            logger.debug("Failed to count cron executions: %s", exc)
+        async with get_session() as db:
+            conv_count = (await db.execute(conv_this_q)).scalar() or 0
+            conv_prev = (await db.execute(conv_prev_q)).scalar() or 0
+            msg_count = (await db.execute(msg_this_q)).scalar() or 0
+            msg_prev = (await db.execute(msg_prev_q)).scalar() or 0
+            cron_count, cron_prev = (await db.execute(cron_q)).one()
 
         return WeeklySummary(
-            cron_executions=cron_count,
+            cron_executions=int(cron_count),
             conversations=int(conv_count),
             messages_sent=int(msg_count),
-            previous_cron_executions=cron_prev,
+            previous_cron_executions=int(cron_prev),
             previous_conversations=int(conv_prev),
             previous_messages_sent=int(msg_prev),
         )
@@ -425,7 +421,6 @@ async def get_growth_dashboard(
     days: int = Query(84, ge=7, le=365, description="Heatmap lookback days (default 84 = 12 weeks)"),
     timezone: str | None = Query(None, description="User local timezone, e.g. 'Asia/Shanghai'"),
     x_timezone: str | None = Header(None, alias="X-Timezone"),
-    db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Aggregated growth dashboard — single endpoint, zero new storage.
 
@@ -442,14 +437,14 @@ async def get_growth_dashboard(
             asyncio.gather(
                 _fetch_memory_snapshot(),
                 _fetch_activity_data(days, tz_info, tz_name),
-                _fetch_weekly_summary(db),
+                _fetch_weekly_summary(),
                 fetch_skill_evolution_data(),
             ),
             asyncio.gather(
-                _fetch_cost_summary(db, days),
+                _fetch_cost_summary(days),
                 fetch_skill_trends(days, tz_info),
                 fetch_skill_health(),
-                _fetch_memory_citations_7d(db),
+                _fetch_memory_citations_7d(),
             ),
         )
 

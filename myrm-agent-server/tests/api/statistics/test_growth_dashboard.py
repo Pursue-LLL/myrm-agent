@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.cron.manager import CronManager
-from myrm_agent_harness.toolkits.cron.types import CronRunRecord, RunStatus
+from myrm_agent_harness.toolkits.cron.types import RunStatus
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.api.statistics.growth_dashboard import (
     ActivityDay,
@@ -20,6 +24,7 @@ from app.api.statistics.growth_dashboard import (
     _ActivitySnapshot,
     _fetch_activity_data,
     _fetch_cost_summary,
+    _fetch_memory_citations_7d,
     _fetch_memory_snapshot,
     _fetch_weekly_summary,
 )
@@ -30,6 +35,9 @@ from app.api.statistics.skill_growth import (
     fetch_skill_evolution_data,
 )
 from app.core.utils.errors import StandardHTTPException
+from app.database.factory import create_session_factory, register_sqlite_transaction_events
+from app.database.models import Base, Chat, Message
+from app.database.models.cron import CronJobModel, CronRunModel
 from app.services.skills.experience_ledger import SkillGrowthLedgerSummary
 from app.services.skills.growth.audit_queries import (
     SkillGrowthTimelineEventRead,
@@ -435,49 +443,36 @@ async def test_fetch_memory_snapshot_exception() -> None:
     assert delta == 0
 
 
+def _use_session(monkeypatch: pytest.MonkeyPatch, db: AsyncMock) -> None:
+    """Make the dashboard's own session helper hand out ``db``."""
+
+    @asynccontextmanager
+    async def session() -> AsyncIterator[AsyncMock]:
+        yield db
+
+    monkeypatch.setattr("app.api.statistics.growth_dashboard.get_session", session)
+
+
 # ── _fetch_weekly_summary tests ───────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_fetch_weekly_summary_normal() -> None:
-    """Test _fetch_weekly_summary with mocked DB session and cron manager."""
+async def test_fetch_weekly_summary_normal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The conversation and message counts and the executed-run aggregate fill the summary."""
     execute_results = iter(
         [
             MagicMock(scalar=lambda: 5),
             MagicMock(scalar=lambda: 3),
             MagicMock(scalar=lambda: 20),
             MagicMock(scalar=lambda: 15),
+            MagicMock(one=lambda: (2, 1)),
         ]
     )
-
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(side_effect=lambda q: next(execute_results))
+    _use_session(monkeypatch, mock_db)
 
-    now = datetime.now(UTC)
-
-    def run(started_at: datetime) -> CronRunRecord:
-        return CronRunRecord(
-            id="run",
-            job_id="job",
-            started_at=started_at,
-            finished_at=started_at,
-            duration_ms=1,
-            status=RunStatus.OK,
-        )
-
-    # SQLite hands back run times without a zone, so the count has to read a bare time as UTC.
-    runs = [
-        run(now),
-        run(now.replace(tzinfo=None) - timedelta(hours=1)),
-        run(now - timedelta(days=10)),
-        run(now - timedelta(days=30)),
-    ]
-
-    mock_cron_mgr = AsyncMock(spec=CronManager)
-    mock_cron_mgr.list_runs = AsyncMock(return_value=runs)
-
-    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_cron_mgr):
-        result = await _fetch_weekly_summary(mock_db)
+    result = await _fetch_weekly_summary()
 
     assert result.conversations == 5
     assert result.previous_conversations == 3
@@ -485,41 +480,101 @@ async def test_fetch_weekly_summary_normal() -> None:
     assert result.previous_messages_sent == 15
     assert result.cron_executions == 2
     assert result.previous_cron_executions == 1
-    mock_cron_mgr.list_runs.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_fetch_weekly_summary_db_exception() -> None:
+async def test_fetch_weekly_summary_db_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     """When DB query fails, return empty WeeklySummary."""
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(side_effect=RuntimeError("db down"))
+    _use_session(monkeypatch, mock_db)
 
-    result = await _fetch_weekly_summary(mock_db)
+    result = await _fetch_weekly_summary()
     assert result.conversations == 0
     assert result.cron_executions == 0
 
 
+# ── DB fetchers on a real engine ─────────────────────────────────────
+
+
 @pytest.mark.asyncio
-async def test_fetch_weekly_summary_no_cron_manager() -> None:
-    """When cron manager is None, cron counts remain 0."""
-    execute_results = iter(
-        [
-            MagicMock(scalar=lambda: 2),
-            MagicMock(scalar=lambda: 1),
-            MagicMock(scalar=lambda: 8),
-            MagicMock(scalar=lambda: 6),
-        ]
-    )
+async def test_db_fetchers_load_together_on_a_real_engine_and_count_only_executed_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One gather over the DB fetchers fills every number, and a skipped or circuit-broken tick is not an execution.
 
-    mock_db = AsyncMock()
-    mock_db.execute = AsyncMock(side_effect=lambda q: next(execute_results))
+    Each fetcher opens its own session because SQLAlchemy does not support concurrent use of one AsyncSession, and the
+    fetchers' broad ``except`` would turn a failed query into empty numbers that a mocked session cannot show.
+    """
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'dashboard.db'}", pool_size=5, max_overflow=10)
+    register_sqlite_transaction_events(engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = create_session_factory(engine)
 
-    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=None):
-        result = await _fetch_weekly_summary(mock_db)
+    now = datetime.now(UTC)
 
-    assert result.conversations == 2
-    assert result.cron_executions == 0
-    assert result.previous_cron_executions == 0
+    def run(run_id: str, status: RunStatus, days_ago: float) -> CronRunModel:
+        started = now - timedelta(days=days_ago)
+        return CronRunModel(id=run_id, job_id="job", started_at=started, finished_at=started, duration_ms=1, status=status.value)
+
+    def reply(message_id: str, extra_data: dict[str, object]) -> Message:
+        return Message(
+            id=message_id,
+            chat_id="chat",
+            role="assistant",
+            content="x",
+            sent_at=now,
+            sent_timezone="UTC",
+            extra_data=extra_data,
+        )
+
+    async with factory() as db:
+        db.add(Chat(id="chat", action_mode="fast"))
+        db.add(CronJobModel(id="job", name="job", job_type="agent", schedule={"kind": "interval"}))
+        await db.flush()
+        db.add_all(
+            [
+                Message(id="ask", chat_id="chat", role="user", content="hi", sent_at=now, sent_timezone="UTC"),
+                reply(
+                    "answer",
+                    {
+                        "usage": {"prompt_tokens": 1000, "completion_tokens": 200, "cached_tokens": 800},
+                        "costUsd": 0.005,
+                        "tokenEconomics": {"total_cache_savings_usd": 0.003},
+                        "citedMemoryIds": ["m1", "m2"],
+                    },
+                ),
+                run("this-ok", RunStatus.OK, 1),
+                run("this-error", RunStatus.ERROR, 2),
+                run("this-skipped", RunStatus.SKIPPED, 1),
+                run("this-circuit-break", RunStatus.CIRCUIT_BREAK, 2),
+                run("prev-ok", RunStatus.OK, 9),
+                run("prev-skipped", RunStatus.SKIPPED, 9),
+                run("older-ok", RunStatus.OK, 20),
+            ]
+        )
+        await db.commit()
+
+    @asynccontextmanager
+    async def session() -> AsyncIterator[AsyncSession]:
+        async with factory() as db:
+            yield db
+
+    monkeypatch.setattr("app.api.statistics.growth_dashboard.get_session", session)
+
+    try:
+        weekly, cost, citations = await asyncio.gather(
+            _fetch_weekly_summary(), _fetch_cost_summary(30), _fetch_memory_citations_7d()
+        )
+    finally:
+        await engine.dispose()
+
+    assert (weekly.conversations, weekly.messages_sent) == (1, 1)
+    assert (weekly.cron_executions, weekly.previous_cron_executions) == (2, 1)
+    assert cost is not None
+    assert cost.total_cost_usd == pytest.approx(0.005)
+    assert citations == 2
 
 
 # ── fetch_skill_evolution_data exception branch ──────────────────────
@@ -621,8 +676,7 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
         ),
     )
 
-    mock_db = AsyncMock()
-    response = await get_growth_dashboard(days=84, timezone=None, x_timezone=None, db=mock_db)
+    response = await get_growth_dashboard(days=84, timezone=None, x_timezone=None)
 
     import json
 
@@ -670,9 +724,8 @@ async def test_get_growth_dashboard_endpoint_error(
         AsyncMock(return_value=None),
     )
 
-    mock_db = AsyncMock()
     with pytest.raises(StandardHTTPException):
-        await get_growth_dashboard(days=84, timezone=None, x_timezone=None, db=mock_db)
+        await get_growth_dashboard(days=84, timezone=None, x_timezone=None)
 
 
 # ── CostSummary schema tests ─────────────────────────────────────────
@@ -726,7 +779,7 @@ class TestCostSummary:
 
 
 @pytest.mark.asyncio
-async def test_fetch_cost_summary_with_data() -> None:
+async def test_fetch_cost_summary_with_data(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test _fetch_cost_summary aggregates extra_data correctly."""
     fake_rows = [
         {
@@ -755,8 +808,9 @@ async def test_fetch_cost_summary_with_data() -> None:
     mock_result.scalars.return_value.all.return_value = fake_rows
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=mock_result)
+    _use_session(monkeypatch, mock_db)
 
-    result = await _fetch_cost_summary(mock_db, 30)
+    result = await _fetch_cost_summary(30)
 
     assert result is not None
     assert result.cache_savings_usd == pytest.approx(0.009, abs=0.001)
@@ -764,19 +818,20 @@ async def test_fetch_cost_summary_with_data() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_cost_summary_no_rows() -> None:
+async def test_fetch_cost_summary_no_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     """When no rows returned, should return None."""
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = []
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=mock_result)
+    _use_session(monkeypatch, mock_db)
 
-    result = await _fetch_cost_summary(mock_db, 30)
+    result = await _fetch_cost_summary(30)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_fetch_cost_summary_no_valid_usage() -> None:
+async def test_fetch_cost_summary_no_valid_usage(monkeypatch: pytest.MonkeyPatch) -> None:
     """When rows have no valid usage data, return None."""
     fake_rows = [
         {"no_usage_key": True},
@@ -786,23 +841,25 @@ async def test_fetch_cost_summary_no_valid_usage() -> None:
     mock_result.scalars.return_value.all.return_value = fake_rows
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=mock_result)
+    _use_session(monkeypatch, mock_db)
 
-    result = await _fetch_cost_summary(mock_db, 30)
+    result = await _fetch_cost_summary(30)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_fetch_cost_summary_db_exception() -> None:
+async def test_fetch_cost_summary_db_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     """When DB query fails, should return None gracefully."""
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(side_effect=RuntimeError("db connection lost"))
+    _use_session(monkeypatch, mock_db)
 
-    result = await _fetch_cost_summary(mock_db, 30)
+    result = await _fetch_cost_summary(30)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_fetch_cost_summary_tiny_savings_not_filtered() -> None:
+async def test_fetch_cost_summary_tiny_savings_not_filtered(monkeypatch: pytest.MonkeyPatch) -> None:
     """Backend should return tiny savings (filtering is frontend's job)."""
     fake_rows = [
         {
@@ -819,8 +876,9 @@ async def test_fetch_cost_summary_tiny_savings_not_filtered() -> None:
     mock_result.scalars.return_value.all.return_value = fake_rows
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=mock_result)
+    _use_session(monkeypatch, mock_db)
 
-    result = await _fetch_cost_summary(mock_db, 7)
+    result = await _fetch_cost_summary(7)
 
     if result is not None:
         assert result.total_savings_usd >= 0
@@ -837,8 +895,6 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
     test_app = FastAPI()
     test_app.include_router(router, prefix="/api/v1/statistics")
 
-    mock_db = AsyncMock()
-
     mock_health_item = SkillHealthItem(
         skill_name="test_tool",
         health_score=88.0,
@@ -852,7 +908,6 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
     )
 
     with (
-        patch("app.api.statistics.growth_dashboard.get_db", return_value=mock_db),
         patch(
             "app.api.statistics.growth_dashboard._fetch_memory_snapshot",
             return_value=({}, 100, {}, 0),

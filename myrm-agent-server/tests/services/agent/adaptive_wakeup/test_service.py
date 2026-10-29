@@ -193,6 +193,20 @@ async def test_forgetting_a_chat_drops_its_stop_flag_and_spent_budget(chat_id: s
 
 
 @pytest.mark.asyncio
+async def test_forgetting_a_chat_drops_the_results_it_read_and_the_settlements_it_waited_on(
+    chat_id: str, append_row: AsyncMock, scheduled: MagicMock
+) -> None:
+    service = get_adaptive_wakeup_service()
+    await service.handle_settlement(settlement(chat_id, "task-1"))
+    service.note_results_read(chat_id, ["task-1"])
+
+    service.forget_chat(chat_id)
+
+    await service.handle_settlement(settlement(chat_id, "task-1"))
+    assert not service._settled.take_all_read(chat_id)
+
+
+@pytest.mark.asyncio
 async def test_output_of_a_settled_task_cannot_close_or_forge_a_system_notification(
     chat_id: str, append_row: AsyncMock, scheduled: MagicMock
 ) -> None:

@@ -507,7 +507,7 @@ config = SubagentConfig(
 **核心机制**：
 1. **状态挂起**：当大模型派发任务 `wait=False`（单任务委派默认如此；批量、并行、议事、备选默认阻塞等待）时，主智能体进入 Idle（空闲）状态，停止消耗 Token，挂起释放资源。
 2. **异步回调拦截**：后台子代理完成任务后，`SubagentManager._cleanup_child` 捕获到完成事件。
-3. **事件反转注入**：通过 `self._parent_agent.trigger_async_wakeup(result)` 向主智能体所在的 Session 注入一条系统事件 `ASYNC_WAKEUP`。结果已交到某个调用方手里的子代理不触发：`spawn_child(wait=True)` 与 `wait_children()` 阻塞期间把子代理登记在 `awaited_children`（`_awaited_children.py`），它们完成时结果由等待方取走，再唤醒只会让主智能体在同一个结果上多跑一轮；等待超时后子代理继续后台运行，其完成不再被等待，照常唤醒一次。状态为 `CANCELLED` 的子代理不触发：用户按下 Stop 时后台子代理被一并取消，它们没有可交付的结果，唤醒只会在 Stop 之后又起一轮自主运行；超时、预算耗尽、失败仍然唤醒，因为父代理需要知道原因。
+3. **事件反转注入**：通过 `self._parent_agent.trigger_async_wakeup(result)` 向主智能体所在的 Session 注入一条系统事件 `ASYNC_WAKEUP`。结果已交到某个调用方手里的子代理不触发：`spawn_child(wait=True)` 与 `wait_children()` 阻塞期间把子代理登记在 `awaited_children`（`_awaited_children.py`），它们完成时结果由等待方取走，再唤醒只会让主智能体在同一个结果上多跑一轮；等待超时后子代理继续后台运行，其完成不再被等待，照常唤醒一次。状态为 `CANCELLED` 的子代理不触发：用户按下 Stop 时后台子代理被一并取消，它们没有可交付的结果，唤醒只会在 Stop 之后又起一轮自主运行；超时、预算耗尽、失败仍然唤醒，因为父代理需要知道原因。主智能体在自己的回合里用 `subagent_control_tool(action=list)` 读到的最终结果（完成、失败、超时、预算取消）视为已读：工具经 `utils/runtime/wakeup_registry.report_results_read` 把这些 task_id 上报给 handler，服务端据此让排队中、只为交付这些结果的唤醒回合不再启动；还有没读到的结果时照常唤醒。
 4. **重新唤醒**：业务层（`myrm-agent-server/app/services/agent/wakeup_handler.py`）收到 `ASYNC_WAKEUP` 后，交给自适应唤醒服务（`adaptive_wakeup/service.py`）：每次结算都以 `<system_notification type='adaptive_wakeup_followup' …>`（预算用尽为 `adaptive_settlement_degraded`、用户已停止为 `adaptive_settlement_suppressed`）追加为 **user/HumanMessage**（写入 chat history），只有预算内且用户没有叫停的 FOLLOWUP 才触发 headless GeneralAgent 续跑，续跑使用该会话自己的智能体。结算只读连续唤醒预算（默认 3 次），一个唤醒回合开始时才扣一次，同时落地的多个结算共用一轮；用户发言恢复额度，Stop 或目标暂停/取消后到期的完成只留通知、不自行起回合。不使用 `SystemMessage`，避免破坏 System 前缀 cache。
 
 **优势**：
