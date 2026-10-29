@@ -312,6 +312,17 @@ class TestRegressionAndEdgeCases:
             fence_count = chunk.count("```") + chunk.count("~~~")
             assert fence_count % 2 == 0
 
+    def test_a_tilde_line_inside_a_backtick_fence_is_code(self) -> None:
+        """Only the symbol that opened a fence closes it, so the lines after a stray ``~~~`` stay fenced."""
+        text = "```\n~~~\n" + "\n".join(["x" * 30] * 6) + "\n```"
+
+        chunks = split_message(text, max_len=80)
+
+        assert len(chunks) > 1
+        for chunk in chunks:
+            assert chunk.startswith("```\n") and chunk.endswith("\n```")
+            assert len(chunk) <= 80
+
 
 class TestCjkAndContentPreservation:
     def test_cjk_long_line_splits_at_punctuation(self) -> None:

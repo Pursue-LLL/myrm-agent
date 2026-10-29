@@ -133,8 +133,9 @@ def split_message(content: str, max_len: int = 4096) -> list[str]:
     """Split content into chunks of at most ``max_len`` characters, keeping code fences intact.
 
     A chunk that ends inside a fence closes it and the next chunk reopens it with the same marker. A code line
-    too long for a chunk of its own is cut at whitespace or punctuation and every piece is fenced. A fence marker
-    never ends up alone in a chunk. Only a ``max_len`` smaller than one fenced character cannot be honoured.
+    too long for a chunk of its own is cut at whitespace or punctuation and every piece is fenced. Splitting never
+    creates a chunk that holds only a fence marker. A ``max_len`` below the size of a fence's wrapper (opening
+    marker, closing symbol and two newlines) cannot be honoured for the code inside that fence.
 
     Priority order:
         1. Line boundary with fence integrity
@@ -155,6 +156,7 @@ def split_message(content: str, max_len: int = 4096) -> list[str]:
     current: list[str] = []
     current_len = 0
     fence_open = ""  # Marker of the fence the scan is inside, e.g. "```python"
+    fence_symbol = ""  # Its run of fence characters, e.g. "```"
 
     def _flush(fence_state: str) -> None:
         """Emit the buffer closed with the fence still open in it; a trailing opener with no code under it is dropped."""
@@ -172,14 +174,14 @@ def split_message(content: str, max_len: int = 4096) -> list[str]:
     last_idx = len(lines) - 1
     for idx, line in enumerate(lines):
         line_with_nl = line if idx == last_idx else line + "\n"
-        fence_before = fence_open
+        fence_before, symbol_before = fence_open, fence_symbol
 
         is_fence, marker = _detect_fence(line)
         if is_fence:
             if not fence_open:
-                fence_open = marker
-            elif _fence_symbol(marker) == _fence_symbol(fence_open):
-                fence_open = ""
+                fence_open, fence_symbol = marker, _fence_symbol(marker)
+            elif _fence_symbol(marker) == fence_symbol:
+                fence_open = fence_symbol = ""
 
         if fence_before and not fence_open:
             # Closing fence: a chunk still holding code takes it; a full one was closed by its flush, which
@@ -192,8 +194,7 @@ def split_message(content: str, max_len: int = 4096) -> list[str]:
                     _flush(fence_before)
             continue
 
-        symbol_len = len(_fence_symbol(fence_open)) if fence_open else 0
-        close_len = symbol_len + 1 if fence_open else 0  # "\n" and the symbol that close the chunk
+        close_len = len(fence_symbol) + 1 if fence_open else 0  # "\n" and the symbol that close the chunk
         if current and current_len + len(line_with_nl) + close_len > max_len:
             _flush(fence_before)
 
@@ -210,9 +211,9 @@ def split_message(content: str, max_len: int = 4096) -> list[str]:
             current.append(line_with_nl)
             current_len = reopen_len + len(line_with_nl)
         elif fence_before:
-            segment_len = max(max_len - len(fence_before) - symbol_len - 2, 1)
+            segment_len = max(max_len - len(fence_before) - len(symbol_before) - 2, 1)
             chunks.extend(
-                f"{fence_before}\n{segment}\n{_fence_symbol(fence_before)}"
+                f"{fence_before}\n{segment}\n{symbol_before}"
                 for segment in _smart_split_line(line, segment_len)
                 if segment.strip()
             )
