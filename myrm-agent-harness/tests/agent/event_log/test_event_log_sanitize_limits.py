@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -51,14 +52,64 @@ def test_the_rest_of_the_payload_is_still_redacted_beside_a_too_deep_branch() ->
     assert str(sanitized["note"]).startswith("key ")
 
 
-def test_a_payload_that_contains_itself_is_cut_at_the_depth_limit() -> None:
+class _WalkBudget:
+    """Stands in for the leak detector and fails fast once the walk revisits strings far beyond the payload's size."""
+
+    def __init__(self, limit: int) -> None:
+        self.calls = 0
+        self._limit = limit
+
+    def __call__(self, text: str) -> str:
+        self.calls += 1
+        if self.calls > self._limit:
+            raise RuntimeError("the walk revisited the payload")
+        return text
+
+
+def _loop_in_dict() -> dict[str, object]:
+    payload: dict[str, object] = {"note": "text"}
+    payload["left"] = payload
+    payload["right"] = payload
+    return payload
+
+
+def _loop_in_list() -> dict[str, object]:
+    items: list[object] = ["text"]
+    items.append(items)
+    items.append(items)
+    return {"items": items}
+
+
+def test_a_payload_that_contains_itself_is_cut_where_the_loop_closes() -> None:
     payload: dict[str, object] = {"token": _TOKEN}
     payload["loop"] = payload
 
     sanitized = sanitize_event_data(payload)
 
     assert _TOKEN not in json.dumps(sanitized)
-    assert "[nesting too deep]" in json.dumps(sanitized)
+    assert sanitized["loop"] == "[circular reference]"
+
+
+@pytest.mark.parametrize("build", [_loop_in_dict, _loop_in_list])
+def test_a_container_that_holds_itself_twice_is_walked_once(build: Callable[[], dict[str, object]]) -> None:
+    budget = _WalkBudget(limit=100)
+
+    with patch(_LEAK_DETECTOR, new=budget):
+        sanitized = sanitize_event_data(build())
+
+    assert sanitized != {"_redaction_failed": True}
+    assert budget.calls == 1
+    assert json.dumps(sanitized).count("[circular reference]") == 2
+
+
+def test_a_container_shared_by_two_branches_is_redacted_in_both() -> None:
+    shared = [f"key {_TOKEN}"]
+
+    sanitized = sanitize_event_data({"left": shared, "right": shared})
+
+    assert _TOKEN not in json.dumps(sanitized)
+    assert "circular" not in json.dumps(sanitized)
+    assert sanitized["left"] == sanitized["right"]
 
 
 def test_a_payload_the_redactor_fails_on_is_withheld() -> None:
