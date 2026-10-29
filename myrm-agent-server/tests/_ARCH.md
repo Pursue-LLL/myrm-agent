@@ -570,6 +570,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 | `support/scripted_openai_endpoint.py` | 辅助 | 本机 OpenAI 兼容端点（`/v1/chat/completions` 流式与非流式、`/v1/embeddings`），回复由测试脚本（`ChatRequest` → `Reply`：文本或一次工具调用）决定，记录收到的请求；让真实 Agent 面对确定性的模型，无需凭据与网络 |
 | `support/harness_pause_event.py` | 辅助 | `harness_pause_event(tool_name, tool_call_id)`：loop guard 暂停在流里的样子，由 harness 自己的 interrupt 翻译器对真实 `ToolStuckException` 生成，不是手写字典；语音桥、IM 渠道流与收尾、流内容收集器、阶段步进器的暂停测试共用 |
+| `support/voice_bridge.py` | 辅助 | `make_bridge(ws=None)`：接在假 WebSocket 上的语音智能体桥，`FakeVoiceConfig` 为其语音配置；`tests/api/voice/test_agent_bridge*.py` 三个文件共用 |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
 | `support/scripted_delegation.py` | 辅助 | 外部 Agent 直连委托的脚本化池：`ScriptedPool` 用预设事件序列回答 `run_turn` 并记录被驱动的轮次与取消，`scripted_event` / `scripted_error` / `playing` 造事件，`stream_turn` 跑完一轮，`event_types` / `steps_of` / `step_text` 读出前端收到的事件；`services/external_agents/` 下按「正文与工具步骤」「状态、轮次上限、失败与停止」拆开的两个流测试共用 |
