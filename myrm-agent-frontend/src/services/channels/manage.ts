@@ -378,7 +378,6 @@ export interface ChannelDataPlaneStats {
   trigger_messages: number;
   ambient_messages: number;
   retention_days: number;
-  secret_scrubber_active: boolean;
 }
 
 export interface ClearDataPlaneResult {

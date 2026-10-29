@@ -1,7 +1,7 @@
 """Tests for OneBot Channel enhancements: validator, auto-reconnect, message fragmentation, etc."""
 
 import asyncio
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -10,7 +10,6 @@ from app.channels.core.credentials import (
     credential_spec,
     resolve_credentials,
 )
-from app.channels.core.logging_filter import SensitiveDataFilter, redact_sensitive
 from app.channels.core.rate_limit import RateLimitConfig, RateLimiter
 
 
@@ -89,103 +88,6 @@ class TestCredentialFieldValidator:
         with patch.dict("os.environ", {"TEST_PORT": "9000"}):
             result = await resolve_credentials(spec, None)
             assert result["port"] == "8080"
-
-
-class TestSensitiveDataFilter:
-    """Test SensitiveDataFilter logging redaction."""
-
-    def test_redact_token_in_log_message(self):
-        """Test token is redacted from log messages."""
-        log_filter = SensitiveDataFilter()
-
-        # Create a mock log record
-        record = Mock()
-        record.msg = "Connecting with token=abc123secret456"
-        record.args = ()
-
-        log_filter.filter(record)
-
-        assert "token=***REDACTED***" in record.msg
-        assert "abc123secret456" not in record.msg
-
-    def test_redact_password_in_log_message(self):
-        """Test password is redacted from log messages."""
-        log_filter = SensitiveDataFilter()
-
-        record = Mock()
-        record.msg = "Auth failed: password=MySecretPass123"
-        record.args = ()
-
-        log_filter.filter(record)
-
-        assert "password=***REDACTED***" in record.msg
-        assert "MySecretPass123" not in record.msg
-
-    def test_redact_multiple_secrets(self):
-        """Test multiple secrets are redacted."""
-        log_filter = SensitiveDataFilter()
-
-        record = Mock()
-        record.msg = "Config: api_key=KEY123 secret=SECRET456 token=TOK789"
-        record.args = ()
-
-        log_filter.filter(record)
-
-        assert "api_key=***REDACTED***" in record.msg
-        assert "secret=***REDACTED***" in record.msg
-        assert "token=***REDACTED***" in record.msg
-        assert "KEY123" not in record.msg
-        assert "SECRET456" not in record.msg
-        assert "TOK789" not in record.msg
-
-    def test_redact_sensitive_utility_function(self):
-        """Test redact_sensitive() utility function."""
-        text = "Config: access_token=secret123 password=pass456"
-        redacted = redact_sensitive(text)
-
-        assert "access_token=***REDACTED***" in redacted
-        assert "password=***REDACTED***" in redacted
-        assert "secret123" not in redacted
-        assert "pass456" not in redacted
-
-    def test_redact_sensitive_with_special_characters(self):
-        """Test redaction with special characters in values."""
-        # Values with quotes, slashes, etc.
-        text = "Bearer token=\"abc/def+123\" password='secret!@#$%'"
-        redacted = redact_sensitive(text)
-
-        assert "token=***REDACTED***" in redacted
-        assert "password=***REDACTED***" in redacted
-        assert "abc/def+123" not in redacted
-        assert "secret!@#$%" not in redacted
-
-    def test_redact_sensitive_multiline(self):
-        """Test redaction across multiple lines."""
-        text = """
-        Config:
-          access_token=abc123
-          api_key=key456
-          password=pass789
-        """
-        redacted = redact_sensitive(text)
-
-        assert "access_token=***REDACTED***" in redacted
-        assert "api_key=***REDACTED***" in redacted
-        assert "password=***REDACTED***" in redacted
-        assert "abc123" not in redacted
-        assert "key456" not in redacted
-        assert "pass789" not in redacted
-
-    def test_redact_sensitive_no_false_positives(self):
-        """Test redaction doesn't affect normal words."""
-        text = "The secretary accessed the token machine with a password."
-        redacted = redact_sensitive(text)
-
-        # Words 'secretary', 'accessed', 'token', 'password' in normal context should not be redacted
-        assert "secretary" in redacted
-        assert "accessed" in redacted
-        # Note: our regex only matches assignment patterns like "token=", so normal words are safe
-        assert redacted == text
 
 
 class TestRateLimiterConcurrency:

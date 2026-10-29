@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.api import redact_sensitive_text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -29,6 +30,17 @@ from app.channels.routing.channel_data_plane import (
 from app.channels.types import InboundMessage
 from app.database.models.channel_message import ChannelMessageModel
 from app.database.repositories.channel_message_repo import ChannelMessageRepository
+
+_PEM_BODY = "MIIEowIBAAKCAQEAu1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gun"
+
+# (message text, the part of it that must never be stored in the ledger)
+_LEAKING_SECRETS: tuple[tuple[str, str], ...] = (
+    ("Here is the test key: sk-live-1234567890abcdef12345678", "sk-live-1234567890abcdef12345678"),
+    ("use postgres://admin:S3cr3tPassw0rd@db.internal:5432/app for prod", "S3cr3tPassw0rd"),
+    ("my key is AKIAIOSFODNN7EXAMPLE ok", "AKIAIOSFODNN7EXAMPLE"),
+    ("token ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8", "ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"),
+    (f"-----BEGIN RSA PRIVATE KEY-----\n{_PEM_BODY}\n-----END RSA PRIVATE KEY-----", _PEM_BODY),
+)
 
 
 @pytest.fixture
@@ -292,13 +304,16 @@ class TestChannelDataPlaneService:
     """Service layer testing including security redaction and error resilience."""
 
     @pytest.mark.asyncio
-    async def test_record_inbound_redacts_credentials(self) -> None:
+    @pytest.mark.parametrize(
+        ("text", "secret"), _LEAKING_SECRETS, ids=["sk-key", "db-url-password", "aws-key-id", "github-token", "pem-block"]
+    )
+    async def test_record_inbound_masks_credentials(self, text: str, secret: str) -> None:
         msg = InboundMessage(
             channel="feishu",
             sender_id="user_x",
             sender_name="Bob",
             chat_id="chat_secret",
-            content="Here is the test key: sk-live-1234567890abcdef12345678",
+            content=text,
             message_id="msg_redact_test",
         )
 
@@ -307,12 +322,25 @@ class TestChannelDataPlaneService:
             mock_get_session.return_value.__aenter__.return_value = mock_session
 
             entry = await ChannelDataPlaneService.record_inbound(msg, is_trigger=True)
-            assert entry is not None
-            assert entry.is_trigger is True
-            assert entry.is_self is False
-            # Secret must be replaced with sanitized placeholder
-            assert "sk-live-1234567890abcdef12345678" not in entry.content
-            assert "sk-***" in entry.content or "[REDACTED" in entry.content or "*" in entry.content
+
+        assert entry is not None
+        assert entry.is_trigger is True
+        assert entry.is_self is False
+        assert secret not in entry.content
+
+    @pytest.mark.asyncio
+    async def test_record_inbound_keeps_ordinary_text_verbatim(self) -> None:
+        """Words that merely look like credential names are not credentials; observed context must stay readable."""
+        text = "the key point: 42, auth: pending, token budget is fine"
+        msg = InboundMessage(channel="feishu", sender_id="user_x", chat_id="chat_plain", content=text)
+
+        with patch("app.channels.routing.channel_data_plane.get_session") as mock_get_session:
+            mock_get_session.return_value.__aenter__.return_value = AsyncMock()
+
+            entry = await ChannelDataPlaneService.record_inbound(msg, is_trigger=False)
+
+        assert entry is not None
+        assert entry.content == text
 
     @pytest.mark.asyncio
     async def test_record_inbound_missing_chat_id_safely_ignored(self) -> None:
@@ -341,6 +369,17 @@ class TestChannelDataPlaneService:
             assert entry.is_self is True
             assert entry.learning_eligible is False
             assert entry.sender_id == "agent"
+
+    @pytest.mark.asyncio
+    async def test_record_outbound_masks_credentials(self) -> None:
+        text, secret = _LEAKING_SECRETS[3]
+        with patch("app.channels.routing.channel_data_plane.get_session") as mock_get_session:
+            mock_get_session.return_value.__aenter__.return_value = AsyncMock()
+
+            entry = await ChannelDataPlaneService.record_outbound(channel="slack", chat_id="group_1", content=text)
+
+        assert entry is not None
+        assert secret not in entry.content
 
     @pytest.mark.asyncio
     async def test_get_recent_context_entries_failure_returns_empty_list(self) -> None:
@@ -383,13 +422,12 @@ class TestChannelDataPlaneService:
         """Universal Task Flow E2E: Inbound message -> Credential scrubbing -> DB DWD -> Context retrieval -> LLM generation -> Outbound record -> Data Plane metrics."""
         import os
 
-        from app.channels.core.logging_filter import redact_sensitive
-
         # 1. Real User Inbound message with sensitive token
-        raw_prompt = "Hello Agent, here is my auth Bearer sk-liveSecretToken9876543210! Please answer: what is 128 divided by 4?"
-        scrubbed_prompt = redact_sensitive(raw_prompt)
-        assert "sk-liveSecretToken" not in scrubbed_prompt
-        assert "REDACTED" in scrubbed_prompt
+        secret_token = "sk-liveSecretToken9876543210"
+        raw_prompt = f"Hello Agent, here is my auth Bearer {secret_token}! Please answer: what is 128 divided by 4?"
+        scrubbed_prompt = redact_sensitive_text(raw_prompt)
+        assert secret_token not in scrubbed_prompt
+        assert "what is 128 divided by 4?" in scrubbed_prompt
 
         inbound_msg = ChannelMessageModel(
             id="e2e_msg_inbound_001",
@@ -411,7 +449,7 @@ class TestChannelDataPlaneService:
         )
         assert len(history) == 1
         assert history[0].id == "e2e_msg_inbound_001"
-        assert "REDACTED" in history[0].content
+        assert secret_token not in history[0].content
 
         # 3. Model Inference (real call via litellm if API key present, or deterministic reasoning)
         model_name = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M3")
@@ -663,15 +701,11 @@ class TestObservedContextHygiene:
         async_db.add_all([human, agent])
         await async_db.commit()
 
-        msgs = await ChannelMessageRepository.get_recent_context(
-            async_db, channel="feishu", chat_id="chat_ctx"
-        )
+        msgs = await ChannelMessageRepository.get_recent_context(async_db, channel="feishu", chat_id="chat_ctx")
         assert [m.id for m in msgs] == ["ctx_human"]
 
     @pytest.mark.asyncio
-    async def test_get_recent_context_entries_excludes_bot_named_senders(
-        self, async_db: AsyncSession
-    ) -> None:
+    async def test_get_recent_context_entries_excludes_bot_named_senders(self, async_db: AsyncSession) -> None:
         now = datetime.now(timezone.utc)
         rows = [
             ChannelMessageModel(

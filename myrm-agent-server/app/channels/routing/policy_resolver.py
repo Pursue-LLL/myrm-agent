@@ -11,6 +11,7 @@ pairing status, and WhatsApp LID fallback logic.
 - channels.routing.policy_resolver_support::BoundedCooldownMap, GroupFollowUpTracker, policy query and sender check helpers (POS: policy lookups, cooldown and follow-up tracking, the owner rule)
 - channels.routing.sender_admission::check_sender_admitted, is_untrusted_event_sender (POS: side-effect-free admission and sender-trust checks)
 - channels.types::InboundMessage, ContextEntry, METADATA_GUEST_TURN_KEY (POS: core message types and metadata constants shared by every channel)
+- myrm_agent_harness.api::redact_sensitive_text (POS: credential masking SSOT, applied to the text kept as group context)
 
 [OUTPUT]
 - PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus the read-only is_sender_admitted / is_untrusted_event_sender
@@ -31,6 +32,8 @@ import dataclasses
 import logging
 import time
 from collections.abc import Callable
+
+from myrm_agent_harness.api import redact_sensitive_text
 
 from app.channels.protocols.pairing import (
     ChannelPolicyProvider,
@@ -221,13 +224,14 @@ class PolicyResolver:
 
         asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
         # Buffer human chatter only: bot/alert noise crowds out human context and can seed bot-to-bot loops.
-        # Persistence above stays unconditional for DWD completeness.
+        # Persistence above stays unconditional for DWD completeness. The buffered text reaches a later turn's
+        # prompt exactly like the ledger rows do, so it is masked the same way before it is kept.
         if not msg.is_bot:
             self._context_buffer.append(
                 msg.chat_id or msg.sender_id,
                 ContextEntry(
                     sender_id=msg.sender_id,
-                    content=msg.content,
+                    content=redact_sensitive_text(msg.content),
                     timestamp=time.monotonic(),
                     sender_name=msg.sender_name,
                 ),

@@ -3,7 +3,7 @@
 [INPUT]
 app.database.models.channel_message::ChannelMessageModel (POS: 渠道消息 DWD 表)
 app.database.models.chat::Message (POS: 会话消息表)
-app.channels.core.logging_filter::redact_sensitive (POS: 敏感凭据过滤脱敏)
+myrm_agent_harness.api::redact_sensitive_text (POS: 凭据脱敏 SSOT)
 app.schemas.memory.command_center::(MemoryEvidencePlaybackResponse, MemoryEvidencePlaybackTurn)
 
 [OUTPUT]
@@ -20,10 +20,10 @@ import logging
 from datetime import UTC, datetime
 from typing import Final
 
-from sqlalchemy import desc, select
+from myrm_agent_harness.api import redact_sensitive_text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.channels.core.logging_filter import redact_sensitive
 from app.database.models.channel_message import ChannelMessageModel
 from app.database.models.chat import Message
 from app.schemas.memory.command_center import (
@@ -95,7 +95,7 @@ class EvidencePlaybackService:
                 source_id=source_id,
                 target_message_id=message_id,
                 channel=channel_id,
-                quote_snippet=redact_sensitive(quote_snippet),
+                quote_snippet=redact_sensitive_text(quote_snippet),
                 author_name=author_name,
                 author_id=author_id,
                 occurred_at=occurred_at or datetime.now(UTC),
@@ -104,7 +104,7 @@ class EvidencePlaybackService:
                         message_id=message_id or "archived-ref",
                         role="user",
                         sender_name=author_name or "User",
-                        content=redact_sensitive(quote_snippet),
+                        content=redact_sensitive_text(quote_snippet),
                         sent_at=occurred_at or datetime.now(UTC),
                         is_target=True,
                         is_self=True,
@@ -148,7 +148,7 @@ class EvidencePlaybackService:
         prior_stmt = (
             select(Message)
             .where(Message.chat_id == actual_chat_id, Message.sent_at < target_msg.sent_at)
-            .order_by(desc(Message.sent_at))
+            .order_by(Message.sent_at.desc())
             .limit(half_window)
         )
         prior_messages = list((await self._db.execute(prior_stmt)).scalars().all())
@@ -173,7 +173,7 @@ class EvidencePlaybackService:
                     message_id=rec.id,
                     role=rec.role,
                     sender_name=None if rec.role == "assistant" else "User",
-                    content=redact_sensitive(rec.content),
+                    content=redact_sensitive_text(rec.content),
                     sent_at=rec.sent_at,
                     is_target=is_target,
                     is_self=rec.role == "user",
@@ -220,7 +220,7 @@ class EvidencePlaybackService:
                 ChannelMessageModel.chat_id == actual_chat_id,
                 ChannelMessageModel.created_at < target_msg.created_at,
             )
-            .order_by(desc(ChannelMessageModel.created_at))
+            .order_by(ChannelMessageModel.created_at.desc())
             .limit(half_window)
         )
         prior_messages = list((await self._db.execute(prior_stmt)).scalars().all())
@@ -248,7 +248,7 @@ class EvidencePlaybackService:
                     message_id=rec.id,
                     role="user" if (rec.is_self or rec.is_self is None) else "collaborator",
                     sender_name=rec.sender_name or rec.sender_id,
-                    content=redact_sensitive(rec.content),
+                    content=redact_sensitive_text(rec.content),
                     sent_at=rec.created_at,
                     is_target=is_target,
                     is_self=rec.is_self,

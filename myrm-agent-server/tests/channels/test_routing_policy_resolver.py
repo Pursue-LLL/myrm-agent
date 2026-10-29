@@ -701,6 +701,23 @@ class TestBotSenderGate:
         assert buffered[0].content == "hello team"
 
     @pytest.mark.asyncio
+    async def test_buffered_chatter_has_credentials_masked(self) -> None:
+        """The in-memory fallback reaches a later prompt like the ledger rows do, so it never keeps a raw credential."""
+        secret = "ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
+        r = _make_resolver(policy=self._group_policy(free_response=set()))
+        with patch(
+            "app.channels.routing.channel_data_plane.ChannelDataPlaneService.record_inbound",
+            new=AsyncMock(),
+        ):
+            await r.resolve_group_user(
+                _msg(content=f"my token {secret} ok", is_group=True, chat_id="grp-1", mentioned=False)
+            )
+        buffered = r._context_buffer.drain("grp-1")
+        assert len(buffered) == 1
+        assert secret not in buffered[0].content
+        assert buffered[0].content.startswith("my token ")
+
+    @pytest.mark.asyncio
     async def test_trigger_attribution_single_write(self) -> None:
         """R3 regression: trigger attribution recorded exactly once, at the resolver."""
         r = _make_resolver(policy=self._group_policy(free_response=set()))

@@ -6,7 +6,7 @@
 提供零模型成本（0 LLM Calls）的端到端证据锚定与审计：
 - 对话上下文切片回放（`EvidencePlaybackService`）；
 - 仓库近期提交与变更证据摘要提取（`RepoHistoryDigestService`）；
-- 严格敏感凭据脱敏过滤（`redact_sensitive`）。
+- 严格敏感凭据脱敏过滤（harness `redact_sensitive_text`）。
 
 ## 文件清单
 

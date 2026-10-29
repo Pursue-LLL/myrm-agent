@@ -17,6 +17,7 @@ import asyncio
 import logging
 
 from fastapi import APIRouter
+from myrm_agent_harness.api import redact_sensitive_text
 
 from app.api.channels.schemas import (
     ChannelTestResponse,
@@ -44,14 +45,13 @@ from app.api.channels.schemas import (
     WeComTestRequest,
     ZaloTestRequest,
 )
-from app.channels.core.logging_filter import redact_sensitive
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 def _safe_err_msg(e: Exception) -> str:
-    return redact_sensitive(str(e))
+    return redact_sensitive_text(str(e))
 
 
 @router.post("/feishu/test", response_model=FeishuTestResponse)

@@ -56,7 +56,6 @@ def test_get_data_plane_stats(client: TestClient, test_app: FastAPI) -> None:
         assert data["learning_eligible"] == 8
         assert data["trigger_messages"] == 3
         assert data["ambient_messages"] == 7
-        assert data["secret_scrubber_active"] is True
 
 
 def test_prune_data_plane(client: TestClient, test_app: FastAPI) -> None:

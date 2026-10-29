@@ -174,6 +174,62 @@ class TestGroupRbacAndExemptCommands:
         assert adm_uid == "sandbox"
 
     @pytest.mark.asyncio
+    async def test_over_quota_message_is_ledgered_only_as_trigger(self) -> None:
+        """A message refused for quota was still addressed to the bot.
+
+        The ledger keeps it as a trigger row and never as chatter, so observed context cannot replay a turned-away
+        sender's text into another turn's prompt.
+        """
+        from app.channels.protocols.pairing import GroupPolicy
+
+        mock_pairing = MagicMock()
+        mock_pairing.resolve = AsyncMock(return_value="paired_member_slack_member_user")
+        mock_pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 10))
+
+        mock_policy = MagicMock()
+        mock_policy.get_group_policy = AsyncMock(return_value=GroupPolicy.OPEN)
+        mock_policy.get_default_user_id = AsyncMock(return_value="sandbox")
+        mock_policy.get_enabled_groups = AsyncMock(return_value={"group_123"})
+        mock_policy.get_free_response_chats = AsyncMock(return_value=set())
+        mock_fx = MagicMock()
+        mock_fx.send_quota_exceeded_reply = AsyncMock()
+        mock_cb = MagicMock()
+        mock_cb.drain_async = AsyncMock(return_value=[])
+
+        resolver = PolicyResolver(
+            pairing=mock_pairing,
+            policy=mock_policy,
+            context_buffer=mock_cb,
+            fx=mock_fx,
+            get_channel=lambda ch: None,
+        )
+        msg = InboundMessage(
+            channel="slack",
+            chat_id="group_123",
+            sender_id="member_user",
+            content="@bot do expensive task",
+            mentioned=True,
+        )
+
+        with (
+            patch(
+                "app.database.repositories.channel_message_repo.ChannelMessageRepository.get_daily_trigger_count",
+                new_callable=AsyncMock,
+                return_value=10,
+            ),
+            patch(
+                "app.channels.routing.channel_data_plane.ChannelDataPlaneService.record_inbound",
+                new_callable=AsyncMock,
+            ) as mock_record,
+        ):
+            assert await resolver.resolve_group_user(msg) is None
+            await asyncio.sleep(0)
+
+        mock_fx.send_quota_exceeded_reply.assert_called_once_with(msg, 10)
+        mock_record.assert_called_once()
+        assert mock_record.call_args.kwargs["is_trigger"] is True
+
+    @pytest.mark.asyncio
     async def test_quota_command_direct_output_zero_llm(self) -> None:
         """Assert /quota yields direct local card and 0 LLM executor calls."""
         bus = MagicMock()

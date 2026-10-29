@@ -1,5 +1,5 @@
 """
-[INPUT] channels.types::InboundMessage, ContextEntry, models.channel_message::ChannelMessageModel, logging_filter::redact_sensitive, routing.identity_scope::is_untrusted_sender (POS: 访客 / 配对成员判定)
+[INPUT] channels.types::InboundMessage, ContextEntry, models.channel_message::ChannelMessageModel, myrm_agent_harness.api::redact_sensitive_text (POS: 凭据脱敏 SSOT), routing.identity_scope::is_untrusted_sender (POS: 访客 / 配对成员判定)
 [OUTPUT] ChannelDataPlaneService: 渠道数据平面核心服务
 [POS] 渠道消息数据平面（Channel Data Plane）。负责入站消息脱敏、确定性抗噪打标、持久化明细落盘、自产回复追溯与上下文提取。
 """
@@ -13,12 +13,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.api import redact_sensitive_text
+
 if TYPE_CHECKING:
     from myrm_agent_harness.api import (
         DistillationCandidate,
     )
 
-from app.channels.core.logging_filter import redact_sensitive
 from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.types import ContextEntry, InboundMessage
 from app.database.connection import get_session
@@ -84,7 +85,7 @@ class ChannelDataPlaneService:
             # Guest/unpaired identities and non-admin paired members are barred from memory learning
             is_guest = is_untrusted_sender(msg.user_id or "", msg)
             raw_content = str(msg.content or "")
-            redacted_content = redact_sensitive(raw_content)
+            redacted_content = redact_sensitive_text(raw_content)
             eligible = is_learning_eligible(redacted_content, msg.sender_name) if (is_authenticated and not is_guest) else False
 
             message_id = msg.message_id or f"msg_{uuid.uuid4().hex[:16]}"
@@ -132,7 +133,7 @@ class ChannelDataPlaneService:
     ) -> ChannelMessageModel | None:
         """Persist an agent's outbound reply to prevent multi-round conversational amnesia."""
         try:
-            redacted_content = redact_sensitive(content)
+            redacted_content = redact_sensitive_text(content)
             message_id = f"out_{uuid.uuid4().hex[:16]}"
             meta = {"reply_to_id": reply_to_id} if reply_to_id else None
 

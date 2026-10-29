@@ -4,9 +4,11 @@ from fastapi import APIRouter
 
 from ..test_fixtures import router as test_fixtures_router
 from .catchup import router as catchup_router
+from .command_matrix import router as command_matrix_router
 from .compaction import router as compaction_router
 from .copilot import router as copilot_router
 from .core import router as core_router
+from .embed_bridge import router as embed_bridge_router
 from .export_pack import router as export_pack_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
@@ -19,6 +21,7 @@ from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
 from .session_access_roots import router as session_access_roots_router
 from .share import router as share_router
+from .swarm_hud import router as swarm_hud_router
 from .thought_control import router as thought_control_router
 from .title import router as title_router
 from .trajectory import router as trajectory_router
@@ -26,19 +29,6 @@ from .trash import router as trash_router
 from .turn import router as turn_router
 from .ui_interaction import router as ui_interaction_router
 from .zero_replay import router as zero_replay_router
-
-try:  # optional feature: its harness dependency may not be present yet
-    from .command_matrix import router as command_matrix_router
-except ImportError:  # pragma: no cover - optional feature degradation
-    command_matrix_router = None
-try:  # optional feature: its harness dependency may not be present yet
-    from .embed_bridge import router as embed_bridge_router
-except ImportError:  # pragma: no cover - optional feature degradation
-    embed_bridge_router = None
-try:  # optional feature: its harness dependency may not be present yet
-    from .swarm_hud import router as swarm_hud_router
-except ImportError:  # pragma: no cover - optional feature degradation
-    swarm_hud_router = None
 
 router = APIRouter()
 
@@ -66,11 +56,8 @@ router.include_router(export_pack_router)
 router.include_router(ui_interaction_router)
 router.include_router(thought_control_router)
 router.include_router(zero_replay_router)
-if command_matrix_router is not None:
-    router.include_router(command_matrix_router)
-if embed_bridge_router is not None:
-    router.include_router(embed_bridge_router)
-if swarm_hud_router is not None:
-    router.include_router(swarm_hud_router)
+router.include_router(command_matrix_router)
+router.include_router(embed_bridge_router)
+router.include_router(swarm_hud_router)
 
 __all__ = ["router"]

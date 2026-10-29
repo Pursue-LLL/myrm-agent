@@ -29,10 +29,6 @@ from app.channels.core.exceptions import (
 )
 from app.channels.core.factory import create_channels
 from app.channels.core.gateway import ChannelGateway
-from app.channels.core.logging_filter import (
-    SensitiveDataFilter,
-    redact_sensitive,
-)
 from app.channels.core.mixins import CachedGroupMixin
 from app.channels.core.outbound_gate import (
     LinkProbeResult,
@@ -66,7 +62,6 @@ __all__ = [
     "MessageBus",
     "OutboundContentGate",
     "RateLimitError",
-    "SensitiveDataFilter",
     "UserResolver",
     "UserResolverCache",
     "create_channels",
@@ -74,6 +69,5 @@ __all__ = [
     "credential_spec",
     "get_outbound_content_gate",
     "parse_bool",
-    "redact_sensitive",
     "resolve_credentials",
 ]

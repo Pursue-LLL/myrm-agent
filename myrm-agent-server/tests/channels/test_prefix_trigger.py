@@ -46,6 +46,13 @@ class StubPairingStore:
         return None
 
 
+class OwnerPairingStore(StubPairingStore):
+    """Pairing store whose sender is the owner: the turn runs under the default user id, not a guest identity."""
+
+    async def resolve(self, channel: str, sender_id: str) -> str | None:
+        return "test-user"
+
+
 class RecordingExecutor:
     def __init__(self) -> None:
         self.calls: list[tuple[InboundMessage, str]] = []
@@ -145,7 +152,7 @@ async def test_prepare_execution_context_exec_msg_stripped_prefix() -> None:
     """Executor-bound message comes from context.exec_msg with prefix removed."""
     bus = MessageBus()
     policy = PrefixPolicyProvider(["/ask "])
-    router = AgentRouter(bus, StubPairingStore(), RecordingExecutor(), policy)
+    router = AgentRouter(bus, OwnerPairingStore(), RecordingExecutor(), policy)
     inbound = _group_msg("/ask stripped body")
     ctx = await router._prepare_execution_context(inbound)
     assert ctx is not None

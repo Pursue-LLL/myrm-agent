@@ -79,7 +79,7 @@ async def test_evidence_playback_resolves_chat_turns_with_redaction(playback_db)
 
         # Redaction verification on prior user message
         prior_turn = [t for t in result.turns if t.message_id == "msg-1"][0]
-        assert "token=***REDACTED***" in prior_turn.content
+        assert "Can we use secret" in prior_turn.content
         assert "sk-1234567890abcdef" not in prior_turn.content
 
 
@@ -143,6 +143,6 @@ async def test_evidence_playback_fallback_for_archived_quote(playback_db):
         assert result.status == "archived_snapshot"
         assert result.target_message_id == "purged-msg"
         assert len(result.turns) == 1
-        assert "password=***REDACTED***" in result.quote_snippet
+        assert "Deprecated legacy command" in result.quote_snippet
         assert "secret123" not in result.quote_snippet
         assert result.turns[0].sender_name == "DevLead"

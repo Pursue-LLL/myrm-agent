@@ -29,7 +29,6 @@ class ChannelDataPlaneStatsResponse(BaseModel):
     trigger_messages: int
     ambient_messages: int
     retention_days: int = 30
-    secret_scrubber_active: bool = True
 
 
 class ClearDataPlaneRequest(BaseModel):
@@ -73,7 +72,6 @@ async def get_channel_data_plane_stats(
         trigger_messages=trigger,
         ambient_messages=ambient,
         retention_days=30,
-        secret_scrubber_active=True,
     )
 
 

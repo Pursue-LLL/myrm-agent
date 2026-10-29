@@ -19,7 +19,6 @@ describe('manage channel data plane APIs', () => {
       trigger_messages: 8,
       ambient_messages: 34,
       retention_days: 30,
-      secret_scrubber_active: true,
     };
     vi.mocked(apiRequest).mockResolvedValueOnce(mockStats);
 
