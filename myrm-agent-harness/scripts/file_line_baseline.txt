@@ -29,7 +29,6 @@ myrm_agent_harness/agent/skills/evolution/core/engine.py	564
 myrm_agent_harness/agent/skills/evolution/db/store.py	587
 myrm_agent_harness/agent/skills/evolution/infra/integration.py	558
 myrm_agent_harness/agent/skills/evolution/pipeline/screener.py	625
-myrm_agent_harness/agent/skills/market/service.py	536
 myrm_agent_harness/agent/streaming/recovery/stream_recovery.py	785
 myrm_agent_harness/agent/streaming/stream_executor.py	623
 myrm_agent_harness/agent/sub_agents/event_forwarder.py	622

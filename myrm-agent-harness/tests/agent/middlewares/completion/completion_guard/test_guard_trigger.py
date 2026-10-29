@@ -80,7 +80,7 @@ class TestCompletionGuardTriggerConditions:
         )
 
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [code_write_record]
+            mock_guard.return_value.recorded_calls.return_value = [code_write_record]
             result = await self.guard.aafter_model(state, None)
 
         user_message = state["messages"][0]
@@ -91,7 +91,7 @@ class TestCompletionGuardTriggerConditions:
         """Should pass through when no critical errors (no unverified code writes)."""
         state = make_state([AIMessage(content="All done.")])
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
         assert result is None
 
@@ -105,7 +105,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert reasons_of(result).evidence
@@ -120,7 +120,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="web_search_tool",
                     args_hash="evidence1",
@@ -153,7 +153,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert "Substantial unpersisted deliverables" in reasons_of(result).deliverable_write
@@ -185,7 +185,7 @@ class TestCompletionGuardTriggerConditions:
         with tempfile.TemporaryDirectory() as tmp_dir:
             runtime = Runtime(context={"workspace_path": tmp_dir})
             with patch(LOOP_GUARD_PATCH) as mock_guard:
-                mock_guard.return_value._window = []
+                mock_guard.return_value.recorded_calls.return_value = []
                 # First rejection (rejection_count=1)
                 r1 = await guard.aafter_model(state, runtime)
                 assert r1 is not None
@@ -215,7 +215,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert "Substantial unpersisted deliverables detected" in reasons_of(result).deliverable_write
@@ -230,7 +230,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="bash_code_execute_tool",
                     args_hash="mcpbash1",
@@ -252,7 +252,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -267,7 +267,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -277,7 +277,7 @@ class TestCompletionGuardTriggerConditions:
         """Should pass through when only non-code files were modified."""
         state = make_state([AIMessage(content="Updated docs.")])
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -301,7 +301,7 @@ class TestCompletionGuardTriggerConditions:
         """Should block and increment rejection count when critical errors exist."""
         state = make_state([AIMessage(content="All done!")])
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -321,7 +321,7 @@ class TestCompletionGuardTriggerConditions:
         _cg_state.current_run_state().rejections = 2
         state = make_state([AIMessage(content="All done!")])
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -355,7 +355,7 @@ class TestCompletionGuardTriggerConditions:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",

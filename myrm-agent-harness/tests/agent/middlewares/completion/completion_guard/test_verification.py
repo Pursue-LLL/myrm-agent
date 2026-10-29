@@ -7,7 +7,6 @@ import pytest
 from myrm_agent_harness.agent.middlewares.completion.completion_guard import (
     classify_verification,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import detect_verification
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     VerificationCategory,
 )
@@ -172,58 +171,3 @@ class TestClassifyWrappedCommands:
     )
     def test_non_verification_stays_unclassified(self, command: str) -> None:
         assert classify_verification({"command": command}) is None
-
-
-class TestExitStatusIsItsOwn:
-    """Whether the exit status of the whole command is the status of the verification it runs."""
-
-    @pytest.mark.parametrize(
-        "command",
-        [
-            "pytest",
-            "pytest -q tests/",
-            "cd sub && pytest",
-            "pytest && echo ok",
-            "uv run pytest -q",
-            "FOO=1 npm test",
-            "timeout 60 pytest",
-            "pytest -k 'a or b'",
-            "pytest 2>&1",
-            "echo start; pytest",
-        ],
-    )
-    def test_the_verification_is_what_decides_the_exit_status(self, command: str) -> None:
-        detected = detect_verification({"command": command})
-
-        assert detected is not None
-        assert detected.exit_is_own
-
-    @pytest.mark.parametrize(
-        "command",
-        [
-            "pytest | tail -5",
-            "pytest -q 2>&1 | tee out.log",
-            "pytest | grep -c passed",
-            "pytest || true",
-            "pytest || echo failed",
-            "pytest; echo done",
-            "pytest & wait",
-            "pytest\necho done",
-            "(pytest) | cat",
-        ],
-    )
-    def test_something_after_the_verification_decides_it_instead(self, command: str) -> None:
-        detected = detect_verification({"command": command})
-
-        assert detected is not None
-        assert not detected.exit_is_own
-
-    def test_a_command_that_verifies_nothing_is_not_detected(self) -> None:
-        assert detect_verification({"command": "ls | tail"}) is None
-        assert detect_verification({}) is None
-
-    def test_the_category_is_the_one_classify_verification_gives(self) -> None:
-        detected = detect_verification({"command": "uv run mypy src"})
-
-        assert detected is not None
-        assert detected.category == classify_verification({"command": "uv run mypy src"})

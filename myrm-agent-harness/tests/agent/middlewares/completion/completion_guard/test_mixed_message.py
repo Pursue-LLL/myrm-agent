@@ -289,7 +289,7 @@ class TestMixedMessageGuard:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -382,7 +382,7 @@ class TestMixedMessageGuard:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -407,7 +407,7 @@ class TestMixedMessageGuard:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="web_search_tool",
                     args_hash="evidence1",
@@ -442,7 +442,7 @@ class TestMixedMessageGuard:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -478,7 +478,7 @@ class TestMixedMessageGuard:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         if stripped:

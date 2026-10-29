@@ -45,7 +45,7 @@ class TestCompletionGuardQueryGroundingIntegration:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = []
+        mock_loop_guard.recorded_calls.return_value = []
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
@@ -69,7 +69,7 @@ class TestCompletionGuardQueryGroundingIntegration:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = [rec_od]
+        mock_loop_guard.recorded_calls.return_value = [rec_od]
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
@@ -93,7 +93,7 @@ class TestCompletionGuardQueryGroundingIntegration:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = [rec_od]
+        mock_loop_guard.recorded_calls.return_value = [rec_od]
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
@@ -123,7 +123,7 @@ class TestCompletionGuardQueryGroundingIntegration:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = [rec_od, rec_tk]
+        mock_loop_guard.recorded_calls.return_value = [rec_od, rec_tk]
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
@@ -155,7 +155,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         reasons = reasons_of(result)
@@ -179,7 +179,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [record]
+            mock_guard.return_value.recorded_calls.return_value = [record]
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -195,7 +195,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         reasons = reasons_of(result)
@@ -221,7 +221,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         # The claim cannot be grounded, so the Mixed Message Guard must not
@@ -243,7 +243,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [record]
+            mock_guard.return_value.recorded_calls.return_value = [record]
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -257,7 +257,7 @@ class TestExecutionClaimGate:
     async def test_does_not_publish_plan_tier_for_casual_chat(self) -> None:
         state = make_state([HumanMessage(content="你喜欢什么颜色？"), AIMessage(content="我没有偏好。")])
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -280,7 +280,7 @@ class TestExecutionClaimGate:
         state = make_state([HumanMessage(content="帮我创建 calculator"), AIMessage(content=code_msg)])
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, runtime)
 
         assert result is not None
@@ -298,7 +298,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -313,7 +313,7 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is not None
@@ -337,14 +337,14 @@ class TestExecutionClaimGate:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [record]
+            mock_guard.return_value.recorded_calls.return_value = [record]
             assert await self.guard.aafter_model(state, None) is None
         first = _cg_state.pop_run_disclosure("")
         assert first is not None and first["deliverable_tier"]["tier"] == "ARTIFACT"
 
         # New segment of the same turn: the loop window starts empty.
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             assert await self.guard.aafter_model(state, None) is None
 
         second = _cg_state.pop_run_disclosure("")
@@ -366,7 +366,7 @@ class TestExecutionClaimGate:
         )
 
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [write]
+            mock_guard.return_value.recorded_calls.return_value = [write]
 
             set_current_message_id("msg_a")
             reset_completion_guard()

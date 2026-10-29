@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from myrm_agent_harness.agent.plugins.manifest import PLUGIN_SCHEMA
+from myrm_agent_harness.agent.skills.market import file_uninstall as uninstall_mod
 from myrm_agent_harness.agent.skills.market.file_install import resolve_install_error
 from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
@@ -279,13 +280,13 @@ class TestCascadeUninstall:
 
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
         monkeypatch.setattr(
-            service_mod,
+            uninstall_mod,
             "read_origin",
             lambda path: {"parent_plugin": "pdf"} if path.name == "child" else {},
         )
         skill_id = local_skill_id_from_path(target)
 
-        with patch.object(service_mod, "read_receipt_file", return_value=None):
+        with patch.object(uninstall_mod, "read_receipt_file", return_value=None):
             result = await service.uninstall(skill_id)
 
         assert result.success is True
@@ -309,17 +310,50 @@ class TestCascadeUninstall:
         (target / "SKILL.md").write_text("x")
 
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "read_origin", lambda path: {})
+        monkeypatch.setattr(uninstall_mod, "read_origin", lambda path: {})
         skill_id = local_skill_id_from_path(target)
 
         with (
-            patch.object(service_mod, "read_receipt_file", return_value=None),
-            patch.object(service_mod.shutil, "rmtree", side_effect=OSError("locked")),
+            patch.object(uninstall_mod, "read_receipt_file", return_value=None),
+            patch.object(uninstall_mod.shutil, "rmtree", side_effect=OSError("locked")),
         ):
             result = await service.uninstall(skill_id)
 
         assert result.success is False
         assert "Failed to remove skill directory" in (result.error or "")
+
+    @pytest.mark.asyncio
+    async def test_a_rejected_target_keeps_its_child_skills(
+        self,
+        service: BaseSkillMarketService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import myrm_agent_harness.agent.skills.market.service as service_mod
+
+        install_dir = tmp_path / "skills"
+        install_dir.mkdir()
+        elsewhere = tmp_path / "elsewhere" / "pdf"
+        elsewhere.mkdir(parents=True)
+        target = install_dir / "pdf"
+        target.symlink_to(elsewhere, target_is_directory=True)
+        (install_dir / "child").mkdir()
+
+        monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
+        monkeypatch.setattr(
+            uninstall_mod,
+            "read_origin",
+            lambda path: {"parent_plugin": "pdf"} if path.name == "child" else {},
+        )
+        skill_id = local_skill_id_from_path(target)
+
+        with patch.object(uninstall_mod, "read_receipt_file", return_value=None):
+            result = await service.uninstall(skill_id)
+
+        assert result.success is False
+        assert "Failed to remove skill directory" in (result.error or "")
+        assert (install_dir / "child").exists()
+        assert elsewhere.exists()
 
     @pytest.mark.asyncio
     async def test_rejects_unknown_local_id(

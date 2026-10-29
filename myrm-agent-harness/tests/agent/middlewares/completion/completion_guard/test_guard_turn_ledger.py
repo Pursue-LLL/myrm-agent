@@ -44,7 +44,7 @@ class TestTurnLedger:
     async def model_turn(self, window: list[CallRecord], messages: list[object]) -> dict[str, object] | None:
         """One ``aafter_model`` call, with ``window`` as the calls the loop guard still holds."""
         with patch(LOOP_GUARD_PATCH) as loop_guard:
-            loop_guard.return_value._window = window[-WINDOW:]
+            loop_guard.return_value.recorded_calls.return_value = window[-WINDOW:]
             return await self.guard.aafter_model(make_state(messages), None)
 
     @pytest.mark.asyncio

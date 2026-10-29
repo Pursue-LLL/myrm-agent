@@ -4,7 +4,6 @@ Covers edge cases: empty window, duplicate files, various ToolGroup categories,
 verification with different SuccessLevel values, and empty path handling.
 """
 
-from collections import deque
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -72,7 +71,7 @@ class TestAssembleExecutionSummary:
     def test_empty_window(self, mock_get_guard: MagicMock):
         """Empty LoopGuard window produces summary with all-zero/empty fields."""
         guard = MagicMock()
-        guard._window = deque()
+        guard.recorded_calls.return_value = list()
         mock_get_guard.return_value = guard
 
         mixin = _get_mixin()
@@ -93,7 +92,7 @@ class TestAssembleExecutionSummary:
     def test_write_records_deduplicate(self, mock_get_guard: MagicMock):
         """Duplicate file paths are deduplicated."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(tool_name="file_write_tool", args={"path": "/src/a.py"}),
                 _make_record(tool_name="file_edit_tool", args={"path": "/src/b.py"}),
@@ -114,7 +113,7 @@ class TestAssembleExecutionSummary:
     def test_write_record_empty_path_ignored(self, mock_get_guard: MagicMock):
         """WRITE records with empty path are not included in files_modified."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(tool_name="file_write_tool", args={"path": ""}),
                 _make_record(tool_name="file_write_tool", args={}),
@@ -134,7 +133,7 @@ class TestAssembleExecutionSummary:
     def test_browser_records_counted(self, mock_get_guard: MagicMock):
         """BROWSER group records increment browser_checks counter."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(tool_name="browser_navigate_tool", args={"url": "http://localhost:3000"}),
                 _make_record(tool_name="browser_snapshot_tool", args={}),
@@ -156,7 +155,7 @@ class TestAssembleExecutionSummary:
     def test_verification_success_levels(self, mock_get_guard: MagicMock):
         """Verification records correctly map SuccessLevel to passed boolean."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(
                     tool_name="shell",
@@ -201,7 +200,7 @@ class TestAssembleExecutionSummary:
     def test_verification_none_success_level(self, mock_get_guard: MagicMock):
         """Verification with None success_level is marked as not passed."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(
                     tool_name="shell",
@@ -225,7 +224,7 @@ class TestAssembleExecutionSummary:
     def test_mixed_records(self, mock_get_guard: MagicMock):
         """Mixed record types are correctly categorized."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(tool_name="file_write_tool", args={"path": "/app/main.py"}),
                 _make_record(tool_name="browser_navigate_tool", args={"url": "http://localhost"}),
@@ -256,7 +255,7 @@ class TestAssembleExecutionSummary:
     def test_goal_accounting_fields(self, mock_get_guard: MagicMock):
         """Goal accounting data (tokens, cost, duration, turns) is correctly mapped."""
         guard = MagicMock()
-        guard._window = deque()
+        guard.recorded_calls.return_value = list()
         mock_get_guard.return_value = guard
 
         mixin = _get_mixin()
@@ -278,7 +277,7 @@ class TestAssembleExecutionSummary:
     def test_files_sorted_alphabetically(self, mock_get_guard: MagicMock):
         """files_modified tuple is sorted alphabetically."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(tool_name="file_write_tool", args={"path": "/z/last.py"}),
                 _make_record(tool_name="file_write_tool", args={"path": "/a/first.py"}),
@@ -298,7 +297,7 @@ class TestAssembleExecutionSummary:
     def test_verification_uses_command_or_tool_name(self, mock_get_guard: MagicMock):
         """Verification cmd falls back to tool_name when command arg missing."""
         guard = MagicMock()
-        guard._window = deque(
+        guard.recorded_calls.return_value = list(
             [
                 _make_record(
                     tool_name="custom_verify_tool",

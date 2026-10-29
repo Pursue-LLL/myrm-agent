@@ -75,7 +75,7 @@ class TestIndependentRerun:
                 return_value=mock_executor,
             ),
         ):
-            mock_guard.return_value._window = records
+            mock_guard.return_value.recorded_calls.return_value = records
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
@@ -117,7 +117,7 @@ class TestIndependentRerun:
                 return_value=mock_executor,
             ),
         ):
-            mock_guard.return_value._window = records
+            mock_guard.return_value.recorded_calls.return_value = records
             result = await self.guard.aafter_model(state, None)
 
         assert pending(result).text
@@ -153,7 +153,7 @@ class TestIndependentRerun:
                 return_value=mock_executor,
             ),
         ):
-            mock_guard.return_value._window = records
+            mock_guard.return_value.recorded_calls.return_value = records
             result = await self.guard.aafter_model(state, None)
 
         assert pending(result).text
@@ -191,7 +191,7 @@ class TestIndependentRerun:
                 return_value=None,
             ),
         ):
-            mock_guard.return_value._window = records
+            mock_guard.return_value.recorded_calls.return_value = records
             result = await self.guard.aafter_model(state, None)
 
         assert pending(result).text
@@ -210,7 +210,7 @@ class TestRerunClearsOnlyAStaleVerification:
             patch(LOOP_GUARD_PATCH) as mock_guard,
             patch.object(guard_module, "rerun_verification_in_sandbox", rerun),
         ):
-            mock_guard.return_value._window = records
+            mock_guard.return_value.recorded_calls.return_value = records
             return await self.guard.aafter_model(make_state([AIMessage(content="Done.")]), None), rerun
 
     @pytest.mark.asyncio

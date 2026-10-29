@@ -7,6 +7,7 @@ Implements SkillMarketBackend protocol.
 - backends.skills.market_protocols::SkillInstallResult, (POS: SkillBackend SkillBackend SkillMarketBackend)
 - backends.skills.scanning::ScanFinding, (POS: Scan result cache layer. Stores scan results in Volume (~/.myrm/skill_scans/) to avoid redundant scanning. Critical for performance: 20x speedup for repeat scans. Cache key: SHA256 hash of skill content Cache location: ~/.myrm/skill_scans/{content_hash}.json Expiration: 60 days TTL (auto-cleanup on get))
 - .file_install::install_skill_files, resolve_install_error (POS: The one install path for an in-memory file tree, and the mapping of install errors to codes)
+- .file_uninstall::uninstall_skill (POS: The one uninstall path, with cascade removal of a plugin's child skills)
 
 [OUTPUT]
 - EnrichedSearchResult: Search result enriched with local installation info.
@@ -21,14 +22,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.skills.market.sanitizer import sanitize_skill_files
-from myrm_agent_harness.backends.skills.local_skill_id import resolve_local_install_dir
 from myrm_agent_harness.backends.skills.market_protocols import (
     SkillInstallResult,
     SkillSearchResult,
@@ -37,12 +36,12 @@ from myrm_agent_harness.backends.skills.scanning import ScanFinding
 from myrm_agent_harness.backends.skills.versioning import compare_versions
 
 from .file_install import install_skill_files, resolve_install_error
+from .file_uninstall import uninstall_skill
 from .helpers import (
     SOURCE_PRIORITY,
     deduplicate,
     fetch_lobehub_as_skill,
     rank_results,
-    read_origin,
     scan_all_text_files,
 )
 from .installers.git_installer import GitInstaller
@@ -56,7 +55,6 @@ from .sources.modelscope import ModelScopeSource
 from .sources.prebuilt import PrebuiltSkillSource
 from .sources.skills_sh import SkillsShSource
 from .sources.static_index import StaticIndexSkillSource
-from .transaction import read_receipt_file
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.market_protocols import InstalledSkillStore
@@ -396,68 +394,7 @@ class BaseSkillMarketService:
 
     async def uninstall(self, skill_id: str) -> SkillInstallResult:
         """Uninstall a locally installed skill and cascade-remove any child skills using receipt."""
-        if not skill_id.startswith("local::"):
-            return SkillInstallResult(
-                success=False,
-                error=f"Only local skills can be uninstalled via this method: {skill_id}",
-            )
-
-        target_dir = resolve_local_install_dir(skill_id, LOCAL_INSTALL_DIR)
-        if target_dir is None:
-            return SkillInstallResult(success=False, error=f"Skill directory not found for id: {skill_id}")
-
-        skill_name = target_dir.name
-        uninstalled_skills = [skill_name]
-
-        # 1. Inspect receipt if present for precise forensic accounting
-        receipt = read_receipt_file(target_dir)
-
-        # 2. Cascade uninstall child skills registered to this parent plugin
-        if LOCAL_INSTALL_DIR.exists():
-            for child_dir in list(LOCAL_INSTALL_DIR.iterdir()):
-                if child_dir.is_dir() and child_dir != target_dir:
-                    child_origin = read_origin(child_dir)
-                    is_child = (
-                        child_origin.get("parent_plugin") == skill_name
-                        or child_origin.get("skill_id") == skill_id
-                        or (receipt and child_dir.name in receipt.installed_skills)
-                    )
-                    if is_child:
-                        try:
-                            shutil.rmtree(child_dir)
-                            uninstalled_skills.append(child_dir.name)
-                            logger.info(
-                                "Cascade uninstalled child skill %s of parent %s",
-                                child_dir.name,
-                                skill_name,
-                            )
-                        except Exception as exc:
-                            logger.warning(
-                                "Failed to cascade remove child skill %s: %s",
-                                child_dir.name,
-                                exc,
-                            )
-
-        # 3. Remove main target directory
-        try:
-            from myrm_agent_harness.backends.skills.scanning.path_security import (
-                assert_safe_install_target,
-            )
-
-            assert_safe_install_target(target_dir)
-            shutil.rmtree(target_dir)
-        except Exception as e:
-            return SkillInstallResult(success=False, error=f"Failed to remove skill directory: {e}")
-
-        logger.info("Uninstalled skill: %s (total cleaned: %s)", skill_name, uninstalled_skills)
-        return SkillInstallResult(
-            success=True,
-            skill_name=skill_name,
-            skill_id=skill_id,
-            installed_path=str(target_dir),
-            installed_skills=uninstalled_skills,
-            receipt=receipt,
-        )
+        return await uninstall_skill(LOCAL_INSTALL_DIR, skill_id)
 
     async def get_detail(self, skill_id: str, source: str) -> SkillSearchResult | None:
         cached = self._find_in_cache(skill_id, source)

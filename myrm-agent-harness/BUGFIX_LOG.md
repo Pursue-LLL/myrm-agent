@@ -2,6 +2,40 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-102 · 卸载被安全检查拒绝时，它的子技能已经被删光：级联删除排在目标目录的安全检查之前
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness 新增 `agent/skills/market/file_uninstall.py`，`market/service.py` 的 `uninstall` 改为委托；`market/_ARCH.md`、`scripts/file_line_baseline.txt`；测试 `tests/agent/skills/market/test_service_branches.py`；不改工具 schema 与提示词，不影响提示词缓存）。**未验证**：没有在真实安装目录里用符号链接的插件目录卸载过。 |
+| **发现时间** | 2026-10-29（复审 090：读 `uninstall` 时发现 `assert_safe_install_target` 在 `shutil.rmtree` 前一步才调用，而级联删子技能在更早的一步） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：只在父插件目录被 `assert_safe_install_target` 拒绝（符号链接、Windows 目录联接、与分类桶目录同名）而它名下仍有子技能目录时触发。生产调用 `market/service.py` 不传根目录，所以「逃出安装根」那一支不会触发。没有确认过真实用户碰到。后果是返回「卸载失败」，磁盘上父目录原样不动，子技能却已经没了。 |
+| **关联产品** | 技能市场卸载（`app/api/skills/discovery/discovery.py:400` 的卸载端点经 `market_service.uninstall`）。 |
+| **根因** | `uninstall` 的顺序是：读回执 → 遍历安装根删子技能目录 → 才对目标目录调 `assert_safe_install_target`，被拒绝时返回 `Failed to remove skill directory`。检查本来就只依赖目标目录本身，却排在不可逆的删除之后。 |
+| **修复** | 卸载整体搬进 `market/file_uninstall.py::uninstall_skill(install_root, skill_id)`，目标目录的安全检查提到读回执与级联删除之前，被拒绝时返回同一条 `Failed to remove skill directory: ...` 错误、不动任何子技能；`BaseSkillMarketService.uninstall` 只剩一行委托，并把安装根传进去。`service.py` 从 536 行降到 473 行，基线条目删除。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 原先对 `assert_safe_install_target` 的调用包在 `try/except Exception` 里，搬家后保留同样的宽捕获，错误文案不变，调用方与测试里 28 处 `LOCAL_INSTALL_DIR` 补丁都不用改。② 搬家让 `service.py` 不再有 `shutil`、`resolve_local_install_dir`、`read_origin`、`read_receipt_file`，测试里对这四个名字的补丁要改到新模块：`test_service_branches.py`、`test_service_install.py`、`test_discovery_service.py`。 |
+| **回归** | [1] 新增 `test_a_rejected_target_keeps_its_child_skills`（父目录是指向别处的符号链接，子技能目录登记了该父插件；断言结果失败、错误里有 `Failed to remove skill directory`、子目录与链接指向的目录都还在），改动前失败在子目录已被删除。[2] `tests/agent/skills/market` 与 `test_discovery_service.py` 721 个用例通过。[3] `ruff check`、`ruff format --check`、`mypy --follow-imports=silent` 对两个源文件通过；`check_file_line_limit.py`、`check_fractal_docs.py`、`validate_arch_inventory.py --md-refs`、`boundary_check.py` 通过。 |
+| **仍然存在** | ① 级联删除本身仍不是原子的：某个子目录删除失败只记一条警告、继续往下，父目录随后仍会被删。② 子技能的判定（`parent_plugin`、`skill_id`、回执）没有改，也没有加以验证。 |
+| **代码位置** | `agent/skills/market/file_uninstall.py:34-98`（`uninstall_skill`，检查在 48 行） · `agent/skills/market/service.py:395-397`（委托） |
+
+### BUG-HARNESS-2026-10-29-101 · 完成度守卫的测试与它实际读取的数据对不上：用例伪造 `_window`，生产读 `recorded_calls()`，还引用已删除的 `VerificationOutcome` 与 `detect_verification`（16 个失败、6 个收集错误，外加执行摘要的 8 个失败）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（只改测试：`tests/support/call_records.py`、`tests/agent/middlewares/completion/completion_guard/` 下 8 个文件、`tests/agent/streaming/test_assemble_execution_summary.py`；删除 `tests/agent/security/guards/test_call_record_verification.py`；`src` 没有改动）。 |
+| **发现时间** | 2026-10-29（093 的「仍然存在」①：对同一组套件跑出 16 个失败和 6 个收集错误；修复后扩大到 `tests/agent/streaming` 又发现 8 个同源失败） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：没有运行时缺陷，生产路径（`completion_guard/guard.py:202` 读 `get_loop_guard().recorded_calls()`）是对的。问题是测试：完成度守卫的判断（失败的验证类别、重新验证、交付物、混合消息）被伪造的 `_window` 喂数据，守卫根本不读它，这一块的回归保护在几次重构里失效，而失败一直留在套件里被当成「已知红」。 |
+| **关联产品** | 完成度守卫与执行摘要。 |
+| **根因** | 守卫改读 `recorded_calls()` 之后，用例仍给 `get_loop_guard()` 的 mock 设 `_window`（49 处，7 个文件；执行摘要测试另有 10 处）。`VerificationOutcome` 与 `detect_verification` 在 `f55df6a349`（一次 139 个不可达单元的清理）连同 `CallRecord.verification_outcome` 一起删掉，测试辅助 `call_records.py`、`test_call_record_verification.py`、`test_verification.py::TestExitStatusIsItsOwn` 没有跟着改。失败判定现在只看 `success_level == FAILURE`（`checklist/record_rules.py:85-91`）。 |
+| **修复** | 49 处与 10 处 `_window` 改为 `recorded_calls.return_value = [...]`；`call_records.py` 去掉 `VerificationOutcome`、`EXIT_0`、`EXIT_1` 与各构造函数的 `outcome` 参数；删除只测已删行为的 `test_call_record_verification.py` 与 `TestExitStatusIsItsOwn`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 守卫的真实输入是 `recorded_calls()` 返回的列表，不是 deque，改写时一律用 `list(...)`。② 只跑 `completion_guard` 目录会漏掉 `test_assemble_execution_summary.py` 里的同类写法，要把 `tests/agent/streaming` 一起跑。 |
+| **回归** | [1] `tests/agent/security/guards` + `tests/agent/middlewares/completion`：847 通过、9 xfailed；`tests/agent/middlewares`、`tests/agent/security`、`tests/agent/streaming`：6654 通过、5 跳过、9 xfailed、0 失败。[2] 变异：让 `failed_verification_types` 返回空集合，8 个用例失败、687 通过；还原后与原文件逐字节一致。[3] `ruff check`、`ruff format --check` 对改动的测试文件通过。 |
+| **仍然存在** | ① `scripts/check_module_reachability.py` 退出码 1，列出 201 个不可达单元，不在本次范围。② 测试仍以 mock 给守卫喂记录，没有一条从真实 `LoopGuard` 走到完成度守卫的端到端用例。 |
+| **代码位置** | `tests/support/call_records.py` · `tests/agent/middlewares/completion/completion_guard/test_guard_*.py`、`test_hold_back.py`、`test_mixed_message.py`、`test_verification.py` · `tests/agent/streaming/test_assemble_execution_summary.py` |
+
 ### BUG-HARNESS-2026-10-29-100 · Linux 非 ASCII 粘贴没有串行：两次重叠的调用会把对方的临时文本当成用户的原剪贴板存下并「还原」，文本（含凭据）留在剪贴板里
 
 | 字段 | 内容 |
@@ -135,7 +169,7 @@
 | **反复次数** | 第 1 次。 |
 | **踩坑** | ① 记录必须在任何 `await` 之前取：`pre_check` 与 `return PreCallResult(...)` 之间有事件上报的 `await`，并发的另一个调用会在这期间开自己的记录。② `PreCallResult` 与 `run_post_call_guards` 的新参数放在末尾、默认 `None`，位置参数的旧调用点不会错位；`None` 的含义与 `record_result` 一致（结果记到最新一条，且不记验证类别）。③ 熔断检查搬家后，测试里约 60 处对旧私有名与 `get_terminal_errors` 的引用一并改到新模块。 |
 | **回归** | [1] `test_tool_guards_rare_branches.py::test_completion_verification_tagging` 改为断言写在传入的记录上；新增 `test_overlapping_calls_each_keep_their_own_verification_category`（两个调用的记录重叠，先开的那个后完成，类别与结果都落在自己的记录上）；`test_loop_guard.py::TestVerificationTagging` 改为同一场景在守卫层的断言。[2] 变异：`record_result` 不传 `record=` 时这两个用例失败，还原后通过。[3] 对同一组套件（`tests/agent/middlewares`、`tests/agent/security/guards`、熔断集成测试）在干净的 HEAD 导出上是 18 失败、6 个收集错误，改动后是 16 失败、6 个收集错误，没有新增失败，减少的两个就是 `test_approval_evaluated_once` 与旧的 `test_tag_last_verification`。[4] `ruff check`、`ruff format --check`、`mypy --follow-imports=silent` 对改动的源文件通过；`check_file_line_limit.py`、`check_fractal_docs.py`、`boundary_check.py` 通过。 |
-| **仍然存在** | ① 剩下的 16 个失败和 6 个收集错误在改动前就存在，不是本次引入：`completion_guard/` 下的用例仍用 `mock_guard.return_value._window` 伪造记录，而守卫已改读 `recorded_calls()`；`tests/support/call_records.py` 与 `test_call_record_verification.py` 导入 `VerificationOutcome`，该符号已在 `f55df6a349` 从 `src` 删除。② `scripts/check_module_reachability.py` 因 server 侧缺少 `app/services/session_export/__init__.py` 在本机崩溃，与本次改动无关。③ 没有用真实模型跑一次「bash 跑 pytest」的完整回合，只在守卫层与中间件层验证。 |
+| **仍然存在** | ① 改动前就存在的 16 个失败和 6 个收集错误已在 BUG-HARNESS-2026-10-29-101 清掉。② `scripts/check_module_reachability.py` 现在能跑完，退出码为 1，列出 201 个与本次无关的不可达单元，没有处理。③ 没有用真实模型跑一次「bash 跑 pytest」的完整回合，只在守卫层与中间件层验证。 |
 | **代码位置** | `agent/middlewares/tooling/_tool_guards.py`（`PreCallResult.call_record`、`run_pre_call_guards` 里的 `latest_record()`、`run_post_call_guards` 的 `record=` 与 `verification_type`） · `agent/middlewares/tooling/_circuit_breaker.py` · `agent/security/guards/loop_guard/guard.py:374-399`（`latest_record`、`record_result`） |
 
 ### BUG-HARNESS-2026-10-29-092 · macOS 原生后端的 ASCII 文本输入构造不出键盘事件、垂直滚动每次抛异常：事件构造原语只被 mock 测过，参数错误一直没被发现
@@ -179,7 +213,7 @@
 | **状态** | **FIXED**（harness `backends/skills/scanning/path_security.py`、`agent/skills/market/service.py`；server `app/services/workspace/promotion/service.py`；测试 `tests/backends/skills/scanning/test_path_security.py`、`tests/agent/skills/market/test_service_install.py`、server `tests/services/workspace/test_promotion_service.py`（新）；没有改提示词、工具与控制平面）。接着 `BUG-HARNESS-2026-10-29-085`：那条只修了审计钩子，这里是对同一写法做全仓扫描的结果。 |
 | **发现时间** | 2026-10-29（对 085 做对抗式复核：全仓搜 `startswith(` 接目录类变量、`str(path).startswith(str(root))` 两种写法，共 3 处命中真缺陷；另有 4 处命中经读码判定不是边界判断（只用于显示路径、记录访问、带分隔符的前缀、提交哈希），没动） |
 | **修复时间** | 2026-10-29 |
-| **严重程度** | P4：三处都是纵深防御，现有代码里没有可达的利用路径。技能安装目标的两个生产调用（`market/service.py:444`、`market/transaction.py:180`）都没传根目录，所以「逃出安装根」这一支今天只有测试走到；隔离区目录名带 `mkdtemp` 的随机后缀，同名前缀的同级目录无法事先猜到；提升写入的文档路径是引擎里的两个常量（`docs/scratchpad_origin.md`、`README.md`）。但三道检查本身拦不住同名前缀的同级目录，修复前的失败测试证明了这一点：隔离区写入真的写出了隔离区（`quarantine-evil/escape.txt` 存在）、提升写入真的写出了项目目录（与项目同名前缀的同级目录 `alpha-evil` 里的 `note.md` 进了 `created_files`）、安装目标检查对 `skills-evil/rogue_skill` 不报错。 |
+| **严重程度** | P4：三处都是纵深防御，现有代码里没有可达的利用路径。技能安装目标的两个生产调用（`market/file_uninstall.py:48`、`market/transaction.py:180`）都没传根目录，所以「逃出安装根」这一支今天只有测试走到；隔离区目录名带 `mkdtemp` 的随机后缀，同名前缀的同级目录无法事先猜到；提升写入的文档路径是引擎里的两个常量（`docs/scratchpad_origin.md`、`README.md`）。但三道检查本身拦不住同名前缀的同级目录，修复前的失败测试证明了这一点：隔离区写入真的写出了隔离区（`quarantine-evil/escape.txt` 存在）、提升写入真的写出了项目目录（与项目同名前缀的同级目录 `alpha-evil` 里的 `note.md` 进了 `created_files`）、安装目标检查对 `skills-evil/rogue_skill` 不报错。 |
 | **关联产品** | 技能市场安装与隔离区；工作区的草稿提升为项目。 |
 | **根因** | 三处都用 `str(resolved).startswith(str(root))` 判断；字符串前缀不看路径段边界。代码库里已有用 `is_relative_to` 的写法（`core/security/path/filesystem.py::is_within_boundary`），这三处没有用。 |
 | **修复** | 三处都改成 `resolved.is_relative_to(root)`（`path_security.py:171`、`market/file_install.py:149`、`promotion/service.py:85`），调用前两边都已 `resolve()`，语义与原来一致，只是按路径段比较。顺带修了这两个 harness 文件原有的 7 个 mypy 错误：`CategoryBucketCollisionError` 的两个属性补了类型声明，`search` 里重复定义的 `raw_results` 改成先声明一次，三个 `_emit` 补了 `-> None`，预览里读 `extra_manifest` 的两处 `update` 先确认是字典再合并（行为变化：`requirements` 或 `dependencies` 不是字典时，原来抛异常、整份依赖报告被跳过，现在只忽略这一项）。 |

@@ -949,7 +949,7 @@ class TestUninstallSuccess:
         with (
             patch("myrm_agent_harness.agent.skills.market.service.LOCAL_INSTALL_DIR", tmp_path),
             patch(
-                "myrm_agent_harness.agent.skills.market.service.shutil.rmtree",
+                "myrm_agent_harness.agent.skills.market.file_uninstall.shutil.rmtree",
                 side_effect=OSError("permission denied"),
             ),
         ):

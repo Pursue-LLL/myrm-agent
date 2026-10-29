@@ -140,7 +140,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = []
+        mock_loop_guard.recorded_calls.return_value = []
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
@@ -168,7 +168,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = []
+        mock_loop_guard.recorded_calls.return_value = []
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             # First rejection
@@ -214,7 +214,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
         runtime = Runtime(context={"workspace_path": str(tmp_path)})
 
         mock_loop_guard = MagicMock()
-        mock_loop_guard._window = []
+        mock_loop_guard.recorded_calls.return_value = []
 
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)

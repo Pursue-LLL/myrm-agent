@@ -105,7 +105,7 @@ async def test_uninstall_reports_missing_directory(
 
     with (
         patch(
-            "myrm_agent_harness.agent.skills.market.service.resolve_local_install_dir",
+            "myrm_agent_harness.agent.skills.market.file_uninstall.resolve_local_install_dir",
             return_value=None,
         ),
         patch("myrm_agent_harness.agent.skills.market.service.LOCAL_INSTALL_DIR", Path(tmp_path)),
@@ -128,7 +128,7 @@ async def test_uninstall_removes_local_skill_directory(
 
     with (
         patch(
-            "myrm_agent_harness.agent.skills.market.service.resolve_local_install_dir",
+            "myrm_agent_harness.agent.skills.market.file_uninstall.resolve_local_install_dir",
             return_value=target,
         ),
         patch("myrm_agent_harness.agent.skills.market.service.LOCAL_INSTALL_DIR", Path(tmp_path)),

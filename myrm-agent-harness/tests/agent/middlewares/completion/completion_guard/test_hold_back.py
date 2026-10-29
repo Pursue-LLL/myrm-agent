@@ -52,7 +52,7 @@ class TestHoldBack:
         )
         user_message, original_ai = state["messages"]
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -84,7 +84,7 @@ class TestHoldBack:
         )
         tool_result = state["messages"][2]
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -110,7 +110,7 @@ class TestHoldBack:
         )
         original_ai = state["messages"][1]
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = [
+            mock_guard.return_value.recorded_calls.return_value = [
                 CallRecord(
                     tool_name="file_write_tool",
                     args_hash="abc",
@@ -134,7 +134,7 @@ class TestHoldBack:
             ]
         )
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert pending(result).anchor_id == state["messages"][1].id
@@ -150,7 +150,7 @@ class TestHoldBack:
             ]
         }
         with patch(LOOP_GUARD_PATCH) as mock_guard:
-            mock_guard.return_value._window = []
+            mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
         assert result is None
