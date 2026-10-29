@@ -1,20 +1,27 @@
-"""File integrity guard: read-before-write gate + content version matching.
+"""File integrity guard: read-before-write gate, content version matching and the masked write-back check.
 
-Provides three complementary protections for file mutation operations:
+Provides four complementary protections for file mutation operations:
 1. Read-gate: refuses mutations on files never read in the current session.
 2. Full-read gate: refuses edits after partial/range reads (marker-only).
 3. Version gate: hard-rejects when on-disk content hash differs from the
    hash recorded at full-read time (external or concurrent modification).
+4. Masked write-back gate: refuses a write that carries a mask the redactor puts in place of a secret
+   (``***``, ``sk-pro...7890``). A read shows the mask, the file holds the real value, and text copied from the
+   read would replace it.
 
 Self-writes update the recorded hash via ``record_write`` so consecutive
 edits by the same agent on content it just wrote remain allowed.
 
 [INPUT]
 - agent.middlewares._session_context::get_subagent_task_id (POS: ContextVar for subagent task ID)
+- core.security.redact::redact_sensitive_text (POS: the redactor, whose masks a read and a command output show)
+- utils.errors::ToolError (POS: tool error type)
 
 [OUTPUT]
 - FileIntegrityGuard: Per-executor file integrity guard (agent-aware)
 - get_file_integrity_guard: Module-level factory function
+- raise_if_integrity_rejection: raises the read, full-read and version rejections of a mutation as a ToolError
+- raise_if_masked_writeback: raises when new content carries a mask the file does not
 
 [POS]
 File integrity guard for sandbox file mutations. Agent-aware per-agent buckets.
@@ -28,10 +35,20 @@ import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from myrm_agent_harness.utils.errors import ToolError
+
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 _DEFAULT_AGENT_ID = "__main__"
+
+# Every mask of the redactor holds one of these: ``***``, ``head...tail`` and the ``...redacted...`` line of a key block.
+_MASK_MARKS = ("***", "...")
+
+# How far a mask fragment reaches into the words around it; keeps a compact one-line JSON from becoming one fragment.
+_CONTEXT_CHARS = 12
+_MIN_FRAGMENT_CHARS = 8
 
 
 def content_hash(content: str) -> str:
@@ -202,3 +219,125 @@ def get_file_integrity_guard(executor: CodeExecutor | None) -> FileIntegrityGuar
     if eid not in _integrity_guards:
         _integrity_guards[eid] = FileIntegrityGuard()
     return _integrity_guards[eid]
+
+
+def raise_if_integrity_rejection(
+    guard: FileIntegrityGuard | None,
+    path: str,
+    *,
+    disk_content: str | None = None,
+    require_version: bool,
+    anchor: str | Sequence[str] | None = None,
+) -> None:
+    """Raise the read, full-read or version rejection of a mutation of ``path`` as a ToolError."""
+    if guard is None:
+        return
+
+    read_rejection = guard.require_read_before_write(path)
+    if read_rejection is not None:
+        raise ToolError(
+            message=read_rejection,
+            user_hint="Read the file first with file_read_tool before editing.",
+        )
+
+    partial_rejection = guard.require_full_read_before_edit(path)
+    if partial_rejection is not None:
+        raise ToolError(
+            message=partial_rejection,
+            user_hint="Read the full file with file_read_tool before editing.",
+        )
+
+    if require_version and disk_content is not None:
+        version_rejection = guard.require_version_match(path, disk_content, anchor=anchor)
+        if version_rejection is not None:
+            raise ToolError(
+                message=version_rejection,
+                user_hint="Directly adjust and rebase your edits on the current disk content provided above without calling file_read_tool.",
+                error_code="FILE_VERSION_MISMATCH",
+                diagnostic_info={"error_category": "version_conflict", "path": path},
+                recovery_suggestions=[
+                    "Inspect the current disk content snippet in the error message",
+                    "Update the old_str in your edits array to match the actual lines on disk",
+                    "Call file_edit_tool again directly (do not call file_read_tool)",
+                ],
+            )
+
+
+def _common_prefix_len(first: str, second: str) -> int:
+    return next(
+        (i for i, (a, b) in enumerate(zip(first, second, strict=False)) if a != b), min(len(first), len(second))
+    )
+
+
+def _with_context(line: str, start: int, end: int) -> str:
+    """``line[start:end]`` widened to the words it touches, at most ``_CONTEXT_CHARS`` on each side.
+
+    A bare ``***`` or ``...`` is text that code and prose write everywhere, so a fragment that short also takes the
+    key before it: ``password: ***``.
+    """
+    left, right = start, end
+    while left > 0 and start - left < _CONTEXT_CHARS and not line[left - 1].isspace():
+        left -= 1
+    while right < len(line) and right - end < _CONTEXT_CHARS and not line[right].isspace():
+        right += 1
+    fragment = line[left:right]
+    if len(fragment) < _MIN_FRAGMENT_CHARS:
+        fragment = line[max(0, left - _CONTEXT_CHARS) : right].strip()
+    return fragment
+
+
+def _mask_fragments(disk_content: str) -> set[str]:
+    """The text the redactor puts in place of what ``disk_content`` holds, with the words around each mask.
+
+    A line is cut to the part between its unchanged head and tail, so ``api_key: sk-pro...7890`` yields
+    ``sk-pro...7890`` and ``DB_PASSWORD=***`` yields ``DB_PASSWORD=***``. A block the redactor collapses (a private
+    key) changes the line count, and its new lines are the fragments.
+    """
+    view = redact_sensitive_text(disk_content)
+    if view == disk_content:
+        return set()
+    disk_lines, view_lines = disk_content.splitlines(), view.splitlines()
+    if len(disk_lines) != len(view_lines):
+        return set(view_lines) - set(disk_lines)
+    fragments: set[str] = set()
+    for disk_line, view_line in zip(disk_lines, view_lines, strict=True):
+        if disk_line == view_line:
+            continue
+        head = _common_prefix_len(disk_line, view_line)
+        tail = min(
+            _common_prefix_len(disk_line[::-1], view_line[::-1]),
+            len(disk_line) - head,
+            len(view_line) - head,
+        )
+        if head < len(view_line) - tail:
+            fragments.add(_with_context(view_line, head, len(view_line) - tail))
+    return fragments
+
+
+def raise_if_masked_writeback(path: str, disk_content: str, new_content: str) -> None:
+    """Raise when ``new_content`` carries a mask of the redactor that ``disk_content`` of ``path`` does not.
+
+    A read, a search and a command output show a secret as a mask, so text copied from them carries the mask, and a
+    write of it replaces the real value on disk. A mask counts when the new content holds more of it than the file.
+    """
+    if all(new_content.count(mark) <= disk_content.count(mark) for mark in _MASK_MARKS):
+        return
+    for fragment in _mask_fragments(disk_content):
+        if new_content.count(fragment) > disk_content.count(fragment):
+            raise ToolError(
+                message=(
+                    f"The new content of '{os.path.normpath(path)}' contains text that tools show in place of a secret "
+                    "(for example '***'), while the file on disk holds the original text there. "
+                    "Writing it would replace that text with the mask."
+                ),
+                user_hint=(
+                    "Do not copy masked values from a read into an edit. Change only the lines that show no mask, "
+                    "or tell the user to change the secret themselves."
+                ),
+                error_code="MASKED_VALUE_WRITEBACK",
+                diagnostic_info={"error_category": "masked_writeback", "path": path},
+                recovery_suggestions=[
+                    "Repeat the edit with an old_str that leaves out every line showing a mask",
+                    "If the secret itself must change, write the new real value, not the mask",
+                ],
+            )

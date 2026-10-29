@@ -14,7 +14,7 @@
 - observers.activity_observer::FileActivityObserver (POS: 文件活动记录,并发冲突感知)
 - operation_context::OperationContext, OperationType (POS: 操作上下文和类型)
 - result_formatter::ResultFormatter, FileContent, DirectoryListing (POS: 结果格式化器)
-- file_integrity_guard::get_file_integrity_guard (POS: read/version integrity gates)
+- file_integrity_guard::get_file_integrity_guard, raise_if_integrity_rejection, raise_if_masked_writeback (POS: read/version integrity gates and masked write-back check)
 - file_activity_tracker::get_file_activity_tracker (POS: 文件活动跟踪器,行级冲突检测)
 - context_management.infra.session_lock::get_current_chat_id (POS: 当前会话上下文)
 - utils.token_estimation::estimate_content_tokens (POS: 文件内容 token 估算)
@@ -42,7 +42,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import Sequence
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 from myrm_agent_harness.agent.context_management.infra.session_lock import (
@@ -68,7 +67,11 @@ from .archive_restore_guard import (
 )
 from .batch_str_replace import apply_batch_str_replace, compute_batch_edit_line_range
 from .file_conflict_guard import check_conflict_pre_write
-from .file_integrity_guard import FileIntegrityGuard, get_file_integrity_guard
+from .file_integrity_guard import (
+    get_file_integrity_guard,
+    raise_if_integrity_rejection,
+    raise_if_masked_writeback,
+)
 from .file_path_lock_manager import acquire_file_path_lock
 from .operation_context import OperationContext, OperationType, ViewRange
 from .read_dedup import DedupResult, get_read_dedup_guard
@@ -349,13 +352,13 @@ class FileOperationService:
         original_eol: str | None = None
         guard = get_file_integrity_guard(self.context.executor)
         if pre_existing:
-            self._raise_if_integrity_rejection(
+            raise_if_integrity_rejection(
                 guard,
                 resolved_path,
                 require_version=False,
             )
             pre_content_str = "\n".join(await strategy.read_file(resolved_path))
-            self._raise_if_integrity_rejection(
+            raise_if_integrity_rejection(
                 guard,
                 resolved_path,
                 disk_content=pre_content_str,
@@ -368,6 +371,8 @@ class FileOperationService:
         file_text = self.context.file_text
         if pre_existing and original_eol:
             file_text = normalize_line_endings(file_text, original_eol)
+        if pre_content_str is not None:
+            raise_if_masked_writeback(resolved_path, pre_content_str, file_text)
 
         # 增量容错语法校验 (Delta Syntax Validator)
         from ..validators.delta_syntax_validator import DeltaSyntaxValidator
@@ -479,11 +484,11 @@ class FileOperationService:
         await validator_chain.validate(self.context, resolved_path)
 
         guard = get_file_integrity_guard(self.context.executor)
-        self._raise_if_integrity_rejection(guard, resolved_path, require_version=False)
+        raise_if_integrity_rejection(guard, resolved_path, require_version=False)
 
         old_content = "\n".join(await strategy.read_file(resolved_path))
         target_anchors = [edit.old_str for edit in self.context.edits if edit.old_str] if self.context.edits else None
-        self._raise_if_integrity_rejection(
+        raise_if_integrity_rejection(
             guard,
             resolved_path,
             disk_content=old_content,
@@ -495,6 +500,7 @@ class FileOperationService:
         conflict_warning = check_conflict_pre_write(resolved_path, line_start, line_end)
 
         new_content, strategies = apply_batch_str_replace(old_content, self.context.edits)
+        raise_if_masked_writeback(resolved_path, old_content, new_content)
         if any(s != "exact" for s in strategies):
             logger.info(
                 "Batch str_replace applied with fuzzy strategies path=%s strategies=%s",
@@ -605,45 +611,3 @@ class FileOperationService:
             return response
         warning_lines = "\n".join(f"Office: {item}" for item in warnings)
         return f"{response}\n\n{warning_lines}"
-
-    @staticmethod
-    def _raise_if_integrity_rejection(
-        guard: FileIntegrityGuard | None,
-        path: str,
-        *,
-        disk_content: str | None = None,
-        require_version: bool,
-        anchor: str | Sequence[str] | None = None,
-    ) -> None:
-        if guard is None:
-            return
-        from myrm_agent_harness.utils.errors import ToolError
-
-        read_rejection = guard.require_read_before_write(path)
-        if read_rejection is not None:
-            raise ToolError(
-                message=read_rejection,
-                user_hint="Read the file first with file_read_tool before editing.",
-            )
-
-        partial_rejection = guard.require_full_read_before_edit(path)
-        if partial_rejection is not None:
-            raise ToolError(
-                message=partial_rejection,
-                user_hint="Read the full file with file_read_tool before editing.",
-            )
-
-        if require_version and disk_content is not None:
-            version_rejection = guard.require_version_match(path, disk_content, anchor=anchor)
-            if version_rejection is not None:
-                raise ToolError(
-                    message=version_rejection,
-                    user_hint="Directly adjust and rebase your edits on the current disk content provided above without calling file_read_tool.",
-                    error_code="FILE_VERSION_MISMATCH",
-                    diagnostic_info={"error_category": "version_conflict", "path": path},
-                    recovery_suggestions=[
-                        "Inspect the current disk content snippet in the error message",
-                        "Update the old_str in your edits array to match the actual lines on disk",
-                        "Call file_edit_tool again directly (do not call file_read_tool)",
-                    ],
-                )
