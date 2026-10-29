@@ -571,6 +571,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/streaming_support/test_stream_collector_tool_stuck_pause.py` | 模块 | loop guard 的 `tool_stuck` 暂停：不算没人回答的卡片（不进 pending）、落一条 `tool_stuck_paused` 步骤且重复到达只落一次、挂在流上的客户端仍收到事件；其余 interrupt（带 `actionRequests` 的审批、无 `action_type` 的审批、澄清）仍是待回答卡片 |
 | `services/agent/stream_session/test_stream_finalize_tool_stuck_pause.py` | 模块 | 暂停按已结束的一轮收尾（`RunDigestStore.end_run` 收尾、记 `send_completed` 而不是 `send_failed`、带「已暂停」步骤落库）；等卡片的运行仍保持打开；没有暂停的空运行仍记 `send_failed` |
 | `services/agent/stream_session/test_phase_stepper.py` | 模块 | 阶段步进器 `PhaseTransitionTracker`：初始规划阶段、工具开始进执行泳道、推理切到 LLM 泳道、验证与完成转场；loop guard 暂停（真实 harness 事件）不进「等待审批」节点、此后 `message_end` 照常收尾，真正等待回答的事件（审批、带 `actionRequests` 的审批、澄清）仍进用户泳道的审批节点 |
+| `services/agent/stream_session/test_stream_finalize_teardown.py` | 模块 | 回合结束时留下的东西：答案带首 token 耗时与兄弟分组落库、崩溃恢复标记只在答案落库之后清除、归还 Stop 句柄与引导注册、用户停止的回合记为已停止（run digest 为 CANCELLED、能力遥测为 abort）、末尾残留的轨迹切片入队给技能进化而用户停止时不入队 |
 | `services/agent/test_stream_finalize_persistence.py` | 模块 | `finalize_agent_stream_session` 收尾持久化单测（记忆预算与引用顺序、brief 状态载荷、无效预算载荷跳过、未应用原因、brief 缺失时仍发注入状态、预算钩子失败时保留注入状态） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 | `support/scripted_openai_endpoint.py` | 辅助 | 本机 OpenAI 兼容端点（`/v1/chat/completions` 流式与非流式、`/v1/embeddings`），回复由测试脚本（`ChatRequest` → `Reply`：文本或一次工具调用）决定，记录收到的请求；让真实 Agent 面对确定性的模型，无需凭据与网络 |

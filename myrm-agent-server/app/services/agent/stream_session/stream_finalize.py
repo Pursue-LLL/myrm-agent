@@ -5,6 +5,7 @@
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content)
 - app.services.agent.stream_session.turn_history_sync::commit_turn_history_sync (POS: records that the agent thread mirrors the stored chat once a turn completed)
 - app.services.agent.gateway (POS: queue / drain / execution-timeout errors surfaced to the client)
+- app.services.agent.stream_session.queue_timeout_error::queue_timeout_error_data (POS: user-facing error payload for a request the concurrency gate refused)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
 
 [OUTPUT]
@@ -22,6 +23,7 @@ import logging
 import uuid
 from collections.abc import AsyncGenerator
 from contextvars import Token
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
@@ -54,6 +56,7 @@ from app.services.agent.stream_session.answered_cards import settle_answered_car
 from app.services.agent.stream_session.migration_readiness_anchor import (
     record_migration_first_turn_outcome,
 )
+from app.services.agent.stream_session.queue_timeout_error import queue_timeout_error_data
 from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
     ClarificationTimeoutHolder,
@@ -75,6 +78,9 @@ from app.services.agent.streaming_support.sse_helpers import (
     clear_context_task_metrics,
     error_sse,
 )
+
+if TYPE_CHECKING:
+    from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 
 logger = logging.getLogger(__name__)
 
@@ -124,90 +130,6 @@ async def _record_turn_capability_completed_once(
         session.turn_capability_terminal_recorded = True
 
 
-def _queue_timeout_error_data(
-    exc: AgentQueueTimeout,
-    message_id: str | None,
-    locale: str | None,
-) -> dict[str, object]:
-    """Build a structured, user-facing error for AgentQueueTimeout.
-
-    Distinguishes the three concurrency-limit causes and names the current
-    holders so the message stays actionable (mirrors Hermes' limit message).
-    """
-    lang = "zh" if (locale or "en").startswith("zh") else "en"
-    holders = exc.active_sessions
-    holder_summary = ""
-    if holders:
-        names = [f"{h.get('chatId', h.get('agentType', 'session'))} ({h.get('agentType', 'agent')})" for h in holders[:3]]
-        if len(holders) > 3:
-            extra = len(holders) - 3
-            names.append(f"等 {extra} 个会话" if lang == "zh" else f"+{extra} more")
-        holder_summary = f" 当前占用：{'、'.join(names)}。" if lang == "zh" else f" Held by: {', '.join(names)}."
-
-    if exc.reason == "memory_pressure":
-        user_message = (
-            "服务内存压力过高，已暂停接收新任务，请稍后重试。"
-            if lang == "zh"
-            else "Server memory pressure is high and new tasks are paused. Please retry shortly."
-        )
-        resolution_steps = (
-            ["等待内存压力缓解后重试", "若持续出现，请关闭其他占用内存的程序"]
-            if lang == "zh"
-            else [
-                "Wait for memory pressure to ease and retry",
-                "If it persists, close other memory-heavy programs",
-            ]
-        )
-    elif exc.reason == "user_limit":
-        user_message = (
-            f"并发会话已达上限，无法接收新请求。{holder_summary}请先结束部分运行中的任务后重试。"
-            if lang == "zh"
-            else (
-                f"Concurrency limit reached; the request could not be accepted."
-                f"{holder_summary} Please finish or stop some running tasks and retry."
-            )
-        )
-        resolution_steps = (
-            ["前往工作台查看并结束运行中的会话", "等待已有任务完成后重试"]
-            if lang == "zh"
-            else [
-                "Open the workspace and stop running sessions",
-                "Wait for an active task to finish and retry",
-            ]
-        )
-    else:
-        user_message = (
-            f"服务繁忙，无法接收新请求。{holder_summary}请稍后重试。"
-            if lang == "zh"
-            else f"Server is busy; the request could not be accepted.{holder_summary} Please retry shortly."
-        )
-        resolution_steps = (
-            ["稍后重试", "若持续出现，请检查是否有较多并发任务"]
-            if lang == "zh"
-            else [
-                "Retry shortly",
-                "If it persists, check whether too many tasks are running",
-            ]
-        )
-
-    return {
-        "type": "error",
-        "error_kind": "concurrency_limit",
-        "data": user_message,
-        "messageId": message_id or str(uuid.uuid4()),
-        "diagnostic_result": {
-            "error_type": "concurrency_limit",
-            "user_message": user_message,
-            "resolution_steps": resolution_steps,
-            "locale": lang,
-        },
-        "metadata": {
-            "error_type": "concurrency_limit",
-            "reason": exc.reason,
-        },
-    }
-
-
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,
@@ -251,7 +173,7 @@ async def yield_stream_exception_chunks(
             exc.reason,
             len(exc.active_sessions),
         )
-        error_data = _queue_timeout_error_data(
+        error_data = queue_timeout_error_data(
             exc,
             session.params.message_id,
             session.params.locale,
@@ -378,13 +300,11 @@ async def yield_stream_exception_chunks(
         )
 
 
-async def finalize_agent_stream_session(
-    session: AgentStreamSession,
-    token_ctx: Token[tuple[EphemeralUserCredential, ...]],
-    approval: ApprovalTimeoutHolder,
-    clarification: ClarificationTimeoutHolder,
-) -> None:
-    user_credentials_ctx.reset(token_ctx)
+async def _settle_session_draft(session: AgentStreamSession) -> PendingSessionDraft | None:
+    """Commit the session the turn created lazily once it produced output, or discard the blank draft.
+
+    Returns the draft so the caller can tell whether the stored chat exists.
+    """
     draft = getattr(session, "pending_session_draft", None)
     if draft is not None and not draft.committed:
         if not session.collector.has_active_generation:
@@ -398,95 +318,108 @@ async def finalize_agent_stream_session(
             )
 
             await commit_lazy_session_barrier(session)
+    return draft
 
-    await settle_answered_cards(session)
 
-    if session.collector.has_persistable_turn and session.request.chat_id and (draft is None or draft.committed):
-        import re
+def _assistant_turn_payload(session: AgentStreamSession, chat_id: str) -> tuple[str, dict[str, object]]:
+    """The answer text and the extra data the turn is stored with; citation tags are lifted out of the text."""
+    import re
 
-        from myrm_agent_harness.api.hooks import (
-            get_memory_runtime_budget,
-            get_memory_runtime_injection,
+    from myrm_agent_harness.api.hooks import (
+        get_memory_runtime_budget,
+        get_memory_runtime_injection,
+    )
+
+    content = session.collector.content
+    extra_data = dict(session.collector.extra_data or {})
+    if session.stream_ttft_ms is not None and session.stream_ttft_ms >= 0:
+        extra_data["streamTtftMs"] = session.stream_ttft_ms
+    merge_memory_citation_fallback(extra_data)
+    preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+    if isinstance(preview, dict):
+        snapshot_id = preview.get("snapshot_id")
+        if isinstance(snapshot_id, str) and snapshot_id.strip():
+            extra_data["memoryBriefSnapshotId"] = snapshot_id.strip()
+    brief_status = session.extra_context.get("memory_brief_status") if isinstance(session.extra_context, dict) else None
+    # Parse and strip citations
+    citations = list(dict.fromkeys(re.findall(r"<cite:([^>]+)>", content)))
+    if citations:
+        content = re.sub(r"<cite:[^>]+>", "", content)
+        extra_data["citations"] = citations
+
+    try:
+        budget = get_memory_runtime_budget()
+    except Exception as e:
+        logger.warning("Failed to read memory budget in finalize: %s", e)
+        budget = None
+    if budget is not None:
+        extra_data["memoryBudget"] = budget
+    try:
+        injection = get_memory_runtime_injection()
+    except Exception as e:
+        logger.warning("Failed to read memory injection in finalize: %s", e)
+        injection = None
+    status_payload = build_memory_brief_status_payload(brief_status, injection)
+    status_payload = enrich_memory_brief_status_with_session_ephemeral_deltas(
+        status_payload,
+        chat_id,
+    )
+    if status_payload is not None:
+        extra_data["memoryBriefStatus"] = status_payload
+        observe_memory_brief_status_payload(phase="persist", payload=status_payload)
+        enqueue_memory_brief_status_telemetry(
+            phase="persist",
+            payload=status_payload,
         )
+    return content, extra_data
 
-        from app.services.chat.chat_service import ChatService
 
-        content = session.collector.content
-        extra_data = dict(session.collector.extra_data or {})
-        if session.stream_ttft_ms is not None and session.stream_ttft_ms >= 0:
-            extra_data["streamTtftMs"] = session.stream_ttft_ms
-        merge_memory_citation_fallback(extra_data)
-        preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
-        if isinstance(preview, dict):
-            snapshot_id = preview.get("snapshot_id")
-            if isinstance(snapshot_id, str) and snapshot_id.strip():
-                extra_data["memoryBriefSnapshotId"] = snapshot_id.strip()
-        brief_status = session.extra_context.get("memory_brief_status") if isinstance(session.extra_context, dict) else None
-        # Parse and strip citations
-        citations = list(dict.fromkeys(re.findall(r"<cite:([^>]+)>", content)))
-        if citations:
-            content = re.sub(r"<cite:[^>]+>", "", content)
-            extra_data["citations"] = citations
+async def _persist_assistant_turn(session: AgentStreamSession, draft: PendingSessionDraft | None) -> None:
+    """Store the assistant message of a turn that produced output in a chat that exists."""
+    chat_id = session.request.chat_id
+    if not (session.collector.has_persistable_turn and chat_id and (draft is None or draft.committed)):
+        return
 
-        try:
-            budget = get_memory_runtime_budget()
-        except Exception as e:
-            logger.warning("Failed to read memory budget in finalize: %s", e)
-            budget = None
-        if budget is not None:
-            extra_data["memoryBudget"] = budget
-        try:
-            injection = get_memory_runtime_injection()
-        except Exception as e:
-            logger.warning("Failed to read memory injection in finalize: %s", e)
-            injection = None
-        status_payload = build_memory_brief_status_payload(brief_status, injection)
-        status_payload = enrich_memory_brief_status_with_session_ephemeral_deltas(
-            status_payload,
-            session.request.chat_id,
-        )
-        if status_payload is not None:
-            extra_data["memoryBriefStatus"] = status_payload
-            observe_memory_brief_status_payload(phase="persist", payload=status_payload)
-            enqueue_memory_brief_status_telemetry(
-                phase="persist",
-                payload=status_payload,
-            )
+    from app.services.chat.chat_service import ChatService
 
-        await ChatService.persist_assistant_message_safe(
-            session.request.chat_id,
-            content,
-            extra_data=extra_data,
-            timezone=session.request.timezone,
-            sibling_group_id=session.collector.sibling_group_id,
-            request_message_id=session.request.message_id,
-        )
+    content, extra_data = _assistant_turn_payload(session, chat_id)
+    await ChatService.persist_assistant_message_safe(
+        chat_id,
+        content,
+        extra_data=extra_data,
+        timezone=session.request.timezone,
+        sibling_group_id=session.collector.sibling_group_id,
+        request_message_id=session.request.message_id,
+    )
 
-    # Clear crash auto-continue marker on normal completion (best-effort)
+
+async def _clear_turn_marker(session: AgentStreamSession) -> None:
+    """Clear the crash auto-continue marker on normal completion (best-effort)."""
     if session.request.chat_id:
         try:
             await _clear_interrupted_turn_marker(session.request.chat_id)
         except Exception as marker_exc:
             logger.debug("Turn marker cleanup skipped: %s", marker_exc)
 
-    await record_migration_first_turn_outcome(
-        request=session.request,
-        had_fatal_error=session.had_fatal_error,
-        has_assistant_content=session.collector.has_content,
-        live_readiness_status=session.migration_live_readiness_status,
-    )
 
-    clarification_sched_needed = _clarification_timeout_needed(session, clarification)
-
+def _arm_pending_interrupt_timeout(
+    session: AgentStreamSession,
+    approval: ApprovalTimeoutHolder,
+    clarification_pending: bool,
+) -> None:
+    """Arm the timer of the interrupt the turn stopped at, or reopen one that has none."""
     if session.request.chat_id:
         arm_interrupt_timeout(
             session.request.chat_id,
             session.params,
             approval_timeout=approval.value,
-            clarification_pending=clarification_sched_needed,
+            clarification_pending=clarification_pending,
             awaiting_answer=session.collector.has_pending_hitl_replay(),
         )
 
+
+def _schedule_compaction_drain(session: AgentStreamSession) -> None:
+    """Drain in the background when the turn left compaction debt behind."""
     if session.request.chat_id:
         from myrm_agent_harness.agent.context_management.tracking.task_metrics import (
             get_task_metrics,
@@ -502,6 +435,9 @@ async def finalize_agent_stream_session(
             )
             ChatService.schedule_background_drain(session.request.chat_id)
 
+
+def _release_turn_state(session: AgentStreamSession) -> None:
+    """Flush the compaction telemetry and drop what the turn registered: Stop handle, steering and goal."""
     enqueue_context_compaction_telemetry(session.request.chat_id)
     clear_context_task_metrics(session.request.chat_id)
     target_msg_id = getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None)
@@ -513,6 +449,9 @@ async def finalize_agent_stream_session(
 
         GoalRegistry.unregister(session.request.chat_id)
 
+
+async def _flush_skill_evolution_residual(session: AgentStreamSession) -> None:
+    """Queue the trace slice left over at the end of the session for skill evolution (best-effort)."""
     cancel_token = getattr(session, "cancel_token", None)
     is_cancelled = cancel_token.is_cancelled if cancel_token is not None else False
     params = getattr(session, "params", None)
@@ -552,13 +491,10 @@ async def finalize_agent_stream_session(
         except Exception as flush_exc:
             logger.debug("Slice window flush skipped: %s", flush_exc)
 
-    pending_hitl = bool(
-        clarification_sched_needed
-        or (approval.value and not clarification_sched_needed)
-        or session.collector.has_pending_hitl_replay()
-    )
-    await commit_turn_history_sync(session, pending_hitl=pending_hitl)
-    if not pending_hitl and has_turn_capability_terminal_context(session.request):
+
+async def _record_turn_capability_terminal(session: AgentStreamSession) -> None:
+    """Record how a turn that waits on no answer ended, for the turn capability telemetry."""
+    if has_turn_capability_terminal_context(session.request):
         if session.cancel_token.is_cancelled:
             await _record_turn_capability_failed_once(session, "abort")
         elif session.had_fatal_error or not (session.collector.has_content or session.collector.tool_stuck_paused):
@@ -566,34 +502,76 @@ async def finalize_agent_stream_session(
         else:
             await _record_turn_capability_completed_once(session)
 
+
+def _close_run_digest(session: AgentStreamSession) -> None:
+    """End the run digest of the chat and announce the session outcome to the lifecycle webhooks."""
+    if session.request.chat_id:
+        from app.services.copilot.run_digest_store import RunDigestStore
+
+        phase = RunDigestPhase.COMPLETED
+        if session.cancel_token.is_cancelled:
+            phase = RunDigestPhase.CANCELLED
+        elif session.had_fatal_error:
+            phase = RunDigestPhase.ERROR
+        RunDigestStore.end_run(
+            session.request.chat_id,
+            phase=phase,
+            progress_steps=list(session.collector._progress_steps),
+        )
+        _publish_session_lifecycle_webhook_event(
+            chat_id=session.request.chat_id,
+            phase=phase,
+            agent_id=getattr(session.request, "agent_id", None),
+            was_cancelled=session.cancel_token.is_cancelled,
+            had_fatal_error=session.had_fatal_error,
+        )
+
+
+async def finalize_agent_stream_session(
+    session: AgentStreamSession,
+    token_ctx: Token[tuple[EphemeralUserCredential, ...]],
+    approval: ApprovalTimeoutHolder,
+    clarification: ClarificationTimeoutHolder,
+) -> None:
+    """Run the teardown of one turn: persist it, record its end, arm the pending interrupt's timer, release its state."""
+    user_credentials_ctx.reset(token_ctx)
+    draft = await _settle_session_draft(session)
+
+    await settle_answered_cards(session)
+
+    await _persist_assistant_turn(session, draft)
+    await _clear_turn_marker(session)
+
+    await record_migration_first_turn_outcome(
+        request=session.request,
+        had_fatal_error=session.had_fatal_error,
+        has_assistant_content=session.collector.has_content,
+        live_readiness_status=session.migration_live_readiness_status,
+    )
+
+    clarification_sched_needed = _clarification_timeout_needed(session, clarification)
+
+    _arm_pending_interrupt_timeout(session, approval, clarification_sched_needed)
+    _schedule_compaction_drain(session)
+    _release_turn_state(session)
+    await _flush_skill_evolution_residual(session)
+
+    pending_hitl = bool(
+        clarification_sched_needed
+        or (approval.value and not clarification_sched_needed)
+        or session.collector.has_pending_hitl_replay()
+    )
+    await commit_turn_history_sync(session, pending_hitl=pending_hitl)
+    if not pending_hitl:
+        await _record_turn_capability_terminal(session)
+
     if pending_hitl:
         logger.info(
             "Deferring collector cleanup for pending HITL: chat_id=%s",
             session.request.chat_id,
         )
     else:
-        if session.request.chat_id:
-            from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
-
-            from app.services.copilot.run_digest_store import RunDigestStore
-
-            phase = RunDigestPhase.COMPLETED
-            if session.cancel_token.is_cancelled:
-                phase = RunDigestPhase.CANCELLED
-            elif session.had_fatal_error:
-                phase = RunDigestPhase.ERROR
-            RunDigestStore.end_run(
-                session.request.chat_id,
-                phase=phase,
-                progress_steps=list(session.collector._progress_steps),
-            )
-            _publish_session_lifecycle_webhook_event(
-                chat_id=session.request.chat_id,
-                phase=phase,
-                agent_id=getattr(session.request, "agent_id", None),
-                was_cancelled=session.cancel_token.is_cancelled,
-                had_fatal_error=session.had_fatal_error,
-            )
+        _close_run_digest(session)
         session.collector.cleanup()
 
 
