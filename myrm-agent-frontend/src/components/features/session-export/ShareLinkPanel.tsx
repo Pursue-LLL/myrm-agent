@@ -74,9 +74,7 @@ export const ShareLinkPanel = memo(function ShareLinkPanel({
       {/* Generated Share Link Result Card */}
       {result && (
         <div className="flex flex-col gap-1.5 p-3 rounded-xl border border-primary/30 bg-primary/5">
-          <span className="font-semibold text-[11px] text-primary">
-            {t('shareLinkReady')}
-          </span>
+          <span className="font-semibold text-[11px] text-primary">{t('shareLinkReady')}</span>
           <div className="flex items-center gap-2">
             <input
               type="text"

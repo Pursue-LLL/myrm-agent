@@ -40,7 +40,11 @@ describe('SecretRedactionPreview', () => {
     };
 
     render(
-      <SecretRedactionPreview scan={{ status: 'ready', summary: cleanSummary }} enableRedaction={true} onToggleRedaction={onToggle} />,
+      <SecretRedactionPreview
+        scan={{ status: 'ready', summary: cleanSummary }}
+        enableRedaction={true}
+        onToggleRedaction={onToggle}
+      />,
     );
 
     expect(screen.getByText('Clean session: no credentials detected')).toBeDefined();
@@ -61,7 +65,11 @@ describe('SecretRedactionPreview', () => {
     };
 
     render(
-      <SecretRedactionPreview scan={{ status: 'ready', summary: dirtySummary }} enableRedaction={true} onToggleRedaction={onToggle} />,
+      <SecretRedactionPreview
+        scan={{ status: 'ready', summary: dirtySummary }}
+        enableRedaction={true}
+        onToggleRedaction={onToggle}
+      />,
     );
 
     expect(screen.getByText('3 sensitive credentials detected')).toBeDefined();
@@ -78,7 +86,11 @@ describe('SecretRedactionPreview', () => {
     };
 
     render(
-      <SecretRedactionPreview scan={{ status: 'ready', summary: dirtySummary }} enableRedaction={true} onToggleRedaction={onToggle} />,
+      <SecretRedactionPreview
+        scan={{ status: 'ready', summary: dirtySummary }}
+        enableRedaction={true}
+        onToggleRedaction={onToggle}
+      />,
     );
 
     const checkbox = screen.getByTestId('redaction-checkbox');

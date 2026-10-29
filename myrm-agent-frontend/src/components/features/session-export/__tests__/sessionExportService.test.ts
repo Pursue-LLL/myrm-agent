@@ -20,7 +20,12 @@ describe('sessionExportService', () => {
   });
 
   it('exports through the authenticated client with the chosen options', async () => {
-    const options = { include_thinking: true, include_tool_calls: false, enable_redaction: true, theme: 'dark' as const };
+    const options = {
+      include_thinking: true,
+      include_tool_calls: false,
+      enable_redaction: true,
+      theme: 'dark' as const,
+    };
     apiRequestMock.mockResolvedValueOnce({ file_name: 'a.html' });
 
     await sessionExportService.exportInteractiveHtml('chat-1', options);
@@ -52,7 +57,16 @@ describe('sessionExportService', () => {
   });
 
   it.each([
-    ['export', () => sessionExportService.exportInteractiveHtml('chat-1', { include_thinking: true, include_tool_calls: true, enable_redaction: true, theme: 'system' })],
+    [
+      'export',
+      () =>
+        sessionExportService.exportInteractiveHtml('chat-1', {
+          include_thinking: true,
+          include_tool_calls: true,
+          enable_redaction: true,
+          theme: 'system',
+        }),
+    ],
     ['preview', () => sessionExportService.previewRedaction('chat-1')],
     ['share link', () => sessionExportService.createShareLink('chat-1', {})],
   ])('rejects instead of fabricating a result when the %s request fails', async (_name, call) => {

@@ -20,9 +20,7 @@ export interface RedactionSummary {
 
 /** What the credential panel knows: the scan is running, finished, or could not be done. */
 export type RedactionScan =
-  | { status: 'scanning' }
-  | { status: 'ready'; summary: RedactionSummary }
-  | { status: 'failed' };
+  { status: 'scanning' } | { status: 'ready'; summary: RedactionSummary } | { status: 'failed' };
 
 export interface ExportHtmlOptions {
   include_thinking: boolean;

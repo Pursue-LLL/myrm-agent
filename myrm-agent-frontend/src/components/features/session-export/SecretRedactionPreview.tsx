@@ -9,15 +9,7 @@
  */
 
 import { memo } from 'react';
-import {
-  ShieldCheck,
-  ShieldAlert,
-  ShieldQuestionMark,
-  Key,
-  Loader2,
-  Lock,
-  Network,
-} from 'lucide-react';
+import { ShieldCheck, ShieldAlert, ShieldQuestionMark, Key, Loader2, Lock, Network } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { RedactionScan } from './sessionExportTypes';

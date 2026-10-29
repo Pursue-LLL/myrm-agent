@@ -186,7 +186,9 @@ describe('SessionExportShareModal', () => {
   });
 
   it('scans the stored conversation of the chat, not its title', async () => {
-    render(<SessionExportShareModal chatId="chat-123" chatTitle="Debug Python Sandbox" isOpen={true} onClose={vi.fn()} />);
+    render(
+      <SessionExportShareModal chatId="chat-123" chatTitle="Debug Python Sandbox" isOpen={true} onClose={vi.fn()} />,
+    );
 
     await waitFor(() => {
       expect(sessionExportService.previewRedaction).toHaveBeenCalledWith('chat-123');
@@ -246,7 +248,11 @@ describe('SessionExportShareModal', () => {
   it('ignores a scan that finishes after the user opened another chat', async () => {
     let resolveFirst: (summary: RedactionSummary) => void = () => {};
     const previewSpy = vi.spyOn(sessionExportService, 'previewRedaction');
-    previewSpy.mockReturnValueOnce(new Promise<RedactionSummary>((resolve) => { resolveFirst = resolve; }));
+    previewSpy.mockReturnValueOnce(
+      new Promise<RedactionSummary>((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
     previewSpy.mockResolvedValueOnce({ total_redacted: 0, has_secrets: false, details: [] });
 
     const { rerender } = render(<SessionExportShareModal chatId="chat-a" isOpen={true} onClose={vi.fn()} />);

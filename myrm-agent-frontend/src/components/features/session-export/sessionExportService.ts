@@ -19,10 +19,7 @@ import type {
 const EXPORT_TIMEOUT_MS = 120_000;
 
 class SessionExportService {
-  exportInteractiveHtml(
-    chatId: string,
-    options: ExportHtmlOptions,
-  ): Promise<InteractiveHtmlExportResult> {
+  exportInteractiveHtml(chatId: string, options: ExportHtmlOptions): Promise<InteractiveHtmlExportResult> {
     return apiRequest<InteractiveHtmlExportResult>(`/chats/${chatId}/export/interactive-html`, {
       method: 'POST',
       body: JSON.stringify(options),

@@ -12,11 +12,7 @@ import { memo, useState, useCallback, useEffect } from 'react';
 import { Download, Share2, FileCode, X, Loader2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import type {
-  ExportHtmlOptions,
-  RedactionScan,
-  ShareLinkResponse,
-} from './sessionExportTypes';
+import type { ExportHtmlOptions, RedactionScan, ShareLinkResponse } from './sessionExportTypes';
 import { sessionExportService } from './sessionExportService';
 import { SecretRedactionPreview } from './SecretRedactionPreview';
 import { ShareLinkPanel } from './ShareLinkPanel';
@@ -154,12 +150,8 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
               <FileCode className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-xs">
-                {t('modalTitle')}
-              </h3>
-              <p className="text-[10px] text-muted-foreground truncate max-w-[280px]">
-                {chatTitle || chatId}
-              </p>
+              <h3 className="font-semibold text-xs">{t('modalTitle')}</h3>
+              <p className="text-[10px] text-muted-foreground truncate max-w-[280px]">{chatTitle || chatId}</p>
             </div>
           </div>
 
@@ -216,9 +208,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
             {/* Options Checkboxes */}
             <div className="flex flex-col gap-2 p-3 rounded-xl border border-border/80 bg-muted/20 text-xs">
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="font-medium text-foreground">
-                  {t('includeThinking')}
-                </span>
+                <span className="font-medium text-foreground">{t('includeThinking')}</span>
                 <input
                   type="checkbox"
                   checked={includeThinking}
@@ -230,9 +220,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
               </label>
 
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="font-medium text-foreground">
-                  {t('includeToolCalls')}
-                </span>
+                <span className="font-medium text-foreground">{t('includeToolCalls')}</span>
                 <input
                   type="checkbox"
                   checked={includeToolCalls}
@@ -244,9 +232,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
               </label>
 
               <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                <span className="font-medium text-foreground">
-                  {t('themePreset')}
-                </span>
+                <span className="font-medium text-foreground">{t('themePreset')}</span>
                 <select
                   value={theme}
                   onChange={(e) => {
@@ -270,9 +256,7 @@ export const SessionExportShareModal = memo(function SessionExportShareModal({
 
             <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
-              <span>
-                {t('zeroDepHint')}
-              </span>
+              <span>{t('zeroDepHint')}</span>
             </div>
           </div>
         )}
