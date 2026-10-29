@@ -1,10 +1,18 @@
-"""本地与云端双核算力平滑委派调度器 (Workload Handover Delegator)。
+"""本地执行态向云沙箱移交的状态机与委派信封打包。
 
-汲取字节跳动“豆包工作”桌面端核心架构设计：
-1. 需要本地文件与隐私计算时优先在本地桌面端极速执行；
-2. 长耗时任务或用户主动合盖/离开前，一键打包执行态 Checkpoint 与增量工作区为加密 Envelope；
-3. 控制平面云沙箱微秒级激活接力，本地电脑安全进入 DELEGATED_TO_CLOUD 状态并合盖关机；
-4. 严格排除 .git / node_modules / venv 等巨型冗余目录，确保传输极轻量。
+[INPUT]
+- 标准库 hashlib / json / time / dataclasses / enum (POS: 完整性指纹、信封载荷与状态枚举)
+
+[OUTPUT]
+- DelegationState: local_active → packaging → delegated_to_cloud → resuming_in_cloud →
+  completed_awaiting_pullback → restored_to_local
+- DelegationEnvelope: 会话与任务标识、DAG 检查点、环境清单、工作区增量与 SHA-256 完整性指纹
+- PreflightCheckResult: 云沙箱接力前的预检结果
+- DEFAULT_EXCLUDE_PATTERNS: 打包时排除的目录与缓存（`.git`、`node_modules`、`venv` 等）
+- WorkloadHandoverDelegator: 打包信封、委派给云沙箱、预检、云端接管、标记云端完成、标记已回到本地
+
+[POS]
+移交只带代码与检查点，不带体积巨大的缓存目录；每一步状态转移集中在这一个类里。
 """
 
 from __future__ import annotations

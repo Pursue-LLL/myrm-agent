@@ -1,10 +1,15 @@
-"""轻量差异增量备份引擎 (Incremental Backup Engine)。
+"""相对基线清单的增量备份包生成。
 
-汲取 Hermes 生产实践：
-1. 支持定时任务每天自动化归档：仅备份当天有改动的实体与文件；
-2. 基于基线清单 (Base Manifest) 的 SHA256 指纹比对，未改动实体不纳入增量包；
-3. 生成体积缩减 90% 以上的轻量级增量快照包，节省磁盘与跨机传输带宽；
-4. 明确记录父级基线 backup_id，形成严密的增量备份演进链路。
+[INPUT]
+- app.services.backup.full_stack_snapshot_exporter (POS: 存档包与清单类型)
+- 标准库 hashlib / time / dataclasses (POS: 指纹比对与增量统计)
+
+[OUTPUT]
+- IncrementalBackupEngine.compute_incremental_diff: 把当前全量快照与基线清单逐项比对指纹，只收录变更项，并记录父级基线的 backup_id
+- IncrementalDiffSummary: 新增、修改、未变化的统计
+
+[POS]
+未改动的实体不进增量包，增量包通过父级 backup_id 接在基线之后形成演进链。
 """
 
 from __future__ import annotations

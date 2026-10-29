@@ -1,10 +1,17 @@
-"""跨机灾难恢复向导与迁移校验引擎 (Disaster Recovery Wizard)。
+"""存档导入前的体检与回填：校验、dry-run、原子写入与失败回滚。
 
-汲取 Hermes 生产实践：
-1. 在全新机器或新沙箱上一键导入备份包；
-2. 四重安全 Preflight 校验：文件完整性 SHA256 签名校验 ➔ 版本兼容性检查 ➔ 目标冲突检查 ➔ Shadow Staging 原子回填；
-3. 支持 dry-run 演练模式：在不实际修改任何本地数据的情况下预检恢复影响；
-4. 灾遇自动回滚：任何一步解包写入失败秒级还原，绝不破坏现有环境可用性。
+[INPUT]
+- app.services.backup.full_stack_snapshot_exporter::BackupArchiveBundle (POS: 待恢复的存档包)
+- 标准库 hashlib / logging (POS: 重新计算校验和与日志)
+
+[OUTPUT]
+- PreflightReport: 校验和是否一致、版本是否兼容，以及错误与警告列表
+- RestoreResult: 是否成功、是否 dry-run、各类恢复数量与说明
+- DisasterRecoveryWizard.preflight_validate: 重算清单校验和与各文件哈希；存档主版本高于当前系统则拒绝，次版本不同只警告，已脱敏的存档提醒重配密钥
+- DisasterRecoveryWizard.restore: 体检不过则拒绝；dry-run 只统计将恢复的数量；真实恢复先对目标存储做快照，写入抛错则按快照还原
+
+[POS]
+恢复只在存档通过体检之后才写目标存储，dry-run 完全不写，写入中途失败按快照还原。
 """
 
 from __future__ import annotations
@@ -194,7 +201,9 @@ class DisasterRecoveryWizard:
                 for name, content in items.items():
                     dest_store[name] = content
 
-            logger.info("Successfully restored %d files into target stores from backup %s", total_files, bundle.manifest.backup_id)
+            logger.info(
+                "Successfully restored %d files into target stores from backup %s", total_files, bundle.manifest.backup_id
+            )
             return RestoreResult(
                 success=True,
                 is_dry_run=False,

@@ -1,10 +1,15 @@
-"""多端同构轻量流式进度看板中枢 (Multi-Surface Live Progress HUD Hub)。
+"""任务进度事件的发布 / 订阅与最新快照缓存。
 
-汲取字节跳动“豆包工作”多端协同核心架构设计：
-1. 无论用户打开手机移动端、PC 浏览器 WebUI 还是桌面客户端，均可连接到实时任务总线；
-2. 跨端流式同步查看当前执行步骤、即时日志、阶段名称与预估耗时；
-3. 新客户端连入时瞬时补发最新进度快照 (Catch-up Snapshot)，拒绝等待下一轮事件；
-4. 纯净发布-订阅模型，自动隔离异常订阅者，具备完全解耦的线程/协程安全支持。
+[INPUT]
+- 标准库 time / logging / dataclasses (POS: 事件载荷、时间戳与日志)
+
+[OUTPUT]
+- StepProgressEvent: 任务标识、步骤序号与总数、阶段名、预览文本、已用与预计剩余秒数，`percentage` 给出完成百分比
+- LiveProgressHudHub: `publish_progress` 广播并缓存最新一条，`subscribe` 订阅（默认在订阅时补发最新快照），
+  `get_latest_progress` 查询，`clear_task_progress` 在任务结项后清理
+
+[POS]
+后连入的订阅者默认立即得到当前进度而不是等下一个事件；某个订阅者抛错只被记录，不影响其他订阅者。
 """
 
 from __future__ import annotations

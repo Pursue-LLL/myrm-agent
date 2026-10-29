@@ -1,11 +1,18 @@
-"""双端同构连接恢复控制器与带抖动指数退避调度器。
+"""连接恢复控制器与带抖动指数退避调度器。
 
-汲取 DeepSeek Harness 2026-08-28 `web-connection-recovery-control` 生产级设计：
-1. Jittered Exponential Backoff: 500ms ➔ 1s ➔ 2s ➔ 4s ➔ 8s ➔ 10s 封顶；
-2. 实际退避延迟取上限的 50%–100% 随机抖动，彻底杜绝并发惊群与重试雪崩；
-3. 达到 10s 档最终失败后优雅停止盲目重试，发布 disconnected 等待用户介入；
-4. 浏览器网络感知事件联动：offline 立即挂起重试，online 立即重置序号从 500ms 重新发起；
-5. CAS 防抖立即重连：点击“立即重连”强制打断当前等待并立即直连。
+[INPUT]
+- 标准库 random / time / logging (POS: 抖动随机数、重连防抖时间戳与日志)
+- 标准库 dataclasses / enum (POS: 退避配置值对象与连接状态枚举)
+
+[OUTPUT]
+- ConnectionState: 连接生命周期三态（connected / connecting / disconnected）
+- BackoffConfig, JitteredBackoffScheduler: 0.5s、1s、2s、4s、8s、10s 六档上限，实际延迟取上限的 50%–100% 随机抖动，
+  超过最高档后标记耗尽并返回 0
+- ConnectionController: 连接状态机；断开后给出下一次重连等待，网络离线或重试耗尽时保持 disconnected，
+  网络上线重置退避序号，「立即重连」以 0.5s 防抖打断当前等待并重置阶梯
+
+[POS]
+重连何时再试、何时放弃、何时被网络事件重置，集中在这一处规则；调用方只负责真正建立连接并回报结果。
 """
 
 from __future__ import annotations
@@ -83,9 +90,7 @@ class JitteredBackoffScheduler:
 
         # 计算 50% - 100% 随机抖动
         rand_ratio = (
-            random_seed
-            if random_seed is not None
-            else random.uniform(self.config.jitter_min_ratio, self.config.jitter_max_ratio)
+            random_seed if random_seed is not None else random.uniform(self.config.jitter_min_ratio, self.config.jitter_max_ratio)
         )
         # 夹逼到 [0.5, 1.0]
         clamped_ratio = max(

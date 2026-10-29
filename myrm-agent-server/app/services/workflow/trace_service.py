@@ -1,7 +1,16 @@
-"""
-[POS] app/services/workflow/trace_service.py
-[INPUT] app/schemas/workflow_trace.py
-[OUTPUT] WorkflowTraceService, get_workflow_trace_service
+"""Workflow execution traces and replay from a chosen node.
+
+[INPUT]
+- app.schemas.workflow_trace (POS: trace, node snapshot, replay request / response and validation score shapes)
+
+[OUTPUT]
+- WorkflowTraceService.get_workflow_trace: the stored trace of a workflow
+- WorkflowTraceService.replay_from_node: rewrite the target node with merged inputs, refresh the nodes after it and store the result
+- get_workflow_trace_service: the process-wide service instance
+
+[POS]
+Holds workflow traces in process memory, seeded with sample five-stage workflows; a replay rewrites the stored node
+snapshots and does not run an agent.
 """
 
 from __future__ import annotations

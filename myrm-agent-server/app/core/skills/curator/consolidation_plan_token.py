@@ -1,4 +1,18 @@
-"""Short-lived tokens binding consolidation preview plans to execute."""
+"""Short-lived tokens binding a consolidation preview plan to its execute call.
+
+[INPUT]
+- hashlib / json / secrets / time (POS: plan fingerprint, random token and expiry)
+
+[OUTPUT]
+- issue_plan_token: fingerprint a plan (sorted-key JSON, SHA-256) and issue a 900-second token for it
+- validate_plan_token: accept a token only while it is unexpired and the plan still has the issued fingerprint
+- revoke_plan_token: drop a token once it has been used
+- ConsolidationPlanToken: the issued token and its fingerprint
+
+[POS]
+Execute may only run the plan the user previewed: a token issued for one plan fails against any other, and the
+store is process-local.
+"""
 
 from __future__ import annotations
 

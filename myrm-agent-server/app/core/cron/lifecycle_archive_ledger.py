@@ -1,8 +1,17 @@
-"""一次性任务生命周期治理、自愈自动归档与智能体活跃解绑账本模块。
+"""任务生命周期状态机与自动归档账本。
 
-提供任务全生命周期状态机管理（PENDING -> RUNNING -> COMPLETED/FAILED -> ARCHIVED），
-针对一次性延迟任务，执行完毕即刻从活跃调度堆弹出并转入归档折叠区，
-同时联动解除关联 Bot 的呼吸活跃徽章，彻底消除任务垃圾数据膨胀与僵尸活跃状态。
+[INPUT]
+- app.core.cron.multi_frequency_descriptor (POS: 判断任务是否一次性、携带日程描述符)
+- 调用方注入的 on_bot_active_changed (POS: 任务开始 / 结束时通知关联智能体的活跃状态)
+
+[OUTPUT]
+- TaskLifecycleStatus, TaskRecord: pending → running → completed / failed → archived 的状态与记录
+- LifecycleArchiveLedger: 注册、开始、完成、失败、取消任务；一次性任务完成、不可重试的失败或取消后移入归档区，
+  按下次执行时间列出活跃任务，按完成时间列出归档任务，`clean_expired_archives` 清理过期归档
+- TaskLedgerError, TaskNotFoundError: 账本异常
+
+[POS]
+活跃任务与归档任务分开存放，一次性任务做完即离开活跃队列，同时熄灭它所点亮的智能体活跃标记，账本不会无界增长。
 """
 
 from __future__ import annotations

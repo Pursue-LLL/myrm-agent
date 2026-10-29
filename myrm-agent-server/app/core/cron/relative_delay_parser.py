@@ -1,7 +1,15 @@
-"""相对时间自然语言与延迟时序解析模块。
+"""相对时间表达式解析：把 '+5m'、'30分钟后'、'明天上午09:00' 等转成绝对时间戳。
 
-提供将 '+5m', '30m', '2h', '1d', '+10分钟', '明天上午09:00' 等相对/快捷时序表达式，
-基于基准时间即刻转换为不可变绝对 UTC 时间戳的能力，彻底杜绝服务重启累积漂移。
+[INPUT]
+- 标准库 re / datetime (POS: 表达式匹配与基准时间换算)
+
+[OUTPUT]
+- RelativeDelayParser.parse: 以基准时间把相对表达式解析为不可变的绝对 UTC 时间戳
+- ParsedRelativeDelay: 原表达式、延迟秒数、基准时间、执行时刻（绝对时间戳）与摘要文本
+- RelativeDelayParseError: 表达式非法时抛出
+
+[POS]
+延迟只在注册那一刻按基准时间换算一次，之后任务保存的是绝对时间戳，服务重启不会让它漂移。
 """
 
 from __future__ import annotations
@@ -19,14 +27,10 @@ _SHORT_UNIT_REGEX = re.compile(
 )
 
 # 正则：中文相对时间（如 "5分钟", "30分钟后", "2小时", "1天后", "10秒"）
-_ZH_UNIT_REGEX = re.compile(
-    r"^\+?(?P<val>\d+)\s*(?P<unit>秒|分|分钟|小时|钟头|天|日)(?:后|之后)?$"
-)
+_ZH_UNIT_REGEX = re.compile(r"^\+?(?P<val>\d+)\s*(?P<unit>秒|分|分钟|小时|钟头|天|日)(?:后|之后)?$")
 
 # 正则：明天上午/下午/指定时间（如 "明天上午9点", "明天上午09:00", "明天下午3点", "明天15:30"）
-_TOMORROW_REGEX = re.compile(
-    r"^明天(?:(?P<period>上午|下午|早上|晚上))?\s*(?P<hour>\d{1,2})(?:[:点时](?P<minute>\d{1,2}))?分?$"
-)
+_TOMORROW_REGEX = re.compile(r"^明天(?:(?P<period>上午|下午|早上|晚上))?\s*(?P<hour>\d{1,2})(?:[:点时](?P<minute>\d{1,2}))?分?$")
 
 
 class RelativeDelayParseError(ValueError):
@@ -87,11 +91,7 @@ class RelativeDelayParser:
             raise RelativeDelayParseError("Empty relative delay expression.")
 
         effective_tz = tz or timezone.utc
-        now_dt = (
-            datetime.fromtimestamp(base_time, tz=effective_tz)
-            if base_time is not None
-            else datetime.now(tz=effective_tz)
-        )
+        now_dt = datetime.fromtimestamp(base_time, tz=effective_tz) if base_time is not None else datetime.now(tz=effective_tz)
         base_ts = now_dt.timestamp()
 
         # 1. 尝试匹配西文字符简写：5m, +2h, 30min, 1d 等
@@ -152,9 +152,7 @@ class RelativeDelayParser:
                 hour = 0
 
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                raise RelativeDelayParseError(
-                    f"Invalid clock time: {raw_hour}:{raw_minute:02d} ({period})"
-                )
+                raise RelativeDelayParseError(f"Invalid clock time: {raw_hour}:{raw_minute:02d} ({period})")
 
             tomorrow_date = (now_dt + timedelta(days=1)).date()
             target_dt = datetime.combine(
@@ -176,6 +174,5 @@ class RelativeDelayParser:
             )
 
         raise RelativeDelayParseError(
-            f"Unrecognized relative delay expression: '{expr}'. "
-            "Examples: '5m', '+2h', '30分钟后', '明天上午09:00'"
+            f"Unrecognized relative delay expression: '{expr}'. Examples: '5m', '+2h', '30分钟后', '明天上午09:00'"
         )

@@ -1,7 +1,16 @@
-"""全场景相对延迟与多频段可视化时间调度引擎模块。
+"""一次性与周期任务的调度服务：注册、到期执行、归档。
 
-聚合相对时间解析器、多频段计算引擎与自愈归档账本，
-提供一次性任务秒级注册、到期精确执行、自愈自动归档与智能体活跃态解绑的闭环调度服务。
+[INPUT]
+- app.core.cron.relative_delay_parser (POS: 解析相对延迟)
+- app.core.cron.multi_frequency_descriptor (POS: 计算周期任务的下一次触发时刻)
+- app.core.cron.lifecycle_archive_ledger (POS: 任务状态与归档)
+
+[OUTPUT]
+- UniversalVisualScheduler: `schedule_relative_task` / `schedule_recurring_task` 注册任务，`execute_task_once` /
+  `trigger_now` 执行一次，`process_due_tasks` 并发执行所有到期任务，`cancel_task` 取消，并提供活跃 / 归档任务查询
+
+[POS]
+把解析、日程计算与账本串成一条路径：一次性任务执行后归档，周期任务执行后排下一轮。
 """
 
 from __future__ import annotations

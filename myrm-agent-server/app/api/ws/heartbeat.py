@@ -1,9 +1,16 @@
-"""WebSocket 极速心跳探测与自适应死线截断控制器。
+"""WebSocket 心跳探测与死线截断控制器。
 
-汲取 DeepSeek Harness 2026-08-28 `web-connection-recovery-control` 核心生产实践：
-1. 默认 2s 高频心跳 Ping/Pong 检测并设死线超时，取代 30s 空闲长等待，僵尸连接毫秒级识别；
-2. 会话长时间静默且无进行中任务时，平滑自适应升档至 15s 省电模式；
-3. 超时未收到 Pong 的 socket 立即强行关闭终止，避免资源泄露与假死。
+[INPUT]
+- 标准库 asyncio / time / logging (POS: 心跳轮询协程、单调时钟与日志)
+- 调用方注入的 ping_sender / socket_closer (POS: 发送 Ping 控制帧、以指定关闭码关闭 socket)
+
+[OUTPUT]
+- HeartbeatConfig, HeartbeatStats: 心跳间隔与死线配置（默认 2s 活跃、15s 空闲、Pong 死线 2s）、Ping/Pong 与 RTT 遥测
+- AdaptiveHeartbeatController: 每个周期检查上一轮 Pong 是否超时，超时或 Ping 发送失败即关闭 socket；
+  按调用方标记的工作负载状态在活跃与空闲间隔之间切换；提供启动 / 停止后台轮询协程
+
+[POS]
+僵尸连接在一个心跳周期内被识别并关闭，空闲会话降频探测；是否有进行中的工作由调用方标记，本模块不自行判断。
 """
 
 from __future__ import annotations
@@ -73,11 +80,7 @@ class AdaptiveHeartbeatController:
     def mark_workload_state(self, is_active: bool) -> None:
         """标记会话工作负载状态（活跃打字/长任务 vs 完全空闲）。"""
         self._is_active_workload = is_active
-        new_interval = (
-            self.config.active_interval_seconds
-            if is_active
-            else self.config.idle_interval_seconds
-        )
+        new_interval = self.config.active_interval_seconds if is_active else self.config.idle_interval_seconds
         self.stats.current_interval_seconds = new_interval
         logger.debug("Heartbeat interval adapted to %.1fs (active=%s)", new_interval, is_active)
 
@@ -108,10 +111,7 @@ class AdaptiveHeartbeatController:
         if self._waiting_for_pong:
             self._missed_pong_count += 1
             elapsed = current_time - self.stats.last_ping_timestamp
-            if (
-                self._missed_pong_count >= self.config.max_missed_pongs
-                or elapsed >= self.config.pong_deadline_seconds
-            ):
+            if self._missed_pong_count >= self.config.max_missed_pongs or elapsed >= self.config.pong_deadline_seconds:
                 logger.warning(
                     "Heartbeat deadline breached! Missed pongs=%d, elapsed=%.2fs. Terminating socket.",
                     self._missed_pong_count,

@@ -1,7 +1,17 @@
-"""多频段周期日程无代码装配描述符与时序计算引擎。
+"""多频段日程描述符与下一次触发时刻的计算。
 
-支持 One-off 相对/绝对延迟、每小时、每天、工作日、每周、每月等高频生活/工作周期，
-提供无代码表单描述符与下一次执行时刻的精确数学推演，彻底免除手写 Linux Cron 的心智负担。
+[INPUT]
+- app.core.cron.relative_delay_parser::RelativeDelayParser (POS: 一次性相对延迟的解析)
+- 标准库 calendar / datetime / zoneinfo (POS: 工作日、每周、每月的日历推算与时区)
+
+[OUTPUT]
+- FrequencyKind: 一次性相对、一次性绝对、每小时、每天、工作日、每周、每月七种频度
+- ScheduleDescriptor: 一份日程的结构化描述
+- MultiFrequencyDescriptorEngine: `compute_next_run` 求基准时刻之后的下一次触发秒数，`format_summary` 生成中文摘要
+- ScheduleCalculationError: 描述符无法推算时抛出
+
+[POS]
+把「每个工作日 9 点」这类描述符换算成确切的触发时刻，调用方不必手写 cron 表达式。
 """
 
 from __future__ import annotations
@@ -182,9 +192,7 @@ class MultiFrequencyDescriptorEngine:
                 return f"一次性任务（相对延迟: {descriptor.relative_expression}）"
             case FrequencyKind.ONCE_ABSOLUTE:
                 dt_str = (
-                    datetime.fromtimestamp(descriptor.absolute_timestamp, tz=timezone.utc).strftime(
-                        "%Y-%m-%d %H:%M:%S UTC"
-                    )
+                    datetime.fromtimestamp(descriptor.absolute_timestamp, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
                     if descriptor.absolute_timestamp
                     else "未设置"
                 )

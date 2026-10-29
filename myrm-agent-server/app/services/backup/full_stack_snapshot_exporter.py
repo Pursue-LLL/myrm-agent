@@ -1,10 +1,16 @@
-"""全资产一致性快照导出器 (Full-Stack Consistency Snapshot Exporter)。
+"""全资产快照存档的导出与凭据脱敏。
 
-汲取 Hermes 最佳实践终章核心生命线实践：
-1. 一键全量打包用户沉淀数月的数字资产：Agent Profiles、双层记忆库、业务数据表、自定义 Skills 与 Cron 任务；
-2. 生成防篡改带 SHA256 签名校验的 .myrmbak 结构化快照存档；
-3. 默认开启敏感凭据脱敏 (Credential Scrubbing)，杜绝 API Key 与第三方 Token 意外外泄；
-4. 严格类型约束，杜绝 Any，单文件遵循清晰单一职责。
+[INPUT]
+- 标准库 hashlib / json / time / dataclasses (POS: 校验和、存档序列化与清单)
+
+[OUTPUT]
+- BackupManifest: 存档清单（备份标识、应用版本、是否增量及基线标识、整包校验和、逐项文件哈希、实体计数、是否已脱敏）
+- BackupArchiveBundle: 清单与数据库表、智能体配置、自定义技能、定时任务、记忆五类内容
+- SENSITIVE_KEY_SUBSTRINGS, REDACTED_PLACEHOLDER: 判定敏感键名的关键词与掩码占位符
+- FullStackSnapshotExporter.export_snapshot: 把五类内容生成存档包，`scrub_credentials` 默认开启，键名含 api_key / token / secret / password 等的值替换为占位符
+
+[POS]
+导出的存档默认不含 API Key 与第三方 Token，且带校验和，恢复一侧可验证它没被改动。
 """
 
 from __future__ import annotations
@@ -104,20 +110,14 @@ class FullStackSnapshotExporter:
         """生成全资产结构化快照存档包。"""
         # 1. 可选敏感凭据脱敏处理
         processed_db = (
-            {k: self._scrub_sensitive_data(v) for k, v in database_tables.items()}
-            if scrub_credentials
-            else dict(database_tables)
+            {k: self._scrub_sensitive_data(v) for k, v in database_tables.items()} if scrub_credentials else dict(database_tables)
         )
         processed_agents = (
-            {k: self._scrub_sensitive_data(v) for k, v in agent_profiles.items()}
-            if scrub_credentials
-            else dict(agent_profiles)
+            {k: self._scrub_sensitive_data(v) for k, v in agent_profiles.items()} if scrub_credentials else dict(agent_profiles)
         )
         processed_skills = dict(custom_skills)
         processed_crons = (
-            {k: self._scrub_sensitive_data(v) for k, v in cron_schedules.items()}
-            if scrub_credentials
-            else dict(cron_schedules)
+            {k: self._scrub_sensitive_data(v) for k, v in cron_schedules.items()} if scrub_credentials else dict(cron_schedules)
         )
         processed_memory = dict(memory_records)
 

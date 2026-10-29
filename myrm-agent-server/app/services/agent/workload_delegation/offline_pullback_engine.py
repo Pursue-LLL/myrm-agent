@@ -1,13 +1,22 @@
-"""离线异步完成推送与成果自愈回拉引擎 (Offline Pullback Engine)。
+"""云端成果包回拉本地工作区时的冲突检测与合并。
 
-汲取字节跳动“豆包工作”桌面端核心架构设计：
-1. 云端沙箱长任务执行完成后，自动向移动端/桌面端推送完成通知；
-2. 本地电脑重新开机联网时，一键或自适应将云端成果增量 Patch 回拉同步至本地工作区；
-3. 基于三方合并原则检查基线冲突，杜绝暴力覆盖，实现平滑自愈闭环。
+[INPUT]
+- 标准库 hashlib / time / dataclasses / enum (POS: 本地内容的基线哈希比对、回拉包载荷与状态枚举)
+
+[OUTPUT]
+- PullbackBundle: 云端文件、委派时的基线文件哈希、新建工件与执行摘要
+- MergeStatus: clean_merge / conflict_detected / already_up_to_date
+- PullbackApplyResult: 合并状态、已应用文件、冲突文件与摘要
+- OfflinePullbackEngine.inspect_and_merge: 新增文件直接采用云端内容；已存在且内容不同的文件，本地哈希与基线一致才采用云端内容，
+  否则按冲突处理，合并结果里写入 LOCAL / CLOUD 两段冲突标记
+
+[POS]
+委派期间本地被改动的文件不会被云端内容直接覆盖，冲突逐文件上报并留下可读的冲突标记。
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from dataclasses import dataclass, field
@@ -81,7 +90,6 @@ class OfflinePullbackEngine:
             else:
                 # 本地存在且内容不同：检查基线哈希
                 base_hash = bundle.base_file_hashes.get(path)
-                import hashlib
                 current_local_hash = hashlib.sha256(current_local.encode("utf-8")).hexdigest()
 
                 if base_hash is None or current_local_hash == base_hash:
@@ -92,11 +100,7 @@ class OfflinePullbackEngine:
                     # 本地被修改过且不同于云端，标记冲突并插入冲突标记
                     conflicts.append(path)
                     conflict_content = (
-                        f"<<<<<<< LOCAL (Desktop)\n"
-                        f"{current_local}\n"
-                        f"=======\n"
-                        f"{cloud_content}\n"
-                        f">>>>>>> CLOUD (Sandbox)\n"
+                        f"<<<<<<< LOCAL (Desktop)\n{current_local}\n=======\n{cloud_content}\n>>>>>>> CLOUD (Sandbox)\n"
                     )
                     merged_files[path] = conflict_content
 
