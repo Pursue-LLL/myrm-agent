@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from app.channels.rendering.renderer import mark_rendered, render
@@ -73,3 +75,12 @@ def test_a_message_without_metadata_can_be_marked() -> None:
     marked = mark_rendered(_reply("Answer.", metadata=None), "chunk")
 
     assert render(marked, _STYLES["markdown"]) == ["chunk"]
+
+
+def test_a_rendered_chunk_stays_rendered_after_the_outbound_queue_stores_and_replays_it() -> None:
+    (chunk,) = render(_reply("Answer [1]."), _STYLES["markdown"])
+    stored = json.dumps(mark_rendered(_reply("ignored"), chunk).to_dict())
+
+    replayed = OutboundMessage.from_dict(json.loads(stored))
+
+    assert render(replayed, _STYLES["markdown"]) == [chunk]

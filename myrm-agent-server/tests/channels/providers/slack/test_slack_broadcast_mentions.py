@@ -7,6 +7,7 @@ unescaped, in any text the bot sends: the rendered final reply and the raw place
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -15,7 +16,7 @@ import pytest
 from app.channels.providers.slack import SlackChannel
 from app.channels.providers.slack.format_converter import md_to_slack_mrkdwn, neutralize_broadcast_mentions
 from app.channels.rendering.renderer import render
-from app.channels.types import OutboundMessage
+from app.channels.types import MediaAttachment, OutboundMessage
 
 _BROADCASTS = [
     "<!here>",
@@ -182,3 +183,27 @@ class TestRawTextBeforeItIsRendered:
 
         (stop,) = _calls(post, "chat.stopStream")
         assert not _notifies(str(stop["markdown_text"]))
+
+    @pytest.mark.asyncio
+    async def test_the_comment_that_introduces_an_uploaded_file(self, tmp_path: Path) -> None:
+        channel = _channel()
+        report = tmp_path / "report.txt"
+        report.write_text("x")
+        attachment = MediaAttachment(
+            media_type="document", path=str(report), filename="report.txt", caption="Report <!channel> ready"
+        )
+        post = AsyncMock(
+            side_effect=[
+                httpx.Response(200, json={"ok": True, "upload_url": "https://files.slack.com/u", "file_id": "F1"}),
+                httpx.Response(200, json={"ok": True}),
+            ]
+        )
+
+        with (
+            patch.object(channel._api._http, "post", post),
+            patch.object(channel._api._http, "put", AsyncMock(return_value=httpx.Response(200))),
+        ):
+            assert await channel._api.upload_file("C1", attachment, None)
+
+        (complete,) = _calls(post, "files.completeUploadExternal")
+        assert complete["initial_comment"] == "Report &lt;!channel&gt; ready"

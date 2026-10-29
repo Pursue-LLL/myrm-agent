@@ -8,6 +8,7 @@ assistant.threads.setStatus (AI Agent status indicator),
 apps.connections.open (Socket Mode).
 
 [INPUT]
+- slack.format_converter::neutralize_broadcast_mentions (POS: escapes audience-notifying tokens in the comment that introduces an uploaded file)
 
 [OUTPUT]
 - SlackClient: async API client for Slack Web API
@@ -29,6 +30,8 @@ from app.channels.core.exceptions import (
     RateLimitError,
 )
 from app.channels.types import MediaAttachment
+
+from .format_converter import neutralize_broadcast_mentions
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +314,7 @@ class SlackClient:
                 "channel_id": channel_id,
             }
             if attachment.caption:
-                complete_payload["initial_comment"] = attachment.caption
+                complete_payload["initial_comment"] = neutralize_broadcast_mentions(attachment.caption)
             if thread_ts:
                 complete_payload["thread_ts"] = str(thread_ts)
 
