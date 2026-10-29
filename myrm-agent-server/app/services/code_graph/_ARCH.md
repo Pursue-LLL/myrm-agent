@@ -25,6 +25,7 @@
 - 首次索引大型仓库需要数秒到数十秒，之后只处理变化的文件；首次调用受 Agent 工具默认 60 s 超时与最多 2 次尝试约束，超时后索引线程在后台继续，下一次尝试等它结束并复用成果；两次都超时则本次调用报错，之后每次调用（各有 2 次尝试）最多再等约 121 s，索引在后台跑完后即可直接使用。
 - 串行只在进程内；两个进程同时首次索引同一个库时各自解析一遍，最终结果一致，只是重复耗时。
 - 超过一批（500 个文件或 8 MB 源码）的同步不是单个原子事务：同步进行中，不持有同步锁的读者可能看到新旧混合的图；`code_graph_tool` 在查询前先等待同步完成，不受影响。
+- 结果最多 50 行：`callers`、`tests_calling` 按文件路径、`implementors` 按类名排序后取前 50 行，被截掉的部分不可见；这三个动作按最后一段名字匹配，限定名返回同样的行，只能在关心的目录里用 grep 缩小；`resolve` 与 `importers` 用限定名可以缩小，`callees` 按行号取前 50 行。每个动作超过上限时给出的建议由 `agent_tool.py` 的 `_Action.cut_hint` 自述，新增动作必须填写。
 
 ## 架构边界
 属于 Server 业务层提供的预置代码智能能力，不侵入 Harness 核心执行框架；对 Harness 只使用公开的 `WorkspacePathIndexer` 与持久卷根路径。Agent 侧的挂载点在 `app/ai_agents/general_agent/factory.py`，工具层级登记在 `tools/_tool_layer_bootstrap.py`（EXTERNAL）。

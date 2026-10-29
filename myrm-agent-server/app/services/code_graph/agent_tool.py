@@ -39,6 +39,12 @@ MAX_ROWS = 50
 _DOC_CHARS = 300
 _JS_TS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
 
+# What can narrow an answer cut at MAX_ROWS. callers, tests_calling and implementors match on the last name part,
+# so a qualified name returns the same rows and only a text search inside a directory narrows them.
+_NARROW_BY_QUALIFIED_NAME = "use a qualified name to narrow the result."
+_NARROW_BY_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
+_CUT_BY_LINE = "they are listed by line number, so open the function to see the rest."
+
 CodeGraphAction = Literal["resolve", "definition", "callers", "callees", "implementors", "importers", "tests_calling"]
 
 _DESCRIPTION = (
@@ -109,6 +115,7 @@ def _importer_row(row: Row) -> Row:
 class _Action:
     query: Callable[[CodeGraphService, str], list[Row]]
     row: Callable[[Row], Row]
+    cut_hint: str
 
 
 def _definition_query(service: CodeGraphService, target: str) -> list[Row]:
@@ -120,21 +127,26 @@ _ACTIONS: dict[str, _Action] = {
     "resolve": _Action(
         lambda s, t: s.resolve(t, MAX_ROWS + 1),
         lambda r: {"name": r["qualified_name"], "kind": r["kind"], "at": _span(r)},
+        _NARROW_BY_QUALIFIED_NAME,
     ),
-    "definition": _Action(_definition_query, _definition_row),
+    # At most one row, so it is never cut.
+    "definition": _Action(_definition_query, _definition_row, ""),
     "callers": _Action(
         lambda s, t: s.callers(t),
         lambda r: _call_row(r, caller=r["caller"], callee=r["callee"], match=r["match"]),
+        _NARROW_BY_SEARCH,
     ),
-    "callees": _Action(lambda s, t: s.callees(t), lambda r: _call_row(r, callee=r["callee"])),
+    "callees": _Action(lambda s, t: s.callees(t), lambda r: _call_row(r, callee=r["callee"]), _CUT_BY_LINE),
     "implementors": _Action(
         lambda s, t: s.implementors(t),
         lambda r: {"class": r["sub_type"], "extends": r["super_type"], "at": _site(r)},
+        _NARROW_BY_SEARCH,
     ),
-    "importers": _Action(lambda s, t: s.importers(t), _importer_row),
+    "importers": _Action(lambda s, t: s.importers(t), _importer_row, _NARROW_BY_QUALIFIED_NAME),
     "tests_calling": _Action(
         lambda s, t: s.tests_calling(t),
         lambda r: {"at": _site(r), "test": r["test_symbol"], "match": r["match"]},
+        _NARROW_BY_SEARCH,
     ),
 }
 
@@ -144,7 +156,7 @@ def _database_path(workspace_root: Path) -> Path:
     return Path(get_persistent_root()) / "code_graph" / f"{digest}.db"
 
 
-def _notes(shown_rows: list[Row], total: int, definitions: int, stats: IndexStats) -> list[str]:
+def _notes(shown_rows: list[Row], total: int, definitions: int, stats: IndexStats, cut_hint: str) -> list[str]:
     notes: list[str] = []
     if stats.truncated:
         notes.append(
@@ -157,7 +169,7 @@ def _notes(shown_rows: list[Row], total: int, definitions: int, stats: IndexStat
             "Only Python and TypeScript/JavaScript files are indexed."
         )
     if total > MAX_ROWS:
-        notes.append(f"More rows exist than the {MAX_ROWS} shown; use a qualified name to narrow the result.")
+        notes.append(f"More rows exist than the {MAX_ROWS} shown; {cut_hint}")
     if definitions > 1:
         notes.append(f"{definitions} functions share this name, so match=name rows may call another one.")
     if any(str(row["at"]).rsplit(":", 1)[0].endswith(_JS_TS_SUFFIXES) for row in shown_rows):
@@ -198,7 +210,7 @@ class _Navigator:
         if action in ("callers", "tests_calling"):
             definitions = self._service.definition_count(target)
             payload["definitions"] = definitions
-        notes = _notes(rows, len(found), definitions, stats)
+        notes = _notes(rows, len(found), definitions, stats, spec.cut_hint)
         if notes:
             payload["notes"] = notes
         return {
