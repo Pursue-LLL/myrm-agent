@@ -23,7 +23,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness `core/security/redact/file_view.py`（新）、`agent/meta_tools/file_search/_redaction.py`（新）、`grep_tool.py`、`file_read_tool.py`，删除 `core/file_read/view_redaction.py`，三份 `_ARCH.md`；没有改工具 schema 与提示词，只改工具返回内容，不影响提示词缓存） |
+| **状态** | **FIXED**（harness `core/security/redact/file_view.py`（新）、`agent/meta_tools/file_search/_redaction.py`（新）、`grep_tool.py`、`file_read_tool.py`，删除 file_read 目录下的 view_redaction.py，三份 `_ARCH.md`；没有改工具 schema 与提示词，只改工具返回内容，不影响提示词缓存） |
 | **发现时间** | 2026-10-29（复核 076 时，对 `grep_tool.py` 的脱敏调用点逐行核对，并对整仓源码逐行对照新旧输出） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P3：不丢数据、不泄密，但模型被误导。`cancel_token: CancellationToken \| None = None,` 在 grep 里是 `cancel_token: *** \| None = None,`，`KNOWN_MODEL_MAX_INPUT_TOKENS: dict[str, int] = {` 是 `KNOWN_MODEL_MAX_INPUT_TOKENS: *** int] = {`；同一行用 `file_read` 读是原样。实测 harness `src/` 21778 个含 token / key / secret / pass / auth / cred 的 `.py` 行里，3525 行被整段脱敏改写，抽样全部是对代码的误伤。 |
@@ -91,7 +91,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness `core/security/redact/engine.py`、新增 `agent/meta_tools/file_ops/core/file_read/view_redaction.py`、`file_read_tool.py`、两份 `_ARCH.md`；没有改提示词与工具 schema）。提交 `fa678318f2`。接着 `BUG-HARNESS-2026-10-29-075`。 |
+| **状态** | **FIXED**（harness `core/security/redact/engine.py`、新增文件读取的脱敏视图（现位于 `core/security/redact/file_view.py`）、`file_read_tool.py`、两份 `_ARCH.md`；没有改提示词与工具 schema）。提交 `fa678318f2`。接着 `BUG-HARNESS-2026-10-29-075`。 |
 | **发现时间** | 2026-10-28（用整仓真实源码量化读取视图的改动） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P2：agent 看到的是语法已坏的代码；从视图里复制的 `old_string` 与磁盘对不上，精确匹配失败，agent 反复重试或扩大范围，扩大到整文件重写时把 `***` 写进源码。整仓实测见「回归」[1]：约四分之一的源码文件被改。 |
@@ -101,8 +101,8 @@
 | **反复次数** | 第 1 次（先试过「源码一律跳过名字类 pass」，原型把被改行数从 3523 降到 39，但硬编码常量如 `DEFAULT_HMAC_SECRET = "…"` 会进入视图；改为只对含字面量的行保留） |
 | **踩坑** | ① 起初没有门控 API-key 头部 pass，TypeScript 的属性名 `apiKey: …` 被它遮掉；补门控后才与名字类 pass 一致。② 一个现有测试的 mock 对一个路径返回两段文本，与 `process_text_paths` 一一对应的真实契约不符；改测试用两个真实文件，没有让工具容忍不一致。③ 前两轮只盯 URL 与口令名，没有用整仓语料量化读取视图，这是疏漏。 |
 | **回归** | [1] 整仓语料（`.py` 或 `.ts(x)`，300 KB 以下），完整脱敏改动的文件与行：harness 3242 个文件里 874 个、3531 行；server 2711 个里 855 个、3866 行；前端 5674 个里 1166 个、3524 行。源码模式：113 个文件 214 行、129 个文件 244 行、274 个文件 474 行，行数分别降 94%、94%、87%。完整脱敏耗时 24.8、17.7、30.2 秒，源码模式 9.2、7.1、14.9 秒（大部分行跳过了名字类 pass）。[2] 测试：新增 `tests/core/security/redact/test_source_code_mode.py` 与 `tests/agent/meta_tools/file_ops/test_file_read_view_redaction.py`；`tests/core/security`、`tests/agent/security` 等合跑 5726 例通过、1 例失败（`test_loop_guard.py` 的另一处在途改动）。 |
-| **仍然存在** | ① 取舍需要知道：用户仓库里不带厂商前缀、写在 `.py` 或 `.ts` 里的明文口令，只要是字面量以外的写法就不再被名字类 pass 遮；带引号、不含空白、至少 8 个字符的字面量仍被遮，更短的字面量（如开发默认口令）会原样进入上下文。逐条看过 12 条完整脱敏与源码模式的差集，全是非密钥；另有 8 条没有逐条看。② 带类型注解的赋值 `secret_key: str = "…"` 里，名字类 pass 遮的是类型而不是字面量，真值漏出，完整脱敏同样如此，是已有缺口，没有改。③ `grep` 与 bash 输出仍走完整脱敏，源码里的同类误伤在那里还在。④ 比较表达式 `key == "abcdefghij"` 会因含字面量而整行走名字类 pass。⑤ Hermes 的同类实现是 `agent/redact.py:904-955`（`code_file` 跳过按名赋值），含密文件由 `_is_secret_file_arg` 判定；我们按扩展名判定，没有做内容判定。 |
-| **代码位置** | `core/security/redact/engine.py`（`_STRING_LITERAL_RE`、`_redact_by_name`、`redact_sensitive_text`）、`agent/meta_tools/file_ops/core/file_read/view_redaction.py`、`file_read_tool.py`、`redact/_ARCH.md`、`core/file_read/_ARCH.md` · 测试 `tests/core/security/redact/test_source_code_mode.py`、`tests/agent/meta_tools/file_ops/test_file_read_view_redaction.py`、`test_file_read_coverage.py`。 |
+| **仍然存在** | ① 取舍需要知道：用户仓库里不带厂商前缀、写在 `.py` 或 `.ts` 里的明文口令，只要是字面量以外的写法就不再被名字类 pass 遮；带引号、不含空白、至少 8 个字符的字面量仍被遮，更短的字面量（如开发默认口令）会原样进入上下文。逐条看过 12 条完整脱敏与源码模式的差集，全是非密钥；另有 8 条没有逐条看。② 带类型注解的赋值 `secret_key: str = "…"` 里，名字类 pass 遮的是类型而不是字面量，真值漏出，完整脱敏同样如此，是已有缺口，没有改。③ `grep` 与 bash 输出仍走完整脱敏，源码里的同类误伤在那里还在。④ 比较表达式 `key == "abcdefghij"` 会因含字面量而整行走名字类 pass。⑤ Hermes 的同类实现是 Hermes 仓库 agent/redact.py 第 904-955 行（`code_file` 跳过按名赋值），含密文件由 `_is_secret_file_arg` 判定；我们按扩展名判定，没有做内容判定。 |
+| **代码位置** | `core/security/redact/engine.py`（`_STRING_LITERAL_RE`、`_redact_by_name`、`redact_sensitive_text`）、`core/security/redact/file_view.py`、`file_read_tool.py`、`redact/_ARCH.md`、`agent/meta_tools/file_ops/core/file_read/_ARCH.md` · 测试 `tests/core/security/redact/test_source_code_mode.py`、`tests/agent/meta_tools/file_ops/test_file_read_view_redaction.py`、`test_file_read_coverage.py`。 |
 
 ### BUG-HARNESS-2026-10-29-075 · 工作区上下文（项目规则与沙箱快照）在每一次模型调用时重新生成：快照里的 git 与目录探测每次都在事件循环上同步跑一遍，agent 改了文件，位置 [2] 的文字随之变化，它之后的缓存前缀整段失效
 

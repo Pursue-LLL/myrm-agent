@@ -814,7 +814,7 @@ Layer 5 包含三个并列的防滥用机制：
 
 ### 6.1 LoopGuard — 循环检测
 
-**位置**：`security/guards/loop_guard/`（`guard.py`、`detectors.py`、`types.py`、`stats.py`、`suggestions/`）
+**位置**：`agent/security/guards/loop_guard/`（`guard.py`、`detectors.py`、`types.py`、`stats.py`、`suggestions/`）
 
 ### 七类检测器（渐进式 WARN→BREAK）
 
@@ -859,7 +859,7 @@ Try: (1) different command syntax, (2) check file permissions, (3) verify curren
 
 ### 6.2 FrequencyGuard — 工具调用频率异常检测
 
-**位置**：`security/guards/frequency_guard.py`（通过 `tool_interceptor_middleware` 集成）
+**位置**：`agent/security/guards/frequency_guard.py`（通过 `tool_interceptor_middleware` 集成）
 
 **防御目标**：防止 DoS 攻击和成本失控，通过检测异常高频的工具调用模式。
 
@@ -977,7 +977,7 @@ OpenAI Assistants API 实现了类似的频率限制（40 requests/minute for ru
 
 ### 6.3 ToolTurnBudgetGuard — 单轮工具调用配额
 
-**位置**：`security/guards/tool_turn_budget_guard.py`（通过 `tool_interceptor_middleware` 集成）
+**位置**：`agent/security/guards/tool_turn_budget_guard.py`（通过 `tool_interceptor_middleware` 集成）
 
 **防御目标**：限制单条用户消息（`active_message_id`）内的高成本工具调用次数，防止长轮次内搜索失控；与 FrequencyGuard 的 60 秒滑动窗口互补。
 
