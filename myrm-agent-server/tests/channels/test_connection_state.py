@@ -12,7 +12,6 @@ Covers:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -23,6 +22,7 @@ from app.channels.protocols import LoginMethod
 from app.channels.types import (
     ChannelCapabilities,
     ChannelStatus,
+    InboundMessage,
     OutboundMessage,
 )
 
@@ -33,12 +33,24 @@ class StubChannel(BaseChannel):
 
     def __init__(self, *, channel_name: str = "stub") -> None:
         super().__init__()
-        type(self).name = channel_name  # type: ignore[assignment]
+        type(self).name = channel_name
         self.sent: list[OutboundMessage] = []
 
     async def send(self, msg: OutboundMessage) -> str | None:
         self.sent.append(msg)
         return "msg_ok"
+
+
+def _record(channel: BaseChannel, event_type: str) -> list[dict[str, object]]:
+    """Collect the payload of every event of one type that the channel emits."""
+    events: list[dict[str, object]] = []
+
+    def on_event(_name: str, data: object) -> None:
+        assert isinstance(data, dict)
+        events.append(data)
+
+    channel.on(event_type, on_event)
+    return events
 
 
 def _make_stub(name: str = "stub") -> StubChannel:
@@ -73,8 +85,7 @@ class TestSetConnected:
     def test_dedup_same_state_no_event(self) -> None:
         """Calling _set_connected with same value should NOT emit."""
         ch = _make_stub()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         ch._set_connected(False)
         assert len(events) == 0
@@ -82,16 +93,14 @@ class TestSetConnected:
     def test_dedup_true_to_true_no_event(self) -> None:
         ch = _make_stub()
         ch._set_connected(True)
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         ch._set_connected(True)
         assert len(events) == 0
 
     def test_transition_emits_event(self) -> None:
         ch = _make_stub()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         ch._set_connected(True)
         assert len(events) == 1
@@ -103,8 +112,7 @@ class TestSetConnected:
 
     def test_rapid_toggle(self) -> None:
         ch = _make_stub()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         for _ in range(5):
             ch._set_connected(True)
@@ -137,8 +145,7 @@ class TestLifecycleConnection:
     @pytest.mark.asyncio
     async def test_start_emits_connected_event(self) -> None:
         ch = _make_stub()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         await ch.start()
         assert len(events) == 1
@@ -148,8 +155,7 @@ class TestLifecycleConnection:
     async def test_stop_emits_disconnected_event(self) -> None:
         ch = _make_stub()
         await ch.start()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         await ch.stop()
         assert len(events) == 1
@@ -159,8 +165,7 @@ class TestLifecycleConnection:
     async def test_double_stop_no_duplicate_event(self) -> None:
         ch = _make_stub()
         await ch.start()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         await ch.stop()
         await ch.stop()
@@ -170,8 +175,7 @@ class TestLifecycleConnection:
     async def test_stop_from_idle_emits_nothing(self) -> None:
         """Stopping a never-started channel should not emit (already disconnected)."""
         ch = _make_stub()
-        events: list[dict[str, Any]] = []
-        ch.on("connection_change", lambda _name, data: events.append(data))
+        events = _record(ch, "connection_change")
 
         await ch.stop()
         assert len(events) == 0
@@ -300,9 +304,9 @@ class TestInboundPipeline:
     async def test_emit_inbound_dispatches_to_handler(self) -> None:
         ch = _make_stub()
         await ch.start()
-        received: list[Any] = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg: Any) -> None:
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
@@ -318,9 +322,9 @@ class TestInboundPipeline:
         ch = _make_stub()
         await ch.start()
         ch._bot_id = "bot123"
-        received: list[Any] = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg: Any) -> None:
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
@@ -334,9 +338,9 @@ class TestInboundPipeline:
     async def test_emit_inbound_dedup(self) -> None:
         ch = _make_stub()
         await ch.start()
-        received: list[Any] = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg: Any) -> None:
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
@@ -351,9 +355,9 @@ class TestInboundPipeline:
     async def test_emit_inbound_disabled_channel_drops(self) -> None:
         ch = _make_stub()
         ch._status = ChannelStatus.DISABLED
-        received: list[Any] = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg: Any) -> None:
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
@@ -376,9 +380,9 @@ class TestInboundPipeline:
         ch = _make_stub()
         ch._debounce_seconds = 0.1
         await ch.start()
-        received: list[Any] = []
+        received: list[InboundMessage] = []
 
-        async def handler(msg: Any) -> None:
+        async def handler(msg: InboundMessage) -> None:
             received.append(msg)
 
         ch.set_inbound_handler(handler)
@@ -486,8 +490,7 @@ class TestStatusChangeEvent:
     @pytest.mark.asyncio
     async def test_status_change_emitted_on_start(self) -> None:
         ch = _make_stub()
-        events: list[dict[str, Any]] = []
-        ch.on("status_change", lambda _name, data: events.append(data))
+        events = _record(ch, "status_change")
 
         await ch.start()
         assert len(events) >= 1
@@ -497,8 +500,7 @@ class TestStatusChangeEvent:
     async def test_status_change_emitted_on_stop(self) -> None:
         ch = _make_stub()
         await ch.start()
-        events: list[dict[str, Any]] = []
-        ch.on("status_change", lambda _name, data: events.append(data))
+        events = _record(ch, "status_change")
 
         await ch.stop()
         assert len(events) >= 1
@@ -507,8 +509,7 @@ class TestStatusChangeEvent:
     def test_no_event_on_same_status(self) -> None:
         ch = _make_stub()
         ch._status = ChannelStatus.IDLE
-        events: list[dict[str, Any]] = []
-        ch.on("status_change", lambda _name, data: events.append(data))
+        events = _record(ch, "status_change")
 
         ch._status = ChannelStatus.IDLE
         assert len(events) == 0
