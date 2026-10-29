@@ -220,7 +220,7 @@ class TestCheckUnwrittenDeliverables:
         # A 7-line CSV with a header and 6 wide rows (> 300 bytes) should be detected
         header = "id,name,email,company,role,department,location,phone,created_at\n"
         rows = "".join(
-            f"usr_{i},Alice_{i},alice_{i}@example.com,VortexAI,Engineer,DevOps,Beijing,1380013800{i},2026-09-05T12:00:00Z\n"
+            f"usr_{i},Alice_{i},alice_{i}@example.com,AcmeCorp,Engineer,DevOps,Beijing,1380013800{i},2026-09-05T12:00:00Z\n"
             for i in range(6)
         )
         csv_block = f"```csv\n{header}{rows}```"
