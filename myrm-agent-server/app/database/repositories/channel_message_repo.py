@@ -56,8 +56,9 @@ class ChannelMessageRepository:
     ) -> list[ChannelMessageModel]:
         """Fetch the most recent N messages for a chat, ordered chronologically (oldest to newest).
 
-        ``since`` keeps only rows created after it. ``observed_only`` drops the rows that started an agent turn: the
-        session transcript already carries their text, so re-injecting it as observed chatter would repeat the turn.
+        ``since`` keeps only rows created after it. ``observed_only`` drops the messages addressed to the bot
+        (``is_trigger``): one either started a turn, whose transcript already carries it, or was turned away without
+        one (quota, full queue), and neither belongs in another turn's context.
         """
         conditions = [
             ChannelMessageModel.channel == channel,

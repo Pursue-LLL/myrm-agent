@@ -32,10 +32,6 @@ try:  # optional feature: its harness dependency may not be present yet
 except ImportError:  # pragma: no cover - optional feature degradation
     command_matrix_router = None
 try:  # optional feature: its harness dependency may not be present yet
-    from .ui_alignment import router as ui_alignment_router
-except ImportError:  # pragma: no cover - optional feature degradation
-    ui_alignment_router = None
-try:  # optional feature: its harness dependency may not be present yet
     from .embed_bridge import router as embed_bridge_router
 except ImportError:  # pragma: no cover - optional feature degradation
     embed_bridge_router = None
@@ -72,8 +68,6 @@ router.include_router(thought_control_router)
 router.include_router(zero_replay_router)
 if command_matrix_router is not None:
     router.include_router(command_matrix_router)
-if ui_alignment_router is not None:
-    router.include_router(ui_alignment_router)
 if embed_bridge_router is not None:
     router.include_router(embed_bridge_router)
 if swarm_hud_router is not None:

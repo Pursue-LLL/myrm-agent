@@ -10,7 +10,6 @@ import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChat
 import { usePresenceReadMark } from '@/hooks/chat/usePresenceReadMark';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
-import { useUiAlignmentStore } from '@/components/features/artifacts/ui_alignment';
 import { useWidgetBridgeStore } from '@/components/features/widget';
 
 const VisualDesktopToggle = dynamic(
@@ -61,14 +60,6 @@ const CommandMatrixModal = dynamic(
   () =>
     import('@/components/features/commands').then((module) => ({
       default: module.CommandMatrixModal,
-    })),
-  { ssr: false },
-);
-
-const UiVariantCompareViewer = dynamic(
-  () =>
-    import('@/components/features/artifacts/ui_alignment').then((module) => ({
-      default: module.UiVariantCompareViewer,
     })),
   { ssr: false },
 );
@@ -1009,9 +1000,6 @@ export default function ChatWindowSatellites({
   const closeDesktopInspector = useDesktopInspectorStore((s) => s.closePanel);
   useClosePanelOnChatSwitch(effectiveChatId, isDesktopInspectorOpen, closeDesktopInspector);
 
-  const isUiAlignmentOpen = useUiAlignmentStore((s) => s.isOpen);
-  const setUiAlignmentOpen = useUiAlignmentStore((s) => s.setOpen);
-
   const isGeneratorModalOpen = useWidgetBridgeStore((s) => s.isGeneratorModalOpen);
   const setGeneratorModalOpen = useWidgetBridgeStore((s) => s.setGeneratorModalOpen);
 
@@ -1060,13 +1048,6 @@ export default function ChatWindowSatellites({
         </div>
       ) : null}
       <CommandMatrixModal />
-      {effectiveChatId && isUiAlignmentOpen ? (
-        <UiVariantCompareViewer
-          chatId={effectiveChatId}
-          isOpen={isUiAlignmentOpen}
-          onClose={() => setUiAlignmentOpen(false)}
-        />
-      ) : null}
       {effectiveChatId && isGeneratorModalOpen ? (
         <WidgetGeneratorModal
           chatId={effectiveChatId}

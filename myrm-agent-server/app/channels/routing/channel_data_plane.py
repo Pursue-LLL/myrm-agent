@@ -176,7 +176,8 @@ class ChannelDataPlaneService:
     ) -> list[ContextEntry]:
         """Fetch chronological observed messages created after ``since`` as ContextEntry instances for prompt injection.
 
-        Messages that started a turn are left out: the session transcript carries them.
+        Messages addressed to the bot are left out: they either started a turn (the session transcript carries them)
+        or were turned away (quota, full queue), and a turned-away sender's text must not reach another turn's prompt.
         """
         try:
             async with get_session() as session:

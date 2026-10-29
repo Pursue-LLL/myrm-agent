@@ -2,7 +2,8 @@
 
 The in-memory buffer already drains once and expires entries; the ledger-backed path of
 ``GroupContextBuffer.drain_async`` must keep the same contract and must not hand a turn the
-messages that already started a turn (the session transcript carries them).
+messages addressed to the bot: those that started a turn are in the session transcript, and the text of a
+sender who was turned away must not reach another turn.
 """
 
 from __future__ import annotations
@@ -97,7 +98,7 @@ async def test_a_message_is_handed_out_once(ledger: _Ledger) -> None:
     assert await _drain(buffer, "g1") == ["second"]
 
 
-async def test_a_message_that_started_a_turn_is_not_observed_context(ledger: _Ledger) -> None:
+async def test_a_message_addressed_to_the_bot_is_not_observed_context(ledger: _Ledger) -> None:
     await ledger.add("g1", "chatter", timedelta(minutes=3))
     await ledger.add("g1", "@bot an earlier request", timedelta(minutes=2), is_trigger=True)
 

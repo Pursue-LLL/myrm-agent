@@ -49,7 +49,6 @@
 | `__tests__/wechatDraftPanelUtils.test.ts`  | 测试 | author/digest clamp、默认标题/作者                                                                                                                                                                      |
 | `__tests__/wechatDraftCoverUtils.test.ts`  | 测试 | 文内首图 `src` 解析（本地路径 / 跳过远程）                                                                                                                                                              |
 | `__tests__/organizePlanUtils.test.ts`      | 测试 | organize-plan 文件名检测与 JSON 编辑工具                                                                                                                                                                |
-| `ui_alignment/`（子包）                    | 核心 | 多轮 UI 设计图视觉对齐与变体决策工作流：UiVariantCompareViewer、VisualAnnotationOverlay、useUiAlignmentStore，支持多方案比选、画布批注与 VisualContract 固化 |
 | `wechat-preview/`（子包）                  | 核心 | 微信公众号与社交全媒体智能排版、四大主题（经典绿标、极简科技、大厂严谨、人文艺术）内联样式编译、以及多设备即时高保真预览与一键富文本复制（Item 45 P0） |
 | `prototype-canvas/`（子包）                | 核心 | 从意图文件（intent.md）动态生成交互原型画布、多端视口切换、所见即所得点击批注与一键导出 spec.md 构建规格（Item 46 P0） |
 | `widget-dashboard/`（子包）                | 核心 | 交互式小组件会话右侧固钉仪表盘、网络权限动态管控与多主题社交快照海报导出（Item 48 P0） |
