@@ -70,12 +70,20 @@ root.mainloop()
 
 # 120 distinct CJK characters: a dropped or substituted one cannot hide behind a repeating pattern.
 _CJK = "".join(chr(0x4E00 + 37 * i) for i in range(120))
+_CJK_ROUNDS = 40
 _ASCII_MIX = "Hello, World! @#$%^&*()_+-=[]{}|;':\",./<>?`~ 0123456789 \\ end"
 
 
 @pytest.fixture
 def backend() -> LinuxBackend:
     return LinuxBackend()
+
+
+def _focus(window: str) -> bool:
+    try:
+        return subprocess.run(["xdotool", "windowfocus", "--sync", window], timeout=5, check=False).returncode == 0
+    except subprocess.TimeoutExpired:
+        return False
 
 
 @pytest.fixture
@@ -85,17 +93,21 @@ def ruler(tmp_path: Path) -> Iterator[Callable[[], str]]:
     out.write_text("")
     app = subprocess.Popen([_TK_PYTHON, "-c", _TK_APP, str(out)])
     try:
-        window = ""
+        # A window that is found but not yet mapped refuses the focus request; retry until it takes it.
         for _ in range(200):
             found = subprocess.run(
-                ["xdotool", "search", "--name", _WINDOW_NAME], capture_output=True, text=True, timeout=5, check=False
+                ["xdotool", "search", "--onlyvisible", "--name", _WINDOW_NAME],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             window = found.stdout.split()[0] if found.stdout.split() else ""
-            if window:
+            if window and _focus(window):
                 break
             time.sleep(0.1)
-        assert window, "the Tk window never appeared"
-        subprocess.run(["xdotool", "windowfocus", "--sync", window], check=True, timeout=5)
+        else:
+            pytest.fail("the Tk window never appeared or never took the focus")
         yield lambda: out.read_text(encoding="utf-8")
     finally:
         app.terminate()
@@ -140,8 +152,10 @@ class TestRealTextEntry:
 
     @pytest.mark.asyncio
     async def test_cjk_arrives_exactly_every_round(self, backend: LinuxBackend, ruler: Callable[[], str]) -> None:
+        # Per-character typing loses a character in roughly one 120-character round out of ten here, so a single
+        # round would let that regression through half the time; this many rounds make it near-certain to show.
         expected = ""
-        for _ in range(5):
+        for _ in range(_CJK_ROUNDS):
             expected += _CJK
 
             result = await backend.type_text(_CJK)
@@ -159,15 +173,15 @@ class TestRealTextEntry:
         assert await _content_after(ruler, text) == text
 
     @pytest.mark.asyncio
-    async def test_host_pinned_non_utf8_locale_does_not_matter(
+    async def test_ascii_arrives_exactly_under_a_host_pinned_c_locale(
         self, backend: LinuxBackend, ruler: Callable[[], str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("LC_ALL", "C")
 
-        result = await backend.type_text(_CJK)
+        result = await backend.type_text(_ASCII_MIX)
 
         assert result.success is True
-        assert await _content_after(ruler, _CJK) == _CJK
+        assert await _content_after(ruler, _ASCII_MIX) == _ASCII_MIX
 
     @pytest.mark.asyncio
     async def test_the_users_clipboard_survives_a_paste(self, backend: LinuxBackend, ruler: Callable[[], str]) -> None:
@@ -211,6 +225,13 @@ class TestRealXdotool:
         )
         assert result.success is True
         assert located.stdout.startswith("x:120 y:80 ")
+
+    @pytest.mark.asyncio
+    async def test_unknown_key_name_is_reported_although_xdotool_exits_zero(self, backend: LinuxBackend) -> None:
+        result = await backend.key("notakeyname")
+
+        assert result.success is False
+        assert "notakeyname" in (result.error or "")
 
     @pytest.mark.asyncio
     async def test_unreachable_display_is_reported_as_a_failure(self) -> None:

@@ -1,7 +1,7 @@
 """Linux backend: failing input tools surface as errors, and text entry follows the ASCII/non-ASCII routes.
 
 Uses real subprocesses: an empty PATH makes every tool missing, and stand-in xdotool/xclip scripts record
-what the backend sends them (arguments, stdin, locale) and emulate a clipboard with genuine exit codes.
+what the backend sends them (arguments, stdin) and emulate a clipboard with genuine exit codes.
 """
 
 from __future__ import annotations
@@ -25,11 +25,11 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="relies on /bin/
 # KEY_DELAY slows the paste keystroke so overlapping pastes interleave.
 _FAKE_XDOTOOL = """#!/bin/sh
 echo "$*" >> "$ARGV"
-echo "$LC_ALL" >> "$LOCALE"
 call=$(wc -l < "$ARGV" | tr -d ' ')
 case "$*" in
   *--file*) [ -n "$XDOTOOL_HANG" ] && { echo $$ >> "$PIDS"; exec sleep 30; }; cat >> "$STDIN";;
   "key ctrl+v") sleep "${KEY_DELAY:-0}"; cat "$CLIPBOARD" >> "$PASTED"; echo "--" >> "$PASTED";;
+  "key -- bogus") echo "(symbol) No such key name 'bogus'. Ignoring it." >&2;;
   *getwindowname*) echo "Title"; echo "$DISPLAY" >> "$DISPLAY_SEEN";;
   *getmouselocation*) echo "x:7 y:9 screen:0 window:1"; echo "$DISPLAY" >> "$DISPLAY_SEEN";;
 esac
@@ -52,7 +52,7 @@ case "$*" in
 esac
 """
 
-_FILES = ("argv", "stdin", "locale", "display_seen", "xclip_used", "clipboard", "pasted", "pids")
+_FILES = ("argv", "stdin", "display_seen", "xclip_used", "clipboard", "pasted", "pids")
 
 
 @pytest.fixture
@@ -78,8 +78,6 @@ def fake_x_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, P
     for path in paths.values():
         path.write_text("")
     monkeypatch.setenv("PATH", f"{bin_dir}:/usr/bin:/bin")
-    # LC_ALL outranks LC_CTYPE, so a host that pins it to a non-UTF-8 locale is the case the backend must override.
-    monkeypatch.setenv("LC_ALL", "C")
     for name, path in paths.items():
         monkeypatch.setenv(name.upper(), str(path))
     return paths
@@ -145,6 +143,15 @@ class TestKey:
         # The whole text arrived as xdotool arguments (the fake joins argv with spaces).
         assert fake_x_tools["argv"].read_text().split("\n")[0] == f"key -- a; touch {marker}"
 
+    @pytest.mark.asyncio
+    async def test_unknown_key_name_is_a_failure_although_xdotool_exits_zero(
+        self, backend: LinuxBackend, fake_x_tools: dict[str, Path]
+    ) -> None:
+        result = await backend.key("bogus")
+
+        assert result.success is False
+        assert "No such key name" in (result.error or "")
+
 
 def _pasted(fake_x_tools: dict[str, Path]) -> list[str]:
     """What the focused application would have received for each Ctrl+V."""
@@ -153,7 +160,7 @@ def _pasted(fake_x_tools: dict[str, Path]) -> list[str]:
 
 class TestTypeText:
     @pytest.mark.asyncio
-    async def test_ascii_goes_over_stdin_in_utf8_and_never_touches_the_clipboard(
+    async def test_ascii_goes_over_stdin_and_never_touches_the_clipboard(
         self, backend: LinuxBackend, fake_x_tools: dict[str, Path]
     ) -> None:
         result = await backend.type_text("hello world")
@@ -162,7 +169,6 @@ class TestTypeText:
         assert fake_x_tools["stdin"].read_text() == "hello world"
         assert fake_x_tools["argv"].read_text().split("\n")[0] == "type --delay 12 --file -"
         assert "hello world" not in fake_x_tools["argv"].read_text()
-        assert set(fake_x_tools["locale"].read_text().split()) == {"C.UTF-8"}
         assert fake_x_tools["xclip_used"].read_text() == ""
 
     @pytest.mark.asyncio

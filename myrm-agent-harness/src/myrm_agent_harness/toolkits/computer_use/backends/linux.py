@@ -4,7 +4,7 @@ Covers both native Linux desktops and SaaS sandbox environments (which run Linux
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
-- linux_probes::probe_linux_capturable, detect_linux_resolution (POS: read-only screen probes)
+- linux_probes::detect_linux_resolution, read_screen_context, linux_permission_status (POS: read-only screen and environment probes)
 - linux_text_io::X11TextInput (POS: text bridge of the Linux backend)
 
 [OUTPUT]
@@ -22,13 +22,13 @@ import logging
 import os
 import shlex
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.computer_use.backends.linux_probes import (
     detect_linux_resolution,
-    probe_linux_capturable,
+    linux_permission_status,
+    read_screen_context,
 )
 from myrm_agent_harness.toolkits.computer_use.backends.linux_text_io import X11TextInput
 from myrm_agent_harness.toolkits.computer_use.types import (
@@ -43,11 +43,10 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 
 logger = logging.getLogger(__name__)
 
-# Every helper runs in a UTF-8 locale: xdotool decodes by locale and aborts at the first non-ASCII character
-# otherwise. LC_ALL rather than LC_CTYPE, because a host-pinned LC_ALL (e.g. C) outranks LC_CTYPE.
-_UTF8_LOCALE = "C.UTF-8"
 _TIMEOUT_EXIT_CODE = 124
 _COMMAND_NOT_FOUND_EXIT_CODE = 127
+# xdotool exits 0 when it skips a key name it does not know, so the exit code alone reports a key that never fired.
+_UNKNOWN_KEY_MARKER = "No such key name"
 
 CLICK_BUTTONS = {
     "left": "1",
@@ -82,12 +81,11 @@ class LinuxBackend:
         self._display_num = display_num if display_num is not None else _parse_display_num()
         self._text_input = X11TextInput(self._run_cmd, self._run_input)
 
-    def _subprocess_env(self) -> dict[str, str]:
-        """Environment for every helper: the selected display (when known) and a UTF-8 locale."""
-        env = {**os.environ, "LC_ALL": _UTF8_LOCALE}
-        if self._display_num is not None:
-            env["DISPLAY"] = f":{self._display_num}"
-        return env
+    def _subprocess_env(self) -> dict[str, str] | None:
+        """Environment that selects this backend's display; None inherits the process environment."""
+        if self._display_num is None:
+            return None
+        return {**os.environ, "DISPLAY": f":{self._display_num}"}
 
     async def _run_cmd(
         self, cmd: str, stdin: str | None = None, timeout: float | None = None, *, capture: bool = True
@@ -135,7 +133,7 @@ class LinuxBackend:
     async def _run_input(self, cmd: str, stdin: str | None = None, *, capture: bool = True) -> None:
         """Run an input-injection command; a non-zero exit (e.g. xdotool missing) must not look like success."""
         _, stderr, code = await self._run_cmd(cmd, stdin, capture=capture)
-        if code != 0:
+        if code != 0 or _UNKNOWN_KEY_MARKER in stderr:
             detail = f": {stderr.strip()}" if stderr.strip() else ""
             raise RuntimeError(f"{cmd.split()[0]} failed (exit {code}){detail}")
 
@@ -307,36 +305,7 @@ class LinuxBackend:
         return self._screen_info
 
     def screen_context(self) -> ScreenContext:
-        try:
-            result = subprocess.run(
-                ["xdotool", "getactivewindow", "getwindowname"],
-                env=self._subprocess_env(),
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-            window_title = result.stdout.strip() if result.returncode == 0 else ""
-        except Exception:
-            window_title = ""
-
-        try:
-            result = subprocess.run(
-                ["xdotool", "getmouselocation"],
-                env=self._subprocess_env(),
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-            if result.returncode == 0:
-                parts = result.stdout.strip().split()
-                mx = int(parts[0].split(":")[1])
-                my = int(parts[1].split(":")[1])
-            else:
-                mx, my = 0, 0
-        except Exception:
-            mx, my = 0, 0
-
-        return ScreenContext(active_window=window_title, mouse_x=mx, mouse_y=my)
+        return read_screen_context(self._subprocess_env())
 
     async def window_text(self) -> WindowTextResult:
         """Extract text from frontmost window via xdotool + xprop.
@@ -427,38 +396,5 @@ class LinuxBackend:
         return get_default_screen_detector().get_state() == ScreenLockState.SLEEPING
 
     async def check_permissions(self, *, probe_capture: bool = False) -> PermissionStatus:
-        """Probe Linux environment readiness for desktop automation.
-
-        Checks hard dependencies: xdotool (input), scrot/gnome-screenshot (capture),
-        and DISPLAY/Wayland. Optional functional capture when probe_capture=True.
-        """
-        has_xdotool = shutil.which("xdotool") is not None
-        has_screenshot = shutil.which("scrot") is not None or shutil.which("gnome-screenshot") is not None
-        has_display = bool(os.getenv("DISPLAY"))
-        wayland = bool(os.getenv("WAYLAND_DISPLAY"))
-
-        deeplinks: dict[str, str] = {}
-        if not has_xdotool:
-            deeplinks["accessibility"] = "https://wiki.gnome.org/Accessibility"
-        if not has_screenshot:
-            deeplinks["screen_recording"] = "https://wiki.gnome.org/Accessibility"
-        if not has_display and not wayland:
-            deeplinks["display"] = "export DISPLAY=:0"
-            if shutil.which("Xvfb") is None and shutil.which("xvfb-run") is None:
-                deeplinks["xvfb"] = "Install Xvfb or use a graphical session"
-
-        accessibility = has_xdotool and (has_display or wayland)
-        screen_recording = has_screenshot and (has_display or wayland)
-        capturable: bool | None = None
-        if probe_capture:
-            capturable = False
-            if screen_recording and has_display:
-                capturable = await asyncio.to_thread(probe_linux_capturable)
-
-        return PermissionStatus(
-            accessibility=accessibility,
-            screen_recording=screen_recording,
-            screen_recording_capturable=capturable,
-            platform="linux",
-            settings_deeplinks=deeplinks,
-        )
+        """Probe Linux environment readiness for desktop automation."""
+        return await linux_permission_status(probe_capture=probe_capture)

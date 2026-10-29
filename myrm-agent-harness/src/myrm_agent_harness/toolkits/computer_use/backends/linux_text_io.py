@@ -1,7 +1,7 @@
 """Linux X11 text entry — reliable typing for ASCII and any other script.
 
 [INPUT]
-- (none: commands run through callables the backend hands in, so display, locale and cancellation stay in one place)
+- (none: commands run through callables the backend hands in, so display and cancellation handling stay in one place)
 
 [OUTPUT]
 - X11TextInput: enter(text) types pure-ASCII text as key events and pastes any text with a non-ASCII character through the clipboard

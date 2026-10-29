@@ -28,10 +28,9 @@ async def test_run_cmd(backend):
     with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as spawn:
         out, err, code = await backend._run_cmd("xdotool key 'a b'")
         assert (out, err, code) == ("out", "err", 0)
-        # No shell: the command is split once into argv, and the display and locale travel in the environment.
+        # No shell: the command is split once into argv, and the display travels in the environment.
         assert spawn.call_args.args == ("xdotool", "key", "a b")
         assert spawn.call_args.kwargs["env"]["DISPLAY"] == ":1"
-        assert spawn.call_args.kwargs["env"]["LC_ALL"] == "C.UTF-8"
 
 
 @pytest.mark.asyncio
@@ -240,3 +239,59 @@ async def test_is_browser_active_exception(backend):
     with patch.object(backend, "_run_cmd", side_effect=Exception("error")):
         result = await backend.is_browser_active()
         assert result is False
+
+
+def _tools_on_path(monkeypatch, *present: str) -> None:
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}" if name in present else None)
+
+
+@pytest.mark.asyncio
+async def test_check_permissions_ready_with_tools_and_display(backend, monkeypatch):
+    _tools_on_path(monkeypatch, "xdotool", "scrot")
+    monkeypatch.setenv("DISPLAY", ":1")
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+
+    status = await backend.check_permissions()
+
+    assert (status.accessibility, status.screen_recording) == (True, True)
+    assert status.screen_recording_capturable is None
+    assert status.settings_deeplinks == {}
+
+
+@pytest.mark.asyncio
+async def test_check_permissions_reports_missing_input_tool(backend, monkeypatch):
+    _tools_on_path(monkeypatch, "scrot")
+    monkeypatch.setenv("DISPLAY", ":1")
+
+    status = await backend.check_permissions()
+
+    assert status.accessibility is False
+    assert status.screen_recording is True
+    assert "accessibility" in status.settings_deeplinks
+
+
+@pytest.mark.asyncio
+async def test_check_permissions_without_any_display_points_at_xvfb(backend, monkeypatch):
+    _tools_on_path(monkeypatch, "xdotool", "scrot")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+
+    status = await backend.check_permissions()
+
+    assert (status.accessibility, status.screen_recording) == (False, False)
+    assert {"display", "xvfb"} <= set(status.settings_deeplinks)
+
+
+@pytest.mark.asyncio
+async def test_check_permissions_capture_probe_only_runs_when_capture_is_possible(backend, monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":1")
+    probe = MagicMock(return_value=True)
+    monkeypatch.setattr("myrm_agent_harness.toolkits.computer_use.backends.linux_probes.probe_linux_capturable", probe)
+
+    _tools_on_path(monkeypatch, "xdotool", "scrot")
+    assert (await backend.check_permissions(probe_capture=True)).screen_recording_capturable is True
+
+    probe.reset_mock()
+    _tools_on_path(monkeypatch, "xdotool")
+    assert (await backend.check_permissions(probe_capture=True)).screen_recording_capturable is False
+    probe.assert_not_called()
