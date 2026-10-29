@@ -262,7 +262,7 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 
 **位置**：`toolkits/code_execution/security/validator.py`
 
-提供统一的 `ValidationResult` 返回类型和三类验证 API：
+提供统一的 `ValidationResult` 返回类型和模块、命令、路径验证 API：
 
 | API | 功能 |
 |-----|------|
@@ -270,7 +270,6 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 | `validate_command(cmd, workspace_path, ...)` | 检查 Bash 命令（Shell Command Analyzer → 路径白名单 → 域名白名单） |
 | `validate_path(path, allowed_dirs, mode)` | 检查文件路径访问（纯白名单策略 + 符号链接解析 + `relative_to()` 边界检查） |
 | `validate_path_component(component)` | 检查路径组件（user_id/chat_id 等，防路径遍历） |
-| `sanitize_env(env)` | 过滤危险环境变量 |
 
 **路径安全策略**：
 - `~` 或 `$HOME` 开头 → 始终拒绝

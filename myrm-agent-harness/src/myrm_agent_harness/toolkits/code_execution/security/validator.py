@@ -1,10 +1,5 @@
 """Unified security validator for code execution.
 
-Validates:
-- Python module imports
-- Bash command execution (delegates to shell_command_analyzer for threat detection)
-- File path access
-
 All checks return a ``ValidationResult`` with structured error information.
 
 Path security uses FORBIDDEN_PATHS as a last line of defense.
@@ -12,13 +7,17 @@ The primary path policy enforcement happens in the Permission Engine layer;
 this validator provides defense-in-depth for the local code executor.
 
 [INPUT]
-- (none)
+- core.paths::get_context_root (POS: Foundation-layer path roots; session context root is always allowed)
+- core.security.path::is_within_boundary (POS: Generic filesystem path boundary check)
+- security.blacklist::DANGEROUS_MODULES, DANGEROUS_MODULES_REASONS (POS: Python module blacklist)
+- security.shell_command_analyzer::analyze_command, ThreatLevel (POS: Shell command threat detection)
 
 [OUTPUT]
 - ValidationResult: Validation result.
-- validate_module: Validate whether a Python module import is safe.
-- is_module_allowed: Check if a module import is allowed (convenience wrapper).
-- validate_command: Validate a Bash command for security (session-isolated).
+- validate_module / is_module_allowed: Python module import checks.
+- validate_command / is_command_allowed: Bash command checks (threat analysis, path and host allow-lists).
+- validate_path / is_path_allowed: File path access checks.
+- validate_path_component / is_path_component_safe: Path component (user_id, chat_id) traversal checks.
 
 [POS]
 Unified security validator for code execution.
