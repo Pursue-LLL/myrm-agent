@@ -10,6 +10,7 @@ from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.file_search._redaction import Match, redact_matches
 from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import create_grep_tool
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 _PRIVATE_KEY = (
     "-----BEGIN PRIVATE KEY-----\n"
@@ -19,13 +20,21 @@ _PRIVATE_KEY = (
 )
 
 
+# Lines of code that full-mode redaction rewrites, because a type name and a variable name contain ``token``.
+_TOKEN_NAMED_CODE = ("cancel_token: CancellationToken | None = None,", "saved_tokens: int")
+
+
+def test_the_code_lines_used_below_are_rewritten_by_full_mode_redaction() -> None:
+    assert all(redact_sensitive_text(line) != line for line in _TOKEN_NAMED_CODE)
+
+
 def _match(file: str, line: int, content: str, kind: str = "match") -> Match:
     return {"file": file, "line": line, "content": content, "type": kind}
 
 
 class TestRedactMatches:
-    def test_a_source_line_keeps_its_credential_named_identifiers(self) -> None:
-        line = "def run(cancel_token: CancellationToken | None = None, saved_tokens: int = 0) -> None:"
+    @pytest.mark.parametrize("line", _TOKEN_NAMED_CODE)
+    def test_a_source_line_keeps_its_credential_named_identifiers(self, line: str) -> None:
         assert redact_matches([_match("a.py", 3, line)]) == [_match("a.py", 3, line)]
 
     def test_a_config_line_is_redacted_in_full(self) -> None:
@@ -99,10 +108,9 @@ class TestGrepToolOutput:
             return str(await tool.ainvoke(args, config=RunnableConfig(configurable={})))
 
     async def test_source_lines_read_as_written(self, tmp_path: Path, executor: AsyncMock) -> None:
-        line = "def stop(cancel_token: CancellationToken | None = None, max_tokens: int = 10) -> None:"
-        (tmp_path / "svc.py").write_text(f"{line}\n    pass\n")
-        out = await self._grep(executor, pattern="cancel_token")
-        assert line in out
+        (tmp_path / "svc.py").write_text("\n".join(_TOKEN_NAMED_CODE) + "\n")
+        out = await self._grep(executor, pattern="token")
+        assert all(line in out for line in _TOKEN_NAMED_CODE)
 
     async def test_a_config_file_is_still_redacted_in_full(self, tmp_path: Path, executor: AsyncMock) -> None:
         (tmp_path / "prod.env").write_text("DB_PASSWORD=hunter2\n")
