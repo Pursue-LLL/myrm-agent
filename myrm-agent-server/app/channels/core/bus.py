@@ -18,7 +18,6 @@ priority-based dispatch with back-pressure.
 - MessageBus.send_now() / send_tracked(): direct send that raises / returns the message id (from the dispatch mixin)
 - MessageBus.drain_outbound(): bounded wait until the queued messages are delivered (from the dispatch mixin)
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
-- create_default_message_bus: convenience factory with DLQ support
 
 [POS]
 Message routing hub and state holder. Producers call publish_outbound; the dispatch loop (mixin) routes
@@ -54,23 +53,6 @@ from app.core.infra.background_task import spawn_observed_task
 logger = logging.getLogger(__name__)
 
 _DEFAULT_QUEUE_SIZE = 256
-
-
-def create_default_message_bus(
-    dlq_dir: Path | None = None,
-    on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
-    **kwargs: object,
-) -> MessageBus:
-    """Create a MessageBus with default configuration.
-
-    This is a convenience factory function for users of the harness framework
-    who want to quickly set up a message bus with DLQ support.
-    """
-    return MessageBus(
-        dlq_dir=dlq_dir,
-        on_permanent_failure=on_permanent_failure,
-        **kwargs,
-    )
 
 
 class MessageBus(OutboundDispatchMixin):
