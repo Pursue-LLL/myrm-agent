@@ -4,8 +4,8 @@
 - SSE chunks produced by the agent stream executor
 
 [OUTPUT]
-- ResilientStreamBuffer: in-memory sliding window replay buffer
-- GlobalStreamRegistry: manages active stream buffers for Last-Event-ID reconnects
+- ResilientStreamBuffer: in-memory sliding window replay buffer of ONE run (never reopened once ended)
+- GlobalStreamRegistry: one buffer per run id; get_or_create serves reconnects, start_run gives a new run its own buffer
 
 [POS]
 Harness engine-layer SSE reconnect replay buffer. In-memory only: process
@@ -146,7 +146,13 @@ class ResilientStreamBuffer:
 
 
 class GlobalStreamRegistry:
-    """Manages active stream buffers across the application."""
+    """Manages the stream buffers of the application, one per run id.
+
+    A buffer belongs to a single run: once ended it only replays. A run that resumes under the id of a
+    finished one (an approved tool call continues the turn that asked for it) therefore needs its own buffer
+    from :meth:`start_run`; handing it the finished run's buffer would stream that run's events again and
+    never the new ones.
+    """
 
     _instance: GlobalStreamRegistry | None = None
 
@@ -161,17 +167,35 @@ class GlobalStreamRegistry:
         self._lock = asyncio.Lock()
 
     async def get_or_create(self, run_id: str) -> ResilientStreamBuffer:
+        """The buffer of run ``run_id``, finished or not, for a client reattaching to it."""
         async with self._lock:
             if run_id not in self._buffers:
                 self._buffers[run_id] = ResilientStreamBuffer(run_id)
             return self._buffers[run_id]
 
+    async def start_run(self, run_id: str) -> ResilientStreamBuffer:
+        """A fresh buffer for a new run under ``run_id``, replacing the previous run's.
+
+        The previous buffer is left to finish for whoever still reads it; only the registry stops serving it.
+        """
+        async with self._lock:
+            buffer = ResilientStreamBuffer(run_id)
+            self._buffers[run_id] = buffer
+            return buffer
+
     async def has_buffer(self, run_id: str) -> bool:
         async with self._lock:
             return run_id in self._buffers
 
-    async def remove(self, run_id: str) -> None:
+    async def remove(self, run_id: str, buffer: ResilientStreamBuffer | None = None) -> None:
+        """End and drop the buffer registered for ``run_id``.
+
+        With ``buffer``, only that buffer: a cleanup scheduled for a run that a later run under the same id has
+        replaced must not end the later run's stream.
+        """
         async with self._lock:
-            if run_id in self._buffers:
-                await self._buffers[run_id].end_stream()
-                del self._buffers[run_id]
+            current = self._buffers.get(run_id)
+            if current is None or (buffer is not None and current is not buffer):
+                return
+            await current.end_stream()
+            del self._buffers[run_id]

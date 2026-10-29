@@ -77,14 +77,15 @@ class TestAnApprovalTheModelAsksFor:
         assert answer == "after the approval"
         assert collected == [*_APPROVAL, *_said("after the approval")]
 
-    def test_resume_is_what_the_ui_sends_under_an_id_of_its_own(self, serve: Callable[[list[Events]], _Server]) -> None:
-        """Under the stopped turn's id the server answers with that turn's buffered events and never with what follows, so the pending approval would look unanswered."""
+    def test_resume_is_what_the_ui_sends_under_the_id_of_the_turn_it_continues(
+        self, serve: Callable[[list[Events]], _Server]
+    ) -> None:
         server = serve([_APPROVAL, _said("ok")])
 
         _run({"model": "m"})
 
         first, resume = server.requests
-        assert resume["messageId"] != first["messageId"]
+        assert resume["messageId"] == first["messageId"]
         assert resume["query"] == ""
         assert resume["resumeValue"] == {"decisions": [{"type": "approve", "extensions": {"allowAlways": True}}]}
         for key in ("chatId", "modelSelection", "actionMode"):
@@ -97,7 +98,7 @@ class TestAnApprovalTheModelAsksFor:
 
         assert len(server.requests) == 3
         assert answer == "finally"
-        assert len({request["messageId"] for request in server.requests}) == 3
+        assert len({request["messageId"] for request in server.requests}) == 1
 
     def test_that_never_stops_asking_fails_instead_of_passing_unanswered(self, serve: Callable[[list[Events]], _Server]) -> None:
         server = serve([_APPROVAL] * (turns._MAX_APPROVAL_ROUNDS + 1))

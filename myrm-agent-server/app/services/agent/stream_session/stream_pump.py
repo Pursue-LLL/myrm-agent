@@ -156,11 +156,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
         # A long-running or detached turn keeps going after its client left; tell the user once it ends.
         try:
             now_mono = time.monotonic()
-            turn_duration = (
-                (now_mono - session.stream_started_at_monotonic)
-                if session.stream_started_at_monotonic > 0
-                else 0.0
-            )
+            turn_duration = (now_mono - session.stream_started_at_monotonic) if session.stream_started_at_monotonic > 0 else 0.0
             is_long_turn = session.is_long_running_task or turn_duration >= 30.0
 
             if is_long_turn and not session.cancel_token.is_cancelled:
@@ -207,7 +203,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
         async def _delayed_remove() -> None:
             try:
                 await asyncio.sleep(300)
-                await session.registry.remove(message_id)
+                await session.registry.remove(message_id, buffer)
             except asyncio.CancelledError:
                 pass
 

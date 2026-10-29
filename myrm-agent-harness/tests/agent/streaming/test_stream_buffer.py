@@ -24,9 +24,7 @@ def buffer() -> ResilientStreamBuffer:
 
 class TestResilientStreamBuffer:
     @pytest.mark.asyncio
-    async def test_append_and_subscribe_basic(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_append_and_subscribe_basic(self, buffer: ResilientStreamBuffer) -> None:
         """Events appended before subscribe are all yielded."""
         await buffer.append('data: {"type":"message","data":"Hello"}\n\n')
         await buffer.append('data: {"type":"message","data":" World"}\n\n')
@@ -40,9 +38,7 @@ class TestResilientStreamBuffer:
         assert "World" in events[1]
 
     @pytest.mark.asyncio
-    async def test_subscribe_after_last_event_id(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_subscribe_after_last_event_id(self, buffer: ResilientStreamBuffer) -> None:
         """Reconnecting with Last-Event-ID only yields events AFTER that ID."""
         payloads = []
         for i in range(5):
@@ -65,9 +61,7 @@ class TestResilientStreamBuffer:
         assert "chunk4" in events[1]
 
     @pytest.mark.asyncio
-    async def test_no_duplicate_on_reconnect(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_no_duplicate_on_reconnect(self, buffer: ResilientStreamBuffer) -> None:
         """Simulates disconnect/reconnect — no event is duplicated."""
         for i in range(10):
             await buffer.append(f'data: {{"data":"token{i}"}}\n\n')
@@ -96,9 +90,7 @@ class TestResilientStreamBuffer:
             assert f"token{i + 5}" in ev
 
     @pytest.mark.asyncio
-    async def test_repeated_content_preserved(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_repeated_content_preserved(self, buffer: ResilientStreamBuffer) -> None:
         """Repeated identical payloads are NOT deduplicated."""
         for _ in range(3):
             await buffer.append('data: {"data":"the "}\n\n')
@@ -137,9 +129,7 @@ class TestResilientStreamBuffer:
         assert result == ""
 
     @pytest.mark.asyncio
-    async def test_subscribe_unknown_last_event_id_replays_all(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_subscribe_unknown_last_event_id_replays_all(self, buffer: ResilientStreamBuffer) -> None:
         """Unknown Last-Event-ID replays from the oldest available."""
         await buffer.append('data: {"data":"first"}\n\n')
         await buffer.append('data: {"data":"second"}\n\n')
@@ -152,9 +142,7 @@ class TestResilientStreamBuffer:
         assert len(events) == 2
 
     @pytest.mark.asyncio
-    async def test_slow_consumer_does_not_block_append(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_slow_consumer_does_not_block_append(self, buffer: ResilientStreamBuffer) -> None:
         """A subscriber suspended at the yield point must not hold the Condition
         lock and stall concurrent appends (hermes 'slow tab pins thread' defect)."""
         await buffer.append('data: {"data":"tok1"}\n\n')
@@ -168,9 +156,7 @@ class TestResilientStreamBuffer:
         await gen.aclose()
 
     @pytest.mark.asyncio
-    async def test_subscribe_emits_heartbeat_when_idle(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_subscribe_emits_heartbeat_when_idle(self, buffer: ResilientStreamBuffer) -> None:
         """When no event arrives within heartbeat_interval, a heartbeat frame is
         yielded so intermediaries keep the SSE connection alive, and the stream
         continues with real payloads after a later append."""
@@ -211,9 +197,7 @@ class TestMultiSubscriber:
     reconnect keeps the old listener alive while the new one catches up)."""
 
     @pytest.mark.asyncio
-    async def test_concurrent_subscribers_each_receive_full_stream(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_concurrent_subscribers_each_receive_full_stream(self, buffer: ResilientStreamBuffer) -> None:
         await buffer.append('data: {"data":"tok1"}\n\n')
         await buffer.append('data: {"data":"tok2"}\n\n')
 
@@ -236,9 +220,7 @@ class TestMultiSubscriber:
         await second.aclose()
 
     @pytest.mark.asyncio
-    async def test_end_stream_broadcasts_to_all_subscribers(
-        self, buffer: ResilientStreamBuffer
-    ) -> None:
+    async def test_end_stream_broadcasts_to_all_subscribers(self, buffer: ResilientStreamBuffer) -> None:
         await buffer.append('data: {"data":"only"}\n\n')
         first = buffer.subscribe()
         second = buffer.subscribe()
@@ -291,3 +273,84 @@ class TestGlobalStreamRegistry:
         await registry.get_or_create("run-3")
         await registry.remove("run-3")
         assert not await registry.has_buffer("run-3")
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_hands_a_finished_run_back_for_replay(self) -> None:
+        """A client reattaching to a finished run is served that run's buffer, ended and replaying."""
+        registry = GlobalStreamRegistry()
+        first = await registry.start_run("run-4")
+        await first.append('data: {"type":"message","data":"first"}\n\n')
+        await first.end_stream()
+
+        reattached = await registry.get_or_create("run-4")
+
+        assert reattached is first
+        assert len([event async for event in reattached.subscribe()]) == 1
+
+
+class TestStartRun:
+    """A run resuming under the id of a finished one (an approved tool call) streams its own events."""
+
+    @pytest.mark.asyncio
+    async def test_a_new_run_streams_only_its_own_events(self) -> None:
+        registry = GlobalStreamRegistry()
+        finished = await registry.start_run("run-5")
+        await finished.append('data: {"type":"message","data":"asked-for-approval"}\n\n')
+        await finished.end_stream()
+
+        resumed = await registry.start_run("run-5")
+        reader = asyncio.create_task(_collect(resumed))
+        await asyncio.sleep(0)
+        await resumed.append('data: {"type":"message","data":"after-approval"}\n\n')
+        await resumed.end_stream()
+        events = await asyncio.wait_for(reader, timeout=2.0)
+
+        assert resumed is not finished
+        assert await registry.get_or_create("run-5") is resumed
+        assert len(events) == 1
+        assert "after-approval" in events[0]
+
+    @pytest.mark.asyncio
+    async def test_the_replaced_run_keeps_streaming_to_its_readers(self) -> None:
+        """Replacing a buffer in the registry never cuts a run that has not finished."""
+        registry = GlobalStreamRegistry()
+        running = await registry.start_run("run-6")
+        reader = asyncio.create_task(_collect(running))
+        await asyncio.sleep(0)
+
+        await registry.start_run("run-6")
+        await running.append('data: {"type":"message","data":"still-running"}\n\n')
+        await running.end_stream()
+        events = await asyncio.wait_for(reader, timeout=2.0)
+
+        assert len(events) == 1
+        assert "still-running" in events[0]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_scheduled_for_a_replaced_run_leaves_the_new_run_alone(self) -> None:
+        registry = GlobalStreamRegistry()
+        finished = await registry.start_run("run-7")
+        resumed = await registry.start_run("run-7")
+        reader = asyncio.create_task(_collect(resumed))
+        await asyncio.sleep(0)
+
+        await registry.remove("run-7", finished)
+        await resumed.append('data: {"type":"message","data":"still-streaming"}\n\n')
+        await resumed.end_stream()
+        events = await asyncio.wait_for(reader, timeout=2.0)
+
+        assert await registry.has_buffer("run-7")
+        assert len(events) == 1
+
+    @pytest.mark.asyncio
+    async def test_cleanup_of_the_current_run_removes_it(self) -> None:
+        registry = GlobalStreamRegistry()
+        current = await registry.start_run("run-8")
+
+        await registry.remove("run-8", current)
+
+        assert not await registry.has_buffer("run-8")
+
+
+async def _collect(buffer: ResilientStreamBuffer) -> list[str]:
+    return [event async for event in buffer.subscribe()]

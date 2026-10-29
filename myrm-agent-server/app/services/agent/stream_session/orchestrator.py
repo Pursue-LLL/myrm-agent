@@ -251,7 +251,9 @@ async def run_agent_stream(
                     content={"detail": "This approval has already been resolved."},
                 )
 
-        buffer = await registry.get_or_create(request.message_id)
+        # A run that gets this far is a new one, also when it resumes under the id of the turn that asked for the
+        # approval: the finished turn's buffer would replay that turn and never carry the resumed one.
+        buffer = await registry.start_run(request.message_id)
         from app.services.agent.stream_session.orchestrator_turn_launch import (
             launch_early_buffered_stream,
         )

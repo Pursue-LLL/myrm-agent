@@ -1,7 +1,7 @@
-"""run_agent_stream hands a reserved turn to the E1 launcher, always releases its reservation, and refuses a resume the approval timeout already answered."""
+"""run_agent_stream hands a reserved turn and a buffer of its own to the E1 launcher, always releases its reservation, and refuses a resume the approval timeout already answered."""
 
 import json
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -34,7 +34,7 @@ def handoff(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
     http_request = MagicMock()
 
-    async def _stream():
+    async def _stream() -> AsyncIterator[bytes]:
         yield b""
 
     http_request.stream = _stream
@@ -53,7 +53,8 @@ def handoff(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
     buffer = MagicMock()
     registry = MagicMock()
-    registry.get_or_create = AsyncMock(return_value=buffer)
+    registry.start_run = AsyncMock(return_value=buffer)
+    registry.get_or_create = AsyncMock(return_value=MagicMock(name="reattached_buffer"))
     monkeypatch.setattr(GlobalStreamRegistry, "get", staticmethod(lambda: registry))
 
     launcher = AsyncMock(return_value=JSONResponse(content={"status": "accepted"}))
@@ -87,6 +88,19 @@ async def test_reserved_turn_is_handed_to_the_launcher(handoff: SimpleNamespace)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("resume_value", [None, {"decision": "approve"}], ids=["new turn", "approval resume"])
+async def test_every_launched_run_gets_a_buffer_of_its_own(handoff: SimpleNamespace, resume_value: dict[str, str] | None) -> None:
+    """A resume reuses the message id of the turn that asked for the approval; that turn's finished buffer would replay it."""
+    handoff.request.resume_value = resume_value
+
+    await run_agent_stream(handoff.request, handoff.http_request)
+
+    handoff.registry.start_run.assert_awaited_once_with("msg-handoff")
+    handoff.registry.get_or_create.assert_not_awaited()
+    assert handoff.launcher.await_args.kwargs["buffer"] is handoff.buffer
+
+
+@pytest.mark.asyncio
 async def test_reservation_is_released_when_the_launcher_fails(handoff: SimpleNamespace) -> None:
     handoff.launcher.side_effect = RuntimeError("launch failed")
 
@@ -105,9 +119,9 @@ async def test_resume_already_resolved_by_someone_else_is_refused_with_409(hando
 
     assert isinstance(response, JSONResponse)
     assert response.status_code == 409
-    assert json.loads(response.body) == {"detail": "This approval has already been resolved."}
+    assert json.loads(bytes(response.body)) == {"detail": "This approval has already been resolved."}
     handoff.launcher.assert_not_awaited()
-    handoff.registry.get_or_create.assert_not_awaited()
+    handoff.registry.start_run.assert_not_awaited()
     handoff.reservation.release.assert_called_once_with()
 
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import sys
 import threading
 import time
 from collections.abc import AsyncIterator, Iterator
@@ -97,16 +99,32 @@ def test_the_report_follows_the_chain_through_a_generator_step_and_a_nested_task
     assert "cancelling=0" in parked
 
 
-def test_a_block_that_outlives_the_deadline_writes_the_report(capfd: pytest.CaptureFixture[str]) -> None:
-    """The report walks every live object, which takes longer the bigger the process is (0.7 s with 1.1 million objects), so the test waits for it."""
-    written = ""
-    with _loop_with_a_task_parked_on_an_event(), report_pending_tasks_after(0.05):
-        give_up_at = time.monotonic() + _REPORT_WITHIN_SECONDS
-        while "stuck-turn" not in written and time.monotonic() < give_up_at:
-            time.sleep(0.05)
-            written += capfd.readouterr().err
+class _RecordedStderr(io.StringIO):
+    """Stands in for the real stderr: the flush that ends ``print(..., flush=True)`` says the whole report is written.
 
-    assert "stuck-turn" in written
+    Reading a capfd while the report is still being written truncates the capture file under the writer, which leaves NUL bytes
+    where the rest of the report should be.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.complete = threading.Event()
+
+    def flush(self) -> None:
+        super().flush()
+        self.complete.set()
+
+
+def test_a_block_that_outlives_the_deadline_writes_the_report(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The report walks every live object, which takes longer the bigger the process is (0.7 s with 1.1 million objects), so the test waits for it."""
+    stderr = _RecordedStderr()
+    monkeypatch.setattr(sys, "__stderr__", stderr)
+
+    with _loop_with_a_task_parked_on_an_event(), report_pending_tasks_after(0.05):
+        written_in_time = stderr.complete.wait(_REPORT_WITHIN_SECONDS)
+
+    assert written_in_time, "the report was not written within the time the test waits for it"
+    assert "stuck-turn" in stderr.getvalue()
 
 
 def test_a_block_that_ends_in_time_writes_nothing(capfd: pytest.CaptureFixture[str]) -> None:

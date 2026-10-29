@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - stuck_turn_report, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
-- new_chat, trusted_project_folder, harness_workspace, stream_turn, perform_agent_stream, ask, main_request_text: the steps of a turn
+- new_chat, trusted_project_folder, harness_workspace, turn_request, resume_request, stream_turn, perform_agent_stream, ask, main_request_text: the steps of a turn
 - TRUST_API, PROJECT_API, TURN_TIMEOUT_SECONDS: shared constants
 
 [POS]
@@ -195,20 +195,9 @@ def _awaits_approval(events: Sequence[Mapping[str, object]]) -> bool:
     return any(event.get("type") in _APPROVAL_EVENT_TYPES for event in events)
 
 
-def perform_agent_stream(
-    client: TestClient,
-    query: str,
-    chat_id: str,
-    model_selection: dict[str, object] | None = None,
-) -> tuple[str, list[dict[str, object]], int]:
-    """Run a turn to its end: a model that goes for a gated tool stops the turn at an approval, and each approval is approved once.
-
-    Only the latest stream says whether an approval is pending: the events of a stream that was answered stay in ``collected``.
-    A resume goes out under an id of its own, because under the id of the stopped turn the server replays that turn's buffered events,
-    approval included, and drops what follows. The server refuses a second resume of one approval with 409 once the turn behind the
-    first has ended.
-    """
-    request_data: dict[str, object] = {
+def turn_request(query: str, chat_id: str, model_selection: dict[str, object] | None = None) -> dict[str, object]:
+    """The request the UI sends for a question: a message id of its own and no resume."""
+    return {
         "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
         "chatId": chat_id,
         "query": query,
@@ -218,18 +207,32 @@ def perform_agent_stream(
         "enableMemoryAutoExtraction": False,
     }
 
+
+def resume_request(stopped: Mapping[str, object]) -> dict[str, object]:
+    """The request the UI sends when the user approves: the stopped turn's id and settings, no query, an approving resume value."""
+    return {**stopped, "query": "", "resumeValue": build_approval_resume_value()}
+
+
+def perform_agent_stream(
+    client: TestClient,
+    query: str,
+    chat_id: str,
+    model_selection: dict[str, object] | None = None,
+) -> tuple[str, list[dict[str, object]], int]:
+    """Run a turn to its end: a model that goes for a gated tool stops the turn at an approval, and each approval is approved once.
+
+    Only the latest stream says whether an approval is pending: the events of a stream that was answered stay in ``collected``.
+    A resume goes out under the id of the turn it continues, as the UI sends it, and its stream carries the continuation. The server
+    refuses a second resume of one approval with 409 once the turn behind the first has ended.
+    """
+    request_data = turn_request(query, chat_id, model_selection)
+
     latest = stream_turn(client, request_data)
     collected = list(latest)
     for _ in range(_MAX_APPROVAL_ROUNDS):
         if not _awaits_approval(latest):
             break
-        resume_request = {
-            **request_data,
-            "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
-            "query": "",
-            "resumeValue": build_approval_resume_value(),
-        }
-        latest = stream_turn(client, resume_request)
+        latest = stream_turn(client, resume_request(request_data))
         collected.extend(latest)
     assert not _awaits_approval(latest), f"the turn is still waiting for an approval after {_MAX_APPROVAL_ROUNDS} were answered"
 
