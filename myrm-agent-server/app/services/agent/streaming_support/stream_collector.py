@@ -3,6 +3,7 @@
 [INPUT]
 JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 - stream_collector_helpers (POS: stateless SSE event parsing helpers)
+- evicted_output (POS: evicted tool output references matched to progress steps)
 - myrm_agent_harness.toolkits.code_execution.executors.models::scrub_sensitive_info
   (POS: Harness-level sensitive token/path scrubbing)
 - myrm_agent_harness.utils.text_sanitizer::sanitize_llm_output
@@ -22,7 +23,8 @@ and a loop guard pause (`tool_stuck`): saved as a `tool_stuck_paused` progress s
 `tool_stuck_paused`, not held as an interrupt card nobody can answer.
 
 [POS]
-Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
+Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata;
+each event type is handled by one `_on_<event type>` method, found through `_EVENT_HANDLERS`.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Callable
 
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.agent.streaming.citation_audit import (
@@ -41,6 +44,13 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import (
 )
 from myrm_agent_harness.utils.text_sanitizer import sanitize_llm_output
 
+from app.services.agent.streaming_support.evicted_output import (
+    BASH_EXECUTE_TOOL,
+    attach_evicted_to_step,
+    find_step_for_evicted,
+    parse_evicted_ref_payload,
+    step_accepts_pending_evicted,
+)
 from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
     collect_cron_job_result,
@@ -49,8 +59,12 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_plan_confirmation_status,
     collect_tool_stuck_pause,
     is_memory_citation_tool,
+    iteration_limit_message,
     merge_sources_list,
+    merge_tasks_step,
+    normalize_stop_reason,
     source_dedup_key,
+    stop_reason_priority,
     string_keyed_dict,
     string_keyed_dicts,
 )
@@ -73,290 +87,6 @@ _FAILOVER_REASON_TO_STEP_KEY: dict[str, str] = {
     "safety_block": "safety_fallback_active",
 }
 logger = logging.getLogger(__name__)
-_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
-
-
-def _stop_reason_priority(code: str) -> int:
-    if code in {"iteration_limit_reached", "engine_limit_reached"}:
-        return 40
-    if code == "agent_cancelled":
-        return 30
-    if code == "error":
-        return 20
-    return 10
-
-
-def _normalize_stop_reason(raw: dict[str, object] | None) -> dict[str, object] | None:
-    if raw is None:
-        return None
-    code_obj = raw.get("code")
-    if not isinstance(code_obj, str) or not code_obj.strip():
-        return None
-    code = code_obj.strip()
-    category_obj = raw.get("category")
-    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
-        category = category_obj
-    else:
-        category = "other"
-    message_obj = raw.get("message")
-    if isinstance(message_obj, str) and message_obj.strip():
-        message = message_obj.strip()
-    else:
-        message = code.replace("_", " ")
-    normalized: dict[str, object] = {
-        "code": code,
-        "category": category,
-        "message": message,
-    }
-    detail = string_keyed_dict(raw.get("detail"))
-    if detail:
-        normalized["detail"] = detail
-    return normalized
-
-
-def _iteration_limit_message(detail: dict[str, object] | None) -> str:
-    if detail is None:
-        return "Iteration limit reached"
-    limit = detail.get("limit")
-    nodes = detail.get("nodes_completed")
-    if limit is not None and nodes is not None:
-        return f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
-    if limit is not None:
-        return f"Iteration limit reached ({limit} iterations)"
-    return "Iteration limit reached"
-
-
-def _ensure_evicted_stdout_preview(step: dict[str, object]) -> None:
-    stdout = step.get("stdout")
-    if isinstance(stdout, str) and stdout.strip():
-        return
-    step["stdout"] = "[LARGE OUTPUT TRUNCATED]\n\n(Full output evicted to workspace file)"
-
-
-_BASH_EXECUTE_TOOL = "bash_code_execute_tool"
-_MAX_EVICTED_PREVIEW_CHARS = 8_000
-
-
-def _cap_evicted_preview(value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    text = value.strip()
-    if not text:
-        return None
-    if len(text) > _MAX_EVICTED_PREVIEW_CHARS:
-        return text[:_MAX_EVICTED_PREVIEW_CHARS]
-    return text
-
-
-_EVICTED_STREAM_STDOUT = "stdout"
-_EVICTED_STREAM_STDERR = "stderr"
-_VALID_EVICTED_STREAMS = frozenset({_EVICTED_STREAM_STDOUT, _EVICTED_STREAM_STDERR})
-
-
-def _parse_evicted_ref_payload(
-    data: object,
-    event: dict[str, object],
-) -> dict[str, object] | None:
-    payload: dict[str, object] = {}
-    if isinstance(data, str) and data.strip():
-        payload["evicted_ref"] = data.strip()
-    elif isinstance(data, dict):
-        raw_ref = data.get("evicted_ref")
-        if isinstance(raw_ref, str) and raw_ref.strip():
-            payload["evicted_ref"] = raw_ref.strip()
-        tool_name = data.get("tool_name")
-        if isinstance(tool_name, str) and tool_name.strip():
-            payload["tool_name"] = tool_name.strip()
-        tool_call_id = data.get("tool_call_id")
-        if isinstance(tool_call_id, str) and tool_call_id.strip():
-            payload["tool_call_id"] = tool_call_id.strip()
-        stream = data.get("stream")
-        if isinstance(stream, str) and stream.strip() in _VALID_EVICTED_STREAMS:
-            payload["stream"] = stream.strip()
-        preview = _cap_evicted_preview(data.get("preview_stdout"))
-        if preview:
-            payload["preview_stdout"] = preview
-        stored_chars = data.get("stored_chars")
-        if isinstance(stored_chars, int) and stored_chars > 0:
-            payload["stored_chars"] = stored_chars
-        total_lines = data.get("total_lines")
-        if isinstance(total_lines, int) and total_lines > 0:
-            payload["total_lines"] = total_lines
-        storage_truncated = data.get("storage_truncated")
-        if storage_truncated is True:
-            payload["storage_truncated"] = True
-    event_tool = event.get("tool_name")
-    if isinstance(event_tool, str) and event_tool.strip() and "tool_name" not in payload:
-        payload["tool_name"] = event_tool.strip()
-    ref = payload.get("evicted_ref")
-    return payload if isinstance(ref, str) and ref else None
-
-
-def _evicted_stream(payload: dict[str, object]) -> str:
-    stream = payload.get("stream")
-    return stream if stream in _VALID_EVICTED_STREAMS else _EVICTED_STREAM_STDOUT
-
-
-def _evicted_ref_keys(payload: dict[str, object]) -> tuple[str, str, str, str]:
-    if _evicted_stream(payload) == _EVICTED_STREAM_STDERR:
-        return (
-            "evicted_stderr_file_ref",
-            "evicted_stderr_stored_chars",
-            "evicted_stderr_total_lines",
-            "evicted_stderr_storage_truncated",
-        )
-    return (
-        "evicted_file_ref",
-        "evicted_stored_chars",
-        "evicted_total_lines",
-        "evicted_storage_truncated",
-    )
-
-
-def _attach_evicted_to_step(step: dict[str, object], payload: dict[str, object]) -> None:
-    ref = payload.get("evicted_ref")
-    if not isinstance(ref, str) or not ref:
-        return
-    is_stderr = _evicted_stream(payload) == _EVICTED_STREAM_STDERR
-    ref_key, stored_key, lines_key, truncated_key = _evicted_ref_keys(payload)
-    step[ref_key] = ref
-    if not is_stderr:
-        step["status"] = "success"
-        preview = payload.get("preview_stdout")
-        if isinstance(preview, str) and preview.strip():
-            step["stdout"] = preview
-        else:
-            _ensure_evicted_stdout_preview(step)
-    tool_call_id = payload.get("tool_call_id")
-    if isinstance(tool_call_id, str) and tool_call_id.strip() and not step.get("tool_call_id"):
-        step["tool_call_id"] = tool_call_id.strip()
-    if not step.get("step_key"):
-        step_tool = step.get("tool_name")
-        if step_tool == _BASH_EXECUTE_TOOL:
-            step["step_key"] = "bash_code_execute_tool_tool"
-        elif isinstance(step_tool, str) and step_tool:
-            step["step_key"] = step_tool
-    stored_chars = payload.get("stored_chars")
-    if isinstance(stored_chars, int) and stored_chars > 0:
-        step[stored_key] = stored_chars
-    total_lines = payload.get("total_lines")
-    if isinstance(total_lines, int) and total_lines > 0:
-        step[lines_key] = total_lines
-    if payload.get("storage_truncated") is True:
-        step[truncated_key] = True
-
-
-def _find_step_for_evicted(
-    steps: list[dict[str, object]],
-    payload: dict[str, object],
-) -> dict[str, object] | None:
-    tool_call_id = payload.get("tool_call_id")
-    if isinstance(tool_call_id, str) and tool_call_id.strip():
-        target_id = tool_call_id.strip()
-        for step in reversed(steps):
-            if step.get("tool_call_id") == target_id:
-                return step
-    ref_key = _evicted_ref_keys(payload)[0]
-    tool_hint = payload.get("tool_name")
-    if isinstance(tool_hint, str) and tool_hint.strip():
-        for step in reversed(steps):
-            if step.get(ref_key):
-                continue
-            if step.get("tool_name") == tool_hint.strip():
-                return step
-    for step in reversed(steps):
-        if step.get(ref_key):
-            continue
-        if step.get("tool_name") == _BASH_EXECUTE_TOOL:
-            return step
-    return None
-
-
-def _merge_tasks_step(
-    progress_steps: list[dict[str, object]],
-    event: dict[str, object],
-    data: object,
-) -> dict[str, object]:
-    step_key = event.get("step_key")
-    tool_name = event.get("tool_name")
-    tool_call_id = event.get("tool_call_id")
-    new_fields: dict[str, object] = {
-        "step_key": step_key,
-        "tool_name": tool_name,
-        "items": data,
-        "count": event.get("count"),
-    }
-    if isinstance(tool_call_id, str) and tool_call_id.strip():
-        new_fields["tool_call_id"] = tool_call_id.strip()
-    for key in (
-        "reason",
-        "status",
-        "error",
-        "error_hint",
-        "error_category",
-        "fault_side",
-    ):
-        value = event.get(key)
-        if value is not None:
-            new_fields[key] = value
-
-    if isinstance(tool_call_id, str) and tool_call_id.strip():
-        target_id = tool_call_id.strip()
-        for existing in progress_steps:
-            if existing.get("tool_call_id") == target_id:
-                for key, value in new_fields.items():
-                    if value is not None:
-                        existing[key] = value
-                _attach_skill_mutation_batch_id(existing)
-                return existing
-
-    if isinstance(step_key, str) and step_key.strip():
-        for existing in reversed(progress_steps):
-            if existing.get("step_key") != step_key:
-                continue
-            existing_id = existing.get("tool_call_id")
-            if isinstance(tool_call_id, str) and tool_call_id.strip():
-                if existing_id in (None, "", tool_call_id.strip()):
-                    for key, value in new_fields.items():
-                        if value is not None:
-                            existing[key] = value
-                    if not existing_id:
-                        existing["tool_call_id"] = tool_call_id.strip()
-                    _attach_skill_mutation_batch_id(existing)
-                    return existing
-            elif not existing_id:
-                for key, value in new_fields.items():
-                    if value is not None:
-                        existing[key] = value
-                _attach_skill_mutation_batch_id(existing)
-                return existing
-
-    step = {key: value for key, value in new_fields.items() if value is not None}
-    progress_steps.append(step)
-    _attach_skill_mutation_batch_id(step)
-    return step
-
-
-def _attach_skill_mutation_batch_id(step: dict[str, object]) -> None:
-    from app.services.skills.skill_manage_batch_parse import extract_skill_mutation_batch_id_from_step
-
-    batch_id = extract_skill_mutation_batch_id_from_step(step)
-    if batch_id:
-        step["skill_mutation_batch_id"] = batch_id
-
-
-def _step_accepts_pending_evicted(step: dict[str, object], payload: dict[str, object]) -> bool:
-    tool_call_id = payload.get("tool_call_id")
-    if isinstance(tool_call_id, str) and tool_call_id.strip():
-        return step.get("tool_call_id") == tool_call_id.strip()
-    tool_hint = payload.get("tool_name")
-    step_tool = step.get("tool_name")
-    if isinstance(tool_hint, str) and tool_hint:
-        return step_tool == tool_hint
-    if step_tool == _BASH_EXECUTE_TOOL:
-        return True
-    step_key = step.get("step_key")
-    return isinstance(step_key, str) and step_key.startswith("bash_code_execute_tool")
 
 
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
@@ -548,273 +278,317 @@ class StreamContentCollector:
                 self._message_id = raw_mid
 
         self._answer.feed(event)
-        if event_type == "iteration_limit_reached":
-            detail = string_keyed_dict(data) if isinstance(data, dict) else None
+        handler = _EVENT_HANDLERS.get(event_type) if isinstance(event_type, str) else None
+        if handler is not None:
+            handler(self, event, data)
+
+    def _on_iteration_limit_reached(self, event: dict[str, object], data: object) -> None:
+        detail = string_keyed_dict(data) if isinstance(data, dict) else None
+        payload: dict[str, object] = {
+            "code": "iteration_limit_reached",
+            "category": "limit",
+            "message": iteration_limit_message(detail),
+        }
+        if detail is not None:
+            payload["detail"] = detail
+        self._set_stop_reason(payload)
+
+    def _on_engine_limit_reached(self, event: dict[str, object], data: object) -> None:
+        detail = string_keyed_dict(data) if isinstance(data, dict) else None
+        message = "Engine limit reached"
+        if detail is not None:
+            raw_message = detail.get("message")
+            if isinstance(raw_message, str) and raw_message.strip():
+                message = raw_message.strip()
+        payload: dict[str, object] = {
+            "code": "engine_limit_reached",
+            "category": "limit",
+            "message": message,
+        }
+        if detail is not None:
+            payload["detail"] = detail
+        self._set_stop_reason(payload)
+
+    def _on_agent_cancelled(self, event: dict[str, object], data: object) -> None:
+        detail = string_keyed_dict(data) if isinstance(data, dict) else None
+        reason = detail.get("reason") if detail else None
+        message = "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
+        payload: dict[str, object] = {
+            "code": "agent_cancelled",
+            "category": "cancelled",
+            "message": message,
+        }
+        if detail is not None:
+            payload["detail"] = detail
+        self._set_stop_reason(payload)
+        self._completion_status = "cancelled"
+
+    def _on_error(self, event: dict[str, object], data: object) -> None:
+        raw_error = event.get("error")
+        error_message = ""
+        if isinstance(raw_error, str) and raw_error.strip():
+            error_message = raw_error.strip()
+        elif isinstance(data, str) and data.strip():
+            error_message = data.strip()
+        if error_message:
+            detail: dict[str, object] = {}
+            error_type = event.get("error_type")
+            if isinstance(error_type, str) and error_type.strip():
+                detail["error_type"] = error_type.strip()
             payload: dict[str, object] = {
-                "code": "iteration_limit_reached",
-                "category": "limit",
-                "message": _iteration_limit_message(detail),
+                "code": "error",
+                "category": "error",
+                "message": error_message,
             }
-            if detail is not None:
+            if detail:
                 payload["detail"] = detail
             self._set_stop_reason(payload)
-        elif event_type == "engine_limit_reached":
-            detail = string_keyed_dict(data) if isinstance(data, dict) else None
-            message = "Engine limit reached"
-            if detail is not None:
-                raw_message = detail.get("message")
-                if isinstance(raw_message, str) and raw_message.strip():
-                    message = raw_message.strip()
-            payload_2: dict[str, object] = {
-                "code": "engine_limit_reached",
-                "category": "limit",
-                "message": message,
-            }
-            if detail is not None:
-                payload_2["detail"] = detail
-            self._set_stop_reason(payload_2)
-        elif event_type == "agent_cancelled":
-            detail = string_keyed_dict(data) if isinstance(data, dict) else None
-            reason = detail.get("reason") if detail else None
-            message = "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
-            payload_3: dict[str, object] = {
-                "code": "agent_cancelled",
-                "category": "cancelled",
-                "message": message,
-            }
-            if detail is not None:
-                payload_3["detail"] = detail
-            self._set_stop_reason(payload_3)
-            self._completion_status = "cancelled"
-        elif event_type == "error":
-            raw_error = event.get("error")
-            error_message = ""
-            if isinstance(raw_error, str) and raw_error.strip():
-                error_message = raw_error.strip()
-            elif isinstance(data, str) and data.strip():
-                error_message = data.strip()
-            if error_message:
-                detail_2: dict[str, object] = {}
-                error_type = event.get("error_type")
-                if isinstance(error_type, str) and error_type.strip():
-                    detail_2["error_type"] = error_type.strip()
-                payload_4: dict[str, object] = {
-                    "code": "error",
-                    "category": "error",
-                    "message": error_message,
-                }
-                if detail_2:
-                    payload_4["detail"] = detail_2
-                self._set_stop_reason(payload_4)
-        elif event_type == "reasoning" and data:
-            self._append_reasoning(str(data))
-        elif event_type == "sources" and isinstance(data, list):
-            incoming = string_keyed_dicts(data)
-            if incoming:
-                self._sources = merge_sources_list(self._sources, incoming)
-        elif event_type == "file_mutation_failed":
-            collect_file_mutation_failures(self._file_mutation_failures, data)
-        elif event_type == "council_phase" and isinstance(data, dict):
-            phase_entry = string_keyed_dict(data)
-            if phase_entry is not None:
-                self._council_phases.append(phase_entry)
-        elif event_type == "tasks_steps":
-            tool_details = event.get("tool_result_details")
-            if isinstance(tool_details, dict):
-                self._tool_result_details = tool_details
-            step = _merge_tasks_step(self._progress_steps, event, data)
-            batch_id = step.get("skill_mutation_batch_id")
-            if isinstance(batch_id, str) and batch_id.strip():
-                event["skill_mutation_batch_id"] = batch_id.strip()
-            if self._pending_evicted:
-                remaining: list[dict[str, object]] = []
-                for pending in self._pending_evicted:
-                    if _step_accepts_pending_evicted(step, pending):
-                        _attach_evicted_to_step(step, pending)
-                    else:
-                        remaining.append(pending)
-                self._pending_evicted = remaining
-            _sync_run_digest(self)
-        elif event_type == "token_usage" and isinstance(data, dict):
-            self._usage = string_keyed_dict(data.get("usage"))
 
-        elif event_type == "message_end":
-            self._flush_pending_evicted_ref()
-            turn_loaded = event.get("turn_loaded_skills")
-            if isinstance(turn_loaded, list) and turn_loaded:
-                self._turn_loaded_skills = [item for item in turn_loaded if isinstance(item, dict)]
-            staged = event.get("staged_artifacts")
-            if isinstance(staged, list):
-                self._staged_artifacts.extend(string_keyed_dicts(staged))
-            deliverable_tier = string_keyed_dict(event.get("deliverable_tier"))
-            if deliverable_tier is not None:
-                self._deliverable_tier = deliverable_tier
-            usage = string_keyed_dict(event.get("usage"))
-            if usage is not None:
-                self._usage = usage
-            token_economics = string_keyed_dict(event.get("token_economics"))
-            if token_economics is not None:
-                self._token_economics = token_economics
-            context_budget = string_keyed_dict(event.get("context_budget"))
-            if context_budget is not None:
-                self._context_budget = context_budget
-            cost = event.get("cost_usd")
-            if isinstance(cost, (int, float)):
-                self._cost_usd = float(cost)
-            cost_status = event.get("cost_status")
-            if isinstance(cost_status, str):
-                self._cost_status = cost_status
-            completion_status = event.get("completion_status")
-            if isinstance(completion_status, str):
-                self._completion_status = completion_status
-            stream_ttft_ms = event.get("stream_ttft_ms")
-            if isinstance(stream_ttft_ms, (int, float)) and stream_ttft_ms >= 0:
-                self._stream_ttft_ms = int(stream_ttft_ms)
-            model = event.get("model")
-            if isinstance(model, str):
-                self._model_name = model
-            usage_alert = string_keyed_dict(event.get("usage_alert"))
-            if usage_alert is not None:
-                self._usage_alert = usage_alert
-            cited = event.get("cited_memory_ids")
-            if isinstance(cited, list):
-                for mid in cited:
-                    if isinstance(mid, str) and mid not in self._cited_memory_ids:
-                        self._cited_memory_ids.append(mid)
-            refs = event.get("cited_memory_refs")
-            if isinstance(refs, list):
-                self._extend_cited_memory_refs(refs)
-        elif event_type == "tool_stdout_chunk" and isinstance(data, str):
-            tool_name = event.get("tool_name")
-            if isinstance(tool_name, str):
-                for step in reversed(self._progress_steps):
-                    if step.get("tool_name") == tool_name:
-                        prev = step.get("stdout")
-                        step["stdout"] = f"{prev}{data}" if isinstance(prev, str) else data
-                        break
-        elif event_type == "tool_evicted_ref":
-            evicted_payload = _parse_evicted_ref_payload(data, event)
-            if evicted_payload is not None:
-                matched = _find_step_for_evicted(self._progress_steps, evicted_payload)
-                if matched is not None:
-                    _attach_evicted_to_step(matched, evicted_payload)
+    def _on_reasoning(self, event: dict[str, object], data: object) -> None:
+        if not data:
+            return
+        self._append_reasoning(str(data))
+
+    def _on_sources(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, list):
+            return
+        incoming = string_keyed_dicts(data)
+        if incoming:
+            self._sources = merge_sources_list(self._sources, incoming)
+
+    def _on_file_mutation_failed(self, event: dict[str, object], data: object) -> None:
+        collect_file_mutation_failures(self._file_mutation_failures, data)
+
+    def _on_council_phase(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        phase_entry = string_keyed_dict(data)
+        if phase_entry is not None:
+            self._council_phases.append(phase_entry)
+
+    def _on_tasks_steps(self, event: dict[str, object], data: object) -> None:
+        tool_details = event.get("tool_result_details")
+        if isinstance(tool_details, dict):
+            self._tool_result_details = tool_details
+        step = merge_tasks_step(self._progress_steps, event, data)
+        batch_id = step.get("skill_mutation_batch_id")
+        if isinstance(batch_id, str) and batch_id.strip():
+            event["skill_mutation_batch_id"] = batch_id.strip()
+        if self._pending_evicted:
+            remaining: list[dict[str, object]] = []
+            for pending in self._pending_evicted:
+                if step_accepts_pending_evicted(step, pending):
+                    attach_evicted_to_step(step, pending)
                 else:
-                    self._pending_evicted.append(evicted_payload)
-        elif event_type == "tool_end":
-            cited = event.get("cited_memory_ids")
-            is_memory_recall = is_memory_citation_tool(event.get("tool_name"))
-            if is_memory_recall and isinstance(cited, list):
-                for mid in cited:
-                    if isinstance(mid, str) and mid not in self._cited_memory_ids:
-                        self._cited_memory_ids.append(mid)
-            refs = event.get("cited_memory_refs")
-            if is_memory_recall and isinstance(refs, list):
-                self._extend_cited_memory_refs(refs)
-            trace = event.get("memory_retrieval_trace")
-            if is_memory_recall and isinstance(trace, dict):
-                self._append_memory_retrieval_trace(trace)
-            collect_kanban_task_created(self._kanban_tasks_created, event)
-            cron_result = collect_cron_job_result(event)
-            if cron_result is not None:
-                self._cron_job_result = cron_result
-            link_batch_to_step(self._progress_steps, event)
-        elif event_type == "routing_decision" and isinstance(data, dict):
-            tier = data.get("tier")
-            if isinstance(tier, str):
-                self._routing_tier = tier
-            reason = data.get("reason")
-            if isinstance(reason, str):
-                self._routing_reason = reason
-        elif event_type == "privacy_level" and isinstance(data, dict):
-            level = data.get("current_turn_level")
-            if isinstance(level, str):
-                self._privacy_level = level
-        elif event_type == "privacy_route" and isinstance(data, dict):
-            route = data.get("route")
-            if isinstance(route, str):
-                self._privacy_route = route
-        elif event_type == "session_recording" and isinstance(data, dict):
-            self._session_recording = string_keyed_dict(data)
-        elif event_type == "clarification_required":
-            clarification = collect_clarification_required(event)
-            if clarification is not None:
-                self._clarification = clarification
-        elif event_type == "status":
-            step_key = event.get("step_key")
-            if isinstance(data, dict):
-                phase_payload = string_keyed_dict(data)
-                if phase_payload is not None:
-                    plan_update = collect_plan_confirmation_status(phase_payload)
-                    if plan_update is not None:
-                        if self._plan_confirmation is None:
-                            self._plan_confirmation = plan_update
-                        else:
-                            self._plan_confirmation = {
-                                **self._plan_confirmation,
-                                **plan_update,
-                            }
-                    if (
-                        phase_payload.get("phase") == "clarify"
-                        and phase_payload.get("status") == "resolved"
-                        and self._clarification is not None
-                    ):
-                        answer_record = phase_payload.get("answerRecord")
-                        self._clarification = {
-                            **self._clarification,
-                            "answered": True,
-                            **({"answerRecord": answer_record} if isinstance(answer_record, dict) else {}),
+                    remaining.append(pending)
+            self._pending_evicted = remaining
+        _sync_run_digest(self)
+
+    def _on_token_usage(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        self._usage = string_keyed_dict(data.get("usage"))
+
+    def _on_message_end(self, event: dict[str, object], data: object) -> None:
+        self._flush_pending_evicted_ref()
+        turn_loaded = event.get("turn_loaded_skills")
+        if isinstance(turn_loaded, list) and turn_loaded:
+            self._turn_loaded_skills = [item for item in turn_loaded if isinstance(item, dict)]
+        staged = event.get("staged_artifacts")
+        if isinstance(staged, list):
+            self._staged_artifacts.extend(string_keyed_dicts(staged))
+        deliverable_tier = string_keyed_dict(event.get("deliverable_tier"))
+        if deliverable_tier is not None:
+            self._deliverable_tier = deliverable_tier
+        usage = string_keyed_dict(event.get("usage"))
+        if usage is not None:
+            self._usage = usage
+        token_economics = string_keyed_dict(event.get("token_economics"))
+        if token_economics is not None:
+            self._token_economics = token_economics
+        context_budget = string_keyed_dict(event.get("context_budget"))
+        if context_budget is not None:
+            self._context_budget = context_budget
+        cost = event.get("cost_usd")
+        if isinstance(cost, (int, float)):
+            self._cost_usd = float(cost)
+        cost_status = event.get("cost_status")
+        if isinstance(cost_status, str):
+            self._cost_status = cost_status
+        completion_status = event.get("completion_status")
+        if isinstance(completion_status, str):
+            self._completion_status = completion_status
+        stream_ttft_ms = event.get("stream_ttft_ms")
+        if isinstance(stream_ttft_ms, (int, float)) and stream_ttft_ms >= 0:
+            self._stream_ttft_ms = int(stream_ttft_ms)
+        model = event.get("model")
+        if isinstance(model, str):
+            self._model_name = model
+        usage_alert = string_keyed_dict(event.get("usage_alert"))
+        if usage_alert is not None:
+            self._usage_alert = usage_alert
+        cited = event.get("cited_memory_ids")
+        if isinstance(cited, list):
+            for mid in cited:
+                if isinstance(mid, str) and mid not in self._cited_memory_ids:
+                    self._cited_memory_ids.append(mid)
+        refs = event.get("cited_memory_refs")
+        if isinstance(refs, list):
+            self._extend_cited_memory_refs(refs)
+
+    def _on_tool_stdout_chunk(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, str):
+            return
+        tool_name = event.get("tool_name")
+        if isinstance(tool_name, str):
+            for step in reversed(self._progress_steps):
+                if step.get("tool_name") == tool_name:
+                    prev = step.get("stdout")
+                    step["stdout"] = f"{prev}{data}" if isinstance(prev, str) else data
+                    break
+
+    def _on_tool_evicted_ref(self, event: dict[str, object], data: object) -> None:
+        evicted_payload = parse_evicted_ref_payload(data, event)
+        if evicted_payload is not None:
+            matched = find_step_for_evicted(self._progress_steps, evicted_payload)
+            if matched is not None:
+                attach_evicted_to_step(matched, evicted_payload)
+            else:
+                self._pending_evicted.append(evicted_payload)
+
+    def _on_tool_end(self, event: dict[str, object], data: object) -> None:
+        cited = event.get("cited_memory_ids")
+        is_memory_recall = is_memory_citation_tool(event.get("tool_name"))
+        if is_memory_recall and isinstance(cited, list):
+            for mid in cited:
+                if isinstance(mid, str) and mid not in self._cited_memory_ids:
+                    self._cited_memory_ids.append(mid)
+        refs = event.get("cited_memory_refs")
+        if is_memory_recall and isinstance(refs, list):
+            self._extend_cited_memory_refs(refs)
+        trace = event.get("memory_retrieval_trace")
+        if is_memory_recall and isinstance(trace, dict):
+            self._append_memory_retrieval_trace(trace)
+        collect_kanban_task_created(self._kanban_tasks_created, event)
+        cron_result = collect_cron_job_result(event)
+        if cron_result is not None:
+            self._cron_job_result = cron_result
+        link_batch_to_step(self._progress_steps, event)
+
+    def _on_routing_decision(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        tier = data.get("tier")
+        if isinstance(tier, str):
+            self._routing_tier = tier
+        reason = data.get("reason")
+        if isinstance(reason, str):
+            self._routing_reason = reason
+
+    def _on_privacy_level(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        level = data.get("current_turn_level")
+        if isinstance(level, str):
+            self._privacy_level = level
+
+    def _on_privacy_route(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        route = data.get("route")
+        if isinstance(route, str):
+            self._privacy_route = route
+
+    def _on_session_recording(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        self._session_recording = string_keyed_dict(data)
+
+    def _on_clarification_required(self, event: dict[str, object], data: object) -> None:
+        clarification = collect_clarification_required(event)
+        if clarification is not None:
+            self._clarification = clarification
+
+    def _on_status(self, event: dict[str, object], data: object) -> None:
+        step_key = event.get("step_key")
+        if isinstance(data, dict):
+            phase_payload = string_keyed_dict(data)
+            if phase_payload is not None:
+                plan_update = collect_plan_confirmation_status(phase_payload)
+                if plan_update is not None:
+                    if self._plan_confirmation is None:
+                        self._plan_confirmation = plan_update
+                    else:
+                        self._plan_confirmation = {
+                            **self._plan_confirmation,
+                            **plan_update,
                         }
-            if step_key == "cache_break" and isinstance(data, dict):
-                self._cache_break = data
-            if event.get("restart") is True:
-                # Recovery STATUS steps (transient_retry, context_compaction, ...)
-                # precede a from-scratch re-run; drop any streamed draft.
-                self._discard_draft()
-            if step_key == "model_failover":
-                error_kind = event.get("error_kind")
-                display_key = f"model_failover_{error_kind}" if isinstance(error_kind, str) and error_kind else "model_failover"
-                fallback_model = event.get("fallback_model")
-                item_text = str(fallback_model) if fallback_model else ""
-                self._append_failover_step(display_key, item_text)
-            if isinstance(step_key, str) and step_key in _PERSISTED_STATUS_STEP_KEYS:
-                step = {
-                    "step_key": step_key,
-                    "tool_name": event.get("tool_name"),
-                    "items": event.get("items"),
-                    "status": event.get("status"),
-                }
-                if isinstance(data, dict):
-                    archive_restore_block = string_keyed_dict(data.get("archive_restore_block"))
-                    if archive_restore_block is not None:
-                        step["archive_restore_block"] = archive_restore_block
-                    archive_restore_result = string_keyed_dict(data.get("archive_restore_result"))
-                    if archive_restore_result is not None:
-                        step["archive_restore_result"] = archive_restore_result
-                self._progress_steps.append(step)
-
-        elif event_type == "model_failover" and isinstance(data, dict):
-            reason = data.get("reason")
-            from_model = data.get("fromModel")
-            to_model = data.get("toModel")
-            reason_key = str(reason) if reason is not None else ""
-            display_key = _FAILOVER_REASON_TO_STEP_KEY.get(reason_key, "model_failover")
-            label_parts = [str(v) for v in (from_model, to_model) if v]
-            self._append_failover_step(display_key, " → ".join(label_parts))
-
-        elif event_type == "model_escalated" and isinstance(data, dict):
-            # Escalation clears the turn and re-plays it with a stronger model;
-            # any text containing the escalation marker is a draft to drop.
+                if (
+                    phase_payload.get("phase") == "clarify"
+                    and phase_payload.get("status") == "resolved"
+                    and self._clarification is not None
+                ):
+                    answer_record = phase_payload.get("answerRecord")
+                    self._clarification = {
+                        **self._clarification,
+                        "answered": True,
+                        **({"answerRecord": answer_record} if isinstance(answer_record, dict) else {}),
+                    }
+        if step_key == "cache_break" and isinstance(data, dict):
+            self._cache_break = data
+        if event.get("restart") is True:
+            # Recovery STATUS steps (transient_retry, context_compaction, ...)
+            # precede a from-scratch re-run; drop any streamed draft.
             self._discard_draft()
-            from_model = data.get("from_model")
-            to_model = data.get("to_model")
-            label_parts = [str(v) for v in (from_model, to_model) if v]
-            self._progress_steps.append(
-                {
-                    "step_key": "model_escalated",
-                    "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
-                    "status": "success",
-                }
-            )
+        if step_key == "model_failover":
+            error_kind = event.get("error_kind")
+            display_key = f"model_failover_{error_kind}" if isinstance(error_kind, str) and error_kind else "model_failover"
+            fallback_model = event.get("fallback_model")
+            item_text = str(fallback_model) if fallback_model else ""
+            self._append_failover_step(display_key, item_text)
+        if isinstance(step_key, str) and step_key in _PERSISTED_STATUS_STEP_KEYS:
+            step = {
+                "step_key": step_key,
+                "tool_name": event.get("tool_name"),
+                "items": event.get("items"),
+                "status": event.get("status"),
+            }
+            if isinstance(data, dict):
+                archive_restore_block = string_keyed_dict(data.get("archive_restore_block"))
+                if archive_restore_block is not None:
+                    step["archive_restore_block"] = archive_restore_block
+                archive_restore_result = string_keyed_dict(data.get("archive_restore_result"))
+                if archive_restore_result is not None:
+                    step["archive_restore_result"] = archive_restore_result
+            self._progress_steps.append(step)
+
+    def _on_model_failover(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        reason = data.get("reason")
+        from_model = data.get("fromModel")
+        to_model = data.get("toModel")
+        reason_key = str(reason) if reason is not None else ""
+        display_key = _FAILOVER_REASON_TO_STEP_KEY.get(reason_key, "model_failover")
+        label_parts = [str(v) for v in (from_model, to_model) if v]
+        self._append_failover_step(display_key, " → ".join(label_parts))
+
+    def _on_model_escalated(self, event: dict[str, object], data: object) -> None:
+        if not isinstance(data, dict):
+            return
+        # Escalation clears the turn and re-plays it with a stronger model;
+        # any text containing the escalation marker is a draft to drop.
+        self._discard_draft()
+        from_model = data.get("from_model")
+        to_model = data.get("to_model")
+        label_parts = [str(v) for v in (from_model, to_model) if v]
+        self._progress_steps.append(
+            {
+                "step_key": "model_escalated",
+                "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
+                "status": "success",
+            }
+        )
 
     @property
     def content(self) -> str:
@@ -903,18 +677,18 @@ class StreamContentCollector:
         if not self._pending_evicted:
             return
         for payload in self._pending_evicted:
-            matched = _find_step_for_evicted(self._progress_steps, payload)
+            matched = find_step_for_evicted(self._progress_steps, payload)
             if matched is not None:
-                _attach_evicted_to_step(matched, payload)
+                attach_evicted_to_step(matched, payload)
                 continue
             tool_hint = payload.get("tool_name")
             fallback: dict[str, object] = {
-                "tool_name": (tool_hint if isinstance(tool_hint, str) else _BASH_EXECUTE_TOOL),
+                "tool_name": (tool_hint if isinstance(tool_hint, str) else BASH_EXECUTE_TOOL),
             }
             tool_call_id = payload.get("tool_call_id")
             if isinstance(tool_call_id, str) and tool_call_id.strip():
                 fallback["tool_call_id"] = tool_call_id.strip()
-            _attach_evicted_to_step(fallback, payload)
+            attach_evicted_to_step(fallback, payload)
             self._progress_steps.append(fallback)
         self._pending_evicted = []
 
@@ -1004,16 +778,16 @@ class StreamContentCollector:
         return result or None
 
     def _set_stop_reason(self, payload: dict[str, object]) -> None:
-        normalized = _normalize_stop_reason(payload)
+        normalized = normalize_stop_reason(payload)
         if normalized is None:
             return
         if self._stop_reason is None:
             self._stop_reason = normalized
             return
         current_code = self._stop_reason.get("code")
-        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        current_priority = stop_reason_priority(current_code) if isinstance(current_code, str) else 0
         next_code = normalized.get("code")
-        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        next_priority = stop_reason_priority(next_code) if isinstance(next_code, str) else 0
         if next_priority >= current_priority:
             self._stop_reason = normalized
 
@@ -1062,3 +836,29 @@ class StreamContentCollector:
         self._reasoning_parts.append(safe_chunk[:remaining])
         self._reasoning_char_count += remaining
         self._reasoning_truncated = True
+
+
+_EVENT_HANDLERS: dict[str, Callable[[StreamContentCollector, dict[str, object], object], None]] = {
+    "iteration_limit_reached": StreamContentCollector._on_iteration_limit_reached,
+    "engine_limit_reached": StreamContentCollector._on_engine_limit_reached,
+    "agent_cancelled": StreamContentCollector._on_agent_cancelled,
+    "error": StreamContentCollector._on_error,
+    "reasoning": StreamContentCollector._on_reasoning,
+    "sources": StreamContentCollector._on_sources,
+    "file_mutation_failed": StreamContentCollector._on_file_mutation_failed,
+    "council_phase": StreamContentCollector._on_council_phase,
+    "tasks_steps": StreamContentCollector._on_tasks_steps,
+    "token_usage": StreamContentCollector._on_token_usage,
+    "message_end": StreamContentCollector._on_message_end,
+    "tool_stdout_chunk": StreamContentCollector._on_tool_stdout_chunk,
+    "tool_evicted_ref": StreamContentCollector._on_tool_evicted_ref,
+    "tool_end": StreamContentCollector._on_tool_end,
+    "routing_decision": StreamContentCollector._on_routing_decision,
+    "privacy_level": StreamContentCollector._on_privacy_level,
+    "privacy_route": StreamContentCollector._on_privacy_route,
+    "session_recording": StreamContentCollector._on_session_recording,
+    "clarification_required": StreamContentCollector._on_clarification_required,
+    "status": StreamContentCollector._on_status,
+    "model_failover": StreamContentCollector._on_model_failover,
+    "model_escalated": StreamContentCollector._on_model_escalated,
+}

@@ -571,6 +571,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `platform_utils/sandbox/_ARCH.md` | 模块 | `platform_utils/sandbox` 业务逻辑回归（platform provider seed 14 例 + tool gateway merge），见子目录清单 |
 | `services/skills/test_scan_risk_policy.py` | 模块 | 后台学习的高危新增复核策略（真实扫描器）：新技能对比空内容、同类发现数量增加仍判新增（计数差分）、原有发现不重复拦截、语境型类别仅 CRITICAL 生效、扫描异常 fail-closed、信号词汇 |
 | `services/agent/streaming_support/test_stream_collector_tool_stuck_pause.py` | 模块 | loop guard 的 `tool_stuck` 暂停：不算没人回答的卡片（不进 pending）、落一条 `tool_stuck_paused` 步骤且重复到达只落一次、挂在流上的客户端仍收到事件；其余 interrupt（带 `actionRequests` 的审批、无 `action_type` 的审批、澄清）仍是待回答卡片 |
+| `services/agent/streaming_support/test_stream_collector_event_handlers.py` | 模块 | 收集器对结束或塑造一轮的事件的落库：`engine_limit_reached` / `error` 存为 `stopReason`（含默认消息、`error` 事件以 data 携带消息、无消息不落、限制类不被其后的错误取代）、`council_phase` 按到达顺序存入 `councilPhases`（非对象忽略）、`token_usage` 存为 `usage`（非对象忽略） |
 | `services/agent/stream_session/test_stream_finalize_tool_stuck_pause.py` | 模块 | 暂停按已结束的一轮收尾（`RunDigestStore.end_run` 收尾、记 `send_completed` 而不是 `send_failed`、带「已暂停」步骤落库）；等卡片的运行仍保持打开；没有暂停的空运行仍记 `send_failed` |
 | `services/agent/stream_session/test_phase_stepper.py` | 模块 | 阶段步进器 `PhaseTransitionTracker`：初始规划阶段、工具开始进执行泳道、推理切到 LLM 泳道、验证与完成转场；loop guard 暂停（真实 harness 事件）不进「等待审批」节点、此后 `message_end` 照常收尾，真正等待回答的事件（审批、带 `actionRequests` 的审批、澄清）仍进用户泳道的审批节点 |
 | `services/agent/stream_session/test_stream_finalize_teardown.py` | 模块 | 回合结束时留下的东西：答案带首 token 耗时与兄弟分组落库、崩溃恢复标记只在答案落库之后清除、归还 Stop 句柄与引导注册、用户停止的回合记为已停止（run digest 为 CANCELLED、能力遥测为 abort）、末尾残留的轨迹切片入队给技能进化而用户停止时不入队 |

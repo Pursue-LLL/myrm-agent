@@ -3,6 +3,8 @@
 [INPUT]
 - stdlib json (POS: tool result JSON decode)
 - app.services.agent.approval_payload::is_tool_stuck_pause (POS: tells a loop guard pause from a real approval)
+- app.services.skills.skill_manage_batch_parse::extract_skill_mutation_batch_id_from_step
+  (POS: reads the skill mutation batch id a skill_manage step carries; imported when a step is merged)
 
 [OUTPUT]
 - is_memory_citation_tool, parse_tool_end_result
@@ -11,10 +13,12 @@
 - collect_file_mutation_failures
 - collect_tool_stuck_pause (a loop guard pause: the step that says why, and that it is no card to answer)
 - merge_sources_list, source_dedup_key
+- merge_tasks_step (tasks_steps merged by tool_call_id, carrying the skill mutation batch id)
+- normalize_stop_reason, stop_reason_priority, iteration_limit_message (why a turn stopped, and which reason wins)
 - string_keyed_dict, string_keyed_dicts
 
 [POS]
-Stateless parsing helpers for stream_collector. Keeps StreamContentCollector under file line budget.
+Stateless parsing helpers for stream_collector; they hold no collector state, so each can be read and tested alone.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ TOOL_STUCK_PAUSED_STEP_KEY = "tool_stuck_paused"
 _MEMORY_CITATION_TOOL_NAMES = frozenset(
     {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}
 )  # legacy aliases retained for persisted message metadata
+_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
 
 
 def is_memory_citation_tool(tool_name: object) -> bool:
@@ -303,3 +308,126 @@ def collect_file_mutation_failures(
                 "error_preview": preview if isinstance(preview, str) else "",
             }
         )
+
+
+def stop_reason_priority(code: str) -> int:
+    if code in {"iteration_limit_reached", "engine_limit_reached"}:
+        return 40
+    if code == "agent_cancelled":
+        return 30
+    if code == "error":
+        return 20
+    return 10
+
+
+def normalize_stop_reason(raw: dict[str, object] | None) -> dict[str, object] | None:
+    if raw is None:
+        return None
+    code_obj = raw.get("code")
+    if not isinstance(code_obj, str) or not code_obj.strip():
+        return None
+    code = code_obj.strip()
+    category_obj = raw.get("category")
+    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
+        category = category_obj
+    else:
+        category = "other"
+    message_obj = raw.get("message")
+    if isinstance(message_obj, str) and message_obj.strip():
+        message = message_obj.strip()
+    else:
+        message = code.replace("_", " ")
+    normalized: dict[str, object] = {
+        "code": code,
+        "category": category,
+        "message": message,
+    }
+    detail = string_keyed_dict(raw.get("detail"))
+    if detail:
+        normalized["detail"] = detail
+    return normalized
+
+
+def iteration_limit_message(detail: dict[str, object] | None) -> str:
+    if detail is None:
+        return "Iteration limit reached"
+    limit = detail.get("limit")
+    nodes = detail.get("nodes_completed")
+    if limit is not None and nodes is not None:
+        return f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
+    if limit is not None:
+        return f"Iteration limit reached ({limit} iterations)"
+    return "Iteration limit reached"
+
+
+def merge_tasks_step(
+    progress_steps: list[dict[str, object]],
+    event: dict[str, object],
+    data: object,
+) -> dict[str, object]:
+    step_key = event.get("step_key")
+    tool_name = event.get("tool_name")
+    tool_call_id = event.get("tool_call_id")
+    new_fields: dict[str, object] = {
+        "step_key": step_key,
+        "tool_name": tool_name,
+        "items": data,
+        "count": event.get("count"),
+    }
+    if isinstance(tool_call_id, str) and tool_call_id.strip():
+        new_fields["tool_call_id"] = tool_call_id.strip()
+    for key in (
+        "reason",
+        "status",
+        "error",
+        "error_hint",
+        "error_category",
+        "fault_side",
+    ):
+        value = event.get(key)
+        if value is not None:
+            new_fields[key] = value
+
+    if isinstance(tool_call_id, str) and tool_call_id.strip():
+        target_id = tool_call_id.strip()
+        for existing in progress_steps:
+            if existing.get("tool_call_id") == target_id:
+                for key, value in new_fields.items():
+                    if value is not None:
+                        existing[key] = value
+                _attach_skill_mutation_batch_id(existing)
+                return existing
+
+    if isinstance(step_key, str) and step_key.strip():
+        for existing in reversed(progress_steps):
+            if existing.get("step_key") != step_key:
+                continue
+            existing_id = existing.get("tool_call_id")
+            if isinstance(tool_call_id, str) and tool_call_id.strip():
+                if existing_id in (None, "", tool_call_id.strip()):
+                    for key, value in new_fields.items():
+                        if value is not None:
+                            existing[key] = value
+                    if not existing_id:
+                        existing["tool_call_id"] = tool_call_id.strip()
+                    _attach_skill_mutation_batch_id(existing)
+                    return existing
+            elif not existing_id:
+                for key, value in new_fields.items():
+                    if value is not None:
+                        existing[key] = value
+                _attach_skill_mutation_batch_id(existing)
+                return existing
+
+    step = {key: value for key, value in new_fields.items() if value is not None}
+    progress_steps.append(step)
+    _attach_skill_mutation_batch_id(step)
+    return step
+
+
+def _attach_skill_mutation_batch_id(step: dict[str, object]) -> None:
+    from app.services.skills.skill_manage_batch_parse import extract_skill_mutation_batch_id_from_step
+
+    batch_id = extract_skill_mutation_batch_id_from_step(step)
+    if batch_id:
+        step["skill_mutation_batch_id"] = batch_id
