@@ -5,7 +5,8 @@ Mixin providing all outbound-related methods used by TelegramChannel.
 [INPUT]
 - channels.rendering.renderer::render (POS: Channel message rendering pipeline.)
 - channels.types::OutboundMessage, RenderStyle
-- telegram.api::TelegramClient, TelegramApiError
+- telegram.api::TelegramClient
+- telegram.api_core::TelegramApiError
 - telegram.helpers::build_inline_keyboard, send_media_attachment
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - telegram.html_converter::md_to_telegram_html, split_message (POS: Markdown to Telegram HTML conversion and splitting.)
@@ -32,7 +33,7 @@ from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
 from app.channels.types import MediaAttachment, OutboundMessage, RenderStyle, reaction_key
 
-from .api import TelegramApiError
+from .api_core import TelegramApiError
 from .helpers import build_inline_keyboard, send_media_attachment
 from .html_converter import md_to_telegram_html, split_message
 from .outbound_rich import TelegramRichOutboundMixin

@@ -26,7 +26,7 @@ from fastapi import Request
 
 from app.channels.security.errors import WebhookResponseError
 
-from .api import TelegramApiError
+from .api_core import TelegramApiError
 from .inbound import _ALLOWED_UPDATES
 
 if TYPE_CHECKING:

@@ -113,7 +113,7 @@ async def send_media_attachment(
     and automatically falls back to send_document if size exceeds limits. Raises a permanent
     ``ChannelSendError`` when the attachment has nothing to send (no source, unreadable or empty file).
     """
-    from .api import get_recommended_send_method
+    from .api_media import get_recommended_send_method
     from .exceptions import AudioFileTooLargeError, VoiceMessageTooLargeError
 
     reply_to = int(reply_to_id) if reply_to_id else None

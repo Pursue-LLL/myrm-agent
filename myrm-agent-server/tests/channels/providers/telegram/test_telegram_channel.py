@@ -11,10 +11,8 @@ import pytest
 from app.channels.core.base import BaseChannel, ChannelStatus
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.telegram import TelegramChannel
-from app.channels.providers.telegram.api import (
-    TelegramApiError,
-    TelegramClient,
-)
+from app.channels.providers.telegram.api import TelegramClient
+from app.channels.providers.telegram.api_core import TelegramApiError
 from app.channels.providers.telegram.models import (
     TgMessage,
     TgUpdate,

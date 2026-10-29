@@ -3,7 +3,8 @@
 [INPUT]
 - channels.rendering.renderer::render (POS: Channel message rendering pipeline.)
 - channels.types::OutboundMessage, RenderStyle
-- telegram.api::TelegramClient, TelegramApiError
+- telegram.api::TelegramClient
+- telegram.api_core::TelegramApiError
 - telegram.html_converter::split_markdown_rich
 - channels.core.chunk_delivery::deliver_chunks (POS: ordered per-chunk delivery; a chunk after the first is retried alone, a failure there is a partial delivery)
 
@@ -26,7 +27,7 @@ from app.channels.core.chunk_delivery import deliver_chunks
 from app.channels.rendering.renderer import render
 from app.channels.types import OutboundMessage, RenderStyle
 
-from .api import TelegramApiError
+from .api_core import TelegramApiError
 
 if TYPE_CHECKING:
     from app.channels.reliability.retry import RetryConfig

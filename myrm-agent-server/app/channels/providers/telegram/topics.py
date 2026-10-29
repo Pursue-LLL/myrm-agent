@@ -3,7 +3,8 @@
 Mixin providing Forum Topic CRUD and per-user auto-topic dedup used by TelegramChannel.
 
 [INPUT]
-- telegram.api::TelegramClient, TelegramApiError
+- telegram.api::TelegramClient
+- telegram.api_core::TelegramApiError
 
 [OUTPUT]
 - TelegramTopicsMixin: create/rename/close/reopen topics, ensure_topic_for_user, sync_topic_name
@@ -19,7 +20,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from .api import TelegramApiError
+from .api_core import TelegramApiError
 
 if TYPE_CHECKING:
     from .api import TelegramClient

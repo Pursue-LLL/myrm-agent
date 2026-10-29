@@ -61,7 +61,8 @@ from app.channels.types.notification import (
     parse_notification_mode,
 )
 
-from .api import TelegramApiError, TelegramClient
+from .api import TelegramClient
+from .api_core import TelegramApiError
 from .constants import TELEGRAM_REACTION_EMOJI
 from .helpers import (
     MAX_TEXT_LENGTH,

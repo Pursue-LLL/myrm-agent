@@ -13,7 +13,8 @@ import pytest
 from app.channels.core.bus import MessageBus
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.telegram import TelegramChannel
-from app.channels.providers.telegram.api import TelegramApiError, TelegramClient
+from app.channels.providers.telegram.api import TelegramClient
+from app.channels.providers.telegram.api_core import TelegramApiError
 from app.channels.reliability.retry import RetryConfig
 from app.channels.types import OutboundMessage
 from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN

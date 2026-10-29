@@ -10,7 +10,8 @@ Public API:
     build_inline_keyboard — inline keyboard builder
 """
 
-from .api import TelegramApiError, TelegramClient
+from .api import TelegramClient
+from .api_core import TelegramApiError
 from .channel import TelegramChannel
 from .helpers import BotCommand, build_inline_keyboard
 from .html_converter import md_to_telegram_html, split_message

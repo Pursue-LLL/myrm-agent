@@ -27,7 +27,7 @@ from app.channels.providers.matrix import MatrixChannel
 from app.channels.providers.mattermost import MattermostChannel
 from app.channels.providers.msteams import MSTeamsChannel
 from app.channels.providers.telegram import TelegramChannel
-from app.channels.providers.telegram.api import TelegramApiError
+from app.channels.providers.telegram.api_core import TelegramApiError
 from app.channels.providers.wecom.aibot_channel import WeComAiBotChannel
 from app.channels.providers.whatsapp import WhatsAppChannel
 from app.channels.types import OutboundMessage
