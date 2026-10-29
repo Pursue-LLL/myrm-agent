@@ -150,14 +150,13 @@ class TraceSpanSanitizer:
         A credential-looking key withholds text and containers whole; a number, flag or null under it is kept, as in
         ``sanitize_attribute``: it cannot be a credential, and counters such as ``total_tokens`` must stay numbers.
         """
-        return {
-            k: (
-                "[REDACTED_SENSITIVE_KEY]"
-                if not (isinstance(v, (int, float)) or v is None) and not self.is_safe_key(str(k))
-                else self._sanitize_value(v)
-            )
-            for k, v in payload.items()
-        }
+        return {key: self._sanitize_entry(key, value) for key, value in payload.items()}
+
+    def _sanitize_entry(self, key: object, value: object) -> object:
+        """Scrub one entry; a key that looks like a credential withholds every value that could hold one."""
+        if self.is_safe_key(str(key)) or isinstance(value, (int, float, bool)) or value is None:
+            return self._sanitize_value(value)
+        return "[REDACTED_SENSITIVE_KEY]"
 
     def _sanitize_value(self, value: object) -> object:
         """Scrub one payload value at any depth: a list or tuple is rebuilt item by item, whatever the items are."""

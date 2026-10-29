@@ -51,4 +51,6 @@ def sanitize_event_data(data: dict[str, object]) -> dict[str, object]:
 
 
 def _redact_text(key: str, text: str) -> str:
-    return redact_field_text(key, redact_command_line(text) if _COMMAND_KEY.search(key) else text, scan=redact_leaks)
+    if _COMMAND_KEY.search(key):
+        text = redact_command_line(text)
+    return redact_field_text(key, text, scan=redact_leaks)
