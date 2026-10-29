@@ -27,7 +27,7 @@ const EMITS_HTML = /<style[\s>]|<html[\s>]|<!DOCTYPE html>/i;
  * 动画来源：CSS 声明、关键帧，或 Tailwind 的 `animate-*` 工具类（含任意值写法 `animate-[...]`）。
  *
  * 为什么要算 `transition:`：过渡同样会连续重绘。`transition: all` 加一处 `:hover { transform: ... }`
- * 就是一段真实的位移动画（`crypto_packager.py` 的生成页就是这样）；只盯 `animation` / `@keyframes`
+ * 就是一段真实的位移动画（`decryptor_shell.py` 的生成页就是这样）；只盯 `animation` / `@keyframes`
  * 会把这类独立文档整批漏掉。
  */
 const HAS_MOTION = /@keyframes|\banimation\s*:|\btransition\s*:|\banimate-[\w[]/;
