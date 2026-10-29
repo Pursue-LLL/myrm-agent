@@ -1,8 +1,9 @@
 """Chrome LIVE E2E: a real-model turn in a workspace that also holds hostile files shows the rule file's codeword in the page.
 
 The chat workspace holds an ``AGENTS.md`` with a codeword nobody else knows, a FIFO where a skill's ``SKILL.md`` should be, and
-sparse multi-megabyte ``mcp.json`` and ``.myrm/config.toml``. The turn runs through the real UI, the real server and a real
-provider; the final answer has to carry the codeword in the rendered chat and in the stored assistant message.
+sparse multi-megabyte ``mcp.json`` and ``.myrm/config.toml``. Nobody trusted this workspace, so its rules stay out of the request and
+the model can only learn the codeword by reading the file with its code tool. The turn runs through the real UI, the real server and
+a real provider; the final answer has to carry the codeword in the rendered chat and in the stored assistant message.
 """
 
 from __future__ import annotations

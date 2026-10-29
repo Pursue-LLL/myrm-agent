@@ -7,12 +7,14 @@
 - The workspace trust each run applies and the messages ChatLiteLLM sends to the provider (POS: recorded where they are decided and built)
 
 [OUTPUT]
-- Fails when the stream reports an error event, when a turn does not finish or does not answer, when a run does not apply the trust the
-  user decided for its folder, or when the rules of a chat workspace nobody trusted reach the provider request.
+- Fails when the folder preview does not return, when the stream reports an error event, when a turn does not finish or does not answer,
+  when a run does not apply the trust the user decided for its folder, or when the rules of a chat workspace nobody trusted reach the
+  provider request.
 
 [POS]
-The trusted folder is the turn that reads the folder's skills, rules and config next to the hostile files: on a source without the bounded
-reads it never finishes. The chat workspace nobody trusted is the contrast: its rules stay out of the request.
+Trusting a folder of hostile files starts with its preview, which reads the folder's skills, rules and config: on a source without the
+bounded reads that preview never returns. The turn that follows has to run at the level the user decided and answer. The chat workspace
+nobody trusted is the contrast: its rules stay out of the request. What a trusted folder's rules put into the request is not asserted here.
 """
 
 from __future__ import annotations
