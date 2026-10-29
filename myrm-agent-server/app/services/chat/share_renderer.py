@@ -3,6 +3,8 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: chat metadata + messages)
 - app.database.models.agent::Agent (POS: agent identity)
+- app.database.dto::ChatDTO, MessageDTO (POS: 聊天与消息数据传输对象)
+- app.services.chat.chat_helpers (POS: what a message reads as outside the app, and which rows are the system's notes)
 - app.core.security.share.share_locale (POS: page language and the language tables every share page shares)
 
 [OUTPUT]
@@ -141,15 +143,15 @@ def _build_html(
     title = _esc(chat.title or chrome.untitled)
     og_desc = _esc(_truncate(chat.first_message or chat.title or ""))
 
-    readable = [msg for msg in messages if msg.role in _VISIBLE_ROLES and not is_wakeup_notice(msg)]
-    shown = readable[-_MAX_SHARED_MESSAGES:]
+    visible = [msg for msg in messages if msg.role in _VISIBLE_ROLES and not is_wakeup_notice(msg)]
+    shown = visible[-_MAX_SHARED_MESSAGES:]
     messages_html = "\n".join(
         _render_message(msg.role, exported_user_text(msg) if msg.role == "user" else msg.content, msg.created_at, chrome)
         for msg in shown
     )
     notice = ""
-    if len(readable) > len(shown):
-        notice = f'<div class="notice" role="note">{_esc(chrome.truncation_notice(len(shown), len(readable)))}</div>'
+    if len(visible) > len(shown):
+        notice = f'<div class="notice" role="note">{_esc(chrome.truncation_notice(len(shown), len(visible)))}</div>'
     agent_card = ""
     if agent_info["name"]:
         model_line = f'<span class="model">{_esc(agent_info["model"])}</span>' if agent_info["model"] else ""
@@ -228,7 +230,7 @@ body{{background:#111827;color:#e5e7eb}}
 {messages_html}
 <div class="footer">
 <div class="stats">
-<span class="stat">{chrome.message_count(len(readable))}</span>
+<span class="stat">{chrome.message_count(len(visible))}</span>
 <span class="stat">{_format_ts(chat.created_at)}</span>
 </div>
 <p>{SHARE_BRAND[lang]}</p>
