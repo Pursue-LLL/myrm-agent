@@ -137,6 +137,19 @@ class TestRedactFieldText:
         assert _TOKEN not in masked
         assert masked.startswith("deploy with ")
 
+    def test_the_text_of_an_ordinary_field_goes_through_the_scan_given(self) -> None:
+        assert redact_field_text("note", "plain text", scan=str.upper) == "PLAIN TEXT"
+
+    def test_a_credential_field_is_masked_without_calling_the_scan(self) -> None:
+        scanned: list[str] = []
+
+        def scan(text: str) -> str:
+            scanned.append(text)
+            return text
+
+        assert redact_field_text("password", "Summer2024!", scan=scan) == "***"
+        assert scanned == []
+
 
 class TestRedactForDisplay:
     def test_args_nested_past_the_recursion_limit_are_cut_not_raised(self) -> None:

@@ -2,6 +2,7 @@
 
 [INPUT]
 - core.security.redact::redact_command_line (POS: Entry of the commands the audit log, the background-job registry and the event log keep: masks every credential in a command string)
+- core.security.redact::redact_field_text (POS: Redactor of one named field: a credential-named field is masked whatever its shape, any other text goes through the scan given)
 - core.security.redact::redact_nested (POS: Shared walker of the redaction domain: bounded in depth, cuts a container that holds itself)
 - core.security.detection.leak_detector::redact_leaks (POS: Output-side credential leak detector: credential patterns, Shannon entropy and PEM blocks)
 
@@ -11,8 +12,9 @@
 [POS]
 Pure filter between ``EventLogger.log`` and the backend. Masks secrets in nested dict/list/tuple payloads (tool
 args/results, error diagnostics) like top-level fields and withholds a payload it cannot redact. The shared walker
-bounds the depth and cuts a container where it holds itself; this module supplies the text rule, which stays light
-because it runs on every event.
+bounds the depth and cuts a container where it holds itself; this module supplies the text rule: the value of a
+credential-named field (``Cookie``, ``password``) is masked by its name, any other text goes through the light leak
+scan, since the rule runs on every event.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ import re
 from typing import cast
 
 from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
-from myrm_agent_harness.core.security.redact import redact_command_line, redact_nested
+from myrm_agent_harness.core.security.redact import redact_command_line, redact_field_text, redact_nested
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +36,11 @@ def sanitize_event_data(data: dict[str, object]) -> dict[str, object]:
     """Return ``data`` with secrets and PII removed from every string it holds.
 
     A string under a command key is masked as a command line first: the leak
-    detector takes the value after ``--key`` for an ordinary word. When the
-    payload cannot be redacted the original is withheld and a marker payload is
-    returned, so a failure never writes a credential to the log.
+    detector takes the value after ``--key`` for an ordinary word. The value of
+    a credential-named field is masked by its name: a cookie or a bare password
+    has no shape the leak detector knows. When the payload cannot be redacted
+    the original is withheld and a marker payload is returned, so a failure
+    never writes a credential to the log.
     """
     try:
         return cast("dict[str, object]", redact_nested(data, _redact_text))
@@ -47,4 +51,4 @@ def sanitize_event_data(data: dict[str, object]) -> dict[str, object]:
 
 
 def _redact_text(key: str, text: str) -> str:
-    return redact_leaks(redact_command_line(text) if _COMMAND_KEY.search(key) else text)
+    return redact_field_text(key, redact_command_line(text) if _COMMAND_KEY.search(key) else text, scan=redact_leaks)

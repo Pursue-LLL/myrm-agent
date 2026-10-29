@@ -18,7 +18,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 - redact_sensitive_text(text, *, source_code=False) -> str — apply all redaction patterns; ``source_code`` limits the name-based assignment passes to lines with a string literal
 - redact_for_llm(value) -> str — recursive redaction of nested diagnostic values, flattened to str (LLM error formatting)
 - escape_invisible_unicode(text) -> str — escape invisible chars to \\u{XXXX}
-- redact_field_text(key, text) -> str — redact the value of one named field: a credential-named field is masked whatever its shape, any other text is scanned like free text
+- redact_field_text(key, text, *, scan) -> str — redact the value of one named field: a credential-named field is masked whatever its shape, any other text goes through ``scan`` (the full redactor by default)
 - redact_for_display(args) -> dict — redaction of every string in tool arguments for the approval UI, by field name, bounded in depth and safe on loops
 - RedactingFormatter — logging.Formatter subclass for production logs
 
@@ -319,15 +319,16 @@ def redact_for_llm(value: object) -> str:
     return str(value)
 
 
-def redact_field_text(key: str, text: str) -> str:
+def redact_field_text(key: str, text: str, *, scan: Callable[[str], str] = redact_sensitive_text) -> str:
     """Redact ``text``, the value of the field called ``key`` (``""`` when the field has no string name).
 
     A value that holds no secret shape (``sessionid=…`` in ``Cookie``, a bare password) is still masked when the field
-    name is a credential, since the name says what the value does not. Any other text is scanned like free text.
+    name is a credential, since the name says what the value does not. Any other text goes through ``scan``: the full
+    redactor, unless a caller that runs on every event passes a lighter one.
     """
-    if _REDACT_ENABLED and text.strip() and _is_secret_field_name(key):
+    if _REDACT_ENABLED and _is_secret_field_name(key) and text.strip():
         return _mask_field_value(key, text)
-    return redact_sensitive_text(text)
+    return scan(text)
 
 
 def _display_text(key: str, text: str) -> str:
