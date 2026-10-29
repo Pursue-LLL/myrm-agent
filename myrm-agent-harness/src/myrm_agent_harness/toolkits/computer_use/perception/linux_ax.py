@@ -254,16 +254,9 @@ def invoke_ax_element(
                 editable = target.queryEditableText()  # type: ignore[attr-defined]
                 editable.setTextContents(text)  # type: ignore[attr-defined]
             except Exception:
-                action_if = target.queryAction()  # type: ignore[attr-defined]
-                if action_if.getNActions() > 0:  # type: ignore[attr-defined]
-                    action_if.doAction(0)  # type: ignore[attr-defined]
-                # 异常文本（CalledProcessError、TimeoutExpired）会带上整条命令，也就是输入的内容，所以不让它们透出去。
-                try:
-                    typed = subprocess.run(["xdotool", "type", "--clearmodifiers", text], timeout=5, check=False)
-                except subprocess.TimeoutExpired:
-                    raise RuntimeError("xdotool type timed out") from None
-                if typed.returncode != 0:
-                    raise RuntimeError(f"xdotool type failed (exit {typed.returncode})") from None
+                # Typing is the backend's job (stdin/clipboard, UTF-8 locale, cancellable); failing here hands the
+                # element to the caller's coordinate fallback, which clicks it and types through the backend.
+                return ActionResult(success=False, error="element exposes no editable text interface")
         elif normalized in {
             "click",
             "press",

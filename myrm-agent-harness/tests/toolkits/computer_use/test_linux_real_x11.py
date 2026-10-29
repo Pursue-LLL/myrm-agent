@@ -1,8 +1,11 @@
-"""LinuxBackend against a real X server with the real xdotool.
+"""LinuxBackend against a real X server, the real xdotool/xclip and a real Tk text widget.
 
-The fake-tool suites cannot show what the genuine binary does (exit codes, whether non-ASCII text
-arrives as key events), so CI runs this file under `xvfb-run`. It moves the pointer and types into an
-xev window, so it only runs when MYRM_REAL_X11_TESTS=1 is set: never on a developer's own desktop session.
+The fake-tool suites cannot show what the genuine binaries do, and a key-event log cannot show whether text
+arrived intact: xdotool reported success for characters the application never received. So the ruler is a
+Tk `Text` widget whose content is compared character for character with what was sent.
+
+CI runs this file under `xvfb-run`. It moves the pointer, types and borrows the clipboard, so it only runs when
+MYRM_REAL_X11_TESTS=1 is set: never on a developer's own desktop session.
 """
 
 from __future__ import annotations
@@ -20,19 +23,54 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
 
+# The system interpreter carries python3-tk; a managed interpreter may not.
+_TK_PYTHON = "/usr/bin/python3"
+
+
+def _tk_available() -> bool:
+    if not os.path.exists(_TK_PYTHON):
+        return False
+    probe = subprocess.run([_TK_PYTHON, "-c", "import tkinter"], capture_output=True, timeout=30, check=False)
+    return probe.returncode == 0
+
+
 pytestmark = pytest.mark.skipif(
     not (
         sys.platform.startswith("linux")
         and os.environ.get("MYRM_REAL_X11_TESTS") == "1"
         and os.environ.get("DISPLAY")
         and shutil.which("xdotool")
-        and shutil.which("xev")
+        and shutil.which("xclip")
+        and _tk_available()
     ),
-    reason="needs MYRM_REAL_X11_TESTS=1, a DISPLAY (xvfb-run) and xdotool + xev",
+    reason="needs MYRM_REAL_X11_TESTS=1, a DISPLAY (xvfb-run), xdotool, xclip and python3-tk",
 )
 
 _UNREACHABLE_DISPLAY = 987
-_XEV_WINDOW_NAME = "Event Tester"
+_WINDOW_NAME = "TkRuler"
+
+# Dumps the Text content to a file every 50 ms; the test reads it back.
+_TK_APP = """
+import os, sys, tkinter
+out = sys.argv[1]
+root = tkinter.Tk()
+root.title("TkRuler")
+root.geometry("600x300+0+0")
+text = tkinter.Text(root, wrap="word")
+text.pack(fill="both", expand=True)
+text.focus_force()
+def dump():
+    with open(out + ".tmp", "w", encoding="utf-8") as sink:
+        sink.write(text.get("1.0", "end-1c"))
+    os.replace(out + ".tmp", out)
+    root.after(50, dump)
+dump()
+root.mainloop()
+"""
+
+# 120 distinct CJK characters: a dropped or substituted one cannot hide behind a repeating pattern.
+_CJK = "".join(chr(0x4E00 + 37 * i) for i in range(120))
+_ASCII_MIX = "Hello, World! @#$%^&*()_+-=[]{}|;':\",./<>?`~ 0123456789 \\ end"
 
 
 @pytest.fixture
@@ -41,112 +79,136 @@ def backend() -> LinuxBackend:
 
 
 @pytest.fixture
-def xev_window(tmp_path: Path) -> Iterator[Path]:
-    """A focused xev window (a bare Xvfb root does not keep a warped pointer); yields the file xev logs its events to."""
-    log = tmp_path / "xev.log"
-    with log.open("w") as sink:
-        xev = subprocess.Popen(["xev"], stdout=sink, stderr=subprocess.STDOUT)
-        try:
-            window = ""
-            for _ in range(100):
-                found = subprocess.run(
-                    ["xdotool", "search", "--name", _XEV_WINDOW_NAME], capture_output=True, text=True, timeout=5
-                )
-                window = found.stdout.split()[0] if found.stdout.split() else ""
-                if window:
-                    break
-                time.sleep(0.1)
-            assert window, "the xev window never appeared"
-            subprocess.run(["xdotool", "windowfocus", "--sync", window], check=True, timeout=5)
-            yield log
-        finally:
-            xev.terminate()
-            xev.wait(timeout=5)
+def ruler(tmp_path: Path) -> Iterator[Callable[[], str]]:
+    """A focused Tk text window; yields a callable returning its current content."""
+    out = tmp_path / "content.txt"
+    out.write_text("")
+    app = subprocess.Popen([_TK_PYTHON, "-c", _TK_APP, str(out)])
+    try:
+        window = ""
+        for _ in range(200):
+            found = subprocess.run(
+                ["xdotool", "search", "--name", _WINDOW_NAME], capture_output=True, text=True, timeout=5, check=False
+            )
+            window = found.stdout.split()[0] if found.stdout.split() else ""
+            if window:
+                break
+            time.sleep(0.1)
+        assert window, "the Tk window never appeared"
+        subprocess.run(["xdotool", "windowfocus", "--sync", window], check=True, timeout=5)
+        yield lambda: out.read_text(encoding="utf-8")
+    finally:
+        app.terminate()
+        app.wait(timeout=5)
 
 
-@pytest.fixture
-def pressed_keys(xev_window: Path) -> Callable[[], list[str]]:
-    """Callable listing the keysym of every KeyPress the xev window has received so far."""
-
-    def keysyms() -> list[str]:
-        names: list[str] = []
-        awaiting_keysym = False
-        # xev writes the typed character in the host's locale charset; only the ASCII keysym lines are parsed.
-        for line in xev_window.read_text(errors="replace").splitlines():
-            if line.startswith("KeyPress event"):
-                awaiting_keysym = True
-            elif awaiting_keysym and "keysym" in line:
-                names.append(line.split("keysym", 1)[1].split(",")[1].split(")")[0].strip())
-                awaiting_keysym = False
-        return names
-
-    return keysyms
-
-
-async def _settled(keysyms: Callable[[], list[str]], expected: int) -> list[str]:
-    """xev reports asynchronously; wait until `expected` KeyPress events have been logged."""
-    for _ in range(100):
-        if len(keysyms()) >= expected:
+async def _content_after(ruler: Callable[[], str], expected: str) -> str:
+    """The widget updates asynchronously: wait for the expected content, return whatever is there at the end."""
+    for _ in range(200):
+        if ruler() == expected:
             break
         await asyncio.sleep(0.05)
-    return keysyms()
+    return ruler()
 
 
-class TestRealTyping:
+def _set_clipboard(text: str) -> None:
+    # xclip forks a selection owner that keeps its inherited pipes open, so nothing may be captured.
+    subprocess.run(
+        ["xclip", "-selection", "clipboard"],
+        input=text.encode(),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=10,
+        check=True,
+    )
+
+
+def _clipboard() -> str:
+    read = subprocess.run(["xclip", "-selection", "clipboard", "-o"], capture_output=True, timeout=10, check=False)
+    return read.stdout.decode()
+
+
+class TestRealTextEntry:
     @pytest.mark.asyncio
-    async def test_non_ascii_text_arrives_as_key_events(
-        self, backend: LinuxBackend, pressed_keys: Callable[[], list[str]]
+    async def test_ascii_with_punctuation_arrives_exactly(
+        self, backend: LinuxBackend, ruler: Callable[[], str]
     ) -> None:
-        result = await backend.type_text("a你好é")
+        result = await backend.type_text(_ASCII_MIX)
 
         assert result.success is True
-        assert await _settled(pressed_keys, 4) == ["a", "U4F60", "U597D", "eacute"]
+        assert await _content_after(ruler, _ASCII_MIX) == _ASCII_MIX
 
     @pytest.mark.asyncio
-    async def test_non_ascii_text_arrives_when_the_host_pins_a_non_utf8_locale(
-        self, backend: LinuxBackend, pressed_keys: Callable[[], list[str]], monkeypatch: pytest.MonkeyPatch
+    async def test_cjk_arrives_exactly_every_round(self, backend: LinuxBackend, ruler: Callable[[], str]) -> None:
+        expected = ""
+        for _ in range(5):
+            expected += _CJK
+
+            result = await backend.type_text(_CJK)
+
+            assert result.success is True
+            assert await _content_after(ruler, expected) == expected
+
+    @pytest.mark.asyncio
+    async def test_multiline_mixed_text_arrives_exactly(self, backend: LinuxBackend, ruler: Callable[[], str]) -> None:
+        text = "第一行 first\n第二行 café\n\n  最后一行, with punctuation!"
+
+        result = await backend.type_text(text)
+
+        assert result.success is True
+        assert await _content_after(ruler, text) == text
+
+    @pytest.mark.asyncio
+    async def test_host_pinned_non_utf8_locale_does_not_matter(
+        self, backend: LinuxBackend, ruler: Callable[[], str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # LC_ALL outranks LC_CTYPE; xdotool run under it would stop at the first non-ASCII character.
         monkeypatch.setenv("LC_ALL", "C")
 
-        result = await backend.type_text("你好")
+        result = await backend.type_text(_CJK)
 
         assert result.success is True
-        assert await _settled(pressed_keys, 2) == ["U4F60", "U597D"]
+        assert await _content_after(ruler, _CJK) == _CJK
 
     @pytest.mark.asyncio
-    async def test_a_text_longer_than_one_chunk_loses_no_character(
-        self, backend: LinuxBackend, pressed_keys: Callable[[], list[str]]
-    ) -> None:
-        result = await backend.type_text("你好世界" * 30)
+    async def test_the_users_clipboard_survives_a_paste(self, backend: LinuxBackend, ruler: Callable[[], str]) -> None:
+        _set_clipboard("what the user copied")
+
+        result = await backend.type_text(_CJK)
 
         assert result.success is True
-        assert len(await _settled(pressed_keys, 120)) == 120
+        assert await _content_after(ruler, _CJK) == _CJK
+        assert _clipboard() == "what the user copied"
 
     @pytest.mark.asyncio
-    async def test_non_ascii_credential_arrives_as_key_events(
-        self, backend: LinuxBackend, pressed_keys: Callable[[], list[str]], monkeypatch: pytest.MonkeyPatch
+    async def test_non_ascii_credential_arrives_exactly_and_leaves_no_trace_on_the_clipboard(
+        self, backend: LinuxBackend, ruler: Callable[[], str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         class _Vault:
             def get_password(self, _label: str) -> str:
-                return "密é"
+                return "密码é-S3cr3t"
 
         monkeypatch.setattr(
             "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault", lambda: _Vault()
         )
+        _set_clipboard("what the user copied")
 
         result = await backend.type_credential("bank")
 
         assert result.success is True
-        assert await _settled(pressed_keys, 2) == ["U5BC6", "eacute"]
+        assert await _content_after(ruler, "密码é-S3cr3t") == "密码é-S3cr3t"
+        assert _clipboard() == "what the user copied"
 
 
 class TestRealXdotool:
     @pytest.mark.asyncio
-    async def test_mouse_move_lands_on_the_requested_point(self, backend: LinuxBackend, xev_window: Path) -> None:
+    async def test_mouse_move_lands_on_the_requested_point(
+        self, backend: LinuxBackend, ruler: Callable[[], str]
+    ) -> None:
         result = await backend.mouse_move(120, 80)
 
-        located = subprocess.run(["xdotool", "getmouselocation"], capture_output=True, text=True, timeout=5)
+        located = subprocess.run(
+            ["xdotool", "getmouselocation"], capture_output=True, text=True, timeout=5, check=False
+        )
         assert result.success is True
         assert located.stdout.startswith("x:120 y:80 ")
 

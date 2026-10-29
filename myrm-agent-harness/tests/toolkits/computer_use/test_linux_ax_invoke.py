@@ -12,8 +12,6 @@ Covers:
 from __future__ import annotations
 
 import subprocess
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -238,69 +236,15 @@ class TestInvokeActionDispatch:
         assert result.success is True
         mock_button.queryComponent.return_value.grabFocus.assert_called()
 
-    def test_fill_fallback_to_xdotool(self) -> None:
-        """When EditableText fails, should fallback to xdotool type."""
+    def test_fill_without_editable_text_fails_without_typing_so_the_pointer_fallback_types(self) -> None:
+        """Typing belongs to the backend: an element with no EditableText is reported as failed and nothing is spawned."""
         mock_pyatspi, mock_button = self._make_interactive_desktop()
         mock_button.getRoleName.return_value = "entry"
         mock_button.queryEditableText.side_effect = Exception("no editable")
-
-        mock_action = MagicMock()
-        mock_action.getNActions.return_value = 1
-        mock_button.queryAction.return_value = mock_action
 
         with (
             patch.dict("sys.modules", {"pyatspi": mock_pyatspi}),
-            patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0)) as mock_run,
-        ):
-            from importlib import reload
-
-            from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
-
-            reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "type", "world")
-
-        assert result.success is True
-        mock_action.doAction.assert_called_with(0)
-        mock_run.assert_called_once()
-        call_args = mock_run.call_args[0][0]
-        assert "xdotool" in call_args
-        assert "world" in call_args
-
-    @pytest.mark.skipif(sys.platform == "win32", reason="the stand-in xdotool is a POSIX shell script")
-    def test_fill_fallback_reports_a_failing_xdotool_without_echoing_the_text(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """A real subprocess exiting non-zero must fail the action, and the typed text stays out of the error."""
-        fake = tmp_path / "xdotool"
-        fake.write_text("#!/bin/sh\nexit 1\n")
-        fake.chmod(0o755)
-        monkeypatch.setenv("PATH", str(tmp_path))
-        mock_pyatspi, mock_button = self._make_interactive_desktop()
-        mock_button.getRoleName.return_value = "entry"
-        mock_button.queryEditableText.side_effect = Exception("no editable")
-
-        with patch.dict("sys.modules", {"pyatspi": mock_pyatspi}):
-            from importlib import reload
-
-            from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
-
-            reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "type", "s3cret-text")
-
-        assert result.success is False
-        assert "xdotool" in (result.error or "")
-        assert "s3cret-text" not in (result.error or "")
-
-    def test_fill_fallback_timeout_does_not_echo_the_text(self) -> None:
-        """TimeoutExpired renders the whole command; the typed text must not reach the error."""
-        mock_pyatspi, mock_button = self._make_interactive_desktop()
-        mock_button.getRoleName.return_value = "entry"
-        mock_button.queryEditableText.side_effect = Exception("no editable")
-        timeout = subprocess.TimeoutExpired(["xdotool", "type", "--clearmodifiers", "s3cret-text"], 5)
-
-        with (
-            patch.dict("sys.modules", {"pyatspi": mock_pyatspi}),
-            patch("subprocess.run", side_effect=timeout),
+            patch("subprocess.run") as mock_run,
         ):
             from importlib import reload
 
@@ -310,8 +254,9 @@ class TestInvokeActionDispatch:
             result = linux_ax.invoke_ax_element("0", "type", "s3cret-text")
 
         assert result.success is False
-        assert "timed out" in (result.error or "")
+        assert "editable" in (result.error or "")
         assert "s3cret-text" not in (result.error or "")
+        mock_run.assert_not_called()
 
     def test_getstate_exception_skips_node(self) -> None:
         """Node whose getState() raises should be skipped in _collect (mirrors walk)."""

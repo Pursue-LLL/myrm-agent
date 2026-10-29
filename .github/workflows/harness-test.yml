@@ -142,10 +142,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      # xvfb-run refuses to start without xauth, and --no-install-recommends skips it. xev (x11-utils) is the
-      # event listener the tests type into.
+      # xvfb-run refuses to start without xauth, and --no-install-recommends skips it. python3-tk provides the
+      # Tk text widget the tests type into (the system interpreter runs it).
       - name: Install X11 tools
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends xvfb xauth xdotool x11-utils
+        run: >-
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends
+          xvfb xauth xdotool xclip x11-utils python3-tk
 
       - name: Install uv
         uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
@@ -158,9 +160,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --python 3.13 --locked --extra computer-use --group dev
 
-      # The fake-tool suites cannot show how the real xdotool exits or which key events non-ASCII text produces;
-      # this file drives it on an Xvfb display and reads the events back from xev. It moves the pointer and types,
-      # hence the explicit opt-in variable.
+      # The fake-tool suites cannot show whether text arrives intact in a real application; this file types and
+      # pastes into a Tk text widget on an Xvfb display and compares the content character for character. It
+      # moves the pointer, types and borrows the clipboard, hence the explicit opt-in variable.
       - name: Run Linux computer-use tests on Xvfb
         env:
           MYRM_REAL_X11_TESTS: "1"

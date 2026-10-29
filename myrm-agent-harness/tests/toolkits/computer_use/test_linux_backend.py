@@ -25,11 +25,13 @@ async def test_run_cmd(backend):
     mock_proc = AsyncMock()
     mock_proc.communicate.return_value = (b"out", b"err")
     mock_proc.returncode = 0
-    with patch("asyncio.create_subprocess_shell", return_value=mock_proc):
-        out, err, code = await backend._run_cmd("test")
-        assert out == "out"
-        assert err == "err"
-        assert code == 0
+    with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as spawn:
+        out, err, code = await backend._run_cmd("xdotool key 'a b'")
+        assert (out, err, code) == ("out", "err", 0)
+        # No shell: the command is split once into argv, and the display and locale travel in the environment.
+        assert spawn.call_args.args == ("xdotool", "key", "a b")
+        assert spawn.call_args.kwargs["env"]["DISPLAY"] == ":1"
+        assert spawn.call_args.kwargs["env"]["LC_ALL"] == "C.UTF-8"
 
 
 @pytest.mark.asyncio

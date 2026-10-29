@@ -199,7 +199,7 @@ class TestLinuxBackendModifiers:
     async def test_click_with_modifiers(self, backend) -> None:
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -224,7 +224,7 @@ class TestLinuxBackendModifiers:
     async def test_click_without_modifiers_no_keydown(self, backend) -> None:
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -240,7 +240,7 @@ class TestLinuxBackendModifiers:
         """Verify try/finally guarantees keyup even when action throws."""
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             if "click" in cmd and "keydown" not in cmd and "keyup" not in cmd:
                 raise RuntimeError("simulated xdotool failure")
@@ -257,7 +257,7 @@ class TestLinuxBackendModifiers:
     async def test_scroll_with_modifiers(self, backend) -> None:
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -272,7 +272,7 @@ class TestLinuxBackendModifiers:
     async def test_drag_with_modifiers(self, backend) -> None:
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -287,7 +287,7 @@ class TestLinuxBackendModifiers:
     async def test_meta_maps_to_super(self, backend) -> None:
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -438,7 +438,7 @@ class TestEdgeCases:
         """Empty list [] behaves same as None — no keydown/keyup calls."""
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -454,7 +454,7 @@ class TestEdgeCases:
         """Triple modifier combo: all pressed in order, released in reverse."""
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             return ("", "", 0)
 
@@ -479,7 +479,7 @@ class TestEdgeCases:
         commands: list[str] = []
         call_count = 0
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             nonlocal call_count
             commands.append(cmd)
             call_count += 1
@@ -499,7 +499,7 @@ class TestEdgeCases:
         """Drag action failure still releases modifier keys."""
         commands: list[str] = []
 
-        async def mock_run_cmd(cmd: str, stdin: str | None = None):
+        async def mock_run_cmd(cmd: str, stdin: str | None = None, **_options: object):
             commands.append(cmd)
             if "mousemove" in cmd and "mousedown" in cmd:
                 raise RuntimeError("drag command failed")

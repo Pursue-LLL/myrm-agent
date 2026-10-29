@@ -5,6 +5,7 @@ Covers both native Linux desktops and SaaS sandbox environments (which run Linux
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
 - linux_probes::probe_linux_capturable, detect_linux_resolution (POS: read-only screen probes)
+- linux_text_io::X11TextInput (POS: text bridge of the Linux backend)
 
 [OUTPUT]
 - LinuxBackend: ComputerBackend implementation for Linux
@@ -16,6 +17,7 @@ Linux-specific screen I/O. Loaded for detect_platform().os_type == "linux".
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import shlex
@@ -28,6 +30,7 @@ from myrm_agent_harness.toolkits.computer_use.backends.linux_probes import (
     detect_linux_resolution,
     probe_linux_capturable,
 )
+from myrm_agent_harness.toolkits.computer_use.backends.linux_text_io import X11TextInput
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ModifierKey,
@@ -40,9 +43,11 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 
 logger = logging.getLogger(__name__)
 
-# 我们总是以 UTF-8 收发字节。xdotool 按所在 locale 解码，不是 UTF-8 时遇到第一个非 ASCII 字符就报错并中断，所以显式指定；
-# 用 LC_ALL 而不是 LC_CTYPE，因为宿主若设了 LC_ALL（如 C），它的优先级高于 LC_CTYPE。
-_UTF8_LOCALE = "LC_ALL=C.UTF-8"
+# Every helper runs in a UTF-8 locale: xdotool decodes by locale and aborts at the first non-ASCII character
+# otherwise. LC_ALL rather than LC_CTYPE, because a host-pinned LC_ALL (e.g. C) outranks LC_CTYPE.
+_UTF8_LOCALE = "C.UTF-8"
+_TIMEOUT_EXIT_CODE = 124
+_COMMAND_NOT_FOUND_EXIT_CODE = 127
 
 CLICK_BUTTONS = {
     "left": "1",
@@ -75,31 +80,64 @@ class LinuxBackend:
     def __init__(self, display_num: int | None = None) -> None:
         self._screen_info: ScreenInfo | None = None
         self._display_num = display_num if display_num is not None else _parse_display_num()
-        self._display_prefix = f"DISPLAY=:{self._display_num} " if self._display_num is not None else ""
+        self._text_input = X11TextInput(self._run_cmd, self._run_input)
 
-    def _subprocess_env(self) -> dict[str, str] | None:
-        """Environment for shell-less subprocess calls: an inline `DISPLAY=:N` there would become argv[0]."""
-        if self._display_num is None:
-            return None
-        return {**os.environ, "DISPLAY": f":{self._display_num}"}
+    def _subprocess_env(self) -> dict[str, str]:
+        """Environment for every helper: the selected display (when known) and a UTF-8 locale."""
+        env = {**os.environ, "LC_ALL": _UTF8_LOCALE}
+        if self._display_num is not None:
+            env["DISPLAY"] = f":{self._display_num}"
+        return env
 
-    async def _run_cmd(self, cmd: str, stdin: str | None = None) -> tuple[str, str, int]:
-        """Run a shell command under the selected display and a UTF-8 locale; `stdin` is piped, not put on the command line."""
-        full_cmd = f"{_UTF8_LOCALE} {self._display_prefix}{cmd}"
-        proc = await asyncio.create_subprocess_shell(
-            full_cmd,
-            stdin=asyncio.subprocess.PIPE if stdin is not None else None,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+    async def _run_cmd(
+        self, cmd: str, stdin: str | None = None, timeout: float | None = None, *, capture: bool = True
+    ) -> tuple[str, str, int]:
+        """Run a command without a shell; `stdin` is piped, not put on the command line.
+
+        With `timeout`, a command that has not finished by then is killed and reported as exit 124. A cancelled
+        call kills the command too, so it cannot keep injecting input after its caller is gone. `capture=False`
+        leaves stdout/stderr unpiped for tools that fork a long-lived child (xclip).
+        """
+        argv = shlex.split(cmd)
+        sink = asyncio.subprocess.PIPE if capture else asyncio.subprocess.DEVNULL
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *argv,
+                stdin=asyncio.subprocess.PIPE if stdin is not None else None,
+                stdout=sink,
+                stderr=sink,
+                env=self._subprocess_env(),
+            )
+        except FileNotFoundError:
+            return "", f"{argv[0]}: command not found", _COMMAND_NOT_FOUND_EXIT_CODE
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(stdin.encode("utf-8") if stdin is not None else None), timeout
+            )
+        except TimeoutError:
+            # A timeout can coincide with the process exiting on its own, and kill() then raises ProcessLookupError.
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+            await proc.wait()
+            # The command line may carry typed text, so it stays out of the log.
+            logger.warning("An X11 helper command timed out after %ss and was killed", timeout)
+            return "", f"timed out after {timeout}s", _TIMEOUT_EXIT_CODE
+        except asyncio.CancelledError:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+            raise
+        return (
+            (stdout or b"").decode(errors="replace"),
+            (stderr or b"").decode(errors="replace"),
+            proc.returncode or 0,
         )
-        stdout, stderr = await proc.communicate(stdin.encode("utf-8") if stdin is not None else None)
-        return stdout.decode(), stderr.decode(), proc.returncode or 0
 
-    async def _run_input(self, cmd: str, stdin: str | None = None) -> None:
+    async def _run_input(self, cmd: str, stdin: str | None = None, *, capture: bool = True) -> None:
         """Run an input-injection command; a non-zero exit (e.g. xdotool missing) must not look like success."""
-        _, stderr, code = await self._run_cmd(cmd, stdin)
+        _, stderr, code = await self._run_cmd(cmd, stdin, capture=capture)
         if code != 0:
-            raise RuntimeError(f"{cmd.split()[0]} failed (exit {code}): {stderr.strip()}")
+            detail = f": {stderr.strip()}" if stderr.strip() else ""
+            raise RuntimeError(f"{cmd.split()[0]} failed (exit {code}){detail}")
 
     async def resolve_window_target(self, app_name: str, window_index: int = 0) -> tuple[int, int, int, int] | None:
         """Window targeting is unsupported here: no window can be resolved."""
@@ -155,15 +193,10 @@ class LinuxBackend:
             for mod in reversed(xdotool_mods):
                 await self._run_cmd(f"xdotool keyup {mod}")
 
-    async def _xdotool_type(self, text: str, delay_ms: int) -> None:
-        """Type text through xdotool. It goes over stdin: out of the process list and independent of shell quoting."""
-        await self._run_input(f"xdotool type --delay {delay_ms} --file -", stdin=text)
-
     async def type_text(self, text: str, delay_ms: int = 12, chunk_size: int = 50) -> ActionResult:
-        """Type text (any script) as key events, in chunks so a long text is not one uninterruptible call."""
+        """Type text: ASCII as key events, any text with other scripts through the clipboard."""
         try:
-            for i in range(0, len(text), chunk_size):
-                await self._xdotool_type(text[i : i + chunk_size], delay_ms)
+            await self._text_input.enter(text, delay_ms, chunk_size)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
@@ -184,8 +217,8 @@ class LinuxBackend:
             return ActionResult(success=False, error=f"Failed to retrieve credential for label '{label}'")
 
         try:
-            # 凭据不进命令行参数（进程列表可见），也不经剪贴板。
-            await self._xdotool_type(secret_text, 12)
+            # The secret never reaches a command line (the process list shows those).
+            await self._text_input.enter(secret_text)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
