@@ -195,6 +195,14 @@ class TestMentions:
         assert server.events[0][2]["m.mentions"] == {"user_ids": ["@bob:matrix.org", "@alice:matrix.org"]}
 
     @pytest.mark.asyncio
+    async def test_the_bot_never_lists_itself(self) -> None:
+        server = self._room("alice", "bot")
+        channel = _channel(server)
+        channel._user_id = "@bot:matrix.org"
+        await channel.send(_message("@bot noted, @alice"))
+        assert server.events[0][2]["m.mentions"] == {"user_ids": ["@alice:matrix.org"]}
+
+    @pytest.mark.asyncio
     async def test_a_reply_keeps_both_its_relation_and_its_mentions(self) -> None:
         server = self._room("alice")
         await _channel(server).send(_message("@alice ok", reply_to="$question"))
