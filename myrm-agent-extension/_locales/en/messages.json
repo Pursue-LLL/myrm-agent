@@ -299,6 +299,9 @@
   "panelAgentBusy": {
     "message": "The agent is still working on the previous step. Try again in a moment."
   },
+  "panelToolStuckPaused": {
+    "message": "That step kept failing, so I stopped here. Tell me how you'd like to go on."
+  },
   "allowAllEligibleTabs": {
     "message": "Allow all eligible websites"
   }

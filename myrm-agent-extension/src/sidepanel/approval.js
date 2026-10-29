@@ -6,6 +6,7 @@
  *
  * [OUTPUT]
  * - describeApproval: what the panel shows for the request and whether it may approve
+ * - isLoopGuardPause: the agent stopped a step that kept failing and waits on no answer, so there is nothing to approve
  * - resolveApprovalCopy / clockTimeFormatter: localized overlay text for a described approval
  * - buildResumeValue / buildStreamBody: the request that settles an interrupt (same endpoint as a new message) and
  *   the tool set every panel request declares
@@ -181,6 +182,17 @@ function describeDeadline(timeout, now) {
   const behavior = timeout?.behavior;
   if (typeof seconds !== "number" || !(seconds > 0) || (behavior !== "deny" && behavior !== "allow")) return undefined;
   return { atMs: now + seconds * 1000, behavior };
+}
+
+/**
+ * The loop guard pauses a step that kept failing with the same `approval_required` event an approval uses, marked by
+ * this `action_type` (the web app checks the same value). It stops the turn and asks nothing: the user decides by
+ * writing the next message, so the panel must not open an approval card or lock the input for it.
+ * @param {unknown} event SSE event; its payload is untrusted
+ * @returns {boolean}
+ */
+export function isLoopGuardPause(event) {
+  return event?.type === "approval_required" && event.data?.action_type === "tool_stuck";
 }
 
 /**

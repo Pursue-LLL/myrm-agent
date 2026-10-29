@@ -4,7 +4,8 @@
  * [INPUT]
  * - server_client.js::createServerClient (POS: server location, credentials and health of the Side Panel)
  * - sse.js::readSSE (POS: transport parsing of the agent stream)
- * - approval.js::describeApproval (POS: decision logic of the approval flow: what to show, whether to approve)
+ * - approval.js::describeApproval, isLoopGuardPause (POS: decision logic of the approval flow: what to show, whether
+ *   to approve, whether an `approval_required` is a loop guard pause that asks nothing)
  * - approval_overlay.js::createApprovalOverlay (POS: DOM rendering of the approval card)
  * - approval_notify.js::notifyApprovalPending (POS: system notification while an approval waits)
  * - chat_view.js::createChatView (POS: DOM rendering of the conversation)
@@ -26,6 +27,7 @@ import {
   buildStreamBody,
   clockTimeFormatter,
   describeApproval,
+  isLoopGuardPause,
   isResumeConflict,
   resolveApprovalCopy,
 } from "./approval.js";
@@ -237,8 +239,11 @@ function handleSSEEvent(event, turn) {
       updateLastToolStep(chatView.toolContainer(turn), toolName(event), "error");
       break;
     case "tool_approval_request":
-    case "approval_required":
       showApproval(event, turn);
+      break;
+    case "approval_required":
+      if (isLoopGuardPause(event)) chatView.appendNotice(turn, msg("panelToolStuckPaused"));
+      else showApproval(event, turn);
       break;
     case "error":
       // The raw error text is for developers: the chat only says what the user can act on.

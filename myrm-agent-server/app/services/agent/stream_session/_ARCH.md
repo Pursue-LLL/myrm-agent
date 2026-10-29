@@ -26,6 +26,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `migration_readiness_anchor.py` | 辅助 | 迁移 readiness 双锚记录助手：消费 `migration_readiness_anchor`（import_batch_id），按 stream finalize 信号归类首轮结果（success/failed/no_output）；preflight 未写入 live 状态时 finalize 再 live-resolve 一次，永不用 anchor 快照作 truth；函数内 lazy import `get_session_factory`（与 conftest patch 一致） | ✅ |
 | `migration_bound_project.py` | 辅助 | 迁移 vault bind 同窗 handoff：persist 后、convert 前消费 `migration_bound_project_id`，`move_chat_to_project` 写 SSOT；chat 已有 project_id 或 resume 时跳过 | ✅ |
 | `migration_readiness_preflight.py` | 辅助 | 迁移 readiness 软门禁：anchor 携带 batch_id 时 live-resolve readiness，在 stream 早期对 warning/critical 发射 issue-aware `capability_gap`（含 settings_path）；生产仅 async `resolve_and_build_*`；函数内 lazy import `get_session_factory`；不阻断执行、不改 Turn1 工具绑定 | ✅ |
+| `phase_stepper.py` | 辅助 | `PhaseTransitionTracker`：把流 chunk 映射为 `phase_transition` SSE（阶段、泳道、节点；`stream_loop` 逐个喂入）；`approval_required` 若是 loop guard 暂停（`approval_payload.is_tool_stuck_pause`）无人可答，不进「等待审批」节点，其余审批、带 `actionRequests` 的审批与澄清进用户泳道的审批节点 | ✅ |
 | `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer；orchestrator 未发送时补发 pre-reply compact SSE；`pump_to_buffer` 供 E1 后台 turn；long-running 回合在客户端断连后正常/失败结束时发 `source=offline_guardian` 的 SystemNotification；共享 project 并发：经 `_acquire_guarded`（分片轮询 `cancel_token`，取消可中断）获取 project turn lock，排队期间发 `waiting_for_turn`、获取后发 `waiting_for_turn_clear`；`lock_acquired` 标志保证 `finally` 仅释放当前请求真正持有的锁（取消等待不误释放他人锁）；`finally` 调 `session_reservation.release_unstreamed_reservation` 释放未被 `execute_stream` 接管的预占 session（锁等待期间取消不会让 chat 永久 busy），resume 回合则同时重开调度键 | ✅ |
 | `session_reservation.py` | 辅助 | `ChatSessionReservation`：orchestrator persist 前 gateway 预占/early exit release/transfer 至 execute_stream；`release_unstreamed_reservation(chat_id, was_resume)`：turn 退出时清理未被 `execute_stream` 接管的预占，仅当确实释放了残留预占且为 resume 时重开 `ApprovalTimeoutScheduler` 键（resume 已领取该键却没能续写，后续 resume 才不会被误拒） | ✅ |
 | `stream_busy.py` | 辅助 | `agent_busy_streaming_response`：HTTP 200 + SSE `{type:error, error_type:AgentBusyError, status_code:409}` SSOT | ✅ |
@@ -43,5 +44,6 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 - `app/services/agent/memory_brief_telemetry/` — sandbox Control Plane memory brief 状态批量遥测（`stream_loop` / `stream_finalize` enqueue；用户可见 SSE 契约见 `_memory_status_helpers.py`）
 - `app/services/agent/streaming_support/` — SSE 辅助与内容收集
 - `app/services/agent/streaming.py` — Harness 流式桥接
+- `app/services/agent/approval_payload.py` — `phase_stepper.py` 用它识别 loop guard 暂停
 - `app/services/wiki/vault` — Deep Research vault 与 API 共用 wiki 路径与 archiver
 - `myrm_agent_harness.agent.streaming.stream_buffer` — 全局流 buffer

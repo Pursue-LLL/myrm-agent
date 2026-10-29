@@ -9,11 +9,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
-from types import SimpleNamespace
 
 import pytest
-from myrm_agent_harness.agent.errors import ToolStuckException
-from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.routing.friendly_errors import ERROR_TYPE_METADATA_KEY, is_error_reply
@@ -21,15 +18,9 @@ from app.channels.types import InboundMessage, OutboundMessage
 from app.core.channel_bridge.agent_executor.stream_events import iter_channel_stream_progress
 from app.core.channel_bridge.executor_helpers import StreamAccumulator
 from tests.core.channel_bridge.test_execute_finalize import _finalize
+from tests.support.harness_pause_event import harness_pause_event
 
-
-def _harness_pause_event() -> dict[str, object]:
-    """The event the harness streams for a loop guard pause, built by its own interrupt translator."""
-    payload = ToolStuckException("stuck").interrupt_payload("file_read_tool", "call-secret-1")
-    return interrupt_events([SimpleNamespace(value=payload, id="interrupt-1")], "msg-1", {})[0]
-
-
-_PAUSE = _harness_pause_event()
+_PAUSE = harness_pause_event("file_read_tool", "call-secret-1")
 _EN_NOTICE = "That step kept failing, so I stopped here. Tell me how you'd like to go on."
 
 

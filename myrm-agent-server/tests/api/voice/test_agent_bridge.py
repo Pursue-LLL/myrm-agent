@@ -15,19 +15,17 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass
-from types import SimpleNamespace
 from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.agent.errors import ToolStuckException
-from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 
 from app.api.voice.agent_bridge import (
     VoiceAgentBridge,
     _extract_speakable_segments,
     _log_turn_latency,
 )
+from tests.support.harness_pause_event import harness_pause_event
 
 # ── _extract_speakable_segments tests ──────────────────────────────────
 
@@ -113,12 +111,6 @@ class _FakeVoiceConfig:
     tts_voice: str = "en-US-GuyNeural"
     camera_enabled: bool = False
     full_duplex: bool = True
-
-
-def _harness_pause_event() -> dict[str, object]:
-    """The event the harness streams for a loop guard pause, built by its own interrupt translator."""
-    payload = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
-    return interrupt_events([SimpleNamespace(value=payload, id="interrupt-1")], "msg-1", {})[0]
 
 
 def _make_bridge(ws: AsyncMock | None = None) -> VoiceAgentBridge:
@@ -409,7 +401,7 @@ class TestHandleApprovalRequired:
         bridge._current_turn = "turn-1"
 
         with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
-            await bridge._handle_approval_required(_harness_pause_event(), "turn-1")
+            await bridge._handle_approval_required(harness_pause_event(), "turn-1")
 
         mock_tts.assert_awaited_once()
         hint_text = mock_tts.call_args[0][0]
@@ -422,7 +414,7 @@ class TestHandleApprovalRequired:
         """The client gets the pause event unchanged; only the spoken hint differs from an approval's."""
         bridge = _make_bridge()
         bridge._current_turn = "turn-1"
-        pause = _harness_pause_event()
+        pause = harness_pause_event()
         sent_payloads: list[dict[str, object]] = []
 
         async def capture_send(data: dict[str, object]) -> None:

@@ -10,7 +10,8 @@
 
 [POS]
 Shared approval payload normalization for streaming.py, the stream collector, the voice bridge, the channel stream
-mapper and approval persistence tests.
+mapper, the phase stepper and approval persistence tests. The web app and the browser extension side panel tell a loop
+guard pause apart on the client by the same ``action_type``.
 """
 
 from __future__ import annotations

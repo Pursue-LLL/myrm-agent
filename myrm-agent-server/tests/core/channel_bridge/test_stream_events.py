@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from types import SimpleNamespace
 
 import pytest
-from myrm_agent_harness.agent.errors import ToolStuckException
-from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ApprovalExpiry, FissionTopologyNode, FissionTopologyUpdate, ProgressUpdate, StreamingText
 from app.core.channel_bridge.agent_executor.stream_events import iter_channel_stream_progress
 from app.core.channel_bridge.executor_helpers import StreamAccumulator
+from tests.support.harness_pause_event import harness_pause_event
 
 
 async def _events(*items: dict[str, object]) -> AsyncIterator[dict[str, object]]:
@@ -244,8 +242,7 @@ async def test_later_error_event_replaces_the_earlier_one() -> None:
 @pytest.mark.asyncio
 async def test_loop_guard_pause_is_recorded_without_a_card() -> None:
     """The pause arrives as ``approval_required`` but waits on no answer: nothing to approve, so no card."""
-    payload = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
-    pause = interrupt_events([SimpleNamespace(value=payload, id="interrupt-1")], "msg-1", {})[0]
+    pause = harness_pause_event()
     assert pause["type"] == "approval_required"
     acc = StreamAccumulator()
     progress = [item async for item in iter_channel_stream_progress(_events(pause), acc, locale="en", session_key="")]

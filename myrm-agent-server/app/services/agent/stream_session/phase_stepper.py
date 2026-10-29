@@ -5,6 +5,7 @@ according to the production agent execution specification (Nodes 1-30).
 
 [INPUT]
 - Streaming chunk dictionaries or event types
+- app.services.agent.approval_payload::is_tool_stuck_pause (POS: whether an interrupt is a loop guard pause, which is no approval)
 
 [OUTPUT]
 - Standardized phase_transition dictionaries for SSE emission
@@ -14,6 +15,8 @@ from __future__ import annotations
 
 import time
 from typing import Final
+
+from app.services.agent.approval_payload import is_tool_stuck_pause
 
 _MCP_MARKERS: Final[tuple[str, ...]] = ("mcp__", "skills.mcp_")
 _SKILL_MARKERS: Final[tuple[str, ...]] = ("skills.", "skill_")
@@ -118,7 +121,7 @@ class PhaseTransitionTracker:
                 phase = "executing" if self.current_phase_index >= 2 else "planning"
                 phase_idx = self.current_phase_index
                 node_id = 12 if phase_idx == 2 else 6
-                label = (_LLM_EXEC_LABELS[self._lang] if phase_idx == 2 else _LLM_PLAN_LABELS[self._lang])
+                label = _LLM_EXEC_LABELS[self._lang] if phase_idx == 2 else _LLM_PLAN_LABELS[self._lang]
                 return self._transition_to(
                     phase=phase,
                     phase_index=phase_idx,
@@ -127,7 +130,9 @@ class PhaseTransitionTracker:
                     node_label=label,
                 )
 
-        # 3. User approval / HITL intervention
+        # 3. User approval / HITL intervention; a loop guard pause arrives as ``approval_required`` but waits on no answer
+        if event_type == "approval_required" and is_tool_stuck_pause(chunk.get("data")):
+            return None
         if event_type in ("approval_required", "clarification_required", "tool_approval_request"):
             return self._transition_to(
                 phase="executing",

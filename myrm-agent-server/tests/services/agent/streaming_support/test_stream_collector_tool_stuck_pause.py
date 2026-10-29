@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from types import SimpleNamespace
 
 import pytest
-from myrm_agent_harness.agent.errors import ToolStuckException
-from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 
 from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
+from tests.support.harness_pause_event import harness_pause_event
 
 CHAT_ID = "chat-tool-stuck-collector"
 PAUSED_STEP = {"step_key": "tool_stuck_paused", "items": [], "status": "error"}
@@ -21,13 +19,6 @@ def _release_collector() -> Iterator[None]:
     ACTIVE_COLLECTORS.pop(CHAT_ID, None)
 
 
-def _pause_event() -> dict[str, object]:
-    """The event the harness emits for a real ToolStuckException, not a hand-written copy of it."""
-    value = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
-    [event] = interrupt_events([SimpleNamespace(value=value, id="interrupt-1")], "msg-1", {})
-    return event
-
-
 def _steps(collector: StreamContentCollector) -> list[dict[str, object]]:
     extra_data = collector.extra_data or {}
     steps = extra_data.get("progressSteps")
@@ -37,7 +28,7 @@ def _steps(collector: StreamContentCollector) -> list[dict[str, object]]:
 def test_a_pause_is_not_an_unanswered_card() -> None:
     collector = StreamContentCollector(chat_id=CHAT_ID)
 
-    collector.feed_event(_pause_event())
+    collector.feed_event(harness_pause_event())
 
     assert collector.tool_stuck_paused is True
     assert collector.has_pending_hitl_replay() is False
@@ -46,7 +37,7 @@ def test_a_pause_is_not_an_unanswered_card() -> None:
 def test_a_pause_is_saved_as_a_step_the_transcript_can_show() -> None:
     collector = StreamContentCollector(chat_id=CHAT_ID)
 
-    collector.feed_event(_pause_event())
+    collector.feed_event(harness_pause_event())
 
     assert _steps(collector) == [PAUSED_STEP]
     assert collector.has_persistable_turn is True
@@ -55,8 +46,8 @@ def test_a_pause_is_saved_as_a_step_the_transcript_can_show() -> None:
 def test_a_pause_that_arrives_twice_is_saved_once() -> None:
     collector = StreamContentCollector(chat_id=CHAT_ID)
 
-    collector.feed_event(_pause_event())
-    collector.feed_event(_pause_event())
+    collector.feed_event(harness_pause_event())
+    collector.feed_event(harness_pause_event())
 
     assert _steps(collector) == [PAUSED_STEP]
 
@@ -64,7 +55,7 @@ def test_a_pause_that_arrives_twice_is_saved_once() -> None:
 def test_a_client_attached_to_the_stream_still_receives_the_pause() -> None:
     collector = StreamContentCollector(chat_id=CHAT_ID)
     _, queue = collector.subscribe()
-    event = _pause_event()
+    event = harness_pause_event()
 
     collector.feed_event(event)
 

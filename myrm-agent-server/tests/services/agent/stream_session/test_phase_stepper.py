@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.services.agent.stream_session.phase_stepper import PhaseTransitionTracker
+from tests.support.harness_pause_event import harness_pause_event
 
 
 def test_initial_planning_phase_emission() -> None:
@@ -84,3 +87,40 @@ def test_verification_and_completion_transitions() -> None:
     assert isinstance(c_data, dict)
     assert c_data["phase"] == "completed"
     assert c_data["node_id"] == 30
+
+
+def test_a_loop_guard_pause_is_no_approval_step() -> None:
+    """The pause reaches the stream as ``approval_required`` but waits on no answer: no step claims it does."""
+    tracker = PhaseTransitionTracker(message_id="msg-105")
+    tracker.emit_initial_if_needed()
+
+    assert tracker.on_chunk(harness_pause_event()) is None
+    assert tracker.current_lane == "agent"
+
+    complete_event = tracker.on_chunk({"type": "message_end"})
+    assert complete_event is not None
+    data = complete_event["data"]
+    assert isinstance(data, dict)
+    assert data["phase"] == "completed"
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        {"type": "approval_required", "data": {"action_type": "bash"}},
+        {"type": "approval_required", "data": {}},
+        {"type": "tool_approval_request", "data": {"actionRequests": [{"action": "bash"}]}},
+        {"type": "clarification_required", "data": {"type": "ask_question"}},
+    ],
+)
+def test_a_request_that_waits_on_an_answer_is_still_an_approval_step(event: dict[str, object]) -> None:
+    tracker = PhaseTransitionTracker(message_id="msg-106")
+    tracker.emit_initial_if_needed()
+
+    transition = tracker.on_chunk(event)
+
+    assert transition is not None
+    data = transition["data"]
+    assert isinstance(data, dict)
+    assert data["active_lane"] == "user"
+    assert data["node_id"] == 14

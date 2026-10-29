@@ -23,6 +23,19 @@ function sse(events: object[], status = 200): Response {
 
 const FILE_WRITE = { action: 'file_write_tool', args: { path: '/a' }, description: 'Write /a' };
 
+/** The loop guard pause as the harness streams it (`interrupt_events` over `ToolStuckException.interrupt_payload`). */
+const LOOP_GUARD_PAUSE = {
+  type: 'approval_required',
+  data: {
+    action_type: 'tool_stuck',
+    tool_name: 'bash_code_execute_tool',
+    tool_call_id: 'call-1',
+    error_message: 'stuck',
+  },
+  messageId: 'msg-1',
+  interruptId: 'interrupt-1.0',
+};
+
 /** A shell action as the harness builds it: the command, why the policy asks, and what the command does. */
 const CURL_COMMAND = 'curl -sS https://api.example.com/orders -o ~/Documents/orders.json';
 const SHELL_ACTION = {
@@ -443,6 +456,21 @@ describe('side panel approval', () => {
     element('btn-reject').click();
 
     expect(overlayVisible()).toBe(false);
+    expect(requests).toHaveLength(1);
+  });
+
+  it('says a paused step stopped instead of opening a card nobody can answer', async () => {
+    const requests = await bootPanel([sse([LOOP_GUARD_PAUSE, { type: 'message_end' }])], { windowFocused: false });
+
+    await send('read the file');
+
+    await vi.waitFor(() => expect(textOf('.turn-notice')).toBe('panelToolStuckPaused'));
+    await vi.waitFor(() => expect(element('chat-input').disabled).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 20)); // lets the reminder decision settle before asserting what did not happen
+    expect(overlayVisible()).toBe(false);
+    expect(element('chat-input').placeholder).toBe('panelInputPlaceholder');
+    expect(browser.notifications.create).not.toHaveBeenCalled();
+    expect(JSON.stringify(document.body.innerHTML)).not.toMatch(/tool_stuck|bash_code_execute_tool|call-1/);
     expect(requests).toHaveLength(1);
   });
 

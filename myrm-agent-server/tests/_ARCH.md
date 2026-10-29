@@ -556,9 +556,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/skills/test_scan_risk_policy.py` | 模块 | 后台学习的高危新增复核策略（真实扫描器）：新技能对比空内容、同类发现数量增加仍判新增（计数差分）、原有发现不重复拦截、语境型类别仅 CRITICAL 生效、扫描异常 fail-closed、信号词汇 |
 | `services/agent/streaming_support/test_stream_collector_tool_stuck_pause.py` | 模块 | loop guard 的 `tool_stuck` 暂停：不算没人回答的卡片（不进 pending）、落一条 `tool_stuck_paused` 步骤且重复到达只落一次、挂在流上的客户端仍收到事件；其余 interrupt（带 `actionRequests` 的审批、无 `action_type` 的审批、澄清）仍是待回答卡片 |
 | `services/agent/stream_session/test_stream_finalize_tool_stuck_pause.py` | 模块 | 暂停按已结束的一轮收尾（`RunDigestStore.end_run` 收尾、记 `send_completed` 而不是 `send_failed`、带「已暂停」步骤落库）；等卡片的运行仍保持打开；没有暂停的空运行仍记 `send_failed` |
+| `services/agent/stream_session/test_phase_stepper.py` | 模块 | 阶段步进器 `PhaseTransitionTracker`：初始规划阶段、工具开始进执行泳道、推理切到 LLM 泳道、验证与完成转场；loop guard 暂停（真实 harness 事件）不进「等待审批」节点、此后 `message_end` 照常收尾，真正等待回答的事件（审批、带 `actionRequests` 的审批、澄清）仍进用户泳道的审批节点 |
 | `services/agent/test_stream_finalize_persistence.py` | 模块 | `finalize_agent_stream_session` 收尾持久化单测（记忆预算与引用顺序、brief 状态载荷、无效预算载荷跳过、未应用原因、brief 缺失时仍发注入状态、预算钩子失败时保留注入状态） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 | `support/scripted_openai_endpoint.py` | 辅助 | 本机 OpenAI 兼容端点（`/v1/chat/completions` 流式与非流式、`/v1/embeddings`），回复由测试脚本（`ChatRequest` → `Reply`：文本或一次工具调用）决定，记录收到的请求；让真实 Agent 面对确定性的模型，无需凭据与网络 |
+| `support/harness_pause_event.py` | 辅助 | `harness_pause_event(tool_name, tool_call_id)`：loop guard 暂停在流里的样子，由 harness 自己的 interrupt 翻译器对真实 `ToolStuckException` 生成，不是手写字典；语音桥、IM 渠道流与收尾、流内容收集器、阶段步进器的暂停测试共用 |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
 | `support/scripted_delegation.py` | 辅助 | 外部 Agent 直连委托的脚本化池：`ScriptedPool` 用预设事件序列回答 `run_turn` 并记录被驱动的轮次与取消，`scripted_event` / `scripted_error` / `playing` 造事件，`stream_turn` 跑完一轮，`event_types` / `steps_of` / `step_text` 读出前端收到的事件；`services/external_agents/` 下按「正文与工具步骤」「状态、轮次上限、失败与停止」拆开的两个流测试共用 |
