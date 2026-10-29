@@ -5,29 +5,24 @@ Covers:
   - _log_turn_latency: latency logging format
   - VoiceAgentBridge: cancel_tts, _cancel_current_turn, _send_json error handling
   - VoiceAgentBridge.handle_stt_final: turn lifecycle with mocked dependencies
-  - VoiceAgentBridge._handle_approval_required: TTS hint + WS forwarding
-  - VoiceAgentBridge: approval events in _consume_agent_stream
+
+Approval handling is in test_agent_bridge_approval.py; params and the fast lane in test_agent_bridge_fast_lane.py.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-from dataclasses import dataclass
 from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.api.voice.agent_bridge import (
-    VoiceAgentBridge,
     _extract_speakable_segments,
     _log_turn_latency,
 )
-from tests.support.harness_pause_event import harness_pause_event
-
-# ── _extract_speakable_segments tests ──────────────────────────────────
+from tests.support.voice_bridge import make_bridge
 
 
 class TestExtractSpeakableSegments:
@@ -94,42 +89,11 @@ class TestLogTurnLatency:
         assert "agent_tts" not in msg
 
 
-# ── VoiceAgentBridge unit tests ───────────────────────────────────────
-
-
-@dataclass(frozen=True, slots=True)
-class _FakeVoiceConfig:
-    stt_enabled: bool = True
-    stt_provider: str = "deepgram"
-    stt_api_key: str = "k"
-    stt_model: str = "nova-3"
-    stt_language: str | None = "en"
-    tts_mode: str = "always"
-    tts_provider: str = "edge"
-    tts_api_key: str = ""
-    tts_base_url: str = ""
-    tts_voice: str = "en-US-GuyNeural"
-    camera_enabled: bool = False
-    full_duplex: bool = True
-
-
-def _make_bridge(ws: AsyncMock | None = None) -> VoiceAgentBridge:
-    mock_ws = ws or AsyncMock()
-    mock_ws.send_text = AsyncMock()
-    mock_ws.send_bytes = AsyncMock()
-    return VoiceAgentBridge(
-        _ws=mock_ws,
-        _voice_config=_FakeVoiceConfig(),  # type: ignore[arg-type]
-        _agent_id="test-agent",
-        _chat_id="test-chat",
-    )
-
-
 class TestVoiceAgentBridgeSendJson:
     @pytest.mark.asyncio
     async def test_send_json_success(self) -> None:
         ws = AsyncMock()
-        bridge = _make_bridge(ws)
+        bridge = make_bridge(ws)
         await bridge._send_json({"type": "test"})
         ws.send_text.assert_awaited_once()
         sent = json.loads(ws.send_text.call_args[0][0])
@@ -138,7 +102,7 @@ class TestVoiceAgentBridgeSendJson:
     @pytest.mark.asyncio
     async def test_send_json_error_sets_closed(self) -> None:
         ws = AsyncMock()
-        bridge = _make_bridge(ws)
+        bridge = make_bridge(ws)
         ws.send_text.side_effect = RuntimeError("WS closed")
         await bridge._send_json({"type": "test"})
         assert bridge._closed is True
@@ -146,7 +110,7 @@ class TestVoiceAgentBridgeSendJson:
     @pytest.mark.asyncio
     async def test_send_json_skips_when_closed(self) -> None:
         ws = AsyncMock()
-        bridge = _make_bridge(ws)
+        bridge = make_bridge(ws)
         bridge._closed = True
         await bridge._send_json({"type": "test"})
         ws.send_text.assert_not_awaited()
@@ -154,19 +118,19 @@ class TestVoiceAgentBridgeSendJson:
 
 class TestVoiceAgentBridgeCancelTts:
     def test_cancel_tts_sets_event(self) -> None:
-        bridge = _make_bridge()
+        bridge = make_bridge()
         assert not bridge._tts_cancel_event.is_set()
         bridge.cancel_tts()
         assert bridge._tts_cancel_event.is_set()
 
     def test_cancel_tts_sets_interrupted_latch(self) -> None:
-        bridge = _make_bridge()
+        bridge = make_bridge()
         assert bridge._speech_interrupted_at is None
         bridge.cancel_tts()
         assert bridge._speech_interrupted_at is not None
 
     def test_cancel_current_turn(self) -> None:
-        bridge = _make_bridge()
+        bridge = make_bridge()
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
         token = CancellationToken()
@@ -189,7 +153,7 @@ class TestSpeechInterruptedLatch:
 
         from app.api.voice.agent_bridge import _SPEECH_INTERRUPTED_NOTE
 
-        bridge = _make_bridge()
+        bridge = make_bridge()
         bridge._speech_interrupted_at = time.monotonic()
 
         result = bridge._take_speech_interrupted()
@@ -197,14 +161,14 @@ class TestSpeechInterruptedLatch:
         assert bridge._speech_interrupted_at is None
 
     def test_take_returns_empty_when_no_latch(self) -> None:
-        bridge = _make_bridge()
+        bridge = make_bridge()
         result = bridge._take_speech_interrupted()
         assert result == ""
 
     def test_take_returns_empty_when_latch_expired(self) -> None:
         import time
 
-        bridge = _make_bridge()
+        bridge = make_bridge()
         bridge._speech_interrupted_at = time.monotonic() - 200.0
 
         result = bridge._take_speech_interrupted()
@@ -215,7 +179,7 @@ class TestSpeechInterruptedLatch:
         """Latch is consumed on first take; second take returns empty."""
         import time
 
-        bridge = _make_bridge()
+        bridge = make_bridge()
         bridge._speech_interrupted_at = time.monotonic()
 
         first = bridge._take_speech_interrupted()
@@ -227,7 +191,7 @@ class TestSpeechInterruptedLatch:
         """Integration: cancel_tts sets latch, _take_speech_interrupted consumes it."""
         from app.api.voice.agent_bridge import _SPEECH_INTERRUPTED_NOTE
 
-        bridge = _make_bridge()
+        bridge = make_bridge()
         bridge.cancel_tts()
 
         result = bridge._take_speech_interrupted()
@@ -238,7 +202,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
     @pytest.mark.asyncio
     async def test_handle_stt_final_params_failed(self) -> None:
         """When _build_agent_params returns None, should speak fallback."""
-        bridge = _make_bridge()
+        bridge = make_bridge()
 
         with (
             patch.object(bridge, "_build_agent_params", return_value=None),
@@ -252,7 +216,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
     @pytest.mark.asyncio
     async def test_handle_stt_final_successful_turn(self) -> None:
         """Full successful turn: build params → agent stream → TTS."""
-        bridge = _make_bridge()
+        bridge = make_bridge()
 
         mock_params = MagicMock()
 
@@ -278,7 +242,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
     @pytest.mark.asyncio
     async def test_handle_stt_final_records_transcript(self) -> None:
         """Transcript should contain user + assistant entries."""
-        bridge = _make_bridge()
+        bridge = make_bridge()
 
         with (
             patch.object(bridge, "_build_agent_params", return_value=None),
@@ -294,7 +258,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
     @pytest.mark.asyncio
     async def test_handle_stt_final_approval_prevents_fallback(self) -> None:
         """When agent stream yields approval_required, fallback must NOT fire."""
-        bridge = _make_bridge()
+        bridge = make_bridge()
         mock_params = MagicMock()
 
         async def fake_stream_with_approval(
@@ -325,7 +289,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
     @pytest.mark.asyncio
     async def test_handle_stt_final_tool_approval_request(self) -> None:
         """tool_approval_request event should be handled like approval_required."""
-        bridge = _make_bridge()
+        bridge = make_bridge()
         mock_params = MagicMock()
 
         async def fake_stream_tool_approval(
@@ -353,591 +317,3 @@ class TestVoiceAgentBridgeHandleSttFinal:
 
         mock_handle.assert_awaited_once()
         mock_fb.assert_not_awaited()
-
-
-class TestHandleApprovalRequired:
-    @pytest.mark.asyncio
-    async def test_tts_hint_zh(self) -> None:
-        """Chinese language config should use Chinese TTS hint."""
-        bridge = _make_bridge()
-        bridge._voice_config = _FakeVoiceConfig(stt_language="zh-CN")  # type: ignore[assignment]
-        bridge._current_turn = "turn-1"
-
-        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
-            await bridge._handle_approval_required(
-                {"type": "approval_required", "data": {"action_type": "bash"}},
-                "turn-1",
-            )
-
-        mock_tts.assert_awaited_once()
-        hint_text = mock_tts.call_args[0][0]
-        assert "屏幕" in hint_text or "确认" in hint_text
-
-    @pytest.mark.asyncio
-    async def test_tts_hint_en(self) -> None:
-        """English language config should use English TTS hint."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-
-        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
-            await bridge._handle_approval_required(
-                {"type": "approval_required", "data": {}},
-                "turn-1",
-            )
-
-        mock_tts.assert_awaited_once()
-        hint_text = mock_tts.call_args[0][0]
-        assert "confirmation" in hint_text.lower() or "screen" in hint_text.lower()
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("stt_language", "stop_wording"),
-        [("zh-CN", "连续失败"), ("en", "kept failing")],
-    )
-    async def test_loop_guard_pause_is_spoken_as_a_stop_not_as_a_confirmation(self, stt_language: str, stop_wording: str) -> None:
-        """A loop guard pause waits on no answer: the hint says the step was stopped, never to confirm on screen."""
-        bridge = _make_bridge()
-        bridge._voice_config = _FakeVoiceConfig(stt_language=stt_language)  # type: ignore[assignment]
-        bridge._current_turn = "turn-1"
-
-        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
-            await bridge._handle_approval_required(harness_pause_event(), "turn-1")
-
-        mock_tts.assert_awaited_once()
-        hint_text = mock_tts.call_args[0][0]
-        assert stop_wording in hint_text
-        assert "屏幕" not in hint_text
-        assert "confirm" not in hint_text.lower()
-
-    @pytest.mark.asyncio
-    async def test_loop_guard_pause_event_still_reaches_the_client(self) -> None:
-        """The client gets the pause event unchanged; only the spoken hint differs from an approval's."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-        pause = harness_pause_event()
-        sent_payloads: list[dict[str, object]] = []
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(pause, "turn-1")
-
-        assert sent_payloads == [
-            {"type": "approval_required", "turn_id": "turn-1", "data": pause["data"], "messageId": pause["messageId"]}
-        ]
-
-    @pytest.mark.asyncio
-    async def test_loop_guard_pauses_of_parallel_tool_calls_are_spoken_once_per_turn(self) -> None:
-        """Parallel tool calls can stop together; the stop is said once, every pause event still reaches the client."""
-        bridge = _make_bridge()
-        sent_payloads: list[dict[str, object]] = []
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts,
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(harness_pause_event("a_tool", "call-a"), "turn-1")
-            await bridge._handle_approval_required(harness_pause_event("b_tool", "call-b"), "turn-1")
-            await bridge._handle_approval_required(harness_pause_event("a_tool", "call-c"), "turn-2")
-
-        assert [call.args[1] for call in mock_tts.await_args_list] == ["turn-1", "turn-2"]
-        assert len(sent_payloads) == 3
-
-    @pytest.mark.asyncio
-    async def test_every_approval_of_a_turn_still_gets_its_confirmation_hint(self) -> None:
-        bridge = _make_bridge()
-        approval: dict[str, object] = {"type": "approval_required", "data": {"action_type": "bash"}}
-
-        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
-            await bridge._handle_approval_required(approval, "turn-1")
-            await bridge._handle_approval_required(approval, "turn-1")
-
-        assert mock_tts.await_count == 2
-
-    @pytest.mark.asyncio
-    async def test_ws_payload_structure(self) -> None:
-        """WS payload should contain type, turn_id, and data from event."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-
-        sent_payloads: list[dict[str, object]] = []
-        original_send = bridge._send_json
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-            await original_send(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(
-                {
-                    "type": "tool_approval_request",
-                    "data": {"actionRequests": [{"action": "bash"}]},
-                    "messageId": "msg-456",
-                },
-                "turn-1",
-            )
-
-        assert len(sent_payloads) == 1
-        payload = sent_payloads[0]
-        assert payload["type"] == "tool_approval_request"
-        assert payload["turn_id"] == "turn-1"
-        assert payload["messageId"] == "msg-456"
-        assert isinstance(payload["data"], dict)
-
-    @pytest.mark.asyncio
-    async def test_ws_payload_preserves_event_type(self) -> None:
-        """Original event type should be preserved in WS payload."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-
-        sent_payloads: list[dict[str, object]] = []
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(
-                {"type": "approval_required", "data": {"action_type": "email"}},
-                "turn-1",
-            )
-
-        assert sent_payloads[0]["type"] == "approval_required"
-
-    @pytest.mark.asyncio
-    async def test_no_message_id_omitted(self) -> None:
-        """When event has no messageId, WS payload should not include it."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-
-        sent_payloads: list[dict[str, object]] = []
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(
-                {"type": "approval_required", "data": {}},
-                "turn-1",
-            )
-
-        assert "messageId" not in sent_payloads[0]
-
-    @pytest.mark.asyncio
-    async def test_non_dict_data_excluded(self) -> None:
-        """When event data is not a dict, WS payload should omit data field."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-
-        sent_payloads: list[dict[str, object]] = []
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(
-                {"type": "approval_required", "data": "not-a-dict"},
-                "turn-1",
-            )
-
-        assert "data" not in sent_payloads[0]
-
-    @pytest.mark.asyncio
-    async def test_default_event_type(self) -> None:
-        """When event has no 'type' key, default to 'approval_required'."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-
-        sent_payloads: list[dict[str, object]] = []
-
-        async def capture_send(data: dict[str, object]) -> None:
-            sent_payloads.append(data)
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_send_json", side_effect=capture_send),
-        ):
-            await bridge._handle_approval_required(
-                {"data": {"action_type": "bash"}},
-                "turn-1",
-            )
-
-        assert sent_payloads[0]["type"] == "approval_required"
-
-
-class TestConsumeAgentStreamApproval:
-    """Tests for _consume_agent_stream approval event handling."""
-
-    @pytest.mark.asyncio
-    async def test_message_then_approval(self) -> None:
-        """Agent sends text first, then approval: both should be handled."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-        mock_params = MagicMock()
-
-        async def fake_stream(
-            params: object,
-            cancel_token: object,
-            **kwargs: object,
-        ) -> AsyncIterator[dict[str, object]]:
-            yield {"type": "message", "data": "I need to run a command."}
-            yield {"type": "approval_required", "data": {"action_type": "bash"}}
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock) as mock_handle,
-            patch(
-                "app.services.agent.streaming.ai_agent_service_stream",
-                side_effect=fake_stream,
-            ),
-        ):
-            full_text, has_approval = await bridge._consume_agent_stream(
-                mock_params,
-                MagicMock(),
-                "turn-1",
-            )
-
-        assert full_text == "I need to run a command."
-        assert has_approval is True
-        mock_handle.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_multiple_approval_events(self) -> None:
-        """Multiple approval events should all be handled, has_approval stays True."""
-        bridge = _make_bridge()
-        bridge._current_turn = "turn-1"
-        mock_params = MagicMock()
-
-        async def fake_stream(
-            params: object,
-            cancel_token: object,
-            **kwargs: object,
-        ) -> AsyncIterator[dict[str, object]]:
-            yield {"type": "approval_required", "data": {"action_type": "bash"}}
-            yield {"type": "tool_approval_request", "data": {"actionRequests": []}}
-
-        with (
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock) as mock_handle,
-            patch(
-                "app.services.agent.streaming.ai_agent_service_stream",
-                side_effect=fake_stream,
-            ),
-        ):
-            full_text, has_approval = await bridge._consume_agent_stream(
-                mock_params,
-                MagicMock(),
-                "turn-1",
-            )
-
-        assert full_text == ""
-        assert has_approval is True
-        assert mock_handle.await_count == 2
-
-    @pytest.mark.asyncio
-    async def test_approval_with_text_records_transcript(self) -> None:
-        """When both text and approval exist, text should be in transcript."""
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-
-        async def fake_stream(
-            params: object,
-            cancel_token: object,
-            **kwargs: object,
-        ) -> AsyncIterator[dict[str, object]]:
-            yield {"type": "message", "data": "Running command."}
-            yield {"type": "approval_required", "data": {}}
-
-        with (
-            patch.object(bridge, "_build_agent_params", return_value=mock_params),
-            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock),
-            patch.object(bridge, "_speak_fallback", new_callable=AsyncMock),
-            patch(
-                "app.services.agent.streaming.ai_agent_service_stream",
-                side_effect=fake_stream,
-            ),
-        ):
-            await bridge.handle_stt_final("run the test")
-
-        assert len(bridge._transcript) == 2
-        assert bridge._transcript[0].role == "user"
-        assert bridge._transcript[1].role == "assistant"
-        assert bridge._transcript[1].text == "Running command."
-
-
-class TestBuildAgentParamsWebFetchGate:
-    """Voice bridge must honor Agent Security net_fetch like Web/Channel."""
-
-    @pytest.mark.asyncio
-    async def test_enable_web_fetch_false_when_profile_omits_net_fetch(self) -> None:
-        from app.core.types import ModelConfig
-        from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
-
-        bridge = _make_bridge()
-        profile = ResolvedAgentProfile(
-            agent_id="restricted-agent",
-            skill_ids=(),
-            mcp_ids=(),
-            enabled_builtin_tools=("file_read",),
-            security_overrides={"capabilities": ["file_read"]},
-        )
-        mock_configs = MagicMock()
-        mock_configs.model_cfg = ModelConfig(model="test/model", api_key="test-key")
-        mock_configs.providers_dict = {}
-        mock_configs.retrieval_dict = {}
-        mock_configs.mcp_dict = {}
-        mock_configs.search_cfg = None
-        mock_configs.personal_settings_dict = {}
-
-        with (
-            patch(
-                "app.core.channel_bridge.config_loader.load_user_configs",
-                new_callable=AsyncMock,
-                return_value=mock_configs,
-            ),
-            patch(
-                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
-            ) as mock_get_resolver,
-            patch(
-                "app.core.channel_bridge.config_parsers.verify_search_service_available",
-                new_callable=AsyncMock,
-                return_value=False,
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_fallback_model_configs",
-                return_value=(None, None),
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_lite_model_config",
-                return_value=None,
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_retrieval_models",
-                return_value=(None, None),
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_mcp_configs",
-                return_value=None,
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_user_instructions",
-                return_value="",
-            ),
-        ):
-            mock_resolver = MagicMock()
-            mock_resolver.resolve = AsyncMock(return_value=profile)
-            mock_get_resolver.return_value = mock_resolver
-
-            params = await bridge._build_agent_params("read https://example.com")
-
-        assert params is not None
-        assert params.enable_web_fetch is False
-        assert params.agent_security_raw == {"capabilities": ["file_read"]}
-
-    @pytest.mark.asyncio
-    async def test_enable_web_fetch_true_when_no_security_overrides(self) -> None:
-        from app.core.types import ModelConfig
-        from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
-
-        bridge = _make_bridge()
-        profile = ResolvedAgentProfile(
-            agent_id="default-agent",
-            skill_ids=(),
-            mcp_ids=(),
-            enabled_builtin_tools=("file_read", "web_search"),
-        )
-        mock_configs = MagicMock()
-        mock_configs.model_cfg = ModelConfig(model="test/model", api_key="test-key")
-        mock_configs.providers_dict = {}
-        mock_configs.retrieval_dict = {}
-        mock_configs.mcp_dict = {}
-        mock_configs.search_cfg = None
-        mock_configs.personal_settings_dict = {}
-
-        with (
-            patch(
-                "app.core.channel_bridge.config_loader.load_user_configs",
-                new_callable=AsyncMock,
-                return_value=mock_configs,
-            ),
-            patch(
-                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
-            ) as mock_get_resolver,
-            patch(
-                "app.core.channel_bridge.config_parsers.verify_search_service_available",
-                new_callable=AsyncMock,
-                return_value=False,
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_fallback_model_configs",
-                return_value=(None, None),
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_lite_model_config",
-                return_value=None,
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_retrieval_models",
-                return_value=(None, None),
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_mcp_configs",
-                return_value=None,
-            ),
-            patch(
-                "app.core.channel_bridge.config_parsers.extract_user_instructions",
-                return_value="",
-            ),
-        ):
-            mock_resolver = MagicMock()
-            mock_resolver.resolve = AsyncMock(return_value=profile)
-            mock_get_resolver.return_value = mock_resolver
-
-            params = await bridge._build_agent_params("hello")
-
-        assert params is not None
-        assert params.enable_web_fetch is True
-        assert params.agent_security_raw is None
-
-
-class TestVoiceFastLaneAndSupervisor:
-    """Tests for Voice Fast Lane quick response and 15s supervisor handoff."""
-
-    def test_is_fast_lane_query_simple_greeting(self) -> None:
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-        mock_params.agent_skill_ids = []
-        mock_params.subagent_ids = None
-
-        assert bridge._is_fast_lane_query("你好", mock_params) is True
-        assert bridge._is_fast_lane_query("hello", mock_params) is True
-        assert bridge._is_fast_lane_query("thanks", mock_params) is True
-
-    def test_is_fast_lane_query_complex_rejected(self) -> None:
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-        mock_params.agent_skill_ids = []
-        mock_params.subagent_ids = None
-
-        # Complex query with coding/reasoning/tools
-        assert bridge._is_fast_lane_query("帮我重构一下这段代码并执行测试", mock_params) is False
-        assert bridge._is_fast_lane_query("prove the pythagorean theorem step by step", mock_params) is False
-
-    def test_is_fast_lane_query_skills_rejected(self) -> None:
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-        mock_params.agent_skill_ids = ["skill-1"]
-        mock_params.subagent_ids = None
-
-        # Even simple greetings with active skills bypass fast lane
-        assert bridge._is_fast_lane_query("你好", mock_params) is False
-
-    @pytest.mark.asyncio
-    async def test_fast_lane_execution_skips_working_hint(self) -> None:
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-        mock_params.agent_skill_ids = []
-        mock_params.subagent_ids = None
-
-        async def fake_fast_stream(params: object, cancel_token: object) -> AsyncIterator[dict[str, object]]:
-            yield {"type": "message", "data": "你好！有什么我可以帮你的？"}
-
-        with (
-            patch.object(bridge, "_build_agent_params", return_value=mock_params),
-            patch.object(bridge, "_is_fast_lane_query", return_value=True),
-            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock) as mock_hint,
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_stream_tts,
-            patch(
-                "app.services.agent.stream_session.stream_lane_factory.create_fast_lane_stream",
-                side_effect=fake_fast_stream,
-            ),
-        ):
-            await bridge.handle_stt_final("你好")
-
-        # Working hint must NOT be called for fast lane!
-        mock_hint.assert_not_called()
-        mock_stream_tts.assert_called()
-        assert len(bridge._transcript) == 2
-        assert bridge._transcript[0].text == "你好"
-        assert bridge._transcript[1].text == "你好！有什么我可以帮你的？"
-
-    @pytest.mark.asyncio
-    async def test_supervisor_handoff_on_timeout(self) -> None:
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-        mock_params.agent_skill_ids = []
-        mock_params.subagent_ids = None
-
-        async def fake_slow_stream(*args: object, **kwargs: object) -> tuple[str, bool]:
-            await asyncio.sleep(2.0)  # simulate slow execution
-            return "done", False
-
-        mock_handler = AsyncMock()
-        mock_handler.spawn_background = AsyncMock(return_value="task-12345")
-
-        with (
-            patch("app.api.voice.agent_bridge._VOICE_SUPERVISOR_TIMEOUT_S", 0.05),
-            patch.object(bridge, "_build_agent_params", return_value=mock_params),
-            patch.object(bridge, "_is_fast_lane_query", return_value=False),
-            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
-            patch.object(bridge, "_consume_agent_stream", side_effect=fake_slow_stream),
-            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_stream_tts,
-            patch(
-                "app.core.channel_bridge.setup.get_background_task_handler",
-                return_value=mock_handler,
-            ),
-        ):
-            await bridge.handle_stt_final("帮我做一个长耗时分析")
-
-        mock_handler.spawn_background.assert_awaited_once()
-        mock_stream_tts.assert_called()
-
-    @pytest.mark.asyncio
-    async def test_fast_lane_fallback_self_healing(self) -> None:
-        """If fast lane stream fails without output, fallback to full agent stream."""
-        bridge = _make_bridge()
-        mock_params = MagicMock()
-        mock_params.agent_skill_ids = []
-        mock_params.subagent_ids = None
-
-        async def failing_fast_stream(params: object, cancel_token: object) -> AsyncIterator[dict[str, object]]:
-            raise RuntimeError("Fast lane provider boom")
-            yield {}  # make it a generator
-
-        with (
-            patch.object(bridge, "_build_agent_params", return_value=mock_params),
-            patch.object(bridge, "_is_fast_lane_query", return_value=True),
-            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
-            patch.object(
-                bridge, "_consume_agent_stream", new_callable=AsyncMock, return_value=("Recovered full text.", False)
-            ) as mock_full_stream,
-            patch(
-                "app.services.agent.stream_session.stream_lane_factory.create_fast_lane_stream",
-                side_effect=failing_fast_stream,
-            ),
-        ):
-            await bridge.handle_stt_final("hello")
-
-        mock_full_stream.assert_awaited_once()
-        assert len(bridge._transcript) == 2
-        assert bridge._transcript[1].text == "Recovered full text."
