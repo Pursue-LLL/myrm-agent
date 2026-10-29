@@ -84,4 +84,5 @@ def assert_readable(html: str, theme: Theme, text: str, surface: str) -> None:
     foreground = effective(light, dark, theme, text, "color")
     background = effective(light, dark, theme, surface, "background")
     ratio = contrast(foreground, background)
-    assert ratio >= MIN_TEXT_CONTRAST, f"{text} on {surface} in {theme}: {foreground} on {background} is {ratio:.2f}:1"
+    if ratio < MIN_TEXT_CONTRAST:
+        raise AssertionError(f"{text} on {surface} in {theme}: {foreground} on {background} is {ratio:.2f}:1")
