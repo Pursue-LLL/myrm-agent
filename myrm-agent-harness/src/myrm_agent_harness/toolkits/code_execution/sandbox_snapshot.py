@@ -68,6 +68,9 @@ _CORE_RUNTIMES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 
 _CORE_TOOLS: tuple[str, ...] = ("git", "curl", "jq", "docker", "make", "tar", "rg")
 
+# ``None`` means the status probe gave no answer (timeout, refused layout, git missing): that is never reported as clean.
+_GIT_STATE_LABEL: dict[bool | None, str] = {True: "dirty", False: "clean", None: "unknown"}
+
 
 @dataclass(frozen=True)
 class SandboxBootstrapSnapshot:
@@ -321,9 +324,7 @@ def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
     # Working Directory and Git
     wd_line = f"Working Directory: {snapshot.working_dir}"
     if snapshot.git_branch:
-        # ``None`` means the status probe produced no answer (timeout, refused layout, git missing): never claim clean.
-        dirty_str = "unknown" if snapshot.git_dirty is None else ("dirty" if snapshot.git_dirty else "clean")
-        wd_line += f" (Git: {snapshot.git_branch}, {dirty_str})"
+        wd_line += f" (Git: {snapshot.git_branch}, {_GIT_STATE_LABEL[snapshot.git_dirty]})"
     lines.append(wd_line)
 
     # Top-level workspace entries
