@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.spawn_subagent.agent_manage_tool import create_subagent_control_tool
-from myrm_agent_harness.agent.sub_agents.handover import AgentHandoverState
 from myrm_agent_harness.agent.sub_agents.types import SubAgentResult, SubAgentStatus
 from myrm_agent_harness.utils.runtime.wakeup_registry import set_global_wakeup_handler
 
@@ -132,7 +131,7 @@ async def test_waiting_for_a_child_that_completed_reports_its_result_as_read(han
 async def test_waiting_for_a_child_that_failed_hands_over_its_whole_outcome_and_reports_it_read(
     handler: _Handler, status: SubAgentStatus
 ) -> None:
-    # The shape the orchestrator puts into ``failures`` for a child that finished.
+    # What the executor returns for a child that ended unsuccessfully: the answer streamed so far, no handover state.
     ended = SubAgentResult(
         success=False,
         task_id="broke",
@@ -140,7 +139,7 @@ async def test_waiting_for_a_child_that_failed_hands_over_its_whole_outcome_and_
         result="two of three files done",
         error="gave up",
         status=status,
-        handover_state=AgentHandoverState(summary="stopped at the third file"),
+        trace_id="trace-1",
     ).to_dict()
     expected = dict(ended)
     tool = create_subagent_control_tool(_waiting({"results": [], "failures": [ended]}))
@@ -149,7 +148,7 @@ async def test_waiting_for_a_child_that_failed_hands_over_its_whole_outcome_and_
 
     assert outcome == expected
     assert outcome["result"] == "two of three files done"
-    assert outcome["handover_state"] == AgentHandoverState(summary="stopped at the third file").to_dict()
+    assert outcome["error"] == "gave up"
     assert handler.reads == [(("broke",), "chat-1")]
 
 
