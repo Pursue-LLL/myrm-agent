@@ -16,18 +16,49 @@ call time so the module imports on any platform.
 from __future__ import annotations
 
 import ctypes
+import functools
 import logging
+from ctypes import wintypes
 
 from myrm_agent_harness.toolkits.computer_use.types import WindowTextResult
 
 logger = logging.getLogger(__name__)
 
 
+@functools.cache
+def _win32() -> tuple[ctypes.CDLL, ctypes.CDLL]:
+    """Return ``(user32, kernel32)`` with the clipboard prototypes declared.
+
+    ctypes reads every undeclared return value as a 32-bit int, which truncates the 64-bit pointer ``GlobalLock``
+    returns and the memory handle ``GlobalAlloc`` returns. Private library instances keep these prototypes off the
+    process-wide ``ctypes.windll`` objects other libraries share.
+    """
+    user32 = ctypes.WinDLL("user32", use_last_error=True)  # type: ignore[attr-defined]
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+    user32.OpenClipboard.argtypes = (wintypes.HWND,)
+    user32.OpenClipboard.restype = wintypes.BOOL
+    user32.CloseClipboard.restype = wintypes.BOOL
+    user32.EmptyClipboard.restype = wintypes.BOOL
+    user32.GetClipboardData.argtypes = (wintypes.UINT,)
+    user32.GetClipboardData.restype = wintypes.HANDLE
+    user32.SetClipboardData.argtypes = (wintypes.UINT, wintypes.HANDLE)
+    user32.SetClipboardData.restype = wintypes.HANDLE
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    kernel32.GlobalAlloc.argtypes = (wintypes.UINT, ctypes.c_size_t)
+    kernel32.GlobalAlloc.restype = wintypes.HANDLE
+    kernel32.GlobalLock.argtypes = (wintypes.HANDLE,)
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = (wintypes.HANDLE,)
+    kernel32.GlobalUnlock.restype = wintypes.BOOL
+    kernel32.GlobalFree.argtypes = (wintypes.HANDLE,)
+    kernel32.GlobalFree.restype = wintypes.HANDLE
+    return user32, kernel32
+
+
 def get_clipboard_text() -> str | None:
     """Read clipboard text via Win32 API (zero-subprocess, <1ms)."""
     try:
-        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        user32, kernel32 = _win32()
 
         cf_unicodetext = 13
         if not user32.OpenClipboard(None):
@@ -52,8 +83,7 @@ def get_clipboard_text() -> str | None:
 def set_clipboard_text(text: str) -> None:
     """Set clipboard text via Win32 API (zero-subprocess, <1ms)."""
     try:
-        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        user32, kernel32 = _win32()
 
         cf_unicodetext = 13
         gmem_moveable = 0x0002

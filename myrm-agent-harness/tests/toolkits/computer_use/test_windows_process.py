@@ -5,7 +5,8 @@ Covers:
 - OpenProcess / QueryFullProcessImageNameW failures resolve to an empty name and never leak the handle
 - non-positive pids never reach Win32
 - ctypes prototypes are declared so the 64-bit process HANDLE is not truncated
-- platforms without ctypes.windll resolve to an empty name
+- the prototypes live on a private kernel32 instance, not the shared ctypes.windll
+- platforms without ctypes.WinDLL resolve to an empty name
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.computer_use.perception import windows_process
 from myrm_agent_harness.toolkits.computer_use.perception.windows_process import process_name_by_pid
 
 _PROCESS_HANDLE = 0x1234
@@ -36,10 +38,16 @@ def _kernel32(image_path: str | None = "C:\\Windows\\System32\\notepad.exe", *, 
     return kernel32
 
 
+@pytest.fixture(autouse=True)
+def _fresh_kernel32_cache():
+    """The loader is cached; keep one test's double from leaking into the next."""
+    windows_process._kernel32.cache_clear()
+    yield
+    windows_process._kernel32.cache_clear()
+
+
 def _call(kernel32: MagicMock, pid: int = 4242) -> str:
-    windll = MagicMock()
-    windll.kernel32 = kernel32
-    with patch.object(ctypes, "windll", windll, create=True):
+    with patch.object(ctypes, "WinDLL", return_value=kernel32, create=True):
         return process_name_by_pid(pid)
 
 
@@ -79,6 +87,17 @@ class TestProcessNameByPid:
         assert kernel32.QueryFullProcessImageNameW.argtypes[0] is wintypes.HANDLE
         assert kernel32.CloseHandle.argtypes == (wintypes.HANDLE,)
 
-    def test_platform_without_windll_returns_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delattr(ctypes, "windll", raising=False)
+    def test_prototypes_live_on_a_private_library_instance(self) -> None:
+        kernel32 = _kernel32()
+        windll = MagicMock()
+        with (
+            patch.object(ctypes, "windll", windll, create=True),
+            patch.object(ctypes, "WinDLL", return_value=kernel32, create=True) as win_dll,
+        ):
+            process_name_by_pid(4242)
+        win_dll.assert_called_once_with("kernel32", use_last_error=True)
+        windll.kernel32.OpenProcess.assert_not_called()
+
+    def test_platform_without_win_dll_returns_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delattr(ctypes, "WinDLL", raising=False)
         assert process_name_by_pid(4242) == ""

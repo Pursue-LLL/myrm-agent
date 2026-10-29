@@ -2,6 +2,20 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-087 · Windows 剪贴板读写的 ctypes 调用没有声明原型：64 位指针被按 32 位 int 截断，非 ASCII 文本粘贴可能静默失败
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/windows_text_io.py`、`toolkits/computer_use/perception/windows_process.py`；测试 `tests/toolkits/computer_use/test_windows_backend.py`、`test_windows_process.py`；没有改提示词、工具与控制平面，不影响提示词缓存）。**未在真实 Windows 上验证**：本机是 macOS，修复依据是 ctypes 的返回值规则与 Win32 文档里的函数签名。 |
+| **发现时间** | 2026-10-29（复查拆出的 `windows_text_io.py` 与新增的 `windows_process.py`） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：Windows 上输入中文等非 ASCII 文本靠「写剪贴板再 Ctrl+V」。`set_clipboard_text` 全程包在 `except Exception: pass` 里，写入失败不报错，Ctrl+V 会把剪贴板里的旧内容粘进用户应用。 |
+| **关联产品** | 桌面控制（Windows）`type_text` 的非 ASCII 路径；`get_clipboard_text`。 |
+| **根因** | `windows_text_io.py` 直接用 `ctypes.windll.kernel32/user32`，没有声明 `GlobalAlloc`、`GlobalLock`、`GetClipboardData` 等函数的 `restype/argtypes`。ctypes 对未声明的返回值按 32 位 int 读取：本机 libc 实测，未声明 `malloc.restype` 时返回 `0x1514040`，声明 `c_void_p` 后同一进程返回 `0x600001514340`（两次是不同分配，只说明默认读法在 64 位下只剩低 32 位）。`GlobalLock` 返回的指针被截断后，`ctypes.memmove` 写到错误地址，`GlobalAlloc` 的句柄传回 `SetClipboardData` 时也会溢出，两种结果都被外层吞掉。另外 `windows_process.py` 的原型挂在共享的 `ctypes.windll.kernel32` 上，会改变同进程里其他库对 `OpenProcess` 返回值的读法。 |
+| **修复** | `windows_text_io.py:_win32()` 与 `windows_process.py:_kernel32()` 用 `functools.cache` 缓存私有的 `ctypes.WinDLL(..., use_last_error=True)` 实例并声明原型：句柄用 `wintypes.HANDLE`，`GlobalLock` 返回 `c_void_p`，`GlobalAlloc` 的大小用 `c_size_t`，`OpenClipboard/GetForegroundWindow` 用 `wintypes.HWND`。原型只在私有实例上，不碰共享的 `ctypes.windll`。测试把 `ctypes.WinDLL` 换成替身并在用例前后清缓存，断言原型与「没有改共享的 windll」。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 必须在前后 `cache_clear()`。② 变异验证：去掉 `GlobalLock.restype`、把 `GlobalAlloc.restype` 改成 `c_int`、把私有实例改回 `ctypes.windll`，对应用例分别失败 1 / 1 / 4 个。 |
+
 ### BUG-HARNESS-2026-10-29-086 · Windows 的 UI Automation 感知调用了 uiautomation 库里并不存在的 `GetProcessNameByPid`：进程名恒为空，应用标识 `app_id` 恒为空，信任键退化成窗口标题
 
 | 字段 | 内容 |
@@ -12,9 +26,9 @@
 | **严重程度** | P2：Windows 用户的「始终允许这个应用」按窗口标题存键（标题随文档变化，同一应用反复弹审批）；按进程名精确匹配目标窗口的那一步永远不命中，只剩标题匹配。没有越权：自身应用拦截的 `_SELF_APP_BUNDLE_IDS`（`safety.py:113-119`）只有 macOS bundle id，Windows 上本来就靠名称与标题关键字，这次修复不改变它。 |
 | **关联产品** | 桌面控制（Windows）：server `ai_agents/desktop_control/gate.py` 的信任键；`desktop_session.py` 把 `meta.app_id` 传给安全检查与审批门。 |
 | **根因** | `windows_ax.py` 两处调用 `auto.GetProcessNameByPid(pid)`（修复前 `:135` 取 `app_id`、`:177` 按进程名找窗口），都包在 `except Exception: return ""` 里。实测安装 uiautomation 2.0.29、2.0.24、2.0.20、2.0.18 四个版本，对整个包 `rg GetProcessNameByPid` 均为 0 匹配；库里没有按 pid 取进程名的函数。所以每次都是 `AttributeError` 被吞掉：`_resolve_windows_app_id` 恒返回 `""`，`resolve_trust_key`（`app_identity.py:16-22`）在 `app_id` 为空时退回 `app_name`，而 Windows 的 `app_name` 是窗口标题（`windows_ax.py` 的 `SnapshotMeta(app_name=window_name)`）。测试用 `MagicMock` 造 `auto`，MagicMock 会自动生成任意属性，所以 `auto.GetProcessNameByPid.side_effect = ...` 让测试全绿，掩盖了真实库没有这个函数。 |
-| **修复** | 新增 `perception/windows_process.py:26` `process_name_by_pid`：ctypes 调 `OpenProcess`（`PROCESS_QUERY_LIMITED_INFORMATION`）+ `QueryFullProcessImageNameW` 取可执行文件名，调用期解析 `ctypes.windll`，任何失败（受保护进程、非 Windows）返回 `""`，句柄在 `finally` 里关闭。`windows_ax.py:130-139,172-173` 抽出 `_process_id`，`_resolve_windows_app_id`（现返回 `win:<exe>`，如 `win:notepad.exe`）与 `_locate_window` 的 `_process_name` 都改用它。测试：替身 `auto` 用 `del auto.GetProcessNameByPid` 还原「库里没有这个函数」，进程名由被 patch 的 `process_name_by_pid` 提供。 |
+| **修复** | 新增 `perception/windows_process.py:26` `process_name_by_pid`：ctypes 调 `OpenProcess`（`PROCESS_QUERY_LIMITED_INFORMATION`）+ `QueryFullProcessImageNameW` 取可执行文件名，调用期才加载私有的 `ctypes.WinDLL("kernel32")`，任何失败（受保护进程、非 Windows）返回 `""`，句柄在 `finally` 里关闭。`windows_ax.py:130-139,172-173` 抽出 `_process_id`，`_resolve_windows_app_id`（现返回 `win:<exe>`，如 `win:notepad.exe`）与 `_locate_window` 的 `_process_name` 都改用它。测试：替身 `auto` 用 `del auto.GetProcessNameByPid` 还原「库里没有这个函数」，进程名由被 patch 的 `process_name_by_pid` 提供。 |
 | **反复次数** | 第 1 次。 |
-| **踩坑** | ① MagicMock 的自动属性让「调用不存在的函数」的测试照样通过；替身必须显式删掉库里没有的属性。② `OpenProcess` 返回的 HANDLE 在 64 位 Windows 上是指针宽度，ctypes 不声明 `restype` 会按 32 位 int 解释；`process_name_by_pid` 里显式声明了 `restype/argtypes`，测试断言了这点，但没有在真机上复现过截断。③ 已存储的旧信任键（窗口标题）不会失效：`app_identity.py:35-37` 在键不等于候选时还会与 `app_name.strip().lower()` 比较。 |
+| **踩坑** | ① MagicMock 的自动属性让「调用不存在的函数」的测试照样通过；替身必须显式删掉库里没有的属性。② `OpenProcess` 返回的 HANDLE 在 64 位 Windows 上是指针宽度，ctypes 不声明 `restype` 会按 32 位 int 解释；`process_name_by_pid` 里显式声明了 `restype/argtypes`（挂在私有库实例上，不改共享的 `ctypes.windll`），测试断言了这点，但没有在真机上复现过截断。③ 已存储的旧信任键（窗口标题）不会失效：`app_identity.py:35-37` 在键不等于候选时还会与 `app_name.strip().lower()` 比较。 |
 | **回归** | [1] 新增 `test_windows_process.py` 8 例（取文件名并关闭句柄、`OpenProcess` 失败、查询失败仍关句柄、Win32 抛异常、非正 pid 不触达 Win32、HANDLE 原型、无 `windll` 的平台）；`test_windows_ax_target.py` 新增 `win:notepad.exe` 保留扩展名一例，并把两个「抛异常」用例改成「进程名无法解析」；`test_windows_ax_errors.py` 把「抛异常」用例改成非数字 pid。[2] 变异验证：`windows_ax` 改回调用 `auto.GetProcessNameByPid` → `test_windows_ax_target.py` 16 例失败；`windows_process` 去掉 `ntpath.basename`、去掉 `OpenProcess.restype`、去掉 `CloseHandle` 各被 1、1、2 例抓住。[3] `tests/toolkits/computer_use` + `tests/architecture` 全量 8806 通过；`validate_arch_inventory --md-refs` 通过；`check_file_line_limit.py` 通过（`windows_ax.py` 基线 521 → 514）。 |
 | **仍然存在** | ① 没有在真机 Windows 上验证（本机是 macOS，只用 `ctypes.windll` 替身）。② 受保护或高权限进程 `OpenProcess` 被拒，进程名为空，该窗口退回标题匹配与标题信任键。 |
 | **代码位置** | `toolkits/computer_use/perception/windows_process.py:26` · `toolkits/computer_use/perception/windows_ax.py:130-139,172-173` · 测试 `tests/toolkits/computer_use/test_windows_process.py` · 文档 `toolkits/computer_use/perception/_ARCH.md` |

@@ -13,7 +13,9 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import ctypes
 import importlib
+from ctypes import wintypes
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -82,6 +84,9 @@ def _mock_windows_env():
 
         with (
             patch.object(real_ctypes, "windll", mock_windll, create=True),
+            patch.object(
+                real_ctypes, "WinDLL", side_effect=lambda name, **_kwargs: getattr(mock_windll, name), create=True
+            ),
             patch.object(real_ctypes, "wstring_at", return_value="clipboard text", create=True),
             patch.object(real_ctypes, "create_unicode_buffer", return_value=MagicMock(value="Notepad")),
         ):
@@ -89,7 +94,9 @@ def _mock_windows_env():
             import myrm_agent_harness.toolkits.computer_use.backends.windows as win_mod
 
             importlib.reload(win_mod)
+            windows_text_io._win32.cache_clear()
             yield win_mod, mock_pyautogui, mock_windll
+            windows_text_io._win32.cache_clear()
 
 
 @pytest.mark.usefixtures("_mock_windows_env")
@@ -768,6 +775,22 @@ class TestWindowsBackendClipboard:
             windows_text_io.set_clipboard_text("test data")
         mock_windll.user32.EmptyClipboard.assert_called_once()
         mock_windll.user32.SetClipboardData.assert_called_once()
+
+    def test_prototypes_keep_win32_pointers_pointer_sized(self, _mock_windows_env) -> None:
+        """Undeclared restype is a 32-bit int in ctypes and truncates the pointer GlobalLock returns."""
+        _, _, mock_windll = _mock_windows_env
+        windows_text_io.get_clipboard_text()
+        user32, kernel32 = mock_windll.user32, mock_windll.kernel32
+        assert kernel32.GlobalAlloc.restype is wintypes.HANDLE
+        assert kernel32.GlobalAlloc.argtypes == (wintypes.UINT, ctypes.c_size_t)
+        assert kernel32.GlobalLock.restype is ctypes.c_void_p
+        assert kernel32.GlobalLock.argtypes == (wintypes.HANDLE,)
+        assert kernel32.GlobalUnlock.argtypes == (wintypes.HANDLE,)
+        assert kernel32.GlobalFree.argtypes == (wintypes.HANDLE,)
+        assert user32.GetClipboardData.restype is wintypes.HANDLE
+        assert user32.SetClipboardData.argtypes == (wintypes.UINT, wintypes.HANDLE)
+        assert user32.OpenClipboard.argtypes == (wintypes.HWND,)
+        assert user32.GetForegroundWindow.restype is wintypes.HWND
 
     def test_set_clipboard_alloc_fails(self, _mock_windows_env) -> None:
         _, _, mock_windll = _mock_windows_env
