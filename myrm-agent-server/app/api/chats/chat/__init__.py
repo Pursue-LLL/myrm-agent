@@ -21,7 +21,6 @@ from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
 from .session_access_roots import router as session_access_roots_router
 from .share import router as share_router
-from .swarm_hud import router as swarm_hud_router
 from .thought_control import router as thought_control_router
 from .title import router as title_router
 from .trajectory import router as trajectory_router
@@ -58,6 +57,5 @@ router.include_router(thought_control_router)
 router.include_router(zero_replay_router)
 router.include_router(command_matrix_router)
 router.include_router(embed_bridge_router)
-router.include_router(swarm_hud_router)
 
 __all__ = ["router"]

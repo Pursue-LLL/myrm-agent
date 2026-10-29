@@ -9,4 +9,3 @@ Context Bundle 卷布局 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `router.py` | 路由 | Context bundle HTTP API. | ✅ |
-| `omni_reference.py` | 路由 | 5-dimensional omni-@ context references search and slice expansion REST API | ✅ |

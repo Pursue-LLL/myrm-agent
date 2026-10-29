@@ -135,7 +135,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "repair",
         "sandbox_wake",
         "ssh_bridge",
-        "swarm",
         "ui_interaction",
         "web_fetch",
     }
