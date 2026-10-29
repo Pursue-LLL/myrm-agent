@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-100 · Linux 非 ASCII 粘贴没有串行：两次重叠的调用会把对方的临时文本当成用户的原剪贴板存下并「还原」，文本（含凭据）留在剪贴板里
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/linux.py`、`backends/_ARCH.md`；测试 `tests/toolkits/computer_use/test_linux_exit_codes.py`；没有改提示词与工具 schema，不影响提示词缓存）。**未验证**：没有在真实 X11 会话里跑过。 |
+| **发现时间** | 2026-10-29（复审 097：把 macOS 的 `_PASTE_LOCK`（`macos_pasteboard.py`）与 `linux.py:_paste_text_xclip` 对照，后者没有等价的串行） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：智能体自己的一批桌面动作已由 `safety_dispatcher` 的共享 `asyncio.Lock` 串行（`desktop_interact_tool`、`desktop_vision_tool` 是 `is_destructive=True`，`is_concurrent_safe` 为默认的 `False`），不会触发；重叠只可能来自不经过调度器的路径：server 的 MCP 端点把按智能体 id 取得的同一个桌面会话交给外部 MCP 客户端（`endpoint.py` 里 `_desktop_session_for_agent`），`mcp_server.py` 与端点都没有锁。需要 `expose_desktop` 与桌面控制同时启用，线上触发频率没有数据。 |
+| **关联产品** | 桌面控制（Linux）`type_text` / `type_credential` 的非 ASCII 路径；MCP 对外暴露的桌面工具。 |
+| **根因** | `_paste_text_xclip` 是「读原剪贴板、写临时文本、Ctrl+V、等待、写回」，中间有 4 个 `await` 且没有任何互斥。第二次调用若在第一次写入之后、还原之前读剪贴板，读到的是第一次的临时文本，之后「还原」的也是它，原内容丢失，临时文本留下。 |
+| **修复** | `LinuxBackend.__init__` 建一个实例级 `asyncio.Lock`，`_paste_text_xclip` 整体在 `async with` 里，`type_text` 与非 ASCII 的 `type_credential` 都走这一处。`linux.py` 490 行变 493 行。 |
+| **反复次数** | 第 1 次（接 097）。 |
+| **踩坑** | ① 起初用固定 `sleep` 把第二次调用错开，0.12 秒没复现、0.3 秒才复现（取决于子进程启动快慢）；测试改成假 `xdotool` 在发出 Ctrl+V 时创建 `entered` 文件，测试等它出现再启动第二次调用，不再依赖时间，并用 `XDOTOOL_DELAY` 拉长这次按键。② 复现时剪贴板里出现的 `old码一` 这类字符串是假 `xclip` 用 `cat >` 非原子写文件的产物，真实 xclip 的结果可能不同；能确定的只有「重叠时快照读到了临时文本」这一根因。 |
+| **回归** | [1] 新增 `test_overlapping_pastes_run_one_after_the_other_and_the_clipboard_comes_back`：修复前连跑 3 次都红，修复后连跑 3 次都绿。[2] 变异：把实例锁换成每次新建的 `asyncio.Lock()`，该用例变红；还原后与备份一致。[3] 单实例的 `asyncio.Lock` 在 Python 3.13.13 上无运行中的事件循环时可创建，在两个事件循环里无竞争使用正常，持锁时任务被取消会释放（本机实测）。 |
+| **仍然存在** | ① 锁是实例级：多个 `LinuxBackend` 共用同一个 DISPLAY 时仍不互斥（生产代码只在 `session.py` 建一个实例，没有这种用法的证据）。② 只串行了剪贴板借用；两个重叠动作的按键事件仍会交错（MCP 路径没有会话级互斥），没有改。③ 真实 X11、真实 xclip 的竞态结果没有验证。 |
+| **代码位置** | `toolkits/computer_use/backends/linux.py`（`__init__`、`_paste_text_xclip`） · 测试 `tests/toolkits/computer_use/test_linux_exit_codes.py` |
+
 ### BUG-HARNESS-2026-10-29-099 · 信任之前的披露读取没有上限：SKILL.md 是 FIFO 或指向 `/dev/zero` 的链接、`mcp.json` 或 `.myrm/config.toml` 是稀疏的大文件，都能让 FolderGate 披露卡死或吃光内存
 
 | 字段 | 内容 |

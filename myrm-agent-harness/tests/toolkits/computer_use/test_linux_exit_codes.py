@@ -6,6 +6,7 @@ fake xclip/xdotool scripts exercise the clipboard restore with genuine exit code
 
 from __future__ import annotations
 
+import asyncio
 import stat
 import sys
 from collections.abc import Awaitable, Callable
@@ -26,7 +27,7 @@ cat > "$CLIP"
 _FAKE_XDOTOOL = """#!/bin/sh
 echo "$*" >> "$ARGV"
 case "$*" in *--file*) cat >> "$STDIN";; esac
-if [ "$1" = key ]; then cat "$CLIP" >> "$SEEN"; fi
+if [ "$1" = key ]; then touch "$ENTERED"; cat "$CLIP" >> "$SEEN"; sleep "${XDOTOOL_DELAY:-0}"; fi
 exit "${XDOTOOL_RC:-0}"
 """
 
@@ -43,14 +44,17 @@ def empty_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def fake_x_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
-    """xclip/xdotool stand-ins: clip is the clipboard, seen what Ctrl+V would paste, argv/stdin what xdotool received."""
+    """xclip/xdotool stand-ins: clip is the clipboard, seen what Ctrl+V would paste, argv/stdin what xdotool received.
+
+    `entered` appears once a Ctrl+V keystroke is being sent; XDOTOOL_DELAY stretches that keystroke.
+    """
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     for name, body in (("xclip", _FAKE_XCLIP), ("xdotool", _FAKE_XDOTOOL)):
         script = bin_dir / name
         script.write_text(body)
         script.chmod(script.stat().st_mode | stat.S_IEXEC)
-    paths = {name: tmp_path / name for name in ("clip", "seen", "argv", "stdin")}
+    paths = {name: tmp_path / name for name in ("clip", "seen", "argv", "stdin", "entered")}
     paths["clip"].write_text("old")
     for name in ("seen", "argv", "stdin"):
         paths[name].write_text("")
@@ -124,6 +128,26 @@ class TestClipboardPaste:
         assert result.success is True
         assert fake_x_tools["seen"].read_text() == "你好"
         assert fake_x_tools["clip"].read_text() == ""
+
+    @pytest.mark.asyncio
+    async def test_overlapping_pastes_run_one_after_the_other_and_the_clipboard_comes_back(
+        self, backend: LinuxBackend, fake_x_tools: dict[str, Path], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("XDOTOOL_DELAY", "0.4")
+        first = asyncio.create_task(backend.type_text("你好"))
+        # The second call starts while the first one's text is on the clipboard and its Ctrl+V is in flight.
+        for _ in range(500):
+            if fake_x_tools["entered"].exists():
+                break
+            await asyncio.sleep(0.01)
+        assert fake_x_tools["entered"].exists()
+        second = asyncio.create_task(backend.type_text("世界"))
+
+        results = await asyncio.gather(first, second)
+
+        assert [r.success for r in results] == [True, True]
+        assert fake_x_tools["seen"].read_text() == "你好世界"
+        assert fake_x_tools["clip"].read_text() == "old"
 
 
 class _Vault:

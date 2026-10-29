@@ -67,6 +67,8 @@ class LinuxBackend:
         self._screen_info: ScreenInfo | None = None
         self._display_num = display_num if display_num is not None else _parse_display_num()
         self._display_prefix = f"DISPLAY=:{self._display_num} " if self._display_num is not None else ""
+        # 粘贴会临时占用剪贴板；重叠的调用会把对方的临时文本当成用户原内容存下并「还原」，所以一次只允许一轮。
+        self._clipboard_lock = asyncio.Lock()
 
     async def _run_cmd(self, cmd: str, stdin: str | None = None) -> tuple[str, str, int]:
         """Run a shell command with display prefix; `stdin` is piped instead of placed on the command line."""
@@ -189,17 +191,18 @@ class LinuxBackend:
 
     async def _paste_text_xclip(self, text: str) -> None:
         """Type non-ASCII text via xclip + Ctrl+V, preserving original clipboard."""
-        saved_stdout, _, _ = await self._run_cmd("xclip -selection clipboard -o")
-        try:
-            await self._xclip_write(text)
-            await self._run_input("xdotool key ctrl+v")
-            await asyncio.sleep(0.1)
-        finally:
-            # 原剪贴板为空（或不是文本）时也要写回空串，否则粘贴的文本（含凭据）会一直留在剪贴板里。
+        async with self._clipboard_lock:
+            saved_stdout, _, _ = await self._run_cmd("xclip -selection clipboard -o")
             try:
-                await self._xclip_write(saved_stdout)
-            except Exception:
-                logger.warning("Failed to restore the X11 clipboard after paste", exc_info=True)
+                await self._xclip_write(text)
+                await self._run_input("xdotool key ctrl+v")
+                await asyncio.sleep(0.1)
+            finally:
+                # 原剪贴板为空（或不是文本）时也要写回空串，否则粘贴的文本（含凭据）会一直留在剪贴板里。
+                try:
+                    await self._xclip_write(saved_stdout)
+                except Exception:
+                    logger.warning("Failed to restore the X11 clipboard after paste", exc_info=True)
 
     async def key(self, keys: str) -> ActionResult:
         try:
