@@ -2,8 +2,9 @@
 
 Nothing left the process, so a retry cannot show the reply twice. Each channel is driven through its real HTTP
 client over ``httpx.MockTransport`` and the real message bus: Slack and DingTalk let the ``httpx`` error
-through, LINE wraps it in a ``ChannelSendError``, Telegram's client re-raises it after its endpoints are tried.
-The number of attempts must not depend on which of these a provider does.
+through, LINE wraps it in a ``ChannelSendError``, Telegram's client lets it through as well. The number of
+attempts must not depend on which of these a provider does, and a request that may have reached the platform is
+sent once.
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ def _line(http: httpx.AsyncClient) -> BaseChannel:
 def _telegram(http: httpx.AsyncClient) -> BaseChannel:
     channel = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
     channel._rich_send_available = False
-    client = TelegramClient(FAKE_TELEGRAM_BOT_TOKEN, api_base="http://bot-api.test")
+    client = TelegramClient(FAKE_TELEGRAM_BOT_TOKEN)
     client._http = http
     channel._client = client
     return channel
@@ -113,3 +114,27 @@ async def test_a_reply_is_delivered_once_the_connection_opens_on_a_later_attempt
 
     assert delivered == message_id
     assert len(requests) == 2
+
+
+# Providers whose client lets the ``httpx`` error through, so what the bus sees is what the platform did.
+_RAW_ERROR_PROVIDERS = ("slack", "dingtalk", "telegram")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", _RAW_ERROR_PROVIDERS)
+async def test_a_request_that_may_have_reached_the_platform_is_sent_once(name: str) -> None:
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url.host or "")
+        raise httpx.ReadTimeout("slow", request=request)
+
+    channel = _PROVIDERS[name](httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    channel.retry_config = _RETRY
+    bus = MessageBus()
+    bus.register_channel(channel)
+
+    with pytest.raises(httpx.ReadTimeout):
+        await bus.send_now(OutboundMessage(channel=channel.name, recipient_id="42", content="hello", user_id="u1"))
+
+    assert len(requests) == 1

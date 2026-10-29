@@ -1,14 +1,13 @@
-"""Telegram Bot API async HTTP client with automatic endpoint fallback.
+"""Telegram Bot API async HTTP client.
 
-Supports custom ``api_base`` for self-hosted Bot API servers. When using
-the official ``api.telegram.org``, maintains a fallback chain of known
-Telegram server IPs — on network failures the client switches endpoint
-and sticks to the first that succeeds.
+Talks to the official ``api.telegram.org`` or, through ``api_base``, to a self-hosted Bot API server or a
+proxy. A transport error reaches the caller as the ``httpx`` error it is, so the caller's retry policy can tell
+a connection that never opened (safe to repeat) from a request the platform may already have taken (not).
 
 [INPUT]  bot_token, api_base (optional)
 [OUTPUT] TelegramApiError, TelegramClient, get_recommended_send_method
 [POS] Telegram Bot API async HTTP client. Encapsulates all Bot API HTTP calls (messaging,
-media, commands, reactions, Forum Topic CRUD) with automatic endpoint fallback.
+media, commands, reactions, Forum Topic CRUD) against one endpoint.
 """
 
 from __future__ import annotations
@@ -20,26 +19,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-_API_HOST = "api.telegram.org"
-_API_BASE = f"https://{_API_HOST}/bot{{token}}"
-_FILE_BASE = f"https://{_API_HOST}/file/bot{{token}}"
+_DEFAULT_API_BASE = "https://api.telegram.org"
 _TIMEOUT = 30.0
 _UPLOAD_TIMEOUT = 60.0
-
-_FALLBACK_IPS: tuple[str, ...] = (
-    "149.154.167.220",
-    "149.154.175.50",
-    "91.108.56.165",
-)
-
-_NETWORK_ERRORS = (
-    httpx.ConnectError,
-    httpx.ConnectTimeout,
-    httpx.ReadTimeout,
-    httpx.WriteTimeout,
-    httpx.PoolTimeout,
-    OSError,
-)
 
 
 class TelegramApiError(Exception):
@@ -73,9 +55,6 @@ class TelegramClient:
     """Async client for Telegram Bot API.
 
     Uses a shared ``httpx.AsyncClient`` for connection pooling.
-    When no custom ``api_base`` is set, the client maintains a fallback
-    chain of known Telegram server IPs and automatically switches on
-    network-level failures (DNS / connect / timeout).
 
     Call ``close()`` during application shutdown to release resources.
     """
@@ -83,32 +62,13 @@ class TelegramClient:
     def __init__(self, token: str, *, api_base: str | None = None) -> None:
         self._token = token
         self._http: httpx.AsyncClient | None = None
-
-        if api_base:
-            base = api_base.rstrip("/")
-            self._api_bases = [f"{base}/bot{token}"]
-            self._file_bases = [f"{base}/file/bot{token}"]
-        else:
-            official = _API_BASE.format(token=token)
-            official_file = _FILE_BASE.format(token=token)
-            ip_api = [f"https://{ip}/bot{token}" for ip in _FALLBACK_IPS]
-            ip_file = [f"https://{ip}/file/bot{token}" for ip in _FALLBACK_IPS]
-            self._api_bases = [official, *ip_api]
-            self._file_bases = [official_file, *ip_file]
-
-        self._active_idx = 0
+        base = api_base.rstrip("/") if api_base else _DEFAULT_API_BASE
+        self._base = f"{base}/bot{token}"
+        self._file_base = f"{base}/file/bot{token}"
 
     @property
     def token(self) -> str:
         return self._token
-
-    @property
-    def _base(self) -> str:
-        return self._api_bases[self._active_idx]
-
-    @property
-    def _file_base(self) -> str:
-        return self._file_bases[self._active_idx]
 
     def _get_http(self) -> httpx.AsyncClient:
         if self._http is None or self._http.is_closed:
@@ -120,12 +80,6 @@ class TelegramClient:
             await self._http.aclose()
             self._http = None
 
-    def _host_headers(self, idx: int) -> dict[str, str]:
-        """Return Host header when talking to a fallback IP endpoint."""
-        if idx > 0 and len(self._api_bases) > 1:
-            return {"Host": _API_HOST}
-        return {}
-
     async def _call(
         self,
         method: str,
@@ -135,45 +89,24 @@ class TelegramClient:
         data: dict[str, str] | None = None,
         timeout: float = _TIMEOUT,
     ) -> dict[str, object]:
-        """Unified Bot API call with automatic endpoint fallback.
-
-        On network-level failures the client cycles through fallback
-        endpoints and sticks to the first that succeeds.
-        """
-        last_exc: BaseException | None = None
+        """Unified Bot API call; a transport error is raised as the ``httpx`` error it is."""
+        url = f"{self._base}/{method}"
         http = self._get_http()
+        resp = await (
+            http.post(url, data=data or {}, files=files, timeout=timeout)
+            if files
+            else http.post(url, json=json_data or {}, timeout=timeout)
+        )
 
-        for offset in range(len(self._api_bases)):
-            idx = (self._active_idx + offset) % len(self._api_bases)
-            url = f"{self._api_bases[idx]}/{method}"
-            hdrs = self._host_headers(idx)
+        body: dict[str, object] = resp.json()
+        if not body.get("ok"):
+            raw_code = body.get("error_code", resp.status_code)
+            code = int(raw_code) if isinstance(raw_code, int | str) else resp.status_code
+            desc = str(body.get("description", "Unknown error"))
+            params = body.get("parameters")
+            raise TelegramApiError(code, desc, params if isinstance(params, dict) else None)
 
-            try:
-                resp = await (
-                    http.post(url, data=data or {}, files=files, timeout=timeout, headers=hdrs)
-                    if files
-                    else http.post(url, json=json_data or {}, timeout=timeout, headers=hdrs)
-                )
-            except _NETWORK_ERRORS as exc:
-                last_exc = exc
-                if offset == 0 and len(self._api_bases) > 1:
-                    logger.warning("Telegram endpoint unreachable (%s), trying fallback", type(exc).__name__)
-                continue
-
-            if idx != self._active_idx:
-                logger.info("Telegram fallback succeeded, sticky to endpoint %d", idx)
-                self._active_idx = idx
-
-            body: dict[str, object] = resp.json()
-            if not body.get("ok"):
-                code = int(body.get("error_code", resp.status_code))
-                desc = str(body.get("description", "Unknown error"))
-                params = body.get("parameters")
-                raise TelegramApiError(code, desc, params if isinstance(params, dict) else None)
-
-            return body.get("result", {})  # type: ignore[return-value]
-
-        raise last_exc  # type: ignore[misc]
+        return body.get("result", {})  # type: ignore[return-value]
 
     # ------------------------------------------------------------------
     # Authentication
@@ -769,11 +702,7 @@ class TelegramClient:
     async def download_file(self, file_path: str, *, timeout: float = 30.0) -> bytes:
         """Download a file by its ``file_path`` from ``getFile`` result."""
         http = self._get_http()
-        resp = await http.get(
-            f"{self._file_base}/{file_path}",
-            timeout=timeout,
-            headers=self._host_headers(self._active_idx),
-        )
+        resp = await http.get(f"{self._file_base}/{file_path}", timeout=timeout)
         resp.raise_for_status()
         return resp.content
 
