@@ -29,8 +29,8 @@ def generate_cli_summary(session_id: str, summary_data: dict[str, Any]) -> str:
     duration_s = duration_ms / 1000.0
     lines.append(f" Total Duration:  {duration_s:.2f}s")
     lines.append(f" Total Events:    {summary_data.get('total_events', 0)}")
-    lines.append(f" Tool Calls:      {summary_data.get('tool_call_count', 0)}")
-    lines.append(f" Errors:          {summary_data.get('error_count', 0)}")
+    lines.append(f" Tool Calls:      {summary_data.get('tool_calls', 0)}")
+    lines.append(f" Errors:          {summary_data.get('errors', 0)}")
 
     runtime_skills = summary_data.get("runtime_skills")
     runtime_tools = summary_data.get("runtime_tools")
@@ -80,7 +80,7 @@ def generate_cli_summary(session_id: str, summary_data: dict[str, Any]) -> str:
     if task_metrics:
         lines.append(" CONTEXT METRICS")
         lines.append(f"   Compactions:   {task_metrics.get('compression_count', 0)}")
-        lines.append(f"   Saved Tokens:  {task_metrics.get('tokens_saved', 0)}")
+        lines.append(f"   Saved Tokens:  {task_metrics.get('total_tokens_saved', 0)}")
         lines.append("-" * 60)
 
     lines.append("=" * 60)
