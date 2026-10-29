@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-080 · `grep` 在源码里搜 `token` / `key` 一类词时，类型名和变量名被改成 `***`，与 `file_read` 读到的同一行不一致
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `core/security/redact/file_view.py`（新）、`agent/meta_tools/file_search/_redaction.py`（新）、`grep_tool.py`、`file_read_tool.py`，删除 `core/file_read/view_redaction.py`，三份 `_ARCH.md`；没有改工具 schema 与提示词，只改工具返回内容，不影响提示词缓存） |
+| **发现时间** | 2026-10-29（复核 076 时，对 `grep_tool.py` 的脱敏调用点逐行核对，并对整仓源码逐行对照新旧输出） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：不丢数据、不泄密，但模型被误导。`cancel_token: CancellationToken \| None = None,` 在 grep 里是 `cancel_token: *** \| None = None,`，`KNOWN_MODEL_MAX_INPUT_TOKENS: dict[str, int] = {` 是 `KNOWN_MODEL_MAX_INPUT_TOKENS: *** int] = {`；同一行用 `file_read` 读是原样。实测 harness `src/` 21778 个含 token / key / secret / pass / auth / cred 的 `.py` 行里，3525 行被整段脱敏改写，抽样全部是对代码的误伤。 |
+| **关联产品** | `grep_tool`、`file_read_tool`（共用逐文件脱敏）；其他调用 `redact_sensitive_text` 的路径不变 |
+| **根因** | 076 让 `file_read` 按文件类型选脱敏模式（源码文件走 `source_code=True`），但 `grep_tool.py` 仍对格式化后的整段输出调用完整模式，名字类 pass 把类型名和变量名当成口令的名字。 |
+| **修复** | `redact_file_text(path, text)` 从 `file_read` 包内迁到 `core/security/redact/file_view.py`（两个工具共用，依赖方向 `meta_tools → agent.security.redact → core.security.redact`，`file_search` 本来也不 import `file_ops`）；`file_read_tool` 改调它（路径先 `path_base` 去掉 `:range`）。`grep` 在格式化之前经 `_redaction.redact_matches` 按匹配所在文件的类型逐段脱敏：同一文件里连续的行放在一起脱敏（上下文行里的 PEM 块仍能被看到），`pattern` 回显单独脱敏，不再对整段输出做完整模式。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | ① 第一版以为 PEM 脱敏不改变行数，行数不一致时退回逐行：实测 4 行的 PEM 块脱敏成 3 行（`BEGIN` / `...redacted...` / `END`），退回逐行会让 PEM 正文原样输出，是新增的泄漏；测试 `test_a_pem_block_across_consecutive_lines_is_masked` 抓到。改成把结果补空行到原长度，行数更多时并入最后一行，不逐行。② `grep_tool.py` 里有 9 个 mypy 欠账（`_read_stderr` / `_read_lines` 无返回类型、`proc.stdout` 为 `None` 未处理、`_mmap_search_file` 无类型），一并清掉。 |
+| **回归** | [1] 测试：新增 `tests/core/security/redact/test_file_view.py`（由原 `file_read` 视图测试迁入，加 Windows 路径）与 `tests/agent/meta_tools/file_search/test_grep_redaction.py`（逐段脱敏、PEM 块、补行与并行、`pattern` 回显、上下文行、工具端到端 4 条）；`file_read` 的工具级测试保留。[2] 实测：对 harness `src/` 的 21778 个含凭据词的行，被改写的行数 3525 变 209；[3] 100 条结果的格式化加脱敏，15 次取中位数 15.15 ms 变 2.15 ms（最大 16.8 ms 变 3.31 ms，测的是整仓随机抽样的 100 行，不是用户机器上的数据）；[4] `tests/agent/meta_tools`、`tests/core/security`、`tests/agent/security`（不含他人未完成的 `guards`）、`tests/agent/skills` 共 9915 通过；`boundary_check`、`check_import_resolvability`、`check_fractal_docs`、`ruff`、`mypy`（改动的文件）通过。 |
+| **仍然存在** | ① 剩余 209 行是带字符串字面量的源码行，与 `file_read` 同口径，不是本条引入（如 `TOKEN_PERCENT = "token_percent"` 输出 `TOKEN_PERCENT="***"`）。② 带类型注解的字面量赋值（`secret_key: str = "..."`）在源码模式下，真实密钥原样保留、类型被遮（实测）；在 harness `src/` 与 `tests/` 的 1,210,002 行里只有 10 行是这种形态、3 行被改动、0 行是真密钥，按收益不处理。③ PEM 块经 `-C` 上下文行出现时，输出里会多一个空内容行。④ `grep` 输出里的文件路径不再经过脱敏（原来整段脱敏会处理）；路径含凭据形态字符串的情形没有出现频率的数据。⑤ `bash` 与其他工具的输出仍按完整模式整段脱敏，没有文件类型可用。 |
+| **代码位置** | `core/security/redact/file_view.py`（`redact_file_text`）、`agent/meta_tools/file_search/_redaction.py`（`redact_matches`）、`grep_tool.py`（`format_grep_results` 的调用处）、`file_read_tool.py`（`redact_file_text(path_base(path), part)`）、`core/security/redact/_ARCH.md`、`file_search/_ARCH.md`、`file_ops/core/file_read/_ARCH.md` |
+
 ### BUG-HARNESS-2026-10-29-079 · 工作区快照每个新线程在事件循环上同步探测一次，钩子节点还给每次模型调用多写一条检查点；运行时一行把运行不起来的二进制也写成「已安装」
 
 | 字段 | 内容 |

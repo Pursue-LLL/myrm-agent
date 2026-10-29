@@ -5,6 +5,7 @@
 - pydantic::BaseModel, Field (POS: 参数验证)
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏，防止凭证泄露到 LLM 上下文)
+- _redaction::redact_matches (POS: 逐文件按类型脱敏匹配行，源码里含 token 的类型名/变量名不被误遮)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
 - utils.lru_cache::LRUCache (POS: LRU 缓存)
@@ -47,6 +48,7 @@ from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
 from ._formatter import format_grep_results
+from ._redaction import redact_matches
 from .fallback_discovery import collect_candidate_files
 from .path_hint import format_path_not_found_hint, suggest_similar_paths
 from .regex_validator import RegexValidator
@@ -101,22 +103,25 @@ async def _ripgrep_search(
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
+        if proc.stdout is None or proc.stderr is None:
+            raise RuntimeError("ripgrep pipes unavailable")
+        stdout, stderr = proc.stdout, proc.stderr
 
         results: list[dict[str, str | int]] = []
         match_count = 0
         stderr_data = bytearray()
 
-        async def _read_stderr():
+        async def _read_stderr() -> None:
             while True:
-                chunk = await proc.stderr.read(4096)
+                chunk = await stderr.read(4096)
                 if not chunk:
                     break
                 stderr_data.extend(chunk)
 
-        async def _read_lines():
+        async def _read_lines() -> None:
             nonlocal match_count
             while True:
-                line_bytes = await proc.stdout.readline()
+                line_bytes = await stdout.readline()
                 if not line_bytes:
                     break
 
@@ -159,9 +164,9 @@ async def _ripgrep_search(
         raise
 
 
-def _mmap_search_file(file: Path, regex, max_matches: int = 50) -> list[dict]:
+def _mmap_search_file(file: Path, regex: re.Pattern[str], max_matches: int = 50) -> list[dict[str, str | int]]:
     """使用 mmap 搜索单个文件（内存高效）"""
-    results = []
+    results: list[dict[str, str | int]] = []
     try:
         with open(file, "rb") as f:
             # 空文件直接跳过
@@ -464,17 +469,13 @@ def create_grep_tool(
             if used_ripgrep:
                 files_searched = len({str(r["file"]) for r in results})
 
-            output = format_grep_results(
-                results,
-                pattern,
+            return format_grep_results(
+                redact_matches(results),
+                redact_sensitive_text(pattern),
                 files_searched,
                 io_cfg.max_search_results,
                 is_regex=not literal,
             )
-
-            output = redact_sensitive_text(output)
-
-            return output
 
         except ToolError:
             # ToolError 已经包含友好提示，直接传播

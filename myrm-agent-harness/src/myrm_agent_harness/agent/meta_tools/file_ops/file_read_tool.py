@@ -3,11 +3,10 @@
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
 - core::FileOperationService, OperationContext, OperationType (POS: 文件操作服务)
-- agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏)
+- agent.security.redact::redact_sensitive_text, redact_file_text (POS: 工具输出脱敏；逐文件脱敏：源码文件只对含字符串字面量的行做按变量名脱敏)
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
 - core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器)
 - core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, partition_urls (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
-- core.file_read::redact_read_view (POS: 逐文件脱敏：源码文件只对含字符串字面量的行做按变量名脱敏)
 - file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
 - core.security.path::is_blocked_device_path (POS: Pre-IO 设备路径安全阻断)
 - utils.vault_read::is_vault_uri, path_base, read_vault_paths_to_parts (POS: vault:// URI 读取)
@@ -46,7 +45,7 @@ from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
     suggest_similar_paths,
 )
 from myrm_agent_harness.agent.security.path_security import is_blocked_device_path
-from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.agent.security.redact import redact_file_text, redact_sensitive_text
 from myrm_agent_harness.core.context_vars import workspace_root_var
 from myrm_agent_harness.core.security.tool_registry import PATHS_ALIAS_KEYS, coerce_path_list
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor, get_executor
@@ -60,7 +59,6 @@ from .core.file_read import (
     build_multimodal_result,
     partition_urls,
     process_text_paths,
-    redact_read_view,
 )
 from .core.mcp_read_next_step_hint import append_mcp_docs_next_step_hint
 from .utils.document_reader import is_document_path
@@ -337,7 +335,7 @@ def create_file_read_tool(
                     parse_mode=parse_mode,
                 )
                 text_parts.extend(
-                    redact_read_view(path, part) for path, part in zip(text_paths, file_parts, strict=True)
+                    redact_file_text(path_base(path), part) for path, part in zip(text_paths, file_parts, strict=True)
                 )
 
             result = "\n\n".join(text_parts) if text_parts else "No results."
