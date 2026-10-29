@@ -181,11 +181,11 @@ async def safe_exec(
             if not argv:
                 return ExecResult(stdout="", stderr="empty command", returncode=1, mode="direct")
 
-    from myrm_agent_harness.core.security.types import user_credentials_ctx
-    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+    from myrm_agent_harness.core.security.process_env import (
         EnvInheritPolicy,
         build_isolated_child_env,
     )
+    from myrm_agent_harness.core.security.types import user_credentials_ctx
     from myrm_agent_harness.utils.os_compat import get_process_group_kwargs
 
     session_kwargs = get_process_group_kwargs()

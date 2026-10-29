@@ -266,6 +266,12 @@ from myrm_agent_harness.core.security.privacy.ladder import (
 from myrm_agent_harness.core.security.privacy.ladder import (
     PrivacyScanVerdict as PrivacyScanVerdict,
 )
+from myrm_agent_harness.core.security.process_env import (
+    EnvInheritPolicy as EnvInheritPolicy,
+)
+from myrm_agent_harness.core.security.process_env import (
+    build_isolated_child_env as build_isolated_child_env,
+)
 from myrm_agent_harness.core.security.redact.engine import (
     redact_sensitive_text as redact_sensitive_text,
 )
@@ -418,12 +424,6 @@ from myrm_agent_harness.toolkits.code_execution.git_digest import (
 )
 from myrm_agent_harness.toolkits.code_execution.git_digest import (
     extract_repo_history_digest as extract_repo_history_digest,
-)
-from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
-    EnvInheritPolicy as EnvInheritPolicy,
-)
-from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
-    build_isolated_child_env as build_isolated_child_env,
 )
 from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
     WorkspaceSnapshotResult as WorkspaceSnapshotResult,

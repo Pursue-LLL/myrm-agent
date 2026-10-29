@@ -1,6 +1,6 @@
-"""Execution security — shell command analysis, blacklists, validators, and env isolation.
+"""Execution security — shell command analysis, blacklists and validators.
 
-- env_isolation.py: child process environment variable isolation and security sanitization SSOT
+- core.security.process_env: child process environment isolation SSOT (re-exported by validator.py)
 - shell_command_analyzer.py: shell command threat detection (injection, dangerous patterns)
 - core.security.shell_command_lexer: the one reading of a command line (where commands end, which words they have) shared by the checks below
 - risk_classifier.py: command risk classification (SAFE/UNKNOWN) with flag-level validation

@@ -293,7 +293,7 @@ class LocalBashMixin:
             logger.debug(f" User env vars: {list(user_env.keys())}")
 
         # Post-override scrubbing guarantee: strip any non-inheritable host secrets from base/user env (Codex #38941)
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.core.security.process_env import (
             is_non_inheritable_env_var,
         )
 

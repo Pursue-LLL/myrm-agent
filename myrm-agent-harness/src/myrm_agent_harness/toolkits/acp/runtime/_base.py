@@ -6,7 +6,7 @@ environment variable sanitization, timeout control, and response truncation.
 [INPUT]
 - toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
 - toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry; resolves a command to its backend)
-- toolkits.code_execution.security.env_isolation::EnvInheritPolicy, sanitize_env (POS: Child process environment isolation SSOT) [lazy]
+- core.security.process_env::EnvInheritPolicy, sanitize_env (POS: Child process environment isolation SSOT) [lazy]
 
 [OUTPUT]
 - BaseRuntime: Abstract base for RuntimeBackend implementations.
@@ -114,7 +114,7 @@ def build_safe_env(
          secrets are dropped so the CLI is forced onto its own logged-in
          subscription session rather than silently falling back to a key.
     """
-    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import EnvInheritPolicy, sanitize_env
+    from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
     source = dict(os.environ if base_env is None else base_env)
     env = sanitize_env(source, EnvInheritPolicy.CORE)

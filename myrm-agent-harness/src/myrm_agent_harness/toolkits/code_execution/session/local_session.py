@@ -81,7 +81,7 @@ class LocalPersistentSession(PersistentSession):
             self._sandbox_provider.cleanup()
 
     async def _create_process(self) -> asyncio.subprocess.Process:
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.core.security.process_env import (
             EnvInheritPolicy,
             build_isolated_child_env,
         )

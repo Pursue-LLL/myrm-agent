@@ -131,7 +131,7 @@ async def run_python_subprocess(
             process_env.pop("PYTHONPATH", None)
 
         # Post-override scrubbing guarantee: strip any non-inheritable host secrets (Codex #38941)
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.core.security.process_env import (
             is_non_inheritable_env_var,
         )
 

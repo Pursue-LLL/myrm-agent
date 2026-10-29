@@ -74,7 +74,7 @@
 
 - `agent/security/`：与 agent 中间件编排绑定的部分（`engine.py`、`checks.py`、`config.py`、`approval_flow.py`、`channel_presets.py`、`session_access.py`、`workspace_trust/`、`guards/` 等）。其中 `detection/`、`redact.py`、`path_security.py`、`tool_registry.py`、`audit.py`、`types.py` 是 `core/security/` 的再导出，保持 `agent.security.*` 导入路径稳定。
 - `core/security/`：规范实现（`detection/`、`redact/`、`path/`、`tool_registry/`、`safe_exec.py`、`ephemeral_credentials/`、`http/`、`guards/ssrf.py` 等），见 [core/security/_ARCH.md](../../core/security/_ARCH.md)。
-- `toolkits/code_execution/security/`：沙箱侧验证（模块/环境变量黑名单、Shell Command Analyzer、`validator.py`、`archive_sanitizer.py`、`env_isolation.py`），见 [其 _ARCH.md](../../toolkits/code_execution/security/_ARCH.md)。
+- `toolkits/code_execution/security/`：沙箱侧验证（模块/环境变量黑名单、Shell Command Analyzer、`validator.py`、`archive_sanitizer.py`），见 [其 _ARCH.md](../../toolkits/code_execution/security/_ARCH.md)。
 - `agent/middlewares/approval/`、`agent/middlewares/security/`：审批中间件（`middleware.py`、`batch_processor.py`、`helpers.py`）与安全护栏中间件（`security_guardrail_middleware.py`）。
 
 ---
@@ -198,7 +198,7 @@ class SSRFResult:
 
 **危险环境变量**（`DANGEROUS_ENV_VARS` + `DANGEROUS_ENV_PREFIXES` + `DANGEROUS_ENV_WILDCARDS`）：
 
-覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`env_isolation.py`，由 `validator.py` 再导出）在执行前过滤这些变量；子进程环境的构造规则见 3.2.2。
+覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`，由 `validator.py` 再导出）在执行前过滤这些变量；子进程环境的构造规则见 3.2.2。
 
 ### 3.2.1 Shell Command Analyzer
 
@@ -238,7 +238,7 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 - `start_new_session=True` 创建新进程组，确保超时时可杀死整个进程树
 - 超时时通过跨平台原语杀死整个进程组（包括所有子进程），不留孤儿进程
 - `ExecResult.mode` 记录实际执行模式，支持审计
-- **env 隔离**：子进程环境由 `build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)`（`toolkits/code_execution/security/env_isolation.py`）构造——只继承经证实安全的系统/工具链变量，调用方显式 `env` 先过滤动态链接器注入再叠加，最后剔除不可继承的宿主凭证；`credential_env_overrides()` 在隔离**之后**注入合法凭证，防止无人值守路径（cron）发生环境变量逃逸
+- **env 隔离**：子进程环境由 `build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)`（`core/security/process_env/env_isolation.py`）构造——只继承经证实安全的系统/工具链变量，调用方显式 `env` 先过滤动态链接器注入再叠加，最后剔除不可继承的宿主凭证；`credential_env_overrides()` 在隔离**之后**注入合法凭证，防止无人值守路径（cron）发生环境变量逃逸
 - **沙箱 fail-closed**：`require_sandbox=True` 且沙箱不可用时直接拒绝执行（`MissingSemanticsBlockedError`）
 
 **消费方**：`cron/runners.py` ShellJobRunner — 无人值守场景的最高风险执行路径。

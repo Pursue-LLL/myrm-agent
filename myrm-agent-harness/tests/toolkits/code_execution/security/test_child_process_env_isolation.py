@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+from myrm_agent_harness.core.security.process_env import (
     EnvInheritPolicy,
     build_isolated_child_env,
     sanitize_env,
@@ -302,7 +302,7 @@ class TestExecutorAndHookSubprocessIsolation:
             assert built_env.get("CUSTOM_DEV_VAR") == "valid_value"
 
     def test_background_spawn_post_override_scrubs_context_env(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.core.security.process_env import (
             is_non_inheritable_env_var,
         )
 

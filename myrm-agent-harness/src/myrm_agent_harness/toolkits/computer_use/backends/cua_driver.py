@@ -87,7 +87,7 @@ class _McpSession:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.core.security.process_env import (
             EnvInheritPolicy,
             build_isolated_child_env,
         )

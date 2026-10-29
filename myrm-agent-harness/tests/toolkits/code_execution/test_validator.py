@@ -490,11 +490,8 @@ class TestSanitizeEnv:
         assert "PATH" in result
 
     def test_all_policy_filters_wildcard_match(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            _matches_wildcard,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env.env_isolation import _matches_wildcard
+        from myrm_agent_harness.toolkits.code_execution.security.validator import EnvInheritPolicy, sanitize_env
 
         assert _matches_wildcard("MY_API_KEY") is True
         assert _matches_wildcard("CUSTOM_SECRET") is True

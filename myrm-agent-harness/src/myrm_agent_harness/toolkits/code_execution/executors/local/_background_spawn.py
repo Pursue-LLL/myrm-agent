@@ -100,14 +100,14 @@ async def spawn_background_process(
         AsyncProcessProtocol wrapping the spawned subprocess.
     """
     from myrm_agent_harness.core.context_vars import standing_access_roots
+    from myrm_agent_harness.core.security.process_env import (
+        DEFAULT_CHILD_SAFE_ENV_KEYS,
+    )
     from myrm_agent_harness.toolkits.code_execution.sandbox import (
         detect_sandbox_provider,
     )
     from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
         build_workspace_sandbox_policy,
-    )
-    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
-        DEFAULT_CHILD_SAFE_ENV_KEYS,
     )
     from myrm_agent_harness.toolkits.code_execution.security.validator import (
         sanitize_env,
@@ -148,7 +148,7 @@ async def spawn_background_process(
     if context.env:
         env.update(sanitize_env(context.env))
 
-    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+    from myrm_agent_harness.core.security.process_env import (
         is_non_inheritable_env_var,
     )
 

@@ -316,10 +316,10 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "is_within_boundary": ("myrm_agent_harness.core.security.path", "is_within_boundary"),
     "safe_join_path": ("myrm_agent_harness.core.security.path", "safe_join_path"),
     "build_isolated_child_env": (
-        "myrm_agent_harness.toolkits.code_execution.security.env_isolation",
+        "myrm_agent_harness.core.security.process_env",
         "build_isolated_child_env",
     ),
-    "EnvInheritPolicy": ("myrm_agent_harness.toolkits.code_execution.security.env_isolation", "EnvInheritPolicy"),
+    "EnvInheritPolicy": ("myrm_agent_harness.core.security.process_env", "EnvInheritPolicy"),
     "ProviderBalanceProbeProtocol": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceProbeProtocol"),
     "ProviderBalanceResult": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceResult"),
     "ProviderBalanceStatus": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceStatus"),

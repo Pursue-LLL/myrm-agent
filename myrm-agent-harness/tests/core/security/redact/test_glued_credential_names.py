@@ -14,8 +14,8 @@ import re
 
 import pytest
 
+from myrm_agent_harness.core.security.process_env import FORBIDDEN_EXACT_KEYS
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.toolkits.code_execution.security.env_isolation import FORBIDDEN_EXACT_KEYS
 
 _VALUE = "correct-horse-91-Zk3fQ9xL"
 

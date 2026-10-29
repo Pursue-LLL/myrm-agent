@@ -187,7 +187,7 @@ class TestBuildIsolatedChildEnvPostOverrideScrubbing:
     """Verify build_isolated_child_env cannot be bypassed via caller extra_env overrides."""
 
     def test_extra_env_cannot_reinject_host_credentials(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.core.security.process_env import (
             build_isolated_child_env,
         )
 

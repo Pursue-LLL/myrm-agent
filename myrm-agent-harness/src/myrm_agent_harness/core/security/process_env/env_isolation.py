@@ -15,10 +15,10 @@ hooks, CUA drivers, subcommands).
 - EnvInheritPolicy: Enum (CORE, ALL, NONE).
 
 [POS]
-Harness Layer execution security SSOT.
+Core security SSOT for the environment a started process gets; depends on no upper layer.
 Referenced by:
-- session/local_session.py (persistent interactive Bash sessions)
-- agent/hooks/executor.py (shell command hooks)
+- toolkits/code_execution/session/local_session.py, executors/local/* (shell sessions, one-shot commands)
+- agent/hooks/executor.py (shell command hooks), core/security/safe_exec.py, toolkits/acp/runtime/_base.py
 - toolkits/computer_use/backends/cua_driver.py (CUA stdio driver)
 - toolkits/code_execution/security/validator.py (re-exported)
 """
