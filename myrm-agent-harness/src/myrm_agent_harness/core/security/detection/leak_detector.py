@@ -7,7 +7,7 @@ and other sensitive values.
 Detection strategy:
   1. Prefix-based API key patterns (30+ cloud providers)
   2. Context-aware patterns (ENV assignments, JSON fields, Auth headers)
-  3. Structural formats (JWT, PEM block-level, database URLs, blockchain, cloud infra)
+  3. Structural formats (JWT, PEM block-level, URL passwords, blockchain, cloud infra)
   4. Shannon entropy analysis (catches unknown credential formats; see entropy_scan)
   5. Context-aware blockchain patterns (mnemonic seed phrases)
 
@@ -131,7 +131,6 @@ _PEM_BLOCK_RE = re.compile(
 )
 
 # Database and broker schemes, with the driver a SQLAlchemy-style URL names (`postgresql+asyncpg`, `mysql+pymysql`).
-# The password is capped at 1024 characters: a long run of `redis://:` with no `@` makes every start scan to the end of it.
 _DB_SCHEME = r"(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis(?:s)?|amqps?)(?:\+[a-z0-9_]+)?"
 
 _STRUCTURAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -140,13 +139,14 @@ _STRUCTURAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "pem_private_key",
         re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     ),
-    ("database_url", re.compile(rf"{_DB_SCHEME}://[^\s/@:]*:[^\s]{{1,1024}}@[^\s]+", re.IGNORECASE)),
-    # Any other scheme (`socks5`, `ssh`, `https`, `smtp`...): a password in the URL's user position. A variable
-    # reference (`${REGISTRY_TOKEN}`, `$PW`) is a name and does not count.
+    # A password the redactor already replaced by `***` is no leak (redacted text scans clean); a DSN password is capped
+    # at 1024 characters: a long run of `redis://:` with no `@` makes every start scan to its end.
+    ("database_url", re.compile(rf"{_DB_SCHEME}://[^\s/@:]*:(?!\*{{3}}@)[^\s]{{1,1024}}@[^\s]+", re.IGNORECASE)),
+    # Any other scheme (`socks5`, `ssh`, `https`...): a password in the user position; a variable reference (`$PW`) is a name.
     (
         "url_credential",
         re.compile(
-            rf"(?<![a-z0-9+.\-])(?!{_DB_SCHEME}://)[a-z][a-z0-9+.\-]*://[^\s/@:]*:(?!\$)[^\s/\"'`<>]+@[^\s]+",
+            rf"(?<![a-z0-9+.\-])(?!{_DB_SCHEME}://)[a-z][a-z0-9+.\-]*://[^\s/@:]*:(?!\$)(?!\*{{3}}@)[^\s/\"'`<>]+@[^\s]+",
             re.IGNORECASE,
         ),
     ),

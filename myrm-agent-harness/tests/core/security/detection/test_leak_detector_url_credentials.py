@@ -66,3 +66,23 @@ class TestNoPasswordNoLeak:
     )  # fmt: skip
     def test_a_variable_reference_in_place_of_the_password_is_clean(self, text: str) -> None:
         assert "url_credential" not in scan_for_leaks(text)
+
+
+class TestMaskedPasswordIsNoLeak:
+    """The redactor writes ``***`` where the password was: text it already redacted scans clean and stays as it is."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "https://deploy:***@git.example.com/org/repo.git",
+            "postgres://root:***@localhost:5432/prod",
+            "redis://:***@cache:6379/0",
+            "socks5://proxy:***@10.0.0.1:1080",
+        ],
+    )  # fmt: skip
+    def test_a_masked_url_scans_clean_and_is_not_rewritten(self, text: str) -> None:
+        assert scan_for_leaks(text) == []
+        assert redact_leaks(text) == text
+
+    def test_a_password_that_merely_starts_with_the_mask_is_still_a_leak(self) -> None:
+        assert scan_for_leaks("https://deploy:***a1b2@git.example.com/org/repo.git") == ["url_credential"]
