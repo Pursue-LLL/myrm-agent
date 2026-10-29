@@ -113,8 +113,18 @@ def applied(monkeypatch: pytest.MonkeyPatch) -> list[tuple[Path, WorkspaceTrustL
 
 
 def _main_request_text(requests: Sequence[Sequence[Mapping[str, object]]]) -> str:
-    """The text of the requests that carry the question of the turn, leaving out the notes updater that quotes it afterwards."""
-    texts = [json.dumps(request, ensure_ascii=False) for request in requests]
+    """The text of the requests that carry the question of the turn and were built before any tool result existed.
+
+    A model that goes and reads the rule file with a tool puts the codeword into every later request, its own and the extractors' that quote the
+    turn, without any rule having been injected; what was sent before that point can only hold what the server put into the prompt.
+    The notes updater is left out as well because it quotes the question afterwards.
+    """
+    before_any_tool_result: list[Sequence[Mapping[str, object]]] = []
+    for request in requests:
+        if any(message.get("role") == "tool" for message in request):
+            break
+        before_any_tool_result.append(request)
+    texts = [json.dumps(request, ensure_ascii=False) for request in before_any_tool_result]
     return "\n".join(text for text in texts if PROMPT in text and "Update the session notes" not in text)
 
 
@@ -233,12 +243,11 @@ def test_a_rule_file_over_the_size_limit_reaches_a_trusted_run_as_its_placeholde
     (folder / "AGENTS.md").write_text(_codeword_rule() + "x" * OVERSIZED_RULE_CHARS, encoding="utf-8")
 
     with _trusted_project_folder(client, folder) as chat_id:
-        answer = _ask(client, chat_id)
+        _ask(client, chat_id)
 
     request = _main_request_text(sent)
     assert BLOCKED_PLACEHOLDER in request
     assert CODEWORD not in request
-    assert CODEWORD not in answer
 
 
 def test_a_rule_file_that_links_out_of_the_folder_reaches_a_trusted_run_as_its_placeholder(
@@ -251,9 +260,8 @@ def test_a_rule_file_that_links_out_of_the_folder_reaches_a_trusted_run_as_its_p
     os.symlink(outside, folder / "AGENTS.md")
 
     with _trusted_project_folder(client, folder) as chat_id:
-        answer = _ask(client, chat_id)
+        _ask(client, chat_id)
 
     request = _main_request_text(sent)
     assert BLOCKED_PLACEHOLDER in request
     assert CODEWORD not in request
-    assert CODEWORD not in answer
