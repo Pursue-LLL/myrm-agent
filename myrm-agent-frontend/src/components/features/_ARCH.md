@@ -68,6 +68,33 @@
 | `workspace-cockpit/`                        | 个人数字员工工作区总控驾驶舱（“你不在的时候”离线成果统计、4 泳道任务流、实时 streaming tail 与悬浮会话托盘） | [_ARCH.md](workspace-cockpit/_ARCH.md)                                             |
 | `task-action-preview/`                      | 会话建议智能脱敏清洗转 Task（废话剥离、动宾行动项提炼）与高危操作 Typed Action 范围预览模态框及不可篡改操作回执卡 | [_ARCH.md](task-action-preview/_ARCH.md)                                           |
 | `specialty-suites-gateway/`                 | 桌面端统一专业套件侧栏工作台与移动端免配置扫码热插拔伴侣网关（专家套件、企业连接器、统一定时中心、Ed25519 扫码配对） | [_ARCH.md](specialty-suites-gateway/_ARCH.md)                                       |
+| `activity-feed/` | 组件 `ActivityFeedAggregatorDeck`、`ActivityFeedStreamCard`；状态仓库 `useActivityFeedStore` | [_ARCH.md](activity-feed/_ARCH.md) |
+| `approval/` | 组件 `ExecutiveApprovalCard`、`VisualGatekeepingDeck`；状态仓库 `useExecutiveApprovalStore` | [_ARCH.md](approval/_ARCH.md) |
+| `arena/` | 组件 `AdoptSynthesizeBar`、`LocalProjectWorkspaceCard`、`MultiModelSplitArenaView`；状态仓库 `useArenaStore` | [_ARCH.md](arena/_ARCH.md) |
+| `artifact-sandbox/` | 组件 `FinancialSandplayWidget`、`InteractiveArtifactSandbox`、`NewsletterRichStyler`；状态仓库 `useArtifactSandboxStore` | [_ARCH.md](artifact-sandbox/_ARCH.md) |
+| `clarification-questionnaire/` | 组件 `ClarificationQuestionnaireCard`、`V1SpecSummaryModal`；状态仓库 `useClarificationQuestionnaireStore` | [_ARCH.md](clarification-questionnaire/_ARCH.md) |
+| `command-center/` | 组件 `CommandCenterHeaderTrigger`、`CommandCenterMaintenanceTab`、`CommandCenterModal`、`CommandCenterSessionsTab` 等 6 个；状态仓库 `useCommandCenterStore` | [_ARCH.md](command-center/_ARCH.md) |
+| `companion-plan-hub/` | 组件 `MicroPlanDrawer`、`MiniArtifactBubble`、`ProgressHUD`；状态仓库 `useCompanionPlanHubStore` | [_ARCH.md](companion-plan-hub/_ARCH.md) |
+| `data-migration/` | 组件 `DataMigrationSection`、`MigrationReconciliationModal`、`MigrationSilentToast`；状态仓库 `useDataMigrationStore` | [_ARCH.md](data-migration/_ARCH.md) |
+| `desktop-pet-pulse/` | 组件 `DataMigrationCenterModal`、`FloatingPetBall`、`PetControlQuickActionDrawer`、`VoiceDirectInputBubble`；状态仓库 `useDesktopPetPulseStore` | [_ARCH.md](desktop-pet-pulse/_ARCH.md) |
+| `dockable-workbench/` | 组件 `DockableChangesViewer`、`DockableWorkbenchContainer`、`TriSurfaceTaskIndicator`；状态仓库 `useDockableWorkbenchStore` | [_ARCH.md](dockable-workbench/_ARCH.md) |
+| `dual-track-view/` | 组件 `BusinessMessageCard`、`DualTrackModeSwitcher`、`EngineeringTraceDrawer`；状态仓库 `useDualTrackStore` | [_ARCH.md](dual-track-view/_ARCH.md) |
+| `element-editor/` | 组件 `ElementInspectorOverlay`、`ElementVisualEditorContainer`、`InPlaceEditPopover`、`VisualVersionRollbackDeck`；状态仓库 `useElementEditorStore` | [_ARCH.md](element-editor/_ARCH.md) |
+| `element-patch/` | 组件 `ElementAnnotationPinOverlay`、`StagedAnnotationsDrawer`、`SurgicalPatchCard`；状态仓库 `useElementPatchStore` | [_ARCH.md](element-patch/_ARCH.md) |
+| `floating-pet/` | 组件 `CompanionFloatingPet`、`MiniTaskBubble`；状态仓库 `useFloatingPetStore` | [_ARCH.md](floating-pet/_ARCH.md) |
+| `insitu-annotation/` | 组件 `InSituBatchCommentRail`、`InSituCanvasContainer`、`InSituCommentPinLayer`、`InSituPropertyInspector`；状态仓库 `useInsituAnnotationStore` | [_ARCH.md](insitu-annotation/_ARCH.md) |
+| `local-first/` | 组件 `LocalFirstPrivacySandboxCard`、`WebGPUMetaArtifactViewer`；状态仓库 `useLocalFirstStore` | [_ARCH.md](local-first/_ARCH.md) |
+| `mobile-companion/` | 组件 `MobileRemoteSteeringBar`、`MobileTaskCompanionView`、`QrCodePairingModal`；状态仓库 `useMobileCompanionStore` | [_ARCH.md](mobile-companion/_ARCH.md) |
+| `on-demand-confirmation/` | 组件 `NineEntryNavigationShell`、`OnDemandDecisionModal`、`OnDemandOptionCard`；状态仓库 `useOnDemandConfirmationStore` | [_ARCH.md](on-demand-confirmation/_ARCH.md) |
+| `search-audit/` | 组件 `SearchAuditDrawer`、`SearchAuditEvidenceBadge`；状态仓库 `useSearchAuditStore` | [_ARCH.md](search-audit/_ARCH.md) |
+| `side-chat/` | 组件 `SideChatDrawer`、`SideChatTriggerButton`；状态仓库 `useSideChatStore` | [_ARCH.md](side-chat/_ARCH.md) |
+| `side-track/` | 组件 `SideTrackExplainerDrawer`、`SideTrackForkTrigger`；状态仓库 `useSideTrackStore` | [_ARCH.md](side-track/_ARCH.md) |
+| `skeuomorphic-app/` | 组件 `ClassicIpodTaskCarouselPlayer`、`PolaroidArtifactAlbumDeck`、`SkeuomorphicWorkbenchWidget`；状态仓库 `useSkeuomorphicAppStore` | [_ARCH.md](skeuomorphic-app/_ARCH.md) |
+| `speech-bias/` | 组件 `DevLexiconBiasDrawer`、`VoiceDevConfirmCard`；状态仓库 `useSpeechBiasStore` | [_ARCH.md](speech-bias/_ARCH.md) |
+| `swarm-canvas/` | 组件 `ElasticSwarmCanvas`、`SoloFocusLensDrawer`、`SwarmStatusCapsuleBar`；状态仓库 `useSwarmCanvasStore` | [_ARCH.md](swarm-canvas/_ARCH.md) |
+| `three-mode-switcher/` | 组件 `ThreeModeCapsuleSwitcher`、`ThreeModeIntentGuidanceToast`、`ThreeModePermissionMatrixDeck`；状态仓库 `useThreeModeStore` | [_ARCH.md](three-mode-switcher/_ARCH.md) |
+| `threejs-sandbox/` | 组件 `ThreeJsCanvasViewer`、`ThreeJsConsoleDrawer`、`ThreeJsPerformancePanel`；状态仓库 `useThreeJsSandboxStore` | [_ARCH.md](threejs-sandbox/_ARCH.md) |
+| `turn-lineage/` | 组件 `TurnLineageFilterBar`、`TurnOriginBadge`、`TurnProvenanceHoverCard`、`TurnTimelineAuditRail`；状态仓库 `useTurnLineageStore` | [_ARCH.md](turn-lineage/_ARCH.md) |
 
 上表覆盖当前全部 feature 子目录。新增目录须同步本表并添加目录级 `_ARCH.md`。
 

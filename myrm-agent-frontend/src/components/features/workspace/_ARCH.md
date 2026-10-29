@@ -26,6 +26,13 @@
    - 移动端通过底部抽屉打开审查面板（桌面端为右侧常驻栏）。
    - 每个 Diff 代码块头部集成一键复制 Diff 差异内容功能。
 
+## 子目录
+
+| 目录 | 内容 | 文档 |
+|------|------|------|
+| `scaffolding/` | 组件 `ScaffoldingDocPreviewModal`、`WorkspaceScaffoldingCard`；状态仓库 `useWorkspaceScaffoldingStore` | [_ARCH.md](scaffolding/_ARCH.md) |
+| `visual-theming/` | 组件 `DualWorkModeToggleSwitcher`、`ModeAdaptivePromptDeck`、`WorkspaceVisualIdentityPickerModal`；状态仓库 `useWorkspaceThemingStore` | [_ARCH.md](visual-theming/_ARCH.md) |
+
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`、`@/lib/utils/pathValidation`

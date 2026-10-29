@@ -208,6 +208,29 @@
 
 逻辑层见 [`lib/approval/_ARCH.md`](../../../lib/approval/_ARCH.md)。
 
+## 子目录
+
+| 目录 | 内容 | 文档 |
+|------|------|------|
+| `ambient-activity/` | 组件 `AmbientActivityDeck`、`BotCommunicationInspectionDrawer`；状态仓库 `useAmbientActivityStore` | [_ARCH.md](ambient-activity/_ARCH.md) |
+| `cli-passthrough/` | 组件 `CliCommandPreviewDrawer`；状态仓库 `useCliPassthroughStore` | [_ARCH.md](cli-passthrough/_ARCH.md) |
+| `context-hud/` | 组件 `CacheAttributionPopover`、`ContextWatermarkHud`；状态仓库 `useContextHudStore` | [_ARCH.md](context-hud/_ARCH.md) |
+| `conversational-config/` | 组件 `ConversationalConfigActionCard`、`NonDevZeroFrictionWizardModal`；状态仓库 `useConversationalConfigStore` | [_ARCH.md](conversational-config/_ARCH.md) |
+| `full-duplex-bridge/` | 组件 `ContextualResultReanchoringCard`、`InFlightBackgroundWorkerTray`；状态仓库 `useFullDuplexBridgeStore` | [_ARCH.md](full-duplex-bridge/_ARCH.md) |
+| `graceful-degradation/` | 组件 `LiveComponentHealthIndicator`、`NonIntrusiveFallbackPillBadge`；状态仓库 `useGracefulDegradationStore` | [_ARCH.md](graceful-degradation/_ARCH.md) |
+| `lane-gradient/` | 组件 `AlwaysVisibleLaneIndicator`、`LaneGraduationPromptDialog`；状态仓库 `useLaneSemanticStore` | [_ARCH.md](lane-gradient/_ARCH.md) |
+| `modal-editor/` | 组件 `PopoutFullscreenModalEditor`；状态仓库 `useModalEditorStore` | [_ARCH.md](modal-editor/_ARCH.md) |
+| `non-coding-playbook/` | 组件 `NonCodingPlaybookGallery`、`PlaybookPrefillModal`、`WhyAgentOverRawChatModal`；状态仓库 `useNonCodingPlaybookStore` | [_ARCH.md](non-coding-playbook/_ARCH.md) |
+| `pacing-selector/` | 组件 `ModelPacingDetailPopover`、`ModelPacingSelectorPill`；状态仓库 `useModelPacingStore` | [_ARCH.md](pacing-selector/_ARCH.md) |
+| `presentation-tool/` | 组件 `InteractiveSuggestionChips`、`StructuredPresentationCard`；状态仓库 `usePresentationToolStore` | [_ARCH.md](presentation-tool/_ARCH.md) |
+| `rules-hot-reload/` | 组件 `WorkspaceRulesIndicatorBar`；状态仓库 `useWorkspaceRulesStore` | [_ARCH.md](rules-hot-reload/_ARCH.md) |
+| `session-branch-archive/` | 组件 `SessionBranchArchiveModal`、`SessionRuleAnchorHeader`；状态仓库 `useSessionBranchArchiveStore` | [_ARCH.md](session-branch-archive/_ARCH.md) |
+| `three-pane-studio/` | 组件 `ContextTreePane`、`MiddleContentPane`、`ThreePaneContextStudio`；状态仓库 `useThreePaneStudioStore` | [_ARCH.md](three-pane-studio/_ARCH.md) |
+| `token-economics/` | 组件 `ProviderBalanceModal`、`SessionTokenCapsule`；状态仓库 `useTokenEconomicsStore` | [_ARCH.md](token-economics/_ARCH.md) |
+| `ttft-decoupling/` | 组件 `DagProgressPulseTimeline`、`SpeculativeEarlyAckCard`；状态仓库 `useTtftDecouplingStore` | [_ARCH.md](ttft-decoupling/_ARCH.md) |
+| `ui-enrichment/` | 组件 `AntiTamperEnrichedCard`；状态仓库 `useUiEnrichmentStore` | [_ARCH.md](ui-enrichment/_ARCH.md) |
+| `workspace-breadcrumb/` | 组件 `WorkspaceBreadcrumbBar`；状态仓库 `useWorkspaceBreadcrumbStore` | [_ARCH.md](workspace-breadcrumb/_ARCH.md) |
+
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`

@@ -15,6 +15,12 @@
 | `WorkspaceManagerCockpit.tsx` | Core | 顶层管家工作台主表面，整合搜索、刷新、离线摘要与 4 泳道网格 | [INPUT] 内部所有子组件<br>[OUTPUT] 工作区驾驶舱主界面<br>[POS] 顶层聚合主工作台 |
 | `index.ts` | Facade | 统一门面导出 | [INPUT] 模块内部所有导出<br>[OUTPUT] 统一向外部提供公共 API<br>[POS] 模块对外唯一门面 |
 
+## 子目录
+
+| 目录 | 内容 | 文档 |
+|------|------|------|
+| `needs-you/` | 组件 `AnchoredAlertNotificationBanner`、`NeedsYouQueueDrawer`；状态仓库 `useNeedsYouQueueStore` | [_ARCH.md](needs-you/_ARCH.md) |
+
 ## 外部依赖
 
 - `@/lib/utils/classnameUtils` (Tailwind CSS 类名组合)

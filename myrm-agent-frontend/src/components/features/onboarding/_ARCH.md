@@ -29,6 +29,12 @@
 | `TelegramAssistantOnboardingStep.tsx`    | Telegram 助手一键接入步骤                                                                                                                                                                                                                                                                    |
 | `SyncFolderOnboardingStep.tsx`           | Local 可选步骤：复用 `MigrationVaultBindPanel`；消费 migration workspace bind 候选预填；bind 后 handoff projectId                                                                                                                                                                            |
 
+## 子目录
+
+| 目录 | 内容 | 文档 |
+|------|------|------|
+| `visual-tour/` | 组件 `InteractiveFeatureSpotlightTour`、`QuickStartChecklistCard`、`RealPlaygroundTemplateDeck`；状态仓库 `useVisualTourStore` | [_ARCH.md](visual-tour/_ARCH.md) |
+
 ## 依赖
 
 - `@/components/features/settings/model-service/HardwareCookbook` — 硬件模型推荐（Settings 与 Onboarding 共用）

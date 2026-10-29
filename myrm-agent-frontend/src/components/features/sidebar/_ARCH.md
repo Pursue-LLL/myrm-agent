@@ -31,6 +31,12 @@
 | `useChatActions.ts`                            | Hook | 会话 Pin/Rename/Delete/Export/OpenInIDE/Print/CaptureEvalCase 等 imperative 动作（OpenInIDE 复用导出加剪贴板后经桌面桥调起 IDE）；组合 `useChatShareActions`                                                                                                                                                                                                                            | ✅    |
 | `useChatShareActions.ts`                       | Hook | 会话分享对话框状态管理、创建/撤回/状态查询操作                                                                                                                                                                                                                                                                                                                                          | ✅    |
 
+## 子目录
+
+| 目录 | 内容 | 文档 |
+|------|------|------|
+| `attention-hub/` | 组件 `AttentionHubBadge`、`AttentionHubPanel`；状态仓库 `useAttentionHubStore` | [_ARCH.md](attention-hub/_ARCH.md) |
+
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
