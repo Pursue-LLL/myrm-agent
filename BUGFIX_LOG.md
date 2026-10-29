@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 导出的 HTML 文件里 `javascript:` 链接可执行（会话内容与来源列表）；导出页浅色 7 处、深色 4 处文字对比度不足 4.5
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（frontend：`src/lib/utils/chat-export/chatExportHtml.ts`、`chatExportHtmlTemplates.ts`、新增 `exportUrlPolicy.ts` 与三个测试文件；文档：`chat-export/_ARCH.md`、`lib/utils/_ARCH.md`、官网 `guides/chat-history.mdx`（中英）） |
+| **症状** | ① 导出的 HTML 文件里，会话内容中的 `[文字](javascript:…)`、`<javascript:…>` 与来源列表里的 `javascript:` 地址都被写成 `<a href="javascript:…">`，收到文件的人点一下就在文件所在页面里执行脚本（来源地址来自联网搜索结果，不是用户自己写的）。② 浅色主题 7 处、深色主题 4 处文字对比度低于 4.5：浅色的来源链接与脱敏提示（4.43、4.20）、复制成功色（2.19）、失败标记（3.60-3.91）、代码高亮的关键字 / 注释 / 内置名（4.20、4.42、3.20）；深色的用户消息时间（4.45）、代码块语言标签与复制按钮（4.20）、模型徽标白字（2.54）、失败标记（3.82-4.21）。 |
+| **根因** | 渲染管线 `remark-rehype` 之后没有任何链接过滤（`allowDangerousHtml:false` 只挡原始 HTML，不挡链接地址的协议）；来源列表直接 `esc(s.url)` 写进 `href`，转义只防引号不防协议。颜色分散写成字面值：有的只在一套主题下验证过，复制成功色、失败色、徽标白字根本没有随主题变化。 |
+| **修复** | ① 新增 `exportUrlPolicy.ts`：`isSafeLinkUrl` 用浏览器同一套 URL 解析判定，只放行 `http` / `https` / `mailto` / `tel` 与无协议的相对地址；`rehypeSafeLinks` 把被拒绝的链接变成不带 `href` 的 `span`，文字保留。管线最后一步接入（`chatExportHtml.ts:173`，之前步骤产生的链接也被检查），来源列表同样判定（`:208`），被拒绝的来源显示为纯文字。② 样式表：新增 `--on-accent`、`--ok`、`--danger` 三个主题变量，浅色强调色 `#2563eb` → `#1d4ed8`，深色次要文字 `#888` → `#999`，三处代码高亮浅色值调深；`color:` 不再出现字面色值（打印态除外）。 |
+| **回归证据** | [1] 先红后绿：恶意链接测试 14 例修复前 12 红（保留链接文字、保留普通链接两例本就为绿）；对比度测试 51 例修复前 14 红。[2] 新增测试 95 例（链接策略 30、恶意链接 14、对比度 51），连同既有共 146 例通过；变异检查 10/10 被杀（去掉管线步骤、来源不过滤、放行 `javascript:`、改成前缀判断、深色次要文字 / 徽标字色 / 浅色强调色 / 注释色改回、复制成功色与失败色改回字面值）。[3] 真实浏览器（Chrome 内置浏览器，本地起的静态文件）：导出含 4 种恶意链接的会话，浅色与深色各 76 个文字节点按计算后的颜色与叠加后的底色逐个测对比度，全部 ≥ 4.5；页面里的链接只有两个 `https` 地址，页面标题未被改写；临时注入修复前的三个颜色后，同一审计准确报出深色主题的 4 个元素（模型徽标 2.54、时间 4.45、代码语言标签 4.20、失败标记 4.21），说明审计能失败。[4] `tsc --noEmit` 全项目通过，oxlint、prettier、`verify:stable-mocks`、`verify:theme-colors`、`verify:icu-syntax` 通过。 |
+| **仍然存在** | ① 导出文件仍没有内容安全策略：远程图片在打开时会请求第三方地址；HTML / SVG 代码块在 `sandbox="allow-scripts"` 的 iframe 里执行（不带 `allow-same-origin`，隔离在独立源里）。② 对比度测试按配对表检查，不是自动遍历所有选择器；真实浏览器只审计了一份样例页面，打印态的强制颜色没有测。③ 只在 Chrome 内置浏览器里看过，没有 Safari / Firefox。④ Markdown、JSON、DOCX、PNG 导出里的链接没有检查（文本格式保留原文，由打开它的程序决定）。⑤ `ftp:`、`file:`、`data:` 等地址也变成纯文字，是有意的取舍。⑥ 修复前「点击后脚本真的执行」是此前一次真实浏览器探针的结果，本次没有重放修复前的文件。⑦ `verify:orphans`（1020 个孤儿模块）与 `verify:reduced-motion`（`welcome_page.py`）本来就红，与本次无关。 |
+| **代码位置** | `myrm-agent-frontend/src/lib/utils/chat-export/exportUrlPolicy.ts:17,31,40` · `chatExportHtml.ts:18,173,208` · `chatExportHtmlTemplates.ts:29-30,58,78,86,100-109` · `__tests__/{exportUrlPolicy,chatExportHtmlHostile,chatExportHtmlContrast}.test.ts` |
+
 ## 2026-10-29 · 对话公开分享页原样展示聊天里粘贴过的密钥（导出有遮蔽、分享页没有）；分享对话框不提示「之后的新消息也会显示」
 
 | 字段 | 内容 |

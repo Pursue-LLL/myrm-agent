@@ -1,5 +1,5 @@
 /**
- * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml.
+ * [INPUT] ./chatExport.ts::ExportData, ExportFormatOptions, ExportMessage; ./chatExportHtmlTemplates.ts::esc, getStyles, getHljsTheme, getInteractiveJs, getLabels, renderUsageStats, renderToolActivityHtml, renderAgentCard, renderToolCallDetailsHtml; ./exportUrlPolicy.ts::isSafeLinkUrl, rehypeSafeLinks (POS: which link targets an exported file keeps).
  * [OUTPUT] buildHtmlDocument.
  * [POS] Markdown-to-HTML export renderer for chat conversations.
  */
@@ -15,6 +15,7 @@ import {
   renderAgentCard,
   renderToolCallDetailsHtml,
 } from './chatExportHtmlTemplates';
+import { isSafeLinkUrl, rehypeSafeLinks } from './exportUrlPolicy';
 import type { Element, ElementContent } from 'hast';
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
@@ -168,6 +169,8 @@ async function getMarkdownEngine() {
             }
           });
         })
+        // Last, so a link produced by any earlier step is checked too.
+        .use(rehypeSafeLinks)
         .use(rehypeStringify, { allowDangerousHtml: true });
 
       return processor;
@@ -201,7 +204,8 @@ function renderMessageHtml(msg: ExportMessage, renderedContent: string): string 
     sourcesHtml = '<div class="sources"><div class="sources-title">Sources</div><ul>';
     for (const s of sources) {
       const title = esc(s.title || s.url || 'Source');
-      const link = s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${title}</a>` : title;
+      const link =
+        s.url && isSafeLinkUrl(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${title}</a>` : title;
       sourcesHtml += `<li>${link}</li>`;
     }
     sourcesHtml += '</ul></div>';
