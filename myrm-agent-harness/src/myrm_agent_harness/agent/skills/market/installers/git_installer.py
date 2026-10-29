@@ -106,10 +106,13 @@ class GitInstaller:
         return repo_root
 
     async def _git_clone(self, url: str, target: Path, *, ref: str | None = None) -> None:
+        # The URL comes from a remote registry response: a leading "-" would be read as a git option.
+        if url.startswith("-"):
+            raise ValueError(f"Git clone URL must not start with '-': {url}")
         cmd = ["git", "clone", "--depth", "1", "--single-branch"]
         if ref:
             cmd.extend(["--branch", ref])
-        cmd.extend([url, str(target)])
+        cmd.extend(["--", url, str(target)])
 
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE

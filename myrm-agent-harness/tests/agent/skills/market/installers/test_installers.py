@@ -5,8 +5,8 @@
 
 [OUTPUT]
 - pytest suite covering skill directory resolution, file collection,
-  frontmatter parsing, and clone/extract failure paths. The git clone
-  itself is stubbed, so no network or subprocess runs. The walk, the
+  frontmatter parsing, the clone command line, and clone/extract failure paths.
+  The git clone itself is stubbed, so no network or subprocess runs. The walk, the
   symlink policy and the size limits are in test_git_installer_collection.py.
 
 [POS]
@@ -16,7 +16,7 @@ myrm-agent-harness/tests/agent/skills/market/installers/test_installers.py
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -35,6 +35,22 @@ def _make_skill(root: Path, rel: str, *, name: str = "Alpha", body: bytes = b"")
     if body:
         (skill_dir / "data.txt").write_bytes(body)
     return skill_dir
+
+
+_SPAWN = "myrm_agent_harness.agent.skills.market.installers.git_installer.asyncio.create_subprocess_exec"
+
+
+async def _clone_argv(
+    target: Path, *, url: str = "https://example.invalid/x.git", ref: str | None = None
+) -> tuple[str, ...]:
+    """Run ``_git_clone`` against a stubbed process and return the command line it spawned."""
+    proc = MagicMock()
+    proc.communicate = AsyncMock(return_value=(b"", b""))
+    proc.returncode = 0
+    with patch(_SPAWN, new=AsyncMock(return_value=proc)) as spawn:
+        await GitInstaller()._git_clone(url, target, ref=ref)
+    assert spawn.await_args is not None
+    return tuple(spawn.await_args.args)
 
 
 class TestResolveSkillDir:
@@ -174,8 +190,6 @@ class TestGitInstallerDownload:
 
     @pytest.mark.asyncio
     async def test_clone_timeout_reports_url(self, tmp_path: Path) -> None:
-        from unittest.mock import MagicMock
-
         proc = MagicMock()
         proc.communicate = AsyncMock(side_effect=TimeoutError)
         proc.returncode = None
@@ -193,8 +207,6 @@ class TestGitInstallerDownload:
 
     @pytest.mark.asyncio
     async def test_clone_reports_stderr(self, tmp_path: Path) -> None:
-        from unittest.mock import MagicMock
-
         proc = MagicMock()
         proc.communicate = AsyncMock(return_value=(b"", b"permission denied"))
         proc.returncode = 128
@@ -210,17 +222,25 @@ class TestGitInstallerDownload:
 
     @pytest.mark.asyncio
     async def test_clone_includes_branch_flag(self, tmp_path: Path) -> None:
-        from unittest.mock import MagicMock
+        argv = await _clone_argv(tmp_path, ref="dev")
 
-        proc = MagicMock()
-        proc.communicate = AsyncMock(return_value=(b"", b""))
-        proc.returncode = 0
+        assert argv[argv.index("--branch") + 1] == "dev"
 
-        with patch(
-            "myrm_agent_harness.agent.skills.market.installers.git_installer.asyncio.create_subprocess_exec",
-            new=AsyncMock(return_value=proc),
-        ) as spawn:
-            await GitInstaller()._git_clone("https://example.invalid/x.git", tmp_path, ref="dev")
+    @pytest.mark.asyncio
+    async def test_clone_separates_url_from_options(self, tmp_path: Path) -> None:
+        argv = await _clone_argv(tmp_path, ref="dev")
 
-        assert "--branch" in spawn.await_args.args
-        assert "dev" in spawn.await_args.args
+        assert argv[-3:] == ("--", "https://example.invalid/x.git", str(tmp_path))
+
+    @pytest.mark.asyncio
+    async def test_clone_rejects_a_url_git_would_read_as_an_option(self, tmp_path: Path) -> None:
+        with (
+            patch(
+                "myrm_agent_harness.agent.skills.market.installers.git_installer.asyncio.create_subprocess_exec",
+                new=AsyncMock(),
+            ) as spawn,
+            pytest.raises(ValueError, match="must not start with '-'"),
+        ):
+            await GitInstaller()._git_clone("--upload-pack=touch /tmp/pwned", tmp_path)
+
+        spawn.assert_not_called()

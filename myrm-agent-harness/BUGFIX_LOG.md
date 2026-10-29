@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-117 · 技能从 git 安装时，克隆地址以 `-` 开头会被 git 当成命令行选项
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`；测试 `tests/agent/skills/market/installers/test_installers.py`；没有改提示词与工具 schema，不影响提示词缓存） |
+| **发现时间** | 2026-10-30（复核 114 的「仍然存在」时重读 `_git_clone`：地址作为位置参数直接追加到 `git clone` 的 argv，前面没有 `--`） |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P2（按威胁模型，可利用性未测试）：克隆地址取自远程市场接口返回的 `clone_url`（`sources/skills_sh.py:113` 原样透传），以 `-` 开头的值会被 git 当成选项。实测：同一个值 `--bogus-option` 放在目录之前，不加 `--` 时 git 退出码 129 `unknown option`，加 `--` 时被当作仓库名，退出码 128 `repository '--bogus-option' does not exist`。没有尝试构造能执行命令的选项，也没有证据表明已被利用。 |
+| **关联产品** | 技能市场的 git 安装与预览。 |
+| **根因** | `_git_clone` 把 `url` 追加到 argv 时没有 `--` 分隔，也没有拒绝以 `-` 开头的值。 |
+| **修复** | 以 `-` 开头的地址在启动 git 之前抛 `ValueError`；argv 在地址与目标目录前加 `--`。没有加协议白名单：业务里是否有人用 `file://` 或本地路径克隆没有查清（114 的「仍然存在」①），收紧可能误伤，也没有利用证据。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 起初的方案还包含「只允许 https 地址」，在核对时撤回：没有证据显示本地路径与 `file://` 无人使用，也没有证据表明协议是可利用面，收益无法证明而误伤风险是真的。 |
+| **回归** | [1] 2 个新用例：argv 末尾依次是 `--`、地址、目标目录；`--upload-pack=...` 形态的地址在启动 git 之前被拒、没有进程被创建。[2] 原有的 `spawn.await_args` 断言改为带类型的 `_clone_argv` 辅助函数，顺带消除了该文件里 3 处 mypy `union-attr` 报错。`installers/` 目录 92 passed。[3] 以上述两条真实 git 命令对比了 `--` 的作用，另实测 `--branch` 后紧跟的以 `-` 开头的值被 git 当作该选项的值（没有报 `unknown option`），所以 `ref` 不需要同样的检查。 |
+| **仍然存在** | ① 协议不受限（同 114 ①）。② `git clone` 没有下载体积上限（同 114 ②）。③ 只在 macOS 上验证了 git 的参数解析行为。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/installers/git_installer.py`（`_git_clone`） · `myrm-agent-harness/tests/agent/skills/market/installers/test_installers.py` |
+
 ### BUG-HARNESS-2026-10-30-116 · 技能从 git 安装时，仓库里一个指向自己的符号链接（链接环）就让整个目录的文件全部丢失，`SKILL.md` 本身是链接环时抛出未处理的 `OSError`
 
 | 字段 | 内容 |
