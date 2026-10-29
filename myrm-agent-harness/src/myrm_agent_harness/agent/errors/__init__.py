@@ -7,6 +7,7 @@ diagnostics, and deterministic fault-side attribution.
 from myrm_agent_harness.utils.errors import ToolErrorCategory
 
 from .agent_errors import (
+    TOOL_STUCK_ACTION_TYPE,
     AgentBusyError,
     RunawayCircuitBreakException,
     ToolStuckException,
@@ -26,6 +27,7 @@ from .operator_error_sanitizer import (
 )
 
 __all__ = [
+    "TOOL_STUCK_ACTION_TYPE",
     "AgentBusyError",
     "DiagnosticResult",
     "ErrorContext",

@@ -2,7 +2,9 @@
 
 Verifies that when an approval/clarification/tool_approval event is yielded
 during agent streaming, the streaming finally-block publishes
-'awaiting_approval' session_status via WorkspaceMultiplexer.
+'awaiting_approval' session_status via WorkspaceMultiplexer. A loop guard pause
+travels as an approval_required event too, but nothing waits on an answer, so it
+is neither filed as an approval nor announced as awaiting one.
 """
 
 from __future__ import annotations
@@ -213,4 +215,41 @@ async def test_no_publish_when_chat_id_is_none() -> None:
         events = [event async for event in ai_agent_service_stream(params)]
 
     assert len(events) >= 1
+    mock_multiplexer.publish_session_status.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_loop_guard_pause_is_not_filed_as_an_approval_nor_announced_as_awaiting_one() -> None:
+    """The pause reaches the client untouched, but leaves no pending record that would turn the next message away."""
+    mock_multiplexer = MagicMock()
+    mock_multiplexer_cls = MagicMock()
+    mock_multiplexer_cls.get.return_value = mock_multiplexer
+    pause_event = {
+        "type": "approval_required",
+        "data": {"action_type": "tool_stuck", "tool_name": "bash_code_execute_tool", "tool_call_id": "call_3"},
+    }
+
+    async def _fake_execute_stream(*args, **kwargs):  # type: ignore[no-untyped-def]
+        yield pause_event
+
+    with (
+        patch("app.services.budget.enforcer.should_block_execution", new_callable=AsyncMock, return_value=False),
+        patch("app.services.budget.enforcer.reset_session_budget"),
+        patch("app.services.agent.streaming.get_agent_gateway") as mock_get_gateway,
+        patch("app.services.agent.streaming_support.multiplexer.WorkspaceMultiplexer", mock_multiplexer_cls),
+        patch("app.services.agent.execution_cache.finalize_agent_session", new_callable=AsyncMock),
+        patch(
+            "app.services.approvals.registry.ApprovalRegistry.create_approval",
+            new_callable=AsyncMock,
+            return_value=MagicMock(id="approval-123"),
+        ) as create_approval,
+    ):
+        mock_get_gateway.return_value = MagicMock(execute_stream=_fake_execute_stream)
+
+        events = [event async for event in ai_agent_service_stream(_minimal_params())]
+
+    pauses = [event for event in events if isinstance(event, dict) and event.get("type") == "approval_required"]
+    assert len(pauses) == 1
+    assert "approval_id" not in pauses[0]["data"]
+    create_approval.assert_not_awaited()
     mock_multiplexer.publish_session_status.assert_not_called()

@@ -22,7 +22,7 @@ myrm_agent_harness/agent/meta_tools/bash/_security/preflight_checks.py	847
 myrm_agent_harness/agent/meta_tools/file_ops/core/file_operation_service.py	613
 myrm_agent_harness/agent/middlewares/approval/batch_processor.py	1192
 myrm_agent_harness/agent/middlewares/context_pipeline/context_pipeline_middleware.py	512
-myrm_agent_harness/agent/middlewares/tooling/_tool_guards.py	641
+myrm_agent_harness/agent/middlewares/tooling/_tool_guards.py	634
 myrm_agent_harness/agent/middlewares/tooling/_tool_helpers.py	599
 myrm_agent_harness/agent/security/guards/loop_guard/detectors.py	571
 myrm_agent_harness/agent/skills/evolution/core/engine.py	564

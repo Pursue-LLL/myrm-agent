@@ -2,12 +2,14 @@
 
 [INPUT]
 - stdlib json (POS: tool result JSON decode)
+- app.services.agent.approval_payload::is_tool_stuck_pause (POS: tells a loop guard pause from a real approval)
 
 [OUTPUT]
 - is_memory_citation_tool, parse_tool_end_result
 - collect_kanban_task_created, collect_cron_job_result
 - collect_clarification_required, collect_plan_confirmation_status
 - collect_file_mutation_failures
+- collect_tool_stuck_pause (a loop guard pause: the step that says why, and that it is no card to answer)
 - merge_sources_list, source_dedup_key
 - string_keyed_dict, string_keyed_dicts
 
@@ -18,6 +20,11 @@ Stateless parsing helpers for stream_collector. Keeps StreamContentCollector und
 from __future__ import annotations
 
 import json
+
+from app.services.agent.approval_payload import is_tool_stuck_pause
+
+# Titled by the web client's progress step catalog under the same key.
+TOOL_STUCK_PAUSED_STEP_KEY = "tool_stuck_paused"
 
 _MEMORY_CITATION_TOOL_NAMES = frozenset(
     {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}
@@ -254,6 +261,19 @@ def collect_plan_confirmation_status(
         }
 
     return None
+
+
+def collect_tool_stuck_pause(progress_steps: list[dict[str, object]], event: dict[str, object]) -> bool:
+    """Save the step of a loop guard pause; False for any other event.
+
+    The pause reaches the stream as an ``approval_required`` event, but there is no card to answer: a message
+    from the user continues the chat.
+    """
+    if event.get("type") != "approval_required" or not is_tool_stuck_pause(event.get("data")):
+        return False
+    if not any(step.get("step_key") == TOOL_STUCK_PAUSED_STEP_KEY for step in progress_steps):
+        progress_steps.append({"step_key": TOOL_STUCK_PAUSED_STEP_KEY, "items": [], "status": "error"})
+    return True
 
 
 def collect_file_mutation_failures(

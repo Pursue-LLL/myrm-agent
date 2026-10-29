@@ -245,14 +245,7 @@ async def handle_execution_error(
             tool_name,
             str(e)[:200],
         )
-        interrupt(
-            {
-                "action_type": "tool_stuck",
-                "tool_name": tool_name,
-                "tool_call_id": tool_call_id,
-                "error_message": str(e),
-            }
-        )
+        interrupt(e.interrupt_payload(tool_name, tool_call_id))
 
     error_type = type(e).__name__
     error_msg = str(e)

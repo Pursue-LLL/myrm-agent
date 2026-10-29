@@ -1,8 +1,8 @@
-"""Tests extract_approval_registry_payload for flat LangGraph interrupt payloads."""
+"""Tests for the interrupt payload helpers: registry payload extraction and the loop guard pause check."""
 
 from __future__ import annotations
 
-from app.services.agent.approval_payload import extract_approval_registry_payload
+from app.services.agent.approval_payload import extract_approval_registry_payload, is_tool_stuck_pause
 
 
 class TestExtractApprovalRegistryPayload:
@@ -62,3 +62,16 @@ class TestExtractApprovalRegistryPayload:
         result = extract_approval_registry_payload(data)
         assert "page_url" not in result
         assert result["tool_input"] == {"action": "evaluate", "expression": "document.title"}
+
+
+class TestIsToolStuckPause:
+    def test_the_loop_guard_interrupt_is_a_pause(self) -> None:
+        assert is_tool_stuck_pause({"action_type": "tool_stuck", "tool_name": "bash_code_execute_tool"})
+
+    def test_a_real_approval_is_not(self) -> None:
+        assert not is_tool_stuck_pause({"action_type": "shell_execute", "reason": "needs a human"})
+
+    def test_a_payload_without_an_action_type_or_a_dict_is_not(self) -> None:
+        assert not is_tool_stuck_pause({})
+        assert not is_tool_stuck_pause(None)
+        assert not is_tool_stuck_pause("tool_stuck")

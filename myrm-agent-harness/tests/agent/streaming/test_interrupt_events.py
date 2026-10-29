@@ -12,6 +12,7 @@ from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import interrupt
 
+from myrm_agent_harness.agent.errors import ToolStuckException
 from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY, interrupt_events
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 
@@ -44,6 +45,15 @@ def test_each_interrupt_kind_maps_to_its_event_type_and_keeps_its_value() -> Non
         (AgentEventType.APPROVAL_REQUIRED.value, other, "d.0"),
     ]
     assert {e["messageId"] for e in events} == {"msg-1"}
+
+
+def test_a_tool_stuck_pause_travels_as_an_approval_event_told_apart_by_action_type() -> None:
+    pause = ToolStuckException("stuck").interrupt_payload("bash_code_execute_tool", "call-1")
+
+    [event] = interrupt_events([_interrupt(pause)], "msg-1", {})
+
+    assert event["type"] == AgentEventType.APPROVAL_REQUIRED.value
+    assert event["data"] == pause
 
 
 def test_an_empty_action_request_list_is_a_plain_approval() -> None:

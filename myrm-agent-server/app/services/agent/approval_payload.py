@@ -2,15 +2,19 @@
 
 [INPUT]
 - LangGraph interrupt dict from streaming bridge (flat or nested ``payload``)
+- myrm_agent_harness.agent.errors::TOOL_STUCK_ACTION_TYPE (POS: action_type of the interrupt a loop guard pause raises)
 
 [OUTPUT]
 - extract_approval_registry_payload: ApprovalRegistry payload SSOT for SSE interrupts
+- is_tool_stuck_pause: whether an interrupt is a loop guard pause, which is no approval
 
 [POS]
-Shared approval payload normalization for streaming.py and approval persistence tests.
+Shared approval payload normalization for streaming.py, the stream collector and approval persistence tests.
 """
 
 from __future__ import annotations
+
+from myrm_agent_harness.agent.errors import TOOL_STUCK_ACTION_TYPE
 
 _APPROVAL_META_KEYS = frozenset(
     {
@@ -28,6 +32,15 @@ _APPROVAL_META_KEYS = frozenset(
         "payload",
     }
 )
+
+
+def is_tool_stuck_pause(interrupt_data: object) -> bool:
+    """True for the loop guard's pause: the run stopped on repeated tool failures.
+
+    It reaches the stream as an ``approval_required`` event, but nothing waits on an answer: a new message from the
+    user continues the chat. So it is no approval record and no turn left open.
+    """
+    return isinstance(interrupt_data, dict) and interrupt_data.get("action_type") == TOOL_STUCK_ACTION_TYPE
 
 
 def extract_approval_registry_payload(approval_data: dict[str, object]) -> dict[str, object]:

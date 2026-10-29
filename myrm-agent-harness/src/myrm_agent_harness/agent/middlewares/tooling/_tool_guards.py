@@ -232,14 +232,7 @@ async def run_pre_call_guards(
             from langgraph.types import interrupt
 
             logger.warning("ToolStuckException → GraphInterrupt [%s]: %s", tool_name, str(pre_check_exc)[:200])
-            interrupt(
-                {
-                    "action_type": "tool_stuck",
-                    "tool_name": tool_name,
-                    "tool_call_id": tool_call_id,
-                    "error_message": str(pre_check_exc),
-                }
-            )
+            interrupt(pre_check_exc.interrupt_payload(tool_name, tool_call_id))
             return make_error_msg(
                 tool_name,
                 tool_call_id,

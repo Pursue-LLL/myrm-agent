@@ -17,7 +17,9 @@ reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
 per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
 with stored_chars/total_lines/storage_truncated metrics for each),
 and deduplicated model-failover progress steps (`model_failover*`) from STATUS + SSE channels,
-and `citationAudit` when inline 【N】 markers are present alongside collected sources.
+and `citationAudit` when inline 【N】 markers are present alongside collected sources,
+and a loop guard pause (`tool_stuck`): saved as a `tool_stuck_paused` progress step and reported through
+`tool_stuck_paused`, not held as an interrupt card nobody can answer.
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -45,6 +47,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_file_mutation_failures,
     collect_kanban_task_created,
     collect_plan_confirmation_status,
+    collect_tool_stuck_pause,
     is_memory_citation_tool,
     merge_sources_list,
     source_dedup_key,
@@ -416,6 +419,7 @@ class StreamContentCollector:
         self._clarification: dict[str, object] | None = None
         self._plan_confirmation: dict[str, object] | None = None
         self._pending_interrupt_events: list[dict[str, object]] = []
+        self._tool_stuck_paused = False
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
         self._file_mutation_failures: list[dict[str, object]] = []
@@ -434,6 +438,11 @@ class StreamContentCollector:
     def has_pending_hitl_replay(self) -> bool:
         """True when attach subscribers may still need interrupt replay."""
         return bool(self._pending_interrupt_events)
+
+    @property
+    def tool_stuck_paused(self) -> bool:
+        """True when the loop guard paused the turn: it has no card to answer, so the turn is over."""
+        return self._tool_stuck_paused
 
     @property
     def message_id(self) -> str | None:
@@ -527,7 +536,9 @@ class StreamContentCollector:
 
     def _process_event(self, event: dict[str, object]) -> None:
         event_type = event.get("type")
-        if isinstance(event_type, str) and event_type in _INTERRUPT_REPLAY_TYPES:
+        if collect_tool_stuck_pause(self._progress_steps, event):
+            self._tool_stuck_paused = True
+        elif isinstance(event_type, str) and event_type in _INTERRUPT_REPLAY_TYPES:
             self._pending_interrupt_events.append(event)
         data = event.get("data")
 

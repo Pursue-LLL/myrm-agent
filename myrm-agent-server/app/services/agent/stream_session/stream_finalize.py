@@ -561,7 +561,7 @@ async def finalize_agent_stream_session(
     if not pending_hitl and has_turn_capability_terminal_context(session.request):
         if session.cancel_token.is_cancelled:
             await _record_turn_capability_failed_once(session, "abort")
-        elif session.had_fatal_error or not session.collector.has_content:
+        elif session.had_fatal_error or not (session.collector.has_content or session.collector.tool_stuck_paused):
             await _record_turn_capability_failed_once(session, "unknown_error")
         else:
             await _record_turn_capability_completed_once(session)

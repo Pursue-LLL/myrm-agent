@@ -5,7 +5,9 @@
 
 [OUTPUT]
 - AgentBusyError: Raised when attempting to run an agent that is already running.
-- ToolStuckException: Raised when an agent gets stuck in an unproductive loop (e.g. repeated tool failures).
+- TOOL_STUCK_ACTION_TYPE: The ``action_type`` of the interrupt that pauses a run on a ToolStuckException.
+- ToolStuckException: Raised when an agent gets stuck in an unproductive loop (e.g. repeated tool failures);
+  ``interrupt_payload`` builds the interrupt value that pauses the run.
 - RunawayCircuitBreakException: Raised when an unattended agent trips circuit breaker on runaway loops.
 
 [POS]
@@ -19,10 +21,20 @@ class AgentBusyError(Exception):
     pass
 
 
+TOOL_STUCK_ACTION_TYPE = "tool_stuck"
+
+
 class ToolStuckException(Exception):  # noqa: N818  intentional descriptive name (public API, cross-repo)
     """Raised when an agent gets stuck in an unproductive loop (e.g. repeated tool failures)."""
 
-    pass
+    def interrupt_payload(self, tool_name: str, tool_call_id: str) -> dict[str, str]:
+        """The interrupt value that pauses the run; consumers tell it apart from an approval by ``action_type``."""
+        return {
+            "action_type": TOOL_STUCK_ACTION_TYPE,
+            "tool_name": tool_name,
+            "tool_call_id": tool_call_id,
+            "error_message": str(self),
+        }
 
 
 class RunawayCircuitBreakException(Exception):  # noqa: N818

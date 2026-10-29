@@ -28,6 +28,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.ai_agents import AgentFactory, GeneralAgentParams
 from app.core.utils.chat_utils import convert_chat_history
+from app.services.agent.approval_payload import extract_approval_registry_payload, is_tool_stuck_pause
 from app.services.agent.gateway import get_agent_gateway
 
 if TYPE_CHECKING:
@@ -441,26 +442,25 @@ async def _ai_agent_service_stream_inner(
 
             # Intercept APPROVAL_REQUIRED events to persist to DB
             event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
-            if event_type in (
+            interrupt_data = getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {})
+            # A loop guard pause is no approval: nothing waits on an answer, so it gets no record and no attention.
+            awaits_answer = event_type in (
                 "approval_required",
                 "tool_approval_request",
                 "clarification_required",
-            ):
+            ) and not is_tool_stuck_pause(interrupt_data)
+            if awaits_answer:
                 _pending_attention = True
-            if event_type == "approval_required":
+            if awaits_answer and event_type == "approval_required":
                 from app.services.approvals.registry import ApprovalRegistry
 
-                approval_data = getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {})
+                approval_data = interrupt_data
                 if isinstance(approval_data, dict):
                     thread_id = params.chat_id or params.message_id
 
                     action_type = approval_data.get("action_type", "unknown")
 
                     try:
-                        from app.services.agent.approval_payload import (
-                            extract_approval_registry_payload,
-                        )
-
                         approval_payload = extract_approval_registry_payload(approval_data)
                         if params.message_id:
                             approval_payload = {
