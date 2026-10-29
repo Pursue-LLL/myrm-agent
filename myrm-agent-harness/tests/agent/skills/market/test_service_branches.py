@@ -21,11 +21,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from myrm_agent_harness.agent.plugins.manifest import PLUGIN_SCHEMA
-from myrm_agent_harness.agent.skills.market.service import (
-    BaseSkillMarketService,
-    _atomic_replace,
-    _resolve_install_error,
-)
+from myrm_agent_harness.agent.skills.market.file_install import resolve_install_error
+from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
 from myrm_agent_harness.backends.skills.market_protocols import SkillSearchResult
 
@@ -65,74 +62,21 @@ def _detail(**kwargs: object) -> SkillSearchResult:
 
 class TestResolveInstallError:
     def test_unclassified_error_returns_empty_code(self) -> None:
-        assert _resolve_install_error(ValueError("plain failure")) == ("plain failure", "")
+        assert resolve_install_error(ValueError("plain failure")) == ("plain failure", "")
 
     def test_category_bucket_collision(self) -> None:
         from myrm_agent_harness.backends.skills.scanning.path_security import (
             CategoryBucketCollisionError,
         )
 
-        assert _resolve_install_error(CategoryBucketCollisionError("clash")) == ("clash", "CATEGORY_BUCKET_COLLISION")
+        assert resolve_install_error(CategoryBucketCollisionError("clash")) == ("clash", "CATEGORY_BUCKET_COLLISION")
 
     def test_path_redirect_attack(self) -> None:
         from myrm_agent_harness.backends.skills.scanning.path_security import (
             PathRedirectSecurityError,
         )
 
-        assert _resolve_install_error(PathRedirectSecurityError("redirect"))[1] == "PATH_REDIRECT_ATTACK"
-
-
-class TestAtomicReplace:
-    def test_creates_destination(self, tmp_path: Path) -> None:
-        src = tmp_path / "src"
-        src.mkdir()
-        (src / "a.txt").write_text("a")
-
-        _atomic_replace(src, tmp_path / "dst")
-
-        assert (tmp_path / "dst" / "a.txt").read_text() == "a"
-        assert not src.exists()
-
-    def test_replaces_existing_and_drops_backup(self, tmp_path: Path) -> None:
-        src = tmp_path / "src"
-        src.mkdir()
-        (src / "new.txt").write_text("new")
-        dst = tmp_path / "dst"
-        dst.mkdir()
-        (dst / "old.txt").write_text("old")
-
-        _atomic_replace(src, dst)
-
-        assert (dst / "new.txt").read_text() == "new"
-        assert not (dst / "old.txt").exists()
-        assert not (tmp_path / "dst.bak").exists()
-
-    def test_removes_stale_bak_files(self, tmp_path: Path) -> None:
-        dst = tmp_path / "dst"
-        dst.mkdir()
-        (dst / "stale.bak").write_text("stale")
-        src = tmp_path / "src"
-        src.mkdir()
-        (src / "a.txt").write_text("a")
-
-        _atomic_replace(src, dst)
-
-        assert not (dst / "stale.bak").exists()
-
-    def test_rolls_back_when_move_fails(self, tmp_path: Path) -> None:
-        src = tmp_path / "src"
-        src.mkdir()
-        dst = tmp_path / "dst"
-        dst.mkdir()
-        (dst / "keep.txt").write_text("keep")
-
-        with (
-            patch("myrm_agent_harness.agent.skills.market.service.shutil.move", side_effect=OSError("boom")),
-            pytest.raises(OSError, match="boom"),
-        ):
-            _atomic_replace(src, dst)
-
-        assert (dst / "keep.txt").read_text() == "keep"
+        assert resolve_install_error(PathRedirectSecurityError("redirect"))[1] == "PATH_REDIRECT_ATTACK"
 
 
 class TestSearchCache:
@@ -334,7 +278,6 @@ class TestCascadeUninstall:
         (install_dir / "unrelated").mkdir()
 
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
         monkeypatch.setattr(
             service_mod,
             "read_origin",
@@ -366,7 +309,6 @@ class TestCascadeUninstall:
         (target / "SKILL.md").write_text("x")
 
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
         monkeypatch.setattr(service_mod, "read_origin", lambda path: {})
         skill_id = local_skill_id_from_path(target)
 
@@ -410,7 +352,9 @@ class TestQuarantineInstallBranches:
         install_dir = tmp_path / "skills"
         install_dir.mkdir()
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         files = {
             "plugin.json": json.dumps({"name": "pdfsuite", "version": "1.0.0", "$schema": PLUGIN_SCHEMA}).encode(),
@@ -436,7 +380,9 @@ class TestQuarantineInstallBranches:
         install_dir = tmp_path / "skills"
         install_dir.mkdir()
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         files = {"plugin.json": b"{not json", "SKILL.md": _skill_md("broken")}
         result = await service.install_files("acme/skills/broken", "broken", files, source="github")
@@ -459,7 +405,9 @@ class TestQuarantineInstallBranches:
         existing.mkdir()
         (existing / "SKILL.md").write_bytes(_skill_md("pdf", "0.9.0"))
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         result = await service.install_files(
             "acme/skills/pdf", "pdf", {"SKILL.md": _skill_md("pdf", "1.0.0")}, source="github"
@@ -483,7 +431,9 @@ class TestQuarantineInstallBranches:
         existing.mkdir()
         (existing / "SKILL.md").write_bytes(_skill_md("pdf", "2.0.0"))
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         result = await service.install_files(
             "acme/skills/pdf", "pdf", {"SKILL.md": _skill_md("pdf", "1.0.0")}, source="github"
@@ -504,7 +454,9 @@ class TestQuarantineInstallBranches:
         install_dir = tmp_path / "skills"
         install_dir.mkdir()
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         result = await service.install_files(
             "acme/skills/pdf",
@@ -528,7 +480,9 @@ class TestQuarantineInstallBranches:
         install_dir = tmp_path / "skills"
         install_dir.mkdir()
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         from myrm_agent_harness.backends.skills.scanning.scanner import (
             ScanFinding,
@@ -548,12 +502,10 @@ class TestQuarantineInstallBranches:
             ],
         )
         with patch(
-            "myrm_agent_harness.agent.skills.market.service.scan_all_text_files",
+            "myrm_agent_harness.agent.skills.market.file_install.scan_all_text_files",
             return_value=dirty,
         ):
-            result = await service.install_files(
-                "acme/skills/pdf", "pdf", {"SKILL.md": _skill_md()}, source="github"
-            )
+            result = await service.install_files("acme/skills/pdf", "pdf", {"SKILL.md": _skill_md()}, source="github")
 
         assert result.success is True
         assert result.scan_summary
@@ -577,7 +529,9 @@ class TestUnsafeInstallTarget:
         (real / "keep.txt").write_text("original")
         (install_dir / "pdf").symlink_to(real, target_is_directory=True)
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
 
         result = await service.install_files("acme/skills/pdf", "pdf", {"SKILL.md": _skill_md()}, source="github")
 
@@ -600,7 +554,9 @@ class TestUnsafeInstallTarget:
         real.mkdir()
         (install_dir / "pdf").symlink_to(real, target_is_directory=True)
         monkeypatch.setattr(service_mod, "LOCAL_INSTALL_DIR", install_dir)
-        monkeypatch.setattr(service_mod, "write_receipt_file", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "myrm_agent_harness.agent.skills.market.file_install.write_receipt_file", lambda *a, **k: None
+        )
         stages: list[tuple[str, str]] = []
 
         await service.install_files(
@@ -627,9 +583,9 @@ class TestUnsafeSkillNames:
 
     @pytest.mark.parametrize("name", ["pdf", "my skill", "技能-1.0", "a.b_c"])
     def test_accepts_legitimate_names(self, name: str) -> None:
-        from myrm_agent_harness.agent.skills.market.service import _is_safe_skill_dir_name
+        from myrm_agent_harness.agent.skills.market.file_install import is_safe_skill_dir_name
 
-        assert _is_safe_skill_dir_name(name) is True
+        assert is_safe_skill_dir_name(name) is True
 
     @pytest.mark.asyncio
     async def test_rejection_emits_progress_stage(self, service: BaseSkillMarketService) -> None:

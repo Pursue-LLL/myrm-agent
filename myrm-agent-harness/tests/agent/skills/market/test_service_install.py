@@ -387,7 +387,7 @@ async def test_quarantine_blocks_critical_lifecycle_scripts(
     stages: list[str] = []
 
     with patch(
-        "myrm_agent_harness.agent.skills.market.service.check_lifecycle_scripts",
+        "myrm_agent_harness.agent.skills.market.file_install.check_lifecycle_scripts",
         return_value=[_finding("critical", "curl | sh")],
     ):
         result = await service.install_files(
@@ -414,13 +414,13 @@ async def test_quarantine_writes_files_and_blocks_path_escape(
     quarantine = tmp_path / "quarantine"
     quarantine.mkdir()
     with (
-        patch("myrm_agent_harness.agent.skills.market.service.tempfile.mkdtemp", return_value=str(quarantine)),
+        patch("myrm_agent_harness.agent.skills.market.file_install.tempfile.mkdtemp", return_value=str(quarantine)),
         patch(
-            "myrm_agent_harness.agent.skills.market.service.check_lifecycle_scripts",
+            "myrm_agent_harness.agent.skills.market.file_install.check_lifecycle_scripts",
             return_value=[],
         ),
-        patch("myrm_agent_harness.agent.skills.market.service.scan_all_text_files") as scan,
-        patch("myrm_agent_harness.agent.skills.market.service.compute_scan_summary") as summary,
+        patch("myrm_agent_harness.agent.skills.market.file_install.scan_all_text_files") as scan,
+        patch("myrm_agent_harness.agent.skills.market.file_install.compute_scan_summary") as summary,
         patch.object(
             BaseSkillMarketService,
             "_promote_quarantined_skill",
@@ -453,11 +453,11 @@ async def test_quarantine_writes_files_and_blocks_path_escape(
 async def test_quarantine_rejects_low_scan_score(service: BaseSkillMarketService) -> None:
     with (
         patch(
-            "myrm_agent_harness.agent.skills.market.service.check_lifecycle_scripts",
+            "myrm_agent_harness.agent.skills.market.file_install.check_lifecycle_scripts",
             return_value=[],
         ),
-        patch("myrm_agent_harness.agent.skills.market.service.scan_all_text_files") as scan,
-        patch("myrm_agent_harness.agent.skills.market.service.compute_scan_summary") as summary,
+        patch("myrm_agent_harness.agent.skills.market.file_install.scan_all_text_files") as scan,
+        patch("myrm_agent_harness.agent.skills.market.file_install.compute_scan_summary") as summary,
     ):
         scan.return_value = SimpleNamespace(findings=[], is_clean=False, summary="risky content")
         summary.return_value = SimpleNamespace(score=10)

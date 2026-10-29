@@ -84,7 +84,7 @@ class TestPreflightSecurityGate:
 
         with (
             patch(
-                "myrm_agent_harness.agent.skills.market.service.scan_all_text_files",
+                "myrm_agent_harness.agent.skills.market.file_install.scan_all_text_files",
                 return_value=mock_scan,
             ),
             patch(
