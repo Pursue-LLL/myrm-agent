@@ -6,6 +6,7 @@ app.core.channel_bridge.config_loader (POS: 用户模型配置加载)
 app.core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)
 app.database.connection::get_db (POS: 数据库会话工厂)
 app.database.models::Chat, Message (POS: 数据库 ORM 模型)
+app.database.models.chat::NOT_WAKEUP_NOTICE (POS: 排除后台完成通知行，活跃度只数用户亲自发的消息)
 app.services.companion.pet_store (POS: on-disk Petdex install store)
 
 [OUTPUT]
@@ -33,6 +34,7 @@ from app.core.channel_bridge.config_parsers import extract_lite_model_config
 from app.core.utils.chat_utils import extract_answer_text
 from app.database.connection import get_db
 from app.database.models import Chat, Message
+from app.database.models.chat import NOT_WAKEUP_NOTICE
 from app.services.agent.platform_config import load_llm_from_model_config
 
 logger = logging.getLogger(__name__)
@@ -170,12 +172,14 @@ async def get_evolution_status(
         and_(
             Message.chat_id.in_(select(user_chats.c.id)),
             Message.role == "user",
+            NOT_WAKEUP_NOTICE,
         )
     )
     total_messages_q = select(func.count(Message.id)).where(
         and_(
             Message.chat_id.in_(select(user_chats.c.id)),
             Message.role == "user",
+            NOT_WAKEUP_NOTICE,
         )
     )
 

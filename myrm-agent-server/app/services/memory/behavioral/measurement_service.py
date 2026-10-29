@@ -2,7 +2,7 @@
 
 [INPUT]
 app.database.models.channel_message::ChannelMessageModel (POS: 渠道消息 DWD 表)
-app.database.models.chat::Message (POS: 会话消息表)
+app.database.models.chat::Message, NOT_WAKEUP_NOTICE (POS: 会话消息表；后台完成通知行不是用户本人的活动)
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: 内存管理器)
 myrm_agent_harness.api::(BehavioralMessage, BehavioralStatsOptions, RoutineMeasurement, compute_routine_measurement, generate_behavioral_profile_candidates, is_alert_or_bot_sender)
 
@@ -35,7 +35,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.channel_message import ChannelMessageModel
-from app.database.models.chat import Message
+from app.database.models.chat import NOT_WAKEUP_NOTICE, Message
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +190,8 @@ class BehavioralMeasurementService:
             select(Message)
             .where(
                 Message.is_active.is_(True),
+                # The system's note about a settled task is stamped UTC at write time, not when the user was active.
+                NOT_WAKEUP_NOTICE,
             )
             .limit(max_messages)
         )

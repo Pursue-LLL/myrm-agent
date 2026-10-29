@@ -6,6 +6,7 @@
 - app.api.statistics.session_trace (POS: 会话执行轨迹 API)
 - myrm_agent_harness.agent.event_log (POS: 事件日志分析框架)
 - app.core.utils.session_id::is_safe_session_id (POS: session_id/chat_id 文件路径插值白名单校验)
+- app.database.models.chat::NOT_WAKEUP_NOTICE (POS: 排除后台完成通知行，消息数只数会话里真正的对话)
 
 [OUTPUT]
 - router: Session analytics APIRouter (get_session_analytics)
@@ -39,6 +40,7 @@ from app.core.utils.response_utils import success_response
 from app.core.utils.session_id import is_safe_session_id
 from app.database.connection import get_db
 from app.database.models import Chat, Message
+from app.database.models.chat import NOT_WAKEUP_NOTICE
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -119,7 +121,7 @@ async def get_session_analytics(
                 func.count(Message.id).label("total_messages"),
                 func.sum(case((Message.role == "user", 1), else_=0)).label("user_messages"),
                 func.sum(case((Message.role == "assistant", 1), else_=0)).label("assistant_messages"),
-            ).where(Message.chat_id == session_id)
+            ).where(Message.chat_id == session_id, NOT_WAKEUP_NOTICE)
             msg_result = await db.execute(msg_stmt)
             row = msg_result.one()
 

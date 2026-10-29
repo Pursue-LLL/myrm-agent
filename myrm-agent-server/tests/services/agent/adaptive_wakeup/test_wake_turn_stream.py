@@ -87,7 +87,7 @@ def stores(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     finalized = AsyncMock()
     monkeypatch.setattr(
         "app.services.chat.chat_service.ChatService.get_chat_metadata",
-        AsyncMock(return_value=SimpleNamespace(agent_id="agent-1")),
+        AsyncMock(return_value=SimpleNamespace(agent_id="agent-1", is_incognito=False)),
     )
     monkeypatch.setattr("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[]))
     monkeypatch.setattr("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", persisted)
@@ -115,7 +115,7 @@ def stores(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     async def instant_retry(_seconds: float) -> None:
         await real_sleep(0)
 
-    monkeypatch.setattr(wake_turn_stream.asyncio, "sleep", instant_retry)
+    monkeypatch.setattr(asyncio, "sleep", instant_retry)
     return SimpleNamespace(persisted=persisted, finalized=finalized, requests=requests)
 
 
@@ -308,3 +308,19 @@ async def test_the_turn_belongs_to_the_agent_the_chat_is_bound_to(
     await run_wake_turn(chat_id, "turn-1")
 
     assert [(request.chat_id, request.agent_id) for request in stores.requests] == [(chat_id, "agent-1")]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("incognito", [True, False])
+async def test_the_turn_keeps_the_incognito_flag_of_the_chat_it_wakes(
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, published: Events, stores: SimpleNamespace, incognito: bool
+) -> None:
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.get_chat_metadata",
+        AsyncMock(return_value=SimpleNamespace(agent_id="agent-1", is_incognito=incognito)),
+    )
+    use_agent(monkeypatch, ScriptedAgent(lambda _token: plays(message("done"))))
+
+    await run_wake_turn(chat_id, "turn-1")
+
+    assert [request.incognito_mode for request in stores.requests] == [incognito]

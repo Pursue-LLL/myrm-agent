@@ -72,6 +72,8 @@ async def stream_wake_turn(chat_id: str, turn_id: str, cancel_token: Cancellatio
         query="[SYSTEM WAKEUP]",
         action_mode="general",
         agent_id=chat.agent_id,
+        # The incognito flag lives on the chat row, so the follow-up turn keeps the promise the chat's own turns keep.
+        incognito_mode=chat.is_incognito,
     )
 
     chat_history = await ChatService.load_web_chat_history(chat_id, api_key=None)

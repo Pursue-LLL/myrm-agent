@@ -34,7 +34,7 @@ class ServerWakeupHandler:
     """Handles async wakeup events from the Harness framework in the background."""
 
     async def on_async_wakeup(self, result: SubAgentResult, agent_id: str, session_id: str | None) -> None:
-        """Called by Harness when a background subagent (wait=False) completes.
+        """Called by Harness when a subagent finishes whose result nobody is waiting on.
 
         The settlement is routed in a detached task so the harness cleanup hook is not blocked. The wake turn belongs
         to the chat's own agent, so ``agent_id`` is not needed.

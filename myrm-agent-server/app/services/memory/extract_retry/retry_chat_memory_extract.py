@@ -2,6 +2,7 @@
 
 [INPUT]
 app.services.chat.chat_service::ChatService (POS: chat metadata)
+app.services.chat.chat_helpers::is_wakeup_notice (POS: 「用户行是系统写的后台完成通知」的唯一判定；重试只针对用户亲自开启的回合)
 app.services.context.context_assembly::ContextAssemblyService (POS: chat memory binding SSOT)
 app.services.memory.extract_retry.resolve_chat_extraction_llm::resolve_chat_extraction_llm (POS: extraction LLM SSOT)
 app.services.memory.extract_retry.extract_retry_queue::enqueue (POS: 持久化重试队列)
@@ -35,6 +36,7 @@ from typing import Iterator, Literal
 from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
 from app.database.dto import MessageDTO
+from app.services.chat.chat_helpers import is_wakeup_notice
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
@@ -121,7 +123,7 @@ def _find_last_turn(
     active = [message for message in messages if message.is_active]
     last_user_index = -1
     for index, message in enumerate(active):
-        if message.role == "user":
+        if message.role == "user" and not is_wakeup_notice(message):
             last_user_index = index
 
     if last_user_index < 0:

@@ -5,7 +5,7 @@ myrm_agent_harness.utils.db.migration_engine::StatefulMigrationEngine/MigrationS
 sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine)
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（旧版后台完成通知行补 followup 标记）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -25,6 +25,17 @@ logger = logging.getLogger(__name__)
 # Users must re-bind via Mount Wizard after this one-time cleanup.
 CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL = (
     "UPDATE projects SET workspace_path = NULL WHERE workspace_path LIKE '/persistent/workspace/project_%'"
+)
+
+# Wake notices written before the notice marker existed carry only their ``wakeup_`` id prefix. The wake each of them
+# started always ran, so they are followup notices. Selecting the prefix as an id range (up to the character after
+# ``_``) scans the primary key instead of the table, and a row that already has a marker is left alone.
+BACKFILL_LEGACY_WAKEUP_NOTICE_SQL = (
+    "UPDATE messages "
+    "SET extra_data = json_set(CASE WHEN json_type(extra_data) = 'object' THEN extra_data ELSE '{}' END, "
+    "'$.wakeup_notice', 'followup') "
+    "WHERE role = 'user' AND id >= 'wakeup_' AND id < 'wakeup`' "
+    "AND json_extract(extra_data, '$.wakeup_notice') IS NULL"
 )
 
 # 数据库迁移语句（按顺序执行）
@@ -697,6 +708,7 @@ MIGRATION_STATEMENTS: list[str] = [
     # CLI-native session ids of external agents, so a server restart resumes the same external conversation.
     # New DBs get the column from create_all; this append-only ALTER covers existing databases.
     "ALTER TABLE chats ADD COLUMN external_cli_sessions JSON",
+    BACKFILL_LEGACY_WAKEUP_NOTICE_SQL,
 ]
 
 # 创建索引的SQL语句列表

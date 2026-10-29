@@ -1,6 +1,6 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支, SYSTEM_NOTICE_EXTRA_KEYS: 系统通知行的 extra_data 标记键, WAKEUP_NOTICE_KEY / WAKEUP_NOTICE_{FOLLOWUP,DEGRADED,SUPPRESSED} / WAKEUP_NOTICE_INERT_KINDS: 后台完成通知用户行的标记及其种类（降级、抑制两种不起回合）
+[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支, SYSTEM_NOTICE_EXTRA_KEYS: 系统通知行的 extra_data 标记键, WAKEUP_NOTICE_KEY / WAKEUP_NOTICE_{FOLLOWUP,DEGRADED,SUPPRESSED} / WAKEUP_NOTICE_INERT_KINDS: 后台完成通知用户行的标记及其种类（降级、抑制两种不起回合）, WAKEUP_NOTICE_KIND / NOT_WAKEUP_NOTICE: 通知行标记的 SQL 表达式及「不是通知行」谓词
 [POS] 会话与消息域模型。管理聊天会话、消息记录和对话分支。
 """
 
@@ -171,6 +171,12 @@ class Message(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
 
     chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")
+
+
+# What a notice row says it is (NULL on every row a person or the agent wrote): the SQL twin of ``is_wakeup_notice``.
+WAKEUP_NOTICE_KIND = func.json_extract(Message.extra_data, f"$.{WAKEUP_NOTICE_KEY}")
+# Leaves out the system's notes about settled background tasks; among user rows, what remains is what a person typed.
+NOT_WAKEUP_NOTICE = WAKEUP_NOTICE_KIND.is_(None)
 
 
 class ConversationFork(Base):

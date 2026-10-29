@@ -3,6 +3,7 @@
 [INPUT]
 - app.api.statistics.skill_growth::(fetch_skill_evolution_data, fetch_skill_trends, fetch_skill_health) (POS: 技能侧看板数据域)
 - app.database.connection::get_db (POS: 异步数据库会话依赖)
+- app.database.models.chat::NOT_WAKEUP_NOTICE (POS: 排除后台完成通知行，周消息数只数用户亲自发的消息)
 
 [OUTPUT]
 - router: FastAPI 路由，提供 GET /statistics/growth-dashboard
@@ -47,6 +48,7 @@ from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import Chat, Message
+from app.database.models.chat import NOT_WAKEUP_NOTICE
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -357,6 +359,7 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
             and_(
                 Message.chat_id.in_(select(user_chats.c.id)),
                 Message.role == "user",
+                NOT_WAKEUP_NOTICE,
                 Message.created_at >= week_start,
             )
         )
@@ -364,6 +367,7 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
             and_(
                 Message.chat_id.in_(select(user_chats.c.id)),
                 Message.role == "user",
+                NOT_WAKEUP_NOTICE,
                 Message.created_at >= prev_week_start,
                 Message.created_at < week_start,
             )

@@ -3,7 +3,7 @@
 [INPUT]
 app.database.models::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
 app.database.models.chat::SYSTEM_NOTICE_EXTRA_KEYS (POS: 系统通知行的 extra_data 标记键，重试与版本计数不把这些行当作回答)
-app.database.models.chat::WAKEUP_NOTICE_KEY, WAKEUP_NOTICE_INERT_KINDS (POS: 后台任务结算行的标记键与不开启回合的取值，重试/重新生成/撤销跳过这些行)
+app.database.models.chat::WAKEUP_NOTICE_KIND, NOT_WAKEUP_NOTICE, WAKEUP_NOTICE_INERT_KINDS (POS: 后台任务结算行的标记表达式、「不是结算行」谓词与不开启回合的取值，重试/重新生成/撤销跳过这些行)
 app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository (POS: 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略)
 
 [OUTPUT]
@@ -47,7 +47,12 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models import Chat, Message
-from app.database.models.chat import SYSTEM_NOTICE_EXTRA_KEYS, WAKEUP_NOTICE_INERT_KINDS, WAKEUP_NOTICE_KEY
+from app.database.models.chat import (
+    NOT_WAKEUP_NOTICE,
+    SYSTEM_NOTICE_EXTRA_KEYS,
+    WAKEUP_NOTICE_INERT_KINDS,
+    WAKEUP_NOTICE_KIND,
+)
 from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository, MessageFtsSearchRow
 
 logger = logging.getLogger(__name__)
@@ -70,9 +75,6 @@ _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
 # Columns that preview a conversation on every surface listing chats (session map, statistics, inbox).
 # An incognito chat never stores them, so no current or future listing can show what the user chose to keep private.
 _INCOGNITO_BLANKED_FIELDS: frozenset[str] = frozenset({"title", "first_message", "last_message"})
-
-# What the system's note about a settled background task says it was (NULL on every row a person or the agent wrote).
-_WAKEUP_NOTICE_KIND = func.json_extract(Message.extra_data, f"$.{WAKEUP_NOTICE_KEY}")
 
 
 def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
@@ -362,7 +364,7 @@ class ChatRepository:
             .where(
                 Message.chat_id == chat_id,
                 Message.role == "user",
-                or_(_WAKEUP_NOTICE_KIND.is_(None), _WAKEUP_NOTICE_KIND.not_in(WAKEUP_NOTICE_INERT_KINDS)),
+                or_(NOT_WAKEUP_NOTICE, WAKEUP_NOTICE_KIND.not_in(WAKEUP_NOTICE_INERT_KINDS)),
             )
             .order_by(Message.created_at.desc(), Message.id.desc())
             .limit(1)
@@ -397,7 +399,7 @@ class ChatRepository:
         """The newest row of a chat; ``conversation_only`` leaves out the system's notes about settled background tasks."""
         query = select(Message).where(Message.chat_id == chat_id)
         if conversation_only:
-            query = query.where(_WAKEUP_NOTICE_KIND.is_(None))
+            query = query.where(NOT_WAKEUP_NOTICE)
         result = await db.execute(query.order_by(Message.created_at.desc(), Message.id.desc()).limit(1))
         msg = result.scalar_one_or_none()
         return MessageDTO.model_validate(msg) if msg else None
