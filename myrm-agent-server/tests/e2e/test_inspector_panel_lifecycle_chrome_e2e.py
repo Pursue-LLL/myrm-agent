@@ -31,6 +31,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -55,7 +56,7 @@ from tests.support.e2e_runtime_guard import (
     heartbeat_once,
 )  # noqa: E402
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 _MAX_CHAT_ATTEMPTS = 3
 
 _REPLY_OK_PROMPT = "Reply with the single word OK. Do not call any tools."

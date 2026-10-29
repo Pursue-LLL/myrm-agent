@@ -18,6 +18,7 @@ if __package__ in (None, ""):
         sys.path.insert(0, _lib_root)
 
 from dev_gate.contract import attach_ui_heal_ensure_subprocess_sec
+from e2e_core.dev_ports import shared_ui_base
 from e2e_core.frontend_dev_pause import is_frontend_dev_paused
 from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 from e2e_core.real_user_home import real_user_home
@@ -210,7 +211,7 @@ def heal_shared_frontend_debounced(
 
 
 def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
-    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+    ui_base = os.environ.get("MYRM_E2E_UI_BASE", shared_ui_base()).rstrip("/")
     try:
         from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
 
@@ -220,7 +221,7 @@ def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
 
 
 def probe_indicates_ui_connection_refused(probe: dict[str, object]) -> bool:
-    """True when CDP page shows Chrome network error (shared :3000 down)."""
+    """True when CDP page shows Chrome network error (shared UI down)."""
     href = str(probe.get("href") or "")
     if href.startswith("chrome-error://"):
         return True
@@ -247,7 +248,7 @@ def ensure_shared_ui_before_cdp_navigate(
     probe: dict[str, object] | None = None,
     poll_deadline_sec: float = 90.0,
 ) -> None:
-    """Ensure shared :3000 serves HTML before CDP Page.navigate (SHPOIB/manifest safe)."""
+    """Ensure the shared UI serves HTML before CDP Page.navigate (SHPOIB/manifest safe)."""
     if launch_force_blocks_frontend_heal(probe=probe):
         return
     if probe is None and _shared_ui_probe_ok(timeout_sec=8.0):
@@ -270,7 +271,7 @@ def ensure_shared_ui_before_cdp_navigate(
             return
         time.sleep(2.0)
     raise RuntimeError(
-        "E2E_SHARED_UI_ENSURE_FAILED: shared frontend :3000 unreachable before CDP navigate"
+        "E2E_SHARED_UI_ENSURE_FAILED: shared frontend unreachable before CDP navigate"
     )
 
 
@@ -412,7 +413,7 @@ def _route_probe_ok(route: str, *, timeout_sec: float = 12.0) -> bool:
     import urllib.error
     import urllib.request
 
-    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+    ui_base = os.environ.get("MYRM_E2E_UI_BASE", shared_ui_base()).rstrip("/")
     path = route if route.startswith("/") else f"/{route}"
     request = urllib.request.Request(f"{ui_base}{path}", method="GET")  # noqa: S310
     try:
@@ -454,7 +455,7 @@ def run_ui_heal_cli(
                     print("MYRM_UI_HEAL_DEFER: global flock busy — UI already healthy")
                     if route and _route_probe_ok(route, timeout_sec=slow_sec):
                         ui_base = os.environ.get(
-                            "MYRM_E2E_UI_BASE", "http://127.0.0.1:3000"
+                            "MYRM_E2E_UI_BASE", shared_ui_base()
                         ).rstrip("/")
                         path = route if route.startswith("/") else f"/{route}"
                         print(f"MYRM_UI_HEAL: route OK {ui_base}{path}")
@@ -497,7 +498,7 @@ def run_ui_heal_cli(
             route_timeout = float(os.environ.get("MYRM_UI_HEAL_ROUTE_PROBE_SEC", "15"))
             if not _route_probe_ok(route, timeout_sec=route_timeout):
                 ui_base = os.environ.get(
-                    "MYRM_E2E_UI_BASE", "http://127.0.0.1:3000"
+                    "MYRM_E2E_UI_BASE", shared_ui_base()
                 ).rstrip("/")
                 path = route if route.startswith("/") else f"/{route}"
                 print(
@@ -506,12 +507,12 @@ def run_ui_heal_cli(
                 )
                 return 1
             ui_base = os.environ.get(
-                "MYRM_E2E_UI_BASE", "http://127.0.0.1:3000"
+                "MYRM_E2E_UI_BASE", shared_ui_base()
             ).rstrip("/")
             path = route if route.startswith("/") else f"/{route}"
             print(f"MYRM_UI_HEAL: route OK {ui_base}{path}")
 
-        ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip(
+        ui_base = os.environ.get("MYRM_E2E_UI_BASE", shared_ui_base()).rstrip(
             "/"
         )
         print(f"MYRM_UI_HEAL_OK ui={ui_base} before={before} after={after}")

@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
 source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 
 fail() {
   echo "MYRM_CHROME_E2E_FAIL: $*" >&2
@@ -77,8 +79,9 @@ if myrm_chrome_e2e_launch_background; then
 fi
 START_URL="about:blank"
 if ! myrm_chrome_e2e_launch_background; then
-  if curl -sf --max-time 3 "http://127.0.0.1:3000/" >/dev/null 2>&1; then
-    START_URL="http://127.0.0.1:3000/"
+  _shared_ui="${E2E_UI_BASE:-http://127.0.0.1:$(dev_default_frontend_port)}/"
+  if curl -sf --max-time 3 "${_shared_ui}" >/dev/null 2>&1; then
+    START_URL="${_shared_ui}"
   fi
 fi
 CHROME_LAUNCH_ARGS=(

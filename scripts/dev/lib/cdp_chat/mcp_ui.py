@@ -23,6 +23,7 @@ from chrome_mcp.client import (
     is_page_ownership_error,
 )
 from dev_gate.contract import EvaluateIntent
+from e2e_core.dev_ports import shared_ui_base
 
 _DETACHED_FRAME_TOKENS = (
     "detached Frame",
@@ -66,7 +67,7 @@ def is_mux_page_heal_error(exc: BaseException) -> bool:
 
 
 def _default_e2e_ui_base() -> str:
-    return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+    return os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 def _path_needs_chat_navigate(path: str) -> bool:

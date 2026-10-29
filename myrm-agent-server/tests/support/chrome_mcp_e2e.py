@@ -49,6 +49,7 @@ from dev_gate.contract import (
 from dev_gate.contract import (
     attach_ui_heal_ensure_subprocess_sec as _attach_ui_heal_ensure_subprocess_sec,
 )
+from e2e_core.dev_ports import current_api_base, is_shared_api_base, shared_api_base  # noqa: E402
 from e2e_core.orchestrator import touch_wall_progress  # noqa: E402
 from e2e_core.shared_ui_hydrate import (  # noqa: E402
     parallel_shared_ui_hydrate_queue_enabled,
@@ -324,12 +325,11 @@ def http_json(
 
     assert_http_effect_allowed(method=method, url=url)
     allowed_bases = [get_e2e_ui_url(), get_e2e_api_url()]
-    port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
-    shared_hot = f"http://127.0.0.1:{port_raw if port_raw.isdigit() else 8080}"
-    # The canonical shared backend stays reachable on :8080 across backend
+    shared_hot = current_api_base()
+    # The canonical shared backend stays reachable on its port across backend
     # rotations (seeded/isolated runtimes come and go); keep it allowlisted
     # alongside the volatile env-derived base. Loopback-only, no trust change.
-    for base in (shared_hot, "http://127.0.0.1:8080"):
+    for base in (shared_hot, shared_api_base()):
         if base.rstrip("/") not in {known.rstrip("/") for known in allowed_bases}:
             allowed_bases.append(base)
     allowed = tuple(allowed_bases)
@@ -879,7 +879,7 @@ def navigate_mcp_page(
         )
         return
     api_base = get_e2e_api_url().rstrip("/")
-    if api_base != "http://127.0.0.1:8080":
+    if not is_shared_api_base(api_base):
         client.evaluate(
             page,
             e2e_api_base_inject_js(),
@@ -896,7 +896,7 @@ def _ensure_e2e_private_api_live(
 ) -> None:
     """Ensure SHPOIB private API binding is applied and health-ready on the active page."""
     api_base = get_e2e_api_url().rstrip("/")
-    shared_api = "http://127.0.0.1:8080"
+    shared_api = shared_api_base()
     if api_base == shared_api:
         return
 

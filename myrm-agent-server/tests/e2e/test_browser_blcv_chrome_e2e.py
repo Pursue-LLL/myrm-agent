@@ -17,6 +17,7 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
     wait_for_state,
 )
+from e2e_core.dev_ports import shared_api_base
 
 _BRIDGE_READY_JS = """(() => ({
   ready:
@@ -56,8 +57,7 @@ def _seed_blcv_chat(api_url: str) -> str:
         ],
     }
     targets = {api_url.rstrip("/")}
-    shared_8080 = "http://127.0.0.1:8080"
-    targets.add(shared_8080)
+    targets.add(shared_api_base())
     for target in targets:
         try:
             http_json("POST", f"{target}/api/v1/chats/", payload)

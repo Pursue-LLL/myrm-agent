@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from e2e_core.dev_ports import shared_api_base, shared_ui_base
 from e2e_core.gate_epoch_preflight import SoloSnapshot, read_solo_snapshot
 
 
@@ -48,8 +49,8 @@ def shared_stack_ports_reachable() -> bool:
     """True when shared :8080 health + :3000 UI respond — attach-safe without full heal."""
     from e2e_core.runtime_identity import api_health_errors, classify_ui_endpoint_error
 
-    api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080")
-    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
+    api_base = os.environ.get("E2E_API_BASE", shared_api_base())
+    ui_base = os.environ.get("E2E_UI_BASE", shared_ui_base())
     if api_health_errors(api_base):
         return False
     return classify_ui_endpoint_error(ui_base) is None

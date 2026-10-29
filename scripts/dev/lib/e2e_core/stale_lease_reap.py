@@ -25,6 +25,7 @@ import sys
 import time
 from pathlib import Path
 
+from e2e_core.dev_ports import shared_backend_port
 from e2e_core.live_chrome_pytest_scan import LiveChromeE2ERow
 from e2e_session_runtime.registry import LiveE2ESessionRow, list_live_e2e_sessions
 
@@ -1495,7 +1496,8 @@ def maybe_reap_orphan_shared_backends(
     recorded = _backend_recorded_pids(state_dir)
     if not recorded:
         return False
-    live_owner = _pid_listening_on(0, 8080)
+    shared_port = shared_backend_port()
+    live_owner = _pid_listening_on(0, shared_port)
     if live_owner:
         recorded.discard(live_owner)
     # Protect pids owned by live wave leases or live pytest sessions.
@@ -1521,10 +1523,9 @@ def maybe_reap_orphan_shared_backends(
             continue
         if not _pid_is_shared_backend(pid, state_dir):
             continue
-        if _pid_listening_on(pid, 8080):
+        if _pid_listening_on(pid, shared_port):
             continue
         try:
-            start = time.time()
             info = subprocess.run(
                 ["ps", "-o", "lstart=", "-p", str(pid)],
                 capture_output=True,
@@ -1546,7 +1547,7 @@ def maybe_reap_orphan_shared_backends(
             pass
         print(
             f"E2E_ORPHAN_SHARED_BACKEND_REAP: pid={pid} recorded but not serving "
-            f":8080 — terminating orphaned shared backend (do not stop other pytest)",
+            f":{shared_port} — terminating orphaned shared backend (do not stop other pytest)",
             file=sys.stderr,
             flush=True,
         )

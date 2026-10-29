@@ -90,7 +90,7 @@ _start_backend_bg() {
   local server_dir="$1"
   local state_dir
   state_dir="$(dev_state_dir)"
-  local backend_port="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
+  local backend_port="${MYRM_BACKEND_PORT:-${PORT:-$(dev_default_backend_port)}}"
   local pid_file="${MYRM_BACKEND_PID_FILE:-${state_dir}/backend.pid}"
   local log_file="${MYRM_BACKEND_LOG_FILE:-${state_dir}/backend.log}"
   local identity_file="${MYRM_BACKEND_IDENTITY_FILE:-${state_dir}/backend-process.json}"
@@ -301,6 +301,13 @@ _start_backend_bg() {
   # that tells a dev-owned listener from the desktop sidecar or a `myrm start` runtime that
   # runs the same run.py on the same default port (see e2e_core/dev_ownership.py).
   export MYRM_RUNTIME_NAMESPACE="${runtime_id}" MYRM_DEV_STATE_DIR="${state_dir}"
+  # The backend only accepts control-plane requests from allow-listed origins, and its UI sits on
+  # a port the product defaults do not list. Isolated runtimes and the user's stack bring their own.
+  if ! dev_is_user_runtime; then
+    CORS_ORIGINS="${CORS_ORIGINS:-$(python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_core/dev_ports.py" \
+      cors-origins --ui-port "${MYRM_FRONTEND_PORT:-$(dev_default_frontend_port)}")}"
+    export CORS_ORIGINS
+  fi
 
   _stack_stage guard_begin
   _require_harness_editable "${server_dir}"

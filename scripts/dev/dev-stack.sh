@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dev stack lifecycle — ensure/attach/reset/status for local :8080/:3000.
+# Dev stack lifecycle — ensure/attach/reset/status for the local stack (default ports: dev_state_paths.sh).
 # Mutations delegate to stack_supervisor daemon; only its direct child may enter internals.
 # Usage: dev-stack.sh ensure|attach|reset|status
 #   ensure  — mkdir atomic lock + start stack if unhealthy (idempotent)
@@ -27,11 +27,11 @@ resolve_agent_paths "${REPO_ROOT}"
 _stack_stage libs_loaded
 
 STATE_DIR="$(dev_state_dir)"
-BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
-FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
+BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-$(dev_default_backend_port)}}"
+FRONTEND_PORT="${MYRM_FRONTEND_PORT:-$(dev_default_frontend_port)}"
 APP_URL="${E2E_UI_BASE:-http://127.0.0.1:${FRONTEND_PORT}}"
 # Private SHPOIB backends must probe their assigned port — inherited shared
-# E2E_API_BASE (:8080) makes ensure succeed against the wrong API while :18080
+# E2E_API_BASE (the shared port) makes ensure succeed against the wrong API while :18080
 # lacks identity, triggering orphan reclaim loops.
 if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]] \
   || [[ "${MYRM_DEV_STATE_DIR:-}" != "$(_real_home_default_state_dir)" ]]; then
@@ -47,12 +47,12 @@ BACKEND_IDENTITY="${MYRM_BACKEND_IDENTITY_FILE:-${STATE_DIR}/backend-process.jso
 FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
 FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
 export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}" MYRM_DEV_STATE_DIR="${STATE_DIR}"
-# Private backend-only pools reuse the shared UI (:3000) while owning a private backend
+# Private backend-only pools reuse the shared UI while owning a private backend
 # port. The UI bakes its /api/v1 upstream at spawn time, so any frontend (re)start from
 # such a pool must keep pointing at the shared backend — never at the pool's private one.
-if [[ "${FRONTEND_PORT}" == "3000" ]] \
+if [[ "${FRONTEND_PORT}" == "$(dev_shared_frontend_port)" ]] \
   && [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]]; then
-  FRONTEND_API_PORT="${MYRM_SHARED_BACKEND_PORT:-8080}"
+  FRONTEND_API_PORT="$(dev_shared_backend_port)"
 else
   FRONTEND_API_PORT="${BACKEND_PORT}"
 fi

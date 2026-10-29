@@ -23,6 +23,7 @@ if __package__ in (None, ""):
     if _lib_root not in sys.path:
         sys.path.insert(0, _lib_root)
 
+from e2e_core.dev_ports import shared_ui_base
 from e2e_core.infra_browser_registry import register_infra_target, unregister_infra_target
 
 try:
@@ -680,7 +681,7 @@ async def _run_warmup(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Warm Next.js client bundles via CDP.")
     parser.add_argument("--cdp-port", type=int, default=9333)
-    parser.add_argument("--url", default="http://127.0.0.1:3000/")
+    parser.add_argument("--url", default=f"{shared_ui_base()}/")
     parser.add_argument("--timeout-sec", type=float, default=120.0)
     parser.add_argument("--poll-ms", type=int, default=500)
     args = parser.parse_args()

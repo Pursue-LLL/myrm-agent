@@ -11,6 +11,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -41,7 +42,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 _FIXTURE_ANSWER = "Batch file edit E2E fixture answer."
 _FILE_EDIT_TOOL = "file_edit_tool"

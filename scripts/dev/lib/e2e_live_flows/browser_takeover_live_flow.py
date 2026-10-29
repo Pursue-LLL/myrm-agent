@@ -23,6 +23,7 @@ from cdp_chat.support import (
 )
 from cdp_chat.ui import chat_user_message_count
 from dev_gate.contract import EvaluateIntent
+from e2e_core.dev_ports import shared_ui_base
 from e2e_core.resource_ledger import E2EResourceLedger
 from e2e_session_runtime.heartbeat import heartbeat_once
 
@@ -51,7 +52,7 @@ from e2e_live_flows.browser_takeover_live_mux import (
     wait_ui_stream_idle,
 )
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 async def run_browser_takeover_live_flow(

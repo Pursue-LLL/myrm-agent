@@ -41,6 +41,8 @@ if __package__ in (None, ""):
     if _lib_root not in sys.path:
         sys.path.insert(0, _lib_root)
 
+from e2e_core.dev_ports import default_backend_port  # noqa: E402
+
 PENDING_DRIFT_FILENAME: Final[str] = "pending-stack-drift.json"
 # Two guards emit this failure with different tails: the venv smoke says
 # "…in the server venv", the monorepo editable guard says
@@ -334,7 +336,7 @@ def _api_health_url() -> str:
     base = os.environ.get("E2E_API_BASE", "").strip()
     if base:
         return f"{base.rstrip('/')}/api/v1/health"
-    port = os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or "8080"
+    port = os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or str(default_backend_port())
     return f"http://127.0.0.1:{port}/api/v1/health"
 
 
@@ -483,7 +485,7 @@ def apply_pending_drift_for_maintenance(
 
 
 def _api_port_listening() -> bool:
-    port = os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or "8080"
+    port = os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or str(default_backend_port())
     try:
         result = subprocess.run(
             ["lsof", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],

@@ -13,17 +13,24 @@ Dev test resource cleanup. Maps ledger kinds to myrm-agent-server REST endpoints
 
 from __future__ import annotations
 
+import http.cookiejar
 import json
 import os
-import http.cookiejar
+import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import TypedDict
 
-from wave_orchestrator.types import ResourceKind
+_DEV_LIB = str(Path(__file__).resolve().parent.parent / "lib")
+if _DEV_LIB not in sys.path:
+    sys.path.insert(0, _DEV_LIB)
 
-DEFAULT_API_BASE = "http://127.0.0.1:8080"
+from e2e_core.dev_ports import shared_api_base  # noqa: E402
+
+from wave_orchestrator.types import ResourceKind  # noqa: E402
+
 TRANSIENT_CLEANUP_HTTP_CODES: frozenset[int] = frozenset({500, 502, 503, 504})
 CLEANUP_RETRY_ATTEMPTS: int = 4
 CLEANUP_RETRY_BACKOFF_SEC: float = 0.5
@@ -37,7 +44,7 @@ class CleanupAttempt(TypedDict):
 
 
 def _api_base() -> str:
-    return os.environ.get("MYRM_API_BASE", os.environ.get("E2E_API_BASE", DEFAULT_API_BASE)).rstrip("/")
+    return os.environ.get("MYRM_API_BASE", os.environ.get("E2E_API_BASE", shared_api_base())).rstrip("/")
 
 
 def _cleanup_timeout() -> float:

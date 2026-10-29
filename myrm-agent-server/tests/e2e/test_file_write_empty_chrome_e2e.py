@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
@@ -55,7 +56,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 def _force_mux_heal_before_live_retry() -> None:

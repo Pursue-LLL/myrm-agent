@@ -23,6 +23,7 @@ import time
 import urllib.request
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 
 def _cdp_base() -> str:
@@ -32,7 +33,7 @@ def _cdp_base() -> str:
 
 def _ui_url() -> str:
     """LIVE/PRIVATE runs bind their own UI port; E2E_UI_BASE is the SSOT for it."""
-    return os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/") + "/"
+    return os.environ.get("E2E_UI_BASE", shared_ui_base()).rstrip("/") + "/"
 
 
 # Reads the first running pulse plus the media query state. `found` distinguishes "no element yet"

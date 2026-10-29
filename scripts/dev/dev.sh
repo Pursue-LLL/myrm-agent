@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backend only on :8080 (background).
+# Backend only (background); port: dev_state_paths.sh.
 # Usage: myrm dev
 set -euo pipefail
 
@@ -16,7 +16,7 @@ resolve_agent_paths "${REPO_ROOT}"
 LOG_FILE="$(dev_backend_log_file)"
 
 if _start_backend_bg "${SERVER_DIR}"; then
-  echo "✅ Backend http://127.0.0.1:8080 (log: ${LOG_FILE})"
+  echo "✅ Backend http://127.0.0.1:$(dev_default_backend_port) (log: ${LOG_FILE})"
   echo "   Open UI: myrm start   or   cd myrm-agent-frontend && bun run dev"
 else
   exit 1

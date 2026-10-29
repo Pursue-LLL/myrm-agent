@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from browser_orchestrator import browser_operation_credit_slot
 from dev_gate.contract import MUX_RECLAIM_STALL_TOKEN, mux_page_reclaim_hard_timeout_sec
+from e2e_core.dev_ports import shared_ui_base
 from chrome_mcp.errors import is_page_ownership_error_message as _is_page_ownership_error
 from chrome_mcp.page_helpers import (
     check_mux_reclaim_deadline,
@@ -37,7 +38,7 @@ def reopen_owned_page_inner(client: ChromeMcpClient, page: McpPage) -> McpPage:
     check_mux_reclaim_deadline(
         reclaim_deadline, "reopen_start", started=reclaim_started
     )
-    reopen_url = (page.url or "http://127.0.0.1:3000").strip()
+    reopen_url = (page.url or shared_ui_base()).strip()
     runtime_binding = client._runtime_binding_source_for(reopen_url)
     old_target_id = page.target_id.strip()
     import chrome_mcp.client as _cmc
@@ -227,7 +228,7 @@ def rebuild_disconnected_pages(
 
                 if old_target and rebuild_attempt == 0:
                     _cmc._http_close_exact_target(old_target)
-                reopen_url = (old_page.url or "http://127.0.0.1:3000").strip()
+                reopen_url = (old_page.url or shared_ui_base()).strip()
                 runtime_binding = client._runtime_binding_source_for(reopen_url)
                 initial_url = (
                     "about:blank" if runtime_binding is not None else reopen_url

@@ -19,6 +19,7 @@ import urllib.error
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -62,7 +63,7 @@ def _touch_rewind_progress(node: str) -> None:
         pass
 
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 TURN_A = "Reply with the exact text: REWIND_MARKER_A"
 TURN_B = "Reply with the exact text: REWIND_MARKER_B"

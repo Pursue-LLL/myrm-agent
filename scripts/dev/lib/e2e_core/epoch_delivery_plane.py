@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Final
 from urllib.parse import urlsplit
 
+from e2e_core.dev_ports import shared_api_base
+
 _EPOCH_PIN_ENV: Final[str] = "MYRM_E2E_EPOCH_PIN"
 
 
@@ -212,7 +214,7 @@ def apply_epoch_pin_for_shared_live(
     isolated_root = _isolated_registry_root()
     raw_fp = getattr(ctx, "workspace_fingerprint", "")
     workspace_fp = raw_fp.strip() if isinstance(raw_fp, str) else ""
-    shared = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
+    shared = str(getattr(ctx, "shared_api_base", "") or shared_api_base()).strip()
     verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
     # A stale shared backend is never a valid namespace-write target, even when
     # its health endpoint is reachable. Reuse only a distinct, healthy verify

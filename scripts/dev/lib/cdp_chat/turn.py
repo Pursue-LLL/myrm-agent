@@ -7,6 +7,7 @@ import json
 import time
 
 from dev_gate.contract import EvaluateIntent
+from e2e_core.dev_ports import shared_ui_base
 from e2e_core.wave_ledger import maybe_register_e2e_chat
 
 import cdp_chat.support as cdp_chat_support
@@ -581,7 +582,7 @@ class CdpChatTurn(CdpChatSubmit):
     async def _attach_chat_session(self, chat_id: str) -> None:
         payload = json.dumps(chat_id)
         last: object = {"ok": False}
-        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+        ui_base = (getattr(self, "_base_url", None) or shared_ui_base()).rstrip(
             "/"
         )
         for attempt in range(12):
@@ -918,7 +919,7 @@ class CdpChatTurn(CdpChatSubmit):
             and str(submit.get("err") or "") in recoverable_submit_errors
         ):
             ui_base = (
-                getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+                getattr(self, "_base_url", None) or shared_ui_base()
             ).rstrip("/")
             await self.ensure_chat_surface(ui_base, timeout_sec=30.0)
             if chat_id:
@@ -1083,7 +1084,7 @@ class CdpChatTurn(CdpChatSubmit):
                 "submit": bridge_steer,
                 "mode": str(bridge_steer.get("mode", "steerBridge")),
             }
-        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+        ui_base = (getattr(self, "_base_url", None) or shared_ui_base()).rstrip(
             "/"
         )
         if chat_id:
@@ -1236,7 +1237,7 @@ class CdpChatTurn(CdpChatSubmit):
         skip_model_sync: bool = False,
     ) -> dict[str, object]:
         ui_base = (
-            base_url or getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+            base_url or getattr(self, "_base_url", None) or shared_ui_base()
         ).rstrip("/")
         baseline_user_msgs = 0
         chat_id = chat_id_hint

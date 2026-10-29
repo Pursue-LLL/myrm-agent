@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -42,7 +43,7 @@ from tests.api.agent.utils import (
 )  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 def _clarify_skip_api_wait_sec() -> float:

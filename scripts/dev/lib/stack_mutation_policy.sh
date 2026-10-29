@@ -33,7 +33,7 @@ _smp_python() {
 }
 
 _smp_shared_api_http_ok() {
-  local health_url="${API_HEALTH:-http://127.0.0.1:${MYRM_BACKEND_PORT:-${PORT:-8080}}/api/v1/health}"
+  local health_url="${API_HEALTH:-http://127.0.0.1:${MYRM_BACKEND_PORT:-${PORT:-$(dev_default_backend_port)}}/api/v1/health}"
   curl -sf --max-time 5 "${health_url}" >/dev/null 2>&1
 }
 

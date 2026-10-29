@@ -24,9 +24,6 @@ for _tool_dir in /opt/homebrew/bin /usr/local/bin /usr/bin "$HOME/.bun/bin"; do
 done
 export PATH
 
-UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
-SHARED_API_BASE="${MYRM_SHARED_API_BASE:-http://127.0.0.1:8080}"
-API_BASE="${E2E_API_BASE:-${SHARED_API_BASE}}"
 MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
 export MYRM_CHROME_E2E_ATTACH
 MYRM_BROWSER_ORCHESTRATOR="${MYRM_BROWSER_ORCHESTRATOR:-1}"
@@ -78,6 +75,9 @@ export MYRM_DEV_STACK="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
 MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
 # shellcheck source=lib/dev_state_paths.sh
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
+UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:$(dev_default_frontend_port)}"
+SHARED_API_BASE="${MYRM_SHARED_API_BASE:-http://127.0.0.1:$(dev_shared_backend_port)}"
+API_BASE="${E2E_API_BASE:-${SHARED_API_BASE}}"
 # Sandboxed HOME (e.g. Cursor's ~/.cursor-3) would split mux state, warm shells and
 # harness data across two homes. Run the whole preflight under the real user home so
 # every $HOME-derived path (cdmcp-mux state, frontend caches) stays on one SSOT dir.
@@ -88,7 +88,7 @@ export_myrm_next_dist_dir
 FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
 FRONTEND_LOG="${STATE_DIR}/frontend.log"
 APP_URL="${UI_BASE}"
-FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
+FRONTEND_PORT="${MYRM_FRONTEND_PORT:-$(dev_default_frontend_port)}"
 # shellcheck source=lib/frontend-warmup.sh
 source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
 # shellcheck source=lib/stack-epoch.sh
@@ -169,7 +169,7 @@ if snap.state.value != PlaneHealthState.OBSERVABLE.value:
         flush=True,
     )
     sys.exit(1)
-" || fail "browser data plane not observable — run ./myrm-dev restart --chrome when wave idle (verify-api does not heal mux/orch/shared :8080)"
+" || fail "browser data plane not observable — run ./myrm-dev restart --chrome when wave idle (verify-api does not heal mux/orch/the shared API)"
 }
 
 _attach_health_require_args() {
@@ -626,7 +626,7 @@ _attach_epoch_pin_fast_path() {
     API_BASE="${SHARED_API_BASE}"
     return 1
   fi
-  fail "epoch pin attach did not become ready within ${wait_sec}s — wave idle: ./myrm-dev restart --chrome; parallel: wait for drift apply (verify-api does not heal shared :8080)"
+  fail "epoch pin attach did not become ready within ${wait_sec}s — wave idle: ./myrm-dev restart --chrome; parallel: wait for drift apply (verify-api does not heal the shared API)"
 }
 
 _maybe_reseal_auth_template_after_attach() {
@@ -636,7 +636,7 @@ import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_core.auth_provisioner import reseal_auth_template_for_current_runtime
 from e2e_core.api_verify import workspace_backend_fingerprint
-origin = '${UI_BASE:-http://127.0.0.1:3000}'
+origin = '${UI_BASE}'
 ws = workspace_backend_fingerprint()
 status = reseal_auth_template_for_current_runtime(origin=origin, workspace_fingerprint=ws)
 line = (
@@ -662,7 +662,7 @@ import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_core.auth_provisioner import prepare_auth_template_for_attach
 from e2e_core.api_verify import workspace_backend_fingerprint
-origin = '${UI_BASE:-http://127.0.0.1:3000}'
+origin = '${UI_BASE}'
 status = prepare_auth_template_for_attach(
     origin=origin,
     workspace_fingerprint=workspace_backend_fingerprint(),
@@ -862,7 +862,7 @@ _heal_dead_shared_ui_port() {
 }
 
 _shared_stack_endpoints_ok() {
-  local shared_ui="${E2E_UI_BASE:-${UI_BASE:-http://127.0.0.1:3000}}"
+  local shared_ui="${E2E_UI_BASE:-${UI_BASE}}"
   curl -sf --max-time 10 "${shared_ui}/" >/dev/null \
     && curl -sf --max-time 10 "${SHARED_API_BASE}/api/v1/health" >/dev/null
 }
@@ -912,7 +912,7 @@ _wait_shared_stack_healthy_before_ready() {
       fail "shared stack not healthy within ${wait_sec}s (leases=${active_leases}; seed_failed=${MYRM_E2E_MODEL_SEED_FAILED:-0}) — do not stop other pytest; retry ADMIT or ./myrm-dev ui-heal when idle"
     fi
     if [[ "${waited}" -ge 30 && $((waited % 30)) -eq 0 ]]; then
-      echo "E2E_SHARED_STACK_RECOVERY_WAIT: shared :3000/:8080 or model seed not ready ${waited}/${wait_sec}s (leases=${active_leases}; do not stop other pytest)" >&2
+      echo "E2E_SHARED_STACK_RECOVERY_WAIT: the shared stack or model seed not ready ${waited}/${wait_sec}s (leases=${active_leases}; do not stop other pytest)" >&2
       if [[ "${ui_heal_during_wait}" -lt "${ui_heal_cap}" ]]; then
         ui_heal_during_wait=$((ui_heal_during_wait + 1))
         _heal_shared_ui_if_stale || true
@@ -925,7 +925,7 @@ _wait_shared_stack_healthy_before_ready() {
 }
 
 _private_backend_attach_path() {
-  local shared_ui="${E2E_UI_BASE:-http://127.0.0.1:3000}"
+  local shared_ui="${E2E_UI_BASE:-${UI_BASE}}"
   ok "private backend attach deferred (SHPOIB bootstrap will bind private pool)"
   _wait_shared_ui_reachable "${shared_ui}"
   _seed_providers_for_runtime
@@ -1018,7 +1018,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-
   fi
   _attach_api="$(_attach_api_base)"
   if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]]; then
-    echo "CHROME_E2E_ATTACH: epoch pin ADMIT wait uses api=${_attach_api} (skip shared :8080 unreachable gate)" >&2
+    echo "CHROME_E2E_ATTACH: epoch pin ADMIT wait uses api=${_attach_api} (skip shared API unreachable gate)" >&2
   fi
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
@@ -1076,7 +1076,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] && ! curl -sf --max-time 10 "$API_BA
   fi
   curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm-dev ready"
 fi
-ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
+ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-$(dev_default_backend_port)}"
 _preflight_progress "dev_servers"
 
 # 1b. Shared-stack attach is read-only; private-backend pools seed into E2E_API_BASE.

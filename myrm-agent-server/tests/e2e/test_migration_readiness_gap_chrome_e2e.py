@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -128,9 +129,9 @@ _WAIT_ASSISTANT_AFTER_SEND_JS = """(async () => {
 def _ensure_shared_ui_base() -> None:
     if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
         return
-    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").strip()
-    if ui_base != "http://127.0.0.1:3000":
-        os.environ["E2E_UI_BASE"] = "http://127.0.0.1:3000"
+    shared_ui = shared_ui_base()
+    if os.environ.get("E2E_UI_BASE", shared_ui).strip() != shared_ui:
+        os.environ["E2E_UI_BASE"] = shared_ui
 
 
 def _httpx_retry_delay_seconds(response: object | None, attempt: int) -> float:

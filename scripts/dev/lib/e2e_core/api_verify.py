@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
+from e2e_core.dev_ports import shared_backend_port
 from e2e_core.runtime_identity import _backend_source_fingerprint
 from e2e_core.stack_mutation_policy import (
     _default_state_dir,
@@ -42,7 +43,7 @@ from e2e_core.stack_mutation_policy import (
     read_pending_drift,
 )
 
-SHARED_DEFAULT_PORT: Final[int] = 8080
+SHARED_DEFAULT_PORT: Final[int] = shared_backend_port()
 PRIVATE_PORT_SCAN_START: Final[int] = 18080
 PRIVATE_PORT_SCAN_END: Final[int] = 18120
 HEALTH_PATHS: Final[tuple[str, ...]] = ("/api/v1/health", "/health")
@@ -750,7 +751,7 @@ def _build_context_from_resolution(
         )
     elif stale:
         action = (
-            "Do not promote or restart shared :8080 from a browser session; the node "
+            "Do not promote or restart the shared backend from a browser session; the node "
             "planner must declare PRIVATE for workspace backend code, while tests targeting "
             "the deployed shared epoch remain SHARED; do not change mode after collect"
         )
@@ -1549,7 +1550,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
                 "E2E_BLOCKED_EPOCH: workspace backend differs from the deployed "
                 "shared epoch; use the node planner's PRIVATE immutable epoch for "
                 "workspace backend code, while tests targeting the deployed shared "
-                "epoch remain SHARED; do not wait, restart shared :8080, or stop peers.\n"
+                "epoch remain SHARED; do not wait, restart the shared backend, or stop peers.\n"
             )
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _resolve_parallel_runtime_snapshot()

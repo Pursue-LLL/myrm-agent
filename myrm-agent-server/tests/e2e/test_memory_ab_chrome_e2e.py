@@ -43,6 +43,7 @@ from tests.support.wb_bench_e2e_helpers import (
     click_subset_memory_ab_js,
     restore_eval_lab_route,
 )
+from e2e_core.dev_ports import shared_api_base
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 
@@ -506,7 +507,7 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
     # the WebUI proxy serves from the shared stack, while the test client talks
     # to the private runtime: configure both or the shared-side run fails its
     # embedding pre-flight and the page never leaves idle.
-    shared_api = "http://127.0.0.1:8080"
+    shared_api = shared_api_base()
     prev_retrieval = fetch_config_value("retrieval", api_url=api_url)
     prev_shared_retrieval = fetch_config_value("retrieval", api_url=shared_api)
     embedding_server = LocalEmbeddingServer(port=0).start()

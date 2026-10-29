@@ -120,7 +120,7 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
     if next_action == "PARALLEL_OK":
         return "parallel chrome_e2e active; healthy shared backend generation remains pinned"
     if next_action == "PRIVATE_EPOCH_REQUIRED":
-        return "workspace backend code requires a PRIVATE immutable epoch; do not restart shared :8080"
+        return "workspace backend code requires a PRIVATE immutable epoch; do not restart the shared backend"
     if ctx.blocked:
         blocked_reason = ctx.blocked_reason.strip() or "verification plane blocked"
         return f"{blocked_reason}; NEXT_ACTION={next_action}"

@@ -16,8 +16,9 @@ from __future__ import annotations
 import os
 import sys
 import time
+from e2e_core.dev_ports import shared_ui_base
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 def _resolve_approval_wait_sec() -> float:

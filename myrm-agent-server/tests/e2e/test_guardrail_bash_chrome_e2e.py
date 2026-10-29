@@ -8,6 +8,7 @@ import sys
 import time
 
 import pytest
+from e2e_core.dev_ports import current_api_base
 
 _LIB = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -595,9 +596,7 @@ def _ensure_fixture_assistant_ready(api_url: str, chat_id: str, *, timeout_sec: 
 
 
 def _shared_hot_api_base() -> str:
-    shared_port = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
-    port = shared_port if shared_port.isdigit() else "8080"
-    return f"http://127.0.0.1:{port}".rstrip("/")
+    return current_api_base()
 
 
 def _ensure_shpoib_api_binding(
@@ -607,7 +606,7 @@ def _ensure_shpoib_api_binding(
     *,
     timeout_sec: float = 45.0,
 ) -> None:
-    """Inject and wait for SHPOIB API binding on shared :3000 UI."""
+    """Inject and wait for SHPOIB API binding on the shared UI."""
     from cdp_chat.support import (  # type: ignore[import-not-found]
         E2E_API_BINDING_PROBE_JS,
         e2e_api_base_inject_js,

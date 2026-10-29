@@ -38,6 +38,7 @@ import { startIdlePool } from './idle-pool.mjs';
 import { describeScript, startRequestWatch } from './request-watch.mjs';
 import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
 import { createProxyStallForensics } from './stall-probe.mjs';
+import { SHARED_FRONTEND_PORT } from '../lib/dev-ports.mjs';
 
 const args = process.argv.slice(2);
 const getArg = (name, def) => {
@@ -62,6 +63,9 @@ const E2E_URL_REJECT_MESSAGE =
     'CHROME_AGENT_E2E_URL_REJECTED: ChromeAgent :9410 is for Agent tasks (e.g. URL extraction) only; '
     + 'chrome_e2e must use ./myrm-dev test harness → ChromeE2E :9333';
 
+/** Product UI (3000), the website (3002) and the shared dev UI: all belong on ChromeE2E. */
+const E2E_UI_PORTS = new Set(['3000', '3002', String(SHARED_FRONTEND_PORT)]);
+
 /** Block localhost UI URLs that belong on ChromeE2E :9333, not ChromeAgent :9410. */
 function isForbiddenE2eUrl(rawUrl) {
     if (ALLOW_E2E_URLS || typeof rawUrl !== 'string' || !rawUrl.trim()) {
@@ -78,7 +82,7 @@ function isForbiddenE2eUrl(rawUrl) {
         return false;
     }
     const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
-    return port === '3000' || port === '3002';
+    return E2E_UI_PORTS.has(port);
 }
 
 function navigateUrlFromCdpMethod(msg) {

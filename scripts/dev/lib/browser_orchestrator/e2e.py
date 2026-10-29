@@ -24,6 +24,7 @@ from cdp_chat.support import (
     get_open_page_api_url,
     wait_e2e_provider_ready,
 )
+from e2e_core.dev_ports import is_shared_api_base, shared_ui_base
 
 # OrchestratorWatchdog (§24 W3e): daemon ensure is at most once per window.
 ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC = 15.0
@@ -112,7 +113,7 @@ class OrchestratorChromeClient:
             return
         except (TimeoutError, OSError, RuntimeError):
             pass
-        fallback = page.url or "http://127.0.0.1:3000/"
+        fallback = page.url or f"{shared_ui_base()}/"
         self._reopen_primary_page(fallback, page=page)
 
     def _is_terminal_tab_error(self, message: str) -> bool:
@@ -257,7 +258,7 @@ class OrchestratorChromeClient:
         except RuntimeError as exc:
             if not self._is_terminal_tab_error(str(exc)):
                 raise
-        fallback = page.url or "http://127.0.0.1:3000/"
+        fallback = page.url or f"{shared_ui_base()}/"
         return self._reopen_primary_page(fallback, page=page)
 
     def new_page(
@@ -413,7 +414,7 @@ class OrchestratorChromeClient:
                 if self._recover_daemon_if_needed(message):
                     continue
                 if self._is_orphan_target_error(message) and attempt < max_attempts:
-                    fallback_url = page.url or "http://127.0.0.1:3000/"
+                    fallback_url = page.url or f"{shared_ui_base()}/"
                     try:
                         self._reopen_primary_page(fallback_url, page=page)
                     except (RuntimeError, TimeoutError, OSError) as reopen_exc:
@@ -422,15 +423,15 @@ class OrchestratorChromeClient:
                     continue
                 if self._is_missing_session_context(message):
                     if self._recover_daemon_if_needed(message):
-                        fallback_url = page.url or "http://127.0.0.1:3000/"
+                        fallback_url = page.url or f"{shared_ui_base()}/"
                         self._reopen_primary_page(fallback_url, page=page)
                         continue
                     self._ensure_session_context()
-                    fallback_url = page.url or "http://127.0.0.1:3000/"
+                    fallback_url = page.url or f"{shared_ui_base()}/"
                     self._reopen_primary_page(fallback_url, page=page)
                     continue
                 if self._is_terminal_tab_error(message) and attempt < max_attempts:
-                    fallback = page.url or "http://127.0.0.1:3000/"
+                    fallback = page.url or f"{shared_ui_base()}/"
                     try:
                         self._reopen_primary_page(fallback, page=page)
                     except (RuntimeError, TimeoutError, OSError):
@@ -914,7 +915,7 @@ def _apply_orchestrator_shpoib_binding(
 ) -> None:
     """Seed window.name then navigate so e2e-runtime-bootstrap.js binds private API."""
     api_base = get_open_page_api_url().rstrip("/")
-    if not api_base or api_base == "http://127.0.0.1:8080":
+    if not api_base or is_shared_api_base(api_base):
         daemon.navigate_page(session_id, page.target_id, url)
         page.url = url
         return
@@ -983,7 +984,7 @@ def _settings_open_plan(url: str) -> SettingsOpenPlan:
 
             origin = get_e2e_ui_url().rstrip("/")
         except ImportError:
-            origin = "http://127.0.0.1:3000"
+            origin = shared_ui_base()
 
     if path.startswith("/settings/") and path != "/settings":
         return SettingsOpenPlan(
@@ -1204,7 +1205,7 @@ def open_orchestrator_mcp_page(
             burst_preassigned = bool(
                 os.environ.get("MYRM_E2E_PREASSIGNED_SEALED_TARGET_ID", "").strip()
             )
-            if api_base and api_base != "http://127.0.0.1:8080":
+            if api_base and not is_shared_api_base(api_base):
                 if not wait_e2e_provider_ready(
                     api_url=api_base,
                     timeout_sec=e2e_private_api_ready_timeout_sec(60.0),
@@ -1378,7 +1379,7 @@ def open_app_route_page(
                 seal_platform_shell,
             )  # noqa: PLC0415
 
-            if get_open_page_api_url().rstrip("/") == "http://127.0.0.1:8080":
+            if is_shared_api_base(get_open_page_api_url()):
                 seal_platform_shell(
                     ui_url=url,
                     route_path=manifest.shell_path,

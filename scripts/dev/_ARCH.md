@@ -12,7 +12,7 @@
 |------|------|------|
 | `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` + `ensure-next-native-swc.sh` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
-| `start.sh` | Unix | 委托 `dev-stack ensure`（:8080 + :3000 idempotent；frontend 冷编译最长 120s）；不启动 Browser Orchestrator 或诊断 mux |
+| `start.sh` | Unix | 委托 `dev-stack ensure`（后端 + 前端 idempotent，端口按 runtime namespace：`user` = :8080/:3000，`shared` = :28080/:23000；frontend 冷编译最长 120s）；不启动 Browser Orchestrator 或诊断 mux |
 | `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
@@ -76,7 +76,7 @@
 
 **MCP 配置（Cursor）**：本仓无 mux 安装脚本；维护者 monorepo 见上层 `scripts/dev/CHROME_MCP_E2E.md` 与 `mcp-chrome-devtools.server.json`。OSS 贡献者仅需 `chrome-e2e-preflight.sh` + `ensure-myrm-chrome-e2e.sh`。
 
-环境变量：`E2E_UI_BASE`（默认 `http://127.0.0.1:3000`）、`E2E_API_BASE`（默认 `http://127.0.0.1:8080`）、`E2E_ADMIN_PASSWORD`、`MYRM_CHROME_E2E_FOREGROUND`（`1` = E2E Chrome 前台冷启；默认 macOS 后台）、`MYRM_CHROME_E2E_PORT`（默认 `9333`）、`MYRM_CHROME_APP` / `MYRM_CHROME_BIN`（自定义 Chrome 路径）。
+环境变量：`E2E_UI_BASE`（默认共享 dev UI `http://127.0.0.1:23000`，SSOT `e2e_core/dev_ports.py`）、`E2E_API_BASE`（默认共享 dev API `http://127.0.0.1:28080`）、`E2E_ADMIN_PASSWORD`、`MYRM_CHROME_E2E_FOREGROUND`（`1` = E2E Chrome 前台冷启；默认 macOS 后台）、`MYRM_CHROME_E2E_PORT`（默认 `9333`）、`MYRM_CHROME_APP` / `MYRM_CHROME_BIN`（自定义 Chrome 路径）。
 
 ## 依赖
 

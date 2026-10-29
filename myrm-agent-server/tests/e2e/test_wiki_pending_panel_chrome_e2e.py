@@ -21,7 +21,6 @@ UI-only diff.
 from __future__ import annotations
 
 import json
-import os
 import re
 import time
 from collections.abc import Callable
@@ -40,6 +39,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_wiki_settings_shell,
     warm_ui_route,
 )
+from e2e_core.dev_ports import current_api_base
 
 _MAX_ATTEMPTS = 2
 _PANEL_WAIT_SEC = 90.0
@@ -154,8 +154,7 @@ def _shared_api_url() -> str:
     must hit the same shared origin or the panel and the API readings split
     across two databases.
     """
-    port_raw = os.getenv("MYRM_BACKEND_PORT", "8080").strip()
-    return f"http://127.0.0.1:{port_raw if port_raw.isdigit() else '8080'}"
+    return current_api_base()
 
 
 def _api_pending_stats(api_url: str) -> dict[str, int]:

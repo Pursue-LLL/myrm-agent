@@ -22,6 +22,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
+from e2e_core.dev_ports import shared_api_base, shared_ui_base
 from e2e_core.resource_ledger import E2EResourceLedger as _E2EResourceLedger
 from e2e_session_runtime.heartbeat import heartbeat_once as _unified_heartbeat_once
 
@@ -492,8 +493,8 @@ def assert_e2e_runtime_unchanged(
 def assert_chrome_attach_health() -> None:
     """Fail fast when Chrome mux/CDP attach snapshot is unsafe for live UI E2E."""
     script = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib" / "e2e_core" / "runtime_identity.py"
-    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-    api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+    ui_base = os.environ.get("E2E_UI_BASE", shared_ui_base()).rstrip("/")
+    api_base = os.environ.get("E2E_API_BASE", shared_api_base()).rstrip("/")
     wait_sec = int(os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "180"))
     poll_sec = int(os.environ.get("MYRM_CHROME_E2E_ATTACH_POLL_SEC", "2"))
     if wait_sec < 0:

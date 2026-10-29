@@ -93,7 +93,7 @@ print(pid)
 }
 
 _frontend_port_listening() {
-  local port="${FRONTEND_PORT:-3000}"
+  local port="${FRONTEND_PORT:-$(dev_default_frontend_port)}"
   python3 -c '
 import socket, sys
 try:

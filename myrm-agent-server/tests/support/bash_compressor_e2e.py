@@ -16,6 +16,11 @@ from myrm_agent_harness.agent.meta_tools.bash._compression.output_compressor imp
 
 from tests.api.agent.utils import get_lite_model_selection, get_model_selection
 
+_DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_DEV_LIB) not in sys.path:
+    sys.path.insert(0, str(_DEV_LIB))
+from e2e_core.dev_ports import shared_api_base  # noqa: E402
+
 E2E_FILTERS_YAML = """filters:
   - name: e2e-filter-run
     match_command: 'run\\.sh'
@@ -26,7 +31,7 @@ E2E_FILTERS_YAML = """filters:
       - '^E2E_DEBUG:'
 """
 
-_DEFAULT_BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080").rstrip("/")
+_DEFAULT_BACKEND_URL = os.environ.get("BACKEND_URL", shared_api_base()).rstrip("/")
 
 
 def _ensure_scripts_dev_importable() -> None:

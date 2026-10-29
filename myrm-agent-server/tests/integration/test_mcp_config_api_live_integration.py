@@ -7,8 +7,9 @@ import time
 
 import httpx
 import pytest
+from e2e_core.dev_ports import shared_api_base
 
-_API_BASE = "http://127.0.0.1:8080"
+_API_BASE = shared_api_base()
 _PROBE_NAME = "cap-surface-api-probe"
 
 

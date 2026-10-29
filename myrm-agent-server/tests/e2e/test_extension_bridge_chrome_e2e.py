@@ -20,6 +20,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.extension_bridge_ws_stub import hold_extension_bridge_session
+from e2e_core.dev_ports import shared_backend_port
 
 _EXTENSION_BRIDGE_STATE = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');
@@ -288,7 +289,7 @@ def _wait_stub_tabs_visible(api_url: str, *, timeout_sec: float = 20.0) -> dict[
 def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-    api_port = urlparse(api_url).port or 8080
+    api_port = urlparse(api_url).port or shared_backend_port()
 
     status = http_json("GET", f"{api_url}/api/v1/extension/status")
     assert isinstance(status, dict)

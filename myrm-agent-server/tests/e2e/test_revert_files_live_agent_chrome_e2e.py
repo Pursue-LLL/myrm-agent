@@ -23,6 +23,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -66,7 +67,7 @@ def _touch_progress(node: str) -> None:
         pass
 
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 _FILE_EDIT_TOOL = "file_edit_tool"
 _FILE_WRITE_TOOL = "file_write_tool"

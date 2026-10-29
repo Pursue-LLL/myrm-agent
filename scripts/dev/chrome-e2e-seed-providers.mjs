@@ -4,7 +4,9 @@
  * Local dev: /api/v1/config works without WebUI session (see config/router.py local mode).
  */
 
-const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
+import { sharedApiBase } from './lib/dev-ports.mjs';
+
+const apiBase = process.env.E2E_API_BASE ?? sharedApiBase();
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'chrome-e2e';
 
 function resolveSeedTimeoutMs() {

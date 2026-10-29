@@ -4,14 +4,15 @@
  * [OUTPUT] stdout: E2E_PREPARE_JSON={ agentId, chatId, uiUrl, activeMoaPresetId, moaOverlayActive, moaRefDoneCount, apiBase }
  * UI phase: MCP chrome-devtools on real Chrome (not Playwright).
  *
- * Env: E2E_API_BASE (default http://127.0.0.1:8080), E2E_UI_BASE, E2E_MOA_PRESET_ID (default),
+ * Env: E2E_API_BASE (default: the shared dev API), E2E_UI_BASE, E2E_MOA_PRESET_ID (default),
  * E2E_MOA_STREAM_TIMEOUT_MS, BASIC_* from myrm-agent-server/.env.test
  */
 
 import { randomUUID } from 'node:crypto';
+import { sharedUiBase } from './lib/dev-ports.mjs';
 import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
 
-const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
+const uiBase = process.env.E2E_UI_BASE ?? sharedUiBase();
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
 const moaPresetId = process.env.E2E_MOA_PRESET_ID ?? 'default';
 const streamTimeoutMs = Number(process.env.E2E_MOA_STREAM_TIMEOUT_MS ?? 120_000);

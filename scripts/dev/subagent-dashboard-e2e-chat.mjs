@@ -8,9 +8,10 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { sharedUiBase } from './lib/dev-ports.mjs';
 import { apiBase, apiFetch, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
 
-const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
+const uiBase = process.env.E2E_UI_BASE ?? sharedUiBase();
 
 const E2E_BASH_EPHEMERAL = {
   bash_worker: {

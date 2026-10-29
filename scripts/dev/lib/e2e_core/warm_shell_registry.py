@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Iterator, Literal
 from urllib.parse import urlsplit, urlunsplit
 
+from e2e_core.dev_ports import is_shared_api_base, shared_ui_base
+
 BootstrapHotPath = Literal["reused", "fast_create", "cold", "skipped"]
 
 _DEFAULT_TTL_SEC = 300.0
@@ -302,7 +304,7 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
         from cdp_chat.support import get_open_page_api_url
 
         api_base = get_open_page_api_url().rstrip("/")
-        if api_base and api_base != "http://127.0.0.1:8080":
+        if api_base and not is_shared_api_base(api_base):
             return HotPathDecision(False, "private_api_base", True)
     except ImportError:
         pass
@@ -320,7 +322,7 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
 
         ui_origin = _ui_origin(get_e2e_ui_url())
     except ImportError:
-        ui_origin = "http://127.0.0.1:3000"
+        ui_origin = shared_ui_base()
 
     parsed = urlsplit(url.strip())
     url_origin = _ui_origin(url)

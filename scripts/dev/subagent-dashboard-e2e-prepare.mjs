@@ -2,7 +2,7 @@
 /**
  * [POS] P2c Subagent Dashboard E2E — API prepare (delegate + SSE subagent_start).
  * [OUTPUT] stdout JSON: { chatId, taskId, treeRow, uiUrl, apiBase }
- * UI phase: MCP chrome-devtools on real Chrome :3000 (not Playwright).
+ * UI phase: MCP chrome-devtools on real Chrome on the shared UI (not Playwright).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sharedUiBase } from './lib/dev-ports.mjs';
 import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
 
 const DIAG_LOG = '/tmp/subagent-prepare-diag.log';
@@ -22,7 +23,7 @@ function diag(message) {
   }
 }
 
-const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
+const uiBase = process.env.E2E_UI_BASE ?? sharedUiBase();
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
 const streamHoldMs = Number(process.env.E2E_HOLD_MS ?? 120_000);
 

@@ -12,7 +12,11 @@ import urllib.request
 from pathlib import Path
 
 _AGENT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_API_BASE = os.getenv("MYRM_API_BASE", "http://127.0.0.1:8080")
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+
+from e2e_core.dev_ports import shared_api_base  # noqa: E402
+
+DEFAULT_API_BASE = os.getenv("MYRM_API_BASE", shared_api_base())
 SEED_PATH = "/api/v1/skills/drafts/test/seed-mock"
 
 

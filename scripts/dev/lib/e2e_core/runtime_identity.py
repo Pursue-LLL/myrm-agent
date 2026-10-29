@@ -41,6 +41,12 @@ if __package__ in (None, ""):
     if _lib_root not in sys.path:
         sys.path.insert(0, _lib_root)
 
+from e2e_core.dev_ports import (
+    current_backend_port,
+    shared_api_base,
+    shared_backend_port,
+    shared_ui_base,
+)
 from e2e_core.real_user_home import real_user_home
 
 
@@ -268,7 +274,7 @@ def tcp_port_owner_pid(port: int) -> int | None:
 
 def _backend_port_owner(*, port: int | None = None) -> tuple[int | None, str]:
     """The backend port's owning pid and command (lsof/ps are the port-truth SSOT)."""
-    backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
+    backend_port = port if port is not None else current_backend_port()
     owner = tcp_port_owner_pid(backend_port)
     if owner is None:
         return None, ""
@@ -299,7 +305,7 @@ def foreign_backend_port_owner_description(
     """
     from e2e_core.dev_ownership import classify
 
-    backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
+    backend_port = port if port is not None else current_backend_port()
     owner, command = _backend_port_owner(port=backend_port)
     if owner is None:
         return ""
@@ -409,11 +415,6 @@ def format_attach_endpoint_failure(errors: list[str]) -> str:
     return "CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors)
 
 
-def _shared_backend_port() -> int:
-    raw = os.environ.get("MYRM_SHARED_BACKEND_PORT", "").strip()
-    return int(raw) if raw.isdigit() else 8080
-
-
 def _api_endpoint_error(api_base: str, *, timeout_sec: float) -> str | None:
     """`api=unreachable` | `api=foreign_listener` | None (healthy and ours).
 
@@ -425,7 +426,7 @@ def _api_endpoint_error(api_base: str, *, timeout_sec: float) -> str | None:
     host, port = _ui_probe_host_port(api_base)
     if (
         host in _LOOPBACK_HOSTS
-        and port == _shared_backend_port()
+        and port == shared_backend_port()
         and foreign_backend_port_owner_description(port=port, runtime_id="shared")
     ):
         return API_FOREIGN_LISTENER
@@ -1106,10 +1107,10 @@ def main() -> None:
         help="Probe mux/CDP/frontend paths (SSOT for preflight and runtime-drift)",
     )
     parser.add_argument(
-        "--ui", default=os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000")
+        "--ui", default=os.getenv("E2E_UI_BASE", shared_ui_base())
     )
     parser.add_argument(
-        "--api", default=os.getenv("E2E_API_BASE", "http://127.0.0.1:8080")
+        "--api", default=os.getenv("E2E_API_BASE", shared_api_base())
     )
     parser.add_argument("--mux-daemons", type=int, default=0)
     parser.add_argument("--upstream-ready", action="store_true")

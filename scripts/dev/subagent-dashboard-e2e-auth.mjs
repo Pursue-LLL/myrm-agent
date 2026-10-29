@@ -2,7 +2,9 @@
  * Shared WebUI auth + fetch helpers for P2c subagent dashboard E2E scripts.
  */
 
-export const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
+import { sharedApiBase } from './lib/dev-ports.mjs';
+
+export const apiBase = process.env.E2E_API_BASE ?? sharedApiBase();
 export const adminPassword = process.env.E2E_ADMIN_PASSWORD?.trim() || '';
 
 /** @type {import('node:http').Cookie[]} */

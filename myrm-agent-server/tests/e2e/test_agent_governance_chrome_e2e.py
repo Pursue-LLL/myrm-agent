@@ -34,6 +34,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+from e2e_core.dev_ports import shared_api_base
 
 _DIALOG_READY_JS = """(() => {
   const scope = document.getElementById('responsibility_scope');
@@ -88,7 +89,7 @@ def _api_base() -> str:
         base = get_e2e_api_url()
     except Exception:
         base = ""
-    return base.strip().rstrip("/") if base and base.strip() else "http://127.0.0.1:8080"
+    return base.strip().rstrip("/") if base and base.strip() else shared_api_base()
 
 
 def _api(path: str, method: str = "GET", body: dict | None = None) -> dict:

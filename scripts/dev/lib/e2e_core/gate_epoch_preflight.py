@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
+from e2e_core.dev_ports import shared_api_base, shared_ui_base
+
 
 class PreflightOutcome(StrEnum):
     OK = "OK"
@@ -357,8 +359,8 @@ def _build_signoff_stack_core_health_payload():
     from e2e_core.runtime_probe import probe_runtime_context
 
     ctx = probe_runtime_context()
-    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
-    api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080")
+    ui_base = os.environ.get("E2E_UI_BASE", shared_ui_base())
+    api_base = os.environ.get("E2E_API_BASE", shared_api_base())
     frontend_dir = Path(str(ctx["frontend_dir"])) if ctx.get("frontend_dir") else None
     profile_dir = Path(str(ctx["profile_dir"])) if ctx.get("profile_dir") else None
     cdp_port_raw = ctx.get("cdp_port")

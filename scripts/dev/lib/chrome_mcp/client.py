@@ -69,6 +69,7 @@ from dev_gate.contract import (
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
     TOOL_RETRY_ATTEMPTS,
 )
+from e2e_core.dev_ports import shared_ui_base
 from chrome_mcp.page_helpers import (
     _STALE_MUX_PAGE_TOKEN,
 )
@@ -1495,7 +1496,7 @@ class ChromeMcpClient:
                     "Execution context was destroyed" in message
                     or "detached Frame" in message
                 ):
-                    target_url = (resolved.url or "http://127.0.0.1:3000").strip()
+                    target_url = (resolved.url or shared_ui_base()).strip()
                     self.navigate(resolved, target_url, timeout_ms=60_000)
                     resolved = self._resolve_page(page)
                     continue

@@ -21,6 +21,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+from e2e_core.dev_ports import (
+    shared_api_base,
+    shared_backend_port,
+    shared_frontend_port,
+    shared_ui_base,
+)
+from e2e_core.real_user_home import real_user_home
 from e2e_core.runtime_identity import (
     RuntimeProbeContext,
     _default_chrome_data_dir,
@@ -31,8 +38,6 @@ from e2e_core.runtime_identity import (
     read_chrome_epoch,
     runtime_ids_equal,
 )
-
-from e2e_core.real_user_home import real_user_home
 
 
 def _default_frontend_dir() -> Path | None:
@@ -271,12 +276,12 @@ def _read_shared_hot_stack_runtime_id() -> str:
     overrides = {
         "MYRM_DEV_STATE_DIR": str(shared_state),
         "MYRM_STACK_EPOCH_FILE": str(shared_state / "stack-epoch.json"),
-        "MYRM_BACKEND_PORT": "8080",
-        "PORT": "8080",
-        "API_PORT": "8080",
-        "E2E_API_BASE": "http://127.0.0.1:8080",
-        "MYRM_FRONTEND_PORT": "3000",
-        "E2E_UI_BASE": "http://127.0.0.1:3000",
+        "MYRM_BACKEND_PORT": str(shared_backend_port()),
+        "PORT": str(shared_backend_port()),
+        "API_PORT": str(shared_backend_port()),
+        "E2E_API_BASE": shared_api_base(),
+        "MYRM_FRONTEND_PORT": str(shared_frontend_port()),
+        "E2E_UI_BASE": shared_ui_base(),
     }
     saved = {
         key: os.environ.get(key)

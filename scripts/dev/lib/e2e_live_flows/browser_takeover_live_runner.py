@@ -7,11 +7,12 @@ import os
 
 from cdp_chat.mcp_ui import McpChatSession
 from chrome_mcp.client import ChromeMcpClient, McpPage
+from e2e_core.dev_ports import shared_ui_base
 from e2e_core.resource_ledger import E2EResourceLedger
 
 from e2e_live_flows._flow_base import FlowLogger
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 
 async def run_browser_takeover_live_session(

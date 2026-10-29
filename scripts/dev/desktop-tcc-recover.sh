@@ -5,7 +5,7 @@
 # up. This script probes /webui/desktop/permissions and, only when Accessibility
 # is missing, TERM-kills the port owner and cold-starts via _start_backend_bg
 # from THIS shell so the new backend inherits the caller's TCC chain.
-# Usage: ./desktop-tcc-recover.sh [--port 8080]
+# Usage: ./desktop-tcc-recover.sh [--port=N]   (default: the dev stack backend port)
 # Idempotent: exits 0 without touching anything when Accessibility is granted.
 set -euo pipefail
 
@@ -19,7 +19,7 @@ source "${SCRIPT_DIR}/lib/backend_bg.sh"
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
-BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
+BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-$(dev_default_backend_port)}}"
 for arg in "$@"; do
   case "${arg}" in
     --port=*) BACKEND_PORT="${arg#--port=}" ;;

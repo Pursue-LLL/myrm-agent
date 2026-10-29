@@ -44,16 +44,19 @@ def _resolve_agent_root(explicit: str | None) -> Path:
 def resolve_paths(agent_root: str | None = None) -> StackPaths:
     root = _resolve_agent_root(agent_root)
     dev_dir = Path(__file__).resolve().parent.parent
-    dev_dir_str = str(dev_dir)
-    if dev_dir_str not in sys.path:
-        sys.path.insert(0, dev_dir_str)
+    for entry in (dev_dir, dev_dir / "lib"):
+        if str(entry) not in sys.path:
+            sys.path.insert(0, str(entry))
+    from e2e_core.dev_ports import default_backend_port, default_frontend_port
     from wave_orchestrator.paths import frontend_dist_dir, resolve_dev_state_dir
 
     state_dir = resolve_dev_state_dir()
     socket_override = os.environ.get("MYRM_SUPERVISOR_SOCKET", "").strip()
     supervisor_sock = Path(socket_override) if socket_override else state_dir / "supervisor.sock"
-    backend_port = int(os.environ.get("MYRM_BACKEND_PORT", os.environ.get("PORT", "8080")))
-    frontend_port = int(os.environ.get("MYRM_FRONTEND_PORT", "3000"))
+    backend_port = int(
+        os.environ.get("MYRM_BACKEND_PORT") or os.environ.get("PORT") or default_backend_port()
+    )
+    frontend_port = int(os.environ.get("MYRM_FRONTEND_PORT") or default_frontend_port())
     api_base = os.environ.get("E2E_API_BASE", f"http://127.0.0.1:{backend_port}").rstrip("/")
     app_url = os.environ.get("E2E_UI_BASE", f"http://127.0.0.1:{frontend_port}").rstrip("/")
     dev_scripts_override = os.environ.get("MYRM_DEV_SCRIPTS_DIR", "").strip()

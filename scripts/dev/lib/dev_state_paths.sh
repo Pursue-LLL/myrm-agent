@@ -34,6 +34,39 @@ dev_is_user_runtime() {
   [[ "$(dev_runtime_namespace)" == "${USER_RUNTIME_NAMESPACE}" ]]
 }
 
+# Default ports (mirrored by e2e_core/dev_ports.py and dev-ports.mjs; a contract test pins parity).
+# The user's stack and the desktop sidecar keep the product defaults; the shared dev stack lives
+# on disjoint ports so a dev start, restart or port cleanup can never land on a user's listener.
+USER_RUNTIME_BACKEND_PORT=8080
+USER_RUNTIME_FRONTEND_PORT=3000
+SHARED_STACK_BACKEND_PORT=28080
+SHARED_STACK_FRONTEND_PORT=23000
+
+dev_shared_backend_port() {
+  printf '%s' "${MYRM_SHARED_BACKEND_PORT:-${SHARED_STACK_BACKEND_PORT}}"
+}
+
+dev_shared_frontend_port() {
+  printf '%s' "${MYRM_SHARED_FRONTEND_PORT:-${SHARED_STACK_FRONTEND_PORT}}"
+}
+
+# Port a runtime binds when it was not handed one explicitly.
+dev_default_backend_port() {
+  if dev_is_user_runtime; then
+    printf '%s' "${USER_RUNTIME_BACKEND_PORT}"
+  else
+    dev_shared_backend_port
+  fi
+}
+
+dev_default_frontend_port() {
+  if dev_is_user_runtime; then
+    printf '%s' "${USER_RUNTIME_FRONTEND_PORT}"
+  else
+    dev_shared_frontend_port
+  fi
+}
+
 # State root of the real user's stack: disjoint from the maintainers' `myrm-dev` state dir so
 # pid files, locks and the supervisor of the two stacks can never overwrite each other.
 user_runtime_state_dir() {

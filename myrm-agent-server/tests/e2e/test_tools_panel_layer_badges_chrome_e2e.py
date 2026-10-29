@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -52,7 +53,7 @@ _RECOVER_HITL_JS = """((chatId) => {
   return bridge.recoverHitlStream(String(chatId || ''));
 })"""
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 
 _MAX_ATTEMPTS = 2
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (

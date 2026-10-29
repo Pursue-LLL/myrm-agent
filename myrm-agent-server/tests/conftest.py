@@ -18,6 +18,10 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent
 _HARNESS_SRC = _SERVER_ROOT.parent / "myrm-agent-harness" / "src"
 if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(_HARNESS_SRC))
+# Dev-stack libraries (e2e_core, dev_gate, ...) must be importable before any tests.support module.
+_DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
+if str(_DEV_LIB) not in sys.path:
+    sys.path.insert(0, str(_DEV_LIB))
 
 
 def _isolate_test_data_dir() -> None:
@@ -63,9 +67,6 @@ from tests.support.e2e_runtime_guard import (
 )
 from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_secrets
 
-_DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
-if str(_DEV_LIB) not in sys.path:
-    sys.path.insert(0, str(_DEV_LIB))
 from dev_gate.contract import (  # noqa: E402
     chrome_e2e_pytest_timeout_floor,
     chrome_e2e_session_lane_from_profile,

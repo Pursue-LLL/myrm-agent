@@ -17,6 +17,12 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from dev_gate.contract import EvaluateIntent
+from e2e_core.dev_ports import (
+    current_api_base,
+    current_backend_port,
+    shared_api_base,
+    shared_ui_base,
+)
 from e2e_core.real_user_home import real_user_home
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
@@ -29,9 +35,7 @@ def _is_shared_dev_api_url(url: str) -> bool:
     hostname = (parsed.hostname or "").strip().lower()
     if hostname not in _LOOPBACK_HOSTS:
         return False
-    port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
-    port = int(port_raw) if port_raw.isdigit() else 8080
-    return (parsed.port or 80) == port
+    return (parsed.port or 80) == current_backend_port()
 
 
 def _connection_refused(exc: BaseException) -> bool:
@@ -90,15 +94,15 @@ def _validate_loopback_http_url(url: str) -> None:
 
 def get_e2e_api_url() -> str:
     return _normalize_loopback_http_origin(
-        os.getenv("E2E_API_BASE", "http://127.0.0.1:8080"),
+        os.getenv("E2E_API_BASE", shared_api_base()),
         env_name="E2E_API_BASE",
     )
 
 
 def get_open_page_api_url() -> str:
-    """Orchestrator page-open API base — epoch pin uses E2E_API_BASE; else SHARED hot :8080.
+    """Orchestrator page-open API base — epoch pin uses E2E_API_BASE; else SHARED hot API.
 
-    :8080 is a sentinel for SHARED+RESOURCE_WRITE: skip CDP API inject and rely on
+    The shared API is a sentinel for SHARED+RESOURCE_WRITE: skip CDP API inject and rely on
     Next.js rewrites (including isolated stacks on custom UI/API ports).
     """
     try:
@@ -111,7 +115,7 @@ def get_open_page_api_url() -> str:
     mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
     lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
     if mode == "SHARED" and lane == "RESOURCE_WRITE":
-        return "http://127.0.0.1:8080"
+        return shared_api_base()
     return get_e2e_api_url()
 
 
@@ -438,9 +442,8 @@ def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
 
 
 def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
-    """Block until shared dev :8080 accepts health probes (parallel E2E may reload it)."""
-    port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
-    api = f"http://127.0.0.1:{port_raw if port_raw.isdigit() else 8080}".rstrip("/")
+    """Block until the shared dev API accepts health probes (parallel E2E may reload it)."""
+    api = current_api_base()
     health = f"{api}/api/v1/health"
     resolved_attempts = max_attempts
     if resolved_attempts is None:
@@ -479,7 +482,7 @@ def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
 
 def get_e2e_ui_url() -> str:
     return _normalize_loopback_http_origin(
-        os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000"),
+        os.getenv("E2E_UI_BASE", shared_ui_base()),
         env_name="E2E_UI_BASE",
     )
 
@@ -1858,15 +1861,12 @@ def wait_e2e_cdp_ready(
     return False
 
 
-_SHARED_HOT_E2E_API_BASE = "http://127.0.0.1:8080"
-
-
 def shared_hot_e2e_api_base() -> str:
-    """Shared dev-stack API (:8080). Never the SHPOIB-monkeypatched ``E2E_API_BASE``."""
+    """Shared dev-stack API. Never the SHPOIB-monkeypatched ``E2E_API_BASE``."""
     explicit = os.getenv("MYRM_SHARED_E2E_API_BASE", "").strip()
     if explicit:
         return explicit.rstrip("/")
-    return _SHARED_HOT_E2E_API_BASE
+    return shared_api_base()
 
 
 def _yolo_security_payload(current: dict[str, object]) -> dict[str, object]:
@@ -2203,7 +2203,7 @@ PUT_E2E_CLEAR_SEARCH_CONFIG_JS = """(async () => {
 
 PUT_E2E_YOLO_CONFIG_JS = """(async () => {
   const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
-  const sharedApi = 'http://127.0.0.1:8080';
+  const sharedApi = '__SHARED_API_BASE__';
   const targets = [...new Set([privateApi, sharedApi].filter(Boolean))];
   if (targets.length === 0) {
     return { ok: false, err: 'no-api-base' };
@@ -2270,11 +2270,11 @@ PUT_E2E_YOLO_CONFIG_JS = """(async () => {
   } catch (error) {
     return { ok: false, err: String(error), targets };
   }
-})()"""
+})()""".replace("__SHARED_API_BASE__", shared_api_base())
 
 PUT_E2E_HITL_CONFIG_JS = """(async () => {
   const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
-  const sharedApi = 'http://127.0.0.1:8080';
+  const sharedApi = '__SHARED_API_BASE__';
   const targets = [...new Set([privateApi, sharedApi].filter(Boolean))];
   if (targets.length === 0) {
     return { ok: false, err: 'no-api-base' };
@@ -2345,7 +2345,7 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
   } catch (error) {
     return { ok: false, err: String(error), targets };
   }
-})()"""
+})()""".replace("__SHARED_API_BASE__", shared_api_base())
 
 
 def _browser_hitl_pin_transient_failure(observed: dict[str, object]) -> bool:

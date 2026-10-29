@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import pytest
+from e2e_core.dev_ports import shared_ui_base
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -83,7 +84,7 @@ def _parse_browser_eval(raw: object) -> dict[str, object]:
     return {"value": raw}
 
 
-BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")
 _BASH_TOOL = "bash_code_execute_tool"
 # Must be UNKNOWN risk (not SAFE like echo) or engine auto-allows without HITL dialog.
 # Use a syntactically valid URL so the live model executes curl; connection refused is OK.
