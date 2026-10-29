@@ -37,7 +37,6 @@ _CHECKED_BY: dict[str, str] = {
     "app/services/chat/share_renderer.py": "tests/services/chat/test_chat_share_renderer_presentation.py",
     "app/services/hosting/decryptor_shell.py": "tests/services/hosting/test_decryptor_shell_contrast.py",
     "app/services/hosting/viewer_scaffold.py": "tests/services/hosting/test_viewer_scaffold_contrast.py",
-    "app/services/session_export/interactive_html_compiler.py": "tests/services/session_export/test_interactive_html_compiler.py",
 }
 
 # Modules that mention an HTML tag without writing a page a browser shows.

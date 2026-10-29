@@ -2,8 +2,7 @@
 
 [INPUT]
 - the page's inline ``<style>`` block (POS: the server-rendered pages built by ``share_renderer``,
-  ``share_password_page``, ``share_status_page``, the hosting ``decryptor_shell`` and the session export
-  ``interactive_html_compiler``)
+  ``share_password_page``, ``share_status_page`` and the hosting ``decryptor_shell``)
 
 [OUTPUT]
 - stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme;

@@ -189,7 +189,6 @@ Called from other HTTP trees or lifecycle hooks:
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
-| `session_export/` | `api/chats/session_export_router.py` — single-file HTML export, credential redaction, share link |
 | `swarm/` | `api/chats/chat/swarm_hud.py` — swarm session config, recalled-rules HUD, owner-action checklist |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 | `models/` | `api/config/model_overrides_router.py` — model capability, context configuration and pricing overrides |

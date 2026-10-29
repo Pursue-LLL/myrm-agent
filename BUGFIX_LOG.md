@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 删除没有产品入口的旧会话导出弹窗整套代码（含 3 条无人调用的服务端路由，其中一条签发的分享地址无处可打开）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（删除：server `app/api/chats/session_export_router.py`、`app/services/session_export/`、对应测试 10 个文件共 1182 行；frontend `src/components/features/session-export/` 10 个文件共 1194 行、六个语言文件里的 `sessionExport` 文案块；更新：`app/api/router.py`、`tests/architecture` 两处登记、`tests/support/wcag_contrast.py` 说明、六处 `_ARCH.md` / `CONTRIBUTING.md`、简体字形集合文件） |
+| **症状** | ① 服务端挂着 3 条会话导出路由 `POST /chats/{chat_id}/export/{interactive-html,redact-preview,share-link}`，前端唯一的调用方是 `session-export/` 目录里的弹窗，而这个目录没有任何目录外的引用，用户界面里点不到。② 其中 `share-link` 只签发令牌并拼出 `{base}/share/{token}`，不写 `share_token_fingerprint`；前端没有 `src/app/share` 页面、`next.config.ts` 里也没有对应改写，没有找到任何提供这个地址的位置；真正能用的分享走 `POST /chats/{chat_id}/share`。③ 其中 `redact-preview` 与分享页脱敏曾被当作「可复用的检测引擎」引用，但它对常见凭据只命中约三分之一（见同日「分享页脱敏」条目），继续留着会误导后来的人复用它。④ 实际在用的导出走 `chat-window/SessionExportModal` 与 `GET /chats/{chat_id}/export`，与这套代码没有共享实现。 |
+| **根因** | 两道门禁各自通过、没人把它们连起来看：服务端的路由调用方检查（`tests/architecture/test_api_route_consumers.py`）只要前端源码里出现该路径的字面量就算有调用方，弹窗服务里的 3 个路径字面量让这 3 条路由一直算「有调用方」；而弹窗本身没有入口，只被自己目录的 `index.ts` 再导出，前端孤儿模块门禁把它记在存量里（路线图 topic_09 #425 点名了 `SessionExportShareModal`，并写明它已被 `SessionExportButton` 这一实现取代）。 |
+| **修复** | 整套删除而不是保留兼容：服务端路由、服务层、`SecretRedactor`、交互式 HTML 编译器与测试；前端的弹窗、凭据预览、分享面板、服务与类型；`sessionExport` 文案块在六个语言文件里整块移除，简体字形集合文件随语料重新生成；`app/api/router.py` 去掉导入与挂载；架构测试里 HTML 页面配色登记与服务目录词表各去掉一项；路线图里引用这些路径的位置改为指向现役实现或加上「已删除」标记。 |
+| **回归证据** | [1] 路由表前后对比（用 FastAPI 的 OpenAPI 生成结果，按「方法 + 路径 + operationId」排序后逐行比较）：1336 个路径 / 1474 个操作 → 1333 / 1471，差异恰好是上面 3 个操作，其余 1471 个一行不差。[2] 全仓库按路径、类名、文件名、路由与文案命名空间搜索，已无残留引用（唯一命中是 harness 里无关的 `test_local_secret_redactor`）。[3] `verify:i18n`（含「代码引用检查」3578 个文件无缺失键）、`verify:icu-syntax`、`verify:theme-colors`、`verify:stable-mocks`、`generate-simplified-glyphs.mjs --check` 通过，前端 `tsc --noEmit` 无错误（退出码 0）；实际在用的导出路径（`SessionExportModal`、`SessionExportButton`、`lib/utils/chat-export`）8 个测试文件 159 例通过；server `tests/api/chats`、`tests/services/chat`、`tests/core/security`、`tests/services/hosting` 共 1389 例通过（另有 `test_rich_media_preview_seed_fixture.py` 7 例本次之前就失败，已排除）。[4] `tests/architecture`：11 例失败、2875 例通过，失败项均为本次之前就存在的路由无调用方、前端调用未被服务端提供、数据目录与 harness 依赖基线，没有与导出相关的条目。 |
+| **仍然存在** | ① 引用这套代码的历史记录（本文件更早的条目、路线图里带日期的评审段落）保留原样，它们描述的是当时的状态。② 没有在真实浏览器里重新走一遍导出弹窗，「没有入口」只靠全仓库搜索与类型检查确认。③ 只查了仓库内的前端配置，没有查部署层（反向代理）是否改写过 `/share/{token}`。④ 架构测试里那 11 个既有失败不在本次范围内。 |
+| **代码位置** | 删除处：`myrm-agent-server/app/api/chats/session_export_router.py`、`app/services/session_export/`；`app/api/router.py`（导入与挂载各一行）· `tests/architecture/test_html_pages_contrast_gate.py`、`test_api_services_vocabulary.py` |
+
 ## 2026-10-29 · 对话分享：连续创建两次链接后，第一条链接撤销不掉，并在再次分享后复活
 
 | 字段 | 内容 |

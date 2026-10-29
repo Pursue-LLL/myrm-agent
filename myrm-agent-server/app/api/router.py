@@ -27,7 +27,6 @@ from app.api.budget import budget_router
 from app.api.chats import router as chat_router
 from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.chats.group_chat_router import router as group_chat_router
-from app.api.chats.session_export_router import router as session_export_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
 from app.api.commerce.spending_router import router as commerce_spending_router
@@ -199,7 +198,6 @@ api_router.include_router(external_agents_router, prefix="/external-agents", tag
 # 核心业务
 api_router.include_router(approvals_router)
 api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
-api_router.include_router(session_export_router)
 api_router.include_router(group_chat_router)
 api_router.include_router(project_router, prefix="/projects", tags=["projects"])
 api_router.include_router(files_router, prefix="/files", tags=["files"])

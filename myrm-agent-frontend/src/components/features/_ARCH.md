@@ -63,7 +63,6 @@
 | `roi-dashboard/`                              | 智能体可量化 ROI 生产力大盘与已节省时间价值看板（显性化工时大盘、投入产出比、任务分类贡献与高收益预置流程） | [_ARCH.md](roi-dashboard/_ARCH.md)                                               |
 | `extension-widgets/`                          | 扩展小组件 ANSI 颜色渲染器与微型组件挂载宿主（Nano-Context 上下文占用表、Todo 任务清单） | [_ARCH.md](extension-widgets/_ARCH.md)                                           |
 | `model-tester/`                               | 模型配置一键测速与连通性自检器（首字延迟 TTFT、TPS 吞吐量、呼吸状态健康徽标） | [_ARCH.md](model-tester/_ARCH.md)                                                 |
-| `session-export/`                            | 全量会话交互式单文件 HTML 导出器与脱敏加密一键分享桥（零外部依赖 Standalone HTML、敏感凭据自动脱敏、折叠卡片与代码复制） | [_ARCH.md](session-export/_ARCH.md)                                               |
 | `runtime/`                                  | 纯函数式多端状态投影中枢、实时运行时控制台与 Attempt 状态变迁透视抽屉（Quad-Surface 视图切换、Attempt 水位线与故障诊断） | [_ARCH.md](runtime/_ARCH.md)                                                     |
 | `browser-annotation/`                       | 内置预览浏览器「点选圈批」与 DOM/CSS 元素精准批注系统（选区高亮、编号 Pin、DOM 特征提取、脱敏与子树分组并行修复） | [_ARCH.md](browser-annotation/_ARCH.md)                                           |
 | `workspace-cockpit/`                        | 个人数字员工工作区总控驾驶舱（“你不在的时候”离线成果统计、4 泳道任务流、实时 streaming tail 与悬浮会话托盘） | [_ARCH.md](workspace-cockpit/_ARCH.md)                                             |
