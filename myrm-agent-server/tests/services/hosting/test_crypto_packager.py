@@ -1,16 +1,22 @@
+import base64
 import json
+import secrets
 
 import pytest
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from app.services.hosting.crypto_packager import (
     _decrypt_payload,
+    _encrypt_payload,
     package_encrypted_publish_files,
 )
 from app.services.hosting.packager import PublishFile
 
 
-def test_crypto_packager_roundtrip():
+def test_crypto_packager_roundtrip() -> None:
     files = {
         "index.html": PublishFile(
             path="index.html",
@@ -63,7 +69,7 @@ def test_crypto_packager_roundtrip():
     assert vfs["data.json"]["content"] == files["data.json"].content
 
 
-def test_crypto_packager_wrong_password():
+def test_crypto_packager_wrong_password() -> None:
     files = {
         "index.html": PublishFile(
             path="index.html",
@@ -81,7 +87,7 @@ def test_crypto_packager_wrong_password():
         _decrypt_payload(encrypted_dict, "WrongPassword")
 
 
-def test_crypto_packager_empty_password():
+def test_crypto_packager_empty_password() -> None:
     files = {
         "index.html": PublishFile(
             path="index.html",
@@ -93,7 +99,7 @@ def test_crypto_packager_empty_password():
     assert result == files
 
 
-def test_crypto_packager_binary_asset_roundtrip():
+def test_crypto_packager_binary_asset_roundtrip() -> None:
     # Base64 encoded 1x1 transparent PNG
     png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
     files = {
@@ -124,7 +130,7 @@ def test_crypto_packager_binary_asset_roundtrip():
     assert vfs["logo.png"]["content"] == png_b64
 
 
-def test_crypto_packager_xss_prevention_in_title():
+def test_crypto_packager_xss_prevention_in_title() -> None:
     files = {
         "index.html": PublishFile(
             path="index.html",
@@ -138,12 +144,12 @@ def test_crypto_packager_xss_prevention_in_title():
 
     # Raw script tags in title must be escaped
     assert "<script>alert('xss')</script>" not in entry_content
-    assert "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;" in entry_content or "&lt;script&gt;" in entry_content
+    assert "<title>&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;&quot;&amp;&#x27;&lt;h1&gt;</title>" in entry_content
     assert "checkSecureContext" in entry_content
-    assert "Security Notice: Web Cryptography requires a Secure Context" in entry_content
+    assert "can only be unlocked over a secure connection" in entry_content
 
 
-def test_crypto_packager_css_cascade_topological_resolution():
+def test_crypto_packager_css_cascade_topological_resolution() -> None:
     """Verify that CSS cascade replacement logic and TextDecoder are properly embedded."""
     png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
     files = {
@@ -192,3 +198,21 @@ def test_crypto_packager_css_cascade_topological_resolution():
     assert "bg.png" in vfs
     assert "icons/arrow.svg" in vfs
     assert vfs["style.css"]["content"] == files["style.css"].content
+
+
+def test_the_key_stretching_meets_the_owasp_floor_for_pbkdf2_sha256() -> None:
+    """The ciphertext sits on public hosting, so the iteration count is all that slows an offline password guess."""
+    assert int(_encrypt_payload(b"x", "Pass1234")["iterations"]) >= 600_000
+
+
+def test_a_payload_is_opened_with_the_iteration_count_it_carries() -> None:
+    """Pages published before the count was raised carry their own, and still open."""
+    salt, nonce = secrets.token_bytes(16), secrets.token_bytes(12)
+    key = PBKDF2HMAC(algorithm=SHA256(), length=32, salt=salt, iterations=100_000).derive(b"Pass1234")
+    legacy = {
+        "salt": base64.b64encode(salt).decode(),
+        "nonce": base64.b64encode(nonce).decode(),
+        "ciphertext": base64.b64encode(AESGCM(key).encrypt(nonce, b"legacy", None)).decode(),
+        "iterations": "100000",
+    }
+    assert _decrypt_payload(legacy, "Pass1234") == b"legacy"

@@ -19,8 +19,8 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `publication_store.py` | ✅ 核心 | `artifact_publications` 表 CRUD |
 | `packager.py` | ✅ 核心 | Vault 收集 + HTML 依赖解析 + 单 HTML 入口智能归一化 + 敏感目录排除 |
 | `viewer_scaffold.py` | ✅ 核心 | 单文件文档（PDF/Excel/Word/Markdown/图片）自适应阅读器外壳生成与 `index.html` 脚手架 |
-| `crypto_packager.py` | ✅ 核心 | 静态产物零知识密码加密封包（VFS 序列化 + PBKDF2 / AES-256-GCM 加密，密文交给 `decryptor_shell.py` 注入解锁页） |
-| `decryptor_shell.py` | ✅ 核心 | 访客侧解锁页（口令卡片 + Web Crypto 解密并挂载的脚本，含两阶段 CSSOM 拓扑资源解析与安全上下文预检） |
+| `crypto_packager.py` | ✅ 核心 | 静态产物零知识密码加密封包（VFS 序列化 + PBKDF2 / AES-256-GCM 加密，密文交给 `decryptor_shell.py` 注入解锁页；PBKDF2 迭代 600k，取 OWASP 对 PBKDF2-HMAC-SHA256 的下限，迭代数写进每份载荷，旧页面照旧可解） |
+| `decryptor_shell.py` | ✅ 核心 | 访客侧解锁页（口令卡片 + Web Crypto 解密并挂载的脚本，含两阶段 CSSOM 拓扑资源解析与安全上下文预检；输入去首尾空白后再派生密钥，因为发布方加密前已 `strip`；两条提示带 `role="alert"`，文案不出现机制名词；所有颜色都写在样式表里，脚本与行内样式不设颜色，由 `test_decryptor_shell_contrast.py` 守卫；`<title>` 经 `html.escape`） |
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用；vault 对象从 artifact 所属会话的工作区读取 |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |

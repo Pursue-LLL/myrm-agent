@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -21,6 +22,13 @@ router = APIRouter(prefix="/webui", tags=["webui"])
 router.include_router(webui_auth_router)
 router.include_router(vnc_router)
 
+# ``/welcome`` is served without login and writes the host into HTML and script, so only
+# hostname and IP-literal characters are accepted (empty keeps the local-IP default).
+HostParam = Annotated[
+    str | None,
+    Query(max_length=255, pattern=r"^[A-Za-z0-9._:\[\]-]*$", description="Hostname or IP literal"),
+]
+
 
 @router.get("/og-metadata")
 async def get_og_metadata(url: str = Query(..., description="URL to fetch OG metadata for")) -> JSONResponse:
@@ -33,7 +41,7 @@ async def get_og_metadata(url: str = Query(..., description="URL to fetch OG met
 
 @router.get("/qrcode.png")
 async def get_qrcode_image_endpoint(
-    host: str | None = None,
+    host: HostParam = None,
     port: int | None = None,
     url: str | None = None,
 ) -> Response:
@@ -83,7 +91,7 @@ async def get_qrcode_image_endpoint(
 
 @router.get("/welcome", response_class=HTMLResponse)
 async def welcome_page(
-    host: str | None = None,
+    host: HostParam = None,
     port: int | None = None,
 ) -> str:
     """欢迎页面（显示二维码和访问信息）
@@ -528,7 +536,7 @@ async def list_desktop_trusted_apps() -> JSONResponse:
     from app.ai_agents.desktop_control.trust_store import list_trusted_desktop_apps
     from app.platform_utils.workspace_root import get_workspace_root
 
-    apps = list_trusted_desktop_apps(workspace_root=get_workspace_root())
+    apps = list_trusted_desktop_apps(workspace_root=str(get_workspace_root()))
     return JSONResponse(content={"apps": apps})
 
 
@@ -543,7 +551,7 @@ async def revoke_desktop_trusted_app(body: DesktopTrustRevokeBody) -> JSONRespon
     from app.platform_utils.workspace_root import get_workspace_root
 
     revoked = revoke_trusted_desktop_app(
-        workspace_root=get_workspace_root(),
+        workspace_root=str(get_workspace_root()),
         trust_key=body.trust_key,
     )
     if not revoked:

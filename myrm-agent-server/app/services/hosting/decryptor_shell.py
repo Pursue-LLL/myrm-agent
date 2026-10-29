@@ -15,13 +15,14 @@ ciphertext embedded by ``crypto_packager``.
 
 from __future__ import annotations
 
+import html
 import json
 
 
 def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protected Artifact") -> str:
     """Generate standalone HTML decryptor shell using browser-native Web Crypto API."""
     data_json = json.dumps(encrypted_data)
-    safe_title = title.replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    safe_title = html.escape(title)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -103,6 +104,17 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
       color: #f87171;
       display: none;
     }}
+    .notice {{
+      text-align: left;
+      line-height: 1.4;
+      color: #fbbf24;
+      background: #36302a;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+    }}
+    body.unlocked {{ background: #fff; }}
+    .fatal {{ margin: 0; padding: 2rem; font-size: 1rem; color: #b91c1c; }}
     #app-container {{
       display: none;
       width: 100vw;
@@ -139,8 +151,8 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
         <input type="password" id="pass-input" placeholder="Enter password..." autocomplete="current-password" autofocus required />
       </div>
       <button type="submit" id="unlock-btn">Unlock & View</button>
-      <div class="error" id="error-msg">Incorrect password or corrupted data.</div>
-      <div class="error" id="env-error-msg" style="color: #fbbf24; text-align: left; line-height: 1.4; border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.1); padding: 0.75rem; border-radius: 0.5rem; display: none;"></div>
+      <div class="error" id="error-msg" role="alert">Incorrect password. Please check it and try again.</div>
+      <div class="error notice" id="env-error-msg" role="alert"></div>
     </form>
   </div>
   <iframe id="app-container" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
@@ -156,7 +168,7 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
         const passInput = document.getElementById("pass-input");
         if (envErr) {{
           envErr.style.display = "block";
-          envErr.textContent = "Security Notice: Web Cryptography requires a Secure Context (HTTPS or localhost). If you are viewing over plain HTTP, please access via HTTPS or save this file and open it locally in your browser.";
+          envErr.textContent = "This page can only be unlocked over a secure connection. Open the link that starts with https://, or save this page and open it from your computer.";
         }}
         if (btn) btn.disabled = true;
         if (passInput) passInput.disabled = true;
@@ -204,20 +216,20 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
       const input = document.getElementById("pass-input");
       const btn = document.getElementById("unlock-btn");
       const error = document.getElementById("error-msg");
-      const password = input.value;
+      const password = input.value.trim();
       if (!password) return;
 
       if (!checkSecureContext()) return;
 
       btn.disabled = true;
-      btn.textContent = "Decrypting...";
+      btn.textContent = "Unlocking...";
       error.style.display = "none";
 
       try {{
         const salt = b64ToBuf(encryptedData.salt);
         const nonce = b64ToBuf(encryptedData.nonce);
         const ciphertext = b64ToBuf(encryptedData.ciphertext);
-        const iterations = parseInt(encryptedData.iterations || "100000", 10);
+        const iterations = parseInt(encryptedData.iterations, 10);
 
         const key = await deriveKey(password, salt, iterations);
         const decrypted = await crypto.subtle.decrypt(
@@ -240,13 +252,13 @@ def render_decryptor_shell(encrypted_data: dict[str, str], title: str = "Protect
 
     function renderVfs(vfs) {{
       document.getElementById("lock-card").style.display = "none";
-      document.body.style.background = "#fff";
+      document.body.classList.add("unlocked");
       const iframe = document.getElementById("app-container");
       iframe.style.display = "block";
 
       const entryFile = vfs["index.html"] || vfs[Object.keys(vfs).find(k => k.endsWith(".html"))];
       if (!entryFile) {{
-        document.body.innerHTML = "<p style='padding:2rem;color:red'>No entry HTML found in bundle.</p>";
+        document.body.innerHTML = "<p class='fatal'>This page has no content to show.</p>";
         return;
       }}
 

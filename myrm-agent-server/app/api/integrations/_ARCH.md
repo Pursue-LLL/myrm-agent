@@ -19,7 +19,7 @@
 | `mcp_probe_registry.py` | 模块 | MCP Registry 搜索/详情代理（`/registry/search`、`/registry/detail`）与本地连通性探测 `/probe`（返回 `reason_code/recommended_mode/should_block_connect` 结构化语义，支持 cloud loopback guard UX）；同时承载 verify/scan 响应 DTO（`MCPVerifyData`/`MCPScanData`，扫描最高严重度按风险序而非标签字典序）。 | ✅ |
 | `google_workspace_oauth.py` | 模块 | Google Workspace OAuth 2.0 + PKCE；readonly/write tier；写入 oauthCredentials（不含 client_secret） | ✅ |
 | `google_workspace_oauth_flow.py` | 模块 | OAuth PKCE 会话态、scope tier、redirect 解析与 Google userinfo 辅助 | ✅ |
-| `mcp_oauth.py` | 模块 | MCP OAuth 2.0 + PKCE authorization flow API. | ✅ |
+| `mcp_oauth.py` | 模块 | MCP OAuth 2.0 + PKCE authorization flow API；回调页里来自查询串与网络错误的文本一律 `html.escape`。 | ✅ |
 | `model_specs.py` | 模块 | Settings Hardware Cookbook 使用的 Ollama 模型规格数据源。 | ✅ |
 | `oauth.py` | 模块 | OAuth 凭证管理 API。提供个人 SaaS 集成凭证的加密存储、查询和撤销，支持断开时可选清除同步数据；列表项带 `renewable`（访问令牌可自行续期）与 `needs_reauth`（供应商已永久拒绝刷新令牌），只读已存凭证与进程内失败记忆、不发起网络请求。 | ✅ |
 | `xai_oauth.py` | 模块 | xAI OAuth device-code 登录（仅 `/start`、`/poll`）；SuperGrok 订阅授权；`/poll` 把 RFC 8628 的 `slow_down` / `expired_token` / `access_denied` 映射为客户端据以行动的 `pending` / `expired` / `denied`；待完成的流程只存在于本进程内存，进程不持有该流程时 `/poll` 返回 404；复用 oauth_store 持久化 | ✅ |

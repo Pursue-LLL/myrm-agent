@@ -5,6 +5,7 @@
 [INPUT]
 - app.services.hosting.registry (POS: provider lookup by target type)
 - app.services.hosting.viewer_scaffold::ensure_viewer_wrapper_for_payload (POS: viewer scaffolding)
+- app.services.hosting.crypto_packager::package_encrypted_publish_files (POS: password-protected payload packaging)
 
 [OUTPUT]
 - publish_artifact_to_target: end-to-end publication orchestration

@@ -510,7 +510,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/statistics/test_usage_aggregation_savings.py` | 模块 | 路由省钱估算：按 token 加权的金标准值、路由更贵/标准档样本不足/无标准档 token 时隐藏、`aggregate_usage` 端到端 |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate.py` | 模块 | HITL pending 审批守卫单元测（5 态：pending 拦截 / 0 pending 放行 / resume 绕过 / store 异常 fail-open / 无 chat_id 跳过） |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate_integration.py` | 模块 | HITL pending 审批守卫真 DB 集成（关键路径禁 mock：真 `ApprovalRecord` → 真 `count_pending_for_chat` → SSE AgentBusyError 且预留前触发；APPROVED/growth/他 chat 不拦；resume 带真 pending 放行） |
-| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测；`test_decryptor_shell_contrast.py` 与 `test_viewer_scaffold_contrast.py` 钉住加密发布解锁页、文档查看器的文字、按钮、输入框边缘与聚焦标记对比度 |
+| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测；`test_decryptor_shell_contrast.py` 与 `test_viewer_scaffold_contrast.py` 钉住加密发布解锁页、文档查看器的文字、按钮、输入框边缘与聚焦标记对比度（解锁页另守卫「颜色只写在样式表里」）；`test_decryptor_shell.py` 钉住解锁页的提示播报、输入去空白、文案无机制名词与标题转义；`test_crypto_packager.py` 钉住 PBKDF2 迭代下限与「按载荷自带迭代数解密」 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist / tailscale_guard 单测（21 文件） |

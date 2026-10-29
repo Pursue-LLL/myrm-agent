@@ -11,11 +11,13 @@ Covers:
 
 from __future__ import annotations
 
+import html
 import time
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,7 +38,7 @@ def client() -> Iterator[TestClient]:
 
 
 @pytest.fixture(autouse=True)
-def _clean_pending_auth():
+def _clean_pending_auth() -> Iterator[None]:
     """Reset module-level _pending_auth state between tests."""
     from app.api.integrations.mcp_oauth import _pending_auth
 
@@ -196,6 +198,34 @@ class TestCallbackEndpoint:
         )
         assert resp.status_code == 400
         assert "User denied" in resp.text
+
+    def test_callback_error_text_is_escaped(self, client: TestClient) -> None:
+        """The provider's error text arrives in the query string, so anyone can put markup there."""
+        payload = '<img src=x onerror="alert(1)">'
+        resp = client.get(
+            f"{API_PREFIX}/callback",
+            params={"code": "c", "state": "s", "error": "access_denied", "error_description": payload},
+        )
+        assert resp.status_code == 400
+        assert payload not in resp.text
+        assert html.escape(payload) in resp.text
+
+    def test_callback_network_error_text_is_escaped(self, client: TestClient) -> None:
+        state = self._setup_pending()
+        payload = "<script>alert(1)</script>"
+
+        with patch("app.api.integrations.mcp_oauth.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.post = AsyncMock(side_effect=httpx.ConnectError(payload))
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client_cls.return_value = mock_client
+
+            resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": state})
+
+        assert resp.status_code == 500
+        assert payload not in resp.text
+        assert html.escape(payload) in resp.text
 
     def test_callback_expired_state(self, client: TestClient) -> None:
         from app.api.integrations.mcp_oauth import _pending_auth

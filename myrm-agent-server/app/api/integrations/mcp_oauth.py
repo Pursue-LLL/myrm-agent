@@ -23,6 +23,7 @@ for token → frontend polls GET /status/{state} to detect completion.
 
 from __future__ import annotations
 
+import html
 import logging
 import secrets
 import time
@@ -165,7 +166,7 @@ async def handle_mcp_oauth_callback(
     """
     if error:
         return HTMLResponse(
-            content=f"<html><body><h1>Authorization failed</h1><p>{error_description or error}</p></body></html>",
+            content=f"<html><body><h1>Authorization failed</h1><p>{html.escape(error_description or error)}</p></body></html>",
             status_code=400,
         )
 
@@ -251,7 +252,7 @@ async def handle_mcp_oauth_callback(
     except httpx.HTTPError as exc:
         logger.error("MCP OAuth token exchange network error: %s", exc)
         return HTMLResponse(
-            content=f"<html><body><h1>Network error during token exchange</h1><p>{exc}</p></body></html>",
+            content=f"<html><body><h1>Network error during token exchange</h1><p>{html.escape(str(exc))}</p></body></html>",
             status_code=500,
         )
 

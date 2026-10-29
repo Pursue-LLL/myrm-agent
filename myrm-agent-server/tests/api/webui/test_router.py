@@ -33,6 +33,27 @@ async def test_get_qrcode_image_endpoint_with_host_port(client: httpx.AsyncClien
     assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
 
 
+async def test_welcome_page_shows_the_requested_address(client: httpx.AsyncClient) -> None:
+    response = await client.get("/webui/welcome?host=192.168.1.100&port=3000")
+    assert response.status_code == 200
+    assert "http://192.168.1.100:3000" in response.text
+
+
+@pytest.mark.parametrize("host", ["192.168.1.100", "my-host.local", "[::1]", "fe80::1"])
+async def test_welcome_page_accepts_hostnames_and_ip_literals(client: httpx.AsyncClient, host: str) -> None:
+    response = await client.get("/webui/welcome", params={"host": host, "port": 3000})
+    assert response.status_code == 200
+    assert host in response.text
+
+
+@pytest.mark.parametrize("path", ["/webui/welcome", "/webui/qrcode.png"])
+@pytest.mark.parametrize("host", ['"><script>alert(1)</script>', "x' onerror='1", "a b", "a/b", "h&port=1", "<b>"])
+async def test_host_parameter_rejects_anything_that_is_not_a_hostname(client: httpx.AsyncClient, path: str, host: str) -> None:
+    """The welcome page is served without login and writes ``host`` into HTML and script, so only host characters pass."""
+    response = await client.get(path, params={"host": host})
+    assert response.status_code == 422
+
+
 async def test_browser_snapshot_requires_chat_id(client: httpx.AsyncClient) -> None:
     """GET /webui/browser/snapshot returns 400 when chat_id is missing."""
     response = await client.get("/webui/browser/snapshot")

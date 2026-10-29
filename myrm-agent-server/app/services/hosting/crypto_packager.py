@@ -25,7 +25,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from app.services.hosting.decryptor_shell import render_decryptor_shell
 from app.services.hosting.packager import PublishFile
 
-PBKDF2_ITERATIONS = 100_000
+# OWASP's PBKDF2-HMAC-SHA256 floor. The ciphertext is publicly hosted, so offline guessing is the threat; each payload
+# carries its own count, so pages published with a lower one still open.
+PBKDF2_ITERATIONS = 600_000
 SALT_BYTES = 16
 NONCE_BYTES = 12
 
@@ -63,7 +65,7 @@ def _decrypt_payload(encrypted_dict: dict[str, str], password: str) -> bytes:
     salt = base64.b64decode(encrypted_dict["salt"])
     nonce = base64.b64decode(encrypted_dict["nonce"])
     ciphertext = base64.b64decode(encrypted_dict["ciphertext"])
-    iterations = int(encrypted_dict.get("iterations", PBKDF2_ITERATIONS))
+    iterations = int(encrypted_dict["iterations"])
 
     kdf = PBKDF2HMAC(
         algorithm=SHA256(),
