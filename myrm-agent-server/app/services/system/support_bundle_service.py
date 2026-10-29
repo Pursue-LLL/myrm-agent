@@ -46,6 +46,7 @@ _MAX_PROFILES = 50
 _MAX_EVENT_LOG_FILES = 10
 _MAX_BYTES_PER_EVENT_LOG = 64 * 1024  # 64 KB per session trace sample
 _MAX_BYTES_PER_TRACE_LINE = _MAX_BYTES_PER_EVENT_LOG // 8  # a longer event is replaced by a marker
+_TRACE_SCAN_BYTES = 1024 * 1024  # how far back from its end a log is read: ten times the 100 KB cap on one logged event
 _MARKER_FIELDS = ("seq", "ts", "type")  # when and what kind of event was omitted
 _MARKER_FIELD_MAX_CHARS = 64
 
@@ -70,6 +71,24 @@ def _event_marker(line: str, size: int) -> str:
                 marker[field] = value
     marker["omitted_bytes"] = size
     return json.dumps(marker, ensure_ascii=False)
+
+
+def _read_log_tail(path: Path, max_bytes: int) -> str:
+    """The last ``max_bytes`` of a log as text, from its first whole line; a log is never read past that window.
+
+    A session log has no size cap, so reading all of it would hold the whole file in memory on the event loop.
+    The window may begin inside a line or a multibyte character; reading one byte more shows whether it begins on
+    a line boundary, and everything up to the first line break is dropped otherwise.
+    """
+    with path.open("rb") as log:
+        size = log.seek(0, os.SEEK_END)
+        if size <= max_bytes:
+            log.seek(0)
+            return log.read().decode("utf-8", errors="replace")
+        log.seek(size - max_bytes - 1)
+        window = log.read().decode("utf-8", errors="replace")
+    first_break = window.find("\n")
+    return window[first_break + 1 :] if first_break >= 0 else ""
 
 
 def _newest_whole_events(text: str, max_bytes: int) -> str:
@@ -181,8 +200,8 @@ class SupportBundleService:
 
             for file_path in files:
                 try:
-                    raw_content = file_path.read_text(encoding="utf-8", errors="replace")
-                    traces[file_path.name] = redact_sensitive_text(_newest_whole_events(raw_content, _MAX_BYTES_PER_EVENT_LOG))
+                    recent = _read_log_tail(file_path, _TRACE_SCAN_BYTES)
+                    traces[file_path.name] = redact_sensitive_text(_newest_whole_events(recent, _MAX_BYTES_PER_EVENT_LOG))
                 except OSError as err:
                     traces[file_path.name] = f"[Read error: {err}]"
         except Exception as exc:
@@ -201,7 +220,8 @@ class SupportBundleService:
         system_info = await cls.collect_system_info()
         doctor_report = await cls.collect_doctor_diagnostics()
         profiles = await cls.collect_agent_profiles() if include_profiles else []
-        traces = cls.collect_recent_event_traces() if include_traces else {}
+        # reading and masking up to ten logs is seconds of CPU on a loaded machine; off the loop the API keeps answering
+        traces = await asyncio.to_thread(cls.collect_recent_event_traces) if include_traces else {}
 
         manifest = {
             "bundle_version": "1.0.0",

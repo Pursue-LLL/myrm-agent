@@ -7,8 +7,10 @@ the agent store); every collector, the redaction and the zip assembly run for re
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import json
+import time
 import zipfile
 from collections.abc import Iterator
 from datetime import datetime, timezone
@@ -26,6 +28,8 @@ from app.services.system.support_bundle_service import (
     _MAX_BYTES_PER_EVENT_LOG,
     _MAX_BYTES_PER_TRACE_LINE,
     SupportBundleService,
+    _newest_whole_events,
+    _read_log_tail,
 )
 
 _MODULE = "app.services.system.support_bundle_service"
@@ -282,3 +286,93 @@ def test_a_log_within_the_budget_is_kept_whole(event_logs: Path) -> None:
     (event_logs / "session.jsonl").write_text(log, encoding="utf-8")
 
     assert SupportBundleService.collect_recent_event_traces()["session.jsonl"] == log
+
+
+def test_only_the_end_of_a_very_long_log_is_looked_at(event_logs: Path) -> None:
+    events = [_event(seq, "tool_end", payload_size=300) for seq in range(1, 21)]
+    (event_logs / "session.jsonl").write_text("".join(events), encoding="utf-8")
+    window = len(events[0].encode("utf-8")) * 3 + 5  # all 20 events would fit the budget, only the last 3 are in the window
+
+    with patch(f"{_MODULE}._TRACE_SCAN_BYTES", window):
+        content = SupportBundleService.collect_recent_event_traces()["session.jsonl"]
+
+    assert content == "".join(events[-3:])
+
+
+@pytest.mark.parametrize("window", [600, 601, 10_000])
+def test_a_log_no_longer_than_the_window_is_read_whole(tmp_path: Path, window: int) -> None:
+    log = tmp_path / "session.jsonl"
+    log.write_text(_jsonl_pad(200) * 3, encoding="utf-8")
+
+    assert _read_log_tail(log, window) == _jsonl_pad(200) * 3
+
+
+def test_a_longer_log_is_read_from_the_first_whole_line_inside_the_window(tmp_path: Path) -> None:
+    lines = [_event(seq, "tool_end", payload_size=50) for seq in range(1, 41)]
+    log = tmp_path / "session.jsonl"
+    log.write_text("".join(lines), encoding="utf-8")
+    window = len(lines[0].encode("utf-8")) * 5 + 17  # starts inside the sixth line from the end
+
+    tail = _read_log_tail(log, window)
+
+    assert tail == "".join(lines[-5:])
+
+
+def test_a_window_that_starts_on_a_line_boundary_keeps_that_line(tmp_path: Path) -> None:
+    lines = [_jsonl_pad(100) for _ in range(10)]
+    log = tmp_path / "session.jsonl"
+    log.write_text("".join(lines), encoding="utf-8")
+
+    assert _read_log_tail(log, 300) == "".join(lines[-3:])
+
+
+@pytest.mark.parametrize("offset_into_character", [0, 1, 2])
+def test_a_window_that_starts_inside_a_multibyte_character_does_not_leave_damage(
+    tmp_path: Path, offset_into_character: int
+) -> None:
+    line = json.dumps({"seq": 1, "data": "中" * 50}, ensure_ascii=False) + "\n"
+    log = tmp_path / "session.jsonl"
+    log.write_text(line * 20, encoding="utf-8")
+    window = len(line.encode("utf-8")) * 3 + line.encode("utf-8").index("中".encode("utf-8")) + offset_into_character
+
+    tail = _read_log_tail(log, window)
+
+    assert tail == line * 3
+
+
+@pytest.mark.parametrize("ending", ["\n", ""])
+def test_a_window_inside_one_very_long_line_yields_nothing(tmp_path: Path, ending: str) -> None:
+    log = tmp_path / "session.jsonl"
+    log.write_text("z" * 5_000 + ending, encoding="utf-8")
+
+    assert _read_log_tail(log, 1_000) == ""
+
+
+async def test_collecting_the_traces_does_not_stall_the_event_loop(event_logs: Path) -> None:
+    (event_logs / "session.jsonl").write_text(_event(1, "tool_end"), encoding="utf-8")
+
+    def as_slow_as_a_full_size_log(text: str, max_bytes: int) -> str:
+        time.sleep(0.4)  # the masking of ten full-size logs took seconds of CPU on a loaded machine
+        return _newest_whole_events(text, max_bytes)
+
+    stalls: list[float] = []
+
+    async def heartbeat() -> None:
+        last = time.perf_counter()
+        while True:
+            await asyncio.sleep(0.01)
+            now = time.perf_counter()
+            stalls.append(now - last)
+            last = now
+
+    beat = asyncio.create_task(heartbeat())
+    await asyncio.sleep(0.05)
+    with patch(f"{_MODULE}._newest_whole_events", new=as_slow_as_a_full_size_log):
+        files = await _build()
+    await asyncio.sleep(0.05)  # lets the heartbeat report a stall that ended with the build
+    beat.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await beat
+
+    assert "traces/session.jsonl" in files
+    assert max(stalls) < 0.2
