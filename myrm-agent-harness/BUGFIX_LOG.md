@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-108 · 验证命令后面还跟着别的命令时，别的命令的退出码被算到验证头上：`pytest -q && rg slow` 在 rg 没匹配时把已通过的测试记成失败
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/middlewares/completion/completion_guard/verification.py`；文档 `completion_guard/_ARCH.md`；测试 `tests/agent/middlewares/completion/completion_guard/test_verification_exit.py`；没有改提示词与工具 schema，不影响提示词缓存）。**未验证**：没有真实模型回合，也没有真实 bash 工具端到端。 |
+| **发现时间** | 2026-10-29（对 104 做对抗式复审：用真实 `tag_verification_call` 喂复合命令） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：104 引入的回归。分类器把任何 `python`、`node` 运行也算一次 `TEST`（`verification.py:49-57`），命令里只要有一段是验证，整条命令最后一个 `[exit_code: N]` 都被算给它。验证通过、后面的 `rg` 没匹配、`git diff --quiet` 看到改动、`grep -c` 数到 0，退出 1，守卫就记 `FAILED_VERIFICATION` 并向模型注入「必须先修失败的检查」（`checklist/assessment.py:105-109`），模型会去修一个不存在的失败。线上频率没有数据：本地 14 份智能体对话里 5468 条 Shell 命令，1561 条（28.5%）被分类器认作验证，其中末段是 `rg`、`grep` 的复合命令 87 条（1.6%，是上界，含少量把 heredoc 正文误切成段的情况）；对话记录里没有工具返回的退出码，所以真实误判率拿不到。 |
+| **关联产品** | 完成度守卫（失败的验证类别、重新验证、证据档位读同一批 `success_level`）。 |
+| **根因** | shell 报告的是最后一条运行的命令的状态，`tag_verification_call` 却把它交给「第一个被认出的验证段」，没有看这条命令是不是以验证收尾。用真实函数复现（输入都是 `FULL_SUCCESS`、退出 1）：`pytest -q > out.log; grep -c FAILED out.log`、`pytest -q && rg -n slow out.log`、`ruff check . && git diff --quiet`、python heredoc 后接 `rg` 无匹配，4 条都被改成 `FAILURE`；单条 `pytest -q` 退出 0 不变。 |
+| **修复** | 新增 `_ends_with_verification(command)`：命令按段切开，取最后一个非空段，再取它最后一个管道阶段，该阶段本身要被认作验证，退出码才算给验证；否则保留输出评估器的判断。`pytest -q;`、`cd app && pytest -q`、`(cd app && pytest -q)`、`FOO=1 timeout 60 uv run pytest -q`、`ruff check . && pytest -q` 仍按退出码判；`pytest | grep -q x`、`pytest && rg x`、`pytest; grep x` 不判。复用 `_segments` 与 `_classify_segment`，没有新增解析器。`verification.py` 260 行变 286 行。 |
+| **反复次数** | 第 1 次（接 104）。 |
+| **踩坑** | ① 第一版用例 `cat input.txt | pytest -q -` 想测「管道末阶段是验证」，但 `_classify_segment` 只看段的第一个词，`cat` 开头的段整体不被认作验证，门根本不进；改为 `ruff check .; cat input.txt | tee in.log | pytest -q -`，让第一段触发分类，末阶段是验证。② 只有一个管道时「取第一个管道」与「取最后一个」结果相同，变异 `min` 替换 `max` 活下来；用例改成两个管道后被打红。 |
+| **回归** | [1] 新增 12 个用例：5 条末尾还有别的命令（`;` 后接 grep、`&&` 后接 rg、`&&` 后接 `git diff --quiet`、管道进 `grep -q`、heredoc 后接 rg）退出 1 保持 `FULL_SUCCESS`；6 条以验证收尾（`cd && pytest`、结尾分号、两个检查、子 shell、启动器包装、多级管道末阶段）退出 1 记 `FAILURE`；1 条经真实 post-call 守卫链的用例：`pytest -q && rg` 退出 1 时 `failed_verification_types` 为空。修复前用 `-x` 跑，第一个用例（`;` 后接 grep）红，没有数全部红的个数。[2] 变异（逐个应用、逐个还原，7 个全部被打红）：去掉末段条件、看第一段而不是最后一段、忽略管道、保留空段、取第一个管道、阶段里带上管道符、恒为真；还原后文件与改动后的内容一致。[3] `tests/agent/middlewares` 与 `tests/agent/security` 5781 通过、2 跳过、9 xfailed。[4] `ruff check`、`ruff format --check`、`mypy` 对改动文件通过。 |
+| **仍然存在** | ① `pytest -q && echo ok` 失败时退出 1，末段是 `echo`，不再判失败（回到 104 之前的行为，仍由输出评估器的关键词决定）；`&&` 后面的命令失败与前面的验证失败，单看退出码分不开，所以只对以验证收尾的命令生效。python heredoc 脚本的末段是脚本正文，同样不判。② 既有限制，没有改：`_segments` 不按换行切段，`cd app` 换行 `pytest -q` 不会被认作验证；管道在前的 `cat x | pytest -` 也不被认作验证。③ 87/5468 是上界，不是误判率。④ 没有用真实模型或真实 bash 工具端到端验证。 |
+| **代码位置** | `agent/middlewares/completion/completion_guard/verification.py:218-285`（`_command`、`_exited_with_failure`、`_ends_with_verification`、`tag_verification_call`） |
+
 ### BUG-HARNESS-2026-10-29-107 · Linux `key` 把模型给的按键串原样拼进 shell 命令：`a; touch X` 会执行第二条命令
 
 | 字段 | 内容 |
@@ -67,8 +84,8 @@
 | **反复次数** | 第 1 次。 |
 | **踩坑** | ① `_tool_guards.py` 已在 634 行的基线上限，不能净增，所以把原有的 8 行标记块搬走、只加一行保存未截断文本。② 第一版「与完整 traceback 一致」的用例用的是一段伪造的 traceback，评估器并不判它失败，两边都被本次修复改成了失败，比较是空的；改成对照评估器本来就判失败的完整 pytest 输出。③ 第一版「超时不算失败」的用例直接用评估器的判断做前后对比，而 124 的结果里工具自己追加的超时提示已让评估器判为失败，前后相同但什么也没证明；改成固定评估结果为 `FULL_SUCCESS` 再断言不变。④ 退出标记的正则要带 `-?`：不带时，输出里引用过一次 `[exit_code: 1` 而真实退出是 `-9`，会把引用的当成最后一个。 |
 | **回归** | [1] 新增 23 个用例：修复前红（`tag_verification_call` 不存在，整个文件无法导入；补上辅助函数后经守卫链的用例仍红），修复后 23 通过。覆盖 ruff 1、tsc 2、只有汇总行的 pytest 1、命令不存在 127，每种各测纯文本与 JSON 封套两种形态；退出 0、124、137、-9、pytest 5（没有收集到测试）不动；后台未结束的结果、自动让出窗口内结束的退出 0 与退出 1；引用过标记的输出；非验证命令；后到的同类通过运行清除失败；预算截断掉退出行；重复同一个失败检查时 `LoopGuard` 的行为与重复一个评估器本来就判失败的完整 pytest 输出一致。[2] 变异（逐个应用、逐个还原，都被打红）：去掉改写、把超时算失败、取第一个标记、把大于 127 算失败、把 `EMPTY_OK` 也改写、把 0 算失败、正则去掉 `-?`、非验证命令也被改写、预算截断后的文本交给 helper；还原后与原文件逐字节一致。[3] `tests/agent/middlewares` 与 `tests/agent/security` 5769 通过、2 跳过、9 xfailed；`tests/agent/streaming`、`tests/agent/sub_agents/test_verification.py`、`tests/backends/test_skill_system_core.py` 1128 通过。[4] `ruff check`、`ruff format --check`、`mypy` 对改动文件通过；`check_file_line_limit.py`、`check_fractal_docs.py`、`validate_arch_inventory.py` 通过。[5] 对真实 `LoopGuard` 连续 5 次发同一个失败检查实测：完整 pytest 失败输出（评估器本来就判失败）、只有汇总行的 pytest 退出 1、`ruff check` 退出 1，三者都在第 3 次被拦（`['ok', 'ok', 'stuck']`）；退出 0 的 `ruff check` 连发 5 次不拦。 |
-| **仍然存在** | ① 一个退出 0 的验证命令，如果自己的输出里恰好有一行 `[exit_code: N`（N 为 1 到 127），会被当成失败；只会让守卫多拦一次，不会放行失败，没有在真实回合里碰到。② `pytest` 退出 5 而输出里没有 `no tests ran`（例如 `-k` 过滤后只剩 `1 deselected`），以前被记成通过的验证，现在记成失败。③ 设计上就以非零退出的验证类命令（例如按约定退出 1 的 `python` 脚本，`python` 运行也算一次 `TEST`）现在记成失败。④ 重复同一个失败检查会像 `pytest` 完整失败输出一样被循环守卫在第 3 次拦下（上面 [5]）；无人值守模式下的 `RunawayCircuitBreakException` 没有对新路径实测。⑤ 没有用真实模型跑完整回合。 |
-| **代码位置** | `agent/middlewares/completion/completion_guard/verification.py:233-258`（`_exited_with_failure`、`tag_verification_call`） · `agent/middlewares/tooling/_tool_guards.py:428`（保存未截断文本）、`:586-592`（调用） |
+| **仍然存在** | ① 一个退出 0 的验证命令，如果自己的输出里恰好有一行 `[exit_code: N`（N 为 1 到 127），会被当成失败；只会让守卫多拦一次，不会放行失败，没有在真实回合里碰到。② `pytest` 退出 5 而输出里没有 `no tests ran`（例如 `-k` 过滤后只剩 `1 deselected`），以前被记成通过的验证，现在记成失败。③ 设计上就以非零退出的验证类命令（例如按约定退出 1 的 `python` 脚本，`python` 运行也算一次 `TEST`）现在记成失败。④ 重复同一个失败检查会像 `pytest` 完整失败输出一样被循环守卫在第 3 次拦下（上面 [5]）；无人值守模式下的 `RunawayCircuitBreakException` 没有对新路径实测。⑤ 没有用真实模型跑完整回合。⑥ 复合命令把末段的退出码算到了验证头上，见 108。 |
+| **代码位置** | `agent/middlewares/completion/completion_guard/verification.py:238-285`（`_exited_with_failure`、`_ends_with_verification`、`tag_verification_call`） · `agent/middlewares/tooling/_tool_guards.py:428`（保存未截断文本）、`:586-592`（调用） |
 
 ### BUG-HARNESS-2026-10-29-103 · Linux 非 ASCII 粘贴前读原剪贴板没有超时：剪贴板所有者卡死时 `xclip -o` 一直阻塞，整次输入挂到工具超时，并留下孤儿进程
 

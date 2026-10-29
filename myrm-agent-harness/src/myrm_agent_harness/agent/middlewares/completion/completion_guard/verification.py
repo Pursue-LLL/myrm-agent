@@ -16,7 +16,8 @@ only launches the real program (environment assignments, ``timeout``, ``uv run``
 ``pip install pytest`` and ``npm test-helper`` from counting; the stripping keeps ``FOO=1 npm test`` and
 ``uv run pytest`` from being missed.
 The output judge reads text for failure keywords, which ruff, tsc and a summary-only pytest run do not print; the
-exit code the bash tool appends is what marks those runs failed.
+exit code the bash tool appends is what marks those runs failed. The shell reports the status of the last command it
+ran, so the exit code is held against a command only when its last pipeline stage is itself a verification.
 """
 
 from __future__ import annotations
@@ -214,13 +215,17 @@ def _classify_segment(tokens: list[str]) -> VerificationCategory | None:
     return None
 
 
+def _command(tool_args: dict[str, object]) -> str:
+    return str(tool_args.get("command", "")).strip()
+
+
 def classify_verification(tool_args: dict[str, object]) -> VerificationCategory | None:
     """Detect if a bash command is a verification action (test/lint/typecheck/build).
 
     The first shell segment that runs a known verification program decides. Matching is on whole tokens, so
     ``pip install pytest`` does not match ``pytest`` and ``npm test-helper`` does not match ``npm test``.
     """
-    command = str(tool_args.get("command", "")).strip()
+    command = _command(tool_args)
     if not command:
         return None
     for segment in _segments(command.lower()):
@@ -243,17 +248,38 @@ def _exited_with_failure(result_text: str) -> bool:
     return 1 <= code <= _LAST_PROGRAM_EXIT and code != _TIMED_OUT
 
 
+def _ends_with_verification(command: str) -> bool:
+    """True when the last command the line runs is itself a verification.
+
+    The shell reports the status of the last command it ran, so the exit line belongs to a verification only when
+    nothing runs after it: ``pytest -q && rg slow`` exits 1 when ``rg`` finds nothing, and a pipeline's status is its
+    last stage's. A non-zero status after an earlier ``&&`` part cannot be told from that part failing, so such a
+    command keeps the output judge's verdict.
+    """
+    segments = [segment for segment in _segments(command.lower()) if segment]
+    if not segments:
+        return False
+    last = segments[-1]
+    last_pipe = max((index for index, token in enumerate(last) if token == "|"), default=-1)
+    return _classify_segment(last[last_pipe + 1 :]) is not None
+
+
 def tag_verification_call(record: CallRecord, tool_args: dict[str, object], result_text: str) -> None:
     """Record which kind of verification a finished bash call was; a failing exit code overrules a passing read.
 
     ``result_text`` is the untruncated tool result: budget truncation can cut the exit line off. Only a call the
-    output judge read as passing is changed, so an empty verification (no tests collected) keeps its own verdict.
+    output judge read as passing is changed, so an empty verification (no tests collected) keeps its own verdict,
+    and only a command that ends with the verification, since the exit code is that of the last command it ran.
     """
     category = classify_verification(tool_args)
     if category is None:
         return
     record.verification_type = category
-    if record.success_level in _JUDGED_PASSING and _exited_with_failure(result_text):
+    if (
+        record.success_level in _JUDGED_PASSING
+        and _exited_with_failure(result_text)
+        and _ends_with_verification(_command(tool_args))
+    ):
         record.success_level = SuccessLevel.FAILURE
 
 

@@ -190,6 +190,45 @@ def test_non_verification_command_is_not_touched() -> None:
     assert record.success_level == SuccessLevel.FULL_SUCCESS
 
 
+# The shell reports the status of the last command it ran, so the exit line says a verification failed only when
+# nothing runs after the verification. After it, ``rg`` finding nothing or ``git diff --quiet`` seeing a change
+# exits 1 with every check green.
+@pytest.mark.parametrize(
+    "command",
+    [
+        "pytest -q > out.log; grep -c FAILED out.log",
+        "pytest -q && rg -n slow out.log",
+        "ruff check . && git diff --quiet",
+        "pytest -q | grep -q FAILED",
+        "python3 - <<'PY'\nprint(1)\nPY\nrg -n nope file.txt",
+    ],
+    ids=["grep-after-semicolon", "rg-after-and", "git-diff-after-and", "pipe-into-grep", "heredoc-then-rg"],
+)
+def test_exit_of_a_command_that_runs_something_after_the_check_is_not_the_checks(command: str) -> None:
+    record, _ = _tagged(command, _formatted(command, "1 passed in 0.01s\n", 1), SuccessLevel.FULL_SUCCESS)
+
+    assert record.verification_type is not None
+    assert record.success_level == SuccessLevel.FULL_SUCCESS
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cd app && pytest -q",
+        "pytest -q;",
+        "ruff check . && pytest -q",
+        "(cd app && pytest -q)",
+        "FOO=1 timeout 60 uv run pytest -q",
+        "ruff check .; cat input.txt | tee in.log | pytest -q -",
+    ],
+    ids=["cd-then-check", "trailing-semicolon", "two-checks", "subshell", "launchers", "piped-into-check"],
+)
+def test_exit_of_a_command_that_ends_with_the_check_is_the_checks(command: str) -> None:
+    record, _ = _tagged(command, _formatted(command, "1 failed in 0.01s\n", 1), SuccessLevel.FULL_SUCCESS)
+
+    assert record.success_level == SuccessLevel.FAILURE
+
+
 def test_a_later_passing_run_clears_the_failure() -> None:
     failing, _ = _tagged("ruff check .", _formatted("ruff check .", _RUFF_FAILING, 1))
     passing, _ = _tagged("ruff check .", _formatted("ruff check .", _RUFF_PASSING, 0))
@@ -266,6 +305,15 @@ async def test_failing_lint_run_reaches_the_completion_guard_as_failed_verificat
 
     passing = await _one_bash_turn(guard, "ruff check .", _formatted("ruff check .", _RUFF_PASSING, 0))
     assert failed_verification_types([failing, passing]) == frozenset()
+
+
+@pytest.mark.asyncio
+async def test_a_passing_check_followed_by_a_search_that_finds_nothing_is_not_failed_verification() -> None:
+    command = "pytest -q && rg -n slow out.log"
+    record = await _one_bash_turn(LoopGuard(), command, _formatted(command, "1 passed in 0.01s\n", 1))
+
+    assert record.verification_type == VerificationCategory.TEST
+    assert failed_verification_types([record]) == frozenset()
 
 
 @pytest.mark.asyncio
