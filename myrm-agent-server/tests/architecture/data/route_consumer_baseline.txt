@@ -78,6 +78,7 @@ POST /skills/{skill_id}/permissions/revoke
 POST /ssh-vault/execute
 GET /statistics/usage/radar
 GET /stt/status
+DELETE /system/drain
 GET /system/processes/{pid}/lineage
 GET /user-agents/{agent_id}/statistics
 GET /webui/desktop/approval/pending

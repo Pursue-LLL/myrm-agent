@@ -11,6 +11,7 @@ tests/architecture/test_api_route_consumers.py
 [OUTPUT]
 - Fails when a route has neither a frontend caller, an external-consumer entry nor a baseline entry
 - Fails when an entry goes stale (route gone, or it now has a caller) so both files can only shrink
+- Fails when the file:line an external-consumer entry cites no longer names the route (tests/support/route_evidence.py)
 - Fails when a route re-declares the API prefix it is already mounted under
 
 What counts as a frontend caller, and why the gate under-reports, is described in tests/support/route_consumers.py.
@@ -31,6 +32,7 @@ from tests.support.route_consumers import (
     operations_without_frontend_caller,
     read_route_entries,
 )
+from tests.support.route_evidence import check_evidence
 
 _SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not FRONTEND_SRC.is_dir(), reason="frontend sources are not part of this checkout")
 
@@ -64,6 +66,18 @@ def test_external_consumers_are_current(operations: dict[Operation, tuple[str, .
     assert not gone, f"route no longer exists, remove from route_external_consumers.txt: {gone}"
     covered = sorted(f"{method} {path}" for method, path in consumers if (method, path) not in uncovered)
     assert not covered, f"route now has a frontend caller, remove from route_external_consumers.txt: {covered}"
+
+
+def test_external_consumer_evidence_still_names_the_route() -> None:
+    problems: list[str] = []
+    verified = 0
+    for (method, path), evidence in read_route_entries("route_external_consumers.txt").items():
+        check = check_evidence(method, path, evidence)
+        verified += not check.skipped
+        if check.problem is not None:
+            problems.append(f"{method} {path}: {check.problem}")
+    assert not problems, "evidence of an external consumer no longer names its route:\n" + "\n".join(problems)
+    assert verified, "no external-consumer evidence could be located; the checkout lacks every tree it cites"
 
 
 @_SKIP_WITHOUT_FRONTEND

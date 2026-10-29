@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 路由「外部调用方」登记里 10 条证据指向的行早已不是那条路由（含一条没有任何调用方的 `DELETE /system/drain`）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：新增 `tests/support/route_evidence.py`、`tests/architecture/test_route_evidence.py`，`test_api_route_consumers.py` 增加登记校验；数据：`data/route_external_consumers.txt`、`data/route_consumer_baseline.txt`；文档：`tests/_ARCH.md`、`tests/architecture/_ARCH.md`） |
+| **症状** | `data/route_external_consumers.txt` 的每一行写着「谁在调这条路由」和 file:line，校验只检查证据非空，没人核对被引用的那一行；文件改动后行号漂移，登记变成没有依据的断言。逐条核对后 23 条里有 10 条的引用行并不写着这条路由：`GET /memory/head` 引用的文档第 1227 行与它无关（该路由现在写在第 1979 行）；`POST /system/drain` 引用的是文档字符串中间一行，真正的调用在 `actions.py:120-128`；`POST /system/shutdown` 引用的是函数签名，URL 在第 41 行；`POST /remote-access/node/events` 差一行（第 300 行是代码块起始符，`curl` 在第 301 行）；`POST /security/inbound-quarantine/records/{quarantine_id}/release` 引用的是只含 `records` 的行，拼出 `/release` 的是第 72 行；`artifact-share` 的 4 条（3 个 POST、1 个带资源路径的 GET）引用的 `artifact_share_public.py:106-107` 是两行关于响应头的注释。另外 `DELETE /system/drain` 登记的说法是「控制平面在回收沙箱时撤销排空」，控制平面里只有 `POST`（`actions.py:16`「first posts」、`:128`），在整个工作区（不含外部参考仓库与 temp-docs）里没有任何调用 `DELETE /system/drain` 的地方，控制平面的测试也只断言了 `POST`（`test_recycler_inflight_guard.py:366`）。 |
+| **根因** | 登记文件只在路由消失或前端出现调用方时才会被测试碰到，引用的 file:line 没有任何校验；引用写在别的仓库的文件里（官网文档、控制平面、桌面壳），文件被改动时没有人会回头看这份登记。 |
+| **修复** | ① 新增 `route_evidence.py` 与登记校验：引用必须以 `(file:line)`、`(file:first-last)` 或 `(file:line `锚点`)` 结尾；被引用的行必须整词拼写出路由最后一段静态路径，或包含登记里写明的锚点（调用方不拼写路径时用，例如 HTML 表单的空 action）；文件不存在、行号越界都失败；检出里没有被引用的目录时跳过并计数，不当作通过；先在开源仓库根再在其并列目录里找文件。② 上面 9 条引用改成真正写着路由的行（`artifact-share` 的 POST 用密码页表单 `share_password_page.py:82` 的锚点，带资源路径的 GET 用路由装饰器 `artifact_share_public.py:365` 的锚点）；桌面壳那条路径改成相对开源仓库根，在只有开源仓库的检出里也能校验。③ `DELETE /system/drain` 从「外部调用方」登记移到存量无调用路由登记（`route_consumer_baseline.txt`）：登记里原来的说法没有证据，路由本身没有删除。 |
+| **回归证据** | [1] 先红后绿：新的登记校验在原数据上失败，逐条列出上述 10 条；修正后通过，剩下的 22 条全部在本检出里找到被引用的文件并校验（0 条跳过）。[2] 校验函数的 22 个单元用例（整词、范围、参数段、锚点、越界、缺文件、跳过、多根目录、引用解析）；变异检查 7/7 被杀（子串代替整词、忽略锚点、接受越界、缺文件改成跳过、参数段算作词、范围只看首行、没有引用也通过）；第一轮变异有 2 个存活，一个是测试夹具里没有真正含 `head` 的子串（改为 `headers`），一个是「范围倒置」的单独判断（切片为空时本来就失败，属多余代码，已删除）。[3] `test_external_consumers_are_current`、`test_baseline_only_shrinks`、其余路由测试通过；`ruff` 与 `mypy` 对新增的 3 个文件无告警。 |
+| **仍然存在** | ① `test_routes_have_callers` 在本次之前就失败：203 条 `/system/*`、`/settings/model-overrides` 等路由既没有前端调用也没有登记，不属于本次范围。② 校验只证明「被引用的行写着这条路由」，不证明那一行真的是调用方：官网对比文档第 1979 行是一段功能介绍，算不算「面向外部客户端的文档化接口」是文档作者的判断；密码页表单锚点对聊天分享与制品分享共用，没有在浏览器里逐个确认。③ `DELETE /system/drain` 没有调用方意味着：控制平面排空沙箱后若回收失败，没有任何代码会撤销排空，这个沙箱会一直拒绝新对话；这是读代码得出的推断，没有复现，也没有处理。④ 整词判断按字面区分大小写，把路由写成大写常量名的调用方（如 `_DRAIN_PATH`）需要引用拼写出完整路径的那一行。 |
+| **代码位置** | `myrm-agent-server/tests/support/route_evidence.py:49-91` · `tests/architecture/test_route_evidence.py` · `tests/architecture/test_api_route_consumers.py`（`test_external_consumer_evidence_still_names_the_route`） · `tests/architecture/data/route_external_consumers.txt` · `data/route_consumer_baseline.txt` |
+
 ## 2026-10-29 · 删除没有产品入口的旧会话导出弹窗整套代码（含 3 条无人调用的服务端路由，其中一条签发的分享地址无处可打开）
 
 | 字段 | 内容 |

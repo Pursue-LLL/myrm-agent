@@ -1,22 +1,24 @@
-# Routes the frontend never calls but something outside it does: `METHOD /path | who calls it, with file:line`.
+# Routes the frontend never calls but something outside it does: `METHOD /path | who calls it (file:line)`.
 # Read by tests/architecture/test_api_route_consumers.py; an entry goes stale as soon as the route disappears or gains a frontend caller.
-GET /memory/head | documented read-only probe for external clients and plugins (myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx:1227)
+# The citation ends the line: `(file:line)` or `(file:first-last)`, relative to the open-source repository or, for the other
+# repositories, to the directory holding them. The cited lines must spell the route's last static segment as a whole word;
+# a caller that does not spell the path (an HTML form posting to its own URL) adds the text it shows as `(file:line `anchor`)`.
+GET /memory/head | documented read-only probe for external clients and plugins (myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx:1979)
 GET /memory/search | documented memory search API (myrm-agent-brand/myrm-docs/docs/api-reference/memory.mdx:48)
-POST /system/drain | control plane sandbox recycler drains in-flight turns before recycling (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:14)
-DELETE /system/drain | control plane sandbox recycler lifts the drain (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:14)
-POST /system/shutdown | desktop shell stops the bundled backend (myrm-agent/myrm-agent-desktop/src-tauri/src/runtime/python_backend_stop.rs:35)
-POST /remote-access/node/events | remote node callback documented with a curl example (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:300)
+POST /system/drain | control plane sandbox recycler drains in-flight turns before recycling (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:120-128)
+POST /system/shutdown | desktop shell stops the bundled backend (myrm-agent-desktop/src-tauri/src/runtime/python_backend_stop.rs:41)
+POST /remote-access/node/events | remote node callback documented with a curl example (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:301)
 GET /public/artifact-share/{token} | share link opened in a browser by its recipient (myrm-agent-server/app/core/channel_bridge/agent_executor/deliverable/deep_links.py:192)
-POST /public/artifact-share/{token} | share link unlock form submitted by its recipient (myrm-agent-server/app/api/files/artifact_share_public.py:106-107)
+POST /public/artifact-share/{token} | share link unlock form submitted by its recipient (myrm-agent-server/app/core/security/share/share_password_page.py:82 `<form method="post" action="">`)
 GET /public/artifact-share/{token}/ | share link opened in a browser by its recipient (myrm-agent-server/app/core/channel_bridge/agent_executor/deliverable/deep_links.py:192)
-POST /public/artifact-share/{token}/ | share link unlock form submitted by its recipient (myrm-agent-server/app/api/files/artifact_share_public.py:106-107)
-GET /public/artifact-share/{token}/{asset_path} | assets of a shared page loaded by the recipient's browser (myrm-agent-server/app/api/files/artifact_share_public.py:106-107)
-POST /public/artifact-share/{token}/{asset_path} | share link unlock form submitted by its recipient (myrm-agent-server/app/api/files/artifact_share_public.py:106-107)
+POST /public/artifact-share/{token}/ | share link unlock form submitted by its recipient (myrm-agent-server/app/core/security/share/share_password_page.py:82 `<form method="post" action="">`)
+GET /public/artifact-share/{token}/{asset_path} | assets of a shared page loaded by the recipient's browser (myrm-agent-server/app/api/files/artifact_share_public.py:365 `@public_router.get("/{token}/{asset_path:path}")`)
+POST /public/artifact-share/{token}/{asset_path} | share link unlock form submitted by its recipient (myrm-agent-server/app/core/security/share/share_password_page.py:82 `<form method="post" action="">`)
 POST /extension/pairing/consume | browser extension consumes the pairing code through the consume_url the pairing response returns (myrm-agent-server/app/api/extension/router.py:366)
 GET /integrations/google-workspace/oauth/callback | Google redirects the browser here after consent (myrm-agent-server/app/api/integrations/oauth/google_workspace_flow.py:84-85)
 GET /config/artifact-mappings | frontend type codegen script fetches the mapping (myrm-agent-frontend/scripts/generate-artifact-types.ts:29)
 GET /security/inbound-quarantine/records/{quarantine_id} | release URL the harness quarantine gate embeds in its notices (myrm-agent-harness/src/myrm_agent_harness/core/security/inbound_quarantine/gate.py:34)
-POST /security/inbound-quarantine/records/{quarantine_id}/release | release URL the harness quarantine gate embeds in its notices (myrm-agent-harness/src/myrm_agent_harness/core/security/inbound_quarantine/gate.py:34)
+POST /security/inbound-quarantine/records/{quarantine_id}/release | release URL the harness quarantine gate embeds in its notices (myrm-agent-harness/src/myrm_agent_harness/core/security/inbound_quarantine/gate.py:72)
 POST /wiki/clip | browser extension posts page clips (myrm-agent-extension/src/wiki/deep_links.js:46)
 GET /wiki/clip/{job_id} | browser extension polls the clip job (myrm-agent-extension/src/wiki/clip_client.js:18)
 POST /cron/trigger/event | documented external webhook trigger (myrm-agent-brand/myrm-docs/docs/api-reference/webhooks.mdx:26)

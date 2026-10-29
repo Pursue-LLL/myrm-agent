@@ -56,8 +56,9 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_offline_persistable_keys_parity.py` | 前端离线队列可明文落盘的键（`offlinePersistableKeys.ts`）== 前端全部配置键减去服务端 `SENSITIVE_CONFIG_KEYS`：被加密的键不会写进 `localStorage`，新增非敏感键也不会静默丢失离线持久化 |
 | `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
 | `test_frontend_api_client_paths.py` | 前端 `src/**` 调用必须命中真实路由：apiRequest/apiClient 字面量（路径+方法，含 `/webui`）；任意形式写出的 `/api/v1/...` 字面量（raw fetch、展示给用户的 webhook URL）须命中路由或路由基路径；`/api/<root>` 字面量的 root 须由 Next route handler、控制平面或渠道入口提供；已知缺失显式登记，路由出现后条目必须删除 |
-| `test_api_route_consumers.py` | 每个 API 路由都要有调用方：前端非测试源码里有路径字面量（任意调用形式，按路径而非方法匹配；`/webui/**` 额外按去掉挂载前缀匹配 `getWebuiUrl` 调用），或登记在 `data/route_external_consumers.txt`（每条写明调用方 file:line）；存量无调用路由登记在 `data/route_consumer_baseline.txt`，只许缩小（路由已删除、已有调用方或已登记都会失败）；路由不得重复声明已挂载的 `/api/v1` 前缀。路由表、前端匹配与登记文件的读取在 `support/route_consumers.py`，风险闸门的用户文本入口扫描共用同一判定 |
-| `data/route_external_consumers.txt` | 前端不调用、但有外部调用方的路由登记：`METHOD /path \| 调用方 file:line` |
+| `test_api_route_consumers.py` | 每个 API 路由都要有调用方：前端非测试源码里有路径字面量（任意调用形式，按路径而非方法匹配；`/webui/**` 额外按去掉挂载前缀匹配 `getWebuiUrl` 调用），或登记在 `data/route_external_consumers.txt`（每条写明调用方 file:line，被引用的行必须还写着这条路由，见 `test_route_evidence.py`）；存量无调用路由登记在 `data/route_consumer_baseline.txt`，只许缩小（路由已删除、已有调用方或已登记都会失败）；路由不得重复声明已挂载的 `/api/v1` 前缀。路由表、前端匹配与登记文件的读取在 `support/route_consumers.py`，风险闸门的用户文本入口扫描共用同一判定 |
+| `data/route_external_consumers.txt` | 前端不调用、但有外部调用方的路由登记：`METHOD /path \| 调用方 (file:line)`，调用方不拼写路径时在括号里再写锚点文字 |
+| `test_route_evidence.py` | 外部调用方登记里引用的 file:line 仍然有效：被引用的行拼写了路由最后一段静态路径（整词），或包含登记里写明的锚点；文件不存在、行号越界、引用格式不对都失败；检出里没有被引用的目录时跳过并如实计数，不算通过；校验函数的各分支（整词、锚点、越界、缺文件、跳过、多根目录）逐条钉住 |
 | `data/route_consumer_baseline.txt` | 门禁引入前就没有调用方的存量路由；删路由或接上前端后必须同步删行 |
 | `test_memory_router_mounts.py` | `app/api/memory/router.py` 里无条件挂载（对所有用户可见）的子路由必须登记在 `data/memory_default_mounts.txt`：新增路由要么收进 `settings.memory_labs_enabled` 开关，要么写明默认可见调用方 file:line；路由消费者门禁会把「只有隐藏面板的 service 引用」算作调用方，拦不住进程内演示引擎，所以单独把关。解析源码而非导入；写明的调用方必须是真实存在的非测试文件里的有效行号；自带检测器正反例自检 |
 | `data/memory_default_mounts.txt` | 无条件挂载的记忆子路由台账：裸行是门禁引入前的存量，只许删除；`挂载名 \| 调用方 file:line` 是引入后经论证放行的新增 |
