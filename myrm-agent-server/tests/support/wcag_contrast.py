@@ -1,4 +1,17 @@
-"""WCAG 2 text-contrast checks for tests that read the colours a rendered HTML page declares."""
+"""WCAG 2 text-contrast checks for tests that read the colours a rendered HTML page declares.
+
+[INPUT]
+- the page's inline ``<style>`` block (POS: the server-rendered share pages built by ``share_renderer``,
+  ``share_password_page`` and ``share_status_page``)
+
+[OUTPUT]
+- stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme
+- contrast / assert_readable: the WCAG ratio of two colours, and the 4.5:1 check of a text colour on its surface
+
+[POS]
+Shared by the contrast tests of every share page, so each page is held to the same reading of its stylesheet and the
+same bar. A stylesheet it cannot read raises instead of passing.
+"""
 
 from __future__ import annotations
 
