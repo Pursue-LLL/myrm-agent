@@ -9,7 +9,10 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Telegram channel provider — Bot API bidirectional messaging. | ✅ |
-| `api.py` | 模块 | Telegram Bot API async HTTP client. Encapsulates all Bot API HTTP calls (messaging, media, commands, reactions, Forum Topic CRUD, voice/video download) with automatic endpoint fallback. | ✅ |
+| `api.py` | 模块 | Telegram Bot API async HTTP client. `TelegramClient` composes the media and forum-topic groups and holds the text, interaction, command, webhook and rich-message calls. | ✅ |
+| `api_core.py` | 模块 | Transport shared by every method group: one endpoint (official host or an `api_base` override), the pooled `httpx.AsyncClient`, the unified `_call`, and `TelegramApiError`. A transport error reaches the caller as the `httpx` error it is, so the retry policy can tell a connection that never opened from a request the platform may already hold. | ✅ |
+| `api_media.py` | 模块 | Media group of the client: photo, document, voice, audio and video uploads through one `_send_media`, file download through `getFile`, and `get_recommended_send_method`. | ✅ |
+| `api_forum.py` | 模块 | Forum Topic group of the client: create, rename, close, reopen and delete topics. | ✅ |
 | `channel.py` | 模块 | Telegram Bot channel core: credentials, lifecycle, diagnostics, mixin composition. | ✅ |
 | `outbound.py` | 模块 | Outbound messaging mixin: send (HTML parts through `deliver_chunks`), edit, draft preview, react, pin; delegates Rich send to outbound_rich. | ✅ |
 | `outbound_rich.py` | 模块 | Rich Message send mixin: sendRichMessage with HTML fallback on capability or parse errors of the first part; later parts go through `deliver_chunks`, so one that fails is a partial delivery, not a fallback. | ✅ |
@@ -22,4 +25,4 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `html_converter.py` | 模块 | Markdown to Telegram HTML converter. GFM table degradation, 4096-char HTML-aware splitting with bare CJK punctuation breakpoints (`CJK_BOUNDARY_CHARS` from splitter), Rich Message splitting (32768 UTF-8). | ✅ |
 | `inbound.py` | 模块 | Telegram inbound message parsing, polling loop, and media group aggregation mixin. Supports message/edited_message/callback_query (qr/act/sel/ag)/sticker/location/venue/contact/video_note. Sets metadata for downstream enrichment. | ✅ |
 | `models.py` | 模块 | Pydantic models for Telegram Bot API webhook payloads (TgUser, TgChat, TgMessage, TgVideoNote, TgContact, etc.). | ✅ |
-| `notification.py` | 模块 | Telegram disable_notification helpers (Hermes-compatible important/all modes) and the `NotificationKwargs` type every send call receives. | ✅ |
+| `notification.py` | 模块 | Telegram `disable_notification` helpers (`all` notifies for every message, `important` silences the rest) and the `NotificationKwargs` type every send call receives. | ✅ |

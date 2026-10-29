@@ -574,7 +574,7 @@ class TelegramInboundMixin:
         return False
 
     def _strip_bot_mention_text(self, text: str) -> str:
-        """Remove leading @bot mention from group trigger text (Hermes/Slack parity)."""
+        """Remove leading @bot mention from group trigger text."""
         if not text or not self._bot_username:
             return text
         username = re.escape(self._bot_username.lstrip("@"))

@@ -1,8 +1,13 @@
 """Telegram Forum Topic methods (Bot API 6.3+).
 
-[INPUT]  chat_id, message_thread_id, topic name and icon
-[OUTPUT] TelegramForumApi
-[POS] Forum Topic CRUD group of the Telegram Bot API client; ``TelegramClient`` inherits it.
+[INPUT]
+- telegram.api_core::TelegramApiBase (POS: Bot API transport: endpoint, pooled HTTP client, unified ``_call``)
+
+[OUTPUT]
+- TelegramForumApi: create, rename, close, reopen and delete topics in a Forum supergroup
+
+[POS]
+Forum Topic group of the Telegram Bot API client; ``TelegramClient`` inherits it.
 """
 
 from __future__ import annotations

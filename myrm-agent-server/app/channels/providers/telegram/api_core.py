@@ -4,10 +4,16 @@ Talks to the official ``api.telegram.org`` or, through ``api_base``, to a self-h
 proxy. A transport error reaches the caller as the ``httpx`` error it is, so the caller's retry policy can tell
 a connection that never opened (safe to repeat) from a request the platform may already have taken (not).
 
-[INPUT]  bot_token, api_base (optional)
-[OUTPUT] TelegramApiError, TelegramApiBase
-[POS] Transport layer of the Telegram Bot API client: the endpoint, the pooled HTTP client and the unified
-``_call``. The method groups (media, forum topics) and ``TelegramClient`` build on it.
+[INPUT]
+- httpx::AsyncClient (POS: pooled HTTP client)
+
+[OUTPUT]
+- TelegramApiError: raised when the Bot API answers ok=false
+- TelegramApiBase: endpoint, pooled HTTP client and the unified ``_call``; the method groups subclass it
+
+[POS]
+Transport layer of the Telegram Bot API client. The method groups (media, forum topics) and ``TelegramClient`` build
+on it.
 """
 
 from __future__ import annotations

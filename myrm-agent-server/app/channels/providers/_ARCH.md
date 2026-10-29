@@ -55,7 +55,7 @@
 | 多段文本 | 逐段单独成请求的 Provider 经 `../core/chunk_delivery.py` 的 `deliver_chunks` 投递：首段失败原样抛出，由总线重试整条（此时尚无内容送达）；后续各段单独重试（用渠道自己的 `retry_config` / `should_retry`），仍失败则抛 `ChannelSendError.for_text_chunks`（`accepted=True`、不可重试），总线不会重发收件人已收到的段。多段合并为一次请求的渠道（邮件、语音、WeChat iLink）不适用。 |
 | 先文本后附件 | 附件逐个独立尝试（`../core/attachment_delivery.py` 的 `attempt_attachments` / `deliver_attachments`），一个失败不阻塞其余；LINE 例外：单次请求，媒体消息在前。 |
 | 失败具名上报 | 附件失败汇总为一次 `ChannelSendError.for_attachments`：文本或其他附件已送达则 `accepted=True` 并列出 `failed_attachments`，由总线只重投未送达部分；否则按失败性质决定是否重试。 |
-| 永久 vs 临时 | 仅"重试不可能改变结果"的失败判永久：类型不支持、本地文件缺失/不可读/为空、无可用来源、平台校验拒绝（`ChannelSendError.from_http_status` 对 4xx 同理，408/425/429/5xx 为临时）。URL 下载失败与网络错误按临时失败重试。 |
+| 永久 vs 临时 | 仅"重试不可能改变结果"的失败判永久：类型不支持、本地文件缺失/不可读/为空、无可用来源、平台校验拒绝（`ChannelSendError.from_http_status` 对 4xx 同理，408/425/429/5xx 为临时）。URL 下载失败按临时失败重试。HTTP 调用抛出的传输错误由 `ChannelSendError.from_transport_error` 判：请求没发出去（拒绝或解析失败、连接超时、连接池超时、代理拒绝）可重试，等答复时的读写超时、连接被重置、协议错误不重试，因为平台可能已收下，重发会让收件人看到两遍；目前 LINE、Zalo、Signal、SMS 的发送路径使用它，原样抛出 `httpx` 错误的 Provider（Slack、钉钉、Telegram）交给 `reliability/retry.py` 按类型判，其余把 `httpx` 错误包成默认可重试的 `ChannelSendError` 的 Provider 尚未接入。 |
 | 不静默丢弃 | 不支持的附件不得被悄悄略过；永久失败由总线剥离媒体并向收件人发本地化说明。 |
 | 能力即行为 | `capabilities.media` / `file_upload` 必须与真实发送行为一致，`downgrade_components` 据此剥离。 |
 

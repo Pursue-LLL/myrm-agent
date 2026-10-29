@@ -1,9 +1,15 @@
 """Telegram media methods: sending photos, documents, voice, audio and video, and downloading files.
 
-[INPUT]  chat_id, media bytes or file_id / URL, caption, file_id for downloads
-[OUTPUT] TelegramMediaApi, get_recommended_send_method
-[POS] Media group of the Telegram Bot API client: uploads go through one ``_send_media``, downloads through
-``getFile``. ``TelegramClient`` inherits the group.
+[INPUT]
+- telegram.api_core::TelegramApiBase (POS: Bot API transport: endpoint, pooled HTTP client, unified ``_call``)
+
+[OUTPUT]
+- TelegramMediaApi: photo, document, voice, audio and video sending, file download
+- get_recommended_send_method: the send method a MIME type and size call for
+
+[POS]
+Media group of the Telegram Bot API client: uploads go through one ``_send_media``, downloads through ``getFile``.
+``TelegramClient`` inherits the group.
 """
 
 from __future__ import annotations

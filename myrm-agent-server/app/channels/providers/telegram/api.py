@@ -1,9 +1,16 @@
 """Telegram Bot API async HTTP client.
 
-[INPUT]  bot_token, api_base (optional)
-[OUTPUT] TelegramClient
-[POS] Telegram Bot API async HTTP client. Encapsulates the text, interaction, command, webhook and rich-message
-calls; the media and Forum Topic groups live in ``api_media`` and ``api_forum`` and the transport in ``api_core``.
+[INPUT]
+- telegram.api_core::TelegramApiError (POS: Bot API transport and the error a failed call raises)
+- telegram.api_media::TelegramMediaApi (POS: media sending and file download group of the client)
+- telegram.api_forum::TelegramForumApi (POS: Forum Topic group of the client)
+
+[OUTPUT]
+- TelegramClient: async Telegram Bot API client (bot_token, optional api_base)
+
+[POS]
+Telegram Bot API async HTTP client. Holds the text, interaction, command, webhook and rich-message calls; the media
+and Forum Topic groups live in ``api_media`` and ``api_forum``, the transport in ``api_core``.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Telegram disable_notification helpers (Hermes-compatible important/all modes)."""
+"""Telegram ``disable_notification`` helpers: ``all`` notifies for every message, ``important`` silences the rest."""
 
 from __future__ import annotations
 
