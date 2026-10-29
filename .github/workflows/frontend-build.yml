@@ -15,8 +15,10 @@ on:
       - '.github/workflows/frontend-build.yml'
 
 concurrency:
-  group: frontend-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # The orphan check of a push compares it with the commit main pointed at before that push, so a run cancelled by the
+  # next push would leave the first push's orphans unchecked forever. Only a pull request is superseded by a newer run.
+  group: frontend-build-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -26,7 +28,8 @@ jobs:
       run:
         working-directory: myrm-agent-frontend
     steps:
-      # Full history: the orphan gate's diff mode needs the merge-base with the pull request's base branch.
+      # Full history: the orphan gate's diff mode needs the merge-base with the pull request's base branch, or the
+      # commit a push replaced.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
