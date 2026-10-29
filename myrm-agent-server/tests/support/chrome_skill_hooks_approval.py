@@ -25,9 +25,11 @@ from tests.support.chrome_skill_hooks_composer import describe_page
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat
 from tests.support.chrome_skill_hooks_observe import (
     backend_log_since,
+    completed_reply_containing,
     reply_ending_with,
     stored_messages,
     wait_assistant_reply_ending_with,
+    wait_completed_assistant_reply_containing,
 )
 
 _APPROVAL_VISIBLE_JS = """(() => {
@@ -74,18 +76,28 @@ def _wait_until_card_consumed(client: ChromeMcpClient, page: McpPage, *, timeout
 
 
 def approve_cards_until_reply(
-    client: ChromeMcpClient, page: McpPage, probe: SkillChat, token: str, *, timeout_sec: float = 240.0
+    client: ChromeMcpClient,
+    page: McpPage,
+    probe: SkillChat,
+    token: str,
+    *,
+    timeout_sec: float = 240.0,
+    tolerate_closing_note: bool = False,
 ) -> str:
     """Approve every tool-approval card the run parks behind until the reply ending with ``token`` is stored.
 
     A model that retries a command the executor refused (for instance one chained with ``;``) parks behind a new
     card, and a user approves that one too. Each click is logged, so a turn that needed more than one is visible.
+
+    With ``tolerate_closing_note`` the reply may carry words after the token (a model that explains why the command
+    was refused does): any completed assistant turn containing the token ends the wait.
     """
     api_url = get_e2e_api_url()
+    find_reply = completed_reply_containing if tolerate_closing_note else reply_ending_with
     deadline = time.monotonic() + timeout_sec
     clicks = 0
     while time.monotonic() < deadline:
-        reply = reply_ending_with(stored_messages(probe.chat_id, api_url), token)
+        reply = find_reply(stored_messages(probe.chat_id, api_url), token)
         if reply is not None:
             print(f"E2E_ASSISTANT_REPLY[{probe.chat_id}] after {clicks} approval click(s): {reply[:400]}", flush=True)
             return reply
@@ -97,7 +109,8 @@ def approve_cards_until_reply(
             _wait_until_card_consumed(client, page, timeout_sec=60.0)
             continue
         time.sleep(2.0)
-    return wait_assistant_reply_ending_with(probe.chat_id, api_url, token, timeout_sec=1.0)
+    wait_for_reply = wait_completed_assistant_reply_containing if tolerate_closing_note else wait_assistant_reply_ending_with
+    return wait_for_reply(probe.chat_id, api_url, token, timeout_sec=1.0)
 
 
 def describe_unanswered_resume(

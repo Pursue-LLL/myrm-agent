@@ -52,6 +52,10 @@ export const loadMessages = async (
   // the DB snapshot may not have persisted the in-flight assistant message
   // (SSE-injected routingTier etc.), so we merge instead of replacing below.
   const activeStreamAtStart = useChatStore.getState().currentSessionMessageId ?? null;
+  // 服务端是否仍在执行必须在取消息快照之前采样：回合恰好在快照之后才收尾时，页面拿到的是它收尾前的消息，
+  // 若探测排在快照之后，就会把它当成「已结束」而永远停在旧状态；先采样则记为「仍在执行」，由 attach 补齐。
+  const runningProbe =
+    !preserveInstantSessionConfig && !options?.skipActiveTurnAttach ? isTurnRunningOnServer(chatId) : null;
   try {
     actions.setMessages((state) => {
       state.loading = true;
@@ -187,13 +191,13 @@ export const loadMessages = async (
       });
     }
 
-    if (!preserveInstantSessionConfig && !options?.skipActiveTurnAttach) {
+    if (runningProbe) {
       console.log('[MYRM-ATTACH] loadMessages triggers maybeAttachToActiveTurn', {
         chatId,
         preserveInstantSessionConfig,
         skip: options?.skipActiveTurnAttach,
       });
-      void maybeAttachToActiveTurn(chatId, actions);
+      void maybeAttachToActiveTurn(chatId, actions, runningProbe);
     } else {
       console.log('[MYRM-ATTACH] loadMessages SKIPS attach', {
         chatId,
@@ -285,12 +289,36 @@ export const loadMessages = async (
 /** 正在尝试恢复进行中 agent 执行的 chat，防止并发重复 attach。 */
 const activeTurnAttachInFlight = new Set<string>();
 
+/** 服务端此刻是否正在执行这个 chat 的回合（探测失败按「没有」处理，恢复只是尽力而为）。 */
+async function isTurnRunningOnServer(chatId: string): Promise<boolean> {
+  try {
+    const sessions = await apiRequest<{ activeSessions?: Array<{ chatId: string }> }>('/agents/active-sessions', {
+      silent: true,
+    });
+    return sessions.activeSessions?.some((session) => session.chatId === chatId) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/** 页面在这个 chat 上没有自己的回合：用户还停在这个 chat、没有加载中、没有打开的流。 */
+function isIdleOnChat(chatId: string): boolean {
+  const state = useChatStore.getState();
+  return state.chatId === chatId && !state.loading && !state.abortController;
+}
+
 /**
- * 页面重载 / 重新进入 chat 后，若最后一条是 user 消息且无 assistant 回复，
- * agent 可能仍在后端执行。尝试 attachToChat 恢复 SSE 流；
- * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在"已发送未回复"。
+ * 页面重载 / 重新进入 chat 后恢复仍在后端执行的回合：
+ * - 最后一条是 user 消息：agent 可能仍在执行，尝试 attachToChat 恢复 SSE 流。
+ * - 最后一条是 assistant 消息：通常回合已结束；但点了 Approve 后续跑还在进行时重载，最后一条就是停在审批处的
+ *   assistant 消息，服务端仍在跑，只有 `runningProbe`（加载开始时对服务端的采样）确认这个 chat 在执行时才 attach。
+ * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在「已发送未回复」。
  */
-async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMethods): Promise<void> {
+async function maybeAttachToActiveTurn(
+  chatId: string,
+  actions: ChatActionsMethods,
+  runningProbe: Promise<boolean>,
+): Promise<void> {
   if (activeTurnAttachInFlight.has(chatId)) {
     return;
   }
@@ -304,18 +332,25 @@ async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMetho
     msgCount: (state.messages ?? []).length,
     lastRole: (state.messages ?? [])[(state.messages ?? []).length - 1]?.role,
   });
-  if (state.chatId !== chatId || state.loading || state.abortController) {
+  if (!isIdleOnChat(chatId)) {
     return;
   }
 
   const messages = state.messages ?? [];
   const last = messages[messages.length - 1];
-  if (!last || last.role !== 'user') {
+  if (!last) {
     return;
   }
 
   activeTurnAttachInFlight.add(chatId);
   try {
+    if (last.role !== 'user' && !(await runningProbe)) {
+      return;
+    }
+    // 等探测结果期间，用户可能已经发起了自己的回合，或离开了这个 chat。
+    if (!isIdleOnChat(chatId)) {
+      return;
+    }
     console.log('[MYRM-ATTACH] calling attachToChat', chatId);
     const { attachToChat } = await import('./messageRequest');
     const attached = await attachToChat(chatId, actions, useChatStore.getState);
