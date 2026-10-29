@@ -5,17 +5,20 @@ Supports three industry-standard output formats:
 - Alpaca: instruction / input / output triplet
 - OpenAI: chat completions format with role-based messages
 
-Also provides content deduplication via SHA-256 hashing and PII redaction
-by delegating to the existing ``redact_pii`` infrastructure.
+Also provides content deduplication via SHA-256 hashing, credential masking
+by delegating to the shared secret redactor, and PII redaction by delegating to
+the existing ``redact_pii`` infrastructure.
 
 [INPUT]
 - event_log.trace_types::ExecutionTrace (POS: Read-side aggregation types)
+- core.security.redact::redact_field_text, redact_nested, redact_sensitive_text (POS: Secret redaction: shared walker over nested values, field-name-aware text redaction, free-text redaction)
 - security.detection.pii_redactor::redact_pii (POS: PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, cards their last 4 digits, etc.) for user-friendly redaction, applied for the levels the caller names, so one level's redaction never masks another level's content. Passwords are replaced by span (password_heuristic, recall mode) before the regex stages, so the label and the punctuation around the value survive. The user's custom terms are replaced by span right after the passwords, and the card numbers a card keyword introduces right after the S3 patterns. A match that fails its checksum is neither masked nor counted.)
 - dataset_export.protocols::ExportFormat (POS: Pure type definitions)
 
 [OUTPUT]
 - convert_trace: convert a single trace to the specified format
 - deduplicate: remove duplicate samples by content hash
+- redact_trace_credentials: mask the credentials in the trace fields a sample carries
 - redact_trace_pii: apply PII redaction to trace text fields
 
 [POS]
@@ -27,8 +30,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
+from typing import cast
 
-from ..trace_types import ExecutionTrace
+from myrm_agent_harness.core.security.redact import redact_field_text, redact_nested, redact_sensitive_text
+
+from ..trace_types import ExecutionTrace, ToolCallRecord
 from .protocols import ExportFormat
 
 
@@ -65,6 +72,27 @@ def deduplicate(samples: list[dict[str, object]]) -> list[dict[str, object]]:
             seen.add(h)
             unique.append(sample)
     return unique
+
+
+def redact_trace_credentials(trace: ExecutionTrace) -> None:
+    """Mask the credentials in the fields a sample carries, in place.
+
+    The event log keeps tool arguments and results as the tool saw them, so a header, an environment entry or a
+    response line may still hold a credential. Unlike PII redaction, a dataset has no use for one, so this is not
+    optional.
+    """
+    trace.task_input = redact_sensitive_text(trace.task_input)
+    trace.output = redact_sensitive_text(trace.output)
+    trace.tool_calls = [_redact_tool_call(call) for call in trace.tool_calls]
+
+
+def _redact_tool_call(call: ToolCallRecord) -> ToolCallRecord:
+    return replace(
+        call,
+        input_data=cast("dict[str, object]", redact_nested(call.input_data, redact_field_text)),
+        output_summary=redact_sensitive_text(call.output_summary) if call.output_summary else call.output_summary,
+        error=redact_sensitive_text(call.error) if call.error else call.error,
+    )
 
 
 def redact_trace_pii(trace: ExecutionTrace) -> tuple[ExecutionTrace, int]:

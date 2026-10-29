@@ -6,18 +6,20 @@ defense layer complementing ``sanitize_env`` (source removal).
 
 [INPUT]
 - masking::_mask_token, masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
+- nested::redact_nested (POS: Shared walker of the redaction domain: bounded in depth, cuts a container that holds itself)
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
 - command_patterns::_redact_command_credentials (POS: Command-line rules of the runtime redactor)
 - header_patterns::_redact_secret_headers (POS: Header rules of the runtime redactor)
 - patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
-- structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line (POS: structured-field detectors of the redaction engine)
+- structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line, structured_fields::_is_secret_field_name, structured_fields::_mask_field_value (POS: structured-field detectors of the redaction engine)
 - url_credentials::_DB_CONNSTR_RE, url_credentials::_URL_USERINFO_RE, url_credentials::_URL_BARE_TOKEN_RE and their replacers (POS: URL credential regexes and replacers of the runtime redactor)
 
 [OUTPUT]
 - redact_sensitive_text(text, *, source_code=False) -> str — apply all redaction patterns; ``source_code`` limits the name-based assignment passes to lines with a string literal
 - redact_for_llm(value) -> str — recursive redaction of nested diagnostic values, flattened to str (LLM error formatting)
 - escape_invisible_unicode(text) -> str — escape invisible chars to \\u{XXXX}
-- redact_for_display(args) -> dict — recursive redaction for approval UI
+- redact_field_text(key, text) -> str — redact the value of one named field: a credential-named field is masked whatever its shape, any other text is scanned like free text
+- redact_for_display(args) -> dict — redaction of every string in tool arguments for the approval UI, by field name, bounded in depth and safe on loops
 - RedactingFormatter — logging.Formatter subclass for production logs
 
 Pattern definitions live in ``patterns.py`` and its sibling rule modules; this module owns the redaction
@@ -38,6 +40,7 @@ from .bounded_replace import _replace_pattern_bounded
 from .command_patterns import _redact_command_credentials
 from .header_patterns import _redact_secret_headers
 from .masking import _mask_secret, _mask_token
+from .nested import redact_nested
 from .patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
@@ -60,6 +63,8 @@ from .structured_fields import (
     _JSON_ESCAPED_FIELD_RE,
     _JSON_FIELD_RE,
     _REPR_DIAGNOSTIC_LINE_RE,
+    _is_secret_field_name,
+    _mask_field_value,
     _redact_json_escaped_field,
     _redact_json_field,
     _redact_repr_diagnostic_line,
@@ -314,26 +319,29 @@ def redact_for_llm(value: object) -> str:
     return str(value)
 
 
-def _redact_value_recursive(obj: object) -> object:
-    """Recursively redact string values in dicts/lists."""
-    if isinstance(obj, str):
-        return redact_sensitive_text(escape_invisible_unicode(obj))
-    if isinstance(obj, dict):
-        return {k: _redact_value_recursive(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_redact_value_recursive(item) for item in obj]
-    return obj
+def redact_field_text(key: str, text: str) -> str:
+    """Redact ``text``, the value of the field called ``key`` (``""`` when the field has no string name).
+
+    A value that holds no secret shape (``sessionid=…`` in ``Cookie``, a bare password) is still masked when the field
+    name is a credential, since the name says what the value does not. Any other text is scanned like free text.
+    """
+    if _REDACT_ENABLED and text.strip() and _is_secret_field_name(key):
+        return _mask_field_value(key, text)
+    return redact_sensitive_text(text)
+
+
+def _display_text(key: str, text: str) -> str:
+    return redact_field_text(key, escape_invisible_unicode(text))
 
 
 def redact_for_display(args: dict[str, object]) -> dict[str, object]:
     """Redact tool arguments for approval UI display.
 
-    Applies invisible Unicode escaping + secret masking recursively.
-    Used by the approval batch processor to sanitize args before
-    sending them to the frontend. The original args are preserved
-    for actual tool execution.
+    Applies invisible Unicode escaping + secret masking to every string, by field name. A container nested deeper than
+    ``nested.MAX_DEPTH`` or holding itself is replaced by a marker. Used by the approval batch processor to sanitize args
+    before sending them to the frontend. The original args are preserved for actual tool execution.
     """
-    result = _redact_value_recursive(args)
+    result = redact_nested(args, _display_text)
     if not isinstance(result, dict):
         return args
     return result

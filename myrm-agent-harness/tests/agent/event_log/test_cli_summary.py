@@ -35,7 +35,7 @@ def printed() -> str:
     )
     summary.token_economics = tracker.to_dict()
     summary.task_metrics = metrics.to_dict()
-    return generate_cli_summary("demo", summary.to_dict())
+    return generate_cli_summary("demo", summary)
 
 
 @pytest.mark.parametrize(

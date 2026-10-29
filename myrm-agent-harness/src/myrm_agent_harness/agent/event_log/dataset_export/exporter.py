@@ -1,6 +1,6 @@
 """Dataset exporter — orchestrates the full export pipeline.
 
-Coordinates trace retrieval, quality filtering, PII redaction,
+Coordinates trace retrieval, quality filtering, credential masking, PII redaction,
 deduplication, format conversion, and JSONL file writing.
 
 Supports incremental export via a state file that tracks the last
@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 from ..trace_builder import build_trace
-from .format_converter import convert_trace, deduplicate, redact_trace_pii
+from .format_converter import convert_trace, deduplicate, redact_trace_credentials, redact_trace_pii
 from .protocols import ExportConfig, ExportFormat, ExportReport
 from .quality_filter import passes_quality
 
@@ -126,6 +126,7 @@ class DatasetExporter:
 
                 report.traces_passed_quality += 1
 
+                redact_trace_credentials(trace)
                 if config.redact_pii:
                     trace, redaction_count = redact_trace_pii(trace)
                     report.pii_redactions += redaction_count

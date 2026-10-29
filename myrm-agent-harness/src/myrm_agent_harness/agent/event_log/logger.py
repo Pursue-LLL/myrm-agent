@@ -167,7 +167,7 @@ class EventLogger:
         try:
             from myrm_agent_harness.agent.event_log.cli_summary import generate_cli_summary
 
-            cli_summary = generate_cli_summary(self._session_id, self._summary.to_dict())
+            cli_summary = generate_cli_summary(self._session_id, self._summary)
             print(cli_summary)
         except Exception as e:
             logger.debug(f"Failed to generate CLI summary: {e}")

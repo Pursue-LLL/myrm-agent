@@ -1,7 +1,7 @@
 """Dataset Export — convert execution traces to standard fine-tuning formats.
 
 Provides a pipeline to export event log data as ShareGPT, Alpaca, or
-OpenAI JSONL datasets, with built-in PII redaction, quality filtering,
+OpenAI JSONL datasets, with built-in credential masking, PII redaction, quality filtering,
 and content deduplication.
 
 [INPUT]

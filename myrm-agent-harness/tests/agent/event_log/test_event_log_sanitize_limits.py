@@ -10,10 +10,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from myrm_agent_harness.agent.event_log._sanitize import _MAX_DEPTH, sanitize_event_data
+from myrm_agent_harness.agent.event_log._sanitize import sanitize_event_data
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.logger import EventLogger
 from myrm_agent_harness.agent.streaming.broadcast.tool_call_broadcaster import ToolCallBroadcaster
+from myrm_agent_harness.core.security.redact.nested import MAX_DEPTH
 
 _TOKEN = "sk-test-abcdefghijklmnopqrstuvwxyz1234567890abcdef"
 _LEAK_DETECTOR = "myrm_agent_harness.agent.event_log._sanitize.redact_leaks"
@@ -32,14 +33,14 @@ def _events(log_file: Path) -> list[dict[str, object]]:
 
 
 def test_a_payload_at_the_depth_limit_is_redacted_in_place() -> None:
-    sanitized = sanitize_event_data(_chain(_MAX_DEPTH, _TOKEN))
+    sanitized = sanitize_event_data(_chain(MAX_DEPTH, _TOKEN))
 
     assert _TOKEN not in json.dumps(sanitized)
     assert "nesting too deep" not in json.dumps(sanitized)
 
 
 def test_a_container_below_the_depth_limit_is_replaced_by_a_marker() -> None:
-    sanitized = sanitize_event_data(_chain(_MAX_DEPTH + 1, _TOKEN))
+    sanitized = sanitize_event_data(_chain(MAX_DEPTH + 1, _TOKEN))
 
     assert _TOKEN not in json.dumps(sanitized)
     assert "[nesting too deep]" in json.dumps(sanitized)

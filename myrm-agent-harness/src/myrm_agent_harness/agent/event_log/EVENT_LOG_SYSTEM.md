@@ -9,7 +9,7 @@
 1. **Checkpointer 互补**：Checkpointer 保存图状态；EventLog 保存细粒度事件流（tool/llm/token）
 2. **可选注入**：通过 `event_log_backend` 注入 BaseAgent，未配置时零开销
 3. **读侧分析**：analytics / trace_builder 供会话追踪、统计分析与数据集导出消费
-4. **导出管道**：dataset_export 支持 ShareGPT/Alpaca/OpenAI JSONL + PII 脱敏
+4. **导出管道**：dataset_export 支持 ShareGPT/Alpaca/OpenAI JSONL + 凭据遮蔽（始终执行）+ PII 脱敏
 5. **会话级生命周期**：`FileEventLogBackend` 每个会话一个 `{session_id}.jsonl`。按时间老化由 `cleanup_old_logs` 负责；业务层在会话被永久删除时调用 `remove_session_log` 立即删除该会话的文件（会话标识解析到日志目录之外时拒绝）。事件日志含完整提示词与工具结果，是否为某类会话创建后端由业务层决定（不注入 `event_log_backend` 即不落盘）
 
 ---
@@ -28,8 +28,8 @@ BaseAgent.run()
       ├─ trace_builder.py — llm_request + token_usage → LLMCallRecord；tool_start/tool_end 按 tool_call_id 配对，`tasks_steps` 流式步骤读侧兼容 → 指令血缘（配对/LLM/tasks_steps 逻辑分别由 _pairing.py/_llm.py/_tasks_steps.py 承载，共享工具函数与 `_EVENT_META_KEYS` 元数据键集合在 _common.py）
       ├─ analytics.py / analytics_queries.py — 读侧聚合
       ├─ llm_observability.py — prompt preview 截断记录
-      ├─ _sanitize.py — 写入前递归脱敏：命令 key 的字符串按命令行遮蔽，遍历最深 32 层、容器包含自身处截断，无法脱敏的载荷以标记替代而不落原文
-      └─ dataset_export/ — 质量过滤 + 格式转换 + exporter
+      ├─ _sanitize.py — 写入前递归脱敏（遍历由共享的 core/security/redact/nested.py 完成，最深 32 层、容器包含自身处截断）：命令 key 的字符串按命令行遮蔽，无法脱敏的载荷以标记替代而不落原文
+      └─ dataset_export/ — 凭据遮蔽 + 质量过滤 + 格式转换 + exporter
 ```
 
 ---
