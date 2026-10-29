@@ -47,7 +47,7 @@ def resolve_paths(agent_root: str | None = None) -> StackPaths:
     dev_dir_str = str(dev_dir)
     if dev_dir_str not in sys.path:
         sys.path.insert(0, dev_dir_str)
-    from wave_orchestrator.paths import resolve_dev_state_dir
+    from wave_orchestrator.paths import frontend_dist_dir, resolve_dev_state_dir
 
     state_dir = resolve_dev_state_dir()
     socket_override = os.environ.get("MYRM_SUPERVISOR_SOCKET", "").strip()
@@ -69,7 +69,7 @@ def resolve_paths(agent_root: str | None = None) -> StackPaths:
         supervisor_state_file=state_dir / "supervisor-state.json",
         backend_pid_file=state_dir / "backend.pid",
         frontend_pid_file=state_dir / "frontend.pid",
-        frontend_lock_file=root / "myrm-agent-frontend/.next/dev-server.lock",
+        frontend_lock_file=frontend_dist_dir(root / "myrm-agent-frontend", state_dir) / "dev-server.lock",
         warmth_file=state_dir / "frontend-warmth.json",
         epoch_file=state_dir / "stack-epoch.json",
         api_health_url=f"{api_base}/api/v1/health",

@@ -2,7 +2,7 @@
 
 [INPUT]
 - stack-epoch.json via stack-epoch.sh (POS: Backend generation SSOT for parallel Agent drift)
-- frontend .next/dev-server.lock via frontend-warmup.sh (POS: Frontend compile warmth gate)
+- frontend <distDir>/dev-server.lock via frontend-warmup.sh (POS: Frontend compile warmth gate)
 - CDP GET /json/version on :9333 (POS: Myrm E2E Chrome attach endpoint)
 - ~/.local/state/cdmcp-mux daemon.pid + upstream-ws-url (POS: mux daemon generation stamp)
 
@@ -285,20 +285,32 @@ def _backend_port_owner(*, port: int | None = None) -> tuple[int | None, str]:
     return owner, (result.stdout or "").strip()
 
 
-def foreign_backend_port_owner_description(*, port: int | None = None) -> str:
-    """Describe a backend port owner that is not the dev backend (empty when it is).
+def foreign_backend_port_owner_description(
+    *, port: int | None = None, runtime_id: str | None = None
+) -> str:
+    """Describe a backend port owner this dev stack did not start (empty when it is ours).
 
     The desktop app's bundled server also listens on the backend port and answers health checks
-    with 200 while serving a different database. The dev stack refuses to reclaim a foreign port
-    owner (it must not kill processes it does not own), so a lane that only asks "is the API up?"
-    silently runs against the wrong backend and fails for reasons that have nothing to do with the
-    test. The dev backend is the process whose command carries the backend token.
+    with 200 while serving a different database. The dev stack must neither reclaim nor adopt a
+    foreign port owner, so a lane that only asks "is the API up?" silently runs against the wrong
+    backend and fails for reasons that have nothing to do with the test. Ownership is the dev
+    stamp in the process environment: the desktop sidecar runs the very same ``run.py`` command
+    as the dev backend, so the command line proves nothing.
     """
+    from e2e_core.dev_ownership import classify
+
     backend_port = port if port is not None else int(os.environ.get("MYRM_BACKEND_PORT", "8080"))
     owner, command = _backend_port_owner(port=backend_port)
-    if owner is None or not command or "run.py" in command:
+    if owner is None:
         return ""
-    return f":{backend_port} is served by pid {owner} ({command[:160]})"
+    namespace = (runtime_id or os.environ.get("MYRM_RUNTIME_NAMESPACE", "")).strip() or "shared"
+    verdict = classify(owner, namespace)
+    if verdict == "owned":
+        return ""
+    return (
+        f":{backend_port} is served by pid {owner} ({command[:160]}), which this dev stack "
+        f"(runtime={namespace}) did not start [ownership={verdict}]"
+    )
 
 
 def backend_port_owner_is_dev_backend(*, port: int | None = None) -> bool:
@@ -374,8 +386,20 @@ def classify_ui_endpoint_error(ui_base: str, *, timeout_sec: float = 5.0) -> str
     return "ui=unreachable"
 
 
+API_FOREIGN_LISTENER = "api=foreign_listener"
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
 def format_attach_endpoint_failure(errors: list[str]) -> str:
-    """Human-facing attach failure with STACK_UI_HALF_DEAD guidance."""
+    """Human-facing attach failure with STACK_UI_HALF_DEAD / STACK_FOREIGN_LISTENER guidance."""
+    if any(error.strip() == API_FOREIGN_LISTENER for error in errors):
+        return (
+            "STACK_FOREIGN_LISTENER: the shared API port answers health but is held by a process "
+            "this dev stack did not start (the desktop app's sidecar or a `myrm start` runtime, "
+            "serving the user's own data) — attach refuses to test against it, and no dev command "
+            "restarts or adopts it. Stop that process yourself, or run on an isolated runtime: "
+            "./myrm-dev isolate"
+        )
     if any(error.strip() == "ui=half_dead" for error in errors):
         return (
             "STACK_UI_HALF_DEAD: shared UI listening but HTTP unreachable — "
@@ -385,13 +409,34 @@ def format_attach_endpoint_failure(errors: list[str]) -> str:
     return "CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors)
 
 
+def _shared_backend_port() -> int:
+    raw = os.environ.get("MYRM_SHARED_BACKEND_PORT", "").strip()
+    return int(raw) if raw.isdigit() else 8080
+
+
+def _api_endpoint_error(api_base: str, *, timeout_sec: float) -> str | None:
+    """`api=unreachable` | `api=foreign_listener` | None (healthy and ours).
+
+    Only the shared dev API port is checked for ownership: a user's runtime sits on that default
+    port, whereas private/pinned runtime ports are allocated by the dev tooling itself.
+    """
+    if not _http_url_ok(api_base.rstrip("/") + "/api/v1/health", timeout_sec=timeout_sec):
+        return "api=unreachable"
+    host, port = _ui_probe_host_port(api_base)
+    if (
+        host in _LOOPBACK_HOSTS
+        and port == _shared_backend_port()
+        and foreign_backend_port_owner_description(port=port, runtime_id="shared")
+    ):
+        return API_FOREIGN_LISTENER
+    return None
+
+
 def api_health_errors(api_base: str) -> list[str]:
     """Probe API health only — used by stack-core keepalive."""
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
-    url = api_base.rstrip("/") + "/api/v1/health"
-    if _http_url_ok(url, timeout_sec=api_timeout):
-        return []
-    return ["api=unreachable"]
+    error = _api_endpoint_error(api_base, timeout_sec=api_timeout)
+    return [] if error is None else [error]
 
 
 def shpoib_private_backend_preflight() -> bool:
@@ -417,15 +462,12 @@ def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
 
     ui_timeout = attach_ui_probe_timeout_sec()
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
-    api_url = api_base.rstrip("/") + "/api/v1/health"
 
     def probe_ui() -> str | None:
         return classify_ui_endpoint_error(ui_base, timeout_sec=ui_timeout)
 
     def probe_api() -> str | None:
-        if _http_url_ok(api_url, timeout_sec=api_timeout):
-            return None
-        return "api=unreachable"
+        return _api_endpoint_error(api_base, timeout_sec=api_timeout)
 
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="attach-health") as pool:
         ui_future = pool.submit(probe_ui)
@@ -631,13 +673,14 @@ def _backend_source_fingerprint() -> str:
 
 
 def _frontend_next_dir(frontend_dir: Path) -> Path:
-    override = os.getenv("MYRM_NEXT_DIST_DIR", "").strip()
-    if override:
-        path = Path(override)
-        return path if path.is_absolute() else frontend_dir / override
-    # The dev server writes to .next-dev (next.config.ts): a production build clears .next
-    # and would take the running dev server's chunks with it.
-    return frontend_dir / ".next-dev"
+    from dev_paths import scripts_dev_dir
+
+    dev_dir_str = str(scripts_dev_dir(Path(__file__)))
+    if dev_dir_str not in sys.path:
+        sys.path.insert(0, dev_dir_str)
+    from wave_orchestrator.paths import frontend_dist_dir
+
+    return frontend_dist_dir(frontend_dir)
 
 
 def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | None:

@@ -81,7 +81,7 @@ source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 # Sandboxed HOME (e.g. Cursor's ~/.cursor-3) would split mux state, warm shells and
 # harness data across two homes. Run the whole preflight under the real user home so
 # every $HOME-derived path (cdmcp-mux state, frontend caches) stays on one SSOT dir.
-export_spawn_home
+export_spawn_home || exit 1
 STATE_DIR="$(dev_state_dir)"
 FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
 export_myrm_next_dist_dir
@@ -446,6 +446,8 @@ from e2e_core.runtime_identity import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
 ")"
     [[ -z "${errors}" ]] && return 0
+    # A listener this stack did not start never becomes the dev backend, so waiting cannot help.
+    [[ "${errors}" == *"api=foreign_listener"* ]] && return 1
     wait_sec="$(_bootstrap_attach_remaining_sec)"
     if [[ "${wait_sec}" -le 0 ]]; then
       printf '%s\n' "${errors}" >&2
@@ -808,7 +810,7 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     if [[ "${mux_heal_during_wait}" -lt 2 ]] \
       && [[ "${health}" == *"wsStampMatch=false"* ]] \
       && _mux_upstream_ready; then
-      if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && _mux_solo_gate_cluster_clear ]]; then
+      if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && _mux_solo_gate_cluster_clear; then
         mux_heal_during_wait=$((mux_heal_during_wait + 1))
         echo "CHROME_E2E_ATTACH_HEAL: solo ws restamp during attach wait ${mux_heal_during_wait}/2 (R255)" >&2
         _stamp_mux_ws_url || true
@@ -1049,6 +1051,9 @@ sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_core.runtime_identity import format_attach_endpoint_failure
 print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.split(',') if p.strip()]))
 ")"
+      if [[ "${attach_errors}" == *"api=foreign_listener"* ]]; then
+        fail "${attach_msg}"
+      fi
       fail "${attach_msg} — first Agent must run: ./myrm-dev ready --chrome"
     fi
   fi

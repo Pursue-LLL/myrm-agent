@@ -21,6 +21,9 @@ from tests.support.test_secrets import TestSecrets, load_test_secrets
 NONEXISTENT_MODEL_ID = "__e2e_nonexistent_model__"
 _LOCAL_GATEWAY_HOST = "localhost:20128"
 _SNAPSHOT_FILE_NAME = "e2e-provider-seed.json"
+# Data root of the shared dev stack (`dev_default_data_dir` in scripts/dev/lib/dev_state_paths.sh),
+# never the real user's ~/.myrm; test_dev_default_data_dir_isolation pins the two together.
+_SHARED_DEV_DATA_DIR = "~/.local/share/myrm-dev/data"
 
 
 @dataclass(frozen=True)
@@ -316,7 +319,7 @@ def _snapshot_path(api_url: str) -> Path:
     The api_url is hashed into the file name so that a lane seeding an isolated runtime and a lane
     seeding the shared backend never share (and overwrite) one snapshot file.
     """
-    state_dir = Path(os.environ.get("MYRM_DATA_DIR", "~/.myrm")).expanduser()
+    state_dir = Path(os.environ.get("MYRM_DATA_DIR", _SHARED_DEV_DATA_DIR)).expanduser()
     digest = hashlib.sha256(api_url.strip().encode()).hexdigest()[:12]
     return state_dir / f"{_SNAPSHOT_FILE_NAME}.{digest}"
 

@@ -60,6 +60,32 @@ print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
   fi
 }
 
+# Record the process holding the backend port as this runtime's backend.
+# Ownership is proven by the dev stamp the stack puts into every process it spawns, never by
+# the command line: the desktop sidecar runs the same `run.py`, on the user's real data dir.
+# A listener this stack did not start is never adopted, epoch-stamped or signalled.
+# Args: python identity_helper identity_file runtime_id pid port. Returns 0 adopted | 1 refused.
+_adopt_port_owner() {
+  local py="$1" identity_helper="$2" identity_file="$3" runtime_id="$4" owner_pid="$5" port="$6"
+  local rc=0
+  "${py}" "${identity_helper}" record \
+    --pid "${owner_pid}" \
+    --identity-file "${identity_file}" \
+    --runtime-id "${runtime_id}" \
+    --role backend \
+    --expected-command-token run.py >/dev/null 2>&1 || rc=$?
+  case "${rc}" in
+    0) return 0 ;;
+    6)
+      echo "STACK_FOREIGN_LISTENER: :${port} is held by pid ${owner_pid}, which this dev stack (runtime=${runtime_id}) did not start — refusing to adopt, stamp or signal it. Stop it yourself, or run on an isolated runtime: ./myrm-dev isolate" >&2
+      ;;
+    *)
+      echo "STACK_FAIL: :${port} owned by non-backend pid ${owner_pid} — refusing to reclaim foreign process" >&2
+      ;;
+  esac
+  return 1
+}
+
 _start_backend_bg() {
   local server_dir="$1"
   local state_dir
@@ -107,16 +133,9 @@ _start_backend_bg() {
     old_pid="$(cat "${pid_file}")"
 
     if [[ -n "${port_owner_pid}" ]]; then
-      # ---- 端口有监听者：owner 是唯一真值，记录无条件同步到 owner ----
-      if ! "${py}" "${identity_helper}" record \
-        --pid "${port_owner_pid}" \
-        --identity-file "${identity_file}" \
-        --runtime-id "${runtime_id}" \
-        --role backend \
-        --expected-command-token run.py >/dev/null 2>&1; then
-        echo "STACK_FAIL: :${backend_port} owned by non-backend pid ${port_owner_pid} — refusing to reclaim foreign process" >&2
-        return 1
-      fi
+      # ---- 端口有监听者：本栈自己的 owner 是唯一真值，记录同步到 owner；非己方进程一律拒绝 ----
+      _adopt_port_owner "${py}" "${identity_helper}" "${identity_file}" "${runtime_id}" \
+        "${port_owner_pid}" "${backend_port}" || return 1
       if [[ "${port_owner_pid}" != "${old_pid}" ]]; then
         echo "STACK_SYNC: backend record ${old_pid} → port owner ${port_owner_pid}" >&2
       fi
@@ -232,15 +251,8 @@ _start_backend_bg() {
   else
     # 无 pid_file 但端口被 backend 占用：接管记录，不重建（端口 owner 是权威）。
     if [[ -n "${port_owner_pid}" ]]; then
-      if ! "${py}" "${identity_helper}" record \
-        --pid "${port_owner_pid}" \
-        --identity-file "${identity_file}" \
-        --runtime-id "${runtime_id}" \
-        --role backend \
-        --expected-command-token run.py >/dev/null 2>&1; then
-        echo "STACK_FAIL: :${backend_port} owned by non-backend pid ${port_owner_pid} — refusing to reclaim foreign process" >&2
-        return 1
-      fi
+      _adopt_port_owner "${py}" "${identity_helper}" "${identity_file}" "${runtime_id}" \
+        "${port_owner_pid}" "${backend_port}" || return 1
       echo "${port_owner_pid}" > "${pid_file}"
       echo "Backend already running (pid ${port_owner_pid})"
       return 0
@@ -284,7 +296,11 @@ _start_backend_bg() {
   # Child backend must run under the real user home: sandboxed HOME (e.g.
   # ~/.cursor-3) would split harness data into ~/.cursor-3/.myrm, desyncing
   # memory/cron/task state from the rest of the stack.
-  export_spawn_home
+  export_spawn_home || return 1
+  # Ownership stamp: every process this stack spawns carries it, and it is the only thing
+  # that tells a dev-owned listener from the desktop sidecar or a `myrm start` runtime that
+  # runs the same run.py on the same default port (see e2e_core/dev_ownership.py).
+  export MYRM_RUNTIME_NAMESPACE="${runtime_id}" MYRM_DEV_STATE_DIR="${state_dir}"
 
   _stack_stage guard_begin
   _require_harness_editable "${server_dir}"
@@ -350,18 +366,16 @@ os.execv(sys.argv[1], sys.argv[1:])
         return 0
       fi
       if [[ -n "${listener_pid}" ]]; then
-        # 端口已被另一个健康 backend 抢先占用（并发 ensure 竞争）：不争抢，
-        # 接管端口 owner 记录并回收本实例，避免孤儿进程堆积。
-        echo "STACK_SYNC: :${backend_port} served by existing pid ${listener_pid} — adopting record, killing new pid ${new_pid}" >&2
+        # 端口已被另一个健康 backend 抢先占用：只有它是本栈的（并发 ensure 竞争）才接管
+        # 记录并回收本实例；非己方进程（例如桌面 sidecar）既不接管、不盖 epoch，也不动它。
         kill -TERM "${new_pid}" 2>/dev/null || true
-        if "${py}" "${identity_helper}" record \
-          --pid "${listener_pid}" \
-          --identity-file "${identity_file}" \
-          --runtime-id "${runtime_id}" \
-          --role backend \
-          --expected-command-token run.py >/dev/null 2>&1; then
-          echo "${listener_pid}" > "${pid_file}"
+        if ! _adopt_port_owner "${py}" "${identity_helper}" "${identity_file}" "${runtime_id}" \
+          "${listener_pid}" "${backend_port}"; then
+          rm -f "${pid_file}" "${identity_file}"
+          return 1
         fi
+        echo "STACK_SYNC: :${backend_port} served by existing pid ${listener_pid} — adopted record, killed new pid ${new_pid}" >&2
+        echo "${listener_pid}" > "${pid_file}"
         local stack_epoch_lib_adopt
         stack_epoch_lib_adopt="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
         if [[ -f "${stack_epoch_lib_adopt}" ]]; then

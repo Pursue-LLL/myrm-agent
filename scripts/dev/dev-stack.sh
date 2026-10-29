@@ -85,7 +85,8 @@ _resolve_bun() {
 
 MYRM_BUN="$(_resolve_bun || true)"
 if [[ -n "${MYRM_BUN}" ]]; then
-  export PATH="$(dirname "${MYRM_BUN}"):${PATH}"
+  MYRM_BUN_DIR="$(dirname "${MYRM_BUN}")"
+  export PATH="${MYRM_BUN_DIR}:${PATH}"
 fi
 
 export_myrm_next_dist_dir
@@ -359,6 +360,43 @@ _wait_stack_warm() {
   return 1
 }
 
+# The pid in a pid file, only when this stack started that process (a stale file whose pid
+# was recycled by an unrelated process yields nothing).
+_owned_pid_from_file() {
+  local pid
+  pid="$(tr -d '[:space:]' <"$1" 2>/dev/null || true)"
+  [[ "${pid}" =~ ^[0-9]+$ ]] || return 0
+  dev_filter_owned_pids "${pid}"
+}
+
+# Pids LISTENing on a stack port that this stack started; foreign listeners are reported on
+# stderr and never returned, so nothing built on this list can signal them.
+_owned_frontend_listener_pids() {
+  # shellcheck disable=SC2046
+  dev_filter_owned_pids $(dev_listener_pids "${FRONTEND_PORT}") | tr '\n' ' '
+}
+
+_owned_backend_listener_pids() {
+  # shellcheck disable=SC2046
+  dev_filter_owned_pids $(dev_listener_pids "${BACKEND_PORT}") | tr '\n' ' '
+}
+
+# Fail fast when the backend port is held by a process this stack did not start (the desktop
+# sidecar, a `myrm start` runtime). Waiting on it can never turn healthy for the dev stack.
+_refuse_foreign_backend_listener() {
+  local listeners owned_pids foreign
+  listeners="$(dev_listener_pids "${BACKEND_PORT}")"
+  [[ -n "${listeners// }" ]] || return 0
+  # shellcheck disable=SC2086
+  owned_pids=" $(dev_filter_owned_pids ${listeners} 2>/dev/null | tr '\n' ' ')"
+  for foreign in ${listeners}; do
+    if [[ "${owned_pids}" != *" ${foreign} "* ]]; then
+      echo "STACK_FOREIGN_LISTENER: :${BACKEND_PORT} is held by pid ${foreign}, which this dev stack (runtime=${MYRM_RUNTIME_NAMESPACE}) did not start — it will never be adopted, stamped or signalled. Stop it yourself, or run on an isolated runtime: ./myrm-dev isolate" >&2
+      return 1
+    fi
+  done
+}
+
 _backend_supervisor_alive() {
   [[ -f "${BACKEND_PID}" ]] || return 1
   local pid
@@ -501,12 +539,12 @@ _repair_orphan_frontend() {
     return "${admit_rc}"
   fi
   echo "STACK_WARN: orphan :${FRONTEND_PORT} listener without dev-server.lock — clearing" >&2
-  local pids
-  pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
-  if [[ -n "${pids}" ]]; then
-    _frontend_journal_kill "${reason}" "${pids}"
+  local owned_pids
+  owned_pids="$(_owned_frontend_listener_pids)"
+  if [[ -n "${owned_pids}" ]]; then
+    _frontend_journal_kill "${reason}" "${owned_pids}"
     # shellcheck disable=SC2086
-    kill ${pids} 2>/dev/null || true
+    kill ${owned_pids} 2>/dev/null || true
     sleep 1
   fi
   rm -f "${FRONTEND_PID}" "${FRONTEND_LOCK}"
@@ -573,10 +611,9 @@ _kill_frontend_supervisor() {
   fi
   local fe_pid=""
   if [[ -f "${FRONTEND_PID}" ]]; then
-    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+    fe_pid="$(_owned_pid_from_file "${FRONTEND_PID}")"
   fi
-  _frontend_journal_kill "${reason}" \
-    "${fe_pid} $(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+  _frontend_journal_kill "${reason}" "${fe_pid} $(_owned_frontend_listener_pids)"
   if [[ -n "${fe_pid}" ]]; then
     kill -TERM "${fe_pid}" 2>/dev/null || true
     sleep 1
@@ -584,14 +621,14 @@ _kill_frontend_supervisor() {
   fi
   rm -f "${FRONTEND_PID}"
   if _frontend_port_listening; then
-    local pids
-    pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
-    if [[ -n "${pids}" ]]; then
+    local owned_pids
+    owned_pids="$(_owned_frontend_listener_pids)"
+    if [[ -n "${owned_pids}" ]]; then
       # shellcheck disable=SC2086
-      kill -TERM ${pids} 2>/dev/null || true
+      kill -TERM ${owned_pids} 2>/dev/null || true
       sleep 1
       # shellcheck disable=SC2086
-      kill -9 ${pids} 2>/dev/null || true
+      kill -9 ${owned_pids} 2>/dev/null || true
     fi
   fi
   rm -f "${FRONTEND_LOCK}"
@@ -617,7 +654,7 @@ _launch_frontend_supervisor() {
   cd "${FRONTEND_DIR}"
   # Frontend child must run under real user home so next cache/harness paths
   # don't leak into sandboxed ~/.cursor-3.
-  export_spawn_home
+  export_spawn_home || return 1
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
   if [[ -f "${FRONTEND_LOG}" ]]; then
     local log_bytes=0
@@ -833,6 +870,8 @@ cmd_attach() {
   local attach_start="${SECONDS}"
   local elapsed remaining probe_sec
 
+  _refuse_foreign_backend_listener || exit 1
+
   _attach_wall_remaining() {
     elapsed=$((SECONDS - attach_start))
     remaining=$((ATTACH_WAIT_SEC - elapsed))
@@ -959,12 +998,16 @@ cmd_ensure() {
 cmd_reset() {
   _wave_assert_stack_write_allowed || exit 3
 
+  # reset stops what this stack started — a listener it did not start (the desktop sidecar,
+  # a `myrm start` WebUI) is left running and reported.
   _frontend_journal_kill reset \
-    "$(cat "${FRONTEND_PID}" 2>/dev/null || true) $(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+    "$(_owned_pid_from_file "${FRONTEND_PID}") $(_owned_frontend_listener_pids)"
   if [[ -f "${FRONTEND_PID}" ]]; then
     local fe_pid
-    fe_pid="$(cat "${FRONTEND_PID}")"
-    kill "${fe_pid}" 2>/dev/null || true
+    fe_pid="$(_owned_pid_from_file "${FRONTEND_PID}")"
+    if [[ -n "${fe_pid}" ]]; then
+      kill "${fe_pid}" 2>/dev/null || true
+    fi
     rm -f "${FRONTEND_PID}"
   fi
   rm -f "${FRONTEND_LOCK}"
@@ -973,8 +1016,8 @@ cmd_reset() {
 
   if [[ -f "${BACKEND_PID}" ]]; then
     local dev_pid
-    dev_pid="$(cat "${BACKEND_PID}")"
-    if dev_pid_alive "${dev_pid}"; then
+    dev_pid="$(_owned_pid_from_file "${BACKEND_PID}")"
+    if [[ -n "${dev_pid}" ]] && dev_pid_alive "${dev_pid}"; then
       kill -TERM "${dev_pid}" 2>/dev/null || true
       local _
       for _ in $(seq 1 15); do
@@ -988,20 +1031,17 @@ cmd_reset() {
     rm -f "${BACKEND_PID}"
   fi
 
-  if _frontend_port_listening; then
-    local pids
-    pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
-    if [[ -n "${pids}" ]]; then
-      # shellcheck disable=SC2086
-      kill ${pids} 2>/dev/null || true
-    fi
+  local owned_pids
+  owned_pids="$(_owned_frontend_listener_pids)"
+  if [[ -n "${owned_pids}" ]]; then
+    # shellcheck disable=SC2086
+    kill ${owned_pids} 2>/dev/null || true
   fi
 
-  local backend_listener_pids
-  backend_listener_pids="$(lsof -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
-  if [[ -n "${backend_listener_pids}" ]]; then
+  owned_pids="$(_owned_backend_listener_pids)"
+  if [[ -n "${owned_pids}" ]]; then
     # shellcheck disable=SC2086
-    kill ${backend_listener_pids} 2>/dev/null || true
+    kill ${owned_pids} 2>/dev/null || true
   fi
 
   _clear_stack_epoch
@@ -1131,17 +1171,9 @@ _repair_orphan_private_backend() {
   fi
   rm -f "${BACKEND_PID}" "${BACKEND_IDENTITY}"
   if dev_port_in_use "${BACKEND_PORT}"; then
-    local pids pid cmd
-    pids="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
-    for pid in ${pids}; do
-      [[ "${pid}" =~ ^[0-9]+$ ]] || continue
-      cmd="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
-      if [[ "${cmd}" == *run.py* && "${cmd}" == *myrm-agent-server* ]]; then
-        kill -TERM "${pid}" 2>/dev/null || true
-      fi
-    done
-    sleep 1
-    dev_kill_port_listeners "${BACKEND_PORT}" 2>/dev/null || true
+    # Only this runtime's own orphan is reclaimed; any other listener keeps the port and the
+    # wait below fails closed.
+    dev_kill_port_listeners "${BACKEND_PORT}"
   fi
   if ! dev_wait_ports_released 45 "${BACKEND_PORT}"; then
     echo "STACK_FAIL: private backend port :${BACKEND_PORT} still busy after orphan reclaim" >&2

@@ -12,11 +12,13 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
 SCHEMA_VERSION = 1
+EXIT_NOT_DEV_OWNED = 6
 
 
 class ProcessIdentity(TypedDict):
@@ -33,6 +35,18 @@ class ProcessIdentity(TypedDict):
 
 class ProcessOwnershipError(RuntimeError):
     """Raised when current OS process identity differs from recorded owner."""
+
+
+def dev_ownership_verdict(pid: int, runtime_id: str) -> str:
+    """`owned` only when the process carries this runtime's dev stamp (see dev_ownership)."""
+    # Loaded by path because this file also runs as a script and via importlib, where the
+    # `e2e_core` package is not importable.
+    sibling_dir = str(Path(__file__).resolve().parent)
+    if sibling_dir not in sys.path:
+        sys.path.insert(0, sibling_dir)
+    import dev_ownership
+
+    return dev_ownership.classify(pid, runtime_id)
 
 
 def _capture_ps_line(pid: int) -> str | None:
@@ -351,6 +365,15 @@ def main() -> int:
                 "PROCESS_COMMAND_MISMATCH: "
                 f"pid={args.pid} command={identity['command']!r}"
             )
+        # A command line cannot prove ownership: the desktop sidecar runs the same run.py.
+        verdict = dev_ownership_verdict(args.pid, args.runtime_id)
+        if verdict != "owned":
+            print(
+                f"PROCESS_NOT_DEV_OWNED: pid={args.pid} verdict={verdict} "
+                f"runtime={args.runtime_id} command={identity['command']!r}",
+                file=sys.stderr,
+            )
+            return EXIT_NOT_DEV_OWNED
         write_identity(args.identity_file, identity)
         print(json.dumps(identity, sort_keys=True))
         return 0

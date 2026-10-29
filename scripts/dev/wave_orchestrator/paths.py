@@ -6,6 +6,7 @@
 [OUTPUT]
 - WavePaths dataclass — state_file and agent_dev_lib locations
 - resolve_dev_state_dir() — shared mux admission state root SSOT
+- frontend_dist_dir() — Next dist dir holding dev-server.lock (Python mirror of resolve_myrm_next_dist_dir)
 
 [POS]
 Path resolver for wave orchestrator. Keeps state under ~/.local/state/myrm-dev/.
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -134,3 +136,23 @@ def resolve_wave_paths() -> WavePaths:
 def resolve_dev_state_dir() -> Path:
     """Shared dev stack state root (WAVE override wins over DEV)."""
     return resolve_wave_paths().state_dir
+
+
+def frontend_dist_dir(frontend_dir: Path, state_dir: Path | None = None) -> Path:
+    """Next dist dir of the dev server for ``state_dir`` — the home of ``dev-server.lock``.
+
+    Mirrors ``resolve_myrm_next_dist_dir`` in ``lib/dev_state_paths.sh`` rule for rule (a parity
+    test runs both): a relative ``MYRM_NEXT_DIST_DIR`` wins; a non-default state dir gets its own
+    ``.next-isolated-<runtime>``; the shared stack writes ``.next-dev`` because ``next build``
+    clears ``.next`` and would delete the running dev server's chunks.
+    """
+    state = state_dir if state_dir is not None else resolve_dev_state_dir()
+    explicit = os.environ.get("MYRM_NEXT_DIST_DIR", "").strip()
+    if explicit and explicit == str(state / "next"):
+        explicit = ""
+    if explicit and not Path(explicit).is_absolute():
+        return frontend_dir / explicit
+    if state != _default_state_dir():
+        namespace = os.environ.get("MYRM_RUNTIME_NAMESPACE", "").strip() or state.parent.name
+        return frontend_dir / f".next-isolated-{re.sub(r'[^A-Za-z0-9_.-]', '-', namespace)}"
+    return Path(explicit) if explicit else frontend_dir / ".next-dev"

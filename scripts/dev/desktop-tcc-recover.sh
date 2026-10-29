@@ -46,15 +46,27 @@ if [[ "${ax}" == "true" ]]; then
 fi
 echo "TCC_MISS: backend :${BACKEND_PORT} Accessibility=${ax} — re-anchoring under current shell" >&2
 
-owner="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
-if [[ -n "${owner}" ]]; then
-  kill -TERM "${owner}" 2>/dev/null || true
+listener="$(dev_listener_pids "${BACKEND_PORT}")"
+if [[ -n "${listener// }" ]]; then
+  # Only a backend this dev stack started may be re-anchored; the desktop app's own sidecar
+  # (same run.py, same port) is the user's runtime and is never signalled.
+  # shellcheck disable=SC2086
+  owned_pids="$(dev_filter_owned_pids ${listener} | tr '\n' ' ')"
+  if [[ -z "${owned_pids// }" ]]; then
+    echo "TCC_FAIL: :${BACKEND_PORT} is held by a process this dev stack did not start — refusing to restart it. Grant Accessibility to that app instead, or run on an isolated runtime: ./myrm-dev isolate" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2086
+  kill -TERM ${owned_pids} 2>/dev/null || true
   for _ in $(seq 1 20); do
-    dev_pid_alive "${owner}" || break
+    dev_listener_pids "${BACKEND_PORT}" | grep -q '[0-9]' || break
     sleep 0.25
   done
-  if dev_pid_alive "${owner}"; then
-    kill -KILL "${owner}" 2>/dev/null || true
+  # shellcheck disable=SC2046,SC2086
+  owned_pids="$(dev_filter_owned_pids $(dev_listener_pids "${BACKEND_PORT}") 2>/dev/null | tr '\n' ' ')"
+  if [[ -n "${owned_pids// }" ]]; then
+    # shellcheck disable=SC2086
+    kill -KILL ${owned_pids} 2>/dev/null || true
   fi
   for _ in $(seq 1 20); do
     if ! lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1; then

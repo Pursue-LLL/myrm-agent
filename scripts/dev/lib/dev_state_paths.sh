@@ -21,15 +21,40 @@ except (KeyError, OSError):
   printf '%s' "${real_home}"
 }
 
+# Data root of the shared dev stack. Never `~/.myrm`: that is the real user's database (desktop
+# sidecar, `./myrm start`); two servers on one SQLite file corrupt it, and E2E provider seeding
+# rewrites the backend's provider config and restores it afterwards.
+dev_default_data_dir() {
+  printf '%s/.local/share/myrm-dev/data' "$(real_user_home)"
+}
+
+_canonical_dir() {
+  local dir="${1%/}"
+  if [[ -d "${dir}" ]]; then
+    (cd -P "${dir}" && pwd -P)
+  else
+    printf '%s' "${dir}"
+  fi
+}
+
 # Export HOME/MYRM_DATA_DIR for stack child processes (backend/frontend).
 # Prevents sandboxed HOME from leaking harness data into e.g. ~/.cursor-3/.myrm.
 export_spawn_home() {
-  export HOME="$(real_user_home)"
-  # Isolated SHPOIB runtimes pre-set MYRM_DATA_DIR to per-runtime dataDir; do not clobber.
-  if [[ -n "${MYRM_DATA_DIR:-}" ]]; then
+  HOME="$(real_user_home)"
+  export HOME
+  # Isolated runtimes pre-set MYRM_DATA_DIR to their own dataDir; do not clobber.
+  if [[ -z "${MYRM_DATA_DIR:-}" ]]; then
+    MYRM_DATA_DIR="$(dev_default_data_dir)"
+    export MYRM_DATA_DIR
+    mkdir -p "${MYRM_DATA_DIR}"
     return 0
   fi
-  export MYRM_DATA_DIR="${HOME}/.myrm"
+  if [[ "$(_canonical_dir "${MYRM_DATA_DIR/#\~/${HOME}}")" == "$(_canonical_dir "${HOME}/.myrm")" ]]; then
+    echo "DEV_DATA_DIR_IS_USER_DATA: MYRM_DATA_DIR=${MYRM_DATA_DIR} is the real user's data dir; refusing to" \
+      "start dev processes on it. Unset MYRM_DATA_DIR (default: $(dev_default_data_dir)) or use an" \
+      "isolated runtime: ./myrm-dev isolate" >&2
+    return 1
+  fi
 }
 
 dev_state_dir() {
@@ -123,16 +148,35 @@ raise SystemExit(1)
 ' "${port}"
 }
 
+# Pids LISTENing on a TCP port, space separated (lsof is the port-truth SSOT).
+dev_listener_pids() {
+  lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true
+}
+
+# Print the pids among "$@" that this runtime's dev stack started, one per line; every other
+# pid is reported on stderr and dropped. Ownership is the dev stamp in the process environment
+# (e2e_core/dev_ownership.py), never the command line: the desktop sidecar runs the same
+# run.py on the same default port. Every signal the dev tooling sends goes through here.
+dev_filter_owned_pids() {
+  [[ "$#" -gt 0 ]] || return 0
+  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_core/dev_ownership.py" filter \
+    --runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" "$@"
+}
+
+# Stop the dev-owned listeners on a port; anything else holding it is left running.
 dev_kill_port_listeners() {
-  local port="$1"
-  local pids=""
-  pids="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
-  [[ -n "${pids// }" ]] || return 0
+  local port="$1" listeners="" owned_pids=""
+  listeners="$(dev_listener_pids "${port}")"
+  [[ -n "${listeners// }" ]] || return 0
   # shellcheck disable=SC2086
-  kill -TERM ${pids} 2>/dev/null || true
+  owned_pids="$(dev_filter_owned_pids ${listeners} | tr '\n' ' ')"
+  [[ -n "${owned_pids// }" ]] || return 0
+  # shellcheck disable=SC2086
+  kill -TERM ${owned_pids} 2>/dev/null || true
   sleep 2
-  pids="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
-  [[ -z "${pids// }" ]] || kill -9 ${pids} 2>/dev/null || true
+  # shellcheck disable=SC2046,SC2086
+  owned_pids="$(dev_filter_owned_pids $(dev_listener_pids "${port}") 2>/dev/null | tr '\n' ' ')"
+  [[ -z "${owned_pids// }" ]] || kill -9 ${owned_pids} 2>/dev/null || true
 }
 
 dev_wait_ports_released() {
