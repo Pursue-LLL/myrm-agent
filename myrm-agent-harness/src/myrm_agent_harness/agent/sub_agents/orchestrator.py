@@ -285,10 +285,9 @@ async def wait_children(
         failures.append({"task_id": task_id, "error": "Task not found"})
 
     if running_tasks:
-        if timeout:
-            done, _ = await asyncio.wait(running_tasks, timeout=timeout)
-        else:
-            done, _ = await asyncio.wait(running_tasks)
+        # Held until this caller resumes: a child that settles meanwhile hands its result here, not to a wakeup.
+        with manager.awaited_children.held(running_ids):
+            done, _ = await asyncio.wait(running_tasks, timeout=timeout or None)
 
         for idx, task in enumerate(running_tasks):
             tid = running_ids[idx]

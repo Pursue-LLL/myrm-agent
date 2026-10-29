@@ -7,7 +7,7 @@ Subagent completion uses **cache-safe delivery paths**: dynamic content never en
 | Path | Trigger | Delivery | Code |
 |------|---------|----------|------|
 | In-stream completion | Parent agent still streaming | SSE `SUBAGENT_COMPLETION` only; **no** message injection | `streaming/recovery/stream_recovery_continuation.py` |
-| Background wakeup | `wait=false` child completes while parent idle | User/HumanMessage with `<system_notification type='adaptive_wakeup_followup'>` + headless rerun (bounded by the wake budget; a spent budget or a user stop leaves the notice only) | `myrm-agent-server/.../adaptive_wakeup/service.py` |
+| Background wakeup | A child nobody is waiting on completes while parent idle (`wait=false`, or a `wait=true` / `wait_children` child that outlived its caller's timeout) | User/HumanMessage with `<system_notification type='adaptive_wakeup_followup'>` + headless rerun (bounded by the wake budget; a spent budget or a user stop leaves the notice only) | `myrm-agent-server/.../adaptive_wakeup/service.py` |
 | Active query | LLM needs result details | `subagent_control_tool` (action=list) | `meta_tools/spawn_subagent/` |
 
 ---
@@ -18,7 +18,8 @@ Subagent completion uses **cache-safe delivery paths**: dynamic content never en
 2. **In-stream: SSE-only** — `StreamRecoveryContinuation._handle_subagent_notifications()` emits the event and returns `False` (no new turn, no `HumanMessage` append).
 3. **Background wakeup: user message** — `AdaptiveWakeupService.handle_settlement()` calls `ChatService.ensure_chat_and_append_user_message()` with the wrapped notification text (summary and error are bounded and XML-escaped); it reloads as HumanMessage on the next run. Only a followup starts a turn, and it runs as the chat's own agent.
 4. **A cancelled child never wakes the parent** — `SubagentManager._cleanup_child` skips `trigger_async_wakeup` when the child status is `CANCELLED` (user Stop, parent cancel, graceful-cancel timeout). Failed, timed-out and budget-cancelled children still wake it. Pull-based notifications for the cancelled child are unchanged.
-5. **LLM retrieval guidance** — system prompt (`sub_agents/prompts.py`) and tool descriptions (`delegate_task_tool`, `subagent_control_tool`) instruct the model to call `subagent_control_tool` (mode=list) for async results.
+5. **A child someone is blocked on never wakes the parent** — `spawn_child(wait=True)` and `wait_children()` register their children in `SubagentManager.awaited_children` while they block, and `_should_wake_parent` skips `trigger_async_wakeup` for a registered child: its result goes to the waiter, and a wake turn would answer the same result twice. A wait that gives up at its timeout releases the child, so its later completion wakes the parent once.
+6. **LLM retrieval guidance** — system prompt (`sub_agents/prompts.py`) and tool descriptions (`delegate_task_tool`, `subagent_control_tool`) instruct the model to call `subagent_control_tool` (mode=list) for async results.
 
 ---
 

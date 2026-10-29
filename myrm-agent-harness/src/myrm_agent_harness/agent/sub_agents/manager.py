@@ -542,8 +542,8 @@ class SubagentManager(SubagentSpawnMixin, SubagentControlMixin):
                 ),
             )
 
-        # A cancelled child delivers no result, so it must not restart the parent.
-        if result.status is not SubAgentStatus.CANCELLED and hasattr(self._parent_agent, "trigger_async_wakeup"):
+        # Only a result nobody has received restarts the parent (see ``_should_wake_parent``).
+        if self._should_wake_parent(task_id, result):
             # Trigger the parent agent with the background task result
             try:
                 # We do this asynchronously to avoid blocking cleanup

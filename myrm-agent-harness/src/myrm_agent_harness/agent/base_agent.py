@@ -526,8 +526,8 @@ class BaseAgent(BaseAgentModesMixin):
     async def trigger_async_wakeup(self, result: SubAgentResult) -> None:
         """Trigger an async wakeup event for the parent agent.
 
-        This is called by SubagentManager when a background child task completes
-        (either started with wait=False, or wait=True that returned via non-fatal timeout).
+        This is called by SubagentManager when a child finishes whose result nobody has received
+        (started with wait=False, or a wait that gave up at its timeout while the child kept running).
         It uses the global wakeup registry to notify the Server layer (e.g. Gateway/Runner)
         to trigger a new run, while also pushing to the progress sink if active.
         """

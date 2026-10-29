@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.streaming.types import AgentEventType
+from myrm_agent_harness.agent.sub_agents._awaited_children import AwaitedChildren
 from myrm_agent_harness.agent.sub_agents.approval_journal import ApprovalJournal
 from myrm_agent_harness.agent.sub_agents.checkpointer import discard_stale_subagent_thread
 from myrm_agent_harness.agent.sub_agents.spawn_capability import readonly_spawn_floor
@@ -93,6 +94,22 @@ class SubagentSpawnMixin:
     def approval_journal(self) -> ApprovalJournal:
         """Delegations of this manager's agent that are waiting on UI approval."""
         return ApprovalJournal(discard_stale_thread=discard_stale_subagent_thread)
+
+    @cached_property
+    def awaited_children(self) -> AwaitedChildren:
+        """Children some caller is blocked on right now; each of them hands its result to that caller."""
+        return AwaitedChildren()
+
+    def _should_wake_parent(self, task_id: str, result: SubAgentResult) -> bool:
+        """A settled child restarts its parent only when nobody has received its result.
+
+        A cancelled child has no result to deliver, and a child a caller is blocked on delivers it to that caller.
+        """
+        return (
+            result.status is not SubAgentStatus.CANCELLED
+            and task_id not in self.awaited_children
+            and hasattr(self._parent_agent, "trigger_async_wakeup")
+        )
 
     if TYPE_CHECKING:
         # Provided by SubagentManager / SubagentControlMixin.
@@ -360,10 +377,12 @@ class SubagentSpawnMixin:
                 )
 
         if wait:
-            done, _pending = await asyncio.wait(
-                {task},
-                timeout=config.timeout_seconds,
-            )
+            # Held until this caller resumes: a child that settles meanwhile hands its result here, not to a wakeup.
+            with self.awaited_children.held((task_id,)):
+                done, _pending = await asyncio.wait(
+                    {task},
+                    timeout=config.timeout_seconds,
+                )
             if done:
                 result = task.result()
                 if isinstance(result, SubAgentResult) and internal:
