@@ -385,7 +385,7 @@ class TestBusyAck:
 
     @pytest.mark.asyncio
     async def test_busy_ack_fires_on_queue_full(self) -> None:
-        """When the pending queue is full, on_busy_ack fires with position=-1."""
+        """A full queue is reported with position=-1, right after the queued notice that filled it."""
         received: list[InboundMessage] = []
         ack_calls: list[tuple[InboundMessage, int, int]] = []
         proceed = asyncio.Event()
@@ -411,7 +411,6 @@ class TestBusyAck:
         assert len(ack_calls) == 1
         assert ack_calls[0][1] == 1
 
-        gate._last_ack_time.clear()
         gate.submit(_msg("dropped"))
         await asyncio.sleep(0.05)
         assert len(ack_calls) == 2
@@ -548,8 +547,8 @@ class TestBusyAck:
         assert len(received) == 2
 
     @pytest.mark.asyncio
-    async def test_clear_also_clears_ack_debounce(self) -> None:
-        """clear() removes _last_ack_time entries along with sessions."""
+    async def test_clear_drops_session_state(self) -> None:
+        """clear() drops every session together with its queue and notice clocks."""
         ack_calls: list[int] = []
         proceed = asyncio.Event()
 
@@ -569,25 +568,23 @@ class TestBusyAck:
 
         gate.submit(_msg("queued"))
         await asyncio.sleep(0.05)
-        assert len(gate._last_ack_time) == 1
+        assert gate.pending_count("telegram:user1") == 1
 
         gate.clear()
-        assert len(gate._last_ack_time) == 0
         assert len(gate._sessions) == 0
 
     @pytest.mark.asyncio
-    async def test_drain_clears_ack_debounce_on_session_end(self) -> None:
-        """After task completes and session is fully drained, _last_ack_time is cleaned."""
-        received: list[InboundMessage] = []
-        proceed = asyncio.Event()
+    async def test_notice_clock_restarts_when_session_drains(self) -> None:
+        """A session that drained starts its next busy period with fresh notice clocks."""
+        release = asyncio.Event()
+        ack_calls: list[int] = []
 
         async def on_ready(msg: InboundMessage) -> None:
-            received.append(msg)
-            if len(received) == 1:
-                await proceed.wait()
+            if msg.content in {"first", "again"}:
+                await release.wait()
 
         async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            pass
+            ack_calls.append(position)
 
         gate = SessionGate(
             SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
@@ -596,12 +593,86 @@ class TestBusyAck:
         )
         gate.submit(_msg("first"))
         await asyncio.sleep(0.1)
-
         gate.submit(_msg("queued"))
         await asyncio.sleep(0.05)
-        assert "telegram:user1" in gate._last_ack_time
+        assert ack_calls == [1]
 
-        proceed.set()
+        release.set()
         await asyncio.sleep(0.3)
+        assert not gate.is_busy(_msg())
+        assert len(gate._sessions) == 0
 
-        assert "telegram:user1" not in gate._last_ack_time
+        release.clear()
+        gate.submit(_msg("again"))
+        await asyncio.sleep(0.1)
+        gate.submit(_msg("queued again"))
+        await asyncio.sleep(0.05)
+        assert ack_calls == [1, 1]
+
+        release.set()
+        await asyncio.sleep(0.15)
+
+    @pytest.mark.asyncio
+    async def test_queue_full_notice_follows_queued_notice_in_one_busy_period(self) -> None:
+        """Messages that overflow a queue filled within 30 s of its queued notice still get the queue-full notice."""
+        release = asyncio.Event()
+        ack_calls: list[tuple[int, int]] = []
+
+        async def on_ready(msg: InboundMessage) -> None:
+            if msg.content == "first":
+                await release.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append((position, max_pending))
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+        for index in range(12):
+            gate.submit(_msg(f"burst {index}"))
+        await asyncio.sleep(0.05)
+
+        assert gate.pending_count("telegram:user1") == 10
+        assert ack_calls == [(1, 10), (-1, 10)]
+
+        release.set()
+        await asyncio.sleep(0.15)
+
+    @pytest.mark.asyncio
+    async def test_queue_full_notice_is_debounced_per_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Repeated overflow does not repeat the queue-full notice inside the window, and does again after it."""
+        monkeypatch.setattr("app.channels.routing.session_gate._BUSY_ACK_DEBOUNCE_S", 0.2)
+        release = asyncio.Event()
+        ack_calls: list[int] = []
+
+        async def on_ready(msg: InboundMessage) -> None:
+            if msg.content == "first":
+                await release.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append(position)
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=1),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+        gate.submit(_msg("fills queue"))
+        gate.submit(_msg("dropped 1"))
+        gate.submit(_msg("dropped 2"))
+        await asyncio.sleep(0.05)
+        assert ack_calls == [1, -1]
+
+        await asyncio.sleep(0.25)
+        gate.submit(_msg("dropped 3"))
+        await asyncio.sleep(0.05)
+        assert ack_calls == [1, -1, -1]
+
+        release.set()
+        await asyncio.sleep(0.15)

@@ -12,8 +12,10 @@ Six complementary mechanisms:
 3. **Busy Ack Callback**: When a message is queued while the session is
    active (or dropped because the queue is full), an optional
    ``on_busy_ack`` callback notifies the caller so the Router can send
-   an immediate acknowledgment to the user. Debounced at 30 s per
-   session to prevent ack spam.
+   an immediate acknowledgment to the user. Each kind of notice (queued,
+   queue full) is debounced at 30 s per session to prevent ack spam; one
+   kind never silences the other, so the user is always told when a
+   message is dropped.
 4. **Answers Run Alone and First**: A message that answers a run suspended
    at a tool approval (``resume_value``) is never merged into text, never
    dropped because the queue is full, and runs before any text waiting
@@ -51,6 +53,7 @@ import asyncio
 import dataclasses
 import itertools
 import logging
+import math
 import time
 from collections.abc import Awaitable, Callable
 
@@ -89,6 +92,8 @@ class _SessionState:
     timer: asyncio.TimerHandle | None = None
     active: bool = False
     turn: int = 0
+    last_queued_ack: float = -math.inf
+    last_full_ack: float = -math.inf
 
 
 def _is_answer(msg: InboundMessage) -> bool:
@@ -211,7 +216,6 @@ class SessionGate:
         self._on_ready = on_ready
         self._on_busy_ack = on_busy_ack
         self._sessions: dict[str, _SessionState] = {}
-        self._last_ack_time: dict[str, float] = {}
         self._turn_ids = itertools.count(1)
         self._loop: asyncio.AbstractEventLoop | None = None
 
@@ -239,13 +243,13 @@ class SessionGate:
             max_pending = self._config.max_pending_per_session
             if len(state.pending) < max_pending:
                 state.pending.append(msg)
-                self._emit_busy_ack(key, msg, len(state.pending), max_pending)
+                self._emit_busy_ack(state, msg, len(state.pending), max_pending)
             else:
                 logger.warning(
                     "SessionGate: pending queue full for %s, dropping message",
                     key,
                 )
-                self._emit_busy_ack(key, msg, -1, max_pending)
+                self._emit_busy_ack(state, msg, -1, max_pending)
             return
 
         window = self._config.debounce_window_ms
@@ -295,14 +299,23 @@ class SessionGate:
         finally:
             self.release_turn(key, turn)
 
-    def _emit_busy_ack(self, key: str, msg: InboundMessage, position: int, max_pending: int) -> None:
-        """Fire the busy-ack callback with debounce (30s per session key)."""
+    def _emit_busy_ack(self, state: _SessionState, msg: InboundMessage, position: int, max_pending: int) -> None:
+        """Fire the busy-ack callback, at most once per 30 s for each kind of notice.
+
+        ``position < 0`` is the queue-full notice. It has its own clock: sharing one with the queued notice would
+        swallow it whenever a queued notice went out in the last 30 s, which is when a queue fills up.
+        """
         if self._on_busy_ack is None:
             return
         now = time.monotonic()
-        if now - self._last_ack_time.get(key, 0.0) < _BUSY_ACK_DEBOUNCE_S:
+        queue_full = position < 0
+        last = state.last_full_ack if queue_full else state.last_queued_ack
+        if now - last < _BUSY_ACK_DEBOUNCE_S:
             return
-        self._last_ack_time[key] = now
+        if queue_full:
+            state.last_full_ack = now
+        else:
+            state.last_queued_ack = now
         asyncio.ensure_future(self._safe_busy_ack(msg, position, max_pending))
 
     async def _safe_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
@@ -335,7 +348,6 @@ class SessionGate:
             self._begin(key, state, _take_next_turn(state.pending))
         elif not state.buffer:
             self._sessions.pop(key, None)
-            self._last_ack_time.pop(key, None)
 
     def pending_count(self, key: str) -> int:
         """Return the number of pending messages queued for a session key."""
@@ -361,4 +373,3 @@ class SessionGate:
             if state.timer is not None:
                 state.timer.cancel()
         self._sessions.clear()
-        self._last_ack_time.clear()
