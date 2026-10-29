@@ -164,19 +164,22 @@ def manifest_watch_violations() -> tuple[str, ...]:
 
 
 def stale_public_subdirs() -> tuple[str, ...]:
-    """Return ``<zone>/<name>`` allowlist entries that no longer name a directory.
+    """Return allowlist paths in ``_PARENT_WATCH_ZONES`` that no longer name a directory.
 
-    A name outliving its directory would exempt any directory later created under it
-    from the manifest-or-marker check in ``manifest_watch_violations``.
+    A ``<zone>/<name>`` entry outliving its directory would exempt any directory later created
+    under it from the manifest-or-marker check in ``manifest_watch_violations``. A zone whose own
+    directory is gone is reported as the zone path itself, because ``manifest_watch_violations``
+    skips such a zone and the watch would otherwise stop without any failure.
     """
     src_root = repo_root() / "src" / "myrm_agent_harness"
-    return tuple(
-        f"{parent_prefix}{name}"
-        for parent_prefix, public_subdirs in _PARENT_WATCH_ZONES
-        if (src_root / parent_prefix).is_dir()
-        for name in sorted(public_subdirs)
-        if not (src_root / parent_prefix / name).is_dir()
-    )
+    stale: list[str] = []
+    for parent_prefix, public_subdirs in _PARENT_WATCH_ZONES:
+        zone_root = src_root / parent_prefix
+        if not zone_root.is_dir():
+            stale.append(parent_prefix)
+            continue
+        stale.extend(f"{parent_prefix}{name}" for name in sorted(public_subdirs) if not (zone_root / name).is_dir())
+    return tuple(stale)
 
 
 class DistributionWheelRole(StrEnum):
