@@ -61,11 +61,17 @@ class GitInstaller:
         Strategy: exact path → exact directory name match → substring match
         among all SKILL.md candidates. Handles cases where the skill name in
         the registry differs from the actual directory name in the repo.
+
+        Raises:
+            ValueError: ``subdirectory`` leaves the repository (``..``, an absolute
+                path, or a symlink pointing outside), so its files must not be installed.
         """
         if not subdirectory:
             return repo_root
 
         exact = repo_root / subdirectory
+        if not exact.resolve().is_relative_to(repo_root.resolve()):
+            raise ValueError(f"Skill subdirectory escapes the cloned repository: {subdirectory}")
         if exact.exists() and (exact / "SKILL.md").exists():
             return exact
 
