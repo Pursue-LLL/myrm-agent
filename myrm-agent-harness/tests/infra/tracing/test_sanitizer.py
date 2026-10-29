@@ -5,9 +5,12 @@
 - Layer 2: Sensitive pattern redaction (Bearer, API Keys, Passwords)
 - Layer 3: Long payload bounded truncation with SHA-256 fingerprint preservation
 - Single-attribute entry point used by the exporter-boundary privacy guard
+- Payload keys that look like credentials withhold text and containers, never a number, flag or null
 """
 
 from __future__ import annotations
+
+import pytest
 
 from myrm_agent_harness.infra.tracing.sanitizer import (
     TraceSpanSanitizer,
@@ -139,3 +142,27 @@ def test_a_value_of_an_unknown_type_is_scrubbed_as_text_at_any_depth() -> None:
     sanitized = sanitize_trace_payload({"items": [{f"Bearer {_SECRET}"}], "bare": {f"Bearer {_SECRET}"}})
 
     assert _SECRET not in str(sanitized)
+
+
+def test_a_counter_keeps_its_value_under_a_key_that_looks_like_a_credential() -> None:
+    payload = {
+        "total_tokens": 1500,
+        "prompt_tokens": 1200,
+        "cache_read_tokens": 800,
+        "performance": {"total_cache_read_tokens": 800, "total_duration_ms": 9.5},
+        "llm_calls": [{"prompt_tokens": 1200, "total_tokens": 1500, "ttft_ms": 41.0}],
+        "flags": {"token_valid": True, "password": None},
+    }
+
+    assert sanitize_trace_payload(payload) == payload
+
+
+@pytest.mark.parametrize("key", ["api_secret", "session_secret", "user_token", "X-Token", "Cookie", "Authorization"])
+def test_a_text_value_under_a_key_that_looks_like_a_credential_is_withheld(key: str) -> None:
+    assert sanitize_trace_payload({key: "opaque-value-9f8e7d6c"}) == {key: "[REDACTED_SENSITIVE_KEY]"}
+
+
+def test_a_container_under_a_key_that_looks_like_a_credential_is_withheld_whole() -> None:
+    sanitized = sanitize_trace_payload({"credentials": {"user": "bob", "retries": 3}, "auth_tokens": ["a1b2c3d4e5"]})
+
+    assert sanitized == {"credentials": "[REDACTED_SENSITIVE_KEY]", "auth_tokens": "[REDACTED_SENSITIVE_KEY]"}

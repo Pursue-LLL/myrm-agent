@@ -3,6 +3,7 @@
 [TESTS]
 - /session/{session_id}/trace: 验证返回的 Trace payload 经过三层渐进式脱敏（敏感字段键名遮蔽、Bearer 掩码、超长大文本 SHA-256 截断）
 - /traces/search: 验证搜索返回摘要经过脱敏清洗
+- /session/{session_id}/trace: 验证 token / 缓存计数器经过脱敏后仍是数字，前端可直接汇总展示
 """
 
 from __future__ import annotations
@@ -180,3 +181,62 @@ async def test_search_session_traces_sanitized(tmp_path: Path, monkeypatch: pyte
     item = matched[0]
     assert "super_secret_token" not in item["task_input"]
     assert "Bearer" in item["task_input"]
+
+
+@pytest.mark.asyncio
+async def test_get_session_execution_trace_keeps_token_counters_numeric(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Token and cache counters carry credential-looking names yet are numbers: the UI sums and compares them."""
+    session_id = "sess-token-counters-004"
+    events = [
+        {"seq": 1, "sid": session_id, "type": "session_start", "ts": 1700000000.0, "data": {"task_input": "hello"}},
+        {"seq": 2, "sid": session_id, "type": "llm_request", "ts": 1700000000.5, "data": {"model_name": "m-1"}},
+        {
+            "seq": 3,
+            "sid": session_id,
+            "type": "token_usage",
+            "ts": 1700000001.5,
+            "data": {
+                "usage": {
+                    "prompt_tokens": 1200,
+                    "completion_tokens": 300,
+                    "total_tokens": 1500,
+                    "prompt_tokens_details": {"cached_tokens": 800},
+                },
+                "duration_ms": 1000.0,
+            },
+        },
+        {
+            "seq": 4,
+            "sid": session_id,
+            "type": "session_end",
+            "ts": 1700000002.0,
+            "data": {"summary": {"input_tokens": 1200, "output_tokens": 300}},
+        },
+    ]
+    (tmp_path / f"{session_id}.jsonl").write_text("".join(json.dumps(ev) + "\n" for ev in events), encoding="utf-8")
+
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.database, "event_log_dir", str(tmp_path))
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = session_id
+    mock_db.execute.return_value = mock_result
+    mock_db.execute.return_value.scalars.return_value.all.return_value = []
+
+    res = await get_session_execution_trace(session_id, db=mock_db)
+    assert res.status_code == 200
+    data = json.loads(res.body.decode("utf-8"))["data"]
+
+    assert (data["total_tokens"], data["prompt_tokens"], data["completion_tokens"], data["cache_read_tokens"]) == (
+        1500,
+        1200,
+        300,
+        800,
+    )
+    call = data["llm_calls"][0]
+    assert (call["prompt_tokens"], call["total_tokens"], call["cache_read_tokens"]) == (1200, 1500, 800)
+    performance = data["performance_summary"]
+    assert (performance["total_prompt_tokens"], performance["total_cache_read_tokens"]) == (1200, 800)
+    assert performance["gantt_spans"][0]["cache_read_tokens"] == 800

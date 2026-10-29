@@ -10,7 +10,7 @@
 
 [POS]
 实现 Agent Tracing 规范中的“先脱敏再落盘”三层隐私防护体系：
-第一层：高危敏感字段键名识别与安全命名空间放行；
+第一层：高危敏感字段键名识别与安全命名空间放行（键名像凭据时遮蔽文本与容器，数字、布尔与空值原样保留）；
 第二层：敏感凭据值深度正则扫描（API Key / Bearer / 连接串 / 密码）；
 第三层：超长大文本有界哈希截断与 SHA-256 指纹保全。
 """
@@ -145,17 +145,19 @@ class TraceSpanSanitizer:
         return {key: self.sanitize_attribute(key, value) for key, value in attributes.items()}
 
     def sanitize_payload(self, payload: Mapping[str, object]) -> dict[str, object]:
-        """Recursively scrub arbitrary JSON-serializable payloads for trace export."""
-        sanitized: dict[str, object] = {}
-        for k, v in payload.items():
-            str_k = str(k).lower()
-            if any(term in str_k for term in _SENSITIVE_KEY_KEYWORDS) and not any(
-                str_k.startswith(p) for p in self._safe_prefixes
-            ):
-                sanitized[k] = "[REDACTED_SENSITIVE_KEY]"
-            else:
-                sanitized[k] = self._sanitize_value(v)
-        return sanitized
+        """Recursively scrub arbitrary JSON-serializable payloads for trace export.
+
+        A credential-looking key withholds text and containers whole; a number, flag or null under it is kept, as in
+        ``sanitize_attribute``: it cannot be a credential, and counters such as ``total_tokens`` must stay numbers.
+        """
+        return {
+            k: (
+                "[REDACTED_SENSITIVE_KEY]"
+                if not (isinstance(v, (int, float)) or v is None) and not self.is_safe_key(str(k))
+                else self._sanitize_value(v)
+            )
+            for k, v in payload.items()
+        }
 
     def _sanitize_value(self, value: object) -> object:
         """Scrub one payload value at any depth: a list or tuple is rebuilt item by item, whatever the items are."""
