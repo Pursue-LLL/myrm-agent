@@ -7,7 +7,7 @@ Verifies the full real path (no mocks on the guard chain itself):
 2. ``handle_execution_error`` registers the category in the real turn-scoped
    ``TerminalErrorRegistry`` (in-memory only — runtime state never touches the
    durable God-Mode file).
-3. ``_check_circuit_breaker`` blocks same-family tools with a ``SYSTEM_ENFORCED``
+3. ``check_circuit_breaker`` blocks same-family tools with a ``SYSTEM_ENFORCED``
    message while leaving independent-family tools untouched (search vs browser
    vs web_fetch isolation).
 4. Legacy global categories (``any`` / ``network_blocked`` / ``sandbox_ro``)
@@ -25,7 +25,7 @@ Verifies the full real path (no mocks on the guard chain itself):
 [INPUT]
 - agent.middlewares.tooling._tool_helpers::classify_terminal_error
 - agent.middlewares.tooling._tool_execution_lifecycle::handle_execution_error
-- agent.middlewares.tooling._tool_guards::_check_circuit_breaker
+- agent.middlewares.tooling._circuit_breaker::check_circuit_breaker
 - agent.middlewares._session_context::reset_terminal_errors
 - agent.security.terminal_error_registry::TerminalErrorRegistry
 
@@ -43,9 +43,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.messages import ToolMessage
 
-from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-    _check_circuit_breaker,
-)
+from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     TERMINAL_CONFIG_OR_AUTH,
     classify_terminal_error,
@@ -139,9 +137,7 @@ async def test_handle_execution_error_registers_turn_scoped_state(
     err = SearchConfigError("search requires API key configuration", config_key="api_key")
     with (
         patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock),
-        patch(
-            "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"
-        ),
+        patch("myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"),
     ):
         result = await handle_execution_error(err, "web_search_tool", "call_1", {"q": "x"})
 
@@ -166,9 +162,7 @@ async def test_retryable_error_does_not_register(terminal_errors_path: Path) -> 
     err = ValueError("transient")
     with (
         patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock),
-        patch(
-            "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"
-        ),
+        patch("myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"),
     ):
         await handle_execution_error(err, "web_search_tool", "call_2", {"q": "x"})
 
@@ -183,7 +177,7 @@ def test_circuit_breaker_blocks_same_family(terminal_errors_path: Path) -> None:
 
     get_terminal_errors().add(CONFIG_OR_AUTH_SEARCH)
 
-    result = _check_circuit_breaker("web_search_tool", "call_3")
+    result = check_circuit_breaker("web_search_tool", "call_3")
     assert result is not None
     assert "SYSTEM_ENFORCED" in result.content
     assert "Search is unavailable" in result.content
@@ -199,13 +193,13 @@ def test_circuit_breaker_allows_independent_family(terminal_errors_path: Path) -
 
     get_terminal_errors().add(CONFIG_OR_AUTH_SEARCH)
 
-    result = _check_circuit_breaker("browser_navigate", "call_4")
+    result = check_circuit_breaker("browser_navigate", "call_4")
     assert result is None
 
     # Sanity: the reverse direction (browser broken) does not block search tools.
     reset_terminal_errors()
     get_terminal_errors().add(CONFIG_OR_AUTH_BROWSER)
-    search_result = _check_circuit_breaker("web_search_tool", "call_5")
+    search_result = check_circuit_breaker("web_search_tool", "call_5")
     assert search_result is None
 
 
@@ -223,7 +217,7 @@ def test_circuit_breaker_any_blocks_every_tool(terminal_errors_path: Path) -> No
     get_terminal_errors().add("any")
 
     for tool in ("web_search_tool", "browser_navigate_tool", "file_write"):
-        result = _check_circuit_breaker(tool, "call_any")
+        result = check_circuit_breaker(tool, "call_any")
         assert result is not None
         assert "SYSTEM_ENFORCED" in result.content
 
@@ -239,9 +233,9 @@ def test_circuit_breaker_network_blocked_blocks_network_allows_file(
     get_terminal_errors().add("network_blocked")
 
     for tool in ("web_search_tool", "browser_navigate_tool", "web_fetch_tool"):
-        assert _check_circuit_breaker(tool, "call_net") is not None
+        assert check_circuit_breaker(tool, "call_net") is not None
 
-    assert _check_circuit_breaker("file_write", "call_fs") is None
+    assert check_circuit_breaker("file_write", "call_fs") is None
 
 
 def test_circuit_breaker_sandbox_ro_blocks_write_allows_network(
@@ -255,10 +249,10 @@ def test_circuit_breaker_sandbox_ro_blocks_write_allows_network(
     get_terminal_errors().add("sandbox_ro")
 
     for tool in ("file_write", "file_edit"):
-        assert _check_circuit_breaker(tool, "call_write") is not None
+        assert check_circuit_breaker(tool, "call_write") is not None
 
-    assert _check_circuit_breaker("web_search_tool", "call_net") is None
-    assert _check_circuit_breaker("file_read", "call_read") is None
+    assert check_circuit_breaker("web_search_tool", "call_net") is None
+    assert check_circuit_breaker("file_read", "call_read") is None
 
 
 def test_config_or_auth_search_does_not_block_web_fetch(terminal_errors_path: Path) -> None:
@@ -269,7 +263,7 @@ def test_config_or_auth_search_does_not_block_web_fetch(terminal_errors_path: Pa
 
     get_terminal_errors().add(CONFIG_OR_AUTH_SEARCH)
 
-    assert _check_circuit_breaker("web_fetch_tool", "call_fetch") is None
+    assert check_circuit_breaker("web_fetch_tool", "call_fetch") is None
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +284,7 @@ def test_reset_terminal_errors_releases_circuit_breaker(terminal_errors_path: Pa
 
     reset_terminal_errors()
 
-    assert _check_circuit_breaker("web_search_tool", "call_after_reset") is None
+    assert check_circuit_breaker("web_search_tool", "call_after_reset") is None
 
 
 def test_god_mode_file_injection_survives_reset_and_blocks(
@@ -311,7 +305,7 @@ def test_god_mode_file_injection_survives_reset_and_blocks(
 
     # The injected category survives the reset via the durable file channel.
     assert "network_blocked" in get_terminal_errors().get_all()
-    result = _check_circuit_breaker("web_search_tool", "call_god_mode")
+    result = check_circuit_breaker("web_search_tool", "call_god_mode")
     assert result is not None
     assert "SYSTEM_ENFORCED" in result.content
 

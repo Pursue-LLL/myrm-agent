@@ -23,7 +23,12 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
 from myrm_agent_harness.agent.security.guards.context_budget import BudgetAction
 from myrm_agent_harness.agent.security.guards.estop import EStopLevel, EStopState
 from myrm_agent_harness.agent.security.guards.frequency_guard import FrequencyAction
-from myrm_agent_harness.agent.security.guards.loop_guard import LoopAction
+from myrm_agent_harness.agent.security.guards.loop_guard import (
+    CallRecord,
+    LoopAction,
+    LoopGuard,
+    VerificationCategory,
+)
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import (
     TurnBudgetAction,
 )
@@ -80,7 +85,7 @@ def _base_pre_patches():
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
             return_value=None,
         ),
         patch(
@@ -153,7 +158,7 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+                "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
                 return_value=registry,
             ),
             patch(
@@ -187,7 +192,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -246,7 +251,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -304,7 +309,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -368,7 +373,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -416,7 +421,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -449,7 +454,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -510,7 +515,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -573,7 +578,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -636,7 +641,7 @@ class TestPreCallRareBranches:
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -1009,6 +1014,7 @@ class TestPostCallRareBranches:
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
         freq_guard = MagicMock()
+        call_record = CallRecord(tool_name="bash_code_execute_tool", args_hash="h", args={})
         with self._enter_patches(
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
@@ -1019,7 +1025,7 @@ class TestPostCallRareBranches:
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.completion.completion_guard.verification.classify_verification",
-                return_value="echo",
+                return_value=VerificationCategory.TEST,
             ),
         ):
             msg = ToolMessage(content="o", name="bash_code_execute_tool", tool_call_id="c")
@@ -1033,8 +1039,45 @@ class TestPostCallRareBranches:
                 freq_guard=freq_guard,
                 freq_verdict=_freq_allow(),
                 steering_token=None,
+                call_record=call_record,
             )
-        loop_guard.tag_last_verification.assert_called_once_with("echo")
+        assert call_record.verification_type == VerificationCategory.TEST
+        assert loop_guard.record_result.call_args.kwargs["record"] is call_record
+
+    @pytest.mark.asyncio
+    async def test_overlapping_calls_each_keep_their_own_verification_category(self) -> None:
+        """A call that finishes after another one opened its record still tags its own."""
+        guard = LoopGuard()
+        guard.pre_check("bash_code_execute_tool", {"command": "pytest -q"})
+        verifying = guard.latest_record()
+        guard.pre_check("bash_code_execute_tool", {"command": "ls"})
+        other = guard.latest_record()
+        assert verifying is not None and other is not None
+        with self._enter_patches(
+            patch(
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                return_value=(
+                    ToolMessage(content="3 passed", name="bash_code_execute_tool", tool_call_id="c"),
+                    "3 passed",
+                ),
+            ),
+        ):
+            await run_post_call_guards(
+                ToolMessage(content="3 passed", name="bash_code_execute_tool", tool_call_id="c"),
+                "bash_code_execute_tool",
+                "c",
+                {"command": "pytest -q"},
+                loop_guard=guard,
+                loop_verdict=_allow_verdict(),
+                freq_guard=MagicMock(),
+                freq_verdict=_freq_allow(),
+                steering_token=None,
+                call_record=verifying,
+            )
+        assert verifying.verification_type == VerificationCategory.TEST
+        assert verifying.result_content == "3 passed"
+        assert other.verification_type is None
+        assert other.result_content == ""
 
     @pytest.mark.asyncio
     async def test_post_hook_blocked_replaces_result_and_emits_failure_event(

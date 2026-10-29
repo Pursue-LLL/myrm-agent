@@ -8,6 +8,7 @@ detection, steering, trust, PII).  Post-call guards process the result
 - agent.errors.tool_error_category::ToolErrorCategory (POS: Canonical tool error categories for structured error classification.)
 - agent.security.guards.estop (POS: Global guard)
 - agent.security.guards.loop_guard (POS: Session-level loop detection guard)
+- agent.middlewares.tooling._circuit_breaker (POS: Hard circuit breaker over the run's terminal errors)
 - agent.security.guards.context_budget (POS: Session-level context budget guard)
 - agent.security.guards.frequency_guard (POS: Session-level frequency guard)
 - agent.security.guards.tool_turn_budget_guard (POS: Per-user-turn call budget for high-cost tools)
@@ -18,7 +19,7 @@ detection, steering, trust, PII).  Post-call guards process the result
 - utils.event_utils (POS: Provides dispatch_custom_event)
 
 [OUTPUT]
-- PreCallResult: data holder for pre-call guard state
+- PreCallResult: data holder for pre-call guard state, including the loop-guard record opened for the call
 - run_pre_call_guards: execute all pre-call guards
 - run_post_call_guards: execute all post-call guards
 
@@ -34,9 +35,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
-from myrm_agent_harness.agent.middlewares._session_context import (
-    get_terminal_errors,
-)
+from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 from myrm_agent_harness.agent.middlewares.tooling._model_round import model_round_id
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (
     apply_validation_result,
@@ -64,7 +63,7 @@ from myrm_agent_harness.agent.security.guards.frequency_guard import (
     FrequencyAction,
     get_frequency_guard,
 )
-from myrm_agent_harness.agent.security.guards.loop_guard import LoopAction, LoopGuard
+from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, LoopAction, LoopGuard
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import (
     TurnBudgetAction,
     get_tool_turn_budget_guard,
@@ -112,6 +111,7 @@ class PreCallResult:
     """Carries forward state from pre-call guards into the post-call phase."""
 
     __slots__ = (
+        "call_record",
         "freq_guard",
         "freq_verdict",
         "loop_guard",
@@ -126,12 +126,14 @@ class PreCallResult:
         freq_guard: Any,
         freq_verdict: Any,
         steering_token: Any,
+        call_record: CallRecord | None,
     ) -> None:
         self.loop_guard = loop_guard
         self.loop_verdict = loop_verdict
         self.freq_guard = freq_guard
         self.freq_verdict = freq_verdict
         self.steering_token = steering_token
+        self.call_record = call_record
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +184,7 @@ async def run_pre_call_guards(
         tool_args.update(pre_hook_result.updated_input)
         request.tool_call["args"] = tool_args
 
-    blocked = _check_circuit_breaker(tool_name, tool_call_id)
+    blocked = check_circuit_breaker(tool_name, tool_call_id)
     if blocked:
         return blocked
 
@@ -246,6 +248,10 @@ async def run_pre_call_guards(
                 loop_kind="tool_stuck",
             )
         raise pre_check_exc
+
+    # The record ``pre_check`` just opened is this call's own. Calls run concurrently, so it is taken here, before
+    # any await lets another call open a record of its own.
+    call_record = loop_guard.latest_record()
 
     metrics = loop_guard.get_metrics()
     if metrics.total_calls % 100 == 0 and metrics.total_calls > 0:
@@ -388,65 +394,8 @@ async def run_pre_call_guards(
         freq_guard,
         freq_verdict,
         steering_token,
+        call_record,
     )
-
-
-def _check_circuit_breaker(tool_name: str, tool_call_id: str) -> ToolMessage | None:
-    """Check Myrm-Guard hard circuit breaker. Returns error message if blocked."""
-    registry = get_terminal_errors()
-    terminal_errors = registry.get_all()
-    if not terminal_errors:
-        return None
-
-    t_lower = tool_name.lower()
-    is_network_tool = any(kw in t_lower for kw in ["web", "search", "browser", "fetch", "http", "network", "mcp"])
-    is_write_tool = any(kw in t_lower for kw in ["write", "edit", "create", "delete", "mkdir", "rm", "append"])
-
-    blocker = None
-    if "any" in terminal_errors:
-        blocker = "any"
-    elif "network_blocked" in terminal_errors and is_network_tool:
-        blocker = "network_blocked"
-    elif "sandbox_ro" in terminal_errors and is_write_tool:
-        blocker = "sandbox_ro"
-    elif config_auth_families := {
-        category.split(":", 1)[1] for category in terminal_errors if category.startswith("config_or_auth:")
-    }:
-        # Family-scoped: a broken search configuration must not disable
-        # browser tools (independent infrastructure) and vice versa.
-        tool_family = "search" if "search" in t_lower else ("browser" if "browser" in t_lower else None)
-        if tool_family in config_auth_families:
-            blocker = f"config_or_auth:{tool_family}"
-
-    if blocker:
-        if blocker.startswith("config_or_auth:"):
-            family = blocker.split(":", 1)[1]
-            detail = (
-                "The related service is unavailable because its configuration "
-                "or credentials are invalid. This cannot be fixed by retrying."
-            )
-            if family == "search":
-                detail = (
-                    "Search is unavailable because the search service configuration "
-                    "or credentials are invalid. Use browser or web_fetch tools instead."
-                )
-            elif family == "browser":
-                detail = (
-                    "Browser tools are unavailable because the browser environment "
-                    "failed to launch. Use search or web_fetch tools instead."
-                )
-            hint = f"Circuit breaker active for {family} tools. {detail}"
-        else:
-            hint = f"Circuit breaker active for {blocker}. Previous failures indicate this resource is unavailable."
-        logger.warning("Circuit breaker: blocked %s due to terminal %s", tool_name, blocker)
-        return make_error_msg(
-            tool_name,
-            tool_call_id,
-            f"Error: [SYSTEM_ENFORCED] Execution of '{tool_name}' blocked by circuit breaker.\nDetails: {hint}",
-            error_category=ToolErrorCategory.CIRCUIT_BREAKER,
-            error_hint=hint,
-        )
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -464,8 +413,14 @@ async def run_post_call_guards(
     freq_guard: Any,
     freq_verdict: Any,
     steering_token: Any,
+    call_record: CallRecord | None = None,
 ) -> ToolMessage | Any:
-    """Execute all post-call guards on a ToolMessage. Returns (possibly modified) result."""
+    """Execute all post-call guards on a ToolMessage. Returns (possibly modified) result.
+
+    ``call_record`` is the loop-guard record the pre-call phase opened for this call; the result and the
+    verification category are written to it, not to whichever record is latest by now. Without one the result
+    goes to the latest record and no verification category is recorded.
+    """
     from myrm_agent_harness.agent.hooks.executor import fire_hook
     from myrm_agent_harness.agent.hooks.types import HookEvent
     from myrm_agent_harness.agent.streaming.types import AgentEventType
@@ -596,7 +551,7 @@ async def run_post_call_guards(
         result_text = extract_text_content(result.content)
 
     try:
-        post_verdict = loop_guard.record_result(tool_name, tool_args, result_text)
+        post_verdict = loop_guard.record_result(tool_name, tool_args, result_text, record=call_record)
     except Exception as post_check_exc:
         from myrm_agent_harness.agent.errors.agent_errors import (
             RunawayCircuitBreakException,
@@ -641,8 +596,8 @@ async def run_post_call_guards(
         )
 
         vtype = classify_verification(tool_args)
-        if vtype is not None:
-            loop_guard.tag_last_verification(vtype)
+        if vtype is not None and call_record is not None:
+            call_record.verification_type = vtype
 
     warnings: list[str] = []
     if loop_verdict.action == LoopAction.WARN or post_verdict.action == LoopAction.WARN:

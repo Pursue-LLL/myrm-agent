@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-093 · 每个被判为验证类的 bash 调用在后置守卫抛 `AttributeError`：并发改造删掉了 `tag_last_verification`，调用方没有跟着迁移
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/middlewares/tooling/_tool_guards.py`、`tool_interceptor_middleware.py`、新增 `_circuit_breaker.py`；测试 `tests/agent/middlewares/test_tool_guards_rare_branches.py`、`tests/agent/security/guards/test_loop_guard.py`；文档 `tooling/_ARCH.md`、`middlewares/MIDDLEWARE_SYSTEM.md`；不改工具 schema 与提示词，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（核对 `verification_type` 的写入方时发现 `_tool_guards.py` 调用了一个已不存在的方法；随后实跑 `tests/agent/middlewares/approval/test_approval_evaluated_once.py` 复现） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P1：编码类任务几乎每次都会触发——`classify_verification` 对 `pytest`、`ruff check`、`tsc`、`bun run build`，乃至 `python script.py` 都有返回值；命令已经执行完，结果却被换成执行错误，同一批的后续调用被中止。 |
+| **关联产品** | 完成度守卫（验收清单、执行声明核对、置信度分层）与流恢复读取 `CallRecord.verification_type`。 |
+| **根因** | 提交 `b1e93de700` 为了并发调用删掉了 `LoopGuard.tag_last_verification`（它给「窗口里最后一条记录」打标，并发时会打到别的调用上），新增 `latest_record()` 与 `record_result(..., record=)` 让调用方各持自己的记录；但 `_tool_guards.py::run_post_call_guards` 仍调用已删除的方法，`record_result` 也不传 `record=`。`AttributeError` 在命令执行之后抛出，被 `tool_interceptor_middleware.py` 的 `except Exception` 交给 `handle_execution_error`，模型看到的是错误而不是命令的真实结果。同时 `verification_type` 在 `src` 里再没有任何写入方，它的消费者（`completion_guard/checklist/assessment.py`、`execution_claim/verifier.py`、`deliverable/confidence_tier.py`、`stream_recovery_continuation.py`）一直读到 `None`。 |
+| **修复** | `run_pre_call_guards` 在 `pre_check` 返回后立刻取 `loop_guard.latest_record()`（同步、中间没有 `await`），放进 `PreCallResult.call_record`；`run_post_call_guards` 新增 `call_record` 参数，交给 `record_result(record=)`，并直接给这条记录写 `verification_type`。熔断检查搬进 `_circuit_breaker.py::check_circuit_breaker`，`_tool_guards.py` 因此回到行数基线内（686 → 641，基线同步收紧）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 记录必须在任何 `await` 之前取：`pre_check` 与 `return PreCallResult(...)` 之间有事件上报的 `await`，并发的另一个调用会在这期间开自己的记录。② `PreCallResult` 与 `run_post_call_guards` 的新参数放在末尾、默认 `None`，位置参数的旧调用点不会错位；`None` 的含义与 `record_result` 一致（结果记到最新一条，且不记验证类别）。③ 熔断检查搬家后，测试里约 60 处对旧私有名与 `get_terminal_errors` 的引用一并改到新模块。 |
+| **回归** | [1] `test_tool_guards_rare_branches.py::test_completion_verification_tagging` 改为断言写在传入的记录上；新增 `test_overlapping_calls_each_keep_their_own_verification_category`（两个调用的记录重叠，先开的那个后完成，类别与结果都落在自己的记录上）；`test_loop_guard.py::TestVerificationTagging` 改为同一场景在守卫层的断言。[2] 变异：`record_result` 不传 `record=` 时这两个用例失败，还原后通过。[3] 对同一组套件（`tests/agent/middlewares`、`tests/agent/security/guards`、熔断集成测试）在干净的 HEAD 导出上是 18 失败、6 个收集错误，改动后是 16 失败、6 个收集错误，没有新增失败，减少的两个就是 `test_approval_evaluated_once` 与旧的 `test_tag_last_verification`。[4] `ruff check`、`ruff format --check`、`mypy --follow-imports=silent` 对改动的源文件通过；`check_file_line_limit.py`、`check_fractal_docs.py`、`boundary_check.py` 通过。 |
+| **仍然存在** | ① 剩下的 16 个失败和 6 个收集错误在改动前就存在，不是本次引入：`completion_guard/` 下的用例仍用 `mock_guard.return_value._window` 伪造记录，而守卫已改读 `recorded_calls()`；`tests/support/call_records.py` 与 `test_call_record_verification.py` 导入 `VerificationOutcome`，该符号已在 `f55df6a349` 从 `src` 删除。② `scripts/check_module_reachability.py` 因 server 侧缺少 `app/services/session_export/__init__.py` 在本机崩溃，与本次改动无关。③ 没有用真实模型跑一次「bash 跑 pytest」的完整回合，只在守卫层与中间件层验证。 |
+| **代码位置** | `agent/middlewares/tooling/_tool_guards.py`（`PreCallResult.call_record`、`run_pre_call_guards` 里的 `latest_record()`、`run_post_call_guards` 的 `record=` 与 `verification_type`） · `agent/middlewares/tooling/_circuit_breaker.py` · `agent/security/guards/loop_guard/guard.py:374-399`（`latest_record`、`record_result`） |
+
 ### BUG-HARNESS-2026-10-29-092 · macOS 原生后端的 ASCII 文本输入构造不出键盘事件、垂直滚动每次抛异常：事件构造原语只被 mock 测过，参数错误一直没被发现
 
 | 字段 | 内容 |

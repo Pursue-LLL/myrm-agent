@@ -3,7 +3,7 @@
 Covers:
 1. classify_terminal_error() pure classification logic (_tool_helpers) — family-scoped
 2. handle_execution_error() registers terminal errors on config/auth failures
-3. _check_circuit_breaker() blocks only same-family tools after config_or_auth registered
+3. check_circuit_breaker() blocks only same-family tools after config_or_auth registered
 """
 
 from __future__ import annotations
@@ -73,9 +73,7 @@ class TestClassifyTerminalError:
             ClickTargetUnreachableError,
         )
 
-        err = ClickTargetUnreachableError(
-            "Click target cannot be brought into the viewport"
-        )
+        err = ClickTargetUnreachableError("Click target cannot be brought into the viewport")
         assert classify_terminal_error(err) is None
 
     def test_browser_navigation_error_not_classified(self) -> None:
@@ -123,9 +121,7 @@ class TestHandleExecutionErrorRegistersTerminalError:
                 return_value=MagicMock(add=terminal_errors.add),
             ),
             patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"
-            ),
+            patch("myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"),
         ):
             result = await handle_execution_error(err, "web_search_tool", "call_1", {"questions": ["x"]})
 
@@ -147,9 +143,7 @@ class TestHandleExecutionErrorRegistersTerminalError:
                 return_value=MagicMock(add=terminal_errors.add),
             ),
             patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"
-            ),
+            patch("myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result"),
         ):
             result = await handle_execution_error(err, "web_search_tool", "call_2", {"questions": ["x"]})
 
@@ -158,24 +152,22 @@ class TestHandleExecutionErrorRegistersTerminalError:
 
 
 # ---------------------------------------------------------------------------
-# 3. _check_circuit_breaker blocks only same-family tools
+# 3. check_circuit_breaker blocks only same-family tools
 # ---------------------------------------------------------------------------
 
 
 class TestCircuitBreakerConfigOrAuth:
     def test_search_family_blocks_search_tool(self) -> None:
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
         registry = MagicMock()
         registry._load = MagicMock()
         registry.get_all.return_value = {CONFIG_OR_AUTH_SEARCH}
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+            "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
             return_value=registry,
         ):
-            result = _check_circuit_breaker("web_search_tool", "call_3")
+            result = check_circuit_breaker("web_search_tool", "call_3")
         assert result is not None
         assert "circuit breaker" in result.content.lower()
         assert "Search is unavailable" in result.content
@@ -183,77 +175,67 @@ class TestCircuitBreakerConfigOrAuth:
 
     def test_search_family_does_not_block_browser_tool(self) -> None:
         """A broken search config must not disable browser tools (independent infra)."""
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
         registry = MagicMock()
         registry._load = MagicMock()
         registry.get_all.return_value = {CONFIG_OR_AUTH_SEARCH}
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+            "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
             return_value=registry,
         ):
-            result = _check_circuit_breaker("browser_navigate", "call_4")
+            result = check_circuit_breaker("browser_navigate", "call_4")
         assert result is None
 
     def test_browser_family_blocks_browser_tool(self) -> None:
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
         registry = MagicMock()
         registry._load = MagicMock()
         registry.get_all.return_value = {CONFIG_OR_AUTH_BROWSER}
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+            "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
             return_value=registry,
         ):
-            result = _check_circuit_breaker("browser_navigate", "call_5")
+            result = check_circuit_breaker("browser_navigate", "call_5")
         assert result is not None
 
     def test_browser_family_does_not_block_search_tool(self) -> None:
         """A broken browser environment must not disable search tools."""
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
         registry = MagicMock()
         registry._load = MagicMock()
         registry.get_all.return_value = {CONFIG_OR_AUTH_BROWSER}
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+            "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
             return_value=registry,
         ):
-            result = _check_circuit_breaker("web_search_tool", "call_6")
+            result = check_circuit_breaker("web_search_tool", "call_6")
         assert result is None
 
     def test_allows_non_network_tool(self) -> None:
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
         registry = MagicMock()
         registry._load = MagicMock()
         registry.get_all.return_value = {CONFIG_OR_AUTH_SEARCH}
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+            "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
             return_value=registry,
         ):
-            result = _check_circuit_breaker("file_write", "call_7")
+            result = check_circuit_breaker("file_write", "call_7")
         assert result is None
 
     def test_allows_when_not_registered(self) -> None:
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
         registry = MagicMock()
         registry._load = MagicMock()
         registry.get_all.return_value = {}
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors",
+            "myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors",
             return_value=registry,
         ):
-            result = _check_circuit_breaker("web_search_tool", "call_8")
+            result = check_circuit_breaker("web_search_tool", "call_8")
         assert result is None

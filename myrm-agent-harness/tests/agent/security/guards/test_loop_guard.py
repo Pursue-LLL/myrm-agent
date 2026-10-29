@@ -781,11 +781,17 @@ class TestSuggestionTracking:
 
 
 class TestVerificationTagging:
-    def test_tag_last_verification(self, guard: LoopGuard) -> None:
-        """tag_last_verification sets category on last record."""
+    def test_the_record_a_call_opened_carries_its_own_category(self, guard: LoopGuard) -> None:
+        """A caller tags the record ``pre_check`` opened for it, even after later calls opened theirs."""
         guard.pre_check("bash_code_execute_tool", {"command": "pytest"})
-        guard.tag_last_verification(VerificationCategory.TEST)
-        assert guard._window[-1].verification_type == VerificationCategory.TEST
+        first = guard.latest_record()
+        guard.pre_check("bash_code_execute_tool", {"command": "ls"})
+        assert first is not None
+        first.verification_type = VerificationCategory.TEST
+
+        first_recorded, second_recorded = guard.recorded_calls()
+        assert first_recorded.verification_type == VerificationCategory.TEST
+        assert second_recorded.verification_type is None
 
 
 # ---------------------------------------------------------------------------

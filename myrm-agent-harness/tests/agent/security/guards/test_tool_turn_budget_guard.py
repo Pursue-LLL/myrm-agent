@@ -136,7 +136,7 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -222,7 +222,7 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -308,7 +308,7 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(

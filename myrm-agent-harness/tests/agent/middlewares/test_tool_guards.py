@@ -143,7 +143,7 @@ class TestPreCallGuardsEmitEvent:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -224,7 +224,7 @@ class TestPreCallGuardsEmitEvent:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
@@ -299,9 +299,7 @@ class TestPreCallGuardsModelRound:
                 new_callable=AsyncMock,
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker", return_value=None
-            ),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker", return_value=None),
             patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision"),
         ):
             for call_id, command in (("call_b", "pwd"), ("call_a", "ls")):

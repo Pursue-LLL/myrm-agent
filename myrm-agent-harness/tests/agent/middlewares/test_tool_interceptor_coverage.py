@@ -284,16 +284,14 @@ async def test_emit_hook_failure_event():
         assert event["data"]["error"] == "Policy violation detected"
 
     def test_check_circuit_breaker():
-        from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
-            _check_circuit_breaker,
-        )
+        from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
-        with patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors") as mock_cb:
+        with patch("myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors") as mock_cb:
             mock_cb_inst = MagicMock()
             mock_cb_inst.get_all.return_value = {"any": "error"}
             mock_cb.return_value = mock_cb_inst
 
-            res = _check_circuit_breaker("test_tool", "call_123")
+            res = check_circuit_breaker("test_tool", "call_123")
             assert res is not None
             assert "circuit breaker" in res.content.lower()
 
@@ -366,7 +364,7 @@ async def test_run_pre_call_guards_updated_input():
     with (
         patch("myrm_agent_harness.agent.hooks.executor.fire_hook") as mock_fire,
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
             return_value=False,
         ),
         patch(
@@ -595,34 +593,34 @@ async def test_tool_interceptor_middleware_error():
 
 
 def test_check_circuit_breaker_network():
-    from myrm_agent_harness.agent.middlewares.tooling._tool_guards import _check_circuit_breaker
+    from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
-    with patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors") as mock_cb:
+    with patch("myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors") as mock_cb:
         mock_cb_inst = MagicMock()
         mock_cb_inst.get_all.return_value = {"network_blocked": "error"}
         mock_cb.return_value = mock_cb_inst
 
-        res = _check_circuit_breaker("web_search", "call_123")
+        res = check_circuit_breaker("web_search", "call_123")
         assert res is not None
         assert "network_blocked" in res.content.lower()
 
-        res_allow = _check_circuit_breaker("safe_tool", "call_123")
+        res_allow = check_circuit_breaker("safe_tool", "call_123")
         assert res_allow is None
 
 
 def test_check_circuit_breaker_write():
-    from myrm_agent_harness.agent.middlewares.tooling._tool_guards import _check_circuit_breaker
+    from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker
 
-    with patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_terminal_errors") as mock_cb:
+    with patch("myrm_agent_harness.agent.middlewares.tooling._circuit_breaker.get_terminal_errors") as mock_cb:
         mock_cb_inst = MagicMock()
         mock_cb_inst.get_all.return_value = {"sandbox_ro": "error"}
         mock_cb.return_value = mock_cb_inst
 
-        res = _check_circuit_breaker("file_write", "call_123")
+        res = check_circuit_breaker("file_write", "call_123")
         assert res is not None
         assert "sandbox_ro" in res.content.lower()
 
-        res_allow = _check_circuit_breaker("safe_tool", "call_123")
+        res_allow = check_circuit_breaker("safe_tool", "call_123")
         assert res_allow is None
 
 
@@ -956,7 +954,7 @@ async def test_pre_check_tool_stuck_triggers_interrupt_via_pre_call_guards():
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
             return_value=None,
         ),
         patch("langgraph.types.interrupt") as mock_interrupt,
@@ -1016,7 +1014,7 @@ async def test_pre_check_tool_stuck_fallthrough_returns_error_msg():
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards._check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
             return_value=None,
         ),
         patch("langgraph.types.interrupt", return_value=None),
