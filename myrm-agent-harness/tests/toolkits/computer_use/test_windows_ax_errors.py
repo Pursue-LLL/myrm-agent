@@ -24,9 +24,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.errors import (
 )
 
 
-def _make_interactive_control(
-    *, bbox_fails: bool = False, zero_size: bool = False
-) -> MagicMock:
+def _make_interactive_control(*, bbox_fails: bool = False, zero_size: bool = False) -> MagicMock:
     control = MagicMock(
         spec=[
             "ControlTypeName",
@@ -61,7 +59,9 @@ def _make_auto(**kwargs) -> MagicMock:
     auto.GetForegroundControl.return_value = kwargs.get("foreground")
     root = kwargs.get("root")
     auto.GetRootControl.return_value = root
-    auto.GetProcessNameByPid.return_value = kwargs.get("process_name", "")
+    # uiautomation has no pid-to-name lookup: names are served by the Win32 helper patched in _module_with_auto.
+    del auto.GetProcessNameByPid
+    auto.process_names = {}
     return auto
 
 
@@ -71,7 +71,12 @@ def _module_with_auto(auto: MagicMock):
         from importlib import reload
 
         reload(windows_ax)
-        yield windows_ax
+        with patch.object(
+            windows_ax,
+            "process_name_by_pid",
+            side_effect=lambda pid: auto.process_names.get(pid, ""),
+        ):
+            yield windows_ax
 
 
 @contextmanager
@@ -128,9 +133,9 @@ class TestResolveWindowsAppId:
         control.ProcessId = 0
         assert windows_ax._resolve_windows_app_id(control) == ""
 
-    def test_failure_returns_empty(self) -> None:
+    def test_non_numeric_pid_returns_empty(self) -> None:
         control = _make_interactive_control()
-        control.ProcessId = MagicMock()
+        control.ProcessId = "not-a-pid"
         assert windows_ax._resolve_windows_app_id(control) == ""
 
 

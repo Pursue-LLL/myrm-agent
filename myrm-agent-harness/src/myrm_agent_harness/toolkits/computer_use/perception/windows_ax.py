@@ -4,6 +4,7 @@
 - dref.types::SnapshotScope, SnapshotMeta, ElementRef, BBox (POS: @dref accessibility element model)
 - dref.errors::AXPermissionRequiredError, AXTreeEmptyError (POS: accessibility error hierarchy)
 - types::ActionResult (POS: platform action execution result container)
+- windows_process::process_name_by_pid (POS: Win32 executable name of a process id)
 
 [OUTPUT]
 - WindowsAxSnapshot: Windows accessibility snapshot container with metadata and refs
@@ -32,6 +33,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
     SnapshotMeta,
     SnapshotScope,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.windows_process import process_name_by_pid
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 logger = logging.getLogger(__name__)
@@ -125,19 +127,17 @@ def _collect_controls(
         _collect_controls(child, refs, counter, query=query, role=role)
 
 
-def _resolve_windows_app_id(control: object) -> str:
+def _process_id(window: object) -> int:
     try:
-        import uiautomation as auto  # type: ignore[import-not-found]
+        return int(getattr(window, "ProcessId", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
 
-        pid = int(getattr(control, "ProcessId", 0) or 0)
-        if pid <= 0:
-            return ""
-        process_name = auto.GetProcessNameByPid(pid)
-        if process_name:
-            return f"win:{process_name.strip().lower()}"
-    except Exception:
-        return ""
-    return ""
+
+def _resolve_windows_app_id(control: object) -> str:
+    """Return the platform-stable ``win:<exe>`` identity of *control*'s process, or ``""`` when unresolved."""
+    process_name = process_name_by_pid(_process_id(control)).lower()
+    return f"win:{process_name}" if process_name else ""
 
 
 def _locate_window(app_name: str) -> object | None:
@@ -170,14 +170,7 @@ def _locate_window(app_name: str) -> object | None:
         return (getattr(window, "Name", "") or "").strip()
 
     def _process_name(window: object) -> str:
-        try:
-            pid = int(getattr(window, "ProcessId", 0) or 0)
-            if pid <= 0:
-                return ""
-            name = auto.GetProcessNameByPid(pid)
-            return (name or "").strip().lower().removesuffix(".exe")
-        except Exception:
-            return ""
+        return process_name_by_pid(_process_id(window)).lower().removesuffix(".exe")
 
     for window in windows:
         try:

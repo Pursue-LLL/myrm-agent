@@ -51,7 +51,9 @@ def _make_auto(process_names: dict[int, str], windows: list[MagicMock]) -> Magic
     root.GetChildren.return_value = windows
     auto.GetRootControl.return_value = root
     auto.GetForegroundControl.return_value = windows[0] if windows else None
-    auto.GetProcessNameByPid.side_effect = lambda pid: process_names.get(pid, "")
+    # uiautomation has no pid-to-name lookup: names are served by the Win32 helper patched in _module_with_auto.
+    del auto.GetProcessNameByPid
+    auto.process_names = process_names
     # Mirror uiautomation.ToggleState enum used by idempotent check/uncheck.
     auto.ToggleState.On = 1
     auto.ToggleState.Off = 0
@@ -65,7 +67,12 @@ def _module_with_auto(auto: MagicMock):
         from importlib import reload
 
         reload(windows_ax)
-        yield windows_ax
+        with patch.object(
+            windows_ax,
+            "process_name_by_pid",
+            side_effect=lambda pid: auto.process_names.get(pid, ""),
+        ):
+            yield windows_ax
 
 
 class TestLocateWindow:
@@ -150,10 +157,9 @@ class TestLocateWindow:
         with _module_with_auto(auto) as module:
             assert module._locate_window("Mail") is None
 
-    def test_process_name_exception_falls_through(self) -> None:
+    def test_unresolvable_process_name_falls_through(self) -> None:
         win = _make_window("Notes - Overview", 100)
-        auto = _make_auto({100: "Mail"}, [win])
-        auto.GetProcessNameByPid.side_effect = Exception("boom")
+        auto = _make_auto({}, [win])
         with _module_with_auto(auto) as module:
             assert module._locate_window("Mail") is None
 
@@ -299,10 +305,7 @@ class TestIndexConsistency:
         _flatten(root)
         interactive: list[object] = []
         for node in flat:
-            if (
-                getattr(node, "ControlTypeName", "")
-                not in windows_ax._INTERACTIVE_TYPES
-            ):
+            if getattr(node, "ControlTypeName", "") not in windows_ax._INTERACTIVE_TYPES:
                 continue
             try:
                 rect = getattr(node, "BoundingRectangle", None)
@@ -344,10 +347,7 @@ class TestIndexConsistency:
         _flatten(root)
         interactive: list[object] = []
         for node in flat:
-            if (
-                getattr(node, "ControlTypeName", "")
-                not in windows_ax._INTERACTIVE_TYPES
-            ):
+            if getattr(node, "ControlTypeName", "") not in windows_ax._INTERACTIVE_TYPES:
                 continue
             try:
                 rect = getattr(node, "BoundingRectangle", None)
@@ -430,17 +430,20 @@ class TestResolveWindowsAppId:
     """_resolve_windows_app_id defensive branches."""
 
     def test_zero_pid_returns_empty(self) -> None:
-        control = _make_window("Mail - Inbox", 0)
-        auto = _make_auto({0: "Mail"}, [control])
+        # Real Win32 helper (unpatched): a window without a process id has no executable identity.
+        assert windows_ax._resolve_windows_app_id(_make_window("Mail - Inbox", 0)) == ""
+
+    def test_unresolvable_process_returns_empty(self) -> None:
+        control = _make_window("Mail - Inbox", 100)
+        auto = _make_auto({}, [control])
         with _module_with_auto(auto) as module:
             assert module._resolve_windows_app_id(control) == ""
 
-    def test_exception_returns_empty(self) -> None:
-        control = _make_window("Mail - Inbox", 100)
-        auto = _make_auto({100: "Mail"}, [control])
-        auto.GetProcessNameByPid.side_effect = Exception("boom")
+    def test_executable_name_keeps_extension(self) -> None:
+        control = _make_window("Untitled - Notepad", 100)
+        auto = _make_auto({100: "Notepad.exe"}, [control])
         with _module_with_auto(auto) as module:
-            assert module._resolve_windows_app_id(control) == ""
+            assert module._resolve_windows_app_id(control) == "win:notepad.exe"
 
     def test_process_name_prefixed(self) -> None:
         control = _make_window("Mail - Inbox", 100)
@@ -587,9 +590,7 @@ class TestEnsureWindowActiveForTarget:
 
         with _module_with_auto(auto) as module, patch("time.sleep") as mock_sleep:
             module._ensure_window_active_for_target(window)
-            pattern.SetWindowVisualState.assert_called_once_with(
-                auto.WindowVisualState.Normal
-            )
+            pattern.SetWindowVisualState.assert_called_once_with(auto.WindowVisualState.Normal)
             mock_sleep.assert_called_once_with(0.05)
 
     def test_negative_coordinate_bounding_box_triggers_restore(self) -> None:
@@ -610,9 +611,7 @@ class TestEnsureWindowActiveForTarget:
 
         with _module_with_auto(auto) as module, patch("time.sleep") as mock_sleep:
             module._ensure_window_active_for_target(window)
-            pattern.SetWindowVisualState.assert_called_once_with(
-                auto.WindowVisualState.Normal
-            )
+            pattern.SetWindowVisualState.assert_called_once_with(auto.WindowVisualState.Normal)
             mock_sleep.assert_called_once_with(0.05)
 
     def test_normal_window_no_restore_needed(self) -> None:
@@ -761,6 +760,7 @@ class TestWindowsAxPatternActions:
         button = _make_button("Agree")
         toggle_pattern = MagicMock()
         toggle_pattern.ToggleState = 0  # Off → after Toggle becomes On
+
         def _flip() -> None:
             toggle_pattern.ToggleState = 1
 
