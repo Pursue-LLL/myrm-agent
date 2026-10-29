@@ -84,12 +84,6 @@
 | `inspector/`                               | Inspector 控制权释放纯函数（动态加载 desktop/browser store 并归还 turn 控制）                                                                                                                                                                                                                                                                                                                                              | [_ARCH.md](inspector/_ARCH.md)         |
 | `__tests__/`                               | lib 层单元测试（`deploy-mode/` 子目录按模块归组其解析/通知/远程/分支用例）                                                                                                                                                                                                                                                                                                                                                 | 内联                                   |
 
-## 子目录
-
-| 目录 | 内容 | 文档 |
-|------|------|------|
-| `connection/` | 模块 `connection-controller.ts`、`jitter-backoff.ts` | [_ARCH.md](connection/_ARCH.md) |
-
 ## 依赖
 
 - 不依赖 `@/components`（单向：components → lib）

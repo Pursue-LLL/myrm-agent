@@ -45,12 +45,6 @@
 | `petSurfaceBridge.ts`                         | 辅助 | Tauri IPC + event 桥（show/hide/ignore/focus + state sync）                 |
 | `petSurfaceStorage.ts` / `petSurfaceTypes.ts` | 辅助 | 外置模式与 bounds 持久化 + IPC 类型                                         |
 
-## 子目录
-
-| 目录 | 内容 | 文档 |
-|------|------|------|
-| `speech-loop/` | 组件 `MiniApprovalDrawer`、`PetLoopStageBadge`、`PetSpeechLoopOverlay`；状态仓库 `usePetSpeechLoopStore` | [_ARCH.md](speech-loop/_ARCH.md) |
-
 ## 模块依赖
 
 - `@/store/useCompanionStore` — 全局状态管理（持久化 + 会话态 + 精灵图配置）

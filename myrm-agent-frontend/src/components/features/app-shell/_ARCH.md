@@ -82,13 +82,6 @@
 | `__tests__/visual-desktop-toggle.test.tsx`          | VNC 面板：沙箱无 VNC 地址时显示加载失败与重连（不渲染桌面）、重连后拿到地址即恢复、正常地址渲染桌面 |
 | `__tests__/`                                        | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、CronSchedulerHealthBanner、FlowPad、PWA 等壳层组件                                                                                    |
 
-## 子目录
-
-| 目录 | 内容 | 文档 |
-|------|------|------|
-| `keyboard-nav/` | 组件 `AccessibleNavigableModelList`、`OverflowTabStripContainer`；Hook `useModelPickerKeyboardNav`、`useTabStripReveal` | [_ARCH.md](keyboard-nav/_ARCH.md) |
-| `quiet-update/` | 组件 `QuietMomentUpdateBanner`、`UpdateOfferDismissModal`；状态仓库 `useQuietMomentUpdateStore` | [_ARCH.md](quiet-update/_ARCH.md) |
-
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`

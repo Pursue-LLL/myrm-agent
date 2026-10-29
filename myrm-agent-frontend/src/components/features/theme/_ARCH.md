@@ -25,12 +25,6 @@ Theme Engine v2 runtime: light/dark via next-themes + ThemeProfileProvider (Reci
 | `__tests__/restoreOfficialTheme.test.ts`                | Official restore executes ConfigSync patch + draft/preview cleanup                                                                                                                                                                                                                       | ✅    |
 | `__tests__/syntaxThemeFollowsOs.test.tsx`               | Regression: code block, diff viewer and tool-output highlighter pick their palette from `resolvedTheme` (a `system` setting on a dark OS is dark); source guard bans the `const { theme } = useTheme()` pattern                                                                          |
 
-## 子目录
-
-| 目录 | 内容 | 文档 |
-|------|------|------|
-| `layer-invariants/` | 组件 `PrebakedBaselineDiffModal`、`ThemeLayerDirectionInspectorCard`；状态仓库 `useThemeLayerInvariantStore` | [_ARCH.md](layer-invariants/_ARCH.md) |
-
 ## Dependencies
 
 - `@/theme-engine` — compiler + presets + overlay + preinit
