@@ -12,7 +12,7 @@
   preview renders the new file through SvgPreview without a load error
 
 [POS]
-LIVE lane Chrome E2E for the SvgPreview delivery (topic_01 #18): covers the real
+LIVE lane Chrome E2E for the SvgPreview delivery: covers the real
 user flow of asking the agent for an SVG and previewing the produced artifact.
 """
 

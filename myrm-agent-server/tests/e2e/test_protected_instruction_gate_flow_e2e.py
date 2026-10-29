@@ -14,7 +14,7 @@
 - Zero-drift guarantee: baseline instruction files remain byte-identical unless explicitly approved
 
 [POS]
-Universal Task Flow E2E for topic_03 Item #128 / #149 (ProtectedInstructionFilesApprovalGate).
+Universal Task Flow E2E for ProtectedInstructionFilesApprovalGate.
 Validates end-to-end defense across Policy Engine ➔ Batch Evaluator ➔ Approval Card ➔ Audit.
 """
 

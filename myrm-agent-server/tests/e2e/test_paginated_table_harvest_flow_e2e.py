@@ -11,7 +11,7 @@
 - Structured, non-garbled CSV / Excel artifact persisted to disk and verified
 
 [POS]
-E2E integration test for topic_04 item #17 (BrowserPaginatedTableHarvestToExcelArtifactWorkflow).
+E2E integration test for BrowserPaginatedTableHarvestToExcelArtifactWorkflow.
 Validates the complete real-world Task Flow:
   Recon ➔ Strategy ➔ Extract with Dual-Sentinel Guard ➔ Incremental Disk Cache ➔ Artifact Delivery.
 """

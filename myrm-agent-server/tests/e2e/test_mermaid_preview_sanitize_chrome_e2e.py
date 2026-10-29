@@ -11,7 +11,7 @@
 - Safe flowchart nodes render cleanly with standard SVG elements (<svg>, <g>, <rect>, <text>)
 
 [POS]
-Full-chain real Chrome E2E test for topic_03 item #23 (MermaidPreviewStrictSanitizeLevel).
+Full-chain real Chrome E2E test for MermaidPreviewStrictSanitizeLevel.
 Validates end-to-end user security directly inside real Chrome browser with live DOM events.
 """
 

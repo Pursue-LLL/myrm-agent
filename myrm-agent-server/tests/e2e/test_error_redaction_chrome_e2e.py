@@ -11,7 +11,7 @@
 - User-facing UI demonstrates complete sensitive credential protection
 
 [POS]
-Full-chain real Chrome E2E test for topic_03 item #18 (ControlUISurfaceErrorRedaction).
+Full-chain real Chrome E2E test for ControlUISurfaceErrorRedaction.
 Validates end-to-end user experience directly inside real Chrome browser with live UI events.
 """
 

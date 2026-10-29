@@ -12,7 +12,7 @@
   message metadata, and the WebUI renders the tier badge for that answer
 
 [POS]
-LIVE lane Chrome E2E for topic_03 #32 (execution-claim grounding + per-turn disclosure):
+LIVE lane Chrome E2E for execution-claim grounding + per-turn disclosure:
 covers the real user flow of asking the agent for a file and seeing what the delivery is
 backed by.
 """

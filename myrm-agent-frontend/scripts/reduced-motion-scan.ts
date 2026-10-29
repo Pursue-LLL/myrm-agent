@@ -10,7 +10,7 @@
  * 1. 候选文件 = 含 `<style>` 或 `<html` 的源码（自己拼 HTML），或 `.css` 样式表（被某个独立文档引入）；
  * 2. 只对“带动画”的候选报警：有 `animation:`、`@keyframes` 或 Tailwind 的 `animate-*` 工具类；
  * 3. 该文件里必须出现 `prefers-reduced-motion`；
- * 4. 白名单按文件给出理由，理由同时写进 `temp-docs/roadmap/topic_09`，不允许无理由豁免。
+ * 4. 白名单按文件给出理由，理由写在 `ALLOWED_WITHOUT_GUARD` 的条目里，不允许无理由豁免。
  *
  * 为什么要扫 `animate-*`：预置模板只写 Tailwind 工具类，关键帧由 CDN 的样式表提供，本地没有任何
  * `@keyframes`。只看 `@keyframes` 会把这类宿主整批漏掉。
@@ -121,9 +121,9 @@ export function findUnguardedMotionSurface(path: string, source: string): Reduce
   return { path, evidence };
 }
 
-/** 白名单：文件 → 不注入守卫的具体理由。理由必须在 roadmap 里有对应记录。 */
+/** 白名单：文件 → 不注入守卫的具体理由。 */
 export const ALLOWED_WITHOUT_GUARD: Readonly<Record<string, string>> = {
-  'myrm-agent-server/app/api/webui/router.py':
+  'myrm-agent-server/app/api/webui/welcome_page.py':
     '欢迎页只有一次性的 0.5s fadeIn，不是循环动画；且它只在本地启动引导时出现一次',
 };
 

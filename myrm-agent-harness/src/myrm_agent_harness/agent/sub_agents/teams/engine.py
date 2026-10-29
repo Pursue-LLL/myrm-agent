@@ -11,7 +11,7 @@
   durable peer messaging, and edge-triggered change observation
 
 [POS]
-Core runtime facade for topic_12 #28 Durable Agent Teams.
+Core runtime facade for Durable Agent Teams.
 """
 
 from __future__ import annotations

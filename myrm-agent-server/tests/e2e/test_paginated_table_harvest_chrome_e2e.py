@@ -12,7 +12,7 @@
 - Artifact generation verified
 
 [POS]
-Full-chain real Chrome E2E test for topic_04 item #17.
+Full-chain real Chrome E2E test for the paginated-table harvest to Excel artifact workflow.
 Validates end-to-end user experience directly inside real Chrome browser with live UI events.
 """
 

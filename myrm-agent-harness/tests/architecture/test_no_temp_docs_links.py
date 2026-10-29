@@ -1,4 +1,4 @@
-"""Architecture test: tracked markdown must not link into vortexai dev-shell temp-docs/."""
+"""Architecture test: tracked markdown must not point into the private dev-shell planning docs."""
 
 from __future__ import annotations
 
@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-_TEMP_DOCS_PATH = re.compile(r"temp-docs/[A-Za-z0-9_./-]+")
+# Reference kinds that resolve only inside the private dev shell: relative paths into
+# temp-docs/ and planning item ids (topic_NN).
+_PRIVATE_REFERENCES = (
+    ("private dev-shell path", re.compile(r"temp-docs/[A-Za-z0-9_./-]+")),
+    ("private planning item id", re.compile(r"\btopic_[0-9]{2}(?![0-9])")),
+)
 
 
 def _tracked_markdown_files() -> list[Path]:
@@ -26,13 +31,14 @@ def _tracked_markdown_files() -> list[Path]:
 
 
 @pytest.mark.parametrize("path", _tracked_markdown_files(), ids=lambda p: p.name)
-def test_no_temp_docs_relative_links(path: Path) -> None:
+def test_no_private_planning_references(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     rel = path.relative_to(_REPO_ROOT)
     for line_no, line in enumerate(text.splitlines(), start=1):
-        match = _TEMP_DOCS_PATH.search(line)
-        if match:
-            pytest.fail(
-                f"{rel}:{line_no}: references private dev-shell path {match.group()!r}. "
-                "Use in-repo _ARCH.md or maintainer-only notes without path links."
-            )
+        for kind, pattern in _PRIVATE_REFERENCES:
+            match = pattern.search(line)
+            if match:
+                pytest.fail(
+                    f"{rel}:{line_no}: references {kind} {match.group()!r}. "
+                    "Use in-repo _ARCH.md or maintainer-only notes without path links."
+                )

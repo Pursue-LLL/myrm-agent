@@ -11,7 +11,7 @@
 - Verified non-leakage in logs, API response body, and UI toast container
 
 [POS]
-Task Flow E2E for topic_03 item #18 (ControlUISurfaceErrorRedaction).
+Task Flow E2E for ControlUISurfaceErrorRedaction.
 Validates end-to-end credential masking through real pipeline execution.
 """
 

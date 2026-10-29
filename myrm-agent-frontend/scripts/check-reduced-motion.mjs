@@ -7,7 +7,7 @@
  * 它们。这类缺口在 jsdom 与普通单测里看不见（样式不参与断言），所以必须在静态阶段拦住。
  *
  * 判定规则见 `reduced-motion-scan.ts`：自拼 HTML 或样式表 + 带动画 + 没有 `prefers-reduced-motion`
- * 即失败；白名单只登记“确有理由不注入”的文件，理由必须与 `temp-docs/roadmap/topic_09` 记录一致。
+ * 即失败；白名单只登记“确有理由不注入”的文件，理由写在 `ALLOWED_WITHOUT_GUARD` 的条目里。
  *
  * 反悔自检：扫描到的候选文件数为 0 时直接失败，而不是静默通过（路径失效必须暴露）。
  *
@@ -98,7 +98,7 @@ if (violations.length > 0) {
   console.error(
     '\n处理方式：在该文档自己的样式里追加 `@media (prefers-reduced-motion: reduce)` 守卫；' +
       '若确认不需要（例如动画不是循环、或动画本身就是交付物），在 scripts/reduced-motion-scan.ts 的' +
-      ' `ALLOWED_WITHOUT_GUARD` 里登记并写明理由，同时同步 temp-docs/roadmap/topic_09。',
+      ' `ALLOWED_WITHOUT_GUARD` 里登记并写明理由。',
   );
   process.exit(1);
 }

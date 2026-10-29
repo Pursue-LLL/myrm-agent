@@ -12,7 +12,7 @@
 - Script and event-handler payloads inside the rasterized SVG never execute (img context)
 
 [POS]
-READ lane Chrome E2E test for the SvgPreview large-file rasterization delivery (topic_01 #18).
+READ lane Chrome E2E test for the SvgPreview large-file rasterization delivery.
 Validates the two rendering paths and the img-context safety claim directly in real Chrome.
 """
 
