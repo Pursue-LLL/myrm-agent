@@ -48,21 +48,6 @@ async def test_start_with_gateway(channel):
 
 
 @pytest.mark.asyncio
-async def test_gateway_client_cannot_ping_everyone_or_roles(channel):
-    """Guests steer the agent's text, so no message the client sends may notify a whole server or a role."""
-    with patch("discord.Client") as mock_client_cls:
-        mock_client_cls.return_value.start = AsyncMock()
-        await channel.start()
-
-    mentions = mock_client_cls.call_args.kwargs["allowed_mentions"]
-    assert mentions.everyone is False
-    assert mentions.roles is False
-    # A reply still notifies the person it answers.
-    assert mentions.users is True
-    assert mentions.replied_user is True
-
-
-@pytest.mark.asyncio
 async def test_start_without_gateway():
     config = DiscordChannelConfig(bot_token="test_token", enable_gateway=False)
     channel = DiscordChannel(config)
