@@ -1,9 +1,13 @@
-"""Chrome LIVE E2E: a real-model turn in a workspace that also holds hostile files shows the rule file's codeword in the page.
+"""Chrome LIVE E2E: real-model turns in workspaces that also hold hostile files show the rule file's codeword in the page.
 
-The chat workspace holds an ``AGENTS.md`` with a codeword nobody else knows, a FIFO where a skill's ``SKILL.md`` should be, and
-sparse multi-megabyte ``mcp.json`` and ``.myrm/config.toml``. Nobody trusted this workspace, so its rules stay out of the request and
-the model can only learn the codeword by reading the file with its code tool. The turn runs through the real UI, the real server and
-a real provider; the final answer has to carry the codeword in the rendered chat and in the stored assistant message.
+The workspace holds an ``AGENTS.md`` with a codeword nobody else knows, a FIFO where a skill's ``SKILL.md`` should be, and
+sparse multi-megabyte ``mcp.json`` and ``.myrm/config.toml``. Both turns run through the real UI, the real server and a real
+provider; the final answer has to carry the codeword in the rendered chat and in the stored assistant message.
+
+- Nobody trusted the chat workspace, so its rules stay out of the request: the model can only learn the codeword by reading
+  the file with its code tool.
+- The user trusted the project folder the chat belongs to, so its rules are part of the request: the model answers without
+  any tool call.
 """
 
 from __future__ import annotations
@@ -13,7 +17,10 @@ import os
 import sys
 import time
 import uuid
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 
@@ -38,6 +45,7 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="FIFOs and spars
 
 CODEWORD = "KRAKATOA-7731"
 PROMPT = "What is the project codeword? Answer with the codeword only."
+NO_TOOLS_PROMPT = "Do not use any tools. " + PROMPT
 SPARSE_BYTES = 64 * 1024 * 1024
 TURN_WITHIN_SECONDS = 240.0
 
@@ -120,6 +128,16 @@ def _release_blocked_readers(workspace: Path) -> None:
         pass
 
 
+def _tools_used(chat_id: str, api_url: str) -> list[str]:
+    """Names of the tools the turns of a chat called, as the stored assistant messages record them in their progress steps."""
+    steps = [
+        step
+        for message in fetch_chat_messages(chat_id, api_url=api_url)
+        for step in (message.get("metadata") or {}).get("progressSteps", [])
+    ]
+    return [str(step["tool_name"]) for step in steps if step.get("tool_name")]
+
+
 def _stored_answer(chat_id: str, api_url: str) -> str:
     answers = [
         str(message.get("content") or "")
@@ -127,6 +145,79 @@ def _stored_answer(chat_id: str, api_url: str) -> str:
         if message.get("role") == "assistant"
     ]
     return answers[-1] if answers else ""
+
+
+@asynccontextmanager
+async def _ready_chat(url: str) -> AsyncIterator[McpChatSession]:
+    """The UI at ``url`` with its E2E bridge ready and the LITE model pinned."""
+    with open_mcp_page(url, timeout_ms=120_000) as (client, page):
+        chat = McpChatSession(client, page)
+        await chat.bootstrap(url, timeout_sec=180.0)
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js:
+            applied = await chat.evaluate(bootstrap_js, intent=EvaluateIntent.AGENT_SUBMIT)
+            assert isinstance(applied, dict) and applied.get("ok") is True, applied
+        else:
+            await chat.ensure_e2e_api_base_binding()
+        await chat.dismiss_modals()
+
+        deadline = time.monotonic() + 90.0
+        ready: object = {}
+        while time.monotonic() < deadline:
+            heartbeat_once()
+            ready = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            if isinstance(ready, dict) and ready.get("ready") is True:
+                break
+            await asyncio.sleep(1.0)
+        assert isinstance(ready, dict) and ready.get("ready") is True, ready
+
+        await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+        pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(pinned, dict) and pinned.get("ok") is True, pinned
+        yield chat
+
+
+async def _wait_until_the_turn_shows_the_codeword(chat: McpChatSession) -> None:
+    deadline = time.monotonic() + TURN_WITHIN_SECONDS
+    state: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        raw = await chat.evaluate(_TURN_STATE_JS.replace("__CODEWORD__", CODEWORD), intent=EvaluateIntent.BRIDGE_POLL)
+        state = raw if isinstance(raw, dict) else {"value": raw}
+        if state.get("isStreaming") is False and int(str(state.get("userCount") or 0)) >= 1 and state.get("rendered") is True:
+            return
+        await asyncio.sleep(1.5)
+    raise AssertionError(f"the rendered chat never showed the codeword: {state}")
+
+
+@contextmanager
+def _trusted_project_chat(api_base: str, folder: Path, ledger: E2EResourceLedger) -> Iterator[str]:
+    """What a user does before asking: link ``folder`` to a project, put a chat in it, preview the folder and trust what was shown."""
+    created = http_json("POST", f"{api_base}/api/v1/projects/", {"name": f"Trusted LIVE {uuid.uuid4().hex[:8]}"})
+    assert isinstance(created, dict)
+    data = created["data"]
+    project_id = str(data["project"]["id"])
+    ledger.register("project", project_id)
+    trust_api = f"{api_base}/api/v1/security/workspace-trust"
+    try:
+        http_json("PUT", f"{api_base}/api/v1/projects/{project_id}", {"workspace_path": str(folder)})
+        chat_id = f"trusted-live-{uuid.uuid4().hex[:10]}"
+        http_json("POST", f"{api_base}/api/v1/chats/", {"chat_id": chat_id})
+        ledger.register("chat", chat_id)
+        http_json("PATCH", f"{api_base}/api/v1/projects/chats/{chat_id}/project", {"projectId": project_id})
+        shown = http_json("POST", f"{trust_api}/manifest", {"path": str(folder)})
+        assert isinstance(shown, dict)
+        http_json(
+            "POST",
+            f"{trust_api}/decide",
+            {"path": str(folder), "level": "TRUSTED", "manifest_hash": shown["data"]["manifest_hash"]},
+        )
+        yield chat_id
+    finally:
+        try:
+            http_json("DELETE", f"{trust_api}?path={quote(str(folder), safe='')}&remove=true")
+        except RuntimeError:
+            pass
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
@@ -149,30 +240,7 @@ async def test_the_codeword_of_the_rule_file_is_rendered_after_a_real_model_turn
     workspace: Path | None = None
 
     try:
-        with open_mcp_page(f"{ui_base}/?agentId={agent_id}", timeout_ms=120_000) as (client, page):
-            chat = McpChatSession(client, page)
-            await chat.bootstrap(f"{ui_base}/?agentId={agent_id}", timeout_sec=180.0)
-            bootstrap_js = e2e_runtime_bootstrap_apply_js()
-            if bootstrap_js:
-                applied = await chat.evaluate(bootstrap_js, intent=EvaluateIntent.AGENT_SUBMIT)
-                assert isinstance(applied, dict) and applied.get("ok") is True, applied
-            else:
-                await chat.ensure_e2e_api_base_binding()
-            await chat.dismiss_modals()
-
-            deadline = time.monotonic() + 90.0
-            ready: object = {}
-            while time.monotonic() < deadline:
-                heartbeat_once()
-                ready = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
-                if isinstance(ready, dict) and ready.get("ready") is True:
-                    break
-                await asyncio.sleep(1.0)
-            assert isinstance(ready, dict) and ready.get("ready") is True, ready
-
-            await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-            pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
-            assert isinstance(pinned, dict) and pinned.get("ok") is True, pinned
+        async with _ready_chat(f"{ui_base}/?agentId={agent_id}") as chat:
             await chat.click_new_chat()
             await chat.ensure_chat_surface(ui_base)
             ensured = await chat.evaluate(_ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH)
@@ -193,22 +261,48 @@ async def test_the_codeword_of_the_rule_file_is_rendered_after_a_real_model_turn
             e2e_resource_ledger.register("chat", resolved)
             await chat.navigate_to_chat(resolved, ui_base, timeout_sec=90.0)
 
-            deadline = time.monotonic() + TURN_WITHIN_SECONDS
-            state: dict[str, object] = {}
-            while time.monotonic() < deadline:
-                heartbeat_once()
-                raw = await chat.evaluate(_TURN_STATE_JS.replace("__CODEWORD__", CODEWORD), intent=EvaluateIntent.BRIDGE_POLL)
-                state = raw if isinstance(raw, dict) else {"value": raw}
-                if (
-                    state.get("isStreaming") is False
-                    and int(str(state.get("userCount") or 0)) >= 1
-                    and state.get("rendered") is True
-                ):
-                    break
-                await asyncio.sleep(1.5)
-
-            assert state.get("rendered") is True, f"the rendered chat never showed the codeword: {state}"
+            await _wait_until_the_turn_shows_the_codeword(chat)
             assert CODEWORD in _stored_answer(resolved, api_base).upper()
+            assert _tools_used(resolved, api_base), (
+                "without its rules in the request the model can only read the codeword with a tool"
+            )
     finally:
         if workspace is not None:
             _release_blocked_readers(workspace)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="LIVE",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+@pytest.mark.asyncio
+async def test_the_codeword_of_a_trusted_project_folders_rule_file_is_rendered_without_any_tool_call(
+    e2e_resource_ledger: E2EResourceLedger, tmp_path: Path
+) -> None:
+    if not wait_e2e_provider_ready():
+        pytest.fail(
+            "Provider config not ready for the live E2E — run via ./myrm-dev test -m chrome_e2e after ./myrm-dev ready --chrome"
+        )
+
+    api_base = get_e2e_api_url()
+    ui_base = get_e2e_ui_url().rstrip("/")
+    folder = tmp_path / "linked"
+    folder.mkdir()
+    _plant_workspace(folder)
+
+    try:
+        with _trusted_project_chat(api_base, folder, e2e_resource_ledger) as chat_id:
+            async with _ready_chat(f"{ui_base}/") as chat:
+                await chat.send_message(NO_TOOLS_PROMPT, NO_TOOLS_PROMPT, chat_id_hint=chat_id)
+                await chat.wait_stream_started(NO_TOOLS_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id)
+                await chat.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+
+                await _wait_until_the_turn_shows_the_codeword(chat)
+            assert CODEWORD in _stored_answer(chat_id, api_base).upper()
+            assert _tools_used(chat_id, api_base) == []
+    finally:
+        _release_blocked_readers(folder)

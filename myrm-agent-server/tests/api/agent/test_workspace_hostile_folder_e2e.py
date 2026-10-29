@@ -3,18 +3,19 @@
 [INPUT]
 - POST /api/v1/agents/agent-stream with the LITE model (POS: the whole server path, a real provider call, SSE back)
 - A folder the user links to a project, previews and trusts through the project and folder-trust API (POS: the workspace root of the turn;
-  it also holds a FIFO ``SKILL.md`` and sparse config files)
+  it may also hold a FIFO ``SKILL.md``, sparse config files, an oversized rule file or a rule file that links out of the folder)
 - The workspace trust each run applies and the messages ChatLiteLLM sends to the provider (POS: recorded where they are decided and built)
 
 [OUTPUT]
 - Fails when the folder preview does not return, when the stream reports an error event, when a turn does not finish or does not answer,
-  when a run does not apply the trust the user decided for its folder, or when the rules of a chat workspace nobody trusted reach the
-  provider request.
+  when a run does not apply the trust the user decided for its folder, when the rules of a trusted folder do not reach the provider
+  request (or an oversized or linked-out rule file reaches it as content instead of its placeholder), or when the rules of a chat
+  workspace nobody trusted do.
 
 [POS]
 Trusting a folder of hostile files starts with its preview, which reads the folder's skills, rules and config: on a source without the
-bounded reads that preview never returns. The turn that follows has to run at the level the user decided and answer. The chat workspace
-nobody trusted is the contrast: its rules stay out of the request. What a trusted folder's rules put into the request is not asserted here.
+bounded reads that preview never returns. The turn that follows has to run at the level the user decided, and that level has to still
+hold where the rules are put into the request. The chat workspace nobody trusted is the contrast: its rules stay out of the request.
 """
 
 from __future__ import annotations
@@ -53,6 +54,9 @@ SPARSE_BYTES = 64 * 1024 * 1024
 CODEWORD = "KRAKATOA-7731"
 TRUST_API = "/api/v1/security/workspace-trust"
 PROJECT_API = "/api/v1/projects"
+BLOCKED_PLACEHOLDER = "[BLOCKED: AGENTS.md"
+# Longer than the 256_000 characters a rule file may have before it is refused instead of truncated.
+OVERSIZED_RULE_CHARS = 300_000
 PROMPT = "Do not use any tools. What is the project codeword? Answer with the codeword only."
 
 pytestmark = [
@@ -203,8 +207,11 @@ async def test_a_chat_workspace_nobody_trusted_keeps_its_rules_out_of_the_reques
     assert CODEWORD not in request
 
 
-def test_a_trusted_project_folder_with_hostile_files_finishes_its_turn_and_answers(
-    client: TestClient, applied: list[tuple[Path, WorkspaceTrustLevel]], tmp_path: Path
+def test_a_trusted_project_folder_with_hostile_files_delivers_its_rules_and_finishes_its_turn(
+    client: TestClient,
+    sent: list[list[dict[str, object]]],
+    applied: list[tuple[Path, WorkspaceTrustLevel]],
+    tmp_path: Path,
 ) -> None:
     folder = tmp_path / "linked"
     folder.mkdir()
@@ -213,5 +220,40 @@ def test_a_trusted_project_folder_with_hostile_files_finishes_its_turn_and_answe
     with _trusted_project_folder(client, folder) as chat_id:
         answer = _ask(client, chat_id)
 
-    assert answer
     assert (folder.resolve(), WorkspaceTrustLevel.TRUSTED) in applied
+    assert CODEWORD in _main_request_text(sent)
+    assert CODEWORD in answer
+
+
+def test_a_rule_file_over_the_size_limit_reaches_a_trusted_run_as_its_placeholder(
+    client: TestClient, sent: list[list[dict[str, object]]], tmp_path: Path
+) -> None:
+    folder = tmp_path / "linked"
+    folder.mkdir()
+    (folder / "AGENTS.md").write_text(_codeword_rule() + "x" * OVERSIZED_RULE_CHARS, encoding="utf-8")
+
+    with _trusted_project_folder(client, folder) as chat_id:
+        answer = _ask(client, chat_id)
+
+    request = _main_request_text(sent)
+    assert BLOCKED_PLACEHOLDER in request
+    assert CODEWORD not in request
+    assert CODEWORD not in answer
+
+
+def test_a_rule_file_that_links_out_of_the_folder_reaches_a_trusted_run_as_its_placeholder(
+    client: TestClient, sent: list[list[dict[str, object]]], tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside.md"
+    outside.write_text(_codeword_rule(), encoding="utf-8")
+    folder = tmp_path / "linked"
+    folder.mkdir()
+    os.symlink(outside, folder / "AGENTS.md")
+
+    with _trusted_project_folder(client, folder) as chat_id:
+        answer = _ask(client, chat_id)
+
+    request = _main_request_text(sent)
+    assert BLOCKED_PLACEHOLDER in request
+    assert CODEWORD not in request
+    assert CODEWORD not in answer

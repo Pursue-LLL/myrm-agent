@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from contextvars import ContextVar
 
 import pytest
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason
@@ -24,6 +25,8 @@ from app.services.agent.streaming_support.sse_failover_emitter import (
     merge_stream_with_emitter,
 )
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
+
+_STEP_MARKER: ContextVar[str] = ContextVar("step_marker", default="unset")
 
 
 def _make_failover_event() -> FailoverEvent:
@@ -241,3 +244,84 @@ async def test_emit_recorded_into_collector_history():
     snapshot, queue = collector.subscribe()
     assert "content" in snapshot
     assert isinstance(queue, asyncio.Queue)
+
+
+@pytest.mark.asyncio
+async def test_merge_keeps_a_context_variable_the_main_stream_set_for_its_later_steps():
+    """A run sets its workspace trust in one step and reads it in the next, as it would under a plain ``async for``."""
+    seen: list[str] = []
+
+    async def _main() -> AsyncIterator[str]:
+        _STEP_MARKER.set("set-in-the-first-step")
+        yield "data: a\n\n"
+        seen.append(_STEP_MARKER.get())
+        yield "data: b\n\n"
+        seen.append(_STEP_MARKER.get())
+
+    emitter = SSEFailoverEmitter(message_id="m", collector=StreamContentCollector())
+
+    out = [chunk async for chunk in merge_stream_with_emitter(_main(), emitter)]
+
+    assert out == ["data: a\n\n", "data: b\n\n"]
+    assert seen == ["set-in-the-first-step", "set-in-the-first-step"]
+
+
+@pytest.mark.asyncio
+async def test_merge_keeps_the_variable_when_a_failover_chunk_arrives_between_steps():
+    release = asyncio.Event()
+    seen: list[str] = []
+
+    async def _main() -> AsyncIterator[str]:
+        _STEP_MARKER.set("set-before-the-failover")
+        yield "data: a\n\n"
+        await release.wait()
+        seen.append(_STEP_MARKER.get())
+        yield "data: b\n\n"
+
+    emitter = SSEFailoverEmitter(message_id="m", collector=StreamContentCollector())
+
+    async def _consume() -> list[str]:
+        return [chunk async for chunk in merge_stream_with_emitter(_main(), emitter)]
+
+    consumer = asyncio.create_task(_consume())
+    await asyncio.sleep(0.01)
+    await emitter.emit_failover(_make_failover_event())
+    await asyncio.sleep(0.05)
+    release.set()
+    out = await asyncio.wait_for(consumer, timeout=2.0)
+
+    assert seen == ["set-before-the-failover"]
+    assert "data: b\n\n" in out
+
+
+@pytest.mark.asyncio
+async def test_merge_does_not_leak_what_the_main_stream_set_into_its_consumer():
+    async def _main() -> AsyncIterator[str]:
+        _STEP_MARKER.set("set-inside-the-stream")
+        yield "data: a\n\n"
+
+    emitter = SSEFailoverEmitter(message_id="m", collector=StreamContentCollector())
+
+    _ = [chunk async for chunk in merge_stream_with_emitter(_main(), emitter)]
+
+    assert _STEP_MARKER.get() == "unset"
+
+
+@pytest.mark.asyncio
+async def test_merge_shows_the_main_stream_what_the_consumer_set_before_it_started():
+    seen: list[str] = []
+
+    async def _main() -> AsyncIterator[str]:
+        seen.append(_STEP_MARKER.get())
+        yield "data: a\n\n"
+        seen.append(_STEP_MARKER.get())
+
+    emitter = SSEFailoverEmitter(message_id="m", collector=StreamContentCollector())
+
+    token = _STEP_MARKER.set("set-by-the-consumer")
+    try:
+        _ = [chunk async for chunk in merge_stream_with_emitter(_main(), emitter)]
+    finally:
+        _STEP_MARKER.reset(token)
+
+    assert seen == ["set-by-the-consumer", "set-by-the-consumer"]

@@ -9,7 +9,9 @@
 - SSEFailoverEmitter: harness ↔ SSE adapter that converts FailoverEvent / RecoveryEvent
   into MODEL_FAILOVER / MODEL_RECOVERY chunks and exposes a drainable async queue.
 - merge_stream_with_emitter: helper combining the main agent chunk iterator with the
-  emitter queue so failover notifications surface immediately, even mid-LLM-call.
+  emitter queue so failover notifications surface immediately, even mid-LLM-call. Every step
+  of the main iterator runs in one ``contextvars.Context``, so what the run sets in one step
+  (its workspace trust, its executor) is still set in the next.
 
 [POS]
 Server-side wiring layer for the harness ``FailoverEmitter`` contract. Surfaces
@@ -21,6 +23,7 @@ silently degrading from a premium reasoning model to a cheaper backup.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Final
@@ -126,6 +129,10 @@ class SSEFailoverEmitter:
             pass
 
 
+async def _next_chunk(main_iter: AsyncIterator[str]) -> str:
+    return await main_iter.__anext__()
+
+
 async def merge_stream_with_emitter(
     main_stream: AsyncIterator[str],
     emitter: SSEFailoverEmitter,
@@ -136,9 +143,22 @@ async def merge_stream_with_emitter(
     moment the manager raises it, even if the main agent generator is currently
     blocked awaiting the next LLM token. The main stream's completion drives
     termination; once it ends the queue is drained one last time then closed.
+
+    Each step of the main stream is its own task, and a task starts from a copy of
+    the context it was created in, so a ``ContextVar`` the stream set in one step
+    would be gone in the next. All steps therefore share one context, copied from the
+    caller's when the merge starts: the stream sees what the caller set before it and
+    keeps what it sets itself, and none of it reaches the caller. Only one step is
+    pending at a time, so the context is never entered twice.
     """
     main_iter = main_stream.__aiter__()
-    main_task: asyncio.Task[str] | None = asyncio.ensure_future(main_iter.__anext__())
+    loop = asyncio.get_running_loop()
+    step_context = contextvars.copy_context()
+
+    def next_main_task() -> asyncio.Task[str]:
+        return loop.create_task(_next_chunk(main_iter), context=step_context)
+
+    main_task: asyncio.Task[str] | None = next_main_task()
     queue_task: asyncio.Task[object] = asyncio.ensure_future(emitter.queue.get())
 
     try:
@@ -165,7 +185,7 @@ async def merge_stream_with_emitter(
                     main_task = None
                     break
                 yield chunk
-                main_task = asyncio.ensure_future(main_iter.__anext__())
+                main_task = next_main_task()
 
         # Drain any failover events that arrived between the last yield and the
         # main iterator finishing. Non-blocking: only items already enqueued
