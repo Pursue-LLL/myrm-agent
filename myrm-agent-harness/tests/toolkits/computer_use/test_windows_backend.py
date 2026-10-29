@@ -3,19 +3,16 @@
 Covers:
 - WindowsBackend instantiation and protocol compliance
 - click/scroll/drag with modifier key handling (keyDown/keyUp guarantee)
-- type_text() ASCII and non-ASCII (clipboard paste)
+- type_text() / type_credential() ASCII and non-ASCII (SendInput Unicode, never the clipboard)
 - key() single and combo keys
 - mouse_move(), wait(), screen_info(), screen_context(), window_text()
-- Clipboard Win32 API functions
 - Factory function: create_computer_session routes to WindowsBackend
 """
 
 from __future__ import annotations
 
 import asyncio
-import ctypes
 import importlib
-from ctypes import wintypes
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -66,16 +63,7 @@ def _mock_windows_env():
     mock_windll.user32.GetForegroundWindow.return_value = 12345
     mock_windll.user32.GetWindowTextLengthW.return_value = 7
     mock_windll.user32.GetWindowTextW.return_value = None
-    mock_windll.user32.OpenClipboard.return_value = True
-    mock_windll.user32.CloseClipboard.return_value = True
-    mock_windll.user32.EmptyClipboard.return_value = True
-    mock_windll.user32.SetClipboardData.return_value = True
-    mock_windll.user32.GetClipboardData.return_value = 1
     mock_windll.user32.SetProcessDPIAware.return_value = None
-    mock_windll.kernel32.GlobalAlloc.return_value = 1
-    mock_windll.kernel32.GlobalLock.return_value = 1
-    mock_windll.kernel32.GlobalUnlock.return_value = True
-    mock_windll.kernel32.GlobalFree.return_value = None
     mock_windll.shcore.SetProcessDpiAwareness.return_value = None
 
     modules = {**_MOCK_MODULES_BASE, "pyautogui": mock_pyautogui}
@@ -87,16 +75,15 @@ def _mock_windows_env():
             patch.object(
                 real_ctypes, "WinDLL", side_effect=lambda name, **_kwargs: getattr(mock_windll, name), create=True
             ),
-            patch.object(real_ctypes, "wstring_at", return_value="clipboard text", create=True),
             patch.object(real_ctypes, "create_unicode_buffer", return_value=MagicMock(value="Notepad")),
         ):
             # Reload windows module with mocked ctypes
             import myrm_agent_harness.toolkits.computer_use.backends.windows as win_mod
 
             importlib.reload(win_mod)
-            windows_text_io._win32.cache_clear()
+            windows_text_io._user32.cache_clear()
             yield win_mod, mock_pyautogui, mock_windll
-            windows_text_io._win32.cache_clear()
+            windows_text_io._user32.cache_clear()
 
 
 @pytest.mark.usefixtures("_mock_windows_env")
@@ -244,7 +231,7 @@ class TestWindowsBackendTypeText:
         assert "write" in names
 
     @pytest.mark.asyncio
-    async def test_non_ascii_uses_clipboard_paste(self, backend) -> None:
+    async def test_non_ascii_types_unicode_keys_without_clipboard(self, backend) -> None:
         call_log: list[tuple[str, tuple]] = []
 
         async def mock_to_thread(fn, *args, **kwargs):
@@ -253,11 +240,63 @@ class TestWindowsBackendTypeText:
             return None
 
         with patch("asyncio.to_thread", side_effect=mock_to_thread):
-            result = await backend.type_text("你好世界")
+            result = await backend.type_text("你好世界", delay_ms=7, chunk_size=3)
 
         assert result.success is True
-        names = [c[0] for c in call_log]
-        assert "hotkey" in names
+        assert call_log == [("type_unicode_text", ("你好世界", 7, 3))]
+
+    @pytest.mark.asyncio
+    async def test_non_ascii_failure_is_reported(self, backend) -> None:
+        with patch("asyncio.to_thread", side_effect=OSError("SendInput inserted 0 of 2 key events")):
+            result = await backend.type_text("你好")
+
+        assert result.success is False
+        assert "SendInput inserted 0 of 2" in (result.error or "")
+
+
+class TestWindowsBackendTypeCredential:
+    """type_credential(): a non-ASCII secret never reaches the clipboard."""
+
+    @pytest.fixture
+    def backend(self, _mock_windows_env):
+        win_mod, _, _ = _mock_windows_env
+        return win_mod.WindowsBackend()
+
+    @pytest.mark.asyncio
+    async def test_non_ascii_secret_types_unicode_keys(self, backend) -> None:
+        vault = MagicMock()
+        vault.get_password.return_value = "pä\u00df中"
+        calls: list[tuple[str, tuple]] = []
+
+        async def mock_to_thread(fn, *args, **kwargs):
+            calls.append((getattr(fn, "__name__", str(fn)), args))
+
+        with (
+            patch(
+                "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault",
+                return_value=vault,
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread),
+        ):
+            result = await backend.type_credential("bank")
+
+        assert result.success is True
+        assert calls == [("type_unicode_text", ("pä\u00df中", 12, 50))]
+
+    @pytest.mark.asyncio
+    async def test_ascii_secret_keeps_pyautogui_path(self, backend, _mock_windows_env) -> None:
+        _, mock_pyautogui, _ = _mock_windows_env
+        vault = MagicMock()
+        vault.get_password.return_value = "hunter2"
+
+        with patch(
+            "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault",
+            return_value=vault,
+        ):
+            result = await backend.type_credential("bank")
+
+        assert result.success is True
+        mock_pyautogui.write.assert_called_once_with("hunter2", interval=0.012)
 
 
 class TestWindowsBackendKey:
@@ -748,55 +787,6 @@ class TestWindowsBackendDragEdgeCases:
         assert "keyUp" not in names
         assert "moveTo" in names
         assert "drag" in names
-
-
-class TestWindowsBackendClipboard:
-    """Direct tests for get_clipboard_text and set_clipboard_text."""
-
-    def test_get_clipboard_success(self, _mock_windows_env) -> None:
-        result = windows_text_io.get_clipboard_text()
-        assert result == "clipboard text"
-
-    def test_get_clipboard_open_fails(self, _mock_windows_env) -> None:
-        _, _, mock_windll = _mock_windows_env
-        mock_windll.user32.OpenClipboard.return_value = False
-        result = windows_text_io.get_clipboard_text()
-        assert result is None
-
-    def test_get_clipboard_no_data(self, _mock_windows_env) -> None:
-        _, _, mock_windll = _mock_windows_env
-        mock_windll.user32.GetClipboardData.return_value = 0
-        result = windows_text_io.get_clipboard_text()
-        assert result is None
-
-    def test_set_clipboard_success(self, _mock_windows_env) -> None:
-        _, _, mock_windll = _mock_windows_env
-        with patch("ctypes.memmove"):
-            windows_text_io.set_clipboard_text("test data")
-        mock_windll.user32.EmptyClipboard.assert_called_once()
-        mock_windll.user32.SetClipboardData.assert_called_once()
-
-    def test_prototypes_keep_win32_pointers_pointer_sized(self, _mock_windows_env) -> None:
-        """Undeclared restype is a 32-bit int in ctypes and truncates the pointer GlobalLock returns."""
-        _, _, mock_windll = _mock_windows_env
-        windows_text_io.get_clipboard_text()
-        user32, kernel32 = mock_windll.user32, mock_windll.kernel32
-        assert kernel32.GlobalAlloc.restype is wintypes.HANDLE
-        assert kernel32.GlobalAlloc.argtypes == (wintypes.UINT, ctypes.c_size_t)
-        assert kernel32.GlobalLock.restype is ctypes.c_void_p
-        assert kernel32.GlobalLock.argtypes == (wintypes.HANDLE,)
-        assert kernel32.GlobalUnlock.argtypes == (wintypes.HANDLE,)
-        assert kernel32.GlobalFree.argtypes == (wintypes.HANDLE,)
-        assert user32.GetClipboardData.restype is wintypes.HANDLE
-        assert user32.SetClipboardData.argtypes == (wintypes.UINT, wintypes.HANDLE)
-        assert user32.OpenClipboard.argtypes == (wintypes.HWND,)
-        assert user32.GetForegroundWindow.restype is wintypes.HWND
-
-    def test_set_clipboard_alloc_fails(self, _mock_windows_env) -> None:
-        _, _, mock_windll = _mock_windows_env
-        mock_windll.kernel32.GlobalAlloc.return_value = 0
-        with patch("ctypes.memmove"):
-            windows_text_io.set_clipboard_text("test")  # Should not raise
 
 
 class TestWindowsBackendDetectScreenInfo:

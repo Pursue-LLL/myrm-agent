@@ -2,7 +2,7 @@
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
-- windows_text_io::get_clipboard_text, set_clipboard_text, extract_window_text (POS: Windows clipboard and UI Automation text bridges)
+- windows_text_io::type_unicode_text, extract_window_text (POS: Windows Unicode typing and UI Automation text bridges)
 [OUTPUT]
 - WindowsBackend: ComputerBackend implementation for Windows
 [POS]
@@ -21,8 +21,7 @@ from myrm_agent_harness.toolkits.computer_use.backends.windows_background import
 )
 from myrm_agent_harness.toolkits.computer_use.backends.windows_text_io import (
     extract_window_text,
-    get_clipboard_text,
-    set_clipboard_text,
+    type_unicode_text,
 )
 from myrm_agent_harness.toolkits.computer_use.capture_title_contracts import (
     SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES,
@@ -135,7 +134,7 @@ class WindowsBackend:
                 await asyncio.to_thread(pyautogui.keyUp, key)
 
     async def type_text(self, text: str, delay_ms: int = 12, chunk_size: int = 50) -> ActionResult:
-        """Type text — ASCII via pyautogui.write(), non-ASCII via clipboard paste (Ctrl+V)."""
+        """Type text — ASCII via pyautogui.write(), non-ASCII via SendInput Unicode key events."""
         try:
             if text.isascii():
                 import pyautogui
@@ -145,7 +144,7 @@ class WindowsBackend:
                     chunk = text[i : i + chunk_size]
                     await asyncio.to_thread(pyautogui.write, chunk, interval=interval)
             else:
-                await self._paste_text(text)
+                await asyncio.to_thread(type_unicode_text, text, delay_ms, chunk_size)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
@@ -173,22 +172,10 @@ class WindowsBackend:
                 # pyautogui.write calls OS APIs directly, no subprocess arguments exposed
                 await asyncio.to_thread(pyautogui.write, secret_text, interval=interval)
             else:
-                await self._paste_text(secret_text)
+                await asyncio.to_thread(type_unicode_text, secret_text, 12, 50)
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
-
-    async def _paste_text(self, text: str) -> None:
-        """Type non-ASCII text via clipboard paste (Ctrl+V), preserving original clipboard."""
-        import pyautogui
-
-        saved = await asyncio.to_thread(get_clipboard_text)
-        await asyncio.to_thread(set_clipboard_text, text)
-        await asyncio.to_thread(pyautogui.hotkey, "ctrl", "v")
-        await asyncio.sleep(0.1)
-
-        if saved is not None:
-            await asyncio.to_thread(set_clipboard_text, saved)
 
     async def key(self, keys: str) -> ActionResult:
         try:

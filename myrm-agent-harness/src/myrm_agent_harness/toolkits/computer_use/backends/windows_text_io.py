@@ -1,16 +1,16 @@
-"""Windows desktop text I/O — clipboard text and UI Automation window text.
+"""Windows desktop text I/O — Unicode keyboard input and UI Automation window text.
 
 [INPUT]
 - types::WindowTextResult (POS: shared type definitions)
 
 [OUTPUT]
-- get_clipboard_text / set_clipboard_text: Win32 clipboard text access (CF_UNICODETEXT)
+- type_unicode_text: types any text through SendInput Unicode key events, no clipboard involved
 - extract_window_text: foreground window text collected through the uiautomation library
 
 [POS]
-Text bridges between the Windows desktop and the Windows backend: clipboard paste for
-non-ASCII input and window text for perception. Win32 and uiautomation are resolved at
-call time so the module imports on any platform.
+Text bridges between the Windows desktop and the Windows backend: layout-independent typing for
+non-ASCII input and window text for perception. Win32 and uiautomation are resolved at call time so
+the module imports on any platform.
 """
 
 from __future__ import annotations
@@ -18,99 +18,128 @@ from __future__ import annotations
 import ctypes
 import functools
 import logging
+import time
 from ctypes import wintypes
 
 from myrm_agent_harness.toolkits.computer_use.types import WindowTextResult
 
 logger = logging.getLogger(__name__)
 
+_INPUT_KEYBOARD = 1
+_KEYEVENTF_KEYUP = 0x0002
+_KEYEVENTF_UNICODE = 0x0004
+_VK_RETURN = 0x0D
+
+
+# INPUT is a union of MOUSEINPUT / KEYBDINPUT / HARDWAREINPUT; SendInput rejects any cbSize other than the
+# real sizeof(INPUT), so every member is declared with fixed-width fields (the ``wintypes`` aliases change
+# size per platform) and the union keeps all three members to take the size of the largest.
+class _MouseInput(ctypes.Structure):
+    _fields_ = (
+        ("dx", ctypes.c_int32),
+        ("dy", ctypes.c_int32),
+        ("mouseData", ctypes.c_uint32),
+        ("dwFlags", ctypes.c_uint32),
+        ("time", ctypes.c_uint32),
+        ("dwExtraInfo", ctypes.c_size_t),
+    )
+
+
+class _KeybdInput(ctypes.Structure):
+    _fields_ = (
+        ("wVk", ctypes.c_uint16),
+        ("wScan", ctypes.c_uint16),
+        ("dwFlags", ctypes.c_uint32),
+        ("time", ctypes.c_uint32),
+        ("dwExtraInfo", ctypes.c_size_t),
+    )
+
+
+class _HardwareInput(ctypes.Structure):
+    _fields_ = (
+        ("uMsg", ctypes.c_uint32),
+        ("wParamL", ctypes.c_uint16),
+        ("wParamH", ctypes.c_uint16),
+    )
+
+
+class _InputUnion(ctypes.Union):
+    _fields_ = (("mi", _MouseInput), ("ki", _KeybdInput), ("hi", _HardwareInput))
+
+
+class _Input(ctypes.Structure):
+    _anonymous_ = ("u",)
+    _fields_ = (("type", ctypes.c_uint32), ("u", _InputUnion))
+
 
 @functools.cache
-def _win32() -> tuple[ctypes.CDLL, ctypes.CDLL]:
-    """Return ``(user32, kernel32)`` with the clipboard prototypes declared.
+def _user32() -> ctypes.CDLL:
+    """Return user32 with the ``SendInput`` prototype declared.
 
-    ctypes reads every undeclared return value as a 32-bit int, which truncates the 64-bit pointer ``GlobalLock``
-    returns and the memory handle ``GlobalAlloc`` returns. Private library instances keep these prototypes off the
-    process-wide ``ctypes.windll`` objects other libraries share.
+    A private library instance keeps the prototype off the process-wide ``ctypes.windll`` object other
+    libraries share.
     """
     user32 = ctypes.WinDLL("user32", use_last_error=True)  # type: ignore[attr-defined]
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
-    user32.OpenClipboard.argtypes = (wintypes.HWND,)
-    user32.OpenClipboard.restype = wintypes.BOOL
-    user32.CloseClipboard.restype = wintypes.BOOL
-    user32.EmptyClipboard.restype = wintypes.BOOL
-    user32.GetClipboardData.argtypes = (wintypes.UINT,)
-    user32.GetClipboardData.restype = wintypes.HANDLE
-    user32.SetClipboardData.argtypes = (wintypes.UINT, wintypes.HANDLE)
-    user32.SetClipboardData.restype = wintypes.HANDLE
-    user32.GetForegroundWindow.restype = wintypes.HWND
-    kernel32.GlobalAlloc.argtypes = (wintypes.UINT, ctypes.c_size_t)
-    kernel32.GlobalAlloc.restype = wintypes.HANDLE
-    kernel32.GlobalLock.argtypes = (wintypes.HANDLE,)
-    kernel32.GlobalLock.restype = ctypes.c_void_p
-    kernel32.GlobalUnlock.argtypes = (wintypes.HANDLE,)
-    kernel32.GlobalUnlock.restype = wintypes.BOOL
-    kernel32.GlobalFree.argtypes = (wintypes.HANDLE,)
-    kernel32.GlobalFree.restype = wintypes.HANDLE
-    return user32, kernel32
+    user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(_Input), ctypes.c_int)
+    user32.SendInput.restype = wintypes.UINT
+    return user32
 
 
-def get_clipboard_text() -> str | None:
-    """Read clipboard text via Win32 API (zero-subprocess, <1ms)."""
-    try:
-        user32, kernel32 = _win32()
+def _key_events(text: str) -> list[tuple[int, int, int]]:
+    """Expand *text* into ``(wVk, wScan, flags)`` key presses.
 
-        cf_unicodetext = 13
-        if not user32.OpenClipboard(None):
-            return None
-        try:
-            handle = user32.GetClipboardData(cf_unicodetext)
-            if not handle:
-                return None
-            ptr = kernel32.GlobalLock(handle)
-            if not ptr:
-                return None
-            try:
-                return ctypes.wstring_at(ptr)
-            finally:
-                kernel32.GlobalUnlock(handle)
-        finally:
-            user32.CloseClipboard()
-    except Exception:
-        return None
+    Characters become Unicode key events carrying one UTF-16 code unit each, so a character outside the
+    BMP is sent as its surrogate pair. Line breaks become a real Return key because editors and form
+    fields act on that key, not on a Unicode packet holding ``\\n``.
+    """
+    presses: list[tuple[int, int, int]] = []
+    for char in text:
+        if char == "\n":
+            presses.append((_VK_RETURN, 0, 0))
+            continue
+        units = char.encode("utf-16-le")
+        presses.extend(
+            (0, int.from_bytes(units[i : i + 2], "little"), _KEYEVENTF_UNICODE) for i in range(0, len(units), 2)
+        )
+    return presses
 
 
-def set_clipboard_text(text: str) -> None:
-    """Set clipboard text via Win32 API (zero-subprocess, <1ms)."""
-    try:
-        user32, kernel32 = _win32()
+def _send_key_presses(presses: list[tuple[int, int, int]]) -> None:
+    """Insert each press as a key-down / key-up pair; raise when Windows takes fewer events than sent."""
+    events = (_Input * (2 * len(presses)))()
+    for index, (vk, scan, flags) in enumerate(presses):
+        for offset, event_flags in enumerate((flags, flags | _KEYEVENTF_KEYUP)):
+            event = events[2 * index + offset]
+            event.type = _INPUT_KEYBOARD
+            event.ki.wVk = vk
+            event.ki.wScan = scan
+            event.ki.dwFlags = event_flags
+    sent = _user32().SendInput(len(events), events, ctypes.sizeof(_Input))
+    if sent != len(events):
+        last_error = ctypes.get_last_error()  # type: ignore[attr-defined]
+        raise OSError(f"SendInput inserted {sent} of {len(events)} key events (last error {last_error})")
 
-        cf_unicodetext = 13
-        gmem_moveable = 0x0002
 
-        encoded = text.encode("utf-16-le") + b"\x00\x00"
-        h_mem = kernel32.GlobalAlloc(gmem_moveable, len(encoded))
-        if not h_mem:
-            return
-        ptr = kernel32.GlobalLock(h_mem)
-        if not ptr:
-            kernel32.GlobalFree(h_mem)
-            return
-        ctypes.memmove(ptr, encoded, len(encoded))
-        kernel32.GlobalUnlock(h_mem)
+def type_unicode_text(text: str, delay_ms: int, chunk_size: int) -> None:
+    """Type *text* into the focused window through Unicode key events.
 
-        # Use foreground window as owner to ensure SetClipboardData succeeds
-        hwnd = user32.GetForegroundWindow() or None
-        if not user32.OpenClipboard(hwnd):
-            kernel32.GlobalFree(h_mem)
-            return
-        try:
-            user32.EmptyClipboard()
-            user32.SetClipboardData(cf_unicodetext, h_mem)
-        finally:
-            user32.CloseClipboard()
-    except Exception:
-        pass
+    Unlike a clipboard paste this leaves the user's clipboard untouched and works regardless of keyboard
+    layout. Windows blocks input aimed at a window of higher integrity (UIPI) without reporting it, so
+    a ``SendInput`` that succeeds does not prove the text arrived.
+
+    Args:
+        text: Text to type; ``\\r\\n`` and ``\\r`` are typed as one Return.
+        delay_ms: Pause between chunks, so the target's message loop is never flooded.
+        chunk_size: Characters sent per ``SendInput`` call.
+
+    Raises:
+        OSError: Windows inserted fewer key events than requested.
+    """
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    for start in range(0, len(normalized), chunk_size):
+        if start:
+            time.sleep(delay_ms / 1000.0)
+        _send_key_presses(_key_events(normalized[start : start + chunk_size]))
 
 
 def extract_window_text() -> WindowTextResult:
