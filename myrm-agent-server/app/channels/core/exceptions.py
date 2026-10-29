@@ -16,7 +16,7 @@ Hierarchy:
 
 [OUTPUT]
 - ChannelError: Base exception for all channel-related errors.
-- ChannelSendError: Message delivery failed; ``accepted`` marks a partial delivery, ``for_attachments`` / ``from_http_status`` build typed failures.
+- ChannelSendError: Message delivery failed; ``accepted`` marks a partial delivery, ``for_attachments`` / ``from_http_status`` / ``from_transport_error`` build typed failures.
 - DeliveryUnconfirmedError: send() returned no message id on a channel that reports ids.
 - RateLimitError: Platform rate limit hit. Always retriable with specific d...
 - ChannelAuthError: Credentials invalid or expired. Never retry — requires re...
@@ -29,6 +29,13 @@ Channel exception hierarchy for precise retry and error handling.
 from __future__ import annotations
 
 from collections.abc import Sequence
+
+import httpx
+
+# A request that failed before it left this process: nothing reached the platform, so sending it again cannot
+# show the reply twice. Any other ``httpx.RequestError`` (a timeout while waiting for the answer, a reset, a
+# malformed reply) may come after the platform took the message.
+_REQUEST_NEVER_SENT = (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.ProxyError)
 
 
 class ChannelError(Exception):
@@ -109,6 +116,18 @@ class ChannelSendError(ChannelError):
             status_code=status_code,
             retriable=status_code in (408, 425, 429) or status_code >= 500,
         )
+
+    @classmethod
+    def from_transport_error(cls, channel: str, what: str, exc: BaseException) -> ChannelSendError:
+        """Error for an HTTP call that raised: retriable only when the request never left.
+
+        An ``httpx.RequestError`` that may come after the platform took the message (read or write timeout,
+        reset, protocol error) is not retriable, because a re-send could show the reply twice. Any other
+        exception keeps the sender's default of retrying. Only the exception type is named, since the text of
+        an ``httpx`` error can carry the request URL.
+        """
+        retriable = not isinstance(exc, httpx.RequestError) or isinstance(exc, _REQUEST_NEVER_SENT)
+        return cls(f"{what} failed: {type(exc).__name__}", channel=channel, retriable=retriable)
 
 
 class DeliveryUnconfirmedError(ChannelSendError):

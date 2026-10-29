@@ -302,7 +302,7 @@ class ZaloChannel(BaseChannel):
                 timeout=_UPLOAD_TIMEOUT,
             )
         except httpx.HTTPError as exc:
-            raise ChannelSendError(f"Zalo upload failed: {type(exc).__name__}", channel=self.name) from exc
+            raise ChannelSendError.from_transport_error(self.name, "Zalo upload", exc) from exc
         if resp.status_code != 200:
             raise ChannelSendError.from_http_status(self.name, resp.status_code)
         data = resp.json()
@@ -321,7 +321,7 @@ class ZaloChannel(BaseChannel):
                 timeout=_SEND_TIMEOUT,
             )
         except httpx.HTTPError as exc:
-            raise ChannelSendError(f"Zalo request failed: {type(exc).__name__}", channel=self.name) from exc
+            raise ChannelSendError.from_transport_error(self.name, "Zalo request", exc) from exc
         if resp.status_code >= 400:
             raise ChannelSendError.from_http_status(self.name, resp.status_code)
         data = resp.json()

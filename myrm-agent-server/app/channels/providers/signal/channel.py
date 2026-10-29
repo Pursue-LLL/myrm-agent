@@ -246,7 +246,7 @@ class SignalChannel(SignalInboundMixin, BaseChannel, CachedGroupMixin):
             resp = await self._api.send_message(payload)
         except httpx.HTTPError as exc:
             self.health.record_failure(f"send: {exc}")
-            raise ChannelSendError(f"Signal request failed: {type(exc).__name__}", channel=self.name) from exc
+            raise ChannelSendError.from_transport_error(self.name, "Signal request", exc) from exc
         if resp.status_code != 201:
             self.health.record_failure(f"send: HTTP {resp.status_code}")
             raise ChannelSendError.from_http_status(self.name, resp.status_code)

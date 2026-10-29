@@ -255,7 +255,7 @@ class SMSChannel(BaseChannel):
                 auth=(self._account_sid, self._auth_token),
             )
         except httpx.HTTPError as exc:
-            raise ChannelSendError(f"SMS request to Twilio failed: {type(exc).__name__}", channel=self.name) from exc
+            raise ChannelSendError.from_transport_error(self.name, "SMS request to Twilio", exc) from exc
         if resp.status_code >= 400:
             error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             raise ChannelSendError.from_http_status(self.name, resp.status_code, str(error_body.get("message", resp.text)))
