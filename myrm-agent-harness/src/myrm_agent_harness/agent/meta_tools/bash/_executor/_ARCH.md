@@ -17,11 +17,10 @@ BashExecutor 聚合根与执行编排域：同步/后台执行、上下文构建
 | `workspace_manager.py` | Core | 工作区薄委托（懒加载绑定存储根）。 | ✅ |
 | `skill_workspace_manager.py` | Core | 技能文件 staging 路径解析。 | ✅ |
 | `mcp_citation_handler.py` | Core | MCP Metadata Extractor。 | ✅ |
-| `event_logging.py` | Internal | 命令执行事件日志（脱敏+分类）。 | ✅ |
+| `event_logging.py` | Internal | 命令执行事件日志（命令经 `redact_command_line` 脱敏，输出经共享脱敏器，再分类）。 | ✅ |
 | `error.py` | Core | 结构化 ``BashExecutionError``，携带 stdout/stderr eviction 引用与异常消息脱敏。 | ✅ |
 | `auto_yield.py` | Core | 前台白名单命令超时自动后台化。 | ✅ |
 | `command_classifier.py` | Core | 命令分类器（READ/WRITE/DANGEROUS/NETWORK/GIT/SEARCH/PYTHON/SKILL）。 | ✅ |
-| `sensitive_parameter_redactor.py` | Core | 命令参数脱敏：只按名字脱敏 `--token`/`--password`/`--api-key` 与 `KEY=value`，其余文本（换行、缩进、短选项的值）原样保留；`curl -u`、`sshpass -p` 这类短选项里的口令由共享脱敏器 `core/security/redact/command_patterns.py` 按命令名处理。 | ✅ |
 
 ## Key Dependencies
 

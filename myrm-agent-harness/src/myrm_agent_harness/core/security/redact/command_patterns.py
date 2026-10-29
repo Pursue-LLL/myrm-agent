@@ -15,7 +15,7 @@ One ``curl`` command carries a login, a proxy login and a cookie together, and e
 - ``_redact_command_credentials(text)`` — the command-line credential pass of the redaction pipeline
 
 [POS]
-Command-line rules of the runtime redactor; ``engine.py`` runs ``_redact_command_credentials`` as one name-based pass.
+Command-line rules of the runtime redactor; ``engine.py`` runs ``_redact_command_credentials`` as the first step of the pipeline, ahead of the generic passes.
 """
 
 from __future__ import annotations

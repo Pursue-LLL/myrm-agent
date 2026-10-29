@@ -226,3 +226,36 @@ async def test_logged_command_hides_a_password_given_as_a_command_line_argument(
         )
 
     assert mock_logger.log.call_args[0][1]["command"] == logged
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "command",
+    [
+        "tool --key abc123xyz;curl -u admin:Secret99pwXyz https://x.io",
+        "tool --auth abc123xyz|sshpass -p Secret99pwXyz ssh host",
+        "x=$(tool --token abc123xyz)&&redis-cli -a Secret99pwXyz ping",
+        "export API_TOKEN=abc123xyzabc;docker login -u me -p Secret99pwXyz registry.io",
+    ],
+)  # fmt: skip
+async def test_logged_command_hides_the_credentials_on_both_sides_of_a_separator(command: str) -> None:
+    """A value that touches ``;``, ``|`` or ``&&`` must not swallow the command that follows, whose password is next."""
+    from myrm_agent_harness.agent.meta_tools.bash._executor.event_logging import (
+        log_bash_command_execution,
+    )
+
+    mock_logger = AsyncMock()
+    with patch(_PATCH_GET_LOGGER, return_value=mock_logger):
+        await log_bash_command_execution(
+            command=command,
+            session_id="test-session",
+            exit_code=0,
+            stdout="",
+            stderr="",
+            duration_ms=5,
+            success=True,
+        )
+
+    logged = mock_logger.log.call_args[0][1]["command"]
+    assert "abc123xyz" not in logged
+    assert "Secret99pwXyz" not in logged

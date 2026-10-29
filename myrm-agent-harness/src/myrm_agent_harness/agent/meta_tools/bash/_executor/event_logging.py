@@ -2,7 +2,7 @@
 
 [INPUT]
 command_classifier::CommandClassifier (POS: Command type and risk classification)
-sensitive_parameter_redactor::SensitiveParameterRedactor (POS: Sensitive parameter redaction)
+agent.security.redact::redact_command_line, agent.security.redact::redact_sensitive_text (POS: Credential redaction of a stored command and of its output)
 middlewares._session_context::get_event_logger (POS: Session-scoped event logger accessor)
 
 [OUTPUT]
@@ -38,9 +38,6 @@ async def log_bash_command_execution(
         from myrm_agent_harness.agent.meta_tools.bash._executor.command_classifier import (
             CommandClassifier,
         )
-        from myrm_agent_harness.agent.meta_tools.bash._executor.sensitive_parameter_redactor import (
-            SensitiveParameterRedactor,
-        )
         from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
             get_current_message_id,
         )
@@ -52,10 +49,9 @@ async def log_bash_command_execution(
         if not event_logger:
             return
 
-        from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+        from myrm_agent_harness.agent.security.redact import redact_command_line, redact_sensitive_text
 
-        redactor = SensitiveParameterRedactor()
-        redacted_command = redact_sensitive_text(redactor.redact(command))
+        redacted_command = redact_command_line(command)
         command_type, risk_level = CommandClassifier.classify(command)
 
         event_data: dict[str, object] = {

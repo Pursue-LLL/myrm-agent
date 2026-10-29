@@ -158,3 +158,31 @@ class TestCostStaysLinear:
         small = min(seconds(4_000) for _ in range(3))
         large = min(seconds(16_000) for _ in range(3))
         assert large < max(small * 12, 0.5)
+
+
+class TestTheValueIsOneShellWord:
+    """An unquoted value ends where the shell word ends: at a separator, a closing bracket or a backtick. A backslash
+    keeps the next character inside the value."""
+
+    @pytest.mark.parametrize(
+        ("text", "masked"),
+        [
+            ("tool --token abc123xyz;echo ok", "tool --token ***;echo ok"),
+            ("tool --token abc123xyz|grep ok", "tool --token ***|grep ok"),
+            ("tool --token abc123xyz&&next", "tool --token ***&&next"),
+            ("tool --token abc123xyz>out.txt", "tool --token ***>out.txt"),
+            ("tool --token abc123xyz<in.txt", "tool --token ***<in.txt"),
+            ("x=$(tool --token abc123xyz) && next", "x=$(tool --token ***) && next"),
+            ("(tool --token abc123xyz)", "(tool --token ***)"),
+            ("Run `tool --password hunter2pw`, then stop.", "Run `tool --password ***`, then stop."),
+        ],
+    )  # fmt: skip
+    def test_the_text_after_the_value_is_kept(self, text: str, masked: str) -> None:
+        assert redact_sensitive_text(text) == masked
+
+    @pytest.mark.parametrize("character", [";", "|", "&", "<", ">", "(", ")", "`", " ", "\\"])
+    def test_an_escaped_character_is_part_of_the_value(self, character: str) -> None:
+        assert redact_sensitive_text(f"tool --password pa\\{character}ssXYZ99 next") == "tool --password *** next"
+
+    def test_a_quoted_value_runs_to_its_closing_quote(self) -> None:
+        assert redact_sensitive_text('tool --password "pa;ss|XYZ99" next') == 'tool --password "***" next'

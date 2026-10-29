@@ -128,9 +128,9 @@ class BackgroundProcessRegistry:
         if session_id:
             spill_writer = BackgroundOutputSpillWriter(session_id=session_id, job_id=job_id)
 
-        from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+        from myrm_agent_harness.agent.security.redact import redact_command_line
 
-        sanitized_command = redact_sensitive_text(command)
+        sanitized_command = redact_command_line(command)
 
         info = BackgroundProcessInfo(
             job_id=job_id,

@@ -35,9 +35,10 @@ def _replace_pattern_bounded(
     """Replace pattern with bounded chunking to prevent ReDoS.
 
     Each chunk extends by ``_CHUNK_OVERLAP`` bytes into the next chunk
-    so patterns spanning a boundary are matched intact.  Deduplication
-    via ``seen_starts`` ensures overlap-region matches are not applied
-    twice.  Results are assembled with a single forward join (O(n)).
+    so patterns spanning a boundary are matched intact.  A match that two
+    chunks both see is applied once: the earlier chunk may see it cut at
+    its own end, so the longer one wins.  Results are assembled with a
+    single forward join (O(n)).
 
     Args:
         text: Input text
@@ -53,7 +54,7 @@ def _replace_pattern_bounded(
         return pattern.sub(replacer, text)
 
     matches: list[tuple[int, int, str]] = []
-    seen_starts: set[int] = set()
+    index_by_start: dict[int, int] = {}
 
     pos = 0
     while pos < len(text):
@@ -62,12 +63,16 @@ def _replace_pattern_bounded(
 
         for m in pattern.finditer(chunk):
             abs_start = pos + m.start()
-            if abs_start in seen_starts:
-                continue
-            seen_starts.add(abs_start)
             abs_end = pos + m.end()
+            seen = index_by_start.get(abs_start)
+            if seen is not None and abs_end <= matches[seen][1]:
+                continue
             repl = replacer(m) if callable(replacer) else m.expand(replacer)
-            matches.append((abs_start, abs_end, repl))
+            if seen is None:
+                index_by_start[abs_start] = len(matches)
+                matches.append((abs_start, abs_end, repl))
+            else:
+                matches[seen] = (abs_start, abs_end, repl)
 
         pos += chunk_size
 
@@ -79,7 +84,7 @@ def _replace_pattern_bounded(
     for abs_start, abs_end, repl in matches:
         # 分块重叠区可能产出区间重叠的 match（如 IGNORECASE 下 `[A-Z_]` 前缀贪婪
         # 吃掉 `KEY` 前 50 个连续字母产生长 key match，与后续短 key match 区间重叠）。
-        # 重叠 match 若一并拼接会把文本重复插入，须跳过（seen_starts 只防同 start）。
+        # 重叠 match 若一并拼接会把文本重复插入，须跳过（index_by_start 只防同 start）。
         if abs_start < last_end:
             continue
         parts.append(text[last_end:abs_start])

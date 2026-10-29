@@ -200,6 +200,11 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
     if not text or not isinstance(text, str) or not _REDACT_ENABLED:
         return text
 
+    # Command-line credentials (curl -u/-b, sshpass -p, mysql -p) come first: the rule is anchored on the command
+    # name, which a generic pass swallows when a value touches a separator (`tool --token x;curl -u a:pw`). Like the
+    # value shapes they run on every line of a source file.
+    text = _redact_command_credentials(text)
+
     # 控制字符拆分的 token（`sk-abc\x1bdef…`）在连续 _PREFIX_RE 之前先掩码
     text = _mask_control_split_tokens(text)
 
@@ -244,10 +249,6 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
 
     # API-key 风格认证头（x-api-key 等）
     text = _redact_by_name(text, _redact_secret_headers, source_code=source_code)
-
-    # Command-line credentials (curl -u/-b, sshpass -p, mysql -p): anchored on the command name, so like the value
-    # shapes they run on every line of a source file
-    text = _redact_command_credentials(text)
 
     # JWT token（eyJ… 无 key 上下文的裸 JWT）
     text = _replace_pattern_bounded(text, _JWT_RE, lambda m: _mask_token(m.group(0)))

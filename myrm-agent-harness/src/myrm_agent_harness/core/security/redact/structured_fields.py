@@ -103,8 +103,9 @@ _PLAIN_LABEL_RE = re.compile(r"[^\W\d_]{1,19}|[^\W\d_]+(?:[\s_-]+[^\W\d_]+)+")
 _JSON_FIELD_RE = re.compile(rf'("{_FIELD_NAME}")\s*:\s*"((?:[^"\\\\]|\\.)*)"', re.IGNORECASE)
 
 # Inside a JSON-encoded string every quote is backslash-escaped; the backreference keeps the key's and the
-# value's escape depth equal, which covers any nesting depth.
-_JSON_ESCAPED_FIELD_RE = re.compile(rf'((\\+)"{_FIELD_NAME}\2")\s*:\s*\2"([^"\\]+)\2"', re.IGNORECASE)
+# value's escape depth equal, which covers any nesting depth. A match starts where the run of backslashes starts,
+# so a long run costs one attempt instead of one per offset.
+_JSON_ESCAPED_FIELD_RE = re.compile(rf'((?<!\\)(\\+)"{_FIELD_NAME}\2")\s*:\s*\2"([^"\\]+)\2"', re.IGNORECASE)
 
 # Python ``repr`` entries are only masked on diagnostic lines, so source code shown by ``cat`` keeps its literals.
 _REPR_FIELD_RE = re.compile(r"'([A-Za-z_]\w*)'(\s*:\s*)(?:'((?:\\.|[^'\\])+)'|\"((?:\\.|[^\"\\])+)\")")

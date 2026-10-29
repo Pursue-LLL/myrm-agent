@@ -54,11 +54,10 @@ bash/
 | `_executor/workspace_manager.py` | Core | 工作区薄委托（懒加载绑定存储根）。 |
 | `_executor/skill_workspace_manager.py` | Core | 技能文件 staging 路径解析。 |
 | `_executor/mcp_citation_handler.py` | Core | MCP Metadata Extractor。 |
-| `_executor/event_logging.py` | Internal | 命令执行事件日志（脱敏+分类，对齐 red team 回归防护）。 |
+| `_executor/event_logging.py` | Internal | 命令执行事件日志（命令经 `core/security/redact` 的 `redact_command_line` 脱敏，输出经共享脱敏器，再分类；对齐 red team 回归防护）。 |
 | `_executor/error.py` | Core | 结构化 BashExecutionError，携带 stdout/stderr eviction 引用。 |
 | `_executor/auto_yield.py` | Core | 前台白名单命令超时自动后台化。 |
 | `_executor/command_classifier.py` | Core | 命令分类器（READ/WRITE/DANGEROUS/NETWORK/GIT/SEARCH/PYTHON）。 |
-| `_executor/sensitive_parameter_redactor.py` | Core | 命令参数脱敏：只按名字脱敏 `--token`/`--password`/`--api-key` 与 `KEY=value`，其余文本（换行、缩进、短选项的值）原样保留；`curl -u`、`sshpass -p` 这类短选项里的口令由共享脱敏器 `core/security/redact/command_patterns.py` 按命令名处理。 |
 
 ### `_tool/` bash 工具能力域
 

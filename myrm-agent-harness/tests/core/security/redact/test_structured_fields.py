@@ -8,12 +8,18 @@ print a settings dict. The keep-lists pin what must stay readable: pagination cu
 from __future__ import annotations
 
 import json
+import random
+import re
 import time
 
 import pytest
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.core.security.redact.structured_fields import _is_secret_field_name
+from myrm_agent_harness.core.security.redact.structured_fields import (
+    _FIELD_NAME,
+    _JSON_ESCAPED_FIELD_RE,
+    _is_secret_field_name,
+)
 
 _OPAQUE = "opaqueValue1234567890abcdef"
 
@@ -245,3 +251,57 @@ class TestBoundedWork:
         start = time.process_time()
         redact_sensitive_text(text)
         assert time.process_time() - start < 2.0
+
+
+class TestEscapedFieldInsideJsonString:
+    """A JSON document inside a JSON string has every quote behind a run of backslashes: one per nesting level, doubled
+    again for each level it is nested in. Both quotes of the key and the value carry the same run."""
+
+    @pytest.mark.parametrize("backslashes", [1, 2, 3, 5, 7, 15])
+    def test_a_field_is_masked_at_any_depth(self, backslashes: int) -> None:
+        quote = "\\" * backslashes + '"'
+        text = f"{{{quote}password{quote}:{quote}{_OPAQUE}{quote}}}"
+        result = redact_sensitive_text(text)
+        assert _OPAQUE not in result
+        assert "password" in result
+
+    @pytest.mark.parametrize("backslashes", [1, 3, 7])
+    def test_the_fields_around_it_stay_readable(self, backslashes: int) -> None:
+        quote = "\\" * backslashes + '"'
+        text = f"{{{quote}user{quote}:{quote}alice{quote},{quote}password{quote}:{quote}{_OPAQUE}{quote}}}"
+        result = redact_sensitive_text(text)
+        assert _OPAQUE not in result
+        assert f"{quote}user{quote}:{quote}alice{quote}" in result
+
+    def test_a_key_that_opens_with_a_longer_run_than_it_closes_with_is_no_field(self) -> None:
+        """Both runs of an encoded key are equal; an extra backslash in front belongs to the text before the key."""
+        assert _JSON_ESCAPED_FIELD_RE.search('\\\\\\"password\\\\":\\\\"x\\\\"') is None
+
+    def test_a_match_starts_where_a_run_of_backslashes_starts(self) -> None:
+        """The pattern is the unanchored one restricted to the start of a run, so it does not retry every offset of a run."""
+        unanchored = re.compile(rf'((\\+)"{_FIELD_NAME}\2")\s*:\s*\2"([^"\\]+)\2"', re.IGNORECASE)
+        rng = random.Random(7)
+        alphabet = ["\\", "\\", '"', ":", "password", "x", " ", "{"]
+        for _ in range(20_000):
+            text = "".join(rng.choices(alphabet, k=rng.randint(1, 14)))
+            for offset in range(len(text)):
+                starts_a_run = text[offset] == "\\" and (offset == 0 or text[offset - 1] != "\\")
+                expected = unanchored.match(text, offset) if starts_a_run else None
+                found = _JSON_ESCAPED_FIELD_RE.match(text, offset)
+                assert (found.span() if found else None) == (expected.span() if expected else None), text
+
+
+class TestRunOfBackslashesStaysLinear:
+    """Every offset inside a run once started a match attempt of its own, so a run cost time in proportion to its square."""
+
+    def test_the_pattern_alone_is_linear_in_the_run(self) -> None:
+        text = "\\" * 64_000 + '"'
+        start = time.process_time()
+        _JSON_ESCAPED_FIELD_RE.search(text)
+        assert time.process_time() - start < 0.5
+
+    def test_the_whole_redactor_is_linear_in_the_run(self) -> None:
+        text = "\\" * 64_000 + '"'
+        start = time.process_time()
+        redact_sensitive_text(text)
+        assert time.process_time() - start < 1.0
