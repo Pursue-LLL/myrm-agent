@@ -325,3 +325,76 @@ async def test_merge_shows_the_main_stream_what_the_consumer_set_before_it_start
         _STEP_MARKER.reset(token)
 
     assert seen == ["set-by-the-consumer", "set-by-the-consumer"]
+
+
+@pytest.mark.asyncio
+async def test_merge_keeps_concurrent_streams_apart_when_each_sets_its_own_value():
+    """Two chats on one event loop, one trusted and one not, never see each other's trust."""
+    both_set = asyncio.Barrier(2)
+    seen: dict[str, str] = {}
+
+    def _main(name: str) -> AsyncIterator[str]:
+        async def _stream() -> AsyncIterator[str]:
+            _STEP_MARKER.set(name)
+            yield "data: a\n\n"
+            await both_set.wait()
+            seen[name] = _STEP_MARKER.get()
+            yield "data: b\n\n"
+
+        return _stream()
+
+    async def _consume(name: str) -> list[str]:
+        emitter = SSEFailoverEmitter(message_id=name, collector=StreamContentCollector())
+        return [chunk async for chunk in merge_stream_with_emitter(_main(name), emitter)]
+
+    await asyncio.wait_for(asyncio.gather(_consume("trusted"), _consume("restricted")), timeout=2.0)
+
+    assert seen == {"trusted": "trusted", "restricted": "restricted"}
+
+
+@pytest.mark.asyncio
+async def test_merge_lets_the_main_stream_reset_in_a_later_step_what_it_set_in_an_earlier_one():
+    """A run that sets a variable in one step and restores it in a later one (as a ``try/finally`` around its steps does) must not fail."""
+    outcome: list[str] = []
+
+    async def _main() -> AsyncIterator[str]:
+        token = _STEP_MARKER.set("set-in-the-first-step")
+        yield "data: a\n\n"
+        _STEP_MARKER.reset(token)
+        outcome.append(_STEP_MARKER.get())
+        yield "data: b\n\n"
+
+    emitter = SSEFailoverEmitter(message_id="m", collector=StreamContentCollector())
+
+    out = [chunk async for chunk in merge_stream_with_emitter(_main(), emitter)]
+
+    assert out == ["data: a\n\n", "data: b\n\n"]
+    assert outcome == ["unset"]
+
+
+@pytest.mark.asyncio
+async def test_merge_surfaces_a_failure_of_a_later_step_and_the_next_merge_is_unaffected():
+    async def _failing() -> AsyncIterator[str]:
+        _STEP_MARKER.set("set-before-the-failure")
+        yield "data: a\n\n"
+        raise RuntimeError("provider went away")
+
+    async def _fresh() -> AsyncIterator[str]:
+        yield f"data: {_STEP_MARKER.get()}\n\n"
+
+    emitter = SSEFailoverEmitter(message_id="m", collector=StreamContentCollector())
+    received: list[str] = []
+
+    with pytest.raises(RuntimeError, match="provider went away"):
+        async for chunk in merge_stream_with_emitter(_failing(), emitter):
+            received.append(chunk)
+
+    after = [
+        chunk
+        async for chunk in merge_stream_with_emitter(
+            _fresh(), SSEFailoverEmitter(message_id="n", collector=StreamContentCollector())
+        )
+    ]
+
+    assert received == ["data: a\n\n"]
+    assert after == ["data: unset\n\n"]
