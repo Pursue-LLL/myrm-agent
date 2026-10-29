@@ -8,7 +8,7 @@ Transmission reliability: rate limiting, concurrency control, reconnect, and cra
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Transmission reliability: rate limiting, concurrency control, reconnect, crash recovery. | — |
-| inbound_journal.py | Core | Inbound Journal: WAL-style persistence for in-flight message processing. Ensures no user message is lost on crash/restart. Protocol + SQLite implementation. | ✅ |
+| inbound_journal.py | Core | Inbound Journal: WAL-style persistence for in-flight message processing. A crash replays the turn it interrupted and a stop replays the messages that had not started one; an entry is deleted when its turn ends, however it ends. Protocol + SQLite implementation. | ✅ |
 | inbound_limiter.py | Core | Inbound rate limiting layer. Prevents DoS/DDoS attacks on webhook endpoints. | ✅ |
 | inflight_limiter.py | Core | Concurrency control layer. Prevents resource exhaustion from concurrent request storms. | ✅ |
 | rate_limiter.py | Core | Per-channel outbound rate limiting. Prevents platform bans due to excessive send frequency. | ✅ |

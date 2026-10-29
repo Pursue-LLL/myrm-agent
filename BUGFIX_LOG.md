@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 服务关闭时排队的消息无声丢失，关闭途中还会把队列里的下一条当作新回合启动
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交 `101d72f7ab`；未 push）。「仍然存在」里的 4 项未处理。 |
+| **症状** | 服务关闭只有一个入口：`app/server/shutdown.py:38-40` 调 `stop_channel_gateway`（`app/core/channel_bridge/setup.py:107`），桌面端退出、升级、云端滚动替换都经过它。关闭时两件事：① 用户已收到「已排队」提示、还在等待队列或防抖缓冲里的消息无声丢失：`AgentRouter.stop` 最后调 `SessionGate.clear()` 直接清空，而入站日志只在回合开始时写（`pipeline/turn.py` 的 `_journal_inbound`），等待中的消息没有条目，重启后没有任何东西重放它们。② 队列里的下一条在关闭途中被当作新回合启动：`stop()` 先取消运行中的回合，该回合收尾时 `SessionGate._fire` 的 `finally` 调 `release_turn`，后者把排在后面的消息 `_begin` 成新回合；`_handle_merged` 里没有「路由器正在停止」的判断，于是这个回合走完整条流水线（写日志、准备上下文、调模型），直到进程退出把它截断。两个临时探针（真实 `_handle_merged` 与真实 `SessionGate`，用后已删）：取消运行中的回合，日志 `write` 1 次、`acknowledge` 1 次；A 运行、B 排队，取消 A 后输出 `started after cancelling A: ['A', 'B']`。 |
+| **根因** | `stop()` 先取消运行中的回合、最后才清空闸门，而回合的收尾会启动下一个排队回合；等待中的消息又从未进过入站日志，所以既无法重放，也挡不住它被当作新回合启动。 |
+| **修复** | `SessionGate.drain_unstarted()`：取消防抖定时器，取出缓冲区与等待队列里的文本消息并清空；审批应答不取（`JournalEntry` 没有 `resume_value`，应答也属于被这次停机结束的回合）。`AgentRouter.stop` 在 `interrupt_all()` 之前调用它，逐条经 `_journal_inbound` 写入入站日志（带 `is_recovery` 的重放消息复用原条目，不重复写）；重启后由现有的 `ChannelGateway._recover_journal` 重放，超过 10 分钟的条目由 `prune_expired` 丢弃。`RouterLifecycleHost` 协议补 `_journal_inbound`。`session_gate.py` 文件头、`routing/_ARCH.md`（session_gate 行与新增的「Shutdown and the Inbound Journal」一节）、`pipeline/_ARCH.md` 的 lifecycle 行、`tests/_ARCH.md` 同步。 |
+| **回归证据** | [1] 变异验证：去掉 `stop()` 里的取出调用，已启动路由器上的 5 例有 4 例失败（日志里没有排队消息、被取消回合的收尾启动了排在后面的消息、没有日志时同样被启动、审批应答的用例）；`drain_unstarted` 不清空队列，闸门层 2 例失败；`_journal_inbound` 去掉 `is_recovery` 判断，重放消息不重复写的用例失败；每次改动后文件逐字节还原。路由器测试必须用已启动的路由器：未启动时 `stop()` 取消后没有可让出事件循环的 await，闸门在被取消的回合收尾之前就已清空，用例会在没有修复时也通过。[2] 新用例：`tests/channels/routing/test_session_gate_drain.py` 6 例、`tests/channels/routing/pipeline/test_stop_parks_unstarted_messages.py` 5 例（真实 `AgentRouter`、真实 `SessionGate`、真实 SQLite 日志）。[3] `tests/channels` 8334 例通过、16 例失败，16 例都是各渠道 `edit_message` 失败契约的测试（`providers/*`、`test_approval_message_lifecycle.py`），对应他人未提交的 provider 改动，与本条文件无交集；`ruff check`、`ruff format --check` 通过，mypy 对三个改动的源文件零报告；服务端分形文档检查默认与 `--no-stub` 两种退出码 0，`--strict-headers` 的退出码 1 来自 `placeholder_strategy.py` 等本条之外的文件；`tests/architecture/test_no_private_references.py` 12 例通过。 |
+| **仍然存在** | ① 进程被杀时等待队列里的消息仍然丢失：入站日志在回合开始时才写，入队时就写要改入站主路径，没有做。② 停机时正在运行的回合仍被确认、不重放：取消后 `pipeline/turn.py` 的 `finally` 删除日志条目；重放一个跑了一半的回合会把已有副作用的步骤再执行一遍，没有做。③ 重启后重放的消息与用户在没收到回复时的重发会各执行一次；条目 10 分钟过期。④ 没有真实渠道的端到端验证，也没有关闭时有排队消息的出现频率数据。 |
+| **代码位置** | `myrm-agent-server/app/channels/routing/session_gate.py`（`drain_unstarted`） · `app/channels/routing/pipeline/lifecycle.py`（`stop`） · `app/channels/routing/pipeline/hosts.py`（`RouterLifecycleHost._journal_inbound`） · `app/channels/core/gateway.py:815-826`（`_recover_journal`） · `tests/channels/routing/test_session_gate_drain.py` · `tests/channels/routing/pipeline/test_stop_parks_unstarted_messages.py` |
+
 ## 2026-10-29 · 没有产品入口的 12 个服务端模块与 41 个前端目录整体删除：测试全绿却保护着没人用的代码，分形文档门禁还逼着为它们逐目录写文档
 
 | 字段 | 内容 |
@@ -23,7 +35,7 @@
 | **根因** | `SessionGate._emit_busy_ack` 对「已排队」和「队列已满」两种提示共用 `_last_ack_time[key]` 一个 30 秒冷却。溢出的消息紧跟在填满队列的消息之后到达，而那条消息要么自己刚触发过「已排队」提示，要么落在上一次提示的 30 秒内，所以溢出提示在连发场景里被吞；只有溢出消息比最近一次「已排队」提示晚 30 秒以上才发得出。既有用例 `test_busy_ack_fires_on_queue_full` 在触发溢出前手工执行 `gate._last_ack_time.clear()`，把真实路径上不会发生的清零写进了测试，这个 bug 因此一直绿着。 |
 | **修复** | 两种提示各自一个 30 秒冷却，并入会话状态 `_SessionState`（`last_queued_ack`、`last_full_ack`），随会话结束一起销毁；原先与会话字典并行维护的 `_last_ack_time` 及其两处清理一并删除；初值取负无穷，不依赖 `time.monotonic()` 的起点。`session_gate.py` 文件头与 `app/channels/routing/_ARCH.md` 的 session_gate 行同步更新。`_safe_busy_ack` 改为接收已判空的回调，去掉原来的 `# type: ignore[misc]`。`tests/channels/test_session_gate.py` 原有 607 行、加用例后 678 行，按主题拆成 `test_session_gate.py`（315 行）、`test_session_gate_busy_ack.py`（345 行）和共用的消息构造 `session_gate_testkit.py`（33 行），33 个用例的名字拆分前后逐一相同。 |
 | **回归证据** | [1] 变异验证：把两种提示改回共用一个冷却，3 个用例失败（`test_busy_ack_fires_on_queue_full`、`test_queue_full_notice_follows_queued_notice_in_one_busy_period`、`test_queue_full_notice_is_debounced_per_session`），文件逐字节还原后 `test_session_gate.py` 与 `test_session_gate_busy_ack.py` 共 33 例全部通过（拆分后重做了一遍）。[2] 新用例覆盖：上限 10、连发 1+12 条得到「已排队」1 次加「队列已满」1 次；连续溢出在冷却内只提示一次、冷却过后再提示；会话排空后冷却重新计时。[3] `tests/channels` 中含 gate、busy、router 的 633 例通过；`ruff check`、`ruff format --check` 通过，mypy 对 `session_gate.py` 零报告。 |
-| **仍然存在** | ① 队列上限仍是 10 条，溢出的消息仍被丢弃，只是现在会告诉用户；没有改成合并摘要或更大的上限。② 没有真实 IM 渠道的端到端验证，提示是否送达用户取决于各渠道的发送实现。③ 两种提示的 30 秒冷却值没有调整。 |
+| **仍然存在** | ① 队列上限仍是 10 条，溢出的消息仍被丢弃，只是现在第一条被丢的消息会告诉用户，30 秒内后续被丢的消息不再重复提示；没有改成合并摘要或更大的上限。② 没有真实 IM 渠道的端到端验证，提示是否送达用户取决于各渠道的发送实现。③ 两种提示的 30 秒冷却值没有调整。 |
 | **代码位置** | `myrm-agent-server/app/channels/routing/session_gate.py`（`_SessionState`、`_emit_busy_ack`） · `myrm-agent-server/tests/channels/test_session_gate.py`（`TestBusyAck`） · `myrm-agent-server/app/channels/routing/_ARCH.md`（session_gate 行） |
 
 ## 2026-10-29 · Slack 的编辑被拒绝时不报错：占位改写失败后最终回复被静默丢弃，被拒绝的进度编辑还被记成成功

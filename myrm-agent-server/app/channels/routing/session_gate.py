@@ -14,8 +14,9 @@ Six complementary mechanisms:
    ``on_busy_ack`` callback notifies the caller so the Router can send
    an immediate acknowledgment to the user. Each kind of notice (queued,
    queue full) is debounced at 30 s per session to prevent ack spam; one
-   kind never silences the other, so the user is always told when a
-   message is dropped.
+   kind never silences the other, so a queued notice never hides the first
+   message a full queue drops (drops within the next 30 s are not announced
+   again).
 4. **Answers Run Alone and First**: A message that answers a run suspended
    at a tool approval (``resume_value``) is never merged into text, never
    dropped because the queue is full, and runs before any text waiting

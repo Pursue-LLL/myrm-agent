@@ -1,13 +1,15 @@
-"""Inbound Message Journal — WAL-style persistence for in-flight message processing.
+"""Inbound Message Journal — WAL-style persistence for inbound messages that have not finished processing.
 
 Symmetric to the outbound dead-letter queue (harness ``DeadLetterQueue``, driven by the
-MessageBus): the DLQ handles outbound delivery failures, while the Inbound Journal ensures
-inbound user messages are not lost when the process crashes or restarts mid-processing.
+MessageBus): the DLQ handles outbound delivery failures, while the Inbound Journal lets inbound
+user messages survive a process crash mid-turn and a stop of the router with messages still queued.
 
 Lifecycle:
-1. Router writes a journal entry BEFORE starting agent execution
-2. Router acknowledges the entry AFTER successful completion
-3. On restart, Gateway scans un-acknowledged entries and re-submits them
+1. Router writes a journal entry BEFORE starting agent execution; a stopping router writes the
+   entries of the messages that have not started a turn
+2. Router acknowledges the entry when the turn ends, however it ends (completed, failed, ended by
+   ``/stop``, cancelled by a stop): only a process that dies mid-turn leaves its entry behind
+3. On start, Gateway scans un-acknowledged entries within their TTL and re-submits them
 
 [INPUT]
 - channels.types.messages::InboundMessage (POS: inbound message data)
@@ -18,8 +20,8 @@ Lifecycle:
 - SqliteInboundJournal: SQLite implementation (framework default)
 
 [POS]
-Inbound reliability layer. Ensures no user message is lost due to process crash.
-Uses Write-Ahead Log pattern: record before processing, delete after completion.
+Inbound reliability layer. A crash replays the turn it interrupted; a stop replays the messages
+that had not started one. Write-Ahead Log pattern: record before processing, delete when the turn ends.
 """
 
 from __future__ import annotations
