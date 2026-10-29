@@ -1,5 +1,7 @@
 """Sensitive Parameter Redactor单元测试"""
 
+import pytest
+
 from myrm_agent_harness.agent.meta_tools.bash._executor.sensitive_parameter_redactor import SensitiveParameterRedactor
 
 
@@ -95,3 +97,42 @@ class TestSensitiveParameterRedactor:
         assert "***REDACTED***" in result
         assert "abc123" not in result
         assert "pwd456" not in result
+
+
+class TestOnlyNamedParametersAreMasked:
+    """A word that follows a short option is a value of that option, not of whatever credential word came before."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "grep token -n README.md",
+            "find . -name key -type f",
+            "cat secret.txt -n 5",
+            "ls -la /tmp/token_dir",
+            "git log --author auth -n 3",
+        ],
+    )  # fmt: skip
+    def test_the_word_after_a_short_option_stays_readable(self, command: str) -> None:
+        assert SensitiveParameterRedactor().redact(command) == command
+
+
+class TestCommandShapeIsKept:
+    """The audit log shows the command as it was written: line breaks, indentation and spacing stay."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git log --oneline\ngit status",
+            "cat <<'EOF' > a.py\nprint(1)\n    indented\nEOF",
+            "echo  a\tb",
+            "  ls -la  ",
+        ],
+    )  # fmt: skip
+    def test_a_command_without_a_secret_is_returned_as_written(self, command: str) -> None:
+        assert SensitiveParameterRedactor().redact(command) == command
+
+    def test_a_secret_is_masked_and_the_lines_around_it_are_kept(self) -> None:
+        command = "export TOKEN=abc123\ncurl --api-key=key456 https://x\n  ls"
+        assert SensitiveParameterRedactor().redact(command) == (
+            "export TOKEN=***REDACTED***\ncurl --api-key=***REDACTED*** https://x\n  ls"
+        )

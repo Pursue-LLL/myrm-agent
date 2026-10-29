@@ -21,7 +21,7 @@ BashExecutor 聚合根与执行编排域：同步/后台执行、上下文构建
 | `error.py` | Core | 结构化 ``BashExecutionError``，携带 stdout/stderr eviction 引用与异常消息脱敏。 | ✅ |
 | `auto_yield.py` | Core | 前台白名单命令超时自动后台化。 | ✅ |
 | `command_classifier.py` | Core | 命令分类器（READ/WRITE/DANGEROUS/NETWORK/GIT/SEARCH/PYTHON/SKILL）。 | ✅ |
-| `sensitive_parameter_redactor.py` | Core | 命令参数脱敏（--token/--password/--api-key 等）。 | ✅ |
+| `sensitive_parameter_redactor.py` | Core | 命令参数脱敏：只按名字脱敏 `--token`/`--password`/`--api-key` 与 `KEY=value`，其余文本（换行、缩进、短选项的值）原样保留；`curl -u`、`sshpass -p` 这类短选项里的口令由共享脱敏器 `core/security/redact/command_patterns.py` 按命令名处理。 | ✅ |
 
 ## Key Dependencies
 

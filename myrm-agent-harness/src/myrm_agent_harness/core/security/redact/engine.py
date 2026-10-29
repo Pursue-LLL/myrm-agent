@@ -7,6 +7,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 [INPUT]
 - masking::_mask_token, masking::_mask_secret (POS: Leaf value-masking helpers of the runtime redactor)
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
+- command_patterns::_redact_command_credentials (POS: Command-line rules of the runtime redactor)
 - header_patterns::_redact_secret_headers (POS: Header rules of the runtime redactor)
 - patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 - structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line (POS: structured-field detectors of the redaction engine)
@@ -34,6 +35,7 @@ import re
 from collections.abc import Callable
 
 from .bounded_replace import _replace_pattern_bounded
+from .command_patterns import _redact_command_credentials
 from .header_patterns import _redact_secret_headers
 from .masking import _mask_secret, _mask_token
 from .patterns import (
@@ -179,7 +181,8 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
 
     ``source_code=True`` is for the text of a source file, which names credentials all the time
     (``total_api_tokens = 0``) and keeps a secret only as a string literal: the name-based passes (assignments,
-    API-key and cookie headers) run on the lines that carry one, the value-shape passes on every line.
+    API-key and cookie headers) run on the lines that carry one, the value-shape passes and the command-line
+    credential rules (``curl -u``, ``sshpass -p``) on every line.
 
     Key features:
     - Bounded regex replace to prevent ReDoS (OPT-1)
@@ -190,6 +193,7 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
     - PEM block special handling to preserve header/footer (OPT-3)
     - URL query parameter redaction (OPT-2)
     - CLI flag redaction (OPT-5)
+    - Command-line credential redaction (``curl -u/-b``, ``sshpass -p``, ``mysql -p``)
     - Telegram Bot URL redaction (OPT-6)
     - Extended token prefix coverage (Groq, Slack App, Anthropic) (OPT-4)
     """
@@ -240,6 +244,10 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
 
     # API-key 风格认证头（x-api-key 等）
     text = _redact_by_name(text, _redact_secret_headers, source_code=source_code)
+
+    # Command-line credentials (curl -u/-b, sshpass -p, mysql -p): anchored on the command name, so like the value
+    # shapes they run on every line of a source file
+    text = _redact_command_credentials(text)
 
     # JWT token（eyJ… 无 key 上下文的裸 JWT）
     text = _replace_pattern_bounded(text, _JWT_RE, lambda m: _mask_token(m.group(0)))

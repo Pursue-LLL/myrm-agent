@@ -6,7 +6,7 @@
 - SensitiveParameterRedactor: 参数脱敏器类
 
 [POS]
-Command parameter redactor. Automatically redacts sensitive parameters (--token, --password, --api-key, etc.) when logging commands to audit trails.
+Command parameter redactor. Automatically redacts named sensitive parameters (--token, --password, --api-key, KEY=value) when logging commands to audit trails; the command text is otherwise left as written.
 
 """
 
@@ -52,24 +52,16 @@ class SensitiveParameterRedactor:
         if custom_keywords:
             self.sensitive_keywords.update(k.lower() for k in custom_keywords)
 
-        # 构建敏感参数正则模式
-        # 匹配形式：
-        # 1. --token=value
-        # 2. --token value
-        # 3. -t value
-        # 4. env VAR=value（环境变量）
+        # 构建敏感参数正则模式，匹配形式：
+        # 1. --token=value / --token value / --token="value"
+        # 2. env VAR=value（环境变量）
+        # 短选项（-t value）的值没有名字可依据，由共享脱敏器按命令名锚定的规则处理，这里不猜。
         keywords_pattern = "|".join(re.escape(k) for k in self.sensitive_keywords)
-        self._param_patterns = [
-            # --token=value 或 --token="value"
-            re.compile(rf"--({keywords_pattern})[=\s]+([\"']?)([^\s\"']+)\2", re.IGNORECASE),
-            # -t value 或 -t "value"
-            re.compile(r"-[a-zA-Z]\s+([\"']?)([^\s\"']+)\1"),
-            # 环境变量 TOKEN=value
-            re.compile(rf"({keywords_pattern})[=]([\"']?)([^\s\"']+)\2", re.IGNORECASE),
-        ]
+        self._long_option_pattern = re.compile(rf"--({keywords_pattern})[=\s]+([\"']?)([^\s\"']+)\2", re.IGNORECASE)
+        self._assignment_pattern = re.compile(rf"({keywords_pattern})[=]([\"']?)([^\s\"']+)\2", re.IGNORECASE)
 
     def redact(self, command: str) -> str:
-        """脱敏命令中的敏感参数
+        """脱敏命令中的敏感参数；空白与换行原样保留
 
         Args:
             command: 要脱敏的命令
@@ -80,31 +72,5 @@ class SensitiveParameterRedactor:
         if not command or not isinstance(command, str):
             return command
 
-        redacted = command
-
-        # 应用第一个模式：--token=value
-        def replace_param_eq(match: re.Match[str]) -> str:
-            param_name = match.group(1)
-            return f"--{param_name}=***REDACTED***"
-
-        redacted = self._param_patterns[0].sub(replace_param_eq, redacted)
-
-        # 应用第二个模式：-t value（短选项）
-        # 注意：这个比较激进，可能误判。只在前面有敏感关键词时才脱敏
-        words = redacted.split()
-        for i, word in enumerate(words):
-            if word.startswith("-") and not word.startswith("--") and i + 1 < len(words):
-                # 检查前面是否有敏感关键词
-                prev_text = " ".join(words[:i])
-                if any(keyword in prev_text.lower() for keyword in self.sensitive_keywords):
-                    words[i + 1] = "***REDACTED***"
-        redacted = " ".join(words)
-
-        # 应用第三个模式：TOKEN=value（环境变量）
-        def replace_env(match: re.Match[str]) -> str:
-            var_name = match.group(1)
-            return f"{var_name}=***REDACTED***"
-
-        redacted = self._param_patterns[2].sub(replace_env, redacted)
-
-        return redacted
+        redacted = self._long_option_pattern.sub(lambda m: f"--{m.group(1)}=***REDACTED***", command)
+        return self._assignment_pattern.sub(lambda m: f"{m.group(1)}=***REDACTED***", redacted)

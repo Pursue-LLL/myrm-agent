@@ -195,3 +195,34 @@ async def test_log_bash_command_execution_redacts_credentials_in_streams() -> No
     assert "xoxb-TESTING" not in event_data["error_message"]
     assert "..." in event_data["stdout"] or "***" in event_data["stdout"]
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("command", "logged"),
+    [
+        ("curl -u admin:s3cretPw99 https://api.example.com/v1", "curl -u admin:*** https://api.example.com/v1"),
+        ("curl --user admin:s3cretPw99 https://api.example.com/v1", "curl --user admin:*** https://api.example.com/v1"),
+        ("curl -b 'sid=abcDEF123456; theme=dark' https://api.example.com/", "curl -b '***' https://api.example.com/"),
+        ("sshpass -p s3cretPw99 ssh root@10.0.0.5 uptime", "sshpass -p *** ssh root@10.0.0.5 uptime"),
+        ("mysql -u root -ps3cretPw99 -h 10.0.0.5 shop", "mysql -u root -p*** -h 10.0.0.5 shop"),
+    ],
+)  # fmt: skip
+async def test_logged_command_hides_a_password_given_as_a_command_line_argument(command: str, logged: str) -> None:
+    """The audit log keeps the command readable and never the password or the cookie typed into it."""
+    from myrm_agent_harness.agent.meta_tools.bash._executor.event_logging import (
+        log_bash_command_execution,
+    )
+
+    mock_logger = AsyncMock()
+    with patch(_PATCH_GET_LOGGER, return_value=mock_logger):
+        await log_bash_command_execution(
+            command=command,
+            session_id="test-session",
+            exit_code=0,
+            stdout="",
+            stderr="",
+            duration_ms=5,
+            success=True,
+        )
+
+    assert mock_logger.log.call_args[0][1]["command"] == logged
