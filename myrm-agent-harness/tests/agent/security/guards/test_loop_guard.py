@@ -120,7 +120,7 @@ class TestToolStuckException:
             guard.pre_check("test_tool", {"arg1": "value1"})
 
         assert "TOOL_STUCK_EXCEPTION" in str(exc_info.value)
-        assert "test_tool" in str(exc_info.value)
+        assert "Tool 'test_tool' failed 3 times in a row" in str(exc_info.value)
 
     def test_no_exception_on_success(self, guard: LoopGuard) -> None:
         """Successful calls don't trigger ToolStuckException."""
@@ -160,7 +160,7 @@ class TestConsecutiveFailures:
         with pytest.raises(ToolStuckException) as exc_info:
             guard.pre_check("web_search_tool", {"query": "test"})
 
-        assert "TOOL_STUCK_EXCEPTION" in str(exc_info.value)
+        assert "TOOL_STUCK_EXCEPTION: 3 consecutive tool calls failed." in str(exc_info.value)
 
     def test_no_break_if_success_interrupts(self, guard: LoopGuard) -> None:
         """A success in between resets the failure streak."""

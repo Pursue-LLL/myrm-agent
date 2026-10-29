@@ -444,7 +444,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
 
   if (stepKey === 'loop_guard_break') {
     const { showI18nToast } = await import('@/services/i18nToastService');
-    showI18nToast(LOOP_GUARD_BREAK_TOAST_KEY, undefined, { type: 'error', duration: 8000 });
+    showI18nToast(LOOP_GUARD_BREAK_TOAST_KEY, undefined, { type: 'warning', duration: 6000 });
   }
 
   if (stepKey === 'ux_warning_truncated') {

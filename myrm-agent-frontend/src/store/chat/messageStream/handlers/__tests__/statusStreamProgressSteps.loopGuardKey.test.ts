@@ -116,7 +116,7 @@ describe('applyStatusProgressStep loop guard steps', () => {
     expect(showI18nToast).not.toHaveBeenCalled();
   });
 
-  it('shows a stop as one error step and tells the user in their language', async () => {
+  it('shows a blocked repeated call as one error step and warns the user in their language', async () => {
     const state = makeMessagesState();
 
     await applyStatusProgressStep(makeCtx('loop_guard_break', 'repetition', state), 'loop_guard_break');
@@ -128,8 +128,8 @@ describe('applyStatusProgressStep loop guard steps', () => {
     expect(step.items).toEqual([]);
     expect(showI18nToast).toHaveBeenCalledTimes(1);
     expect(showI18nToast).toHaveBeenCalledWith('progressSteps.loop_guard_break_toast', undefined, {
-      type: 'error',
-      duration: 8000,
+      type: 'warning',
+      duration: 6000,
     });
   });
 

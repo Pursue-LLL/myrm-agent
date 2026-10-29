@@ -1,12 +1,12 @@
 /**
  * [INPUT]
  * - harness STATUS `data.loop_kind` (POS: loop pattern the guard fired on; `iteration_budget` for the round-budget nudges)
- * - locales progressSteps.loop_guard_warn* / loop_guard_break* (POS: 6-locale loop guard step titles and stop toast)
+ * - locales progressSteps.loop_guard_warn* / loop_guard_break* (POS: 6-locale loop guard step titles and the blocked-call toast)
  *
  * [OUTPUT]
  * - isLoopGuardStep(): whether a STATUS step_key is a loop guard step
  * - loopGuardProgressStepKey(): progressSteps step_key a loop guard STATUS event is shown under
- * - LOOP_GUARD_BREAK_TOAST_KEY: i18n key of the toast that tells the user the agent was stopped
+ * - LOOP_GUARD_BREAK_TOAST_KEY: i18n key of the toast that tells the user a repeated action was blocked (the run goes on)
  *
  * [POS]
  * Wording SSOT for loop guard STATUS events: the harness names the loop kind, the UI words it in the user's language.
@@ -21,7 +21,7 @@ export function isLoopGuardStep(stepKey: string): boolean {
   return stepKey === 'loop_guard_warn' || stepKey === 'loop_guard_break';
 }
 
-/** The kind of a warning picks its wording; a stop has one wording whatever the kind. */
+/** The kind of a warning picks its wording; a blocked repeated call has one wording whatever the kind. */
 export function loopGuardProgressStepKey(stepKey: string, loopKind: unknown): string {
   if (stepKey !== 'loop_guard_warn') {
     return stepKey;

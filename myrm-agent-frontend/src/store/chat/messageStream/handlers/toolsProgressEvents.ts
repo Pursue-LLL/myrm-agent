@@ -188,13 +188,14 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     }
 
     const cancelText = payload?.message || '任务已暂停：需要人工介入 (Task paused for human intervention)';
+    // The loop guard paused the run after repeated tool failures: nothing to approve, a new message continues it.
+    // The title comes from the catalog; `tool_name` stays off the step so it is not titled as a tool row.
+    const isToolStuckPause = payload?.action_type === 'tool_stuck';
 
     actions.setMessages((state) => {
-      const cancelStep = {
-        step_key: 'approval_required',
-        items: [{ text: cancelText }],
-        status: 'error' as const,
-      };
+      const cancelStep = isToolStuckPause
+        ? { step_key: 'tool_stuck_paused', items: [], status: 'error' as const }
+        : { step_key: 'approval_required', items: [{ text: cancelText }], status: 'error' as const };
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
         if (!state.messages[messageIndex].progressSteps) {
@@ -204,6 +205,11 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     });
     actions.setLoading(false);
+    if (isToolStuckPause) {
+      // The step sits in the collapsed task list and the run produced no answer, so say it where it is seen.
+      const { showI18nToast } = await import('@/services/i18nToastService');
+      showI18nToast('progressSteps.tool_stuck_paused', undefined, { type: 'warning', duration: 8000 });
+    }
     return done(ctx);
   }
 

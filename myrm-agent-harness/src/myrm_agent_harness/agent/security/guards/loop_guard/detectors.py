@@ -123,7 +123,7 @@ class LoopDetectorMixin:
                     signature_hash=args_hash,
                 )
             raise ToolStuckException(
-                f"TOOL_STUCK_EXCEPTION: 连续 {streak} 次使用相同参数调用工具 '{tool_name}' 且均报错, 强行切断防止死循环。"
+                f"TOOL_STUCK_EXCEPTION: Tool '{tool_name}' failed {streak} times in a row with identical arguments."
             )
 
         args = calls[-1].args if calls else None
@@ -369,7 +369,7 @@ class LoopDetectorMixin:
                     consecutive_count=failure_streak,
                 )
             raise ToolStuckException(
-                f"TOOL_STUCK_EXCEPTION: 连续 {failure_streak} 次工具调用失败, 强行切断防止死循环浪费资源。"
+                f"TOOL_STUCK_EXCEPTION: {failure_streak} consecutive tool calls failed. Stopping to avoid a retry loop."
             )
 
         return VERDICT_ALLOW
