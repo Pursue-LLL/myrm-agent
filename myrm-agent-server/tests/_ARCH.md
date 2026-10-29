@@ -238,9 +238,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/goals/unattended/test_headless_goal_turn.py` | 模块 | 服务端自启的目标回合在构建 agent 之前预留会话并注册取消令牌（真实 `AgentGateway` 与 `CancellationRegistry`，仅 agent 流为替身）：暂停与 E-Stop 能取消该回合的令牌、回合以任何方式结束都归还会话与令牌、暂停后结束该回合启动的后台任务而跑完的回合不动它们、会话已被消息占用时不构建也不夺走对方的预留、二次启动不扰动首个回合、应用排空不算目标失败 |
 | `services/agent/turn_lease/test_lease.py` | 模块 | 服务端自启回合的租约（真实 `AgentGateway` 与真实 `CancellationRegistry`，仅后台任务注册表为替身）：持有期间会话在途且令牌按回合 id 可被停止、结束/失败都归还、会话被占用或应用排空时拒绝且不动对方的预留、期间被消息抢到的会话不被释放、被取消的回合结束该会话的后台任务而跑完的不动、注册表失败也不留住会话 |
 | `services/agent/turn_lease/test_server_started_turns_guard.py` | 模块 | 架构守卫：`app/` 下每个 `ai_agent_service_stream` 调用点必须登记为「请求绑定」或「服务端自启」，服务端自启的三处都在 `server_turn_lease` 下运行，只有租约与聊天回合可以自己占会话、注册取消令牌；唤醒回合只能由调度器在租约下发起 |
-| `services/agent/adaptive_wakeup/test_wake_turn_scheduler.py` | 模块 | 唤醒回合调度（真实网关、取消注册表与唤醒预算，仅唤醒流本身为替身）：回合持有会话与可停止的令牌、会话忙时等待而不叠加、同一会话的多次完成合并为一轮、唤醒期间到达的完成排在其后不重叠、唤醒期间的 Stop 令牌翻转并结束后台任务、等待期间的 Stop / 用户在通知之后发言 / E-Stop / 日预算超额都跳过、等待有上限、应用排空时放弃、失败的唤醒把会话还回去 |
-| `services/agent/adaptive_wakeup/test_wake_turn_stream.py` | 模块 | 唤醒回合的流式执行（真实网关、取消注册表与流收集器，智能体为脚本化替身）：在调用方租约内流式执行并按会话发布事件、Stop 以 `agent_cancelled` 收尾且留住已说的部分并立即还会话、结束于 Stop 后的失败不重来、普通失败重试且只留最后一次、连续失败三次后放弃 |
-| `services/agent/adaptive_wakeup/test_service.py` | 模块 | 一次后台完成的去向（真实路由与唤醒预算）：预算内落通知行并调度唤醒、超额与 Stop 之后只落通知行不唤醒、用户下一条消息解除 Stop 并恢复额度 |
+| `services/agent/adaptive_wakeup/test_wake_turn_scheduler.py` | 模块 | 后台任务完成后只在会话空闲时唤醒一次，并在停止按钮能触达的租约下运行（真实网关与取消注册表，仅回合执行者为替身）：空闲会话在租约下被唤醒、忙的会话在其回合结束后才唤醒、排队中落地的多次完成共用一轮并回答最新一次、唤醒期间到达的完成排在其后、其后到达的汇入已排的那一轮、唤醒期间的 Stop 令牌翻转并结束后台任务、等待过久的唤醒被丢弃且不动会话、应用排空时不起新唤醒、失败的唤醒把会话还回去 |
+| `services/agent/adaptive_wakeup/test_wake_turn_stream.py` | 模块 | 唤醒回合的流式执行（真实网关、取消注册表与流收集器，智能体为脚本化替身）：在调用方租约内流式执行并按会话发布事件、Stop 以 `agent_cancelled` 收尾且留住已说的部分、结束于 Stop 后的失败不重来、没说任何内容就失败的运行重试且只留最后一次、说了内容后失败不重来（不重复展示）、重试用尽以错误事件（`wake_turn_failed`）与错误回复收尾而不是沉默、会话已不存在不起回合、回合属于会话绑定的智能体 |
+| `services/agent/adaptive_wakeup/test_service.py` | 模块 | 一次后台完成的去向（真实路由与唤醒预算，仅会话存储、事件总线、调度器为替身）：预算内落通知行并调度唤醒、结算只读预算故起跑前落地的都算 followup、超额与 Stop 之后只落带「没起回合」标记的通知行、用户下一条消息解除 Stop 并恢复额度、已删会话的结算不留痕、`forget_chat` 清停止标记与已用额度、通知文本转义与限长（含属性里的引号） |
+| `services/agent/adaptive_wakeup/test_wake_turn_policy.py` | 模块 | 唤醒回合何时起、起一次花多少（真实服务、路由、调度器与网关；替身只有构建并流式执行 agent、会话存储、紧急停止文件与日预算）：起跑的回合扣一份额度、共用一轮的多次结算合扣一份、预算用尽后下一次结算降级、等待期间的 Stop / 通知之后的用户发言 / 被禁止都不起且不扣、通知之前的用户消息不拦 |
+| `services/agent/adaptive_wakeup/test_wakeup_handler.py` | 模块 | 后台子智能体完成后结算进启动它的会话而不是 harness 的会话键：会话键换回会话 id（含自身以 `chat_` 开头的 id）、没有会话的子智能体不结算、结算失败不逃出分离的任务 |
+| `services/agent/goals/test_goal_controls_wake_hold.py` | 模块 | 目标暂停 / 取消就是用户对该会话自主唤醒的停止，恢复目标解除：任何状态下暂停或取消都压住该会话的唤醒、不影响别的会话、恢复解除并恢复额度 |
+| `api/agent/test_last_user_message_wake_notices.py` | 模块 | 后台结算落在最后一个真实回合之后时，重试 / 重新生成 / 撤销作用的用户行（真实 SQLite）：没起回合的通知行（降级、抑制）不算回合，起了回合的通知行算 |
+| `services/chat/test_wake_notice_chat_preview.py` | 模块 | 会话列表的预览与标题只来自人说的话（真实 SQLite）：通知行不改预览与标题、仍刷新最近活动、没有首条消息的会话不以通知为标题、撤销后重算预览不取通知行、`get_latest_message(conversation_only=)` 的取舍 |
 | `services/agent/stream_session/test_persist_user_message_human_turn.py` | 模块 | 已有会话里的新用户消息解除 Stop 并恢复唤醒额度，新会话、审批续跑与重新生成不算 |
 | `api/agents/general_agent/test_stop_holds_autonomous_wakes.py` | 模块 | 两个 Stop 端点（真实网关与取消注册表）终止回合并让该会话不会自行唤醒，只影响被停的会话，什么都没在跑时不动预算；网关按消息 id 反查会话 |
 | `lifecycle/test_auto_continue_turn_lease.py` | 模块 | 崩溃自动续跑的重放回合在租约下运行：持有会话且取消令牌可被停止、无论成败都归还、被停止时结束后台任务、会话已被消息占用时不在其上重放（按失败通知） |
