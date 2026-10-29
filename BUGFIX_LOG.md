@@ -2,6 +2,30 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 没有产品入口的 12 个服务端模块与 45 个前端目录整体删除：测试全绿却保护着没人用的代码，分形文档门禁还逼着为它们逐目录写文档
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交：服务端 `684130b261`、前端 `809d606a0d`，未 push）。「仍然存在」里的 5 项未处理。 |
+| **症状** | 孤儿门禁在工作区报 979 个孤儿模块。其中 12 个服务端模块（`app/api/ws` 2 个、`app/services/backup` 3 个、`app/services/agent/workload_delegation` 3 个、`app/core/cron` 4 个，共 2,267 行）在 `app/` 里没有任何导入，只有各自的 4 个测试文件引用；`CONTRIBUTING.md` 自己写着备份是 "library only … no HTTP route yet"。45 个前端目录加 `components/layout/ConnectionIndicator.tsx`：287 个源文件（37,116 行）、约 211 个测试文件（约 2.06 万行，1,046 例，单独跑一次墙钟 47 秒，全绿）没有产品入口可达的导入，也没有一个文件调用 i18n 接口。分形文档门禁要求每个目录有 `_ARCH.md`，这些死代码因此还被逐目录文档化，并在文件清单里标成「核心」「辅助」，误导后来者。 |
+| **根因** | 功能写完后没有挂到产品入口，孤儿门禁在 CI 里只拦新增（`--base` 口径），存量一直留在树上；单元测试 import 被测文件，不可达代码的测试照样绿；分形文档门禁只检查目录有没有 `_ARCH.md`，不检查目录是否被产品用到。服务端另有一处硬绑定：`tests/architecture/test_api_services_vocabulary.py` 把 `ws`、`backup` 两个目录名写在域名单里，删目录必须同步改。 |
+| **修复** | 服务端（29 个文件）：删除 12 个模块、4 个测试文件和 3 个 `_ARCH.md`；`app/core/cron/__init__.py` 改成不导出任何名称的包标记；`app/core/cron/_ARCH.md`、`app/api/_ARCH.md`、`app/services/_ARCH.md`、`app/services/agent/_ARCH.md` 的对应行、`test_api_services_vocabulary.py` 里的 `ws` 与 `backup`、`CONTRIBUTING.md` 的两行同步删除。前端（554 个文件）：删除 45 个目录（498 个 ts/tsx 与 45 个 `_ARCH.md`）和 `ConnectionIndicator.tsx`；9 个父级 `_ARCH.md` 删 44 行索引和 7 个变空的「子目录」小节；a11y 棘轮基线 `prefer-tag-over-role` 由 62 收紧到 61（被删文件在删除前带 1 条该告警，用 oxlint 在 HEAD 版本上实测）。 |
+| **回归证据** | [1] 引用核对：服务端按导入路径匹配（按文件名词干匹配会把 `heartbeat` 误报 26 处，不采用），`app/` 内对三个包零导入，cron 四个文件只被 `app/core/cron/__init__.py` 重导出、`app/` 内没有 `from app.core.cron import`；前端扫描 8,990 个文件（`src`、`scripts`、`locales`、构建配置），按路径、字符串、相对导入、动态导入四种方式找，只有 `src/lib/connection` 有命中，来源是同样无人导入的 `ConnectionIndicator.tsx`；删除前门禁把这 45 个目录的 286 个源文件全部列为孤儿。[2] 服务端：三种分形文档检查退出码均为 0；`tests/architecture` 删除前后失败集相同（6 失败、1240 通过；6 个失败与本次无关：`test_routes_have_callers`、`test_data_dir_contract` 3 例、`test_tests_do_not_import_app_main`、`test_harness_is_in_repo_editable_path_source`）；`tests/unit/core` 33 例通过；ruff 与导入冒烟通过。[3] 前端：`tsc --noEmit` 无错误；`verify:i18n` 通过；分形文档检查通过；孤儿数 979 → 692（减 287，与删除的源文件数一致）；全量 vitest 1,788 个文件、13,618 例全部通过，另有 1 个未处理错误来自 `KanbanSection.boardRow.test.tsx`（`KanbanSection.tsx:223` 读取 `task_counts` 为 undefined），不在被删文件内。 |
+| **仍然存在** | ① 孤儿模块还有 692 个。② 12 个被内部规划条目引用的前端目录仍没有产品入口，保留是因为对应条目还计划接入，条目一旦判定不做就应删除。③ 前端 lint 的 `verify:a11y`（新增退化）与 `verify:hardcoded-copy`（新增硬编码文案）在工作区是红的，涉及的文件（渠道配对、群聊、系统监控、团队驾驶舱等）都在本次删除范围之外；a11y 基线另有 61 → 58 的 drift，来自别处未提交的改动，本条只收紧了自己删除带来的 1 条。④ `KanbanSection` 的一个未处理错误见上。⑤ 服务端另有 6 个架构门禁在删除前就是红的。 |
+| **代码位置** | `myrm-agent-server/app/api/ws/` · `myrm-agent-server/app/services/backup/` · `myrm-agent-server/app/services/agent/workload_delegation/` · `myrm-agent-server/app/core/cron/`（4 个模块与 `__init__.py`、`_ARCH.md`） · `myrm-agent-server/tests/architecture/test_api_services_vocabulary.py` · `CONTRIBUTING.md` · `myrm-agent-frontend/src/components/features/`（45 个目录中的 44 个）· `myrm-agent-frontend/src/lib/connection/` · `myrm-agent-frontend/src/components/layout/ConnectionIndicator.tsx` · `myrm-agent-frontend/scripts/ci/a11y_ratchet_baseline.json` |
+
+## 2026-10-29 · 会话忙时连发超过上限的消息被丢弃却没有提示：「队列已满」与「已排队」两种提示共用一个 30 秒冷却，满员提示被吞掉
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交 `cd72f04337`，未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | IM 会话正在跑一个回合时，同一会话键里的新消息进入等待队列，上限 10 条（私聊按发送者，群聊按 `chat_id`，整个群共用一个队列）。用真实的 `SessionGate`（回调接成真实函数，不是 mock）在忙碌状态下连发 12 条：入队 10 条，只发出 1 次「已排队」提示，第 11、12 条被丢弃且没有任何提示。产品里本来有这条提示（`message_effects.py` 对 `position < 0` 走 `busy_ack_queue_full`，文案「队列已满，消息未保存，请稍后重发」），在连发场景里永远发不出。 |
+| **根因** | `SessionGate._emit_busy_ack` 对「已排队」和「队列已满」两种提示共用 `_last_ack_time[key]` 一个 30 秒冷却。溢出的消息紧跟在填满队列的消息之后到达，而那条消息要么自己刚触发过「已排队」提示，要么落在上一次提示的 30 秒内，所以溢出提示在连发场景里被吞；只有溢出消息比最近一次「已排队」提示晚 30 秒以上才发得出。既有用例 `test_busy_ack_fires_on_queue_full` 在触发溢出前手工执行 `gate._last_ack_time.clear()`，把真实路径上不会发生的清零写进了测试，这个 bug 因此一直绿着。 |
+| **修复** | 两种提示各自一个 30 秒冷却，并入会话状态 `_SessionState`（`last_queued_ack`、`last_full_ack`），随会话结束一起销毁；原先与会话字典并行维护的 `_last_ack_time` 及其两处清理一并删除；初值取负无穷，不依赖 `time.monotonic()` 的起点。`session_gate.py` 文件头与 `app/channels/routing/_ARCH.md` 的 session_gate 行同步更新。 |
+| **回归证据** | [1] 变异验证：把两种提示改回共用一个冷却，3 个用例失败（`test_busy_ack_fires_on_queue_full`、`test_queue_full_notice_follows_queued_notice_in_one_busy_period`、`test_queue_full_notice_is_debounced_per_session`），文件逐字节还原后 `test_session_gate.py` 33 例全部通过。[2] 新用例覆盖：上限 10、连发 1+12 条得到「已排队」1 次加「队列已满」1 次；连续溢出在冷却内只提示一次、冷却过后再提示；会话排空后冷却重新计时。[3] `tests/channels` 中含 gate、busy、router 的 633 例通过；`ruff check`、`ruff format --check` 通过，mypy 对 `session_gate.py` 零报告。 |
+| **仍然存在** | ① 队列上限仍是 10 条，溢出的消息仍被丢弃，只是现在会告诉用户；没有改成合并摘要或更大的上限。② 没有真实 IM 渠道的端到端验证，提示是否送达用户取决于各渠道的发送实现。③ 两种提示的 30 秒冷却值没有调整。 |
+| **代码位置** | `myrm-agent-server/app/channels/routing/session_gate.py`（`_SessionState`、`_emit_busy_ack`） · `myrm-agent-server/tests/channels/test_session_gate.py`（`TestBusyAck`） · `myrm-agent-server/app/channels/routing/_ARCH.md`（session_gate 行） |
+
 ## 2026-10-29 · Slack 占位消息走原生流式接口：路由器发来的是整段替换的预览，而 Slack 的流只能追加
 
 | 字段 | 内容 |
