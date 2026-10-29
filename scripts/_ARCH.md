@@ -19,9 +19,9 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
 | `ci/install-pre-push-hook.sh` | Unix | 安装 pre-push 架构守门钩子 |
 
-## Harness 代码生成（无 OSS 目录）
+## 路由表前端产物（生成器不在本仓）
 
-`generate_litellm_routing.py` 等生成器在 `myrm-agent-harness` 维护者工具链运行；产物提交路径：`myrm-agent-frontend/src/store/config/litellmRouting.generated.ts`。勿在 OSS 复制生成器。
+`myrm-agent-frontend/src/store/config/litellmRouting.generated.ts` 由生成器按 `myrm-agent-harness/src/myrm_agent_harness/agent/config/litellm_routing.py` 的路由表写出并提交；生成器不在本仓，勿手改产物。`myrm-agent-server/tests/architecture/test_litellm_routing_frontend_parity.py` 校验产物与路由表一致。
 
 ## 中国大陆网络自适应
 

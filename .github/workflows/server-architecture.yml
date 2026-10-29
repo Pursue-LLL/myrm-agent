@@ -16,6 +16,7 @@ on:
       - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
       - 'myrm-agent-harness/src/**'
       - 'myrm-agent-harness/pyproject.toml'
+      - 'myrm-agent-frontend/src/store/config/litellmRouting.generated.ts'
   pull_request:
     paths:
       - 'myrm-agent-server/app/**'
@@ -29,6 +30,7 @@ on:
       - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
       - 'myrm-agent-harness/src/**'
       - 'myrm-agent-harness/pyproject.toml'
+      - 'myrm-agent-frontend/src/store/config/litellmRouting.generated.ts'
       - 'shared/**'
       - '.github/workflows/server-architecture.yml'
 

@@ -6,7 +6,7 @@ GitHub Actions 工作流定义。harness 流水线：`harness-test.yml`（单测
 
 ## 约束
 
-- server `uv.lock` 把 harness 解析为 in-repo editable path source（见 `myrm-agent-server/tests/architecture/test_server_pyproject_lock_parity.py`）；harness 变更须触发 server 流水线（`server-unit-tests.yml` / `server-architecture.yml` 的 paths 含 `myrm-agent-harness/src/**`、`pyproject.toml`）
+- server `uv.lock` 把 harness 解析为 in-repo editable path source（见 `myrm-agent-server/tests/architecture/test_server_pyproject_lock_parity.py`）；harness 变更须触发 server 流水线（`server-unit-tests.yml` / `server-architecture.yml` 的 paths 含 `myrm-agent-harness/src/**`、`pyproject.toml`）；前端 `litellmRouting.generated.ts` 单独改动也触发 `server-architecture.yml`，由 `myrm-agent-server/tests/architecture/test_litellm_routing_frontend_parity.py` 校验它与 harness 路由表一致
 - `harness-v*` 与桌面发布 `v*` tag 命名空间互不重叠；发布不使用长期 PyPI token
 - 架构测试标记 `@pytest.mark.architecture`
 - 第三方 action 一律钉 40 位 commit SHA 并在行尾注释对应的 tag（`dtolnay/rust-toolchain` 钉 `stable` 分支头，注释 `stable`）；SHA 必须由 `git ls-remote --tags <仓库> refs/tags/<tag> refs/tags/<tag>^{}` 解出（`stable` 用 `git ls-remote <仓库> refs/heads/stable`），禁止手写或凭记忆填写（解析不到的 SHA 会让 job 在 `Set up job` 阶段直接失败）
