@@ -2,6 +2,30 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-30 · 围栏里的超长代码行让分片超过平台上限，并多出只有围栏标记的空代码块消息
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | [实测，旧版 `split_message`，`max_len=2000`] ① 围栏里一行 2300 字符：返回的块长是 `[11, 11, 2312, 11]`，即三个只有 ` ```json ` 围栏的空块加一个 2312 字符的块。Discord 的 `content` 上限是 2000 字符（docs.discord.com/developers/resources/message），超限返回 400。② 3000 个随机文档（段落加围栏代码，围栏内行长最多 2300）里 2924 个出现超限块（最大 2310），2922 个出现空代码块；把容差设为 0 仍有 1274 个超限（多出 9 字符）。③ 真实形态的代码块（行长不超过 120，3000 个样本）0 个缺陷，所以触发条件是围栏内的单行很长（压缩 JSON、base64、超长日志行）。 |
+| **根因** | ① 判断围栏内一行「是否太长」时没算上重开围栏的标记行和收尾符号，1990 到 2000 字符的行被拼成 2009 字符的块；② `overflow_tolerance=0.2` 让 2001 到 2400 字符的行整行放过；③ 缓冲区只剩围栏开头标记时被冲出，围栏收尾行恰好放不下时先重开再立刻收尾，两种都留下只有围栏标记的块，`return` 只过滤空白不过滤空围栏。另外收尾符号的预留写死 4 个字符，10 个反引号的围栏最多多出 6 个字符。 |
+| **修复** | `channels/rendering/splitter.py:132` `split_message` 去掉容差与无人使用的 `fence_patterns`：围栏内一行放不进空块（含 `:206` 重开标记与 `:196` 按符号真实长度预留的收尾）就一律按 `:213` 切成多段，每段各自围栏；`:159` `_flush` 丢弃缓冲区末尾没有代码的围栏开头；`:184` 围栏收尾行落在已满的块上时只冲出，不再重开；`providers/slack/helpers.py:114` 不再传 `overflow_tolerance=0.0`。 |
+| **回归证据** | [1] 红绿：`tests/channels/test_splitter.py` 的 `TestHardLimit` 9 例（含固定种子的 300 个随机文档：每块不超限、无空围栏、文字不丢），旧版 8 例失败（行长 1985 的一例旧版也通过），新版全部通过；Discord 集成测试与保留空间测试的上限由 2400、154 收紧为 2000、150（这两个旧版也通过，只是不再把越限当成合格）。[2] 同一批探针新版：真实形态与超长行两组各 3000 个文档，0 个超限块、0 个空围栏、去掉空白与围栏行后的文字与原文一致；围栏里一行 2300 字符现在得到 `[2000, 324]`。[3] 6 个单行变异体（收尾行当普通行、不丢开头标记、旧的长行阈值、段长多 1、收尾预留写死 4、收尾不预留）全部被杀。 |
+| **仍然存在** | ① 超长围栏行在真实回复里有多常见没有数据，只证明了触发条件。② Discord 的字符计数口径（码点还是 UTF-16）没有核实，`split_message` 数的是 Python 字符。③ `max_len` 小于一个围栏包装的长度（如 ` ```python ` 加收尾约 14 字符）时无法满足，没有处理。 |
+| **代码位置** | `myrm-agent-server/app/channels/rendering/splitter.py:50,56,132,159,184,196,206-220` · `providers/slack/helpers.py:114` · `tests/channels/test_splitter.py:289-324` · `tests/channels/providers/discord/test_discord_splitter_integration.py` |
+
+## 2026-10-30 · Matrix 渠道把单个事件的上限设成 65536 字符，长中文回复整条被服务器拒收
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | [实测，用仓内 `build_text_payload` 构造事件] 20,000 字符的中文回复作为一个事件发出，内容 120,051 字节（mautrix 的 ASCII 转义口径）；65536 字符的中文 markdown 事件按 UTF-8 算 371,464 字节，约为事件上限 65,536 字节的 5.7 倍，满额纯 ASCII 带尖括号与 `&` 的文本也有 68,014 字节。真实服务器对超限事件返回 `M_TOO_LARGE: event too large`，限制算的是含额外字段的联邦事件（element-web issue #19330，第三方记录）。加密房间里 mautrix 加密的是 ASCII 转义的 JSON（`mautrix/crypto/encrypt_megolm.py:93-103`，中文每字 6 字节），再 base64 放大 4/3。 |
+| **根因** | `_MAX_TEXT_LENGTH = 65536` 把字符数当成字节数，Matrix 渠道独自覆盖了默认的 4000，没有计入正文与 HTML 各存一份、ASCII 转义和加密放大；该常量同时决定发送切分与预览上限（`routing/message_effects.py:263`），所以一个值错了两处都错。 |
+| **修复** | 删除常量与能力、渲染风格里的覆盖（`providers/matrix/channel.py:95,105` 现为默认值），Matrix 与其他渠道一样按默认 4000 字符切分（`types/messages.py:154`、`types/status.py:209`）。 |
+| **回归证据** | [1] 红绿：`tests/channels/providers/matrix/test_matrix_wire_payloads.py` 的 `TestEventSize` 4 例（中文正文、中文 markdown、代码块、尖括号文本各取 20,000 字符），旧版 4 例都因为整条回复只发出一个事件而失败（该事件分别是 120,051、176,586、64,240、20,791 字节，前两个远超上限），新版通过；渲染上限改成 8000 的变异体被 2 例杀死。[2] 探针：4000 字符的中文 markdown 事件 ASCII 转义后 35,383 字节，按 megolm 放大 4/3 加 1500 字节信封估算 48,786 字节（估算公式，不是真实加密输出）。 |
+| **仍然存在** | ① 没有在真实 homeserver 上验证拒收阈值，也没有取得真实加密后的体积，上面的加密数字是估算。② 4000 个 4 字节字符（如纯 emoji）在加密房间的估算为 65,677 字节仍然超限，带 markdown 时还会翻倍；固定字符上限覆盖不了，没有做按字节的二次拆分，因为没有真实场景证据。③ 长回复在 Matrix 上拆成更多条（2 万英文字符约 5 条）。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/channel.py:17-20,95,105,206` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py:178-200` |
+
 ## 2026-10-30 · 代码图谱：重复索引让调用方成倍增加、删除的文件留下幽灵符号、同名文件互相覆盖，`_` 被当通配符，Agent 没有可用的入口
 
 | 字段 | 内容 |
@@ -45,10 +69,10 @@
 | **状态** | **FIXED**（`myrm-agent` 本地提交 `2f0a1a4933`；未 push）。「仍然存在」里的 4 项未处理。 |
 | **症状** | [代码+红测] `MatrixChannel` 发出的文本事件、编辑事件与媒体事件的内容里都没有 `m.mentions`（文本事件只有 `msgtype`、`body` 和可选的 `format`、`formatted_body`）。Matrix 规范（核对原文，spec.matrix.org 最新版「User and room mentions」一节）写明：早期版本靠正文里的显示名、用户 ID 本地部分和 `@room` 触发提及，引入 `m.mentions` 之后这些规则在事件带 `m.mentions` 时关闭，所以「为避免仍使用旧规则的客户端与服务器产生意外通知，建议每个事件都带 `m.mentions`，没有提及时用空对象」；旧规则在规范 v1.17 才被移除。结果：仍在旧规则下的房间里，一个名叫 `report @alice.pdf` 的文件、或智能体文本里没转换成功的 `@alice`，都可能让成员收到通知；真正被点名的成员反过来只靠正文关键字匹配，没有精确依据。 |
 | **根因** | 出站载荷由 `build_text_payload` 与 `send_media_event` 手写，只考虑了 `msgtype`、`body` 与 HTML 渲染；`@name` 转成完整 Matrix ID 的 `convert_matrix_mentions` 只返回改写后的文本，没有告诉载荷哪些成员被点名，也没有测试断言过 `m.mentions`。 |
-| **修复** | `channels/providers/matrix/html.py:201` 新增 `mentioned_user_ids`（与 `convert_matrix_mentions` 共用 `:206` 的 `_mention_replacements`：代码块与行内代码里的 `@name` 不算，只有房间成员才算，每个成员只列一次、按出现顺序）；`:124` `build_text_payload(text, mentioned_user_ids)` 总是写 `m.mentions`：有成员写 `{"user_ids": [...]}`，没有写空对象，从不写 `room`；`channel.py:236-237` 发送时在改写文本之前取成员 ID，并去掉机器人自己的 ID（规范：发出的消息无法通知自己，建议不要列入）；编辑 `channel.py:260` 的顶层是空对象，`m.new_content` 里同样是空对象（规范：顶层只放这次修订新增的提及，`m.new_content` 放最终版本的提及；编辑不转换提及，所以两处都为空）；`media.py:163` 的媒体事件是空对象。顺带清掉 `media.py` 的 8 条 mypy 报错（3 处写错错误码的 `type: ignore`、`att.url` 空值收窄），行为不变。 |
+| **修复** | `channels/providers/matrix/html.py:201` 新增 `mentioned_user_ids`（与 `convert_matrix_mentions` 共用 `:206` 的 `_mention_replacements`：代码块与行内代码里的 `@name` 不算，只有房间成员才算，每个成员只列一次、按出现顺序）；`:124` `build_text_payload(text, mentioned_user_ids)` 总是写 `m.mentions`：有成员写 `{"user_ids": [...]}`，没有写空对象，从不写 `room`；`channel.py:233-234` 发送时在改写文本之前取成员 ID，并去掉机器人自己的 ID（规范：发出的消息无法通知自己，建议不要列入）；编辑 `channel.py:260` 的顶层是空对象，`m.new_content` 里同样是空对象（规范：顶层只放这次修订新增的提及，`m.new_content` 放最终版本的提及；编辑不转换提及，所以两处都为空）；`media.py:163` 的媒体事件是空对象。顺带清掉 `media.py` 的 8 条 mypy 报错（3 处写错错误码的 `type: ignore`、`att.url` 空值收窄），行为不变。 |
 | **回归证据** | [1] 红绿：`tests/channels/providers/matrix/test_matrix_wire_payloads.py` 20 例，改动前 15 例失败（5 个原有的整体载荷断言补上 `m.mentions`，加上新增的 10 例：点名成员、重复与顺序、机器人不列入自己、回复同时带关系与提及、不是成员或在代码块里或 `@room` 或没有提及都为空对象、编辑为空对象、文件名里的 `@alice` 不触发），5 例（重试、超时、拒绝）本来就过；改动后全部通过；`test_matrix_mentions.py` 新增 3 例直接测 `mentioned_user_ids`（与转换结果一致）；`tests/channels/providers/matrix` 与 `tests/channels/implementations` 共 183 通过。[2] 变异 9 个（机器人也被列入、永不点名、文本不带 `m.mentions`、多写 `room`、重复 ID 不去重、代码块内也算、编辑少顶层字段、发送忽略成员、媒体不带）全部被打红。[3] `ruff` 无报错；`mypy` 对改动文件无报错。 |
 | **仍然存在** | ① 没有在真实 homeserver 与客户端（如 Element）上验证：旧规则下的通知是否因此不再触发、编辑后最终版本的 `m.mentions` 为空时客户端是否取消高亮，都只按规范原文推断。② 规范建议同时在 `formatted_body` 里放指向被提及用户的 matrix.to 链接，让客户端显示为提及标签；本次没有做，正文里仍是纯文本的完整 Matrix ID。③ 实测 `extract_safe_regions`：一行里的三反引号围栏紧跟行内代码（如 `` ```@alice``` `@bob` ``）时，`@bob` 被当成提及（多行围栏写法正常），这是原有行为，没有改。④ 流式编辑的文本不经 `convert_matrix_mentions`，编辑里的 `@name` 保持原样，既不转换也不提及。 |
-| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/html.py:124,201,206` · `channel.py:236-237,260` · `media.py:163` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py` · `tests/channels/providers/matrix/test_matrix_mentions.py` |
+| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/html.py:124,201,206` · `channel.py:233-234,257` · `media.py:163` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py` · `tests/channels/providers/matrix/test_matrix_mentions.py` |
 
 ## 2026-10-30 · 云端 Telegram 的长度上限按字符数计、emoji 算一个：4096 个字符的回复实际有 4106 个 UTF-16 单位，整条发出、整条编辑
 
