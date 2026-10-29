@@ -341,6 +341,25 @@ _TELEGRAM_BOT_RE = re.compile(r"\b(bot)(\d{6,}:[A-Za-z0-9_-]{20,})\b", re.IGNORE
 _SECRET_HEADER_NAMES = r"(?:x-api-key|x-goog-api-key|api-key|apikey|x-api-token|x-auth-token|x-access-token)"
 _SECRET_HEADER_RE = re.compile(rf"({_SECRET_HEADER_NAMES}\s*:\s*)(\S+)", re.IGNORECASE)
 
+# Cookie / Set-Cookie header lines: the value is a `; `-separated list of cookies (the session among them) and is
+# masked whole. A raw header line (`Cookie: a=1; b=2`, curl's `> Cookie:` / `< Set-Cookie:` trace lines) runs to the end
+# of the line. The same header inside a JSON string or a dumped request (`b'GET / HTTP/1.1\r\nCookie: a=1\r\n'`) also
+# stops at an escaped line break and at the quote that closes a JSON string, so the rest of the record stays intact.
+# One inside a quoted command argument (`-H "Cookie: a=1"`) stops at the quote that opened it (and at the backslash
+# that escapes it), which keeps the closing quote and the rest of the command. The name is not glued to a word, `-` or
+# a quote on its left, so `X-Cookie:` and `NoCookie:` are other fields and `Cookie policy:` is prose; the one
+# exception is the escaped line break of a dumped request. Group ``head`` is the header name and colon, the one part
+# that stays.
+_COOKIE_VALUE_END = r"""\\[rn]|"[,}\]]"""
+_COOKIE_HEADER_LINE_RE = re.compile(
+    rf"""(?:(?<![\w\-"'])|(?<=\\n))(?P<head>(?:Set-)?Cookie:[ \t]*)(?!{_COOKIE_VALUE_END})\S(?:(?!{_COOKIE_VALUE_END})[^\r\n])*""",
+    re.IGNORECASE,
+)
+_COOKIE_HEADER_QUOTED_RE = re.compile(
+    r"""(?<=(["']))(?P<head>(?:Set-)?Cookie:[ \t]*)(?!\\?\1)\S(?:(?!\\?\1)[^\r\n])*""",
+    re.IGNORECASE,
+)
+
 # ── JWT token (对齐 Hermes _JWT_RE) ──────────────────────────────
 _JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_=-]{4,}){0,2}")
 
@@ -397,3 +416,8 @@ def _redact_cli_flag(m: re.Match[str]) -> str:
     flag, value = m.group(1), m.group(2)
     masked = _redact_value(flag, value)
     return f"{flag}{masked}" if masked is not None else m.group(0)
+
+
+def _redact_cookie_header(m: re.Match[str]) -> str:
+    """Replacement for the cookie header patterns: keep the header name and colon, hide the whole value."""
+    return f"{m['head']}***"

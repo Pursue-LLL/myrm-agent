@@ -36,6 +36,8 @@ from .patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
     _CONTROL_CHARS_RE,
+    _COOKIE_HEADER_LINE_RE,
+    _COOKIE_HEADER_QUOTED_RE,
     _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
     _JWT_RE,
@@ -47,6 +49,7 @@ from .patterns import (
     _URL_QUERY_RE,
     _YAML_ASSIGN_RE,
     _redact_cli_flag,
+    _redact_cookie_header,
     _redact_env_assignment,
     _redact_form_body,
     _redact_yaml_assignment,
@@ -231,8 +234,10 @@ def _redact_name_assignments(text: str) -> str:
 
 
 def _redact_secret_headers(text: str) -> str:
-    """Mask the value of an API-key style header or property (``x-api-key: …``, ``apiKey: …``)."""
-    return _replace_pattern_bounded(text, _SECRET_HEADER_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
+    """Mask the value of an API-key style header or property (``x-api-key: …``) and of a cookie header line."""
+    text = _replace_pattern_bounded(text, _SECRET_HEADER_RE, lambda m: f"{m.group(1)}{_mask_token(m.group(2))}")
+    text = _replace_pattern_bounded(text, _COOKIE_HEADER_LINE_RE, _redact_cookie_header)
+    return _replace_pattern_bounded(text, _COOKIE_HEADER_QUOTED_RE, _redact_cookie_header)
 
 
 def _redact_by_name(text: str, redact: Callable[[str], str], *, source_code: bool) -> str:
@@ -250,7 +255,7 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
 
     ``source_code=True`` is for the text of a source file, which names credentials all the time
     (``total_api_tokens = 0``) and keeps a secret only as a string literal: the name-based passes (assignments,
-    API-key headers) run on the lines that carry one, the value-shape passes on every line.
+    API-key and cookie headers) run on the lines that carry one, the value-shape passes on every line.
 
     Key features:
     - Bounded regex replace to prevent ReDoS (OPT-1)
