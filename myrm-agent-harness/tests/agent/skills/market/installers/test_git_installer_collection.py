@@ -8,6 +8,8 @@
 - Hidden and junk directories are judged by names below the skill directory only and are never entered
 - A symlink is followed only when its real target is inside the clone; a link leaving it is skipped with a warning,
   a symlinked directory is never entered by the walk
+- A link loop is skipped on its own: the other files of its directory are still read, the SKILL.md search goes on, and a
+  SKILL.md that is a loop is reported as not found
 - A file over the single-file limit, or a skill over the total limit, is refused before the bytes are read; files in
   filtered paths (`dist/`, `build/`) count toward neither
 
@@ -38,6 +40,19 @@ def _link(link: Path, target: Path) -> None:
         link.symlink_to(target, target_is_directory=target.is_dir())
     except OSError:
         pytest.skip("symlinks are not available on this platform")
+
+
+def _record_reads(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Log the name of every file whose bytes `Path.read_bytes` reads."""
+    read: list[str] = []
+    original = Path.read_bytes
+
+    def recording(self: Path) -> bytes:
+        read.append(self.name)
+        return original(self)
+
+    monkeypatch.setattr(Path, "read_bytes", recording)
+    return read
 
 
 def _file(path: Path, content: bytes = b"x") -> Path:
@@ -122,6 +137,17 @@ class TestWalkSkillDir:
 
         assert names == {"SKILL.md", "elsewhere/inner.txt"}
 
+    def test_a_link_loop_does_not_hide_the_other_files_of_its_directory(self, clone: Path) -> None:
+        _file(clone / "SKILL.md", SKILL_MD)
+        _file(clone / "notes.md")
+        _link(clone / "loop.md", clone / "loop.md")
+        _link(clone / "a.md", clone / "b.md")
+        _link(clone / "b.md", clone / "a.md")
+
+        names = {p.name for p in _walk_skill_dir(clone, clone)}
+
+        assert names == {"SKILL.md", "notes.md"}
+
 
 class TestFindSkillMd:
     def test_respects_depth(self, tmp_path: Path) -> None:
@@ -166,6 +192,18 @@ class TestFindSkillMd:
         assert _find_skill_md(scan_root, boundary=clone) == scan_root / "linked" / "SKILL.md"
         assert _find_skill_md(scan_root) is None
 
+    def test_a_link_loop_named_like_the_skill_file_is_not_found(self, clone: Path) -> None:
+        _link(clone / "SKILL.md", clone / "SKILL.md")
+
+        assert _find_skill_md(clone, boundary=clone) is None
+
+    def test_a_link_loop_in_a_directory_does_not_stop_the_search(self, clone: Path) -> None:
+        _link(clone / "aaa" / "loop", clone / "aaa" / "loop")
+        _link(clone / "SKILL.md", clone / "SKILL.md")
+        _file(clone / "zzz" / "SKILL.md", SKILL_MD)
+
+        assert _find_skill_md(clone, boundary=clone) == clone / "zzz" / "SKILL.md"
+
 
 class TestCollectSkillFiles:
     def test_skill_md_that_links_to_a_file_elsewhere_in_the_clone_installs(self, clone: Path) -> None:
@@ -185,14 +223,25 @@ class TestCollectSkillFiles:
         with pytest.raises(ValueError, match=r"SKILL\.md not found"):
             GitInstaller()._collect_skill_files(skill_dir, clone)
 
+    def test_a_skill_md_that_is_a_link_loop_is_not_installed(self, clone: Path) -> None:
+        skill_dir = clone / "alpha"
+        _link(skill_dir / "SKILL.md", skill_dir / "SKILL.md")
+
+        with pytest.raises(ValueError, match=r"SKILL\.md not found"):
+            GitInstaller()._collect_skill_files(skill_dir, clone)
+
+    def test_a_link_loop_next_to_the_skill_files_does_not_empty_the_install(self, clone: Path) -> None:
+        _file(clone / "SKILL.md", SKILL_MD)
+        _link(clone / "loop.md", clone / "loop.md")
+
+        assert GitInstaller()._collect_skill_files(clone).files == {"SKILL.md": SKILL_MD}
+
     def test_file_over_the_single_file_limit_is_refused_before_it_is_read(
         self, clone: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _file(clone / "SKILL.md", SKILL_MD)
         big = _file(clone / "big.bin", b"\0" * (MAX_SINGLE_FILE_SIZE + 1))
-        read: list[str] = []
-        original = Path.read_bytes
-        monkeypatch.setattr(Path, "read_bytes", lambda self: (read.append(self.name), original(self))[1])
+        read = _record_reads(monkeypatch)
 
         with pytest.raises(ValueError, match="exceeds size limit"):
             GitInstaller()._collect_skill_files(clone)
@@ -212,9 +261,7 @@ class TestCollectSkillFiles:
         count = MAX_TOTAL_UPLOAD_SIZE // 900_000 + 1
         for index in range(count):
             _file(clone / f"part{index}.bin", b"\0" * 900_000)
-        read: list[str] = []
-        original = Path.read_bytes
-        monkeypatch.setattr(Path, "read_bytes", lambda self: (read.append(self.name), original(self))[1])
+        read = _record_reads(monkeypatch)
 
         with pytest.raises(ValueError, match="Total upload size exceeds limit"):
             GitInstaller()._collect_skill_files(clone)

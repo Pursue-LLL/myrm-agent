@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-116 · 技能从 git 安装时，仓库里一个指向自己的符号链接（链接环）就让整个目录的文件全部丢失，`SKILL.md` 本身是链接环时抛出未处理的 `OSError`
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`；测试 `tests/agent/skills/market/installers/test_git_installer_collection.py`；没有改提示词与工具 schema，不影响提示词缓存） |
+| **发现时间** | 2026-10-30（复核 114 时，按攻击者的做法给符号链接环与悬空链接各造一个目录，直接调用 `_extract`） |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P2：仓库作者放一个指向自己的符号链接，安装就静默得到 `files=[]`（同目录的其它文件连同 `SKILL.md` 一起丢），或在 `SKILL.md` 本身是链接环时抛出 `OSError`（`install` 只接 `ValueError`，调用方拿到未处理的异常）。结果是安装失败或内容缺失，没有泄露文件，也没有挂起。 |
+| **关联产品** | 技能市场的 git 安装与预览。 |
+| **根因** | 114 的「链接是否留在克隆之内」检查对链接环放行：Python 3.13 的 `Path.resolve()` 在非严格模式下遇到环不抛错，`is_within_boundary` 因此对环返回「在边界内」（它的 `except Exception` 让人以为环会被挡下，实测不是）。随后 `DirEntry.is_file()` 对环抛 `OSError: Too many levels of symbolic links`：`_walk_skill_dir` 把这个异常放在整个目录的 `except OSError` 里，该目录里还没扫到的条目全部丢掉，只记一条「Cannot read directory」；`_find_skill_md` 只接 `PermissionError`，条目的异常直接抛出。 |
+| **修复** | 两处都改成逐条目处理：`_walk_skill_dir` 里无法检查的条目只跳过自己并记 WARNING，同目录其它文件照常收集；`_find_skill_md` 里同样只跳过该条目，搜索继续，外层改接 `OSError`。 |
+| **反复次数** | 第 2 次（114 的补漏）。 |
+| **踩坑** | 114 的 12 个真实仓库语料与 6 个真实 git 用例里都没有链接环与悬空链接，是复核时才造出来的。起初的测试里「环名为 `SKILL.md`、旁边有真实技能目录」一例依赖目录项的返回顺序：环排在前才抛异常，在旧代码上实测碰巧通过，所以拆成「只有环」（旧代码必抛）与「环在一个目录、真实技能在另一个目录」两例。 |
+| **回归** | [1] 5 个新用例（遍历：一个自指链接加一对互指链接，其余文件仍在；查找：名为 `SKILL.md` 的环不被找到、旁边目录里的环不中断搜索；收集：`SKILL.md` 是环时报「SKILL.md not found」而不是 `OSError`、旁边的环不让安装变空）在 114 的代码上全部变红，修复后 `tests/agent/skills/market/installers` 90 例通过。[2] 修复前直接调用 `_extract` 的实测：自指链接与互指链接两种目录都得到 `files=[]`，`SKILL.md` 自指时抛 `OSError [Errno 62]`；悬空链接（被 `is_file()` 过滤）与目录环（目录链接不进入、`_find_skill_md` 限深 3 层）不受影响，`subdirectory` 本身是链接环、两个链接互指或位于环之下时报干净的 `ValueError: SKILL.md not found`，仓库根有环加嵌套技能（不指定 `subdirectory`）时嵌套技能照常安装。[3] 遍历耗时：前端 `src` 5,187 个文件，上一版与现在交错取 25 次最小值 20.0 与 20.1 毫秒，没有可测的差别。[4] ruff、format、mypy、pyright 对 `git_installer.py` 与测试文件 0 报告。 |
+| **仍然存在** | ① 114 的 ①至⑤ 全部仍然存在。② 链接环只在遍历与查找里补了回归用例，`subdirectory` 是环的三种写法只做了实测、没有写进测试。③ 只在 macOS 上用 `os.symlink` 造的链接验证，Windows 与 Linux 上 `DirEntry.is_file()` 遇到环抛出的错误码是否同为 `OSError` 没有验证（`OSError` 是它们的共同基类）。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/installers/git_installer.py`（`_find_skill_md`、`_walk_skill_dir`） · `myrm-agent-harness/tests/agent/skills/market/installers/test_git_installer_collection.py` · `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/installers/_ARCH.md` |
+
 ### BUG-HARNESS-2026-10-29-114 · 技能从 git 安装时，仓库里指向仓外的符号链接被当成技能文件装入，超大文件先全部读进内存才被拒绝
 
 | 字段 | 内容 |

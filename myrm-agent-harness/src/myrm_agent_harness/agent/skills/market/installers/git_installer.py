@@ -181,15 +181,18 @@ def _find_skill_md(root: Path, max_depth: int = 3, boundary: Path | None = None)
     try:
         with os.scandir(root) as entries:
             for entry in entries:
-                if entry.is_symlink() and _escapes_clone(entry.path, clone_root):
-                    continue
-                if entry.name == SKILL_MD_FILE and entry.is_file():
-                    return Path(entry.path)
-                if not entry.name.startswith(".") and entry.is_dir():
-                    result = _find_skill_md(Path(entry.path), max_depth - 1, clone_root)
-                    if result:
-                        return result
-    except PermissionError:
+                try:
+                    if entry.is_symlink() and _escapes_clone(entry.path, clone_root):
+                        continue
+                    if entry.name == SKILL_MD_FILE and entry.is_file():
+                        return Path(entry.path)
+                    if not entry.name.startswith(".") and entry.is_dir():
+                        result = _find_skill_md(Path(entry.path), max_depth - 1, clone_root)
+                        if result:
+                            return result
+                except OSError:
+                    continue  # an entry that cannot be examined (a link loop) is skipped, the search goes on
+    except OSError:
         pass
     return None
 
@@ -199,7 +202,8 @@ def _walk_skill_dir(skill_dir: Path, boundary: Path | None = None) -> list[Path]
 
     只看技能目录之内的名称：技能目录自身的祖先（如以点开头的临时目录）不参与排除，
     被排除的目录不会进入。符号链接目录不进入；符号链接文件只有在真实目标位于
-    ``boundary``（默认技能目录自身）之内时才收集，其余跳过。
+    ``boundary``（默认技能目录自身）之内时才收集，其余跳过。无法检查的条目（如符号链接环）
+    只跳过它自己，不影响同一目录里的其它文件。
     """
     clone_root = skill_dir if boundary is None else boundary
     files: list[Path] = []
@@ -212,12 +216,15 @@ def _walk_skill_dir(skill_dir: Path, boundary: Path | None = None) -> list[Path]
                 for entry in entries:
                     if entry.name.startswith(".") or entry.name in _EXCLUDED_DIR_NAMES:
                         continue
-                    if entry.is_symlink() and _escapes_clone(entry.path, clone_root):
-                        continue
-                    if entry.is_dir(follow_symlinks=False):
-                        pending.append(Path(entry.path))
-                    elif entry.is_file():
-                        files.append(Path(entry.path))
+                    try:
+                        if entry.is_symlink() and _escapes_clone(entry.path, clone_root):
+                            continue
+                        if entry.is_dir(follow_symlinks=False):
+                            pending.append(Path(entry.path))
+                        elif entry.is_file():
+                            files.append(Path(entry.path))
+                    except OSError as e:
+                        logger.warning(f"Skipping {entry.path}: {e}")
         except OSError as e:
             logger.warning(f"Cannot read directory {current}: {e}")
 
