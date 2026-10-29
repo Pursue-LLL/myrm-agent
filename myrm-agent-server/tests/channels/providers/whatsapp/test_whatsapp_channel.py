@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, NonCallableMock, patch
 
 import pytest
 
@@ -23,6 +23,7 @@ from app.channels.providers.whatsapp.helpers import (
 )
 from app.channels.types import (
     ChannelStatus,
+    InboundMessage,
     MediaAttachment,
     MediaType,
     OutboundMessage,
@@ -40,6 +41,13 @@ def _make_channel() -> WhatsAppChannel:
     ch._process.stdin.drain = AsyncMock()
     ch._process.returncode = None
     return ch
+
+
+def _bridge(ch: WhatsAppChannel) -> NonCallableMock:
+    """The mocked bridge process a test installed on the channel."""
+    proc = ch._process
+    assert isinstance(proc, NonCallableMock)
+    return proc
 
 
 # ------------------------------------------------------------------
@@ -162,8 +170,8 @@ class TestWhatsAppBridgeEvents:
     @pytest.mark.asyncio
     async def test_message_event_dispatches_inbound(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         await ch._handle_bridge_event(
             json.dumps(
                 {
@@ -288,8 +296,8 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_dm(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "hi there",
@@ -307,8 +315,8 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_group_with_mention(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "help me",
@@ -326,8 +334,8 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_group_no_mention(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "random chat",
@@ -344,8 +352,8 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_self_chat(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "note to self",
@@ -360,7 +368,7 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_from_me_not_self_chat_ignored(self) -> None:
         ch = _make_channel()
-        ch._emit_inbound = AsyncMock()  # type: ignore[assignment]
+        ch._emit_inbound = AsyncMock()  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "outbound echo",
@@ -374,7 +382,7 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_empty_text_no_audio(self) -> None:
         ch = _make_channel()
-        ch._emit_inbound = AsyncMock()  # type: ignore[assignment]
+        ch._emit_inbound = AsyncMock()  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "",
@@ -387,8 +395,8 @@ class TestWhatsAppInbound:
     @pytest.mark.asyncio
     async def test_inbound_audio_message(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "",
@@ -405,8 +413,8 @@ class TestWhatsAppInbound:
     async def test_inbound_lid_resolution(self) -> None:
         ch = _make_channel()
         ch._lid_to_pn["abc@lid"] = "999@s.whatsapp.net"
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "from lid",
@@ -433,7 +441,7 @@ class TestWhatsAppInbound:
         self, conversation: dict[str, object], caplog: pytest.LogCaptureFixture
     ) -> None:
         ch = _make_channel()
-        ch._emit_inbound = AsyncMock()  # type: ignore[assignment]
+        ch._emit_inbound = AsyncMock()  # type: ignore[method-assign]
         event: dict[str, object] = {
             "type": "message",
             "text": "my card is 4111 1111 1111 1111",
@@ -558,7 +566,7 @@ class TestWhatsAppSend:
                 if not fut.done():
                     fut.set_result({"id": "key_123"})
 
-        ch._process.stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
+        _bridge(ch).stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
 
         msg = OutboundMessage(
             channel="whatsapp",
@@ -623,7 +631,7 @@ class TestWhatsAppSend:
         )
         result = await ch.send(msg)
         assert result is None
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_text_goes_out_before_attachments(self) -> None:
@@ -643,7 +651,7 @@ class TestWhatsAppSend:
             if cmd["type"] == "send":
                 asyncio.ensure_future(_resolve_sent())
 
-        ch._process.stdin.write = MagicMock(side_effect=_record)
+        _bridge(ch).stdin.write = MagicMock(side_effect=_record)
         msg = OutboundMessage(
             channel="whatsapp",
             recipient_id="999@s.whatsapp.net",
@@ -666,7 +674,7 @@ class TestWhatsAppSend:
                 if not fut.done():
                     fut.set_result({"id": "key_1"})
 
-        ch._process.stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
+        _bridge(ch).stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
         msg = OutboundMessage(
             channel="whatsapp",
             recipient_id="999@s.whatsapp.net",
@@ -694,7 +702,7 @@ class TestWhatsAppSend:
         with pytest.raises(ChannelSendError) as exc_info:
             await ch.send(msg)
 
-        ch._process.stdin.write.assert_not_called()
+        _bridge(ch).stdin.write.assert_not_called()
         assert exc_info.value.accepted is False
         assert exc_info.value.retriable is False
 
@@ -703,7 +711,7 @@ class TestWhatsAppSend:
         ch = _make_channel()
         key = json.dumps({"id": "msg_key", "remoteJid": "999@s.whatsapp.net"})
         await ch.edit_message("999@s.whatsapp.net", key, "Updated text")
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_edit_message_invalid_key(self) -> None:
@@ -711,7 +719,7 @@ class TestWhatsAppSend:
         with pytest.raises(ChannelSendError, match="not valid") as excinfo:
             await ch.edit_message("999@s.whatsapp.net", "not-json", "Updated text")
         assert excinfo.value.retriable is False
-        ch._process.stdin.write.assert_not_called()
+        _bridge(ch).stdin.write.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_edit_message_not_connected(self) -> None:
@@ -720,7 +728,7 @@ class TestWhatsAppSend:
         key = json.dumps({"id": "msg_key", "remoteJid": "999@s.whatsapp.net"})
         with pytest.raises(ChannelSendError, match="not connected"):
             await ch.edit_message("999@s.whatsapp.net", key, "Updated text")
-        ch._process.stdin.write.assert_not_called()
+        _bridge(ch).stdin.write.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_delete_message(self) -> None:
@@ -730,7 +738,7 @@ class TestWhatsAppSend:
             "999@s.whatsapp.net",
             key,
         )
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_delete_message_invalid_key(self) -> None:
@@ -750,26 +758,26 @@ class TestWhatsAppActions:
     async def test_start_typing(self) -> None:
         ch = _make_channel()
         await ch.start_typing("999@s.whatsapp.net")
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_stop_typing(self) -> None:
         ch = _make_channel()
         await ch.stop_typing("999@s.whatsapp.net")
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_react_to_message(self) -> None:
         ch = _make_channel()
         await ch.react_to_message("999@s.whatsapp.net", "msg_001", "")
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_react_not_connected(self) -> None:
         ch = _make_channel()
         ch._connected.clear()
         await ch.react_to_message("999@s.whatsapp.net", "msg_001", "")
-        ch._process.stdin.write.assert_not_called()
+        _bridge(ch).stdin.write.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_download_voice_message_not_connected(self) -> None:
@@ -782,13 +790,13 @@ class TestWhatsAppActions:
     async def test_resolve_lids_for_pns(self) -> None:
         ch = _make_channel()
         ch.resolve_lids_for_pns(["999@s.whatsapp.net"])
-        ch._process.stdin.write.assert_called()
+        _bridge(ch).stdin.write.assert_called()
 
     @pytest.mark.asyncio
     async def test_resolve_lids_empty(self) -> None:
         ch = _make_channel()
         ch.resolve_lids_for_pns([])
-        ch._process.stdin.write.assert_not_called()
+        _bridge(ch).stdin.write.assert_not_called()
 
 
 # ------------------------------------------------------------------
@@ -814,7 +822,7 @@ class TestWhatsAppHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_process_exited(self) -> None:
         ch = _make_channel()
-        ch._process.returncode = 1
+        _bridge(ch).returncode = 1
         assert await ch.health_check() is False
 
     @pytest.mark.asyncio
@@ -836,7 +844,7 @@ class TestWhatsAppLifecycle:
     async def test_stop(self) -> None:
         ch = _make_channel()
         ch._status = ChannelStatus.RUNNING
-        ch._process.wait = AsyncMock(return_value=0)
+        _bridge(ch).wait = AsyncMock(return_value=0)
         await ch.stop()
         assert ch._status == ChannelStatus.STOPPED
         assert not ch._connected.is_set()
@@ -845,7 +853,7 @@ class TestWhatsAppLifecycle:
     async def test_stop_with_reader_task(self) -> None:
         ch = _make_channel()
         ch._status = ChannelStatus.RUNNING
-        ch._process.wait = AsyncMock(return_value=0)
+        _bridge(ch).wait = AsyncMock(return_value=0)
 
         async def _forever() -> None:
             await asyncio.sleep(999)
@@ -858,8 +866,8 @@ class TestWhatsAppLifecycle:
     async def test_stop_broken_pipe(self) -> None:
         ch = _make_channel()
         ch._status = ChannelStatus.RUNNING
-        ch._process.stdin.write = MagicMock(side_effect=BrokenPipeError)
-        ch._process.wait = AsyncMock(return_value=0)
+        _bridge(ch).stdin.write = MagicMock(side_effect=BrokenPipeError)
+        _bridge(ch).wait = AsyncMock(return_value=0)
         await ch.stop()
         assert ch._status == ChannelStatus.STOPPED
 
@@ -884,8 +892,8 @@ class TestWhatsAppWriteCmd:
     def test_write_cmd(self) -> None:
         ch = _make_channel()
         ch._write_cmd({"type": "test", "data": "value"})
-        ch._process.stdin.write.assert_called_once()
-        written = ch._process.stdin.write.call_args[0][0]
+        _bridge(ch).stdin.write.assert_called_once()
+        written = _bridge(ch).stdin.write.call_args[0][0]
         parsed = json.loads(written.decode())
         assert parsed["type"] == "test"
 
@@ -898,12 +906,12 @@ class TestWhatsAppWriteCmd:
     async def test_drain(self) -> None:
         ch = _make_channel()
         await ch._drain()
-        ch._process.stdin.drain.assert_called_once()
+        _bridge(ch).stdin.drain.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_drain_broken_pipe(self) -> None:
         ch = _make_channel()
-        ch._process.stdin.drain = AsyncMock(side_effect=BrokenPipeError)
+        _bridge(ch).stdin.drain = AsyncMock(side_effect=BrokenPipeError)
         await ch._drain()
 
     @pytest.mark.asyncio
@@ -992,7 +1000,7 @@ class TestWhatsAppSendPlaceholder:
                 if not fut.done():
                     fut.set_result({"id": "placeholder_key"})
 
-        ch._process.stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
+        _bridge(ch).stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
         result = await ch.send_placeholder("999@s.whatsapp.net", "Thinking...")
         assert result is not None
         key = json.loads(result)
@@ -1030,7 +1038,7 @@ class TestWhatsAppSendMedia:
             filename="img.png",
         )
         await ch._send_media("999@s.whatsapp.net", attachment)
-        written = ch._process.stdin.write.call_args[0][0]
+        written = _bridge(ch).stdin.write.call_args[0][0]
         cmd = json.loads(written.decode())
         assert cmd["type"] == "send_media"
         assert cmd["url"] == "https://example.com/img.png"
@@ -1045,7 +1053,7 @@ class TestWhatsAppSendMedia:
             mime_type="application/pdf",
         )
         await ch._send_media("999@s.whatsapp.net", attachment)
-        written = ch._process.stdin.write.call_args[0][0]
+        written = _bridge(ch).stdin.write.call_args[0][0]
         cmd = json.loads(written.decode())
         assert cmd["path"] == "/tmp/doc.pdf"
         assert cmd["mimetype"] == "application/pdf"
@@ -1060,7 +1068,7 @@ class TestWhatsAppSendMedia:
             caption="Look at this!",
         )
         await ch._send_media("999@s.whatsapp.net", attachment)
-        written = ch._process.stdin.write.call_args[0][0]
+        written = _bridge(ch).stdin.write.call_args[0][0]
         cmd = json.loads(written.decode())
         assert cmd["caption"] == "Look at this!"
 
@@ -1083,7 +1091,7 @@ class TestWhatsAppDownloadVoice:
                 if not fut.done():
                     fut.set_result("/tmp/audio.ogg")
 
-        ch._process.stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_download()))
+        _bridge(ch).stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_download()))
         result = await ch.download_voice_message("msg_001")
         assert result is not None
         assert str(result) == "/tmp/audio.ogg"
@@ -1137,7 +1145,7 @@ class TestWhatsAppListGroups:
             if ch._groups_future and not ch._groups_future.done():
                 ch._groups_future.set_result([{"jid": "g2@g.us", "name": "G2"}])
 
-        ch._process.stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_groups()))
+        _bridge(ch).stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_groups()))
         result = await ch.list_groups(force_refresh=True)
         assert len(result) == 1
         assert result[0].name == "G2"
@@ -1163,7 +1171,7 @@ class TestWhatsAppKillProcess:
     @pytest.mark.asyncio
     async def test_kill_process_graceful(self) -> None:
         ch = _make_channel()
-        proc = ch._process
+        proc = _bridge(ch)
         proc.terminate = MagicMock()
         proc.wait = AsyncMock(return_value=0)
         await ch._kill_process()
@@ -1173,7 +1181,7 @@ class TestWhatsAppKillProcess:
     @pytest.mark.asyncio
     async def test_kill_process_timeout_then_kill(self) -> None:
         ch = _make_channel()
-        proc = ch._process
+        proc = _bridge(ch)
         proc.terminate = MagicMock()
         proc.kill = MagicMock()
         proc.wait = AsyncMock(return_value=0)
@@ -1184,7 +1192,7 @@ class TestWhatsAppKillProcess:
     @pytest.mark.asyncio
     async def test_kill_process_already_exited(self) -> None:
         ch = _make_channel()
-        ch._process.returncode = 0
+        _bridge(ch).returncode = 0
         await ch._kill_process()
         assert ch._process is None
 
@@ -1294,8 +1302,8 @@ class TestBridgeProcessMixin:
     async def test_read_stderr_logs_errors(self) -> None:
         ch = _make_channel()
         lines = [b"error line 1\n", b"error line 2\n", b""]
-        ch._process.stderr = MagicMock()
-        ch._process.stderr.readline = AsyncMock(side_effect=lines)
+        _bridge(ch).stderr = MagicMock()
+        _bridge(ch).stderr.readline = AsyncMock(side_effect=lines)
 
         await ch._read_stderr()
 
@@ -1308,8 +1316,8 @@ class TestBridgeProcessMixin:
     @pytest.mark.asyncio
     async def test_read_stderr_cancelled(self) -> None:
         ch = _make_channel()
-        ch._process.stderr = MagicMock()
-        ch._process.stderr.readline = AsyncMock(side_effect=asyncio.CancelledError)
+        _bridge(ch).stderr = MagicMock()
+        _bridge(ch).stderr.readline = AsyncMock(side_effect=asyncio.CancelledError)
         await ch._read_stderr()
 
     @pytest.mark.asyncio
@@ -1318,9 +1326,9 @@ class TestBridgeProcessMixin:
         ch._status = ChannelStatus.RUNNING
         event_data = json.dumps({"type": "qr", "data": "test_qr"})
         lines = [f"{event_data}\n".encode(), b""]
-        ch._process.stdout = MagicMock()
-        ch._process.stdout.readline = AsyncMock(side_effect=lines)
-        ch._handle_bridge_event = AsyncMock()
+        _bridge(ch).stdout = MagicMock()
+        _bridge(ch).stdout.readline = AsyncMock(side_effect=lines)
+        ch._handle_bridge_event = AsyncMock()  # type: ignore[method-assign]
 
         await ch._read_stdout()
         ch._handle_bridge_event.assert_called_once_with(event_data)
@@ -1334,16 +1342,16 @@ class TestBridgeProcessMixin:
     @pytest.mark.asyncio
     async def test_read_stdout_cancelled(self) -> None:
         ch = _make_channel()
-        ch._process.stdout = MagicMock()
-        ch._process.stdout.readline = AsyncMock(side_effect=asyncio.CancelledError)
+        _bridge(ch).stdout = MagicMock()
+        _bridge(ch).stdout.readline = AsyncMock(side_effect=asyncio.CancelledError)
         await ch._read_stdout()
 
     @pytest.mark.asyncio
     async def test_read_stdout_sets_error_on_unexpected_end(self) -> None:
         ch = _make_channel()
         ch._status = ChannelStatus.RUNNING
-        ch._process.stdout = MagicMock()
-        ch._process.stdout.readline = AsyncMock(return_value=b"")
+        _bridge(ch).stdout = MagicMock()
+        _bridge(ch).stdout.readline = AsyncMock(return_value=b"")
 
         await ch._read_stdout()
         assert ch._status == ChannelStatus.ERROR

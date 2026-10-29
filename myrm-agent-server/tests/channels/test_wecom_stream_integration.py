@@ -90,21 +90,23 @@ async def test_wecom_aibot_long_answer_finishes_the_stream_with_chunk_one_and_se
         msg = OutboundMessage(channel="wecom_aibot", recipient_id="chat_long", content=answer, user_id="u_long")
         await MessageEffects(bus).edit_placeholder("wecom_aibot", "chat_long", stream_id, msg)
 
-        proactive: list[dict[str, object]] = []
         for _ in range(100):
-            sent_payloads = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]
-            proactive = [p for p in sent_payloads if p.get("cmd") == "aibot_send_msg"]
-            if len(proactive) == 2:
+            frames = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]
+            if sum(frame.get("cmd") == "aibot_send_msg" for frame in frames) == 2:
                 break
             await asyncio.sleep(0.02)
     finally:
         await bus.stop()
 
-    respond = [p for p in sent_payloads if p.get("cmd") == "aibot_respond_msg"]
-    finished = [p["body"]["stream"]["content"] for p in respond if p["body"]["stream"].get("finish") is True]
+    proactive = [f["body"]["text"]["content"] for f in frames if f.get("cmd") == "aibot_send_msg"]
+    finished = [
+        f["body"]["stream"]["content"]
+        for f in frames
+        if f.get("cmd") == "aibot_respond_msg" and f["body"]["stream"].get("finish") is True
+    ]
     assert len(finished) == 1
     assert len(proactive) == 2
-    assert finished[0] + "".join(p["body"]["text"]["content"] for p in proactive) == answer
+    assert finished[0] + "".join(proactive) == answer
 
 
 @pytest.mark.asyncio
@@ -128,7 +130,7 @@ async def test_wecom_aibot_reconnect_recovery_integration() -> None:
     router = AgentRouter(
         bus=bus,
         pairing_store=StubPairingStore(),  # type: ignore[arg-type]
-        agent_executor=StubStreamingExecutor(),  # type: ignore[arg-type]
+        agent_executor=StubStreamingExecutor(),
         session_gate_config=SessionGateConfig(debounce_window_ms=0),
     )
     router._running = True
@@ -168,7 +170,7 @@ async def test_wecom_self_built_router_no_zombie_integration() -> None:
     # Mock _api_send to capture outbound messages
     sent_api_calls: list[dict[str, object]] = []
 
-    ch._token = "valid_mock_token"
+    ch._access_token = "valid_mock_token"
     ch._token_expires_at = 9999999999.0
 
     async def _mock_api_send(touser: str, msgtype: str, content: dict[str, object], **kwargs: object) -> bool:
@@ -180,7 +182,7 @@ async def test_wecom_self_built_router_no_zombie_integration() -> None:
     router = AgentRouter(
         bus=bus,
         pairing_store=StubPairingStore(),  # type: ignore[arg-type]
-        agent_executor=StubStreamingExecutor(),  # type: ignore[arg-type]
+        agent_executor=StubStreamingExecutor(),
         session_gate_config=SessionGateConfig(debounce_window_ms=0),
     )
     router._running = True

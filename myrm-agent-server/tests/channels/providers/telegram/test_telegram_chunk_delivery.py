@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import json
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +12,7 @@ import pytest
 
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.telegram import TelegramChannel
-from app.channels.providers.telegram.api import TelegramApiError
+from app.channels.providers.telegram.api import TelegramApiError, TelegramClient
 from app.channels.reliability.retry import RetryConfig
 from app.channels.types import OutboundMessage
 from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
@@ -30,6 +31,17 @@ def _channel(*, rich: bool) -> tuple[TelegramChannel, MagicMock]:
     client.send_rich_message = AsyncMock(side_effect=lambda chat, text, **kw: {"message_id": len(text)})
     ch._client = client
     return ch, client
+
+
+def _wire_channel(handler: Callable[[httpx.Request], httpx.Response]) -> TelegramChannel:
+    """A channel whose real Bot API client answers from ``handler`` instead of the network."""
+    ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
+    ch.retry_config = _FAST
+    ch._rich_send_available = True
+    client = TelegramClient(FAKE_TELEGRAM_BOT_TOKEN, api_base="http://bot-api.test")
+    client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    ch._client = client
+    return ch
 
 
 def _message(reply_to_id: str | None = None) -> OutboundMessage:
@@ -223,3 +235,44 @@ async def test_the_rich_quote_rides_the_first_part_and_the_buttons_the_last_part
     assert _texts(client.send_rich_message) == ["one-a", "one-b", "two"]
     assert [c.kwargs["reply_to_message_id"] for c in calls] == [7, None, None]
     assert [c.kwargs["reply_markup"] for c in calls] == [None, None, _BUTTONS]
+
+
+@pytest.mark.asyncio
+async def test_on_the_wire_a_flood_limited_later_rich_chunk_is_retried_alone() -> None:
+    """The real client turns the platform's 429 into the error the retry policy reads."""
+    sent: list[str] = []
+    flood_pending = [True]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        markdown = json.loads(request.content)["rich_message"]["markdown"]
+        sent.append(markdown)
+        if markdown == "two" and flood_pending:
+            flood_pending.clear()
+            body = {"ok": False, "error_code": 429, "description": "Too Many Requests", "parameters": {"retry_after": 0}}
+            return httpx.Response(429, json=body)
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": len(sent)}})
+
+    with _rich_reply(["one", "two", "three"]):
+        result = await _wire_channel(handler).send(_message())
+
+    assert sent == ["one", "two", "two", "three"]
+    assert result == "4"
+
+
+@pytest.mark.asyncio
+async def test_on_the_wire_a_dropped_connection_on_a_later_rich_chunk_is_a_partial_delivery() -> None:
+    sent: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        markdown = json.loads(request.content)["rich_message"]["markdown"]
+        sent.append(markdown)
+        if markdown == "two":
+            raise httpx.ConnectError("down", request=request)
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": len(sent)}})
+
+    with _rich_reply(["one", "two", "three"]), pytest.raises(ChannelSendError) as exc_info:
+        await _wire_channel(handler).send(_message())
+
+    assert sent == ["one", "two"]
+    assert exc_info.value.accepted is True
+    assert "Delivered 1 of 3" in str(exc_info.value)

@@ -271,11 +271,9 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        """Finalize a streaming message with its one rendered chunk; the router sends any further chunk as a message of its own."""
+        """Finalize a streaming message with the rendered chunk the router hands over (see the base contract)."""
         state = self._active_streams.pop(message_id, None)
-
-        chunks = render(msg, self.render_style)
-        final_text = chunks[0] if chunks else (msg.content or "")
+        final_text = msg.content or ""
 
         if not state:
             # No active stream; send it as a proactive message
