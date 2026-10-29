@@ -11,7 +11,6 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | `__init__.py` | 入口 | 包导出 | — |
 | `dependencies.py` | 核心 | FastAPI 依赖注入统一入口 | ✅ |
 | `router.py` | 核心 | 全量子路由注册表 | — |
-| `_optional_routers.py` | 核心 | 可选路由延迟加载原语：按模块路径导入可选路由，依赖缺失时只跳过该功能并告警，不拖垮 server import。 | ✅ |
 
 ## 子模块导航（按域）
 

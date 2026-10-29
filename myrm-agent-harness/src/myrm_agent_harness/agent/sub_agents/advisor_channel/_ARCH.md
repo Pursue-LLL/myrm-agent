@@ -15,4 +15,3 @@
 ## 依赖关系
 
 - 上级模块：[../_ARCH.md](../_ARCH.md)
-- 业务消费层：Server `app/services/agent/advisor_channel_service.py`

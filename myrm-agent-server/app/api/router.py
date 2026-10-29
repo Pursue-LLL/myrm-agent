@@ -15,7 +15,6 @@ from app.api.agents import (
     suggestions,
     templates,
 )
-from app.api.agents._optional_routers import register_agent_routers
 from app.api.api_keys import router as api_keys_router
 from app.api.approvals import router as approvals_router
 from app.api.audit.bash_router import router as audit_router
@@ -193,7 +192,6 @@ api_router.include_router(agent_portability.router, prefix="/user-agents", tags=
 api_router.include_router(agent_history.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(providers.router, prefix="/user-agents/providers", tags=["user-agents"])
 
-register_agent_routers(api_router)
 api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])
 

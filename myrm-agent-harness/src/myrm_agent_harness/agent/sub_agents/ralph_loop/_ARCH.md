@@ -16,4 +16,3 @@ Ralph 式 Fresh-Agent 多轮循环执行模块（Topic 12 · 第 15 项）：采
 ## 依赖关系
 
 - 上级模块：[../_ARCH.md](../_ARCH.md)
-- 业务消费层：Server `app/services/agent/ralph_workflow_service.py`

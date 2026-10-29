@@ -1,13 +1,6 @@
 POST /agents/chats/{chat_id}/redirect
 POST /agents/chats/{chat_id}/steer
 GET /agents/chats/{chat_id}/steer-metrics
-POST /agents/handoff/finalize
-GET /agents/handoff/pending
-GET /agents/handoff/session/{session_id}
-GET /agents/handoff/{handoff_id}
-POST /agents/handoff/{handoff_id}/cancel
-POST /agents/handoff/{handoff_id}/claim
-POST /agents/handoff/{handoff_id}/complete
 GET /approvals/grants
 POST /approvals/grants/revoke
 GET /audit/bash/anomalies
@@ -38,7 +31,6 @@ GET /evolution/pending
 GET /evolution/pending/{evolution_id}
 GET /extension/pairing/{code}
 POST /features/{feature_id}/reset
-GET /files/browse/search
 GET /files/revert/stats
 POST /files/storage/admin/files/cleanup
 GET /files/storage/files
