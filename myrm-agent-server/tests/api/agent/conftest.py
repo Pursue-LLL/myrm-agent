@@ -29,6 +29,7 @@ from tests.api.agent.utils import (
 )
 from tests.support.real_model_workspace_turns import (  # noqa: F401  (fixtures of the real-model workspace tests)
     applied,
+    approval_trail,
     routes_and_trust,
     sent,
     stuck_turn_report,

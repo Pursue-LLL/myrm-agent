@@ -6,13 +6,13 @@
 - ChatLiteLLM message building and the run's trust binding (POS: recorded where the request is built and the trust is decided)
 
 [OUTPUT]
-- stuck_turn_report, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
+- stuck_turn_report, approval_trail, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
 - new_chat, trusted_project_folder, harness_workspace, ask, main_request_text: the steps of a turn
 - TRUST_API, PROJECT_API, TURN_TIMEOUT_SECONDS: shared constants
 
 [POS]
 Server pytest-only. ``tests/api/agent/conftest.py`` imports the fixtures, so ``test_workspace_hostile_folder_e2e.py`` and
-``test_workspace_subdirectory_rules_e2e.py`` get them by name; those two modules switch ``routes_and_trust`` and ``stuck_turn_report`` on
+``test_workspace_subdirectory_rules_e2e.py`` get them by name; those two modules switch ``routes_and_trust``, ``stuck_turn_report`` and ``approval_trail`` on
 with ``usefixtures``, because the other tests of the directory must not run behind the project and trust routes.
 """
 
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -50,6 +51,11 @@ from tests.support.pending_task_report import report_pending_tasks_after
 TRUST_API = "/api/v1/security/workspace-trust"
 PROJECT_API = "/api/v1/projects"
 TURN_TIMEOUT_SECONDS = 240
+_APPROVAL_LOGGERS = (
+    "myrm_agent_harness.agent.middlewares.approval.scheduler",
+    "app.services.agent.streaming_support.hitl_timeout",
+    "app.services.agent.stream_session.orchestrator",
+)
 
 
 @pytest.fixture
@@ -57,6 +63,19 @@ def stuck_turn_report() -> Iterator[None]:
     """The thread stacks of a run ended by the timeout show an idle loop; the tasks parked on an await say which one."""
     with report_pending_tasks_after(TURN_TIMEOUT_SECONDS - 40):
         yield
+
+
+@pytest.fixture
+def approval_trail() -> Iterator[None]:
+    """A model that ignores "do not use tools" can stop the turn at an approval; a resume refused as already resolved is explained by the
+    INFO lines of the timer and the resume (who armed or claimed the chat's key, and when), which the default WARNING level drops."""
+    loggers = [logging.getLogger(name) for name in _APPROVAL_LOGGERS]
+    previous = [logger.level for logger in loggers]
+    for logger in loggers:
+        logger.setLevel(logging.DEBUG)
+    yield
+    for logger, level in zip(loggers, previous, strict=True):
+        logger.setLevel(level)
 
 
 @pytest.fixture
