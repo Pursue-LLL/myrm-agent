@@ -16,9 +16,10 @@ module adds the ones whose name only hints at it (``--key``, ``--auth``, ``--bea
 - command_preview(command, limit) -> str — the first ``limit`` characters of the masked command, ``...`` after a cut
 
 [POS]
-Entry of the commands the audit log and the background-job registry keep (``agent/meta_tools/bash`` calls it for both)
-and the preview of the commands a log line quotes (bash, file operations, the completion guard, code execution,
-``safe_exec``, the CLI agent runtime, skill dynamic context and the SSH vault call it).
+Entry of the commands the audit log and the background-job registry keep (``agent/meta_tools/bash`` calls it for both),
+of the command fields the event log persists (``agent/event_log``) and the preview of the commands a log line quotes
+(bash, file operations, the completion guard, code execution, ``safe_exec``, the CLI agent runtime, skill dynamic
+context and the SSH vault call it).
 """
 
 from __future__ import annotations

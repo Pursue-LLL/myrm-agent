@@ -19,6 +19,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+from myrm_agent_harness.agent.event_log.logger import EventLogger
 from myrm_agent_harness.backends.profiles.types import AgentProfile
 from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
 
@@ -35,6 +37,7 @@ from app.services.system.support_bundle_service import (
 _MODULE = "app.services.system.support_bundle_service"
 _SECRET = "sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL"
 _PROMPT = "PRIVATE-PROMPT-TEXT"
+_PLAIN_WORD_VALUE = "Summer2024!"  # no token shape, no entropy: only the option name before it marks it a credential
 
 _SNAPSHOT = HealthSnapshot(
     harness_reports=(
@@ -167,6 +170,21 @@ async def test_a_session_cookie_in_command_output_never_reaches_the_bundle(event
 
     assert "Zk3fQ9xL" not in files["traces/session.jsonl"]
     assert json.loads(files["traces/session.jsonl"])["data"]["stdout"] == "> GET /api HTTP/1.1\n> Cookie: ***\n< HTTP/1.1 200 OK"
+
+
+async def test_a_tool_command_the_event_log_wrote_reaches_the_bundle_without_its_credential(event_logs: Path) -> None:
+    backend = FileEventLogBackend(event_logs, "session")
+    event_logger = EventLogger(backend, "session")
+    await event_logger.start()
+    await event_logger.log(
+        "tool_start", {"tool_name": "bash_code_execute_tool", "args": {"command": f"tool --key {_PLAIN_WORD_VALUE}"}}
+    )
+    await event_logger.close()
+
+    files = await _build()
+
+    assert "tool --key" in files["traces/session.jsonl"]
+    assert _PLAIN_WORD_VALUE not in files["traces/session.jsonl"]
 
 
 async def test_a_slow_doctor_degrades_its_section_without_failing_the_bundle(event_logs: Path) -> None:

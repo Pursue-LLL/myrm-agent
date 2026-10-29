@@ -11,7 +11,8 @@ task-level replay, and OpenTelemetry correlation.
 [INPUT]
 - event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - infra.tracing.propagation::get_current_trace_id (POS: Trace上下文传播)
-- security.detection::leak_detector, (POS: Unicode  ID)
+- security.detection.leak_detector::redact_leaks (POS: Masks token shapes and high-entropy secrets in a persisted string)
+- core.security.redact::redact_command_line (POS: Masks credential-named options and assignments in a command string)
 
 [OUTPUT]
 - EventLogger: main entry point for event recording
@@ -25,8 +26,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, cast
+
+from myrm_agent_harness.core.security.redact import redact_command_line
 
 from .types import (
     ActivityPatterns,
@@ -47,6 +51,8 @@ _FLUSH_BATCH_SIZE = 50
 _FLUSH_INTERVAL_S = 0.5
 _CLOSE_TIMEOUT_S = 5.0
 _MAX_FIELD_BYTES = 65536
+# A key whose last word is ``command`` or ``cmd`` (``command``, ``verify_command``, ``rerun_cmd``) holds a command line.
+_COMMAND_KEY = re.compile(r"(?:^|_)(?:command|cmd)$")
 
 _SESSION_START = "session_start"
 _SESSION_END = "session_end"
@@ -237,8 +243,9 @@ class EventLogger:
         """Cleanup old event logs (fire-and-forget background task)."""
         try:
             # Check if backend supports cleanup (FileEventLogBackend does)
-            if hasattr(self._backend, "cleanup_old_logs"):
-                deleted_count = await self._backend.cleanup_old_logs()
+            cleanup = getattr(self._backend, "cleanup_old_logs", None)
+            if cleanup is not None:
+                deleted_count = await cleanup()
                 if deleted_count > 0:
                     logger.info(f"Event log cleanup: removed {deleted_count} old log files")
         except Exception as e:
@@ -282,22 +289,25 @@ class EventLogger:
 
         Recurses into nested dict/list values so credentials embedded in
         structured payloads (tool args/results, error diagnostics) are
-        redacted exactly like top-level string fields.
+        redacted exactly like top-level string fields. A string under a
+        command key is masked as a command line first: the leak detector
+        takes the value after ``--key`` for an ordinary word.
         """
         try:
             from myrm_agent_harness.agent.security.detection.leak_detector import (
                 redact_leaks,
             )
 
-            def _redact(value: object) -> object:
+            def _redact(value: object, key: object = "") -> object:
                 if isinstance(value, str):
-                    return redact_leaks(value)
+                    is_command = isinstance(key, str) and _COMMAND_KEY.search(key)
+                    return redact_leaks(redact_command_line(value) if is_command else value)
                 if isinstance(value, dict):
-                    return {key: _redact(item) for key, item in value.items()}
+                    return {name: _redact(item, name) for name, item in value.items()}
                 if isinstance(value, list):
-                    return [_redact(item) for item in value]
+                    return [_redact(item, key) for item in value]
                 if isinstance(value, tuple):
-                    return tuple(_redact(item) for item in value)
+                    return tuple(_redact(item, key) for item in value)
                 return value
 
             return cast("dict[str, object]", _redact(data))
