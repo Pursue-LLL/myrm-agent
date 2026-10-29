@@ -428,6 +428,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_file_mutation_seed_fixture.py` | 模块 | HTTP：file-mutation seed `empty_write` → persisted `metadata.fileMutationFailures` |
 | `api/chats/test_rich_media_preview_seed_fixture.py` | 模块 | 集成：rich-media seed（chat + workspace png/pdf/zip/txt）→ chat.workspace_dir 持久化 + user 消息 + browse 二进制流式全字节/MIME |
 | `e2e/test_workspace_rich_media_preview_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed rich-media fixture → workspace Files tab → png 图片加载 / pdf react-pdf canvas / zip unsupported 兜底下载 / txt 文本渲染 |
+| `e2e/test_workspace_trust_folder_gate_chrome_e2e.py` | 模块 | Chrome FolderGate（SHARED+NAMESPACE_WRITE×1）：项目 chip 右键 → 设置工作目录 → 选择文件夹 → 键入含敌意文件的目录（FIFO `SKILL.md`、64 MiB 稀疏 `mcp.json` 与 `.myrm/config.toml`）→ 使用此文件夹，弹窗 30 s 内显示该目录与诚实文件的计数（技能 1、规则 1、MCP 1、含 `.myrm` 配置）；等选择器载入主目录后再键入、键入与回车分两次求值（React 在微任务里提交输入）；`finally` 打开 FIFO 写端放行可能被卡住的后端线程；仅 POSIX |
 | `frontend/workspace-browser` 单测 | 模块 | RichMediaFilePreview 分发 12 例（kind 覆盖/大小写/unsupported/编辑按钮禁用）+ WorkspaceFilePreview is_text 降级 2 例（未知二进制→unsupported 不 fetch / 未知文本→文本渲染） |
 | `api/agent/test_stream_collector_file_mutation.py` | 模块 | StreamContentCollector `file_mutation_failed` → `extra_data.fileMutationFailures` |
 | `api/agent/test_stream_collector_skill_batch.py` | 模块 | StreamContentCollector 收到 `tool_end`(`skill_mutation_batch_id`) → 关联到对应调用的 skill_manage 步骤（后一次调用不覆盖前一次、批次事件不新建步骤、`extra_data.progressSteps` 落库携带批次 id） |
@@ -464,6 +465,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/chat/test_effective_workspace_grantable.py` | 单元 | `resolve_effective_chat_workspace` 不把已存的、绑定闸门会拒绝的目录交给沙箱：普通目录照用，含受保护位置的目录与应用状态目录（及其上级）被跳过，项目工作区不可用时让位给会话自己的目录 |
 | `services/security/test_workspace_trust_store.py` | 模块 | 文件夹信任条目记录用户在信任弹窗中看过的仓库声明命令前缀：信任时记录、受限时为空、撤销时清除、重载后保留，没有记录前缀的条目不披露任何前缀；预览清单只把信任之后新增的前缀列为待决；沙箱 agent 在信任之后写入的前缀在用户再次批准前不生效，没有记录前缀的已信任条目要求重新决定 |
 | `api/security/test_workspace_trust_api.py` | 模块 | 信任 REST：预览清单与干净目录自动信任、决定持久化、TRUSTED 决定缺少或带过期 `manifest_hash` 被 400 拒绝且不落库，RESTRICTED 不需要哈希、已信任列表 |
+| `api/security/test_workspace_trust_hostile_folder_api.py` | 模块 | 信任 REST 对含敌意文件目录的整条服务端路径（真实 router + 真实 store + 真实测试库 + 真实文件：FIFO `SKILL.md`、64 MiB 稀疏 `mcp.json` 与 `.myrm/config.toml`）：预览 10 s 内返回诚实文件的计数；两次预览哈希一致，用该哈希做 TRUSTED 决定被接受并落库；目录在预览后变化则旧哈希被 400 拒绝；`timeout(method="thread")` 使读取阻塞时以栈转储结束进程，而不是让测试客户端无限等待；仅 POSIX |
 | `api/chats/test_workspace_path_policy_api.py` | 模块 | 项目 create/adopt/update、会话工作区 PATCH、转录导入各入口拒绝过宽目录（真实路由 + 真 DB）；已存储的家目录工作区读侧回退到会话沙箱并落库自愈 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
@@ -474,6 +476,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/project/test_project_payload.py` | 单元 | 项目载荷的 `workspaceUsable`：无文件夹与普通文件夹为可用，家目录与 `/` 这类包含受保护目录的文件夹报告为不可用 |
 | `services/project/test_legacy_workspace_path_migration.py` | 模块 | 假 `workspace_path` SQL 清理语义（清 `/persistent/workspace/project_%`、保留真实 bind） |
 | `api/agent/test_workspace_rules_e2e.py` | 模块 | Workspace rules First-Match-Wins 真实 LLM E2E（`@pytest.mark.e2e` + `asyncio`：AGENTS.md > .cursorrules；规则注入 harness workspace 真实路径；async SSE 收集 + auto-approve resume 循环；断言依赖规则遵守 → 使用更强 LITE_MODEL；默认套件 deselect） |
+| `api/agent/test_workspace_hostile_folder_e2e.py` | 模块 | 真实模型的 agent 回合：工作区除 `AGENTS.md` 外还有 FIFO `SKILL.md` 与稀疏配置文件；断言流里没有 error 事件，且回答含只在 `AGENTS.md` 中出现的暗号（规则经系统提示词到达模型）；该回合不依赖有界读取（去掉后同样通过），只检查规则送达，读取阻塞由预览用例守住；`@pytest.mark.e2e` + 需要 `LITE_API_KEY`，默认套件 deselect；仅 POSIX |
 | `api/agent/test_workspace_boundary_approval_e2e.py` | 模块 | Workspace 边界确定性路径策略（`PathPolicy` 外部写文件 → ASK，无 LLM）+ 越界文件访问审批 LLM E2E（`@pytest.mark.e2e`；LLM 类默认 skip：flaky + PathPolicy 已由确定性用例覆盖） |
 | `core/security/test_session_overlay.py` | 模块 | 请求级安全覆盖：会话预设（accept_edits / explore 逐权限合并、hitl 与未知预设原样返回）· `SecurityOverlaySpec`（空规格为恒等、预设拒绝已保存配置放行的工具、远程暴露拒绝并关闭 YOLO、本地可信请求不改配置、/learn 授权抬升被预设拒绝的 skill_manage、三层覆盖顺序、JSON 往返、不可变）· 沙箱隔离覆盖（锁定 `pathPolicy.allowDirectoryGrants` 且保留其余键、已保存配置不能放宽） |
 | `core/security/test_workspace_boundary_batch_approval.py` | 模块 | 确定性 workspace 边界批量审批（`evaluate_tool_batch`：越界 `file_write` → pending 不自动执行，无 LLM） |
