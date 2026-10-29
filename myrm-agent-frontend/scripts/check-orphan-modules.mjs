@@ -8,7 +8,7 @@
  * 处理方式只有两种：接入产品入口；或连同测试、`_ARCH.md` 文档行、i18n 键一起删除。
  * 不提供基线或豁免——存量豁免会让“暂时保留”变成永久保留。
  *
- * 默认是绝对口径（全树零孤儿，`pretest` 使用）。`--base REV` 切到 diff 口径（CI 的 PR 门禁使用）：
+ * 默认是绝对口径（全树零孤儿，`pretest` 使用）。`--base REV` 切到 diff 口径（CI 的 PR 与 push 门禁使用）：
  * 只有相对 HEAD 与 REV 的 merge-base 新出现的孤儿才失败，见 `orphan-modules-base.ts`。对照树无法确定时 fail-closed。
  *
  * 反向自检：候选模块数为 0 说明路径或解析器失效，直接失败而不是静默通过。

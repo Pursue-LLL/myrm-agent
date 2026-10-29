@@ -52,13 +52,20 @@ jobs:
       - name: Fractal docs (strict roots + recursive baseline)
         if: ${{ !cancelled() }}
         run: python3 scripts/check_fractal_docs.py --no-stub
-      # Absolute zero-orphan cannot hold while unwired work is in flight, so a pull request may not
-      # introduce orphans relative to its merge-base; `pretest` keeps the absolute gate locally.
+      # Absolute zero-orphan cannot hold while unwired work is in flight, so a change may not introduce
+      # orphans relative to what it builds on: a pull request relative to its merge-base, a push to main
+      # relative to the commit main pointed at before it. Work lands by push, so the push check is the
+      # one that sees it; `pretest` keeps the absolute gate locally.
       - name: Orphan modules (none introduced vs the PR base)
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
           BASE_REF: ${{ github.base_ref }}
         run: bun scripts/check-orphan-modules.mjs --base "origin/${BASE_REF}"
+      - name: Orphan modules (none introduced by the push)
+        if: ${{ !cancelled() && github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' }}
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bun scripts/check-orphan-modules.mjs --base "${BEFORE_SHA}"
       - name: Barrel export policy (cross-domain index.ts whitelist)
         if: ${{ !cancelled() }}
         run: python3 scripts/check_barrel_exports.py
