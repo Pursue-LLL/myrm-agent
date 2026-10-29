@@ -1,4 +1,4 @@
-"""WCAG 2 text-contrast checks for tests that read the colours a rendered HTML page declares.
+"""WCAG 2 contrast checks for tests that read the colours a rendered HTML page declares.
 
 [INPUT]
 - the page's inline ``<style>`` block (POS: the server-rendered share pages built by ``share_renderer``,
@@ -6,7 +6,9 @@
 
 [OUTPUT]
 - stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme
-- contrast / assert_readable: the WCAG ratio of two colours, and the 4.5:1 check of a text colour on its surface
+- contrast: the WCAG ratio of two colours
+- assert_readable / assert_visible: the 4.5:1 check of a text colour, and the 3:1 check of a control's edge or focus
+  mark, against the background they sit on
 
 [POS]
 Shared by the contrast tests of every share page, so each page is held to the same reading of its stylesheet and the
@@ -22,6 +24,8 @@ Theme = Literal["light", "dark"]
 
 # WCAG 2.2 SC 1.4.3: normal-size text needs 4.5:1, compared unrounded.
 MIN_TEXT_CONTRAST = 4.5
+# SC 1.4.11: a control's edge and its focus indicator need 3:1 against what they touch.
+MIN_UI_CONTRAST = 3.0
 
 _DARK_MEDIA = "@media(prefers-color-scheme:dark){"
 _HEX = r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b"
@@ -60,21 +64,33 @@ def split_themes(css: str) -> tuple[str, str]:
 
 
 def declared(css: str, selector: str, prop: str) -> str | None:
-    """The colour the rule for exactly *selector* gives *prop* in *css* (the last rule wins), as ``#rrggbb``."""
-    pattern = r"(?m)(?:^|(?<=\}))" + re.escape(selector) + r"\{[^}]*?(?<=[{;\s])" + re.escape(prop) + r":\s*" + _HEX
+    """The colour the rule for exactly *selector* gives *prop* in *css* (the last rule wins), as ``#rrggbb``.
+
+    The value may be a shorthand around its colour (``border:1px solid #ddd``). A value that does not hold exactly one
+    hex colour is an error, so a colour written in another notation can never read as not declared.
+    """
+    pattern = r"(?m)(?:^|(?<=\}))" + re.escape(selector) + r"\{[^}]*?(?<=[{;\s])" + re.escape(prop) + r":([^;}]*)"
     found = re.findall(pattern, css)
     if not found:
         return None
-    digits = found[-1]
+    colours = re.findall(_HEX, found[-1])
+    if len(colours) != 1:
+        raise AssertionError(f"{selector} gives {prop} {found[-1].strip()!r}, which is not exactly one hex colour")
+    digits = colours[0]
     return "#" + (digits if len(digits) == 6 else "".join(digit * 2 for digit in digits)).lower()
 
 
-def effective(light: str, dark: str, theme: Theme, selector: str, prop: str) -> str:
-    """The colour *selector* paints *prop* with in *theme*: a dark rule overrides the light one, else the light one applies."""
-    value = (declared(dark, selector, prop) if theme == "dark" else None) or declared(light, selector, prop)
-    if value is None:
-        raise AssertionError(f"{selector!r} declares no {prop} colour in the {theme} stylesheet")
-    return value
+def effective(light: str, dark: str, theme: Theme, selector: str, *props: str) -> str:
+    """The colour *selector* paints with in *theme*: a dark rule overrides the light one, else the light one applies.
+
+    *props* are alternative spellings of one property (``border-color`` or the ``border`` shorthand); the first one a
+    stylesheet half declares wins.
+    """
+    for half in (dark, light) if theme == "dark" else (light,):
+        for prop in props:
+            if (value := declared(half, selector, prop)) is not None:
+                return value
+    raise AssertionError(f"{selector!r} declares no {'/'.join(props)} in the {theme} stylesheet")
 
 
 def _luminance(hex_color: str) -> float:
@@ -91,11 +107,22 @@ def contrast(foreground: str, background: str) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def assert_readable(html: str, theme: Theme, text: str, surface: str) -> None:
-    """Fail unless *text*'s colour reaches ``MIN_TEXT_CONTRAST`` on *surface*'s background in *theme*."""
+def _assert_contrast(html: str, theme: Theme, mark: str, props: tuple[str, ...], surface: str, minimum: float) -> None:
     light, dark = split_themes(stylesheet(html))
-    foreground = effective(light, dark, theme, text, "color")
+    foreground = effective(light, dark, theme, mark, *props)
     background = effective(light, dark, theme, surface, "background")
     ratio = contrast(foreground, background)
-    if ratio < MIN_TEXT_CONTRAST:
-        raise AssertionError(f"{text} on {surface} in {theme}: {foreground} on {background} is {ratio:.2f}:1")
+    if ratio < minimum:
+        raise AssertionError(
+            f"{mark} {props[0]} on {surface} in {theme}: {foreground} on {background} is {ratio:.3f}:1, needs {minimum}"
+        )
+
+
+def assert_readable(html: str, theme: Theme, text: str, surface: str) -> None:
+    """Fail unless *text*'s colour reaches ``MIN_TEXT_CONTRAST`` on *surface*'s background in *theme*."""
+    _assert_contrast(html, theme, text, ("color",), surface, MIN_TEXT_CONTRAST)
+
+
+def assert_visible(html: str, theme: Theme, mark: str, props: tuple[str, ...], surface: str) -> None:
+    """Fail unless *mark*'s colour (read from *props*) reaches ``MIN_UI_CONTRAST`` on *surface*'s background in *theme*."""
+    _assert_contrast(html, theme, mark, props, surface, MIN_UI_CONTRAST)

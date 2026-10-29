@@ -1,4 +1,4 @@
-"""Tests for how the shared conversation page presents tables and its small text."""
+"""Tests for how the shared conversation page presents tables, links and its small text."""
 
 from __future__ import annotations
 
@@ -42,6 +42,27 @@ async def test_a_table_cell_cannot_inject_markup(mock_db: MagicMock) -> None:
     assert "&lt;img src=x onerror=alert(1)&gt;" in body
 
 
+async def test_a_markdown_link_in_an_assistant_message_is_an_anchor_and_one_typed_by_the_user_is_text(mock_db: MagicMock) -> None:
+    html = await render_page(
+        mock_db,
+        "en",
+        messages=[
+            make_message("m1", "assistant", "[the guide](https://example.com/guide)"),
+            make_message("m2", "user", "[mine](https://example.com/mine)"),
+        ],
+    )
+
+    body = html.split("</style>")[1]
+    assert '<div class="msg-body"><p><a href="https://example.com/guide">the guide</a></p>' in body
+    assert body.count("<a ") == 1
+
+
+async def test_a_link_with_a_script_scheme_is_not_made_an_anchor(mock_db: MagicMock) -> None:
+    html = await render_page(mock_db, "en", messages=[make_message("m1", "assistant", "[x](javascript:alert(1))")])
+
+    assert "<a " not in html.split("</style>")[1]
+
+
 @pytest.mark.parametrize(
     ("text", "surface"),
     [
@@ -53,8 +74,21 @@ async def test_a_table_cell_cannot_inject_markup(mock_db: MagicMock) -> None:
         (".notice", ".notice"),
         (".msg-body blockquote", ".msg.assistant"),
         ("body", ".msg-body th"),
+        (".msg-body a", ".msg.assistant"),
+        (".msg-body a", ".msg-body th"),
     ],
-    ids=["time-on-user", "time-on-assistant", "footer", "stat", "model", "notice", "blockquote", "table-header"],
+    ids=[
+        "time-on-user",
+        "time-on-assistant",
+        "footer",
+        "stat",
+        "model",
+        "notice",
+        "blockquote",
+        "table-header",
+        "link-in-assistant",
+        "link-in-table-header",
+    ],
 )
 @pytest.mark.parametrize("theme", ["light", "dark"])
 async def test_small_text_is_readable_on_what_it_sits_on_in_both_themes(

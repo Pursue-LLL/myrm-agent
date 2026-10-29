@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.wcag_contrast import MIN_TEXT_CONTRAST, contrast, declared, effective, split_themes
+from tests.support.wcag_contrast import (
+    MIN_TEXT_CONTRAST,
+    assert_readable,
+    assert_visible,
+    contrast,
+    declared,
+    effective,
+    split_themes,
+)
 
 _PAGE = """\
 body{background:#fff;color:#111}
@@ -70,3 +78,53 @@ def test_contrast_matches_the_published_wcag_values() -> None:
     assert contrast("#000000", "#ffffff") == pytest.approx(21.0)
     assert contrast("#ffffff", "#000000") == pytest.approx(21.0)
     assert contrast("#767676", "#ffffff") >= MIN_TEXT_CONTRAST > contrast("#777777", "#ffffff")
+
+
+def test_a_colour_inside_a_shorthand_is_read() -> None:
+    css = "input{border:1px solid #6B7280;box-shadow:0 0 0 2px #636}"
+
+    assert declared(css, "input", "border") == "#6b7280"
+    assert declared(css, "input", "box-shadow") == "#663366"
+
+
+@pytest.mark.parametrize(
+    ("rule", "prop"),
+    [
+        ("p{color:rgb(1,2,3)}", "color"),
+        ("p{color:red}", "color"),
+        ("p{color:var(--ink)}", "color"),
+        ("p{border:none}", "border"),
+        ("p{box-shadow:0 0 0 2px #111,0 0 0 4px #222}", "box-shadow"),
+    ],
+    ids=["rgb", "named", "variable", "no-colour", "two-colours"],
+)
+def test_a_declaration_that_does_not_hold_exactly_one_hex_colour_is_an_error(rule: str, prop: str) -> None:
+    with pytest.raises(AssertionError, match="hex colour"):
+        declared(rule, "p", prop)
+
+
+def test_a_dark_rule_in_another_notation_cannot_fall_back_to_the_light_colour() -> None:
+    light, dark = split_themes("p{color:#111}\n@media(prefers-color-scheme:dark){p{color:rgb(240,240,240)}}")
+
+    assert effective(light, dark, "light", "p", "color") == "#111111"
+    with pytest.raises(AssertionError, match="hex colour"):
+        effective(light, dark, "dark", "p", "color")
+
+
+def test_alternative_spellings_of_one_property_are_tried_in_order() -> None:
+    light, dark = split_themes("input{border:1px solid #111}\n@media(prefers-color-scheme:dark){input{border-color:#eee}}")
+    spellings = ("border-color", "border")
+
+    assert effective(light, dark, "light", "input", *spellings) == "#111111"
+    assert effective(light, dark, "dark", "input", *spellings) == "#eeeeee"
+
+
+_THREE_TO_ONE = "<style>p{color:#949494}\nq{color:#959595}\n.card{background:#fff}</style>"
+
+
+def test_a_mark_needs_three_to_one_and_text_needs_four_and_a_half() -> None:
+    assert_visible(_THREE_TO_ONE, "light", "p", ("color",), ".card")
+    with pytest.raises(AssertionError, match=r"is 2\.995:1"):
+        assert_visible(_THREE_TO_ONE, "light", "q", ("color",), ".card")
+    with pytest.raises(AssertionError, match=r"is 3\.033:1"):
+        assert_readable(_THREE_TO_ONE, "light", "p", ".card")

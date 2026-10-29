@@ -214,6 +214,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .msg-body th,.msg-body td{{border:1px solid #e5e7eb;padding:0.4rem 0.6rem;text-align:left;word-break:normal}}
 .msg-body th{{background:#f3f4f6;font-weight:600}}
 .msg-body blockquote{{border-left:3px solid #d1d5db;padding-left:0.75rem;margin:0.5rem 0;color:#6b7280}}
+.msg-body a{{color:#4f46e5}}
 .msg-body strong{{font-weight:600}}
 .msg-body h1,.msg-body h2,.msg-body h3{{margin:0.75rem 0 0.25rem;font-weight:600}}
 .footer{{text-align:center;padding:1.5rem 0;border-top:1px solid #e5e7eb;margin-top:1.5rem;color:#6b7280;font-size:0.8rem}}
@@ -236,6 +237,7 @@ body{{background:#111827;color:#e5e7eb}}
 .msg-body th{{background:#374151}}
 .msg-body th,.msg-body td{{border-color:#374151}}
 .msg-body blockquote{{border-color:#4b5563;color:#9ca3af}}
+.msg-body a{{color:#a5b4fc}}
 .footer{{border-color:#374151;color:#9ca3af}}
 .stat{{color:#9ca3af}}
 }}

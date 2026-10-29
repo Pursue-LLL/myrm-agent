@@ -56,11 +56,13 @@ box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center}
 h1{font-size:1.125rem;font-weight:600;margin-bottom:.25rem}
 p{font-size:.875rem;color:#666;margin-bottom:1.25rem}
 @media(prefers-color-scheme:dark){p{color:#94a3b8}}
-input[type=password]{width:100%%;padding:.625rem .75rem;border:1px solid #ddd;
+input[type=password]{width:100%%;padding:.625rem .75rem;border:1px solid #6b7280;
 border-radius:8px;font-size:.875rem;background:#fafafa;outline:none;
 transition:border-color .15s}
-@media(prefers-color-scheme:dark){input[type=password]{background:#2a2a4a;border-color:#444;color:#e2e8f0}}
-input[type=password]:focus{border-color:#6366f1}
+@media(prefers-color-scheme:dark){input[type=password]{background:#2a2a4a;border-color:#9ca3af;color:#e2e8f0}}
+input[type=password]:focus{border-color:#6366f1;box-shadow:0 0 0 2px #6366f1;outline:2px solid transparent}
+input[type=password]::placeholder{color:#666;opacity:1}
+@media(prefers-color-scheme:dark){input[type=password]::placeholder{color:#94a3b8}}
 button{width:100%%;padding:.625rem;border:none;border-radius:8px;
 background:#4f46e5;color:#fff;font-size:.875rem;font-weight:500;
 cursor:pointer;margin-top:.75rem;transition:background .15s}
