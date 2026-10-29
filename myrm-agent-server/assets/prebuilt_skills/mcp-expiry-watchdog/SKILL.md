@@ -75,7 +75,7 @@ mounted MCP tool credentials are authenticated, healthy, and refreshed *before* 
 [Mounted MCP Credentials & Integrations]
                    │
                    ▼ Phase 1: Credential Expiry Inspection
-                   │   - Query /api/integrations/oauth and parse expires_at timestamps
+                   │   - Query /api/v1/integrations/oauth and parse expires_at timestamps
                    ▼ Phase 2: Proactive Health & Expiry Gating
                    │   - Evaluate TTL: HEALTHY (>30m), WARN_REFRESHABLE (<=30m), CRITICAL (Expired)
                    ▼ Phase 3: Silent Pre-Flight Token Refresh
@@ -89,7 +89,7 @@ mounted MCP tool credentials are authenticated, healthy, and refreshed *before* 
 ## 2. Core Operational Specifications
 
 ### Phase 1: Credential Expiry Inspection
-- **Source of Truth**: Inspect credentials via `app/api/integrations/oauth.py` (`list_oauth_credentials`).
+- **Source of Truth**: Read credentials from `GET /api/v1/integrations/oauth` (the OAuth credential list).
 - **Data Points Evaluated**:
   - `issuer`: e.g. `github`, `google-workspace`, `slack`, `linear`, `figma`.
   - `expires_at`: Epoch timestamp indicating token expiry.

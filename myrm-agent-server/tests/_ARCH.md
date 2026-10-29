@@ -518,7 +518,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_session_export_api.py` | 模块 | 会话导出与凭据预检 API：渲染已存会话、未知会话 404 而不是拼出的会话、读库失败是 500 而不是文档、导出脱敏、预检看会话正文而非标题且同类凭据只出一条、预检与导出的脱敏数一致、分享链接 |
 | `services/session_export/test_interactive_html_compiler.py` | 模块 | 会话导出页：26 组文字与底色在浅 / 深色下的对比度、搜索框边缘、聚焦环在页面 / 消息 / 抽屉 / 表头五种底色上的对比度与复制按钮内圈环、聚焦轮廓不得被去掉、每个 `pre` 是复制按钮的定位容器、工具栏窄屏换行、主题只接受 `system` / `light` / `dark`、会话里的文字不会变成标签、摘要里同类凭据只出一条 |
 | `api/webui/test_welcome_page.py` | 模块 | 局域网欢迎页：二维码地址在属性、脚本、可见文字三处各自的编码、主机名里的标记注入（脚本标签只有一对）、单一配色、文字与按钮底色 / 边缘 / 聚焦环对比度、颜色不写在行内或脚本里 |
-| `api/integrations/test_oauth_result_page.py` | 模块 | OAuth 结果页：五种结果的状态码、中英双语片段、无机制名词、视口与 noindex、错误描述转义且为空时不出元素、仅成功页自动关闭标签、无行内样式、正文与图标色在浅 / 深色下的对比度、色调集合固定 |
+| `api/integrations/oauth/test_result_page.py` | 模块 | OAuth 结果页：五种结果的状态码、中英双语片段、无机制名词、视口与 noindex、错误描述转义且为空时不出元素、仅成功页自动关闭标签、无行内样式、正文与图标色在浅 / 深色下的对比度、色调集合固定 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist / tailscale_guard 单测（21 文件） |

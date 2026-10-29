@@ -40,7 +40,7 @@ def client() -> Iterator[TestClient]:
 @pytest.fixture(autouse=True)
 def _clean_pending_auth() -> Iterator[None]:
     """Reset module-level _pending_auth state between tests."""
-    from app.api.integrations.mcp_oauth import _pending_auth
+    from app.api.integrations.oauth.mcp import _pending_auth
 
     _pending_auth.clear()
     yield
@@ -77,7 +77,7 @@ class TestStartEndpoint:
         assert params["state"] == [data["state"]]
 
     def test_start_persists_pending_state(self, client: TestClient) -> None:
-        from app.api.integrations.mcp_oauth import _pending_auth
+        from app.api.integrations.oauth.mcp import _pending_auth
 
         resp = client.post(
             f"{API_PREFIX}/start",
@@ -113,7 +113,7 @@ class TestStartEndpoint:
         assert "scope" not in params
 
     def test_start_with_client_secret(self, client: TestClient) -> None:
-        from app.api.integrations.mcp_oauth import _pending_auth
+        from app.api.integrations.oauth.mcp import _pending_auth
 
         resp = client.post(
             f"{API_PREFIX}/start",
@@ -134,7 +134,7 @@ class TestCallbackEndpoint:
     """GET /callback — exchange auth code for tokens (browser redirect)."""
 
     def _setup_pending(self, state: str = "test-state") -> str:
-        from app.api.integrations.mcp_oauth import _pending_auth
+        from app.api.integrations.oauth.mcp import _pending_auth
 
         _pending_auth[state] = {
             "server_name": "my-mcp",
@@ -165,8 +165,8 @@ class TestCallbackEndpoint:
         mock_store.save_token_with_config = AsyncMock()
 
         with (
-            patch("app.api.integrations.mcp_oauth.httpx.AsyncClient") as mock_client_cls,
-            patch("app.api.integrations.mcp_oauth.get_mcp_oauth_token_store", return_value=mock_store),
+            patch("app.api.integrations.oauth.mcp.httpx.AsyncClient") as mock_client_cls,
+            patch("app.api.integrations.oauth.mcp.get_mcp_oauth_token_store", return_value=mock_store),
         ):
             mock_client = AsyncMock()
             mock_client.post = AsyncMock(return_value=mock_resp)
@@ -216,7 +216,7 @@ class TestCallbackEndpoint:
         state = self._setup_pending()
         payload = "<script>alert(1)</script>"
 
-        with patch("app.api.integrations.mcp_oauth.httpx.AsyncClient") as mock_client_cls:
+        with patch("app.api.integrations.oauth.mcp.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.post = AsyncMock(side_effect=httpx.ConnectError(payload))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -231,7 +231,7 @@ class TestCallbackEndpoint:
         assert html.escape(payload) not in resp.text
 
     def test_callback_expired_state(self, client: TestClient) -> None:
-        from app.api.integrations.mcp_oauth import _pending_auth
+        from app.api.integrations.oauth.mcp import _pending_auth
 
         state = "expired-state"
         _pending_auth[state] = {
@@ -258,7 +258,7 @@ class TestCallbackEndpoint:
         mock_resp.status_code = 400
         mock_resp.text = "invalid_grant"
 
-        with patch("app.api.integrations.mcp_oauth.httpx.AsyncClient") as mock_client_cls:
+        with patch("app.api.integrations.oauth.mcp.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -281,7 +281,7 @@ class TestStatusEndpoint:
         mock_store = AsyncMock()
         mock_store.get_all_statuses = AsyncMock(return_value={})
 
-        with patch("app.api.integrations.mcp_oauth.get_mcp_oauth_token_store", return_value=mock_store):
+        with patch("app.api.integrations.oauth.mcp.get_mcp_oauth_token_store", return_value=mock_store):
             resp = client.get(f"{API_PREFIX}/status")
 
         assert resp.status_code == 200
@@ -296,7 +296,7 @@ class TestStatusEndpoint:
             }
         )
 
-        with patch("app.api.integrations.mcp_oauth.get_mcp_oauth_token_store", return_value=mock_store):
+        with patch("app.api.integrations.oauth.mcp.get_mcp_oauth_token_store", return_value=mock_store):
             resp = client.get(f"{API_PREFIX}/status")
 
         data = resp.json()["data"]
@@ -312,7 +312,7 @@ class TestDeleteEndpoint:
         mock_store = AsyncMock()
         mock_store.delete_token = AsyncMock()
 
-        with patch("app.api.integrations.mcp_oauth.get_mcp_oauth_token_store", return_value=mock_store):
+        with patch("app.api.integrations.oauth.mcp.get_mcp_oauth_token_store", return_value=mock_store):
             resp = client.delete(f"{API_PREFIX}/my-mcp")
 
         assert resp.status_code == 200
@@ -326,7 +326,7 @@ class TestPendingAuthGC:
     """Lazy garbage collection of expired pending auth entries."""
 
     def test_gc_evicts_expired_entries(self) -> None:
-        from app.api.integrations.mcp_oauth import (
+        from app.api.integrations.oauth.mcp import (
             _MAX_PENDING,
             _evict_expired_pending,
             _pending_auth,
@@ -352,7 +352,7 @@ class TestPendingAuthGC:
         assert len(expired_keys) == 0
 
     def test_gc_does_not_evict_when_below_max(self) -> None:
-        from app.api.integrations.mcp_oauth import (
+        from app.api.integrations.oauth.mcp import (
             _evict_expired_pending,
             _pending_auth,
         )

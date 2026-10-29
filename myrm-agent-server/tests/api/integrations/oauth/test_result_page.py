@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from app.api.integrations.oauth_result_page import OAuthOutcome, oauth_result_response
+from app.api.integrations.oauth.result_page import OAuthOutcome, oauth_result_response
 from tests.support.wcag_contrast import Theme, assert_readable, assert_visible
 
 _THEMES: tuple[Theme, ...] = ("light", "dark")

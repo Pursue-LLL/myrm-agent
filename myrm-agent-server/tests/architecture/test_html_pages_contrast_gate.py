@@ -30,7 +30,7 @@ _CONTRAST_CHECKS = frozenset({"assert_readable", "assert_visible", "contrast"})
 
 # page module -> the test that reads its stylesheet against WCAG 1.4.3 / 1.4.11.
 _CHECKED_BY: dict[str, str] = {
-    "app/api/integrations/oauth_result_page.py": "tests/api/integrations/test_oauth_result_page.py",
+    "app/api/integrations/oauth/result_page.py": "tests/api/integrations/oauth/test_result_page.py",
     "app/api/webui/welcome_page.py": "tests/api/webui/test_welcome_page.py",
     "app/core/security/share/share_password_page.py": "tests/core/security/test_share_page_contrast.py",
     "app/core/security/share/share_status_page.py": "tests/core/security/test_share_page_contrast.py",

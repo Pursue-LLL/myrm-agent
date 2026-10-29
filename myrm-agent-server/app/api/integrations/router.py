@@ -8,21 +8,12 @@ import logging
 
 from fastapi import APIRouter
 
-from app.api.integrations import (
-    catalog,
-    credential_pool,
-    google_workspace_oauth,
-    hardware,
-    integration_memory,
-    llms,
-    mcp,
-    mcp_oauth,
-    oauth,
-    provider_oauth,
-    search,
-    web_fetch,
-    xai_oauth,
-)
+from app.api.integrations import catalog, credential_pool, hardware, integration_memory, llms, mcp, search, web_fetch
+from app.api.integrations.oauth import credentials as oauth_credentials
+from app.api.integrations.oauth import google_workspace as google_workspace_oauth
+from app.api.integrations.oauth import mcp as mcp_oauth
+from app.api.integrations.oauth import provider as provider_oauth
+from app.api.integrations.oauth import xai as xai_oauth
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +29,7 @@ router.include_router(web_fetch.router, prefix="/web-fetch", tags=["integrations
 router.include_router(mcp.router, prefix="/mcp", tags=["integrations-mcp"])
 router.include_router(mcp_oauth.router, prefix="/mcp/oauth", tags=["integrations-mcp-oauth"])
 router.include_router(catalog.router, prefix="/catalog", tags=["integrations-catalog"])
-router.include_router(oauth.router, prefix="/oauth", tags=["integrations-oauth"])
+router.include_router(oauth_credentials.router, prefix="/oauth", tags=["integrations-oauth"])
 router.include_router(
     google_workspace_oauth.router,
     prefix="/google-workspace/oauth",

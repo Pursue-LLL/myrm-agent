@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from app.api.integrations.google_workspace_oauth import (
+from app.api.integrations.oauth.google_workspace import (
     _pending_auth,
     _successful_auth,
     _successful_auth_meta,
@@ -48,9 +48,9 @@ def _clean_oauth_state() -> Iterator[None]:
 @pytest.fixture
 def google_oauth_configured() -> Iterator[None]:
     with (
-        patch("app.api.integrations.google_workspace_oauth_flow.settings.google_client_id", "test-client-id"),
+        patch("app.api.integrations.oauth.google_workspace_flow.settings.google_client_id", "test-client-id"),
         patch(
-            "app.api.integrations.google_workspace_oauth_flow.settings.google_client_secret",
+            "app.api.integrations.oauth.google_workspace_flow.settings.google_client_secret",
             SecretStr("test-client-secret"),
         ),
     ):
@@ -60,9 +60,9 @@ def google_oauth_configured() -> Iterator[None]:
 class TestGoogleWorkspaceOAuthConfig:
     def test_config_reports_not_configured(self, client: TestClient) -> None:
         with (
-            patch("app.api.integrations.google_workspace_oauth_flow.settings.google_client_id", ""),
+            patch("app.api.integrations.oauth.google_workspace_flow.settings.google_client_id", ""),
             patch(
-                "app.api.integrations.google_workspace_oauth_flow.settings.google_client_secret",
+                "app.api.integrations.oauth.google_workspace_flow.settings.google_client_secret",
                 SecretStr(""),
             ),
         ):
@@ -81,9 +81,9 @@ class TestGoogleWorkspaceOAuthConfig:
 class TestGoogleWorkspaceOAuthStart:
     def test_start_requires_server_config(self, client: TestClient) -> None:
         with (
-            patch("app.api.integrations.google_workspace_oauth_flow.settings.google_client_id", ""),
+            patch("app.api.integrations.oauth.google_workspace_flow.settings.google_client_id", ""),
             patch(
-                "app.api.integrations.google_workspace_oauth_flow.settings.google_client_secret",
+                "app.api.integrations.oauth.google_workspace_flow.settings.google_client_secret",
                 SecretStr(""),
             ),
         ):
@@ -117,7 +117,7 @@ class TestGoogleWorkspaceOAuthStart:
         assert "https://www.googleapis.com/auth/gmail.send" in scope
         assert "https://www.googleapis.com/auth/calendar.events" in scope
         with patch(
-            "app.api.integrations.google_workspace_oauth_flow.get_public_ingress_base_url",
+            "app.api.integrations.oauth.google_workspace_flow.get_public_ingress_base_url",
             new=AsyncMock(return_value="https://tenant.example.com"),
         ):
             resp = client.post(f"{API_PREFIX}/start")
@@ -159,13 +159,13 @@ class TestGoogleWorkspaceOAuthCallback:
         enable_mock = AsyncMock(return_value=(True, False))
 
         with (
-            patch("app.api.integrations.google_workspace_oauth.httpx.AsyncClient", return_value=mock_client),
+            patch("app.api.integrations.oauth.google_workspace.httpx.AsyncClient", return_value=mock_client),
             patch(
-                "app.api.integrations.google_workspace_oauth.upsert_oauth_credential",
+                "app.api.integrations.oauth.google_workspace.upsert_oauth_credential",
                 upsert_mock,
             ),
             patch(
-                "app.api.integrations.google_workspace_oauth._maybe_enable_google_workspace_skill",
+                "app.api.integrations.oauth.google_workspace._maybe_enable_google_workspace_skill",
                 enable_mock,
             ),
         ):
@@ -217,10 +217,10 @@ class TestGoogleWorkspaceOAuthCallback:
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch("app.api.integrations.google_workspace_oauth.httpx.AsyncClient", return_value=mock_client),
-            patch("app.api.integrations.google_workspace_oauth.upsert_oauth_credential", AsyncMock()),
+            patch("app.api.integrations.oauth.google_workspace.httpx.AsyncClient", return_value=mock_client),
+            patch("app.api.integrations.oauth.google_workspace.upsert_oauth_credential", AsyncMock()),
             patch(
-                "app.api.integrations.google_workspace_oauth._maybe_enable_google_workspace_skill",
+                "app.api.integrations.oauth.google_workspace._maybe_enable_google_workspace_skill",
                 AsyncMock(return_value=(False, True)),
             ),
         ):
@@ -285,7 +285,7 @@ class TestGoogleWorkspaceOAuthStatus:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("app.api.integrations.google_workspace_oauth.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.api.integrations.oauth.google_workspace.httpx.AsyncClient", return_value=mock_client):
             resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": "s1"})
 
         assert resp.status_code == 400
@@ -301,7 +301,7 @@ class TestGoogleWorkspaceOAuthStatus:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("app.api.integrations.google_workspace_oauth.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.api.integrations.oauth.google_workspace.httpx.AsyncClient", return_value=mock_client):
             resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": "s2"})
 
         assert resp.status_code == 500
@@ -311,7 +311,7 @@ class TestGoogleWorkspaceOAuthStatus:
 
     def test_connection_status_not_connected(self, client: TestClient) -> None:
         with patch(
-            "app.api.integrations.google_workspace_oauth.load_oauth_credentials_row",
+            "app.api.integrations.oauth.google_workspace.load_oauth_credentials_row",
             new=AsyncMock(return_value=None),
         ):
             resp = client.get(f"{API_PREFIX}/status")

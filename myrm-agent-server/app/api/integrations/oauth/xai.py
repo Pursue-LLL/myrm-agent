@@ -14,7 +14,7 @@ xAI device-code login API under /integrations/xai/oauth
 HTTP routes for xAI device-code OAuth. Allows SuperGrok subscribers to authorize
 access to xAI services (X Search, Image/Video Gen, TTS, STT) without an API Key.
 Tokens are persisted via the shared oauth_store infrastructure with auto-refresh.
-Connection status and disconnect are served by ``provider_oauth`` (/integrations/provider-oauth).
+Connection status and disconnect are served by ``provider`` (/integrations/provider-oauth).
 """
 
 from __future__ import annotations

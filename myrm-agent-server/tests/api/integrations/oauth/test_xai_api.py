@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import Request, Response
 
-from app.api.integrations.xai_oauth import (
+from app.api.integrations.oauth.xai import (
     XAI_OAUTH_SCOPE,
     _DeviceCodePending,
     _pending_flows,
@@ -30,13 +30,13 @@ def client() -> Iterator[TestClient]:
 
 
 @pytest.fixture(autouse=True)
-def _clean_pending_flows():
+def _clean_pending_flows() -> Iterator[None]:
     _pending_flows.clear()
     yield
     _pending_flows.clear()
 
 
-def test_start_xai_oauth_returns_user_code(client: TestClient):
+def test_start_xai_oauth_returns_user_code(client: TestClient) -> None:
     """POST /integrations/xai/oauth/start returns device code info."""
     mock_response = Response(
         200,
@@ -51,7 +51,7 @@ def test_start_xai_oauth_returns_user_code(client: TestClient):
         request=Request("POST", "https://auth.x.ai/oauth2/device/code"),
     )
 
-    with patch("app.api.integrations.xai_oauth.httpx.AsyncClient") as mock_client_cls:
+    with patch("app.api.integrations.oauth.xai.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -67,7 +67,7 @@ def test_start_xai_oauth_returns_user_code(client: TestClient):
     assert "ABCD-1234" in _pending_flows
 
 
-def test_poll_returns_pending_before_auth(client: TestClient):
+def test_poll_returns_pending_before_auth(client: TestClient) -> None:
     """POST /integrations/xai/oauth/poll returns pending when user hasn't authorized yet."""
     _pending_flows["TEST-CODE"] = _DeviceCodePending(
         device_code="dc-456",
@@ -84,7 +84,7 @@ def test_poll_returns_pending_before_auth(client: TestClient):
         headers={"content-type": "application/json"},
     )
 
-    with patch("app.api.integrations.xai_oauth.httpx.AsyncClient") as mock_client_cls:
+    with patch("app.api.integrations.oauth.xai.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -97,7 +97,7 @@ def test_poll_returns_pending_before_auth(client: TestClient):
     assert resp.json()["data"]["status"] == "pending"
 
 
-def test_poll_succeeds_and_stores_credential(client: TestClient):
+def test_poll_succeeds_and_stores_credential(client: TestClient) -> None:
     """POST /integrations/xai/oauth/poll stores credential on success."""
     _pending_flows["SUCCESS-CODE"] = _DeviceCodePending(
         device_code="dc-789",
@@ -118,14 +118,14 @@ def test_poll_succeeds_and_stores_credential(client: TestClient):
         },
     )
 
-    with patch("app.api.integrations.xai_oauth.httpx.AsyncClient") as mock_client_cls:
+    with patch("app.api.integrations.oauth.xai.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        with patch("app.api.integrations.xai_oauth.upsert_oauth_credential", new_callable=AsyncMock) as mock_upsert:
+        with patch("app.api.integrations.oauth.xai.upsert_oauth_credential", new_callable=AsyncMock) as mock_upsert:
             resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=SUCCESS-CODE")
 
     assert resp.status_code == 200
@@ -141,7 +141,7 @@ def test_poll_succeeds_and_stores_credential(client: TestClient):
         assert entry["base_url"] == "https://api.x.ai/v1"
 
 
-def test_poll_returns_expired_when_flow_timed_out(client: TestClient):
+def test_poll_returns_expired_when_flow_timed_out(client: TestClient) -> None:
     """POST /integrations/xai/oauth/poll returns expired for timed-out flows."""
     _pending_flows["EXPIRED-CODE"] = _DeviceCodePending(
         device_code="dc-exp",
@@ -159,7 +159,7 @@ def test_poll_returns_expired_when_flow_timed_out(client: TestClient):
     assert "EXPIRED-CODE" not in _pending_flows
 
 
-def test_poll_returns_404_for_unknown_code(client: TestClient):
+def test_poll_returns_404_for_unknown_code(client: TestClient) -> None:
     """POST /integrations/xai/oauth/poll returns 404 for unknown user_code."""
     resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=UNKNOWN")
 
@@ -179,7 +179,7 @@ def test_poll_maps_the_token_endpoint_error(
     error_code: str,
     expected: dict[str, object],
     flow_continues: bool,
-):
+) -> None:
     """POST /integrations/xai/oauth/poll turns the RFC 8628 errors into the statuses the client acts on."""
     _pending_flows["ERR-CODE"] = _DeviceCodePending(
         device_code="dc-err",
@@ -196,7 +196,7 @@ def test_poll_maps_the_token_endpoint_error(
         headers={"content-type": "application/json"},
     )
 
-    with patch("app.api.integrations.xai_oauth.httpx.AsyncClient") as mock_client_cls:
+    with patch("app.api.integrations.oauth.xai.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)

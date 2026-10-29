@@ -38,7 +38,7 @@ from myrm_agent_harness.toolkits.mcp.oauth import (
 )
 from pydantic import BaseModel, Field
 
-from app.api.integrations.oauth_result_page import OAuthOutcome, oauth_result_response
+from app.api.integrations.oauth.result_page import OAuthOutcome, oauth_result_response
 from app.core.utils.response_utils import success_response
 from app.services.agent.backends.mcp_oauth_store import get_mcp_oauth_token_store
 

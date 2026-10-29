@@ -60,7 +60,7 @@ class TestStatusAndDisconnect:
     """GET /status/{provider} and DELETE /disconnect/{provider}."""
 
     def test_status_disconnected(self, client: TestClient) -> None:
-        with patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=False)):
+        with patch("app.api.integrations.oauth.provider.is_oauth_issuer_connected", new=AsyncMock(return_value=False)):
             response = client.get(f"{API_PREFIX}/status/xai")
 
         assert response.status_code == 200
@@ -70,10 +70,10 @@ class TestStatusAndDisconnect:
         row = type("Row", (), {"config_value": "enc", "is_encrypted": True})()
         expires_at = time.time() + 3600
         with (
-            patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=True)),
-            patch("app.api.integrations.provider_oauth.load_oauth_credentials_row", new=AsyncMock(return_value=row)),
+            patch("app.api.integrations.oauth.provider.is_oauth_issuer_connected", new=AsyncMock(return_value=True)),
+            patch("app.api.integrations.oauth.provider.load_oauth_credentials_row", new=AsyncMock(return_value=row)),
             patch(
-                "app.api.integrations.provider_oauth.decrypt_oauth_credentials",
+                "app.api.integrations.oauth.provider.decrypt_oauth_credentials",
                 return_value={
                     "xai": {
                         "token": "xai-tok-123",
@@ -104,7 +104,7 @@ class TestStatusAndDisconnect:
 
     def test_disconnect_success(self, client: TestClient) -> None:
         with patch(
-            "app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)
+            "app.api.integrations.oauth.provider.delete_oauth_credential", new=AsyncMock(return_value=True)
         ) as mock_delete:
             response = client.delete(f"{API_PREFIX}/disconnect/xai")
 
@@ -118,7 +118,7 @@ class TestStatusAndDisconnect:
         assert "Unknown provider" in response.text
 
     def test_disconnect_not_connected(self, client: TestClient) -> None:
-        with patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=False)):
+        with patch("app.api.integrations.oauth.provider.delete_oauth_credential", new=AsyncMock(return_value=False)):
             response = client.delete(f"{API_PREFIX}/disconnect/xai")
 
         assert response.status_code == 404
@@ -131,8 +131,8 @@ class TestE2eFixtureEndpoints:
     def test_seed_and_cleanup_xai(self, client: TestClient) -> None:
         with (
             patch("app.config.deploy_mode.is_local_mode", return_value=True),
-            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
-            patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)) as mock_delete,
+            patch("app.api.integrations.oauth.provider.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
+            patch("app.api.integrations.oauth.provider.delete_oauth_credential", new=AsyncMock(return_value=True)) as mock_delete,
         ):
             seed_resp = client.post(f"{API_PREFIX}/test/seed-oauth?token=test-tok")
             clean_resp = client.post(f"{API_PREFIX}/test/cleanup-oauth")
@@ -153,7 +153,7 @@ class TestE2eFixtureEndpoints:
     def test_seed_honours_explicit_base_url(self, client: TestClient) -> None:
         with (
             patch("app.config.deploy_mode.is_local_mode", return_value=True),
-            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
+            patch("app.api.integrations.oauth.provider.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
         ):
             response = client.post(f"{API_PREFIX}/test/seed-oauth?base_url=http://127.0.0.1:9/v1")
 

@@ -1,7 +1,7 @@
 """Google Workspace OAuth 2.0 + PKCE authorization flow.
 
 [INPUT]
-- app.api.integrations.google_workspace_oauth_flow (POS: PKCE state, scopes, redirect URI, skill enablement)
+- app.api.integrations.oauth.google_workspace_flow (POS: PKCE state, scopes, redirect URI, skill enablement)
 - app.services.integrations.oauth_store (POS: encrypted oauthCredentials persistence)
 - myrm_agent_harness.toolkits.mcp.oauth::generate_pkce_pair (POS: PKCE pair for /start)
 
@@ -10,7 +10,7 @@ Google Workspace OAuth API under /integrations/google-workspace/oauth
 
 [POS]
 HTTP routes for Calendar/Gmail/Drive OAuth connect. Delegates flow helpers to
-google_workspace_oauth_flow; persists issuer google_workspace into UserConfig
+google_workspace_flow; persists issuer google_workspace into UserConfig
 oauthCredentials (tokens only; client_id/secret stay in server settings).
 """
 
@@ -26,8 +26,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from myrm_agent_harness.toolkits.mcp.oauth import generate_pkce_pair
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.integrations import google_workspace_oauth_flow as flow
-from app.api.integrations.oauth_result_page import OAuthOutcome, oauth_result_response
+from app.api.integrations.oauth import google_workspace_flow as flow
+from app.api.integrations.oauth.result_page import OAuthOutcome, oauth_result_response
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER

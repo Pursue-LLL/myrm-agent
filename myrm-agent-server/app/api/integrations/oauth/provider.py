@@ -3,7 +3,7 @@
 Lets a SuperGrok subscription authenticate through OAuth instead of an API key.
 The token is stored as a provider-scoped credential in oauthCredentials and
 injected by config_loader at LLM call time. The device-code login itself lives
-in ``xai_oauth`` (/integrations/xai/oauth).
+in ``xai`` (/integrations/xai/oauth).
 
 [INPUT]
 - app.services.agent.provider_oauth_tokens::PROVIDER_OAUTH_ISSUERS (POS: provider id → issuer registry)

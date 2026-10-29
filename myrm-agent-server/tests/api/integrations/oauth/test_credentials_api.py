@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.integrations.oauth import OAuthCredentialItem
+from app.api.integrations.oauth.credentials import OAuthCredentialItem
 from app.services.agent import oauth_refresher
 from app.services.agent.oauth_token_policy import refresh_token_fingerprint
 from tests.support.minimal_app import build_minimal_app
@@ -19,7 +19,7 @@ app = build_minimal_app(preset="integrations")
 API_PREFIX = "/api/v1/integrations"
 
 FRONTEND_CREDENTIAL_RECORD = (
-    Path(__file__).resolve().parents[4]
+    Path(__file__).resolve().parents[5]
     / "myrm-agent-frontend/src/components/features/settings/sections/integration/credentials/credentialsConstants.ts"
 )
 
@@ -37,24 +37,24 @@ def client() -> Iterator[TestClient]:
 class TestOAuthListCredentials:
     """Test GET /oauth used by DataFlow disclosure panel."""
 
-    def test_list_returns_empty_when_no_row(self, client: TestClient):
+    def test_list_returns_empty_when_no_row(self, client: TestClient) -> None:
         with patch(
-            "app.api.integrations.oauth.load_oauth_credentials_row",
+            "app.api.integrations.oauth.credentials.load_oauth_credentials_row",
             new=AsyncMock(return_value=None),
         ):
             response = client.get(f"{API_PREFIX}/oauth")
             assert response.status_code == 200
             assert response.json() == []
 
-    def test_list_returns_connected_items(self, client: TestClient):
+    def test_list_returns_connected_items(self, client: TestClient) -> None:
         row = type("Row", (), {"config_value": "encrypted", "is_encrypted": True})()
         with (
             patch(
-                "app.api.integrations.oauth.load_oauth_credentials_row",
+                "app.api.integrations.oauth.credentials.load_oauth_credentials_row",
                 new=AsyncMock(return_value=row),
             ),
             patch(
-                "app.api.integrations.oauth.decrypt_oauth_credentials",
+                "app.api.integrations.oauth.credentials.decrypt_oauth_credentials",
                 return_value={
                     "slack": {
                         "token": "tok",
@@ -76,7 +76,7 @@ class TestOAuthListCredentials:
             assert slack["user_id"] == "U1"
             assert github["connected"] is False
 
-    def test_list_tells_renewable_and_rejected_credentials_apart(self, client: TestClient):
+    def test_list_tells_renewable_and_rejected_credentials_apart(self, client: TestClient) -> None:
         """Access-token expiry only bounds a connection that cannot renew itself."""
         row = type("Row", (), {"config_value": "encrypted", "is_encrypted": True})()
         token_url = "https://auth.example/token"
@@ -88,10 +88,10 @@ class TestOAuthListCredentials:
         oauth_refresher._rejected_refresh_tokens["google_workspace"] = refresh_token_fingerprint("rt_dead")
         with (
             patch(
-                "app.api.integrations.oauth.load_oauth_credentials_row",
+                "app.api.integrations.oauth.credentials.load_oauth_credentials_row",
                 new=AsyncMock(return_value=row),
             ),
-            patch("app.api.integrations.oauth.decrypt_oauth_credentials", return_value=stored),
+            patch("app.api.integrations.oauth.credentials.decrypt_oauth_credentials", return_value=stored),
         ):
             response = client.get(f"{API_PREFIX}/oauth")
 
@@ -105,7 +105,7 @@ class TestOAuthListCredentials:
 
 
 class TestOAuthListContract:
-    def test_frontend_record_declares_every_field_the_list_returns(self):
+    def test_frontend_record_declares_every_field_the_list_returns(self) -> None:
         """The Credentials card reads these keys by name; a field the UI type lacks is silently ignored."""
         record_type = FRONTEND_CREDENTIAL_RECORD.read_text(encoding="utf-8").split("export type OauthCredentialRecord", 1)[1]
         record_type = record_type.split("};", 1)[0]
@@ -118,17 +118,17 @@ class TestOAuthListContract:
 class TestOAuthDeleteClearSyncedMemory:
     """Test DELETE /oauth/{issuer} with clear_synced_memory parameter."""
 
-    def test_delete_no_credentials_row_returns_404(self, client: TestClient):
+    def test_delete_no_credentials_row_returns_404(self, client: TestClient) -> None:
         with patch(
-            "app.api.integrations.oauth.remove_oauth_credential",
+            "app.api.integrations.oauth.credentials.remove_oauth_credential",
             new=AsyncMock(return_value=False),
         ):
             response = client.delete(f"{API_PREFIX}/oauth/github")
             assert response.status_code == 404
 
-    def test_delete_success_no_memory_clear(self, client: TestClient):
+    def test_delete_success_no_memory_clear(self, client: TestClient) -> None:
         with patch(
-            "app.api.integrations.oauth.remove_oauth_credential",
+            "app.api.integrations.oauth.credentials.remove_oauth_credential",
             new=AsyncMock(return_value=True),
         ):
             response = client.delete(f"{API_PREFIX}/oauth/github")
@@ -137,13 +137,13 @@ class TestOAuthDeleteClearSyncedMemory:
             assert data["status"] == "success"
             assert data["trees_removed"] == 0
 
-    def test_delete_with_clear_synced_memory(self, client: TestClient):
+    def test_delete_with_clear_synced_memory(self, client: TestClient) -> None:
         mock_mem_svc = AsyncMock()
         mock_mem_svc.remove_trees_by_provider = AsyncMock(return_value=5)
 
         with (
             patch(
-                "app.api.integrations.oauth.remove_oauth_credential",
+                "app.api.integrations.oauth.credentials.remove_oauth_credential",
                 new=AsyncMock(return_value=True),
             ),
             patch(

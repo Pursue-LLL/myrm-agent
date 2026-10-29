@@ -9,7 +9,7 @@
 - maybe_enable_x_live_search_skill: enable skill unless user disabled it
 
 [POS]
-Server hook after providers config save — mirrors google_workspace_oauth_flow.maybe_enable_google_workspace_skill.
+Server hook after providers config save — mirrors google_workspace_flow.maybe_enable_google_workspace_skill.
 """
 
 from __future__ import annotations

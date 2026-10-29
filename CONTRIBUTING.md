@@ -105,7 +105,7 @@ Myrm splits **Agent framework** (`myrm-agent-harness/`, published to PyPI) from 
 | Generic fetch/search/sandbox/MCP client | `harness/toolkits/` | `app/services/` as a fake "tool" |
 | Session-bound tool wrapper | `harness/agent/meta_tools/` | `toolkits/` |
 | Vendor workflow (Linear, Notion, Google Workspace, briefing) | `assets/prebuilt_skills/` | New harness toolkit module |
-| OAuth / channel credentials | `app/api/integrations/` (e.g. `google_workspace_oauth.py`, `oauth.py`), `app/channels/` | Harness |
+| OAuth / channel credentials | `app/api/integrations/` (e.g. `oauth/google_workspace.py`, `oauth/credentials.py`), `app/channels/` | Harness |
 | Product HTTP API | `app/api/` + `app/services/` | Harness default tools |
 
 **Gate questions** (all must pass for a new harness toolkit):
