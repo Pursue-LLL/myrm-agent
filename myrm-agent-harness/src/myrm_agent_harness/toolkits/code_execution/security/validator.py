@@ -16,7 +16,6 @@ this validator provides defense-in-depth for the local code executor.
 
 [OUTPUT]
 - ValidationResult: Validation result.
-- EnvInheritPolicy: Environment variable inheritance strategy for subprocess ...
 - validate_module: Validate whether a Python module import is safe.
 - is_module_allowed: Check if a module import is allowed (convenience wrapper).
 - validate_command: Validate a Bash command for security (session-isolated).
@@ -33,13 +32,6 @@ from urllib.parse import urlparse
 
 from myrm_agent_harness.core.paths import get_context_root
 from myrm_agent_harness.core.security.path import is_within_boundary
-from myrm_agent_harness.core.security.process_env import (
-    DEFAULT_CHILD_SAFE_ENV_KEYS,
-    EnvInheritPolicy,
-    build_isolated_child_env,
-    is_non_inheritable_env_var,
-    sanitize_env,
-)
 from myrm_agent_harness.toolkits.code_execution.security.blacklist import (
     DANGEROUS_MODULES,
     DANGEROUS_MODULES_REASONS,
@@ -503,25 +495,20 @@ def is_path_component_safe(component: str, component_name: str = "path component
 
 
 # ============================================================
-# Environment variable sanitization (delegated to env_isolation SSOT)
+# Aliases
 # ============================================================
 
 is_command_safe = is_command_allowed
 is_path_safe = is_path_allowed
 
 __all__ = [
-    "DEFAULT_CHILD_SAFE_ENV_KEYS",
-    "EnvInheritPolicy",
     "ValidationResult",
-    "build_isolated_child_env",
     "is_command_allowed",
     "is_command_safe",
     "is_module_allowed",
-    "is_non_inheritable_env_var",
     "is_path_allowed",
     "is_path_component_safe",
     "is_path_safe",
-    "sanitize_env",
     "validate_command",
     "validate_module",
     "validate_path",

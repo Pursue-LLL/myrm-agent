@@ -6,7 +6,7 @@ executors.base::ExecutionContext (POS: Code executor base classes)
 executors.base::ExecutionResult (POS: Code executor base classes)
 executors.common::parse_execution_output (POS: Shared execution utilities)
 code_execution.sandbox::detect_sandbox_provider (POS: Sandbox detection and wrapping)
-code_execution.security.validator::sanitize_env (POS: Environment sanitization)
+core.security.process_env::sanitize_env, is_non_inheritable_env_var (POS: Environment sanitization)
 
 [OUTPUT]
 run_python_subprocess: Execute a Python script in a sandboxed subprocess with timeout.
@@ -92,14 +92,15 @@ async def run_python_subprocess(
         Execution result with stdout, stderr, exit code.
     """
     try:
+        from myrm_agent_harness.core.security.process_env import (
+            is_non_inheritable_env_var,
+            sanitize_env,
+        )
         from myrm_agent_harness.toolkits.code_execution.sandbox import (
             detect_sandbox_provider,
         )
         from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
             build_workspace_sandbox_policy,
-        )
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            sanitize_env,
         )
 
         process_env = sanitize_env(os.environ.copy())
@@ -131,10 +132,6 @@ async def run_python_subprocess(
             process_env.pop("PYTHONPATH", None)
 
         # Post-override scrubbing guarantee: strip any non-inheritable host secrets (Codex #38941)
-        from myrm_agent_harness.core.security.process_env import (
-            is_non_inheritable_env_var,
-        )
-
         # Verified PTC orchestration sessions carry their stub dir on PYTHONPATH
         # (allowed by sanitize_env); the scrub below must not remove it, or
         # `import myrm_tools` fails inside orchestration scripts. Same marker

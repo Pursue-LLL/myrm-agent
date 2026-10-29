@@ -34,6 +34,7 @@ import os
 import re
 import shutil
 from contextlib import AsyncExitStack, suppress
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
 from myrm_agent_harness.toolkits.computer_use.types import (
@@ -44,6 +45,9 @@ from myrm_agent_harness.toolkits.computer_use.types import (
     ScreenInfo,
     WindowTextResult,
 )
+
+if TYPE_CHECKING:
+    from mcp import ClientSession
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +75,7 @@ class _McpSession:
     """Manages a persistent MCP stdio session to cua-driver."""
 
     def __init__(self) -> None:
-        self._session: object = None
+        self._session: ClientSession | None = None
         self._exit_stack: AsyncExitStack | None = None
         self._started = False
         self._lock = asyncio.Lock()
@@ -134,8 +138,10 @@ class _McpSession:
             return await self._do_call(name, args)
 
     async def _do_call(self, name: str, args: dict[str, object]) -> dict[str, object]:
-        result = await self._session.call_tool(name, args)
-        return _extract_result(result)
+        session = self._session
+        if session is None:
+            raise RuntimeError("cua-driver session not started")
+        return _extract_result(await session.call_tool(name, args))
 
     async def _reconnect(self) -> None:
         if self._exit_stack is not None:
@@ -208,8 +214,8 @@ class CuaDriverBackend:
         correct foreground app (cua-driver dispatches input by PID).
         """
         out = await self._mcp.call_tool("list_windows", {"on_screen_only": True})
-        sc = out.get("structuredContent") or {}
-        raw_windows = sc.get("windows") if sc else None
+        structured = out.get("structuredContent")
+        raw_windows = structured.get("windows") if isinstance(structured, dict) else None
 
         if raw_windows:
             windows = sorted(raw_windows, key=lambda w: w.get("z_index", 0))

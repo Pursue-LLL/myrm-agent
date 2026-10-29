@@ -1,4 +1,4 @@
-"""Tests for validator.py: module/command/path validation and env sanitization."""
+"""Tests for validator.py (module/command/path validation) and the env sanitizer (core.security.process_env)."""
 
 from __future__ import annotations
 
@@ -448,19 +448,13 @@ class TestValidateCommandBranch:
 
 class TestSanitizeEnv:
     def test_none_policy_returns_empty(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         result = sanitize_env({"PATH": "/usr/bin", "HOME": "/home/user"}, EnvInheritPolicy.NONE)
         assert result == {}
 
     def test_core_policy_keeps_only_core(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         env = {"PATH": "/usr/bin", "HOME": "/home/user", "MY_CUSTOM_VAR": "value"}
         result = sanitize_env(env, EnvInheritPolicy.CORE)
@@ -469,10 +463,7 @@ class TestSanitizeEnv:
         assert "MY_CUSTOM_VAR" not in result
 
     def test_all_policy_filters_dangerous(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         env = {"PATH": "/usr/bin", "AWS_SECRET_ACCESS_KEY": "secret123"}
         result = sanitize_env(env, EnvInheritPolicy.ALL)
@@ -480,18 +471,15 @@ class TestSanitizeEnv:
         assert "AWS_SECRET_ACCESS_KEY" not in result
 
     def test_all_policy_filters_prefix_match(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         env = {"PATH": "/usr/bin", "GITHUB_TOKEN": "ghp_xyz"}
         result = sanitize_env(env, EnvInheritPolicy.ALL)
         assert "PATH" in result
 
     def test_all_policy_filters_wildcard_match(self) -> None:
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
         from myrm_agent_harness.core.security.process_env.env_isolation import _matches_wildcard
-        from myrm_agent_harness.toolkits.code_execution.security.validator import EnvInheritPolicy, sanitize_env
 
         assert _matches_wildcard("MY_API_KEY") is True
         assert _matches_wildcard("CUSTOM_SECRET") is True
@@ -504,20 +492,14 @@ class TestSanitizeEnv:
         assert "NOISE_AUTH_TOKEN" not in result
 
     def test_all_policy_safe_vars_pass(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         env = {"PATH": "/usr/bin", "HOME": "/home/user", "LANG": "en_US.UTF-8"}
         result = sanitize_env(env, EnvInheritPolicy.ALL)
         assert result == env
 
     def test_ptc_orchestration_allows_pythonpath_and_socket(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         stub_dir = "/tmp/myrm_ptc_stubs_abc"
         env = {
@@ -532,10 +514,7 @@ class TestSanitizeEnv:
         assert result["_MYRM_PTC_TIMEOUT"] == "60"
 
     def test_pythonpath_still_blocked_without_ptc_markers(self) -> None:
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            EnvInheritPolicy,
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
         env = {"PATH": "/usr/bin", "PYTHONPATH": "/tmp/evil"}
         result = sanitize_env(env, EnvInheritPolicy.ALL)

@@ -5,7 +5,7 @@ local._command_env::build_command_env, scrubbed_user_env (POS: What one bash com
 executors.common::CommandRewriter, ExecutionHelper, LocalFilesScanner, VenvManager, handle_execution_error (POS: Shared execution utilities)
 executors.execution_evidence::record_execution (POS: Execution evidence recorder)
 code_execution.interceptor::trigger_bash_action_hook (POS: Bash action snapshot hook)
-code_execution.security.validator::validate_command, sanitize_env (POS: Command validation and environment sanitising)
+code_execution.security.validator::validate_command; core.security.process_env::sanitize_env (POS: Command validation and environment sanitising)
 core.security.ocap::CapabilityAction, enforce_capability_access (POS: Capability scope)
 
 [OUTPUT]
@@ -276,9 +276,7 @@ class LocalBashMixin:
         Credentials are not part of it: a shell outlives the commands it runs, so they travel with each command
         (``build_command_env``) instead of being baked into the shell.
         """
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            sanitize_env,
-        )
+        from myrm_agent_harness.core.security.process_env import sanitize_env
 
         env = sanitize_env(os.environ.copy())
 

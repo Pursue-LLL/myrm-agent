@@ -5,7 +5,7 @@ executors.base::ExecutionContext (POS: Code executor base classes)
 executors.models::AsyncProcessProtocol (POS: Data models for code execution)
 executors.execution_evidence::record_execution (POS: Proof that an agent command launched a process)
 code_execution.sandbox::detect_sandbox_provider (POS: Sandbox detection and wrapping)
-code_execution.security.validator::sanitize_env (POS: Environment sanitization)
+core.security.process_env::sanitize_env, DEFAULT_CHILD_SAFE_ENV_KEYS (POS: Environment sanitization)
 executors.local._background_pty_spawn::try_spawn_background_pty (POS: POSIX PTY spawn adapter)
 
 [OUTPUT]
@@ -102,15 +102,13 @@ async def spawn_background_process(
     from myrm_agent_harness.core.context_vars import standing_access_roots
     from myrm_agent_harness.core.security.process_env import (
         DEFAULT_CHILD_SAFE_ENV_KEYS,
+        sanitize_env,
     )
     from myrm_agent_harness.toolkits.code_execution.sandbox import (
         detect_sandbox_provider,
     )
     from myrm_agent_harness.toolkits.code_execution.sandbox.policy_bridge import (
         build_workspace_sandbox_policy,
-    )
-    from myrm_agent_harness.toolkits.code_execution.security.validator import (
-        sanitize_env,
     )
 
     if not context.harness_owned:

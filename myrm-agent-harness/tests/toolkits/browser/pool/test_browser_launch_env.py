@@ -10,7 +10,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser.pool.browser_launch_env import camoufox_launch_env, chromium_launch_env
 from myrm_agent_harness.toolkits.browser.process_owner import OWNER_ENV_VAR, owner_stamp_env
 
-_SANITIZE_ENV = "myrm_agent_harness.toolkits.code_execution.security.validator.sanitize_env"
+_SANITIZE_ENV = "myrm_agent_harness.core.security.process_env.sanitize_env"
 
 
 def test_camoufox_launch_env_sanitizes_host_and_preserves_fingerprint_keys() -> None:

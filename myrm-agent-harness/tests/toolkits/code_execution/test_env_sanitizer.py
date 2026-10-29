@@ -1,11 +1,8 @@
-"""Tests for environment variable sanitization (validator.sanitize_env)."""
+"""Tests for environment variable sanitization (process_env.sanitize_env)."""
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.code_execution.security.validator import (
-    EnvInheritPolicy,
-    sanitize_env,
-)
+from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
 
 class TestSanitizeEnvDefaultPolicy:
@@ -210,7 +207,7 @@ class TestBuildIsolatedChildEnvPostOverrideScrubbing:
 
 
 class TestCorePolicy:
-    """CORE policy — only keep CORE_SAFE_ENV_VARS."""
+    """CORE policy — only keep DEFAULT_CHILD_SAFE_ENV_KEYS."""
 
     def test_core_vars_kept(self) -> None:
         env = {"HOME": "/home/user", "USER": "me", "PATH": "/bin", "CUSTOM": "val"}

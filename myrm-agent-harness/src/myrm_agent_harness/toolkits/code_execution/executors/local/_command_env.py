@@ -1,8 +1,7 @@
 """Per-command environment of a bash command: skill settings that stay, credentials that do not.
 
 [INPUT]
-security.validator::sanitize_env (POS: environment name/value filter)
-core.security.process_env::is_non_inheritable_env_var (POS: host-secret scrub)
+core.security.process_env::sanitize_env (POS: environment name/value filter), is_non_inheritable_env_var (POS: host-secret scrub)
 core.security.safe_exec::credential_env_overrides (POS: credential issuer to environment variable mapping)
 core.security.types::user_credentials_ctx (POS: request-scoped user credentials)
 core.security.ephemeral_credentials::get_ephemeral_credential_store, command_digest (POS: one-time credentials approved for one command)
@@ -33,8 +32,7 @@ def scrubbed_user_env(user_env: Mapping[str, str] | None) -> dict[str, str]:
     """Return ``user_env`` without the names a shell must never receive (secrets, loaders, proxies)."""
     if not user_env:
         return {}
-    from myrm_agent_harness.core.security.process_env import is_non_inheritable_env_var
-    from myrm_agent_harness.toolkits.code_execution.security.validator import sanitize_env
+    from myrm_agent_harness.core.security.process_env import is_non_inheritable_env_var, sanitize_env
 
     return {name: value for name, value in sanitize_env(dict(user_env)).items() if not is_non_inheritable_env_var(name)}
 

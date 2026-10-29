@@ -198,7 +198,7 @@ class SSRFResult:
 
 **危险环境变量**（`DANGEROUS_ENV_VARS` + `DANGEROUS_ENV_PREFIXES` + `DANGEROUS_ENV_WILDCARDS`）：
 
-覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`，由 `validator.py` 再导出）在执行前过滤这些变量；子进程环境的构造规则见 3.2.2。
+覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`）在执行前过滤这些变量；子进程环境的构造规则见 3.2.2。
 
 ### 3.2.1 Shell Command Analyzer
 

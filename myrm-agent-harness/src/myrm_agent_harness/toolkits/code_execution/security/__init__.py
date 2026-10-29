@@ -1,13 +1,13 @@
 """Execution security — shell command analysis, blacklists and validators.
 
-- core.security.process_env: child process environment isolation SSOT (re-exported by validator.py)
+- core.security.process_env: child process environment isolation SSOT (consumers import it from there)
 - shell_command_analyzer.py: shell command threat detection (injection, dangerous patterns)
 - core.security.shell_command_lexer: the one reading of a command line (where commands end, which words they have) shared by the checks below
 - risk_classifier.py: command risk classification (SAFE/UNKNOWN) with flag-level validation
 - safe_commands.py: read-only command allow-list, transparent wrappers and argument guards
 - safe_command_configs.py: subcommand flag whitelist data (git read-only subcommands)
-- blacklist.py: Python module blacklists, env var blacklists, file-modifying commands
-- validator.py: unified validation interface + env var sanitization (ALL/CORE/NONE policies)
+- blacklist.py: Python module blacklists, dangerous env var names, file-modifying commands
+- validator.py: unified validation interface (command, module, path)
 - shell_bleed.py: script env var leak detection (warning-only)
 - archive_sanitizer.py: archive command sanitization
 """
@@ -24,7 +24,6 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
 )
 from myrm_agent_harness.toolkits.code_execution.security.blacklist import (
     CORE_DANGEROUS_MODULES,
-    CORE_SAFE_ENV_VARS,
     DANGEROUS_ENV_PREFIXES,
     DANGEROUS_ENV_VARS,
     DANGEROUS_ENV_WILDCARDS,
@@ -32,7 +31,6 @@ from myrm_agent_harness.toolkits.code_execution.security.blacklist import (
     DANGEROUS_MODULES_REASONS,
     FILE_MODIFYING_COMMANDS,
     NETWORK_MODULES,
-    NON_INHERITABLE_ENV_VARS,
     get_dangerous_modules,
 )
 from myrm_agent_harness.toolkits.code_execution.security.destructive_rules import analyze_destructive_action
@@ -69,13 +67,11 @@ from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer 
     register_integration_write_patterns,
 )
 from myrm_agent_harness.toolkits.code_execution.security.validator import (
-    EnvInheritPolicy,
     ValidationResult,
     is_command_allowed,
     is_module_allowed,
     is_path_allowed,
     is_path_component_safe,
-    sanitize_env,
     validate_command,
     validate_module,
     validate_path,
@@ -89,11 +85,9 @@ from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot impo
 
 __all__ = [
     "CORE_DANGEROUS_MODULES",
-    "CORE_SAFE_ENV_VARS",
     "DANGEROUS_ENV_PREFIXES",
     "DANGEROUS_ENV_VARS",
     "DANGEROUS_ENV_WILDCARDS",
-    "NON_INHERITABLE_ENV_VARS",
     # AST parser and capability boundaries
     "AtomicCommandAction",
     "BashASTParser",
@@ -117,8 +111,6 @@ __all__ = [
     # Command risk classification
     "CommandRiskLevel",
     "CommandThreat",
-    # Env sanitization
-    "EnvInheritPolicy",
     # Subcommand flag configs
     "FlagArgType",
     "SubcommandConfig",
@@ -142,7 +134,6 @@ __all__ = [
     # Archive sanitization
     "register_integration_write_patterns",
     "sanitize_archive_command",
-    "sanitize_env",
     # Script materialization armor
     "ScriptArmorConfig",
     "build_file_backed_command",

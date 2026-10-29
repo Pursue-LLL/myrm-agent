@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.core.security.process_env import CODE_INJECTION_ENV_VARS, is_code_injection_env_name
+from myrm_agent_harness.core.security.process_env import (
+    CODE_INJECTION_ENV_VARS,
+    DEFAULT_CHILD_SAFE_ENV_KEYS,
+    is_code_injection_env_name,
+)
 from myrm_agent_harness.toolkits.code_execution.security.blacklist import (
-    CORE_SAFE_ENV_VARS,
     DANGEROUS_ENV_PREFIXES,
     DANGEROUS_ENV_VARS,
 )
@@ -130,7 +133,7 @@ class TestTheVariableLists:
         assert set(DANGEROUS_ENV_PREFIXES) == {"LD_", "DYLD_", "GIT_SSL_"}
 
     def test_a_name_a_shell_commonly_sets_is_not_an_injection_name(self) -> None:
-        assert not (CODE_INJECTION_ENV_VARS & CORE_SAFE_ENV_VARS)
+        assert not (CODE_INJECTION_ENV_VARS & DEFAULT_CHILD_SAFE_ENV_KEYS)
         for name in ("CC", "CXX", "ENV", "IFS", "HTTP_PROXY", "PIP_INDEX_URL", "PAGER", "EDITOR", "PATH"):
             assert not is_code_injection_env_name(name), name
 

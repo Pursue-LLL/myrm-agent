@@ -26,7 +26,7 @@ Execution security — shell command analysis, blacklists, validators, and C-lev
 | shell_command_strip.py | Core | Quote-stripping helper for shell command preprocessing | ✅ |
 | sql_statement_guard.py | Core | SQL Statement Guard — detect destructive SQL in DB client commands (psql/mysql/sqlite3/sqlcmd/mongosh). Extracts SQL from -c/-e/--eval flags and pipe patterns, triggers ESCALATE for write operations. | ✅ |
 | script_armor.py | Core | Script materialization & subprocess invocation armor — protect persistent session against beacon swallowing, exit-statement session deaths, and quote bombs by materializing complex scripts to temporary files executed via subshell. Includes ArmoredCommandString metadata tagging and sweep_stale_materialized_scripts orphan GC. | ✅ |
-| validator.py | Core | Unified security validator for code execution; re-exports the child-environment functions of `core.security.process_env` (`sanitize_env`, `build_isolated_child_env`, `EnvInheritPolicy`, ...). | ✅ |
+| validator.py | Core | Unified security validator for code execution: Python module imports, bash commands and file paths. | ✅ |
 | destructive_rules.py | Core | 细粒度破坏性命令静态规则分析器（rm/git/dd/mkfs/find/inline-script）与爆炸半径推导 | ✅ |
 | destructive_types.py | Core | 破坏性分析类型定义、不可逆常量命令集与爆炸半径数据结构 | ✅ |
 | workspace_snapshot.py | Core | 零拷贝原子工作区快照创建（create_workspace_snapshot）与一键撤销回滚（rollback_workspace_snapshot；回滚只接受完整提交哈希 `is_snapshot_commit_id`，且 git 经 `hardened_git_argv` 加固，检出时并入 `HARDENED_GIT_ENV`） | ✅ |

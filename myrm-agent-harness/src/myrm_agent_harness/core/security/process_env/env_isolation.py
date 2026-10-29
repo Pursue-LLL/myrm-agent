@@ -20,7 +20,7 @@ Referenced by:
 - toolkits/code_execution/session/local_session.py, executors/local/* (shell sessions, one-shot commands)
 - agent/hooks/executor.py (shell command hooks), core/security/safe_exec.py, toolkits/acp/runtime/_base.py
 - toolkits/computer_use/backends/cua_driver.py (CUA stdio driver)
-- toolkits/code_execution/security/validator.py (re-exported)
+- toolkits/browser/pool/browser_launch_env.py (browser launch environment)
 """
 
 from __future__ import annotations

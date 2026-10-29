@@ -192,43 +192,6 @@ _REDIRECTION_ENV_VARS: frozenset[str] = frozenset(
 
 DANGEROUS_ENV_VARS: frozenset[str] = CODE_INJECTION_ENV_VARS | _REDIRECTION_ENV_VARS
 
-# ============================================================
-# Non-inheritable environment variables (Auth tokens, priv sockets, DB URLs)
-# Defends against privilege escalation, prompt injection token exfiltration,
-# and credentials leaking to subprocesses (Codex PR #38941 & #37607).
-# ============================================================
-
-NON_INHERITABLE_ENV_VARS: frozenset[str] = frozenset(
-    {
-        # Privileged agent sockets & admin configurations
-        "SSH_AUTH_SOCK",
-        "GPG_AGENT_INFO",
-        "KUBECONFIG",
-        "DOCKER_CONFIG",
-        "NETRC",
-        # Database & Cache connection strings with embedded credentials
-        "DATABASE_URL",
-        "DATABASE_PRIVATE_URL",
-        "REDIS_URL",
-        "REDIS_PRIVATE_URL",
-        "AMQP_URL",
-        "MONGO_URL",
-        # HTTP headers & session identifiers
-        "AUTHORIZATION",
-        "HTTP_AUTHORIZATION",
-        "COOKIE",
-        "HTTP_COOKIE",
-        # Execution server tokens & launch contexts (Codex #38941, #37607)
-        "CODEX_EXEC_SERVER_NOISE_AUTH_TOKEN",
-        "OPENAI_IDENTITY_TOKEN_FILE",
-        "OPENAI_FEDERATION_RULE_ID",
-        # Myrm internal control plane & agent tokens
-        "MYRM_AGENT_SERVER_TOKEN",
-        "MYRM_CONTROL_PLANE_TOKEN",
-        "MYRM_AUTH_TOKEN",
-    }
-)
-
 DANGEROUS_ENV_PREFIXES: tuple[str, ...] = (*CODE_INJECTION_ENV_PREFIXES, "GIT_SSL_")
 
 DANGEROUS_ENV_WILDCARDS: tuple[str, ...] = (
@@ -244,44 +207,6 @@ DANGEROUS_ENV_WILDCARDS: tuple[str, ...] = (
     "BEARER",
     "SIGNATURE",
     "PASS",
-)
-
-CORE_SAFE_ENV_VARS: frozenset[str] = frozenset(
-    {
-        "HOME",
-        "USER",
-        "LOGNAME",
-        "SHELL",
-        "PATH",
-        "PWD",
-        "OLDPWD",
-        "LANG",
-        "LC_ALL",
-        "LC_CTYPE",
-        "LC_MESSAGES",
-        "LC_COLLATE",
-        "TERM",
-        "COLORTERM",
-        "TMPDIR",
-        "TMP",
-        "TEMP",
-        "HOSTNAME",
-        "HOSTTYPE",
-        "MACHTYPE",
-        "OSTYPE",
-        "EDITOR",
-        "VISUAL",
-        "PAGER",
-        "XDG_RUNTIME_DIR",
-        "XDG_DATA_HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_CACHE_HOME",
-        "XDG_DATA_DIRS",
-        "XDG_CONFIG_DIRS",
-        "SHLVL",
-        "LINES",
-        "COLUMNS",
-    }
 )
 
 

@@ -18,12 +18,6 @@ from myrm_agent_harness.core.security.process_env import (
     build_isolated_child_env,
     sanitize_env,
 )
-from myrm_agent_harness.toolkits.code_execution.security.validator import (
-    build_isolated_child_env as validator_build_isolated_child_env,
-)
-from myrm_agent_harness.toolkits.code_execution.security.validator import (
-    sanitize_env as validator_sanitize_env,
-)
 
 
 class TestEnvIsolationCoreWhitelist:
@@ -263,22 +257,6 @@ class TestCallsiteIntegrationParity:
             assert "DATABASE_URL" not in isolated_env
             assert "OTHER_RANDOM_SECRET_VAR" not in isolated_env
 
-    def test_validator_backward_compatibility_reexports(self) -> None:
-        raw_env = {
-            "PATH": "/usr/bin",
-            "API_KEY": "secret",
-            "USER_TOKEN": "abc",
-        }
-        sanitized_1 = sanitize_env(raw_env)
-        sanitized_2 = validator_sanitize_env(raw_env)
-        assert sanitized_1 == sanitized_2
-        assert "API_KEY" not in sanitized_2
-        assert "USER_TOKEN" not in sanitized_2
-
-        built_1 = build_isolated_child_env(base_env=raw_env)
-        built_2 = validator_build_isolated_child_env(base_env=raw_env)
-        assert built_1 == built_2
-
 
 class TestExecutorAndHookSubprocessIsolation:
     """Tests isolation across LocalExecutor, background spawn, and Command Hooks."""
@@ -312,7 +290,7 @@ class TestExecutorAndHookSubprocessIsolation:
             "REDIS_URL": "redis://:secret@cache:6379",
             "BUILD_STEP": "compile",
         }
-        cleaned_env = validator_sanitize_env(malicious_context_env)
+        cleaned_env = sanitize_env(malicious_context_env)
         for k in list(cleaned_env.keys()):
             if is_non_inheritable_env_var(k):
                 cleaned_env.pop(k, None)

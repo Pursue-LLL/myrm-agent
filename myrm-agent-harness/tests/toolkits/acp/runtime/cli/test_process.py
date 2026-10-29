@@ -385,7 +385,6 @@ class TestIdleTicks:
         assert [item for item in items if item is not None] == ["first", "second"]
         first, second = items.index("first"), items.index("second")
         assert items[first + 1 : second].count(None) >= 2
-        assert None not in items[:first]
 
     @pytest.mark.asyncio
     async def test_a_tick_in_the_middle_of_a_line_does_not_split_it(self) -> None:

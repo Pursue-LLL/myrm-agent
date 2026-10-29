@@ -1,7 +1,7 @@
 """Environment handed to the browser processes the launcher starts.
 
 [INPUT]
-- myrm_agent_harness.toolkits.code_execution.security.validator::sanitize_env (POS: host environment secret filter)
+- myrm_agent_harness.core.security.process_env::sanitize_env (POS: host environment secret filter)
 - ..process_owner::owner_stamp_env (POS: ownership stamp naming the launching process)
 
 [OUTPUT]
@@ -22,14 +22,14 @@ from ..process_owner import owner_stamp_env
 
 def chromium_launch_env() -> dict[str, str]:
     """Host environment without secrets, stamped with the launching process as the owner."""
-    from myrm_agent_harness.toolkits.code_execution.security.validator import sanitize_env
+    from myrm_agent_harness.core.security.process_env import sanitize_env
 
     return {**sanitize_env(os.environ.copy()), **owner_stamp_env()}
 
 
 def camoufox_launch_env(fingerprint_env: object | None) -> dict[str, str]:
     """Host environment without secrets, overlaid with the string-valued fingerprint keys."""
-    from myrm_agent_harness.toolkits.code_execution.security.validator import sanitize_env
+    from myrm_agent_harness.core.security.process_env import sanitize_env
 
     merged = sanitize_env(os.environ.copy())
     if isinstance(fingerprint_env, dict):
