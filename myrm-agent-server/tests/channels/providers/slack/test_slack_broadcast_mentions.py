@@ -1,7 +1,7 @@
 """Slack text that comes from the agent cannot notify a whole channel, workspace or user group.
 
 ``<!here>``, ``<!channel>``, ``<!everyone>`` and ``<!subteam^ID>`` notify people when they reach Slack
-unescaped, in any text the bot sends: the rendered final reply and the raw placeholder or stream text alike.
+unescaped, in any text the bot sends: the rendered final reply and the raw placeholder or progress text alike.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import pytest
 from app.channels.providers.slack import SlackChannel
 from app.channels.providers.slack.format_converter import md_to_slack_mrkdwn, neutralize_broadcast_mentions
 from app.channels.rendering.renderer import render
-from app.channels.types import MediaAttachment, OutboundMessage
+from app.channels.types import MediaAttachment, MediaType, OutboundMessage
 
 _BROADCASTS = [
     "<!here>",
@@ -120,14 +120,14 @@ class TestRawTextBeforeItIsRendered:
     """The placeholder and the progress edits send agent text that no converter has seen."""
 
     @pytest.mark.asyncio
-    async def test_a_placeholder_started_as_a_stream(self) -> None:
+    async def test_a_placeholder_posted_in_a_thread(self) -> None:
         channel, post = _channel(), _ok(ts="1.1")
 
         with patch.object(channel._api._http, "post", post):
             await channel.send_placeholder("C1", "Looking <!channel> up <@U123>", thread_id="9.9")
 
-        (start,) = _calls(post, "chat.startStream")
-        assert start["markdown_text"] == "Looking &lt;!channel&gt; up <@U123>"
+        (posted,) = _calls(post, "chat.postMessage")
+        assert posted["text"] == "Looking &lt;!channel&gt; up <@U123>"
 
     @pytest.mark.asyncio
     async def test_a_placeholder_posted_as_a_message(self) -> None:
@@ -140,29 +140,6 @@ class TestRawTextBeforeItIsRendered:
         assert posted["text"] == "Looking &lt;!everyone&gt; up"
 
     @pytest.mark.asyncio
-    async def test_a_progress_edit_that_extends_the_stream_appends_only_the_new_text(self) -> None:
-        channel, post = _channel(), _ok(ts="1.1")
-
-        with patch.object(channel._api._http, "post", post):
-            await channel.send_placeholder("C1", "step <!here>", thread_id="9.9")
-            await channel.edit_message("C1", "1.1", "step <!here> then more <!subteam^S1>")
-
-        (append,) = _calls(post, "chat.appendStream")
-        assert append["markdown_text"] == " then more &lt;!subteam^S1&gt;"
-
-    @pytest.mark.asyncio
-    async def test_a_token_that_completes_between_edits_replaces_the_text_instead_of_appending(self) -> None:
-        channel, post = _channel(), _ok(ts="1.1")
-
-        with patch.object(channel._api._http, "post", post):
-            await channel.send_placeholder("C1", "see <!chan", thread_id="9.9")
-            await channel.edit_message("C1", "1.1", "see <!channel> now")
-
-        assert not _calls(post, "chat.appendStream")
-        (update,) = _calls(post, "chat.update")
-        assert update["text"] == "see &lt;!channel&gt; now"
-
-    @pytest.mark.asyncio
     async def test_an_edit_of_a_plain_message(self) -> None:
         channel, post = _channel(), _ok()
 
@@ -173,16 +150,15 @@ class TestRawTextBeforeItIsRendered:
         assert update["text"] == "now &lt;!channel&gt;"
 
     @pytest.mark.asyncio
-    async def test_a_final_reply_ending_a_stream_is_neutral_too(self) -> None:
+    async def test_a_final_reply_that_replaces_the_placeholder_is_neutral_too(self) -> None:
         channel, post = _channel(), _ok()
-        channel._stream_sent["1.1"] = "partial"
         reply = OutboundMessage(channel="slack", recipient_id="C1", content="Done <!channel>", user_id="u")
 
         with patch.object(channel._api._http, "post", post):
             await channel.edit_placeholder_message("C1", "1.1", reply)
 
-        (stop,) = _calls(post, "chat.stopStream")
-        assert not _notifies(str(stop["markdown_text"]))
+        (update,) = _calls(post, "chat.update")
+        assert not _notifies(str(update["text"]))
 
     @pytest.mark.asyncio
     async def test_the_comment_that_introduces_an_uploaded_file(self, tmp_path: Path) -> None:
@@ -190,7 +166,7 @@ class TestRawTextBeforeItIsRendered:
         report = tmp_path / "report.txt"
         report.write_text("x")
         attachment = MediaAttachment(
-            media_type="document", path=str(report), filename="report.txt", caption="Report <!channel> ready"
+            media_type=MediaType.DOCUMENT, path=str(report), filename="report.txt", caption="Report <!channel> ready"
         )
         post = AsyncMock(
             side_effect=[

@@ -5,9 +5,8 @@ Inbound: Events API webhook / Socket Mode WebSocket → _emit_inbound
   - Interactions: _handle_block_actions (Button clicks, Select choices)
   - Bot self-message filtering via bot_user_id + subtype check
 Outbound:
-  - Streaming: chat.startStream / chat.appendStream / chat.stopStream (native AI UX)
+  - Messages: chat.postMessage; the placeholder is edited in place with chat.update
   - Status: assistant.threads.setStatus (AI Agent "is thinking..." indicator)
-  - Fallback: chat.postMessage / chat.update (when streaming unavailable)
   - Files: getUploadURLExternal → PUT → completeUploadExternal (3-step upload)
   - Other: chat.delete / reactions.add
 
@@ -27,7 +26,7 @@ Outbound:
 [POS]
 Slack Bot channel implementation with AI Agent status indicator support. Supports
 DM/channel/thread messages, file upload, message edit/delete/reactions, Socket Mode
-persistent connection, native AI streaming output, assistant thread status.
+persistent connection, assistant thread status.
 """
 
 from __future__ import annotations
@@ -130,7 +129,6 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         self._bot_user_id: str = ""
         self._team_id: str = ""
         self._socket_task: asyncio.Task[None] | None = None
-        self._stream_sent: dict[str, str] = {}
         self._active_thread_status: dict[str, str] = {}
         self._thread_parent_cache: dict[str, tuple[ReplyContext | None, float]] = {}
         self._cache_ttl = 300.0  # 5 minutes
@@ -306,37 +304,16 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         *,
         thread_id: str | None = None,
     ) -> str | None:
-        text = neutralize_broadcast_mentions(text)
+        payload: dict[str, object] = {"channel": chat_id, "text": neutralize_broadcast_mentions(text)}
         if thread_id:
             self._active_thread_status[chat_id] = thread_id
             await self._api.set_thread_status(chat_id, thread_id, "is thinking...")
-
-            ts = await self._api.start_stream(chat_id, thread_id, text, self._team_id)
-            if ts:
-                self._stream_sent[ts] = text
-                return ts
-
-        payload: dict[str, object] = {"channel": chat_id, "text": text}
-        if thread_id:
             payload["thread_ts"] = thread_id
             self._thread_tracker.add(thread_id)
         return await self._api.post_message(payload)
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
-        # The complete text, before the stream delta: a token can be split across two chunks.
-        text = neutralize_broadcast_mentions(text)
-        if message_id in self._stream_sent:
-            prev = self._stream_sent[message_id]
-            if text.startswith(prev):
-                delta = text[len(prev) :]
-                if delta:
-                    ok = await self._api.append_stream(chat_id, message_id, delta)
-                    if ok:
-                        self._stream_sent[message_id] = text
-                        return
-            self._stream_sent.pop(message_id, None)
-
-        await self._api.update_message(chat_id, message_id, text)
+        await self._api.update_message(chat_id, message_id, neutralize_broadcast_mentions(text))
 
     async def edit_placeholder_message(
         self,
@@ -344,23 +321,6 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        if message_id in self._stream_sent:
-            self._stream_sent.pop(message_id, None)
-            blocks = build_blocks(msg)
-            payload: dict[str, object] = {
-                "channel": chat_id,
-                "ts": message_id,
-            }
-            chunks = render(msg, self.render_style)
-            if chunks:
-                payload["markdown_text"] = chunks[0]
-            if blocks:
-                payload["blocks"] = blocks
-            ok = await self._api.stop_stream(chat_id, message_id, payload)
-            if ok:
-                await self._clear_assistant_status(chat_id)
-                return
-
         await self.edit_message(chat_id, message_id, msg.content)
         await self._clear_assistant_status(chat_id)
 

@@ -54,29 +54,17 @@ def _slack_calls(post: AsyncMock, method: str) -> list[dict[str, object]]:
 
 class TestSlackFinalReply:
     @pytest.mark.asyncio
-    async def test_a_streamed_reply_ends_with_the_text_that_was_rendered_once(self) -> None:
+    async def test_a_reply_edited_in_place_carries_the_summary_once(self) -> None:
         channel = _slack()
-        channel._stream_sent["1.1"] = "partial"
         reply = _reply("slack")
         rendered = render(reply, channel.render_style)[0]
         post = AsyncMock(return_value=httpx.Response(200, json={"ok": True}))
 
         with patch.object(channel._api._http, "post", post):
-            await MessageEffects(_bus(channel)).edit_placeholder("slack", "C1", "1.1", reply)
-
-        (stop,) = _slack_calls(post, "chat.stopStream")
-        assert stop["markdown_text"] == rendered
-        assert str(stop["markdown_text"]).count(_SUMMARY) == 1
-
-    @pytest.mark.asyncio
-    async def test_a_reply_edited_in_place_carries_the_summary_once(self) -> None:
-        channel = _slack()
-        post = AsyncMock(return_value=httpx.Response(200, json={"ok": True}))
-
-        with patch.object(channel._api._http, "post", post):
-            await MessageEffects(_bus(channel)).edit_placeholder("slack", "C1", "9.9", _reply("slack"))
+            await MessageEffects(_bus(channel)).edit_placeholder("slack", "C1", "9.9", reply)
 
         (update,) = _slack_calls(post, "chat.update")
+        assert update["text"] == rendered
         assert str(update["text"]).count(_SUMMARY) == 1
 
     @pytest.mark.asyncio

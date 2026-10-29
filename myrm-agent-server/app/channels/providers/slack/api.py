@@ -3,7 +3,6 @@
 Covers the subset of Slack Web API methods needed for bidirectional messaging:
 auth.test, chat.postMessage, chat.update, chat.delete, reactions.add,
 files.getUploadURLExternal + completeUploadExternal (3-step upload),
-chat.startStream / appendStream / stopStream (native AI UX),
 assistant.threads.setStatus (AI Agent status indicator),
 apps.connections.open (Socket Mode).
 
@@ -181,62 +180,6 @@ class SlackClient:
         raise ChannelSendError(
             f"Slack {method} failed: {error}{needed}", channel="slack", status_code=resp.status_code, retriable=False
         )
-
-    # ── Streaming ──────────────────────────────────────────────
-
-    async def start_stream(self, channel: str, thread_ts: str, text: str, team_id: str = "") -> str | None:
-        payload: dict[str, object] = {
-            "channel": channel,
-            "thread_ts": thread_ts,
-        }
-        if text:
-            payload["markdown_text"] = text
-        if team_id:
-            payload["recipient_team_id"] = team_id
-        try:
-            resp = await self._http.post(
-                f"{_API_BASE}/chat.startStream",
-                json=payload,
-                timeout=_SEND_TIMEOUT,
-            )
-            data = resp.json()
-            if data.get("ok"):
-                ts = str(data.get("ts", ""))
-                return ts or None
-            logger.debug("Slack startStream failed: %s", data.get("error"))
-        except Exception as exc:
-            logger.debug("Slack startStream error: %s", exc)
-        return None
-
-    async def append_stream(self, channel: str, ts: str, text: str) -> bool:
-        try:
-            resp = await self._http.post(
-                f"{_API_BASE}/chat.appendStream",
-                json={"channel": channel, "ts": ts, "markdown_text": text},
-                timeout=_SEND_TIMEOUT,
-            )
-            data = resp.json()
-            if data.get("ok"):
-                return True
-            logger.debug("Slack appendStream failed: %s", data.get("error"))
-        except Exception as exc:
-            logger.debug("Slack appendStream error: %s", exc)
-        return False
-
-    async def stop_stream(self, channel: str, ts: str, payload: dict[str, object]) -> bool:
-        try:
-            resp = await self._http.post(
-                f"{_API_BASE}/chat.stopStream",
-                json=payload,
-                timeout=_SEND_TIMEOUT,
-            )
-            data = resp.json()
-            if data.get("ok"):
-                return True
-            logger.debug("Slack stopStream failed: %s", data.get("error"))
-        except Exception as exc:
-            logger.debug("Slack stopStream error: %s", exc)
-        return False
 
     # ── Assistant Thread Status ─────────────────────────────────
 

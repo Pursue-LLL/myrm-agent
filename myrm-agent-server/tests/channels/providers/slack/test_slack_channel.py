@@ -1,8 +1,9 @@
-"""SlackChannel contract compliance + streaming / upload / lifecycle / inbound tests."""
+"""SlackChannel contract compliance + placeholder / upload / lifecycle / inbound tests."""
 
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -25,7 +26,9 @@ from app.channels.providers.slack.helpers import (
 from app.channels.types import (
     ActionButton,
     ChannelStatus,
+    InboundMessage,
     MediaAttachment,
+    MediaType,
     OutboundMessage,
     SelectMenu,
     SelectOption,
@@ -59,82 +62,73 @@ class TestSlackChannel(ChannelTestBase):
         )
 
 
-class TestSlackNativeStreaming:
-    """Tests for chat.startStream / appendStream / stopStream flow."""
+class TestSlackPlaceholder:
+    """The placeholder is a posted message that is edited in place; it is never a Slack stream.
+
+    A Slack stream only appends, while the router replaces the placeholder text with stage labels, previews that
+    end in a progress percentage, and the final reply.
+    """
+
+    @staticmethod
+    async def _flow(previews: list[str], *, thread_id: str | None = "9.9") -> list[tuple[str, dict[str, object]]]:
+        """Placeholder, progress edits and final reply in the order the router sends them; every Slack call."""
+        ch = _make_channel()
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        async def record(url: str, *, json: dict[str, object], **_: object) -> httpx.Response:
+            calls.append((url.rsplit("/", 1)[-1], json))
+            return _ok_json({"ts": "1.1"})
+
+        reply = OutboundMessage(channel="slack", recipient_id="D1", content="The answer is 42.", user_id="U1")
+        with patch.object(ch._api._http, "post", side_effect=record):
+            ts = await ch.send_placeholder("D1", "Thinking...", thread_id=thread_id)
+            assert ts == "1.1"
+            for preview in previews:
+                await ch.edit_message("D1", ts, preview)
+            await ch.edit_placeholder_message("D1", ts, reply)
+        return calls
 
     @pytest.mark.asyncio
-    async def test_send_placeholder_uses_start_stream_with_thread(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1234.5678"})) as mock_post:
-            ts = await ch.send_placeholder("C_CHAN", "thinking...", thread_id="1111.0000")
+    @pytest.mark.parametrize(
+        "previews",
+        [[], ["Searching the web", "The answer [40% (~3s left)]", "The answer is 4 [80%]"]],
+        ids=["no-preview", "labels-then-growing-preview"],
+    )
+    async def test_the_placeholder_is_edited_in_place_into_the_final_reply(self, previews: list[str]) -> None:
+        calls = await self._flow(previews)
 
-        assert ts == "1234.5678"
-        assert "1234.5678" in ch._stream_sent
-        call_args = mock_post.call_args
-        assert "chat.startStream" in str(call_args)
-
-    @pytest.mark.asyncio
-    async def test_send_placeholder_fallback_without_thread(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "9999.0001"})) as mock_post:
-            ts = await ch.send_placeholder("C_CHAN", "thinking...")
-
-        assert ts == "9999.0001"
-        assert "9999.0001" not in ch._stream_sent
-        call_args = mock_post.call_args
-        assert "chat.postMessage" in str(call_args)
-
-    @pytest.mark.asyncio
-    async def test_send_placeholder_fallback_on_stream_error(self) -> None:
-        ch = _make_channel()
-        responses = [
-            _ok_json(),  # setStatus succeeds
-            _err_json("not_allowed"),  # startStream fails
-            _ok_json({"ts": "5555.0001"}),  # postMessage fallback
+        assert [name for name, _ in calls] == [
+            "assistant.threads.setStatus",
+            "chat.postMessage",
+            *["chat.update"] * (len(previews) + 1),
+            "assistant.threads.setStatus",
         ]
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, side_effect=responses):
-            ts = await ch.send_placeholder("C_CHAN", "thinking...", thread_id="1111.0000")
-
-        assert ts == "5555.0001"
-        assert "5555.0001" not in ch._stream_sent
+        assert calls[1][1]["text"] == "Thinking..."
+        assert [body["text"] for name, body in calls if name == "chat.update"] == [*previews, "The answer is 42."]
 
     @pytest.mark.asyncio
-    async def test_edit_message_uses_append_stream(self) -> None:
+    async def test_a_thread_placeholder_replies_in_the_thread(self) -> None:
+        calls = await self._flow([])
+
+        assert calls[1][1] == {"channel": "D1", "text": "Thinking...", "thread_ts": "9.9"}
+
+    @pytest.mark.asyncio
+    async def test_the_thread_of_a_placeholder_is_one_the_bot_took_part_in(self) -> None:
         ch = _make_channel()
-        ch._stream_sent["1234.5678"] = "Hello"
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.edit_message("C_CHAN", "1234.5678", "Hello world")
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})):
+            await ch.send_placeholder("D1", "Thinking...", thread_id="9.9")
 
-        assert ch._stream_sent["1234.5678"] == "Hello world"
-        call_args = mock_post.call_args
-        assert "chat.appendStream" in str(call_args)
-        payload = call_args.kwargs.get("json", {})
-        assert payload["markdown_text"] == " world"
+        assert ch._thread_tracker.contains("9.9")
 
     @pytest.mark.asyncio
-    async def test_edit_message_fallback_on_non_prefix(self) -> None:
-        """When new text is not a prefix extension, fall back to chat.update."""
-        ch = _make_channel()
-        ch._stream_sent["1234.5678"] = "Hello"
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.edit_message("C_CHAN", "1234.5678", "Completely different")
+    async def test_a_placeholder_outside_a_thread_sets_no_status(self) -> None:
+        calls = await self._flow([], thread_id=None)
 
-        assert "1234.5678" not in ch._stream_sent
-        call_args = mock_post.call_args
-        assert "chat.update" in str(call_args)
+        assert [name for name, _ in calls] == ["chat.postMessage", "chat.update"]
+        assert "thread_ts" not in calls[0][1]
 
     @pytest.mark.asyncio
-    async def test_edit_message_fallback_on_append_failure(self) -> None:
-        ch = _make_channel()
-        ch._stream_sent["1234.5678"] = "Hello"
-        responses = [_err_json("stream_expired"), _ok_json()]
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, side_effect=responses):
-            await ch.edit_message("C_CHAN", "1234.5678", "Hello world")
-
-        assert "1234.5678" not in ch._stream_sent
-
-    @pytest.mark.asyncio
-    async def test_edit_message_no_stream_uses_update(self) -> None:
+    async def test_edit_message_uses_update(self) -> None:
         ch = _make_channel()
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
             await ch.edit_message("C_CHAN", "9999.0001", "Updated text")
@@ -143,24 +137,7 @@ class TestSlackNativeStreaming:
         assert "chat.update" in str(call_args)
 
     @pytest.mark.asyncio
-    async def test_edit_placeholder_message_uses_stop_stream(self) -> None:
-        ch = _make_channel()
-        ch._stream_sent["1234.5678"] = "partial"
-        msg = OutboundMessage(
-            channel="slack",
-            recipient_id="C_CHAN",
-            content="Final answer",
-            user_id="U_USER",
-        )
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.edit_placeholder_message("C_CHAN", "1234.5678", msg)
-
-        assert "1234.5678" not in ch._stream_sent
-        call_args = mock_post.call_args
-        assert "chat.stopStream" in str(call_args)
-
-    @pytest.mark.asyncio
-    async def test_edit_placeholder_message_fallback_no_stream(self) -> None:
+    async def test_edit_placeholder_message_uses_update(self) -> None:
         ch = _make_channel()
         msg = OutboundMessage(
             channel="slack",
@@ -173,22 +150,6 @@ class TestSlackNativeStreaming:
 
         call_args = mock_post.call_args
         assert "chat.update" in str(call_args)
-
-    @pytest.mark.asyncio
-    async def test_edit_placeholder_message_stop_stream_failure_fallback(self) -> None:
-        ch = _make_channel()
-        ch._stream_sent["1234.5678"] = "partial"
-        msg = OutboundMessage(
-            channel="slack",
-            recipient_id="C_CHAN",
-            content="Final answer",
-            user_id="U_USER",
-        )
-        responses = [_err_json("stream_expired"), _ok_json()]
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, side_effect=responses):
-            await ch.edit_placeholder_message("C_CHAN", "1234.5678", msg)
-
-        assert "1234.5678" not in ch._stream_sent
 
 
 class TestSlackAssistantThreadStatus:
@@ -203,7 +164,7 @@ class TestSlackAssistantThreadStatus:
 
         calls = [str(c) for c in mock_post.call_args_list]
         assert any("assistant.threads.setStatus" in c for c in calls)
-        assert "C_CHAN" in ch._active_thread_status or "1234.5678" in ch._stream_sent
+        assert ch._active_thread_status["C_CHAN"] == "1111.0000"
 
     @pytest.mark.asyncio
     async def test_send_placeholder_without_thread_skips_status(self) -> None:
@@ -243,10 +204,9 @@ class TestSlackAssistantThreadStatus:
         assert not any("assistant.threads.setStatus" in c for c in calls)
 
     @pytest.mark.asyncio
-    async def test_edit_placeholder_clears_status_on_stop_stream(self) -> None:
-        """edit_placeholder_message should clear status after stop_stream succeeds."""
+    async def test_edit_placeholder_clears_status_after_the_update(self) -> None:
+        """edit_placeholder_message clears the status once the final reply is in place."""
         ch = _make_channel()
-        ch._stream_sent["1234.5678"] = "partial"
         ch._active_thread_status["C_CHAN"] = "1111.0000"
         msg = OutboundMessage(channel="slack", recipient_id="C_CHAN", content="Final", user_id="U")
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
@@ -257,18 +217,6 @@ class TestSlackAssistantThreadStatus:
         assert any("assistant.threads.setStatus" in c for c in calls)
 
     @pytest.mark.asyncio
-    async def test_edit_placeholder_clears_status_on_fallback(self) -> None:
-        """edit_placeholder_message should clear status even on fallback to edit_message."""
-        ch = _make_channel()
-        ch._active_thread_status["C_CHAN"] = "1111.0000"
-        msg = OutboundMessage(channel="slack", recipient_id="C_CHAN", content="Final", user_id="U")
-        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.edit_placeholder_message("C_CHAN", "9999.0001", msg)
-
-        assert "C_CHAN" not in ch._active_thread_status
-        calls = [str(c) for c in mock_post.call_args_list]
-        assert any("assistant.threads.setStatus" in c for c in calls)
-
     @pytest.mark.asyncio
     async def test_delete_message_clears_status(self) -> None:
         """delete_message should clear assistant status if active."""
@@ -333,7 +281,7 @@ class TestSlackFileUpload:
 
         ch = _make_channel()
         attachment = MediaAttachment(
-            media_type="document",
+            media_type=MediaType.DOCUMENT,
             path=str(test_file),
             filename="test.txt",
         )
@@ -362,7 +310,7 @@ class TestSlackFileUpload:
             fpath = f.name
 
         ch = _make_channel()
-        attachment = MediaAttachment(media_type="document", path=fpath, filename="f.txt")
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path=fpath, filename="f.txt")
 
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json("not_allowed")):
             await ch._api.upload_file("C_CHAN", attachment, None)
@@ -372,7 +320,7 @@ class TestSlackFileUpload:
     @pytest.mark.asyncio
     async def test_upload_file_empty_attachment(self) -> None:
         ch = _make_channel()
-        attachment = MediaAttachment(media_type="document")
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT)
         await ch._api.upload_file("C_CHAN", attachment, None)
 
 
@@ -472,7 +420,7 @@ class TestSlackHelpers:
         )
         blocks = build_blocks(msg)
         assert blocks is not None
-        assert blocks[0]["elements"][0]["url"] == "https://example.com"
+        assert cast("list[dict[str, object]]", blocks[0]["elements"])[0]["url"] == "https://example.com"
 
     def test_build_blocks_with_select_menu(self) -> None:
         msg = OutboundMessage(
@@ -495,10 +443,10 @@ class TestSlackHelpers:
         )
         blocks = build_blocks(msg)
         assert blocks is not None
-        el = blocks[0]["elements"][0]
+        el = cast("list[dict[str, object]]", blocks[0]["elements"])[0]
         assert el["type"] == "static_select"
         assert el["action_id"] == "sel:sel_1"
-        assert len(el["options"]) == 2
+        assert len(cast("list[object]", el["options"])) == 2
 
     def test_parse_media_attachments(self) -> None:
         event: dict[str, object] = {
@@ -743,7 +691,7 @@ class TestSlackSend:
             recipient_id="C_CHAN",
             content="",
             user_id="U",
-            media=(MediaAttachment(media_type="document", path=fpath, filename="f.txt"),),
+            media=(MediaAttachment(media_type=MediaType.DOCUMENT, path=fpath, filename="f.txt"),),
         )
         step1 = _ok_json({"upload_url": "https://up.slack.com/x", "file_id": "F1"})
         step3 = _ok_json()
@@ -806,7 +754,7 @@ class TestSlackSend:
             recipient_id="C",
             content="",
             user_id="U",
-            media=(MediaAttachment(media_type="document", path=fpath, filename="f.txt"),),
+            media=(MediaAttachment(media_type=MediaType.DOCUMENT, path=fpath, filename="f.txt"),),
         )
         step1 = _ok_json({"upload_url": "https://up.slack.com/x", "file_id": "F1"})
         step3 = _ok_json()
@@ -826,7 +774,7 @@ class TestSlackSendAttachmentFailures:
 
     @staticmethod
     def _doc(name: str = "f.txt") -> MediaAttachment:
-        return MediaAttachment(media_type="document", path=f"/tmp/{name}", filename=name)
+        return MediaAttachment(media_type=MediaType.DOCUMENT, path=f"/tmp/{name}", filename=name)
 
     @pytest.mark.asyncio
     async def test_failed_upload_after_delivered_text_is_a_partial_delivery(self) -> None:
@@ -890,7 +838,7 @@ class TestSlackUploadExtended:
 
         ch = _make_channel()
         attachment = MediaAttachment(
-            media_type="image",
+            media_type=MediaType.IMAGE,
             url="https://example.com/img.png",
             filename="img.png",
         )
@@ -924,7 +872,7 @@ class TestSlackUploadExtended:
             fpath = f.name
 
         ch = _make_channel()
-        attachment = MediaAttachment(media_type="document", path=fpath, filename="f.txt")
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path=fpath, filename="f.txt")
         step1 = _ok_json({"upload_url": "https://up.slack.com/x", "file_id": "F3"})
         put_resp = httpx.Response(500)
         with (
@@ -945,7 +893,7 @@ class TestSlackUploadExtended:
 
         ch = _make_channel()
         attachment = MediaAttachment(
-            media_type="document",
+            media_type=MediaType.DOCUMENT,
             path=fpath,
             filename="f.txt",
             caption="See this",
@@ -968,7 +916,7 @@ class TestSlackUploadExtended:
     async def test_upload_file_exception(self) -> None:
         ch = _make_channel()
         attachment = MediaAttachment(
-            media_type="image",
+            media_type=MediaType.IMAGE,
             url="https://example.com/img.png",
             filename="img.png",
         )
@@ -1027,8 +975,8 @@ class TestSlackInbound:
     @pytest.mark.asyncio
     async def test_handle_event_message(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         event_data: dict[str, object] = {
             "type": "event_callback",
             "event": {
@@ -1051,7 +999,7 @@ class TestSlackInbound:
     @pytest.mark.asyncio
     async def test_handle_event_ignores_bot_message(self) -> None:
         ch = _make_channel()
-        ch._emit_inbound = AsyncMock()  # type: ignore[assignment]
+        ch._emit_inbound = AsyncMock()  # type: ignore[method-assign]
         event_data: dict[str, object] = {
             "type": "event_callback",
             "event": {
@@ -1068,7 +1016,7 @@ class TestSlackInbound:
     @pytest.mark.asyncio
     async def test_handle_event_ignores_subtype(self) -> None:
         ch = _make_channel()
-        ch._emit_inbound = AsyncMock()  # type: ignore[assignment]
+        ch._emit_inbound = AsyncMock()  # type: ignore[method-assign]
         event_data: dict[str, object] = {
             "type": "event_callback",
             "event": {
@@ -1086,8 +1034,8 @@ class TestSlackInbound:
     @pytest.mark.asyncio
     async def test_handle_event_block_actions(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         payload: dict[str, object] = {
             "type": "block_actions",
             "user": {"id": "U_USER", "name": "testuser"},
@@ -1238,8 +1186,8 @@ class TestSlackBlockActionsTimestamp:
     @pytest.mark.asyncio
     async def test_block_action_uses_message_ts(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         payload: dict[str, object] = {
             "type": "block_actions",
             "user": {"id": "U_USER", "name": "test"},
@@ -1255,8 +1203,8 @@ class TestSlackBlockActionsTimestamp:
     @pytest.mark.asyncio
     async def test_block_action_invalid_ts(self) -> None:
         ch = _make_channel()
-        emitted: list[object] = []
-        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[method-assign]
         payload: dict[str, object] = {
             "type": "block_actions",
             "user": {"id": "U_USER", "name": "test"},

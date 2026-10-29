@@ -88,7 +88,7 @@ def _escape_slack_segment(text: str) -> str:
 def neutralize_broadcast_mentions(text: str) -> str:
     """Escape the tokens that notify a whole audience, leaving all other text as it is.
 
-    For text that reaches Slack without passing the converter (placeholders and stream edits). It works on
+    For text that reaches Slack without passing the converter (placeholders and progress edits). It works on
     complete text, never on a fragment, because a token can be split across two chunks; escaped text no longer
     matches, so applying it twice changes nothing.
     """
