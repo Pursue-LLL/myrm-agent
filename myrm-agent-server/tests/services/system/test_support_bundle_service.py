@@ -146,7 +146,7 @@ async def test_a_slow_doctor_degrades_its_section_without_failing_the_bundle(eve
     with patch(f"{_MODULE}.collect_health_snapshot", new=never_in_time), patch(f"{_MODULE}._COLLECTION_TIMEOUT_SECONDS", 0.01):
         files = await _build()
 
-    assert "error" in json.loads(files["doctor_health.json"])
+    assert "TimeoutError" in json.loads(files["doctor_health.json"])["error"]
     assert json.loads(files["active_profiles.json"])[0]["id"] == "writer"
 
 
@@ -180,3 +180,13 @@ def test_a_window_that_starts_on_a_line_boundary_keeps_every_line(event_logs: Pa
     (event_logs / "session.jsonl").write_text(_jsonl_pad(512) + newest_line, encoding="utf-8")
 
     assert SupportBundleService.collect_recent_event_traces()["session.jsonl"] == newest_line
+
+
+def test_a_window_starting_inside_a_multibyte_character_drops_that_line_whole(event_logs: Path) -> None:
+    older = '{"t":"' + "中" * 100 + '"}\n'
+    newest = '{"t":"' + "文" * ((_MAX_BYTES_PER_EVENT_LOG - 109) // 3) + '"}\n'
+    # The window then starts 2 bytes into a character of ``older``.
+    assert len(older.encode("utf-8")) + len(newest.encode("utf-8")) - _MAX_BYTES_PER_EVENT_LOG == 209
+    (event_logs / "session.jsonl").write_text(older + newest, encoding="utf-8")
+
+    assert SupportBundleService.collect_recent_event_traces()["session.jsonl"] == newest

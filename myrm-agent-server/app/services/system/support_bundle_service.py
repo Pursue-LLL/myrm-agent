@@ -115,7 +115,7 @@ class SupportBundleService:
                 }
         except Exception as exc:
             logger.warning("Failed to capture doctor health snapshot: %s", exc)
-            return {"error": f"Doctor probe timeout or failure: {exc}"}
+            return {"error": f"Doctor probe timeout or failure: {exc!r}"}
 
     @classmethod
     async def collect_agent_profiles(cls) -> list[dict[str, object]]:
@@ -138,7 +138,7 @@ class SupportBundleService:
             ]
         except Exception as exc:
             logger.warning("Failed to collect agent profiles: %s", exc)
-            return [{"error": f"Failed to list profiles: {exc}"}]
+            return [{"error": f"Failed to list profiles: {exc!r}"}]
 
     @classmethod
     def collect_recent_event_traces(cls) -> dict[str, str]:
