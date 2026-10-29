@@ -664,7 +664,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
 - **Prior chat recall SSOT 集成单测**：`tests/api/chats/test_prior_chat_recall_integration.py`（seed-prior-chat-fixture → GET `/recall/search` → mention inject；默认 CI，不依赖 Chrome）
 - **MCP reload confirm Chrome E2E**：`tests/e2e/test_mcp_reload_confirm_chrome_e2e.py`（READ×1 SHPOIB 单会话：toggle · delete · import · add/save → `MCPReloadConfirmDialog`；见 `CHROME_MCP_E2E.md` §MCP reload confirm）
-- `tests/services/code_graph/test_code_graph_service.py`：AST 抽取器（JS/TS 的顶层函数与箭头函数按六种声明写法各产出一个函数符号）与 CodeGraphService 符号/调用图谱/拓扑查询单元测试（TS 函数经全量扫描进入符号表，`definition` 与 `path:line` 解析能命中），以及全量扫描的目录排除（扫描根的祖先目录名不参与排除，扫描根内部的 `node_modules`、`dist`、`.venv` 仍被排除）
+- `tests/services/code_graph/test_code_graph_service.py`：AST 抽取器（JS/TS 的顶层函数与箭头函数按六种声明写法各产出一个函数符号）与 CodeGraphService 符号/调用图谱/拓扑查询单元测试（TS 函数经全量扫描进入符号表，`definition` 与 `path:line` 解析能命中；每个 TS 调用只记一条边，归属所在函数，`callers` 不重复），以及全量扫描的目录排除（扫描根的祖先目录名不参与排除，扫描根内部的 `node_modules`、`dist`、`.venv` 仍被排除）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
 - WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_channel_routing_general_only_chrome_e2e` General-only 签收、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`scripts/dev/e2e_session/lane.py`）

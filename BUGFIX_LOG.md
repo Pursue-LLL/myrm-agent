@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 代码图谱的 TypeScript/JavaScript 抽取器把每个调用记两遍，第二份挂在模块名下：`callers` 结果翻倍、一半的调用归属错误
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | ① [实测] 上一条提交（`e9f8a7001b`）的抽取器对 `validateInput` 里的一次 `checkToken(val)` 产出两条边：`auth.validateInput -> checkToken` 与 `auth -> checkToken`；同一份样例里 `bootstrap()`、`format(val)` 也各是两条（调用者 `auth` 加 `auth` 或 `auth.render`）。② [真实源码] 对前端 `myrm-agent-frontend/src` 的 4,817 个 `.ts`、`.tsx`、`.js`、`.jsx` 文件：调用边 492,645 条，其中 347,600 条的调用者是模块名。③ 后果：存储的 `calls` 表对同一个调用有两行（没有唯一约束），`callers("checkToken")` 一次调用返回两行，`IndexStats.total_calls` 翻倍。 |
+| **根因** | `JsTsRegexExtractor.extract` 里留着两遍调用扫描：第一遍按当前所在函数归属并跳过注释行，第二遍用一条相近的正则再扫一次、调用者一律写模块名。`CodeGraphStore.get_callers` 本来就按完整名、裸名与 `%.裸名` 匹配被调用者，第二遍没有补上任何查询。 |
+| **修复** | 删除第二遍扫描（连同它的正则），每个调用只记一条带所在函数归属的边。 |
+| **回归证据** | [1] 新增 2 例：抽取器例（函数前的 `bootstrap()` 归 `auth`，`checkToken` 归 `auth.validateInput`，`format` 归 `auth.render`，各只一条）与服务例（`index_directory` 之后 `callers("checkToken")` 恰为 `auth.validateInput` 第 2 行一行）；上一版抽取器对同一份样例得到 `{'bootstrap': ['auth', 'auth'], 'checkToken': ['auth.validateInput', 'auth'], 'format': ['auth.render', 'auth']}`，新用例在其上失败。[2] `tests/services/code_graph` 14 例通过；`ruff check`、`ruff format --check` 通过。[3] 真实源码（同上 4,817 个文件，同一批文本，上一版与现在逐个跑）：调用边 492,645 → 249,265（少 243,380 条，49.4%），调用者为模块名的 347,600 → 104,220；三次取最小的总耗时 5,934 → 5,369 毫秒（本机有其它任务在跑，只有相对值）。 |
+| **仍然存在** | ① 声明行本身仍被当作调用：`function validateInput(` 记一条 `validateInput -> validateInput`，类方法声明 `login(token)` 同理，`const f = async (` 记一个名为 `async` 的调用；这是按行正则的既有行为，没动。② 调用归属最近一个在其之前声明的函数，不跟踪作用域结束，函数之后的顶层调用仍挂在前一个函数下；修复后仍有 104,220 条调用者是模块名，是否都是首个函数声明之前的调用，没有逐条核对。③ Python 抽取器没有检查是否有同类重复；`tests_reaching` 等其它查询对重复边的实际影响没有逐个验证。 |
+| **代码位置** | `myrm-agent-server/app/services/code_graph/ast_extractor.py` · `myrm-agent-server/app/services/code_graph/_ARCH.md` · `myrm-agent-server/tests/services/code_graph/test_code_graph_service.py` · `myrm-agent-server/tests/_ARCH.md` |
+
 ## 2026-10-29 · 代码图谱的 TypeScript/JavaScript 抽取器不产出函数符号：`definition` 与 `path:line` 解析找不到任何函数，只找得到类
 
 | 字段 | 内容 |

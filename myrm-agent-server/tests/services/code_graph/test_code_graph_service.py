@@ -114,6 +114,42 @@ def test_code_graph_service_indexes_typescript_functions(tmp_path: Path) -> None
     assert [r["qualified_name"] for r in service.resolve("auth.ts:1")][0] == "auth.validateInput"
 
 
+def test_jsts_regex_extractor_records_each_call_once_under_its_enclosing_function() -> None:
+    sample_ts = """bootstrap();
+
+export function validateInput(val: string) {
+  checkToken(val);
+}
+
+export const render = (val: string) => {
+  return format(val);
+};
+"""
+    extractor = JsTsRegexExtractor("auth.ts", sample_ts)
+    extractor.extract()
+
+    callers_by_callee: dict[str, list[str]] = {}
+    for call in extractor.calls:
+        callers_by_callee.setdefault(call.callee, []).append(call.caller)
+    assert callers_by_callee["bootstrap"] == ["auth"]
+    assert callers_by_callee["checkToken"] == ["auth.validateInput"]
+    assert callers_by_callee["format"] == ["auth.render"]
+
+
+def test_code_graph_service_returns_each_typescript_call_once(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "auth.ts").write_text(
+        "export function validateInput(val: string) {\n  checkToken(val);\n}\n",
+        encoding="utf-8",
+    )
+    service = CodeGraphService(tmp_path / "graph.db")
+
+    service.index_directory(root)
+
+    assert [(c["caller"], c["line"]) for c in service.callers("checkToken")] == [("auth.validateInput", 2)]
+
+
 def test_code_graph_service_e2e():
     with tempfile.TemporaryDirectory() as tmp_dir:
         root_path = Path(tmp_dir)
