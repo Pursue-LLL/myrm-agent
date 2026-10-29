@@ -425,6 +425,10 @@ class BaseChannel(ABC, EventEmitter):
         Channels that support rich formatting (e.g. Feishu cards with sources/header)
         should override this to build structured output from the complete message.
         Default: falls back to edit_message with the text content.
+
+        ``msg.content`` is already rendered (tool summary, sources and header included) and ``render()``
+        returns such a message unchanged, so a channel may pass it through ``render()`` or send the content
+        as it is, but must not decorate it again.
         """
         await self.edit_message(chat_id, message_id, msg.content)
 

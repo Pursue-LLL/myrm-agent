@@ -11,7 +11,7 @@ instead of raw internal errors.
 - channels.core.outbound_prepare::prepare_outbound (POS: shared outbound preparation)
 - channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
-- channels.rendering.renderer::render (POS: outbound message formatting pipeline)
+- channels.rendering.renderer::render, mark_rendered (POS: outbound message formatting pipeline; the stamp that a chunk is rendered)
 - channels.rendering.splitter::cap_stream_preview (POS: smart preview length cap for IM placeholders)
 - llms.errors.classifier::classify_error (POS: LLM error classification)
 - channels.routing.friendly_errors::friendly_error_message (POS: member-safe error wording with reference id)
@@ -40,7 +40,7 @@ from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.core.outbound_prepare import prepare_outbound
 from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
-from app.channels.rendering.renderer import render
+from app.channels.rendering.renderer import mark_rendered, render
 from app.channels.rendering.splitter import cap_stream_preview
 from app.channels.routing.friendly_errors import friendly_error_message
 from app.channels.routing.reactions import ReactionFunnel
@@ -185,8 +185,7 @@ class MessageEffects:
         text_reply = dataclasses.replace(prepared, media=())
         chunks = render(text_reply, ch.render_style)
 
-        meta = dict(prepared.metadata) if isinstance(prepared.metadata, dict) else {}
-        first_result = dataclasses.replace(text_reply, content=chunks[0], metadata=meta)
+        first_result = mark_rendered(text_reply, chunks[0])
         first_result = await self._bus.durable_outbound.persist_direct_send(first_result)
 
         try:
@@ -210,7 +209,7 @@ class MessageEffects:
 
         await self._bus.durable_outbound.ack(first_result)
         for extra_chunk in chunks[1:]:
-            extra = dataclasses.replace(text_reply, content=extra_chunk, components=(), quick_replies=())
+            extra = dataclasses.replace(mark_rendered(text_reply, extra_chunk), components=(), quick_replies=())
             await self._bus.publish_outbound(extra)
         if prepared.media:
             files_only = dataclasses.replace(

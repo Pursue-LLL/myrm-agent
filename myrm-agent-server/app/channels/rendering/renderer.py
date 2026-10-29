@@ -10,13 +10,18 @@ Format layer performs format downgrade based on RenderStyle capability declarati
 Sources block with numbered footnotes ([N]), corresponding to citation numbers in LLM body text.
 When no sources are present, orphan citation markers in body text (【N】/[N]) are auto-cleaned.
 
+A reply is rendered once. ``mark_rendered`` stamps a message that carries one rendered chunk, and ``render``
+hands such a message back as it is, so a channel that renders what it is given (to split, to convert) cannot
+add the tool summary, sources or header a second time.
+
 [INPUT]
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.rendering.splitter::split_message (POS: smart long-message splitting)
 - channels.rendering.text_utils (POS: format downgrade pure functions)
 
 [OUTPUT]
-- render(): OutboundMessage → list[str] (rendered text chunk list)
+- render(): OutboundMessage → list[str] (rendered text chunk list; a marked message yields its content alone)
+- mark_rendered(): the message that carries one rendered chunk
 
 [POS]
 Outbound message formatting pipeline. Converts structured OutboundMessage to platform-sendable
@@ -26,6 +31,7 @@ RenderStyle capability declarations. Format downgrade utilities live in text_uti
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 from ..types import (
@@ -49,6 +55,7 @@ from .text_utils import (
 
 _EMPTY_FALLBACK = "Done."
 _REASONING_DISPLAY_METADATA_KEY = "reasoning_display_mode"
+_RENDERED_METADATA_KEY = "rendered"
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,10 +74,21 @@ def render(msg: OutboundMessage, style: RenderStyle) -> list[str]:
     """OutboundMessage → channel 可Send text块List
 
     纯Function， no  I/O。Channel provider 只需Call此FunctionGet chunks 并逐个Send。
+    A message ``mark_rendered`` produced is already one rendered chunk and is returned unchanged.
     """
+    if msg.metadata and msg.metadata.get(_RENDERED_METADATA_KEY):
+        return [msg.content]
     prepared = _prepare(msg, style)
     text = _format(prepared, style)
     return split_message(text, style.max_text_length)
+
+
+def mark_rendered(msg: OutboundMessage, chunk: str) -> OutboundMessage:
+    """The message that carries ``chunk``, one piece ``render`` produced from ``msg``.
+
+    Its other fields stay, so channels that build cards from them still can; ``render`` leaves its text alone.
+    """
+    return dataclasses.replace(msg, content=chunk, metadata={**(msg.metadata or {}), _RENDERED_METADATA_KEY: True})
 
 
 # ---------------------------------------------------------------------------
