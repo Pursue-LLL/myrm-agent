@@ -17,7 +17,7 @@ from app.services.agent.params import (
     _extract_text_from_query,
 )
 from app.services.agent.params.models import MultimodalQuery
-from app.services.agent.streaming import ai_deep_research_service_stream
+from app.services.agent.streaming_support.deep_research_stream import ai_deep_research_service_stream
 
 logger = logging.getLogger(__name__)
 

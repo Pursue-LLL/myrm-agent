@@ -14,7 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.agent import streaming
-from app.services.agent.streaming import PhaseWaiter, ai_deep_research_service_stream
+from app.services.agent.streaming import PhaseWaiter
+from app.services.agent.streaming_support.deep_research_stream import ai_deep_research_service_stream
 
 MESSAGE_ID = "msg-dr-clarify"
 _NO_ANSWER = object()

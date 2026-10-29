@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.agent import streaming
+from app.services.agent.streaming_support import takeover_live_assist
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_injects_live_assist_url_into_browser_takeover_event(
     async def _fake_create_live_assist_url(
         *,
         chat_id: str | None,
-        message_id: str,
+        message_id: str | None,
         reason: object,
         page_url: object,
         is_managed: bool,
@@ -26,7 +26,7 @@ async def test_injects_live_assist_url_into_browser_takeover_event(
         assert is_managed is False
         return "https://assist.example/mobile/takeover/chat-1?pair=pair-token"
 
-    monkeypatch.setattr(streaming, "_create_takeover_live_assist_url", _fake_create_live_assist_url)
+    monkeypatch.setattr(takeover_live_assist, "_create_takeover_live_assist_url", _fake_create_live_assist_url)
 
     event = {
         "type": "browser_takeover_requested",
@@ -36,7 +36,7 @@ async def test_injects_live_assist_url_into_browser_takeover_event(
             "is_managed": False,
         },
     }
-    updated, cache = await streaming._inject_takeover_live_assist_url(
+    updated, cache = await takeover_live_assist.inject_takeover_live_assist_url(
         event,
         chat_id="chat-1",
         message_id="msg-1",
@@ -56,9 +56,9 @@ async def test_reuses_cached_live_assist_url_for_matching_approval_event(
     async def _should_not_be_called(**_: object) -> str | None:
         raise AssertionError("Unexpected live assist URL re-issue")
 
-    monkeypatch.setattr(streaming, "_create_takeover_live_assist_url", _should_not_be_called)
+    monkeypatch.setattr(takeover_live_assist, "_create_takeover_live_assist_url", _should_not_be_called)
 
-    cached: streaming.TakeoverLiveAssistCache = (
+    cached: takeover_live_assist.TakeoverLiveAssistCache = (
         "extension|Complete MFA|https://example.com/login",
         "https://assist.example/mobile/takeover/chat-1?pair=pair-token",
     )
@@ -73,7 +73,7 @@ async def test_reuses_cached_live_assist_url_for_matching_approval_event(
             },
         },
     }
-    updated, next_cache = await streaming._inject_takeover_live_assist_url(
+    updated, next_cache = await takeover_live_assist.inject_takeover_live_assist_url(
         event,
         chat_id="chat-1",
         message_id="msg-1",
@@ -93,7 +93,7 @@ async def test_managed_takeover_does_not_inject_live_assist_url(
     async def _fake_create_live_assist_url(**_: object) -> str | None:
         raise AssertionError("Managed takeover should not issue live assist URL")
 
-    monkeypatch.setattr(streaming, "_create_takeover_live_assist_url", _fake_create_live_assist_url)
+    monkeypatch.setattr(takeover_live_assist, "_create_takeover_live_assist_url", _fake_create_live_assist_url)
 
     event = {
         "type": "browser_takeover_requested",
@@ -103,7 +103,7 @@ async def test_managed_takeover_does_not_inject_live_assist_url(
             "is_managed": True,
         },
     }
-    updated, cache = await streaming._inject_takeover_live_assist_url(
+    updated, cache = await takeover_live_assist.inject_takeover_live_assist_url(
         event,
         chat_id="chat-1",
         message_id="msg-1",

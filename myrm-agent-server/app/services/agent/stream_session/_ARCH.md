@@ -44,6 +44,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 - `app/services/agent/memory_brief_telemetry/` — sandbox Control Plane memory brief 状态批量遥测（`stream_loop` / `stream_finalize` enqueue；用户可见 SSE 契约见 `_memory_status_helpers.py`）
 - `app/services/agent/streaming_support/` — SSE 辅助与内容收集
 - `app/services/agent/streaming.py` — Harness 流式桥接
+- `app/services/agent/streaming_support/deep_research_stream.py` — Deep Research 流（`stream_lane_factory.py` 的 deep research 通道）
 - `app/services/agent/approval_payload.py` — `phase_stepper.py` 用它识别 loop guard 暂停
 - `app/services/wiki/vault` — Deep Research vault 与 API 共用 wiki 路径与 archiver
 - `myrm_agent_harness.agent.streaming.stream_buffer` — 全局流 buffer

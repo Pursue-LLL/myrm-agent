@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.agent.streaming import ai_deep_research_service_stream
+from app.services.agent.streaming_support.deep_research_stream import ai_deep_research_service_stream
 
 
 @pytest.mark.asyncio

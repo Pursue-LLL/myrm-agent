@@ -62,7 +62,7 @@ DeepResearchOrchestrator (orchestrator.py)
 
 ## Callback 机制
 
-Orchestrator 支持 5 个可选回调，由业务层（`streaming.py`）注入：
+Orchestrator 支持 5 个可选回调，由业务层（`streaming_support/deep_research_stream.py`）注入：
 
 | Callback | 触发时机 | Server 层接入状态 | 签名 |
 |----------|----------|------------------|------|
