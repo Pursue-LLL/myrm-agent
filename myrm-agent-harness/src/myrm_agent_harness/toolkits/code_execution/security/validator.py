@@ -7,10 +7,10 @@ The primary path policy enforcement happens in the Permission Engine layer;
 this validator provides defense-in-depth for the local code executor.
 
 [INPUT]
-- core.paths::get_context_root (POS: Foundation-layer path roots; session context root is always allowed)
-- core.security.path::is_within_boundary (POS: Generic filesystem path boundary check)
-- security.blacklist::DANGEROUS_MODULES, DANGEROUS_MODULES_REASONS (POS: Python module blacklist)
-- security.shell_command_analyzer::analyze_command, ThreatLevel (POS: Shell command threat detection)
+- core.paths::get_context_root (POS: Foundation-layer path roots)
+- core.security.path::is_within_boundary (POS: Path security domain, the single import surface for path protection rules)
+- security.blacklist::DANGEROUS_MODULES, DANGEROUS_MODULES_REASONS (POS: Security blacklists for code execution)
+- security.shell_command_analyzer::analyze_command, ThreatLevel (POS: Unified security analysis for shell commands)
 
 [OUTPUT]
 - ValidationResult: Validation result.
