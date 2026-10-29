@@ -98,8 +98,6 @@ export interface ApprovalPayloadData {
   }>;
   irreversibleDestructive?: boolean;
   snapshotId?: string;
-  /** Per-tool reviewer reasons from interrupt payload */
-  reviewerReasons?: string[];
   /** MCP elicitation approval: server name and requested input schema */
   server_name?: string;
   requested_schema?: Record<string, unknown>;
@@ -251,11 +249,6 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
     : Array.isArray(raw.reviewConfigs)
       ? (raw.reviewConfigs as ApprovalPayloadData['reviewConfigs'])
       : undefined;
-  const reviewerReasons = Array.isArray(nestedPayload.reviewerReasons)
-    ? (nestedPayload.reviewerReasons as string[])
-    : Array.isArray(raw.reviewerReasons)
-      ? (raw.reviewerReasons as string[])
-      : undefined;
 
   return {
     approval_id: asString(raw.approval_id) || asString(raw.id),
@@ -289,7 +282,6 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
       messageId: payloadMessageId,
       action_type: asString(nestedPayload.action_type ?? raw.action_type) || undefined,
       reviewConfigs,
-      reviewerReasons,
     },
     chat_id: asString(raw.chat_id) || undefined,
     expires_at: asString(raw.expires_at) || undefined,

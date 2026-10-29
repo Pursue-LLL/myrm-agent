@@ -364,13 +364,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       actionDigest: found.actionDigest,
     };
   }, [approval.payload?.reviewConfigs]);
-  const smartDeniedReason = useMemo(() => {
-    const reasons = approval.payload?.reviewerReasons;
-    if (!reasons || !Array.isArray(reasons)) {
-      return undefined;
-    }
-    return reasons.find((r) => typeof r === 'string' && r.length > 0);
-  }, [approval.payload?.reviewerReasons]);
   const singleShellToolCall = useMemo(() => {
     if (!isSubagentApproval || toolCalls.length !== 1) {
       return null;
@@ -1187,12 +1180,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       {hasAnySmartDenied && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-          <div>
-            <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">{t('smartDenied.title')}</h4>
-            {smartDeniedReason && (
-              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">{smartDeniedReason}</p>
-            )}
-          </div>
+          <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">{t('smartDenied.title')}</h4>
         </div>
       )}
 
