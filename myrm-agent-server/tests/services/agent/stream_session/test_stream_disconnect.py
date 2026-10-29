@@ -10,6 +10,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
+from starlette.requests import Request
+from starlette.types import Message
 
 from app.services.agent.stream_session import stream_disconnect
 from app.services.agent.stream_session.stream_disconnect import (
@@ -205,3 +207,37 @@ async def test_long_running_turn_survives_a_sustained_disconnect(monkeypatch: py
         await asyncio.sleep(15 * _FAST_INTERVAL_SECONDS)
 
     assert session.cancel_token.is_cancelled is False
+
+
+@pytest.mark.asyncio
+async def test_turn_that_ends_while_the_client_is_polled_does_not_wait_for_the_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Starlette polls ``is_disconnected`` inside an already-cancelled anyio scope. A turn that ends in the loop step where that
+    scope delivers its cancellation used to leave the monitor polling, and the turn's exit waited for it while the client stayed
+    connected: the SSE stream stayed open after the answer was complete."""
+    monkeypatch.setattr(stream_disconnect, "_CHECK_INTERVAL_SECONDS", _FAST_INTERVAL_SECONDS)
+    polled = asyncio.Event()
+
+    async def receive_from_a_connected_client() -> Message:
+        polled.set()
+        await asyncio.Event().wait()
+        raise AssertionError("a connected client sends nothing")
+
+    session = _session()
+    session.http_request = Request({"type": "http", "headers": []}, receive_from_a_connected_client)
+
+    async def turn() -> None:
+        async with watch_client_disconnect(session):
+            await polled.wait()
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    try:
+        await asyncio.wait_for(turn(), timeout=2)
+        elapsed = loop.time() - started
+        left_running = len(_monitor_loops())
+    finally:
+        session.cancel_token.cancel(CancelReason.ERROR)  # ends a polling task that the turn left behind
+        await asyncio.sleep(5 * _FAST_INTERVAL_SECONDS)
+
+    assert elapsed < 1.0, f"the turn took {elapsed:.2f}s to end"
+    assert left_running == 0
