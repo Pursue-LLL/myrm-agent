@@ -27,7 +27,6 @@
     "check": "bun run format && bun run lint",
     "typecheck": "tsc --noEmit",
     "generate:artifact-types": "bun scripts/generate-artifact-types.ts",
-    "sync-litellm-routing": "cd ../myrm-agent-harness && uv run python scripts/generate_litellm_routing.py",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

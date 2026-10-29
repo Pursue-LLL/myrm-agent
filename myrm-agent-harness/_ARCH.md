@@ -30,11 +30,11 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 ## 模块依赖
 
 - **被依赖方**：`myrm-agent/myrm-agent-server`（业务编排，优先 `myrm_agent_harness.api` / `api.hooks` / `api.skills` 公开路径）
-- **构建**：tag `v*` → CI 发 PyPI → vortexai `./myrm harness sync-lock` 刷新 OSS `uv.lock`
+- **构建**：tag `harness-v*` → `.github/workflows/harness-publish.yml` 发 PyPI（见 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md)）
 
 ## 约束
 
 - 框架层禁止 import `app.*` 或任何 server 业务模块
 - 公开 API 变更须同步 `tests/api/` 与 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md)
-- 性能基准仅放在 `benchmarks/`，禁止在 vortexai 开发壳根目录创建 `benchmarks/`
+- 性能基准仅放在 `benchmarks/`
 - 运行时目录 `.myrm/`、`.agent/` 仅本地/workspace，已 gitignore，禁止提交

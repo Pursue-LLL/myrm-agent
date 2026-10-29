@@ -429,7 +429,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_file_mutation_seed_fixture.py` | 模块 | HTTP：file-mutation seed `empty_write` → persisted `metadata.fileMutationFailures` |
 | `api/chats/test_rich_media_preview_seed_fixture.py` | 模块 | 集成：rich-media seed（chat + workspace png/pdf/zip/txt）→ chat.workspace_dir 持久化 + user 消息 + browse 二进制流式全字节/MIME |
 | `e2e/test_workspace_rich_media_preview_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed rich-media fixture → workspace Files tab → png 图片加载 / pdf react-pdf canvas / zip unsupported 兜底下载 / txt 文本渲染 |
-| `e2e/test_workspace_trust_folder_gate_chrome_e2e.py` | 模块 | Chrome FolderGate（2 例）：项目 chip 右键 → 设置工作目录 → 选择文件夹 → 键入含敌意文件的目录（FIFO `SKILL.md`、64 MiB 稀疏 `mcp.json` 与 `.myrm/config.toml`）→ 使用此文件夹。其一（SHARED+NAMESPACE_WRITE）：弹窗 30 s 内显示该目录与诚实文件的计数（技能 1、规则 1、MCP 1、含 `.myrm` 配置）后取消；其二（PRIVATE+GLOBAL_WRITE，信任记录是全局写）：点「信任并关联」后 30 s 内该项目的工作目录落为该目录、弹窗关闭、信任列表里该目录为 TRUSTED 且带 manifest 哈希，`finally` 删除信任记录与项目。等选择器载入主目录后再键入、键入与回车分两次求值（React 在微任务里提交输入）；`finally` 打开 FIFO 写端放行可能被卡住的后端线程；仅 POSIX |
+| `e2e/test_workspace_trust_folder_gate_chrome_e2e.py` | 模块 | Chrome FolderGate（3 例）：项目 chip 右键 → 设置工作目录 → 选择文件夹 → 键入含敌意文件的目录（FIFO `SKILL.md`、64 MiB 稀疏 `mcp.json` 与 `.myrm/config.toml`）→ 使用此文件夹。其一（SHARED+NAMESPACE_WRITE）：弹窗 30 s 内显示该目录与诚实文件的计数（技能 1、规则 1、MCP 1、含 `.myrm` 配置）后取消；其二（PRIVATE+GLOBAL_WRITE，信任记录是全局写；参数化「信任并关联」「不信任并关联」各一例）：点按钮后 30 s 内该项目的工作目录落为该目录、弹窗关闭、信任列表里该目录为 TRUSTED / RESTRICTED 且带 manifest 哈希，`finally` 删除信任记录与项目。等选择器载入主目录后再键入、键入与回车分两次求值（React 在微任务里提交输入）；`finally` 打开 FIFO 写端放行可能被卡住的后端线程；仅 POSIX |
 | `e2e/test_workspace_rules_hostile_folder_live_chrome_e2e.py` | 模块 | Chrome LIVE×1（PRIVATE+live_shpoib）：真实模型回合经真实 UI 与服务端；聊天工作区除 `AGENTS.md`（暗号只在这里）外还有 FIFO `SKILL.md` 与稀疏 `mcp.json`、`.myrm/config.toml`；断言渲染出的聊天页含暗号、落库的助手消息含暗号；`finally` 打开 FIFO 写端放行可能被卡住的后端线程；仅 POSIX |
 | `frontend/workspace-browser` 单测 | 模块 | RichMediaFilePreview 分发 12 例（kind 覆盖/大小写/unsupported/编辑按钮禁用）+ WorkspaceFilePreview is_text 降级 2 例（未知二进制→unsupported 不 fetch / 未知文本→文本渲染） |
 | `api/agent/test_stream_collector_file_mutation.py` | 模块 | StreamContentCollector `file_mutation_failed` → `extra_data.fileMutationFailures` |
@@ -605,7 +605,6 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 | chrome_e2e | `@pytest.mark.chrome_e2e` | WebUI 用户操作（共享 dev UI + MCP mux） | 常要 | 是 | **排除** | `./myrm ready --chrome` + `./myrm test -m chrome_e2e …` |
 
 - 入口统一 **`./myrm test`**（`test.sh` → `run-pytest-safe.sh` → `.venv/bin/python -m pytest`）；禁止 `uv run pytest`。
-- 维护者速查：`scripts/dev/MAINTAINER_QUICKSTART.md`「测试分层速查」。
 - **不涉及前端**：integration / e2e / `support/verify_api_base.py` + `./myrm verify-api`；多数 `@pytest.mark.e2e` 用 TestClient 进程内跑，不必起 live server。
 - **harness**（`myrm-agent-harness/tests/`）：默认 `-m 'not integration and not e2e …'` → monorepo `./myrm test -m integration …`。
 - `-m e2e` 与 `-m chrome_e2e` 互不包含；缺 marker 时带 e2e 标签的 node 会 deselect。

@@ -80,7 +80,7 @@ Editable install ships all `.py` source. `runtime.install_guard.probe.get_distri
 # OSS public image (myrm-agent repo root context)
 docker build -f myrm-agent/myrm-agent-server/Dockerfile -t myrm-server .
 
-# Official (open-perplexity / vortexai root: harness + myrm-agent trees)
+# Official image (build context: the directory that contains the myrm-agent tree)
 docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
 ```
 

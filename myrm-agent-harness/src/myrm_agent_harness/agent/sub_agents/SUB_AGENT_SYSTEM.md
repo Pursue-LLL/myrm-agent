@@ -546,7 +546,7 @@ config = SubagentConfig(
 
 ## 参考资料
 
-- 模块索引：[_ARCH.md](_ARCH.md)（维护者 roadmap 仅在私有 vortexai `temp-docs/`，非本仓路径）
+- 模块索引：[_ARCH.md](_ARCH.md)
 
 ### 动态并发裂变 (Swarm Fission) 与结果自动落盘 (Auto-Vaulting)
 - **运行时动态并发裂变 (Swarm Fission)**：通过 `delegate_task_tool(mode=parallel)`，Agent 可以在运行时触发并行 Map-Reduce。工具通过 `langgraph.types.interrupt` 挂起当前 Agent（`SubAgentStatus.YIELDED`），Server 侧 `stream_with_swarm_fission_resume` 调用 Harness `execute_swarm_fission`（与 batch 同源 spawn）执行 `TaskRequest[]`，完成后以 `Command(resume=ParallelTaskResults)` 恢复父 Agent 汇总结果。

@@ -29,7 +29,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 litellm 对话接口（`litellm.acompletion` 等）的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 ChatLiteLLM）除外；自带检测器正反例与过期登记检查 | — |
 | `test_public_api.py` | Gate | 公开 API 边界 smoke | — |
 | `test_arch_no_placeholder.py` | Gate | `_ARCH.md` 禁止「见源码」等占位语 | — |
-| `test_no_private_references.py` | Gate | 本子树全部已跟踪文本文件（不限 `*.md`）禁止出现私有开发壳的 `temp-docs/` 路径与规划条目编号（`topic_NN`）；一次 `git grep -I -E` 扫描，编号用显式边界，紧贴中文的写法也命中；自带模式正反例自证 | — |
+| `test_no_private_references.py` | Gate | 本子树全部已跟踪文本文件（不限 `*.md`）禁止出现私有开发壳的规划目录、名称、维护者速查文档名与规划条目编号（`topic_NN`）；一次 `git grep -I -E` 扫描，编号用显式边界，紧贴中文的写法也命中；模式与样例由片段拼成，守卫文件不会命中自己；自带模式正反例自证 | — |
 | `test_no_star_imports.py` | Gate | 禁止 star import | — |
 | `test_lazy_exports_typed.py` | Gate | 带模块级 `__getattr__` 的包：`__all__` 必须是字面量，每个导出名都要有静态绑定（`if TYPE_CHECKING:` 镜像），镜像与惰性表（`_EXPORTS` / `_LAZY_IMPORTS`）一一对应，且每个导出名运行时可解析（否则类型检查器把它当 `object`，或首次使用才 AttributeError）；`api/` 由 `__init__.pyi` 镜像、由 `tests/api/test_public_surface.py` 校验，`retriever` 两个在 `__getattr__` 里现造的预加载函数登记为例外并有失效检查；自带检测器正反例 | — |
 | `test_no_delta_channel.py` | Gate | AST：harness `src/` 不得使用 `DeltaChannel`（检查点历史剪枝会让其丢失状态；含检测器正反例自证） | — |
