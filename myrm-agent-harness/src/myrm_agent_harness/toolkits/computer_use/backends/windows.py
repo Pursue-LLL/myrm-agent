@@ -2,6 +2,7 @@
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
+- windows_text_io::get_clipboard_text, set_clipboard_text, extract_window_text (POS: Windows clipboard and UI Automation text bridges)
 [OUTPUT]
 - WindowsBackend: ComputerBackend implementation for Windows
 [POS]
@@ -17,6 +18,11 @@ import logging
 from myrm_agent_harness.toolkits.computer_use.backends.windows_background import (
     _capture_screen_excluding_titles,
     _lowest_overlay_hwnd,
+)
+from myrm_agent_harness.toolkits.computer_use.backends.windows_text_io import (
+    extract_window_text,
+    get_clipboard_text,
+    set_clipboard_text,
 )
 from myrm_agent_harness.toolkits.computer_use.capture_title_contracts import (
     SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES,
@@ -109,6 +115,7 @@ class WindowsBackend:
         pyautogui_keys: list[str] = []
         try:
             import pyautogui
+
             pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
             for key in pyautogui_keys:
                 await asyncio.to_thread(pyautogui.keyDown, key)
@@ -174,17 +181,18 @@ class WindowsBackend:
         """Type non-ASCII text via clipboard paste (Ctrl+V), preserving original clipboard."""
         import pyautogui
 
-        saved = await asyncio.to_thread(_get_clipboard)
-        await asyncio.to_thread(_set_clipboard, text)
+        saved = await asyncio.to_thread(get_clipboard_text)
+        await asyncio.to_thread(set_clipboard_text, text)
         await asyncio.to_thread(pyautogui.hotkey, "ctrl", "v")
         await asyncio.sleep(0.1)
 
         if saved is not None:
-            await asyncio.to_thread(_set_clipboard, saved)
+            await asyncio.to_thread(set_clipboard_text, saved)
 
     async def key(self, keys: str) -> ActionResult:
         try:
             import pyautogui
+
             parts = [k.strip() for k in keys.split("+")]
             if len(parts) > 1:
                 await asyncio.to_thread(pyautogui.hotkey, *parts)
@@ -200,6 +208,7 @@ class WindowsBackend:
 
         try:
             import pyautogui
+
             await asyncio.to_thread(pyautogui.moveTo, x, y)
             return ActionResult(success=True)
         except Exception as e:
@@ -219,6 +228,7 @@ class WindowsBackend:
         pyautogui_keys: list[str] = []
         try:
             import pyautogui
+
             pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
             await asyncio.to_thread(pyautogui.moveTo, x, y)
             for key in pyautogui_keys:
@@ -251,6 +261,7 @@ class WindowsBackend:
         pyautogui_keys: list[str] = []
         try:
             import pyautogui
+
             pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
             for key in pyautogui_keys:
                 await asyncio.to_thread(pyautogui.keyDown, key)
@@ -294,7 +305,7 @@ class WindowsBackend:
 
     async def window_text(self) -> WindowTextResult:
         """Extract text from foreground window via Windows UI Automation."""
-        return await asyncio.to_thread(_extract_window_text_uia)
+        return await asyncio.to_thread(extract_window_text)
 
     async def has_blocking_dialog(self, target_app_names: list[str] | None = None) -> bool:
         """Return True when the foreground window is a blocking OS dialog."""
@@ -464,132 +475,3 @@ def _has_blocking_dialog_win(target_app_names: list[str] | None = None) -> bool:
     except Exception as e:
         logger.debug("Windows has_blocking_dialog check failed: %s", e)
         return False
-
-
-def _get_clipboard() -> str | None:
-    """Read clipboard text via Win32 API (zero-subprocess, <1ms)."""
-    try:
-        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-
-        cf_unicodetext = 13
-        if not user32.OpenClipboard(None):
-            return None
-        try:
-            handle = user32.GetClipboardData(cf_unicodetext)
-            if not handle:
-                return None
-            ptr = kernel32.GlobalLock(handle)
-            if not ptr:
-                return None
-            try:
-                return ctypes.wstring_at(ptr)
-            finally:
-                kernel32.GlobalUnlock(handle)
-        finally:
-            user32.CloseClipboard()
-    except Exception:
-        return None
-
-
-def _set_clipboard(text: str) -> None:
-    """Set clipboard text via Win32 API (zero-subprocess, <1ms)."""
-    try:
-        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-
-        cf_unicodetext = 13
-        gmem_moveable = 0x0002
-
-        encoded = text.encode("utf-16-le") + b"\x00\x00"
-        h_mem = kernel32.GlobalAlloc(gmem_moveable, len(encoded))
-        if not h_mem:
-            return
-        ptr = kernel32.GlobalLock(h_mem)
-        if not ptr:
-            kernel32.GlobalFree(h_mem)
-            return
-        ctypes.memmove(ptr, encoded, len(encoded))
-        kernel32.GlobalUnlock(h_mem)
-
-        # Use foreground window as owner to ensure SetClipboardData succeeds
-        hwnd = user32.GetForegroundWindow() or None
-        if not user32.OpenClipboard(hwnd):
-            kernel32.GlobalFree(h_mem)
-            return
-        try:
-            user32.EmptyClipboard()
-            user32.SetClipboardData(cf_unicodetext, h_mem)
-        finally:
-            user32.CloseClipboard()
-    except Exception:
-        pass
-
-
-def _extract_window_text_uia() -> WindowTextResult:
-    """Extract text from foreground window via uiautomation library."""
-    try:
-        import uiautomation as auto
-
-        control = auto.GetForegroundControl()
-        if control is None:
-            return WindowTextResult(success=False)
-
-        app_name = control.Name or ""
-        window_title = app_name
-
-        # Traverse children to extract text content (limit depth to avoid perf issues)
-        text_parts: list[str] = []
-        _collect_text_recursive(control, text_parts, max_depth=5, max_elements=500)
-
-        return WindowTextResult(
-            app_name=app_name,
-            window_title=window_title,
-            text="\n".join(text_parts),
-            success=True,
-        )
-    except ImportError:
-        logger.warning("uiautomation not installed — window_text unavailable on Windows")
-        return WindowTextResult(success=False)
-    except Exception as e:
-        logger.warning("Windows window text extraction failed: %s", e)
-        return WindowTextResult(success=False)
-
-
-def _collect_text_recursive(
-    control: object,
-    text_parts: list[str],
-    max_depth: int,
-    max_elements: int,
-) -> None:
-    """Recursively collect text from UI Automation elements."""
-    if max_depth <= 0 or len(text_parts) >= max_elements:
-        return
-
-    try:
-        children = control.GetChildren()  # type: ignore[attr-defined]
-        for child in children:
-            if len(text_parts) >= max_elements:
-                break
-
-            control_type = getattr(child, "ControlTypeName", "")
-            if control_type in ("EditControl", "TextControl", "DocumentControl"):
-                try:
-                    pattern = child.GetValuePattern()  # type: ignore[attr-defined]
-                    value = pattern.Value if pattern else ""
-                    if value:
-                        text_parts.append(value)
-                        continue
-                except Exception:
-                    pass
-                try:
-                    name = child.Name  # type: ignore[attr-defined]
-                    if name:
-                        text_parts.append(name)
-                        continue
-                except Exception:
-                    pass
-
-            _collect_text_recursive(child, text_parts, max_depth - 1, max_elements)
-    except Exception:
-        pass

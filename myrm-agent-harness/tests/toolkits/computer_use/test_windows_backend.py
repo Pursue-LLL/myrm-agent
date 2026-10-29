@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.computer_use.backends import windows_text_io
 from myrm_agent_harness.toolkits.computer_use.types import (
     ScreenContext,
     ScreenInfo,
@@ -743,37 +744,36 @@ class TestWindowsBackendDragEdgeCases:
 
 
 class TestWindowsBackendClipboard:
-    """Direct tests for _get_clipboard and _set_clipboard."""
+    """Direct tests for get_clipboard_text and set_clipboard_text."""
 
     def test_get_clipboard_success(self, _mock_windows_env) -> None:
-        win_mod, _, _mock_windll = _mock_windows_env
-        result = win_mod._get_clipboard()
+        result = windows_text_io.get_clipboard_text()
         assert result == "clipboard text"
 
     def test_get_clipboard_open_fails(self, _mock_windows_env) -> None:
-        win_mod, _, mock_windll = _mock_windows_env
+        _, _, mock_windll = _mock_windows_env
         mock_windll.user32.OpenClipboard.return_value = False
-        result = win_mod._get_clipboard()
+        result = windows_text_io.get_clipboard_text()
         assert result is None
 
     def test_get_clipboard_no_data(self, _mock_windows_env) -> None:
-        win_mod, _, mock_windll = _mock_windows_env
+        _, _, mock_windll = _mock_windows_env
         mock_windll.user32.GetClipboardData.return_value = 0
-        result = win_mod._get_clipboard()
+        result = windows_text_io.get_clipboard_text()
         assert result is None
 
     def test_set_clipboard_success(self, _mock_windows_env) -> None:
-        win_mod, _, mock_windll = _mock_windows_env
+        _, _, mock_windll = _mock_windows_env
         with patch("ctypes.memmove"):
-            win_mod._set_clipboard("test data")
+            windows_text_io.set_clipboard_text("test data")
         mock_windll.user32.EmptyClipboard.assert_called_once()
         mock_windll.user32.SetClipboardData.assert_called_once()
 
     def test_set_clipboard_alloc_fails(self, _mock_windows_env) -> None:
-        win_mod, _, mock_windll = _mock_windows_env
+        _, _, mock_windll = _mock_windows_env
         mock_windll.kernel32.GlobalAlloc.return_value = 0
         with patch("ctypes.memmove"):
-            win_mod._set_clipboard("test")  # Should not raise
+            windows_text_io.set_clipboard_text("test")  # Should not raise
 
 
 class TestWindowsBackendDetectScreenInfo:
@@ -799,38 +799,34 @@ class TestWindowsBackendDetectScreenInfo:
 
 
 class TestWindowsBackendWindowTextExtraction:
-    """_extract_window_text_uia with recursive text collection."""
+    """extract_window_text with recursive text collection."""
 
     def test_import_error_returns_failure(self, _mock_windows_env) -> None:
-        win_mod, _, _ = _mock_windows_env
         with (
             patch.dict("sys.modules", {"uiautomation": None}),
             patch("builtins.__import__", side_effect=ImportError("no module")),
         ):
-            result = win_mod._extract_window_text_uia()
+            result = windows_text_io.extract_window_text()
         assert result.success is False
 
     def test_no_foreground_control(self, _mock_windows_env) -> None:
-        win_mod, _, _ = _mock_windows_env
         mock_auto = MagicMock()
         mock_auto.GetForegroundControl.return_value = None
         with patch.dict("sys.modules", {"uiautomation": mock_auto}):
-            result = win_mod._extract_window_text_uia()
+            result = windows_text_io.extract_window_text()
         assert result.success is False
 
     def test_collect_text_recursive_depth_limit(self, _mock_windows_env) -> None:
-        win_mod, _, _ = _mock_windows_env
         text_parts: list[str] = []
         mock_control = MagicMock()
         mock_control.GetChildren.return_value = []
-        win_mod._collect_text_recursive(mock_control, text_parts, max_depth=0, max_elements=100)
+        windows_text_io._collect_text_recursive(mock_control, text_parts, max_depth=0, max_elements=100)
         assert text_parts == []
 
     def test_collect_text_recursive_max_elements(self, _mock_windows_env) -> None:
-        win_mod, _, _ = _mock_windows_env
         text_parts = ["x"] * 500
         mock_control = MagicMock()
-        win_mod._collect_text_recursive(mock_control, text_parts, max_depth=5, max_elements=500)
+        windows_text_io._collect_text_recursive(mock_control, text_parts, max_depth=5, max_elements=500)
         assert len(text_parts) == 500
 
 
