@@ -41,9 +41,9 @@ _JS_TS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
 
 # What can narrow an answer cut at MAX_ROWS. callers, tests_calling and implementors match on the last name part,
 # so a qualified name returns the same rows and only a text search inside a directory narrows them.
-_NARROW_BY_QUALIFIED_NAME = "use a qualified name to narrow the result."
-_NARROW_BY_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
-_CUT_BY_LINE = "they are listed by line number, so open the function to see the rest."
+_HINT_QUALIFIED_NAME = "use a qualified name to narrow the result."
+_HINT_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
+_HINT_OPEN_FUNCTION = "they are listed by line number, so open the function to see the rest."
 
 CodeGraphAction = Literal["resolve", "definition", "callers", "callees", "implementors", "importers", "tests_calling"]
 
@@ -127,26 +127,30 @@ _ACTIONS: dict[str, _Action] = {
     "resolve": _Action(
         lambda s, t: s.resolve(t, MAX_ROWS + 1),
         lambda r: {"name": r["qualified_name"], "kind": r["kind"], "at": _span(r)},
-        _NARROW_BY_QUALIFIED_NAME,
+        cut_hint=_HINT_QUALIFIED_NAME,
     ),
     # At most one row, so it is never cut.
-    "definition": _Action(_definition_query, _definition_row, ""),
+    "definition": _Action(_definition_query, _definition_row, cut_hint=""),
     "callers": _Action(
         lambda s, t: s.callers(t),
         lambda r: _call_row(r, caller=r["caller"], callee=r["callee"], match=r["match"]),
-        _NARROW_BY_SEARCH,
+        cut_hint=_HINT_SEARCH,
     ),
-    "callees": _Action(lambda s, t: s.callees(t), lambda r: _call_row(r, callee=r["callee"]), _CUT_BY_LINE),
+    "callees": _Action(
+        lambda s, t: s.callees(t),
+        lambda r: _call_row(r, callee=r["callee"]),
+        cut_hint=_HINT_OPEN_FUNCTION,
+    ),
     "implementors": _Action(
         lambda s, t: s.implementors(t),
         lambda r: {"class": r["sub_type"], "extends": r["super_type"], "at": _site(r)},
-        _NARROW_BY_SEARCH,
+        cut_hint=_HINT_SEARCH,
     ),
-    "importers": _Action(lambda s, t: s.importers(t), _importer_row, _NARROW_BY_QUALIFIED_NAME),
+    "importers": _Action(lambda s, t: s.importers(t), _importer_row, cut_hint=_HINT_QUALIFIED_NAME),
     "tests_calling": _Action(
         lambda s, t: s.tests_calling(t),
         lambda r: {"at": _site(r), "test": r["test_symbol"], "match": r["match"]},
-        _NARROW_BY_SEARCH,
+        cut_hint=_HINT_SEARCH,
     ),
 }
 

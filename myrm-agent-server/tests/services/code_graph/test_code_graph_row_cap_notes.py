@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - pytest suite: a qualified name returns the same rows as the bare name for the actions that match on the last
-  name part, and the row-cap note suggests only what really narrows the answer of that action.
+  name part, a longer name really narrows resolve and importers, and the row-cap note of every action carries
+  the hint that is true for that action.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_row_cap_notes.py
@@ -24,8 +25,7 @@ from app.services.code_graph.agent_tool import MAX_ROWS, create_code_graph_tool
 
 _OVER_CAP = MAX_ROWS + 5
 _CUT_NOTE = f"More rows exist than the {MAX_ROWS} shown"
-# Actions whose cut answer a qualified name really narrows.
-_NARROWED_BY_QUALIFIED_NAME = frozenset({"resolve", "importers"})
+_QUALIFIED_NAME_HINT = "use a qualified name to narrow"
 
 
 @pytest.fixture
@@ -53,11 +53,16 @@ def _populate(root: Path) -> None:
     _write(root, "handlers.py", handlers)
     for i in range(_OVER_CAP):
         _write(root, f"imp/m{i}.py", "import pkg\n")
+    _write(root, "imp/sub.py", "import pkg.sub\n")
 
 
 async def _ask(root: Path, action: str, target: str) -> dict[str, object]:
     result = await create_code_graph_tool(root).ainvoke({"action": action, "target": target})
     return cast(dict[str, object], json.loads(str(result["content"])))
+
+
+def _total(answer: dict[str, object]) -> int:
+    return cast(int, answer["total"])
 
 
 def _sites(answer: dict[str, object]) -> list[str]:
@@ -76,28 +81,46 @@ async def test_a_qualified_name_returns_the_same_rows_as_the_bare_name(
     by_qualified = await _ask(workspace, action, qualified)
     by_bare = await _ask(workspace, action, bare)
 
-    assert cast(int, by_bare["total"]) > MAX_ROWS
-    assert by_qualified["total"] == by_bare["total"]
+    assert _total(by_bare) > MAX_ROWS
+    assert _total(by_qualified) == _total(by_bare)
     assert _sites(by_qualified) == _sites(by_bare)
 
 
 @pytest.mark.parametrize(
-    ("action", "target"),
+    ("action", "qualified", "bare"),
+    [("resolve", "handlers.Handler3.run", "run"), ("importers", "pkg.sub", "pkg")],
+)
+async def test_a_longer_name_brings_resolve_and_importers_under_the_cap(
+    workspace: Path, action: str, qualified: str, bare: str
+) -> None:
+    _populate(workspace)
+
+    narrowed = await _ask(workspace, action, qualified)
+    broad = await _ask(workspace, action, bare)
+
+    assert _total(narrowed) <= MAX_ROWS < _total(broad)
+
+
+@pytest.mark.parametrize(
+    ("action", "target", "hint"),
     [
-        ("callers", "target"),
-        ("tests_calling", "target"),
-        ("implementors", "Base"),
-        ("callees", "m.big"),
-        ("resolve", "run"),
-        ("importers", "pkg"),
+        ("callers", "target", "returns the same rows"),
+        ("tests_calling", "target", "returns the same rows"),
+        ("implementors", "Base", "returns the same rows"),
+        ("callees", "m.big", "open the function"),
+        ("resolve", "run", _QUALIFIED_NAME_HINT),
+        ("importers", "pkg", _QUALIFIED_NAME_HINT),
     ],
 )
-async def test_the_row_cap_note_suggests_only_what_narrows_that_action(workspace: Path, action: str, target: str) -> None:
+async def test_the_row_cap_note_carries_the_hint_that_is_true_for_that_action(
+    workspace: Path, action: str, target: str, hint: str
+) -> None:
     _populate(workspace)
 
     answer = await _ask(workspace, action, target)
 
-    assert cast(int, answer["total"]) > MAX_ROWS
+    assert _total(answer) > MAX_ROWS
     cut_notes = [note for note in cast(list[str], answer["notes"]) if note.startswith(_CUT_NOTE)]
     assert len(cut_notes) == 1
-    assert ("use a qualified name to narrow" in cut_notes[0]) == (action in _NARROWED_BY_QUALIFIED_NAME)
+    assert hint in cut_notes[0]
+    assert (_QUALIFIED_NAME_HINT in cut_notes[0]) == (hint == _QUALIFIED_NAME_HINT)
