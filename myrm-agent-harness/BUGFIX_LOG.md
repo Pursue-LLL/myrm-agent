@@ -19,23 +19,6 @@
 | **仍然存在** | ① 全仓扫描只覆盖了两种写法；用 `os.path.commonpath`、或先转小写再比较的判断没有搜。② 三处在 Windows 上的大小写行为没验证（`resolve()` 不统一大小写）。③ 技能安装目标检查的「逃出安装根」一支，生产调用都没传根目录，修好的判断今天没有生产入口；是否要让调用方传根目录，没有改。 |
 | **代码位置** | `backends/skills/scanning/path_security.py:171` · `agent/skills/market/service.py:639` · server `app/services/workspace/promotion/service.py:85` · 测试同上。 |
 
-### BUG-HARNESS-2026-10-29-087 · Windows 非 ASCII 文本靠「写剪贴板再 Ctrl+V」输入：清掉用户的非文本剪贴板、粘贴竞态、写入静默失败，凭据也进剪贴板
-
-| 字段 | 内容 |
-| --- | --- |
-| **状态** | **FIXED**（harness `toolkits/computer_use/backends/windows_text_io.py`、`toolkits/computer_use/backends/windows.py`、`toolkits/computer_use/backends/_ARCH.md`、`toolkits/computer_use/perception/windows_process.py`；测试 `tests/toolkits/computer_use/test_windows_text_io.py`（新）、`test_windows_backend.py`、`test_windows_process.py`；没有改提示词、工具与控制平面，不影响提示词缓存）。**未在真实 Windows 上验证**：本机是 macOS，`SendInput` 的真实投递效果没有跑过。 |
-| **发现时间** | 2026-10-29（复查拆出的 `windows_text_io.py` 时先发现 ctypes 没声明原型，继续追查后确认剪贴板路径本身就是错误设计） |
-| **修复时间** | 2026-10-29 |
-| **严重程度** | P2：Windows 上输入中文等非 ASCII 文本、以及含非 ASCII 字符的凭据，都走剪贴板。 |
-| **关联产品** | 桌面控制（Windows）`type_text` / `type_credential` 的非 ASCII 路径。`cua-driver` 可用时输入委托给它（`toolkits/computer_use/backends/cua_driver.py`），本问题只出现在没装 cua-driver 的兜底路径上。 |
-| **根因** | 旧 `_paste_text` 是「读剪贴板文本 → 写入目标文本 → Ctrl+V → 睡 0.1 秒 → 恢复文本」，有五处缺陷：① 只读写 `CF_UNICODETEXT`，用户剪贴板里的文件、图片被清掉且不恢复；② 固定 0.1 秒后就恢复旧文本，目标应用处理 Ctrl+V 慢于 0.1 秒时粘进去的是旧内容；③ 没有前台窗口时 `OpenClipboard(None)` 之后 `SetClipboardData` 必定失败（微软 `EmptyClipboard` 文档：NULL 窗口句柄打开剪贴板会让所有者为 NULL，`SetClipboardData` 随之失败），而写入函数外层 `except Exception: pass`，调用方得不到失败信号，Ctrl+V 粘进旧内容；④ 密码或 TOTP 含非 ASCII 字符时明文进入剪贴板；⑤ ctypes 没声明 `GlobalLock` / `GlobalAlloc` 等原型，64 位指针按 32 位 int 读取（本机 libc 实测：未声明 `restype` 时 `malloc` 返回 `0x1514040`，声明 `c_void_p` 后返回 `0x600001514340`，两次是不同分配，只说明默认读法在 64 位下只剩低 32 位）。 |
-| **修复** | `windows_text_io.py:type_unicode_text` 用 `SendInput` + `KEYEVENTF_UNICODE` 输入非 ASCII 文本：每个 UTF-16 代码单元一对按下/抬起事件（非 BMP 字符自然发成代理对）；`\r\n`、`\r`、`\n` 先归一再折成一次真实的 Return 键；按 `chunk_size` 分块、块间睡 `delay_ms`；`SendInput` 实际插入条数少于请求时抛 `OSError`，由 `type_text` / `type_credential` 转成失败的 `ActionResult`。`INPUT` 结构体按 Win32 定义成含 `MOUSEINPUT` / `KEYBDINPUT` / `HARDWAREINPUT` 的联合体并全部用定宽字段，`sizeof == 40`；原型挂在 `functools.cache` 缓存的私有 `ctypes.WinDLL(\"user32\", use_last_error=True)` 上，不改共享的 `ctypes.windll`。ASCII 路径（`pyautogui.write`）不动。剪贴板读写与相关原型、测试整体删除。`perception/windows_process.py` 的 `OpenProcess` 原型同样改挂私有 `kernel32` 实例。 |
-| **反复次数** | 第 1 次。 |
-| **踩坑** | ① 结构体字段不能用 `wintypes.DWORD` / `LONG`：它们在 macOS / Linux 是 8 字节，同一份定义算出 `INPUT` 为 56 字节，用定宽整数才能在任何平台上断言 40。② 微软 `SendInput` 文档：UIPI 阻挡时返回值与 `GetLastError` 都不会提示，所以返回条数检查抓不到「向更高权限窗口输入被拦」，这与原来的 `pyautogui.write` 路径一致，不是新增回归。③ `cua-driver` 的 Windows 实现也在 `ConsoleWindowClass` + ARM64 上遇到过「`KEYEVENTF_UNICODE` 报告成功但提示符没变」；本仓库 `safety.py` 的敏感应用名单已把 `cmd`、`powershell`、`windows terminal` 拦在输入之前。④ 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 在前后 `cache_clear()`。⑤ 变异验证：去掉 `dwExtraInfo` 字段、去掉换行归一、截断代理对、块后多睡一次、忽略短插入、改回共享 `windll`、写死 `cbSize`、调换 `windows.py` 的参数顺序，对应用例分别失败 2 / 2 / 1 / 2 / 1 / 11 / 1 / 1 个。⑥ macOS 的 `macos.py:_paste_text`、Linux 的 `linux.py:_paste_text_xclip` 仍是同样的「写剪贴板再粘贴」，含非 ASCII 字符的密码会经过剪贴板；没有可验证的替代方案，保留为已知限制。 |
-
-### BUG-HARNESS-2026-10-29-086 · Windows 的 UI Automation 感知调用了 uiautomation 库里并不存在的 `GetProcessNameByPid`：进程名恒为空，应用标识 `app_id` 恒为空，信任键退化成窗口标题
-
-| 字段 | 内容 |
 ### BUG-HARNESS-2026-10-29-089 · 项目规则扫描没有读取上限：一个大文件或几千个文件让一次扫描停住数秒，信任之前的 FolderGate 披露也一样；ADR 文件还被完整读了两遍
 
 | 字段 | 内容 |
@@ -70,6 +53,23 @@
 | **仍然存在** | ① 检查与读取之间的竞态（核对之后、打开之前被换成符号链接）没防，需要对仓库有写权限的并发进程。② Windows 的 junction 与大小写不敏感文件系统上 `resolve()` 的行为没有实机验证。③ `tracker.py` 的 `[Discovered … in {directory}]` 里目录路径没有净化（目录是模型自己访问过的路径，没有复现）。④ 名字中段的 `SYSTEM:` 在换行变空格后以纯文本留在标题行里，与 079 的快照条目名一致。⑤ 技能扫描（`scan_workspace_skills`）没有检查是否有同类问题。⑥ 合法的外链（规则文件链到仓库之外的共享配置）现在显示占位而不是规则内容，需要用户复制进仓库；没有用户分布的证据，有意取舍。⑦ 系统消息发给模型服务商之前是否还有别的脱敏没有核实。⑧ 前端「工作区规则」页对占位文字的显示没有在浏览器里看过；接口把它作为 `content` 返回。 |
 | **代码位置** | `agent/workspace_rules/rule_read_guard.py:61-91` · `core/security/detection/display_name.py:27-38` · `agent/workspace_rules/scanner.py:94-112,179-231,362-378` · `agent/workspace_rules/tracker.py:92,116,119` · `agent/workspace_rules/middleware.py:156` · `toolkits/code_execution/sandbox_snapshot.py:348` · 测试 `tests/core/security/detection/test_display_name.py`、`tests/agent/workspace_rules/test_hostile_workspace.py` · 文档 `agent/workspace_rules/_ARCH.md`、`agent/security/SECURITY_SYSTEM.md`。 |
 
+### BUG-HARNESS-2026-10-29-087 · Windows 非 ASCII 文本靠「写剪贴板再 Ctrl+V」输入：清掉用户的非文本剪贴板、粘贴竞态、写入静默失败，凭据也进剪贴板
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/windows_text_io.py`、`toolkits/computer_use/backends/windows.py`、`toolkits/computer_use/backends/_ARCH.md`、`toolkits/computer_use/perception/windows_process.py`；测试 `tests/toolkits/computer_use/test_windows_text_io.py`（新）、`test_windows_backend.py`、`test_windows_process.py`；没有改提示词、工具与控制平面，不影响提示词缓存）。**未在真实 Windows 上验证**：本机是 macOS，`SendInput` 的真实投递效果没有跑过。 |
+| **发现时间** | 2026-10-29（复查拆出的 `windows_text_io.py` 时先发现 ctypes 没声明原型，继续追查后确认剪贴板路径本身就是错误设计） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：Windows 上输入中文等非 ASCII 文本、以及含非 ASCII 字符的凭据，都走剪贴板。 |
+| **关联产品** | 桌面控制（Windows）`type_text` / `type_credential` 的非 ASCII 路径。`cua-driver` 可用时输入委托给它（`toolkits/computer_use/backends/cua_driver.py`），本问题只出现在没装 cua-driver 的兜底路径上。 |
+| **根因** | 旧 `_paste_text` 是「读剪贴板文本 → 写入目标文本 → Ctrl+V → 睡 0.1 秒 → 恢复文本」，有五处缺陷：① 只读写 `CF_UNICODETEXT`，用户剪贴板里的文件、图片被清掉且不恢复；② 固定 0.1 秒后就恢复旧文本，目标应用处理 Ctrl+V 慢于 0.1 秒时粘进去的是旧内容；③ 没有前台窗口时 `OpenClipboard(None)` 之后 `SetClipboardData` 必定失败（微软 `EmptyClipboard` 文档：NULL 窗口句柄打开剪贴板会让所有者为 NULL，`SetClipboardData` 随之失败），而写入函数外层 `except Exception: pass`，调用方得不到失败信号，Ctrl+V 粘进旧内容；④ 密码或 TOTP 含非 ASCII 字符时明文进入剪贴板；⑤ ctypes 没声明 `GlobalLock` / `GlobalAlloc` 等原型，64 位指针按 32 位 int 读取（本机 libc 实测：未声明 `restype` 时 `malloc` 返回 `0x1514040`，声明 `c_void_p` 后返回 `0x600001514340`，两次是不同分配，只说明默认读法在 64 位下只剩低 32 位）。 |
+| **修复** | `windows_text_io.py:type_unicode_text` 用 `SendInput` + `KEYEVENTF_UNICODE` 输入非 ASCII 文本：每个 UTF-16 代码单元一对按下/抬起事件（非 BMP 字符自然发成代理对）；`\r\n`、`\r`、`\n` 先归一再折成一次真实的 Return 键；按 `chunk_size` 分块、块间睡 `delay_ms`；`SendInput` 实际插入条数少于请求时抛 `OSError`，由 `type_text` / `type_credential` 转成失败的 `ActionResult`。`INPUT` 结构体按 Win32 定义成含 `MOUSEINPUT` / `KEYBDINPUT` / `HARDWAREINPUT` 的联合体并全部用定宽字段，`sizeof == 40`；原型挂在 `functools.cache` 缓存的私有 `ctypes.WinDLL(\"user32\", use_last_error=True)` 上，不改共享的 `ctypes.windll`。ASCII 路径（`pyautogui.write`）不动。剪贴板读写与相关原型、测试整体删除。`perception/windows_process.py` 的 `OpenProcess` 原型同样改挂私有 `kernel32` 实例。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 结构体字段不能用 `wintypes.DWORD` / `LONG`：它们在 macOS / Linux 是 8 字节，同一份定义算出 `INPUT` 为 56 字节，用定宽整数才能在任何平台上断言 40。② 微软 `SendInput` 文档：UIPI 阻挡时返回值与 `GetLastError` 都不会提示，所以返回条数检查抓不到「向更高权限窗口输入被拦」，这与原来的 `pyautogui.write` 路径一致，不是新增回归。③ `cua-driver` 的 Windows 实现也在 `ConsoleWindowClass` + ARM64 上遇到过「`KEYEVENTF_UNICODE` 报告成功但提示符没变」；本仓库 `safety.py` 的敏感应用名单已把 `cmd`、`powershell`、`windows terminal` 拦在输入之前。④ 缓存加载器会把 `MagicMock` 替身带到下一个用例，测试 fixture 在前后 `cache_clear()`。⑤ 变异验证：去掉 `dwExtraInfo` 字段、去掉换行归一、截断代理对、块后多睡一次、忽略短插入、改回共享 `windll`、写死 `cbSize`、调换 `windows.py` 的参数顺序，对应用例分别失败 2 / 2 / 1 / 2 / 1 / 11 / 1 / 1 个。⑥ macOS 的 `macos.py:_paste_text`、Linux 的 `linux.py:_paste_text_xclip` 仍是同样的「写剪贴板再粘贴」，含非 ASCII 字符的密码会经过剪贴板；没有可验证的替代方案，保留为已知限制。 |
+
+### BUG-HARNESS-2026-10-29-086 · Windows 的 UI Automation 感知调用了 uiautomation 库里并不存在的 `GetProcessNameByPid`：进程名恒为空，应用标识 `app_id` 恒为空，信任键退化成窗口标题
+
+| 字段 | 内容 |
 | --- | --- |
 | **状态** | **FIXED**（harness `toolkits/computer_use/perception/windows_process.py`（新）、`perception/windows_ax.py`、`perception/_ARCH.md`；测试 `tests/toolkits/computer_use/test_windows_process.py`（新）、`test_windows_ax_target.py`、`test_windows_ax_errors.py`；没有改提示词、工具与控制平面，不影响提示词缓存）。 |
 | **发现时间** | 2026-10-29（拆分 `toolkits/computer_use/backends/windows.py` 后核对 Windows 后端的运行时依赖，用 `uv pip install --target` 装真实的 `uiautomation`，逐个核对 `windows_ax.py` 调用的接口） |
