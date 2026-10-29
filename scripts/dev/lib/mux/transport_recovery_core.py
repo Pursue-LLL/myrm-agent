@@ -1,7 +1,6 @@
 """Transport Recovery State Machine (TRSM) — SSOT for mux orphan/recover paths.
 
 Single resolver for chrome_mcp_client abandon/recover/teardown decisions.
-See temp-docs/repair/DEV_GATE_CHROME_MCP_ROADMAP.md §55.
 """
 
 from __future__ import annotations
