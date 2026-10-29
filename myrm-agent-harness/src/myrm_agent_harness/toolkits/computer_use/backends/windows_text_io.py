@@ -79,7 +79,7 @@ def _user32() -> ctypes.CDLL:
     A private library instance keeps the prototype off the process-wide ``ctypes.windll`` object other
     libraries share.
     """
-    user32 = ctypes.WinDLL("user32", use_last_error=True)  # type: ignore[attr-defined]
+    user32: ctypes.CDLL = ctypes.WinDLL("user32", use_last_error=True)  # type: ignore[attr-defined]
     user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(_Input), ctypes.c_int)
     user32.SendInput.restype = wintypes.UINT
     return user32

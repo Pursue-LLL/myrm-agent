@@ -46,8 +46,9 @@ def test_input_structure_has_the_size_of_the_running_architecture() -> None:
     assert ctypes.sizeof(windows_text_io._Input) == expected
 
 
+@pytest.mark.skipif(not os.environ.get("CI"), reason="injects a real keystroke into the focused window")
 def test_send_input_accepts_the_structure_size() -> None:
-    """A zero-width space is invisible wherever it lands; Windows rejects a wrong cbSize with ERROR_INVALID_PARAMETER."""
+    """Windows rejects a wrong cbSize with ERROR_INVALID_PARAMETER; any other outcome means the size was accepted."""
     try:
         windows_text_io.type_unicode_text("\u200b", 0, 50)
     except OSError as error:

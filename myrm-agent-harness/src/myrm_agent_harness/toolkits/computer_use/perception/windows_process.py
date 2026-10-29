@@ -31,7 +31,7 @@ def _kernel32() -> ctypes.CDLL:
     Without prototypes ctypes truncates the 64-bit HANDLE ``OpenProcess`` returns to a 32-bit int. A private library
     instance keeps these prototypes off the process-wide ``ctypes.windll.kernel32`` other libraries share.
     """
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+    kernel32: ctypes.CDLL = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
     kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
     kernel32.OpenProcess.restype = wintypes.HANDLE
     kernel32.QueryFullProcessImageNameW.argtypes = (
