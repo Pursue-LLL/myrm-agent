@@ -103,20 +103,12 @@ from app.api.statistics import build_statistics_router
 from app.api.stt.router import router as stt_router
 from app.api.stt.ws_stream import router as stt_ws_router
 from app.api.system.cron_doctor_api import router as system_cron_doctor_router
-from app.api.system.delivery_dossier_api import router as system_delivery_dossier_router
-from app.api.system.diagnostic_stream_api import router as system_diagnostic_stream_router
-from app.api.system.enterprise_credit_cockpit_api import router as system_enterprise_credit_cockpit_router
-from app.api.system.evidence_cross_verification_api import router as system_evidence_cross_verification_router
 from app.api.system.failure_triage_api import router as system_failure_triage_router
 from app.api.system.issue_ticketing_api import router as system_issue_ticketing_router
 from app.api.system.model_ping_api import router as system_model_ping_router
 from app.api.system.multi_tier_health_api import router as system_multi_tier_health_router
-from app.api.system.org_spend_limit_api import router as system_org_spend_limit_router
-from app.api.system.rate_limit_governor_api import router as system_rate_limit_governor_router
-from app.api.system.rate_limit_split_api import router as system_rate_limit_split_router
 from app.api.system.roi_analytics_api import router as system_roi_analytics_router
 from app.api.system.router import router as system_router
-from app.api.system.sandbox_hardware_telemetry_api import router as system_sandbox_hardware_telemetry_router
 from app.api.system.shutdown import router as system_shutdown_router
 from app.api.system.unattended_coverage_api import router as system_unattended_coverage_router
 from app.api.system_assistant import router as system_assistant_router
@@ -311,14 +303,6 @@ api_router.include_router(system_multi_tier_health_router, prefix="/system", tag
 api_router.include_router(system_failure_triage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_issue_ticketing_router, prefix="/system", tags=["system"])
 api_router.include_router(system_cron_doctor_router, prefix="/system", tags=["system"])
-api_router.include_router(system_delivery_dossier_router, prefix="/system", tags=["system"])
-api_router.include_router(system_rate_limit_governor_router, prefix="/system", tags=["system"])
-api_router.include_router(system_org_spend_limit_router, prefix="/system", tags=["system"])
-api_router.include_router(system_diagnostic_stream_router, prefix="/system", tags=["system"])
-api_router.include_router(system_rate_limit_split_router, prefix="/system", tags=["system"])
-api_router.include_router(system_enterprise_credit_cockpit_router, prefix="/system", tags=["system"])
-api_router.include_router(system_evidence_cross_verification_router, prefix="/system", tags=["system"])
-api_router.include_router(system_sandbox_hardware_telemetry_router, prefix="/system", tags=["system"])
 api_router.include_router(system_unattended_coverage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_model_ping_router)
 api_router.include_router(system_roi_analytics_router)
