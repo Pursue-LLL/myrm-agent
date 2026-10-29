@@ -16,6 +16,7 @@ app.channels.providers.mattermost.api — Mattermost REST API v4 client with Bot
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
@@ -29,20 +30,31 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = resolve_timeout(15.0)
 
-# An "@" that starts one of the words notifying every member of a channel; not the "@" inside an address.
-# ASCII word characters only: Chinese or Japanese text runs straight into a mention without a space.
-_BROADCAST_MENTION_RE = re.compile(r"(?<!\w)@(?=(?:channel|all|here)\b)", re.IGNORECASE | re.ASCII)
+# An "@" (typed, or written as a character reference, which the server's Markdown turns into one) that does not
+# end a word and is followed, after the references are decoded, by a word notifying every member of a channel.
+# Underscores count as separators because the server trims them off both ends of a word ("_@here_" notifies), except
+# before a letter or digit ("@here_team" is one word). Boundaries are ASCII only, so a mention glued to CJK text is
+# broken up as well.
+_AT_SIGN_RE = re.compile(r"(?<![A-Za-z0-9])(?:@|&#0*64;|&#[xX]0*40;|&commat;)(?=(?P<tail>.{0,128}))", re.DOTALL)
+_BROADCAST_WORD_RE = re.compile(r"(?:channel|all|here)(?![A-Za-z0-9]|_[A-Za-z0-9])", re.IGNORECASE)
 _ZERO_WIDTH_SPACE = "\u200b"
+
+
+def _break_broadcast_mention(match: re.Match[str]) -> str:
+    at_sign = match.group(0)
+    if _BROADCAST_WORD_RE.match(html.unescape(match.group("tail"))):
+        return at_sign + _ZERO_WIDTH_SPACE
+    return at_sign
 
 
 def neutralize_broadcast_mentions(text: str) -> str:
     """Put an invisible character after the "@" of ``@channel``, ``@all`` and ``@here``.
 
-    Model output is untrusted text, and one such word anywhere in a post notifies the whole channel, including
-    one glued to CJK text. Everything else is left as it is, and a neutralized word no longer matches, so applying
-    it twice changes nothing.
+    Model output is untrusted text, and one such word anywhere in a post notifies the whole channel, however it
+    is written: after an underscore, in emphasis, or as character references such as ``&#64;here``. Everything
+    else is left as it is, and a neutralized word no longer matches, so applying it twice changes nothing.
     """
-    return _BROADCAST_MENTION_RE.sub("@" + _ZERO_WIDTH_SPACE, text)
+    return _AT_SIGN_RE.sub(_break_broadcast_mention, text)
 
 
 class MattermostClient:
