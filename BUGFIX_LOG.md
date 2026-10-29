@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-30 · Matrix 文本里的邮箱地址被当成提及并被改写，已写成完整 Matrix ID 的提及被再拼一遍服务器名
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交见本条所在提交；未 push）。「仍然存在」里的 2 项未处理。 |
+| **症状** | [探针，真实 `convert_matrix_mentions` 与 `mentioned_user_ids`，房间成员 `{"alice": "@alice:matrix.org"}`] ① `mail me at x@alice.org` 被改写成 `mail me at x@alice:matrix.org.org`，同时 `m.mentions` 列出 `@alice:matrix.org`，成员会收到一条本不该发给她的通知；② 正文里已经写成完整 ID 的 `@alice:matrix.org hi` 被改写成 `@alice:matrix.org:matrix.org hi`；③ `a/@alice` 这类紧贴在路径后的 @ 同样被当成提及。第 ① 项的通知是 `m.mentions` 带来的：此前这个名字只是被改写，现在会被明确点名。 |
+| **根因** | `html.py` 的 `_MENTION_RE` 是 `@(\w+)`，@ 前后都不设边界，把 @ 后面的一段字母数字一律当作显示名；与它配套写的 `_QUALIFIED_MENTION_RE`（匹配完整 ID）定义后从未被调用。另一面：如果只把完整 ID 排除在 `@name` 之外，原来「写了完整 ID 也会被 `m.mentions` 点名」会丢失（`m.mentions` 存在时旧的正文关键字规则关闭），所以完整 ID 本身也必须被识别为提及。 |
+| **修复** | `html.py:143` `_MENTION_RE` 只认整词的 `@name`（@ 前不能是字母数字、`.`、`:`、`/`、`-`，名字后面不能紧跟 `:字符` 或 `.字符`）；`:145` `_QUALIFIED_ID_RE` 识别完整 ID（不含句末句点），取代那个从未被调用的 `_QUALIFIED_MENTION_RE`；`:206` `_mention_replacements` 把两类都按出现顺序返回，完整 ID 映射到它自己，所以文本保持原样、`m.mentions` 照样列出该成员（前提是它在房间里）；`convert_matrix_mentions`（`:170`）与 `mentioned_user_ids`（`:201`）共用它。 |
+| **回归证据** | [1] 红绿：新增 13 例（`test_matrix_mentions.py::TestMentionBoundaries` 11 例、`test_matrix_wire_payloads.py` 2 例），修复前 8 例失败（邮箱、带点主机名、路径后的 @、三种写法的完整 ID、线上载荷里的邮箱与完整 ID）；另 5 例在旧代码上本来就过（非成员的完整 ID、`@alice: hello`、名字与完整 ID 混排的顺序、2 例成员名恰是更长单词的前缀，后两例防的是新正则回溯成前缀匹配）。[2] 变异 8 个（去掉 @ 前的边界、去掉整词边界、去掉 `:字符` 的后视、去掉 `.字符` 的后视、`/` 不算边界、完整 ID 允许句末句点、不按出现顺序排序、忽略完整 ID）全部被打红，其中「去掉整词边界」第一版用例抓不住，把成员名改成恰为长单词少一个字母之后被抓住。[3] `tests/channels/providers/matrix` 与 `tests/channels/implementations` 共 196 通过；`ruff` 无报错；`mypy` 对 `html.py` 无报错。 |
+| **仍然存在** | ① 没有在真实 homeserver 上验证完整 ID 提及的通知效果。② 显示名带空格或非字母数字字符的成员仍无法用 `@名字` 提及（`\w` 的限制，原有行为，没有改）；完整 ID 的本地部分用 `[\w.=+/-]` 近似规范的字符集，没有按规范逐字符核对。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/html.py:143,145,170,201,206` · `tests/channels/providers/matrix/test_matrix_mentions.py` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py` |
+
 ## 2026-10-30 · 流式收尾与事件收集各有一个 200 多行的函数，22 种事件的落库没有逐个的测试；两条没有生产者的链（`dag_state_update` 事件、审批过期时间）删除
 
 | 字段 | 内容 |
@@ -21,10 +33,10 @@
 | **状态** | **FIXED**（`myrm-agent` 本地提交 `2f0a1a4933`；未 push）。「仍然存在」里的 4 项未处理。 |
 | **症状** | [代码+红测] `MatrixChannel` 发出的文本事件、编辑事件与媒体事件的内容里都没有 `m.mentions`（文本事件只有 `msgtype`、`body` 和可选的 `format`、`formatted_body`）。Matrix 规范（核对原文，spec.matrix.org 最新版「User and room mentions」一节）写明：早期版本靠正文里的显示名、用户 ID 本地部分和 `@room` 触发提及，引入 `m.mentions` 之后这些规则在事件带 `m.mentions` 时关闭，所以「为避免仍使用旧规则的客户端与服务器产生意外通知，建议每个事件都带 `m.mentions`，没有提及时用空对象」；旧规则在规范 v1.17 才被移除。结果：仍在旧规则下的房间里，一个名叫 `report @alice.pdf` 的文件、或智能体文本里没转换成功的 `@alice`，都可能让成员收到通知；真正被点名的成员反过来只靠正文关键字匹配，没有精确依据。 |
 | **根因** | 出站载荷由 `build_text_payload` 与 `send_media_event` 手写，只考虑了 `msgtype`、`body` 与 HTML 渲染；`@name` 转成完整 Matrix ID 的 `convert_matrix_mentions` 只返回改写后的文本，没有告诉载荷哪些成员被点名，也没有测试断言过 `m.mentions`。 |
-| **修复** | `channels/providers/matrix/html.py:196` 新增 `mentioned_user_ids`（与 `convert_matrix_mentions` 共用 `:201` 的 `_mention_replacements`：代码块与行内代码里的 `@name` 不算，只有房间成员才算，每个成员只列一次、按出现顺序）；`:124` `build_text_payload(text, mentioned_user_ids)` 总是写 `m.mentions`：有成员写 `{"user_ids": [...]}`，没有写空对象，从不写 `room`；`channel.py:236-237` 发送时在改写文本之前取成员 ID，并去掉机器人自己的 ID（规范：发出的消息无法通知自己，建议不要列入）；编辑 `channel.py:260` 的顶层是空对象，`m.new_content` 里同样是空对象（规范：顶层只放这次修订新增的提及，`m.new_content` 放最终版本的提及；编辑不转换提及，所以两处都为空）；`media.py:163` 的媒体事件是空对象。顺带清掉 `media.py` 的 8 条 mypy 报错（3 处写错错误码的 `type: ignore`、`att.url` 空值收窄），行为不变。 |
+| **修复** | `channels/providers/matrix/html.py:201` 新增 `mentioned_user_ids`（与 `convert_matrix_mentions` 共用 `:206` 的 `_mention_replacements`：代码块与行内代码里的 `@name` 不算，只有房间成员才算，每个成员只列一次、按出现顺序）；`:124` `build_text_payload(text, mentioned_user_ids)` 总是写 `m.mentions`：有成员写 `{"user_ids": [...]}`，没有写空对象，从不写 `room`；`channel.py:236-237` 发送时在改写文本之前取成员 ID，并去掉机器人自己的 ID（规范：发出的消息无法通知自己，建议不要列入）；编辑 `channel.py:260` 的顶层是空对象，`m.new_content` 里同样是空对象（规范：顶层只放这次修订新增的提及，`m.new_content` 放最终版本的提及；编辑不转换提及，所以两处都为空）；`media.py:163` 的媒体事件是空对象。顺带清掉 `media.py` 的 8 条 mypy 报错（3 处写错错误码的 `type: ignore`、`att.url` 空值收窄），行为不变。 |
 | **回归证据** | [1] 红绿：`tests/channels/providers/matrix/test_matrix_wire_payloads.py` 20 例，改动前 15 例失败（5 个原有的整体载荷断言补上 `m.mentions`，加上新增的 10 例：点名成员、重复与顺序、机器人不列入自己、回复同时带关系与提及、不是成员或在代码块里或 `@room` 或没有提及都为空对象、编辑为空对象、文件名里的 `@alice` 不触发），5 例（重试、超时、拒绝）本来就过；改动后全部通过；`test_matrix_mentions.py` 新增 3 例直接测 `mentioned_user_ids`（与转换结果一致）；`tests/channels/providers/matrix` 与 `tests/channels/implementations` 共 183 通过。[2] 变异 9 个（机器人也被列入、永不点名、文本不带 `m.mentions`、多写 `room`、重复 ID 不去重、代码块内也算、编辑少顶层字段、发送忽略成员、媒体不带）全部被打红。[3] `ruff` 无报错；`mypy` 对改动文件无报错。 |
 | **仍然存在** | ① 没有在真实 homeserver 与客户端（如 Element）上验证：旧规则下的通知是否因此不再触发、编辑后最终版本的 `m.mentions` 为空时客户端是否取消高亮，都只按规范原文推断。② 规范建议同时在 `formatted_body` 里放指向被提及用户的 matrix.to 链接，让客户端显示为提及标签；本次没有做，正文里仍是纯文本的完整 Matrix ID。③ 实测 `extract_safe_regions`：一行里的三反引号围栏紧跟行内代码（如 `` ```@alice``` `@bob` ``）时，`@bob` 被当成提及（多行围栏写法正常），这是原有行为，没有改。④ 流式编辑的文本不经 `convert_matrix_mentions`，编辑里的 `@name` 保持原样，既不转换也不提及。 |
-| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/html.py:124,196,201` · `channel.py:236-237,260` · `media.py:163` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py` · `tests/channels/providers/matrix/test_matrix_mentions.py` |
+| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/html.py:124,201,206` · `channel.py:236-237,260` · `media.py:163` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py` · `tests/channels/providers/matrix/test_matrix_mentions.py` |
 
 ## 2026-10-30 · 云端 Telegram 的长度上限按字符数计、emoji 算一个：4096 个字符的回复实际有 4106 个 UTF-16 单位，整条发出、整条编辑
 

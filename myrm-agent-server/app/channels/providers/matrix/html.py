@@ -6,8 +6,8 @@
 [OUTPUT]
 - md_to_matrix_html: Markdown → HTML subset (or None for plain text)
 - build_text_payload: Matrix m.text payload with optional formatted_body and the ``m.mentions`` that decide who is pinged
-- convert_matrix_mentions: Convert @user to @user:server.com (code-block-aware)
-- mentioned_user_ids: The qualified IDs ``convert_matrix_mentions`` puts in a text
+- convert_matrix_mentions: Convert @user to @user:server.com (code-block-aware; full IDs and e-mail addresses are left alone)
+- mentioned_user_ids: The qualified IDs a text names, by @name or by full ID, each once in order of appearance
 - strip_matrix_mention: Strip bot's own Matrix mention from text
 
 [POS]
@@ -138,8 +138,11 @@ def build_text_payload(text: str, mentioned_user_ids: Sequence[str] = ()) -> dic
     return payload
 
 
-_MENTION_RE = re.compile(r"@(\w+)")
-_QUALIFIED_MENTION_RE = re.compile(r"@[\w.-]+:[\w.-]+(?::\d+)?")  # @user:server.com or @user:server.com:8448
+# A bare @name. Not part of a longer word (an e-mail address, a path), and not the start of an @name:server ID
+# or of a dotted host: ``\b`` keeps the name whole, the lookahead rejects ``:x`` and ``.x`` right after it.
+_MENTION_RE = re.compile(r"(?<![\w.:/-])@(\w+)\b(?!:\w|\.\w)")
+# A full ID as written: @user:server.com or @user:server.com:8448, without a trailing period.
+_QUALIFIED_ID_RE = re.compile(r"(?<![\w.:/-])@[\w.=+/-]+:[\w-]+(?:\.[\w-]+)*(?::\d+)?")
 
 
 def strip_matrix_mention(text: str, bot_user_id: str) -> str:
@@ -171,7 +174,9 @@ def convert_matrix_mentions(
     """Convert @user mentions to qualified Matrix IDs (@user:server.com).
 
     Uses code-block-aware extraction to avoid processing mentions
-    inside code blocks (e.g., @alice in ```code``` is preserved).
+    inside code blocks (e.g., @alice in ```code``` is preserved). A full ID
+    that is already written out stays as it is, and an @name glued to a word
+    (such as ``support@alice.org``) is no mention.
 
     Args:
         text: Input text with @mentions
@@ -188,7 +193,7 @@ def convert_matrix_mentions(
         "Hi @alice:matrix.org, check ```@bob in code```"
     """
     result = text
-    for start, end, qualified_id in sorted(_mention_replacements(text, room_members), reverse=True):
+    for start, end, qualified_id in reversed(_mention_replacements(text, room_members)):
         result = result[:start] + qualified_id + result[end:]
     return result
 
@@ -199,9 +204,16 @@ def mentioned_user_ids(text: str, room_members: dict[str, str]) -> list[str]:
 
 
 def _mention_replacements(text: str, room_members: dict[str, str]) -> list[tuple[int, int, str]]:
-    """Span and qualified ID of every @name outside code blocks that is a room member."""
+    """Span and qualified ID, in order of appearance, of every room member named outside code blocks.
+
+    A member is named by a bare @name or by the full ID, which maps to itself.
+    """
     replacements: list[tuple[int, int, str]] = []
     for match in extract_safe_regions(text, _MENTION_RE):
         if qualified_id := room_members.get(match.group(1)):
             replacements.append((match.start(), match.end(), qualified_id))
-    return replacements
+    member_ids = set(room_members.values())
+    for match in extract_safe_regions(text, _QUALIFIED_ID_RE):
+        if match.group(0) in member_ids:
+            replacements.append((match.start(), match.end(), match.group(0)))
+    return sorted(replacements)

@@ -195,6 +195,14 @@ class TestMentions:
         assert server.events[0][2]["m.mentions"] == {"user_ids": ["@bob:matrix.org", "@alice:matrix.org"]}
 
     @pytest.mark.asyncio
+    async def test_a_full_id_in_the_text_is_listed_and_not_rewritten(self) -> None:
+        server = self._room("alice")
+        await _channel(server).send(_message("ping @alice:matrix.org"))
+        content = server.events[0][2]
+        assert content["body"] == "ping @alice:matrix.org"
+        assert content["m.mentions"] == {"user_ids": ["@alice:matrix.org"]}
+
+    @pytest.mark.asyncio
     async def test_the_bot_never_lists_itself(self) -> None:
         server = self._room("alice", "bot")
         channel = _channel(server)
@@ -213,8 +221,8 @@ class TestMentions:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "text",
-        ["hi @carol", "```\n@alice\n```", "@room look at this", "plain words"],
-        ids=["not-a-member", "inside-a-code-block", "whole-room", "no-mention"],
+        ["hi @carol", "```\n@alice\n```", "@room look at this", "plain words", "mail support@alice.org"],
+        ids=["not-a-member", "inside-a-code-block", "whole-room", "no-mention", "email-address"],
     )
     async def test_text_that_addresses_no_member_mentions_nobody(self, text: str) -> None:
         server = self._room("alice")

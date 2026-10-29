@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.channels.providers.matrix.html import (
     convert_matrix_mentions,
     mentioned_user_ids,
@@ -189,6 +191,44 @@ End @alice"""
         text = "Hi @alice"
         result = convert_matrix_mentions(text, members)
         assert result == "Hi @alice:server.com:8448"
+
+
+class TestMentionBoundaries:
+    """A mention is a bare ``@name`` or the full ``@name:server`` ID of a room member, never part of a longer word."""
+
+    MEMBERS = {"alice": "@alice:matrix.org"}
+
+    @pytest.mark.parametrize(
+        "text",
+        ["mail support@alice.org", "see @alice.org", "a/@alice", "@carol:matrix.org is not here"],
+        ids=["email", "dotted-host", "after-slash", "full-id-of-a-non-member"],
+    )
+    def test_text_that_is_no_mention_stays_untouched_and_mentions_nobody(self, text: str) -> None:
+        assert convert_matrix_mentions(text, self.MEMBERS) == text
+        assert mentioned_user_ids(text, self.MEMBERS) == []
+
+    @pytest.mark.parametrize(
+        "text",
+        ["@alice:matrix.org hi", "thanks @alice:matrix.org.", "(@alice:matrix.org)"],
+        ids=["leading", "trailing-period", "parenthesised"],
+    )
+    def test_the_full_id_of_a_member_stays_as_written_and_is_listed(self, text: str) -> None:
+        assert convert_matrix_mentions(text, self.MEMBERS) == text
+        assert mentioned_user_ids(text, self.MEMBERS) == ["@alice:matrix.org"]
+
+    @pytest.mark.parametrize("text", ["@alice:other.org says hi", "see @alice.org"], ids=["foreign-id", "dotted-host"])
+    def test_a_member_name_that_only_starts_a_longer_word_is_no_mention(self, text: str) -> None:
+        members = {"alic": "@alic:matrix.org"}
+        assert convert_matrix_mentions(text, members) == text
+        assert mentioned_user_ids(text, members) == []
+
+    def test_a_name_followed_by_a_colon_and_a_space_is_still_a_mention(self) -> None:
+        assert convert_matrix_mentions("@alice: hello", self.MEMBERS) == "@alice:matrix.org: hello"
+        assert mentioned_user_ids("@alice: hello", self.MEMBERS) == ["@alice:matrix.org"]
+
+    def test_names_and_full_ids_are_listed_in_order_of_appearance(self) -> None:
+        members = {"alice": "@alice:matrix.org", "bob": "@bob:server.com"}
+        assert mentioned_user_ids("@bob:server.com then @alice", members) == ["@bob:server.com", "@alice:matrix.org"]
 
 
 class TestMentionedUserIds:
