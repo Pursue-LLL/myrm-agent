@@ -13,69 +13,12 @@
 | `MultiTierHealthBadge.tsx` | 组件 | 组件支撑层 (Component) 与入口网关层 (Ingress) 能力分层健康大盘卡片 | ✅ |
 | `AgentDoctorWizard.tsx` | 组件 | 智能体四大失效表象诊断向导、六大断点时序流水与就地重发控制台 | ✅ |
 | `AgentDiagnosticCapsule.tsx` | 组件 | 智能体运行异常轻量诊断胶囊，提供异常表象即时提示与向导触发 | ✅ |
-| `RetrievalDecisionTreeView.tsx` | 组件 | 上下文分层检索下钻决策树可视化、节点折叠/展开与剪枝诱因透视视图 | ✅ |
-| `RetrievalTraceDrawer.tsx` | 组件 | 检索决策树控制台抽屉与 OpenViking 风格实验场参数重算微调器 | ✅ |
-| `BudgetQuotaIndicator.tsx` | 组件 | 任务多维资源与时间/Token/积分预算配额水位与熔断预警指示器 | ✅ |
-| `HybridResourceLedgerCard.tsx` | 组件 | 物理硬件占用与认知 Token 双轨混合全景对账单卡片 (AFP 协议) | ✅ |
 | `ProductivityRoiDashboard.tsx` | 组件 | 月度生产力投资回报透视大盘与高频劳务节省工时分类排行看板 | ✅ |
 | `SandboxSelfHealButton.tsx` | 组件 | 沙箱卡死一键就地热重启自愈按钮，支持 10 秒倒计时防抖与 Volume 数据完整性保证 | ✅ |
 | `InAppDiagnosticModal.tsx` | 组件 | 端内沙箱现场全景诊断打包展示、PII 自动脱敏态势与闪电工单极速提交弹窗 | ✅ |
-| `BudgetTierAlertBanner.tsx` | 组件 | 多阶梯式预算风控状态条幅（50% 水位提示、80% 自适应降级与 100% 挂起拦截）与快捷追加预算卡片 | ✅ |
-| `TokenBurnRateHUD.tsx` | 组件 | 海量并发 Agent 编排 Token 燃速全景仪表盘、三阶梯进度刻度计与活跃子 Agent 燃速热力图 | ✅ |
-| `SupervisionDecayChart.tsx` | 组件 | 重复场景人工监督衰减折线柱状图，直观展现多轮任务执行中人工介入率逐级衰减特征 | ✅ |
-| `CoordinationFrictionScoreboard.tsx` | 组件 | 人机协调摩擦度量与监督衰减全景记分板、4 大关键 KPI 卡片与真实业务 ROI 战报看板 | ✅ |
 | `cronDoctorTypes.ts` | 类型 | 定时任务舰队巡检、6 大防御门禁与外科手术式修复类型契约 | ✅ |
 | `CronFleetHealthDeck.tsx` | 组件 | 定时任务舰队全景健康体态顶栏胶囊看板与静默故障隐患告警卡片 | ✅ |
 | `CronDoctorReportDrawer.tsx` | 组件 | 定时任务隐患详情自查抽屉、修复指引与外科手术式快速治愈执行视窗 | ✅ |
-| `sanitizedDebugTypes.ts` | 类型 | 零数据外泄物理脱敏诊断包、SHA256 签名与 48h 阅后即焚短链契约定义 | ✅ |
-| `SanitizedDebugShareModal.tsx` | 组件 | 零外泄调试包导出与阅后即焚分享弹窗，支持抹除审计透视与 .myrmdiag 导出 | ✅ |
-| `tokenEconomicsTypes.ts` | 类型 | 长任务 Token 经济学、99% 缓存节流真实收益与单位成本漂移契约定义 | ✅ |
-| `CostDriftExplainerDrawer.tsx` | 组件 | 周期单位成本漂移感知与归因解释抽屉，展示历史基线对比与防刺客策略 | ✅ |
-| `CacheSavingsRoiHUD.tsx` | 组件 | 99% 缓存节流真实收益大盘、实付与基线对比、算力燃速与熔断护航视窗 | ✅ |
-| `deliveryDossierTypes.ts` | 类型 | 跨智能体交付证据卷宗、物理验证收据与分层资产摩擦度量契约定义 | ✅ |
-| `DeliveryEvidenceDossierModal.tsx` | 组件 | 全链路交付证据卷宗弹窗，支持 5 大事实维度透视与 .dossier.json 导出 | ✅ |
-| `HarnessEfficacyDeck.tsx` | 组件 | 跨智能体资产健康与效能大盘，按模型分层度量真实采纳率与摩擦刺客资产识别 | ✅ |
-| `rateLimitGovernorTypes.ts` | 类型 | 客户端主动流量整形、响应头嗅探与子 Agent 切片配额 TypeScript 契约定义 | ✅ |
-| `RateLimitGovernorHUD.tsx` | 组件 | 客户端主动限流预测阀门与自适应配额调度 HUD，多模型 RPM/TPM 水位与零 429 顺滑放行仪表盘 | ✅ |
-| `SubagentQuotaAllocationDrawer.tsx` | 组件 | 子 Agent 隔离配额切片管理抽屉，提供动态削峰、切片熔断警示与一键重置窗口 | ✅ |
-| `orgSpendLimitTypes.ts` | 类型 | 组织级月度 Agent 共享预算限额、硬熔断与 ident 身份归因 TypeScript 契约定义 | ✅ |
-| `OrgSpendLimitDashboard.tsx` | 组件 | 组织共享预算仪表盘与用户归因排行看板，支持水位进度条、熔断报警与预检模拟台 | ✅ |
-| `knowledgeCompoundingTypes.ts` | 类型 | 知识复利五大闭环指标、健康快照与微调试算 TypeScript 契约定义 | ✅ |
-| `KnowledgeCompoundingScoreboard.tsx` | 组件 | 知识复利五大闭环指标全景记分板，支持雷达卡片网格、劣化告警与交互式模拟体检 | ✅ |
-| `turnContextProvenanceTypes.ts` | 类型 | 逐轮上下文装配来源清单、SHA256 指纹快照与跨轮差异 TypeScript 契约定义 | ✅ |
-| `TurnContextProvenanceAuditModal.tsx` | 组件 | 会话逐轮上下文注入来源清单与可复现审计弹窗，支持来源 Token 占比条、指纹复制与跨轮比对 | ✅ |
-| `streamMetricsTypes.ts` | 类型 | 流式调用按最终结果计量、防 Chunk 污染与会话时延 TypeScript 契约定义 | ✅ |
-| `StreamMetricsCockpit.tsx` | 组件 | 流式调用最终结果计量驾驶舱，展示真实调用数、SLA 成功率、防虚高倍数与终态分布 | ✅ |
-| `diagnosticStreamTypes.ts` | 类型 | 运行流诊断事件解耦、严重度筛选与双轨隔离通道 TypeScript 契约定义 | ✅ |
-| `RunStreamDiagnosticDrawer.tsx` | 组件 | 运行流诊断抽屉组件，实现诊断事件流与用户消息流物理分离，杜绝聊天气泡污染 | ✅ |
-| `contextBreakdownTypes.ts` | 类型 | 上下文用量七分类占比、60%/90% 警戒线与双口径对账 TypeScript 契约定义 | ✅ |
-| `ContextUsageBreakdownHUD.tsx` | 组件 | 上下文用量七分类透视与警戒线 HUD，提供真实注入分类、60%/90% 标尺与一键压缩交互 | ✅ |
-| `rateLimitSplitTypes.ts` | 类型 | 429 限流来源拆分与失败归因 TypeScript 契约定义 | ✅ |
-| `RateLimitSourceSplitHUD.tsx` | 组件 | 限流来源拆分与失败归因 HUD，细分 myrm vs upstream 429、提供商失败分布与总数对齐校验 | ✅ |
-| `enterpriseCreditCockpitTypes.ts` | 类型 | 企业级统一 Credit 池与人-时-数-险同链路审计 TypeScript 契约定义 | ✅ |
-| `EnterpriseCreditAndRiskOpsCockpit.tsx` | 组件 | 企业用量与风险运营驾驶舱，展示全局 Credit 配额、各端分布及人-时-数-险同链路审计穿透 | ✅ |
-| `unattendedReliabilityTypes.ts` | 类型 | 无人值守可靠性三联自证指标与运行事实 TypeScript 契约定义 | ✅ |
-| `UnattendedReliabilityTriadHUD.tsx` | 组件 | 无人值守可靠性三联自证 HUD，展示重启续跑率、零重复副作用率、诚实上报率与一键验收测试 | ✅ |
-| `customAgentInsightsTypes.ts` | 类型 | 自定义智能体洞察、意图聚类、技能漏斗健康度与人机卡点 ROI TypeScript 契约定义 | ✅ |
-| `CustomAgentInsightsCockpit.tsx` | 组件 | 自定义智能体运营洞察驾驶舱，展示意图聚类分布、技能调用成功率/P95 延迟与 HITL 产出 ROI | ✅ |
-| `evidenceCrossVerificationTypes.ts` | 类型 | 多源证据交叉验证、四分制置信度评级与排障定论 TypeScript 契约定义 | ✅ |
-| `EvidenceCrossVerificationCockpit.tsx` | 组件 | 多源证据交叉验证与四分制置信度排障大盘，展示四维立体证据链、根因诊断与行动派修复补丁 | ✅ |
-| `compositeUsageLedgerTypes.ts` | 类型 | 六维复合主键用量分摊账本与双轨对账状态 TypeScript 契约定义 | ✅ |
-| `CompositeUsageLedgerHUD.tsx` | 组件 | 六维复合账本与双轨对账 HUD，展示本地估算 vs 实际扣费、细粒度 task 归因与账本流水 | ✅ |
-| `ambientAuxiliaryAccountingTypes.ts` | 类型 | 环境感知式用量记账与任务维度精准归因 TypeScript 契约定义 | ✅ |
-| `AmbientAuxiliaryAccountingHUD.tsx` | 组件 | 环境感知式用量记账 HUD，展示核心对话 vs 派生任务分摊、Prompt Cache 纯度隔离与快照流 | ✅ |
-| `sandboxHardwareTelemetryTypes.ts` | 类型 | 沙箱硬件资源动态遥测与三级阶梯熔断 TypeScript 契约定义 | ✅ |
-| `SandboxHardwareTelemetryDashboard.tsx` | 组件 | 沙箱硬件资源遥测与失控三级熔断控制台，呈现 CPU/RAM/Disk 水位进度条、三级阶梯横幅、阈值调节与事故历史 | ✅ |
-| `eventCausalityLineageTypes.ts` | 类型 | 事件驱动因果溯源、DAG 拓扑链路与反向文件归因 TypeScript 契约定义 | ✅ |
-| `EventCausalityLineageDeck.tsx` | 组件 | 事件驱动因果溯源与动作归因图谱，展示因果链拓扑面包屑、决策认知动作流、修改产物与秒级反向文件归因 | ✅ |
-| `delegationBillingTypes.ts` | 类型 | 外部委托用量透明化、订阅 vs API 计费分轨与节省额度 TypeScript 契约定义 | ✅ |
-| `DelegationBillingTransparencyBadge.tsx` | 组件 | 计费口径分轨徽标组件，直观展示订阅额度消耗（不计费）vs API 计费、来源后端与预估节省额 | ✅ |
-| `abortedUsageLedgerTypes.ts` | 类型 | 中止辅助模型调用账本、未知用量状态与风险统计 TypeScript 契约定义 | ✅ |
-| `AbortedAuxiliaryUsageHUD.tsx` | 组件 | 辅助调用用量与未知防虚假免费守护 HUD，严禁中止未报告调用显示 0 Token，直观暴露潜在财务风险 | ✅ |
-| `activeSkillTelemetryTypes.ts` | 类型 | 活跃技能 Span 遥测记录、ContextVar 属性注入与 P95 聚合 TypeScript 契约定义 | ✅ |
-| `ActiveSkillSpanTelemetryCockpit.tsx` | 组件 | 活跃技能 Span 遥测全景驾驶舱，透传 myrm.skill.active 属性、展示各技能 P95 延迟与故障归因 | ✅ |
-| `durableBudgetLedgerTypes.ts` | 类型 | 持久化每日预算账本、丢弃分支差额与会话实际账单 TypeScript 契约定义 | ✅ |
-| `DurableBudgetLedgerHUD.tsx` | 组件 | 持久化每日预算恢复 HUD，从持久账本恢复真实花费，防止消息重试/删除导致预算低估击穿 | ✅ |
 | `unattendedCoverageTypes.ts` | 类型 | 无人值守与多渠道运行事件日志覆盖状态与分片健康 TypeScript 契约定义 | ✅ |
 | `UnattendedEventLogCoverageHUD.tsx` | 组件 | 无人值守与多渠道事件日志覆盖全景大盘，呈现 Cron/Channel/Goal/Voice 统一注入与按日分片防无限增长指标 | ✅ |
 | `index.ts` | 门面 | 聚合导出模块内所有组件与类型定义 | ✅ |

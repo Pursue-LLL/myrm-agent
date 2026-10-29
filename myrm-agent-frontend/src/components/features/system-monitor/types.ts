@@ -116,74 +116,6 @@ export interface RedispatchResponse {
   message: string;
 }
 
-export type PruningReason =
-  | 'none'
-  | 'score_below_threshold'
-  | 'topk_overflow'
-  | 'semantic_dedup'
-  | 'policy_blocked'
-  | 'unknown';
-
-export interface RetrievalTreeNode {
-  node_id: string;
-  name: string;
-  path: string;
-  depth: number;
-  similarity_score: number;
-  pruning_threshold: number;
-  is_pruned: boolean;
-  pruning_reason: PruningReason;
-  reason_detail: string;
-  is_hit: boolean;
-  metadata: Record<string, string>;
-  children: RetrievalTreeNode[];
-}
-
-export interface VisitedPathTrace {
-  trace_id: string;
-  query: string;
-  root_nodes: RetrievalTreeNode[];
-  total_nodes_visited: number;
-  pruned_nodes_count: number;
-  hits_count: number;
-  duration_ms: number;
-  created_at: number;
-}
-
-export interface RetrievalSimulateRequest {
-  query: string;
-  pruning_threshold?: number;
-  top_k?: number;
-}
-
-export interface HardwareUsage {
-  execution_seconds: number;
-  cpu_cores: number;
-  memory_gb: number;
-  volume_read_mb: number;
-  volume_write_mb: number;
-  hardware_credits: number;
-}
-
-export interface CognitiveUsage {
-  model_name: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  cached_prompt_tokens: number;
-  cognitive_credits: number;
-}
-
-export interface HybridLedgerReport {
-  task_id: string;
-  hardware: HardwareUsage;
-  cognitive: CognitiveUsage;
-  total_credits: number;
-  estimated_cost_usd: number;
-  is_budget_exceeded: boolean;
-  budget_exceeded_reason: string;
-  created_at: number;
-}
-
 export interface ResourceEstimateRequest {
   task_id: string;
   execution_seconds?: number;
@@ -290,69 +222,11 @@ export interface SelfHealRebootResult {
   rebooted_at: string;
 }
 
-export type BudgetLadderTier =
-  | 'NORMAL'
-  | 'TIER1_NOTICE'
-  | 'TIER2_DEGRADED'
-  | 'TIER3_SUSPENDED';
-
-export interface BudgetLadderVerdict {
-  workflow_id: string;
-  tier: BudgetLadderTier;
-  used_pct: number;
-  is_throttled: boolean;
-  is_suspended: boolean;
-  throttle_factor: number;
-  action_message: string;
-  recommended_model_tier: 'primary' | 'economy' | 'halted' | string;
-}
-
-export interface WorkflowBurnStatus {
-  workflow_id: string;
-  tokens_per_sec: number;
-  cost_per_hour_usd: number;
-  cumulative_prompt_tokens: number;
-  cumulative_completion_tokens: number;
-  total_cumulative_tokens: number;
-  cumulative_cost_usd: number;
-  budget_tokens?: number | null;
-  budget_cost_usd?: number | null;
-  active_agent_count: number;
-  agent_burn_distribution: Record<string, number>;
-  verdict: BudgetLadderVerdict;
-  updated_at: string;
-}
-
-export interface AdjustBudgetPayload {
-  added_tokens?: number;
-  added_cost_usd?: number;
-  force_resume?: boolean;
-}
-
 export type InterventionType =
   | 'APPROVAL_GATE'
   | 'STEER_CORRECTION'
   | 'REJECT_REWORK'
   | 'PARAMETER_OVERRIDE';
-
-export interface SupervisionDecayPoint {
-  sequence_number: number;
-  intervention_rate_pct: number;
-  average_attention_minutes: number;
-  sample_count: number;
-}
-
-export interface CoordinationScoreboardSummary {
-  template_type: string;
-  total_runs: number;
-  average_friction_rate: number;
-  rework_rate_pct: number;
-  total_coordination_hours_saved: number;
-  friction_decay_pct: number;
-  decay_curve: SupervisionDecayPoint[];
-  active_templates?: string[];
-  updated_at?: string;
-}
 
 export interface TaskFrictionRecord {
   task_id: string;
@@ -365,7 +239,3 @@ export interface TaskFrictionRecord {
   friction_rate: number;
   timestamp: number;
 }
-
-export * from './sanitizedDebugTypes';
-export * from './tokenEconomicsTypes';
-export * from './deliveryDossierTypes';
