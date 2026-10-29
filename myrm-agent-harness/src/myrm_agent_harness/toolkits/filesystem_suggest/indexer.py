@@ -4,7 +4,8 @@ git CLI (POS: Repository-aware file listing source)
 os.walk (POS: Filesystem fallback enumerator)
 
 [OUTPUT]
-WorkspacePathIndexer: lists workspace files as root-relative paths with a short TTL cache.
+WorkspacePathIndexer: lists workspace files as root-relative paths with a short TTL cache, and tells whether a listing
+reached the enumeration cap and may therefore be incomplete.
 
 [POS]
 Local workspace file enumerator. Produces bounded relative file lists for higher-level suggestion and indexing features.
@@ -24,7 +25,7 @@ from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL_SECONDS = 5.0
-_CACHE_MAX_FILES = 50_000
+_MAX_LISTED_FILES = 50_000
 _GIT_TIMEOUT_SECONDS = 2.0
 _IGNORED_DIRS = frozenset(
     {
@@ -64,7 +65,7 @@ class WorkspacePathIndexer:
 
     @classmethod
     def list_files(cls, root: str | Path) -> list[str]:
-        """Return cached relevant file paths under ``root``."""
+        """Return cached relevant file paths under ``root``; enumeration stops at a fixed maximum (see ``is_truncated``)."""
 
         root_path = Path(root).expanduser().resolve()
         cache_key = str(root_path)
@@ -91,6 +92,12 @@ class WorkspacePathIndexer:
                 _file_cache.clear()
                 return
             _file_cache.pop(str(Path(root).expanduser().resolve()), None)
+
+    @staticmethod
+    def is_truncated(files: list[str]) -> bool:
+        """True when ``files`` reached the enumeration cap, so the workspace may hold more files than were listed."""
+
+        return len(files) >= _MAX_LISTED_FILES
 
     @staticmethod
     def _git_files(root: Path) -> list[str]:
@@ -133,7 +140,7 @@ class WorkspacePathIndexer:
             if rel.startswith("../") or "/../" in rel:
                 continue
             files.append(rel)
-            if len(files) >= _CACHE_MAX_FILES:
+            if len(files) >= _MAX_LISTED_FILES:
                 break
         return files
 
@@ -152,7 +159,7 @@ class WorkspacePathIndexer:
                     except ValueError:
                         continue
                     files.append(rel)
-                    if len(files) >= _CACHE_MAX_FILES:
+                    if len(files) >= _MAX_LISTED_FILES:
                         return files
         except OSError as exc:
             logger.debug("fallback walk failed in %s: %s", root, exc)

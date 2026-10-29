@@ -99,7 +99,10 @@ class ParsedFile:
 
 @dataclass
 class IndexStats:
-    """State of the index after a run: the totals are index-wide, the other counters describe this run."""
+    """State of the index after a run: the totals are index-wide, the other counters describe this run.
+
+    ``truncated`` is True when the workspace file listing reached its cap, so the files beyond it are not indexed.
+    """
 
     total_files: int
     total_symbols: int
@@ -108,6 +111,7 @@ class IndexStats:
     updated_files: int = 0
     removed_files: int = 0
     skipped_files: int = 0
+    truncated: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

@@ -178,7 +178,7 @@ Called from other HTTP trees or lifecycle hooks:
 |-------------|----------------|
 | `auth/` | middleware, `api/webui/`, OAuth callbacks |
 | `compliance/` | WeChat official-account compliance scan (`api/channels/wechat_official`) |
-| `code_graph/` | Code repository AST symbols & call-graph indexing (CLI / internal) |
+| `code_graph/` | `ai_agents/general_agent/` mounts `code_graph_tool` when the `repo-call-graph` skill is enabled |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
 | `mascot/` | SSE from `services/agent/` stream (companion XP) |
 | `observability/` | Task runtime observability services |

@@ -23,6 +23,7 @@ import pytest
 from langchain_core.tools import BaseTool
 from myrm_agent_harness.api.skills import parse_skill_frontmatter
 from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
+from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 from pydantic import BaseModel
 
 from app.services.code_graph.agent_tool import (
@@ -206,6 +207,20 @@ async def test_resolve_reports_when_more_than_the_cap_matches(workspace: Path) -
 
     assert len(answer.rows) == MAX_ROWS
     assert any("More rows exist" in note for note in answer.notes)
+
+
+async def test_a_cut_file_listing_is_reported_so_a_missing_result_is_not_taken_for_unused_code(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write(workspace, "app.py", "def helper():\n    return 1\n")
+    tool = create_code_graph_tool(workspace)
+
+    complete = await _ask(tool, "callers", "helper")
+    monkeypatch.setattr(WorkspacePathIndexer, "is_truncated", staticmethod(lambda files: True))
+    cut = await _ask(tool, "callers", "helper")
+
+    assert not any("more files" in note for note in complete.notes)
+    assert any("more files" in note and "grep" in note for note in cut.notes)
 
 
 async def test_a_target_with_no_match_says_what_to_try_next(workspace: Path) -> None:

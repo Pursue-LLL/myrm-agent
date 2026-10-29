@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.code_graph.service::CodeGraphService (POS: incremental directory index and graph queries)
+- app.services.code_graph.models::IndexStats (POS: state of the index after one run)
 - myrm_agent_harness.runtime.paths.execution_paths::get_persistent_root (POS: persistent volume root)
 
 [OUTPUT]
@@ -30,6 +31,7 @@ from langchain_core.tools import BaseTool
 from myrm_agent_harness.runtime.paths.execution_paths import get_persistent_root
 from pydantic import BaseModel, Field
 
+from app.services.code_graph.models import IndexStats
 from app.services.code_graph.service import CodeGraphService
 
 SKILL_NAME = "repo-call-graph"
@@ -142,8 +144,13 @@ def _database_path(workspace_root: Path) -> Path:
     return Path(get_persistent_root()) / "code_graph" / f"{digest}.db"
 
 
-def _notes(shown_rows: list[Row], total: int, definitions: int, skipped_files: int) -> list[str]:
+def _notes(shown_rows: list[Row], total: int, definitions: int, stats: IndexStats) -> list[str]:
     notes: list[str] = []
+    if stats.truncated:
+        notes.append(
+            "The workspace has more files than the index can list, so part of it is not indexed. "
+            "A missing result is unconfirmed: use grep."
+        )
     if total == 0:
         notes.append(
             "Nothing found. Names are case-sensitive; try resolve with a shorter name or use grep. "
@@ -155,8 +162,8 @@ def _notes(shown_rows: list[Row], total: int, definitions: int, skipped_files: i
         notes.append(f"{definitions} functions share this name, so match=name rows may call another one.")
     if any(str(row["at"]).rsplit(":", 1)[0].endswith(_JS_TS_SUFFIXES) for row in shown_rows):
         notes.append("JS/TS rows are approximate: the calling function may be wrong, so open the location.")
-    if skipped_files:
-        notes.append(f"{skipped_files} source files were not indexed (links, oversized, unreadable or not valid Python).")
+    if stats.skipped_files:
+        notes.append(f"{stats.skipped_files} source files were not indexed (links, oversized, unreadable or not valid Python).")
     return notes
 
 
@@ -190,7 +197,7 @@ class _Navigator:
         if action in ("callers", "tests_calling"):
             definitions = self._service.definition_count(target)
             payload["definitions"] = definitions
-        notes = _notes(rows, len(found), definitions, stats.skipped_files)
+        notes = _notes(rows, len(found), definitions, stats)
         if notes:
             payload["notes"] = notes
         return {

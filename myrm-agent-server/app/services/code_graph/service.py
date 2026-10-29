@@ -59,6 +59,7 @@ class CodeGraphService:
         （非 git 目录退回到目录遍历），只按相对扫描根的路径片段排除 ``EXCLUDE_DIRS``，根目录自身的祖先
         目录名不参与判断。符号链接与特殊文件不跟随，超过 ``MAX_SOURCE_BYTES`` 的文件不索引；
         无法读取或不是合法 Python 的文件计入 ``skipped_files`` 且不记录指纹，每次运行都会重试；
+        文件清单达到 ``WorkspacePathIndexer`` 的枚举上限时 ``IndexStats.truncated`` 为真，超出的文件不被索引；
         大小与修改时间都没变的改写看不到。
         """
         root = Path(root_dir).expanduser().resolve()
@@ -70,7 +71,8 @@ class CodeGraphService:
         seen: set[str] = set()
         parsed: list[ParsedFile] = []
         skipped = 0
-        for rel_path in WorkspacePathIndexer.list_files(root):
+        listing = WorkspacePathIndexer.list_files(root)
+        for rel_path in listing:
             parts = PurePosixPath(rel_path)
             if parts.suffix not in SOURCE_SUFFIXES or self.EXCLUDE_DIRS.intersection(parts.parts):
                 continue
@@ -109,6 +111,7 @@ class CodeGraphService:
             updated_files=len(parsed),
             removed_files=len(removed),
             skipped_files=skipped,
+            truncated=WorkspacePathIndexer.is_truncated(listing),
         )
 
     @staticmethod

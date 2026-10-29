@@ -73,3 +73,4 @@ Use `code_graph_tool` for structural questions about Python and TypeScript/JavaS
 - Python results are normally right about which function contains a call; a call outside any function (module level, class body) has the module name as `caller`. TypeScript/JavaScript results are approximate and that function can be wrong.
 - Imports are indexed for Python only: `importers` finds nothing in TypeScript/JavaScript files.
 - Files ignored by git, dependency and build folders, files over 1 MB, symbolic links, and Python files with syntax errors are not indexed.
+- Very large workspaces are indexed only in part. When `notes` says so, a missing result is unconfirmed: use `grep_tool`.

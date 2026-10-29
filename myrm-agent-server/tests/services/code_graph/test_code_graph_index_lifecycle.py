@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - pytest suite covering re-indexing an unchanged directory, deleted and changed files, same-named files in different
-  directories, git-ignore aware file listing, symlink and size limits, and call-site match labels.
+  directories, git-ignore aware file listing, symlink and size limits, a listing cut at its cap, and call-site match labels.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_index_lifecycle.py
@@ -154,6 +154,29 @@ def test_links_and_oversized_files_are_skipped_and_counted(
 
     assert (stats.total_files, stats.skipped_files) == (1, 2)
     assert graph.resolve("secret_outside") == [] and graph.resolve("big") == []
+
+
+def test_a_run_reports_when_the_file_listing_reached_its_cap(
+    root: Path, graph: CodeGraphService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("a", "b", "c"):
+        _write(root, f"{name}.py", f"def {name}():\n    return 1\n")
+    _write(root, "notes.txt", "not source code\n")
+    listing_seen: list[list[str]] = []
+
+    def is_truncated(files: list[str]) -> bool:
+        listing_seen.append(files)
+        return len(files) >= 4
+
+    monkeypatch.setattr(service_module.WorkspacePathIndexer, "is_truncated", staticmethod(is_truncated))
+
+    full = graph.index_directory(root)
+    (root / "c.py").unlink()
+    shorter = graph.index_directory(root)
+
+    assert (full.truncated, shorter.truncated) == (True, False)
+    assert sorted(listing_seen[0]) == ["a.py", "b.py", "c.py", "notes.txt"]
+    assert sorted(listing_seen[1]) == ["a.py", "b.py", "notes.txt"]
 
 
 def test_a_file_that_cannot_be_parsed_is_skipped_and_the_run_continues(
