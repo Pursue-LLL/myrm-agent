@@ -290,7 +290,7 @@ pre {{ position: relative; }}
   </div>
 
   <div class="footer">
-    <p>Exported with <strong>Myrm Agent</strong> &bull; Zero External Dependencies</p>
+    <p>Exported with <strong>Myrm Agent</strong></p>
   </div>
 </div>
 

@@ -160,3 +160,9 @@ def test_text_that_came_from_the_session_never_becomes_markup() -> None:
     ).html_content
 
     assert "<img" not in page
+
+
+def test_the_footer_names_the_product_and_nothing_about_how_the_file_is_built() -> None:
+    footer = _PAGE.split('<div class="footer">')[1].split("</div>")[0]
+
+    assert re.sub(r"<[^>]+>", "", footer).strip() == "Exported with Myrm Agent"

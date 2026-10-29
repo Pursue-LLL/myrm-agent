@@ -54,7 +54,11 @@ def custom_properties(css: str, selector: str) -> dict[str, str]:
 
 
 def resolve_variables(css: str, properties: dict[str, str]) -> str:
-    """*css* with every ``var(--name)`` replaced by that property's value; a name no property holds is an error."""
+    """*css* with every ``var(--name)`` replaced by that property's value.
+
+    A name no property holds is an error, and so is any ``var()`` left over afterwards (a fallback value, or a property
+    defined by another variable): reading around it would report a colour the browser does not paint.
+    """
 
     def value_of(match: re.Match[str]) -> str:
         name = match.group(1)
@@ -62,7 +66,11 @@ def resolve_variables(css: str, properties: dict[str, str]) -> str:
             raise AssertionError(f"var({name}) is used but no rule declares {name}")
         return properties[name]
 
-    return re.sub(r"var\((--[\w-]+)\)", value_of, css)
+    resolved = re.sub(r"var\((--[\w-]+)\)", value_of, css)
+    leftover = re.search(r"var\([^)]*\)?", resolved)
+    if leftover:
+        raise AssertionError(f"{leftover.group(0)!r} is a var() form this reader cannot resolve")
+    return resolved
 
 
 def split_themes(css: str) -> tuple[str, str]:

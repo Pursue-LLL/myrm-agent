@@ -275,6 +275,19 @@ def test_variables_are_replaced_wherever_they_sit_in_a_value() -> None:
     assert resolve_variables("border: 1px solid var(--edge)", {"--edge": "#abc"}) == "border: 1px solid #abc"
 
 
+@pytest.mark.parametrize(
+    ("css", "properties"),
+    [
+        ("color: var(--ink, #fff)", {"--ink": "#000"}),
+        ("color: var(--ink)", {"--ink": "var(--base)", "--base": "#000"}),
+    ],
+    ids=["fallback-value", "variable-defined-by-a-variable"],
+)
+def test_a_var_the_reader_cannot_resolve_is_an_error_not_a_silent_misread(css: str, properties: dict[str, str]) -> None:
+    with pytest.raises(AssertionError, match=r"var\(\) form this reader cannot resolve"):
+        resolve_variables(css, properties)
+
+
 def test_a_single_hex_names_where_it_was_read_when_it_finds_none_or_many() -> None:
     assert single_hex("1px solid #ABC", "p gives border") == "#aabbcc"
     with pytest.raises(AssertionError, match=r"p gives border 'none', which is not exactly one hex colour"):
