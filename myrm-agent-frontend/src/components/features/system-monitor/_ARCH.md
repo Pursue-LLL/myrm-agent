@@ -17,7 +17,6 @@
 | `RetrievalTraceDrawer.tsx` | 组件 | 检索决策树控制台抽屉与 OpenViking 风格实验场参数重算微调器 | ✅ |
 | `BudgetQuotaIndicator.tsx` | 组件 | 任务多维资源与时间/Token/积分预算配额水位与熔断预警指示器 | ✅ |
 | `HybridResourceLedgerCard.tsx` | 组件 | 物理硬件占用与认知 Token 双轨混合全景对账单卡片 (AFP 协议) | ✅ |
-| `TaskAccelerationBadge.tsx` | 组件 | 单任务白领劳务效能加速倍率实时徽章与一键复制战报组件 | ✅ |
 | `ProductivityRoiDashboard.tsx` | 组件 | 月度生产力投资回报透视大盘与高频劳务节省工时分类排行看板 | ✅ |
 | `SandboxSelfHealButton.tsx` | 组件 | 沙箱卡死一键就地热重启自愈按钮，支持 10 秒倒计时防抖与 Volume 数据完整性保证 | ✅ |
 | `InAppDiagnosticModal.tsx` | 组件 | 端内沙箱现场全景诊断打包展示、PII 自动脱敏态势与闪电工单极速提交弹窗 | ✅ |
@@ -39,29 +38,18 @@
 | `rateLimitGovernorTypes.ts` | 类型 | 客户端主动流量整形、响应头嗅探与子 Agent 切片配额 TypeScript 契约定义 | ✅ |
 | `RateLimitGovernorHUD.tsx` | 组件 | 客户端主动限流预测阀门与自适应配额调度 HUD，多模型 RPM/TPM 水位与零 429 顺滑放行仪表盘 | ✅ |
 | `SubagentQuotaAllocationDrawer.tsx` | 组件 | 子 Agent 隔离配额切片管理抽屉，提供动态削峰、切片熔断警示与一键重置窗口 | ✅ |
-| `contextSavingsTypes.ts` | 类型 | 上下文拦截节流战报、每工具节省率与 7 维工程障碍模式 TypeScript 契约定义 | ✅ |
-| `ContextSavingsWarReportModal.tsx` | 组件 | 上下文拦截节流战报弹窗，直观呈现每工具节流率、折算真金白银 (CNY/USD) 与 .savings.json 导出 | ✅ |
-| `EngineeringInsightRoleDeck.tsx` | 组件 | 研发效能与工程障碍模式看板，按 CTO/EM/FinOps/DevOps 多角色切片展示瓶颈信号与治理建议 | ✅ |
-| `reasoningSemanticsTypes.ts` | 类型 | 推理 Token 从属从契约、提供商口径归一化与零重复计数 TypeScript 契约定义 | ✅ |
-| `ReasoningTokenIntegrityHUD.tsx` | 组件 | 推理 Token 计费语义诚实透视 HUD，展示从属层级结构、公式不变量与防双重计费守卫 | ✅ |
 | `orgSpendLimitTypes.ts` | 类型 | 组织级月度 Agent 共享预算限额、硬熔断与 ident 身份归因 TypeScript 契约定义 | ✅ |
 | `OrgSpendLimitDashboard.tsx` | 组件 | 组织共享预算仪表盘与用户归因排行看板，支持水位进度条、熔断报警与预检模拟台 | ✅ |
 | `knowledgeCompoundingTypes.ts` | 类型 | 知识复利五大闭环指标、健康快照与微调试算 TypeScript 契约定义 | ✅ |
 | `KnowledgeCompoundingScoreboard.tsx` | 组件 | 知识复利五大闭环指标全景记分板，支持雷达卡片网格、劣化告警与交互式模拟体检 | ✅ |
 | `turnContextProvenanceTypes.ts` | 类型 | 逐轮上下文装配来源清单、SHA256 指纹快照与跨轮差异 TypeScript 契约定义 | ✅ |
 | `TurnContextProvenanceAuditModal.tsx` | 组件 | 会话逐轮上下文注入来源清单与可复现审计弹窗，支持来源 Token 占比条、指纹复制与跨轮比对 | ✅ |
-| `deploymentFunnelTypes.ts` | 类型 | 交付部署漏斗监测、阶段转化率、反馈情感与主动 Nudge 闭环 TypeScript 契约定义 | ✅ |
-| `DeploymentFunnelDashboard.tsx` | 组件 | 交付部署漏斗监测与反馈闭环大盘，展示 4 阶梯转化、流失断点、反馈统计与一键目标派发 | ✅ |
 | `streamMetricsTypes.ts` | 类型 | 流式调用按最终结果计量、防 Chunk 污染与会话时延 TypeScript 契约定义 | ✅ |
 | `StreamMetricsCockpit.tsx` | 组件 | 流式调用最终结果计量驾驶舱，展示真实调用数、SLA 成功率、防虚高倍数与终态分布 | ✅ |
 | `diagnosticStreamTypes.ts` | 类型 | 运行流诊断事件解耦、严重度筛选与双轨隔离通道 TypeScript 契约定义 | ✅ |
 | `RunStreamDiagnosticDrawer.tsx` | 组件 | 运行流诊断抽屉组件，实现诊断事件流与用户消息流物理分离，杜绝聊天气泡污染 | ✅ |
-| `turnUsageTypes.ts` | 类型 | 回合级使用量双计数、Billed 账单与 Freeze 缓存状态对比 TypeScript 契约定义 | ✅ |
-| `TurnBilledUsageDualCountHUD.tsx` | 组件 | 回合级 Billed Usage 双计数透视 HUD，可视化呈现累加账单与最新缓存状态分离及防虚增保护 | ✅ |
 | `contextBreakdownTypes.ts` | 类型 | 上下文用量七分类占比、60%/90% 警戒线与双口径对账 TypeScript 契约定义 | ✅ |
 | `ContextUsageBreakdownHUD.tsx` | 组件 | 上下文用量七分类透视与警戒线 HUD，提供真实注入分类、60%/90% 标尺与一键压缩交互 | ✅ |
-| `localSinkTypes.ts` | 类型 | 本地盘可观测性落盘兜底状态、Spans 链路与控制回调 TypeScript 契约定义 | ✅ |
-| `LoopForgeOtelOptionalDashboard.tsx` | 组件 | OpenTelemetry 缺失降级与本地盘兜底大盘，可视化呈现本地 JSONL 持久化与离线链路回放 | ✅ |
 | `rateLimitSplitTypes.ts` | 类型 | 429 限流来源拆分与失败归因 TypeScript 契约定义 | ✅ |
 | `RateLimitSourceSplitHUD.tsx` | 组件 | 限流来源拆分与失败归因 HUD，细分 myrm vs upstream 429、提供商失败分布与总数对齐校验 | ✅ |
 | `enterpriseCreditCockpitTypes.ts` | 类型 | 企业级统一 Credit 池与人-时-数-险同链路审计 TypeScript 契约定义 | ✅ |
@@ -76,30 +64,12 @@
 | `CompositeUsageLedgerHUD.tsx` | 组件 | 六维复合账本与双轨对账 HUD，展示本地估算 vs 实际扣费、细粒度 task 归因与账本流水 | ✅ |
 | `ambientAuxiliaryAccountingTypes.ts` | 类型 | 环境感知式用量记账与任务维度精准归因 TypeScript 契约定义 | ✅ |
 | `AmbientAuxiliaryAccountingHUD.tsx` | 组件 | 环境感知式用量记账 HUD，展示核心对话 vs 派生任务分摊、Prompt Cache 纯度隔离与快照流 | ✅ |
-| `multimodalTraceTypes.ts` | 类型 | 多模态 Trace 媒体对象引用解耦与原位三步排查 TypeScript 契约定义 | ✅ |
-| `MultimodalTraceViewerModal.tsx` | 组件 | 多模态 Trace 原位三步排查与媒体引用解耦大盘，支持 4 态可见性指示、原位预览与黄金样本加星锁 | ✅ |
 | `sandboxHardwareTelemetryTypes.ts` | 类型 | 沙箱硬件资源动态遥测与三级阶梯熔断 TypeScript 契约定义 | ✅ |
 | `SandboxHardwareTelemetryDashboard.tsx` | 组件 | 沙箱硬件资源遥测与失控三级熔断控制台，呈现 CPU/RAM/Disk 水位进度条、三级阶梯横幅、阈值调节与事故历史 | ✅ |
 | `eventCausalityLineageTypes.ts` | 类型 | 事件驱动因果溯源、DAG 拓扑链路与反向文件归因 TypeScript 契约定义 | ✅ |
 | `EventCausalityLineageDeck.tsx` | 组件 | 事件驱动因果溯源与动作归因图谱，展示因果链拓扑面包屑、决策认知动作流、修改产物与秒级反向文件归因 | ✅ |
-| `visualFlightRecorderTypes.ts` | 类型 | 视觉故障黑匣子录制器与卡顿短循环切片回放 TypeScript 契约定义 | ✅ |
-| `VisualFailureFlightRecorderModal.tsx` | 组件 | 视觉故障黑匣子与卡顿回放模态弹窗，支持 5fps 自动播放/暂停、滑动条与胶卷逐帧定位、10 秒破案根因标注 | ✅ |
-| `dualDomainMeteringTypes.ts` | 类型 | 双域透明计量边界界定、三维穿透成本与财务合规对账 TypeScript 契约定义 | ✅ |
-| `DualDomainMeteringCockpit.tsx` | 组件 | 双域透明计量驾驶舱，展示网关域 vs 沙箱域边界指示、三维穿透成本卡片、分摊比例条与 SHA-256 对账凭据 | ✅ |
-| `crossPeriodMilestoneTypes.ts` | 类型 | 多智能体跨周期透视报表、成长等级每日任务与团队活跃度 TypeScript 契约定义 | ✅ |
-| `MultiAgentCrossPeriodPivotDeck.tsx` | 组件 | 多智能体跨周期透视大盘，展示周/月/季度周期报表、按智能体堆叠消耗拆分、游戏化成长体系与团队拥抱度榜单 | ✅ |
-| `metricCardinalityTypes.ts` | 类型 | 热点路径指标基数封顶、动态上限微调与溢出统计 TypeScript 契约定义 | ✅ |
-| `MetricCardinalityCapHUD.tsx` | 组件 | 指标基数封顶与溢出守卫控制台，呈现各指标基数水位进度条、动态上限微调、溢出哨兵桶统计与 Top 标签分布 | ✅ |
-| `codeFreshnessTypes.ts` | 类型 | 运行时代码新鲜度三态判定、进程时间戳对比与漂移 TypeScript 契约定义 | ✅ |
-| `RuntimeCodeFreshnessHUD.tsx` | 组件 | 运行时代码新鲜度三态判定控制台，呈现整体新鲜度胶囊、受检模块列表、时钟漂移高亮与即时抽检 | ✅ |
-| `runtimeZombieReaperTypes.ts` | 类型 | 智能体因果拓扑快照、孤儿进程收割与死锁熔断 TypeScript 契约定义 | ✅ |
-| `AgentRuntimeCausalityCockpit.tsx` | 组件 | 原生活动监视器风格因果拓扑驾驶舱，呈现父子因果树、进程级资源消耗、一键孤儿收割与失败回溯 | ✅ |
 | `delegationBillingTypes.ts` | 类型 | 外部委托用量透明化、订阅 vs API 计费分轨与节省额度 TypeScript 契约定义 | ✅ |
 | `DelegationBillingTransparencyBadge.tsx` | 组件 | 计费口径分轨徽标组件，直观展示订阅额度消耗（不计费）vs API 计费、来源后端与预估节省额 | ✅ |
-| `auditTheaterTypes.ts` | 类型 | 用户面审计剧场、动作时间线与数据访问台账 TypeScript 契约定义 | ✅ |
-| `InConversationAuditTheaterDeck.tsx` | 组件 | 对话内权威审计剧场与数据访问台账组件，提供双 Tab 动作时间线/数据台账与撒谎免疫认证 | ✅ |
-| `memoryBackendMetricsTypes.ts` | 类型 | 记忆多后端与召回细分阶段维度指标、P50/P95 延迟与 Opt-in 配置 TypeScript 契约定义 | ✅ |
-| `MemoryBackendMetricsDashboard.tsx` | 组件 | 记忆多后端与召回细分阶段性能大盘，支持 SQLite FTS5 vs Qdrant vs In-Memory 横向对比与高基数 Opt-in 切换 | ✅ |
 | `abortedUsageLedgerTypes.ts` | 类型 | 中止辅助模型调用账本、未知用量状态与风险统计 TypeScript 契约定义 | ✅ |
 | `AbortedAuxiliaryUsageHUD.tsx` | 组件 | 辅助调用用量与未知防虚假免费守护 HUD，严禁中止未报告调用显示 0 Token，直观暴露潜在财务风险 | ✅ |
 | `activeSkillTelemetryTypes.ts` | 类型 | 活跃技能 Span 遥测记录、ContextVar 属性注入与 P95 聚合 TypeScript 契约定义 | ✅ |

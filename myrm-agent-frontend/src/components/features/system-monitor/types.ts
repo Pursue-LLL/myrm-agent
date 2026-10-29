@@ -215,19 +215,6 @@ export interface LaborEquivalencyItem {
   total_hours_saved: number;
 }
 
-export interface LaborAccelerationSummary {
-  task_id: string;
-  task_elapsed_seconds: number;
-  total_hours_saved: number;
-  acceleration_factor: number;
-  hourly_rate_usd: number;
-  estimated_saved_value_usd: number;
-  compute_cost_usd: number;
-  roi_ratio: number;
-  breakdown: LaborEquivalencyItem[];
-  created_at: number;
-}
-
 export interface MonthlyProductivitySummary {
   month: string;
   total_tasks_automated: number;
