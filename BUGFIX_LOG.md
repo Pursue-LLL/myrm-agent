@@ -6,13 +6,13 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 3 项未处理。 |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 4 项未处理。 |
 | **症状** | [实测，旧版 `split_message`，`max_len=2000`] ① 围栏里一行 2300 字符：返回的块长是 `[11, 11, 2312, 11]`，即三个只有 ` ```json ` 围栏的空块加一个 2312 字符的块。Discord 的 `content` 上限是 2000 字符（docs.discord.com/developers/resources/message），超限返回 400。② 3000 个随机文档（段落加围栏代码，围栏内行长最多 2300）里 2924 个出现超限块（最大 2310），2922 个出现空代码块；把容差设为 0 仍有 1274 个超限（多出 9 字符）。③ 真实形态的代码块（行长不超过 120，3000 个样本）0 个缺陷，所以触发条件是围栏内的单行很长（压缩 JSON、base64、超长日志行）。 |
 | **根因** | ① 判断围栏内一行「是否太长」时没算上重开围栏的标记行和收尾符号，1990 到 2000 字符的行被拼成 2009 字符的块；② `overflow_tolerance=0.2` 让 2001 到 2400 字符的行整行放过；③ 缓冲区只剩围栏开头标记时被冲出，围栏收尾行恰好放不下时先重开再立刻收尾，两种都留下只有围栏标记的块，`return` 只过滤空白不过滤空围栏。另外收尾符号的预留写死 4 个字符，10 个反引号的围栏最多多出 6 个字符。 |
-| **修复** | `channels/rendering/splitter.py:132` `split_message` 去掉容差与无人使用的 `fence_patterns`：围栏内一行放不进空块（含 `:206` 重开标记与 `:196` 按符号真实长度预留的收尾）就一律按 `:213` 切成多段，每段各自围栏；`:159` `_flush` 丢弃缓冲区末尾没有代码的围栏开头；`:184` 围栏收尾行落在已满的块上时只冲出，不再重开；`providers/slack/helpers.py:114` 不再传 `overflow_tolerance=0.0`。 |
-| **回归证据** | [1] 红绿：`tests/channels/test_splitter_hard_limit.py` 的 `TestHardLimit` 9 例（含固定种子的 300 个随机文档：每块不超限、无空围栏、文字不丢），旧版 8 例失败（行长 1985 的一例旧版也通过），新版全部通过；Discord 集成测试与保留空间测试的上限由 2400、154 收紧为 2000、150（这两个旧版也通过，只是不再把越限当成合格）。[2] 同一批探针新版：真实形态与超长行两组各 3000 个文档，0 个超限块、0 个空围栏、去掉空白与围栏行后的文字与原文一致；围栏里一行 2300 字符现在得到 `[2000, 324]`。[3] 6 个单行变异体（收尾行当普通行、不丢开头标记、旧的长行阈值、段长多 1、收尾预留写死 4、收尾不预留）全部被杀。 |
-| **仍然存在** | ① 超长围栏行在真实回复里有多常见没有数据，只证明了触发条件。② Discord 的字符计数口径（码点还是 UTF-16）没有核实，`split_message` 数的是 Python 字符。③ `max_len` 小于一个围栏包装的长度（如 ` ```python ` 加收尾约 14 字符）时无法满足，没有处理。 |
-| **代码位置** | `myrm-agent-server/app/channels/rendering/splitter.py:50,56,132,159,184,196,206-220` · `providers/slack/helpers.py:114` · `tests/channels/test_splitter_hard_limit.py` · `tests/channels/providers/discord/test_discord_splitter_integration.py` |
+| **修复** | `channels/rendering/splitter.py:132` `split_message` 去掉容差与无人使用的 `fence_patterns`：围栏内一行放不进空块（含 `:207` 重开标记与 `:197` 按符号真实长度预留的收尾）就一律按 `:214` 切成多段，每段各自围栏；`:161` `_flush` 丢弃缓冲区末尾没有代码的围栏开头；`:186` 围栏收尾行落在已满的块上时只冲出，不再重开；`providers/slack/helpers.py:114` 不再传 `overflow_tolerance=0.0`。 |
+| **回归证据** | [1] 红绿：`tests/channels/test_splitter_hard_limit.py` 的 `TestHardLimit` 9 例（含固定种子的 300 个随机文档：每块不超限、无空围栏、文字不丢），旧版 8 例失败（行长 1985 的一例旧版也通过），新版全部通过；Discord 集成测试与保留空间测试的上限由 2400、154 收紧为 2000、150（这两个旧版也通过，只是不再把越限当成合格）。[2] 同一批探针新版：真实形态与超长行两组各 3000 个文档，0 个超限块、0 个空围栏、去掉空白与围栏行后的文字与原文一致；围栏里一行 2300 字符现在得到 `[2000, 324]`。[3] 7 个单行变异体（收尾行当普通行、不丢开头标记、旧的长行阈值、段长多 1、收尾预留写死 4、收尾不预留、任何围栏行都能收尾）全部被杀，最后一个靠 `test_splitter.py` 的 `test_a_tilde_line_inside_a_backtick_fence_is_code` 杀死。[4] 耗时对照（同一份 390 万字符文档、`max_len=2000`，取 15 次最快）：旧版 26.41 ms、新版 24.85 ms；6 万字符的长回复 0.36 ms 对 0.35 ms，没有变慢，也不声称变快。 |
+| **仍然存在** | ① 超长围栏行在真实回复里有多常见没有数据，只证明了触发条件。② Discord 的字符计数口径（码点还是 UTF-16）没有核实，`split_message` 数的是 Python 字符。③ `max_len` 小于一个围栏包装的长度（如 ` ```python ` 加收尾约 14 字符）时无法满足，没有处理。④ 比开头更长的收尾围栏（CommonMark 允许，如 ` ``` ` 开头、` ```` ` 收尾）不被认作收尾：实测 `max_len=100` 时收尾之后的正文被当成代码，每块都包上围栏；旧版比较围栏符号的写法相同（旧版 `splitter.py:221`）；没有这种写法在真实回复里出现频率的数据，没处理。 |
+| **代码位置** | `myrm-agent-server/app/channels/rendering/splitter.py:50,56,132,161,186,197,207-221` · `providers/slack/helpers.py:114` · `tests/channels/test_splitter_hard_limit.py` · `tests/channels/providers/discord/test_discord_splitter_integration.py` |
 
 ## 2026-10-30 · Matrix 渠道把单个事件的上限设成 65536 字符，长中文回复整条被服务器拒收
 
