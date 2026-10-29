@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+_ITEM_RE: re.Pattern[str] = re.compile(r"^\s*-\s")
 _ENTRY_RE: re.Pattern[str] = re.compile(r'^\s+-\s+"([^"]+)"\s*$')
 _WILDCARD_CHARS: frozenset[str] = frozenset("*?[")
 
@@ -26,11 +27,18 @@ def test_secret_scanning_ignore_entries_are_existing_single_files() -> None:
     if not config.is_file():
         pytest.skip("secret_scanning.yml is not part of this checkout")
 
-    entries = [
-        match.group(1) for line in config.read_text(encoding="utf-8").splitlines() if (match := _ENTRY_RE.match(line))
-    ]
+    entries: list[str] = []
+    violations: list[str] = []
+    for line in config.read_text(encoding="utf-8").splitlines():
+        if not _ITEM_RE.match(line):
+            continue
+        if match := _ENTRY_RE.match(line):
+            entries.append(match.group(1))
+        else:
+            # An entry this guard cannot parse would pass unchecked, so it is rejected.
+            violations.append(f"{line.strip()}: write each entry as a double-quoted path on its own line")
 
-    violations = [f"{entry}: {reason}" for entry in entries if (reason := _violation(repo_root, entry))]
+    violations += [f"{entry}: {reason}" for entry in entries if (reason := _violation(repo_root, entry))]
     assert not violations, "secret_scanning.yml paths-ignore drifted:\n" + "\n".join(violations)
 
 
