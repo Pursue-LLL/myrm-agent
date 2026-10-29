@@ -33,7 +33,6 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | tracing/ | ContextVar-based request tracing (trace_id / session_id) with logging.Filter and JSON formatter. |
 | context_retrieval/ | 上下文分层检索下钻决策树追踪与剪枝留痕套件：目录递归下钻、分值比对、动态阈值剪枝判定与检索全景轨迹快照。参见 [context_retrieval/_ARCH.md](context_retrieval/_ARCH.md)。 |
 | resource_metering/ | 物理硬件占用与认知 Token 混合开销全景对账单套件：沙箱执行秒数、规格加权折算、Token 认知计量与预算防超支熔断。参见 [resource_metering/_ARCH.md](resource_metering/_ARCH.md)。 |
-| labor_acceleration/ | 白领劳务效能加速度量化与生产力 ROI 计量引擎：人工工时等效换算矩阵、单任务加速倍率（如 96×）与投资回报率全景看板。参见 [labor_acceleration/_ARCH.md](labor_acceleration/_ARCH.md)。 |
 | diagnostics_bundle/ | 端内沙箱现场全景诊断打包与自愈凭证引擎：生命体征抓取、PII/Secret 深度脱敏与防篡改 HMAC 校验和。参见 [diagnostics_bundle/_ARCH.md](diagnostics_bundle/_ARCH.md)。 |
 | workflow_throttle/ | 海量并发 Agent 编排流水线实时 Token 燃速度量与阶梯式动态风控限流熔断引擎：滑窗燃速平滑、50%/80%/100% 阶梯治理与自适应降级。参见 [workflow_throttle/_ARCH.md](workflow_throttle/_ARCH.md)。 |
 | coordination_friction/ | 人机协调摩擦度量、人工介入衰减曲线与协同效率 ROI 量化记分板引擎：HITL 介入密度统计、多轮监督衰减曲线与注意力时间净节省折算。参见 [coordination_friction/_ARCH.md](coordination_friction/_ARCH.md)。 |
@@ -43,14 +42,11 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | delivery_dossier/ | 跨智能体任务交付证据卷宗、资产真实有效性与摩擦浪费可观测性引擎：5大维度不可变交付证据（Spec/指纹/工具/物理凭证/验收）、分层资产效能度量与摩擦刺客资产识别。参见 [delivery_dossier/_ARCH.md](delivery_dossier/_ARCH.md)。 |
 | rate_limit_governor/ | 客户端主动限流预测阀门、按模型动态配额自适应调度与零 429 顺滑放行引擎：多厂商响应头侦听、前置微延迟平滑削峰 (200~500ms) 与多并发子任务配额切片隔离。参见 [rate_limit_governor/_ARCH.md](rate_limit_governor/_ARCH.md)。 |
 | context_optimization/ | 上下文拦截节流审计器、跨工具 Token 节省率分析与工程信号七维决策套件：每工具节流效益量化战报、折算真金白银、7 维工程障碍模式诊断与 4 角色研发效能视图。参见 [context_optimization/_ARCH.md](context_optimization/_ARCH.md)。 |
-| reasoning_semantics/ | 推理 Token 计费语义契约、按提供方归一化与重复计数回归守卫套件：明确不变量契约、多提供商策略适配映射、零重复累加消除与运行时诊断自愈。参见 [reasoning_semantics/_ARCH.md](reasoning_semantics/_ARCH.md)。 |
 | org_spend_limit/ | 团队共享智能体组织月度限额、逐 Query 标签归因与超限熔断套件：群聊/私信分级记账、80% 软预警与 100% 硬限额熔断、按身份/Surface 审计归因。参见 [org_spend_limit/_ARCH.md](org_spend_limit/_ARCH.md)。 |
 | knowledge_compounding/ | 知识复利健康度记分板与五大指标闭环套件：统一只读聚合重复错误率、知识命中率、人工纠正次数、任务一次通过率、过期知识占比，提供复利层级判定与劣化报警检测。参见 [knowledge_compounding/_ARCH.md](knowledge_compounding/_ARCH.md)。 |
 | turn_context_provenance/ | 会话逐轮上下文注入来源清单、内容指纹快照与可复现审计套件：记录 System Prompt、Memory、Skill、MCP、Workspace File 注入清单、计算 SHA256 指纹与跨轮差异比对。参见 [turn_context_provenance/_ARCH.md](turn_context_provenance/_ARCH.md)。 |
-| deployment_funnel/ | 部署漏斗监控与反馈提醒回路套件：4 阶段用户转化漏斗埋点追踪（VIEW ➔ ENGAGE ➔ ACTION ➔ COMPLETE）、断点热点流失率统计、用户情感反馈与主动 Nudge 告警，支持高阶改进目标自主闭环。参见 [deployment_funnel/_ARCH.md](deployment_funnel/_ARCH.md)。 |
 | stream_metrics/ | 流式调用按最终结果计量核心套件：杜绝中间 chunk 计数污染、按终态结果（SUCCESS/ERROR/CANCELLED/TIMEOUT）归因、TTFT 首字时延度量与防虚高膨胀统计。参见 [stream_metrics/_ARCH.md](stream_metrics/_ARCH.md)。 |
 | diagnostic_stream/ | run-stream 协议诊断事件分离与正常消息流解耦套件：双轨物理隔离正轨用户消息与旁路诊断告警，提供 ACP 会话 Hook 与多维分类统计。参见 [diagnostic_stream/_ARCH.md](diagnostic_stream/_ARCH.md)。 |
-| turn_usage/ | 回合级 Billed Usage 双计数核心架构：绝对累加账单（summed_with）与最新缓存状态（merged_with）严格解耦，支持自适应格式回写。参见 [turn_usage/_ARCH.md](turn_usage/_ARCH.md)。 |
 | context_breakdown/ | 上下文用量七分类精准解析与 60%/90% 警戒线判定核心架构：识别真实注入标签，消除余量黑盒，支持估算与提供商实报并列对比。参见 [context_breakdown/_ARCH.md](context_breakdown/_ARCH.md)。 |
 | rate_limit_split/ | 限流来源拆分与失败归因套件：429 按自身限流 (myrm) 与上游拒绝 (upstream) 拆分，失败按模型厂商 (provider) 打标，未打标总数严格保持不变。参见 [rate_limit_split/_ARCH.md](rate_limit_split/_ARCH.md)。 |
 | enterprise_credit_cockpit/ | 企业用量与风险运营驾驶舱引擎：统一企业 Credit 池跨端治理、人-时-数-险同链路审计留痕与穿透式治理大盘。参见 [enterprise_credit_cockpit/_ARCH.md](enterprise_credit_cockpit/_ARCH.md)。 |
@@ -63,7 +59,6 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | sandbox_hardware_telemetry/ | 多维度沙箱硬件资源动态遥测与三级阶梯式失控死循环自动熔断器套件：CPU/RAM/Disk/Network 秒级度量采样、三级阶梯自愈拦截 (80% 预警 ➔ 90% 挂起 ➔ 95% 硬熔断) 与现场事故历史。参见 [sandbox_hardware_telemetry/_ARCH.md](sandbox_hardware_telemetry/_ARCH.md)。 |
 | event_causality_lineage/ | 事件驱动全链路因果溯源时间线、动作归因图谱与审计白盒透视套件：外部触发事件 (GitHub/Slack/MCP/Cron) ➔ 规则匹配 ➔ Agent动作决策 ➔ 产出Diff全链路DAG，与毫秒级反向文件变更归因追溯。参见 [event_causality_lineage/_ARCH.md](event_causality_lineage/_ARCH.md)。 |
 | visual_flight_recorder/ | 智能体视觉故障黑匣子录制器与卡顿状态短循环切片回放套件：滚动 15 秒 (5fps/75帧) 低开销环形内存缓冲、异常卡顿自动截断切片生成与带时间轴微动图胶卷。参见 [visual_flight_recorder/_ARCH.md](visual_flight_recorder/_ARCH.md)。 |
-| dual_domain_metering/ | 双域透明计量边界界定、平台交互与沙箱执行穿透式成本核算套件：管控网关域与沙箱执行域边界明确划分、大模型Token/沙箱算力/第三方工具三维穿透核算与SHA-256防篡改财务对账凭证。参见 [dual_domain_metering/_ARCH.md](dual_domain_metering/_ARCH.md)。 |
 | cross_period_milestone/ | 多智能体跨周期透视报表、多维用量核算与游戏化人效进阶里程碑套件：周/月/季度周期报表、按专属智能体堆叠拆分、环比上期增幅与经验值等级勋章体系。参见 [cross_period_milestone/_ARCH.md](cross_period_milestone/_ARCH.md)。 |
 | runtime_zombie_reaper/ | 智能体因果树拓扑驾驶舱、父子孤儿进程自动回收、死锁轮询主动熔断与跨 Profile 资源大盘套件：PGID 进程树追踪、孤儿辅助进程级联强杀、死亡子代理死锁中断与失败任务回溯流。参见 [runtime_zombie_reaper/_ARCH.md](runtime_zombie_reaper/_ARCH.md)。 |
 | delegation_billing/ | 外部委托用量计费口径透明化套件：双形态 TokenUsage 事件适配、订阅委托 vs API 计费双轨分流、用户订阅节省额度估算与跨会话委托账本大盘。参见 [delegation_billing/_ARCH.md](delegation_billing/_ARCH.md)。 |
