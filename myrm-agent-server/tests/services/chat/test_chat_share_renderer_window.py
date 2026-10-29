@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -16,7 +17,7 @@ _NOTICE = 'role="note"'
 
 
 @pytest.fixture
-def mock_db():
+def mock_db() -> MagicMock:
     return agentless_db()
 
 
@@ -38,7 +39,7 @@ def _message_blocks(html: str) -> int:
     ids=["en", "zh"],
 )
 async def test_a_long_conversation_shows_its_latest_messages_and_says_how_many_there_are(
-    mock_db, lang: ShareLang, notice: str, footer: str
+    mock_db: MagicMock, lang: ShareLang, notice: str, footer: str
 ) -> None:
     html = await render_page(mock_db, lang, messages=_turns(350))
 
@@ -50,7 +51,7 @@ async def test_a_long_conversation_shows_its_latest_messages_and_says_how_many_t
     assert footer in html
 
 
-async def test_a_conversation_that_fits_is_shown_whole_without_a_notice(mock_db) -> None:
+async def test_a_conversation_that_fits_is_shown_whole_without_a_notice(mock_db: MagicMock) -> None:
     html = await render_page(mock_db, "en", messages=_turns(_CAP))
 
     assert _message_blocks(html) == _CAP
@@ -59,13 +60,13 @@ async def test_a_conversation_that_fits_is_shown_whole_without_a_notice(mock_db)
     assert '<span class="stat">200 messages</span>' in html
 
 
-async def test_the_notice_comes_before_the_conversation(mock_db) -> None:
+async def test_the_notice_comes_before_the_conversation(mock_db: MagicMock) -> None:
     html = await render_page(mock_db, "en", messages=_turns(_CAP + 1))
 
     assert html.index(_NOTICE) < html.index('<div class="msg ')
 
 
-async def test_rows_nobody_reads_do_not_use_up_the_window(mock_db) -> None:
+async def test_rows_nobody_reads_do_not_use_up_the_window(mock_db: MagicMock) -> None:
     system_rows = [make_message(f"s{n}", "system", f"prompt-{n}") for n in range(120)]
     notices = [
         make_message(
@@ -83,7 +84,7 @@ async def test_rows_nobody_reads_do_not_use_up_the_window(mock_db) -> None:
     assert '<span class="stat">150 messages</span>' in html
 
 
-async def test_the_total_counts_only_what_a_visitor_can_read(mock_db) -> None:
+async def test_the_total_counts_only_what_a_visitor_can_read(mock_db: MagicMock) -> None:
     system_rows = [make_message(f"s{n}", "system", f"prompt-{n}") for n in range(40)]
     readable = _turns(210)
 
@@ -104,7 +105,7 @@ async def test_the_total_counts_only_what_a_visitor_can_read(mock_db) -> None:
     ],
     ids=["naive", "utc", "plus-eight"],
 )
-async def test_times_are_written_in_utc_and_say_so(mock_db, moment: datetime) -> None:
+async def test_times_are_written_in_utc_and_say_so(mock_db: MagicMock, moment: datetime) -> None:
     messages = [make_message("m1", "user", "Hello", created_at=moment)]
 
     html = await render_page(mock_db, "zh", chat=make_chat(created_at=moment), messages=messages)

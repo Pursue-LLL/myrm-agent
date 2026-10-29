@@ -37,8 +37,8 @@ _md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
 
 _OG_DESC_MAX = 200
 
-# The page is rendered on every visit (about 0.3-0.55 ms of CPU per message, nothing cached), so a very long
-# conversation shows its latest messages and says how many there are.
+# The page is rendered synchronously on every visit, nothing is cached, and the cost grows linearly with the
+# message count, so a very long conversation shows its latest messages and says how many there are.
 _MAX_SHARED_MESSAGES = 200
 _VISIBLE_ROLES = frozenset({"user", "assistant"})
 
