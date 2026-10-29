@@ -233,7 +233,7 @@ async def _one_bash_turn(guard: LoopGuard, command: str, text: str, truncated_to
 
     ``truncated_to`` makes the context budget cut the result down to that text.
     """
-    args = {"command": command}
+    args: dict[str, object] = {"command": command}
     if truncated_to is None:
         budget_verdict = MagicMock(action=BudgetAction.OK)
     else:
