@@ -22644,7 +22644,7 @@
       "privacyNoticeTitle": "Privacy & Sensitive Data Protection",
       "privacyNoticeDesc": "API keys, access tokens, passwords and private keys in common formats are masked automatically before export. Please review the archive before sharing it.",
       "includeTraces": "Include recent session logs",
-      "includeTracesDesc": "Attach the latest events of up to 10 recent sessions. Credentials in common formats are masked.",
+      "includeTracesDesc": "Attach recent events from up to 10 sessions, such as tool calls, errors and command output. Very long entries, like full prompts, are left out, and credentials in common formats are masked.",
       "includeProfiles": "Include agent settings summary",
       "includeProfilesDesc": "Attach each agent's name, model, allowed tools and skill count. Prompts and memories are never included.",
       "exporting": "Exporting...",

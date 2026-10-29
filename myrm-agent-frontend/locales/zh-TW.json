@@ -22644,7 +22644,7 @@
       "privacyNoticeTitle": "隱私與敏感資料保護",
       "privacyNoticeDesc": "常見格式的 API 密鑰、存取權杖、密碼與私鑰會在匯出前自動脫敏。分享診斷包前，請先自行檢查內容。",
       "includeTraces": "包含近期會話日誌",
-      "includeTracesDesc": "附帶最近至多 10 個會話的最新事件，其中常見格式的憑證會被脫敏。",
+      "includeTracesDesc": "附帶最近至多 10 個會話的近期事件，如工具呼叫、錯誤和指令輸出。完整提示詞等過長的條目會被略去，常見格式的憑證會被脫敏。",
       "includeProfiles": "包含智能體設定摘要",
       "includeProfilesDesc": "附帶每個智能體的名稱、模型、允許使用的工具與技能數量，不包含提示詞與記憶。",
       "exporting": "正在匯出...",

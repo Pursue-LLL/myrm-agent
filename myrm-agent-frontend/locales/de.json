@@ -22644,7 +22644,7 @@
       "privacyNoticeTitle": "Datenschutz & Schutz sensibler Daten",
       "privacyNoticeDesc": "API-Schlüssel, Zugriffstoken, Passwörter und private Schlüssel in gängigen Formaten werden vor dem Export automatisch bereinigt. Bitte prüfen Sie das Archiv, bevor Sie es weitergeben.",
       "includeTraces": "Aktuelle Sitzungsprotokolle einbinden",
-      "includeTracesDesc": "Die neuesten Ereignisse der letzten bis zu 10 Sitzungen beifügen. Darin enthaltene Zugangsdaten in gängigen Formaten werden bereinigt.",
+      "includeTracesDesc": "Aktuelle Ereignisse der letzten bis zu 10 Sitzungen beifügen, etwa Tool-Aufrufe, Fehler und Befehlsausgaben. Sehr lange Einträge wie vollständige Prompts werden ausgelassen, Zugangsdaten in gängigen Formaten werden bereinigt.",
       "includeProfiles": "Zusammenfassung der Agent-Einstellungen einbinden",
       "includeProfilesDesc": "Name, Modell, erlaubte Tools und Anzahl der Skills jedes Agenten beifügen. Prompts und Erinnerungen sind nie enthalten.",
       "exporting": "Exportiere...",
