@@ -27,7 +27,7 @@
 | `chrome-e2e-doctor.sh` | Unix | `./myrm-dev doctor --chrome` 一站式诊断 |
 | `browser-unified-cli.sh` | Unix | `./myrm-dev browser` 入口（由 monorepo 根 `scripts/dev/myrm` 分发；子命令 `status` / `stop` / `open`）：汇总 ChromeAgent `:9410` 与 ChromeE2E `:9333` 状态；`stop` 级联停止全部浏览器与后台 daemon；`open` 拉起前台可见窗口 |
 | `cursor-mcp-isolation-doctor.sh` | Unix | Cursor Agent MCP isolation doctor（`./myrm-dev doctor --mcp-isolation`）：ChromeAutoConnect 每日契约校验；委托 `lib/e2e_core/cursor_mcp_isolation.py`；被 `test_browser_mcp_ssot_static` / `test_chrome_e2e_module_static` 静态守卫引用 |
-| `ensure-myrm-chrome-agent.sh` | Unix | 拉起/验证 Myrm Agent Chrome（pipe-proxy `:9410`，不抢 macOS 焦点）；`./myrm-dev ready --chrome-agent`；幂等健康检查 + stale listener 回收 + 首跑自动机器级 install + nohup 启动 pipe-cdp-proxy（`current` 符号链接解析） |
+| `ensure-myrm-chrome-agent.sh` | Unix | 拉起/验证 Myrm Agent Chrome（pipe-proxy `:9410`，不抢 macOS 焦点）；`./myrm-dev ready --chrome-agent`；幂等健康检查 + stale listener 回收（只终止命令行为 `pipe-cdp-proxy.mjs` 的 :9410 listener，别的程序占着端口时保持原样）+ 首跑自动机器级 install + nohup 启动 pipe-cdp-proxy（`current` 符号链接解析） |
 | `install-chrome-agent-launchagent.sh` | Unix | 安装/启动 macOS LaunchAgent `com.myrm.chrome-agent`（KeepAlive + RunAtLoad，常驻 pipe-proxy 离屏）；`./myrm-dev ready --chrome-agent --daemon`；**委托机器级 CLI `chrome-agent/myrm-chrome-agent.sh install`**，plist 指向 `~/.local/lib/myrm-chrome-agent/current`（解耦：删仓不影响运行） |
 | `login-chrome-agent.sh` | Unix | ChromeAgent profile 一次性 X/OAuth 登录（无 CDP 自动化 flags，避免 Google/X 拦截 sign-in）；`./myrm-dev ready --chrome-agent --login`；持机器级 `.install.lock` 防止与 install/upgrade 并发 |
 | `verify-chrome-agent-focus.sh` | Unix | 机械 macOS focus 校验：ChromeAgent CDP 探针不得抢 frontmost app（CHROME_AGENT_FOCUS_OK/FAIL）；`CHROME_MCP_E2E.md` 验收标准 |
@@ -38,7 +38,7 @@
 | `wave-e2e-lease.sh` | Unix | `./myrm-dev test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 monorepo `scripts/dev/ready.sh` 与 `scripts/dev/isolated_runtime/reaper.py`（reaper.py:102 直调）、本仓 `lib/e2e_core/stack_mutation_policy.py` / `lib/chrome_e2e/gates/lease_gate.py` 调用 |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
-| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；检查服务、专用 Chrome :9333、CDP 和 Browser Orchestrator；formal E2E 使用 `ensure-browser-orchestrator.sh` 单实例 daemon，输出 `CHROME_E2E_HEALTH_JSON`；诊断 mux 只在 `MYRM_CHROME_MCP_DIAGNOSTIC=1` 下显式使用 |
+| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；检查服务、专用 Chrome :9333、CDP 和 Browser Orchestrator；formal E2E 使用 `ensure-browser-orchestrator.sh` 单实例 daemon，输出 `CHROME_E2E_HEALTH_JSON`；`_mux_owned_pids` 只认命令行为 `cdmcp-mux-autoconnect` 的 `daemon.pid`（pid 被回收则忽略）；诊断 mux 只在 `MYRM_CHROME_MCP_DIAGNOSTIC=1` 下显式使用 |
 | `desktop-tcc-recover.sh` | Unix | macOS desktop E2E 授权链恢复：探针 `/webui/desktop/permissions`，AX 缺失时仅 TERM **本栈启动的**端口 owner（环境戳校验；owner 不是本栈启动的则 `TCC_FAIL` 且不动它）并经 `_start_backend_bg` 从当前已授权 shell 冷启（幂等：AX 已授权则零动作）；被 desktop approval runner 中途哨兵指引引用 |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录；已有 default 时幂等 reconcile `BASIC_MODEL` + `LITE_MODEL` provider catalog、`liteModel.primary` 与 **`apiUrl`/`apiKey`/`name`**，避免复用私池数据库后缺少 openai-like provider 或仍指向旧 gateway） |

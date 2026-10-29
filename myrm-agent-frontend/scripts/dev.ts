@@ -2,7 +2,7 @@
  * [INPUT]
  * - dev-lock::tryAttachToHealthyDevServer / acquireDevLock / isDistDirInUse (POS: dev-server lock gate)
  * - frontend-dev-pause-gate::probeFrontendDevPause / enforceFrontendDevNotPaused (POS: TS pause gate SSOT)
- * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: LISTEN-only port cleanup)
+ * - port-cleanup::APP_DEV_PORT / killListenersOnPort / foreignListenersOnPort (POS: LISTEN-only port cleanup; never another runtime's listener)
  *
  * [OUTPUT]
  * - Next.js dev server via `node --require next-dev-gate.cjs` + next bin (Turbopack when native SWC present)
@@ -23,7 +23,7 @@ import {
   tryAttachToHealthyDevServer,
 } from './dev-lock';
 import { isFrontendDevPaused, probeFrontendDevPause } from './frontend-dev-pause-gate';
-import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
+import { APP_DEV_PORT, foreignListenersOnPort, killListenersOnPort } from './port-cleanup';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
 const ENV_LOCAL_HEADER = '# Auto-managed by bun run dev — local split-dev defaults\n';
@@ -242,6 +242,14 @@ reclaimAndExitIfPaused();
 
 console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
 killListenersOnPort(APP_DEV_PORT);
+const foreignListeners = foreignListenersOnPort(APP_DEV_PORT);
+if (foreignListeners.length > 0) {
+  console.error(
+    `❌ :${APP_DEV_PORT} is held by a process this dev server did not start (pid ${foreignListeners.join(', ')}) — left running.`,
+  );
+  console.error(`   Pick another port: MYRM_FRONTEND_PORT=<port> bun run dev`);
+  process.exit(1);
+}
 acquireDevLock(APP_DEV_PORT);
 
 /**

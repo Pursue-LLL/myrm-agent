@@ -180,10 +180,59 @@ def _probe_textedit_ax_ready() -> tuple[bool, str]:
     return False, detail
 
 
+def _user_textedit_document_count() -> int:
+    """Non-empty documents a running TextEdit holds that are not the fixture's own: the user's work.
+
+    Unprovable (probe failed or timed out) counts as none, which keeps the recovery paths for a
+    wedged fixture TextEdit working.
+    """
+    running = _run_command_no_raise(["pgrep", "-x", "TextEdit"], timeout=5, label="textedit running probe")
+    if running is None or running.returncode != 0:
+        return 0
+    counted = _run_command_no_raise(
+        [
+            "osascript",
+            "-e",
+            'tell application "TextEdit"',
+            "-e",
+            "set n to 0",
+            "-e",
+            "repeat with d in documents",
+            "-e",
+            f'if (text of d is not "") and (text of d does not contain "{TEXTEDIT_FIXTURE_MARKER}") then set n to n + 1',
+            "-e",
+            "end repeat",
+            "-e",
+            "return n",
+            "-e",
+            "end tell",
+        ],
+        timeout=10,
+        label="textedit user documents",
+    )
+    if counted is None or counted.returncode != 0:
+        return 0
+    try:
+        return int(counted.stdout.strip())
+    except ValueError:
+        return 0
+
+
+def _refuse_to_replace_user_textedit() -> None:
+    """The fixture overwrites document 1 and may quit or kill TextEdit: never over the user's work."""
+    count = _user_textedit_document_count()
+    if count > 0:
+        _pytest_fail(
+            f"TextEdit holds {count} document(s) that are not the E2E fixture. This test replaces "
+            "TextEdit's content and may quit it — save and close them (or quit TextEdit) first."
+        )
+
+
 def prepare_textedit_fixture() -> None:
     """Open TextEdit in the background and seed scrollable fixture text without stealing focus."""
     if platform.system() != "Darwin":
         return
+    _refuse_to_replace_user_textedit()
     _run_command_no_raise(
         ["open", "-gj", "-a", "TextEdit"],
         timeout=10,
@@ -220,6 +269,7 @@ def restart_textedit_fixture_process() -> None:
     """Hard-restart TextEdit when AX snapshots remain empty."""
     if platform.system() != "Darwin":
         return
+    _refuse_to_replace_user_textedit()
     if _signoff_or_desktop_soak_fast_path():
         progress("textedit fast restart (signoff/soak — skip graceful quit)")
         _force_kill_textedit_process(include_sigkill=True)

@@ -23,6 +23,8 @@ import sqlite3
 import subprocess
 import sys
 import time
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 from e2e_core.dev_ports import shared_backend_port
@@ -1026,8 +1028,58 @@ def _process_alive(pid: int) -> bool:
     return True
 
 
-def _terminate_hung_pytest(pid: int, *, admit_stall: bool) -> bool:
-    """Best-effort terminate hung pytest process group; ADMIT stalls use SIGKILL."""
+def _process_command(pid: int) -> str:
+    try:
+        proc = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def _is_e2e_session_process(pid: int) -> bool:
+    """True while `pid` still runs a pytest session or its test.sh holder (`$$` of the launcher).
+
+    Session snapshots (`<pid>.json`) outlive a killed pytest; once the OS recycles the pid a
+    liveness probe still succeeds and `killpg` would take down an unrelated process group.
+    """
+    command = _process_command(pid)
+    return "pytest" in command or "test.sh" in command
+
+
+def _terminate_hung_pytest(
+    pid: int,
+    *,
+    admit_stall: bool,
+    is_target: Callable[[int], bool] | None = None,
+) -> bool:
+    """Best-effort terminate hung pytest process group; ADMIT stalls use SIGKILL.
+
+    A recorded pid is only a claim, so identity is re-proven at the moment of signalling:
+    session rows (`is_target` unset) must still run a pytest session; other callers pass
+    their own proof.
+    """
+    if is_target is None:
+        is_recorded_process = _is_e2e_session_process(pid)
+    else:
+        is_recorded_process = is_target(pid)
+    if not is_recorded_process:
+        print(
+            f"E2E_REAP_SKIP_PID_NOT_TARGET: pid={pid} no longer runs the recorded process "
+            "(pid recycled) — not signalling",
+            file=sys.stderr,
+            flush=True,
+        )
+        if is_target is None:
+            from e2e_session_runtime.snapshot import clear_session_snapshot  # noqa: PLC0415
+
+            clear_session_snapshot(pid)
+        return False
     _ensure_harness_os_compat()
     from myrm_agent_harness.utils.os_compat import (  # noqa: PLC0415
         kill_process_group,
@@ -1551,7 +1603,11 @@ def maybe_reap_orphan_shared_backends(
             file=sys.stderr,
             flush=True,
         )
-        if _terminate_hung_pytest(pid, admit_stall=False):
+        if _terminate_hung_pytest(
+            pid,
+            admit_stall=False,
+            is_target=partial(_pid_is_shared_backend, shared_state_dir=state_dir),
+        ):
             reaped = True
             time.sleep(0.3)
     return reaped

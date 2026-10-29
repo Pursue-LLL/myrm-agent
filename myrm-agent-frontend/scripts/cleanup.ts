@@ -1,6 +1,7 @@
 /**
  * [INPUT]
- * - cleanup-targets::resolveCleanupPort / filterOwnedPids (POS: what cleanup may touch — shared dev UI, own stamped processes)
+ * - cleanup-port::resolveCleanupPort (POS: the shared dev UI port)
+ * - cleanup-targets::filterOwnedPids (POS: what cleanup may touch — own stamped processes)
  * - port-cleanup::listPidsOnPort (POS: LISTEN PID discovery)
  * - dev-lock::isDistDirInUse (POS: dev-server lock gate)
  * - frontend_dev_pause.py write (POS: shared pause stamp, 8h default)
@@ -17,13 +18,18 @@
 import { execSync, spawnSync } from 'child_process';
 import { basename, dirname, join, resolve } from 'path';
 import { readdirSync, rmSync, statSync, truncateSync } from 'fs';
-import { filterOwnedPids, resolveCleanupPort } from './cleanup-targets';
+import {
+  ancestorHasFrontendMarker,
+  filterOwnedPids,
+  FRONTEND_MARKER,
+  readCommand,
+} from './cleanup-targets';
+import { resolveCleanupPort } from './cleanup-port';
 import { clearDevLock, clearStaleDevLock, isDistDirInUse } from './dev-lock';
 import { listPidsOnPort } from './port-cleanup';
 
 const ROOT = join(import.meta.dir, '..');
 const DEFAULT_PAUSE_SEC = '28800';
-const FRONTEND_MARKER = 'myrm-agent-frontend';
 const CLEANUP_PORT = resolveCleanupPort();
 
 function resolveActiveIsolatedDirName(): string | null {
@@ -71,34 +77,6 @@ function showPortProcesses(port: number) {
     }
   });
   console.log('');
-}
-
-function readCommand(pid: string): string {
-  try {
-    return execSync(`ps -p ${pid} -o command=`, { encoding: 'utf-8' }).trim();
-  } catch {
-    return '';
-  }
-}
-
-function readParentPid(pid: string): string | null {
-  try {
-    const ppid = execSync(`ps -p ${pid} -o ppid=`, { encoding: 'utf-8' }).trim();
-    return /^\d+$/.test(ppid) ? ppid : null;
-  } catch {
-    return null;
-  }
-}
-
-function ancestorHasFrontendMarker(pid: string, maxDepth = 6): boolean {
-  let current: string | null = pid;
-  for (let depth = 0; depth < maxDepth && current; depth += 1) {
-    if (readCommand(current).includes(FRONTEND_MARKER)) {
-      return true;
-    }
-    current = readParentPid(current);
-  }
-  return false;
 }
 
 function signalPid(pid: string, label: string): boolean {

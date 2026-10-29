@@ -2,6 +2,7 @@
  * [INPUT]
  * - port-cleanup::listPidsOnPort (POS: :3000 LISTEN PID discovery)
  * - port-cleanup::killListenersOnPort (POS: LISTEN-only port cleanup)
+ * - cleanup-targets::filterReclaimablePids (POS: which processes this dev server may adopt or signal)
  *
  * [OUTPUT]
  * - DevLockRecord persistence in `<distDir>/dev-server.lock`
@@ -17,6 +18,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
+import { filterReclaimablePids } from './cleanup-targets';
 import { killListenersOnPort, listPidsOnPort } from './port-cleanup';
 
 function resolveNextDistDir(): string {
@@ -184,7 +186,9 @@ export function tryAttachToHealthyDevServer(port: number): boolean {
     return true;
   }
 
-  const adopted = Number.parseInt(listeners[0], 10);
+  // A healthy listener this dev server could not have started (the user's stack on the same
+  // port) is never taken over as ours.
+  const adopted = Number.parseInt(filterReclaimablePids(listeners)[0] ?? '', 10);
   if (!Number.isFinite(adopted)) {
     return false;
   }
@@ -196,10 +200,14 @@ export function tryAttachToHealthyDevServer(port: number): boolean {
 
 function reclaimStaleDevLock(existing: DevLockRecord, port: number, reason: string): void {
   console.warn(`⚠️  Stale dev lock: ${reason} — reclaiming`);
-  try {
-    process.kill(existing.pid, 'SIGTERM');
-  } catch {
-    // already gone
+  // The lock's pid may have been recycled for an unrelated process: only a provable dev
+  // server of this runtime is signalled.
+  if (filterReclaimablePids([String(existing.pid)]).length > 0) {
+    try {
+      process.kill(existing.pid, 'SIGTERM');
+    } catch {
+      // already gone
+    }
   }
   killListenersOnPort(port, true);
   removeDevLockFileIfPresent();

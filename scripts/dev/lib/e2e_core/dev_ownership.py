@@ -26,6 +26,9 @@ NAMESPACE_KEY: Final = "MYRM_RUNTIME_NAMESPACE"
 STATE_DIR_KEY: Final = "MYRM_DEV_STATE_DIR"
 
 Verdict = Literal["owned", "foreign", "unknown"]
+# `unstamped` separates a process that carries no dev stamp at all (an earlier bare `bun run dev`,
+# the desktop sidecar) from one stamped by another runtime (the `user` stack).
+ReclaimVerdict = Literal["owned", "unstamped", "foreign", "unknown"]
 
 EXIT_OWNED: Final = 0
 EXIT_FOREIGN: Final = 4
@@ -134,6 +137,18 @@ def classify(pid: int, runtime_id: str) -> Verdict:
     return "foreign"
 
 
+def classify_for_reclaim(pid: int, runtime_id: str) -> ReclaimVerdict:
+    """Like `classify`, but tells an unstamped process apart from another runtime's."""
+    stamp = read_stamp(pid)
+    if stamp is None:
+        return "unknown"
+    if stamp.namespace == runtime_id.strip() and stamp.state_dir:
+        return "owned"
+    if not stamp.namespace and not stamp.state_dir:
+        return "unstamped"
+    return "foreign"
+
+
 def _command_of(pid: int) -> str:
     text = _ps_text(["ps", "-ww", "-p", str(pid), "-o", "command="])
     return (text or "").strip()[:160]
@@ -160,6 +175,13 @@ def _cmd_filter(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_partition(args: argparse.Namespace) -> int:
+    """Print `<pid> <owned|unstamped|foreign|unknown>` for every given pid."""
+    for pid in args.pids:
+        print(f"{pid} {classify_for_reclaim(pid, args.runtime_id)}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Dev-stack process ownership proof")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -171,6 +193,10 @@ def main(argv: list[str] | None = None) -> int:
     filtered.add_argument("--runtime-id", required=True)
     filtered.add_argument("pids", nargs="*", type=int)
     filtered.set_defaults(handler=_cmd_filter)
+    partitioned = sub.add_parser("partition", help="print each pid with its ownership verdict")
+    partitioned.add_argument("--runtime-id", required=True)
+    partitioned.add_argument("pids", nargs="*", type=int)
+    partitioned.set_defaults(handler=_cmd_partition)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 

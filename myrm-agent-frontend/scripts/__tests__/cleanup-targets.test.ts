@@ -3,7 +3,8 @@ import { spawn, type ChildProcess } from 'child_process';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { filterOwnedPids, resolveCleanupPort } from '../cleanup-targets';
+import { resolveCleanupPort } from '../cleanup-port';
+import { filterOwnedPids } from '../cleanup-targets';
 
 describe('resolveCleanupPort', () => {
   afterEach(() => {

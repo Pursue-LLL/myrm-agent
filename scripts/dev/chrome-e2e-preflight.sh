@@ -1170,9 +1170,9 @@ _mux_owned_pids() {
   if [[ -f "${MUX_PID_FILE}" ]]; then
     local pid
     pid="$(tr -d '[:space:]' <"${MUX_PID_FILE}")"
-    if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-      # daemon.pid is the ownership SSOT; stale extra FDs on the same socket
-      # must not be counted as additional owned daemons.
+    if [[ -n "${pid}" ]] && ps -p "${pid}" -o command= 2>/dev/null | grep -q 'cdmcp-mux-autoconnect'; then
+      # daemon.pid is the ownership SSOT (a recycled pid is no daemon: its command must say so);
+      # stale extra FDs on the same socket must not count as additional owned daemons.
       echo "${pid}"
       return 0
     fi

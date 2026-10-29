@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - frontend_dev_pause.py check (POS: shared pause stamp SSOT)
+ * - port-cleanup::killListenersOnPort (POS: reclaims only listeners this dev server may signal)
  *
  * [OUTPUT]
  * - probeFrontendDevPause / enforceFrontendDevNotPaused / reclaimPausedDevListeners
@@ -8,9 +9,11 @@
  * [POS]
  * TypeScript pause gate SSOT. Used by dev.ts and next.config.ts; reclaims LISTEN on late bunx exit.
  */
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+
+import { killListenersOnPort } from './port-cleanup';
 
 export type FrontendDevPauseProbe = 'active' | 'paused' | 'missing_script' | 'check_failed';
 
@@ -35,26 +38,7 @@ function resolveDevPortFromArgv(): number {
 
 /** Reclaim LISTEN sockets when next.config gate exits after Next already bound (bunx path). */
 export function reclaimPausedDevListeners(): void {
-  const port = resolveDevPortFromArgv();
-  try {
-    const pids = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -t`, { encoding: 'utf-8' }).trim();
-    if (!pids) {
-      return;
-    }
-    for (const pid of pids.split('\n').filter(Boolean)) {
-      try {
-        execSync(`kill -TERM ${pid}`);
-      } catch {
-        try {
-          execSync(`kill -9 ${pid}`);
-        } catch {
-          // ignore single pid
-        }
-      }
-    }
-  } catch {
-    // port already free
-  }
+  killListenersOnPort(resolveDevPortFromArgv());
 }
 
 export function resolvePauseScriptPath(): string {

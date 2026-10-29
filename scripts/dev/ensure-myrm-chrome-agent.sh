@@ -28,6 +28,12 @@ _stale_port_pid() {
   lsof -tiTCP:"${MYRM_CHROME_AGENT_PORT}" -sTCP:LISTEN 2>/dev/null | head -1 || true
 }
 
+# Whether `pid` is the pipe-cdp-proxy this script manages. Any other listener on the port belongs
+# to somebody else and is never signalled (the port-in-use check below reports it instead).
+_is_chrome_agent_proxy() {
+  ps -p "$1" -o command= 2>/dev/null | grep -q 'pipe-cdp-proxy\.mjs'
+}
+
 _read_pid() {
   [[ -f "${PID_FILE}" ]] || return 1
   local raw
@@ -61,7 +67,7 @@ if chrome_agent_launchagent_loaded; then
 fi
 
 stale_port_pid="$(_stale_port_pid)"
-if [[ -n "${stale_port_pid}" ]]; then
+if [[ -n "${stale_port_pid}" ]] && _is_chrome_agent_proxy "${stale_port_pid}"; then
   echo "MYRM_CHROME_AGENT_HEAL: freeing stale listener pid=${stale_port_pid} on :${MYRM_CHROME_AGENT_PORT}" >&2
   kill "${stale_port_pid}" 2>/dev/null || true
   sleep 1
