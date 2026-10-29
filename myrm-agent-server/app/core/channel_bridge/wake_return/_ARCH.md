@@ -19,14 +19,14 @@
 - 登记点是 `agent_executor/execute_preamble/preamble.py`：记忆范围确定之后，所有者私聊（`not memory_scope.is_compartment`）的非续跑回合登记。唤醒回合带着所有者的全部记忆，所以群聊与访客会话（运行在记忆隔离舱里）不登记，它们的唤醒回复只留在会话里。
 - 承载方与探针的注册 / 清除是 `wiring.py` 的 `register_wake_im_ports` / `clear_wake_im_ports`，由 `setup.py` 调用：`start_channel_gateway` 在路由装配后注册，`stop_channel_gateway` 清除；网关没在跑时回复不离开应用，也没有 IM 回合可等。
 - 探针只回答「所有者此刻有回合在跑」。路由闸门里排队的后续消息接在当前回合之后立即开始，期间一直算忙；只有刚到、还在防抖窗口（默认 300 ms）里、回合尚未开始的消息，探针会说空闲。
-- 反方向（唤醒回合运行期间所有者在 IM 里发来的消息）不在本包处理：路由的会话闸门看不到唤醒回合（它占用的是应用网关的会话），这条消息的回合会与唤醒回合并行。
+- 反方向（唤醒回合运行期间所有者在 IM 里发来的消息）不在本包处理：路由的会话闸门看不到唤醒回合（它占用的是应用网关的会话），这条消息的回合直接起跑，在智能体层的 `execution_cache.guard_turn`（每个「会话 + 智能体」一把锁）前等唤醒回合结束，两个回合不会同时跑；等待期间没有「忙」提示，它带的历史在锁之前读好、不含刚发出的唤醒回复，等待时间计入路由卡死看门狗的 600 秒（`channels/routing/router_constants.py` 的 `_STUCK_TASK_TIMEOUT`）。
 - 本包不管「该不该起唤醒回合」，也不复制路由的投递规则；唯一的投递入口是网关的 `deliver_followup`（实现于路由的 `pipeline/execution.py`）。
 
 ## 测试
 
-- `tests/core/channel_bridge/test_wake_origins.py` — 记录内容、去掉的字段、不可回去的渠道、容量与淘汰
-- `tests/core/channel_bridge/test_wake_reply_returner.py` — 有来源则送入对应对话，没有则不送，路由拒收不算错误，照抄的安全边界标记不进对话、只剩标记的回复不送；回复点名的工作区文件作为附件送出且路径不留在正文、只剩文件名时用一句话、工作区之外的路径不附、没有工作区按文本、扫描失败仍送文本
-- `tests/core/channel_bridge/test_chat_busy_probe.py` — 路由在跑该对话的回合则忙、没有则空闲、没聊过的会话不问路由就空闲
+- `tests/core/channel_bridge/wake_return/test_wake_origins.py` — 记录内容、去掉的字段、不可回去的渠道、容量与淘汰
+- `tests/core/channel_bridge/wake_return/test_wake_reply_returner.py` — 有来源则送入对应对话，没有则不送，路由拒收不算错误，照抄的安全边界标记不进对话、只剩标记的回复不送；回复点名的工作区文件作为附件送出且路径不留在正文、只剩文件名时用一句话、工作区之外的路径不附、没有工作区按文本、扫描失败仍送文本
+- `tests/core/channel_bridge/wake_return/test_chat_busy_probe.py` — 路由在跑该对话的回合则忙、没有则空闲、没聊过的会话不问路由就空闲
 - `tests/core/channel_bridge/test_execute_preamble_wake_origin.py` — 谁登记、谁不登记
-- `tests/core/channel_bridge/test_wake_return_wiring.py` — 网关启动 / 停止与承载方、探针的注册 / 清除
+- `tests/core/channel_bridge/wake_return/test_wake_return_wiring.py` — 网关启动 / 停止与承载方、探针的注册 / 清除
 - `tests/services/agent/adaptive_wakeup/test_wake_reply_to_im.py` — 从结算到渠道收到消息的整条链路（真实服务、调度、承载方、探针、网关、路由会话闸门、总线；模型与平台是替身）：唤醒等所有者的 IM 回合结束再回复、回合里读过的结果不再被重复说一遍、回复点名的工作区文件作为附件到达
