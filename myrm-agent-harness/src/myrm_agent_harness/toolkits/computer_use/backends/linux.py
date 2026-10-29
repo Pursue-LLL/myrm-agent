@@ -1,4 +1,4 @@
-"""Linux backend — scrot/gnome-screenshot + xdotool.
+"""Linux backend — scrot/gnome-screenshot + xdotool (+ xclip for non-ASCII text).
 
 Covers both native Linux desktops and SaaS sandbox environments (which run Linux).
 
@@ -201,11 +201,11 @@ class LinuxBackend:
             await self._run_input("xdotool key ctrl+v")
             await asyncio.sleep(0.1)
         finally:
-            if saved_stdout:
-                try:
-                    await self._xclip_write(saved_stdout)
-                except Exception:
-                    logger.warning("Failed to restore the X11 clipboard after paste", exc_info=True)
+            # 原剪贴板为空（或不是文本）时也要写回空串，否则粘贴的文本（含凭据）会一直留在剪贴板里。
+            try:
+                await self._xclip_write(saved_stdout)
+            except Exception:
+                logger.warning("Failed to restore the X11 clipboard after paste", exc_info=True)
 
     async def key(self, keys: str) -> ActionResult:
         try:

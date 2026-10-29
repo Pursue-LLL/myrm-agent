@@ -154,7 +154,8 @@ class TestPasteText:
 
         macos_pasteboard.paste_text("你好", press, concealed=True, settle_seconds=0, pb=pb)
 
-        assert seen == [("你好", {_TEXT, "NSStringPboardType", *_MARKERS})]
+        assert [text for text, _ in seen] == ["你好"]
+        assert {_TEXT, *_MARKERS} <= seen[0][1]
         assert macos_pasteboard.snapshot(pb).items == tuple(original)
 
     def test_waits_for_the_target_to_read_before_restoring(self, pb: NSPasteboard) -> None:

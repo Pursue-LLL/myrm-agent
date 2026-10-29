@@ -109,3 +109,15 @@ class TestClipboardPaste:
         assert result.success is False
         assert "xdotool" in (result.error or "")
         assert fake_x_tools["clip"].read_text() == "old"
+
+    @pytest.mark.asyncio
+    async def test_text_never_stays_on_an_initially_empty_clipboard(
+        self, backend: LinuxBackend, fake_x_tools: dict[str, Path]
+    ) -> None:
+        fake_x_tools["clip"].write_text("")
+
+        result = await backend.type_text("你好")
+
+        assert result.success is True
+        assert fake_x_tools["seen"].read_text() == "你好"
+        assert fake_x_tools["clip"].read_text() == ""
