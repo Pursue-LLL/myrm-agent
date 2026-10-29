@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-107 · Linux `key` 把模型给的按键串原样拼进 shell 命令：`a; touch X` 会执行第二条命令
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/linux.py`；测试 `tests/toolkits/computer_use/test_linux_exit_codes.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（对 105 做对抗式检查时逐个核对 `linux.py` 里所有 f-string 拼出的 shell 命令） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P1：`session.py` 的 `key_press` 把工具参数 `keys` 直接交给后端；入口只有 `is_operator_as_key_name`（`safety.py:84`），它只拒绝单独的运算符字符，不拦 `;`、`$(...)`、反引号。`_run_cmd` 经 `create_subprocess_shell` 执行，所以按键串里的 shell 元字符会被执行。需要智能体启用桌面控制且模型发出（或被提示注入诱导出）这样的按键串；线上触发频率没有数据。 |
+| **关联产品** | 桌面控制（Linux）`key` 动作。 |
+| **根因** | `await self._run_input(f"xdotool key -- {xdotool_keys}")`，`xdotool_keys` 只做了 `+` 换空格，没有引用。 |
+| **修复** | 拆成词后用 `shlex.join` 引用再拼接，按键串变成 xdotool 的参数。同一函数里其余拼接进命令的值是整数坐标、枚举映射出的修饰键和 xdotool 自己输出的窗口 id，没有改。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 先在本机用假 xdotool 复现：`xdotool key -- a; touch <marker>` 经 `create_subprocess_shell` 后 marker 文件被创建（`injected: True`）。第一版断言写成「argv 以 `key -- a ` 开头」是错的：假 xdotool 用 `$*` 以空格连接参数，`a;` 是一个词，改为比较整行。 |
+| **回归** | [1] 新增 `test_key_names_are_arguments_not_shell_code`：修复前红，修复后绿（marker 不存在、整串作为 xdotool 参数到达）；`tests/toolkits/computer_use` 1184 通过、9 跳过。 |
+| **仍然存在** | ① 没有在真实 xdotool 上验证带引号的按键名（如 `ctrl+shift+t`）仍被识别：只测了假 xdotool 收到的 argv，普通组合键引用后与原来相同（无元字符时 `shlex.join` 不加引号）。② `xprop -id {win_id}` 的 `win_id` 来自 xdotool 输出，未做引用，因为它不是外部输入。③ `cua_driver.py`、`macos.py`、`windows.py` 的 `key` 实现没有逐一审查。 |
+| **代码位置** | `toolkits/computer_use/backends/linux.py:193-199`（`key`） |
+
 ### BUG-HARNESS-2026-10-29-106 · Linux 的 `screen_context` 与分辨率探测永远静默回退：`DISPLAY=:N` 被当成程序名，`xdotool` 从来没有被执行过
 
 | 字段 | 内容 |
@@ -12,12 +29,12 @@
 | **严重程度** | P2：只要 `LinuxBackend` 拿到了显示器编号（`DISPLAY` 环境变量或构造参数，沙箱里就是这种情况），`screen_context()` 的活动窗口恒为空串、鼠标位置恒为 (0, 0)，分辨率探测恒回退 1920x1080。失败被 `except Exception` 吞掉，没有日志。线上影响没有数据；沙箱屏幕不是 1920x1080 时坐标换算会偏。 |
 | **关联产品** | 桌面控制（Linux）的屏幕上下文与坐标换算。 |
 | **根因** | `subprocess.run(cmd.split())` 不走 shell，`DISPLAY=:1 xdotool ...` 里的 `DISPLAY=:1` 成了 argv[0]，`FileNotFoundError` 被吞。 |
-| **修复** | 后端在构造时生成 `self._env`（当前环境加 `DISPLAY`），`screen_context` 与 `detect_linux_resolution` 用 `env=` 传入、命令写成无前缀的 argv；`detect_linux_resolution` 的参数由前缀字符串改为 `env`。 |
+| **修复** | 后端新增 `_subprocess_env()`（每次取当前环境加 `DISPLAY`；没有显示器编号时为 `None`，继承进程环境），`screen_context` 与 `detect_linux_resolution` 用 `env=` 传入、命令写成无前缀的 argv；`detect_linux_resolution` 的参数由前缀字符串改为 `env`。 |
 | **反复次数** | 第 1 次。 |
 | **踩坑** | 原有 `test_screen_context` 把 `subprocess.run` 整个 mock 掉，所以这个错误一直没被测出来；新用例用真实子进程与按 `$DISPLAY` 应答的假 `xdotool` / `xdpyinfo`。 |
-| **回归** | [1] 新增 2 个用例（活动窗口与鼠标位置、分辨率）：修复前红，修复后 `tests/toolkits/computer_use` 整个目录 1183 通过、9 跳过。 |
+| **回归** | [1] 新增 2 个用例（活动窗口与鼠标位置、分辨率）：修复前红，修复后 `tests/toolkits/computer_use` 整个目录 1184 通过、9 跳过。 |
 | **仍然存在** | ① `probe_linux_capturable` 的截图探测没有传显示器编号，沿用进程环境里的 `DISPLAY`，没有改。② 没有在真实 X11 上跑过这两个读取函数（真实 X11 套件只覆盖键鼠输入）。 |
-| **代码位置** | `toolkits/computer_use/backends/linux.py:78`（`self._env`）、`:265`、`:270-295` · `toolkits/computer_use/backends/linux_probes.py:47` |
+| **代码位置** | `toolkits/computer_use/backends/linux.py:80-84`（`_subprocess_env`）、`:271`、`:276-301` · `toolkits/computer_use/backends/linux_probes.py:47` |
 
 ### BUG-HARNESS-2026-10-29-105 · Linux 非 ASCII 文本靠剪贴板粘贴：依赖 xclip、会碰用户剪贴板，三轮补丁（退出码、串行、超时）都是在补这条路径本身的缺陷；改为全部文本经 stdin 交给 `xdotool type`
 
@@ -29,12 +46,12 @@
 | **严重程度** | P2：旧路径对非 ASCII 的 `type_text` / `type_credential` 做「读原剪贴板、写入、Ctrl+V、写回」，依赖镜像里有 xclip（缺失则中日韩文本整体失败），过程中用户剪贴板被占用，凭据短暂写进剪贴板（剪贴板历史类工具是否记录没有实测，只有机制上的可能），Ctrl+V 在不响应它的应用里不生效（终端是否如此没有证据）。线上触发频率没有数据。 |
 | **关联产品** | 桌面控制（Linux）文本与凭据输入；server 运行时镜像。 |
 | **根因** | 设计假设「xdotool 不能输入非 ASCII」。实测不成立：xdotool 在 UTF-8 locale 下用 `xdotool type` 把非 ASCII 字符映射为键事件（xev 读到 `U4F60`、`U597D`、`eacute`）。真正的坑是 locale：非 UTF-8 locale 下它遇到第一个非 ASCII 字符就报 `Invalid multi-byte sequence encountered` 并以 1 退出，且已经敲出了前面的字符。 |
-| **修复** | 全部文本（ASCII、非 ASCII、凭据）统一经 stdin 交给 `xdotool type --delay N --file -`（不进命令行参数、与 shell 引号无关），`_run_cmd` 给每条命令固定 `LC_CTYPE=C.UTF-8`；删除 xclip 路径、粘贴锁、读剪贴板超时，CI 与两个运行时镜像去掉 xclip，删除只为 xclip 存在的镜像架构测试；CI 改装 `x11-utils`（xev）。 |
+| **修复** | 全部文本（ASCII、非 ASCII、凭据）统一经 stdin 交给 `xdotool type --delay N --file -`（不进命令行参数、与 shell 引号无关），`_run_cmd` 给每条命令固定 `LC_ALL=C.UTF-8`（不用 `LC_CTYPE`：宿主设了 `LC_ALL` 时它的优先级更高，本机 macOS 的 `locale charmap` 对 `LC_ALL=C LC_CTYPE=en_US.UTF-8` 输出 `US-ASCII`，只设 `LC_CTYPE` 会被覆盖）；删除 xclip 路径、粘贴锁、读剪贴板超时，CI 与两个运行时镜像去掉 xclip，删除只为 xclip 存在的镜像架构测试；CI 改装 `x11-utils`（xev）。 |
 | **反复次数** | 第 1 次；取代 100（串行）与 103（读超时）对应的代码，它们的条目保留作历史。 |
-| **踩坑** | ① 起初把 `LC_CTYPE=C.UTF-8` 写进命令字符串，`_run_input` 取 `cmd.split()[0]` 作程序名，错误信息变成 `LC_CTYPE=C.UTF-8 failed`；前缀改放在 `_run_cmd`。② 裸 Xvfb 里（没有任何窗口）`xdotool mousemove` 退出 0，但下一个 xdotool 进程读到的指针回到屏幕中心；有一个窗口（xev）在时指针保持。真实 X11 套件的鼠标用例因此先让 xev 窗口在场，这是 Xvfb 环境的特性，没有在带窗口管理器的桌面上核对过。③ 容器里用桩包加载器跑测试（避开 harness 包的重 `__init__`），桩要给父包补子模块属性，否则 `monkeypatch` 按点路径解析失败。 |
-| **回归** | [1] 假 `xdotool` + 会记录调用的假 `xclip`（任何调用都算失败）：文本经 stdin 到达、argv 里没有文本、locale 为 `C.UTF-8`、`xclip` 零调用；修复前红，修复后绿；去掉 locale 前缀的变异使其变红。[2] 真实 X11（容器 arm64 ubuntu:24.04，真 Xvfb、xdotool 3.20160805、xev）5 个用例：`a你好é` 得 `a U4F60 U597D eacute`、120 字符不丢、非 ASCII 凭据得 `U5BC6 eacute`、鼠标落点、不可达显示器报失败，全部通过；在容器里把 locale 前缀变异为无效后其中 3 个变红。[3] `tests/toolkits/computer_use` 1183 通过、9 跳过。 |
+| **踩坑** | ① 起初把 `LC_CTYPE=C.UTF-8` 写进命令字符串，`_run_input` 取 `cmd.split()[0]` 作程序名，错误信息变成 `LC_CTYPE=C.UTF-8 failed`；前缀改放在 `_run_cmd`。第一版只设 `LC_CTYPE`，对抗式检查时发现宿主的 `LC_ALL` 会盖过它，改为 `LC_ALL`，测试环境里预先设 `LC_ALL=C` 作为敌对宿主（修复前 3 个用例红）。② 裸 Xvfb 里（没有任何窗口）`xdotool mousemove` 退出 0，但下一个 xdotool 进程读到的指针回到屏幕中心；有一个窗口（xev）在时指针保持。真实 X11 套件的鼠标用例因此先让 xev 窗口在场，这是 Xvfb 环境的特性，没有在带窗口管理器的桌面上核对过。③ 容器里用桩包加载器跑测试（避开 harness 包的重 `__init__`），桩要给父包补子模块属性，否则 `monkeypatch` 按点路径解析失败。 |
+| **回归** | [1] 假 `xdotool` + 会记录调用的假 `xclip`（任何调用都算失败）：文本经 stdin 到达、argv 里没有文本、locale 为 `C.UTF-8`、`xclip` 零调用；修复前红，修复后绿；去掉 locale 前缀的变异使其变红。[2] 真实 X11（容器 arm64 ubuntu:24.04，真 Xvfb、xdotool 3.20160805、xev）6 个用例（含「宿主把 `LC_ALL` 设成 `C`」）：`a你好é` 得 `a U4F60 U597D eacute`、120 字符不丢、非 ASCII 凭据得 `U5BC6 eacute`、鼠标落点、不可达显示器报失败，全部通过（宿主 `LC_ALL` 未设、`C`、`POSIX` 三种环境各跑一遍均 5 个基础用例通过）；变异：locale 前缀改成无效值，其中 3 个变红；前缀改回只设 `LC_CTYPE`，只有「宿主 `LC_ALL=C`」这个用例变红；容器里直接跑 `LC_ALL=C LC_CTYPE=C.UTF-8 xdotool type` 退出 1（`Invalid multi-byte sequence encountered`），`LC_ALL=C.UTF-8` 退出 0。[3] `tests/toolkits/computer_use` 1184 通过、9 跳过。 |
 | **仍然存在** | ① 真实应用（Chrome、Electron、终端、输入法）里的行为没有验证，xev 只证明 X 服务器收到了正确的键事件。② 换行经 xdotool 敲出的是 `Linefeed` 而不是 `Return`，与旧路径语义相同，没有逐应用核对。③ 吞吐约 90 字符/秒（12 ms 延迟，此前实测 200 个汉字 2.17 秒）；上层工具默认超时 60 秒（`_tool_helpers.py` 的 `get_tool_timeout`），极长文本会超时。④ Wayland 不适用（xdotool 只作用于 X11/XWayland）。⑤ 两个 CI 作业与运行时镜像构建没有跑过。 |
-| **代码位置** | `toolkits/computer_use/backends/linux.py:43`（`_UTF8_LOCALE`）、`:80-95`（`_run_cmd`）、`:152-175`（`_xdotool_type`、`type_text`、`type_credential`） · `tests/toolkits/computer_use/test_linux_real_x11.py` |
+| **代码位置** | `toolkits/computer_use/backends/linux.py:45`（`_UTF8_LOCALE`）、`:86-97`（`_run_cmd`）、`:158-191`（`_xdotool_type`、`type_text`、`type_credential`） · `tests/toolkits/computer_use/test_linux_real_x11.py` |
 
 ### BUG-HARNESS-2026-10-29-104 · bash 验证命令的非零退出码不进入完成度判断：`ruff check`、`tsc`、只打汇总行的 `pytest` 失败后仍被记成通过，完成度守卫不拦
 

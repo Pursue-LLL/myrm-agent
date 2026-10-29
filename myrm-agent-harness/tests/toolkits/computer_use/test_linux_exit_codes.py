@@ -20,7 +20,7 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="relies on /bin/
 
 _FAKE_XDOTOOL = """#!/bin/sh
 echo "$*" >> "$ARGV"
-echo "$LC_CTYPE" >> "$LOCALE"
+echo "$LC_ALL" >> "$LOCALE"
 case "$*" in
   *--file*) cat >> "$STDIN";;
   *getwindowname*) echo "Title"; echo "$DISPLAY" >> "$DISPLAY_SEEN";;
@@ -64,6 +64,8 @@ def fake_x_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, P
     for path in paths.values():
         path.write_text("")
     monkeypatch.setenv("PATH", f"{bin_dir}:/usr/bin:/bin")
+    # LC_ALL outranks LC_CTYPE, so a host that pins it to a non-UTF-8 locale is the case the backend must override.
+    monkeypatch.setenv("LC_ALL", "C")
     for name, path in paths.items():
         monkeypatch.setenv(name.upper(), str(path))
     return paths
@@ -111,6 +113,21 @@ class TestDisplaySelection:
         info = LinuxBackend(display_num=5).screen_info()
 
         assert (info.width, info.height) == (800, 600)
+
+
+class TestKey:
+    @pytest.mark.asyncio
+    async def test_key_names_are_arguments_not_shell_code(
+        self, backend: LinuxBackend, fake_x_tools: dict[str, Path], tmp_path: Path
+    ) -> None:
+        marker = tmp_path / "injected"
+
+        result = await backend.key(f"a; touch {marker}")
+
+        assert result.success is True
+        assert not marker.exists()
+        # The whole text arrived as xdotool arguments (the fake joins argv with spaces).
+        assert fake_x_tools["argv"].read_text().split("\n")[0] == f"key -- a; touch {marker}"
 
 
 class TestTypeText:

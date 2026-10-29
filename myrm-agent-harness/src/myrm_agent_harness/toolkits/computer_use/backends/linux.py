@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -39,8 +40,9 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 
 logger = logging.getLogger(__name__)
 
-# 我们总是以 UTF-8 收发字节。xdotool 按所在 locale 解码，不是 UTF-8 时遇到第一个非 ASCII 字符就报错并中断，所以显式指定。
-_UTF8_LOCALE = "LC_CTYPE=C.UTF-8"
+# 我们总是以 UTF-8 收发字节。xdotool 按所在 locale 解码，不是 UTF-8 时遇到第一个非 ASCII 字符就报错并中断，所以显式指定；
+# 用 LC_ALL 而不是 LC_CTYPE，因为宿主若设了 LC_ALL（如 C），它的优先级高于 LC_CTYPE。
+_UTF8_LOCALE = "LC_ALL=C.UTF-8"
 
 CLICK_BUTTONS = {
     "left": "1",
@@ -74,8 +76,12 @@ class LinuxBackend:
         self._screen_info: ScreenInfo | None = None
         self._display_num = display_num if display_num is not None else _parse_display_num()
         self._display_prefix = f"DISPLAY=:{self._display_num} " if self._display_num is not None else ""
-        # Shell-less subprocess calls take the display through the environment; an inline `DISPLAY=:N` would be argv[0].
-        self._env = {**os.environ, "DISPLAY": f":{self._display_num}"} if self._display_num is not None else None
+
+    def _subprocess_env(self) -> dict[str, str] | None:
+        """Environment for shell-less subprocess calls: an inline `DISPLAY=:N` there would become argv[0]."""
+        if self._display_num is None:
+            return None
+        return {**os.environ, "DISPLAY": f":{self._display_num}"}
 
     async def _run_cmd(self, cmd: str, stdin: str | None = None) -> tuple[str, str, int]:
         """Run a shell command under the selected display and a UTF-8 locale; `stdin` is piped, not put on the command line."""
@@ -178,7 +184,7 @@ class LinuxBackend:
             return ActionResult(success=False, error=f"Failed to retrieve credential for label '{label}'")
 
         try:
-            # 凭据不进命令行参数（进程列表可见），也不经剪贴板（剪贴板历史工具会记下来）。
+            # 凭据不进命令行参数（进程列表可见），也不经剪贴板。
             await self._xdotool_type(secret_text, 12)
             return ActionResult(success=True)
         except Exception as e:
@@ -186,8 +192,8 @@ class LinuxBackend:
 
     async def key(self, keys: str) -> ActionResult:
         try:
-            xdotool_keys = keys.replace("+", " ")
-            await self._run_input(f"xdotool key -- {xdotool_keys}")
+            # The keys come from the model; quoting keeps them arguments instead of shell code.
+            await self._run_input(f"xdotool key -- {shlex.join(keys.replace('+', ' ').split())}")
             return ActionResult(success=True)
         except Exception as e:
             return ActionResult(success=False, error=str(e))
@@ -262,7 +268,7 @@ class LinuxBackend:
         height = int(os.getenv("HEIGHT", "0"))
 
         if not width or not height:
-            width, height = detect_linux_resolution(self._env)
+            width, height = detect_linux_resolution(self._subprocess_env())
 
         self._screen_info = ScreenInfo(width=width, height=height, dpi_scale=1.0)
         return self._screen_info
@@ -271,7 +277,7 @@ class LinuxBackend:
         try:
             result = subprocess.run(
                 ["xdotool", "getactivewindow", "getwindowname"],
-                env=self._env,
+                env=self._subprocess_env(),
                 capture_output=True,
                 text=True,
                 timeout=2,
@@ -283,7 +289,7 @@ class LinuxBackend:
         try:
             result = subprocess.run(
                 ["xdotool", "getmouselocation"],
-                env=self._env,
+                env=self._subprocess_env(),
                 capture_output=True,
                 text=True,
                 timeout=2,

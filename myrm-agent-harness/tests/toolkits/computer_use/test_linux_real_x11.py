@@ -7,6 +7,7 @@ xev window, so it only runs when MYRM_REAL_X11_TESTS=1 is set: never on a develo
 
 from __future__ import annotations
 
+import asyncio
 import os
 import shutil
 import subprocess
@@ -70,7 +71,8 @@ def pressed_keys(xev_window: Path) -> Callable[[], list[str]]:
     def keysyms() -> list[str]:
         names: list[str] = []
         awaiting_keysym = False
-        for line in xev_window.read_text().splitlines():
+        # xev writes the typed character in the host's locale charset; only the ASCII keysym lines are parsed.
+        for line in xev_window.read_text(errors="replace").splitlines():
             if line.startswith("KeyPress event"):
                 awaiting_keysym = True
             elif awaiting_keysym and "keysym" in line:
@@ -86,7 +88,7 @@ async def _settled(keysyms: Callable[[], list[str]], expected: int) -> list[str]
     for _ in range(100):
         if len(keysyms()) >= expected:
             break
-        time.sleep(0.05)
+        await asyncio.sleep(0.05)
     return keysyms()
 
 
@@ -99,6 +101,18 @@ class TestRealTyping:
 
         assert result.success is True
         assert await _settled(pressed_keys, 4) == ["a", "U4F60", "U597D", "eacute"]
+
+    @pytest.mark.asyncio
+    async def test_non_ascii_text_arrives_when_the_host_pins_a_non_utf8_locale(
+        self, backend: LinuxBackend, pressed_keys: Callable[[], list[str]], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # LC_ALL outranks LC_CTYPE; xdotool run under it would stop at the first non-ASCII character.
+        monkeypatch.setenv("LC_ALL", "C")
+
+        result = await backend.type_text("你好")
+
+        assert result.success is True
+        assert await _settled(pressed_keys, 2) == ["U4F60", "U597D"]
 
     @pytest.mark.asyncio
     async def test_a_text_longer_than_one_chunk_loses_no_character(
