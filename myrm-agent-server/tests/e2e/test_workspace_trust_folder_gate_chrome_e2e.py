@@ -2,11 +2,11 @@
 
 The folder holds one honest skill, one honest rule file, a FIFO where a second skill's ``SKILL.md`` should be, and sparse
 multi-megabyte ``mcp.json`` and ``.myrm/config.toml``. Linking it from the project menu asks the server for a preview first;
-the dialog must come back with the counts of what a reader can really use instead of waiting on the FIFO, and choosing
-"Trust and link" must record the trust for that folder and link it to the project.
+the dialog must come back with the counts of what a reader can really use instead of waiting on the FIFO, and each of its
+two answers ("Trust and link", "Link without trusting") must record that decision for the folder and link it to the project.
 
 Flow: project chip context menu -> Set Workspace -> Choose folder -> type the path -> Use this folder -> FolderGate
-(-> Trust and link).
+(-> Trust and link | Link without trusting).
 """
 
 from __future__ import annotations
@@ -252,7 +252,17 @@ def test_folder_gate_discloses_the_honest_counts_of_a_folder_with_hostile_files(
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_trusting_the_folder_in_the_gate_links_it_to_the_project_and_records_the_trust(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("answer_pattern", "decided_level"),
+    [
+        ("^Trust and link$|^信任并关联$", "TRUSTED"),
+        ("^Link without trusting$|^不信任并关联$", "RESTRICTED"),
+    ],
+    ids=["trust_and_link", "link_without_trusting"],
+)
+def test_answering_the_gate_links_the_folder_to_the_project_and_records_the_decision(
+    tmp_path: Path, answer_pattern: str, decided_level: str
+) -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
@@ -266,13 +276,13 @@ def test_trusting_the_folder_in_the_gate_links_it_to_the_project_and_records_the
         with open_mcp_page(f"{ui_url.rstrip('/')}/", request_timeout_sec=300.0) as (client, page):
             _pick_folder(client, page, name, folder)
             _step(client, page, _GATE_STATE_JS, timeout_sec=GATE_WITHIN_SECONDS)
-            _step(client, page, _CLICK_BY_TEXT_JS.replace("__PATTERN__", json.dumps("^Trust and link$|^信任并关联$")))
+            _step(client, page, _CLICK_BY_TEXT_JS.replace("__PATTERN__", json.dumps(answer_pattern)))
             _wait_until_linked(api_url, project_id, resolved)
             _step(client, page, _GATE_CLOSED_JS)
 
         recorded = _trust_entries(api_url).get(resolved)
         assert recorded is not None, sorted(_trust_entries(api_url))
-        assert recorded["level"] == "TRUSTED", recorded
+        assert recorded["level"] == decided_level, recorded
         assert recorded["manifest_hash"], recorded
     finally:
         _release_blocked_readers(folder / "skills" / "hostile" / "SKILL.md")
