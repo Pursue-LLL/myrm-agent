@@ -20,7 +20,11 @@ def stylesheet(html: str) -> str:
 
 
 def split_themes(css: str) -> tuple[str, str]:
-    """The (light, dark) halves of *css*: the dark half holds what its ``prefers-color-scheme: dark`` blocks declare."""
+    """The (light, dark) halves of *css*: the dark half holds what its ``prefers-color-scheme: dark`` blocks declare.
+
+    A colour-scheme block written in any other form would be read as light-theme rules and let a dark-theme
+    regression pass, so one the helper cannot read is an error.
+    """
     light: list[str] = []
     dark: list[str] = []
     at = 0
@@ -37,12 +41,14 @@ def split_themes(css: str) -> tuple[str, str]:
             end += 1
         dark.append(css[body_start : end - 1])
         at = end
+    if css.count("prefers-color-scheme") != len(dark):
+        raise AssertionError(f"a prefers-color-scheme block is not written as {_DARK_MEDIA!r}")
     return "".join(light), "".join(dark)
 
 
 def declared(css: str, selector: str, prop: str) -> str | None:
     """The colour the rule for exactly *selector* gives *prop* in *css* (the last rule wins), as ``#rrggbb``."""
-    pattern = r"(?m)(?:^|(?<=\}))" + re.escape(selector) + r"\{[^}]*?(?<=[{;\s])" + prop + r":\s*" + _HEX
+    pattern = r"(?m)(?:^|(?<=\}))" + re.escape(selector) + r"\{[^}]*?(?<=[{;\s])" + re.escape(prop) + r":\s*" + _HEX
     found = re.findall(pattern, css)
     if not found:
         return None
@@ -67,6 +73,7 @@ def _luminance(hex_color: str) -> float:
 
 
 def contrast(foreground: str, background: str) -> float:
+    """The WCAG contrast ratio of two ``#rrggbb`` colours, unrounded."""
     lighter, darker = sorted((_luminance(foreground), _luminance(background)), reverse=True)
     return (lighter + 0.05) / (darker + 0.05)
 
