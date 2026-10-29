@@ -10,13 +10,14 @@ import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
-from app.channels.types import OutboundMessage
+from app.channels.types import ChannelCapabilities, OutboundMessage
 
 
 class FakeChannel(BaseChannel):
     """Channel that returns a message_id from send() and supports editing."""
 
     name = "test"
+    capabilities = ChannelCapabilities(edit=True)
 
     def __init__(self) -> None:
         super().__init__()
@@ -37,6 +38,7 @@ class NoEditChannel(BaseChannel):
     """Channel that returns a message_id but does not support editing."""
 
     name = "noedit"
+    capabilities = ChannelCapabilities(edit=True)
 
     def __init__(self) -> None:
         super().__init__()

@@ -166,7 +166,7 @@ class MessageBus(OutboundDispatchMixin):
             self._release_unqueued(msg)
 
     async def edit_channel_message(self, channel_name: str, chat_id: str, message_id: str, content: str) -> bool:
-        """Edit a previously sent message on a channel. Returns True if successful."""
+        """Edit a previously sent message on a channel. Returns True only if the platform applied the edit."""
         from app.services.channels.cp_egress_client import (
             send_via_control_plane,
             should_route_via_control_plane,
@@ -187,7 +187,7 @@ class MessageBus(OutboundDispatchMixin):
             return result is not None
 
         channel = self._channels.get(channel_name)
-        if not channel:
+        if not channel or not channel.capabilities.edit:
             return False
         try:
             await channel.edit_message(chat_id, message_id, content)

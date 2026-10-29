@@ -474,11 +474,13 @@ class TestPlaceholderStreaming:
         assert sent_data["body"]["stream"]["id"] == "sid_1"
 
     @pytest.mark.asyncio
-    async def test_edit_message_unknown_stream_noop(self) -> None:
+    async def test_edit_message_unknown_stream_is_reported(self) -> None:
         ch = _make_channel()
         ch._ws = AsyncMock()
 
-        await ch.edit_message("chat1", "unknown_sid", "text")
+        with pytest.raises(ChannelSendError, match="not active") as excinfo:
+            await ch.edit_message("chat1", "unknown_sid", "text")
+        assert excinfo.value.retriable is False
         assert not ch._ws.send.called
 
     @pytest.mark.asyncio

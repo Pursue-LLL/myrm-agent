@@ -338,9 +338,9 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
                     )
                 except TelegramApiError as inner:
                     if not inner.is_not_modified:
-                        logger.warning("TelegramChannel: edit failed: %s", inner)
+                        raise ChannelSendError.from_http_status(self.name, inner.error_code, inner.description) from inner
                 return
-            logger.warning("TelegramChannel: edit failed: %s", exc)
+            raise ChannelSendError.from_http_status(self.name, exc.error_code, exc.description) from exc
 
     async def edit_placeholder_message(
         self,
@@ -407,7 +407,7 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
                         **notify_kwargs,
                     )
                 else:
-                    logger.warning("TelegramChannel: draft materialize failed: %s", exc)
+                    raise ChannelSendError.from_http_status(self.name, exc.error_code, exc.description) from exc
             return
 
         if self._rich_send_available is True:
@@ -454,9 +454,9 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
                     )
                 except TelegramApiError as inner:
                     if not inner.is_not_modified:
-                        logger.warning("TelegramChannel: edit_placeholder failed: %s", inner)
+                        raise ChannelSendError.from_http_status(self.name, inner.error_code, inner.description) from inner
                 return
-            logger.warning("TelegramChannel: edit_placeholder failed: %s", exc)
+            raise ChannelSendError.from_http_status(self.name, exc.error_code, exc.description) from exc
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         """Delete a message via deleteMessage. Draft-only placeholders are silently skipped."""

@@ -243,7 +243,7 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         """Update a streaming message. message_id is the stream_id."""
         state = self._active_streams.get(message_id)
         if not state or not self._ws:
-            return
+            raise ChannelSendError("WeCom stream is not active", channel=self.name, retriable=False)
 
         async with state.lock:
             if state.is_force_closed:

@@ -703,7 +703,8 @@ async def test_edit_message(channel):
 @pytest.mark.asyncio
 async def test_edit_message_channel_not_found(channel):
     channel._resolve_channel = AsyncMock(return_value=None)
-    await channel.edit_message("123", "456", "text")
+    with pytest.raises(ChannelSendError, match="not reachable"):
+        await channel.edit_message("123", "456", "text")
 
 
 @pytest.mark.asyncio

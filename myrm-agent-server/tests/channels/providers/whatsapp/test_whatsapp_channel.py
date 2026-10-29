@@ -681,7 +681,19 @@ class TestWhatsAppSend:
     @pytest.mark.asyncio
     async def test_edit_message_invalid_key(self) -> None:
         ch = _make_channel()
-        await ch.edit_message("999@s.whatsapp.net", "not-json", "Updated text")
+        with pytest.raises(ChannelSendError, match="not valid") as excinfo:
+            await ch.edit_message("999@s.whatsapp.net", "not-json", "Updated text")
+        assert excinfo.value.retriable is False
+        ch._process.stdin.write.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_edit_message_not_connected(self) -> None:
+        ch = _make_channel()
+        ch._connected.clear()
+        key = json.dumps({"id": "msg_key", "remoteJid": "999@s.whatsapp.net"})
+        with pytest.raises(ChannelSendError, match="not connected"):
+            await ch.edit_message("999@s.whatsapp.net", key, "Updated text")
+        ch._process.stdin.write.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_delete_message(self) -> None:

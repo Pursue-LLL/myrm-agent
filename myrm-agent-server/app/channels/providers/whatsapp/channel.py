@@ -281,14 +281,16 @@ class WhatsAppChannel(WhatsAppInboundMixin, WhatsAppLoginMixin, BaseChannel, Cac
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         """Edit a previously sent WhatsApp message.
 
-        message_id must be a JSON-serialized Baileys message key from send_placeholder.
+        message_id must be a JSON-serialized Baileys message key from send_placeholder. The bridge does not
+        confirm an edit, so a failure is only reported when there is no connection or no usable key.
         """
         if not self._process or not self._connected.is_set():
-            return
+            raise ChannelSendError("WhatsApp is not connected", channel=self.name)
         key = parse_message_key(message_id)
-        if key:
-            self._write_cmd({"type": "edit", "to": _normalize_jid(chat_id), "key": key, "text": f"[Myrm AI] {text}"})
-            await self._drain()
+        if not key:
+            raise ChannelSendError("WhatsApp message key is not valid", channel=self.name, retriable=False)
+        self._write_cmd({"type": "edit", "to": _normalize_jid(chat_id), "key": key, "text": f"[Myrm AI] {text}"})
+        await self._drain()
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         """Delete a previously sent WhatsApp message ("delete for everyone").

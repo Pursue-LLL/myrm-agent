@@ -252,7 +252,7 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         if not self._client:
-            return
+            raise ChannelSendError("Matrix channel is not running", channel=self.name)
         new_content = build_text_payload(text)
         payload: dict[str, object] = {
             "msgtype": "m.text",
@@ -263,7 +263,7 @@ class MatrixChannel(MatrixConnectionMixin, BaseChannel):
         try:
             await self._post_message(self._client, chat_id, payload)
         except Exception as exc:
-            logger.debug("Matrix edit failed: %s", exc)
+            raise ChannelSendError(f"Matrix edit failed: {exc}", channel=self.name) from exc
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         if not self._client:

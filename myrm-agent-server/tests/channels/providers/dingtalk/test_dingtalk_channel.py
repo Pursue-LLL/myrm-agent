@@ -705,12 +705,23 @@ class TestDingTalkStreamingCard:
         ch._api.streaming_update.assert_called_once_with("track1", "content", "Hello partial...", is_finalize=False)
 
     @pytest.mark.asyncio
-    async def test_edit_message_non_streaming_noop(self) -> None:
+    async def test_edit_message_rejects_a_message_that_is_not_a_streaming_card(self) -> None:
         ch = _make_channel()
         ch._api.streaming_update = AsyncMock()
 
-        await ch.edit_message("conv1", "unknown_id", "text")
+        with pytest.raises(ChannelSendError, match="streaming cards") as excinfo:
+            await ch.edit_message("conv1", "unknown_id", "text")
+        assert excinfo.value.retriable is False
         ch._api.streaming_update.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_edit_message_reports_a_rejected_card_update(self) -> None:
+        ch = _make_channel()
+        ch._streaming_cards["track1"] = "chat1"
+        ch._api.streaming_update = AsyncMock(return_value=False)
+
+        with pytest.raises(ChannelSendError, match="rejected the card update"):
+            await ch.edit_message("conv1", "track1", "text")
 
     @pytest.mark.asyncio
     async def test_edit_placeholder_message_finalize(self) -> None:

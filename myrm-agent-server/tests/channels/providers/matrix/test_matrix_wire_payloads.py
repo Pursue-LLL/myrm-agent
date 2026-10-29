@@ -146,10 +146,12 @@ class TestEdit:
         ]
 
     @pytest.mark.asyncio
-    async def test_a_refused_edit_never_reaches_the_caller(self) -> None:
-        await _channel(_Homeserver(refusals=1)).edit_message(ROOM, "$old", "fixed")
+    async def test_a_refused_edit_is_reported_to_the_caller(self) -> None:
+        with pytest.raises(ChannelSendError, match="session expired"):
+            await _channel(_Homeserver(refusals=1)).edit_message(ROOM, "$old", "fixed")
 
     @pytest.mark.asyncio
     async def test_a_homeserver_that_never_answers_does_not_hold_an_edit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(matrix_channel, "_SEND_TIMEOUT", 0.05)
-        await _channel(_Homeserver(never_answers=True)).edit_message(ROOM, "$old", "fixed")
+        with pytest.raises(ChannelSendError, match="edit failed"):
+            await _channel(_Homeserver(never_answers=True)).edit_message(ROOM, "$old", "fixed")

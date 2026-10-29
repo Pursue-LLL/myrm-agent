@@ -255,8 +255,10 @@ class MattermostChannel(MattermostInboundMixin, BaseChannel, CachedGroupMixin):
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         try:
             await self._api.update_post(message_id, text)
+        except httpx.HTTPStatusError as exc:
+            raise ChannelSendError.from_http_status(self.name, exc.response.status_code, "edit") from exc
         except Exception as exc:
-            logger.warning("Mattermost edit failed: %s", exc)
+            raise ChannelSendError(f"Mattermost edit failed: {exc}", channel=self.name) from exc
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         try:

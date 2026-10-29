@@ -86,7 +86,7 @@
 - 健康追踪（`health: ChannelHealth`）
 - 活动追踪（`activity: ChannelActivity`）
 - 结构化诊断（`collect_issues()`）
-- 交互组件（`send_placeholder()` / `edit_message()` / `react_to_message()`）
+- 交互组件（`send_placeholder()` / `edit_message()` / `react_to_message()`）；平台没有采纳的编辑由渠道抛出 `ChannelSendError`，路由器与总线只在收到该异常时改发新消息
 
 **便捷方法（Convenience Methods）**：
 
@@ -442,7 +442,7 @@ MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同�
 - 已知局限：多段文本发送中途失败不标记 `accepted`，重试会重发已送达的段（宁可重复不缺失，续发需按分片断点恢复）；WhatsApp 桥接对媒体无送达回执，仅能确认已交给桥接进程。
 - `send_now` 是严格直发：成功返回平台 id（无 id 渠道返回 `None`），失败先按队列同一套规则结算（DLQ、永久失败回调、释放 obligation）再抛错；`send_tracked` 是其宽松封装（失败返回 `None`），用于只需要消息 id 的场景（如审批消息后续编辑）。cron、btw、目标终态通知、出站通知均走 `send_now`；cron 投递还会把产出里提到的工作区文件作为附件一并发出并附网页接力按钮（`core/cron/adapters/channel_deliverables.py`，纯文本路由降级为说明与链接）。
 - 临时附件所有权：`MediaAttachment.ephemeral=True` 标记为送达而生成的临时文件（截图、压缩图、TTS 音频）；交给总线后由总线在终态统一删除，生产方不得先删。删除时机：送达 ack 之后；部分送达时删除已送达者、保留失败者；被能力降级或被路由丢弃的附件；无磁盘记录可重放的丢弃（队列满、渠道不可用且无 durable 记录，`DurableOutboundGate.retains`）。其余失败路径保留文件，供 DLQ 手动重试引用。仅删除系统临时目录内的文件（`discard_ephemeral_media`）。
-- 占位符编辑（`MessageEffects.edit_placeholder`）与普通出站同样先 `prepare_outbound`；回复只渲染一次，之后每个分片都用 `mark_rendered` 标记为「已渲染」（首片交给 `edit_placeholder_message`，其余经总线发出），`render()` 对带标记的消息原样返回其文本，所以渠道再调一次 `render()` 也不会把工具摘要、来源、标题再加一遍；编辑只改文本，附件随后以纯媒体消息经总线发送（带重试、持久化与部分送达处理），额外文本分片不携带附件/按钮；编辑失败时整条回复（含附件）改走正常发布。
+- 占位符编辑（`MessageEffects.edit_placeholder`）与普通出站同样先 `prepare_outbound`；回复只渲染一次，之后每个分片都用 `mark_rendered` 标记为「已渲染」（首片交给 `edit_placeholder_message`，其余经总线发出），`render()` 对带标记的消息原样返回其文本，所以渠道再调一次 `render()` 也不会把工具摘要、来源、标题再加一遍；编辑只改文本，附件随后以纯媒体消息经总线发送（带重试、持久化与部分送达处理），额外文本分片不携带附件/按钮；编辑失败（渠道抛出 `ChannelSendError`；声明 `capabilities.edit` 的渠道不得吞掉失败）时整条回复（含附件）改走正常发布，占位消息清理时先尝试编辑、失败再删除。
 
 
 **出站媒体 SSRF 防护**：`MediaAttachment.url` 可能来自 Agent 生成内容（受 prompt injection 影响），

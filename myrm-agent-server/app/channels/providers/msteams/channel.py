@@ -217,15 +217,15 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
             conversation_id = chat_id
 
         if not service_url:
-            logger.debug("MSTeams edit: no service_url for conversation %s", chat_id)
-            return
+            raise ChannelSendError(f"Teams has no service URL for conversation {chat_id}", channel=self.name, retriable=False)
 
-        await self._api.update_activity(
+        if not await self._api.update_activity(
             service_url,
             conversation_id,
             activity_id,
             {"type": "message", "text": text},
-        )
+        ):
+            raise ChannelSendError("Teams did not accept the message edit", channel=self.name, retriable=False)
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         decoded = decode_message_key(message_id)

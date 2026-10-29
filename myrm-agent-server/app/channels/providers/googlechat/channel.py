@@ -246,8 +246,10 @@ class GoogleChatChannel(BaseChannel):
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         try:
             await self._api.update_message(message_id, text)
+        except httpx.HTTPStatusError as exc:
+            raise ChannelSendError.from_http_status(self.name, exc.response.status_code, "edit") from exc
         except Exception as exc:
-            logger.warning("Google Chat edit failed: %s", exc)
+            raise ChannelSendError(f"Google Chat edit failed: {exc}", channel=self.name) from exc
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         try:

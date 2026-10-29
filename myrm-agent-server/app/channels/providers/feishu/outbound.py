@@ -185,9 +185,7 @@ class FeishuOutboundMixin(BaseChannel):
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         if await self._streaming_update(message_id, text):
             return
-        card = wrap_text_as_card(text)
-        content = json.dumps(card, ensure_ascii=False)
-        await self._client.edit_message(message_id, "interactive", content)
+        await self._edit_card(message_id, wrap_text_as_card(text))
 
     async def edit_placeholder_message(
         self,
@@ -197,9 +195,13 @@ class FeishuOutboundMixin(BaseChannel):
     ) -> None:
         """Replace placeholder with a rich result card; finalize streaming if active."""
         await self._streaming_finalize(message_id, msg.content or "")
-        card = self._build_outbound_card(msg)
+        await self._edit_card(message_id, self._build_outbound_card(msg))
+
+    async def _edit_card(self, message_id: str, card: dict[str, object]) -> None:
+        """Replace the card of ``message_id``; Feishu answers a refused edit with a false result, not an error."""
         content = json.dumps(card, ensure_ascii=False)
-        await self._client.edit_message(message_id, "interactive", content)
+        if not await self._client.edit_message(message_id, "interactive", content):
+            raise ChannelSendError("Feishu did not accept the card edit", channel=self.name, retriable=False)
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         await self._client.delete_message(message_id)

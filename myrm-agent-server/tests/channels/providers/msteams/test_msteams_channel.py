@@ -712,7 +712,9 @@ class TestOutbound:
         mock_http = _mock_http_on_channel(ch)
         mock_http.put = AsyncMock()
 
-        await ch.edit_message("unknown_conv", "act_id", "text")
+        with pytest.raises(ChannelSendError, match="no service URL") as excinfo:
+            await ch.edit_message("unknown_conv", "act_id", "text")
+        assert excinfo.value.retriable is False
         mock_http.put.assert_not_called()
 
     @pytest.mark.asyncio

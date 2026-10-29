@@ -360,7 +360,8 @@ class TestMatrixEditDelete:
     @pytest.mark.asyncio
     async def test_edit_no_client(self) -> None:
         ch = MatrixChannel(homeserver="https://matrix.example.com", access_token="tok")
-        await ch.edit_message("!room:example.com", "$ev1", "updated")
+        with pytest.raises(ChannelSendError, match="not running"):
+            await ch.edit_message("!room:example.com", "$ev1", "updated")
 
     @pytest.mark.asyncio
     async def test_delete_message(self) -> None:

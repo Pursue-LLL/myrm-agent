@@ -32,6 +32,18 @@ from app.channels.types.messages import RenderStyle
 logger = logging.getLogger(__name__)
 
 
+def _discord_error(exc: discord.DiscordException, channel_name: str, action: str) -> ChannelSendError:
+    """Classify a Discord REST failure: throttling and server faults may succeed on a retry, other rejections never."""
+    if isinstance(exc, discord.HTTPException):
+        return ChannelSendError(
+            f"Discord {action} failed: {exc}",
+            channel=channel_name,
+            status_code=exc.status,
+            retriable=exc.status == 429 or exc.status >= 500,
+        )
+    return ChannelSendError(f"Discord {action} failed: {exc}", channel=channel_name)
+
+
 class DiscordOutboundMixin(BaseChannel):
     """Discord REST sending for ``DiscordChannel``.
 
@@ -56,6 +68,13 @@ class DiscordOutboundMixin(BaseChannel):
         except Exception as exc:
             logger.warning("Failed to resolve channel %s: %s", chat_id, exc)
         return None
+
+    async def _require_channel(self, chat_id: str) -> discord.abc.Messageable:
+        """Resolve ``chat_id``, raising ``ChannelSendError`` when Discord cannot be reached there."""
+        channel = await self._resolve_channel(chat_id)
+        if not channel:
+            raise ChannelSendError(f"Discord channel {chat_id} is not reachable", channel=self.name)
+        return channel
 
     async def _create_forum_thread(
         self,
@@ -84,9 +103,7 @@ class DiscordOutboundMixin(BaseChannel):
         return str(getattr(starter_msg, "id", thread_id)) if starter_msg else thread_id
 
     async def send(self, message: OutboundMessage) -> str | None:
-        channel = await self._resolve_channel(message.recipient_id)
-        if not channel:
-            raise ChannelSendError(f"Discord channel {message.recipient_id} is not reachable", channel=self.name)
+        channel = await self._require_channel(message.recipient_id)
         media = build_discord_media(message.media)
         # URL-only attachments travel as links in the text: Discord unfurls them and the splitter chunks them with it.
         outbound = dataclasses.replace(message, content="\n".join(filter(None, (message.content, *media.links))))
@@ -95,15 +112,8 @@ class DiscordOutboundMixin(BaseChannel):
                 sent_id: str | None = await self._create_forum_thread(channel, outbound.content, files=media.files)
             else:
                 sent_id = await self._send_chunks(channel, outbound, media.files)
-        except discord.HTTPException as exc:
-            raise ChannelSendError(
-                f"Discord send failed: {exc}",
-                channel=self.name,
-                status_code=exc.status,
-                retriable=exc.status == 429 or exc.status >= 500,
-            ) from exc
         except discord.DiscordException as exc:
-            raise ChannelSendError(f"Discord send failed: {exc}", channel=self.name) from exc
+            raise _discord_error(exc, self.name, "send") from exc
         if media.failed:
             raise ChannelSendError.for_attachments(self.name, media.failed, delivered_any=sent_id is not None)
         return sent_id
@@ -149,14 +159,12 @@ class DiscordOutboundMixin(BaseChannel):
             return None
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
-        channel = await self._resolve_channel(chat_id)
-        if not channel:
-            return
+        channel = await self._require_channel(chat_id)
         try:
             msg = await channel.fetch_message(int(message_id))
             await msg.edit(content=text)
-        except Exception as exc:
-            logger.error("Failed to edit message %s: %s", message_id, exc)
+        except discord.DiscordException as exc:
+            raise _discord_error(exc, self.name, "edit") from exc
 
     async def edit_placeholder_message(
         self,
@@ -164,17 +172,15 @@ class DiscordOutboundMixin(BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        channel = await self._resolve_channel(chat_id)
-        if not channel:
-            return
+        channel = await self._require_channel(chat_id)
         try:
             target = await channel.fetch_message(int(message_id))
             embed = discord.Embed(description=msg.content)
             if msg.reasoning:
                 embed.set_footer(text=msg.reasoning[:2048])
             await target.edit(embed=embed)
-        except Exception as exc:
-            logger.error("Failed to edit placeholder message %s: %s", message_id, exc)
+        except discord.DiscordException as exc:
+            raise _discord_error(exc, self.name, "edit") from exc
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         channel = await self._resolve_channel(chat_id)

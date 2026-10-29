@@ -409,7 +409,11 @@ class BaseChannel(ABC, EventEmitter):
         return None
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
-        """Edit a previously sent message. No-op if not supported."""
+        """Edit a previously sent message.
+
+        A channel with ``capabilities.edit`` raises ``ChannelSendError`` when the platform did not apply the
+        edit: callers fall back to a new message only on that signal. Other channels are never asked to edit.
+        """
 
     async def pin_message(self, chat_id: str, message_id: str) -> None:
         """Pin a message in the chat. Override in subclasses."""
@@ -424,7 +428,8 @@ class BaseChannel(ABC, EventEmitter):
 
         Channels that support rich formatting (e.g. Feishu cards with sources/header)
         should override this to build structured output from the complete message.
-        Default: falls back to edit_message with the text content.
+        Default: falls back to edit_message with the text content. Like ``edit_message`` it raises
+        ``ChannelSendError`` when the edit was not applied, so the router sends the reply as a new message.
 
         ``msg.content`` is already rendered (tool summary, sources and header included) and ``render()``
         returns such a message unchanged, so a channel may pass it through ``render()`` or send the content

@@ -1797,7 +1797,9 @@ class TestTelegramEditPlaceholderParseError:
         )
 
         msg = OutboundMessage(channel="telegram", user_id="u1", recipient_id="42", content="text")
-        await ch.edit_placeholder_message("42", "100", msg)
+        with pytest.raises(ChannelSendError, match="message to edit not found") as excinfo:
+            await ch.edit_placeholder_message("42", "100", msg)
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_edit_placeholder_other_error(self) -> None:
@@ -1806,7 +1808,9 @@ class TestTelegramEditPlaceholderParseError:
         ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: message to edit not found"))
 
         msg = OutboundMessage(channel="telegram", user_id="u1", recipient_id="42", content="text")
-        await ch.edit_placeholder_message("42", "100", msg)
+        with pytest.raises(ChannelSendError, match="message to edit not found") as excinfo:
+            await ch.edit_placeholder_message("42", "100", msg)
+        assert excinfo.value.retriable is False
 
 
 class TestTelegramEditMessageInner:
@@ -1824,7 +1828,7 @@ class TestTelegramEditMessageInner:
         await ch.edit_message("42", "100", "text")
 
     @pytest.mark.asyncio
-    async def test_edit_parse_error_inner_other_logs(self) -> None:
+    async def test_edit_parse_error_inner_other_is_reported(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
         ch._client.edit_message_text = AsyncMock(
@@ -1834,15 +1838,28 @@ class TestTelegramEditMessageInner:
             ]
         )
 
-        await ch.edit_message("42", "100", "text")
+        with pytest.raises(ChannelSendError, match="message to edit not found"):
+            await ch.edit_message("42", "100", "text")
 
     @pytest.mark.asyncio
-    async def test_edit_other_error_logs(self) -> None:
+    async def test_edit_other_error_is_reported(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
         ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: message to edit not found"))
 
-        await ch.edit_message("42", "100", "text")
+        with pytest.raises(ChannelSendError, match="message to edit not found") as excinfo:
+            await ch.edit_message("42", "100", "text")
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_edit_server_error_stays_retriable(self) -> None:
+        ch = _make_channel()
+        ch._client = MagicMock()
+        ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(502, "Bad Gateway"))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.edit_message("42", "100", "text")
+        assert excinfo.value.retriable is True
 
 
 class TestTelegramPinError:

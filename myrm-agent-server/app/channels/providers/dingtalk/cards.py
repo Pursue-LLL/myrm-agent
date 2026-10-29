@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.types import OutboundMessage
@@ -38,6 +39,11 @@ class DingTalkCardMixin:
     _streaming_cards: dict[str, str]
     _group_conversations: set[str]
     _chat_sender_map: dict[str, str]
+
+    if TYPE_CHECKING:
+
+        @staticmethod
+        def _normalize_dingtalk_markdown(text: str) -> str: ...
 
     async def send_placeholder(
         self,
@@ -73,9 +79,10 @@ class DingTalkCardMixin:
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         if message_id not in self._streaming_cards:
-            return
+            raise ChannelSendError("DingTalk can only edit its streaming cards", channel=self.name, retriable=False)
         text = self._normalize_dingtalk_markdown(text)
-        await self._api.streaming_update(message_id, "content", text, is_finalize=False)
+        if not await self._api.streaming_update(message_id, "content", text, is_finalize=False):
+            raise ChannelSendError("DingTalk rejected the card update", channel=self.name)
 
     async def edit_placeholder_message(
         self,

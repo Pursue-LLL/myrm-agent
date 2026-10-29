@@ -237,10 +237,11 @@ class TestMattermostOutbound:
         mock.assert_called_once_with("msg_1", "Updated text")
 
     @pytest.mark.asyncio
-    async def test_edit_message_failure(self) -> None:
+    async def test_edit_message_failure_is_reported_to_the_caller(self) -> None:
         ch = _make_channel()
         with patch.object(ch._api, "update_post", new_callable=AsyncMock, side_effect=Exception("err")):
-            await ch.edit_message("ch_1", "msg_1", "Updated")
+            with pytest.raises(ChannelSendError, match="edit failed: err"):
+                await ch.edit_message("ch_1", "msg_1", "Updated")
 
     @pytest.mark.asyncio
     async def test_delete_message(self) -> None:

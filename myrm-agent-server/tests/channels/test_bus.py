@@ -332,14 +332,41 @@ class TestMessageBusSendTracked:
         assert "Click" in ch.sent[0].content
 
 
+class _EditRecordingChannel(FakeChannel):
+    """Declares its own capabilities so the shared FakeChannel class state cannot leak into it."""
+
+    capabilities = ChannelCapabilities(edit=True)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.edits: list[tuple[str, str, str]] = []
+
+    async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
+        self.edits.append((chat_id, message_id, text))
+
+
+class _NoEditCapabilityChannel(_EditRecordingChannel):
+    capabilities = ChannelCapabilities(edit=False)
+
+
 class TestMessageBusEditMessage:
     @pytest.mark.asyncio
     async def test_edit_returns_true_on_success(self) -> None:
         bus = MessageBus()
-        ch = FakeChannel()
+        ch = _EditRecordingChannel()
         bus.register_channel(ch)
         result = await bus.edit_channel_message("fake", "chat1", "msg1", "new content")
         assert result is True
+        assert ch.edits == [("chat1", "msg1", "new content")]
+
+    @pytest.mark.asyncio
+    async def test_edit_reports_false_without_edit_capability(self) -> None:
+        bus = MessageBus()
+        ch = _NoEditCapabilityChannel()
+        bus.register_channel(ch)
+        result = await bus.edit_channel_message("fake", "chat1", "msg1", "new content")
+        assert result is False
+        assert ch.edits == []
 
     @pytest.mark.asyncio
     async def test_edit_returns_false_for_unknown_channel(self) -> None:
@@ -693,7 +720,7 @@ class TestMessageBusEdgeCases:
 
     @pytest.mark.asyncio
     async def test_edit_message_exception_returns_false(self) -> None:
-        class FailEditChannel(FakeChannel):
+        class FailEditChannel(_EditRecordingChannel):
             async def edit_message(self, chat_id: str, message_id: str, content: str) -> None:
                 raise RuntimeError("edit failed")
 
