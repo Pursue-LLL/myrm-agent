@@ -1,18 +1,20 @@
 """A shell command that is stored or shown loses every credential typed into it.
 
-``redact_command_line`` is the one entry of the places that keep a command (the audit log, the background-job
-registry): the command rules (``curl -u``, ``sshpass -p``, ...) run first, because their anchor is the command name and a
-value that touches a separator would otherwise swallow it; the credential-named parameters follow; the shared redactor
-finishes. The value of a parameter is one shell word, so a separator, a closing bracket or a backtick ends it, and a
-backslash makes the next character part of it.
+``redact_command_line`` is the entry of the commands the audit log and the background-job registry keep: the command
+rules (``curl -u``, ``sshpass -p``, ...) run first, because their anchor is the command name and a value that touches a
+separator would otherwise swallow it; the credential-named parameters follow; the shared redactor finishes. The value
+of a parameter is one shell word as the shell reads it: a quoted string holds whatever is typed inside it, and outside
+quotes a separator, a closing bracket or a backtick ends the word while a backslash makes the next character part of it.
 """
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from myrm_agent_harness.core.security.redact import redact_command_line, redact_sensitive_text
-from myrm_agent_harness.core.security.redact.command_line import _redact_named_parameters
+from myrm_agent_harness.core.security.redact.command_line import _KEYWORDS, _redact_named_parameters
 
 _PASSWORD = "Secret99pwXyz"
 
@@ -167,3 +169,89 @@ class TestAnEscapedMetacharacterBelongsToTheValue:
             result = redact_command_line(f"tool {flag} pa\\{character}ssXYZ99 next")
             assert "ssXYZ99" not in result
             assert "next" in result
+
+
+_FIRST_HALF = "hunter2zq"
+_SECOND_HALF = "Secret99zq"
+_HOLDERS = (" ", "\t", "\n", ";", "|", "&", "<", ">", "(", ")", "`", "$(", " a;b | c ")
+
+
+class TestAQuotedValueIsOneUnit:
+    """A quoted string is one word for the shell whatever it holds, so the whole of it is the value."""
+
+    @pytest.mark.parametrize("holder", _HOLDERS)
+    @pytest.mark.parametrize("quote", ["'", '"'])
+    @pytest.mark.parametrize("form", ["--{name} {value}", "--{name}={value}", "{name}={value}"])
+    def test_no_part_of_a_quoted_value_is_left(self, form: str, quote: str, holder: str) -> None:
+        """Every credential word, in the long-option and the assignment form, with the word after it kept."""
+        for name in _KEYWORDS:
+            value = f"{quote}{_FIRST_HALF}{holder}{_SECOND_HALF}{quote}"
+            command = f"tool {form.format(name=name, value=value)} next"
+            for result in (_redact_named_parameters(command), redact_command_line(command)):
+                assert _FIRST_HALF not in result, command
+                assert _SECOND_HALF not in result, command
+                assert result.endswith(" next"), command
+
+    def test_the_quotes_go_with_the_value(self) -> None:
+        assert _redact_named_parameters("tool --key 'a b' next") == "tool --key=***REDACTED*** next"
+        assert _redact_named_parameters('tool KEY="a;b" next') == "tool KEY=***REDACTED*** next"
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"tool --key \"{_FIRST_HALF}'{_SECOND_HALF}\" next",
+            f"tool --key '{_FIRST_HALF}\"{_SECOND_HALF}' next",
+            f'tool --key "{_FIRST_HALF}\\"{_SECOND_HALF}" next',
+        ],
+    )  # fmt: skip
+    def test_the_other_quote_and_an_escaped_quote_belong_to_the_value(self, command: str) -> None:
+        """The pass alone is checked: the shared redactor that follows would hide a value cut short by folding the rest
+        of the word into its mask."""
+        assert _redact_named_parameters(command) == "tool --key=***REDACTED*** next"
+
+    def test_a_backslash_inside_single_quotes_is_a_character_of_the_value(self) -> None:
+        """A single-quoted string ends at the next ``'`` whatever precedes it: ``'a\\'`` is one complete word."""
+        assert _redact_named_parameters("tool --key 'a\\' next") == "tool --key=***REDACTED*** next"
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"tool --key {_FIRST_HALF}'x y'{_SECOND_HALF} next",
+            f'tool --key "{_FIRST_HALF} x"{_SECOND_HALF} next',
+            f"tool --key '{_FIRST_HALF}'\\''{_SECOND_HALF}' next",
+            f"tool KEY={_FIRST_HALF}'a;b'\"c d\" next",
+        ],
+    )  # fmt: skip
+    def test_a_word_made_of_quoted_and_unquoted_parts_is_one_value(self, command: str) -> None:
+        """``'pa'\\''ss'`` is how a shell word holds a single quote: three parts, one word."""
+        result = redact_command_line(command)
+        assert _FIRST_HALF not in result
+        assert _SECOND_HALF not in result
+        assert result.endswith(" next")
+
+    def test_a_command_after_a_quoted_value_keeps_its_own_credential_masked(self) -> None:
+        result = redact_command_line(f"tool --key '{_FIRST_HALF};x' && curl -u me:{_PASSWORD} https://x.io")
+        assert _FIRST_HALF not in result
+        assert _PASSWORD not in result
+        assert "&& curl" in result
+
+    def test_an_unterminated_quote_is_left_as_written(self) -> None:
+        """Without a closing quote there is no end to the value: the pass does not guess one."""
+        command = f"tool --key '{_FIRST_HALF} {_SECOND_HALF} next"
+        assert _redact_named_parameters(command) == command
+
+
+class TestQuotedValuesStayLinear:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "tool --key '" + "a " * 40_000,
+            "tool --key '" + "a\\'" * 30_000,
+            "--key 'a " * 9_000,
+        ],
+        ids=["quote-never-closes", "every-quote-escaped", "many-starts"],
+    )  # fmt: skip
+    def test_the_entry_does_a_bounded_amount_of_work(self, command: str) -> None:
+        start = time.process_time()
+        redact_command_line(command)
+        assert time.process_time() - start < 2.0

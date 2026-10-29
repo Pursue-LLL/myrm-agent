@@ -10,7 +10,7 @@ internal symbols re-exported by the ``agent.security.redact`` facade.
 [INPUT]
 - engine::redact_sensitive_text, engine::redact_for_llm, engine::redact_for_display, engine::RedactingFormatter and the other public and internal symbols (POS: redaction pipeline and public API of the redactor)
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
-- command_line::redact_command_line (POS: Single entry of every place that keeps a shell command)
+- command_line::redact_command_line (POS: Entry of the commands the audit log and the background-job registry keep)
 - file_view::redact_file_text (POS: per-file redaction by file type, shared by the tools that show a file's text)
 - masking::_mask_token (POS: Leaf value-masking helpers of the runtime redactor)
 

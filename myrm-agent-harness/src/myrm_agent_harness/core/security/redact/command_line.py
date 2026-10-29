@@ -15,8 +15,7 @@ a file or a tool result, while a text known to be a command masks it.
 - redact_command_line(command) -> str — the command with every credential masked; whitespace and line breaks as written
 
 [POS]
-Single entry of every place that keeps a command; ``agent/meta_tools/bash`` calls it for the event log and the
-background-job registry.
+Entry of the commands the audit log and the background-job registry keep; ``agent/meta_tools/bash`` calls it for both.
 """
 
 from __future__ import annotations
@@ -33,14 +32,17 @@ _KEYWORDS = (
 )  # fmt: skip
 _NAMES = "|".join(re.escape(keyword) for keyword in _KEYWORDS)
 
-# A value is one shell word: it ends at whitespace, a quote, a separator, a bracket or a backtick, and a backslash keeps
-# the next character in it. The command is known to be one, so the words after a value stay as written.
-_SHELL_WORD = r"(?:\\.|[^\s\"'`;|&<>()\\])+"
+# A value is one shell word, the way the shell reads it: a run of quoted strings and unquoted characters. A single-quoted
+# string ends at the next ``'``, a double-quoted one at the next ``"`` that no backslash escapes, and what is inside holds
+# anything (a space, a separator, the other kind of quote). An unquoted character is anything but whitespace, a quote, a
+# separator, a bracket or a backtick, and a backslash keeps the next character in the word. The command is known to be
+# one, so the words after a value stay as written; a quote that never closes has no end to mask and is not matched.
+_SHELL_WORD = r"""(?:'[^']*'|"(?:[^"\\]|\\.)*"|\\.|[^\s"'`;|&<>()\\])+"""
 
 # ``--token=x`` / ``--token x`` / ``--token="x"`` and the environment form ``TOKEN=x``. A short option (``-t x``) has no
 # name to go by: the command rules and the shared redactor handle those, this pass does not guess.
-_LONG_OPTION_RE = re.compile(rf"--({_NAMES})[=\s]+([\"']?)({_SHELL_WORD})\2", re.IGNORECASE)
-_ASSIGNMENT_RE = re.compile(rf"({_NAMES})=([\"']?)({_SHELL_WORD})\2", re.IGNORECASE)
+_LONG_OPTION_RE = re.compile(rf"--({_NAMES})[=\s]+{_SHELL_WORD}", re.IGNORECASE)
+_ASSIGNMENT_RE = re.compile(rf"({_NAMES})={_SHELL_WORD}", re.IGNORECASE)
 
 
 def _redact_named_parameters(command: str) -> str:
