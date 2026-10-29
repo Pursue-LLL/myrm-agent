@@ -16,7 +16,7 @@ WebSocket 连接两端的控制器：连接恢复（带抖动指数退避的状�
 
 - 控制器只做判断与计时：`ping_sender`、`socket_closer` 与状态订阅回调都由调用方注入，本包不持有 socket。
 - 「是否有进行中的工作」由调用方通过 `mark_workload_state` 告知，心跳控制器不自行推断。
-- 「未接入」：`app/` 内没有本包以外的导入，只有下面的测试引用；前端有同名实现（`myrm-agent-frontend/src/lib/connection/connection-controller.ts`、`jitter-backoff.ts`）。
+- 「未接入」：`app/` 内没有本包以外的导入，只有下面的测试引用；前端有同名的 TypeScript 版本（`myrm-agent-frontend/src/lib/connection/connection-controller.ts`、`jitter-backoff.ts`），同样没有产品入口可达的导入（`bun run verify:orphans` 列出）。
 
 ## 测试
 
