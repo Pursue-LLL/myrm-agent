@@ -8,6 +8,7 @@ These tests lock the normalization and the prompt contract.
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -234,3 +235,33 @@ async def test_spawn_background_strips_after_fence_unwrap() -> None:
     spawned_command = executor.spawn_background_process.await_args.args[0].args[1]
     assert spawned_command == "python server.py"
     mock_registry.return_value.register.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_the_stripped_ampersand_warning_shows_a_masked_command(caplog: pytest.LogCaptureFixture) -> None:
+    """The warning quotes the command the agent issued: a credential typed into it stays out of the log."""
+    caplog.set_level(logging.WARNING)
+    executor = _mock_executor()
+    executor.spawn_background_process = AsyncMock(return_value=MagicMock())
+    executor.bind_workspace = MagicMock()
+
+    bash_exec = BashExecutor(executor, enable_skill_execution=False)
+    fake_info = MagicMock(pid=4444, command="python server.py", status="running")
+
+    with (
+        patch.object(
+            bash_exec._workspace_manager,
+            "get_or_create",
+            AsyncMock(return_value=(MagicMock(), None)),
+        ),
+        patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
+        patch.object(bash_exec, "_log_bash_command_execution", AsyncMock()),
+        patch(
+            "myrm_agent_harness.agent.meta_tools.bash._background.registry.get_background_registry",
+        ) as mock_registry,
+    ):
+        mock_registry.return_value.register = AsyncMock(return_value=fake_info)
+        await bash_exec.spawn_background("python server.py --key abc123xyz &", session_id="sess-1")
+
+    assert "trailing '&'" in caplog.text
+    assert "abc123xyz" not in caplog.text

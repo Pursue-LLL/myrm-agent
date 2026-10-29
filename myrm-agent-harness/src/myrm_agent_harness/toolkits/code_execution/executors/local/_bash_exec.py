@@ -7,6 +7,7 @@ executors.execution_evidence::record_execution (POS: Execution evidence recorder
 code_execution.interceptor::trigger_bash_action_hook (POS: Bash action snapshot hook)
 code_execution.security.validator::validate_command; core.security.process_env::sanitize_env (POS: Command validation and environment sanitising)
 core.security.ocap::CapabilityAction, enforce_capability_access (POS: Capability scope)
+core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 LocalBashMixin: ``execute_bash`` (validated, audited run in the persistent shell with the command's own environment),
@@ -28,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from myrm_agent_harness.core.security.ocap import CapabilityAction, enforce_capability_access
+from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import ExecutionContext, ExecutionResult
 from myrm_agent_harness.toolkits.code_execution.executors.common import (
@@ -183,12 +185,11 @@ class LocalBashMixin:
         if session_result.success:
             self._helper.log_execution_success("LocalExecutor", execution_time)
         else:
-            cmd_preview = command[:200] + "..." if len(command) > 200 else command
             logger.warning(
                 " [LocalExecutor] Bash exit code: %d (%s) | cmd: %s",
                 session_result.exit_code,
                 self._helper.format_execution_time(execution_time),
-                cmd_preview,
+                command_preview(command, 200),
             )
             if session_result.stderr:
                 logger.warning(f" [LocalExecutor] Bash stderr: {session_result.stderr}")

@@ -2,6 +2,7 @@
 
 [INPUT]
 - agent.security.approval_flow::AllowlistEntry (POS: Core component for "Always Allow" feature in Human-in-the-Loop approval system. Works with middlewares/approval/ subsystem which uses LangGraph interrupt() for approval flow. Allow-always decisions use database persistence (DBAllowlistStore): User clicks "Always Allow" → saved to user_tool_allowlist table On restart → middleware lazy-loads rules via allowlist.load_user() Rules survive backend restarts TTL refresh (default 5min) ensures multi-instance cache consistency when ttl_seconds > 0 ttl_seconds <= 0 disables time-based expiry and opportunistic TTL cleanup Automatic cleanup prevents memory leaks when TTL is enabled (expired locks removed opportunistically))
+- core.security.redact::redact_command_line (POS: Credential redaction of a shell command, here the test of a derived pattern)
 
 [OUTPUT]
 - reset_denial_counter: Reset session-scoped or per-run denial counters.
@@ -9,7 +10,7 @@
 - record_rejection: Count a person's refusal and return its reason and the ToolMessage text for the model.
 - record_approval: Reset consecutive denial counter on successful operation.
 - is_threshold_breached: Check if denial thresholds have been breached.
-- add_to_allowlist_if_needed: Add permission to user's allowlist if requested.
+- add_to_allowlist_if_needed: Add permission to user's allowlist if requested; a command pattern that would carry a credential is not stored.
 
 [POS]
 Approval middleware helper functions. Implements dual-threshold denial tracking
@@ -28,6 +29,7 @@ from enum import StrEnum
 
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 from myrm_agent_harness.agent.security.command_allowlist_pattern import derive_command_pattern
+from myrm_agent_harness.core.security.redact import redact_command_line
 
 from .refusal import DenialCause, denial_hint, rejection_cause, rejection_message
 
@@ -185,6 +187,12 @@ def _check_breach(state: DenialState) -> ThresholdBreach:
     return ThresholdBreach.NONE
 
 
+def _carries_credential(pattern: str) -> bool:
+    """Whether a derived command pattern holds a credential; its trailing ``*`` is a wildcard, not a value."""
+    command = pattern.removesuffix(" *")
+    return redact_command_line(command) != command
+
+
 async def add_to_allowlist_if_needed(
     allow_always: bool | Mapping[str, object],
     user_id: str,
@@ -203,7 +211,9 @@ async def add_to_allowlist_if_needed(
     1. Permission-level: allow_always=True → matches all tools of this permission type
     2. Tool-level: allow_always={'tool': True} → matches this specific tool
     3. Exact match: allow_always={'tool': True, 'args': True} → matches tool + args (requires tool_args_hash)
-    4. Pattern match: allow_always={'tool': True, 'pattern': True} → matches tool + command glob
+    4. Pattern match: allow_always={'tool': True, 'pattern': True} → matches tool + command glob; a command
+       whose first words carry a credential (``psql --password=x``) yields no pattern, because the pattern
+       is stored, listed in settings and logged as written
 
     Time-bound grant:
     - ttl_seconds: Optional time-to-live in seconds. If provided (> 0), expires_at
@@ -268,9 +278,9 @@ async def add_to_allowlist_if_needed(
         match_pattern = allow_always.get("pattern", False)
         if match_pattern:
             pattern = derive_command_pattern(tool_command or "")
-            if not pattern:
+            if not pattern or _carries_credential(pattern):
                 logger.warning(
-                    "[HITL] Skipped pattern allow-always for %s: command missing or compound shell",
+                    "[HITL] Skipped pattern allow-always for %s: command missing, compound shell or credential-bearing",
                     tool_name,
                 )
                 return

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -321,3 +322,23 @@ def test_mcp_min_timeout_is_120() -> None:
     from myrm_agent_harness.agent.meta_tools.bash._executor.executor import _MCP_MIN_TIMEOUT
 
     assert _MCP_MIN_TIMEOUT == 120
+
+
+@pytest.mark.asyncio
+async def test_bash_tool_logs_a_masked_command(caplog: pytest.LogCaptureFixture) -> None:
+    """The BASH_EXECUTE line quotes the issued command: a credential typed into it stays out of the log."""
+    caplog.set_level(logging.INFO)
+    _, p_ctx, p_get, p_be, p_scope = _patch_bash_tool_deps()
+
+    with p_ctx, p_get, p_be, p_scope:
+        tool = create_bash_code_execute_tool()
+        with pytest.raises(ToolError):
+            await tool.ainvoke(
+                {
+                    "command": "import myrm_tools\napi_key='abc123xyz'",
+                    "reason": "verify the command preview is masked before the preflight refuses it",
+                }
+            )
+
+    assert "BASH_EXECUTE" in caplog.text
+    assert "abc123xyz" not in caplog.text

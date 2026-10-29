@@ -13,7 +13,7 @@ import time
 
 import pytest
 
-from myrm_agent_harness.core.security.redact import redact_command_line, redact_sensitive_text
+from myrm_agent_harness.core.security.redact import command_preview, redact_command_line, redact_sensitive_text
 from myrm_agent_harness.core.security.redact.command_line import _KEYWORDS, _redact_named_parameters
 
 _PASSWORD = "Secret99pwXyz"
@@ -274,3 +274,31 @@ class TestQuotedValuesStayLinear:
         start = time.process_time()
         redact_command_line(command)
         assert time.process_time() - start < 2.0
+
+
+class TestCommandPreview:
+    """A log line shows the start of a command: it is masked whole and cut afterwards."""
+
+    _COMMAND = "curl --key 'abc123xyz secret value' https://example.com/path"
+
+    def test_a_short_command_is_masked_and_whole(self) -> None:
+        assert command_preview("tool --key abc123xyz run", 100) == "tool --key=***REDACTED*** run"
+
+    def test_a_command_without_a_credential_is_unchanged(self) -> None:
+        assert command_preview("git status -sb", 100) == "git status -sb"
+
+    def test_an_empty_command_stays_empty(self) -> None:
+        assert command_preview("", 10) == ""
+
+    def test_a_cut_marks_itself(self) -> None:
+        assert command_preview("a" * 50, 10) == "a" * 10 + "..."
+        assert command_preview("a" * 10, 10) == "a" * 10
+
+    @pytest.mark.parametrize("limit", [1, 8, 12, 14, 20, 24, 40, 59])
+    def test_no_cut_shows_a_part_of_the_value(self, limit: int) -> None:
+        assert "abc" not in command_preview(self._COMMAND, limit)
+
+    def test_a_cut_before_the_masking_would_show_it(self) -> None:
+        # The reason the order is fixed: a value cut off before its closing quote is an unterminated quote, which the
+        # entry does not match, so the first characters of the value would stay.
+        assert "abc123xy" in redact_command_line(self._COMMAND[:20])

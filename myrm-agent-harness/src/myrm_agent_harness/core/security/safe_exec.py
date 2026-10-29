@@ -16,6 +16,7 @@ Security guarantees:
 
 [INPUT]
 - types::user_credentials_ctx (POS: Security type definitions — ContextVar for user-affinity credentials)
+- redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 - ExecResult: structured execution result with mode audit field
@@ -37,6 +38,8 @@ import signal
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
+
+from myrm_agent_harness.core.security.redact import command_preview
 
 if TYPE_CHECKING:
     from myrm_agent_harness.core.security.types import EphemeralUserCredential
@@ -174,7 +177,7 @@ async def safe_exec(
         except ValueError:
             logger.warning(
                 "safe_exec: shlex.split failed, falling back to SHELL: %s",
-                command[:120],
+                command_preview(command, 120),
             )
             use_shell = True
         else:
@@ -202,7 +205,7 @@ async def safe_exec(
         pass
 
     if use_shell:
-        logger.warning("safe_exec SHELL mode: %s", command[:120])
+        logger.warning("safe_exec SHELL mode: %s", command_preview(command, 120))
         proc = await asyncio.create_subprocess_shell(
             command,
             stdout=asyncio.subprocess.PIPE,
@@ -213,7 +216,7 @@ async def safe_exec(
         )
         mode: Literal["direct", "shell"] = "shell"
     else:
-        logger.warning("safe_exec DIRECT mode: %s", argv)
+        logger.warning("safe_exec DIRECT mode: %s", command_preview(command, 120))
         proc = await asyncio.create_subprocess_exec(
             *argv,
             stdout=asyncio.subprocess.PIPE,

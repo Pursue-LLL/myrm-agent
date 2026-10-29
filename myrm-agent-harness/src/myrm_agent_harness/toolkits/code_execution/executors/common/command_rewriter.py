@@ -1,9 +1,9 @@
 """Command rewriting service.
 
-Transforms commands for code execution (path rewriting, uv run wrapping).
+Transforms commands for code execution (workspace path rewriting, grep routed to ripgrep).
 
 [INPUT]
-- (none)
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 - CommandRewriter: Stateless command rewriter.
@@ -18,14 +18,16 @@ import re
 import shutil
 from pathlib import Path
 
+from myrm_agent_harness.core.security.redact import command_preview
+
 logger = logging.getLogger(__name__)
 
 
 class CommandRewriter:
     """Stateless command rewriter.
 
-    Rewrites python commands to use ``uv run`` and resolves /workspace paths
-    to actual working directories. Extensible for additional rewrite rules.
+    Resolves /workspace paths to actual working directories and routes grep to
+    ripgrep. Extensible for additional rewrite rules.
     """
 
     @staticmethod
@@ -33,33 +35,6 @@ class CommandRewriter:
     def is_ripgrep_available() -> bool:
         """Check if ripgrep (rg) binary is available on system PATH."""
         return shutil.which("rg") is not None
-
-    def rewrite_python_command(self, command: str) -> str:
-        """Rewrite python commands to use ``uv run``.
-
-        Transforms:
-        - ``python script.py`` -> ``uv run python script.py``
-        - ``python3 script.py`` -> ``uv run python3 script.py``
-
-        Args:
-            command: Original command.
-
-        Returns:
-            Rewritten command.
-        """
-        stripped = command.strip()
-
-        if not re.match(r"^python3?(\s+|$)", stripped):
-            return command
-
-        uv_path = shutil.which("uv")
-        if uv_path:
-            new_command = f"uv run {stripped}"
-            logger.warning(f" [CommandRewriter] Using uv run: {new_command[:100]}...")
-            return new_command
-
-        logger.warning(" [CommandRewriter] uv not available, using original command")
-        return command
 
     def rewrite_workspace_paths(self, command: str, workspace_path: Path | None) -> str:
         """Rewrite /workspace paths in commands to the actual working directory.
@@ -98,7 +73,7 @@ class CommandRewriter:
             new_command = new_command.replace(f"\x00wbws{index}\x00", real)
 
         if new_command != command:
-            logger.warning(f" [CommandRewriter] Rewrote /workspace paths: {new_command[:100]}...")
+            logger.warning(f" [CommandRewriter] Rewrote /workspace paths: {command_preview(new_command, 100)}")
 
         return new_command
 
@@ -165,7 +140,7 @@ class CommandRewriter:
         for idx, orig in enumerate(placeholders):
             result = result.replace(f"\x00wbgrep{idx}\x00", orig)
 
-        if result != command:
-            logger.debug(f" [CommandRewriter] Routed grep to rg: {result[:100]}...")
+        if result != command and logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f" [CommandRewriter] Routed grep to rg: {command_preview(result, 100)}")
 
         return result

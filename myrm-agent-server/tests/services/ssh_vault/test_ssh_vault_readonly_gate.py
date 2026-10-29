@@ -14,6 +14,7 @@ Unit & integration tests in tests/services/ssh_vault/.
 
 from __future__ import annotations
 
+import logging
 import time
 from unittest.mock import AsyncMock, patch
 
@@ -236,3 +237,38 @@ async def test_api_break_glass_flow() -> None:
         )
         assert res_patch.status_code == 200
         assert res_patch.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_a_blocked_high_risk_command_is_logged_masked(
+    vault_service: SSHAssetService, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    result = await vault_service.execute_remote_command(host_alias="dev-server-01", command="rm -rf /tmp/build --key abc123xyz")
+    assert result.is_blocked_high_risk
+    assert "Blocked high-risk command" in caplog.text
+    assert "abc123xyz" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_read_only_violation_is_logged_masked(vault_service: SSHAssetService, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
+    await vault_service.execute_remote_command(host_alias="prod-server-01", command="touch /tmp/flag --key abc123xyz")
+    assert "Blocked read-only violation" in caplog.text
+    assert "abc123xyz" not in caplog.text
+
+
+def test_a_consumed_break_glass_token_is_logged_masked(
+    change_window_service: ProtectedChangeWindowService, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    command = "systemctl restart nginx --key abc123xyz"
+    token_data = change_window_service.issue_break_glass_token(
+        host_alias="prod-server-01", command=command, reason="Emergency", ttl_seconds=300
+    )
+    is_valid, _ = change_window_service.verify_and_consume_token(
+        token=token_data.token, host_alias="prod-server-01", command=command
+    )
+    assert is_valid
+    assert "BREAK_GLASS_CONSUMED" in caplog.text
+    assert "abc123xyz" not in caplog.text

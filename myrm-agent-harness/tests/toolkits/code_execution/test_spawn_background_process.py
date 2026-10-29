@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import os
 import sys
 from pathlib import Path
@@ -353,3 +354,26 @@ async def test_spawn_exit_code_propagated(workspace: Path) -> None:
     process = await executor.spawn_background_process(context)
     exit_code = await process.wait()
     assert exit_code == 42
+
+
+@pytest.mark.asyncio
+async def test_spawn_background_process_logs_a_masked_command(
+    workspace: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The spawn line quotes the whole command line: a credential typed into it stays out of the log."""
+    caplog.set_level(logging.INFO)
+    executor = _make_executor(workspace)
+
+    context = ExecutionContext(
+        code=sys.executable,
+        args=["-c", "pass", "--key", "abc123xyz"],
+        workspace_root=str(workspace),
+    )
+
+    process = await executor.spawn_background_process(context)
+    try:
+        assert "Spawning background" in caplog.text
+        assert "abc123xyz" not in caplog.text
+    finally:
+        process.terminate()
+        await process.wait()

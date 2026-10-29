@@ -272,6 +272,9 @@ from myrm_agent_harness.core.security.process_env import (
 from myrm_agent_harness.core.security.process_env import (
     build_isolated_child_env as build_isolated_child_env,
 )
+from myrm_agent_harness.core.security.redact.command_line import (
+    command_preview as command_preview,
+)
 from myrm_agent_harness.core.security.redact.engine import (
     redact_sensitive_text as redact_sensitive_text,
 )

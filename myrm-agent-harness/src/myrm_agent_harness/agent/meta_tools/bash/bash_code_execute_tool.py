@@ -81,6 +81,7 @@ from myrm_agent_harness.agent.meta_tools.bash._tool.multimodal import (
 from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import (
     resolve_bash_code_execute_tool_description,
 )
+from myrm_agent_harness.core.security.redact import command_preview
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -135,8 +136,8 @@ def create_bash_code_execute_tool(
         """Execute a bash command, python script, or skill invocation."""
         intent = reason.strip()
         command = command.strip()
-        preview = command[:200] + ("..." if len(command) > 200 else "")
-        logger.info("BASH_EXECUTE intent=%r command_preview=%r", intent, preview)
+        if logger.isEnabledFor(logging.INFO):
+            logger.info("BASH_EXECUTE intent=%r command_preview=%r", intent, command_preview(command, 200))
 
         if ".context/" in command:
             paths = []

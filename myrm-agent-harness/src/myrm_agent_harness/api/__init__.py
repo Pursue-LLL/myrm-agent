@@ -222,6 +222,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "get_workspace_root": ("myrm_agent_harness.api.hooks", "get_workspace_root"),
     "is_compiled_distribution": ("myrm_agent_harness.runtime.install_guard.probe", "is_compiled_distribution"),
     "is_registered_action_tool": ("myrm_agent_harness.agent.tool_management.tool_layers", "is_registered_action_tool"),
+    "command_preview": ("myrm_agent_harness.core.security.redact.command_line", "command_preview"),
     "redact_connector_url": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "redact_connector_url"),
     "redact_sensitive_text": ("myrm_agent_harness.core.security.redact.engine", "redact_sensitive_text"),
     "register_ptc_safety_metadata": (

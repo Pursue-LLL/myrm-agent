@@ -1,11 +1,11 @@
 """Credential redaction of a shell command that is stored or shown.
 
-A command is kept by the audit log and by the background-job registry, and read back by the agent. Its credentials sit
-in three shapes: after a command name that takes one (``curl -u``, ``sshpass -p``), after a credential-named parameter
-(``--token x``, ``API_KEY=x``), and inside a value shape (``sk-...``, ``user:pw@host``). The shared redactor knows the
-first and the third, and the parameters whose name says a credential (``--db-password``). This module adds the ones
-whose name only hints at it (``--key``, ``--auth``, ``--bearer``): the shared redactor keeps ``sort --key=2`` readable in
-a file or a tool result, while a text known to be a command masks it.
+A command is kept by the audit log and by the background-job registry, read back by the agent, and quoted by log
+lines. Its credentials sit in three shapes: after a command name that takes one (``curl -u``, ``sshpass -p``), after a
+credential-named parameter (``--token x``, ``API_KEY=x``), and inside a value shape (``sk-...``, ``user:pw@host``). The
+shared redactor knows the first and the third, and the parameters whose name says a credential (``--db-password``). This
+module adds the ones whose name only hints at it (``--key``, ``--auth``, ``--bearer``): the shared redactor keeps
+``sort --key=2`` readable in a file or a tool result, while a text known to be a command masks it.
 
 [INPUT]
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
@@ -13,9 +13,11 @@ a file or a tool result, while a text known to be a command masks it.
 
 [OUTPUT]
 - redact_command_line(command) -> str — the command with every credential masked; whitespace and line breaks as written
+- command_preview(command, limit) -> str — the first ``limit`` characters of the masked command, ``...`` after a cut
 
 [POS]
-Entry of the commands the audit log and the background-job registry keep; ``agent/meta_tools/bash`` calls it for both.
+Entry of the commands the audit log and the background-job registry keep (``agent/meta_tools/bash`` calls it for both)
+and the preview of the commands a log line quotes (bash, code execution, ``safe_exec`` and the SSH vault call it).
 """
 
 from __future__ import annotations
@@ -58,3 +60,13 @@ def redact_command_line(command: str) -> str:
     if not command or not isinstance(command, str):
         return command
     return redact_sensitive_text(_redact_named_parameters(command))
+
+
+def command_preview(command: str, limit: int) -> str:
+    """Return the first ``limit`` characters of ``command`` with every credential masked, ``...`` after a cut.
+
+    The command is masked whole and cut afterwards: a value cut off before its closing quote is an unterminated quote,
+    which the named pass does not match, so the characters of it before the cut would stay.
+    """
+    masked = redact_command_line(command)
+    return masked if len(masked) <= limit else f"{masked[:limit]}..."

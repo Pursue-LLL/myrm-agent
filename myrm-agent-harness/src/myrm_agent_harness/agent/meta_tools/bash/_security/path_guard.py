@@ -3,6 +3,7 @@
 [INPUT]
 - core.security.path::is_sensitive_file, is_evidence_readonly_file (POS: single source of truth for sensitive-file and read-only-evidence rules, shared with the file tools)
 - core.security.path.pattern::first_matching_pattern (POS: shared path-pattern matcher)
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 - agent.middlewares._session_context::get_protected_paths (POS: ContextVar for Goal-scoped protected patterns)
 - utils.errors::ToolError (POS: Agent tool error with format_for_llm protocol)
 
@@ -31,6 +32,7 @@ from collections.abc import Iterator, Sequence
 from myrm_agent_harness.agent.meta_tools.bash._security.shell_parse import extract_shell_c_payload
 from myrm_agent_harness.core.security.path import is_evidence_readonly_file, is_sensitive_file
 from myrm_agent_harness.core.security.path.pattern import first_matching_pattern
+from myrm_agent_harness.core.security.redact import command_preview
 
 logger = logging.getLogger(__name__)
 
@@ -56,17 +58,39 @@ _MAX_NESTED_SHELL_DEPTH = 4
 # Goal-scoped rules below apply; a command that merely names a protected path
 # (``ls evidence/``, ``cat .env``) stays allowed, mirroring the ``VIEW`` bypass
 # in the file-tool validators.
-_WRITE_COMMANDS: frozenset[str] = frozenset({
-    "cp", "dd", "install", "ln", "mv", "rm", "rmdir", "shred", "tee", "touch", "truncate",
-})
+_WRITE_COMMANDS: frozenset[str] = frozenset(
+    {
+        "cp",
+        "dd",
+        "install",
+        "ln",
+        "mv",
+        "rm",
+        "rmdir",
+        "shred",
+        "tee",
+        "touch",
+        "truncate",
+    }
+)
 
 # Copy/sync tools that treat their final operand as the destination. Their
 # direction is unambiguous — a destination is written — so naming them here
 # covers a directory target such as ``rsync -a dist/ evidence/`` without
 # having to recognise every individual path.
-_DESTINATION_COMMANDS: frozenset[str] = frozenset({
-    "cp", "dd", "install", "ln", "mv", "rsync", "scp", "sftp", "smbclient",
-})
+_DESTINATION_COMMANDS: frozenset[str] = frozenset(
+    {
+        "cp",
+        "dd",
+        "install",
+        "ln",
+        "mv",
+        "rsync",
+        "scp",
+        "sftp",
+        "smbclient",
+    }
+)
 
 # ``tar`` sub-commands that write into the archive tree. ``c``/``t`` only read
 # the named paths, so a read-only ``tar czf out.tgz evidence/`` must stay
@@ -74,17 +98,34 @@ _DESTINATION_COMMANDS: frozenset[str] = frozenset({
 # and ``xzf`` carry the same operation as ``x``.
 _TAR_WRITE_FLAGS: frozenset[str] = frozenset({"x", "r", "u", "a"})
 _TAR_LONG_WRITE_FLAGS: frozenset[str] = frozenset({"--extract", "--append", "--update"})
-_TAR_LONG_READ_FLAGS: frozenset[str] = frozenset({
-    "--create", "--list", "--to-stdout", "--get", "--test", "--strip-components",
-})
+_TAR_LONG_READ_FLAGS: frozenset[str] = frozenset(
+    {
+        "--create",
+        "--list",
+        "--to-stdout",
+        "--get",
+        "--test",
+        "--strip-components",
+    }
+)
 
 # Redirection and in-place-edit operators, which write without a command name.
 _WRITE_REDIRECT = re.compile(r"(?:^|[^0-9<>])>{1,2}(?!&)")
 
 # Interpreters whose own arguments decide whether a file changes.
-_SCRIPT_INTERPRETERS: frozenset[str] = frozenset({
-    "node", "perl", "php", "python", "python3", "ruby", "bash", "sh", "zsh",
-})
+_SCRIPT_INTERPRETERS: frozenset[str] = frozenset(
+    {
+        "node",
+        "perl",
+        "php",
+        "python",
+        "python3",
+        "ruby",
+        "bash",
+        "sh",
+        "zsh",
+    }
+)
 
 # Download flags that name a local destination. A command carrying one writes a
 # file, while the same command without it only streams to stdout, so uploads
@@ -305,7 +346,7 @@ def check_sensitive_paths(command: str) -> None:
     eval_cmd = _strip_benign_text_literals_for_sensitive_check(command)
 
     if sensitive_path := _find_sensitive_path(eval_cmd):
-        logger.warning(f" Sensitive path access detected: {command[:100]}")
+        logger.warning(f" Sensitive path access detected: {command_preview(command, 100)}")
         raise ToolError(
             f"Command blocked (security): '{sensitive_path}' is a protected file.",
             user_hint=(

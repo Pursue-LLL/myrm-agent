@@ -16,6 +16,7 @@ bash 执行前安全预检域。
 
 - `../bash_code_execute_tool`（预检接入点）
 - `core/security/path`（敏感文件与只读证据规则 SSOT，与 `file_write_tool` 同源；经 `path_guard` 接入）
+- `core/security/redact`（`command_preview`：守卫的日志行只显示脱敏并截断后的命令）
 - `_security/shell_parse`（`extract_shell_c_payload`，本域内共用解析原语）
 - `agent/middlewares/_session_context`（Goal `protected_paths` 上下文）
 - `toolkits/code_execution/`（安全校验）

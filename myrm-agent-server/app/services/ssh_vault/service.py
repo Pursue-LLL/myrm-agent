@@ -5,6 +5,7 @@ and handles parameterized, safe subprocess remote execution with timeout and saf
 
 [INPUT]
 - .models::SSHAssetSummary, SSHHostConfig, SSHProbeResult, SSHCommandResult, SFTPTransferResult
+- myrm_agent_harness.api::ReadOnlySSHValidator, command_preview (a log line shows the command masked and cut)
 - pathlib::Path
 - asyncio, logging, os, re, socket, time
 - typing::Dict, List, Optional
@@ -28,7 +29,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from myrm_agent_harness.api import ReadOnlySSHValidator
+from myrm_agent_harness.api import ReadOnlySSHValidator, command_preview
 
 from app.services.ssh_vault.change_window import (
     ProtectedChangeWindowService,
@@ -252,7 +253,7 @@ class SSHAssetService:
             )
 
         if not allow_high_risk and self.is_high_risk_command(command):
-            logger.warning("Blocked high-risk command on host '%s': %s", host_alias, command)
+            logger.warning("Blocked high-risk command on host '%s': %s", host_alias, command_preview(command, 200))
             return SSHCommandResult(
                 host_alias=host_alias,
                 command=command,
@@ -277,7 +278,7 @@ class SSHAssetService:
                     logger.warning(
                         "Blocked read-only violation on host '%s': %s (%s)",
                         host_alias,
-                        command,
+                        command_preview(command, 200),
                         val_res.reason,
                     )
                     return SSHCommandResult(
@@ -297,11 +298,16 @@ class SSHAssetService:
 
         ssh_args = [
             "ssh",
-            "-o", "BatchMode=yes",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "ConnectTimeout=10",
-            "-o", "ServerAliveInterval=15",
-            "-p", str(host.port),
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "ConnectTimeout=10",
+            "-o",
+            "ServerAliveInterval=15",
+            "-p",
+            str(host.port),
         ]
 
         if host.identity_file and os.path.isfile(host.identity_file):

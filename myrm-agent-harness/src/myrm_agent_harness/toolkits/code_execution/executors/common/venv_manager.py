@@ -4,6 +4,7 @@ Manages shared virtual environment creation, initialization, and pip command rew
 
 [INPUT]
 - toolkits.code_execution.config::ExecutionConfig (POS: Code execution configuration layer. Defines execution modes, network policies, and runtime settings for the Agent-in-Sandbox architecture.)
+- core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 - VenvManager: Shared virtual environment manager (lazy create, pip rewrite, crash-safe discard).
@@ -18,6 +19,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.common.subprocess_guard import (
     guarded_communicate,
@@ -184,5 +186,5 @@ class VenvManager:
         else:
             new_command = command.replace("pip install", f"{pip_path} install", 1)
 
-        logger.warning(f" [VenvManager] Rewrote pip command: {new_command[:100]}...")
+        logger.warning(f" [VenvManager] Rewrote pip command: {command_preview(new_command, 100)}")
         return new_command

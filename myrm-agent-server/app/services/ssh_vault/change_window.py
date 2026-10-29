@@ -3,6 +3,7 @@
 [INPUT]
 - .models::SSHHostConfig
 - secrets, hashlib, time, datetime, logging
+- myrm_agent_harness.api::command_preview (a log line shows the command masked and cut)
 
 [OUTPUT]
 - ProtectedChangeWindowService: Coordinator for change window policies, break-glass tokens, and audit trails
@@ -21,6 +22,8 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Final
+
+from myrm_agent_harness.api import command_preview
 
 from app.services.ssh_vault.models import SSHHostConfig
 
@@ -200,7 +203,7 @@ class ProtectedChangeWindowService:
         logger.warning(
             "[BREAK_GLASS_CONSUMED] Successfully authorized write command on host=%s: %s",
             host_alias,
-            command[:100],
+            command_preview(command, 100),
         )
         return True, ""
 

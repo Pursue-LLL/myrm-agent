@@ -26,6 +26,7 @@ from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
+from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.executors.base import ExecutionContext
 
 if TYPE_CHECKING:
@@ -107,7 +108,7 @@ class BashExecutorBackgroundMixin:
             logger.warning(
                 " [BashExecutor] Background command had a trailing '&' that would orphan "
                 "the spawned process; stripped it: %r",
-                command,
+                command_preview(command, 200),
             )
             command = normalized
 

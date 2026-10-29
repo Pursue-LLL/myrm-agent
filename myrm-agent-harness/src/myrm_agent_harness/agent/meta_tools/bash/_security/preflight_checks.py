@@ -4,6 +4,7 @@
 utils.url_utils::check_url_exfiltration, sanitize_url_for_error (POS: URL security validation)
 utils.errors::ToolError (POS: Agent tool error with format_for_llm protocol)
 _security.shell_parse::extract_shell_c_payload (POS: quote-aware inline `sh -c` script extraction)
+core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 check_command_url_exfiltration: Block commands with URL data exfiltration.
@@ -35,6 +36,7 @@ import urllib.request
 from pathlib import Path
 
 from myrm_agent_harness.agent.meta_tools.bash._security.shell_parse import extract_shell_c_payload
+from myrm_agent_harness.core.security.redact import command_preview
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +119,7 @@ def _raise_myrm_tools_blocked(command: str) -> None:
     from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
     from myrm_agent_harness.utils.errors import ToolError
 
-    logger.warning("Blocked myrm_tools reference in bash command: %s", command[:120])
+    logger.warning("Blocked myrm_tools reference in bash command: %s", command_preview(command, 120))
     raise ToolError(
         _MYRM_TOOLS_BLOCK_MESSAGE,
         user_hint=_MYRM_TOOLS_BLOCK_HINT,
@@ -274,10 +276,7 @@ def check_command_url_exfiltration(command: str) -> None:
         ToolError: If URL contains data exfiltration patterns.
     """
     from myrm_agent_harness.utils.errors import ToolError
-    from myrm_agent_harness.utils.url_utils import (
-        check_url_exfiltration,
-        sanitize_url_for_error,
-    )
+    from myrm_agent_harness.utils.url_utils import check_url_exfiltration, sanitize_url_for_error
 
     detected_urls: list[str] = []
     for pattern in _URL_EXTRACTION_PATTERNS:
@@ -287,7 +286,7 @@ def check_command_url_exfiltration(command: str) -> None:
         warnings = check_url_exfiltration(url, allow_private_networks=True)
         if warnings:
             safe_url = sanitize_url_for_error(url)
-            logger.warning(f" Data exfiltration detected in bash command: {command[:100]}")
+            logger.warning(f" Data exfiltration detected in bash command: {command_preview(command, 100)}")
             for warning in warnings:
                 logger.warning(f" - {warning} in URL: {safe_url}")
             raise ToolError(
@@ -462,7 +461,7 @@ def check_destructive_commands(command: str) -> None:
             "Destructive workspace command blocked (%s): %s in %s",
             category,
             detected_label,
-            command[:100],
+            command_preview(command, 100),
         )
         raise ToolError(
             f"Command blocked (destructive workspace command): Detected '{detected_label}' in command '{command.strip()}'. "
@@ -761,7 +760,7 @@ async def check_install_packages(command: str) -> None:
         from myrm_agent_harness.utils.errors import ToolError
 
         details = "; ".join(f"'{name}' not found on {reg}" for name, reg in missing)
-        logger.warning("Slopcheck blocked install: %s (command: %s)", details, command[:120])
+        logger.warning("Slopcheck blocked install: %s (command: %s)", details, command_preview(command, 120))
         raise ToolError(
             f"Package verification failed: {details}. "
             "Please verify the package name(s) — AI models sometimes hallucinate non-existent packages.",

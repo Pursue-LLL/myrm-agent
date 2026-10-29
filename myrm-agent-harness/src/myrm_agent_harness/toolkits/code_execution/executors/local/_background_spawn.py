@@ -6,6 +6,7 @@ executors.models::AsyncProcessProtocol (POS: Data models for code execution)
 executors.execution_evidence::record_execution (POS: Proof that an agent command launched a process)
 code_execution.sandbox::detect_sandbox_provider (POS: Sandbox detection and wrapping)
 core.security.process_env::sanitize_env, DEFAULT_CHILD_SAFE_ENV_KEYS (POS: Environment sanitization)
+core.security.redact::command_preview (POS: masked, cut command for a log line)
 executors.local._background_pty_spawn::try_spawn_background_pty (POS: POSIX PTY spawn adapter)
 
 [OUTPUT]
@@ -29,6 +30,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 
+from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.executors.base import ExecutionContext
 from myrm_agent_harness.toolkits.code_execution.executors.execution_evidence import record_execution
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
@@ -187,7 +189,7 @@ async def spawn_background_process(
 
             preexec_fn = _apply_memory_limit
 
-    logger.info(f" [LocalExecutor] Spawning background: {' '.join(full_cmd_array)}")
+    logger.info(f" [LocalExecutor] Spawning background: {command_preview(' '.join(full_cmd_array), 500)}")
 
     from myrm_agent_harness.utils import os_compat
 

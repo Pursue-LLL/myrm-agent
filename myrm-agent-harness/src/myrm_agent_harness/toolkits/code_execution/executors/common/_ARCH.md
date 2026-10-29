@@ -8,7 +8,7 @@ Common executor components.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Common executor components. | — |
-| command_rewriter.py | Core | Command rewriting service. | ✅ |
+| command_rewriter.py | Core | Command rewriting service: `/workspace` paths resolved to the working directory, grep routed to ripgrep; its log lines show the command masked and cut (`core.security.redact.command_preview`). | ✅ |
 | error_handler.py | Core | Execution error handling decorator. | ✅ |
 | exit_classify.py | Core | Non-zero exit code semantic classifier. | ✅ |
 | execution_helper.py | Core | Execution helper utilities. | ✅ |
@@ -20,4 +20,5 @@ Common executor components.
 
 ## Key Dependencies
 
+- `core/security/redact` (`command_preview` for the log lines of `command_rewriter.py` and `venv_manager.py`)
 - `utils`
