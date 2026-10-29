@@ -2,39 +2,24 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Globe,
-  Terminal,
-  Clock,
-  Pencil,
-  MessageSquareX,
-  CheckCircle2,
-  ShieldAlert,
-  MessageSquarePlus,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/primitives/button';
-import { Badge } from '@/components/primitives/badge';
-import { Progress } from '@/components/primitives/progress';
-import { Textarea } from '@/components/primitives/textarea';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/primitives/collapsible';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import EditModeView from './approval/EditModeView';
 import RejectModeView from './approval/RejectModeView';
 import HandoverModeView from './approval/HandoverModeView';
-import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
+import ApprovalActions from './approval/ApprovalActions';
+import ApprovalCountdown from './approval/ApprovalCountdown';
+import ApprovalDetails from './approval/ApprovalDetails';
+import GuidanceSection from './approval/GuidanceSection';
 import PathGrantToggle from './approval/PathGrantToggle';
 import OneTimeCredentialsSection from './approval/OneTimeCredentialsSection';
-import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
-import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import { resolveBrowserSession } from '@/lib/approval/browserSession';
-import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
+import { hasEditedChanges, initialEditedArgs, parseEditedArgs } from '@/lib/approval/editedArgs';
 import { supportsOneTimeCredentials } from '@/lib/approval/oneTimeCredentials';
+import { useApprovalCountdown } from '@/hooks/approval/useApprovalCountdown';
 import { useStagedCredentials } from '@/hooks/approval/useStagedCredentials';
 import {
   extractShellCommand,
@@ -42,8 +27,6 @@ import {
   isShellApprovalTool,
   mergeShellEditedArgs,
 } from '@/lib/approval/shellCommandDisplay';
-import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
-import ShellCommandDisplay from './approval/ShellCommandDisplay';
 import {
   type AllowAlwaysDuration,
   type AllowAlwaysScope,
@@ -51,12 +34,8 @@ import {
   durationToTtlSeconds,
   scopeToAllowAlwaysValue,
 } from '@/lib/approval/allowAlwaysScope';
-import { classifyApprovalSurface, humanizeApprovalTitle } from '@/lib/humanize';
+import { classifyApprovalSurface } from '@/lib/humanize';
 import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
-import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
-import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
-import PtcHintBadges from '@/components/approval/PtcHintBadges';
-import { DiffViewer } from '@/lib/diff/DiffViewer';
 import { usePermissionAutoApprove } from './thinking-permission';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
@@ -78,11 +57,9 @@ export default function SingleApprovalCard({
   compact = false,
 }: SingleApprovalCardProps) {
   const t = useTranslations('toolApproval');
-  const tHumanize = useTranslations('humanize');
   const [mode, setMode] = useState<DialogMode>('default');
   const [editedArgs, setEditedArgs] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [showAlwaysAllowConfirm, setShowAlwaysAllowConfirm] = useState(false);
   const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>(() =>
     defaultAllowAlwaysScope(request.toolName),
@@ -97,14 +74,6 @@ export default function SingleApprovalCard({
   const [guidance, setGuidance] = useState('');
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [grantDirectoryAccess, setGrantDirectoryAccess] = useState(false);
-
-  const desktopViewData = useDesktopInspectorStore((s) => selectScopedDesktopViewData(s.viewData, request.chatId));
-  const browserViewData = useBrowserInspectorStore((s) => selectScopedBrowserViewData(s.viewData, request.chatId));
-
-  const visualContext = useMemo(
-    () => resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData),
-    [browserViewData, desktopViewData, request],
-  );
 
   const inputEntries = useMemo(() => {
     if (isShellApprovalTool(request.toolName)) {
@@ -140,11 +109,6 @@ export default function SingleApprovalCard({
 
   const isCompactSurface = compact || classifyApprovalSurface(request.toolName) === 'compact';
 
-  const approvalTitle = useMemo(
-    () => humanizeApprovalTitle(request.toolName, request.toolInput, tHumanize),
-    [request.toolInput, request.toolName, tHumanize],
-  );
-
   const hideCompactPayload =
     isCompactSurface && !shellCommand && classifyApprovalSurface(request.toolName) === 'compact';
 
@@ -156,17 +120,7 @@ export default function SingleApprovalCard({
         : t('permissionTypes.default');
 
   useEffect(() => {
-    const initial: Record<string, string> = {};
-    for (const [key, val] of inputEntries) {
-      if (typeof val === 'string') {
-        initial[key] = val;
-      } else if (val === undefined || val === null) {
-        initial[key] = '';
-      } else {
-        initial[key] = JSON.stringify(val, null, 2);
-      }
-    }
-    setEditedArgs(initial);
+    setEditedArgs(initialEditedArgs(inputEntries));
   }, [inputEntries]);
 
   useEffect(() => {
@@ -175,19 +129,10 @@ export default function SingleApprovalCard({
     setAllowAlwaysScopeInEdit(nextScope);
   }, [request.requestId, request.toolName]);
 
-  useEffect(() => {
-    const update = () => {
-      const remaining = Math.max(0, Math.floor((request.expiresAt * 1000 - Date.now()) / 1000));
-      setRemainingSeconds(remaining);
-    };
-    update();
-    const timer = setInterval(update, 1000);
-    return () => clearInterval(timer);
-  }, [request.expiresAt]);
-
-  const isExpired = remainingSeconds <= 0;
-  const isUrgent = remainingSeconds > 0 && remainingSeconds <= 10;
-  const progressPercent = Math.max(0, (remainingSeconds / request.timeoutSeconds) * 100);
+  const { remainingSeconds, isExpired, isUrgent, progressPercent } = useApprovalCountdown(
+    request.expiresAt,
+    request.timeoutSeconds,
+  );
   const isHandover = request.displayMode === 'handover';
 
   const guidanceExtra = useMemo(() => {
@@ -236,24 +181,11 @@ export default function SingleApprovalCard({
   }, [allowAlwaysDuration, allowAlwaysScope, request.requestId, onResolve]);
 
   const handleConfirmEdit = useCallback(async () => {
-    const parsed: Record<string, unknown> = {};
-    const errors: string[] = [];
+    const { parsed, invalidFields } = parseEditedArgs(editedArgs);
 
-    for (const [key, val] of Object.entries(editedArgs)) {
-      const trimmed = val.trim();
-      try {
-        parsed[key] = JSON.parse(val);
-      } catch {
-        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-          errors.push(key);
-        }
-        parsed[key] = val;
-      }
-    }
-
-    if (errors.length > 0) {
-      setEditValidationErrors(errors);
-      toast.error(t('editValidationError', { fields: errors.join(', ') }));
+    if (invalidFields.length > 0) {
+      setEditValidationErrors(invalidFields);
+      toast.error(t('editValidationError', { fields: invalidFields.join(', ') }));
       return;
     }
 
@@ -264,14 +196,8 @@ export default function SingleApprovalCard({
       ? false
       : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit, allowAlwaysDurationInEdit);
 
-    const hasChanges = inputEntries.some(([key, original]) => {
-      const editedVal = editedArgs[key];
-      const originalStr = typeof original === 'string' ? original : JSON.stringify(original, null, 2);
-      return editedVal !== originalStr;
-    });
-
     const guidanceValue = guidance.trim() || undefined;
-    if (hasChanges) {
+    if (hasEditedChanges(inputEntries, editedArgs)) {
       const editedArgsPayload = shellCommand ? mergeShellEditedArgs(request.toolInput, parsed) : parsed;
       if (credentials.staged && extractShellCommand(editedArgsPayload).trim() !== shellCommand.trim()) {
         credentials.discard();
@@ -372,176 +298,25 @@ export default function SingleApprovalCard({
 
   return (
     <div className={`space-y-3 ${isCompactSurface ? 'p-2' : 'rounded-lg border p-4'}`}>
-      {browserSession ? (
-        <BrowserSessionView action={browserSession.action} domain={browserSession.domain} />
-      ) : (
-        <>
-          <div className="flex items-center flex-wrap gap-2">
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <div className="flex items-center gap-2">
-                <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium truncate">{approvalTitle}</span>
-              </div>
-              <span className="text-xs pl-6 break-words block">
-                <ApprovalScopeNoteLine
-                  toolName={request.toolName}
-                  toolInput={request.toolInput}
-                  tHumanize={tHumanize}
-                />
-              </span>
-            </div>
-            {request.ptcAnnotations ? <PtcHintBadges annotations={request.ptcAnnotations} t={t} /> : null}
-          </div>
+      <ApprovalDetails
+        request={request}
+        browserSession={browserSession}
+        shellCommand={shellCommand}
+        inputEntries={inputEntries}
+        isSaveSkill={isSaveSkill}
+        isHighRiskIntercepted={isHighRiskIntercepted}
+        hideVisualHighlight={hideVisualHighlight}
+        hideCompactPayload={hideCompactPayload}
+      />
 
-          {visualContext && !hideVisualHighlight && (
-            <VisualApprovalHighlight visualContext={visualContext} className="mb-2" />
-          )}
+      <ApprovalCountdown
+        remainingSeconds={remainingSeconds}
+        isExpired={isExpired}
+        isUrgent={isUrgent}
+        progressPercent={progressPercent}
+      />
 
-          {request.smartDenied && (
-            <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 mb-2">
-              <ShieldAlert className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{t('smartDenied.title')}</p>
-                {request.reviewerReason && (
-                  <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5 break-words">
-                    {request.reviewerReason}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {isHighRiskIntercepted && (
-            <div
-              data-testid="high-risk-intercepted-banner"
-              className="flex items-center gap-2 rounded-md border border-rose-500/50 bg-rose-500/10 px-3 py-2.5 mb-2"
-            >
-              <ShieldAlert className="h-4 w-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">
-                  {t('highRiskIntercepted.title')}
-                </p>
-                <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5 break-words">
-                  {t('highRiskIntercepted.description')}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {request.executionIntent && (
-            <div className="text-xs text-foreground/90 mb-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2">
-              <span className="font-medium text-muted-foreground">{t('executionIntent')}:</span>{' '}
-              {request.executionIntent}
-            </div>
-          )}
-
-          {request.reason && (
-            <div className="text-xs text-muted-foreground">
-              <span className="font-medium">{t('reason')}:</span> {request.reason}
-            </div>
-          )}
-
-          {shellCommand ? (
-            <ShellCommandDisplay
-              toolName={request.toolName}
-              command={shellCommand}
-              commandSpans={request.commandSpans}
-              commandSpanRisks={request.commandSpanRisks}
-              commandSpanReasons={request.commandSpanReasons}
-              plainExplanation={request.plainExplanation}
-              workspaceRoot={request.workspaceRoot}
-              scriptOperandPath={request.scriptOperandPath}
-              scriptOperandHash={request.scriptOperandHash}
-            />
-          ) : isSaveSkill ? (
-            <SaveSkillApprovalPreview
-              toolInput={request.toolInput}
-              showFullInstructionsLabel={t('saveSkill.showFullInstructions')}
-              showLessLabel={t('saveSkill.showLess')}
-              showAllLinesLabel={t('saveSkill.showAllLines')}
-              footerText={t('saveSkill.footer')}
-            />
-          ) : request.diff ? (
-            <div className="rounded-lg border overflow-hidden max-h-80 overflow-y-auto">
-              <DiffViewer
-                diff={request.diff}
-                filePath={
-                  typeof request.toolInput.path === 'string'
-                    ? request.toolInput.path
-                    : typeof request.toolInput.filePath === 'string'
-                      ? request.toolInput.filePath
-                      : typeof request.toolInput.file_path === 'string'
-                        ? request.toolInput.file_path
-                        : undefined
-                }
-                defaultViewMode="unified"
-                embedded
-                className="text-xs"
-              />
-            </div>
-          ) : hideCompactPayload ? null : (
-            inputEntries.length > 0 && (
-              <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 text-xs font-mono">
-                {JSON.stringify(Object.fromEntries(inputEntries), null, 2)}
-              </pre>
-            )
-          )}
-
-          {request.domains && request.domains.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <span className="text-xs font-medium text-muted-foreground">{t('domain.label')}:</span>
-              {request.domains.map((domain) => (
-                <Badge
-                  key={domain}
-                  variant="outline"
-                  className="font-mono text-xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30"
-                >
-                  {domain}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Clock className={`h-3 w-3 ${isUrgent ? 'text-destructive animate-pulse' : ''}`} />
-          <span className={isUrgent ? 'text-destructive font-medium' : ''}>
-            {isExpired ? t('expired') : t('expiresIn', { seconds: remainingSeconds })}
-          </span>
-        </div>
-        <Progress value={progressPercent} className={`h-1 ${isUrgent ? '[&>div]:bg-destructive' : ''}`} />
-      </div>
-
-      <Collapsible open={guidanceOpen} onOpenChange={setGuidanceOpen}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {guidanceOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            <MessageSquarePlus className="h-3 w-3" />
-            <span>{t('guidance.toggle')}</span>
-            {guidance.trim() && !guidanceOpen && (
-              <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1">
-                {t('guidance.hasGuidance')}
-              </Badge>
-            )}
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-2">
-          <Textarea
-            value={guidance}
-            onChange={(e) => setGuidance(e.target.value)}
-            placeholder={t('guidance.placeholder')}
-            className="min-h-[60px] max-h-[120px] text-xs resize-y"
-            rows={2}
-          />
-          <p className="mt-1 text-[10px] text-muted-foreground">{t('guidance.hint')}</p>
-        </CollapsibleContent>
-      </Collapsible>
+      <GuidanceSection value={guidance} onChange={setGuidance} open={guidanceOpen} onOpenChange={setGuidanceOpen} />
 
       {!request.smartDenied && request.grantDirectories && (
         <PathGrantToggle
@@ -561,66 +336,18 @@ export default function SingleApprovalCard({
         />
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {request.smartDenied ? (
-          <>
-            <Button size="sm" variant="outline" onClick={handleApprove} disabled={isLoading || isExpired}>
-              <ShieldAlert className="mr-1 h-3.5 w-3.5" />
-              {t('smartDenied.overrideOnce')}
-            </Button>
-            <Button size="sm" variant="destructive" onClick={() => setMode('rejecting')} disabled={isLoading}>
-              <MessageSquareX className="mr-1 h-3.5 w-3.5" />
-              {t('reject')}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired || isAutoApproved}>
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-              {isAutoApproved ? t('autoApproving') : isSaveSkill ? t('saveSkill.approve') : t('approve')}
-            </Button>
-            {!isSaveSkill && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setMode('editing')}
-                disabled={isLoading || isExpired}
-              >
-                <Pencil className="mr-1 h-3.5 w-3.5" />
-                {t('edit')}
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => setMode('rejecting')} disabled={isLoading}>
-              <MessageSquareX className="mr-1 h-3.5 w-3.5" />
-              {isSaveSkill ? t('saveSkill.deny') : t('reject')}
-            </Button>
-            {!isSaveSkill && !request.hideAllowAlways && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleAlwaysAllow}
-                disabled={isLoading || isExpired}
-                className="text-xs text-amber-600 hover:text-amber-700"
-              >
-                {t('allowAlways')}
-              </Button>
-            )}
-            {request.domainApproval && request.domains && request.domains.length > 0 && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleAllowDomain}
-                disabled={isLoading || isExpired}
-                className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-                title={t('domain.allowDomainDesc')}
-              >
-                <Globe className="mr-1 h-3.5 w-3.5" />
-                {t('domain.allowDomain')}
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+      <ApprovalActions
+        request={request}
+        isLoading={isLoading}
+        isExpired={isExpired}
+        isAutoApproved={isAutoApproved}
+        isSaveSkill={isSaveSkill}
+        onApprove={handleApprove}
+        onEdit={() => setMode('editing')}
+        onReject={() => setMode('rejecting')}
+        onAlwaysAllow={handleAlwaysAllow}
+        onAllowDomain={handleAllowDomain}
+      />
 
       <AllowAlwaysConfirmDialog
         open={showAlwaysAllowConfirm}

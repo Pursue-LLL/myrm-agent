@@ -2,6 +2,17 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 审批卡点「编辑」后不改任何字段直接确认，带空值的入参也被当成已修改；单条审批卡 640 行拆成按职责分开的几个组件
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端 `chat-window/SingleApprovalCard.tsx`、新增 `chat-window/approval/{ApprovalDetails,ApprovalActions,ApprovalCountdown,GuidanceSection}.tsx`、`hooks/approval/useApprovalCountdown.ts`、`lib/approval/editedArgs.ts`，五处 `_ARCH.md` 与行数台账同步；没有改任何文案、locales、harness、server、提示词与控制平面）。没有在真实浏览器里点过，见「仍然存在」。 |
+| **症状** | 审批卡点「编辑」→ 不改任何字段 →「确认」：工具入参里只要有 `null` 或缺省的值（编辑框把它显示成空文本），卡片就判定「有改动」，以「编辑后批准」提交，那个入参从 `null` 变成空字符串，而不是原样「批准」。 |
+| **根因** | 编辑框的初始文本与「是否改动」的比较写在两处：初始文本把 `null` / 缺省显示成空文本，比较却拿 `JSON.stringify(原值)`（`null` 得 `"null"`，缺省得 `undefined`）去比，两边永远不相等。 |
+| **修复** | `lib/approval/editedArgs.ts`：入参转文本只有一处（`stringifyEntryValue`），初始文本（`initialEditedArgs`）与改动判断（`hasEditedChanges`）都用它；JSON 还原与破损字段识别（`parseEditedArgs`）原样搬出，行为不变。卡片 640 行 → 367 行：内容区（`ApprovalDetails`）、按钮行（`ApprovalActions`）、倒计时（`ApprovalCountdown` + `useApprovalCountdown`）、补充说明（`GuidanceSection`）各成一个文件；展开状态与说明文字仍由卡片持有，切到编辑或拒绝再回来不丢。 |
+| **回归证据** | [1] 旧写法的比较表达式在 `[["cwd",null],["env",undefined],["command","ls"]]` 上判「有改动」（node 直接求值）；新增 `editedArgs.test.ts` 钉住新口径（含 null 参数不算改动）。[2] 拆分前后标记不变：临时把 HEAD 的卡片另存一份，对 15 种情形（通用工具、命令、技能保存、diff、智能审核拦下、域名、文件夹授权、浏览器登录状态、意图与理由、禁用总是允许、已过期、移交、紧凑加载中、点「编辑」后、输入补充说明后）各渲染新旧两份、逐字比较 `innerHTML`，15 例相同（只有 React 生成的 `useId` 不同，已归一）；测试与临时副本已删除。[3] 新增 `ApprovalActions.test.tsx` 7 例、`GuidanceSection.test.tsx` 4 例、`editedArgs.test.ts` 5 例；`chat-window`、`lib/approval`、`hooks/approval`、`components/approval`、`lib/humanize` 目录共 358 个文件 2077 例通过（拆分前同一批目录 354 个文件 2048 例）。[4] `tsc --noEmit` 无错误；触及文件 `oxlint`、`prettier --check` 通过；`verify:theme-colors` 通过；`check_file_line_budget` 台账去掉 `SingleApprovalCard.tsx`（367 行）。 |
+| **仍然存在** | ① 没有在真实浏览器里看拆分后的卡片：[2] 证明标记逐字相同，样式与交互因此不变，但没有截图。② `ApprovalDetails.tsx` 里智能审核、风控、域名三处提示条仍写死 `amber-` / `rose-` / `emerald-` 色阶，没有换成主题变量（搬运时保持原样，`verify:theme-colors` 只查语义色工具类是否声明，不查这个）。③ 卡片上的「原因」仍是 harness 给的英文理由，各语言界面原样显示（`ApprovalDetails.tsx` 的 `request.reason`），上一条已写，本条没动。④ `verify:hardcoded-copy`、`verify:a11y` 在当前代码里是红的（`channels/pairing`、`chat/group` 等他人文件的新增违规与基线漂移），本条触及的文件不在它们的报告里。 |
+
 ## 2026-10-29 · 对话分享页的宽表格在手机上被压成逐字竖排；时间、页脚、模型徽标这几处小字在浅色主题下对比度不到 4.5
 
 | 字段 | 内容 |
@@ -67,7 +78,7 @@
 | **根因** | ①「同时授予」是文件夹授权上线时的措辞，当时没有「一次」这一层；harness 增加 `once` 根后没有同步改卡片。③ 文案写在组件里（`SingleApprovalCard.tsx` 的 `actionLabels`），取值只用了 `zh`，没有走 locales，所以也没有六语言对照与「不露技术细节」的任何检查。 |
 | **修复** | ① `toolApproval.grantDirectory` / `grantDirectoryDesc` 六种语言改成「本会话记住这些文件夹」+「批准后，这一步操作可以使用它们；勾选后，本会话后续操作也可以使用」；键名、勾选逻辑、回传的 `grantDirectories` 都没动。② 见第一批。③ 新增 `lib/approval/browserSession.ts`（`resolveBrowserSession` 认出这四个动作与站点）；`BrowserSessionView` 只收 `action` 与 `domain`，标题、说明与存放位置全部读 `toolApproval.browserSession.actions.<动作>` 与 `storageInfo`，六种语言各一份，不再出现算法名、路径与浏览器存储术语；颜色改用主题变量（`text-warning`、`border-primary/20 bg-primary/5`）而不是写死的 `blue-*` / `amber-*`；`SingleApprovalCard.tsx` 删去内联的 `actionLabels`（HEAD 669 行 → 617 行）。 |
 | **回归证据** | [1] `vitest`：`browserSession.test.ts`（四个动作、缺站点按「全部」、其他动作与其他工具返回空）、`BrowserSessionView.test.tsx`（用六种语言的真实 locales 渲染：每个动作都显示标题与说明、不含 `AES|GCM|~/|.myrm|cookie|localstorage`、没有漏掉的键名），连同 `chat-window/approval`、`SingleApprovalCard*` 共 15 个文件 78 例通过。[2] `bun run typecheck` 全仓无错误；`verify:i18n`（六语言 parity、占位符、glossary）、`verify:icu-syntax`、`verify:theme-colors` 通过；触及文件 `oxlint` 与 `prettier --check` 通过。[3] 真实浏览器（`bun run dev` 的 3000 端口，临时预览页渲染真实的 `SingleApprovalCard`，截图后已删除）：中文深色桌面、中文浅色桌面、德文深色 375px、英文浅色 375px 四张，勾选项与文件夹列表、读写徽标、浏览器会话卡的文案与配色都对，375px 下 `scrollWidth` 等于 375（没有横向溢出），超长路径在文件夹列表里折行。 |
-| **仍然存在** | ① 卡片上的「原因：Path outside allowed zones」是 harness 给的英文理由，各语言界面都原样显示英文，本条没动。② 没有用真实模型触发一次「批准一次、再勾选记住」的完整流程，只有 harness 的真实图测试与前端单测，两头没有在完整应用里接过。③ 日文、韩文、德文的新文案是新译，没有母语者校对。④ `SingleApprovalCard.tsx` 仍有 617 行：同一个文件里另有别人未提交的「一次性凭据」改动，拆分会与它冲突，所以这一条只删了内联的浏览器会话文案；它在行数基线里，没有增长。⑤ `verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 在当前代码里本来就是红的（`ConnectionIndicator.tsx`、`features/approval/*` 等既有违规与基线漂移），本条触及的文件不在它们的报告里。⑥ 浏览器会话卡里 Lucide 图标（锁、盾、地球、终端）没换。 |
+| **仍然存在** | ① 卡片上的「原因：Path outside allowed zones」是 harness 给的英文理由，各语言界面都原样显示英文，本条没动。② 没有用真实模型触发一次「批准一次、再勾选记住」的完整流程，只有 harness 的真实图测试与前端单测，两头没有在完整应用里接过。③ 日文、韩文、德文的新文案是新译，没有母语者校对。④ `SingleApprovalCard.tsx` 当时仍有 617 行，已在 2026-10-29 的条目里拆开，现 367 行。⑤ `verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 在当前代码里本来就是红的（`ConnectionIndicator.tsx`、`features/approval/*` 等既有违规与基线漂移），本条触及的文件不在它们的报告里。⑥ 浏览器会话卡里 Lucide 图标（锁、盾、地球、终端）没换。 |
 
 ## 2026-10-28 · 认证审计日志的目录建不出或轮转器起不来，会把失败登录、锁定上报与已认证的请求变成 500（密码分享里使锁定生效的那一次错误猜测答 500）；对话分享内容页的外壳文案固定英文，不跟访客语言
 

@@ -224,7 +224,7 @@
 | `VisualApprovalAttentionBar.tsx`             | UI   | 滚动区外 pending 可达条                                         | ✅    |
 | `approval/ShellCommandDisplay.tsx`           | UI   | shell 命令终端展示 + span 高亮 + unknown 段 risk reason tooltip | ✅    |
 | `approval/AllowAlwaysConfirmDialog.tsx`      | UI   | allow-always 范围选择；pattern 无法推导时禁用 Confirm           | ✅    |
-| `SingleApprovalCard.tsx`                     | UI   | 主 Agent 单条/批量审批（shell edit 经 mergeShellEditedArgs）    | ✅    |
+| `SingleApprovalCard.tsx`                     | UI   | 主 Agent 单条/批量审批：持有决定状态（编辑、拒绝、记住授权、一次性凭据），只读内容与按钮分给 `approval/ApprovalDetails`、`ApprovalActions` 等（shell edit 经 mergeShellEditedArgs）    | ✅    |
 | `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批                                            | ✅    |
 | `MobileStatusBoard.tsx`                      | UI   | 移动端审批面板                                                  | ✅    |
 | `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层 | ✅    |

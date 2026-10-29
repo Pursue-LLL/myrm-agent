@@ -24,7 +24,6 @@ src/components/features/chat-window/ChatWindow.tsx
 src/components/features/chat-window/CompactedSummaryView.tsx
 src/components/features/chat-window/MessageInput.tsx
 src/components/features/chat-window/NewTaskWorkContextCard.tsx
-src/components/features/chat-window/SingleApprovalCard.tsx
 src/components/features/chat-window/TurnTimelineRail.tsx
 src/components/features/chat-window/agent-config-panel/AgentConfigEditDialog.tsx
 src/components/features/chat-window/agent-config-panel/AgentConfigPanel.tsx

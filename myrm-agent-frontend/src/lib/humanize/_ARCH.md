@@ -30,7 +30,8 @@ A tool with no dedicated line reads `fallback.used_tool` ("Used …"); in `ask` 
 | Consumer                                  | Usage                                                            |
 | ----------------------------------------- | ---------------------------------------------------------------- |
 | `progress-steps/utils.ts`                 | `getStepTitle(..., tHumanize)` — humanize SSOT 唯一标题入口      |
-| `SingleApprovalCard.tsx`                  | title + scope note + compact payload hide                        |
+| `ApprovalDetails.tsx`                     | title + scope note                                               |
+| `SingleApprovalCard.tsx`                  | compact payload hide                                             |
 | `PolymorphicApprovalCard.tsx`             | subagent tool call headers + scope (`ApprovalScopeNoteLine`)     |
 | `features/cron/CronRunBlockedActions.tsx` | rows of the actions a run's safety rules stopped, in `ask` tense |
 
