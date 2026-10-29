@@ -184,7 +184,7 @@ async def revoke_chat_session_access_root(
 
 
 def _is_cloud_volume_deployment() -> bool:
-    from myrm_agent_harness.core.paths import DEFAULT_PERSISTENT_ROOT, get_persistent_root
+    from myrm_agent_harness.runtime.paths.execution_paths import DEFAULT_PERSISTENT_ROOT, get_persistent_root
 
     return get_persistent_root() == DEFAULT_PERSISTENT_ROOT and os.path.isdir(DEFAULT_PERSISTENT_ROOT)
 
@@ -222,7 +222,7 @@ def is_directory_grant_allowed_for_deployment(
 
     allowed_boundaries: tuple[str, ...] = ()
     if _is_cloud_volume_deployment():
-        from myrm_agent_harness.core.paths import get_persistent_root
+        from myrm_agent_harness.runtime.paths.execution_paths import get_persistent_root
 
         persistent_root = os.path.realpath(get_persistent_root())
         boundaries = [persistent_root]
