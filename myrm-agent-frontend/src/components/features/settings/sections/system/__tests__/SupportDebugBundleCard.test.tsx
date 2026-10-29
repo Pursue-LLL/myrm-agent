@@ -84,6 +84,7 @@ describe('SupportDebugBundleCard Component', () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'settings.supportDebugBundle.exportFailedTitle',
+          description: 'settings.supportDebugBundle.exportFailedDesc',
           variant: 'destructive',
         }),
       );

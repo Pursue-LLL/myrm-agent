@@ -22748,18 +22748,19 @@
     },
     "supportDebugBundle": {
       "title": "지원 및 디버그 번들",
-      "description": "문제 해결을 위해 마스킹 처리된 시스템 진단 로그, 활성 구성 스냅샷 및 성능 메트릭을 내보냅니다.",
+      "description": "시스템 정보, 상태 점검 결과, 에이전트 설정 및 최근 세션 로그가 포함된 마스킹 처리된 아카이브를 문제 해결과 지원을 위해 내보냅니다.",
       "privacyNoticeTitle": "개인정보 및 기밀 데이터 보호",
-      "privacyNoticeDesc": "모든 보안 비밀, 인증 토큰 및 개인 키는 내보내기 전에 자동으로 비식별화 처리됩니다.",
-      "includeTraces": "실행 추적 포함",
-      "includeTracesDesc": "최근 작업 실행 스팬 및 하위 에이전트 호출 추적을 첨부합니다.",
-      "includeProfiles": "시스템 프로파일 포함",
-      "includeProfilesDesc": "CPU, 메모리 및 작업 리소스 프로파일링 요약을 첨부합니다.",
+      "privacyNoticeDesc": "일반적인 형식의 API 키, 액세스 토큰, 비밀번호 및 개인 키는 내보내기 전에 자동으로 마스킹됩니다. 공유하기 전에 아카이브 내용을 확인해 주세요.",
+      "includeTraces": "최근 세션 로그 포함",
+      "includeTracesDesc": "최근 최대 10개 세션의 최신 이벤트를 첨부합니다. 포함된 자격 증명은 마스킹됩니다.",
+      "includeProfiles": "에이전트 설정 요약 포함",
+      "includeProfilesDesc": "각 에이전트의 이름, 모델, 허용된 도구 및 스킬 수를 첨부합니다. 프롬프트와 메모리는 포함되지 않습니다.",
       "exporting": "내보내는 중...",
       "exportButton": "진단 번들 내보내기",
       "exportSuccessTitle": "번들 내보내기 완료",
       "exportSuccessDesc": "진단 번들 아카이브가 생성되어 성공적으로 다운로드되었습니다.",
-      "exportFailedTitle": "내보내기 실패"
+      "exportFailedTitle": "내보내기 실패",
+      "exportFailedDesc": "진단 번들을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
     },
     "storageGovernance": {
       "title": "Agent 스토리지 및 상태 거버넌스",

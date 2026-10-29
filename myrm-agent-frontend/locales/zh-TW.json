@@ -22748,18 +22748,19 @@
     },
     "supportDebugBundle": {
       "title": "支援與偵錯診斷包",
-      "description": "匯出經脫敏處理的系統診斷日誌、運行配置快照與效能指標，用於故障排查與技術支援。",
+      "description": "匯出經脫敏處理的診斷包，包含系統資訊、健康檢查結果、智能體設定與近期會話日誌，用於故障排查與技術支援。",
       "privacyNoticeTitle": "隱私與敏感資料保護",
-      "privacyNoticeDesc": "所有密鑰、認證憑證與私人權杖在打包前均會自動執行不可逆脫敏過濾。",
-      "includeTraces": "包含執行調用鏈路 (Traces)",
-      "includeTracesDesc": "附帶最近的任務執行跨度與子智能體調用軌跡資料。",
-      "includeProfiles": "包含系統效能剖析 (Profiles)",
-      "includeProfilesDesc": "附帶 CPU、記憶體與任務資源調度的剖析快照摘要。",
+      "privacyNoticeDesc": "常見格式的 API 密鑰、存取權杖、密碼與私鑰會在匯出前自動脫敏。分享診斷包前，請先自行檢查內容。",
+      "includeTraces": "包含近期會話日誌",
+      "includeTracesDesc": "附帶最近至多 10 個會話的最新事件，其中的憑證已脫敏。",
+      "includeProfiles": "包含智能體設定摘要",
+      "includeProfilesDesc": "附帶每個智能體的名稱、模型、允許使用的工具與技能數量，不包含提示詞與記憶。",
       "exporting": "正在匯出...",
       "exportButton": "匯出診斷資料包",
       "exportSuccessTitle": "診斷包匯出成功",
       "exportSuccessDesc": "系統診斷歸檔包已產生並已觸發瀏覽器下載。",
-      "exportFailedTitle": "診斷包匯出失敗"
+      "exportFailedTitle": "診斷包匯出失敗",
+      "exportFailedDesc": "診斷包產生失敗，請稍後再試。"
     },
     "storageGovernance": {
       "title": "Agent 持久化儲存與狀態治理",

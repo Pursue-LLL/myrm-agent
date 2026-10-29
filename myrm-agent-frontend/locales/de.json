@@ -22748,18 +22748,19 @@
     },
     "supportDebugBundle": {
       "title": "Support- & Debug-Paket",
-      "description": "Bereinigte Systemdiagnoseprotokolle, Konfigurationszustände und Leistungsmetriken zur Fehlerbehebung exportieren.",
+      "description": "Exportiert ein bereinigtes Archiv mit Systeminformationen, Gesundheitsprüfungen, Agent-Einstellungen und aktuellen Sitzungsprotokollen zur Fehlerbehebung und für den Support.",
       "privacyNoticeTitle": "Datenschutz & Schutz sensibler Daten",
-      "privacyNoticeDesc": "Alle Geheimnisse, Authentifizierungstoken und privaten Schlüssel werden vor dem Export automatisch bereinigt.",
-      "includeTraces": "Ausführungs-Traces einbinden",
-      "includeTracesDesc": "Letzte Aufgabenausführungsspannen und Unteragentenaufrufe beifügen.",
-      "includeProfiles": "Systemprofile einbinden",
-      "includeProfilesDesc": "Zusammenfassungen der CPU-, Speicher- und Ressourcenauslastung beifügen.",
+      "privacyNoticeDesc": "API-Schlüssel, Zugriffstoken, Passwörter und private Schlüssel in gängigen Formaten werden vor dem Export automatisch bereinigt. Bitte prüfen Sie das Archiv, bevor Sie es weitergeben.",
+      "includeTraces": "Aktuelle Sitzungsprotokolle einbinden",
+      "includeTracesDesc": "Die neuesten Ereignisse der letzten bis zu 10 Sitzungen beifügen. Darin enthaltene Zugangsdaten werden bereinigt.",
+      "includeProfiles": "Zusammenfassung der Agent-Einstellungen einbinden",
+      "includeProfilesDesc": "Name, Modell, erlaubte Tools und Anzahl der Skills jedes Agenten beifügen. Prompts und Erinnerungen sind nie enthalten.",
       "exporting": "Exportiere...",
       "exportButton": "Diagnosepaket exportieren",
       "exportSuccessTitle": "Paket exportiert",
       "exportSuccessDesc": "Diagnosearchiv wurde erfolgreich erstellt und heruntergeladen.",
-      "exportFailedTitle": "Export fehlgeschlagen"
+      "exportFailedTitle": "Export fehlgeschlagen",
+      "exportFailedDesc": "Das Diagnosepaket konnte nicht erstellt werden. Bitte versuchen Sie es später erneut."
     },
     "storageGovernance": {
       "title": "Agent-Speicher- & Statusverwaltung",

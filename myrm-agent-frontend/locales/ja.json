@@ -22748,18 +22748,19 @@
     },
     "supportDebugBundle": {
       "title": "サポート＆デバッグバンドル",
-      "description": "トラブルシューティング用に、サニタイズされたシステム診断ログ、設定スナップショット、パフォーマンス指標をエクスポートします。",
+      "description": "システム情報、ヘルスチェック結果、エージェント設定、最近のセッションログを含むマスク済みアーカイブをエクスポートし、トラブルシューティングやサポートに利用します。",
       "privacyNoticeTitle": "プライバシーと機密データの保護",
-      "privacyNoticeDesc": "すべてのシークレット、認証トークン、プライベートキーはエクスポート前に自動的にマスク処理されます。",
-      "includeTraces": "実行トレースを含める",
-      "includeTracesDesc": "最近のタスク実行スパンとサブエージェント呼び出しトレースを添付します。",
-      "includeProfiles": "システムプロファイルを含める",
-      "includeProfilesDesc": "CPU、メモリ、タスク実行リソースのプロファイリング概要を添付します。",
+      "privacyNoticeDesc": "一般的な形式のAPIキー、アクセストークン、パスワード、秘密鍵は、エクスポート前に自動的にマスクされます。共有する前にアーカイブの内容をご確認ください。",
+      "includeTraces": "最近のセッションログを含める",
+      "includeTracesDesc": "直近の最大10セッションの最新イベントを添付します。含まれる認証情報はマスクされます。",
+      "includeProfiles": "エージェント設定の概要を含める",
+      "includeProfilesDesc": "各エージェントの名前、モデル、許可されたツール、スキル数を添付します。プロンプトとメモリは含まれません。",
       "exporting": "エクスポート中...",
       "exportButton": "診断バンドルをエクスポート",
       "exportSuccessTitle": "エクスポート完了",
       "exportSuccessDesc": "診断バンドルアーカイブが生成され、正常にダウンロードされました。",
-      "exportFailedTitle": "エクスポートに失敗しました"
+      "exportFailedTitle": "エクスポートに失敗しました",
+      "exportFailedDesc": "診断バンドルを生成できませんでした。しばらくしてからもう一度お試しください。"
     },
     "storageGovernance": {
       "title": "Agentストレージと状態ガバナンス",

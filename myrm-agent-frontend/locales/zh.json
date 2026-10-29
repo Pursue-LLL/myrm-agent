@@ -22748,18 +22748,19 @@
     },
     "supportDebugBundle": {
       "title": "支持与调试诊断包",
-      "description": "导出经脱敏处理的系统诊断日志、运行配置快照与性能指标，用于故障排查与技术支持。",
+      "description": "导出经脱敏处理的诊断包，包含系统信息、健康检查结果、智能体设置与近期会话日志，用于故障排查与技术支持。",
       "privacyNoticeTitle": "隐私与敏感数据保护",
-      "privacyNoticeDesc": "所有密钥、认证凭证与私人令牌在打包前均会自动执行不可逆脱敏过滤。",
-      "includeTraces": "包含执行调用链路 (Traces)",
-      "includeTracesDesc": "附带最近的任务执行跨度与子智能体调用轨迹数据。",
-      "includeProfiles": "包含系统性能剖析 (Profiles)",
-      "includeProfilesDesc": "附带 CPU、内存与任务资源调度的剖析快照摘要。",
+      "privacyNoticeDesc": "常见格式的 API 密钥、访问令牌、密码与私钥会在导出前自动脱敏。分享诊断包前，请先自行检查内容。",
+      "includeTraces": "包含近期会话日志",
+      "includeTracesDesc": "附带最近至多 10 个会话的最新事件，其中的凭证已脱敏。",
+      "includeProfiles": "包含智能体设置摘要",
+      "includeProfilesDesc": "附带每个智能体的名称、模型、允许使用的工具与技能数量，不包含提示词与记忆。",
       "exporting": "正在导出...",
       "exportButton": "导出诊断数据包",
       "exportSuccessTitle": "诊断包导出成功",
       "exportSuccessDesc": "系统诊断归档包已生成并已触发浏览器下载。",
-      "exportFailedTitle": "诊断包导出失败"
+      "exportFailedTitle": "诊断包导出失败",
+      "exportFailedDesc": "诊断包生成失败，请稍后重试。"
     },
     "storageGovernance": {
       "title": "Agent 持久化存储与状态治理",

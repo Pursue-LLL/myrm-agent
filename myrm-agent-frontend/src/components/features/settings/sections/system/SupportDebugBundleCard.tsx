@@ -57,9 +57,10 @@ export const SupportDebugBundleCard = memo(() => {
         description: t('exportSuccessDesc'),
       });
     } catch (error) {
+      console.error('[SUPPORT_BUNDLE] Export failed:', error);
       toast({
         title: t('exportFailedTitle'),
-        description: error instanceof Error ? error.message : String(error),
+        description: t('exportFailedDesc'),
         variant: 'destructive',
       });
     } finally {

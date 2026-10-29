@@ -22748,18 +22748,19 @@
     },
     "supportDebugBundle": {
       "title": "Support & Debug Bundle",
-      "description": "Export sanitized system diagnostic logs, active configuration states, and performance metrics for troubleshooting.",
+      "description": "Export a masked archive with system information, health check results, agent settings and recent session logs for troubleshooting and support.",
       "privacyNoticeTitle": "Privacy & Sensitive Data Protection",
-      "privacyNoticeDesc": "All secrets, authentication tokens, and private keys are automatically scrubbed prior to export packaging.",
-      "includeTraces": "Include Execution Traces",
-      "includeTracesDesc": "Attach recent execution spans and subagent invocation traces.",
-      "includeProfiles": "Include System Profiles",
-      "includeProfilesDesc": "Attach CPU, memory, and task execution resource profiling summaries.",
+      "privacyNoticeDesc": "API keys, access tokens, passwords and private keys in common formats are masked automatically before export. Please review the archive before sharing it.",
+      "includeTraces": "Include recent session logs",
+      "includeTracesDesc": "Attach the latest events of up to 10 recent sessions. Credentials in them are masked.",
+      "includeProfiles": "Include agent settings summary",
+      "includeProfilesDesc": "Attach each agent's name, model, allowed tools and skill count. Prompts and memories are never included.",
       "exporting": "Exporting...",
       "exportButton": "Export Diagnostic Bundle",
       "exportSuccessTitle": "Bundle Exported",
       "exportSuccessDesc": "Diagnostic bundle archive generated and downloaded successfully.",
-      "exportFailedTitle": "Export Failed"
+      "exportFailedTitle": "Export Failed",
+      "exportFailedDesc": "The diagnostic bundle could not be generated. Please try again later."
     },
     "storageGovernance": {
       "title": "Agent Storage & State Governance",

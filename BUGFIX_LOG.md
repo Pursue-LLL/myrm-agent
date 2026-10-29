@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 脱敏排障包导出必返回 500：系统信息读了不存在的设置，Doctor 与智能体两段恒为错误占位，会话日志从密钥中间截断后后半段原样进包；导出卡片向用户显示英文 HTTP 状态，选项说明与实际内容不符
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/services/system/support_bundle_service.py`、新增 `tests/services/system/test_support_bundle_service.py`；frontend：`SupportDebugBundleCard.tsx`、`locales/{en,zh,zh-TW,ja,ko,de}.json`、卡片单测；文档：两处 `_ARCH.md`） |
+| **症状** | ① `GET /api/v1/system/debug-bundle` 必返回 HTTP 500：`collect_system_info` 读 `settings.database.engine`，`DatabaseSettings` 没有该字段（`AttributeError`）；`settings.qdrant` 也不存在，原先的 `hasattr` 兜底让该值恒为常量 `embedded`。② 临时绕开 ① 后，Doctor 段恒为错误占位：服务访问 `snapshot.is_healthy`，而 `HealthSnapshot`（`app/core/infra/health/health_snapshot.py:25-30`）只有 `harness_reports` 与 `server_reports`；另外 5 秒限制短于冷启动实测的 7.94 秒。③ 智能体段恒为错误占位：`AgentService` 没有 `list_profiles`（`agent_service.py:48` 属于仓储协议），且 `AgentProfile` 没有 `name`、`is_active`、`enabled_builtin_tools`、`mcp_servers`。④ 会话日志先取末尾 64KB 再脱敏：窗口从一个密钥值中间开始时，后半段没有前缀也没有键名，引擎认不出（窗口起点落在密钥内第 6、15、30、45 个字符处，4 种位置的输出都与输入相同），原样进入导出包，首行还是残缺的 JSONL。⑤ 导出卡片失败时把写死的英文 `Export failed with HTTP status 500` 显示给用户；两个选项「包含执行调用链路」「包含系统性能剖析（CPU、内存）」的说明与实际导出内容（近期会话日志、智能体设置摘要）不符，用户据此决定是否勾选；隐私提示称所有密钥都不可逆脱敏，而 Cookie 头与不带 Authorization 头的裸 Bearer 实测不会被掩码。 |
+| **根因** | 四个段落各自被 `try/except` 包住，错误被吞成占位文字；唯一的测试把 `build_bundle_zip` 整个替换掉（`tests/api/system/test_debug_bundle_api.py:30-33`），没有任何用例走真实路径；截断发生在脱敏之前；卡片文案没有随后端导出内容同步。 |
+| **修复** | ① `support_bundle_service.py:98-99` 只读真实存在的 `checkpointer_mode` 与 `database_url`（只输出是否配置，不输出内容），删掉不存在的两项。② `:105-118` 去掉 `is_healthy`（每条报告自带 status，GUI 医生接口 `app/api/health/router.py:293-312` 也不输出它），`:44` 超时改为 30 秒。③ `:121-141` 改用 `AgentService.get_agent_list`，只取 `AgentProfile` 真实存在且不含提示词与记忆的字段（白名单）。④ `:57-72` `_tail_complete_lines` 按字节取末尾整行（窗口从行中间起则丢弃不完整的首行，单行就超出窗口则写说明），`:162-165` 先取整行再脱敏。⑤ 删除不可达的超 10MB 重建分支与 `_MAX_BUNDLE_BYTES`（Doctor 段实测 9,780 字节，日志上限 10 个文件 × 64KB，智能体最多 50 条）。⑥ 卡片失败提示改为本地化的 `exportFailedDesc`，原始错误只写控制台；简介与两个选项的文案改为与真实内容一致，隐私提示改为「常见格式的密钥、令牌、密码与私钥会自动脱敏，分享前请自行检查」，6 种语言同步。 |
+| **回归证据** | [1] 先红后绿：新测试首批 10 例对修复前的代码 9 红 1 绿（红：4 个真实路径整包用例、窗口落在密钥内的 4 个参数化用例、单行超窗用例；绿：日志在窗口内的用例）。[2] 修复后新测试 11 例（含之后补的行首边界用例）加既有 API 测试 2 例共 13 例通过。[3] 变异检查：把尾部截断改回按字符切（5 例红）、改为总是丢首行（边界用例红），均被杀死。[4] 真实路径：不打任何替身直接运行 `build_bundle_zip`，6.4 秒得到 4 个文件，Doctor 段 12,546 字节，没有错误占位。[5] 前端：卡片单测 3 例通过（失败用例新增 `exportFailedDesc` 断言），`verify-i18n`、`verify-i18n-references`、`generate-simplified-glyphs --check`、prettier 通过。 |
+| **仍然存在** | ① 前端整仓 `tsc --noEmit` 没有跑（只改了 catch 块，没有改类型）。② Doctor 超时 30 秒按本机高负载下冷启动实测的 7.94 秒取上限，空闲机器的耗时没测，是否短于网关或代理的请求超时没有证据。③ 本机没有事件日志目录，会话日志的真实体积没有测到，没有读大文件的性能数据，也没有做性能优化。④ Cookie 头与无 Authorization 头的裸 Bearer 仍不被掩码（路线图 topic_03 `CliCredentialAndCookieRedactionCoverageSuite` 跟踪），所以隐私提示只承诺常见格式。⑤ 用户主目录路径不被脱敏引擎掩码（路线图 topic_10 第 78 项草案 ③ 跟踪）。 |
+| **代码位置** | `myrm-agent-server/app/services/system/support_bundle_service.py:44,48,57-72,98-99,105-118,121-141,144-171,174-209` · `tests/services/system/test_support_bundle_service.py` · `myrm-agent-frontend/src/components/features/settings/sections/system/SupportDebugBundleCard.tsx:59-65` · `locales/*.json` 的 `settings.supportDebugBundle` |
+
 ## 2026-10-29 · 会话导出：会话不存在或读库失败时返回一段拼出来的演示对话；凭据预检只看会话标题却写「安全会话：未检测到凭据」；前端请求失败时拼出空文件、假预检、假分享链接
 
 | 字段 | 内容 |
