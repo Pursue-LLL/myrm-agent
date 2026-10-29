@@ -1,4 +1,7 @@
-"""What the collector keeps of each kind of event that ends or shapes a turn: why it stopped, usage, council phases."""
+"""What the collector keeps of each kind of event that ends or shapes a turn: why it stopped, usage, council phases.
+
+An event whose type it does not know, or that is not even text, is passed on to the clients and changes nothing.
+"""
 
 from __future__ import annotations
 
@@ -99,3 +102,13 @@ def test_token_usage_that_is_not_an_object_is_ignored() -> None:
     collector.feed_event({"type": "token_usage", "data": ["usage"]})
 
     assert "usage" not in _saved(collector)
+
+
+def test_an_event_whose_type_is_not_text_still_reaches_the_clients_and_changes_nothing() -> None:
+    collector = StreamContentCollector()
+    _, queue = collector.subscribe()
+
+    collector.feed_sse('data: {"type": ["status"], "data": "x"}\n\n')
+
+    assert queue.get_nowait() == {"type": ["status"], "data": "x"}
+    assert collector.extra_data is None

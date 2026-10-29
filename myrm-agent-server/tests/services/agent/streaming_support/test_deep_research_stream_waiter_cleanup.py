@@ -8,7 +8,7 @@ for the same message as if the old wait were still open.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -27,7 +27,7 @@ def _empty_waiter_registry() -> None:
 
 @pytest.mark.asyncio
 async def test_closing_the_stream_while_the_plan_waits_clears_the_waiters() -> None:
-    callbacks: dict[str, Callable[..., object]] = {}
+    callbacks: dict[str, Callable[..., Awaitable[object]]] = {}
     waiting: list[asyncio.Task[object]] = []
 
     async def run(**_kwargs: object) -> AsyncGenerator[dict[str, object], None]:
@@ -37,7 +37,7 @@ async def test_closing_the_stream_while_the_plan_waits_clears_the_waiters() -> N
         return
         yield
 
-    def build(**kwargs: Callable[..., object]) -> MagicMock:
+    def build(**kwargs: Callable[..., Awaitable[object]]) -> MagicMock:
         callbacks["plan"] = kwargs["on_plan_ready"]
         orchestrator = MagicMock()
         orchestrator.run = run
@@ -56,7 +56,8 @@ async def test_closing_the_stream_while_the_plan_waits_clears_the_waiters() -> N
             if isinstance(data, dict) and data.get("phase") == "plan_confirm" and data.get("status") == "waiting":
                 assert PhaseWaiter.get(f"plan:{MESSAGE_ID}") is not None
                 break
-        await stream.aclose()  # type: ignore[attr-defined]
+        assert isinstance(stream, AsyncGenerator)
+        await stream.aclose()
 
     assert PhaseWaiter.get(f"plan:{MESSAGE_ID}") is None
     assert PhaseWaiter.get(MESSAGE_ID) is None

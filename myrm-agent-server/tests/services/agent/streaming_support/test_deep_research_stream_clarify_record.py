@@ -8,7 +8,7 @@ collector persists on the card.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,7 +28,7 @@ def _empty_waiter_registry() -> None:
 
 async def _resolved_clarify_event(answer: object, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """Run the stream until its clarify phase resolves with ``answer`` (``_NO_ANSWER``: nobody answers in time)."""
-    on_clarify: dict[str, Callable[..., object]] = {}
+    on_clarify: dict[str, Callable[..., Coroutine[object, object, object]]] = {}
 
     async def run(**_kwargs: object) -> AsyncGenerator[dict[str, object], None]:
         asking = asyncio.create_task(on_clarify["ask"](MagicMock()))
@@ -36,12 +36,13 @@ async def _resolved_clarify_event(answer: object, monkeypatch: pytest.MonkeyPatc
         if answer is not _NO_ANSWER:
             waiter = PhaseWaiter.get(MESSAGE_ID)
             assert waiter is not None
-            waiter.resolve(answer)  # type: ignore[arg-type]
+            assert isinstance(answer, str | list | dict)
+            waiter.resolve(answer)
         await asking
         return
         yield
 
-    def build(**kwargs: Callable[..., object]) -> MagicMock:
+    def build(**kwargs: Callable[..., Coroutine[object, object, object]]) -> MagicMock:
         on_clarify["ask"] = kwargs["on_clarify"]
         orchestrator = MagicMock()
         orchestrator.run = run

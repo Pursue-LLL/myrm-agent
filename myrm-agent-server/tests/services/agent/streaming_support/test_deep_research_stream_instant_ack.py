@@ -7,6 +7,7 @@ matching the General Agent pattern.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,7 +35,7 @@ async def test_deep_research_stream_yields_instant_ack_progress() -> None:
     ):
         mock_orch = MagicMock()
 
-        async def _empty_run(**kwargs):  # type: ignore[no-untyped-def]
+        async def _empty_run(**kwargs: object) -> AsyncGenerator[dict[str, object], None]:
             return
             yield  # make it an async generator
 
