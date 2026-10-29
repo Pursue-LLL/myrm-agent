@@ -8,9 +8,12 @@ interface so the Gateway can manage them uniformly.
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.reliability.retry::RetryConfig, send_with_retry (POS: async retry utility with exponential backoff)
 - channels.core.credentials::ChannelCredentialSpec (POS: framework-level credential type definition)
+- channels.core.inbound_pipeline::InboundPipelineMixin (POS: inbound filter, dedup, rate limit, access check, debounce, dispatch)
+- channels.core.reply_shortcuts::ReplyShortcutsMixin (POS: ``respond`` / ``broadcast`` on top of ``send``)
+- channels.core.provider_hooks::ProviderHooksMixin (POS: optional hooks: routes, async login, OAuth2 callback, history, context document)
 
 [OUTPUT]
-- BaseChannel: abstract base class defining channel lifecycle and message send/receive interface
+- BaseChannel: abstract base class defining channel lifecycle and message send/receive interface; the inbound pipeline, the reply shortcuts and the optional provider hooks come from its mixins
 
 [POS]
 Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly.
@@ -21,12 +24,8 @@ Providers may declare credential_spec and from_credentials for self-contained cr
 from __future__ import annotations
 
 import asyncio
-import logging
-import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import AsyncIterator, Awaitable, Callable
-from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, Self
 
 from myrm_agent_harness.infra.tracing import get_meter
@@ -36,11 +35,14 @@ from app.channels.core.allow_policy import (
     AllowPolicy,
 )
 from app.channels.core.events import EventEmitter
+from app.channels.core.inbound_pipeline import InboundHandler, InboundPipelineMixin
+from app.channels.core.provider_hooks import ProviderHooksMixin
 from app.channels.core.rate_limit import (
     DISABLED_RATE_LIMIT,
     RateLimitConfig,
     RateLimiter,
 )
+from app.channels.core.reply_shortcuts import ReplyShortcutsMixin
 from app.channels.reliability.retry import (
     RetryConfig,
     default_extract_retry_after,
@@ -52,7 +54,6 @@ from app.channels.types import (
     ChannelHealth,
     ChannelIssue,
     ChannelStatus,
-    ContextDocument,
     GroupInfo,
     InboundMessage,
     IssueKind,
@@ -66,28 +67,10 @@ if TYPE_CHECKING:
     from app.channels.core.credentials import (
         ChannelCredentialSpec,
     )
-    from app.channels.protocols.async_login import LoginEvent, LoginMethod
-
-logger = logging.getLogger(__name__)
-
-InboundHandler = Callable[[InboundMessage], Awaitable[None]]
-
-_DEFAULT_DEDUP_TTL = 120.0
-_DEFAULT_DEDUP_CAPACITY = 2000
+    from app.channels.protocols.async_login import LoginMethod
 
 
-class DedupMode(Enum):
-    """Message deduplication mode.
-
-    - TTL: Time-based expiration (legacy, for backward compatibility)
-    - LRU: Least Recently Used eviction (default, more efficient)
-    """
-
-    TTL = "ttl"
-    LRU = "lru"
-
-
-class BaseChannel(ABC, EventEmitter):
+class BaseChannel(InboundPipelineMixin, ReplyShortcutsMixin, ProviderHooksMixin, ABC, EventEmitter):
     """Abstract base for channel providers.
 
     Subclasses must implement ``send`` and optionally override
@@ -162,11 +145,6 @@ class BaseChannel(ABC, EventEmitter):
             if value:
                 return str(value)
         return None
-
-    _dedup_mode: DedupMode = DedupMode.LRU
-    _dedup_capacity: int = 1024
-    _dedup_ttl: float = _DEFAULT_DEDUP_TTL
-    _debounce_seconds: float = 0.0
 
     @classmethod
     def from_credentials(cls, creds: dict[str, str]) -> Self:
@@ -244,114 +222,6 @@ class BaseChannel(ABC, EventEmitter):
         Callers that need the outcome use ``MessageBus.send_now()`` (raises) or ``send_tracked()``
         (returns the id or ``None``); both bypass the queue.
         """
-
-    async def respond(
-        self,
-        incoming_msg: InboundMessage,
-        content: str,
-        *,
-        in_thread: bool = True,
-        **kwargs: object,
-    ) -> str | None:
-        """Reply to an incoming message with automatic context inference.
-
-        Convenience wrapper for send() that automatically extracts:
-        - channel: from self.name
-        - recipient_id: from incoming_msg.chat_id (or sender_id as fallback)
-        - user_id: from incoming_msg.user_id (or sender_id as fallback)
-        - reply_to_id: from incoming_msg.message_id (if in_thread=True)
-
-        Args:
-            incoming_msg: The message to reply to
-            content: Reply text content
-            in_thread: If True, reply in thread (uses reply_to_id)
-            **kwargs: Additional OutboundMessage fields (media, metadata, etc.)
-
-        Returns:
-            Platform message_id if available, or None
-
-        Example:
-            # Before (verbose)
-            await channel.send(OutboundMessage(
-                channel="slack",
-                recipient_id=incoming_msg.chat_id,
-                reply_to_id=incoming_msg.message_id,
-                content="Hello!",
-                user_id=incoming_msg.user_id
-            ))
-
-            # After (concise)
-            await channel.respond(incoming_msg, "Hello!")
-        """
-        return await self.send(
-            OutboundMessage(
-                channel=self.name,
-                recipient_id=incoming_msg.chat_id or incoming_msg.sender_id,
-                content=content,
-                user_id=incoming_msg.user_id or incoming_msg.sender_id,
-                reply_to_id=incoming_msg.message_id if in_thread else None,
-                **kwargs,  # type: ignore[arg-type]
-            )
-        )
-
-    async def broadcast(
-        self,
-        recipient_id: str,
-        content: str,
-        user_id: str,
-        *,
-        thread_ts: str | None = None,
-        **kwargs: object,
-    ) -> str | None:
-        """Send a proactive message to a channel or user.
-
-        Convenience wrapper for send() for proactive messaging scenarios
-        (cron jobs, notifications, alerts). Requires explicit user_id since
-        it cannot be inferred from context.
-
-        Args:
-            recipient_id: Target channel_id or user_id
-            content: Message text content
-            user_id: User ID for audit/authorization (required)
-            thread_ts: Optional thread timestamp (Slack-specific)
-            **kwargs: Additional OutboundMessage fields (media, metadata, etc.)
-
-        Returns:
-            Platform message_id if available, or None
-
-        Example:
-            # Before (verbose)
-            await channel.send(OutboundMessage(
-                channel="slack",
-                recipient_id="C12345",
-                content="Cron job completed!",
-                user_id=job.user_id,
-                metadata={"job_name": "daily_report"}
-            ))
-
-            # After (concise)
-            await channel.broadcast(
-                "C12345",
-                "Cron job completed!",
-                user_id=job.user_id,
-                metadata={"job_name": "daily_report"}
-            )
-        """
-        raw_metadata = kwargs.pop("metadata", None)
-        metadata: dict[str, object] = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
-        if thread_ts:
-            metadata["thread_ts"] = thread_ts
-
-        return await self.send(
-            OutboundMessage(
-                channel=self.name,
-                recipient_id=recipient_id,
-                content=content,
-                user_id=user_id,
-                metadata=metadata or None,
-                **kwargs,  # type: ignore[arg-type]
-            )
-        )
 
     async def start(self) -> None:
         """Start the channel (e.g. open WebSocket, begin polling).
@@ -495,282 +365,3 @@ class BaseChannel(ABC, EventEmitter):
     def extract_retry_after(self, exc: BaseException) -> float | None:
         """Extract platform-specific retry-after seconds. Override for custom headers."""
         return default_extract_retry_after(exc)
-
-    def _build_inbound(
-        self,
-        sender_id: str,
-        content: str,
-        chat_id: str,
-        **kwargs: object,
-    ) -> InboundMessage:
-        """Build an InboundMessage with ``channel`` auto-populated from ``self.name``."""
-        return InboundMessage(
-            channel=self.name,
-            sender_id=sender_id,
-            content=content,
-            chat_id=chat_id,
-            **kwargs,  # type: ignore[arg-type]  # forwarded as they come; the constructor rejects an unknown name
-        )
-
-    async def _emit_inbound(self, msg: InboundMessage) -> None:
-        """Inbound pipeline: filter → dedup → rate limit → access check → debounce → dispatch.
-
-        Called by channel implementations when a message arrives
-        from the external platform. Subclasses should NOT override this;
-        override individual pipeline stages if needed.
-        """
-        if self._status == ChannelStatus.DISABLED:
-            return
-
-        if self._bot_id and msg.sender_id == self._bot_id:
-            return
-
-        if msg.message_id and self._dedup_ttl > 0:
-            now = time.monotonic()
-            if msg.message_id in self._seen_msg_ids:
-                self._dedup_hit_counter.add(1, {"channel": self.name})
-                return
-            self._dedup_miss_counter.add(1, {"channel": self.name})
-            self._seen_msg_ids[msg.message_id] = now
-            self._evict_expired_dedup(now)
-
-        if not await self._rate_limiter.check_and_update(msg):
-            logger.debug(
-                "Channel '%s': message from %s rate limited",
-                self.name,
-                msg.sender_id,
-            )
-            return
-
-        reject_reason = self.allow_policy.evaluate(msg)
-        if reject_reason is not None:
-            logger.debug(
-                "Channel '%s': message from %s denied (%s)",
-                self.name,
-                msg.sender_id,
-                reject_reason.value,
-            )
-            return
-
-        if self._debounce_seconds > 0:
-            await self._debounce_emit(msg)
-        else:
-            await self._dispatch_inbound(msg)
-
-    async def _dispatch_inbound(self, msg: InboundMessage) -> None:
-        """Final dispatch to the registered handler."""
-        self.activity.record_inbound()
-        if self._inbound_handler:
-            await self._inbound_handler(msg)
-        else:
-            logger.warning("Channel '%s': inbound message dropped (no handler)", self.name)
-
-    async def _debounce_emit(self, msg: InboundMessage) -> None:
-        """Buffer messages per chat_id and dispatch after debounce window."""
-        key = msg.chat_id or msg.sender_id
-        self._debounce_buffers[key] = msg
-
-        existing = self._debounce_tasks.get(key)
-        if existing and not existing.done():
-            return
-
-        async def _flush() -> None:
-            await asyncio.sleep(self._debounce_seconds)
-            buffered = self._debounce_buffers.pop(key, None)
-            self._debounce_tasks.pop(key, None)
-            if buffered:
-                await self._dispatch_inbound(buffered)
-
-        self._debounce_tasks[key] = asyncio.create_task(_flush())
-
-    def _evict_expired_dedup(self, now: float) -> None:
-        """Remove expired or excess entries from the dedup cache.
-
-        Supports two modes:
-        - LRU: Pure capacity-based eviction (faster, default)
-        - TTL: Time-based expiration + capacity limit (legacy)
-        """
-        if self._dedup_mode == DedupMode.LRU:
-            while len(self._seen_msg_ids) > self._dedup_capacity:
-                self._seen_msg_ids.popitem(last=False)
-                self._dedup_eviction_counter.add(1, {"channel": self.name, "mode": "lru"})
-        else:
-            while self._seen_msg_ids:
-                oldest_key, oldest_ts = next(iter(self._seen_msg_ids.items()))
-                if now - oldest_ts > self._dedup_ttl:
-                    self._seen_msg_ids.pop(oldest_key)
-                    self._dedup_eviction_counter.add(1, {"channel": self.name, "mode": "ttl"})
-                else:
-                    break
-            while len(self._seen_msg_ids) > _DEFAULT_DEDUP_CAPACITY:
-                self._seen_msg_ids.popitem(last=False)
-                self._dedup_eviction_counter.add(1, {"channel": self.name, "mode": "ttl_capacity"})
-
-    def register_routes(self, registrar: object) -> None:
-        """Register channel-specific HTTP routes.
-
-        Optional method. Channels that need custom HTTP endpoints
-        (e.g., webhooks, login pages, status endpoints) can override
-        this to register their routes.
-
-        The registrar parameter is typed as object to avoid coupling the
-        framework layer to any specific web framework. Business layer will
-        provide a RouteRegistrar implementation.
-
-        Example:
-            from app.channels.protocols import (
-                HttpMethod,
-                RouteMetadata,
-                RouteRegistrar,
-            )
-
-            def register_routes(self, registrar: object) -> None:
-                if not isinstance(registrar, RouteRegistrar):
-                    return
-
-                registrar.add_route(
-                    HttpMethod.POST,
-                    "webhook",
-                    self._handle_webhook,
-                    RouteMetadata(
-                        description="Receive webhook updates",
-                        requires_auth=False,
-                        rate_limit_policy="60 per minute",
-                    ),
-                )
-
-        Args:
-            registrar: Route registration interface (from business layer)
-        """
-        pass
-
-    def _get_route_prefix(self) -> str:
-        """Get the route prefix for this channel.
-
-        Default: channels/{channel_name}/
-        Can be overridden by subclasses for custom prefixes.
-
-        Returns:
-            Route prefix (without leading slash)
-        """
-        return f"channels/{self.name}/"
-
-    async def start_login(
-        self,
-        method: object,
-        *,
-        timeout: float = 300.0,
-        callback_url: str | None = None,
-    ) -> AsyncIterator[LoginEvent]:
-        """Start async login flow.
-
-        Optional method. Channels that require user interaction for
-        authentication (QR scan, OAuth2) should implement AsyncLoginProtocol
-        and override this method.
-
-        The method parameter is typed as object to avoid coupling the
-        framework layer base class to specific protocol types. Implementations
-        should import and use LoginMethod from protocols.async_login.
-
-        Example:
-            from app.channels.protocols import (
-                AsyncLoginProtocol,
-                LoginMethod,
-                LoginEvent,
-            )
-            from app.channels.helpers import QRCodeLoginHelper
-
-            class WeChatChannel(BaseChannel):
-                supported_login_methods = [LoginMethod.QR_CODE]
-
-                async def start_login(
-                    self,
-                    method: object,
-                    *,
-                    timeout: float = 300.0,
-                    callback_url: str | None = None,
-                ) -> AsyncIterator[LoginEvent]:
-                    if method != LoginMethod.QR_CODE:
-                        raise ValueError("Only QR_CODE method is supported")
-
-                    helper = QRCodeLoginHelper(
-                        fetch_qr_fn=self._fetch_qr_code,
-                        poll_status_fn=self._poll_qr_status,
-                    )
-                    async for event in helper.run(timeout, self.name):
-                        yield event
-
-        Args:
-            method: Login method to use (LoginMethod enum)
-            timeout: Maximum seconds to wait for user action
-            callback_url: OAuth2 callback URL (required for OAuth2 method)
-
-        Yields:
-            LoginEvent: State change events (see AsyncLoginProtocol)
-
-        Raises:
-            NotImplementedError: On first iteration, if the channel does not support async login
-        """
-        raise NotImplementedError(
-            f"{self.name} does not support async login (override start_login() and set supported_login_methods)"
-        )
-        yield  # unreachable; makes this an async generator, the shape every override has
-
-    async def cancel_login(self) -> None:
-        """Cancel current login flow.
-
-        Optional method. Channels implementing AsyncLoginProtocol should
-        override this to stop background tasks and clean up resources.
-
-        Default implementation does nothing (safe no-op).
-        """
-        pass
-
-    async def handle_oauth2_callback(
-        self,
-        code: str | None,
-        state: str,
-        error: str | None = None,
-    ) -> None:
-        """Handle OAuth2 authorization callback.
-
-        Called by the server-layer callback endpoint to deliver the
-        authorization code to the running OAuth2 login flow.
-
-        Channels using OAuth2LoginHelper should override this to delegate
-        to helper.handle_callback(code, state, error).
-
-        Args:
-            code: Authorization code (if user authorized)
-            state: CSRF state token (validated by OAuth2LoginHelper)
-            error: OAuth2 error code (if user denied)
-
-        Raises:
-            NotImplementedError: If channel does not support OAuth2 login
-        """
-        raise NotImplementedError(f"{self.name} does not support OAuth2 callback")
-
-    async def fetch_history(self, chat_id: str, limit: int = 15) -> list[InboundMessage]:
-        """Fetch recent historical messages from the platform's chat/thread.
-
-        Subclasses (like Discord, Slack, etc.) should override this method to
-        retrieve actual history via platform-specific APIs. Filters out Bot
-        and self messages dynamically.
-
-        Args:
-            chat_id: The ID of the channel/thread to fetch from.
-            limit: The maximum number of historical messages to fetch.
-
-        Returns:
-            A list of InboundMessage objects sorted in ascending chronological order.
-        """
-        return []
-
-    async def read_context_document(self, msg: InboundMessage) -> ContextDocument | None:
-        """The document ``msg`` is about, for turns that comment on a document; None for every other message.
-
-        Providers whose platform can read such a document (Feishu document comments) override this. The router calls
-        it just before the agent runs, so the body is never journaled or ledgered together with the inbound message.
-        An override reports a read it could not complete through ``ContextDocument.status`` instead of raising.
-        """
-        return None

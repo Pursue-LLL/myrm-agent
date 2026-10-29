@@ -76,7 +76,7 @@
 
 ### 3.1 BaseChannel
 
-所有渠道 Provider 的抽象基类，继承 `EventEmitter`。
+所有渠道 Provider 的抽象基类，继承 `EventEmitter`。生命周期、状态、能力与重试在 `core/base.py`；入站管道在 `core/inbound_pipeline.py`（`InboundPipelineMixin`），`respond()` / `broadcast()` 在 `core/reply_shortcuts.py`（`ReplyShortcutsMixin`），路由、登录、OAuth2 回调、历史与上下文文档等可选钩子在 `core/provider_hooks.py`（`ProviderHooksMixin`），三者都由 `BaseChannel` 继承。
 
 **职责**：
 - 定义渠道生命周期（`start()` / `stop()`）
@@ -572,7 +572,7 @@ Framework 提供 Protocol-based 路由注册机制，实现框架独立性（不
    - `RequestAdapter[TRequest]` Protocol：将框架特定请求转换为GenericRequest
    - `ResponseAdapter[TResponse]` Protocol：将GenericResponse转换为框架特定响应
 
-3. **core/base.py**
+3. **core/provider_hooks.py**
    - `BaseChannel.register_routes(registrar)` 可选方法：Channel声明自己的HTTP端点
    - `BaseChannel._get_route_prefix()` 默认实现：返回 `channels/{channel_name}/`
 

@@ -16,7 +16,8 @@ Provides:
 
 
 [INPUT]
-- core.base::BaseChannel, InboundHandler (POS: channel abstract base class)
+- core.base::BaseChannel (POS: channel abstract base class)
+- core.inbound_pipeline::InboundHandler (POS: callable that receives inbound messages)
 - core.bus::MessageBus (POS: async message bus)
 - core.gateway::ChannelGateway (POS: channel lifecycle gateway)
 - protocols (POS: channel protocol definitions)
@@ -35,9 +36,10 @@ Channels toolkit entry point. Aggregates channel abstractions, message bus, gate
 routing, protocols, storage, and type definitions for multi-platform messaging.
 """
 
-from app.channels.core.base import BaseChannel, InboundHandler
+from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
 from app.channels.core.gateway import ChannelGateway
+from app.channels.core.inbound_pipeline import InboundHandler
 from app.channels.protocols import (
     AgentExecutor,
     ChannelPolicyProvider,

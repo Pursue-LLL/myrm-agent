@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from app.channels.core.exceptions import ChannelSendError
-from tests.channels.providers.slack.test_slack_channel import _make_channel, _ok_json
+from tests.channels.providers.slack.support import make_channel, ok_json
 
 EYES = "\U0001f440"
 
@@ -27,8 +27,8 @@ def _methods(post: AsyncMock) -> list[str]:
 
 @pytest.mark.asyncio
 async def test_an_empty_emoji_removes_the_reaction_that_was_added() -> None:
-    ch = _make_channel()
-    with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as post:
+    ch = make_channel()
+    with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=ok_json()) as post:
         await ch.react_to_message("C1", "1700000000.000100", EYES)
         await ch.react_to_message("C1", "1700000000.000100", "")
 
@@ -38,16 +38,16 @@ async def test_an_empty_emoji_removes_the_reaction_that_was_added() -> None:
 
 @pytest.mark.asyncio
 async def test_an_empty_emoji_calls_nothing_when_no_reaction_was_added() -> None:
-    ch = _make_channel()
-    with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as post:
+    ch = make_channel()
+    with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=ok_json()) as post:
         await ch.react_to_message("C1", "1700000000.000100", "")
     post.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_a_reaction_is_removed_only_once() -> None:
-    ch = _make_channel()
-    with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as post:
+    ch = make_channel()
+    with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=ok_json()) as post:
         await ch.react_to_message("C1", "1.1", EYES)
         await ch.react_to_message("C1", "1.1", "")
         await ch.react_to_message("C1", "1.1", "")
@@ -56,7 +56,7 @@ async def test_a_reaction_is_removed_only_once() -> None:
 
 @pytest.mark.asyncio
 async def test_a_missing_scope_is_raised_with_the_scope_that_is_needed() -> None:
-    ch = _make_channel()
+    ch = make_channel()
     response = _error("missing_scope", needed="reactions:write", provided="chat:write")
     with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=response):
         with pytest.raises(ChannelSendError, match=r"missing_scope.*reactions:write"):
@@ -65,7 +65,7 @@ async def test_a_missing_scope_is_raised_with_the_scope_that_is_needed() -> None
 
 @pytest.mark.asyncio
 async def test_a_failed_add_is_not_remembered_so_nothing_is_removed_later() -> None:
-    ch = _make_channel()
+    ch = make_channel()
     with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_error("invalid_name")) as post:
         with pytest.raises(ChannelSendError, match="invalid_name"):
             await ch.react_to_message("C1", "1.1", EYES)
@@ -76,7 +76,7 @@ async def test_a_failed_add_is_not_remembered_so_nothing_is_removed_later() -> N
 @pytest.mark.asyncio
 @pytest.mark.parametrize("error", ["already_reacted", "no_reaction"])
 async def test_a_reaction_that_is_already_in_the_wanted_state_is_not_an_error(error: str) -> None:
-    ch = _make_channel()
+    ch = make_channel()
     with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_error(error)):
         await ch.react_to_message("C1", "1.1", EYES)
         await ch.react_to_message("C1", "1.1", "")

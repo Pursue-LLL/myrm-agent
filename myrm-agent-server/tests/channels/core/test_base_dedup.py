@@ -4,7 +4,8 @@ import asyncio
 
 import pytest
 
-from app.channels.core.base import BaseChannel, DedupMode
+from app.channels.core.base import BaseChannel
+from app.channels.core.inbound_pipeline import DedupMode
 from app.channels.types import InboundMessage, OutboundMessage
 
 

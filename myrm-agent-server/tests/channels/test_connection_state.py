@@ -397,7 +397,7 @@ class TestInboundPipeline:
         assert received[0].content == "second"
 
     def test_evict_expired_dedup(self) -> None:
-        from app.channels.core.base import DedupMode
+        from app.channels.core.inbound_pipeline import DedupMode
 
         ch = _make_stub()
         ch._dedup_mode = DedupMode.TTL

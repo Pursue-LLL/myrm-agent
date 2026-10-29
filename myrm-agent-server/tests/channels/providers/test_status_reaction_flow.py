@@ -13,15 +13,15 @@ import pytest
 
 from app.channels.routing.reactions import ReactionFunnel, StatusReaction, TurnOutcome
 from app.channels.routing.router_models import ReactionPolicy
-from tests.channels.providers.slack.test_slack_channel import _make_channel, _ok_json
+from tests.channels.providers.slack.support import make_channel, ok_json
 
 
 @pytest.fixture
 def slack_status() -> Iterator[tuple[StatusReaction, AsyncMock]]:
-    slack = _make_channel()
+    slack = make_channel()
     bus = MagicMock()
     bus.get_channel = MagicMock(return_value=slack)
-    with patch.object(slack._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as post:
+    with patch.object(slack._api._http, "post", new_callable=AsyncMock, return_value=ok_json()) as post:
         yield StatusReaction(ReactionFunnel(bus), ReactionPolicy(), "slack", "C1", "1.1"), post
 
 

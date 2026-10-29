@@ -9,7 +9,8 @@
 - app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
 - app.channels.providers.feishu.reactions::FEISHU_REACTION_GLYPHS (POS: glyphs Feishu has an emoji_type for)
 - app.channels.providers.feishu.outbound::FeishuOutboundMixin (POS: message send, media upload, streaming cards)
-- app.channels.core.base::BaseChannel, DedupMode (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
+- app.channels.core.base::BaseChannel (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
+- app.channels.core.inbound_pipeline::DedupMode (POS: message deduplication mode of the inbound pipeline)
 - app.channels.security.errors::WebhookResponseError (POS: Webhook error response layer. Provides RFC 7807 standardized error format, supporting machine-parsable and human-readable output without leaking sensitive data.)
 
 [OUTPUT]
@@ -30,8 +31,9 @@ from typing import TYPE_CHECKING, Self
 from fastapi import Request
 
 from app.channels.core.allow_policy import AllowPolicy, ChatPolicy
-from app.channels.core.base import BaseChannel, DedupMode
+from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
+from app.channels.core.inbound_pipeline import DedupMode
 from app.channels.core.reaction_ledger import ReactionLedger
 from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
