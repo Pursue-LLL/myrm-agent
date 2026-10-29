@@ -1,6 +1,6 @@
 """OpenAPI Services API endpoint integration test.
 
-Tests the /api/v1/agents/openapi-services/parse-spec and /test-request endpoints
+Tests the /api/v1/agents/openapi-services/presets and /parse-spec endpoints
 using a real remote spec (Swagger Petstore) without mocks.
 """
 
@@ -147,58 +147,3 @@ class TestParseSpecEndpoint:
             json={"spec_content": "not valid yaml or json"},
         )
         assert response.status_code == 422
-
-
-class TestTestRequestEndpoint:
-    """Test POST /api/v1/agents/openapi-services/test-request"""
-
-    @pytest.mark.skipif(
-        not _petstore_spec_url_reachable(),
-        reason="Petstore spec URL unreachable (network/SSL) in this environment",
-    )
-    def test_successful_request(self, client: TestClient):
-        """Execute a real test request against Petstore API.
-
-        Verifies endpoint connectivity - the external API may occasionally
-        return 5xx errors, so we check the response is not empty and
-        the request was executed (not blocked by internal error).
-        """
-        response = client.post(
-            "/api/v1/agents/openapi-services/test-request",
-            json={
-                "service_config": {
-                    "name": "petstore",
-                    "spec_url": PETSTORE_SPEC_URL,
-                    "base_url": "https://petstore3.swagger.io/api/v3",
-                },
-                "operation_id": "findPetsByStatus",
-                "params": {"status": "available"},
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["response_body"] != ""
-        assert "Spec error" not in data["status_message"]
-        assert "not found" not in data["status_message"]
-
-    @pytest.mark.skipif(
-        not _petstore_spec_url_reachable(),
-        reason="Petstore spec URL unreachable (network/SSL) in this environment",
-    )
-    def test_nonexistent_endpoint(self, client: TestClient):
-        """Should report error for missing operation_id."""
-        response = client.post(
-            "/api/v1/agents/openapi-services/test-request",
-            json={
-                "service_config": {
-                    "name": "petstore",
-                    "spec_url": PETSTORE_SPEC_URL,
-                },
-                "operation_id": "nonExistentOperation",
-                "params": {},
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "not found" in data["status_message"]

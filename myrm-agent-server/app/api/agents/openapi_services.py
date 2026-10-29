@@ -1,6 +1,6 @@
 """OpenAPI Services API endpoints.
 
-Provides spec parsing preview and test request capabilities for
+Provides spec parsing preview and the built-in SaaS connector presets for
 OpenAPI service configuration in the Agent editor.
 
 [INPUT]
@@ -10,8 +10,8 @@ OpenAPI service configuration in the Agent editor.
 - router: FastAPI router with /openapi-services/* endpoints
 
 [POS]
-OpenAPI Services API. Enables frontend to preview parsed specs and test
-connectivity before saving service configurations.
+OpenAPI Services API. Enables frontend to preview parsed specs and pick
+a pre-configured SaaS connector before saving service configurations.
 """
 
 from __future__ import annotations
@@ -115,22 +115,6 @@ async def get_saas_presets() -> list[dict[str, str | list[str]]]:
     return BUILTIN_SAAS_PRESETS
 
 
-class TestRequestPayload(BaseModel):
-    """Request to test an OpenAPI endpoint."""
-
-    service_config: OpenAPIServiceConfig
-    operation_id: str
-    params: dict[str, str] = Field(default_factory=dict)
-
-
-class TestRequestResponse(BaseModel):
-    """Test request result."""
-
-    success: bool
-    status_message: str
-    response_body: str = ""
-
-
 @router.post("/parse-spec", response_model=ParseSpecResponse)
 async def parse_spec(request: ParseSpecRequest) -> ParseSpecResponse:
     """Parse an OpenAPI spec and return endpoint listing for preview.
@@ -175,64 +159,3 @@ async def parse_spec(request: ParseSpecRequest) -> ParseSpecResponse:
         tags=spec.tags,
         endpoint_count=len(spec.endpoints),
     )
-
-
-@router.post("/test-request", response_model=TestRequestResponse)
-async def test_request(payload: TestRequestPayload) -> TestRequestResponse:
-    """Execute a test request against a configured OpenAPI endpoint.
-
-    Used by frontend to verify connectivity and authentication before saving.
-    """
-    try:
-        spec = await _bridge.preview_spec(payload.service_config)
-    except ValueError:
-        return TestRequestResponse(success=False, status_message="Spec validation failed")
-
-    target_ep = None
-    for ep in spec.endpoints:
-        if ep.operation_id == payload.operation_id:
-            target_ep = ep
-            break
-
-    if not target_ep:
-        return TestRequestResponse(
-            success=False,
-            status_message=f"Endpoint '{payload.operation_id}' not found in spec",
-        )
-
-    try:
-        from myrm_agent_harness.toolkits.openapi_bridge import OpenAPIExecutor
-
-        base_url = payload.service_config.base_url or spec.base_url
-        if not base_url:
-            return TestRequestResponse(success=False, status_message="No base URL available")
-
-        executor = OpenAPIExecutor(
-            base_url=base_url,
-            auth_config=payload.service_config.auth,
-            timeout=min(payload.service_config.request_timeout, 15.0),
-            max_retries=0,
-        )
-
-        import re
-
-        path_param_names = set(re.findall(r"\{(\w+)\}", target_ep.path))
-        p_params = {k: v for k, v in payload.params.items() if k in path_param_names}
-        q_params = {k: v for k, v in payload.params.items() if k not in path_param_names}
-
-        result = await executor.execute(
-            method=target_ep.method,
-            path=target_ep.path,
-            path_params=p_params or None,
-            query_params=q_params or None,
-        )
-        await executor.close()
-
-        is_error = result.startswith("Error")
-        return TestRequestResponse(
-            success=not is_error,
-            status_message="Request successful" if not is_error else "Request returned error",
-            response_body=result[:2000],
-        )
-    except Exception:
-        return TestRequestResponse(success=False, status_message="Request failed")

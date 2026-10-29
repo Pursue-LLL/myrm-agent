@@ -642,31 +642,6 @@ export async function parseOpenAPISpec(params: {
   return result.data ?? result;
 }
 
-export async function testOpenAPIRequest(params: {
-  url: string;
-  method: string;
-  headers?: Record<string, string>;
-  body?: unknown;
-  timeout_seconds?: number;
-}): Promise<{ status_code: number; headers: Record<string, string>; body: string; elapsed_ms: number }> {
-  const response = await fetch(`${getBackendUrl()}/api/v1/agents/openapi-services/test-request`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(params),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail || `Test request failed: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result.data ?? result;
-}
-
 export interface AgentFleetStats {
   sessionCount: number;
   monthTokens: number;
