@@ -4,9 +4,12 @@
 - contextvars::ContextVar (POS: Python 异步上下文变量标准库)
 - agent.security.workspace_trust.types::WorkspaceTrustLevel
   (POS: 工作区信任级别类型)
+- agent.security.workspace_trust.gate::blocks_workspace_side_channels
+  (POS: pure predicate: which trust levels keep repo-local side channels closed)
 
 [OUTPUT]
 - set/get_workspace_trust_level, set/get_workspace_root, and set/get_repo_command_prefixes accessors
+- workspace_side_channels_blocked: whether the run's trust level keeps repo-local side channels closed
 - clear_workspace_trust_context: resets all vars at run end
 
 [POS]
@@ -19,6 +22,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
+from . import gate
 from .types import WorkspaceTrustLevel
 
 _workspace_trust_level_var: ContextVar[WorkspaceTrustLevel | None] = ContextVar(
@@ -43,6 +47,11 @@ def set_workspace_trust_level(level: WorkspaceTrustLevel | None) -> None:
 def get_workspace_trust_level() -> WorkspaceTrustLevel | None:
     """Return the active workspace trust level, if any."""
     return _workspace_trust_level_var.get()
+
+
+def workspace_side_channels_blocked() -> bool:
+    """Whether the active run's trust level keeps repo-local side channels closed; a run with no level counts as restricted."""
+    return gate.blocks_workspace_side_channels(get_workspace_trust_level())
 
 
 def set_workspace_root(workspace_root: str | None) -> None:

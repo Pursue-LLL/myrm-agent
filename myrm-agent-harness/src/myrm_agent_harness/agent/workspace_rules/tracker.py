@@ -13,11 +13,13 @@ context, without modifying the system prompt (preserving KV Cache).
 [INPUT]
 - agent.workspace_rules.scanner::_CLAUDE_SUBDIR_FILE, _COPILOT_INSTRUCTIONS_FILE, _RULE_FILENAMES, _load_rule_file (POS: Rule file discovery and loading)
 - agent.workspace_rules.rule_read_guard::RuleReadGuard (POS: Boundary-checked, bounded reads of the rule files of one scan)
+- agent.security.workspace_trust.context::workspace_side_channels_blocked (POS: run-scoped state holder of the workspace_trust gate; unknown trust is restricted)
+- core.security.tool_registry.file_args::host_file_paths (POS: the files a file tool call may open, whichever argument spelling carries them)
 
 [OUTPUT]
 - SubdirectoryContextTracker: stateful tracker, one per session
 - get_subdirectory_tracker(): get or create session-scoped tracker
-- check_and_append_rules(): check tool result for new directory rules
+- check_and_append_rules(): check tool result for new directory rules; nothing is appended while the workspace trust level keeps repo-local side channels closed
 
 [POS]
 Progressive subdirectory rule discovery. Monitors tool calls for
@@ -32,24 +34,22 @@ from contextvars import ContextVar
 from pathlib import Path
 
 from myrm_agent_harness.agent.workspace_rules.rule_read_guard import RuleReadGuard
+from myrm_agent_harness.core.security.tool_registry.file_args import host_file_paths
 
 logger = logging.getLogger(__name__)
 
 _MAX_APPEND_CHARS = 16000
 _MAX_ANCESTOR_WALK = 5
 
+# The arguments that name a directory, a destination or a shell command; the files a file tool opens come from the
+# shared file-argument reader, which also reads the ``paths`` list ``file_read_tool`` batches its files in.
 _PATH_ARG_KEYS: frozenset[str] = frozenset(
     {
-        "path",
-        "file_path",
-        "filepath",
-        "filename",
         "directory",
         "dir",
         "working_directory",
         "workdir",
         "cwd",
-        "target",
         "source",
         "destination",
         "command",
@@ -138,6 +138,9 @@ class SubdirectoryContextTracker:
             if not isinstance(raw_val, str) or not raw_val:
                 continue
             self._add_path_candidate(raw_val, candidates)
+
+        for file_path in host_file_paths(args):
+            self._add_path_candidate(file_path, candidates)
 
         if tool_name in ("bash_code_execute_tool", "shell_exec"):
             raw_cmd = args.get("command")
@@ -232,9 +235,15 @@ def check_and_append_rules(
 ) -> str | None:
     """Convenience function: check tool call and return rules to append.
 
-    Called from tool_interceptor_middleware POST-CALL stage.
+    Called from tool_interceptor_middleware POST-CALL stage. A workspace whose trust level
+    keeps repo-local side channels closed gets no rule text from its subdirectories either:
+    the repository wrote those files, and they would reach the model as part of a tool result.
     """
+    from myrm_agent_harness.agent.security.workspace_trust.context import (
+        workspace_side_channels_blocked,
+    )
+
     tracker = get_subdirectory_tracker()
-    if tracker is None:
+    if tracker is None or workspace_side_channels_blocked():
         return None
     return tracker.check_tool_call(tool_name, tool_args, result_text)

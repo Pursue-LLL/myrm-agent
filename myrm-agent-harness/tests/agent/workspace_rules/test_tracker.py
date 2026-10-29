@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.agent.security.workspace_trust.context import (
+    clear_workspace_trust_context,
+    set_workspace_trust_level,
+)
+from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustLevel
 from myrm_agent_harness.agent.workspace_rules.tracker import (
     _PATH_ARG_KEYS,
     SubdirectoryContextTracker,
@@ -21,6 +27,13 @@ def workspace_dir(tmp_path: Path) -> Path:
     """Create a temporary workspace with .git marker and an AGENTS.md."""
     (tmp_path / ".git").mkdir()
     return tmp_path
+
+
+@pytest.fixture()
+def trust_level() -> Iterator[None]:
+    """Leave no trust level bound to the test that follows."""
+    yield
+    clear_workspace_trust_context()
 
 
 class TestSubdirectoryContextTracker:
@@ -83,6 +96,46 @@ class TestSubdirectoryContextTracker:
         result = tracker.check_tool_call("copy_file", {"destination": str(subdir / "out.txt")}, "")
         assert result is not None
         assert "Target rules" in result
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            {"paths": ["src/main.py"], "reason": "read the entry point"},
+            {"paths": '["src/main.py"]'},
+            {"paths": ["src/main.py:1-20"]},
+            {"file_path": "src/main.py"},
+            {"files": ["src/main.py"]},
+            {"path": "src/main.py"},
+        ],
+        ids=["paths-list", "paths-json-string", "paths-with-line-range", "file_path", "files", "path"],
+    )
+    def test_discovers_the_rules_of_a_file_whichever_way_the_file_tool_names_it(
+        self, workspace_dir: Path, args: dict[str, object]
+    ) -> None:
+        subdir = workspace_dir / "src"
+        subdir.mkdir()
+        (subdir / "AGENTS.md").write_text("# Src rules")
+        (subdir / "main.py").write_text("print('hi')\n")
+
+        tracker = SubdirectoryContextTracker(str(workspace_dir))
+        result = tracker.check_tool_call("file_read_tool", args, "")
+
+        assert result is not None
+        assert "Src rules" in result
+
+    def test_discovers_the_rules_of_every_directory_a_batch_read_touches(self, workspace_dir: Path) -> None:
+        for name in ("one", "two"):
+            subdir = workspace_dir / name
+            subdir.mkdir()
+            (subdir / "AGENTS.md").write_text(f"# Rules of {name}")
+            (subdir / "a.txt").write_text("a")
+
+        tracker = SubdirectoryContextTracker(str(workspace_dir))
+        result = tracker.check_tool_call("file_read_tool", {"paths": ["one/a.txt", "two/a.txt"]}, "")
+
+        assert result is not None
+        assert "Rules of one" in result
+        assert "Rules of two" in result
 
     def test_extracts_from_shell_cd_command(self, workspace_dir: Path) -> None:
         subdir = workspace_dir / "deploy"
@@ -161,15 +214,34 @@ class TestCheckAndAppendRules:
         result = check_and_append_rules("read_file", {"path": "/some/path"}, "")
         assert result is None
 
-    def test_delegates_to_tracker(self, workspace_dir: Path) -> None:
+    def test_delegates_to_tracker(self, workspace_dir: Path, trust_level: None) -> None:
         subdir = workspace_dir / "src"
         subdir.mkdir()
         (subdir / "AGENTS.md").write_text("# Src rules")
 
+        set_workspace_trust_level(WorkspaceTrustLevel.TRUSTED)
         init_subdirectory_tracker(str(workspace_dir))
         result = check_and_append_rules("read_file", {"path": str(subdir / "main.py")}, "")
         assert result is not None
         assert "Src rules" in result
+
+    @pytest.mark.parametrize("level", [None, WorkspaceTrustLevel.RESTRICTED, WorkspaceTrustLevel.REVOKED])
+    def test_a_workspace_whose_trust_keeps_side_channels_closed_gets_no_subdirectory_rules(
+        self, workspace_dir: Path, trust_level: None, level: WorkspaceTrustLevel | None
+    ) -> None:
+        subdir = workspace_dir / "src"
+        subdir.mkdir()
+        (subdir / "AGENTS.md").write_text("# Src rules")
+        init_subdirectory_tracker(str(workspace_dir))
+        call = ("read_file", {"path": str(subdir / "main.py")}, "")
+
+        set_workspace_trust_level(level)
+        blocked = check_and_append_rules(*call)
+        set_workspace_trust_level(WorkspaceTrustLevel.TRUSTED)
+        once_trusted = check_and_append_rules(*call)
+
+        assert blocked is None
+        assert once_trusted is not None and "Src rules" in once_trusted
 
 
 class TestEdgeCases:
@@ -230,8 +302,11 @@ class TestEdgeCases:
 
 class TestPathArgKeys:
     def test_contains_expected_keys(self) -> None:
-        expected = {"path", "file_path", "filepath", "directory", "working_directory", "command"}
+        expected = {"directory", "working_directory", "source", "destination", "command"}
         assert expected.issubset(_PATH_ARG_KEYS)
+
+    def test_leaves_the_arguments_of_the_file_tools_to_the_shared_file_argument_reader(self) -> None:
+        assert not {"path", "paths", "file_path", "filepath", "filename", "target"} & _PATH_ARG_KEYS
 
     def test_is_frozenset(self) -> None:
         assert isinstance(_PATH_ARG_KEYS, frozenset)

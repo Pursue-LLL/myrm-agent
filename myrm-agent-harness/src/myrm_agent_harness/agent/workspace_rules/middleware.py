@@ -32,8 +32,7 @@ the same key but would add a graph step, and a checkpoint, to every model call o
 [INPUT]
 - agent.workspace_rules.scanner::scan_workspace_rules, RuleFile (POS: workspace rule file scanner)
 - agent.middlewares._session_context::get_workspace_root (POS: shared ContextVars for the middleware chain)
-- agent.security.workspace_trust.gate::blocks_workspace_side_channels (POS: pure predicate layer of the workspace_trust gate; unknown trust is restricted)
-- agent.security.workspace_trust.context::get_workspace_trust_level (POS: run-scoped state holder of the workspace_trust gate)
+- agent.security.workspace_trust.context::workspace_side_channels_blocked (POS: run-scoped state holder of the workspace_trust gate; unknown trust is restricted)
 - toolkits.code_execution.sandbox_snapshot::generate_sandbox_bootstrap_snapshot, format_bootstrap_snapshot_xml (POS: sandbox snapshot generator)
 - infra.tracing.otlp.lifecycle::run_bounded (POS: runs a blocking action on a daemon thread under a deadline)
 
@@ -76,18 +75,6 @@ class WorkspaceContextState(AgentState[object]):
 
     workspace_snapshot: NotRequired[Annotated[str, PrivateStateAttr]]
     workspace_snapshot_root: NotRequired[Annotated[str, PrivateStateAttr]]
-
-
-def _trust_gate_blocks() -> bool:
-    """Whether the workspace trust level keeps repo-local side channels, this injection included, closed."""
-    from myrm_agent_harness.agent.security.workspace_trust.context import (
-        get_workspace_trust_level,
-    )
-    from myrm_agent_harness.agent.security.workspace_trust.gate import (
-        blocks_workspace_side_channels,
-    )
-
-    return blocks_workspace_side_channels(get_workspace_trust_level())
 
 
 def _take_snapshot(workspace_root: str) -> str | None:
@@ -194,7 +181,11 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
         if not workspace_root:
             return await handler(request)
 
-        if _trust_gate_blocks():
+        from myrm_agent_harness.agent.security.workspace_trust.context import (
+            workspace_side_channels_blocked,
+        )
+
+        if workspace_side_channels_blocked():
             logger.info(
                 "Workspace trust gate: skipping workspace rules injection for %s",
                 workspace_root,
