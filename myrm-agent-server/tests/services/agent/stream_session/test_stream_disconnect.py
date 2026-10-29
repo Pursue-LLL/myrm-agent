@@ -184,6 +184,28 @@ async def test_no_polling_task_outlives_a_finished_turn(monkeypatch: pytest.Monk
 
 
 @pytest.mark.asyncio
+async def test_no_polling_task_outlives_a_cancelled_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A turn cancelled from outside (the chat Stop button, a server shutdown) stops its monitor from the cancelled task itself."""
+    monkeypatch.setattr(stream_disconnect, "_CHECK_INTERVAL_SECONDS", _FAST_INTERVAL_SECONDS)
+    inside = asyncio.Event()
+
+    async def turn() -> None:
+        async with watch_client_disconnect(_session(disconnected=False)):
+            inside.set()
+            await asyncio.Event().wait()
+
+    task = asyncio.create_task(turn())
+    await inside.wait()
+    assert len(_monitor_loops()) == 1
+
+    task.cancel()
+    await asyncio.wait({task}, timeout=2)
+
+    assert task.cancelled()
+    assert _monitor_loops() == []
+
+
+@pytest.mark.asyncio
 async def test_sustained_disconnect_cancels_the_turn_once_the_grace_period_ends(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
