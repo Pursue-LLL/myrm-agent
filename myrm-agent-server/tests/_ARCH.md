@@ -13,6 +13,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
 | `support/risk_gate.py` | 辅助 | 风险闸门测试的共享常量与构建器：`SECRET`、`API_KEY_RULE`、`PHONE_RULE`、`build_service_with_rules(...)`（按给定规则构造检测引擎，供各入口的闸门测试 patch `get_detection_service`） |
+| `support/wcag_contrast.py` | 辅助 | 页面对比度检查的共享断言：`split_themes` 把渲染出的内联样式拆成浅 / 深两半（深色取 `prefers-color-scheme: dark` 块），`effective` 读选择器声明的 `#rgb` / `#rrggbb` 颜色（深色规则覆盖浅色，找不到声明直接抛错），`assert_readable` 按 WCAG 公式不取整地断言文字在其底色上 ≥ 4.5；对话页、密码页、状态页的对比度测试共用 |
 | `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
 | `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/fake_secrets.py` | 辅助 | 厂商格式假凭据夹具 SSOT：`stripe_live_key(body)`、`slack_bot_token(body)` 在调用时才拼出厂商前缀，源码里不出现完整 token（GitHub push protection 会拒绝含完整厂商 token 的推送，假值也不例外）；脱敏与泄漏检测类测试共用，由 `architecture/test_no_provider_shaped_secrets_in_tests.py` 守卫 |

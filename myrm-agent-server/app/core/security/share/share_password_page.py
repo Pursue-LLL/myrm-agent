@@ -62,12 +62,13 @@ transition:border-color .15s}
 @media(prefers-color-scheme:dark){input[type=password]{background:#2a2a4a;border-color:#444;color:#e2e8f0}}
 input[type=password]:focus{border-color:#6366f1}
 button{width:100%%;padding:.625rem;border:none;border-radius:8px;
-background:#6366f1;color:#fff;font-size:.875rem;font-weight:500;
+background:#4f46e5;color:#fff;font-size:.875rem;font-weight:500;
 cursor:pointer;margin-top:.75rem;transition:background .15s}
-button:hover{background:#4f46e5}
+button:hover{background:#4338ca}
 button:disabled,input:disabled{opacity:.5;cursor:not-allowed}
-button:disabled:hover{background:#6366f1}
-.err{color:#ef4444;font-size:.8125rem;margin-top:.5rem;display:%(err_display)s}
+button:disabled:hover{background:#4f46e5}
+.err{color:#dc2626;font-size:.8125rem;margin-top:.5rem;display:%(err_display)s}
+@media(prefers-color-scheme:dark){.err{color:#f87171}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}}
 </style>
 </head>

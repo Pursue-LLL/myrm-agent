@@ -60,7 +60,8 @@ box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center}
 h1{font-size:1.125rem;font-weight:600;margin-bottom:.5rem}
 p{font-size:.875rem;color:#666;line-height:1.5;margin-bottom:1.25rem}
 @media(prefers-color-scheme:dark){p{color:#94a3b8}}
-.brand{font-size:.75rem;color:#9ca3af;margin-bottom:0}
+.brand{font-size:.75rem;color:#6b7280;margin-bottom:0}
+@media(prefers-color-scheme:dark){.brand{color:#9ca3af}}
 </style>
 </head>
 <body>

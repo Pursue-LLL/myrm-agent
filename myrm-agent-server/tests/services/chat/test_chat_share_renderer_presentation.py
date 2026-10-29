@@ -8,9 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from tests.services.chat.share_support import agentless_db, make_message, render_page
+from tests.support.wcag_contrast import Theme, assert_readable, effective, split_themes, stylesheet
 
-_MIN_TEXT_CONTRAST = 4.5
-_DARK_MEDIA = "@media(prefers-color-scheme:dark){"
 _TABLE = "| Name | Path |\n|---|---|\n| a | /very/long/path |"
 _WRAPPED_TABLE = re.compile(r'<div class="table-wrap"><table>.*?</table>\s*</div>', re.DOTALL)
 
@@ -43,55 +42,32 @@ async def test_a_table_cell_cannot_inject_markup(mock_db: MagicMock) -> None:
     assert "&lt;img src=x onerror=alert(1)&gt;" in body
 
 
-def _theme_css(html: str) -> tuple[str, str]:
-    """The page's (light, dark) stylesheet halves."""
-    css = html.split("<style>")[1].split("</style>")[0]
-    light, dark = css.split(_DARK_MEDIA)
-    return light, dark
-
-
-def _declared(css: str, selector: str, prop: str) -> str | None:
-    """The hex value *selector* gives *prop* in *css* (the last rule wins), if it sets one."""
-    pattern = rf"(?<![\w.\-]){re.escape(selector)}\{{[^}}]*?(?<=[{{;]){prop}:(#[0-9a-fA-F]{{6}})"
-    found = re.findall(pattern, css)
-    return found[-1] if found else None
-
-
-def _luminance(hex_color: str) -> float:
-    def channel(offset: int) -> float:
-        value = int(hex_color[offset : offset + 2], 16) / 255
-        return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
-
-    return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5)
-
-
-def _contrast(foreground: str, background: str) -> float:
-    lighter, darker = sorted((_luminance(foreground), _luminance(background)), reverse=True)
-    return (lighter + 0.05) / (darker + 0.05)
-
-
 @pytest.mark.parametrize(
-    ("text", "backgrounds"),
+    ("text", "surface"),
     [
-        (".time", (".msg.user", ".msg.assistant")),
-        (".footer", ("body",)),
-        (".stat", ("body",)),
-        (".model", (".model",)),
-        (".notice", (".notice",)),
-        (".msg-body blockquote", (".msg.assistant",)),
+        (".time", ".msg.user"),
+        (".time", ".msg.assistant"),
+        (".footer", "body"),
+        (".stat", "body"),
+        (".model", ".model"),
+        (".notice", ".notice"),
+        (".msg-body blockquote", ".msg.assistant"),
+        ("body", ".msg-body th"),
     ],
-    ids=["time", "footer", "stat", "model", "notice", "blockquote"],
+    ids=["time-on-user", "time-on-assistant", "footer", "stat", "model", "notice", "blockquote", "table-header"],
 )
 @pytest.mark.parametrize("theme", ["light", "dark"])
 async def test_small_text_is_readable_on_what_it_sits_on_in_both_themes(
-    mock_db: MagicMock, text: str, backgrounds: tuple[str, ...], theme: str
+    mock_db: MagicMock, text: str, surface: str, theme: Theme
 ) -> None:
-    light, dark = _theme_css(await render_page(mock_db, "en"))
-    css = light if theme == "light" else dark
+    assert_readable(await render_page(mock_db, "en"), theme, text, surface)
 
-    for background in backgrounds:
-        foreground = _declared(css, text, "color") or _declared(light, text, "color")
-        surface = _declared(css, background, "background") or _declared(light, background, "background")
-        assert foreground is not None
-        assert surface is not None
-        assert _contrast(foreground, surface) >= _MIN_TEXT_CONTRAST, (text, background, theme, foreground, surface)
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+async def test_the_table_header_is_shaded_differently_from_the_bubble_around_it(mock_db: MagicMock, theme: Theme) -> None:
+    light, dark = split_themes(stylesheet(await render_page(mock_db, "en")))
+
+    header = effective(light, dark, theme, ".msg-body th", "background")
+    bubble = effective(light, dark, theme, ".msg.assistant", "background")
+
+    assert header != bubble
