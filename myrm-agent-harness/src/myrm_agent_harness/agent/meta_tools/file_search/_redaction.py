@@ -25,7 +25,8 @@ def _redact_run(path: str, run: list[Match]) -> list[Match]:
     lines to the length of the run (and never split per line, which would show the secret).
     """
     lines = redact_file_text(path, "\n".join(str(m["content"]) for m in run)).split("\n")
-    lines[len(run) - 1 :] = [" ".join(lines[len(run) - 1 :])]
+    kept, overflow = lines[: len(run) - 1], lines[len(run) - 1 :]
+    lines = [*kept, " ".join(overflow)]
     lines += [""] * (len(run) - len(lines))
     return [{**m, "content": line} for m, line in zip(run, lines, strict=True)]
 
