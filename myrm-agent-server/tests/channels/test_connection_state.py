@@ -19,6 +19,7 @@ import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
+from app.channels.protocols import LoginMethod
 from app.channels.types import (
     ChannelCapabilities,
     ChannelStatus,
@@ -460,6 +461,13 @@ class TestBaseChannelMisc:
         assert msg.channel == "test_build"
         assert msg.sender_id == "sender1"
         assert msg.content == "hello"
+
+    @pytest.mark.asyncio
+    async def test_start_login_is_not_supported_by_default(self) -> None:
+        ch = _make_stub("test_login")
+        with pytest.raises(NotImplementedError, match="does not support async login"):
+            async for _ in ch.start_login(LoginMethod.QR_CODE):
+                pytest.fail("the default login flow must not yield")
 
     def test_should_retry_default(self) -> None:
         ch = _make_stub()

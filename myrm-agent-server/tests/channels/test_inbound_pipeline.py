@@ -258,3 +258,20 @@ class TestBuildInbound:
         assert msg.sender_id == "u1"
         assert msg.content == "hi"
         assert msg.chat_id == "c1"
+
+    def test_forwards_the_optional_fields(self) -> None:
+        ch = StubChannel()
+        msg = ch._build_inbound(
+            "u1", "hi", "c1", is_group=True, mentioned=True, thread_id="t1", message_id="m1", metadata={"k": "v"}
+        )
+        assert (msg.is_group, msg.mentioned, msg.thread_id, msg.message_id, msg.metadata) == (
+            True,
+            True,
+            "t1",
+            "m1",
+            {"k": "v"},
+        )
+
+    def test_rejects_a_field_the_message_does_not_have(self) -> None:
+        with pytest.raises(TypeError):
+            StubChannel()._build_inbound("u1", "hi", "c1", no_such_field=1)

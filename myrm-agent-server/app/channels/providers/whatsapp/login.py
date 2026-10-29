@@ -70,8 +70,7 @@ class WhatsAppLoginMixin(BaseChannel):
             channel_name=self.name,
         )
 
-    # BaseChannel declares start_login as a coroutine; AsyncLoginProtocol implementations are async generators.
-    async def start_login(  # type: ignore[override]
+    async def start_login(
         self,
         method: object,
         *,

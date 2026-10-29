@@ -39,8 +39,7 @@ class WeChatILinkLoginMixin(BaseChannel):
     _client: ILinkClient
     _login_helper: QRCodeLoginHelper | None
 
-    # BaseChannel declares start_login as a coroutine; AsyncLoginProtocol implementations are async generators.
-    async def start_login(  # type: ignore[override]
+    async def start_login(
         self,
         method: object,
         *,

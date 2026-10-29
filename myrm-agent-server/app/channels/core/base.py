@@ -25,7 +25,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, Self
 
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from app.channels.core.credentials import (
         ChannelCredentialSpec,
     )
-    from app.channels.protocols.async_login import LoginMethod
+    from app.channels.protocols.async_login import LoginEvent, LoginMethod
 
 logger = logging.getLogger(__name__)
 
@@ -504,7 +504,7 @@ class BaseChannel(ABC, EventEmitter):
             sender_id=sender_id,
             content=content,
             chat_id=chat_id,
-            **kwargs,
+            **kwargs,  # type: ignore[arg-type]  # forwarded as they come; the constructor rejects an unknown name
         )
 
     async def _emit_inbound(self, msg: InboundMessage) -> None:
@@ -656,7 +656,7 @@ class BaseChannel(ABC, EventEmitter):
         *,
         timeout: float = 300.0,
         callback_url: str | None = None,
-    ):
+    ) -> AsyncIterator[LoginEvent]:
         """Start async login flow.
 
         Optional method. Channels that require user interaction for
@@ -704,11 +704,12 @@ class BaseChannel(ABC, EventEmitter):
             LoginEvent: State change events (see AsyncLoginProtocol)
 
         Raises:
-            NotImplementedError: If channel does not support async login
+            NotImplementedError: On first iteration, if the channel does not support async login
         """
         raise NotImplementedError(
             f"{self.name} does not support async login (override start_login() and set supported_login_methods)"
         )
+        yield  # unreachable; makes this an async generator, the shape every override has
 
     async def cancel_login(self) -> None:
         """Cancel current login flow.
