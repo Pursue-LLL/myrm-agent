@@ -211,9 +211,13 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         except Exception as sweep_exc:
             logger.warning("[Startup] ContextGuard initial sweep enqueue skipped: %s", sweep_exc)
 
-        from app.channels.media.image_enrichment import sweep_channel_image_cache_at_startup
+        # Expired channel images: the 03:00 job never runs on a machine that is off then.
+        try:
+            from app.channels.media.image_enrichment import sweep_channel_image_cache_at_startup
 
-        maintenance_daemon.submit(sweep_channel_image_cache_at_startup)
+            maintenance_daemon.submit(sweep_channel_image_cache_at_startup)
+        except Exception as sweep_exc:
+            logger.warning("[Startup] Channel image cache sweep enqueue skipped: %s", sweep_exc)
 
         gw_result, cron_result, kanban_result, backup_result = await asyncio.gather(
             start_channel_gateway(),

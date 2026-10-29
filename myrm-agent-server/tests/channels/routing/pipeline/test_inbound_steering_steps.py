@@ -64,7 +64,7 @@ async def test_the_owners_delegation_request_is_handed_over_with_its_prompt(hand
     await run_dispatch(router, inbound_msg("/delegate summarise the report"))
 
     router._handle_delegation_inbound.assert_awaited_once()
-    assert router._handle_delegation_inbound.await_args.args[1] == "summarise the report"
+    assert router._handle_delegation_inbound.await_args_list[-1].args[1] == "summarise the report"
     assert len(gate_submissions(router)) == submitted
 
 

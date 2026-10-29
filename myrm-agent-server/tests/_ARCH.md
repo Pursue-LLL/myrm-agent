@@ -47,7 +47,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_fastapi_native_telemetry.py` | 模块 | FastAPI 原生遥测策略（真实 `app.main` 子进程 + OTLP 接收端）：健康探针不产生 trace 但请求指标照常导出；环境变量自动配置不叠加第二条导出路径（指标不翻倍、不外发日志/异常堆栈）；对照组证明 FastAPI 默认行为会重复导出并外发异常 |
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
 | `server/test_lifespan_config_migration.py` | 单元 | 启动阶段在每种部署模式下都调用 `seal_stored_configs`：调用不在任何 `if` 之下、失败只记警告不外抛（读启动函数源码，删掉调用或加上模式判断即红） |
-| `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后（读启动函数源码，删掉提交或把它挪到启动之前即红） |
+| `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后；提交被拒（队列满）只记警告、不拖垮启动（读启动函数源码，删掉提交、挪到启动之前或去掉保护即红） |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
@@ -112,7 +112,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_session_gate_answers.py` | 单元 | 真实 `SessionGate` 与审批应答：与文本同处一个防抖窗口时应答先跑且完整；多个应答各自单独、按到达顺序；回合进行中到达的应答先于同时排队的文本；排队文本已满时应答仍保留；应答不被当作「排在忙碌回合后面的消息」提示；回合从不重叠；纯文本仍合并排队 |
 | `channels/routing/test_session_gate_senders.py` | 单元 | 真实 `SessionGate` 与发送者：同一防抖窗口或排在忙碌回合后面的文字按发送者拆成回合（两种先后顺序，A-B-A 交错保持到达顺序，回合从不重叠），同一发送者的连发（群聊与私聊）仍合并成一个回合，审批应答仍单独且先于各发送者的文字；合并后的消息保留准入策略读取的标志：显式 @ 提及不依赖其在批次里的先后，机器人消息合并后仍是机器人（不会被当成真人触发回合），其余元数据仍取最后一条 |
 | `channels/routing/test_session_gate_turns.py` | 单元 | 真实 `SessionGate` 的回合身份：两个回合之间到达的消息排在第二个回合之后而不是另起第三个；无防抖窗口时同一事件循环刻的两条消息不重叠；按名字（`release_turn`）释放卡住的回合会启动排在后面的那个；被释放回合迟到的结束不会结束接手的回合（含会话记录已被丢弃后重建的情形，回合号不复用）；已结束的回合不能再被释放；空闲会话没有运行中的回合；回合失败或被取消后排队的回合仍启动 |
-| `channels/routing/test_group_chatter_while_busy.py` | 集成 | 真实 `AgentRouter`、`SessionGate` 与解析器，执行器卡住首个回合：群里回合进行中到达的闲聊纯文本不占排队名额、不被回复「已排队」、成为下一回合的上下文且只记录一次为非触发；被点名的文本与带附件的消息照常排队并提示；群聊未启用或策略关闭时走原路径；空闲时的闲聊仍走原路径且根本不做触发判定；审批应答即使带文字也照常排队；判定出错时仍照常排队；`commit=False` 的触发判定遇到禁言词不禁言，`commit=True` 才禁言 |
+| `channels/routing/test_group_chatter_while_busy.py` | 集成 | 真实 `AgentRouter`、`SessionGate` 与解析器，执行器卡住首个回合：群里回合进行中到达的闲聊纯文本不占排队名额、不被回复「已排队」、成为下一回合的上下文且只记录一次为非触发；被风险规则拦下的闲聊在忙时与空闲时同样被拦、通知一次、不记录也不进上下文，被点名的文本不在分流这一步筛查、只在轮到它的回合里筛查一次；被点名的文本与带附件的消息照常排队并提示；群聊未启用或策略关闭时走原路径；空闲时的闲聊仍走原路径且根本不做触发判定；审批应答即使带文字也照常排队；判定出错时仍照常排队；`commit=False` 的触发判定遇到禁言词不禁言，`commit=True` 才禁言 |
 | `channels/routing/test_steer_command_scope.py` | 集成 | 真实 `AgentRouter` 派发 `/steer`：群里只有发起该次运行的人能转向（他人收到本地化的拒绝提示，运行与会话闸门都不受影响；运行没有记录发起人时无人可转向），私聊不查发起人；已结束、只因审批保留登记的回合没有可转向的运行，指令作为新的回合交给会话闸门；排队确认文案提示发起人用 `/steer` 改变方向（en / zh-CN / ja），拒绝提示各语言齐全 |
 | `channels/routing/pipeline/test_reap_releases_gate_turn.py` | 集成 | 真实 `AgentRouter` 加真实 `SessionGate` 上的卡死看门狗：运行中的任务登记其会话闸门键与回合号（私聊的闸门键按发送者、任务表按聊天，二者不同）；无视取消的回合只能由看门狗按登记的键与回合号释放，排队的消息随即运行；被回收回合迟到的收尾不会结束接手的回合 |
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |

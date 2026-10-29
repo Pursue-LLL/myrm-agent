@@ -107,7 +107,7 @@ async def test_a_long_clean_paste_reaches_the_turn_whole(monkeypatch: pytest.Mon
 
     web_guard.assert_not_awaited()
     router._prepare_execution_context.assert_awaited_once()
-    assert router._prepare_execution_context.await_args.args[0].content == paste
+    assert router._prepare_execution_context.await_args_list[-1].args[0].content == paste
     router._bus.publish_outbound.assert_not_awaited()
 
 

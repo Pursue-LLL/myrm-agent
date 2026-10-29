@@ -317,7 +317,7 @@ async def should_respond_in_group_support(
 ) -> tuple[bool, str]:
     """Determine whether the bot should respond in group based on trigger config.
 
-    ``commit=False`` only reads the verdict: a mute word of an active thread still counts as a trigger, but the
+    ``commit=False`` skips the mute action: a mute word of an active thread still counts as a trigger, but the
     thread is not muted and the chat is not told, which the turn that handles the message does.
     """
     # 0. Bot-sender gate: a bot-authored message never triggers a turn unless it

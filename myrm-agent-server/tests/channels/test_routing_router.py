@@ -461,7 +461,8 @@ class TestReapStuckTasks:
         from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
         from app.channels.routing.router_models import _ActiveTask
 
-        router = _make_router()
+        bus = _make_bus()
+        router = _make_router(bus=bus)
         mock_task = MagicMock()
         mock_task.done.return_value = False
         mock_token = MagicMock()
@@ -483,7 +484,7 @@ class TestReapStuckTasks:
 
         await router._reap_stuck_tasks(time.monotonic())
 
-        notice = router._bus.publish_outbound.await_args.args[0]
+        notice = bus.publish_outbound.await_args.args[0]
         assert notice.content.startswith("⏱ タスクが")
 
     @pytest.mark.asyncio
@@ -590,7 +591,8 @@ class TestReapStuckTasks:
         from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
         from app.channels.routing.router_models import _ActiveTask
 
-        router = _make_router()
+        bus = _make_bus()
+        router = _make_router(bus=bus)
         mock_task = MagicMock()
         mock_task.done.return_value = False
         mock_token = MagicMock()
@@ -612,7 +614,7 @@ class TestReapStuckTasks:
 
         await router._reap_stuck_tasks(time.monotonic())
 
-        notice = router._bus.publish_outbound.await_args.args[0]
+        notice = bus.publish_outbound.await_args.args[0]
         assert notice.content.startswith("⏱ Task timed out after")
 
     @pytest.mark.asyncio

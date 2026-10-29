@@ -150,14 +150,19 @@ class RouterInboundMixin:
         """Settle group chatter that arrives while the chat's turn runs, instead of queueing it behind that turn.
 
         Queued, it would take one of the pending slots, make the chat read "Agent is busy, your message has been queued"
-        for a message nobody addressed to the bot, and still end as context for the next turn. Only text qualifies:
-        the attachments of a queued message are processed before the trigger is decided, and their text is context
-        too. Fails open: an error here queues the message as it always was.
+        for a message nobody addressed to the bot, and still end as context for the next turn. It is settled the way an
+        idle chat settles it: held by the risk gate, else kept as context. Only text qualifies: the attachments of a
+        queued message are processed before the trigger is decided, and their text is context too. An error here
+        queues the message.
         """
         if not (msg.is_group and msg.content and not msg.media and msg.resume_value is None and self._gate.is_busy(msg)):
             return False
         try:
-            return await self._resolver.divert_group_chatter(msg)
+            if not await self._resolver.is_group_chatter(msg):
+                return False
+            if not await hold_risky_inbound(self._bus, msg, msg.content):
+                self._resolver.record_group_chatter(msg)
+            return True
         except Exception:
             logger.warning("Chatter check failed for %s/%s, queueing the message", msg.channel, msg.chat_id, exc_info=True)
             return False

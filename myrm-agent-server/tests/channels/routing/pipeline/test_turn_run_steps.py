@@ -42,7 +42,7 @@ async def test_a_held_message_runs_no_turn_and_acknowledges_the_journal() -> Non
         await router._handle_merged(turn_msg("a secret"))
 
     hold.assert_awaited_once()
-    assert hold.await_args.args[2] == "a secret"
+    assert hold.await_args_list[-1].args[2] == "a secret"
     router._prepare_execution_context.assert_not_awaited()
     journal.acknowledge.assert_called_once_with(journal.write.call_args.args[0].id)
 
@@ -89,7 +89,7 @@ async def test_an_agent_alias_alone_binds_the_chat_to_that_agent_and_runs_no_tur
         await asyncio.sleep(0)
 
     router._handle_topic_command.assert_awaited_once()
-    assert router._handle_topic_command.await_args.args[1] == parse_topic_args("bind", "claude")
+    assert router._handle_topic_command.await_args_list[-1].args[1] == parse_topic_args("bind", "claude")
     correlation.assert_called_once_with(None)
     router._prepare_execution_context.assert_not_awaited()
     journal.acknowledge.assert_called_once_with(journal.write.call_args.args[0].id)
@@ -131,7 +131,7 @@ async def test_a_completed_turn_is_marked_then_shows_the_completion_reaction() -
         ("telegram", "chat-1", "m1", policy.completion_emoji),
     ]
     router._retire_open_approval.assert_awaited_once()
-    assert router._execute_prepared_context.await_args.kwargs == {"is_resume": False, "inbound_had_voice": False}
+    assert router._execute_prepared_context.await_args_list[-1].kwargs == {"is_resume": False, "inbound_had_voice": False}
     router._fx.send_error_reply.assert_not_awaited()
     journal.acknowledge.assert_called_once()
 

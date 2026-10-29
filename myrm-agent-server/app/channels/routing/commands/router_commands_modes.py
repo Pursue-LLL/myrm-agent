@@ -192,8 +192,8 @@ class RouterCommandsModesMixin:
         """Handle /steer command: inject a new instruction into the running agent mid-execution.
 
         In a group the run belongs to the person whose message started it, so only that person can steer it. With no
-        run to steer, a finished turn kept registered only so its approval can be answered included, the instruction
-        is a turn of its own.
+        run to steer (this includes a finished turn that stays registered only so its approval can be answered) the
+        instruction is a turn of its own.
         """
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)

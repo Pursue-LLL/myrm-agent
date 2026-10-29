@@ -7,7 +7,7 @@ forever unless the sweep also runs when the server starts. The daemon takes it o
 app.server.lifespan::optimized_lifespan (POS: the startup function that submits the sweep)
 
 [OUTPUT]
-That startup submits ``sweep_channel_image_cache_at_startup`` exactly once, after the daemon's worker has been started.
+That startup submits ``sweep_channel_image_cache_at_startup`` exactly once, after the daemon's worker has been started, and that a failed submit is logged instead of ending the startup.
 
 [POS]
 Reads the startup function's source, like the other lifespan tests: running it would start the whole server. What the
@@ -55,3 +55,23 @@ def test_the_sweep_is_submitted_after_the_daemon_worker_has_started() -> None:
 
     assert submits
     assert all(call.lineno > start.lineno for call in submits)
+
+
+def test_a_failed_submit_does_not_end_the_startup() -> None:
+    """``submit`` raises when the daemon's queue is full; a housekeeping sweep must not take the server down with it."""
+    tree = ast.parse(inspect.getsource(lifespan.optimized_lifespan).lstrip())
+    guarded = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Try)
+        and any(isinstance(h.type, ast.Name) and h.type.id == "Exception" for h in node.handlers)
+        and any(
+            isinstance(call, ast.Call)
+            and getattr(call.func, "attr", "") == "submit"
+            and any(getattr(arg, "id", "") == "sweep_channel_image_cache_at_startup" for arg in call.args)
+            for body_stmt in node.body
+            for call in ast.walk(body_stmt)
+        )
+    ]
+
+    assert len(guarded) == 1

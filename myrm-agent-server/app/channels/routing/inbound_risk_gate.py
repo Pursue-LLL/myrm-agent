@@ -10,10 +10,10 @@
 - hold_risky_inbound: screens one piece of text a sender typed; when a rule holds it, tells the sender and returns True
 
 [POS]
-Every place the router hands a sender's text to an agent (a new turn, a steer into a running one, a delegated
-task, the reason of a denied approval) asks this gate first, so a message that one path would hold is held on all of
-them. The caller drops the text when this returns True; the reply is one fixed notice, in the sender's language, that
-names no rule.
+Every place the router hands a sender's text to an agent (a new turn, group text kept as context for a later turn, a
+steer into a running one, a delegated task, the reason of a denied approval) asks this gate first, so a message that
+one path would hold is held on all of them. The caller drops the text when this returns True; the reply is one fixed
+notice, in the sender's language, that names no rule.
 """
 
 from __future__ import annotations

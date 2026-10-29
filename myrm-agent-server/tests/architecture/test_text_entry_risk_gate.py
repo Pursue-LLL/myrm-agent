@@ -70,6 +70,7 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("core/cron/adapters/inbound_event_dispatch.py", "dispatch_cron_event_for_inbound_message", "screen_user_text"),
     ("channels/routing/pipeline/inbound.py", "_claim_delegation", "hold_risky_inbound"),
     ("channels/routing/pipeline/inbound.py", "_claim_delegated_task_steering", "hold_risky_inbound"),
+    ("channels/routing/pipeline/inbound.py", "_divert_group_chatter", "hold_risky_inbound"),
     ("channels/routing/pipeline/command_dispatch.py", "_dispatch_resolved", "hold_risky_inbound"),
     ("channels/routing/pipeline/turn.py", "_handle_merged", "hold_risky_inbound"),
     ("channels/routing/commands/router_commands_approval.py", "_handle_approval_command", "hold_risky_inbound"),

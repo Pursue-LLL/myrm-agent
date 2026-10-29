@@ -14,7 +14,7 @@ pairing status, and WhatsApp LID fallback logic.
 
 [OUTPUT]
 - PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus the read-only is_sender_admitted / is_untrusted_event_sender
-- ``divert_group_chatter``: records group text that would not trigger a turn as context and says so (the router uses it for text that arrives while the chat's turn runs)
+- ``is_group_chatter`` / ``record_group_chatter``: the trigger verdict of a group message taken without muting or replying, and the keeping of a message that starts no turn (the router settles the text that arrives while the chat's turn runs with them, after the risk gate)
 
 [POS]
 Inbound policy resolution: decides whether a message reaches an agent turn and under which identity.
@@ -165,7 +165,7 @@ class PolicyResolver:
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
-            self._record_chatter(msg, chat_id)
+            self.record_group_chatter(msg)
             return None
 
         asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
@@ -197,13 +197,12 @@ class PolicyResolver:
 
         return None
 
-    async def divert_group_chatter(self, msg: InboundMessage) -> bool:
-        """Settle a group message that would start no turn, for a caller that would queue it behind a running one.
+    async def is_group_chatter(self, msg: InboundMessage) -> bool:
+        """Whether a group message would start no turn, for a caller that would queue it behind a running one.
 
-        Applies to a chat the group gates of ``resolve_group_user`` admit (a control-plane forward and a chat the
-        policy refuses keep the normal path) and only when the trigger verdict, read without its side effects, is
-        "no turn": what is recorded is what ``resolve_group_user`` records for the same message. Returns whether the
-        message was settled; a settled message must not be submitted again.
+        Applies to a chat the group gates of ``resolve_group_user`` admit: a control-plane forward and a chat the policy
+        refuses keep the normal path. The trigger verdict is taken without muting a thread or telling the chat, which
+        the turn that handles a message does.
         """
         if msg.user_id and is_control_plane_forward(msg):
             return False
@@ -213,12 +212,9 @@ class PolicyResolver:
         ):
             return False
         should_respond, _ = await should_respond_in_group_support(self._policy, self._tracker, self._fx, msg, commit=False)
-        if should_respond:
-            return False
-        self._record_chatter(msg, msg.chat_id or msg.sender_id)
-        return True
+        return not should_respond
 
-    def _record_chatter(self, msg: InboundMessage, chat_id: str) -> None:
+    def record_group_chatter(self, msg: InboundMessage) -> None:
         """Keep a group message that starts no turn: the ledger records it, a person's text becomes context of the next turn."""
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
@@ -227,7 +223,7 @@ class PolicyResolver:
         # Persistence above stays unconditional for DWD completeness.
         if not msg.is_bot:
             self._context_buffer.append(
-                chat_id,
+                msg.chat_id or msg.sender_id,
                 ContextEntry(
                     sender_id=msg.sender_id,
                     content=msg.content,
