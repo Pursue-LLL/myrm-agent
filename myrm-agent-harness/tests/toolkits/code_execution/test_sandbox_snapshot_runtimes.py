@@ -1,16 +1,19 @@
-"""Enforcement tests for the ``Available Runtimes`` line of the sandbox bootstrap snapshot: a runtime is listed only when its binary ran and said which version it is.
+"""Enforcement tests for the ``Available Runtimes`` line of the sandbox bootstrap snapshot: a runtime is
+listed only when its binary ran and said which version it is.
 
 [INPUT]
 - toolkits.code_execution.sandbox_snapshot::generate_sandbox_bootstrap_snapshot / format_bootstrap_snapshot_xml (POS: sandbox bootstrap snapshot generator)
 - executables in a temp directory that is the whole PATH (POS: real child processes, never mocked: a proxy without a toolchain, a version printed on stderr, a launcher that answers)
 
 [OUTPUT]
-- Fails when a binary on PATH that does not run (a toolchain proxy with nothing installed, a stub) is listed as an installed runtime, when ``python`` is not tried after a ``python3`` that does not
-  run, or when Java, which reports its version on stderr, is listed without it or not at all.
+- Fails when a binary on PATH that does not run (a toolchain proxy with nothing installed, a stub) is listed
+  as an installed runtime, when ``python`` is not tried after a ``python3`` that does not run, or when Java,
+  which reports its version on stderr, is listed without it or not at all.
 
 [POS]
-A runtime line is a statement of fact in the system message, so a binary that cannot answer is left out instead of being claimed. A working ``node`` runs beside the broken ones so a green run
-cannot be an empty PATH.
+A runtime line is a statement of fact in the system message, so a binary that cannot answer is left out
+instead of being claimed. A working ``node`` runs beside the broken ones so a green run cannot be an empty
+PATH.
 """
 
 from __future__ import annotations

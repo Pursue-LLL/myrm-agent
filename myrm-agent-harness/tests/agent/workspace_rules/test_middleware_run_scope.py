@@ -1,5 +1,5 @@
-"""Real-loop tests for the workspace context a chat thread is shown: the sandbox snapshot is taken once per thread, off the event loop, without an extra checkpoint, and stays
-byte-identical, the rules stay live.
+"""Real-loop tests for the workspace context a chat thread is shown: the sandbox snapshot is taken once per
+thread, off the event loop, without an extra checkpoint, and stays byte-identical, the rules stay live.
 
 [INPUT]
 - agent.workspace_rules.middleware::WorkspaceRulesMiddleware (POS: workspace context injection middleware under test)
@@ -7,19 +7,23 @@ byte-identical, the rules stay live.
 - runtime.checkpointing.factory::create_checkpointer (POS: the checkpointer the product runs with, a SQLite file in a temp dir)
 
 [OUTPUT]
-- Fails when a model call regenerates the snapshot, when the text of the workspace context changes because the agent edited the workspace, when a workspace switch or a new thread is
-  served a stale snapshot, when the rules stop being read live, when a workspace the trust gate blocks is probed or injected, when taking the snapshot stalls the event loop or adds
-  checkpoints to the thread, or when an interrupted and resumed run is sent another snapshot than it started with.
+- Fails when a model call regenerates the snapshot, when the text of the workspace context changes because
+  the agent edited the workspace, when a workspace switch or a new thread is served a stale snapshot, when
+  the rules stop being read live, when a workspace the trust gate blocks is probed or injected, when taking
+  the snapshot stalls the event loop or adds checkpoints to the thread, or when an interrupted and resumed
+  run is sent another snapshot than it started with.
 
 [POS]
-The injection is a per-request override and never lands in the graph state, so only a run through the real loop shows what the model is sent on each call. Every scripted turn edits
-the workspace between its two model calls, which is what a coding session does.
+The injection is a per-request override and never lands in the graph state, so only a run through the real
+loop shows what the model is sent on each call. Every scripted turn edits the workspace between its two
+model calls, which is what a coding session does.
 """
 
 from __future__ import annotations
 
 import asyncio
 import re
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -54,7 +58,8 @@ def _snapshot_block(workspace_context: str) -> str:
 
 
 class _ScriptedModel(BaseChatModel):
-    """Calls ``tool_name`` at the start of every turn, answers once the tool has replied, and records the workspace context each request carried; its first ``failing_calls`` calls fail."""
+    """Calls ``tool_name`` at the start of every turn, answers once the tool has replied, and records the
+    workspace context each request carried; its first ``failing_calls`` calls fail."""
 
     workspace_contexts: list[str] = Field(default_factory=list)
     tool_name: str = "add_file"
@@ -85,7 +90,8 @@ class _ScriptedModel(BaseChatModel):
 
 
 class _Session:
-    """One agent, with the middleware under test unless ``with_middleware`` is off; every ``turn`` is one run on a chat thread."""
+    """One agent, with the middleware under test unless ``with_middleware`` is off; every ``turn`` is one run
+    on a chat thread."""
 
     def __init__(
         self,
@@ -113,7 +119,8 @@ class _Session:
         )
 
     async def turn(self, root: Path, thread_id: str = "chat-1", *, streaming: bool = False) -> list[str]:
-        """Run one turn in ``root``, streamed as the product does or not; return the workspace context of each model call the turn made."""
+        """Run one turn in ``root``, streamed as the product does or not; return the workspace context of each
+        model call the turn made."""
         self._edited_root = root
         already_seen = len(self.model.workspace_contexts)
         # The product passes a plain dict as the run context and declares no schema for it.
@@ -342,6 +349,36 @@ class TestInterruptedAndFailedRuns:
         assert len(generated) - generated_before_retry <= 1, (
             "the retry takes the snapshot at most once; its second call reads it back"
         )
+
+    async def test_a_stopped_run_returns_at_once_while_the_snapshot_is_taken_and_leaves_nothing_behind(
+        self, workspace: Path
+    ) -> None:
+        probing = threading.Event()
+        real = sandbox_snapshot.generate_sandbox_bootstrap_snapshot
+
+        def slow(workspace_path: str | Path, max_entries: int = 25) -> sandbox_snapshot.SandboxBootstrapSnapshot:
+            probing.set()
+            time.sleep(1.0)
+            return real(workspace_path, max_entries=max_entries)
+
+        session = _Session(MemorySaver())
+        with (
+            patch.object(sandbox_snapshot, "generate_sandbox_bootstrap_snapshot", slow),
+            _trust(WorkspaceTrustLevel.TRUSTED),
+        ):
+            run = asyncio.create_task(session.turn(workspace))
+            while not probing.is_set():
+                await asyncio.sleep(0.01)
+            stopped_at = time.perf_counter()
+            run.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await run
+            returned_in = time.perf_counter() - stopped_at
+
+        assert returned_in < 0.5, f"the stopped run was held for {returned_in:.2f} s by the probe"
+        assert session.model.workspace_contexts == [], "the stopped run never reached the model"
+        config: RunnableConfig = {"configurable": {"thread_id": "chat-1"}}
+        assert "workspace_snapshot" not in (await session.agent.aget_state(config)).values
 
 
 class TestRulesStayLive:

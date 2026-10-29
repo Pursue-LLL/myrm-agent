@@ -156,8 +156,8 @@ def _probe_git_state(workspace: Path) -> tuple[str | None, bool | None]:
 def _probe_runtimes() -> list[str]:
     """The runtimes whose binary ran and reported a version.
 
-    A binary on PATH that does not run (a toolchain proxy with nothing installed, a launcher stub) is not an installed runtime,
-    so it is left out and the next binary of the same runtime is tried.
+    A binary on PATH that does not run (a toolchain proxy with nothing installed, a launcher stub) is not an
+    installed runtime, so it is left out and the next binary of the same runtime is tried.
     """
     detected: list[str] = []
     for _runtime_id, label, binaries in _CORE_RUNTIMES:
@@ -293,7 +293,8 @@ def generate_sandbox_bootstrap_snapshot(
     """Generate a lightweight, non-recursive bootstrap snapshot of the sandbox environment.
 
     Each process-starting probe is capped at 1 s, so a snapshot can block for several seconds when a binary hangs:
-    call it from a thread when an event loop is running. Any probe failure is handled gracefully to guarantee non-crashing execution.
+    call it from a thread when an event loop is running. Any probe failure is handled gracefully to guarantee
+    non-crashing execution.
 
     Args:
         workspace_path: Path to the workspace root directory.
@@ -351,8 +352,8 @@ def _display_entry_name(name: str) -> str:
 def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
     """Format the snapshot into a clean, compact XML observation for the initial prompt/observation.
 
-    Designed for maximum model adherence and zero ambiguity while maintaining token efficiency (about 250 tokens for a repository
-    with a full 25-entry listing).
+    Designed for maximum model adherence and zero ambiguity while maintaining token efficiency (about 250 tokens
+    for a repository with a full 25-entry listing).
     """
     lines: list[str] = ["<sandbox_environment_snapshot>"]
 
