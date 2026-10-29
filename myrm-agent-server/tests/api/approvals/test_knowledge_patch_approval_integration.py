@@ -28,7 +28,15 @@ from app.services.approvals.registry import ApprovalRegistry
 
 
 @pytest.mark.asyncio
-async def test_harvest_session_blind_spots_creates_approval(app, setup_test_database) -> None:
+@pytest.mark.parametrize(
+    ("locale", "expected_reason"),
+    [
+        ("en", "Knowledge update suggested from a gap in past conversations: Prometheus Alertmanager Webhook"),
+        ("zh-CN", "会话盲点知识转正建议: Prometheus Alertmanager Webhook"),
+        ("ja", "過去の会話で見つかった知識の不足を補う更新の提案: Prometheus Alertmanager Webhook"),
+    ],
+)
+async def test_harvest_session_blind_spots_creates_approval(app, setup_test_database, locale: str, expected_reason: str) -> None:
     msg_id = f"msg-{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC)
 
@@ -71,9 +79,12 @@ async def test_harvest_session_blind_spots_creates_approval(app, setup_test_data
         summary_note="Found alertmanager configuration gap",
     )
 
-    with patch(
-        "app.services.agent.platform_config.load_platform_evolution_llm",
-        AsyncMock(return_value=mock_llm),
+    with (
+        patch(
+            "app.services.agent.platform_config.load_platform_evolution_llm",
+            AsyncMock(return_value=mock_llm),
+        ),
+        patch("app.core.channel_bridge.locale_provider.resolve_user_locale", AsyncMock(return_value=locale)),
     ):
         created_count = await harvest_session_blind_spots(limit=10, since_hours=24)
         assert created_count >= 1
@@ -84,6 +95,7 @@ async def test_harvest_session_blind_spots_creates_approval(app, setup_test_data
         approvals = resp.json()["approvals"]
         patch_appr = next((a for a in approvals if a["action_type"] == "knowledge_patch"), None)
         assert patch_appr is not None
+        assert patch_appr["reason"] == expected_reason
         assert patch_appr["payload"]["title"] == "Prometheus Alertmanager Webhook"
         assert patch_appr["payload"]["target_type"] == "wiki"
         assert patch_appr["payload"]["confidence"] == 0.92

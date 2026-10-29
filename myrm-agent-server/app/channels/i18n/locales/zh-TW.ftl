@@ -300,6 +300,7 @@ placeholder_thinking =  思考中...
 placeholder_no_response =  未生成回覆。
 draft_review_pending = ✏️ 回覆已生成草稿，等待稽核後傳送。
 draft_review_reason = AI 生成的回覆需要稽核後才能傳送至頻道。
+knowledge_patch_review_reason = 會話盲點知識轉正建議: { $title }
 approval_card_title = ⚠️ **需要審批：{ $action }**
 approval_card_severity = 級別：`{ $severity }`
 approval_card_open_app = 請開啟 Myrm AI 應用程式查看並處理。

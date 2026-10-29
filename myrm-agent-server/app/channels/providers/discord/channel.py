@@ -69,6 +69,10 @@ MAX_TEXT_LENGTH = 2000
 
 _HEALTH_PROBE_TIMEOUT = 10.0
 
+# Guests steer the agent's text and the bot usually holds more permissions than they do, so a reply must never be
+# able to notify @everyone or a role. User pings stay on so a reply still reaches the person it answers.
+_ALLOWED_MENTIONS = discord.AllowedMentions(everyone=False, roles=False, users=True, replied_user=True)
+
 
 class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixin, BaseChannel):
     """Discord channel provider.
@@ -229,7 +233,7 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
         if self.config.voice_enabled:
             intents.voice_states = True
 
-        self._client = discord.Client(intents=intents)
+        self._client = discord.Client(intents=intents, allowed_mentions=_ALLOWED_MENTIONS)
         channel_self = self
 
         if self.config.voice_enabled:

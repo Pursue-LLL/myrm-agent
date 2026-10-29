@@ -300,6 +300,7 @@ placeholder_thinking =  考え中...
 placeholder_no_response =  応答が生成されませんでした。
 draft_review_pending = ✏️ 返信の下書きが完了しました — 送信前にレビューをお待ちしています。
 draft_review_reason = AI 生成の返信はチャンネルに送信する前にレビューが必要です。
+knowledge_patch_review_reason = 過去の会話で見つかった知識の不足を補う更新の提案: { $title }
 approval_card_title = ⚠️ **承認が必要です：{ $action }**
 approval_card_severity = 重要度：`{ $severity }`
 approval_card_open_app = Myrm AI アプリを開いて内容を確認し、対応してください。

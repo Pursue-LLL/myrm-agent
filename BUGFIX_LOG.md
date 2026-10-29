@@ -2,6 +2,30 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · Discord 渠道发出的任何消息都能提醒全服或角色：客户端没有限制提及
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/channels/providers/discord/channel.py`、`_ARCH.md`；测试 `tests/channels/providers/discord/test_discord_channel.py`） |
+| **症状** | 机器人发出的文本里出现 `@everyone`、`@here` 或角色提及时，Discord 会真的提醒全服或该角色。发送者里有访客、配对成员（`app/channels/routing/sender_admission.py` 与 `identity_scope.is_untrusted_sender` 明确支持这类非主人发送者），机器人的权限通常高于访客，访客可以借机器人完成自己做不到的全员提醒；提示注入的网页内容同理。 |
+| **根因** | `discord.Client(intents=intents)` 没有传 `allowed_mentions`，discord.py 2.7.1 的默认值是 `parse: [everyone, users, roles]`；`app` 里没有任何地方设置过 `AllowedMentions`（`rg` 无命中）；访客围栏只管工具权限，不管输出里的提及；审批卡片的零宽空格处理只覆盖那一张卡片的引用文本。 |
+| **修复** | 模块常量 `_ALLOWED_MENTIONS = AllowedMentions(everyone=False, roles=False, users=True, replied_user=True)`，在 `_start_gateway` 创建客户端时传入。discord.py 把它存进连接状态，之后所有 `channel.send` 沿用，Discord 目录下没有绕过客户端的发送路径（`rg` 找不到 `httpx`、`aiohttp`、`/messages`）。用户提及与回复提醒保持开启，回复仍能提醒被回复的人。 |
+| **回归证据** | [1] 新增 `test_gateway_client_cannot_ping_everyone_or_roles`，修复前 `KeyError: 'allowed_mentions'`，修复后通过。[2] 离线用 discord.py 的 `handle_message_parameters`，以该客户端的连接状态构造一条含 `@everyone <@&1> <@2>` 的消息，载荷里的 `allowed_mentions` 是 `{'replied_user': True, 'parse': ['users']}`。[3] `tests/channels/providers/discord` 303 通过、49 跳过；`ruff check`、`ruff format --check` 无告警。 |
+| **仍然存在** | ① 没有在真实 Discord 服务器上验证：本机没有凭证，只验证了客户端参数与 discord.py 生成的载荷。② 用户提及仍然放行，访客仍可让机器人点名某个具体用户。③ 主人让代理代发「@everyone 公告」时不会再真的提醒全员；`app` 里没有任何功能依赖它（`rg` 搜不到 `@everyone`、`<@&` 的使用），主人自己手动输入仍然有效。④ Slack 的转换器仍保留 `<!here>`、`<!channel>`、`<!everyone>`，`tests/channels/providers/slack/test_slack_format_converter.py:25-27` 把它们钉为有意行为，未改。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/discord/channel.py:72-74,236` · `tests/channels/providers/discord/test_discord_channel.py`（`test_gateway_client_cannot_ping_everyone_or_roles`） |
+
+## 2026-10-29 · 知识转正建议的审批原因是写死的中文句子，IM 审批通知里非中文用户看到中文
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/lifecycle/memory_guardian_ops.py`、`app/channels/i18n/locales/{en,zh-CN,zh-TW,ja}.ftl`、两份 `_ARCH.md`；测试 `tests/api/approvals/test_knowledge_patch_approval_integration.py`） |
+| **症状** | 记忆守护者收割「会话盲点」后创建的 `knowledge_patch` 审批，原因字段是 `会话盲点知识转正建议: <标题>`。配置了 IM 审批通知的非中文用户，在卡片的引用块里读到这句中文。 |
+| **根因** | 原因用中文 f-string 直接拼接，该模块没有语言信息；通知调度器与卡片都不按 `action_type` 过滤，所以这类审批会进入 IM 卡片。网页端不受影响：`PolymorphicApprovalCard.tsx:758` 先取 `payload.title`，生产方总是写 `title`；桌面通知只由工具审批驱动（`approvalAlertService.ts` 的 `notifyIdleApproval(requests: ToolApprovalRequest[])`）。 |
+| **修复** | 新增 `knowledge_patch_review_reason`（四个 `.ftl`，中文保持原句），收割函数里用 `resolve_user_locale()` 取一次用户语言，创建审批时用 `channel_t` 生成原因；语言解析失败时回落到 `en`（`normalize_locale(None)`）。 |
+| **回归证据** | [1] 集成测试 `test_harvest_session_blind_spots_creates_approval` 参数化为 en、zh-CN、ja，通过 `GET /api/v1/approvals` 读回 `reason`；修复前 en 与 ja 两例失败（拿到的都是中文原句），zh-CN 通过。[2] `tests/channels/i18n` 的键一致、孤儿键、单次定义守卫通过。[3] `tests/api/approvals/test_knowledge_patch_approval_integration.py` 7 通过；`tests/channels`、`tests/lifecycle`、`tests/api/approvals`、`tests/core/notifications`、`tests/services/approvals` 合计 8519 通过、1 错误（见仍然存在 ③）。[4] `ruff check`、`ruff format --check` 无告警；对两个改动文件过滤 mypy 输出为空（全量 mypy 在其它文件上有既有错误）。 |
+| **仍然存在** | ① 原因按创建时的用户语言写入记录，之后切换语言不会改历史记录。② 只处理了 `knowledge_patch`；`rg` 在 `app` 里没有找到其它带中文字面量的审批 `reason=`（只命中 `recall_simulator_service.py` 的 `hit_reason`，与审批无关）。③ 整批运行里 `tests/channels/test_group_routing.py::test_enabled_groups_allows_listed_group` 报 1 个收尾错误；单独运行该用例通过，整个文件运行则会卡住（一次运行 50 秒后只有 5 个用例通过，faulthandler 栈在 `asyncio.runners._cancel_all_tasks`，说明有任务取消不掉；每次卡住的位置不固定）；该文件与其 conftest 不引用本次改动的任何模块，conftest 来自他人提交 `e664d929b4`；没有在基线上复跑，所以只能说有与本次改动无关的迹象，不是定论。 |
+| **代码位置** | `myrm-agent-server/app/lifecycle/memory_guardian_ops.py`（`harvest_session_blind_spots`） · `app/channels/i18n/locales/*.ftl`（`knowledge_patch_review_reason`） |
+
 ## 2026-10-29 · 六个已写好、前端在调用的接口模块没有挂到路由上（机队总览、治理、OpenAPI 服务、画像审计、就绪检查、启动恢复）；模型覆写客户端请求了不存在的地址，而这套功能没有挂到任何页面、服务端存下的覆写也没有任何使用方
 
 | 字段 | 内容 |

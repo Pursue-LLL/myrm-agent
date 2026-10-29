@@ -169,6 +169,8 @@ async def harvest_session_blind_spots(
     )
     from sqlalchemy import select
 
+    from app.channels.i18n import channel_t
+    from app.core.channel_bridge.locale_provider import resolve_user_locale
     from app.database.connection import get_session
     from app.database.models.approval import ApprovalRecord
     from app.database.models.chat import Message
@@ -249,13 +251,14 @@ async def harvest_session_blind_spots(
         existing_payloads = [r[0] for r in res.all() if isinstance(r[0], dict)]
         existing_titles = {str(p.get("title", "")).strip().lower() for p in existing_payloads if p.get("title")}
 
+    locale = await resolve_user_locale()
     for patch in report.patches:
         if patch.title.strip().lower() in existing_titles:
             continue
         await ApprovalRegistry.create_approval(
             agent_id="default",
             action_type="knowledge_patch",
-            reason=f"会话盲点知识转正建议: {patch.title}",
+            reason=channel_t(locale, "knowledge_patch_review_reason", title=patch.title),
             severity="info",
             payload={
                 "title": patch.title,

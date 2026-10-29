@@ -9,7 +9,7 @@ Discord 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Discord channel provider. | ✅ |
-| `channel.py` | 模块 | Discord channel implementation with Forum channel support: credentials, capabilities, gateway lifecycle and health probe; composes the three mixins below. | ✅ |
+| `channel.py` | 模块 | Discord channel implementation with Forum channel support: credentials, capabilities, gateway lifecycle and health probe; builds the client with `allowed_mentions` that keep user and reply pings but never `@everyone`, `@here` or role pings; composes the three mixins below. | ✅ |
 | `config.py` | 模块 | Discord channel configuration. | ✅ |
 | `helpers.py` | 模块 | Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects; forum detection, thread titles and native reply targets. | ✅ |
 | `inbound.py` | 模块 | `DiscordInboundMixin`: gateway message / reaction / interaction parsing, reply context, media extraction, auto-threading and history fetch. | ✅ |
@@ -37,7 +37,7 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 
 | 文件 | 职责 |
 |------|------|
-| `test_discord_channel.py` | Gateway/forum/lifecycle、edit/delete、原生 reply 引用（首分片携带 message_id + channel_id）、voice 配置、health_check REST probe |
+| `test_discord_channel.py` | Gateway/forum/lifecycle、客户端 `allowed_mentions`（不可 @everyone/角色）、edit/delete、原生 reply 引用（首分片携带 message_id + channel_id）、voice 配置、health_check REST probe |
 | `test_discord_reply_context.py` | `_parse_reply_context` / `_resolve_mentioned` 单元测试（reference.resolved API 验证） |
 | `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规 |
 | `test_discord_deduplication.py` | Discord 消息去重单元测试 |

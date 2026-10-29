@@ -300,6 +300,7 @@ placeholder_thinking =  Thinking...
 placeholder_no_response =  No response generated.
 draft_review_pending = ✏️ Reply drafted — awaiting review before sending.
 draft_review_reason = AI-generated reply requires review before sending to channel.
+knowledge_patch_review_reason = Knowledge update suggested from a gap in past conversations: { $title }
 approval_card_title = ⚠️ **Approval Required: { $action }**
 approval_card_severity = Severity: `{ $severity }`
 approval_card_open_app = Open the Myrm AI app to review and decide.
