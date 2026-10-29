@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 
 import pytest
@@ -47,6 +47,54 @@ def test_the_report_names_the_task_and_the_await_it_is_parked_on() -> None:
 
     assert "stuck-turn" in report
     assert "_never_set_event_wait" in report
+
+
+@contextmanager
+def _loop_with_a_task_parked_below_a_generator_step_and_a_nested_task() -> Iterator[None]:
+    """A task that awaits an async generator step, which awaits another task, which waits on an event no one sets."""
+    started = threading.Event()
+    stop = threading.Event()
+
+    async def _never_set_event_wait() -> None:
+        await asyncio.Event().wait()
+
+    async def _generator_that_waits_on_a_nested_task() -> AsyncIterator[int]:
+        nested = asyncio.create_task(_never_set_event_wait(), name="nested-task")
+        await nested
+        yield 1
+
+    async def _consume_the_generator() -> None:
+        async for _ in _generator_that_waits_on_a_nested_task():
+            pass
+
+    async def _run() -> None:
+        parked = asyncio.create_task(_consume_the_generator(), name="parked-turn")
+        started.set()
+        while not stop.is_set():
+            await asyncio.sleep(0.01)
+        parked.cancel()
+
+    worker = threading.Thread(target=lambda: asyncio.run(_run()), daemon=True)
+    worker.start()
+    assert started.wait(5.0)
+    time.sleep(0.1)
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.join(5.0)
+
+
+def test_the_report_follows_the_chain_through_a_generator_step_and_a_nested_task_down_to_the_future() -> None:
+    with _loop_with_a_task_parked_below_a_generator_step_and_a_nested_task():
+        report = pending_task_report()
+
+    parked = report[report.index("-- parked-turn") :]
+    assert "_consume_the_generator" in parked
+    assert "_generator_that_waits_on_a_nested_task" in parked
+    assert "_never_set_event_wait" in parked
+    assert "waits on" in parked
+    assert "cancelling=0" in parked
 
 
 def test_a_block_that_outlives_the_deadline_writes_the_report(capfd: pytest.CaptureFixture[str]) -> None:
