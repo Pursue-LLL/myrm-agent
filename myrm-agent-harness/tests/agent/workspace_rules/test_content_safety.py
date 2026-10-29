@@ -96,6 +96,9 @@ class TestMemo:
         assert first == second
         assert len(scans) == 1
 
+    def test_the_key_is_a_full_256_bit_digest(self) -> None:
+        assert len(content_safety._digest("Follow PEP8 style.")) == 64
+
     def test_the_same_text_at_another_path_shares_the_verdict(self, scans: list[str]) -> None:
         check_content_safety("Follow PEP8 style.", "a.md")
         check_content_safety("Follow PEP8 style.", "other/b.md")

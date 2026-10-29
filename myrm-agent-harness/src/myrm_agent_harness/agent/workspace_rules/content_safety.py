@@ -61,8 +61,10 @@ def _scan(content: str, filepath: str) -> _Verdict:
 
 
 def _digest(content: str) -> str:
-    # ``surrogatepass`` keeps the encoding one-to-one, so two different texts never share a key.
-    return hashlib.blake2b(content.encode("utf-8", "surrogatepass"), digest_size=16).hexdigest()
+    # ``surrogatepass`` keeps the encoding one-to-one, so two different texts never share a key. The digest is the full
+    # 256 bits: the verdict is a security decision, and a 128-bit key could be collided with about 2**64 hashes, which
+    # would let an injection text inherit the "safe" verdict of a benign text scanned earlier.
+    return hashlib.blake2b(content.encode("utf-8", "surrogatepass"), digest_size=32).hexdigest()
 
 
 def check_content_safety(content: str, filepath: str) -> tuple[bool, list[str]]:
