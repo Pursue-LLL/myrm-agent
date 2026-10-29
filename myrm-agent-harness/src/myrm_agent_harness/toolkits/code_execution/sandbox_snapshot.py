@@ -2,7 +2,8 @@
 
 Captures initial workspace state (working directory, top-level directory entries,
 git status, installed language runtimes, package managers, and recommended PM)
-in milliseconds (<30ms) without deep recursive traversals.
+without deep recursive traversals. The two git probes are synchronous and capped at 1 s each; in a
+repository they took 0.1-0.3 s here, so callers take the snapshot once per chat thread, not per model call.
 
 Injected into initial task context / observation (never polluting immutable
 system prompt) to eliminate 2-5 blind exploration turns (pwd, ls, which).
@@ -10,11 +11,12 @@ system prompt) to eliminate 2-5 blind exploration turns (pwd, ls, which).
 [INPUT]
 - workspace_path: str | Path to workspace directory
 - max_entries: int = 25 (max top-level entries to report)
+- core.security.detection.content_boundary::sanitize, detect_suspicious, strip_invisible_unicode (POS: untrusted-text neutralisation)
 
 [OUTPUT]
 - SandboxBootstrapSnapshot: Dataclass holding structured sandbox metadata
 - generate_sandbox_bootstrap_snapshot: Probes host & workspace and returns snapshot
-- format_bootstrap_snapshot_xml: Formats snapshot into a compact, model-friendly XML block
+- format_bootstrap_snapshot_xml: Formats snapshot into a compact, model-friendly XML block; entry names are rendered as single-line plain text
 
 [POS]
 Harness code_execution sandbox snapshot generator.
@@ -25,12 +27,18 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from myrm_agent_harness.core.security.detection.content_boundary import (
+    detect_suspicious,
+    sanitize,
+    strip_invisible_unicode,
+)
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
 logger = logging.getLogger(__name__)
@@ -70,6 +78,13 @@ _CORE_TOOLS: tuple[str, ...] = ("git", "curl", "jq", "docker", "make", "tar", "r
 
 # ``None`` means the status probe gave no answer (timeout, refused layout, git missing): that is never reported as clean.
 _GIT_STATE_LABEL: dict[bool | None, str] = {True: "dirty", False: "clean", None: "unknown"}
+
+# A top-level entry name is third-party text in a system message, so it is shown as one short line of plain text:
+# line breaks, control and bidirectional characters become spaces, framing markers are neutralised, a name that reads as an
+# instruction is withheld, and a long name is cut.
+_MAX_ENTRY_NAME_CHARS = 80
+_LINE_BREAKS_AND_CONTROLS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u202a-\u202e\u2066-\u2069]")
+_WITHHELD_ENTRY_NAME = "[name withheld]"
 
 
 @dataclass(frozen=True)
@@ -268,8 +283,8 @@ def generate_sandbox_bootstrap_snapshot(
 ) -> SandboxBootstrapSnapshot:
     """Generate a lightweight, non-recursive bootstrap snapshot of the sandbox environment.
 
-    Execution time is strictly bounded (<30ms typical). Any probe failure is handled
-    gracefully to guarantee non-crashing execution.
+    Execution time is bounded by the git probes' 1 s timeouts, not by a cheap listing. Any probe failure is
+    handled gracefully to guarantee non-crashing execution.
 
     Args:
         workspace_path: Path to the workspace root directory.
@@ -314,6 +329,16 @@ def generate_sandbox_bootstrap_snapshot(
     )
 
 
+def _display_entry_name(name: str) -> str:
+    """The entry name as it may appear in the prompt; an ordinary name comes back unchanged."""
+    cleaned = sanitize(_LINE_BREAKS_AND_CONTROLS.sub(" ", strip_invisible_unicode(name)))
+    if detect_suspicious(cleaned):
+        return _WITHHELD_ENTRY_NAME
+    if len(cleaned) > _MAX_ENTRY_NAME_CHARS:
+        return cleaned[:_MAX_ENTRY_NAME_CHARS] + "..."
+    return cleaned
+
+
 def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
     """Format the snapshot into a clean, compact XML observation for the initial prompt/observation.
 
@@ -329,7 +354,7 @@ def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
 
     # Top-level workspace entries
     if snapshot.top_level_entries:
-        entries_str = ", ".join(snapshot.top_level_entries)
+        entries_str = ", ".join(_display_entry_name(entry) for entry in snapshot.top_level_entries)
         if snapshot.total_entries_count > len(snapshot.top_level_entries):
             entries_str += f" ... (+{snapshot.total_entries_count - len(snapshot.top_level_entries)} more)"
         lines.append(f"Workspace Contents: {entries_str}")
@@ -356,7 +381,8 @@ def format_bootstrap_snapshot_xml(snapshot: SandboxBootstrapSnapshot) -> str:
 
     lines.append(
         "Guidance: You have full access to the above sandbox workspace. "
-        "Use the recommended package manager and paths directly without blind directory probing."
+        "Use the recommended package manager and paths directly without blind directory probing. "
+        "The Git state and file list were captured when the conversation began; re-check them with a tool if you need current values."
     )
     lines.append("</sandbox_environment_snapshot>")
     return "\n".join(lines)

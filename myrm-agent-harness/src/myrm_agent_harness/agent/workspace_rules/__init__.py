@@ -2,13 +2,13 @@
 
 Provides two mechanisms for workspace rule file support:
 
-1. **Startup injection** (middleware.py): Scans workspace root for rule files
+1. **Workspace context injection** (middleware.py): Reads the workspace root's rule files
    (AGENTS.md, CLAUDE.md, SOUL.md, MEMORY.md, .cursorrules, .clinerules,
    .myrm.md, .hermes.md, HERMES.md, .windsurfrules, .myrm/rules/*.md,
    .cursor/rules/*.mdc, .claude/CLAUDE.md, .github/copilot-instructions.md)
-   and injects them as a SystemMessage on the first LLM call. Position:
-   after user_instructions, before memory_context — optimized for KV Cache
-   prefix stability.
+   on every model call and injects them, with a sandbox snapshot taken once per
+   chat thread, as a SystemMessage. Position: after user_instructions, before
+   memory_context — optimized for KV Cache prefix stability.
 
 2. **Progressive discovery** (tracker.py): Monitors tool call arguments for
    file/directory paths. When a new directory is accessed, checks for rule
@@ -17,11 +17,11 @@ Provides two mechanisms for workspace rule file support:
 
 [INPUT]
 - scanner.py: Rule file discovery and loading
-- middleware.py: LLM middleware for startup injection
+- middleware.py: LLM middleware for workspace context injection
 - tracker.py: Progressive subdirectory discovery
 
 [OUTPUT]
-- workspace_rules_middleware: AgentMiddleware instance for startup injection
+- workspace_rules_middleware: AgentMiddleware instance for workspace context injection
 - scan_workspace_rules(): Manual scan function
 - RuleFile: Rule file data class
 - check_and_append_rules(): POST-CALL hook for tracker
@@ -29,8 +29,8 @@ Provides two mechanisms for workspace rule file support:
 - reset_subdirectory_tracker(): Reset session tracker
 
 [POS]
-Workspace rules module. Two-layer context file support: startup injection
-via middleware and progressive subdirectory discovery via tool interception.
+Workspace rules module. Two-layer context file support: workspace context
+injection via middleware and progressive subdirectory discovery via tool interception.
 """
 
 from myrm_agent_harness.agent.workspace_rules.middleware import (

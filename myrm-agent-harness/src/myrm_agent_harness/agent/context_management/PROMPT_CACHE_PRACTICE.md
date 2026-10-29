@@ -240,11 +240,13 @@ def _find_system_insert_idx(messages):
 ```
 [0] SystemMessage: system prompt          ← 跨用户缓存命中 ✅
 [1] SystemMessage: <user_instructions>    ← 同用户缓存命中 ✅
-[2] SystemMessage: <workspace_context>    ← 同 workspace 缓存命中 ✅
+[2] SystemMessage: <workspace_context>    ← 同对话线程内逐字节稳定（规则文件被编辑时才变）✅
 [3] SystemMessage: Stable `<user_memory_context>` ← 同用户缓存命中 ✅
 [4] HumanMessage（可选）: <<<UNTRUSTED_DATA>>> learned advisory ← envelope id random / per-request
 [5] HumanMessage: ...                     ← 每轮变化
 ```
+
+`<workspace_context>` 里的沙箱快照（`Git:` 状态、顶层文件列表）会随 agent 自己的改动变化，注入又只是对单次请求的 override、不写回图状态，若每次模型调用都重算，agent 一改文件位置 [2] 的字节就变，其后的前缀缓存在那次调用失效。因此快照由 `before_model` 按对话线程只生成一次，存入检查点状态的私有键 `workspace_snapshot` / `workspace_snapshot_root`（工作区变了才重新生成），之后每次调用读回同一份文本；规则文件仍每次实时读取。真实循环里的用例：`tests/agent/workspace_rules/test_middleware_run_scope.py`。
 
 如果 `user_instructions` 在 system prompt **之前**（`insert(0, ...)`），不同用户的前缀从第一个 token 就不同，system prompt 的跨用户缓存完全失效。
 

@@ -18,7 +18,7 @@ Detailed design: [EXECUTION_SYSTEM.md](EXECUTION_SYSTEM.md)
 | platform.py | Core | Cross-platform runtime detection, shell configuration, and unified `<environment>` system prompt tag (OS + Shell + Python toolchain + VNC visual desktop). | ✅ |
 | python_extractor.py | Core | Quote-aware Python extraction from bash commands; pipe stdin + ``cat *.py | python3`` feeder path extraction; ``cat > path <<EOF`` heredoc unwrap for MCP PTC bash; SSOT for code_detector, SkillExecutor, PTC verifier, preflight guards. | ✅ |
 | git_digest.py | Core | Git repository history & change digest extractor. Extracts branch, dirty state, and recent commit summaries in milliseconds. | ✅ |
-| sandbox_snapshot.py | Core | Sandbox bootstrap snapshot generator. Captures initial workspace state, git status, language runtimes, and package managers into compact XML. A working tree whose status could not be read (refused layout, timeout, git missing) is reported as `unknown`, never `clean`. | ✅ |
+| sandbox_snapshot.py | Core | Sandbox bootstrap snapshot generator. Captures initial workspace state, git status, language runtimes, and package managers into compact XML. A working tree whose status could not be read (refused layout, timeout, git missing) is reported as `unknown`, never `clean`. Top-level entry names are third-party text: rendered as one line of plain text (control and bidirectional characters become spaces, framing markers neutralised, instruction-like names withheld, 80 characters at most). The `Guidance` line tells the model the Git state and file list date from the start of the conversation. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

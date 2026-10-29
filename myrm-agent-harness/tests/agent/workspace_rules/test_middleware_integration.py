@@ -11,10 +11,8 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.agent.workspace_rules.middleware import (
-    WORKSPACE_CONTEXT_MARKER,
     _find_workspace_insert_idx,
     _format_rules_content,
-    _has_workspace_context,
 )
 from myrm_agent_harness.agent.workspace_rules.scanner import (
     RuleFile,
@@ -42,7 +40,7 @@ class TestScannerToMiddlewarePipeline:
         assert rules[0].blocked is False
 
         content = _format_rules_content(rules)
-        assert WORKSPACE_CONTEXT_MARKER in content
+        assert "<workspace_context" in content
         assert "Agent Persona" in content
         assert "helpful coding assistant" in content
         assert 'source="project_rules"' in content
@@ -57,7 +55,7 @@ class TestScannerToMiddlewarePipeline:
         assert rules[0].blocked is False
 
         content = _format_rules_content(rules)
-        assert WORKSPACE_CONTEXT_MARKER in content
+        assert "<workspace_context" in content
         assert "TypeScript strict mode" in content
         assert "functional components" in content
 
@@ -71,7 +69,7 @@ class TestScannerToMiddlewarePipeline:
         assert "[BLOCKED:" in rules[0].content
 
         content = _format_rules_content(rules)
-        assert WORKSPACE_CONTEXT_MARKER in content
+        assert "<workspace_context" in content
         assert "[BLOCKED:" in content
 
     def test_priority_soul_over_agents(self, workspace_dir: Path) -> None:
@@ -95,17 +93,6 @@ class TestScannerToMiddlewarePipeline:
         rules = scan_workspace_rules(str(workspace_dir))
         assert len(rules) == 1
         assert rules[0].source == ".cursorrules"
-
-    def test_workspace_context_marker_detection(self, workspace_dir: Path) -> None:
-        """Middleware idempotency: marker is correctly detected after injection."""
-        from langchain_core.messages import SystemMessage
-
-        (workspace_dir / "SOUL.md").write_text("# Rules for this project")
-        rules = scan_workspace_rules(str(workspace_dir))
-        content = _format_rules_content(rules)
-
-        msg = SystemMessage(content=content)
-        assert _has_workspace_context([msg]) is True
 
     def test_no_rules_no_injection(self, workspace_dir: Path) -> None:
         """Empty workspace → no rules → no workspace_context generated."""
@@ -194,16 +181,6 @@ class TestScannerToMiddlewarePipeline:
         idx = _find_workspace_insert_idx(messages)
         assert idx == 2
 
-    def test_has_workspace_context_negative(self) -> None:
-        """No false positive on unrelated SystemMessages."""
-        from langchain_core.messages import SystemMessage
-
-        messages = [
-            SystemMessage(content="You are a helpful assistant."),
-            SystemMessage(content="<user_instructions>Be concise.</user_instructions>"),
-        ]
-        assert _has_workspace_context(messages) is False
-
     def test_memory_md_full_pipeline(self, workspace_dir: Path) -> None:
         """MEMORY.md: discovered → loaded → formatted into workspace_context block."""
         (workspace_dir / "MEMORY.md").write_text("# Project Background\n\nThis project uses FastAPI and React.")
@@ -214,7 +191,7 @@ class TestScannerToMiddlewarePipeline:
         assert rules[0].blocked is False
 
         content = _format_rules_content(rules)
-        assert WORKSPACE_CONTEXT_MARKER in content
+        assert "<workspace_context" in content
         assert "Project Background" in content
         assert "FastAPI and React" in content
 
