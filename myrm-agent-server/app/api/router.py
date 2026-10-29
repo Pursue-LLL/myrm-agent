@@ -113,7 +113,6 @@ from app.api.system.custom_agent_insights_api import router as system_custom_age
 from app.api.system.debug_share_api import router as system_debug_share_router
 from app.api.system.delegation_billing_api import router as system_delegation_billing_router
 from app.api.system.delivery_dossier_api import router as system_delivery_dossier_router
-from app.api.system.deployment_funnel_api import router as system_deployment_funnel_router
 from app.api.system.diagnostic_stream_api import router as system_diagnostic_stream_router
 from app.api.system.durable_budget_ledger_api import router as system_durable_budget_ledger_router
 from app.api.system.enterprise_credit_cockpit_api import router as system_enterprise_credit_cockpit_router
@@ -122,14 +121,12 @@ from app.api.system.evidence_cross_verification_api import router as system_evid
 from app.api.system.failure_triage_api import router as system_failure_triage_router
 from app.api.system.issue_ticketing_api import router as system_issue_ticketing_router
 from app.api.system.knowledge_compounding_api import router as system_knowledge_compounding_router
-from app.api.system.labor_acceleration_api import router as system_labor_acceleration_router
 from app.api.system.model_ping_api import router as system_model_ping_router
 from app.api.system.multi_tier_health_api import router as system_multi_tier_health_router
 from app.api.system.multimodal_trace_api import router as system_multimodal_trace_router
 from app.api.system.org_spend_limit_api import router as system_org_spend_limit_router
 from app.api.system.rate_limit_governor_api import router as system_rate_limit_governor_router
 from app.api.system.rate_limit_split_api import router as system_rate_limit_split_router
-from app.api.system.reasoning_semantics_api import router as system_reasoning_semantics_router
 from app.api.system.resource_ledger_api import router as system_resource_ledger_router
 from app.api.system.retrieval_trace_api import router as system_retrieval_trace_router
 from app.api.system.roi_analytics_api import router as system_roi_analytics_router
@@ -140,7 +137,6 @@ from app.api.system.shutdown import router as system_shutdown_router
 from app.api.system.stream_metrics_api import router as system_stream_metrics_router
 from app.api.system.token_economics_api import router as system_token_economics_router
 from app.api.system.turn_context_provenance_api import router as system_turn_context_provenance_router
-from app.api.system.turn_usage_api import router as system_turn_usage_router
 from app.api.system.unattended_coverage_api import router as system_unattended_coverage_router
 from app.api.system.unattended_reliability_api import router as system_unattended_reliability_router
 from app.api.system.visual_flight_recorder_api import router as system_visual_flight_recorder_router
@@ -163,7 +159,6 @@ from app.config.deploy_mode import is_local_mode
 
 from .system.ambient_auxiliary_accounting_api import router as system_ambient_auxiliary_router
 from .system.cross_period_milestone_api import router as system_cross_period_milestone_router
-from .system.dual_domain_metering_api import router as system_dual_domain_metering_router
 
 api_router = APIRouter()
 
@@ -341,7 +336,6 @@ api_router.include_router(system_multi_tier_health_router, prefix="/system", tag
 api_router.include_router(system_failure_triage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_retrieval_trace_router, prefix="/system", tags=["system"])
 api_router.include_router(system_resource_ledger_router, prefix="/system", tags=["system"])
-api_router.include_router(system_labor_acceleration_router, prefix="/system", tags=["system"])
 api_router.include_router(system_issue_ticketing_router, prefix="/system", tags=["system"])
 api_router.include_router(system_workflow_burn_router, prefix="/system", tags=["system"])
 api_router.include_router(system_coordination_friction_router, prefix="/system", tags=["system"])
@@ -351,14 +345,11 @@ api_router.include_router(system_token_economics_router, prefix="/system", tags=
 api_router.include_router(system_delivery_dossier_router, prefix="/system", tags=["system"])
 api_router.include_router(system_rate_limit_governor_router, prefix="/system", tags=["system"])
 api_router.include_router(system_context_savings_router, prefix="/system", tags=["system"])
-api_router.include_router(system_reasoning_semantics_router, prefix="/system", tags=["system"])
 api_router.include_router(system_org_spend_limit_router, prefix="/system", tags=["system"])
 api_router.include_router(system_knowledge_compounding_router, prefix="/system", tags=["system"])
 api_router.include_router(system_turn_context_provenance_router, prefix="/system", tags=["system"])
-api_router.include_router(system_deployment_funnel_router, prefix="/system", tags=["system"])
 api_router.include_router(system_stream_metrics_router, prefix="/system", tags=["system"])
 api_router.include_router(system_diagnostic_stream_router, prefix="/system", tags=["system"])
-api_router.include_router(system_turn_usage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_context_breakdown_router, prefix="/system", tags=["system"])
 api_router.include_router(system_rate_limit_split_router, prefix="/system", tags=["system"])
 api_router.include_router(system_enterprise_credit_cockpit_router, prefix="/system", tags=["system"])
@@ -368,7 +359,6 @@ api_router.include_router(system_evidence_cross_verification_router, prefix="/sy
 api_router.include_router(system_composite_usage_ledger_router, prefix="/system", tags=["system"])
 api_router.include_router(system_ambient_auxiliary_router, prefix="/system", tags=["system"])
 api_router.include_router(system_cross_period_milestone_router, prefix="/system", tags=["system"])
-api_router.include_router(system_dual_domain_metering_router, prefix="/system", tags=["system"])
 api_router.include_router(system_event_causality_lineage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_multimodal_trace_router, prefix="/system", tags=["system"])
 api_router.include_router(system_visual_flight_recorder_router, prefix="/system", tags=["system"])
