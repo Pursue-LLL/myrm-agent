@@ -21,7 +21,7 @@ enables zero-intrusion integration with the existing agent pipeline:
 - COMMENT_DOC_PREFIX: routing prefix constant
 - NO_REPLY_SENTINEL: reply text by which the agent declines to answer a comment
 - parse_comment_recipient: extracts routing info from encoded recipient_id
-- deliver_comment_reply: sends text reply via comment API with chunking
+- deliver_comment_reply: posts the reply to the comment API chunk by chunk through deliver_chunks; raises ChannelSendError
 
 [POS]
 Feishu drive document comment handler. Converts comment events to InboundMessage
