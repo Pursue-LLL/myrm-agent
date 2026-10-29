@@ -29,7 +29,7 @@ from myrm_agent_harness.toolkits.computer_use.iphone_mirror import (
     is_iphone_mirror_app,
     is_iphone_mirror_connect_window,
 )
-from myrm_agent_harness.toolkits.computer_use.types import ModifierKey
+from myrm_agent_harness.toolkits.computer_use.types import ModifierKey, ScreenLockState
 
 # Sole key tokens that models mistake for "key names" (KimiCU calculator pitfall).
 # Use type / click @dref instead — never vision key= or keyboard press of these alone.
@@ -355,7 +355,6 @@ def check_screen_lock_safety(detector: object | None = None) -> str | None:
     """
     from myrm_agent_harness.toolkits.computer_use.screen_detector import (
         ScreenDetector,
-        ScreenLockState,
         get_default_screen_detector,
     )
 
@@ -372,7 +371,6 @@ def ensure_screen_safe(detector: object | None = None) -> None:
     """Ensure screen is unlocked and awake before physical input; raises on violation."""
     from myrm_agent_harness.toolkits.computer_use.screen_detector import (
         ScreenDetector,
-        ScreenLockState,
         get_default_screen_detector,
     )
 
