@@ -90,7 +90,6 @@ data-viz = [
 ]
 
 [tool.uv]
-index-url = "https://pypi.org/simple"
 # Universal lock; the harness is the in-repo editable path source declared in [tool.uv.sources].
 prerelease = "allow"
 # Supported targets only: patchright (browser extra) ships no wheels for emscripten/other platforms,
@@ -113,6 +112,13 @@ constraint-dependencies = ["agent-client-protocol<1"]
 # ships against the same commit. Release images build the harness wheel from this path.
 [tool.uv.sources]
 myrm-agent-harness = { path = "../myrm-agent-harness", editable = true }
+
+# uv.lock must pin PyPI itself (tests/architecture/test_server_pyproject_lock_parity.py). `index-url` loses to a
+# shell-level UV_INDEX_URL mirror; a default [[tool.uv.index]] entry wins over it, so a plain `uv lock` stays on PyPI.
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
 
 # Desktop/commercial PyInstaller bundle (no GPL extras in shipped binary):
 #   uv sync --all-extras --no-group dev --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
