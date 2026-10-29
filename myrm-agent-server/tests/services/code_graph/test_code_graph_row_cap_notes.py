@@ -5,8 +5,8 @@
 
 [OUTPUT]
 - pytest suite: a qualified name returns the same rows as the bare name for the actions that match on the last
-  name part, a longer name really narrows resolve and importers, and the row-cap note of every action carries
-  the hint that is true for that action.
+  name part, a longer name really narrows resolve and importers, ``total`` counts every match of every action,
+  and the row-cap note of every action carries the hint that is true for that action.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_row_cap_notes.py
@@ -99,6 +99,28 @@ async def test_a_longer_name_brings_resolve_and_importers_under_the_cap(
     broad = await _ask(workspace, action, bare)
 
     assert _total(narrowed) <= MAX_ROWS < _total(broad)
+
+
+@pytest.mark.parametrize(
+    ("action", "target", "matches"),
+    [
+        ("callers", "target", 2 * _OVER_CAP),
+        ("tests_calling", "target", _OVER_CAP),
+        ("implementors", "Base", _OVER_CAP),
+        ("callees", "m.big", _OVER_CAP),
+        ("resolve", "run", _OVER_CAP),
+        ("importers", "pkg", _OVER_CAP + 1),
+    ],
+)
+async def test_total_counts_every_match_and_not_only_the_rows_shown(
+    workspace: Path, action: str, target: str, matches: int
+) -> None:
+    _populate(workspace)
+
+    answer = await _ask(workspace, action, target)
+
+    assert _total(answer) == matches
+    assert len(cast(list[object], answer["rows"])) == MAX_ROWS
 
 
 @pytest.mark.parametrize(

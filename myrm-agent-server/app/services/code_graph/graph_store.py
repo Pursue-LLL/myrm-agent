@@ -241,7 +241,7 @@ class CodeGraphStore:
                 docstring=row["docstring"] or "",
             )
 
-    def resolve_names(self, target: str, limit: int = 20) -> list[dict[str, object]]:
+    def resolve_names(self, target: str) -> list[dict[str, object]]:
         suffix = f"%.{_escape_like(target)}"
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -277,9 +277,8 @@ class CodeGraphStore:
                 FROM symbols
                 WHERE qualified_name = ? OR qualified_name LIKE ? ESCAPE '\\' OR name = ?
                 ORDER BY priority ASC, qualified_name ASC
-                LIMIT ?
                 """,
-                (target, suffix, target, target, suffix, target, limit),
+                (target, suffix, target, target, suffix, target),
             )
             return [dict(r) for r in cursor.fetchall()]
 

@@ -171,9 +171,9 @@ class CodeGraphService:
 
     # ==================== 7 种确定性图查询 ====================
 
-    def resolve(self, target: str, limit: int = 20) -> list[dict[str, object]]:
-        """1. 解析符号或 path:line 为完全限定名，最多返回 ``limit`` 条。"""
-        return self.store.resolve_names(target, limit)
+    def resolve(self, target: str) -> list[dict[str, object]]:
+        """1. 解析符号或 path:line 为完全限定名，返回全部匹配，最贴近目标的在前。"""
+        return self.store.resolve_names(target)
 
     def definition(self, qualified_name: str) -> dict[str, object] | None:
         """2. 获取符号的准确定义位置与文档注释。"""

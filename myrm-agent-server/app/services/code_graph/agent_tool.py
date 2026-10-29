@@ -125,7 +125,7 @@ def _definition_query(service: CodeGraphService, target: str) -> list[Row]:
 
 _ACTIONS: dict[str, _Action] = {
     "resolve": _Action(
-        lambda s, t: s.resolve(t, MAX_ROWS + 1),
+        lambda s, t: s.resolve(t),
         lambda r: {"name": r["qualified_name"], "kind": r["kind"], "at": _span(r)},
         cut_hint=_HINT_QUALIFIED_NAME,
     ),

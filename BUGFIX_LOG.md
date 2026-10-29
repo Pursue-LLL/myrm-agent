@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-30 · 代码图谱：resolve 命中超过 50 个时，返回的 total 是被截断的 51，不是真实匹配数
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交见本条所在提交；未 push）。「仍然存在」里的 2 项未处理。 |
+| **症状** | [实测] 测试夹具里 55 个 `Handler{i}.run`，`resolve run` 返回 `total=51`；同一夹具里 `callers target` 返回 110、`importers pkg` 返回 56，都是真实匹配数。真实代码 `myrm-agent-server`（临时索引库）里有 11 个名字的定义超过 50 个，前几名是 `__init__` 1,347、`client` 273、`handler` 125、`send` 114、`Config` 99；`resolve('__init__')` 报 `total=51`，真实是 1,347。工具描述要求只有纯名字时从 `resolve` 开始，所以这是模型最先看到的数字。 |
+| **根因** | `agent_tool.py` 给 `resolve` 的查询传了 `MAX_ROWS + 1`，`graph_store.py` 的 `resolve_names` 用 `LIMIT ?` 截断，`_ask` 再把 `len(found)` 原样写进 `total`。`limit` 参数在生产代码里只有这一个调用方，另外 5 个返回行集合的动作都不带上限、取全部再切片，只有 `resolve` 例外。 |
+| **修复** | 删除 `CodeGraphService.resolve` 与 `CodeGraphStore.resolve_names` 的 `limit` 参数和 SQL 的 `LIMIT ?`，`resolve` 取全部匹配，仍由 `found[:MAX_ROWS]` 切片；排序 `ORDER BY priority, qualified_name` 不变，前 50 行仍是最贴近目标的匹配。`_ARCH.md` 写明 `total` 是匹配总数。 |
+| **回归证据** | [1] 红绿：新增 `test_total_counts_every_match_and_not_only_the_rows_shown`（6 例，覆盖六个会被截断的动作；期望值先按夹具手算：callers 110、tests_calling 55、implementors 55、callees 55、resolve 55、importers 56）。旧代码下只有 resolve 一例失败（`51 == 55`），其余 5 例通过；修复后 6 例全部通过。[2] 变异：把 `LIMIT 51` 加回 `resolve_names`，同一例失败，其余 16 例通过，已还原。[3] `ruff check`、`ruff format --check`、`mypy`、`pyright`（带 venv）无问题，`tests/services/code_graph`、`tests/integration/test_repo_call_graph_integration.py`、`test_tool_layer_bootstrap.py` 共 87 个通过，`scripts/check_fractal_docs.py` OK。[4] 耗时（临时索引库约 5,600 个文件，macOS，`resolve_names` 每种 40 次，单次测量）：`__init__` 保留 `LIMIT 51` 时 p50 13.5 ms、p95 14.2 ms，去掉后返回 1,347 行 p50 16.3 ms、p95 17.1 ms；`client`（273 行）13.5 ms 到 13.9 ms；`send`（114 行）13.4 ms 到 13.5 ms。 |
+| **仍然存在** | ① 同名定义上万的工作区没有测过，那时 `resolve` 会取出全部行再切片，和另外 5 个动作的行为一致，但没有给出耗时。② 模型是否使用 `total` 做决策没有验证，本次的依据是返回里不应有错误的数字，不是观察到的模型行为。 |
+| **代码位置** | `myrm-agent-server/app/services/code_graph/graph_store.py:244`（`resolve_names`）· `myrm-agent-server/app/services/code_graph/service.py:174`（`resolve`）· `myrm-agent-server/app/services/code_graph/agent_tool.py`（`_ACTIONS["resolve"]`）· `myrm-agent-server/tests/services/code_graph/test_code_graph_row_cap_notes.py`（`test_total_counts_every_match_and_not_only_the_rows_shown`） |
+
 ## 2026-10-30 · 代码图谱：结果被截在 50 行时，「用限定名缩小结果」的提示对 callers、tests_calling、implementors 是假的
 
 | 字段 | 内容 |
