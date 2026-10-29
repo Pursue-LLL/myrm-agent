@@ -31,9 +31,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# nspasteboard.org 约定：剪贴板历史工具应忽略带这两个标记的内容。
+# nspasteboard.org 约定：剪贴板历史工具应忽略带此标记的内容。
 _TRANSIENT_TYPE = "org.nspasteboard.TransientType"
-_CONCEALED_TYPE = "org.nspasteboard.ConcealedType"
 
 # 同一时刻只允许一轮借用：取消后立刻重试时，新一轮必须等上一轮还原完，否则会把我方临时文本当成用户内容快照下来。
 _PASTE_LOCK = threading.Lock()
@@ -62,19 +61,18 @@ def snapshot(pb: NSPasteboard | None = None) -> PasteboardSnapshot:
     return PasteboardSnapshot(tuple(items))
 
 
-def write_text(text: str, *, concealed: bool = False, pb: NSPasteboard | None = None) -> int:
+def write_text(text: str, *, pb: NSPasteboard | None = None) -> int:
     """用文本替换剪贴板并返回写入后的 changeCount；写入失败抛 RuntimeError。
 
-    临时文本总带 TransientType；concealed=True（凭证）再带 ConcealedType。
+    临时文本带 TransientType，剪贴板历史工具据此忽略它。
     """
     from AppKit import NSPasteboardItem, NSPasteboardTypeString
     from Foundation import NSData
 
     board = _resolve(pb)
     item = NSPasteboardItem.alloc().init()
-    markers = (_TRANSIENT_TYPE, _CONCEALED_TYPE) if concealed else (_TRANSIENT_TYPE,)
-    if not item.setString_forType_(text, NSPasteboardTypeString) or not all(
-        item.setData_forType_(NSData.data(), marker) for marker in markers
+    if not item.setString_forType_(text, NSPasteboardTypeString) or not item.setData_forType_(
+        NSData.data(), _TRANSIENT_TYPE
     ):
         raise RuntimeError("Failed to prepare text for the macOS pasteboard")
     board.clearContents()
@@ -111,7 +109,6 @@ def paste_text(
     text: str,
     press_paste: Callable[[], None],
     *,
-    concealed: bool = False,
     settle_seconds: float,
     pb: NSPasteboard | None = None,
 ) -> None:
@@ -125,7 +122,7 @@ def paste_text(
         saved = snapshot(pb)
         written: int | None = None
         try:
-            written = write_text(text, concealed=concealed, pb=pb)
+            written = write_text(text, pb=pb)
             press_paste()
             time.sleep(settle_seconds)
         finally:

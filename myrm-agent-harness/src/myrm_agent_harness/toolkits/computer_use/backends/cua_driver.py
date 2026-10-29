@@ -305,30 +305,6 @@ class CuaDriverBackend:
             logger.warning("cua-driver type_text failed, falling back: %s", exc)
             return await self._fallback.type_text(text, delay_ms, chunk_size)
 
-    async def type_credential(self, label: str) -> ActionResult:
-        """Credential typing: retrieve from vault, then type via cua-driver."""
-        from myrm_agent_harness.core.security.credential_vault import (
-            get_global_credential_vault,
-        )
-
-        vault = get_global_credential_vault()
-        is_totp = label.endswith("-totp")
-        try:
-            secret_text = vault.get_totp_token(label) if is_totp else vault.get_password(label)
-        except Exception:
-            return ActionResult(success=False, error=f"Failed to retrieve credential '{label}'")
-
-        try:
-            await self._ensure_session()
-            pid = await self._resolve_target()
-            out = await self._mcp.call_tool("type_text", {"pid": pid, "text": secret_text})
-            if out["isError"]:
-                raise RuntimeError(out.get("data", "cua-driver type_credential failed"))
-            return ActionResult(success=True)
-        except Exception as exc:
-            logger.warning("cua-driver type_credential failed, falling back: %s", exc)
-            return await self._fallback.type_credential(label)
-
     async def key(self, keys: str) -> ActionResult:
         try:
             await self._ensure_session()

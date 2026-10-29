@@ -179,38 +179,7 @@ class MacOSBackend:
         except Exception as e:
             return ActionResult(success=False, error=str(e))
 
-    async def type_credential(self, label: str) -> ActionResult:
-        """Type a credential (password or TOTP) securely from the CredentialVault."""
-        from myrm_agent_harness.core.security.credential_vault import (
-            get_global_credential_vault,
-        )
-
-        vault = get_global_credential_vault()
-
-        is_totp = label.endswith("-totp")
-        try:
-            if is_totp:
-                secret_text = vault.get_totp_token(label)
-            else:
-                secret_text = vault.get_password(label)
-        except Exception:
-            return ActionResult(
-                success=False,
-                error=f"Failed to retrieve credential for label '{label}'",
-            )
-
-        try:
-            if secret_text.isascii():
-                interval = 12 / 1000.0
-                # Quartz unicode input — direct OS event injection, no subprocess exposure
-                await asyncio.to_thread(macos_input.write, secret_text, interval=interval)
-            else:
-                await self._paste_text(secret_text, concealed=True)
-            return ActionResult(success=True)
-        except Exception as e:
-            return ActionResult(success=False, error=str(e))
-
-    async def _paste_text(self, text: str, *, concealed: bool = False) -> None:
+    async def _paste_text(self, text: str) -> None:
         """Type non-ASCII text via clipboard paste (Cmd+V); the user's pasteboard is restored afterwards.
 
         The whole sequence runs in one worker thread, so a cancelled call still finishes the paste and the restore.
@@ -219,7 +188,6 @@ class MacOSBackend:
             macos_pasteboard.paste_text,
             text,
             lambda: macos_input.hotkey("command", "v"),
-            concealed=concealed,
             settle_seconds=_PASTE_SETTLE_SECONDS,
         )
 

@@ -57,14 +57,6 @@ class ComputerBackend(Protocol):
         """Type text with optional keystroke delay."""
         ...
 
-    async def type_credential(self, label: str) -> ActionResult:
-        """Type a credential (password or TOTP) securely from the CredentialVault.
-
-        The plain text is retrieved from the in-memory vault and injected directly
-        via OS APIs without appearing in the LLM context or logs.
-        """
-        ...
-
     async def key(self, keys: str) -> ActionResult:
         """Press key combination (e.g. 'ctrl+c', 'Return')."""
         ...

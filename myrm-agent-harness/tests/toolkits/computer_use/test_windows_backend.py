@@ -3,7 +3,7 @@
 Covers:
 - WindowsBackend instantiation and protocol compliance
 - click/scroll/drag with modifier key handling (keyDown/keyUp guarantee)
-- type_text() / type_credential() ASCII and non-ASCII (SendInput Unicode, never the clipboard)
+- type_text() ASCII and non-ASCII (SendInput Unicode, never the clipboard)
 - key() single and combo keys
 - mouse_move(), wait(), screen_info(), screen_context(), window_text()
 - Factory function: create_computer_session routes to WindowsBackend
@@ -252,51 +252,6 @@ class TestWindowsBackendTypeText:
 
         assert result.success is False
         assert "SendInput inserted 0 of 2" in (result.error or "")
-
-
-class TestWindowsBackendTypeCredential:
-    """type_credential(): a non-ASCII secret never reaches the clipboard."""
-
-    @pytest.fixture
-    def backend(self, _mock_windows_env):
-        win_mod, _, _ = _mock_windows_env
-        return win_mod.WindowsBackend()
-
-    @pytest.mark.asyncio
-    async def test_non_ascii_secret_types_unicode_keys(self, backend) -> None:
-        vault = MagicMock()
-        vault.get_password.return_value = "pä\u00df中"
-        calls: list[tuple[str, tuple]] = []
-
-        async def mock_to_thread(fn, *args, **kwargs):
-            calls.append((getattr(fn, "__name__", str(fn)), args))
-
-        with (
-            patch(
-                "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault",
-                return_value=vault,
-            ),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
-        ):
-            result = await backend.type_credential("bank")
-
-        assert result.success is True
-        assert calls == [("type_unicode_text", ("pä\u00df中", 12, 50))]
-
-    @pytest.mark.asyncio
-    async def test_ascii_secret_keeps_pyautogui_path(self, backend, _mock_windows_env) -> None:
-        _, mock_pyautogui, _ = _mock_windows_env
-        vault = MagicMock()
-        vault.get_password.return_value = "hunter2"
-
-        with patch(
-            "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault",
-            return_value=vault,
-        ):
-            result = await backend.type_credential("bank")
-
-        assert result.success is True
-        mock_pyautogui.write.assert_called_once_with("hunter2", interval=0.012)
 
 
 class TestWindowsBackendKey:

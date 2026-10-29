@@ -149,34 +149,6 @@ class WindowsBackend:
         except Exception as e:
             return ActionResult(success=False, error=str(e))
 
-    async def type_credential(self, label: str) -> ActionResult:
-        """Type a credential (password or TOTP) securely from the CredentialVault."""
-        from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
-
-        vault = get_global_credential_vault()
-
-        is_totp = label.endswith("-totp")
-        try:
-            if is_totp:
-                secret_text = vault.get_totp_token(label)
-            else:
-                secret_text = vault.get_password(label)
-        except Exception:
-            return ActionResult(success=False, error=f"Failed to retrieve credential for label '{label}'")
-
-        try:
-            if secret_text.isascii():
-                import pyautogui
-
-                interval = 12 / 1000.0
-                # pyautogui.write calls OS APIs directly, no subprocess arguments exposed
-                await asyncio.to_thread(pyautogui.write, secret_text, interval=interval)
-            else:
-                await asyncio.to_thread(type_unicode_text, secret_text, 12, 50)
-            return ActionResult(success=True)
-        except Exception as e:
-            return ActionResult(success=False, error=str(e))
-
     async def key(self, keys: str) -> ActionResult:
         try:
             import pyautogui

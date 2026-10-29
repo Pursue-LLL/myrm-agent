@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-112 · `ComputerBackend.type_credential` 无人调用却声称「安全地从凭据库输入」，配套的 macOS `ConcealedType` 标记因此从未生效，Linux 的凭据测试在测一个没人调用的接口
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/{protocols,linux,macos,windows,cua_driver,macos_pasteboard}.py`；测试 `tests/toolkits/computer_use/` 下对应文件；没有改提示词与工具 schema，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（复审 224 之后核对 `type_credential` 的调用点：`rg type_credential` 排除测试与本文件后只有定义，没有调用） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：没有用户可见故障。5 处实现和 14 处测试引用在维护一个无调用方的接口；协议 docstring 承诺「明文只在内存里经 OS API 注入」，读代码的人会以为凭据走它；我为 Linux 补的 4 个 `type_credential` 测试给出「凭据路径已验证」的假象。 |
+| **关联产品** | 桌面控制：`fill_credential` 动作（`desktop_session.py:355-374`）、四个 backend。 |
+| **根因** | 真实的凭据路径是 `desktop_session` 从凭据库取明文、把动作改成 `fill`，经 `invoke_element`（失败再 `try_bbox_click`，终点 `healer.py:108` 的 `backend.type_text`）输入。`type_credential` 从未接入这条路径。macOS 为它准备的 `concealed=True`（`ConcealedType` 标记）只由它传入，所以生产里粘贴凭据时从未带过该标记。 |
+| **修复** | 删除协议里的 `type_credential` 与四个 backend 的实现（含 `cua_driver` 的回落调用）；删除只服务它的 `concealed` 参数链（`macos._paste_text`、`macos_pasteboard.write_text` / `paste_text`、`ConcealedType` 常量）与对应测试。`fill_credential` 的取值与输入路径、`type_text` 的行为都没有改。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 删 `type_credential` 后发现 `concealed` 只有它在传，不一并删就留下新的死参数。 |
+| **回归** | `test_desktop_fill_credential.py` 新增 `test_fill_credential_secret_reaches_backend_type_text`：`invoke_element` 失败后走真实的 `try_bbox_click`，断言 `backend.type_text` 收到的正是凭据库里的非 ASCII 明文、返回给模型的文字不含明文；把 `healer.py` 的 `type_text(text)` 改成 `type_text(text[:1])` 的变异使它变红。其余断言（凭据库取值、传给 `invoke_element` / bbox 的参数）保留；`type_text` 的非 ASCII 与错误不泄漏文本的用例继续覆盖同一个 `X11TextInput.enter`。 |
+| **仍然存在** | ① macOS 上凭据经 bbox 回落粘贴时只带 `TransientType`，不带 `ConcealedType`（以前同样如此，这次只是不再假装带）；只认 `ConcealedType` 的剪贴板工具会记录它，没有实测。② 非 ASCII 凭据在 Linux 经剪贴板粘贴，窗口内可被剪贴板管理器读到（见 105 的限制）。 |
+| **代码位置** | `toolkits/computer_use/backends/protocols.py:56-59`（`type_text` 之后直接是 `key`） · `toolkits/computer_use/backends/macos.py:182-191`（`_paste_text`） · `toolkits/computer_use/backends/macos_pasteboard.py`（`write_text`、`paste_text`） · `toolkits/computer_use/desktop_session.py:355-374` |
+
 ### BUG-HARNESS-2026-10-29-111 · Linux `key` 对不认识的键名报成功：xdotool 打印 `No such key name` 却退出 0，按键根本没有发出
 
 | 字段 | 内容 |
@@ -85,7 +102,7 @@
 | **踩坑** | 先在本机用假 xdotool 复现：`xdotool key -- a; touch <marker>` 经 `create_subprocess_shell` 后 marker 文件被创建（`injected: True`）。第一版断言写成「argv 以 `key -- a ` 开头」是错的：假 xdotool 用 `$*` 以空格连接参数，`a;` 是一个词，改为比较整行。 |
 | **回归** | [1] 新增 `test_key_names_are_arguments_not_shell_code`：修复前红，修复后绿（marker 不存在、整串作为 xdotool 参数到达）；`tests/toolkits/computer_use` 1184 通过、9 跳过。 |
 | **仍然存在** | ① 没有在真实 xdotool 上验证带引号的按键名（如 `ctrl+shift+t`）仍被识别：只测了假 xdotool 收到的 argv，普通组合键引用后与原来相同（无元字符时 `shlex.join` 不加引号）。② `xprop -id {win_id}` 的 `win_id` 来自 xdotool 输出，未做引用，因为它不是外部输入。③ `cua_driver.py`、`macos.py`、`windows.py` 的 `key` 实现没有逐一审查。 |
-| **代码位置** | `toolkits/computer_use/backends/linux.py:224-230`（`key`） |
+| **代码位置** | `toolkits/computer_use/backends/linux.py:202-208`（`key`） |
 
 ### BUG-HARNESS-2026-10-29-106 · Linux 的 `screen_context` 与分辨率探测永远静默回退：`DISPLAY=:N` 被当成程序名，`xdotool` 从来没有被执行过
 
@@ -102,7 +119,7 @@
 | **踩坑** | 原有 `test_screen_context` 把 `subprocess.run` 整个 mock 掉，所以这个错误一直没被测出来；新用例用真实子进程与按 `$DISPLAY` 应答的假 `xdotool` / `xdpyinfo`。 |
 | **回归** | [1] 新增 2 个用例（活动窗口与鼠标位置、分辨率）：修复前红，修复后 `tests/toolkits/computer_use` 整个目录 1184 通过、9 跳过。 |
 | **仍然存在** | ① `probe_linux_capturable` 的截图探测没有传显示器编号，沿用进程环境里的 `DISPLAY`，没有改。② 没有在真实 X11 上跑过这两个读取函数（真实 X11 套件只覆盖键鼠输入）。 |
-| **代码位置** | `toolkits/computer_use/backends/linux.py:84-88`（`_subprocess_env`）、`:302` · `toolkits/computer_use/backends/linux_probes.py:54`（`detect_linux_resolution`）、`:80-114`（`read_screen_context`，原在 `linux.py`） |
+| **代码位置** | `toolkits/computer_use/backends/linux.py:84-88`（`_subprocess_env`）、`:280` · `toolkits/computer_use/backends/linux_probes.py:54`（`detect_linux_resolution`）、`:80-114`（`read_screen_context`，原在 `linux.py`） |
 
 ### BUG-HARNESS-2026-10-29-105 · Linux 非 ASCII 文本经 `xdotool type` 逐字符输入会丢字、串字：xev 读到键事件证明不了文本到达；含非 ASCII 的文本整段走剪贴板粘贴，纯 ASCII 仍走 stdin 输入
 
@@ -119,7 +136,7 @@
 | **踩坑** | ① 第一版用 xev 当「真实 X11」证据，只验证了 X 服务器收到键事件，没有验证文本到达应用；换成 Tk `Text` 读回内容才暴露丢字。方法上的教训：证据要取自「应用最终收到的内容」，而不是中间环节的日志。② 第一版还给每条命令固定了 `LC_ALL=C.UTF-8`（理由是 xdotool 在非 UTF-8 locale 下遇到首个非 ASCII 字符会以 1 退出，`Invalid multi-byte sequence encountered`）；改回粘贴方案后 xdotool 只会收到纯 ASCII，对抗式复审时在容器里实测，locale 对它能做的任何事都没有影响（见回归 [4]），这个覆盖连同只为它存在的用例一并删除。③ 容器里用桩包加载器跑测试（避开 harness 包的重 `__init__`），桩要给父包补子模块属性，否则 `monkeypatch` 按点路径解析失败。④ 并发粘贴用例第一版让两个粘贴同时开始，它们读到的都是用户原剪贴板，去掉锁也能通过（变异存活）；改成第二个粘贴等第一个的文本上了剪贴板才开始，去锁后变红。⑤ 汉字读回用例第一版只跑 5 轮，把「非 ASCII 逐字符输入」这个变异放进去，6 次里只有 3 次变红（逐字符输入每轮约一成概率丢字）；加到 40 轮后 8 次变异全部变红，正常代码连续 18 次全绿。⑥ 真实 X11 套件在 25 次里出现过 1 次夹具错误（原因没有抓到，之后 100 次没有复现），夹具改为只找已映射的窗口并重试聚焦，怀疑是窗口刚找到还没映射时聚焦失败，这只是推测。 |
 | **回归** | [1] 假 `xdotool` + 以文件模拟剪贴板的假 `xclip`（28 个用例，本机与 arm64 ubuntu:24.04 容器各跑一遍都通过）：ASCII 经 stdin 到达、argv 里没有文本、xclip 零调用；含非 ASCII 的文本（含换行、70 个 ASCII 后接 `é`）整段被粘贴且不经 `type`；原剪贴板（含空）写回；`Ctrl+V` 失败时报错且剪贴板仍写回；重叠的两次粘贴各自还原用户剪贴板；读超时在 0.3 秒下不卡；ASCII 第 2 块失败时报「typed 50 of 120 characters」。变异（容器内）：去锁、读超时改 `None`、去掉取消时的 kill、去掉「typed N of M」、ASCII 误走粘贴，对应用例全部变红。[2] 真实 X11（arm64 ubuntu:24.04，真 Xvfb 无窗口管理器、xdotool 3.20160805.1、xclip、python3-tk，Tk `Text` 读回内容逐字符比较）9 个用例：ASCII 含标点、宿主 `LC_ALL=C` 下的 ASCII、120 个互不相同的汉字连续 40 轮、多行中英混合、原剪贴板写回、非 ASCII 凭据且不留痕、未知键名报失败、鼠标落点、不可达显示器；连续 18 次运行全绿；另用 300 个随机 ASCII 字符（含全部标点）10 轮，`type_text` 读回 10/10 完全一致。变异：非 ASCII 也走 `xdotool type` 时，汉字用例 8 次里变红 8 次；去掉写回时剪贴板与凭据用例变红。对照实验（同一环境、每组 5 轮 120 个汉字）：`xdotool type --delay 12` 完全一致 2/5，收到字符数 120/117/120/117/119；`--delay 60` 本次 5/5（此前另一次试验在 60 ms 仍有丢字，所以延迟不是可靠的修法）；粘贴 5/5。[3] `tests/toolkits/computer_use` 1193 通过、14 跳过（排除 1 个本机 osascript 超时的 `test_macos_ax_script`，与本改动无关）。[4] locale 实验（同一容器）：300 个随机 ASCII 字符 × 5 轮，`LC_ALL` 为 `C`、`POSIX`、`C.UTF-8` 都是 5/5；`xdotool key é` 在 `C` 与 `C.UTF-8` 下输出一致（都忽略该键）；`xdotool getwindowname` 读到含汉字的标题，两种 locale 下字节完全相同。 |
 | **仍然存在** | ① 只验证了 Tk 文本框：Chrome、Electron、终端、输入法里的行为都没有验证，Ctrl+V 在终端里是否生效没有证据。② 实验在 Xvfb 无窗口管理器、单一环境（容器 12 核）下做，带窗口管理器的桌面和更高负载下的丢字率没有测。③ 粘贴会短暂占用剪贴板：原剪贴板是图片等非文本时读成空串，写回的是空串，图片内容丢失；剪贴板历史类工具可能记录粘贴文本（没有实测）。④ 含 4 字节字符（emoji 等）的文本在 Tk 里的行为没有测。⑤ 换行经粘贴原样到达，经 `xdotool type` 输入的 ASCII 换行是 `Linefeed` 而不是 `Return`，没有逐应用核对。⑥ Wayland 不适用（xdotool 只作用于 X11/XWayland）；xdotool 更新版本的行为没有测。⑦ 剪贴板锁是后端实例级，同一显示器上有多个 `LinuxBackend`（每个桌面会话一个，`session.py:541`）时锁不跨实例；多个会话同时操作同一块屏幕本来就会互相抢输入，这里没有单独处理。⑧ CI 作业与运行时镜像构建没有跑过，提交未推送。 |
-| **代码位置** | `toolkits/computer_use/backends/linux_text_io.py:46-90`（`X11TextInput`） · `toolkits/computer_use/backends/linux.py:90-139`（`_run_cmd`、`_run_input`）、`:194-222`（`type_text`、`type_credential`） · `toolkits/computer_use/backends/linux_probes.py:80-151`（`read_screen_context`、`linux_permission_status`） · `tests/toolkits/computer_use/test_linux_real_x11.py` |
+| **代码位置** | `toolkits/computer_use/backends/linux_text_io.py:46-90`（`X11TextInput`） · `toolkits/computer_use/backends/linux.py:90-139`（`_run_cmd`、`_run_input`）、`:194-200`（`type_text`） · `toolkits/computer_use/backends/linux_probes.py:80-151`（`read_screen_context`、`linux_permission_status`） · `tests/toolkits/computer_use/test_linux_real_x11.py` |
 
 ### BUG-HARNESS-2026-10-29-104 · bash 验证命令的非零退出码不进入完成度判断：`ruff check`、`tsc`、只打汇总行的 `pytest` 失败后仍被记成通过，完成度守卫不拦
 

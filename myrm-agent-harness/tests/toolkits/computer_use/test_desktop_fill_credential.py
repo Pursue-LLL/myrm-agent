@@ -7,17 +7,20 @@ Covers:
 - fill_credential returns error when credential has no password
 - fill_credential success message contains [CREDENTIAL_FILLED] marker
 - fill_credential does NOT appear in invoke_element args (converted to 'fill')
+- the vault secret reaches backend.type_text through the real bbox fallback
 """
 
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
-from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
+from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef
+from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 
 @pytest.fixture
@@ -174,6 +177,33 @@ async def test_fill_credential_ax_fail_falls_back_to_bbox(mock_backend, mock_con
 
     mock_bbox.assert_called_once_with(session, elem, "fill", "secret", None)
     assert "CREDENTIAL_FILLED" in result
+
+
+@pytest.mark.asyncio
+async def test_fill_credential_secret_reaches_backend_type_text(mock_backend, mock_config):
+    """End to end through the real bbox fallback: the vault secret is what `backend.type_text` receives."""
+    mock_backend.click = AsyncMock(return_value=ActionResult(success=True))
+    mock_backend.type_text = AsyncMock(return_value=ActionResult(success=True))
+    session = DesktopSession(backend=mock_backend, config=mock_config)
+    elem = _setup_session_with_ref(session)
+    session._refs.get.return_value = replace(elem, bbox=BBox(x=10, y=20, width=100, height=30))
+
+    with (
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
+    ):
+        vault = MagicMock()
+        vault.get_password.return_value = "p\u00e4ss-\u5bc6\u7801"
+        mock_get_vault.return_value = vault
+        mock_invoke.return_value.success = False
+        mock_invoke.return_value.error = "AX failed"
+        session.desktop_snapshot = AsyncMock(return_value="Updated tree")
+
+        result = await session.desktop_interact(ref="e0", action="fill_credential", text="login")
+
+    mock_backend.type_text.assert_awaited_once_with("p\u00e4ss-\u5bc6\u7801")
+    assert "CREDENTIAL_FILLED" in result
+    assert "p\u00e4ss" not in result
 
 
 @pytest.mark.asyncio

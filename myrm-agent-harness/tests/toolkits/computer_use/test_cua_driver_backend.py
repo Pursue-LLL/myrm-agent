@@ -30,7 +30,6 @@ def mock_fallback():
     fb.screenshot = AsyncMock(return_value=b"png-bytes")
     fb.click = AsyncMock(return_value=ActionResult(success=True))
     fb.type_text = AsyncMock(return_value=ActionResult(success=True))
-    fb.type_credential = AsyncMock(return_value=ActionResult(success=True))
     fb.key = AsyncMock(return_value=ActionResult(success=True))
     fb.mouse_move = AsyncMock(return_value=ActionResult(success=True))
     fb.scroll = AsyncMock(return_value=ActionResult(success=True))

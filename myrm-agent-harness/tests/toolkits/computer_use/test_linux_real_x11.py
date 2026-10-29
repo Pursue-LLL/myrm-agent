@@ -193,25 +193,6 @@ class TestRealTextEntry:
         assert await _content_after(ruler, _CJK) == _CJK
         assert _clipboard() == "what the user copied"
 
-    @pytest.mark.asyncio
-    async def test_non_ascii_credential_arrives_exactly_and_leaves_no_trace_on_the_clipboard(
-        self, backend: LinuxBackend, ruler: Callable[[], str], monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        class _Vault:
-            def get_password(self, _label: str) -> str:
-                return "密码é-S3cr3t"
-
-        monkeypatch.setattr(
-            "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault", lambda: _Vault()
-        )
-        _set_clipboard("what the user copied")
-
-        result = await backend.type_credential("bank")
-
-        assert result.success is True
-        assert await _content_after(ruler, "密码é-S3cr3t") == "密码é-S3cr3t"
-        assert _clipboard() == "what the user copied"
-
 
 class TestRealXdotool:
     @pytest.mark.asyncio

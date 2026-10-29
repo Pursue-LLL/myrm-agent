@@ -36,7 +36,7 @@ pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="NSPasteboard i
 _PNG = "public.png"
 _CUSTOM = "com.example.custom"
 _TEXT = "public.utf8-plain-text"
-_MARKERS = ("org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType")
+_MARKERS = ("org.nspasteboard.TransientType",)
 
 
 @pytest.fixture()
@@ -119,12 +119,6 @@ class TestWriteText:
 
         assert pb.stringForType_(NSPasteboardTypeString) == "你好 \N{GRINNING FACE}"
         assert "org.nspasteboard.TransientType" in _types(pb)
-        assert "org.nspasteboard.ConcealedType" not in _types(pb)
-
-    def test_credential_text_is_also_marked_concealed(self, pb: NSPasteboard) -> None:
-        macos_pasteboard.write_text("密钥", concealed=True, pb=pb)
-
-        assert {"org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"} <= _types(pb)
 
     def test_returns_the_change_count_after_the_write(self, pb: NSPasteboard) -> None:
         assert macos_pasteboard.write_text("你好", pb=pb) == pb.changeCount()
@@ -152,7 +146,7 @@ class TestPasteText:
         def press() -> None:
             seen.append((str(pb.stringForType_(NSPasteboardTypeString)), _types(pb)))
 
-        macos_pasteboard.paste_text("你好", press, concealed=True, settle_seconds=0, pb=pb)
+        macos_pasteboard.paste_text("你好", press, settle_seconds=0, pb=pb)
 
         assert [text for text, _ in seen] == ["你好"]
         assert {_TEXT, *_MARKERS} <= seen[0][1]
@@ -200,7 +194,7 @@ class TestPasteTextEndToEnd:
 
     @staticmethod
     async def _paste(
-        pb: NSPasteboard, text: str, *, concealed: bool, during_paste: Callable[[], None] | None = None
+        pb: NSPasteboard, text: str, *, during_paste: Callable[[], None] | None = None
     ) -> tuple[str, set[str]]:
         """返回「目标应用在 Cmd+V 时读到的文本与剪贴板类型」。"""
         from AppKit import NSPasteboardTypeString
@@ -217,7 +211,7 @@ class TestPasteTextEndToEnd:
             patch.object(macos_mod.macos_input, "hotkey", side_effect=fake_hotkey),
             patch.object(macos_mod, "_PASTE_SETTLE_SECONDS", 0),
         ):
-            await macos_mod.MacOSBackend()._paste_text(text, concealed=concealed)
+            await macos_mod.MacOSBackend()._paste_text(text)
         return seen[0]
 
     @pytest.mark.asyncio()
@@ -225,17 +219,17 @@ class TestPasteTextEndToEnd:
         original = [{_TEXT: b"old", _PNG: b"\x89PNG\x00"}, {_TEXT: b"second"}]
         _fill(pb, original)
 
-        text, types = await self._paste(pb, "你好", concealed=True)
+        text, types = await self._paste(pb, "你好")
 
         assert text == "你好"
-        assert {"org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"} <= types
+        assert "org.nspasteboard.TransientType" in types
         assert macos_pasteboard.snapshot(pb).items == tuple(original)
 
     @pytest.mark.asyncio()
     async def test_a_copy_made_during_the_paste_is_not_overwritten(self, pb: NSPasteboard) -> None:
         _fill(pb, [{_TEXT: b"old"}])
 
-        await self._paste(pb, "你好", concealed=False, during_paste=lambda: _fill(pb, [{_TEXT: b"copied meanwhile"}]))
+        await self._paste(pb, "你好", during_paste=lambda: _fill(pb, [{_TEXT: b"copied meanwhile"}]))
 
         assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"copied meanwhile"},)
 
@@ -250,10 +244,10 @@ class TestPasteTextEndToEnd:
         finished = threading.Event()
         real_write, real_restore = macos_pasteboard.write_text, macos_pasteboard.restore
 
-        def write(text: str, *, concealed: bool = False, pb: NSPasteboard | None = None) -> int:
+        def write(text: str, *, pb: NSPasteboard | None = None) -> int:
             if slow_stage == "write":
                 time.sleep(0.3)
-            return real_write(text, concealed=concealed, pb=pb)
+            return real_write(text, pb=pb)
 
         def hotkey(*_keys: str) -> None:
             if slow_stage == "paste":
@@ -273,7 +267,7 @@ class TestPasteTextEndToEnd:
             patch.object(macos_mod.macos_input, "hotkey", side_effect=hotkey),
             patch.object(macos_mod, "_PASTE_SETTLE_SECONDS", 0),
         ):
-            task = asyncio.create_task(macos_mod.MacOSBackend()._paste_text("你好", concealed=True))
+            task = asyncio.create_task(macos_mod.MacOSBackend()._paste_text("你好"))
             await asyncio.sleep(0.1)
             task.cancel()
             with pytest.raises(asyncio.CancelledError):

@@ -27,8 +27,6 @@ from myrm_agent_harness.toolkits.computer_use.backends.macos import (
 from myrm_agent_harness.toolkits.computer_use.backends.macos_background import _WindowTarget
 from myrm_agent_harness.toolkits.computer_use.types import ScreenLockState
 
-_VAULT_PATH = "myrm_agent_harness.core.security.credential_vault.get_global_credential_vault"
-
 
 @pytest.fixture()
 def backend() -> MacOSBackend:
@@ -107,81 +105,21 @@ class TestInputPrimitiveErrorPaths:
         assert result.success is False
 
 
-class TestCredentialTyping:
-    @pytest.mark.asyncio()
-    async def test_password_path(self, backend: MacOSBackend) -> None:
-        vault = MagicMock()
-        vault.get_password.return_value = "hunter2"
-        with (
-            patch(_VAULT_PATH, return_value=vault),
-            patch("asyncio.to_thread") as to_thread,
-        ):
-            result = await backend.type_credential("login")
-        assert result.success is True
-        vault.get_password.assert_called_once_with("login")
-        assert to_thread.call_args[0][1] == "hunter2"
-
-    @pytest.mark.asyncio()
-    async def test_totp_path(self, backend: MacOSBackend) -> None:
-        vault = MagicMock()
-        vault.get_totp_token.return_value = "123456"
-        with (
-            patch(_VAULT_PATH, return_value=vault),
-            patch("asyncio.to_thread"),
-        ):
-            result = await backend.type_credential("login-totp")
-        assert result.success is True
-        vault.get_totp_token.assert_called_once_with("login-totp")
-
-    @pytest.mark.asyncio()
-    async def test_vault_lookup_failure_returns_error(self, backend: MacOSBackend) -> None:
-        vault = MagicMock()
-        vault.get_password.side_effect = KeyError("absent")
-        with patch(_VAULT_PATH, return_value=vault):
-            result = await backend.type_credential("login")
-        assert result.success is False
-        assert "login" in (result.error or "")
-
-    @pytest.mark.asyncio()
-    async def test_typing_failure_returns_error(self, backend: MacOSBackend) -> None:
-        vault = MagicMock()
-        vault.get_password.return_value = "hunter2"
-        with (
-            patch(_VAULT_PATH, return_value=vault),
-            patch("asyncio.to_thread", side_effect=RuntimeError("boom")),
-        ):
-            result = await backend.type_credential("login")
-        assert result.success is False
-
-    @pytest.mark.asyncio()
-    async def test_non_ascii_secret_uses_paste(self, backend: MacOSBackend) -> None:
-        vault = MagicMock()
-        vault.get_password.return_value = "密钥"
-        with (
-            patch(_VAULT_PATH, return_value=vault),
-            patch.object(backend, "_paste_text", AsyncMock()) as paste,
-        ):
-            result = await backend.type_credential("login")
-        assert result.success is True
-        paste.assert_awaited_once_with("密钥", concealed=True)
-
-
 class TestPasteTextDelegation:
     """_paste_text 把整个借用过程交给 macos_pasteboard.paste_text，在一个工作线程里跑完。"""
 
     @pytest.mark.asyncio()
-    @pytest.mark.parametrize("concealed", [False, True])
-    async def test_delegates_once_with_settle_time_and_cmd_v(self, backend: MacOSBackend, concealed: bool) -> None:
+    async def test_delegates_once_with_settle_time_and_cmd_v(self, backend: MacOSBackend) -> None:
         with (
             patch.object(macos_mod.macos_pasteboard, "paste_text") as paste_text,
             patch.object(macos_mod.macos_input, "hotkey") as hotkey,
         ):
-            await backend._paste_text("你好", concealed=concealed)
+            await backend._paste_text("你好")
 
             paste_text.assert_called_once()
             args, kwargs = paste_text.call_args
             assert args[0] == "你好"
-            assert kwargs == {"concealed": concealed, "settle_seconds": macos_mod._PASTE_SETTLE_SECONDS}
+            assert kwargs == {"settle_seconds": macos_mod._PASTE_SETTLE_SECONDS}
             args[1]()  # 必须在补丁生效期间调用，否则会向本机真实投递 Cmd+V
             hotkey.assert_called_once_with("command", "v")
 

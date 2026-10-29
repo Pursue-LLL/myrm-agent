@@ -199,28 +199,6 @@ class LinuxBackend:
         except Exception as e:
             return ActionResult(success=False, error=str(e))
 
-    async def type_credential(self, label: str) -> ActionResult:
-        """Type a credential (password or TOTP) securely from the CredentialVault."""
-        from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
-
-        vault = get_global_credential_vault()
-
-        is_totp = label.endswith("-totp")
-        try:
-            if is_totp:
-                secret_text = vault.get_totp_token(label)
-            else:
-                secret_text = vault.get_password(label)
-        except Exception:
-            return ActionResult(success=False, error=f"Failed to retrieve credential for label '{label}'")
-
-        try:
-            # The secret never reaches a command line (the process list shows those).
-            await self._text_input.enter(secret_text)
-            return ActionResult(success=True)
-        except Exception as e:
-            return ActionResult(success=False, error=str(e))
-
     async def key(self, keys: str) -> ActionResult:
         try:
             # The keys come from the model; quoting keeps them arguments instead of shell code.
