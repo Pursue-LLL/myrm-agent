@@ -316,11 +316,12 @@ class SessionGate:
             state.last_full_ack = now
         else:
             state.last_queued_ack = now
-        asyncio.ensure_future(self._safe_busy_ack(msg, position, max_pending))
+        asyncio.ensure_future(self._safe_busy_ack(self._on_busy_ack, msg, position, max_pending))
 
-    async def _safe_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
+    @staticmethod
+    async def _safe_busy_ack(callback: OnBusyAck, msg: InboundMessage, position: int, max_pending: int) -> None:
         try:
-            await self._on_busy_ack(msg, position, max_pending)  # type: ignore[misc]
+            await callback(msg, position, max_pending)
         except Exception:
             logger.warning("SessionGate: on_busy_ack failed", exc_info=True)
 

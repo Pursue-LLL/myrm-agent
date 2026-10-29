@@ -21,35 +21,7 @@ from app.channels.types import (
     MediaAttachment,
     MediaType,
 )
-
-
-def _msg(
-    content: str = "hello",
-    *,
-    channel: str = "telegram",
-    sender_id: str = "user1",
-    chat_id: str | None = None,
-    is_group: bool = False,
-    media: tuple[MediaAttachment, ...] = (),
-    thread_id: str | None = None,
-    mentioned: bool = False,
-    message_id: str | None = None,
-) -> InboundMessage:
-    metadata: dict[str, object] = {}
-    if message_id:
-        metadata["message_id"] = message_id
-    return InboundMessage(
-        channel=channel,
-        sender_id=sender_id,
-        content=content,
-        chat_id=chat_id,
-        is_group=is_group,
-        media=media,
-        thread_id=thread_id,
-        mentioned=mentioned,
-        metadata=metadata,
-    )
-
+from tests.channels.session_gate_testkit import make_message
 
 # ---------------------------------------------------------------------------
 # gate_key
@@ -58,15 +30,15 @@ def _msg(
 
 class TestGateKey:
     def test_dm_uses_sender_id(self) -> None:
-        msg = _msg(sender_id="alice")
+        msg = make_message(sender_id="alice")
         assert gate_key(msg) == "telegram:alice"
 
     def test_group_uses_chat_id(self) -> None:
-        msg = _msg(chat_id="group1", is_group=True)
+        msg = make_message(chat_id="group1", is_group=True)
         assert gate_key(msg) == "telegram:group1"
 
     def test_empty_ids_fallback(self) -> None:
-        msg = _msg(sender_id="", chat_id=None)
+        msg = make_message(sender_id="", chat_id=None)
         assert gate_key(msg) == "telegram:unknown"
 
 
@@ -77,54 +49,54 @@ class TestGateKey:
 
 class TestMergeMessages:
     def test_single_message_unchanged(self) -> None:
-        msg = _msg("hi")
+        msg = make_message("hi")
         merged = merge_messages((msg,))
         assert merged is msg
 
     def test_content_newline_joined(self) -> None:
-        m1 = _msg("hello")
-        m2 = _msg("world")
+        m1 = make_message("hello")
+        m2 = make_message("world")
         merged = merge_messages((m1, m2))
         assert merged.content == "hello\nworld"
 
     def test_empty_content_skipped(self) -> None:
-        m1 = _msg("")
-        m2 = _msg("real content")
-        m3 = _msg("  ")
+        m1 = make_message("")
+        m2 = make_message("real content")
+        m3 = make_message("  ")
         merged = merge_messages((m1, m2, m3))
         assert merged.content == "real content"
 
     def test_media_concatenated(self) -> None:
         img = MediaAttachment(media_type=MediaType.IMAGE, url="http://img1.png")
         doc = MediaAttachment(media_type=MediaType.DOCUMENT, url="http://doc.pdf")
-        m1 = _msg("look", media=(img,))
-        m2 = _msg("also", media=(doc,))
+        m1 = make_message("look", media=(img,))
+        m2 = make_message("also", media=(doc,))
         merged = merge_messages((m1, m2))
         assert len(merged.media) == 2
         assert merged.media[0].url == "http://img1.png"
         assert merged.media[1].url == "http://doc.pdf"
 
     def test_metadata_from_last(self) -> None:
-        m1 = _msg("a", message_id="m1")
-        m2 = _msg("b", message_id="m2")
+        m1 = make_message("a", message_id="m1")
+        m2 = make_message("b", message_id="m2")
         merged = merge_messages((m1, m2))
         assert merged.metadata.get("message_id") == "m2"
 
     def test_thread_id_from_first_non_none(self) -> None:
-        m1 = _msg("a")
-        m2 = _msg("b", thread_id="topic42")
+        m1 = make_message("a")
+        m2 = make_message("b", thread_id="topic42")
         merged = merge_messages((m1, m2))
         assert merged.thread_id == "topic42"
 
     def test_mentioned_propagated(self) -> None:
-        m1 = _msg("a")
-        m2 = _msg("b", mentioned=True)
+        m1 = make_message("a")
+        m2 = make_message("b", mentioned=True)
         merged = merge_messages((m1, m2))
         assert merged.mentioned is True
 
     def test_channel_and_sender_from_first(self) -> None:
-        m1 = _msg("a", channel="whatsapp", sender_id="alice")
-        m2 = _msg("b", channel="whatsapp", sender_id="alice")
+        m1 = make_message("a", channel="whatsapp", sender_id="alice")
+        m2 = make_message("b", channel="whatsapp", sender_id="alice")
         merged = merge_messages((m1, m2))
         assert merged.channel == "whatsapp"
         assert merged.sender_id == "alice"
@@ -144,7 +116,7 @@ class TestSessionGate:
             received.append(msg)
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=50), on_ready=on_ready)
-        gate.submit(_msg("hello"))
+        gate.submit(make_message("hello"))
         assert len(received) == 0
         await asyncio.sleep(0.1)
         assert len(received) == 1
@@ -158,11 +130,11 @@ class TestSessionGate:
             received.append(msg)
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=100), on_ready=on_ready)
-        gate.submit(_msg("one"))
+        gate.submit(make_message("one"))
         await asyncio.sleep(0.02)
-        gate.submit(_msg("two"))
+        gate.submit(make_message("two"))
         await asyncio.sleep(0.02)
-        gate.submit(_msg("three"))
+        gate.submit(make_message("three"))
 
         await asyncio.sleep(0.2)
         assert len(received) == 1
@@ -176,8 +148,8 @@ class TestSessionGate:
             received.append(msg)
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=0), on_ready=on_ready)
-        gate.submit(_msg("instant1"))
-        gate.submit(_msg("instant2"))
+        gate.submit(make_message("instant1"))
+        gate.submit(make_message("instant2"))
         await asyncio.sleep(0.05)
         assert len(received) == 2
 
@@ -192,12 +164,12 @@ class TestSessionGate:
                 await proceed.wait()
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=30), on_ready=on_ready)
-        gate.submit(_msg("first"))
+        gate.submit(make_message("first"))
         await asyncio.sleep(0.1)
         assert len(received) == 1
 
-        gate.submit(_msg("pending1"))
-        gate.submit(_msg("pending2"))
+        gate.submit(make_message("pending1"))
+        gate.submit(make_message("pending2"))
         await asyncio.sleep(0.1)
         assert len(received) == 1
 
@@ -214,8 +186,8 @@ class TestSessionGate:
             received.append(msg)
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=50), on_ready=on_ready)
-        gate.submit(_msg("from alice", sender_id="alice"))
-        gate.submit(_msg("from bob", sender_id="bob"))
+        gate.submit(make_message("from alice", sender_id="alice"))
+        gate.submit(make_message("from bob", sender_id="bob"))
         await asyncio.sleep(0.15)
         assert len(received) == 2
         contents = {r.content for r in received}
@@ -235,12 +207,12 @@ class TestSessionGate:
             SessionGateConfig(debounce_window_ms=30, max_pending_per_session=2),
             on_ready=on_ready,
         )
-        gate.submit(_msg("first"))
+        gate.submit(make_message("first"))
         await asyncio.sleep(0.1)
 
-        gate.submit(_msg("p1"))
-        gate.submit(_msg("p2"))
-        gate.submit(_msg("p3 dropped"))
+        gate.submit(make_message("p1"))
+        gate.submit(make_message("p2"))
+        gate.submit(make_message("p3 dropped"))
         await asyncio.sleep(0.05)
 
         proceed.set()
@@ -267,12 +239,12 @@ class TestSessionGate:
                 await proceed.wait()
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=30), on_ready=on_ready)
-        gate.submit(_msg("first"))
+        gate.submit(make_message("first"))
         await asyncio.sleep(0.1)
         assert len(received) == 1
 
-        gate.submit(_msg("queued1"))
-        gate.submit(_msg("queued2"))
+        gate.submit(make_message("queued1"))
+        gate.submit(make_message("queued2"))
         await asyncio.sleep(0.05)
         assert gate.pending_count("telegram:user1") == 2
 
@@ -291,12 +263,12 @@ class TestSessionGate:
                 await proceed.wait()
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=30), on_ready=on_ready)
-        gate.submit(_msg("first"))
+        gate.submit(make_message("first"))
         await asyncio.sleep(0.1)
         assert len(received) == 1
 
-        gate.submit(_msg("queued1"))
-        gate.submit(_msg("queued2"))
+        gate.submit(make_message("queued1"))
+        gate.submit(make_message("queued2"))
         await asyncio.sleep(0.05)
         assert gate.pending_count("telegram:user1") == 2
 
@@ -324,7 +296,7 @@ class TestSessionGate:
             received.append(msg)
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=30), on_ready=on_ready)
-        gate.submit(_msg("hello"))
+        gate.submit(make_message("hello"))
         await asyncio.sleep(0.1)
         assert len(received) == 1
         assert gate.clear_pending_for_key("telegram:user1") == 0
@@ -337,342 +309,7 @@ class TestSessionGate:
             received.append(msg)
 
         gate = SessionGate(SessionGateConfig(debounce_window_ms=100), on_ready=on_ready)
-        gate.submit(_msg("hello"))
+        gate.submit(make_message("hello"))
         gate.clear()
         await asyncio.sleep(0.2)
         assert len(received) == 0
-
-
-# ---------------------------------------------------------------------------
-# Busy Ack Callback
-# ---------------------------------------------------------------------------
-
-
-class TestBusyAck:
-    @pytest.mark.asyncio
-    async def test_busy_ack_fires_on_queue(self) -> None:
-        """When a message is queued while active, on_busy_ack fires with correct position."""
-        received: list[InboundMessage] = []
-        ack_calls: list[tuple[InboundMessage, int, int]] = []
-        proceed = asyncio.Event()
-
-        async def on_ready(msg: InboundMessage) -> None:
-            received.append(msg)
-            if len(received) == 1:
-                await proceed.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append((msg, position, max_pending))
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-        assert len(received) == 1
-
-        gate.submit(_msg("queued"))
-        await asyncio.sleep(0.05)
-
-        assert len(ack_calls) == 1
-        assert ack_calls[0][1] == 1
-        assert ack_calls[0][2] == 10
-
-        proceed.set()
-        await asyncio.sleep(0.15)
-
-    @pytest.mark.asyncio
-    async def test_busy_ack_fires_on_queue_full(self) -> None:
-        """A full queue is reported with position=-1, right after the queued notice that filled it."""
-        received: list[InboundMessage] = []
-        ack_calls: list[tuple[InboundMessage, int, int]] = []
-        proceed = asyncio.Event()
-
-        async def on_ready(msg: InboundMessage) -> None:
-            received.append(msg)
-            if len(received) == 1:
-                await proceed.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append((msg, position, max_pending))
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=1),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-
-        gate.submit(_msg("fills queue"))
-        await asyncio.sleep(0.05)
-        assert len(ack_calls) == 1
-        assert ack_calls[0][1] == 1
-
-        gate.submit(_msg("dropped"))
-        await asyncio.sleep(0.05)
-        assert len(ack_calls) == 2
-        assert ack_calls[1][1] == -1
-        assert ack_calls[1][2] == 1
-
-        proceed.set()
-        await asyncio.sleep(0.15)
-
-    @pytest.mark.asyncio
-    async def test_busy_ack_debounce_suppresses_rapid_acks(self) -> None:
-        """Within the debounce window (30s), only the first ack fires."""
-        received: list[InboundMessage] = []
-        ack_calls: list[tuple[InboundMessage, int, int]] = []
-        proceed = asyncio.Event()
-
-        async def on_ready(msg: InboundMessage) -> None:
-            received.append(msg)
-            if len(received) == 1:
-                await proceed.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append((msg, position, max_pending))
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-
-        gate.submit(_msg("q1"))
-        gate.submit(_msg("q2"))
-        gate.submit(_msg("q3"))
-        await asyncio.sleep(0.05)
-
-        assert len(ack_calls) == 1
-
-        proceed.set()
-        await asyncio.sleep(0.15)
-
-    @pytest.mark.asyncio
-    async def test_busy_ack_independent_per_session(self) -> None:
-        """Different session keys have independent debounce timers."""
-        ack_calls: list[tuple[str, int]] = []
-        proceeds: dict[str, asyncio.Event] = {"alice": asyncio.Event(), "bob": asyncio.Event()}
-
-        async def on_ready(msg: InboundMessage) -> None:
-            key = msg.sender_id
-            if key in proceeds:
-                await proceeds[key].wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append((msg.sender_id, position))
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-
-        gate.submit(_msg("a1", sender_id="alice"))
-        gate.submit(_msg("b1", sender_id="bob"))
-        await asyncio.sleep(0.1)
-
-        gate.submit(_msg("a-queued", sender_id="alice"))
-        gate.submit(_msg("b-queued", sender_id="bob"))
-        await asyncio.sleep(0.05)
-
-        senders = {s for s, _ in ack_calls}
-        assert senders == {"alice", "bob"}
-
-        proceeds["alice"].set()
-        proceeds["bob"].set()
-        await asyncio.sleep(0.15)
-
-    @pytest.mark.asyncio
-    async def test_no_busy_ack_without_callback(self) -> None:
-        """When on_busy_ack is None, queuing works normally without errors."""
-        received: list[InboundMessage] = []
-        proceed = asyncio.Event()
-
-        async def on_ready(msg: InboundMessage) -> None:
-            received.append(msg)
-            if len(received) == 1:
-                await proceed.wait()
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30),
-            on_ready=on_ready,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-        assert len(received) == 1
-
-        gate.submit(_msg("queued"))
-        await asyncio.sleep(0.05)
-        assert gate.pending_count("telegram:user1") == 1
-
-        proceed.set()
-        await asyncio.sleep(0.15)
-        assert len(received) == 2
-
-    @pytest.mark.asyncio
-    async def test_busy_ack_callback_exception_does_not_break_queue(self) -> None:
-        """If on_busy_ack raises, the message is still queued correctly."""
-        received: list[InboundMessage] = []
-        proceed = asyncio.Event()
-
-        async def on_ready(msg: InboundMessage) -> None:
-            received.append(msg)
-            if len(received) == 1:
-                await proceed.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            raise RuntimeError("ack send failure")
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-
-        gate.submit(_msg("queued"))
-        await asyncio.sleep(0.1)
-
-        assert gate.pending_count("telegram:user1") == 1
-
-        proceed.set()
-        await asyncio.sleep(0.15)
-        assert len(received) == 2
-
-    @pytest.mark.asyncio
-    async def test_clear_drops_session_state(self) -> None:
-        """clear() drops every session together with its queue and notice clocks."""
-        ack_calls: list[int] = []
-        proceed = asyncio.Event()
-
-        async def on_ready(msg: InboundMessage) -> None:
-            await proceed.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append(position)
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-
-        gate.submit(_msg("queued"))
-        await asyncio.sleep(0.05)
-        assert gate.pending_count("telegram:user1") == 1
-
-        gate.clear()
-        assert len(gate._sessions) == 0
-
-    @pytest.mark.asyncio
-    async def test_notice_clock_restarts_when_session_drains(self) -> None:
-        """A session that drained starts its next busy period with fresh notice clocks."""
-        release = asyncio.Event()
-        ack_calls: list[int] = []
-
-        async def on_ready(msg: InboundMessage) -> None:
-            if msg.content in {"first", "again"}:
-                await release.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append(position)
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-        gate.submit(_msg("queued"))
-        await asyncio.sleep(0.05)
-        assert ack_calls == [1]
-
-        release.set()
-        await asyncio.sleep(0.3)
-        assert not gate.is_busy(_msg())
-        assert len(gate._sessions) == 0
-
-        release.clear()
-        gate.submit(_msg("again"))
-        await asyncio.sleep(0.1)
-        gate.submit(_msg("queued again"))
-        await asyncio.sleep(0.05)
-        assert ack_calls == [1, 1]
-
-        release.set()
-        await asyncio.sleep(0.15)
-
-    @pytest.mark.asyncio
-    async def test_queue_full_notice_follows_queued_notice_in_one_busy_period(self) -> None:
-        """Messages that overflow a queue filled within 30 s of its queued notice still get the queue-full notice."""
-        release = asyncio.Event()
-        ack_calls: list[tuple[int, int]] = []
-
-        async def on_ready(msg: InboundMessage) -> None:
-            if msg.content == "first":
-                await release.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append((position, max_pending))
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-        for index in range(12):
-            gate.submit(_msg(f"burst {index}"))
-        await asyncio.sleep(0.05)
-
-        assert gate.pending_count("telegram:user1") == 10
-        assert ack_calls == [(1, 10), (-1, 10)]
-
-        release.set()
-        await asyncio.sleep(0.15)
-
-    @pytest.mark.asyncio
-    async def test_queue_full_notice_is_debounced_per_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Repeated overflow does not repeat the queue-full notice inside the window, and does again after it."""
-        monkeypatch.setattr("app.channels.routing.session_gate._BUSY_ACK_DEBOUNCE_S", 0.2)
-        release = asyncio.Event()
-        ack_calls: list[int] = []
-
-        async def on_ready(msg: InboundMessage) -> None:
-            if msg.content == "first":
-                await release.wait()
-
-        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
-            ack_calls.append(position)
-
-        gate = SessionGate(
-            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=1),
-            on_ready=on_ready,
-            on_busy_ack=on_busy_ack,
-        )
-        gate.submit(_msg("first"))
-        await asyncio.sleep(0.1)
-        gate.submit(_msg("fills queue"))
-        gate.submit(_msg("dropped 1"))
-        gate.submit(_msg("dropped 2"))
-        await asyncio.sleep(0.05)
-        assert ack_calls == [1, -1]
-
-        await asyncio.sleep(0.25)
-        gate.submit(_msg("dropped 3"))
-        await asyncio.sleep(0.05)
-        assert ack_calls == [1, -1, -1]
-
-        release.set()
-        await asyncio.sleep(0.15)
