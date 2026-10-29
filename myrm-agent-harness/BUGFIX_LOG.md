@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-083 · JSON 日志格式下异常的 traceback 不经脱敏：带 URL、密钥或连接串的异常文本原样写进集中日志；`redact_sensitive_text` 的 docstring 还写着一个不存在的关闭开关
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `observability/tracing/json_formatter.py`、`observability/tracing/_ARCH.md`、`core/security/redact/engine.py` 的 docstring；没有改提示词与工具，不影响提示词缓存） |
+| **发现时间** | 2026-10-29（核对 IM 渠道落库脱敏时，把日志出口再核对一遍：设 `MYRM_LOG_FORMAT=json` 后经 server 的 `configure_logging()` 真实入口记录一条带密钥的异常） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：只影响自己设置 `MYRM_LOG_FORMAT=json`（文档写给 ELK / Loki 采集用）的部署；默认是文本格式，仓内没有部署文件默认开启 JSON。`message` 字段脱敏而 `exception` 字段不脱敏：实测含 `sk-live-…` 密钥与连接串口令的异常，`exception` 里两者主体都原样存在；文本格式的 `RedactingFormatter` 对同一条记录的 traceback 两项都已遮蔽。 |
+| **关联产品** | server `app/config/logging.py` 选择格式器；server 里把凭据拼进 URL 查询串的调用（`channels/providers/dingtalk/api.py:186` 的 `access_token`、`api/voice/gemini_live.py:116` 的 `key`）失败时，httpx 的异常文本带完整 URL（实测 `raise_for_status` 抛出的文本含 `?key=…` 全文） |
+| **根因** | `JsonFormatter.format` 只对 `record.getMessage()` 调用 `redact_sensitive_text`，`exception` 字段直接放 `formatException` 的结果；同在 harness 的 `RedactingFormatter`（`engine.py`）对整段格式化结果脱敏，两个格式器对异常的处理不一致。`redact_sensitive_text` 的 docstring 写「可通过 `MYRM_REDACT_SECRETS=false` 关闭」，全仓没有任何代码读取这个变量（`_REDACT_ENABLED` 在 `engine.py` 固定为 `True`，`set_redact_enabled` 只有测试调用），脱敏恒开。 |
+| **修复** | `exception` 字段同样经 `redact_sensitive_text`（与 `message` 同写法）；类 docstring 与 `_ARCH.md` 写明两个字段都脱敏。`redact_sensitive_text` 的 docstring 改为「脱敏恒开，没有环境变量开关；`set_redact_enabled` 是启动与测试钩子」。 |
+| **反复次数** | 第 1 次 |
+| **踩坑** | 起初想用「整行 JSON 脱敏会破坏 PEM 等多行模式」来论证必须按字段脱敏；实测整行脱敏同样能去掉 PEM 主体，这条理由不成立。现在按字段脱敏，只因为与 `message` 现有写法一致、改动最小。 |
+| **回归** | [1] 测试：`tests/observability/test_tracing.py::TestJsonFormatter::test_exception_text_is_redacted`（带 `sk-live-` 密钥与连接串口令的异常，断言两者主体都不在 `exception`，异常类型仍在）；把 `exception` 改回不脱敏，该文件 1 failed、15 passed。[2] 真实入口：设 `MYRM_LOG_FORMAT=json` 调 `configure_logging()`，`logger.exception` 一条同样的异常，修复前 `exception` 的密钥主体与口令都泄露，修复后 `message` 与 `exception` 都不泄露，异常类型仍可见。[3] 对真实 traceback（含 `get_token`、`api_key = "short"` 的源码行）脱敏后与原文完全相同，无误伤。[4] `tests/observability` 443 通过；`tests/core/security` 与 `tests/agent/security`（不含他人未完成的 `guards`，其 `test_call_record_verification.py` 因 `VerificationOutcome` 导入失败在收集阶段报错）共 5506 通过；`ruff`、`pyright`（改动的文件）通过。 |
+| **仍然存在** | ① JSON 格式里只有 `message` 与 `exception` 两个字段含自由文本，两者现在都脱敏；其余字段是时间、级别、logger 名与追踪 ID。② 脱敏对长值是保留头 6 位、尾 4 位的部分遮蔽（引擎既有策略），长值仍会露出 10 个字符。③ 线上是否有部署开启 JSON 格式没有数据。 |
+| **代码位置** | `observability/tracing/json_formatter.py`（`JsonFormatter.format` 的 `exception` 分支）、`observability/tracing/_ARCH.md`、`core/security/redact/engine.py`（`redact_sensitive_text` docstring）、`tests/observability/test_tracing.py` |
+
 ### BUG-HARNESS-2026-10-29-082 · 调用方正阻塞等待结果的子智能体，完成时仍会唤醒父智能体：同一份结果先交给等待方，又被唤醒回合再答一遍
 
 | 字段 | 内容 |

@@ -245,8 +245,9 @@ def _redact_by_name(text: str, redact: Callable[[str], str], *, source_code: boo
 def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
     """Apply all redaction patterns to a block of text.
 
-    Pure function, thread-safe. Returns the input unchanged when
-    redaction is disabled via ``MYRM_REDACT_SECRETS=false``.
+    Pure function, thread-safe. Redaction is always on: no environment variable turns it off, and
+    ``set_redact_enabled`` is a startup and test hook that no production code calls. Empty or
+    non-string input is returned unchanged.
 
     ``source_code=True`` is for the text of a source file, which names credentials all the time
     (``total_api_tokens = 0``) and keeps a secret only as a string literal: the name-based passes (assignments,

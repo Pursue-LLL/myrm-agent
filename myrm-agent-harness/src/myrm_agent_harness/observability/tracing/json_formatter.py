@@ -14,6 +14,10 @@ Fields emitted::
         "session_id": "sess-xyz",
         "message": "Agent step completed"
     }
+
+A record that carries an exception adds an ``exception`` field with the formatted traceback.
+``message`` and ``exception`` both pass through the secret redactor, because library errors
+routinely quote the URL or connection string of the failed call.
 """
 
 from __future__ import annotations
@@ -26,7 +30,7 @@ from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 
 class JsonFormatter(logging.Formatter):
-    """Formats log records as single-line JSON with automatic secret redaction.
+    """Formats log records as single-line JSON with the message and the traceback redacted.
 
     Expects ``trace_id`` and ``session_id`` to be injected by
     ``TracingLogFilter``; falls back to ``"-"`` if missing.
@@ -45,6 +49,6 @@ class JsonFormatter(logging.Formatter):
         }
 
         if record.exc_info and not isinstance(record.exc_info, bool):
-            payload["exception"] = self.formatException(record.exc_info)
+            payload["exception"] = redact_sensitive_text(self.formatException(record.exc_info))
 
         return json.dumps(payload, ensure_ascii=False, default=str)

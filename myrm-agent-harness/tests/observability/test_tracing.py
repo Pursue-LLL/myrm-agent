@@ -155,6 +155,35 @@ class TestJsonFormatter:
         assert "exception" in data
         assert "ValueError: boom" in data["exception"]
 
+    def test_exception_text_is_redacted(self) -> None:
+        """Library errors quote the failed call's URL or connection string; the traceback must not carry them."""
+        import sys
+
+        try:
+            raise RuntimeError(
+                "upstream rejected key sk-live-1234567890abcdef12345678 for postgres://admin:S3cr3tPassw0rd@db:5432/app"
+            )
+        except RuntimeError:
+            exc_info = sys.exc_info()
+
+        record = logging.LogRecord(
+            name="test",
+            level=logging.ERROR,
+            pathname="",
+            lineno=0,
+            msg="call failed",
+            args=(),
+            exc_info=exc_info,
+        )
+        record.trace_id = "-"  # type: ignore[attr-defined]
+        record.session_id = "-"  # type: ignore[attr-defined]
+
+        data = json.loads(JsonFormatter().format(record))
+
+        assert "RuntimeError" in data["exception"]
+        assert "1234567890abcdef" not in data["exception"]
+        assert "S3cr3tPassw0rd" not in data["exception"]
+
     def test_fallback_when_no_trace_attrs(self) -> None:
         record = logging.LogRecord(
             name="test",
