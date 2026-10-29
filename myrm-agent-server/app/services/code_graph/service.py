@@ -58,6 +58,7 @@ class CodeGraphService:
         可反复运行；目录没有变化时只有一次文件列举和每个文件一次 stat。文件清单遵循 git 的忽略规则
         （非 git 目录退回到目录遍历），只按相对扫描根的路径片段排除 ``EXCLUDE_DIRS``，根目录自身的祖先
         目录名不参与判断。符号链接与特殊文件不跟随，超过 ``MAX_SOURCE_BYTES`` 的文件不索引；
+        无法读取或不是合法 Python 的文件计入 ``skipped_files`` 且不记录指纹，每次运行都会重试；
         大小与修改时间都没变的改写看不到。
         """
         root = Path(root_dir).expanduser().resolve()
@@ -113,9 +114,12 @@ class CodeGraphService:
     @staticmethod
     def _parse(root: Path, rel_path: str, fingerprint: tuple[int, int]) -> ParsedFile | None:
         try:
-            code = (root / rel_path).read_text(encoding="utf-8", errors="ignore")
+            # utf-8-sig drops a leading BOM, which would otherwise make the whole Python file a syntax error.
+            code = (root / rel_path).read_text(encoding="utf-8-sig", errors="ignore")
             extractor = PythonAstExtractor(rel_path, code) if rel_path.endswith(".py") else JsTsRegexExtractor(rel_path, code)
-            extractor.extract()
+            if not extractor.extract():
+                logger.debug("Code graph skipped %s: not valid Python", rel_path)
+                return None
         except (OSError, ValueError, RecursionError) as exc:
             logger.warning("Code graph skipped %s: %s", rel_path, exc)
             return None
@@ -136,7 +140,7 @@ class CodeGraphService:
         return self.store.resolve_names(target, limit)
 
     def definition(self, qualified_name: str) -> dict[str, object] | None:
-        """2. 获取符号的准确定义位置、文档注释与源码。"""
+        """2. 获取符号的准确定义位置与文档注释。"""
         node = self.store.get_symbol(qualified_name)
         return node.to_dict() if node else None
 

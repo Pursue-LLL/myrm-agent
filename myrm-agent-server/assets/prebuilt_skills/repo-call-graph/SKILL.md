@@ -1,7 +1,7 @@
 ---
 name: repo-call-graph
 description: >-
-  Structural navigation of Python and TypeScript/JavaScript code through code_graph_tool: where a symbol is
+  Structural navigation of Python and TypeScript/JavaScript code: where a symbol is
   defined, which call sites call a function, what a function calls, which classes extend a class, which files
   import a module, and which test files call a function. Use it before changing a function signature, behavior
   or location, when plain-text search would return too many unrelated matches.
@@ -43,7 +43,7 @@ contract:
 
 # Repo Call Graph
 
-Use `code_graph_tool` for structural questions about Python and TypeScript/JavaScript code: who calls a function, what a function calls, which classes extend a class, which files import a module, which test files call a function. It reads the workspace you are working in and brings its index up to date on every call, so there is nothing to build or refresh.
+Use `code_graph_tool` for structural questions about Python and TypeScript/JavaScript code: who calls a function, what a function calls, which classes extend a class, which Python files import a module, which test files call a function. It reads the workspace you are working in and brings its index up to date on every call, so there is nothing to build or refresh.
 
 ## When to use it
 
@@ -65,10 +65,11 @@ Use `code_graph_tool` for structural questions about Python and TypeScript/JavaS
 - `callees` returns call text as written. It does not say which definition is called; run `resolve` on a name to find out.
 - `tests_calling` lists direct callers inside test files only. A test that reaches the function through other functions is not listed; follow `callers` one level at a time or search with `grep_tool`.
 - `total` larger than the rows shown means the list was cut at 50. Use a more specific name, such as a qualified name.
-- No rows: check spelling and case, try `resolve` with a shorter name, then use `grep_tool`. An empty `callers` result does not prove a function is unused, because calls made through `getattr`, strings, decorators or dependency injection are not seen.
+- No rows: check spelling and case, try `resolve` with a shorter name, then use `grep_tool`. An empty `callers` result does not prove a function is unused, because calls made through `getattr`, strings, bare `@decorator` lines or dependency injection are not seen.
 
 ## Limits
 
 - Calls are matched by name. The tool does not follow imports or infer types.
-- Python results are normally right about which function contains a call. TypeScript/JavaScript results are approximate and that function can be wrong.
-- Files ignored by git, dependency and build folders, files over 1 MB, and symbolic links are not indexed.
+- Python results are normally right about which function contains a call; a call outside any function (module level, class body) has the module name as `caller`. TypeScript/JavaScript results are approximate and that function can be wrong.
+- Imports are indexed for Python only: `importers` finds nothing in TypeScript/JavaScript files.
+- Files ignored by git, dependency and build folders, files over 1 MB, symbolic links, and Python files with syntax errors are not indexed.

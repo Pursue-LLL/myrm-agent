@@ -39,7 +39,6 @@ class SymbolNode:
     line_start: int
     line_end: int
     docstring: str = ""
-    source: str = ""
 
     def to_dict(self) -> dict[str, object]:
         res: dict[str, object] = asdict(self)

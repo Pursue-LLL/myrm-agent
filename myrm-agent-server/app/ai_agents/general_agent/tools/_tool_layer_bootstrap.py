@@ -44,4 +44,3 @@ def register_server_tools() -> None:
 
 
 register_server_tools()
-

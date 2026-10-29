@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import time
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,6 +26,23 @@ from app.services.code_graph.models import ParsedFile, SymbolKind, SymbolNode
 # 测试文件按路径约定识别：tests/ 或 __tests__/ 目录、test_*.py、*_test.py、*.test.* 与 *.spec.*。
 _TEST_FILE_PATTERN = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)test_[^/]*\.py$|_test\.py$|\.(test|spec)\.[jt]sx?$")
 _INDEX_TABLES = ("symbols", "calls", "inheritances", "imports", "files")
+
+
+# Switching a new database to WAL needs it briefly to itself and, unlike other statements, does not wait on the
+# busy timeout; two agents opening the same workspace at once would make one of them fail.
+_WAL_ATTEMPTS = 50
+_WAL_RETRY_SECONDS = 0.1
+
+
+def _enable_wal(conn: sqlite3.Connection) -> None:
+    for attempt in range(_WAL_ATTEMPTS):
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc) or attempt == _WAL_ATTEMPTS - 1:
+                raise
+            time.sleep(_WAL_RETRY_SECONDS)
 
 
 def _escape_like(text: str) -> str:
@@ -51,7 +69,7 @@ class CodeGraphStore:
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
+            _enable_wal(conn)
             conn.execute("PRAGMA synchronous=NORMAL;")
             cursor = conn.cursor()
 
@@ -64,8 +82,7 @@ class CodeGraphStore:
                     file_path TEXT NOT NULL,
                     line_start INTEGER NOT NULL,
                     line_end INTEGER NOT NULL,
-                    docstring TEXT,
-                    source TEXT
+                    docstring TEXT
                 );
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sym_name ON symbols(name);")
@@ -156,11 +173,11 @@ class CodeGraphStore:
             cursor.executemany(
                 """
                 INSERT OR REPLACE INTO symbols
-                (qualified_name, name, kind, file_path, line_start, line_end, docstring, source)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (qualified_name, name, kind, file_path, line_start, line_end, docstring)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
-                    (s.qualified_name, s.name, s.kind.value, s.file_path, s.line_start, s.line_end, s.docstring, s.source)
+                    (s.qualified_name, s.name, s.kind.value, s.file_path, s.line_start, s.line_end, s.docstring)
                     for f in parsed
                     for s in f.symbols
                 ],
@@ -219,7 +236,6 @@ class CodeGraphStore:
                 line_start=row["line_start"],
                 line_end=row["line_end"],
                 docstring=row["docstring"] or "",
-                source=row["source"] or "",
             )
 
     def resolve_names(self, target: str, limit: int = 20) -> list[dict[str, object]]:

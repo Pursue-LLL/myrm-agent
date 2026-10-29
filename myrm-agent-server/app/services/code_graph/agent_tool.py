@@ -51,7 +51,8 @@ _DESCRIPTION = (
     "- callees [qualified name from resolve]: calls made inside that function, as written at the call site "
     "(not resolved to definitions).\n"
     "- implementors [class name]: classes that extend it.\n"
-    "- importers [module name]: import statements of that module or anything inside it, with the importing module.\n"
+    "- importers [module name]: Python import statements of that module or anything inside it, with the importing module. "
+    "TypeScript/JavaScript imports are not indexed.\n"
     "- tests_calling [function name]: call sites in test files that call it directly; tests that reach it through "
     "other functions are not listed.\n"
     "Rows give file:line. Open the location before editing: JS/TS attribution is approximate and dynamic calls are "
@@ -155,7 +156,7 @@ def _notes(shown_rows: list[Row], total: int, definitions: int, skipped_files: i
     if any(str(row["at"]).rsplit(":", 1)[0].endswith(_JS_TS_SUFFIXES) for row in shown_rows):
         notes.append("JS/TS rows are approximate: the calling function may be wrong, so open the location.")
     if skipped_files:
-        notes.append(f"{skipped_files} source files were not indexed (links, oversized or unreadable files).")
+        notes.append(f"{skipped_files} source files were not indexed (links, oversized, unreadable or not valid Python).")
     return notes
 
 

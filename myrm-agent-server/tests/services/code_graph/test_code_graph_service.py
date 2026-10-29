@@ -244,3 +244,78 @@ def test_index_directory_skips_excluded_directories_inside_the_scan_root(tmp_pat
     stats = CodeGraphService(tmp_path / "graph.db").index_directory(root)
 
     assert stats.total_files == 1
+
+
+_PYTHON_CONTEXTS = """import os
+try:
+    import ujson
+except ImportError:
+    ujson = None
+if TYPE_CHECKING:
+    from shapes import Circle
+
+def create_app():
+    return 1
+
+app = create_app()
+
+if __name__ == "__main__":
+    main()
+
+@router.get("/x")
+def handler():
+    def inner():
+        helper()
+    return inner
+
+class A:
+    attr = make()
+    def method(self):
+        def nested():
+            pass
+        return nested
+
+if sys.platform == "win32":
+    def win_only():
+        pass
+"""
+
+
+def test_python_calls_outside_functions_belong_to_the_module_and_each_call_has_one_caller() -> None:
+    extractor = PythonAstExtractor("m.py", _PYTHON_CONTEXTS)
+    extractor.extract()
+
+    pairs = sorted((c.callee, c.caller) for c in extractor.calls)
+    assert pairs == [
+        ("create_app", "m"),
+        ("helper", "m.handler.inner"),
+        ("main", "m"),
+        ("make", "m"),
+        ("router.get", "m"),
+    ]
+
+
+def test_python_definitions_and_imports_are_found_inside_compound_statements() -> None:
+    extractor = PythonAstExtractor("m.py", _PYTHON_CONTEXTS)
+    extractor.extract()
+
+    assert "m.win_only" in {s.qualified_name for s in extractor.symbols}
+    assert {i.imported_symbol for i in extractor.imports} == {"os", "ujson", "shapes.Circle"}
+
+
+def test_only_functions_defined_directly_in_a_class_are_methods() -> None:
+    extractor = PythonAstExtractor("m.py", _PYTHON_CONTEXTS)
+    extractor.extract()
+
+    kinds = {s.qualified_name: s.kind for s in extractor.symbols}
+    assert kinds["m.A.method"] == SymbolKind.METHOD
+    assert kinds["m.A.method.nested"] == SymbolKind.FUNCTION
+    assert kinds["m.handler.inner"] == SymbolKind.FUNCTION
+    assert kinds["m.win_only"] == SymbolKind.FUNCTION
+
+
+def test_python_walk_handles_an_expression_nested_deeper_than_the_recursion_limit() -> None:
+    extractor = PythonAstExtractor("m.py", "x = " + " + ".join(["f()"] * 3000) + "\n")
+
+    assert extractor.extract() is True
+    assert len(extractor.calls) == 3000

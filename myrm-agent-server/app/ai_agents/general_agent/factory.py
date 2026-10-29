@@ -204,7 +204,6 @@ async def build_general_agent(
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 
-
     await agent_wrapper._setup_artifact_publish_tool(tools)
 
     from app.services.code_graph.agent_tool import append_code_graph_tool

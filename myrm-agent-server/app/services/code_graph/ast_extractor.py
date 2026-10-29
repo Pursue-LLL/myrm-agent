@@ -6,6 +6,7 @@
 
 import ast
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.services.code_graph.models import (
@@ -29,6 +30,16 @@ def module_name_for(file_path: str) -> str:
     return ".".join(parts) if parts else path.stem
 
 
+@dataclass(frozen=True)
+class _Context:
+    """Where the code being walked sits: ``scope`` prefixes names defined here, ``caller`` owns calls found here,
+    ``in_class`` marks functions defined here as methods."""
+
+    scope: str
+    caller: str
+    in_class: bool
+
+
 class PythonAstExtractor:
     """基于 Python 3.13 原生 ast 模块的高性能静态分析抽取器。"""
 
@@ -43,14 +54,13 @@ class PythonAstExtractor:
         self.inheritances: list[InheritanceEdge] = []
         self.imports: list[ImportEdge] = []
 
-    def extract(self) -> None:
+    def extract(self) -> bool:
+        """Fill the symbol, call, inheritance and import lists; False when the source is not valid Python."""
         try:
             tree = ast.parse(self.source_code, filename=self.file_path)
         except SyntaxError:
-            return
+            return False
 
-        # 1. 注册 Module 根节点
-        module_doc = ast.get_docstring(tree) or ""
         self.symbols.append(
             SymbolNode(
                 qualified_name=self.module_name,
@@ -59,118 +69,113 @@ class PythonAstExtractor:
                 file_path=self.file_path,
                 line_start=1,
                 line_end=len(self.lines) if self.lines else 1,
-                docstring=module_doc,
-                source="",
+                docstring=ast.get_docstring(tree) or "",
+            )
+        )
+        self._walk(tree)
+        return True
+
+    def _walk(self, tree: ast.Module) -> None:
+        """Visit every node once, in source order, with the context its definitions and calls belong to.
+
+        Definitions and imports are found at any depth (inside ``if``, ``try``, ``with`` ...). Decorators,
+        default values, base classes and class keywords run when the definition is executed, so they are
+        visited in the enclosing context, not in the new one. The walk is iterative: generated code can nest
+        deeper than the recursion limit.
+        """
+        stack: list[tuple[ast.AST, _Context]] = [(tree, _Context(self.module_name, self.module_name, False))]
+        while stack:
+            node, ctx = stack.pop()
+            pending: list[tuple[ast.AST, _Context]]
+            if isinstance(node, ast.ClassDef):
+                inner = self._define_class(node, ctx)
+                pending = [(part, ctx) for part in (*node.decorator_list, *node.bases, *node.keywords)]
+                pending += [(statement, inner) for statement in node.body]
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                inner = self._define_function(node, ctx)
+                header: list[ast.AST] = [*node.decorator_list, node.args]
+                if node.returns is not None:
+                    header.append(node.returns)
+                pending = [(part, ctx) for part in header]
+                pending += [(statement, inner) for statement in node.body]
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    self._record_import(node, alias.name, alias)
+                continue
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                for alias in node.names:
+                    self._record_import(node, f"{module}.{alias.name}" if module else alias.name, alias)
+                continue
+            else:
+                if isinstance(node, ast.Call):
+                    self._record_call(node, ctx.caller)
+                pending = [(child, ctx) for child in ast.iter_child_nodes(node)]
+            stack.extend(reversed(pending))
+
+    def _define_class(self, node: ast.ClassDef, ctx: _Context) -> _Context:
+        qname = f"{ctx.scope}.{node.name}"
+        self.symbols.append(
+            SymbolNode(
+                qualified_name=qname,
+                name=node.name,
+                kind=SymbolKind.CLASS,
+                file_path=self.file_path,
+                line_start=node.lineno,
+                line_end=node.end_lineno or node.lineno,
+                docstring=ast.get_docstring(node) or "",
+            )
+        )
+        for base in node.bases:
+            base_name = self._resolve_name(base)
+            if base_name:
+                self.inheritances.append(
+                    InheritanceEdge(sub_type=qname, super_type=base_name, file_path=self.file_path, line=node.lineno)
+                )
+        # Calls in the class body run when the class is defined, so they belong to the enclosing caller.
+        return _Context(qname, ctx.caller, True)
+
+    def _define_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, ctx: _Context) -> _Context:
+        qname = f"{ctx.scope}.{node.name}"
+        self.symbols.append(
+            SymbolNode(
+                qualified_name=qname,
+                name=node.name,
+                kind=SymbolKind.METHOD if ctx.in_class else SymbolKind.FUNCTION,
+                file_path=self.file_path,
+                line_start=node.lineno,
+                line_end=node.end_lineno or node.lineno,
+                docstring=ast.get_docstring(node) or "",
+            )
+        )
+        return _Context(qname, qname, False)
+
+    def _record_import(self, node: ast.Import | ast.ImportFrom, symbol: str, alias: ast.alias) -> None:
+        self.imports.append(
+            ImportEdge(
+                importer_module=self.module_name,
+                imported_symbol=symbol,
+                file_path=self.file_path,
+                line=node.lineno,
+                col=node.col_offset,
+                alias=alias.asname or "",
             )
         )
 
-        # 2. 遍历 AST 提取 Class, Function, Method, Import, Call
-        self._visit_node(tree, current_scope=self.module_name)
-
-    def _get_source_slice(self, node: ast.stmt) -> str:
-        return "\n".join(self.lines[node.lineno - 1 : node.end_lineno or node.lineno])
-
-    def _visit_node(self, node: ast.AST, current_scope: str) -> None:
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, ast.ClassDef):
-                cls_qname = f"{current_scope}.{child.name}"
-                doc = ast.get_docstring(child) or ""
-                self.symbols.append(
-                    SymbolNode(
-                        qualified_name=cls_qname,
-                        name=child.name,
-                        kind=SymbolKind.CLASS,
-                        file_path=self.file_path,
-                        line_start=child.lineno,
-                        line_end=child.end_lineno or child.lineno,
-                        docstring=doc,
-                        source=self._get_source_slice(child),
-                    )
-                )
-                for base in child.bases:
-                    base_name = self._resolve_name(base)
-                    if base_name:
-                        self.inheritances.append(
-                            InheritanceEdge(
-                                sub_type=cls_qname,
-                                super_type=base_name,
-                                file_path=self.file_path,
-                                line=child.lineno,
-                            )
-                        )
-                self._visit_node(child, current_scope=cls_qname)
-
-            elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                kind = SymbolKind.METHOD if "." in current_scope and current_scope != self.module_name else SymbolKind.FUNCTION
-                fn_qname = f"{current_scope}.{child.name}"
-                doc = ast.get_docstring(child) or ""
-                self.symbols.append(
-                    SymbolNode(
-                        qualified_name=fn_qname,
-                        name=child.name,
-                        kind=kind,
-                        file_path=self.file_path,
-                        line_start=child.lineno,
-                        line_end=child.end_lineno or child.lineno,
-                        docstring=doc,
-                        source=self._get_source_slice(child),
-                    )
-                )
-                # 遍历函数体内部提取 Calls
-                self._extract_calls_in_function(child, caller_qname=fn_qname)
-                # 支持嵌套函数
-                self._visit_node(child, current_scope=fn_qname)
-
-            elif isinstance(child, ast.Import):
-                for alias in child.names:
-                    self.imports.append(
-                        ImportEdge(
-                            importer_module=self.module_name,
-                            imported_symbol=alias.name,
-                            file_path=self.file_path,
-                            line=child.lineno,
-                            col=child.col_offset,
-                            alias=alias.asname or "",
-                        )
-                    )
-
-            elif isinstance(child, ast.ImportFrom):
-                mod = child.module or ""
-                for alias in child.names:
-                    full_sym = f"{mod}.{alias.name}" if mod else alias.name
-                    self.imports.append(
-                        ImportEdge(
-                            importer_module=self.module_name,
-                            imported_symbol=full_sym,
-                            file_path=self.file_path,
-                            line=child.lineno,
-                            col=child.col_offset,
-                            alias=alias.asname or "",
-                        )
-                    )
-
-    def _extract_calls_in_function(self, fn_node: ast.AST, caller_qname: str) -> None:
-        for node in ast.walk(fn_node):
-            if isinstance(node, ast.Call):
-                callee_name = self._resolve_name(node.func)
-                if callee_name:
-                    kw_names = [kw.arg for kw in node.keywords if kw.arg is not None]
-                    site = CallSite(
-                        file_path=self.file_path,
-                        line=node.lineno,
-                        col=node.col_offset,
-                        end_line=node.end_lineno or node.lineno,
-                        end_col=node.end_col_offset or node.col_offset,
-                        arg_count=len(node.args),
-                        kwarg_names=kw_names,
-                    )
-                    self.calls.append(
-                        CallEdge(
-                            caller=caller_qname,
-                            callee=callee_name,
-                            call_site=site,
-                        )
-                    )
+    def _record_call(self, node: ast.Call, caller: str) -> None:
+        callee = self._resolve_name(node.func)
+        if not callee:
+            return
+        site = CallSite(
+            file_path=self.file_path,
+            line=node.lineno,
+            col=node.col_offset,
+            end_line=node.end_lineno or node.lineno,
+            end_col=node.end_col_offset or node.col_offset,
+            arg_count=len(node.args),
+            kwarg_names=[kw.arg for kw in node.keywords if kw.arg is not None],
+        )
+        self.calls.append(CallEdge(caller=caller, callee=callee, call_site=site))
 
     def _resolve_name(self, node: ast.AST) -> str:
         if isinstance(node, ast.Name):
@@ -195,12 +200,13 @@ class JsTsRegexExtractor:
         self.inheritances: list[InheritanceEdge] = []
         self.imports: list[ImportEdge] = []
 
-    def extract(self) -> None:
+    def extract(self) -> bool:
+        """Fill the symbol and call lists; line scanning never rejects a file, so the result is always True."""
         # 1. Module
         self.symbols.append(
             SymbolNode(
                 qualified_name=self.module_name,
-                name=self.module_name,
+                name=self.module_name.split(".")[-1],
                 kind=SymbolKind.MODULE,
                 file_path=self.file_path,
                 line_start=1,
@@ -297,3 +303,4 @@ class JsTsRegexExtractor:
                             ),
                         )
                     )
+        return True
