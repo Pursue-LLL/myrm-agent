@@ -24,11 +24,10 @@ from pathlib import Path
 import pytest
 
 _APP_ROOT = Path(__file__).resolve().parents[2] / "app"
-_API_ROOT = _APP_ROOT / "api"
 
 
-def _module_name(path: Path) -> str:
-    parts = path.relative_to(_APP_ROOT.parent).with_suffix("").parts
+def _module_name(path: Path, app_root: Path) -> str:
+    parts = path.relative_to(app_root.parent).with_suffix("").parts
     return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
 
 
@@ -59,27 +58,28 @@ def _imported_modules(tree: ast.Module, package: str) -> set[str]:
     return imported
 
 
-def _routers_without_importer() -> list[str]:
-    sources = {path: path.read_text(encoding="utf-8") for path in _APP_ROOT.rglob("*.py")}
+def _routers_without_importer(app_root: Path = _APP_ROOT) -> list[str]:
+    api_root = app_root / "api"
+    sources = {path: path.read_text(encoding="utf-8") for path in app_root.rglob("*.py")}
     router_modules: dict[str, Path] = {}
     for path, text in sources.items():
-        if path.is_relative_to(_API_ROOT) and "APIRouter" in text:
+        if path.is_relative_to(api_root) and "APIRouter" in text:
             if _defines_router(ast.parse(text, filename=str(path))):
-                router_modules[_module_name(path)] = path
+                router_modules[_module_name(path, app_root)] = path
     if not router_modules:
-        raise AssertionError(f"no module under {_API_ROOT} defines an APIRouter: the scan root or the detection is broken")
+        raise AssertionError(f"no module under {api_root} defines an APIRouter: the scan root or the detection is broken")
     # Every import form spells the last segment of the module it names, so parsing is limited to files that do.
     leaf_names = {module.rpartition(".")[2] for module in router_modules}
     importers: defaultdict[str, set[str]] = defaultdict(set)
     for path, text in sources.items():
         if not any(leaf in text for leaf in leaf_names):
             continue
-        module = _module_name(path)
+        module = _module_name(path, app_root)
         package = module if path.name == "__init__.py" else module.rpartition(".")[0]
         for name in _imported_modules(ast.parse(text, filename=str(path)), package):
             importers[name].add(module)
     return sorted(
-        path.relative_to(_APP_ROOT.parent).as_posix()
+        path.relative_to(app_root.parent).as_posix()
         for module, path in router_modules.items()
         if not importers[module] - {module}
     )
@@ -92,3 +92,36 @@ def test_every_router_module_has_an_importer() -> None:
         "These modules define an APIRouter that no other app module imports, so none of their routes can be mounted. "
         "Mount the router or delete the module with its tests and docs:\n" + "\n".join(orphans)
     )
+
+
+def _write_api_module(app_root: Path, name: str, source: str) -> None:
+    path = app_root / "api" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8")
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize("assignment", ["router = APIRouter()", "router: APIRouter = APIRouter()"])
+def test_router_module_without_importer_is_reported(tmp_path: Path, assignment: str) -> None:
+    app_root = tmp_path / "app"
+    _write_api_module(app_root, "lonely.py", f"from fastapi import APIRouter\n\n{assignment}\n")
+
+    assert _routers_without_importer(app_root) == ["app/api/lonely.py"]
+
+
+@pytest.mark.architecture
+def test_router_module_with_importer_is_not_reported(tmp_path: Path) -> None:
+    app_root = tmp_path / "app"
+    _write_api_module(app_root, "lonely.py", "from fastapi import APIRouter\n\nrouter = APIRouter()\n")
+    _write_api_module(app_root, "mount.py", "from app.api.lonely import router\n")
+
+    assert _routers_without_importer(app_root) == []
+
+
+@pytest.mark.architecture
+def test_scan_that_finds_no_router_module_fails(tmp_path: Path) -> None:
+    app_root = tmp_path / "app"
+    _write_api_module(app_root, "plain.py", "VALUE = 1\n")
+
+    with pytest.raises(AssertionError, match="defines an APIRouter"):
+        _routers_without_importer(app_root)
