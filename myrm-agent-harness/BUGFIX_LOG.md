@@ -142,7 +142,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness `toolkits/computer_use/backends/linux.py`、`backends/linux_text_io.py`（新）、`backends/linux_probes.py`、`backends/_ARCH.md`；测试 `tests/toolkits/computer_use/test_linux_exit_codes.py`、`test_linux_real_x11.py`、`test_linux_backend.py`；CI `.github/workflows/harness-test.yml`、`.github/workflows/_ARCH.md`；server `Dockerfile`、`docker/Dockerfile.official`、`ARCHITECTURE.md`、`tests/architecture/_ARCH.md`、`tests/architecture/test_runtime_image_x11_tools.py`；没有改提示词与工具 schema，不影响提示词缓存）。**未验证**：真实应用（Chrome、Electron、终端、输入法）里的行为，Ctrl+V 在终端里是否生效没有证据；剪贴板历史类工具是否记录粘贴文本没有实测；CI 作业 `linux-computer-use` 与运行时镜像构建都没有跑过，提交未推送。 |
+| **状态** | **FIXED**（harness `toolkits/computer_use/backends/linux.py`、`toolkits/computer_use/backends/linux_text_io.py`（新）、`toolkits/computer_use/backends/linux_probes.py`、`toolkits/computer_use/backends/_ARCH.md`；测试 `tests/toolkits/computer_use/test_linux_exit_codes.py`、`test_linux_real_x11.py`、`test_linux_backend.py`；CI `.github/workflows/harness-test.yml`、`.github/workflows/_ARCH.md`；server `Dockerfile`、`docker/Dockerfile.official`、`ARCHITECTURE.md`、`tests/architecture/_ARCH.md`、`tests/architecture/test_runtime_image_x11_tools.py`；没有改提示词与工具 schema，不影响提示词缓存）。**未验证**：真实应用（Chrome、Electron、终端、输入法）里的行为，Ctrl+V 在终端里是否生效没有证据；剪贴板历史类工具是否记录粘贴文本没有实测；CI 作业 `linux-computer-use` 与运行时镜像构建都没有跑过，提交未推送。 |
 | **发现时间** | 2026-10-29（本条第一版把粘贴路径整个删了，改成全部文本走 `xdotool type`，理由是 xev 读到了正确的键事件；对抗式复审时改用 Tk 文本框读回内容，发现它会丢字，第一版结论被推翻） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P1：`type_text` / `type_credential` 对含非 ASCII 的文本（中日韩等）会静默丢字或串字，`xdotool` 退出 0、工具报成功，智能体和用户都看不到差错；填进密码框的非 ASCII 凭据会静默错误。线上触发频率没有数据。 |
