@@ -14,6 +14,8 @@ import time
 import pytest
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from myrm_agent_harness.core.security.redact.bounded_replace import _replace_pattern_bounded
+from myrm_agent_harness.core.security.redact.patterns import _CLI_FLAG_RE, _redact_cli_flag
 
 _SECRET = "s3cretPw99xyz"
 
@@ -139,12 +141,20 @@ class TestTheFlagNameKeepsItsShape:
 
 
 class TestCostStaysLinear:
+    """A long run of flag-like words costs time in proportion to its length: the flag pass is timed on its own, since the
+    other passes of the pipeline cost far more on such text and would hide it."""
+
     @pytest.mark.parametrize(
         "unit",
-        ["--a-b-c-d-e-f-g-h ", "--" + "x-" * 40, "--auth-" * 8, "--token " + "a" * 40 + " "],
-    )
-    def test_a_long_run_of_flag_like_words(self, unit: str) -> None:
-        text = unit * (1_000_000 // len(unit))
-        start = time.perf_counter()
-        redact_sensitive_text(text)
-        assert time.perf_counter() - start < 20
+        ["--a-b-c-d-e-f-g-h ", "--" + "x-" * 40, "--auth-", "--token " + "a" * 40 + " ", "--db-password "],
+    )  # fmt: skip
+    def test_a_long_run_of_flag_like_words_is_masked_in_proportional_time(self, unit: str) -> None:
+        def seconds(repeats: int) -> float:
+            text = unit * repeats
+            start = time.process_time()
+            _replace_pattern_bounded(text, _CLI_FLAG_RE, _redact_cli_flag)
+            return time.process_time() - start
+
+        small = min(seconds(4_000) for _ in range(3))
+        large = min(seconds(16_000) for _ in range(3))
+        assert large < max(small * 12, 0.5)

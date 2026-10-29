@@ -131,7 +131,7 @@ def _redact_curl_option(m: re.Match[str]) -> str:
 
 
 def _redact_password_argument(m: re.Match[str]) -> str:
-    """Replacement for the options whose whole argument is the password (``sshpass -p``, ``mysql -p``, ``redis-cli -a``)."""
+    """Replacement for the options whose whole argument is the password (``sshpass``, ``mysql``, ``docker login``, ``redis-cli``)."""
     opening, content, closing = _unquote(m["value"])
     if not _holds_secret(content):
         return m[0]
