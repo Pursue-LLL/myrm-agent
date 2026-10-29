@@ -116,6 +116,40 @@ class TestUrlsWithoutPasswordAreKept:
         assert redact_sensitive_text(text) == text
 
 
+class TestPasswordRunsToTheLastAt:
+    """A password printed with a raw ``@`` is masked whole: ending at the first ``@`` leaves the rest beside the host."""
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("postgres://root:p@ssw0rd123@localhost:5432/prod", "postgres://root:***@localhost:5432/prod"),
+            ("mysql://app:Summer2024@Home!@db:3306/x", "mysql://app:***@db:3306/x"),
+            ("redis://:Pass@word9@cache:6379/0", "redis://:***@cache:6379/0"),
+            ("ssh://deploy:p@ss@host", "ssh://deploy:***@host"),
+            ("socks5://user:abc@123456@10.0.0.1:1080", "socks5://user:***@10.0.0.1:1080"),
+        ],
+    )  # fmt: skip
+    def test_the_whole_password_is_masked(self, text: str, expected: str) -> None:
+        assert redact_sensitive_text(text) == expected
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("http://u:pw@h:80 mail me at a@b.c", "http://u:***@h:80 mail me at a@b.c"),
+            ("redis://:pw12345@cache:6379/0 then a@b.c", "redis://:***@cache:6379/0 then a@b.c"),
+            ('{"url":"https://u:pw12345@h","email":"a@b.c"}', '{"url":"https://u:***@h","email":"a@b.c"}'),
+            ("[link](https://u:pw12345@h) and mail a@b.c", "[link](https://u:***@h) and mail a@b.c"),
+            ("https://user:pw12345@example.com/path?email=a@b.c", "https://user:***@example.com/path?email=a@b.c"),
+        ],
+    )  # fmt: skip
+    def test_text_after_the_url_is_not_swallowed(self, text: str, expected: str) -> None:
+        assert redact_sensitive_text(text) == expected
+
+    def test_a_dsn_is_masked_before_the_text_that_follows_it(self) -> None:
+        text = "How do I connect to redis://localhost:6379 from Python? Mail a@example.com"
+        assert redact_sensitive_text(text) == text
+
+
 class TestScanCostStaysLinear:
     """A scheme may be any word, and the scan for one must not restart at every character of a long run.
 
@@ -129,6 +163,22 @@ class TestScanCostStaysLinear:
     @pytest.mark.parametrize("unit", ["a", "a.", "a+", "a-", "a1", "ab:/", "http", "a://"])
     def test_run_of_scheme_characters(self, unit: str) -> None:
         text = unit * (16_000 // len(unit))
+        start = time.process_time()
+        redact_sensitive_text(text)
+        assert time.process_time() - start < self._BUDGET_SECONDS
+
+
+class TestDsnPrefixScanIsBounded:
+    """``redis://:`` repeated with no ``@`` makes every start scan the rest of the run; the password span is capped.
+
+    Unbounded, 32 000 characters take about 0.7 seconds here, bounded about 0.15; the budget sits between them.
+    """
+
+    _BUDGET_SECONDS = 0.4
+
+    @pytest.mark.parametrize("unit", ["redis://:", "redis://x:", "postgres://:p"])
+    def test_repeated_dsn_prefix(self, unit: str) -> None:
+        text = unit * (32_000 // len(unit))
         start = time.process_time()
         redact_sensitive_text(text)
         assert time.process_time() - start < self._BUDGET_SECONDS

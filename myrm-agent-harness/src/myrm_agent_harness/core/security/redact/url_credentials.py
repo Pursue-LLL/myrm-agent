@@ -9,13 +9,15 @@ token in the user position (``https://TOKEN@host``), the form of a private git r
 Each regex names the secret by its capture group; ``engine.py`` and ``agent/skills/security/content_sanitizer.py``
 read the groups by number, so a change of the layout has to be mirrored there. A password that is a variable
 reference (``redis://:${REDIS_PASSWORD}@cache``, the usual compose form) is a name, not a secret, and stays readable.
+The password runs to the last ``@`` of its whitespace-free run: configs and logs print ``p@ss`` unescaped far more
+often than ``p%40ss``, and ending at the first ``@`` would leave the rest of the password beside the host.
 
 [INPUT]
 - patterns::_is_env_reference (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
 
 [OUTPUT]
-- ``_DB_CONNSTR_RE`` — database / broker DSN; groups: 1 = scheme, user and colon, 2 = password, 3 = ``@``
-- ``_URL_USERINFO_RE`` — ``scheme://[user]:password@`` of any scheme; groups: 1 = scheme, 2 = user (may be empty), 3 = password
+- ``_DB_CONNSTR_RE`` — database / broker DSN; groups: 1 = scheme, user and colon, 2 = password (to the last ``@``), 3 = ``@``
+- ``_URL_USERINFO_RE`` — ``scheme://[user]:password@`` of any scheme; groups: 1 = scheme, 2 = user (may be empty), 3 = password (to the last ``@``)
 - ``_URL_BARE_TOKEN_RE`` — ``scheme://TOKEN@host``; groups: 1 = scheme and ``://``, 2 = token, 3 = ``@`` and the rest
 - ``_redact_db_connstr`` / ``_redact_url_userinfo`` — replacers of the first two: the password becomes ``***``, a variable reference is kept
 
@@ -31,8 +33,13 @@ from .patterns import _is_env_reference
 
 # 数据库与消息队列的 DSN：用户名可以为空（`redis://:password@host`），scheme 可带驱动名
 # （`postgresql+asyncpg`、`mysql+pymysql`）。DB 的 DSN 先于通用规则处理，导出审查里的类别因此是 database_credential。
+# 密码段取到同一串无空白、无引号字符里的最后一个 `@`：原始 `@` 的密码（`p@ss`）整体被掩码，不会把后半截留在主机旁；
+# 到空白或引号即止，DSN 之后同一行的邮箱不会被吞进去；密码允许 `/`（base64 口令常见，SQLAlchemy 同样放行）。
+# 用户名段不跨空白和 `/`，`postgres://` 之后的普通文本不会被当作用户名。
+# 密码段至多 1024 字符：`redis://:` 连续重复且不含 `@` 的长串里，每个起点都会扫到串尾，无上限时 32 KB 耗时随长度平方增长（约 0.7 秒），
+# 有上限则每个起点的扫描有界（约 0.06 到 0.15 秒）；真实口令远短于此。
 _DB_CONNSTR_RE = re.compile(
-    r"((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|rediss?|amqps?)(?:\+[a-z0-9_]+)?://[^:]*:)([^@]+)(@)",
+    r"((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|rediss?|amqps?)(?:\+[a-z0-9_]+)?://[^\s/@:]*:)([^\s\"'`<>]{1,1024})(@)",
     re.IGNORECASE,
 )
 
@@ -40,8 +47,9 @@ _DB_CONNSTR_RE = re.compile(
 # 用户名可为空，密码段掩码，用户名保留用于可读性。负向后顾使 scheme 只从一串 scheme 字符的开头起匹配，
 # 一串 scheme 字符因此只扫一次；没有它，`a` 重复一万六千次的串每个起点都扫到串尾，耗时随长度平方增长（约 1.3 秒）。
 # scheme 不设长度上限：上限会让 `://` 前有 33 个以上字符的串整体漏掉，却不省任何耗时。
+# 密码段同 DB 规则取到最后一个 `@`，但不跨 `/`：URL 路径里的 `@`（`https://u:pw@h/a@b`）不属于密码。
 _URL_USERINFO_RE = re.compile(
-    r"(?<![a-z0-9+.\-])([a-z][a-z0-9+.\-]*)://([^\s/@:]*):([^\s/@]+)@",
+    r"(?<![a-z0-9+.\-])([a-z][a-z0-9+.\-]*)://([^\s/@:]*):([^\s/\"'`<>]+)@",
     re.IGNORECASE,
 )
 

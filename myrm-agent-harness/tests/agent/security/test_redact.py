@@ -171,10 +171,7 @@ class TestContextualPatterns:
 
     def test_db_connection_string(self) -> None:
         text = "postgresql://admin:s3cretP@ss@db.example.com:5432/mydb"
-        result = redact_sensitive_text(text)
-        assert "s3cretP@ss" not in result
-        assert "***" in result
-        assert "db.example.com" in result
+        assert redact_sensitive_text(text) == "postgresql://admin:***@db.example.com:5432/mydb"
 
     def test_mongodb_connection_string(self) -> None:
         text = "mongodb+srv://user:hunter2@cluster.mongodb.net/db"
@@ -496,9 +493,7 @@ class TestRedactForDisplay:
 
     def test_db_connection_in_args(self) -> None:
         args = {"dsn": "postgresql://admin:s3cretP@ss@db.example.com:5432/mydb"}
-        result = redact_for_display(args)
-        assert "s3cretP@ss" not in str(result)
-        assert "db.example.com" in str(result)
+        assert redact_for_display(args) == {"dsn": "postgresql://admin:***@db.example.com:5432/mydb"}
 
 
 class TestRedactEngineHardening:

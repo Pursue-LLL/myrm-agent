@@ -130,15 +130,25 @@ _PEM_BLOCK_RE = re.compile(
     r"-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
 )
 
+# Database and broker schemes, with the driver a SQLAlchemy-style URL names (`postgresql+asyncpg`, `mysql+pymysql`).
+# The password is capped at 1024 characters: a long run of `redis://:` with no `@` makes every start scan to the end of it.
+_DB_SCHEME = r"(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis(?:s)?|amqps?)(?:\+[a-z0-9_]+)?"
+
 _STRUCTURAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("jwt_token", re.compile(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]+")),
     (
         "pem_private_key",
         re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     ),
+    ("database_url", re.compile(rf"{_DB_SCHEME}://[^\s/@:]*:[^\s]{{1,1024}}@[^\s]+", re.IGNORECASE)),
+    # Any other scheme (`socks5`, `ssh`, `https`, `smtp`...): a password in the URL's user position. A variable
+    # reference (`${REGISTRY_TOKEN}`, `$PW`) is a name and does not count.
     (
-        "database_url",
-        re.compile(r"(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis(?:s)?|amqps?)://[^:]+:[^@]+@[^\s]+"),
+        "url_credential",
+        re.compile(
+            rf"(?<![a-z0-9+.\-])(?!{_DB_SCHEME}://)[a-z][a-z0-9+.\-]*://[^\s/@:]*:(?!\$)[^\s/\"'`<>]+@[^\s]+",
+            re.IGNORECASE,
+        ),
     ),
     # Blockchain
     ("ethereum_address", re.compile(r"\b0x[a-fA-F0-9]{40}\b")),
