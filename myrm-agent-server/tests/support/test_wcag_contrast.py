@@ -11,9 +11,12 @@ from tests.support.wcag_contrast import (
     assert_single_palette,
     assert_visible,
     contrast,
+    custom_properties,
     declared,
     declared_value,
     effective,
+    resolve_variables,
+    single_hex,
     split_themes,
     stylesheet,
 )
@@ -204,3 +207,75 @@ def test_a_page_with_one_palette_is_read_as_the_single_palette() -> None:
 def test_a_second_palette_is_an_error(block: str) -> None:
     with pytest.raises(AssertionError, match="prefers-color-scheme"):
         assert_single_palette(f"<style>p{{color:#111}}{block}</style>")
+
+
+_ATTRIBUTE_PAGE = """\
+:root {
+  --bg: #ffffff;
+  --ink: #111111;
+}
+[data-theme="dark"] {
+  --bg: #000000;
+}
+body { background: var(--bg); color: var(--ink); }
+.card { background: var(--ink); color: var(--bg); }
+"""
+
+
+def test_a_page_themed_by_custom_properties_is_read_with_each_themes_values() -> None:
+    light, dark = split_themes(_ATTRIBUTE_PAGE)
+
+    assert effective(light, dark, "light", "body", "background") == "#ffffff"
+    assert effective(light, dark, "dark", "body", "background") == "#000000"
+    assert effective(light, dark, "dark", "body", "color") == "#111111"
+    assert effective(light, dark, "dark", ".card", "color") == "#000000"
+
+
+def test_a_page_themed_by_custom_properties_is_checked_against_the_bar() -> None:
+    page = f"<style>{_ATTRIBUTE_PAGE}</style>"
+
+    assert_readable(page, "light", "body", "body")
+    with pytest.raises(AssertionError, match=r"body color on body in dark: #111111 on #000000 is 1\.1\d\d:1"):
+        assert_readable(page, "dark", "body", "body")
+
+
+@pytest.mark.parametrize(
+    "extra",
+    ['[data-theme="dark"] .card { color: #fff; }', '[data-theme="dark"] { --ink: #eee; }'],
+    ids=["descendant-rule", "second-block"],
+)
+def test_a_dark_attribute_rule_other_than_the_one_block_of_properties_is_an_error(extra: str) -> None:
+    with pytest.raises(AssertionError, match="one block of custom properties"):
+        split_themes(_ATTRIBUTE_PAGE + extra)
+
+
+def test_a_dark_attribute_block_without_properties_is_an_error() -> None:
+    with pytest.raises(AssertionError, match="one block of custom properties"):
+        split_themes('body{color:#111}\n[data-theme="dark"]{color:#eee}')
+
+
+def test_a_page_themed_two_ways_is_an_error() -> None:
+    with pytest.raises(AssertionError, match="use one"):
+        split_themes(_ATTRIBUTE_PAGE + "@media(prefers-color-scheme:dark){body{color:#eee}}")
+
+
+def test_a_variable_no_rule_declares_is_an_error() -> None:
+    with pytest.raises(AssertionError, match=r"var\(--ghost\) is used"):
+        split_themes(_ATTRIBUTE_PAGE + "p { color: var(--ghost); }")
+
+
+def test_custom_properties_are_the_declarations_of_the_exact_selector() -> None:
+    assert custom_properties(_ATTRIBUTE_PAGE, ":root") == {"--bg": "#ffffff", "--ink": "#111111"}
+    assert custom_properties(_ATTRIBUTE_PAGE, '[data-theme="dark"]') == {"--bg": "#000000"}
+    assert custom_properties(_ATTRIBUTE_PAGE, "body") == {}
+    assert custom_properties(":root{--a:#111;--a:#222}", ":root") == {"--a": "#222"}
+
+
+def test_variables_are_replaced_wherever_they_sit_in_a_value() -> None:
+    assert resolve_variables("border: 1px solid var(--edge)", {"--edge": "#abc"}) == "border: 1px solid #abc"
+
+
+def test_a_single_hex_names_where_it_was_read_when_it_finds_none_or_many() -> None:
+    assert single_hex("1px solid #ABC", "p gives border") == "#aabbcc"
+    with pytest.raises(AssertionError, match=r"p gives border 'none', which is not exactly one hex colour"):
+        single_hex("none", "p gives border")

@@ -23,7 +23,6 @@ for token → frontend polls GET /status/{state} to detect completion.
 
 from __future__ import annotations
 
-import html
 import logging
 import secrets
 import time
@@ -39,6 +38,7 @@ from myrm_agent_harness.toolkits.mcp.oauth import (
 )
 from pydantic import BaseModel, Field
 
+from app.api.integrations.oauth_result_page import OAuthOutcome, oauth_result_response
 from app.core.utils.response_utils import success_response
 from app.services.agent.backends.mcp_oauth_store import get_mcp_oauth_token_store
 
@@ -165,25 +165,17 @@ async def handle_mcp_oauth_callback(
     and persists the resulting tokens (encrypted).
     """
     if error:
-        return HTMLResponse(
-            content=f"<html><body><h1>Authorization failed</h1><p>{html.escape(error_description or error)}</p></body></html>",
-            status_code=400,
-        )
+        logger.warning("MCP OAuth provider ended the authorization: %r", error[:200])
+        return oauth_result_response(OAuthOutcome.DENIED, detail=error_description)
 
     pending = _pending_auth.pop(state, None)
     if not pending:
-        return HTMLResponse(
-            content="<html><body><h1>Invalid or expired OAuth state. Please restart the authorization flow.</h1></body></html>",
-            status_code=400,
-        )
+        return oauth_result_response(OAuthOutcome.EXPIRED)
 
     server_name = pending["server_name"]
     created_at = float(pending.get("created_at", "0"))
     if time.time() - created_at > 600:
-        return HTMLResponse(
-            content="<html><body><h1>OAuth authorization timed out (10 minutes). Please restart.</h1></body></html>",
-            status_code=400,
-        )
+        return oauth_result_response(OAuthOutcome.EXPIRED)
 
     token_data: dict[str, str] = {
         "grant_type": "authorization_code",
@@ -206,10 +198,7 @@ async def handle_mcp_oauth_callback(
                     resp.status_code,
                     resp.text[:300],
                 )
-                return HTMLResponse(
-                    content=f"<html><body><h1>Token exchange failed (HTTP {resp.status_code}).</h1><p>The authorization server rejected the request.</p></body></html>",
-                    status_code=400,
-                )
+                return oauth_result_response(OAuthOutcome.FAILED)
 
             result = resp.json()
             token = MCPOAuthToken(
@@ -233,28 +222,11 @@ async def handle_mcp_oauth_callback(
 
             await _refresh_connection_pool_auth(server_name, token)
             logger.info("MCP OAuth completed for '%s'", server_name)
-            return HTMLResponse(
-                content="""
-                <html>
-                <head><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#f9fafb;margin:0;color:#111827;}</style></head>
-                <body>
-                    <div style="text-align:center;padding:40px;background:white;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-                        <svg style="width:64px;height:64px;color:#10b981;margin:0 auto 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <h1 style="margin:0 0 8px;font-size:24px;font-weight:600;">Authorization Successful</h1>
-                        <p style="margin:0;color:#6b7280;">You can safely close this tab and return to the application.</p>
-                        <script>setTimeout(() => window.close(), 3000);</script>
-                    </div>
-                </body>
-                </html>
-            """
-            )
+            return oauth_result_response(OAuthOutcome.SUCCESS)
 
     except httpx.HTTPError as exc:
         logger.error("MCP OAuth token exchange network error: %s", exc)
-        return HTMLResponse(
-            content=f"<html><body><h1>Network error during token exchange</h1><p>{html.escape(str(exc))}</p></body></html>",
-            status_code=500,
-        )
+        return oauth_result_response(OAuthOutcome.UNREACHABLE)
 
 
 @router.get("/status/{state}")

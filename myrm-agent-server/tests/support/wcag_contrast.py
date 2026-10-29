@@ -2,10 +2,14 @@
 
 [INPUT]
 - the page's inline ``<style>`` block (POS: the server-rendered pages built by ``share_renderer``,
-  ``share_password_page``, ``share_status_page`` and the hosting ``decryptor_shell``)
+  ``share_password_page``, ``share_status_page``, the hosting ``decryptor_shell`` and the session export
+  ``interactive_html_compiler``)
 
 [OUTPUT]
-- stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme
+- stylesheet / split_themes / declared / effective: read the colour a selector paints in the light or the dark theme;
+  a page themed by custom properties (a ``:root`` block and one ``[data-theme="dark"]`` block) is read with each
+  ``var(--name)`` resolved for the theme asked about
+- single_hex / custom_properties / resolve_variables: the pieces ``declared`` and ``split_themes`` are built from
 - declared_value: the raw text of one declaration, for checks that are not about a colour (an outline, an opacity)
 - SINGLE_PALETTE / assert_single_palette: the theme a one-palette page is read as, and the guard that fails once a
   second palette appears
@@ -34,6 +38,7 @@ MIN_TEXT_CONTRAST = 4.5
 MIN_UI_CONTRAST = 3.0
 
 _DARK_MEDIA = "@media(prefers-color-scheme:dark){"
+_DARK_ATTRIBUTE = '[data-theme="dark"]'
 _HEX = r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b"
 
 
@@ -42,12 +47,47 @@ def stylesheet(html: str) -> str:
     return html.split("<style>")[1].split("</style>")[0]
 
 
+def custom_properties(css: str, selector: str) -> dict[str, str]:
+    """The ``--name: value`` declarations of the rule for exactly *selector* (the last declaration of a name wins)."""
+    bodies = re.findall(r"(?m)(?:^|(?<=\}))\s*" + re.escape(selector) + r"\s*\{([^}]*)\}", css)
+    return {name: value.strip() for body in bodies for name, value in re.findall(r"(--[\w-]+)\s*:\s*([^;}]*)", body)}
+
+
+def resolve_variables(css: str, properties: dict[str, str]) -> str:
+    """*css* with every ``var(--name)`` replaced by that property's value; a name no property holds is an error."""
+
+    def value_of(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name not in properties:
+            raise AssertionError(f"var({name}) is used but no rule declares {name}")
+        return properties[name]
+
+    return re.sub(r"var\((--[\w-]+)\)", value_of, css)
+
+
 def split_themes(css: str) -> tuple[str, str]:
     """The (light, dark) halves of *css*: the dark half holds what its ``prefers-color-scheme: dark`` blocks declare.
+
+    A page may instead theme itself with custom properties: a ``:root`` block holds the light values, a single
+    ``[data-theme="dark"]`` block the dark ones, and each half has every ``var(--name)`` resolved for its theme.
 
     A colour-scheme block written in any other form would be read as light-theme rules and let a dark-theme
     regression pass, so one the helper cannot read is an error.
     """
+    light, dark = _media_halves(css)
+    attribute_rules = css.count(_DARK_ATTRIBUTE)
+    if not attribute_rules:
+        return light, dark
+    overrides = custom_properties(css, _DARK_ATTRIBUTE)
+    if attribute_rules != 1 or not overrides:
+        raise AssertionError(f"a {_DARK_ATTRIBUTE} rule is only read as the one block of custom properties")
+    if dark:
+        raise AssertionError(f"the page is themed by both prefers-color-scheme and {_DARK_ATTRIBUTE}; use one")
+    palette = custom_properties(css, ":root")
+    return resolve_variables(light, palette), resolve_variables(light, {**palette, **overrides})
+
+
+def _media_halves(css: str) -> tuple[str, str]:
     light: list[str] = []
     dark: list[str] = []
     at = 0
@@ -87,11 +127,14 @@ def declared(css: str, selector: str, prop: str) -> str | None:
     hex colour is an error, so a colour written in another notation can never read as not declared.
     """
     value = declared_value(css, selector, prop)
-    if value is None:
-        return None
+    return None if value is None else single_hex(value, f"{selector} gives {prop}")
+
+
+def single_hex(value: str, where: str) -> str:
+    """The one colour *value* holds, as ``#rrggbb``; anything else is an error that names *where* it was read."""
     colours = re.findall(_HEX, value)
     if len(colours) != 1:
-        raise AssertionError(f"{selector} gives {prop} {value!r}, which is not exactly one hex colour")
+        raise AssertionError(f"{where} {value!r}, which is not exactly one hex colour")
     digits = colours[0]
     return "#" + (digits if len(digits) == 6 else "".join(digit * 2 for digit in digits)).lower()
 

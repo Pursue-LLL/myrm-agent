@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
+import html
 import time
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from app.api.integrations.google_workspace_oauth import (
-    GOOGLE_WORKSPACE_ISSUER,
     _pending_auth,
     _successful_auth,
     _successful_auth_meta,
 )
+from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -173,7 +175,7 @@ class TestGoogleWorkspaceOAuthCallback:
             )
 
         assert resp.status_code == 200
-        assert "Authorization Successful" in resp.text
+        assert "Authorization complete" in resp.text
         upsert_mock.assert_awaited_once()
         call_args = upsert_mock.await_args
         assert call_args is not None
@@ -246,7 +248,66 @@ class TestGoogleWorkspaceOAuthStatus:
             params={"code": "auth-code", "state": "invalid-state"},
         )
         assert resp.status_code == 400
-        assert "Invalid or expired" in resp.text
+        assert "This authorization has expired" in resp.text
+
+    def test_callback_provider_error_shows_its_words_escaped(self, client: TestClient, google_oauth_configured: None) -> None:
+        payload = '<img src=x onerror="alert(1)">'
+        resp = client.get(
+            f"{API_PREFIX}/callback",
+            params={"code": "c", "state": "s", "error": "access_denied", "error_description": payload},
+        )
+        assert resp.status_code == 400
+        assert "Authorization was not completed" in resp.text
+        assert payload not in resp.text
+        assert html.escape(payload) in resp.text
+
+    def test_callback_expired_state_returns_400(self, client: TestClient, google_oauth_configured: None) -> None:
+        _pending_auth["old"] = {"code_verifier": "v", "redirect_uri": "http://localhost/cb", "created_at": str(time.time() - 700)}
+        resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": "old"})
+        assert resp.status_code == 400
+        assert "This authorization has expired" in resp.text
+
+    @pytest.mark.parametrize(
+        ("token_status", "token_body"),
+        [(400, {}), (200, {"expires_in": 3600})],
+        ids=["provider-rejects-code", "no-access-token"],
+    )
+    def test_callback_unfinished_exchange_shows_one_plain_page(
+        self, client: TestClient, google_oauth_configured: None, token_status: int, token_body: dict[str, int]
+    ) -> None:
+        _pending_auth["s1"] = {"code_verifier": "v", "redirect_uri": "http://localhost/cb", "created_at": str(time.time())}
+        token_response = MagicMock()
+        token_response.status_code = token_status
+        token_response.text = "invalid_grant"
+        token_response.json.return_value = token_body
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=token_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("app.api.integrations.google_workspace_oauth.httpx.AsyncClient", return_value=mock_client):
+            resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": "s1"})
+
+        assert resp.status_code == 400
+        assert "Couldn't finish connecting" in resp.text
+        assert "HTTP" not in resp.text
+        assert "access_token" not in resp.text
+
+    def test_callback_network_error_text_stays_off_the_page(self, client: TestClient, google_oauth_configured: None) -> None:
+        _pending_auth["s2"] = {"code_verifier": "v", "redirect_uri": "http://localhost/cb", "created_at": str(time.time())}
+        payload = "<script>alert(1)</script>"
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(side_effect=httpx.ConnectError(payload))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("app.api.integrations.google_workspace_oauth.httpx.AsyncClient", return_value=mock_client):
+            resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": "s2"})
+
+        assert resp.status_code == 500
+        assert "Couldn't reach the service" in resp.text
+        assert payload not in resp.text
+        assert html.escape(payload) not in resp.text
 
     def test_connection_status_not_connected(self, client: TestClient) -> None:
         with patch(

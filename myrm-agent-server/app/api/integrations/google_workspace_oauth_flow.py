@@ -56,20 +56,6 @@ pending_auth: dict[str, dict[str, str]] = {}
 successful_auth: dict[str, float] = {}
 successful_auth_meta: dict[str, dict[str, bool]] = {}
 
-SUCCESS_HTML = """
-<html>
-<head><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#f9fafb;margin:0;color:#111827;}</style></head>
-<body>
-    <div style="text-align:center;padding:40px;background:white;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-        <svg style="width:64px;height:64px;color:#10b981;margin:0 auto 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <h1 style="margin:0 0 8px;font-size:24px;font-weight:600;">Authorization Successful</h1>
-        <p style="margin:0;color:#6b7280;">You can safely close this tab and return to the application.</p>
-        <script>setTimeout(() => window.close(), 3000);</script>
-    </div>
-</body>
-</html>
-"""
-
 
 class GoogleWorkspaceOAuthStartBody(BaseModel):
     tier: str = Field(default="readonly", pattern="^(readonly|write)$")
@@ -185,7 +171,6 @@ __all__ = [
     "GOOGLE_WORKSPACE_ISSUER",
     "GOOGLE_WORKSPACE_SCOPES",
     "GoogleWorkspaceOAuthStartBody",
-    "SUCCESS_HTML",
     "build_google_auth_url",
     "build_redirect_uri",
     "callback_path",

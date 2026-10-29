@@ -10,8 +10,8 @@ Interactive Single-File HTML Exporter and Gist Share Bridge Service.
 
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
-| `export_types.py` | 核心模型 | 纯领域模型定义（ExportHtmlOptions, RedactionSummary, InteractiveHtmlExportResult, ShareLinkRequest, ShareLinkResponse 等） | ✅ |
+| `export_types.py` | 核心模型 | 纯领域模型定义（ExportTheme（`system` / `light` / `dark`，其余取值在模型处被拒绝，到不了页面）, ExportHtmlOptions, RedactionSummary, InteractiveHtmlExportResult, ShareLinkRequest, ShareLinkResponse 等） | ✅ |
 | `secret_redactor.py` | 核心引擎 | 正则识别并脱敏 API Keys、JWT/Bearer Tokens、密码字段与内网私有 IP，输出脱敏统计摘要 | ✅ |
-| `interactive_html_compiler.py` | 核心编译器 | 将多轮消息编译打包为自包含单 HTML 文件（内嵌响应式 CSS、主题切换、思考折叠、ToolCall 折叠与代码复制 Vanilla JS） | ✅ |
+| `interactive_html_compiler.py` | 核心编译器 | 将多轮消息编译打包为自包含单 HTML 文件（内嵌响应式 CSS、浅 / 深两套 CSS 变量配色、全局 `:focus-visible` 聚焦环、主题切换、思考折叠、ToolCall 折叠与代码复制 Vanilla JS；每个 `pre` 是其复制按钮的定位容器，工具栏在窄屏换行；两套配色的文字对比度 ≥ 4.5、输入框边缘与聚焦环 ≥ 3，由 `tests/services/session_export` 钉住；`system` 主题没有单独规则，沿用浅色配色） | ✅ |
 | `session_export_service.py` | 应用服务 | 协调会话数据提取、脱敏处理、HTML 编译以及 HMAC 只读分享链接生成 | ✅ |
 | `__init__.py` | 门面 | 导出服务单例与领域模型 | ✅ |

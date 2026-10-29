@@ -6,10 +6,12 @@
 """
 
 import html
+
 from markdown_it import MarkdownIt
 
 from app.services.session_export.export_types import (
     ExportHtmlOptions,
+    ExportTheme,
     ExportTurnMessage,
     InteractiveHtmlExportResult,
     RedactionSummary,
@@ -157,7 +159,7 @@ class InteractiveHtmlCompiler:
         body_html: str,
         message_count: int,
         redaction_summary: RedactionSummary,
-        default_theme: str,
+        default_theme: ExportTheme,
     ) -> str:
         esc_title = _esc(title)
         redact_badge = ""
@@ -175,8 +177,9 @@ class InteractiveHtmlCompiler:
   --bg: #f8fafc;
   --card-bg: #ffffff;
   --text: #0f172a;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --border: #e2e8f0;
+  --edge: #64748b;
   --primary: #4f46e5;
   --primary-light: #eef2ff;
   --user-bg: #eff6ff;
@@ -184,6 +187,11 @@ class InteractiveHtmlCompiler:
   --thinking-bg: #f1f5f9;
   --code-bg: #1e293b;
   --code-text: #f8fafc;
+  --user-accent: #2563eb;
+  --tool: #b45309;
+  --shield-bg: #ecfdf5;
+  --shield-text: #047857;
+  --shield-edge: #a7f3d0;
 }}
 [data-theme="dark"] {{
   --bg: #090d16;
@@ -191,47 +199,56 @@ class InteractiveHtmlCompiler:
   --text: #f1f5f9;
   --text-muted: #94a3b8;
   --border: #1f2937;
-  --primary: #6366f1;
+  --primary: #818cf8;
   --primary-light: #1e1e38;
   --user-bg: #1e293b;
   --user-border: #334155;
   --thinking-bg: #151d2f;
   --code-bg: #030712;
   --code-text: #f9fafb;
+  --user-accent: #60a5fa;
+  --tool: #d97706;
+  --shield-bg: #064e3b;
+  --shield-text: #6ee7b7;
+  --shield-edge: #047857;
 }}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+:focus-visible {{ outline: 2px solid var(--primary); outline-offset: 2px; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem 1rem; }}
 .container {{ max-width: 860px; margin: 0 auto; }}
 .top-nav {{ display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }}
 .top-nav h1 {{ font-size: 1.25rem; font-weight: 700; }}
-.top-controls {{ display: flex; align-items: center; gap: 0.5rem; }}
-.search-input {{ padding: 0.4rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text); font-size: 0.85rem; outline: none; }}
+.top-controls {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }}
+.search-input {{ padding: 0.4rem 0.75rem; border: 1px solid var(--edge); border-radius: 8px; background: var(--card-bg); color: var(--text); font-size: 0.85rem; }}
+.search-input::placeholder {{ color: var(--text-muted); opacity: 1; }}
 .btn {{ padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }}
 .btn:hover {{ background: var(--primary-light); border-color: var(--primary); }}
 .meta-bar {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; font-size: 0.8rem; color: var(--text-muted); }}
 .badge {{ padding: 0.2rem 0.6rem; border-radius: 9999px; font-weight: 600; font-size: 0.75rem; }}
 .badge-agent {{ background: var(--primary-light); color: var(--primary); }}
-.badge-shield {{ background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }}
-[data-theme="dark"] .badge-shield {{ background: #064e3b; color: #6ee7b7; border-color: #047857; }}
+.badge-shield {{ background: var(--shield-bg); color: var(--shield-text); border: 1px solid var(--shield-edge); }}
 .msg {{ margin-bottom: 1.5rem; padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card-bg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
 .msg.user {{ background: var(--user-bg); border-color: var(--user-border); }}
 .msg-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }}
 .role-badge {{ font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }}
-.role-badge.user {{ color: #2563eb; }}
+.role-badge.user {{ color: var(--user-accent); }}
 .role-badge.assistant {{ color: var(--primary); }}
 .timestamp {{ font-size: 0.75rem; color: var(--text-muted); }}
 .thinking-drawer, .tools-drawer {{ margin-bottom: 1rem; border-radius: 8px; background: var(--thinking-bg); border: 1px solid var(--border); padding: 0.5rem 0.75rem; font-size: 0.85rem; }}
-.thinking-drawer summary, .tools-drawer summary {{ cursor: pointer; font-weight: 600; user-select: none; outline: none; }}
+.thinking-drawer summary, .tools-drawer summary {{ cursor: pointer; font-weight: 600; user-select: none; }}
 .thinking-content {{ margin-top: 0.5rem; font-style: italic; color: var(--text-muted); font-size: 0.85rem; white-space: pre-wrap; }}
 .tools-container {{ margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }}
 .tool-call-item {{ background: var(--card-bg); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border); }}
-.tool-badge {{ font-family: monospace; font-size: 0.8rem; font-weight: 700; color: #d97706; }}
+.tool-badge {{ font-family: monospace; font-size: 0.8rem; font-weight: 700; color: var(--tool); }}
 .tool-detail {{ font-size: 0.8rem; margin-top: 0.25rem; }}
+pre {{ position: relative; }}
 .tool-detail pre {{ background: var(--thinking-bg); padding: 0.4rem; border-radius: 4px; overflow-x: auto; font-family: monospace; }}
 .msg-content {{ font-size: 0.95rem; word-break: break-word; }}
-.msg-content pre {{ position: relative; background: var(--code-bg); color: var(--code-text); padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }}
-.copy-btn {{ position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.15); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.72rem; cursor: pointer; }}
-.copy-btn:hover {{ background: rgba(255,255,255,0.3); }}
+.msg-content pre {{ background: var(--code-bg); color: var(--code-text); padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }}
+.copy-btn {{ position: absolute; top: 0.5rem; right: 0.5rem; background: #334155; color: #f8fafc; border: 1px solid #64748b; border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.72rem; cursor: pointer; }}
+.copy-btn:hover {{ background: #475569; }}
+.copy-btn:focus-visible {{ outline-color: #ffffff; outline-offset: -3px; }}
+.msg-content a {{ color: var(--primary); }}
 .msg-content code {{ background: var(--thinking-bg); padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.88em; }}
 .msg-content pre code {{ background: transparent; padding: 0; }}
 .msg-content table {{ width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.88rem; }}

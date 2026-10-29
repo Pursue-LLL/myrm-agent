@@ -16,7 +16,6 @@ oauthCredentials (tokens only; client_id/secret stay in server settings).
 
 from __future__ import annotations
 
-import html
 import logging
 import secrets
 import time
@@ -28,6 +27,7 @@ from myrm_agent_harness.toolkits.mcp.oauth import generate_pkce_pair
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.integrations import google_workspace_oauth_flow as flow
+from app.api.integrations.oauth_result_page import OAuthOutcome, oauth_result_response
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
@@ -110,25 +110,16 @@ async def handle_google_workspace_oauth_callback(
 ) -> HTMLResponse:
     """OAuth provider redirect target; exchanges code for tokens and persists credentials."""
     if error:
-        safe_msg = html.escape(error_description or error)
-        return HTMLResponse(
-            content=f"<html><body><h1>Authorization failed</h1><p>{safe_msg}</p></body></html>",
-            status_code=400,
-        )
+        logger.warning("Google OAuth provider ended the authorization: %r", error[:200])
+        return oauth_result_response(OAuthOutcome.DENIED, detail=error_description)
 
     pending = _pending_auth.pop(state, None)
     if not pending:
-        return HTMLResponse(
-            content="<html><body><h1>Invalid or expired OAuth state. Please restart the authorization flow.</h1></body></html>",
-            status_code=400,
-        )
+        return oauth_result_response(OAuthOutcome.EXPIRED)
 
     created_at = float(pending.get("created_at", "0"))
     if time.time() - created_at > flow.EXPIRY_SECONDS:
-        return HTMLResponse(
-            content="<html><body><h1>OAuth authorization timed out (10 minutes). Please restart.</h1></body></html>",
-            status_code=400,
-        )
+        return oauth_result_response(OAuthOutcome.EXPIRED)
 
     token_data: dict[str, str] = {
         "grant_type": "authorization_code",
@@ -145,18 +136,13 @@ async def handle_google_workspace_oauth_callback(
 
         if resp.status_code != 200:
             logger.error("Google OAuth token exchange failed: %d %s", resp.status_code, resp.text[:300])
-            return HTMLResponse(
-                content=f"<html><body><h1>Token exchange failed (HTTP {resp.status_code}).</h1></body></html>",
-                status_code=400,
-            )
+            return oauth_result_response(OAuthOutcome.FAILED)
 
         result = resp.json()
         access_token = result.get("access_token")
         if not access_token:
-            return HTMLResponse(
-                content="<html><body><h1>Token exchange succeeded but access_token was missing.</h1></body></html>",
-                status_code=400,
-            )
+            logger.error("Google OAuth token response carried no access_token")
+            return oauth_result_response(OAuthOutcome.FAILED)
 
         refresh_token = result.get("refresh_token")
         if not refresh_token:
@@ -200,15 +186,11 @@ async def handle_google_workspace_oauth_callback(
             skill_auto_enabled,
             wiki_gmail_enabled,
         )
-        return HTMLResponse(content=flow.SUCCESS_HTML)
+        return oauth_result_response(OAuthOutcome.SUCCESS)
 
     except httpx.HTTPError as exc:
         logger.error("Google OAuth token exchange network error: %s", exc)
-        safe_exc = html.escape(str(exc))
-        return HTMLResponse(
-            content=f"<html><body><h1>Network error during token exchange</h1><p>{safe_exc}</p></body></html>",
-            status_code=500,
-        )
+        return oauth_result_response(OAuthOutcome.UNREACHABLE)
 
 
 @router.get("/status/{state}")

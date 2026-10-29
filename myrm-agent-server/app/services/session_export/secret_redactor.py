@@ -6,6 +6,7 @@
 """
 
 import re
+
 from app.services.session_export.export_types import RedactedPatternDetail, RedactionSummary
 
 PATTERNS: list[tuple[str, re.Pattern[str], str]] = [

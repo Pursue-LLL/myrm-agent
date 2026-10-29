@@ -180,7 +180,8 @@ class TestCallbackEndpoint:
             )
 
         assert resp.status_code == 200
-        assert "Authorization successful" in resp.text or "Authorization Successful" in resp.text or "window.close" in resp.text
+        assert "Authorization complete" in resp.text
+        assert "window.close" in resp.text
         mock_store.save_token_with_config.assert_called_once()
 
     def test_callback_invalid_state(self, client: TestClient) -> None:
@@ -189,7 +190,7 @@ class TestCallbackEndpoint:
             params={"code": "code", "state": "nonexistent-state"},
         )
         assert resp.status_code == 400
-        assert "Invalid or expired" in resp.text
+        assert "This authorization has expired" in resp.text
 
     def test_callback_error_param(self, client: TestClient) -> None:
         resp = client.get(
@@ -197,6 +198,7 @@ class TestCallbackEndpoint:
             params={"code": "", "state": "s", "error": "access_denied", "error_description": "User denied"},
         )
         assert resp.status_code == 400
+        assert "Authorization was not completed" in resp.text
         assert "User denied" in resp.text
 
     def test_callback_error_text_is_escaped(self, client: TestClient) -> None:
@@ -210,7 +212,7 @@ class TestCallbackEndpoint:
         assert payload not in resp.text
         assert html.escape(payload) in resp.text
 
-    def test_callback_network_error_text_is_escaped(self, client: TestClient) -> None:
+    def test_callback_network_error_text_stays_off_the_page(self, client: TestClient) -> None:
         state = self._setup_pending()
         payload = "<script>alert(1)</script>"
 
@@ -224,8 +226,9 @@ class TestCallbackEndpoint:
             resp = client.get(f"{API_PREFIX}/callback", params={"code": "c", "state": state})
 
         assert resp.status_code == 500
+        assert "Couldn't reach the service" in resp.text
         assert payload not in resp.text
-        assert html.escape(payload) in resp.text
+        assert html.escape(payload) not in resp.text
 
     def test_callback_expired_state(self, client: TestClient) -> None:
         from app.api.integrations.mcp_oauth import _pending_auth
@@ -246,7 +249,7 @@ class TestCallbackEndpoint:
             params={"code": "code", "state": state},
         )
         assert resp.status_code == 400
-        assert "timed out" in resp.text
+        assert "This authorization has expired" in resp.text
 
     def test_callback_token_exchange_http_failure(self, client: TestClient) -> None:
         state = self._setup_pending()
@@ -267,7 +270,8 @@ class TestCallbackEndpoint:
                 params={"code": "bad-code", "state": state},
             )
         assert resp.status_code == 400
-        assert "Token exchange failed" in resp.text
+        assert "Couldn't finish connecting" in resp.text
+        assert "HTTP" not in resp.text
 
 
 class TestStatusEndpoint:

@@ -1,11 +1,15 @@
 """Domain types and Pydantic models for Interactive Single-File HTML Export & Gist Share Bridge.
 
 [INPUT] None (Pydantic models)
-[OUTPUT] Pure domain types: ExportHtmlOptions, RedactionSummary, InteractiveHtmlExportResult, ShareLinkRequest, ShareLinkResponse.
+[OUTPUT] Pure domain types: ExportTheme, ExportHtmlOptions, RedactionSummary, InteractiveHtmlExportResult, ShareLinkRequest, ShareLinkResponse.
 [POS] app/services/session_export/export_types.py
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+ExportTheme = Literal["system", "light", "dark"]
 
 
 class RedactedPatternDetail(BaseModel):
@@ -30,7 +34,7 @@ class ExportHtmlOptions(BaseModel):
     include_thinking: bool = True
     include_tool_calls: bool = True
     enable_redaction: bool = True
-    theme: str = "system"  # 'light' | 'dark' | 'system'
+    theme: ExportTheme = "system"
 
 
 class ExportTurnMessage(BaseModel):
