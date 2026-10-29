@@ -102,7 +102,6 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "web_push",
         "widget_storage",
         "workbench",
-        "ws",
     }
 )
 
@@ -113,7 +112,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "artifacts",
         "auth",
         "background",
-        "backup",
         "bitable_copilot",
         "chat",
         "code_graph",

@@ -51,7 +51,6 @@ Design notes:
 | `turn_lease/` | ✅ 核心 | 服务端自启回合（目标续跑、审批超时恢复、崩溃重放）的会话占用 + 取消令牌租约，被取消时结束后台任务 | [_ARCH.md](turn_lease/_ARCH.md) |
 | `streaming_support/` | ✅ 核心 | SSE 格式化、Failover、内容收集、Multiplexer | [_ARCH.md](streaming_support/_ARCH.md) |
 | `adaptive_wakeup/` | ✅ 核心 | 后台任务与子智能体完成后的自适应唤醒：有界预算决定每次完成的去向、每次完成都留一条通知行、唤醒回合在会话空闲且用户没有叫停时于 `server_turn_lease` 下运行，详见 [adaptive_wakeup/_ARCH.md](adaptive_wakeup/_ARCH.md) | - |
-| `workload_delegation/` | ✅ 辅助 | 本地执行态移交云沙箱的三个环节：委派状态机与带完整性指纹的信封、跨端进度广播、云端成果回拉的冲突检测 | [_ARCH.md](workload_delegation/_ARCH.md) |
 
 > **API 边界**：预置智能体模板实例化（`instantiate-template`）在 `app/api/agents/templates.py`，不在本 services 层。
 

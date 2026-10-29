@@ -169,7 +169,6 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `session_map/` | direct DB aggregation over chat and project models |
 | `system_assistant/` | in-module natural-language system control routes |
 | `workbench/` | in-module workspace file tree, command and plugin routes |
-| `ws/` | in-module WebSocket heartbeat and reconnect controllers (adaptive heartbeat, jittered backoff) |
 
 ### `services/` only — no matching `api/<same-name>/`
 
@@ -191,7 +190,6 @@ Called from other HTTP trees or lifecycle hooks:
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
-| `backup/` | Disaster-recovery wizard, full-stack snapshot exporter, incremental backup engine — library only, exercised by `tests/unit/core/backup`, no HTTP route yet |
 | `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.

@@ -39,13 +39,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
 | `blueprints.py` | 核心 | 自动化蓝图单一数据源：21 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `seo_weekly_audit`、`wiki_maintain`、`wiki_vault_weekly_health` 与 commerce/marketing 系列等）。无人值守 job 被 Capability Fence 限定在所声明能力内，故每个蓝图声明的 `required_capabilities` 必须覆盖其 prompt 点名的工具；无人值守写文件只由 `file_write` 声明放行，保存文件的蓝图（`seo_weekly_audit`、`viral_quote_discovery`）须声明它（均由 `tests/core/cron/test_blueprint_capability_contract.py` 守护） | — |
 | `blueprint_i18n_supplement.py` | 核心 | ja/de/ko 蓝图文案补充模块，导入时合并进 `BUILTIN_BLUEPRINTS` | — |
-| `__init__.py` | 入口 | 导出相对延迟解析、多频日程、生命周期账本与调度服务四组类型；`adapters/` 不经此入口 | ✅ |
-| `relative_delay_parser.py` | 未接入 | `RelativeDelayParser.parse`：把 `+5m`、`30分钟后`、`明天上午09:00` 等表达式按基准时间解析为绝对 UTC 时间戳（`ParsedRelativeDelay`），非法表达式抛 `RelativeDelayParseError` | ✅ |
-| `multi_frequency_descriptor.py` | 未接入 | `MultiFrequencyDescriptorEngine`：`FrequencyKind`（一次性相对 / 绝对、每小时、每天、工作日、每周、每月）的 `ScheduleDescriptor` 求下一次触发时刻并生成中文摘要，推算不了抛 `ScheduleCalculationError` | ✅ |
-| `lifecycle_archive_ledger.py` | 未接入 | `LifecycleArchiveLedger`：任务 pending → running → completed / failed → archived 的状态与记录；一次性任务完成、不可重试的失败或取消后移入归档区，经注入回调熄灭关联智能体的活跃标记，`clean_expired_archives` 清理过期归档 | ✅ |
-| `universal_visual_scheduler.py` | 未接入 | `UniversalVisualScheduler`：用解析器、日程引擎与账本注册一次性 / 周期任务，`process_due_tasks` 并发执行到期任务；一次性任务执行后归档，周期任务排下一轮 | ✅ |
-
-上表标「未接入」的四个文件自成一组：`app/` 内没有包外导入（含 `__init__.py` 的导出，包本身也没有包外导入），只有 `tests/unit/core/cron/test_one_off_relative_delay_scheduler.py` 引用；生产调度走 `adapters/setup.py` 组装的 harness `CronScheduler`。
+| `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
 ---
 
