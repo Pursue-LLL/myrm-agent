@@ -48,3 +48,23 @@ repos:
         pass_filenames: false
         files: ^myrm-agent-harness/
         description: "Reject tests asserting on raw .py source text; assert on the ast tree so reformatting cannot break them (incremental: changed tests only)"
+
+      - id: server-fractal-docs-check
+        name: Server Fractal Docs Coverage
+        entry: >-
+          bash -c 'cd myrm-agent-server &&
+          python3 scripts/check_fractal_docs.py &&
+          python3 scripts/check_fractal_docs.py --strict-headers --header-baseline tests/architecture/data/fractal_header_baseline.txt &&
+          python3 scripts/check_fractal_docs.py --no-stub'
+        language: system
+        pass_filenames: false
+        files: ^myrm-agent-server/(app/|scripts/check_fractal_docs\.py$|tests/architecture/data/fractal_header_baseline\.txt$)
+        description: "Ensure every directory under app/ has _ARCH.md, every non-trivial module has a file header, and no _ARCH.md in the guarded paths is a stub (the same three commands as the server-fractal-docs CI job)"
+
+      - id: frontend-fractal-docs-check
+        name: Frontend Fractal Docs Coverage
+        entry: bash -c 'cd myrm-agent-frontend && python3 scripts/check_fractal_docs.py --no-stub'
+        language: system
+        pass_filenames: false
+        files: ^myrm-agent-frontend/(src/|scripts/check_fractal_docs\.py$|scripts/ci/fractal_docs_baseline\.txt$)
+        description: "Ensure strict roots and every recursive-scan directory with .ts/.tsx source has _ARCH.md (same command as the frontend-build CI job)"
