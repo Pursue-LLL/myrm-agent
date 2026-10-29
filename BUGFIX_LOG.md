@@ -2,6 +2,42 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-30 · Matrix 出站事件都不带 `m.mentions`：谁被提及交给服务器按正文里的显示名去猜，文件名里的 @名字也可能 @ 到人
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交 `2f0a1a4933`；未 push）。「仍然存在」里的 4 项未处理。 |
+| **症状** | [代码+红测] `MatrixChannel` 发出的文本事件、编辑事件与媒体事件的内容里都没有 `m.mentions`（文本事件只有 `msgtype`、`body` 和可选的 `format`、`formatted_body`）。Matrix 规范（核对原文，spec.matrix.org 最新版「User and room mentions」一节）写明：早期版本靠正文里的显示名、用户 ID 本地部分和 `@room` 触发提及，引入 `m.mentions` 之后这些规则在事件带 `m.mentions` 时关闭，所以「为避免仍使用旧规则的客户端与服务器产生意外通知，建议每个事件都带 `m.mentions`，没有提及时用空对象」；旧规则在规范 v1.17 才被移除。结果：仍在旧规则下的房间里，一个名叫 `report @alice.pdf` 的文件、或智能体文本里没转换成功的 `@alice`，都可能让成员收到通知；真正被点名的成员反过来只靠正文关键字匹配，没有精确依据。 |
+| **根因** | 出站载荷由 `build_text_payload` 与 `send_media_event` 手写，只考虑了 `msgtype`、`body` 与 HTML 渲染；`@name` 转成完整 Matrix ID 的 `convert_matrix_mentions` 只返回改写后的文本，没有告诉载荷哪些成员被点名，也没有测试断言过 `m.mentions`。 |
+| **修复** | `channels/providers/matrix/html.py:196` 新增 `mentioned_user_ids`（与 `convert_matrix_mentions` 共用 `:201` 的 `_mention_replacements`：代码块与行内代码里的 `@name` 不算，只有房间成员才算，每个成员只列一次、按出现顺序）；`:124` `build_text_payload(text, mentioned_user_ids)` 总是写 `m.mentions`：有成员写 `{"user_ids": [...]}`，没有写空对象，从不写 `room`；`channel.py:235` 发送时在改写文本之前取成员 ID；编辑 `channel.py:259` 的顶层是空对象，`m.new_content` 里同样是空对象（规范：顶层只放这次修订新增的提及，`m.new_content` 放最终版本的提及；编辑不转换提及，所以两处都为空）；`media.py:163` 的媒体事件是空对象。顺带清掉 `media.py` 的 8 条 mypy 报错（3 处写错错误码的 `type: ignore`、`att.url` 空值收窄），行为不变。 |
+| **回归证据** | [1] 红绿：`tests/channels/providers/matrix/test_matrix_wire_payloads.py` 19 例，改动前 14 例失败（5 个原有的整体载荷断言补上 `m.mentions`，加上新增的 9 例：点名成员、重复与顺序、回复同时带关系与提及、不是成员或在代码块里或 `@room` 或没有提及都为空对象、编辑为空对象、文件名里的 `@alice` 不触发），5 例（重试、超时、拒绝）本来就过；改动后全部通过；`test_matrix_mentions.py` 新增 3 例直接测 `mentioned_user_ids`（与转换结果一致）；`tests/channels/providers/matrix` 与 `tests/channels/implementations` 共 182 通过。[2] 变异 8 个（永不点名、文本不带 `m.mentions`、多写 `room`、重复 ID 不去重、代码块内也算、编辑少顶层字段、发送忽略成员、媒体不带）全部被打红。[3] `ruff` 无报错；`mypy` 对改动文件无报错。 |
+| **仍然存在** | ① 没有在真实 homeserver 与客户端（如 Element）上验证：旧规则下的通知是否因此不再触发、编辑后最终版本的 `m.mentions` 为空时客户端是否取消高亮，都只按规范原文推断。② 规范建议同时在 `formatted_body` 里放指向被提及用户的 matrix.to 链接，让客户端显示为提及标签；本次没有做，正文里仍是纯文本的完整 Matrix ID。③ 实测 `extract_safe_regions`：一行里的三反引号围栏紧跟行内代码（如 `` ```@alice``` `@bob` ``）时，`@bob` 被当成提及（多行围栏写法正常），这是原有行为，没有改。④ 流式编辑的文本不经 `convert_matrix_mentions`，编辑里的 `@name` 保持原样，既不转换也不提及。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/matrix/html.py:124,196,201` · `channel.py:235,259` · `media.py:163` · `tests/channels/providers/matrix/test_matrix_wire_payloads.py` · `tests/channels/providers/matrix/test_matrix_mentions.py` |
+
+## 2026-10-30 · 云端 Telegram 的长度上限按字符数计、emoji 算一个：4096 个字符的回复实际有 4106 个 UTF-16 单位，整条发出、整条编辑
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-control-plane` 本地提交 `5c0a712`；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | [探针，改动前，已删除] 4086 个 `a` 加 10 个 emoji 是 4096 个码点、4106 个 UTF-16 单位：`TelegramGatewayClient.send_message` 只发出 1 条消息（4106 单位），`edit_message` 返回 `True` 并发出编辑请求。Bot API 页面（核对原文）写 `sendMessage`、`editMessageText` 的文本为「解析实体之后 1-4096 个字符」，没有写单位；同一页面写明 `MessageEntity` 的 `offset` 与 `length` 按 UTF-16 单位计。 |
+| **根因** | 「云端 Discord 的长回复被截断、Telegram 的长回复被整条丢弃」一条引入的 `split_text` 与编辑检查按 Python 字符（码点）计长，一个 emoji 计 1，而 Telegram 自己用 UTF-16 单位，一个 emoji 计 2；含大量 emoji 的长回复会比上限多出一截。 |
+| **修复** | `gateway/channels/text_chunks.py:33` `split_text(text, limit, *, measure=len)` 增加长度函数（要求对拼接可加、每个字符至少计 1）；`:28` `utf16_len`（孤立代理项按 1 计，不抛错）；切点由 `_fit` 二分求出「最多能装下多少个字符」，代码块重开行的长度上限判断同样按该单位。`telegram/client.py:82` 发送传 `measure=utf16_len`，`:101` 编辑检查改用 `utf16_len`（拒绝时日志写明单位）。Discord 不变。没有 emoji 的文本，切法与改动前逐字一致。 |
+| **回归证据** | [1] 红绿：`tests/unit/gateway/test_egress_long_text.py` 23 例增至 39 例；Telegram 发送与编辑用例在 `split_text` 先行改完、客户端未接线时失败（发送得到 1 条、编辑返回 `True`），接线后通过；`tests/unit/gateway` 共 304 通过。[2] 对照：3000 个随机文本（字母表含中文、空格、换行、反引号、围栏与代码块开头，上限 128 至 400）新旧实现输出逐字相同，`measure=utf16_len` 对无 emoji 文本同样相同；另 3000 个含 emoji 的随机文本没有任何片段超过上限（内容不丢由单测覆盖）。[3] 变异 9 个，第一轮存活 3 个（前缀预算按字符、围栏关闭检查按字符、切点阈值取预算而非能装下的字符数），补 2 个用例（emoji 信息串的代码块、emoji 多时的切点）后全部被打红。[4] 耗时（1.1 MB 无 emoji 文本，5 次取最小）：改动前 6.9 ms，改动后默认 8.4 ms，`utf16_len` 40.5 ms；一条回复的量级是毫秒。[5] `ruff`、`mypy` 对改动文件无报错。 |
+| **仍然存在** | ① 官方没写 4096 的单位，按 UTF-16 计是保守方向：不会让原本能发的消息变得发不出，只会让含 emoji 的长文提前多拆一条；没有在真实 Telegram 上验证。② Discord 的 2000 仍按码点计，官方单位没有核对，没有改。③ server 自己的 Telegram 渠道（本地与桌面）的拆分没有核对，本次只改了控制平面。 |
+| **代码位置** | `myrm-control-plane/src/myrm_control_plane/gateway/channels/text_chunks.py:28,33` · `gateway/channels/telegram/client.py:82,101` · `tests/unit/gateway/test_egress_long_text.py` |
+
+## 2026-10-30 · 渠道 webhook 路由在处理器跑完后一律返回 500：`FastAPIRouteRegistrar` 调用了从未赋值的 `self.metrics` 与 `self.permission_checker`
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交 `3dcde9a9bb`；未 push）。「仍然存在」里的 3 项未处理。 |
+| **症状** | [代码+探针+红测] `FastAPIRouteRegistrar` 的包装函数在处理器返回之后调用 `self.metrics.record_request(...)`，认证分支另外调用 `self.permission_checker(...)`，而 `__init__` 从未给这两个属性赋值（自初始提交 `87605a3d2e` 起）。那次调用在 `try` 内，异常分支里又调用了一次 `self.metrics.record_request`，`AttributeError` 因此逃出包装函数，FastAPI 回 500。探针（已删除）：注册一个返回 200 的路由并请求它，处理器执行 1 次，响应 500，`hasattr(registrar, "metrics")` 为 `False`。结果是处理器已经把消息处理了，平台却收到 500；飞书 webhook 模式的 URL 校验响应（回显 challenge）发不出去，订阅无法通过校验。影响面：本地、桌面与有公网入口的自托管部署里，经这个注册器注册路由的只有 Telegram（webhook 模式）、飞书（webhook 模式）、Teams、SMS 四个渠道，全部 `requires_auth=False`；云托管实例的入站走控制平面再转给沙箱的 `/api/channel/message`，不经过它。 |
+| **根因** | 遥测与权限检查是只做了一半的设施：定义了 `RouteMetricsProtocol` 与 `permission_checker` 的调用，构造函数从未接线，也没有任何地方读取这些指标。没有测试让请求经过真实的注册器，原有 9 例只检查「路径是否登记」，所以一直是绿的。 |
+| **修复** | 删除只写不读的遥测（`protocols/metrics.py` 256 行，注册器里 7 处 `record_request` 与计时变量）、没有赋值的 `permission_checker` 分支，以及全仓无其他使用方的 `RouteMetadata.required_permissions`（删除前检索确认）。已认证与开放路由原先各有一份约 100 行几乎相同的包装函数，现在共用 `registrar.py:273` 的 `_dispatch`（限流、调用处理器、CORS、失败统一为不泄露内部信息的 JSON 500）和 `:259` 的 `_error_response`，`registrar.py` 由 459 行降到 327 行。保留限流、CORS、路径安全策略与 `requires_auth` 变体。`RouteMetadata` 文档里不存在的 `RedisRateLimiter`、「Multi-user Server」「Control plane」改成当前事实。同文件的 mypy 报错一并清掉（属性不存在、响应类型、条件定义的函数签名不一致、缺类型参数）。 |
+| **回归证据** | [1] 红绿：新增 `tests/channels/implementations/fastapi/test_registrar_http.py` 15 例，请求经真实 `FastAPIRouteRegistrar` 与 `TestClient`：处理器响应原样到达、处理器抛错得到不泄露内部信息的 JSON 500、限流返回 429 且不进处理器、开放路由按客户端地址限流、认证路由按用户限流、CORS 头加在成功与错误响应上；飞书 URL 校验回显 challenge 与令牌错误 403；Telegram 密钥正确、密钥错误、非 JSON 三种；Teams 未配置应用 ID 时放行与配置后缺令牌 403；SMS 带签名放行（空 TwiML、`application/xml`）与坏签名 403。改动前 15 例全部失败，改动后通过，`tests/channels/implementations` 共 38 例通过。[2] 变异 5 个（跳过限流、认证路由按主机限流、错误响应不加 CORS、500 泄露异常文本、遥测回归）全部被打红。[3] 相关渠道套件（实现层、路由注册、飞书、SMS、Telegram、Teams）1591 通过；`ruff` 无报错；`mypy` 对改动的两个源文件无报错。 |
+| **仍然存在** | ① 没有在真实平台上验证：飞书事件订阅、Teams、SMS、Telegram webhook 修复后的真实往返，以及各平台对 500 的反应（重试、停用订阅），都没有观察。② 飞书是否要求响应带 `Content-Type: application/json`：官方文档需要脚本渲染，没有核对；注册器的响应适配器不带 `Content-Type`，处理器没有设置时就不会发。③ 四个渠道的处理器各自用内联类构造响应，没有类型化。 |
+| **代码位置** | `myrm-agent-server/app/channels/implementations/fastapi/registrar.py:259,273,308` · `app/channels/protocols/route_registrar.py:82-111` · `app/channels/protocols/_ARCH.md` · `tests/channels/implementations/fastapi/test_registrar_http.py` |
+
 ## 2026-10-29 · 入站日志重放回来的不是用户发的那条消息：21 个字段只还原 8 个，附件、引用回复、群上下文、发送时间都丢；停机取消的运行中回合既不重放也不告诉聊天
 
 | 字段 | 内容 |
@@ -95,7 +131,7 @@
 | **根因** | 两个客户端把「一条回复」当成「一条平台消息」，没有拆分步骤；Discord 用切片掩盖了超限，Telegram 把失败当成普通错误日志。 |
 | **修复** | 新增 `gateway/channels/text_chunks.py:25` `split_text(text, limit)`：在每段后半部分里最后一个换行（没有则最后一个空格）处切，没有这样的位置才在上限处硬切；跨越切口的代码围栏在前一段末尾关闭、后一段开头重开；不产出只含空白的片段；上限小于 128 抛 `ValueError`。`discord/client.py` 与 `telegram/client.py` 的 `send_message` 按上限拆成多条依次发出，只有第一条带回复引用（Telegram 每条都留在同一话题里），某一条被拒绝就停止发送，返回第一条的消息号并记录丢失的尾部；`update_message`/`edit_message` 装不进一条消息时拒绝（返回 `False` 并记日志）而不是截断，因为一次编辑拆不成多条。 |
 | **回归证据** | [1] 新增 `tests/unit/gateway/test_egress_long_text.py` 23 例：拆分的内容保全、各片段不超限、换行与空格优先、围栏跨段的关闭与重开、空白片段、下限；Discord 与 Telegram 的发送（多条、回复引用只在第一条、话题保留、中途被拒绝返回第一条的消息号）与编辑（刚好等于上限放行、多一个字拒绝且不发请求）。[2] 变异 20 个（切口窗口少一、围栏不关闭或不重开、不重切、空白片段保留、下限检查去掉、短文本也拆、每条都带回复、失败返回 `None`、编辑上限差一或再次截断、Telegram 话题只在第一条、两个平台上限改小）全部被打红；第一轮存活的「空白尾部保留」与「短文本提前返回」补了用例后同样被打红。[3] `ruff`、`mypy` 对改动文件无报错；控制平面单元测试整体 1601 通过、1 失败（`test_sandbox_runtime_protocol.py::test_unpause_delegates`，在 `infra/compute/docker_operations/lifecycle.py:121` 抛 `RuntimeError: Container did not become running`，这两个提交只改了 `gateway/` 与 `tests/unit/gateway/`）。 |
-| **仍然存在** | ① 没有在真实 Discord、Telegram 上验证：上限取自官方文档，客户端只用 `httpx` 替身验证。② 云端编辑装不进一条消息时现在返回 `False`；服务端收到这个失败后是否回退为新消息（服务端只在编辑抛出时回退，见上方「渠道的编辑被平台拒绝时不报错」一条），没有端到端核对。③ 长度按 Python 字符（码点）计，Telegram 文档写的是解析实体之后的字符数，含 emoji 等非 BMP 字符时的计数差异没有核对。 |
+| **仍然存在** | ① 没有在真实 Discord、Telegram 上验证：上限取自官方文档，客户端只用 `httpx` 替身验证。② 云端编辑装不进一条消息时现在返回 `False`；服务端收到这个失败后是否回退为新消息（服务端只在编辑抛出时回退，见上方「渠道的编辑被平台拒绝时不报错」一条），没有端到端核对。③ 长度按 Python 字符（码点）计，Telegram 文档写的是解析实体之后的字符数，含 emoji 等非 BMP 字符时的计数差异已处理，见 2026-10-30 的「云端 Telegram 的长度上限按字符数计」一条。 |
 | **代码位置** | `myrm-control-plane/src/myrm_control_plane/gateway/channels/text_chunks.py:25` · `gateway/channels/discord/client.py:25,68-100` · `gateway/channels/telegram/client.py:26,69-101` · `tests/unit/gateway/test_egress_long_text.py` |
 
 ## 2026-10-29 · 云端实例的 Slack、Discord、飞书出站能通知整个频道或服务器：控制平面的客户端不处理广播提及
