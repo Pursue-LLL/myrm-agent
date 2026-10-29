@@ -138,8 +138,7 @@ def test_every_code_the_harness_can_send_is_worded_in_every_catalog_language(cod
 
     first_line = card.label.split("\n")[0]
     assert "approval_reason_" not in first_line and "Path outside allowed zones" not in first_line
-    if code is not ApprovalReasonCode.SHELL_THREAT:
-        assert "/data/spec.md" in first_line  # the subject sits inside the sentence
+    assert "/data/spec.md" in first_line  # the subject sits inside the sentence
     if locale != "en":
         assert first_line != english.label.split("\n")[0]
 

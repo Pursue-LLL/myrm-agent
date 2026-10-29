@@ -11,10 +11,10 @@
 [POS]
 Turns the harness approval payload into the card the chat shows: what needs approval, how long the wait lasts and what
 the timeout decides, plus the answer buttons. The wording and the buttons come from the channel catalog in the sender's
-language; tool names are shown as they are. A reason the harness coded is worded from the catalog too, and one it
-did not code is shown as written. The time limit also travels as
-``ProgressUpdate.expiry`` so the router times the wait out with the same number the card states, and the session of the
-asking run as ``ProgressUpdate.session_key`` so the answer resumes that session's chat.
+language; tool names are shown as they are. A reason the harness coded is worded from the catalog too; one it did not
+code is shown as written. The time limit also travels as ``ProgressUpdate.expiry`` so the router times the wait out
+with the same number the card states, and the session of the asking run as ``ProgressUpdate.session_key`` so the
+answer resumes that session's chat.
 """
 
 from __future__ import annotations

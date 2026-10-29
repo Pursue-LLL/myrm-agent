@@ -9851,7 +9851,7 @@
       "git_metadata_write": "這一步操作要修改 Git 設定，這些設定之後可能自動執行指令：{subject}",
       "sensitive_file": "該檔案可能包含隱私資訊：{subject}",
       "domain_requires_approval": "該域名不在已允許的名單中：{subject}",
-      "shell_threat": "這條指令需要你確認後才會執行"
+      "shell_threat": "這條指令需要你確認後才會執行：{subject}"
     },
     "highRiskIntercepted": {
       "title": "半自動模式高危操作攔截",

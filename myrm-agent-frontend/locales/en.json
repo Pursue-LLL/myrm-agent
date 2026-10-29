@@ -9851,7 +9851,7 @@
       "git_metadata_write": "This action would change Git settings that can run commands later: {subject}",
       "sensitive_file": "This file may contain private information: {subject}",
       "domain_requires_approval": "This domain is not on the allowed list: {subject}",
-      "shell_threat": "This command needs your confirmation before it runs"
+      "shell_threat": "This command needs your confirmation before it runs: {subject}"
     },
     "highRiskIntercepted": {
       "title": "Semi-auto mode blocked a high-risk action",

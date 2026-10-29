@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-090 · 同一类前缀判断还有三处：技能安装目标检查、技能隔离区写入、项目提升写入用字符串前缀判断「在不在目录里」，与目录同名前缀的同级目录被当成里面
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `backends/skills/scanning/path_security.py`、`agent/skills/market/service.py`；server `app/services/workspace/promotion/service.py`；测试 `tests/backends/skills/scanning/test_path_security.py`、`tests/agent/skills/market/test_service_install.py`、server `tests/services/workspace/test_promotion_service.py`（新）；没有改提示词、工具与控制平面）。接着 `BUG-HARNESS-2026-10-29-085`：那条只修了审计钩子，这里是对同一写法做全仓扫描的结果。 |
+| **发现时间** | 2026-10-29（对 085 做对抗式复核：全仓搜 `startswith(` 接目录类变量、`str(path).startswith(str(root))` 两种写法，共 3 处命中真缺陷；另有 4 处命中经读码判定不是边界判断（只用于显示路径、记录访问、带分隔符的前缀、提交哈希），没动） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P4：三处都是纵深防御，现有代码里没有可达的利用路径。技能安装目标的两个生产调用（`market/service.py:509`、`market/transaction.py:180`）都没传根目录，所以「逃出安装根」这一支今天只有测试走到；隔离区目录名带 `mkdtemp` 的随机后缀，同名前缀的同级目录无法事先猜到；提升写入的文档路径是引擎里的两个常量（`docs/scratchpad_origin.md`、`README.md`）。但三道检查本身拦不住同名前缀的同级目录，修复前的失败测试证明了这一点：隔离区写入真的写出了隔离区（`quarantine-evil/escape.txt` 存在）、提升写入真的写出了项目目录（`../alpha-evil/note.md` 进了 `created_files`）、安装目标检查对 `skills-evil/rogue_skill` 不报错。 |
+| **关联产品** | 技能市场安装与隔离区；工作区的草稿提升为项目。 |
+| **根因** | 三处都用 `str(resolved).startswith(str(root))` 判断；字符串前缀不看路径段边界。代码库里已有用 `is_relative_to` 的写法（`core/security/path/filesystem.py::is_within_boundary`），这三处没有用。 |
+| **修复** | 三处都改成 `resolved.is_relative_to(root)`（`path_security.py:171`、`market/service.py:639`、`promotion/service.py:85`），调用前两边都已 `resolve()`，语义与原来一致，只是按路径段比较。顺带修了这两个 harness 文件原有的 7 个 mypy 错误：`CategoryBucketCollisionError` 的两个属性补了类型声明，`search` 里重复定义的 `raw_results` 改成先声明一次，三个 `_emit` 补了 `-> None`，预览里读 `extra_manifest` 的两处 `update` 先确认是字典再合并（行为变化：`requirements` 或 `dependencies` 不是字典时，原来抛异常、整份依赖报告被跳过，现在只忽略这一项）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 市场安装的既有测试 `test_quarantine_writes_files_and_blocks_path_escape` 名字写着「拦住路径逃逸」，却只断言安装成功，什么都没验证；改成把 `mkdtemp` 固定到已知目录，并断言两个逃逸文件都不存在。② 提升写入的路径是常量，没法从接口打到那一行，所以测试直接换掉 `compile_seed`，放进服务级测试而不是接口测试。 |
+| **回归** | [1] 先写测试再修：3 个新用例在修复前失败（隔离区、提升写入、安装目标各 1），修复后通过；另有 2 个守住正常路径（目标在根里仍放行、根里的文档仍写入）。[2] harness `tests/backends/skills` 与 `tests/agent/skills` 2687 例通过（1 例是配置里本来就排除的）；server `tests/services/workspace` 与 `tests/api/workspace/test_promotion_api.py` 47 例通过。[3] ruff、格式、mypy 对这些文件干净。 |
+| **仍然存在** | ① 全仓扫描只覆盖了两种写法；用 `os.path.commonpath`、或先转小写再比较的判断没有搜。② 三处在 Windows 上的大小写行为没验证（`resolve()` 不统一大小写）。③ 技能安装目标检查的「逃出安装根」一支，生产调用都没传根目录，修好的判断今天没有生产入口；是否要让调用方传根目录，没有改。 |
+| **代码位置** | `backends/skills/scanning/path_security.py:171` · `agent/skills/market/service.py:639` · server `app/services/workspace/promotion/service.py:85` · 测试同上。 |
+
 ### BUG-HARNESS-2026-10-29-087 · Windows 非 ASCII 文本靠「写剪贴板再 Ctrl+V」输入：清掉用户的非文本剪贴板、粘贴竞态、写入静默失败，凭据也进剪贴板
 
 | 字段 | 内容 |

@@ -34,6 +34,9 @@ class PathRedirectSecurityError(PermissionError, ValueError):
 class CategoryBucketCollisionError(FileExistsError, ValueError):
     """Raised when an installation target collides with an existing category directory containing sibling skills."""
 
+    target_path: Path | None
+    sub_skills: list[str]
+
     def __init__(
         self,
         message: str | Path,
@@ -165,7 +168,7 @@ def assert_safe_install_target(
         b = Path(effective_base).resolve()
         try:
             resolved = p.resolve()
-            if not str(resolved).startswith(str(b)):
+            if not resolved.is_relative_to(b):
                 raise PathRedirectSecurityError(
                     f"Target path '{p}' escapes installation root '{b}'",
                     target_path=p,

@@ -145,7 +145,7 @@ export default function ApprovalDetails({
       )}
 
       {reasonText && (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground break-words">
           <span className="font-medium">{t('reason')}:</span> {reasonText}
         </div>
       )}

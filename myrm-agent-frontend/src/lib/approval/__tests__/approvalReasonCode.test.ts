@@ -6,8 +6,6 @@ import { describe, expect, it } from 'vitest';
 import { APPROVAL_REASON_CODES, parseApprovalReasonCode } from '@/lib/approval/approvalReasonCode';
 
 const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
-/** A code that names no path, file or domain has no subject to show. */
-const CODES_WITHOUT_SUBJECT = new Set(['shell_threat']);
 
 function reasonCopy(locale: string): Record<string, unknown> {
   const messages = JSON.parse(readFileSync(path.join(process.cwd(), 'locales', `${locale}.json`), 'utf8')) as {
@@ -41,6 +39,6 @@ describe.each(LOCALES)('approval reason copy in %s', (locale) => {
 
     expect(typeof text).toBe('string');
     expect((text as string).trim()).not.toBe('');
-    expect((text as string).includes('{subject}')).toBe(!CODES_WITHOUT_SUBJECT.has(code));
+    expect((text as string).includes('{subject}')).toBe(true);
   });
 });

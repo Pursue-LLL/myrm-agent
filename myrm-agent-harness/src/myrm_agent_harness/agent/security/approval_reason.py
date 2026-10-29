@@ -30,7 +30,7 @@ class ApprovalReasonCode(StrEnum):
 
 
 class CodedReason(str):
-    """An engine reason that also carries which decision wrote it (``code``) and what it is about (``subject``).
+    """An engine reason that also carries which decision wrote it (``code``) and what it is about (``subject``: a path, file name or domain, or what the shell analyzer found).
 
     It is the text itself, so every consumer of a reason string keeps working. Any rewording of it (a prefix, an
     appended note) yields a plain ``str``, which drops the code: a card shows a code only for text the engine wrote

@@ -3,9 +3,20 @@
 Path policy evaluation, URL scheme validation, and shell threat analysis.
 All checks are pure functions — no side effects, no I/O, trivially testable.
 
+[INPUT]
+- approval_reason::ApprovalReasonCode, CodedReason (POS: tags each decision that waits for a human with a stable code)
+- path_security (POS: protected-file, sensitive-file and boundary predicates)
+- types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
+- toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
+
+[OUTPUT]
+- check_path_policy: the verdict for one host path; an ASK reason is a CodedReason
+- check_navigate_scheme: the verdict for a navigation URL's scheme
+- check_shell_threats: the verdict for a shell command; an escalation reason is a CodedReason
 
 [POS]
-See module docstring.
+Layers 2 and 2.5 of the permission engine's deterministic evaluation: per-call checks the engine composes with its
+rule lookup.
 """
 
 from __future__ import annotations
@@ -245,4 +256,4 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
     reason = f"Shell threat [{first.category}]: {first.detail}"
     if first.level == ThreatLevel.BLOCK:
         return PermissionAction.DENY, reason
-    return PermissionAction.ASK, CodedReason(reason, ApprovalReasonCode.SHELL_THREAT)
+    return PermissionAction.ASK, CodedReason(reason, ApprovalReasonCode.SHELL_THREAT, first.detail)

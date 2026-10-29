@@ -9851,7 +9851,7 @@
       "git_metadata_write": "Diese Aktion würde Git-Einstellungen ändern, die später Befehle ausführen können: {subject}",
       "sensitive_file": "Diese Datei kann private Informationen enthalten: {subject}",
       "domain_requires_approval": "Diese Domäne steht nicht auf der Liste erlaubter Domänen: {subject}",
-      "shell_threat": "Dieser Befehl muss bestätigt werden, bevor er ausgeführt wird"
+      "shell_threat": "Dieser Befehl muss bestätigt werden, bevor er ausgeführt wird: {subject}"
     },
     "highRiskIntercepted": {
       "title": "Halbautomatik hat eine riskante Aktion blockiert",

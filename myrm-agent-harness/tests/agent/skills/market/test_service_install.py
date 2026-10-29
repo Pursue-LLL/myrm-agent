@@ -408,9 +408,13 @@ async def test_quarantine_blocks_critical_lifecycle_scripts(
 async def test_quarantine_writes_files_and_blocks_path_escape(
     service: BaseSkillMarketService,
     caplog,
+    tmp_path: Path,
 ) -> None:
     caplog.set_level("WARNING")
+    quarantine = tmp_path / "quarantine"
+    quarantine.mkdir()
     with (
+        patch("myrm_agent_harness.agent.skills.market.service.tempfile.mkdtemp", return_value=str(quarantine)),
         patch(
             "myrm_agent_harness.agent.skills.market.service.check_lifecycle_scripts",
             return_value=[],
@@ -430,12 +434,19 @@ async def test_quarantine_writes_files_and_blocks_path_escape(
         result = await service.install_files(
             "repo:alpha",
             "Alpha",
-            {"SKILL.md": b"# alpha", "../escape.txt": b"nope"},
+            {
+                "SKILL.md": b"# alpha",
+                "../escape.txt": b"nope",
+                # A sibling whose name merely starts with the quarantine directory's name is outside it.
+                "../quarantine-evil/escape.txt": b"nope",
+            },
             source="repo",
         )
 
     assert result.success is True
     assert result.skill_name == "Alpha"
+    assert not (tmp_path / "escape.txt").exists()
+    assert not (tmp_path / "quarantine-evil" / "escape.txt").exists()
 
 
 @pytest.mark.asyncio

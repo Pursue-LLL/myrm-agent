@@ -103,6 +103,23 @@ def test_assert_safe_install_target_blocks_root_escape(tmp_path: Path) -> None:
     assert "escapes installation root" in str(exc_info.value)
 
 
+def test_assert_safe_install_target_blocks_a_sibling_sharing_the_root_name_prefix(tmp_path: Path) -> None:
+    install_root = tmp_path / "skills"
+    install_root.mkdir()
+
+    with pytest.raises(PathRedirectSecurityError) as exc_info:
+        assert_safe_install_target(tmp_path / "skills-evil" / "rogue_skill", base_install_root=install_root)
+
+    assert "escapes installation root" in str(exc_info.value)
+
+
+def test_assert_safe_install_target_allows_a_target_inside_the_root(tmp_path: Path) -> None:
+    install_root = tmp_path / "skills"
+    install_root.mkdir()
+
+    assert_safe_install_target(install_root / "good_skill", base_install_root=install_root)
+
+
 def test_assert_safe_install_target_passes_for_clean_target(tmp_path: Path) -> None:
     install_root = tmp_path / "skills"
     install_root.mkdir()

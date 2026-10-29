@@ -2,12 +2,14 @@
 
 [INPUT]
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
+  approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
 - evaluate_tool_call(): deterministic evaluation (Layers 1–5)
   (capability → shell_command_analyzer → command_denylist → URL scheme check
    → domain HITL → path_policy → target-aware ruleset → risk_classifier fallback).
+  A domain that needs approval answers ASK with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
 - check_tool_path_policy(): strictest path-zone verdict over the host files a file tool names (engine and cron policy share it)

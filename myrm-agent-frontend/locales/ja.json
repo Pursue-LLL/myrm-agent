@@ -9851,7 +9851,7 @@
       "git_metadata_write": "この操作は、後からコマンドを実行しうる Git の設定を変更します：{subject}",
       "sensitive_file": "このファイルには個人情報が含まれている可能性があります：{subject}",
       "domain_requires_approval": "このドメインは許可リストにありません：{subject}",
-      "shell_threat": "このコマンドは、実行前にあなたの確認が必要です"
+      "shell_threat": "このコマンドは、実行前にあなたの確認が必要です：{subject}"
     },
     "highRiskIntercepted": {
       "title": "セミオートモードが高リスクの操作をブロックしました",

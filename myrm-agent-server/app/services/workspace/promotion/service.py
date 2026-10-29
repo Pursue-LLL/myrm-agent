@@ -82,7 +82,7 @@ class ProjectPromotionService:
         for doc in seed.seeded_documents:
             file_path = (target_dir / doc.relative_path).resolve()
             # Fencing check to avoid path traversal
-            if not str(file_path).startswith(str(target_dir)):
+            if not file_path.is_relative_to(target_dir):
                 logger.warning(f"Skipping dangerous path traversal document: {doc.relative_path}")
                 continue
             file_path.parent.mkdir(parents=True, exist_ok=True)

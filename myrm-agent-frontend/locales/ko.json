@@ -9851,7 +9851,7 @@
       "git_metadata_write": "이 작업은 나중에 명령을 실행할 수 있는 Git 설정을 변경합니다: {subject}",
       "sensitive_file": "이 파일에는 개인 정보가 들어 있을 수 있습니다: {subject}",
       "domain_requires_approval": "이 도메인은 허용 목록에 없습니다: {subject}",
-      "shell_threat": "이 명령은 실행하기 전에 확인이 필요합니다"
+      "shell_threat": "이 명령은 실행하기 전에 확인이 필요합니다: {subject}"
     },
     "highRiskIntercepted": {
       "title": "반자동 모드가 고위험 작업을 차단했습니다",

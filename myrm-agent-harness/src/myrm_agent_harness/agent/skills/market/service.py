@@ -218,12 +218,13 @@ class BaseSkillMarketService:
         is_browse = not cache_key
         now = time.time()
 
+        raw_results: list[SkillSearchResult]
         cached = self._search_cache.get(cache_key)
         if cached and now - cached[0] < CACHE_TTL_SECONDS:
             raw_results = cached[1][:limit]
         else:
             if is_browse:
-                raw_results: list[SkillSearchResult] = []
+                raw_results = []
             else:
                 sources = self._sources
 
@@ -311,9 +312,11 @@ class BaseSkillMarketService:
             )
 
             req_data: dict[str, object] = {}
-            if detail.extra_manifest and isinstance(detail.extra_manifest, dict):
-                req_data.update(detail.extra_manifest.get("requirements") or {})
-                req_data.update(detail.extra_manifest.get("dependencies") or {})
+            if isinstance(detail.extra_manifest, dict):
+                for section in ("requirements", "dependencies"):
+                    declared = detail.extra_manifest.get(section)
+                    if isinstance(declared, dict):
+                        req_data.update(declared)
             if "requirements.json" in skill_files.files:
                 import json
 
@@ -352,7 +355,7 @@ class BaseSkillMarketService:
         allow_downgrade: bool = False,
         progress_callback: Callable[[str, str, str], None] | None = None,
     ) -> SkillInstallResult:
-        def _emit(stage: str, msg: str):
+        def _emit(stage: str, msg: str) -> None:
             if progress_callback:
                 progress_callback(skill_id, stage, msg)
 
@@ -426,7 +429,7 @@ class BaseSkillMarketService:
 
         skill_id = f"url::{url[:80]}"
 
-        def _emit(stage: str, msg: str):
+        def _emit(stage: str, msg: str) -> None:
             if progress_callback:
                 progress_callback(skill_id, stage, msg)
 
@@ -594,7 +597,7 @@ class BaseSkillMarketService:
         (symlink/junction or category bucket). Unexpected errors propagate.
         """
 
-        def _emit(stage: str, msg: str):
+        def _emit(stage: str, msg: str) -> None:
             if progress_callback:
                 progress_callback(skill_id, stage, msg)
 
@@ -633,7 +636,7 @@ class BaseSkillMarketService:
             quarantine_resolved = quarantine_dir.resolve()
             for rel_path, content in files.items():
                 file_path = (quarantine_dir / rel_path).resolve()
-                if not str(file_path).startswith(str(quarantine_resolved)):
+                if not file_path.is_relative_to(quarantine_resolved):
                     logger.warning("Blocked path escape in skill '%s': %s", name, rel_path)
                     continue
                 file_path.parent.mkdir(parents=True, exist_ok=True)

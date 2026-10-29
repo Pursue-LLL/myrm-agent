@@ -9851,7 +9851,7 @@
       "git_metadata_write": "这一步操作要修改 Git 设置，这些设置之后可能自动执行命令：{subject}",
       "sensitive_file": "该文件可能包含隐私信息：{subject}",
       "domain_requires_approval": "该域名不在已允许的名单中：{subject}",
-      "shell_threat": "这条命令需要你确认后才会运行"
+      "shell_threat": "这条命令需要你确认后才会运行：{subject}"
     },
     "highRiskIntercepted": {
       "title": "半自动模式高危操作拦截",
