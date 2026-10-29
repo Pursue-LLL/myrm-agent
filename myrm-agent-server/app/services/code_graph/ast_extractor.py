@@ -63,12 +63,8 @@ class PythonAstExtractor:
         # 2. 遍历 AST 提取 Class, Function, Method, Import, Call
         self._visit_node(tree, current_scope=self.module_name)
 
-    def _get_source_slice(self, node: ast.AST) -> str:
-        if hasattr(node, "lineno") and hasattr(node, "end_lineno"):
-            start = node.lineno - 1
-            end = node.end_lineno
-            return "\n".join(self.lines[start:end])
-        return ""
+    def _get_source_slice(self, node: ast.stmt) -> str:
+        return "\n".join(self.lines[node.lineno - 1 : node.end_lineno or node.lineno])
 
     def _visit_node(self, node: ast.AST, current_scope: str) -> None:
         for child in ast.iter_child_nodes(node):

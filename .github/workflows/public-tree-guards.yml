@@ -25,11 +25,14 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+        with:
+          version: "0.12.7"
 
       # The guard needs only git, the standard library and pytest, so it runs without installing the
-      # server project; --noconftest and -c /dev/null keep the project's pytest configuration out.
+      # server project; --noconftest and -c /dev/null keep the project's pytest configuration out, and
+      # --rootdir keeps the test ids readable (otherwise they are relative to /dev).
       - name: Scan tracked files
         run: >-
           uv run --no-project --python 3.13 --with pytest==9.1.1 --
           pytest myrm-agent-server/tests/architecture/test_no_private_references.py
-          --noconftest -c /dev/null -p no:cacheprovider
+          --noconftest -c /dev/null --rootdir=. -p no:cacheprovider
