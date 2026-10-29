@@ -131,7 +131,6 @@ from app.api.system.model_ping_api import router as system_model_ping_router
 from app.api.system.multi_tier_health_api import router as system_multi_tier_health_router
 from app.api.system.multimodal_trace_api import router as system_multimodal_trace_router
 from app.api.system.org_spend_limit_api import router as system_org_spend_limit_router
-from app.api.system.port_inspector import router as system_port_inspector_router
 from app.api.system.rate_limit_governor_api import router as system_rate_limit_governor_router
 from app.api.system.rate_limit_split_api import router as system_rate_limit_split_router
 from app.api.system.reasoning_semantics_api import router as system_reasoning_semantics_router
@@ -346,7 +345,6 @@ api_router.include_router(build_statistics_router(), prefix="/statistics", tags=
 api_router.include_router(system_router, prefix="/system", tags=["system"])
 api_router.include_router(instance_archive_router, prefix="/instance-archive", tags=["instance-archive"])
 api_router.include_router(system_shutdown_router, prefix="/system", tags=["system"])
-api_router.include_router(system_port_inspector_router, prefix="/system", tags=["system"])
 api_router.include_router(system_multi_tier_health_router, prefix="/system", tags=["system"])
 api_router.include_router(system_failure_triage_router, prefix="/system", tags=["system"])
 api_router.include_router(system_retrieval_trace_router, prefix="/system", tags=["system"])

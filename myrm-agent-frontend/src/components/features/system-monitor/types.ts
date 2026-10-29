@@ -3,59 +3,15 @@
  * - 纯 TypeScript 类型契约
  *
  * [OUTPUT]
- * - PortProcessInfo, ProcessLineageNode, PortInspectResponse, ProcessKillResponse
  * - TraceSpanNode, CausalTraceData: 因果 Trace 树数据契约
  * - TierLevel, HealthStatus, ProbeResultItem, MultiTierHealthReportData: 分层健康数据契约
  * - CronDoctor: 定时任务舰队巡检与快速修复
  *
  * [POS]
- * src/components/features/system-monitor/types.ts — 系统监控、端口冲突、因果链路与分层健康类型。
+ * src/components/features/system-monitor/types.ts — 系统监控、因果链路与分层健康类型。
  */
 
 export * from './cronDoctorTypes';
-
-
-export interface PortProcessInfo {
-  pid: number;
-  name: string;
-  cmdline: string[];
-  cpu_percent: number;
-  memory_mb: number;
-  status: string;
-  username: string;
-  cwd?: string | null;
-  create_time: number;
-  is_protected: boolean;
-}
-
-export interface ProcessLineageNode {
-  pid: number;
-  ppid: number;
-  name: string;
-  cmdline: string[];
-  cwd?: string | null;
-  username: string;
-  is_high_resource: boolean;
-}
-
-export interface PortInspectResponse {
-  port: number;
-  is_in_use: boolean;
-  process?: PortProcessInfo | null;
-  lineage: ProcessLineageNode[];
-}
-
-export interface ProcessKillRequest {
-  force?: boolean;
-  reason?: string;
-}
-
-export interface ProcessKillResponse {
-  success: boolean;
-  pid: number;
-  signal_sent: string;
-  message: string;
-}
 
 export type SpanKind =
   | 'input'

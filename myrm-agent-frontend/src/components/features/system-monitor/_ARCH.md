@@ -2,15 +2,13 @@
 
 ## 架构概述
 
-本地与沙箱系统级可观测性监控层，聚焦端口占用一键排查、父子进程树溯源（Launch Lineage）以及高耗与僵尸进程安全查杀。上级文档：[../_ARCH.md](../_ARCH.md)。
+本地与沙箱系统级可观测与诊断层：因果 Trace 时序、分层健康、智能体诊断、定时任务巡检，以及用量、成本与预算面板组件。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `types.ts` | 类型 | 端口占用进程与父子派生链 TypeScript 契约定义 | ✅ |
-| `ProcessLineageView.tsx` | 组件 | 进程启动父子调用树面包屑与高耗进程橙色预警视图 | ✅ |
-| `PortConflictModal.tsx` | 组件 | 端口冲突检测弹窗、占用详情透视与一键安全查杀交互视窗 | ✅ |
+| `types.ts` | 类型 | 因果 Trace 树、分层健康与定时任务巡检的 TypeScript 契约定义 | ✅ |
 | `CausalTraceWaterfallView.tsx` | 组件 | 单次请求因果 TraceSpan 树时序瀑布图、阶段耗时占比与元数据属性展开视图 | ✅ |
 | `MultiTierHealthBadge.tsx` | 组件 | 组件支撑层 (Component) 与入口网关层 (Ingress) 能力分层健康大盘卡片 | ✅ |
 | `AgentDoctorWizard.tsx` | 组件 | 智能体四大失效表象诊断向导、六大断点时序流水与就地重发控制台 | ✅ |

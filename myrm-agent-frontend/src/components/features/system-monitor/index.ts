@@ -1,21 +1,17 @@
 /**
  * [INPUT]
  * - ./types::*
- * - ./PortConflictModal::PortConflictModal
- * - ./ProcessLineageView::ProcessLineageView
  * - ./CausalTraceWaterfallView::CausalTraceWaterfallView
  * - ./MultiTierHealthBadge::MultiTierHealthBadge
  *
  * [OUTPUT]
- * - 导出系统监控、端口冲突、因果链路时序与分层健康组件
+ * - 导出系统监控、因果链路时序与分层健康组件
  *
  * [POS]
  * src/components/features/system-monitor/index.ts — 模块入口门面。
  */
 
 export * from './types';
-export * from './PortConflictModal';
-export * from './ProcessLineageView';
 export * from './CausalTraceWaterfallView';
 export * from './MultiTierHealthBadge';
 export * from './AgentDoctorWizard';
