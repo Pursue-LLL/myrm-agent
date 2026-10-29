@@ -2,17 +2,18 @@
 
 上传技能时的文件清理：
 - 过滤黑名单目录/文件（.venv, node_modules, __pycache__ 等）
-- 校验单文件和总大小
+- 校验单文件和总大小（check_size_budget 是唯一的限额判定，安装器读文件前与安装前共用）
 
 [INPUT]
 - (none)
 
 [OUTPUT]
 - is_blocked_file: function — is_blocked_file
+- check_size_budget: function — adds one file to a running total and raises when a limit is crossed
 - sanitize_skill_files: Raises:
 
 [POS]
-Provides is_blocked_file, sanitize_skill_files.
+Provides is_blocked_file, check_size_budget, sanitize_skill_files.
 """
 
 from __future__ import annotations
@@ -72,6 +73,21 @@ def is_blocked_file(filename: str) -> bool:
     return basename in _BLOCKED_FILENAMES
 
 
+def check_size_budget(filename: str, file_size: int, total_size: int) -> int:
+    """把一个文件计入累计大小；单文件或累计超限时抛错，否则返回新的累计大小
+
+    Raises:
+        ValueError: 单文件超过 MAX_SINGLE_FILE_SIZE，或累计超过 MAX_TOTAL_UPLOAD_SIZE
+    """
+    if file_size > MAX_SINGLE_FILE_SIZE:
+        raise ValueError(f"File '{filename}' exceeds size limit ({file_size} > {MAX_SINGLE_FILE_SIZE} bytes)")
+
+    total_size += file_size
+    if total_size > MAX_TOTAL_UPLOAD_SIZE:
+        raise ValueError(f"Total upload size exceeds limit ({MAX_TOTAL_UPLOAD_SIZE} bytes)")
+    return total_size
+
+
 def sanitize_skill_files(files: dict[str, bytes]) -> dict[str, bytes]:
     """过滤并校验技能文件
 
@@ -86,14 +102,7 @@ def sanitize_skill_files(files: dict[str, bytes]) -> dict[str, bytes]:
             logger.warning(f" Blocked file filtered out: {filename}")
             continue
 
-        file_size = len(content)
-        if file_size > MAX_SINGLE_FILE_SIZE:
-            raise ValueError(f"File '{filename}' exceeds size limit ({file_size} > {MAX_SINGLE_FILE_SIZE} bytes)")
-
-        total_size += file_size
-        if total_size > MAX_TOTAL_UPLOAD_SIZE:
-            raise ValueError(f"Total upload size exceeds limit ({MAX_TOTAL_UPLOAD_SIZE} bytes)")
-
+        total_size = check_size_budget(filename, len(content), total_size)
         filtered[filename] = content
 
     if not filtered:

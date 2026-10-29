@@ -2,21 +2,55 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-114 · 技能从 git 安装时，仓库里指向仓外的符号链接被当成技能文件装入，超大文件先全部读进内存才被拒绝
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`、`agent/skills/market/sanitizer.py`；测试 `tests/agent/skills/market/installers/test_git_installer_hostile_repo.py`、`tests/agent/skills/market/installers/test_git_installer_collection.py`、`tests/agent/skills/market/installers/test_git_installer_containment.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（复现 113 的「仍然存在」③：按市场的克隆方式 `git clone --depth 1` 一个本地仓库，仓库里放指向仓外文件和仓外目录的符号链接） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P1（按威胁模型）：GitHub 搜索结果里任何公开仓库都会成为可点击安装的条目（`agent/skills/market/sources/github.py:112-136,170-186`，`install_url` 取自 `clone_url` 与 `full_name`），仓库里有什么符号链接由仓库作者决定；预览与安装都走 `GitInstaller.download`。没有观察到真实的恶意样本：12 个真实技能仓库、3153 个技能目录里，指向克隆目录之外的符号链接为 0。 |
+| **关联产品** | 技能市场的 git 安装与预览（`BaseSkillMarketService.preview` / `install` / `install_from_url`）。 |
+| **根因** | ① `_walk_skill_dir` 用 `rglob("*")` 加 `is_file()`，`is_file()` 跟随符号链接，指向仓外文件的链接被当成技能自己的文件读入（真实 git 复现：旧代码对 `skills/alpha` 返回 `SKILL.md` 与指向仓外文件的 `absolute.txt`、`relative.txt`）。② `_find_skill_md` 用 `is_dir()`、`is_file()`，同样跟随链接：仓库根没有 `SKILL.md`、有一个指向仓外含 `SKILL.md` 目录的链接时，仓外目录被当作技能装入（旧代码没有报错）。③ `_collect_skill_files` 先 `read_bytes()`，再交给 `sanitize_skill_files` 检查大小：真实仓库 `gstack` 的根目录收集了 4306 个文件、77,159,389 字节，之后才在安装环节被拒。 |
+| **修复** | 链接只在真实目标位于克隆目录之内时被跟随（`core.security.path.is_within_boundary`），指向克隆目录之外的跳过并记 WARNING；符号链接目录一律不进入；`SKILL.md` 本身指向克隆目录内其他文件的技能照常安装。遍历改用 `os.scandir`，被排除的目录（以点开头、`__pycache__`、`node_modules`）不再进入。读取前按安装时同一套限额检查：先用 `is_blocked_file` 跳过过滤路径下的文件，再用 `stat` 的大小调用 `sanitizer.check_size_budget`（单文件 1 MB、总量 5 MB，`sanitize_skill_files` 用的是同一个函数），超限抛同样的英文 `ValueError`。`subdirectory` 的包含检查换成 `core.security.path.safe_join_path`，删掉 113 里手写的那段。收集与清理放进 `asyncio.to_thread`。预览现在也受这两个限额约束：超限时报错，不再展示完整文件列表。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 起初把「链接一律跳过」当成最简单的做法，后来用 12 个真实仓库的数据核对：67 个技能（全在 `claude-skills` 的 `.gemini/skills/*` 镜像里）的 `SKILL.md` 本身就是指向同一仓库其他文件的链接，一律跳过会让它们装不上；而跟随克隆目录内的链接不增加任何能力（内容本来就是仓库作者能写进普通文件的），所以改成「目标在克隆目录之内才跟随」。② 条目数上限曾打算复用 `MAX_ZIP_ENTRY_COUNT`（4096，`backends/skills/scanning/zip_extract.py:44`），但真实仓库根的有效文件数 `nvidia-skills` 6198、`everything-claude-code` 4137，会把能装的仓库拒掉，所以没有加条目数上限。③ 第一版 `_find_skill_md` 用 `iterdir` 加 `is_symlink`，在 `everything-claude-code` 的根上收集比旧代码慢 4–6 ms（14.2–16.4 ms 对 10.1 ms）；改用 `os.scandir`（目录项自带链接标记）后是 3.1–4.2 ms 对 9.7–11.0 ms。④ 测试里的相对路径链接起初是三层上级目录下一个叫 outside 的目录里的 secret.txt，克隆目录换了位置之后它指向的是另一个不存在的文件，什么也没测到；改成 24 层 `../` 加 `etc/hosts`，旧代码上才会泄露。 |
+| **回归** | [1] 真实 git（本地仓库经 `file://` 真克隆）`test_git_installer_hostile_repo.py` 6 例：指向仓外文件的绝对与相对链接不装入、指向仓外目录的链接不装入、`subdirectory` 逃出克隆目录与指向仓外的链接目录被拒、超限文件被拒、`SKILL.md` 链接到同仓库其他文件照常安装；在旧代码上 5 例变红（2 例是链接泄露与仓外目录被装入，1 例是超限不抛，2 例只是 `subdirectory` 的报错措辞换成了共用工具的措辞），仓内 `SKILL.md` 链接那例新旧都绿。[2] `test_git_installer_collection.py` 20 例（遍历、链接策略、`_find_skill_md`、读取前的限额：超限文件没有被 `read_bytes` 读过、恰好等于上限的文件被读入、过滤路径下的大文件不计入限额）；`test_git_installer_containment.py` 4 例。[3] 同一批真实仓库的对照（`--depth 1` 克隆，同一份文件集合，遍历部分取最小值）：`everything-claude-code` 155.4 ms 对 27.9 ms，`gstack` 124.2 ms 对 11.2 ms，`CLI-Anything` 59.7 ms 对 13.3 ms；`gstack` 根目录整体收集：旧代码 333.3 ms 读入 77,159,389 字节，新代码 13.3 ms 在 2,195,726 字节的 `CHANGELOG.md` 处拒绝。[4] 为让 `test_installers.py` 回到 400 行以内（原 532 行，现 226 行），把 ZIP 与批量导入的用例分别移到 `tests/agent/skills/market/installers/test_zip_installer.py` 与 `tests/agent/skills/market/installers/test_batch_installer.py`，移动前后该目录都是 85 例；`tests/agent/skills` 2088 例通过；`ruff check`、`ruff format --check` 与 `mypy` 对被改的源文件干净。 |
+| **仍然存在** | ① 克隆地址不限制协议：`file://` 与本地路径仍可被克隆（目标是用户本机上、含 `SKILL.md` 的仓库，没有证据表明可被远程利用）。② `git clone` 本身只有 60 秒超时，没有下载体积上限。③ 可执行二进制与嵌套压缩包不在 git 与目录路径的检查里。④ Windows 上 git 对符号链接的检出行为没有验证。⑤ 防御依据是威胁模型加合成仓库，没有真实的恶意样本。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/installers/git_installer.py`（`_resolve_skill_dir`、`_collect_skill_files`、`_find_skill_md`、`_walk_skill_dir`、`_escapes_clone`） · `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/sanitizer.py`（`check_size_budget`） · `myrm-agent-harness/tests/agent/skills/market/installers/test_git_installer_hostile_repo.py` · `myrm-agent-harness/tests/agent/skills/market/installers/test_git_installer_collection.py` |
+
+### BUG-HARNESS-2026-10-29-115 · 技能下载成功但超出安装大小限制时，市场安装把 `ValueError` 直接抛给调用方，而不是返回带原因的安装失败
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/skills/market/service.py`；测试 `tests/agent/skills/market/test_service_install_limits.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
+| **发现时间** | 2026-10-29（复现 114 时统计 12 个真实技能仓库、3153 个技能目录里超出安装限额的数量） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P3：3153 个技能里 1 个（`nvidia-skills/skills/tilegym-monkey-patch-kernels-to-transformers`，含一个 1.06 MB 的非过滤文件）单文件超限，2 个总量超过 5 MB。命中时 `install` 抛出 `ValueError`，应用的全局异常处理器把它变成 500 的「Internal server error」（读代码核对：`app/main.py:104` 注册 `Exception` 处理器，`app/server/exceptions.py:35-49` 返回该文案；没有起服务端到端复现），用户看不到原因。 |
+| **关联产品** | 技能市场的 git、ZIP 安装与 URL 安装（`BaseSkillMarketService.install` / `install_from_url`）。 |
+| **根因** | 两个入口都把 `download` 放进 `try/except ValueError`（经 `resolve_install_error` 给出原因），紧跟其后的 `sanitize_skill_files` 却在 `try` 之外。ZIP 路径的解压总量上限是 50 MB（`backends/skills/scanning/zip_extract.py:43`），`sanitize_skill_files` 的总量上限是 5 MB，所以 5–50 MB 的 ZIP 能通过解压却在这里抛出；过滤后没有任何文件（「No valid files after filtering blocked paths」）同理。git 路径在 114 之后由收集器在读取前拒绝，不再走到这里。 |
+| **修复** | 两个入口都把 `sanitize_skill_files` 放进同一个 `try`，失败走 `resolve_install_error`，返回 `success=False` 与原因，并发出 `failed` 进度事件。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 一开始以为 114 的读取前检查让这条修复不必要；ZIP 路径不经过那个检查，上面的 50 MB 对 5 MB 说明它仍然会命中，所以这条单独保留。 |
+| **回归** | `test_service_install_limits.py` 6 例：git 与 ZIP 各一例单文件超限与总量超限，全部文件落在过滤路径下，`install_from_url` 超限；旧的 `service.py` 上 6 例都变红（`ValueError` 直接抛出），修复后通过。 |
+| **仍然存在** | ① 没有起服务端做 HTTP 端到端复现，500 这一段是读代码得出的。② 没有核对其他调用 `sanitize_skill_files` 的位置（server 的 `app/core/skills/store/service.py` 的 `create_skill`）是否把 `ValueError` 转成了用户可读的失败。③ ZIP 的预览不经过 `sanitize_skill_files`，超限的 ZIP 仍能预览，安装时才给出原因。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/service.py`（`install`、`install_from_url`） · `myrm-agent-harness/tests/agent/skills/market/test_service_install_limits.py` |
+
 ### BUG-HARNESS-2026-10-29-113 · 技能从 git 安装时，临时目录的祖先以点开头就收集到 0 个文件：`_walk_skill_dir` 用带祖先的绝对路径判断「隐藏」
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`；测试 `tests/agent/skills/market/installers/test_git_installer_containment.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
+| **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`；测试 `tests/agent/skills/market/installers/test_git_installer_containment.py`、`tests/agent/skills/market/installers/test_git_installer_collection.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
 | **发现时间** | 2026-10-29（排查同类写法：在 server `app` 与 harness `src` 里找「路径片段配排除集合」，13 处里用绝对路径的只有两处，另一处是代码图谱的目录排除） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P3：触发需要 `tempfile.mkdtemp` 所在目录的某个祖先以点开头（用户或部署自己把 `TMPDIR` 设到点目录下）；产品代码不设置 `TMPDIR`，线上没有触发的证据。触发后该函数不报错，返回空集合。第一版修复还留下过一个路径逃逸（见「踩坑」），自查时发现并补上，没有发布、没有 push。 |
 | **关联产品** | 技能市场的 git 安装（`GitInstaller.download` → `_collect_skill_files`）。 |
 | **根因** | `any(part.startswith(".") ... for part in item.parts)` 里的 `item` 来自 `skill_dir.rglob("*")`，带着 `skill_dir` 的全部祖先；原有用例用 `tmp_path`，路径里没有点开头的目录，所以一直是绿的。实测同一个含 `SKILL.md`、`run.py` 的技能目录：普通路径下返回两个文件，祖先目录叫 `.cache` 时返回 `[]`。另一面：旧写法对 `subdirectory` 指向克隆目录上级（以 `..` 开头的相对路径）的形态碰巧全部排除（`..` 段以点开头，被当作隐藏路径），而 `_resolve_skill_dir` 本身不检查结果是否仍在克隆目录之内；绝对路径形态一直会装入克隆目录之外的文件（路线图 2026-10-12 的实测记录同此）。 |
-| **修复** | 判断改用 `item.relative_to(skill_dir).parts`；顺带删掉被它覆盖的第三个条件，以及排除集合里本来就以点开头、已被「隐藏」规则覆盖的 `.git`、`.venv`、`.mypy_cache`。新增 1 个用例。`_resolve_skill_dir` 对逃出克隆目录的 `subdirectory`（`..`、绝对路径、指向仓外的符号链接目录）抛 `ValueError`（用解析后的路径判断）；这些用例与上面那个一起放进新文件 `test_git_installer_containment.py`（上面那个用例原先在 `test_installers.py` 里，已移过去）。顺带消除 `_collect_skill_files` 里 `Path | None` 赋给 `Path` 变量的 mypy 报错（改用独立变量，行为不变）。 |
+| **修复** | 判断改用 `item.relative_to(skill_dir).parts`；顺带删掉被它覆盖的第三个条件，以及排除集合里本来就以点开头、已被「隐藏」规则覆盖的 `.git`、`.venv`、`.mypy_cache`。新增 1 个用例。`_resolve_skill_dir` 对逃出克隆目录的 `subdirectory`（`..`、绝对路径、指向仓外的符号链接目录）抛 `ValueError`（用解析后的路径判断）；这些用例与上面那个一起放进新文件 `test_git_installer_containment.py`（上面那个用例现在在 `test_git_installer_collection.py`，名为 `test_a_hidden_ancestor_of_the_skill_dir_does_not_count`）。顺带消除 `_collect_skill_files` 里 `Path | None` 赋给 `Path` 变量的 mypy 报错（改用独立变量，行为不变）。 |
 | **反复次数** | 第 2 次：第一版修复引入了路径逃逸，自查时发现。 |
 | **踩坑** | 调用方是否校验空文件集合，我没有读完整个安装流程：`file_install.py:186` 只在 `SKILL.md` 存在时解析版本，该文件里没有找到空集合校验。第一版修复只想着祖先不该参与判断，没想到旧写法里 `..` 段也被当成隐藏路径、碰巧挡住了指向克隆目录上级的 `subdirectory`：改后 `_collect_skill_files` 会装入克隆目录之外的文件（同一布局探测：改前返回 `[]`，改后返回 `SKILL.md`、`secret.txt`）。路线图里 2026-10-12 的实测记录写着这一形态「没有泄露」，我改之前没有读那条记录，自查时用同一形态探测才发现。 |
-| **回归** | 新增 `test_collects_files_when_an_ancestor_of_the_skill_dir_is_hidden`（`test_git_installer_containment.py`）：修复前返回空集合而失败，修复后通过；原型对比（临时目录）普通路径下新旧结果相同，原有 `test_excludes_hidden_and_junk_dirs` 仍通过；`tests/agent/skills/market` 671 例通过；新文件 5 例里 3 个逃逸用例在补检查之前失败（`DID NOT RAISE ValueError`），补上后通过；ruff check 与 format 通过。 |
-| **仍然存在** | ① 触发所需的 `TMPDIR` 设置在线上是否存在，没有证据。② 没有改调用方去拒绝空文件集合（没有读到该处的完整流程）。③ 仓内指向仓外文件的符号链接（路线图 2026-10-12 实测的 `leak.txt`）仍会被 `_walk_skill_dir` 读入，没有改。 |
+| **回归** | 新增 `test_collects_files_when_an_ancestor_of_the_skill_dir_is_hidden`（当时在 `test_git_installer_containment.py`，现为 `test_git_installer_collection.py` 的 `test_a_hidden_ancestor_of_the_skill_dir_does_not_count`）：修复前返回空集合而失败，修复后通过；原型对比（临时目录）普通路径下新旧结果相同，原有 `test_excludes_hidden_and_junk_dirs` 仍通过；`tests/agent/skills/market` 671 例通过；新文件 5 例里 3 个逃逸用例在补检查之前失败（`DID NOT RAISE ValueError`），补上后通过；ruff check 与 format 通过。 |
+| **仍然存在** | ① 触发所需的 `TMPDIR` 设置在线上是否存在，没有证据。② 没有改调用方去拒绝空文件集合（没有读到该处的完整流程）。③ 仓内指向仓外文件的符号链接（路线图 2026-10-12 实测的 `leak.txt`）仍会被 `_walk_skill_dir` 读入，这一条在 BUG-HARNESS-2026-10-29-114 修复。 |
 | **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/skills/market/installers/git_installer.py`（`_walk_skill_dir`、`_resolve_skill_dir`） · `myrm-agent-harness/tests/agent/skills/market/installers/test_git_installer_containment.py` |
 
 ### BUG-HARNESS-2026-10-29-112 · `ComputerBackend.type_credential` 无人调用却声称「安全地从凭据库输入」，配套的 macOS `ConcealedType` 标记因此从未生效，Linux 的凭据测试在测一个没人调用的接口

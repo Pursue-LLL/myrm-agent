@@ -336,12 +336,12 @@ class BaseSkillMarketService:
                     success=False,
                     error=f"Unsupported install method: {detail.install_method}",
                 )
+            sanitized = sanitize_skill_files(skill_files.files)
         except ValueError as e:
             resolved_error, error_code = resolve_install_error(e)
             _emit("failed", resolved_error)
             return SkillInstallResult(success=False, error=resolved_error, error_code=error_code)
 
-        sanitized = sanitize_skill_files(skill_files.files)
         return await self.install_files(
             skill_id,
             skill_files.name,
@@ -377,12 +377,12 @@ class BaseSkillMarketService:
         _emit("downloading", "Cloning repository...")
         try:
             skill_files = await self._git_installer.download(ref.clone_url, subdirectory=ref.subdirectory, ref=ref.ref)
+            sanitized = sanitize_skill_files(skill_files.files)
         except ValueError as e:
             resolved_error, error_code = resolve_install_error(e)
             _emit("failed", resolved_error)
             return SkillInstallResult(success=False, error=resolved_error, error_code=error_code)
 
-        sanitized = sanitize_skill_files(skill_files.files)
         return await self.install_files(
             skill_id,
             skill_files.name,
