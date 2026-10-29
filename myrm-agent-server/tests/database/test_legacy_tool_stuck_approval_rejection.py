@@ -1,4 +1,4 @@
-"""A loop-guard pause is not an approval; the PENDING rows an earlier build left for it are closed once, and only those.
+"""A loop-guard pause is not an approval; a leftover PENDING row of that type is closed once, and only such rows are.
 
 Such a row has no expiry, so no sweep reaches it, and the chat it belongs to refuses every new message while it stays
 PENDING. The migration rejects exactly the PENDING rows of that action type; every other approval keeps its state.
