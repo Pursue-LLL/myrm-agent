@@ -76,7 +76,7 @@ async def test_a_snapshot_whose_runtimes_hang_is_cut_off_at_the_deadline_and_lef
     # The probe needs one timeout per hung binary; let it finish while the patched PATH is still in place.
     try:
         assert snapshot == "", "an abandoned probe must leave the empty snapshot"
-        assert waited < len(_HUNG_RUNTIMES) * _PER_COMMAND_TIMEOUT_S, f"waited {waited:.2f} s, past the deadline"
+        assert waited < 2.0, f"waited {waited:.2f} s for a probe that was cut off at {_DEADLINE_MS / 1000:.1f} s"
         assert still_probing, "the probe was not cut off mid-flight: it had already finished"
     finally:
         for _ in range(100):
