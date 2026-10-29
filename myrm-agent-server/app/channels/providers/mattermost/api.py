@@ -30,15 +30,17 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = resolve_timeout(15.0)
 
 # An "@" that starts one of the words notifying every member of a channel; not the "@" inside an address.
-_BROADCAST_MENTION_RE = re.compile(r"(?<!\w)@(?=(?:channel|all|here)\b)", re.IGNORECASE)
+# ASCII word characters only: Chinese or Japanese text runs straight into a mention without a space.
+_BROADCAST_MENTION_RE = re.compile(r"(?<!\w)@(?=(?:channel|all|here)\b)", re.IGNORECASE | re.ASCII)
 _ZERO_WIDTH_SPACE = "\u200b"
 
 
 def neutralize_broadcast_mentions(text: str) -> str:
     """Put an invisible character after the "@" of ``@channel``, ``@all`` and ``@here``.
 
-    Model output is untrusted text, and one such word anywhere in a post notifies the whole channel. Everything
-    else is left as it is, and a neutralized word no longer matches, so applying it twice changes nothing.
+    Model output is untrusted text, and one such word anywhere in a post notifies the whole channel, including
+    one glued to CJK text. Everything else is left as it is, and a neutralized word no longer matches, so applying
+    it twice changes nothing.
     """
     return _BROADCAST_MENTION_RE.sub("@" + _ZERO_WIDTH_SPACE, text)
 

@@ -17,7 +17,7 @@ from app.channels.providers.mattermost.api import MattermostClient, neutralize_b
 from app.channels.types import OutboundMessage
 
 _ZWSP = "\u200b"
-_NOTIFIES = re.compile(r"(?<!\w)@(?:channel|all|here)\b", re.IGNORECASE)
+_NOTIFIES = re.compile(r"(?<!\w)@(?:channel|all|here)\b", re.IGNORECASE | re.ASCII)
 _BROADCASTS = ["@channel", "@all", "@here", "@CHANNEL", "@Here"]
 _CONTEXTS = [
     "{}",
@@ -26,6 +26,8 @@ _CONTEXTS = [
     "line one\n{}\nline three",
     "```\n{}\n```",
     "{}, then {}!",
+    "大家{}请注意",
+    "{}你好",
 ]
 
 
