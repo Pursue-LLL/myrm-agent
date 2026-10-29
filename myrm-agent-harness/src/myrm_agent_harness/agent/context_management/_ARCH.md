@@ -27,7 +27,6 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 | desktop_repl/ | In-process scripted REPL over a mock desktop SDK that only records actions; it does not drive a real desktop and is not wired to `DesktopSession` or any agent tool. See [desktop_repl/_ARCH.md](desktop_repl/_ARCH.md). |
 | downshift/ | Context threshold model downshift governor and deterministic handover memo protocol (token % and WU dual triggers, zero-API SessionNotes extraction, Fallback-Up circuit breaker). |
 | infra/ | Context management infrastructure: shared types, token estimation, budget management, session locks, archive references, cache policy. |
-| omni_reference/ | Core engine for 5-dimensional omni-@ references parsing, context slice extraction, and prompt injection formatting. See [omni_reference/_ARCH.md](omni_reference/_ARCH.md). |
 | pipeline/ | Ordered context processors for filtering, active per-step tool-result pruning, cache-TTL pruning, pre-compaction recall, compression, session notes, summarization, post-compaction refetch guard, normalization, and explicit cache markers. Filter and Compress consume compression_intent via retention_helpers. |
 | prefix_caching_ledger/ | Prefix caching aligned context layout and hidden reasoning token ledger suite (Item 308). See [prefix_caching_ledger/_ARCH.md](prefix_caching_ledger/_ARCH.md). |
 | scratchpad_promotion/ | Quick scratchpad draft to full project seed transformation engine for dual-track workspace architectures. See [scratchpad_promotion/_ARCH.md](scratchpad_promotion/_ARCH.md). |

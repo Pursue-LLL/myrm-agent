@@ -90,7 +90,7 @@ Deep provider adapters (e.g. `llms/**/google_provider.py`) are excluded.
 | **Core** | `code_execution/`, `storage/`, `llms/`, `memory/`, `mcp/`, `vector/`, `retriever/` | Runtime primitives: sandbox, LLM, persistence, MCP |
 | **Workspace** | `browser/`, `computer_use/`, `filesystem_suggest/`, `context_bundle/`, `file_parsers/`, `wiki/` | Files, browser, desktop, @-mention path suggest |
 | **Integration** | `acp/`, `openapi_bridge/`, `web_fetch/`, `web_search/` | External APIs, agent protocols |
-| **Collaboration & Media** | `kanban/`, `tasks/`, `cron/`, `swarm/` | Job-like systems & Swarm coordination — see matrix below; `swarm/` = 多智能体蜂群协同与规则/风险确权引擎; `tasks/` = chat-bound async media queue ([TASK_QUEUE_SYSTEM.md](tasks/TASK_QUEUE_SYSTEM.md)) |
+| **Collaboration & Media** | `kanban/`, `tasks/`, `cron/` | Job-like systems — see matrix below; `tasks/` = chat-bound async media queue ([TASK_QUEUE_SYSTEM.md](tasks/TASK_QUEUE_SYSTEM.md)) |
 
 ### Job-like module selection
 
