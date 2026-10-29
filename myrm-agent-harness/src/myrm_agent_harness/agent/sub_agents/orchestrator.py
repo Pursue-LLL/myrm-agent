@@ -12,7 +12,8 @@ Higher-level execution patterns built on top of SubagentManager.spawn_child.
 - run_chain: Execute subagents in chain: A -> B -> C, each receiving previous result.
 - run_alternatives: Spawn N read-only subagents in parallel for the same task; return each candidate's result.
 - run_council: Multi-expert council orchestration with cross-review rounds and chair synthesis.
-- wait_children: Wait for multiple child tasks to complete and aggregate results.
+- wait_children: Wait for multiple child tasks to complete and aggregate results; the children count as awaited while it
+  blocks, so their completion does not also wake the parent.
 - run_with_verification: Execute a worker then verify via an adversarial verifier, retrying on failure.
 - VerificationVerdict: Parsed verdict from a Verifier agent's structured JSON output.
 - verify_worker_output: Verify an existing worker output with a verifier-only round (``None`` = inconclusive round).

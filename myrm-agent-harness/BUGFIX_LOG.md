@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-29-082 · 调用方正阻塞等待结果的子智能体，完成时仍会唤醒父智能体：同一份结果先交给等待方，又被唤醒回合再答一遍
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/sub_agents/_awaited_children.py`（新）、`_manager_spawn.py`、`manager.py`、`orchestrator.py`；`sub_agents/_ARCH.md`、`SUB_AGENT_SYSTEM.md`、`SUBAGENT_NOTIFICATION_STRATEGY.md`、`base_agent.py` 中 `trigger_async_wakeup` 的 docstring；不改工具 schema 与提示词）。 |
+| **发现时间** | 2026-10-29（对唤醒链路做终极叩问：逐个委派入口核对「这个结果有没有人在等」，读 `delegate_task_tool.py:112`、`orchestrator.py:98-113`、`agent/parallel/runner.py:89`；结论由真实 `SubagentManager` 的测试验证） |
+| **修复时间** | 2026-10-29 |
+| **严重程度** | P2：不丢数据、不崩溃。批量、并行、议事、备选委派默认阻塞等待（批量 `delegate_task_tool.py:112`、并行 `agent/parallel/runner.py:89`），结果已经由等待方交给模型；`_cleanup_child` 仍对每个终态且非取消的子智能体调用 `trigger_async_wakeup`，服务端据此再起一轮唤醒回合，多花一整轮模型调用，用户可能看到同一份结果被汇报两次。 |
+| **关联产品** | roadmap topic_12 #330（后台子智能体完成唤醒）；`BUG-HARNESS-2026-10-28-062`（取消的子智能体不唤醒）。 |
+| **根因** | `_cleanup_child` 把「子智能体结束」直接当成「需要唤醒父智能体」，只排除了取消，没有区分「这份结果有没有人接收」：`spawn_child(wait=True)` 与 `wait_children()` 的调用方正阻塞在它上面，结果经工具返回值交给了模型。 |
+| **修复** | 新增 `AwaitedChildren`（`_awaited_children.py:24-46`，按任务 id 计数，`held` 作用域在任何退出路径包括被取消的等待里都释放）。`spawn_child(wait=True)`（`_manager_spawn.py:383`）与 `wait_children`（`orchestrator.py:290`）在阻塞期间持有；`_should_wake_parent`（`_manager_spawn.py:105-114`）在「非取消」之外再排除被持有的子智能体，`_cleanup_child`（`manager.py:545-546`）经它决定是否唤醒。等待超时后持有释放，该子智能体之后完成仍唤醒一次。持有必须覆盖整个 `asyncio.wait`：清理回调在创建任务时注册，先于等待方恢复运行。单个委派默认后台（`_delegate_single.py:147`），行为不变。 |
+| **反复次数** | 第 2 次（接 062，同一个函数 `_cleanup_child` 的唤醒条件：062 只处理了取消，这次处理被等待）。 |
+| **踩坑** | ① `manager.py` 在行数基线里封顶 591 行（`scripts/file_line_baseline.txt:36`），判定逻辑放进 `_manager_spawn.py`，`manager.py` 只改一处调用。② 复查时发现 `_manager_spawn.py` 的头注释 `[INPUT]` / `[OUTPUT]` 没写新依赖与 `_should_wake_parent`，`orchestrator.py` 的 `wait_children` 说明没写持有，已补。③ 头注释一改，台账与 roadmap 里引用的行号整体后移，要在最后一次改动之后再核对一遍。 |
+| **回归** | [1] 先写测试：`tests/agent/sub_agents/test_manager_awaited_wakeup.py` 8 例（真实 `SubagentManager`，桩化 `_run_subagent`）：前台等待不唤醒、后台唤醒一次、前台等待超时后子智能体继续完成再唤醒一次、`wait_children` 三个子智能体不唤醒、`wait_children` 超时后完成再唤醒、被取消的等待释放持有、两个等待方计数、块内抛异常也释放。去掉 `and task_id not in self.awaited_children` 后 `test_a_foreground_child_hands_its_result_to_the_caller_and_does_not_wake_the_parent` 与 `test_children_collected_by_wait_children_do_not_wake_the_parent` 两例变红（本轮复跑确认，2 failed / 6 passed），还原后文件与备份逐字节一致。[2] `ruff check` 与 `ruff format --check` 对改动文件通过；`check_file_line_limit.py` 对本次改动的文件无违规。 |
+| **仍然存在** | ① 没有用真实模型跑「批量委派 → 父智能体只汇报一次」，只在 `SubagentManager` 层验证。② 子智能体在 `agent_manage wait` 之前就已完成（晚取用）仍会唤醒一次：要避免需要「结果已被取用」登记表，有意不做。③ 竞态模式（`race`）下输家子智能体在等待方释放与运行结束取消之间完成的窗口（`agent/parallel/runner.py:135-137`）没有实测。④ 等待方恰在子智能体完成的同一刻被取消（用户点停止）：这次完成既不唤醒也没人接收；停止本来就取消后台子智能体、用户不期待续跑，但没有用例钉住这一刻。⑤ `_manager_spawn.py` 现 434 行（原 413），超过 400 行的软上限，未拆分。 |
+| **代码位置** | `agent/sub_agents/_awaited_children.py:24-46` · `_manager_spawn.py:101,105-114,383` · `manager.py:545-546` · `orchestrator.py:290` · `base_agent.py`（`trigger_async_wakeup` docstring） |
+
 ### BUG-HARNESS-2026-10-29-081 · 工作区快照的探测没有限时：git 或运行时二进制挂住时，新线程的第一次模型调用与进程退出都被拖住；文档里的进程数、上限与耗时写错
 
 | 字段 | 内容 |

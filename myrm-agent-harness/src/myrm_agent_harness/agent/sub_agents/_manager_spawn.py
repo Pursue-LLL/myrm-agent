@@ -5,13 +5,15 @@
 - approval_journal::ApprovalJournal (POS: Replay-safe approval round-trips of one delegation)
 - checkpointer::discard_stale_subagent_thread (POS: Clears a subagent thread an earlier process left under a reused id)
 - spawn_capability::readonly_spawn_floor (POS: The handle a read-only spawn runs under when its caller bound none that withholds WRITE)
+- _awaited_children::AwaitedChildren (POS: Ownership of a settled child's result; a child a caller is blocked on hands its result to that caller)
 - executor::SubagentExecutor (POS: Retry logic and actual agent execution)
 - streaming.types::AgentEventType (POS: SSE event types)
 - runtime.events.system_events::SubagentLifecycleData, to_json_object
 
 [OUTPUT]
 - SubagentSpawnMixin: Mixin providing _run_subagent, _run_subagent_core,
-  spawn_child (SSOT read-only capability floor) and the per-manager approval_journal
+  spawn_child (SSOT read-only capability floor), the per-manager approval_journal and awaited_children,
+  and _should_wake_parent (the one test of whether a settled child restarts its parent)
 
 [POS]
 Spawn and execution lifecycle for SubagentManager.
