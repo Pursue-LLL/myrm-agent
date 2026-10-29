@@ -7,7 +7,7 @@
 - channels.i18n::get_text (POS: localized channel copy)
 - core.infra.background_task::spawn_observed_task (POS: background task whose failure is logged)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message envelopes)
-- channels.core.bus::MessageBus (POS: the outbound queue the notices to a chat go through; type only)
+- channels.core.bus::MessageBus, channels.routing.message_effects::MessageEffects (POS: where a notice to a chat goes: the outbound queue, or the turn's live placeholder; types only)
 
 [OUTPUT]
 - RouterLifecycleMixin: ``start`` / ``stop`` / ``is_consume_loop_alive``, the consume loop that hands every inbound message to dispatch, the janitor (expired callbacks, streaming-session TTL, stale session state) and the stuck-task reaper
@@ -37,6 +37,7 @@ from app.core.infra.background_task import spawn_observed_task
 
 if TYPE_CHECKING:
     from app.channels.core.bus import MessageBus
+    from app.channels.routing.message_effects import MessageEffects
 
 logger = logging.getLogger("app.channels.routing.router")
 
@@ -52,10 +53,18 @@ def _locale_probe(entry: _ActiveTask) -> InboundMessage:
     )
 
 
-async def _notify_chat(bus: MessageBus, entry: _ActiveTask, text: str) -> None:
-    """Tell the chat of ``entry`` something; a failed send must not hold up a shutdown or a janitor sweep."""
+async def _notify_chat(bus: MessageBus, fx: MessageEffects, entry: _ActiveTask, text: str) -> None:
+    """Tell the chat of ``entry`` something: the turn's live placeholder becomes ``text``, else ``text`` is a new message.
+
+    A failed send must not hold up a shutdown or a janitor sweep.
+    """
     try:
-        await bus.publish_outbound(OutboundMessage(channel=entry.channel, recipient_id=entry.chat_id, content=text, user_id=""))
+        if entry.placeholder_id:
+            await fx.cleanup_placeholder(entry.channel, entry.chat_id, entry.placeholder_id, text)
+        else:
+            await bus.publish_outbound(
+                OutboundMessage(channel=entry.channel, recipient_id=entry.chat_id, content=text, user_id="")
+            )
     except Exception:
         logger.debug("Notice to %s/%s failed (non-critical)", entry.channel, entry.chat_id)
 
@@ -110,7 +119,7 @@ class RouterLifecycleMixin:
         self._cleanups.clear()
         self._pending_approvals.clear()
         for entry in interrupted:
-            await _notify_chat(self._bus, entry, get_text(_locale_probe(entry), "turn_interrupted_by_restart"))
+            await _notify_chat(self._bus, self._fx, entry, get_text(_locale_probe(entry), "turn_interrupted_by_restart"))
 
         await self._stop_janitor()
 
@@ -245,16 +254,7 @@ class RouterLifecycleMixin:
                 logger.debug("[JANITOR] Typing cleanup failed for %s (non-critical)", state_key)
 
             timeout_msg = get_text(_locale_probe(entry), "stuck_task_timeout_user_message", elapsed=elapsed)
-            if entry.placeholder_id:
-                try:
-                    await self._fx.cleanup_placeholder(entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg)
-                except Exception:
-                    logger.debug(
-                        "[JANITOR] Placeholder cleanup failed for %s (non-critical)",
-                        state_key,
-                    )
-            else:
-                await _notify_chat(self._bus, entry, timeout_msg)
+            await _notify_chat(self._bus, self._fx, entry, timeout_msg)
 
             self._gate.release_turn(entry.gate_key, entry.gate_turn)
             logger.info("[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed)

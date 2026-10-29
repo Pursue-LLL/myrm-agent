@@ -818,8 +818,9 @@ class ChannelGateway:
         """Scan inbound journal for interrupted messages and re-submit them.
 
         Called once after Gateway.start() completes. Entries that survived a
-        crash/restart are re-injected into the Router via SessionGate with
-        ``metadata.is_recovery=True`` so agents can handle idempotency.
+        crash/restart are rebuilt by ``restore_inbound`` and re-injected into the
+        Router via SessionGate; ``metadata.is_recovery=True`` makes the turn keep the
+        original entry instead of journaling the message again.
         """
         if not self._inbound_journal or not self._router:
             return

@@ -10,12 +10,17 @@ import dataclasses
 import sqlite3
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
+from typing import cast
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from app.channels.core.gateway import ChannelGateway
 from app.channels.reliability.inbound_journal import JournalEntry, SqliteInboundJournal, create_journal_entry_from_inbound
+from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage, MediaAttachment, MediaType
 from tests.channels.inbound_message_testkit import full_message
+from tests.channels.routing.pipeline.turn_pipeline_testkit import prepared_message, turn_router
 
 # A journal table of another column set: one column per message field instead of the whole message.
 _OTHER_SHAPE_TABLE = """
@@ -38,12 +43,13 @@ def _park(journal: SqliteInboundJournal, msg: InboundMessage) -> str:
     return entry.id
 
 
-async def _replay(journal: SqliteInboundJournal) -> list[InboundMessage]:
+async def _replay(journal: SqliteInboundJournal, router: AgentRouter | MagicMock | None = None) -> list[InboundMessage]:
     gateway = ChannelGateway(inbound_journal=journal)
-    router = MagicMock()
+    router = router or MagicMock()
     gateway._router = router
     await gateway._recover_journal()
-    return [call.args[0] for call in router._gate.submit.call_args_list]
+    submit = cast("MagicMock", router._gate.submit)
+    return [call.args[0] for call in submit.call_args_list]
 
 
 async def test_a_replayed_message_carries_every_field_of_the_original(tmp_path: Path) -> None:
@@ -57,6 +63,33 @@ async def test_a_replayed_message_carries_every_field_of_the_original(tmp_path: 
 
     marked = {**original.metadata, "is_recovery": True, "recovery_entry_id": entry_id}
     assert replayed == [dataclasses.replace(original, metadata=marked)]
+
+
+async def test_a_replayed_message_reaches_its_turn_whole_and_its_entry_is_acknowledged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = tmp_path / "a.png"
+    image.write_bytes(b"png")
+    original = dataclasses.replace(full_message(image_path=str(image)), resume_value=None)
+    journal = _journal(tmp_path)
+    entry_id = _park(journal, original)
+    router = turn_router()
+    monkeypatch.setattr(router, "_enrich_attachments", AsyncMock(side_effect=lambda inbound, **_: inbound))
+    router.set_inbound_journal(journal)
+
+    [replayed] = await _replay(journal, router)
+    assert [entry.id for entry in journal.scan_pending()] == [entry_id]
+    await router._handle_merged(replayed)
+
+    reached = prepared_message(router)
+    assert (reached.media, reached.reply_to, reached.context_messages, reached.sender_name, reached.sent_at) == (
+        original.media,
+        original.reply_to,
+        original.context_messages,
+        original.sender_name,
+        original.sent_at,
+    )
+    assert journal.scan_pending() == []
 
 
 async def test_a_message_without_a_chat_id_replays_without_one(tmp_path: Path) -> None:

@@ -246,9 +246,11 @@ replays them at the next start. The gate is emptied before the running turns are
 starts the next queued turn: with the queue still full, the shutdown would run a new agent turn.
 
 A turn the stop cancels is not replayed: re-running a half-done turn would repeat the steps that already had effects. Its
-chat is told instead: `stop` publishes `turn_interrupted_by_restart` (`channels/i18n`) to the chat of every turn it
-cancelled, and `ChannelGateway.stop` drains the outbound queue before closing the channels, so the notice is sent while
-they are still up. The notice is best effort; a failed publish is logged at debug level and does not hold the shutdown up.
+chat is told instead: `stop` sends `turn_interrupted_by_restart` (`channels/i18n`) to the chat of every turn it cancelled,
+through the same `_notify_chat` the stuck-task watchdog uses (the turn's live placeholder message becomes the notice; a turn
+without one gets a new message), and `ChannelGateway.stop` drains the outbound queue before closing the channels, so the
+notice is sent while they are still up. The notice is best effort; a failed send is logged at debug level and does not hold
+the shutdown up.
 
 What a stop does not park: a message that reaches the bus after the stop has begun. `ChannelGateway.stop` stops the router
 first, drains the outbound queue for up to 5 seconds, and only then stops the channels (`core/gateway.py`), so the channels

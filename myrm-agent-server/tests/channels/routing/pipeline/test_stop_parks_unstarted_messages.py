@@ -13,7 +13,7 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -188,4 +188,16 @@ async def test_the_chat_of_a_turn_the_stop_cancels_is_told_to_send_the_request_a
 async def test_a_stop_with_no_turn_running_sends_no_notice(harness: _Harness) -> None:
     await harness.router.stop()
 
+    harness.bus.publish_outbound.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_shows_a_placeholder_has_it_replaced_by_the_notice(harness: _Harness) -> None:
+    await harness.start_running_turn_with_queue()
+    harness.router._active_tasks["telegram:chat-1"].placeholder_id = "ph-1"
+
+    with patch.object(harness.router._fx, "cleanup_placeholder", new=AsyncMock()) as cleanup:
+        await harness.router.stop()
+
+    cleanup.assert_awaited_once_with("telegram", "chat-1", "ph-1", channel_t("en", "turn_interrupted_by_restart"))
     harness.bus.publish_outbound.assert_not_awaited()
