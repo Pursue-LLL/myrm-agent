@@ -24,7 +24,7 @@
 | `run_digest.py` | 核心 | 智能体实时执行快照 DTO 与步骤信息归纳聚合器 |
 | `source_tracker.py` | 核心 | 会话级引用信息源追踪、全局去重编号与增量分发 |
 | `step_builder.py` | 核心 | 智能体步骤执行数据格式化（面向 WebUI 的多类型工具状态渲染契约） |
-| `stream_buffer.py` | 核心 | 内存滑动窗口流式重放缓冲与 Last-Event-ID 重连恢复 |
+| `stream_buffer.py` | 核心 | 内存滑动窗口流式重放缓冲与 Last-Event-ID 重连恢复。一个缓冲只属于一次运行，结束后只重放、不再接收新事件；`GlobalStreamRegistry.get_or_create` 把某个 id 现有的缓冲交给重连的客户端，`start_run` 给新一次运行换一个新缓冲（审批通过后的续跑沿用被停下那一轮的 message id，若拿到它已结束的缓冲，客户端收到的是那一轮的重放而不是续跑），被换下的缓冲留给还在读它的人读完；`remove(run_id, buffer)` 带缓冲时只清掉仍登记的那一个，换下的缓冲排定的延时清理不会误结束新一次运行的流 |
 | `stream_compactor.py` | 核心 | 高频文本片段流式合并压实器（降低前端事件风暴与渲染开销） |
 | `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传（含 `restart`：丢弃正在流出的草稿）与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`） |
 | `stream_executor.py` | 核心 | 流式执行引擎生命周期封装（Agent.astream 调度、重试恢复与异常拦截；被 Stop 打断的模型请求以 `OperationCancelledError` 早退，与循环内 Stop 同一收尾） |
