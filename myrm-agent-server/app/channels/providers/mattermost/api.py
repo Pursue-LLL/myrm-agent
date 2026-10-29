@@ -1,13 +1,14 @@
 """Mattermost REST API v4 client — Bot Access Token auth.
 
 Provides async methods for posts, reactions, files, and channels.
-WebSocket event streaming via ``stream_events()``.
+WebSocket event streaming via ``stream_events()``. Post text is stripped of channel-wide mentions on the way out.
 
 [INPUT]
 - (none)
 
 [OUTPUT]
 - MattermostClient: Async client for Mattermost REST API v4.
+- neutralize_broadcast_mentions: Break up ``@channel`` / ``@all`` / ``@here`` so the post notifies nobody.
 
 [POS]
 app.channels.providers.mattermost.api — Mattermost REST API v4 client with Bot Access Token auth.
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -26,6 +28,19 @@ from .._http_timeout import resolve_timeout
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = resolve_timeout(15.0)
+
+# An "@" that starts one of the words notifying every member of a channel; not the "@" inside an address.
+_BROADCAST_MENTION_RE = re.compile(r"(?<!\w)@(?=(?:channel|all|here)\b)", re.IGNORECASE)
+_ZERO_WIDTH_SPACE = "\u200b"
+
+
+def neutralize_broadcast_mentions(text: str) -> str:
+    """Put an invisible character after the "@" of ``@channel``, ``@all`` and ``@here``.
+
+    Model output is untrusted text, and one such word anywhere in a post notifies the whole channel. Everything
+    else is left as it is, and a neutralized word no longer matches, so applying it twice changes nothing.
+    """
+    return _BROADCAST_MENTION_RE.sub("@" + _ZERO_WIDTH_SPACE, text)
 
 
 class MattermostClient:
@@ -100,7 +115,7 @@ class MattermostClient:
         """POST /posts — create a message in a channel."""
         body: dict[str, object] = {
             "channel_id": channel_id,
-            "message": message,
+            "message": neutralize_broadcast_mentions(message),
         }
         if root_id:
             body["root_id"] = root_id
@@ -116,7 +131,7 @@ class MattermostClient:
         """PUT /posts/{post_id} — edit message content."""
         resp = await self._get_http().put(
             f"{self.api_url}/posts/{post_id}",
-            json={"id": post_id, "message": message},
+            json={"id": post_id, "message": neutralize_broadcast_mentions(message)},
         )
         resp.raise_for_status()
         post: dict[str, object] = resp.json()
