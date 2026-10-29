@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
     BlindSpotKnowledgePatch,
@@ -36,7 +37,7 @@ from app.services.approvals.registry import ApprovalRegistry
         ("ja", "過去の会話で見つかった知識の不足を補う更新の提案: Prometheus Alertmanager Webhook"),
     ],
 )
-async def test_harvest_session_blind_spots_creates_approval(app, setup_test_database, locale: str, expected_reason: str) -> None:
+async def test_harvest_session_blind_spots_creates_approval(app: FastAPI, locale: str, expected_reason: str) -> None:
     msg_id = f"msg-{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC)
 
@@ -102,7 +103,7 @@ async def test_harvest_session_blind_spots_creates_approval(app, setup_test_data
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_wiki_target(app, setup_test_database) -> None:
+async def test_resolve_knowledge_patch_wiki_target(app: FastAPI) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
@@ -131,7 +132,7 @@ async def test_resolve_knowledge_patch_wiki_target(app, setup_test_database) -> 
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_procedural_target(app, setup_test_database) -> None:
+async def test_resolve_knowledge_patch_procedural_target(app: FastAPI) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
@@ -166,7 +167,7 @@ async def test_resolve_knowledge_patch_procedural_target(app, setup_test_databas
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_rejected(app, setup_test_database) -> None:
+async def test_resolve_knowledge_patch_rejected(app: FastAPI) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
