@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,7 +11,7 @@ from app.channels.types.status import ChannelStatus
 
 
 @pytest.fixture
-def channel():
+def channel() -> Iterator[WeComAiBotChannel]:
     c = WeComAiBotChannel(bot_id="test_bot", secret="test_secret")
     yield c
     if c._stream_guardian_task:
@@ -19,19 +20,21 @@ def channel():
 
 
 @pytest.mark.asyncio
-async def test_start_stop(channel):
+async def test_start_stop(channel: WeComAiBotChannel) -> None:
     await channel.start()
-    assert channel._status == ChannelStatus.RUNNING
+    running = channel._status
+    assert running == ChannelStatus.RUNNING
     assert channel._ws_task is not None
     assert channel._stream_guardian_task is not None
     await channel.stop()
-    assert channel._status == ChannelStatus.STOPPED
+    stopped = channel._status
+    assert stopped == ChannelStatus.STOPPED
     assert channel._ws_task is None
     assert channel._stream_guardian_task is None
 
 
 @pytest.mark.asyncio
-async def test_health_check_and_issues():
+async def test_health_check_and_issues() -> None:
     c = WeComAiBotChannel("", "")
     issues = c.collect_issues()
     assert any("Bot ID is not configured" in i.message for i in issues)
@@ -40,19 +43,7 @@ async def test_health_check_and_issues():
 
 
 @pytest.mark.asyncio
-async def test_send(channel):
-    channel._ws = AsyncMock()
-    msg = OutboundMessage(
-        channel="wecom_aibot", recipient_id="chat_1", user_id="user_1", content="Hello", metadata={"req_id": "req_1"}
-    )
-    await channel.send(msg)
-    channel._ws.send.assert_called_once()
-    sent_frame = json.loads(channel._ws.send.call_args[0][0])
-    assert sent_frame["cmd"] == "aibot_respond_msg"
-
-
-@pytest.mark.asyncio
-async def test_parse_msg_item(channel):
+async def test_parse_msg_item(channel: WeComAiBotChannel) -> None:
     content, media = channel._parse_msg_item({"msgtype": "text", "text": {"content": "hello"}})
     assert content == "hello"
     assert media is None
@@ -64,15 +55,18 @@ async def test_parse_msg_item(channel):
 
 
 @pytest.mark.asyncio
-async def test_parse_msg_item_others(channel):
+async def test_parse_msg_item_others(channel: WeComAiBotChannel) -> None:
     _, m = channel._parse_msg_item({"msgtype": "file", "file": {"filename": "test.txt"}})
+    assert m is not None
     assert m.media_type.name == "DOCUMENT"
     assert m.filename == "test.txt"
 
     _, m = channel._parse_msg_item({"msgtype": "voice"})
+    assert m is not None
     assert m.media_type.name == "AUDIO"
 
     _, m = channel._parse_msg_item({"msgtype": "video"})
+    assert m is not None
     assert m.media_type.name == "VIDEO"
 
     c, _ = channel._parse_msg_item({"msgtype": "location", "location": {"latitude": "1", "longitude": "2", "label": "place"}})
@@ -83,7 +77,7 @@ async def test_parse_msg_item_others(channel):
 
 
 @pytest.mark.asyncio
-async def test_parse_quoted_message(channel):
+async def test_parse_quoted_message(channel: WeComAiBotChannel) -> None:
     quote = {
         "msgtype": "mixed",
         "msgid": "msg1",
@@ -95,8 +89,8 @@ async def test_parse_quoted_message(channel):
 
 
 @pytest.mark.asyncio
-async def test_handle_msg_callback(channel):
-    frame = {
+async def test_handle_msg_callback(channel: WeComAiBotChannel) -> None:
+    frame: dict[str, object] = {
         "cmd": "aibot_msg_callback",
         "headers": {"req_id": "r1"},
         "body": {
@@ -117,8 +111,8 @@ async def test_handle_msg_callback(channel):
 
 
 @pytest.mark.asyncio
-async def test_handle_event_callback(channel):
-    frame = {
+async def test_handle_event_callback(channel: WeComAiBotChannel) -> None:
+    frame: dict[str, object] = {
         "cmd": "aibot_event_callback",
         "headers": {"req_id": "r1"},
         "body": {"event": {"eventtype": "enter_chat"}, "from": {"userid": "u1"}, "msgid": "m1"},
@@ -132,7 +126,7 @@ async def test_handle_event_callback(channel):
 
 
 @pytest.mark.asyncio
-async def test_subscribe_success(channel):
+async def test_subscribe_success(channel: WeComAiBotChannel) -> None:
     ws_mock = AsyncMock()
     ws_mock.recv.return_value = json.dumps({"body": {"ret_code": 0}})
     res = await channel._subscribe(ws_mock)
@@ -141,7 +135,7 @@ async def test_subscribe_success(channel):
 
 
 @pytest.mark.asyncio
-async def test_subscribe_fail(channel):
+async def test_subscribe_fail(channel: WeComAiBotChannel) -> None:
     ws_mock = AsyncMock()
     ws_mock.recv.return_value = json.dumps({"body": {"ret_code": 1}})
     res = await channel._subscribe(ws_mock)
@@ -149,7 +143,7 @@ async def test_subscribe_fail(channel):
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_loop(channel):
+async def test_heartbeat_loop(channel: WeComAiBotChannel) -> None:
     ws_mock = AsyncMock()
     with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
         mock_sleep.side_effect = [None, asyncio.CancelledError()]
@@ -160,12 +154,12 @@ async def test_heartbeat_loop(channel):
 
 
 @pytest.mark.asyncio
-async def test_ws_session_loop(channel):
+async def test_ws_session_loop(channel: WeComAiBotChannel, monkeypatch: pytest.MonkeyPatch) -> None:
     with patch("websockets.connect") as mock_connect:
         mock_ws = AsyncMock()
         mock_connect.return_value.__aenter__.return_value = mock_ws
 
-        channel._subscribe = AsyncMock(return_value=True)
+        monkeypatch.setattr(channel, "_subscribe", AsyncMock(return_value=True))
 
         mock_ws.__aiter__.return_value = ['{"cmd": "pong"}', "invalid json"]
 
@@ -174,7 +168,7 @@ async def test_ws_session_loop(channel):
 
 
 @pytest.mark.asyncio
-async def test_group_req_id_cache_on_msg_callback(channel):
+async def test_group_req_id_cache_on_msg_callback(channel: WeComAiBotChannel, monkeypatch: pytest.MonkeyPatch) -> None:
     """Group messages should cache req_id for proactive push fallback."""
     frame = {
         "headers": {"req_id": "group-req-123"},
@@ -187,13 +181,13 @@ async def test_group_req_id_cache_on_msg_callback(channel):
             "text": {"content": "hello"},
         },
     }
-    channel._emit_inbound = AsyncMock()
+    monkeypatch.setattr(channel, "_emit_inbound", AsyncMock())
     await channel._handle_msg_callback(frame)
     assert channel._group_req_ids["wrchat001"] == "group-req-123"
 
 
 @pytest.mark.asyncio
-async def test_group_req_id_cache_eviction(channel):
+async def test_group_req_id_cache_eviction(channel: WeComAiBotChannel, monkeypatch: pytest.MonkeyPatch) -> None:
     """Cache should evict oldest entry when exceeding 500."""
     for i in range(501):
         channel._group_req_ids[f"wrchat{i:04d}"] = f"req-{i}"
@@ -209,7 +203,7 @@ async def test_group_req_id_cache_eviction(channel):
             "text": {"content": "evict test"},
         },
     }
-    channel._emit_inbound = AsyncMock()
+    monkeypatch.setattr(channel, "_emit_inbound", AsyncMock())
     await channel._handle_msg_callback(frame)
     assert len(channel._group_req_ids) == 501
     assert "wrchat0000" not in channel._group_req_ids
@@ -217,33 +211,37 @@ async def test_group_req_id_cache_eviction(channel):
 
 
 @pytest.mark.asyncio
-async def test_proactive_msg_falls_back_to_respond_for_group(channel):
+async def test_proactive_msg_falls_back_to_respond_for_group(channel: WeComAiBotChannel, monkeypatch: pytest.MonkeyPatch) -> None:
     """Proactive push to group should use cached req_id via respond_msg."""
     channel._group_req_ids["wrchat001"] = "cached-req-abc"
-    channel._send_respond_msg = AsyncMock()
-    channel._send_frame = AsyncMock()
+    respond, send_frame = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(channel, "_send_respond_msg", respond)
+    monkeypatch.setattr(channel, "_send_frame", send_frame)
 
     await channel._send_proactive_msg("wrchat001", "hello group")
 
-    channel._send_respond_msg.assert_called_once_with("cached-req-abc", "hello group", finish=True)
-    channel._send_frame.assert_not_called()
+    respond.assert_called_once_with("cached-req-abc", "hello group", finish=True)
+    send_frame.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_proactive_msg_dm_uses_send_msg(channel):
+async def test_proactive_msg_dm_uses_send_msg(channel: WeComAiBotChannel, monkeypatch: pytest.MonkeyPatch) -> None:
     """DM proactive push should use aibot_send_msg directly."""
-    channel._send_frame = AsyncMock()
+    send_frame = AsyncMock()
+    monkeypatch.setattr(channel, "_send_frame", send_frame)
 
     await channel._send_proactive_msg("user123", "hello dm")
 
-    channel._send_frame.assert_called_once()
-    frame = channel._send_frame.call_args[0][0]
+    send_frame.assert_called_once()
+    frame = send_frame.call_args[0][0]
     assert frame["cmd"] == "aibot_send_msg"
     assert frame["body"]["chatid"] == "user123"
 
 
 @pytest.mark.asyncio
-async def test_edit_placeholder_force_closed_uses_state_req_id(channel):
+async def test_edit_placeholder_force_closed_uses_state_req_id(
+    channel: WeComAiBotChannel, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Force-closed streams should use state.req_id directly, not proactive push."""
     from app.channels.providers.wecom.aibot_channel import WeComStreamState
 
@@ -254,11 +252,12 @@ async def test_edit_placeholder_force_closed_uses_state_req_id(channel):
     )
     state.is_force_closed = True
     channel._active_streams["stream1"] = state
-    channel._send_respond_msg = AsyncMock()
-    channel._send_proactive_msg = AsyncMock()
+    respond, proactive = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(channel, "_send_respond_msg", respond)
+    monkeypatch.setattr(channel, "_send_proactive_msg", proactive)
 
     msg = OutboundMessage(channel="wecom_aibot", recipient_id="wrchat001", content="final result", user_id="u1")
     await channel.edit_placeholder_message("wrchat001", "stream1", msg)
 
-    channel._send_respond_msg.assert_called_once_with("original-req-id", "final result", finish=True)
-    channel._send_proactive_msg.assert_not_called()
+    respond.assert_called_once_with("original-req-id", "final result", finish=True)
+    proactive.assert_not_called()

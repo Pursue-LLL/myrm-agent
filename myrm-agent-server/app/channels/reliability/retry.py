@@ -17,6 +17,8 @@ Async retry utility with exponential backoff. Channel providers declare retry po
 send_with_retry executes generic retry logic. When an outbound message carrying media keeps
 failing, it falls back to a text-only send with a localized note. Partial deliveries
 (``ChannelSendError.accepted``) are never retried or degraded, and cancellation always propagates.
+Raw transport failures are retried by type (``OSError``, ``TimeoutError``, ``httpx.ConnectError``);
+an ``httpx`` read, write or connect timeout is not.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
+import httpx
 from myrm_agent_harness.infra.tracing import get_tracer
 
 from app.channels.core.exceptions import (
@@ -44,9 +47,14 @@ tracer = get_tracer(__name__)
 
 _T = TypeVar("_T")
 
+# httpx raises its own transport errors instead of the ``OSError`` they come from, so a refused, unresolved or
+# unreachable connection is listed here by its httpx type: the request never left. Read, write and connect
+# timeouts stay out: the first two may come after the platform took the message, and waiting out a connect
+# timeout again would stall the one dispatch loop every channel shares.
 DEFAULT_RETRYABLE = (
-    OSError,  # covers ConnectionError and socket errors; httpx transport errors are not OSError subclasses
+    OSError,  # covers ConnectionError and socket errors
     TimeoutError,  # covers asyncio.TimeoutError (alias since 3.11)
+    httpx.ConnectError,
 )
 
 
@@ -75,7 +83,7 @@ def default_should_retry(exc: BaseException) -> bool:
         RateLimitError          → always retry
         ChannelSendError        → retry if ``retriable`` flag is True
         ChannelConnectionError  → always retry
-        OSError / TimeoutError  → always retry (transport-level)
+        OSError / TimeoutError / httpx.ConnectError → always retry (transport-level)
     """
     if isinstance(exc, ChannelAuthError):
         return False

@@ -202,23 +202,14 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         if not self._ws:
             raise ChannelSendError("WeCom AI Bot is not connected", channel=self.name)
 
-        req_id = str(msg.metadata.get("req_id", "")) if msg.metadata else ""
         chat_id = msg.recipient_id
 
         if msg.content:
             chunks = render(msg, self.render_style)
-            if req_id and chunks:
-                stream_id = uuid.uuid4().hex[:16]
-                accumulated = ""
-                for i, chunk in enumerate(chunks):
-                    accumulated = f"{accumulated}\n{chunk}" if accumulated else chunk
-                    is_final = i == len(chunks) - 1
-                    sent = await self._send_respond_msg(req_id, accumulated, finish=is_final, stream_id=stream_id)
-                    self._require_sent(sent)
-            elif chunks:
+            if chunks:
                 if not chat_id:
                     raise ChannelSendError(
-                        "WeCom AI Bot message has neither req_id nor recipient_id",
+                        "WeCom AI Bot message has no recipient_id",
                         channel=self.name,
                         retriable=False,
                     )

@@ -59,4 +59,4 @@
 | 不静默丢弃 | 不支持的附件不得被悄悄略过；永久失败由总线剥离媒体并向收件人发本地化说明。 |
 | 能力即行为 | `capabilities.media` / `file_upload` 必须与真实发送行为一致，`downgrade_components` 据此剥离。 |
 
-守卫测试：`tests/channels/providers/test_send_contract.py`（`message_ids` 声明与 `send()` 内不吞错）、`test_chunk_delivery_contract.py`（渲染出多段的 Provider 文件必须调用 `deliver_chunks`，例外逐项写明理由；它只证明调用存在，各发送路径的行为由 Provider 自己的投递测试固定）。已知局限：多段文本在后段失败时，其后的附件不再发送且不在错误中具名；WhatsApp 桥接对媒体无送达回执；Telegram 的 httpx 传输错误不属于默认可重试集合，首段与后段遇到都不重试。
+守卫测试：`tests/channels/providers/test_send_contract.py`（`message_ids` 声明与 `send()` 内不吞错）、`test_chunk_delivery_contract.py`（渲染出多段的 Provider 文件必须调用 `deliver_chunks`，例外逐项写明理由；任何 Provider 文件都不得在遍历 `render` / `split…` 结果的循环里 `await`，即不得另写一条手写投递路径；各发送路径的行为由 Provider 自己的投递测试固定）、`test_connect_failure_retry_contract.py`（Slack、钉钉、LINE、Telegram 经真实 Channel、真实 HTTP 客户端与总线：连接建立失败按重试策略重试，次数不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`）。已知局限：多段文本在后段失败时，其后的附件不再发送且不在错误中具名；WhatsApp 桥接对媒体无送达回执；`httpx` 的读、写、连接超时不被默认重试（请求可能已被平台收下），LINE、Zalo、Signal、短信这四个把所有 `httpx` 错误（含读超时）包成可重试 `ChannelSendError` 的 Provider 除外。

@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from app.channels.core.bus import MessageBus
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.telegram import TelegramChannel
 from app.channels.providers.telegram.api import TelegramApiError, TelegramClient
@@ -202,17 +203,6 @@ async def test_a_chunk_after_the_first_rich_chunk_refused_for_good_ends_the_repl
 
 
 @pytest.mark.asyncio
-async def test_a_transport_error_after_the_first_rich_chunk_is_a_partial_delivery() -> None:
-    ch, client = _channel(rich=True)
-    client.send_rich_message = AsyncMock(side_effect=[{"message_id": 1}, httpx.ConnectError("down")])
-    with _rich_reply(["one", "two"]), pytest.raises(ChannelSendError) as exc_info:
-        await ch.send(_message())
-
-    assert _texts(client.send_rich_message) == ["one", "two"]
-    assert exc_info.value.accepted is True
-
-
-@pytest.mark.asyncio
 async def test_a_connection_reset_after_the_first_rich_chunk_is_retried_alone_not_resent_whole() -> None:
     ch, client = _channel(rich=True)
     client.send_rich_message = AsyncMock(side_effect=[{"message_id": 1}, OSError("reset"), {"message_id": 2}])
@@ -259,20 +249,51 @@ async def test_on_the_wire_a_flood_limited_later_rich_chunk_is_retried_alone() -
     assert result == "4"
 
 
-@pytest.mark.asyncio
-async def test_on_the_wire_a_dropped_connection_on_a_later_rich_chunk_is_a_partial_delivery() -> None:
-    sent: list[str] = []
+def _connection_down_for(unreachable: str, times: int, sent: list[str]) -> Callable[[httpx.Request], httpx.Response]:
+    """A Bot API that cannot be reached for the first ``times`` sends of the chunk ``unreachable``."""
+    failures = [times]
 
     def handler(request: httpx.Request) -> httpx.Response:
         markdown = json.loads(request.content)["rich_message"]["markdown"]
         sent.append(markdown)
-        if markdown == "two":
+        if markdown == unreachable and failures[0] > 0:
+            failures[0] -= 1
             raise httpx.ConnectError("down", request=request)
         return httpx.Response(200, json={"ok": True, "result": {"message_id": len(sent)}})
 
-    with _rich_reply(["one", "two", "three"]), pytest.raises(ChannelSendError) as exc_info:
-        await _wire_channel(handler).send(_message())
+    return handler
 
-    assert sent == ["one", "two"]
+
+@pytest.mark.asyncio
+async def test_on_the_wire_a_connection_that_cannot_be_opened_for_a_later_rich_chunk_is_retried_alone() -> None:
+    sent: list[str] = []
+
+    with _rich_reply(["one", "two", "three"]):
+        result = await _wire_channel(_connection_down_for("two", 1, sent)).send(_message())
+
+    assert sent == ["one", "two", "two", "three"]
+    assert result == "4"
+
+
+@pytest.mark.asyncio
+async def test_on_the_wire_a_later_rich_chunk_that_stays_unreachable_is_a_partial_delivery() -> None:
+    sent: list[str] = []
+
+    with _rich_reply(["one", "two", "three"]), pytest.raises(ChannelSendError) as exc_info:
+        await _wire_channel(_connection_down_for("two", 99, sent)).send(_message())
+
+    assert sent == ["one", "two", "two"]
     assert exc_info.value.accepted is True
     assert "Delivered 1 of 3" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_on_the_wire_a_connection_that_cannot_be_opened_for_the_first_rich_chunk_is_replayed_by_the_bus() -> None:
+    sent: list[str] = []
+    bus = MessageBus()
+    bus.register_channel(_wire_channel(_connection_down_for("one", 1, sent)))
+
+    with _rich_reply(["one", "two", "three"]):
+        await bus.send_now(_message())
+
+    assert sent == ["one", "one", "two", "three"]

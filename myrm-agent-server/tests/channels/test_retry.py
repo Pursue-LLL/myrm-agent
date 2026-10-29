@@ -2,6 +2,7 @@
 
 import asyncio
 
+import httpx
 import pytest
 
 from app.channels.core.exceptions import ChannelSendError
@@ -16,67 +17,86 @@ from app.channels.types import MediaAttachment, MediaType, OutboundMessage
 
 
 class TestRetryConfig:
-    def test_defaults(self):
+    def test_defaults(self) -> None:
         cfg = RetryConfig()
         assert cfg.max_retries == 3
         assert cfg.base_delay == 1.0
         assert cfg.max_delay == 30.0
         assert cfg.jitter == 0.1
 
-    def test_frozen(self):
+    def test_frozen(self) -> None:
         cfg = RetryConfig()
         with pytest.raises(AttributeError):
             cfg.max_retries = 5  # type: ignore[misc]
 
 
 class TestDefaultShouldRetry:
-    def test_os_error(self):
+    def test_os_error(self) -> None:
         assert default_should_retry(OSError("conn refused"))
 
-    def test_timeout_error(self):
+    def test_timeout_error(self) -> None:
         assert default_should_retry(TimeoutError())
 
-    def test_connection_error(self):
+    def test_connection_error(self) -> None:
         assert default_should_retry(ConnectionError())
 
-    def test_value_error_not_retryable(self):
+    def test_a_connection_httpx_could_not_open_is_retried(self) -> None:
+        assert default_should_retry(httpx.ConnectError("down"))
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            httpx.ConnectTimeout("no answer"),
+            httpx.ReadTimeout("no reply"),
+            httpx.WriteTimeout("stalled"),
+            httpx.ReadError("reset"),
+            httpx.RemoteProtocolError("cut off"),
+        ],
+        ids=lambda exc: type(exc).__name__,
+    )
+    def test_an_httpx_failure_after_the_request_may_have_left_is_not_retried(self, exc: httpx.TransportError) -> None:
+        # The platform may already have the message; sending it again would show it twice. A connect timeout
+        # is held back too: waiting it out again would stall the one dispatch loop every channel shares.
+        assert not default_should_retry(exc)
+
+    def test_value_error_not_retryable(self) -> None:
         assert not default_should_retry(ValueError("bad input"))
 
 
 class TestDefaultExtractRetryAfter:
-    def test_no_response(self):
+    def test_no_response(self) -> None:
         assert default_extract_retry_after(OSError()) is None
 
-    def test_non_429(self):
+    def test_non_429(self) -> None:
         exc = _exc_with_response(status=500, headers={})
         assert default_extract_retry_after(exc) is None
 
-    def test_429_with_retry_after(self):
+    def test_429_with_retry_after(self) -> None:
         exc = _exc_with_response(status=429, headers={"retry-after": "5"})
         assert default_extract_retry_after(exc) == 5.0
 
-    def test_429_without_header(self):
+    def test_429_without_header(self) -> None:
         exc = _exc_with_response(status=429, headers={})
         assert default_extract_retry_after(exc) is None
 
 
 class TestApplyJitter:
-    def test_zero_jitter(self):
+    def test_zero_jitter(self) -> None:
         assert _apply_jitter(1.0, 0.0) == 1.0
 
-    def test_positive_jitter_bounded(self):
+    def test_positive_jitter_bounded(self) -> None:
         for _ in range(100):
             result = _apply_jitter(10.0, 0.1)
             assert 9.0 <= result <= 11.0
 
-    def test_never_negative(self):
+    def test_never_negative(self) -> None:
         for _ in range(100):
             assert _apply_jitter(0.01, 1.0) >= 0.0
 
 
 class TestSendWithRetry:
     @pytest.mark.asyncio
-    async def test_success_on_first_try(self):
+    async def test_success_on_first_try(self) -> None:
         calls = []
 
         async def fn(x: int) -> int:
@@ -88,7 +108,7 @@ class TestSendWithRetry:
         assert len(calls) == 1
 
     @pytest.mark.asyncio
-    async def test_retries_on_transient_error(self):
+    async def test_retries_on_transient_error(self) -> None:
         attempt = 0
 
         async def fn() -> str:
@@ -104,7 +124,7 @@ class TestSendWithRetry:
         assert attempt == 3
 
     @pytest.mark.asyncio
-    async def test_raises_non_retryable(self):
+    async def test_raises_non_retryable(self) -> None:
         async def fn() -> None:
             raise ValueError("permanent error")
 
@@ -112,7 +132,7 @@ class TestSendWithRetry:
             await send_with_retry(fn)
 
     @pytest.mark.asyncio
-    async def test_exhausts_retries(self):
+    async def test_exhausts_retries(self) -> None:
         async def fn() -> None:
             raise OSError("always fails")
 
@@ -121,7 +141,7 @@ class TestSendWithRetry:
             await send_with_retry(fn, config=config)
 
     @pytest.mark.asyncio
-    async def test_custom_should_retry(self):
+    async def test_custom_should_retry(self) -> None:
         attempt = 0
 
         async def fn() -> str:
@@ -141,7 +161,7 @@ class TestSendWithRetry:
         assert attempt == 2
 
     @pytest.mark.asyncio
-    async def test_respects_max_delay(self):
+    async def test_respects_max_delay(self) -> None:
         attempt = 0
 
         async def fn() -> str:
@@ -156,7 +176,7 @@ class TestSendWithRetry:
         assert result == "ok"
 
     @pytest.mark.asyncio
-    async def test_uses_extract_retry_after(self):
+    async def test_uses_extract_retry_after(self) -> None:
         attempt = 0
 
         async def fn() -> str:
@@ -188,7 +208,7 @@ def _media_msg(content: str = "report ready", *, locale: str | None = None) -> O
 
 class TestMediaFallbackAndPartialDelivery:
     @pytest.mark.asyncio
-    async def test_non_retryable_media_failure_falls_back_to_localized_text(self):
+    async def test_non_retryable_media_failure_falls_back_to_localized_text(self) -> None:
         sent: list[OutboundMessage] = []
 
         async def fn(msg: OutboundMessage) -> str:
@@ -204,7 +224,7 @@ class TestMediaFallbackAndPartialDelivery:
         assert sent[-1].content == "report ready\n\n附件发送失败，仅发送了文字内容。"
 
     @pytest.mark.asyncio
-    async def test_exhausted_retries_fall_back_to_text_once(self):
+    async def test_exhausted_retries_fall_back_to_text_once(self) -> None:
         calls = 0
 
         async def fn(msg: OutboundMessage) -> str:
@@ -219,7 +239,7 @@ class TestMediaFallbackAndPartialDelivery:
         assert calls == 3  # two media attempts, then one text-only send
 
     @pytest.mark.asyncio
-    async def test_text_only_failure_is_not_degraded(self):
+    async def test_text_only_failure_is_not_degraded(self) -> None:
         async def fn(msg: OutboundMessage) -> str:
             raise ChannelSendError("rejected", retriable=False)
 
@@ -227,7 +247,7 @@ class TestMediaFallbackAndPartialDelivery:
             await send_with_retry(fn, _media_msg().strip_media(), config=RetryConfig(max_retries=2, base_delay=0.0))
 
     @pytest.mark.asyncio
-    async def test_accepted_partial_delivery_is_neither_retried_nor_stripped(self):
+    async def test_accepted_partial_delivery_is_neither_retried_nor_stripped(self) -> None:
         calls = 0
 
         async def fn(msg: OutboundMessage) -> str:
@@ -243,7 +263,7 @@ class TestMediaFallbackAndPartialDelivery:
         assert excinfo.value.failed_attachments == ("report.pdf",)
 
     @pytest.mark.asyncio
-    async def test_cancellation_during_media_send_propagates(self):
+    async def test_cancellation_during_media_send_propagates(self) -> None:
         calls = 0
 
         async def fn(msg: OutboundMessage) -> str:

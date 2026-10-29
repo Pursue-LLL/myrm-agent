@@ -351,28 +351,7 @@ class TestOutboundSend:
         assert ch.health.consecutive_failures > 0
 
     @pytest.mark.asyncio
-    async def test_send_with_req_id_uses_stream(self) -> None:
-        ch = _make_channel()
-        mock_ws = AsyncMock()
-        ch._ws = mock_ws
-
-        msg = OutboundMessage(
-            channel="wecom_aibot",
-            recipient_id="chat1",
-            content="response text",
-            user_id="u1",
-            metadata={"req_id": "req_abc"},
-        )
-        await ch.send(msg)
-
-        assert mock_ws.send.called
-        sent_data = json.loads(mock_ws.send.call_args_list[-1][0][0])
-        assert sent_data["cmd"] == "aibot_respond_msg"
-        assert sent_data["body"]["stream"]["finish"] is True
-        assert "response text" in sent_data["body"]["stream"]["content"]
-
-    @pytest.mark.asyncio
-    async def test_send_without_req_id_uses_proactive(self) -> None:
+    async def test_send_uses_proactive_push(self) -> None:
         ch = _make_channel()
         mock_ws = AsyncMock()
         ch._ws = mock_ws
@@ -391,7 +370,7 @@ class TestOutboundSend:
         assert sent_data["body"]["chatid"] == "chat1"
 
     @pytest.mark.asyncio
-    async def test_send_without_recipient_and_req_id_raises(self) -> None:
+    async def test_send_without_recipient_raises(self) -> None:
         ch = _make_channel()
         mock_ws = AsyncMock()
         ch._ws = mock_ws
@@ -402,7 +381,7 @@ class TestOutboundSend:
             content="orphan msg",
             user_id="u1",
         )
-        with pytest.raises(ChannelSendError, match="neither req_id nor recipient_id") as excinfo:
+        with pytest.raises(ChannelSendError, match="no recipient_id") as excinfo:
             await ch.send(msg)
         assert excinfo.value.retriable is False
         assert not mock_ws.send.called
