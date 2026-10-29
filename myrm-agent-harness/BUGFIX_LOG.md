@@ -2,22 +2,22 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
-### BUG-HARNESS-2026-10-29-092 · macOS 原生后端的 ASCII 文本输入构造不出键盘事件：`write` 把一个事件当成「事件源」传入，`CGEventCreateKeyboardEvent` 返回空；非 BMP 字符的长度也传错
+### BUG-HARNESS-2026-10-29-092 · macOS 原生后端的 ASCII 文本输入构造不出键盘事件、垂直滚动每次抛异常：事件构造原语只被 mock 测过，参数错误一直没被发现
 
 | 字段 | 内容 |
 | --- | --- |
 | **状态** | **FIXED**（harness `toolkits/computer_use/backends/macos_input.py`；测试 `tests/toolkits/computer_use/test_macos_input.py`；不改工具 schema 与提示词，不影响提示词缓存）。 |
-| **发现时间** | 2026-10-29（为核对 `write` 的 Unicode 长度参数，在本机读回事件内容时发现事件本身是空的） |
+| **发现时间** | 2026-10-29（为核对 `write` 的 Unicode 长度参数，在本机读回事件内容时发现事件本身是空的；随后用真实 Quartz 把全部事件构造原语跑了一遍，又发现垂直滚动每次抛异常） |
 | **修复时间** | 2026-10-29 |
-| **严重程度** | P2：只影响没装 cua-driver 的 macOS 兜底路径（`toolkits/computer_use/backends/macos.py` 的 `type_text` / `type_credential` 的 ASCII 分支，调用 `macos_input.write`）；装了 cua-driver 时输入委托给它。 |
+| **严重程度** | P2：只影响没装 cua-driver 的 macOS 兜底路径（`toolkits/computer_use/backends/macos.py` 的 `type_text` / `type_credential` 的 ASCII 分支调用 `macos_input.write`，`scroll` 的上下方向调用 `macos_input.scroll`）；装了 cua-driver 时输入委托给它。 |
 | **关联产品** | 桌面控制（macOS）原生后端 `type_text` / `type_credential`。 |
-| **根因** | ① `write` 用 `CGEventCreate(None)` 的返回值（一个 `CGEventRef`）当作 `CGEventCreateKeyboardEvent` 的第一个参数，而该参数要的是 `CGEventSourceRef`。本机实测：传入这个值时 `CGEventCreateKeyboardEvent` 返回 `None`，传 `None` 或真实事件源则返回有效事件；其余键鼠原语（`_post_key_event` 等）一直传 `None`，只有 `write` 不是。得到空事件后，`CGEventKeyboardSetUnicodeString` 没有作用，`_post_event` 投出的也是空事件；本机实测 `CGEventPost(kCGHIDEventTap, None)` 静默返回、不报错，所以调用方看不到任何失败。② `CGEventKeyboardSetUnicodeString` 的长度是 UTF-16 代码单元数，`write` 对每个 Python 字符都传 1；非 BMP 字符（如 emoji）占 2 个单元，读回事件内容时直接 `UnicodeDecodeError`。该分支此前没有调用方（`macos.py` 先用 `isascii()` 分流），所以单独看不到影响，但函数文档写的是「任意 Unicode 均可靠」。 |
-| **修复** | `write` 不再构造事件源，两个键盘事件都以 `None` 为源，与其余原语一致；长度改为 `len(char.encode("utf-16-le")) // 2`。 |
+| **根因** | ① `write` 用 `CGEventCreate(None)` 的返回值（一个 `CGEventRef`）当作 `CGEventCreateKeyboardEvent` 的第一个参数，而该参数要的是 `CGEventSourceRef`。本机实测：传入这个值时 `CGEventCreateKeyboardEvent` 返回 `None`，传 `None` 或真实事件源则返回有效事件；其余键鼠原语（`_post_key_event` 等）一直传 `None`，只有 `write` 不是。得到空事件后，`CGEventKeyboardSetUnicodeString` 没有作用，`_post_event` 投出的也是空事件；本机实测 `CGEventPost(kCGHIDEventTap, None)` 静默返回、不报错，所以调用方看不到任何失败。② `CGEventKeyboardSetUnicodeString` 的长度是 UTF-16 代码单元数，`write` 对每个 Python 字符都传 1；非 BMP 字符（如 emoji）占 2 个单元，读回事件内容时直接 `UnicodeDecodeError`。该分支此前没有调用方（`macos.py` 先用 `isascii()` 分流），所以单独看不到影响，但函数文档写的是「任意 Unicode 均可靠」。③ `_post_scroll` 对垂直滚动也传了 `(wheel_count=1, 垂直值, 0)` 两个滚轮值，而 `CGEventCreateScrollWheelEvent` 要求变参个数等于 `wheel_count`；本机实测垂直滚动 5 / −5 / 25 全部抛 `ValueError: Wrong number of variadic arguments, need 1, got 2`，`macos.py` 的 `scroll` 把它转成失败的 `ActionResult`，水平滚动不受影响。 |
+| **修复** | `write` 不再构造事件源，两个键盘事件都以 `None` 为源，与其余原语一致；长度改为 `len(char.encode("utf-16-le")) // 2`。滚动事件收进 `_scroll_event`：滚轮值用元组表示（垂直 `(v,)`、水平 `(0, v)`），`wheel_count` 取元组长度，个数与计数在结构上不会不一致；分段与余数逻辑不变。 |
 | **反复次数** | 第 1 次。 |
-| **踩坑** | ① 现有 mock 测试只数调用次数，用 `MagicMock` 的 Quartz 时「事件是否有效」永远是真，所以这个 bug 一直没被测到；新增的真实 Quartz 测试在 macOS 上构造事件并用 `CGEventKeyboardGetUnicodeString` 读回，只构造、不投递，不会向本机注入按键。② 长度参数要与字符的 UTF-16 单元数一致：BMP 字符声明 2 会报 `ValueError`，emoji 声明 1 读回失败，声明 2 读回正确。③ 变异验证：长度改回 1，2 个用例失败；把事件当事件源传入，4 个用例失败。 |
-| **回归** | `tests/toolkits/computer_use/test_macos_input.py`：新增 `test_write_declares_utf16_length_and_uses_no_event_source`（所有平台跑）与 `TestWriteWithRealQuartz`（仅 macOS，ASCII / 中文 / emoji 三例）；该文件 30 例全过。 |
-| **仍然存在** | ① 只验证了事件对象有效、携带的文本正确，没有向真实输入框投递过，也没有验证中文输入法处于组合状态时这类「键码 0 加 Unicode 字符串」的事件是否会被输入法截获。② 因此 macOS 非 ASCII 文本仍走剪贴板（`macos.py` 的 `_paste_text`），与 087 ⑥ 描述的缺陷相同，不改路由。 |
-| **代码位置** | `toolkits/computer_use/backends/macos_input.py:297-312` · `toolkits/computer_use/backends/macos.py:171,202`（唯一调用方）。 |
+| **踩坑** | ① 现有 mock 测试只数调用次数、检查位置参数的值，`MagicMock` 的 Quartz 接受任意个数的参数，并且「事件是否有效」永远为真，所以这两个 bug 一直没被测到；新增的真实 Quartz 测试在 macOS 上构造事件（`write` 还用 `CGEventKeyboardGetUnicodeString` 读回文本），`_post_event` 被替换为收集器，只构造、不投递，不会向本机注入按键。② 长度参数要与字符的 UTF-16 单元数一致：BMP 字符声明 2 会报 `ValueError`，emoji 声明 1 读回失败，声明 2 读回正确。③ 变异验证：长度改回 1，2 个用例失败；把事件当事件源传入，4 个用例失败；垂直滚动改回「两个值、`wheel_count` 为 1」，真实 Quartz 2 个用例和 mock 1 个用例失败。 |
+| **回归** | `tests/toolkits/computer_use/test_macos_input.py`：新增 `test_write_declares_utf16_length_and_uses_no_event_source`、`test_scroll_wheel_values_match_wheel_count`（所有平台跑）与 `TestRealQuartzEvents`（仅 macOS：`write` 的 ASCII / 中文 / emoji 三例，click / move_to / press / hotkey / scroll / hscroll / drag 共 12 例）；该文件 44 例全过。 |
+| **仍然存在** | ① 只验证了事件对象有效、携带的文本正确，没有向真实输入框或窗口投递过；没有验证中文输入法处于组合状态时这类「键码 0 加 Unicode 字符串」的事件是否会被输入法截获；也没有验证滚动方向（`macos.py` 把 up / left 映射为正值）是否与 Quartz 的约定一致。② 因此 macOS 非 ASCII 文本仍走剪贴板（`macos.py` 的 `_paste_text`），与 087 ⑥ 描述的缺陷相同，不改路由。 |
+| **代码位置** | `toolkits/computer_use/backends/macos_input.py:239-252,287-302` · `toolkits/computer_use/backends/macos.py:171,202,240-264`（调用方）。 |
 
 ### BUG-HARNESS-2026-10-29-091 · 智能体用 `subagent_control_tool(list)` 读过的子智能体结果，完成事件仍唤醒父智能体再答一遍：harness 不上报「结果已被读走」
 

@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -170,15 +171,18 @@ class TestKeyboardPrimitives:
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Quartz is only available on macOS")
-class TestWriteWithRealQuartz:
-    """write() 构造的事件在真实 Quartz 下必须有效并携带所输入的文本（只构造、不投递）。"""
+class TestRealQuartzEvents:
+    """各输入原语在真实 Quartz 下必须构造出有效事件（只构造、不投递）。
+
+    mock 的 Quartz 接受任意参数并总是返回有效对象，抓不到参数个数、事件源之类的错误。
+    """
 
     @pytest.fixture(autouse=True)
     def _patch_quartz(self):  # type: ignore[override]
         yield  # 覆盖模块级 fixture，使用真实 Quartz
 
     @pytest.mark.parametrize("text", ["a", "\u4e2d", "\N{GRINNING FACE}"])
-    def test_events_carry_the_typed_text(self, text: str) -> None:
+    def test_write_events_carry_the_typed_text(self, text: str) -> None:
         quartz = pytest.importorskip("Quartz")
         posted: list[object] = []
         with (
@@ -191,6 +195,31 @@ class TestWriteWithRealQuartz:
         assert all(event is not None for event in posted)
         units = len(text.encode("utf-16-le")) // 2
         assert quartz.CGEventKeyboardGetUnicodeString(posted[0], 10, None, None) == (units, text)
+
+    @pytest.mark.parametrize(
+        ("call", "expected_events"),
+        [
+            pytest.param(lambda: macos_input.click(10, 10), 2, id="click-left"),
+            pytest.param(lambda: macos_input.click(10, 10, "right", 2), 4, id="click-right-double"),
+            pytest.param(lambda: macos_input.click(10, 10, "middle"), 2, id="click-middle"),
+            pytest.param(lambda: macos_input.move_to(10, 10), 1, id="move-to"),
+            pytest.param(lambda: macos_input.press("enter"), 2, id="press"),
+            pytest.param(lambda: macos_input.press("A"), 4, id="press-with-shift"),
+            pytest.param(lambda: macos_input.hotkey("command", "c"), 4, id="hotkey"),
+            pytest.param(lambda: macos_input.scroll(5), 1, id="scroll-up"),
+            pytest.param(lambda: macos_input.scroll(-25), 3, id="scroll-down-chunked"),
+            pytest.param(lambda: macos_input.hscroll(5), 1, id="hscroll-left"),
+            pytest.param(lambda: macos_input.hscroll(-25), 3, id="hscroll-right-chunked"),
+            pytest.param(lambda: macos_input.drag(20, 20, 0.2), 4, id="drag"),
+        ],
+    )
+    def test_primitives_build_valid_events(self, call: Callable[[], None], expected_events: int) -> None:
+        posted: list[object] = []
+        with patch.object(macos_input, "_post_event", side_effect=posted.append), patch("time.sleep"):
+            call()
+
+        assert len(posted) == expected_events
+        assert all(event is not None for event in posted)
 
 
 class TestMousePrimitives:
@@ -255,6 +284,15 @@ class TestMousePrimitives:
         assert args.args[2] == 2  # wheel_count for horizontal
         assert args.args[3] == 0  # vertical value zero
         assert args.args[4] == 4  # horizontal value
+
+    @pytest.mark.parametrize("scroll", [macos_input.scroll, macos_input.hscroll])
+    @patch("time.sleep")
+    def test_scroll_wheel_values_match_wheel_count(self, _mock_sleep, scroll, _patch_quartz) -> None:
+        scroll(25)
+        for call in _patch_quartz.CGEventCreateScrollWheelEvent.call_args_list:
+            source, _unit, wheel_count, *wheel_values = call.args
+            assert source is None
+            assert len(wheel_values) == wheel_count
 
     @patch("time.sleep")
     @patch(

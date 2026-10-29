@@ -236,30 +236,20 @@ def _post_mouse_event(event_type: int, x: int, y: int, button: int) -> None:
     _post_event(event)
 
 
-def _post_scroll(amount: int, vertical: bool) -> None:
+def _scroll_event(value: int, vertical: bool) -> object:
+    """构造滚动事件：滚轮值个数必须等于 wheel_count，垂直传 1 个值，水平传（垂直=0, 水平）2 个值。"""
     from Quartz import CGEventCreateScrollWheelEvent, kCGScrollEventUnitLine
 
-    wheel_count = 1 if vertical else 2
+    wheels = (value,) if vertical else (0, value)
+    return CGEventCreateScrollWheelEvent(None, kCGScrollEventUnitLine, len(wheels), *wheels)
+
+
+def _post_scroll(amount: int, vertical: bool) -> None:
     # 与 pyautogui 一致：每 10 格一段投递，避免大数值被应用忽略。
     for _ in range(abs(amount) // 10):
-        step = 10 if amount > 0 else -10
-        event = CGEventCreateScrollWheelEvent(
-            None,
-            kCGScrollEventUnitLine,
-            wheel_count,
-            step if vertical else 0,
-            0 if vertical else step,
-        )
-        _post_event(event)
+        _post_event(_scroll_event(10 if amount > 0 else -10, vertical))
     remainder = amount % 10 if amount >= 0 else -1 * ((-amount) % 10)
-    event = CGEventCreateScrollWheelEvent(
-        None,
-        kCGScrollEventUnitLine,
-        wheel_count,
-        remainder if vertical else 0,
-        0 if vertical else remainder,
-    )
-    _post_event(event)
+    _post_event(_scroll_event(remainder, vertical))
 
 
 def key_down(key: str) -> None:
