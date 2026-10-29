@@ -4,6 +4,7 @@ Covers both native Linux desktops and SaaS sandbox environments (which run Linux
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
+- linux_probes::probe_linux_capturable, detect_linux_resolution (POS: read-only screen probes)
 
 [OUTPUT]
 - LinuxBackend: ComputerBackend implementation for Linux
@@ -23,6 +24,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.computer_use.backends.linux_probes import (
+    detect_linux_resolution,
+    probe_linux_capturable,
+)
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ModifierKey,
@@ -34,6 +39,10 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+# 剪贴板所有者卡死时 `xclip -o` 会一直阻塞；正常所有者毫秒级响应，超过这个时间就按「读不到原内容」处理。
+_CLIPBOARD_READ_TIMEOUT_S = 3.0
+_TIMEOUT_EXIT_CODE = 124
 
 CLICK_BUTTONS = {
     "left": "1",
@@ -70,8 +79,11 @@ class LinuxBackend:
         # 粘贴会临时占用剪贴板；重叠的调用会把对方的临时文本当成用户原内容存下并「还原」，所以一次只允许一轮。
         self._clipboard_lock = asyncio.Lock()
 
-    async def _run_cmd(self, cmd: str, stdin: str | None = None) -> tuple[str, str, int]:
-        """Run a shell command with display prefix; `stdin` is piped instead of placed on the command line."""
+    async def _run_cmd(self, cmd: str, stdin: str | None = None, timeout: float | None = None) -> tuple[str, str, int]:
+        """Run a shell command with display prefix; `stdin` is piped instead of placed on the command line.
+
+        With `timeout`, a command that has not finished by then is killed and reported as exit 124.
+        """
         full_cmd = f"{self._display_prefix}{cmd}"
         proc = await asyncio.create_subprocess_shell(
             full_cmd,
@@ -79,7 +91,16 @@ class LinuxBackend:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate(stdin.encode("utf-8") if stdin is not None else None)
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(stdin.encode("utf-8") if stdin is not None else None), timeout
+            )
+        except TimeoutError:
+            proc.kill()
+            await proc.wait()
+            # 命令行可能带着输入的文本，所以日志里不写它。
+            logger.warning("An X11 helper command timed out after %ss and was killed", timeout)
+            return "", f"timed out after {timeout}s", _TIMEOUT_EXIT_CODE
         return stdout.decode(), stderr.decode(), proc.returncode or 0
 
     async def _run_input(self, cmd: str, stdin: str | None = None) -> None:
@@ -192,7 +213,7 @@ class LinuxBackend:
     async def _paste_text_xclip(self, text: str) -> None:
         """Type non-ASCII text via xclip + Ctrl+V, preserving original clipboard."""
         async with self._clipboard_lock:
-            saved_stdout, _, _ = await self._run_cmd("xclip -selection clipboard -o")
+            saved_stdout, _, _ = await self._run_cmd("xclip -selection clipboard -o", timeout=_CLIPBOARD_READ_TIMEOUT_S)
             try:
                 await self._xclip_write(text)
                 await self._run_input("xdotool key ctrl+v")
@@ -282,7 +303,7 @@ class LinuxBackend:
         height = int(os.getenv("HEIGHT", "0"))
 
         if not width or not height:
-            width, height = _detect_linux_resolution(self._display_prefix)
+            width, height = detect_linux_resolution(self._display_prefix)
 
         self._screen_info = ScreenInfo(width=width, height=height, dpi_scale=1.0)
         return self._screen_info
@@ -432,7 +453,7 @@ class LinuxBackend:
         if probe_capture:
             capturable = False
             if screen_recording and has_display:
-                capturable = await asyncio.to_thread(_probe_linux_capturable)
+                capturable = await asyncio.to_thread(probe_linux_capturable)
 
         return PermissionStatus(
             accessibility=accessibility,
@@ -441,53 +462,3 @@ class LinuxBackend:
             platform="linux",
             settings_deeplinks=deeplinks,
         )
-
-
-def _probe_linux_capturable() -> bool:
-    """Functional capture probe via scrot or gnome-screenshot."""
-    from myrm_agent_harness.toolkits.computer_use.capture_probe import (
-        png_bytes_look_capturable,
-    )
-
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        tmp_path = Path(tmp.name)
-    try:
-        if shutil.which("scrot"):
-            cmd = ["scrot", "-o", str(tmp_path)]
-        elif shutil.which("gnome-screenshot"):
-            cmd = ["gnome-screenshot", "-f", str(tmp_path)]
-        else:
-            return False
-        result = subprocess.run(cmd, capture_output=True, timeout=1.5, check=False)
-        if result.returncode != 0 or not tmp_path.is_file():
-            return False
-        return png_bytes_look_capturable(tmp_path.read_bytes())
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    finally:
-        tmp_path.unlink(missing_ok=True)
-
-
-def _detect_linux_resolution(display_prefix: str) -> tuple[int, int]:
-    """Detect screen resolution via xdpyinfo or xrandr."""
-    for cmd in [f"{display_prefix}xdpyinfo", f"{display_prefix}xrandr"]:
-        try:
-            result = subprocess.run(
-                cmd.split(),
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            for line in result.stdout.splitlines():
-                if "dimensions:" in line:
-                    parts = line.split("dimensions:")[1].strip().split()[0]
-                    w, h = parts.split("x")
-                    return int(w), int(h)
-                if "*" in line and "x" in line:
-                    parts = line.strip().split()[0]
-                    w, h = parts.split("x")
-                    return int(w.split(".")[0]), int(h.split(".")[0])
-        except Exception:
-            continue
-
-    return 1920, 1080

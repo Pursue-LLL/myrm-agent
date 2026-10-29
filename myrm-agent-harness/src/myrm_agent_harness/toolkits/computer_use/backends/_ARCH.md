@@ -18,7 +18,8 @@ Platform-specific implementations of the ComputerBackend protocol. Provides macO
 | windows.py | Core | Windows backend — mss + pyautogui + ctypes/user32 + uiautomation; `set_excluded_capture_window_titles` 帷幕排除注入；帷幕在屏时全局指针动作 fail-closed（`_pointer_occluded`）；全屏截图合并 `SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES`（视觉审批高亮）. | ✅ |
 | windows_text_io.py | Core | Windows 文本桥 — `type_unicode_text`（`SendInput` Unicode 键事件逐 UTF-16 代码单元输入，换行折成一次 Return，分块发送，不碰剪贴板；UIPI 拦截不可检测）、`extract_window_text`（uiautomation 前台窗口文本，递归收集有深度/数量上限）；Win32 与 uiautomation 调用期解析，跨平台可导入. | ✅ |
 | windows_background.py | Core | Windows overlay ops — `_lowest_overlay_hwnd` title 探测；`_capture_screen_excluding_titles` mss 路径（帷幕 WDA 已由桌面端设置）. | ✅ |
-| linux.py | Core | Linux backend — scrot/gnome-screenshot + xdotool + DISPLAY auto-detection；输入命令经 `_run_input` 校验退出码（缺工具即失败；凭据只走 stdin、不进命令行参数），非 ASCII 经 xclip 粘贴并在 `finally` 写回原文本（原剪贴板为空也写回空串），同一实例上的粘贴由 `asyncio.Lock` 串行. | ✅ |
+| linux.py | Core | Linux backend — scrot/gnome-screenshot + xdotool + DISPLAY auto-detection；输入命令经 `_run_input` 校验退出码（缺工具即失败；凭据只走 stdin、不进命令行参数），非 ASCII 经 xclip 粘贴并在 `finally` 写回原文本（原剪贴板为空也写回空串），同一实例上的粘贴由 `asyncio.Lock` 串行，读原剪贴板最多等 3 秒（所有者卡死时按空串处理，之后写回空串）. | ✅ |
+| linux_probes.py | Core | Linux 屏幕只读探测 — `probe_linux_capturable`（scrot / gnome-screenshot 实截一张并判定可用）、`detect_linux_resolution`（xdpyinfo / xrandr，读不到回退 1920x1080）；仅被 `linux.py` 引用. | ✅ |
 | cua_driver.py | Enhancement | Background-input backend via cua-driver MCP. Wraps a native backend. | ✅ |
 | cua_driver_spawn.py | Enhancement | MCP stdio argv policy — ``--no-overlay`` defaults and ``--help`` capability probe. | ✅ |
 

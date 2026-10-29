@@ -7,20 +7,27 @@ fake xclip/xdotool scripts exercise the clipboard restore with genuine exit code
 from __future__ import annotations
 
 import asyncio
+import os
 import stat
+import subprocess
 import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.toolkits.computer_use.backends import linux as linux_module
 from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="relies on /bin/sh and POSIX PATH lookup")
 
 _FAKE_XCLIP = """#!/bin/sh
-case "$*" in *-o*) cat "$CLIP"; exit 0;; esac
+case "$*" in *-o*)
+    # XCLIP_HANG is the (unique) duration of the stuck read; exec makes the sleep the very process a kill must reach.
+    if [ -n "$XCLIP_HANG" ]; then exec sleep "$XCLIP_HANG"; fi
+    cat "$CLIP"; exit 0;;
+esac
 cat > "$CLIP"
 """
 
@@ -148,6 +155,22 @@ class TestClipboardPaste:
         assert [r.success for r in results] == [True, True]
         assert fake_x_tools["seen"].read_text() == "你好世界"
         assert fake_x_tools["clip"].read_text() == "old"
+
+    @pytest.mark.asyncio
+    async def test_unresponsive_clipboard_owner_cannot_stall_the_paste(
+        self, backend: LinuxBackend, fake_x_tools: dict[str, Path], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stuck_read = f"30.{os.getpid()}"  # unique, so pgrep can only match this test's sleep
+        monkeypatch.setenv("XCLIP_HANG", stuck_read)
+        monkeypatch.setattr(linux_module, "_CLIPBOARD_READ_TIMEOUT_S", 0.3)
+
+        result = await asyncio.wait_for(backend.type_text("你好"), timeout=10)
+
+        assert result.success is True
+        assert fake_x_tools["seen"].read_text() == "你好"
+        # The unreadable original cannot be restored; the pasted text must still not stay behind.
+        assert fake_x_tools["clip"].read_text() == ""
+        assert subprocess.run(["pgrep", "-f", f"sleep {stuck_read}"], capture_output=True).returncode == 1
 
 
 class _Vault:
