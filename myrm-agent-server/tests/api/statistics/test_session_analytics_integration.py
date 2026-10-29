@@ -105,7 +105,7 @@ async def test_session_analytics_endpoint_structure():
             event = analytics["events_timeline"][0]
             assert "type" in event
             assert "timestamp" in event
-            assert "data" in event
+            assert "data" not in event
 
 
 @pytest.mark.asyncio

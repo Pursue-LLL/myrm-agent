@@ -11,7 +11,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 - command_patterns::_redact_command_credentials (POS: Command-line rules of the runtime redactor)
 - header_patterns::_redact_secret_headers (POS: Header rules of the runtime redactor)
 - patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
-- structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line, structured_fields::_is_secret_field_name, structured_fields::_mask_field_value (POS: structured-field detectors of the redaction engine)
+- structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line, structured_fields::is_secret_field_name, structured_fields::_mask_field_value (POS: structured-field detectors of the redaction engine)
 - url_credentials::_DB_CONNSTR_RE, url_credentials::_URL_USERINFO_RE, url_credentials::_URL_BARE_TOKEN_RE and their replacers (POS: URL credential regexes and replacers of the runtime redactor)
 
 [OUTPUT]
@@ -63,11 +63,11 @@ from .structured_fields import (
     _JSON_ESCAPED_FIELD_RE,
     _JSON_FIELD_RE,
     _REPR_DIAGNOSTIC_LINE_RE,
-    _is_secret_field_name,
     _mask_field_value,
     _redact_json_escaped_field,
     _redact_json_field,
     _redact_repr_diagnostic_line,
+    is_secret_field_name,
 )
 from .url_credentials import (
     _DB_CONNSTR_RE,
@@ -324,9 +324,9 @@ def redact_field_text(key: str, text: str, *, scan: Callable[[str], str] = redac
 
     A value that holds no secret shape (``sessionid=…`` in ``Cookie``, a bare password) is still masked when the field
     name is a credential, since the name says what the value does not. Any other text goes through ``scan``: the full
-    redactor, unless a caller that runs on every event passes a lighter one.
+    redactor, unless the caller passes its own.
     """
-    if _REDACT_ENABLED and _is_secret_field_name(key) and text.strip():
+    if _REDACT_ENABLED and is_secret_field_name(key) and text.strip():
         return _mask_field_value(key, text)
     return scan(text)
 

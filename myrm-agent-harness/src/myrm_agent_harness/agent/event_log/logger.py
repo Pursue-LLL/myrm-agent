@@ -136,7 +136,8 @@ class EventLogger:
                 "decisions": [e.to_dict() for e in entries],
                 "count": len(entries),
             }
-            await self._enqueue(self._make_event(_SECURITY_AUDIT, audit_data))
+            # A decision quotes what it stopped (a blocked URL with its userinfo and query), so it is redacted like any event.
+            await self._enqueue(self._make_event(_SECURITY_AUDIT, sanitize_event_data(audit_data)))
         except Exception:
             logger.debug("Failed to flush security audit", exc_info=True)
 

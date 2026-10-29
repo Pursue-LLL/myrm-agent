@@ -250,7 +250,6 @@ export interface LlmBreakdown {
 export interface SessionEvent {
   type: string;
   timestamp: number;
-  data: Record<string, unknown>;
 }
 
 export interface ContextHotspot {

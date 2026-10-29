@@ -32,7 +32,7 @@ and, rarely, a random URL-safe base64 value that happens to hold no digit.
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)
 - ``_JSON_ESCAPED_FIELD_RE`` / ``_redact_json_escaped_field`` - JSON member inside a JSON-encoded string
 - ``_REPR_DIAGNOSTIC_LINE_RE`` / ``_redact_repr_diagnostic_line`` - Python repr entries on diagnostic lines
-- ``_is_secret_field_name`` - the shared key policy
+- ``is_secret_field_name`` - the shared key policy
 - ``_mask_field_value`` - value masking of the three detectors (a password or passphrase is hidden completely; variable references and plain labels stay readable)
 
 [POS]
@@ -115,7 +115,7 @@ _REPR_DIAGNOSTIC_LINE_RE = re.compile(
 )
 
 
-def _is_secret_field_name(name: str) -> bool:
+def is_secret_field_name(name: str) -> bool:
     """Whether ``name`` (unquoted, any spelling) names a credential field."""
     return _FIELD_NAME_RE.fullmatch(name) is not None
 
@@ -154,7 +154,7 @@ def _redact_json_escaped_field(m: re.Match[str]) -> str:
 def _redact_repr_field(m: re.Match[str]) -> str:
     """Mask one ``'key': 'value'`` repr entry when ``key`` names a credential."""
     key, sep, single, double = m.group(1), m.group(2), m.group(3), m.group(4)
-    if not _is_secret_field_name(key):
+    if not is_secret_field_name(key):
         return m.group(0)
     if single is not None:
         return f"'{key}'{sep}'{_mask_field_value(key, single)}'"

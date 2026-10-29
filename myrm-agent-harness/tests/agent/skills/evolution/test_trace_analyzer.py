@@ -1,8 +1,7 @@
-from typing import Any
-
 import pytest
 
 from myrm_agent_harness.agent.event_log.types import (
+    EventFilter,
     EventPayload,
     SessionAnalytics,
     StructuredEvent,
@@ -17,9 +16,10 @@ class MockEventLogBackend:
     def __init__(self, events: list[StructuredEvent]):
         self.events = events
 
-    async def get_events(self, session_id: str, event_filter: Any = None) -> list[StructuredEvent]:
-        # Simple mock that just returns the events
-        return self.events
+    async def get_events(self, session_id: str, event_filter: EventFilter | None = None) -> list[StructuredEvent]:
+        if event_filter is None or event_filter.event_types is None:
+            return self.events
+        return [event for event in self.events if event.event_type in event_filter.event_types]
 
     async def append(self, events: list[StructuredEvent]) -> None:
         pass
@@ -40,12 +40,12 @@ def mock_backend():
             timestamp=1000.0,
             event_type="tool_start",
             session_id="test_session",
-            data=EventPayload(tool_name="test_tool", tool_args={}),
+            data=EventPayload(tool_name="test_tool", args={}),
         ),
         StructuredEvent(
             sequence=2,
             timestamp=1001.0,
-            event_type="tool_error",
+            event_type="tool_failure",
             session_id="test_session",
             data=EventPayload(tool_name="test_tool", error="Permission denied"),
         ),
@@ -144,21 +144,21 @@ async def test_cluster_similar_errors():
         StructuredEvent(
             sequence=1,
             timestamp=1000.0,
-            event_type="tool_error",
+            event_type="tool_failure",
             session_id="test",
             data=EventPayload(error="Connection refused to 10.0.0.1"),
         ),
         StructuredEvent(
             sequence=2,
             timestamp=1001.0,
-            event_type="tool_error",
+            event_type="tool_failure",
             session_id="test",
             data=EventPayload(error="Connection refused to 10.0.0.2"),
         ),
         StructuredEvent(
             sequence=3,
             timestamp=1002.0,
-            event_type="tool_error",
+            event_type="tool_failure",
             session_id="test",
             data=EventPayload(error="File not found: /tmp/a"),
         ),
@@ -175,23 +175,23 @@ async def test_analyze_slice():
         StructuredEvent(
             sequence=1,
             timestamp=1000.0,
-            event_type="pre_tool_use",
+            event_type="tool_start",
             session_id="test_session",
-            data=EventPayload(tool_call_id="call_1", tool_name="test_tool", tool_args={}),
+            data=EventPayload(tool_call_id="call_1", tool_name="test_tool", args={}),
         ),
         StructuredEvent(
             sequence=2,
             timestamp=1001.0,
-            event_type="post_tool_use",
+            event_type="tool_end",
             session_id="test_session",
             data=EventPayload(tool_call_id="call_1", tool_name="test_tool", result="success"),
         ),
         StructuredEvent(
             sequence=3,
             timestamp=1002.0,
-            event_type="pre_tool_use",
+            event_type="tool_start",
             session_id="test_session",
-            data=EventPayload(tool_call_id="call_unrelated", tool_name="test_tool2", tool_args={}),
+            data=EventPayload(tool_call_id="call_unrelated", tool_name="test_tool2", args={}),
         ),
     ]
     mock_backend = MockEventLogBackend(events)
@@ -209,14 +209,14 @@ async def test_analyze_slice():
         StructuredEvent(
             sequence=1,
             timestamp=1000.0,
-            event_type="pre_tool_use",
+            event_type="tool_start",
             session_id="test_session",
-            data=EventPayload(tool_call_id="call_2", tool_name="test_tool", tool_args={}),
+            data=EventPayload(tool_call_id="call_2", tool_name="test_tool", args={}),
         ),
         StructuredEvent(
             sequence=2,
             timestamp=1001.0,
-            event_type="post_tool_use_failure",
+            event_type="tool_failure",
             session_id="test_session",
             data=EventPayload(tool_call_id="call_2", tool_name="test_tool", error="fail"),
         ),

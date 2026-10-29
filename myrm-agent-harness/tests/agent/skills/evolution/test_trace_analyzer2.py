@@ -52,10 +52,10 @@ async def test_analyze_slice_no_matching_events(mock_backend):
 @pytest.mark.asyncio
 async def test_analyze_slice_success(mock_backend):
     event1 = DummyEvent(
-        event_type="pre_tool_use", data={"tool_call_id": "call_1", "tool_name": "test_tool", "tool_input": {"args": 1}}
+        event_type="tool_start", data={"tool_call_id": "call_1", "tool_name": "test_tool", "args": {"args": 1}}
     )
 
-    event2 = DummyEvent(event_type="post_tool_use", data={"tool_call_id": "call_1", "tool_output": "success result"})
+    event2 = DummyEvent(event_type="tool_end", data={"tool_call_id": "call_1", "result": "success result"})
 
     mock_backend.get_events.return_value = [event1, event2]
 
@@ -71,10 +71,10 @@ async def test_analyze_slice_success(mock_backend):
 @pytest.mark.asyncio
 async def test_analyze_slice_failure_incoherent(mock_backend):
     event1 = DummyEvent(
-        event_type="pre_tool_use", data={"tool_call_id": "call_1", "tool_name": "test_tool", "tool_input": {"args": 1}}
+        event_type="tool_start", data={"tool_call_id": "call_1", "tool_name": "test_tool", "args": {"args": 1}}
     )
 
-    event2 = DummyEvent(event_type="post_tool_use_failure", data={"tool_call_id": "call_1", "error": "error result"})
+    event2 = DummyEvent(event_type="tool_failure", data={"tool_call_id": "call_1", "error": "error result"})
 
     mock_backend.get_events.return_value = [event1, event2]
 

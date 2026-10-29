@@ -4,7 +4,7 @@ Aggregates the redaction engine (``engine.py``), the command-line entry
 (``command_line.py``) and shared masking helpers (``masking.py``) behind
 ``core.security.redact``, exposing a stable public import surface:
 ``redact_sensitive_text``, ``redact_command_line``, ``command_preview``, ``redact_for_llm``,
-``redact_for_display``, ``redact_field_text``, ``redact_nested``, ``RedactingFormatter``,
+``redact_for_display``, ``redact_field_text``, ``is_secret_field_name``, ``redact_nested``, ``RedactingFormatter``,
 ``set_redact_enabled``, plus the internal symbols re-exported by the ``agent.security.redact`` facade.
 
 [INPUT]
@@ -14,9 +14,10 @@ Aggregates the redaction engine (``engine.py``), the command-line entry
 - file_view::redact_file_text (POS: per-file redaction by file type, shared by the tools that show a file's text)
 - masking::_mask_token (POS: Leaf value-masking helpers of the runtime redactor)
 - nested::redact_nested (POS: Shared walker of the redaction domain: bounded in depth, cuts a container that holds itself)
+- structured_fields::is_secret_field_name (POS: The one key policy: whether a field name is a credential, whatever the spelling)
 
 [OUTPUT]
-- redact_sensitive_text / redact_command_line / command_preview / redact_file_text / redact_for_llm / redact_for_display / redact_field_text / redact_nested / escape_invisible_unicode / RedactingFormatter / set_redact_enabled — public API
+- redact_sensitive_text / redact_command_line / command_preview / redact_file_text / redact_for_llm / redact_for_display / redact_field_text / is_secret_field_name / redact_nested / escape_invisible_unicode / RedactingFormatter / set_redact_enabled — public API
 - _mask_token / _redact_pem_block / _replace_pattern_bounded — internal helpers
 
 [POS]
@@ -38,6 +39,7 @@ from .engine import (
 from .file_view import redact_file_text
 from .masking import _mask_token
 from .nested import redact_nested
+from .structured_fields import is_secret_field_name
 
 __all__ = [
     "RedactingFormatter",
@@ -46,6 +48,7 @@ __all__ = [
     "_replace_pattern_bounded",
     "command_preview",
     "escape_invisible_unicode",
+    "is_secret_field_name",
     "redact_command_line",
     "redact_field_text",
     "redact_file_text",

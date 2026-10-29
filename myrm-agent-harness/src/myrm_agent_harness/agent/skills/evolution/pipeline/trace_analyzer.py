@@ -57,18 +57,18 @@ class TraceAnalyzer:
         if not self._backend or not tool_call_ids:
             return None
 
-        # Fetch events for the session
-        # We fetch tool use events (pre/post/failure)
+        # The tool events the broadcaster persists: start (args), end (result) and failure (error)
         events = await self._backend.get_events(
             session_id,
-            EventFilter(event_types=frozenset({"pre_tool_use", "post_tool_use", "post_tool_use_failure"})),
+            EventFilter(event_types=frozenset({"tool_start", "tool_end", "tool_failure"})),
         )
 
         if not events:
             return None
 
         # Filter events by the specific tool_call_ids
-        slice_events = [evt for evt in events if evt.data.get("tool_call_id") in tool_call_ids]
+        wanted_ids = set(tool_call_ids)
+        slice_events = [evt for evt in events if evt.data.get("tool_call_id") in wanted_ids]
 
         if not slice_events:
             return None
@@ -79,14 +79,14 @@ class TraceAnalyzer:
         error_count = 0
         last_tool = ""
         for evt in slice_events:
-            if evt.event_type == "pre_tool_use":
+            if evt.event_type == "tool_start":
                 last_tool = evt.data.get("tool_name", "unknown")
-                tool_input = evt.data.get("tool_input", {})
+                tool_input = evt.data.get("args", {})
                 lines.append(f"\n[Action] {last_tool}({tool_input})")
                 tool_call_count += 1
-            elif evt.event_type == "post_tool_use":
-                lines.append(f"[Success] -> {str(evt.data.get('tool_output', ''))[:200]}...")
-            elif evt.event_type == "post_tool_use_failure":
+            elif evt.event_type == "tool_end":
+                lines.append(f"[Success] -> {str(evt.data.get('result', ''))[:200]}...")
+            elif evt.event_type == "tool_failure":
                 lines.append(f"[Error] -> {str(evt.data.get('error', ''))[:200]}...")
                 error_count += 1
 
@@ -177,7 +177,7 @@ class TraceAnalyzer:
         # 3. Get error events (fetch all to get the latest errors)
         all_error_events = await self._backend.get_events(
             session_id,
-            EventFilter(event_types=frozenset({"tool_error", "agent_error", "tool_timeout", "tool_failure"})),
+            EventFilter(event_types=frozenset({"tool_timeout", "tool_failure"})),
         )
         # Take the last 20 errors
         error_events = all_error_events[-20:] if all_error_events else []
@@ -216,7 +216,7 @@ class TraceAnalyzer:
             return "timeout"
         elif any("permission" in r.lower() or "403" in r.lower() for r in failure_reasons):
             return "permission"
-        elif "tool_error" in error_types or "tool_failure" in error_types:
+        elif "tool_failure" in error_types:
             return "tool_error"
         else:
             return "unknown"

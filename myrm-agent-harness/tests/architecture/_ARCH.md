@@ -27,6 +27,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |
 | `test_no_legacy_distribution_imports.py` | Gate | 禁止 Python 源码 reintroduce `myrm_agent_harness.distribution` import | — |
 | `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 litellm 对话接口（`litellm.acompletion` 等）的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 ChatLiteLLM）除外；自带检测器正反例与过期登记检查 | — |
+| `test_event_queries_name_written_types.py` | Gate | AST：`src/` 内 `event_types=` 的每个字符串必须是 `EventLogger` 实际写入的事件类型（持久化类型 + `session_start`/`session_end`/`security_audit`）；查询一个无人写入的类型只会得到空列表，其后的代码永不执行；自带检测器正反例 | — |
 | `test_public_api.py` | Gate | 公开 API 边界 smoke | — |
 | `test_arch_no_placeholder.py` | Gate | `_ARCH.md` 禁止「见源码」等占位语 | — |
 | `test_no_star_imports.py` | Gate | 禁止 star import | — |

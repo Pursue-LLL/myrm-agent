@@ -5,7 +5,7 @@
 - Layer 2: Sensitive pattern redaction (Bearer, API Keys, Passwords)
 - Layer 3: Long payload bounded truncation with SHA-256 fingerprint preservation
 - Single-attribute entry point used by the exporter-boundary privacy guard
-- Payload keys that look like credentials withhold text and containers, never a number, flag or null
+- Payload keys that look like credentials withhold text and containers; a number only under a credential name, a flag or null never
 """
 
 from __future__ import annotations
@@ -112,9 +112,9 @@ def test_sanitize_trace_payload_recursive() -> None:
 def test_single_attribute_entry_point_applies_all_three_layers() -> None:
     sanitizer = TraceSpanSanitizer(max_value_len=128)
 
-    # Layer 1: a text value under a sensitive un-namespaced key is replaced, numbers pass through
+    # Layer 1: a text value under a sensitive un-namespaced key is replaced, a counter passes through
     assert sanitizer.sanitize_attribute("user_password", "plaintext_secret_123") == "[REDACTED_SENSITIVE_KEY]"
-    assert sanitizer.sanitize_attribute("user_password", 7) == 7
+    assert sanitizer.sanitize_attribute("total_tokens", 7) == 7
     # Layer 2
     assert "secret-token-value" not in str(sanitizer.sanitize_attribute("http.header", "Bearer secret-token-value"))
     # Layer 3
@@ -166,3 +166,19 @@ def test_a_container_under_a_key_that_looks_like_a_credential_is_withheld_whole(
     sanitized = sanitize_trace_payload({"credentials": {"user": "bob", "retries": 3}, "auth_tokens": ["a1b2c3d4e5"]})
 
     assert sanitized == {"credentials": "[REDACTED_SENSITIVE_KEY]", "auth_tokens": "[REDACTED_SENSITIVE_KEY]"}
+
+
+@pytest.mark.parametrize("key", ["password", "api_key", "secret", "DB_PASSWORD", "clientSecret"])
+def test_a_number_under_a_credential_name_is_withheld(key: str) -> None:
+    assert sanitize_trace_payload({key: 123456}) == {key: "[REDACTED_SENSITIVE_KEY]"}
+    assert TraceSpanSanitizer().sanitize_attribute(key, 123456) == "[REDACTED_SENSITIVE_KEY]"
+
+
+@pytest.mark.parametrize("key", ["max_tokens", "total_tokens", "token_count", "cache_key", "idempotency_key"])
+def test_a_number_under_a_name_that_is_no_credential_stays_a_number(key: str) -> None:
+    assert sanitize_trace_payload({key: 4096}) == {key: 4096}
+    assert TraceSpanSanitizer().sanitize_attribute(key, 4096) == 4096
+
+
+def test_a_list_attribute_under_a_key_that_looks_like_a_credential_is_withheld() -> None:
+    assert TraceSpanSanitizer().sanitize_attribute("api_keys", ["a1b2c3", "d4e5f6"]) == "[REDACTED_SENSITIVE_KEY]"

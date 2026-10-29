@@ -18,7 +18,7 @@ from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.core.security.redact.structured_fields import (
     _FIELD_NAME,
     _JSON_ESCAPED_FIELD_RE,
-    _is_secret_field_name,
+    is_secret_field_name,
 )
 
 _OPAQUE = "opaqueValue1234567890abcdef"
@@ -44,7 +44,7 @@ class TestFieldNamePolicy:
         ],
     )  # fmt: skip
     def test_credential_names_match(self, name: str) -> None:
-        assert _is_secret_field_name(name)
+        assert is_secret_field_name(name)
 
     @pytest.mark.parametrize(
         "name",
@@ -57,7 +57,7 @@ class TestFieldNamePolicy:
         ],
     )  # fmt: skip
     def test_metadata_and_cursor_names_do_not_match(self, name: str) -> None:
-        assert not _is_secret_field_name(name)
+        assert not is_secret_field_name(name)
 
 
 class TestPlainJson:

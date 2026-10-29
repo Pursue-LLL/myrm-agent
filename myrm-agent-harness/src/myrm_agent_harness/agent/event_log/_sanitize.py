@@ -4,6 +4,7 @@
 - core.security.redact::redact_command_line (POS: Entry of the commands the audit log, the background-job registry and the event log keep: masks every credential in a command string)
 - core.security.redact::redact_field_text (POS: Redactor of one named field: a credential-named field is masked whatever its shape, any other text goes through the scan given)
 - core.security.redact::redact_nested (POS: Shared walker of the redaction domain: bounded in depth, cuts a container that holds itself)
+- core.security.redact::redact_sensitive_text (POS: Full redactor: assignments, header lines, connection strings, token shapes)
 - core.security.detection.leak_detector::redact_leaks (POS: Output-side credential leak detector: credential patterns, Shannon entropy and PEM blocks)
 
 [OUTPUT]
@@ -13,8 +14,7 @@
 Pure filter between ``EventLogger.log`` and the backend. Masks secrets in nested dict/list/tuple payloads (tool
 args/results, error diagnostics) like top-level fields and withholds a payload it cannot redact. The shared walker
 bounds the depth and cuts a container where it holds itself; this module supplies the text rule: the value of a
-credential-named field (``Cookie``, ``password``) is masked by its name, any other text goes through the light leak
-scan, since the rule runs on every event.
+credential-named field (``Cookie``, ``password``) is masked by its name, any other text goes through both redactors.
 """
 
 from __future__ import annotations
@@ -24,7 +24,12 @@ import re
 from typing import cast
 
 from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
-from myrm_agent_harness.core.security.redact import redact_command_line, redact_field_text, redact_nested
+from myrm_agent_harness.core.security.redact import (
+    redact_command_line,
+    redact_field_text,
+    redact_nested,
+    redact_sensitive_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +55,16 @@ def sanitize_event_data(data: dict[str, object]) -> dict[str, object]:
         return {"_redaction_failed": True}
 
 
+def _scan(text: str) -> str:
+    """The text rule of a field that names no credential: neither redactor covers the other.
+
+    The leak detector reads token shapes and high-entropy strings. The full redactor reads what has no shape of its
+    own: an assignment (``DB_PASSWORD=…`` in the result of ``cat .env``) or a ``Cookie:`` header line.
+    """
+    return redact_sensitive_text(redact_leaks(text))
+
+
 def _redact_text(key: str, text: str) -> str:
     if _COMMAND_KEY.search(key):
         text = redact_command_line(text)
-    return redact_field_text(key, text, scan=redact_leaks)
+    return redact_field_text(key, text, scan=_scan)

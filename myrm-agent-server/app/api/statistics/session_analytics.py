@@ -170,14 +170,7 @@ async def get_session_analytics(
                 for tb in summary.tool_breakdown
             ]
 
-            events_timeline = [
-                {
-                    "type": se.event_type,
-                    "timestamp": se.timestamp,
-                    "data": se.data,
-                }
-                for se in summary.events_timeline
-            ]
+            events_timeline = [{"type": se.event_type, "timestamp": se.timestamp} for se in summary.events_timeline]
 
             result: dict[str, object] = {
                 "duration_ms": summary.duration_ms,

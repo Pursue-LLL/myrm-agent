@@ -1,7 +1,8 @@
 """Three-layer progressive privacy sanitizer for OpenTelemetry spans and trace events.
 
 [INPUT]
-- myrm_agent_harness.core.security.redact.engine::redact_sensitive_text (POS: 敏感凭证正则脱敏基座)
+- myrm_agent_harness.core.security.redact::redact_sensitive_text (POS: 敏感凭证正则脱敏基座)
+- myrm_agent_harness.core.security.redact::is_secret_field_name (POS: 共享的凭据字段名策略)
 
 [OUTPUT]
 - TraceSpanSanitizer: 三层渐进式 Trace 属性与 Payload 脱敏清洗器
@@ -10,7 +11,7 @@
 
 [POS]
 实现 Agent Tracing 规范中的“先脱敏再落盘”三层隐私防护体系：
-第一层：高危敏感字段键名识别与安全命名空间放行（键名像凭据时遮蔽文本与容器，数字、布尔与空值原样保留）；
+第一层：高危敏感字段键名识别与安全命名空间放行（键名像凭据时遮蔽文本与容器；数字只在共享字段名策略也判为凭据名时遮蔽，计数器照常放行；布尔与空值原样保留）；
 第二层：敏感凭据值深度正则扫描（API Key / Bearer / 连接串 / 密码）；
 第三层：超长大文本有界哈希截断与 SHA-256 指纹保全。
 """
@@ -22,7 +23,7 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 
-from myrm_agent_harness.core.security.redact.engine import redact_sensitive_text
+from myrm_agent_harness.core.security.redact import is_secret_field_name, redact_sensitive_text
 
 type AttributePrimitive = str | int | float | bool
 type AttributeValue = AttributePrimitive | Sequence[AttributePrimitive]
@@ -60,6 +61,21 @@ _SENSITIVE_KEY_KEYWORDS: tuple[str, ...] = (
 )
 
 _BEARER_PATTERN = re.compile(r"Bearer\s+([A-Za-z0-9._~+/-]+=*)", re.IGNORECASE)
+
+_WITHHELD = "[REDACTED_SENSITIVE_KEY]"
+
+
+def _can_hold_credential(key: str, value: object) -> bool:
+    """Whether ``value`` may hold a credential under the credential-looking ``key``.
+
+    Text and containers always. A number only under a name the shared key policy calls a credential
+    (``password: 123456``), since a counter such as ``total_tokens`` is a number too. A flag or null never.
+    """
+    if value is None or isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return is_secret_field_name(key)
+    return True
 
 
 class TraceSpanSanitizer:
@@ -130,11 +146,11 @@ class TraceSpanSanitizer:
     def sanitize_attribute(self, key: str, value: object) -> AttributeValue:
         """Layer 1 + 2 + 3 for one span attribute.
 
-        A credential-looking key withholds a text value only: a number cannot be a credential, and
-        counters such as ``llm.token_count.prompt`` must keep their value.
+        A credential-looking key withholds the value that could hold a credential (``_can_hold_credential``), so
+        counters such as ``llm.token_count.prompt`` keep their value.
         """
-        if isinstance(value, str) and not self.is_safe_key(key):
-            return "[REDACTED_SENSITIVE_KEY]"
+        if not self.is_safe_key(key) and _can_hold_credential(key, value):
+            return _WITHHELD
         return self.sanitize_attribute_value(value)
 
     def sanitize_attributes(
@@ -147,16 +163,17 @@ class TraceSpanSanitizer:
     def sanitize_payload(self, payload: Mapping[str, object]) -> dict[str, object]:
         """Recursively scrub arbitrary JSON-serializable payloads for trace export.
 
-        A credential-looking key withholds text and containers whole; a number, flag or null under it is kept, as in
-        ``sanitize_attribute``: it cannot be a credential, and counters such as ``total_tokens`` must stay numbers.
+        A credential-looking key withholds the value that could hold a credential (``_can_hold_credential``): text
+        and containers whole, a number only under a credential name. Counters such as ``total_tokens`` stay numbers.
         """
         return {key: self._sanitize_entry(key, value) for key, value in payload.items()}
 
     def _sanitize_entry(self, key: object, value: object) -> object:
         """Scrub one entry; a key that looks like a credential withholds every value that could hold one."""
-        if self.is_safe_key(str(key)) or isinstance(value, (int, float, bool)) or value is None:
-            return self._sanitize_value(value)
-        return "[REDACTED_SENSITIVE_KEY]"
+        name = str(key)
+        if not self.is_safe_key(name) and _can_hold_credential(name, value):
+            return _WITHHELD
+        return self._sanitize_value(value)
 
     def _sanitize_value(self, value: object) -> object:
         """Scrub one payload value at any depth: a list or tuple is rebuilt item by item, whatever the items are."""
