@@ -19,7 +19,7 @@ replies with the member-safe wording of its error kind and a reference id (after
 already streamed, so a cut-off answer is never presented as complete); the raw error text only
 goes to the operator log under the same id. A turn the loop guard paused replies with its own notice instead of the
 empty-turn placeholder, is flagged the same way so a delegated task is not reported as done, and leaves a log line
-for the sender like every other turn that ends without an answer.
+for the sender like a failed or an empty turn.
 """
 
 from __future__ import annotations
