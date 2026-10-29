@@ -10,7 +10,7 @@
 | **发现时间** | 2026-10-29（核对 IM 渠道落库脱敏时，把日志出口再核对一遍：设 `MYRM_LOG_FORMAT=json` 后经 server 的 `configure_logging()` 真实入口记录一条带密钥的异常） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P2：只影响自己设置 `MYRM_LOG_FORMAT=json`（文档写给 ELK / Loki 采集用）的部署；默认是文本格式，仓内没有部署文件默认开启 JSON。`message` 字段脱敏而 `exception` 字段不脱敏：实测含 `sk-live-…` 密钥与连接串口令的异常，`exception` 里两者主体都原样存在；文本格式的 `RedactingFormatter` 对同一条记录的 traceback 两项都已遮蔽。 |
-| **关联产品** | server `app/config/logging.py` 选择格式器；server 里把凭据拼进 URL 查询串的调用（`channels/providers/dingtalk/api.py:186` 的 `access_token`、`myrm-agent-server/app/api/voice/gemini_live.py:116` 的 `key`）失败时，httpx 的异常文本带完整 URL（实测 `raise_for_status` 抛出的文本含 `?key=…` 全文） |
+| **关联产品** | server `app/config/logging.py` 选择格式器；server 里把凭据拼进 URL 查询串的调用（`myrm-agent-server/app/channels/providers/dingtalk/api.py:186` 的 `access_token`、`myrm-agent-server/app/api/voice/gemini_live.py:116` 的 `key`）失败时，httpx 的异常文本带完整 URL（实测 `raise_for_status` 抛出的文本含 `?key=…` 全文） |
 | **根因** | `JsonFormatter.format` 只对 `record.getMessage()` 调用 `redact_sensitive_text`，`exception` 字段直接放 `formatException` 的结果；同在 harness 的 `RedactingFormatter`（`engine.py`）对整段格式化结果脱敏，两个格式器对异常的处理不一致。`redact_sensitive_text` 的 docstring 写「可通过 `MYRM_REDACT_SECRETS=false` 关闭」，全仓没有任何代码读取这个变量（`_REDACT_ENABLED` 在 `engine.py` 固定为 `True`，`set_redact_enabled` 只有测试调用），脱敏恒开。 |
 | **修复** | `exception` 字段同样经 `redact_sensitive_text`（与 `message` 同写法）；类 docstring 与 `_ARCH.md` 写明两个字段都脱敏。`redact_sensitive_text` 的 docstring 改为「脱敏恒开，没有环境变量开关；`set_redact_enabled` 是启动与测试钩子」。 |
 | **反复次数** | 第 1 次 |
