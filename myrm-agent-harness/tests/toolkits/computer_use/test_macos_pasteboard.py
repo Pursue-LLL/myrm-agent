@@ -2,9 +2,11 @@
 
 [INPUT]
 - backends.macos_pasteboard (POS: NSPasteboard 全类型快照、临时写入文本、带守卫还原)
+- backends.macos::MacOSBackend (POS: macOS 平台 backend 实现)
 
 [OUTPUT]
-- 多 item 多类型往返、空剪贴板、临时标记、凭证标记、写入失败抛错、changeCount 守卫的回归保护
+- 多 item 多类型往返、空剪贴板、临时标记、凭证标记、写入失败抛错、changeCount 守卫，以及
+  `MacOSBackend._paste_text` 在真实剪贴板上的端到端（用读剪贴板的替身 Cmd+V 代替目标应用）的回归保护
 
 [POS]
 仅 darwin 运行；全部操作发生在 `pasteboardWithUniqueName()` 的私有剪贴板上，不触碰用户的通用剪贴板，
@@ -14,11 +16,13 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.computer_use.backends import macos as macos_mod
 from myrm_agent_harness.toolkits.computer_use.backends import macos_pasteboard
 
 if TYPE_CHECKING:
@@ -131,3 +135,48 @@ class TestWriteText:
 
         with pytest.raises(RuntimeError, match="write text"):
             macos_pasteboard.write_text("你好", pb=RejectingPasteboard())
+
+
+class TestPasteTextEndToEnd:
+    """真实剪贴板上跑完整的 `_paste_text`：Cmd+V 的替身像目标应用那样读剪贴板，不投递任何按键。"""
+
+    @staticmethod
+    async def _paste(
+        pb: NSPasteboard, text: str, *, concealed: bool, during_paste: Callable[[], None] | None = None
+    ) -> tuple[str, set[str]]:
+        """返回「目标应用在 Cmd+V 时读到的文本与剪贴板类型」。"""
+        from AppKit import NSPasteboardTypeString
+
+        seen: list[tuple[str, set[str]]] = []
+
+        def fake_hotkey(*_keys: str) -> None:
+            seen.append((str(pb.stringForType_(NSPasteboardTypeString)), _types(pb)))
+            if during_paste is not None:
+                during_paste()
+
+        with (
+            patch.object(macos_pasteboard, "_resolve", return_value=pb),
+            patch.object(macos_mod.macos_input, "hotkey", side_effect=fake_hotkey),
+            patch.object(macos_mod, "_PASTE_SETTLE_SECONDS", 0),
+        ):
+            await macos_mod.MacOSBackend()._paste_text(text, concealed=concealed)
+        return seen[0]
+
+    @pytest.mark.asyncio()
+    async def test_target_reads_the_text_and_the_user_content_comes_back(self, pb: NSPasteboard) -> None:
+        original = [{_TEXT: b"old", _PNG: b"\x89PNG\x00"}, {_TEXT: b"second"}]
+        _fill(pb, original)
+
+        text, types = await self._paste(pb, "你好", concealed=True)
+
+        assert text == "你好"
+        assert {"org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"} <= types
+        assert macos_pasteboard.snapshot(pb).items == tuple(original)
+
+    @pytest.mark.asyncio()
+    async def test_a_copy_made_during_the_paste_is_not_overwritten(self, pb: NSPasteboard) -> None:
+        _fill(pb, [{_TEXT: b"old"}])
+
+        await self._paste(pb, "你好", concealed=False, during_paste=lambda: _fill(pb, [{_TEXT: b"copied meanwhile"}]))
+
+        assert macos_pasteboard.snapshot(pb).items == ({_TEXT: b"copied meanwhile"},)
