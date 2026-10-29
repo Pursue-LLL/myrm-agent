@@ -68,9 +68,7 @@ from app.channels.types import (
 )
 
 from .format_converter import neutralize_broadcast_mentions
-from .helpers import (
-    build_blocks,
-)
+from .helpers import build_message_blocks
 from .inbound import SlackInboundMixin
 
 logger = logging.getLogger(__name__)
@@ -261,7 +259,6 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         try:
             if msg.content:
                 chunks = render(msg, self.render_style)
-                blocks = build_blocks(msg)
                 for i, chunk in enumerate(chunks):
                     payload: dict[str, object] = {
                         "channel": channel_id,
@@ -271,7 +268,7 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
                         payload["thread_ts"] = thread_ts
                     elif msg.reply_to_id:
                         payload["thread_ts"] = msg.reply_to_id
-                    if blocks and i == len(chunks) - 1:
+                    if i == len(chunks) - 1 and (blocks := build_message_blocks(chunk, msg)):
                         payload["blocks"] = blocks
 
                     ts = await self._api.post_message(payload)
@@ -321,7 +318,8 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        await self.edit_message(chat_id, message_id, msg.content)
+        text = neutralize_broadcast_mentions(msg.content)
+        await self._api.update_message(chat_id, message_id, text, build_message_blocks(text, msg))
         await self._clear_assistant_status(chat_id)
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:

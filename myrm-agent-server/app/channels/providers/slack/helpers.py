@@ -7,6 +7,7 @@ All functions are stateless and have no side effects, making them easy to test.
 
 [OUTPUT]
 - build_blocks: OutboundMessage → Slack Block Kit actions blocks.
+- build_message_blocks: message body + its actions blocks (the body must be a block: with blocks present Slack shows only blocks).
 - verify_slack_signature: Verify Slack request signature (HMAC-SHA256).
 - parse_message_event: raw event dict → InboundMessage | None.
 - parse_block_action: Parse a Slack block_actions payload into structured fields.
@@ -23,6 +24,7 @@ import hashlib
 import hmac
 import re
 
+from app.channels.rendering.splitter import split_message
 from app.channels.types import (
     ActionButton,
     ButtonStyle,
@@ -31,6 +33,9 @@ from app.channels.types import (
     SelectMenu,
     guess_media_type,
 )
+
+# Block Kit: the text of a section block is 1-3000 characters.
+_SECTION_TEXT_LIMIT = 3000
 
 _SLACK_BUTTON_STYLE: dict[ButtonStyle, str] = {
     ButtonStyle.PRIMARY: "primary",
@@ -92,6 +97,24 @@ def build_blocks(msg: OutboundMessage) -> list[dict[str, object]] | None:
     if not elements:
         return None
     return [{"type": "actions", "elements": elements[:25]}]
+
+
+def build_message_blocks(body: str, msg: OutboundMessage) -> list[dict[str, object]] | None:
+    """Blocks that show ``body`` above the interactive elements of ``msg``; None when it has none.
+
+    Once a message carries blocks Slack renders only them and keeps ``text`` for notifications, so a body that
+    is not a block of its own would not be seen. A body beyond the section limit becomes several sections; should
+    Slack still refuse the blocks, the client posts the text alone.
+    """
+    actions = build_blocks(msg)
+    if actions is None:
+        return None
+    sections: list[dict[str, object]] = [
+        {"type": "section", "text": {"type": "mrkdwn", "text": part}}
+        for part in split_message(body, _SECTION_TEXT_LIMIT, overflow_tolerance=0.0)
+        if part.strip()
+    ]
+    return [*sections, *actions]
 
 
 def verify_slack_signature(signing_secret: str, body: bytes, timestamp: str, signature: str) -> bool:

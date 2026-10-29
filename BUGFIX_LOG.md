@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 带按钮的 Slack 消息正文不显示：只有 actions 块、没有正文块，占位改写成最终回复时按钮被丢掉，Slack 拒绝块时整条消息连正文一起丢失
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交；未 push）。「仍然存在」里的 5 项未处理。 |
+| **症状** | ① `SlackChannel.send` 对带按钮、快捷回复或选择菜单的消息给 `chat.postMessage` 的是 `text=正文` 加 `blocks=[actions]`（改动前 `channel.py:264-275`，`helpers.py` 的 `build_blocks` 只造 actions 块）。Slack 官方 `chat.postMessage` 文档「The text, blocks and attachments fields」一节写明：使用 blocks 时 `text` 只是通知用的回退字符串，不使用时才是消息正文；所以用户只看到按钮，看不到正文。② 占位消息被改写成最终回复时，`edit_placeholder_message` 只调 `edit_message(msg.content)`，消息上的按钮全部丢掉。③ Slack 拒绝块时（文档列出的 `invalid_blocks`、`invalid_blocks_format`、`msg_blocks_too_long`）整条消息抛 `ChannelSendError`，正文随之丢失，而文本本身是可以送出的。 |
+| **根因** | `build_blocks` 把 actions 块当成整条消息的块，没有为正文造块；唯一相关的用例 `test_send_with_blocks` 只断言 payload 里有 `blocks` 这个键，不看块的内容，所以一直是绿的。占位改写路径从没处理过按钮。 |
+| **修复** | `helpers.py` 新增 `build_message_blocks(body, msg)`：正文拆成 section 块（`mrkdwn`，每块不超过 Block Kit 的 3000 字上限，用共享的 `split_message`）放在 actions 块之前，没有交互元素时返回 `None`。`send` 的最后一段、`edit_placeholder_message` 共用它；改写路径先对正文做广播提及转义，再同时用作 `text` 与 section 正文。`api.py` 的 `chat.postMessage` 与 `chat.update` 合并进 `_call_message_method`：Slack 以上述三个错误拒绝块时去掉块，只发文本再试一次，其他错误照旧经 `_raise_message_error` 抛出；`update_message` 新增可选的 `blocks` 参数。`slack/_ARCH.md` 与 `tests/_ARCH.md` 同步。 |
+| **回归证据** | [1] 新增 `tests/channels/providers/slack/test_slack_message_blocks.py`（20 例）：先于实现写成，实现前因 `build_message_blocks` 不存在而无法收集；覆盖正文在前按钮在后、快捷回复、超长正文拆块、空正文、长回复只有最后一段带按钮、占位改写保留按钮并转义 `<!channel>`、三种块错误各自在发送与改写两条路径上降级为纯文本、降级返回重试那次的 `ts`、其他错误不重发、纯文本消息被判块无效直接抛出。[2] 变异验证：16 个变异（回到只有 actions 块、每段都带块、改写丢按钮、改写不转义、少处理任一个错误码、降级时保留块、对任何错误都降级、去掉「有块才降级」的判断、更新时发空块、section 上限 4000、按钮在正文之前、plain_text、保留空白块、无按钮也造块）全部被杀死，变异后文件逐字还原。[3] `tests/channels/providers/slack` 全部 313 例通过。[4] 触及文件 `ruff check` 与 `ruff format --check` 通过。 |
+| **仍然存在** | ① 没有在真实 Slack 上验证：「只有块时不显示 `text`」依据官方文档，没有在真实工作区复现过；三个块错误码是否按文档返回也没有观察。② 点击按钮后把原消息改成状态文字走的是 `edit_message`（只带 `text`），按 `chat.update` 文档会移除原有的块，这条路径没有改动也没有验证。③ 共享的 `split_message` 对「代码围栏里单行超过 3000 字」会产出只含围栏的碎片（实测 3500 字的围栏行得到 `[7, 7, 2999, 517, 7]` 个字符的几段），这些碎片会成为空代码块 section；这种极端输入没有处理。④ 正文被拆成多个 section 时块与块之间没有视觉分隔。⑤ `test_slack_channel.py` 仍有 1693 行，未拆分。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/slack/helpers.py`（`build_message_blocks`） · `app/channels/providers/slack/channel.py`（`send`、`edit_placeholder_message`） · `app/channels/providers/slack/api.py`（`_call_message_method`、`update_message`） · `tests/channels/providers/slack/test_slack_message_blocks.py` |
+
 ## 2026-10-29 · 渠道的编辑被平台拒绝时不报错：路由器以为回复已送达，最终回复被静默丢弃，占位消息停在「思考中」
 
 | 字段 | 内容 |

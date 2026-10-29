@@ -39,6 +39,8 @@ _API_BASE = "https://slack.com/api"
 _SEND_TIMEOUT = 15.0
 # The reaction is already in the state the call asked for.
 _SETTLED_REACTION_ERRORS = frozenset({"already_reacted", "no_reaction"})
+# chat.postMessage / chat.update answers for blocks Slack will not take; the text can still be delivered.
+_BLOCK_ERRORS = frozenset({"invalid_blocks", "invalid_blocks_format", "msg_blocks_too_long"})
 _UPLOAD_TIMEOUT = 60.0
 
 
@@ -121,24 +123,36 @@ class SlackClient:
 
     async def post_message(self, payload: dict[str, object]) -> str | None:
         """Post a message and return ts. Raises on auth/rate/send errors."""
-        resp = await self._http.post(
-            f"{_API_BASE}/chat.postMessage",
-            json=payload,
-            timeout=_SEND_TIMEOUT,
-        )
-        data = resp.json()
-        if not data.get("ok"):
-            self._raise_message_error(resp, data, "send")
+        data = await self._call_message_method("chat.postMessage", payload, "send")
         ts = data.get("ts")
         return str(ts) if ts else None
 
-    async def update_message(self, channel: str, ts: str, text: str) -> None:
-        """Replace the text of a message. Raises like ``post_message``, so a caller can post the text instead."""
+    async def update_message(
+        self,
+        channel: str,
+        ts: str,
+        text: str,
+        blocks: list[dict[str, object]] | None = None,
+    ) -> None:
+        """Replace a message with ``text`` (or with ``blocks``, ``text`` then being the notification fallback).
+
+        Raises like ``post_message``, so a caller can post the text instead.
+        """
         payload: dict[str, object] = {"channel": channel, "ts": ts, "text": text}
-        resp = await self._http.post(f"{_API_BASE}/chat.update", json=payload, timeout=_SEND_TIMEOUT)
+        if blocks:
+            payload["blocks"] = blocks
+        await self._call_message_method("chat.update", payload, "edit")
+
+    async def _call_message_method(self, method: str, payload: dict[str, object], action: str) -> dict[str, object]:
+        """Call chat.postMessage / chat.update; blocks Slack refuses are dropped so the text still gets through."""
+        resp = await self._http.post(f"{_API_BASE}/{method}", json=payload, timeout=_SEND_TIMEOUT)
         data = resp.json()
-        if not data.get("ok"):
-            self._raise_message_error(resp, data, "edit")
+        if data.get("ok"):
+            return dict(data)
+        if payload.get("blocks") and data.get("error") in _BLOCK_ERRORS:
+            logger.warning("Slack refused the blocks of a message (%s); %s the text alone", data["error"], action)
+            return await self._call_message_method(method, {k: v for k, v in payload.items() if k != "blocks"}, action)
+        self._raise_message_error(resp, data, action)
 
     @staticmethod
     def _raise_message_error(resp: httpx.Response, data: dict[str, object], action: str) -> NoReturn:

@@ -168,6 +168,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/matrix/test_matrix_wire_payloads.py` | 单元 | Matrix 文本发送与编辑到服务器的内容负载（纯文本、Markdown 的 `formatted_body`、回复关系的 `m.in_reply_to`；编辑的 `m.new_content` 与 `m.replace` 关系）：加密房间被拒后共享密钥重试一次、仍被拒则抛出、未启用加密不重试；服务器不响应按发送超时失败、编辑不被挂住；被拒的编辑被吞掉不影响回合 |
 | `channels/providers/imessage/test_imessage_media_type.py` | 单元 | iMessage 附件类型：声明类型优先于下载类型，都没有时按二进制流发送；消息没有聊天时不标记已读 |
 | `channels/providers/slack/test_slack_reaction_lifecycle.py` | 单元 | Slack `reactions.remove`：空串撤销已加的反应且只撤一次，没加过不发请求；缺权限的错误带上所需范围抛出，失败的添加不记账，已处于目标状态不算错误 |
+| `channels/providers/slack/test_slack_message_blocks.py` | 单元 | 带按钮的 Slack 消息正文是自己的 section 块（Slack 一旦有块就只显示块）：发送时正文在前、按钮在后，长回复只有最后一段带按钮，超过 3000 字的正文拆成多个 section；占位被改写成最终回复时同样保留按钮，正文里的 `<!channel>` 照样被转义；Slack 拒绝块（`invalid_blocks`、`invalid_blocks_format`、`msg_blocks_too_long`）时去掉块、只发文本，其他拒绝照常抛出且不重发，纯文本消息被判块无效也直接抛出 |
 | `channels/providers/mattermost/test_mattermost_reaction_lifecycle.py` | 单元 | Mattermost 按用户、帖子、名称删除自己加的反应：空串撤销已加的，没加过不发请求，添加失败抛出且不记账 |
 | `channels/providers/discord/test_discord_reaction_lifecycle.py` | 单元 | Discord `Message.remove_reaction`：空串撤销已加的反应且只撤一次，没加过不碰消息，添加失败抛出且不记账，没有机器人用户时无从撤销 |
 | `channels/providers/feishu/test_feishu_webhook_routes.py` | 单元 | 飞书 webhook 路由注册在路由注册器上，不是注册器的对象被忽略 |
