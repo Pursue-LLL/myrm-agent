@@ -1,9 +1,11 @@
-"""Wire-encodability of the messages of one request: no string value UTF-8 cannot encode leaves the process.
+"""Wire-encodability of the messages of one request: no message string that UTF-8 cannot encode is left in them.
 
 Python hands a file name or output that was not valid UTF-8 back as text holding lone surrogates (``os.fsdecode`` maps
 an undecodable byte to ``U+DC80``..``U+DCFF``). Such a string cannot be encoded, so the HTTP client raises while it
 builds the request body and the provider SDK reports an opaque server error. The conversation history is re-sent on every
 model call, so one such string breaks every later call of that conversation, whatever the model is asked.
+Only the messages are rewritten: the tool declarations and the other request parameters join the request after this
+step and are not touched.
 
 [INPUT]
 - (none — stdlib only: re)
