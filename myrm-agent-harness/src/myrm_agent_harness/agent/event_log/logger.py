@@ -11,8 +11,7 @@ task-level replay, and OpenTelemetry correlation.
 [INPUT]
 - event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - infra.tracing.propagation::get_current_trace_id (POS: Trace上下文传播)
-- security.detection.leak_detector::redact_leaks (POS: Masks token shapes and high-entropy secrets in a persisted string)
-- core.security.redact::redact_command_line (POS: Masks credential-named options and assignments in a command string)
+- event_log._sanitize::sanitize_event_data (POS: Pure filter between EventLogger.log and the backend; masks secrets in nested payloads and withholds one it cannot redact)
 
 [OUTPUT]
 - EventLogger: main entry point for event recording
@@ -26,12 +25,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.security.redact import redact_command_line
-
+from ._sanitize import sanitize_event_data
 from .types import (
     ActivityPatterns,
     EventPayload,
@@ -51,8 +48,6 @@ _FLUSH_BATCH_SIZE = 50
 _FLUSH_INTERVAL_S = 0.5
 _CLOSE_TIMEOUT_S = 5.0
 _MAX_FIELD_BYTES = 65536
-# A key whose last word is ``command`` or ``cmd`` (``command``, ``verify_command``, ``rerun_cmd``) holds a command line.
-_COMMAND_KEY = re.compile(r"(?:^|_)(?:command|cmd)$")
 
 _SESSION_START = "session_start"
 _SESSION_END = "session_end"
@@ -122,7 +117,7 @@ class EventLogger:
 
         self._update_counters(event_type)
 
-        sanitized = self._sanitize(data)
+        sanitized = sanitize_event_data(data)
         capped = _cap_data_size(sanitized)
         event = self._make_event(event_type, capped)
         await self._enqueue(event)
@@ -282,41 +277,6 @@ class EventLogger:
                     self._summary.compaction_count = metrics.compression_count
         except Exception:
             logger.debug("Failed to attach context task metrics", exc_info=True)
-
-    @staticmethod
-    def _sanitize(data: dict[str, object]) -> dict[str, object]:
-        """Remove secrets and PII from event data before persistence.
-
-        Recurses into nested dict/list values so credentials embedded in
-        structured payloads (tool args/results, error diagnostics) are
-        redacted exactly like top-level string fields. A string under a
-        command key is masked as a command line first: the leak detector
-        takes the value after ``--key`` for an ordinary word.
-        """
-        try:
-            from myrm_agent_harness.agent.security.detection.leak_detector import (
-                redact_leaks,
-            )
-
-            def _redact(value: object, key: object = "") -> object:
-                if isinstance(value, str):
-                    is_command = isinstance(key, str) and _COMMAND_KEY.search(key)
-                    return redact_leaks(redact_command_line(value) if is_command else value)
-                if isinstance(value, dict):
-                    return {name: _redact(item, name) for name, item in value.items()}
-                if isinstance(value, list):
-                    return [_redact(item, key) for item in value]
-                if isinstance(value, tuple):
-                    return tuple(_redact(item, key) for item in value)
-                return value
-
-            return cast("dict[str, object]", _redact(data))
-        except (ImportError, TypeError):
-            pass
-        except Exception:
-            logger.debug("Sanitization error, persisting as-is", exc_info=True)
-
-        return data
 
     async def _writer_loop(self) -> None:
         """Background task: drain queue → batch append to backend."""

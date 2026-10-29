@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.agent.event_log import logger as logger_module
+from myrm_agent_harness.agent.event_log._sanitize import sanitize_event_data
 from myrm_agent_harness.agent.event_log.logger import EventLogger
 from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
 from myrm_agent_harness.agent.event_log.types import BashExecutionStats, EventPayload, StructuredEvent
@@ -67,17 +68,10 @@ class TestEnrichment:
 class TestSanitizeEdges:
     def test_tuples_are_redacted_element_wise(self) -> None:
         secret = "sk-test-abcdefghijklmnopqrstuvwxyz1234567890abcdef"
-        result = EventLogger._sanitize({"args": (secret, 7)})
+        result = sanitize_event_data({"args": (secret, 7)})
         assert isinstance(result["args"], tuple)
         assert secret not in str(result)
         assert result["args"][1] == 7
-
-    def test_redaction_failure_persists_the_payload_as_is(self) -> None:
-        data: dict[str, object] = {"k": "v"}
-        with patch(
-            "myrm_agent_harness.agent.security.detection.leak_detector.redact_leaks", side_effect=RuntimeError("boom")
-        ):
-            assert EventLogger._sanitize(data) == data
 
 
 class TestSecurityAudit:

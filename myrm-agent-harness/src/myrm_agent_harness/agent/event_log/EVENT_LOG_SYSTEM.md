@@ -28,6 +28,7 @@ BaseAgent.run()
       ├─ trace_builder.py — llm_request + token_usage → LLMCallRecord；tool_start/tool_end 按 tool_call_id 配对，`tasks_steps` 流式步骤读侧兼容 → 指令血缘（配对/LLM/tasks_steps 逻辑分别由 _pairing.py/_llm.py/_tasks_steps.py 承载，共享工具函数与 `_EVENT_META_KEYS` 元数据键集合在 _common.py）
       ├─ analytics.py / analytics_queries.py — 读侧聚合
       ├─ llm_observability.py — prompt preview 截断记录
+      ├─ _sanitize.py — 写入前递归脱敏：命令 key 的字符串按命令行遮蔽，遍历最深 32 层，无法脱敏的载荷以标记替代而不落原文
       └─ dataset_export/ — 质量过滤 + 格式转换 + exporter
 ```
 
@@ -43,7 +44,8 @@ BaseAgent.run()
 | `trace_builder.py` | LLM 调用时间线重建 + tool_call_id 血缘配对（配对/LLM/tasks_steps 逻辑由 `_pairing.py`/`_llm.py`/`_tasks_steps.py` 承载，共享工具函数与 `_EVENT_META_KEYS` 元数据键集合在 `_common.py`） |
 | `backends/` | 内置存储实现（JSONL 文件：追加、读取、按时间老化清理、按会话删除） |
 | `dataset_export/` | 训练数据导出管道 |
-| `cli_summary.py` | CLI 摘要生成 |
+| `_sanitize.py` | 写入前的载荷脱敏（`sanitize_event_data`） |
+| `cli_summary.py` | 会话结束时打印的摘要，读取 `SessionSummary` / `TokenTracker` / `TaskMetrics` 的 `to_dict()` 导出的键 |
 
 ---
 

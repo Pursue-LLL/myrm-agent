@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from myrm_agent_harness.agent.event_log._sanitize import sanitize_event_data
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.logger import EventLogger
 from myrm_agent_harness.agent.streaming.broadcast.tool_call_broadcaster import ToolCallBroadcaster
@@ -25,7 +26,7 @@ def _args(key: str, command: str) -> dict[str, object]:
 
 @pytest.mark.parametrize("key", ["command", "verify_command", "rerun_cmd", "cmd"])
 def test_a_string_under_a_command_key_is_masked(key: str) -> None:
-    sanitized = EventLogger._sanitize(_args(key, f"tool --key {_VALUE}"))
+    sanitized = sanitize_event_data(_args(key, f"tool --key {_VALUE}"))
 
     masked = sanitized["args"][key]  # type: ignore[index]
     assert _VALUE not in masked
@@ -44,28 +45,28 @@ def test_a_string_under_a_command_key_is_masked(key: str) -> None:
     ],
 )
 def test_every_credential_form_of_a_command_is_masked(command: str) -> None:
-    assert _VALUE not in str(EventLogger._sanitize(_args("command", command)))
+    assert _VALUE not in str(sanitize_event_data(_args("command", command)))
 
 
 @pytest.mark.parametrize("key", ["query", "command_output", "command_type", "commands", "subcommand"])
 def test_a_string_under_another_key_is_left_as_it_is(key: str) -> None:
     payload = _args(key, f"tool --key {_VALUE}")
 
-    assert EventLogger._sanitize(payload) == payload
+    assert sanitize_event_data(payload) == payload
 
 
 @pytest.mark.parametrize(
     "sequence", [["ok", f"tool --key {_VALUE}"], ("ok", f"tool --key {_VALUE}")], ids=["list", "tuple"]
 )
 def test_strings_of_a_sequence_under_a_command_key_are_masked(sequence: list[str] | tuple[str, ...]) -> None:
-    sanitized = EventLogger._sanitize({"args": {"command": sequence}})
+    sanitized = sanitize_event_data({"args": {"command": sequence}})
 
     assert _VALUE not in str(sanitized)
     assert sanitized["args"]["command"][0] == "ok"  # type: ignore[index]
 
 
 def test_a_key_that_is_not_text_does_not_disable_the_masking() -> None:
-    sanitized = EventLogger._sanitize({"args": {7: "plain", "command": f"tool --key {_VALUE}"}})
+    sanitized = sanitize_event_data({"args": {7: "plain", "command": f"tool --key {_VALUE}"}})
 
     assert _VALUE not in str(sanitized)
     assert sanitized["args"][7] == "plain"  # type: ignore[index]
@@ -74,7 +75,7 @@ def test_a_key_that_is_not_text_does_not_disable_the_masking() -> None:
 def test_a_command_the_bash_event_already_masked_is_unchanged() -> None:
     masked = redact_command_line(f"tool --key {_VALUE} --verbose")
 
-    assert EventLogger._sanitize({"command": masked}) == {"command": masked}
+    assert sanitize_event_data({"command": masked}) == {"command": masked}
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,7 @@ Secret redaction domain — masks API keys, tokens and credentials before they r
 - `agent/middlewares/approval/_interrupt_payload.py` — `redact_for_display`
 - `agent/meta_tools/file_ops/file_read_tool.py`, `agent/meta_tools/file_search/_redaction.py` — `redact_file_text`
 - `agent/meta_tools/bash/_executor/event_logging.py`, `agent/meta_tools/bash/_background/registry.py` — `redact_command_line`
-- `agent/event_log/logger.py` — `redact_command_line` on a string under a key whose last word is `command` or `cmd`, before the leak detector
+- `agent/event_log/_sanitize.py` — `redact_command_line` on a string under a key whose last word is `command` or `cmd`, before the leak detector
 - `agent/middlewares/approval/helpers.py` — `redact_command_line` on a derived allow-always pattern, which is stored only when it carries no credential
 - `command_preview` for the log lines that quote a command: `agent/meta_tools/bash` (`bash_code_execute_tool.py`, `_executor/background_mixin.py`, `_security/path_guard.py`, `_security/preflight_checks.py`), `agent/meta_tools/file_ops/core/file_operation_service.py`, `agent/middlewares/completion/completion_guard/guard.py`, `toolkits/code_execution/executors` (`local/_bash_exec.py`, `local/_background_spawn.py`, `common/command_rewriter.py`, `common/venv_manager.py`), `core/security/safe_exec.py`, `toolkits/acp/runtime/cli/runtime.py`, `agent/meta_tools/skills/select/skill_document_loader.py`, and the server's `services/ssh_vault` through `myrm_agent_harness.api`; `tests/architecture/test_command_log_masking.py` fails a log call in the harness that quotes a command-named variable without one of the two
 - toolkits across browser / web_fetch / mcp / code_execution / memory — `redact_sensitive_text`
