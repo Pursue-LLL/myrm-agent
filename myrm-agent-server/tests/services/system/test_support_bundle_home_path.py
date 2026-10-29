@@ -1,8 +1,9 @@
 """A bundle is made to be shared, so the home folder, which carries the account name, is written as ``~`` everywhere.
 
 The folder is replaced as the operating system spells it, with the doubled backslashes of a JSON string and with
-forward slashes; a longer name that merely starts with it is left alone. The one place that never saw a redactor, the
-placeholder for a log that could not be read, goes through the same exit as every other piece of text.
+forward slashes; a longer name that merely starts with it is left alone, and on Windows the case of a letter does not
+matter. The one place that never saw a redactor, the placeholder for a log that could not be read, goes through the same
+exit as every other piece of text.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -17,7 +19,13 @@ from unittest.mock import patch
 import pytest
 
 from app.config.settings import DatabaseSettings
-from app.services.system.support_bundle_service import SupportBundleService, _home_forms, _safe_json_dumps, _scrub
+from app.services.system.support_bundle_service import (
+    SupportBundleService,
+    _home_forms,
+    _home_pattern,
+    _safe_json_dumps,
+    _scrub,
+)
 
 _MODULE = "app.services.system.support_bundle_service"
 _SECRET = "sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL"
@@ -101,6 +109,26 @@ class TestHomeFolderIsReplaced:
     def test_the_json_sections_of_a_bundle_use_the_same_exit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _home_is(monkeypatch, PurePosixPath("/Users/ann"))
         assert json.loads(_safe_json_dumps({"workspace": "/Users/ann/.myrm"})) == {"workspace": "~/.myrm"}
+
+
+class TestHomeFolderCase:
+    """Windows paths ignore case, so the same folder is spelled many ways; POSIX paths do not."""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_patterns(self) -> Iterator[None]:
+        _home_pattern.cache_clear()
+        yield
+        _home_pattern.cache_clear()
+
+    def test_on_windows_a_path_in_another_case_is_the_same_folder(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(f"{_MODULE}.os", SimpleNamespace(name="nt"))
+        _home_is(monkeypatch, PureWindowsPath("C:\\Users\\ann"))
+        assert _scrub("c:\\users\\ANN\\proj") == "~\\proj"
+
+    def test_on_posix_a_path_in_another_case_is_another_folder(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(f"{_MODULE}.os", SimpleNamespace(name="posix"))
+        _home_is(monkeypatch, PurePosixPath("/Users/ann"))
+        assert _scrub("/users/ANN/x") == "/users/ANN/x"
 
 
 class TestEventTraces:

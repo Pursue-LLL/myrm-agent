@@ -1,8 +1,9 @@
-"""A password or a cookie typed as a command-line argument is masked, in the four forms no name-based rule sees.
+"""A password or a cookie typed as a command-line argument is masked, in the forms no name-based rule sees.
 
 ``curl -u user:pass``, ``curl -b 'sid=…'``, ``sshpass -p pass`` and ``mysql -ppass`` carry the credential in a short
 option whose name says nothing, so each rule is anchored on the command name and stays inside one command. Everything
-that merely looks alike (``ssh -p 22``, ``git push -u``, ``-u admin:$PASSWORD``, a cookie jar file) is left readable.
+that merely looks alike (``ssh -p 22``, ``git push -u``, ``-u admin:$PASSWORD``, a cookie jar file, the port of the
+command ``sshpass`` wraps) is left readable. The tools of ``test_command_tool_credentials.py`` follow the same rules.
 """
 
 from __future__ import annotations
@@ -128,10 +129,37 @@ class TestSshpass:
             (f"sshpass -p{_PASSWORD} ssh root@host", "sshpass -p*** ssh root@host"),
             (f"sshpass -v -p {_PASSWORD} ssh root@host", "sshpass -v -p *** ssh root@host"),
             (f"/usr/bin/sshpass -p {_PASSWORD} ssh root@host", "/usr/bin/sshpass -p *** ssh root@host"),
+            (f"sshpass -p {_PASSWORD} ssh -p 2222 root@host uptime", "sshpass -p *** ssh -p 2222 root@host uptime"),
+            (f"sshpass -f pw.txt -p {_PASSWORD} ssh -p 2222 h", "sshpass -f pw.txt -p *** ssh -p 2222 h"),
+            (f"sshpass -P assword -p {_PASSWORD} ssh -p 2222 h", "sshpass -P assword -p *** ssh -p 2222 h"),
+            (f"sshpass -P 'pass word' -v -p {_PASSWORD} ssh h", "sshpass -P 'pass word' -v -p *** ssh h"),
+            (f"sshpass -Password -p {_PASSWORD} ssh h", "sshpass -Password -p *** ssh h"),
         ],
     )  # fmt: skip
     def test_the_password_is_masked_and_the_ssh_command_is_kept(self, command: str, expected: str) -> None:
         assert _masked(command) == expected
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "sshpass -e ssh -p 2222 root@host uptime",
+            "sshpass -eMY_PASSWORD ssh -p 2222 root@host",
+            "sshpass -f pw.txt ssh -p 2222 root@host",
+            "sshpass -d 3 ssh -p 2222 root@host",
+            "sshpass -P assword -e ssh -p 2222 root@host",
+            "sshpass -P 'pass word' -e ssh -p 2222 root@host",
+            "sshpass -v -e ssh -o StrictHostKeyChecking=no -p 2222 root@host",
+            "sshpass -e scp -P 2222 a root@host:/b",
+            "sshpass -e rsync -e 'ssh -p 2222' a root@host:/b",
+        ],
+    )  # fmt: skip
+    def test_the_port_of_the_wrapped_command_is_not_the_password(self, command: str) -> None:
+        """Only sshpass's own options come before the command it wraps; the first word that is no option starts that command."""
+        assert _masked(command) == command
+
+    def test_the_wrapped_port_inside_a_json_string_is_kept(self) -> None:
+        record = json.dumps({"command": "sshpass -e ssh -p 2222 root@host uptime"})
+        assert _masked(record) == record
 
     @pytest.mark.parametrize(
         "command",
