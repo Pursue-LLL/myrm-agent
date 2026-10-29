@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: chat metadata + messages)
 - app.database.models.agent::Agent (POS: agent identity)
-- app.database.dto::ChatDTO, MessageDTO (POS: 聊天与消息数据传输对象)
+- app.database.dto::ChatDTO, MessageDTO (POS: data transfer object definitions)
 - app.services.chat.chat_helpers (POS: what a message reads as outside the app, and which rows are the system's notes)
 - app.core.security.share.share_locale (POS: page language and the language tables every share page shares)
 
@@ -11,13 +11,10 @@
 - render_share_html: generate self-contained HTML for a shared conversation in the visitor's language
 
 [POS]
-Generates responsive, secure HTML pages for public conversation share links.
-Uses markdown-it-py for rich Markdown rendering (code blocks, tables, lists).
-Includes Agent identity card, message history, OG metadata, dark mode, and XSS protection. A wide table scrolls inside its
-message bubble. The page chrome (role labels, message count, fallback title and agent names, footer, ``lang``) is
-written in the visitor's language like the password-gate and status pages; the conversation itself is shown as
-written. A very long conversation shows its latest messages and says how many there are; the page runs no script,
-so message times are printed in UTC and labelled so.
+Generates responsive, script-free HTML pages for public conversation share links: markdown-it-py Markdown messages (code blocks
+and tables that scroll inside their bubble), an Agent identity card, OG metadata, dark mode and XSS protection.
+The page chrome is written in the visitor's language while the conversation is shown as written; a very long conversation
+shows its latest messages with the total count, and message times are printed in UTC because the page cannot know the visitor's zone.
 """
 
 from __future__ import annotations

@@ -34,6 +34,15 @@ async def test_a_pipe_table_typed_by_the_user_stays_plain_text(mock_db: MagicMoc
     assert "table-wrap" not in html.split("</style>")[1]
 
 
+async def test_a_table_cell_cannot_inject_markup(mock_db: MagicMock) -> None:
+    cell = "<img src=x onerror=alert(1)>"
+    html = await render_page(mock_db, "en", messages=[make_message("m1", "assistant", f"| a |\n|---|\n| {cell} |")])
+
+    body = html.split("</style>")[1]
+    assert "<img" not in body
+    assert "&lt;img src=x onerror=alert(1)&gt;" in body
+
+
 def _theme_css(html: str) -> tuple[str, str]:
     """The page's (light, dark) stylesheet halves."""
     css = html.split("<style>")[1].split("</style>")[0]
@@ -63,8 +72,15 @@ def _contrast(foreground: str, background: str) -> float:
 
 @pytest.mark.parametrize(
     ("text", "backgrounds"),
-    [(".time", (".msg.user", ".msg.assistant")), (".footer", ("body",)), (".model", (".model",))],
-    ids=["time", "footer", "model"],
+    [
+        (".time", (".msg.user", ".msg.assistant")),
+        (".footer", ("body",)),
+        (".stat", ("body",)),
+        (".model", (".model",)),
+        (".notice", (".notice",)),
+        (".msg-body blockquote", (".msg.assistant",)),
+    ],
+    ids=["time", "footer", "stat", "model", "notice", "blockquote"],
 )
 @pytest.mark.parametrize("theme", ["light", "dark"])
 async def test_small_text_is_readable_on_what_it_sits_on_in_both_themes(
