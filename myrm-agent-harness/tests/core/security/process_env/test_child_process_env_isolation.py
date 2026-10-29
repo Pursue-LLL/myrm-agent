@@ -300,14 +300,22 @@ class TestExecutorAndHookSubprocessIsolation:
         assert "REDIS_URL" not in cleaned_env
         assert cleaned_env.get("BUILD_STEP") == "compile"
 
-    def test_ptc_orchestration_allows_pythonpath(self) -> None:
+    def test_ptc_orchestration_allows_pythonpath_and_socket(self) -> None:
+        stub_dir = "/tmp/myrm_ptc_stubs_abc"
         env_with_ptc = {
             "PATH": "/usr/bin",
-            "_MYRM_PTC_SOCKET": "/tmp/ptc.sock",
-            "PYTHONPATH": "/opt/custom/lib",
+            "_MYRM_PTC_SOCKET": "/tmp/myrm_ptc.sock",
+            "_MYRM_PTC_TIMEOUT": "60",
+            "PYTHONPATH": f"{stub_dir}:/other",
         }
         res = sanitize_env(env_with_ptc, inherit_policy=EnvInheritPolicy.ALL)
-        assert res.get("PYTHONPATH") == "/opt/custom/lib"
+        assert res["PYTHONPATH"] == f"{stub_dir}:/other"
+        assert res["_MYRM_PTC_SOCKET"] == "/tmp/myrm_ptc.sock"
+        assert res["_MYRM_PTC_TIMEOUT"] == "60"
+
+    def test_pythonpath_still_blocked_without_ptc_markers(self) -> None:
+        res = sanitize_env({"PATH": "/usr/bin", "PYTHONPATH": "/tmp/evil"}, inherit_policy=EnvInheritPolicy.ALL)
+        assert "PYTHONPATH" not in res
 
     def test_build_isolated_child_env_post_override_scrubs_case_variants(self) -> None:
         # Construct an env where an override attempts to inject a mixed-case credential

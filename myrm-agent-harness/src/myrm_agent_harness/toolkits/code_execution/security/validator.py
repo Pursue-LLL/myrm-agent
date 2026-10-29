@@ -494,21 +494,12 @@ def is_path_component_safe(component: str, component_name: str = "path component
     return validate_path_component(component, component_name).is_safe
 
 
-# ============================================================
-# Aliases
-# ============================================================
-
-is_command_safe = is_command_allowed
-is_path_safe = is_path_allowed
-
 __all__ = [
     "ValidationResult",
     "is_command_allowed",
-    "is_command_safe",
     "is_module_allowed",
     "is_path_allowed",
     "is_path_component_safe",
-    "is_path_safe",
     "validate_command",
     "validate_module",
     "validate_path",
