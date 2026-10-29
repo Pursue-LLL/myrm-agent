@@ -6,7 +6,7 @@ user messages survive a process crash mid-turn and a stop of the router with mes
 
 Lifecycle:
 1. Router writes a journal entry BEFORE starting agent execution; a stopping router writes the
-   entries of the messages that have not started a turn
+   entries of the messages its gate holds that have not started a turn
 2. Router acknowledges the entry when the turn ends, however it ends (completed, failed, ended by
    ``/stop``, cancelled by a stop): only a process that dies mid-turn leaves its entry behind
 3. On start, Gateway scans un-acknowledged entries within their TTL and re-submits them
@@ -21,7 +21,8 @@ Lifecycle:
 
 [POS]
 Inbound reliability layer. A crash replays the turn it interrupted; a stop replays the messages
-that had not started one. Write-Ahead Log pattern: record before processing, delete when the turn ends.
+its gate held that had not started one (a message that reaches the bus after the stop began is not journaled).
+Write-Ahead Log pattern: record before processing, delete when the turn ends.
 """
 
 from __future__ import annotations

@@ -245,6 +245,12 @@ belong to a run the stop ends) and writes each to the inbound journal through `_
 replays them at the next start. The gate is emptied before the running turns are cancelled because a cancelled turn's end
 starts the next queued turn: with the queue still full, the shutdown would run a new agent turn.
 
+What a stop does not park: a message that reaches the bus after the stop has begun. `ChannelGateway.stop` stops the router
+first, drains the outbound queue for up to 5 seconds, and only then stops the channels (`core/gateway.py`), so the channels
+keep delivering while the router no longer consumes. The consume loop ends only near the end of `stop`; a message it takes
+before that is cleared with the gate, or, when the debounce window is short, starts a turn during the shutdown; a message it
+never takes is dropped when the bus stops.
+
 What the journal replays: a turn that was running when the process died (its entry is written when the turn starts and no
 `finally` ran to acknowledge it), and the messages a stop parked. A turn that ended is acknowledged and not replayed
 (`pipeline/turn.py`, the `finally` of `_handle_merged`): completed, failed, ended by `/stop`, or cancelled by a stop. Entries
