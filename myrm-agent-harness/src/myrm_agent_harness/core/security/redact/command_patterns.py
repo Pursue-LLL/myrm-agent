@@ -3,8 +3,8 @@
 These four options hold a password or a cookie in a short option whose name says nothing, so no name-based rule sees
 them. Each rule is anchored on the command name and stays inside one simple command: a ``|``, ``;``, ``&`` or line
 break outside a quoted argument (or the escaped line break of a JSON string) ends it, so ``sort -u a:b`` after a pipe is
-not a ``curl`` option. A value that is a variable reference, a missing password, a cookie jar file name or an already
-masked value stays readable.
+not a ``curl`` option; a backslash before the line break continues the command. A value that is a variable reference, a
+missing password, a cookie jar file name or an already masked value stays readable.
 
 [INPUT]
 - bounded_replace::_replace_pattern_bounded (POS: Bounded regex replacement, the ReDoS guard of every redaction pass)
@@ -33,24 +33,34 @@ _ATTACHED_ARGUMENT = rf"""(?P<value>{_QUOTED_ARGUMENT}|[^\s'"`\-][^\s'"`]*)"""
 # The command name is a whole word, not the tail of another name (``mycurl``, ``libcurl``), and may carry a path.
 _NOT_GLUED = r"(?<![\w.\-])"
 
+# A backslash before a line break, raw or inside a JSON string, joins the next line to the command.
+_CONTINUATION = r"\\\r?\n|\\\\\\(?:r\\n|n)"
+# The option follows blank space, or the line break that a continuation has just consumed.
+_BLANK_BEFORE_OPTION = r"(?:\s|(?<=\n)|(?<=\\n))"
+
 
 def _command_gap(name: str) -> str:
     """What may lie between the command ``name`` and its option.
 
-    Any character that is not a command separator, and a quoted argument whole (it may hold ``;``, ``|`` or ``&``). The
-    escaped line break of a JSON string separates two commands like a real one. The next occurrence of the name ends the
-    gap: it starts the same search itself, so a text that repeats the name costs a few steps per occurrence, not the
-    full bound of 256.
+    A line continuation, any character that is not a command separator, and a quoted argument whole (it may hold
+    ``;``, ``|`` or ``&``). The escaped line break of a JSON string separates two commands like a real one. The next
+    occurrence of the name ends the gap: it starts the same search itself, so a text that repeats the name costs a few
+    steps per occurrence, not the full bound of 256.
     """
-    return rf"""(?:(?!\\[nr])(?!{_NOT_GLUED}{name}\b)[^|;&\r\n'"]|'[^'\r\n]*'|"[^"\r\n]*"){{0,256}}?"""
+    return rf"""(?:{_CONTINUATION}|(?!\\[nr])(?!{_NOT_GLUED}{name}\b)[^|;&\r\n'"]|'[^'\r\n]*'|"[^"\r\n]*"){{0,256}}?"""
 
 
+# ``-u`` may close a cluster of short flags (``-sSu``); curl takes no more than a dozen of them in practice.
 _CURL_OPTION_RE = re.compile(
-    rf"(?P<head>{_NOT_GLUED}curl\b{_command_gap('curl')}\s(?P<option>-[ub]\s*|--(?:user|cookie)(?:\s+|=))){_ARGUMENT}"
+    rf"(?P<head>{_NOT_GLUED}curl\b{_command_gap('curl')}{_BLANK_BEFORE_OPTION}"
+    rf"(?:(?P<user>-[A-Za-z]{{0,12}}u\s*|--user(?:\s+|=))|(?P<cookie>-b\s*|--cookie(?:\s+|=)))){_ARGUMENT}"
 )
-_SSHPASS_RE = re.compile(rf"(?P<head>{_NOT_GLUED}sshpass\b{_command_gap('sshpass')}\s-p\s*){_ARGUMENT}")
+_SSHPASS_RE = re.compile(
+    rf"(?P<head>{_NOT_GLUED}sshpass\b{_command_gap('sshpass')}{_BLANK_BEFORE_OPTION}-p\s*){_ARGUMENT}"
+)
 _MYSQL_RE = re.compile(
-    rf"(?P<head>{_NOT_GLUED}mysql(?:dump|admin)?\b{_command_gap('mysql(?:dump|admin)?')}\s-p){_ATTACHED_ARGUMENT}"
+    rf"(?P<head>{_NOT_GLUED}mysql(?:dump|admin)?\b{_command_gap('mysql(?:dump|admin)?')}{_BLANK_BEFORE_OPTION}-p)"
+    rf"{_ATTACHED_ARGUMENT}"
 )
 
 _MASKED = "***"
@@ -76,7 +86,7 @@ def _holds_secret(value: str) -> bool:
 def _redact_curl_option(m: re.Match[str]) -> str:
     """``-u user:password`` keeps the user name; ``-b name=value; …`` is masked whole unless it names a cookie jar file."""
     opening, content, closing = _unquote(m["value"])
-    if m["option"].lstrip("-").strip(" \t=") in ("u", "user"):
+    if m["user"] is not None:
         user, colon, password = content.partition(":")
         if not colon or not _holds_secret(password):
             return m[0]

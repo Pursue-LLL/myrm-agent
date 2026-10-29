@@ -30,6 +30,9 @@ class TestCurlUser:
             (f"curl --user admin:{_PASSWORD} https://x", "curl --user admin:*** https://x"),
             (f"curl --user=admin:{_PASSWORD} https://x", "curl --user=admin:*** https://x"),
             (f"curl -uadmin:{_PASSWORD} https://x", "curl -uadmin:*** https://x"),
+            (f"curl -sSu admin:{_PASSWORD} https://x", "curl -sSu admin:*** https://x"),
+            (f"curl -fsSLu admin:{_PASSWORD} https://x", "curl -fsSLu admin:*** https://x"),
+            (f"curl -sSuadmin:{_PASSWORD} https://x", "curl -sSuadmin:*** https://x"),
             (f"curl -sS -u admin:{_PASSWORD} -o out.json https://x", "curl -sS -u admin:*** -o out.json https://x"),
             (f"curl https://x/api -u admin:{_PASSWORD} -H 'A: b'", "curl https://x/api -u admin:*** -H 'A: b'"),
             (f"curl 'https://x/a?b=1&c=2' -u admin:{_PASSWORD}", "curl 'https://x/a?b=1&c=2' -u admin:***"),
@@ -63,6 +66,9 @@ class TestCurlUser:
             "curl -u $CREDENTIALS https://x",
             "curl -u admin:*** https://x",
             "curl --upload-file a.txt https://x",
+            "curl --user-agent 'Mozilla/5.0 x' https://x",
+            "curl -sSL https://x",
+            "curl -Lo out.zip https://x",
             "curl -sS https://x | sort -u a:b",
             "curl -sS https://x && git push -u origin:main",
             "echo curl; sort -u a:b",
@@ -212,6 +218,46 @@ class TestOneCommandAtATime:
         self, command: str, expected: str
     ) -> None:
         assert _masked(command) == expected
+
+
+class TestLineContinuation:
+    """A backslash before the line break joins the next line to the command, the way an agent writes a long ``curl``."""
+
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            (f"curl -X POST https://x \\\n  -u admin:{_PASSWORD}", "curl -X POST https://x \\\n  -u admin:***"),
+            (f"curl -X POST https://x \\\r\n  -u admin:{_PASSWORD}", "curl -X POST https://x \\\r\n  -u admin:***"),
+            (f"curl -X POST https://x \\\n-u admin:{_PASSWORD}", "curl -X POST https://x \\\n-u admin:***"),
+            (
+                f"curl https://x \\\n  -H 'A: b' \\\n  -d '{{\"k\": 1}}' \\\n  --user admin:{_PASSWORD}",
+                "curl https://x \\\n  -H 'A: b' \\\n  -d '{\"k\": 1}' \\\n  --user admin:***",
+            ),
+            (f"curl https://x \\\n  -b '{_COOKIES}'", "curl https://x \\\n  -b '***'"),
+            (f"sshpass \\\n  -p {_PASSWORD} ssh h", "sshpass \\\n  -p *** ssh h"),
+            (f"mysql -u root \\\n  -p{_PASSWORD} shop", "mysql -u root \\\n  -p*** shop"),
+        ],
+    )  # fmt: skip
+    def test_an_option_on_a_continued_line_is_masked(self, command: str, expected: str) -> None:
+        assert _masked(command) == expected
+
+    @pytest.mark.parametrize("line_break", ["\n", "\r\n"])
+    @pytest.mark.parametrize("indent", ["  ", ""])
+    def test_the_continuation_inside_a_json_string_is_masked(self, line_break: str, indent: str) -> None:
+        command = f"curl -X POST https://x \\{line_break}{indent}-u admin:{_PASSWORD}"
+        masked = _masked(json.dumps({"command": command, "exit_code": 0}))
+        assert json.loads(masked) == {"command": command.replace(_PASSWORD, "***"), "exit_code": 0}
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"curl https://x \\\n  | sort -u admin:{_PASSWORD}",
+            f"curl https://x\nsort -u admin:{_PASSWORD}",
+            f"curl https://x \\\n  && git push -u origin:{_PASSWORD}",
+        ],
+    )  # fmt: skip
+    def test_a_separator_after_a_continuation_still_ends_the_command(self, command: str) -> None:
+        assert _masked(command) == command
 
 
 class TestPipelineBehaviour:
