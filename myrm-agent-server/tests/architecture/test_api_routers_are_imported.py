@@ -9,6 +9,7 @@ tests/architecture/test_api_routers_are_imported.py
 [OUTPUT]
 - Fails when a router module has no importer: nothing can mount it, so every route in it answers 404.
   The frontend path gate only notices when a client spells the path out; this one does not depend on a caller.
+- Fails when the scan finds no router module at all, so a moved scan root cannot pass silently
 
 A router that is imported but never passed to include_router is out of reach of this check; the frontend path gate
 (test_frontend_api_client_paths.py) and the route table (test_api_route_consumers.py) cover the routes a client calls.
@@ -33,7 +34,7 @@ def _module_name(path: Path) -> str:
 
 def _defines_router(tree: ast.Module) -> bool:
     for node in tree.body:
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and isinstance(node.value, ast.Call):
             callee = node.value.func
             if getattr(callee, "id", getattr(callee, "attr", None)) == "APIRouter":
                 return True
@@ -65,6 +66,8 @@ def _routers_without_importer() -> list[str]:
         if path.is_relative_to(_API_ROOT) and "APIRouter" in text:
             if _defines_router(ast.parse(text, filename=str(path))):
                 router_modules[_module_name(path)] = path
+    if not router_modules:
+        raise AssertionError(f"no module under {_API_ROOT} defines an APIRouter: the scan root or the detection is broken")
     # Every import form spells the last segment of the module it names, so parsing is limited to files that do.
     leaf_names = {module.rpartition(".")[2] for module in router_modules}
     importers: defaultdict[str, set[str]] = defaultdict(set)
