@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-29 · 六个已写好、前端在调用的接口模块没有挂到路由上（机队总览、治理、OpenAPI 服务、画像审计、就绪检查、启动恢复）；模型覆写设置页请求了一个根本不存在的地址
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server：`app/api/router.py`、`app/api/agents/_ARCH.md`；frontend：`src/components/features/settings/model-overrides/modelOverridesService.ts`、同目录 `_ARCH.md`）。「仍然存在」里的 5 项未处理。 |
+| **症状** | ① `/agents` 页的机队 KPI 条在请求失败时静默消失（`app/agents/page.tsx:175`）；创建向导的就绪检查步骤只弹一条「Failed to check readiness.」；治理概览、OpenAPI 服务预设/解析/试请求、画像审计、启动恢复的三个端点全部 404。② 模型覆写设置页的列表、预置 SKU、保存、删除、成本估算全部请求 `/api/settings/model-overrides`，不是 `/api/v1/...`，请求打在前端自己的服务器上拿到 404；服务里的 `catch` 又把每个失败换成「成功」的假结果，所以页面看起来一切正常，实际什么都没保存。 |
+| **根因** | ① 2026-10-22 的提交 `9721a3ae99` 把可选路由的挂载改成 `_optional_routers.py` 后，删掉了这 6 个模块（以及 `fleet_telemetry`）在 `router.py` 里的 `include_router`，新注册表里却没有登记它们（登记表一直是空的，此后已随死路由一并删除，提交 `0d8c1fe791`）；这几个模块的实现、测试、前端调用都还在，所以没有任何一处报错。前端路径守卫 `test_frontend_api_client_paths.py` 早就是红的，没人处理。② 服务里的基础地址写成了 `/api/settings/...`，Next 只把 `/api/v1/:path*` 转发给后端（`next.config.ts:229-230`）。 |
+| **修复** | ① `router.py` 恢复 6 条挂载，前缀与标签沿用被删之前的写法：`fleet_overview`、`governance`、`openapi_services` 挂在 `/agents`，`profile_audit`、`readiness` 挂在 `/user-agents`，`recovery` 用模块自带的 `/agents/{agent_id}/recovery`。② 模型覆写服务改为 `getBackendUrl()` + `/api/v1/settings/model-overrides` + `getAuthHeaders()`，每个调用点写完整路径字面量（路径守卫只认完整字面量，拼接形式它看不见）。③ 删除没有任何调用方、也没有被挂载的 `fleet_telemetry` 路由（`POST /fleet/diagnose`、`GET /fleet/health-summary`）与它的测试、文档行、harness 深导入基线条目；`recovery.py` 补上缺失的文档行。 |
+| **回归证据** | [1] 路径守卫：`test_frontend_api_client_paths.py` 修复前 3 条失败，修复后只剩 `/api/transcripts` 1 条（见「仍然存在」）。[2] 生产 `app.openapi()` 的路径数 1380 → 1393，新增 13 个路径，恰好是这 6 个模块与 `/settings/model-overrides` 的各端点；`fleet/diagnose` 不再出现。[3] 真实 HTTP：用真实的 `api_router` 挂到空 FastAPI 上发请求（生产 app 对任何路径包括不存在的路径都先返回 401，不能作证据）——`/agents/does-not-exist-xyz` 返回 404，而 `fleet-overview`、`governance/overview`、`openapi-services/presets`、`settings/model-overrides/preloaded/skus`、`user-agents/{id}/readiness`、`agents/{id}/recovery/health` 都返回 200 与真实数据。[4] 6 个模块与公共路径白名单的服务端测试 163 通过；前端 `tsc` 通过、模型覆写目录 vitest 7 通过、oxlint 通过。[5] `test_api_route_consumers.py` 的「没有调用方」清单少了 `/settings/model-overrides*` 的条目，6 个恢复的模块没有往清单里新增任何一条。 |
+| **仍然存在** | ① 模型覆写服务对任何失败都返回假成功：保存返回一条编造的「已保存」结果，删除在异常时返回 `true`，成本估算在异常时按写死的 0.1/0.2 单价给数；页面无法提示保存失败，需要先设计界面上的失败提示再改，本次未动。② `finalCardEngine.ts` 请求的 `/api/transcripts` 没有任何服务端路由，是否保留这个链接需要产品决定。③ `app/api/system/agentic_traffic_api.py` 与 `delivery_budget_api.py` 同样没有被任何地方挂载（共 6 个端点），前端也没有写出它们的路径，是同一类问题，未处理。④ harness 的 `observability/diagnostics/fleet_telemetry/` 包现在没有任何使用方，连同 `agent/sub_agents/` 下无外部引用的包一起，需要先做 AST 级核对再决定删除。⑤ 没有在浏览器里点过这几个页面；生产 app 带鉴权的完整链路也没有走过。 |
+| **代码位置** | `myrm-agent-server/app/api/router.py:4-22,200-205`（导入与 6 条挂载） · `app/api/agents/_ARCH.md`（`fleet_telemetry.py` 行删除、`recovery.py` 行新增） · `tests/architecture/data/server_harness_import_baseline.txt`（删一条） · `myrm-agent-frontend/src/components/features/settings/model-overrides/modelOverridesService.ts` |
+
 ## 2026-10-29 · 集成接口根目录里 MCP 两个文件、硬件三个文件散着放：收进 `mcp/`、`hardware/`；搬动时发现「规格文件路径」没有任何测试覆盖
 
 | 字段 | 内容 |

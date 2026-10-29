@@ -5,6 +5,9 @@
  * preloaded 2026 SKU catalog lookups, and offline calculation fallback.
  */
 
+import { getBackendUrl } from '@/lib/utils/apiConfig';
+import { getAuthHeaders } from '@/lib/utils/authHeaders';
+
 import type {
   CostEstimationRequest,
   CostEstimationResponse,
@@ -61,11 +64,9 @@ export const FALLBACK_PRELOADED_SKUS: readonly PreloadedModelSku[] = [
 ] as const;
 
 export class ModelOverridesService {
-  private static readonly BASE_URL = '/api/settings/model-overrides';
-
   public static async listOverrides(): Promise<ModelOverrideItem[]> {
     try {
-      const res = await fetch(this.BASE_URL);
+      const res = await fetch(`${getBackendUrl()}/api/v1/settings/model-overrides`, { headers: getAuthHeaders() });
       if (!res.ok) {
         throw new Error(`Failed to list overrides: ${res.statusText}`);
       }
@@ -77,7 +78,9 @@ export class ModelOverridesService {
 
   public static async getPreloadedSkus(): Promise<PreloadedModelSku[]> {
     try {
-      const res = await fetch(`${this.BASE_URL}/preloaded/skus`);
+      const res = await fetch(`${getBackendUrl()}/api/v1/settings/model-overrides/preloaded/skus`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) {
         throw new Error(`Failed to get preloaded SKUs: ${res.statusText}`);
       }
@@ -87,14 +90,11 @@ export class ModelOverridesService {
     }
   }
 
-  public static async upsertOverride(
-    modelId: string,
-    payload: ModelOverrideUpsertPayload
-  ): Promise<ModelOverrideItem> {
+  public static async upsertOverride(modelId: string, payload: ModelOverrideUpsertPayload): Promise<ModelOverrideItem> {
     try {
-      const res = await fetch(`${this.BASE_URL}/${encodeURIComponent(modelId)}`, {
+      const res = await fetch(`${getBackendUrl()}/api/v1/settings/model-overrides/${encodeURIComponent(modelId)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -117,8 +117,9 @@ export class ModelOverridesService {
 
   public static async deleteOverride(modelId: string): Promise<boolean> {
     try {
-      const res = await fetch(`${this.BASE_URL}/${encodeURIComponent(modelId)}`, {
+      const res = await fetch(`${getBackendUrl()}/api/v1/settings/model-overrides/${encodeURIComponent(modelId)}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       return res.ok;
     } catch {
@@ -126,13 +127,11 @@ export class ModelOverridesService {
     }
   }
 
-  public static async estimateCost(
-    request: CostEstimationRequest
-  ): Promise<CostEstimationResponse> {
+  public static async estimateCost(request: CostEstimationRequest): Promise<CostEstimationResponse> {
     try {
-      const res = await fetch(`${this.BASE_URL}/estimate-cost`, {
+      const res = await fetch(`${getBackendUrl()}/api/v1/settings/model-overrides/estimate-cost`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(request),
       });
       if (!res.ok) {

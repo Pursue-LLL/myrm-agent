@@ -6,10 +6,16 @@ from app.api.agents import (
     agent_history,
     agent_portability,
     ai_build,
+    fleet_overview,
     general_agent,
     generate_prompt,
+    governance,
+    openapi_services,
     personality,
+    profile_audit,
     providers,
+    readiness,
+    recovery,
     subagent_presets,
     subagents,
     suggestions,
@@ -191,6 +197,12 @@ api_router.include_router(agent_portability.router, prefix="/user-agents", tags=
 api_router.include_router(agent_history.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(providers.router, prefix="/user-agents/providers", tags=["user-agents"])
 
+api_router.include_router(fleet_overview.router, prefix="/agents", tags=["agents"])
+api_router.include_router(governance.router, prefix="/agents", tags=["agents"])
+api_router.include_router(openapi_services.router, prefix="/agents", tags=["agents"])
+api_router.include_router(profile_audit.router, prefix="/user-agents", tags=["user-agents"])
+api_router.include_router(readiness.router, prefix="/user-agents", tags=["user-agents"])
+api_router.include_router(recovery.router, tags=["user-agents"])
 api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])
 

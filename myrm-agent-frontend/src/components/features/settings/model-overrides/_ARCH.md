@@ -3,7 +3,7 @@
 ## Overview
 
 User-defined model context window and pricing override settings panel.
-Implements Hermes Agent v0.21.0 model_overrides parity, offering dynamic context window sliders, output token limit customization, and a live BYOK token economics calculator.
+Offers dynamic context window sliders, output token limit customization, and a live BYOK token economics calculator.
 
 ## File Index
 
@@ -19,4 +19,4 @@ Implements Hermes Agent v0.21.0 model_overrides parity, offering dynamic context
 
 - Lucide React icons
 - `next-intl` for localization
-- Backend API at `/api/settings/model-overrides`
+- Backend API at `/api/v1/settings/model-overrides` (base URL and auth headers via `getBackendUrl` / `getAuthHeaders`)

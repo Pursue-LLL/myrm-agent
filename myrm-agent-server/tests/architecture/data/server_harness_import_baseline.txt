@@ -287,7 +287,6 @@ myrm_agent_harness.observability.delegation_billing
 myrm_agent_harness.observability.delivery_dossier
 myrm_agent_harness.observability.deployment_funnel
 myrm_agent_harness.observability.diagnostic_stream
-myrm_agent_harness.observability.diagnostics.fleet_telemetry
 myrm_agent_harness.observability.diagnostics.gateway_health
 myrm_agent_harness.observability.diagnostics.manager
 myrm_agent_harness.observability.diagnostics.protocols
