@@ -32,13 +32,10 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | timeline_visualizer/ | 任务执行透视镜与技能调用时序可视化核心引擎：毫秒级耗时追踪、时序瀑布流、步骤状态树与插嘴打断。参见 [timeline_visualizer/_ARCH.md](timeline_visualizer/_ARCH.md)。 |
 | tracing/ | ContextVar-based request tracing (trace_id / session_id) with logging.Filter and JSON formatter. |
 | context_retrieval/ | 上下文分层检索下钻决策树追踪与剪枝留痕套件：目录递归下钻、分值比对、动态阈值剪枝判定与检索全景轨迹快照。参见 [context_retrieval/_ARCH.md](context_retrieval/_ARCH.md)。 |
-| resource_metering/ | 物理硬件占用与认知 Token 混合开销全景对账单套件：沙箱执行秒数、规格加权折算、Token 认知计量与预算防超支熔断。参见 [resource_metering/_ARCH.md](resource_metering/_ARCH.md)。 |
 | diagnostics_bundle/ | 端内沙箱现场全景诊断打包与自愈凭证引擎：生命体征抓取、PII/Secret 深度脱敏与防篡改 HMAC 校验和。参见 [diagnostics_bundle/_ARCH.md](diagnostics_bundle/_ARCH.md)。 |
-| workflow_throttle/ | 海量并发 Agent 编排流水线实时 Token 燃速度量与阶梯式动态风控限流熔断引擎：滑窗燃速平滑、50%/80%/100% 阶梯治理与自适应降级。参见 [workflow_throttle/_ARCH.md](workflow_throttle/_ARCH.md)。 |
 | coordination_friction/ | 人机协调摩擦度量、人工介入衰减曲线与协同效率 ROI 量化记分板引擎：HITL 介入密度统计、多轮监督衰减曲线与注意力时间净节省折算。参见 [coordination_friction/_ARCH.md](coordination_friction/_ARCH.md)。 |
 | cron_doctor/ | Cron 自动化任务舰队全景健康体检医生与预防性隐患自查引擎：6 大健康门禁只读扫描（执行/交付/回执/调度逾期/脚本/工作区）、隐患聚合诊断与外科手术式修复指引。参见 [cron_doctor/_ARCH.md](cron_doctor/_ARCH.md)。 |
 | sanitized_debug_dump/ | 一键安全脱敏诊断包生成、敏感凭据物理抹除与加密阅后即焚分享管理包：Zero-Leak 正则抹除、环境体征快照与 48h/3次自毁分享短链。参见 [sanitized_debug_dump/_ARCH.md](sanitized_debug_dump/_ARCH.md)。 |
-| token_economics/ | 长任务 Token 经济学透明透视、99% 缓存节流真实收益与算力账单防刺客引擎：多模型 Prompt 缓存成本 ROI 换算、单位成本滑动基线漂移归因与软硬预算熔断刹车。参见 [token_economics/_ARCH.md](token_economics/_ARCH.md)。 |
 | delivery_dossier/ | 跨智能体任务交付证据卷宗、资产真实有效性与摩擦浪费可观测性引擎：5大维度不可变交付证据（Spec/指纹/工具/物理凭证/验收）、分层资产效能度量与摩擦刺客资产识别。参见 [delivery_dossier/_ARCH.md](delivery_dossier/_ARCH.md)。 |
 | rate_limit_governor/ | 客户端主动限流预测阀门、按模型动态配额自适应调度与零 429 顺滑放行引擎：多厂商响应头侦听、前置微延迟平滑削峰 (200~500ms) 与多并发子任务配额切片隔离。参见 [rate_limit_governor/_ARCH.md](rate_limit_governor/_ARCH.md)。 |
 | org_spend_limit/ | 团队共享智能体组织月度限额、逐 Query 标签归因与超限熔断套件：群聊/私信分级记账、80% 软预警与 100% 硬限额熔断、按身份/Surface 审计归因。参见 [org_spend_limit/_ARCH.md](org_spend_limit/_ARCH.md)。 |
@@ -52,14 +49,8 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | unattended_reliability/ | 无人值守可靠性三联自证套件：量化与自证重启续跑率、重复执行零副作用率与阻塞如实上报率，杜绝幻觉伪成功，支持一键复现验收跑分。参见 [unattended_reliability/_ARCH.md](unattended_reliability/_ARCH.md)。 |
 | agent_insights/ | 自定义智能体运行洞察套件：面向 Agent 视角的意图与场景聚类分布、技能调用健康与耗时漏斗、以及 HITL 卡点率与 Token 产出比分析。参见 [agent_insights/_ARCH.md](agent_insights/_ARCH.md)。 |
 | evidence_cross_verification/ | 多源证据交叉验证与四分制置信度根因排查套件：静态代码、分布式 Trace、运行时日志与知识库历史四维立体现证，四分制置信度推导与行动派修复补丁交付。参见 [evidence_cross_verification/_ARCH.md](evidence_cross_verification/_ARCH.md)。 |
-| composite_usage_ledger/ | 基于六维复合主键的任务级与模型级持久化分摊账本与双轨对账套件：细粒度 task 归因、本地阶梯价估算与供应商回传账单双轨核算与偏差告警。参见 [composite_usage_ledger/_ARCH.md](composite_usage_ledger/_ARCH.md)。 |
-| ambient_auxiliary_accounting/ | 环境感知式辅助用量正交归因上下文与功能模块独立账本套件：主干对话与后台辅助（视觉/压缩/起名/审查）正交隔离记账，保护主干会话 Prompt Cache 纯度。参见 [ambient_auxiliary_accounting/_ARCH.md](ambient_auxiliary_accounting/_ARCH.md)。 |
 | sandbox_hardware_telemetry/ | 多维度沙箱硬件资源动态遥测与三级阶梯式失控死循环自动熔断器套件：CPU/RAM/Disk/Network 秒级度量采样、三级阶梯自愈拦截 (80% 预警 ➔ 90% 挂起 ➔ 95% 硬熔断) 与现场事故历史。参见 [sandbox_hardware_telemetry/_ARCH.md](sandbox_hardware_telemetry/_ARCH.md)。 |
 | event_causality_lineage/ | 事件驱动全链路因果溯源时间线、动作归因图谱与审计白盒透视套件：外部触发事件 (GitHub/Slack/MCP/Cron) ➔ 规则匹配 ➔ Agent动作决策 ➔ 产出Diff全链路DAG，与毫秒级反向文件变更归因追溯。参见 [event_causality_lineage/_ARCH.md](event_causality_lineage/_ARCH.md)。 |
-| delegation_billing/ | 外部委托用量计费口径透明化套件：双形态 TokenUsage 事件适配、订阅委托 vs API 计费双轨分流、用户订阅节省额度估算与跨会话委托账本大盘。参见 [delegation_billing/_ARCH.md](delegation_billing/_ARCH.md)。 |
-| aborted_usage_ledger/ | 中止辅助模型调用账本套件：中止或异常无用量返回时强制记为 usage-unknown，严禁全零 token 伪免费，聚合时隔离已知消耗并暴露潜在财务风险。参见 [aborted_usage_ledger/_ARCH.md](aborted_usage_ledger/_ARCH.md)。 |
-| active_skill_telemetry/ | 活跃技能 Span 遥测处理器套件：ContextVar 绑定当前活跃技能，自动向下游全链路 Span 注入 myrm.skill.active 属性，按技能聚合 P95 耗时与故障归因。参见 [active_skill_telemetry/_ARCH.md](active_skill_telemetry/_ARCH.md)。 |
-| durable_budget_ledger/ | 持久化每日预算账本套件：从持久账本恢复当日用量，防止重试/回退/删消息导致已发生成本消失低估预算，对账会话实际账单。参见 [durable_budget_ledger/_ARCH.md](durable_budget_ledger/_ARCH.md)。 |
 ## Key Dependencies
 
 - `toolkits` (via diagnostics probes)
