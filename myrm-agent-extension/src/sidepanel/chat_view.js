@@ -81,10 +81,12 @@ export function createChatView({ messages, emptyState }) {
     },
 
     /**
+     * A notice the turn already shows is not repeated: parallel tool calls can raise the same one together.
      * @param {Turn} turn
      * @param {string} text
      */
     appendNotice(turn, text) {
+      if ([...turn.el.querySelectorAll(".turn-notice")].some((shown) => shown.textContent === text)) return;
       const notice = document.createElement("div");
       notice.className = "turn-notice";
       notice.textContent = text;

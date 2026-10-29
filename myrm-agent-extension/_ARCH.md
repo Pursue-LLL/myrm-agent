@@ -26,7 +26,7 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（白话说明、完整命令/参数、原因、截止时刻，以及能否在面板内批准）、`isLoopGuardPause`（loop guard 暂停无人可答，不是审批）、`resolveApprovalCopy`/`clockTimeFormatter`（本地化文案）、`buildResumeValue`/`buildStreamBody`（请求体同时声明面板的工具集）、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
 | `src/sidepanel/approval_overlay.js` | 辅助 | 审批弹窗 DOM 渲染：逐项写入说明/命令/原因（一律 `textContent`）、截止行、提示；`focusSafeAnswer` 仅在面板已有焦点时把焦点给「拒绝」 | ✅ |
 | `src/sidepanel/approval_notify.js` | 辅助 | 审批系统通知：窗口不在前台或面板不可见时提醒（不含命令正文），点击把窗口带回前台；同一 id 的通知互相替换，答复/取消/新会话时撤回 | ✅ |
-| `src/sidepanel/chat_view.js` | 辅助 | 消息列表 DOM：用户/助手气泡、流式文本、工具行容器、中性提示、错误气泡（`.error` 样式）、清空 | ✅ |
+| `src/sidepanel/chat_view.js` | 辅助 | 消息列表 DOM：用户/助手气泡、流式文本、工具行容器、中性提示（同一回合里相同的提示只显示一次）、错误气泡（`.error` 样式）、清空 | ✅ |
 | `src/sidepanel/page_context.js` | 辅助 | 当前页签与选中文本的上下文条及查询前缀 | ✅ |
 | `src/sidepanel/server_client.js` | 辅助 | 由 `serverUrl` 推导 HTTP 基址、带 Bearer token 的 `apiFetch`、健康检查状态（`disconnected`/`connecting`/`connected`/`error`），`serverUrl`/`authToken` 变更后自动重检 | ✅ |
 | `src/sidepanel/sse.js` | 辅助 | `readSSE`：解析 agent SSE 流（`data:` 行、`[DONE]` 终止；坏行跳过、回调异常记录后继续） | ✅ |

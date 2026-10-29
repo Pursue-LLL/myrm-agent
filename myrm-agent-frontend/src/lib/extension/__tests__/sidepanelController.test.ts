@@ -474,6 +474,22 @@ describe('side panel approval', () => {
     expect(requests).toHaveLength(1);
   });
 
+  it('says it once when parallel tool calls stop together', async () => {
+    const second = {
+      ...LOOP_GUARD_PAUSE,
+      data: { ...LOOP_GUARD_PAUSE.data, tool_name: 'file_read_tool', tool_call_id: 'call-2' },
+      interruptId: 'interrupt-2.0',
+    };
+    await bootPanel([sse([LOOP_GUARD_PAUSE, second, { type: 'message_end' }])]);
+
+    await send('read the files');
+
+    await vi.waitFor(() => expect(document.querySelectorAll('.turn-notice')).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 20)); // lets the rest of the stream arrive before counting again
+    expect(document.querySelectorAll('.turn-notice')).toHaveLength(1);
+    expect(overlayVisible()).toBe(false);
+  });
+
   it('drops the pending approval when the chat is reset', async () => {
     const requests = await bootPanel([sse([approvalEvent()])]);
     await sendAndAwaitApproval();

@@ -431,6 +431,37 @@ class TestHandleApprovalRequired:
         ]
 
     @pytest.mark.asyncio
+    async def test_loop_guard_pauses_of_parallel_tool_calls_are_spoken_once_per_turn(self) -> None:
+        """Parallel tool calls can stop together; the stop is said once, every pause event still reaches the client."""
+        bridge = _make_bridge()
+        sent_payloads: list[dict[str, object]] = []
+
+        async def capture_send(data: dict[str, object]) -> None:
+            sent_payloads.append(data)
+
+        with (
+            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts,
+            patch.object(bridge, "_send_json", side_effect=capture_send),
+        ):
+            await bridge._handle_approval_required(harness_pause_event("a_tool", "call-a"), "turn-1")
+            await bridge._handle_approval_required(harness_pause_event("b_tool", "call-b"), "turn-1")
+            await bridge._handle_approval_required(harness_pause_event("a_tool", "call-c"), "turn-2")
+
+        assert [call.args[1] for call in mock_tts.await_args_list] == ["turn-1", "turn-2"]
+        assert len(sent_payloads) == 3
+
+    @pytest.mark.asyncio
+    async def test_every_approval_of_a_turn_still_gets_its_confirmation_hint(self) -> None:
+        bridge = _make_bridge()
+        approval: dict[str, object] = {"type": "approval_required", "data": {"action_type": "bash"}}
+
+        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
+            await bridge._handle_approval_required(approval, "turn-1")
+            await bridge._handle_approval_required(approval, "turn-1")
+
+        assert mock_tts.await_count == 2
+
+    @pytest.mark.asyncio
     async def test_ws_payload_structure(self) -> None:
         """WS payload should contain type, turn_id, and data from event."""
         bridge = _make_bridge()

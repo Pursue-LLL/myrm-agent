@@ -103,6 +103,7 @@ class VoiceAgentBridge:
     _transcript: list[_TranscriptEntry] = field(default_factory=list, repr=False)
     _tts_cancel_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     _speech_interrupted_at: float | None = field(default=None, repr=False)
+    _stop_spoken_turn: str | None = field(default=None, repr=False)
 
     async def handle_stt_final(self, text: str) -> None:
         """Process finalized STT text: cancel prior turn, invoke Agent, TTS."""
@@ -646,10 +647,12 @@ class VoiceAgentBridge:
         lang = (self._voice_config.stt_language or "").lower()
         speaks_chinese = "zh" in lang or "cn" in lang
         if is_tool_stuck_pause(approval_data):
-            hint = _TOOL_STUCK_HINT_ZH if speaks_chinese else _TOOL_STUCK_HINT_EN
+            # Parallel tool calls can stop together; the stop is said once per turn.
+            if self._stop_spoken_turn != turn_id:
+                self._stop_spoken_turn = turn_id
+                await self._stream_tts_segment(_TOOL_STUCK_HINT_ZH if speaks_chinese else _TOOL_STUCK_HINT_EN, turn_id)
         else:
-            hint = _APPROVAL_HINT_ZH if speaks_chinese else _APPROVAL_HINT_EN
-        await self._stream_tts_segment(hint, turn_id)
+            await self._stream_tts_segment(_APPROVAL_HINT_ZH if speaks_chinese else _APPROVAL_HINT_EN, turn_id)
 
         ws_payload: dict[str, object] = {
             "type": str(event_type),
