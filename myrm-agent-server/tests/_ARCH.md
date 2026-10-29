@@ -163,6 +163,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
 | `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
 | `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束的回合以结果表情替换处理中表情（先按名撤销刚加的那一个），被停止的回合不留处理中表情 |
+| `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 建立不了的连接（`httpx.ConnectError`）在每家 Provider 上都按重试策略重试，不取决于它把错误原样抛出还是包成 `ChannelSendError`：Slack、钉钉、LINE、Telegram 经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线，请求次数等于重试上限 |
 | `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
 | `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 反应走 Bot Framework 连接器：状态表情按官方反应 ID 以 `PUT …/reactions/{ID}` 发送，没有官方 ID 的表情不发送；空串按记账 `DELETE` 同一个 ID 且只撤一次、没发过或服务地址未知不发请求；被拒与传输错误抛出且不记账；假连接器按 Teams SDK 的方法、路径、令牌规则校验 |
 | `channels/providers/imessage/test_imessage_private_api_state.py` | 单元 | iMessage 跟随 BlueBubbles 报告的 Private API 与助手状态：启动与每次健康检查都从 `/server/info` 取标志（助手晚连会在下次检查后恢复引用回复与 Tapback，助手掉线后全部停用），读不出或不含标志的响应体与失败的检查保留上次状态；Tapback、输入中、已读回执、引用回复共用同一个就绪判断，未就绪时只发普通文本；未就绪时跳过的撤销保留台账，就绪后仍可撤销 |

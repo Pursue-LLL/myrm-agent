@@ -83,3 +83,33 @@ async def test_a_connection_that_cannot_be_opened_is_attempted_as_often_as_the_r
         await bus.send_now(OutboundMessage(channel=channel.name, recipient_id="42", content="hello", user_id="u1"))
 
     assert len(requests) == _RETRY.max_retries
+
+
+# What each platform answers once the connection opens, and the message id the reply is then known by.
+_ANSWERS: dict[str, tuple[dict[str, object], str]] = {
+    "slack": ({"ok": True, "ts": "1730000000.000100", "channel": "C1"}, "1730000000.000100"),
+    "telegram": ({"ok": True, "result": {"message_id": 7}}, "7"),
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", _ANSWERS)
+async def test_a_reply_is_delivered_once_the_connection_opens_on_a_later_attempt(name: str) -> None:
+    answer, message_id = _ANSWERS[name]
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url.path)
+        if len(requests) == 1:
+            raise httpx.ConnectError("down", request=request)
+        return httpx.Response(200, json=answer)
+
+    channel = _PROVIDERS[name](httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    channel.retry_config = _RETRY
+    bus = MessageBus()
+    bus.register_channel(channel)
+
+    delivered = await bus.send_now(OutboundMessage(channel=channel.name, recipient_id="42", content="hello", user_id="u1"))
+
+    assert delivered == message_id
+    assert len(requests) == 2
