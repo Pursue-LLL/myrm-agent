@@ -211,9 +211,12 @@ _USAGE_LIMIT_TRANSIENT_SIGNALS = [
 
 _USAGE_LIMIT_PATTERNS = ["usage limit", "quota", "limit exceeded", "key limit exceeded"]
 
+# The provider error codes `content_filter` and `ResponsibleAIPolicyViolation` match; the spaced phrase "content filter"
+# does not, so prose that merely mentions a filter never turns a rejected request into a safety block.
 _SAFETY_BLOCK_RE = re.compile(
-    r"content_policy_violation|violating our usage policy|safety system"
-    r"|content filtered|responsible ai policy|safety block",
+    r"content_?policy_?violation|violating our usage policy|safety system"
+    r"|content filtered|responsible ai policy|safety block"
+    r"|content_filter|responsibleaipolicyviolation",
     re.IGNORECASE,
 )
 

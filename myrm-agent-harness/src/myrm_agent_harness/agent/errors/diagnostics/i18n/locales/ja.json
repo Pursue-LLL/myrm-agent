@@ -79,7 +79,7 @@
     "メッセージや添付ファイルから機密性の高い内容や制限対象の内容を取り除いてください",
     "別のモデルまたはプロバイダーをお試しください"
   ],
-  "format_error_user_message": "プロバイダーがこのリクエストを処理できませんでした",
+  "format_error_user_message": "プロバイダーがこのリクエストを処理できませんでした: {error_message}",
   "format_error_resolution_steps": [
     "メッセージをもう一度送信してください",
     "会話に画像やファイルが含まれる場合は、削除するか、より小さいものを使用してください",
@@ -131,6 +131,11 @@
   "provider_policy_blocked_resolution_steps": [
     "プロバイダーのコンソールでプライバシー設定を調整してください（例：OpenRouter 設定 > プライバシー）",
     "別のモデルまたはプロバイダーをお試しください"
+  ],
+  "opencode_training_policy_user_message": "OpenCode Go はこのリクエストをブロックしました。Muse Spark Contributor モデルを使うには、ワークスペースでトレーニングデータ共有への同意が必要です。Contributor 向けのトレーニング同意を有効にするか、Contributor ではないモデルを選んでください。",
+  "opencode_training_policy_resolution_steps": [
+    "OpenCode Go のワークスペース設定を開き、Contributor モデル向けのトレーニングデータ共有への同意を有効にします",
+    "または muse-spark-1.2（Contributor ではないモデル）や deepseek-v4-flash などの別のモデルに切り替えます"
   ],
   "tls_certificate_user_message": "TLS証明書の検証に失敗しました — 企業のTLS検査プロキシが原因の可能性があります",
   "tls_certificate_resolution_steps": [

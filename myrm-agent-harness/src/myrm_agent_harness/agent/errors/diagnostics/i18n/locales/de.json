@@ -79,7 +79,7 @@
     "Entfernen Sie sensible oder eingeschränkte Inhalte aus Nachricht und Anhängen",
     "Versuchen Sie ein anderes Modell oder einen anderen Anbieter"
   ],
-  "format_error_user_message": "Der Anbieter konnte diese Anfrage nicht verarbeiten",
+  "format_error_user_message": "Der Anbieter konnte diese Anfrage nicht verarbeiten: {error_message}",
   "format_error_resolution_steps": [
     "Senden Sie Ihre Nachricht erneut",
     "Falls die Konversation Bilder oder Dateien enthält, entfernen Sie diese oder verwenden Sie kleinere",
@@ -131,6 +131,11 @@
   "provider_policy_blocked_resolution_steps": [
     "Passen Sie die Datenschutzeinstellungen in der Anbieterkonsole an (z.B. OpenRouter Einstellungen > Datenschutz)",
     "Versuchen Sie ein anderes Modell oder einen anderen Anbieter"
+  ],
+  "opencode_training_policy_user_message": "OpenCode Go hat diese Anfrage blockiert, weil Muse Spark Contributor die Zustimmung zur Weitergabe von Trainingsdaten voraussetzt. Aktivieren Sie die Trainingseinwilligung in Ihrem OpenCode-Go-Workspace oder wählen Sie ein Modell ohne Contributor-Status.",
+  "opencode_training_policy_resolution_steps": [
+    "Öffnen Sie die Workspace-Einstellungen von OpenCode Go und aktivieren Sie die Einwilligung zur Weitergabe von Trainingsdaten für Contributor-Modelle",
+    "Oder wechseln Sie zu muse-spark-1.2 (ohne Contributor-Status) oder einem anderen Modell wie deepseek-v4-flash"
   ],
   "tls_certificate_user_message": "TLS-Zertifikatsüberprüfung fehlgeschlagen — möglicherweise verursacht durch einen Enterprise-TLS-Inspektionsproxy",
   "tls_certificate_resolution_steps": [

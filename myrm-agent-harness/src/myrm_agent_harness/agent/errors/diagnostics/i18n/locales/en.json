@@ -76,7 +76,7 @@
     "Remove sensitive or restricted content from your message and attachments",
     "Try a different model or provider"
   ],
-  "format_error_user_message": "The provider could not process this request",
+  "format_error_user_message": "The provider could not process this request: {error_message}",
   "format_error_resolution_steps": [
     "Send your message again",
     "If the conversation includes images or files, remove them or use smaller ones",

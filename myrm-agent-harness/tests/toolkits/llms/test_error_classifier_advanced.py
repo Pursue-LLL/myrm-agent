@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from myrm_agent_harness.toolkits.llms.errors.classifier import (
     ErrorKind,
     classify_error,
@@ -57,6 +59,23 @@ def test_classify_safety_block():
 
     exc2 = Exception("content_policy_violation")
     assert classify_error(exc2) == ErrorKind.SAFETY_BLOCK
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "litellm.ContentPolicyViolationError: AzureException - The response was filtered",
+        'AzureException BadRequestError - {"error": {"message": "filtered", "code": "content_filter"}}',
+        "{'error': {'innererror': {'code': 'ResponsibleAIPolicyViolation'}}}",
+    ],
+    ids=["litellm class name", "content_filter code", "inner policy code"],
+)
+def test_classify_provider_content_filter_as_safety_block(message):
+    assert classify_error(Exception(message)) == ErrorKind.SAFETY_BLOCK
+
+
+def test_classify_prose_about_a_content_filter_is_not_a_safety_block():
+    assert classify_error(Exception("Unsupported value for the content filter level")) != ErrorKind.SAFETY_BLOCK
 
 
 def test_classify_model_not_found():

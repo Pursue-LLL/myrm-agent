@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
+from litellm import exceptions as litellm_errors
 
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
@@ -282,7 +283,6 @@ async def test_failover_quota_exhausted_unconfigured_emits_status(ctx):
     assert unconfigured[0]["error_kind"] == ErrorKind.RATE_LIMIT.value
 
 
-
 @pytest.mark.asyncio
 async def test_safety_fallback_unconfigured_emits_status(ctx):
     """Safety block without safety_fallback_llm emits safety_fallback_unconfigured STATUS."""
@@ -473,6 +473,43 @@ async def test_safety_fallback(ctx):
     safety_events = [e for e in events if isinstance(e, dict) and e.get("step_key") == "safety_fallback_active"]
     assert len(safety_events) == 1
     assert safety_events[0]["restart"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "exc",
+    [
+        litellm_errors.ContentPolicyViolationError(
+            message="The response was filtered due to the prompt triggering Azure OpenAI's content management policy.",
+            model="gpt-4o",
+            llm_provider="azure",
+        ),
+        litellm_errors.BadRequestError(
+            message='AzureException BadRequestError - {"error": {"message": "filtered", "code": "content_filter"}}',
+            model="gpt-4o",
+            llm_provider="azure",
+        ),
+    ],
+    ids=["litellm content policy error", "content_filter error code"],
+)
+async def test_a_provider_content_filter_exception_reaches_the_safety_fallback(ctx, exc):
+    """The provider's own content-filter rejection counts as a safety block, so the safety fallback model takes over."""
+    safety_llm = MagicMock()
+    safety_llm.model_name = "claude-safe"
+    rebuild_fn = MagicMock()
+
+    executor = StreamExecutor(
+        ctx=ctx,
+        fallback_llm=None,
+        safety_fallback_llm=safety_llm,
+        rebuild_agent_fn=rebuild_fn,
+    )
+    executor._compactor = FakeCompactor()
+
+    result = await executor._handle_failover(exc)
+
+    assert result is True
+    rebuild_fn.assert_called_once_with(safety_llm)
 
 
 # ─── _handle_safety_refusal_fallback ─────────────────────────────────────────

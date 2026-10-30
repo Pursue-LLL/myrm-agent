@@ -1,7 +1,8 @@
-"""Every bundled diagnostic locale uses the same placeholders as the English catalog.
+"""Every bundled diagnostic locale defines every key of the English catalog and uses its placeholders.
 
-A placeholder the caller never supplies renders as an empty string (``LocaleManager._safe_format``), which
-leaves dangling text such as "(~ tokens)" or "Available models: " in front of the user.
+A key a locale lacks renders in English without any sign of the gap. A placeholder the caller never supplies renders
+as an empty string (``LocaleManager._safe_format``), which leaves dangling text such as "(~ tokens)" or "Available
+models: " in front of the user.
 """
 
 from __future__ import annotations
@@ -41,3 +42,9 @@ def test_locale_uses_only_the_placeholders_of_the_english_catalog(locale_file: P
     }
 
     assert not mismatches, f"{locale_file.name} placeholders differ from en.json (locale, english): {mismatches}"
+
+
+@pytest.mark.parametrize("locale_file", _OTHER_LOCALES, ids=lambda path: path.stem)
+def test_locale_defines_every_key_of_the_english_catalog(locale_file: Path) -> None:
+    assert sorted(set(_ENGLISH) - set(_load(locale_file))) == []
+    assert sorted(set(_load(locale_file)) - set(_ENGLISH)) == []

@@ -1,4 +1,16 @@
-"""Shared types for LLM error diagnostics."""
+"""Shared types for LLM error diagnostics.
+
+[INPUT]
+- (none: standard-library dataclasses only)
+
+[OUTPUT]
+- ErrorContext: Model name and endpoint metadata that sharpen a diagnosis
+- DiagnosticResult: Localized user message and resolution steps returned to callers
+
+[POS]
+Error diagnostic data structures. Frozen dataclasses shared by the diagnostic engine, its
+per-family diagnosis modules and the catalogue assembler, so none of them import each other for types.
+"""
 
 from dataclasses import dataclass
 

@@ -79,7 +79,7 @@
     "메시지와 첨부 파일에서 민감하거나 제한된 내용을 제거하세요",
     "다른 모델이나 제공업체를 사용해 보세요"
   ],
-  "format_error_user_message": "제공업체가 이 요청을 처리하지 못했습니다",
+  "format_error_user_message": "제공업체가 이 요청을 처리하지 못했습니다: {error_message}",
   "format_error_resolution_steps": [
     "메시지를 다시 보내세요",
     "대화에 이미지나 파일이 포함되어 있으면 제거하거나 더 작은 것을 사용하세요",
@@ -131,6 +131,11 @@
   "provider_policy_blocked_resolution_steps": [
     "제공업체 콘솔에서 개인정보 설정을 조정하세요 (예: OpenRouter 설정 > 개인정보)",
     "다른 모델이나 제공업체를 사용해 보세요"
+  ],
+  "opencode_training_policy_user_message": "OpenCode Go가 이 요청을 차단했습니다. Muse Spark Contributor 모델은 워크스페이스에서 학습 데이터 공유에 동의해야 사용할 수 있습니다. Contributor 학습 동의를 켜거나 Contributor가 아닌 모델을 선택하세요.",
+  "opencode_training_policy_resolution_steps": [
+    "OpenCode Go 워크스페이스 설정을 열고 Contributor 모델에 대한 학습 데이터 공유 동의를 켭니다",
+    "또는 muse-spark-1.2(Contributor 아님)나 deepseek-v4-flash 같은 다른 모델로 전환합니다"
   ],
   "tls_certificate_user_message": "TLS 인증서 확인 실패 — 기업 TLS 검사 프록시로 인한 것일 수 있습니다",
   "tls_certificate_resolution_steps": [

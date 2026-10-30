@@ -76,7 +76,7 @@
     "移除消息和附件中的敏感或受限内容",
     "尝试使用其他模型或服务商"
   ],
-  "format_error_user_message": "服务商无法处理该请求",
+  "format_error_user_message": "服务商无法处理该请求: {error_message}",
   "format_error_resolution_steps": [
     "请重新发送消息",
     "如果对话包含图片或文件，请移除或改用更小的文件",

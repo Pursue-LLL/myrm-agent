@@ -8,6 +8,7 @@
 - diagnostics.recovery_actions::build_recovery_actions (POS: Recovery action catalogue of the diagnostics engine)
 - diagnostics.transport_diagnosis::diagnose_transport, infer_service_name (POS: TLS and connection diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
+- core.security.redact::redact_sensitive_text (POS: Secret redaction of text shown to users and logs)
 - toolkits.llms.errors.classifier::ErrorKind, classify_error (POS: LLM error classifier for failover decisions)
 
 [OUTPUT]
@@ -21,6 +22,7 @@ families, the provider failures the shared classifier recognizes (overload, safe
 challenge), the unknown fallback and the truncation diagnoses live here.
 """
 
+import html
 import re
 from dataclasses import replace
 
@@ -34,6 +36,7 @@ from myrm_agent_harness.agent.errors.diagnostics.types import (
     DiagnosticResult,
     ErrorContext,
 )
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 
 _MODEL_NOT_FOUND_KEYWORDS = ("model not found", "model does not exist", "unknown model")
@@ -58,13 +61,48 @@ _PROVIDER_KIND_TYPES: dict[ErrorKind, str] = {
     ErrorKind.CHALLENGE_BLOCKED: "challenge_blocked",
 }
 
-_LLM_LIBRARY_PREFIX = re.compile(r"^(?:litellm\.[A-Za-z]+Error:\s*)+")
+# Client-library framing in front of the provider's words: litellm's exception class, the provider tag it adds
+# ("OpenAIException - ", "AzureException BadRequestError - ") and the OpenAI SDK's status line ("Error code: 400 - ").
+_LLM_LIBRARY_PREFIX = re.compile(
+    r"^(?:litellm\.[A-Za-z]+Error:\s*)*"
+    r"(?:[A-Za-z]+Exception(?:\s+[A-Za-z]+Error)?\s+-\s+)?"
+    r"(?:Error code:\s*\d{3}\s+-\s+)?"
+)
+# The human sentence inside a JSON or Python-dict error body: `{"error": {"message": "..."}}`. Each quote style
+# has its own branch and an escape pair never overlaps a plain character, so a body cut off mid-string fails in
+# linear time instead of retrying every way to split a run of backslashes.
+_MESSAGE_FIELD = re.compile(
+    r"""["']message["']\s*:\s*(?:"(?P<double>(?:\\.|[^"\\])*)"|'(?P<single>(?:\\.|[^'\\])*)')""", re.DOTALL
+)
+_ESCAPE = re.compile(r"\\(.)")
+_HTML_DOCUMENT = re.compile(r"<\s*(?:!doctype|html|head|body)\b", re.IGNORECASE)
+_HTML_NON_TEXT = re.compile(r"<(script|style)\b.*?(?:</\1\s*>|$)", re.IGNORECASE | re.DOTALL)
+_HTML_TAG = re.compile(r"<[^>]*>")
+# Bounds the work done on a provider page; the shown text is cut to _MAX_ERROR_MESSAGE_CHARS afterwards.
+_MAX_ERROR_SOURCE_CHARS = 2000
 _MAX_ERROR_MESSAGE_CHARS = 200
 
 
+def _unescape(text: str) -> str:
+    return _ESCAPE.sub(lambda match: " " if match.group(1) == "n" else match.group(1), text)
+
+
 def _provider_message(exc: Exception) -> str:
-    """The provider's own words, without the client library's exception-class prefix."""
-    return _LLM_LIBRARY_PREFIX.sub("", str(exc))[:_MAX_ERROR_MESSAGE_CHARS]
+    """The provider's own words as one clean line: no client-library framing, body markup, page tags or secrets.
+
+    Redaction runs before the cut so a credential is never left half-shown at the boundary.
+    """
+    text = str(exc)[:_MAX_ERROR_SOURCE_CHARS]
+    body_message = _MESSAGE_FIELD.search(text)
+    if body_message:
+        quoted = body_message.group("double")
+        text = _unescape(quoted if quoted is not None else body_message.group("single"))
+    else:
+        text = _LLM_LIBRARY_PREFIX.sub("", text)
+    if _HTML_DOCUMENT.search(text):
+        text = html.unescape(_HTML_TAG.sub(" ", _HTML_NON_TEXT.sub(" ", text)))
+    text = " ".join(redact_sensitive_text(text).split())
+    return text[:_MAX_ERROR_MESSAGE_CHARS] or type(exc).__name__
 
 
 def _is_model_not_found(full_text: str) -> bool:
@@ -185,7 +223,9 @@ class LLMErrorDiagnostic:
         # 9. Provider failures only the shared classifier recognizes
         provider_type = _PROVIDER_KIND_TYPES.get(classify_error(exc))
         if provider_type is not None:
-            return build_catalog_result(provider_type, locale, cooldown_remaining_ms)
+            return build_catalog_result(
+                provider_type, locale, cooldown_remaining_ms, error_message=_provider_message(exc)
+            )
 
         # 10. Generic fallback
         return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=_provider_message(exc))
