@@ -21,11 +21,10 @@ import re
 
 _MYRM_LIFECYCLE_PATTERN = re.compile(
     r"(?i)"
-    r"(?:\./myrm\s+(?:restart|stop)\b)"
-    r"|(?:\bmyrm\s+(?:restart|stop)\b)"
-    r"|(?:launchctl\s+(?:kickstart|unload|load|stop|restart)\b[^\n]*\bmyrm\b)"
+    r"(?:\bmyrm(?:-dev)?\s+(?:restart|stop)\b)"
+    r"|(?:launchctl\s+(?:kickstart|unload|load|bootout|bootstrap|stop|restart)\b[^\n]*\bmyrm\b)"
     r"|(?:systemctl\s+(?:-\S+\s+)*(?:restart|stop|start)\b[^\n]*\bmyrm-agent\b)"
-    r"|(?:p?kill\b[^\n]*\bmyrm-agent(?:-server|-frontend)?\b)"
+    r"|(?:\b(?:p?kill|taskkill|stop-process)\b[^\n]*\bmyrm-agent(?:-server|-frontend)?\b)"
 )
 
 
