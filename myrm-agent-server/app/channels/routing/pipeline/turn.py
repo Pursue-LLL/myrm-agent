@@ -50,7 +50,7 @@ from app.channels.media.video_enrichment import (
 from app.channels.media.video_enrichment import (
     has_video_attachment as has_video_attachment_fn,
 )
-from app.channels.reliability.inbound_journal import create_journal_entry_from_inbound, is_replay, replay_entry_ids
+from app.channels.reliability.inbound_journal import create_journal_entry_from_inbound, is_recovered, recovered_entry_ids
 from app.channels.routing.command_defs import CommandKind
 from app.channels.routing.commands import parse_topic_args
 from app.channels.routing.friendly_errors import friendly_error_message
@@ -178,8 +178,8 @@ class RouterTurnMixin:
         """
         if not self._inbound_journal:
             return ()
-        if is_replay(msg):
-            return replay_entry_ids(msg)
+        if is_recovered(msg):
+            return recovered_entry_ids(msg)
         entry = create_journal_entry_from_inbound(msg)
         self._inbound_journal.write(entry)
         return (entry.id,)

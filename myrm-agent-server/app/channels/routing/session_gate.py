@@ -36,7 +36,7 @@ Six complementary mechanisms:
 
 [INPUT]
 - channels.routing.router_keys::routing_state_key (POS: debounce grouping key format, consistent with Router ``state_key``)
-- channels.reliability.inbound_journal::is_replay, replay_entry_ids, METADATA_RECOVERY_ENTRY_IDS (POS: which messages are replays and the journal entries they stand for)
+- channels.reliability.inbound_journal::is_recovered, recovered_entry_ids, METADATA_RECOVERY_ENTRY_IDS (POS: which messages were recovered from the journal and the journal entries they stand for)
 
 [OUTPUT]
 - Merged InboundMessage delivered via callback to Router
@@ -60,7 +60,7 @@ import math
 import time
 from collections.abc import Awaitable, Callable
 
-from app.channels.reliability.inbound_journal import METADATA_RECOVERY_ENTRY_IDS, is_replay, replay_entry_ids
+from app.channels.reliability.inbound_journal import METADATA_RECOVERY_ENTRY_IDS, is_recovered, recovered_entry_ids
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import (
     METADATA_EXPLICIT_MENTION_KEY,
@@ -115,8 +115,8 @@ def _take_next_turn(queue: list[InboundMessage]) -> tuple[InboundMessage, ...]:
     for index, msg in enumerate(queue):
         if _is_answer(msg):
             return (queue.pop(index),)
-    lane = (queue[0].sender_id, is_replay(queue[0]))
-    count = next((index for index, msg in enumerate(queue) if (msg.sender_id, is_replay(msg)) != lane), len(queue))
+    lane = (queue[0].sender_id, is_recovered(queue[0]))
+    count = next((index for index, msg in enumerate(queue) if (msg.sender_id, is_recovered(msg)) != lane), len(queue))
     turn = tuple(queue[:count])
     del queue[:count]
     return turn
@@ -176,7 +176,7 @@ def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
     metadata = dict(last.metadata)
     if explicit_mention:
         metadata[METADATA_EXPLICIT_MENTION_KEY] = "1"
-    if entry_ids := [entry_id for m in msgs for entry_id in replay_entry_ids(m)]:
+    if entry_ids := [entry_id for m in msgs for entry_id in recovered_entry_ids(m)]:
         metadata[METADATA_RECOVERY_ENTRY_IDS] = entry_ids
 
     return InboundMessage(

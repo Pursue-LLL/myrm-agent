@@ -19,8 +19,8 @@ from app.channels.core.gateway import ChannelGateway
 from app.channels.reliability.inbound_journal import (
     SqliteInboundJournal,
     create_journal_entry_from_inbound,
-    is_replay,
-    replay_entry_ids,
+    is_recovered,
+    recovered_entry_ids,
     restore_inbound,
 )
 from app.channels.routing.session_gate import SessionGate, SessionGateConfig
@@ -83,9 +83,9 @@ async def test_replays_of_one_chat_run_as_one_turn_that_names_every_entry() -> N
 
     [turn] = host.turns
     assert turn.content == "one\ntwo"
-    assert is_replay(turn)
-    assert replay_entry_ids(turn) == replay_entry_ids(first) + replay_entry_ids(second)
-    assert len(replay_entry_ids(turn)) == 2
+    assert is_recovered(turn)
+    assert recovered_entry_ids(turn) == recovered_entry_ids(first) + recovered_entry_ids(second)
+    assert len(recovered_entry_ids(turn)) == 2
 
 
 @pytest.mark.parametrize("replay_first", [True, False])
@@ -98,6 +98,6 @@ async def test_a_replay_and_a_live_message_take_separate_turns_in_arrival_order(
         host.gate.submit(message)
     await _until(lambda: len(host.turns) == 2)
 
-    assert [(turn.content, is_replay(turn), replay_entry_ids(turn)) for turn in host.turns] == [
-        (message.content, is_replay(message), replay_entry_ids(message)) for message in arrivals
+    assert [(turn.content, is_recovered(turn), recovered_entry_ids(turn)) for turn in host.turns] == [
+        (message.content, is_recovered(message), recovered_entry_ids(message)) for message in arrivals
     ]

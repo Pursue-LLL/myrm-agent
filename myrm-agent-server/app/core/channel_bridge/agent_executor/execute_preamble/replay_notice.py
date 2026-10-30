@@ -1,7 +1,7 @@
 """Replay note of a channel turn, shown to the model after the user's message.
 
 [INPUT]
-- app.channels.reliability.inbound_journal::is_replay (POS: whether a message was replayed after a restart)
+- app.channels.reliability.inbound_journal::is_recovered (POS: whether a message was recovered from the journal after a restart)
 - app.channels.types::InboundMessage (POS: the turn's inbound message)
 
 [OUTPUT]
@@ -15,7 +15,7 @@ performed. The note rides on the live turn only: the persisted history keeps the
 
 from __future__ import annotations
 
-from app.channels.reliability.inbound_journal import is_replay
+from app.channels.reliability.inbound_journal import is_recovered
 from app.channels.types import InboundMessage
 
 _REPLAY_NOTICE = (
@@ -30,7 +30,7 @@ def attach_replay_notice(query: str | list[dict[str, object]], msg: InboundMessa
 
     A multimodal query keeps its images: the note joins its text part, so the query has the shape it had without it.
     """
-    if not is_replay(msg):
+    if not is_recovered(msg):
         return query
     if isinstance(query, str):
         return f"{query}\n\n{_REPLAY_NOTICE}"

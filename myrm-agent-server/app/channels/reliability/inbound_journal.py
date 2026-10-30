@@ -19,7 +19,7 @@ Lifecycle:
 [OUTPUT]
 - InboundJournal: Protocol for journal persistence
 - METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_IDS: the metadata keys that mark a replayed message and name its entries
-- is_replay, replay_entry_ids: whether a message is a replay, and the journal entries it stands for
+- is_recovered, recovered_entry_ids: whether a message was recovered from the journal, and the journal entries it stands for
 - JournalEntry: one persisted message (its wire form as JSON) with its age limit
 - SqliteInboundJournal: SQLite implementation (framework default)
 - create_journal_entry_from_inbound, restore_inbound: message to entry, and entry back to the message
@@ -272,12 +272,12 @@ def restore_inbound(entry: JournalEntry) -> InboundMessage:
     return replace(msg, content=content, media=media, metadata=metadata)
 
 
-def is_replay(msg: InboundMessage) -> bool:
+def is_recovered(msg: InboundMessage) -> bool:
     """Whether ``msg`` was rebuilt from the journal after a restart."""
     return bool(msg.metadata.get(METADATA_IS_RECOVERY))
 
 
-def replay_entry_ids(msg: InboundMessage) -> tuple[str, ...]:
-    """The journal entries ``msg`` stands for: its own when it is a replay, those of every replay merged into it."""
+def recovered_entry_ids(msg: InboundMessage) -> tuple[str, ...]:
+    """The journal entries ``msg`` stands for: its own when it was recovered, those of every recovered message merged into it."""
     ids = msg.metadata.get(METADATA_RECOVERY_ENTRY_IDS)
     return tuple(str(entry_id) for entry_id in ids) if isinstance(ids, list | tuple) else ()
