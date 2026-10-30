@@ -10,17 +10,17 @@
     "Confirm {service_name} service is running",
     "Test in browser: {base_url_display}/v1/models",
     "Check if port {port} is occupied",
-    "Check the Base URL in Settings > Models: {base_url_display}"
+    "Check the API URL in Settings > Model Service: {base_url_display}"
   ],
   "billing_user_message": "Your API account balance is insufficient",
   "billing_resolution_steps": [
     "Top up your balance on the LLM provider's dashboard",
-    "Add a backup API key (Settings > Models > Multi-key rotation)",
+    "Add a backup API key (Settings > Model Service > API Keys)",
     "Switch to a different LLM provider"
   ],
   "api_key_user_message": "API key authentication failed",
   "api_key_resolution_steps": [
-    "Update your API key in Settings > Models",
+    "Update your API key in Settings > Model Service",
     "Verify API key is valid and not expired",
     "Check if API key has correct permissions",
     "For Ollama/LM Studio: enter 'dummy' as the API key, or leave it empty"
@@ -43,7 +43,7 @@
   "rate_limit_resolution_steps": [
     "Upgrade API plan for higher rate limits",
     "Check if other processes are using the same API key",
-    "Configure a backup model in Settings so rate limits switch over automatically"
+    "Set a Fallback Model in Settings > Model Service > Default Model so rate limits switch over automatically"
   ],
   "context_overflow_user_message": "Context length exceeds model limit",
   "context_overflow_resolution_steps": [
@@ -63,6 +63,30 @@
     "Check network latency",
     "Use a faster model or endpoint",
     "Enable streaming mode for better responsiveness"
+  ],
+  "overloaded_user_message": "The AI service is temporarily overloaded",
+  "overloaded_resolution_steps": [
+    "Wait a moment, then send your message again",
+    "If it keeps happening, switch to a different model or provider",
+    "Set a Fallback Model in Settings > Model Service > Default Model so overloads switch over automatically"
+  ],
+  "safety_block_user_message": "The request was blocked by the provider's safety filters",
+  "safety_block_resolution_steps": [
+    "Rephrase your request and send it again",
+    "Remove sensitive or restricted content from your message and attachments",
+    "Try a different model or provider"
+  ],
+  "format_error_user_message": "The provider could not process this request",
+  "format_error_resolution_steps": [
+    "Send your message again",
+    "If the conversation includes images or files, remove them or use smaller ones",
+    "Start a new conversation if the problem persists"
+  ],
+  "challenge_blocked_user_message": "The request was blocked by the provider's network protection before it reached the model",
+  "challenge_blocked_resolution_steps": [
+    "Wait a moment, then send your message again",
+    "If you use a proxy, VPN or relay service, turn it off or switch to another one",
+    "Try a different provider if the block persists"
   ],
   "unknown_user_message": "LLM error: {error_message}",
   "unknown_resolution_steps": [
@@ -112,13 +136,13 @@
   ],
   "tls_certificate_user_message": "TLS certificate verification failed — likely caused by enterprise TLS inspection proxy",
   "tls_certificate_resolution_steps": [
-    "Enable 'Enterprise Network Compatibility' in Settings → System → Advanced"
+    "Enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings"
   ],
   "tls_transient_user_message": "TLS handshake interrupted — likely transient network instability, retrying automatically",
   "tls_transient_resolution_steps": [
     "No action needed if the automatic retry succeeds",
     "If it persists, check VPN/proxy connection stability",
-    "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings → System → Advanced"
+    "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings"
   ],
   "cooldown_hint_template": " Retry after {duration}.",
   "cooldown_hint_joiner": " ",

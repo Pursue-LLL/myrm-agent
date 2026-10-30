@@ -1,6 +1,7 @@
 """TLS and connection diagnostics of the LLM error engine.
 
 [INPUT]
+- diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
 - diagnostics.cooldown_hint::format_cooldown_hint (POS: Cooldown hint rendering for rate-limit diagnostics)
 - diagnostics.i18n::get_locale_manager (POS: Framework-level i18n for LLM error diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
@@ -19,6 +20,7 @@ assumes the request got through.
 
 import re
 
+from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
 from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.types import DiagnosticResult, ErrorContext
@@ -27,6 +29,13 @@ from myrm_agent_harness.infra.tls_compat import (
     is_tls_hard_error,
     is_tls_strict_error,
     is_tls_transient_error,
+)
+
+_CONNECTION_KEYWORDS = (
+    "connection refused",
+    "connection reset",
+    "connection error",
+    "failed to establish",
 )
 
 
@@ -57,7 +66,6 @@ def diagnose_transport(
             error_type="tls_certificate",
             user_message=user_message,
             resolution_steps=steps,
-            is_retryable=False,
             locale=locale,
         )
 
@@ -68,69 +76,28 @@ def diagnose_transport(
         user_message = raw_msg if isinstance(raw_msg, str) and not raw_msg.startswith("[Missing") else fallback_msg
         steps = raw_steps if isinstance(raw_steps, list) and raw_steps else [fallback_msg]
 
-        cooldown_hint = format_cooldown_hint(cooldown_remaining_ms, locale)
-        user_message += cooldown_hint
-
         return DiagnosticResult(
             error_type="tls_transient",
-            user_message=user_message,
+            user_message=user_message + format_cooldown_hint(cooldown_remaining_ms, locale),
             resolution_steps=steps,
-            is_retryable=True,
             locale=locale,
         )
 
     # 1. Connection errors (精准自定义端点诊断)
-    if any(
-        kw in full_text
-        for kw in [
-            "connection refused",
-            "connection reset",
-            "connection error",
-            "failed to establish",
-        ]
-    ):
+    if any(kw in full_text for kw in _CONNECTION_KEYWORDS):
         # 自定义端点(Ollama/LM Studio)专属诊断
         if context and context.is_custom_endpoint:
-            service_name = infer_service_name(context.base_url)
-            base_url_display = context.base_url or "custom endpoint"
-            port = extract_port(context.base_url)
-
-            params = {
-                "service_name": service_name,
-                "base_url_display": base_url_display,
-                "port": port,
-            }
-
-            user_message = locale_manager.translate("custom_endpoint_unreachable", "user_message", locale, **params)
-            resolution_steps = locale_manager.translate(
-                "custom_endpoint_unreachable", "resolution_steps", locale, **params
-            )
-
-            cooldown_hint = format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="custom_endpoint_unreachable",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
+            return build_catalog_result(
+                "custom_endpoint_unreachable",
+                locale,
+                cooldown_remaining_ms,
+                service_name=infer_service_name(context.base_url),
+                base_url_display=context.base_url or "custom endpoint",
+                port=extract_port(context.base_url),
             )
 
         # 通用连接错误诊断
-        user_message = locale_manager.translate("connection", "user_message", locale)
-        resolution_steps = locale_manager.translate("connection", "resolution_steps", locale)
-
-        cooldown_hint = format_cooldown_hint(cooldown_remaining_ms, locale)
-        user_message += cooldown_hint
-
-        return DiagnosticResult(
-            error_type="connection",
-            user_message=user_message,
-            resolution_steps=resolution_steps,
-            is_retryable=True,
-            locale=locale,
-        )
+        return build_catalog_result("connection", locale, cooldown_remaining_ms)
 
     return None
 

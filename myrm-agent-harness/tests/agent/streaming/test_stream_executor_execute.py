@@ -321,7 +321,6 @@ async def test_emit_fatal_error_falls_back_to_diagnostic_type(diag_mock, fire_ho
         error_type="api_key",
         user_message="The API key is invalid",
         resolution_steps=["Update your API key"],
-        is_retryable=False,
         locale="en",
     )
     diag_mock.get_recovery_actions.return_value = []
@@ -595,7 +594,7 @@ async def test_emit_fatal_error_includes_recovery_actions_for_api_key(fire_hook_
     actions = error_events[0]["recovery_actions"]
     assert len(actions) == 1
     assert actions[0]["id"] == "update_key"
-    assert actions[0]["url"] == "/settings"
+    assert actions[0]["url"] == "/settings/models"
 
 
 @pytest.mark.asyncio
@@ -648,7 +647,7 @@ async def test_emit_fatal_error_includes_recovery_actions_for_model(fire_hook_mo
     assert error_events[0]["diagnostic_result"]["error_type"] == "model"
     assert "recovery_actions" in error_events[0]
     assert error_events[0]["recovery_actions"][0]["id"] == "change_model"
-    assert error_events[0]["recovery_actions"][0]["url"] == "/settings"
+    assert error_events[0]["recovery_actions"][0]["url"] == "/settings/models"
 
 
 @pytest.mark.asyncio

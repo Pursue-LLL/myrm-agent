@@ -2,10 +2,13 @@
 
 [INPUT]
 - diagnostics.account_diagnosis::diagnose_account (POS: Billing, provider-policy and API key diagnostics)
+- diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
+- diagnostics.cooldown_hint::format_cooldown_hint (POS: Cooldown hint rendering for rate-limit diagnostics)
 - diagnostics.i18n::get_locale_manager (POS: Framework-level i18n for LLM error diagnostics)
 - diagnostics.recovery_actions::build_recovery_actions (POS: Recovery action catalogue of the diagnostics engine)
 - diagnostics.transport_diagnosis::diagnose_transport, infer_service_name (POS: TLS and connection diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
+- toolkits.llms.errors.classifier::ErrorKind, classify_error (POS: LLM error classifier for failover decisions)
 
 [OUTPUT]
 - LLMErrorDiagnostic: Static classifier that maps LLM exceptions to localized DiagnosticResult
@@ -13,13 +16,17 @@
 [POS]
 LLM error diagnostic engine. Classifies exceptions from LLM calls into actionable categories
 with localized user messages and resolution steps. Transport and account failures are diagnosed by
-their own modules and tried first; the model, rate-limit, response-format, context, timeout and
-unknown families, the truncation diagnoses and the cooldown wrapper live here.
+their own modules and tried first; the model, rate-limit, response-format, context and timeout
+families, the provider failures the shared classifier recognizes (overload, safety filter, rejected request, WAF
+challenge), the unknown fallback and the truncation diagnoses live here.
 """
 
 import re
+from dataclasses import replace
 
 from myrm_agent_harness.agent.errors.diagnostics.account_diagnosis import diagnose_account
+from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
+from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_recovery_actions
 from myrm_agent_harness.agent.errors.diagnostics.transport_diagnosis import diagnose_transport, infer_service_name
@@ -27,6 +34,80 @@ from myrm_agent_harness.agent.errors.diagnostics.types import (
     DiagnosticResult,
     ErrorContext,
 )
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
+
+_MODEL_NOT_FOUND_KEYWORDS = ("model not found", "model does not exist", "unknown model")
+_RATE_LIMIT_KEYWORDS = ("rate limit", "too many requests", "quota exceeded")
+
+# Families that need nothing beyond their catalogue entry, in priority order.
+_KEYWORD_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "response_format_error",
+        ("must be in json format", "schema validation error", "invalid json format", "malformed json"),
+    ),
+    ("context_overflow", ("context length", "token limit", "context window", "too long", "max tokens")),
+    ("timeout", ("timeout", "timed out", "time out")),
+)
+
+# Provider failures the shared classifier recognizes by status code and provider wording: each reads
+# from its own catalogue entry instead of the raw exception text.
+_PROVIDER_KIND_TYPES: dict[ErrorKind, str] = {
+    ErrorKind.OVERLOADED: "overloaded",
+    ErrorKind.SAFETY_BLOCK: "safety_block",
+    ErrorKind.FORMAT_ERROR: "format_error",
+    ErrorKind.CHALLENGE_BLOCKED: "challenge_blocked",
+}
+
+_LLM_LIBRARY_PREFIX = re.compile(r"^(?:litellm\.[A-Za-z]+Error:\s*)+")
+_MAX_ERROR_MESSAGE_CHARS = 200
+
+
+def _provider_message(exc: Exception) -> str:
+    """The provider's own words, without the client library's exception-class prefix."""
+    return _LLM_LIBRARY_PREFIX.sub("", str(exc))[:_MAX_ERROR_MESSAGE_CHARS]
+
+
+def _is_model_not_found(full_text: str) -> bool:
+    return (
+        any(kw in full_text for kw in _MODEL_NOT_FOUND_KEYWORDS)
+        or re.search(r"(?<!\d)404(?!\d)", full_text) is not None
+        or ("model" in full_text and "not found" in full_text)
+    )
+
+
+def _diagnose_model_not_found(
+    full_text: str,
+    context: ErrorContext | None,
+    locale: str,
+    cooldown_remaining_ms: int | None,
+) -> DiagnosticResult:
+    """A missing model on a local service (Ollama, LM Studio) reads differently from one on a hosted provider."""
+    if context and context.model_name:
+        model_name = context.model_name
+    else:
+        model_match = re.search(r"model[:\s]+([a-zA-Z0-9\-._/]+)", full_text)
+        model_name = model_match.group(1) if model_match else "unknown"
+
+    if context and context.is_custom_endpoint:
+        return build_catalog_result(
+            "custom_model_not_found",
+            locale,
+            cooldown_remaining_ms,
+            model_name=model_name,
+            service_name=infer_service_name(context.base_url),
+        )
+    return build_catalog_result("model", locale, cooldown_remaining_ms, model_name=model_name)
+
+
+def _diagnose_rate_limit(locale: str, cooldown_remaining_ms: int | None) -> DiagnosticResult:
+    result = build_catalog_result("rate_limit", locale, cooldown_remaining_ms)
+    # A known wait is already in the message; a second, different one would contradict it.
+    if format_cooldown_hint(cooldown_remaining_ms, locale):
+        return result
+    wait_step = get_locale_manager().translate_optional("rate_limit", "wait_step", locale)
+    if not wait_step:
+        return result
+    return replace(result, resolution_steps=[wait_step, *result.resolution_steps])
 
 
 class LLMErrorDiagnostic:
@@ -74,13 +155,10 @@ class LLMErrorDiagnostic:
         Returns:
             DiagnosticResult: 错误诊断结果
         """
-        locale_manager = get_locale_manager()
         if locale is None:
-            locale = locale_manager.detect_locale()
+            locale = get_locale_manager().detect_locale()
 
-        error_str = str(exc).lower()
-        error_repr = repr(exc).lower()
-        full_text = f"{error_str} {error_repr}"
+        full_text = f"{str(exc).lower()} {repr(exc).lower()}"
 
         # 0-3. Transport (TLS, connection) then account (billing, provider policy, API key) families
         transport = diagnose_transport(full_text, context, locale, cooldown_remaining_ms)
@@ -92,156 +170,25 @@ class LLMErrorDiagnostic:
             return account
 
         # 4. Model not found (精准自定义端点诊断)
-        model_keywords = ["model not found", "model does not exist", "unknown model"]
-        if (
-            any(kw in full_text for kw in model_keywords)
-            or re.search(r"(?<!\d)404(?!\d)", full_text)
-            or ("model" in full_text and "not found" in full_text)
-        ):
-            if context and context.model_name:
-                model_name = context.model_name
-            else:
-                model_match = re.search(r"model[:\s]+([a-zA-Z0-9\-._/]+)", full_text)
-                model_name = model_match.group(1) if model_match else "unknown"
-
-            # 自定义端点(Ollama/LM Studio)专属诊断
-            if context and context.is_custom_endpoint:
-                service_name = infer_service_name(context.base_url)
-                params = {"model_name": model_name, "service_name": service_name}
-
-                user_message = locale_manager.translate("custom_model_not_found", "user_message", locale, **params)
-                resolution_steps = locale_manager.translate(
-                    "custom_model_not_found", "resolution_steps", locale, **params
-                )
-
-                cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-                user_message += cooldown_hint
-
-                return DiagnosticResult(
-                    error_type="custom_model_not_found",
-                    user_message=user_message,
-                    resolution_steps=resolution_steps,
-                    is_retryable=False,
-                    locale=locale,
-                )
-
-            # 通用模型未找到诊断
-            params = {"model_name": model_name}
-            user_message = locale_manager.translate("model", "user_message", locale, **params)
-            resolution_steps = locale_manager.translate("model", "resolution_steps", locale, **params)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="model",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
-            )
+        if _is_model_not_found(full_text):
+            return _diagnose_model_not_found(full_text, context, locale, cooldown_remaining_ms)
 
         # 5. Rate limit
-        rate_limit_keywords = ["rate limit", "too many requests", "quota exceeded"]
-        if any(kw in full_text for kw in rate_limit_keywords) or re.search(r"(?<!\d)429(?!\d)", full_text):
-            user_message = locale_manager.translate("rate_limit", "user_message", locale)
-            resolution_steps = locale_manager.translate("rate_limit", "resolution_steps", locale)
+        if any(kw in full_text for kw in _RATE_LIMIT_KEYWORDS) or re.search(r"(?<!\d)429(?!\d)", full_text):
+            return _diagnose_rate_limit(locale, cooldown_remaining_ms)
 
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-            # A known wait is already in the message; a second, different one would contradict it.
-            wait_step = None if cooldown_hint else locale_manager.translate_optional("rate_limit", "wait_step", locale)
-            if wait_step:
-                resolution_steps = [wait_step, *resolution_steps]
+        # 6-8. Response format, context overflow, timeout
+        for error_type, keywords in _KEYWORD_FAMILIES:
+            if any(kw in full_text for kw in keywords):
+                return build_catalog_result(error_type, locale, cooldown_remaining_ms)
 
-            return DiagnosticResult(
-                error_type="rate_limit",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
-            )
+        # 9. Provider failures only the shared classifier recognizes
+        provider_type = _PROVIDER_KIND_TYPES.get(classify_error(exc))
+        if provider_type is not None:
+            return build_catalog_result(provider_type, locale, cooldown_remaining_ms)
 
-        # 6. Response format error
-        if any(
-            kw in full_text
-            for kw in [
-                "must be in json format",
-                "schema validation error",
-                "invalid json format",
-                "malformed json",
-            ]
-        ):
-            user_message = locale_manager.translate("response_format_error", "user_message", locale)
-            resolution_steps = locale_manager.translate("response_format_error", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="response_format_error",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
-            )
-
-        # 7. Context overflow
-        if any(
-            kw in full_text
-            for kw in [
-                "context length",
-                "token limit",
-                "context window",
-                "too long",
-                "max tokens",
-            ]
-        ):
-            user_message = locale_manager.translate("context_overflow", "user_message", locale)
-            resolution_steps = locale_manager.translate("context_overflow", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="context_overflow",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
-            )
-
-        # 8. Timeout
-        if any(kw in full_text for kw in ["timeout", "timed out", "time out"]):
-            user_message = locale_manager.translate("timeout", "user_message", locale)
-            resolution_steps = locale_manager.translate("timeout", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="timeout",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
-            )
-
-        # 9. Generic fallback
-        params = {"error_message": str(exc)[:200]}
-        user_message = locale_manager.translate("unknown", "user_message", locale, **params)
-        resolution_steps = locale_manager.translate("unknown", "resolution_steps", locale)
-
-        cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-        user_message += cooldown_hint
-
-        return DiagnosticResult(
-            error_type="unknown",
-            user_message=user_message,
-            resolution_steps=resolution_steps,
-            is_retryable=False,
-            locale=locale,
-        )
+        # 10. Generic fallback
+        return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=_provider_message(exc))
 
     @staticmethod
     def diagnose_truncation(
@@ -258,29 +205,11 @@ class LLMErrorDiagnostic:
         Returns:
             DiagnosticResult with localized user message and resolution steps.
         """
-        locale_manager = get_locale_manager()
         if locale is None:
-            locale = locale_manager.detect_locale()
-
-        user_message = locale_manager.translate(truncation_type, "user_message", locale)
-        resolution_steps = locale_manager.translate(truncation_type, "resolution_steps", locale)
-
-        return DiagnosticResult(
-            error_type=truncation_type,
-            user_message=user_message,
-            resolution_steps=resolution_steps,
-            is_retryable=False,
-            locale=locale,
-        )
+            locale = get_locale_manager().detect_locale()
+        return build_catalog_result(truncation_type, locale)
 
     @staticmethod
     def get_recovery_actions(error_type: str, locale: str | None = "en") -> list[dict[str, str]]:
         """Return localized actionable recovery buttons for the given error type."""
         return build_recovery_actions(error_type, locale)
-
-    @staticmethod
-    def _format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
-        """生成cooldown提示(如果存在)"""
-        from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
-
-        return format_cooldown_hint(cooldown_remaining_ms, locale)

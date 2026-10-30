@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 import os
 import ssl
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import httpx
@@ -183,13 +183,13 @@ def apply_global_tls_relaxation() -> bool:
     _orig = _u3ssl.create_urllib3_context
 
     def _relaxed_create_urllib3_context(*args: Any, **kwargs: Any) -> ssl.SSLContext:
-        ctx = cast(ssl.SSLContext, _orig(*args, **kwargs))
+        ctx = _orig(*args, **kwargs)
         if tls_strict_disabled() and ctx.verify_flags & strict_flag:
             ctx.verify_flags &= ~strict_flag
         return ctx
 
     _relaxed_create_urllib3_context._myrm_strict_relaxed = True  # type: ignore[attr-defined]
-    _u3ssl.create_urllib3_context = _relaxed_create_urllib3_context  # type: ignore[assignment]
+    _u3ssl.create_urllib3_context = _relaxed_create_urllib3_context
     logger.info("event=tls_x509_strict_disabled reason=urllib3_global_patch")
     return True
 
@@ -289,5 +289,5 @@ def get_tls_remediation_hint() -> str:
     return (
         "This may be caused by enterprise TLS inspection (Zscaler, Netskope, etc.). "
         "Set environment variable MYRM_TLS_STRICT=0 or enable "
-        "'Enterprise Network Compatibility' in Settings → Advanced."
+        "'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings."
     )

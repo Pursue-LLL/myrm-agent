@@ -10,17 +10,17 @@
     "确认 {service_name} 服务正在运行",
     "在浏览器中测试: {base_url_display}/v1/models",
     "检查端口 {port} 是否被占用",
-    "在 设置 > 模型 中检查 Base URL: {base_url_display}"
+    "在 设置 > 模型服务 中检查 API URL: {base_url_display}"
   ],
   "billing_user_message": "您的 API 账户余额不足",
   "billing_resolution_steps": [
     "前往 LLM 提供商控制台充值",
-    "添加备用 API Key（设置 > 模型 > 多Key轮转）",
+    "添加备用 API 密钥（设置 > 模型服务 > API 密钥）",
     "切换到其他 LLM 提供商"
   ],
   "api_key_user_message": "API 密钥认证失败",
   "api_key_resolution_steps": [
-    "在 设置 > 模型 中更新您的 API 密钥",
+    "在 设置 > 模型服务 中更新您的 API 密钥",
     "验证 API 密钥是否有效且未过期",
     "检查 API 密钥是否具有正确的权限",
     "对于 Ollama/LM Studio: API 密钥可填 'dummy' 或留空"
@@ -43,7 +43,7 @@
   "rate_limit_resolution_steps": [
     "升级 API 计划以获得更高的速率限制",
     "检查是否有其他进程正在使用相同的 API 密钥",
-    "在设置中配置备用模型，限流时自动切换"
+    "在 设置 > 模型服务 > 默认模型 中设置备用模型，限流时自动切换"
   ],
   "response_format_error_user_message": "模型输出验证失败，正在自动切换至更强模型",
   "response_format_error_resolution_steps": [
@@ -63,6 +63,30 @@
     "检查网络延迟",
     "使用更快的模型或端点",
     "启用流式模式以获得更好的响应性"
+  ],
+  "overloaded_user_message": "AI 服务暂时过载",
+  "overloaded_resolution_steps": [
+    "稍等片刻后重新发送消息",
+    "如果持续出现，请切换到其他模型或服务商",
+    "在 设置 > 模型服务 > 默认模型 中设置备用模型，过载时自动切换"
+  ],
+  "safety_block_user_message": "请求被服务商的安全过滤器拦截",
+  "safety_block_resolution_steps": [
+    "调整措辞后重新发送",
+    "移除消息和附件中的敏感或受限内容",
+    "尝试使用其他模型或服务商"
+  ],
+  "format_error_user_message": "服务商无法处理该请求",
+  "format_error_resolution_steps": [
+    "请重新发送消息",
+    "如果对话包含图片或文件，请移除或改用更小的文件",
+    "问题持续时请开启新的对话"
+  ],
+  "challenge_blocked_user_message": "请求在到达模型之前被服务商的网络防护拦截",
+  "challenge_blocked_resolution_steps": [
+    "稍等片刻后重新发送消息",
+    "如果使用了代理、VPN 或中转服务，请关闭或更换",
+    "拦截持续时请尝试其他服务商"
   ],
   "unknown_user_message": "LLM 错误: {error_message}",
   "unknown_resolution_steps": [
@@ -112,13 +136,13 @@
   ],
   "tls_certificate_user_message": "TLS 证书验证失败 — 可能由企业 TLS 检测代理导致",
   "tls_certificate_resolution_steps": [
-    "在 设置 → 系统 → 高级 中启用「企业网络兼容模式」"
+    "在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」"
   ],
   "tls_transient_user_message": "TLS 握手被中断 — 疑似网络抖动，系统正在自动重试",
   "tls_transient_resolution_steps": [
     "自动重试成功则无需任何操作",
     "若持续出现，请检查 VPN/代理连接稳定性",
-    "若处于企业 TLS 检测环境，请在 设置 → 系统 → 高级 中启用「企业网络兼容模式」"
+    "若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」"
   ],
   "cooldown_hint_template": " 请等待{duration}后重试。",
   "cooldown_hint_joiner": "",

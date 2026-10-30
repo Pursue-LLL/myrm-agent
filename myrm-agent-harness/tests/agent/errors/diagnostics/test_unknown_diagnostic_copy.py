@@ -30,3 +30,21 @@ def test_unknown_diagnosis_offers_next_steps(locale: str) -> None:
     result = LLMErrorDiagnostic.diagnose(RuntimeError(_RAW_ERROR), locale=locale)
 
     assert result.resolution_steps
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+def test_unknown_message_drops_the_client_library_class_prefix(locale: str) -> None:
+    exc = RuntimeError(f"litellm.APIError: litellm.APIError: {_RAW_ERROR}")
+
+    result = LLMErrorDiagnostic.diagnose(exc, locale=locale)
+
+    assert result.error_type == "unknown"
+    assert "litellm" not in result.user_message
+    assert _RAW_ERROR in result.user_message
+
+
+def test_unknown_message_is_cut_after_the_prefix_is_dropped() -> None:
+    result = LLMErrorDiagnostic.diagnose(RuntimeError("litellm.APIError: " + "x" * 300), locale="en")
+
+    assert "x" * 200 in result.user_message
+    assert "x" * 201 not in result.user_message

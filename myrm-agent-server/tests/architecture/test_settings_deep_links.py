@@ -5,8 +5,9 @@ tests/architecture/test_settings_deep_links.py
 
 [INPUT]
 - myrm-agent-frontend/src/components/features/settings/settingsRoutes.ts: SETTINGS_TABS + SETTINGS_TAB_REDIRECTS (route SSOT)
-- myrm-agent-frontend/src/**/*.ts(x), myrm-agent-server/app/**/*.py, myrm-agent-server/assets/**:
-  `/settings/<tab>` literals in links, router pushes, push payloads, cron summaries and prebuilt skills
+- myrm-agent-frontend/src/**/*.ts(x), myrm-agent-server/app/**/*.py, myrm-agent-harness/src/**/*.py,
+  myrm-agent-server/assets/**: `/settings/<tab>` literals in links, router pushes, push payloads, cron summaries,
+  diagnostic recovery buttons and prebuilt skills
 
 [OUTPUT]
 - Fails when a literal targets an id that is neither a routable tab nor a redirect alias, which would
@@ -25,12 +26,14 @@ _FRONTEND_SRC = _MYRM_AGENT_ROOT / "myrm-agent-frontend" / "src"
 _ROUTES_FILE = _FRONTEND_SRC / "components" / "features" / "settings" / "settingsRoutes.ts"
 _SERVER_APP = _MYRM_AGENT_ROOT / "myrm-agent-server" / "app"
 _SERVER_ASSETS = _MYRM_AGENT_ROOT / "myrm-agent-server" / "assets"
+_HARNESS_SRC = _MYRM_AGENT_ROOT / "myrm-agent-harness" / "src"
 
 _SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not _ROUTES_FILE.is_file(), reason="frontend sources are not part of this checkout")
 
 _SCANNED_ROOTS: tuple[tuple[Path, frozenset[str]], ...] = (
     (_FRONTEND_SRC, frozenset({".ts", ".tsx"})),
     (_SERVER_APP, frozenset({".py"})),
+    (_HARNESS_SRC, frozenset({".py"})),
     (_SERVER_ASSETS, frozenset({".md", ".json", ".yaml", ".yml"})),
 )
 

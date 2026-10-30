@@ -158,7 +158,6 @@ class TestEmergencyCompact:
             assert "emergency_recovery" in str(msgs[2].content)
 
 
-
 # ============================================================================
 # _extract_error_type
 # ============================================================================
@@ -309,7 +308,6 @@ class TestDiagnoseLlmError:
                 error_type="test",
                 user_message="user msg",
                 resolution_steps=["step1"],
-                is_retryable=False,
                 locale=locale or "en",
             )
 

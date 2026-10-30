@@ -73,7 +73,6 @@ def test_diagnostics_marks_entitlement_error_as_billing(exc: _ProviderError) -> 
     result = LLMErrorDiagnostic.diagnose(exc)
 
     assert result.error_type == "billing"
-    assert result.is_retryable is False
 
 
 @pytest.mark.parametrize("exc", _ENTITLEMENT_CASES.values(), ids=_ENTITLEMENT_CASES.keys())

@@ -20,11 +20,6 @@ from .fault_side import (
     classify_llm_fault_side,
     classify_tool_fault_side,
 )
-from .operator_error_sanitizer import (
-    OperatorErrorCode,
-    OperatorErrorSanitizer,
-    SanitizedOperatorError,
-)
 
 __all__ = [
     "TOOL_STUCK_ACTION_TYPE",
@@ -33,10 +28,7 @@ __all__ = [
     "ErrorContext",
     "FaultSide",
     "LLMErrorDiagnostic",
-    "OperatorErrorCode",
-    "OperatorErrorSanitizer",
     "RunawayCircuitBreakException",
-    "SanitizedOperatorError",
     "ToolErrorCategory",
     "ToolStuckException",
     "classify_diagnostic_fault_side",

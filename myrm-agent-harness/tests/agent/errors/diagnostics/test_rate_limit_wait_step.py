@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic, engine
+from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic, i18n
 from myrm_agent_harness.agent.errors.diagnostics.i18n import LocaleManager, get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.i18n import manager as manager_module
 
@@ -83,7 +83,7 @@ def test_a_bundle_without_the_wait_step_keeps_its_steps_as_they_are(
         encoding="utf-8",
     )
     monkeypatch.setenv("MYRM_LOCALES_DIR", str(tmp_path))
-    monkeypatch.setattr(engine, "get_locale_manager", lambda: LocaleManager())
+    monkeypatch.setattr(i18n, "_locale_manager", LocaleManager())
 
     result = LLMErrorDiagnostic.diagnose(_RATE_LIMITED, locale="en")
 

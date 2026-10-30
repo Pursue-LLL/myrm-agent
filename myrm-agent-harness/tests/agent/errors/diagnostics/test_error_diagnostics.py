@@ -14,7 +14,6 @@ def test_diagnose_connection_error():
     assert "Unable to connect" in result.user_message
     assert len(result.resolution_steps) > 0
     assert any("ollama serve" in step.lower() for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_diagnose_api_key_error():
@@ -26,7 +25,6 @@ def test_diagnose_api_key_error():
     assert "authentication failed" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
     assert any("API key" in step for step in result.resolution_steps)
-    assert result.is_retryable is False
 
 
 def test_diagnose_model_not_found():
@@ -38,7 +36,6 @@ def test_diagnose_model_not_found():
     assert "llama3.2" in result.user_message
     assert len(result.resolution_steps) > 0
     assert any("ollama pull" in step.lower() for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_diagnose_rate_limit_error():
@@ -50,7 +47,6 @@ def test_diagnose_rate_limit_error():
     assert "rate limit" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
     assert any("60 seconds" in step for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_diagnose_billing_error_openai():
@@ -61,7 +57,6 @@ def test_diagnose_billing_error_openai():
     assert result.error_type == "billing"
     assert "balance" in result.user_message.lower() or "insufficient" in result.user_message.lower()
     assert len(result.resolution_steps) == 3
-    assert result.is_retryable is False
 
 
 def test_diagnose_billing_error_deepseek():
@@ -70,7 +65,6 @@ def test_diagnose_billing_error_deepseek():
     result = LLMErrorDiagnostic.diagnose(exc)
 
     assert result.error_type == "billing"
-    assert result.is_retryable is False
 
 
 def test_diagnose_billing_error_anthropic():
@@ -79,7 +73,6 @@ def test_diagnose_billing_error_anthropic():
     result = LLMErrorDiagnostic.diagnose(exc)
 
     assert result.error_type == "billing"
-    assert result.is_retryable is False
 
 
 def test_diagnose_context_overflow():
@@ -91,7 +84,6 @@ def test_diagnose_context_overflow():
     assert "context length" in result.user_message.lower() or "exceeds" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
     assert any("new conversation" in step.lower() for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_diagnose_timeout_error():
@@ -103,7 +95,6 @@ def test_diagnose_timeout_error():
     assert "timed out" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
     assert any("network" in step.lower() for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_diagnose_unknown_error():
@@ -114,7 +105,6 @@ def test_diagnose_unknown_error():
     assert result.error_type == "unknown"
     assert "Some random error message" in result.user_message
     assert len(result.resolution_steps) > 0
-    assert result.is_retryable is False
 
 
 def test_diagnose_case_insensitive():
@@ -124,16 +114,13 @@ def test_diagnose_case_insensitive():
 
     # 应该识别为connection错误
     assert result.error_type == "connection"
-    assert result.is_retryable is True
 
 
 def test_diagnostic_result_immutable():
     """测试DiagnosticResult不可变性"""
     from myrm_agent_harness.agent.errors.diagnostics import DiagnosticResult
 
-    result = DiagnosticResult(
-        error_type="test", user_message="test message", resolution_steps=["step1"], is_retryable=True, locale="en"
-    )
+    result = DiagnosticResult(error_type="test", user_message="test message", resolution_steps=["step1"], locale="en")
 
     # 应该抛出AttributeError（frozen=True）
     try:
@@ -161,7 +148,6 @@ def test_custom_endpoint_connection_refused_ollama():
     assert any("Ollama service is running" in step for step in result.resolution_steps)
     assert any("http://localhost:11434/v1/models" in step for step in result.resolution_steps)
     assert any("11434" in step for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_custom_endpoint_model_not_found():
@@ -181,7 +167,6 @@ def test_custom_endpoint_model_not_found():
     # 验证精准的resolution steps
     assert any("ollama list" in step.lower() or "LM Studio" in step for step in result.resolution_steps)
     assert any("case-sensitive" in step.lower() for step in result.resolution_steps)
-    assert result.is_retryable is False
 
 
 def test_error_context_immutable():
@@ -207,7 +192,6 @@ def test_diagnose_response_format_error():
     assert "validation failed" in result.user_message.lower() or "format" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
     assert any("fallback" in step.lower() for step in result.resolution_steps)
-    assert result.is_retryable is True
 
 
 def test_diagnose_response_format_error_zh():
@@ -218,7 +202,6 @@ def test_diagnose_response_format_error_zh():
     assert result.error_type == "response_format_error"
     assert "模型输出" in result.user_message or "验证失败" in result.user_message
     assert result.locale == "zh-CN"
-    assert result.is_retryable is True
 
 
 def test_diagnose_truncation_thinking_budget_exhausted():
@@ -228,7 +211,6 @@ def test_diagnose_truncation_thinking_budget_exhausted():
     assert result.error_type == "thinking_budget_exhausted"
     assert "reasoning" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
-    assert result.is_retryable is False
     assert result.locale == "en"
 
 
@@ -239,7 +221,6 @@ def test_diagnose_truncation_tool_call_truncated():
     assert result.error_type == "tool_call_truncated"
     assert "tool" in result.user_message.lower() or "incomplete" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
-    assert result.is_retryable is False
     assert result.locale == "en"
 
 
@@ -313,7 +294,7 @@ class TestGetRecoveryActions:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key")
         assert len(actions) == 1
         assert actions[0]["id"] == "update_key"
-        assert actions[0]["url"] == "/settings"
+        assert actions[0]["url"] == "/settings/models"
         assert actions[0]["label"] == "Update API Key"
 
     def test_billing_returns_top_up_action(self):
@@ -326,11 +307,13 @@ class TestGetRecoveryActions:
         actions = LLMErrorDiagnostic.get_recovery_actions("model")
         assert len(actions) == 1
         assert actions[0]["id"] == "change_model"
+        assert actions[0]["url"] == "/settings/models"
 
     def test_custom_model_not_found_returns_change_model(self):
         actions = LLMErrorDiagnostic.get_recovery_actions("custom_model_not_found")
         assert len(actions) == 1
         assert actions[0]["id"] == "change_model"
+        assert actions[0]["url"] == "/settings/models"
 
     def test_unknown_error_returns_empty(self):
         assert LLMErrorDiagnostic.get_recovery_actions("unknown") == []
@@ -380,7 +363,6 @@ def test_diagnose_opencode_training_policy() -> None:
     result = LLMErrorDiagnostic.diagnose(exc, locale="en")
     assert result.error_type == "opencode_training_policy"
     assert "training consent" in result.user_message.lower()
-    assert result.is_retryable is False
 
 
 def test_diagnose_responses_stream_error_training_policy() -> None:
@@ -389,28 +371,24 @@ def test_diagnose_responses_stream_error_training_policy() -> None:
     exc = ResponsesStreamError("training_not_allowed: Training not allowed for muse-spark-1.2-contributor")
     result = LLMErrorDiagnostic.diagnose(exc, locale="en")
     assert result.error_type == "opencode_training_policy"
-    assert result.is_retryable is False
 
 
-def test_diagnose_tls_transient_retryable() -> None:
-    """Bun-style mislabel / interrupted handshake must be retryable."""
+def test_diagnose_tls_transient_mislabel() -> None:
+    """Bun-style mislabel / interrupted handshake is a transient TLS failure."""
     exc = Exception("unknown certificate verification error")
     result = LLMErrorDiagnostic.diagnose(exc, locale="en")
     assert result.error_type == "tls_transient"
-    assert result.is_retryable is True
 
 
 def test_diagnose_tls_transient_eof() -> None:
-    """Real SSLEOFError wording must be retryable, not a bare unknown error."""
+    """Real SSLEOFError wording is a transient TLS failure, not a bare unknown error."""
     exc = Exception("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol")
     result = LLMErrorDiagnostic.diagnose(exc, locale="en")
     assert result.error_type == "tls_transient"
-    assert result.is_retryable is True
 
 
-def test_diagnose_tls_hard_not_retryable() -> None:
+def test_diagnose_tls_hard_certificate_failure() -> None:
     """Rejected certificate must fail fast with enterprise remediation."""
     exc = Exception("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate")
     result = LLMErrorDiagnostic.diagnose(exc, locale="en")
     assert result.error_type == "tls_certificate"
-    assert result.is_retryable is False

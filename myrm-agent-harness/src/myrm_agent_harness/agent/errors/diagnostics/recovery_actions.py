@@ -13,11 +13,13 @@ fix (invalid key, empty balance, unknown model) map to buttons; every other erro
 
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
+_MODEL_SERVICE_URL = "/settings/models"
+
 _ACTION_DEFS: dict[str, list[tuple[str, str]]] = {
-    "api_key": [("update_key", "/settings")],
+    "api_key": [("update_key", _MODEL_SERVICE_URL)],
     "billing": [("top_up", "/settings")],
-    "model": [("change_model", "/settings")],
-    "custom_model_not_found": [("change_model", "/settings")],
+    "model": [("change_model", _MODEL_SERVICE_URL)],
+    "custom_model_not_found": [("change_model", _MODEL_SERVICE_URL)],
 }
 
 _LABELS: dict[str, str] = {

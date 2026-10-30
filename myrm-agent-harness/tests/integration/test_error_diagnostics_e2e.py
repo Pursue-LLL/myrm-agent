@@ -94,16 +94,14 @@ class TestErrorDiagnosticsIntegration:
 
         # Verify resolution steps exist and provide guidance
         assert len(result.resolution_steps) > 0
-        assert not result.is_retryable  # API key errors are not retryable
 
-    def test_timeout_error_retryable_flag(self) -> None:
-        """Test timeout error sets retryable flag correctly"""
+    def test_timeout_error_message(self) -> None:
+        """Test timeout error is diagnosed as a timeout"""
         exc = TimeoutError("Request timeout after 30s")
 
         result = LLMErrorDiagnostic.diagnose(exc, locale="en")
 
         assert "timeout" in result.user_message.lower() or "timed out" in result.user_message.lower()
-        assert result.is_retryable  # Timeout errors are retryable
 
     def test_context_overflow_with_token_count(self) -> None:
         """Test context overflow error"""
@@ -181,6 +179,5 @@ class TestErrorDiagnosticsIntegration:
         # Chinese should contain Chinese characters
         assert any(char in result_zh.user_message for char in ["无法", "连接", "拒绝", "端点"])
 
-        # Both should have the same error type and retryability
+        # Both should have the same error type
         assert result_en.error_type == result_zh.error_type
-        assert result_en.is_retryable == result_zh.is_retryable

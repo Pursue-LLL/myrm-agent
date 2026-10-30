@@ -361,7 +361,7 @@ LLM执行异常（RateLimitError / AuthenticationError / TimeoutError / etc.）
 stream_fatal_error.py `_emit_fatal_error`（异常捕获，executor 内层）
 agent/_internals/agent_runtime.py run_agent_loop 外层 except（executor 外层兜底）
     │ classify_error(exc) → ErrorKind（toolkits/llms/errors/classifier.py）
-    │ LLMErrorDiagnostic.diagnose(exc, ErrorContext) → DiagnosticResult（本地化 user_message + resolution_steps + is_retryable）
+    │ LLMErrorDiagnostic.diagnose(exc, ErrorContext) → DiagnosticResult（本地化 user_message + resolution_steps）
     │ 构建 error_event（两条路径字段结构一致）:
     │   - error_kind: str（如 "rate_limit"）
     │   - error_type: str
@@ -391,7 +391,8 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 
 | 模块 | 职责 |
 |------|------|
-| `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时与兜底 |
+| `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时，随后经 `classify_error` 桥接供应商侧失败（`overloaded` / `safety_block` / `format_error` / `challenge_blocked`），最后兜底 `unknown` |
+| `catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点（文案、步骤、供应商给出的等待时长） |
 | `transport_diagnosis.py` | TLS（`tls_certificate`、`tls_transient`）与连接（`connection`、`custom_endpoint_unreachable`）诊断；自定义端点的服务名、端口推断 |
 | `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
 | `types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
@@ -417,11 +418,11 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `challenge_blocked` | 出口被 WAF/反爬质询拦截（请求未到达模型） |
 | `unknown` | 未知错误 |
 
-恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，三者的 url 均为 `/settings`；其余类型不下发按钮。
+恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，`update_key` 与 `change_model` 落到「设置 > 模型服务」（`/settings/models`），`top_up` 落到 `/settings`；其余类型不下发按钮。
 
-`unknown` 兜底诊断的文案约定：`user_message` 带提供方原文前 200 字符，五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串），由 `tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py` 守护。
+`unknown` 兜底诊断的文案约定：`user_message` 带提供方原文前 200 字符（先去掉 `litellm.XxxError:` 库前缀，用户看到的是供应商自己的话），五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串），由 `tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py` 守护。
 
-目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型」「在设置中配置备用模型」。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
+目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型服务」「设置 > 模型服务 > 默认模型」。入口名称与前端菜单文案的一致性由 server 侧 `tests/integration/test_diagnostic_copy_ui_labels_i18n_sync.py` 对五种语言逐一守护。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
 
 #### 3. DiagnosticResult结构
 
@@ -431,7 +432,6 @@ class DiagnosticResult:
     error_type: str  # 错误类型（如 "rate_limit"）
     user_message: str  # 本地化用户消息
     resolution_steps: list[str]  # 恢复步骤建议
-    is_retryable: bool  # 是否可重试
     locale: str  # 已解析语言（en/zh-CN/ja/ko/de）
 ```
 
@@ -516,6 +516,7 @@ get_locale_manager().register_translations(
 | `toolkits/llms/errors/classifier.py` | LLM错误分类器（`classify_error()`，`ErrorKind` enum） |
 | `toolkits/llms/errors/error_types.py` | 三层分类体系（RecoverabilityLevel / FailoverReason / ProbePolicy） |
 | `agent/errors/diagnostics/engine.py` | `LLMErrorDiagnostic`：LLM 异常 → 本地化 `DiagnosticResult` |
+| `agent/errors/diagnostics/catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点 |
 | `agent/errors/diagnostics/transport_diagnosis.py` | TLS 与连接类诊断（`diagnose_transport`），自定义端点的服务名、端口推断 |
 | `agent/errors/diagnostics/account_diagnosis.py` | 余额、供应商策略与密钥类诊断（`diagnose_account`） |
 | `agent/errors/diagnostics/recovery_actions.py` | 恢复按钮目录：`api_key` / `billing` / `model` 等有单击修复的错误类型 → 本地化 `{id, label, url}` |

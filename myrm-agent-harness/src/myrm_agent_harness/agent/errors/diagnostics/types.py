@@ -19,5 +19,4 @@ class DiagnosticResult:
     error_type: str
     user_message: str
     resolution_steps: list[str]
-    is_retryable: bool
     locale: str
