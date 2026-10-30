@@ -12,7 +12,7 @@
 | `_deploy_capability.py` | 模块 | 部署能力门控：`require_local_skills_capability()` 供所有落盘本地技能的 install/import/export API 复用，沙箱模式 fail-closed。 | ✅ |
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
 | `batch_import/`（子包） | 模块 | 批量导入 (GUI-First 技能迁移) 域：`batch_import.py`（`preview/confirm` 路由，错误统一输出 `detail={message,error_code}`）、`batch_import_execute.py`（落盘执行器 `execute_batch_import_confirm`，蓝绿原子写入 + DB 事务）、`batch_import_helpers.py`（错误映射助手）、`batch_import_schemas.py`（请求/响应 Pydantic 模型）。`batch_import/__init__.py` 为聚合门面（导出 `router`）。 | ✅ |
-| `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
+| `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；PUT 只接受产品提供的进化策略（balanced / innovate，其余 422），修改后即热更新运行中的筛选器；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
 | `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
 | `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断（每条发现标明是否被 Agent、定时任务或看板任务绑定）与修复；运行与历史响应带 `skipped_pinned`/`skipped_protected`，界面据此解释"0 变化"的清理为何没动任何技能 | ✅ |

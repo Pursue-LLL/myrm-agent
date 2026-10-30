@@ -8,6 +8,7 @@ Focus on real-world utility with 54% less code than OpenSpace while maintaining 
 
 [OUTPUT]
 - EvolutionType: Type of skill evolution action.
+- EvolutionStrategy: How readily the screener lets an evolution request through.
 - SkillLineage: Simplified lineage tracking.
 - SkillRecord: Complete skill record with evolution metadata.
 - EvolutionRequest: Request for skill evolution (for concurrent processing). Supports GUI-First force_retry.
@@ -21,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 
 class EvolutionType(StrEnum):
@@ -30,6 +31,11 @@ class EvolutionType(StrEnum):
     FIX = "fix"  # Auto-repair failed/outdated skills
     DERIVED = "derived"  # Optimize/enhance based on user feedback
     CAPTURED = "captured"  # A new skill from a review, a draft, an import or an auto-extraction
+
+
+# balanced: rule checks plus the confirmation check decide. innovate: the same, but a rejection the confirmation
+# check is unsure about (confidence below 0.7) is overridden. repair-only: only FIX requests pass.
+EvolutionStrategy = Literal["balanced", "innovate", "repair-only"]
 
 
 class EvolutionLayer(StrEnum):

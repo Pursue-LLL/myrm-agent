@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from myrm_agent_harness.backends.skills.types import (
     SecurityFindingDetail,
@@ -336,6 +337,11 @@ DEFAULT_LOCAL_SKILL_PATHS: list[str] = [
 ]
 
 
+# The strategies a user can choose, a subset of the harness EvolutionStrategy: every request the product sends to
+# the screener is a FIX, so the harness repair-only strategy would behave exactly like balanced here.
+UserEvolutionStrategy = Literal["balanced", "innovate"]
+
+
 @dataclass
 class UserSkillConfig:
     """Per-user skill preferences.
@@ -356,8 +362,9 @@ class UserSkillConfig:
     """Skill IDs the user has manually elevated to TRUSTED after security review."""
     clawhub_registry_url: str = ""
     """Optional ClawHub-compatible registry mirror (e.g. skill.xfyun.cn). Empty = clawhub.ai."""
-    evolution_strategy: str = "balanced"
-    """Agent's mindset for evolution: balanced, innovate, harden, repair-only."""
+    evolution_strategy: UserEvolutionStrategy = "balanced"
+    """How readily a repair is drafted for a skill that failed: balanced repairs when the failure is clearly the
+    skill's fault, innovate also tries when that is unclear."""
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
     def to_dict(self) -> dict[str, object]:
@@ -404,7 +411,9 @@ class UserSkillConfig:
             skill_env_vars=env_vars,
             trusted_skill_ids=trusted_ids,
             clawhub_registry_url=str(data.get("clawhub_registry_url", "")),
-            evolution_strategy=str(data.get("evolution_strategy", "balanced")),
+            # Any other stored value (the retired harden and repair-only presets, a hand-edited file) behaved
+            # like balanced.
+            evolution_strategy="innovate" if data.get("evolution_strategy") == "innovate" else "balanced",
             updated_at=updated_at,
         )
 
@@ -414,5 +423,6 @@ __all__ = [
     "LOCAL_SKILLS_DIR",
     "Skill",
     "SkillType",
+    "UserEvolutionStrategy",
     "UserSkillConfig",
 ]

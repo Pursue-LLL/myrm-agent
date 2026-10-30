@@ -34,6 +34,7 @@ from myrm_agent_harness.agent.skills.evolution.core.engine import SkillEvolution
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
     EvolutionRequest,
+    EvolutionStrategy,
     EvolutionType,
 )
 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
@@ -106,7 +107,7 @@ class EvolutionIntegration:
         enable_tde: bool = False,
         test_executor: "SubprocessCodeExecutor | None" = None,
         event_log_backend: "EventLogBackend | None" = None,
-        evolution_strategy: str = "balanced",
+        evolution_strategy: EvolutionStrategy = "balanced",
     ):
         """Initialize evolution integration.
 
@@ -119,8 +120,9 @@ class EvolutionIntegration:
             enable_tde: Enable test-driven evolution with generated pytest validation (default False)
             test_executor: Optional subprocess test executor (auto-created if enable_tde=True and None)
             event_log_backend: Event log read by the engine to build the FIX failure trajectory
-            evolution_strategy: Controls screener behavior: balanced (all types),
-                innovate (all + lower rejection threshold), harden and repair-only (FIX only). Business layer injects user preference.
+            evolution_strategy: Controls screener behavior: balanced (all types), innovate (all types, and a
+                rejection the confirmation check is unsure about is overridden), repair-only (FIX only).
+                Business layer injects user preference.
         """
         self.db_path = Path(db_path)
 
@@ -128,7 +130,7 @@ class EvolutionIntegration:
         self.store = SkillStore(self.db_path)
         self.test_executor: SubprocessCodeExecutor | None = test_executor
         self.screener: EvolutionScreener | None = screener
-        self._evolution_strategy = evolution_strategy
+        self._evolution_strategy: EvolutionStrategy = evolution_strategy
 
         # Propagate strategy to screener if injected
         if self.screener is not None:
@@ -166,12 +168,12 @@ class EvolutionIntegration:
         set_global_evolution_integration(self)
 
     @property
-    def evolution_strategy(self) -> str:
+    def evolution_strategy(self) -> EvolutionStrategy:
         """Current evolution strategy."""
         return self._evolution_strategy
 
     @evolution_strategy.setter
-    def evolution_strategy(self, value: str) -> None:
+    def evolution_strategy(self, value: EvolutionStrategy) -> None:
         """Hot-update evolution strategy (propagates to screener)."""
         self._evolution_strategy = value
         if self.screener is not None:
@@ -289,7 +291,7 @@ def enable_skill_evolution(
     queue_workers: int = 2,
     screener: "EvolutionScreener | None" = None,
     event_log_backend: "EventLogBackend | None" = None,
-    evolution_strategy: str = "balanced",
+    evolution_strategy: EvolutionStrategy = "balanced",
 ) -> EvolutionIntegration:
     """Enable skill evolution with one function call.
 
@@ -302,7 +304,7 @@ def enable_skill_evolution(
         queue_workers: Number of queue workers (if enabled)
         screener: Optional EvolutionScreener for two-phase filtering
         event_log_backend: Optional backend for trace extraction.
-        evolution_strategy: Controls screener behavior (balanced/innovate/harden/repair-only).
+        evolution_strategy: Controls screener behavior (balanced/innovate/repair-only).
 
     Test-driven evolution is set on ``EvolutionIntegration`` directly.
 
@@ -318,7 +320,7 @@ def enable_skill_evolution(
             db_path=".myrm/skills.db",
             llm=llm,
             enable_background_queue=True,
-            evolution_strategy="harden",
+            evolution_strategy="repair-only",
             event_log_backend=your_backend,
         )
         ```

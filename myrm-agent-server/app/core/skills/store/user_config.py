@@ -16,7 +16,7 @@ from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
 from app.core.storage.paths import get_user_skill_config_path
 
-from ..models import UserSkillConfig
+from ..models import UserEvolutionStrategy, UserSkillConfig
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ class UserSkillConfigManager:
         self,
         enabled_prebuilt_ids: list[str] | None = None,
         enabled_local_skill_ids: list[str] | None = None,
-        evolution_strategy: str | None = None,
+        evolution_strategy: UserEvolutionStrategy | None = None,
         clawhub_registry_url: str | None = None,
         **_kwargs: object,
     ) -> UserSkillConfig:

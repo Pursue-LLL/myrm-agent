@@ -1,7 +1,8 @@
 """Tests for Skill.to_dict / from_dict persistence and the prebuilt metadata reader.
 
 Pins the contract that persisted skill metadata never gates visibility: a legacy
-``is_active`` key is ignored on read and never written back.
+``is_active`` key is ignored on read and never written back. A stored evolution strategy
+is read back as one of the strategies the product offers.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
-from app.core.skills.models import Skill, SkillType
+from app.core.skills.models import Skill, SkillType, UserSkillConfig
 from app.core.skills.store import reader
 from app.core.storage.paths import get_skill_metadata_path
 
@@ -77,3 +78,22 @@ class TestSkillRoundTrip:
     )
     def test_token_cost_coercion(self, raw: object, expected: int | None) -> None:
         assert Skill.from_dict(_minimal_payload(token_cost=raw)).token_cost == expected
+
+
+class TestUserEvolutionStrategy:
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            ("innovate", "innovate"),
+            ("balanced", "balanced"),
+            ("harden", "balanced"),
+            ("repair-only", "balanced"),
+            ("not-a-strategy", "balanced"),
+        ],
+    )
+    def test_a_stored_strategy_is_read_as_one_the_product_offers(self, stored: str, expected: str) -> None:
+        config = UserSkillConfig.from_dict({"user_id": "u", "evolution_strategy": stored})
+        assert config.evolution_strategy == expected
+
+    def test_a_config_without_a_strategy_reads_as_balanced(self) -> None:
+        assert UserSkillConfig.from_dict({"user_id": "u"}).evolution_strategy == "balanced"

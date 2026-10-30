@@ -54,6 +54,7 @@ from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionRequest,
+    EvolutionStrategy,
     EvolutionType,
 )
 from myrm_agent_harness.utils.chat_utils import extract_answer_text
@@ -119,13 +120,11 @@ class EvolutionScreener:
     - Prevent "snowball effect" (fix correct code → new errors → infinite loop)
     """
 
-    # Strategy → allowed evolution types mapping.
-    # "balanced" allows everything (default). "innovate" allows all + lowers
-    # LLM confirmation threshold. "harden" and "repair-only" restrict to FIX only.
-    _STRATEGY_ALLOWED_TYPES: ClassVar[dict[str, frozenset[EvolutionType]]] = {
+    # Strategy → allowed evolution types. "balanced" (default) and "innovate" allow every type; "innovate"
+    # additionally overrides low-confidence LLM rejections. "repair-only" allows FIX only.
+    _STRATEGY_ALLOWED_TYPES: ClassVar[dict[EvolutionStrategy, frozenset[EvolutionType]]] = {
         "balanced": frozenset(EvolutionType),
         "innovate": frozenset(EvolutionType),
-        "harden": frozenset({EvolutionType.FIX}),
         "repair-only": frozenset({EvolutionType.FIX}),
     }
 
@@ -135,7 +134,7 @@ class EvolutionScreener:
         cheap_llm: BaseChatModel | None = None,
         cooldown_seconds: int = 3600,
         event_logger: EventLogger | None = None,
-        evolution_strategy: str = "balanced",
+        evolution_strategy: EvolutionStrategy = "balanced",
     ):
         """Initialize screener.
 
@@ -145,22 +144,22 @@ class EvolutionScreener:
             cooldown_seconds: Cooldown period in seconds (default 1 hour)
             event_logger: Optional EventLogger to record EVOLUTION_REJECTED events
             evolution_strategy: Controls which evolution types are allowed.
-                balanced (default) — all types; innovate — all + lower confirmation
-                threshold; harden and repair-only — FIX only.
+                balanced (default) — all types; innovate — all types, and a rejection the
+                confirmation check is unsure about is overridden; repair-only — FIX only.
         """
         self._store = store
         self._cheap_llm = cheap_llm
         self._cooldown_seconds = cooldown_seconds
         self._event_logger = event_logger
-        self._evolution_strategy = evolution_strategy
+        self._evolution_strategy: EvolutionStrategy = evolution_strategy
 
     @property
-    def evolution_strategy(self) -> str:
+    def evolution_strategy(self) -> EvolutionStrategy:
         """Current evolution strategy."""
         return self._evolution_strategy
 
     @evolution_strategy.setter
-    def evolution_strategy(self, value: str) -> None:
+    def evolution_strategy(self, value: EvolutionStrategy) -> None:
         """Update strategy at runtime (hot-update without restart)."""
         if value not in self._STRATEGY_ALLOWED_TYPES:
             logger.warning("Unknown evolution strategy '%s', falling back to 'balanced'", value)

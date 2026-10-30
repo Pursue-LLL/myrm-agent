@@ -26,6 +26,7 @@ from app.core.skills.gates.oauth_availability import apply_integration_oauth_ava
 from app.core.skills.marketplace.clawhub_registry import (
     apply_clawhub_registry_url,
     get_registry_presets,
+    normalize_clawhub_registry_url,
 )
 from app.core.skills.models import UserSkillConfig
 from app.core.skills.store.service import skills_service
@@ -61,17 +62,15 @@ async def update_user_skill_config(
     request: UpdateUserSkillConfigRequest,
 ) -> UserSkillConfigResponse:
     """Update user skill configuration."""
-    kwargs: dict[str, object] = {}
-    if request.enabled_prebuilt_ids is not None:
-        kwargs["enabled_prebuilt_ids"] = request.enabled_prebuilt_ids
-    if request.evolution_strategy is not None:
-        kwargs["evolution_strategy"] = request.evolution_strategy
-    if request.clawhub_registry_url is not None:
-        from app.core.skills.marketplace.clawhub_registry import normalize_clawhub_registry_url
-
-        kwargs["clawhub_registry_url"] = normalize_clawhub_registry_url(request.clawhub_registry_url)
-
-    config = await skills_service.user_config.update_config(**kwargs)
+    registry_url = (
+        normalize_clawhub_registry_url(request.clawhub_registry_url) if request.clawhub_registry_url is not None else None
+    )
+    # A field left out of the request stays as it is (update_config ignores None).
+    config = await skills_service.user_config.update_config(
+        enabled_prebuilt_ids=request.enabled_prebuilt_ids,
+        evolution_strategy=request.evolution_strategy,
+        clawhub_registry_url=registry_url,
+    )
 
     # Hot-update harness screener strategy when changed
     if request.evolution_strategy is not None:

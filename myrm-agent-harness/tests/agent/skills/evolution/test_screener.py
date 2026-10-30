@@ -1,8 +1,9 @@
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionRequest, EvolutionType
+from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionRequest, EvolutionStrategy, EvolutionType
 from myrm_agent_harness.agent.skills.evolution.pipeline.screener import EvolutionScreener
 
 
@@ -160,3 +161,70 @@ async def test_screener_extract_signals(mock_store):
     assert "404" in signals.get("http_status", "")
     assert "ValueError" in signals.get("exception_types", "")
     assert "timeout" in signals.get("error_keywords", "")
+
+
+def _llm_rejecting(confidence: float) -> AsyncMock:
+    llm = AsyncMock()
+    response = MagicMock()
+    response.content = f'{{"approved": false, "reason": "not a skill defect", "confidence": {confidence}}}'
+    llm.ainvoke.return_value = response
+    return llm
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("strategy", ["balanced", "innovate"])
+@pytest.mark.parametrize("evolution_type", list(EvolutionType))
+async def test_balanced_and_innovate_let_every_evolution_type_through(mock_store, strategy, evolution_type):
+    screener = EvolutionScreener(store=mock_store, evolution_strategy=strategy)
+
+    result = await screener.screen_request(EvolutionRequest(evolution_type=evolution_type, skill_id="test_skill"))
+
+    assert result.allowed is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("evolution_type", [EvolutionType.DERIVED, EvolutionType.CAPTURED])
+async def test_repair_only_blocks_everything_but_fix(mock_store, evolution_type):
+    screener = EvolutionScreener(store=mock_store, evolution_strategy="repair-only")
+
+    blocked = await screener.screen_request(EvolutionRequest(evolution_type=evolution_type, skill_id="test_skill"))
+    fix = await screener.screen_request(EvolutionRequest(evolution_type=EvolutionType.FIX, skill_id="test_skill"))
+
+    assert blocked.allowed is False
+    assert blocked.phase == "strategy"
+    assert fix.allowed is True
+
+
+@pytest.mark.asyncio
+async def test_innovate_overrides_a_rejection_the_confirmation_is_unsure_about(mock_store):
+    request = EvolutionRequest(evolution_type=EvolutionType.FIX, skill_id="test_skill", reason="HTTP 500: upstream")
+
+    innovate = await EvolutionScreener(
+        store=mock_store, cheap_llm=_llm_rejecting(0.5), evolution_strategy="innovate"
+    ).screen_request(request)
+    balanced = await EvolutionScreener(
+        store=mock_store, cheap_llm=_llm_rejecting(0.5), evolution_strategy="balanced"
+    ).screen_request(request)
+
+    assert innovate.allowed is True
+    assert "Innovate override" in innovate.reason
+    assert balanced.allowed is False
+
+
+@pytest.mark.asyncio
+async def test_innovate_keeps_a_confident_rejection(mock_store):
+    request = EvolutionRequest(evolution_type=EvolutionType.FIX, skill_id="test_skill", reason="HTTP 500: upstream")
+    screener = EvolutionScreener(store=mock_store, cheap_llm=_llm_rejecting(0.9), evolution_strategy="innovate")
+
+    result = await screener.screen_request(request)
+
+    assert result.allowed is False
+    assert result.phase == "llm_confirmation"
+
+
+def test_an_unknown_strategy_falls_back_to_balanced(mock_store):
+    screener = EvolutionScreener(store=mock_store, evolution_strategy="innovate")
+
+    screener.evolution_strategy = cast(EvolutionStrategy, "harden")
+
+    assert screener.evolution_strategy == "balanced"

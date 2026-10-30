@@ -20,8 +20,6 @@ export function EvolutionStrategyConfig() {
         <SelectContent>
           <SelectItem value="balanced">{t('balanced')}</SelectItem>
           <SelectItem value="innovate">{t('innovate')}</SelectItem>
-          <SelectItem value="harden">{t('harden')}</SelectItem>
-          <SelectItem value="repair-only">{t('repair_only')}</SelectItem>
         </SelectContent>
       </Select>
     </div>

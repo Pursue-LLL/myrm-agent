@@ -11889,12 +11889,10 @@
       "error_title": "Import Failed"
     },
     "evolution_strategy": {
-      "title": "Evolution Strategy (Mindset)",
-      "description": "Control how the agent allocates compute for self-evolution.",
-      "balanced": "Balanced (50% Explore, 30% Optimize, 20% Repair)",
-      "innovate": "Innovate (80% Explore, 15% Optimize, 5% Repair)",
-      "harden": "Harden (20% Explore, 40% Optimize, 40% Repair)",
-      "repair_only": "Repair Only (100% Repair)"
+      "title": "Evolution Strategy",
+      "description": "Choose how readily the assistant drafts a repair when a skill fails.",
+      "balanced": "Balanced: draft a repair only when the failure is clearly the skill's fault",
+      "innovate": "Proactive: also draft a repair when it is unclear whose fault the failure was"
     },
     "permissions": {
       "types": {

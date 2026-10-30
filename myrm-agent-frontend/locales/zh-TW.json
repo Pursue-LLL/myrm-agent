@@ -11889,12 +11889,10 @@
       "error_title": "匯入失敗"
     },
     "evolution_strategy": {
-      "title": "進化策略 (心智模式)",
-      "description": "控制 Agent 在後臺自我進化時的算力分配傾向。",
-      "balanced": "平衡 (50% 探索, 30% 最佳化, 20% 修復)",
-      "innovate": "激進創新 (80% 探索, 15% 最佳化, 5% 修復)",
-      "harden": "保守加固 (20% 探索, 40% 最佳化, 40% 修復)",
-      "repair_only": "僅限修復 (100% 修復)"
+      "title": "進化策略",
+      "description": "選擇技能出錯後，助手起草修復方案的積極程度。",
+      "balanced": "平衡：僅在明確是技能本身的問題時起草修復",
+      "innovate": "積極：歸因不明確時也嘗試起草修復"
     },
     "permissions": {
       "types": {

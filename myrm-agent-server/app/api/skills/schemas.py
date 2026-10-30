@@ -20,7 +20,7 @@ from collections.abc import Mapping, Sequence
 from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction, SecretKind
 from pydantic import BaseModel
 
-from app.core.skills.models import Skill
+from app.core.skills.models import Skill, UserEvolutionStrategy
 
 
 class SkillRequiresResponse(BaseModel):
@@ -132,7 +132,7 @@ class UserSkillConfigResponse(BaseModel):
     disabled_prebuilt_ids: list[str] = []
     local_skill_paths: list[str] = []
     enabled_local_skill_ids: list[str] = []
-    evolution_strategy: str = "balanced"
+    evolution_strategy: UserEvolutionStrategy = "balanced"
     clawhub_registry_url: str = ""
     registry_presets: list[RegistryPresetResponse] = []
     updated_at: str
@@ -142,7 +142,7 @@ class UpdateUserSkillConfigRequest(BaseModel):
     """Update user skill configuration fields."""
 
     enabled_prebuilt_ids: list[str] | None = None
-    evolution_strategy: str | None = None
+    evolution_strategy: UserEvolutionStrategy | None = None
     clawhub_registry_url: str | None = None
 
 

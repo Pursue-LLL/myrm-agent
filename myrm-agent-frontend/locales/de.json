@@ -11889,12 +11889,10 @@
       "error_title": "Import fehlgeschlagen"
     },
     "evolution_strategy": {
-      "title": "Evolutionsstrategie (Mindset)",
-      "description": "Steuern Sie, wie der Agent Rechenleistung für die Selbstentwicklung zuweist.",
-      "balanced": "Ausgewogen (50 % Erkunden, 30 % Optimieren, 20 % Reparieren)",
-      "innovate": "Innovieren (80 % erkunden, 15 % optimieren, 5 % reparieren)",
-      "harden": "Härten (20 % Erkunden, 40 % Optimieren, 40 % Reparieren)",
-      "repair_only": "Nur Reparatur (100 % Reparatur)"
+      "title": "Evolutionsstrategie",
+      "description": "Legen Sie fest, wie bereitwillig der Assistent nach dem Fehlschlag eines Skills eine Korrektur entwirft.",
+      "balanced": "Ausgewogen: Korrektur nur entwerfen, wenn der Fehler eindeutig am Skill liegt",
+      "innovate": "Proaktiv: Korrektur auch entwerfen, wenn unklar ist, woran der Fehler lag"
     },
     "permissions": {
       "types": {

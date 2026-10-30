@@ -11889,12 +11889,10 @@
       "error_title": "导入失败"
     },
     "evolution_strategy": {
-      "title": "进化策略 (心智模式)",
-      "description": "控制 Agent 在后台自我进化时的算力分配倾向。",
-      "balanced": "平衡 (50% 探索, 30% 优化, 20% 修复)",
-      "innovate": "激进创新 (80% 探索, 15% 优化, 5% 修复)",
-      "harden": "保守加固 (20% 探索, 40% 优化, 40% 修复)",
-      "repair_only": "仅限修复 (100% 修复)"
+      "title": "进化策略",
+      "description": "选择技能出错后，助手起草修复方案的积极程度。",
+      "balanced": "平衡：仅在明确是技能本身的问题时起草修复",
+      "innovate": "积极：归因不明确时也尝试起草修复"
     },
     "permissions": {
       "types": {
