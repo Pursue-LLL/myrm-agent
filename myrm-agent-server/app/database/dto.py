@@ -454,11 +454,11 @@ class AgentBase(BaseModel):
     """智能体基础模型"""
 
     name: str = Field(..., description="智能体名称", max_length=255)
-    description: str | None = Field(None, description="智能体描述")
-    avatar_url: str | None = Field(None, description="智能体头像/图标 URL", max_length=500)
-    home_directory: str | None = Field(None, description="Agent Home 目录路径", max_length=500)
-    is_built_in: bool = Field(False, description="是否为内置 Agent")
-    system_prompt: str | None = Field(None, description="系统指令/用户自定义提示词")
+    description: str | None = Field(default=None, description="智能体描述")
+    avatar_url: str | None = Field(default=None, description="智能体头像/图标 URL", max_length=500)
+    home_directory: str | None = Field(default=None, description="Agent Home 目录路径", max_length=500)
+    is_built_in: bool = Field(default=False, description="是否为内置 Agent")
+    system_prompt: str | None = Field(default=None, description="系统指令/用户自定义提示词")
     mcp_ids: list[str] = Field(default=[], description="关联的 MCP 配置 ID 列表")
     mcp_tool_selections: dict[str, list[str]] | None = Field(
         default=None,
@@ -470,24 +470,24 @@ class AgentBase(BaseModel):
     )
     skill_ids: list[str] = Field(default=[], description="关联的技能 ID 列表")
     mounted_skill_ids: list[str] = Field(default=[], description="挂载的其他 Agent 专属技能 ID 列表")
-    skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
-    enabled_builtin_tools: OptionalBuiltinTools = Field(None, description="启用的内置工具 ID 列表")
+    skill_configs: dict[str, SkillConfig] | None = Field(default=None, description="技能的个性化配置 (如 is_core)")
+    enabled_builtin_tools: OptionalBuiltinTools = Field(default=None, description="启用的内置工具 ID 列表")
     browser_source: str | None = Field(
-        None,
+        default=None,
         description="浏览器获取方式: 'launch'(新建)、'connect'(CDP)、'extension'(扩展桥接)、'auto'(自动)、'remote'(远程)。为空则使用系统默认。",
     )
     dialog_policy: str | None = Field(
-        None,
+        default=None,
         description="弹窗处理策略: 'smart'(智能)、'auto_accept'(自动确认)、'auto_dismiss'(自动取消)、'wait_for_agent'(等待Agent处理)。为空则使用默认smart。",
     )
     session_recording: str | None = Field(
-        None,
+        default=None,
         description="浏览器会话录制模式: 'off'(关闭)、'on_failure'(仅失败时保留)、'always'(始终保留)。为空则使用默认off。",
     )
-    model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
-    security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")
+    model_selection: ModelSelection | None = Field(default=None, description="绑定的模型选择")
+    security_overrides: dict[str, object] | None = Field(default=None, description="Per-agent security policy overrides")
     default_security_preset: SecurityPresetLiteral | None = Field(
-        None,
+        default=None,
         description=(
             "Per-agent default chat security preset (hitl/accept_edits/explore). "
             "New sessions bound to this agent start with this preset; the user can "
@@ -507,18 +507,18 @@ class AgentBase(BaseModel):
     agent_type: AgentTypeLiteral = Field(default="individual", description="Agent type: individual or team (leader)")
     allow_discovery: bool = Field(default=True, description="是否允许被主Agent通过动态名册发现并委派")
     subagent_ids: list[str] = Field(default=[], description="可委托的子智能体 ID 列表")
-    max_iterations: int | None = Field(None, description="最大迭代次数（None=使用系统默认值）", ge=5, le=500)
+    max_iterations: int | None = Field(default=None, description="最大迭代次数（None=使用系统默认值）", ge=5, le=500)
     workspace_policy: WorkspacePolicyLiteral = Field(
         default="INHERIT_REQUESTER",
         description="Workspace policy when this agent is used as a delegated subagent",
     )
-    memory_policy: AgentMemoryPolicyConfig | None = Field(None, description="Agent memory policy")
+    memory_policy: AgentMemoryPolicyConfig | None = Field(default=None, description="Agent memory policy")
     session_policy: AgentSessionPolicyConfig | None = Field(
-        None,
+        default=None,
         description="Per-agent IM session reset policy override (overrides global personalSettings.sessionPolicy)",
     )
     engine_params: dict[str, Any] | None = Field(
-        None,
+        default=None,
         description="Advanced engine parameters (e.g. max_tool_calls, max_replan_attempts)",
     )
     auto_restore_domains: list[str] = Field(
@@ -526,26 +526,26 @@ class AgentBase(BaseModel):
         description="Hostnames for which the browser toolkit auto-restores persisted login state",
     )
     suggestion_prompts: list[str] | None = Field(
-        None,
+        default=None,
         description="Custom starter prompts displayed when this agent is active in an empty chat",
     )
     # Pareto preset specific attributes
     is_pareto_preset: bool = Field(default=False, description="是否为帕累托成本/效果前沿预设")
-    cost_reduction_ratio: float | None = Field(None, description="相较全量顶级闭源模型的估算降本比例 (e.g. 0.70)")
+    cost_reduction_ratio: float | None = Field(default=None, description="相较全量顶级闭源模型的估算降本比例 (e.g. 0.70)")
     openapi_services: list[dict[str, object]] = Field(
         default_factory=list,
         description="OpenAPI service configurations for zero-code REST API tool integration",
     )
     command_bindings: list[CommandBindingConfig] | None = Field(
-        None,
+        default=None,
         description="Slash command bindings to Skills for IM channels (e.g. /daily-report -> skill_id)",
     )
     notify_targets: list[dict[str, str]] | None = Field(
-        None,
+        default=None,
         description="Notification targets for channel_notify_tool [{channel, recipient_id, label?}]",
     )
     tool_gateway_config: ToolGatewayConfigDTO | None = Field(
-        None,
+        default=None,
         description="Tool Gateway configuration for third-party tools",
     )
     cron_post_run_verify: bool = Field(
@@ -560,17 +560,17 @@ class AgentBase(BaseModel):
         default_factory=list, description="无人值守运行预信任的桌面应用 [{name, app_id?}]"
     )
     responsibility_scope: str | None = Field(
-        None,
+        default=None,
         description="责任单元职责定义：该 Agent 长期负责什么（治理展示用，不进入系统提示词）",
         max_length=2000,
     )
     owner_label: str | None = Field(
-        None,
+        default=None,
         description="责任单元负责人标注（单机默认本人免填；云托管/分享时必填）",
         max_length=100,
     )
     acceptance_criteria: list[str] | None = Field(
-        None,
+        default=None,
         description="责任单元交付验收条目（结构化可勾选，非自由文本）",
         max_length=20,
     )
