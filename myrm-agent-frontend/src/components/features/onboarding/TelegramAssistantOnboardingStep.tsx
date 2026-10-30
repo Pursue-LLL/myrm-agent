@@ -38,6 +38,23 @@ function isOnboardingConflictError(error: unknown): boolean {
   return error.message.toLowerCase().includes('already in progress');
 }
 
+type VerificationErrorKey = 'tokenRejectedError' | 'telegramUnreachableError';
+
+/** Maps the server's token-check failure code to its localized message; the two call for different user actions. */
+function verificationErrorKey(error: unknown): VerificationErrorKey | null {
+  if (!(error instanceof ApiError)) {
+    return null;
+  }
+  switch (error.data?.code) {
+    case 'TELEGRAM_TOKEN_REJECTED':
+      return 'tokenRejectedError';
+    case 'TELEGRAM_UNREACHABLE':
+      return 'telegramUnreachableError';
+    default:
+      return null;
+  }
+}
+
 function parseErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -125,7 +142,8 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
       );
       onComplete();
     } catch (submitError) {
-      const message = parseErrorMessage(submitError, t('setupFailed'));
+      const messageKey = verificationErrorKey(submitError);
+      const message = messageKey ? t(messageKey) : parseErrorMessage(submitError, t('setupFailed'));
       setError(message);
       toast.error(t('setupFailedToast'));
     } finally {

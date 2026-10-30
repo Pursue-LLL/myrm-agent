@@ -12313,6 +12313,8 @@
         "pendingToast": "구성이 저장되었습니다. 텔레그램 연결이 초기화 중입니다.",
         "retryingToast": "다른 설정 요청이 마무리되는 중입니다. 지금 재시도합니다...",
         "inProgressFriendlyError": "설정이 아직 진행 중입니다. 몇 초 기다린 후 다시 시도하세요.",
+        "tokenRejectedError": "Telegram이 이 봇 토큰을 받아들이지 않았습니다. @BotFather에서 토큰 전체를 다시 복사하세요.",
+        "telegramUnreachableError": "이 기기에서 Telegram에 연결할 수 없습니다. 네트워크를 확인하거나 먼저 건너뛴 뒤 설정 → 통합에서 Telegram 프록시를 설정하세요.",
         "setupFailed": "텔레그램 어시스턴트 설정에 실패했습니다.",
         "setupFailedToast": "텔레그램 설정에 실패했습니다. 자격 증명을 확인하고 다시 시도하세요.",
         "successToast": "텔레그램 어시스턴트 준비 완료: {agentName}"

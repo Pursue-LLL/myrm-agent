@@ -131,6 +131,8 @@ _TELEGRAM_AGENT_RESOLUTION_LOCK = asyncio.Lock()
 _TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
 _TELEGRAM_ONBOARDING_IN_PROGRESS_CODE = "TELEGRAM_ONBOARDING_IN_PROGRESS"
 _TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE = "Telegram onboarding is already in progress. Please retry shortly."
+_TELEGRAM_TOKEN_REJECTED_CODE = "TELEGRAM_TOKEN_REJECTED"
+_TELEGRAM_UNREACHABLE_CODE = "TELEGRAM_UNREACHABLE"
 _SECOND_BRAIN_APPLY_LOCK = asyncio.Lock()
 _SECOND_BRAIN_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
 _SECOND_BRAIN_ONBOARDING_IN_PROGRESS_CODE = "SECOND_BRAIN_ONBOARDING_IN_PROGRESS"
@@ -268,6 +270,20 @@ async def _verify_telegram_token(bot_token: str, proxy: str | None) -> str:
 
     username = str(me.get("username", "")).strip()
     return username or "unknown"
+
+
+def _telegram_verification_error(exc: Exception) -> HTTPException:
+    """Tell a token Telegram refused from a Bot API this machine could not reach: the next step differs."""
+    from myrm_agent_harness.api import redact_sensitive_text
+
+    from app.channels.providers.telegram.api_core import TelegramApiError
+
+    if isinstance(exc, TelegramApiError) and exc.is_invalid_token:
+        code, message = _TELEGRAM_TOKEN_REJECTED_CODE, "Telegram rejected the bot token"
+    else:
+        code, message = _TELEGRAM_UNREACHABLE_CODE, "Telegram Bot API could not be reached"
+    logger.warning("Telegram onboarding token check failed (%s): %s", code, redact_sensitive_text(str(exc)))
+    return HTTPException(status_code=400, detail={"code": code, "message": message})
 
 
 def _is_channel_bindable_agent(agent_profile: object) -> bool:
@@ -702,7 +718,7 @@ async def apply_telegram_assistant_onboarding(
     try:
         bot_username = await _verify_telegram_token(bot_token, _stored_telegram_proxy(snapshot.telegram_credentials))
     except Exception as exc:
-        raise HTTPException(status_code=400, detail="Telegram token verification failed") from exc
+        raise _telegram_verification_error(exc) from exc
 
     created_agent_id: str | None = None
     try:

@@ -44,6 +44,13 @@ class TelegramApiError(Exception):
         return self.error_code == 400 and "message is not modified" in self.description.lower()
 
     @property
+    def is_invalid_token(self) -> bool:
+        """The Bot API refuses the token itself: 401 for a token it does not know, 404 for one that is
+        not shaped like a token. Only meaningful for a method known to exist (``getMe``), since an unknown
+        method answers 404 too."""
+        return self.error_code in (401, 404)
+
+    @property
     def is_method_not_found(self) -> bool:
         desc = self.description.lower()
         return self.error_code == 404 or (

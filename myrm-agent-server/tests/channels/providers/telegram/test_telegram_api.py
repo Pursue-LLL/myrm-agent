@@ -27,6 +27,13 @@ class TestTelegramApiError:
         assert err.is_not_modified is False
         assert err.error_code == 500
 
+    @pytest.mark.parametrize(
+        ("error_code", "expected"),
+        [(401, True), (404, True), (400, False), (403, False), (429, False), (500, False)],
+    )
+    def test_is_invalid_token(self, error_code: int, expected: bool) -> None:
+        assert TelegramApiError(error_code, "x").is_invalid_token is expected
+
 
 class TestTelegramClient:
     def test_custom_api_base(self) -> None:

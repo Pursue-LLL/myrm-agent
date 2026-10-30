@@ -185,4 +185,28 @@ describe('TelegramAssistantOnboardingStep', () => {
     expect(onComplete).not.toHaveBeenCalled();
     expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ['TELEGRAM_TOKEN_REJECTED', 'tokenRejectedError'],
+    ['TELEGRAM_UNREACHABLE', 'telegramUnreachableError'],
+  ])('explains a %s failure in the user language and does not retry', async (detailCode, messageKey) => {
+    mockApplyTelegramAssistantOnboarding.mockRejectedValueOnce(
+      Object.assign(new ApiError('English detail from the server', 400, [], undefined, detailCode), {
+        data: { code: detailCode },
+      }),
+    );
+
+    render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('tokenLabel'), {
+      target: { value: '1234567890:VALID_TOKEN' },
+    });
+    fireEvent.click(screen.getByText('setupButton'));
+
+    await waitFor(() => {
+      expect(screen.getByText(messageKey)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('English detail from the server')).not.toBeInTheDocument();
+    expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(1);
+  });
 });
