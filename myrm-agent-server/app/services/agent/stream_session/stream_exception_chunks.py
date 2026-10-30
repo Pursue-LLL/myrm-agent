@@ -6,10 +6,11 @@
 - app.services.agent.stream_session.turn_capability_terminal (POS: records the failed terminal state of a turn that carries capability telemetry)
 - app.services.agent.streaming_support.sse_helpers::error_sse (POS: generic SSE error chunk)
 - myrm_agent_harness.agent.config.exceptions::ConfigIncompleteError (POS: setup gap with localized user message and resolution steps)
+- myrm_agent_harness.agent.errors::LLMErrorDiagnostic (POS: classifies an LLM failure into a localized user message and resolution steps)
 - myrm_agent_harness.toolkits.llms.errors::MyrmLLMError (POS: LLM failure with diagnostic result and recovery actions)
 
 [OUTPUT]
-- yield_stream_exception_chunks: turn a stream exception into the user-visible error chunks, mark the turn's collector, and record the failed capability terminal state
+- yield_stream_exception_chunks: turn a stream exception into the user-visible error chunks, mark the turn's collector, and record the failed capability terminal state; an LLM error that carries no diagnosis (raised outside the agent loop) is diagnosed in the session language
 
 [POS]
 Error half of the stream pipeline: `stream_chunks` hands it every exception that ends the chunk generator.
@@ -21,9 +22,11 @@ import asyncio
 import logging
 import uuid
 from collections.abc import AsyncGenerator
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
+from myrm_agent_harness.agent.errors import LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
@@ -44,6 +47,22 @@ if TYPE_CHECKING:
     from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 
 logger = logging.getLogger(__name__)
+
+
+def _diagnostic_result(exc: MyrmLLMError, locale: str) -> dict[str, object] | None:
+    """The diagnosis the error card renders: the one the failing layer attached, else one built here.
+
+    An error raised outside the agent loop (the pre-flight context guard) carries none, and the card reads
+    ``user_message`` and ``resolution_steps`` from it, so an empty object would keep the card from drawing. When no
+    diagnosis can be built the field is left out and the card shows the plain error text.
+    """
+    if exc.diagnostic_result:
+        return exc.diagnostic_result
+    try:
+        return asdict(LLMErrorDiagnostic.diagnose(exc, locale=locale))
+    except Exception:
+        logger.warning("Diagnosing the %s error failed; the card carries no diagnosis", exc.error_code, exc_info=True)
+        return None
 
 
 async def yield_stream_exception_chunks(
@@ -184,20 +203,21 @@ async def yield_stream_exception_chunks(
         lang = session.params.locale or "en"
         from app.core.errors.llm_errors import generate_recovery_actions
 
-        diagnostic_result = exc.diagnostic_result or {}
+        diagnostic_result = _diagnostic_result(exc, lang)
         recovery_actions = generate_recovery_actions(exc.error_code, lang)
         error_type = exc.error_code.name if hasattr(exc.error_code, "name") else str(exc.error_code)
         error_data = {
             "type": "error",
-            "data": diagnostic_result.get("user_message", str(exc)),
+            "data": (diagnostic_result or {}).get("user_message", str(exc)),
             "messageId": session.params.message_id or str(uuid.uuid4()),
-            "diagnostic_result": diagnostic_result,
             "recovery_actions": recovery_actions,
             "metadata": {
                 "error_type": error_type,
                 "recovery_actions": recovery_actions,
             },
         }
+        if diagnostic_result is not None:
+            error_data["diagnostic_result"] = diagnostic_result
         if exc.context and "cooldown_remaining_ms" in exc.context:
             error_data["cooldown_remaining_ms"] = exc.context["cooldown_remaining_ms"]
         yield SSEEnvelope.from_any(error_data).to_sse_chunk()

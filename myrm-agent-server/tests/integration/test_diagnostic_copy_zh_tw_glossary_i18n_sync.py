@@ -24,9 +24,6 @@ from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_r
 _HARNESS_LOCALES_DIR = Path(harness_i18n.__file__).parent / "locales"
 _FRONTEND_SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "scripts"
 
-# Every error type the diagnostics engine maps to recovery buttons.
-_BUTTON_ERROR_TYPES = ("api_key", "billing", "model", "custom_model_not_found")
-
 
 @dataclass(frozen=True)
 class _Glossary:
@@ -56,17 +53,29 @@ def glossary() -> _Glossary:
     for required in (glossary_file, glyphs_file):
         if not required.is_file():
             pytest.skip(f"Frontend glossary file not found: {required}")
-    forbidden = json.loads(glossary_file.read_text("utf-8"))["locales"]["zh-TW"]["forbidden"]
+    parsed: dict[str, dict[str, dict[str, object]]] = json.loads(glossary_file.read_text("utf-8"))
+    forbidden = parsed["locales"]["zh-TW"]["forbidden"]
+    assert isinstance(forbidden, list), f"{glossary_file.name} no longer lists the zh-TW forbidden words as an array"
     return _Glossary(tuple(map(str, forbidden)), frozenset(glyphs_file.read_text("utf-8").strip()))
 
 
-def _catalogue_texts(locale: str) -> list[str]:
+def _read_catalogue(locale: str) -> dict[str, str | list[str]]:
     bundle: dict[str, str | list[str]] = json.loads((_HARNESS_LOCALES_DIR / f"{locale}.json").read_text("utf-8"))
-    return [text for value in bundle.values() for text in (value if isinstance(value, list) else [value])]
+    return bundle
+
+
+def _button_error_types() -> list[str]:
+    """The catalogue error types that map to recovery buttons, so a new button type is scanned without a list to edit."""
+    error_types = (key.removesuffix("_user_message") for key in _read_catalogue("en") if key.endswith("_user_message"))
+    return [error_type for error_type in error_types if build_recovery_actions(error_type, "en")]
+
+
+def _catalogue_texts(locale: str) -> list[str]:
+    return [text for value in _read_catalogue(locale).values() for text in (value if isinstance(value, list) else [value])]
 
 
 def _button_labels(locale: str) -> list[str]:
-    return [action["label"] for kind in _BUTTON_ERROR_TYPES for action in build_recovery_actions(kind, locale)]
+    return [action["label"] for kind in _button_error_types() for action in build_recovery_actions(kind, locale)]
 
 
 _SURFACES: dict[str, Callable[[str], list[str]]] = {"catalogue": _catalogue_texts, "buttons": _button_labels}

@@ -254,7 +254,7 @@ class TestExceptionChunkBranches:
         assert payload["recovery_actions"] == ["wait"]
 
     @pytest.mark.asyncio
-    async def test_myrm_llm_error_en_fallback(self) -> None:
+    async def test_myrm_llm_error_without_diagnosis_shows_the_diagnosed_message(self) -> None:
         exc = MyrmLLMError(
             error_code=FailoverReason.MODEL_NOT_FOUND,
             default_msg="Model does not exist",
@@ -266,7 +266,10 @@ class TestExceptionChunkBranches:
         ):
             raw = (await self._chunks(exc, "en"))[0]
         payload = self._decode(raw)
-        assert "[model_not_found]" in str(payload["data"])
+        diagnostic = payload["diagnostic_result"]
+        assert isinstance(diagnostic, dict)
+        assert payload["data"] == diagnostic["user_message"]
+        assert "[model_not_found]" not in str(payload["data"])
         assert "cooldown_remaining_ms" not in payload
 
     @pytest.mark.asyncio

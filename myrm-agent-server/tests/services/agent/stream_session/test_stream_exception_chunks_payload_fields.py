@@ -1,4 +1,4 @@
-"""Payload fields of the structured error chunks: the message id the client correlates on, the recovery locale, the cooldown."""
+"""Payload fields of the structured error chunks: the message id the client correlates on, the recovery locale, the cooldown, the diagnosis."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import orjson
 import pytest
 from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
+from myrm_agent_harness.agent.errors import LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 
@@ -46,6 +47,14 @@ def _config_incomplete() -> BaseException:
 
 def _llm_error() -> BaseException:
     return MyrmLLMError(error_code=FailoverReason.MODEL_NOT_FOUND, default_msg="Model does not exist")
+
+
+def _preflight_overflow(diagnostic_result: dict[str, object] | None = None) -> MyrmLLMError:
+    return MyrmLLMError(
+        error_code=FailoverReason.CONTEXT_OVERFLOW,
+        default_msg="Context length exceeded (Preflight Guard): 12345 > 10000",
+        diagnostic_result=diagnostic_result,
+    )
 
 
 _STRUCTURED_ERRORS = [
@@ -100,3 +109,57 @@ async def test_an_llm_error_whose_context_has_no_cooldown_carries_no_cooldown_fi
     payload = await _payload(exc, _make_session())
 
     assert "cooldown_remaining_ms" not in payload
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("attached", [None, {}], ids=["absent", "empty"])
+@pytest.mark.parametrize("locale", ["en", "zh-TW", "ja"])
+async def test_an_llm_error_without_a_diagnosis_gets_one_in_the_session_language(
+    locale: str, attached: dict[str, object] | None
+) -> None:
+    payload = await _payload(_preflight_overflow(attached), _make_session(locale=locale))
+
+    diagnostic = payload["diagnostic_result"]
+    assert isinstance(diagnostic, dict)
+    assert diagnostic["error_type"] == "context_overflow"
+    assert diagnostic["locale"] == locale
+    assert diagnostic["resolution_steps"]
+    assert diagnostic["user_message"]
+    assert payload["data"] == diagnostic["user_message"]
+
+
+@pytest.mark.asyncio
+async def test_the_diagnosis_of_an_llm_error_differs_per_session_language() -> None:
+    messages = {
+        locale: (await _payload(_preflight_overflow(), _make_session(locale=locale)))["data"] for locale in ("en", "zh-TW", "ja")
+    }
+
+    assert len(set(messages.values())) == 3
+
+
+@pytest.mark.asyncio
+async def test_an_llm_error_that_carries_a_diagnosis_sends_it_untouched() -> None:
+    attached: dict[str, object] = {
+        "error_type": "rate_limit",
+        "user_message": "Slow down",
+        "resolution_steps": ["Wait a moment"],
+        "locale": "en",
+    }
+    exc = MyrmLLMError(error_code=FailoverReason.RATE_LIMIT, default_msg="Rate limited", diagnostic_result=attached)
+
+    with patch.object(LLMErrorDiagnostic, "diagnose") as diagnose:
+        payload = await _payload(exc, _make_session())
+
+    assert payload["diagnostic_result"] == attached
+    diagnose.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_an_llm_error_whose_diagnosis_cannot_be_built_carries_no_diagnostic_field() -> None:
+    exc = _preflight_overflow()
+
+    with patch.object(LLMErrorDiagnostic, "diagnose", side_effect=RuntimeError("catalog unreadable")):
+        payload = await _payload(exc, _make_session())
+
+    assert "diagnostic_result" not in payload
+    assert payload["data"] == str(exc)
