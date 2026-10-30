@@ -295,7 +295,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 限制任务总执行次数，适用于有限次数的自动化场景：
 
 - **数据模型**：`CronJob.max_fires: int | None = None`（None 表示不限制），`CronJob.fire_count: int = 0`
-- **调度层**：executor 在执行后递增 `fire_count`，达到 `max_fires` 时自动标记为 COMPLETED
+- **调度层**：scheduler 在运行开始时递增 `fire_count`，下一次触发前 `pre_execution_check` 发现 `fire_count >= max_fires` 即把任务置为 PAUSED 并推送通知；跳过（前置条件不满足、预算阻断、内存紧张、心跳无内容）与推迟（`retry_at`）的运行没有真正执行，由 `skipped_runs.py` 退回这一次计数，所以上限统计的是真正执行过的次数；失败的运行已经执行过，仍然计数
 - **API 层**：`CronJobCreate/Update` 支持 `max_fires`（≥1），`CronJobResponse` 返回 `fire_count`
 - **前端**：CronJobCard 显示 `fire_count / max_fires` 标签，CronRunHistory 提供 MaxFiresEditor
 

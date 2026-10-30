@@ -18,7 +18,7 @@ Cron scheduling engine internals.
 | name_generator.py | Core | Intelligently truncates long prompts/commands while preserving readability. | ✅ |
 | parser.py | Core | Cron expression parsing and next-run calculation. | ✅ |
 | recovery.py | Core | Three-phase startup recovery strategy. | ✅ |
-| skipped_runs.py | Core | `SkippedRunMixin` mixed into `JobExecutor`: `_record_skipped()` writes a SKIPPED run and advances the schedule (one-shot jobs complete or are deleted); `_record_deferred()` handles `JobResult.retry_at` — SKIPPED run, no failure counted, job re-armed at the instant, one-shot jobs stay alive. Both adopt the stored job first: a deleted job gets no run record and is not brought back, a paused job stays paused. | ✅ |
+| skipped_runs.py | Core | `SkippedRunMixin` mixed into `JobExecutor`: `_record_skipped()` writes a SKIPPED run and advances the schedule (one-shot jobs complete or are deleted); `_record_deferred()` handles `JobResult.retry_at` — SKIPPED run, no failure counted, job re-armed at the instant, one-shot jobs stay alive. Neither spends `max_fires`: the scheduler counts a fire when the run starts, and both hand it back (never below 0), so the limit counts runs that executed. Both adopt the stored job first: a deleted job gets no run record and is not brought back, a paused job stays paused. | ✅ |
 | scheduler.py | Core | Cron scheduling engine. Computes exact sleep durations to the next due job and dispatches due jobs into async tasks bounded by a global and a per-user semaphore. After the stagger and slot waits a run starts only if the stored job still exists and is ACTIVE (`adopt_latest`), and then runs the stored definition. | ✅ |
 
 ## Key Dependencies

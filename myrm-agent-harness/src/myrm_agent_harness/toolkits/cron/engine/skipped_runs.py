@@ -12,9 +12,10 @@
 [POS]
 Mixed into ``JobExecutor``. A skipped run advances the schedule without counting a
 failure; a deferred run re-arms the job at the instant the runner says a repeat can
-succeed. Neither touches incremental monitors or delivery. Both write onto the stored
-job (``adopt_latest``): a job the user paused stays paused, and a deleted one is neither
-recorded nor brought back.
+succeed. Neither touches incremental monitors or delivery, and neither spends ``max_fires``:
+the scheduler counts a fire when the run starts, and nothing executed. Both write onto the
+stored job (``adopt_latest``): a job the user paused stays paused, and a deleted one is
+neither recorded nor brought back.
 """
 
 from __future__ import annotations
@@ -65,6 +66,7 @@ class SkippedRunMixin:
         if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping its skipped-run record", job.id)
             return
+        self._refund_fire(job)
         now = datetime.now(UTC)
         await self._save_skipped_run(job, now, reason)
 
@@ -93,6 +95,7 @@ class SkippedRunMixin:
         if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping deferral", job.id)
             return
+        self._refund_fire(job)
         now = datetime.now(UTC)
         await self._save_skipped_run(job, now, result.skip_reason or result.error)
 
@@ -109,6 +112,11 @@ class SkippedRunMixin:
     async def _record_skipped_by_runner(self, job: CronJob, reason: str | None) -> None:
         """Handle a job skipped by the runner (e.g. heartbeat no-content)."""
         await self._record_skipped(job, reason=reason)
+
+    @staticmethod
+    def _refund_fire(job: CronJob) -> None:
+        """Hand back the fire the scheduler counted at run start: a run that never executed spends no ``max_fires``."""
+        job.fire_count = max(job.fire_count - 1, 0)
 
     async def _save_skipped_run(self, job: CronJob, now: datetime, reason: str | None) -> None:
         await self._store.save_run(
