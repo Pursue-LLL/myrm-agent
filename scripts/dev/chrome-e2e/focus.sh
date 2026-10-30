@@ -21,9 +21,9 @@ chrome_e2e_focus_recover_log() {
     >>"${MYRM_CHROME_E2E_STATE_DIR}/chrome-e2e-focus-recover.log" 2>/dev/null || true
 }
 
-# True while macOS routes keyboard input to pid $1. `lsappinfo front` agrees with WindowServer; System Events does not
-# see IFM's feedback window as the front app and reports the app behind it instead, which let this fallback pull the
-# front out from under the window the user was typing in.
+# True while macOS routes keyboard input to pid $1. `lsappinfo front` agrees with WindowServer; System Events reports
+# the app behind IFM's feedback window as the front app, so trusting it would pull the front out from under the window
+# the user is typing in.
 chrome_e2e_is_front() {
   [[ "$(lsappinfo info -only pid "$(lsappinfo front 2>/dev/null)" 2>/dev/null)" == "\"pid\"=$1" ]]
 }
