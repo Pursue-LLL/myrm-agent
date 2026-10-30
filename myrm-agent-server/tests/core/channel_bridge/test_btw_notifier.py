@@ -73,7 +73,7 @@ class TestBtwTaskNotifier:
         assert sent_msg.content == "Test notification"
 
     @pytest.mark.asyncio
-    async def test_deliver_adds_mobile_status_button_when_task_id_present(self) -> None:
+    async def test_deliver_adds_mobile_status_button_for_the_chat_the_task_came_from(self) -> None:
         from app.channels.types.components import ActionButton, ButtonStyle
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
@@ -89,28 +89,65 @@ class TestBtwTaskNotifier:
                 ),
             ),
         )
-
-        mock_chat = MagicMock()
-        mock_chat.id = "chat-uuid-1"
+        resolve = AsyncMock(return_value=mobile_components)
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
-                "app.services.chat.chat_service.ChatService.get_channel_chat_by_key",
+                "app.services.chat.chat_service.ChatService.get_chat_by_id",
                 new_callable=AsyncMock,
-                return_value=mock_chat,
-            ),
-            patch(
-                "app.remote_access.mobile_deep_link.resolve_web_handoff_components",
-                AsyncMock(return_value=mobile_components),
-            ),
+                return_value=MagicMock(id="chat-uuid-1"),
+            ) as get_chat,
+            patch("app.remote_access.mobile_deep_link.resolve_web_handoff_components", resolve),
         ):
-            await notifier._deliver(_deliver_data(task_id="task-42"))
+            await notifier._deliver(_deliver_data(task_id="task-42", source_chat_id="chat-uuid-1"))
 
-        mock_gateway.bus.send_now.assert_awaited_once()
+        get_chat.assert_awaited_once_with("chat-uuid-1")
+        resolve.assert_awaited_once_with("chat-uuid-1", locale="en")
         sent_msg = mock_gateway.bus.send_now.call_args[0][0]
         assert sent_msg.components == mobile_components
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("source", [{}, {"source_chat_id": "   "}], ids=["no-source-chat", "blank-source-chat"])
+    async def test_deliver_adds_no_status_button_when_the_task_names_no_source_chat(self, source: dict[str, object]) -> None:
+        from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
+
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
+        resolve = AsyncMock()
+
+        with (
+            patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
+            patch("app.core.channel_bridge.channel_gateway", mock_gateway),
+            patch("app.services.chat.chat_service.ChatService.get_chat_by_id", new_callable=AsyncMock) as get_chat,
+            patch("app.remote_access.mobile_deep_link.resolve_web_handoff_components", resolve),
+        ):
+            await notifier._deliver(_deliver_data(task_id="task-42", **source))
+
+        get_chat.assert_not_awaited()
+        resolve.assert_not_awaited()
+        assert mock_gateway.bus.send_now.call_args[0][0].components is None
+
+    @pytest.mark.asyncio
+    async def test_deliver_adds_no_status_button_when_the_source_chat_is_gone(self) -> None:
+        from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
+
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
+        resolve = AsyncMock()
+
+        with (
+            patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
+            patch("app.core.channel_bridge.channel_gateway", mock_gateway),
+            patch("app.services.chat.chat_service.ChatService.get_chat_by_id", new_callable=AsyncMock, return_value=None),
+            patch("app.remote_access.mobile_deep_link.resolve_web_handoff_components", resolve),
+        ):
+            await notifier._deliver(_deliver_data(task_id="task-42", source_chat_id="deleted-chat"))
+
+        resolve.assert_not_awaited()
+        mock_gateway.bus.send_now.assert_awaited_once()
+        assert mock_gateway.bus.send_now.call_args[0][0].components is None
 
     @pytest.mark.asyncio
     async def test_deliver_swallows_undeliverable_channel(self) -> None:
