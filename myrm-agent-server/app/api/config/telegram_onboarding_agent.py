@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.agent.agent_service::AgentService (POS: 业务层Agent服务)
 - app.database.dto::AgentCreate (POS: Pydantic数据模型)
+- app.config.settings::settings (POS: 应用配置；状态目录决定跨进程锁文件的位置)
 
 [OUTPUT]
 - resolve_or_create_telegram_agent: the bound agent's id and display name, plus the id of the agent this call created

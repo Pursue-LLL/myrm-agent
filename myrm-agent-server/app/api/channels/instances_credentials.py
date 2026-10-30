@@ -2,6 +2,10 @@
 
 [INPUT]
 - api.channels.router::channel_credentials_key (POS: Channel 管理路由层)
+- core.channel_bridge::channel_gateway (POS: 应用级渠道网关单例)
+- core.channel_bridge.channel_factory::create_channel_instance, flatten_credential_strings (POS: 业务层渠道装配，连接框架工厂与应用的数据库凭据来源)
+- services.channels.credential_reload::reload_channel_credentials (POS: 凭据保存后无需重启即时生效的业务层步骤)
+- services.config.service::ConfigService (POS: 用户配置的存储与同步)
 - database.connection::get_db (POS: 数据库连接管理)
 - database.models::UserConfig (POS: ORM 模型)
 
@@ -9,7 +13,7 @@
 - router: 频道实例凭证存取 + 配置管理端点
 
 [POS]
-频道实例凭证与配置管理端点（与 `instances.py` 的 CRUD 分离，控制单文件行数）。
+频道实例凭证与配置管理端点，与 `instances.py` 的实例 CRUD 分属两个路由模块。
 """
 
 from __future__ import annotations

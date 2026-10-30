@@ -1,17 +1,20 @@
-"""Channel instance and credentials management endpoints.
+"""Channel instance endpoints: list, create, delete and rename instances, and the per-type capacity.
 
 [INPUT]
 - api.channels.schemas::ChannelInstanceCreate/Response, DisplayNameUpdate (POS: Channel API 请求响应模型)
-- api.channels.router::_channel_config_key (POS: Channel 管理路由层)
-- api.dependencies::get_deploy_identity (POS: 用户身份认证依赖)
-- database.connection::get_db, get_session (POS: 数据库连接管理)
+- api.channels.router::channel_credentials_key (POS: Channel 管理路由层)
+- core.channel_bridge::channel_gateway (POS: 应用级渠道网关单例)
+- core.channel_bridge.channel_factory::create_channel_instance, generate_instance_id, load_persisted_instances, save_persisted_instances (POS: 业务层渠道装配，连接框架工厂与应用的数据库凭据来源)
+- services.config.service::ConfigService (POS: 用户配置的存储与同步)
+- database.connection::get_session (POS: 数据库连接管理)
 - database.models::UserConfig (POS: ORM 模型)
 
 [OUTPUT]
-- router: 频道实例 CRUD + 凭证/配置管理端点
+- router: 频道实例列表、创建、删除、显示名更新与容量元数据端点
+- _delete_instance_credentials: 删除某个实例的凭据记录（微信登出路径复用）
 
 [POS]
-频道实例管理路由。提供多实例 CRUD、显示名更新、凭证存取和配置管理端点。
+频道实例管理路由。多实例 CRUD、显示名更新与每类型实例上限；凭据与配置端点在 `instances_credentials.py`。
 """
 
 from __future__ import annotations
@@ -20,12 +23,6 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.channels.instances_credentials import (  # noqa: F401  (re-export for backward compat)
-    get_channel_config,
-    get_channel_credentials,
-    save_channel_credentials,
-    update_channel_config,
-)
 from app.api.channels.router import channel_credentials_key
 from app.api.channels.schemas import (
     ChannelInstanceCreate,
@@ -225,7 +222,3 @@ async def update_channel_display_name(
         displayName=ch.display_name,
         status=ch.status,
     )
-
-
-# ── Credentials & Config ──────────────────────────────────────────
-# Moved to instances_credentials.py (keeps this module within the line budget).
