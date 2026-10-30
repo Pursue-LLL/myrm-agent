@@ -19,6 +19,9 @@ const mocks = vi.hoisted(() => ({
   getSkillGrowthSummary: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
+  // Stable identities, like the store's real actions: the dashboard reloads its list whenever they change between renders.
+  fetchLocalSkills: vi.fn(),
+  fetchUserSkillConfig: vi.fn(),
 }));
 
 const growthCopy = en.settings.skills.growth;
@@ -67,8 +70,8 @@ vi.mock('@/hooks/shared/useToast', () => ({
 
 vi.mock('@/store/skill', () => ({
   useSkillStore: () => ({
-    fetchLocalSkills: vi.fn().mockResolvedValue(undefined),
-    fetchUserSkillConfig: vi.fn().mockResolvedValue(undefined),
+    fetchLocalSkills: mocks.fetchLocalSkills,
+    fetchUserSkillConfig: mocks.fetchUserSkillConfig,
   }),
 }));
 
@@ -123,6 +126,8 @@ describe('PendingEvolutionsDashboard approve failure toast', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mocks.fetchLocalSkills.mockResolvedValue(undefined);
+    mocks.fetchUserSkillConfig.mockResolvedValue(undefined);
     mocks.listSkillGrowthCases.mockResolvedValue({ items: [pendingCase], total: 1 });
     mocks.getSkillGrowthSummary.mockResolvedValue({ total: 1, pendingReview: 1, autoApplied: 0, blocked: 0 });
   });
