@@ -1,7 +1,8 @@
 """Architecture test: every field the cron REST schemas declare is read by its route and returned by the response mapper.
 
 A request field the route never reads is accepted, validated and then dropped, so the setting looks saved
-and does nothing; a response field the mapper never sets always reads as its default.
+and does nothing; a response field the mapper never sets always reads as its default. The test catches a field that is
+dropped, not one that is read and then handed to the wrong place.
 """
 
 from __future__ import annotations

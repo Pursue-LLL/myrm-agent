@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.cron.manager import CronManager
 from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, CronRunRecord, JobType, Schedule, ScheduleKind
 
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
@@ -18,7 +20,7 @@ _STOP_CRITERIA: tuple[dict[str, object], ...] = (
 )
 # Arguments the lifecycle scan reads need real text; every other harness argument is an opaque marker.
 _SCANNED_TEXT: dict[str, object] = {"prompt": "p", "command": "c", "pre_condition_script": "s", "acceptance_criteria": ()}
-# Passed positionally (checked by identity below) or rewritten by the wrapper (``tools_allowed`` is normalised).
+# Supplied by name in the test below, or rewritten by the wrapper (``tools_allowed`` is normalised).
 _NOT_MARKERS = {"self", "user_id", "name", "job_type", "schedule", "tools_allowed"}
 _ORDINARY_CRITERIA: tuple[dict[str, object], ...] = (
     {"type": "shell", "command": "test -f /tmp/done"},
@@ -197,25 +199,23 @@ async def test_create_job_forwards_every_harness_field() -> None:
     A missing parameter fails callers with a TypeError; a parameter that is accepted but not forwarded is silently
     dropped, so each argument is checked by identity.
     """
-    import inspect
-
-    from myrm_agent_harness.toolkits.cron.manager import CronManager
-
     wrapper_params = set(inspect.signature(EntitlementGuardedCronManager.create_job).parameters)
     harness_params = set(inspect.signature(CronManager.create_job).parameters)
     assert harness_params <= wrapper_params, sorted(harness_params - wrapper_params)
 
+    named = {"user_id": "user-1", "name": "t", "job_type": object(), "schedule": object()}
     values = {name: _SCANNED_TEXT.get(name, object()) for name in harness_params - _NOT_MARKERS}
-    identity = ("user-1", "t", object(), object())
     mgr, inner = _manager_around()
     with patch(_SLOT_FN):
-        await mgr.create_job(*identity, tools_allowed=("web_search",), **values)  # type: ignore[arg-type]  # markers stand in for typed values
+        await mgr.create_job(*named.values(), tools_allowed=("web_search",), **values)  # type: ignore[arg-type]  # markers stand in for typed values
 
     call = inner.create_job.await_args
-    assert call.args == identity
-    assert not set(values) - set(call.kwargs), sorted(set(values) - set(call.kwargs))
-    assert all(call.kwargs[name] is value for name, value in values.items())
-    assert call.kwargs["tools_allowed"] == ("web_search",)
+    # Bound to the real signature, so the inner call reads the same whether it passes an argument by position or by name.
+    received = inspect.signature(CronManager.create_job).bind(None, *call.args, **call.kwargs).arguments
+    sent = named | values
+    assert not set(sent) - set(received), sorted(set(sent) - set(received))
+    assert all(received[name] is value for name, value in sent.items())
+    assert received["tools_allowed"] == ("web_search",)
 
 
 @pytest.mark.asyncio

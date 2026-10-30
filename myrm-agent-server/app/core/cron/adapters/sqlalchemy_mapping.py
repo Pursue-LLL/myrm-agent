@@ -276,6 +276,7 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.workflow_template_id = job.workflow_template_id
     m.workflow_template_args = _workflow_template_args_to_json(job.workflow_template_args)
     m.command = job.command
+    m.pre_condition_script = job.pre_condition_script
     m.delivery = delivery_to_dict(job.delivery) or {"channel": "chat"}
     m.failure_delivery = delivery_to_dict(job.failure_delivery)
     m.failure_alert = failure_alert_to_dict(job.failure_alert)
