@@ -46,17 +46,17 @@ class TestInvokeInputValidation:
             invoke_ax_element,
         )
 
-        result = invoke_ax_element("-1", "click")
+        result = invoke_ax_element("x:-1", "click")
         assert result.success is False
         assert "out of range" in (result.error or "")
 
     def test_index_exceeds_max_elements(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.perception.linux_ax import (
-            _MAX_ELEMENTS,
+            _MAX_ORDINAL,
             invoke_ax_element,
         )
 
-        result = invoke_ax_element(str(_MAX_ELEMENTS), "click")
+        result = invoke_ax_element(f"x:{_MAX_ORDINAL}", "click")
         assert result.success is False
         assert "out of range" in (result.error or "")
 
@@ -65,7 +65,7 @@ class TestInvokeInputValidation:
             invoke_ax_element,
         )
 
-        result = invoke_ax_element("99999", "click")
+        result = invoke_ax_element("x:99999", "click")
         assert result.success is False
         assert "out of range" in (result.error or "")
 
@@ -86,7 +86,7 @@ class TestInvokeImportError:
         from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
         with patch.object(builtins, "__import__", side_effect=mock_import):
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
         assert result.success is False
         assert "pyatspi not available" in (result.error or "")
 
@@ -106,7 +106,7 @@ class TestInvokeEmptyDesktop:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
 
         assert result.success is False
         assert "no applications" in (result.error or "")
@@ -134,7 +134,7 @@ class TestInvokeStaleIndex:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
 
         assert result.success is False
         assert "Stale element index" in (result.error or "")
@@ -179,7 +179,7 @@ class TestInvokeActionDispatch:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
 
         assert result.success is True
         assert "click succeeded" in (result.output or "")
@@ -194,7 +194,7 @@ class TestInvokeActionDispatch:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "invalid_action")
+            result = linux_ax.invoke_ax_element(":0", "invalid_action")
 
         assert result.success is False
         assert "Unsupported action" in (result.error or "")
@@ -211,7 +211,7 @@ class TestInvokeActionDispatch:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "fill", "hello")
+            result = linux_ax.invoke_ax_element(":0", "fill", "hello")
 
         assert result.success is True
         mock_editable.setTextContents.assert_called_with("hello")
@@ -231,7 +231,7 @@ class TestInvokeActionDispatch:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
 
         assert result.success is True
         mock_button.queryComponent.return_value.grabFocus.assert_called()
@@ -251,7 +251,7 @@ class TestInvokeActionDispatch:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "type", "s3cret-text")
+            result = linux_ax.invoke_ax_element(":0", "type", "s3cret-text")
 
         assert result.success is False
         assert "editable" in (result.error or "")
@@ -296,7 +296,7 @@ class TestInvokeActionDispatch:
 
             reload(linux_ax)
             # index 0 should be good_node (bad_node was skipped)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
 
         assert result.success is True
         mock_good_action.doAction.assert_called_with(0)
@@ -346,7 +346,7 @@ class TestInvokeTargetApp:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click", app_name="Slack")
+            result = linux_ax.invoke_ax_element("slack:0", "click")
 
         assert result.success is True
         slack_button.queryAction.return_value.doAction.assert_called_with(0)
@@ -360,7 +360,7 @@ class TestInvokeTargetApp:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click", app_name="NonExistent")
+            result = linux_ax.invoke_ax_element("nonexistent:0", "click")
 
         assert result.success is False
         assert "Stale element index" in (result.error or "")
@@ -698,7 +698,7 @@ class TestInvokeRemainingEdges:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element("slack:0", "click")
         assert result.success is True
         button1.queryAction.return_value.doAction.assert_called_with(0)
         assert not button2.queryAction.return_value.doAction.called
@@ -725,7 +725,7 @@ class TestInvokeRemainingEdges:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
         assert result.success is False
         assert "Stale element index" in (result.error or "")
 
@@ -752,7 +752,7 @@ class TestInvokeRemainingEdges:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
         assert result.success is True
         button.queryComponent.return_value.grabFocus.assert_called()
 
@@ -780,7 +780,7 @@ class TestInvokeRemainingEdges:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click")
+            result = linux_ax.invoke_ax_element(":0", "click")
         assert result.success is False
         assert "fatal" in (result.error or "")
 
@@ -799,7 +799,7 @@ class TestInvokeRemainingEdges:
             from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 
             reload(linux_ax)
-            result = linux_ax.invoke_ax_element("0", "click", app_name="Slack")
+            result = linux_ax.invoke_ax_element("slack:0", "click")
         assert result.success is False
         assert "Stale element index" in (result.error or "")
 

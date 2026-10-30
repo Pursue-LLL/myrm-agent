@@ -35,9 +35,7 @@ def _backend_named(name: str) -> MagicMock:
     ],
 )
 def test_capture_snapshot_routes_scope_and_app_name(platform: str, module: str) -> None:
-    meta = SnapshotMeta(
-        ref_count=1, app_name="Mail", window_title="Inbox", scope="target"
-    )
+    meta = SnapshotMeta(ref_count=1, app_name="Mail", window_title="Inbox", scope="target")
     snapshot = MagicMock(meta=meta, refs={"d0": MagicMock()})
     backend = _backend_named(platform)
 
@@ -47,9 +45,7 @@ def test_capture_snapshot_routes_scope_and_app_name(platform: str, module: str) 
     ) as mock_capture:
         out_meta, out_refs = capture_snapshot(backend, "target", "Mail")
 
-    mock_capture.assert_called_once_with(
-        "target", app_name="Mail", query=None, role=None
-    )
+    mock_capture.assert_called_once_with("target", app_name="Mail", query=None, role=None)
     assert out_meta is meta
     assert out_refs is snapshot.refs
 
@@ -62,12 +58,8 @@ def test_capture_snapshot_routes_scope_and_app_name(platform: str, module: str) 
         ("LinuxBackend", "linux_ax"),
     ],
 )
-def test_capture_snapshot_routes_foreground_without_app(
-    platform: str, module: str
-) -> None:
-    meta = SnapshotMeta(
-        ref_count=0, app_name="Finder", window_title="", scope="foreground"
-    )
+def test_capture_snapshot_routes_foreground_without_app(platform: str, module: str) -> None:
+    meta = SnapshotMeta(ref_count=0, app_name="Finder", window_title="", scope="foreground")
     snapshot = MagicMock(meta=meta, refs={})
     backend = _backend_named(platform)
 
@@ -77,9 +69,7 @@ def test_capture_snapshot_routes_foreground_without_app(
     ) as mock_capture:
         out_meta, out_refs = capture_snapshot(backend, "foreground", None)
 
-    mock_capture.assert_called_once_with(
-        "foreground", app_name=None, query=None, role=None
-    )
+    mock_capture.assert_called_once_with("foreground", app_name=None, query=None, role=None)
     assert out_meta is meta
     assert out_refs is snapshot.refs
 
@@ -133,7 +123,11 @@ def test_invoke_element_routes(platform: str, module: str) -> None:
     ) as mock_invoke:
         result = invoke_element(_backend_named(platform), element, "click")
 
-    mock_invoke.assert_called_once_with("0", "click", "", app_name=None)
+    if module == "linux_ax":
+        # A Linux backend_key names its own application, so no app name is passed.
+        mock_invoke.assert_called_once_with("0", "click", "")
+    else:
+        mock_invoke.assert_called_once_with("0", "click", "", app_name=None)
     assert result.success is True
 
 

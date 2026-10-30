@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-119 · Linux AT-SPI 元素的编号在快照与调用之间对不上，前台快照还混入后台应用的元素；BUG-118 的前台改名又让语义调用与跟进快照按名字找不到应用
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/perception/linux_ax.py`、`ax_dispatch.py`；测试 `tests/toolkits/computer_use/test_linux_ax_scoping.py`；没有改提示词与工具 schema，`backend_key` 不进入模型可见输出，不影响提示词缓存） |
+| **发现时间** | 2026-10-30（对 BUG-118 的提交做对抗式审查时，沿 `meta.app_name` 的全部调用方回溯） |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P2（仅装了 `python3-pyatspi` 的 Linux 桌面；官方沙箱镜像 `Dockerfile` / `Dockerfile.official` 只装 `at-spi2-core`，没有 pyatspi，语义路径本来就不工作，不受影响）。三个问题：① BUG-118 把前台快照的 `meta.app_name` 改成 X11 类名后，`desktop_session.py` 把它原样传给 `invoke_ax_element(app_name=…)` 与 `scope="target"` 的跟进快照，这两处按 AT-SPI 应用名匹配，类名与 AT-SPI 名不同的应用（`Org.gnome.Nautilus` 对 `nautilus`）会找不到元素，退回坐标点击、跟进快照报「target window not found」。② 快照的 `walk` 只给匹配 query/role 的元素编号，调用侧 `_collect` 却给全部交互元素编号，带 `query` 或 `role` 过滤的快照里 `@d0` 的 `backend_key="0"` 在调用里指向全部元素里的第 0 个，可能点到别的元素（对两段代码的逻辑对比，没有在真实 AT-SPI 上运行）。③ 前台快照遍历桌面上的全部应用，守卫只看前台应用名，而调用直接对 ref 所属的应用 `doAction`，后台的银行、聊天应用的元素对模型可见。 |
+| **关联产品** | 有 `python3-pyatspi` 的 Linux 桌面（本地 WebUI、桌面端）。 |
+| **根因** | 快照与调用各有一套遍历，没有单一的「交互元素顺序」来源；元素的编号既不带所属应用，也先过滤后编号；前台应用身份与 AT-SPI 寻址共用 `meta.app_name`。 |
+| **修复** | 单一遍历函数 `_iter_interactive` 按应用、按文档顺序产出交互元素，快照与调用都用它；序号是应用内序号，在 query/role 过滤之前分配。`backend_key` 改为 `<AT-SPI 应用名小写>:<序号>`（按最后一个冒号拆分，应用名含冒号也成立），调用不再使用 `app_name` 参数（`ax_dispatch.invoke_element` 对 Linux 不再传入），焦点切换也不影响调用。前台快照用 `xdotool getactivewindow getwindowpid` 的进程号与 AT-SPI 应用的 `get_process_id()` 匹配，只遍历前台窗口的应用；读不到进程号或没有应用匹配时遍历全部应用，与此前行为一致；已匹配但过滤后为空时不再回退到别的应用。`scope="target"` 的名字解析不到 AT-SPI 应用时，若它等于 X11 给前台窗口的名字，则按前台进程解析到该窗口的应用，让跟进快照仍可用。扫描上限（每个应用 5000）与输出上限（500 个 ref）分开，序号先分配，带过滤的快照在大树里不会漏掉靠后的匹配项。顺带修了 `ax_dispatch.capture_snapshot` 三个平台共用一个变量名导致的 2 个 mypy 错误。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 起初设计成「invoke 自己重新读前台进程」，审查时发现快照可能是 `scope="target"` 的、调用时焦点也可能已经换了，invoke 无法分辨，改为让 `backend_key` 自己说明范围。 |
+| **回归** | [1] 新增 24 个用例（`test_linux_ax_scoping.py`）：过滤后的 ref 调用到模型看到的元素、各应用独立计数、含冒号的应用名往返、输出上限之后的匹配项仍可达、扫描上限限制序号、缺少数字序号的 key 被拒、X11 名与 AT-SPI 名不同时调用与前台快照仍成功、目标快照可按 X11 名到达前台应用、按 AT-SPI 名的目标快照不查询 X11、另一个窗口的 X11 名不会解析目标、前台只列活动窗口的应用、过滤只匹配别的应用时找不到、进程无法匹配时列出全部应用、应用进程不可读时不被匹配、`_foreground_pid` 的读取与失败。原有的 invoke 与 dispatch 用例改用新 key 格式。[2] 变异验证：10 个变异里 9 个被杀（调用忽略应用 key、前台列出全部、去掉回退、去掉 X11 别名解析、别名匹配任意窗口、`partition` 代替 `rpartition`、序号取过滤后计数、去掉扫描上限、用输出上限做扫描上限）；第 10 个「接受 -1 的进程号」与原行为等价（真实进程号不会等于它），已删除该冗余判断。[3] `tests/toolkits/computer_use`（排除 `test_macos_ax_script.py`）1213 passed、12 skipped。 |
+| **仍然存在** | ① 本机没有 pyatspi 与 Linux 桌面，`get_process_id()` 的调用形式、真实 AT-SPI 的子节点顺序都只用 mock 验证，没有在真实 AT-SPI 上运行；`get_process_id` 在 libatspi 文档中存在（经 D-Bus `GetConnectionUnixProcessID` 取进程号），pyatspi 包装层里不存在时按「读不到」处理，行为退回遍历全部应用。② Flatpak/Snap 应用的进程号命名空间可能与 X11 的 `_NET_WM_PID` 不同，匹配不上时同样遍历全部应用。③ 前台快照每次多一次 `xdotool` 子进程，没有测量耗时。④ 官方沙箱镜像没有 pyatspi，沙箱里的语义路径不工作，本条不改变这一点。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/toolkits/computer_use/perception/linux_ax.py`（`_iter_interactive`、`_foreground_apps`、`_target_apps`、`_parse_backend_key`、`invoke_ax_element`） · `perception/ax_dispatch.py` · `myrm-agent-harness/tests/toolkits/computer_use/test_linux_ax_scoping.py` |
+
 ### BUG-HARNESS-2026-10-30-118 · Linux 上敏感应用守卫拿不到真正的前台应用：AT-SPI 读不到窗口时是空名放行，读得到时是桌面上第一个应用（终端、银行、密码管理器、Agent 自身界面都可能不被拦）
 
 | 字段 | 内容 |
@@ -16,7 +33,7 @@
 | **反复次数** | 第 1 次。 |
 | **踩坑** | 起初要修的是另一个问题：非 ASCII 文本粘贴在终端里用 `Ctrl+V` 不生效（终端要 `Ctrl+Shift+V`），并已按一个成熟 X11 文本扩展工具的补丁表设计好方案。落地前读 `safety.py:182-195` 发现终端本来就在 GUI 自动化的拦截名单里，主流终端不会走到 `type_text`，那个方案收益极小而撤回；顺着这条线才发现名单本身在 Linux 上会因空应用名失效。 |
 | **回归** | [1] 12 个新用例。树为空时：类名命名应用（`Alacritty`）、`gnome-terminal` 类在没有 AT-SPI 时被守卫拦下、类名读不到时用标题（`konsole - bash`）并被拦下、普通应用（`firefox`）不被拦、没有活动窗口时仍为空、`xdotool` 缺失与超时都按读不到处理。AT-SPI 有结果时：X11 窗口取代第一个被列出的应用（名字、标题、`app_id`，`refs` 不变）、前台是第二个被列出的终端时守卫拦下、X11 读不到时沿用 AT-SPI 身份、类名已知而标题读不到时标题为空、`inspect_foreground` 报告 X11 应用。原有的「空树」用例补了 `_read_foreground_meta` 的隔离，避免在装了 xdotool 的 Linux 开发机上读到真实窗口。[2] 变异验证：树为空时把兜底改回空应用名，4 个用例变红（22 通过）；有结果时去掉身份覆盖，4 个用例变红（27 通过）。[3] `tests/toolkits/computer_use`（排除 `test_macos_ax_script.py`）1189 passed、12 skipped（8 个真实 X11 与 4 个 Windows 原生用例由平台门控跳过），`tests/architecture` 6922 passed、11 skipped；`linux_ax.py` 的 mypy 与 ruff 通过。 |
-| **仍然存在** | ① 「前台」快照的元素 `refs` 仍然来自桌面上的全部应用，不是只来自前台应用（`_try_pyatspi_snapshot` 没有按活动窗口过滤），模型可能拿到后台应用的元素；把 AT-SPI 应用与 X11 活动窗口对应起来只能靠标题或类名启发式匹配，没有真实 AT-SPI 环境验证，匹配不上还会让快照变空，所以没有改。真实 AT-SPI 里桌面子节点的顺序也没有验证，复现来自 mock。② Windows 的 `inspect_foreground` 在 UIA 树为空时同样返回空应用名（`windows_ax.py:406-413`），没有 Windows 真机，不能验证兜底读法，没有改。③ `WM_CLASS` 的 `xprop` 输出格式 `WM_CLASS(STRING) = "实例", "类"` 只由单元测试里的样例覆盖，没有在真实 X11 上跑过（容器无网络）。④ 守卫关键词是子串匹配，`wt`、`cmd`、`warp` 等短词原本在 macOS 与 Windows 上就可能误拦，现在也会作用于 Linux 窗口，方向偏安全。⑤ 原生 Wayland 窗口 xdotool 读不到，仍然是空名。 |
+| **仍然存在** | ① 前台快照的元素范围与名字回归已在 BUG-HARNESS-2026-10-30-119 处理。② Windows 的 `inspect_foreground` 在 UIA 树为空时同样返回空应用名（`windows_ax.py:406-413`），没有 Windows 真机，不能验证兜底读法，没有改。③ `WM_CLASS` 的 `xprop` 输出格式 `WM_CLASS(STRING) = "实例", "类"` 只由单元测试里的样例覆盖，没有在真实 X11 上跑过（容器无网络）。④ 守卫关键词是子串匹配，`wt`、`cmd`、`warp` 等短词原本在 macOS 与 Windows 上就可能误拦，现在也会作用于 Linux 窗口，方向偏安全。⑤ 原生 Wayland 窗口 xdotool 读不到，仍然是空名。 |
 | **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/toolkits/computer_use/perception/linux_ax.py`（`_x11_query`、`_read_foreground_meta`、`inspect_foreground`） · `myrm-agent-harness/pyproject.toml`（mypy `ignore_missing_imports`） · `myrm-agent-harness/tests/toolkits/computer_use/test_linux_ax_errors.py`（`TestForegroundX11Fallback`） |
 
 ### BUG-HARNESS-2026-10-30-117 · 技能从 git 安装时，克隆地址以 `-` 开头会被 git 当成命令行选项

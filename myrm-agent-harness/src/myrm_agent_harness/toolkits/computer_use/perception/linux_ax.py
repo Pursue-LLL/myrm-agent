@@ -6,6 +6,7 @@ import logging
 import re
 import shutil
 import subprocess
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
@@ -19,7 +20,9 @@ from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 logger = logging.getLogger(__name__)
 
-_MAX_ELEMENTS = 500
+_MAX_ELEMENTS = 500  # refs one snapshot returns
+_MAX_ORDINAL = 5000  # interactive elements scanned per application; bounds the ordinal in a backend_key
+_KEY_SEPARATOR = ":"
 
 # One X11 query must not stall the safety check that depends on it.
 _X11_QUERY_TIMEOUT_S = 2
@@ -45,107 +48,6 @@ class LinuxAxSnapshot:
     refs: dict[str, ElementRef]
 
 
-def _try_pyatspi_snapshot(
-    target_app: str | None = None,
-    query: str | None = None,
-    role: str | None = None,
-) -> LinuxAxSnapshot | None:
-    try:
-        import pyatspi
-    except ImportError:
-        return None
-
-    desktop = pyatspi.Registry.getDesktop(0)
-    if desktop.childCount == 0:
-        return None
-
-    refs: dict[str, ElementRef] = {}
-    app_name = ""
-    window_title = ""
-    app_id = ""
-    counter = 0
-
-    query_lower = (query or "").lower().strip()
-    role_lower = (role or "").lower().strip()
-
-    def walk(node: object) -> None:
-        nonlocal counter, app_name, window_title, app_id
-        if counter >= _MAX_ELEMENTS:
-            return
-        try:
-            role_name = node.getRoleName()  # type: ignore[attr-defined]
-            name = node.name or ""  # type: ignore[attr-defined]
-            node.getState()  # type: ignore[attr-defined]
-        except Exception:
-            return
-
-        if role_name in {"frame", "window"} and not window_title:
-            window_title = name
-        if role_name in {"application"} and not app_name:
-            app_name = name
-            if name:
-                app_id = f"linux:{name.strip().lower()}"
-
-        if role_name in _INTERACTIVE_ROLES:
-            match_query = True
-            if query_lower:
-                match_query = query_lower in name.lower()
-
-            match_role = True
-            if role_lower:
-                match_role = role_lower in role_name.lower()
-
-            if match_query and match_role:
-                try:
-                    component = node.queryComponent()  # type: ignore[attr-defined]
-                    extents = component.getExtents(0)
-                except Exception:
-                    extents = None
-                if extents and extents.width > 0 and extents.height > 0:
-                    ref_id = f"d{counter}"
-                    refs[ref_id] = ElementRef(
-                        ref_id=ref_id,
-                        role=role_name,
-                        name=name,
-                        bbox=BBox(extents.x, extents.y, extents.width, extents.height),
-                        backend_key=str(counter),
-                        actions=(("click", "fill") if role_name in {"text", "entry"} else ("click",)),
-                    )
-                    counter += 1
-
-        try:
-            for idx in range(node.childCount):  # type: ignore[attr-defined]
-                walk(node.getChildAtIndex(idx))  # type: ignore[attr-defined]
-        except Exception:
-            return
-
-    target_lower = target_app.strip().lower() if target_app else ""
-    for idx in range(desktop.childCount):
-        child = desktop.getChildAtIndex(idx)
-        if target_lower:
-            try:
-                child_role = child.getRoleName()
-                child_name = child.name or ""
-            except Exception:
-                continue
-            if child_role != "application" or child_name.strip().lower() != target_lower:
-                continue
-        walk(child)
-
-    if not refs:
-        return None
-
-    meta = SnapshotMeta(
-        ref_count=len(refs),
-        app_name=app_name,
-        window_title=window_title,
-        scope="foreground" if not target_lower else "target",
-        app_id=app_id,
-        truncated=counter >= _MAX_ELEMENTS,
-    )
-    return LinuxAxSnapshot(meta=meta, refs=refs)
-
-
 def _x11_query(argv: list[str]) -> str:
     """Stdout of one X11 helper command; empty when the tool is missing, times out or fails."""
     try:
@@ -167,6 +69,194 @@ def _read_foreground_meta() -> tuple[str, str]:
     # xprop prints: WM_CLASS(STRING) = "instance", "Class"
     quoted = _QUOTED_STRING.findall(_x11_query(["xprop", "-id", win_id, "WM_CLASS"]))
     return (quoted[-1] if quoted else ""), title
+
+
+@dataclass(frozen=True)
+class _Interactive:
+    """One interactive element in AT-SPI traversal order."""
+
+    node: object
+    app_name: str
+    window_title: str
+    role: str
+    name: str
+    bbox: BBox
+    # Position among the application's interactive elements, assigned before any query/role filter so that a
+    # snapshot and a later invoke count the same elements.
+    ordinal: int
+
+    @property
+    def backend_key(self) -> str:
+        return f"{_app_key(self.app_name)}{_KEY_SEPARATOR}{self.ordinal}"
+
+
+def _app_key(app_name: str) -> str:
+    return app_name.strip().lower()
+
+
+def _node_name(node: object) -> str:
+    try:
+        name = node.name  # type: ignore[attr-defined]
+    except Exception:
+        return ""
+    return name if isinstance(name, str) else ""
+
+
+def _app_pid(app: object) -> int | None:
+    try:
+        return int(app.get_process_id())  # type: ignore[attr-defined]
+    except Exception:
+        return None
+
+
+def _select_apps(desktop: object, keep: Callable[[object], bool]) -> list[object]:
+    apps: list[object] = []
+    for idx in range(desktop.childCount):  # type: ignore[attr-defined]
+        try:
+            child = desktop.getChildAtIndex(idx)  # type: ignore[attr-defined]
+            if keep(child):
+                apps.append(child)
+        except Exception:
+            continue
+    return apps
+
+
+def _walk(
+    node: object,
+    app_name: str,
+    window_title: str,
+    ordinals: dict[str, int],
+) -> Iterator[_Interactive]:
+    key = _app_key(app_name)
+    if ordinals.get(key, 0) >= _MAX_ORDINAL:
+        return
+    try:
+        role_name = node.getRoleName()  # type: ignore[attr-defined]
+        name = node.name or ""  # type: ignore[attr-defined]
+        node.getState()  # type: ignore[attr-defined]
+    except Exception:
+        return
+
+    if role_name in {"frame", "window"} and not window_title:
+        window_title = name
+
+    if role_name in _INTERACTIVE_ROLES:
+        try:
+            extents = node.queryComponent().getExtents(0)  # type: ignore[attr-defined]
+        except Exception:
+            extents = None
+        if extents and extents.width > 0 and extents.height > 0:
+            ordinal = ordinals.get(key, 0)
+            ordinals[key] = ordinal + 1
+            yield _Interactive(
+                node=node,
+                app_name=app_name,
+                window_title=window_title,
+                role=role_name,
+                name=name,
+                bbox=BBox(extents.x, extents.y, extents.width, extents.height),
+                ordinal=ordinal,
+            )
+
+    try:
+        for idx in range(node.childCount):  # type: ignore[attr-defined]
+            yield from _walk(node.getChildAtIndex(idx), app_name, window_title, ordinals)  # type: ignore[attr-defined]
+    except Exception:
+        return
+
+
+def _iter_interactive(apps: list[object]) -> Iterator[_Interactive]:
+    """Interactive elements of *apps* in document order; the single source of element order for snapshot and invoke."""
+    ordinals: dict[str, int] = {}
+    for app in apps:
+        yield from _walk(app, _node_name(app), "", ordinals)
+
+
+def _foreground_pid() -> int | None:
+    out = _x11_query(["xdotool", "getactivewindow", "getwindowpid"])
+    return int(out) if out.isdigit() and int(out) > 0 else None
+
+
+def _apps_of_pid(desktop: object, pid: int) -> list[object]:
+    return _select_apps(desktop, lambda app: _app_pid(app) == pid)
+
+
+def _foreground_apps(desktop: object) -> list[object]:
+    """Applications of the active window; every application when its process cannot be matched."""
+    everyone = _select_apps(desktop, lambda _app: True)
+    pid = _foreground_pid()
+    if pid is None:
+        return everyone
+    return _apps_of_pid(desktop, pid) or everyone
+
+
+def _target_apps(desktop: object, target_lower: str) -> list[object]:
+    """Applications named *target_lower*; the name X11 gives the active window also reaches that window's application."""
+    named = _select_apps(
+        desktop,
+        lambda app: app.getRoleName() == "application" and _app_key(_node_name(app)) == target_lower,  # type: ignore[attr-defined]
+    )
+    if named:
+        return named
+    wm_class, title = _read_foreground_meta()
+    if _app_key(wm_class or title) != target_lower:
+        return []
+    pid = _foreground_pid()
+    return _apps_of_pid(desktop, pid) if pid is not None else []
+
+
+def _try_pyatspi_snapshot(
+    target_app: str | None = None,
+    query: str | None = None,
+    role: str | None = None,
+) -> LinuxAxSnapshot | None:
+    try:
+        import pyatspi
+    except ImportError:
+        return None
+
+    desktop = pyatspi.Registry.getDesktop(0)
+    if desktop.childCount == 0:
+        return None
+
+    target_lower = _app_key(target_app) if target_app else ""
+    apps = _target_apps(desktop, target_lower) if target_lower else _foreground_apps(desktop)
+
+    query_lower = (query or "").lower().strip()
+    role_lower = (role or "").lower().strip()
+
+    refs: dict[str, ElementRef] = {}
+    first: _Interactive | None = None
+    for item in _iter_interactive(apps):
+        if query_lower and query_lower not in item.name.lower():
+            continue
+        if role_lower and role_lower not in item.role.lower():
+            continue
+        first = first or item
+        ref_id = f"d{len(refs)}"
+        refs[ref_id] = ElementRef(
+            ref_id=ref_id,
+            role=item.role,
+            name=item.name,
+            bbox=item.bbox,
+            backend_key=item.backend_key,
+            actions=(("click", "fill") if item.role in {"text", "entry"} else ("click",)),
+        )
+        if len(refs) >= _MAX_ELEMENTS:
+            break
+
+    if first is None:
+        return None
+
+    meta = SnapshotMeta(
+        ref_count=len(refs),
+        app_name=first.app_name,
+        window_title=first.window_title,
+        scope="target" if target_lower else "foreground",
+        app_id=f"linux:{_app_key(first.app_name)}" if first.app_name else "",
+        truncated=len(refs) >= _MAX_ELEMENTS,
+    )
+    return LinuxAxSnapshot(meta=meta, refs=refs)
 
 
 def _with_x11_identity(snapshot: LinuxAxSnapshot) -> LinuxAxSnapshot:
@@ -223,19 +313,33 @@ def capture_ax_snapshot(
     raise AXTreeEmptyError("AT-SPI tree unavailable in this environment. Install pyatspi or use desktop_vision_tool.")
 
 
+def _parse_backend_key(backend_key: str) -> tuple[str, int] | None:
+    """Split ``<application>:<ordinal>``; the application name may itself contain the separator."""
+    app_key, separator, ordinal_text = backend_key.rpartition(_KEY_SEPARATOR)
+    if not separator:
+        return None
+    try:
+        return app_key, int(ordinal_text)
+    except ValueError:
+        return None
+
+
 def invoke_ax_element(
     backend_key: str,
     action: str,
     text: str = "",
-    app_name: str | None = None,
 ) -> ActionResult:
-    """Invoke an AT-SPI element by flat-index (mirrors Windows UIA pattern)."""
-    try:
-        index = int(backend_key)
-    except (ValueError, TypeError):
+    """Invoke the AT-SPI element a snapshot named ``<application>:<ordinal>``.
+
+    The key carries its application, so the call needs neither the snapshot's app name (the foreground snapshot
+    reports X11's name for the window, not AT-SPI's) nor the focus to be where it was.
+    """
+    parsed = _parse_backend_key(backend_key)
+    if parsed is None:
         return ActionResult(success=False, error=f"Invalid backend_key: {backend_key}")
-    if index < 0 or index >= _MAX_ELEMENTS:
-        return ActionResult(success=False, error=f"Index {index} out of range [0, {_MAX_ELEMENTS})")
+    app_key, index = parsed
+    if index < 0 or index >= _MAX_ORDINAL:
+        return ActionResult(success=False, error=f"Index {index} out of range [0, {_MAX_ORDINAL})")
 
     try:
         import pyatspi
@@ -249,47 +353,11 @@ def invoke_ax_element(
     if desktop.childCount == 0:
         return ActionResult(success=False, error="AT-SPI desktop has no applications")
 
-    interactive: list[object] = []
-
-    def _collect(node: object) -> None:
-        if len(interactive) > index:
-            return
-        try:
-            role_name = node.getRoleName()  # type: ignore[attr-defined]
-            node.getState()  # type: ignore[attr-defined]
-        except Exception:
-            return
-        if role_name in _INTERACTIVE_ROLES:
-            try:
-                component = node.queryComponent()  # type: ignore[attr-defined]
-                extents = component.getExtents(0)
-            except Exception:
-                extents = None
-            if extents and extents.width > 0 and extents.height > 0:
-                interactive.append(node)
-        try:
-            for i in range(node.childCount):  # type: ignore[attr-defined]
-                _collect(node.getChildAtIndex(i))  # type: ignore[attr-defined]
-        except Exception:
-            return
-
-    target_lower = app_name.strip().lower() if app_name else ""
-    for i in range(desktop.childCount):
-        node = desktop.getChildAtIndex(i)
-        if target_lower:
-            try:
-                node_role = node.getRoleName()
-                node_name = node.name or ""
-            except Exception:
-                continue
-            if node_role != "application" or node_name.strip().lower() != target_lower:
-                continue
-        _collect(node)
-
-    if index >= len(interactive):
+    apps = _select_apps(desktop, lambda app: _app_key(_node_name(app)) == app_key)
+    target = next((item.node for item in _iter_interactive(apps) if item.ordinal == index), None)
+    if target is None:
         return ActionResult(success=False, error=f"Stale element index {index}")
 
-    target = interactive[index]
     normalized = action.lower()
     try:
         if normalized in {"fill", "type", "set_value"}:

@@ -259,13 +259,13 @@ class TestInvokeCollectionFailures:
     def test_collection_stops_after_index(self) -> None:
         button = _make_button()
         module = _reload_with(_desktop_with_children([button, button]))
-        result = module.invoke_ax_element("0", "click")
+        result = module.invoke_ax_element(":0", "click")
         assert result.success is True
 
     def test_component_failure_yields_stale(self) -> None:
         button = _make_button(fail_component=True)
         module = _reload_with(_desktop_with_children([button]))
-        result = module.invoke_ax_element("0", "click")
+        result = module.invoke_ax_element(":0", "click")
         assert result.success is False
         assert "Stale" in result.error
 
@@ -276,7 +276,7 @@ class TestInvokeCollectionFailures:
         app.childCount = 1
         app.getChildAtIndex.side_effect = Exception("child")
         module = _reload_with(_desktop_with_children([app]))
-        result = module.invoke_ax_element("0", "click")
+        result = module.invoke_ax_element(":0", "click")
         assert result.success is False
         assert "Stale" in result.error
 
@@ -286,7 +286,7 @@ class TestInvokeCollectionFailures:
         button = _make_button()
         app = _make_app("Slack", [button])
         module = _reload_with(_desktop_with_children([bad, app]))
-        result = module.invoke_ax_element("0", "click", app_name="Slack")
+        result = module.invoke_ax_element("slack:0", "click")
         assert result.success is True
 
 
@@ -295,7 +295,7 @@ class TestInvokeActionFailures:
         button = _make_button()
         button.queryAction.side_effect = Exception("action")
         module = _reload_with(_desktop_with_children([button]))
-        result = module.invoke_ax_element("0", "click")
+        result = module.invoke_ax_element(":0", "click")
         assert result.success is True
         button.queryComponent.return_value.grabFocus.assert_called()
 
@@ -306,7 +306,7 @@ class TestInvokeActionFailures:
         button.queryAction.return_value = action_if
         button.queryComponent.return_value.grabFocus.side_effect = Exception("broken action")
         module = _reload_with(_desktop_with_children([button]))
-        result = module.invoke_ax_element("0", "click")
+        result = module.invoke_ax_element(":0", "click")
         assert result.success is False
         assert "broken action" in result.error
 

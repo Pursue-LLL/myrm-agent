@@ -44,14 +44,14 @@ def capture_snapshot(
 ) -> tuple[SnapshotMeta, dict[str, ElementRef]]:
     platform = type(backend).__name__
     if platform == "MacOSBackend":
-        snapshot = macos_ax.capture_ax_snapshot(scope, app_name=app_name, query=query, role=role)
-        return snapshot.meta, snapshot.refs
+        macos_snapshot = macos_ax.capture_ax_snapshot(scope, app_name=app_name, query=query, role=role)
+        return macos_snapshot.meta, macos_snapshot.refs
     if platform == "WindowsBackend":
-        snapshot = windows_ax.capture_ax_snapshot(scope, app_name=app_name, query=query, role=role)
-        return snapshot.meta, snapshot.refs
+        windows_snapshot = windows_ax.capture_ax_snapshot(scope, app_name=app_name, query=query, role=role)
+        return windows_snapshot.meta, windows_snapshot.refs
     if platform == "LinuxBackend":
-        snapshot = linux_ax.capture_ax_snapshot(scope, app_name=app_name, query=query, role=role)
-        return snapshot.meta, snapshot.refs
+        linux_snapshot = linux_ax.capture_ax_snapshot(scope, app_name=app_name, query=query, role=role)
+        return linux_snapshot.meta, linux_snapshot.refs
     raise RuntimeError(f"Unsupported backend for AX snapshot: {platform}")
 
 
@@ -85,5 +85,5 @@ def invoke_element(
     if platform == "WindowsBackend":
         return windows_ax.invoke_ax_element(element.backend_key, action, text, app_name=app_name)
     if platform == "LinuxBackend":
-        return linux_ax.invoke_ax_element(element.backend_key, action, text, app_name=app_name)
+        return linux_ax.invoke_ax_element(element.backend_key, action, text)
     return ActionResult(success=False, error=f"Unsupported backend for AX invoke: {platform}")
