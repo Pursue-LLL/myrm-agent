@@ -105,7 +105,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/core/test_outbound_drain.py` | 单元 | `MessageBus.drain_outbound`：等到排队与正在发送的消息都投递完才返回、队列为空与未启动时立即返回、发送永不返回时在时限处放弃、投递循环没在跑时不空等 |
 | `channels/core/test_gateway_followup.py` | 集成 | 真实 `ChannelGateway.deliver_followup`：回复经路由与总线送到对话来源渠道的原对话；没有路由的网关什么都不送且不留临时附件；`is_session_busy` 转述路由的回答、没有路由就不忙 |
 | `channels/core/test_gateway_shutdown.py` | 集成 | 真实 `ChannelGateway.stop()`：路由器在停止时发出的委托任务中断通知，在发送本身要花时间的渠道（0.3 秒）上也先于渠道关闭送达 |
-| `channels/core/test_channel_restart_supervision.py` | 单元 | 网关健康循环对失败渠道的重启（真实 `_check_channel_health` + 注入时钟）：持续 ERROR 的渠道一小时内持续被重启而不会中途停摆，RUNNING 渠道停止应答先降级再重启，同一退避窗口内只重启一次，IDLE / STOPPED / DISABLED 永不重启，恢复健康、移除、重载后清除该渠道的退避窗口 |
+| `channels/core/test_channel_restart_supervision.py` | 单元 | 网关健康循环对失败渠道的重启（真实 `_check_channel_health` + 注入时钟）：持续 ERROR 的渠道一小时内持续被重启而不会中途停摆，RUNNING 渠道停止应答先降级再重启，同一退避窗口内只重启一次，IDLE / STOPPED / DISABLED 永不重启，恢复健康、移除、重载后清除该渠道的退避窗口；一次失败的检查只记一次失败（渠道在 `health_check` 里自己记过的，网关不再记第二次）：单次失败不降级也不重启，连续第二次失败才重启，渠道自己记失败与不记两种都一样，真实 `TelegramChannel` 在第二次失败的 `getMe` 才重启 |
+| `channels/core/test_channel_stop.py` | 单元 | `stop_channel` 给渠道停止设上限：永远不返回的 `stop()` 到上限后被放弃并记 WARNING，`stop()` 抛错与超时的日志分开，`stop()` 内部抛出的 `TimeoutError` 不当作上限，正常停止不记日志，调用方被取消照常向上传播；网关的重启、禁用、移除、重载、整体停止五处各用一个卡在 `stop()` 里的渠道，都在守卫时间内返回 |
 | `channels/delegation/test_delegation_interruption.py` | 集成 | 服务停止时的委托任务：真实路由器 `stop()` 让运行中的委托任务各自按发送者语言（en/ja/zh-CN）在原聊天与话题里收到「已中断、请重发」通知并释放配额，运行仍能收尾；用户刚 `/stop`、刚到时限、已完成的任务不会被重复通知；不肯停的运行不会拖住关停（有限宽限期）；通知发不出去也不让关停失败 |
 | `channels/delegation/test_delegation_launch_failure.py` | 集成 | `/delegate` 的回执发不出去时不留任务也不占并发名额：真实路由器下，回执发送抛错后协调器无任务、配额仍可用；连续失败超过配额上限后仍能正常委派；回执在登记任务与占名额之前发出 |
 | `channels/delegation/test_delegation_approval_window.py` | 集成 | 委托运行的审批等待取任务时限：运行从带时限的消息起步而请求者原消息不被改动，经真实渠道安全配置组装后 harness 的等待为任务时限（上限为 harness 上限 3600 秒），智能体档案显式设定的等待仍优先，前台回合沿用配置值，被聊天应答恢复的运行再次请求审批时沿用配置值（时限不随恢复消息带走） |
@@ -426,6 +427,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
 | `api/chats/test_prior_chat_recall_integration.py` | 模块 | prior_chat seed → GET `/recall/search` SSOT + mention inject 集成（真 DB，无 mock） |
 | `api/channels/test_telegram_test_connection.py` | 模块 | Telegram 连接测试接口：令牌经表单带来的代理校验（有、空串、缺省三种），不可用的代理地址在响应里不带其中的凭据 |
+| `api/channels/test_instance_credentials.py` | 模块 | 渠道凭据配置键与 camelCase 转 snake_case、实例凭据的读取与删除（按 `config_key` 而非 `id`）、创建实例时按渠道凭据声明归一化凭据（飞书、微信、钉钉、无声明回退、未知渠道抛错） |
+| `api/channels/test_instance_credentials_save.py` | 模块 | `save_channel_credentials`：实例密钥加密落库、按 merge 保留未提交字段、多实例按 `instance_id` 重建并传字符串凭据、默认实例热重载、未注册渠道热注册、重建或替换失败时保住旧渠道与已存凭据 |
+| `api/channels/test_instance_credentials_endpoints.py` | 模块 | 创建实例端点持久化凭据、热注册保留显示名与空凭据保留渠道、替换失败向上抛出、凭据读取端点遮掩密钥并把布尔值归一为字符串、每类型实例上限元数据 |
 | `api/channels/test_instance_lifecycle_integration.py` | 模块 | 渠道实例真实全链路集成（`@pytest.mark.integration`，关键路径无 mock）：`POST /instances` → 真实 `channel_factory` 创建 WebhookChannel → 真实 `ChannelGateway.add_channel` 热注册 → 持久化列表落库 → `DELETE /instances` → 真实 `remove_channel` 移除 + 持久化/凭据清理；删除不存在实例 404（覆盖设置页「删除实例确认」背后后端链路） |
 | `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；选择器与分页探针统一来自 `support/evicted_drawer_selectors.py`；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
 | `e2e/test_bash_failure_dual_evicted_drawer_chrome_e2e.py` | 模块 | 失败 bash 双 evicted 流 Chrome MCP E2E（SHARED+NAMESPACE_WRITE×1：seed `bash_failure` variant → LiveTerminal stdout/stderr 双入口 → 各自 Drawer 读回；`evicted_view_full_output` / `evicted_view_full_stderr_output` data-testid） |
