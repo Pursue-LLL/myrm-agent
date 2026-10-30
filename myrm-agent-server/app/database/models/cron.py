@@ -63,7 +63,7 @@ class CronJobModel(Base):
 
     context_from: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
-    failure_alert: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    failure_alert: Mapped[dict[str, object] | bool | None] = mapped_column(JSON, nullable=True)
     monitor_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     triggers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     acceptance_criteria: Mapped[list | None] = mapped_column(JSON, nullable=True)

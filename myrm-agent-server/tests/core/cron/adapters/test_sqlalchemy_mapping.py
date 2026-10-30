@@ -3,7 +3,7 @@
 import ast
 import inspect
 from collections.abc import AsyncIterator, Callable
-from dataclasses import replace
+from dataclasses import fields, replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -317,6 +317,16 @@ def test_every_orm_column_is_mapped_on_each_path(
     """
     unmapped = _COLUMNS - not_needed - columns_used(inspect.getsource(mapper))
     assert not unmapped, f"{mapper.__name__} never maps {sorted(unmapped)}"
+
+
+# ``user_id`` is read back as the single user "default"; nothing writes or reads the other three.
+_NOT_PERSISTED_FIELDS = frozenset({"user_id", "continuity", "job_scratchpad", "target_bot_agent_id"})
+
+
+def test_every_cron_job_field_has_a_column_or_is_listed_as_not_persisted() -> None:
+    """A field without a column is accepted by every layer above the store and is lost when the job is read back."""
+    without_column = {field.name for field in fields(CronJob)} - _COLUMNS
+    assert without_column == _NOT_PERSISTED_FIELDS, sorted(without_column ^ _NOT_PERSISTED_FIELDS)
 
 
 @pytest.mark.parametrize(

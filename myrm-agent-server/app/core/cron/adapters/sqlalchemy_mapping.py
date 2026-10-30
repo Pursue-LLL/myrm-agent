@@ -100,7 +100,7 @@ def _normalize_monitor_type(value: object) -> MonitorType:
             return cast(MonitorType, candidate)
         if candidate:
             logger.warning("Unknown monitor_type '%s', fallback to 'set'", value)
-    return cast(MonitorType, "set")
+    return "set"
 
 
 def normalize_monitor_config_payload(d: dict[str, object] | None) -> tuple[dict[str, object] | None, bool]:
@@ -115,7 +115,7 @@ def normalize_monitor_config_payload(d: dict[str, object] | None) -> tuple[dict[
     normalized_type = _normalize_monitor_type(d.get("monitor_type", "set"))
     normalized_ttl = _int_from_cfg(d.get("ttl_days", 30), 30)
     normalized_enabled = bool(d.get("enabled", True))
-    normalized = {
+    normalized: dict[str, object] = {
         "monitor_type": normalized_type,
         "ttl_days": normalized_ttl,
         "enabled": normalized_enabled,
@@ -187,7 +187,7 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         session_target=session_target,
         required_capabilities=tuple(m.required_capabilities) if m.required_capabilities else (),
         tools_allowed=tuple(m.tools_allowed) if m.tools_allowed else None,
-        skill_ids=tuple(m.skill_ids) if getattr(m, "skill_ids", None) else (),
+        skill_ids=tuple(getattr(m, "skill_ids", None) or ()),
         allowed_roots=tuple(m.allowed_roots) if m.allowed_roots else (),
         delete_after_run=m.delete_after_run,
         run_retention_days=getattr(m, "run_retention_days", 30) or 30,
