@@ -20,7 +20,8 @@ _TELEGRAM_INBOUND_PATH = (
 @pytest.mark.architecture
 def test_telegram_pre_emit_hook_resolves_to_hooks_mixin() -> None:
     """Inbound must not shadow agent-command interception on TelegramChannel."""
-    assert TelegramChannel._pre_emit_hook is TelegramHooksMixin._pre_emit_hook
+    owner = next(cls for cls in TelegramChannel.__mro__ if "_pre_emit_hook" in cls.__dict__)
+    assert owner is TelegramHooksMixin
 
 
 @pytest.mark.architecture
