@@ -34,8 +34,10 @@ vi.mock('@/lib/api', () => {
   return { ApiError: MockApiError };
 });
 
+const deployMode = vi.hoisted(() => ({ sandbox: false }));
+
 vi.mock('@/lib/deploy-mode', () => ({
-  isSandbox: () => false,
+  isSandbox: () => deployMode.sandbox,
 }));
 
 vi.mock('@/services/onboarding', () => ({
@@ -57,6 +59,7 @@ import TelegramAssistantOnboardingStep from '../TelegramAssistantOnboardingStep'
 describe('TelegramAssistantOnboardingStep', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    deployMode.sandbox = false;
   });
 
   it('completes onboarding immediately when Telegram is connected', async () => {
@@ -208,5 +211,41 @@ describe('TelegramAssistantOnboardingStep', () => {
     });
     expect(screen.queryByText('English detail from the server')).not.toBeInTheDocument();
     expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(messageKey);
+    expect(toast.error).not.toHaveBeenCalledWith('setupFailedToast');
+  });
+
+  it('does not send a sandbox user to a proxy setting the sandbox does not have', async () => {
+    deployMode.sandbox = true;
+    mockApplyTelegramAssistantOnboarding.mockRejectedValueOnce(
+      Object.assign(new ApiError('English detail from the server', 400, [], undefined, 'TELEGRAM_UNREACHABLE'), {
+        data: { code: 'TELEGRAM_UNREACHABLE' },
+      }),
+    );
+
+    render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('tokenLabel'), {
+      target: { value: '1234567890:VALID_TOKEN' },
+    });
+    fireEvent.click(screen.getByText('setupButton'));
+
+    expect(await screen.findByText('telegramUnreachableSandboxError')).toBeInTheDocument();
+    expect(screen.queryByText('telegramUnreachableError')).not.toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith('telegramUnreachableSandboxError');
+  });
+
+  it('keeps the generic toast for a failure the server did not classify', async () => {
+    mockApplyTelegramAssistantOnboarding.mockRejectedValueOnce(new ApiError('Disk full', 500));
+
+    render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('tokenLabel'), {
+      target: { value: '1234567890:VALID_TOKEN' },
+    });
+    fireEvent.click(screen.getByText('setupButton'));
+
+    expect(await screen.findByText('Disk full')).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith('setupFailedToast');
   });
 });

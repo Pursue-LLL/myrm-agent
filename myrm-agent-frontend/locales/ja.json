@@ -12315,6 +12315,7 @@
         "inProgressFriendlyError": "セットアップはまだ進行中です。数秒待ってからもう一度お試しください。",
         "tokenRejectedError": "Telegram がこのボットトークンを受け付けませんでした。@BotFather からトークン全体をコピーし直してください。",
         "telegramUnreachableError": "このデバイスから Telegram に接続できません。ネットワークを確認するか、いったんスキップして 設定 → 統合 で Telegram のプロキシを設定してください。",
+        "telegramUnreachableSandboxError": "現在 Telegram に接続できません。しばらくしてから再試行するか、いったんスキップして 設定 → 統合 であとから接続してください。",
         "setupFailed": "Telegramアシスタントのセットアップに失敗しました。",
         "setupFailedToast": "Telegramのセットアップに失敗しました。資格情報を確認して再試行してください。",
         "successToast": "Telegramアシスタントの準備ができました: {agentName}"

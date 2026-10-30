@@ -38,10 +38,13 @@ function isOnboardingConflictError(error: unknown): boolean {
   return error.message.toLowerCase().includes('already in progress');
 }
 
-type VerificationErrorKey = 'tokenRejectedError' | 'telegramUnreachableError';
+type VerificationErrorKey = 'tokenRejectedError' | 'telegramUnreachableError' | 'telegramUnreachableSandboxError';
 
-/** Maps the server's token-check failure code to its localized message; the two call for different user actions. */
-function verificationErrorKey(error: unknown): VerificationErrorKey | null {
+/**
+ * Maps the server's token-check failure code to its localized message; the two call for different user actions.
+ * The proxy the unreachable message points to is not offered in sandbox, so that mode gets its own wording.
+ */
+function verificationErrorKey(error: unknown, sandbox: boolean): VerificationErrorKey | null {
   if (!(error instanceof ApiError)) {
     return null;
   }
@@ -49,7 +52,7 @@ function verificationErrorKey(error: unknown): VerificationErrorKey | null {
     case 'TELEGRAM_TOKEN_REJECTED':
       return 'tokenRejectedError';
     case 'TELEGRAM_UNREACHABLE':
-      return 'telegramUnreachableError';
+      return sandbox ? 'telegramUnreachableSandboxError' : 'telegramUnreachableError';
     default:
       return null;
   }
@@ -142,14 +145,14 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
       );
       onComplete();
     } catch (submitError) {
-      const messageKey = verificationErrorKey(submitError);
+      const messageKey = verificationErrorKey(submitError, sandbox);
       const message = messageKey ? t(messageKey) : parseErrorMessage(submitError, t('setupFailed'));
       setError(message);
-      toast.error(t('setupFailedToast'));
+      toast.error(messageKey ? message : t('setupFailedToast'));
     } finally {
       setLoading(false);
     }
-  }, [assistantDescription, assistantName, botToken, onComplete, t, webhookUrl]);
+  }, [assistantDescription, assistantName, botToken, onComplete, sandbox, t, webhookUrl]);
 
   return (
     <div className="space-y-6" data-testid="telegram-onboarding-step">

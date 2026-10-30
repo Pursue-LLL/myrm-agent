@@ -268,7 +268,7 @@ export function TelegramConfigCard() {
           {saving && <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />}
           {t('telegramSave')}
         </Button>
-        <Button variant="outline" onClick={handleTest} disabled={testing || !creds.botToken} size="sm">
+        <Button variant="outline" onClick={handleTest} disabled={testing || !creds.botToken || proxyInvalid} size="sm">
           {testing ? (
             <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />
           ) : (
