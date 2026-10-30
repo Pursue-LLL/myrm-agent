@@ -3,12 +3,15 @@
 Covers:
 - xdpyinfo's `dimensions:` line is read first, then xrandr's current-mode line when xdpyinfo is absent or unparsable
 - when neither tool answers the 1920x1080 guess is logged, because a wrong resolution shifts every click
+- the functional capture probe picks scrot, then gnome-screenshot, and reports False on every failure
+- the active window title and mouse position fall back to "" / (0, 0) field by field
 """
 
 from __future__ import annotations
 
 import logging
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -71,3 +74,121 @@ class TestDetectLinuxResolution:
             probes.detect_linux_resolution(None)
 
         assert caplog.text == ""
+
+
+class TestProbeLinuxCapturable:
+    @staticmethod
+    def _which(*available: str) -> MagicMock:
+        return MagicMock(side_effect=lambda name: f"/usr/bin/{name}" if name in available else None)
+
+    def test_scrot_is_preferred_and_its_png_is_judged(self) -> None:
+        run = MagicMock(return_value=subprocess.CompletedProcess([], 0))
+        with (
+            patch("shutil.which", self._which("scrot", "gnome-screenshot")),
+            patch("subprocess.run", run),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.capture_probe.png_bytes_look_capturable", return_value=True
+            ),
+        ):
+            assert probes.probe_linux_capturable() is True
+
+        assert run.call_args.args[0][:2] == ["scrot", "-o"]
+
+    def test_gnome_screenshot_is_the_fallback(self) -> None:
+        run = MagicMock(return_value=subprocess.CompletedProcess([], 0))
+        with (
+            patch("shutil.which", self._which("gnome-screenshot")),
+            patch("subprocess.run", run),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.capture_probe.png_bytes_look_capturable", return_value=True
+            ),
+        ):
+            assert probes.probe_linux_capturable() is True
+
+        assert run.call_args.args[0][:2] == ["gnome-screenshot", "-f"]
+
+    def test_a_blank_png_is_not_capturable(self) -> None:
+        with (
+            patch("shutil.which", self._which("scrot")),
+            patch("subprocess.run", MagicMock(return_value=subprocess.CompletedProcess([], 0))),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.capture_probe.png_bytes_look_capturable", return_value=False
+            ),
+        ):
+            assert probes.probe_linux_capturable() is False
+
+    def test_no_screenshot_tool_is_not_capturable(self) -> None:
+        run = MagicMock()
+        with patch("shutil.which", self._which()), patch("subprocess.run", run):
+            assert probes.probe_linux_capturable() is False
+
+        run.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "outcome",
+        [subprocess.CompletedProcess([], 1), subprocess.TimeoutExpired("scrot", 1.5), OSError("no display")],
+        ids=["tool-failed", "timeout", "os-error"],
+    )
+    def test_tool_failures_are_not_capturable(self, outcome: subprocess.CompletedProcess[bytes] | Exception) -> None:
+        run = MagicMock(side_effect=outcome) if isinstance(outcome, Exception) else MagicMock(return_value=outcome)
+        with patch("shutil.which", self._which("scrot")), patch("subprocess.run", run):
+            assert probes.probe_linux_capturable() is False
+
+    def test_the_temporary_png_is_removed(self) -> None:
+        run = MagicMock(return_value=subprocess.CompletedProcess([], 0))
+        with (
+            patch("shutil.which", self._which("scrot")),
+            patch("subprocess.run", run),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.capture_probe.png_bytes_look_capturable", return_value=True
+            ),
+        ):
+            probes.probe_linux_capturable()
+
+        assert not Path(run.call_args.args[0][-1]).exists()
+
+
+class TestReadScreenContext:
+    @staticmethod
+    def _run(
+        title: subprocess.CompletedProcess[str] | Exception, mouse: subprocess.CompletedProcess[str] | Exception
+    ) -> MagicMock:
+        def fake(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            outcome = title if argv[1] == "getactivewindow" else mouse
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        return MagicMock(side_effect=fake)
+
+    @staticmethod
+    def _ok(stdout: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
+
+    def test_title_and_mouse_position_are_read(self) -> None:
+        run = self._run(self._ok("Vault - Unlock\n"), self._ok("x:640 y:360 screen:0 window:123\n"))
+        with patch("subprocess.run", run):
+            context = probes.read_screen_context({"DISPLAY": ":99"})
+
+        assert (context.active_window, context.mouse_x, context.mouse_y) == ("Vault - Unlock", 640, 360)
+        assert run.call_args.kwargs["env"] == {"DISPLAY": ":99"}
+
+    def test_failing_tools_leave_the_fields_empty(self) -> None:
+        failed = subprocess.CompletedProcess([], 1, stdout="", stderr="")
+        with patch("subprocess.run", self._run(failed, failed)):
+            context = probes.read_screen_context(None)
+
+        assert (context.active_window, context.mouse_x, context.mouse_y) == ("", 0, 0)
+
+    def test_a_missing_tool_leaves_the_fields_empty(self) -> None:
+        missing = FileNotFoundError("xdotool")
+        with patch("subprocess.run", self._run(missing, missing)):
+            context = probes.read_screen_context(None)
+
+        assert (context.active_window, context.mouse_x, context.mouse_y) == ("", 0, 0)
+
+    def test_an_unparsable_mouse_line_does_not_drop_the_title(self) -> None:
+        with patch("subprocess.run", self._run(self._ok("Editor\n"), self._ok("garbage"))):
+            context = probes.read_screen_context(None)
+
+        assert (context.active_window, context.mouse_x, context.mouse_y) == ("Editor", 0, 0)
