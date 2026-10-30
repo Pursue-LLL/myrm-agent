@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: idempotent timeout-vs-answer claim and audit record)
+- app.channels.reliability.inbound_journal::METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_IDS (POS: the marks of a message replayed from the inbound journal, which the timeout resume derived from it must not inherit)
 - app.channels.routing.router_keys::routing_session_key (POS: the chat-wide key the resume claim is made under)
 - app.channels.types::ApprovalExpiry, InboundMessage, TopicContext, METADATA_RESUME_SESSION_KEY (POS: the wait's time limit; the message a timeout resume is derived from; the agent binding a turn runs under; the metadata key naming the session a resume continues)
 
@@ -24,7 +25,9 @@ A resumed run goes back to the session of the turn that asked, and the agent is 
 message that resumes it, whoever answered, names the asking turn's agent route and agent session, and the router hands
 the run its topic context only when that context's agent is the asking turn's. It names the asking turn's channel
 session key as well, because a key worked out when the answer arrives can sit in another reset epoch; only the open
-request can name it, so a key a message carries itself never reaches the resume.
+request can name it, so a key a message carries itself never reaches the resume. The marks of a message replayed from
+the inbound journal name that message's own journal entries, so the timeout resume derived from a replayed turn does not
+inherit them: it is a live message, journaled and acknowledged as one.
 The timer's claim key is chat-wide (``channel:peer``), the key the manual resume claims under: one chat holds one
 timer at a time, so when two forum topics wait the later request's timer replaces the earlier one's, which then waits
 for an answer without a time limit.
@@ -37,6 +40,7 @@ from collections.abc import Awaitable, Callable
 
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
+from app.channels.reliability.inbound_journal import METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_IDS
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import METADATA_RESUME_SESSION_KEY, ApprovalExpiry, InboundMessage, TopicContext
 from app.channels.types.topics import METADATA_ROUTE_AGENT_KEY
@@ -47,6 +51,10 @@ METADATA_RESUME_AGENT_KEY = "resume_agent_id"
 
 # Set per message from the chat's session state when a turn starts; a copy from an earlier turn must not outlive it.
 _SESSION_SCOPED_METADATA = ("yolo_state", "personality_style", "force_new_epoch")
+
+# The journal entries a replayed message stands for belong to that message alone: a timeout resume derived from it has
+# none, so it must be journaled (and acknowledged) like any live message. A replayed person's answer keeps its marks.
+_REPLAY_MARKS = (METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_IDS)
 
 # Only the open request names the session a resume continues; a copy on a message that is being turned into a resume
 # is dropped, so a message cannot point the run at another chat.
@@ -125,9 +133,8 @@ class PendingApproval:
 
     def resume_message(self, resume_value: dict[str, object]) -> InboundMessage:
         """The message that resumes the asking turn's run with ``resume_value``, as the timeout's answer."""
-        metadata = {
-            k: v for k, v in self.message.metadata.items() if k not in (*_SESSION_SCOPED_METADATA, *_RESUME_TARGET_METADATA)
-        }
+        dropped = (*_SESSION_SCOPED_METADATA, *_REPLAY_MARKS, *_RESUME_TARGET_METADATA)
+        metadata = {k: v for k, v in self.message.metadata.items() if k not in dropped}
         metadata["is_resume"] = True
         metadata[METADATA_APPROVAL_TIMED_OUT_KEY] = True
         metadata.update(self.run_context())

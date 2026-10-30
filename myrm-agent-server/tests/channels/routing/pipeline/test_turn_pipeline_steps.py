@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.routing.router_keys import routing_state_key
+from tests.support.pending_approvals import asked_in
 
 from .turn_pipeline_testkit import (
     STATE_KEY,
@@ -72,6 +73,19 @@ async def test_a_replayed_message_without_an_entry_id_touches_the_journal_not_at
 
     journal.write.assert_not_called()
     journal.acknowledge.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_the_timeout_resume_of_a_replayed_turn_is_journaled_like_any_live_message() -> None:
+    router = turn_router()
+    journal = attach_journal(router)
+    asked = asked_in()
+    asked.message.metadata.update({"is_recovery": True, "recovery_entry_ids": ["entry-7"]})
+
+    await router._handle_merged(asked.resume_message({"decision": "reject"}))
+
+    journal.write.assert_called_once()
+    journal.acknowledge.assert_called_once_with(journal.write.call_args.args[0].id)
 
 
 # --- session state ---------------------------------------------------------------------------------------------------

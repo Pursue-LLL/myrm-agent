@@ -13,10 +13,17 @@ from typing import Literal
 import pytest
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
+from app.channels.reliability.inbound_journal import (
+    METADATA_IS_RECOVERY,
+    METADATA_RECOVERY_ENTRY_IDS,
+    is_recovered,
+    recovered_entry_ids,
+)
 from app.channels.routing.pending_approvals import (
     METADATA_APPROVAL_TIMED_OUT_KEY,
     PendingApproval,
     PendingApprovals,
+    answer_resume_message,
     session_agent_id,
 )
 from app.channels.types import ApprovalExpiry, TopicContext
@@ -197,6 +204,34 @@ class TestResumeMessage:
 
     def test_the_timer_key_is_the_chat_wide_key_even_inside_a_topic(self) -> None:
         assert asked_in(thread_id="t1").timer_key == asked_in().timer_key == _CHAT_KEY
+
+
+class TestTheJournalMarksOfAReplayedTurn:
+    """A replay's marks name the journal entries of that message; a message derived from it has no entry of its own."""
+
+    @staticmethod
+    def _replayed_ask() -> PendingApproval:
+        pending = asked_in()
+        pending.message.metadata.update({METADATA_IS_RECOVERY: True, METADATA_RECOVERY_ENTRY_IDS: ["entry-1"]})
+        return pending
+
+    def test_the_timeout_resume_of_a_replayed_turn_is_not_a_replay(self) -> None:
+        pending = self._replayed_ask()
+
+        resume = pending.resume_message(_TIMED_OUT)
+
+        assert not is_recovered(resume)
+        assert recovered_entry_ids(resume) == ()
+        assert is_recovered(pending.message)  # the asking message itself is left as it was
+
+    def test_a_replayed_answer_keeps_the_entry_it_has_to_acknowledge(self) -> None:
+        answer = asked_in().message
+        answer.metadata.update({METADATA_IS_RECOVERY: True, METADATA_RECOVERY_ENTRY_IDS: ["entry-2"]})
+
+        resume = answer_resume_message(answer, {"decision": "approve"}, self._replayed_ask())
+
+        assert is_recovered(resume)
+        assert recovered_entry_ids(resume) == ("entry-2",)
 
 
 class TestTheAgentTheRequestBelongsTo:
