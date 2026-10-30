@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,7 +29,7 @@ app = build_minimal_app(preset="config")
 
 
 @asynccontextmanager
-async def _noop_lifespan(_app: object):
+async def _noop_lifespan(_app: object) -> AsyncIterator[None]:
     yield
 
 
@@ -39,7 +40,7 @@ def _cleanup_db_files() -> None:
 
 
 @pytest.fixture(autouse=True)
-def clear_second_brain_preset_config():
+def clear_second_brain_preset_config() -> Iterator[None]:
     async def _clear() -> None:
         from app.services.config.service import config_service
 
@@ -51,7 +52,7 @@ def clear_second_brain_preset_config():
 
 
 @pytest.fixture(scope="module", autouse=True)
-def setup_test_database():
+def setup_test_database() -> Iterator[None]:
     asyncio.run(init_database())
     yield
     _cleanup_db_files()

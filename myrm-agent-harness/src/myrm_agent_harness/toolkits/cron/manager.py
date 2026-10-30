@@ -280,9 +280,9 @@ class CronManager(CronValidationMixin):
         """Duplicate an existing job with all configuration fields.
 
         Every ``CronJob`` field is carried over except the identity (id, name,
-        status, timestamps), the webhook credentials and the run state
-        (fire count, last run, failures, scratchpad), which start fresh, so a
-        field added to ``CronJob`` later is copied without touching this method.
+        status, timestamps), the webhook credentials and the run state, which
+        start fresh. A new configuration field is copied automatically; a new
+        run-state field must be added to the reset below (the field tests fail until it is).
         The new job starts in PAUSED status to prevent accidental triggering.
         Webhook triggers get fresh path/secret to avoid conflicts.
         """

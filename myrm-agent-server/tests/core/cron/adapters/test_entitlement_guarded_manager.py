@@ -12,11 +12,15 @@ from app.platform_utils.sandbox.entitlements.entitlement_guard import Entitlemen
 
 _SLOT_FN = "app.platform_utils.sandbox.entitlements.entitlement_guard.require_cron_slot"
 
-_STOP_CRITERIA = (
+_STOP_CRITERIA: tuple[dict[str, object], ...] = (
     {"type": "shell", "command": "./myrm restart"},
     {"type": "shell", "command": "pkill -f myrm-agent-server"},
 )
-_ORDINARY_CRITERIA = (
+# Arguments the lifecycle scan reads need real text; every other harness argument is an opaque marker.
+_SCANNED_TEXT: dict[str, object] = {"prompt": "p", "command": "c", "pre_condition_script": "s", "acceptance_criteria": ()}
+# Passed positionally (checked by identity below) or rewritten by the wrapper (``tools_allowed`` is normalised).
+_NOT_MARKERS = {"self", "user_id", "name", "job_type", "schedule", "tools_allowed"}
+_ORDINARY_CRITERIA: tuple[dict[str, object], ...] = (
     {"type": "shell", "command": "test -f /tmp/done"},
     {"type": "shell", "command": "curl -s http://example.com"},
     {"type": "semantic", "criteria": "The report must not tell the reader to run ./myrm restart"},
@@ -188,24 +192,30 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
 
 @pytest.mark.asyncio
 async def test_create_job_forwards_every_harness_field() -> None:
-    """The wrapper must accept whatever ``CronManager.create_job`` accepts, or REST/agent callers fail with TypeError."""
+    """Whatever ``CronManager.create_job`` accepts, the wrapper accepts and hands on unchanged.
+
+    A missing parameter fails callers with a TypeError; a parameter that is accepted but not forwarded is silently
+    dropped, so each argument is checked by identity.
+    """
     import inspect
 
     from myrm_agent_harness.toolkits.cron.manager import CronManager
 
     wrapper_params = set(inspect.signature(EntitlementGuardedCronManager.create_job).parameters)
     harness_params = set(inspect.signature(CronManager.create_job).parameters)
-
     assert harness_params <= wrapper_params, sorted(harness_params - wrapper_params)
 
-    inner = MagicMock()
-    inner.count_jobs = AsyncMock(return_value=0)
-    inner.create_job = AsyncMock(return_value=MagicMock(id="job-1"))
-    mgr = EntitlementGuardedCronManager(inner)
+    values = {name: _SCANNED_TEXT.get(name, object()) for name in harness_params - _NOT_MARKERS}
+    identity = ("user-1", "t", object(), object())
+    mgr, inner = _manager_around()
     with patch(_SLOT_FN):
-        await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), project_id="p1", skill_ids=("s1",))
-    kwargs = inner.create_job.await_args.kwargs
-    assert kwargs["project_id"] == "p1" and kwargs["skill_ids"] == ("s1",)
+        await mgr.create_job(*identity, tools_allowed=("web_search",), **values)  # type: ignore[arg-type]  # markers stand in for typed values
+
+    call = inner.create_job.await_args
+    assert call.args == identity
+    assert not set(values) - set(call.kwargs), sorted(set(values) - set(call.kwargs))
+    assert all(call.kwargs[name] is value for name, value in values.items())
+    assert call.kwargs["tools_allowed"] == ("web_search",)
 
 
 @pytest.mark.asyncio

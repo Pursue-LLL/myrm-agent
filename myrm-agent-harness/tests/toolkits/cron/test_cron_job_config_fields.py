@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import ast
+import inspect
+import textwrap
 from dataclasses import fields
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
@@ -35,6 +38,8 @@ _RUN_STATE: dict[str, object] = {
 }
 # Fields a duplicate gets new values for: its identity and its place in the schedule.
 _IDENTITY = {"id", "name", "status", "next_run_at", "created_at", "updated_at"}
+# Declared on the model but accepted by no code path yet; ``create_job`` has no parameter for them.
+_UNUSED = {"continuity", "target_bot_agent_id"}
 
 
 def _manager() -> tuple[CronManager, InMemoryCronStore]:
@@ -175,3 +180,28 @@ async def test_duplicate_job_of_a_missing_or_foreign_job_is_none() -> None:
 
     assert await mgr.duplicate_job("missing", _USER) is None
     assert await mgr.duplicate_job(source.id, "someone-else") is None
+
+
+def test_every_job_field_is_either_creatable_or_classified() -> None:
+    """A new ``CronJob`` field must be accepted by ``create_job`` or be classified above.
+
+    A field that is neither settable nor listed as identity, run state or unused exists on the model
+    but nothing can set it.
+    """
+    creatable = set(inspect.signature(CronManager.create_job).parameters)
+    not_creatable = {f.name for f in fields(CronJob)} - creatable
+
+    assert not_creatable == (_IDENTITY - {"name"}) | set(_RUN_STATE) | _UNUSED
+
+
+def test_update_job_reads_every_patch_field() -> None:
+    """A ``CronJobPatch`` field ``update_job`` never reads is accepted by PATCH and then ignored."""
+    tree = ast.parse(textwrap.dedent(inspect.getsource(CronManager.update_job)))
+    read = {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "patch"
+    }
+
+    unread = {f.name for f in fields(CronJobPatch)} - read
+    assert not unread, sorted(unread)

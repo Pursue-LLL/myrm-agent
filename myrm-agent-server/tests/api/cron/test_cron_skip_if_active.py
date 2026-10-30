@@ -47,7 +47,8 @@ def _create(client: TestClient, **extra: object) -> dict[str, object]:
         },
     )
     assert response.status_code == 201
-    return response.json()
+    body: dict[str, object] = response.json()
+    return body
 
 
 def test_create_stores_the_flag_and_the_response_reports_it(client: TestClient) -> None:
