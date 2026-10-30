@@ -1,4 +1,4 @@
-"""rollback_content_update: forks are removed, edited skills get their original content back."""
+"""rollback_content_update: forks are removed, edited skills get their original content back, unsupported types are refused."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 
 from app.services.skills.evolution_review.disk_content import rollback_content_update
-from app.services.skills.evolution_review.types import EvolutionApprovalPayload
+from app.services.skills.evolution_review.types import EvolutionApplyError, EvolutionApprovalPayload
 
 _FORK_ID = "fork_ab12cd34"
 
@@ -86,3 +86,21 @@ async def test_rolling_back_an_edit_restores_the_original_content(tmp_path: Path
     assert saved.content == "original"
     assert saved.lineage.change_summary == "Rolled back"
     store.delete_skill.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_rolling_back_a_retired_type_is_refused_before_the_skill_file_is_touched(tmp_path: Path) -> None:
+    skill_file = tmp_path / "demo-skill" / "SKILL.md"
+    skill_file.parent.mkdir()
+    skill_file.write_text("evolved", encoding="utf-8")
+    store = _store()
+    payload = _payload(skill_file, evolution_type=EvolutionType.FIX, original_content="original").model_copy(
+        update={"evolution_type": "optimize_description"}
+    )
+
+    with pytest.raises(EvolutionApplyError, match="optimize_description"):
+        await rollback_content_update(payload, store)
+
+    assert skill_file.read_text(encoding="utf-8") == "evolved"
+    assert list(skill_file.parent.iterdir()) == [skill_file]
+    store.save_skill.assert_not_awaited()

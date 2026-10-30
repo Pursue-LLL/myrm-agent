@@ -1,6 +1,6 @@
 """
 [INPUT]
-- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
+- .types::EvolutionApprovalPayload, EvolutionApplyError (POS: Evolution 审核域类型)
 [OUTPUT]
 - Full skill content apply (file system + SkillStore + agent fork bindings) and rollback (file system + SkillStore)
 [POS]
@@ -26,9 +26,17 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillRecord,
 )
 
-from .types import EvolutionApprovalPayload
+from .types import EvolutionApplyError, EvolutionApprovalPayload
 
 logger = logging.getLogger(__name__)
+
+
+def _require_evolution_type(payload: EvolutionApprovalPayload) -> EvolutionType:
+    """Parse the type before any side effect, so an unsupported one cannot leave a half-applied change."""
+    try:
+        return EvolutionType(payload.evolution_type)
+    except ValueError as exc:
+        raise EvolutionApplyError(f"Unsupported evolution type: {payload.evolution_type}") from exc
 
 
 async def apply_content_update(
@@ -36,6 +44,7 @@ async def apply_content_update(
     store: SkillStore,
     agent_id: str | None = None,
 ) -> None:
+    evolution_type = _require_evolution_type(payload)
     skill_path = Path(payload.skill_path)
     existing = store.get_skill(payload.skill_id)
 
@@ -57,7 +66,7 @@ async def apply_content_update(
             final_scope_agent_id = agent_id
         else:
             final_scope_agent_id = owner_id
-    elif payload.evolution_type == EvolutionType.CAPTURED.value and agent_id:
+    elif evolution_type is EvolutionType.CAPTURED and agent_id:
         final_scope_agent_id = agent_id
 
     content_to_write = payload.evolved_content
@@ -89,7 +98,7 @@ async def apply_content_update(
 
     lineage = SkillLineage(
         parent_id=payload.skill_id,
-        evolution_type=EvolutionType(payload.evolution_type),
+        evolution_type=evolution_type,
         change_summary=payload.reason,
         created_at=datetime.now(),
         created_by="evolution_engine",
@@ -173,9 +182,10 @@ async def apply_content_update(
 
 
 async def rollback_content_update(payload: EvolutionApprovalPayload, store: SkillStore) -> None:
+    evolution_type = _require_evolution_type(payload)
     skill_path = Path(payload.skill_path)
 
-    if payload.evolution_type == EvolutionType.DERIVED.value or not payload.original_content:
+    if evolution_type is EvolutionType.DERIVED or not payload.original_content:
         # A fork's lineage points at the fork itself, so the skill id its agent was bound to before the
         # fork is not recoverable here: only the fork's files and record are removed, bindings stay as they are.
         if skill_path.exists():
@@ -205,7 +215,7 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
             raise
 
         lineage = SkillLineage(
-            evolution_type=EvolutionType(payload.evolution_type),
+            evolution_type=evolution_type,
             version=1,
             parent_id=None,
             change_summary="Rolled back",
