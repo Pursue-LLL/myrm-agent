@@ -166,6 +166,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
 | `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束的回合以结果表情替换处理中表情（先按名撤销刚加的那一个），被停止的回合不留处理中表情 |
 | `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 八家 Provider（Slack、钉钉、LINE、Mattermost、Telegram、SMS、Zalo、Signal）经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线：建立不了的连接（`httpx.ConnectError`）都按重试策略重试，等答复时的读、写超时、连接被重置、协议错误都只发一次，不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`；把错误包成 `ChannelSendError` 的五家（LINE、Mattermost、SMS、Zalo、Signal）对连接超时、连接池超时、代理拒绝同样重试 |
+| `channels/providers/test_stop_releases_connection_contract.py` | 单元 | 渠道的 `stop()` 被网关的上限打断时已经释放了长连接：Telegram（草稿清理卡住）、钉钉与飞书（流式卡片结算卡住）经真实 `stop_channel` 截断后状态为 STOPPED，轮询循环、流任务、传输层都不再存活；Telegram 与钉钉再经真实 `_restart_channel` 重启，恰好留下 1 个连接（5 例；网络的卡住用永不返回的假请求代替，不连真实平台） |
 | `channels/providers/zalo/test_zalo_upload_errors.py` | 单元 | Zalo 上传附件时的传输错误：连接失败可重试，读超时不重试 |
 | `channels/providers/telegram/test_telegram_api.py` | 单元 | Telegram 客户端只调用一个端点：传输错误（连接失败、连接超时、读超时）在对官方主机发出一次请求后原样抛出，业务错误一次请求后抛出，下载不带 Host 覆盖 |
 | `channels/providers/telegram/test_telegram_proxy.py` | 单元 | Telegram 经转发代理：真实 `httpx` 客户端对本机的代理替身，HTTP 代理收到绝对形式的 `getMe` 与文件下载请求，SOCKS5 代理收到对 Bot API 主机的 CONNECT；存下的 `proxy` 凭据进入客户端，空值、缺省或全空白为无代理，首尾空白被去掉，`proxy` 是可选凭据字段 |
@@ -190,6 +191,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/mattermost/test_mattermost_reaction_lifecycle.py` | 单元 | Mattermost 按用户、帖子、名称删除自己加的反应：空串撤销已加的，没加过不发请求，添加失败抛出且不记账 |
 | `channels/providers/discord/test_discord_reaction_lifecycle.py` | 单元 | Discord `Message.remove_reaction`：空串撤销已加的反应且只撤一次，没加过不碰消息，添加失败抛出且不记账，没有机器人用户时无从撤销 |
 | `channels/providers/feishu/test_feishu_webhook_routes.py` | 单元 | 飞书 webhook 路由注册在路由注册器上，不是注册器的对象被忽略 |
+| `channels/providers/feishu/test_feishu_webhook_handler.py` | 单元 | 飞书 webhook 路由经真实 Starlette 请求、真实安全中间件与注册的处理函数：没有回复的事件应答 200 `{"ok": true}`，事件处理的结果作为应答正文，别的应用的事件 403（`app-id-mismatch`）且不处理，不是 JSON 的正文 400 且不处理，处理中抛出的错误应答 500 且正文不带原因 |
 | `channels/providers/feishu/sdk/test_at_all_defused.py` | 单元 | 智能体文本里的「@所有人」标记（`<at user_id="all">`、`<at id=all>`，含单引号、等号两侧空白、大小写、换行写法）不会通知整个飞书群：文本、富文本、卡片三种消息体经发送、回复、编辑、更新四条路径，以及流式卡片更新，一律在出口处被拆开；指向具体用户、`all_hands` 之类的标记与普通文本原样发出 |
 | `channels/providers/googlechat/test_googlechat_all_mention.py` | 单元 | 智能体文本里的 `<users/all>` 与 `<chat-user data-user="users/all">`（含大小写、单引号、无引号、等号两侧空白）不会通知整个 Google Chat 空间：创建与更新消息时都在出口处被拆开；`<users/allen>`、`<users/all_hands>`、指向具体用户的标记与普通文本原样发出 |
 | `channels/routing/test_reply_target.py` | 单元 | 系统回复（静音、忙碌、配额）引用的消息号：到达消息号优先，其次是元数据里的消息号（数字转成文本），都没有则不引用 |
