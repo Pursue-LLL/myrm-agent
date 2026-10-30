@@ -54,7 +54,7 @@ class MessageBase(BaseModel):
 
     role: str = Field(..., description="消息角色：user或assistant")
     content: str = Field(..., description="消息内容")
-    metadata: dict[str, Any] | None = Field(None, description="消息元数据")
+    metadata: dict[str, Any] | None = Field(default=None, description="消息元数据")
 
 
 class MessageDTO(BaseModel):
@@ -130,7 +130,7 @@ class MessageCreate(MessageBase):
 
     messageId: str = Field(..., description="消息ID")
     chatId: str = Field(..., description="聊天会话ID")
-    createdAt: datetime | None = Field(None, description="创建时间")
+    createdAt: datetime | None = Field(default=None, description="创建时间")
 
     model_config = {"extra": "allow"}
 
@@ -179,9 +179,9 @@ class MessageResponse(MessageBase):
     messageId: str = Field(..., description="消息ID")
     chatId: str = Field(..., description="聊天会话ID")
     createdAt: datetime = Field(..., description="创建时间")
-    siblingGroupId: str | None = Field(None, description="Sibling group ID for regenerated responses")
-    siblingCount: int = Field(0, description="Total siblings in group")
-    siblingIndex: int = Field(0, description="Current message index in sibling group (1-based)")
+    siblingGroupId: str | None = Field(default=None, description="Sibling group ID for regenerated responses")
+    siblingCount: int = Field(default=0, description="Total siblings in group")
+    siblingIndex: int = Field(default=0, description="Current message index in sibling group (1-based)")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -211,8 +211,8 @@ class _TitleModelConfig(BaseModel):
 
     model: str
     api_key: str = Field(alias="apiKey")
-    base_url: str | None = Field(None, alias="baseUrl")
-    model_kwargs: dict[str, Any] | None = Field(None, alias="modelKwargs")
+    base_url: str | None = Field(default=None, alias="baseUrl")
+    model_kwargs: dict[str, Any] | None = Field(default=None, alias="modelKwargs")
 
     model_config = {"populate_by_name": True}
 
@@ -232,15 +232,15 @@ class ChatListItem(BaseModel):
     """聊天列表项模型"""
 
     id: str = Field(..., description="聊天会话ID")
-    title: str | None = Field(None, description="聊天标题")
-    firstMessage: str | None = Field(None, description="第一条消息")
-    lastMessage: str | None = Field(None, description="最后一条消息")
+    title: str | None = Field(default=None, description="聊天标题")
+    firstMessage: str | None = Field(default=None, description="第一条消息")
+    lastMessage: str | None = Field(default=None, description="最后一条消息")
     actionMode: str = Field(..., description="聊天模式")
     source: str = Field(default="web", description="来源渠道 (web/whatsapp/telegram/feishu 等)")
-    isCompacted: bool = Field(False, description="是否已被压缩")
-    isPinned: bool = Field(False, description="是否置顶")
-    pinOrder: int = Field(0, description="置顶排序序号 (1-9)")
-    projectId: str | None = Field(None, description="所属项目 ID")
+    isCompacted: bool = Field(default=False, description="是否已被压缩")
+    isPinned: bool = Field(default=False, description="是否置顶")
+    pinOrder: int = Field(default=0, description="置顶排序序号 (1-9)")
+    projectId: str | None = Field(default=None, description="所属项目 ID")
     total_calls: int = Field(default=0, description="Session total model calls")
     total_tokens: int = Field(default=0, description="Session total tokens")
     total_usd: float = Field(default=0.0, description="Session total USD cost")
@@ -256,17 +256,17 @@ class ChatDetail(BaseModel):
     """聊天详情模型"""
 
     id: str = Field(..., description="聊天会话ID")
-    title: str | None = Field(None, description="聊天标题")
+    title: str | None = Field(default=None, description="聊天标题")
     actionMode: str = Field(..., description="聊天模式")
-    activeMoaPresetId: str | None = Field(None, description="会话 MoA preset（agent 模式 opt-in）")
-    agent_id: str | None = Field(None, description="绑定的智能体ID")
-    is_incognito: bool = Field(False, description="是否为无痕模式")
-    compacted_summary: str | None = Field(None, description="上下文压缩结构化摘要")
-    compacted_before_id: str | None = Field(None, description="被压缩的最后一条消息ID")
-    workspace_dir: str | None = Field(None, description="Per-chat working directory")
-    session_loaded_skill_names: list[str] | None = Field(None, description="会话级 Skill override 列表")
+    activeMoaPresetId: str | None = Field(default=None, description="会话 MoA preset（agent 模式 opt-in）")
+    agent_id: str | None = Field(default=None, description="绑定的智能体ID")
+    is_incognito: bool = Field(default=False, description="是否为无痕模式")
+    compacted_summary: str | None = Field(default=None, description="上下文压缩结构化摘要")
+    compacted_before_id: str | None = Field(default=None, description="被压缩的最后一条消息ID")
+    workspace_dir: str | None = Field(default=None, description="Per-chat working directory")
+    session_loaded_skill_names: list[str] | None = Field(default=None, description="会话级 Skill override 列表")
     session_access_roots: list[dict[str, object]] | None = Field(
-        None,
+        default=None,
         description="Session-scoped HITL directory grants (path, writable, source)",
     )
     total_calls: int = Field(default=0, description="Session total model calls")
@@ -290,11 +290,11 @@ class TurnOutlineItem(BaseModel):
 
     turn_index: int = Field(..., description="轮次序号（从1开始）")
     user_message_id: str = Field(..., description="本轮用户首条提问消息ID")
-    assistant_message_id: str | None = Field(None, description="本轮助手最终回复消息ID")
+    assistant_message_id: str | None = Field(default=None, description="本轮助手最终回复消息ID")
     prompt_preview: str = Field(..., description="用户提问精炼预览（前50字符）")
-    reply_preview: str | None = Field(None, description="助手回复精炼预览（前120字符）")
+    reply_preview: str | None = Field(default=None, description="助手回复精炼预览（前120字符）")
     created_at: datetime = Field(..., description="轮次起始时间")
-    message_count: int = Field(1, description="本轮包含的消息条数")
+    message_count: int = Field(default=1, description="本轮包含的消息条数")
 
 
 class ChatDetailData(BaseModel):
@@ -310,7 +310,7 @@ class CursorPage(BaseModel):
 
     messages: list[MessageResponse] = Field(..., description="消息列表（按时间升序）")
     has_more: bool = Field(..., description="是否有更早的消息")
-    next_cursor: str | None = Field(None, description="下一页游标（最早一条消息的 ID）")
+    next_cursor: str | None = Field(default=None, description="下一页游标（最早一条消息的 ID）")
 
 
 class UpdateTitleRequest(BaseModel):
@@ -322,8 +322,8 @@ class UpdateTitleRequest(BaseModel):
 class PaginationParams(BaseModel):
     """分页查询参数"""
 
-    page: int = Field(1, ge=1, description="页码，从1开始")
-    page_size: int = Field(10, ge=1, le=100, description="每页数量，1-100")
+    page: int = Field(default=1, ge=1, description="页码，从1开始")
+    page_size: int = Field(default=10, ge=1, le=100, description="每页数量，1-100")
 
 
 class PaginationMeta(BaseModel):
@@ -354,26 +354,26 @@ class ModelSelection(BaseModel):
 
     providerId: str = Field(..., description="提供商 ID")
     model: str = Field(..., description="模型名称")
-    fallbackProviderId: str | None = Field(None, description="备选提供商 ID")
-    fallbackModel: str | None = Field(None, description="备选模型名称")
-    safetyFallbackProviderId: str | None = Field(None, description="安全备选提供商 ID")
-    safetyFallbackModel: str | None = Field(None, description="安全备选模型名称")
-    modelKwargs: dict[str, object] | None = Field(None, description="模型调用参数 (temperature, top_p, max_tokens 等)")
-    routingEnabled: bool | None = Field(None, description="Per-agent Smart Routing 开关")
-    lightProviderId: str | None = Field(None, description="Per-agent 轻量路由提供商 ID")
-    lightModel: str | None = Field(None, description="Per-agent 轻量路由模型")
-    reasoningProviderId: str | None = Field(None, description="Per-agent 推理路由提供商 ID")
-    reasoningModel: str | None = Field(None, description="Per-agent 推理路由模型")
+    fallbackProviderId: str | None = Field(default=None, description="备选提供商 ID")
+    fallbackModel: str | None = Field(default=None, description="备选模型名称")
+    safetyFallbackProviderId: str | None = Field(default=None, description="安全备选提供商 ID")
+    safetyFallbackModel: str | None = Field(default=None, description="安全备选模型名称")
+    modelKwargs: dict[str, object] | None = Field(default=None, description="模型调用参数 (temperature, top_p, max_tokens 等)")
+    routingEnabled: bool | None = Field(default=None, description="Per-agent Smart Routing 开关")
+    lightProviderId: str | None = Field(default=None, description="Per-agent 轻量路由提供商 ID")
+    lightModel: str | None = Field(default=None, description="Per-agent 轻量路由模型")
+    reasoningProviderId: str | None = Field(default=None, description="Per-agent 推理路由提供商 ID")
+    reasoningModel: str | None = Field(default=None, description="Per-agent 推理路由模型")
 
 
 class AgentMemoryPolicyConfig(BaseModel):
     """Agent 记忆读写边界策略。"""
 
-    agent_id: str | None = Field(None, description="Override agent scope identifier")
-    channel_id: str | None = Field(None, description="Override channel scope identifier")
-    conversation_id: str | None = Field(None, description="Override conversation scope identifier")
-    task_id: str | None = Field(None, description="Override task scope identifier")
-    read_scopes: list[MemoryScopeLevel] | None = Field(None, description="Visible memory scope levels for recall")
+    agent_id: str | None = Field(default=None, description="Override agent scope identifier")
+    channel_id: str | None = Field(default=None, description="Override channel scope identifier")
+    conversation_id: str | None = Field(default=None, description="Override conversation scope identifier")
+    task_id: str | None = Field(default=None, description="Override task scope identifier")
+    read_scopes: list[MemoryScopeLevel] | None = Field(default=None, description="Visible memory scope levels for recall")
     write_policy: MemoryWritePolicy = Field(
         default=MemoryWritePolicy.INHERIT,
         description="Target scope for new private memories",
@@ -398,17 +398,17 @@ class AgentSessionPolicyConfig(BaseModel):
     from personalSettings for that specific agent.
     """
 
-    mode: SessionResetModeLiteral = Field("daily", description="Session segmentation strategy: persistent | daily | idle")
-    daily_reset_hour: int = Field(4, description="UTC hour for daily reset (0-23)", ge=0, le=23)
-    idle_minutes: int = Field(120, description="Idle threshold in minutes for idle mode", ge=1, le=10080)
+    mode: SessionResetModeLiteral = Field(default="daily", description="Session segmentation strategy: persistent | daily | idle")
+    daily_reset_hour: int = Field(default=4, description="UTC hour for daily reset (0-23)", ge=0, le=23)
+    idle_minutes: int = Field(default=120, description="Idle threshold in minutes for idle mode", ge=1, le=10080)
 
 
 class SkillConfig(BaseModel):
     """Skill configuration for a specific agent"""
 
-    is_core: bool = Field(False, description="Whether this skill is a core skill (always injected)")
+    is_core: bool = Field(default=False, description="Whether this skill is a core skill (always injected)")
     instance_name: str | None = Field(
-        None,
+        default=None,
         description=(
             "Bound SkillInstance name for this agent (multi-instance skills). "
             "When unset, singleton or 'default' instance is auto-selected."
@@ -426,9 +426,9 @@ class CommandBindingConfig(BaseModel):
         max_length=50,
     )
     skill_ids: list[str] = Field(default_factory=list, description="Target Skill IDs (single or bundle)")
-    description: str = Field("", description="User-facing description shown in /help")
+    description: str = Field(default="", description="User-facing description shown in /help")
     aliases: list[str] = Field(default_factory=list, description="Alternative command names")
-    instruction: str = Field("", description="Ephemeral guidance for bundle execution")
+    instruction: str = Field(default="", description="Ephemeral guidance for bundle execution")
 
     @model_validator(mode="before")
     @classmethod
@@ -446,8 +446,8 @@ class ToolGatewayConfigDTO(BaseModel):
     """Tool Gateway configuration DTO."""
 
     use_gateway: bool = Field(default=False, description="Whether to use the Unified Tool Gateway")
-    gateway_url: str | None = Field(None, description="Base URL of the Unified Tool Gateway")
-    auth_token: str | None = Field(None, description="Authentication token for the gateway")
+    gateway_url: str | None = Field(default=None, description="Base URL of the Unified Tool Gateway")
+    auth_token: str | None = Field(default=None, description="Authentication token for the gateway")
 
 
 class AgentBase(BaseModel):
@@ -585,73 +585,73 @@ class AgentCreate(AgentBase):
 class AgentUpdate(BaseModel):
     """更新智能体请求模型"""
 
-    name: str | None = Field(None, description="智能体名称", max_length=255)
-    description: str | None = Field(None, description="智能体描述")
-    avatar_url: str | None = Field(None, description="智能体头像/图标 URL", max_length=500)
-    home_directory: str | None = Field(None, description="Agent Home 目录路径", max_length=500)
-    is_built_in: bool | None = Field(None, description="是否为内置 Agent")
-    system_prompt: str | None = Field(None, description="系统指令/用户自定义提示词")
-    mcp_ids: list[str] | None = Field(None, description="关联的 MCP 配置 ID 列表")
+    name: str | None = Field(default=None, description="智能体名称", max_length=255)
+    description: str | None = Field(default=None, description="智能体描述")
+    avatar_url: str | None = Field(default=None, description="智能体头像/图标 URL", max_length=500)
+    home_directory: str | None = Field(default=None, description="Agent Home 目录路径", max_length=500)
+    is_built_in: bool | None = Field(default=None, description="是否为内置 Agent")
+    system_prompt: str | None = Field(default=None, description="系统指令/用户自定义提示词")
+    mcp_ids: list[str] | None = Field(default=None, description="关联的 MCP 配置 ID 列表")
     mcp_tool_selections: dict[str, list[str]] | None = Field(
         default=None,
         description="Per-MCP-server tool whitelist: {server_name: [tool_name...]}. None = leave unchanged.",
     )
-    skill_ids: list[str] | None = Field(None, description="关联的技能 ID 列表")
-    mounted_skill_ids: list[str] | None = Field(None, description="挂载的其他 Agent 专属技能 ID 列表")
-    skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
-    enabled_builtin_tools: OptionalBuiltinTools = Field(None, description="启用的内置工具 ID 列表")
+    skill_ids: list[str] | None = Field(default=None, description="关联的技能 ID 列表")
+    mounted_skill_ids: list[str] | None = Field(default=None, description="挂载的其他 Agent 专属技能 ID 列表")
+    skill_configs: dict[str, SkillConfig] | None = Field(default=None, description="技能的个性化配置 (如 is_core)")
+    enabled_builtin_tools: OptionalBuiltinTools = Field(default=None, description="启用的内置工具 ID 列表")
     browser_source: str | None = Field(
-        None,
+        default=None,
         description="浏览器获取方式: 'launch'/'connect'/'extension'/'auto'/'remote'。None=不修改。",
     )
     dialog_policy: str | None = Field(
-        None,
+        default=None,
         description="弹窗处理策略: 'smart'/'auto_accept'/'auto_dismiss'/'wait_for_agent'。None=不修改。",
     )
     session_recording: str | None = Field(
-        None,
+        default=None,
         description="浏览器会话录制模式: 'off'/'on_failure'/'always'。None=不修改。",
     )
-    model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
-    security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")
+    model_selection: ModelSelection | None = Field(default=None, description="绑定的模型选择")
+    security_overrides: dict[str, object] | None = Field(default=None, description="Per-agent security policy overrides")
     default_security_preset: SecurityPresetLiteral | None = Field(
-        None,
+        default=None,
         description="Per-agent default chat security preset. None=不修改。",
     )
     required_capabilities: list[str] = Field(
         default=[],
         description="该 Agent 运行所需的渠道能力列表（如 media, voice_message）",
     )
-    prompt_mode: PromptModeLiteral | None = Field(None, description="Prompt injection mode: full/lean/naked")
-    personality_style: PersonalityStyleLiteral | None = Field(None, description="Personality style preset")
-    memory_decay_profile: MemoryDecayProfileLiteral | None = Field(None, description="Memory forgetting decay speed")
+    prompt_mode: PromptModeLiteral | None = Field(default=None, description="Prompt injection mode: full/lean/naked")
+    personality_style: PersonalityStyleLiteral | None = Field(default=None, description="Personality style preset")
+    memory_decay_profile: MemoryDecayProfileLiteral | None = Field(default=None, description="Memory forgetting decay speed")
     memory_extraction_preset: MemoryExtractionPresetLiteral | None = Field(
-        None, description="Domain extraction preset for memory precision"
+        default=None, description="Domain extraction preset for memory precision"
     )
-    agent_type: AgentTypeLiteral | None = Field(None, description="Agent type: individual or team (leader)")
-    allow_discovery: bool | None = Field(None, description="是否允许被主Agent通过动态名册发现并委派")
-    subagent_ids: list[str] | None = Field(None, description="可委托的子智能体 ID 列表")
+    agent_type: AgentTypeLiteral | None = Field(default=None, description="Agent type: individual or team (leader)")
+    allow_discovery: bool | None = Field(default=None, description="是否允许被主Agent通过动态名册发现并委派")
+    subagent_ids: list[str] | None = Field(default=None, description="可委托的子智能体 ID 列表")
     max_iterations: int | None = Field(
-        None,
+        default=None,
         description=("最大迭代次数（不传/省略=不修改；显式传 null=恢复系统默认）"),
         ge=5,
         le=500,
     )
     workspace_policy: WorkspacePolicyLiteral | None = Field(
-        None,
+        default=None,
         description="Workspace policy when this agent is used as a delegated subagent",
     )
-    memory_policy: AgentMemoryPolicyConfig | None = Field(None, description="Agent memory policy")
+    memory_policy: AgentMemoryPolicyConfig | None = Field(default=None, description="Agent memory policy")
     session_policy: AgentSessionPolicyConfig | None = Field(
-        None,
+        default=None,
         description="Per-agent IM session reset policy override (null = use global policy)",
     )
     engine_params: dict[str, Any] | None = Field(
-        None,
+        default=None,
         description="Advanced engine parameters (e.g. max_tool_calls, max_replan_attempts)",
     )
     auto_restore_domains: list[str] | None = Field(
-        None,
+        default=None,
         description=(
             "Browser hostnames for persisted login auto-restore. "
             "Send null or omit the field to leave the stored value unchanged. "
@@ -659,50 +659,50 @@ class AgentUpdate(BaseModel):
         ),
     )
     suggestion_prompts: list[str] | None = Field(
-        None,
+        default=None,
         description="Custom starter prompts displayed when this agent is active in an empty chat",
     )
-    is_pareto_preset: bool | None = Field(None, description="是否为帕累托成本/效果前沿预设")
-    cost_reduction_ratio: float | None = Field(None, description="相较全量顶级闭源模型的估算降本比例")
+    is_pareto_preset: bool | None = Field(default=None, description="是否为帕累托成本/效果前沿预设")
+    cost_reduction_ratio: float | None = Field(default=None, description="相较全量顶级闭源模型的估算降本比例")
     openapi_services: list[dict[str, object]] | None = Field(
-        None,
+        default=None,
         description="OpenAPI service configurations for zero-code REST API tool integration",
     )
     command_bindings: list[CommandBindingConfig] | None = Field(
-        None,
+        default=None,
         description="Slash command bindings to Skills for IM channels",
     )
     notify_targets: list[dict[str, str]] | None = Field(
-        None,
+        default=None,
         description="Notification targets for channel_notify_tool [{channel, recipient_id, label?}]",
     )
     tool_gateway_config: ToolGatewayConfigDTO | None = Field(
-        None,
+        default=None,
         description="Tool Gateway configuration for third-party tools",
     )
     cron_post_run_verify: bool | None = Field(
-        None,
+        default=None,
         description="Run adversarial delivery verification after unattended cron agent runs",
     )
     busy_input_mode: Literal["redirect", "steer", "queue"] | None = Field(
-        None,
+        default=None,
         description="What to do with a new user message while the agent is busy: redirect/steer/queue. None=不修改。",
     )
     trusted_desktop_apps: list[dict[str, str]] | None = Field(
-        None, description="无人值守运行预信任的桌面应用 [{name, app_id?}]。None=不修改。"
+        default=None, description="无人值守运行预信任的桌面应用 [{name, app_id?}]。None=不修改。"
     )
     responsibility_scope: str | None = Field(
-        None,
+        default=None,
         description="责任单元职责定义。None=不修改；传空字符串=清空。",
         max_length=2000,
     )
     owner_label: str | None = Field(
-        None,
+        default=None,
         description="责任单元负责人标注。None=不修改；传空字符串=清空。",
         max_length=100,
     )
     acceptance_criteria: list[str] | None = Field(
-        None,
+        default=None,
         description="责任单元交付验收条目。None=不修改；传空列表=清空。",
         max_length=20,
     )
@@ -713,13 +713,13 @@ class AgentResponse(AgentBase):
 
     id: str = Field(..., description="智能体 ID")
     user_id: str = Field(..., description="用户 ID")
-    snapshot_count: int = Field(0, description="可用配置快照数量")
+    snapshot_count: int = Field(default=0, description="可用配置快照数量")
     snapshot_saved: bool | None = Field(
-        None,
+        default=None,
         description="本次更新是否成功写入变更前快照（仅 PUT 响应）",
     )
-    created_at: datetime | None = Field(None, description="创建时间")
-    updated_at: datetime | None = Field(None, description="更新时间")
+    created_at: datetime | None = Field(default=None, description="创建时间")
+    updated_at: datetime | None = Field(default=None, description="更新时间")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -729,7 +729,7 @@ class AgentProfileSnapshotItem(BaseModel):
 
     id: str = Field(..., description="快照 ID")
     agent_id: str = Field(..., description="智能体 ID")
-    reason: str | None = Field(None, description="快照原因")
+    reason: str | None = Field(default=None, description="快照原因")
     snapshot_data: dict[str, object] = Field(..., description="快照配置数据")
     created_at: datetime = Field(..., description="创建时间")
 
@@ -739,18 +739,18 @@ class AgentListItem(BaseModel):
 
     id: str = Field(..., description="智能体 ID")
     name: str = Field(..., description="智能体名称")
-    description: str | None = Field(None, description="智能体描述")
-    avatar_url: str | None = Field(None, description="智能体头像/图标 URL")
-    is_built_in: bool = Field(False, description="是否为内置 Agent")
+    description: str | None = Field(default=None, description="智能体描述")
+    avatar_url: str | None = Field(default=None, description="智能体头像/图标 URL")
+    is_built_in: bool = Field(default=False, description="是否为内置 Agent")
     agent_type: AgentTypeLiteral = Field(default="individual", description="Agent type")
     prompt_mode: str = Field(default="full", description="Prompt mode (full, lean, naked, search)")
     subagent_ids: list[str] | None = Field(default=None, description="关联子智能体 ID 列表")
     enabled_builtin_tools: list[str] | None = Field(
-        None,
+        default=None,
         description="Enabled builtin tool IDs for gallery preview",
     )
-    model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
-    created_at: datetime | None = Field(None, description="创建时间")
-    updated_at: datetime | None = Field(None, description="更新时间")
+    model_selection: ModelSelection | None = Field(default=None, description="绑定的模型选择")
+    created_at: datetime | None = Field(default=None, description="创建时间")
+    updated_at: datetime | None = Field(default=None, description="更新时间")
 
     model_config = ConfigDict(from_attributes=True)

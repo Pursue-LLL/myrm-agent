@@ -158,15 +158,15 @@ class MentionReferenceRequest(BaseModel):
         "wiki_raw_file",
         "prior_chat",
     ]
-    path: str | None = Field(None, max_length=4096)
-    file_id: str | None = Field(None, max_length=256)
-    url: str | None = Field(None, max_length=4096)
-    label: str | None = Field(None, max_length=512)
-    start_line: int | None = Field(None, ge=1)
-    end_line: int | None = Field(None, ge=1)
-    concept_name: str | None = Field(None, max_length=512)
-    range: str | None = Field(None, max_length=256)
-    content: str | None = Field(None, max_length=500_000)
+    path: str | None = Field(default=None, max_length=4096)
+    file_id: str | None = Field(default=None, max_length=256)
+    url: str | None = Field(default=None, max_length=4096)
+    label: str | None = Field(default=None, max_length=512)
+    start_line: int | None = Field(default=None, ge=1)
+    end_line: int | None = Field(default=None, ge=1)
+    concept_name: str | None = Field(default=None, max_length=512)
+    range: str | None = Field(default=None, max_length=256)
+    content: str | None = Field(default=None, max_length=500_000)
 
     class Config:
         alias_generator = to_camel
