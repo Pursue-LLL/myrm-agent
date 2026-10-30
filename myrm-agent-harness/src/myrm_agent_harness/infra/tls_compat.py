@@ -277,17 +277,3 @@ def is_tls_transient_error(error_message: str) -> bool:
     if any(pattern in lower for pattern in _TLS_HARD_SIGNALS):
         return False
     return any(pattern in lower for pattern in _TLS_TRANSIENT_PATTERNS)
-
-
-def get_tls_remediation_hint() -> str:
-    """Return user-facing hint when a TLS strict error is detected."""
-    if tls_strict_disabled():
-        return (
-            "TLS enterprise mode is enabled but the connection still failed. "
-            "Check that your CA bundle path (SSL_CERT_FILE) is correct."
-        )
-    return (
-        "This may be caused by enterprise TLS inspection (Zscaler, Netskope, etc.). "
-        "Set environment variable MYRM_TLS_STRICT=0 or enable "
-        "'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings."
-    )

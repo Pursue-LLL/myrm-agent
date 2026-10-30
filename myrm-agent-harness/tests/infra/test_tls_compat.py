@@ -14,7 +14,6 @@ from myrm_agent_harness.infra.tls_compat import (
     apply_global_tls_relaxation,
     build_httpx_verify,
     create_httpx_client,
-    get_tls_remediation_hint,
     is_tls_hard_error,
     is_tls_strict_error,
     is_tls_transient_error,
@@ -271,19 +270,3 @@ class TestIsTlsHardVsTransient:
     def test_ignores_non_tls_errors(self, msg: str) -> None:
         assert is_tls_transient_error(msg) is False
         assert is_tls_hard_error(msg) is False
-
-
-class TestGetTlsRemediationHint:
-    """Tests for get_tls_remediation_hint() user-facing messages."""
-
-    def test_hint_when_strict_enabled(self) -> None:
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("MYRM_TLS_STRICT", None)
-            hint = get_tls_remediation_hint()
-            assert "MYRM_TLS_STRICT=0" in hint
-            assert "Enterprise Network Compatibility" in hint
-
-    def test_hint_when_strict_disabled(self) -> None:
-        with patch.dict(os.environ, {"MYRM_TLS_STRICT": "0"}):
-            hint = get_tls_remediation_hint()
-            assert "SSL_CERT_FILE" in hint

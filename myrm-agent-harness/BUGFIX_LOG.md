@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-31-141 · TLS 诊断的两个分支绕开目录组装器、各自带一份写死的英文兜底，其中一份曾写着「retrying automatically」；兜底用的 `get_tls_remediation_hint()` 含配置标识符，路由之后没有任何调用方
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/errors/diagnostics/transport_diagnosis.py`、`infra/tls_compat.py`、测试 `tests/infra/test_tls_compat.py`；`myrm-agent` 本地提交，未 push）。关闭 BUG-HARNESS-2026-10-30-122 的「仍然存在 ①」。 |
+| **发现时间** | 2026-10-31（复核 140 时，核对 `agent/` 下 `DiagnosticResult(` 的全部构造点：`catalog_result.py:36` 与 `transport_diagnosis.py:65`、`:79` 共三处）。 |
+| **修复时间** | 2026-10-31 |
+| **严重程度** | P4（潜在）。两处兜底只在目录缺键时才会执行；六种语言目录都有 `tls_certificate`（消息加 1 步）与 `tls_transient`（消息加 3 步），生产中不可达，没有用户受到影响。 |
+| **关联产品** | 无（不可达路径）。 |
+| **根因** | ① `catalog_result.py` 的 `[POS]` 与 `diagnostics/_ARCH.md` 都声明 `build_catalog_result` 是「错误类型到本地化结果」的唯一组装器，但 TLS 的两个分支仍各自取消息、取步骤、判 `[Missing`、拼冷却提示，并带写死的英文兜底。这份重复在 `engine.py` 拆分之前就存在（`dc33f3094a` 之前的 `engine.py:108-112`），当时 `tls_transient` 的兜底就写着「…retrying automatically.」，与目录里的承诺是同一个错（140）。140 只把兜底改成了不承诺的英文，没有去掉这份重复来源；英文守护只扫目录 JSON，管不到它。② `tls_certificate` 的兜底取 `get_tls_remediation_hint()`，其英文含 `MYRM_TLS_STRICT`、`SSL_CERT_FILE`，不符合「面向用户的步骤不出现配置标识符」；122 把它登记为「仍然存在 ①」。 |
+| **修复** | ① 两个分支改为 `build_catalog_result("tls_certificate", locale)` 与 `build_catalog_result("tls_transient", locale, cooldown_remaining_ms)`；证书分支不传冷却，与改前一致（改前不附加等待提示，传了会多一句）。删掉 `[Missing` 判断与写死的兜底，以及文件头 `[INPUT]` 里不再使用的三项引用。② 删除 `infra/tls_compat.py` 的 `get_tls_remediation_hint()` 与 `tests/infra/test_tls_compat.py` 的 `TestGetTlsRemediationHint`（2 例）：路由之后它没有调用方（全仓库检索，排除参考项目目录：只剩定义、该测试类与台账历史条目；不在任何 `__init__` 导出，没有文档提及）。三个文件净删约 60 行。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 第一版对照快照里的「连接重置」样本被分类成 `connection`，不是 TLS 暂时中断的信号；换成 `is_tls_transient_error` 的真实模式（`wrong version number`、`unexpected eof`）后两类才各自命中。对照样本必须先确认走到的是要比对的分支。 |
+| **回归** | [1] 560 条快照改前改后逐字节一致（`cmp`）：四条真实报错文本（两条证书、两条握手中断）× 14 个语言标签（含空串、`zh-HK`、`ja-JP`、`de-AT`、未知标签）× 冷却（无、0、5000、90000 毫秒）× 有无自定义端点上下文，共 448 条分支级输出，外加整套引擎 `LLMErrorDiagnostic.diagnose` 的同样文本与语言 × 冷却（无、5000）共 112 条。[2] 快照对写错有感知：变异「证书分支传冷却」「握手中断分支丢冷却」各让快照出现差异；还原后文件哈希一致，快照重新逐字节一致。[3] `tests/agent/errors` 与 `tests/infra/test_tls_compat.py` 共 805 例通过；ruff、mypy 干净；harness 的边界、工具注册表、架构清单（含 markdown 引用）、分形文档、文件行数、测试源码断言门禁全部通过。 |
+| **仍然存在** | ① 目录缺键时，TLS 卡与其余类型一致地显示 `[Missing translation: …]`，不再有单独的兜底（六种语言目录现在都齐全；`test_template_render_failure.py:120` 钉的是这个已有行为）。② 没有机器守护「`DiagnosticResult(` 只在 `catalog_result.py` 构造」；路由之后再加一条断言输出等于构建器输出是同义反复，没有加。③ 仓库之外是否有人直接导入了 `get_tls_remediation_hint` 无法检索；它不在任何 `__init__` 导出里。 |
+| **代码位置** | `src/myrm_agent_harness/agent/errors/diagnostics/transport_diagnosis.py` · `src/myrm_agent_harness/infra/tls_compat.py` · `tests/infra/test_tls_compat.py` |
+
 ### BUG-HARNESS-2026-10-31-140 · TLS 握手中断的诊断卡写着「系统正在自动重试」，而这张卡只在回合内重试已经用尽或不适用之后才出现
 
 | 字段 | 内容 |

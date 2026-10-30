@@ -2,10 +2,8 @@
 
 [INPUT]
 - diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
-- diagnostics.cooldown_hint::format_cooldown_hint (POS: Cooldown hint rendering for rate-limit diagnostics)
-- diagnostics.i18n::get_locale_manager (POS: Framework-level i18n for LLM error diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
-- infra.tls_compat::is_tls_hard_error, is_tls_strict_error, is_tls_transient_error, get_tls_remediation_hint (POS: Enterprise TLS compatibility)
+- infra.tls_compat::is_tls_hard_error, is_tls_strict_error, is_tls_transient_error (POS: Enterprise TLS compatibility)
 
 [OUTPUT]
 - diagnose_transport: maps a TLS or connection failure to a localized DiagnosticResult, None for any other error
@@ -21,11 +19,8 @@ assumes the request got through.
 import re
 
 from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
-from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
-from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.types import DiagnosticResult, ErrorContext
 from myrm_agent_harness.infra.tls_compat import (
-    get_tls_remediation_hint,
     is_tls_hard_error,
     is_tls_strict_error,
     is_tls_transient_error,
@@ -46,42 +41,15 @@ def diagnose_transport(
     cooldown_remaining_ms: int | None,
 ) -> DiagnosticResult | None:
     """Diagnose TLS and connection failures in priority order; None when the error is neither."""
-    locale_manager = get_locale_manager()
-
     # 0. TLS/SSL errors: hard failure (fail-fast) vs transient handshake
     # interruption (retryable). Hard signals win: a rejected certificate
     # can never verify by retrying.
     if is_tls_hard_error(full_text) or is_tls_strict_error(full_text):
-        hint = get_tls_remediation_hint()
-        raw_msg = locale_manager.translate("tls_certificate", "user_message", locale)
-        raw_steps = locale_manager.translate("tls_certificate", "resolution_steps", locale)
-        user_message = (
-            raw_msg
-            if isinstance(raw_msg, str) and not raw_msg.startswith("[Missing")
-            else f"TLS certificate verification failed. {hint}"
-        )
-        steps: list[str] = raw_steps if isinstance(raw_steps, list) and raw_steps else [hint]
-
-        return DiagnosticResult(
-            error_type="tls_certificate",
-            user_message=user_message,
-            resolution_steps=steps,
-            locale=locale,
-        )
+        # No wait to announce: the provider's cooldown belongs to a rate limit, not to a rejected certificate.
+        return build_catalog_result("tls_certificate", locale)
 
     if is_tls_transient_error(full_text):
-        raw_msg = locale_manager.translate("tls_transient", "user_message", locale)
-        raw_steps = locale_manager.translate("tls_transient", "resolution_steps", locale)
-        fallback_msg = "TLS handshake interrupted — likely a temporary network problem."
-        user_message = raw_msg if isinstance(raw_msg, str) and not raw_msg.startswith("[Missing") else fallback_msg
-        steps = raw_steps if isinstance(raw_steps, list) and raw_steps else [fallback_msg]
-
-        return DiagnosticResult(
-            error_type="tls_transient",
-            user_message=user_message + format_cooldown_hint(cooldown_remaining_ms, locale),
-            resolution_steps=steps,
-            locale=locale,
-        )
+        return build_catalog_result("tls_transient", locale, cooldown_remaining_ms)
 
     # 1. Connection errors (精准自定义端点诊断)
     if any(kw in full_text for kw in _CONNECTION_KEYWORDS):
