@@ -27,6 +27,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 | `_skill_failure_tracking.py` | Internal | Skill failure event tracking for interceptor; also counts each tool-call outcome (success, or a failure that is not a policy block) into the run's skill usage (`usage_recorder`) and the skill execution ledger while exactly one storage skill is loaded; the skill-load tool (`skill_select_tool`) is never an outcome. | ✅ |
 | `_skill_tool_choice.py` | Internal | Build OpenAI `allowed_tools` tool_choice for skill attenuation (prefix-cache safe). | ✅ |
 | `skill_attenuation_middleware.py` | Core | Skill attenuation via `tool_choice.allowed_tools` when provider supports it; skips model-layer hint otherwise; execution SSOT via ContextVar + `check_trust_attenuation`; dynamic tool resolution for ToolNode. Does not mutate `request.tools`. | ✅ |
+| `stringified_json_args.py` | Core | `stringified_json_args_middleware`: the innermost tool-call middleware parses a list or object argument the model sent as a JSON string (one syntax-level repair for a truncated object string) before the tool validates it; the fields come from the tool's own JSON Schema, cached per schema class, and the request it passes on is a copy, so the arguments on the model's message stay as sent. | ✅ |
 
 ## Key Dependencies
 

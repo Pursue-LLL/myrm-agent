@@ -34,9 +34,6 @@ from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ._internals.base_agent_modes_mixin import BaseAgentModesMixin
-from ._internals.langgraph_guard import (
-    apply_langgraph_tool_args_guard as _apply_langgraph_tool_args_guard,
-)
 from .streaming.channel_output_hints import resolve_channel_output_hint
 from .streaming.model_discipline import (
     resolve_escalation_contract,
@@ -60,8 +57,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.utils.token_economics.budget_guard import BudgetChecker
 
 logger = get_agent_logger(__name__)
-
-_apply_langgraph_tool_args_guard()
 
 
 class BaseAgent(BaseAgentModesMixin):

@@ -48,6 +48,9 @@ from myrm_agent_harness.agent.middlewares.subagent_limit_middleware import (
 from myrm_agent_harness.agent.middlewares.tooling.dangling_tool_call_middleware import (
     dangling_tool_call_middleware,
 )
+from myrm_agent_harness.agent.middlewares.tooling.stringified_json_args import (
+    stringified_json_args_middleware,
+)
 from myrm_agent_harness.agent.middlewares.tooling.tool_history_hygiene import (
     tool_history_hygiene_middleware,
 )
@@ -74,7 +77,7 @@ def build_middlewares(
     The ordering matters: model-call-cancel -> dedup -> dangling -> subagent-limit -> interceptor ->
     approval -> approval-evaluation -> clarification-guard -> completion -> progress ->
     goal-focus -> replan -> call-limits -> budget -> security -> user -> completion-directive ->
-    safety -> skill-attenuation -> debug.
+    safety -> skill-attenuation -> json-args -> debug.
     The first middleware wraps every later model-call wrapper, so model-call-cancel sits first to cut a model request
     that is still in flight, retries and backoff waits of the wrappers inside it included, the moment the run is stopped.
     LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
@@ -84,7 +87,8 @@ def build_middlewares(
     because an approval pause re-runs the node that asked, so whatever it did before asking would
     be done twice.
     SkillAttenuationMiddleware sits after the safety dispatcher so its awrap_tool_call can resolve
-    dynamic tools; the completion directive sits innermost of the middlewares that rewrite the
+    dynamic tools, and the json-args middleware sits behind it so the tool it reads the schema of is the
+    tool that will run; the completion directive sits innermost of the middlewares that rewrite the
     request, so the others append to the user's own message.
     """
     from myrm_agent_harness.agent.middlewares.approval.guidance_delivery import (
@@ -170,6 +174,7 @@ def build_middlewares(
     middlewares.append(CompletionDirectiveMiddleware())
     middlewares.append(create_safety_dispatcher())
     middlewares.append(SkillAttenuationMiddleware(registry))
+    middlewares.append(stringified_json_args_middleware)
     middlewares.append(debug_logger_middleware)
 
     from myrm_agent_harness.agent.middlewares.sync_hook_parity import (

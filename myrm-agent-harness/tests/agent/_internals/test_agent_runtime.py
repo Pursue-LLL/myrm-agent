@@ -106,7 +106,7 @@ class TestBuildMiddlewares:
 
         result = build_middlewares(create_registry(), [])
         class_names = _middleware_class_names(result)
-        assert class_names[-2] == "SkillAttenuationMiddleware"
+        assert class_names[-3:-1] == ["SkillAttenuationMiddleware", "stringified_json_args_middleware"]
         assert class_names.index("SkillAttenuationMiddleware") > class_names.index("ToolApprovalMiddleware")
 
     def test_contains_core_middlewares(self):

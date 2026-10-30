@@ -31,7 +31,7 @@ keeps such records from ever reaching the provider in raw form.
 
 [POS]
 Pure repair + langchain-message quarantine shared by the dangling repair
-pipeline (outbound) and the ToolNode args guard (inbound coercion).
+pipeline (outbound) and the stringified-JSON args middleware (inbound coercion).
 """
 
 import json

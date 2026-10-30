@@ -5,7 +5,7 @@
 # Remove entries after splitting below 500 lines.
 myrm_agent_harness/agent/_internals/agent_runtime.py	768
 myrm_agent_harness/agent/_internals/run_lifecycle.py	509
-myrm_agent_harness/agent/base_agent.py	618
+myrm_agent_harness/agent/base_agent.py	613
 myrm_agent_harness/agent/context_management/infra/schemas.py	715
 myrm_agent_harness/agent/context_management/pipeline/processors/cache_ttl_prune_processor.py	721
 myrm_agent_harness/agent/context_management/pipeline/processors/summarize_processor.py	845
