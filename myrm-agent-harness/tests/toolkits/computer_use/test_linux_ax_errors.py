@@ -7,13 +7,16 @@ Covers:
 - invoke_ax_element: collection cap, component/child/target failures, grabFocus
   fallback, action failure
 - inspect_foreground: empty tree and success paths
-- inspect_foreground X11 fallback: the sensitive-app guard still sees the active window when AT-SPI shows nothing
+- foreground identity: the active X11 window names the foreground app (AT-SPI lists every application), so the
+  sensitive-app guard sees the app in front with or without an AT-SPI tree
 """
 
 from __future__ import annotations
 
 import builtins
 import subprocess
+from collections.abc import Callable
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -335,7 +338,7 @@ class TestInspectForegroundLinux:
         assert "D-Bus" in result["recommendation"]
 
 
-def _fake_x11(window_id: str, title: str, wm_class: str):  # type: ignore[no-untyped-def]
+def _fake_x11(window_id: str, title: str, wm_class: str) -> Callable[..., MagicMock]:
     """subprocess.run stand-in answering the three X11 queries; an empty answer means the tool failed."""
 
     def run(argv: list[str], **_: object) -> MagicMock:
@@ -355,7 +358,7 @@ class TestForegroundX11Fallback:
     """With no AT-SPI tree the guard must still learn which application is in front."""
 
     @staticmethod
-    def _inspect(module, run) -> dict[str, str | int | bool]:  # type: ignore[no-untyped-def]
+    def _inspect(module: ModuleType, run: Callable[..., MagicMock]) -> dict[str, str | int | bool]:
         with (
             patch.object(module, "capture_ax_snapshot", side_effect=AXTreeEmptyError("AT-SPI empty")),
             patch.object(module.subprocess, "run", side_effect=run),
@@ -410,3 +413,57 @@ class TestForegroundX11Fallback:
         result = self._inspect(module, run)
         assert result["app_name"] == ""
         assert result["window_title"] == ""
+
+
+class TestForegroundIdentityFromX11:
+    """AT-SPI lists every application, so only the active X11 window can say which one is in front."""
+
+    @staticmethod
+    def _desktop_snapshot(module: ModuleType) -> object:
+        from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
+
+        meta = SnapshotMeta(
+            ref_count=1, app_name="nautilus", window_title="Files", scope="foreground", app_id="linux:nautilus"
+        )
+        return module.LinuxAxSnapshot(meta=meta, refs={"d0": MagicMock()})
+
+    def _capture(self, x11: tuple[str, str]) -> tuple[ModuleType, object]:
+        module = _reload_with(None)
+        snapshot = self._desktop_snapshot(module)
+        with (
+            patch.object(module, "_try_pyatspi_snapshot", return_value=snapshot),
+            patch.object(module, "_read_foreground_meta", return_value=x11),
+        ):
+            return module, module.capture_ax_snapshot("foreground")
+
+    def test_x11_window_replaces_the_first_listed_application(self) -> None:
+        _, result = self._capture(("Gnome-terminal", "user@host: ~"))
+        assert result.meta.app_name == "Gnome-terminal"
+        assert result.meta.window_title == "user@host: ~"
+        assert result.meta.app_id == "linux:gnome-terminal"
+        assert set(result.refs) == {"d0"}
+
+    def test_guard_blocks_the_foreground_terminal_that_at_spi_listed_second(self) -> None:
+        from myrm_agent_harness.toolkits.computer_use.safety import is_sensitive_app
+
+        _, result = self._capture(("Gnome-terminal", "user@host: ~"))
+        assert is_sensitive_app(result.meta.app_name, result.meta.window_title, result.meta.app_id) is not None
+
+    def test_at_spi_identity_stays_when_x11_cannot_name_the_window(self) -> None:
+        _, result = self._capture(("", ""))
+        assert (result.meta.app_name, result.meta.window_title) == ("nautilus", "Files")
+
+    def test_title_of_another_application_is_not_mixed_in(self) -> None:
+        _, result = self._capture(("Alacritty", ""))
+        assert result.meta.app_name == "Alacritty"
+        assert result.meta.window_title == ""
+
+    def test_inspect_foreground_reports_the_x11_application(self) -> None:
+        module = _reload_with(None)
+        snapshot = self._desktop_snapshot(module)
+        with (
+            patch.object(module, "_try_pyatspi_snapshot", return_value=snapshot),
+            patch.object(module, "_read_foreground_meta", return_value=("Alacritty", "sudo -i")),
+        ):
+            result = module.inspect_foreground()
+        assert result["app_name"] == "Alacritty"

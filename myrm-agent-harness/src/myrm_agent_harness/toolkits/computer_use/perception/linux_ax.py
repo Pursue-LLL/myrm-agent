@@ -1,4 +1,4 @@
-"""Linux AT-SPI snapshot with graceful fallback; the active X11 window names the foreground app when the tree is empty."""
+"""Linux AT-SPI snapshot with graceful fallback; the active X11 window, not AT-SPI, names the foreground app."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import logging
 import re
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
 from myrm_agent_harness.toolkits.computer_use.dref.types import (
@@ -146,6 +146,44 @@ def _try_pyatspi_snapshot(
     return LinuxAxSnapshot(meta=meta, refs=refs)
 
 
+def _x11_query(argv: list[str]) -> str:
+    """Stdout of one X11 helper command; empty when the tool is missing, times out or fails."""
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=_X11_QUERY_TIMEOUT_S, check=False)
+    except (subprocess.TimeoutExpired, OSError):
+        return ""
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def _read_foreground_meta() -> tuple[str, str]:
+    """(application name, window title) of the active X11 window, read without AT-SPI.
+
+    The application name is the window's WM_CLASS class. Either field is empty when it cannot be read.
+    """
+    win_id = _x11_query(["xdotool", "getactivewindow"])
+    if not win_id:
+        return "", ""
+    title = _x11_query(["xdotool", "getwindowname", win_id])
+    # xprop prints: WM_CLASS(STRING) = "instance", "Class"
+    quoted = _QUOTED_STRING.findall(_x11_query(["xprop", "-id", win_id, "WM_CLASS"]))
+    return (quoted[-1] if quoted else ""), title
+
+
+def _with_x11_identity(snapshot: LinuxAxSnapshot) -> LinuxAxSnapshot:
+    """Name the snapshot's application after the active X11 window.
+
+    AT-SPI lists every running application, so the first one it yields is not the foreground one; the sensitive-app
+    guard keys on this name. The AT-SPI name stays when X11 cannot name the active window.
+    """
+    wm_class, title = _read_foreground_meta()
+    app_name = wm_class or title
+    if not app_name:
+        return snapshot
+    # The title belongs to the same window as the name; the AT-SPI title may belong to another application.
+    meta = replace(snapshot.meta, app_name=app_name, window_title=title, app_id=f"linux:{app_name.strip().lower()}")
+    return LinuxAxSnapshot(meta=meta, refs=snapshot.refs)
+
+
 def capture_ax_snapshot(
     scope: SnapshotScope,
     app_name: str | None = None,
@@ -162,7 +200,7 @@ def capture_ax_snapshot(
 
     pyatspi_snapshot = _try_pyatspi_snapshot(query=query, role=role)
     if pyatspi_snapshot is not None:
-        return pyatspi_snapshot
+        return _with_x11_identity(pyatspi_snapshot)
 
     if shutil.which("xdotool") is None:
         raise AXTreeEmptyError("pyatspi unavailable and xdotool missing")
@@ -331,29 +369,6 @@ def _native_api_hint(app_name: str) -> str:
                 "For data retrieval or bulk actions, bash_code_execute_tool with dbus-send/gdbus or CLI flags is faster than GUI interaction."
             )
     return ""
-
-
-def _x11_query(argv: list[str]) -> str:
-    """Stdout of one X11 helper command; empty when the tool is missing, times out or fails."""
-    try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=_X11_QUERY_TIMEOUT_S, check=False)
-    except (subprocess.TimeoutExpired, OSError):
-        return ""
-    return proc.stdout.strip() if proc.returncode == 0 else ""
-
-
-def _read_foreground_meta() -> tuple[str, str]:
-    """(application name, window title) of the active X11 window, read without AT-SPI.
-
-    The application name is the window's WM_CLASS class. Either field is empty when it cannot be read.
-    """
-    win_id = _x11_query(["xdotool", "getactivewindow"])
-    if not win_id:
-        return "", ""
-    title = _x11_query(["xdotool", "getwindowname", win_id])
-    # xprop prints: WM_CLASS(STRING) = "instance", "Class"
-    quoted = _QUOTED_STRING.findall(_x11_query(["xprop", "-id", win_id, "WM_CLASS"]))
-    return (quoted[-1] if quoted else ""), title
 
 
 def inspect_foreground() -> dict[str, str | int | bool]:
