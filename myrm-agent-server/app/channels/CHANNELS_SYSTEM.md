@@ -515,7 +515,8 @@ StreamCoordinator
 - 队列分发对每条消息单独隔离（`_dispatch_one`）：准备阶段（路由解析、内容门、限速）抛出时把该条 **结算为失败**（ack 磁盘条目 + DLQ + 永久失败回调，正文保留供手动重试），而不是仅释放 obligation——释放会让磁盘条目留在 pending，空闲 recover 每轮重注入同一毒消息形成空转
 - 出站内容门 `probe_url` **永不抛出**（除取消）：被 HTTP 客户端拒绝的 URL（如 `httpx.InvalidURL`、`StreamError`，均非 `RequestError` 子类）一律落为不可达，绝不中断消息投递
 - 分发循环与网关健康循环经 `spawn_observed_task` 创建（崩溃留带堆栈的 ERROR），网关按指数退避重启已死的分发循环（同 router 自愈）；健康巡检迭代渠道字典的**快照**，凭据热替换不会中断整轮
-- 渠道自身的健康检查连续失败 2 次起，ERROR / DEGRADED 渠道由网关重启：每个渠道有自己的退避窗口（随连续失败次数从 5 秒翻倍到 300 秒并带抖动），窗口在发出重启时开启，渠道恢复健康、被移除或被重载后清除；IDLE 渠道（未配置或按需启动）不重启，STOPPED / DISABLED 不巡检
+- `ChannelHealth.consecutive_failures` 累计到 2 次后，ERROR / DEGRADED 渠道由网关重启：这个计数由渠道自己在 `health_check` 里记失败（网关对已经记过的那次检查不再重复记，没记的才补记），出站发送失败也计入同一个计数；每个渠道有自己的退避窗口（随连续失败次数从 5 秒翻倍到 300 秒并带抖动），窗口在发出重启时开启，渠道恢复健康、被移除或被重载后清除；IDLE 渠道（未配置或按需启动）不重启，STOPPED / DISABLED 不巡检
+- 网关停止渠道（健康重启、`disable_channel`、`remove_channel`、`reload_channel`、关闭网关）一律经 `stop_channel`：最多等 10 秒，超时或出错只记 WARNING 并继续后续步骤；`stop()` 对平台的请求在丢包网络里要等满客户端超时（Telegram 的 `stop()` 会清草稿、删命令，每次请求最多等 30 秒），不设上限会拖住整条巡检（其余渠道、router、分发循环）、凭据保存与关闭
 - `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
 - `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测
 - 与 `delivery_notify_ledger` 职责分离：后者仅 permanent-failure toast 去重

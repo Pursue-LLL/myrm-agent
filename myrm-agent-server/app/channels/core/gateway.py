@@ -6,6 +6,7 @@ and backoff restarts are ``ChannelHealthMixin`` (``gateway_health.py``).
 
 [INPUT]
 - channels.core.bus::MessageBus (POS: async message bus)
+- channels.core.channel_stop::stop_channel (POS: the capped, logged stop of one channel)
 - channels.core.gateway_instances::ChannelInstancesMixin (POS: the registry, runtime instance management and health supervision this gateway inherits)
 - channels.core.outbound_media::discard_ephemeral_media (POS: drop the temp attachments of a follow-up that cannot be delivered)
 - channels.reliability.inbound_journal::InboundJournal, restore_inbound (POS: interrupted-message persistence, and the rebuild of a journal entry into the message to replay)
@@ -40,6 +41,7 @@ from myrm_agent_harness.infra.delivery.notification_ledger import (
 from myrm_agent_harness.infra.delivery.storage import QueuedDelivery
 
 from app.channels.core.bus import MessageBus
+from app.channels.core.channel_stop import stop_channel
 from app.channels.core.gateway_instances import ChannelInstancesMixin
 from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.reliability.inbound_journal import (
@@ -274,11 +276,8 @@ class ChannelGateway(ChannelInstancesMixin):
                 pass
         self._channel_tasks.clear()
 
-        for channel in self.bus.channels.values():
-            try:
-                await channel.stop()
-            except Exception as e:
-                logger.warning("Error stopping channel '%s': %s", channel.name, e)
+        for name, channel in self.bus.channels.items():
+            await stop_channel(name, channel)
 
         await self.bus.stop()
         logger.info("ChannelGateway stopped")

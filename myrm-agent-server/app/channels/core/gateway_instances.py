@@ -3,6 +3,7 @@
 [INPUT]
 - channels.core.gateway_health::ChannelHealthMixin (POS: runs each channel under supervision; the base of this mixin)
 - channels.core.base::BaseChannel (POS: channel abstract base class)
+- channels.core.channel_stop::stop_channel (POS: the capped, logged stop of one channel)
 - channels.types::ChannelCapabilities, ChannelIssue, ChannelStatus, GroupInfo (POS: what a channel declares, reports and lists)
 
 [OUTPUT]
@@ -22,6 +23,7 @@ import logging
 from collections.abc import Callable
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.channel_stop import stop_channel
 from app.channels.core.gateway_health import ChannelHealthMixin
 from app.channels.types import ChannelCapabilities, ChannelIssue, ChannelStatus, GroupInfo
 
@@ -111,10 +113,7 @@ class ChannelInstancesMixin(ChannelHealthMixin):
             except asyncio.CancelledError:
                 pass
 
-        try:
-            await channel.stop()
-        except Exception:
-            pass
+        await stop_channel(name, channel)
 
         channel._status = ChannelStatus.DISABLED
         logger.info("Channel '%s' disabled", name)
@@ -240,10 +239,7 @@ class ChannelInstancesMixin(ChannelHealthMixin):
             except asyncio.CancelledError:
                 pass
 
-        try:
-            await channel.stop()
-        except Exception as e:
-            logger.warning("Error stopping channel '%s' during removal: %s", name, e)
+        await stop_channel(name, channel)
 
         channel.clear_listeners()
         self.bus.unregister_channel(name)
@@ -290,10 +286,7 @@ class ChannelInstancesMixin(ChannelHealthMixin):
             except asyncio.CancelledError:
                 pass
 
-        try:
-            await channel.stop()
-        except Exception:
-            logger.warning("Channel '%s': error during reload stop", name, exc_info=True)
+        await stop_channel(name, channel)
 
         channel._status = ChannelStatus.IDLE
         self._channel_tasks[name] = asyncio.create_task(

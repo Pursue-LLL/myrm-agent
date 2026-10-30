@@ -7,11 +7,13 @@ Health loop:
 - Uses exponential backoff with jitter for restart decisions
 - Consecutive failures ≥ DEGRADED_THRESHOLD → DEGRADED (warn only)
 - DEGRADED/ERROR channels restart once their own backoff window has elapsed; the window opens when a restart is issued
-  and is cleared when the channel is healthy again, removed or reloaded. IDLE channels are never restarted
+  and is cleared when the channel is healthy again, removed or reloaded; the restart stops the channel with a capped wait.
+  IDLE channels are never restarted
 - A dead router consume loop or bus dispatch loop is restarted behind its own backoff
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: channel abstract base class)
+- channels.core.channel_stop::stop_channel (POS: the capped, logged stop of one channel)
 - channels.core.bus::MessageBus (POS: async message bus; types only)
 - channels.routing.router::AgentRouter (POS: inbound message routing hub; types only)
 - channels.types::ChannelStatus (POS: lifecycle status of a channel)
@@ -35,6 +37,7 @@ import time
 from typing import TYPE_CHECKING
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.channel_stop import stop_channel
 from app.channels.types import ChannelStatus
 
 if TYPE_CHECKING:
@@ -242,10 +245,7 @@ class ChannelHealthMixin:
 
     async def _restart_channel(self, name: str, channel: BaseChannel) -> None:
         """Restart a failed channel."""
-        try:
-            await channel.stop()
-        except Exception:
-            pass
+        await stop_channel(name, channel)
 
         old_task = self._channel_tasks.get(name)
         if old_task and not old_task.done():
