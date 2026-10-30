@@ -1,7 +1,7 @@
 """Trace Analyzer for Skill Evolution.
 
 [INPUT]
-- agent.event_log::sanitize_event_data (POS: The redaction every event payload passes before it is written; applied again to the events a prompt is built from.)
+- agent.event_log::sanitize_event_data (POS: The redaction every event payload passes before it is written; applied again to the events and the tool names a prompt is built from.)
 - agent.event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - agent.event_log.analytics_queries::get_session_summary (POS: Read-side analytics helpers for ``EventLogger``.)
 - agent.event_log.analytics_queries::get_tool_usage_stats (POS: Read-side analytics helpers for ``EventLogger``.)
@@ -33,6 +33,14 @@ logger = logging.getLogger(__name__)
 # A tool call's arguments can be a whole file, and the slice goes to a model: the arguments are clipped
 # like the result and the error of the same call.
 _ARGS_PREVIEW_CHARS = 500
+
+
+def _stored_tool_name(name: object) -> str:
+    """A tool name from the summary helpers, which read the log as stored, redacted for the prompt.
+
+    A call the model wrote badly is kept whole, arguments included, where the name belongs.
+    """
+    return str(sanitize_event_data({"tool_name": str(name)}).get("tool_name", ""))
 
 
 @dataclass(frozen=True)
@@ -309,7 +317,7 @@ class TraceAnalyzer:
                 success_rate = stat.success_count / stat.total_calls if stat.total_calls > 0 else 0
                 marker = " (Target)" if stat.tool_name == skill_id else ""
                 lines.append(
-                    f"- **{stat.tool_name}**{marker}: "
+                    f"- **{_stored_tool_name(stat.tool_name)}**{marker}: "
                     f"{stat.total_calls} 次调用, "
                     f"成功率 {success_rate:.1%}, "
                     f"失败 {stat.failure_count} 次"
@@ -347,7 +355,7 @@ class TraceAnalyzer:
             lines.append("\n## 执行时间线 (Timeline)")
             for evt in summary.events_timeline[-5:]:  # Last 5 events
                 marker = " " if evt.data.get("tool_name") == skill_id else ""
-                lines.append(f"- {evt.event_type}: {evt.data.get('tool_name', '')}{marker}")
+                lines.append(f"- {evt.event_type}: {_stored_tool_name(evt.data.get('tool_name', ''))}{marker}")
 
         output = "\n".join(lines)
 

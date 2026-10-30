@@ -127,6 +127,25 @@ async def test_a_trajectory_read_from_an_older_log_carries_no_credential() -> No
     assert _KEY not in trajectory
 
 
+async def test_a_malformed_tool_call_kept_as_a_tool_name_carries_no_credential() -> None:
+    # A call the model wrote badly is stored whole, arguments included, where the tool name belongs.
+    malformed = json.dumps(
+        {"name": "bash", "arguments": {"code": f"curl -H 'Authorization: Bearer {_KEY}' https://api.example.com"}}
+    )
+    log = _StoredLog(
+        [
+            _event(1, "tool_start", tool_call_id=_CALL_ID, tool_name=malformed, args={}),
+            _event(2, "tool_end", tool_call_id=_CALL_ID, tool_name=malformed, result="done"),
+        ]
+    )
+
+    trajectory = await TraceAnalyzer(log).extract_trajectory(_SESSION_ID, "bash")
+
+    assert "- tool_start:" in trajectory
+    assert "api.example.com" in trajectory
+    assert _KEY not in trajectory
+
+
 async def test_a_payload_that_cannot_be_redacted_is_withheld(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail(value: object, leaf: object, *, mask_keys: bool = False) -> object:
         raise RuntimeError("redaction failed")
