@@ -380,15 +380,33 @@ class TelegramChannel(
                     fix="Update TELEGRAM_WEBHOOK_URL to use https://.",
                 )
             )
-        if self._status == ChannelStatus.DEGRADED:
+        if self._status == ChannelStatus.ERROR and not self.health.last_error:
+            # A failed start records no health error; when one exists, the runtime issue below names the cause.
             issues.append(
                 ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.WARNING,
-                    message="Webhook setup failed. Channel running in degraded mode.",
-                    fix="Check TELEGRAM_WEBHOOK_URL is reachable and retry, or switch to polling mode.",
+                    kind=IssueKind.RUNTIME,
+                    severity=IssueSeverity.ERROR,
+                    message="Channel in ERROR state; check credentials and network",
                 )
             )
+        if self._status == ChannelStatus.DEGRADED:
+            if self.is_webhook_mode:
+                issues.append(
+                    ChannelIssue(
+                        kind=IssueKind.CONFIG,
+                        severity=IssueSeverity.WARNING,
+                        message="Webhook setup failed. Channel running in degraded mode.",
+                        fix="Check TELEGRAM_WEBHOOK_URL is reachable and retry, or switch to polling mode.",
+                    )
+                )
+            else:
+                issues.append(
+                    ChannelIssue(
+                        kind=IssueKind.RUNTIME,
+                        severity=IssueSeverity.WARNING,
+                        message="Channel running in degraded mode: polling keeps failing.",
+                    )
+                )
         if self.health.last_error:
             issues.append(
                 ChannelIssue(
