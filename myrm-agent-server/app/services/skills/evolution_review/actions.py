@@ -7,7 +7,7 @@
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 - myrm_agent_harness.backends.skills.scanning.scanner::scan_skill_content, compute_scan_summary (POS: 技能内容安全扫描)
 [OUTPUT]
-- approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary，仅扫描器判定 REJECT（CRITICAL）才拦为 FAILED_SCAN
+- approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary，仅扫描器判定 REJECT（CRITICAL）才拦为 FAILED_SCAN；拒绝适用于待审批与已批准但从未落地（应用失败）的记录，已落地的拒绝返回冲突
 [POS]
 Evolution 审核写操作：审批决议、修订提案、回滚已落地变更。
 """
@@ -36,6 +36,7 @@ from .types import (
     MAX_SKILL_CONTENT_CHARS,
     EvolutionApplyError,
     EvolutionApplyStatus,
+    EvolutionApprovalPayload,
     EvolutionGrowthStatus,
     EvolutionReviewRecord,
     approval_payload,
@@ -80,6 +81,13 @@ async def approve_evolution_review_record(
     return await apply_approval_record(record, auto_approved=auto_approved)
 
 
+def _approved_but_never_applied(approval_status: str, payload: EvolutionApprovalPayload) -> bool:
+    return approval_status == "APPROVED" and payload.apply_status in {
+        EvolutionApplyStatus.NOT_APPLIED,
+        EvolutionApplyStatus.FAILED,
+    }
+
+
 async def reject_evolution_review_record(
     evolution_id: str,
     *,
@@ -99,7 +107,7 @@ async def reject_evolution_review_record(
     if reason and reason.strip():
         payload.remediation = reason.strip()
 
-    if approval_record.status != "REJECTED":
+    if approval_record.status == "PENDING":
         resolved = await ApprovalRegistry.resolve_approval(
             approval_id=evolution_id,
             decision="deny",
@@ -108,13 +116,17 @@ async def reject_evolution_review_record(
         if resolved is None:
             raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         approval_record = resolved
-    else:
+    elif approval_record.status == "REJECTED" or _approved_but_never_applied(approval_record.status, payload):
+        # The registry only decides pending approvals. A manual approval whose apply failed is already APPROVED
+        # and a repeated rejection is already REJECTED; both are settled by rewriting the record directly.
         approval_record = await persist_approval_payload(
             evolution_id,
             approval_status="REJECTED",
             payload=payload,
             resolved_at=datetime.now(timezone.utc),
         )
+    else:
+        raise EvolutionApplyError("Only evolutions that have not been applied can be rejected.")
 
     await record_experience_event(
         ExperienceLedgerWrite(

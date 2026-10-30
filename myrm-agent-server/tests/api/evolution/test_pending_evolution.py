@@ -15,9 +15,16 @@ from tests.support.minimal_app import build_minimal_app
 app = build_minimal_app(preset="evolution")
 from app.platform_utils import get_database_engine
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
-from app.services.skills.evolution_reviews import EvolutionReviewRecord, create_evolution_review_record
+from app.services.skills.evolution_reviews import (
+    EvolutionApplyError,
+    EvolutionReviewRecord,
+    approve_evolution_review_record,
+    create_evolution_review_record,
+)
 
 _EVOLVED_SKILL_MD = "---\nname: test-skill\ndescription: Fixes the skill.\n---\n\n# Test skill\n"
+_PROPOSED_AGAINST_SKILL_MD = "---\nname: edited-skill\ndescription: As proposed against.\n---\n"
+_EDITED_SKILL_MD = "---\nname: edited-skill\ndescription: Edited by the user since.\n---\n"
 
 
 @pytest.fixture(autouse=True)
@@ -165,13 +172,11 @@ async def test_approve_pending_evolution_refuses_content_the_skill_loader_would_
     assert not skill_file.parent.exists()
 
 
-@pytest.mark.asyncio
-async def test_approve_pending_evolution_refuses_a_skill_edited_since_the_proposal_was_created(
-    async_client: AsyncClient, tmp_path: Path
-) -> None:
+async def _create_record_whose_base_was_edited(tmp_path: Path) -> EvolutionReviewRecord:
+    """A proposal built against the skill as first written, after which the user edited SKILL.md on disk."""
     skill_file = tmp_path / "edited-skill" / "SKILL.md"
     skill_file.parent.mkdir()
-    skill_file.write_text("---\nname: edited-skill\ndescription: As proposed against.\n---\n", encoding="utf-8")
+    skill_file.write_text(_PROPOSED_AGAINST_SKILL_MD, encoding="utf-8")
     record = await create_evolution_review_record(
         agent_id="test-agent",
         chat_id=None,
@@ -180,14 +185,21 @@ async def test_approve_pending_evolution_refuses_a_skill_edited_since_the_propos
         skill_path=str(skill_file),
         evolution_type="fix",
         reason="The proposal was built before the user edited the skill",
-        original_content="---\nname: edited-skill\ndescription: As proposed against.\n---\n",
+        original_content=_PROPOSED_AGAINST_SKILL_MD,
         evolved_content=_EVOLVED_SKILL_MD,
         confidence=0.9,
         test_passed=True,
         task_context="stale base regression",
     )
-    edited = "---\nname: edited-skill\ndescription: Edited by the user since.\n---\n"
-    skill_file.write_text(edited, encoding="utf-8")
+    skill_file.write_text(_EDITED_SKILL_MD, encoding="utf-8")
+    return record
+
+
+@pytest.mark.asyncio
+async def test_approve_pending_evolution_refuses_a_skill_edited_since_the_proposal_was_created(
+    async_client: AsyncClient, tmp_path: Path
+) -> None:
+    record = await _create_record_whose_base_was_edited(tmp_path)
 
     response = await async_client.post(f"/api/v1/evolution/pending/{record.id}/approve")
 
@@ -196,7 +208,7 @@ async def test_approve_pending_evolution_refuses_a_skill_edited_since_the_propos
     assert body["status"] == "apply_failed"
     assert body["reason_code"] == "stale_base"
     assert "reject the proposal" in body["remediation"]
-    assert skill_file.read_text(encoding="utf-8") == edited
+    assert Path(record.skill_path).read_text(encoding="utf-8") == _EDITED_SKILL_MD
 
 
 @pytest.mark.asyncio
@@ -211,6 +223,89 @@ async def test_reject_pending_evolution(async_client: AsyncClient, sample_pendin
         assert record.status == "REJECTED"
         assert isinstance(record.payload, dict)
         assert record.payload["growth_status"] == "REJECTED"
+
+
+async def _fetch_approval(evolution_id: str) -> ApprovalRecord:
+    async with get_session() as db:
+        approval_record = await db.get(ApprovalRecord, evolution_id)
+    assert approval_record is not None
+    return approval_record
+
+
+@pytest.mark.asyncio
+async def test_reject_pending_evolution_after_a_failed_manual_apply(async_client: AsyncClient, tmp_path: Path) -> None:
+    record = await _create_record_whose_base_was_edited(tmp_path)
+    approve = await async_client.post(f"/api/v1/evolution/pending/{record.id}/approve")
+    assert approve.json()["reason_code"] == "stale_base"
+    assert (await _fetch_approval(record.id)).status == "APPROVED"
+
+    response = await async_client.post(f"/api/v1/evolution/pending/{record.id}/reject")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    approval_record = await _fetch_approval(record.id)
+    assert approval_record.status == "REJECTED"
+    assert approval_record.resolved_at is not None
+    assert isinstance(approval_record.payload, dict)
+    assert approval_record.payload["growth_status"] == "REJECTED"
+    assert approval_record.payload["reason_code"] == "rejected"
+    assert Path(record.skill_path).read_text(encoding="utf-8") == _EDITED_SKILL_MD
+
+
+@pytest.mark.asyncio
+async def test_reject_pending_evolution_after_a_failed_apply_and_a_revision(async_client: AsyncClient, tmp_path: Path) -> None:
+    record = await _create_record_whose_base_was_edited(tmp_path)
+    await async_client.post(f"/api/v1/evolution/pending/{record.id}/approve")
+    revise = await async_client.patch(
+        f"/api/v1/evolution/pending/{record.id}/revise", json={"evolved_content": _EVOLVED_SKILL_MD + "\nRevised.\n"}
+    )
+    assert revise.json()["status"] == "PENDING_REVIEW"
+
+    response = await async_client.post(f"/api/v1/evolution/pending/{record.id}/reject")
+
+    assert response.status_code == 200
+    assert (await _fetch_approval(record.id)).status == "REJECTED"
+
+
+@pytest.mark.asyncio
+async def test_reject_pending_evolution_after_a_failed_auto_approval(async_client: AsyncClient, tmp_path: Path) -> None:
+    record = await _create_record_whose_base_was_edited(tmp_path)
+    with pytest.raises(EvolutionApplyError) as failure:
+        await approve_evolution_review_record(record.id, auto_approved=True)
+    assert failure.value.code == "stale_base"
+    assert (await _fetch_approval(record.id)).status == "PENDING"
+
+    response = await async_client.post(f"/api/v1/evolution/pending/{record.id}/reject")
+
+    assert response.status_code == 200
+    assert (await _fetch_approval(record.id)).status == "REJECTED"
+
+
+@pytest.mark.asyncio
+async def test_reject_pending_evolution_twice_stays_rejected(
+    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
+) -> None:
+    url = f"/api/v1/evolution/pending/{sample_pending_evolution.id}/reject"
+
+    assert (await async_client.post(url)).status_code == 200
+    assert (await async_client.post(url)).status_code == 200
+    assert (await _fetch_approval(sample_pending_evolution.id)).status == "REJECTED"
+
+
+@pytest.mark.asyncio
+async def test_reject_pending_evolution_refuses_an_applied_one(
+    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
+) -> None:
+    await async_client.post(f"/api/v1/evolution/pending/{sample_pending_evolution.id}/approve")
+
+    response = await async_client.post(f"/api/v1/evolution/pending/{sample_pending_evolution.id}/reject")
+
+    assert response.status_code == 409
+    assert "not been applied" in response.json()["detail"]
+    approval_record = await _fetch_approval(sample_pending_evolution.id)
+    assert approval_record.status == "APPROVED"
+    assert isinstance(approval_record.payload, dict)
+    assert approval_record.payload["apply_status"] == "APPLIED"
 
 
 @pytest.mark.asyncio
