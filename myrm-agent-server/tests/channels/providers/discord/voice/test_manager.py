@@ -401,7 +401,7 @@ class TestListenLoop:
     async def test_listen_loop_processes_speech(self) -> None:
         client = MagicMock()
         cb = AsyncMock()
-        mgr = VoiceManager(client, voice_timeout=0, on_voice_input=cb)
+        mgr = VoiceManager(client, voice_timeout=0, on_voice_input=cb, speaker_gate=AsyncMock(return_value=True))
 
         mock_vc = MagicMock()
         mock_vc.is_connected.return_value = True
@@ -437,7 +437,7 @@ class TestListenLoop:
     @pytest.mark.asyncio
     async def test_listen_loop_filters_allowed_users(self) -> None:
         client = MagicMock()
-        mgr = VoiceManager(client, voice_timeout=0, allowed_user_ids={"42"})
+        mgr = VoiceManager(client, voice_timeout=0, allowed_user_ids={"42"}, speaker_gate=AsyncMock(return_value=True))
 
         mock_vc = MagicMock()
         mock_vc.is_connected.return_value = True

@@ -9,7 +9,7 @@
 - InboundHandler: callable the gateway registers to receive inbound messages
 - SenderGate: callable the bus registers to answer whether the access policy admits a sender
 - DedupMode: message deduplication mode (LRU or TTL)
-- InboundPipelineMixin: ``_build_inbound`` / ``_emit_inbound`` and the pipeline stages behind them, and ``is_sender_admitted`` for what a user does to the bot without sending a message
+- InboundPipelineMixin: ``_build_inbound`` / ``_emit_inbound`` and the pipeline stages behind them, and ``is_sender_admitted`` for work done before a message exists (a slash command, the transcription of an utterance)
 
 [POS]
 The inbound half of BaseChannel. Providers call ``_emit_inbound`` when the platform delivers a message; the state the
@@ -142,11 +142,11 @@ class InboundPipelineMixin:
             await self._dispatch_inbound(msg)
 
     async def is_sender_admitted(self, msg: InboundMessage) -> bool:
-        """Whether the access policy admits ``msg``'s sender, for an action that is not a message.
+        """Whether the access policy admits ``msg``'s sender, for work done before ``msg`` is emitted.
 
         A user can act on the bot without sending it a message (a Discord slash command that moves it between voice
-        channels). Such an action follows the sender policy of a message from that user. Nothing wired to a policy
-        admits no one.
+        channels), and a message can cost work before it exists (a spoken utterance is transcribed first). Such work
+        follows the sender policy of the message it stands for. Nothing wired to a policy admits no one.
         """
         return self._sender_gate is not None and await self._sender_gate(msg)
 

@@ -148,8 +148,8 @@ attachments and logs a warning): skipping would hand an admitted sender's voice 
 
 - Admitted: control-plane forwards (they carry an identity the control plane already resolved,
   `api/channels/channel_ingress.py`), the owner, DM senders the DM policy lets in (OPEN, an ACTIVE pairing — a
-  WhatsApp LID counts through its verified phone mapping, without being bound — or an identity the adapter already
-  resolved), and group messages from enabled groups or from guests when guest mention mode allows them.
+  WhatsApp LID counts through its verified phone mapping, without being bound — or an identity the message already
+  carries, as a control-plane DM forward does; no adapter sets one), and group messages from enabled groups or from guests when guest mention mode allows them.
 - Dropped: whatever the resolvers would ignore — strangers under ALLOWLIST/PAIRING, blocked or pending pairings,
   DISABLED policies, messages from groups that are not enabled.
 - Group admission is per chat, not per mention: an unaddressed message in an enabled group still fires a trigger, so a
@@ -169,8 +169,9 @@ attachments and logs a warning): skipping would hand an admitted sender's voice 
 - Not fenced: the owner's own messages, and the other trigger sources (schedule, manual run, REST, webhook, system
   event).
 
-The same verdict answers a channel that needs to know whether a user may act on the bot without sending a message
-(`BaseChannel.is_sender_admitted`, used by the Discord `/voice` command): `AgentRouter.__init__` registers
+The same verdict answers a channel that needs to know whether a sender is admitted before a message exists
+(`BaseChannel.is_sender_admitted`, used by the Discord `/voice` command and by the Discord voice listener before it
+transcribes an utterance): `AgentRouter.__init__` registers
 `_is_sender_admitted` on the bus (`MessageBus.set_sender_gate`) and the bus hands each registered channel a callback
 that asks it. A channel nothing is registered for admits no one.
 `tests/channels/routing/test_router_sender_gate.py` pins the registration and the fail-closed wrapper.

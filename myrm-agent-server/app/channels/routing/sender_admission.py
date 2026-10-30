@@ -67,9 +67,9 @@ async def is_untrusted_event_sender(pairing: PairingStore, msg: InboundMessage) 
 
     A chat turn is fenced when the identity the resolvers assign is a guest or a paired member
     (``is_untrusted_sender``); only an ACTIVE admin pairing resolves to the owner's identity. The resolvers have not
-    run yet, so an unresolved sender is judged by that pairing. A pre-resolved identity (a control-plane forward,
-    Discord) is tested by both rules: a control-plane forward passes the admin check whatever identity it carries,
-    and a pre-resolved identity does not prove ownership by itself.
+    run yet, so an unresolved sender is judged by that pairing. A message that already carries an identity (a
+    control-plane forward) is tested by both rules: a control-plane forward passes the admin check whatever identity
+    it carries, and a carried identity does not prove ownership by itself.
     """
     return is_untrusted_sender(msg.user_id or "", msg) or not await is_admin_sender(pairing, msg)
 

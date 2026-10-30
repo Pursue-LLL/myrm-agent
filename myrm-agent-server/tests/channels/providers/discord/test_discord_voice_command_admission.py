@@ -2,7 +2,8 @@
 
 A message from a user reaches the agent only through the router's admission; a slash command is handled by the host
 itself and would otherwise skip it. The caller must be one the policy admits for that chat (the owner always is), and a
-channel nobody wired to a policy admits no one.
+channel nobody wired to a policy admits no one. Discord gives the command three seconds to be acknowledged and the
+policy reads its stores, so the command is acknowledged before the policy is asked and every answer follows up.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from tests.channels.providers.discord.gateway_testkit import start_channel
 
 _GUILD = 7
 _ACTIONS = ["join", "leave", "status"]
+_REFUSAL = "You are not allowed to use this command. Ask the bot owner to give you access."
 
 
 @dataclass
@@ -65,8 +67,8 @@ async def _run(rig: _Rig, action: str, interaction: MagicMock) -> None:
 
 
 def _replies(interaction: MagicMock) -> list[str]:
-    sent = interaction.response.send_message.await_args_list + interaction.followup.send.await_args_list
-    return [call.args[0] for call in sent]
+    assert interaction.response.send_message.await_count == 0
+    return [call.args[0] for call in interaction.followup.send.await_args_list]
 
 
 @pytest.mark.parametrize("action", _ACTIONS)
@@ -78,8 +80,8 @@ async def test_a_caller_the_policy_does_not_admit_is_refused_and_nothing_happens
 
     rig.voice_client.disconnect.assert_not_awaited()
     rig.channel.join_voice.assert_not_awaited()  # type: ignore[attr-defined]
-    assert _replies(interaction) == ["You are not allowed to use this command."]
-    assert interaction.response.send_message.await_args.kwargs["ephemeral"] is True
+    assert _replies(interaction) == [_REFUSAL]
+    assert interaction.followup.send.await_args.kwargs["ephemeral"] is True
 
 
 async def test_a_channel_nobody_wired_to_a_policy_refuses_every_caller(rig: _Rig) -> None:
@@ -88,7 +90,7 @@ async def test_a_channel_nobody_wired_to_a_policy_refuses_every_caller(rig: _Rig
     await _run(rig, "leave", interaction)
 
     rig.voice_client.disconnect.assert_not_awaited()
-    assert _replies(interaction) == ["You are not allowed to use this command."]
+    assert _replies(interaction) == [_REFUSAL]
 
 
 async def test_an_admitted_caller_leaves_the_voice_channel(rig: _Rig) -> None:
@@ -116,6 +118,23 @@ async def test_an_admitted_caller_reads_the_voice_status(rig: _Rig) -> None:
     assert _replies(interaction) == ["Voice status: **Connected**"]
 
 
+@pytest.mark.parametrize("action", _ACTIONS)
+async def test_the_command_is_acknowledged_before_the_policy_is_asked(rig: _Rig, action: str) -> None:
+    interaction = _interaction()
+    acknowledged_when_asked: list[int] = []
+
+    async def gate(_msg: InboundMessage) -> bool:
+        acknowledged_when_asked.append(interaction.response.defer.await_count)
+        return True
+
+    rig.channel.set_sender_gate(gate)
+
+    await _run(rig, action, interaction)
+
+    assert acknowledged_when_asked == [1]
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+
+
 async def test_the_policy_judges_the_caller_in_the_chat_the_command_came_from(rig: _Rig) -> None:
     gate = AsyncMock(return_value=True)
     rig.channel.set_sender_gate(gate)
@@ -125,13 +144,27 @@ async def test_the_policy_judges_the_caller_in_the_chat_the_command_came_from(ri
     gate.assert_awaited_once()
     assert gate.await_args is not None
     msg: InboundMessage = gate.await_args.args[0]
-    assert (msg.channel, msg.sender_id, msg.user_id, msg.chat_id, msg.is_group) == (rig.channel.name, "123", "123", "456", True)
+    assert (msg.channel, msg.sender_id, msg.chat_id, msg.is_group) == (rig.channel.name, "123", "456", True)
 
 
-async def test_a_refused_caller_is_logged(rig: _Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_caller_is_named_only_by_the_sender_id_so_the_policy_decides_who_they_are(rig: _Rig) -> None:
+    gate = AsyncMock(return_value=True)
+    rig.channel.set_sender_gate(gate)
+
+    await _run(rig, "status", _interaction(user_id=123))
+
+    assert gate.await_args is not None
+    assert gate.await_args.args[0].user_id is None
+
+
+async def test_a_refused_caller_is_logged_with_the_chat_the_command_came_from(
+    rig: _Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     rig.channel.set_sender_gate(AsyncMock(return_value=False))
 
     with caplog.at_level(logging.WARNING, logger="app.channels.providers.discord.voice_control"):
         await _run(rig, "leave", _interaction(user_id=123))
 
-    assert [(r.levelno, "123" in r.getMessage()) for r in caplog.records] == [(logging.WARNING, True)]
+    assert [(r.levelno, "123" in r.getMessage(), "456" in r.getMessage()) for r in caplog.records] == [
+        (logging.WARNING, True, True)
+    ]

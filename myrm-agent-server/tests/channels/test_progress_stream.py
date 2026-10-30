@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
+from typing import cast
 from unittest.mock import patch
 
 import pytest
 
+from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
 from app.channels.protocols.pairing import (
     DmPolicy,
@@ -29,11 +31,13 @@ from app.channels.routing.router import AgentRouter
 from app.channels.routing.session_gate import SessionGateConfig
 from app.channels.types import (
     ChannelActivity,
+    ChannelCapabilities,
     ChannelHealth,
     ChannelStatus,
     InboundMessage,
     OutboundMessage,
     ProgressUpdate,
+    ReactionLevel,
 )
 
 _PATCH_STREAM_INTERVAL = patch(
@@ -57,6 +61,9 @@ class _FakePairingStore:
     async def resolve(self, channel: str, sender_id: str) -> str | None:
         return "user-1"
 
+    async def touch_display_name(self, channel: str, sender_id: str, display_name: str) -> None:
+        pass
+
     async def bind(
         self,
         channel: str,
@@ -64,6 +71,9 @@ class _FakePairingStore:
         user_id: str,
         *,
         status: PairingStatus = PairingStatus.ACTIVE,
+        display_name: str | None = None,
+        role: PairingRole = PairingRole.MEMBER,
+        daily_quota: int | None = None,
     ) -> None:
         pass
 
@@ -87,11 +97,17 @@ class _FakePolicyProvider:
     async def get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
         return GroupTriggerMode.MENTION_ONLY, []
 
+    async def get_reaction_level(self, channel: str) -> ReactionLevel:
+        return ReactionLevel.SIMPLE
+
     async def get_enabled_groups(self) -> set[str]:
         return set()
 
     async def get_guest_mode(self, channel: str) -> bool:
         return False
+
+    async def get_free_response_chats(self, channel: str) -> set[str]:
+        return set()
 
     async def get_default_user_id(self) -> str | None:
         return "user-1"
@@ -157,9 +173,7 @@ class _RecordingChannel:
         return ChannelStatus.RUNNING
 
     @property
-    def capabilities(self):
-        from app.channels.types import ChannelCapabilities
-
+    def capabilities(self) -> ChannelCapabilities:
         return ChannelCapabilities(edit=True)
 
     def set_inbound_handler(self, handler: object) -> None:
@@ -190,6 +204,7 @@ class _RecordingChannel:
 
     async def send(self, msg: OutboundMessage) -> str | None:
         self.sent_messages.append(msg)
+        return None
 
     async def start_typing(self, chat_id: str) -> None:
         pass
@@ -204,6 +219,11 @@ class _RecordingChannel:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+
+def _register(bus: MessageBus, channel: _RecordingChannel) -> None:
+    """Register the double, which implements the subset of ``BaseChannel`` the bus and router use."""
+    bus.register_channel(cast(BaseChannel, channel))
 
 
 @pytest.fixture
@@ -251,7 +271,7 @@ async def _run_scenario(
 async def test_progress_updates_edit_placeholder(bus: MessageBus, channel: _RecordingChannel) -> None:
     """ProgressUpdate events should trigger placeholder edits, final answer edits placeholder."""
     executor = _ProgressExecutor([" Searching...", " Reviewing..."])
-    bus.register_channel(channel)
+    _register(bus, channel)
     await _run_scenario(bus, channel, executor)
 
     assert len(channel.placeholder_sends) == 1
@@ -265,7 +285,7 @@ async def test_progress_throttling(bus: MessageBus, channel: _RecordingChannel) 
     """Rapid ProgressUpdate events should be throttled by min_progress_interval."""
     labels = [f"Step {i}" for i in range(10)]
     executor = _ProgressExecutor(labels)
-    bus.register_channel(channel)
+    _register(bus, channel)
 
     with (
         patch("app.channels.routing.router_stream._MIN_PROGRESS_INTERVAL", 0.1),
@@ -284,7 +304,7 @@ async def test_no_progress_still_works(bus: MessageBus, channel: _RecordingChann
     """An executor that yields no ProgressUpdate should still deliver via placeholder edit."""
     long_final = "Final answer " + ("x" * 400)
     executor = _ProgressExecutor([], final_content=long_final)
-    bus.register_channel(channel)
+    _register(bus, channel)
     with patch(
         "app.channels.routing.placeholder_strategy.DEFER_SECONDS",
         0.0,

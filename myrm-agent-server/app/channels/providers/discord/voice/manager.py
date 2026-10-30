@@ -4,6 +4,7 @@ Manages voice connections across multiple guilds. Each guild has
 independent state (VoiceClient, VoiceReceiver, listen loop).
 Auto-timeout disconnects the bot when no speech is detected.
 Follow-user delegates to VoiceFollowManager for user tracking.
+A speaker is transcribed only when the speaker gate admits them.
 
 [INPUT]
 - discord.Client (POS: Discord bot client)
@@ -13,11 +14,13 @@ Follow-user delegates to VoiceFollowManager for user tracking.
 
 [OUTPUT]
 - VoiceManager: class - voice lifecycle manager
+- VoiceSpeakerGate: type alias - (text channel id, user id) -> whether the access policy admits the speaker
 
 [POS]
 High-level voice orchestration. Owns per-guild state and
 coordinates receiver/player lifecycle with follow-user support;
-each finished utterance is handed to the input pipeline.
+each finished utterance from an admitted speaker is handed to the input pipeline; a refused speaker's audio
+never reaches speech-to-text, and with no gate wired no speaker is admitted.
 Leaving every guild is concurrent, so one guild that waits for
 the gateway's confirmation does not hold up the others. A join over a
 state whose VoiceClient discord.py has dropped releases that state first;
@@ -29,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Set
+from collections.abc import Awaitable, Callable, Set
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -52,6 +55,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+VoiceSpeakerGate = Callable[[int, int], Awaitable[bool]]
+
 _KEEPALIVE_INTERVAL = 15
 _LISTEN_POLL_INTERVAL = 0.2
 
@@ -66,6 +71,7 @@ class _GuildVoiceState:
     listen_task: asyncio.Task[None] | None = None
     joined_at: float = field(default_factory=time.monotonic)
     last_speech_at: float = field(default_factory=time.monotonic)
+    refused_speakers: set[int] = field(default_factory=set)
 
 
 class VoiceManager:
@@ -82,6 +88,7 @@ class VoiceManager:
         voice_timeout: int = 300,
         allowed_user_ids: Set[str] | None = None,
         on_voice_input: VoiceInputCallback | None = None,
+        speaker_gate: VoiceSpeakerGate | None = None,
         voice_wake_words: list[str] | None = None,
         voice_barge_in_enabled: bool = False,
         follow_user_ids: Set[str] | None = None,
@@ -90,6 +97,7 @@ class VoiceManager:
         self._client = client
         self._voice_timeout = voice_timeout
         self._allowed_user_ids: set[str] = set(allowed_user_ids) if allowed_user_ids else set()
+        self._speaker_gate = speaker_gate
 
         self._guilds: dict[int, _GuildVoiceState] = {}
         self._locks: dict[int, asyncio.Lock] = {}
@@ -299,6 +307,22 @@ class VoiceManager:
         non_bot = [m for m in bot_channel.members if not m.bot]
         return not non_bot
 
+    async def _speaker_admitted(self, guild_id: int, state: _GuildVoiceState, user_id: int) -> bool:
+        """Whether the speaker gate admits this speaker; asked for every utterance, before it is transcribed.
+
+        The first refusal of a speaker in a session is logged, so an owner whose own speech is ignored can find out why.
+        """
+        if self._speaker_gate is not None and await self._speaker_gate(state.text_channel_id or guild_id, user_id):
+            return True
+        if user_id not in state.refused_speakers:
+            state.refused_speakers.add(user_id)
+            logger.warning(
+                "Voice speaker %d in guild %d is not admitted by the access policy; their speech is not transcribed",
+                user_id,
+                guild_id,
+            )
+        return False
+
     async def _listen_loop(self, guild_id: int) -> None:
         """Poll for completed utterances and process them via STT."""
         state = self._guilds.get(guild_id)
@@ -332,6 +356,8 @@ class VoiceManager:
                 completed = state.receiver.check_silence()
                 for user_id, pcm_data in completed:
                     if self._allowed_user_ids and str(user_id) not in self._allowed_user_ids:
+                        continue
+                    if not await self._speaker_admitted(guild_id, state, user_id):
                         continue
                     state.last_speech_at = time.monotonic()
                     await self._input.process(guild_id, user_id, pcm_data, state.text_channel_id)

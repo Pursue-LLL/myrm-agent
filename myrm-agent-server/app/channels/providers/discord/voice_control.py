@@ -1,12 +1,12 @@
 """Discord voice control: opus loading, VoiceManager wiring and the /voice slash command.
 
 [INPUT]
-- app.channels.providers.discord.voice.manager::VoiceManager (POS: voice sessions: join / leave, RTP receive, speech-to-text)
+- app.channels.providers.discord.voice.manager::VoiceManager (POS: voice sessions: join / leave, RTP receive, speaker admission, speech-to-text)
 - app.channels.providers.discord.voice.player::VoicePlayer (POS: TTS audio playback into a voice client)
 - app.channels.types::InboundMessage (POS: channel message value types)
 
 [OUTPUT]
-- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission and /voice command registration (the caller is checked against the access policy first) used by DiscordChannel
+- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission (a speaker is checked against the access policy before their audio is transcribed) and /voice command registration (the caller is checked against the access policy first) used by DiscordChannel
 
 [POS]
 Voice half of DiscordChannel. The host owns the gateway client and the config; the mixin drives the voice subsystem.
@@ -35,6 +35,13 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+_VOICE_REFUSAL = "You are not allowed to use this command. Ask the bot owner to give you access."
+
+
+async def _reply(interaction: discord.Interaction, text: str) -> None:
+    """Answer a /voice command that has been acknowledged, visible to its caller only."""
+    await interaction.followup.send(text, ephemeral=True)
 
 
 class DiscordVoiceMixin(BaseChannel):
@@ -102,11 +109,33 @@ class DiscordVoiceMixin(BaseChannel):
             voice_timeout=self.config.voice_timeout,
             allowed_user_ids=(set(self.config.allowed_users) if self.config.allowed_users else None),
             on_voice_input=self._on_voice_input,
+            speaker_gate=self._voice_speaker_admitted,
             voice_wake_words=self.config.voice_wake_words,
             voice_barge_in_enabled=self.config.voice_barge_in_enabled,
             follow_user_ids=(set(self.config.voice_follow_users) if self.config.voice_follow_users else None),
             allowed_channels=self.config.voice_allowed_channels or None,
         )
+
+    def _voice_message(self, chat_id: int, user_id: int, transcript: str, display_name: str) -> InboundMessage:
+        """What a speaker's voice is to the router: a direct message from them.
+
+        The speaker is named by ``sender_id`` only; the router's resolvers assign the identity from the DM policy and
+        the speaker's pairing, as for any other direct message.
+        """
+        return self._build_inbound(
+            str(user_id),
+            transcript,
+            str(chat_id),
+            sender_name=display_name,
+            sent_at=time.time(),
+            sent_timezone="UTC",
+            message_id=f"voice-{chat_id}-{int(time.time() * 1000)}",
+            metadata={"source": "voice"},
+        )
+
+    async def _voice_speaker_admitted(self, chat_id: int, user_id: int) -> bool:
+        """Whether the access policy admits a voice message from this speaker, asked before their audio is transcribed."""
+        return await self.is_sender_admitted(self._voice_message(chat_id, user_id, "", ""))
 
     async def _on_voice_input(
         self,
@@ -116,21 +145,7 @@ class DiscordVoiceMixin(BaseChannel):
         display_name: str,
     ) -> None:
         """Handle transcribed voice input by emitting as InboundMessage."""
-        inbound = InboundMessage(
-            channel=self.name,
-            sender_id=str(user_id),
-            sender_name=display_name,
-            sent_at=time.time(),
-            sent_timezone="UTC",
-            chat_id=str(chat_id),
-            user_id=str(user_id),
-            content=transcript,
-            message_id=f"voice-{chat_id}-{int(time.time() * 1000)}",
-            metadata={
-                "source": "voice",
-            },
-        )
-        await self._emit_inbound(inbound)
+        await self._emit_inbound(self._voice_message(chat_id, user_id, transcript, display_name))
 
     async def join_voice(
         self,
@@ -198,9 +213,7 @@ class DiscordVoiceMixin(BaseChannel):
             "/voice",
             str(interaction.channel_id),
             sender_name=interaction.user.display_name,
-            user_id=sender_id,
             is_group=interaction.guild_id is not None,
-            mentioned=True,
             metadata={
                 "guild_id": str(interaction.guild_id) if interaction.guild_id else None,
                 "interaction_type": "slash_command",
@@ -208,7 +221,9 @@ class DiscordVoiceMixin(BaseChannel):
         )
         if await self.is_sender_admitted(msg):
             return True
-        logger.warning("Discord /voice refused for user %s in guild %s", sender_id, interaction.guild_id)
+        logger.warning(
+            "Discord /voice refused for user %s in chat %s (guild %s)", sender_id, interaction.channel_id, interaction.guild_id
+        )
         return False
 
     def _register_voice_commands(self) -> None:
@@ -236,17 +251,19 @@ class DiscordVoiceMixin(BaseChannel):
             action: str,
             channel: discord.VoiceChannel | None = None,
         ) -> None:
+            await interaction.response.defer(ephemeral=True)
+
             if not await channel_self._voice_command_admitted(interaction):
-                await interaction.response.send_message("You are not allowed to use this command.", ephemeral=True)
+                await _reply(interaction, _VOICE_REFUSAL)
                 return
 
             if not channel_self._voice_manager:
-                await interaction.response.send_message("Voice is not enabled.", ephemeral=True)
+                await _reply(interaction, "Voice is not enabled.")
                 return
 
             guild = interaction.guild
             if not guild:
-                await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+                await _reply(interaction, "This command can only be used in a server.")
                 return
 
             if action == "join":
@@ -256,23 +273,17 @@ class DiscordVoiceMixin(BaseChannel):
                     if member and member.voice and member.voice.channel:
                         target = member.voice.channel  # type: ignore[assignment]
                 if not target or not isinstance(target, discord.VoiceChannel):
-                    await interaction.response.send_message(
-                        "Please specify a voice channel or join one first.",
-                        ephemeral=True,
-                    )
+                    await _reply(interaction, "Please specify a voice channel or join one first.")
                     return
-                await interaction.response.defer(ephemeral=True)
                 text_ch_id = interaction.channel_id or 0
                 ok = await channel_self.join_voice(target, text_channel_id=text_ch_id)
-                msg = f"Joined **{target.name}**" if ok else "Failed to join voice channel."
-                await interaction.followup.send(msg, ephemeral=True)
+                await _reply(interaction, f"Joined **{target.name}**" if ok else "Failed to join voice channel.")
 
             elif action == "leave":
-                await interaction.response.defer(ephemeral=True)
                 await channel_self.leave_voice(guild.id)
-                await interaction.followup.send("Left voice channel.", ephemeral=True)
+                await _reply(interaction, "Left voice channel.")
 
             elif action == "status":
                 connected = channel_self._voice_manager.is_connected(guild.id)
                 status = "Connected" if connected else "Not connected"
-                await interaction.response.send_message(f"Voice status: **{status}**", ephemeral=True)
+                await _reply(interaction, f"Voice status: **{status}**")

@@ -174,6 +174,7 @@ class DiscordInboundMixin(BaseChannel):
         if explicit_mention:
             metadata[METADATA_EXPLICIT_MENTION_KEY] = "1"
 
+        # ``user_id`` stays unset: the router's resolvers assign it from the DM policy and the sender's pairing.
         inbound = InboundMessage(
             channel=self.name,
             sender_id=str(message.author.id),
@@ -181,7 +182,6 @@ class DiscordInboundMixin(BaseChannel):
             sent_at=time.time(),
             sent_timezone="UTC",
             chat_id=effective_chat_id,
-            user_id=str(message.author.id),
             is_bot=message.author.bot,
             content=content,
             message_id=str(message.id),
@@ -303,7 +303,6 @@ class DiscordInboundMixin(BaseChannel):
             sent_at=time.time(),
             sent_timezone="UTC",
             chat_id=str(interaction.channel_id),
-            user_id=str(interaction.user.id),
             content=f"/action {action}",
             message_id=str(interaction.id),
             is_group=interaction.guild_id is not None,
@@ -355,7 +354,6 @@ class DiscordInboundMixin(BaseChannel):
                     sent_at=raw_msg.created_at.timestamp(),
                     sent_timezone="UTC",
                     chat_id=chat_id,
-                    user_id=str(raw_msg.author.id),
                     is_bot=raw_msg.author.bot,
                     content=content,
                     message_id=str(raw_msg.id),
