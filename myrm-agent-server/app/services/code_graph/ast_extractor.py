@@ -1,11 +1,10 @@
 """Static extraction of symbols and relations from one Python source file.
 
 [INPUT]
-- models.py::(CallEdge, CallSite, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
-- ast、pathlib（标准库）
+- models.py::(CallEdge, CallSite, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode, module_name_for) (POS: 代码图谱领域数据模型与契约)
+- ast（标准库）
 
 [OUTPUT]
-- module_name_for: 相对路径到点分模块名的规则，Python 与 JS/TS 两个抽取器共用
 - PythonAstExtractor: 基于原生 ast 的 Python 符号、调用、继承、导入抽取；不是合法 Python 时返回 False
 
 [POS]
@@ -14,7 +13,6 @@
 
 import ast
 from dataclasses import dataclass
-from pathlib import Path
 
 from app.services.code_graph.models import (
     CallEdge,
@@ -23,18 +21,8 @@ from app.services.code_graph.models import (
     InheritanceEdge,
     SymbolKind,
     SymbolNode,
+    module_name_for,
 )
-
-
-def module_name_for(file_path: str) -> str:
-    """Dotted module name from a path relative to the index root.
-
-    The Python and the JS/TS extractor use this rule so that two files with the same basename in different
-    directories keep different qualified names.
-    """
-    path = Path(file_path)
-    parts = [part for part in path.with_suffix("").parts if part not in (".", "/")]
-    return ".".join(parts) if parts else path.stem
 
 
 @dataclass(frozen=True)

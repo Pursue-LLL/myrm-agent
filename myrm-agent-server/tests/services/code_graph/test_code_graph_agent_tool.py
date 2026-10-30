@@ -179,6 +179,28 @@ async def test_every_action_answers_from_one_small_project(workspace: Path) -> N
     ]
 
 
+async def test_importers_state_that_only_python_imports_are_indexed(workspace: Path) -> None:
+    _write(workspace, "web/lib.ts", "export function util() {\n  return 1\n}\n")
+    _write(workspace, "web/app.ts", "import { util } from './lib'\n\nexport function run() {\n  return util()\n}\n")
+    _write(workspace, "shapes.py", "class Shape:\n    pass\n")
+    _write(workspace, "app.py", "from shapes import Shape\n")
+    tool = create_code_graph_tool(workspace)
+
+    empty = await _ask(tool, "importers", "web.lib")
+    listed = await _ask(tool, "importers", "shapes")
+    elsewhere = await _ask(tool, "callers", "util")
+
+    assert empty.rows == []
+    assert len(empty.notes) == 1
+    assert "Nothing found" in empty.notes[0]
+    assert "TypeScript/JavaScript files that import" in empty.notes[0]
+    assert "Only Python and TypeScript/JavaScript files are indexed" not in empty.notes[0]
+    assert [row["importer"] for row in listed.rows] == ["app"]
+    assert listed.notes == [_ACTIONS["importers"].gap]
+    assert len(elsewhere.rows) == 1
+    assert "notes" not in elsewhere.body
+
+
 async def test_every_call_sees_files_changed_since_the_previous_call(workspace: Path) -> None:
     _write(workspace, "lib.py", "def work():\n    return 1\n")
     tool = create_code_graph_tool(workspace)

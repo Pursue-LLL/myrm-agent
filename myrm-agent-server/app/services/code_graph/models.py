@@ -1,7 +1,7 @@
 """Domain data model of the code graph.
 
 [INPUT]
-- 无内部依赖（仅标准库 dataclasses、enum）
+- 无内部依赖（仅标准库 dataclasses、enum、pathlib）
 
 [OUTPUT]
 - INDEX_FORMAT_VERSION: 持久化索引的格式版本，决定索引库的文件名
@@ -10,6 +10,7 @@
 - CallSite: 一次调用在源码中的位置、参数个数与关键字参数名
 - ParsedFile: 单个文件的解析结果及其指纹（决定是否需要重新解析）
 - IndexStats: 一次索引同步后的统计
+- module_name_for: 相对路径到点分模块名的规则，Python 与 JS/TS 两个抽取器共用
 
 [POS]
 代码图谱领域数据模型与契约。定义符号、调用、继承、导入关系，单文件解析结果与同步统计，供抽取器、存储与服务共用。
@@ -17,11 +18,23 @@
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from pathlib import Path
 
 # Format of the persisted index: the tables and what the extractors write into them. It is part of the database
 # file name, because a file whose fingerprint is unchanged is never parsed again: any change to the tables or to
 # extraction output must increase it, which starts a fresh database that is indexed from scratch.
 INDEX_FORMAT_VERSION = 1
+
+
+def module_name_for(file_path: str) -> str:
+    """Dotted module name from a path relative to the index root.
+
+    The Python and the JS/TS extractor use this rule so that two files with the same basename in different
+    directories keep different qualified names.
+    """
+    path = Path(file_path)
+    parts = [part for part in path.with_suffix("").parts if part not in (".", "/")]
+    return ".".join(parts) if parts else path.stem
 
 
 class SymbolKind(str, Enum):

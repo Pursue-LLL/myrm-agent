@@ -1,8 +1,7 @@
 """Static extraction of symbols and relations from one TypeScript or JavaScript source file.
 
 [INPUT]
-- models.py::(CallEdge, CallSite, InheritanceEdge, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
-- ast_extractor.py::module_name_for (POS: 静态解析层，把单个源文件解析为符号与关系)
+- models.py::(CallEdge, CallSite, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode, module_name_for) (POS: 代码图谱领域数据模型与契约)
 - tree_sitter、tree_sitter_typescript（第三方原生扩展，TypeScript 与 TSX 语法）
 
 [OUTPUT]
@@ -23,7 +22,6 @@ from functools import cache
 import tree_sitter_typescript
 from tree_sitter import Language, Node, Parser, Tree
 
-from app.services.code_graph.ast_extractor import module_name_for
 from app.services.code_graph.models import (
     CallEdge,
     CallSite,
@@ -31,6 +29,7 @@ from app.services.code_graph.models import (
     InheritanceEdge,
     SymbolKind,
     SymbolNode,
+    module_name_for,
 )
 
 # A qualified name repeats the name of every enclosing definition, so a file that nests named functions n levels deep

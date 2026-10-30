@@ -2,7 +2,7 @@
 name: repo-call-graph
 description: >-
   Structural navigation of Python and TypeScript/JavaScript code: where a symbol is
-  defined, which call sites call a function, what a function calls, which classes extend a class, which files
+  defined, which call sites call a function, what a function calls, which classes extend a class, which Python files
   import a module, and which test files call a function. Use it before changing a function signature, behavior
   or location, when plain-text search would return too many unrelated matches.
 version: 2.0.0
@@ -45,7 +45,7 @@ Use `code_graph_tool` for structural questions about Python and TypeScript/JavaS
 ## When to use it
 
 - Before changing a function's signature, behavior or location: find every caller.
-- Before refactoring a class: find its subclasses and the files that import it.
+- Before refactoring a class: find its subclasses and, for a Python class, the files that import it. Find the TypeScript/JavaScript files that import something with `grep_tool`.
 - After a change: find the test files that call the changed function directly and run those first.
 - Use `grep_tool` instead for plain text, string literals, comments, config files, and languages other than Python and TypeScript/JavaScript.
 
@@ -68,6 +68,6 @@ Use `code_graph_tool` for structural questions about Python and TypeScript/JavaS
 
 - Calls are matched by name. The tool does not follow imports or infer types.
 - `caller` is the function or method that contains the call. A call outside any function (module level, class body) has the module name as `caller`; a call inside an unnamed callback or lambda is credited to the function around it.
-- Imports are indexed for Python only: `importers` finds nothing in TypeScript/JavaScript files.
+- Imports are indexed for Python only: `importers` does not list TypeScript/JavaScript files that import a module, so an empty or short result says nothing about them. Use `grep_tool`.
 - Files ignored by git, dependency and build folders, files over 1 MB, symbolic links, and Python files with syntax errors are not indexed.
 - Very large workspaces are indexed only in part. When `notes` says so, a missing result is unconfirmed: use `grep_tool`.

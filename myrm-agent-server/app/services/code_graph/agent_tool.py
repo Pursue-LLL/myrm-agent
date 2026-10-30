@@ -48,6 +48,13 @@ _HINT_QUALIFIED_NAME = "use a qualified name to narrow the result."
 _HINT_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
 _HINT_OPEN_FUNCTION = "they are listed by line number, so open the function to see the rest."
 
+_INDEXED = "Only Python and TypeScript/JavaScript files are indexed."
+# An empty importers answer reads as "nothing imports it" unless it says TypeScript/JavaScript imports are not seen.
+_GAP_IMPORTS = (
+    "Only Python imports are indexed, so TypeScript/JavaScript files that import this module are not listed: "
+    "use grep to find them."
+)
+
 CodeGraphAction = Literal["resolve", "definition", "callers", "callees", "implementors", "importers", "tests_calling"]
 
 _DESCRIPTION = (
@@ -119,6 +126,8 @@ class _Action:
     query: Callable[[CodeGraphService, str], list[Row]]
     row: Callable[[Row], Row]
     cut_hint: str
+    # What the action cannot see although the index holds it; stated in every answer, empty when it sees all of it.
+    gap: str = ""
 
 
 def _definition_query(service: CodeGraphService, target: str) -> list[Row]:
@@ -149,7 +158,7 @@ _ACTIONS: dict[str, _Action] = {
         lambda r: {"class": r["sub_type"], "extends": r["super_type"], "at": _site(r)},
         cut_hint=_HINT_SEARCH,
     ),
-    "importers": _Action(lambda s, t: s.importers(t), _importer_row, cut_hint=_HINT_QUALIFIED_NAME),
+    "importers": _Action(lambda s, t: s.importers(t), _importer_row, cut_hint=_HINT_QUALIFIED_NAME, gap=_GAP_IMPORTS),
     "tests_calling": _Action(
         lambda s, t: s.tests_calling(t),
         lambda r: {"at": _site(r), "test": r["test_symbol"], "match": r["match"]},
@@ -175,7 +184,7 @@ def _remove_stale_indexes(current: Path) -> None:
             logger.warning("Code graph could not remove the stale index %s: %s", entry, exc)
 
 
-def _notes(total: int, definitions: int, stats: IndexStats, cut_hint: str) -> list[str]:
+def _notes(total: int, definitions: int, stats: IndexStats, spec: _Action) -> list[str]:
     notes: list[str] = []
     if stats.truncated:
         notes.append(
@@ -184,11 +193,12 @@ def _notes(total: int, definitions: int, stats: IndexStats, cut_hint: str) -> li
         )
     if total == 0:
         notes.append(
-            "Nothing found. Names are case-sensitive; try resolve with a shorter name or use grep. "
-            "Only Python and TypeScript/JavaScript files are indexed."
+            f"Nothing found. Names are case-sensitive; try resolve with a shorter name or use grep. {spec.gap or _INDEXED}"
         )
+    elif spec.gap:
+        notes.append(spec.gap)
     if total > MAX_ROWS:
-        notes.append(f"More rows exist than the {MAX_ROWS} shown; {cut_hint}")
+        notes.append(f"More rows exist than the {MAX_ROWS} shown; {spec.cut_hint}")
     if definitions > 1:
         notes.append(f"{definitions} functions share this name, so match=name rows may call another one.")
     if stats.skipped_files:
@@ -229,7 +239,7 @@ class _Navigator:
         if action in ("callers", "tests_calling"):
             definitions = self._service.definition_count(target)
             payload["definitions"] = definitions
-        notes = _notes(len(found), definitions, stats, spec.cut_hint)
+        notes = _notes(len(found), definitions, stats, spec)
         if notes:
             payload["notes"] = notes
         return {
