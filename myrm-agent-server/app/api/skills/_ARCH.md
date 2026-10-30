@@ -14,7 +14,7 @@
 | `batch_import/`（子包） | 模块 | 批量导入 (GUI-First 技能迁移) 域：`batch_import.py`（`preview/confirm` 路由，错误统一输出 `detail={message,error_code}`）、`batch_import_execute.py`（落盘执行器 `execute_batch_import_confirm`，蓝绿原子写入 + DB 事务）、`batch_import_helpers.py`（错误映射助手）、`batch_import_schemas.py`（请求/响应 Pydantic 模型）。`batch_import/__init__.py` 为聚合门面（导出 `router`）。 | ✅ |
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；PUT 只接受产品提供的进化策略（balanced / innovate，其余 422），修改后即热更新运行中的筛选器；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
 | `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
-| `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
+| `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability；源文件写入（`PUT /{skill_id}/files/...`）先过安全扫描，写技能根目录的 `SKILL.md` 时还须能被技能加载器解析，否则 400 且不落盘（加载器会跳过解析失败的文件，保存后技能会从 agent 视野里消失） | ✅ |
 | `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断（每条发现标明是否被 Agent、定时任务或看板任务绑定）与修复；运行与历史响应带 `skipped_pinned`/`skipped_protected`，界面据此解释"0 变化"的清理为何没动任何技能 | ✅ |
 | `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
 | `discovery/`（子包） | 模块 | 技能发现域：`discovery.py`（search/install/preview/update/sources 路由）+ `discovery_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`discovery/_ARCH.md`](discovery/_ARCH.md) | ✅ |

@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import PlainTextResponse
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.api.skills import compute_content_hash
+from myrm_agent_harness.api.skills import SkillMetadataError, compute_content_hash, parse_skill_frontmatter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,10 +126,8 @@ async def update_skill_file(
 
     from pathlib import Path
 
-    from myrm_agent_harness.backends.skills.scanning.scanner import (
-        SkillTrustRecommendation,
-        scan_skill_content,
-    )
+    from myrm_agent_harness.backends.skills.scanning.scanner import scan_skill_content
+    from myrm_agent_harness.backends.skills.types import SkillTrustRecommendation
 
     scan_res = scan_skill_content(
         skill.name,
@@ -142,6 +140,13 @@ async def update_skill_file(
             status_code=400,
             detail=f"Security scan rejected skill file modification: {'; '.join(rejection_reasons)}",
         )
+
+    # The loader skips a SKILL.md it cannot parse, so saving one would make the skill vanish from the agent.
+    if Path(filename).parts == (SKILL_MD_FILE,):
+        try:
+            parse_skill_frontmatter(payload.content, skill.name)
+        except SkillMetadataError as e:
+            raise HTTPException(status_code=400, detail=f"SKILL.md cannot be loaded: {e}") from e
 
     from app.services.skills.write_orchestrator import (
         SkillContentConflictError,

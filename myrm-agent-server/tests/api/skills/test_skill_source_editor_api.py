@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.api.skills.core import router as core_router
 from app.core.skills.models import Skill, SkillType
+from app.services.skills.write_orchestrator import SkillFileWriteResult
 
 
 @pytest.fixture(scope="function")
@@ -112,3 +113,39 @@ def test_update_skill_file_skill_not_found(client: TestClient) -> None:
         )
         assert response.status_code == 404
         assert "Skill not found" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "# Notes without any frontmatter\n",
+        "---\nname: test-skill\n---\n# Frontmatter without a description\n",
+    ],
+)
+def test_update_skill_md_the_loader_would_skip_is_rejected_before_any_write(client: TestClient, content: str) -> None:
+    with (
+        patch("app.api.skills.core.skills_service.get_skill", new_callable=AsyncMock) as mock_get_skill,
+        patch("app.services.skills.write_orchestrator.orchestrate_skill_file_write", new_callable=AsyncMock) as mock_write,
+    ):
+        mock_get_skill.return_value = _make_mock_skill()
+
+        response = client.put("/api/v1/skills/test-skill/files/SKILL.md", json={"content": content})
+
+        assert response.status_code == 400
+        assert "SKILL.md cannot be loaded" in response.json()["detail"]
+        mock_write.assert_not_awaited()
+
+
+@pytest.mark.parametrize("filename", ["references/SKILL.md", "notes.md"])
+def test_update_markdown_the_loader_never_parses_is_not_validated_as_skill_md(client: TestClient, filename: str) -> None:
+    with (
+        patch("app.api.skills.core.skills_service.get_skill", new_callable=AsyncMock) as mock_get_skill,
+        patch("app.services.skills.write_orchestrator.orchestrate_skill_file_write", new_callable=AsyncMock) as mock_write,
+    ):
+        mock_get_skill.return_value = _make_mock_skill()
+        mock_write.return_value = SkillFileWriteResult(content_hash="hash-1", version_persisted=False)
+
+        response = client.put(f"/api/v1/skills/test-skill/files/{filename}", json={"content": "# Plain notes\n"})
+
+        assert response.status_code == 200
+        mock_write.assert_awaited_once()
