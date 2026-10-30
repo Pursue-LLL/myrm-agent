@@ -136,8 +136,8 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 ### 语言与框架
 
 - **Python**: >= 3.13（见 `pyproject.toml`）
-- **LangChain**: >= 1.3.11（Agent 框架，见 `pyproject.toml`）
-- **LangGraph**: >= 1.2.7（流程编排，见 `pyproject.toml`）
+- **LangChain**: 1.x（Agent 框架；下限与上限见 `pyproject.toml`，下限与区间内最新版由每周的 `harness-framework-canary.yml` 验证）
+- **LangGraph**: 1.x（流程编排；同上）
 
 ### 核心库
 

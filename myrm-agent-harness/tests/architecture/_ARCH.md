@@ -75,6 +75,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
 | `test_command_log_masking.py` | Gate | AST：`src/` 内日志调用不得直接引用名字里带 `command` / `cmd` 一词的变量，须经 `command_preview` 或 `redact_command_line`；按名字拦截，是绊线而不是证明；允许清单以 `路径::函数::变量` 登记且过期条目报错；自带检测器正反例 | — |
 | `test_no_third_party_patching.py` | Gate | AST：`src/` 禁止就地改写 LangChain / LangGraph 的对象（在非自有对象上替换框架方法、改写框架类的属性、重赋 `__class__`），须改用公开的中间件钩子或 `request.override(...)`；自带检测器正反例，防退化为 no-op | — |
+| `test_framework_dependency_bounds.py` | Gate | `pyproject.toml` 里每个 LangChain / LangGraph 系依赖须同时声明 `>=` 下限与 `<` 上限（每周金丝雀安装的正是这些声明）；自带规则正反例 | — |
 
 ## 运行
 
