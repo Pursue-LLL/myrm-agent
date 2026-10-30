@@ -4,10 +4,12 @@ Supports automatic locale detection with fallback to English.
 
 [INPUT]
 - constants::REQUIRED_ERROR_TYPES (POS: Required error types for translation completeness validation)
+- utils.locale::is_chinese (POS: Chinese-family detection, Simplified or Traditional)
 
 [OUTPUT]
-- LocaleManager: Locale detection, bundled JSON locale loading, and message formatting; a text a bundle cannot
-  render gives way to the English one
+- LocaleManager: Locale detection, bundled JSON locale loading, and message formatting; a text a bundle lacks
+  or cannot render is read from the next locale of locale_chain(): Simplified Chinese for any Chinese
+  locale, then English
 
 [POS]
 Framework-level i18n for LLM error diagnostics. Loads bundled locale JSON from the
@@ -23,6 +25,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Literal, overload
+
+from myrm_agent_harness.utils.locale import is_chinese
 
 from .constants import REQUIRED_ERROR_TYPES
 
@@ -194,14 +198,22 @@ class LocaleManager:
         rendered = self._render(error_type, key, locale, params)
         return rendered if isinstance(rendered, str) else None
 
+    @staticmethod
+    def locale_chain(locale: str) -> tuple[str, ...]:
+        """The locales a text is read from, best first: ``locale``, Simplified Chinese for any Chinese locale, English.
+
+        No Traditional Chinese bundle ships, so a Traditional reader gets the Chinese bundle before the English one.
+        """
+        return tuple(dict.fromkeys((locale, *(("zh-CN",) if is_chinese(locale) else ()), "en")))
+
     def _render(self, error_type: str, key: str, locale: str, params: dict[str, object]) -> str | list[str] | None:
-        """``error_type.key`` filled in from ``params`` in ``locale``, else in English; None when neither yields a text.
+        """``error_type.key`` filled in from ``params`` along ``locale_chain(locale)``; None when no locale yields a text.
 
         A bundle a host wrote can hold a template ``str.format`` rejects (``{}``, ``{model``, ``{x[a]}``); it counts as
         absent for its language, so the diagnosis keeps its card in the next one. A step list is one text: a single
         step that cannot be rendered sets the whole list aside, so the steps stay in one language.
         """
-        for candidate in dict.fromkeys((locale, "en")):
+        for candidate in self.locale_chain(locale):
             template = self._translations.get(candidate, {}).get(error_type, {}).get(key)
             if template is None:
                 continue

@@ -4,16 +4,19 @@
 - (none — leaf module)
 
 [OUTPUT]
-- LocaleResolver: BCP-47 normalization and Chinese detection
+- LocaleResolver: BCP-47 normalization (Chinese resolves to zh-CN or zh-TW) and Chinese-family detection
 
 [POS]
 Shared locale utilities consumed by channel i18n, error diagnostics, and
 component text fallbacks. Single source of truth for locale string handling.
+Chinese is a family: prompt and tool text branch on is_chinese, while text catalogs pick a
+bundle by the exact locale and let zh-TW fall back to zh-CN.
 """
 
 from __future__ import annotations
 
 import os
+from itertools import takewhile
 from typing import Final
 
 DEFAULT_LOCALE: Final[str] = "en"
@@ -28,9 +31,26 @@ PLATFORM_DEFAULT_LOCALES: Final[dict[str, str]] = {
     "qq": "zh-CN",
 }
 
+# Regions whose Chinese is written in the Traditional script when the tag carries no script subtag.
+_TRADITIONAL_REGIONS: Final[frozenset[str]] = frozenset({"tw", "hk", "mo"})
+
+
+def _names_traditional_chinese(tag: str) -> bool:
+    """Whether a lowercase ``zh`` tag names Traditional Chinese: the script subtag decides, otherwise the region does."""
+    # A singleton opens extension or private-use subtags, which never name the script or region.
+    subtags = list(takewhile(lambda subtag: len(subtag) > 1, tag.split(".")[0].split("-")[1:]))
+    for subtag in subtags:
+        if len(subtag) == 4 and subtag.isalpha():
+            return subtag == "hant"
+    return not _TRADITIONAL_REGIONS.isdisjoint(subtags)
+
 
 def normalize_locale(value: str | None) -> str:
-    """Normalize a locale string. Maps Chinese variants to zh-CN, C/POSIX to en, else passes through."""
+    """Normalize a locale string.
+
+    Chinese resolves to ``zh-TW`` when the tag names Traditional Chinese and to ``zh-CN`` otherwise; C/POSIX
+    resolves to en; everything else passes through.
+    """
     if not value or not str(value).strip():
         return DEFAULT_LOCALE
 
@@ -41,7 +61,7 @@ def normalize_locale(value: str | None) -> str:
         return DEFAULT_LOCALE
 
     if lower.startswith("zh"):
-        return "zh-CN"
+        return "zh-TW" if _names_traditional_chinese(lower) else "zh-CN"
 
     return raw
 
@@ -72,5 +92,5 @@ def resolve_locale(
 
 
 def is_chinese(locale: str | None) -> bool:
-    """Return True when locale resolves to Chinese."""
-    return normalize_locale(locale) == "zh-CN"
+    """Return True when locale resolves to Chinese, Simplified or Traditional."""
+    return normalize_locale(locale).startswith("zh")

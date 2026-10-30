@@ -25,7 +25,7 @@ Utility library exports. Public interface for the utils module providing commonl
 | image_utils.py | Core | Central media processing utilities (image/video/audio). Used by context_management, MediaFilterProcessor, and stream recovery to prevent overflow and multimodal rejection errors. | ✅ |
 | log_rotation.py | Core | Agent utilities layer, used by audit logging and any growing log files. | ✅ |
 | logger_utils.py | Core | Unified logging utilities. Provides consistent log format and convenience methods (step/success/erro | ✅ |
-| locale.py | Core | BCP-47 locale normalization and Chinese detection (LocaleResolver SSOT) | ✅ |
+| locale.py | Core | BCP-47 locale normalization and Chinese-family detection (LocaleResolver SSOT): a Chinese tag resolves to `zh-TW` when its script subtag is Hant (without a script subtag: its region is TW, HK or MO) and to `zh-CN` otherwise; `is_chinese` is true for both | ✅ |
 | response_locale.py | Core | Agent output locale/formality suffix from engine_params.response_locale_policy | ✅ |
 | lru_cache.py | Core | LRU cache utility. OrderedDict-based LRU cache implementation with TTL support. | ✅ |
 | markdown_frontmatter.py | Core | Markdown YAML frontmatter parse/preserve helpers shared by vault write guard, toolkits wiki, server wiki import and the server knowledge pack; `FRONTMATTER_BLOCK_RE` finds the block after an optional UTF-8 BOM, and the parsed body carries no BOM, so a page the system rewrites (repair, demote, approve) loses its BOM | ✅ |

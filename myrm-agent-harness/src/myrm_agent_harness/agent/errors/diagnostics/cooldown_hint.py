@@ -1,7 +1,7 @@
 """Cooldown hint rendering for rate-limit diagnostics.
 
 [INPUT]
-- diagnostics.i18n::get_locale_manager (POS: bundled and override locale bundles)
+- diagnostics.i18n::get_locale_manager (POS: bundled and override locale bundles, and the locale_chain() a text is read along)
 - locale JSON keys `cooldown_hint_template` / `cooldown_hint_joiner` and the unit words `cooldown_hint_<second|minute|hour|day>_one` / `_other`
 
 [OUTPUT]
@@ -85,9 +85,14 @@ def format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
         from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
         manager = get_locale_manager()
-        bundle = manager._translations.get(locale, {}).get("_cooldown_hint", {})
-        if not bundle:
-            bundle = manager._translations.get("en", {}).get("_cooldown_hint", {})
+        bundle = next(
+            (
+                found
+                for loc in manager.locale_chain(locale)
+                if (found := manager._translations.get(loc, {}).get("_cooldown_hint"))
+            ),
+            {},
+        )
         # The bundle type also admits step lists; only text entries are templates.
         translations = {key: text for key, text in bundle.items() if isinstance(text, str)}
 

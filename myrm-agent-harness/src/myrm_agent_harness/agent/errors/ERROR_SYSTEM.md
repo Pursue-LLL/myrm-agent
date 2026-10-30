@@ -396,7 +396,7 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `transport_diagnosis.py` | TLS（`tls_certificate`、`tls_transient`）与连接（`connection`、`custom_endpoint_unreachable`）诊断；自定义端点的服务名、端口推断 |
 | `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
 | `types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
-| `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化 |
+| `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化；`locale_chain()` 定义文案的回退链：请求的语言 → 中文区域（含繁体 `zh-TW`，没有繁体目录）的 `zh-CN` → `en` |
 | `i18n/__init__.py` | `get_locale_manager()` 全局单例 |
 | `i18n/constants.py` | `REQUIRED_ERROR_TYPES` 翻译完整性校验 |
 | `i18n/locales/` | 5 语言 JSON（en/zh-CN/ja/ko/de） |
@@ -434,7 +434,7 @@ class DiagnosticResult:
     error_type: str  # 错误类型（如 "rate_limit"）
     user_message: str  # 本地化用户消息
     resolution_steps: list[str]  # 恢复步骤建议
-    locale: str  # 已解析语言（en/zh-CN/ja/ko/de）
+    locale: str  # 请求的语言（en/zh-CN/zh-TW/ja/ko/de 等）；文案按 `locale_chain()` 取，繁体请求读到简体文案
 ```
 
 ### 前端错误处理
@@ -496,8 +496,8 @@ get_locale_manager().register_translations(
 # 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 `<error_type>_user_message` / `_resolution_steps` / `_wait_step` 与 cooldown_hint_* 自动展平）
 # 限流诊断只说一次等待：供应商给出等待时长时，消息里已有该时长，resolution_steps 不含通用的 rate_limit_wait_step；
 # 没有给出时它排在 resolution_steps 之首。自定义目录没有 rate_limit_wait_step 时，resolution_steps 就是目录里的步骤。
-# 自定义文案里 str.format 不认的模板（如 `{}`、`{model`、`{x[a]}`）视为该语言没有这条文案：回退英文并记一条带异常栈的 WARNING，错误卡保持完整；
-# 步骤列表里只要有一步无法渲染，整个列表回退；英文也无法渲染时按缺失翻译处理。
+# 自定义文案里 str.format 不认的模板（如 `{}`、`{model`、`{x[a]}`）视为该语言没有这条文案：按回退链取下一种语言（中文区域先 zh-CN，最后英文）并记一条带异常栈的 WARNING，错误卡保持完整；
+# 步骤列表里只要有一步无法渲染，整个列表回退；回退链上的语言都无法渲染时按缺失翻译处理。
 ```
 
 ---
