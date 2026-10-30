@@ -319,7 +319,8 @@ def test_every_orm_column_is_mapped_on_each_path(
     assert not unmapped, f"{mapper.__name__} never maps {sorted(unmapped)}"
 
 
-# ``user_id`` is read back as the single user "default"; nothing writes or reads the other three.
+# ``user_id`` is read back as the single user "default"; no code reads the other three, and the only write is
+# ``duplicate_job`` resetting ``job_scratchpad`` to empty.
 _NOT_PERSISTED_FIELDS = frozenset({"user_id", "continuity", "job_scratchpad", "target_bot_agent_id"})
 
 

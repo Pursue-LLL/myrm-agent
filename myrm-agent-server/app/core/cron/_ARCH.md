@@ -38,6 +38,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
 | `blueprints.py` | 核心 | 自动化蓝图单一数据源：21 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `seo_weekly_audit`、`wiki_maintain`、`wiki_vault_weekly_health` 与 commerce/marketing 系列等）。无人值守 job 被 Capability Fence 限定在所声明能力内，故每个蓝图声明的 `required_capabilities` 必须覆盖其 prompt 点名的工具；无人值守写文件只由 `file_write` 声明放行，保存文件的蓝图（`seo_weekly_audit`、`viral_quote_discovery`）须声明它（均由 `tests/core/cron/test_blueprint_capability_contract.py` 守护） | — |
+| `blueprint_job_spec.py` | 核心 | 蓝图填充结果到任务的唯一转换与创建点：`to_job_spec` 把 `BlueprintFillResult` 逐字段转为 harness 的 `BlueprintJobSpec`（15 个字段同名，空的预检脚本视为没有），`fill_job_spec` 是 Agent 工具的蓝图填充器，`create_blueprint_job` 按 spec 创建任务（调用方只补它自己的名称、调度、智能体、允许根和超时兜底）。Agent 工具、Second Brain 预设与稍后读清理三条路径都经它，蓝图声明的字段在每条路径上都到达存储的任务；`tests/core/cron/test_blueprint_job_creation.py` 对全部 21 个内置蓝图逐字段核对 Agent 工具与创建函数两条路径 |
 | `blueprint_i18n_supplement.py` | 核心 | ja/de/ko 蓝图文案补充模块，导入时合并进 `BUILTIN_BLUEPRINTS` | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 

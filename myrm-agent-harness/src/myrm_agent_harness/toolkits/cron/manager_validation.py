@@ -7,11 +7,12 @@ live together and can be read (and tested) on their own.
 [INPUT]
 - cron.engine.parser::validate_cron_expr, validate_timezone (POS: cron 表达式与时区校验)
 - cron.triggers::TriggerConfig, WebhookTrigger, generate_webhook_path, generate_webhook_secret (POS: webhook 触发定义与凭据生成)
-- cron.types::CronJob, JobType, Schedule, ScheduleKind (POS: cron 数据模型)
+- cron.types::CronJob, CronJobPatch, JobType, Schedule, ScheduleKind (POS: cron 数据模型)
 
 [OUTPUT]
-- CronValidationMixin: _validate_create / _validate_schedule / _validate_context_from /
-  _validate_resume_preconditions / _ensure_webhook_credentials / _resolve_name_conflict
+- CronValidationMixin: _validate_create / _validate_job_content / _validate_update_content /
+  _validate_schedule / _validate_context_from / _validate_resume_preconditions /
+  _ensure_webhook_credentials / _resolve_name_conflict
 
 [POS]
 Validation half of the cron CRUD manager. A mixin rather than free functions because every
@@ -38,7 +39,7 @@ from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType, ScheduleK
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
-    from myrm_agent_harness.toolkits.cron.types import CronJob, Schedule
+    from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, Schedule
 
 
 class CronValidationMixin:
@@ -67,17 +68,56 @@ class CronValidationMixin:
         schedule: Schedule,
         prompt: str | None,
         command: str | None,
+        pre_condition_script: str | None = None,
     ) -> None:
         """Validate required fields by job type before persisting."""
+        if job_type == JobType.SHELL and not self._shell_enabled:
+            raise ValueError("shell jobs are not enabled")
+        self._validate_job_content(job_type, prompt, command, pre_condition_script)
+        self._validate_schedule(schedule)
+
+    @staticmethod
+    def _validate_job_content(
+        job_type: JobType,
+        prompt: str | None,
+        command: str | None,
+        pre_condition_script: str | None,
+    ) -> None:
+        """Require what the job's runner executes.
+
+        A shell job needs a command. A router job passes its input straight through, so a
+        pre-condition script can stand in for the prompt. Every other type needs a prompt.
+        """
         if job_type == JobType.SHELL:
-            if not self._shell_enabled:
-                raise ValueError("shell jobs are not enabled")
             if not command:
                 raise ValueError("SHELL job requires a non-empty 'command'")
+        elif job_type == JobType.ROUTER:
+            if not (prompt or pre_condition_script):
+                raise ValueError("ROUTER job requires a non-empty 'prompt' or 'pre_condition_script'")
         elif not prompt:
             raise ValueError(f"{job_type.value.upper()} job requires a non-empty 'prompt'")
 
-        self._validate_schedule(schedule)
+    @classmethod
+    def _validate_update_content(cls, job: CronJob, patch: CronJobPatch) -> None:
+        """Apply the creation content rule to the record a patch would produce.
+
+        Checked only when the patch touches a field the rule reads, so stored jobs stay
+        editable through every other field.
+        """
+        if (
+            patch.prompt is None
+            and patch.command is None
+            and patch.pre_condition_script is None
+            and not patch.clear_pre_condition_script
+        ):
+            return
+        script = job.pre_condition_script if patch.pre_condition_script is None else patch.pre_condition_script
+        cls._validate_job_content(
+            job.job_type,
+            job.prompt if patch.prompt is None else patch.prompt,
+            job.command if patch.command is None else patch.command,
+            None if patch.clear_pre_condition_script else script,
+        )
 
     @staticmethod
     def _validate_schedule(schedule: Schedule) -> None:

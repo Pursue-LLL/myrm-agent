@@ -590,48 +590,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
             from app.core.cron.adapters.setup import get_cron_manager
-            from app.core.cron.blueprints import (
-                BlueprintFillError,
-                fill_blueprint,
-                get_blueprints_for_tool_description,
-            )
+            from app.core.cron.blueprint_job_spec import fill_job_spec
+            from app.core.cron.blueprints import get_blueprints_for_tool_description
 
             agent_locale = getattr(self, "locale", None) or "en"
-
-            def _blueprint_filler(
-                bp_id: str, values: dict[str, str], tz: str | None
-            ) -> (
-                tuple[
-                    dict[str, str | int | None],
-                    str,
-                    str,
-                    tuple[str, ...],
-                    tuple[str, ...] | None,
-                    tuple[str, ...] | None,
-                ]
-                | None
-            ):
-                try:
-                    result = fill_blueprint(bp_id, values, locale=agent_locale, tz=tz)
-                except BlueprintFillError as exc:
-                    raise ValueError(str(exc)) from exc
-                if not result:
-                    return None
-                sched = result.schedule
-                sched_dict: dict[str, str | int | None] = {
-                    "kind": sched.kind,
-                    "expr": sched.expr,
-                    "tz": sched.tz,
-                    "interval_ms": sched.interval_ms,
-                }
-                return (
-                    sched_dict,
-                    result.prompt,
-                    result.name,
-                    result.required_capabilities,
-                    result.tools_allowed,
-                    result.skill_ids,
-                )
 
             cron_tools = create_cron_tools(
                 get_cron_manager(),
@@ -639,7 +601,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 current_model=self.model_cfg.model,
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,
-                blueprint_filler=_blueprint_filler,
+                blueprint_filler=lambda bp_id, values, tz: fill_job_spec(bp_id, values, locale=agent_locale, tz=tz),
                 blueprint_catalog_provider=lambda: get_blueprints_for_tool_description(agent_locale),
                 delivery_resolver=resolve_cron_delivery,
                 default_delivery=self._resolve_cron_default_delivery(),
@@ -1007,7 +969,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
-
 
 
 def _select_image_constraints(model_name: str) -> object | None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import create_autospec, patch
 
 import pytest
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
@@ -56,26 +56,14 @@ async def test_migrate_recreates_stale_job() -> None:
     mgr.list_jobs.return_value = [legacy]
     mgr.create_job.return_value = recreated
 
-    fill = MagicMock(
-        job_type="router",
-        prompt="Wiki source sync job (router mode).",
-        required_capabilities=(),
-        tools_allowed=(),
-        session_target="isolated",
-        deduplicate=True,
-        skip_if_active=True,
-        timeout_seconds=120,
-        pre_condition_script=None,
-        command=WIKI_SOURCE_SYNC_COMMAND,
-    )
-
-    with (
-        patch("app.services.wiki.source_sync.read_it_later_hygiene.get_cron_manager", return_value=mgr),
-        patch("app.services.wiki.source_sync.read_it_later_hygiene.fill_blueprint", return_value=fill),
-    ):
+    with patch("app.services.wiki.source_sync.read_it_later_hygiene.get_cron_manager", return_value=mgr):
         result = await migrate_stale_read_it_later_jobs()
 
     assert result.migrated_count == 1
     assert result.id_remaps == {"job-1": "job-new"}
     mgr.delete_job.assert_awaited_once_with("job-1", "default")
     mgr.create_job.assert_awaited_once()
+    call = mgr.create_job.await_args
+    assert call.args == ("default", legacy.name, JobType.ROUTER, legacy.schedule)
+    assert call.kwargs["command"] == WIKI_SOURCE_SYNC_COMMAND
+    assert (call.kwargs["deduplicate"], call.kwargs["skip_if_active"], call.kwargs["timeout_seconds"]) == (True, True, 120)

@@ -4,7 +4,6 @@ Orchestrates validation, persistence, and scheduler notification.
 The ``CronManager`` is the single entry point for all job mutations
 (used by both agent tools and API routes).
 
-
 [INPUT]
 - cron.engine.parser::compute_next_run, validate_cron_expr, validate_timezone (POS: cron expression parser and validator)
 - cron.triggers::TriggerConfig, WebhookTrigger, generate_webhook_path, generate_webhook_secret (POS: event trigger definitions)
@@ -205,7 +204,7 @@ class CronManager(CronValidationMixin):
         pre_condition_script: str | None = None,
         acceptance_criteria: tuple[dict[str, object], ...] = (),
     ) -> CronJob:
-        self._validate_create(job_type, schedule, prompt, command)
+        self._validate_create(job_type, schedule, prompt, command, pre_condition_script)
 
         if triggers:
             triggers = self._ensure_webhook_credentials(triggers)
@@ -364,6 +363,7 @@ class CronManager(CronValidationMixin):
         job = await self._store.get_job(job_id)
         if not job or job.user_id != user_id:
             return None
+        self._validate_update_content(job, patch)
 
         now = datetime.now(UTC)
         reset_reason: ResetReason | None = None

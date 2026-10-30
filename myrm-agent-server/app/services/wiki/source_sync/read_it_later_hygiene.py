@@ -18,10 +18,11 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, SessionTarget
+from myrm_agent_harness.toolkits.cron.types import CronJob, JobType
 
 from app.core.cron.adapters.setup import get_cron_manager
 from app.core.cron.adapters.wiki_router_job_runner import WIKI_SOURCE_SYNC_COMMAND
+from app.core.cron.blueprint_job_spec import create_blueprint_job, to_job_spec
 from app.core.cron.blueprints import fill_blueprint
 
 logger = logging.getLogger(__name__)
@@ -90,21 +91,14 @@ async def migrate_stale_read_it_later_jobs(*, user_id: str = _DEFAULT_USER_ID) -
         old_id = job.id
         try:
             await mgr.delete_job(old_id, user_id)
-            recreated = await mgr.create_job(
+            recreated = await create_blueprint_job(
+                mgr,
                 user_id,
-                job.name,
-                JobType(fill.job_type),
-                job.schedule,
-                prompt=fill.prompt,
+                to_job_spec(fill),
+                name=job.name,
+                schedule=job.schedule,
                 agent_id=job.agent_id,
-                required_capabilities=fill.required_capabilities,
-                tools_allowed=fill.tools_allowed,
-                session_target=SessionTarget(fill.session_target),
-                deduplicate=fill.deduplicate,
-                skip_if_active=fill.skip_if_active,
-                timeout_seconds=fill.timeout_seconds or 120,
-                pre_condition_script=fill.pre_condition_script,
-                command=fill.command,
+                default_timeout_seconds=120,
             )
         except Exception as exc:
             logger.warning("Failed to migrate stale read-it-later cron %s: %s", old_id, exc)

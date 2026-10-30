@@ -464,7 +464,6 @@ myrm_agent_harness.toolkits.memory.strategies.subsumption
 myrm_agent_harness.toolkits.memory.types
 myrm_agent_harness.toolkits.openapi_bridge
 myrm_agent_harness.toolkits.retriever.bm25
-myrm_agent_harness.toolkits.retriever.bm25_retrieval
 myrm_agent_harness.toolkits.retriever.embedding.base
 myrm_agent_harness.toolkits.retriever.embedding.factory
 myrm_agent_harness.toolkits.retriever.reranker.factory

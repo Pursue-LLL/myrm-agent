@@ -8,11 +8,12 @@ when called from within a cron job execution, preventing infinite task chains.
 
 [INPUT]
 - toolkits.cron._cron_tool_description::resolve_cron_tool_description (POS: cron_manage_tool 提示词 SSOT 与多语言描述解析)
+- toolkits.cron.blueprint_job_spec::BlueprintFiller, BlueprintJobSpec (POS: blueprint 产出的完整 job 定义)
 
 [OUTPUT]
 - enter_cron_execution_context: Mark the current async context as running inside a cron job execution.
 - exit_cron_execution_context: Restore the previous cron execution context.
-- create_cron_tools: Create cron_manage_tool with on-demand blueprints, default_delivery, reminder jobs, locale-aware descriptions.
+- create_cron_tools: Create cron_manage_tool with on-demand blueprints (a filled blueprint creates the job it defines, every field forwarded), default_delivery, reminder jobs, locale-aware descriptions.
 
 [POS]
 Agent tool for scheduled task management.
@@ -33,6 +34,11 @@ from langchain_core.tools import BaseTool, tool
 from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorType
 from myrm_agent_harness.toolkits.cron._cron_tool_description import (
     resolve_cron_tool_description,
+)
+from myrm_agent_harness.toolkits.cron.blueprint_job_spec import (
+    DEFAULT_JOB_TIMEOUT_SECONDS,
+    BlueprintFiller,
+    BlueprintJobSpec,
 )
 from myrm_agent_harness.toolkits.cron.engine.name_generator import generate_job_name
 from myrm_agent_harness.toolkits.cron.engine.parser import describe_schedule
@@ -55,19 +61,6 @@ from myrm_agent_harness.toolkits.cron.types import (
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.manager import CronManager
 
-# Blueprint filler: (blueprint_id, values_dict, tz) -> (schedule_dict, prompt, name, caps, tools, skills) | None
-BlueprintFiller = Callable[
-    [str, dict[str, str], str | None],
-    tuple[
-        dict[str, str | int | None],
-        str,
-        str,
-        tuple[str, ...],
-        tuple[str, ...] | None,
-        tuple[str, ...] | None,
-    ]
-    | None,
-]
 BlueprintCatalogProvider = Callable[[], str]
 DeliveryResolver = Callable[[str], DeliveryConfig]
 
@@ -113,8 +106,8 @@ def create_cron_tools(
     ``blueprint_catalog_provider`` returns blueprint catalog text for the
     on-demand ``action=blueprints`` lookup (not injected into Turn1 schema).
 
-    ``blueprint_filler`` is a callable that fills a blueprint by ID and slot
-    values, returning (schedule_dict, prompt, name) or None if unknown.
+    ``blueprint_filler`` fills a blueprint by ID and slot values, returning the
+    complete ``BlueprintJobSpec`` of the job it defines, or None if unknown.
 
     ``default_delivery`` is used when ``webhook_url`` is empty instead of
     falling back to in-chat delivery (e.g. IM channel + recipient binding).
@@ -184,17 +177,8 @@ def create_cron_tools(
                 "a cron job execution. This prevents infinite task chains."
             )
 
-        # Blueprint-based creation: fill prompt/schedule from blueprint template
-        bp_prompt = prompt
-        bp_cron_expr = cron_expr
-        bp_every_minutes = every_minutes
-        bp_at = at
-        bp_tz = tz
-        bp_name = name
-        bp_required_capabilities: tuple[str, ...] = ()
-        bp_tools_allowed: tuple[str, ...] | None = None
-        bp_skill_ids: tuple[str, ...] = ()
-
+        # Blueprint-based creation: the filler returns the whole job definition
+        spec: BlueprintJobSpec | None = None
         if action == "add" and blueprint.strip() and blueprint_filler:
             bp_values: dict[str, str] = {}
             if blueprint_values.strip():
@@ -203,42 +187,32 @@ def create_cron_tools(
                 except (json.JSONDecodeError, TypeError):
                     return 'Error: blueprint_values must be valid JSON object, e.g. \'{"time": "08:00"}\'.'
 
-            fill_result = blueprint_filler(blueprint.strip(), bp_values, tz.strip() or None)
-            if fill_result is None:
+            spec = blueprint_filler(blueprint.strip(), bp_values, tz.strip() or None)
+            if spec is None:
                 return f"Error: unknown blueprint '{blueprint.strip()}'. Use list action or check available blueprints."
 
-            sched_dict, filled_prompt, filled_name, filled_caps, filled_tools, filled_skills = fill_result
-            bp_prompt = filled_prompt
-            bp_name = bp_name or filled_name
-            bp_required_capabilities = filled_caps
-            bp_tools_allowed = filled_tools
-            bp_skill_ids = filled_skills or ()
-
-            sched_kind = sched_dict.get("kind", "")
-            if sched_kind == "cron" and sched_dict.get("expr"):
-                bp_cron_expr = str(sched_dict["expr"])
-                bp_tz = str(sched_dict.get("tz") or tz or "")
-            elif sched_kind == "interval" and (interval_ms := sched_dict.get("interval_ms")):
-                bp_every_minutes = int(interval_ms) // 60_000
-
         effective_required_capabilities = (
-            _parse_csv_tuple(required_capabilities) if required_capabilities.strip() else bp_required_capabilities
+            _parse_csv_tuple(required_capabilities)
+            if required_capabilities.strip()
+            else (spec.required_capabilities if spec else ())
         )
-        effective_tools_allowed = tuple(_parse_csv_tuple(tools_allowed)) if tools_allowed.strip() else bp_tools_allowed
-        effective_skill_ids = tuple(_parse_csv_tuple(skill_ids)) if skill_ids.strip() else bp_skill_ids
+        effective_tools_allowed = (
+            _parse_csv_tuple(tools_allowed) if tools_allowed.strip() else (spec.tools_allowed if spec else None)
+        )
+        effective_skill_ids = _parse_csv_tuple(skill_ids) if skill_ids.strip() else (spec.skill_ids if spec else ())
 
         dispatch = {
             "add": lambda: _do_add(
                 manager,
                 user_id,
-                bp_prompt,
+                spec.prompt if spec else prompt,
                 command,
                 effective_model,
-                bp_cron_expr,
-                bp_every_minutes,
-                bp_at,
-                bp_tz,
-                bp_name,
+                cron_expr,
+                every_minutes,
+                at,
+                tz,
+                name or (spec.name if spec else ""),
                 webhook_url,
                 failure_webhook_url,
                 recurring_confirmed,
@@ -265,6 +239,7 @@ def create_cron_tools(
                 required_capabilities=effective_required_capabilities,
                 tools_allowed=effective_tools_allowed,
                 skill_ids=effective_skill_ids,
+                spec=spec,
                 resolve_delivery=_resolve_delivery,
             ),
             "list": lambda: _do_list(manager, user_id, name_filter),
@@ -439,18 +414,18 @@ _SESSION_MODE_MAP: dict[str, SessionTarget] = {
 }
 
 
-def _parse_session_mode(raw: str) -> tuple[str | None, SessionTarget]:
-    """Parse session_mode string into SessionTarget enum.
+def _parse_session_mode(raw: str, default: SessionTarget = SessionTarget.ISOLATED) -> tuple[str | None, SessionTarget]:
+    """Parse session_mode string into SessionTarget enum; a blank value yields ``default``.
 
     Returns (error_msg, SessionTarget). error_msg is None on success.
     """
     cleaned = raw.strip().lower()
     if not cleaned:
-        return None, SessionTarget.ISOLATED
+        return None, default
     target = _SESSION_MODE_MAP.get(cleaned)
     if target is None:
         valid = ", ".join(sorted(_SESSION_MODE_MAP))
-        return f"Invalid session_mode '{raw}'. Must be one of: {valid}.", SessionTarget.ISOLATED
+        return f"Invalid session_mode '{raw}'. Must be one of: {valid}.", default
     return None, target
 
 
@@ -559,6 +534,7 @@ async def _do_add(
     tools_allowed: tuple[str, ...] | None = None,
     skill_ids: tuple[str, ...] = (),
     *,
+    spec: BlueprintJobSpec | None,
     resolve_delivery: DeliveryResolver,
 ) -> str:
     has_prompt = bool(prompt.strip())
@@ -571,20 +547,26 @@ async def _do_add(
 
     if has_prompt and has_command:
         return "Provide either prompt (agent task) or command (shell task), not both."
-    if not reminder and not has_prompt and not has_command:
+    if spec is None and not reminder and not has_prompt and not has_command:
         return "Either prompt or command is required."
 
     has_stream_or_poll = bool(stream_url.strip()) or bool(poll_url.strip())
-    has_schedule = any([cron_expr, every_minutes > 0, at])
+    has_schedule = spec is not None or any([cron_expr, every_minutes > 0, at])
 
     if not has_schedule and not has_stream_or_poll:
         return "Provide a schedule (cron_expr/every_minutes/at) or a trigger (stream_url/poll_url)."
 
     schedule: Schedule | None = None
     if has_schedule:
-        err, schedule = _build_schedule(cron_expr, every_minutes, at, tz)
+        err, schedule = (None, spec.schedule) if spec else _build_schedule(cron_expr, every_minutes, at, tz)
         if err or not schedule:
             return err or "Schedule build failed."
+        if (
+            spec
+            and schedule.kind == ScheduleKind.INTERVAL
+            and (schedule.interval_ms or 0) < _MIN_INTERVAL_MINUTES * 60_000
+        ):
+            return f"A blueprint interval must be at least {_MIN_INTERVAL_MINUTES} minutes."
 
         is_recurring = schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL)
         if is_recurring and not recurring_confirmed:
@@ -620,7 +602,7 @@ async def _do_add(
         job_type = JobType.REMINDER
         task_name = name.strip() or generate_job_name(prompt.strip())
     else:
-        job_type = JobType.AGENT
+        job_type = spec.job_type if spec else JobType.AGENT
         task_name = name.strip() or generate_job_name(prompt.strip())
 
     delivery = resolve_delivery(webhook_url)
@@ -634,11 +616,13 @@ async def _do_add(
         return f"Invalid expires_after format: '{expires_after}'. Use '3d', '2w', '3m', or ISO 8601."
 
     parsed_context_from = _parse_context_from(context_from)
-    mon_err, monitor_config, _clear = _build_monitor_config(monitor_type, monitor_enabled)
+    mon_err, monitor_config, monitor_off = _build_monitor_config(monitor_type, monitor_enabled)
     if mon_err:
         return mon_err
+    if spec and monitor_config is None and not monitor_off:
+        monitor_config = spec.monitor_config
 
-    sm_err, session_target = _parse_session_mode(session_mode)
+    sm_err, session_target = _parse_session_mode(session_mode, spec.session_target if spec else SessionTarget.ISOLATED)
     if sm_err:
         return sm_err
 
@@ -649,7 +633,7 @@ async def _do_add(
             job_type=job_type,
             schedule=schedule,
             prompt=prompt.strip() or None,
-            command=command.strip() or None,
+            command=command.strip() or (spec.command if spec else None),
             model=model.strip() or None,
             chat_id=chat_id,
             agent_id=agent_id,
@@ -657,10 +641,15 @@ async def _do_add(
             failure_delivery=failure_delivery,
             active_hours=active_hours,
             session_target=session_target,
+            deduplicate=spec.deduplicate if spec else False,
+            skip_if_active=spec.skip_if_active if spec else False,
+            timeout_seconds=(spec.timeout_seconds if spec else None) or DEFAULT_JOB_TIMEOUT_SECONDS,
             max_fires=effective_max_fires,
             expires_at=expires_at,
             context_from=parsed_context_from,
             monitor_config=monitor_config,
+            failure_alert=spec.failure_alert if spec else None,
+            pre_condition_script=spec.pre_condition_script if spec else None,
             triggers=trigger_config,
             required_capabilities=required_capabilities,
             tools_allowed=tools_allowed,
@@ -673,6 +662,7 @@ async def _do_add(
     type_label = {
         JobType.SHELL: "Shell",
         JobType.REMINDER: "Reminder",
+        JobType.ROUTER: "Router",
     }.get(job_type, "Agent")
 
     result: dict[str, str | int | list[str] | None] = {

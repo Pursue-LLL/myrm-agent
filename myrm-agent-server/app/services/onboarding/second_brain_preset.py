@@ -32,14 +32,12 @@ import yaml
 from myrm_agent_harness.toolkits.cron.types import (
     CronJobPatch,
     JobType,
-    Schedule,
-    ScheduleKind,
-    SessionTarget,
 )
 
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_readiness import ProviderConfigChecker
 from app.core.cron.adapters.setup import get_cron_manager
+from app.core.cron.blueprint_job_spec import create_blueprint_job, to_job_spec
 from app.core.cron.blueprints import fill_blueprint
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.agent_service import AgentService
@@ -344,27 +342,14 @@ async def _ensure_blueprint_cron(
             else:
                 return existing_id, False
 
-    schedule = Schedule(
-        kind=ScheduleKind.CRON,
-        expr=fill.schedule.expr,
-        tz=fill.schedule.tz,
-    )
-    job = await mgr.create_job(
+    job = await create_blueprint_job(
+        mgr,
         _USER_ID,
-        job_name,
-        JobType(fill.job_type),
-        schedule,
-        prompt=fill.prompt,
+        to_job_spec(fill),
+        name=job_name,
         agent_id=agent_id,
-        required_capabilities=fill.required_capabilities,
-        tools_allowed=fill.tools_allowed,
         allowed_roots=allowed_roots,
-        session_target=SessionTarget(fill.session_target),
-        deduplicate=fill.deduplicate,
-        skip_if_active=fill.skip_if_active,
-        timeout_seconds=fill.timeout_seconds or 300,
-        pre_condition_script=fill.pre_condition_script,
-        command=fill.command,
+        default_timeout_seconds=300,
     )
     return job.id, True
 

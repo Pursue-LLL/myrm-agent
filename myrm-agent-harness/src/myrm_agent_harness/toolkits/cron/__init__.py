@@ -16,6 +16,7 @@ Provides:
 
 
 [INPUT]
+- cron.blueprint_job_spec::BlueprintJobSpec (POS: job definition a blueprint filler hands to the cron agent tool)
 - cron.delivery::WebhookDelivery (POS: webhook delivery with HMAC signing)
 - cron.engine.scheduler::CronScheduler (POS: timer-based scheduling engine)
 - cron.heartbeat (POS: periodic agent self-check utilities)
@@ -35,6 +36,7 @@ Provides:
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
 - Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, ScheduleKind, etc.
+- Blueprint contract: BlueprintJobSpec
 
 [POS]
 Cron toolkit entry point. Aggregates scheduling engine, CRUD manager, protocols, built-in
@@ -49,6 +51,7 @@ from myrm_agent_harness.toolkits.cron._cron_tool_description import (
     DEFAULT_CRON_TOOL_DESCRIPTION_LOCALE,
     resolve_cron_tool_description,
 )
+from myrm_agent_harness.toolkits.cron.blueprint_job_spec import BlueprintJobSpec
 from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorErrorCategory,
@@ -142,6 +145,7 @@ __all__ = [
     "CRON_MANAGE_TOOL_DESCRIPTION_ZH",
     "DEFAULT_CRON_TOOL_DESCRIPTION_LOCALE",
     "HEARTBEAT_JOB_NAME",
+    "BlueprintJobSpec",
     "ConcurrencyLock",
     "ConnectorErrorCategory",
     "ConnectorFailureDetail",
