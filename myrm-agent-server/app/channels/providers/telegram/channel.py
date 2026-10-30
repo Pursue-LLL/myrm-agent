@@ -18,7 +18,8 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 - telegram.topics::TelegramTopicsMixin (POS: Telegram Forum Topic lifecycle helpers.)
 - telegram.hooks::TelegramHooksMixin (POS: Telegram pre-emit hook mixin.)
 - telegram.webhook::TelegramWebhookMixin (POS: Telegram webhook verification and route registration.)
-- telegram.diagnostics::TelegramDiagnosticsMixin (POS: Telegram configuration and runtime diagnostics.)
+- telegram.diagnostics::TelegramDiagnosticsMixin (POS: Telegram diagnostics mixin.)
+- telegram.api_core::TelegramApiError, TelegramFailureReason, getme_failure_reason (POS: Transport layer of the Telegram Bot API client)
 
 [OUTPUT]
 - TelegramChannel: Telegram Bot bidirectional Channel (polling + webhook)

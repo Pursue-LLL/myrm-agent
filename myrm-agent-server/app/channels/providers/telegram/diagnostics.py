@@ -4,8 +4,8 @@ Mixin providing ``collect_issues`` used by TelegramChannel. The WebUI matches th
 show localized copy, so a reworded message needs its pattern updated there.
 
 [INPUT]
-- channels.types::ChannelIssue, ChannelStatus, IssueKind, IssueSeverity
-- telegram.api_core::TelegramFailureReason
+- channels.types::ChannelIssue, ChannelStatus, IssueKind, IssueSeverity (POS: Channel status and diagnostic type definitions)
+- telegram.api_core::TelegramFailureReason (POS: Transport layer of the Telegram Bot API client)
 
 [OUTPUT]
 - TelegramDiagnosticsMixin: collect_issues

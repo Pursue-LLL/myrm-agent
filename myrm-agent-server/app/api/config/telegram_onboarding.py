@@ -1,10 +1,16 @@
 """Telegram assistant onboarding endpoint.
 
 [INPUT]
+- app.api.config.telegram_onboarding_agent::resolve_or_create_telegram_agent (POS: Agent step of the Telegram onboarding wizard)
 - app.services.config.service::config_service (POS: 配置核心业务逻辑服务)
 - app.services.channels.credential_reload::reload_channel_credentials (POS: Business-layer step that makes a credentials save take effect without a restart)
-- app.channels.providers.telegram.api::TelegramClient (POS: Telegram Bot API async HTTP client)
 - app.services.agent.agent_service::AgentService (POS: 业务层Agent服务)
+- app.channels.providers.telegram.api::TelegramClient (POS: Telegram Bot API async HTTP client)
+- app.channels.providers.telegram.api_core::getme_failure_reason (POS: Transport layer of the Telegram Bot API client)
+- app.core.channel_bridge.config_cache::invalidate_user_configs_cache (POS: Business-layer config caching)
+- app.core.infra.ingress_requirement::invalidate_ingress_requirement_cache (POS: Server-side single source of truth for System settings and channel Ingress badges)
+- app.core.channel_bridge.topic_config::SqlTopicManager (POS: 业务层的话题/频道管理器)
+- myrm_agent_harness.toolkits.llms.utils.proxy::normalize_proxy_url, validate_proxy_url (POS: Network utility module for proxy URL normalization, validation, security masking, and preflight connectivity verification)
 
 [OUTPUT]
 - telegram_onboarding_router: ``POST /onboarding/telegram-assistant/apply`` mounted under the config router
@@ -12,30 +18,24 @@
 
 [POS]
 One-call Telegram setup for the onboarding wizard: verify the bot token (through the proxy typed or already saved),
-resolve or create the bound agent, persist credentials, DM policy and topic binding, and restore every touched
-setting if a later step fails. A token Telegram refused and a Bot API that could not be reached come back as
-distinct ``400`` codes; a concurrent run returns ``409``.
+resolve the bound agent, persist credentials, DM policy and topic binding, and restore every touched setting if a later
+step fails. A refused token and an unreachable Bot API come back as distinct ``400`` codes; a busy or invalid agent
+step is answered ``409`` / ``422`` before anything is written.
 """
 
 import asyncio
-import hashlib
 import logging
 import time
 from copy import deepcopy
-from pathlib import Path
-from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException
-from filelock import FileLock, Timeout
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.config.telegram_onboarding_agent import resolve_or_create_telegram_agent
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 from app.services.channels import credential_reload
 from app.services.config.service import config_service
-
-if TYPE_CHECKING:
-    from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +69,7 @@ class TelegramAssistantOnboardingRequest(BaseModel):
         max_length=8000,
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TelegramAssistantOnboardingResponse(BaseModel):
@@ -85,8 +84,7 @@ class TelegramAssistantOnboardingResponse(BaseModel):
     connected: bool
     status: str
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class _TelegramOnboardingSnapshot(BaseModel):
@@ -98,42 +96,6 @@ class _TelegramOnboardingSnapshot(BaseModel):
 
 
 _ONBOARDING_DEVICE_ID = "onboarding-wizard"
-_TELEGRAM_AGENT_RESOLUTION_LOCK = asyncio.Lock()
-_TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
-_TELEGRAM_ONBOARDING_IN_PROGRESS_CODE = "TELEGRAM_ONBOARDING_IN_PROGRESS"
-_TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE = "Telegram onboarding is already in progress. Please retry shortly."
-
-
-def _normalize_telegram_agent_name(raw: str) -> str:
-    return raw.strip().casefold()
-
-
-def _telegram_agent_cross_process_lock_path(assistant_name: str) -> Path:
-    from app.config.settings import settings
-
-    normalized_name = _normalize_telegram_agent_name(assistant_name)
-    lock_hash = hashlib.sha256(normalized_name.encode("utf-8")).hexdigest()
-    lock_dir = Path(settings.database.state_dir) / "locks" / "onboarding"
-    lock_dir.mkdir(parents=True, exist_ok=True)
-    return lock_dir / f"telegram-agent-{lock_hash}.lock"
-
-
-def _acquire_telegram_agent_cross_process_lock(lock: FileLock) -> None:
-    try:
-        lock.acquire(timeout=_TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC)
-    except Timeout as exc:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": _TELEGRAM_ONBOARDING_IN_PROGRESS_CODE,
-                "message": _TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE,
-            },
-        ) from exc
-
-
-def _release_telegram_agent_cross_process_lock(lock: FileLock) -> None:
-    if lock.is_locked:
-        lock.release()
 
 
 def _normalize_webhook_url(raw: str | None) -> str:
@@ -157,11 +119,7 @@ def _build_telegram_credentials(
     merged["enabled"] = True
     merged["botPolicy"] = "mention_only"
 
-    webhook_url = _normalize_webhook_url(request.webhook_url)
-    if webhook_url:
-        merged["webhookUrl"] = webhook_url
-    else:
-        merged["webhookUrl"] = ""
+    merged["webhookUrl"] = _normalize_webhook_url(request.webhook_url)
 
     if proxy:
         merged["proxy"] = proxy
@@ -248,73 +206,6 @@ def _telegram_verification_error(exc: Exception, proxy: str | None) -> HTTPExcep
         status_code=400,
         detail={"code": reason.value, "message": "Telegram Bot API could not be reached", "viaProxy": proxy is not None},
     )
-
-
-def _is_channel_bindable_agent(agent_profile: object) -> bool:
-    metadata = getattr(agent_profile, "metadata", None)
-    if not isinstance(metadata, dict):
-        return True
-    prompt_mode = metadata.get("prompt_mode")
-    return not (isinstance(prompt_mode, str) and prompt_mode.lower() == "search")
-
-
-def _pick_first_channel_bindable_agent(candidates: list["AgentProfile"]) -> "AgentProfile | None":
-    for candidate in candidates:
-        if _is_channel_bindable_agent(candidate):
-            return candidate
-    return None
-
-
-async def _resolve_or_create_telegram_agent(
-    request: TelegramAssistantOnboardingRequest,
-) -> tuple[str, str, str | None]:
-    from app.database.dto import AgentCreate
-    from app.services.agent.agent_service import AgentService
-
-    normalized_name = request.assistant_name.strip()
-    if not normalized_name:
-        raise HTTPException(status_code=422, detail="Assistant name is required")
-    normalized_description = (request.assistant_description or "").strip()
-    normalized_system_prompt = (request.assistant_system_prompt or "").strip()
-
-    async with _TELEGRAM_AGENT_RESOLUTION_LOCK:
-        cross_process_lock = FileLock(str(_telegram_agent_cross_process_lock_path(normalized_name)))
-        _acquire_telegram_agent_cross_process_lock(cross_process_lock)
-        try:
-            name_matches = await AgentService.get_agents_by_name(normalized_name)
-            existing_bindable = _pick_first_channel_bindable_agent(name_matches)
-            if existing_bindable is not None:
-                existing_id = str(existing_bindable.id)
-                existing_name = str(getattr(existing_bindable, "display_name", "") or normalized_name)
-                return existing_id, existing_name, None
-
-            create_name = normalized_name
-            if name_matches:
-                create_name = f"{normalized_name} (General)"
-                general_name_matches = await AgentService.get_agents_by_name(create_name)
-                existing_general = _pick_first_channel_bindable_agent(general_name_matches)
-                if existing_general is not None:
-                    existing_id = str(existing_general.id)
-                    existing_name = str(getattr(existing_general, "display_name", "") or create_name)
-                    return existing_id, existing_name, None
-
-            default_description = "Personal Telegram assistant created by onboarding wizard."
-            default_system_prompt = (
-                "You are a practical personal assistant running on Telegram. Keep replies concise, actionable, and privacy-aware."
-            )
-
-            created = await AgentService.create_agent(
-                AgentCreate(
-                    name=create_name,
-                    description=normalized_description or default_description,
-                    system_prompt=normalized_system_prompt or default_system_prompt,
-                    prompt_mode="full",
-                    agent_type="individual",
-                )
-            )
-            return created.id, created.display_name or create_name, created.id
-        finally:
-            _release_telegram_agent_cross_process_lock(cross_process_lock)
 
 
 async def _wait_for_telegram_channel_state(
@@ -434,7 +325,11 @@ async def apply_telegram_assistant_onboarding(
 
     # Resolved before anything is written, so a busy or invalid request has nothing to roll back; rolling back this
     # request's snapshot would overwrite what a concurrent onboarding has just saved.
-    agent_id, agent_name, created_agent_id = await _resolve_or_create_telegram_agent(body)
+    agent_id, agent_name, created_agent_id = await resolve_or_create_telegram_agent(
+        name=body.assistant_name,
+        description=body.assistant_description,
+        system_prompt=body.assistant_system_prompt,
+    )
     try:
         telegram_credentials = _build_telegram_credentials(snapshot.telegram_credentials, body, proxy)
         await config_service.set(
