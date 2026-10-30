@@ -7941,7 +7941,7 @@
     "preflightUpdated": "預檢探針已更新",
     "preflightTemplateInserted": "已插入範本",
     "preflightInsertTemplate": "插入範本",
-    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。"
+    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。"
   },
   "heartbeat": {
     "title": "Agent 自動巡檢",

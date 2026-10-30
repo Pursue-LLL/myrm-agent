@@ -1,8 +1,9 @@
 """Protocols for the cron toolkit.
 
-Six contracts that the application layer must satisfy:
+Seven contracts that the application layer must satisfy:
 
 - ``CronStore``        — persistence (17 methods, unified for scheduler & manager)
+- ``PreFlightCondition`` — optional probe that decides, before a run, whether the run is worth making
 - ``JobRunner``        — execute a single job and produce a ``JobResult``
 - ``ResultDelivery``   — push results to the user via some channel
 - ``ConcurrencyLock``  — optional lock for cross-process coordination (Leader election)
@@ -14,6 +15,8 @@ Six contracts that the application layer must satisfy:
 
 [OUTPUT]
 - CronStore: Persistence contract for cron jobs and run records.
+- PreFlightCondition: Optional probe deciding whether a run is worth making.
+- PreFlightConditionError: Raised by a probe that cannot reach a verdict; the run fails.
 - JobRunner: Executes a single cron job and returns the result.
 - ResultDelivery: Delivers job results to the user via their configured cha...
 - ConcurrencyLock: Optional lock for leader election or cross-process coordi...
@@ -212,6 +215,14 @@ class CronStore(Protocol):
 # ---------------------------------------------------------------------------
 
 
+class PreFlightConditionError(Exception):
+    """The condition could not reach a verdict: its script crashed, timed out or could not start.
+
+    The executor records the run as failed. Its message becomes the run's error text, which reaches delivery
+    channels, so keep it to one short line and free of credentials.
+    """
+
+
 @runtime_checkable
 class PreFlightCondition(Protocol):
     """Evaluates whether a job should run and returns injected context.
@@ -224,8 +235,11 @@ class PreFlightCondition(Protocol):
 
         Returns:
             A tuple of (should_run, injected_context).
-            - if should_run is False, job execution is aborted.
+            - if should_run is False, job execution is aborted: a skip, not a failure.
             - injected_context is appended to the agent's input context.
+
+        Raises:
+            PreFlightConditionError: The condition could not decide. The run fails; it is not a skip.
         """
         ...
 

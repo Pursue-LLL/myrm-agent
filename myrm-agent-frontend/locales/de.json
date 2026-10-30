@@ -7941,7 +7941,7 @@
     "preflightUpdated": "Vorabprüfung aktualisiert",
     "preflightTemplateInserted": "Vorlage eingefügt",
     "preflightInsertTemplate": "Vorlage einfügen",
-    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt."
+    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen."
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",

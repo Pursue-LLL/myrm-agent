@@ -7941,7 +7941,7 @@
     "preflightUpdated": "Pre-flight probe updated",
     "preflightTemplateInserted": "Template inserted",
     "preflightInsertTemplate": "Insert Template",
-    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context."
+    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped."
   },
   "heartbeat": {
     "title": "Agent Auto-Check",

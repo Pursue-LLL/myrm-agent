@@ -8,12 +8,12 @@ but owns no scheduling state — that remains in ``CronScheduler``.
 
 [INPUT]
 - toolkits.cron.types::CronConfig, (POS: Cron job domain types.)
-- toolkits.cron.protocols::CronStore, (POS: Protocols for the cron toolkit.)
+- toolkits.cron.protocols::CronStore, PreFlightConditionError (POS: Protocols for the cron toolkit.)
 - toolkits.cron.delivery_guard::is_silent_output, (POS: Cron delivery guard.)
 - infra.incremental.manager::IncrementalMonitorManager (POS: Incremental monitor lifecycle manager.)
-- infra.incremental.hash_monitor::InvalidJsonLikeMonitorOutputError (POS: Hash monitor JSON-like contract error type.)
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
 - toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)
+- toolkits.cron.engine.incremental_monitoring::IncrementalMonitoringMixin (POS: diff of a run's output against its baseline, mixed into the executor)
 
 [OUTPUT]
 - JobExecutor: Manages the complete lifecycle of a single job execution.
@@ -32,9 +32,6 @@ from dataclasses import replace as dc_replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.infra.incremental.hash_monitor import (
-    InvalidJsonLikeMonitorOutputError,
-)
 from myrm_agent_harness.infra.incremental.manager import IncrementalMonitorManager
 from myrm_agent_harness.observability.tracing import TracingContext
 from myrm_agent_harness.toolkits.cron.delivery_guard import is_silent_output
@@ -51,6 +48,7 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     extract_telemetry as _extract_telemetry,
 )
+from myrm_agent_harness.toolkits.cron.engine.incremental_monitoring import IncrementalMonitoringMixin
 from myrm_agent_harness.toolkits.cron.engine.integrity import (
     GENESIS_HASH,
     compute_integrity_hash,
@@ -58,6 +56,7 @@ from myrm_agent_harness.toolkits.cron.engine.integrity import (
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
+from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
     CronJob,
@@ -94,7 +93,7 @@ def _output_hash(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()[:32]
 
 
-class JobExecutor(FailureAlertMixin, SkippedRunMixin):
+class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin):
     """Manages the complete lifecycle of a single job execution.
 
     Stateful only in the sense that it holds injected dependencies.
@@ -152,7 +151,16 @@ class JobExecutor(FailureAlertMixin, SkippedRunMixin):
 
         # 1. Pre-flight Condition check
         if self._pre_condition and job.pre_condition_script:
-            should_run, injected_context = await self._pre_condition.evaluate(job)
+            probe_started = datetime.now(UTC)
+            try:
+                should_run, injected_context = await self._pre_condition.evaluate(job)
+            except PreFlightConditionError as exc:
+                # A probe that cannot decide is a failed run, never a skip. Nothing ran, so the next regular slot
+                # is the retry: repeating early would meet the same cause again and only hasten the auto-pause.
+                logger.warning("Job %s pre-flight condition failed: %s", job.id, exc)
+                failure = JobResult(success=False, error=f"Pre-flight probe failed: {exc}", retry_safe=False)
+                await self._finish_run(job, failure, probe_started, trigger_source)
+                return
             if not should_run:
                 logger.info("Job %s skipped by pre-flight condition", job.id)
                 await self._record_skipped_by_probe(job)
@@ -195,6 +203,16 @@ class JobExecutor(FailureAlertMixin, SkippedRunMixin):
             await self._record_skipped_by_runner(job, result.skip_reason)
             return
 
+        await self._finish_run(job, result, started, trigger_source)
+
+    async def _finish_run(
+        self,
+        job: CronJob,
+        result: JobResult,
+        started: datetime,
+        trigger_source: str,
+    ) -> None:
+        """Close a run that reached a verdict: monitoring, delivery, the run record, the push, the job's new state."""
         finished = datetime.now(UTC)
         duration_ms = int((finished - started).total_seconds() * 1000)
 
@@ -251,178 +269,6 @@ class JobExecutor(FailureAlertMixin, SkippedRunMixin):
 
         new_failures = 0 if result.success else job.consecutive_failures + 1
         await self._update_after_run(job, result, new_failures, finished)
-
-    # ------------------------------------------------------------------
-    # Incremental Monitoring
-    # ------------------------------------------------------------------
-
-    async def _apply_incremental_monitoring(
-        self,
-        job: CronJob,
-        result: JobResult,
-    ) -> JobResult:
-        """Apply incremental monitoring if enabled.
-
-        Args:
-            job: Job configuration.
-            result: Raw execution result.
-
-        Returns:
-            Modified result with incremental_delta and adjusted exit_code.
-        """
-        if not job.monitor_config or not job.monitor_config.enabled:
-            return result
-
-        if not result.success:
-            return result
-
-        try:
-            monitor, reset_reason = await self._monitor_manager.get_monitor(
-                job.id,
-                job.monitor_config,
-            )
-
-            is_baseline_run = monitor.is_baseline()
-            delta = monitor.compute_delta(result.output)
-
-            metadata = result.metadata or {}
-            if reset_reason == "ttl_expired":
-                metadata["baseline_reset"] = True
-                metadata["reset_reason"] = reset_reason
-                logger.info("Job %s: baseline expired and reset, establishing new baseline", job.id)
-            elif is_baseline_run and reset_reason == "first_run":
-                logger.info("Job %s: first run, establishing baseline", job.id)
-
-            if not delta:
-                logger.info(
-                    "Job %s: no new content detected (baseline: %s)",
-                    job.id,
-                    is_baseline_run,
-                )
-                result = dc_replace(
-                    result,
-                    exit_code=0,
-                    incremental_delta="",
-                    metadata=metadata if metadata else None,
-                )
-            else:
-                logger.info(
-                    "Job %s: detected new content (%d bytes)",
-                    job.id,
-                    len(delta),
-                )
-
-                result = dc_replace(
-                    result,
-                    exit_code=1,
-                    incremental_delta=delta,
-                    metadata=metadata if metadata else None,
-                )
-
-            monitor.update_baseline(delta)
-            await self._monitor_manager.save_monitor_state(
-                job.id,
-                monitor,
-                job.monitor_config,
-            )
-            self._monitor_failure_fallback_counts.pop(job.id, None)
-
-        except Exception as exc:
-            if job.monitor_config:
-                failure_count, failure_count_source = await self._next_monitor_failure_count(
-                    job,
-                    exc,
-                )
-
-                contract_error = isinstance(exc, InvalidJsonLikeMonitorOutputError)
-                if contract_error:
-                    metadata = dict(result.metadata or {})
-                    metadata["monitor_contract_error"] = "invalid_json_like_output"
-                    metadata["monitor_failure_count"] = failure_count
-                    if failure_count_source != "persistent_state":
-                        metadata["monitor_failure_count_source"] = failure_count_source
-                    contract_error_message = (
-                        "Monitoring output format is invalid and cannot be diffed safely. "
-                        "Please adjust the task output format or model settings."
-                    )
-                    logger.warning(
-                        "Job %s: monitor output contract error (invalid JSON-like content); emitting visible warning",
-                        job.id,
-                    )
-                    result = dc_replace(
-                        result,
-                        success=False,
-                        error=contract_error_message,
-                        exit_code=2,
-                        output=contract_error_message,
-                        incremental_delta="",
-                        metadata=metadata,
-                    )
-
-                if contract_error and failure_count < 3:
-                    logger.warning(
-                        "Incremental monitoring contract error for job %s (%d/%d): %s",
-                        job.id,
-                        failure_count,
-                        3,
-                        exc,
-                    )
-                elif failure_count >= 3:
-                    logger.error(
-                        "Monitor for job %s failed %d times consecutively (last failure: %s)",
-                        job.id,
-                        failure_count,
-                        exc,
-                    )
-                else:
-                    logger.warning(
-                        "Incremental monitoring failed for job %s (%d/%d): %s (continuing with full output)",
-                        job.id,
-                        failure_count,
-                        3,
-                        exc,
-                    )
-            else:
-                logger.warning(
-                    "Incremental monitoring failed for job %s: %s (continuing with full output)",
-                    job.id,
-                    exc,
-                )
-
-        return result
-
-    async def _next_monitor_failure_count(
-        self,
-        job: CronJob,
-        error: Exception,
-    ) -> tuple[int, str]:
-        """Return consecutive monitor failure count with storage fallback.
-
-        Returns:
-            Tuple of (failure_count, source), where source is either
-            ``persistent_state`` or ``memory_fallback``.
-        """
-        if not job.monitor_config:
-            return 1, "memory_fallback"
-
-        try:
-            failure_count = await self._monitor_manager.record_monitor_failure(
-                job.id,
-                job.monitor_config,
-                error,
-            )
-            self._monitor_failure_fallback_counts[job.id] = failure_count
-            return failure_count, "persistent_state"
-        except Exception as persist_exc:
-            failure_count = self._monitor_failure_fallback_counts.get(job.id, 0) + 1
-            self._monitor_failure_fallback_counts[job.id] = failure_count
-            logger.error(
-                "Job %s: failed to persist monitor failure count, using in-memory fallback (%d): %s",
-                job.id,
-                failure_count,
-                persist_exc,
-            )
-            return failure_count, "memory_fallback"
 
     # ------------------------------------------------------------------
     # Delivery

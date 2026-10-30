@@ -7941,7 +7941,7 @@
     "preflightUpdated": "事前チェックプローブを更新しました",
     "preflightTemplateInserted": "テンプレートを挿入しました",
     "preflightInsertTemplate": "テンプレートを挿入",
-    "preflightDesc": "ジョブの実行前にサンドボックスで Python スクリプトを実行します。<skip></skip> または <action></action> を出力すると実行を中止してトークンを節約できます。それ以外の出力はコンテキストとして挿入されます。"
+    "preflightDesc": "ジョブの実行前にサンドボックスで Python スクリプトを実行します。<skip></skip> または <action></action> を出力すると実行を中止してトークンを節約できます。それ以外の出力はコンテキストとして挿入されます。スクリプトがエラーで終了またはタイムアウトした場合、実行はスキップではなく失敗として記録されます。"
   },
   "heartbeat": {
     "title": "エージェント自動チェック",

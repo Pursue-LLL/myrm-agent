@@ -7941,7 +7941,7 @@
     "preflightUpdated": "사전 점검 프로브를 업데이트했습니다",
     "preflightTemplateInserted": "템플릿을 삽입했습니다",
     "preflightInsertTemplate": "템플릿 삽입",
-    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다."
+    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다. 스크립트가 오류로 종료되거나 시간 초과되면 건너뛰지 않고 실행이 실패로 기록됩니다."
   },
   "heartbeat": {
     "title": "에이전트 자동 점검",
