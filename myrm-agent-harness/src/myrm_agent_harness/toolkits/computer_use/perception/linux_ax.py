@@ -352,12 +352,8 @@ def invoke_ax_element(
     if found is None:
         return ActionResult(success=False, error=f"Stale element index {index}")
     if (found.role, found.name) != (role, name):
-        logger.debug(
-            "AT-SPI element %s changed since the snapshot: %r is now %r",
-            backend_key,
-            (role, name),
-            (found.role, found.name),
-        )
+        # Element names are user content (subjects, titles), so the log carries only the key.
+        logger.debug("AT-SPI element %s no longer matches its snapshot", backend_key)
         return ActionResult(success=False, error=f"Stale element index {index}")
     target = found.node
 

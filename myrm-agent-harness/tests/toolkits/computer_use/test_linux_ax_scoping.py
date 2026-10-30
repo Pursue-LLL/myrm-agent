@@ -299,6 +299,18 @@ class TestInstancesOfOneApplication:
         assert _clicked(second)
         assert not _clicked(first)
 
+    def test_instances_whose_process_is_unreadable_share_one_ordinal_space(self, load: Loader) -> None:
+        first, second = _button("Run"), _button("Run")
+        linux_ax = load([_app("Term", [first]), _app("Term", [second])])
+
+        with patch.object(linux_ax, "foreground_pid", return_value=None):
+            refs = list(linux_ax.capture_ax_snapshot("foreground").refs.values())
+
+        assert [ref.backend_key for ref in refs] == ["term@:0", "term@:1"]
+        assert _invoke(linux_ax, refs[1]).success is True
+        assert _clicked(second)
+        assert not _clicked(first)
+
     def test_a_restarted_application_does_not_inherit_the_old_elements(self, load: Loader) -> None:
         button = _button("Run")
         linux_ax = load([_app("Term", [button], pid=300)])
@@ -343,6 +355,20 @@ class TestInvokeRefusesAMovedElement:
 
         assert "Stale element" in (result.error or "")
         assert not _clicked(button)
+
+    def test_the_refusal_is_logged_without_the_element_name(
+        self, load: Loader, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        button = _button("Quarterly layoffs")
+        linux_ax = load([_app("Mail", [button], pid=5)])
+        (ref,) = linux_ax.capture_ax_snapshot("foreground").refs.values()
+
+        button.getRoleName.return_value = "link"
+        with caplog.at_level(logging.DEBUG, logger=linux_ax.logger.name):
+            _invoke(linux_ax, ref)
+
+        assert "mail@5:0" in caplog.text
+        assert "Quarterly layoffs" not in caplog.text
 
     def test_an_element_that_kept_role_and_name_is_acted_on(self, load: Loader) -> None:
         button = _button("Send")
