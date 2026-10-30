@@ -7,6 +7,7 @@
 - ..core.config::WikiConfig (POS: Wiki configuration center)
 - myrm_agent_harness.toolkits.vector.base::VectorDocument (POS: vector document)
 - myrm_agent_harness.toolkits.retriever.fusion_strategies::rrf_fusion (POS: result fusion strategy)
+- .fts_federation::attached_tables, relevance_from_rank (POS: shared index discovery and relevance score)
 - .tokenizer::tokenize_for_fts (POS: FTS5 query tokenizer)
 
 [OUTPUT]
@@ -30,6 +31,7 @@ from myrm_agent_harness.toolkits.retriever.embedding.window_policy import EmbedI
 from myrm_agent_harness.toolkits.retriever.fusion_strategies import rrf_fusion
 
 from ..core.config import WikiConfig
+from .fts_federation import attached_tables, relevance_from_rank
 from .tokenizer import tokenize_for_fts
 from .vector_chunks import delete_text_vectors, upsert_text_vectors
 
@@ -220,19 +222,7 @@ class SidecarIndexMixin:
                 fts_query = tokenize_for_fts(safe_query)
                 if not fts_query:
                     return []
-                fts_tables = ["wiki_fts"]
-                attached_dbs = {str(row["name"]) for row in conn.execute("PRAGMA database_list").fetchall()}
-                for idx in range(min(len(self._structure.public_dirs), 6)):
-                    alias = f"pub_{idx}"
-                    if alias in attached_dbs:
-                        try:
-                            has_table = conn.execute(
-                                f"SELECT 1 FROM {alias}.sqlite_master WHERE type IN ('table', 'view') AND name = 'wiki_fts'"
-                            ).fetchone()
-                            if has_table:
-                                fts_tables.append(f"{alias}.wiki_fts")
-                        except (sqlite3.OperationalError, sqlite3.DatabaseError):
-                            continue
+                fts_tables = attached_tables(conn, "wiki_fts")
                 sidecar_filters = " OR ".join(["concept_name GLOB ?"] * len(allowed_levels))
                 patterns = tuple(f"{_SIDECAR_PREFIX}:{_SIDECAR_LEVEL_LABEL[level]}:*" for level in allowed_levels)
                 union_queries = " UNION ALL ".join(
@@ -252,8 +242,7 @@ class SidecarIndexMixin:
                 )
                 rows: list[tuple[str, float]] = []
                 for row in cursor.fetchall():
-                    score = 1.0 / (abs(row["rank"]) + 1.0)
-                    rows.append((row["concept_name"], score))
+                    rows.append((row["concept_name"], relevance_from_rank(row["rank"])))
                 return rows
 
         with contextlib.suppress(Exception):

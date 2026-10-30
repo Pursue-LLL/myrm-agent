@@ -74,3 +74,23 @@ async def test_wiki_recall_benchmark_gate_meets_baseline(
         f"recall@k={summary.recall_at_k:.3f} below baseline {MIN_RECALL_AT_K}"
     )
     assert summary.status in {"ready", "warning"}
+
+
+@pytest.mark.asyncio
+async def test_wiki_recall_benchmark_finds_the_strongest_page_first_among_many_matches(tmp_path: Path) -> None:
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    config = WikiConfig(enable_semantic_search=False, enable_hybrid_search=False)
+    from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
+
+    indexer = WikiIndexer(structure, config)
+    # Same length, more mentions: the page that repeats the term most is the best match by construction.
+    for mentions in range(1, 13):
+        body = "kelvin " * mentions + "plain " * (24 - mentions)
+        await indexer.upsert(f"Page{mentions:02d}", f"## Compiled Truth\n{body}\n")
+
+    case = WikiRecallBenchmarkCase(case_id="strongest", query="kelvin", expected_concept_name="Page12", top_k=3)
+    [result] = await run_wiki_recall_benchmark(structure, config, [case])
+
+    assert result.expected_found
+    assert result.best_rank == 1

@@ -2,14 +2,16 @@
 
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
-- app.services.wiki.vault::resolve_shared_wiki_vault_paths, resolve_shared_wiki_vault_labels
 - myrm_agent_harness.api::search_published_index, tokenize_for_fts (POS: read-only published-pages-only FTS search; query tokenizer)
-- myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::resolve_publish_status (POS: wiki publish gate SSOT)
+- myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
 
 [OUTPUT]
+- tokenize_text: Alphanumeric words plus CJK unigrams and bigrams of a text.
 - calculate_jaccard_similarity: Fast character-ngram / word overlap for semantic dedup.
+- truncate_snippet_text: Cut a snippet to a character budget at a sentence or word boundary.
 - KnowledgePackSelector: Select, dedup, and enforce strict token/character budget on snippets.
+- resolve_proactive_snippets_from_vaults: Retrieve and budget snippets from the shared vaults within a timeout.
 
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for

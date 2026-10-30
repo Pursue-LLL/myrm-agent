@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from pathlib import Path
+from typing import cast
 
 import yaml
 
@@ -114,7 +115,8 @@ def _coerce_enum_values(obj: object) -> object:
 
 def serialize_frontmatter_block(metadata: dict[str, object]) -> str:
     """Serialize metadata to a YAML frontmatter block."""
-    safe_metadata: dict[str, object] = _coerce_enum_values(metadata)  # type: ignore[assignment]
+    # _coerce_enum_values maps a dict to a dict, so the cast restores the type its `object` signature erases.
+    safe_metadata = cast("dict[str, object]", _coerce_enum_values(metadata))
     if _metadata_requires_yaml_dump(safe_metadata):
         dumped = yaml.safe_dump(safe_metadata, allow_unicode=True, sort_keys=False, default_flow_style=False).strip()
         return f"---\n{dumped}\n---\n"

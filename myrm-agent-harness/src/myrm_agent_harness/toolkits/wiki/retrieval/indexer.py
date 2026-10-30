@@ -9,6 +9,7 @@
 - myrm_agent_harness.utils.db.fts5::fts5_integrity_check, fts5_rebuild (POS: FTS5 health and rebuild helpers)
 - myrm_agent_harness.toolkits.memory.protocols.embedding::EmbeddingProtocol (POS: embedding provider protocol)
 - myrm_agent_harness.toolkits.memory.protocols.vector::VectorStoreProtocol (POS: vector store protocol)
+- .fts_federation::MAX_FEDERATED_DATABASES (POS: how many shared vault indexes a connection attaches)
 - .fts_search::FtsSearchMixin, migrate_wiki_fts_schema (POS: FTS5 + vector search and truth lookup mixin)
 - .fts_write::FtsWriteMixin (POS: FTS5 + vector upsert/delete mixin)
 - .concept_links::ConceptLinks (POS: typed concept link lookup result)
@@ -47,6 +48,7 @@ from ..core.structure import WikiStructure
 from .concept_links import ConceptLinks
 from .edge_links import canonical_edge_target, linkers_to_reread, relink_dangling_edges, store_edge
 from .edge_weights import refresh_edge_weights
+from .fts_federation import MAX_FEDERATED_DATABASES
 from .fts_search import FtsSearchMixin, migrate_wiki_fts_schema
 from .fts_write import FtsWriteMixin
 from .graph_store import WikiGraphStore
@@ -104,11 +106,13 @@ class WikiIndexer(FtsWriteMixin, FtsSearchMixin, SidecarIndexMixin):
         harden_connection_sync(conn, CACHE, db_path=self.db_path)
 
         # Dynamically ATTACH federated public databases (Read-Only via SQLite URI protocol)
-        # Cap at 6 to strictly protect SQLite ATTACH limits and system file descriptors.
+        # Cap the count to strictly protect SQLite ATTACH limits and system file descriptors.
         attached_count = 0
         for idx, p_dir in enumerate(self._structure.public_dirs):
-            if attached_count >= 6:
-                logger.warning("Reached maximum federated public dirs attachment limit (6), skipping remaining.")
+            if attached_count >= MAX_FEDERATED_DATABASES:
+                logger.warning(
+                    f"Reached maximum federated public dirs attachment limit ({MAX_FEDERATED_DATABASES}), skipping remaining."
+                )
                 break
             try:
                 pub_db = p_dir / ".wiki_index.db"

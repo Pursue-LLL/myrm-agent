@@ -64,6 +64,17 @@ async def test_federated_indexer(federated_structures):
 
 
 @pytest.mark.asyncio
+async def test_a_shared_vault_match_scores_nine_tenths_of_the_same_page_in_the_primary_vault(federated_structures):
+    pub_indexer, local_indexer = federated_structures
+    await pub_indexer.upsert("Shared Page", "## Compiled Truth\nkelvin kelvin kelvin\n")
+
+    [(_, own_score)] = await pub_indexer.search("kelvin")
+    [(_, shared_score)] = await local_indexer.search("kelvin")
+
+    assert shared_score == pytest.approx(0.9 * own_score)
+
+
+@pytest.mark.asyncio
 async def test_indexer_delete_and_edges(federated_structures):
     _pub_indexer, local_indexer = federated_structures
 
@@ -248,7 +259,3 @@ async def test_federated_indexer_more_than_six_public_dirs_clamped(tmp_path):
     assert "Concept_5" in matched_names
     # Concept 6 to 9 clamped by 6 attachments limit
     assert "Concept_7" not in matched_names
-
-
-
-

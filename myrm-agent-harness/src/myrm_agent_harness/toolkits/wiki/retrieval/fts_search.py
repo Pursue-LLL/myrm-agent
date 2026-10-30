@@ -7,6 +7,7 @@
 - myrm_agent_harness.utils.db.fts5::fts5_auto_heal (POS: FTS5 corruption auto-heal helper)
 - ..core.config::WikiConfig (POS: wiki configuration center)
 - ..core.frontmatter_contract::WikiPublishStatus (POS: publish_status SSOT)
+- .fts_federation::MAX_FEDERATED_DATABASES, attached_tables, relevance_from_rank (POS: shared index discovery and relevance score)
 - .sidecar_index::_SIDECAR_PREFIX (POS: L0/L1 sidecar index operations)
 - .tokenizer::tokenize_for_fts (POS: FTS5 query tokenizer)
 - .vector_chunks::collapse_vector_hits (POS: L2 chunk vector hit collapsing)
@@ -41,6 +42,7 @@ from myrm_agent_harness.utils.db.fts5 import fts5_auto_heal
 
 from ..core.config import WikiConfig
 from ..core.frontmatter_contract import WikiPublishStatus
+from .fts_federation import MAX_FEDERATED_DATABASES, attached_tables, relevance_from_rank
 from .sidecar_index import _SIDECAR_PREFIX
 from .tokenizer import tokenize_for_fts
 from .vector_chunks import collapse_vector_hits
@@ -113,7 +115,7 @@ class FtsSearchMixin:
 
         # Check attached federated public databases
         attached_dbs = {str(r["name"]) for r in conn.execute("PRAGMA database_list").fetchall()}
-        for idx in range(min(len(self._structure.public_dirs), 6)):
+        for idx in range(min(len(self._structure.public_dirs), MAX_FEDERATED_DATABASES)):
             alias = f"pub_{idx}"
             if alias in attached_dbs:
                 try:
@@ -131,6 +133,34 @@ class FtsSearchMixin:
     def _filter_published(self, conn: sqlite3.Connection, results: list[tuple[str, float]]) -> list[tuple[str, float]]:
         return [(name, score) for name, score in results if self._is_published(conn, name)]
 
+    def _query_fts(self, conn: sqlite3.Connection, fts_query: str, limit: int, offset: int) -> list[tuple[str, float]]:
+        """Run the gated match over the primary index and every attached shared index; best match first.
+
+        Fetches ``2 * limit`` rows from ``offset`` so the hybrid fusion has more candidates to rank.
+        """
+        fts_tables = attached_tables(conn, "wiki_fts")
+        fts_union = " UNION ALL ".join(
+            _published_match_select(conn, t, f"concept_name, rank, '{t}' AS src_tbl") for t in fts_tables
+        )
+        cursor = conn.execute(
+            f"""
+            SELECT concept_name, rank, src_tbl
+            FROM ({fts_union})
+            ORDER BY rank
+            LIMIT ? OFFSET ?
+            """,
+            (*((fts_query,) * len(fts_tables)), limit * 2, offset),
+        )
+        results: list[tuple[str, float]] = []
+        for row in cursor.fetchall():
+            if self._is_sidecar_entry(str(row["concept_name"])):
+                continue
+            # The primary vault has decay 1.0; attached shared vaults get 0.9 so generic terms
+            # cannot overtake the primary vault's own pages.
+            decay = 0.9 if str(row["src_tbl"]).startswith("pub_") else 1.0
+            results.append((row["concept_name"], relevance_from_rank(row["rank"]) * decay))
+        return results
+
     async def search(self, query: str, limit: int = 5, offset: int = 0) -> list[tuple[str, float]]:
         """
         Search the index and return (concept_name, score).
@@ -142,77 +172,22 @@ class FtsSearchMixin:
             return []
 
         # 1. FTS5 Search
-        fts_results: list[tuple[str, float]] = []
+        fts_query = tokenize_for_fts(safe_query)
 
         def sync_fts_search() -> list[tuple[str, float]]:
-            results = []
+            if not fts_query:
+                return []
             with self._get_conn() as conn:
                 try:
-                    fts_tables = ["wiki_fts"]
-                    attached_dbs = {str(row["name"]) for row in conn.execute("PRAGMA database_list").fetchall()}
-                    for idx in range(min(len(self._structure.public_dirs), 6)):
-                        alias = f"pub_{idx}"
-                        if alias in attached_dbs:
-                            try:
-                                has_table = conn.execute(
-                                    f"SELECT 1 FROM {alias}.sqlite_master WHERE type IN ('table', 'view') AND name = 'wiki_fts'"
-                                ).fetchone()
-                                if has_table:
-                                    fts_tables.append(f"{alias}.wiki_fts")
-                            except (sqlite3.OperationalError, sqlite3.DatabaseError):
-                                continue
-
-                    fts_query = tokenize_for_fts(safe_query)
-
-                    if fts_query:
-                        # In SQLite FTS5, the MATCH operator can be used on the table name.
-                        # e.g., pub_0.wiki_fts MATCH ? is valid, but the column name inside WHERE is wiki_fts MATCH ?
-                        fts_union = " UNION ALL ".join(
-                            _published_match_select(conn, t, f"concept_name, rank, '{t}' AS src_tbl")
-                            for t in fts_tables
-                        )
-                        params = (fts_query,) * len(fts_tables)
-
-                        cursor = conn.execute(
-                            f"""
-                            SELECT concept_name, rank, src_tbl
-                            FROM ({fts_union})
-                            ORDER BY rank
-                            LIMIT ? OFFSET ?
-                            """,
-                            (*params, limit * 2, offset),  # Fetch more for fusion
-                        )
-
-                        for row in cursor.fetchall():
-                            if self._is_sidecar_entry(str(row["concept_name"])):
-                                continue
-                            # FTS5 rank is negative, lower is better. We invert it for RRF fusion.
-                            # Primary vault has decay=1.0; attached federated public vaults receive 0.9 to prevent generic terms from overtaking primary truths.
-                            decay = 0.9 if str(row["src_tbl"]).startswith("pub_") else 1.0
-                            score = (1.0 / (abs(row["rank"]) + 1.0)) * decay
-                            results.append((row["concept_name"], score))
+                    return self._query_fts(conn, fts_query, limit, offset)
                 except sqlite3.OperationalError as e:
                     logger.error(f"FTS search error: {e}")
-                    healed = fts5_auto_heal(conn, "wiki_fts")
-                    if healed and fts_query:
-                        logger.info("FTS5 auto-heal succeeded, retrying search")
-                        with contextlib.suppress(sqlite3.OperationalError):
-                            cursor = conn.execute(
-                                f"""
-                                SELECT concept_name, rank, src_tbl
-                                FROM ({fts_union})
-                                ORDER BY rank
-                                LIMIT ? OFFSET ?
-                                """,
-                                (*params, limit * 2, offset),
-                            )
-                            for row in cursor.fetchall():
-                                if self._is_sidecar_entry(str(row["concept_name"])):
-                                    continue
-                                decay = 0.9 if str(row["src_tbl"]).startswith("pub_") else 1.0
-                                score = (1.0 / (abs(row["rank"]) + 1.0)) * decay
-                                results.append((row["concept_name"], score))
-            return results
+                    if not fts5_auto_heal(conn, "wiki_fts"):
+                        return []
+                    logger.info("FTS5 auto-heal succeeded, retrying search")
+                    with contextlib.suppress(sqlite3.OperationalError):
+                        return self._query_fts(conn, fts_query, limit, offset)
+                    return []
 
         fts_results = await asyncio.to_thread(sync_fts_search)
 
@@ -267,20 +242,7 @@ class FtsSearchMixin:
         with self._get_conn() as conn:
             if not self._is_published(conn, concept_name):
                 return None
-            fts_tables = ["wiki_fts"]
-            attached_dbs = {str(row["name"]) for row in conn.execute("PRAGMA database_list").fetchall()}
-            for idx in range(min(len(self._structure.public_dirs), 6)):
-                alias = f"pub_{idx}"
-                if alias in attached_dbs:
-                    try:
-                        has_table = conn.execute(
-                            f"SELECT 1 FROM {alias}.sqlite_master WHERE type IN ('table', 'view') AND name = 'wiki_fts'"
-                        ).fetchone()
-                        if has_table:
-                            fts_tables.append(f"{alias}.wiki_fts")
-                    except (sqlite3.OperationalError, sqlite3.DatabaseError):
-                        continue
-
+            fts_tables = attached_tables(conn, "wiki_fts")
             fts_union = " UNION ALL ".join(f"SELECT truth_content FROM {t} WHERE concept_name = ?" for t in fts_tables)
             params = (concept_name,) * len(fts_tables)
 
@@ -293,8 +255,9 @@ def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> lis
     """Return the ``limit`` best published pages of an index file as (concept_name, truth_content).
 
     For callers that read an index they do not own, such as a shared vault another process writes: the file is
-    opened read-only and nothing is migrated or created. ``fts_query`` is FTS5 MATCH syntax. Raises
-    ``sqlite3.Error`` when the file is missing or unreadable or the query is invalid.
+    opened read-only, so no table is created and no schema is migrated (SQLite may leave its WAL side files
+    next to the index). ``fts_query`` is FTS5 MATCH syntax. Raises ``sqlite3.Error`` when the file is missing
+    or unreadable or the query is invalid.
     """
     with contextlib.closing(sqlite3.connect(f"{index_db.resolve().as_uri()}?mode=ro", uri=True)) as conn:
         select = _published_match_select(conn, "wiki_fts", "concept_name, truth_content")

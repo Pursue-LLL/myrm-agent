@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
-- app.services.wiki.knowledge_pack.selector::KnowledgePackSelector, calculate_jaccard_similarity, resolve_proactive_snippets_from_vaults
+- app.services.wiki.knowledge_pack.selector::KnowledgePackSelector, calculate_jaccard_similarity, resolve_proactive_snippets_from_vaults, truncate_snippet_text
 
 [OUTPUT]
 - Facade exports for Knowledge Pack schemas and selector.

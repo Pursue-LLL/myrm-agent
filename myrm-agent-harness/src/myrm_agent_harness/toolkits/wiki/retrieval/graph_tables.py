@@ -2,6 +2,7 @@
 
 [INPUT]
 - sqlite3::Connection (POS: wiki index connection with attached `pub_N` public databases)
+- .fts_federation::attached_tables (POS: tables of the primary index and the attached shared indexes)
 - .sidecar_index::_SIDECAR_PREFIX (POS: directory sidecar index entry prefix)
 
 [OUTPUT]
@@ -16,9 +17,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from .fts_federation import attached_tables
 from .sidecar_index import _SIDECAR_PREFIX
 
-_MAX_FEDERATED_DATABASES = 6
 _INTERIM_RAW_PREFIX = "raw:"
 _SIDECAR_ENTRY_PREFIX = f"{_SIDECAR_PREFIX}:"
 
@@ -31,25 +32,6 @@ def _concept_rows_filter() -> str:
     )
 
 
-def _attached_tables(conn: sqlite3.Connection, table: str) -> list[str]:
-    tables = [table]
-    attached = {str(row["name"]) for row in conn.execute("PRAGMA database_list").fetchall()}
-    for idx in range(_MAX_FEDERATED_DATABASES):
-        alias = f"pub_{idx}"
-        if alias not in attached:
-            continue
-        try:
-            found = conn.execute(
-                f"SELECT 1 FROM {alias}.sqlite_master WHERE type IN ('table', 'view') AND name = ?",
-                (table,),
-            ).fetchone()
-        except (sqlite3.OperationalError, sqlite3.DatabaseError):
-            continue
-        if found:
-            tables.append(f"{alias}.{table}")
-    return tables
-
-
 def federated_graph_queries(conn: sqlite3.Connection) -> tuple[str, str]:
     """Return ``(concept_names_sql, edges_sql)`` over the local and attached public indexes.
 
@@ -59,9 +41,9 @@ def federated_graph_queries(conn: sqlite3.Connection) -> tuple[str, str]:
     """
     row_filter = _concept_rows_filter()
     names_sql = " UNION ".join(
-        f"SELECT concept_name FROM {table} WHERE {row_filter}" for table in _attached_tables(conn, "wiki_fts")
+        f"SELECT concept_name FROM {table} WHERE {row_filter}" for table in attached_tables(conn, "wiki_fts")
     )
     edges_sql = " UNION ALL ".join(
-        f"SELECT source, target, weight FROM {table}" for table in _attached_tables(conn, "wiki_edges")
+        f"SELECT source, target, weight FROM {table}" for table in attached_tables(conn, "wiki_edges")
     )
     return names_sql, edges_sql
