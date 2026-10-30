@@ -328,7 +328,7 @@ class TestEvolutionIntegrationMethods:
 
         db_path = tmp_path / "skills.db"
         mock_llm = MagicMock()
-        integration = EvolutionIntegration(db_path=db_path, llm=mock_llm, enable_tde=True, enable_tool_calling=True)
+        integration = EvolutionIntegration(db_path=db_path, llm=mock_llm, enable_tde=True)
 
         assert integration.db_path == db_path
         assert integration.store is not None

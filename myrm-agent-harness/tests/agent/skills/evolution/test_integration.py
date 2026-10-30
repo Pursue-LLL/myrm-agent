@@ -38,7 +38,6 @@ async def test_integration_initialization_with_llm(clean_integration):
             llm=mock_llm,
             enable_background_queue=True,
             enable_tde=True,
-            enable_tool_calling=True,
         )
         try:
             assert integration.engine is not None

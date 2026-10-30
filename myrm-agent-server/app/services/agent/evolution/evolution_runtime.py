@@ -26,7 +26,6 @@ from myrm_agent_harness.agent.skills.evolution.pipeline.screener import Evolutio
 from myrm_agent_harness.toolkits.llms import llm_manager
 
 from app.config.settings import settings
-from app.core.channel_bridge.config_loader import load_user_configs
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 from app.services.agent.platform_config import load_platform_evolution_model_config
 
@@ -58,16 +57,12 @@ async def init_evolution_runtime() -> None:
         return
 
     llm = await llm_manager.get_llm_from_config(evolution_model)
-    user_configs = await load_user_configs()
-    search_service_cfg = user_configs.search_cfg if user_configs.search_is_user_configured else None
 
     evolution = EvolutionIntegration(
         db_path=Path(settings.database.state_dir).expanduser() / "skills.db",
         llm=llm,
         enable_background_queue=True,
         enable_tde=True,
-        enable_tool_calling=True,
-        search_service_cfg=search_service_cfg,
         # Reads address a session by the id they pass; the constructor's own id only names the file appends go to,
         # and this backend never appends.
         event_log_backend=FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default"),

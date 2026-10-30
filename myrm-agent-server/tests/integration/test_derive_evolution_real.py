@@ -85,7 +85,6 @@ async def test_derive_evolution_real_llm(temp_workspace, real_llm):
         db_path=temp_workspace["db_path"],
         llm=real_llm,
         enable_tde=False,
-        enable_tool_calling=False,
     )
 
     if evolution.engine:
@@ -148,7 +147,6 @@ async def test_fix_evolution_real_llm(temp_workspace, real_llm):
         db_path=temp_workspace["db_path"],
         llm=real_llm,
         enable_tde=False,
-        enable_tool_calling=False,
     )
 
     if evolution.engine:

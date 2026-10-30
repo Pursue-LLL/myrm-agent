@@ -41,13 +41,6 @@ def _startup_environment(integration: MagicMock) -> Iterator[tuple[MagicMock, Ma
                 new=AsyncMock(return_value=SimpleNamespace()),
             )
         )
-        stack.enter_context(
-            patch.object(
-                evolution_runtime,
-                "load_user_configs",
-                new=AsyncMock(return_value=SimpleNamespace(search_cfg=None, search_is_user_configured=False)),
-            )
-        )
         screener_cls = stack.enter_context(patch.object(evolution_runtime, "EvolutionScreener"))
         stack.enter_context(patch.object(evolution_runtime, "EvolutionIntegration", integration_factory))
         yield screener_cls, integration_factory
@@ -102,11 +95,6 @@ async def test_the_engine_the_runtime_builds_reads_the_event_logs_the_agents_wri
             patch.object(evolution_runtime, "llm_manager", llm_manager),
             patch.object(
                 evolution_runtime, "load_platform_evolution_model_config", new=AsyncMock(return_value=SimpleNamespace())
-            ),
-            patch.object(
-                evolution_runtime,
-                "load_user_configs",
-                new=AsyncMock(return_value=SimpleNamespace(search_cfg=None, search_is_user_configured=False)),
             ),
         ):
             await evolution_runtime.init_evolution_runtime()

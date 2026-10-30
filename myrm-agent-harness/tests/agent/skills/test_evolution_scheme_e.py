@@ -1,13 +1,5 @@
-"""Unit tests for Evolution engine and tool config features.
+"""Unit tests for the SkillEvolutionEngine core API (fix/derive/capture)."""
 
-Tests cover:
-1. SkillEvolutionEngine core API (fix/derive/capture)
-2. EvolutionToolConfig validation (limits, warnings)
-3. ExecutorContextManager (background_queue scenario)
-"""
-
-import asyncio
-import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -15,8 +7,6 @@ import pytest
 from myrm_agent_harness.agent.skills.evolution.core.engine import SkillEvolutionEngine
 from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
-from myrm_agent_harness.agent.skills.evolution.execution.executor_context import ExecutorContextManager
-from myrm_agent_harness.agent.skills.evolution.execution.tool_selector import EvolutionToolConfig
 
 
 class TestSkillEvolutionEngineInit:
@@ -133,81 +123,3 @@ class TestDeriveSkillSimple:
         result = await engine.derive_skill_simple("missing_id", "feedback")
         assert result is None
         store.get_skill.assert_called_once_with("missing_id")
-
-
-class TestConfigValidation:
-    """Test EvolutionToolConfig validation logic."""
-
-    def test_default_tool_limits_set(self):
-        config = EvolutionToolConfig(max_tool_rounds=3)
-
-        assert config.tool_call_limits is not None
-        assert config.tool_call_limits["web_search"] == 3
-        assert config.tool_call_limits["file_read"] == 15
-        assert config.tool_call_limits["glob"] == 5
-
-    def test_max_tool_rounds_minimum_enforced(self, caplog):
-        with caplog.at_level(logging.WARNING):
-            config = EvolutionToolConfig(max_tool_rounds=0)
-
-        assert config.max_tool_rounds == 1
-        assert "max_tool_rounds < 1, setting to 1" in caplog.text
-
-    def test_max_tool_rounds_excessive_warning(self, caplog):
-        with caplog.at_level(logging.WARNING):
-            config = EvolutionToolConfig(max_tool_rounds=15)
-
-        assert config.max_tool_rounds == 15
-        assert "max_tool_rounds > 10, this may be excessive" in caplog.text
-
-    def test_max_tool_rounds_cost_warning(self, caplog):
-        with caplog.at_level(logging.INFO):
-            config = EvolutionToolConfig(max_tool_rounds=7)
-
-        assert config.max_tool_rounds == 7
-        assert "cost implications" in caplog.text
-
-    def test_summarization_threshold_minimum_enforced(self, caplog):
-        with caplog.at_level(logging.WARNING):
-            config = EvolutionToolConfig(max_tool_rounds=3, result_summarization_threshold=500)
-
-        assert config.result_summarization_threshold == 1000
-        assert "too small, setting to 1000" in caplog.text
-
-    def test_tool_limits_consistency_check(self, caplog):
-        with caplog.at_level(logging.WARNING):
-            EvolutionToolConfig(max_tool_rounds=20, tool_call_limits={"web_search": 1, "file_read": 2})
-
-        assert "may hit limits before reaching max rounds" in caplog.text
-
-
-class TestExecutorContextManager:
-    """Test ExecutorContextManager (background_queue scenario)."""
-
-    @pytest.mark.asyncio
-    async def test_executor_context_in_sync_task(self):
-        mock_executor = MagicMock()
-
-        async with ExecutorContextManager(mock_executor):
-            pass
-
-    @pytest.mark.asyncio
-    async def test_executor_context_in_background_task(self):
-        mock_executor = MagicMock()
-
-        async def background_task():
-            await asyncio.sleep(0.01)
-            return "done"
-
-        async with ExecutorContextManager(mock_executor):
-            task = asyncio.create_task(background_task())
-            result = await task
-
-        assert result == "done"
-
-    @pytest.mark.asyncio
-    async def test_executor_context_cleanup(self):
-        mock_executor = MagicMock()
-
-        async with ExecutorContextManager(mock_executor):
-            pass

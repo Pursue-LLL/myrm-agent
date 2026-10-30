@@ -8,11 +8,8 @@ Framework provides the hooks, business layer decides when to use them.
 - agent.skills.evolution.core.engine::SkillEvolutionEngine (POS: Skill evolution engine - Core of self-evolution system.)
 - agent.skills.evolution.db.store::SkillStore (POS: SQLite persistence for skill evolution system.)
 - toolkits.code_execution.executors.test_executor::SubprocessCodeExecutor (POS: Subprocess-based test execution for skill evolution TDE.)
-- agent.skills.evolution.execution.tool_selector::EvolutionToolConfig (POS: Tool Selector for Evolution System)
 - agent.skills.evolution.pipeline.screener::EvolutionScreener (POS: myrm_agent_harness/agent/skills/evolution/screener.py ## Architecture Two-phase screening to block "snowball effect" of blind fixes: **Phase 1: Rule-based (Cooldown)** Rejects repeated evolution attempts within cooldown period Checks both skill.updated_at and rejection history Zero LLM cost, instant response **Phase 2: LLM Confirmation (Cheap Model)** Only for FIX evolution type Analyzes real error logs (HTTP status, exception stack) Asks cheap LLM: "Is this really a skill code defect?" Returns YES (proceed) or NO + reason (block) **Prometheus Metrics (Observability)** evolution_screening_total: Counter by phase + result evolution_screening_confidence: Histogram of LLM confidence evolution_screening_duration_seconds: Histogram of screening duration by phase ## Design Principles 1. **Cost Optimization**: Use gpt-4o-mini/claude-haiku for Phase 2 2. **Fail-Safe**: LLM errors → Allow (don't block valid fixes) 3. **Transparency**: Record all rejections for audit 4. **Signal Extraction**: Focus on HTTP status + exception type vs full stack 5. **Observability**: Expose Prometheus metrics for monitoring and tuning)
 - agent.event_log.protocols::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
-- toolkits.code_execution::CodeExecutor (POS: Code execution toolkit entry point. Aggregates execution configuration, executor implementations, workspace management, and factory functions for the Agent-in-Sandbox architecture.)
-- toolkits.web_search::SearchServiceConfig (POS: Web search toolkit entry point. Aggregates and re-exports search tools, result types, metrics, and error hierarchy for unified import.)
 
 [OUTPUT]
 - EvolutionIntegration: All-in-one integration helper for skill evolution.
@@ -43,9 +40,6 @@ from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 from myrm_agent_harness.agent.skills.evolution.execution.dependency import (
     get_dependency_tracker,
 )
-from myrm_agent_harness.agent.skills.evolution.execution.tool_selector import (
-    EvolutionToolConfig,
-)
 from myrm_agent_harness.agent.skills.evolution.infra.queue import (
     EvolutionQueue,
     get_evolution_queue,
@@ -58,11 +52,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.test_executor import (
 )
 
 if TYPE_CHECKING:
-    from langchain_core.tools import BaseTool
-
     from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
-    from myrm_agent_harness.toolkits.code_execution import CodeExecutor
-    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -115,11 +105,6 @@ class EvolutionIntegration:
         screener: "EvolutionScreener | None" = None,
         enable_tde: bool = False,
         test_executor: "SubprocessCodeExecutor | None" = None,
-        enable_tool_calling: bool = False,
-        evolution_tools: "list[BaseTool] | None" = None,
-        tool_config: "EvolutionToolConfig | None" = None,
-        executor: "CodeExecutor | None" = None,
-        search_service_cfg: "SearchServiceConfig | None" = None,
         event_log_backend: "EventLogBackend | None" = None,
         evolution_strategy: str = "balanced",
     ):
@@ -133,11 +118,6 @@ class EvolutionIntegration:
             screener: Optional EvolutionScreener instance for two-phase filtering (injected by business layer)
             enable_tde: Enable test-driven evolution with generated pytest validation (default False)
             test_executor: Optional subprocess test executor (auto-created if enable_tde=True and None)
-            enable_tool_calling: Enable Evolution Agent tool calling (default False, +8-12% success rate)
-            evolution_tools: Pre-configured tools (auto-created if None and enable_tool_calling=True)
-            tool_config: Tool configuration (limits, smart error handling, etc.)
-            executor: Executor for file operations (auto-created if None)
-            search_service_cfg: Web search config injected by business layer (required when auto-creating evolution tools)
             event_log_backend: Event log read by the engine to build the FIX failure trajectory
             evolution_strategy: Controls screener behavior: balanced (all types),
                 innovate (all + lower rejection threshold), harden and repair-only (FIX only). Business layer injects user preference.
@@ -156,40 +136,8 @@ class EvolutionIntegration:
 
         # Evolution engine (requires LLM client from business layer)
         self.engine: SkillEvolutionEngine | None = None
-        self.executor: CodeExecutor | None = executor
 
         if llm:
-            # Auto-create executor if needed
-            if enable_tool_calling and self.executor is None:
-                from myrm_agent_harness.toolkits.code_execution import create_executor
-
-                # The executor works in the current working directory.
-                self.executor = create_executor()
-                logger.debug("EvolutionIntegration: auto-created executor")
-
-            # Auto-create evolution tools if needed
-            if enable_tool_calling and evolution_tools is None and self.executor:
-                from ..execution.tool_selector import (
-                    EvolutionToolConfig,
-                    create_evolution_tools,
-                )
-
-                if search_service_cfg is None:
-                    logger.warning(
-                        "EvolutionIntegration: enable_tool_calling=True but no "
-                        "search_service_cfg injected — web_search tool omitted"
-                    )
-                tool_config = tool_config or EvolutionToolConfig()
-                evolution_tools = create_evolution_tools(
-                    executor=self.executor,
-                    search_service_cfg=search_service_cfg,
-                    config=tool_config,
-                )
-                logger.debug(
-                    "EvolutionIntegration: auto-created evolution tools (%d tools)",
-                    len(evolution_tools),
-                )
-
             if enable_tde and self.test_executor is None:
                 self.test_executor = SubprocessCodeExecutor()
                 logger.debug("EvolutionIntegration: auto-created subprocess test executor")
@@ -356,7 +304,7 @@ def enable_skill_evolution(
         event_log_backend: Optional backend for trace extraction.
         evolution_strategy: Controls screener behavior (balanced/innovate/harden/repair-only).
 
-    Options beyond these (test-driven evolution, tool calling) are set on ``EvolutionIntegration`` directly.
+    Test-driven evolution is set on ``EvolutionIntegration`` directly.
 
     Returns:
         EvolutionIntegration instance

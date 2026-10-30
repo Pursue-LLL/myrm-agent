@@ -2,18 +2,11 @@
 
 Provides out-of-the-box skill self-evolution capabilities for myrm-agent-harness.
 
-Core Features (满分完整强大方案):
-- FIX evolution: Auto-repair failed skills (收益9/10)
-- DERIVED evolution: Optimize based on feedback (收益7/10)
-- Fuzzy Match: 6-level matching chain (收益10/10)
-- Concurrent Evolution: Parallel processing for multiple skills (收益7/10)
-- 2-Layer Embedding Cache: Reduces redundant LLM API calls (收益7/10)
-
-New Features (vs lime):
--  Rejection tracking (lime: no analysis)
--  Two-phase screener (lime: no screening, blocks 70-80% blind fixes)
-
-总体收益: 9.2/10
+Core features:
+- FIX evolution: auto-repair a skill a failed run was attributed to
+- DERIVED evolution: rewrite a skill from user feedback
+- Two-phase screener: cooldown, then an LLM check that the failure is a skill defect
+- Rejection tracking: the screener's verdicts and the reasons a user gave when rejecting a proposal
 """
 
 from .core.engine import SkillEvolutionEngine
@@ -35,9 +28,6 @@ from .core.types import (
 from .db.store import SkillStore
 from .execution.dependency import SkillDependencyTracker, get_dependency_tracker
 from .execution.evaluator import BatchEvaluator
-from .execution.executor_context import ExecutorContextManager
-from .execution.tool_selector import EvolutionToolConfig, create_evolution_tools
-from .execution.tool_wrapper import ToolWrapper
 from .infra.integration import EvolutionIntegration, enable_skill_evolution, get_global_evolution_integration
 from .infra.queue import EvolutionQueue, QueuePriority, get_evolution_queue
 from .pipeline.patch import PatchType, SkillPatchResult, apply_skill_patch, detect_patch_type, parse_multi_file_full
@@ -56,7 +46,6 @@ __all__ = [
     "EvolutionRequest",
     # Two-phase screener (P0)
     "EvolutionScreener",
-    "EvolutionToolConfig",
     # Types
     "EvolutionLayer",
     "EvolutionType",
@@ -66,8 +55,6 @@ __all__ = [
     "GeneEliteRecord",
     "SkillVerificationType",
     "VerificationProof",
-    # Tool System (P1-7: +8-12%成功率, 优化版 9.7/10)
-    "ExecutorContextManager",
     # Patch system
     "PatchType",
     "ProposalBuilder",
@@ -81,12 +68,10 @@ __all__ = [
     "SkillPatchResult",
     "SkillRecord",
     "SkillStore",
-    "ToolWrapper",
     "TraceAnalyzer",
     "VariantGenerator",
     # Utils
     "apply_skill_patch",
-    "create_evolution_tools",
     "detect_patch_type",
     "enable_skill_evolution",
     "get_dependency_tracker",
