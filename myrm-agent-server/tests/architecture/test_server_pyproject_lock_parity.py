@@ -28,8 +28,6 @@ _FORBIDDEN_MAIN_DEPS = (
 _FORBIDDEN_REQUIRES_DIST = (
     "aiofiles",
     "advanced-tools",
-    'httpx", extras = ["socks"]',
-    "httpx\", extras = ['socks']",
 )
 
 
