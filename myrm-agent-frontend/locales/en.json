@@ -19014,6 +19014,8 @@
         "authRequired": "Sign in to review skill growth cases.",
         "approveSuccess": "\"{name}\" approved successfully",
         "approveFailed": "Failed to approve \"{name}\"",
+        "approveFailedStaleBase": "\"{name}\" changed after this proposal was created, so approving it would overwrite those changes. Reject the proposal instead.",
+        "approveFailedUnloadable": "The proposed version of \"{name}\" is not a valid skill file and can't be applied. Revise it or reject the proposal.",
         "rejectSuccess": "\"{name}\" rejected successfully",
         "rejectFailed": "Failed to reject \"{name}\"",
         "summary": {
@@ -19072,6 +19074,8 @@
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
         "applyFailureBody": "It couldn't be applied automatically. Check the technical details, then try approving again.",
+        "applyFailureBodyStaleBase": "The skill changed after this proposal was created, so applying it would overwrite those changes. Reject this proposal.",
+        "applyFailureBodyUnloadable": "The proposed version is not a valid skill file, so it can't be applied. Revise it, or reject the proposal.",
         "heldReason": {
           "title": "Why it needs your review",
           "similar": "It looks similar to skills you already have: {names}. Approve it only if it adds something new.",

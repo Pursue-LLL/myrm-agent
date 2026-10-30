@@ -19014,6 +19014,8 @@
         "authRequired": "請先登入後再檢視技能成長案例。",
         "approveSuccess": "已成功透過「{name}」",
         "approveFailed": "透過「{name}」失敗",
+        "approveFailedStaleBase": "「{name}」在提案產生後已被修改，批准會覆蓋這些修改。請改為拒絕該提案。",
+        "approveFailedUnloadable": "「{name}」的提案版本不是有效的技能檔案，無法應用。請修訂後再批准，或拒絕該提案。",
         "rejectSuccess": "已成功拒絕「{name}」",
         "rejectFailed": "拒絕「{name}」失敗",
         "summary": {
@@ -19072,6 +19074,8 @@
         "riskInterceptionTitle": "風控攔截",
         "applyFailureTitle": "應用失敗",
         "applyFailureBody": "未能自動應用。請查看技術細節後重新批准。",
+        "applyFailureBodyStaleBase": "該技能在提案產生後已被修改，應用會覆蓋這些修改。請拒絕這個提案。",
+        "applyFailureBodyUnloadable": "提案的版本不是有效的技能檔案，無法應用。請修訂後再批准，或拒絕該提案。",
         "heldReason": {
           "title": "為什麼需要你審核",
           "similar": "它與你已有的技能相似：{names}。僅當它帶來新內容時再批准。",

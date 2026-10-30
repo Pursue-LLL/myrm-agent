@@ -19014,6 +19014,8 @@
         "authRequired": "スキル成長ケースを確認するにはログインしてください。",
         "approveSuccess": "「{name}」を承認しました",
         "approveFailed": "「{name}」の承認に失敗しました",
+        "approveFailedStaleBase": "「{name}」は提案の作成後に変更されたため、承認するとその変更が上書きされます。代わりに提案を拒否してください。",
+        "approveFailedUnloadable": "「{name}」の提案版は有効なスキルファイルではないため適用できません。改訂するか、提案を拒否してください。",
         "rejectSuccess": "「{name}」を拒否しました",
         "rejectFailed": "「{name}」の拒否に失敗しました",
         "summary": {
@@ -19072,6 +19074,8 @@
         "riskInterceptionTitle": "リスク阻止",
         "applyFailureTitle": "適用に失敗しました",
         "applyFailureBody": "自動で適用できませんでした。技術的な詳細を確認してから、もう一度承認してください。",
+        "applyFailureBodyStaleBase": "提案の作成後にスキルが変更されたため、適用するとその変更が上書きされます。この提案を拒否してください。",
+        "applyFailureBodyUnloadable": "提案版は有効なスキルファイルではないため適用できません。改訂するか、提案を拒否してください。",
         "heldReason": {
           "title": "確認が必要な理由",
           "similar": "すでにあるスキルと似ています：{names}。新しい内容がある場合のみ承認してください。",

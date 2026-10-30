@@ -19014,6 +19014,8 @@
         "authRequired": "Melden Sie sich an, um Fähigkeitswachstumsfälle zu prüfen.",
         "approveSuccess": "„{name}“ erfolgreich genehmigt",
         "approveFailed": "„{name}“ konnte nicht genehmigt werden",
+        "approveFailedStaleBase": "„{name}“ wurde nach dem Erstellen dieses Vorschlags geändert; eine Genehmigung würde diese Änderungen überschreiben. Lehnen Sie den Vorschlag stattdessen ab.",
+        "approveFailedUnloadable": "Die vorgeschlagene Version von „{name}“ ist keine gültige Fähigkeitsdatei und kann nicht angewendet werden. Überarbeiten Sie sie oder lehnen Sie den Vorschlag ab.",
         "rejectSuccess": "„{name}“ erfolgreich abgelehnt",
         "rejectFailed": "„{name}“ konnte nicht abgelehnt werden.",
         "summary": {
@@ -19072,6 +19074,8 @@
         "riskInterceptionTitle": "Risiko-Intervention",
         "applyFailureTitle": "Anwendungsfehler",
         "applyFailureBody": "Die Änderung konnte nicht automatisch angewendet werden. Prüfen Sie die technischen Details und genehmigen Sie erneut.",
+        "applyFailureBodyStaleBase": "Die Fähigkeit wurde nach dem Erstellen dieses Vorschlags geändert; das Anwenden würde diese Änderungen überschreiben. Lehnen Sie diesen Vorschlag ab.",
+        "applyFailureBodyUnloadable": "Die vorgeschlagene Version ist keine gültige Fähigkeitsdatei und kann nicht angewendet werden. Überarbeiten Sie sie oder lehnen Sie den Vorschlag ab.",
         "heldReason": {
           "title": "Warum Ihre Prüfung nötig ist",
           "similar": "Sie ähnelt vorhandenen Fähigkeiten: {names}. Genehmigen Sie sie nur, wenn sie etwas Neues bringt.",

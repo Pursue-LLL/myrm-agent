@@ -1,6 +1,7 @@
 /**
- * [INPUT] skills growth API via @/services, SkillGrowthCaseCard (POS: 技能进化提案卡片)
- * [OUTPUT] PendingEvolutionsDashboard: 待审核技能进化列表（Simple/Detailed 双视图，localStorage 持久化）
+ * [INPUT] skills growth API via @/services, SkillGrowthCaseCard (POS: 技能进化提案卡片),
+ *         @/lib/skills/growthReason::parseApplyFailure (POS: 成长卡片原因码解析)
+ * [OUTPUT] PendingEvolutionsDashboard: 待审核技能进化列表（Simple/Detailed 双视图，localStorage 持久化；批准后应用失败按原因码提示）
  * [POS] features/skills 技能进化审核入口面板
  */
 'use client';
@@ -26,6 +27,7 @@ import {
 } from '@/services/skill/growth';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
+import { parseApplyFailure, type ApplyFailureKind } from '@/lib/skills/growthReason';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   EMPTY_SUMMARY,
@@ -36,6 +38,12 @@ import {
   VIEW_MODE_KEY,
   type GrowthFilter,
 } from '@/components/features/skills/pendingEvolutionsDashboardShared';
+
+const APPROVE_FAILED_KEY = {
+  staleBase: 'approveFailedStaleBase',
+  unloadable: 'approveFailedUnloadable',
+  generic: 'approveFailed',
+} as const satisfies Record<ApplyFailureKind, string>;
 
 export function PendingEvolutionsDashboard() {
   const t = useTranslations('settings.skills.growth');
@@ -165,7 +173,7 @@ export function PendingEvolutionsDashboard() {
         const result = await approveSkillGrowthCase(item);
         const nextStatus = result.apply_status === 'FAILED' ? 'APPLY_FAILED' : 'APPROVED';
         if (result.apply_status === 'FAILED') {
-          toast.error(result.apply_error ?? result.remediation ?? t('approveFailed', { name: item.skillName }));
+          toast.error(t(APPROVE_FAILED_KEY[parseApplyFailure(result.reason_code)], { name: item.skillName }));
         } else {
           toast.success(t('approveSuccess', { name: item.skillName }));
         }

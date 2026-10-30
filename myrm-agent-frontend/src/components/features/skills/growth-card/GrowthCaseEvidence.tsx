@@ -1,8 +1,8 @@
 /**
  * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; useScanRiskText; @/lib/skills/scanRiskText::parseRiskSignals;
- *         @/lib/skills/growthReason::parseHeldReason; GrowthTechnicalDetails
+ *         @/lib/skills/growthReason::parseHeldReason, parseApplyFailure; GrowthTechnicalDetails
  * [OUTPUT] GrowthCaseEvidence: 成长提案的证据面板组（验证证明、安全扫描发现、运行时失败、待审原因、应用失败、技术细节）
- * [POS] features/skills/growth-card 卡片的只读证据区；扫描类别、严重度、待审原因与处置建议均以用户语言呈现，
+ * [POS] features/skills/growth-card 卡片的只读证据区；扫描类别、严重度、待审原因、应用失败原因与处置建议均以用户语言呈现，
  *       扫描器描述、运行时错误签名与应用失败原文只出现在默认收起的技术细节里
  */
 'use client';
@@ -12,10 +12,16 @@ import { ShieldCheck } from 'lucide-react';
 import { useScanRiskText } from '@/components/features/skills/useScanRiskText';
 import { GrowthTechnicalDetails } from '@/components/features/skills/growth-card/GrowthTechnicalDetails';
 import { Badge } from '@/components/primitives/badge';
-import { parseHeldReason } from '@/lib/skills/growthReason';
+import { parseApplyFailure, parseHeldReason, type ApplyFailureKind } from '@/lib/skills/growthReason';
 import { parseRiskSignals } from '@/lib/skills/scanRiskText';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
+
+const APPLY_FAILURE_BODY_KEY = {
+  staleBase: 'applyFailureBodyStaleBase',
+  unloadable: 'applyFailureBodyUnloadable',
+  generic: 'applyFailureBody',
+} as const satisfies Record<ApplyFailureKind, string>;
 
 export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
   const t = useTranslations('settings.skills.growth');
@@ -149,7 +155,9 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
       {item.applyError && (
         <div className="mt-4 rounded-xl border border-orange-300/50 bg-orange-50/60 p-3 dark:border-orange-900/40 dark:bg-orange-950/20">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('applyFailureTitle')}</p>
-          <p className="mt-1 text-sm text-foreground">{t('applyFailureBody')}</p>
+          <p className="mt-1 text-sm text-foreground">
+            {t(APPLY_FAILURE_BODY_KEY[parseApplyFailure(item.reasonCode)])}
+          </p>
         </div>
       )}
 

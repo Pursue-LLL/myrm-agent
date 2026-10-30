@@ -215,6 +215,7 @@ export interface SkillGrowthActionResult {
   skill_id?: string | null;
   apply_status?: string | null;
   apply_error?: string | null;
+  reason_code?: string | null;
   remediation?: string | null;
 }
 

@@ -19014,6 +19014,8 @@
         "authRequired": "스킬 성장 사례를 검토하려면 로그인하세요.",
         "approveSuccess": "\"{name}\"이(가) 승인되었습니다",
         "approveFailed": "\"{name}\" 승인 실패",
+        "approveFailedStaleBase": "제안이 만들어진 뒤 \"{name}\"이(가) 변경되어, 승인하면 그 변경 내용을 덮어쓰게 됩니다. 대신 제안을 거부하세요.",
+        "approveFailedUnloadable": "\"{name}\"의 제안 버전은 올바른 스킬 파일이 아니어서 적용할 수 없습니다. 수정하거나 제안을 거부하세요.",
         "rejectSuccess": "\"{name}\"이(가) 거부되었습니다",
         "rejectFailed": "\"{name}\" 거부 실패",
         "summary": {
@@ -19072,6 +19074,8 @@
         "riskInterceptionTitle": "위험 차단",
         "applyFailureTitle": "적용 실패",
         "applyFailureBody": "자동으로 적용하지 못했습니다. 기술 세부 정보를 확인한 뒤 다시 승인해 보세요.",
+        "applyFailureBodyStaleBase": "제안이 만들어진 뒤 스킬이 변경되어, 적용하면 그 변경 내용을 덮어쓰게 됩니다. 이 제안을 거부하세요.",
+        "applyFailureBodyUnloadable": "제안 버전이 올바른 스킬 파일이 아니어서 적용할 수 없습니다. 수정하거나 제안을 거부하세요.",
         "heldReason": {
           "title": "검토가 필요한 이유",
           "similar": "이미 가지고 있는 스킬과 비슷합니다: {names}. 새로운 내용이 있을 때만 승인하세요.",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseHeldReason } from '@/lib/skills/growthReason';
+import { parseApplyFailure, parseHeldReason } from '@/lib/skills/growthReason';
 
 describe('parseHeldReason', () => {
   it('reads the skills a draft was found similar to', () => {
@@ -29,5 +29,29 @@ describe('parseHeldReason', () => {
     ['undefined', undefined],
   ])('returns null for %s', (_label, code) => {
     expect(parseHeldReason(code)).toBeNull();
+  });
+
+  it.each(['stale_base', 'skill_md_unloadable'])('leaves apply failure code %s to parseApplyFailure', (code) => {
+    expect(parseHeldReason(code)).toBeNull();
+  });
+});
+
+describe('parseApplyFailure', () => {
+  it.each([
+    ['stale_base', 'staleBase'],
+    ['skill_md_unloadable', 'unloadable'],
+  ])('maps %s to its kind', (code, expected) => {
+    expect(parseApplyFailure(code)).toBe(expected);
+  });
+
+  it.each([
+    ['the generic apply failure', 'apply_failed'],
+    ['an unknown code', 'something_new'],
+    ['an object prototype member', 'constructor'],
+    ['empty', ''],
+    ['null', null],
+    ['undefined', undefined],
+  ])('falls back to generic for %s', (_label, code) => {
+    expect(parseApplyFailure(code)).toBe('generic');
   });
 });

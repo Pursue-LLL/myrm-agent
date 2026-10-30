@@ -179,6 +179,24 @@ describe('SkillGrowthCaseCard held-for-review explanation', () => {
     expect(screen.getByText(/directory permissions/)).toBeInTheDocument();
   });
 
+  it.each([
+    ['stale_base', growthCopy.applyFailureBodyStaleBase],
+    ['skill_md_unloadable', growthCopy.applyFailureBodyUnloadable],
+  ])('explains the apply failure %s in plain language, not as a code', (reasonCode, sentence) => {
+    renderCard(
+      makeItem({
+        status: 'APPLY_FAILED',
+        reasonCode,
+        applyError: 'The skill file changed after this proposal was created.',
+        remediation: 'Reject this proposal.',
+      }),
+    );
+
+    expect(screen.getByText(sentence)).toBeInTheDocument();
+    expect(screen.queryByText(growthCopy.applyFailureBody)).toBeNull();
+    expect(screen.queryByText(reasonCode)).toBeNull();
+  });
+
   it('shows runtime failure facts up front and the raw error signature only when expanded', () => {
     renderCard(
       makeItem({

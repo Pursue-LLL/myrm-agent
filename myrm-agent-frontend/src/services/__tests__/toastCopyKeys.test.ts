@@ -31,6 +31,8 @@ const WITH_VALUES: ReadonlyArray<readonly [string, Values]> = [
   ['settings.securityPolicy.privacy.routing.testSuccessLatency', { latency: 42 }],
   ['settings.wiki.reviewSlip.applied', { committed: 4, discarded: 6 }],
   ['settings.skills.detail.securityReviewNote', { recommendation: 'recommendation-x' }],
+  ['settings.skills.growth.approveFailedStaleBase', { name: 'skill-x' }],
+  ['settings.skills.growth.approveFailedUnloadable', { name: 'skill-x' }],
   ['agent.openapi.presetAdded', { name: 'preset-x' }],
   ['agent.configPanel.forcePushSummary', { version: 8, synced: 3, skipped: 5, failed: 2, total: 10 }],
   ['channels.dataPlane.deletedCount', { count: 1 }],
