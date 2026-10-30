@@ -4,7 +4,7 @@
 - none (plain JavaScript source strings evaluated in the page)
 
 [OUTPUT]
-- ATTACH_CHAT_PROBE: one poll step that attaches the page to a chat and reports when the store holds it
+- ATTACH_CHAT_PROBE: one poll step that attaches the page to a chat and reports when the store holds it and the attach has ended
 - COMPOSER_READY_JS: the textarea exists and React owns it
 - PREFETCH_SKILL_CATALOG_JS: fetch the skill catalog the slash palette lists adopted skills from
 - TYPE_JS: put text in the composer the way a keystroke does (native value setter + input event)
@@ -24,7 +24,16 @@ ATTACH_CHAT_PROBE = """(() => {{
     && Boolean(store?.isMessagesLoaded)
     && !Boolean(store?.loadError)
     && !Boolean(store?.notFound);
-  if (attached) return {{ ready: true, chatId: store?.chatId ?? null }};
+  // The scripts below report how often the chat view was re-created after typing; the bridge announces it with this event.
+  if (!window.__MYRM_E2E_HYDRATION_STAMPS__) {{
+    window.__MYRM_E2E_HYDRATION_STAMPS__ = [];
+    window.addEventListener('myrm-e2e-chat-route-hydrated', () => window.__MYRM_E2E_HYDRATION_STAMPS__.push(performance.now()));
+    window.__MYRM_E2E_HYDRATIONS_SINCE_TYPING__ = () =>
+      window.__MYRM_E2E_HYDRATION_STAMPS__.filter((at) => at > (window.__MYRM_E2E_TYPED_AT__ ?? Infinity)).length;
+  }}
+  // The bridge's attach ends by re-creating the chat view, the composer in it included: text typed before that loses its
+  // caret and focus (the slash palette reads the caret). The store holding the chat is not enough while attach is in flight.
+  if (attached && !window.__MYRM_E2E_ATTACHING__) return {{ ready: true, chatId: store?.chatId ?? null }};
   if (bridge?.attachToChat && !window.__MYRM_E2E_ATTACHING__) {{
     window.__MYRM_E2E_ATTACHING__ = true;
     bridge.attachToChat({chat_id_json}).catch(() => {{}}).finally(() => {{
@@ -67,6 +76,9 @@ TYPE_JS = f"""((text) => {{
   el.dispatchEvent(new Event('input', {{ bubbles: true }}));
   el.dispatchEvent(new Event('change', {{ bubbles: true }}));
   window.__MYRM_E2E_TYPED_IN__ = performance.timeOrigin;
+  window.__MYRM_E2E_TYPED_AT__ = performance.now();
+  // Survives only on this DOM node: a composer re-created after typing is a different node without it.
+  el.__myrmE2eTyped = true;
   return {{ ok: true, value: el.value, hydrated, timeOrigin: performance.timeOrigin }};
 }})"""
 
@@ -91,7 +103,8 @@ PICK_SKILL_CHIP_JS = """((needle) => {
   const overlay = document.querySelector('nextjs-portal')?.shadowRoot?.querySelector('[data-nextjs-dialog]');
   return {
     ready: false, paletteEntries: entries, hasPalette: Boolean(palette), composerText: input?.value ?? null,
-    typedInThisPage: window.__MYRM_E2E_TYPED_IN__ === performance.timeOrigin, storeInput: state?.inputMessage ?? null,
+    typedInThisPage: window.__MYRM_E2E_TYPED_IN__ === performance.timeOrigin, sameNodeAsTyped: Boolean(input?.__myrmE2eTyped),
+    hydrationsSinceTyping: window.__MYRM_E2E_HYDRATIONS_SINCE_TYPING__?.() ?? null, storeInput: state?.inputMessage ?? null,
     boundSkillIds: state?.agentConfig?.selectedSkillIds ?? null, caret: input?.selectionStart ?? null,
     visibility: document.visibilityState, composerFocused: document.activeElement === input,
     pageErrors: window.__MYRM_DIAG_ERRORS__ ?? null, nextErrorDialog: (overlay?.textContent ?? '').slice(0, 300) || null,

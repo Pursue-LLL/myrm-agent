@@ -19,11 +19,9 @@ The reload tests reload the page in the middle of a run, and the reloaded chat m
     chat the user opens from coming back, and each card, answered on the page of its own chat, finishes its run;
   - 1.5 s after Approve, while the resumed run writes a long answer;
   - at once after Approve, whether or not the click had reached the server (a card that is still there gets approved again);
-  - during the first run of a chat, before any approval, which only has the user's message stored;
-  - after the user left the chat and nobody pressed Approve, so the server's approval timer answered as the security setting says
-    (deny and allow) and ran the rest of the turn (an open chat page would answer the expired card itself): the reopened chat
-    shows the reply, the server no longer holds the card the timer answered, and the timer's run brought the turn's skill hooks
-    back (they fire for the command only when the timer allowed it).
+  - during the first run of a chat, before any approval, which only has the user's message stored.
+
+The runs the server's approval timer continues when nobody presses Approve are in test_approval_timer_resume_chrome_e2e.py.
 
 Formal run::
 
@@ -33,13 +31,12 @@ Formal run::
 
 from __future__ import annotations
 
-import json
 import time
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from tests.support.chrome_approval_turn import SHORT_ANSWER, bash_request, run_one_turn
 from tests.support.chrome_chat_page_observe import (
     assert_board_settled,
     assert_page_settled,
@@ -50,65 +47,24 @@ from tests.support.chrome_chat_page_observe import (
     reload_the_chat,
     reply_on_page,
     stored_reply_is_final,
-    turn_state,
     wait_for_card_of_open_chat,
     wait_for_mobile_status_board,
     wait_for_reply_on_page,
-    wait_for_the_stored_reply_watching_the_turn,
     wait_until_not_streaming,
-    wait_until_parked_at_the_card,
 )
-from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_api_url, get_e2e_ui_url
+from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_ui_url
 from tests.support.chrome_skill_hooks_approval import approve_cards_until_reply, click_approve, wait_for_approval_card
 from tests.support.chrome_skill_hooks_composer import drive_chat_turn
 from tests.support.chrome_skill_hooks_live_e2e import DONE_TOKEN, SkillChat, audit_hooks, setup_skill_chat
 from tests.support.e2e_runtime_guard import E2EResourceLedger
-from tests.support.hitl_live_e2e import set_private_approval_timeout
 
-_APPROVAL_PROBE_URL = "http://127.0.0.1:9/APPROVAL_RESUME_REPLY"
 _RELOAD_AFTER_APPROVE_SEC = 1.5
-# Seconds before the approval timer answers a card nobody answered.
-_TIMER_SEC = 45
 # A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
 _LONG_ANSWER_LINES = 600
-_SHORT_ANSWER = f"reply with exactly: {DONE_TOKEN}"
 _LONG_LIST = (
     f"the integers from 1 to {_LONG_ANSWER_LINES} as a bulleted list, one per bullet, "
     f"and after a blank line end with a last line of exactly: {DONE_TOKEN}"
 )
-
-
-def _bash_request(answer: str) -> str:
-    # One plain command keeps the turn at a single approval card.
-    return (
-        f"Run exactly this one plain command with the bash tool, with no ';', '&&', pipe or redirect: "
-        f"curl -sS {_APPROVAL_PROBE_URL} . Run no other command. After it finishes, whatever its result, {answer}"
-    )
-
-
-def _run_one_turn(
-    tmp_path: Path,
-    e2e_resource_ledger: E2EResourceLedger,
-    tag: str,
-    request: str,
-    watch: Callable[[ChromeMcpClient, McpPage, SkillChat, str], None],
-    *,
-    asks_approval: bool = True,
-    approval_timeout_sec: int | None = None,
-    approval_timeout_behavior: str = "deny",
-) -> None:
-    probe = setup_skill_chat(tmp_path, e2e_resource_ledger, tag, audit_hooks, yolo=not asks_approval)
-    if approval_timeout_sec is not None:
-        # The probe's own backend only: the global setting the harness pins on the shared one keeps every other test's card waiting.
-        set_private_approval_timeout(get_e2e_api_url(), approval_timeout_sec, approval_timeout_behavior)
-    chat_url = f"{get_e2e_ui_url().rstrip('/')}{probe.ui_path}"
-    drive_chat_turn(
-        get_e2e_ui_url(),
-        probe,
-        request,
-        invoke_skill=asks_approval,
-        while_open=lambda client, page: watch(client, page, probe, chat_url),
-    )
 
 
 @pytest.mark.chrome_e2e(
@@ -131,7 +87,7 @@ def test_the_reply_of_an_approved_run_shows_live_and_stays_after_a_reload(
         reload_the_chat(client, page, chat_url)
         wait_for_reply_on_page(client, page, probe, "after a reload the chat did not show the stored reply of the approved run")
 
-    _run_one_turn(tmp_path, e2e_resource_ledger, "resumereply", _bash_request(_SHORT_ANSWER), approve_then_watch_the_page)
+    run_one_turn(tmp_path, e2e_resource_ledger, "resumereply", bash_request(SHORT_ANSWER), approve_then_watch_the_page)
 
 
 def _reload_and_finish(
@@ -187,52 +143,7 @@ def test_a_reload_while_the_run_waits_for_approval_brings_the_card_back(
         assert not stored_reply_is_final(probe), "the run was not parked behind the card"
         _approve_and_finish(client, page, probe)
 
-    _run_one_turn(tmp_path, e2e_resource_ledger, "reloadcard", _bash_request(_SHORT_ANSWER), reload_behind_the_card)
-
-
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="live_shpoib",
-)
-@pytest.mark.e2e_search_policy("empty")
-@pytest.mark.integration
-@pytest.mark.timeout(600)
-@pytest.mark.parametrize("behavior", ["deny", "allow"])
-def test_a_reload_after_the_timeout_answered_the_card_shows_the_reply_and_no_card(
-    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger, behavior: str
-) -> None:
-    def let_the_timer_answer_then_reload(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
-        wait_until_parked_at_the_card(probe)
-        wait_for_approval_card(client, page)
-        # An open chat page answers an expired card itself (ToolApprovalExpiryWatcher), so the server's timer would never be the
-        # one to act. The user leaves the chat for a static document of the same origin, which keeps the page bound to the backend.
-        client.navigate(page, f"{get_e2e_ui_url().rstrip('/')}/favicon.ico", timeout_ms=30_000)
-        # Nobody presses Approve: the timer answers as the security setting says and the server runs the rest of the turn without any page.
-        wait_for_the_stored_reply_watching_the_turn(probe)
-        open_in_fresh_page(client, page, chat_url)
-        wait_for_reply_on_page(client, page, probe, "after the timer answered the card the reloaded chat did not show the reply")
-        # The card was answered by the timer: the parked run must not hand it to the reloaded page again.
-        assert_page_settled(client, page)
-        assert turn_state(probe) == {"running": False, "awaitingApproval": False}
-        # The timer's run is a resume like the page's: it brings the turn's skill hooks back, and the PreToolUse/PostToolUse
-        # hooks fire for a command that ran, which the timer's answer decided.
-        assert json.loads((probe.out / "session_payload.json").read_text())["is_resume"] is True, (
-            "the timer run lost the skill hooks"
-        )
-        for hook_payload in ("pre_tool_payload.json", "post_tool_payload.json"):
-            assert (probe.out / hook_payload).exists() is (behavior == "allow"), f"{hook_payload} with timer behavior {behavior}"
-
-    _run_one_turn(
-        tmp_path,
-        e2e_resource_ledger,
-        "timeoutcard",
-        _bash_request(_SHORT_ANSWER),
-        let_the_timer_answer_then_reload,
-        approval_timeout_sec=_TIMER_SEC,
-        approval_timeout_behavior=behavior,
-    )
+    run_one_turn(tmp_path, e2e_resource_ledger, "reloadcard", bash_request(SHORT_ANSWER), reload_behind_the_card)
 
 
 @pytest.mark.chrome_e2e(
@@ -254,7 +165,7 @@ def test_a_reload_while_the_approved_run_is_still_working_ends_with_its_reply(
         assert not reply_on_page(client, page), "the run had already answered; the reload would not interrupt anything"
         _reload_and_finish(client, page, probe, chat_url, working=True)
 
-    _run_one_turn(tmp_path, e2e_resource_ledger, "reloadmid", _bash_request(f"write {_LONG_LIST}"), approve_then_reload_mid_run)
+    run_one_turn(tmp_path, e2e_resource_ledger, "reloadmid", bash_request(f"write {_LONG_LIST}"), approve_then_reload_mid_run)
 
 
 @pytest.mark.chrome_e2e(
@@ -275,7 +186,7 @@ def test_a_reload_right_after_pressing_approve_ends_with_the_reply(
         # Whether the resume request left the page before it went away is up to the browser: both outcomes must end the same way.
         _reload_and_finish(client, page, probe, chat_url, working=False)
 
-    _run_one_turn(tmp_path, e2e_resource_ledger, "reloadnow", _bash_request(f"write {_LONG_LIST}"), approve_then_reload_at_once)
+    run_one_turn(tmp_path, e2e_resource_ledger, "reloadnow", bash_request(f"write {_LONG_LIST}"), approve_then_reload_at_once)
 
 
 @pytest.mark.chrome_e2e(
@@ -295,7 +206,7 @@ def test_a_reload_while_the_first_run_is_still_writing_ends_with_its_reply(
         assert not reply_on_page(client, page), "the run had already answered; the reload would not interrupt anything"
         _reload_and_finish(client, page, probe, chat_url, working=True, asks_approval=False)
 
-    _run_one_turn(
+    run_one_turn(
         tmp_path,
         e2e_resource_ledger,
         "reloadfirst",
@@ -328,7 +239,7 @@ def test_the_card_of_a_second_parked_chat_comes_back_after_the_first_ones(
         wait_for_approval_card(client, page)
 
     # The second chat parks behind its card and is left: its page closes, its run waits for the user.
-    drive_chat_turn(ui_url, second, _bash_request(_SHORT_ANSWER), while_open=park_and_leave)
+    drive_chat_turn(ui_url, second, bash_request(SHORT_ANSWER), while_open=park_and_leave)
 
     def reload_then_open_the_second_chat(client: ChromeMcpClient, page: McpPage) -> None:
         wait_for_approval_card(client, page)
@@ -347,7 +258,7 @@ def test_the_card_of_a_second_parked_chat_comes_back_after_the_first_ones(
         wait_for_card_of_open_chat(client, page, second.chat_id)
         _approve_and_finish(client, page, second)
 
-    drive_chat_turn(ui_url, first, _bash_request(_SHORT_ANSWER), while_open=reload_then_open_the_second_chat)
+    drive_chat_turn(ui_url, first, bash_request(SHORT_ANSWER), while_open=reload_then_open_the_second_chat)
 
 
 def _the_board_gets_the_card_and_finishes_the_run(
@@ -365,7 +276,7 @@ def _the_board_gets_the_card_and_finishes_the_run(
         approve_cards_until_reply(client, page, probe, DONE_TOKEN, timeout_sec=240.0, tolerate_closing_note=True)
         assert_board_settled(client, page, probe)
 
-    _run_one_turn(tmp_path, e2e_resource_ledger, tag, _bash_request(_SHORT_ANSWER), open_the_board_on_the_parked_chat)
+    run_one_turn(tmp_path, e2e_resource_ledger, tag, bash_request(SHORT_ANSWER), open_the_board_on_the_parked_chat)
 
 
 @pytest.mark.chrome_e2e(

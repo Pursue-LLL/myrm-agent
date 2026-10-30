@@ -137,7 +137,18 @@ _SEND_READY_JS = """((text) => {
 _CLICK_SEND_JS = """(() => {
   window.__MYRM_E2E_DIRECT_SSE__ = true;
   const send = document.querySelector('button.message-send-btn');
-  if (!send || send.disabled) return { ok: false, err: 'send-button-unavailable' };
+  if (!send || send.disabled) {
+    // Tells a composer re-created after typing (a new node without the typed mark) from an empty composer or a running turn.
+    const input = document.querySelector('[data-chat-input]');
+    const state = window.__myrmChatStore?.getState?.();
+    return {
+      ok: false, err: 'send-button-unavailable', hasButton: Boolean(send), disabled: send?.disabled ?? null,
+      composerText: input?.value ?? null, sameNodeAsTyped: Boolean(input?.__myrmE2eTyped),
+      hydrationsSinceTyping: window.__MYRM_E2E_HYDRATIONS_SINCE_TYPING__?.() ?? null,
+      storeInput: state?.inputMessage ?? null, loading: Boolean(state?.loading),
+      pageErrors: window.__MYRM_DIAG_ERRORS__ ?? null,
+    };
+  }
   if (!window.__MYRM_SEND_TRACE__) {
     const trace = (window.__MYRM_SEND_TRACE__ = []);
     const original = window.fetch;
@@ -308,8 +319,11 @@ def drive_chat_turn(
             assert wire.startswith(f"[use {skill_name}]"), ready
         else:
             assert "[use " not in wire, ready
+        # Zero unless the page re-created the chat view (and the composer in it) between typing and pressing send.
+        recreated = client.evaluate(page, "window.__MYRM_E2E_HYDRATIONS_SINCE_TYPING__?.() ?? null", timeout_sec=15.0)
         sent = client.evaluate(page, _CLICK_SEND_JS, timeout_sec=15.0)
         assert isinstance(sent, dict) and sent.get("ok") is True, sent
+        print(f"E2E_COMPOSER_RECREATIONS_SINCE_TYPING: {recreated}", flush=True)
         print(f"E2E_WIRE_MESSAGE: {wire[:400]}", flush=True)
         if len(wire) > 400:
             print(f"E2E_WIRE_MESSAGE_LENGTH: {len(wire)} chars", flush=True)

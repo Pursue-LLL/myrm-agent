@@ -5,7 +5,7 @@
 - cdp_chat.support (POS: live provider readiness, private backend log offset, private-API HITL pin)
 
 [OUTPUT]
-- setup_skill_chat(): providers + agent owning the adopted hook skill + empty chat
+- setup_skill_chat(): providers + agent owning the adopted hook skill (its declared shell permission granted) + empty chat
 - SkillChat: one probe (agent, chat, the folder hooks write into)
 - audit_hooks() / fail_closed_hooks(): SKILL.md ``hooks:`` blocks that write observable files
 - BASH_TOOL / DONE_TOKEN / BLOCKED_TOKEN / COMMAND_OUTPUT: the words the probe turns agree on
@@ -24,6 +24,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 
@@ -51,6 +52,9 @@ DONE_TOKEN = "HOOKS-E2E-DONE"
 BLOCKED_TOKEN = "HOOKS-E2E-BLOCKED"
 COMMAND_OUTPUT = "HOOK-E2E-OK"
 
+# The probe turns run a shell command while the skill is loaded; the skill boundary refuses a tool a loaded skill holds no grant for.
+_SHELL_PERMISSION = "code_interpreter"
+
 _AGENT_SYSTEM_PROMPT = (
     f"You run shell commands with {BASH_TOOL} when the user asks. "
     "Call it exactly once with the command the user gives, then reply with the exact words the user requests."
@@ -64,6 +68,8 @@ def _skill_md(name: str, hooks_yaml: str) -> str:
     return f"""---
 name: {name}
 description: E2E probe skill whose command hooks audit the agent run into a local folder.
+required_permissions:
+  - {_SHELL_PERMISSION}
 hooks:
 {hooks_yaml}---
 # {name}
@@ -170,10 +176,21 @@ def _install_skill(api_url: str, skills_dir: Path, agent_id: str, name: str) -> 
         body={"path": str(skills_dir), "selected_skill_ids": [skill_id], "agent_id": agent_id},
     )
     assert isinstance(adopted, dict) and skill_id in (adopted.get("adopted_skill_ids") or []), adopted
+    _grant_declared_permissions(api_url, skill_id)
     # Pick the adopted skill for the agent, as the agent editor does; the slash palette lists an agent's own skills.
     bound = http_json("PUT", f"{api_url}/api/v1/user-agents/{agent_id}", body={"skill_ids": [skill_id]})
     assert isinstance(bound, dict) and bound.get("success") is not False, bound
     return skill_id
+
+
+def _grant_declared_permissions(api_url: str, skill_id: str) -> None:
+    """Approve what the skill declares, as the permission dialog does when a user installs a skill."""
+    permissions_url = f"{api_url}/api/v1/skills/{quote(skill_id, safe='')}/permissions"
+    required = http_json("GET", f"{permissions_url}/required")
+    assert isinstance(required, dict) and required.get("required_permissions") == [_SHELL_PERMISSION], required
+    granted = http_json("POST", f"{permissions_url}/grant", body={"permissions": [_SHELL_PERMISSION]})
+    assert isinstance(granted, dict) and granted.get("success") is True, granted
+    assert _SHELL_PERMISSION in (granted.get("granted_permissions") or []), granted
 
 
 def _pin_hitl_on_private_api(api_url: str) -> None:

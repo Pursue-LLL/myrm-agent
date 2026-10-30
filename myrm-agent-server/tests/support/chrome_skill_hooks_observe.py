@@ -122,8 +122,11 @@ def _ends_with_token(content: str, token: str) -> bool:
     return content.strip().rstrip("*`_.! ").endswith(token)
 
 
+_FAILED_STEP_CHARS = 700
+
+
 def _describe_messages(messages: list[dict[str, object]]) -> str:
-    """One line per stored message: who spoke, what was said, which tool steps it recorded, and its flags."""
+    """One line per stored message: who spoke, what was said, which tool steps it recorded, and its flags; failed steps follow with what the tool said."""
     lines: list[str] = []
     for message in messages:
         raw_metadata = message.get("metadata")
@@ -137,6 +140,13 @@ def _describe_messages(messages: list[dict[str, object]]) -> str:
         lines.append(
             f"  {message.get('role')}: content={content[:300]!r} steps={step_keys} flags={flags} keys={sorted(metadata)}"
         )
+        # A failed tool step carries what the tool said; without it a turn that ends in a tool error looks like a model whim.
+        if isinstance(steps, list):
+            lines.extend(
+                f"    failed step: {json.dumps(step, ensure_ascii=False, default=str)[:_FAILED_STEP_CHARS]}"
+                for step in steps
+                if isinstance(step, dict) and str(step.get("step_key")).endswith("_error")
+            )
     return "\n".join(lines)
 
 

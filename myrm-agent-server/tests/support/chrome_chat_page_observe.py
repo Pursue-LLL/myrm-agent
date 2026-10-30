@@ -17,7 +17,7 @@
 - turn_state() / wait_until_parked_at_the_card() / wait_for_the_stored_reply_watching_the_turn(): what the server holds of the chat's turn (running, parked behind a card), read from /agents/chat/<id>/turn-state
 
 [POS]
-Shared by tests/e2e/test_approval_resume_reply_chrome_e2e.py; the scenarios stay there, the page-side probes live here.
+Shared by tests/e2e/test_approval_resume_reply_chrome_e2e.py and test_approval_timer_resume_chrome_e2e.py; the scenarios stay there, the page-side probes live here.
 """
 
 from __future__ import annotations
