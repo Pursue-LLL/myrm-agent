@@ -2,10 +2,12 @@
 
 [INPUT]
 - app.config.settings::settings (POS: 统一配置中心)
-- myrm_agent_harness.agent.skills.evolution::SkillStore (POS: harness 进化存储)
+- app.core.skills.models::Skill (POS: 技能统一模型)
+- myrm_agent_harness.agent.skills.evolution::SkillStore, SkillRecord (POS: harness 进化存储)
 
 [OUTPUT]
 - get_evolution_skill_store: 返回 skills.db 上的进程级单例 SkillStore 实例
+- find_evolution_records: 一个技能在进化库里的全部行（页面 id 键优先，其次同目录的技能名键）
 - reset_evolution_skill_store: 清空单例缓存（测试隔离用）
 
 [POS]
@@ -15,8 +17,12 @@ core/skills/store 进化 SQLite 入口。禁止 core/services 经 app.api 间接
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.skills.evolution import SkillStore
+from myrm_agent_harness.agent.skills.evolution import SkillRecord, SkillStore
+
+if TYPE_CHECKING:
+    from app.core.skills.models import Skill
 
 _store_cache: dict[str, SkillStore] = {}
 
@@ -43,6 +49,30 @@ def get_evolution_skill_store() -> SkillStore:
         store = SkillStore(db_path=db_path)
         _store_cache[key] = store
     return store
+
+
+def find_evolution_records(store: SkillStore, skill_ref: str, page_skill: Skill | None = None) -> list[SkillRecord]:
+    """Evolution rows of one skill, the row keyed by ``skill_ref`` first.
+
+    Rows are keyed by the page's skill id (local scan, imports) or by the skill name (draft approval, auto
+    extraction), so a page id alone misses the second kind. A row found by name counts only when it holds the
+    skill's own SKILL.md, so two skills sharing a name never share a row. Without ``page_skill`` ``skill_ref``
+    is taken as the name.
+    """
+    records: list[SkillRecord] = []
+    exact = store.get_skill(skill_ref)
+    if exact is not None:
+        records.append(exact)
+    by_name = store.get_skill_by_name_version(skill_ref if page_skill is None else page_skill.name)
+    if by_name is not None and by_name.skill_id != skill_ref and _holds_skill_md(by_name, page_skill):
+        records.append(by_name)
+    return records
+
+
+def _holds_skill_md(record: SkillRecord, page_skill: Skill | None) -> bool:
+    if page_skill is None:
+        return True
+    return bool(record.path) and Path(record.path).parent.resolve() == Path(page_skill.storage_path).resolve()
 
 
 def reset_evolution_skill_store() -> None:

@@ -1,6 +1,6 @@
 """
 [INPUT]
-- app.api.skills.evolution.helpers::_get_skill_store (POS: Helper functions for evolution API)
+- app.api.skills.evolution.helpers::_require_evolvable_record (POS: Helper functions for evolution API)
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before a model reads it)
 
@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from app.services.risk.refusal import reject_if_risky
 
-from .helpers import _get_skill_store
+from .helpers import _require_evolvable_record
 
 router = APIRouter()
 
@@ -38,10 +38,7 @@ async def derive_skill(
     """Trigger a user-driven derived evolution for an existing skill."""
     logger = logging.getLogger(__name__)
 
-    store = _get_skill_store()
-    skill = store.get_skill(skill_id)
-    if skill is None:
-        raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
+    skill = await _require_evolvable_record(skill_id)
 
     instruction = request.instruction.strip()
     if not instruction:
@@ -64,7 +61,7 @@ async def derive_skill(
             )
 
             proposal = await engine.derive_skill_simple(
-                skill_id=skill_id,
+                skill_id=skill.skill_id,
                 user_feedback=instruction,
             )
             if proposal is None:

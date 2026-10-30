@@ -1,6 +1,6 @@
 """
 [INPUT]
-- app.api.skills.evolution.helpers::_get_skill_store (POS: Helper functions for evolution API)
+- app.api.skills.evolution.helpers::_require_evolvable_record (POS: Helper functions for evolution API)
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system)
 
 [OUTPUT]
@@ -18,7 +18,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from .helpers import _get_skill_store
+from .helpers import _require_evolvable_record
 
 router = APIRouter()
 
@@ -36,10 +36,7 @@ async def fix_skill(
     """Trigger a FIX evolution for an existing skill, optionally bypassing cooldown."""
     logger = logging.getLogger(__name__)
 
-    store = _get_skill_store()
-    skill = store.get_skill(skill_id)
-    if skill is None:
-        raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
+    skill = await _require_evolvable_record(skill_id)
 
     from myrm_agent_harness.agent.skills.evolution.infra.integration import (
         get_global_evolution_integration,
@@ -59,7 +56,7 @@ async def fix_skill(
 
             evo_req = EvolutionRequest(
                 evolution_type=EvolutionType.FIX,
-                skill_id=skill_id,
+                skill_id=skill.skill_id,
                 reason=request.reason,
                 force_retry=request.force_retry,
             )
@@ -74,7 +71,7 @@ async def fix_skill(
             else:
                 # Fallback if queue not enabled
                 proposal = await engine.fix_skill(
-                    skill_id=skill_id,
+                    skill_id=skill.skill_id,
                     error_message=request.reason,
                 )
                 if proposal:

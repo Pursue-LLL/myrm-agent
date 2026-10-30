@@ -207,11 +207,10 @@ def test_batch_with_a_clean_prompt_reaches_the_service(client: TestClient) -> No
 @pytest.fixture
 def evolution_engine() -> Iterator[MagicMock]:
     """The engine lookup, which a request reaches only after the gate; it reports no engine so no derivation runs."""
-    store = MagicMock()
-    store.get_skill.return_value = SimpleNamespace(name="report")
+    record = AsyncMock(return_value=SimpleNamespace(name="report", skill_id="skill-1"))
     lookup = MagicMock(return_value=None)
     with (
-        patch("app.api.skills.evolution.derive._get_skill_store", return_value=store),
+        patch("app.api.skills.evolution.derive._require_evolvable_record", record),
         patch("myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration", lookup),
     ):
         yield lookup

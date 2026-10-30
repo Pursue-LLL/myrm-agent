@@ -332,7 +332,7 @@ class SkillCreationService:
 
     @staticmethod
     def _ensure_evolution_locked(content: str) -> str:
-        """Inject evolution-locked: true into frontmatter for new user-created skills.
+        """Inject evolution-locked: true into frontmatter for every new skill.
 
         Guards the skill's content from automated *rewrites* (self-evolution and consolidation
         merges) so a hand-written skill is not silently overwritten. It is not a lifecycle

@@ -29,6 +29,7 @@ from app.core.skills.marketplace.clawhub_registry import (
     normalize_clawhub_registry_url,
 )
 from app.core.skills.models import UserSkillConfig
+from app.core.skills.store.evolution_store import find_evolution_records
 from app.core.skills.store.service import skills_service
 from app.database.connection import get_db
 
@@ -274,7 +275,8 @@ async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str,
         if not evolution or not evolution.store:
             raise HTTPException(status_code=503, detail="Evolution system not initialized")
 
-        await evolution.store.set_evolution_lock(skill_id, locked=locked)
+        for record in find_evolution_records(evolution.store, skill_id, skill):
+            await evolution.store.set_evolution_lock(record.skill_id, locked=locked)
 
         # Double-write to local SKILL.md file if it exists
         if skill.storage_path:
