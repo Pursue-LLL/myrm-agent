@@ -7,8 +7,10 @@
 - FactStatus, FactTrustLevel, FACT_STATUSES, resolve_fact_status, FactTrustPolicy, DEFAULT_FACT_TRUST_POLICY
 
 [POS]
-Harness SSOT for three-tier fact trust contract (published_truth, in_progress_draft, deprecated)
-across Wiki concepts, workspace documents, and RAG retrieval gating.
+Harness SSOT for the three-tier fact trust contract (published_truth, in_progress_draft, deprecated): how a page's
+status is resolved from frontmatter or path, and the score multipliers that rank drafts and retired pages below
+published truth. It ranks, it does not gate: `frontmatter_contract.resolve_publish_status` decides which pages may
+reach an answer.
 """
 
 from __future__ import annotations
@@ -43,13 +45,11 @@ class FactTrustLevel(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class FactTrustPolicy:
-    """Weight multipliers and filtering policy for three-tier fact retrieval."""
+    """Score multipliers for three-tier fact retrieval."""
 
     truth_boost: float = 1.2
     draft_multiplier: float = 0.3
     deprecated_multiplier: float = 0.1
-    include_drafts_by_default: bool = False
-    include_deprecated_by_default: bool = False
 
     def get_multiplier(self, status: FactStatus) -> float:
         if status == FactStatus.PUBLISHED_TRUTH:
