@@ -3,9 +3,11 @@
 [INPUT]
 - myrm_agent_harness.toolkits.cron.manager::CronManager (POS: cron CRUD orchestration)
 - platform_utils.sandbox.entitlements.entitlement_guard::require_cron_slot (POS: CP plan gate)
+- app.core.cron.adapters.lifecycle_guard::assert_cron_job_lifecycle_safe (POS: cron lifecycle guard — prevents restart/stop loops from user-scheduled jobs)
+- app.core.cron.adapters.tools_policy::normalize_cron_tools_allowed (POS: cron tools policy — restricts per-job tool access at schedule and runtime)
 
 [OUTPUT]
-- EntitlementGuardedCronManager: wraps create/duplicate with slot checks for REST + agent tools; typed pass-through for the job lookups, the run listing and the lifecycle calls services make
+- EntitlementGuardedCronManager: create/duplicate take a plan slot; create/update run the lifecycle guard and tool-name normalisation; typed pass-through for the job lookups, the run listing and the lifecycle calls services make
 
 [POS]
 Server business-layer gate on harness CronManager mutations. All callers use ``get_cron_manager()``.

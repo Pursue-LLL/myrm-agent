@@ -19,8 +19,8 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator, Mapping, Sequence
 
-# A verb and the service it targets must sit on one line at most this far apart. A real command line is far
-# shorter, and an unbounded gap makes the scan quadratic on long repeated text.
+# A verb and the service it targets must sit on one line at most this far apart. The bound is a judgment call:
+# an unbounded gap makes the scan quadratic on long repeated text.
 _MAX_VERB_TO_SERVICE_GAP = 200
 _GAP = rf"[^\n]{{0,{_MAX_VERB_TO_SERVICE_GAP}}}"
 
