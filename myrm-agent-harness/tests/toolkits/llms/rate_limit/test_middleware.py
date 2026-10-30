@@ -421,4 +421,3 @@ async def test_empty_response_result():
 
     response = await middleware.awrap_model_call(request, handler)
     assert response.result == []
-

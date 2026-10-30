@@ -277,6 +277,7 @@ class TestToolHistoryHygieneMiddleware:
         request.override.assert_not_called()
         handler.assert_awaited_once_with(request)
 
+
 class TestDuplicateToolUseClassifier:
     def test_classifies_anthropic_duplicate_tool_use_error(self) -> None:
         exc = _FakeStatusError(
