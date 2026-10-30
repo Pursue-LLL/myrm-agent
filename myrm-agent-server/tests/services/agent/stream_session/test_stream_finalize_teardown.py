@@ -32,7 +32,6 @@ def _make_session(*, cancelled: bool = False) -> MagicMock:
     session.request.resume_value = None
     session.cancel_token.is_cancelled = cancelled
     session.params.message_id = MESSAGE_ID
-    session.params.enable_skill_manage = False
     session.collector.has_persistable_turn = True
     session.collector.has_content = True
     session.collector.content = "The answer"
@@ -58,14 +57,10 @@ class _Teardown:
         self.steering = MagicMock()
         self.end_run = MagicMock()
         self.capability_failed = AsyncMock()
-        self.slice_queue = MagicMock(enqueue=AsyncMock())
 
 
 @contextmanager
-def _collaborators(teardown: _Teardown, *, residual_slice: bool) -> Iterator[None]:
-    cursors = {CHAT_ID: (2, ["call-a", "call-b"])} if residual_slice else {}
-    evolution = MagicMock(queue=teardown.slice_queue, _slice_cursors=cursors)
-    evolution_hook = "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration"
+def _collaborators(teardown: _Teardown) -> Iterator[None]:
     with ExitStack() as stack:
         for name in ("clear_context_task_metrics", "enqueue_context_compaction_telemetry", "merge_memory_citation_fallback"):
             stack.enter_context(patch(f"{_FINALIZE}.{name}"))
@@ -84,13 +79,12 @@ def _collaborators(teardown: _Teardown, *, residual_slice: bool) -> Iterator[Non
         )
         stack.enter_context(patch("myrm_agent_harness.api.hooks.get_memory_runtime_budget", return_value=None))
         stack.enter_context(patch("myrm_agent_harness.api.hooks.get_memory_runtime_injection", return_value=None))
-        stack.enter_context(patch(evolution_hook, return_value=evolution))
         yield
 
 
-async def _end_turn(session: MagicMock, *, residual_slice: bool = False) -> _Teardown:
+async def _end_turn(session: MagicMock) -> _Teardown:
     teardown = _Teardown()
-    with _collaborators(teardown, residual_slice=residual_slice):
+    with _collaborators(teardown):
         await finalize_agent_stream_session(session, MagicMock(), ApprovalTimeoutHolder(), ClarificationTimeoutHolder())
     return teardown
 
@@ -133,16 +127,3 @@ async def test_a_turn_the_user_stopped_is_recorded_as_stopped() -> None:
 
     teardown.end_run.assert_called_once_with(CHAT_ID, phase=RunDigestPhase.CANCELLED, progress_steps=[])
     teardown.capability_failed.assert_awaited_once_with(session, "abort")
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(("cancelled", "queued"), [(False, 1), (True, 0)])
-async def test_the_trace_slice_left_at_the_end_is_queued_for_skill_evolution_unless_the_user_stopped(
-    cancelled: bool, queued: int
-) -> None:
-    session = _make_session(cancelled=cancelled)
-    session.params.enable_skill_manage = True
-
-    teardown = await _end_turn(session, residual_slice=True)
-
-    assert teardown.slice_queue.enqueue.await_count == queued

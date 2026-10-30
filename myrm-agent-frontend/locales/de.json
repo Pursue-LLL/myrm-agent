@@ -10983,7 +10983,6 @@
       "fix": "Fähigkeits-Korrektur",
       "derived": "Fähigkeits-Verfeinerung",
       "captured": "Erfasste Fähigkeit",
-      "slice_extraction": "Aus Aufgabe extrahiert",
       "optimize_description": "Beschreibungsoptimierung",
       "other": "Sonstiges"
     },

@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+from myrm_agent_harness.agent.event_log.logger import EventLogger
+from myrm_agent_harness.agent.skills.evolution.infra.integration import set_global_evolution_integration
+from myrm_agent_harness.agent.streaming.broadcast.tool_call_broadcaster import ToolCallBroadcaster
 
 from app.services.agent.evolution import evolution_runtime
 
@@ -68,6 +73,54 @@ async def test_runtime_starts_with_evolution_model_only() -> None:
     assert integration.screener is screener_cls.return_value
     integration.start_background_queue.assert_awaited_once_with(on_proposal_callback=evolution_runtime.handle_new_proposal)
     assert evolution_runtime._started_integration is integration
+
+
+@pytest.mark.asyncio
+async def test_the_engine_the_runtime_builds_reads_the_event_logs_the_agents_write(tmp_path: Path) -> None:
+    state_dir = tmp_path / "state"
+    log_dir = tmp_path / "event_logs"
+    state_dir.mkdir()
+    log_dir.mkdir()
+    chat_id = "c-runtime-1"
+    # What an agent run writes: the file is named by the chat id, the events carry the session key of the run.
+    backend = FileEventLogBackend(log_dir, chat_id)
+    event_logger = EventLogger(backend, f"chat_{chat_id}")
+    await event_logger.start()
+    broadcaster = ToolCallBroadcaster(event_logger)
+    call = {"tool_name": "bash", "tool_call_id": "call-1", "session_id": f"chat_{chat_id}"}
+    await broadcaster.on_pre_tool_use("pre_tool_use", {**call, "tool_input": {"command": "ls"}})
+    await broadcaster.on_post_tool_use_failure("post_tool_use_failure", {**call, "error": "exit 1"})
+    await event_logger.close()
+
+    llm_manager = MagicMock()
+    llm_manager.get_llm_from_config = AsyncMock(return_value=MagicMock())
+    settings = SimpleNamespace(database=SimpleNamespace(state_dir=str(state_dir), event_log_dir=str(log_dir)))
+    try:
+        with (
+            patch.object(evolution_runtime, "settings", settings),
+            patch.object(evolution_runtime, "get_global_evolution_integration", return_value=None),
+            patch.object(evolution_runtime, "llm_manager", llm_manager),
+            patch.object(
+                evolution_runtime, "load_platform_evolution_model_config", new=AsyncMock(return_value=SimpleNamespace())
+            ),
+            patch.object(
+                evolution_runtime,
+                "load_user_configs",
+                new=AsyncMock(return_value=SimpleNamespace(search_cfg=None, search_is_user_configured=False)),
+            ),
+        ):
+            await evolution_runtime.init_evolution_runtime()
+
+        integration = evolution_runtime._started_integration
+        assert integration is not None
+        assert integration.engine is not None
+        trajectory = await integration.engine._trace_analyzer.extract_trajectory(chat_id, "bash")
+    finally:
+        await evolution_runtime.shutdown_evolution_runtime()
+        set_global_evolution_integration(None)
+
+    assert "[tool_failure]" in trajectory
+    assert "exit 1" in trajectory
 
 
 @pytest.mark.asyncio

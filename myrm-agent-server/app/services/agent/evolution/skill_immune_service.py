@@ -1,7 +1,9 @@
 """
 [INPUT]
 - myrm_agent_harness.runtime.events.skill_events::SkillFailureEvent (POS: Framework-level skill failure event DTOs. They carry runtime evidence for business layers without importing product, GUI, approval, or tenant concepts.)
-- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with 15-Call Sliding Window trigger, execution ledger recording, and background queue orchestration.)
+- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with the session-end frustration trigger and background queue orchestration.)
+- app.services.agent.params.workspace_resolve::chat_id_from_session_id (POS: the chat a harness session key belongs to; names the event log a repair reads)
+- app.core.utils.session_id::is_safe_session_id (POS: path-component whitelist for the log file name)
 - app.services.skills.evolution_reviews::RuntimeFailureEvidence (POS: 统一的 evolution 审核生命周期服务。以 ApprovalRecord 为唯一事实源，提供幂等落地、回滚与 apply-failed 重试语义。)
 - app.services.agent.confidence_approval_flow::ConfidenceApprovalFlow (POS: 基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。)
 [OUTPUT]
@@ -29,7 +31,9 @@ from myrm_agent_harness.agent.skills.evolution.infra.integration import (
 )
 from myrm_agent_harness.runtime.events import SkillFailureCandidate, SkillFailureEvent
 
+from app.core.utils.session_id import is_safe_session_id
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
+from app.services.agent.params.workspace_resolve import chat_id_from_session_id
 from app.services.skills.evolution_reviews import (
     EvolutionGrowthStatus,
     RuntimeFailureEvidence,
@@ -169,7 +173,7 @@ async def handle_skill_failure_event(event: SkillFailureEvent) -> None:
             candidate.skill_id,
             _failure_reason(event, evidence),
             task_context=_failure_task_context(event, evidence),
-            session_id=event.session_id,
+            session_id=_event_log_session_id(event),
         )
         if proposal is None:
             await _create_blocked_case(
@@ -187,6 +191,18 @@ async def handle_skill_failure_event(event: SkillFailureEvent) -> None:
             runtime_failure=evidence,
             force_manual_review=True,
         )
+
+
+def _event_log_session_id(event: SkillFailureEvent) -> str | None:
+    """The event log a repair reads the failed run from, or None when the failure names no readable log.
+
+    A harness callback reports the session key of the run; the log of a chat is named by the chat id. A key that
+    is no safe file name never reaches the log directory.
+    """
+    if not event.session_id:
+        return None
+    log_session_id = chat_id_from_session_id(event.session_id)
+    return log_session_id if is_safe_session_id(log_session_id) else None
 
 
 def _select_primary_candidate(event: SkillFailureEvent) -> SkillFailureCandidate | None:

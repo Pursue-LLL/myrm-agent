@@ -9,7 +9,6 @@
 
 [OUTPUT]
 - TraceAnalyzer: Extracts and formats full trajectories to inform LLM of exact failure steps.
-- SliceResult: The formatted trace of one tool-call slice and whether it is a coherent workflow.
 
 [POS]
 Trace Analyzer for Skill Evolution. Provides progressive disclosure analysis.
@@ -17,7 +16,6 @@ Trace Analyzer for Skill Evolution. Provides progressive disclosure analysis.
 
 import logging
 import time
-from dataclasses import dataclass
 
 from myrm_agent_harness.agent.event_log import sanitize_event_data
 from myrm_agent_harness.agent.event_log.analytics_queries import (
@@ -30,10 +28,6 @@ from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 
 logger = logging.getLogger(__name__)
 
-# A tool call's arguments can be a whole file, and the slice goes to a model: the arguments are clipped
-# like the result and the error of the same call.
-_ARGS_PREVIEW_CHARS = 500
-
 
 def _stored_tool_name(name: object) -> str:
     """A tool name from the summary helpers, which read the log as stored, redacted for the prompt.
@@ -41,12 +35,6 @@ def _stored_tool_name(name: object) -> str:
     A call the model wrote badly is kept whole, arguments included, where the name belongs.
     """
     return str(sanitize_event_data({"tool_name": str(name)}).get("tool_name", ""))
-
-
-@dataclass(frozen=True)
-class SliceResult:
-    formatted_trace: str
-    is_coherent: bool
 
 
 class TraceAnalyzer:
@@ -69,72 +57,15 @@ class TraceAnalyzer:
             for event in events
         ]
 
-    async def analyze_slice(self, session_id: str, tool_call_ids: list[str]) -> SliceResult | None:
-        """Analyze a specific slice of the execution trace.
-
-        Args:
-            session_id: The session ID
-            tool_call_ids: List of specific tool call IDs that form the slice
-
-        Returns:
-            The formatted slice and whether it is coherent, or None when the log holds none of the calls.
-        """
-        if not self._backend or not tool_call_ids:
-            return None
-
-        # The tool events the broadcaster persists: start (args), end (result) and failure (error)
-        events = await self._read_events(
-            session_id,
-            EventFilter(event_types=frozenset({"tool_start", "tool_end", "tool_failure"})),
-        )
-
-        if not events:
-            return None
-
-        # Filter events by the specific tool_call_ids
-        wanted_ids = set(tool_call_ids)
-        slice_events = [evt for evt in events if evt.data.get("tool_call_id") in wanted_ids]
-
-        if not slice_events:
-            return None
-
-        # Format the trace for the LLM
-        lines = []
-        tool_call_count = 0
-        error_count = 0
-        last_tool = ""
-        for evt in slice_events:
-            if evt.event_type == "tool_start":
-                last_tool = evt.data.get("tool_name", "unknown")
-                args_text = str(evt.data.get("args", {}))
-                if len(args_text) > _ARGS_PREVIEW_CHARS:
-                    args_text = args_text[:_ARGS_PREVIEW_CHARS] + "..."
-                lines.append(f"\n[Action] {last_tool}({args_text})")
-                tool_call_count += 1
-            elif evt.event_type == "tool_end":
-                lines.append(f"[Success] -> {str(evt.data.get('result', ''))[:200]}...")
-            elif evt.event_type == "tool_failure":
-                lines.append(f"[Error] -> {str(evt.data.get('error', ''))[:200]}...")
-                error_count += 1
-
-        formatted_trace = "\n".join(lines)
-
-        # AST / Coherence check
-        # A coherent slice has at least 1 tool call and an error rate < 80% (not just endless failing loops)
-        is_coherent = tool_call_count >= 1 and (error_count / max(1, tool_call_count)) < 0.8
-
-        return SliceResult(formatted_trace=formatted_trace, is_coherent=is_coherent)
-
-    async def extract_trajectory_with_code(
-        self, session_id: str, skill: "SkillRecord", max_token_budget: int = 2500
-    ) -> str:
+    async def extract_trajectory_with_code(self, session_id: str, skill: "SkillRecord") -> str:
         """Extract trajectory and include the skill's code context.
 
-        This is a high-value optimization that provides the LLM with both the
-        execution trace AND the actual code that failed, significantly improving
-        root cause analysis accuracy.
+        The model sees the execution trace together with the code that failed. Returns an empty string when the
+        log holds no events for the session, so the caller keeps its own description of the failure.
         """
         trajectory = await self.extract_trajectory(session_id, skill.skill_id, max_token_budget=1500)
+        if not trajectory:
+            return ""
 
         code_context = f"\n\n## 技能代码上下文 (Skill Code Context)\n```python\n{skill.content}\n```\n"
 
@@ -188,7 +119,8 @@ class TraceAnalyzer:
             max_token_budget: Maximum token budget for the output (approximate).
 
         Returns:
-            A formatted markdown string showing the agent's step-by-step actions.
+            A formatted markdown string showing the agent's step-by-step actions, or an empty string when the
+            log holds no events for the session.
         """
         start_time = time.time()
 
@@ -197,6 +129,8 @@ class TraceAnalyzer:
 
         # 1. Get session overview (fetch all to get the latest timeline events)
         summary = await get_session_summary(self._backend, session_id, events_limit=10000, timeline_limit=10000)
+        if not summary.events_timeline:
+            return ""
 
         # 2. Get tool usage stats
         tool_stats = await get_tool_usage_stats(self._backend, session_id)

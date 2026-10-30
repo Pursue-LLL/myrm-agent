@@ -134,7 +134,7 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
         trajectory = ""
         if self._trace_analyzer and session_id:
             trajectory = await self._trace_analyzer.extract_trajectory_with_code(session_id, old_skill)
-        else:
+        if not trajectory:
             trajectory = f"Trajectory extraction not available. Error: {error_message}"
 
         # 1.5 Fetch historical constraints to prevent repeated mistakes
@@ -318,114 +318,6 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
             trajectory="",
             is_general=True,
         )
-
-    async def extract_skill_from_slice(
-        self,
-        session_id: str,
-        tool_call_ids: list[str],
-        agent_id: str | None = None,
-    ) -> EvolutionProposal | None:
-        """SLICE_EXTRACTION: Extract a skill from a slice of execution trace.
-
-        Args:
-            session_id: The session ID to fetch trace from.
-            tool_call_ids: List of tool call IDs that form the coherent slice.
-            agent_id: Optional agent ID for scoping.
-
-        Returns:
-            EvolutionProposal or None if skipped/rejected.
-        """
-        if not self._trace_analyzer:
-            logger.warning("extract_skill_from_slice skipped: No TraceAnalyzer (event_log_backend missing)")
-            return None
-
-        logger.info(f"Extracting skill from slice: session={session_id}, calls={len(tool_call_ids)}")
-
-        # 1. Fetch trace slice via TraceAnalyzer
-        slice_result = await self._trace_analyzer.analyze_slice(
-            session_id=session_id,
-            tool_call_ids=tool_call_ids,
-        )
-        if not slice_result or not slice_result.is_coherent:
-            logger.info(
-                f"Slice {session_id} ({len(tool_call_ids)} calls) rejected by the slice coherence check: Not a coherent workflow."
-            )
-            return None
-
-        # 2. Extract pattern using LLM
-        trajectory = slice_result.formatted_trace
-        from myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor import (
-            StructuredExtractor,
-        )
-
-        if not self._llm:
-            return None
-
-        extractor = StructuredExtractor(self._llm)
-        result = await extractor.extract_from_trajectory(trajectory)
-
-        if not result or not result.is_general or float(result.confidence) < 0.8:
-            return None
-
-        from myrm_agent_harness.agent.skills.evolution.safety.validator import (
-            SkillValidator,
-        )
-
-        validator = SkillValidator()
-        temp_record = SkillRecord(
-            skill_id=result.name,
-            name=result.name,
-            description="Validation draft",
-            content=result.content,
-            path="",
-            lineage=None,  # type: ignore
-        )
-
-        validation = validator.validate(temp_record)
-        if not validation.valid:
-            return None
-
-        from myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator import (
-            SandboxValidator,
-        )
-
-        sandbox = SandboxValidator()
-        is_safe, _ = await sandbox.dry_run_skill(temp_record)
-        if not is_safe:
-            return None
-
-        # 3. Multi-dimensional security sanitization scan
-        from myrm_agent_harness.backends.skills.scanning.scanner import (
-            compute_scan_summary,
-            scan_skill_content,
-        )
-        from myrm_agent_harness.backends.skills.types import SkillTrustRecommendation
-
-        scan_result = scan_skill_content(result.name, result.content)
-        if scan_result.trust_recommendation == SkillTrustRecommendation.REJECT:
-            logger.warning(f"Slice-extracted skill '{result.name}' rejected by security scan: {scan_result.summary}")
-            return None
-
-        security_summary_dict = compute_scan_summary(scan_result).to_dict()
-
-        from datetime import datetime
-
-        proposal = EvolutionProposal(
-            skill_id=result.name,
-            evolution_type=EvolutionType.SLICE_EXTRACTION,
-            original_content="",
-            proposed_content=result.content,
-            diff="",
-            score=float(result.confidence),
-            reasoning=f"Auto-extracted from slice. Safety: {result.safety_analysis}",
-            task_context=f"Session slice {len(tool_call_ids)} calls",
-            is_general=result.is_general,
-            created_at=datetime.now(),
-            agent_id=agent_id,
-            security_scan_summary=security_summary_dict,
-        )
-
-        return proposal
 
     async def capture_skill_from_trajectory(
         self,

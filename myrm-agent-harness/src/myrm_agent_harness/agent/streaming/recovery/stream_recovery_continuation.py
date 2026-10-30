@@ -60,10 +60,6 @@ class StreamContinuationRecoveryMixin:
     streaming_final_answer: bool
     _partial_text_buffer: str
 
-    async def _check_and_emit_trace_slice(self, force_flush: bool = False) -> None:
-        """Type hint stub; implementation provided by StreamExecutor."""
-        pass
-
     async def _handle_steering(self, collected_messages: list[BaseMessage]) -> bool:
         """Handle steering injection and trigger a new turn when needed.
 
@@ -250,9 +246,6 @@ class StreamContinuationRecoveryMixin:
                 }
             )
 
-        if decision.verdict in ("done", "budget", "convergence") and hasattr(self, "_check_and_emit_trace_slice"):
-            _track_background_recovery_task(asyncio.create_task(self._check_and_emit_trace_slice(force_flush=True)))
-
         if decision.should_continue:
             messages_dict = ctx.agent_input
             messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
@@ -264,12 +257,12 @@ class StreamContinuationRecoveryMixin:
 
         if decision.verdict in ("done", "budget", "convergence") and ctx.on_goal_terminal and goal and summary:
             _track_background_recovery_task(
-                asyncio.create_task(ctx.on_goal_terminal(goal, list(collected_messages), summary))
+                asyncio.ensure_future(ctx.on_goal_terminal(goal, list(collected_messages), summary))
             )
 
         # loop_restart: trigger a new agent stream with fresh context
         if decision.verdict == "loop_restart" and goal and ctx.on_loop_restart:
-            _track_background_recovery_task(asyncio.create_task(ctx.on_loop_restart(session_id, goal)))
+            _track_background_recovery_task(asyncio.ensure_future(ctx.on_loop_restart(session_id, goal)))
 
         return False
 

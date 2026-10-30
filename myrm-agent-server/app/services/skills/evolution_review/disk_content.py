@@ -57,7 +57,7 @@ async def apply_content_update(
             final_scope_agent_id = agent_id
         else:
             final_scope_agent_id = owner_id
-    elif payload.evolution_type in (EvolutionType.CAPTURED.value, EvolutionType.SLICE_EXTRACTION.value) and agent_id:
+    elif payload.evolution_type == EvolutionType.CAPTURED.value and agent_id:
         final_scope_agent_id = agent_id
 
     content_to_write = payload.evolved_content

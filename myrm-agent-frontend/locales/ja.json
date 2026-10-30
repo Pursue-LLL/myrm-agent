@@ -10983,7 +10983,6 @@
       "fix": "スキルの修正",
       "derived": "スキルの改善",
       "captured": "抽出したスキル",
-      "slice_extraction": "タスクからの抽出",
       "optimize_description": "説明の改善",
       "other": "その他"
     },

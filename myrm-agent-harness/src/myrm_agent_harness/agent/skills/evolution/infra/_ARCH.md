@@ -9,7 +9,7 @@ Agent Skills Evolution Infra module.
 |------|------|-------------|-------|
 | __init__.py | Package |   Init   | — |
 | background_task_manager.py | Core | Background evolution task management with observability and graceful shutdown. | ✅ |
-| integration.py | Core | Integration helpers for skill evolution system: 15-Call Sliding Window trace slice trigger, background queue orchestration. | ✅ |
+| integration.py | Core | Integration helpers for skill evolution system: the SESSION_END hook that turns user frustration into a DERIVED evolution, and background queue orchestration. | ✅ |
 | queue.py | Core | Defers non-critical evolutions to background queue to avoid blocking main flow. | ✅ |
 
 ## Key Dependencies

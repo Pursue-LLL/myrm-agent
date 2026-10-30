@@ -1,6 +1,7 @@
 """
 [INPUT]
-- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with 15-Call Sliding Window trigger, execution ledger recording, and background queue orchestration.)
+- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with the session-end frustration trigger and background queue orchestration.)
+- myrm_agent_harness.agent.event_log.backends.file_backend::FileEventLogBackend (POS: JSONL event log storage; the repair prompt of a FIX reads the failed run back from it)
 - app.services.agent.confidence_approval_flow::ConfidenceApprovalFlow (POS: 基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。)
 [OUTPUT]
 - handle_new_proposal: 将后台进化队列产出的提案交给审批流落地（自动合并发布 SKILL_EVOLVED，其余进入审核队列）。
@@ -15,6 +16,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionProposal
 from myrm_agent_harness.agent.skills.evolution.infra.integration import (
     EvolutionIntegration,
@@ -66,6 +68,9 @@ async def init_evolution_runtime() -> None:
         enable_tde=True,
         enable_tool_calling=True,
         search_service_cfg=search_service_cfg,
+        # Reads address a session by the id they pass; the constructor's own id only names the file appends go to,
+        # and this backend never appends.
+        event_log_backend=FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default"),
     )
     # The screener reads skill history from the integration's own store.
     evolution.screener = EvolutionScreener(

@@ -1,8 +1,8 @@
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.agent.hooks.registry import HookRegistry
 from myrm_agent_harness.agent.hooks.types import HookEvent
 from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType
 from myrm_agent_harness.agent.skills.evolution.infra.integration import (
@@ -20,42 +20,75 @@ def clean_integration():
 
 
 @pytest.mark.asyncio
-async def test_integration_register_hooks(clean_integration):
+async def test_register_hooks_wires_only_the_session_end_frustration_trigger(clean_integration):
+    integration = EvolutionIntegration(db_path=":memory:", enable_background_queue=True)
+    try:
+        registry = HookRegistry()
+        integration.register_hooks(registry)
+        integration.register_hooks(registry)
+
+        assert registry.total_count == 1
+        assert len(registry.get(HookEvent.SESSION_END)) == 1
+    finally:
+        await integration.close()
+
+
+@pytest.mark.asyncio
+async def test_session_end_hook_queues_a_derived_evolution_for_user_frustration(clean_integration):
     integration = EvolutionIntegration(db_path=":memory:", enable_background_queue=True)
     try:
         integration.queue = MagicMock()
         integration.queue.enqueue = AsyncMock()
         integration.queue.stop = AsyncMock()
 
-        mock_registry = MagicMock()
-        integration.register_hooks(mock_registry)
+        registry = HookRegistry()
+        integration.register_hooks(registry)
+        handler = registry.get(HookEvent.SESSION_END)[0].fn
 
-        # Find the registered handler for TRACE_SLICE_READY
-        handler = None
-        for call in mock_registry.register.call_args_list:
-            if call[0][0] == HookEvent.TRACE_SLICE_READY:
-                handler = call[0][1].fn
-                break
+        await handler(
+            HookEvent.SESSION_END,
+            {
+                "session_id": "session-123",
+                "messages": [
+                    {"role": "assistant", "content": "Here is a long explanation."},
+                    {"role": "user", "content": "废话太多"},
+                ],
+            },
+        )
 
-        assert handler is not None
+        assert integration.queue.enqueue.await_count == 1
+        request = integration.queue.enqueue.call_args[0][0]
+        assert request.evolution_type == EvolutionType.DERIVED
+        assert request.skill_id == "frustration_verbosity_session-"
+        assert request.user_feedback == "废话太多"
+    finally:
+        await integration.close()
 
-        # Test the handler
-        payload = {
-            "session_id": "session-123",
-            "tool_call_ids": ["call_1", "call_2"],
-            "agent_id": "agent-1",
-        }
 
-        await handler("TRACE_SLICE_READY", payload)
+@pytest.mark.asyncio
+async def test_session_end_hook_queues_nothing_without_a_frustration_signal(clean_integration):
+    integration = EvolutionIntegration(db_path=":memory:", enable_background_queue=True)
+    try:
+        integration.queue = MagicMock()
+        integration.queue.enqueue = AsyncMock()
+        integration.queue.stop = AsyncMock()
 
-        await asyncio.sleep(0.01)
-        assert integration.queue.enqueue.call_count == 1
-        req = integration.queue.enqueue.call_args[0][0]
+        registry = HookRegistry()
+        integration.register_hooks(registry)
+        handler = registry.get(HookEvent.SESSION_END)[0].fn
 
-        assert req.evolution_type == EvolutionType.SLICE_EXTRACTION
-        assert req.session_id == "session-123"
-        assert req.tool_call_ids == ["call_1", "call_2"]
-        assert req.agent_id == "agent-1"
+        await handler(
+            HookEvent.SESSION_END,
+            {
+                "session_id": "session-123",
+                "messages": [
+                    {"role": "user", "content": "Summarize the report."},
+                    {"role": "assistant", "content": "Done."},
+                ],
+            },
+        )
+
+        integration.queue.enqueue.assert_not_awaited()
     finally:
         await integration.close()
 

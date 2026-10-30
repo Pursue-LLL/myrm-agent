@@ -1,9 +1,7 @@
 """Cover remaining branch paths in finalize_agent_stream_session.
 
-These tests exercise timeout scheduling, compaction debt drain, residual slice
-flush, artifact patching, turn-capability terminal recording and the failure
-fallbacks of the persistence hooks. They complement
-test_stream_finalize_evolution_trigger.py and test_stream_exception_chunks.py.
+These tests exercise timeout scheduling, compaction debt drain, artifact patching, turn-capability terminal
+recording and the failure fallbacks of the persistence hooks. They complement test_stream_exception_chunks.py.
 """
 
 from __future__ import annotations
@@ -130,17 +128,14 @@ class TestFinalizeBranchCoverage:
         mock_end_run.assert_called_once_with("chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}])
 
     @pytest.mark.asyncio
-    async def test_slice_flush_and_turn_completed(self) -> None:
-        """Residual slice flush and turn-capability completed record."""
+    async def test_turn_capability_completed_is_recorded(self) -> None:
+        """A finished turn with capability telemetry records its completed terminal state."""
         session = _make_session()
         session.collector.has_persistable_turn = True
         session.collector.content = "Result <cite:doc-1> text"
         session.request.turn_capability_telemetry = TurnCapabilityTelemetryRequest(
             source="direct", effective_skill_count=2, effective_mcp_count=0
         )
-        evo_integration = MagicMock()
-        evo_integration._slice_cursors = {"chat-branch": (2, ["tool-a", "tool-b"])}
-        evo_integration.queue = AsyncMock()
         with (
             patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
             patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
@@ -174,15 +169,10 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
                 return_value=True,
             ),
-            patch(
-                "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration",
-                return_value=evo_integration,
-            ),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
-        assert evo_integration.queue.enqueue.await_count == 1
         assert session.turn_capability_terminal_recorded is True
 
     @pytest.mark.asyncio

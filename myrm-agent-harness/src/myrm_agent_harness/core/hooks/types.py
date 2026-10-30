@@ -35,7 +35,6 @@ class HookEvent(StrEnum):
     SUBAGENT_CANCEL_START = "subagent_cancel_start"
     SUBAGENT_CANCEL_COMPLETE = "subagent_cancel_complete"
     USER_TURN = "user_turn"
-    TRACE_SLICE_READY = "trace_slice_ready"
     APPROVAL_CORRECTION = "approval_correction"
 
 

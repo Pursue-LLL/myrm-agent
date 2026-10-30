@@ -748,26 +748,28 @@ Scanner（编排器）
 
 ## 14. 技能创建与评估 [ENHANCE]
 
-### 14.1 自动技能提炼与“无状态目标感知滚动窗口” (Stateless Goal-Aware Tumbling Window)
+### 14.1 自动进化的触发源与审批闭环
 
-系统支持**真·自动进化**能力，彻底抛弃了低效的全量人工介入草稿确认流程，并从根本上解决了长会话提炼引发的“提炼幻觉（Context Noise）”问题。
+自动进化由三类相互独立的触发源驱动，产出提案或成长记录，由服务端按风险决定自动落地或人工审核。
 
 ```
-1. 窗口切片 (Window Slicing) → 一轮执行累计的工具调用达到 15 次，或这一轮结束时仍有剩余，`StreamExecutor` 把这些 `tool_call_ids` 作为一个切片；另有按会话计数的窗口钩子（`EvolutionIntegration.SLICE_WINDOW_THRESHOLD`，同为 15 次）。
-   - 两处都以 `TRACE_SLICE_READY` Hook 抛出；切片只是一组工具调用 ID，没有游标，也不按目标完成或子智能体退出来切。
-   - 两处带的 `session_id` 取值不同：`StreamExecutor` 带本轮消息 ID，窗口钩子带审批会话键；事件按运行上下文里的 `session_id` 落盘。
-2. 零阻塞后台入队 (Zero-Blocking Dispatch) → Hook 处理函数把 `SLICE_EXTRACTION` 请求以低优先级压入后台队列，主 Agent 继续对话毫无感知。
-3. 事件日志回读与连贯性判断 → 
-   - 后台 Worker 经 `TraceAnalyzer.analyze_slice(session_id, tool_call_ids)` 从事件日志后端读出该会话的 `tool_start` / `tool_end` / `tool_failure` 事件，按 `tool_call_ids` 过滤、脱敏后拼成轨迹；按 `session_id` 读不到事件时返回 None，切片被丢弃。
-   - 连贯性只看两条：切片里至少有 1 次工具调用，且错误率低于 0.8；不满足则丢弃，不调用进化模型。
-   - `TraceAnalyzer` 只在 `EvolutionIntegration` 拿到 `event_log_backend` 时创建；没有它，进化引擎跳过切片请求。
-4. LLM 提炼与事件解耦 (Event-Driven Decoupling) →
-   - 提取出可复用的套路 (EvolutionProposal)。
-   - 不再越权直接写库，而是附带出错时的 `Agent_ID`，封装进 `IdleTaskProgressEvent` 广播。
-5. 显式审批与负反馈闭环 (Explicit Approval & Negative Exemplars) → 
-   - Server 业务层捕获事件，落库为 `ApprovalRecord` 草稿。
-   - 前端 GUI 专属 Inbox 亮起红点，等待用户显式 Approve。保护了系统 Prompt Cache 不被后台提炼静默击穿。
-   - 如果用户 Reject，不仅删除草稿，还会写入记忆库的负面样本集（Negative Exemplars），防止未来引擎重复提炼相同废料。
+1. 触发源 (Triggers) →
+   - 运行时失败（FIX）：Harness 把失败的工具调用归因到已加载的技能并发出 `SkillFailureEvent`；Server 的 `skill_immune_service` 做业务分类（配置、环境、瞬时故障只落拦截案例，不改技能）、按错误签名幂等去重，其余交给 `SkillEvolutionEngine.fix_skill` 起草修复。
+   - 用户不满（DERIVED）：会话结束时，`EvolutionIntegration.register_hooks` 注册的 SESSION_END 钩子扫描对话，命中不满信号就把 DERIVED 请求以普通优先级压入后台队列；用户在 GUI 里给技能提的反馈走同一类型。
+   - 后台复盘（新技能）：Harness 的复盘结果统一交给 `process_skill_review_result`：依次过锁定/已存在、语义去重、CRITICAL 预检和高危新增复核，安全的新技能自动落盘，其余进入人工审核。
+2. 失败轨迹 (Failure Trajectory，仅 FIX) →
+   - `TraceAnalyzer.extract_trajectory_with_code(session_id, skill)` 从事件日志读出失败那个会话的概览、失败模式、工具统计、聚类后的错误和最近 5 条时间线事件（约 1500 token 预算），再附上技能当前代码和人类接管示范。
+   - `session_id` 是事件日志的文件名。聊天的日志以聊天 ID 命名，Server 在调用前把失败事件里的会话键换成它，并要求结果是安全的文件名。
+   - 读出的每个事件都再经一遍写入侧的脱敏，更早版本落盘的凭据不会进入提示词。
+   - 没有以该键命名的日志文件时（无痕聊天不写日志；定时任务的日志按日分片，文件名带日期）返回空串，修复提示只带错误文本。
+   - `TraceAnalyzer` 只在 `EvolutionIntegration` 拿到 `event_log_backend` 时创建；Server 运行时传入读取智能体事件日志目录的只读后端。
+3. 零阻塞后台入队 (Zero-Blocking Dispatch) →
+   - 入队的请求由后台 Worker 经 `EvolutionIntegration.evolve_skill` 先过 `EvolutionScreener`（冷却、静态拦截、FIX 的 LLM 确认），再交给进化引擎；主 Agent 继续对话毫无感知。
+4. 提案与审批 (Proposal & Approval) →
+   - 引擎产出 `EvolutionProposal`（FIX 与 DERIVED 先过 EvalCase 回归门，DERIVED 另过 Improvement Gate），不直接写库；Server 的 `ConfidenceApprovalFlow` 落地：运行时失败的修复一律人工审核，其余按置信度与风控信号决定自动合并或进入审核队列。
+   - 前端 GUI 的审核收件箱亮起红点，等待用户显式批准。保护了系统 Prompt Cache 不被后台提炼静默击穿。
+5. 拒绝反馈 (Rejection Feedback) →
+   - 用户拒绝并给出理由时，理由写入该技能的进化约束；之后每次 FIX / DERIVED 起草变体，最近 5 条约束作为必须遵守的历史约束进入提示词，防止同一类废料被重复提出。
 ```
 
 **设计决策**：

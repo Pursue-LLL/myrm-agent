@@ -30,7 +30,6 @@ class EvolutionType(StrEnum):
     FIX = "fix"  # Auto-repair failed/outdated skills
     DERIVED = "derived"  # Optimize/enhance based on user feedback
     CAPTURED = "captured"  # Capture repeated user commands as new skills
-    SLICE_EXTRACTION = "slice_extraction"  # Extract from execution trace slice
     OPTIMIZE_DESCRIPTION = "optimize_description"  # Refine description for better matching
 
 
@@ -302,9 +301,6 @@ class EvolutionRequest:
     reason: str = ""  # Error message for FIX, user feedback for DERIVED, pattern for CAPTURED
     user_feedback: str = ""  # Optional user feedback for DERIVED
     repeated_commands: list[str] = field(default_factory=list)  # For CAPTURED
-    session_id: str = ""  # For SLICE_EXTRACTION
-    tool_call_ids: list[str] = field(default_factory=list)  # For SLICE_EXTRACTION
-    agent_id: str | None = None  # For SLICE_EXTRACTION
     force_retry: bool = False  # GUI-First explicit flag to bypass cooldowns
 
     def to_dict(self) -> dict[str, Any]:
@@ -314,9 +310,6 @@ class EvolutionRequest:
             "reason": self.reason,
             "user_feedback": self.user_feedback,
             "repeated_commands": self.repeated_commands,
-            "session_id": self.session_id,
-            "tool_call_ids": self.tool_call_ids,
-            "agent_id": self.agent_id,
             "force_retry": self.force_retry,
         }
 

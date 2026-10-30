@@ -9,9 +9,7 @@ from myrm_agent_harness.agent.skills.evolution.infra.queue import EvolutionQueue
 
 @pytest.fixture
 def sample_request():
-    return EvolutionRequest(
-        agent_id="agent1", tool_call_ids=["call1"], skill_id="skill1", evolution_type=EvolutionType.FIX, reason="test"
-    )
+    return EvolutionRequest(skill_id="skill1", evolution_type=EvolutionType.FIX, reason="test")
 
 
 @pytest.mark.asyncio
@@ -29,13 +27,7 @@ async def test_queue_enqueue_full_drops_oldest(sample_request):
     assert queue._queues[QueuePriority.NORMAL].qsize() == 1
 
     # Next enqueue should drop the oldest one (which is sample_request)
-    req2 = EvolutionRequest(
-        agent_id="agent2",
-        tool_call_ids=["call2"],
-        skill_id="skill2",
-        evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION,
-        reason="",
-    )
+    req2 = EvolutionRequest(skill_id="skill2", evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION, reason="")
     await queue.enqueue(req2, priority=QueuePriority.NORMAL)
     assert queue._queues[QueuePriority.NORMAL].qsize() == 1
 

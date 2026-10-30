@@ -13,8 +13,6 @@ Framework provides the hooks, business layer decides when to use them.
 - agent.context_management.pipeline::ContextPipeline (POS: Message filter pipeline for composing multiple filters.)
 - toolkits.code_execution::CodeExecutor (POS: Code execution toolkit entry point. Aggregates execution configuration, executor implementations, workspace management, and factory functions for the Agent-in-Sandbox architecture.)
 - toolkits.web_search::SearchServiceConfig (POS: Web search toolkit entry point. Aggregates and re-exports search tools, result types, metrics, and error hierarchy for unified import.)
-- agent.middlewares._session_context::get_approval_session (POS: Middleware session context — shared ContextVars for the middleware chain.)
-- agent.hooks.executor::fire_hook (POS: Hook execution layer. Manages hook registration and execution with ContextVar-based session isolation.)
 
 [OUTPUT]
 - EvolutionIntegration: All-in-one integration helper for skill evolution.
@@ -24,12 +22,12 @@ Framework provides the hooks, business layer decides when to use them.
 
 [POS]
 Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with
-15-Call Sliding Window trigger and background queue orchestration.
+the session-end frustration trigger and background queue orchestration.
 """
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.language_models import BaseChatModel
 
@@ -62,6 +60,7 @@ if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
     from myrm_agent_harness.agent.context_management.pipeline import ContextPipeline
+    from myrm_agent_harness.agent.hooks.registry import HookRegistry
     from myrm_agent_harness.agent.skills.evolution.safety.anti_loop_state import AntiLoopState
     from myrm_agent_harness.toolkits.code_execution import CodeExecutor
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
@@ -232,10 +231,6 @@ class EvolutionIntegration:
             enable_background_queue,
         )
 
-        # Per-session sliding window state for trace slice trigger
-        # Key: session_id, Value: (call_count_since_last_slice, collected_tool_call_ids)
-        self._slice_cursors: dict[str, tuple[int, list[str]]] = {}
-
         # Register as global instance so middlewares can access it
         set_global_evolution_integration(self)
 
@@ -252,100 +247,27 @@ class EvolutionIntegration:
             self.screener.evolution_strategy = value
         logger.info("Evolution strategy updated to '%s'", value)
 
-    SLICE_WINDOW_THRESHOLD: int = 15
-
-    def register_hooks(self, registry: Any) -> None:
-        """Register framework hooks for evolution (TRACE_SLICE_READY + window trigger).
+    def register_hooks(self, registry: "HookRegistry") -> None:
+        """Register the SESSION_END hook that turns user frustration into a DERIVED evolution.
 
         Safe to call multiple times — skips if already registered.
         """
         from myrm_agent_harness.agent.hooks.types import (
             CallableHookDefinition,
             HookEvent,
+            HookResult,
         )
 
-        existing = registry._hooks.get(HookEvent.POST_TOOL_USE, [])
-        if any(getattr(h, "fn", None) and getattr(h.fn, "__name__", "") == "_window_counter" for h in existing):
+        if any(
+            isinstance(h, CallableHookDefinition) and h.fn.__name__ == "_session_end_frustration"
+            for h in registry.get(HookEvent.SESSION_END)
+        ):
             return
 
-        async def _handle_trace_slice(event: str, payload: dict[str, object]) -> Any:
-            from myrm_agent_harness.agent.hooks.types import HookResult
-
+        async def _session_end_frustration(event: str, payload: dict[str, object]) -> HookResult:
+            """Scan the finished conversation for style/behavior frustration and queue a DERIVED evolution."""
             session_id = str(payload.get("session_id", ""))
 
-            tool_call_ids = payload.get("tool_call_ids", [])
-            if not isinstance(tool_call_ids, list):
-                tool_call_ids = []
-
-            agent_id = payload.get("agent_id")
-            agent_id = str(agent_id) if agent_id else None
-
-            if self.queue and session_id and tool_call_ids:
-                try:
-                    await self.queue.enqueue(
-                        EvolutionRequest(
-                            evolution_type=EvolutionType.SLICE_EXTRACTION,
-                            skill_id=f"slice_{session_id}_{len(tool_call_ids)}_calls",
-                            reason="Background trace slice extraction",
-                            session_id=session_id,
-                            tool_call_ids=cast("list[str]", tool_call_ids),
-                            agent_id=agent_id,
-                        ),
-                        priority=QueuePriority.LOW,
-                    )
-                except Exception as e:
-                    logger.warning("Failed to enqueue trace slice: %s", e)
-            return HookResult(hook_type="callable", success=True)
-
-        async def _window_counter(event: str, payload: dict[str, object]) -> Any:
-            """Count tool calls per session; emit TRACE_SLICE_READY at threshold."""
-            from myrm_agent_harness.agent.hooks.executor import fire_hook
-            from myrm_agent_harness.agent.hooks.types import HookResult
-            from myrm_agent_harness.agent.middlewares._session_context import (
-                get_agent_id,
-                get_approval_session,
-            )
-
-            tool_call_id = payload.get("tool_call_id")
-            if not isinstance(tool_call_id, str) or not tool_call_id:
-                return HookResult(hook_type="callable", success=True)
-
-            session_id = get_approval_session()
-            if not session_id:
-                return HookResult(hook_type="callable", success=True)
-
-            count, ids = self._slice_cursors.get(session_id, (0, []))
-            ids.append(tool_call_id)
-            count += 1
-
-            if count >= self.SLICE_WINDOW_THRESHOLD:
-                agent_id = get_agent_id() or None
-                await fire_hook(
-                    HookEvent.TRACE_SLICE_READY,
-                    {
-                        "session_id": session_id,
-                        "tool_call_ids": ids,
-                        "agent_id": agent_id,
-                    },
-                )
-                self._slice_cursors[session_id] = (0, [])
-            else:
-                self._slice_cursors[session_id] = (count, ids)
-
-            if len(self._slice_cursors) > 1000:
-                oldest_key = next(iter(self._slice_cursors))
-                self._slice_cursors.pop(oldest_key, None)
-
-            return HookResult(hook_type="callable", success=True)
-
-        async def _session_end_cleanup(event: str, payload: dict[str, object]) -> Any:
-            """Clean up slice cursor on session end + frustration-driven evolution."""
-            from myrm_agent_harness.agent.hooks.types import HookResult
-
-            session_id = str(payload.get("session_id", ""))
-            self._slice_cursors.pop(session_id, None)
-
-            # Frustration detection: scan conversation for style/behavior frustration
             messages = payload.get("messages")
             if messages and isinstance(messages, (list, tuple)) and len(messages) >= 2:
                 from myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector import (
@@ -366,7 +288,6 @@ class EvolutionIntegration:
                                 skill_id=f"frustration_{signal.category}_{session_id[:8]}",
                                 reason=f"User frustration [{signal.category}]: {signal.matched_text}",
                                 user_feedback=signal.user_message[:500],
-                                session_id=session_id,
                             ),
                             priority=QueuePriority.NORMAL,
                         )
@@ -376,23 +297,9 @@ class EvolutionIntegration:
             return HookResult(hook_type="callable", success=True)
 
         registry.register(
-            HookEvent.TRACE_SLICE_READY,
-            CallableHookDefinition(
-                fn=_handle_trace_slice,
-                block_on_failure=False,
-            ),
-        )
-        registry.register(
-            HookEvent.POST_TOOL_USE,
-            CallableHookDefinition(
-                fn=_window_counter,
-                block_on_failure=False,
-            ),
-        )
-        registry.register(
             HookEvent.SESSION_END,
             CallableHookDefinition(
-                fn=_session_end_cleanup,
+                fn=_session_end_frustration,
                 block_on_failure=False,
             ),
         )
@@ -437,12 +344,6 @@ class EvolutionIntegration:
             return await self.engine.fix_skill(skill_id, kwargs.get("reason", "Manual fix"))
         elif evolution_type == EvolutionType.DERIVED:
             return await self.engine.derive_skill_simple(skill_id, kwargs.get("user_feedback", ""))
-        elif evolution_type == EvolutionType.SLICE_EXTRACTION:
-            return await self.engine.extract_skill_from_slice(
-                session_id=kwargs.get("session_id", ""),
-                tool_call_ids=kwargs.get("tool_call_ids", []),
-                agent_id=kwargs.get("agent_id"),
-            )
 
         return None
 
@@ -470,9 +371,6 @@ class EvolutionIntegration:
                 reason=request.reason,
                 user_feedback=request.user_feedback,
                 repeated_commands=request.repeated_commands,
-                session_id=request.session_id,
-                tool_call_ids=request.tool_call_ids,
-                agent_id=request.agent_id,
                 force_retry=request.force_retry,
             )
             if proposal and on_proposal_callback:

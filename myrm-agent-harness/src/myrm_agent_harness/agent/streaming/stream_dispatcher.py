@@ -63,7 +63,6 @@ class StreamDispatcherMixin:
     _repetition_scrubber: StreamRepetitionScrubber
     streaming_final_answer: bool
     _pseudonym_restorer: _PseudonymRestorer | None
-    _slice_tool_call_ids: list[str]
     _partial_text_buffer: str
 
     async def _dispatch_chunk(
@@ -111,10 +110,6 @@ class StreamDispatcherMixin:
             collected_messages=collected_messages,
             source_tracker=ctx.source_tracker,
         ):
-            if isinstance(event, dict) and event.get("type") == AgentEventType.TASKS_STEPS.value:
-                tool_call_id = event.get("tool_call_id")
-                if tool_call_id and hasattr(self, "_slice_tool_call_ids"):
-                    self._slice_tool_call_ids.append(str(tool_call_id))
             await self._emit_event(event, ctx)
         async for event in process_realtime_content_events(ctx.message_id):
             await self._emit_event(event, ctx)
@@ -408,7 +403,7 @@ class StreamDispatcherMixin:
         await self._compactor.put(event)
 
         if ctx.event_logger is not None:
-            event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
+            event_type = str(event.type)
             event_data = event.to_dict()
             event_data.pop("type", None)
             event_data.pop("messageId", None)

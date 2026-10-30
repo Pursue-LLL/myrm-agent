@@ -14,7 +14,6 @@ const EMITTED_GROWTH_TYPES = [
   'fix',
   'derived',
   'captured',
-  'slice_extraction',
   'optimize_description',
 ];
 

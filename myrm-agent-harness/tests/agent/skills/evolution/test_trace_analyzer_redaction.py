@@ -52,44 +52,6 @@ def _event(sequence: int, event_type: str, **data: object) -> StructuredEvent:
     )
 
 
-async def test_a_slice_read_from_an_older_log_carries_no_credential() -> None:
-    log = _StoredLog(
-        [
-            _event(
-                1,
-                "tool_start",
-                tool_call_id=_CALL_ID,
-                tool_name="bash",
-                args={"command": f"curl -H 'Authorization: Bearer {_KEY}' https://api.example.com/v1"},
-            ),
-            _event(2, "tool_end", tool_call_id=_CALL_ID, result=f"token {_KEY} accepted"),
-        ]
-    )
-
-    result = await TraceAnalyzer(log).analyze_slice(_SESSION_ID, [_CALL_ID])
-
-    assert result is not None
-    assert _KEY not in result.formatted_trace
-    assert "[Action] bash(" in result.formatted_trace
-    assert "https://api.example.com/v1" in result.formatted_trace
-    assert result.is_coherent
-
-
-async def test_a_failure_read_from_an_older_log_carries_no_credential() -> None:
-    log = _StoredLog(
-        [
-            _event(1, "tool_start", tool_call_id=_CALL_ID, tool_name="bash", args={"command": "ls"}),
-            _event(2, "tool_failure", tool_call_id=_CALL_ID, tool_name="bash", error=f"401 for key {_KEY}"),
-        ]
-    )
-
-    result = await TraceAnalyzer(log).analyze_slice(_SESSION_ID, [_CALL_ID])
-
-    assert result is not None
-    assert "[Error] ->" in result.formatted_trace
-    assert _KEY not in result.formatted_trace
-
-
 async def test_a_takeover_read_from_an_older_log_carries_no_credential() -> None:
     log = _StoredLog(
         [
@@ -160,7 +122,6 @@ async def test_a_payload_that_cannot_be_redacted_is_withheld(monkeypatch: pytest
         )
     )
 
-    assert await analyzer.analyze_slice(_SESSION_ID, [_CALL_ID]) is None
     assert _KEY not in await analyzer.extract_trajectory(_SESSION_ID, "bash")
 
 

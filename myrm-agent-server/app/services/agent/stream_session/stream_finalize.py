@@ -238,48 +238,6 @@ def _release_turn_state(session: AgentStreamSession) -> None:
         GoalRegistry.unregister(session.request.chat_id)
 
 
-async def _flush_skill_evolution_residual(session: AgentStreamSession) -> None:
-    """Queue the trace slice left over at the end of the session for skill evolution (best-effort)."""
-    cancel_token = getattr(session, "cancel_token", None)
-    is_cancelled = cancel_token.is_cancelled if cancel_token is not None else False
-    params = getattr(session, "params", None)
-    enable_skill_manage = getattr(params, "enable_skill_manage", False) if params is not None else False
-
-    if session.collector.has_content and session.request.chat_id and not is_cancelled and enable_skill_manage:
-        # Flush remaining sliding window slice (sub-threshold residual)
-        try:
-            from myrm_agent_harness.agent.skills.evolution.core.types import (
-                EvolutionRequest,
-                EvolutionType,
-            )
-            from myrm_agent_harness.agent.skills.evolution.infra.integration import (
-                get_global_evolution_integration,
-            )
-            from myrm_agent_harness.agent.skills.evolution.infra.queue import (
-                QueuePriority,
-            )
-
-            evo_integration = get_global_evolution_integration()
-            if evo_integration and session.request.chat_id:
-                remaining = evo_integration._slice_cursors.pop(session.request.chat_id, None)
-                if remaining:
-                    _count, ids = remaining
-                    if ids and evo_integration.queue:
-                        await evo_integration.queue.enqueue(
-                            EvolutionRequest(
-                                evolution_type=EvolutionType.SLICE_EXTRACTION,
-                                skill_id=f"slice_{session.request.chat_id}_{len(ids)}_calls",
-                                reason="Session-end residual trace slice",
-                                session_id=session.request.chat_id,
-                                tool_call_ids=ids,
-                                agent_id=getattr(session.request, "agent_id", None),
-                            ),
-                            priority=QueuePriority.LOW,
-                        )
-        except Exception as flush_exc:
-            logger.debug("Slice window flush skipped: %s", flush_exc)
-
-
 async def _record_turn_capability_terminal(session: AgentStreamSession) -> None:
     """Record how a turn that waits on no answer ended, for the turn capability telemetry."""
     if has_turn_capability_terminal_context(session.request):
@@ -342,7 +300,6 @@ async def finalize_agent_stream_session(
     _arm_pending_interrupt_timeout(session, approval, clarification_sched_needed)
     _schedule_compaction_drain(session)
     _release_turn_state(session)
-    await _flush_skill_evolution_residual(session)
 
     pending_hitl = bool(
         clarification_sched_needed

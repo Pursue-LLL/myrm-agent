@@ -3,89 +3,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
-from myrm_agent_harness.agent.event_log.types import EventPayload, StructuredEvent
 from myrm_agent_harness.agent.skills.evolution.pipeline.trace_analyzer import TraceAnalyzer
-
-
-def _event(event_type: str, data: dict[str, object]) -> StructuredEvent:
-    return StructuredEvent(
-        sequence=1, timestamp=1000.0, event_type=event_type, session_id="session_1", data=EventPayload(**data)
-    )
 
 
 @pytest.fixture
 def mock_backend():
     return AsyncMock(spec=EventLogBackend)
-
-
-@pytest.mark.asyncio
-async def test_analyze_slice_no_backend():
-    analyzer = TraceAnalyzer(backend=None)
-    result = await analyzer.analyze_slice("session_1", ["call_1"])
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_analyze_slice_no_tool_call_ids(mock_backend):
-    analyzer = TraceAnalyzer(backend=mock_backend)
-    result = await analyzer.analyze_slice("session_1", [])
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_analyze_slice_no_events(mock_backend):
-    mock_backend.get_events.return_value = []
-    analyzer = TraceAnalyzer(backend=mock_backend)
-    result = await analyzer.analyze_slice("session_1", ["call_1"])
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_analyze_slice_no_matching_events(mock_backend):
-    event = _event(event_type="test", data={"tool_call_id": "other_call"})
-    mock_backend.get_events.return_value = [event]
-
-    analyzer = TraceAnalyzer(backend=mock_backend)
-    result = await analyzer.analyze_slice("session_1", ["call_1"])
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_analyze_slice_success(mock_backend):
-    event1 = _event(
-        event_type="tool_start", data={"tool_call_id": "call_1", "tool_name": "test_tool", "args": {"args": 1}}
-    )
-
-    event2 = _event(event_type="tool_end", data={"tool_call_id": "call_1", "result": "success result"})
-
-    mock_backend.get_events.return_value = [event1, event2]
-
-    analyzer = TraceAnalyzer(backend=mock_backend)
-    result = await analyzer.analyze_slice("session_1", ["call_1"])
-
-    assert result is not None
-    assert result.is_coherent is True
-    assert "test_tool" in result.formatted_trace
-    assert "success result" in result.formatted_trace
-
-
-@pytest.mark.asyncio
-async def test_analyze_slice_failure_incoherent(mock_backend):
-    event1 = _event(
-        event_type="tool_start", data={"tool_call_id": "call_1", "tool_name": "test_tool", "args": {"args": 1}}
-    )
-
-    event2 = _event(event_type="tool_failure", data={"tool_call_id": "call_1", "error": "error result"})
-
-    mock_backend.get_events.return_value = [event1, event2]
-
-    analyzer = TraceAnalyzer(backend=mock_backend)
-    result = await analyzer.analyze_slice("session_1", ["call_1"])
-
-    assert result is not None
-    # 1 call, 1 error -> 100% error rate -> incoherent
-    assert result.is_coherent is False
-    assert "error result" in result.formatted_trace
 
 
 @pytest.mark.asyncio

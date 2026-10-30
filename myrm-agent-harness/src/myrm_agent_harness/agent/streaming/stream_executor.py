@@ -171,30 +171,8 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
             enabled=True,
             cancel_token=ctx.cancel_token,
         )
-        self._slice_tool_call_ids: list[str] = []
         self._preflight_streak = PreflightStreak()
         self._presumed_overflow_used = False
-
-    async def _check_and_emit_trace_slice(self, force_flush: bool = False) -> None:
-        """Check if slice length reaches threshold or force_flush, and emit TRACE_SLICE_READY."""
-        if not self._slice_tool_call_ids:
-            return
-
-        if force_flush or len(self._slice_tool_call_ids) >= 15:
-            from myrm_agent_harness.agent.hooks.executor import fire_hook
-            from myrm_agent_harness.agent.hooks.types import HookEvent
-
-            await fire_hook(
-                HookEvent.TRACE_SLICE_READY,
-                {
-                    "session_id": self._ctx.message_id,
-                    "tool_call_ids": list(self._slice_tool_call_ids),
-                    "agent_id": self._ctx.merged_context.get("agent_id"),
-                    "agent_type": self._ctx.merged_context.get("agent_type"),
-                },
-            )
-            # Clear slice tracking after emitting
-            self._slice_tool_call_ids.clear()
 
     async def execute(self) -> None:
         """主执行循环。所有事件通过 ctx.output_queue 传递。"""
@@ -411,9 +389,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                 cost_this_turn = max(0.0, current_cost_usd - initial_cost_usd)
                 time_this_turn_seconds = int(time.time() - initial_time)
 
-                # Check if we should emit trace slice based on call threshold
-                await self._check_and_emit_trace_slice(force_flush=False)
-
                 logger.debug(
                     " _handle_goal_continuation checks: goal_provider=%s, net_tokens_this_turn=%d, session_id=%s",
                     ctx.goal_provider,
@@ -445,7 +420,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
             reset_ephemeral_max_output_tokens()
 
             await self._flush_turn_memory()
-            await self._check_and_emit_trace_slice(force_flush=True)
 
             await fire_hook(
                 HookEvent.SESSION_END,
