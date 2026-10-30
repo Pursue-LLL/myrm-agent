@@ -28,7 +28,7 @@ BaseAgent.run()
       ├─ trace_builder.py — llm_request + token_usage → LLMCallRecord；tool_start/tool_end 按 tool_call_id 配对，`tasks_steps` 流式步骤读侧兼容 → 指令血缘（配对/LLM/tasks_steps 逻辑分别由 _pairing.py/_llm.py/_tasks_steps.py 承载，共享工具函数与 `_EVENT_META_KEYS` 元数据键集合在 _common.py）
       ├─ analytics.py / analytics_queries.py — 读侧聚合
       ├─ llm_observability.py — prompt preview 截断记录
-      ├─ _sanitize.py — 写入前递归脱敏（遍历由共享的 core/security/redact/nested.py 完成，最深 32 层、容器包含自身处截断）：命令 key 的字符串按命令行遮蔽，凭据名字段（`Cookie`、`Authorization`、`password` 等，值为数字时同样）的值按字段名遮蔽，名字以 `id`/`ids` 结尾的字段（`tool_call_id` 等）跳过泄漏检测器的高熵分支（供应商的调用 ID 会被它当成密钥，掩码后工具的起止无法配对），其余文本依次走泄漏检测器与完整脱敏器（二者互不覆盖：前者识别 token 形态、高熵串、PEM；后者识别 `DB_PASSWORD=…` 赋值与 `Cookie:` 头行），关闭时写入的 `security_audit` 事件同样经过脱敏，无法脱敏的载荷以标记替代而不落原文；绕过 `EventLogger` 直接写后端的写入方与向沙箱外发布已存事件的读取方（审计拉取接口、支持包）调用同一个 `sanitize_event_data`
+      ├─ _sanitize.py — 写入前递归脱敏（遍历由共享的 core/security/redact/nested.py 完成，最深 32 层、容器包含自身处截断）：命令 key 的字符串按命令行遮蔽，凭据名字段（`Cookie`、`Authorization`、`password` 等，值为数字时同样）的值按字段名遮蔽，名字以 `id`/`ids` 结尾的字段（`tool_call_id` 等）跳过泄漏检测器的高熵分支（供应商的调用 ID 会被它当成密钥，掩码后工具的起止无法配对），其余文本依次走泄漏检测器与完整脱敏器（二者互不覆盖：前者识别 token 形态、高熵串、PEM；后者识别 `DB_PASSWORD=…` 赋值与 `Cookie:` 头行），关闭时写入的 `security_audit` 事件同样经过脱敏，无法脱敏的载荷以标记替代而不落原文；绕过 `EventLogger` 直接写后端的写入方与向沙箱外发布已存事件或把已存事件拼进模型提示词的读取方（审计拉取接口、支持包、技能进化的轨迹分析器）调用同一个 `sanitize_event_data`
       └─ dataset_export/ — 凭据遮蔽 + 质量过滤 + 格式转换 + exporter
 ```
 

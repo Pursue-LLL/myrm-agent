@@ -9,7 +9,7 @@ Detailed design: [EVENT_LOG_SYSTEM.md](EVENT_LOG_SYSTEM.md)
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Complements Checkpointer with full event history. Optional — omitting `event_log_backend` leaves agent behaviour unchanged. Exports `sanitize_event_data` (also on `myrm_agent_harness.api`): a writer that appends to a backend directly, past `EventLogger`, and the readers that publish stored events apply the same redaction. | ✅ |
+| __init__.py | Package | Complements Checkpointer with full event history. Optional — omitting `event_log_backend` leaves agent behaviour unchanged. Exports `sanitize_event_data` (also on `myrm_agent_harness.api`): a writer that appends to a backend directly, past `EventLogger`, and the readers that publish stored events or put them into a model prompt apply the same redaction. | ✅ |
 | analytics.py | Core | Designed for separation of concerns: | ✅ |
 | analytics_queries.py | Core | Read-side analytics helpers for ``EventLogger``. | ✅ |
 | cli_summary.py | Core | Session-close summary table printed for developers (`generate_cli_summary`); renders a `SessionSummary` and reads the keys that `TokenTracker.to_dict()` and `TaskMetrics.to_dict()` export in its `token_economics` and `task_metrics`. | ✅ |

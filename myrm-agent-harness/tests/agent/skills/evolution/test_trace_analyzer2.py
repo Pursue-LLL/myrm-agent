@@ -3,13 +3,14 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
+from myrm_agent_harness.agent.event_log.types import EventPayload, StructuredEvent
 from myrm_agent_harness.agent.skills.evolution.pipeline.trace_analyzer import TraceAnalyzer
 
 
-class DummyEvent:
-    def __init__(self, event_type, data):
-        self.event_type = event_type
-        self.data = data
+def _event(event_type: str, data: dict[str, object]) -> StructuredEvent:
+    return StructuredEvent(
+        sequence=1, timestamp=1000.0, event_type=event_type, session_id="session_1", data=EventPayload(**data)
+    )
 
 
 @pytest.fixture
@@ -41,7 +42,7 @@ async def test_analyze_slice_no_events(mock_backend):
 
 @pytest.mark.asyncio
 async def test_analyze_slice_no_matching_events(mock_backend):
-    event = DummyEvent(event_type="test", data={"tool_call_id": "other_call"})
+    event = _event(event_type="test", data={"tool_call_id": "other_call"})
     mock_backend.get_events.return_value = [event]
 
     analyzer = TraceAnalyzer(backend=mock_backend)
@@ -51,11 +52,11 @@ async def test_analyze_slice_no_matching_events(mock_backend):
 
 @pytest.mark.asyncio
 async def test_analyze_slice_success(mock_backend):
-    event1 = DummyEvent(
+    event1 = _event(
         event_type="tool_start", data={"tool_call_id": "call_1", "tool_name": "test_tool", "args": {"args": 1}}
     )
 
-    event2 = DummyEvent(event_type="tool_end", data={"tool_call_id": "call_1", "result": "success result"})
+    event2 = _event(event_type="tool_end", data={"tool_call_id": "call_1", "result": "success result"})
 
     mock_backend.get_events.return_value = [event1, event2]
 
@@ -70,11 +71,11 @@ async def test_analyze_slice_success(mock_backend):
 
 @pytest.mark.asyncio
 async def test_analyze_slice_failure_incoherent(mock_backend):
-    event1 = DummyEvent(
+    event1 = _event(
         event_type="tool_start", data={"tool_call_id": "call_1", "tool_name": "test_tool", "args": {"args": 1}}
     )
 
-    event2 = DummyEvent(event_type="tool_failure", data={"tool_call_id": "call_1", "error": "error result"})
+    event2 = _event(event_type="tool_failure", data={"tool_call_id": "call_1", "error": "error result"})
 
     mock_backend.get_events.return_value = [event1, event2]
 

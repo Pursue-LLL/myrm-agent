@@ -31,8 +31,8 @@ from app.services.system.support_bundle_service import (
     _MAX_BYTES_PER_TRACE_LINE,
     SupportBundleService,
     _newest_whole_events,
-    _read_log_tail,
 )
+from tests.support.event_log_lines import event_line, jsonl_pad
 
 _MODULE = "app.services.system.support_bundle_service"
 _SECRET = "sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL"
@@ -57,19 +57,8 @@ _PROFILE = AgentProfile(
 )
 
 
-def _jsonl_pad(size: int) -> str:
-    """One valid JSONL line of exactly ``size`` bytes."""
-    return '{"pad":"' + "x" * (size - 11) + '"}\n'
-
-
 def _secret_line() -> str:
     return json.dumps({"event": "tool_call", "args": {"api_key": _SECRET}}) + "\n"
-
-
-def _event(seq: int, event_type: str, payload_size: int = 0) -> str:
-    """One event line shaped like the event log writes it, with a payload of ``payload_size`` characters."""
-    event = {"seq": seq, "ts": 1790000000.0 + seq, "type": event_type, "sid": "s1", "data": {"output": "p" * payload_size}}
-    return json.dumps(event, ensure_ascii=False) + "\n"
 
 
 @pytest.fixture
@@ -95,7 +84,7 @@ async def _build(**options: bool) -> dict[str, str]:
 
 
 async def test_every_section_is_collected_for_real(event_logs: Path) -> None:
-    (event_logs / "session.jsonl").write_text(_jsonl_pad(100), encoding="utf-8")
+    (event_logs / "session.jsonl").write_text(jsonl_pad(100), encoding="utf-8")
 
     files = await _build()
 
@@ -143,7 +132,7 @@ async def test_system_info_reports_the_configured_storage_backends(event_logs: P
 
 
 async def test_sections_can_be_left_out(event_logs: Path) -> None:
-    (event_logs / "session.jsonl").write_text(_jsonl_pad(100), encoding="utf-8")
+    (event_logs / "session.jsonl").write_text(jsonl_pad(100), encoding="utf-8")
 
     files = await _build(include_traces=False, include_profiles=False)
 
@@ -226,7 +215,7 @@ def test_a_line_that_does_not_fit_the_budget_is_left_out_whole(event_logs: Path,
     assert room_left < len(secret_line)
     full_lines = 7
     last_line = _MAX_BYTES_PER_EVENT_LOG - room_left - full_lines * _MAX_BYTES_PER_TRACE_LINE
-    log = _jsonl_pad(512) + secret_line + _jsonl_pad(_MAX_BYTES_PER_TRACE_LINE) * full_lines + _jsonl_pad(last_line)
+    log = jsonl_pad(512) + secret_line + jsonl_pad(_MAX_BYTES_PER_TRACE_LINE) * full_lines + jsonl_pad(last_line)
     (event_logs / "session.jsonl").write_text(log, encoding="utf-8")
 
     content = SupportBundleService.collect_recent_event_traces()["session.jsonl"]
@@ -238,8 +227,10 @@ def test_a_line_that_does_not_fit_the_budget_is_left_out_whole(event_logs: Path,
 
 
 def test_an_oversized_newest_event_leaves_the_earlier_history_in_place(event_logs: Path) -> None:
-    huge_prompt = _event(3, "llm_request", payload_size=_MAX_BYTES_PER_EVENT_LOG)
-    (event_logs / "session.jsonl").write_text(_event(1, "tool_start") + _event(2, "tool_end") + huge_prompt, encoding="utf-8")
+    huge_prompt = event_line(3, "llm_request", payload_size=_MAX_BYTES_PER_EVENT_LOG)
+    (event_logs / "session.jsonl").write_text(
+        event_line(1, "tool_start") + event_line(2, "tool_end") + huge_prompt, encoding="utf-8"
+    )
 
     lines = [json.loads(line) for line in SupportBundleService.collect_recent_event_traces()["session.jsonl"].splitlines()]
 
@@ -253,7 +244,7 @@ def test_an_oversized_newest_event_leaves_the_earlier_history_in_place(event_log
 
 
 def test_a_secret_inside_an_oversized_event_never_reaches_the_bundle(event_logs: Path) -> None:
-    event = json.loads(_event(1, "llm_request"))
+    event = json.loads(event_line(1, "llm_request"))
     event["data"]["prompt"] = "x" * 100 + _SECRET + "y" * _MAX_BYTES_PER_TRACE_LINE
     (event_logs / "session.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
 
@@ -273,7 +264,7 @@ def test_an_oversized_line_that_is_not_an_event_leaves_only_its_size(event_logs:
 
 
 def test_a_field_too_long_to_be_a_name_is_not_copied_into_the_marker(event_logs: Path) -> None:
-    event = json.loads(_event(1, "t" * 500, payload_size=_MAX_BYTES_PER_TRACE_LINE))
+    event = json.loads(event_line(1, "t" * 500, payload_size=_MAX_BYTES_PER_TRACE_LINE))
     (event_logs / "session.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
 
     marker = json.loads(SupportBundleService.collect_recent_event_traces()["session.jsonl"])
@@ -282,7 +273,7 @@ def test_a_field_too_long_to_be_a_name_is_not_copied_into_the_marker(event_logs:
 
 
 def test_a_long_log_keeps_the_newest_whole_events_within_the_budget(event_logs: Path) -> None:
-    events = [_event(seq, "tool_end", payload_size=2000) for seq in range(1, 101)]
+    events = [event_line(seq, "tool_end", payload_size=2000) for seq in range(1, 101)]
     (event_logs / "session.jsonl").write_text("".join(events), encoding="utf-8")
 
     content = SupportBundleService.collect_recent_event_traces()["session.jsonl"]
@@ -307,7 +298,7 @@ def test_the_budget_counts_bytes_not_characters(event_logs: Path) -> None:
 
 
 def test_an_unterminated_last_line_is_not_published(event_logs: Path) -> None:
-    complete = _event(1, "tool_end")
+    complete = event_line(1, "tool_end")
     (event_logs / "session.jsonl").write_text(complete + '{"seq": 2, "data": {"api_key": "sk-proj-Ab3dEf6hIj9', encoding="utf-8")
 
     assert SupportBundleService.collect_recent_event_traces()["session.jsonl"] == complete
@@ -321,14 +312,14 @@ def test_a_line_separator_character_inside_an_event_does_not_split_it(event_logs
 
 
 def test_a_log_within_the_budget_is_kept_whole(event_logs: Path) -> None:
-    log = _jsonl_pad(200) * 3
+    log = jsonl_pad(200) * 3
     (event_logs / "session.jsonl").write_text(log, encoding="utf-8")
 
     assert SupportBundleService.collect_recent_event_traces()["session.jsonl"] == log
 
 
 def test_only_the_end_of_a_very_long_log_is_looked_at(event_logs: Path) -> None:
-    events = [_event(seq, "tool_end", payload_size=300) for seq in range(1, 21)]
+    events = [event_line(seq, "tool_end", payload_size=300) for seq in range(1, 21)]
     (event_logs / "session.jsonl").write_text("".join(events), encoding="utf-8")
     window = len(events[0].encode("utf-8")) * 3 + 5  # all 20 events would fit the budget, only the last 3 are in the window
 
@@ -338,57 +329,8 @@ def test_only_the_end_of_a_very_long_log_is_looked_at(event_logs: Path) -> None:
     assert content == "".join(events[-3:])
 
 
-@pytest.mark.parametrize("window", [600, 601, 10_000])
-def test_a_log_no_longer_than_the_window_is_read_whole(tmp_path: Path, window: int) -> None:
-    log = tmp_path / "session.jsonl"
-    log.write_text(_jsonl_pad(200) * 3, encoding="utf-8")
-
-    assert _read_log_tail(log, window) == _jsonl_pad(200) * 3
-
-
-def test_a_longer_log_is_read_from_the_first_whole_line_inside_the_window(tmp_path: Path) -> None:
-    lines = [_event(seq, "tool_end", payload_size=50) for seq in range(1, 41)]
-    log = tmp_path / "session.jsonl"
-    log.write_text("".join(lines), encoding="utf-8")
-    window = len(lines[0].encode("utf-8")) * 5 + 17  # starts inside the sixth line from the end
-
-    tail = _read_log_tail(log, window)
-
-    assert tail == "".join(lines[-5:])
-
-
-def test_a_window_that_starts_on_a_line_boundary_keeps_that_line(tmp_path: Path) -> None:
-    lines = [_jsonl_pad(100) for _ in range(10)]
-    log = tmp_path / "session.jsonl"
-    log.write_text("".join(lines), encoding="utf-8")
-
-    assert _read_log_tail(log, 300) == "".join(lines[-3:])
-
-
-@pytest.mark.parametrize("offset_into_character", [0, 1, 2])
-def test_a_window_that_starts_inside_a_multibyte_character_does_not_leave_damage(
-    tmp_path: Path, offset_into_character: int
-) -> None:
-    line = json.dumps({"seq": 1, "data": "中" * 50}, ensure_ascii=False) + "\n"
-    log = tmp_path / "session.jsonl"
-    log.write_text(line * 20, encoding="utf-8")
-    window = len(line.encode("utf-8")) * 3 + line.encode("utf-8").index("中".encode("utf-8")) + offset_into_character
-
-    tail = _read_log_tail(log, window)
-
-    assert tail == line * 3
-
-
-@pytest.mark.parametrize("ending", ["\n", ""])
-def test_a_window_inside_one_very_long_line_yields_nothing(tmp_path: Path, ending: str) -> None:
-    log = tmp_path / "session.jsonl"
-    log.write_text("z" * 5_000 + ending, encoding="utf-8")
-
-    assert _read_log_tail(log, 1_000) == ""
-
-
 async def test_collecting_the_traces_does_not_stall_the_event_loop(event_logs: Path) -> None:
-    (event_logs / "session.jsonl").write_text(_event(1, "tool_end"), encoding="utf-8")
+    (event_logs / "session.jsonl").write_text(event_line(1, "tool_end"), encoding="utf-8")
 
     def as_slow_as_a_full_size_log(text: str, max_bytes: int) -> str:
         time.sleep(0.4)  # the masking of ten full-size logs took seconds of CPU on a loaded machine

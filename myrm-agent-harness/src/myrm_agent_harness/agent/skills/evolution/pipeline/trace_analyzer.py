@@ -1,6 +1,7 @@
 """Trace Analyzer for Skill Evolution.
 
 [INPUT]
+- agent.event_log::sanitize_event_data (POS: The redaction every event payload passes before it is written; applied again to the events a prompt is built from.)
 - agent.event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - agent.event_log.analytics_queries::get_session_summary (POS: Read-side analytics helpers for ``EventLogger``.)
 - agent.event_log.analytics_queries::get_tool_usage_stats (POS: Read-side analytics helpers for ``EventLogger``.)
@@ -18,12 +19,13 @@ import logging
 import time
 from dataclasses import dataclass
 
+from myrm_agent_harness.agent.event_log import sanitize_event_data
 from myrm_agent_harness.agent.event_log.analytics_queries import (
     get_session_summary,
     get_tool_usage_stats,
 )
 from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
-from myrm_agent_harness.agent.event_log.types import EventFilter
+from myrm_agent_harness.agent.event_log.types import EventFilter, EventPayload, StructuredEvent
 from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,17 @@ class TraceAnalyzer:
     def __init__(self, backend: EventLogBackend) -> None:
         self._backend = backend
 
+    async def _read_events(self, session_id: str, event_filter: EventFilter) -> list[StructuredEvent]:
+        """The stored events with the redaction of the write path applied again.
+
+        The log is the record and may predate a rule; what these events hold goes into a model prompt.
+        """
+        events = await self._backend.get_events(session_id, event_filter)
+        return [
+            event.model_copy(update={"data": EventPayload.model_validate(sanitize_event_data(event.data.model_dump()))})
+            for event in events
+        ]
+
     async def analyze_slice(self, session_id: str, tool_call_ids: list[str]) -> SliceResult | None:
         """Analyze a specific slice of the execution trace.
 
@@ -62,7 +75,7 @@ class TraceAnalyzer:
             return None
 
         # The tool events the broadcaster persists: start (args), end (result) and failure (error)
-        events = await self._backend.get_events(
+        events = await self._read_events(
             session_id,
             EventFilter(event_types=frozenset({"tool_start", "tool_end", "tool_failure"})),
         )
@@ -130,7 +143,7 @@ class TraceAnalyzer:
         if not self._backend:
             return ""
 
-        takeover_events = await self._backend.get_events(
+        takeover_events = await self._read_events(
             session_id,
             EventFilter(event_types=frozenset({"takeover_trace"})),
         )
@@ -181,7 +194,7 @@ class TraceAnalyzer:
         tool_stats = await get_tool_usage_stats(self._backend, session_id)
 
         # 3. Get error events (fetch all to get the latest errors)
-        all_error_events = await self._backend.get_events(
+        all_error_events = await self._read_events(
             session_id,
             EventFilter(event_types=frozenset({"tool_timeout", "tool_failure"})),
         )
