@@ -25,6 +25,7 @@ import SkillExportDialog from './SkillExportDialog';
 import { useSkillDetailSheet } from './useSkillDetailSheet';
 import { useLiveSkill } from './useLiveSkill';
 import { SkillDetailSheetContent } from './SkillDetailSheetContent';
+import OptimizeLockedNotice from './OptimizeLockedNotice';
 
 interface SkillDetailSheetProps {
   skill: Skill | null;
@@ -137,6 +138,10 @@ const SkillDetailSheet = memo(
               />
             </div>
 
+            {skill.type === 'local' && sheet.isEvolutionLocked && (
+              <OptimizeLockedNotice isToggling={sheet.isTogglingLock} onUnlock={sheet.handleToggleEvolutionLock} />
+            )}
+
             {/* Footer actions */}
             <div className="p-4 border-t flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
@@ -165,27 +170,19 @@ const SkillDetailSheet = memo(
                   </Button>
                 )}
                 {skill.type === 'local' && (
-                  <div className="relative group">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => sheet.setShowOptimizeInput(!sheet.showOptimizeInput)}
-                      disabled={sheet.isOptimizing || sheet.isEvolutionLocked}
-                      className={cn(sheet.isEvolutionLocked && 'opacity-50 cursor-not-allowed')}
-                    >
-                      {sheet.isOptimizing ? (
-                        <Loader2 className="animate-spin mr-2" size={16} />
-                      ) : (
-                        <Zap size={16} className="mr-2" />
-                      )}
-                      {t('detail.optimize')}
-                    </Button>
-                    {sheet.isEvolutionLocked && (
-                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block w-max max-w-[200px] px-2 py-1 bg-popover text-popover-foreground text-xs rounded border z-50 text-center pointer-events-none">
-                        {t('detail.optimizeLockedHint')}
-                      </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => sheet.setShowOptimizeInput(!sheet.showOptimizeInput)}
+                    disabled={sheet.isOptimizing || sheet.isEvolutionLocked}
+                  >
+                    {sheet.isOptimizing ? (
+                      <Loader2 className="animate-spin mr-2" size={16} />
+                    ) : (
+                      <Zap size={16} className="mr-2" />
                     )}
-                  </div>
+                    {t('detail.optimize')}
+                  </Button>
                 )}
               </div>
               {sheet.showOptimizeInput && (

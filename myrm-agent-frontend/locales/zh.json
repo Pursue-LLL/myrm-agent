@@ -18909,7 +18909,7 @@
         "optimizeStarted": "优化已启动",
         "optimizeStartedDesc": "「{name}」的优化已提交，请在技能成长中心查看。",
         "optimizeFailed": "优化失败",
-        "optimizeLockedHint": "关闭「防自动修改保护」后即可优化",
+        "optimizeLockedHint": "优化需要先关闭「防自动修改保护」；解锁后 Agent 也可自动进化该技能。",
         "evolutionLockLabel": "防自动修改保护",
         "evolutionLockHint": "防止自进化系统自动覆盖你的代码",
         "evolutionLock": "锁定",

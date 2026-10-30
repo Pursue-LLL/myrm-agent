@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - get_evolution_skill_store: 返回 skills.db 上的进程级单例 SkillStore 实例
-- find_evolution_records: 一个技能在进化库里的全部行（按引用精确匹配的行优先，其次存放同一 SKILL.md 目录的同名行）
+- find_evolution_records: 一个技能在进化库里的全部行（按引用精确匹配的行优先，其次存放同一 SKILL.md 目录的行，不看行的名字）
 - evolution_record_for_page_skill: 没有进化行的本地页面技能的新行（以页面 id 为键，读自它的 SKILL.md；非本地技能或无 SKILL.md 返回 None）
 - reset_evolution_skill_store: 清空单例缓存（测试隔离用）
 
@@ -61,17 +61,23 @@ def get_evolution_skill_store() -> SkillStore:
 def find_evolution_records(store: SkillStore, skill_ref: str, page_skill: Skill | None = None) -> list[SkillRecord]:
     """Evolution rows of one skill, the row keyed by ``skill_ref`` first.
 
-    Rows are not keyed uniformly across the code paths that write them, so the page's skill id alone can miss
-    one. A row found by name counts only when it holds the skill's own SKILL.md, so two skills sharing a name
-    never share a row. Without ``page_skill`` ``skill_ref`` is taken as the name.
+    Rows are keyed by whoever wrote them (skill name, generated id, page id) and a skill's name can change, so a page
+    skill's other rows are the ones that hold its own SKILL.md, whatever they are named: a renamed skill keeps its
+    row and two skills sharing a name never share one. Without ``page_skill`` ``skill_ref`` is taken as the name.
     """
     records: list[SkillRecord] = []
     exact = store.get_skill(skill_ref)
     if exact is not None:
         records.append(exact)
-    by_name = store.get_skill_by_name_version(skill_ref if page_skill is None else page_skill.name)
-    if by_name is not None and by_name.skill_id != skill_ref and _holds_skill_md(by_name, page_skill):
-        records.append(by_name)
+    if page_skill is None:
+        by_name = store.get_skill_by_name_version(skill_ref)
+        if by_name is not None and by_name.skill_id != skill_ref:
+            records.append(by_name)
+        return records
+    skill_dir = Path(page_skill.storage_path).resolve()
+    records.extend(
+        record for record in store.get_active_skills() if record.skill_id != skill_ref and _holds_skill_md(record, skill_dir)
+    )
     return records
 
 
@@ -100,10 +106,8 @@ async def evolution_record_for_page_skill(page_skill: Skill) -> SkillRecord | No
     )
 
 
-def _holds_skill_md(record: SkillRecord, page_skill: Skill | None) -> bool:
-    if page_skill is None:
-        return True
-    return bool(record.path) and Path(record.path).parent.resolve() == Path(page_skill.storage_path).resolve()
+def _holds_skill_md(record: SkillRecord, skill_dir: Path) -> bool:
+    return bool(record.path) and Path(record.path).parent.resolve() == skill_dir
 
 
 def reset_evolution_skill_store() -> None:

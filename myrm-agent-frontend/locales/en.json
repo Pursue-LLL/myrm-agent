@@ -18909,7 +18909,7 @@
         "optimizeStarted": "Optimization Started",
         "optimizeStartedDesc": "Optimization for \"{name}\" submitted. Review it in Skill Growth.",
         "optimizeFailed": "Optimization Failed",
-        "optimizeLockedHint": "Turn off Evolution Protection to optimize this skill",
+        "optimizeLockedHint": "Optimizing needs Evolution Protection turned off. Unlocking also lets the Agent evolve this skill automatically.",
         "evolutionLockLabel": "Evolution Protection",
         "evolutionLockHint": "Prevent auto-evolution from modifying this skill",
         "evolutionLock": "Lock",

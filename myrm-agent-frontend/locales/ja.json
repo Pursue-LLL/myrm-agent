@@ -18895,7 +18895,7 @@
         "optimizeStarted": "最適化を開始しました",
         "optimizeStartedDesc": "「{name}」の最適化を送信しました。スキル成長センターで確認してください。",
         "optimizeFailed": "最適化失敗",
-        "optimizeLockedHint": "「進化保護」をオフにすると最適化できます",
+        "optimizeLockedHint": "最適化するには「進化保護」をオフにする必要があります。ロック解除すると Agent による自動進化も許可されます。",
         "evolutionLockLabel": "進化保護",
         "evolutionLockHint": "自己進化システムがこのスキルを自動上書きするのを防ぎます",
         "evolutionLock": "ロック",

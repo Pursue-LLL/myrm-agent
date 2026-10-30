@@ -18895,7 +18895,7 @@
         "optimizeStarted": "Optimierung gestartet",
         "optimizeStartedDesc": "Optimierung für „{name}“ übermittelt. Lesen Sie es im Abschnitt „Fähigkeitswachstum“.",
         "optimizeFailed": "Optimierung fehlgeschlagen",
-        "optimizeLockedHint": "Schalte den Evolutionsschutz aus, um diese Fähigkeit zu optimieren",
+        "optimizeLockedHint": "Zum Optimieren muss der Evolutionsschutz ausgeschaltet sein. Entsperren erlaubt dem Agenten auch die automatische Weiterentwicklung.",
         "evolutionLockLabel": "Evolutionsschutz",
         "evolutionLockHint": "Verhindern, dass die Auto-Evolution diese Fähigkeit verändert",
         "evolutionLock": "Sperren",
