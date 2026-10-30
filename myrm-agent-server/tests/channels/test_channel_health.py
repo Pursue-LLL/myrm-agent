@@ -10,12 +10,12 @@ import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
-from app.channels.core.gateway import (
+from app.channels.core.gateway import ChannelGateway
+from app.channels.core.gateway_health import (
     _BACKOFF_FACTOR,
     _BASE_BACKOFF,
     _DEGRADED_THRESHOLD,
     _MAX_BACKOFF,
-    ChannelGateway,
 )
 from app.channels.types import (
     ChannelHealth,
@@ -70,7 +70,7 @@ class TestChannelHealth:
 
 class TestChannelStatusDegraded:
     def test_degraded_value(self) -> None:
-        assert ChannelStatus.DEGRADED == "degraded"
+        assert ChannelStatus.DEGRADED.value == "degraded"
 
     def test_enum_member(self) -> None:
         assert hasattr(ChannelStatus, "DEGRADED")

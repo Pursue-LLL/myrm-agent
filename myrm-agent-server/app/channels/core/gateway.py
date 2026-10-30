@@ -1,24 +1,17 @@
 """Channel Gateway — lifecycle manager for all channel providers.
 
-Manages channel start/stop, health checks with exponential backoff,
-error isolation, and optionally the AgentRouter for bidirectional communication.
-
-Health loop:
-- Calls ``channel.health_check()`` every ``_HEALTH_CHECK_INTERVAL`` seconds
-- Updates ``channel.health`` (ChannelHealth) on success/failure
-- Uses exponential backoff with jitter for restart decisions
-- Consecutive failures ≥ DEGRADED_THRESHOLD → DEGRADED (warn only)
-- DEGRADED/ERROR channels restart when backoff cooldown has elapsed
-
+Manages channel start/stop, inbound crash recovery, and optionally the AgentRouter for bidirectional communication.
+The registry and runtime instance management are ``ChannelInstancesMixin`` (``gateway_instances.py``); health supervision
+and backoff restarts are ``ChannelHealthMixin`` (``gateway_health.py``).
 
 [INPUT]
 - channels.core.bus::MessageBus (POS: async message bus)
-- channels.core.base::BaseChannel (POS: channel abstract base class)
+- channels.core.gateway_instances::ChannelInstancesMixin (POS: the registry, runtime instance management and health supervision this gateway inherits)
 - channels.core.outbound_media::discard_ephemeral_media (POS: drop the temp attachments of a follow-up that cannot be delivered)
 - channels.reliability.inbound_journal::InboundJournal, restore_inbound (POS: interrupted-message persistence, and the rebuild of a journal entry into the message to replay)
 - channels.routing.router::AgentRouter (POS: inbound message routing hub)
 - channels.routing.command_defs::CommandDef (POS: slash command data model)
-- channels.types::ChannelStatus, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::ChannelStatus, MediaAttachment, OutboundMessage (POS: channel status, and the attachments and messages the gateway publishes)
 - channels.protocols.agent::AgentExecutor (POS: agent execution protocol)
 - channels.protocols.compact::CompactHandler (POS: /compact business-layer handling protocol)
 - channels.protocols.pairing::PairingStore (POS: identity binding protocol)
@@ -28,7 +21,7 @@ Health loop:
   its attachments) no message just asked for, and ``is_session_busy`` says whether a conversation is running a turn
 
 [POS]
-Channel system entry point. Manages all channel lifecycles, health checks, and error isolation.
+Channel system entry point. Starts and stops the channels, the router and the bus, and replays the inbound journal at start.
 Supports outbound-only mode (push only) and bidirectional mode (push + receive + agent processing).
 Shutdown stops the router, waits (bounded) for the outbound queue it filled, then closes the channels and the bus.
 """
@@ -37,8 +30,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
-import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -48,18 +39,15 @@ from myrm_agent_harness.infra.delivery.notification_ledger import (
 )
 from myrm_agent_harness.infra.delivery.storage import QueuedDelivery
 
-from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
+from app.channels.core.gateway_instances import ChannelInstancesMixin
 from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.reliability.inbound_journal import (
     InboundJournal,
     restore_inbound,
 )
 from app.channels.types import (
-    ChannelCapabilities,
-    ChannelIssue,
     ChannelStatus,
-    GroupInfo,
     MediaAttachment,
     OutboundMessage,
 )
@@ -109,16 +97,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_HEALTH_CHECK_INTERVAL = 60.0
-_BASE_BACKOFF = 5.0
-_MAX_BACKOFF = 300.0
-_BACKOFF_FACTOR = 2.0
-_JITTER_RATIO = 0.25
-_DEGRADED_THRESHOLD = 2
 _SHUTDOWN_OUTBOUND_DRAIN_SECONDS = 5.0
 
 
-class ChannelGateway:
+class ChannelGateway(ChannelInstancesMixin):
     """Lifecycle manager for all channel providers.
 
     Supports two modes:
@@ -152,62 +134,6 @@ class ChannelGateway:
         self._status_change_callback: Callable[[str, ChannelStatus, ChannelStatus], None] | None = None
         self._groups_change_callback: Callable[[str, list[object]], None] | None = None
         self._connection_change_callback: Callable[[str, bool], None] | None = None
-
-    def register(self, channel: BaseChannel) -> None:
-        """Register a channel provider and subscribe to its events."""
-        self.bus.register_channel(channel)
-
-        channel.on("status_change", self._on_status_change_event)
-        channel.on("groups_change", self._on_groups_change_event)
-        channel.on("connection_change", self._on_connection_change_event)
-
-    def set_status_change_callback(self, callback: Callable[[str, ChannelStatus, ChannelStatus], None]) -> None:
-        """Register a callback for channel status changes."""
-        self._status_change_callback = callback
-
-    def set_groups_change_callback(self, callback: Callable[[str, list[object]], None]) -> None:
-        """Register a callback for groups list changes."""
-        self._groups_change_callback = callback
-
-    def set_connection_change_callback(self, callback: Callable[[str, bool], None]) -> None:
-        """Register a callback for channel connection state changes."""
-        self._connection_change_callback = callback
-
-    def _on_status_change_event(self, channel_name: str, data: object) -> None:
-        """Handle status_change event from channel."""
-        if not isinstance(data, dict):
-            return
-        old_status = data.get("old_status")
-        new_status = data.get("new_status")
-
-        if not isinstance(old_status, ChannelStatus) or not isinstance(new_status, ChannelStatus):
-            return
-
-        logger.info(
-            "ChannelGateway: %s status changed %s -> %s",
-            channel_name,
-            old_status.value,
-            new_status.value,
-        )
-        if self._status_change_callback:
-            self._status_change_callback(channel_name, old_status, new_status)
-
-    def _on_connection_change_event(self, channel_name: str, data: object) -> None:
-        """Handle connection_change event from channel."""
-        if not isinstance(data, dict):
-            return
-        connected = bool(data.get("connected", False))
-        logger.info("ChannelGateway: %s connection_change -> %s", channel_name, connected)
-        if self._connection_change_callback:
-            self._connection_change_callback(channel_name, connected)
-
-    def _on_groups_change_event(self, channel_name: str, data: object) -> None:
-        """Handle groups_change event from channel."""
-        if not isinstance(data, list):
-            return
-        logger.info("ChannelGateway: %s groups updated (%d groups)", channel_name, len(data))
-        if self._groups_change_callback:
-            self._groups_change_callback(channel_name, data)
 
     def enable_bidirectional(
         self,
@@ -381,438 +307,6 @@ class ChannelGateway:
                 registry.register(cmd)
             except ValueError as e:
                 logger.warning("Skipped invalid skill command '/%s': %s", cmd.name, e)
-
-    async def disable_channel(self, name: str) -> bool:
-        """Disable a channel at runtime (stop it and set DISABLED status).
-
-        Returns True if the channel was found and disabled.
-        """
-        channel = self.bus.channels.get(name)
-        if not channel:
-            return False
-        if channel.status == ChannelStatus.DISABLED:
-            return True
-
-        task = self._channel_tasks.pop(name, None)
-        if task and not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-        try:
-            await channel.stop()
-        except Exception:
-            pass
-
-        channel._status = ChannelStatus.DISABLED
-        logger.info("Channel '%s' disabled", name)
-        return True
-
-    async def enable_channel(self, name: str) -> bool:
-        """Re-enable a previously disabled channel.
-
-        Returns True if the channel was found and re-enabled.
-        """
-        channel = self.bus.channels.get(name)
-        if not channel:
-            return False
-        if channel.status != ChannelStatus.DISABLED:
-            return True
-
-        channel._status = ChannelStatus.IDLE
-        self._channel_tasks[name] = asyncio.create_task(
-            self._run_channel(name, channel),
-            name=f"channel-{name}",
-        )
-        logger.info("Channel '%s' enabled", name)
-        if self.bus.durable_outbound.is_enabled():
-            recovered = await self.bus.durable_outbound.recover_into_bus(self.bus)
-            if recovered:
-                logger.info(
-                    "Recovered %d durable outbound deliveries after enabling channel '%s'",
-                    recovered,
-                    name,
-                )
-        return True
-
-    _MAX_INSTANCES_PER_TYPE = 5
-
-    @property
-    def max_instances_per_type(self) -> int:
-        """Maximum number of channel instances allowed per channel type."""
-        return self._MAX_INSTANCES_PER_TYPE
-
-    @staticmethod
-    def _resolve_channel_type(channel: BaseChannel) -> str:
-        """Extract the base channel type from the formal ``channel_type`` attribute."""
-        return channel.channel_type or channel.__class__.name
-
-    def _count_instances(self, channel_type: str) -> int:
-        """Count existing instances (including the default) for a channel type."""
-        return sum(1 for n, ch in self.bus.channels.items() if self._resolve_channel_type(ch) == channel_type)
-
-    async def add_channel(self, channel: BaseChannel) -> str:
-        """Hot-add a channel instance at runtime.
-
-        Registers the channel in the bus, starts it, and begins health monitoring.
-        Raises ValueError if the per-type instance limit is exceeded.
-        Returns the channel name.
-        """
-        if not self._running:
-            raise RuntimeError("Gateway not running; call start() first")
-
-        channel_type = self._resolve_channel_type(channel)
-        existing_count = self._count_instances(channel_type)
-        if existing_count >= self._MAX_INSTANCES_PER_TYPE:
-            raise ValueError(
-                f"Instance limit reached: max {self._MAX_INSTANCES_PER_TYPE} instances for channel type '{channel_type}'"
-            )
-
-        self.bus.register_channel(channel)
-        channel.on("status_change", self._on_status_change_event)
-        channel.on("groups_change", self._on_groups_change_event)
-        channel.on("connection_change", self._on_connection_change_event)
-
-        self._channel_tasks[channel.name] = asyncio.create_task(
-            self._run_channel(channel.name, channel),
-            name=f"channel-{channel.name}",
-        )
-        logger.info("Channel '%s' hot-added", channel.name)
-        return channel.name
-
-    async def swap_channel(
-        self,
-        replacement: BaseChannel,
-        previous: BaseChannel | None,
-    ) -> None:
-        """Atomically replace a registered channel instance at runtime.
-
-        Removes ``previous`` (if any) and registers ``replacement`` with the
-        same name; if the replacement fails to register, ``previous`` is
-        restored so a bad swap never leaves a channel silently offline. The
-        original error is re-raised after restoration so callers can surface
-        or swallow the failed swap consistently.
-        """
-        if previous is not None:
-            await self.remove_channel(previous.name)
-        try:
-            await self.add_channel(replacement)
-        except Exception:
-            if previous is not None:
-                try:
-                    await self.add_channel(previous)
-                except Exception:
-                    logger.warning(
-                        "Failed to restore channel '%s' after a failed swap",
-                        previous.name,
-                        exc_info=True,
-                    )
-            raise
-
-    async def remove_channel(self, name: str) -> bool:
-        """Hot-remove a channel instance at runtime.
-
-        Stops the channel, cancels its task, and unregisters from the bus.
-        Returns True if the channel was found and removed.
-        """
-        channel = self.bus.channels.get(name)
-        if not channel:
-            return False
-
-        task = self._channel_tasks.pop(name, None)
-        if task and not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-        try:
-            await channel.stop()
-        except Exception as e:
-            logger.warning("Error stopping channel '%s' during removal: %s", name, e)
-
-        channel.clear_listeners()
-        self.bus.unregister_channel(name)
-        logger.info("Channel '%s' hot-removed", name)
-        return True
-
-    def list_instances(self, channel_type: str) -> list[str]:
-        """List all instance names for a given channel type."""
-        return [n for n, ch in self.bus.channels.items() if self._resolve_channel_type(ch) == channel_type]
-
-    def get_channel_capabilities(self, channel_name: str) -> ChannelCapabilities | None:
-        """Get the declared capabilities of a registered channel."""
-        channel = self.bus.get_channel(channel_name)
-        return channel.capabilities if channel else None
-
-    def get_status(self) -> dict[str, ChannelStatus]:
-        """Get status of all registered channels."""
-        return {name: channel.status for name, channel in self.bus.channels.items()}
-
-    def collect_all_issues(self) -> dict[str, list[ChannelIssue]]:
-        """Collect structured diagnostic issues from all registered channels."""
-        result: dict[str, list[ChannelIssue]] = {}
-        for name, channel in self.bus.channels.items():
-            issues = channel.collect_issues()
-            if issues:
-                result[name] = issues
-        return result
-
-    async def reload_channel(self, name: str) -> bool:
-        """Hot-reload a channel: stop the old instance and restart it.
-
-        Returns True if the channel was found and reloaded.
-        """
-        channel = self.bus.channels.get(name)
-        if not channel:
-            return False
-
-        task = self._channel_tasks.pop(name, None)
-        if task and not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-        try:
-            await channel.stop()
-        except Exception:
-            logger.warning("Channel '%s': error during reload stop", name, exc_info=True)
-
-        channel._status = ChannelStatus.IDLE
-        self._channel_tasks[name] = asyncio.create_task(
-            self._run_channel(name, channel),
-            name=f"channel-{name}",
-        )
-        logger.info("Channel '%s' reloaded", name)
-        return True
-
-    async def list_channel_groups(self, *, force_refresh: bool = False) -> list[GroupInfo]:
-        """Aggregate group lists from all channels concurrently.
-
-        Each provider's ``list_groups`` should set ``GroupInfo.channel``, but this
-        method acts as a safety net: any ``GroupInfo`` with an empty ``channel``
-        field is patched with the provider's registered name.
-
-        Uses ``asyncio.gather`` for concurrent fetching — total latency equals
-        the slowest channel rather than the sum of all channels.
-        """
-        group_channels: list[tuple[str, BaseChannel]] = [
-            (name, ch) for name, ch in self.bus.channels.items() if hasattr(ch, "list_groups")
-        ]
-        if not group_channels:
-            return []
-
-        async def _fetch(name: str, channel: BaseChannel) -> list[GroupInfo]:
-            try:
-                return await channel.list_groups(force_refresh=force_refresh)
-            except Exception:
-                logger.warning("Failed to list groups for channel '%s'", name, exc_info=True)
-                return []
-
-        results = await asyncio.gather(*[_fetch(n, ch) for n, ch in group_channels])
-
-        all_groups: list[GroupInfo] = []
-        for (name, _), groups in zip(group_channels, results, strict=True):
-            for g in groups:
-                if not g.channel:
-                    from dataclasses import replace
-
-                    g = replace(g, channel=name)
-                all_groups.append(g)
-        return all_groups
-
-    async def _run_channel(self, name: str, channel: BaseChannel) -> None:
-        """Run a single channel with error isolation."""
-        if channel.status == ChannelStatus.DISABLED:
-            logger.debug("Channel '%s' registered as disabled, skipping start", name)
-            return
-        if not channel.should_auto_start():
-            logger.debug("Channel '%s' on-demand, staying idle", name)
-            return
-        try:
-            await channel.start()
-            if channel.status == ChannelStatus.RUNNING:
-                logger.info("Channel '%s' started", name)
-            else:
-                logger.debug("Channel '%s' idle (not configured)", name)
-        except Exception as e:
-            logger.warning("Channel '%s' failed to start: %s", name, e)
-            channel._status = ChannelStatus.ERROR
-
-    async def _health_loop(self) -> None:
-        """Periodic health check with exponential backoff restart."""
-        while self._running:
-            try:
-                await asyncio.sleep(_HEALTH_CHECK_INTERVAL)
-            except asyncio.CancelledError:
-                break
-
-            await self._check_router_health()
-            self._check_dispatch_health()
-
-            # Snapshot: a concurrent credential swap adds/removes channels on this same dict,
-            # and awaiting a channel's health check yields control mid-iteration.
-            for name, channel in list(self.bus.channels.items()):
-                try:
-                    await self._check_channel_health(name, channel)
-                except Exception:
-                    # One misbehaving channel must not stop health monitoring for the rest.
-                    logger.exception("Health check failed for channel '%s'", name)
-
-    async def _check_channel_health(self, name: str, channel: BaseChannel) -> None:
-        """Run one channel's health check and react to the outcome."""
-        if channel.status in (ChannelStatus.STOPPED, ChannelStatus.DISABLED):
-            return
-
-        try:
-            healthy = await channel.health_check()
-        except Exception as exc:
-            healthy = False
-            logger.warning("Health check exception for '%s': %s", name, exc)
-
-        if healthy:
-            if channel.health.consecutive_failures > 0:
-                logger.warning(
-                    "Channel '%s' recovered after %d failures",
-                    name,
-                    channel.health.consecutive_failures,
-                )
-            channel.health.record_success()
-            if channel.status == ChannelStatus.DEGRADED:
-                channel._status = ChannelStatus.RUNNING
-            return
-
-        channel.health.record_failure()
-
-        failures = channel.health.consecutive_failures
-        if failures >= _DEGRADED_THRESHOLD and channel.status == ChannelStatus.RUNNING:
-            channel._status = ChannelStatus.DEGRADED
-            logger.warning(
-                "Channel '%s' degraded (%d consecutive failures)",
-                name,
-                failures,
-            )
-
-        if self._should_restart(channel):
-            logger.warning(
-                "Channel '%s' restarting (failures=%d, backoff=%.1fs)",
-                name,
-                failures,
-                self._compute_backoff(failures),
-            )
-            await self._restart_channel(name, channel)
-
-    async def _check_router_health(self) -> None:
-        """Restart the router's consume loop if its task has died.
-
-        The loop absorbs a per-message handler error, so a finished task means it ended
-        unrecoverably (inbound routing is down while the process still looks healthy). A
-        backoff gates restarts so a deterministic startup crash cannot spin this into a
-        tight loop; the failure itself is already logged by the task's observer.
-        """
-        if self._router is None or not self._running or self._router.is_consume_loop_alive():
-            return
-
-        now = time.monotonic()
-        if now < self._router_restart_not_before:
-            return
-
-        self._router_restart_attempts += 1
-        backoff = min(
-            _BASE_BACKOFF * (_BACKOFF_FACTOR ** (self._router_restart_attempts - 1)),
-            _MAX_BACKOFF,
-        )
-        self._router_restart_not_before = now + backoff
-
-        logger.error(
-            "AgentRouter consume loop is not running; restarting (attempt=%d, backoff=%.1fs)",
-            self._router_restart_attempts,
-            backoff,
-        )
-        try:
-            await self._router.start()
-        except Exception:
-            logger.exception("AgentRouter restart failed")
-            return
-
-        if self._router.is_consume_loop_alive():
-            self._router_restart_attempts = 0
-            self._router_restart_not_before = 0.0
-
-    def _check_dispatch_health(self) -> None:
-        """Restart the bus outbound dispatch loop if its task has died.
-
-        The loop absorbs a per-message failure, so a finished task means it ended unrecoverably
-        and no channel can deliver anything. A backoff gates restarts so a deterministic crash
-        cannot spin; the failure itself is already logged by the task's observer.
-        """
-        if not self._running or self.bus.is_dispatch_loop_alive():
-            return
-
-        now = time.monotonic()
-        if now < self._dispatch_restart_not_before:
-            return
-
-        self._dispatch_restart_attempts += 1
-        backoff = min(
-            _BASE_BACKOFF * (_BACKOFF_FACTOR ** (self._dispatch_restart_attempts - 1)),
-            _MAX_BACKOFF,
-        )
-        self._dispatch_restart_not_before = now + backoff
-
-        logger.error(
-            "Outbound dispatch loop is not running; restarting (attempt=%d, backoff=%.1fs)",
-            self._dispatch_restart_attempts,
-            backoff,
-        )
-        if self.bus.ensure_dispatch_loop_alive():
-            self._dispatch_restart_attempts = 0
-            self._dispatch_restart_not_before = 0.0
-
-    @staticmethod
-    def _compute_backoff(failures: int) -> float:
-        base = min(_BASE_BACKOFF * (_BACKOFF_FACTOR ** (failures - 1)), _MAX_BACKOFF)
-        jitter = base * _JITTER_RATIO * (2 * random.random() - 1)
-        return base + jitter
-
-    @staticmethod
-    def _should_restart(channel: BaseChannel) -> bool:
-        """Decide whether enough time has elapsed since the last failure to retry."""
-        h = channel.health
-        if h.consecutive_failures < _DEGRADED_THRESHOLD:
-            return False
-        if h.last_failure_at is None:
-            return True
-        backoff = min(
-            _BASE_BACKOFF * (_BACKOFF_FACTOR ** (h.consecutive_failures - 1)),
-            _MAX_BACKOFF,
-        )
-        return (time.monotonic() - h.last_failure_at) >= backoff
-
-    async def _restart_channel(self, name: str, channel: BaseChannel) -> None:
-        """Restart a failed channel."""
-        try:
-            await channel.stop()
-        except Exception:
-            pass
-
-        old_task = self._channel_tasks.get(name)
-        if old_task and not old_task.done():
-            old_task.cancel()
-            try:
-                await old_task
-            except asyncio.CancelledError:
-                pass
-
-        self._channel_tasks[name] = asyncio.create_task(
-            self._run_channel(name, channel),
-            name=f"channel-{name}",
-        )
 
     async def _recover_journal(self) -> None:
         """Scan inbound journal for interrupted messages and re-submit them.
