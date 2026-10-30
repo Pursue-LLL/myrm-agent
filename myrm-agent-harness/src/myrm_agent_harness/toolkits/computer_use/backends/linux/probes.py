@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - probe_linux_capturable: 用 scrot / gnome-screenshot 实际截一张图并判定是否可用
-- detect_linux_resolution: 经 xdpyinfo / xrandr 读取屏幕分辨率，读不到回退 1920x1080
+- detect_linux_resolution: 经 xdpyinfo / xrandr 读取屏幕分辨率，读不到回退 1920x1080 并记 WARNING（错误的分辨率会让点击坐标整体偏移）
 - read_screen_context: 经 xdotool 读活动窗口标题与鼠标位置，读不到的字段回退空串 / (0, 0)
 - linux_permission_status: 按 xdotool、截图工具、DISPLAY / Wayland 是否齐备给出桌面自动化就绪度
 
@@ -17,6 +17,7 @@ Linux 后端的只读探测原语。仅被 backends/linux/backend.py 引用；�
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import shutil
 import subprocess
@@ -24,6 +25,8 @@ import tempfile
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.computer_use.types import PermissionStatus, ScreenContext
+
+logger = logging.getLogger(__name__)
 
 
 def probe_linux_capturable() -> bool:
@@ -74,6 +77,8 @@ def detect_linux_resolution(env: dict[str, str] | None) -> tuple[int, int]:
         except Exception:
             continue
 
+    # A wrong resolution shifts every click, so the guess must be visible in production logs.
+    logger.warning("Screen resolution unreadable (xdpyinfo and xrandr unavailable or unparsable); assuming 1920x1080")
     return 1920, 1080
 
 

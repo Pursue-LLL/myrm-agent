@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-123 · 沙箱镜像没装 `x11-utils`：Linux 前台程序名读不到、屏幕分辨率悄悄回退成 1920x1080
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（server `Dockerfile`、`docker/Dockerfile.official` 的 apt 清单加 `x11-utils`；harness `backends/linux/probes.py` 读不到分辨率时记 WARNING；测试 `tests/toolkits/computer_use/test_linux_probes.py`；没有改提示词与工具 schema）。 |
+| **发现时间** | 2026-10-30（复核 Linux 前台程序识别时，不再只用假的子进程输出，改在真实容器里跑：沙箱镜像里 `xprop`、`xdpyinfo` 都不存在）。 |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P2（沙箱里敏感程序守卫拿不到程序名，等于失效；分辨率回退的值与真实屏幕不同）。 |
+| **关联产品** | 沙箱里的 computer-use（`entrypoint.sh:18` 起 1280x800 的 Xvfb）。 |
+| **根因** | 镜像 apt 清单（`Dockerfile:99-101`、`docker/Dockerfile.official:77-79`）有 `xdotool`、`scrot`、`xclip`，没有 `x11-utils`（它提供 `xprop`、`xdpyinfo`）。① `linux_x11.read_foreground_meta()` 靠 `xprop` 读 WM_CLASS，缺失时类名为空，`safety.is_sensitive_app` 对空名字直接返回 None。② `detect_linux_resolution` 依次试 `xdpyinfo`、`xrandr`，都没有就回退 1920x1080，且没有任何日志。③ `has_blocking_dialog` 用 `xprop _NET_WM_WINDOW_TYPE`，同样读不到。CI 的真实 X11 任务（`harness-test.yml:149-150`）装了 `x11-utils`，所以 CI 看不到这个缺口。 |
+| **修复** | ① 两份 Dockerfile 的 apt 清单加 `x11-utils`，`myrm-agent-server/ARCHITECTURE.md` 的依赖说明同步。② `detect_linux_resolution` 回退到 1920x1080 时记一条 WARNING，错误的分辨率不再无声。③ 新增 `test_linux_probes.py`（6 例）：先读 xdpyinfo；xdpyinfo 缺失或解析失败时用 xrandr；环境变量传给工具；都读不到时记日志；读到时不记日志。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 我先前判断「代码层面没有值得做的」，依据只有假的子进程输出；换成真实容器才发现缺 `x11-utils`。② 本机是 arm64，容器按 `linux/arm64` 跑，没有验证 amd64 镜像。 |
+| **回归** | [1] 真实容器（`python:3.13-slim` + 与 `Dockerfile.official` 相同的 apt 清单，另加 `xterm`、1280x800 的 Xvfb、fluxbox）：缺 `x11-utils` 时分辨率 `(1920, 1080)`、类名为空；装上后分辨率 `(1280, 800)`、前台 `('KeePassXC', 'Vault - Unlock')`，`xprop`、`xdpyinfo` 都在。[2] 单测：把 WARNING 去掉，`test_the_guess_is_logged_when_no_tool_answers` 失败；把 xdpyinfo 与 xrandr 的顺序对调，`test_xdpyinfo_dimensions_are_read` 失败，还原后通过。[3] `uv run pytest tests/toolkits/computer_use --ignore=tests/toolkits/computer_use/test_macos_ax_script.py`：1231 通过、15 跳过。`ruff check`、`ruff format --check`、`mypy` 对 `probes.py` 与新测试干净；`check_fractal_docs.py`、`validate_arch_inventory.py --md-refs --repo-refs`、`check_file_line_limit.py` 通过。 |
+| **仍然存在** | ① 点击坐标整体偏移只是根据 `session.py:305-309`、`coordinate_scaler.py:53` 推断，没有做端到端的点击测试。② `has_blocking_dialog` 在补上 `xprop` 后能否识别真实对话框没验证（容器里的普通窗口没有 `_NET_WM_WINDOW_TYPE`）。③ `x11-utils` 带来的镜像体积增量与每次取前台的子进程耗时没有测。④ 没有核实生产控制面是否注入 `WIDTH`、`HEIGHT`（注入了则 `screen_info()` 不走探测）。⑤ 没有真实构建过两份 Dockerfile，也没有验证 amd64。⑥ 镜像里仍没有 AT-SPI 的 Python 绑定，沙箱内的 AT-SPI 元素树没有验证；加上它要处理系统 Python 与镜像 Python 的路径冲突，本次没做。 |
+| **代码位置** | `myrm-agent-server/Dockerfile` · `myrm-agent-server/docker/Dockerfile.official` · `myrm-agent-server/ARCHITECTURE.md` · `src/myrm_agent_harness/toolkits/computer_use/backends/linux/probes.py` · `backends/linux/_ARCH.md` · `tests/toolkits/computer_use/test_linux_probes.py` |
+
 ### BUG-HARNESS-2026-10-30-122 · 面向最终用户的诊断步骤里写着配置项名与环境变量，用户无处可改；空字符串语言码让限流的等待步骤与其余步骤说两种语言
 
 | 字段 | 内容 |

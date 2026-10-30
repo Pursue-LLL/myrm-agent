@@ -351,7 +351,7 @@ raise ToolError(
 
 为了提供“直播 AI 操作”的极致用户体验，Server 镜像内集成了完整的图形化和推流基础设施：
 
-- **基础设施**：`Dockerfile` 中安装了 `xvfb` (虚拟显示器)、`fluxbox` (窗口管理器)、`x11vnc` (VNC 服务)、`websockify` (WebSocket 代理)、`scrot`/`xdotool`/`xclip` (Computer Use 截图、键鼠交互与非 ASCII 文本剪贴板粘贴)、`at-spi2-core`/`dbus-x11` (无障碍服务)。
+- **基础设施**：`Dockerfile` 中安装了 `xvfb` (虚拟显示器)、`fluxbox` (窗口管理器)、`x11vnc` (VNC 服务)、`websockify` (WebSocket 代理)、`scrot`/`xdotool`/`xclip` (Computer Use 截图、键鼠交互与非 ASCII 文本剪贴板粘贴)、`x11-utils` (`xprop`/`xdpyinfo`：前台窗口类名、屏幕分辨率，缺失时分辨率会回退成错误的 1920x1080)、`at-spi2-core`/`dbus-x11` (无障碍服务)。
 - **启动编排**：`docker/entrypoint.sh` 监听 `VISUAL_DESKTOP=1` 环境变量。当开启时，按顺序拉起 Xvfb、D-Bus 会话总线、fluxbox、x11vnc、websockify，并 `export DISPLAY=:99` 使主服务进程继承图形显示。
 - **全栈打通**：配合 Harness 层的 `browser` 工具包（自动关闭无头模式并连接到 `:99`）、`computer_use` 工具包（LinuxBackend 通过 DISPLAY 环境变量驱动 scrot/xdotool）和前端的 `noVNC` 客户端，实现端到端的可视化桌面直播。
 - **Deploy 门控**：`app/config/computer_use_deploy.py` — LOCAL/TAURI 始终可用；SANDBOX 需 `VISUAL_DESKTOP=1` 且 CP `enable_vnc` 权益（30s 缓存）。Profile strip、factory setup、hybrid routing 与前端 BuiltinToolsPanel 共用同一 SSOT。
