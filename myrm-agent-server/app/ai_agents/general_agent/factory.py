@@ -724,7 +724,7 @@ async def build_general_agent(
         tool_groups=active_tool_groups,
         skill_ids=runtime_skill_ids,
         skill_configs=agent_wrapper.skill_configs,
-        # The harness reads MCP configs by attribute; MCPServerConfig carries the same field set.
+        # The harness reads MCP configs by attribute and applies its own default where MCPServerConfig has no field (max_output_chars).
         mcp_servers=cast("list[MCPConfig]", agent_wrapper.mcp_config or []),
         openapi_services=agent_wrapper.openapi_services or [],
         memory_namespaces=memory_namespaces,
@@ -849,7 +849,6 @@ async def build_general_agent(
         wiki_base_dir=(agent_wrapper._resolve_wiki_base_dir() if agent_wrapper.enable_wiki else None),
         wiki_public_dirs=(agent_wrapper._resolve_wiki_public_dirs() if agent_wrapper.enable_wiki else None),
         wiki_public_dir_labels=(agent_wrapper._resolve_wiki_public_dir_labels() if agent_wrapper.enable_wiki else None),
-        wiki_search_fn=(agent_wrapper._build_wiki_search_fn() if agent_wrapper.enable_wiki else None),
         wiki_scope_id=agent_wrapper.agent_id,
         similarity_checker=sim_checker,
         file_access_mode=effective_file_access,

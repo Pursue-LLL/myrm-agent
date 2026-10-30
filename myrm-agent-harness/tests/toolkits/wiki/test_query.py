@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig, WikiQueryConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.retrieval.keyword_fallback import keyword_search
 from myrm_agent_harness.toolkits.wiki.retrieval.query import WikiQueryEngine
 
 
@@ -160,7 +161,7 @@ async def test_graph_expansion(wiki_structure, mock_llm):
 
 @pytest.mark.asyncio
 async def test_keyword_search_fallback(wiki_structure, mock_llm):
-    """When FTS5 returns nothing, _keyword_search should find concepts by content overlap."""
+    """When FTS5 returns nothing, keyword_search should find concepts by content overlap."""
     config = WikiConfig(enable_semantic_search=False)
     engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=config)
 
@@ -343,17 +344,14 @@ def test_expand_via_graph_empty_seeds(wiki_structure, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_keyword_search_unreadable_file(wiki_structure, mock_llm):
-    """_keyword_search gracefully skips unreadable files."""
-    config = WikiConfig(enable_semantic_search=False)
-    engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=config)
-
+async def test_keyword_search_unreadable_file(wiki_structure):
+    """keyword_search gracefully skips unreadable files."""
     bad_path = Path(wiki_structure.concepts_dir / "broken.md")
     bad_path.write_text("Valid content about quantum physics.", encoding="utf-8")
     bad_path.chmod(0o000)
 
     try:
-        results = engine._keyword_search("quantum", [bad_path], top_n=5)
+        results = keyword_search("quantum", [bad_path], top_n=5)
         assert results == []
     finally:
         bad_path.chmod(0o644)

@@ -59,9 +59,10 @@ config = WikiConfig()
 
 # Initialize components
 compiler = WikiCompiler(llm, structure, config)
-# search_fn: optional SemanticSearchFn for enhanced search (e.g. BM25/vector)
-# When enable_semantic_search=True and search_fn is provided, uses it;
-# otherwise falls back to keyword matching.
+# search_fn: optional SemanticSearchFn, (query, top_n) -> [(path, score)], that adds seeds next to
+# the built-in FTS5 index (BM25-ranked, published pages only, hybrid with vectors) when
+# enable_semantic_search=True. Both result sets are merged; a failing search_fn is logged and skipped.
+# Keyword matching only fills in when fewer than top_n seeds were found.
 query_engine = WikiQueryEngine(llm, structure, config, search_fn=my_search_fn)
 
 # Create tools for Agent
@@ -75,7 +76,7 @@ tools = create_wiki_tools(compiler, query_engine, structure)
 - **Framework-level**: Zero dependencies on business logic
 - **Multi-tenant ready**: Each user gets isolated wiki (via base_dir)
 - **Configurable**: WikiConfig for all behavior switches
-- **Pluggable search**: Inject custom search via SemanticSearchFn (BM25, vector, hybrid)
+- **Pluggable search**: Add extra retrieval seeds via SemanticSearchFn next to the built-in FTS5 and vector index
 - **Observable**: EventLog integration for statistics
 - **Parallel-optimized**: 10x faster compilation with concurrency
 """

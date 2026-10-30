@@ -638,7 +638,6 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_cognitive_clock_schedule.py` | 模块 | 虚拟时钟下真实协调器循环 + 唤醒心跳 + 守卫的节拍：空闲不算唤醒、间隔中途宿主挂起不拖延下一轮 T2、轮前一分钟挂起则等宽限期后重试、整个场景里 T3 只运行一次 |
 | `lifecycle/conftest.py` | 辅助 | 每个用例前后把认知时钟的进程级单例（唤醒守卫、活动感知器、暂停信号）重置为全新状态，用例之间不经全局状态互相影响 |
 | `lifecycle/test_memory_guardian_sqlite_backup.py` | 模块 | 维护周期末尾的 SQLite 热备份：对真实数据库落盘并校验、非文件库安静跳过、页拷贝脱离事件循环、失败只记 WARNING 不使周期失败 |
-| `ai_agents/general_agent/test_wiki_search_fn.py` | 模块 | 注入 Wiki 查询引擎的 BM25 检索后端：引擎以 `(query, top_n)` 调用，后端自行解析 Agent 自己的与共享的只读知识库，匹配度最高的概念排第一、遵守 `top_n`、跳过读不了的文件、空库返回空；`GeneralAgent._build_wiki_search_fn` 用该 Agent 的知识库接线 |
 | `ai_agents/general_agent/test_skill_tool_mount.py` | 模块 | `skill_manage` / `skill_market` 经 ToolSetupMixin 真实挂载：启用或 `/learn` 强制挂载的判定、挂载后的工具经真实创建服务落盘并在写入前拦截危险内容、撤销快照取自写入根而非轮次技能后端（轮次后端看不到该技能时，改写前的内容仍被记下）、factory 只经 tool_setup 挂载 |
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |
 | `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |

@@ -9,6 +9,7 @@
 - ..pipeline.cognitive_map::read_hot_context, read_log_context (POS: OKF hot.md / log.md readers for wiki_query prefix)
 - ..pipeline.cognitive_map.index_routing::format_index_route_context, match_index_entries, read_index_entries (POS: OKF index-first routing)
 - .best_first::RetrievalSeed, converge_retrieval_candidates (POS: budgeted best-first graph convergence + raw_claim rerank)
+- .keyword_fallback::is_published_article, keyword_search (POS: published-only keyword fallback and page gate)
 
 [OUTPUT]
 - WikiQueryEngine: Wiki query and enhancement engine; derived QueryResult.confidence_score; QueryResult.retrieval_trace metadata
@@ -20,7 +21,8 @@ Uses index-first seeding, then sidecar hierarchical routing, FTS rerank, and bes
 convergence with context-budgeted loading (L0/L1 before L2). Prepends hot.md vault status inside
 wiki_query answers only (no global agent middleware), and falls back to keyword matching when
 semantic retrieval is unavailable. Supports raw_claim rerank, claim-health multipliers, and
-derived confidence for citation scoring.
+derived confidence for citation scoring. Draft and blocked pages never reach an answer: the FTS5 index
+omits them, and keyword matching and graph expansion skip them.
 """
 
 from __future__ import annotations
@@ -54,7 +56,7 @@ from ..pipeline.cognitive_map.index_routing import (
 from .asset_index import WikiAssetIndexer
 from .best_first import RetrievalSeed, converge_retrieval_candidates
 from .indexer import WikiIndexer
-from .tokenizer import extract_query_terms
+from .keyword_fallback import is_published_article, keyword_search
 
 logger = get_agent_logger(__name__)
 
@@ -367,7 +369,7 @@ class WikiQueryEngine:
             query_config=qc,
         )
         if not seeds:
-            keyword_paths = self._keyword_search(query, scoped_concepts, top_n)
+            keyword_paths = keyword_search(query, scoped_concepts, top_n)
             sidecar_directories = self._sidecar_directories_from_articles(keyword_paths)
             return _ConceptSearchResult(keyword_paths, index_matches, [], sidecar_directories)
 
@@ -395,7 +397,7 @@ class WikiQueryEngine:
         seen_paths: set[Path] = set()
         for name in expanded:
             path = self._structure.resolve_concept_file_path(name)
-            if path and path.exists() and path not in seen_paths:
+            if path and path not in seen_paths and is_published_article(path):
                 seen_paths.add(path)
                 resolved.append(path)
         sidecar_directories = self._sidecar_directories_from_articles(resolved)
@@ -454,7 +456,7 @@ class WikiQueryEngine:
                 logger.warning(f"FTS5 semantic search failed: {e}")
 
         if len(seeds) < top_n:
-            for path in self._keyword_search(query, scoped_concepts, top_n):
+            for path in keyword_search(query, scoped_concepts, top_n):
                 add_seed(self._concept_name_from_path(path), 0.35, "keyword")
 
         return seeds
@@ -558,7 +560,7 @@ class WikiQueryEngine:
             logger.warning("Concept rerank after sidecar routing failed: %s", e)
 
         if len(ranked_names) < top_n:
-            for path in self._keyword_search(query, candidates, top_n):
+            for path in keyword_search(query, candidates, top_n):
                 concept_name = self._concept_name_from_path(path)
                 if concept_name not in ranked_names:
                     ranked_names.append(concept_name)
@@ -583,25 +585,6 @@ class WikiQueryEngine:
             seeds=seeds,
             max_results=max_results,
         )
-
-    def _keyword_search(self, query: str, concepts: list[Path], top_n: int) -> list[Path]:
-        """Score concepts by keyword overlap with query."""
-        query_keywords = extract_query_terms(query)
-        scored: list[tuple[Path, float]] = []
-
-        for concept_path in concepts:
-            try:
-                content = concept_path.read_text(encoding="utf-8")
-                content_keywords = extract_query_terms(content)
-                overlap = len(query_keywords & content_keywords)
-                score = overlap / max(len(query_keywords), 1)
-                if score > 0:
-                    scored.append((concept_path, score))
-            except Exception as e:
-                logger.warning("Failed to read %s: %s", concept_path, e)
-
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return [path for path, _ in scored[:top_n]]
 
     async def _load_articles_context(
         self,

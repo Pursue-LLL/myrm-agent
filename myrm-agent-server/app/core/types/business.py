@@ -129,7 +129,8 @@ class ModelsConfig(BaseModel):
 class MCPServerConfig(BaseModel):
     """MCP server configuration for the business layer.
 
-    Mirrors framework ``MCPConfig`` with frontend API compatibility (camelCase support).
+    Mirrors framework ``MCPConfig`` with frontend API compatibility (camelCase support),
+    except ``max_output_chars``, for which the harness default applies.
 
     Example:
         >>> config = MCPServerConfig(

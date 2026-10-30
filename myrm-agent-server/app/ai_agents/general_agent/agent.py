@@ -4,7 +4,6 @@
 - tool_setup::ToolSetupMixin (POS: 工具初始化混入)
 - compression_intent (POS: 压缩意图构建)
 - llm_factory (POS: LLM 实例创建工厂)
-- wiki_search::build_wiki_bm25_search_fn (POS: 注入 Wiki 查询引擎的 BM25 检索后端)
 - core.memory.adapters.setup (POS: 记忆系统适配器)
 - app.services.agent.params.workspace_resolve::chat_session_id (POS: the session key of a chat's agent runs)
 
@@ -46,7 +45,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
-    from myrm_agent_harness.toolkits.wiki import SemanticSearchFn
     from myrm_agent_harness.utils import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
@@ -324,12 +322,6 @@ class GeneralAgent(ToolSetupMixin):
             self.memory_shared_context_ids,
             context_name_map=context_name_map or None,
         )
-
-    def _build_wiki_search_fn(self) -> SemanticSearchFn:
-        """Build the BM25 search backend for the wiki query engine."""
-        from .wiki_search import build_wiki_bm25_search_fn
-
-        return build_wiki_bm25_search_fn(self._resolve_wiki_base_dir(), self._resolve_wiki_public_dirs())
 
     def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
         """Resolve the unified context binding contract for the current agent run."""
