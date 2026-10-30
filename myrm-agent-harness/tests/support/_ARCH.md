@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
+Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, damaged FTS5 indexes, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
 
 ## File Index
 
@@ -21,6 +21,7 @@ Pytest-only helpers, not shipped in the harness wheel: process teardown and mark
 | `shipped_graph.py` | Core | `ScriptedModel` and `shipped_agent`: the middleware stack `build_middlewares` assembles, compiled with `create_agent` around given tools over a scripted model, with `shipped_session` / `yolo_config` for the session context of a run that may use tools without asking, so a test of the stack observes what a run does (which tool calls run together, what the model is sent) and not what a mock of the framework does | ✅ |
 | `fake_load_sensor.py` | Core | `FakeLoadSensor`: a maintenance load sensor that reports the level a test sets (`set_level`), shared by the scheduler and quota-integration tests | ✅ |
 | `dense_vector_store.py` | Core | In-memory dense vector store double: refuses a vectorless document before writing anything and pages `scroll` by a cursor that is `None` only after the last page, so memory tests exercise the contracts a plain `AsyncMock` store hides | ✅ |
+| `fts5_corruption.py` | Core | `corrupt_fts5_index` / `CORRUPTIONS`: damage an FTS5 index the way a power loss does (an emptied `_docsize` shadow table, a truncated segment block) and assert the damage is real (`integrity-check` raises `DatabaseError`), so a heal test starts from an index SQLite itself reports as malformed | ✅ |
 | `test_dense_vector_store.py` | Unit | Unit tests for `dense_vector_store` (write refusal, read copies, cursor paging, filter shapes) | — |
 | `test_browser_process_cleanup.py` | Unit | Unit tests for `browser_process_cleanup` (100% line coverage) | — |
 | `test_conftest_browser_cleanup_wiring.py` | Integration | conftest hook smoke + harness/server marker parity | — |

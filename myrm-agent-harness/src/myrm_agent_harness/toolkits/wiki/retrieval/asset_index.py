@@ -4,6 +4,7 @@
 - ..core.structure::WikiStructure (POS: wiki paths)
 - ..core.config::WikiConfig (POS: feature flags)
 - myrm_agent_harness.toolkits.retriever.fusion_strategies::rrf_fusion (POS: RRF merge)
+- myrm_agent_harness.utils.db.fts5::fts5_auto_heal, fts5_integrity_check, fts5_rebuild, relevance_from_rank (POS: FTS5 index self-heal and rank relevance)
 - .tokenizer::tokenize_for_fts (POS: FTS5 query builder)
 
 [OUTPUT]
@@ -34,7 +35,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from myrm_agent_harness.toolkits.retriever.fusion_strategies import rrf_fusion
-from myrm_agent_harness.utils.db.fts5 import fts5_auto_heal, fts5_integrity_check, fts5_rebuild
+from myrm_agent_harness.utils.db.fts5 import (
+    fts5_auto_heal,
+    fts5_integrity_check,
+    fts5_rebuild,
+    relevance_from_rank,
+)
 
 from ..core.config import WikiConfig
 from ..core.structure import WikiStructure
@@ -77,6 +83,23 @@ class AssetIndexResult:
     indexed: int
     skipped: int
     failed: int
+
+
+def _query_fts(conn: sqlite3.Connection, fts_query: str, limit: int) -> list[tuple[str, float]]:
+    """Return ``(filename, relevance)`` for the best caption matches, best match first.
+
+    Fetches ``2 * limit`` rows so the hybrid fusion has more candidates to rank.
+    """
+    cursor = conn.execute(
+        """
+        SELECT filename, rank FROM wiki_assets_fts
+        WHERE wiki_assets_fts MATCH ?
+        ORDER BY rank
+        LIMIT ?
+        """,
+        (fts_query, limit * 2),
+    )
+    return [(str(row["filename"]), relevance_from_rank(float(row["rank"]))) for row in cursor.fetchall()]
 
 
 class WikiAssetIndexer:
@@ -377,45 +400,20 @@ class WikiAssetIndexer:
         if not safe_query:
             return []
 
-        fts_results: list[tuple[str, float]] = []
-
         def sync_fts() -> list[tuple[str, float]]:
-            results: list[tuple[str, float]] = []
             fts_query = tokenize_for_fts(safe_query)
             if not fts_query:
-                return results
+                return []
             with self._get_conn() as conn:
                 try:
-                    cursor = conn.execute(
-                        """
-                        SELECT filename, rank FROM wiki_assets_fts
-                        WHERE wiki_assets_fts MATCH ?
-                        ORDER BY rank
-                        LIMIT ?
-                        """,
-                        (fts_query, limit * 2),
-                    )
-                    for row in cursor.fetchall():
-                        score = 1.0 / (abs(float(row["rank"])) + 1.0)
-                        results.append((str(row["filename"]), score))
-                except sqlite3.OperationalError as exc:
+                    return _query_fts(conn, fts_query, limit)
+                except sqlite3.DatabaseError as exc:
                     logger.error("Asset FTS search error: %s", exc)
-                    healed = fts5_auto_heal(conn, "wiki_assets_fts")
-                    if healed and fts_query:
-                        with contextlib.suppress(sqlite3.OperationalError):
-                            cursor = conn.execute(
-                                """
-                                SELECT filename, rank FROM wiki_assets_fts
-                                WHERE wiki_assets_fts MATCH ?
-                                ORDER BY rank
-                                LIMIT ?
-                                """,
-                                (fts_query, limit * 2),
-                            )
-                            for row in cursor.fetchall():
-                                score = 1.0 / (abs(float(row["rank"])) + 1.0)
-                                results.append((str(row["filename"]), score))
-            return results
+                    if not fts5_auto_heal(conn, "wiki_assets_fts"):
+                        return []
+                    with contextlib.suppress(sqlite3.DatabaseError):
+                        return _query_fts(conn, fts_query, limit)
+                    return []
 
         fts_results = await asyncio.to_thread(sync_fts)
 

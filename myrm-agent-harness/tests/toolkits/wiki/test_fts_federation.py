@@ -1,4 +1,4 @@
-"""Which shared indexes a query reaches, and how an FTS5 rank turns into a relevance score."""
+"""Which shared indexes a query reaches."""
 
 from __future__ import annotations
 
@@ -7,11 +7,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from myrm_agent_harness.toolkits.wiki.retrieval.fts_federation import (
-    MAX_FEDERATED_DATABASES,
-    attached_tables,
-    relevance_from_rank,
-)
+from myrm_agent_harness.toolkits.wiki.retrieval.fts_federation import MAX_FEDERATED_DATABASES, attached_tables
 
 
 @pytest.fixture(params=[sqlite3.Row, None], ids=["row-factory", "tuple-factory"])
@@ -59,15 +55,3 @@ def test_attached_databases_outside_the_shared_alias_range_are_ignored(conn: sql
     _attach(conn, f"pub_{MAX_FEDERATED_DATABASES}", "wiki_fts")
 
     assert attached_tables(conn, "wiki_fts") == ["wiki_fts"]
-
-
-def test_a_better_fts_rank_scores_higher() -> None:
-    ranks = [-0.1, -1.0, -5.0, -20.0]  # FTS5 ranks a better match with a lower, negative number
-    scores = [relevance_from_rank(rank) for rank in ranks]
-
-    assert scores == sorted(scores)
-    assert len(set(scores)) == len(scores)
-
-
-def test_the_relevance_score_is_a_fraction_below_one() -> None:
-    assert all(0.0 <= relevance_from_rank(rank) < 1.0 for rank in (0.0, -1e-6, -1.0, -1e6))

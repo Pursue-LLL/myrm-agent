@@ -9,6 +9,6 @@ factory (durability / privacy / crash-recovery for every store in the framework)
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Database utilities for SQLite migration management. | — |
-| `fts5.py` | Core | FTS5 Utilities (query sanitization, integrity check, rebuild, and auto-heal) | ✅ |
+| `fts5.py` | Core | FTS5 Utilities (query sanitization, integrity check, rebuild and auto-heal of a damaged index, and `relevance_from_rank`: an FTS5 bm25 rank turned into a score in [0, 1) that grows with the match strength) | ✅ |
 | migration_engine.py | Core | Zero-ops stateful SQLite migration engine (optional `sqlalchemy`; dev/tests). | ✅ |
 | sqlite/ | Subpackage | Unified SQLite hardening factory: `SQLiteProfile` presets, sync/async connection hardening with an EIO-safe WAL fallback, and file-level integrity/crash-recovery primitives. See [`sqlite/_ARCH.md`](sqlite/_ARCH.md). | ✅ |

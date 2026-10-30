@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import WikiAssetIndexer
+from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
 
 
 class _StubCaptionProvider:
@@ -118,3 +120,66 @@ async def test_asset_recall_gate_meets_baseline(wiki_structure: WikiStructure, a
     hits = await indexer.search("payment service architecture diagram", limit=3)
     assert hits, "asset recall gate: expected at least one hit"
     assert hits[0].filename == "architecture-diagram.png"
+
+
+_CONFIG = WikiConfig(enable_asset_index=True, enable_hybrid_search=False)
+
+
+async def _indexed(structure: WikiStructure, assets: Path, captions: dict[str, str]) -> WikiAssetIndexer:
+    for name in captions:
+        (assets / name).write_bytes(name.encode())
+    indexer = WikiAssetIndexer(structure, _CONFIG, caption_provider=_StubCaptionProvider(captions))
+    for name in captions:
+        await indexer.index_file(assets / name)
+    return indexer
+
+
+def _damage(indexer: WikiAssetIndexer, kind: str) -> None:
+    conn = sqlite3.connect(indexer.db_path)
+    try:
+        corrupt_fts5_index(conn, "wiki_assets_fts", kind)
+    finally:
+        conn.close()
+
+
+@pytest.mark.asyncio
+async def test_asset_search_returns_the_strongest_matches_first(
+    wiki_structure: WikiStructure, assets_dir: Path
+) -> None:
+    """Captions repeat the query 8, 7, ... 1 times, so the stronger the match the lower the image number."""
+    captions = {
+        f"img{k}.png": "payment gateway " * (8 - k) + " ".join(f"filler{k}x{i}" for i in range(6 + k)) for k in range(8)
+    }
+    indexer = await _indexed(wiki_structure, assets_dir, captions)
+
+    hits = await indexer.search("payment gateway", limit=3)
+
+    assert [hit.filename for hit in hits] == ["img0.png", "img1.png", "img2.png"]
+
+
+def _many_captions() -> dict[str, str]:
+    return {f"img{i:02d}.png": f"payment gateway diagram number {i} " * 6 for i in range(40)}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", CORRUPTIONS)
+async def test_a_damaged_asset_index_is_rebuilt_when_the_indexer_starts(
+    wiki_structure: WikiStructure, assets_dir: Path, kind: str
+) -> None:
+    captions = _many_captions()
+    indexer = await _indexed(wiki_structure, assets_dir, captions)
+    _damage(indexer, kind)
+
+    restarted = WikiAssetIndexer(wiki_structure, _CONFIG, caption_provider=_StubCaptionProvider(captions))
+
+    assert len(await restarted.search("payment gateway", limit=5)) == 5
+
+
+@pytest.mark.asyncio
+async def test_asset_search_heals_an_index_the_query_cannot_read(
+    wiki_structure: WikiStructure, assets_dir: Path
+) -> None:
+    indexer = await _indexed(wiki_structure, assets_dir, _many_captions())
+    _damage(indexer, "empty-docsize")
+
+    assert len(await indexer.search("payment gateway", limit=5)) == 5

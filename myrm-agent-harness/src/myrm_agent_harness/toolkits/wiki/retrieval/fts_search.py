@@ -4,10 +4,10 @@
 - sqlite3 (POS: standard library database)
 - myrm_agent_harness.toolkits.retriever.embedding.window_policy::EmbedInputTooLargeError (POS: embedding input window violation)
 - myrm_agent_harness.toolkits.retriever.fusion_strategies::rrf_fusion (POS: result fusion strategy)
-- myrm_agent_harness.utils.db.fts5::fts5_auto_heal (POS: FTS5 corruption auto-heal helper)
+- myrm_agent_harness.utils.db.fts5::fts5_auto_heal, relevance_from_rank (POS: FTS5 corruption auto-heal and rank relevance)
 - ..core.config::WikiConfig (POS: wiki configuration center)
 - ..core.frontmatter_contract::WikiPublishStatus (POS: publish_status SSOT)
-- .fts_federation::MAX_FEDERATED_DATABASES, attached_tables, relevance_from_rank (POS: shared index discovery and relevance score)
+- .fts_federation::MAX_FEDERATED_DATABASES, attached_tables (POS: shared index discovery)
 - .sidecar_index::_SIDECAR_PREFIX (POS: L0/L1 sidecar index operations)
 - .tokenizer::tokenize_for_fts (POS: FTS5 query tokenizer)
 - .vector_chunks::collapse_vector_hits (POS: L2 chunk vector hit collapsing)
@@ -38,11 +38,11 @@ from myrm_agent_harness.toolkits.retriever.embedding.window_policy import (
     EmbedInputTooLargeError,
 )
 from myrm_agent_harness.toolkits.retriever.fusion_strategies import rrf_fusion
-from myrm_agent_harness.utils.db.fts5 import fts5_auto_heal
+from myrm_agent_harness.utils.db.fts5 import fts5_auto_heal, relevance_from_rank
 
 from ..core.config import WikiConfig
 from ..core.frontmatter_contract import WikiPublishStatus
-from .fts_federation import MAX_FEDERATED_DATABASES, attached_tables, relevance_from_rank
+from .fts_federation import MAX_FEDERATED_DATABASES, attached_tables
 from .sidecar_index import _SIDECAR_PREFIX
 from .tokenizer import tokenize_for_fts
 from .vector_chunks import collapse_vector_hits
@@ -180,12 +180,12 @@ class FtsSearchMixin:
             with self._get_conn() as conn:
                 try:
                     return self._query_fts(conn, fts_query, limit, offset)
-                except sqlite3.OperationalError as e:
+                except sqlite3.DatabaseError as e:
                     logger.error(f"FTS search error: {e}")
                     if not fts5_auto_heal(conn, "wiki_fts"):
                         return []
                     logger.info("FTS5 auto-heal succeeded, retrying search")
-                    with contextlib.suppress(sqlite3.OperationalError):
+                    with contextlib.suppress(sqlite3.DatabaseError):
                         return self._query_fts(conn, fts_query, limit, offset)
                     return []
 

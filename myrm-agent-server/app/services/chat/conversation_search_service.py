@@ -4,6 +4,7 @@
 app.database.repositories.conversation_recall::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
 app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 myrm_agent_harness.toolkits.memory.protocols.conversation_search::ConversationSearchProtocol (POS: conversation search protocol boundary)
+myrm_agent_harness.utils.db.fts5::sanitize_fts5_query, relevance_from_rank (POS: FTS5 query sanitizing and rank relevance)
 
 [OUTPUT]
 ConversationHistorySearchProvider: Server adapter implementing Harness conversation search protocol.
@@ -30,7 +31,7 @@ from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationSearchResponse,
     ConversationSourceRef,
 )
-from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
+from myrm_agent_harness.utils.db.fts5 import relevance_from_rank, sanitize_fts5_query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.repositories.conversation_recall import (
@@ -99,8 +100,8 @@ class ConversationSearchService:
             health_data = await ConversationRecallIndexService.health()
             if not isinstance(health_data, dict):
                 return None
-            indexed = int(health_data.get("indexed_conversations") or 0)
-            missing = int(health_data.get("missing_conversations") or 0)
+            indexed = _count(health_data.get("indexed_conversations"))
+            missing = _count(health_data.get("missing_conversations"))
             fts_ready = bool(health_data.get("fts_ready", True))
             total = indexed + missing
             ratio = (indexed / total) if total > 0 else 1.0
@@ -351,7 +352,7 @@ def _fts_hit(
 ) -> ConversationSearchHit:
     position_score = 1.0 - (index / max(total, 1)) * 0.35
     recency_score = _recency_score(row.updated_at or row.last_message_at)
-    rank_score = _rank_score(row.rank)
+    rank_score = relevance_from_rank(row.rank)
     score = (
         rank_score * 0.52
         + position_score * 0.30
@@ -456,12 +457,12 @@ def _recency_score(value: datetime | None) -> float:
     return math.exp(-age_days / 30.0)
 
 
-def _rank_score(rank: float) -> float:
-    return 1.0 / (1.0 + abs(rank))
-
-
 def _clamp(value: float) -> float:
     return max(0.0, min(1.0, value))
+
+
+def _count(value: object) -> int:
+    return value if isinstance(value, int) else 0
 
 
 def _source_ref(

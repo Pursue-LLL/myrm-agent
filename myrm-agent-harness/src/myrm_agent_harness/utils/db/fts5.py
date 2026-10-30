@@ -1,7 +1,8 @@
 """FTS5 Utilities
 
-Provides robust sanitization for SQLite FTS5 MATCH queries and silent
-auto-healing for corrupted FTS5 indexes (power-loss survival guard).
+Provides robust sanitization for SQLite FTS5 MATCH queries, silent
+auto-healing for corrupted FTS5 indexes (power-loss survival guard) and the
+conversion of an FTS5 bm25 rank into a relevance score.
 
 [INPUT]
 - sqlite3.Connection (POS: open connection for integrity/rebuild operations)
@@ -12,10 +13,13 @@ auto-healing for corrupted FTS5 indexes (power-loss survival guard).
 - fts5_integrity_check: Check FTS5 virtual table health via official command.
 - fts5_rebuild: Rebuild a corrupted FTS5 index (safe, data-preserving).
 - fts5_auto_heal: Detect corruption on query failure and rebuild transparently.
+- relevance_from_rank: FTS5 bm25 rank turned into a relevance score in [0, 1) where a higher score is a better match.
 
 [POS]
 Leaf FTS5 utility module in the unified SQLite hardening factory. Extends the
-file-level guards in ``sqlite/integrity.py`` to cover FTS5 virtual table indexes.
+file-level guards in ``sqlite/integrity.py`` to cover FTS5 virtual table indexes,
+and is the single place that reads an FTS5 rank as relevance so every consumer
+orders matches the same way.
 """
 
 from __future__ import annotations
@@ -173,13 +177,15 @@ def fts5_integrity_check(conn: sqlite3.Connection, table: str) -> bool:
 
     Uses the official FTS5 ``integrity-check`` command. Returns False when the
     shadow tables are inconsistent (e.g. after unclean shutdown with un-flushed
-    WAL pages).
+    WAL pages). SQLite reports a malformed index as ``sqlite3.DatabaseError``
+    ("database disk image is malformed"), which ``OperationalError`` only
+    partly covers, so the broader class is caught.
     """
     table = _validate_table_name(table)
     try:
         conn.execute(f"INSERT INTO {table}({table}) VALUES('integrity-check')")
         return True
-    except sqlite3.OperationalError:
+    except sqlite3.DatabaseError:
         return False
 
 
@@ -198,7 +204,7 @@ def fts5_rebuild(conn: sqlite3.Connection, table: str) -> None:
 def fts5_auto_heal(conn: sqlite3.Connection, table: str) -> bool:
     """Attempt to heal a corrupted FTS5 index after a query failure.
 
-    Call this from an ``except sqlite3.OperationalError`` block. It runs
+    Call this from an ``except sqlite3.DatabaseError`` block. It runs
     ``integrity-check`` to confirm corruption, then ``rebuild`` to fix it.
     Returns True if the index was repaired, False if repair failed or was
     unnecessary.
@@ -211,3 +217,17 @@ def fts5_auto_heal(conn: sqlite3.Connection, table: str) -> bool:
     except sqlite3.Error as exc:
         logger.error("FTS5 auto-heal failed for %s: %s", table, exc)
         return False
+
+
+# ---------------------------------------------------------------------------
+# FTS5 Rank -> Relevance
+# ---------------------------------------------------------------------------
+
+
+def relevance_from_rank(rank: float) -> float:
+    """Turn an FTS5 bm25 ``rank`` into a relevance score in [0, 1): the stronger the match, the nearer to 1.
+
+    FTS5 ranks a better match with a lower, negative number, so the score grows with the rank's magnitude.
+    """
+    magnitude = abs(rank)
+    return magnitude / (magnitude + 1.0)

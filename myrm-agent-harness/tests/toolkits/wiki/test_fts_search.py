@@ -13,6 +13,7 @@ from myrm_agent_harness.toolkits.wiki.retrieval import fts_search
 from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import migrate_wiki_fts_schema
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import tokenize_for_fts
+from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
 
 
 def _legacy_db(path: Path) -> sqlite3.Connection:
@@ -126,6 +127,56 @@ async def test_search_returns_nothing_when_the_query_keeps_failing(
     indexer = await _indexer_with_one_page(tmp_path / "vault")
     _fail_building_the_query(monkeypatch, failures=100)
     monkeypatch.setattr(fts_search, "fts5_auto_heal", lambda conn, table: healed)
+
+    assert await indexer.search("kelvin") == []
+
+
+async def _filled_indexer(root: Path, pages: int = 40) -> tuple[WikiStructure, WikiIndexer]:
+    """An index of pages that all match "kelvin", big enough for its FTS5 table to own segment blocks."""
+    structure = WikiStructure(root)
+    structure.ensure_structure()
+    indexer = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+    for i in range(pages):
+        await indexer.upsert(
+            f"page-{i:02d}", f"---\ntype: concept\n---\n\n## Compiled Truth\n{'kelvin note ' * 20}{i}\n"
+        )
+    return structure, indexer
+
+
+def _damage(indexer: WikiIndexer, kind: str) -> None:
+    conn = sqlite3.connect(indexer.db_path)
+    try:
+        corrupt_fts5_index(conn, "wiki_fts", kind)
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("kind", CORRUPTIONS)
+async def test_a_damaged_index_is_rebuilt_when_the_indexer_starts(tmp_path: Path, kind: str) -> None:
+    structure, indexer = await _filled_indexer(tmp_path / "vault")
+    _damage(indexer, kind)
+
+    restarted = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+
+    assert len(await restarted.search("kelvin", limit=5)) == 5
+
+
+async def test_search_heals_an_index_the_query_cannot_read(tmp_path: Path) -> None:
+    _, indexer = await _filled_indexer(tmp_path / "vault")
+    _damage(indexer, "empty-docsize")
+
+    assert len(await indexer.search("kelvin", limit=5)) == 5
+
+
+async def test_search_returns_nothing_when_the_database_error_is_not_a_damaged_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    indexer = await _indexer_with_one_page(tmp_path / "vault")
+
+    def unreadable(conn: sqlite3.Connection, fts_table: str, columns: str) -> str:
+        raise sqlite3.DatabaseError("file is not a database")
+
+    monkeypatch.setattr(fts_search, "_published_match_select", unreadable)
 
     assert await indexer.search("kelvin") == []
 

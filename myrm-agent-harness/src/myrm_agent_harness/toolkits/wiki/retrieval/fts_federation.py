@@ -4,13 +4,12 @@
 - sqlite3 (POS: standard library database)
 
 [OUTPUT]
-- MAX_FEDERATED_DATABASES: how many shared vault indexes a connection reaches, attached as `pub_0` .. `pub_5`
+- MAX_FEDERATED_DATABASES: how many shared vault indexes a connection attaches, and how many `pub_N` aliases the readers look for
 - attached_tables: a table of the primary index plus the same table of every attached shared index that has it
-- relevance_from_rank: FTS5 bm25 rank turned into a relevance score where a higher score is a better match
 
 [POS]
 Leaf module of the retrieval package: it imports nothing from it, so the search, sidecar, truth and graph
-readers share one definition of "which shared indexes does this query reach" and "how relevant is this rank".
+readers share one definition of "which shared indexes does this query reach".
 """
 
 from __future__ import annotations
@@ -41,12 +40,3 @@ def attached_tables(conn: sqlite3.Connection, table: str) -> list[str]:
         if found:
             tables.append(f"{alias}.{table}")
     return tables
-
-
-def relevance_from_rank(rank: float) -> float:
-    """Turn an FTS5 bm25 ``rank`` into a relevance score in [0, 1): the stronger the match, the nearer to 1.
-
-    FTS5 ranks a better match with a lower, negative number, so the score grows with the rank's magnitude.
-    """
-    magnitude = abs(rank)
-    return magnitude / (magnitude + 1.0)
