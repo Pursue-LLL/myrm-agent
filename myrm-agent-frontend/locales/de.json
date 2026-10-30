@@ -18895,6 +18895,7 @@
         "optimizeStarted": "Optimierung gestartet",
         "optimizeStartedDesc": "Optimierung für „{name}“ übermittelt. Lesen Sie es im Abschnitt „Fähigkeitswachstum“.",
         "optimizeFailed": "Optimierung fehlgeschlagen",
+        "optimizeLockedHint": "Schalte den Evolutionsschutz aus, um diese Fähigkeit zu optimieren",
         "evolutionLockLabel": "Evolutionsschutz",
         "evolutionLockHint": "Verhindern, dass die Auto-Evolution diese Fähigkeit verändert",
         "evolutionLock": "Sperren",

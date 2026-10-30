@@ -18909,6 +18909,7 @@
         "optimizeStarted": "Optimization Started",
         "optimizeStartedDesc": "Optimization for \"{name}\" submitted. Review it in Skill Growth.",
         "optimizeFailed": "Optimization Failed",
+        "optimizeLockedHint": "Turn off Evolution Protection to optimize this skill",
         "evolutionLockLabel": "Evolution Protection",
         "evolutionLockHint": "Prevent auto-evolution from modifying this skill",
         "evolutionLock": "Lock",

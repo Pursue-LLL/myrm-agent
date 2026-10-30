@@ -182,7 +182,7 @@ const SkillDetailSheet = memo(
                     </Button>
                     {sheet.isEvolutionLocked && (
                       <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block w-max max-w-[200px] px-2 py-1 bg-popover text-popover-foreground text-xs rounded border z-50 text-center pointer-events-none">
-                        Unlock evolution to optimize
+                        {t('detail.optimizeLockedHint')}
                       </div>
                     )}
                   </div>

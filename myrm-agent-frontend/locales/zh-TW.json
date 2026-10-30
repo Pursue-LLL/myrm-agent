@@ -18895,6 +18895,7 @@
         "optimizeStarted": "最佳化已啟動",
         "optimizeStartedDesc": "「{name}」的最佳化已提交，請在技能成長中心檢視。",
         "optimizeFailed": "最佳化失敗",
+        "optimizeLockedHint": "關閉「防自動修改保護」後即可最佳化",
         "evolutionLockLabel": "防自動修改保護",
         "evolutionLockHint": "防止自進化系統自動覆蓋你的程式碼",
         "evolutionLock": "鎖定",

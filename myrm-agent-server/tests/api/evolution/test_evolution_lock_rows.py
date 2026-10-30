@@ -2,13 +2,15 @@
 [INPUT]
 - app.api.skills.evolution.derive / fix (POS: user-driven evolution triggers)
 - app.api.skills.config::toggle_evolution_lock (POS: Skills page lock toggle)
-- app.core.skills.store.evolution_store::find_evolution_records (POS: evolution rows of one skill)
+- app.core.skills.store.evolution_store::find_evolution_records, evolution_record_for_page_skill (POS: evolution rows of one skill)
 [OUTPUT]
-- Tests that a page skill id reaches the evolution row keyed by the skill name, and that a locked skill is refused.
+- Tests that a page skill id reaches its evolution row whatever the row is keyed by, that a local skill without a row
+  gets one, and that a locked skill is refused.
 [POS]
 A skill's evolution rows are not keyed alike (draft approval and auto extraction key by the skill name, batch
-import by a generated id). The lock toggle, /derive and /fix take the page id or a row reference, so each must find
-the row of any key, and refuse a locked skill up front instead of accepting a request the engine drops.
+import by a generated id) and a skill made in chat has none. The lock toggle, /derive and /fix take the page id or a
+row reference, so each must find the row of any key, give a local skill without one a row, and refuse a locked skill
+up front instead of accepting a request the engine drops.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from tests.support.minimal_app import build_minimal_app
 app = build_minimal_app("evolution", "skills")
 
 _PAGE_ID = "local::0123abcd"
+_PREBUILT_ID = "prebuilt-demo"
 _UNLOCKED = "---\nname: demo\ndescription: Demo skill.\n---\n"
 _FILE_LOCKED = "---\nname: demo\ndescription: Demo skill.\nevolution-locked: true\n---\n"
 _DERIVE = {"instruction": "Cover the empty input case."}
@@ -79,6 +82,14 @@ def evolution(store: SkillStore, skill_md: Path) -> Iterator[SimpleNamespace]:
         description="Demo skill.",
         storage_path=str(skill_md.parent),
     )
+    prebuilt_skill = Skill(
+        id=_PREBUILT_ID,
+        type=SkillType.PREBUILT,
+        name="demo",
+        description="Demo skill.",
+        storage_path=str(skill_md.parent),
+    )
+    pages = {_PAGE_ID: page_skill, _PREBUILT_ID: prebuilt_skill}
     integration = SimpleNamespace(
         store=store,
         engine=MagicMock(derive_skill_simple=AsyncMock(return_value=None)),
@@ -92,7 +103,7 @@ def evolution(store: SkillStore, skill_md: Path) -> Iterator[SimpleNamespace]:
         ),
         patch(
             "app.core.skills.store.service.skills_service.get_skill",
-            new=AsyncMock(side_effect=lambda ref: page_skill if ref == _PAGE_ID else None),
+            new=AsyncMock(side_effect=pages.get),
         ),
     ):
         yield integration
@@ -142,7 +153,7 @@ async def test_derive_prefers_the_row_keyed_by_the_page_id(
 
 
 async def test_a_row_of_another_skill_with_the_same_name_is_not_adopted(
-    client: AsyncClient, store: SkillStore, tmp_path: Path, evolution: SimpleNamespace
+    client: AsyncClient, store: SkillStore, tmp_path: Path, skill_md: Path, evolution: SimpleNamespace
 ) -> None:
     other = tmp_path / "elsewhere" / "demo" / "SKILL.md"
     other.parent.mkdir(parents=True)
@@ -151,11 +162,93 @@ async def test_a_row_of_another_skill_with_the_same_name_is_not_adopted(
 
     response = await client.post(f"/api/v1/evolution/derive/{_PAGE_ID}", json=_DERIVE)
 
-    assert response.status_code == 404
+    assert response.status_code == 200
+    await _until(lambda: evolution.engine.derive_skill_simple.await_count)
+    assert evolution.engine.derive_skill_simple.await_args.kwargs["skill_id"] == _PAGE_ID
+    assert store.get_skill("demo").path == str(other)
+    assert store.get_skill(_PAGE_ID).path == str(skill_md)
 
 
-async def test_derive_without_any_row_is_not_found(client: AsyncClient, evolution: SimpleNamespace) -> None:
+async def test_derive_gives_a_local_skill_without_a_row_its_own_row(
+    client: AsyncClient, store: SkillStore, skill_md: Path, evolution: SimpleNamespace
+) -> None:
     response = await client.post(f"/api/v1/evolution/derive/{_PAGE_ID}", json=_DERIVE)
+
+    assert response.status_code == 200
+    await _until(lambda: evolution.engine.derive_skill_simple.await_count)
+    assert evolution.engine.derive_skill_simple.await_args.kwargs["skill_id"] == _PAGE_ID
+    created = store.get_skill(_PAGE_ID)
+    assert created is not None
+    assert (created.name, created.path, created.content) == ("demo", str(skill_md), _UNLOCKED)
+    assert created.evolution_locked is False
+
+
+async def test_a_repeated_derive_reuses_the_row_it_created(
+    client: AsyncClient, store: SkillStore, evolution: SimpleNamespace
+) -> None:
+    for _ in range(2):
+        assert (await client.post(f"/api/v1/evolution/derive/{_PAGE_ID}", json=_DERIVE)).status_code == 200
+
+    await _until(lambda: evolution.engine.derive_skill_simple.await_count == 2)
+    assert [record.skill_id for record in store.get_active_skills()] == [_PAGE_ID]
+
+
+async def test_fix_gives_a_local_skill_without_a_row_its_own_row(
+    client: AsyncClient, store: SkillStore, evolution: SimpleNamespace
+) -> None:
+    response = await client.post(f"/api/v1/evolution/fix/{_PAGE_ID}", json={"reason": "broken"})
+
+    assert response.status_code == 200
+    await _until(lambda: evolution.queue.enqueue.await_count)
+    assert evolution.queue.enqueue.await_args.args[0].skill_id == _PAGE_ID
+    assert store.get_skill(_PAGE_ID) is not None
+
+
+async def test_a_locked_skill_without_a_row_is_refused_and_gets_no_row(
+    client: AsyncClient, store: SkillStore, skill_md: Path, evolution: SimpleNamespace
+) -> None:
+    skill_md.write_text(_FILE_LOCKED, encoding="utf-8")
+
+    response = await client.post(f"/api/v1/evolution/derive/{_PAGE_ID}", json=_DERIVE)
+
+    assert response.status_code == 409
+    assert store.get_skill(_PAGE_ID) is None
+    evolution.engine.derive_skill_simple.assert_not_awaited()
+
+
+async def test_a_skill_that_is_not_local_gets_no_row(client: AsyncClient, store: SkillStore, evolution: SimpleNamespace) -> None:
+    response = await client.post(f"/api/v1/evolution/derive/{_PREBUILT_ID}", json=_DERIVE)
+
+    assert response.status_code == 404
+    assert store.get_active_skills() == []
+
+
+async def test_a_local_skill_without_a_skill_md_is_not_found(
+    client: AsyncClient, store: SkillStore, skill_md: Path, evolution: SimpleNamespace
+) -> None:
+    skill_md.unlink()
+
+    response = await client.post(f"/api/v1/evolution/derive/{_PAGE_ID}", json=_DERIVE)
+
+    assert response.status_code == 404
+    assert store.get_active_skills() == []
+
+
+async def test_a_skill_md_too_large_to_store_is_rejected_without_a_row(
+    client: AsyncClient, store: SkillStore, skill_md: Path, evolution: SimpleNamespace
+) -> None:
+    skill_md.write_text(_UNLOCKED + "x" * (SkillStore.MAX_SKILL_CONTENT_CHARS + 1), encoding="utf-8")
+
+    response = await client.post(f"/api/v1/evolution/derive/{_PAGE_ID}", json=_DERIVE)
+
+    assert response.status_code == 422
+    assert "too large" in response.json()["detail"]
+    assert store.get_active_skills() == []
+    evolution.engine.derive_skill_simple.assert_not_awaited()
+
+
+async def test_an_unknown_skill_is_not_found(client: AsyncClient, evolution: SimpleNamespace) -> None:
+    response = await client.post("/api/v1/evolution/derive/local::unknown", json=_DERIVE)
 
     assert response.status_code == 404
 
