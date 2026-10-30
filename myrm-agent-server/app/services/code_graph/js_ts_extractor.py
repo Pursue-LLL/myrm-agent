@@ -16,11 +16,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
 
 import tree_sitter_typescript
-from tree_sitter import Language, Node, Parser, Query, QueryCursor
+from tree_sitter import Language, Node, Parser, Tree
 
 from app.services.code_graph.ast_extractor import module_name_for
 from app.services.code_graph.models import (
@@ -32,55 +33,29 @@ from app.services.code_graph.models import (
     SymbolNode,
 )
 
-# Each pattern captures the definition (or call) node plus the name that names it. A symbol's scope runs from its
-# name to the end of its node, so decorators and modifiers in front of the name belong to the enclosing scope.
-# Object-literal members and anonymous functions are not symbols; calls inside them belong to the enclosing scope.
-# The grammar reads ``await load<T>(x)`` as a call whose callee is ``await load``, so the second call pattern
-# restores the callee that was awaited. A call pattern must not name its arguments: the callee comes first, so a
-# match waiting for them stays open while a chain such as ``a().b().c()`` is descended, and the open matches make
-# the query quadratic in the chain length; ``_record_call`` checks the arguments instead.
-_QUERY_SOURCE = """
-(function_declaration name: (identifier) @name) @function
-(generator_function_declaration name: (identifier) @name) @function
-(variable_declarator
-  name: (identifier) @name
-  value: [(arrow_function) (function_expression) (generator_function)] @function)
-(class_declaration name: (type_identifier) @name) @class
-(abstract_class_declaration name: (type_identifier) @name) @class
-(variable_declarator name: (identifier) @name value: (class) @class)
-(class_body
-  (method_definition name: [(property_identifier) (private_property_identifier)] @name) @method)
-(public_field_definition
-  name: [(property_identifier) (private_property_identifier)] @name
-  value: [(arrow_function) (function_expression)] @method)
-(call_expression function: [(identifier) (member_expression)] @callee) @call
-(call_expression function: (await_expression [(identifier) (member_expression)] @callee)) @call
-(new_expression constructor: [(identifier) (member_expression)] @callee) @call
-"""
+# A qualified name repeats the name of every enclosing definition, so a file that nests named functions n levels deep
+# holds n^2 characters of names (a 1 MB file nested 76,000 deep took 5 GB). Real code nests a handful of levels;
+# a definition inside more than this many open definitions is not a symbol, and its calls belong to the deepest one.
+MAX_SCOPE_DEPTH = 32
 
-_DEFINITION_KINDS = {
-    "class": SymbolKind.CLASS,
-    "function": SymbolKind.FUNCTION,
-    "method": SymbolKind.METHOD,
-}
-
-
-@dataclass(frozen=True)
-class _Grammar:
-    language: Language
-    query: Query
+_FUNCTION_VALUES = frozenset({"arrow_function", "function_expression", "generator_function"})
+_FIELD_FUNCTION_VALUES = frozenset({"arrow_function", "function_expression"})
+_MEMBER_NAMES = frozenset({"property_identifier", "private_property_identifier"})
+_CALLEES = frozenset({"identifier", "member_expression"})
 
 
 @cache
-def _grammar(tsx: bool) -> _Grammar:
-    """One compiled grammar per dialect; both are immutable, so extractors share them."""
-    language = Language(tree_sitter_typescript.language_tsx() if tsx else tree_sitter_typescript.language_typescript())
-    return _Grammar(language, Query(language, _QUERY_SOURCE))
+def _language(tsx: bool) -> Language:
+    """One compiled grammar per dialect; it is immutable, so extractors share it."""
+    return Language(tree_sitter_typescript.language_tsx() if tsx else tree_sitter_typescript.language_typescript())
 
 
 @dataclass(frozen=True)
 class _Scope:
+    """A named definition that is still open: it runs from its name to the end of its node."""
+
     qualified_name: str
+    start_byte: int
     end_byte: int
     is_class: bool
 
@@ -98,11 +73,24 @@ class JsTsTreeSitterExtractor:
         self.inheritances: list[InheritanceEdge] = []
         self.imports: list[ImportEdge] = []
 
+        self._scopes: list[_Scope] = []
+        self._parent_types: list[str] = []
+        self._visitors: dict[str, Callable[[Node], None]] = {
+            "function_declaration": self._visit_function,
+            "generator_function_declaration": self._visit_function,
+            "class_declaration": self._visit_class,
+            "abstract_class_declaration": self._visit_class,
+            "variable_declarator": self._visit_declarator,
+            "method_definition": self._visit_method,
+            "public_field_definition": self._visit_field,
+            "call_expression": self._visit_call,
+            "new_expression": self._visit_call,
+        }
+
     def extract(self) -> bool:
         """Fill the symbol, call and inheritance lists; a syntax error leaves a partial tree but never fails."""
-        grammar = _grammar(tsx=not self.file_path.endswith(".ts"))
         # A parser keeps state while parsing, so every extractor owns one.
-        tree = Parser(grammar.language).parse(self.source_code.encode("utf-8"))
+        tree = Parser(_language(tsx=not self.file_path.endswith(".ts"))).parse(self.source_code.encode("utf-8"))
         self.symbols.append(
             SymbolNode(
                 qualified_name=self.module_name,
@@ -113,50 +101,121 @@ class JsTsTreeSitterExtractor:
                 line_end=len(self.source_code.splitlines()) or 1,
             )
         )
-        self._walk(grammar.query, tree.root_node)
+        self._walk(tree)
         return True
 
-    def _walk(self, query: Query, root: Node) -> None:
-        """Replay definitions and calls in source order against a stack of the scopes that are still open.
+    def _walk(self, tree: Tree) -> None:
+        """Visit every node once in source order, keeping the stack of definitions that are still open.
 
-        Every definition is anchored at its name and every call at the name it calls, which is also where the call
-        is reported; the scope of a definition starts at its anchor, so a call is placed by the same rule.
+        A cursor walk costs the same for every node however deep it sits, and it is a loop because generated code
+        nests deeper than the recursion limit. A query would be shorter, but its cost per node grows with the depth
+        of the tree (tens of thousands of nested parentheses take minutes, with the GIL held) and it silently drops
+        matches once more than 32,767 are open at the same time.
         """
-        events: list[tuple[int, bool, dict[str, list[Node]], Node]] = []
-        for _, captured in QueryCursor(query).matches(root):
-            is_call = "call" in captured
-            anchor = _called_name(captured["callee"][0]) if is_call else captured["name"][0]
-            events.append((anchor.start_byte, is_call, captured, anchor))
-        events.sort(key=lambda event: (event[0], event[1]))
-        stack: list[_Scope] = []
-        for start_byte, is_call, captured, anchor in events:
-            while stack and stack[-1].end_byte <= start_byte:
-                stack.pop()
-            if is_call:
-                caller = next((scope.qualified_name for scope in reversed(stack) if not scope.is_class), self.module_name)
-                self._record_call(captured, anchor, caller)
-            else:
-                stack.append(self._define(captured, anchor, stack[-1].qualified_name if stack else self.module_name))
+        scopes, parent_types = self._scopes, self._parent_types
+        cursor = tree.walk()
+        while True:
+            node = cursor.node
+            if node is None:
+                return
+            while scopes and scopes[-1].end_byte <= node.start_byte:
+                scopes.pop()
+            visit = self._visitors.get(node.type)
+            if visit is not None:
+                visit(node)
+            if cursor.goto_first_child():
+                parent_types.append(node.type)
+                continue
+            while not cursor.goto_next_sibling():
+                if not cursor.goto_parent():
+                    return
+                parent_types.pop()
 
-    def _define(self, captured: dict[str, list[Node]], name_node: Node, parent: str) -> _Scope:
-        label = next(label for label in _DEFINITION_KINDS if label in captured)
-        node = captured[label][0]
+    def _visit_function(self, node: Node) -> None:
+        name = node.child_by_field_name("name")
+        if name is not None and name.type == "identifier":
+            self._define(node, name, SymbolKind.FUNCTION)
+
+    def _visit_class(self, node: Node) -> None:
+        name = node.child_by_field_name("name")
+        if name is not None and name.type == "type_identifier":
+            self._define(node, name, SymbolKind.CLASS)
+
+    def _visit_declarator(self, node: Node) -> None:
+        """``const f = () => {}`` defines a function and ``const C = class {}`` a class; other values define nothing."""
+        name, value = node.child_by_field_name("name"), node.child_by_field_name("value")
+        if name is None or value is None or name.type != "identifier":
+            return
+        if value.type in _FUNCTION_VALUES:
+            self._define(value, name, SymbolKind.FUNCTION)
+        elif value.type == "class":
+            self._define(value, name, SymbolKind.CLASS)
+
+    def _visit_method(self, node: Node) -> None:
+        """Only class methods are symbols; the methods of an object literal belong to the enclosing scope."""
+        name = node.child_by_field_name("name")
+        if self._parent_types and self._parent_types[-1] == "class_body" and name is not None and name.type in _MEMBER_NAMES:
+            self._define(node, name, SymbolKind.METHOD)
+
+    def _visit_field(self, node: Node) -> None:
+        """A class field holding an arrow or function expression is a method."""
+        name, value = node.child_by_field_name("name"), node.child_by_field_name("value")
+        if name is not None and value is not None and name.type in _MEMBER_NAMES and value.type in _FIELD_FUNCTION_VALUES:
+            self._define(node, name, SymbolKind.METHOD)
+
+    def _visit_call(self, node: Node) -> None:
+        callee = _callee(node)
+        if callee is None:
+            return
+        arguments = node.child_by_field_name("arguments")
+        # A tagged template is not a call; ``new Foo`` without parentheses is one.
+        if node.type == "call_expression" and (arguments is None or arguments.type != "arguments"):
+            return
+        # The call is reported, and attributed to a scope, at the name it calls.
+        name = _called_name(callee)
+        self.calls.append(
+            CallEdge(
+                caller=self._enclosing(name.start_byte, skip_classes=True) or self.module_name,
+                callee=_dotted_name(callee),
+                call_site=CallSite(
+                    file_path=self.file_path,
+                    line=name.start_point.row + 1,
+                    col=name.start_point.column,
+                    end_line=node.end_point.row + 1,
+                    end_col=node.end_point.column,
+                    arg_count=sum(child.type != "comment" for child in arguments.named_children) if arguments else 0,
+                ),
+            )
+        )
+
+    def _enclosing(self, position: int, *, skip_classes: bool) -> str | None:
+        """Innermost open definition that has begun at ``position``; one whose name is still ahead (a decorator or
+        heritage clause in front of the name) does not enclose it. Classes are skipped for calls: the calls in a
+        class body belong to the code that declares the class."""
+        for scope in reversed(self._scopes):
+            if scope.start_byte <= position and not (skip_classes and scope.is_class):
+                return scope.qualified_name
+        return None
+
+    def _define(self, node: Node, name_node: Node, kind: SymbolKind) -> None:
+        if len(self._scopes) >= MAX_SCOPE_DEPTH:
+            return
         name = _text(name_node)
-        qualified_name = f"{parent}.{name}"
+        qualified_name = f"{self._enclosing(name_node.start_byte, skip_classes=False) or self.module_name}.{name}"
         line = name_node.start_point.row + 1
         self.symbols.append(
             SymbolNode(
                 qualified_name=qualified_name,
                 name=name,
-                kind=_DEFINITION_KINDS[label],
+                kind=kind,
                 file_path=self.file_path,
                 line_start=line,
                 line_end=node.end_point.row + 1,
             )
         )
-        if label == "class":
+        if kind is SymbolKind.CLASS:
             self._record_inheritance(node, qualified_name, line)
-        return _Scope(qualified_name, node.end_byte, label == "class")
+        self._scopes.append(_Scope(qualified_name, name_node.start_byte, node.end_byte, kind is SymbolKind.CLASS))
 
     def _record_inheritance(self, node: Node, qualified_name: str, line: int) -> None:
         for heritage in (child for child in node.children if child.type == "class_heritage"):
@@ -168,26 +227,16 @@ class JsTsTreeSitterExtractor:
                         InheritanceEdge(sub_type=qualified_name, super_type=super_type, file_path=self.file_path, line=line)
                     )
 
-    def _record_call(self, captured: dict[str, list[Node]], name_node: Node, caller: str) -> None:
-        node = captured["call"][0]
-        arguments = node.child_by_field_name("arguments")
-        # A tagged template is not a call; ``new Foo`` without parentheses is one.
-        if node.type == "call_expression" and (arguments is None or arguments.type != "arguments"):
-            return
-        self.calls.append(
-            CallEdge(
-                caller=caller,
-                callee=_dotted_name(captured["callee"][0]),
-                call_site=CallSite(
-                    file_path=self.file_path,
-                    line=name_node.start_point.row + 1,
-                    col=name_node.start_point.column,
-                    end_line=node.end_point.row + 1,
-                    end_col=node.end_point.column,
-                    arg_count=sum(child.type != "comment" for child in arguments.named_children) if arguments else 0,
-                ),
-            )
-        )
+
+def _callee(call: Node) -> Node | None:
+    """The plain or member name a call or ``new`` expression calls; calling anything else records no edge.
+
+    The grammar reads ``await load<T>(x)`` as a call whose callee is ``await load``, so an awaited callee is unwrapped.
+    """
+    callee = call.child_by_field_name("constructor" if call.type == "new_expression" else "function")
+    if callee is not None and callee.type == "await_expression":
+        callee = next((child for child in callee.children if child.type in _CALLEES), None)
+    return callee if callee is not None and callee.type in _CALLEES else None
 
 
 def _called_name(callee: Node) -> Node:

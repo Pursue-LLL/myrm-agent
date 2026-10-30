@@ -15,7 +15,7 @@ from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
 from app.services.code_graph.models import INDEX_FORMAT_VERSION
 
-EXPECTED = (1, "4936c82dec98ca6ce686a9b4e396a848a21e46c49dec57c8934bc93331789c83")
+EXPECTED = (1, "86813c131c4eb026cfea1f6d830f390db5823ec1928ac48aeceacafb11c631c4")
 
 _PANEL_TSX = """import { useCallback, useEffect, useState } from "react";
 

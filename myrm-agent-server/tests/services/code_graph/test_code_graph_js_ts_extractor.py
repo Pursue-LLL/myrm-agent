@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
+from app.services.code_graph.js_ts_extractor import MAX_SCOPE_DEPTH, JsTsTreeSitterExtractor
 from app.services.code_graph.models import SymbolKind
 
 
@@ -302,15 +302,31 @@ def test_degenerate_sources_yield_only_the_module_symbol(source: str) -> None:
     assert extractor.calls == []
 
 
-def test_long_call_chains_and_deep_nesting_are_extracted_in_linear_time() -> None:
-    chain = "a" + "().b" * 20000 + "();"
-    nested = "".join(f"function f{i}() {{ " for i in range(3000)) + "g();" + "}" * 3000
+@pytest.mark.parametrize(
+    ("source", "call_count"),
+    [
+        # More links than the 32,767 matches a query can hold open: none may be dropped.
+        ("a" + "().b" * 40_000 + "();", 40_001),
+        ("f(g(h(" * 20_000 + "x" + ")))" * 20_000, 60_000),
+        ("(" * 150_000 + ")" * 150_000, 0),
+        ("{" * 300_000, 0),
+    ],
+    ids=["call-chain", "calls-in-arguments", "parentheses", "unclosed-braces"],
+)
+def test_deeply_nested_input_is_walked_in_linear_time(source: str, call_count: int) -> None:
     started = time.perf_counter()
 
-    chained = _extract("chain.ts", chain)
-    deep = _extract("deep.ts", nested)
+    extractor = _extract("deep.ts", source)
 
-    assert len(chained.calls) == 20001
-    assert len(deep.symbols) == 3001
-    # Linear in the chain length this takes ~0.3 s; a query that holds a match open for every link takes ~5 s.
-    assert time.perf_counter() - started < 3.0
+    assert len(extractor.calls) == call_count
+    # Takes ~0.5 to 1 s; a cost per node that grows with depth takes 20 to 100 s on these inputs.
+    assert time.perf_counter() - started < 15.0
+
+
+def test_definitions_nest_to_a_bounded_depth() -> None:
+    extractor = _extract("deep.ts", "function f() { " * 5_000 + "g();" + "}" * 5_000)
+
+    deepest = ".".join(["deep", *["f"] * MAX_SCOPE_DEPTH])
+    assert len(extractor.symbols) == 1 + MAX_SCOPE_DEPTH
+    assert max(len(s.qualified_name) for s in extractor.symbols) == len(deepest)
+    assert _calls(extractor) == [(deepest, "g")]
