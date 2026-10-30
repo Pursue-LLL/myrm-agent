@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from app.api.config.router import (
+from app.api.config.telegram_onboarding import (
     TelegramAssistantOnboardingRequest,
     _build_telegram_credentials,
     _resolve_telegram_proxy,

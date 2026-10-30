@@ -489,7 +489,7 @@ async def test_save_channel_credentials_rebuilds_multi_instance() -> None:
 
 @pytest.mark.asyncio
 async def test_save_channel_credentials_default_instance_hot_reloads() -> None:
-    """A default (non-instance) channel reloads via _try_hot_register_channel."""
+    """A default (non-instance) channel reloads via reload_channel_credentials."""
     from app.api.channels.instances import save_channel_credentials
     from app.services.config.service import ConfigService
 
@@ -509,7 +509,7 @@ async def test_save_channel_credentials_default_instance_hot_reloads() -> None:
 
         with (
             patch("app.core.channel_bridge.channel_gateway", gateway),
-            patch("app.api.config.router._try_hot_register_channel", new_callable=AsyncMock) as mock_hot,
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new_callable=AsyncMock) as mock_hot,
         ):
             await save_channel_credentials("feishu", {"appSecret": "rotated_default"})
 
@@ -546,7 +546,7 @@ async def test_save_channel_credentials_unregistered_channel_hot_registers() -> 
 
         with (
             patch("app.core.channel_bridge.channel_gateway", gateway),
-            patch("app.api.config.router._try_hot_register_channel", new_callable=AsyncMock) as mock_hot,
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new_callable=AsyncMock) as mock_hot,
         ):
             result = await save_channel_credentials(channel_name, {"appSecret": "rotated_first"})
 
@@ -658,7 +658,7 @@ async def test_save_channel_credentials_rebuild_swap_failure_keeps_credentials()
 @pytest.mark.asyncio
 async def test_hot_register_preserves_display_name() -> None:
     """Hot-reloading a default channel must keep the user-set display name."""
-    from app.api.config.router import _try_hot_register_channel
+    from app.services.channels.credential_reload import reload_channel_credentials
     from app.services.config.service import ConfigService
 
     await ConfigService().set(
@@ -687,7 +687,7 @@ async def test_hot_register_preserves_display_name() -> None:
             patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": "cli_hot"})),
             patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
         ):
-            await _try_hot_register_channel("feishuCredentials")
+            await reload_channel_credentials("feishuCredentials")
 
         assert replacement.display_name == "我的飞书"
         gateway.swap_channel.assert_awaited_once_with(replacement, existing)
@@ -699,7 +699,7 @@ async def test_hot_register_preserves_display_name() -> None:
 async def test_hot_register_empty_credentials_keeps_channel() -> None:
     """When no credentials resolve, the registered channel must stay as-is
     instead of being removed and never re-added."""
-    from app.api.config.router import _try_hot_register_channel
+    from app.services.channels.credential_reload import reload_channel_credentials
 
     gateway = MagicMock()
     existing = MagicMock()
@@ -713,7 +713,7 @@ async def test_hot_register_empty_credentials_keeps_channel() -> None:
         ),
         patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": ""})),
     ):
-        await _try_hot_register_channel("feishuCredentials")
+        await reload_channel_credentials("feishuCredentials")
 
     gateway.remove_channel.assert_not_called()
     gateway.add_channel.assert_not_called()
@@ -773,7 +773,7 @@ async def test_hot_register_swap_failure_propagates_exception() -> None:
     instead of silently leaving the channel in a half-removed state. The
     atomic restore (old instance back online) is owned by the gateway's
     ``swap_channel``."""
-    from app.api.config.router import _try_hot_register_channel
+    from app.services.channels.credential_reload import reload_channel_credentials
     from app.services.config.service import ConfigService
 
     await ConfigService().set(
@@ -803,7 +803,7 @@ async def test_hot_register_swap_failure_propagates_exception() -> None:
             patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
         ):
             with pytest.raises(ValueError, match="add failed"):
-                await _try_hot_register_channel("feishuCredentials")
+                await reload_channel_credentials("feishuCredentials")
 
         gateway.swap_channel.assert_awaited_once_with(replacement, existing)
     finally:

@@ -28,7 +28,7 @@ class TestSaveCredentialsToDb:
         mock_set = AsyncMock()
         with patch("app.services.config.service.ConfigService") as mock_cls:
             mock_cls.return_value.set = mock_set
-            with patch("app.api.config.router._try_hot_register_channel", new_callable=AsyncMock) as mock_hot:
+            with patch("app.services.channels.credential_reload.reload_channel_credentials", new_callable=AsyncMock) as mock_hot:
                 await _save_credentials_to_db(
                     {
                         "app_id": "cli_test",

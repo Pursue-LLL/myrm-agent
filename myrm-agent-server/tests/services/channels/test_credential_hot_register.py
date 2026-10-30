@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.api.config.router import _CREDENTIAL_KEY_TO_CHANNEL, _try_hot_register_channel
 from app.channels.providers.github.channel import GitHubChannel
 from app.channels.providers.onebot.channel import OneBotChannel
 from app.channels.providers.registry import get_channel_class_safe, registered_names
+from app.services.channels.credential_reload import CREDENTIAL_KEY_TO_CHANNEL, reload_channel_credentials
 
 
 def _channel_case(name: str) -> object:
@@ -31,7 +31,7 @@ def test_the_credential_key_a_channel_declares_is_hot_registered(channel_name: s
     if spec is None:
         pytest.skip(f"{channel_name} declares no credentials, so a save has nothing to apply")
 
-    assert _CREDENTIAL_KEY_TO_CHANNEL.get(spec.config_key) == channel_name
+    assert CREDENTIAL_KEY_TO_CHANNEL.get(spec.config_key) == channel_name
 
 
 @pytest.mark.asyncio
@@ -54,7 +54,7 @@ async def test_a_save_builds_the_channel_from_its_credentials_and_swaps_it_in(
         patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
         patch("app.core.channel_bridge.channel_gateway", gateway),
     ):
-        await _try_hot_register_channel(config_key)
+        await reload_channel_credentials(config_key)
 
     gateway.swap_channel.assert_awaited_once()
     registered, replaced = gateway.swap_channel.await_args.args

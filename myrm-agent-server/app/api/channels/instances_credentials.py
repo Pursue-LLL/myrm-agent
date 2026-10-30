@@ -85,20 +85,17 @@ async def save_channel_credentials(
     await ConfigService().set(config_key, merged, device_id="web")
 
     from app.core.channel_bridge import channel_gateway
+    from app.services.channels.credential_reload import reload_channel_credentials
 
     try:
         ch = channel_gateway.bus.get_channel(channel_name)
         if ch is None:
-            from app.api.config.router import _try_hot_register_channel
-
-            await _try_hot_register_channel(config_key)
+            await reload_channel_credentials(config_key)
             return {"status": "saved", "message": "Credentials saved successfully"}
 
         base_type = channel_gateway._resolve_channel_type(ch)
         if channel_name == base_type:
-            from app.api.config.router import _try_hot_register_channel
-
-            await _try_hot_register_channel(config_key)
+            await reload_channel_credentials(config_key)
             return {"status": "saved", "message": "Credentials saved successfully"}
 
         from app.core.channel_bridge.channel_factory import (

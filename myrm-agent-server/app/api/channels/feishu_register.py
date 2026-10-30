@@ -262,9 +262,9 @@ async def _save_credentials_to_db(
         await ConfigService().set("feishuCredentials", value, device_id="feishu-qr-register")
 
         logger.info("Feishu QR registration credentials saved to DB")
-        from app.api.config.router import _try_hot_register_channel
+        from app.services.channels.credential_reload import reload_channel_credentials
 
-        await _try_hot_register_channel("feishuCredentials")
+        await reload_channel_credentials("feishuCredentials")
         return None
     except Exception as exc:
         logger.error("Failed to save Feishu registration credentials: %s", exc)

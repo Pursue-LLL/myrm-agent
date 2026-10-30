@@ -14,7 +14,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.config.router import _telegram_verification_error
+from app.api.config.telegram_onboarding import _telegram_verification_error
 from app.channels.providers.telegram.api_core import TelegramApiError
 from app.database.connection import init_database
 from tests.support.minimal_app import build_minimal_app
@@ -51,7 +51,7 @@ def client() -> Iterator[TestClient]:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new=AsyncMock()),
             TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False) as test_client,
         ):
             yield test_client
@@ -123,7 +123,7 @@ def test_apply_telegram_onboarding_tells_a_refused_token_from_an_unreachable_bot
 ) -> None:
     _save_credentials(client, {"botToken": "old-token"})
     with (
-        patch("app.api.config.router._verify_telegram_token", new=AsyncMock(side_effect=failure)),
+        patch("app.api.config.telegram_onboarding._verify_telegram_token", new=AsyncMock(side_effect=failure)),
         patch("app.services.agent.agent_service.AgentService.create_agent", new=AsyncMock()) as create_agent_mock,
     ):
         response = _apply(client)
@@ -141,7 +141,7 @@ def test_an_unreachable_check_through_the_proxy_saved_earlier_is_reported_as_goi
     """The wizard never shows the saved proxy and a blank field keeps it, so only the server knows one was used."""
     _save_credentials(client, {"botToken": "old-token", "proxy": _SAVED_PROXY})
     verify_token = AsyncMock(side_effect=httpx.ConnectError("All connection attempts failed"))
-    with patch("app.api.config.router._verify_telegram_token", new=verify_token):
+    with patch("app.api.config.telegram_onboarding._verify_telegram_token", new=verify_token):
         response = _apply(client)
 
     assert response.status_code == 400
@@ -158,7 +158,7 @@ def test_apply_telegram_onboarding_keeps_the_saved_proxy_when_the_token_check_th
 ) -> None:
     _save_credentials(client, {"botToken": "old-token", "proxy": _SAVED_PROXY})
     verify_token = AsyncMock(side_effect=httpx.ConnectError("All connection attempts failed"))
-    with patch("app.api.config.router._verify_telegram_token", new=verify_token):
+    with patch("app.api.config.telegram_onboarding._verify_telegram_token", new=verify_token):
         response = _apply(client, proxy="http://127.0.0.1:8080")
 
     assert response.status_code == 400
@@ -174,7 +174,7 @@ def test_telegram_verification_failure_log_does_not_carry_the_bot_token(caplog: 
     token = "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ0123456789"
     failure = httpx.ConnectError(f"connection failed for https://api.telegram.org/bot{token}/getMe")
 
-    with caplog.at_level(logging.WARNING, logger="app.api.config.router"):
+    with caplog.at_level(logging.WARNING, logger="app.api.config.telegram_onboarding"):
         _telegram_verification_error(failure, None)
 
     assert _UNREACHABLE in caplog.text

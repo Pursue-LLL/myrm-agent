@@ -69,9 +69,12 @@ def test_apply_telegram_onboarding_success() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._verify_telegram_token", new=verify_token),
-            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
-            patch("app.api.config.router._wait_for_telegram_channel_state", new=AsyncMock(return_value=(True, "running"))),
+            patch("app.api.config.telegram_onboarding._verify_telegram_token", new=verify_token),
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new=AsyncMock()),
+            patch(
+                "app.api.config.telegram_onboarding._wait_for_telegram_channel_state",
+                new=AsyncMock(return_value=(True, "running")),
+            ),
             patch("app.core.channel_bridge.setup.refresh_reaction_policy", new=AsyncMock()),
             patch("app.core.channel_bridge.topic_config.SqlTopicManager.bind_topic", new=AsyncMock()),
             patch("app.services.agent.agent_service.AgentService.get_agents_by_name", new=AsyncMock(return_value=[])),
@@ -140,9 +143,12 @@ def test_apply_telegram_onboarding_checks_the_token_through_the_proxy_the_user_t
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._verify_telegram_token", new=verify_token),
-            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
-            patch("app.api.config.router._wait_for_telegram_channel_state", new=AsyncMock(return_value=(True, "running"))),
+            patch("app.api.config.telegram_onboarding._verify_telegram_token", new=verify_token),
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new=AsyncMock()),
+            patch(
+                "app.api.config.telegram_onboarding._wait_for_telegram_channel_state",
+                new=AsyncMock(return_value=(True, "running")),
+            ),
             patch("app.core.channel_bridge.setup.refresh_reaction_policy", new=AsyncMock()),
             patch("app.core.channel_bridge.topic_config.SqlTopicManager.bind_topic", new=AsyncMock()),
             patch("app.services.agent.agent_service.AgentService.get_agents_by_name", new=AsyncMock(return_value=[])),
@@ -178,7 +184,7 @@ def test_apply_telegram_onboarding_refuses_an_unusable_proxy_before_any_request(
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._verify_telegram_token", new=verify_token),
+            patch("app.api.config.telegram_onboarding._verify_telegram_token", new=verify_token),
             patch("app.services.agent.agent_service.AgentService.create_agent", new=AsyncMock()) as create_agent_mock,
             TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False) as client,
         ):
@@ -201,8 +207,8 @@ def test_apply_telegram_onboarding_rolls_back_on_failure() -> None:
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._verify_telegram_token", new=AsyncMock(return_value="myrm_bot")),
-            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
+            patch("app.api.config.telegram_onboarding._verify_telegram_token", new=AsyncMock(return_value="myrm_bot")),
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new=AsyncMock()),
             patch("app.core.channel_bridge.setup.refresh_reaction_policy", new=AsyncMock()),
             patch(
                 "app.core.channel_bridge.topic_config.SqlTopicManager.bind_topic",
@@ -268,9 +274,12 @@ def test_apply_telegram_onboarding_reuses_existing_general_agent_after_search_na
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._verify_telegram_token", new=AsyncMock(return_value="myrm_bot")),
-            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
-            patch("app.api.config.router._wait_for_telegram_channel_state", new=AsyncMock(return_value=(True, "running"))),
+            patch("app.api.config.telegram_onboarding._verify_telegram_token", new=AsyncMock(return_value="myrm_bot")),
+            patch("app.services.channels.credential_reload.reload_channel_credentials", new=AsyncMock()),
+            patch(
+                "app.api.config.telegram_onboarding._wait_for_telegram_channel_state",
+                new=AsyncMock(return_value=(True, "running")),
+            ),
             patch("app.core.channel_bridge.setup.refresh_reaction_policy", new=AsyncMock()),
             patch("app.core.channel_bridge.topic_config.SqlTopicManager.bind_topic", new=AsyncMock()),
             patch(
@@ -316,7 +325,7 @@ def test_apply_telegram_onboarding_reuses_existing_general_agent_after_search_na
 
 @pytest.mark.asyncio
 async def test_resolve_or_create_telegram_agent_avoids_duplicate_create_under_concurrency() -> None:
-    from app.api.config.router import (
+    from app.api.config.telegram_onboarding import (
         TelegramAssistantOnboardingRequest,
         _resolve_or_create_telegram_agent,
     )
@@ -370,17 +379,17 @@ async def test_resolve_or_create_telegram_agent_avoids_duplicate_create_under_co
 async def test_resolve_or_create_telegram_agent_returns_conflict_when_cross_process_lock_busy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import app.api.config.router as config_router
+    import app.api.config.telegram_onboarding as telegram_onboarding
 
-    request = config_router.TelegramAssistantOnboardingRequest(
+    request = telegram_onboarding.TelegramAssistantOnboardingRequest(
         botToken="1234567890:VALID_TOKEN",
         assistantName="Busy Assistant",
     )
-    lock_path = config_router._telegram_agent_cross_process_lock_path(request.assistant_name)
+    lock_path = telegram_onboarding._telegram_agent_cross_process_lock_path(request.assistant_name)
     busy_lock = FileLock(str(lock_path))
     busy_lock.acquire(timeout=0)
     monkeypatch.setattr(
-        config_router,
+        telegram_onboarding,
         "_TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC",
         0.0,
     )
@@ -391,7 +400,7 @@ async def test_resolve_or_create_telegram_agent_returns_conflict_when_cross_proc
             new=AsyncMock(return_value=[]),
         ) as get_agents_mock:
             with pytest.raises(HTTPException) as exc_info:
-                await config_router._resolve_or_create_telegram_agent(request)
+                await telegram_onboarding._resolve_or_create_telegram_agent(request)
     finally:
         if busy_lock.is_locked:
             busy_lock.release()
