@@ -9,6 +9,7 @@ returns the text (or JSON) the model sees; failures come back as plain messages.
 - toolkits.cron.cron_agent_params::_MIN_INTERVAL_MINUTES, _MIN_INTERVAL_MS, _build_active_hours, _build_monitor_config, _build_schedule, _build_trigger_config, _parse_context_from, _parse_expires_after, _parse_session_mode (POS: cron_manage_tool 参数解析与校验)
 - toolkits.cron.engine.name_generator::generate_job_name (POS: 任务名生成)
 - toolkits.cron.engine.parser::describe_schedule (POS: cron 表达式解析与下次运行时间计算)
+- toolkits.cron.job_listing::format_job_line (POS: list 动作的单行任务摘要)
 - toolkits.cron.manager::CronManager (POS: cron CRUD 编排层)
 - toolkits.cron.types::CronJobPatch, DeliveryConfig, JobType, Schedule, ScheduleKind, SessionTarget (POS: cron 数据模型)
 
@@ -45,6 +46,7 @@ from myrm_agent_harness.toolkits.cron.cron_agent_params import (
 )
 from myrm_agent_harness.toolkits.cron.engine.name_generator import generate_job_name
 from myrm_agent_harness.toolkits.cron.engine.parser import describe_schedule
+from myrm_agent_harness.toolkits.cron.job_listing import format_job_line
 from myrm_agent_harness.toolkits.cron.types import (
     CronJobPatch,
     DeliveryConfig,
@@ -267,20 +269,7 @@ async def _do_list(mgr: CronManager, user_id: str, name_filter: str) -> str:
         return "No scheduled tasks."
 
     lines: list[str] = [f"{len(jobs)} task(s):\n"]
-    for j in jobs:
-        next_run = j.next_run_at.strftime("%m-%d %H:%M") if j.next_run_at else "—"
-        icon = ">" if j.status.value == "active" else "||"
-        type_tag = {
-            JobType.SHELL: "[shell]",
-            JobType.REMINDER: "[reminder]",
-        }.get(j.job_type, "")
-        model_tag = f" ({j.model})" if j.model else ""
-        fires_tag = f" [{j.fire_count}/{j.max_fires}]" if j.max_fires else ""
-        ctx_tag = f" ←[{','.join(j.context_from)}]" if j.context_from else ""
-        mon_tag = f" [Δ{j.monitor_config.monitor_type}]" if j.monitor_config and j.monitor_config.enabled else ""
-        lines.append(
-            f"  {icon} [{j.id}] {j.name}{type_tag}{model_tag}{fires_tag}{ctx_tag}{mon_tag} | {j.status.value} | next: {next_run}"
-        )
+    lines.extend(format_job_line(j) for j in jobs)
     return "\n".join(lines)
 
 
