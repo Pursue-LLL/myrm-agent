@@ -4,8 +4,9 @@
 - myrm_agent_harness.toolkits.filesystem_suggest.indexer::WorkspacePathIndexer (POS: workspace file lister)
 
 [OUTPUT]
-- pytest suite covering a subdirectory workspace, directory names git could read as pathspec magic, siblings sharing a
-  name prefix, gitignored files and nested repositories.
+- pytest suite covering a subdirectory workspace, directory names git could read as pathspec magic, sibling directories
+  that share the workspace name as a prefix (`plain2`) or match it as a glob (`a1` for `a[1]`), gitignored files and
+  nested repositories.
 
 [POS]
 myrm-agent-harness/tests/toolkits/filesystem_suggest/test_indexer_git_subtree.py
@@ -37,7 +38,7 @@ def repo(tmp_path: Path) -> Path:
     top.mkdir()
     _git(top, "init", "-q")
     (top / ".gitignore").write_text("*.log\n", encoding="utf-8")
-    for name in [*_DIRECTORY_NAMES, "a1"]:
+    for name in [*_DIRECTORY_NAMES, "a1", "plain2"]:
         directory = top / name
         (directory / "sub").mkdir(parents=True)
         (directory / "tracked.py").write_text("x", encoding="utf-8")
