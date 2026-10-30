@@ -44,7 +44,11 @@ const UNREACHABLE_CODE = 'TELEGRAM_UNREACHABLE';
 const PROXY_REJECTED_CODE = 'TELEGRAM_PROXY_REJECTED';
 
 type VerificationErrorKey =
-  'tokenRejectedError' | 'telegramUnreachableError' | 'telegramUnreachableSandboxError' | 'proxyRejectedError';
+  | 'tokenRejectedError'
+  | 'telegramUnreachableError'
+  | 'telegramUnreachableViaProxyError'
+  | 'telegramUnreachableSandboxError'
+  | 'proxyRejectedError';
 
 /** The machine-readable code the server attaches to a classified onboarding failure. */
 function failureCode(error: unknown): string | null {
@@ -55,16 +59,25 @@ function failureCode(error: unknown): string | null {
   return typeof code === 'string' ? code : null;
 }
 
+/** Whether the server's check already went through a proxy, typed or saved earlier, which only the server knows. */
+function failedViaProxy(error: unknown): boolean {
+  return error instanceof ApiError && error.data?.viaProxy === true;
+}
+
 /**
  * Maps the server's failure code to its localized message; each calls for a different user action.
- * The proxy input the unreachable message points to is not offered in sandbox, so that mode gets its own wording.
+ * The proxy input the unreachable message points to is not offered in sandbox, so that mode gets its own wording,
+ * and once a proxy was already in play the advice is about that proxy rather than about adding one.
  */
-function verificationErrorKey(code: string | null, sandbox: boolean): VerificationErrorKey | null {
+function verificationErrorKey(code: string | null, sandbox: boolean, viaProxy: boolean): VerificationErrorKey | null {
   switch (code) {
     case TOKEN_REJECTED_CODE:
       return 'tokenRejectedError';
     case UNREACHABLE_CODE:
-      return sandbox ? 'telegramUnreachableSandboxError' : 'telegramUnreachableError';
+      if (sandbox) {
+        return 'telegramUnreachableSandboxError';
+      }
+      return viaProxy ? 'telegramUnreachableViaProxyError' : 'telegramUnreachableError';
     case PROXY_REJECTED_CODE:
       return 'proxyRejectedError';
     default:
@@ -172,7 +185,7 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
       if (code === UNREACHABLE_CODE && !sandbox) {
         setProxyOffered(true);
       }
-      const messageKey = verificationErrorKey(code, sandbox);
+      const messageKey = verificationErrorKey(code, sandbox, failedViaProxy(submitError));
       const message = messageKey ? t(messageKey) : parseErrorMessage(submitError, t('setupFailed'));
       setError(message);
       toast.error(messageKey ? message : t('setupFailedToast'));
@@ -258,10 +271,7 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {proxyOffered ? (
-        <div
-          className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-4"
-          data-testid="telegram-onboarding-proxy"
-        >
+        <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
           <Label htmlFor="onboarding-telegram-proxy">{tChannels('telegramProxy')}</Label>
           <Input
             id="onboarding-telegram-proxy"

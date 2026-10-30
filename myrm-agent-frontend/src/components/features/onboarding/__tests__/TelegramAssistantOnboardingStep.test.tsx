@@ -261,10 +261,10 @@ describe('TelegramAssistantOnboardingStep', () => {
       status: 'running',
     };
 
-    function rejectOnce(detailCode: string) {
+    function rejectOnce(detailCode: string, extra: Record<string, unknown> = {}) {
       mockApplyTelegramAssistantOnboarding.mockRejectedValueOnce(
         Object.assign(new ApiError('English detail from the server', 400, [], undefined, detailCode), {
-          data: { code: detailCode },
+          data: { code: detailCode, ...extra },
         }),
       );
     }
@@ -356,6 +356,39 @@ describe('TelegramAssistantOnboardingStep', () => {
 
       await screen.findByText('telegramUnreachableSandboxError');
       expect(screen.queryByLabelText('telegramProxy')).not.toBeInTheDocument();
+    });
+
+    it('stops telling the user to enter a proxy once the failed attempt already went through one', async () => {
+      rejectOnce('TELEGRAM_UNREACHABLE', { viaProxy: true });
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+
+      expect(await screen.findByText('telegramUnreachableViaProxyError')).toBeInTheDocument();
+      expect(screen.queryByText('telegramUnreachableError')).not.toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith('telegramUnreachableViaProxyError');
+      expect(screen.getByLabelText('telegramProxy')).toBeInTheDocument();
+    });
+
+    it('keeps asking for a proxy when the failed attempt used none', async () => {
+      rejectOnce('TELEGRAM_UNREACHABLE', { viaProxy: false });
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+
+      expect(await screen.findByText('telegramUnreachableError')).toBeInTheDocument();
+      expect(screen.queryByText('telegramUnreachableViaProxyError')).not.toBeInTheDocument();
+    });
+
+    it('keeps the sandbox wording even if a proxy flag comes back, since the sandbox has no proxy to blame', async () => {
+      deployMode.sandbox = true;
+      rejectOnce('TELEGRAM_UNREACHABLE', { viaProxy: true });
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+
+      expect(await screen.findByText('telegramUnreachableSandboxError')).toBeInTheDocument();
+      expect(screen.queryByText('telegramUnreachableViaProxyError')).not.toBeInTheDocument();
     });
 
     it('explains a refused proxy address in the user language', async () => {

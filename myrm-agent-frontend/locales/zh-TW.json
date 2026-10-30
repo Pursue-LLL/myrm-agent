@@ -12318,6 +12318,7 @@
         "inProgressFriendlyError": "配置仍在處理中，請稍後再試。",
         "tokenRejectedError": "Telegram 不接受這個機器人令牌，請從 @BotFather 重新複製完整的令牌。",
         "telegramUnreachableError": "目前裝置無法連線到 Telegram。請檢查網路，或在下方填寫代理後重試，也可以先跳過。",
+        "telegramUnreachableViaProxyError": "透過代理仍無法連線到 Telegram。請確認代理已啟動，或在下方改填其他代理位址後重試，也可以先跳過。",
         "telegramUnreachableSandboxError": "目前無法連線到 Telegram。請稍後重試，或先跳過。",
         "proxyRejectedError": "該代理位址無法使用。請填寫本機或區域網路內代理的位址，例如 socks5://127.0.0.1:1080。",
         "setupFailed": "Telegram 助手配置失敗。",

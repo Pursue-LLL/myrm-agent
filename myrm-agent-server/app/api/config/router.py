@@ -294,20 +294,24 @@ async def _verify_telegram_token(bot_token: str, proxy: str | None) -> str:
     return username or "unknown"
 
 
-def _telegram_verification_error(exc: Exception) -> HTTPException:
-    """Tell a token Telegram refused from a Bot API this machine could not reach: the next step differs."""
+def _telegram_verification_error(exc: Exception, proxy: str | None) -> HTTPException:
+    """Tell a token Telegram refused from a Bot API this machine could not reach: the next step differs.
+
+    An unreachable Bot API also says whether the check went through a proxy. The wizard never shows a saved proxy
+    and a blank field keeps it, so only ``proxy`` (typed or saved) knows whether asking for one still makes sense.
+    """
     from myrm_agent_harness.api import redact_sensitive_text
 
     from app.channels.providers.telegram.api_core import TelegramFailureReason, getme_failure_reason
 
     reason = getme_failure_reason(exc)
-    message = (
-        "Telegram rejected the bot token"
-        if reason is TelegramFailureReason.TOKEN_REJECTED
-        else "Telegram Bot API could not be reached"
-    )
     logger.warning("Telegram onboarding token check failed (%s): %s", reason.value, redact_sensitive_text(str(exc)))
-    return HTTPException(status_code=400, detail={"code": reason.value, "message": message})
+    if reason is TelegramFailureReason.TOKEN_REJECTED:
+        return HTTPException(status_code=400, detail={"code": reason.value, "message": "Telegram rejected the bot token"})
+    return HTTPException(
+        status_code=400,
+        detail={"code": reason.value, "message": "Telegram Bot API could not be reached", "viaProxy": proxy is not None},
+    )
 
 
 def _is_channel_bindable_agent(agent_profile: object) -> bool:
@@ -743,7 +747,7 @@ async def apply_telegram_assistant_onboarding(
     try:
         bot_username = await _verify_telegram_token(bot_token, proxy)
     except Exception as exc:
-        raise _telegram_verification_error(exc) from exc
+        raise _telegram_verification_error(exc, proxy) from exc
 
     created_agent_id: str | None = None
     try:

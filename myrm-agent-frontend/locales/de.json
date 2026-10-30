@@ -12318,6 +12318,7 @@
         "inProgressFriendlyError": "Die Einrichtung ist noch im Gange. Bitte warten Sie ein paar Sekunden und versuchen Sie es erneut.",
         "tokenRejectedError": "Telegram hat diesen Bot-Token nicht akzeptiert. Kopieren Sie den vollständigen Token erneut von @BotFather.",
         "telegramUnreachableError": "Telegram ist von diesem Gerät aus nicht erreichbar. Prüfen Sie Ihr Netzwerk oder tragen Sie unten einen Proxy ein und versuchen Sie es erneut. Sie können den Schritt auch überspringen.",
+        "telegramUnreachableViaProxyError": "Telegram ist auch über den Proxy nicht erreichbar. Prüfen Sie, ob der Proxy läuft, oder tragen Sie unten eine andere Proxy-Adresse ein und versuchen Sie es erneut. Sie können den Schritt auch überspringen.",
         "telegramUnreachableSandboxError": "Telegram ist derzeit nicht erreichbar. Versuchen Sie es gleich noch einmal oder überspringen Sie den Schritt.",
         "proxyRejectedError": "Diese Proxy-Adresse kann nicht verwendet werden. Geben Sie die Adresse eines Proxys auf diesem Computer oder in Ihrem lokalen Netzwerk an, zum Beispiel socks5://127.0.0.1:1080.",
         "setupFailed": "Der Telegram-Assistent konnte nicht eingerichtet werden.",
