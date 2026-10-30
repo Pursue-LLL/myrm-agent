@@ -12,6 +12,23 @@ describe('resolveIssueKey', () => {
     expect(resolveIssueKey(message, ISSUE_MESSAGE_PATTERNS)).toEqual({ key, rest: null });
   });
 
+  it.each([
+    ['Telegram rejected the bot token.', 'tokenRejected'],
+    ['Telegram Bot API could not be reached.', 'apiUnreachable'],
+  ])('tells a refused token from an unreachable Bot API: %j maps to %s', (message, key) => {
+    expect(resolveIssueKey(message, ISSUE_MESSAGE_PATTERNS)).toEqual({ key, rest: null });
+  });
+
+  it.each([
+    ['Copy the token from BotFather again and save it in Settings → Channels → Telegram.', 'fixReenterBotToken'],
+    [
+      'Check the network and the proxy saved for Telegram. The connection is retried automatically.',
+      'fixCheckNetworkAndProxy',
+    ],
+  ])('gives the matching fix hint its own text: %j maps to %s', (fix, key) => {
+    expect(resolveIssueKey(fix, ISSUE_FIX_PATTERNS)).toEqual({ key, rest: null });
+  });
+
   it('gives a webhook setup failure its own text rather than the generic degraded one', () => {
     expect(resolveIssueKey('Webhook setup failed. Channel running in degraded mode.', ISSUE_MESSAGE_PATTERNS)).toEqual({
       key: 'webhookFailed',

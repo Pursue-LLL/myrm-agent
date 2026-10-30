@@ -62,7 +62,7 @@ from app.channels.types.notification import (
 )
 
 from .api import TelegramClient
-from .api_core import TelegramApiError
+from .api_core import TelegramApiError, TelegramFailureReason, getme_failure_reason
 from .constants import TELEGRAM_REACTION_EMOJI
 from .diagnostics import TelegramDiagnosticsMixin
 from .helpers import (
@@ -191,6 +191,7 @@ class TelegramChannel(
         self._token = bot_token
         self._client = TelegramClient(bot_token, proxy=proxy)
         self._poll_task: asyncio.Task[None] | None = None
+        self._start_failure: TelegramFailureReason | None = None
         self._offset: int = 0
         self._bot_username: str | None = None
         self._tg_bot_id: int | None = None
@@ -267,6 +268,7 @@ class TelegramChannel(
         if not self._token:
             logger.info("Telegram bot token not configured; channel idle")
             return
+        self._start_failure = None
         try:
             me = await self._client.get_me()
             self._bot_username = str(me.get("username", ""))
@@ -280,6 +282,7 @@ class TelegramChannel(
             )
         except Exception as exc:
             logger.warning("TelegramChannel: token verification failed: %s", self._redact(str(exc)))
+            self._start_failure = getme_failure_reason(exc)
             self._status = ChannelStatus.ERROR
             return
 

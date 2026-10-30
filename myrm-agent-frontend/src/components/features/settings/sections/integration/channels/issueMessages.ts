@@ -21,6 +21,8 @@ export interface ResolvedIssueKey {
 export const ISSUE_MESSAGE_PATTERNS: IssuePattern[] = [
   [/not configured/i, 'notConfigured'],
   [/missing (configuration|credentials)/i, 'missingCredentials'],
+  [/rejected the bot token/i, 'tokenRejected'],
+  [/bot api could not be reached/i, 'apiUnreachable'],
   [/authentication failed/i, 'authFailed'],
   [/webhook.*(setup|set up) failed/i, 'webhookFailed'],
   [/degraded (state|mode)/i, 'degradedMode'],
@@ -40,6 +42,8 @@ export const ISSUE_MESSAGE_PATTERNS: IssuePattern[] = [
 
 export const ISSUE_FIX_PATTERNS: IssuePattern[] = [
   [/configure in settings/i, 'fixConfigureInSettings'],
+  [/copy the token from botfather/i, 'fixReenterBotToken'],
+  [/check the network and the proxy/i, 'fixCheckNetworkAndProxy'],
   [/verify.*valid.*permissions/i, 'fixCheckCredentials'],
   [/verify.*(token|password|secret)/i, 'fixVerifyToken'],
   [/scan QR code to login/i, 'fixScanQrCode'],
