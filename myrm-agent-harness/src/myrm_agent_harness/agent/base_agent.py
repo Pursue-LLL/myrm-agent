@@ -19,8 +19,7 @@ Base Agent — lightweight agent with streaming, token tracking, and artifacts.
 
 from __future__ import annotations
 
-import copy
-from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 from langchain.agents import create_agent
@@ -222,10 +221,8 @@ class BaseAgent(BaseAgentModesMixin):
         set_active_tool_registry(self._tool_registry)
         set_active_resolved_tools(self._cached_tools)
 
-        llm = self._apply_parallel_tool_calls(self.llm)
-
         self._agent = create_agent(
-            model=llm,
+            model=self.llm,
             tools=self._cached_tools,
             system_prompt=self._cached_system_prompt,
             middleware=cast(list["AgentMiddleware[Any, Any]"], self._cached_middlewares),
@@ -241,11 +238,11 @@ class BaseAgent(BaseAgentModesMixin):
             schedule_init_preheat,
         )
 
-        model_name = getattr(llm, "model_name", "") or getattr(llm, "model", "") or ""
-        schedule_init_preheat(llm, self._cached_system_prompt, model_name)
+        model_name = getattr(self.llm, "model_name", "") or getattr(self.llm, "model", "") or ""
+        schedule_init_preheat(self.llm, self._cached_system_prompt, model_name)
 
         if self._cached_system_prompt and needs_explicit_preheat(model_name):
-            self._cache_keepalive = CacheKeepAliveManager(llm, self._cached_system_prompt, model_name)
+            self._cache_keepalive = CacheKeepAliveManager(self.llm, self._cached_system_prompt, model_name)
             self._cache_keepalive.start()
 
     def _rebuild_agent_with_llm(self, new_llm: BaseChatModel) -> CompiledStateGraph[Any, Any, Any, Any]:
@@ -301,33 +298,14 @@ class BaseAgent(BaseAgentModesMixin):
         # LifecycleManager.initialize_tools() is idempotent (skips already-initialized tools)
         self._tools_initialized = False
 
-        llm = self._apply_parallel_tool_calls(self.llm)
         self._agent = create_agent(
-            model=llm,
+            model=self.llm,
             tools=self._cached_tools,
             system_prompt=self._cached_system_prompt,
             middleware=cast(list["AgentMiddleware[Any, Any]"], self._cached_middlewares),
             context_schema=self.context_schema,
             checkpointer=self.checkpointer,
         )
-
-    def _apply_parallel_tool_calls(self, llm: BaseChatModel) -> BaseChatModel:
-        """Inject parallel_tool_calls into bind_tools if configured."""
-        if self.config.parallel_tool_calls is None:
-            return llm
-
-        original_bind_tools = llm.bind_tools
-        parallel = self.config.parallel_tool_calls
-
-        def patched_bind_tools(tools: Sequence[dict[str, Any] | type | BaseTool | Any], **kwargs: Any) -> Any:
-            kwargs.setdefault("parallel_tool_calls", parallel)
-            return original_bind_tools(tools, **kwargs)
-
-        wrapped = copy.copy(llm)
-        # Pydantic models reject __setattr__ for non-field names;
-        # bypass via object.__setattr__ to patch the method.
-        object.__setattr__(wrapped, "bind_tools", patched_bind_tools)
-        return wrapped
 
     @staticmethod
     def _init_usage_ledger(context: dict[str, object] | None) -> None:

@@ -24,6 +24,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `goal_focus_middleware.py` | Core | ACTIVE goal objective injection into last HumanMessage. | ✅ |
 | `moa_advisor_middleware.py` | Core | Agent-loop MoA advisor overlay — ref fan-out, cache-safe transient prompt tail injection with KV-cache preservation, skip SSE for budget pressure and insufficient refs (`moa_overlay_skipped`), supports injected `privacy_redactor` for reference PII/secret scrubbing. | ✅ |
 | `model_call_cancel.py` | Core | Outermost model-call wrapper (first in `build_middlewares`): a Stop while the request is in flight aborts it within one poll interval (`run_until_cancelled`) and raises `OperationCancelledError`, which the stream executor leaves as a Stop, not as a model failure. | ✅ |
+| `parallel_tool_calls.py` | Core | `ParallelToolCallsMiddleware`: when `EngineParams.enable_parallel_tool_calls` is set, every model call that offers tools carries `parallel_tool_calls` in `ModelRequest.model_settings` (a setting the request already carries is kept; a call without tools gets none); wired innermost of the model-call wrappers, so a failover rebuild of the graph applies it to the new model too. | ✅ |
 | `rate_limit.py` | Core | Proactive provider 429 throttling. | ✅ |
 | `replan_middleware.py` | Core | Dynamic replan loop on tool errors. | ✅ |
 | `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before a model call when the history does not carry it yet (marker dedup); returns only the new message. | ✅ |

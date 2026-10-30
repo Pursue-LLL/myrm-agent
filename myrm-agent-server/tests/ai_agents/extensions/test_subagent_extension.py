@@ -40,7 +40,6 @@ def _make_bare_agent() -> BaseAgent:
     agent.user_tools = []
     agent.context_schema = None
     agent.config = MagicMock()
-    agent.config.parallel_tool_calls = None
     agent.on_artifacts_ready = None
     agent.checkpointer = None
     agent.event_log_backend = None

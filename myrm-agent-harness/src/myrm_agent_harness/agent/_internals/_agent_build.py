@@ -33,6 +33,7 @@ from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import 
     ToolConflictGateMiddleware,
 )
 from myrm_agent_harness.agent.middlewares.model_call_cancel import ModelCallCancelMiddleware
+from myrm_agent_harness.agent.middlewares.parallel_tool_calls import ParallelToolCallsMiddleware
 from myrm_agent_harness.agent.middlewares.security.security_boundary_middleware import (
     SecurityBoundaryMiddleware,
 )
@@ -77,7 +78,7 @@ def build_middlewares(
     The ordering matters: model-call-cancel -> dedup -> dangling -> subagent-limit -> conflict-gate ->
     interceptor -> approval -> approval-evaluation -> clarification-guard -> completion -> progress ->
     goal-focus -> replan -> call-limits -> budget -> security -> user -> completion-directive ->
-    skill-attenuation -> json-args -> debug.
+    skill-attenuation -> json-args -> parallel-tool-calls (only when the engine sets it) -> debug.
     The first middleware wraps every later model-call wrapper, so model-call-cancel sits first to cut a model request
     that is still in flight, retries and backoff waits of the wrappers inside it included, the moment the run is stopped.
     LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
@@ -90,7 +91,8 @@ def build_middlewares(
     the calls it must not overlap. SkillAttenuationMiddleware resolves dynamic tools in its awrap_tool_call,
     and the json-args middleware sits behind it so the tool it reads the schema of is the tool that will
     run; the completion directive sits innermost of the middlewares that rewrite the request, so the others
-    append to the user's own message.
+    append to the user's own message. The parallel-tool-calls setting goes on last of the model-call
+    wrappers, so it is judged on the tool list the model is bound to.
     """
     from myrm_agent_harness.agent.middlewares.approval.guidance_delivery import (
         approval_guidance_delivery,
@@ -176,6 +178,8 @@ def build_middlewares(
     middlewares.append(CompletionDirectiveMiddleware())
     middlewares.append(SkillAttenuationMiddleware(registry))
     middlewares.append(stringified_json_args_middleware)
+    if params.enable_parallel_tool_calls is not None:
+        middlewares.append(ParallelToolCallsMiddleware(params.enable_parallel_tool_calls))
     middlewares.append(debug_logger_middleware)
 
     return middlewares

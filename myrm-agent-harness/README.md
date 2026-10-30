@@ -268,9 +268,11 @@ agent = await create_skill_agent(spec, llm_config=LLMConfig(model="gpt-4", api_k
 # 显式禁用并行工具调用：engine_params={"enable_parallel_tool_calls": False}
 ```
 
-- `True`：多个独立工具调用可并行执行（降低延迟）
-- `False`：工具串行执行
+- `True`：允许模型在一轮里发出多个独立工具调用（降低延迟）
+- `False`：模型每轮至多发出一个工具调用
 - 未设置 / `None`（默认）：使用 LLM 提供商的默认值
+
+该设定随每次带工具的模型调用发给提供商（`parallel_tool_calls`）；是否并发执行同一轮的多个调用，由工具冲突闸门按工具的并发安全性决定，与此开关无关。
 
 ### 直接使用 SkillAgent（完全控制）
 

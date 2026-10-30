@@ -5,7 +5,7 @@
 - agent.middlewares._session_context (POS: the per-run session context the stack reads)
 
 [OUTPUT]
-- ScriptedModel: answers from a script and records what each call was sent
+- ScriptedModel: answers from a script and records what each call was sent and the keyword arguments of each tool binding
 - shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools
 - shipped_session: the session context of a run that may use tools without asking, with its own call-frequency window
 - yolo_config: the security config of such a run
@@ -48,16 +48,19 @@ from myrm_agent_harness.core.security.guards.privacy_tracker import reset_privac
 
 
 class ScriptedModel(BaseChatModel):
-    """Answers from a script and records the messages each call was sent, as ``(type, text)`` pairs."""
+    """Answers from a script; records the messages each call was sent, as ``(type, text)`` pairs, and the keyword
+    arguments each ``bind_tools`` got."""
 
     script: list[AIMessage]
     calls: list[list[tuple[str, str]]] = Field(default_factory=list)
+    bindings: list[dict[str, object]] = Field(default_factory=list)
 
     @property
     def _llm_type(self) -> str:
         return "scripted"
 
     def bind_tools(self, tools: object, **kwargs: object) -> ScriptedModel:
+        self.bindings.append(dict(kwargs))
         return self
 
     def _generate(

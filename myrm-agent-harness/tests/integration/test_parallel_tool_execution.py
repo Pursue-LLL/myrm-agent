@@ -2,7 +2,7 @@
 
 Validates the concurrency controls around tool calls:
 1. concurrency_limiter: subagent spawn respects per-type semaphore limits
-2. _apply_parallel_tool_calls: monkey-patch injects parallel_tool_calls
+2. ParallelToolCallsMiddleware: the engine's switch reaches the model's tool binding
 3. Edge cases: missing args, Command returns, handler exceptions
 
 How the calls of one turn share or exclude each other is pinned in ``test_tool_conflict_gate`` and, on the graph a
@@ -195,82 +195,54 @@ class TestConcurrencyLimiterEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# _apply_parallel_tool_calls monkey-patch
+# ParallelToolCallsMiddleware with a real ChatLiteLLM
 # ---------------------------------------------------------------------------
 
 
-class TestApplyParallelToolCalls:
-    """Test _apply_parallel_tool_calls with real ChatLiteLLM instances."""
+class TestParallelToolCallsReachChatLiteLLM:
+    """The setting the middleware puts on a model request is what ``ChatLiteLLM.bind_tools`` binds."""
 
-    def _get_method(self):
-        from myrm_agent_harness.agent.base_agent import BaseAgent
+    @staticmethod
+    async def _bound(parallel: bool, model_settings: dict[str, object] | None = None):
+        from langchain.agents.middleware import ModelRequest, ModelResponse
+        from langchain_core.messages import AIMessage
+        from langchain_core.tools import tool
 
-        return BaseAgent._apply_parallel_tool_calls
-
-    def _make_real_llm(self):
+        from myrm_agent_harness.agent.middlewares.parallel_tool_calls import ParallelToolCallsMiddleware
         from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
 
-        return ChatLiteLLM(model="test-model", api_key="test-key")
+        @tool
+        def probe() -> str:
+            """A test tool."""
+            return "ok"
 
-    def _make_agent_stub(self, parallel_val: bool | None):
-        """Create a minimal object with config.parallel_tool_calls."""
-        from dataclasses import dataclass
+        bound = []
 
-        @dataclass
-        class StubConfig:
-            parallel_tool_calls: bool | None
+        async def handler(request: ModelRequest) -> ModelResponse:
+            # What langchain's agent factory does with the request it is handed.
+            bound.append(
+                request.model.bind_tools(request.tools, tool_choice=request.tool_choice, **request.model_settings)
+            )
+            return ModelResponse(result=[AIMessage(content="")])
 
-        class Stub:
-            config = StubConfig(parallel_tool_calls=parallel_val)
+        request = ModelRequest(
+            model=ChatLiteLLM(model="test-model", api_key="test-key"),
+            messages=[],
+            tools=[probe],
+            model_settings=model_settings,
+        )
+        await ParallelToolCallsMiddleware(parallel).awrap_model_call(request, handler)
+        return bound[0]
 
-        return Stub()
+    @pytest.mark.parametrize("parallel", [True, False])
+    async def test_the_setting_is_bound_to_the_model(self, parallel: bool) -> None:
+        bound = await self._bound(parallel)
 
-    def _dummy_tool_schema(self) -> dict:
-        return {
-            "type": "function",
-            "function": {
-                "name": "test_tool",
-                "description": "A test tool",
-                "parameters": {"type": "object", "properties": {}},
-            },
-        }
+        assert bound.kwargs.get("parallel_tool_calls") is parallel
 
-    def test_none_config_returns_original_llm(self) -> None:
-        method = self._get_method()
-        stub = self._make_agent_stub(None)
-        llm = self._make_real_llm()
+    async def test_a_setting_the_request_carries_is_not_overridden(self) -> None:
+        bound = await self._bound(True, {"parallel_tool_calls": False})
 
-        result = method(stub, llm)
-        assert result is llm
-
-    def test_true_config_injects_parallel_into_bind(self) -> None:
-        method = self._get_method()
-        stub = self._make_agent_stub(True)
-        llm = self._make_real_llm()
-
-        patched = method(stub, llm)
-        assert patched is not llm
-
-        bound = patched.bind_tools([self._dummy_tool_schema()])
-        assert bound.kwargs.get("parallel_tool_calls") is True
-
-    def test_false_config_injects_parallel_into_bind(self) -> None:
-        method = self._get_method()
-        stub = self._make_agent_stub(False)
-        llm = self._make_real_llm()
-
-        patched = method(stub, llm)
-        bound = patched.bind_tools([self._dummy_tool_schema()])
-        assert bound.kwargs.get("parallel_tool_calls") is False
-
-    def test_existing_parallel_kwarg_not_overridden(self) -> None:
-        """setdefault should not override caller's explicit parallel_tool_calls."""
-        method = self._get_method()
-        stub = self._make_agent_stub(True)
-        llm = self._make_real_llm()
-
-        patched = method(stub, llm)
-        bound = patched.bind_tools([self._dummy_tool_schema()], parallel_tool_calls=False)
         assert bound.kwargs.get("parallel_tool_calls") is False
 
 

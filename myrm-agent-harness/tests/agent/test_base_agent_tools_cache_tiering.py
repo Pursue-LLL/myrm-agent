@@ -31,7 +31,6 @@ def mock_agent():
     # Mock LLM and config
     agent.llm = MagicMock()
     agent.config = MagicMock()
-    agent.config.parallel_tool_calls = False
     agent.checkpointer = None
     agent.context_schema = None
     agent._cached_system_prompt = "system"

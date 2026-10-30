@@ -15,7 +15,7 @@
 - QuoteAttachment: 划词引用附件（source_message_id, quoted_text），通过 HumanMessage.additional_kwargs 传递给 inject_ephemeral_quote()
 - WorkspaceBinding: Agent 运行工作区绑定配置（mode, root_path, chat_id, task_id）
 - AgentRuntimeSpec: Agent 运行时规范（agent_id, name, system_prompt, allowed_tools, skill_ids 等），Server 层编译、Harness 层执行
-- AgentRuntimeConfig: Agent 运行时配置（recursion_limit, timeout_seconds, parallel_tool_calls, collect_artifacts, security_config）
+- AgentRuntimeConfig: Agent 运行时配置（recursion_limit, timeout_seconds, collect_artifacts, security_config）
 
 [POS]
 Agent core runtime type definitions. Defines completion status, run statistics, quote attachments, workspace bindings, and runtime specs.
@@ -189,6 +189,8 @@ class EngineParams:
     enable_context_compression: bool = field(default=True)
     enable_active_tool_prune: bool = field(default=True)
     active_prune_threshold_tokens: int = field(default=2048)
+    # Sent to the provider as ``parallel_tool_calls`` with every model call that offers tools; ``None`` leaves the
+    # provider's default.
     enable_parallel_tool_calls: bool | None = field(default=None)
     timeout_seconds: int | None = field(default=None)
 
@@ -201,7 +203,6 @@ class AgentRuntimeConfig:
     # graph's own step limit to the middleware chain it was built with.
     recursion_limit: int = field(default=50)
     timeout_seconds: int | None = field(default=None)
-    parallel_tool_calls: bool | None = field(default=None)
     collect_artifacts: bool = field(default=False)
     security_config: SecurityConfig | None = field(default=None)
     locale: str | None = field(default=None)

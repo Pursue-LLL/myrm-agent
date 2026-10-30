@@ -324,7 +324,6 @@ async def create_skill_agent(
         # The runtime scales the graph's own step limit to this agent's middleware chain.
         recursion_limit=spec.max_iterations * 2,
         timeout_seconds=engine_params.timeout_seconds,
-        parallel_tool_calls=engine_params.enable_parallel_tool_calls,
         collect_artifacts=collect_artifacts,
         locale=spec.locale,
         prompt_locale=spec.prompt_locale or spec.locale,

@@ -335,7 +335,6 @@ class TestRebuildAgentWithLlm:
         from myrm_agent_harness.agent._internals.agent_recovery import rebuild_agent_with_llm
 
         agent = MagicMock()
-        agent._apply_parallel_tool_calls.return_value = MagicMock()
         agent._cached_tools = [MagicMock()]
         agent._cached_system_prompt = "sys"
         agent._cached_middlewares = []
@@ -351,6 +350,7 @@ class TestRebuildAgentWithLlm:
             assert agent.llm == new_llm
             mock_create.assert_called_once()
             call_kwargs = mock_create.call_args
+            assert call_kwargs.kwargs["model"] is new_llm
             assert call_kwargs.kwargs["tools"] == agent._cached_tools
             assert call_kwargs.kwargs["system_prompt"] == "sys"
 
@@ -360,7 +360,6 @@ class TestRebuildAgentWithLlm:
         from myrm_agent_harness.agent._internals.agent_recovery import rebuild_agent_with_llm
 
         agent = MagicMock()
-        agent._apply_parallel_tool_calls.return_value = MagicMock()
         agent._cached_tools = [MagicMock()]
         agent._cached_system_prompt = "sys"
         agent._cached_middlewares = []
@@ -397,7 +396,6 @@ class TestRebuildAgentWithLlm:
         from myrm_agent_harness.agent._internals.agent_recovery import rebuild_agent_with_llm
 
         agent = MagicMock()
-        agent._apply_parallel_tool_calls.return_value = MagicMock()
         agent._cached_tools = [MagicMock()]
         agent._cached_system_prompt = "sys"
         agent._cached_middlewares = []
@@ -428,7 +426,6 @@ class TestRebuildAgentWithLlm:
         from myrm_agent_harness.agent._internals.agent_recovery import rebuild_agent_with_llm
 
         agent = MagicMock()
-        agent._apply_parallel_tool_calls.return_value = MagicMock()
         agent._cached_tools = [MagicMock()]
         agent._cached_system_prompt = "sys"
         agent._cached_middlewares = []

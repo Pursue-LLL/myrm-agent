@@ -340,7 +340,6 @@ async def build_child_agent(
                 if parent_agent.config.engine_params.timeout_seconds is not None
                 else config.timeout_seconds
             ),
-            parallel_tool_calls=parent_agent.config.engine_params.enable_parallel_tool_calls,
             collect_artifacts=False,
             security_config=parent_agent.config.security_config,
             engine_params=parent_agent.config.engine_params,

@@ -41,6 +41,7 @@
 │ completion_directive_middleware         │  ← 被拦草稿的复核指令，仅随下一次模型请求送达
 │ rate_limit                              │  ← Provider 429 主动节流
 │ concurrency/ (tool_conflict_gate)        │  ← 并发安全的调用共享，其余调用独占
+│ parallel_tool_calls (engine 开关设定时)   │  ← 带工具的模型调用携带 parallel_tool_calls 设定
 │ debug_logger_middleware (dev)           │
 └─────────────────────────────────────────┘
     │
@@ -77,6 +78,7 @@
 | `replan_middleware.py` | 动态重规划循环（导出 `get_replan_error_summary` 与 `get_max_consecutive_replan_errors` 只读遥测） |
 
 | `model_call_cancel.py` | 最外层模型调用包装：Stop 时在一个轮询周期内中断在途模型请求（含其内侧中间件的限流等待与重试），抛 `OperationCancelledError`，执行器按 Stop 收尾 |
+| `parallel_tool_calls.py` | `EngineParams.enable_parallel_tool_calls` 设定后，每次带工具的模型调用经 `ModelRequest.model_settings` 带上 `parallel_tool_calls`（请求已带的设定保留；不带工具的调用不加）；装配在模型调用包装的最内侧，故故障切换重建图时同样作用于新模型 |
 | `rate_limit.py` | Provider 级主动 sleep |
 | `debug_logger_middleware.py` | 完整消息 debug 日志 |
 

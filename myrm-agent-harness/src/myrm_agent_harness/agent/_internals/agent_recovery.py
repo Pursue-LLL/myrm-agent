@@ -186,10 +186,9 @@ def rebuild_agent_with_llm(agent: BaseAgent, new_llm: BaseChatModel) -> Compiled
     )
 
     agent.llm = new_llm
-    model = agent._apply_parallel_tool_calls(new_llm)
 
     agent._agent = create_agent(
-        model=model,
+        model=new_llm,
         tools=agent._cached_tools,
         system_prompt=agent._cached_system_prompt,
         middleware=cast(list, agent._cached_middlewares),

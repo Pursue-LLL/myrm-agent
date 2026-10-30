@@ -8,7 +8,7 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.streaming.types import AgentEventType
-from myrm_agent_harness.agent.types import AgentRuntimeConfig
+from myrm_agent_harness.agent.types import AgentRuntimeConfig, EngineParams
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 
@@ -102,7 +102,7 @@ async def test_discover_capability_e2e_real_model() -> None:
             'with query "*" to list bound skills. Do NOT call skill_select_tool or any other '
             "tool. After the tool returns, reply with the skill names you found."
         ),
-        config=AgentRuntimeConfig(parallel_tool_calls=False),
+        config=AgentRuntimeConfig(engine_params=EngineParams(enable_parallel_tool_calls=False)),
     )
 
     tool_calls_made: list[str] = []
