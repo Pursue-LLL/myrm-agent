@@ -6,7 +6,8 @@
 - app.services.agent.gateway::AgentBusyError, AgentDrainingError (POS: the chat is held by a live run, or the app drains)
 - app.services.agent.streaming::ai_agent_service_stream (POS: gateway-managed agent run, imported lazily)
 - app.services.agent.streaming_support.sse_helpers (POS: interrupt event detection)
-- app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content)
+- app.services.agent.streaming_support.stream_collector::StreamContentCollector, settle_tool_approvals_of (POS: persisted turn content; takes the answered card off the parked run)
+- app.services.copilot.run_digest_store::RunDigestStore (POS: the run digest the resumed turn ends)
 
 [OUTPUT]
 - CLARIFICATION_TIMEOUT_SECONDS / CLARIFICATION_NO_ANSWER_RESUME_VALUE: ask_question timeout and its empty answer
@@ -20,16 +21,20 @@ A turn that stops at an interrupt leaves a suspended graph; when nobody answers,
 timeout decision. The resumed run takes the chat under a server turn lease like any turn the server starts, so it
 yields to a run that is already live and the chat Stop button and the emergency stop reach it. When it stops at the
 next interrupt it arms that interrupt's timer; an interrupt without a timer is reopened so its manual answer is not
-refused as already resolved.
+refused as already resolved. It registers no collector, so it takes the answered card off the parked run and, when it
+ends without another interrupt, ends the turn the way a normal run's finalize does: the run digest and the parked run's
+registration.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 import orjson
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from myrm_agent_harness.utils.coercion import parse_float
 
 from app.services.agent.gateway import AgentBusyError, AgentDrainingError
@@ -37,8 +42,9 @@ from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_timeout,
     extract_clarification_required,
 )
-from app.services.agent.streaming_support.stream_collector import StreamContentCollector
+from app.services.agent.streaming_support.stream_collector import StreamContentCollector, settle_tool_approvals_of
 from app.services.agent.turn_lease import server_turn_lease
+from app.services.copilot.run_digest_store import RunDigestStore
 
 if TYPE_CHECKING:
     from app.ai_agents import GeneralAgentParams
@@ -164,6 +170,21 @@ def _arm(
     )
 
 
+def _end_parked_turn(
+    chat_id: str, parked_run: StreamContentCollector | None, collector: StreamContentCollector, phase: RunDigestPhase
+) -> None:
+    """End the turn a timer resumed, as a normal run's finalize ends it, unless the run stopped at another interrupt.
+
+    Left registered, the parked run would keep a reloading page attached to a stream that never ends, and the run digest
+    would keep showing a run that is over. A newer run of the chat has replaced the registration by now and is left alone.
+    """
+    if collector.has_pending_hitl_replay():
+        return
+    RunDigestStore.end_run(chat_id, phase=phase, progress_steps=list(collector._progress_steps))
+    if parked_run is not None:
+        parked_run.cleanup()
+
+
 async def _resume_after_timeout(
     chat_id: str,
     params: GeneralAgentParams,
@@ -183,47 +204,67 @@ async def _resume_after_timeout(
     collector = StreamContentCollector()
     next_approval_timeout: dict[str, object] | None = None
     clarification_pending = False
+    parked_run: StreamContentCollector | None = None
+    phase = RunDigestPhase.COMPLETED
+    turn_over = False
     try:
-        # A message id keys the cancel token; the original turn's token is gone by the time a timer fires.
-        async with server_turn_lease(chat_id, params.message_id or f"hitl-resume-{chat_id}") as cancel_token:
-            extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
-            async for chunk in ai_agent_service_stream(
-                params=resume_params, cancel_token=cancel_token, extra_context=extra_context
-            ):
-                sse_line = f"{_DATA_PREFIX}{orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
-                collector.feed_sse(sse_line)
-                next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
-                clarification_pending = clarification_pending or extract_clarification_required(sse_line)
-    except (AgentBusyError, AgentDrainingError) as exc:
-        # The live run owns the suspended graph and arms its own interrupt when it stops.
-        scheduler.reopen(chat_id)
-        logger.warning("HITL timeout resume skipped: chat_id=%s, reason=%s", chat_id, exc)
-        return
-    except Exception:
-        # The suspended graph was not consumed by a finished run: let a manual answer through.
-        scheduler.reopen(chat_id)
-        raise
+        try:
+            # A message id keys the cancel token; the original turn's token is gone by the time a timer fires.
+            async with server_turn_lease(chat_id, params.message_id or f"hitl-resume-{chat_id}") as cancel_token:
+                turn_over = True
+                # This run registers no collector, so the card it answers would stay on the parked run until the chat's next run.
+                # Settled only once the lease is held: a refused run answered nothing.
+                parked_run = settle_tool_approvals_of(chat_id)
+                extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
+                async for chunk in ai_agent_service_stream(
+                    params=resume_params, cancel_token=cancel_token, extra_context=extra_context
+                ):
+                    sse_line = (
+                        f"{_DATA_PREFIX}{orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
+                    )
+                    collector.feed_sse(sse_line)
+                    next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
+                    clarification_pending = clarification_pending or extract_clarification_required(sse_line)
+                if cancel_token.is_cancelled:
+                    phase = RunDigestPhase.CANCELLED
+        except asyncio.CancelledError:
+            phase = RunDigestPhase.CANCELLED
+            raise
+        except Exception as exc:
+            # The answer was not consumed by a finished run: the card goes back to the parked run and the turn is not over, so a
+            # manual answer has something to answer. Refused because a live run owns the chat, that run arms its own interrupt.
+            scheduler.reopen(chat_id)
+            if parked_run is not None:
+                parked_run.unsettle_tool_approvals()
+            turn_over = False
+            if isinstance(exc, AgentBusyError | AgentDrainingError):
+                logger.warning("HITL timeout resume skipped: chat_id=%s, reason=%s", chat_id, exc)
+                return
+            raise
 
-    try:
-        # Mark before persisting: the continuation may carry a new unanswered card that must stay unanswered.
-        timeout_record: HitlAnswerRecord = {"by": "timeout", "value": resume_value}
-        if kind == "clarification":
-            await mark_pending_clarification_answered(chat_id, timeout_record)
+        try:
+            # Mark before persisting: the continuation may carry a new unanswered card that must stay unanswered.
+            timeout_record: HitlAnswerRecord = {"by": "timeout", "value": resume_value}
+            if kind == "clarification":
+                await mark_pending_clarification_answered(chat_id, timeout_record)
 
-        if collector.has_content:
-            await ChatService.persist_assistant_message_safe(
+            if collector.has_content:
+                await ChatService.persist_assistant_message_safe(
+                    chat_id,
+                    collector.content,
+                    extra_data=collector.extra_data,
+                    request_message_id=resume_params.message_id,
+                )
+        finally:
+            # The run already stopped: whatever the bookkeeping above did, the next interrupt must stay answerable.
+            arm_interrupt_timeout(
                 chat_id,
-                collector.content,
-                extra_data=collector.extra_data,
-                request_message_id=resume_params.message_id,
+                resume_params,
+                approval_timeout=next_approval_timeout,
+                clarification_pending=clarification_pending,
+                awaiting_answer=collector.has_pending_hitl_replay(),
             )
     finally:
-        # The run already stopped: whatever the bookkeeping above did, the next interrupt must stay answerable.
-        arm_interrupt_timeout(
-            chat_id,
-            resume_params,
-            approval_timeout=next_approval_timeout,
-            clarification_pending=clarification_pending,
-            awaiting_answer=collector.has_pending_hitl_replay(),
-        )
+        if turn_over:
+            _end_parked_turn(chat_id, parked_run, collector, phase)
     logger.info("HITL timeout auto-resume completed: kind=%s, chat_id=%s", kind, chat_id)

@@ -19,7 +19,10 @@ The reload tests reload the page in the middle of a run, and the reloaded chat m
     chat the user opens from coming back, and each card, answered on the page of its own chat, finishes its run;
   - 1.5 s after Approve, while the resumed run writes a long answer;
   - at once after Approve, whether or not the click had reached the server (a card that is still there gets approved again);
-  - during the first run of a chat, before any approval, which only has the user's message stored.
+  - during the first run of a chat, before any approval, which only has the user's message stored;
+  - after the user left the chat and nobody pressed Approve, so the server's approval timer denied the command and ran the rest of
+    the turn (an open chat page would answer the expired card itself): the reopened chat shows the reply, and the server no
+    longer holds the card the timer answered.
 
 Formal run::
 
@@ -45,19 +48,25 @@ from tests.support.chrome_chat_page_observe import (
     reload_the_chat,
     reply_on_page,
     stored_reply_is_final,
+    turn_state,
     wait_for_card_of_open_chat,
     wait_for_mobile_status_board,
     wait_for_reply_on_page,
+    wait_for_the_stored_reply_watching_the_turn,
     wait_until_not_streaming,
+    wait_until_parked_at_the_card,
 )
-from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_ui_url
+from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_api_url, get_e2e_ui_url
 from tests.support.chrome_skill_hooks_approval import approve_cards_until_reply, click_approve, wait_for_approval_card
 from tests.support.chrome_skill_hooks_composer import drive_chat_turn
 from tests.support.chrome_skill_hooks_live_e2e import DONE_TOKEN, SkillChat, audit_hooks, setup_skill_chat
 from tests.support.e2e_runtime_guard import E2EResourceLedger
+from tests.support.hitl_live_e2e import set_private_approval_timeout
 
 _APPROVAL_PROBE_URL = "http://127.0.0.1:9/APPROVAL_RESUME_REPLY"
 _RELOAD_AFTER_APPROVE_SEC = 1.5
+# Seconds before the approval timer denies a card nobody answered.
+_TIMER_SEC = 45
 # A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
 _LONG_ANSWER_LINES = 600
 _SHORT_ANSWER = f"reply with exactly: {DONE_TOKEN}"
@@ -83,8 +92,12 @@ def _run_one_turn(
     watch: Callable[[ChromeMcpClient, McpPage, SkillChat, str], None],
     *,
     asks_approval: bool = True,
+    approval_timeout_sec: int | None = None,
 ) -> None:
     probe = setup_skill_chat(tmp_path, e2e_resource_ledger, tag, audit_hooks, yolo=not asks_approval)
+    if approval_timeout_sec is not None:
+        # The probe's own backend only: the global setting the harness pins on the shared one keeps every other test's card waiting.
+        set_private_approval_timeout(get_e2e_api_url(), approval_timeout_sec)
     chat_url = f"{get_e2e_ui_url().rstrip('/')}{probe.ui_path}"
     drive_chat_turn(
         get_e2e_ui_url(),
@@ -172,6 +185,42 @@ def test_a_reload_while_the_run_waits_for_approval_brings_the_card_back(
         _approve_and_finish(client, page, probe)
 
     _run_one_turn(tmp_path, e2e_resource_ledger, "reloadcard", _bash_request(_SHORT_ANSWER), reload_behind_the_card)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_a_reload_after_the_timeout_answered_the_card_shows_the_reply_and_no_card(
+    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger
+) -> None:
+    def let_the_timer_answer_then_reload(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
+        wait_until_parked_at_the_card(probe)
+        wait_for_approval_card(client, page)
+        # An open chat page answers an expired card itself (ToolApprovalExpiryWatcher), so the server's timer would never be the
+        # one to act. The user leaves the chat for a static document of the same origin, which keeps the page bound to the backend.
+        client.navigate(page, f"{get_e2e_ui_url().rstrip('/')}/favicon.ico", timeout_ms=30_000)
+        # Nobody presses Approve: the timer denies the command and the server runs the rest of the turn without any page.
+        wait_for_the_stored_reply_watching_the_turn(probe)
+        open_in_fresh_page(client, page, chat_url)
+        wait_for_reply_on_page(client, page, probe, "after the timer answered the card the reloaded chat did not show the reply")
+        # The card was answered by the timer: the parked run must not hand it to the reloaded page again.
+        assert_page_settled(client, page)
+        assert turn_state(probe) == {"running": False, "awaitingApproval": False}
+
+    _run_one_turn(
+        tmp_path,
+        e2e_resource_ledger,
+        "timeoutcard",
+        _bash_request(_SHORT_ANSWER),
+        let_the_timer_answer_then_reload,
+        approval_timeout_sec=_TIMER_SEC,
+    )
 
 
 @pytest.mark.chrome_e2e(

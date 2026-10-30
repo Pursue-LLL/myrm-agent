@@ -250,11 +250,9 @@ async def run_agent_stream(
                     status_code=409,
                     content={"detail": "This approval has already been resolved."},
                 )
-            from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
+            from app.services.agent.streaming_support.stream_collector import settle_tool_approvals_of
 
-            parked_run = ACTIVE_COLLECTORS.get(request.chat_id)
-            if parked_run is not None:
-                parked_run.settle_tool_approvals()
+            settle_tool_approvals_of(request.chat_id)
 
         # A run that gets this far is a new one, also when it resumes under the id of the turn that asked for the
         # approval: the finished turn's buffer would replay that turn and never carry the resumed one.

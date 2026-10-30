@@ -6,6 +6,7 @@ from cdp_chat.support import (
     ensure_e2e_hitl_mode,
     ensure_e2e_onboarding_complete,
     fetch_config_value,
+    put_config_value,
     shared_hot_e2e_api_base,
 )
 
@@ -37,3 +38,15 @@ def pin_and_verify_hitl_mode(api_url: str) -> None:
         probe = hitl_probe(target)
         if probe.get("yolo") or probe.get("expects_ask") is not True:
             raise AssertionError(f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}")
+
+
+def set_private_approval_timeout(api_url: str, seconds: int) -> None:
+    """Shorten how long an unanswered approval card waits, on the probe's own backend (pin_and_verify_hitl_mode wants 300 s)."""
+    current = fetch_config_value("securityConfig", api_url=api_url)
+    put_config_value(
+        "securityConfig",
+        {**current, "approvalTimeoutSeconds": seconds, "approval_timeout_seconds": seconds},
+        api_url=api_url,
+    )
+    persisted = fetch_config_value("securityConfig", api_url=api_url)
+    assert persisted.get("approvalTimeoutSeconds") == seconds, persisted

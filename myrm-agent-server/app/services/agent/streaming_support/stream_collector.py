@@ -92,6 +92,18 @@ logger = logging.getLogger(__name__)
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
 
+def settle_tool_approvals_of(chat_id: str) -> "StreamContentCollector | None":
+    """Take the answered tool-approval cards away from the run that is parked at them and return it, if the chat has one.
+
+    A run that answers a card (the user's resume or the fired timer) leaves the parked run as the chat's collector until
+    it registers a collector of its own; the timer's run never does.
+    """
+    parked_run = ACTIVE_COLLECTORS.get(chat_id)
+    if parked_run is not None:
+        parked_run.settle_tool_approvals()
+    return parked_run
+
+
 def _sync_run_digest(collector: "StreamContentCollector") -> None:
     chat_id = collector._chat_id
     if not chat_id:
@@ -149,6 +161,7 @@ class StreamContentCollector:
         self._clarification: dict[str, object] | None = None
         self._plan_confirmation: dict[str, object] | None = None
         self._pending_interrupt_events: list[dict[str, object]] = []
+        self._settled_tool_approvals: list[dict[str, object]] = []
         self._tool_stuck_paused = False
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
@@ -180,12 +193,22 @@ class StreamContentCollector:
     def settle_tool_approvals(self) -> None:
         """Forget the tool-approval cards once they are answered.
 
-        The parked run stays the chat's collector until the resumed run registers its own, a moment that lasts about a second:
-        a page that attaches in that window would otherwise get the card back and offer an answer that is already taken.
+        The parked run stays the chat's collector while the answered run starts (about a second for a resume the user sent,
+        the whole run for a timer's): a page that attaches in that time would otherwise get the card back and offer an answer
+        that is already taken.
         """
-        self._pending_interrupt_events = [
-            event for event in self._pending_interrupt_events if event.get("type") != "tool_approval_request"
-        ]
+        settled: list[dict[str, object]] = []
+        still_open: list[dict[str, object]] = []
+        for event in self._pending_interrupt_events:
+            (settled if event.get("type") == "tool_approval_request" else still_open).append(event)
+        self._pending_interrupt_events = still_open
+        # Only the latest answer can fail unconsumed: cards an earlier answer took were consumed by the run that took them.
+        self._settled_tool_approvals = settled
+
+    def unsettle_tool_approvals(self) -> None:
+        """Hand the settled cards back: the run that answered them failed before it consumed the answer."""
+        self._pending_interrupt_events.extend(self._settled_tool_approvals)
+        self._settled_tool_approvals.clear()
 
     @property
     def tool_stuck_paused(self) -> bool:

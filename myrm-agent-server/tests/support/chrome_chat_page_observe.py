@@ -14,6 +14,7 @@
 - wait_for_card_of_open_chat(): the open chat's own card is in the shared approval queue and on screen
 - wait_for_mobile_status_board(): the phone's status board is the page on screen
 - wait_until_not_streaming() / stored_reply_is_final() / assert_run_still_working()
+- turn_state() / wait_until_parked_at_the_card() / wait_for_the_stored_reply_watching_the_turn(): what the server holds of the chat's turn (running, parked behind a card), read from /agents/chat/<id>/turn-state
 
 [POS]
 Shared by tests/e2e/test_approval_resume_reply_chrome_e2e.py; the scenarios stay there, the page-side probes live here.
@@ -22,6 +23,7 @@ Shared by tests/e2e/test_approval_resume_reply_chrome_e2e.py; the scenarios stay
 from __future__ import annotations
 
 import json
+import re
 import time
 
 import pytest
@@ -30,13 +32,19 @@ from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
     get_e2e_api_url,
+    http_json,
     reload_mcp_page,
     wait_for_react_e2e_bridge,
     wait_for_state,
 )
 from tests.support.chrome_skill_hooks_composer import describe_page
 from tests.support.chrome_skill_hooks_live_e2e import DONE_TOKEN, SkillChat
-from tests.support.chrome_skill_hooks_observe import completed_assistant_replies, completed_reply_containing, stored_messages
+from tests.support.chrome_skill_hooks_observe import (
+    backend_log_since,
+    completed_assistant_replies,
+    completed_reply_containing,
+    stored_messages,
+)
 
 # The stored reply is there seconds after the click; the page gets the same time to show it, live and after a reload.
 _REPLY_ON_PAGE_TIMEOUT_SEC = 60.0
@@ -161,6 +169,52 @@ def stored_reply_is_final(probe: SkillChat) -> bool:
 def assert_run_still_working(probe: SkillChat) -> None:
     """The reloaded page came up while the run was still writing: otherwise the reload met no running turn and proves nothing."""
     assert not stored_reply_is_final(probe), "the run had finished before the reloaded page came up"
+
+
+def turn_state(probe: SkillChat) -> dict[str, object]:
+    reply = http_json("GET", f"{get_e2e_api_url()}/api/v1/agents/chat/{probe.chat_id}/turn-state")
+    data = reply.get("data") if isinstance(reply, dict) else None
+    assert isinstance(data, dict), reply
+    return data
+
+
+def wait_until_parked_at_the_card(probe: SkillChat, *, timeout_sec: float = 120.0) -> None:
+    """The server holds the run at its approval card: without this the later steps could pass for a run that never asked."""
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        last = turn_state(probe)
+        if last.get("awaitingApproval") is True:
+            return
+        time.sleep(0.25)
+    log = backend_log_since(get_e2e_api_url(), probe.log_offset, limit=100_000)
+    relevant = [line for line in log.splitlines() if re.search(r"approv|guardrail|permission|blocked|HITL|denied", line, re.I)]
+    stored = [
+        f"{m.get('role')}: {str(m.get('content') or m.get('message') or '')[:240]!r}"
+        for m in stored_messages(probe.chat_id, get_e2e_api_url())
+    ]
+    pytest.fail(
+        f"the run never parked at an approval card within {timeout_sec:.0f}s; last turn-state: {last}\n"
+        f"stored messages: {stored}\nbackend log lines about approvals:\n" + "\n".join(relevant[-40:])
+    )
+
+
+def wait_for_the_stored_reply_watching_the_turn(probe: SkillChat, *, timeout_sec: float = 240.0) -> None:
+    """Wait for the reply the run stores without any click, printing how the server's view of the turn changed meanwhile."""
+    started = time.monotonic()
+    timeline: list[str] = []
+    last: tuple[object, object] | None = None
+    while time.monotonic() - started < timeout_sec:
+        state = turn_state(probe)
+        seen = (state.get("running"), state.get("awaitingApproval"))
+        if seen != last:
+            timeline.append(f"{time.monotonic() - started:.0f}s running={seen[0]} awaitingApproval={seen[1]}")
+            last = seen
+        if stored_reply_is_final(probe):
+            print(f"E2E_TURN_STATE_TIMELINE: {timeline}", flush=True)
+            return
+        time.sleep(1.0)
+    pytest.fail(f"no stored reply within {timeout_sec:.0f}s; turn-state timeline: {timeline}")
 
 
 def assert_reply_shown_once(client: ChromeMcpClient, page: McpPage) -> None:
