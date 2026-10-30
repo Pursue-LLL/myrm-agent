@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import replace
 
 from myrm_agent_harness.agent.goals.verification.gatekeeper import VerificationGatekeeper
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
@@ -117,9 +118,9 @@ def _with_verification_metadata(
         "passed": passed,
         "summary": summary[:500],
     }
-    return JobResult(
+    return replace(
+        result,
         success=success_override if success_override is not None else result.success,
-        output=result.output,
         error=result.error if success_override is not False else f"acceptance criteria: {summary[:200]}",
         metadata=metadata,
         exit_code=result.exit_code if success_override is not False else 2,

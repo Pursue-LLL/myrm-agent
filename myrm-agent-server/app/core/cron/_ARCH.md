@@ -157,12 +157,16 @@ API 支持：分页（offset/limit）、状态过滤（ok/error）、全局查�
 ### Timeout
 
 每个 CronJob 可配置 `timeout_seconds`（默认 300s / 5 分钟），
-scheduler 使用 `asyncio.wait_for` 包装 `runner.run(job)`，超时后记录为失败。
+harness `JobExecutor` 用 `asyncio.wait_for` 包装 `runner.run(job)`，超时后记录为失败（`retry_safe=False`，见下）；它包住整个 `runner.run`（含进程内重试），且与 agent runner 自己的超时同值而更早开始，因此到点时总是它先触发；executor 生成的超时结果不带运行进度信息。
 
-### 指数退避重试
+### 失败重试
 
-失败后下次执行时间 = `retry_backoff_ms × 2^(failures-1)`，上限 `_MAX_BACKOFF_MS`（1 小时）。
-支持用户自定义基础退避时间。
+两层，各管一段：
+
+- **进程内重试**（`AgentJobRunner._run_with_retries`）：agent 任务一次触发失败后，最多再跑 `max_retries` 次，间隔 `min(retry_backoff_ms × 2^attempt, 30s)` 加抖动；带 `retry_at` 的推迟与熔断不重试。
+- **按计划重试**（harness `JobExecutor._update_after_run`）：整次触发失败后，下次执行时间按失败次数取退避档 `BACKOFF_SCHEDULE_MS`（30s → 1m → 5m → 15m → 60m）；连续失败超过 `max_retries` 次自动暂停。一次性任务只对瞬时错误（限流、过载、网络、超时、5xx）重试。
+
+`JobResult.retry_safe=False` 的运行两层都不重试：模型已经发起过工具调用（流里出现 `tool_start`；动态工作流任务以任一步骤开始为准），或用尽了整段时间预算。进程内不再重跑；recurring 任务把下次执行定到下一个常规时间点而不是退避时间，一次性任务直接暂停；失败照常计数，仍会达到 `max_retries` 而暂停。失败告警不等 `after` 次连续失败，立即发出（冷却仍生效），正文写明「不会提前重跑」及下次常规执行时间。工具调用之前就失败的运行（例如模型服务商的瞬时错误）仍按上面两层重试。
 
 ### 并发控制
 

@@ -62,13 +62,7 @@ def _attach_verification_metadata(
             "details": summary[:500] if summary else f"Cron post-run: {status}",
         },
     }
-    return JobResult(
-        success=result.success,
-        output=result.output,
-        error=result.error,
-        skipped=result.skipped,
-        metadata=metadata,
-    )
+    return replace(result, metadata=metadata)
 
 
 async def apply_cron_post_run_verification(
@@ -219,10 +213,4 @@ async def apply_cron_post_run_verification(
 
     fail_note = f"[Delivery verification: FAIL] {verdict.summary}"
     combined_output = f"{worker_output}\n\n---\n{fail_note}" if worker_output else fail_note
-    return JobResult(
-        success=result.success,
-        output=combined_output,
-        error=result.error,
-        skipped=result.skipped,
-        metadata=annotated.metadata,
-    )
+    return replace(result, output=combined_output, metadata=annotated.metadata)

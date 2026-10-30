@@ -240,9 +240,16 @@ def should_send_failure_alert(
     job: CronJob,
     alert_config: FailureAlertConfig,
     now: datetime,
+    *,
+    immediate: bool = False,
 ) -> bool:
-    """Determine whether a failure alert should fire right now."""
-    if job.consecutive_failures < alert_config.after:
+    """Determine whether a failure alert should fire right now.
+
+    ``immediate`` marks a failure that will not be repeated ahead of schedule, so waiting for
+    ``alert_config.after`` consecutive failures would only delay the news by whole schedule periods;
+    the cooldown still applies.
+    """
+    if not immediate and job.consecutive_failures < alert_config.after:
         return False
     if job.last_failure_alert_at:
         elapsed = (now - _ensure_utc(job.last_failure_alert_at)).total_seconds()

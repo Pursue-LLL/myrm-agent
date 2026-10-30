@@ -13,6 +13,7 @@ but owns no scheduling state — that remains in ``CronScheduler``.
 - infra.incremental.manager::IncrementalMonitorManager (POS: Incremental monitor lifecycle manager.)
 - infra.incremental.hash_monitor::InvalidJsonLikeMonitorOutputError (POS: Hash monitor JSON-like contract error type.)
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
+- toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)
 
 [OUTPUT]
 - JobExecutor: Manages the complete lifecycle of a single job execution.
@@ -39,17 +40,13 @@ from myrm_agent_harness.observability.tracing import TracingContext
 from myrm_agent_harness.toolkits.cron.delivery_guard import is_silent_output
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorFailureDetail,
-    ConnectorHealthStatus,
-    StructuredAlertPayload,
     classify_connector_error,
-    generate_fix_suggestion,
     redact_connector_url,
 )
+from myrm_agent_harness.toolkits.cron.engine.failure_alerts import FailureAlertMixin
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     classify_transient_error,
     error_backoff_ms,
-    resolve_failure_alert,
-    should_send_failure_alert,
 )
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     extract_telemetry as _extract_telemetry,
@@ -97,7 +94,7 @@ def _output_hash(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()[:32]
 
 
-class JobExecutor(SkippedRunMixin):
+class JobExecutor(FailureAlertMixin, SkippedRunMixin):
     """Manages the complete lifecycle of a single job execution.
 
     Stateful only in the sense that it holds injected dependencies.
@@ -179,6 +176,7 @@ class JobExecutor(SkippedRunMixin):
                 success=False,
                 error=f"Execution timed out after {job.timeout_seconds}s",
                 exit_code=124,
+                retry_safe=False,
             )
             logger.warning("Job %s timed out after %ds", job.id, job.timeout_seconds)
 
@@ -590,7 +588,7 @@ class JobExecutor(SkippedRunMixin):
                 new_failures,
                 job.max_retries,
             )
-        elif result.success:
+        elif result.success or not result.retry_safe:
             try:
                 job.next_run_at = compute_next_run(job.schedule, finished)
             except Exception as exc:
@@ -611,7 +609,7 @@ class JobExecutor(SkippedRunMixin):
         if result.success:
             job.last_failure_alert_at = None
         else:
-            self._maybe_send_failure_alert(job, new_failures, finished)
+            self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
 
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)
@@ -631,7 +629,7 @@ class JobExecutor(SkippedRunMixin):
             job.status = JobStatus.COMPLETED
             job.consecutive_failures = 0
             job.last_failure_alert_at = None
-        elif classify_transient_error(result.error or "") and new_failures <= job.max_retries:
+        elif result.retry_safe and classify_transient_error(result.error or "") and new_failures <= job.max_retries:
             backoff = error_backoff_ms(new_failures)
             job.next_run_at = finished + timedelta(milliseconds=backoff)
             job.consecutive_failures = new_failures
@@ -647,7 +645,7 @@ class JobExecutor(SkippedRunMixin):
             job.status = JobStatus.PAUSED
             job.consecutive_failures = new_failures
             job.last_error = result.error
-            self._maybe_send_failure_alert(job, new_failures, finished)
+            self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
 
         if job.status != JobStatus.ACTIVE:
             job.next_run_at = None
@@ -680,68 +678,3 @@ class JobExecutor(SkippedRunMixin):
                 job.id,
                 error,
             )
-
-    # ------------------------------------------------------------------
-    # Failure alerting (dual-layer: per-job + global)
-    # ------------------------------------------------------------------
-
-    def _maybe_send_failure_alert(self, job: CronJob, failures: int, now: datetime) -> None:
-        alert_config = resolve_failure_alert(job, self._global_failure_alert)
-        if not alert_config:
-            return
-        if not should_send_failure_alert(job, alert_config, now):
-            return
-
-        job.last_failure_alert_at = now
-
-        error_snippet = (job.last_error or "unknown error")[:200]
-        category, summary = classify_connector_error(job.last_error or "unknown error")
-        fix_suggestion = generate_fix_suggestion(category)
-        target = redact_connector_url(job.delivery.target if job.delivery else "")
-        status = ConnectorHealthStatus.DOWN if failures >= 3 else ConnectorHealthStatus.DEGRADED
-
-        structured_payload = StructuredAlertPayload(
-            job_id=job.id,
-            job_name=job.name,
-            consecutive_failures=failures,
-            status=status,
-            category=category,
-            target=target,
-            error_summary=summary,
-            fix_suggestion=fix_suggestion,
-            timestamp=now.isoformat(),
-        )
-
-        alert_result = JobResult(
-            success=True,
-            output=(
-                f' Cron job "{job.name}" failed {failures} consecutive times.\n'
-                f"Category: {category.value}\n"
-                f"Last error: {error_snippet}\n"
-                f"Suggestion: {fix_suggestion}\n\n"
-                f"The task has been auto-paused or will retry with backoff. "
-                f"Please check the task configuration in Settings → Cron."
-            ),
-            metadata={
-                "structured_alert": structured_payload.to_dict(),
-            },
-        )
-
-        effective_delivery = alert_config.delivery or job.failure_delivery or self._global_failure_delivery
-        alert_job = dc_replace(job, delivery=effective_delivery) if effective_delivery else job
-
-        task = asyncio.create_task(self._delivery.deliver(alert_job, alert_result))
-        task.add_done_callback(_log_alert_delivery_failure)
-        logger.warning(
-            "Failure alert sent for job %s (%d consecutive failures) via %s",
-            job.id,
-            failures,
-            alert_job.delivery.channel,
-        )
-
-
-def _log_alert_delivery_failure(task: asyncio.Task[None]) -> None:
-    """Callback for failure alert delivery tasks — log errors instead of silently swallowing."""
-    exc = task.exception() if not task.cancelled() else None
-    if exc:
-        logger.warning("Failure alert delivery failed: %s", exc)

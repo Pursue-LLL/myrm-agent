@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.cron.manager import CronManager
+from myrm_agent_harness.toolkits.cron.serialization import failure_alert_to_dict
 from myrm_agent_harness.toolkits.cron.types import (
     ActiveHours,
     CronJob,
@@ -19,7 +20,6 @@ from myrm_agent_harness.toolkits.cron.types import (
     Schedule,
     ScheduleKind,
     SessionTarget,
-    failure_alert_to_dict,
 )
 
 

@@ -455,6 +455,17 @@ class AgentJobRunner:
                 )
                 return last_result
 
+            # A run that already called tools may have sent, written or paid for something; a repeat would do it twice.
+            if not last_result.retry_safe:
+                logger.warning(
+                    "Cron agent job %s failed after tool use (attempt %d/%d): %s. Not retrying in-process.",
+                    job.id,
+                    attempt + 1,
+                    1 + job.max_retries,
+                    last_result.error,
+                )
+                return last_result
+
             if attempt < job.max_retries:
                 backoff = min(job.retry_backoff_ms * (2**attempt), 30_000)
                 jitter = int(datetime.now(timezone.utc).microsecond % 250)
@@ -595,6 +606,8 @@ class AgentJobRunner:
 
         cron_ctx_token = enter_cron_execution_context()
         lease_session_key: str | None = None
+        # Owned here, not by the consumers, so a timeout or crash still knows whether the run used tools.
+        acc = _StreamAccumulator()
         try:
             from app.ai_agents.agents import AgentFactory, GeneralAgentParams
             from app.core.channel_bridge.config_loader import load_user_configs
@@ -911,12 +924,12 @@ class AgentJobRunner:
                             unattended=True,
                         )
                         result = await asyncio.wait_for(
-                            _consume_dynamic_workflow_stream(dw_stream, job, model_name),
+                            _consume_dynamic_workflow_stream(dw_stream, job, model_name, acc),
                             timeout=timeout,
                         )
                     else:
                         result = await asyncio.wait_for(
-                            _consume_stream(agent, job, effective_prompt, runtime_context, untrusted=untrusted),
+                            _consume_stream(agent, job, effective_prompt, runtime_context, acc, untrusted=untrusted),
                             timeout=timeout,
                         )
                     if cron_post_run_verify:
@@ -961,24 +974,23 @@ class AgentJobRunner:
                 user_credentials_ctx.reset(cred_ctx)
 
         except asyncio.TimeoutError:
-            logger.warning(
-                "Cron agent job %s timed out after %ds",
-                job.id,
-                job.timeout_seconds or 300,
-            )
-            return JobResult(
-                success=False,
-                error=f"agent timed out after {job.timeout_seconds or 300}s",
-            )
+            return _timeout_result(job, acc)
         except Exception as exc:
-            return _failure_result(job, exc)
+            return _failure_result(job, exc, acc)
         finally:
             if lease_session_key:
                 release_run_lease(lease_session_key)
             exit_cron_execution_context(cron_ctx_token)
 
 
-def _failure_result(job: CronJob, exc: Exception) -> JobResult:
+def _timeout_result(job: CronJob, acc: _StreamAccumulator) -> JobResult:
+    """The run used up its time budget; it is repeated in-process only if it had not started using tools."""
+    timeout = job.timeout_seconds or 300
+    logger.warning("Cron agent job %s timed out after %ds", job.id, timeout)
+    return JobResult(success=False, error=f"agent timed out after {timeout}s", retry_safe=not acc.tool_used)
+
+
+def _failure_result(job: CronJob, exc: Exception, acc: _StreamAccumulator) -> JobResult:
     """Map an exception escaping an agent run to its JobResult (breaker, usage-limit deferral, failure)."""
     from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
 
@@ -994,7 +1006,7 @@ def _failure_result(job: CronJob, exc: Exception) -> JobResult:
         logger.warning("Cron agent job %s hit a provider usage limit: %s", job.id, exc)
         return deferral
     logger.warning("Cron agent job %s failed: %s", job.id, exc)
-    return JobResult(success=False, error=str(exc))
+    return JobResult(success=False, error=str(exc), retry_safe=not acc.tool_used)
 
 
 # ---------------------------------------------------------------------------
@@ -1011,6 +1023,9 @@ class _StreamAccumulator:
     error: str | None = None
     stop_reason: dict[str, object] | None = None
     circuit_broken: bool = False
+    # The model asked for a tool call (`tool_start`): what the tool then did (send, write, pay) survives a failure of
+    # the run, so a repeat would do it again.
+    tool_used: bool = False
     _seen_indices: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:
@@ -1043,12 +1058,15 @@ class _StreamAccumulator:
                 error=self.error or "Runaway circuit break triggered",
                 metadata=metadata or None,
                 circuit_broken=self.circuit_broken,
+                retry_safe=not self.tool_used,
             )
 
+        # Also set on success: a later verification step can still turn this result into a failure.
         return JobResult(
             success=True,
             output=output or "agent completed",
             metadata=metadata or None,
+            retry_safe=not self.tool_used,
         )
 
     def set_stop_reason(self, payload: dict[str, object]) -> None:
@@ -1089,6 +1107,7 @@ async def _consume_stream(
     job: CronJob,
     effective_prompt: str,
     runtime_context: dict[str, object],
+    acc: _StreamAccumulator,
     *,
     untrusted: bool,
 ) -> JobResult:
@@ -1096,7 +1115,6 @@ async def _consume_stream(
 
     assert isinstance(agent, GeneralAgent)
 
-    acc = _StreamAccumulator()
     model_name: str | None = getattr(agent.model_cfg, "model", None)
     # The bound thread is the owner's private conversation; a non-owner's run never reads it.
     chat_history = None if untrusted else await _load_thread_history(job)
@@ -1123,6 +1141,8 @@ async def _consume_stream(
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
             if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
                 acc.circuit_broken = True
+        elif event_type == "tool_start":
+            acc.tool_used = True
         elif event_type == "tasks_steps":
             acc.progress_steps.append(
                 {
@@ -1149,12 +1169,12 @@ async def _consume_dynamic_workflow_stream(
     stream: object,
     job: CronJob,
     model_name: str | None,
+    acc: _StreamAccumulator,
 ) -> JobResult:
     from collections.abc import AsyncIterable
 
     assert isinstance(stream, AsyncIterable)
 
-    acc = _StreamAccumulator()
     async for event in stream:
         if not isinstance(event, dict):
             continue
@@ -1174,11 +1194,15 @@ async def _consume_dynamic_workflow_stream(
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
             if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
                 acc.circuit_broken = True
+        elif event_type == "tool_start":
+            acc.tool_used = True
         elif event_type == "status":
             data = event.get("data")
             if isinstance(data, dict):
                 step_key = data.get("step_key") or data.get("phase")
                 if isinstance(step_key, str):
+                    # A workflow step began: its nodes may already have acted.
+                    acc.tool_used = True
                     acc.progress_steps.append(
                         {
                             "step_key": step_key,

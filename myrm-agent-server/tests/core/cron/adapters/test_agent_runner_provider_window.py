@@ -18,7 +18,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason, MyrmLLMError
 
-from app.core.cron.adapters.agent_runner import AgentJobRunner, _failure_result
+from app.core.cron.adapters.agent_runner import AgentJobRunner, _failure_result, _StreamAccumulator
 from app.core.cron.adapters.provider_window_deferral import USAGE_LIMIT_SKIP_REASON, usage_limit_deferral
 
 _NOW = datetime(2026, 10, 13, 10, 0, tzinfo=UTC)
@@ -67,7 +67,7 @@ def test_no_deferral_without_a_waitable_boundary(cooldown_ms: int | None) -> Non
 
 
 def test_foreign_errors_keep_the_failure_path() -> None:
-    result = _failure_result(_job(), RuntimeError("boom"))
+    result = _failure_result(_job(), RuntimeError("boom"), _StreamAccumulator())
 
     assert result.success is False
     assert result.retry_at is None
@@ -75,7 +75,7 @@ def test_foreign_errors_keep_the_failure_path() -> None:
 
 
 def test_failure_result_defers_a_usage_limit() -> None:
-    result = _failure_result(_job(), _limit_error(60_000))
+    result = _failure_result(_job(), _limit_error(60_000), _StreamAccumulator())
 
     assert result.retry_at is not None
     assert result.skip_reason == USAGE_LIMIT_SKIP_REASON
@@ -119,7 +119,7 @@ async def test_executor_parks_the_job_until_the_reset_instead_of_failing_it(
     job = _job(kind, consecutive_failures=2, max_retries=2)
 
     async def _hits_limit(_job: CronJob, *, context: str = "") -> JobResult:
-        return _failure_result(_job, _limit_error(2 * 3600 * 1000))
+        return _failure_result(_job, _limit_error(2 * 3600 * 1000), _StreamAccumulator())
 
     monkeypatch.setattr(runner, "_run_once", _hits_limit)
     store = AsyncMock()

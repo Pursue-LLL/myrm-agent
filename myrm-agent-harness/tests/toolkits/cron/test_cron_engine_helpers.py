@@ -187,6 +187,16 @@ class TestFailureAlert:
         )
         assert should_send_failure_alert(job, cfg, _NOW) is False
 
+    def test_immediate_alert_skips_the_failure_threshold(self) -> None:
+        cfg = FailureAlertConfig(enabled=True, after=3, cooldown_seconds=60)
+        job = _job(consecutive_failures=1)
+        assert should_send_failure_alert(job, cfg, _NOW, immediate=True) is True
+
+    def test_immediate_alert_still_honours_the_cooldown(self) -> None:
+        cfg = FailureAlertConfig(enabled=True, after=3, cooldown_seconds=300)
+        job = _job(consecutive_failures=1, last_failure_alert_at=_NOW - timedelta(seconds=60))
+        assert should_send_failure_alert(job, cfg, _NOW, immediate=True) is False
+
 
 class TestErrorClassification:
     @pytest.mark.parametrize(

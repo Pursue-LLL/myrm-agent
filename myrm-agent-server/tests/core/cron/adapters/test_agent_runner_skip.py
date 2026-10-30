@@ -31,6 +31,7 @@ from app.core.cron.adapters.agent_runner import (
     AgentJobRunner,
     _consume_stream,
     _resolve_cron_enable_memory,
+    _StreamAccumulator,
 )
 
 _BUDGET_MODULE = "app.services.budget.enforcer.should_block_execution"
@@ -403,7 +404,12 @@ class TestNonOwnerRunIsolation:
 
         with patch(_LOAD_HISTORY_MODULE, new_callable=AsyncMock, return_value=history) as load_history:
             result = await _consume_stream(
-                _stream_agent(captured), _make_regular_job(chat_id="chat-1"), "prompt", {}, untrusted=untrusted
+                _stream_agent(captured),
+                _make_regular_job(chat_id="chat-1"),
+                "prompt",
+                {},
+                _StreamAccumulator(),
+                untrusted=untrusted,
             )
 
         assert result.success is True

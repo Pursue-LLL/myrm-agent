@@ -367,6 +367,7 @@ myrm_agent_harness.toolkits.cron.heartbeat
 myrm_agent_harness.toolkits.cron.manager
 myrm_agent_harness.toolkits.cron.protocols
 myrm_agent_harness.toolkits.cron.runners
+myrm_agent_harness.toolkits.cron.serialization
 myrm_agent_harness.toolkits.cron.situation
 myrm_agent_harness.toolkits.cron.triggers
 myrm_agent_harness.toolkits.cron.types
