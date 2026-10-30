@@ -135,9 +135,9 @@
   "tls_certificate_resolution_steps": [
     "在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」"
   ],
-  "tls_transient_user_message": "TLS 交握被中斷 — 疑似網路不穩，系統正在自動重試",
+  "tls_transient_user_message": "TLS 交握被中斷 — 疑似網路暫時不穩",
   "tls_transient_resolution_steps": [
-    "自動重試成功則無需任何操作",
+    "請重新傳送訊息",
     "若持續出現，請檢查 VPN/代理伺服器連線穩定性",
     "若處於企業 TLS 偵測環境，請在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」"
   ],

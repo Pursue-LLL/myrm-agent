@@ -135,9 +135,9 @@
   "tls_certificate_resolution_steps": [
     "在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」"
   ],
-  "tls_transient_user_message": "TLS 握手被中断 — 疑似网络抖动，系统正在自动重试",
+  "tls_transient_user_message": "TLS 握手被中断 — 疑似网络暂时不稳定",
   "tls_transient_resolution_steps": [
-    "自动重试成功则无需任何操作",
+    "请重新发送消息",
     "若持续出现，请检查 VPN/代理连接稳定性",
     "若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」"
   ],

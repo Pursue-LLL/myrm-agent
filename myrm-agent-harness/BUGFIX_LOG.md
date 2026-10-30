@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-31-140 · TLS 握手中断的诊断卡写着「系统正在自动重试」，而这张卡只在回合内重试已经用尽或不适用之后才出现
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/errors/diagnostics/i18n/locales/{en,zh-CN,zh-TW,ja,ko,de}.json`（`tls_transient`）、`agent/errors/diagnostics/transport_diagnosis.py`、`agent/errors/ERROR_SYSTEM.md`、测试 `tests/agent/errors/diagnostics/test_diagnostic_copy_makes_no_promise.py`；server 一侧的诊断缺失修复见 `myrm-agent/BUGFIX_LOG.md` 同日条目；没有改提示词与工具 schema）。`myrm-agent` 本地提交，未 push。 |
+| **发现时间** | 2026-10-31（复核 139 时，把「错误卡只在失败之后出现」套到全部目录文案上，扫描进行时措辞：英文目录命中 7 条，其中 5 条是带条件的备用模型提示或动作发生时发出的非致命步骤，2 条是 `tls_transient`）。 |
+| **修复时间** | 2026-10-31 |
+| **严重程度** | P3。卡片说系统正在自动重试、「自动重试成功则无需任何操作」，而卡片出现时重试已经做完或不适用，用户在等一个不会发生的动作。没有数据损坏。 |
+| **关联产品** | 网页端与桌面端的错误卡、渠道里发给可信所有者的错误回复。 |
+| **根因** | ① 文案讲的是正在发生的动作。改前 `en.json:138-140`：「TLS handshake interrupted — likely transient network instability, retrying automatically」「No action needed if the automatic retry succeeds」，其余五种语言逐句对应。瞬时 TLS 错误归为 `TIMEOUT`（`classifier.py:252-257`）：回合内先走瞬时重试，上限 15 次（`stream_recovery.py:527-528`），用尽后 `return False`；可转移类型再走 `_handle_failover`，`not can_failover or self.failover_used`（`:258-259`）或没有备用模型（`:261-264`）时同样 `return False`；之后才由 `stream_fatal_error.py:111-120` 生成致命卡。所以卡片出现时，重试要么已经做完，要么不适用，「正在自动重试」在所有能出现这张卡的状态下都不成立。② 同一句承诺在 `transport_diagnosis.py:75` 的硬编码英文兜底（目录缺条目时使用）里还有一份。③ 没有测试检查目录文案里的进行时承诺：`test_error_diagnostics.py:380-392` 对 `tls_transient` 只断言 `error_type`。 |
+| **修复** | ① 六份目录的 `tls_transient_user_message` 只陈述失败与可能原因（en：「TLS handshake interrupted — likely a temporary network problem」）；`tls_transient_resolution_steps[0]` 改成再发一次消息，措辞取同目录别处已有的（en「Send your message again」、zh-CN「请重新发送消息」、zh-TW「請重新傳送訊息」等）；[1]「持续出现时检查 VPN/代理」与 [2]「企业网络兼容」不变（[2] 被 server 的菜单路径守护逐字引用）。文案没有写「已重试多次」：经故障转移路径出卡时并没有走过 15 次重试。② `transport_diagnosis.py` 的英文兜底改成同一句不带承诺的话。③ 新增 `test_diagnostic_copy_makes_no_promise.py`（3 例）：扫描英文目录全部展示文案，不得出现 `retrying`、`automatic retry`、`automatically retry/switch/continue`；`tool_call_retry`、`text_continuation` 两条是动作发生时发出的非致命步骤，登记为豁免；一例断言豁免集合恰好等于会被命中的条目，豁免不会悄悄失效或漏登；一例自检让命中与带条件的提示（「设置备用模型后限流时自动切换」）各自生效。④ `ERROR_SYSTEM.md`：卡片状态一句改为「回合内重试、故障转移已经用尽或不适用」，写明豁免与守护；事件契约里写明 `diagnostic_result` 要么字段齐全，要么整个字段缺省。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 起初的方案只改六份目录；全文检索 `tls_transient` 才发现 `transport_diagnosis.py:75` 还有一份承诺。② 139 根因 ① 对 `RESPONSE_FORMAT_ERROR` 的表述（有备用模型且没用过才转移，否则 `return False`）对这个类型是完整的；缺 `not can_failover` 的是 `ERROR_SYSTEM.md` 里对所有类型的那句概括，所以只改了文档，没有改 139。 |
+| **回归** | [1] 先红后绿：把 `en.json` 换回改前的版本，新守护 3 例中 2 例失败（逐条扫描报出两条 `tls_transient`，豁免集合相等一例多出这两条），自检例通过；改后 3 例通过，文件还原后逐字节一致。[2] 其余五种语言用同一组进行时词（`正在`、`自动重试`、`自动切换`、`自动继续`及日、韩、德对应词）手工扫过：命中的只有两条豁免、三条带条件的备用模型步骤和与重试无关的「服务正在运行」，没有第二处承诺。[3] 套件：harness `tests/agent/errors`、`tests/utils`、`tests/toolkits/llms/errors`、`tests/infra/test_tls_compat.py` 共 2476 例全过；`tests/agent/streaming` 的 fatal / error / diagnos / failover 子集 97 例全过；server 的两个跨层守护（菜单路径、繁体词表）与诊断相关套件见 server 条目。[4] 经真实引擎（`diagnose`，消息为 `[SSL: UNEXPECTED_EOF_WHILE_READING] …`）渲染 `en`、`zh-CN`、`zh-TW`、`ja`、`ko`、`de-AT` 的卡：都是 `tls_transient`，步骤三条。[5] ruff、ruff format、mypy（私有缓存）、pyright 对两个改动的 Python 文件通过。[6] 门禁：`boundary_check`、`validate_tool_registry`、`validate_arch_inventory`（含 `--md-refs`）、`check_fractal_docs`（harness 与 server）、`check_file_line_limit`、`check_test_source_assertions` 通过。 |
+| **仍然存在** | ① 守护只扫英文目录，其余语言靠人工扫描，没有机器守护。② 「设置备用模型后自动切换」三条步骤（`rate_limit`、`response_format_error`、`overloaded`）只靠措辞形状放行，不检查条件是否仍成立（同 139 仍然存在 ①）。③ 139 仍然存在 ② 的 `_BUTTON_ERROR_TYPES` 拷贝已改为从目录推导（见 server 条目）。 |
+| **代码位置** | `src/myrm_agent_harness/agent/errors/diagnostics/i18n/locales/{en,zh-CN,zh-TW,ja,ko,de}.json` · `agent/errors/diagnostics/transport_diagnosis.py` · `agent/errors/ERROR_SYSTEM.md` · `tests/agent/errors/diagnostics/test_diagnostic_copy_makes_no_promise.py`。 |
+
 ### BUG-HARNESS-2026-10-31-139 · 模型输出格式错误的诊断卡写着「正在自动切换到更强的模型」，而这张卡只在没有切换发生时才出现；繁体目录没有进六份语言套件，前端繁体词表也没有对它生效
 
 | 字段 | 内容 |
