@@ -2,7 +2,8 @@
 
 Health loop:
 - Calls ``channel.health_check()`` every ``_HEALTH_CHECK_INTERVAL`` seconds
-- Updates ``channel.health`` (ChannelHealth) on success/failure
+- Updates ``channel.health`` (ChannelHealth) on success/failure; a failure the channel already recorded in its own
+  ``health_check`` is not recorded a second time
 - Uses exponential backoff with jitter for restart decisions
 - Consecutive failures ≥ DEGRADED_THRESHOLD → DEGRADED (warn only)
 - DEGRADED/ERROR channels restart once their own backoff window has elapsed; the window opens when a restart is issued
@@ -107,6 +108,7 @@ class ChannelHealthMixin:
         if channel.status in (ChannelStatus.STOPPED, ChannelStatus.DISABLED):
             return
 
+        failed_at = channel.health.last_failure_at
         try:
             healthy = await channel.health_check()
         except Exception as exc:
@@ -126,7 +128,10 @@ class ChannelHealthMixin:
                 channel._status = ChannelStatus.RUNNING
             return
 
-        channel.health.record_failure()
+        # Most providers record a failed check in ``health_check`` themselves; recording it here too would count one
+        # failure twice and restart the channel on its first transient failure.
+        if channel.health.last_failure_at == failed_at:
+            channel.health.record_failure()
 
         failures = channel.health.consecutive_failures
         if failures >= _DEGRADED_THRESHOLD and channel.status == ChannelStatus.RUNNING:

@@ -12,6 +12,7 @@ from app.channels.core import gateway_health
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
 from app.channels.types import ChannelStatus, OutboundMessage
+from tests.channels.providers.telegram.telegram_channel_factories import make_channel
 
 _HOUR_OF_CHECKS = int(3600 / gateway_health._HEALTH_CHECK_INTERVAL)
 
@@ -28,6 +29,17 @@ class _ToggleChannel(BaseChannel):
         return None
 
     async def health_check(self) -> bool:
+        return self.healthy
+
+
+class _SelfRecordingChannel(_ToggleChannel):
+    """Records its own failed check in ``health``, as 13 providers do."""
+
+    name = "self-recording"
+
+    async def health_check(self) -> bool:
+        if not self.healthy:
+            self.health.record_failure("probe failed")
         return self.healthy
 
 
@@ -145,3 +157,46 @@ async def test_reloading_a_channel_clears_its_backoff_window(clock: _Clock) -> N
         await asyncio.sleep(0)
 
     assert channel.name not in gateway._channel_restart_not_before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("channel_type", [_ToggleChannel, _SelfRecordingChannel])
+async def test_one_failed_check_neither_degrades_nor_restarts_a_channel(
+    clock: _Clock, channel_type: type[_ToggleChannel]
+) -> None:
+    gateway = ChannelGateway()
+    channel = channel_type(ChannelStatus.RUNNING)
+
+    restarted = await _restart_cycles(gateway, channel, clock, 1)
+
+    assert restarted == []
+    assert channel.status == ChannelStatus.RUNNING
+    assert channel.health.consecutive_failures == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("channel_type", [_ToggleChannel, _SelfRecordingChannel])
+async def test_the_second_consecutive_failed_check_restarts_a_channel_whoever_counts_it(
+    clock: _Clock, channel_type: type[_ToggleChannel]
+) -> None:
+    gateway = ChannelGateway()
+    channel = channel_type(ChannelStatus.RUNNING)
+
+    restarted = await _restart_cycles(gateway, channel, clock, gateway_health._DEGRADED_THRESHOLD)
+
+    assert restarted == [gateway_health._DEGRADED_THRESHOLD]
+    assert channel.health.consecutive_failures == gateway_health._DEGRADED_THRESHOLD
+
+
+@pytest.mark.asyncio
+async def test_a_real_telegram_channel_is_restarted_on_the_second_failed_getme_not_the_first(clock: _Clock) -> None:
+    """``TelegramChannel.health_check`` records its own failure; the gateway must not record it a second time."""
+    gateway = ChannelGateway()
+    channel = make_channel()
+    channel._status = ChannelStatus.RUNNING
+
+    with patch.object(channel._client, "verify_token", new=AsyncMock(return_value=False)):
+        restarted = await _restart_cycles(gateway, channel, clock, gateway_health._DEGRADED_THRESHOLD)
+
+    assert restarted == [gateway_health._DEGRADED_THRESHOLD]
+    assert channel.status == ChannelStatus.DEGRADED
