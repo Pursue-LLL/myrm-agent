@@ -69,11 +69,9 @@ class _AsyncioProcessWrapper(AsyncProcessProtocol):
         os_compat.kill_process_group(self._proc.pid, signal.SIGTERM)
 
     def kill(self) -> None:
-        import signal
-
         from myrm_agent_harness.utils import os_compat
 
-        os_compat.kill_process_group(self._proc.pid, signal.SIGKILL)
+        os_compat.kill_process_group(self._proc.pid, os_compat.SIGKILL)
 
 
 async def spawn_background_process(

@@ -13,6 +13,21 @@ The release workflow at `.github/workflows/desktop-release.yml` consumes every c
 
 Without secrets set, the workflow still produces installers, but they will be unsigned (macOS shows "damaged" warning; Windows triggers SmartScreen). For production releases, **all secrets must be present**.
 
+> **Current state**: only `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` exist as repository secrets (`gh secret list`), so releases take the unsigned path. The Apple / Windows / Linux sections below describe the target setup that applies once those credentials are added.
+
+## Sidecar packaging and verification runs
+
+The Python backend ships as a PyInstaller **one-folder** tree, `binaries/myrmagent-backend/` (`myrmagent-backend[.exe]` + `_internal/`). `tauri.conf.json#bundle.resources` copies it into the bundle and `src-tauri/src/runtime/sidecar_path.rs` is the single place that locates it at runtime. It is a resource, not a Tauri `externalBin`, so the bundler does not sign it.
+
+- **Why a folder**: a one-file build unpacks its whole payload (about 526 MiB) into a temp directory on every launch. A/B on one host, cold start to `/health`: 34.2 s (one-file) vs 12.9 s (one-folder).
+- **Linux layout**: the AppImage carries the tree in `usr/share/<product>/binaries/myrmagent-backend` (`tauri.linux.conf.json#bundle.linux.appimage.files`), not in the resource directory `usr/lib/<product>`. linuxdeploy resolves and rewrites every ELF file below `usr/lib`; a PyInstaller tree carries its own libraries, so resolution fails (`Could not find dependency: libswscale-...` on the first release verification run), and forcing it through with `LD_LIBRARY_PATH` rewrote 357 files and added 216 MB of host libraries (including `libssl.so.3`) to the AppDir. `usr/share` is not scanned. `tauri.linux.conf.json` also limits Linux to the AppImage target, because a deb or rpm built from it would ship without a backend.
+- **Verification run**: dispatching `desktop-release.yml` on a branch builds every platform package and smoke-launches each bundle (`.app` plus the extracted updater tarball on macOS, a silent NSIS install on Windows, the extracted AppImage on Linux; the extracted bundles are made read-only first, because a mounted AppImage and a translocated `.app` are, and the backend must not write into its own install directory). Only a `v*` tag push publishes: release creation and asset upload are tag-gated, and a branch run uses the version `0.0.0-<run_number>` (numeric, so the MSI bundler accepts it).
+- **Windows launch conditions**: the Windows sidecar is built `--noconsole` and the shell is a GUI process, so the backend starts with no standard streams (`sys.stdout is None`), and with stdout redirected to a file Python encodes it in the ANSI code page. Either one used to end the backend before its first request (uvicorn's logging setup reads `sys.stdout.isatty()`; the startup banner holds an emoji). `sidecar/stdio_runtime_hook.py` runs first in the frozen app: it supplies null streams and switches the output streams to UTF-8, and `smoke-launch-runtime.ps1` starts the backend through `Start-Process` so the smoke runs under the same conditions. Separately, every harness and server module must import on Windows (no `signal.SIGKILL` default argument, no unguarded `import resource`); `tests/architecture/test_windows_import_safety.py` scans for it. Measured on a hosted Windows runner with a fresh profile: `/health` answered after 18.5 s with stdout redirected and after 18.3 s started like the shell starts it.
+- **Apple env**: `scripts/ci/desktop-release/export-apple-signing-env.sh` exports the `APPLE_*` variables only when their secrets are non-empty. A variable that is defined but empty makes the Tauri bundler attempt a keychain import and fail.
+- **Developer ID signing of the sidecar tree (required before Apple credentials are added)**: Apple notarization inspects every Mach-O inside the app, and Tauri does not sign `bundle.resources` entries. Sign the entry executable and every `.so` / `.dylib` under `_internal/` (hardened runtime, secure timestamp) before `tauri build`.
+- **Runner images** are pinned to a concrete release (`macos-15`, `macos-15-intel`, `ubuntu-22.04`, `ubuntu-24.04`; Windows follows `windows-latest`), never `macos-latest`, so the OS does not change under a release build. GitHub retires a macOS image about a year after its successor ships and fails every job on it during scheduled brownouts first (`macos-14` was retired on 2026-11-02): bump the label when the retirement notice appears. The macOS labels in `harness-test.yml` and `.github/core-platform-matrix.json` follow the same rule.
+- **macOS Intel is not buildable today**: PyInstaller cannot cross-compile, so `build-macos-x64` runs on the native Intel runner (`macos-15-intel`). The arm64 runner it used before produced an arm64 sidecar inside the Intel app; `sidecar/build.py` now asserts the architecture (`lipo -archs`), and `test_desktop_release_inputs.py` pins each build job to a runner of the architecture it bundles. On the Intel runner `uv sync --frozen` stops before the sidecar is built: `onnxruntime 1.26.0` (via `faster-whisper` and the harness `pdf-ocr` extra) ships wheels for macOS arm64 only and has no sdist (measured on a hosted `macos-15-intel` runner), and `cryptography 50.0.0` / `indexed-zstd 1.7.2` would have to compile from their sdists (`myrm-agent-server/uv.lock` lists no macOS x86_64 wheel for them). `finalize-release` requires this job, so a tag release stays without `latest.json` until Intel is decided: drop the target (the job, the `darwin-x86_64` manifest key, the `x64` installer glob, the website download logic) or replace / remove those dependencies for Intel.
+
 ---
 
 ## Quick Reference — Required Repository Secrets
@@ -103,7 +118,7 @@ Notarization uses the Apple ID, not the cert. At <https://appleid.apple.com> →
 
 Without these entitlements, Apple Notary Service still signs successfully but **runtime functionality silently fails** (Appshot crashes, sidecar refuses to spawn, global shortcuts cannot register). The plist is the minimum set; adding more triggers extra Apple notary review.
 
-> Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. The Python sidecar is signed independently by `tauri-action` during bundling; the embedded binary is co-signed using the same Developer ID so it passes Gatekeeper on launch.
+> Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. The Python sidecar is a bundle resource and is not signed by `tauri-action`; see "Sidecar packaging and verification runs" for what Developer ID signing needs.
 
 TCC permissions (screen recording, accessibility, microphone) are **not** declared here — they are granted by the user at first-use prompt. `tauri.conf.json#bundle.macOS.extendInfo` provides `NSMicrophoneUsageDescription` and `NSAppleEventsUsageDescription` so the macOS TCC dialog shows a clear usage reason when the permission prompt appears.
 
@@ -126,16 +141,16 @@ codesign -d --entitlements - /Applications/MyrmAgent.app
 
 ### Automated CI verification
 
-`build-macos-arm` in `.github/workflows/desktop-release.yml` runs `scripts/ci/desktop-release/smoke-launch-runtime.sh` after `tauri build`: starts the bundled Python sidecar and Next standalone from `.app` resources and probes `http://127.0.0.1:8080/health` plus the WebUI port (default `3000`). Stub or missing sidecars fail the job before publish.
+`build-macos-arm` in `.github/workflows/desktop-release.yml` runs `scripts/ci/desktop-release/smoke-launch-runtime.sh --bundle` twice after `tauri build`: on the `.app` and on the extracted updater tarball (what an auto-updated user receives). The script starts the bundled Python sidecar and Next standalone from the bundle resources with a fresh data directory, and probes `http://127.0.0.1:8080/health` plus the WebUI port (default `3000`) within the same 120 s budget the shell uses. A missing, placeholder-sized or non-executable sidecar, or one without its `_internal/` folder, fails the job before publish.
 
-`scripts/verify-signing.sh` runs inside `.github/workflows/tauri-release.yml` immediately after `tauri-action` produces `.app` / `.dmg` artifacts. Each artifact is subjected to four hard checks:
+`scripts/verify-signing.sh` is the verifier for a signed macOS release: run it right after `tauri-action` produces the `.app` / `.dmg` once the Apple secrets are configured. **No workflow invokes it today** — the release is unsigned, so every check would fail — and wiring it in is part of adopting signing. Each artifact is subjected to four hard checks:
 
 1. `codesign --verify --deep --strict --verbose=4` — signature integrity
 2. `codesign -dv --verbose=4` — signature details (audit trail in verify log)
 3. `spctl --assess` — Gatekeeper acceptance simulation (`-t exec` for `.app`, `-t open` for `.dmg`)
 4. `xcrun stapler validate` — Apple Notary staple presence
 
-The step **fails the build** if any check fails. Verification log is uploaded as the `verify-signing-macos-*` artifact for postmortem inspection. This catches three classes of silent failure that `tauri-action` does not surface as non-zero exit codes:
+The script exits non-zero if any check fails and writes the full log to `--log` for postmortem inspection. This catches three classes of silent failure that `tauri-action` does not surface as non-zero exit codes:
 
 - TEAM_ID typo causing notarization unauthorized but signing nominally succeeded
 - Apple Notary Service approved the upload but the staple did not get attached
@@ -218,13 +233,13 @@ Output should include `Successfully verified` and `The signature is timestamped`
 
 ### Automated CI verification
 
-`scripts/verify-signing.ps1` runs inside `.github/workflows/tauri-release.yml` after `tauri-action` produces `.exe` / `.msi` installers. For each artifact:
+`scripts/verify-signing.ps1` is the verifier for a signed Windows release: run it after `tauri-action` produces the `.exe` / `.msi` installers once a signing certificate is configured. No workflow invokes it today; wiring it in is part of adopting signing. For each artifact:
 
 - Runs `signtool verify /pa /v /tw <artifact>` with the Default Authentication Verification Policy
 - Parses output for both `Successfully verified` and `The signature is timestamped`
-- Fails the build if either assertion is missing
+- Exits non-zero if either assertion is missing, and writes the full log to `-LogPath` for postmortem inspection
 
-Verification log is uploaded as the `verify-signing-windows-latest` artifact. This catches the case where a certificate was applied but the timestamp server was unreachable — without timestamping, the signature becomes invalid the moment the cert expires.
+This catches the case where a certificate was applied but the timestamp server was unreachable — without timestamping, the signature becomes invalid the moment the cert expires.
 
 ---
 

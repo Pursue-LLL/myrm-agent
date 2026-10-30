@@ -1,0 +1,15 @@
+{
+  "bundle": {
+    "targets": ["appimage"],
+    "resources": {
+      "binaries/myrmagent-backend": null
+    },
+    "linux": {
+      "appimage": {
+        "files": {
+          "usr/share/MyrmAgent/binaries/myrmagent-backend": "binaries/myrmagent-backend"
+        }
+      }
+    }
+  }
+}

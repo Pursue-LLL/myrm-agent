@@ -38,7 +38,7 @@ Utility library exports. Public interface for the utils module providing commonl
 | tool_dynamic_hints.py | Core | LangChain tool `with_dynamic_hints` decorator — shared by agent and toolkits without cross-layer imports. | ✅ |
 | token_estimation.py | Core | Message-level tokens + full tool-schema estimates for the context breakdown and compress preflight; description-only approximation for the Turn-1 inventory script | ✅ |
 | tree_truncator.py | Core | Tree Truncator (Smart Budget-Aware Truncation). Intelligently truncates tree structures (HTML/ARIA) to fit within token budgets while preserving structure. | ✅ |
-| os_compat.py | Core | Cross-platform process groups (`get_process_group_kwargs`, `kill_process_group`, `terminate_process_graceful`) and file locks. | ✅ |
+| os_compat.py | Core | Cross-platform process groups (`get_process_group_kwargs`, `kill_process_group`, `terminate_process_graceful`), file locks, and `SIGKILL`: the force-kill signal that exists on Windows too (there `SIGTERM`, which `taskkill /F` makes a hard kill). Never name `signal.SIGKILL` outside `os.killpg`. | ✅ |
 | url_syntax.py | Core | Syntax check for outbound URLs (`parse_outbound_hostname`, `SSRF_ALLOWED_SCHEMES`): parser-confusing characters, scheme allowlist, hostname extraction with trailing-dot normalisation. No hostname blocklist, so policies that admit private hosts share it with the cloud policy. | ✅ |
 | url_utils.py | Core | Web and URL utilities. Provides URL normalization, parsing, cleanup, and type determination function; SSRF primitives `is_blocked_ip` and `validate_scheme_and_hostname` (url_syntax check plus the hostname blocklist) | ✅ |
 

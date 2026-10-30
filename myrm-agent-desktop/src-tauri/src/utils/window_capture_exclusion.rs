@@ -6,10 +6,12 @@ use tauri::WebviewWindow;
 pub fn apply_capture_exclusion(window: &WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::UI::WindowsAndMessaging::SetWindowDisplayAffinity;
-        const WDA_EXCLUDEFROMCAPTURE: u32 = 0x0000_0011;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE,
+        };
         let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-        let ok = unsafe { SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE) };
+        // SAFETY: `hwnd` is the live native handle of `window`; tauri's HWND wraps the raw pointer windows-sys expects.
+        let ok = unsafe { SetWindowDisplayAffinity(hwnd.0, WDA_EXCLUDEFROMCAPTURE) };
         if ok == 0 {
             return Err(
                 "SetWindowDisplayAffinity failed: Windows build below 2004 cannot exclude window from capture"

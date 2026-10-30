@@ -7,6 +7,7 @@
 - subprocess
 
 [OUTPUT]
+- SIGKILL: The signal that force-kills a process tree (SIGTERM on Windows, which has no SIGKILL).
 - get_process_group_kwargs: Subprocess kwargs for creating process groups.
 - kill_process_group: Safely kill a process group tree.
 - terminate_process_graceful: SIGTERM then wait then SIGKILL for a process tree.
@@ -29,6 +30,11 @@ import time
 from typing import Any
 
 IS_WIN = sys.platform == "win32"
+
+# Windows has no SIGKILL; ``kill_process_group`` force-kills the whole tree there whatever signal it is given.
+# Every caller names the signal through this constant: ``signal.SIGKILL`` raises AttributeError on Windows,
+# at import time when it is a default argument.
+SIGKILL: signal.Signals = signal.SIGTERM if sys.platform == "win32" else signal.SIGKILL
 
 if IS_WIN:
     # msvcrt is a Windows-only stdlib; mypy on POSIX cannot see its members.
@@ -94,7 +100,7 @@ def get_process_group_kwargs() -> dict[str, Any]:
     return {"start_new_session": True}
 
 
-def kill_process_group(pid: int, sig: int = signal.SIGKILL) -> None:
+def kill_process_group(pid: int, sig: int = SIGKILL) -> None:
     """Kill an entire process tree/group across platforms."""
     if IS_WIN:
         # On Windows, taskkill /T /F is the most reliable way to kill a process tree
@@ -129,4 +135,4 @@ def terminate_process_graceful(pid: int, *, grace_seconds: float = 2.0) -> None:
         if not _is_process_alive(pid):
             return
         time.sleep(0.05)
-    kill_process_group(pid, signal.SIGKILL)
+    kill_process_group(pid, SIGKILL)

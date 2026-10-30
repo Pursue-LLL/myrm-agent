@@ -105,6 +105,21 @@ def test_win_lock_emulation(win32_env):
             os_compat.flock(1, os_compat.LOCK_EX)
 
 
+def test_sigkill_is_the_posix_force_kill_signal(posix_env):
+    assert os_compat.SIGKILL is signal.SIGKILL
+    assert os_compat.kill_process_group.__defaults__ == (signal.SIGKILL,)
+
+
+def test_sigkill_falls_back_to_sigterm_where_windows_has_no_sigkill(win32_env, monkeypatch):
+    """`signal.SIGKILL` as a default argument made the whole module unimportable on Windows."""
+    monkeypatch.delattr(signal, "SIGKILL", raising=False)
+
+    importlib.reload(os_compat)
+
+    assert os_compat.SIGKILL is signal.SIGTERM
+    assert os_compat.kill_process_group.__defaults__ == (signal.SIGTERM,)
+
+
 def test_terminate_process_graceful_escalates_to_sigkill(posix_env):
     alive = {"value": True}
 

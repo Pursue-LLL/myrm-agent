@@ -1,0 +1,60 @@
+name: Desktop release contracts
+
+# The release pipeline is spread over the Tauri config, the sidecar build, the CI scripts and the workflow;
+# these tests pin what those files must agree on, so they run whenever one of them changes.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-desktop/sidecar/**'
+      - 'myrm-agent-desktop/src-tauri/tauri*.json'
+      - 'myrm-agent-desktop/src-tauri/src/runtime/sidecar_path.rs'
+      - 'scripts/ci/desktop-release/**'
+      - '.github/workflows/desktop-release.yml'
+      - '.github/workflows/desktop-contracts.yml'
+      - '.github/actions/**'
+      - 'myrm-agent-server/tests/support/desktop_release.py'
+      - 'myrm-agent-server/tests/architecture/test_desktop_*.py'
+  pull_request:
+    paths:
+      - 'myrm-agent-desktop/sidecar/**'
+      - 'myrm-agent-desktop/src-tauri/tauri*.json'
+      - 'myrm-agent-desktop/src-tauri/src/runtime/sidecar_path.rs'
+      - 'scripts/ci/desktop-release/**'
+      - '.github/workflows/desktop-release.yml'
+      - '.github/workflows/desktop-contracts.yml'
+      - '.github/actions/**'
+      - 'myrm-agent-server/tests/support/desktop_release.py'
+      - 'myrm-agent-server/tests/architecture/test_desktop_*.py'
+
+concurrency:
+  group: desktop-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Desktop release contract tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    # CI has no LLM credentials: tests resolve model identifiers from the environment first, so
+    # offline placeholders stand in for the developer-only .env.test.
+    env:
+      BASIC_MODEL: openai/ci-offline-placeholder
+      LITE_MODEL: openai/ci-offline-placeholder
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install server dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run the desktop contract tests
+        run: uv run --frozen pytest tests/architecture/test_desktop_*.py -n0 --tb=short -q

@@ -19,11 +19,11 @@ import asyncio
 import errno
 import logging
 import os
-import pty
 import signal
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
@@ -102,7 +102,7 @@ class _PtyProcessWrapper(AsyncProcessProtocol):
     def kill(self) -> None:
         from myrm_agent_harness.utils import os_compat
 
-        os_compat.kill_process_group(self._proc.pid, signal.SIGKILL)
+        os_compat.kill_process_group(self._proc.pid, os_compat.SIGKILL)
 
 
 def pty_spawn_eligible(*, sandbox_enabled: bool) -> bool:
@@ -139,9 +139,11 @@ async def try_spawn_background_pty(
     effective_cwd: Path | None,
     env: dict[str, str],
     preexec_fn: Callable[[], None] | None,
-    process_group_kwargs: dict[str, object],
+    process_group_kwargs: dict[str, Any],  # os_compat's platform-specific Popen kwargs; unpacked into asyncio below
 ) -> AsyncProcessProtocol | None:
     """Spawn via PTY; returns None when the platform cannot create a PTY pair."""
+    import pty  # POSIX-only: a module-level import would make this module unimportable on Windows
+
     try:
         master_fd, slave_fd = pty.openpty()
     except OSError as exc:

@@ -3,7 +3,7 @@
 [INPUT]
 - myrm-agent-server（POS: Python FastAPI 后端源码，PyInstaller 打包入口）
 - myrm-agent-frontend（POS: Next standalone 静态资源，Tauri bundle 资源）
-- sidecar/build.py（POS: Sidecar 二进制构建）
+- sidecar/build.py（POS: Sidecar 目录构建，PyInstaller `--onedir`）
 
 [OUTPUT]
 - Tauri 桌面安装包（macOS / Windows / Linux）
@@ -16,7 +16,7 @@ myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.m
 
 | 仓库路径 | 运行时角色 | 技术 | 默认端口 / 产物 | 管理者 |
 |----------|------------|------|-----------------|--------|
-| `sidecar/` | **Python 后端** Sidecar 构建脚本 | PyInstaller `build.py` | 打包到 `src-tauri/binaries/myrmagent-backend-*`；运行时 `PORT`（Desktop 常用 8080） | `sidecar/_ARCH.md` |
+| `sidecar/` | **Python 后端** Sidecar 构建脚本 | PyInstaller `build.py` | 打包为目录 `src-tauri/binaries/myrmagent-backend/`（入口可执行文件 + `_internal/`），作为 Tauri resource 分发；运行时 `PORT`（Desktop 常用 8080） | `sidecar/_ARCH.md` |
 | `src-tauri/src/runtime/` | Rust **Python/Next.js Sidecar 编排** | Tauri | 进程启动、Appshot、Setup Token | `src-tauri/src/_ARCH.md` |
 
 **与开源 server 关系**: Python Sidecar 入口为 `myrm-agent-server/app/main.py`（与本地 `myrm start` 同一应用，不同打包形态）。

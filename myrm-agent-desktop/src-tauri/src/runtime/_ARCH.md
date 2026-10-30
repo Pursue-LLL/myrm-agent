@@ -21,8 +21,8 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `mod.rs` | 核心 | 模块聚合、`TOXIC_ENV_VARS` 毒性环境变量黑名单、`suppress_console_window`、`spawn_backend_monitors`/`stop_backend_monitors`（watchdog+wake 统一挂载/停挂，幂等替换）、`spawn_frontend_monitor`/`stop_frontend_monitor`（前端看护槽位，幂等替换） | ✅ |
-| `sidecar_version_manager.rs` | 核心 | Sidecar 独立引擎版本状态机（versions.json、原子写入、三级降级链路与坏版本拉黑） | ✅ |
-| `python_backend.rs` | 核心 | Python Sidecar 启动、版本自适应解析、就绪探测与启动超时自动回滚自愈（停机序列经 `python_backend_stop`）；向 sidecar 注入帷幕桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、spawn fallback `MYRM_LOCKED_USE_ENABLED`、壳身份 `MYRM_SHELL_PID`（server 据此判定帷幕主人存活，同时作为 sidecar 启动时补全 PATH 的门控——GUI 启动的 macOS 应用只继承 launchd 极简 PATH，补全在 server 侧 `app/startup/desktop_path.py` 完成）；启动前同步 `desktop_runtime.json` | ✅ |
+| `sidecar_path.rs` | 核心 | 随包 Sidecar 的定位：资源目录 `binaries/myrmagent-backend/`（PyInstaller `--onedir` 目录树；Linux AppImage 下在同前缀的 `share/<product>/` 里）的入口可执行文件；缺失或 0 字节时返回带构建指引的错误。目录布局在 Rust 侧的唯一定义点，与 `sidecar/build.py`、`tauri.conf.json` 的一致性由 `tests/architecture/test_desktop_sidecar_layout.py` 守住 | ✅ |
+| `python_backend.rs` | 核心 | Python Sidecar 启动（release 经 `sidecar_path` 定位随包可执行文件）、就绪探测（`BACKEND_STARTUP_TIMEOUT` 120 s，超时终止子进程），停机序列经 `python_backend_stop`；向 sidecar 注入帷幕桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、spawn fallback `MYRM_LOCKED_USE_ENABLED`、壳身份 `MYRM_SHELL_PID`（server 据此判定帷幕主人存活，同时作为 sidecar 启动时补全 PATH 的门控——GUI 启动的 macOS 应用只继承 launchd 极简 PATH，补全在 server 侧 `app/startup/desktop_path.py` 完成）；启动前同步 `desktop_runtime.json` | ✅ |
 | `python_backend_stop.rs` | 核心 | 后端优雅停机序列层 `graceful_stop_backend`（停 monitors → POST `/api/v1/system/shutdown` → 等待自退 → 兜底强杀），全部停机路径共享 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启）；`stop_frontend` 仅供 `app/lifecycle.rs` 在停机时内部调用，不是 IPC 命令 | — |
 | `watchdog.rs` | 核心 | 后端崩溃/假死/句柄压力监控与指数退避重启（进程在但 `/health` 连续失败、或 `/health/pressure` 的 fd_count ≥ 8192 时先杀树再重启；stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |

@@ -2,16 +2,16 @@
 #
 # verify-signing.sh — Post-build macOS code signing & notarization verifier.
 #
-# Runs inside the GitHub Actions release workflow after `tauri-action` produces
-# .app / .dmg artifacts. Performs four hard checks for each artifact:
+# Meant to run after `tauri-action` produces .app / .dmg artifacts of a signed release; no
+# workflow calls it until Apple signing secrets are configured. Four hard checks per artifact:
 #
 #   1. codesign --verify --deep --strict           : signature integrity
 #   2. codesign -dv                                : signature details (audit trail)
 #   3. spctl --assess -t exec|open                 : Gatekeeper acceptance simulation
 #   4. xcrun stapler validate                      : Apple Notary staple presence
 #
-# Exit code = number of failed checks. Non-zero exit fails the CI step.
-# Full verification log is also written to --log path for artifact upload.
+# Exit code = number of failed checks. Non-zero exit fails the calling step.
+# Full verification log is also written to the --log path.
 #
 # Usage:
 #   scripts/verify-signing.sh \

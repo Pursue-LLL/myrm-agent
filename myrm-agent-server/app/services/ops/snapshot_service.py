@@ -21,11 +21,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-import resource
 import sys
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+
+try:
+    import resource
+except ImportError:  # Windows has no resource module; the RSS field then stays unset
+    resource = None  # type: ignore[assignment]
 
 from sqlalchemy import func, select
 
@@ -136,6 +140,7 @@ class OpsAggregatedSnapshotService:
         channels_summary = cls._get_channels_dict()
         has_degraded = any(ch.get("status") in ("degraded", "error") for ch in channels_summary.values())
 
+        state: Literal["idle", "busy", "degraded", "draining"]
         if gateway.is_draining:
             state = "draining"
         elif active_count > 0:
@@ -354,9 +359,7 @@ class OpsAggregatedSnapshotService:
                 )
                 failed_event_count = error_cnt or 0
                 backlog_cnt = await db.scalar(
-                    select(func.count(MemoryExtractRetryModel.chat_id)).where(
-                        MemoryExtractRetryModel.status == "pending"
-                    )
+                    select(func.count(MemoryExtractRetryModel.chat_id)).where(MemoryExtractRetryModel.status == "pending")
                 )
                 queue_backlog = backlog_cnt or 0
                 health_status = "healthy" if failed_event_count == 0 else "degraded"

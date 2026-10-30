@@ -28,6 +28,8 @@ import sys
 import time
 from pathlib import Path
 
+from myrm_agent_harness.utils.os_compat import SIGKILL
+
 from app.channels.providers.whatsapp.helpers import (
     _BRIDGE_DIR,
     _BRIDGE_SCRIPT,
@@ -146,7 +148,7 @@ class BridgeProcessMixin:
                 break
         else:
             try:
-                os.kill(pid, signal.SIGKILL)
+                os.kill(pid, SIGKILL)
             except (ProcessLookupError, PermissionError):
                 pass
 

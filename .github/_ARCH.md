@@ -9,6 +9,7 @@ OSS `myrm-agent` 仓库 GitHub Actions 工作流与 CI 配置根。
 | 目录 | 职责 |
 |------|------|
 | `workflows/` | CI/CD 流水线（harness 测试/架构/发布、server 测试、架构守门、安装冒烟、`desktop-release` 等） |
+| `actions/` | 本地 composite action（目前是桌面四个平台构建 job 共用的 `build-sidecar`） |
 
 ## 文件
 

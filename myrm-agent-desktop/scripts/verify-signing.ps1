@@ -3,8 +3,9 @@
     Post-build Windows Authenticode verifier for MyrmAgent installers.
 
 .DESCRIPTION
-    Runs inside the GitHub Actions release workflow after `tauri-action`
-    produces .exe and .msi installers. For each artifact, executes:
+    Meant to run after `tauri-action` produces the .exe and .msi installers of a
+    signed release; no workflow calls it until a signing certificate is configured.
+    For each artifact, executes:
 
         signtool verify /pa /v /tw <artifact>
 
@@ -15,7 +16,7 @@
            we still fail when timestamp is absent, but get the warning context.
 
     Exits with non-zero status equal to failure count when any check fails;
-    full verification log is also written to -LogPath for artifact upload.
+    full verification log is also written to -LogPath.
 
 .PARAMETER SearchRoot
     Directory roots to scan for .exe / .msi artifacts (can be repeated).
@@ -25,7 +26,7 @@
     with -SearchRoot semantics — both can coexist).
 
 .PARAMETER LogPath
-    File path for the full verification log (used as CI artifact).
+    File path for the full verification log.
 
 .PARAMETER ListOut
     Optional file path receiving the list of discovered artifact paths.

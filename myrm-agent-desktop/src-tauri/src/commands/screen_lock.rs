@@ -40,13 +40,15 @@ fn curtain_capture_exclusion_ready() -> bool {
 #[cfg(target_os = "windows")]
 fn windows_build_number() -> u32 {
     use std::mem::{size_of, zeroed};
-    use windows_sys::Win32::System::SystemInformation::{RtlGetVersion, OSVERSIONINFOEXW};
+    use windows_sys::Wdk::System::SystemServices::RtlGetVersion;
+    use windows_sys::Win32::System::SystemInformation::{OSVERSIONINFOEXW, OSVERSIONINFOW};
 
-    // RtlGetVersion reports the real build number on Windows 10+.
+    // RtlGetVersion reports the real build number on Windows 10+. It takes the base struct pointer and
+    // reads the extended layout when `dwOSVersionInfoSize` says so.
     unsafe {
         let mut info: OSVERSIONINFOEXW = zeroed();
         info.dwOSVersionInfoSize = size_of::<OSVERSIONINFOEXW>() as u32;
-        if RtlGetVersion(&mut info as *mut OSVERSIONINFOEXW) != 0 {
+        if RtlGetVersion(std::ptr::addr_of_mut!(info).cast::<OSVERSIONINFOW>()) != 0 {
             return 0;
         }
         info.dwBuildNumber

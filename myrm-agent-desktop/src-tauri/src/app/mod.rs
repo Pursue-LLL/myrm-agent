@@ -85,6 +85,8 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| match event {
+            // Finder "open with" arrives as an Apple event; tauri only defines this variant on macOS.
+            #[cfg(target_os = "macos")]
             tauri::RunEvent::Opened { urls } => {
                 runtime::handle_open_urls(app_handle, urls);
             }

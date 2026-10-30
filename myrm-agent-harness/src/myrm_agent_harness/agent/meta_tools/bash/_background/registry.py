@@ -55,7 +55,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     FinishListener,
     ProgressListener,
 )
-from myrm_agent_harness.utils.os_compat import kill_process_group
+from myrm_agent_harness.utils.os_compat import SIGKILL, kill_process_group
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import (
@@ -332,7 +332,7 @@ class BackgroundProcessRegistry:
         with suppress(ProcessLookupError, OSError):
             kill_process_group(
                 entry.info.pid,
-                signal.SIGKILL if force else signal.SIGTERM,
+                SIGKILL if force else signal.SIGTERM,
             )
 
         # 2. For graceful kills wait for the process to exit, then escalate.
@@ -348,7 +348,7 @@ class BackgroundProcessRegistry:
                     grace_seconds,
                 )
                 with suppress(ProcessLookupError, OSError):
-                    kill_process_group(entry.info.pid, signal.SIGKILL)
+                    kill_process_group(entry.info.pid, SIGKILL)
                 with suppress(TimeoutError):
                     await asyncio.wait_for(entry.proc.wait(), timeout=2.0)
             except (ProcessLookupError, OSError):
@@ -515,7 +515,7 @@ class BackgroundProcessRegistry:
             if entry.info.status != "running":
                 continue
             with suppress(ProcessLookupError, OSError):
-                kill_process_group(entry.info.pid, signal.SIGKILL)
+                kill_process_group(entry.info.pid, SIGKILL)
 
 
 _registry: BackgroundProcessRegistry | None = None

@@ -26,7 +26,7 @@ pub mod python_backend;
 pub mod python_backend_stop;
 pub mod remote_follow;
 pub mod setup_token;
-pub mod sidecar_version_manager;
+pub mod sidecar_path;
 pub mod survivor_diag;
 mod theme_package_open;
 pub mod update_safety;
@@ -46,10 +46,10 @@ pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend}
 pub use python_backend_stop::graceful_stop_backend;
 pub use remote_follow::is_remote_follow_deferred;
 pub use setup_token::SetupTokenState;
+#[cfg(target_os = "macos")]
+pub use theme_package_open::handle_open_urls;
 #[allow(unused_imports)]
-pub use sidecar_version_manager::{SidecarVersionManager, SidecarVersionManifest};
-#[allow(unused_imports)]
-pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
+pub use theme_package_open::{emit_theme_package_open, handle_startup_args};
 
 use tauri::{AppHandle, Manager};
 

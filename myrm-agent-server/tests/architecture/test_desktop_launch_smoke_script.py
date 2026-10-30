@@ -24,10 +24,11 @@ def test_smoke_launch_runtime_script_sh_syntax() -> None:
     )
 
     text = _SMOKE_SCRIPT_SH.read_text(encoding="utf-8")
-    assert "--bundle-app" in text
+    assert "--bundle)" in text
+    assert "--dev)" in text
     assert "/health" in text
     assert "MIN_BINARY_BYTES" in text
-    assert "AGENT_RUNNER_BIN" in text
+    assert "_internal" in text
 
 
 def test_smoke_launch_runtime_script_ps1_content() -> None:
@@ -37,6 +38,7 @@ def test_smoke_launch_runtime_script_ps1_content() -> None:
     assert "-BundleDir" in text
     assert "/health" in text
     assert "MinBinaryBytes" in text
+    assert "_internal" in text
     assert "Assert-NonEmptyFile" in text
     assert "Kill-ProcessTree" in text
     assert "taskkill.exe" in text

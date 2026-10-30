@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import asyncio
 import gc
-import resource
 import sys
 import time
 
@@ -39,6 +38,11 @@ from myrm_agent_harness.runtime.survival.desktop_watchdog_types import (
 from myrm_agent_harness.runtime.survival.session_dehydration import (
     SessionContextDehydrator,
 )
+
+try:
+    import resource
+except ImportError:  # Windows has no resource module; psutil is the only RSS source there
+    resource = None  # type: ignore[assignment]
 
 _DEFAULT_WARNING_RSS: int = 1200 * 1024 * 1024  # 1.2 GB
 _DEFAULT_CRITICAL_RSS: int = 1800 * 1024 * 1024  # 1.8 GB
@@ -54,6 +58,8 @@ def get_current_rss_bytes() -> int:
     except Exception:
         pass
 
+    if resource is None:
+        return 0  # unreadable: below every watermark, so the watchdog stays idle
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # macOS reports in bytes; Linux reports in kilobytes
     if sys.platform == "darwin":
@@ -73,9 +79,7 @@ class DesktopMemoryWatchdog:
         emergency_rss_bytes: int = _DEFAULT_EMERGENCY_RSS,
         idle_threshold_seconds: float = 60.0,
     ) -> None:
-        self.dehydrator: SessionContextDehydrator = (
-            dehydrator or SessionContextDehydrator()
-        )
+        self.dehydrator: SessionContextDehydrator = dehydrator or SessionContextDehydrator()
         self.warning_rss_bytes: int = warning_rss_bytes
         self.critical_rss_bytes: int = critical_rss_bytes
         self.emergency_rss_bytes: int = emergency_rss_bytes
@@ -91,18 +95,14 @@ class DesktopMemoryWatchdog:
 
     def mark_user_activity(self, timestamp: float | None = None) -> None:
         """Record an inbound user event to reset the idle timer."""
-        self._last_user_activity_ts = (
-            timestamp if timestamp is not None else time.time()
-        )
+        self._last_user_activity_ts = timestamp if timestamp is not None else time.time()
 
     def is_idle(self, now: float | None = None) -> bool:
         """Return True if no user activity occurred within idle_threshold_seconds."""
         current_time = now if now is not None else time.time()
         return (current_time - self._last_user_activity_ts) >= self.idle_threshold_seconds
 
-    def evaluate_memory_pressure(
-        self, current_rss: int | None = None
-    ) -> MemoryAlertLevel:
+    def evaluate_memory_pressure(self, current_rss: int | None = None) -> MemoryAlertLevel:
         """Classify current process RSS into 4-tier pressure levels."""
         rss = current_rss if current_rss is not None else get_current_rss_bytes()
         if rss >= self.emergency_rss_bytes:
@@ -126,11 +126,7 @@ class DesktopMemoryWatchdog:
         If force=False and level=WARNING, compaction is postponed until is_idle() is True.
         """
         async with self._lock:
-            pre_rss = (
-                simulated_pre_rss
-                if simulated_pre_rss is not None
-                else get_current_rss_bytes()
-            )
+            pre_rss = simulated_pre_rss if simulated_pre_rss is not None else get_current_rss_bytes()
             resolved_level = level or self.evaluate_memory_pressure(pre_rss)
 
             # Suppress WARNING compaction if user is currently active and not forced
@@ -158,11 +154,7 @@ class DesktopMemoryWatchdog:
                 except Exception:
                     pass
 
-            post_rss = (
-                simulated_post_rss
-                if simulated_post_rss is not None
-                else get_current_rss_bytes()
-            )
+            post_rss = simulated_post_rss if simulated_post_rss is not None else get_current_rss_bytes()
             freed = max(0, pre_rss - post_rss)
 
             return MemoryCompactionReceipt(

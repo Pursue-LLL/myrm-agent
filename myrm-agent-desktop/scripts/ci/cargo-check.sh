@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
-# Desktop Rust compile gate: stub sidecars → cargo check → platform-neutral unit tests.
+# Desktop Rust compile gate: cargo check → platform-neutral unit tests.
 set -euo pipefail
 
 DESKTOP_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-REPO_ROOT="$(cd "$DESKTOP_ROOT/.." && pwd)"
 TAURI_DIR="$DESKTOP_ROOT/src-tauri"
-FRONTEND_STANDALONE="$REPO_ROOT/myrm-agent-frontend/.next/standalone/myrm-agent-frontend"
 
-bash "$REPO_ROOT/scripts/ci/desktop-release/prepare-check-stub-sidecars.sh"
-
-mkdir -p "$FRONTEND_STANDALONE"
-if [[ ! -f "$FRONTEND_STANDALONE/server.js" ]]; then
-  printf '%s\n' '// CI stub for cargo check' >"$FRONTEND_STANDALONE/server.js"
-  echo "[desktop-cargo-check] stub frontend standalone at $FRONTEND_STANDALONE"
-fi
+# This gate compiles and unit-tests the shell, it does not bundle. Dropping the declared resources keeps it
+# independent of the sidecar tree and the frontend build, which dedicated CI jobs produce.
+export TAURI_CONFIG='{"bundle":{"resources":[]}}'
 
 cd "$TAURI_DIR"
 cargo check --locked
@@ -26,6 +20,7 @@ cargo check --locked
 #   commands::session_window           session window page address on the product origin
 #   utils::protocol_page               custom-protocol page primitives
 #   runtime::product_origin            product page origin and URL building
+#   runtime::sidecar_path              sidecar entry-point lookup in the bundled resource folder
 #   app::chain                         shipped tauri.conf.json is accepted by every plugin (in-process
 #                                      boot with the real context) and the shell-open link scope
 #   ipc_security::acl_tests            window x origin x command ACL contract (in-process, real
@@ -35,7 +30,7 @@ cargo check --locked
 #   app::setup                         which windows the app-level window policy governs
 cargo test --locked -- config::tests commands::privacy_curtain commands::visual_approval_overlay \
   commands::pet_surface commands::session_window utils::protocol_page runtime::product_origin \
-  app::chain ipc_security::acl_tests \
+  runtime::sidecar_path app::chain ipc_security::acl_tests \
   ipc_security::tests::build_manifest_commands_are_covered_by_policy \
   ipc_security::tests::command_registry app::setup --nocapture
 

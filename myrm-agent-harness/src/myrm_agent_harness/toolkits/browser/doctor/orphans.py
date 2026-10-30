@@ -29,9 +29,10 @@ import contextlib
 import logging
 import os
 import signal
-import sys
 import time
 from typing import TYPE_CHECKING, TypedDict
+
+from myrm_agent_harness.utils.os_compat import SIGKILL
 
 from ..process_owner import OwnerState, read_owner_state
 
@@ -46,9 +47,6 @@ _POLL_INTERVAL_S = 0.05
 _GRACE_PERIOD_S = 3.0
 # SIGKILL cannot be caught, but delivery and teardown are asynchronous.
 _SIGKILL_SETTLE_S = 1.0
-# Windows has no SIGKILL; there ``os.kill`` terminates the process for any signal that is not a
-# console control event, so SIGTERM is already the hard kill.
-_KILL_SIGNAL = signal.SIGTERM if sys.platform == "win32" else signal.SIGKILL
 # The toolkit launches Chromium builds only, whose binaries and helpers are named after Chrome or Chromium
 # (``chrome``, ``chrome-headless-shell``, ``Google Chrome for Testing Helper``, ``chrome_crashpad_handler``);
 # the real-browser contract test fails when a build stops doing so.
@@ -201,7 +199,7 @@ def _terminate(pid: int, timeout_s: float) -> bool:
         # The grace period outlasted the process: the pid is gone or now belongs to someone else.
         return True
     with contextlib.suppress(ProcessLookupError):
-        os.kill(pid, _KILL_SIGNAL)
+        os.kill(pid, SIGKILL)
         logger.info(f"Force killed (SIGKILL) stubborn orphan process: {pid}")
     return _wait_until_stopped(pid, _SIGKILL_SETTLE_S)
 

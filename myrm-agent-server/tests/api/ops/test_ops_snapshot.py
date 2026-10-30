@@ -25,6 +25,16 @@ app = build_minimal_app(preset="health")
 
 
 @pytest.mark.asyncio
+async def test_resource_info_leaves_rss_unset_without_the_resource_module() -> None:
+    """Windows has no `resource` module: the snapshot still reports, only the peak-RSS field is empty."""
+    with patch("app.services.ops.snapshot_service.resource", None):
+        info = await OpsAggregatedSnapshotService._collect_resource_info()
+
+    assert info.process_rss_mb is None
+    assert info.memory_level is not None
+
+
+@pytest.mark.asyncio
 async def test_ops_aggregated_snapshot_service_collects_successfully() -> None:
     """Verify that OpsAggregatedSnapshotService produces a fully populated DTO."""
     snapshot = await OpsAggregatedSnapshotService.collect_snapshot(include_doctor=False)

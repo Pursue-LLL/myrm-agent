@@ -4,14 +4,15 @@
 //! - config::BackendConfig, ConfigManager (POS: 桌面端系统配置与后端绑定端口)
 //! - runtime::port::is_port_in_use (POS: 启动前端口冲突检测)
 //! - runtime::python_backend_stop::graceful_stop_backend (POS: 后端优雅停机序列层)
+//! - runtime::sidecar_path::bundled_executable (POS: release sidecar 可执行文件定位)
 //!
 //! [OUTPUT]
 //! - start_backend / stop_backend / check_backend_health IPC
 //! - PythonBackend: Sidecar 子进程句柄
 //!
 //! [POS]
-//! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
-//! 启动后最多 120s 轮询 `/health`；超时则终止子进程并返回 `Err`。
+//! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 目录树里的可执行文件，
+//! 启动后最多 `BACKEND_STARTUP_TIMEOUT` 轮询 `/health`；超时则终止子进程并返回 `Err`。
 //! 向 sidecar 注入帷幕状态桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、
 //! 壳进程身份 `MYRM_SHELL_PID` 与 spawn-time `MYRM_LOCKED_USE_ENABLED`（server 运行时以 runtime 文件为准）。
 
@@ -27,13 +28,14 @@ use uuid::Uuid;
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::python_backend_stop::graceful_stop_backend;
 use crate::runtime::setup_token::SetupTokenState;
-use crate::runtime::sidecar_version_manager::SidecarVersionManager;
+use crate::runtime::sidecar_path::bundled_executable;
 use crate::runtime::survivor_diag::{diagnose_and_reclaim_port, SurvivorDiagResult};
 use crate::runtime::TOXIC_ENV_VARS;
 use crate::utils::process_tree::kill_process_tree;
 
-const BACKEND_HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
-const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 240;
+/// Budget for a cold sidecar to answer `/health` after spawn. A cold start measures 20 s on a
+/// warm machine and over 45 s on a heavily loaded one, so the budget leaves wide headroom.
+const BACKEND_STARTUP_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub struct PythonBackend {
     pub process: Arc<Mutex<Option<Child>>>,
@@ -112,7 +114,7 @@ pub async fn start_backend_with_config(
 
     let is_dev = cfg!(debug_assertions);
 
-    let (mut cmd, target_version) = if is_dev {
+    let mut cmd = if is_dev {
         println!("🔧 Development mode: Using Python interpreter");
 
         let tauri_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
@@ -153,57 +155,15 @@ pub async fn start_backend_with_config(
 
         let mut cmd = Command::new(python_exe);
         cmd.arg(run_script).current_dir(&server_root);
-        (cmd, None)
+        cmd
     } else {
-        println!("📦 Production mode: Resolving Sidecar via SidecarVersionManager");
-
-        let binary_name = if cfg!(target_os = "windows") {
-            "binaries/myrmagent-backend.exe"
-        } else {
-            "binaries/myrmagent-backend"
-        };
-        let factory_bundle_path = app
-            .path()
-            .resolve(binary_name, tauri::path::BaseDirectory::Resource)
-            .map_err(|e| format!("Failed to resolve sidecar path: {}", e))?;
-
-        let app_data_dir = app
-            .path()
-            .app_data_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("."));
-
-        let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
-        let (launch_binary, active_version) = version_manager.resolve_launch_binary();
-
+        let launch_binary = bundled_executable(&app)?;
         println!(
-            "📦 Resolved launch Sidecar binary: {:?} (Version: {:?})",
-            launch_binary, active_version
+            "📦 Production mode: launching bundled sidecar {:?}",
+            launch_binary
         );
 
-        let sidecar_len = std::fs::metadata(&launch_binary)
-            .map(|meta| meta.len())
-            .unwrap_or(0);
-        if sidecar_len == 0 {
-            return Err(format!(
-                "Backend sidecar binary is missing or empty at {:?}. \
-                 Build it with: python myrm-agent-desktop/sidecar/build.py",
-                launch_binary
-            ));
-        }
-
-        let mut sidecar_cmd = Command::new(&launch_binary);
-        // tiktoken 编码表随包分发：打包环境常无外网，缺编码表会让 LiteLLM 直接抛
-        // "Unknown encoding cl100k_base"，所有模型调用失败。
-        if let Ok(cache_dir) = app
-            .path()
-            .resolve("tiktoken_cache", tauri::path::BaseDirectory::Resource)
-        {
-            if cache_dir.is_dir() {
-                sidecar_cmd.env("TIKTOKEN_CACHE_DIR", &cache_dir);
-                sidecar_cmd.env("DATA_GYM_CACHE_DIR", &cache_dir);
-            }
-        }
-        (sidecar_cmd, active_version)
+        Command::new(launch_binary)
     };
 
     for var in TOXIC_ENV_VARS {
@@ -232,8 +192,8 @@ pub async fn start_backend_with_config(
         );
     }
 
-    // 壳进程身份：server 凭此判定帷幕是否仍有主。release 的 sidecar 是 PyInstaller
-    // --onefile，getppid 指向其引导进程而非壳；壳崩溃后状态文件的 active 不会再被更新。
+    // 壳进程身份：server 凭此判定帷幕是否仍有主（壳崩溃后状态文件的 active 不会再被更新）。
+    // 显式传递而不让 server 用 getppid 推断：父进程是谁取决于 sidecar 的拉起方式，壳身份不该随之变化。
     cmd.env("MYRM_SHELL_PID", std::process::id().to_string());
 
     // Locked Use 能力开关传递（server 侧代解锁授权判定，与帷幕开关注册同源）。
@@ -302,7 +262,7 @@ pub async fn start_backend_with_config(
     println!("✅ Backend process started (PID: {})", child_pid);
 
     // 立即首探 + 快速递增轮询（50ms 起步，最大 250ms），一旦端口监听并在几毫秒内健康即刻返回，消除无谓等待
-    let deadline = std::time::Instant::now() + Duration::from_secs(120);
+    let deadline = std::time::Instant::now() + BACKEND_STARTUP_TIMEOUT;
     let mut poll_interval = Duration::from_millis(50);
     let mut attempts = 0;
     while std::time::Instant::now() < deadline {
@@ -310,32 +270,11 @@ pub async fn start_backend_with_config(
         match check_health_with_port(config.port).await {
             Ok(true) => {
                 println!("✅ Backend is healthy after {} attempts", attempts);
-
-                // 在发布模式下，标记该版本健康并晋升为 last_known_good
-                if !is_dev {
-                    let app_data_dir = app
-                        .path()
-                        .app_data_dir()
-                        .unwrap_or_else(|_| std::path::PathBuf::from("."));
-                    let binary_name = if cfg!(target_os = "windows") {
-                        "binaries/myrmagent-backend.exe"
-                    } else {
-                        "binaries/myrmagent-backend"
-                    };
-                    let factory_bundle_path = app
-                        .path()
-                        .resolve(binary_name, tauri::path::BaseDirectory::Resource)
-                        .unwrap_or_default();
-                    let version_manager =
-                        SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
-                    let _ = version_manager.mark_version_healthy(target_version.as_deref());
-                }
-
                 return Ok("Backend started and healthy".to_string());
             }
             _ => {
                 // 子进程已退出（端口冲突、数据目录交接失败等）时立刻失败，不要把用户晾在
-                // 120s 的「启动中」骨架屏上；真正的退出原因由子进程自身日志给出。
+                // 整个启动预算的「启动中」骨架屏上；真正的退出原因由子进程自身日志给出。
                 let child_exited = {
                     let mut guard = backend.process.lock().unwrap();
                     match guard.as_mut() {
@@ -367,33 +306,9 @@ pub async fn start_backend_with_config(
         }
     }
 
-    // 启动超时失败：如果是发布模式且指定了 target_version，自动触发坏版本拉黑与故障回滚
-    if !is_dev {
-        let app_data_dir = app
-            .path()
-            .app_data_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("."));
-        let binary_name = if cfg!(target_os = "windows") {
-            "binaries/myrmagent-backend.exe"
-        } else {
-            "binaries/myrmagent-backend"
-        };
-        let factory_bundle_path = app
-            .path()
-            .resolve(binary_name, tauri::path::BaseDirectory::Resource)
-            .unwrap_or_default();
-        let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
-        let (fallback_path, fallback_ver) =
-            version_manager.mark_version_broken_and_rollback(target_version.as_deref());
-        println!(
-            "⚠️ Sidecar launch probe failed for version {:?}. Auto-rolled back to: {:?} (Target: {:?})",
-            target_version, fallback_ver, fallback_path
-        );
-    }
-
     Err(format!(
         "Backend health check timed out after {}s. Restart MyrmAgent or check whether port {} is available.",
-        BACKEND_HEALTH_MAX_ATTEMPTS as u64 * BACKEND_HEALTH_POLL_INTERVAL.as_millis() as u64 / 1000,
+        BACKEND_STARTUP_TIMEOUT.as_secs(),
         config.port
     ))
 }

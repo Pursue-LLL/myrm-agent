@@ -191,7 +191,7 @@ class CliLoginSession:
         proc = self._process
         if proc is None or proc.returncode is not None:
             return
-        from myrm_agent_harness.utils.os_compat import kill_process_group
+        from myrm_agent_harness.utils.os_compat import SIGKILL, kill_process_group
 
         pid = proc.pid
         with contextlib.suppress(ProcessLookupError, PermissionError):
@@ -202,7 +202,7 @@ class CliLoginSession:
         if proc.returncode is None:
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 if pid is not None:
-                    kill_process_group(pid, signal.SIGKILL)
+                    kill_process_group(pid, SIGKILL)
 
 
 async def _pump(stream: asyncio.StreamReader | None, queue: asyncio.Queue[str | None]) -> None:

@@ -1,0 +1,60 @@
+name: Build desktop sidecar
+description: >-
+  Restore the prebuilt frontend, install the build toolchain and build the PyInstaller sidecar that the Tauri
+  bundle ships as a resource. Every platform build job runs these steps in this order.
+
+inputs:
+  arch:
+    description: Architecture the sidecar is built for (arm64 or x86_64); the build fails when the produced binary differs.
+    required: true
+  rust-target:
+    description: Rust target to install besides the host's (macOS builds a non-host triple); empty installs the host target only.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Download frontend build artifact
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      with:
+        name: frontend-tauri-build
+        path: myrm-agent-frontend/.next
+
+    - name: Install Bun
+      uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+      with:
+        bun-version: latest
+
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      with:
+        targets: ${{ inputs.rust-target }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
+
+    - name: Set up Python
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      with:
+        python-version: '3.13'
+
+    - name: Inject version from tag
+      shell: bash
+      run: bash scripts/ci/desktop-release/inject-version.sh "$RELEASE_TAG"
+
+    - name: Set TARGET_ARCH for Sidecar Build
+      shell: bash
+      env:
+        ARCH: ${{ inputs.arch }}
+      run: echo "TARGET_ARCH=$ARCH" >> "$GITHUB_ENV"
+
+    - name: Sync server venv (desktop production)
+      shell: bash
+      run: bash scripts/ci/desktop-release/sync-server-venv.sh
+
+    - name: Build Sidecars
+      shell: bash
+      run: |
+        cd myrm-agent-desktop/sidecar
+        python build.py

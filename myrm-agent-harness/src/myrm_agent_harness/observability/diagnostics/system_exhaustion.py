@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import platform
-import resource
 import sys
 from pathlib import Path
 from typing import NotRequired, TypedDict
@@ -27,6 +26,11 @@ try:
     import psutil
 except ImportError:
     psutil = None  # type: ignore[assignment]  # optional dependency; callers check for None
+
+try:
+    import resource
+except ImportError:  # Windows has no resource module; handle counts come from psutil there
+    resource = None  # type: ignore[assignment]
 
 from myrm_agent_harness.observability.diagnostics.manager import register_diagnostic
 from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
@@ -93,7 +97,7 @@ def _read_system_fd_usage() -> tuple[int | None, int | None, float | None]:
             except (OSError, ValueError):
                 pass
 
-    if max_fds is None or max_fds <= 0:
+    if resource is not None and (max_fds is None or max_fds <= 0):
         try:
             soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
             if soft_limit > 0 and soft_limit != resource.RLIM_INFINITY:

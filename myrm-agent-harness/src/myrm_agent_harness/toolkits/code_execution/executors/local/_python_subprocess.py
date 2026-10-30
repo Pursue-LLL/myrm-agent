@@ -34,6 +34,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import (
 from myrm_agent_harness.toolkits.code_execution.executors.common import (
     parse_execution_output,
 )
+from myrm_agent_harness.utils.os_compat import SIGKILL
 from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ async def _kill_process_tree(process: asyncio.subprocess.Process, os_compat: Mod
             await asyncio.wait_for(process.wait(), timeout=2)
         except TimeoutError:
             if process.pid and kill_group:
-                kill_group(process.pid, signal.SIGKILL)
+                kill_group(process.pid, SIGKILL)
             else:
                 process.kill()
             await process.wait()

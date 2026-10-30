@@ -28,7 +28,7 @@ pub(crate) use common::{
 #[cfg(target_os = "macos")]
 pub(crate) use capture_macos::capture_macos;
 #[cfg(target_os = "windows")]
-pub use capture_windows::capture_windows;
+pub(crate) use capture_windows::capture_windows;
 
 pub static APPSHOT_SHORTCUT_STR: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 pub static VOICE_PTT_SHORTCUT_STR: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());

@@ -8,11 +8,12 @@ use windows_sys::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits,
     SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, SRCCOPY,
 };
+use windows_sys::Win32::Storage::Xps::{PrintWindow, PW_CLIENTONLY};
 use windows_sys::Win32::System::ProcessStatus::GetModuleFileNameExW;
 use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId, PrintWindow, PW_CLIENTONLY,
+    GetWindowThreadProcessId,
 };
 
 use base64::Engine;
@@ -23,7 +24,7 @@ use crate::runtime::suppress_console_window;
 pub(super) fn get_foreground_app_name() -> String {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd == 0 {
+        if hwnd.is_null() {
             return String::new();
         }
         let mut pid: u32 = 0;
@@ -32,11 +33,16 @@ pub(super) fn get_foreground_app_name() -> String {
             return String::new();
         }
         let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-        if handle == 0 {
+        if handle.is_null() {
             return String::new();
         }
         let mut buf = [0u16; 1024];
-        let len = GetModuleFileNameExW(handle, 0, buf.as_mut_ptr(), buf.len() as u32);
+        let len = GetModuleFileNameExW(
+            handle,
+            std::ptr::null_mut(),
+            buf.as_mut_ptr(),
+            buf.len() as u32,
+        );
         windows_sys::Win32::Foundation::CloseHandle(handle);
         if len == 0 {
             return String::new();
@@ -72,7 +78,7 @@ fn get_window_title(hwnd: HWND) -> String {
 fn capture_foreground_window() -> String {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd == 0 {
+        if hwnd.is_null() {
             return String::new();
         }
 
@@ -92,7 +98,7 @@ fn capture_foreground_window() -> String {
         }
 
         let hdc_screen = windows_sys::Win32::Graphics::Gdi::GetDC(hwnd);
-        if hdc_screen == 0 {
+        if hdc_screen.is_null() {
             return String::new();
         }
         let hdc_mem = CreateCompatibleDC(hdc_screen);
@@ -198,7 +204,7 @@ foreach ($el in $elements) {
 
 fn capture_appshot() -> (String, String, String, bool) {
     let hwnd = unsafe { GetForegroundWindow() };
-    let window_title = if hwnd != 0 {
+    let window_title = if !hwnd.is_null() {
         let app_name = get_foreground_app_name();
         let title = get_window_title(hwnd);
         if !app_name.is_empty() && !title.is_empty() {
@@ -292,7 +298,7 @@ fn get_selected_text_via_clipboard() -> String {
     truncate_utf8(&selected, 10_000)
 }
 
-pub(super) fn capture_windows() -> (String, String, String, bool, String) {
+pub(crate) fn capture_windows() -> (String, String, String, bool, String) {
     let (screenshot, title, text, perm) = capture_appshot();
     let selected = get_selected_text_via_clipboard();
     (screenshot, title, text, perm, selected)

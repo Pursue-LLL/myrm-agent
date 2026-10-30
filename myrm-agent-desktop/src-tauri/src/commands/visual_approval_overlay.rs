@@ -25,6 +25,9 @@
 //! [POS]
 //! 视觉审批的原生辅助提示，不承担审批决策；overlay 缺席时审批照常在聊天内联界面完成。
 
+// 几何计算与窗口 label 在所有平台编译并由单元测试覆盖；没有 overlay 实现的平台不会走到建窗路径。
+#![cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use tauri::{AppHandle, Manager, Monitor, WebviewUrl, WebviewWindowBuilder};
@@ -291,6 +294,17 @@ fn destroy_overlay_windows(app: &AppHandle, keep: Option<&str>) -> Result<(), St
     Ok(())
 }
 
+/// 没有 overlay 实现的平台返回明确错误，前端据此回退到聊天内联审批。
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[tauri::command]
+pub async fn show_visual_approval_overlay(
+    _app: AppHandle,
+    _payload: VisualApprovalOverlayPayload,
+) -> Result<VisualApprovalOverlayShowResult, String> {
+    Err("visual approval OS overlay is not supported on this platform".to_string())
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[tauri::command]
 pub async fn show_visual_approval_overlay(
     app: AppHandle,
@@ -300,8 +314,6 @@ pub async fn show_visual_approval_overlay(
     let open_result = open_overlay_window(&app, &payload);
     #[cfg(target_os = "windows")]
     let open_result = open_overlay_on_ui_thread(&app, payload).await;
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    return Err("visual approval OS overlay is not supported on this platform".to_string());
 
     match open_result {
         Ok((OpenOverlayOutcome::Shown, label)) => {

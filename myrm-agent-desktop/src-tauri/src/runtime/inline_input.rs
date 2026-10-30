@@ -236,7 +236,7 @@ fn get_frontmost_pid() -> u32 {
         };
         unsafe {
             let hwnd = GetForegroundWindow();
-            if hwnd == 0 {
+            if hwnd.is_null() {
                 return 0;
             }
             let mut pid: u32 = 0;
@@ -262,11 +262,12 @@ fn activate_pid(pid: u32) {
     }
     #[cfg(target_os = "windows")]
     {
+        use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM};
         use windows_sys::Win32::UI::WindowsAndMessaging::{
             EnumWindows, GetWindowThreadProcessId, IsWindowVisible, SetForegroundWindow,
         };
         unsafe {
-            unsafe extern "system" fn callback(hwnd: isize, lparam: isize) -> i32 {
+            unsafe extern "system" fn callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
                 let target_pid = lparam as u32;
                 let mut window_pid: u32 = 0;
                 GetWindowThreadProcessId(hwnd, &mut window_pid);
@@ -276,7 +277,7 @@ fn activate_pid(pid: u32) {
                 }
                 1 // continue
             }
-            EnumWindows(Some(callback), pid as isize);
+            EnumWindows(Some(callback), pid as LPARAM);
         }
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]

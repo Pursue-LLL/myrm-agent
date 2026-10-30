@@ -1,7 +1,6 @@
 //! Appshot 共享工具：时间戳、隐私黑名单、截图压缩、前台应用名。
 
 use std::collections::HashSet;
-use std::process::Command;
 use tauri::{AppHandle, Manager};
 
 use crate::config::ConfigManager;
@@ -70,6 +69,7 @@ pub(super) fn truncate_utf8(s: &str, max_bytes: usize) -> String {
 pub(crate) fn get_frontmost_app_name() -> String {
     #[cfg(target_os = "macos")]
     {
+        use std::process::Command;
         if let Ok(output) = Command::new("osascript")
             .args(["-e", r#"tell application "System Events" to get name of first application process whose frontmost is true"#])
             .output()

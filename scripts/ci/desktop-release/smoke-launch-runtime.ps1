@@ -1,7 +1,8 @@
-# Windows post-build runtime smoke: assert sidecar integrity, start bundled Python + Next standalone, and probe /health.
+# Windows runtime smoke for a built desktop bundle: start the bundled Python sidecar (a PyInstaller
+# one-folder tree) and the Next standalone server the way the Tauri shell does, then probe both over HTTP.
 # Usage:
 #   .\smoke-launch-runtime.ps1 -Dev
-#   .\smoke-launch-runtime.ps1 -BundleDir <path/to/target_or_bundle>
+#   .\smoke-launch-runtime.ps1 -BundleDir <installed app dir>
 
 [CmdletBinding()]
 param (
@@ -11,23 +12,29 @@ param (
     [int]$WebuiPort = 3000,
     [string]$HostName = "127.0.0.1",
     [double]$PollIntervalSec = 0.5,
-    [int]$MaxAttempts = 120,
-    [int]$MinBinaryBytes = 1048576 # 1MB min threshold for binary sidecars
+    # Same startup budget as the shell (BACKEND_STARTUP_TIMEOUT in python_backend.rs).
+    [int]$ReadyTimeoutSec = 120,
+    [int]$MinBinaryBytes = 1048576 # 1MB min threshold for the sidecar executable
 )
 
 $ErrorActionPreference = 'Stop'
 
-if (-not $Dev -and [string]::IsNullOrWhiteSpace($BundleDir)) {
-    Write-Error "[launch-smoke-win] Specify either -Dev or -BundleDir <path>"
+function Fail {
+    param ([string]$Message)
+    Write-Error "[launch-smoke-win] FAIL: $Message"
     exit 1
+}
+
+if (-not $Dev -and [string]::IsNullOrWhiteSpace($BundleDir)) {
+    Fail "Specify either -Dev or -BundleDir <path>"
 }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Resolve-Path (Join-Path $ScriptDir "../../..")
 
 $BackendBin = $null
-$AgentRunnerBin = $null
 $FrontendDir = $null
+$DataDir = $null
 $BackendProc = $null
 $FrontendProc = $null
 
@@ -38,13 +45,11 @@ function Assert-NonEmptyFile {
         [int]$MinBytes
     )
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        Write-Error "[launch-smoke-win] $Label missing at $Path"
-        exit 1
+        Fail "$Label missing at $Path"
     }
     $size = (Get-Item -LiteralPath $Path).Length
     if ($size -lt $MinBytes) {
-        Write-Error "[launch-smoke-win] $Label is too small ($size bytes < $MinBytes bytes): $Path"
-        exit 1
+        Fail "$Label is too small ($size bytes < $MinBytes bytes): $Path"
     }
     Write-Host "[launch-smoke-win] OK: $Label ($size bytes) -> $Path"
 }
@@ -64,108 +69,97 @@ function Kill-ProcessTree {
 function Wait-HttpOk {
     param (
         [string]$Url,
-        [string]$Label
+        [string]$Label,
+        [System.Diagnostics.Process]$Proc
     )
-    $attempts = 0
-    while ($attempts -lt $MaxAttempts) {
+    $watch = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($watch.Elapsed.TotalSeconds -lt $ReadyTimeoutSec) {
         try {
             $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
-                Write-Host "[launch-smoke-win] $Label is ready ($Url) - Status: $($response.StatusCode)"
+                Write-Host ("[launch-smoke-win] {0} ready in {1:N0}s ({2}) - Status: {3}" -f $Label, $watch.Elapsed.TotalSeconds, $Url, $response.StatusCode)
                 return
             }
         } catch {
-            # In progress
+            # Not listening yet; keep polling until the process exits or the budget runs out.
         }
-        $attempts++
-        Start-Sleep -Seconds $PollIntervalSec
+        if ($Proc.HasExited) {
+            Fail "$Label process exited (code $($Proc.ExitCode)) before becoming ready ($Url)"
+        }
+        Start-Sleep -Milliseconds ([int]($PollIntervalSec * 1000))
     }
-    Write-Error "[launch-smoke-win] $Label not ready after $MaxAttempts attempts ($Url)"
-    exit 1
+    Fail "$Label not ready after ${ReadyTimeoutSec}s ($Url)"
 }
 
 try {
     if ($Dev) {
         $BinariesDir = Join-Path $RepoRoot "myrm-agent-desktop/src-tauri/binaries"
-        $BackendMatch = Get-ChildItem -Path $BinariesDir -Filter "myrmagent-backend*.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($BackendMatch) {
-            $BackendBin = $BackendMatch.FullName
-        } else {
-            $BackendBin = Join-Path $BinariesDir "myrmagent-backend-x86_64-pc-windows-msvc.exe"
-        }
-
-        $AgentRunnerMatch = Get-ChildItem -Path $BinariesDir -Filter "agent-runner*.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($AgentRunnerMatch) {
-            $AgentRunnerBin = $AgentRunnerMatch.FullName
-        }
-
+        $BackendBin = Join-Path $BinariesDir "myrmagent-backend/myrmagent-backend.exe"
         $FrontendDir = Join-Path $RepoRoot "myrm-agent-frontend/.next/standalone/myrm-agent-frontend"
-        if (-not (Test-Path -LiteralPath $FrontendDir)) {
-            $FrontendDir = Join-Path $RepoRoot "myrm-agent-frontend/.next/standalone"
-        }
     } else {
         $ResolvedBundle = Resolve-Path $BundleDir -ErrorAction Stop
-        $BackendMatch = Get-ChildItem -Path $ResolvedBundle -Recurse -Filter "myrmagent-backend*.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if (-not $BackendMatch) {
-            Write-Error "[launch-smoke-win] No myrmagent-backend*.exe found under $ResolvedBundle"
-            exit 1
+        # The resource layout is the contract: <resources>\binaries\myrmagent-backend\ and <resources>\frontend\.
+        # Locating the sidecar folder first keeps this independent of where the installer puts resources.
+        $SidecarDirs = @(Get-ChildItem -Path $ResolvedBundle -Recurse -Directory -Filter "myrmagent-backend" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Parent.Name -eq "binaries" })
+        if ($SidecarDirs.Count -ne 1) {
+            Fail "expected one binaries\myrmagent-backend folder under $ResolvedBundle, found $($SidecarDirs.Count)"
         }
-        $BackendBin = $BackendMatch.FullName
+        $ResourcesDir = $SidecarDirs[0].Parent.Parent.FullName
+        $BackendBin = Join-Path $SidecarDirs[0].FullName "myrmagent-backend.exe"
 
-        $AgentRunnerMatch = Get-ChildItem -Path $ResolvedBundle -Recurse -Filter "agent-runner*.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($AgentRunnerMatch) {
-            $AgentRunnerBin = $AgentRunnerMatch.FullName
+        $ServerJs = Get-ChildItem -Path (Join-Path $ResourcesDir "frontend") -Recurse -Filter "server.js" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $ServerJs) {
+            Fail "Next standalone server.js not found under $ResourcesDir\frontend"
         }
-
-        $ServerJs = Get-ChildItem -Path $ResolvedBundle -Recurse -Filter "server.js" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($ServerJs) {
-            $FrontendDir = $ServerJs.DirectoryName
-        }
+        $FrontendDir = $ServerJs.DirectoryName
     }
 
-    Write-Host "[launch-smoke-win] Checking sidecar binaries and standalone runtime..."
+    Write-Host "[launch-smoke-win] Checking sidecar and standalone runtime..."
     Assert-NonEmptyFile -Path $BackendBin -Label "Python Backend Sidecar (.exe)" -MinBytes $MinBinaryBytes
-
-    if ($AgentRunnerBin -and (Test-Path -LiteralPath $AgentRunnerBin)) {
-        Assert-NonEmptyFile -Path $AgentRunnerBin -Label "Agent Runner Sidecar (.exe)" -MinBytes $MinBinaryBytes
+    if (-not (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $BackendBin) "_internal") -PathType Container)) {
+        Fail "Backend sidecar has no _internal folder next to it (not a one-folder build): $BackendBin"
     }
 
-    # Launch Backend Sidecar
-    Write-Host "[launch-smoke-win] Starting backend: $BackendBin on port $ApiPort"
-    $BackendPsi = New-Object System.Diagnostics.ProcessStartInfo
-    $BackendPsi.FileName = $BackendBin
-    $BackendPsi.UseShellExecute = $false
-    $BackendPsi.EnvironmentVariables["DEPLOY_MODE"] = "local"
-    $BackendPsi.EnvironmentVariables["PORT"] = [string]$ApiPort
-    $BackendPsi.EnvironmentVariables["HOST"] = $HostName
+    # A fresh data dir makes this the first launch of a new profile, the slowest path a user hits.
+    $DataDir = Join-Path ([System.IO.Path]::GetTempPath()) ("myrm-smoke-" + [System.Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $DataDir | Out-Null
 
-    $BackendProc = [System.Diagnostics.Process]::Start($BackendPsi)
+    Write-Host "[launch-smoke-win] Starting backend: $BackendBin on port $ApiPort"
+    # The shell is a GUI process without console handles, so the --noconsole sidecar starts with Python's standard
+    # streams set to None. Start-Process (ShellExecute) hands down no handles either; a launch that inherited this
+    # console's handles would hide every crash that depends on them.
+    $env:DEPLOY_MODE = "local"
+    $env:PORT = [string]$ApiPort
+    $env:HOST = $HostName
+    $env:MYRM_DATA_DIR = $DataDir
+    try {
+        $BackendProc = Start-Process -FilePath $BackendBin -WindowStyle Hidden -PassThru
+    } finally {
+        # The child has taken its environment; keep it out of the frontend launched below.
+        Remove-Item Env:DEPLOY_MODE, Env:PORT, Env:HOST, Env:MYRM_DATA_DIR -ErrorAction SilentlyContinue
+    }
     Write-Host "[launch-smoke-win] Backend spawned with PID: $($BackendProc.Id)"
 
-    Wait-HttpOk -Url "http://${HostName}:${ApiPort}/health" -Label "Backend /health"
+    Wait-HttpOk -Url "http://${HostName}:${ApiPort}/health" -Label "Backend /health" -Proc $BackendProc
 
-    # Launch Frontend Standalone if present
-    if ($FrontendDir -and (Test-Path -LiteralPath (Join-Path $FrontendDir "server.js"))) {
-        $ServerJsPath = Join-Path $FrontendDir "server.js"
-        Assert-NonEmptyFile -Path $ServerJsPath -Label "Next standalone server.js" -MinBytes 1024
+    $ServerJsPath = Join-Path $FrontendDir "server.js"
+    Assert-NonEmptyFile -Path $ServerJsPath -Label "Next standalone server.js" -MinBytes 1024
 
-        Write-Host "[launch-smoke-win] Starting Next.js standalone on port $WebuiPort"
-        $FrontendPsi = New-Object System.Diagnostics.ProcessStartInfo
-        $FrontendPsi.FileName = "node.exe"
-        $FrontendPsi.Arguments = "server.js"
-        $FrontendPsi.WorkingDirectory = $FrontendDir
-        $FrontendPsi.UseShellExecute = $false
-        $FrontendPsi.EnvironmentVariables["PORT"] = [string]$WebuiPort
-        $FrontendPsi.EnvironmentVariables["HOSTNAME"] = $HostName
-        $FrontendPsi.EnvironmentVariables["API_PORT"] = [string]$ApiPort
+    Write-Host "[launch-smoke-win] Starting Next.js standalone on port $WebuiPort"
+    $FrontendPsi = New-Object System.Diagnostics.ProcessStartInfo
+    $FrontendPsi.FileName = "node.exe"
+    $FrontendPsi.Arguments = "server.js"
+    $FrontendPsi.WorkingDirectory = $FrontendDir
+    $FrontendPsi.UseShellExecute = $false
+    $FrontendPsi.EnvironmentVariables["PORT"] = [string]$WebuiPort
+    $FrontendPsi.EnvironmentVariables["HOSTNAME"] = $HostName
+    $FrontendPsi.EnvironmentVariables["API_PORT"] = [string]$ApiPort
 
-        $FrontendProc = [System.Diagnostics.Process]::Start($FrontendPsi)
-        Write-Host "[launch-smoke-win] Frontend spawned with PID: $($FrontendProc.Id)"
+    $FrontendProc = [System.Diagnostics.Process]::Start($FrontendPsi)
+    Write-Host "[launch-smoke-win] Frontend spawned with PID: $($FrontendProc.Id)"
 
-        Wait-HttpOk -Url "http://${HostName}:${WebuiPort}/" -Label "Next standalone WebUI"
-    } else {
-        Write-Host "[launch-smoke-win] Note: Frontend standalone directory not found or skipped in this mode."
-    }
+    Wait-HttpOk -Url "http://${HostName}:${WebuiPort}/" -Label "Next standalone WebUI" -Proc $FrontendProc
 
     Write-Host "[launch-smoke-win] All Windows runtime smoke checks passed successfully!"
 } finally {
@@ -174,5 +168,8 @@ try {
     }
     if ($BackendProc -and -not $BackendProc.HasExited) {
         Kill-ProcessTree -ProcessId $BackendProc.Id
+    }
+    if ($DataDir -and (Test-Path -LiteralPath $DataDir)) {
+        Remove-Item -LiteralPath $DataDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

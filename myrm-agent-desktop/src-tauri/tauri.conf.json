@@ -16,8 +16,7 @@
       "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend",
       "binaries/myrmagent-backend": "binaries/myrmagent-backend",
       "../../myrm-agent-frontend/.next/static/": "frontend/.next/static",
-      "../../myrm-agent-frontend/public/": "frontend/public",
-      "binaries/tiktoken_cache": "tiktoken_cache"
+      "../../myrm-agent-frontend/public/": "frontend/public"
     },
     "icon": [
       "icons/icon.png",

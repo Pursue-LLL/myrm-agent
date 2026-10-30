@@ -1,31 +1,36 @@
 #!/usr/bin/env bash
-# Post-build runtime smoke: start bundled Python + Next standalone and probe /health.
+# Runtime smoke for a built desktop bundle: start the bundled Python sidecar (a PyInstaller one-folder
+# tree) and the Next standalone server the way the Tauri shell does, then probe both over HTTP.
 # Modes:
-#   --bundle-app <MyrmAgent.app>  Release CI after `tauri build`
-#   --dev                         Monorepo paths (maintainer / pre-release local)
+#   --bundle <dir>   Unpacked bundle root: a macOS .app, or an AppImage's squashfs-root
+#   --dev            Monorepo paths (maintainer / pre-release local)
 set -euo pipefail
 
 API_PORT="${API_PORT:-8080}"
 WEBUI_PORT="${WEBUI_PORT:-3000}"
 HOST="${HOST:-127.0.0.1}"
 POLL_INTERVAL_SEC="${POLL_INTERVAL_SEC:-0.5}"
-MAX_ATTEMPTS="${MAX_ATTEMPTS:-120}"
-MIN_BINARY_BYTES="${MIN_BINARY_BYTES:-1024}"
+# Same startup budget as the shell (BACKEND_STARTUP_TIMEOUT in python_backend.rs).
+READY_TIMEOUT_SEC="${READY_TIMEOUT_SEC:-120}"
+# A PyInstaller executable is tens of MB; anything under this is a placeholder.
+MIN_BINARY_BYTES="${MIN_BINARY_BYTES:-1048576}"
+# Next standalone server.js is a few KB; this only rejects empty or truncated files.
+MIN_SERVER_JS_BYTES=1024
 
 BACKEND_BIN=""
-AGENT_RUNNER_BIN=""
 FRONTEND_DIR=""
 backend_pid=""
 frontend_pid=""
+data_dir=""
 
 usage() {
   cat <<'EOF'
 Usage:
-  smoke-launch-runtime.sh --bundle-app <path/to/MyrmAgent.app>
+  smoke-launch-runtime.sh --bundle <path/to/MyrmAgent.app | path/to/squashfs-root>
   smoke-launch-runtime.sh --dev
 
 Environment:
-  API_PORT, WEBUI_PORT, HOST, POLL_INTERVAL_SEC, MAX_ATTEMPTS
+  API_PORT, WEBUI_PORT, HOST, POLL_INTERVAL_SEC, READY_TIMEOUT_SEC
 EOF
 }
 
@@ -34,79 +39,99 @@ fail() {
   exit 1
 }
 
+# SIGTERM first so the server shuts down cleanly; SIGKILL after 10 s so a hung shutdown cannot stall CI.
+stop_process() {
+  local pid="$1"
+  kill "$pid" 2>/dev/null || return 0
+  local waited=0
+  while kill -0 "$pid" 2>/dev/null && [[ "$waited" -lt 50 ]]; do
+    sleep 0.2
+    waited=$((waited + 1))
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
+
 cleanup() {
-  if [[ -n "${frontend_pid}" ]]; then
-    kill "${frontend_pid}" 2>/dev/null || true
-    wait "${frontend_pid}" 2>/dev/null || true
-  fi
-  if [[ -n "${backend_pid}" ]]; then
-    kill "${backend_pid}" 2>/dev/null || true
-    wait "${backend_pid}" 2>/dev/null || true
-  fi
+  [[ -z "${frontend_pid}" ]] || stop_process "${frontend_pid}"
+  [[ -z "${backend_pid}" ]] || stop_process "${backend_pid}"
+  [[ -z "${data_dir}" ]] || rm -rf "${data_dir}"
 }
 trap cleanup EXIT
 
-assert_non_empty_file() {
+assert_min_size_file() {
   local path="$1"
   local label="$2"
+  local min_bytes="$3"
   [[ -f "$path" ]] || fail "${label} missing at ${path}"
   local size
   size="$(wc -c <"$path" | tr -d ' ')"
-  if [[ "$size" -lt "$MIN_BINARY_BYTES" ]]; then
+  if [[ "$size" -lt "$min_bytes" ]]; then
     fail "${label} looks like a stub (${size} bytes): ${path}"
   fi
 }
 
 resolve_bundle_paths() {
-  local app="$1"
-  [[ -d "$app" ]] || fail "bundle app not found: ${app}"
+  local root="$1"
+  [[ -d "$root" ]] || fail "bundle not found: ${root}"
 
-  BACKEND_BIN="$(find "$app/Contents/MacOS" -maxdepth 1 -type f -name 'myrmagent-backend*' 2>/dev/null | head -1)"
-  [[ -n "$BACKEND_BIN" ]] || fail "backend sidecar not found under ${app}/Contents/MacOS"
+  # The resource layout is the contract: a binaries/myrmagent-backend/ folder and a frontend/ folder. Each is
+  # located on its own because an AppImage keeps the sidecar tree in usr/share/<product> and the frontend in
+  # usr/lib/<product>. `|| true` keeps a find error from ending the script before the explicit message below.
+  local sidecar_dirs sidecar_count
+  sidecar_dirs="$(find "$root" -type d -path '*/binaries/myrmagent-backend' 2>/dev/null || true)"
+  sidecar_count="$(printf '%s' "$sidecar_dirs" | grep -c . || true)"
+  [[ "$sidecar_count" -eq 1 ]] || fail "expected one binaries/myrmagent-backend folder under ${root}, found ${sidecar_count}"
+  BACKEND_BIN="${sidecar_dirs}/myrmagent-backend"
 
-  AGENT_RUNNER_BIN="$(find "$app/Contents/MacOS" -maxdepth 1 -type f -name 'agent-runner*' 2>/dev/null | head -1)"
-
+  # -prune: the first frontend/ on a path is the resource; folders of that name inside it are not candidates.
   local server_js
-  server_js="$(find "$app/Contents/Resources/frontend" -name 'server.js' -type f 2>/dev/null | head -1)"
-  [[ -n "$server_js" ]] || fail "Next standalone server.js not found under ${app}/Contents/Resources/frontend"
+  server_js="$(find "$root" -type d -name frontend -prune -exec find {} -type f -name server.js \; 2>/dev/null | head -1 || true)"
+  [[ -n "$server_js" ]] || fail "Next standalone server.js not found under a frontend/ folder in ${root}"
   FRONTEND_DIR="$(dirname "$server_js")"
 }
 
 resolve_dev_paths() {
-  local script_dir repo_root host
+  local script_dir repo_root binaries_dir
   script_dir="$(cd "$(dirname "$0")" && pwd)"
   repo_root="$(cd "${script_dir}/../../.." && pwd)"
-  host="$(rustc -vV | sed -n 's/^host: //p')"
+  binaries_dir="${repo_root}/myrm-agent-desktop/src-tauri/binaries"
 
-  BACKEND_BIN="${repo_root}/myrm-agent-desktop/src-tauri/binaries/myrmagent-backend-${host}"
-  AGENT_RUNNER_BIN="${repo_root}/myrm-agent-desktop/src-tauri/binaries/agent-runner-${host}"
+  BACKEND_BIN="${binaries_dir}/myrmagent-backend/myrmagent-backend"
   FRONTEND_DIR="${repo_root}/myrm-agent-frontend/.next/standalone/myrm-agent-frontend"
 }
 
 wait_http_ok() {
   local url="$1"
   local label="$2"
-  local attempt=0
-  while [[ "$attempt" -lt "$MAX_ATTEMPTS" ]]; do
+  local watched_pid="$3"
+  local started="$SECONDS"
+  while (( SECONDS - started < READY_TIMEOUT_SEC )); do
     if curl -fsS --max-time 2 "$url" >/dev/null 2>&1; then
-      echo "[launch-smoke] ${label} ready (${url})"
+      echo "[launch-smoke] ${label} ready in $((SECONDS - started))s (${url})"
       return 0
     fi
-    attempt=$((attempt + 1))
+    kill -0 "$watched_pid" 2>/dev/null || fail "${label} process exited before becoming ready (${url})"
     sleep "$POLL_INTERVAL_SEC"
   done
-  fail "${label} not ready after ${MAX_ATTEMPTS} attempts (${url})"
+  fail "${label} not ready after ${READY_TIMEOUT_SEC}s (${url})"
 }
 
 start_backend() {
-  assert_non_empty_file "$BACKEND_BIN" "Backend sidecar"
-  DEPLOY_MODE=local PORT="${API_PORT}" HOST="${HOST}" "$BACKEND_BIN" &
+  assert_min_size_file "$BACKEND_BIN" "Backend sidecar" "$MIN_BINARY_BYTES"
+  [[ -x "$BACKEND_BIN" ]] || fail "Backend sidecar is not executable: ${BACKEND_BIN}"
+  [[ -d "$(dirname "$BACKEND_BIN")/_internal" ]] \
+    || fail "Backend sidecar has no _internal/ next to it (not a one-folder build): ${BACKEND_BIN}"
+
+  # A fresh data dir makes this the first launch of a new profile, the slowest path a user hits.
+  data_dir="$(mktemp -d)"
+  DEPLOY_MODE=local PORT="${API_PORT}" HOST="${HOST}" MYRM_DATA_DIR="${data_dir}" "$BACKEND_BIN" &
   backend_pid=$!
   echo "[launch-smoke] backend pid=${backend_pid} port=${API_PORT}"
 }
 
 start_frontend() {
-  assert_non_empty_file "${FRONTEND_DIR}/server.js" "Next standalone server.js"
+  assert_min_size_file "${FRONTEND_DIR}/server.js" "Next standalone server.js" "$MIN_SERVER_JS_BYTES"
   (
     cd "$FRONTEND_DIR"
     PORT="${WEBUI_PORT}" HOSTNAME="${HOST}" API_PORT="${API_PORT}" exec node server.js
@@ -117,13 +142,13 @@ start_frontend() {
 
 main() {
   local mode=""
-  local bundle_app=""
+  local bundle=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --bundle-app)
+      --bundle)
         mode="bundle"
-        bundle_app="${2:?--bundle-app requires path}"
+        bundle="${2:?--bundle requires path}"
         shift 2
         ;;
       --dev)
@@ -140,26 +165,22 @@ main() {
     esac
   done
 
-  [[ -n "$mode" ]] || fail "specify --bundle-app or --dev"
+  [[ -n "$mode" ]] || fail "specify --bundle or --dev"
 
   if [[ "$mode" == "bundle" ]]; then
-    resolve_bundle_paths "$bundle_app"
+    resolve_bundle_paths "$bundle"
   else
     resolve_dev_paths
   fi
 
   echo "[launch-smoke] backend=${BACKEND_BIN}"
-  if [[ -n "${AGENT_RUNNER_BIN}" && -f "${AGENT_RUNNER_BIN}" ]]; then
-    assert_non_empty_file "$AGENT_RUNNER_BIN" "Agent runner sidecar"
-    echo "[launch-smoke] agent_runner=${AGENT_RUNNER_BIN}"
-  fi
   echo "[launch-smoke] frontend=${FRONTEND_DIR}"
 
   start_backend
-  wait_http_ok "http://${HOST}:${API_PORT}/health" "Backend /health"
+  wait_http_ok "http://${HOST}:${API_PORT}/health" "Backend /health" "$backend_pid"
 
   start_frontend
-  wait_http_ok "http://${HOST}:${WEBUI_PORT}/" "Next standalone"
+  wait_http_ok "http://${HOST}:${WEBUI_PORT}/" "Next standalone" "$frontend_pid"
 
   echo "[launch-smoke] OK"
 }

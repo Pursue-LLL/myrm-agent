@@ -1,8 +1,11 @@
-#!/usr/bin/env python3
 """Tauri Desktop Sidecar Builder
 
-Builds the desktop sidecar binary for the Tauri desktop app:
-- Python Backend: PyInstaller → standalone executable
+Builds the desktop sidecar for the Tauri desktop app:
+- Python Backend: PyInstaller one-folder build -> src-tauri/binaries/myrmagent-backend/
+
+One-folder on purpose: a one-file executable unpacks its whole payload (hundreds of MB) into a temp
+directory on every launch, which dominates cold-start time. The folder is shipped as a Tauri resource,
+so the unpacking happens once, at install time.
 """
 
 import os
@@ -17,21 +20,20 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 SERVER_ROOT = PROJECT_ROOT / "myrm-agent-server"
 HARNESS_ROOT = PROJECT_ROOT / "myrm-agent-harness"
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
+SHARED_PROVIDER_REMAP = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
+STDIO_RUNTIME_HOOK = Path(__file__).parent / "stdio_runtime_hook.py"
 
 SYSTEM = platform.system().lower()
-target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
-
-if SYSTEM == "darwin":
-    if target_arch in ("arm64", "aarch64"):
-        BINARY_NAME = "myrmagent-backend-aarch64-apple-darwin"
-    else:
-        BINARY_NAME = "myrmagent-backend-x86_64-apple-darwin"
-elif SYSTEM == "linux":
-    BINARY_NAME = "myrmagent-backend-x86_64-unknown-linux-gnu"
-elif SYSTEM == "windows":
-    BINARY_NAME = "myrmagent-backend-x86_64-pc-windows-msvc.exe"
-else:
+if SYSTEM not in ("darwin", "linux", "windows"):
     raise RuntimeError(f"Unsupported platform: {SYSTEM}")
+
+# Folder name and entry-executable stem. Must match tauri.conf.json (bundle.resources) and
+# src-tauri/src/runtime/sidecar_path.rs; tests/architecture/test_desktop_sidecar_layout.py enforces it.
+SIDECAR_NAME = "myrmagent-backend"
+SIDECAR_DIR = OUTPUT_DIR / SIDECAR_NAME
+SIDECAR_EXECUTABLE = SIDECAR_DIR / (f"{SIDECAR_NAME}.exe" if SYSTEM == "windows" else SIDECAR_NAME)
+
+TARGET_ARCH = os.environ.get("TARGET_ARCH", platform.machine().lower())
 
 
 def check_pyinstaller() -> None:
@@ -105,34 +107,16 @@ def _server_python() -> Path:
     return venv_python
 
 
-def build_backend(*, skip_harness_install: bool = False):
-    """Build Python backend into standalone binary via PyInstaller."""
-    print("\n" + "=" * 60)
-    print("Building Python Backend Sidecar")
-    print("=" * 60)
-
-    if not skip_harness_install:
-        ensure_production_harness_wheels()
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    main_script = SERVER_ROOT / "app" / "main.py"
-
-    if not main_script.exists():
-        raise FileNotFoundError(f"Main script not found: {main_script}")
-
-    server_python = _server_python()
-    shared_json = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
-    if not shared_json.is_file():
-        raise FileNotFoundError(f"Missing cross-end provider remap artifact: {shared_json}")
-
+def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
+    """PyInstaller invocation that writes the one-folder bundle to SIDECAR_DIR."""
     data_sep = ";" if SYSTEM == "windows" else ":"
     cmd = [
         str(server_python),
         "-m",
         "PyInstaller",
-        str(main_script),
-        "--name", BINARY_NAME.replace(".exe", ""),
-        "--onefile",
+        str(SERVER_ROOT / "app" / "main.py"),
+        "--name", SIDECAR_NAME,
+        "--onedir",
         "--clean",
         "--noconfirm",
         "--hidden-import", "uvicorn",
@@ -149,62 +133,83 @@ def build_backend(*, skip_harness_install: bool = False):
         "--collect-data", "myrm_agent_harness",
         "--collect-submodules", "myrm_agent_harness",
         "--add-data", f"{SERVER_ROOT / 'app' / 'config'}{data_sep}app/config",
+        "--add-data", f"{SHARED_PROVIDER_REMAP}{data_sep}shared/config",
         "--exclude-module", "matplotlib",
         "--exclude-module", "tkinter",
         "--exclude-module", "PyQt5",
+        "--runtime-hook", str(STDIO_RUNTIME_HOOK),
         "--distpath", str(OUTPUT_DIR),
-        "--workpath", str(OUTPUT_DIR / "build"),
-        "--specpath", str(OUTPUT_DIR),
+        "--workpath", str(work_dir / "build"),
+        "--specpath", str(work_dir),
     ]
     if SYSTEM == "windows":
         cmd.append("--noconsole")
-    cmd.extend(["--add-data", f"{shared_json}{data_sep}shared/config"])
+    return cmd
 
-    print("\nRunning PyInstaller...")
-    print(f"Command: {' '.join(cmd)}\n")
 
-    result = subprocess.run(cmd, capture_output=False, cwd=SERVER_ROOT)
+def _assert_macos_architecture(executable: Path) -> None:
+    """PyInstaller cannot cross-compile: the bundle takes the architecture of the build Python."""
+    expected = "arm64" if TARGET_ARCH in ("arm64", "aarch64") else "x86_64"
+    archs = subprocess.run(
+        ["lipo", "-archs", str(executable)], check=True, capture_output=True, text=True
+    ).stdout.split()
+    if archs != [expected]:
+        raise RuntimeError(
+            f"Sidecar architecture {archs} does not match TARGET_ARCH={expected}. "
+            "Build it with a Python interpreter of the target architecture."
+        )
+
+
+def build_backend(*, skip_harness_install: bool = False) -> None:
+    """Build the Python backend into the one-folder sidecar bundle via PyInstaller."""
+    print("\n" + "=" * 60)
+    print("Building Python Backend Sidecar")
+    print("=" * 60)
+
+    if not skip_harness_install:
+        ensure_production_harness_wheels()
+
+    main_script = SERVER_ROOT / "app" / "main.py"
+    if not main_script.exists():
+        raise FileNotFoundError(f"Main script not found: {main_script}")
+    if not SHARED_PROVIDER_REMAP.is_file():
+        raise FileNotFoundError(f"Missing cross-end provider remap artifact: {SHARED_PROVIDER_REMAP}")
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    # Start from nothing at the target path (directory, file or symlink) so no file of an earlier build survives.
+    if SIDECAR_DIR.is_dir() and not SIDECAR_DIR.is_symlink():
+        shutil.rmtree(SIDECAR_DIR)
+    else:
+        SIDECAR_DIR.unlink(missing_ok=True)
+
+    # Work files stay outside OUTPUT_DIR: everything under it is shipped or ignored by git, never scratch.
+    with tempfile.TemporaryDirectory(prefix="myrm-sidecar-build-") as work_dir:
+        cmd = pyinstaller_command(_server_python(), Path(work_dir))
+        print("\nRunning PyInstaller...")
+        print(f"Command: {' '.join(cmd)}\n")
+        result = subprocess.run(cmd, cwd=SERVER_ROOT, check=False)
 
     if result.returncode != 0:
         print(f"\n[ERROR] Build failed with exit code {result.returncode}")
         sys.exit(1)
-
-    output_file = OUTPUT_DIR / BINARY_NAME
-    if not output_file.exists():
-        output_file_no_ext = OUTPUT_DIR / BINARY_NAME.replace(".exe", "")
-        if output_file_no_ext.exists():
-            if SYSTEM == "windows":
-                shutil.move(str(output_file_no_ext), str(output_file))
-            else:
-                output_file = output_file_no_ext
-
-    if output_file.exists():
-        size_mb = output_file.stat().st_size / (1024 * 1024)
-        print("\n[OK] Build successful!")
-        print(f"Output: {output_file}")
-        print(f"Size: {size_mb:.2f} MB")
-        if SYSTEM != "windows":
-            os.chmod(output_file, 0o755)
-        # Tauri externalBin/resources expects the stable name without the target triple.
-        stable_name = "myrmagent-backend.exe" if SYSTEM == "windows" else "myrmagent-backend"
-        shutil.copy2(output_file, OUTPUT_DIR / stable_name)
-    else:
-        print(f"\n[ERROR] Output file not found: {output_file}")
+    if not SIDECAR_EXECUTABLE.is_file():
+        print(f"\n[ERROR] Output executable not found: {SIDECAR_EXECUTABLE}")
         sys.exit(1)
 
-    build_dir = OUTPUT_DIR / "build"
-    spec_file = OUTPUT_DIR / f"{BINARY_NAME.replace('.exe', '')}.spec"
-    if build_dir.exists():
-        shutil.rmtree(build_dir)
-    if spec_file.exists():
-        spec_file.unlink()
-    print("[OK] Cleanup complete")
+    if SYSTEM != "windows":
+        os.chmod(SIDECAR_EXECUTABLE, 0o755)  # noqa: S103 - the entry point must be executable for every user of the install
+    if SYSTEM == "darwin":
+        _assert_macos_architecture(SIDECAR_EXECUTABLE)
+
+    size_mb = sum(f.stat().st_size for f in SIDECAR_DIR.rglob("*") if f.is_file()) / (1024 * 1024)
+    print("\n[OK] Build successful!")
+    print(f"Output: {SIDECAR_DIR}")
+    print(f"Size: {size_mb:.2f} MB")
 
 
-def main():
+def main() -> None:
     print("MyrmAgent - Sidecar Builder")
-    print(f"Platform: {SYSTEM}")
-    print(f"Backend binary: {BINARY_NAME}\n")
+    print(f"Platform: {SYSTEM} ({TARGET_ARCH})\n")
 
     ensure_production_harness_wheels()
     check_pyinstaller()
@@ -213,7 +218,7 @@ def main():
     print("\n" + "=" * 60)
     print("[OK] Sidecar build complete!")
     print("=" * 60)
-    print(f"\nBackend: {OUTPUT_DIR / BINARY_NAME}")
+    print(f"\nBackend: {SIDECAR_DIR}")
     print("\nNext: cd myrm-agent-desktop && cargo tauri build")
 
 

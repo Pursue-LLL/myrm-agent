@@ -82,7 +82,7 @@ run.py
 
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
-| `__init__.py` | 应用包标识（`app` namespace 根） | — |
+| `__init__.py` | 应用包标识（`app` namespace 根）；在任何 litellm 导入前把 `LITELLM_LOCAL_MODEL_COST_MAP` 默认设为 `True`，启动不再同步访问 GitHub 拉价格表（要恢复远端表须在真实进程环境变量里导出 `False`，`.env` 覆盖不了，因为它在本包之后才加载） | — |
 | `main.py` | FastAPI 应用入口（创建实例、注册路由/中间件、lifespan 管理、OpenAPI schema + bearerAuth 注入） | ✅ |
 
 ## 架构约束与类型安全防线 (Zero-Trust Progressive Typing)

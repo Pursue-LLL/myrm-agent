@@ -12,6 +12,7 @@ Verifies:
 
 from __future__ import annotations
 
+import sys
 import time
 
 import pytest
@@ -22,6 +23,7 @@ from myrm_agent_harness.runtime.survival import (
     LongSessionRollingArchiver,
     SessionContextDehydrator,
     SessionTurn,
+    desktop_memory_watchdog,
     get_current_rss_bytes,
 )
 
@@ -108,6 +110,14 @@ def test_rss_extraction_and_idle_detection() -> None:
 
     # After threshold expires, becomes idle
     assert watchdog.is_idle(now=now + 0.3)
+
+
+def test_rss_reads_as_zero_when_neither_psutil_nor_resource_can_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows has no `resource` module: an unreadable RSS stays below every watermark instead of raising."""
+    monkeypatch.setitem(sys.modules, "psutil", None)  # `import psutil` raises ImportError
+    monkeypatch.setattr(desktop_memory_watchdog, "resource", None)
+
+    assert desktop_memory_watchdog.get_current_rss_bytes() == 0
 
 
 def test_memory_pressure_evaluation_tiers() -> None:

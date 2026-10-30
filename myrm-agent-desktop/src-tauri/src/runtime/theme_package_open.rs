@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Url};
+#[cfg(target_os = "macos")]
+use tauri::Url;
+use tauri::{AppHandle, Emitter};
 
 const MAX_THEME_PACKAGE_BYTES: u64 = 24 * 1024 * 1024;
 
@@ -65,6 +67,9 @@ pub fn emit_theme_package_open(app: &AppHandle, path: PathBuf) {
     }
 }
 
+/// macOS delivers files opened from Finder as an Apple event; Windows and Linux pass the path as a
+/// startup argument instead (`handle_startup_args`).
+#[cfg(target_os = "macos")]
 pub fn handle_open_urls(app: &AppHandle, urls: Vec<Url>) {
     for url in urls {
         if let Ok(path) = url.to_file_path() {

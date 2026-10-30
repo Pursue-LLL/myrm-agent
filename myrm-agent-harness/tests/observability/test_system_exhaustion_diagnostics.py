@@ -244,3 +244,17 @@ class TestSystemExhaustionProbe:
         assert max_fd == 1048576
         assert ratio is not None
         assert round(ratio, 4) == round((1024 / 1048576) * 100, 4)
+
+    def test_read_system_fd_usage_without_the_resource_module(self) -> None:
+        """Windows has no `resource` module: the handle count is reported, the missing limit is not guessed."""
+        from myrm_agent_harness.observability.diagnostics import system_exhaustion
+
+        windows_process = type("WindowsProcess", (), {"num_handles": staticmethod(lambda: 321)})()
+        with (
+            patch.object(system_exhaustion, "resource", None),
+            patch.object(system_exhaustion, "psutil") as mock_psutil,
+        ):
+            mock_psutil.Process.return_value = windows_process
+            usage = system_exhaustion._read_system_fd_usage()
+
+        assert usage == (321, None, None)

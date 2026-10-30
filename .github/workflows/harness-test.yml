@@ -172,7 +172,7 @@ jobs:
 
   macos-computer-use:
     name: macOS computer-use (real pasteboard)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
 
     steps:

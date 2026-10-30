@@ -34,7 +34,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import shlex
-import signal
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -129,9 +128,9 @@ def _kill_process_tree(proc: asyncio.subprocess.Process) -> None:
     pid = proc.pid
     if pid is None:
         return
-    from myrm_agent_harness.utils.os_compat import kill_process_group
+    from myrm_agent_harness.utils.os_compat import SIGKILL, kill_process_group
 
-    kill_process_group(pid, signal.SIGKILL)
+    kill_process_group(pid, SIGKILL)
 
 
 async def safe_exec(
