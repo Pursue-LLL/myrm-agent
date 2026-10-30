@@ -9,7 +9,7 @@
 - ..pipeline.cognitive_map::read_hot_context, read_log_context (POS: OKF hot.md / log.md readers for wiki_query prefix)
 - ..pipeline.cognitive_map.index_routing::format_index_route_context, match_index_entries, read_index_entries (POS: OKF index-first routing)
 - .best_first::RetrievalSeed, converge_retrieval_candidates (POS: budgeted best-first graph convergence + raw_claim rerank)
-- .keyword_fallback::is_published_article, keyword_search (POS: published-only keyword fallback and page gate)
+- .keyword_fallback::keyword_search (POS: published-only keyword fallback)
 
 [OUTPUT]
 - WikiQueryEngine: Wiki query and enhancement engine; derived QueryResult.confidence_score; QueryResult.retrieval_trace metadata
@@ -21,8 +21,8 @@ Uses index-first seeding, then sidecar hierarchical routing, FTS rerank, and bes
 convergence with context-budgeted loading (L0/L1 before L2). Prepends hot.md vault status inside
 wiki_query answers only (no global agent middleware), and falls back to keyword matching when
 semantic retrieval is unavailable. Supports raw_claim rerank, claim-health multipliers, and
-derived confidence for citation scoring. Draft and blocked pages never reach an answer: the FTS5 index
-omits them, and keyword matching and graph expansion skip them.
+derived confidence for citation scoring. Draft and blocked pages never reach an answer: the FTS5 index,
+keyword matching, graph expansion, directory sidecars and index.md all leave them out.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ from ..pipeline.cognitive_map.index_routing import (
 from .asset_index import WikiAssetIndexer
 from .best_first import RetrievalSeed, converge_retrieval_candidates
 from .indexer import WikiIndexer
-from .keyword_fallback import is_published_article, keyword_search
+from .keyword_fallback import keyword_search
 
 logger = get_agent_logger(__name__)
 
@@ -397,7 +397,7 @@ class WikiQueryEngine:
         seen_paths: set[Path] = set()
         for name in expanded:
             path = self._structure.resolve_concept_file_path(name)
-            if path and path not in seen_paths and is_published_article(path):
+            if path and path not in seen_paths:
                 seen_paths.add(path)
                 resolved.append(path)
         sidecar_directories = self._sidecar_directories_from_articles(resolved)

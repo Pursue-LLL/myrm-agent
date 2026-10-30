@@ -3,6 +3,7 @@
 [INPUT]
 - ..core.claims_contract::WikiClaim, parse_claims_from_content, resolve_evidence_snapshot_status (POS: claim parse + snapshot tri-state)
 - ..core.config::WikiQueryConfig (POS: query strategy knobs)
+- ..core.frontmatter_contract::read_published_text (POS: published-page reader, the publish_status gate)
 - ..core.structure::WikiStructure (POS: concept path resolution)
 - .indexer::WikiIndexer (POS: weighted graph edge lookup)
 - .tokenizer::extract_query_terms (POS: shared query term extraction)
@@ -14,7 +15,8 @@
 Budgeted priority-queue convergence over index/FTS/sidecar/keyword seeds plus weighted
 graph expansion; the budget limits queued neighbours and never the draining of the queue.
 Supports raw_claim rerank via frontmatter claim overlap boosts and claim-health
-multipliers (supported/contested/stale evidence).
+multipliers (supported/contested/stale evidence). A draft, blocked or unreadable page is neither scored nor
+returned nor expanded through.
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ from ..core.fact_trust_contract import (
     FactTrustPolicy,
     resolve_fact_status,
 )
+from ..core.frontmatter_contract import read_published_text
 from .tokenizer import extract_query_terms
 
 if TYPE_CHECKING:
@@ -133,20 +136,16 @@ def _claim_overlap_for_concept(
     structure: WikiStructure,
     concept_name: str,
     query_terms: frozenset[str],
-    cache: dict[str, float],
+    cache: dict[str, float | None],
     trust_policy: FactTrustPolicy = DEFAULT_FACT_TRUST_POLICY,
-) -> float:
+) -> float | None:
+    """Trust-weighted claim overlap of a page; None when it is missing, unpublished or unreadable."""
     if concept_name in cache:
         return cache[concept_name]
     path = structure.resolve_concept_file_path(concept_name)
-    if not path or not path.exists():
-        cache[concept_name] = 0.0
-        return 0.0
-    try:
-        content = path.read_text(encoding="utf-8")
-    except OSError:
-        cache[concept_name] = 0.0
-        return 0.0
+    if not path or not path.exists() or (content := read_published_text(path)) is None:
+        cache[concept_name] = None
+        return None
     overlap = score_claim_overlap(content, query_terms, structure=structure)
     status = resolve_fact_status(content, file_path=path)
     overlap *= trust_policy.get_multiplier(status)
@@ -169,21 +168,18 @@ def converge_retrieval_candidates(
         return []
 
     query_terms = frozenset(extract_query_terms(query))
-    claim_overlap_cache: dict[str, float] = {}
+    claim_overlap_cache: dict[str, float | None] = {}
     heap: list[tuple[float, int, str]] = []
     counter = 0
     queued: set[str] = set()
 
     def enqueue(name: str, score: float) -> bool:
-        """Queue a page once; False when it is blank, out of scope, missing on disk or already queued."""
+        """Queue a page once; False when it is blank, out of scope, not a published readable page or already queued."""
         nonlocal counter
         normalized = name.strip().replace("\\", "/")
         if not normalized or normalized in queued:
             return False
         if valid_names is not None and normalized not in valid_names:
-            return False
-        path = structure.resolve_concept_file_path(normalized)
-        if not path or not path.exists():
             return False
         overlap = _claim_overlap_for_concept(
             structure=structure,
@@ -191,6 +187,8 @@ def converge_retrieval_candidates(
             query_terms=query_terms,
             cache=claim_overlap_cache,
         )
+        if overlap is None:
+            return False
         adjusted = _apply_claim_mode_adjustment(
             query_config=query_config,
             claim_overlap=overlap,

@@ -13,6 +13,7 @@ from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     WikiPublishStatus,
     apply_compile_gate,
     infer_type_for_import,
+    read_published_text,
     repair_file_frontmatter,
     repair_missing_types,
     resolve_publish_status,
@@ -278,3 +279,29 @@ Calculated based on [[revenue]] and [[cogs]].
     targets = {target for target, _weight in outgoing}
 
     assert targets == {"revenue", "cogs"}
+
+
+def test_read_published_text_returns_published_and_unmarked_pages(tmp_path: Path) -> None:
+    published = tmp_path / "published.md"
+    published.write_text("---\npublish_status: published\n---\nBody", encoding="utf-8")
+    unmarked = tmp_path / "unmarked.md"
+    unmarked.write_text("Body", encoding="utf-8")
+
+    assert read_published_text(published) == "---\npublish_status: published\n---\nBody"
+    assert read_published_text(unmarked) == "Body"
+
+
+@pytest.mark.parametrize("status", ["draft", "blocked"])
+def test_read_published_text_is_none_for_unpublished_pages(tmp_path: Path, status: str) -> None:
+    page = tmp_path / "page.md"
+    page.write_text(f"---\npublish_status: {status}\n---\nBody", encoding="utf-8")
+
+    assert read_published_text(page) is None
+
+
+def test_read_published_text_is_none_for_unreadable_pages(tmp_path: Path) -> None:
+    undecodable = tmp_path / "latin1.md"
+    undecodable.write_bytes("caf\u00e9".encode("latin-1"))
+
+    assert read_published_text(tmp_path / "missing.md") is None
+    assert read_published_text(undecodable) is None

@@ -344,7 +344,7 @@ class WikiCompiler:
         return report
 
     async def _postprocess_batch(self, concepts: list[ConceptInfo]) -> _BatchReport:
-        """Write everything a batch's concepts produce: articles, evolution pages, map, backlinks, sidecars, metadata."""
+        """Write everything a batch's concepts produce: articles, evolution pages, backlinks, sidecars, map, metadata."""
         articles = await self._generate_articles_batch(concepts)
         self._maybe_pause_for_embed_failure(articles)
         self._maybe_pause_for_failed_articles(articles)
@@ -372,14 +372,14 @@ class WikiCompiler:
                 synthesis_result.pairs_considered,
             )
 
-        self._refresh_cognitive_map(concepts, batch=True)
-
         backlinks_count = 0
         if self._config.enable_backlinks:
             backlinks_count = await self._generate_backlinks(concepts)
             logger.info(f"Created {backlinks_count} backlinks")
         if self._config.enable_directory_sidecars:
             await self._build_sidecars(concepts)
+        # After the sidecars: each index.md entry shows its directory's abstract, which must be the one just rebuilt.
+        self._refresh_cognitive_map(concepts, batch=True)
 
         await self._save_metadata(len(concepts), articles.generated)
         return _BatchReport(len(concepts), articles, synthesis_result.synthesis_staged, backlinks_count)

@@ -5,6 +5,7 @@
 - langchain_core.messages::HumanMessage, SystemMessage (POS: prompt messages)
 - ..core.structure::WikiStructure (POS: concept tree filesystem abstraction)
 - ..core.config::WikiCompileConfig (POS: sidecar generation knobs)
+- ..core.frontmatter_contract::read_published_text (POS: published-page reader, the publish_status gate)
 - ..core.types::ConceptInfo (POS: touched concept hints from compiler)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应答案提取)
 - utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM output)
@@ -16,7 +17,9 @@
 [POS]
 Builds L0/L1 directory sidecars (`.abstract.md`, `.overview.md`) using a bottom-up
 incremental DAG. Parent sidecars depend on immediate file summaries and child
-directory abstracts, so only changed subtrees are rebuilt.
+directory abstracts, so only changed subtrees are rebuilt. Only published pages are
+summarised: a directory signature changes when a page is published or demoted, and a
+directory left with no published page loses its sidecars.
 """
 
 from __future__ import annotations
@@ -38,6 +41,7 @@ from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ..core.config import WikiCompileConfig
+from ..core.frontmatter_contract import read_published_text
 from ..core.structure import WikiStructure
 from ..core.types import ConceptInfo
 
@@ -164,7 +168,9 @@ class WikiDirectorySidecarBuilder:
                 # Public mounted wiki is read-only and maintains its own sidecars.
                 continue
             rel_dir = self._normalize_dir(str(rel.parent).replace("\\", "/"))
-            content = concept_path.read_text(encoding="utf-8")
+            content = read_published_text(concept_path)
+            if content is None:
+                continue
             truth = self._extract_truth(content)
             truth_hash = hashlib.sha256(truth.encode("utf-8")).hexdigest()
             summary = self._extract_compact_summary(truth, max_chars=_MAX_FILE_SUMMARY_CHARS)
@@ -289,12 +295,9 @@ class WikiDirectorySidecarBuilder:
     async def _upsert_sidecar_index(self, directory: str, abstract: str, overview: str) -> None:
         if self._indexer is None:
             return
-        upsert = getattr(self._indexer, "upsert_sidecar", None)
-        if not callable(upsert):
-            return
         try:
-            await upsert(directory, level=0, content=abstract)
-            await upsert(directory, level=1, content=overview)
+            await self._indexer.upsert_sidecar(directory, level=0, content=abstract)
+            await self._indexer.upsert_sidecar(directory, level=1, content=overview)
         except Exception as e:
             logger.warning("Sidecar index upsert failed for %s: %s", directory or "/", e)
 
@@ -305,10 +308,8 @@ class WikiDirectorySidecarBuilder:
                 sidecar.unlink()
                 removed += 1
         if self._indexer is not None:
-            clear = getattr(self._indexer, "delete_all_sidecars", None)
-            if callable(clear):
-                with contextlib.suppress(Exception):
-                    await clear()
+            with contextlib.suppress(Exception):
+                await self._indexer.delete_all_sidecars()
         return removed
 
     async def _remove_stale_sidecars(self, stale_dirs: set[str]) -> int:
@@ -326,11 +327,9 @@ class WikiDirectorySidecarBuilder:
                         sidecar.unlink()
                         removed += 1
             if self._indexer is not None:
-                delete = getattr(self._indexer, "delete_sidecar", None)
-                if callable(delete):
-                    with contextlib.suppress(Exception):
-                        await delete(directory, level=0)
-                        await delete(directory, level=1)
+                with contextlib.suppress(Exception):
+                    await self._indexer.delete_sidecar(directory, level=0)
+                    await self._indexer.delete_sidecar(directory, level=1)
         return removed
 
     def _read_state(self) -> dict[str, str]:

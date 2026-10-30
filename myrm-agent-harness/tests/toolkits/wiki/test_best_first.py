@@ -241,6 +241,29 @@ def test_best_first_budget_bounds_queued_neighbours(wiki_structure, indexer) -> 
     assert _converge(wiki_structure, indexer, seeds, max_results=20, best_first_max_expansions=0) == ["Hub/Map"]
 
 
+def test_best_first_leaves_out_unpublished_and_undecodable_pages_and_does_not_expand_through_them(
+    wiki_structure, indexer
+) -> None:
+    _write_pages(wiki_structure, ["Real/One", "Real/Two"])
+    wiki_structure.get_concept_file_path("Real/Draft").write_text(
+        "---\npublish_status: draft\n---\n## Compiled Truth\nDraft.", encoding="utf-8"
+    )
+    wiki_structure.get_concept_file_path("Real/Latin").write_bytes("caf\u00e9".encode("latin-1"))
+    indexer.upsert_edges("Real/Draft", ["Real/Two"])
+
+    results = _converge(
+        wiki_structure,
+        indexer,
+        [
+            RetrievalSeed("Real/Draft", 0.95, "fts"),
+            RetrievalSeed("Real/Latin", 0.9, "fts"),
+            RetrievalSeed("Real/One", 0.8, "fts"),
+        ],
+    )
+
+    assert results == ["Real/One"]
+
+
 @pytest.mark.asyncio
 async def test_raw_claim_mode_prioritizes_matching_claim(wiki_structure) -> None:
     from unittest.mock import AsyncMock

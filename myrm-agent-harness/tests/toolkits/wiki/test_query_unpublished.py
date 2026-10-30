@@ -6,8 +6,10 @@ from unittest.mock import AsyncMock
 import pytest
 from langchain_core.messages import AIMessage
 
-from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
+from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig, WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import write_index_markdown
+from myrm_agent_harness.toolkits.wiki.pipeline.sidecar import build_directory_sidecars
 from myrm_agent_harness.toolkits.wiki.retrieval.query import WikiQueryEngine
 
 _MARKER = "UNPUBLISHED-MARKER"
@@ -78,3 +80,37 @@ async def test_pages_without_a_publish_status_stay_visible(wiki_structure: WikiS
     result = await engine.query("gravity")
 
     assert [Path(article).stem for article in result.related_articles] == ["legacy-page"]
+
+
+@pytest.mark.asyncio
+async def test_directory_sidecars_and_the_index_carry_nothing_of_a_demoted_page(
+    wiki_structure: WikiStructure, mock_llm: AsyncMock
+) -> None:
+    _write_page(wiki_structure, "Ops/Runbook", "published", "Rollback runbook steps for deploys.")
+    _write_page(wiki_structure, "Ops/Old Runbook", "draft", f"{_MARKER} rollback runbook steps for deploys.")
+    sidecar_llm = AsyncMock(side_effect=RuntimeError("llm down"))
+    await build_directory_sidecars(sidecar_llm, wiki_structure, WikiCompileConfig(), touched_concepts=[], indexer=None)
+    write_index_markdown(wiki_structure)
+    engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=WikiConfig(enable_semantic_search=False))
+
+    result = await engine.query("rollback runbook steps")
+
+    assert "Rollback runbook steps for deploys." in result.answer
+    assert _MARKER not in result.answer
+    assert all(_MARKER not in snippet.snippet for snippet in result.source_snippets)
+
+
+@pytest.mark.asyncio
+async def test_graph_expansion_skips_a_linked_page_that_is_not_utf8(
+    wiki_structure: WikiStructure, mock_llm: AsyncMock
+) -> None:
+    engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=WikiConfig(enable_semantic_search=True))
+    hub = _write_page(wiki_structure, "Hub Zephyr", "published", "Zephyr overview, see [[Latin Page]].")
+    wiki_structure.get_concept_file_path("Latin Page").write_bytes("caf\u00e9".encode("latin-1"))
+    await engine._indexer.upsert("Hub Zephyr", hub)
+    await engine._indexer.upsert("Latin Page", "cafe")
+    engine._indexer.upsert_edges("Hub Zephyr", ["Latin Page"])
+
+    result = await engine.query("zephyr")
+
+    assert [Path(article).stem for article in result.related_articles] == ["hub-zephyr"]

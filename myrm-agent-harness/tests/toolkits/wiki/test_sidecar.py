@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -290,3 +291,92 @@ async def test_remove_stale_sidecars_deletes_files_and_index(tmp_path):
     assert removed == 2
     assert not abstract_path.exists()
     assert indexer.deletes == [("ops", 0), ("ops", 1)]
+
+
+_UNPUBLISHED_MARKER = "UNPUBLISHED-MARKER"
+
+
+def _write_page(structure: WikiStructure, name: str, publish_status: str, body: str) -> None:
+    structure.get_concept_file_path(name).write_text(
+        f"---\npublish_status: {publish_status}\n---\n## Compiled Truth\n{body}\n", encoding="utf-8"
+    )
+
+
+def _sidecar_texts(structure: WikiStructure, directory: str) -> str:
+    abstract_path, overview_path = structure.get_directory_sidecar_paths(directory, create=False)
+    return abstract_path.read_text(encoding="utf-8") + overview_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["draft", "blocked"])
+async def test_sidecars_leave_unpublished_pages_out_of_the_prompt_and_the_fallback(tmp_path: Path, status: str) -> None:
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    _write_page(structure, "Ops/Runbook", "published", "Rollback steps for deploys.")
+    _write_page(structure, "Ops/Old Runbook", status, f"{_UNPUBLISHED_MARKER} old rollback steps.")
+    indexer = _FakeIndexer()
+
+    llm = AsyncMock()
+    llm.ainvoke.return_value = AIMessage(content='{"abstract":"Ops summary","overview":"Ops overview"}')
+    await build_directory_sidecars(llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=indexer)
+    prompts = " ".join(str(call.args) for call in llm.ainvoke.await_args_list)
+    assert "Rollback steps for deploys." in prompts
+    assert _UNPUBLISHED_MARKER not in prompts
+
+    failing_llm = AsyncMock(side_effect=RuntimeError("llm down"))
+    structure.get_directory_sidecar_paths("ops", create=False)[0].unlink()
+    await build_directory_sidecars(failing_llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=indexer)
+    fallback = _sidecar_texts(structure, "ops")
+    assert "Rollback steps for deploys." in fallback
+    assert _UNPUBLISHED_MARKER not in fallback
+    assert all(_UNPUBLISHED_MARKER not in content for _dir, _level, content in indexer.upserts)
+
+
+@pytest.mark.asyncio
+async def test_sidecars_are_rebuilt_once_a_draft_page_is_published(tmp_path: Path) -> None:
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    _write_page(structure, "Ops/Runbook", "published", "Rollback steps for deploys.")
+    _write_page(structure, "Ops/Pending Runbook", "draft", f"{_UNPUBLISHED_MARKER} pending rollback steps.")
+    llm = AsyncMock(side_effect=RuntimeError("llm down"))
+    await build_directory_sidecars(llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=None)
+    assert _UNPUBLISHED_MARKER not in _sidecar_texts(structure, "ops")
+
+    _write_page(structure, "Ops/Pending Runbook", "published", f"{_UNPUBLISHED_MARKER} pending rollback steps.")
+    result = await build_directory_sidecars(llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=None)
+
+    assert result.rebuilt_directories >= 1
+    assert _UNPUBLISHED_MARKER in _sidecar_texts(structure, "ops")
+
+
+@pytest.mark.asyncio
+async def test_a_directory_loses_its_sidecars_with_its_last_published_page(tmp_path: Path) -> None:
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    _write_page(structure, "Ops/Runbook", "published", "Rollback steps for deploys.")
+    _write_page(structure, "Dev/Guide", "published", "Local setup guide.")
+    llm = AsyncMock(side_effect=RuntimeError("llm down"))
+    indexer = _FakeIndexer()
+    await build_directory_sidecars(llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=indexer)
+
+    _write_page(structure, "Ops/Runbook", "draft", "Rollback steps for deploys.")
+    result = await build_directory_sidecars(llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=indexer)
+
+    assert result.removed_directories >= 1
+    assert not structure.get_directory_sidecar_paths("ops", create=False)[0].exists()
+    assert structure.get_directory_sidecar_paths("dev", create=False)[0].exists()
+    assert ("ops", 0) in indexer.deletes
+
+
+@pytest.mark.asyncio
+async def test_a_page_that_is_not_utf8_does_not_fail_the_sidecar_build(tmp_path: Path) -> None:
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    _write_page(structure, "Ops/Runbook", "published", "Rollback steps for deploys.")
+    structure.get_concept_file_path("Ops/Latin").write_bytes("caf\u00e9".encode("latin-1"))
+    llm = AsyncMock(side_effect=RuntimeError("llm down"))
+
+    result = await build_directory_sidecars(llm, structure, WikiCompileConfig(), touched_concepts=[], indexer=None)
+
+    assert result.rebuilt_directories >= 1
+    assert "Rollback steps for deploys." in _sidecar_texts(structure, "ops")

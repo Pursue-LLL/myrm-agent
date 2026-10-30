@@ -2,16 +2,19 @@
 
 [INPUT]
 - utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
+- utils.logger_utils::get_agent_logger (POS: logger)
 
 [OUTPUT]
 - WikiPageType, WikiPublishStatus, WikiProvenance, validate_wiki_frontmatter, infer_type_for_import
 - repair_missing_types, apply_compile_gate, load_frontmatter_metadata, serialize_frontmatter_block
-- ensure_frontmatter_type, ensure_published_frontmatter, ensure_draft_frontmatter, resolve_publish_status
+- ensure_frontmatter_type, ensure_published_frontmatter, ensure_draft_frontmatter, resolve_publish_status,
+  read_published_text
 - repair_publication_on_disk, PublicationOnDiskRepairResult, FrontmatterValidationError
 
 [POS]
 Harness SSOT for wiki page type and metric schema gate used by compile, import writeback, linter, pending approve,
-and server repair API.
+and server repair API. `read_published_text` gates every path that reads page files straight into an answer
+(keyword matching, graph expansion, directory sidecars, index.md), so a draft or blocked page stays out of all of them.
 """
 
 from __future__ import annotations
@@ -25,9 +28,12 @@ from pathlib import Path
 import yaml
 
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.markdown_frontmatter import (
     parse_frontmatter,
 )
+
+logger = get_agent_logger(__name__)
 
 
 class WikiPageType(StrEnum):
@@ -283,6 +289,16 @@ def resolve_publish_status(content: str) -> WikiPublishStatus:
     if status in WIKI_PUBLISH_STATUSES:
         return WikiPublishStatus(status)
     return WikiPublishStatus.PUBLISHED
+
+
+def read_published_text(path: Path) -> str | None:
+    """Text of a published page; None for a draft or blocked page and for one that cannot be read as UTF-8."""
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.warning("Skipping unreadable wiki page %s: %s", path, exc)
+        return None
+    return content if resolve_publish_status(content) is WikiPublishStatus.PUBLISHED else None
 
 
 def repair_publication_on_disk(

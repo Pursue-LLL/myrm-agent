@@ -86,3 +86,37 @@ def test_log_prepends_newest_entry(wiki_structure: WikiStructure) -> None:
     first_idx = log_text.index("Second event")
     second_idx = log_text.index("First event")
     assert first_idx < second_idx
+
+
+@pytest.mark.parametrize("status", ["draft", "blocked"])
+def test_index_lists_published_pages_only(wiki_structure: WikiStructure, status: str) -> None:
+    wiki_structure.get_concept_file_path("published-topic").write_text(
+        "---\ntype: concept\n---\n# Published Topic\nVisible body.\n", encoding="utf-8"
+    )
+    wiki_structure.get_concept_file_path("hidden-topic").write_text(
+        f"---\ntype: concept\npublish_status: {status}\n---\n# Hidden Topic\nHIDDEN-BODY.\n", encoding="utf-8"
+    )
+
+    WikiCognitiveMapService(wiki_structure).refresh(
+        WikiMapEvent(event_type=WikiMapEventType.COMPILE, summary="Index publish gate")
+    )
+
+    index_text = wiki_structure.get_index_file_path().read_text(encoding="utf-8")
+    assert "[[published-topic]]" in index_text
+    assert "hidden-topic" not in index_text
+    assert "HIDDEN-BODY" not in index_text
+
+
+def test_index_skips_a_page_that_is_not_utf8(wiki_structure: WikiStructure) -> None:
+    wiki_structure.get_concept_file_path("good-topic").write_text(
+        "---\ntype: concept\n---\n# Good Topic\nBody.\n", encoding="utf-8"
+    )
+    wiki_structure.get_concept_file_path("latin-topic").write_bytes("caf\u00e9".encode("latin-1"))
+
+    WikiCognitiveMapService(wiki_structure).refresh(
+        WikiMapEvent(event_type=WikiMapEventType.COMPILE, summary="Index undecodable page")
+    )
+
+    index_text = wiki_structure.get_index_file_path().read_text(encoding="utf-8")
+    assert "[[good-topic]]" in index_text
+    assert "latin-topic" not in index_text

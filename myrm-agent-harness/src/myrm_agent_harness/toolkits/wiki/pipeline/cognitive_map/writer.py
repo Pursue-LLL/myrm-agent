@@ -3,7 +3,7 @@
 [INPUT]
 - ..core.structure::WikiStructure (POS: Wiki file system abstraction layer)
 - ..core.link_resolver::concept_link_name (POS: vault-relative page name used in wikilinks)
-- ..core.frontmatter_contract::validate_wiki_frontmatter, WIKI_PAGE_TYPES (POS: Wiki frontmatter type gate)
+- ..core.frontmatter_contract::validate_wiki_frontmatter, WIKI_PAGE_TYPES, read_published_text (POS: Wiki frontmatter type gate, published-page reader)
 - .utils.markdown_frontmatter::parse_frontmatter (POS: Markdown frontmatter parser)
 - .snapshot::HotSnapshot, build_hot_snapshot, render_hot_markdown (POS: Hot cache snapshot builder)
 - .events::WikiMapEvent (POS: Event taxonomy for wiki/log.md entries)
@@ -30,6 +30,7 @@ from pathlib import Path
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     WIKI_PAGE_TYPES,
     WikiPageType,
+    read_published_text,
     validate_wiki_frontmatter,
 )
 from myrm_agent_harness.toolkits.wiki.core.link_resolver import concept_link_name
@@ -89,15 +90,13 @@ def _read_page_type(content: str) -> str:
 
 
 def write_index_markdown(structure: WikiStructure) -> Path:
-    """Write OKF-style wiki/index.md grouped by frontmatter type."""
+    """Write OKF-style wiki/index.md grouped by frontmatter type; published pages only."""
     index_path = structure.get_index_file_path()
     grouped: dict[str, list[tuple[str, str]]] = defaultdict(list)
 
     for concept_path in structure.list_concepts():
-        try:
-            content = concept_path.read_text(encoding="utf-8")
-        except OSError as exc:
-            logger.warning("Skipping index entry for %s: %s", concept_path, exc)
+        content = read_published_text(concept_path)
+        if content is None:
             continue
         page_type = _read_page_type(content)
         link_name = concept_link_name(concept_path, structure.concepts_dir)
