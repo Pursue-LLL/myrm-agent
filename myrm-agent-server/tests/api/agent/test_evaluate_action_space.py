@@ -22,7 +22,6 @@ def _assert_catalog_preview_shape(result: dict[str, object]) -> None:
     assert preview["inline_count"] == 0
     assert preview["hidden_count"] == 0
     assert preview["search_mounted"] is False
-    assert preview["inline_cap"] == 20
 
 
 @pytest.mark.asyncio

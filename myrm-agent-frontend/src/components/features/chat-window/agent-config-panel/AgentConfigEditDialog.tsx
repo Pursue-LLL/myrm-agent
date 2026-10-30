@@ -324,8 +324,7 @@ const AgentConfigEditDialog = ({
               preview &&
               typeof preview.inline_count === 'number' &&
               typeof preview.hidden_count === 'number' &&
-              typeof preview.search_mounted === 'boolean' &&
-              typeof preview.inline_cap === 'number'
+              typeof preview.search_mounted === 'boolean'
             ) {
               setCatalogPreview(preview as Turn1CatalogPreview);
             } else {

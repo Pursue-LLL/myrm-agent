@@ -187,7 +187,6 @@ async def _build_catalog_preview(
 ) -> dict[str, int | bool]:
     """Turn1 bound-skill catalog preview — harness SSOT for inline/hidden/search gate."""
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
-        SKILL_SELECT_INLINE_MAX,
         resolve_catalog_display_skills,
         should_mount_skill_search_tool,
     )
@@ -221,7 +220,6 @@ async def _build_catalog_preview(
         "inline_count": len(resolution.display_skills),
         "hidden_count": resolution.hidden_skill_count,
         "search_mounted": search_mounted,
-        "inline_cap": SKILL_SELECT_INLINE_MAX,
     }
 
 

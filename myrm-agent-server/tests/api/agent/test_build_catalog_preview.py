@@ -29,12 +29,11 @@ async def test_build_catalog_preview_empty_skill_ids() -> None:
         "inline_count": 0,
         "hidden_count": 0,
         "search_mounted": False,
-        "inline_cap": 20,
     }
 
 
 @pytest.mark.asyncio
-async def test_build_catalog_preview_inline_at_cap(
+async def test_build_catalog_preview_inlines_everything_within_the_token_budget(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     skills = [_skill(f"id-{idx:02d}", f"alpha_skill_{idx:02d}") for idx in range(8)]
@@ -50,13 +49,17 @@ async def test_build_catalog_preview_inline_at_cap(
     assert preview["inline_count"] == 8
     assert preview["hidden_count"] == 0
     assert preview["search_mounted"] is False
-    assert preview["inline_cap"] == 20
 
 
 @pytest.mark.asyncio
 async def test_build_catalog_preview_hidden_mounts_search(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # The catalog is token-budgeted: shrink the budget so 25 equally sized entries cannot all fit.
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.skills.runtime.catalog_display.L1_CATALOG_MAX_TOKENS",
+        200,
+    )
     skills = [_skill(f"id-{idx:02d}", f"beta_skill_{idx:02d}") for idx in range(25)]
     mock_get = AsyncMock(return_value=skills)
     monkeypatch.setattr(
@@ -67,8 +70,8 @@ async def test_build_catalog_preview_hidden_mounts_search(
 
     preview = await _build_catalog_preview([s.id for s in skills], configs)
 
-    assert preview["inline_count"] == 20
-    assert preview["hidden_count"] == 5
+    assert preview["hidden_count"] > 0
+    assert preview["inline_count"] + preview["hidden_count"] == len(skills)
     assert preview["search_mounted"] is True
 
 

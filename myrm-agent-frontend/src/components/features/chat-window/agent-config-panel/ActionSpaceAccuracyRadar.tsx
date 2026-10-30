@@ -8,7 +8,6 @@ export interface Turn1CatalogPreview {
   inline_count: number;
   hidden_count: number;
   search_mounted: boolean;
-  inline_cap: number;
 }
 
 export interface ActionSpaceAccuracyRadarProps {
@@ -103,7 +102,7 @@ export function ActionSpaceAccuracyRadar({
           </p>
           {catalogPreview.hidden_count > 0 && (
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              {t('turn1CatalogOverCapHint', { cap: catalogPreview.inline_cap })}
+              {t('turn1CatalogOverCapHint', { cap: catalogPreview.inline_count })}
             </p>
           )}
         </div>
