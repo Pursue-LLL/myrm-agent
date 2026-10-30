@@ -57,7 +57,7 @@ class I18nEngine:
 
     def _get_fallback_chain(self, locale: str) -> list[str]:
         """Generate a BCP 47 fallback chain.
-        e.g., 'zh-TW' -> ['zh-TW', 'zh-Hant', 'zh-CN', 'zh', 'en']
+        e.g., 'zh-TW' -> ['zh-TW', 'zh', 'zh-Hant', 'zh-CN', 'en']
         """
         chain = [locale]
         parts = locale.replace("_", "-").split("-")

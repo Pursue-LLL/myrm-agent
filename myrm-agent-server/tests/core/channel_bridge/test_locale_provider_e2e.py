@@ -5,10 +5,12 @@ No mocks on config load or locale resolution — uses live DB + config API.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
 
 from app.channels.i18n import get_text
 from app.channels.types import InboundMessage
@@ -23,26 +25,26 @@ client = TestClient(app, root_path="", headers={"X-Forwarded-For": "127.0.0.1"})
 
 
 @pytest.fixture(autouse=True)
-def _patch_loopback():
+def _patch_loopback() -> Iterator[None]:
     """Ensure TestClient requests are treated as loopback for auth."""
     with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
         yield
 
 
 @pytest.fixture(autouse=True)
-async def cleanup_db(init_test_database: None) -> None:
+async def cleanup_db(init_test_database: None) -> AsyncIterator[None]:
     from app.database.connection import init_database
 
     await init_database()
     async with get_session() as session:
-        await session.execute(ConfigAuditLog.__table__.delete())
-        await session.execute(UserConfig.__table__.delete())
+        await session.execute(delete(ConfigAuditLog))
+        await session.execute(delete(UserConfig))
         await session.commit()
     invalidate_user_configs_cache()
     yield
     async with get_session() as session:
-        await session.execute(ConfigAuditLog.__table__.delete())
-        await session.execute(UserConfig.__table__.delete())
+        await session.execute(delete(ConfigAuditLog))
+        await session.execute(delete(UserConfig))
         await session.commit()
     invalidate_user_configs_cache()
 

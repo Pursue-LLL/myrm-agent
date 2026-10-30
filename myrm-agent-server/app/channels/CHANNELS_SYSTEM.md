@@ -198,7 +198,7 @@ wechat_d4e5f6   ← 额外实例 2
    - `SelectMenu` → `"• {placeholder}: option1, option2, ..."`
    - `QuickReply` (required=True) → `"1️⃣ {label}\n2️⃣ {label2}\n\n↩️ 回复数字选择"`
    - `QuickReply` (required=False) → 静默丢弃（避免杂乱）
-3. **国际化**：通过 `get_locale_from_metadata()` 归一化 locale（支持 `zh-CN`），catalog 渲染中英文 fallback（默认 en，业务层经 `metadata["locale"]` 注入）
+3. **国际化**：通过 `get_locale_from_metadata()` 归一化 locale（中文区分 `zh-CN` 与 `zh-TW`），catalog 渲染按引擎回退链取文案（`zh-TW` → `zh` → `zh-Hant` → `zh-CN` → `en`；默认 en，业务层经 `metadata["locale"]` 注入）
 4. **日志记录**：INFO级别记录降级事件，格式：`Downgrading components for channel 'whatsapp': buttons, quick_replies(2) → text fallback`
 5. **文本追加**：将 fallback 文本追加到 `msg.content` 末尾，用 `\n\n` 分隔
 
