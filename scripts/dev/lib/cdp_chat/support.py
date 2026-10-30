@@ -3019,6 +3019,13 @@ BRIDGE_TURN_SNAPSHOT_JS = """
 """.strip()
 
 
+def _isolated_root() -> Path:
+    override = os.getenv("MYRM_ISOLATED_ROOT", "").strip()
+    if override:
+        return Path(override).resolve()
+    return real_user_home() / ".local/state/myrm-isolated"
+
+
 def _private_runtime_backend_log(api_url: str | None) -> Path | None:
     """Map a SHPOIB/PRIVATE API port to its isolated runtime backend.log.
 
@@ -3037,13 +3044,7 @@ def _private_runtime_backend_log(api_url: str | None) -> Path | None:
         return None
     if port is None or _is_shared_dev_api_url(resolved):
         return None
-    override = os.getenv("MYRM_ISOLATED_ROOT", "").strip()
-    isolated_root = (
-        Path(override).resolve()
-        if override
-        else real_user_home() / ".local/state/myrm-isolated"
-    )
-    registry = isolated_root / "registry.json"
+    registry = _isolated_root() / "registry.json"
     if not registry.is_file():
         return None
     try:
@@ -3091,11 +3092,36 @@ def snapshot_backend_log_offset(api_url: str | None = None) -> int:
     return path.stat().st_size
 
 
+_FAILURE_LOG_TAIL_BYTES = 64_000
+_SEND_FAILURE_LOG_TAIL_BYTES = 131_072
+
+
+def _print_backend_log_since(path: Path, offset: int, *, tail_bytes: int) -> None:
+    """Print ``path`` from ``offset`` on, at most the newest ``tail_bytes``.
+
+    Never raises: the report explains a failure and must not replace it, and the
+    runtime that owns the log can be reaped while it is read.
+    """
+    try:
+        size = path.stat().st_size
+        # A log shorter than the recorded offset was truncated or rotated mid-block.
+        start = offset if offset <= size else 0
+        with path.open("rb") as handle:
+            handle.seek(max(start, size - tail_bytes))
+            text = handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return
+    print(
+        f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END",
+        flush=True,
+    )
+
+
 @contextlib.contextmanager
 def dump_backend_log_on_failure(
     api_url: str | None = None,
     *,
-    tail_bytes: int = 64_000,
+    tail_bytes: int = _FAILURE_LOG_TAIL_BYTES,
 ) -> Iterator[None]:
     """Print the backend log written during the block when it raises.
 
@@ -3106,16 +3132,56 @@ def dump_backend_log_on_failure(
     try:
         yield
     except BaseException:
-        path = backend_log_path(api_url=api_url)
-        if path.is_file():
-            with path.open("rb") as handle:
-                handle.seek(max(start, path.stat().st_size - tail_bytes))
-                text = handle.read().decode("utf-8", errors="replace")
-            print(
-                f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END",
-                flush=True,
-            )
+        _print_backend_log_since(
+            backend_log_path(api_url=api_url), start, tail_bytes=tail_bytes
+        )
         raise
+
+
+def _session_private_backend_log() -> Path | None:
+    """This session's private-runtime ``backend.log``; None on the shared stack.
+
+    Inside a private runtime the allocator exports the runtime id together with
+    ``MYRM_BACKEND_PORT`` set to the private port, so the API URL looks like "the
+    current backend" and the registry lookup below treats it as shared. The id names
+    the log's canonical place directly, and building the path from it (never from a
+    ``MYRM_BACKEND_LOG*`` override, which may be stale) cannot reach another stack's log.
+    """
+    runtime_id = os.getenv("MYRM_E2E_PRIVATE_RUNTIME_ID", "").strip()
+    if runtime_id:
+        if not _E2E_RUNTIME_ID_RE.fullmatch(runtime_id):
+            return None
+        candidate = _isolated_root() / "runtimes" / runtime_id / "state" / "backend.log"
+        return candidate if candidate.is_file() else None
+    try:
+        return _private_runtime_backend_log(get_e2e_api_url())
+    except RuntimeError:
+        # An unusable E2E_API_BASE already fails the send itself, loudly.
+        return None
+
+
+def private_backend_log_offset() -> int:
+    """Size of the session's private ``backend.log`` now; 0 without one."""
+    path = _session_private_backend_log()
+    if path is None:
+        return 0
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def print_private_backend_log_since(offset: int) -> None:
+    """Print what the session's private backend logged since ``offset``.
+
+    Unlike ``dump_backend_log_on_failure`` there is no fallback to the shared or the
+    developer's own dev-stack log: a test failure never reads a stack it does not own.
+    """
+    path = _session_private_backend_log()
+    if path is not None:
+        _print_backend_log_since(
+            path, offset, tail_bytes=_SEND_FAILURE_LOG_TAIL_BYTES
+        )
 
 
 def count_execution_cache_in_log(

@@ -1273,6 +1273,7 @@ class CdpChatTurn(CdpChatSubmit):
             except OSError:
                 baseline_user_msgs = 0
         self._baseline_user_msgs = baseline_user_msgs
+        backend_log_offset = cdp_chat_support.private_backend_log_offset()
         try:
             if baseline_user_msgs == 0 and not skip_model_sync:
                 await self._sync_model_selection()
@@ -1423,5 +1424,10 @@ class CdpChatTurn(CdpChatSubmit):
                     await self._attach_chat_session(chat_id)
             _touch_live_turn_progress("send_turn_sealed")
             return {"fill": fill, "submit": submit, "started": started}
+        except BaseException:
+            # The private runtime is reaped with its backend.log after the session, so
+            # a send that dies unsealed leaves this as the only server-side evidence.
+            cdp_chat_support.print_private_backend_log_since(backend_log_offset)
+            raise
         finally:
             self._baseline_user_msgs = 0
