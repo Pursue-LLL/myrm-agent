@@ -296,7 +296,7 @@ class LINEChannel(LINEInboundMixin, BaseChannel):
             resp = await self._api.push(to, messages)
         except Exception as exc:
             self.health.record_failure(str(exc))
-            raise ChannelSendError.from_transport_error(self.name, "LINE request", exc) from exc
+            raise ChannelSendError(f"LINE request failed: {type(exc).__name__}", channel=self.name) from exc
         if resp.status_code >= 400:
             self.health.record_failure(f"HTTP {resp.status_code}")
             detail = (self._parse_response(resp) or {}).get("message")

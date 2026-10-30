@@ -1,5 +1,6 @@
 """Tests for channel exception hierarchy."""
 
+import httpx
 import pytest
 
 from app.channels.core.exceptions import (
@@ -82,6 +83,47 @@ class TestChannelSendError:
     def test_permanent_attachment_failure_is_not_retried(self) -> None:
         err = ChannelSendError.for_attachments("slack", ["a.pdf"], delivered_any=False, retriable=False)
         assert err.retriable is False
+
+
+def _raised_from(cause: BaseException, *, retriable: bool = True) -> ChannelSendError:
+    """The error a provider raises when it wraps ``cause``."""
+    try:
+        raise ChannelSendError("send failed", channel="chan", retriable=retriable) from cause
+    except ChannelSendError as exc:
+        return exc
+
+
+class TestChannelSendErrorCause:
+    """What wrapped the transport error decides retriability, so a provider cannot get it wrong by omission."""
+
+    @pytest.mark.parametrize(
+        "cause",
+        [httpx.ReadTimeout("slow"), httpx.WriteTimeout("slow"), httpx.ReadError("reset"), httpx.RemoteProtocolError("cut off")],
+        ids=lambda cause: type(cause).__name__,
+    )
+    def test_a_request_that_may_have_reached_the_platform_is_not_retriable(self, cause: BaseException) -> None:
+        assert _raised_from(cause).retriable is False
+
+    @pytest.mark.parametrize(
+        "cause",
+        [
+            httpx.ConnectError("down"),
+            httpx.ConnectTimeout("no answer"),
+            httpx.PoolTimeout("busy"),
+            httpx.ProxyError("refused"),
+            OSError("reset"),
+        ],
+        ids=lambda cause: type(cause).__name__,
+    )
+    def test_a_request_that_never_left_stays_retriable(self, cause: BaseException) -> None:
+        assert _raised_from(cause).retriable is True
+
+    def test_a_permanent_failure_stays_permanent_whatever_the_cause(self) -> None:
+        assert _raised_from(httpx.ConnectError("down"), retriable=False).retriable is False
+
+    def test_an_error_without_a_cause_follows_its_flag(self) -> None:
+        assert ChannelSendError("fail").retriable is True
+        assert ChannelSendError("fail", retriable=False).retriable is False
 
 
 class TestRateLimitError:

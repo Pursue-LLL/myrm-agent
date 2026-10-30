@@ -2,6 +2,7 @@
 
 [INPUT]
 - channels.core.exceptions::ChannelSendError (POS: delivery failure with partial-delivery markers)
+- channels.core.exceptions::may_have_reached_platform (POS: tells a request the platform may already hold from one that never left)
 - channels.types::MediaAttachment (POS: outbound attachment value type)
 
 [OUTPUT]
@@ -24,7 +25,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.exceptions import ChannelSendError, may_have_reached_platform
 from app.channels.types import MediaAttachment
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,13 @@ class AttachmentAttempts(Generic[_T]):
             raise ChannelSendError.for_attachments(channel, self.failed, delivered_any=delivered_any, retriable=self.retriable)
 
 
+def _may_succeed_on_resend(exc: Exception) -> bool:
+    """A permanent failure never does, and a request that may have reached the platform is not sent twice."""
+    if isinstance(exc, ChannelSendError):
+        return exc.retriable
+    return not may_have_reached_platform(exc)
+
+
 async def attempt_attachments(
     channel: str,
     media: Sequence[MediaAttachment],
@@ -68,7 +76,7 @@ async def attempt_attachments(
         except Exception as exc:
             logger.warning("%s: attachment %s not delivered: %s", channel, attachment.display_name, exc)
             failed.append(attachment.display_name)
-            retriable = retriable or not (isinstance(exc, ChannelSendError) and not exc.retriable)
+            retriable = retriable or _may_succeed_on_resend(exc)
     return AttachmentAttempts(tuple(results), tuple(failed), retriable)
 
 

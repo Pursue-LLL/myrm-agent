@@ -16,7 +16,8 @@ Hierarchy:
 
 [OUTPUT]
 - ChannelError: Base exception for all channel-related errors.
-- ChannelSendError: Message delivery failed; ``accepted`` marks a partial delivery, ``for_attachments`` / ``from_http_status`` / ``from_transport_error`` build typed failures.
+- ChannelSendError: Message delivery failed; ``accepted`` marks a partial delivery, ``retriable`` also reads the wrapped ``httpx`` error, ``for_attachments`` / ``from_http_status`` build typed failures.
+- may_have_reached_platform: whether an ``httpx`` failure may come after the platform took the request.
 - DeliveryUnconfirmedError: send() returned no message id on a channel that reports ids.
 - RateLimitError: Platform rate limit hit. Always retriable with specific d...
 - ChannelAuthError: Credentials invalid or expired. Never retry — requires re...
@@ -38,6 +39,15 @@ import httpx
 _REQUEST_NEVER_SENT = (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.ProxyError)
 
 
+def may_have_reached_platform(exc: BaseException | None) -> bool:
+    """Whether ``exc`` is an ``httpx`` failure that may come after the platform took the request.
+
+    The outcome of such a request is unknown, so sending the message again could show it twice. Any other
+    exception, and no exception at all, is no evidence of that.
+    """
+    return isinstance(exc, httpx.RequestError) and not isinstance(exc, _REQUEST_NEVER_SENT)
+
+
 class ChannelError(Exception):
     """Base exception for all channel-related errors."""
 
@@ -54,6 +64,10 @@ class ChannelSendError(ChannelError):
     neither retry nor degrade the message — that would duplicate what the recipient
     already received. ``failed_attachments`` names the attachments that did not arrive; a partial
     delivery without names means only text chunks are missing.
+
+    ``retriable`` is the flag the error was built with, unless the error was raised ``from`` an ``httpx``
+    failure that may come after the platform took the request: such an error is never retriable, so a
+    provider that wraps transport errors cannot forget to classify them.
     """
 
     def __init__(
@@ -68,9 +82,14 @@ class ChannelSendError(ChannelError):
     ) -> None:
         super().__init__(message, channel=channel)
         self.status_code = status_code
-        self.retriable = retriable
+        self._retriable = retriable
         self.accepted = accepted
         self.failed_attachments = failed_attachments
+
+    @property
+    def retriable(self) -> bool:
+        """Whether sending the message again may succeed without showing it twice."""
+        return self._retriable and not may_have_reached_platform(self.__cause__)
 
     @classmethod
     def for_attachments(
@@ -116,18 +135,6 @@ class ChannelSendError(ChannelError):
             status_code=status_code,
             retriable=status_code in (408, 425, 429) or status_code >= 500,
         )
-
-    @classmethod
-    def from_transport_error(cls, channel: str, what: str, exc: BaseException) -> ChannelSendError:
-        """Error for an HTTP call that raised: retriable only when the request never left.
-
-        An ``httpx.RequestError`` that may come after the platform took the message (read or write timeout,
-        reset, protocol error) is not retriable, because a re-send could show the reply twice. Any other
-        exception keeps the sender's default of retrying. Only the exception type is named, since the text of
-        an ``httpx`` error can carry the request URL.
-        """
-        retriable = not isinstance(exc, httpx.RequestError) or isinstance(exc, _REQUEST_NEVER_SENT)
-        return cls(f"{what} failed: {type(exc).__name__}", channel=channel, retriable=retriable)
 
 
 class DeliveryUnconfirmedError(ChannelSendError):

@@ -19,6 +19,7 @@ from app.channels.core.bus import MessageBus
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.dingtalk.channel import DingTalkChannel
 from app.channels.providers.line.channel import LINEChannel
+from app.channels.providers.mattermost.channel import MattermostChannel
 from app.channels.providers.signal.channel import SignalChannel
 from app.channels.providers.slack.channel import SlackChannel
 from app.channels.providers.sms import SMSChannel
@@ -46,6 +47,12 @@ def _dingtalk(http: httpx.AsyncClient) -> BaseChannel:
 
 def _line(http: httpx.AsyncClient) -> BaseChannel:
     channel = LINEChannel(channel_access_token="token", channel_secret="secret")
+    channel._api._http = http
+    return channel
+
+
+def _mattermost(http: httpx.AsyncClient) -> BaseChannel:
+    channel = MattermostChannel(server_url="https://mattermost.test", access_token="token")
     channel._api._http = http
     return channel
 
@@ -81,14 +88,15 @@ _PROVIDERS: dict[str, Callable[[httpx.AsyncClient], BaseChannel]] = {
     "slack": _slack,
     "dingtalk": _dingtalk,
     "line": _line,
+    "mattermost": _mattermost,
     "telegram": _telegram,
     "sms": _sms,
     "zalo": _zalo,
     "signal": _signal,
 }
 
-# The providers that turn the ``httpx`` error into a ``ChannelSendError`` and so decide its retriability themselves.
-_WRAPPING_PROVIDERS = ("line", "sms", "zalo", "signal")
+# The providers that turn the ``httpx`` error into a ``ChannelSendError``, whose cause then decides its retriability.
+_WRAPPING_PROVIDERS = ("line", "mattermost", "sms", "zalo", "signal")
 
 
 async def _requests_made_while_failing_with(

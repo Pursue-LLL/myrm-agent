@@ -81,7 +81,7 @@ def default_should_retry(exc: BaseException) -> bool:
     Decision matrix:
         ChannelAuthError        → never retry
         RateLimitError          → always retry
-        ChannelSendError        → retry if ``retriable`` flag is True
+        ChannelSendError        → retry if ``retriable`` (never when it wraps a request that may have reached the platform)
         ChannelConnectionError  → always retry
         OSError / TimeoutError / httpx.ConnectError → always retry (transport-level)
     """

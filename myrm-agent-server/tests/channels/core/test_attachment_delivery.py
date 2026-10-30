@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+import httpx
 import pytest
 
 from app.channels.core.attachment_delivery import deliver_attachments
@@ -96,6 +97,34 @@ class TestDeliverAttachments:
 
         with pytest.raises(ChannelSendError) as excinfo:
             await deliver_attachments("chan", (_doc("a.pdf"), _doc("b.pdf")), mixed, text_delivered=False)
+
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("wrapped", [False, True], ids=["raised_as_is", "wrapped_by_the_provider"])
+    async def test_an_upload_that_may_have_reached_the_platform_is_not_retriable(self, wrapped: bool) -> None:
+        async def timed_out(_: MediaAttachment) -> None:
+            cause = httpx.ReadTimeout("no answer")
+            if not wrapped:
+                raise cause
+            raise ChannelSendError("upload failed", channel="chan") from cause
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await deliver_attachments("chan", (_doc("a.pdf"),), timed_out, text_delivered=False)
+
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, False)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("wrapped", [False, True], ids=["raised_as_is", "wrapped_by_the_provider"])
+    async def test_an_upload_that_never_left_stays_retriable(self, wrapped: bool) -> None:
+        async def unreachable(_: MediaAttachment) -> None:
+            cause = httpx.ConnectError("down")
+            if not wrapped:
+                raise cause
+            raise ChannelSendError("upload failed", channel="chan") from cause
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await deliver_attachments("chan", (_doc("a.pdf"),), unreachable, text_delivered=False)
 
         assert excinfo.value.retriable is True
 
