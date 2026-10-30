@@ -5,8 +5,20 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.agent.skills.evolution.core.engine import SkillEvolutionEngine
-from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
+from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType, SkillLineage, SkillRecord
 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+
+
+def _skill(name: str, *, locked: bool = False) -> SkillRecord:
+    return SkillRecord(
+        skill_id=name,
+        name=name,
+        description="Demo.",
+        content="old content",
+        path="",
+        lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
+        evolution_locked=locked,
+    )
 
 
 class TestSkillEvolutionEngineInit:
@@ -49,10 +61,7 @@ class TestFixSkill:
     @pytest.mark.asyncio
     async def test_fix_locked_skill_returns_none(self):
         store = MagicMock(spec=SkillStore)
-        locked_skill = MagicMock(spec=SkillRecord)
-        locked_skill.evolution_locked = True
-        locked_skill.name = "locked_skill"
-        store.get_skill.return_value = locked_skill
+        store.get_skill.return_value = _skill("locked_skill", locked=True)
         engine = SkillEvolutionEngine(store)
 
         result = await engine.fix_skill("locked", "error")
@@ -61,12 +70,7 @@ class TestFixSkill:
     @pytest.mark.asyncio
     async def test_fix_skill_no_variants_returns_none(self):
         store = MagicMock(spec=SkillStore)
-        skill = MagicMock(spec=SkillRecord)
-        skill.evolution_locked = False
-        skill.name = "test_skill"
-        skill.skill_id = "test"
-        skill.content = "old content"
-        store.get_skill.return_value = skill
+        store.get_skill.return_value = _skill("test_skill")
         store.get_evolution_constraints.return_value = []
 
         engine = SkillEvolutionEngine(store)
@@ -92,10 +96,7 @@ class TestDeriveSkill:
     @pytest.mark.asyncio
     async def test_derive_locked_returns_none(self):
         store = MagicMock(spec=SkillStore)
-        locked = MagicMock(spec=SkillRecord)
-        locked.evolution_locked = True
-        locked.name = "locked"
-        store.get_skill.return_value = locked
+        store.get_skill.return_value = _skill("locked", locked=True)
         engine = SkillEvolutionEngine(store)
 
         result = await engine.derive_skill_simple("locked", "optimize")

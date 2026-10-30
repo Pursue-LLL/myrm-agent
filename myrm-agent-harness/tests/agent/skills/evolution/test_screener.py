@@ -1,29 +1,55 @@
+from collections.abc import Callable
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionRequest, EvolutionStrategy, EvolutionType
+from myrm_agent_harness.agent.skills.evolution.core.types import (
+    EvolutionRequest,
+    EvolutionStrategy,
+    EvolutionType,
+    SkillLineage,
+    SkillRecord,
+)
 from myrm_agent_harness.agent.skills.evolution.pipeline.screener import EvolutionScreener
+
+_CODE = "def test():\n    pass"
+_UNLOCKED_MD = "---\nname: test_skill\ndescription: Demo.\n---\nBody as the file has it.\n"
+_LOCKED_MD = "---\nname: test_skill\ndescription: Demo.\nevolution-locked: true\n---\nBody as the file has it.\n"
+
+
+def _skill_record(content: str = _CODE, path: str = "") -> SkillRecord:
+    return SkillRecord(
+        skill_id="test_skill",
+        name="test_skill",
+        description="Demo.",
+        content=content,
+        path=path,
+        lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
+        updated_at=datetime.now() - timedelta(seconds=4000),  # Pass cooldown
+    )
 
 
 @pytest.fixture
 def mock_store():
     store = MagicMock()
     store.is_evolution_locked.return_value = False
-
-    # Mock skill record
-    skill = MagicMock()
-    skill.name = "test_skill"
-    skill.content = "def test():\n    pass"
-    from datetime import datetime, timedelta
-
-    skill.updated_at = datetime.now() - timedelta(seconds=4000)  # Pass cooldown
-
-    store.get_skill.return_value = skill
+    store.get_skill.return_value = _skill_record()
     store.load_rejections.return_value = []
 
     return store
+
+
+@pytest.fixture
+def write_skill_file(tmp_path: Path) -> Callable[[str], str]:
+    def write(text: str) -> str:
+        path = tmp_path / "SKILL.md"
+        path.write_text(text, encoding="utf-8")
+        return str(path)
+
+    return write
 
 
 @pytest.fixture
@@ -55,6 +81,7 @@ async def test_screener_locked_skill(mock_store):
     result = await screener.screen_request(request)
     assert result.allowed is False
     assert result.phase == "locked"
+    mock_store.get_skill.assert_not_called()  # the store's flag decides without reading the skill or its file
 
 
 @pytest.mark.asyncio
@@ -228,3 +255,39 @@ def test_an_unknown_strategy_falls_back_to_balanced(mock_store):
     screener.evolution_strategy = cast(EvolutionStrategy, "harden")
 
     assert screener.evolution_strategy == "balanced"
+
+
+_FIX_REQUEST = EvolutionRequest(evolution_type=EvolutionType.FIX, skill_id="test_skill", reason="CustomError: boom")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("stored", "on_disk", "allowed"),
+    [
+        pytest.param(_UNLOCKED_MD, _LOCKED_MD, False, id="locked-in-the-file-only"),
+        pytest.param(_LOCKED_MD, _UNLOCKED_MD, True, id="unlocked-in-the-file-after-the-store-copy-was-locked"),
+        pytest.param(_LOCKED_MD, _LOCKED_MD, False, id="the-copy-and-the-file-agree-but-the-flag-is-behind"),
+    ],
+)
+async def test_the_lock_in_the_skill_file_decides_not_the_one_in_the_store_copy(
+    mock_store, write_skill_file, stored: str, on_disk: str, allowed: bool
+) -> None:
+    mock_store.get_skill.return_value = _skill_record(stored, write_skill_file(on_disk))
+
+    result = await EvolutionScreener(store=mock_store).screen_request(_FIX_REQUEST)
+
+    assert result.allowed is allowed
+    if not allowed:
+        assert result.phase == "locked"
+        assert "SKILL.md" in result.reason
+
+
+@pytest.mark.asyncio
+async def test_the_confirmation_judges_the_text_of_the_file(mock_store, mock_llm, write_skill_file) -> None:
+    mock_store.get_skill.return_value = _skill_record(_CODE, write_skill_file(_UNLOCKED_MD))
+
+    await EvolutionScreener(store=mock_store, cheap_llm=mock_llm).screen_request(_FIX_REQUEST)
+
+    prompt = mock_llm.ainvoke.await_args.args[0][0].content
+    assert "Body as the file has it." in prompt
+    assert _CODE not in prompt

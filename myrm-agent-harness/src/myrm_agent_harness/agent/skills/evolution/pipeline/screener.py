@@ -2,6 +2,7 @@
 
 [INPUT]
 - agent.skills.evolution.core.types::EvolutionRequest (POS: Data types for skill evolution system.)
+- agent.skills.evolution.core.skill_on_disk::skill_from_disk (POS: The SKILL.md of a skill as it is on disk, the text and the evolution lock the evolution engine works from.)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应答案提取 — 兼容 reasoning 模型 content 空回退)
 - utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM output — fences, prose, bare control chars, trailing commas)
 
@@ -15,6 +16,11 @@ Evolution screening pipeline. Implements multi-phase checks including static err
 ## Architecture
 
 Two-phase screening to block "snowball effect" of blind fixes:
+
+**Phase 0: Evolution lock**
+- The store's flag rejects first, without reading the skill; the SKILL.md frontmatter lock rejects next
+  (the file is what the user edits, the store's flag can lag behind it)
+- Cooldown and the LLM confirmation judge the skill's SKILL.md text, not the store's copy
 
 **Phase 1: Rule-based (Cooldown)**
 - Rejects repeated evolution attempts within cooldown period
@@ -52,6 +58,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from langchain_core.messages import HumanMessage
 
+from myrm_agent_harness.agent.skills.evolution.core.skill_on_disk import skill_from_disk
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionRequest,
     EvolutionStrategy,
@@ -205,13 +212,9 @@ class EvolutionScreener:
 
         # Phase 0: Evolution lock check (highest priority, zero-cost)
         if self._store.is_evolution_locked(request.skill_id):
-            reason = "Skill is locked from auto-evolution (user-protected in DB)"
-            await self._log_rejection_event(request.skill_id, "locked", reason)
-            SCREENING_TOTAL.labels(phase="locked", result="blocked").inc()
-            SCREENING_DURATION.labels(phase="locked").observe(time.time() - start_time)
-            SCREENING_DURATION.labels(phase="total").observe(time.time() - start_time)
-            SCREENING_CONFIDENCE.observe(1.0)
-            return ScreeningResult(allowed=False, reason=reason, phase="locked", confidence=1.0)
+            return await self._reject_locked(
+                request.skill_id, "Skill is locked from auto-evolution (user-protected in DB)", start_time
+            )
 
         # Phase 0.5: Intent-Aware Cooldown Override
         # If user explicitly requests to continue fixing via GUI flag, bypass cooldown
@@ -224,23 +227,12 @@ class EvolutionScreener:
 
         skill = self._store.get_skill(request.skill_id)
         if skill:
-            # Double check the physical file content frontmatter (in case DB is stale)
-            try:
-                from myrm_agent_harness.backends.skills._utils import (
-                    parse_skill_frontmatter,
+            # The lock the user wrote into SKILL.md (the store's flag can lag behind the file)
+            skill = skill_from_disk(skill)
+            if skill.evolution_locked:
+                return await self._reject_locked(
+                    request.skill_id, "Skill is locked from auto-evolution (user-protected in SKILL.md)", start_time
                 )
-
-                fm = parse_skill_frontmatter(skill.content, request.skill_id)
-                if fm.evolution_locked:
-                    reason = "Skill is locked from auto-evolution (user-protected in SKILL.md)"
-                    await self._log_rejection_event(request.skill_id, "locked", reason)
-                    SCREENING_TOTAL.labels(phase="locked", result="blocked").inc()
-                    SCREENING_DURATION.labels(phase="locked").observe(time.time() - start_time)
-                    SCREENING_DURATION.labels(phase="total").observe(time.time() - start_time)
-                    SCREENING_CONFIDENCE.observe(1.0)
-                    return ScreeningResult(allowed=False, reason=reason, phase="locked", confidence=1.0)
-            except Exception as e:
-                logger.debug(f"Failed to parse frontmatter during evolution screening: {e}")
 
             # Phase 1: Cooldown check
             if not intent_override:
@@ -429,6 +421,14 @@ class EvolutionScreener:
             phase="none",
             confidence=1.0,
         )
+
+    async def _reject_locked(self, skill_id: str, reason: str, start_time: float) -> ScreeningResult:
+        await self._log_rejection_event(skill_id, "locked", reason)
+        SCREENING_TOTAL.labels(phase="locked", result="blocked").inc()
+        SCREENING_DURATION.labels(phase="locked").observe(time.time() - start_time)
+        SCREENING_DURATION.labels(phase="total").observe(time.time() - start_time)
+        SCREENING_CONFIDENCE.observe(1.0)
+        return ScreeningResult(allowed=False, reason=reason, phase="locked", confidence=1.0)
 
     async def _log_rejection_event(self, skill_id: str, phase: str, reason: str, confidence: float = 1.0) -> None:
         """Log rejection event to EventLogger if configured.
