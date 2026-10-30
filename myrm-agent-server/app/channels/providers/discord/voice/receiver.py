@@ -14,6 +14,9 @@ Silence detection delivers completed utterances.
 [POS]
 Low-level voice packet processing. Runs on the SocketReader thread
 for packet capture, with check_silence() polled from async code.
+The transport key, the mode, the DAVE session and the bot's SSRC are read from the connection for every packet:
+discord.py replaces them when the connection is re-established or upgraded, and keeps delivering packets meanwhile.
+A run of packets that fail to decrypt is reported once as a warning, not once per packet.
 """
 
 from __future__ import annotations
@@ -24,8 +27,15 @@ import threading
 import time
 from collections import defaultdict
 from collections.abc import Set
+from typing import TYPE_CHECKING, NamedTuple
 
 import discord.opus
+
+if TYPE_CHECKING:
+    import davey
+    from discord import VoiceClient
+    from discord.gateway import DiscordVoiceWebSocket
+    from discord.voice_state import VoiceConnectionState
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +44,18 @@ _MIN_SPEECH_DURATION = 0.5
 _SAMPLE_RATE = 48000
 _CHANNELS = 2
 _BYTES_PER_SECOND = _SAMPLE_RATE * _CHANNELS * 2
+
+# Consecutive packets that fail to decrypt before the receiver says so: about a second of one speaker's audio.
+_UNDECRYPTABLE_STREAK_WARNING = 50
+
+
+class _Credentials(NamedTuple):
+    """What the connection holds for decrypting audio at the moment a packet arrives."""
+
+    secret_key: bytes
+    mode: str
+    bot_ssrc: int
+    dave_session: davey.DaveSession | None
 
 
 class VoiceReceiver:
@@ -46,16 +68,12 @@ class VoiceReceiver:
 
     def __init__(
         self,
-        voice_client: object,
+        voice_client: VoiceClient,
         allowed_user_ids: Set[str] | None = None,
     ) -> None:
         self._vc = voice_client
         self._allowed_user_ids: set[str] = set(allowed_user_ids) if allowed_user_ids else set()
         self._running = False
-
-        self._secret_key: bytes = b""
-        self._bot_ssrc: int = 0
-        self._mode: str = ""
 
         self._ssrc_to_user: dict[int, int] = {}
         self._lock = threading.Lock()
@@ -65,10 +83,8 @@ class VoiceReceiver:
 
         self._decoders: dict[int, discord.opus.Decoder] = {}
 
-        self._dave_session: object | None = None
-
         self._paused = False
-        self._packet_count = 0
+        self._undecryptable_streak = 0
 
     @property
     def running(self) -> bool:
@@ -76,27 +92,30 @@ class VoiceReceiver:
 
     def start(self) -> None:
         """Start listening for voice packets."""
-        conn = self._vc._connection  # type: ignore[attr-defined]
-        self._secret_key = bytes(conn.secret_key)
-        self._bot_ssrc = conn.ssrc
-        self._mode = getattr(conn, "mode", "") or getattr(self._vc, "mode", "")
-        self._dave_session = getattr(conn, "dave_session", None)
-
+        conn = self._vc._connection
         self._install_speaking_hook(conn)
         conn.add_socket_listener(self._on_packet)
         self._running = True
+        credentials = self._credentials()
         logger.info(
-            "VoiceReceiver started (bot_ssrc=%d, mode=%s, dave=%s)",
-            self._bot_ssrc,
-            self._mode,
-            self._dave_session is not None,
+            "VoiceReceiver started (mode=%s, dave=%s)",
+            credentials.mode if credentials else "pending",
+            credentials is not None and credentials.dave_session is not None,
         )
+
+    def _credentials(self) -> _Credentials | None:
+        """The connection's decryption credentials as they are now, or None until its session has a key."""
+        conn = self._vc._connection
+        key = conn.secret_key
+        if not key:
+            return None
+        return _Credentials(bytes(key), conn.mode, conn.ssrc, conn.dave_session)
 
     def stop(self) -> None:
         """Stop listening and clean up all state."""
         self._running = False
         try:
-            self._vc._connection.remove_socket_listener(self._on_packet)  # type: ignore[attr-defined]
+            self._vc._connection.remove_socket_listener(self._on_packet)
         except Exception:
             pass
         with self._lock:
@@ -114,14 +133,14 @@ class VoiceReceiver:
         """Resume packet capture after playback."""
         self._paused = False
 
-    def _install_speaking_hook(self, conn: object) -> None:
+    def _install_speaking_hook(self, conn: VoiceConnectionState) -> None:
         """Hook SPEAKING events (op 5) to map SSRC -> user_id."""
-        original_hook = getattr(conn, "hook", None)
+        original_hook = conn.hook
         receiver = self
 
-        async def wrapped_hook(ws: object, msg: object) -> None:
-            if isinstance(msg, dict) and msg.get("op") == 5:
-                data = msg.get("d", {})
+        async def wrapped_hook(ws: DiscordVoiceWebSocket, msg: dict[str, object]) -> None:
+            data = msg.get("d")
+            if msg.get("op") == 5 and isinstance(data, dict):
                 ssrc = data.get("ssrc")
                 user_id = data.get("user_id")
                 if ssrc and user_id:
@@ -131,9 +150,9 @@ class VoiceReceiver:
 
         conn.hook = wrapped_hook
         try:
-            ws = getattr(conn, "ws", None)
+            ws = conn.ws
             if ws is not None:
-                ws._hook = wrapped_hook
+                ws._hook = wrapped_hook  # type: ignore[method-assign]
         except Exception:
             pass
 
@@ -155,14 +174,15 @@ class VoiceReceiver:
         first_byte = data[0]
         _, _, _seq, _timestamp, ssrc = struct.unpack_from(">BBHII", data, 0)
 
-        if ssrc == self._bot_ssrc:
+        credentials = self._credentials()
+        if credentials is None or ssrc == credentials.bot_ssrc:
             return
 
         cc = first_byte & 0x0F
         has_extension = bool(first_byte & 0x10)
         has_padding = bool(first_byte & 0x20)
 
-        is_rtpsize = "rtpsize" in self._mode or "aead" in self._mode
+        is_rtpsize = "rtpsize" in credentials.mode or "aead" in credentials.mode
         if is_rtpsize:
             header_size = 12 + (4 * cc) + (4 if has_extension else 0)
         else:
@@ -188,15 +208,9 @@ class VoiceReceiver:
         encrypted = bytes(payload_with_nonce[:-4])
 
         try:
-            decrypted = self._decrypt_payload(encrypted, header, bytes(nonce))
-        except Exception:
-            self._packet_count += 1
-            if self._packet_count <= 5:
-                logger.debug(
-                    "Decrypt failed (packet #%d, mode=%s)",
-                    self._packet_count,
-                    self._mode,
-                )
+            decrypted = self._decrypt_payload(credentials, encrypted, header, bytes(nonce))
+        except Exception as exc:
+            self._note_undecryptable("transport", credentials.mode, exc)
             return
 
         if ext_data_len and len(decrypted) > ext_data_len:
@@ -212,60 +226,69 @@ class VoiceReceiver:
             if not decrypted:
                 return
 
-        if self._dave_session:
-            decrypted = self._dave_decrypt(ssrc, decrypted)
-            if decrypted is None:
+        if credentials.dave_session:
+            try:
+                decrypted = self._dave_decrypt(credentials.dave_session, ssrc, decrypted)
+            except Exception as exc:
+                self._note_undecryptable("DAVE", credentials.mode, exc)
                 return
+        self._undecryptable_streak = 0
 
         try:
             if ssrc not in self._decoders:
-                self._decoders[ssrc] = discord.opus.Decoder()
-            pcm = self._decoders[ssrc].decode(decrypted)
+                self._decoders[ssrc] = discord.opus.Decoder()  # type: ignore[no-untyped-call]
+            pcm = self._decoders[ssrc].decode(decrypted, fec=False)
             with self._lock:
                 self._buffers[ssrc].extend(pcm)
                 self._last_packet_time[ssrc] = time.monotonic()
         except Exception as e:
             logger.debug("Opus decode error for SSRC %d: %s", ssrc, e)
 
-    def _decrypt_payload(self, encrypted: bytes, header: bytes, nonce: bytes) -> bytes:
+    def _decrypt_payload(self, credentials: _Credentials, encrypted: bytes, header: bytes, nonce: bytes) -> bytes:
         """Decrypt payload using the negotiated encryption mode."""
         import nacl.secret
 
-        if "aead" in self._mode or "xchacha" in self._mode:
-            box = nacl.secret.Aead(self._secret_key)
-            return box.decrypt(encrypted, header, nonce)
+        if "aead" in credentials.mode or "xchacha" in credentials.mode:
+            return nacl.secret.Aead(credentials.secret_key).decrypt(encrypted, header, nonce)
 
-        box = nacl.secret.SecretBox(self._secret_key)
-        return box.decrypt(encrypted, nonce)
+        return nacl.secret.SecretBox(credentials.secret_key).decrypt(encrypted, nonce)
 
-    def _dave_decrypt(self, ssrc: int, payload: bytes) -> bytes | None:
-        """Decrypt DAVE E2EE layer if session is active."""
+    def _dave_decrypt(self, dave_session: davey.DaveSession, ssrc: int, payload: bytes) -> bytes:
+        """Decrypt the DAVE E2EE layer; a frame DAVE reports as unencrypted, or from an unmapped SSRC, passes through."""
         with self._lock:
             user_id = self._ssrc_to_user.get(ssrc, 0)
         if not user_id:
             return payload
 
-        try:
-            import davey
+        import davey
 
-            return self._dave_session.decrypt(  # type: ignore[union-attr]
-                user_id, davey.MediaType.audio, payload
+        try:
+            return dave_session.decrypt(user_id, davey.MediaType.audio, payload)
+        except Exception as exc:
+            if "Unencrypted" in str(exc):
+                return payload
+            raise
+
+    def _note_undecryptable(self, stage: str, mode: str, exc: Exception) -> None:
+        """Count one packet that failed to decrypt; a run of ``_UNDECRYPTABLE_STREAK_WARNING`` is reported once."""
+        self._undecryptable_streak += 1
+        if self._undecryptable_streak == _UNDECRYPTABLE_STREAK_WARNING:
+            logger.warning(
+                "Voice audio failed %s decryption for %d packets in a row (mode=%s, last error: %s); "
+                "the voice session may need to be rejoined",
+                stage,
+                _UNDECRYPTABLE_STREAK_WARNING,
+                mode,
+                type(exc).__name__,
             )
-        except Exception as e:
-            if "Unencrypted" not in str(e):
-                self._packet_count += 1
-                if self._packet_count <= 5:
-                    logger.debug("DAVE decrypt failed for ssrc=%d: %s", ssrc, e)
-                return None
-            return payload
 
     def _infer_user_for_ssrc(self, ssrc: int) -> int:
         """Infer user_id when SPEAKING event was missed (e.g. after rejoin)."""
         try:
-            channel = self._vc.channel  # type: ignore[attr-defined]
+            channel = self._vc.channel
             if not channel:
                 return 0
-            bot_id = self._vc.user.id if self._vc.user else 0  # type: ignore[attr-defined]
+            bot_id = self._vc.user.id if self._vc.user else 0
             candidates = [
                 m.id
                 for m in channel.members

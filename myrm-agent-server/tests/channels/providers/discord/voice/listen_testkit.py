@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import deque
+from collections.abc import Sequence
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,8 +21,11 @@ async def listen_once(
     *,
     guild_id: int,
     text_channel_id: int,
+    later_batches: Sequence[list[tuple[int, bytes]]] = (),
 ) -> tuple[AsyncMock, _GuildVoiceState]:
-    """Run the listen loop until ``utterances`` are consumed; return the STT entry point's mock and the session.
+    """Run the listen loop until ``utterances`` and then each of ``later_batches`` are consumed, one batch per poll.
+
+    Return the STT entry point's mock and the session.
 
     The session starts with ``last_speech_at`` at ``STALE_SPEECH_AT``, so a test can tell whether an utterance was
     taken as speech; the voice timeout is off, or that old timestamp would end the session. The caller sets the poll
@@ -31,11 +36,11 @@ async def listen_once(
     voice_client.is_connected.return_value = True
     receiver = MagicMock()
     receiver.running = True
-    pending = [list(utterances)]
+    pending = deque([list(utterances), *map(list, later_batches)])
 
     def check_silence() -> list[tuple[int, bytes]]:
         if pending:
-            return pending.pop()
+            return pending.popleft()
         receiver.running = False
         return []
 

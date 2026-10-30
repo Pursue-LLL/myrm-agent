@@ -3,8 +3,8 @@
 Two situations look alike from the state: discord.py is still bringing the session back up (its VoiceClient stays
 registered on the guild), or discord.py has dropped it (the guild holds no such VoiceClient any more) without an event
 that removes the state. A join must keep the first and release the second. Releasing a session that is reconnecting
-orphans a live connection that no command can reach; keeping a dropped one lets its listen loop keep running until its
-voice timeout leaves the guild by id and takes the new session down with it.
+cuts the reconnect short; keeping a dropped one lets its listen loop keep running until its voice timeout leaves the
+guild by id and takes the new session down with it.
 """
 
 from __future__ import annotations
@@ -28,10 +28,12 @@ def _fast_polling(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(voice_manager, "_LISTEN_POLL_INTERVAL", 0.01)
 
 
-def _voice_client(*, connected: bool) -> MagicMock:
+def _voice_client(*, connected: bool, held: bool = False) -> MagicMock:
+    """``held`` says whether discord.py still has this VoiceClient registered on its guild."""
     voice_client = MagicMock()
     voice_client.is_connected.return_value = connected
     voice_client.disconnect = AsyncMock()
+    voice_client.guild.voice_client = voice_client if held else None
     return voice_client
 
 
@@ -42,19 +44,17 @@ def _receiver() -> MagicMock:
     return receiver
 
 
-def _channel(*, registered: MagicMock | None = None) -> MagicMock:
-    """A voice channel of the guild; ``registered`` is the VoiceClient discord.py currently holds on that guild."""
+def _channel() -> MagicMock:
     channel = MagicMock()
     channel.guild.id = _GUILD
-    channel.guild.voice_client = registered
     return channel
 
 
 async def _unconnected_session(
-    manager: VoiceManager, *, silent_for: float = 0.0
+    manager: VoiceManager, *, silent_for: float = 0.0, held: bool = False
 ) -> tuple[_GuildVoiceState, MagicMock, MagicMock]:
     """A registered state whose VoiceClient is not connected and whose listen loop is running, with its two mocks."""
-    voice_client, receiver = _voice_client(connected=False), _receiver()
+    voice_client, receiver = _voice_client(connected=False, held=held), _receiver()
     state = _GuildVoiceState(voice_client=voice_client, receiver=receiver, text_channel_id=1)
     state.last_speech_at = time.monotonic() - silent_for
     manager._guilds[_GUILD] = state
@@ -114,8 +114,8 @@ async def test_a_failed_join_leaves_no_released_state_registered() -> None:
 
 async def test_joining_over_a_session_discord_py_is_reconnecting_keeps_it() -> None:
     manager = VoiceManager(MagicMock(), voice_timeout=0)
-    reconnecting, receiver, voice_client = await _unconnected_session(manager)
-    channel = _channel(registered=voice_client)
+    reconnecting, receiver, voice_client = await _unconnected_session(manager, held=True)
+    channel = _channel()
     channel.connect = AsyncMock()
 
     assert await manager.join(channel) is False
@@ -131,12 +131,12 @@ async def test_joining_over_a_session_discord_py_is_reconnecting_keeps_it() -> N
 
 async def test_the_declined_join_succeeds_once_discord_py_drops_the_session() -> None:
     manager = VoiceManager(MagicMock(), voice_timeout=0)
-    session, receiver, voice_client = await _unconnected_session(manager)
-    channel = _channel(registered=voice_client)
+    session, receiver, voice_client = await _unconnected_session(manager, held=True)
+    channel = _channel()
     channel.connect = AsyncMock(return_value=_voice_client(connected=True))
 
     assert await manager.join(channel) is False
-    channel.guild.voice_client = None
+    voice_client.guild.voice_client = None
     with patch.object(voice_manager, "VoiceReceiver", return_value=_receiver()):
         assert await manager.join(channel) is True
 

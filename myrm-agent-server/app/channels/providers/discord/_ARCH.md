@@ -48,7 +48,10 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 
 - 同一个客户端上 `on_ready` 会触发多次：会话被 Discord 判为不可恢复时，discord.py 在同一个 `Client` 上重新 IDENTIFY，新的 READY 先清空它自己的 `voice_clients` 再派发 `on_ready`。`_init_voice_manager` 已有管理器就沿用，仍在通话的会话、接收器和跟随循环不丢，`stop()` 的 `leave_all()` 也找得到它们；
 - `_start_gateway` 新建客户端时丢掉上一个客户端留下的管理器：被取消的 `stop()` 没走到 `_voice_manager = None`，而它的 `leave_all()` 已经销毁了跟随循环，重启后的新客户端不能沿用；
-- `VoiceManager.join` 遇到「已登记、VoiceClient 未连接」的公会时，看 discord.py 是否还持有该 VoiceClient（`channel.guild.voice_client`）：还持有，说明它在重连，本次加入返回 False、会话原样保留（释放它会留下一个无人管理却仍在频道里的连接：`leave` 找不到状态，`join` 被 `Already connected` 拒绝）；已被摘掉（没有事件把状态从登记表里摘掉，例如网关断开时的本地离开），先摘掉登记并 `_release` 旧会话，再建立新连接：旧会话的监听循环不能活过它的连接，否则它的静默超时会按公会号离开，结束新会话；
+- `VoiceManager.join` 遇到「已登记、VoiceClient 未连接」的公会时，看 discord.py 是否还持有该 VoiceClient（会话状态的 `held_by_discord`，即 `voice_client.guild.voice_client` 仍是它）：还持有，说明它在重连，本次加入返回 False、会话原样保留（discord.py 此时会以 `Already connected` 拒绝加入，释放会话则中断这次重连）；已被摘掉（没有事件把状态从登记表里摘掉，例如网关断开时的本地离开），先摘掉登记并 `_release` 旧会话，再建立新连接：旧会话的监听循环不能活过它的连接，否则它的静默超时会按公会号离开，结束新会话；
+- `VoiceManager.leave` 释放会话时，只要 VoiceClient 已连接或仍被 discord.py 持有（`held_by_discord`）就 `disconnect(force=True)`：重连中的 VoiceClient 报告未连接却仍登记在公会上，只有断开才摘掉这条登记，否则此后的加入都被 `Already connected` 拒绝；已被 discord.py 摘掉的不再断开，它的断开会等一个永远不来的确认；
+- `VoiceReceiver` 每个包都从连接取密钥、模式、DAVE 会话和机器人自己的 SSRC：discord.py 在不能续传的重连和 DAVE 升级时替换它们，而接收器的监听在重连后仍在收包。连接还没有会话密钥时丢包且不计失败；连续解密失败达到阈值（约一秒的单人语音）记一次警告，成功解开一个包就重新计数；
+- 监听循环每一轮完成的话共用该轮开始时读到的文字频道绑定（准入判定与交给输入管线用同一个值）：转写一段话要几秒，期间 `/voice join` 可能把会话改绑到另一个文字频道；
 - 语音离开上限 `_VOICE_LEAVE_TIMEOUT` 必须小于网关的停止上限 `_STOP_TIMEOUT`，`test_discord_stop_voice.py` 钉住这个关系。
 
 ## 发送者身份与准入
@@ -80,4 +83,4 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 | `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规 |
 | `test_discord_deduplication.py` | Discord 消息去重单元测试 |
 | `test_discord_splitter_integration.py` | Splitter 对 Discord 消息拆分约束的集成测试 |
-| `voice/test_*.py` | Discord 语音子模块（`voice/test_leave_all.py`：各公会并发离开，一个公会卡住或出错不挡其余；`voice/test_input_pipeline.py`：语音输入门控（转写幻觉过滤、回声与打断、唤醒词与唤醒窗口、显示名、播放登记）；`voice/test_join_stale_state.py`：再次加入时先释放 discord.py 已摘掉的会话，重连中的会话原样保留，旧会话的静默超时不结束新会话，连接失败不留下已释放的登记；`voice/test_speaker_gate.py`：说话人闸门（放行才转写、被拒绝的音频不进转写且不延长会话、未接线不转写任何人、先过 `allowed_users` 再问闸门、每段话都重新判定、每说话人首次被拒只记一次）；`voice/listen_testkit.py`：把给定的话送过一轮监听循环、替身掉转写入口） |
+| `voice/test_*.py` | Discord 语音子模块（`voice/test_leave_all.py`：各公会并发离开，一个公会卡住或出错不挡其余；`voice/test_input_pipeline.py`：语音输入门控（转写幻觉过滤、回声与打断、唤醒词与唤醒窗口、显示名、播放登记）；`voice/test_join_stale_state.py`：再次加入时先释放 discord.py 已摘掉的会话，重连中的会话原样保留，旧会话的静默超时不结束新会话，连接失败不留下已释放的登记；`voice/test_release_held_client.py`：离开时已连接或仍被 discord.py 持有（含重连中）的 VoiceClient 都被断开，已被 discord.py 摘掉的不再断开；`voice/test_receiver_packets.py`：接收器的包路径（RTP 帧、传输层解密、扩展头与填充剥离、DAVE 层、Opus 解码）；`voice/receiver_testkit.py`：接收器测试共用的 VoiceClient 替身；`voice/test_receiver_credentials.py`：接收器用真实加密的包验证凭证取自连接此刻的状态（换钥、改模式、后建的 DAVE 会话、机器人 SSRC 都跟着连接走，没有会话密钥时丢包且不计失败，连续解密失败只告警一次、成功的包让计数归零、DAVE 层失败同样计数）；`voice/test_listen_binding.py`：同一轮里的每段话用该轮开始时的文字频道绑定做准入与交付，下一轮才取新绑定；`voice/test_speaker_gate.py`：说话人闸门（放行才转写、被拒绝的音频不进转写且不延长会话、未接线不转写任何人、先过 `allowed_users` 再问闸门、每段话都重新判定、每说话人首次被拒只记一次）；`voice/listen_testkit.py`：把给定的话（可再分几轮）送过监听循环、替身掉转写入口） |

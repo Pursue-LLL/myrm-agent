@@ -25,6 +25,8 @@ Leaving every guild is concurrent, so one guild that waits for
 the gateway's confirmation does not hold up the others. A join over a
 state whose VoiceClient discord.py has dropped releases that state first;
 over one discord.py is still reconnecting, the join is declined.
+A leave disconnects the VoiceClient for as long as discord.py holds it, connected or not. The utterances finished in
+one poll keep the text-channel binding they were admitted under.
 """
 
 from __future__ import annotations
@@ -72,6 +74,11 @@ class _GuildVoiceState:
     joined_at: float = field(default_factory=time.monotonic)
     last_speech_at: float = field(default_factory=time.monotonic)
     refused_speakers: set[int] = field(default_factory=set)
+
+    @property
+    def held_by_discord(self) -> bool:
+        """Whether discord.py still registers this VoiceClient on its guild: connected, or being brought back up."""
+        return self.voice_client.guild.voice_client is self.voice_client
 
 
 class VoiceManager:
@@ -167,9 +174,9 @@ class VoiceManager:
                 return True
 
             if state:
-                if channel.guild.voice_client is state.voice_client:
-                    # discord.py still holds this VoiceClient and is bringing it back up; releasing the session
-                    # would orphan a live connection that no command could reach.
+                if state.held_by_discord:
+                    # discord.py still holds this VoiceClient and is bringing it back up: it would refuse a join
+                    # now, and releasing the session would cut that reconnect short.
                     logger.debug("Voice session in guild %d is reconnecting, join declined", guild_id)
                     return False
                 # discord.py dropped the VoiceClient without an event that removes the state; its listen loop
@@ -212,7 +219,7 @@ class VoiceManager:
         logger.info("Left voice channel in guild %d", guild_id)
 
     async def _release(self, state: _GuildVoiceState) -> None:
-        """Stop a session's listen loop and receiver, and leave voice if the connection is still up."""
+        """Stop a session's listen loop and receiver, and disconnect its VoiceClient unless discord.py dropped it."""
         if state.listen_task and not state.listen_task.done():
             state.listen_task.cancel()
             try:
@@ -222,7 +229,10 @@ class VoiceManager:
 
         state.receiver.stop()
 
-        if state.voice_client.is_connected():
+        # A VoiceClient discord.py is bringing back up is not connected yet but stays registered on the guild, and
+        # only a disconnect clears that; until then discord.py refuses every join. One it has dropped must be left
+        # alone: its disconnect waits for a confirmation that never arrives.
+        if state.voice_client.is_connected() or state.held_by_discord:
             await state.voice_client.disconnect(force=True)
 
     async def leave_all(self) -> None:
@@ -307,12 +317,12 @@ class VoiceManager:
         non_bot = [m for m in bot_channel.members if not m.bot]
         return not non_bot
 
-    async def _speaker_admitted(self, guild_id: int, state: _GuildVoiceState, user_id: int) -> bool:
+    async def _speaker_admitted(self, guild_id: int, state: _GuildVoiceState, text_channel_id: int, user_id: int) -> bool:
         """Whether the speaker gate admits this speaker; asked for every utterance, before it is transcribed.
 
         The first refusal of a speaker in a session is logged, so an owner whose own speech is ignored can find out why.
         """
-        if self._speaker_gate is not None and await self._speaker_gate(state.text_channel_id or guild_id, user_id):
+        if self._speaker_gate is not None and await self._speaker_gate(text_channel_id or guild_id, user_id):
             return True
         if user_id not in state.refused_speakers:
             state.refused_speakers.add(user_id)
@@ -354,13 +364,16 @@ class VoiceManager:
                         return
 
                 completed = state.receiver.check_silence()
+                # Transcribing one utterance takes seconds, during which /voice join can rebind the session to
+                # another text channel; every utterance of this batch is admitted and routed under one binding.
+                text_channel_id = state.text_channel_id
                 for user_id, pcm_data in completed:
                     if self._allowed_user_ids and str(user_id) not in self._allowed_user_ids:
                         continue
-                    if not await self._speaker_admitted(guild_id, state, user_id):
+                    if not await self._speaker_admitted(guild_id, state, text_channel_id, user_id):
                         continue
                     state.last_speech_at = time.monotonic()
-                    await self._input.process(guild_id, user_id, pcm_data, state.text_channel_id)
+                    await self._input.process(guild_id, user_id, pcm_data, text_channel_id)
 
         except asyncio.CancelledError:
             pass
