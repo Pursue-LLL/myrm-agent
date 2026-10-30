@@ -22,5 +22,5 @@ class LocaleProvider(Protocol):
     """Resolve locale for an inbound channel message."""
 
     async def resolve_locale(self, msg: InboundMessage) -> str:
-        """Return normalized locale (en or zh-CN) for the message sender."""
+        """Return the sender's normalized locale: en, zh-CN, zh-TW or another BCP-47 tag."""
         ...

@@ -1,7 +1,7 @@
 # i18n/
 
 ## Overview
-Internationalization for channel static messages and shared JSON/Fluent catalogs. Supports BCP 47 locale fallback, recursive JSON flattening (for nested next-intl-style keys), and safe template formatting when kwargs are missing. A requested locale is served from the first fallback that has a catalog, so a regional variant shares the catalog (and the cached `FluentLocalization`) of its language and a string that names no catalog never becomes a file path or a cache key.
+Internationalization for channel static messages and shared JSON/Fluent catalogs. Supports BCP 47 locale fallback, recursive JSON flattening (for nested next-intl-style keys), and safe template formatting when kwargs are missing. A requested locale is served from the first fallback that has a catalog, so a regional variant shares the catalog (and the cached `FluentLocalization`) of its language and a string that names no catalog never becomes a file path or a cache key. A Chinese locale arrives as `zh-CN` (Simplified) or `zh-TW` (Traditional: script Hant, or region TW/HK/MO), each served from its own catalog.
 
 ## File & Submodule Index
 

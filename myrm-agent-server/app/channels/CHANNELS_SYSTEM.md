@@ -220,16 +220,16 @@ components: []
 
 | 组件 | 职责 |
 |------|------|
-| `myrm_agent_harness.utils.locale::resolve_locale` | BCP-47 归一化、locale 解析优先级链 |
+| `myrm_agent_harness.utils.locale::resolve_locale` | BCP-47 归一化、locale 解析优先级链；中文标签归一为 `zh-CN`（简体）或 `zh-TW`（脚本为 Hant，无脚本时地区为 TW/HK/MO），`zh-Hans-TW` 仍是简体 |
 | `i18n/engine.py::I18nEngine` | Fluent + JSON 双引擎：`format_value`、BCP 47 fallback 链、`add_locale_root`；请求的 locale 先收敛到「回退链里第一个有 catalog 的语言」，区域变体共用该语言的缓存，不对应任何 catalog 的字符串不会成为文件路径 |
 | `i18n/locales/*.ftl` | 渠道静态消息 catalog（slash 命令、风险门禁、预算拦截等） |
 | `i18n/__init__.py` | `channel_t` / `get_text` / `resolve_message_locale` / `add_locale_root` 导出 |
 | `protocols/locale.py` | `LocaleProvider` 协议（业务层注入） |
 | `routing/pipeline/inbound.py` | ingress 时 `_enrich_message_locale()` 写入 `metadata.locale` |
 
-**Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`。
+**Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`；发送者的 `zh-hant`、`zh_HK` 等平台标签与 GUI 的 `zh-TW` 偏好都归一为 `zh-TW`，由 `zh-TW.ftl` 回复。
 
-**测试**：`tests/channels/i18n/test_locale_key_parity.py` 断言四语 key 集合一致、placeholder 一致、Fluent 引用合法、消息可渲染、无死 key；`test_engine.py` 覆盖引擎 fallback 与格式化；`test_locale_resolution.py` 覆盖请求 locale 收敛到已有 catalog 的语言。
+**测试**：`tests/channels/i18n/test_locale_key_parity.py` 断言四语 key 集合一致、placeholder 一致、Fluent 引用合法、消息可渲染、无死 key；`test_engine.py` 覆盖引擎 fallback 与格式化；`test_locale_resolution.py` 覆盖请求 locale 收敛到已有 catalog 的语言；`tests/channels/test_router_locale_i18n.py` 与 `tests/core/channel_bridge/test_locale_provider_e2e.py` 覆盖发送者标签、GUI 偏好到 catalog 文案的整条链（含繁体 `zh-TW`）。
 
 **前端联动**：设置 → 偏好 → 语言区块说明「同步应用于 Web 界面与 IM 渠道命令」；与 `personalSettings.locale` 写入链路一致。
 
