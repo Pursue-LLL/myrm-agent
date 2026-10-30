@@ -112,7 +112,6 @@ class EvolutionIntegration:
         llm: BaseChatModel | None = None,
         enable_background_queue: bool = False,
         queue_workers: int = 2,
-        max_concurrent_evolutions: int = 5,
         screener: "EvolutionScreener | None" = None,
         enable_tde: bool = False,
         test_executor: "SubprocessCodeExecutor | None" = None,
@@ -131,7 +130,6 @@ class EvolutionIntegration:
             llm: LLM client for evolution (BaseChatModel, business layer provides)
             enable_background_queue: Enable background evolution queue
             queue_workers: Number of queue workers (if enabled)
-            max_concurrent_evolutions: Max concurrent evolution tasks (default 5, for all deployment modes)
             screener: Optional EvolutionScreener instance for two-phase filtering (injected by business layer)
             enable_tde: Enable test-driven evolution with generated pytest validation (default False)
             test_executor: Optional subprocess test executor (auto-created if enable_tde=True and None)
@@ -142,8 +140,7 @@ class EvolutionIntegration:
             search_service_cfg: Web search config injected by business layer (required when auto-creating evolution tools)
             event_log_backend: Event log read by the engine to build the FIX failure trajectory
             evolution_strategy: Controls screener behavior: balanced (all types),
-                innovate (all + lower rejection threshold), harden (FIX + optimize only),
-                repair-only (FIX only). Business layer injects user preference.
+                innovate (all + lower rejection threshold), harden and repair-only (FIX only). Business layer injects user preference.
         """
         self.db_path = Path(db_path)
 
@@ -201,7 +198,6 @@ class EvolutionIntegration:
                 store=self.store,
                 llm=llm,
                 event_log_backend=event_log_backend,
-                max_concurrent_evolutions=max_concurrent_evolutions,
             )
 
         # Optional components
@@ -343,7 +339,6 @@ def enable_skill_evolution(
     llm: BaseChatModel | None = None,
     enable_background_queue: bool = False,
     queue_workers: int = 2,
-    max_concurrent_evolutions: int = 5,
     screener: "EvolutionScreener | None" = None,
     event_log_backend: "EventLogBackend | None" = None,
     evolution_strategy: str = "balanced",
@@ -357,7 +352,6 @@ def enable_skill_evolution(
         llm: LLM client for evolution (BaseChatModel)
         enable_background_queue: Enable the background evolution queue
         queue_workers: Number of queue workers (if enabled)
-        max_concurrent_evolutions: Max concurrent evolution tasks (default 5)
         screener: Optional EvolutionScreener for two-phase filtering
         event_log_backend: Optional backend for trace extraction.
         evolution_strategy: Controls screener behavior (balanced/innovate/harden/repair-only).
@@ -376,7 +370,6 @@ def enable_skill_evolution(
             db_path=".myrm/skills.db",
             llm=llm,
             enable_background_queue=True,
-            max_concurrent_evolutions=3,
             evolution_strategy="harden",
             event_log_backend=your_backend,
         )
@@ -387,7 +380,6 @@ def enable_skill_evolution(
         llm=llm,
         enable_background_queue=enable_background_queue,
         queue_workers=queue_workers,
-        max_concurrent_evolutions=max_concurrent_evolutions,
         screener=screener,
         event_log_backend=event_log_backend,
         evolution_strategy=evolution_strategy,

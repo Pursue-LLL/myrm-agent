@@ -296,6 +296,24 @@ async def test_reopening_the_store_keeps_only_the_constraints_a_user_gave(temp_d
 
 
 @pytest.mark.asyncio
+async def test_reopening_the_store_loads_a_description_only_record_as_a_fix(temp_db_path, skill_record):
+    store = SkillStore(db_path=temp_db_path)
+    await store.save_skill(skill_record)
+    store.close()
+    conn = sqlite3.connect(temp_db_path)
+    conn.execute("UPDATE skills SET evolution_type = 'optimize_description' WHERE skill_id = 'test_skill_1'")
+    conn.commit()
+    conn.close()
+
+    reopened = SkillStore(db_path=temp_db_path)
+
+    loaded = reopened.get_skill("test_skill_1")
+    assert loaded is not None
+    assert loaded.lineage.evolution_type == EvolutionType.FIX
+    reopened.close()
+
+
+@pytest.mark.asyncio
 async def test_delete_skill(temp_db_path, skill_record):
     store = SkillStore(db_path=temp_db_path)
     await store.save_skill(skill_record)

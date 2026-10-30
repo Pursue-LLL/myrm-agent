@@ -2,7 +2,7 @@
 
 Concurrently generates multiple candidate variants of a skill using LLM,
 allowing the system to explore different approaches before testing.
-Supports single-error and description-only generation.
+Generates variants of the skill content from an error or from user feedback.
 
 Uses modular prompt assembly: composable prompt modules (editing principles,
 hard constraints, conservative editing, failure attribution, structured output)
@@ -118,17 +118,6 @@ After the content, append a JSON block on a new line starting with `---EDIT_SUMM
 If any eval_case needs updating due to scope change, set `updated_eval_cases` to \
 the new list (same format as input). Otherwise leave it as null."""
 
-_DESCRIPTION_SYSTEM = """\
-You are a skill description optimizer. Your ONLY task is to rewrite the skill's \
-description for more precise triggering. Do NOT change the skill body content.
-
-A good description must include:
-- "Use when: ..." conditions (specific triggering contexts)
-- "NOT for: ..." exclusion conditions (prevent false matches)
-- 2-4 sentences, concise and unambiguous.
-
-Output ONLY the new description text. Nothing else."""
-
 
 class VariantGenerator:
     """Generates multiple candidate patches for a skill based on feedback/errors."""
@@ -166,38 +155,17 @@ class VariantGenerator:
 
         prompt = self._build_variant_prompt(skill, feedback, trajectory, constraints)
         prompt = self._sanitize_and_audit_prompt(prompt, skill)
-        variants = await self._generate_concurrent(prompt, num_variants, "variant")
+        variants = await self._generate_concurrent(prompt, num_variants)
         if not variants:
             logger.warning("All variant generations failed. Returning original.")
             return [skill.content]
         return variants
 
     # ------------------------------------------------------------------
-    # Public API: Description-only variants (OPTIMIZE_DESCRIPTION)
-    # ------------------------------------------------------------------
-
-    async def generate_description_variants(
-        self,
-        skill: SkillRecord,
-        num_variants: int = 3,
-    ) -> list[str]:
-        """Generate description-only variants for better skill matching.
-
-        Only rewrites the skill's description (Use-when / NOT-for conditions),
-        leaving the body content untouched.
-        """
-        if not self._llm:
-            logger.warning("No LLM configured for VariantGenerator")
-            return [skill.description]
-
-        prompt = self._build_description_prompt(skill)
-        return await self._generate_concurrent(prompt, num_variants, "desc_variant")
-
-    # ------------------------------------------------------------------
     # Shared concurrent generation
     # ------------------------------------------------------------------
 
-    async def _generate_concurrent(self, prompt: str, num_variants: int, label: str) -> list[str]:
+    async def _generate_concurrent(self, prompt: str, num_variants: int) -> list[str]:
         """Run parallel LLM calls and filter empty results."""
 
         async def _generate_one(index: int) -> str:
@@ -209,13 +177,13 @@ class VariantGenerator:
                 # 兼容 reasoning 模型 content 空回退（Qwen3/DeepSeek-R1 等）
                 return self._extract_content(extract_answer_text(resp))
             except Exception as e:
-                logger.error("Failed to generate %s %d: %s", label, index, e)
+                logger.error("Failed to generate variant %d: %s", index, e)
                 return ""
 
         variants = await asyncio.gather(*[_generate_one(i) for i in range(num_variants)])
         valid = [v for v in variants if v.strip()]
         if not valid:
-            logger.warning("All %s generations failed. Returning empty.", label)
+            logger.warning("All variant generations failed. Returning empty.")
             return []
 
         return valid
@@ -265,14 +233,6 @@ class VariantGenerator:
         sections.append(f"\nCurrent Skill Content:\n{skill.content}")
         sections.append(_STRUCTURED_OUTPUT)
 
-        return "\n\n".join(sections)
-
-    def _build_description_prompt(self, skill: SkillRecord) -> str:
-        """Build prompt for description-only optimization."""
-        sections = [_DESCRIPTION_SYSTEM]
-        sections.append(f"Skill Name: {skill.name}")
-        sections.append(f"Current Description: {skill.description}")
-        sections.append(f"Skill Content (for context):\n{skill.content[:2000]}")
         return "\n\n".join(sections)
 
     # ------------------------------------------------------------------

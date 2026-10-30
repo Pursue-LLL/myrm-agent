@@ -6,8 +6,6 @@ ensuring the fix works and preventing skill bloat.
 
 [INPUT]
 - agent.skills.evolution.core.types::SkillRecord (POS: Data types for skill evolution system.)
-- utils.chat_utils::extract_answer_text (POS: LLM 响应答案提取 — 兼容 reasoning 模型 content 空回退)
-- utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM output — fences, prose, bare control chars, trailing commas)
 
 [OUTPUT]
 - BatchEvaluator: Evaluates multiple skill variants and picks the highest s...
@@ -23,8 +21,6 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, Field
 
 from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
-from myrm_agent_harness.utils.chat_utils import extract_answer_text
-from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
 logger = logging.getLogger(__name__)
 
@@ -163,63 +159,6 @@ class BatchEvaluator:
 
         logger.info(f"Selected variant {best_idx} with score {best_score}")
         return best_variant, best_score, best_reason, best_is_general
-
-    async def evaluate_description_variants(
-        self,
-        original_skill: SkillRecord,
-        variants: list[str],
-    ) -> tuple[str, float, str, bool]:
-        """Evaluate description-only variants for triggering precision.
-
-        Uses a lightweight rubric: trigger_accuracy, exclusion_clarity, conciseness.
-        Returns (best_description, score, reasoning, is_general=True).
-        """
-        if not self._llm or not variants:
-            return (
-                variants[0] if variants else original_skill.description,
-                1.0,
-                "Skipped evaluation.",
-                True,
-            )
-
-        async def _score_desc(desc: str) -> tuple[float, str]:
-            prompt = (
-                f"Evaluate this skill description for triggering precision.\n\n"
-                f"Skill Name: {original_skill.name}\n"
-                f"Original Description: {original_skill.description}\n"
-                f"Candidate Description: {desc}\n\n"
-                f"Score 0.0-1.0 on: trigger_accuracy (does it specify when to use?), "
-                f"exclusion_clarity (does it have NOT-for conditions?), "
-                f"conciseness (2-4 sentences, no fluff?).\n"
-                f'Output JSON: {{"score": float, "reasoning": str}}'
-            )
-            try:
-                if self._llm is None:
-                    return 0.5, ""
-                resp = await self._llm.ainvoke([{"role": "user", "content": prompt}])
-
-                # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-                text = extract_answer_text(resp).strip()
-                data = parse_llm_json_object(text)
-                if data is not None:
-                    score_raw = data.get("score", 0.5)
-                    score = score_raw if isinstance(score_raw, (int, float)) else 0.5
-                    return float(score), str(data.get("reasoning", ""))
-                return 0.5, text[:200]
-            except Exception as e:
-                logger.error("Description evaluation failed: %s", e)
-                return 0.0, f"Error: {e}"
-
-        results = await asyncio.gather(*[_score_desc(v) for v in variants])
-
-        best_idx = 0
-        best_score = -1.0
-        for i, (score, _) in enumerate(results):
-            if score > best_score:
-                best_score = score
-                best_idx = i
-
-        return variants[best_idx], best_score, results[best_idx][1], True
 
     def _build_evaluation_prompt(self, candidate: str, feedback: str, trajectory: str) -> str:
         """Construct the LLM-as-judge evaluation prompt."""

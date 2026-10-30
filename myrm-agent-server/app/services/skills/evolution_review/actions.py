@@ -5,7 +5,6 @@
 - .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
-- myrm_agent_harness.agent.skills.evolution.core.types::EvolutionType (POS: 进化类型枚举)
 - myrm_agent_harness.backends.skills.scanning.scanner::scan_skill_content, compute_scan_summary (POS: 技能内容安全扫描)
 [OUTPUT]
 - approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary，仅扫描器判定 REJECT（CRITICAL）才拦为 FAILED_SCAN
@@ -17,8 +16,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-
-from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.services.approvals.registry import ApprovalRegistry
@@ -33,7 +30,6 @@ from .disk import (
     apply_approval_record,
     get_skill_store,
     rollback_content_update,
-    rollback_description_update,
 )
 from .persistence import load_approval_record, persist_approval_payload
 from .types import (
@@ -261,11 +257,7 @@ async def rollback_evolution_review_record(evolution_id: str) -> dict[str, objec
     if payload.apply_status != EvolutionApplyStatus.APPLIED:
         raise EvolutionApplyError("Only applied evolutions can be rolled back.")
 
-    store = get_skill_store()
-    if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
-        await rollback_description_update(payload, store)
-    else:
-        await rollback_content_update(payload, store)
+    await rollback_content_update(payload, get_skill_store())
 
     payload.apply_status = EvolutionApplyStatus.ROLLED_BACK
     payload.apply_error = None

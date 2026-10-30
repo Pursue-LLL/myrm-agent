@@ -52,7 +52,7 @@ class ProposalBuilder:
         Args:
             skill: Original skill record.
             evolution_type: The type of evolution triggered.
-            best_variant: The proposed new content (or new description for OPTIMIZE_DESCRIPTION).
+            best_variant: The proposed new content.
             score: The evaluator's score for the variant.
             reasoning: Why this variant is best.
             task_context: Associated intent context.
@@ -64,19 +64,15 @@ class ProposalBuilder:
         """
         content, edit_summary = self._split_edit_summary(best_variant)
 
-        if evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION:
-            original = skill.description
-            diff = self._generate_diff(original, content)
-        else:
-            original = skill.content
-            diff = self._generate_diff(original, content)
+        original = skill.content
+        diff = self._generate_diff(original, content)
 
         updated_eval_cases = None
         if edit_summary and isinstance(edit_summary.get("updated_eval_cases"), list):
             updated_eval_cases = edit_summary["updated_eval_cases"]
 
         security_scan_summary_dict = None
-        if evolution_type != EvolutionType.OPTIMIZE_DESCRIPTION and content:
+        if content:
             scan_res = scan_skill_content(skill.name, content)
             if scan_res.trust_recommendation == SkillTrustRecommendation.REJECT:
                 logger.warning(

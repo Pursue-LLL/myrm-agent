@@ -14,7 +14,6 @@ const EMITTED_GROWTH_TYPES = [
   'fix',
   'derived',
   'captured',
-  'optimize_description',
 ];
 
 vi.mock('next-intl', async () => {

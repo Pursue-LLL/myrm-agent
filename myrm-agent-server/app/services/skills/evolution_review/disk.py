@@ -5,22 +5,17 @@
 - .persistence::persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
-- Description/content apply orchestration, approval apply pipeline
+- Content apply orchestration, approval apply pipeline
 [POS]
-Evolution 落盘编排（description / approval 成功路径）。
+Evolution 落盘编排（content / approval 成功路径）。
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timezone
+from datetime import datetime, timezone
 
 from myrm_agent_harness.agent.skills.evolution import SkillStore
-from myrm_agent_harness.agent.skills.evolution.core.types import (
-    EnvironmentFingerprint,
-    EvolutionType,
-    SkillLineage,
-)
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.models import ApprovalRecord
@@ -80,11 +75,7 @@ async def apply_to_disk_and_store(
     payload: EvolutionApprovalPayload,
     agent_id: str | None = None,
 ) -> None:
-    store = get_skill_store()
-    if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
-        await apply_description_update(payload, store, agent_id)
-    else:
-        await apply_content_update(payload, store, agent_id)
+    await apply_content_update(payload, get_skill_store(), agent_id)
 
     try:
         await enqueue_cognitive_subsumption(payload)
@@ -92,31 +83,6 @@ async def apply_to_disk_and_store(
         logger.warning("Failed to enqueue cognitive_subsumption task: %s", exc)
 
     bump_skill_config_version()
-
-
-async def apply_description_update(
-    payload: EvolutionApprovalPayload,
-    store: SkillStore,
-    agent_id: str | None = None,
-) -> None:
-    existing = store.get_skill(payload.skill_id)
-    if existing is None:
-        raise EvolutionApplyError(f"Cannot apply description update: skill '{payload.skill_id}' not found in store.")
-
-    existing.description = payload.evolved_content
-    existing.lineage = SkillLineage(
-        parent_id=payload.skill_id,
-        evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION,
-        change_summary=payload.reason,
-        created_at=datetime.now(),
-        created_by="evolution_engine",
-    )
-    if agent_id:
-        if existing.environment is None:
-            existing.environment = EnvironmentFingerprint()
-        existing.environment.custom_tags["scope_agent_id"] = agent_id
-
-    await store.save_skill(existing)
 
 
 async def mark_apply_failure(
@@ -225,26 +191,9 @@ async def apply_approval_record(
     return review_record
 
 
-async def rollback_description_update(payload: EvolutionApprovalPayload, store: SkillStore) -> None:
-    existing = store.get_skill(payload.skill_id)
-    if existing is None:
-        raise EvolutionApplyError(f"Cannot rollback description update: skill '{payload.skill_id}' not found.")
-    existing.description = payload.original_content
-    existing.lineage = SkillLineage(
-        evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION,
-        version=1,
-        parent_id=None,
-        change_summary="Rolled back",
-        created_at=datetime.now(UTC),
-        created_by="user",
-    )
-    await store.save_skill(existing)
-
-
 __all__ = [
     "apply_approval_record",
     "apply_to_disk_and_store",
     "get_skill_store",
     "rollback_content_update",
-    "rollback_description_update",
 ]

@@ -1,6 +1,6 @@
 """Tests for VariantGenerator — concurrent LLM-based skill variant generation.
 
-Covers: prompt assembly (FIX, description-only, preference),
+Covers: prompt assembly (FIX, preference),
 concurrent generation, fallback behavior, content extraction.
 """
 
@@ -39,12 +39,6 @@ class TestVariantGeneratorNoLLM:
         results = await gen.generate_variants(mock_skill, "error", "trace")
         assert results == [mock_skill.content]
 
-    @pytest.mark.asyncio
-    async def test_no_llm_description_returns_original(self, mock_skill: SkillRecord) -> None:
-        gen = VariantGenerator(llm=None)
-        results = await gen.generate_description_variants(mock_skill)
-        assert results == [mock_skill.description]
-
 
 class TestVariantGeneratorWithMockLLM:
     """Variant generation with mocked LLM."""
@@ -63,12 +57,6 @@ class TestVariantGeneratorWithMockLLM:
         results = await gen.generate_variants(mock_skill, "error occurred", "trace data", num_variants=3)
         assert len(results) == 3
         assert all(r.strip() for r in results)
-
-    @pytest.mark.asyncio
-    async def test_description_generation(self, mock_llm: MagicMock, mock_skill: SkillRecord) -> None:
-        gen = VariantGenerator(llm=mock_llm)
-        results = await gen.generate_description_variants(mock_skill, num_variants=2)
-        assert len(results) == 2
 
     @pytest.mark.asyncio
     async def test_all_failures_return_original(self, mock_skill: SkillRecord) -> None:
@@ -123,14 +111,6 @@ class TestPromptAssembly:
         assert "User Preference Embedding" in prompt
         assert "Failure Attribution" not in prompt
         assert "太啰嗦了" in prompt
-
-    def test_description_prompt_carries_only_skill_identity(
-        self, generator: VariantGenerator, mock_skill: SkillRecord
-    ) -> None:
-        prompt = generator._build_description_prompt(mock_skill)
-        assert f"Skill Name: {mock_skill.name}" in prompt
-        assert f"Current Description: {mock_skill.description}" in prompt
-        assert "Scenarios where this skill" not in prompt
 
     def test_the_prompt_holds_the_whole_skill_however_long(self, generator: VariantGenerator) -> None:
         """A repair that rewrites only the part the model saw would drop the rest of the skill."""

@@ -10987,7 +10987,6 @@
       "fix": "Skill fix",
       "derived": "Skill refinement",
       "captured": "Captured skill",
-      "optimize_description": "Description refinement",
       "other": "Other"
     },
     "skillEvents": {

@@ -10987,7 +10987,6 @@
       "fix": "Fähigkeits-Korrektur",
       "derived": "Fähigkeits-Verfeinerung",
       "captured": "Erfasste Fähigkeit",
-      "optimize_description": "Beschreibungsoptimierung",
       "other": "Sonstiges"
     },
     "skillEvents": {

@@ -10987,7 +10987,6 @@
       "fix": "스킬 수정",
       "derived": "스킬 개선",
       "captured": "추출한 스킬",
-      "optimize_description": "설명 개선",
       "other": "기타"
     },
     "skillEvents": {

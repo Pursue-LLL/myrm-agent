@@ -33,7 +33,7 @@ class TestSkillEvolutionEngineInit:
     def test_init_with_custom_params(self):
         store = MagicMock(spec=SkillStore)
         llm = MagicMock()
-        engine = SkillEvolutionEngine(store, llm, max_concurrent_evolutions=2, num_variants_per_evolution=5)
+        engine = SkillEvolutionEngine(store, llm, num_variants_per_evolution=5)
 
         assert engine._llm is llm
         assert engine._num_variants == 5
@@ -133,18 +133,6 @@ class TestDeriveSkillSimple:
         result = await engine.derive_skill_simple("missing_id", "feedback")
         assert result is None
         store.get_skill.assert_called_once_with("missing_id")
-
-
-class TestEvolveMultipleConcurrent:
-    """Test evolve_multiple_concurrent."""
-
-    @pytest.mark.asyncio
-    async def test_empty_requests_returns_empty(self):
-        store = MagicMock(spec=SkillStore)
-        engine = SkillEvolutionEngine(store)
-
-        results = await engine.evolve_multiple_concurrent([])
-        assert results == []
 
 
 class TestConfigValidation:

@@ -1,9 +1,8 @@
 """Skill evolution engine - Core of self-evolution system.
 
-Implements 3 evolution types as a lightweight orchestrator:
+Implements 2 evolution types as a lightweight orchestrator:
 - FIX: Auto-repair failed skills via trace analysis
 - DERIVED: Optimize based on feedback (with Improvement Gate)
-- OPTIMIZE_DESCRIPTION: Refine description for better matching
 
 Improvement Gate: the DERIVED path injects the original skill as a baseline
 candidate in evaluation. If no variant scores higher than the original,
@@ -31,7 +30,6 @@ Skill evolution engine - Core of self-evolution system.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -53,7 +51,6 @@ from myrm_agent_harness.agent.skills.evolution.pipeline.variant_generator import
     VariantGenerator,
 )
 
-from .engine_batch_mixin import SkillEvolutionEngineBatchMixin
 from .eval_regression import filter_variants_by_regression
 
 if TYPE_CHECKING:
@@ -64,7 +61,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["SkillEvolutionEngine"]
 
 
-class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
+class SkillEvolutionEngine:
     """Core orchestrator for skill self-evolution.
 
     Framework layer component:
@@ -79,7 +76,6 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
         store: SkillStore,
         llm: BaseChatModel | None = None,
         event_log_backend: EventLogBackend | None = None,
-        max_concurrent_evolutions: int = 5,
         num_variants_per_evolution: int = 3,
     ):
         """Initialize the lightweight evolution engine.
@@ -88,12 +84,10 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
             store: SkillStore for persistence (read-only in engine).
             llm: LLM client for generating evolved skills.
             event_log_backend: Optional backend for trace extraction.
-            max_concurrent_evolutions: Max concurrent evolution tasks.
             num_variants_per_evolution: Number of variants to generate per run.
         """
         self._store = store
         self._llm = llm
-        self._semaphore = asyncio.Semaphore(max_concurrent_evolutions)
         self._num_variants = num_variants_per_evolution
 
         # Initialize sub-modules
@@ -257,45 +251,3 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
         )
 
         return proposal
-
-    async def optimize_description(self, skill_id: str) -> EvolutionProposal | None:
-        """OPTIMIZE_DESCRIPTION evolution: Rewrite only the skill description.
-
-        Used when the skill body is correct but gets matched to wrong tasks.
-        Only changes the description (Use-when / NOT-for conditions), zero risk
-        to the skill content itself.
-        """
-        old_skill = self._store.get_skill(skill_id)
-        if not old_skill:
-            logger.error("OPTIMIZE_DESCRIPTION: skill not found: %s", skill_id)
-            return None
-
-        if old_skill.evolution_locked:
-            logger.warning("OPTIMIZE_DESCRIPTION skipped: '%s' is locked.", old_skill.name)
-            return None
-
-        logger.info("OPTIMIZE_DESCRIPTION started for '%s'", old_skill.name)
-
-        desc_variants = await self._variant_generator.generate_description_variants(
-            skill=old_skill,
-            num_variants=self._num_variants,
-        )
-
-        if not desc_variants:
-            return None
-
-        best_desc, score, reason, _ = await self._evaluator.evaluate_description_variants(
-            original_skill=old_skill,
-            variants=desc_variants,
-        )
-
-        return self._proposal_builder.build_proposal(
-            skill=old_skill,
-            evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION,
-            best_variant=best_desc,
-            score=score,
-            reasoning=f"[Description optimization] {reason}",
-            task_context="Description-only update for better skill matching.",
-            trajectory="",
-            is_general=True,
-        )

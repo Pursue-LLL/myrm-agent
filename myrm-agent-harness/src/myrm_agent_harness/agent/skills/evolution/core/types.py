@@ -30,7 +30,6 @@ class EvolutionType(StrEnum):
     FIX = "fix"  # Auto-repair failed/outdated skills
     DERIVED = "derived"  # Optimize/enhance based on user feedback
     CAPTURED = "captured"  # A new skill from a review, a draft, an import or an auto-extraction
-    OPTIMIZE_DESCRIPTION = "optimize_description"  # Refine description for better matching
 
 
 class EvolutionLayer(StrEnum):
@@ -341,7 +340,7 @@ class EvolutionProposal:
     target_pathology: FailurePathology = FailurePathology.UNHANDLED_EXCEPTION
     created_at: datetime = field(default_factory=datetime.now)
     # Result of the security scan ProposalBuilder ran on the proposed content;
-    # None when no scan ran (OPTIMIZE_DESCRIPTION proposals carry no skill body).
+    # None when no scan ran (the proposed content was empty).
     security_scan_summary: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:

@@ -27,7 +27,7 @@ async def test_queue_enqueue_full_drops_oldest(sample_request):
     assert queue._queues[QueuePriority.NORMAL].qsize() == 1
 
     # Next enqueue should drop the oldest one (which is sample_request)
-    req2 = EvolutionRequest(skill_id="skill2", evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION, reason="")
+    req2 = EvolutionRequest(skill_id="skill2", evolution_type=EvolutionType.DERIVED, reason="")
     await queue.enqueue(req2, priority=QueuePriority.NORMAL)
     assert queue._queues[QueuePriority.NORMAL].qsize() == 1
 

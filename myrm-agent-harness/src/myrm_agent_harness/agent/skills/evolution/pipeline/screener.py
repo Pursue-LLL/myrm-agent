@@ -121,12 +121,11 @@ class EvolutionScreener:
 
     # Strategy → allowed evolution types mapping.
     # "balanced" allows everything (default). "innovate" allows all + lowers
-    # LLM confirmation threshold. "harden" only allows FIX + OPTIMIZE_DESCRIPTION.
-    # "repair-only" restricts to FIX only.
+    # LLM confirmation threshold. "harden" and "repair-only" restrict to FIX only.
     _STRATEGY_ALLOWED_TYPES: ClassVar[dict[str, frozenset[EvolutionType]]] = {
         "balanced": frozenset(EvolutionType),
         "innovate": frozenset(EvolutionType),
-        "harden": frozenset({EvolutionType.FIX, EvolutionType.OPTIMIZE_DESCRIPTION}),
+        "harden": frozenset({EvolutionType.FIX}),
         "repair-only": frozenset({EvolutionType.FIX}),
     }
 
@@ -147,8 +146,7 @@ class EvolutionScreener:
             event_logger: Optional EventLogger to record EVOLUTION_REJECTED events
             evolution_strategy: Controls which evolution types are allowed.
                 balanced (default) — all types; innovate — all + lower confirmation
-                threshold; harden — FIX + OPTIMIZE_DESCRIPTION only;
-                repair-only — FIX only.
+                threshold; harden and repair-only — FIX only.
         """
         self._store = store
         self._cheap_llm = cheap_llm

@@ -10987,7 +10987,6 @@
       "fix": "スキルの修正",
       "derived": "スキルの改善",
       "captured": "抽出したスキル",
-      "optimize_description": "説明の改善",
       "other": "その他"
     },
     "skillEvents": {
