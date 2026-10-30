@@ -3,14 +3,17 @@
 - app.services.approvals.registry::ApprovalRegistry
 - .persistence::load_approval_record, list_approval_review_records (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - .types::EvolutionReviewRecord (POS: Evolution 审核域类型)
+- .disk_content::skill_file_hash (POS: Evolution 全量内容更新落盘与回滚)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
-- create/list/count/find/get evolution review records
+- create/list/count/find/get evolution review records；创建时记录提案所基于的 SKILL.md 内容哈希
 [POS]
 Evolution 审核记录创建与只读查询（ApprovalRecord 为事实源）。
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
@@ -21,6 +24,7 @@ from ..experience_ledger import (
     ExperienceLedgerWrite,
     record_experience_event,
 )
+from .disk_content import skill_file_hash
 from .persistence import (
     count_approval_review_records,
     filter_runtime_failure_record,
@@ -79,6 +83,7 @@ async def create_evolution_review_record(
         reason=reason,
         original_content=original_content,
         evolved_content=evolved_content,
+        base_content_hash=skill_file_hash(Path(skill_path)),
         confidence=confidence,
         test_passed=test_passed,
         task_context=task_context,

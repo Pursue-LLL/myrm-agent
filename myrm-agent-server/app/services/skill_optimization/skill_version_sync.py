@@ -17,30 +17,15 @@
 from __future__ import annotations
 
 import logging
-import os
-import tempfile
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
+from myrm_agent_harness.infra.atomic_write import atomic_write
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 
 logger = logging.getLogger(__name__)
-
-
-def atomic_write_text_file(target: Path, content: str) -> None:
-    """Atomically replace a text file (same pattern as evolution apply)."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=target.parent, prefix="skill_sync_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
-            file_obj.write(content)
-        os.replace(tmp_path, target)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-        raise
 
 
 async def load_skill_content_from_storage(skill_id: str) -> str | None:
@@ -120,7 +105,7 @@ async def sync_content_to_disk(
         logger.warning("Cannot sync skill %s to disk: SKILL.md path not resolved", skill_id)
         return False
 
-    atomic_write_text_file(path, content)
+    atomic_write(path, content)
 
     from app.core.skills.config_version import bump_skill_config_version
 

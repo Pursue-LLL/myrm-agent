@@ -32,6 +32,7 @@ from .disk_content import (
 )
 from .persistence import persist_approval_payload
 from .types import (
+    REASON_APPLY_FAILED,
     EvolutionApplyError,
     EvolutionApplyStatus,
     EvolutionApprovalPayload,
@@ -90,13 +91,14 @@ async def mark_apply_failure(
     payload: EvolutionApprovalPayload,
     error_message: str,
     *,
+    reason_code: str,
     auto_approved: bool,
 ) -> ApprovalRecord:
     payload.growth_status = EvolutionGrowthStatus.APPLY_FAILED
     payload.apply_status = EvolutionApplyStatus.FAILED
     payload.apply_error = error_message
-    payload.reason_code = "apply_failed"
-    payload.remediation = apply_failure_remediation(payload.skill_name)
+    payload.reason_code = reason_code
+    payload.remediation = apply_failure_remediation(payload.skill_name, reason_code)
     approval_status = "APPROVED"
     if auto_approved:
         approval_status = "PENDING"
@@ -146,8 +148,9 @@ async def apply_approval_record(
     try:
         await apply_to_disk_and_store(payload, agent_id=record.agent_id)
     except Exception as exc:
-        await mark_apply_failure(record, payload, str(exc), auto_approved=auto_approved)
-        raise EvolutionApplyError(str(exc)) from exc
+        reason_code = exc.code if isinstance(exc, EvolutionApplyError) else REASON_APPLY_FAILED
+        await mark_apply_failure(record, payload, str(exc), reason_code=reason_code, auto_approved=auto_approved)
+        raise EvolutionApplyError(str(exc), code=reason_code) from exc
 
     payload.apply_status = EvolutionApplyStatus.APPLIED
     payload.apply_error = None

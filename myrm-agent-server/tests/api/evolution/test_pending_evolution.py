@@ -122,6 +122,7 @@ async def test_approve_pending_evolution_returns_apply_failed_state(async_client
     assert body["apply_status"] == "FAILED"
     assert body["apply_error"] is not None
     assert "cannot be loaded" not in body["apply_error"]
+    assert body["reason_code"] == "apply_failed"
     assert body["remediation"] is not None
 
     async with get_session() as db:
@@ -159,8 +160,43 @@ async def test_approve_pending_evolution_refuses_content_the_skill_loader_would_
     body = response.json()
     assert body["status"] == "apply_failed"
     assert "cannot be loaded" in body["apply_error"]
+    assert body["reason_code"] == "skill_md_unloadable"
     assert "revise the proposal" in body["remediation"]
     assert not skill_file.parent.exists()
+
+
+@pytest.mark.asyncio
+async def test_approve_pending_evolution_refuses_a_skill_edited_since_the_proposal_was_created(
+    async_client: AsyncClient, tmp_path: Path
+) -> None:
+    skill_file = tmp_path / "edited-skill" / "SKILL.md"
+    skill_file.parent.mkdir()
+    skill_file.write_text("---\nname: edited-skill\ndescription: As proposed against.\n---\n", encoding="utf-8")
+    record = await create_evolution_review_record(
+        agent_id="test-agent",
+        chat_id=None,
+        proposal_skill_id="edited_skill_123",
+        skill_name="edited-skill",
+        skill_path=str(skill_file),
+        evolution_type="fix",
+        reason="The proposal was built before the user edited the skill",
+        original_content="---\nname: edited-skill\ndescription: As proposed against.\n---\n",
+        evolved_content=_EVOLVED_SKILL_MD,
+        confidence=0.9,
+        test_passed=True,
+        task_context="stale base regression",
+    )
+    edited = "---\nname: edited-skill\ndescription: Edited by the user since.\n---\n"
+    skill_file.write_text(edited, encoding="utf-8")
+
+    response = await async_client.post(f"/api/v1/evolution/pending/{record.id}/approve")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "apply_failed"
+    assert body["reason_code"] == "stale_base"
+    assert "reject the proposal" in body["remediation"]
+    assert skill_file.read_text(encoding="utf-8") == edited
 
 
 @pytest.mark.asyncio

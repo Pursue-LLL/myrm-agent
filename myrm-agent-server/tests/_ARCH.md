@@ -648,7 +648,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |
 | `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |
 | `services/agent/test_shared_context_name_resolution.py` | 模块 | 共享上下文显示名经真实 `SharedContextService` 与数据库往返抵达 agent params 与 wiki lane（会话导入出错会被兜底静默吞掉，故不 mock） |
-| `services/skills/test_evolution_review_apply.py` | 模块 | 演化评审落盘：FIX/DERIVED/CAPTURED 写入进化内容并以对应类型记录谱系，已退役的进化类型在技能文件被改动之前即被拒绝 |
+| `services/skills/test_evolution_review_apply.py` | 模块 | 演化评审落盘：FIX/DERIVED/CAPTURED 写入进化内容并以对应类型记录谱系；已退役的进化类型、加载器会跳过的内容、提案创建后被改动或删除的技能文件（换行符差异、重复 apply、无基线哈希的提案不算过期）在技能文件被改动之前即被拒绝；fork 被拒绝时提案保持原样、成功后 payload 取得 fork 身份 |
 | `services/skills/test_evolution_review_rollback.py` | 模块 | 演化评审回滚：fork 回滚移除其文件与记录且无错误，编辑回滚还原原始内容，已退役的进化类型在技能文件被改动之前即被拒绝 |
 
 ---

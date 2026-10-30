@@ -26,6 +26,11 @@ logger = logging.getLogger(__name__)
 EVOLUTION_ACTION_TYPE = "evolution"
 MAX_SKILL_CONTENT_CHARS = 65_536
 
+# Why an apply failed. Stored as the record's reason_code; the frontend maps it to user-facing copy.
+REASON_APPLY_FAILED = "apply_failed"
+REASON_STALE_BASE = "stale_base"
+REASON_SKILL_MD_UNLOADABLE = "skill_md_unloadable"
+
 
 class EvolutionGrowthStatus(StrEnum):
     PENDING_REVIEW = "PENDING_REVIEW"
@@ -72,6 +77,9 @@ class EvolutionApprovalPayload(BaseModel):
     reason: str
     original_content: str
     evolved_content: str
+    # Hash of the skill file on disk when the proposal was created, None when there was no such file.
+    # Apply refuses to overwrite a file that has changed since.
+    base_content_hash: str | None = None
     confidence: float
     # True when the security scan of the evolved content found nothing, False when it reported
     # findings, None when no scan ran.
@@ -118,14 +126,20 @@ class EvolutionReviewRecord:
 
 
 class EvolutionApplyError(RuntimeError):
-    """Raised when an approved evolution could not be applied to disk."""
+    """Raised when an approved evolution could not be applied to disk; ``code`` is one of the REASON_* values."""
+
+    def __init__(self, message: str, *, code: str = REASON_APPLY_FAILED) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def evolution_lineage_id(evolution_id: str) -> str:
     return f"evolution:{evolution_id}"
 
 
-def apply_failure_remediation(skill_name: str) -> str:
+def apply_failure_remediation(skill_name: str, reason_code: str = REASON_APPLY_FAILED) -> str:
+    if reason_code == REASON_STALE_BASE:
+        return f'"{skill_name}" changed after this proposal was created; reject the proposal.'
     return (
         f'Check the error for "{skill_name}", revise the proposal if its content is at fault, then retry apply; '
         "or reject the proposal if the change should not land."

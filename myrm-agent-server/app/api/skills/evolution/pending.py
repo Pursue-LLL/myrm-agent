@@ -207,6 +207,7 @@ async def approve_pending_evolution(evolution_id: str) -> dict[str, str | None]:
         "skill_id": record.skill_id,
         "apply_status": record.apply_status.value,
         "apply_error": record.apply_error,
+        "reason_code": record.reason_code,
         "remediation": record.remediation,
     }
 
