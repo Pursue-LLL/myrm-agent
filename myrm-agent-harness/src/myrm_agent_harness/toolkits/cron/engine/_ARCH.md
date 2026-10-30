@@ -20,7 +20,6 @@ Cron scheduling engine internals.
 | recovery.py | Core | Three-phase startup recovery strategy. | ✅ |
 | skipped_runs.py | Core | `SkippedRunMixin` mixed into `JobExecutor`: `_record_skipped()` writes a SKIPPED run and advances the schedule (one-shot jobs complete or are deleted); `_record_deferred()` handles `JobResult.retry_at` — SKIPPED run, no failure counted, job re-armed at the instant, one-shot jobs stay alive. Both adopt the stored job first: a deleted job gets no run record and is not brought back, a paused job stays paused. | ✅ |
 | scheduler.py | Core | Cron scheduling engine. Computes exact sleep durations to the next due job and dispatches due jobs into async tasks bounded by a global and a per-user semaphore. After the stagger and slot waits a run starts only if the stored job still exists and is ACTIVE (`adopt_latest`), and then runs the stored definition. | ✅ |
-| `cron_job_adapter.py` | Core | Cron 任务与不可摧毁作业系统桥接适配器。 — CronExecutionDecision; CronJobEvaluationResult; CronJobAdapter | ✅ |
 
 ## Key Dependencies
 

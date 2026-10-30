@@ -37,9 +37,6 @@ cross-task data piping (inject referenced jobs' latest successful output), incre
 | Submodule | Description |
 |-----------|-------------|
 | engine/ | Cron scheduling engine internals. |
-| `incident_protocols.py` | Core | Protocol contract for durable cron failure incidents ledger. | ✅ |
-| `incident_types.py` | Core | Incident domain types for cron reliability and signature dedup. | ✅ |
-| `incidents.py` | Core | Durable cron failure incidents with signature dedup and ack. | ✅ |
 | `manager_validation.py` | Core | Cron job validation and normalization helpers. `_validate_job_content` is the one required-content rule for create and update: a shell job needs a command, a router job a prompt or a pre-condition script (it passes its input straight through), every other type a prompt. `_validate_update_content` applies it to the record an update would produce, only when the patch touches prompt, command or the pre-condition script (`tests/toolkits/cron/test_cron_job_content_rule.py`). | ✅ |
 
 ## Key Dependencies
