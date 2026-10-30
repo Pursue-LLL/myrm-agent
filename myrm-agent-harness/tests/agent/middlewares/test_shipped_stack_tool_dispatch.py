@@ -18,6 +18,8 @@ from langchain_core.tools import ToolException, tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command, interrupt
 
+from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
+from myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools import create_ask_question_tool
 from myrm_agent_harness.agent.middlewares.tooling import tool_executor
 from myrm_agent_harness.agent.security.tool_registry import TOOL_SAFETY_METADATA, SafetyMetadata
 from tests.support.shipped_graph import shipped_agent, shipped_session
@@ -264,3 +266,32 @@ async def test_a_call_that_pauses_for_the_user_neither_stalls_its_sibling_nor_re
     answers = [m.content for m in resumed["messages"] if isinstance(m, ToolMessage)]
     assert sorted(answers) == ["wrote after yes", "wrote two"]
     assert sorted(PROBE.finished) == ["write_after_asking", "write_two"]
+
+
+async def test_the_ask_question_tool_pauses_the_run_for_the_user_and_resumes_with_the_answer() -> None:
+    """The tool answers through its async callback only, and the shipped stack carries the pause across the resume."""
+
+    async def ask(form: AskQuestionInput) -> str:
+        return f"the user chose {interrupt({'type': 'ask_question', 'form': form.model_dump()})}"
+
+    call = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "id": "ask1",
+                "name": "ask_question_tool",
+                "args": {"questions": [{"id": "q1", "prompt": "Which one?", "allow_multiple": False}]},
+            }
+        ],
+    )
+    _, agent = shipped_agent(
+        [call, AIMessage(content="done")], [create_ask_question_tool(ask)], checkpointer=InMemorySaver()
+    )
+    thread = {"configurable": {"thread_id": "ask"}}
+
+    paused = await asyncio.wait_for(agent.ainvoke({"messages": [HumanMessage(content="go")]}, thread), timeout=10)
+    assert paused["__interrupt__"][0].value["type"] == "ask_question"
+
+    resumed = await asyncio.wait_for(agent.ainvoke(Command(resume="b"), thread), timeout=10)
+
+    assert [m.content for m in resumed["messages"] if isinstance(m, ToolMessage)] == ["the user chose b"]

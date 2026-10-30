@@ -425,13 +425,6 @@ class DanglingToolCallMiddleware(AgentMiddleware):
             return request.override(messages=cast("list[AnyMessage]", patched))
         return request
 
-    def wrap_model_call(
-        self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], ModelResponse],
-    ) -> ModelResponse:
-        return handler(self._maybe_patch_request(request))
-
     async def awrap_model_call(
         self,
         request: ModelRequest,

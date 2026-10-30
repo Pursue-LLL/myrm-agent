@@ -44,14 +44,6 @@ class TestFilesystemFileSearchMiddleware:
         assert getattr(mw, "tools", []) == []
         assert len(mw._tools) == 2
 
-    def test_wrap_tool_call_satisfies_langchain_contract(self, tmp_workspace: Path) -> None:
-        """LangChain factory calls hasattr(mw, 'wrap_tool_call') — must exist and be callable."""
-        mw = FilesystemFileSearchMiddleware(root_path=str(tmp_workspace))
-        assert hasattr(mw, "wrap_tool_call")
-        assert callable(mw.wrap_tool_call)
-        sentinel = object()
-        assert mw.wrap_tool_call(sentinel, lambda r: r) is sentinel
-
     async def test_awrap_tool_call_is_async_and_awaits_handler(self, tmp_workspace: Path) -> None:
         """awrap_tool_call must be async def and correctly await the async handler."""
         mw = FilesystemFileSearchMiddleware(root_path=str(tmp_workspace))

@@ -379,13 +379,6 @@ class ToolHistoryHygieneMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             return request
         return request.override(messages=sanitized)
 
-    def wrap_model_call(
-        self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], ModelResponse],
-    ) -> ModelResponse:
-        return handler(self._maybe_sanitize_request(request))
-
     async def awrap_model_call(
         self,
         request: ModelRequest,

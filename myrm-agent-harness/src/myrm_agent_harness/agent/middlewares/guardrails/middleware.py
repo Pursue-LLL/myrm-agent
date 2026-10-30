@@ -81,59 +81,6 @@ class GuardrailMiddleware(AgentMiddleware[object, object]):
         """
         return None
 
-    def _evaluate_sync(self, request: ToolCallRequest) -> GuardrailDecision | None:
-        """Sync tool path (signoff clarify pool warm): evaluate providers via asyncio.run."""
-        import asyncio
-
-        if not self.providers:
-            return None
-
-        gr = self._build_request(request)
-        for provider in self.providers:
-            try:
-                decision = asyncio.run(provider.aevaluate(gr))
-            except Exception as e:
-                logger.exception(f"Guardrail provider '{provider.name}' error: {e}")
-                if self.fail_closed:
-                    return GuardrailDecision(
-                        allow=False,
-                        reasons=[
-                            GuardrailReason(
-                                code="oap.evaluator_error",
-                                message=f"guardrail error in {provider.name} (fail-closed)",
-                            )
-                        ],
-                    )
-                continue
-
-            if not decision.allow:
-                code = decision.reasons[0].code if decision.reasons else "unknown"
-                logger.warning(
-                    "Guardrail denied: tool=%s provider=%s code=%s",
-                    gr.tool_name,
-                    provider.name,
-                    code,
-                )
-                from myrm_agent_harness.agent.security.audit import record_decision
-
-                record_decision(
-                    gr.tool_name,
-                    "GUARDRAIL_BLOCKED",
-                    f"provider={provider.name} code={code} reason={decision.reasons[0].message if decision.reasons else ''}",
-                )
-                return decision
-        return None
-
-    def wrap_tool_call(
-        self,
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], ToolMessage | Command],
-    ) -> ToolMessage | Command:
-        decision = self._evaluate_sync(request)
-        if decision is not None and not decision.allow:
-            return self._build_denied_message(request, decision)
-        return handler(request)
-
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,

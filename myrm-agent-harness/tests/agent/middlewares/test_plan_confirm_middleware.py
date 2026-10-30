@@ -273,15 +273,6 @@ async def test_non_dict_resume_value_proceeds(middleware):
     assert _plan_confirmed_var.get() is True
 
 
-def test_sync_wrap_passthrough(middleware):
-    """Sync wrap_tool_call passthrough for signoff clarify HITL path."""
-    request = _make_request()
-    expected = ToolMessage(content="ok", name="todo_write", tool_call_id="call_1")
-
-    result = middleware.wrap_tool_call(request, lambda r: expected)
-    assert result is expected
-
-
 @pytest.mark.asyncio
 async def test_replan_triggers_interrupt_when_goal_changes(middleware):
     """When a plan was confirmed, but a new plan with a different goal is submitted, interrupt again."""

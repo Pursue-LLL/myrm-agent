@@ -422,15 +422,3 @@ async def test_empty_response_result():
     response = await middleware.awrap_model_call(request, handler)
     assert response.result == []
 
-
-@pytest.mark.asyncio
-async def test_sync_wrap_model_call_passthrough():
-    """Synchronous wrap_model_call delegates to handler."""
-    middleware = RateLimitMiddleware()
-    request = _make_request()
-    sentinel = object()
-    handler = MagicMock(return_value=sentinel)
-
-    result = middleware.wrap_model_call(request, handler)
-    handler.assert_called_once_with(request)
-    assert result is sentinel

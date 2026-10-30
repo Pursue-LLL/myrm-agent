@@ -230,7 +230,8 @@ async def test_skips_allowed_tools_for_local_proxy_via_managed_llm(
     assert captured["request"].tool_choice is None
 
 
-def test_wrap_tool_call_delegates_when_tool_prebound() -> None:
+@pytest.mark.asyncio
+async def test_awrap_tool_call_delegates_when_tool_prebound() -> None:
     from langchain.agents.middleware.types import ToolCallRequest
     from langchain_core.messages import ToolMessage
 
@@ -246,63 +247,12 @@ def test_wrap_tool_call_delegates_when_tool_prebound() -> None:
         content="ok", name="ask_question_tool", tool_call_id="call_1"
     )
 
-    def handler(req: ToolCallRequest) -> ToolMessage:
+    async def handler(req: ToolCallRequest) -> ToolMessage:
         assert req.tool is bound_tool
         return expected
 
-    result = middleware.wrap_tool_call(request, handler)
+    result = await middleware.awrap_tool_call(request, handler)
     assert result is expected
-
-
-def test_wrap_model_call_sync_skips_when_no_tools(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        "myrm_agent_harness.agent.middlewares._session_context.set_turn_allowed_tool_names",
-        lambda _value: None,
-    )
-
-    request = _FakeRequest(
-        tools=[],
-        messages=[HumanMessage(content="hello")],
-        model=SimpleNamespace(model="gpt-4o", model_name="gpt-4o", api_base=None),
-    )
-    middleware = SkillAttenuationMiddleware(ToolRegistry())
-    captured: dict[str, _FakeRequest] = {}
-
-    def _handler(req: _FakeRequest) -> _FakeResponse:
-        captured["request"] = req
-        return _FakeResponse()
-
-    middleware.wrap_model_call(request, _handler)
-    assert captured["request"].tool_choice is None
-
-
-def test_wrap_tool_call_resolves_dynamic_tool_from_registry(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from langchain.agents.middleware.types import ToolCallRequest
-    from langchain_core.messages import ToolMessage
-
-    resolved_tool = SimpleNamespace(name="web_search_tool")
-    registry = ToolRegistry()
-    monkeypatch.setattr(registry, "resolve", lambda: [resolved_tool])
-    monkeypatch.setattr(registry, "get_runtime_tools", lambda: [])
-
-    middleware = SkillAttenuationMiddleware(registry)
-    request = ToolCallRequest(
-        tool_call={"name": "web_search_tool", "args": {}, "id": "call_2"},
-        tool=None,
-        state={},
-        runtime=MagicMock(),
-    )
-    expected = ToolMessage(content="ok", name="web_search_tool", tool_call_id="call_2")
-
-    def handler(req: ToolCallRequest) -> ToolMessage:
-        assert req.tool is resolved_tool
-        return expected
-
-    assert middleware.wrap_tool_call(request, handler) is expected
 
 
 @pytest.mark.asyncio

@@ -22,8 +22,3 @@ class TenantPolicyProvider(GuardrailProvider):
 
     async def aevaluate(self, request: GuardrailRequest) -> GuardrailDecision:
         return GuardrailDecision(allow=True)
-
-    def evaluate(self, request: GuardrailRequest) -> GuardrailDecision:
-        import asyncio
-
-        return asyncio.run(self.aevaluate(request))

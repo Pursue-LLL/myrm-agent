@@ -134,14 +134,6 @@ class TestMiddlewareBasics:
         assert mw.warning_threshold_pct == 0.5
         assert mw.debounce_seconds == 60.0
 
-    def test_wrap_model_call_passthrough(self) -> None:
-        mw = RateLimitMiddleware()
-        request = ModelRequest(model=MagicMock(), messages=[HumanMessage(content="hi")])
-        handler = MagicMock(return_value="response")
-        assert mw.wrap_model_call(request, handler) == "response"
-        handler.assert_called_once_with(request)
-
-
 class TestAwrapModelCall:
     @pytest.mark.asyncio
     async def test_no_states_skips_throttle(self) -> None:

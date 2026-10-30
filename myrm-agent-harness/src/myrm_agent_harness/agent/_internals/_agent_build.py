@@ -178,11 +178,7 @@ def build_middlewares(
     middlewares.append(stringified_json_args_middleware)
     middlewares.append(debug_logger_middleware)
 
-    from myrm_agent_harness.agent.middlewares.sync_hook_parity import (
-        apply_sync_hook_parity,
-    )
-
-    return apply_sync_hook_parity(middlewares)
+    return middlewares
 
 
 def create_registry() -> ToolRegistry:

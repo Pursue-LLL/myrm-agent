@@ -114,65 +114,6 @@ async def test_guardrail_fail_open_on_exception(mock_request: ToolCallRequest) -
     assert result.content == "Success"
 
 
-def test_guardrail_sync_wrap_tool_call_allow(mock_request: ToolCallRequest) -> None:
-    """Sync wrap_tool_call parity for signoff clarify ToolNode _func path (R142/R103)."""
-    middleware = GuardrailMiddleware(providers=[MockAllowProvider()])
-
-    def sync_handler(req: ToolCallRequest) -> ToolMessage:
-        return ToolMessage(content="SyncSuccess", tool_call_id=req.tool_call["id"])
-
-    result = middleware.wrap_tool_call(mock_request, sync_handler)
-    assert isinstance(result, ToolMessage)
-    assert result.content == "SyncSuccess"
-
-
-def test_guardrail_sync_wrap_tool_call_deny(mock_request: ToolCallRequest) -> None:
-    """Sync path deny should return a blocked ToolMessage without calling handler."""
-    middleware = GuardrailMiddleware(providers=[MockDenyProvider()])
-
-    def sync_handler(req: ToolCallRequest) -> ToolMessage:
-        raise AssertionError("handler must not be called when denied")
-
-    result = middleware.wrap_tool_call(mock_request, sync_handler)
-    assert isinstance(result, ToolMessage)
-    assert result.status == "error"
-    assert "Mock denial" in result.content
-
-
-def test_guardrail_sync_fail_closed_on_exception(mock_request: ToolCallRequest) -> None:
-    """Sync path provider exception with fail_closed=True blocks."""
-    middleware = GuardrailMiddleware(
-        providers=[MockExceptionProvider()], fail_closed=True
-    )
-    result = middleware.wrap_tool_call(
-        mock_request, lambda req: ToolMessage(content="x", tool_call_id="c")
-    )
-    assert isinstance(result, ToolMessage)
-    assert "fail-closed" in result.content
-
-
-def test_guardrail_sync_fail_open_on_exception(mock_request: ToolCallRequest) -> None:
-    """Sync path provider exception with fail_closed=False proceeds to handler."""
-    middleware = GuardrailMiddleware(
-        providers=[MockExceptionProvider()], fail_closed=False
-    )
-
-    def sync_handler(req: ToolCallRequest) -> ToolMessage:
-        return ToolMessage(content="SyncOK", tool_call_id=req.tool_call["id"])
-
-    result = middleware.wrap_tool_call(mock_request, sync_handler)
-    assert result.content == "SyncOK"
-
-
-def test_guardrail_sync_empty_providers(mock_request: ToolCallRequest) -> None:
-    """Sync path with no providers passes through."""
-    middleware = GuardrailMiddleware(providers=[])
-    result = middleware.wrap_tool_call(
-        mock_request, lambda req: ToolMessage(content="ok", tool_call_id="c")
-    )
-    assert result.content == "ok"
-
-
 def test_guardrail_build_request_non_dict_args(mock_request: ToolCallRequest) -> None:
     """Non-dict args are normalized to {} in the built request."""
     middleware = GuardrailMiddleware(providers=[MockAllowProvider()])

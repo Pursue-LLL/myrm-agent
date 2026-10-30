@@ -43,10 +43,6 @@ class GuardrailProvider(Protocol):
 
     name: str
 
-    def evaluate(self, request: GuardrailRequest) -> GuardrailDecision:
-        """Evaluate whether a tool call should proceed."""
-        ...
-
     async def aevaluate(self, request: GuardrailRequest) -> GuardrailDecision:
-        """Async variant."""
+        """Evaluate whether a tool call should proceed."""
         ...

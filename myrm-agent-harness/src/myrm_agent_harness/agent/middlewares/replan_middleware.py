@@ -156,19 +156,6 @@ class ReplanMiddleware(AgentMiddleware[Any, Any]):
             attempts=attempts,
         )
 
-    def wrap_tool_call(
-        self,
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], ToolMessage | Command[Any]],
-    ) -> ToolMessage | Command[Any]:
-        tool_name = request.tool_call.get("name", "unknown")
-        try:
-            result = handler(request)
-            self._handle_tool_success(tool_name)
-            return result
-        except Exception as exc:
-            return self._handle_tool_error(request, tool_name=tool_name, error=exc)
-
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,

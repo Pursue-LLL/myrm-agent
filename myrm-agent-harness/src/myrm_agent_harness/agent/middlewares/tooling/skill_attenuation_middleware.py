@@ -54,14 +54,6 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], None, objec
     def __init__(self, registry: ToolRegistry) -> None:
         self.registry = registry
 
-    def wrap_model_call(
-        self,
-        request: ModelRequest[None],
-        handler: Callable[[ModelRequest[None]], ModelResponse[object]],
-    ) -> ModelResponse[object]:
-        request = self._apply_turn_tool_policy(request)
-        return self._repair_tool_call_names(handler(request), request)
-
     async def awrap_model_call(
         self,
         request: ModelRequest[None],
@@ -214,13 +206,6 @@ class SkillAttenuationMiddleware(AgentMiddleware[AgentState[object], None, objec
                 return request.override(tool=resolved_tool)
 
         return request
-
-    def wrap_tool_call(
-        self,
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], ToolMessage | Command[object]],
-    ) -> ToolMessage | Command[object]:
-        return handler(self._resolve_dynamic_tool_request(request))
 
     async def awrap_tool_call(
         self,

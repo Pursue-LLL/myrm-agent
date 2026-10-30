@@ -277,32 +277,6 @@ class TestToolHistoryHygieneMiddleware:
         request.override.assert_not_called()
         handler.assert_awaited_once_with(request)
 
-    def test_wrap_model_call_sync_sanitizes_request(self) -> None:
-        messages = [
-            AIMessage(
-                content="",
-                tool_calls=[{"id": "call_x", "name": "grep_tool", "args": {}}],
-            ),
-            ToolMessage(content="a", tool_call_id="call_x", name="grep_tool"),
-            AIMessage(
-                content="",
-                tool_calls=[{"id": "call_x", "name": "grep_tool", "args": {}}],
-            ),
-            ToolMessage(content="b", tool_call_id="call_x", name="grep_tool"),
-        ]
-        request = MagicMock()
-        request.messages = messages
-        overridden = MagicMock()
-        request.override.return_value = overridden
-        handler = MagicMock(return_value="ok")
-
-        result = tool_history_hygiene_middleware.wrap_model_call(request, handler)
-
-        request.override.assert_called_once()
-        handler.assert_called_once_with(overridden)
-        assert result == "ok"
-
-
 class TestDuplicateToolUseClassifier:
     def test_classifies_anthropic_duplicate_tool_use_error(self) -> None:
         exc = _FakeStatusError(

@@ -132,13 +132,6 @@ class FilesystemFileSearchMiddleware(AgentMiddleware):
             max_file_size_mb,
         )
 
-    def wrap_tool_call(
-        self,
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], ToolMessage | Command[Hashable]],
-    ) -> ToolMessage | Command[Hashable]:
-        return handler(request)
-
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,

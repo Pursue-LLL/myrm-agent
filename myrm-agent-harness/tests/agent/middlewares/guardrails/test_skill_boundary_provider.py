@@ -100,36 +100,6 @@ async def test_aevaluate_compatible_with_sync_checker() -> None:
     assert decision.allow is True
 
 
-def test_evaluate_wraps_async_checker_via_asyncio_run() -> None:
-    """The sync protocol method must resolve async checkers without nesting."""
-    _load_skill()
-
-    async def checker(skill_id: str, permission_type: str, operation: str) -> tuple[bool, str]:
-        return True, ""
-
-    provider = SkillBoundaryProvider(permission_checker=checker)
-    decision = provider.evaluate(_request())
-    assert decision.allow is True
-
-
-def test_evaluate_denies_async_checker_when_not_granted() -> None:
-    """Sync path must surface deny decisions from async checkers."""
-    _load_skill()
-
-    async def checker(skill_id: str, permission_type: str, operation: str) -> tuple[bool, str]:
-        return False, "denied"
-
-    provider = SkillBoundaryProvider(permission_checker=checker)
-    decision = provider.evaluate(_request("bash_code_execute_tool"))
-    assert decision.allow is False
-
-
-def test_evaluate_allow_without_checker() -> None:
-    """A provider without a permission checker must always allow."""
-    provider = SkillBoundaryProvider()
-    assert provider.evaluate(_request("bash_code_execute_tool")).allow is True
-
-
 @pytest.mark.asyncio
 async def test_aevaluate_allow_without_checker() -> None:
     provider = SkillBoundaryProvider()

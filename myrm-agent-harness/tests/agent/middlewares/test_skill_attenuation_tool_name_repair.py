@@ -87,15 +87,6 @@ async def test_a_model_call_returns_the_repaired_response_through_the_middleware
     assert response.result[0].tool_calls[0]["name"] == "todo_write"
 
 
-def test_a_sync_model_call_returns_the_repaired_response_through_the_middleware() -> None:
-    middleware = _middleware("todo_write")
-    request = ModelRequest(model=MagicMock(), messages=[HumanMessage(content="plan it")])
-
-    response = middleware.wrap_model_call(request, lambda _request: _response_with_calls("todo_write_tool"))
-
-    assert response.result[0].tool_calls[0]["name"] == "todo_write"
-
-
 def test_registered_names_are_left_alone() -> None:
     middleware = _middleware("todo_write")
     response = _response_with_calls("todo_write")

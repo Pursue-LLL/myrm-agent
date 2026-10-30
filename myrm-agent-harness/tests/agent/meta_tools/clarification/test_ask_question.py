@@ -168,47 +168,16 @@ async def test_option_with_description():
     assert result == "desc-ok"
 
 
-def test_sync_run_delegates_to_async_callback() -> None:
-    """Sync _run bridges to async callback (signoff clarify ToolNode _func path)."""
+def test_sync_invocation_is_refused() -> None:
+    """The form is answered through the async callback only; a sync run must not pretend to ask."""
 
     async def mock_callback(form: AskQuestionInput) -> str:
-        assert form.questions[0].id == "q1"
-        return "sync-ok"
+        raise AssertionError("a refused sync run must not reach the callback")
 
     tool = AskQuestionTool(callback=mock_callback)
-    result = tool._run(
-        title="t",
-        requires_confirmation=False,
-        questions=[{"id": "q1", "prompt": "test", "allow_multiple": False}],
-    )
-    assert result == "sync-ok"
 
-
-@pytest.mark.asyncio
-async def test_sync_run_works_inside_running_event_loop(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Sync _run must invoke interrupt on this thread when astream owns the loop."""
-
-    def fake_interrupt(payload: dict[str, object]) -> dict[str, str]:
-        assert payload["type"] == "ask_question"
-        return {"stack": "a"}
-
-    monkeypatch.setattr(
-        "langgraph.types.interrupt",
-        fake_interrupt,
-    )
-
-    async def mock_callback(form: AskQuestionInput) -> str:
-        raise AssertionError("sync path must not delegate to async callback under running loop")
-
-    tool = AskQuestionTool(callback=mock_callback)
-    result = tool._run(
-        title="t",
-        requires_confirmation=False,
-        questions=[{"id": "q1", "prompt": "test", "allow_multiple": False}],
-    )
-    assert result == '{"stack": "a"}'
+    with pytest.raises(NotImplementedError, match="async interface"):
+        tool.invoke({"questions": [{"id": "q1", "prompt": "test", "allow_multiple": False}]})
 
 
 def test_empty_questions_validation():

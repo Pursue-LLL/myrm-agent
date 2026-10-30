@@ -93,13 +93,6 @@ class RateLimitMiddleware(AgentMiddleware[Any, Any]):
         self.debounce_seconds = debounce_seconds
         self._last_warning_times = {}
 
-    def wrap_model_call(
-        self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], ModelResponse],
-    ) -> ModelResponse | Any:
-        return handler(request)
-
     async def awrap_model_call(
         self,
         request: ModelRequest,

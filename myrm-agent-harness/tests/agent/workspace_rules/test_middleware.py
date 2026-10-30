@@ -128,15 +128,6 @@ class _HungProbe:
 
 
 class TestWorkspaceRulesMiddleware:
-    def test_sync_wrap_passes_through(self) -> None:
-        mw = WorkspaceRulesMiddleware()
-        response = MagicMock()
-        handler = MagicMock(return_value=response)
-        request = MagicMock()
-        result = mw.wrap_model_call(request, handler)
-        handler.assert_called_once_with(request)
-        assert result is response
-
     @pytest.mark.asyncio
     async def test_skips_when_no_workspace_root(self) -> None:
         mw = WorkspaceRulesMiddleware()

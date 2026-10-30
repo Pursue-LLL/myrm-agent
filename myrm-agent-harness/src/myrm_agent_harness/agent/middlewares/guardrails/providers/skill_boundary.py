@@ -8,7 +8,6 @@ the skill permission model — e.g. MCP — are governed by their own layers).
 
 from __future__ import annotations
 
-import asyncio
 import inspect
 import logging
 from collections.abc import Awaitable, Callable
@@ -33,8 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 #: Checker signature: (skill_id, permission_type, operation) -> (allowed, reason)
-#: Async checker functions are awaited automatically; sync callables are supported
-#: for sync tool paths.
+#: Async checker functions are awaited; a sync callable's result is used as returned.
 PermissionChecker = Callable[[str, str, str], tuple[bool, str] | Awaitable[tuple[bool, str]]]
 
 
@@ -68,33 +66,17 @@ class SkillBoundaryProvider(GuardrailProvider):
             return str(tool_input.get("url", tool_input.get("query", tool_input)))
         return str(tool_input)
 
-    def evaluate(self, request: GuardrailRequest) -> GuardrailDecision:
-        """Sync protocol method for non-event-loop threads.
-
-        Wraps async checkers via ``asyncio.run``; must only be called outside a
-        running event loop (the guardrail middleware always uses aevaluate).
-        """
-        if not self._permission_checker:
-            return GuardrailDecision(allow=True)
-
-        return asyncio.run(self._evaluate_skills(request, self._invoke_async))
-
     async def aevaluate(self, request: GuardrailRequest) -> GuardrailDecision:
-        """Async protocol method used by the guardrail middleware."""
+        """Evaluate the call against the permissions of the loaded skills."""
         if not self._permission_checker:
             return GuardrailDecision(allow=True)
 
         return await self._evaluate_skills(request, self._invoke_async)
 
     async def _invoke_async(self, skill_id: str, permission_type: str, critical_input: str) -> tuple[bool, str]:
-        """Resolve the permission checker result, awaiting async checkers.
-
-        Sync checkers (e.g. ``asyncio.run`` wrappers) are invoked directly and
-        must not be called from a running event loop; the async tool path always
-        routes through :meth:`aevaluate` which awaits async checkers.
-        """
+        """Resolve the permission checker result, awaiting async checkers."""
         checker = self._permission_checker
-        assert checker is not None  # guarded by evaluate/aevaluate before dispatch
+        assert checker is not None  # guarded by aevaluate before dispatch
         result = checker(skill_id, permission_type, critical_input)
         if inspect.isawaitable(result):
             return await result

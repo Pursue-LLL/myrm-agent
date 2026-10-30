@@ -1,13 +1,11 @@
-"""Additional tests for dangling_tool_call_middleware sanitizers and sync path.
+"""Additional tests for dangling_tool_call_middleware sanitizers.
 
 Covers the pure sanitizer helpers (_coerce_tool_args_object, the three
-_sanitize_*_list functions), repair_dangling_tool_calls entry point, and the
-sync wrap_model_call path — complementing the main middleware test file.
+_sanitize_*_list functions) and the repair_dangling_tool_calls entry point,
+complementing the main middleware test file.
 """
 
 from __future__ import annotations
-
-from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -18,7 +16,6 @@ from myrm_agent_harness.agent.middlewares.tooling.dangling_tool_call_middleware 
     _sanitize_raw_tool_calls_list,
     _sanitize_tool_calls_list,
     _sanitize_tool_name,
-    dangling_tool_call_middleware,
     repair_dangling_tool_calls,
 )
 
@@ -161,37 +158,3 @@ class TestRepairDanglingToolCalls:
         messages = [HumanMessage(content="hi"), AIMessage(content="ok")]
         assert repair_dangling_tool_calls(messages) is messages
 
-
-class TestSyncWrapModelCall:
-    def test_sync_wrap_model_call_patches(self) -> None:
-        messages = [
-            HumanMessage(content="go"),
-            AIMessage(
-                content="", tool_calls=[{"id": "tc_1", "name": "search", "args": {}}]
-            ),
-        ]
-        sentinel = MagicMock()
-        request = MagicMock()
-        request.messages = messages
-        patched_request = MagicMock()
-        request.override.return_value = patched_request
-
-        def handler(req):
-            return sentinel
-
-        result = dangling_tool_call_middleware.wrap_model_call(request, handler)
-        request.override.assert_called_once()
-        assert result is sentinel
-
-    def test_sync_wrap_model_call_no_patch(self) -> None:
-        request = MagicMock()
-        request.messages = [HumanMessage(content="hi")]
-        sentinel = MagicMock()
-
-        def handler(req):
-            assert req is request
-            return sentinel
-
-        result = dangling_tool_call_middleware.wrap_model_call(request, handler)
-        request.override.assert_not_called()
-        assert result is sentinel

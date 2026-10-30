@@ -28,7 +28,6 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `replan_middleware.py` | Core | Dynamic replan loop on tool errors. | ✅ |
 | `session_access_middleware.py` | Core | Inject per-turn HITL session directory access context (`<session-access>` block) before a model call when the history does not carry it yet (marker dedup); returns only the new message. | ✅ |
 | `subagent_limit_middleware.py` | Core | Max concurrent subagents per turn. | ✅ |
-| `sync_hook_parity.py` | Internal | `apply_sync_hook_parity()` gives each middleware that defines only the async `awrap_tool_call`/`awrap_model_call` a pass-through sync variant, so sync ToolNode paths don't raise. It moves the instance onto a cached subclass of its own class: LangChain reads `before_model`/`after_model` (graph nodes) from the class, so a forwarding wrapper object would hide them. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

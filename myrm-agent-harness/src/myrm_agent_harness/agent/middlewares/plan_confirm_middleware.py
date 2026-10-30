@@ -64,14 +64,6 @@ class PlanConfirmMiddleware(AgentMiddleware[Any, Any]):
 
     name = "plan_confirm_middleware"
 
-    def wrap_tool_call(
-        self,
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], ToolMessage | Command[Any]],
-    ) -> ToolMessage | Command[Any]:
-        # Sync tool path (signoff clarify HITL): plan review uses async interrupt().
-        return handler(request)
-
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,

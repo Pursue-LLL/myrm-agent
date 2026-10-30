@@ -165,13 +165,6 @@ class WorkspaceRulesMiddleware(AgentMiddleware[WorkspaceContextState, None, obje
     name = "workspace_rules_middleware"
     state_schema = WorkspaceContextState
 
-    def wrap_model_call(
-        self,
-        request: ModelRequest,
-        handler: Callable[[ModelRequest], ModelResponse],
-    ) -> ModelResponse:
-        return handler(request)
-
     async def awrap_model_call(
         self,
         request: ModelRequest,
