@@ -285,22 +285,29 @@ class TestWhatsAppLid:
         assert (await resolver.resolve_dm_user(roster.dm(lid)) is not None) is case.admitted
 
 
-class TestTrustedAndPreResolved:
+class TestCarriedIdentity:
     async def test_control_plane_forward_is_admitted_whatever_the_policy(self, roster: _Roster) -> None:
         resolver = _resolver(roster, _Policy(dm=DmPolicy.DISABLED, group=GroupPolicy.DISABLED))
         sender_id = roster.sender()
+        dm = roster.dm(sender_id, user_id="platform-user", trusted=True)
+        group = roster.group(sender_id, user_id="platform-user", trusted=True)
 
-        assert await resolver.is_sender_admitted(roster.dm(sender_id, user_id="platform-user", trusted=True)) is True
-        assert await resolver.is_sender_admitted(roster.group(sender_id, user_id="platform-user", trusted=True)) is True
+        assert await resolver.is_sender_admitted(dm) is True
+        assert await resolver.is_sender_admitted(group) is True
+        assert await resolver.resolve_dm_user(dm) == "platform-user"
 
-    async def test_pre_resolved_user_admits_a_dm_but_not_a_group(self, roster: _Roster) -> None:
+    async def test_an_identity_without_the_control_plane_mark_admits_no_one(self, roster: _Roster) -> None:
         resolver = _resolver(roster, _Policy())
         stranger = roster.sender()
+        dm = roster.dm(stranger, user_id="u-1")
 
-        assert await resolver.is_sender_admitted(roster.dm(stranger, user_id="u-1")) is True
+        assert await resolver.is_sender_admitted(dm) is False
         assert await resolver.is_sender_admitted(roster.group(stranger, user_id="u-1")) is False
+        assert await resolver.resolve_dm_user(dm) is None
 
-    async def test_without_a_policy_provider_dms_are_allowlisted_and_groups_closed(self, roster: _Roster) -> None:
+
+class TestWithoutAPolicyProvider:
+    async def test_dms_are_allowlisted_and_groups_closed(self, roster: _Roster) -> None:
         resolver = _resolver(roster, None)
         stranger, member = roster.sender(), await roster.paired_sender(_MEMBER)
 

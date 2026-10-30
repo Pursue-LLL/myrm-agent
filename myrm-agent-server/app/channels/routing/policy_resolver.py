@@ -240,10 +240,12 @@ class PolicyResolver:
     async def resolve_dm_user(self, msg: InboundMessage) -> str | None:
         """Resolve the sender's system user_id via DM policy + PairingStore.
 
-        The admission gates (pre-resolved identity, DM policy, ACTIVE pairing incl. the LID mapping) are mirrored
-        side-effect-free in ``sender_admission``; change them together.
+        The admission gates (control-plane forward, DM policy, ACTIVE pairing incl. the LID mapping) are mirrored
+        side-effect-free in ``sender_admission``; change them together. An identity a message carries is taken only
+        from a control-plane forward, like the group branch does: every other sender is whoever the DM policy and its
+        pairing say.
         """
-        if msg.user_id:
+        if msg.user_id and is_control_plane_forward(msg):
             return msg.user_id
 
         # BotLoopGuard applies to DMs too: an automation bot relaying into DM

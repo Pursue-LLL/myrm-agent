@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -95,11 +96,21 @@ def _make_resolver(
 
 class TestResolveDmUser:
     @pytest.mark.asyncio
-    async def test_returns_existing_user_id(self) -> None:
-        r = _make_resolver()
-        msg = _msg(user_id="existing-uid")
-        result = await r.resolve_dm_user(msg)
+    async def test_takes_the_identity_of_a_control_plane_forward(self) -> None:
+        policy = MagicMock()
+        r = _make_resolver(policy=policy)
+
+        result = await r.resolve_dm_user(_msg(user_id="existing-uid", metadata={"trusted_inbound": "control_plane"}))
+
         assert result == "existing-uid"
+        policy.get_dm_policy.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ignores_an_identity_carried_without_the_control_plane_mark(self) -> None:
+        """Only the DM policy and the sender's pairing say who a sender is; no policy provider means ALLOWLIST."""
+        r = _make_resolver()
+
+        assert await r.resolve_dm_user(_msg(user_id="existing-uid")) is None
 
     @pytest.mark.asyncio
     async def test_disabled_policy(self) -> None:
@@ -184,7 +195,7 @@ class TestResolveDmUser:
         r = _make_resolver(pairing=pairing, policy=policy)
         result = await r.resolve_dm_user(_msg())
         assert result is None
-        r._fx.send_pending_reply.assert_called_once()
+        cast(AsyncMock, r._fx.send_pending_reply).assert_called_once()
 
     @pytest.mark.asyncio
     async def test_pairing_mode_new_sender(self) -> None:
@@ -199,7 +210,7 @@ class TestResolveDmUser:
         result = await r.resolve_dm_user(_msg())
         assert result is None
         pairing.bind.assert_called_once()
-        r._fx.send_pairing_request_reply.assert_called_once()
+        cast(AsyncMock, r._fx.send_pairing_request_reply).assert_called_once()
 
     @pytest.mark.asyncio
     async def test_allowlist_mode_resolves(self) -> None:
@@ -576,7 +587,7 @@ class TestGroupFollowUpExemption:
 
         # 5. Verify the thread is muted and confirmation reply is sent
         assert r._tracker.is_active("test:chat-123:thread-456") is False
-        r._fx.send_mute_reply.assert_called_once_with(msg4)
+        cast(AsyncMock, r._fx.send_mute_reply).assert_called_once_with(msg4)
 
         msg5 = InboundMessage(
             channel="test",
@@ -634,42 +645,30 @@ class TestBotSenderGate:
     @pytest.mark.asyncio
     async def test_bot_chatter_ignored_even_in_free_response_group(self) -> None:
         r = _make_resolver(policy=self._group_policy())
-        result = await r.resolve_group_user(
-            _msg(is_group=True, chat_id="grp-1", mentioned=False, is_bot=True)
-        )
+        result = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=False, is_bot=True))
         assert result is None
 
     @pytest.mark.asyncio
     async def test_bot_explicit_mention_triggers(self) -> None:
         r = _make_resolver(policy=self._group_policy())
-        result = await r.resolve_group_user(
-            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True)
-        )
+        result = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True))
         assert result is not None
 
     @pytest.mark.asyncio
     async def test_bot_mention_blocked_after_guard_trips(self) -> None:
         r = _make_resolver(policy=self._group_policy())
         r._bot_loop_guard = BotLoopGuard(max_events=1, window_seconds=300.0, cooldown_seconds=600.0)
-        first = await r.resolve_group_user(
-            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True)
-        )
+        first = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True))
         assert first is not None
-        second = await r.resolve_group_user(
-            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True)
-        )
+        second = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True))
         assert second is None
 
     @pytest.mark.asyncio
     async def test_human_mention_unaffected_by_guard(self) -> None:
         r = _make_resolver(policy=self._group_policy())
         r._bot_loop_guard = BotLoopGuard(max_events=1, window_seconds=300.0, cooldown_seconds=600.0)
-        first = await r.resolve_group_user(
-            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=False)
-        )
-        second = await r.resolve_group_user(
-            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=False)
-        )
+        first = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=False))
+        second = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=False))
         assert first is not None
         assert second is not None
 
@@ -689,13 +688,9 @@ class TestBotSenderGate:
     @pytest.mark.asyncio
     async def test_bot_chatter_not_buffered_for_context(self) -> None:
         r = _make_resolver(policy=self._group_policy(free_response=set()))
-        await r.resolve_group_user(
-            _msg(content="beep boop", is_group=True, chat_id="grp-1", mentioned=False, is_bot=True)
-        )
+        await r.resolve_group_user(_msg(content="beep boop", is_group=True, chat_id="grp-1", mentioned=False, is_bot=True))
         assert r._context_buffer.drain("grp-1") == ()
-        await r.resolve_group_user(
-            _msg(content="hello team", is_group=True, chat_id="grp-1", mentioned=False)
-        )
+        await r.resolve_group_user(_msg(content="hello team", is_group=True, chat_id="grp-1", mentioned=False))
         buffered = r._context_buffer.drain("grp-1")
         assert len(buffered) == 1
         assert buffered[0].content == "hello team"
@@ -709,9 +704,7 @@ class TestBotSenderGate:
             "app.channels.routing.channel_data_plane.ChannelDataPlaneService.record_inbound",
             new=AsyncMock(),
         ):
-            await r.resolve_group_user(
-                _msg(content=f"my token {token} ok", is_group=True, chat_id="grp-1", mentioned=False)
-            )
+            await r.resolve_group_user(_msg(content=f"my token {token} ok", is_group=True, chat_id="grp-1", mentioned=False))
         buffered = r._context_buffer.drain("grp-1")
         assert len(buffered) == 1
         assert token[6:-4] not in buffered[0].content
@@ -725,16 +718,12 @@ class TestBotSenderGate:
             "app.channels.routing.channel_data_plane.ChannelDataPlaneService.record_inbound",
             new=AsyncMock(),
         ) as mock_record:
-            await r.resolve_group_user(
-                _msg(is_group=True, chat_id="grp-1", mentioned=False)
-            )
+            await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=False))
             await asyncio.sleep(0)
             mock_record.assert_called_once()
             assert mock_record.call_args.kwargs["is_trigger"] is False
 
-            await r.resolve_group_user(
-                _msg(is_group=True, chat_id="grp-1", mentioned=True)
-            )
+            await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True))
             await asyncio.sleep(0)
             assert mock_record.call_count == 2
             assert mock_record.call_args.kwargs["is_trigger"] is True

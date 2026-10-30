@@ -11,13 +11,14 @@ from app.channels.types import InboundMessage
 
 
 def _dm_msg(*, metadata: dict[str, object] | None = None) -> InboundMessage:
+    """A DM the control plane forwarded: the router takes the identity it carries as resolved."""
     return InboundMessage(
         channel="test",
         sender_id="u1",
         chat_id="c1",
         content="hello",
         user_id="test-user",
-        metadata=metadata or {},
+        metadata={**(metadata or {}), "trusted_inbound": "control_plane"},
     )
 
 
@@ -25,7 +26,7 @@ def _dm_msg(*, metadata: dict[str, object] | None = None) -> InboundMessage:
 async def test_prepare_execution_rejects_search_route_agent_id() -> None:
     bus = MagicMock()
     router = AgentRouter(bus, MagicMock(), MagicMock())
-    router._resolve_topic = AsyncMock(return_value=None)
+    router._resolve_topic = AsyncMock(return_value=None)  # type: ignore[method-assign]
 
     search_agent = MagicMock(metadata={"prompt_mode": "search"})
     with patch(
@@ -45,7 +46,7 @@ async def test_prepare_execution_rejects_search_route_agent_id() -> None:
 async def test_prepare_execution_allows_external_cli_route_agent_id() -> None:
     bus = MagicMock()
     router = AgentRouter(bus, MagicMock(), MagicMock())
-    router._resolve_topic = AsyncMock(return_value=None)
+    router._resolve_topic = AsyncMock(return_value=None)  # type: ignore[method-assign]
 
     with patch(
         "app.services.agent.agent_service.AgentService.get_agent_by_id",

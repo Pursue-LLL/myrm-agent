@@ -1,9 +1,9 @@
 """What the Discord adapter emits is judged by the router's resolvers, so a sender the policy does not admit gets no turn.
 
-``user_id`` is the identity the resolvers assign. A message that already carries one skips the DM policy and the
-pairing check and runs unfenced, so the adapter names its author only through ``sender_id`` and leaves the rest to the
-router. These tests wire a real adapter to a real bus, router and resolvers (the stores behind them are in memory) and
-follow what each entry point of the adapter produces: a DM, a voice transcript, a spoken utterance, a /voice command.
+``user_id`` is the identity the resolvers assign; they take one a message carries only from a control-plane forward.
+The adapter names its author only through ``sender_id`` and leaves the rest to the router. These tests wire a real
+adapter to a real bus, router and resolvers (the stores behind them are in memory) and follow what each entry point of
+the adapter produces: a DM, a voice transcript, a spoken utterance, a /voice command.
 """
 
 from __future__ import annotations
@@ -31,10 +31,12 @@ from tests.channels.providers.discord.voice.listen_testkit import listen_once
 
 _GUILD = 7
 _ENABLED_TEXT_CHANNEL = 456
-_OWNER_UID = "owner-uid"
 _STRANGER = 123
 _MEMBER = 55
 _OWNER = 1
+_CHANNEL = "discord"  # the channel name pairing rows are keyed by
+_OWNER_IDENTITY = "sandbox"  # what SqlPairingStore.resolve returns for an ACTIVE admin pairing
+_MEMBER_IDENTITY = f"paired_member_{_CHANNEL}_{_MEMBER}"  # ... and for any other ACTIVE pairing
 _ids = itertools.count(1000)
 
 
@@ -44,10 +46,10 @@ class _Rig:
     router: AgentRouter
     commands: dict[str, Callable[..., Awaitable[None]]]
     emitted: list[InboundMessage] = field(default_factory=list)
-    pairings: dict[str, tuple[PairingRole, str]] = field(default_factory=dict)
+    pairings: dict[tuple[str, str], PairingRole] = field(default_factory=dict)
 
-    def pair(self, author_id: int, role: PairingRole, identity: str) -> None:
-        self.pairings[str(author_id)] = (role, identity)
+    def pair(self, author_id: int, role: PairingRole) -> None:
+        self.pairings[(_CHANNEL, str(author_id))] = role
 
 
 @pytest.fixture
@@ -58,23 +60,27 @@ async def rig(monkeypatch: pytest.MonkeyPatch) -> _Rig:
     channel = await start_channel(monkeypatch, commands)
     bus = MessageBus()
     bus.register_channel(channel)
-    pairings: dict[str, tuple[PairingRole, str]] = {}
+    pairings: dict[tuple[str, str], PairingRole] = {}
 
     policy = MagicMock()
     policy.get_dm_policy = AsyncMock(return_value=DmPolicy.ALLOWLIST)
     policy.get_group_policy = AsyncMock(return_value=GroupPolicy.OPEN)
     policy.get_enabled_groups = AsyncMock(return_value={str(_ENABLED_TEXT_CHANNEL)})
     policy.get_guest_mode = AsyncMock(return_value=False)
-    policy.get_default_user_id = AsyncMock(return_value=_OWNER_UID)
+    policy.get_default_user_id = AsyncMock(return_value=_OWNER_IDENTITY)
 
-    async def resolve(_channel: str, sender_id: str) -> str | None:
-        return pairings[sender_id][1] if sender_id in pairings else None
+    async def resolve(channel: str, sender_id: str) -> str | None:
+        role = pairings.get((channel, sender_id))
+        if role is None:
+            return None
+        return _OWNER_IDENTITY if role == PairingRole.ADMIN else f"paired_member_{channel}_{sender_id}"
 
-    async def detail(_channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, None] | None:
-        return (PairingStatus.ACTIVE, pairings[sender_id][0], None) if sender_id in pairings else None
+    async def detail(channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, None] | None:
+        role = pairings.get((channel, sender_id))
+        return None if role is None else (PairingStatus.ACTIVE, role, None)
 
-    async def status(_channel: str, sender_id: str) -> PairingStatus | None:
-        return PairingStatus.ACTIVE if sender_id in pairings else None
+    async def status(channel: str, sender_id: str) -> PairingStatus | None:
+        return PairingStatus.ACTIVE if (channel, sender_id) in pairings else None
 
     pairing = MagicMock()
     pairing.resolve = AsyncMock(side_effect=resolve)
@@ -141,23 +147,23 @@ async def test_a_stranger_gets_no_turn_from_a_dm_a_button_click_or_a_voice_trans
 
 @pytest.mark.parametrize("emit", [_dm_from, _transcript_from])
 async def test_a_paired_member_runs_fenced_as_that_member(rig: _Rig, emit: Callable[..., Awaitable[InboundMessage]]) -> None:
-    rig.pair(_MEMBER, PairingRole.MEMBER, "paired_member_55")
+    rig.pair(_MEMBER, PairingRole.MEMBER)
     msg = await emit(rig, _MEMBER)
 
     identity = await _turn_identity(rig, msg)
 
-    assert identity == "paired_member_55"
+    assert identity == _MEMBER_IDENTITY
     assert is_untrusted_sender(identity, msg)
 
 
 @pytest.mark.parametrize("emit", [_dm_from, _transcript_from])
 async def test_the_owner_runs_as_the_owner(rig: _Rig, emit: Callable[..., Awaitable[InboundMessage]]) -> None:
-    rig.pair(_OWNER, PairingRole.ADMIN, _OWNER_UID)
+    rig.pair(_OWNER, PairingRole.ADMIN)
     msg = await emit(rig, _OWNER)
 
     identity = await _turn_identity(rig, msg)
 
-    assert identity == _OWNER_UID
+    assert identity == _OWNER_IDENTITY
     assert not is_untrusted_sender(identity, msg)
 
 
@@ -176,8 +182,8 @@ async def test_a_speaker_who_is_not_paired_is_not_transcribed_even_in_an_enabled
 
 
 async def test_a_paired_member_and_the_owner_are_transcribed(rig: _Rig) -> None:
-    rig.pair(_MEMBER, PairingRole.MEMBER, "paired_member_55")
-    rig.pair(_OWNER, PairingRole.ADMIN, _OWNER_UID)
+    rig.pair(_MEMBER, PairingRole.MEMBER)
+    rig.pair(_OWNER, PairingRole.ADMIN)
 
     assert (await _transcribed(rig, _MEMBER), await _transcribed(rig, _OWNER)) == (True, True)
 
@@ -217,7 +223,7 @@ async def test_a_stranger_is_refused_the_voice_command_in_a_channel_the_policy_d
 
 
 async def test_the_owner_may_use_the_voice_command_in_a_channel_the_policy_does_not_enable(rig: _Rig) -> None:
-    rig.pair(_OWNER, PairingRole.ADMIN, _OWNER_UID)
+    rig.pair(_OWNER, PairingRole.ADMIN)
 
     reply = await _voice_command_reply(rig, _interaction(user_id=_OWNER, channel_id=999))
 

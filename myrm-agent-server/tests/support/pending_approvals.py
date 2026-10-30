@@ -18,7 +18,10 @@ class ScriptedAgent(Protocol):
 
 
 def inbound_message(content: str = "build it", *, locale: str = "en", group: bool = False) -> InboundMessage:
-    """A message of user ``u1`` in chat ``c1`` of the ``telegram`` channel."""
+    """A message of user ``u1`` in chat ``c1`` of the ``telegram`` channel, forwarded by the control plane.
+
+    The router takes the identity it carries as resolved, so a test needs no pairing or policy behind the router.
+    """
     return InboundMessage(
         channel="telegram",
         sender_id="u1",
@@ -27,7 +30,7 @@ def inbound_message(content: str = "build it", *, locale: str = "en", group: boo
         user_id="u1",
         is_group=group,
         message_id="m1",
-        metadata={"locale": locale},
+        metadata={"locale": locale, "trusted_inbound": "control_plane"},
     )
 
 

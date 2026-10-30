@@ -88,8 +88,6 @@ async def _dm_admitted(
     channel_lookup: Callable[[str], object | None],
     msg: InboundMessage,
 ) -> bool:
-    if msg.user_id:
-        return True
     policy = await query_dm_policy(policy_provider, msg.channel)
     if policy == DmPolicy.DISABLED:
         return False
