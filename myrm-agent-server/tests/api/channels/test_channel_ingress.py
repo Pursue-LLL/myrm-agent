@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -11,13 +12,15 @@ from app.api.channels.channel_ingress import (
     ResolvedChannelIdentityRequest,
     ingest_channel_message,
 )
+from app.channels.routing.policy_resolver_support import forwarded_identity
+from app.channels.types import InboundMessage
 
 
 class _FakeBus:
     def __init__(self) -> None:
-        self.messages = []
+        self.messages: list[InboundMessage] = []
 
-    async def _handle_inbound(self, msg: object) -> None:
+    async def _handle_inbound(self, msg: InboundMessage) -> None:
         self.messages.append(msg)
 
 
@@ -57,7 +60,8 @@ async def test_ingest_channel_message_propagates_thread_identity(monkeypatch: py
     assert inbound.user_id == "owner-1"
     assert inbound.thread_id == "topic-9"
     assert inbound.metadata["trusted_inbound"] == "control_plane"
-    assert inbound.metadata["resolved_identity"]["task_id"] == "feishu:group:chat-1:thread:topic-9"
+    assert forwarded_identity(inbound) == "owner-1"
+    assert cast(dict[str, object], inbound.metadata["resolved_identity"])["task_id"] == "feishu:group:chat-1:thread:topic-9"
 
 
 @pytest.mark.asyncio

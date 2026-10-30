@@ -3,7 +3,7 @@
 [INPUT]
 - app.channels.protocols.pairing::ChannelPolicyProvider, DmPolicy, GroupPolicy, PairingStore (POS: identity binding and policy protocols)
 - app.channels.routing.identity_scope::is_untrusted_sender (POS: guest / paired-member predicate chat turns are fenced on)
-- app.channels.routing.policy_resolver_support::check_guest_mention_allowed, is_admin_sender, is_control_plane_forward, lid_mapped_phone, query_dm_policy, query_enabled_groups, query_group_policy (POS: policy lookups, the owner rule and the control-plane forward check)
+- app.channels.routing.policy_resolver_support::check_guest_mention_allowed, forwarded_identity, is_admin_sender, lid_mapped_phone, query_dm_policy, query_enabled_groups, query_group_policy (POS: policy lookups, the owner rule and the carried-identity check)
 
 [OUTPUT]
 - check_sender_admitted: the admission verdict for one inbound message
@@ -24,8 +24,8 @@ from app.channels.protocols.pairing import DmPolicy, GroupPolicy
 from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.routing.policy_resolver_support import (
     check_guest_mention_allowed,
+    forwarded_identity,
     is_admin_sender,
-    is_control_plane_forward,
     lid_mapped_phone,
     query_dm_policy,
     query_enabled_groups,
@@ -53,7 +53,7 @@ async def check_sender_admitted(
     admitted; the daily quota and BotLoopGuard only cap chat turns and are not applied. A policy provider without a
     default user id, which a group turn also needs, is not modelled: the deploy identity is always set.
     """
-    if msg.user_id and is_control_plane_forward(msg):
+    if forwarded_identity(msg):
         return True
     if msg.is_group:
         admitted = await _group_admitted(policy_provider, msg)

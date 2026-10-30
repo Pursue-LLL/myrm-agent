@@ -51,7 +51,7 @@ from app.channels.routing.policy_resolver_support import (
     GroupFollowUpTracker,
     check_guest_mention_allowed,
     check_sender_daily_quota,
-    is_control_plane_forward,
+    forwarded_identity,
     is_exempt_diagnostic_command,
     query_dm_policy,
     query_enabled_groups,
@@ -131,8 +131,8 @@ class PolicyResolver:
         side-effect-free in ``sender_admission``; the verdict on whether the message starts a turn, apart from the
         BotLoopGuard count, is mirrored in ``is_group_chatter``. Change them together.
         """
-        if msg.user_id and is_control_plane_forward(msg):
-            return msg.user_id, msg
+        if forwarded := forwarded_identity(msg):
+            return forwarded, msg
 
         policy = await self._get_group_policy(msg.channel)
 
@@ -208,7 +208,7 @@ class PolicyResolver:
         refuses keep the normal path. The trigger verdict is taken without muting a thread or telling the chat, which
         the turn that handles a message does.
         """
-        if msg.user_id and is_control_plane_forward(msg):
+        if forwarded_identity(msg):
             return False
         if (
             await self._get_group_policy(msg.channel) == GroupPolicy.DISABLED
@@ -241,12 +241,11 @@ class PolicyResolver:
         """Resolve the sender's system user_id via DM policy + PairingStore.
 
         The admission gates (control-plane forward, DM policy, ACTIVE pairing incl. the LID mapping) are mirrored
-        side-effect-free in ``sender_admission``; change them together. An identity a message carries is taken only
-        from a control-plane forward, like the group branch does: every other sender is whoever the DM policy and its
-        pairing say.
+        side-effect-free in ``sender_admission``; change them together. A carried identity counts only through
+        ``forwarded_identity``.
         """
-        if msg.user_id and is_control_plane_forward(msg):
-            return msg.user_id
+        if forwarded := forwarded_identity(msg):
+            return forwarded
 
         # BotLoopGuard applies to DMs too: an automation bot relaying into DM
         # must not run unbounded agent turns. Human DMs are never counted.

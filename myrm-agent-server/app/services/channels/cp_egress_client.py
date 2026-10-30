@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - send_via_control_plane: POST to CP egress; returns platform message_id or None on failure
+- should_route_via_control_plane: whether replies on a channel leave through CP egress (sandbox instance, hosted channel)
 
 [POS]
 Sandbox-to-CP outbound bridge for delivering agent replies to external channels.
@@ -29,14 +30,8 @@ _SANDBOX_ID_ENV = "SANDBOX_ID"
 SAAS_CP_CHANNELS = frozenset({"feishu", "slack", "discord", "telegram"})
 
 
-def should_route_via_control_plane(channel: str, metadata: dict[str, object] | None) -> bool:
-    """Return True when outbound must go through CP egress (SaaS + CP ingress)."""
-    if not get_deployment_capabilities().is_sandbox_instance:
-        return False
-    if channel not in SAAS_CP_CHANNELS:
-        return False
-    if isinstance(metadata, dict) and metadata.get("trusted_inbound") == "control_plane":
-        return True
+def should_route_via_control_plane(channel: str) -> bool:
+    """Whether replies on ``channel`` leave through CP egress: a sandbox instance, on a channel the control plane hosts."""
     return get_deployment_capabilities().is_sandbox_instance and channel in SAAS_CP_CHANNELS
 
 

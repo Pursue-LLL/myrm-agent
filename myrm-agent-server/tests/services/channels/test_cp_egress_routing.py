@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.config.settings import settings
 from app.services.channels import cp_egress_client
 
 
@@ -15,7 +16,7 @@ def test_should_route_false_when_not_sandbox() -> None:
         "app.services.channels.cp_egress_client.get_deployment_capabilities",
         return_value=caps,
     ):
-        assert cp_egress_client.should_route_via_control_plane("feishu", None) is False
+        assert cp_egress_client.should_route_via_control_plane("feishu") is False
 
 
 def test_should_route_true_for_saas_feishu() -> None:
@@ -24,23 +25,23 @@ def test_should_route_true_for_saas_feishu() -> None:
         "app.services.channels.cp_egress_client.get_deployment_capabilities",
         return_value=caps,
     ):
-        assert cp_egress_client.should_route_via_control_plane("feishu", None) is True
+        assert cp_egress_client.should_route_via_control_plane("feishu") is True
 
 
-def test_should_route_true_when_trusted_inbound_metadata() -> None:
+@pytest.mark.parametrize("channel", ["whatsapp", "web_chat", ""])
+def test_should_route_false_for_a_channel_outside_the_hosted_set(channel: str) -> None:
     caps = MagicMock(is_sandbox_instance=True)
-    meta = {"trusted_inbound": "control_plane"}
     with patch(
         "app.services.channels.cp_egress_client.get_deployment_capabilities",
         return_value=caps,
     ):
-        assert cp_egress_client.should_route_via_control_plane("feishu", meta) is True
+        assert cp_egress_client.should_route_via_control_plane(channel) is False
 
 
 @pytest.mark.asyncio
 async def test_send_via_control_plane_missing_config() -> None:
     with (
-        patch.object(cp_egress_client.settings.control_plane, "url", ""),
+        patch.object(settings.control_plane, "url", ""),
         patch.dict("os.environ", {}, clear=True),
     ):
         result = await cp_egress_client.send_via_control_plane(
@@ -64,7 +65,7 @@ async def test_send_via_control_plane_http_error() -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
-        patch.object(cp_egress_client.settings.control_plane, "url", "https://cp.example"),
+        patch.object(settings.control_plane, "url", "https://cp.example"),
         patch.dict(
             "os.environ",
             {

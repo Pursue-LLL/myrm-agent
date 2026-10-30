@@ -119,7 +119,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             logger.debug("send_tracked on '%s' did not deliver: %s", msg.channel, exc)
             return None
 
-    def _route_target(self, channel_name: str, metadata: dict[str, object] | None) -> tuple[BaseChannel | None, str | None]:
+    def _route_target(self, channel_name: str) -> tuple[BaseChannel | None, str | None]:
         """Resolve ``(channel, unavailable_reason)`` for one destination.
 
         ``channel`` is ``None`` with no reason when control-plane egress takes over (cloud sandbox,
@@ -127,7 +127,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         """
         from app.services.channels.cp_egress_client import should_route_via_control_plane
 
-        if should_route_via_control_plane(channel_name, metadata):
+        if should_route_via_control_plane(channel_name):
             return None, None
         channel = self._channels.get(channel_name)
         if channel is None:
@@ -138,8 +138,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
 
     def _resolve_route(self, msg: OutboundMessage) -> _Route:
         """Pick the delivery target; control-plane routing wins over any locally registered provider."""
-        meta = msg.metadata if isinstance(msg.metadata, dict) else None
-        channel, unavailable = self._route_target(msg.channel, meta)
+        channel, unavailable = self._route_target(msg.channel)
         return _Route(channel=channel, unavailable=unavailable)
 
     def can_deliver(self, channel: str) -> bool:
@@ -150,7 +149,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         idle-recovery poll would spin on the same record. The obligation is kept on disk instead, and
         ``enable_channel`` recovers it once the channel can accept deliveries.
         """
-        _, unavailable = self._route_target(channel, None)
+        _, unavailable = self._route_target(channel)
         return unavailable is None
 
     async def _pace(self, channel_name: str, rate_limit: float) -> None:

@@ -23,6 +23,7 @@ from app.channels.reliability.inbound_journal import (
     SqliteInboundJournal,
     create_journal_entry_from_inbound,
 )
+from app.channels.routing.policy_resolver_support import forwarded_identity
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage, MediaAttachment, MediaType
 from tests.channels.inbound_message_testkit import full_message
@@ -106,6 +107,20 @@ async def test_a_message_without_a_chat_id_replays_without_one(tmp_path: Path) -
     [replayed] = await _replay(journal)
 
     assert (replayed.chat_id, replayed.user_id) == (None, None)
+
+
+async def test_a_control_plane_forward_still_carries_its_identity_after_a_restart(tmp_path: Path) -> None:
+    journal = _journal(tmp_path)
+    _park(
+        journal,
+        InboundMessage(
+            channel="discord", sender_id="u1", content="hi", user_id="owner-1", metadata={"trusted_inbound": "control_plane"}
+        ),
+    )
+
+    [replayed] = await _replay(journal)
+
+    assert forwarded_identity(replayed) == "owner-1"
 
 
 async def test_the_yolo_window_is_not_carried_across_a_restart(tmp_path: Path) -> None:

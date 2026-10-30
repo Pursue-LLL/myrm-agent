@@ -9,7 +9,7 @@ Business-layer helpers for optional channel SDK installation and post-install ga
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `dependency_install.py` | Core | Lazy pip install via harness `lazy_deps`; preflight before enable | ✅ |
-| `cp_egress_client.py` | Core | Sandbox-to-CP outbound bridge; success requires CP `message_id` in response | ✅ |
+| `cp_egress_client.py` | Core | Sandbox-to-CP outbound bridge; success requires CP `message_id` in response; `should_route_via_control_plane(channel)` is true on a sandbox instance for the hosted channels, whatever the inbound message was | ✅ |
 | `sdk_registration.py` | Core | Hot-register DISABLED channel on bus; merge diagnostic issues | ✅ |
 | `credential_reload.py` | Core | `CREDENTIAL_KEY_TO_CHANNEL` (config key of a credentials save → channel) and `reload_channel_credentials`: rebuild the channel from its saved credentials and swap it into the gateway; every provider that declares credentials needs its key in the table (checked by `tests/services/channels/test_credential_hot_register.py`) | ✅ |
 | `pairing/` | Subpackage | Model-agnostic channel token binding & visual pairing wizard | ✅ |

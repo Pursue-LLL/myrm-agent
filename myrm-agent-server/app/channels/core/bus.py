@@ -166,7 +166,7 @@ class MessageBus(OutboundDispatchMixin):
             should_route_via_control_plane,
         )
 
-        if should_route_via_control_plane(channel_name, None):
+        if should_route_via_control_plane(channel_name):
             tenant_id = ""
             ctx = get_correlation_context()
             if ctx and ctx.user_id:

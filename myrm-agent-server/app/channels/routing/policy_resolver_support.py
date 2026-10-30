@@ -13,7 +13,7 @@
 - lid_mapped_phone: the phone number a WhatsApp LID sender is verified to map to
 - resolve_paired_user: a sender's identity from its ACTIVE pairing, directly or through its verified LID mapping
 - is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
-- is_control_plane_forward: whether the control plane forwarded the message after resolving the sender's identity itself
+- forwarded_identity: the sender identity a message carries when the control plane forwarded it, the one check resolvers and admission gates believe a carried user_id by
 
 [POS]
 Helpers of PolicyResolver (policy lookups, cooldown and follow-up tracking, group sender arbitration), plus the owner
@@ -240,9 +240,21 @@ async def check_sender_daily_quota(
     return False, daily_quota, usage_count
 
 
-def is_control_plane_forward(msg: InboundMessage) -> bool:
+def _is_control_plane_forward(msg: InboundMessage) -> bool:
     """Whether the control plane forwarded ``msg`` after resolving the sender's identity itself."""
     return msg.metadata.get("trusted_inbound") == "control_plane"
+
+
+def forwarded_identity(msg: InboundMessage) -> str | None:
+    """The sender identity ``msg`` carries, if the control plane put it there.
+
+    Only a control-plane forward is believed about who its sender is; for every other message the sender is whoever
+    the DM policy, the group policy and the pairing say. Resolvers and admission gates take a carried ``user_id``
+    only through this check.
+    """
+    if msg.user_id and _is_control_plane_forward(msg):
+        return msg.user_id
+    return None
 
 
 async def is_admin_sender(pairing: PairingStore, msg: InboundMessage) -> bool:
@@ -251,7 +263,7 @@ async def is_admin_sender(pairing: PairingStore, msg: InboundMessage) -> bool:
     The owner is whoever the control plane forwarded (it has already resolved the identity), or a sender
     with an ACTIVE ADMIN pairing, the same pairing ``PairingStore.resolve`` maps to the owner's identity.
     """
-    if is_control_plane_forward(msg):
+    if _is_control_plane_forward(msg):
         return True
     detail = await pairing.get_pairing_detail(msg.channel, msg.sender_id)
     return detail is not None and detail[0] == PairingStatus.ACTIVE and detail[1] == PairingRole.ADMIN
