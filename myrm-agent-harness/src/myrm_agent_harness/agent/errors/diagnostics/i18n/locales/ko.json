@@ -46,12 +46,11 @@
     "일괄 요청의 경우 지연 추가를 고려하세요",
     "요청 빈도를 줄이세요"
   ],
-  "response_format_error_user_message": "모델 출력 검증 실패, 더 강력한 모델로 자동 전환 중",
+  "response_format_error_user_message": "모델 출력 검증 실패",
   "response_format_error_resolution_steps": [
-    "시스템이 자동으로 폴백 모델로 전환하고 있습니다",
-    "문제가 지속되면 기본 모델 업그레이드를 고려하세요",
-    "약한 모델 설정에서 JSON 모드가 올바른지 확인하세요",
-    "도구 호출 인수 스키마가 올바른지 확인하세요"
+    "다시 시도하세요. 다음에는 올바른 출력이 나올 수 있습니다",
+    "설정 > 모델 서비스 > 기본 모델 에서 더 강력한 모델로 전환하세요",
+    "설정 > 모델 서비스 > 기본 모델 에서 폴백 모델을 설정하면 이런 실패 시 자동으로 전환됩니다"
   ],
   "context_overflow_user_message": "컨텍스트 길이 제한을 초과했습니다",
   "context_overflow_resolution_steps": [

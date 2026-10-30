@@ -46,12 +46,11 @@
     "Erwägen Sie das Hinzufügen von Verzögerungen bei Batch-Anfragen",
     "Reduzieren Sie die Anfragehäufigkeit"
   ],
-  "response_format_error_user_message": "Modellausgabevalidierung fehlgeschlagen, automatischer Wechsel zu stärkerem Modell",
+  "response_format_error_user_message": "Modellausgabevalidierung fehlgeschlagen",
   "response_format_error_resolution_steps": [
-    "System wechselt automatisch zum Fallback-Modell",
-    "Falls Problem weiterhin besteht, erwägen Sie Upgrade des Primärmodells",
-    "Überprüfen Sie Schwachmodell-Konfiguration für JSON-Modus",
-    "Überprüfen Sie, ob Tool-Call-Argument-Schema korrekt ist"
+    "Versuchen Sie es erneut – das Modell liefert beim nächsten Mal möglicherweise eine gültige Ausgabe",
+    "Wechseln Sie unter Einstellungen > Modellservice > Standardmodell zu einem stärkeren Modell",
+    "Legen Sie unter Einstellungen > Modellservice > Standardmodell ein Ersatzmodell fest, damit bei einem solchen Fehler automatisch umgeschaltet wird"
   ],
   "context_overflow_user_message": "Kontextlängenlimit überschritten",
   "context_overflow_resolution_steps": [

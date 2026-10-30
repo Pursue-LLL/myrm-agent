@@ -19,7 +19,7 @@ from litellm import exceptions as litellm_errors
 
 from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
 
-_LOCALES = ("en", "zh-CN", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 _MODEL = "stub-model"
 _LLM_PROVIDER = "stub-provider"
 _CLOUDFLARE_PAGE = (

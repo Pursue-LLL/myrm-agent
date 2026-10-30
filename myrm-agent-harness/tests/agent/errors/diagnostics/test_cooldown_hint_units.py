@@ -10,7 +10,7 @@ from myrm_agent_harness.agent.errors.diagnostics import cooldown_hint, i18n
 from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
-_LOCALES = ("en", "zh-CN", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 _LOCALES_DIR = Path(i18n.__file__).parent / "locales"
 
 # Each wait with the locale keys (and the number each is formatted with) it must be spelled with. Together they use

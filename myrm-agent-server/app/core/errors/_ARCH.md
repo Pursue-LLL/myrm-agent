@@ -15,4 +15,4 @@ LLM 错误业务URL映射器。将Harness层的标准化错误代码映射为业
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 错误处理函数导出 | ✅ |
-| `llm_errors.py` | 核心 | Recovery actions URL映射器。支持11种错误代码（RATE_LIMIT, OVERLOADED, TIMEOUT, BILLING, AUTH_PERMANENT, SESSION_EXPIRED, MODEL_NOT_FOUND, FORMAT_ERROR, RESPONSE_FORMAT_ERROR, CONTEXT_OVERFLOW, UNKNOWN）到业务URL的映射，生成可点击操作按钮供Frontend渲染 | ✅ |
+| `llm_errors.py` | 核心 | Recovery actions URL映射器。支持11种错误代码（RATE_LIMIT, OVERLOADED, TIMEOUT, BILLING, AUTH_PERMANENT, SESSION_EXPIRED, MODEL_NOT_FOUND, FORMAT_ERROR, RESPONSE_FORMAT_ERROR, CONTEXT_OVERFLOW, UNKNOWN）到业务URL的映射，生成可点击操作按钮供Frontend渲染；按钮标签只有英文与简体中文两套，按 `locale[:2]` 取语言（`zh-*` 含 `zh-TW` 读简体，`ja`/`ko`/`de` 读英文），Harness 的 `LLMErrorDiagnostic.get_recovery_actions` 按六种语言生成的按钮不经此表 | ✅ |

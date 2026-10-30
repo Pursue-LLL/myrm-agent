@@ -15,7 +15,7 @@ from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic, i18n
 from myrm_agent_harness.agent.errors.diagnostics.i18n import LocaleManager, get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.i18n import manager as manager_module
 
-_LOCALES = ("en", "zh-CN", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 _RATE_LIMITED = Exception("429 too many requests")
 
 

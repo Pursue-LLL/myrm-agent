@@ -11,7 +11,7 @@ import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 
-_LOCALES = ("en", "zh-CN", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 _RAW_ERROR = "provider rejected the request (code 4711)"
 
 

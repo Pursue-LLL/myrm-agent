@@ -17,7 +17,7 @@ from litellm import exceptions as litellm_errors
 from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 
-_LOCALES = ("en", "zh-CN", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 _MODEL = "stub-model"
 _PROVIDER = "stub-provider"
 _BASE_URL = "https://provider.test/v1"

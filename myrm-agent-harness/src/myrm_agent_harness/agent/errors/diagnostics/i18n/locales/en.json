@@ -51,12 +51,11 @@
     "Use a model with larger context window",
     "Reduce conversation history length"
   ],
-  "response_format_error_user_message": "Model output validation failed, automatically switching to stronger model",
+  "response_format_error_user_message": "Model output validation failed",
   "response_format_error_resolution_steps": [
-    "System is automatically switching to fallback model",
-    "If issue persists, consider upgrading primary model",
-    "Check weak model configuration for JSON mode",
-    "Verify tool call argument schema is correct"
+    "Try again — the model may produce valid output next time",
+    "Switch to a stronger model in Settings > Model Service > Default Model",
+    "Set a Fallback Model in Settings > Model Service > Default Model so a failure like this switches over automatically"
   ],
   "timeout_user_message": "LLM request timed out",
   "timeout_resolution_steps": [

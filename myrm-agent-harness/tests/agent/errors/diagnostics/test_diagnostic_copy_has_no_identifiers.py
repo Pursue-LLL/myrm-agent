@@ -17,7 +17,7 @@ import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics.i18n import manager as manager_module
 
-_LOCALES = ("en", "zh-CN", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 _LOCALES_DIR = Path(manager_module.__file__).parent / "locales"
 _COPY_SUFFIXES = ("_user_message", "_resolution_steps", "_wait_step")
 
@@ -25,7 +25,7 @@ _COPY_SUFFIXES = ("_user_message", "_resolution_steps", "_wait_step")
 _SNAKE_CASE = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+(?![A-Za-z0-9_])")
 _CONFIG_CLASS = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]*Config(?![A-Za-z0-9])")
 _PLACEHOLDER = re.compile(r"\{[^{}]*\}")
-_LIBRARY_WORDS = ("litellm", "debug", "调试", "デバッグ", "디버그")
+_LIBRARY_WORDS = ("litellm", "debug", "调试", "調試", "除錯", "偵錯", "デバッグ", "디버그")
 
 
 def _copy_lines(locale: str) -> Iterator[tuple[str, str]]:

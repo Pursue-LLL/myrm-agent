@@ -59,6 +59,7 @@ _QUOTES: tuple[_Quote, ...] = (
         locales=("en", "zh-CN", "zh-TW"),
     ),
     _Quote("overloaded_resolution_steps", (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel")),
+    _Quote("response_format_error_resolution_steps", (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel")),
     _Quote("tls_certificate_resolution_steps", _TLS_COMPAT),
     _Quote("tls_transient_resolution_steps", _TLS_COMPAT),
 )

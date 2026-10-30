@@ -45,12 +45,11 @@
     "檢查是否有其他程序正在使用相同的 API 金鑰",
     "在 設定 > 模型服務 > 預設模型 中設定備用模型，觸發限流時自動切換"
   ],
-  "response_format_error_user_message": "模型輸出驗證失敗，正在自動切換至更強的模型",
+  "response_format_error_user_message": "模型輸出驗證失敗",
   "response_format_error_resolution_steps": [
-    "系統已自動切換到 fallback 模型",
-    "如果問題持續，請考慮升級主模型",
-    "檢查弱模型設定，確保 JSON 模式正確",
-    "確認工具呼叫參數 schema 是否正確"
+    "請再試一次，模型下次可能會產生有效的輸出",
+    "在 設定 > 模型服務 > 預設模型 中改用更強的模型",
+    "在 設定 > 模型服務 > 預設模型 中設定備用模型，發生這類失敗時自動切換"
   ],
   "context_overflow_user_message": "上下文長度超出模型限制",
   "context_overflow_resolution_steps": [

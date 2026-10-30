@@ -45,12 +45,11 @@
     "检查是否有其他进程正在使用相同的 API 密钥",
     "在 设置 > 模型服务 > 默认模型 中设置备用模型，限流时自动切换"
   ],
-  "response_format_error_user_message": "模型输出验证失败，正在自动切换至更强模型",
+  "response_format_error_user_message": "模型输出验证失败",
   "response_format_error_resolution_steps": [
-    "系统已自动切换到 fallback 模型",
-    "如果问题持续，考虑升级主模型",
-    "检查弱模型配置，确保 JSON 模式正确",
-    "验证工具调用参数 schema 是否正确"
+    "请再试一次，模型下次可能会给出有效输出",
+    "在 设置 > 模型服务 > 默认模型 中换用更强的模型",
+    "在 设置 > 模型服务 > 默认模型 中设置备用模型，出现这类失败时自动切换"
   ],
   "context_overflow_user_message": "上下文长度超出模型限制",
   "context_overflow_resolution_steps": [

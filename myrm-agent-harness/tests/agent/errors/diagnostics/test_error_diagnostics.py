@@ -190,8 +190,11 @@ def test_diagnose_response_format_error() -> None:
 
     assert result.error_type == "response_format_error"
     assert "validation failed" in result.user_message.lower() or "format" in result.user_message.lower()
-    assert len(result.resolution_steps) > 0
     assert any("fallback" in step.lower() for step in result.resolution_steps)
+    # The card is shown only after the in-turn failover ran or had no fallback to run, so it states the failure and
+    # points at the screens that fix it instead of promising a switch.
+    assert not any("switching" in text.lower() for text in (result.user_message, *result.resolution_steps))
+    assert all("Settings > Model Service > Default Model" in step for step in result.resolution_steps[1:])
 
 
 def test_diagnose_response_format_error_zh() -> None:
@@ -201,6 +204,7 @@ def test_diagnose_response_format_error_zh() -> None:
 
     assert result.error_type == "response_format_error"
     assert "模型输出" in result.user_message or "验证失败" in result.user_message
+    assert "自动切换" not in result.user_message
     assert result.locale == "zh-CN"
 
 
@@ -242,7 +246,7 @@ def test_diagnose_truncation_tool_call_zh() -> None:
     assert result.locale == "zh-CN"
 
 
-@pytest.mark.parametrize("locale", ["en", "zh-CN", "ja", "ko", "de"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN", "zh-TW", "ja", "ko", "de"])
 @pytest.mark.parametrize("truncation_type", ["tool_call_retry", "tool_call_truncated"])
 def test_tool_call_truncation_diagnostics_are_translated_in_every_locale(truncation_type: str, locale: str) -> None:
     """Retry and give-up diagnostics reach the user through the status event; a missing key would leak a placeholder."""
