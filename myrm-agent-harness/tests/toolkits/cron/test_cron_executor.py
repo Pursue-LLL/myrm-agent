@@ -1094,6 +1094,36 @@ class TestRunAndRecordTracing:
         assert job.consecutive_failures == 3
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("runner_metadata", "expected_category"),
+        [
+            ({"verification": {"status": "passed"}}, "http_server_error"),
+            ({"connector_failure": {"category": "reported_by_runner"}}, "reported_by_runner"),
+        ],
+    )
+    async def test_delivery_failure_joins_run_metadata_without_overwriting_it(
+        self, runner_metadata: dict[str, object], expected_category: str
+    ) -> None:
+        executor, store, delivery = _make_executor()
+        job = _make_job(delivery=DeliveryConfig(channel="webhook", target="https://api.example.com/webhook"))
+        delivery.deliver = AsyncMock(side_effect=RuntimeError("Webhook returned 502: Bad Gateway"))
+        original = {key: dict(value) for key, value in runner_metadata.items()}
+        runner = AsyncMock()
+        runner.run = AsyncMock(return_value=JobResult(success=True, output="ok", metadata=runner_metadata))
+        saved_runs = []
+        store.save_run = AsyncMock(side_effect=lambda r: saved_runs.append(r) or r)
+
+        await executor.run_and_record(job, runner)
+
+        metadata = saved_runs[0].metadata
+        assert metadata is not None
+        assert metadata["connector_failure"]["category"] == expected_category
+        assert {key: metadata[key] for key in runner_metadata if key != "connector_failure"} == {
+            key: value for key, value in original.items() if key != "connector_failure"
+        }
+        assert runner_metadata == original
+
+    @pytest.mark.asyncio
     async def test_circuit_break_pauses_job_and_marks_run_status(self) -> None:
         """When JobResult is circuit_broken, run status is CIRCUIT_BREAK and job is auto-paused."""
         executor, store, _delivery = _make_executor()

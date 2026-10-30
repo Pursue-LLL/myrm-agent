@@ -36,6 +36,15 @@ describe('CronTimeoutEditor', () => {
     expect(saveButton().disabled).toBe(true);
   });
 
+  it('describes the field by its range hint, so an invalid value is announced with its reason', () => {
+    render(<CronTimeoutEditor job={job} onUpdated={vi.fn()} />);
+
+    const hintId = input().getAttribute('aria-describedby');
+
+    expect(hintId).toBeTruthy();
+    expect(document.getElementById(hintId as string)?.textContent).toBe('cron.timeoutRangeHint');
+  });
+
   it('saves a new limit as whole seconds and reports it', async () => {
     vi.mocked(updateCronJob).mockResolvedValue(job);
     const onUpdated = vi.fn();

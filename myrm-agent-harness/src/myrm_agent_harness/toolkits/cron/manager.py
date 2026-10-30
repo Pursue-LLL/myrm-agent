@@ -315,7 +315,6 @@ class CronManager(CronValidationMixin):
             triggers=triggers,
             fire_count=0,
             last_output_hash=None,
-            job_scratchpad={},
             next_run_at=None,
             last_run_at=None,
             last_status=None,

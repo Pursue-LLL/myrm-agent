@@ -7,10 +7,7 @@ import pytest
 from myrm_agent_harness.agent.sub_agents.types import SubAgentResult, SubAgentStatus
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult, JobType, Schedule, ScheduleKind
 
-from app.core.cron.adapters.post_run_verification import (
-    _has_effectful_tools,
-    apply_cron_post_run_verification,
-)
+from app.core.cron.adapters.post_run_verification import apply_cron_post_run_verification
 
 
 def _minimal_cron_job(**overrides: object) -> CronJob:
@@ -34,21 +31,6 @@ def _patch_general_agent(monkeypatch, skill_agent: object | None) -> type:
         _FakeGeneralAgent,
     )
     return _FakeGeneralAgent
-
-
-def test_has_effectful_tools_detects_write_tools() -> None:
-    steps = [{"tool_name": "web_search_tool"}, {"tool_name": "file_write_tool"}]
-    assert _has_effectful_tools(steps) is True
-
-
-def test_has_effectful_tools_detects_browser_tools() -> None:
-    steps = [{"tool_name": "browser_navigate_tool"}]
-    assert _has_effectful_tools(steps) is True
-
-
-def test_has_effectful_tools_ignores_read_only_tools() -> None:
-    steps = [{"tool_name": "file_read_tool"}, {"tool_name": "grep_tool"}]
-    assert _has_effectful_tools(steps) is False
 
 
 async def test_apply_skips_when_disabled() -> None:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorErrorCategory,
     ConnectorFailureDetail,
@@ -85,6 +87,10 @@ class TestFixSuggestions:
 
         sug_to = generate_fix_suggestion(ConnectorErrorCategory.TIMEOUT)
         assert "timeout" in sug_to or "latency" in sug_to
+
+    @pytest.mark.parametrize("category", list(ConnectorErrorCategory))
+    def test_no_suggestion_names_a_product_screen(self, category: ConnectorErrorCategory) -> None:
+        assert "Settings" not in generate_fix_suggestion(category)
 
 
 class TestStructuredAlertPayload:

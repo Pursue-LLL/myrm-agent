@@ -29,7 +29,6 @@ _LONG_AGO = datetime(2020, 1, 1, tzinfo=UTC)
 _RUN_STATE: dict[str, object] = {
     "fire_count": 7,
     "last_output_hash": "abc123",
-    "job_scratchpad": {"seen": "3"},
     "last_run_at": _LONG_AGO,
     "last_status": RunStatus.ERROR,
     "last_error": "boom",
@@ -38,8 +37,6 @@ _RUN_STATE: dict[str, object] = {
 }
 # Fields a duplicate gets new values for: its identity and its place in the schedule.
 _IDENTITY = {"id", "name", "status", "next_run_at", "created_at", "updated_at"}
-# Declared on the model but accepted by no code path yet; ``create_job`` has no parameter for them.
-_UNUSED = {"continuity", "target_bot_agent_id"}
 
 
 def _manager() -> tuple[CronManager, InMemoryCronStore]:
@@ -71,8 +68,6 @@ async def _configured_source(mgr: CronManager, store: InMemoryCronStore) -> Cron
         pre_condition_script="test -f /tmp/ready",
         acceptance_criteria=({"type": "shell", "command": "test -s out.txt"},),
     )
-    job.continuity = True
-    job.target_bot_agent_id = "bot-1"
     job.created_at = job.updated_at = _LONG_AGO
     for name, value in _RUN_STATE.items():
         setattr(job, name, value)
@@ -112,8 +107,6 @@ async def test_duplicate_job_carries_every_configuration_field() -> None:
     assert copy is not None
     assert copy.acceptance_criteria == source.acceptance_criteria != ()
     assert copy.skip_if_active is True
-    assert copy.continuity is True
-    assert copy.target_bot_agent_id == "bot-1"
     assert copy.deduplicate is True
     assert copy.pre_condition_script == "test -f /tmp/ready"
     assert copy.tools_allowed == ("web_search",)
@@ -136,7 +129,6 @@ async def test_duplicate_job_starts_paused_with_a_new_identity_and_no_run_histor
     assert (copy.fire_count, copy.consecutive_failures) == (0, 0)
     assert (copy.last_run_at, copy.last_status, copy.last_error, copy.last_failure_alert_at) == (None,) * 4
     assert copy.last_output_hash is None
-    assert copy.job_scratchpad == {}
 
 
 async def test_duplicate_job_differs_from_its_source_only_in_identity_and_run_state() -> None:
@@ -185,13 +177,13 @@ async def test_duplicate_job_of_a_missing_or_foreign_job_is_none() -> None:
 def test_every_job_field_is_either_creatable_or_classified() -> None:
     """A new ``CronJob`` field must be accepted by ``create_job`` or be classified above.
 
-    A field that is neither settable nor listed as identity, run state or unused exists on the model
+    A field that is neither settable nor listed as identity or run state exists on the model
     but nothing can set it.
     """
     creatable = set(inspect.signature(CronManager.create_job).parameters)
     not_creatable = {f.name for f in fields(CronJob)} - creatable
 
-    assert not_creatable == (_IDENTITY - {"name"}) | set(_RUN_STATE) | _UNUSED
+    assert not_creatable == (_IDENTITY - {"name"}) | set(_RUN_STATE)
 
 
 def test_update_job_reads_every_patch_field() -> None:

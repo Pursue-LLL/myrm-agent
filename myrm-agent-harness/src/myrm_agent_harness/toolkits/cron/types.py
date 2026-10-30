@@ -230,9 +230,6 @@ class CronJob:
     deduplicate: bool = False
     skip_if_active: bool = False
     last_output_hash: str | None = None
-    continuity: bool = False
-    job_scratchpad: dict[str, str] = field(default_factory=dict)
-    target_bot_agent_id: str | None = None
     monitor_config: MonitorConfig | None = None
     triggers: TriggerConfig | None = None
     pre_condition_script: str | None = None
@@ -383,8 +380,9 @@ class JobResult:
     ``RunStatus.SKIPPED`` and counts no failure; it takes precedence over ``skipped``
     and, unlike it, keeps one-shot jobs alive.
 
-    ``retry_safe`` is False when the run may already have had side effects (it called tools,
-    or it used up its whole time budget). If such a run counts as failed, repeating it ahead
+    ``retry_safe`` is False when a repeat could redo something the run already did (a tool
+    that changes state ran, a workflow step began) or would spend the same time budget again
+    (the run used up its whole time budget). If such a run counts as failed, repeating it ahead
     of its schedule could duplicate those effects, so the executor leaves the job for its next
     regular slot and the runner stops retrying in-process. Runners that cannot tell keep the
     default.

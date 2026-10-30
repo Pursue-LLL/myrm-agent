@@ -176,6 +176,25 @@ class TestFailureAlert:
         assert job.last_failure_alert_at == _NOW
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("retry_safe", "max_retries"),
+        [(False, 5), (True, 5), (False, 2)],
+        ids=["not-repeatable", "backoff-retry", "paused"],
+    )
+    async def test_alert_text_is_plain_and_names_no_product_screen(self, retry_safe: bool, max_retries: int) -> None:
+        """The alert reaches the person who owns the task: no framework jargon, no path through someone's UI."""
+        executor, store, delivery = _executor(_ALERT_AFTER_THREE)
+        job = _job(max_retries=max_retries)
+        _store_holds(store, job)
+
+        await executor._update_after_run(job, _failed(retry_safe=retry_safe), 3, _NOW)
+
+        text = await self._alert_text(delivery)
+        assert text == text.strip()
+        assert "Settings" not in text
+        assert "side effects" not in text
+
+    @pytest.mark.asyncio
     async def test_safe_failure_below_the_threshold_stays_quiet(self) -> None:
         executor, store, delivery = _executor(_ALERT_AFTER_THREE)
         job = _job()

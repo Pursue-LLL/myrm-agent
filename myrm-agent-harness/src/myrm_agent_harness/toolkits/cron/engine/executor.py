@@ -213,11 +213,8 @@ class JobExecutor(FailureAlertMixin, SkippedRunMixin):
                 target=target,
                 message=delivery_error[:500],
             )
-            if run_metadata is None:
-                run_metadata = {"connector_failure": fail_detail.to_dict()}
-            elif "connector_failure" not in run_metadata:
-                run_metadata = dict(run_metadata)
-                run_metadata["connector_failure"] = fail_detail.to_dict()
+            run_metadata = run_metadata or {}
+            run_metadata.setdefault("connector_failure", fail_detail.to_dict())
 
         prev_hash = await self._store.get_latest_integrity_hash(job.id) or GENESIS_HASH
 

@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.sub_agents.orchestrator::verify_worker_output (POS: Verifier pass)
 - myrm_agent_harness.toolkits.cron.types::CronJob, JobResult (POS: Cron job types)
+- .effectful_steps::has_effectful_tools (POS: Whether a run's steps include a state-changing tool call)
 
 [OUTPUT]
 - apply_cron_post_run_verification: Optional verifier-only pass after cron agent stream
@@ -17,24 +18,21 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.middlewares.completion import is_mutating_tool
 from myrm_agent_harness.agent.sub_agents.orchestrator import verify_worker_output
 from myrm_agent_harness.agent.sub_agents.types import WorkspacePolicy
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
+
+from .effectful_steps import has_effectful_tools
+
+if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_VERIFIER_TYPE = "adversarial-reviewer"
 _VERIFICATION_TIMEOUT_SECONDS = 120
-
-
-def _has_effectful_tools(progress_steps: list[dict[str, object]]) -> bool:
-    for step in progress_steps:
-        tool_name = step.get("tool_name")
-        if isinstance(tool_name, str) and is_mutating_tool(tool_name):
-            return True
-    return False
 
 
 def _attach_verification_metadata(
@@ -90,7 +88,7 @@ async def apply_cron_post_run_verification(
     progress_steps: list[dict[str, object]] = (
         [step for step in progress_steps_raw if isinstance(step, dict)] if isinstance(progress_steps_raw, list) else []
     )
-    if not _has_effectful_tools(progress_steps):
+    if not has_effectful_tools(progress_steps):
         return _attach_verification_metadata(
             result,
             status="skipped",
@@ -132,7 +130,7 @@ async def apply_cron_post_run_verification(
 
     parent_tools = skill_agent._cached_tools or skill_agent.user_tools
 
-    def tool_registry_getter() -> list[object]:
+    def tool_registry_getter() -> list[BaseTool]:
         return list(parent_tools)
 
     parent_ctx = dict(getattr(skill_agent, "_last_context", None) or {})

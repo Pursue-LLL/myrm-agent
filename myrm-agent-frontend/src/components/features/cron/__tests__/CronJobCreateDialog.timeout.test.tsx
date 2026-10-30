@@ -97,6 +97,28 @@ describe('the run time limit in the create dialog', () => {
     expect(posts[0]).not.toHaveProperty('timeout_seconds');
   });
 
+  it('does not let a limit typed for another job type block a reminder', async () => {
+    openCustomJobForm();
+    fireEvent.change(timeoutInput(), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'jobTypeReminder' }));
+
+    expect((submitButton() as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).not.toHaveProperty('timeout_seconds');
+  });
+
+  it('asks for the limit again when the job goes back to a type that runs the agent', () => {
+    openCustomJobForm();
+    fireEvent.change(timeoutInput(), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'jobTypeReminder' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'jobTypeAgent' }));
+
+    expect((submitButton() as HTMLButtonElement).disabled).toBe(true);
+    expect(timeoutInput().getAttribute('aria-invalid')).toBe('true');
+  });
+
   it.each(['5', '3601', '1.5', '-30'])('refuses to create the job with the limit %s', (typed) => {
     openCustomJobForm();
     fireEvent.change(timeoutInput(), { target: { value: typed } });

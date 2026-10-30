@@ -295,8 +295,10 @@ export default function CronJobCreateDialog({
         ? command.trim().length > 0
         : scriptCode.trim().length > 0;
   const sessionValid = sessionTarget === 'isolated' || effectiveChatId !== null;
-  // Empty keeps the server default; a typed limit must be one the server accepts.
-  const timeoutValid = timeoutSeconds.trim() === '' || parseTimeoutSeconds(timeoutSeconds) !== null;
+  // A reminder is delivered at once and has no limit to set. Empty keeps the server default; a typed limit must be
+  // one the server accepts.
+  const timeoutApplies = uiMode !== 'reminder';
+  const timeoutValid = !timeoutApplies || timeoutSeconds.trim() === '' || parseTimeoutSeconds(timeoutSeconds) !== null;
   const canSubmit = contentValid && schedule !== null && sessionValid && timeoutValid;
 
   const executeCreate = useCallback(
@@ -354,7 +356,7 @@ export default function CronJobCreateDialog({
           }));
         }
 
-        const timeout = uiMode === 'reminder' ? null : parseTimeoutSeconds(timeoutSeconds);
+        const timeout = timeoutApplies ? parseTimeoutSeconds(timeoutSeconds) : null;
         if (timeout !== null) {
           payload.timeout_seconds = timeout;
         }
@@ -396,6 +398,7 @@ export default function CronJobCreateDialog({
       deliveryChannel,
       deliveryTarget,
       acceptanceCriteria,
+      timeoutApplies,
       timeoutSeconds,
       overridePrerequisite,
       createJob,
@@ -849,7 +852,7 @@ export default function CronJobCreateDialog({
                 )}
 
                 {/* Run time limit */}
-                {uiMode !== 'reminder' && (
+                {timeoutApplies && (
                   <div className="space-y-1.5">
                     <Label className="text-xs flex items-center gap-1">
                       <Hourglass className="h-3 w-3" />

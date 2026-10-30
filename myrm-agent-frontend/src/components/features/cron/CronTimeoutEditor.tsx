@@ -7,7 +7,7 @@
  * ./CronDeliveryEditors::EditorProps (POS: Cron per-job editor shared props)
  *
  * [OUTPUT]
- * TimeoutInput: Whole-seconds input with the accepted range as its hint; shared by the editor and the create dialog.
+ * TimeoutInput: Whole-seconds input; the accepted range is its hint and its accessible description. Shared by the editor and the create dialog.
  * CronTimeoutEditor: Per-job editor for the run time limit.
  *
  * [POS]
@@ -15,7 +15,7 @@
  * for a job that legitimately takes long.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Hourglass } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -40,6 +40,7 @@ interface TimeoutInputProps {
 
 export function TimeoutInput({ value, onChange, invalid, disabled }: TimeoutInputProps) {
   const t = useTranslations('cron');
+  const hintId = useId();
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
@@ -54,12 +55,13 @@ export function TimeoutInput({ value, onChange, invalid, disabled }: TimeoutInpu
           onChange={(e) => onChange(e.target.value)}
           aria-label={t('timeoutLabel')}
           aria-invalid={invalid}
+          aria-describedby={hintId}
           disabled={disabled}
           className={cn('h-7 text-xs w-24', invalid && 'border-destructive focus-visible:ring-destructive/30')}
         />
         <span className="text-xs text-muted-foreground">s</span>
       </div>
-      <p className={cn('text-[11px]', invalid ? 'text-destructive' : 'text-muted-foreground')}>
+      <p id={hintId} className={cn('text-[11px]', invalid ? 'text-destructive' : 'text-muted-foreground')}>
         {t('timeoutRangeHint', { min: String(CRON_TIMEOUT_MIN_SECONDS), max: String(CRON_TIMEOUT_MAX_SECONDS) })}
       </p>
     </div>

@@ -1,4 +1,4 @@
-"""A cron run that already called tools is not repeated in-process, and no result rebuild forgets that."""
+"""A cron run whose steps may already have taken effect is not repeated in-process, and no result rebuild forgets that."""
 
 from __future__ import annotations
 
@@ -8,6 +8,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from langchain_core.messages import AIMessage
+from myrm_agent_harness.agent.streaming.event_handlers import process_updates_chunk
+from myrm_agent_harness.agent.types import AgentRunStatistics
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     DeliveryConfig,
@@ -47,8 +50,17 @@ def _job(**overrides: object) -> CronJob:
     return CronJob(**fields)  # type: ignore[arg-type]
 
 
-def _used_tools() -> _StreamAccumulator:
-    return _StreamAccumulator(tool_used=True)
+def _effectful_run() -> _StreamAccumulator:
+    return _StreamAccumulator(progress_steps=[{"tool_name": "send_message"}])
+
+
+async def _tool_call_events(*tool_names: str) -> list[dict[str, object]]:
+    """The events the real agent stream emits when the model calls ``tool_names`` (not hand-written look-alikes)."""
+    message = AIMessage(
+        content="",
+        tool_calls=[{"name": name, "args": {}, "id": f"call-{i}"} for i, name in enumerate(tool_names)],
+    )
+    return [event async for event in process_updates_chunk({"model": {"messages": [message]}}, AgentRunStatistics(), "m1")]
 
 
 def _agent_streaming(events: list[dict[str, object]]) -> MagicMock:
@@ -76,15 +88,84 @@ _ERROR: dict[str, object] = {"type": "error", "error": "provider overloaded", "e
 
 class TestStreamConsumers:
     @pytest.mark.asyncio
-    async def test_failure_after_a_tool_call_is_not_retry_safe(self) -> None:
+    async def test_the_real_stream_names_every_called_tool(self) -> None:
+        """The retry decision reads tool names from these events, so producer and consumer must agree on the field."""
+        events = await _tool_call_events("web_search_tool", "send_message")
+
+        assert [(event["type"], event["tool_name"]) for event in events] == [
+            ("tasks_steps", "web_search_tool"),
+            ("tasks_steps", "send_message"),
+        ]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "tools",
+        [["web_search_tool"], ["web_search_tool", "web_fetch_tool", "file_read_tool"]],
+    )
+    async def test_failure_after_read_only_tools_stays_retry_safe(self, tools: list[str]) -> None:
         acc = _StreamAccumulator()
-        agent = _agent_streaming([_TOOL_START, _ERROR])
+        agent = _agent_streaming([*await _tool_call_events(*tools), _ERROR])
+
+        result = await _consume_stream(agent, _job(), "prompt", {}, acc, untrusted=False)
+
+        assert result.success is False
+        assert result.retry_safe is True
+        assert acc.effectful is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "tools",
+        [
+            ["send_message"],
+            ["execute_command"],
+            ["delegate_task_tool"],
+            ["web_search_tool", "send_message"],
+            ["unregistered_tool"],
+        ],
+    )
+    async def test_failure_after_a_state_changing_or_unknown_tool_is_not_retry_safe(self, tools: list[str]) -> None:
+        acc = _StreamAccumulator()
+        agent = _agent_streaming([*await _tool_call_events(*tools), _ERROR])
 
         result = await _consume_stream(agent, _job(), "prompt", {}, acc, untrusted=False)
 
         assert result.success is False
         assert result.retry_safe is False
-        assert acc.tool_used is True
+        assert acc.effectful is True
+
+    @pytest.mark.asyncio
+    async def test_a_tool_call_the_model_was_still_writing_has_not_run(self) -> None:
+        """``tool_start`` fires while the call is being generated; a stream that dies there executed nothing."""
+        agent = _agent_streaming([_TOOL_START, _ERROR])
+
+        result = await _consume_stream(agent, _job(), "prompt", {}, _StreamAccumulator(), untrusted=False)
+
+        assert result.success is False
+        assert result.retry_safe is True
+
+    @pytest.mark.asyncio
+    async def test_progress_markers_without_a_tool_name_are_not_tool_calls(self) -> None:
+        marker: dict[str, object] = {"type": "tasks_steps", "step_key": "reviewing_sources", "tool_name": None, "count": 2}
+        agent = _agent_streaming([marker, _ERROR])
+
+        result = await _consume_stream(agent, _job(), "prompt", {}, _StreamAccumulator(), untrusted=False)
+
+        assert result.retry_safe is True
+
+    @pytest.mark.asyncio
+    async def test_a_failed_read_only_tool_call_does_not_make_the_run_unsafe(self) -> None:
+        failed_step: dict[str, object] = {
+            "type": "tasks_steps",
+            "step_key": "web_fetch_error",
+            "tool_name": "web_fetch_tool",
+            "status": "error",
+            "error": "404",
+        }
+        agent = _agent_streaming([*await _tool_call_events("web_fetch_tool"), failed_step, _ERROR])
+
+        result = await _consume_stream(agent, _job(), "prompt", {}, _StreamAccumulator(), untrusted=False)
+
+        assert result.retry_safe is True
 
     @pytest.mark.asyncio
     async def test_failure_before_any_tool_call_stays_retry_safe(self) -> None:
@@ -96,9 +177,9 @@ class TestStreamConsumers:
         assert result.retry_safe is True
 
     @pytest.mark.asyncio
-    async def test_a_successful_run_that_used_tools_is_marked_too(self) -> None:
+    async def test_a_successful_run_that_changed_state_is_marked_too(self) -> None:
         """Acceptance verification can still fail this result later; it must not look repeatable then."""
-        agent = _agent_streaming([_TOOL_START, {"type": "message", "data": "done"}])
+        agent = _agent_streaming([*await _tool_call_events("send_message"), {"type": "message", "data": "done"}])
 
         result = await _consume_stream(agent, _job(), "prompt", {}, _StreamAccumulator(), untrusted=False)
 
@@ -123,19 +204,22 @@ class TestStreamConsumers:
 
 
 class TestRunOutcomeBuilders:
-    def test_timeout_after_tool_use_is_not_retry_safe(self) -> None:
-        assert _timeout_result(_job(timeout_seconds=30), _used_tools()).retry_safe is False
+    def test_timeout_is_never_retry_safe(self) -> None:
+        """A repeat would spend the same time budget again, whatever tools the run had used."""
+        result = _timeout_result(_job(timeout_seconds=30))
 
-    def test_timeout_before_tool_use_is_retry_safe(self) -> None:
-        result = _timeout_result(_job(timeout_seconds=30), _StreamAccumulator())
-
-        assert result.retry_safe is True
+        assert result.retry_safe is False
         assert result.error == "agent timed out after 30s"
 
-    def test_crash_after_tool_use_is_not_retry_safe(self) -> None:
-        assert _failure_result(_job(), RuntimeError("boom"), _used_tools()).retry_safe is False
+    def test_crash_after_a_state_changing_tool_is_not_retry_safe(self) -> None:
+        assert _failure_result(_job(), RuntimeError("boom"), _effectful_run()).retry_safe is False
 
-    def test_crash_before_tool_use_is_retry_safe(self) -> None:
+    def test_crash_after_read_only_tools_is_retry_safe(self) -> None:
+        acc = _StreamAccumulator(progress_steps=[{"tool_name": "web_search_tool"}])
+
+        assert _failure_result(_job(), RuntimeError("boom"), acc).retry_safe is True
+
+    def test_crash_before_any_tool_is_retry_safe(self) -> None:
         assert _failure_result(_job(), RuntimeError("boom"), _StreamAccumulator()).retry_safe is True
 
 
@@ -188,7 +272,7 @@ class TestInProcessRetries:
         return runner, run_once
 
     @pytest.mark.asyncio
-    async def test_failure_after_tool_use_runs_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_failure_that_is_not_safe_to_repeat_runs_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
         failed = JobResult(success=False, error="boom", retry_safe=False)
         runner, run_once = self._runner(monkeypatch, [failed])
 
@@ -198,7 +282,16 @@ class TestInProcessRetries:
         assert run_once.await_count == 1
 
     @pytest.mark.asyncio
-    async def test_failure_before_tool_use_uses_every_attempt(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_a_timeout_runs_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        runner, run_once = self._runner(monkeypatch, [_timeout_result(_job())])
+
+        result = await runner._run_with_retries(_job(max_retries=2), context="")
+
+        assert result.retry_safe is False
+        assert run_once.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_failure_that_is_safe_to_repeat_uses_every_attempt(self, monkeypatch: pytest.MonkeyPatch) -> None:
         runner, run_once = self._runner(monkeypatch, [JobResult(success=False, error="boom")] * 3)
 
         result = await runner._run_with_retries(_job(max_retries=2), context="")

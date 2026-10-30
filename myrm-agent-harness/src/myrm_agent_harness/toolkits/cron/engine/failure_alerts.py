@@ -92,12 +92,11 @@ class FailureAlertMixin:
         alert_result = JobResult(
             success=True,
             output=(
-                f' Cron job "{job.name}" failed {failures} consecutive times.\n'
+                f'Cron job "{job.name}" failed {failures} consecutive times.\n'
                 f"Category: {category.value}\n"
                 f"Last error: {error_snippet}\n"
                 f"Suggestion: {fix_suggestion}\n\n"
-                f"{_failure_outlook(job, retry_safe=retry_safe)} "
-                f"Please check the task configuration in Settings → Cron."
+                f"{_failure_outlook(job, retry_safe=retry_safe)}"
             ),
             metadata={
                 "structured_alert": structured_payload.to_dict(),
@@ -123,7 +122,7 @@ def _failure_outlook(job: CronJob, *, retry_safe: bool) -> str:
         return "The task has been auto-paused."
     if retry_safe:
         return "The task will retry with backoff."
-    outlook = "The task is not re-run ahead of schedule, because the failed run may already have had side effects."
+    outlook = "The task is not re-run ahead of schedule: repeating it could redo actions it already took, or run out of time again."
     if job.next_run_at is not None:
         outlook += f" Its next regular run is at {job.next_run_at.isoformat()}."
     return outlook

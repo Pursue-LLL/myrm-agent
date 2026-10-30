@@ -271,7 +271,7 @@ def generate_fix_suggestion(category: ConnectorErrorCategory, status_code: int |
         return "Target returned an unexpected response format. Ensure response is valid JSON and within size limit."
     if category == ConnectorErrorCategory.PROCESS_ERROR:
         return "Local connector process terminated. Verify MCP server or runtime environment."
-    return "Check destination connection settings in Settings → Cron."
+    return "Check the task's destination connection settings."
 
 
 __all__ = [
