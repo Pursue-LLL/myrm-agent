@@ -11891,8 +11891,10 @@
     "evolution_strategy": {
       "title": "进化策略",
       "description": "选择技能出错后，助手起草修复方案的积极程度。",
-      "balanced": "平衡：仅在明确是技能本身的问题时起草修复",
-      "innovate": "积极：归因不明确时也尝试起草修复"
+      "balanced": "平衡",
+      "balanced_hint": "仅在明确是技能本身的问题时起草修复。",
+      "innovate": "积极",
+      "innovate_hint": "归因不明确时也会尝试起草修复。"
     },
     "permissions": {
       "types": {

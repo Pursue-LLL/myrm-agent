@@ -11891,8 +11891,10 @@
     "evolution_strategy": {
       "title": "Evolution Strategy",
       "description": "Choose how readily the assistant drafts a repair when a skill fails.",
-      "balanced": "Balanced: draft a repair only when the failure is clearly the skill's fault",
-      "innovate": "Proactive: also draft a repair when it is unclear whose fault the failure was"
+      "balanced": "Balanced",
+      "balanced_hint": "Drafts a repair only when the failure is clearly the skill's fault.",
+      "innovate": "Proactive",
+      "innovate_hint": "Also drafts a repair when it is unclear whose fault the failure was."
     },
     "permissions": {
       "types": {

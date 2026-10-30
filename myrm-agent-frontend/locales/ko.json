@@ -11891,8 +11891,10 @@
     "evolution_strategy": {
       "title": "진화 전략",
       "description": "스킬이 실패했을 때 어시스턴트가 얼마나 적극적으로 수정안을 작성할지 선택합니다.",
-      "balanced": "균형: 실패 원인이 스킬 자체에 있음이 분명할 때만 수정안 작성",
-      "innovate": "적극적: 원인이 불분명할 때도 수정안 작성"
+      "balanced": "균형",
+      "balanced_hint": "실패 원인이 스킬 자체에 있음이 분명할 때만 수정안을 작성합니다.",
+      "innovate": "적극적",
+      "innovate_hint": "원인이 불분명할 때도 수정안을 작성합니다."
     },
     "permissions": {
       "types": {

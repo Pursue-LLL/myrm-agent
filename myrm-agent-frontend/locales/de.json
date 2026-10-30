@@ -11891,8 +11891,10 @@
     "evolution_strategy": {
       "title": "Evolutionsstrategie",
       "description": "Legen Sie fest, wie bereitwillig der Assistent nach dem Fehlschlag eines Skills eine Korrektur entwirft.",
-      "balanced": "Ausgewogen: Korrektur nur entwerfen, wenn der Fehler eindeutig am Skill liegt",
-      "innovate": "Proaktiv: Korrektur auch entwerfen, wenn unklar ist, woran der Fehler lag"
+      "balanced": "Ausgewogen",
+      "balanced_hint": "Entwirft eine Korrektur nur, wenn der Fehler eindeutig am Skill liegt.",
+      "innovate": "Proaktiv",
+      "innovate_hint": "Entwirft eine Korrektur auch, wenn unklar ist, woran der Fehler lag."
     },
     "permissions": {
       "types": {
