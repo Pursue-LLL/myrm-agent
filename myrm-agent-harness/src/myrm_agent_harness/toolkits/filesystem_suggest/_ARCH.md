@@ -14,7 +14,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 path suggestion 公共 API | ✅ |
-| `indexer.py` | 核心 | 有界文件枚举。优先 `git ls-files --cached --others --exclude-standard`，降级 `os.walk`，带短 TTL 缓存；`is_truncated` 告知列表是否触及枚举上限 | ✅ |
+| `indexer.py` | 核心 | 有界文件枚举。优先 `git ls-files --cached --others --exclude-standard`（只列工作区子树，目录名按字面量 pathspec 处理，不读整个仓库），降级 `os.walk`，带短 TTL 缓存；`is_truncated` 告知列表是否触及枚举上限 | ✅ |
 | `models.py` | 核心 | Workspace suggestion DTO 与选项模型 | ✅ |
 | `suggest.py` | 核心 | GUI 友好的文件/目录建议排序；支持 basename 模糊匹配和 slash/path 目录模式 | ✅ |
 

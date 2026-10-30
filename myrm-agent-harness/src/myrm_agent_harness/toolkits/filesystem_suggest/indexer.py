@@ -112,9 +112,16 @@ class WorkspacePathIndexer:
                 return []
 
             repo_top = Path(top_result.stdout.decode("utf-8", "replace").strip()).resolve()
+            try:
+                subtree = root.relative_to(repo_top).as_posix()
+            except ValueError:
+                return []
+            # Git lists only the workspace subtree: a monorepo subdirectory does not pay for the rest of the repository.
+            # ``:(literal)`` keeps a directory name such as ``:docs`` from being read as pathspec magic.
+            pathspec = () if subtree == "." else ("--", f":(literal){subtree}")
             list_result = subprocess.run(
                 hardened_git_argv(
-                    ("ls-files", "-z", "--cached", "--others", "--exclude-standard"),
+                    ("ls-files", "-z", "--cached", "--others", "--exclude-standard", *pathspec),
                     repo_dir=repo_top,
                 ),
                 capture_output=True,
@@ -127,19 +134,16 @@ class WorkspacePathIndexer:
             logger.debug("git file listing failed in %s: %s", root, exc)
             return []
 
+        prefix = "" if subtree == "." else f"{subtree}/"
         files: list[str] = []
         for raw in list_result.stdout.split(b"\0"):
             if not raw:
                 continue
-            rel_to_repo = raw.decode("utf-8", "replace")
-            abs_file = repo_top / rel_to_repo
-            try:
-                rel = abs_file.relative_to(root).as_posix()
-            except ValueError:
+            path = raw.decode("utf-8", "replace")
+            if not path.startswith(prefix):
                 continue
-            if rel.startswith("../") or "/../" in rel:
-                continue
-            files.append(rel)
+            # A nested repository is listed as ``dir/``; the entry keeps its bare name.
+            files.append(path[len(prefix) :].removesuffix("/"))
             if len(files) >= _MAX_LISTED_FILES:
                 break
         return files
