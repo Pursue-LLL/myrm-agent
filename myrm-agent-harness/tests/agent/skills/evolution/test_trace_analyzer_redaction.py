@@ -6,6 +6,10 @@ the way in, so what the prompt holds is down to the analyzer.
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from myrm_agent_harness.agent.event_log.types import EventFilter, EventPayload, StructuredEvent
 from myrm_agent_harness.agent.skills.evolution.pipeline.trace_analyzer import TraceAnalyzer
 
@@ -121,6 +125,35 @@ async def test_a_trajectory_read_from_an_older_log_carries_no_credential() -> No
     assert "[tool_failure]" in trajectory
     assert "bash" in trajectory
     assert _KEY not in trajectory
+
+
+async def test_a_payload_that_cannot_be_redacted_is_withheld(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(value: object, leaf: object, *, mask_keys: bool = False) -> object:
+        raise RuntimeError("redaction failed")
+
+    monkeypatch.setattr("myrm_agent_harness.agent.event_log._sanitize.redact_nested", fail)
+    analyzer = TraceAnalyzer(
+        _StoredLog(
+            [
+                _event(1, "tool_start", tool_call_id=_CALL_ID, tool_name="bash", args={"command": "ls"}),
+                _event(2, "tool_failure", tool_call_id=_CALL_ID, tool_name="bash", error=f"401 for key {_KEY}"),
+            ]
+        )
+    )
+
+    assert await analyzer.analyze_slice(_SESSION_ID, [_CALL_ID]) is None
+    assert _KEY not in await analyzer.extract_trajectory(_SESSION_ID, "bash")
+
+
+async def test_a_payload_nested_deeper_than_the_redaction_walks_carries_no_credential() -> None:
+    nested: object = {"note": f"password={_KEY}"}
+    for _ in range(3_000):
+        nested = {"inner": nested}
+    stored = _event(1, "tool_start", tool_call_id=_CALL_ID, tool_name="bash", args=nested)
+
+    read = await TraceAnalyzer(_StoredLog([stored]))._read_events(_SESSION_ID, EventFilter())
+
+    assert _KEY not in json.dumps(read[0].data.model_dump())
 
 
 async def test_events_with_nothing_to_redact_are_read_as_stored() -> None:
