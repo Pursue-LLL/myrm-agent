@@ -248,4 +248,125 @@ describe('TelegramAssistantOnboardingStep', () => {
     expect(await screen.findByText('Disk full')).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalledWith('setupFailedToast');
   });
+
+  describe('proxy offer', () => {
+    const connected = {
+      success: true,
+      message: 'ok',
+      botUsername: 'myrm_bot',
+      agentId: 'agent-1',
+      agentName: 'Assistant',
+      channelEnabled: true,
+      connected: true,
+      status: 'running',
+    };
+
+    function rejectOnce(detailCode: string) {
+      mockApplyTelegramAssistantOnboarding.mockRejectedValueOnce(
+        Object.assign(new ApiError('English detail from the server', 400, [], undefined, detailCode), {
+          data: { code: detailCode },
+        }),
+      );
+    }
+
+    function submitToken() {
+      fireEvent.change(screen.getByLabelText('tokenLabel'), { target: { value: '1234567890:VALID_TOKEN' } });
+      fireEvent.click(screen.getByText('setupButton'));
+    }
+
+    it('offers no proxy input before a failure and sends no proxy on the first try', async () => {
+      mockApplyTelegramAssistantOnboarding.mockResolvedValueOnce(connected);
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+      expect(screen.queryByLabelText('telegramProxy')).not.toBeInTheDocument();
+      submitToken();
+
+      await waitFor(() => expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(1));
+      expect(mockApplyTelegramAssistantOnboarding.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ proxy: undefined }),
+      );
+    });
+
+    it('offers the proxy input once Telegram is unreachable and sends the typed proxy on retry', async () => {
+      const onComplete = vi.fn();
+      rejectOnce('TELEGRAM_UNREACHABLE');
+      mockApplyTelegramAssistantOnboarding.mockResolvedValueOnce(connected);
+
+      render(<TelegramAssistantOnboardingStep onComplete={onComplete} onSkip={vi.fn()} />);
+      submitToken();
+
+      const proxyInput = await screen.findByLabelText('telegramProxy');
+      fireEvent.change(proxyInput, { target: { value: '  socks5://127.0.0.1:1080  ' } });
+      fireEvent.click(screen.getByText('setupButton'));
+
+      await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+      expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(2);
+      expect(mockApplyTelegramAssistantOnboarding.mock.calls[1][0]).toEqual(
+        expect.objectContaining({ botToken: '1234567890:VALID_TOKEN', proxy: 'socks5://127.0.0.1:1080' }),
+      );
+    });
+
+    it('sends no proxy when the offered input is left blank', async () => {
+      rejectOnce('TELEGRAM_UNREACHABLE');
+      mockApplyTelegramAssistantOnboarding.mockResolvedValueOnce(connected);
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+      await screen.findByLabelText('telegramProxy');
+      fireEvent.click(screen.getByText('setupButton'));
+
+      await waitFor(() => expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(2));
+      expect(mockApplyTelegramAssistantOnboarding.mock.calls[1][0]).toEqual(
+        expect.objectContaining({ proxy: undefined }),
+      );
+    });
+
+    it('flags a malformed proxy inline and holds the request back', async () => {
+      rejectOnce('TELEGRAM_UNREACHABLE');
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+      fireEvent.change(await screen.findByLabelText('telegramProxy'), { target: { value: '127.0.0.1:1080' } });
+
+      expect(screen.getByText('telegramProxyInvalid')).toBeInTheDocument();
+      expect(screen.getByText('setupButton').closest('button')).toBeDisabled();
+      expect(mockApplyTelegramAssistantOnboarding).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['TELEGRAM_TOKEN_REJECTED', 'TELEGRAM_PROXY_REJECTED'])(
+      'does not offer the proxy input after a %s failure',
+      async (detailCode) => {
+        rejectOnce(detailCode);
+
+        render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+        submitToken();
+
+        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+        expect(screen.queryByLabelText('telegramProxy')).not.toBeInTheDocument();
+      },
+    );
+
+    it('keeps the proxy input out of the sandbox, which has no proxy to set', async () => {
+      deployMode.sandbox = true;
+      rejectOnce('TELEGRAM_UNREACHABLE');
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+
+      await screen.findByText('telegramUnreachableSandboxError');
+      expect(screen.queryByLabelText('telegramProxy')).not.toBeInTheDocument();
+    });
+
+    it('explains a refused proxy address in the user language', async () => {
+      rejectOnce('TELEGRAM_PROXY_REJECTED');
+
+      render(<TelegramAssistantOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+      submitToken();
+
+      expect(await screen.findByText('proxyRejectedError')).toBeInTheDocument();
+      expect(screen.queryByText('English detail from the server')).not.toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith('proxyRejectedError');
+    });
+  });
 });

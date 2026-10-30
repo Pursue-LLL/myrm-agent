@@ -10,6 +10,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { ApiError } from '@/lib/api';
 import { isSandbox } from '@/lib/deploy-mode';
+import { isProxyUrlInvalid } from '@/lib/proxy-url';
 import { applyTelegramAssistantOnboarding, type TelegramAssistantOnboardingResponse } from '@/services/onboarding';
 
 interface TelegramAssistantOnboardingStepProps {
@@ -38,21 +39,34 @@ function isOnboardingConflictError(error: unknown): boolean {
   return error.message.toLowerCase().includes('already in progress');
 }
 
-type VerificationErrorKey = 'tokenRejectedError' | 'telegramUnreachableError' | 'telegramUnreachableSandboxError';
+const TOKEN_REJECTED_CODE = 'TELEGRAM_TOKEN_REJECTED';
+const UNREACHABLE_CODE = 'TELEGRAM_UNREACHABLE';
+const PROXY_REJECTED_CODE = 'TELEGRAM_PROXY_REJECTED';
 
-/**
- * Maps the server's token-check failure code to its localized message; the two call for different user actions.
- * The proxy the unreachable message points to is not offered in sandbox, so that mode gets its own wording.
- */
-function verificationErrorKey(error: unknown, sandbox: boolean): VerificationErrorKey | null {
+type VerificationErrorKey =
+  'tokenRejectedError' | 'telegramUnreachableError' | 'telegramUnreachableSandboxError' | 'proxyRejectedError';
+
+/** The machine-readable code the server attaches to a classified onboarding failure. */
+function failureCode(error: unknown): string | null {
   if (!(error instanceof ApiError)) {
     return null;
   }
-  switch (error.data?.code) {
-    case 'TELEGRAM_TOKEN_REJECTED':
+  const code = error.data?.code;
+  return typeof code === 'string' ? code : null;
+}
+
+/**
+ * Maps the server's failure code to its localized message; each calls for a different user action.
+ * The proxy input the unreachable message points to is not offered in sandbox, so that mode gets its own wording.
+ */
+function verificationErrorKey(code: string | null, sandbox: boolean): VerificationErrorKey | null {
+  switch (code) {
+    case TOKEN_REJECTED_CODE:
       return 'tokenRejectedError';
-    case 'TELEGRAM_UNREACHABLE':
+    case UNREACHABLE_CODE:
       return sandbox ? 'telegramUnreachableSandboxError' : 'telegramUnreachableError';
+    case PROXY_REJECTED_CODE:
+      return 'proxyRejectedError';
     default:
       return null;
   }
@@ -67,10 +81,14 @@ function parseErrorMessage(error: unknown, fallback: string): string {
 
 export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: TelegramAssistantOnboardingStepProps) {
   const t = useTranslations('boot.onboarding.telegramAssistant');
+  const tChannels = useTranslations('channels');
   const sandbox = isSandbox();
 
   const [botToken, setBotToken] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [proxy, setProxy] = useState('');
+  // The proxy only helps when Telegram could not be reached, so the input appears after that failure.
+  const [proxyOffered, setProxyOffered] = useState(false);
   const [assistantName, setAssistantName] = useState('');
   const [assistantDescription, setAssistantDescription] = useState('');
   const [showToken, setShowToken] = useState(false);
@@ -78,7 +96,11 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
   const [error, setError] = useState<string | null>(null);
   const [pendingConnection, setPendingConnection] = useState<PendingConnectionState | null>(null);
 
-  const canSubmit = useMemo(() => botToken.trim().length > 0 && !loading, [botToken, loading]);
+  const proxyInvalid = proxyOffered && isProxyUrlInvalid(proxy);
+  const canSubmit = useMemo(
+    () => botToken.trim().length > 0 && !proxyInvalid && !loading,
+    [botToken, proxyInvalid, loading],
+  );
 
   const handleSubmit = useCallback(async () => {
     const normalizedToken = botToken.trim();
@@ -100,6 +122,7 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
       const payload = {
         botToken: normalizedToken,
         webhookUrl: normalizedWebhook || undefined,
+        proxy: (proxyOffered && proxy.trim()) || undefined,
         assistantName: assistantName.trim() || t('defaultAssistantName'),
         assistantDescription: assistantDescription.trim() || undefined,
       };
@@ -145,14 +168,18 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
       );
       onComplete();
     } catch (submitError) {
-      const messageKey = verificationErrorKey(submitError, sandbox);
+      const code = failureCode(submitError);
+      if (code === UNREACHABLE_CODE && !sandbox) {
+        setProxyOffered(true);
+      }
+      const messageKey = verificationErrorKey(code, sandbox);
       const message = messageKey ? t(messageKey) : parseErrorMessage(submitError, t('setupFailed'));
       setError(message);
       toast.error(messageKey ? message : t('setupFailedToast'));
     } finally {
       setLoading(false);
     }
-  }, [assistantDescription, assistantName, botToken, onComplete, sandbox, t, webhookUrl]);
+  }, [assistantDescription, assistantName, botToken, onComplete, proxy, proxyOffered, sandbox, t, webhookUrl]);
 
   return (
     <div className="space-y-6" data-testid="telegram-onboarding-step">
@@ -230,6 +257,24 @@ export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: 
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {proxyOffered ? (
+        <div
+          className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-4"
+          data-testid="telegram-onboarding-proxy"
+        >
+          <Label htmlFor="onboarding-telegram-proxy">{tChannels('telegramProxy')}</Label>
+          <Input
+            id="onboarding-telegram-proxy"
+            value={proxy}
+            onChange={(event) => setProxy(event.target.value)}
+            placeholder="socks5://127.0.0.1:1080"
+            aria-invalid={proxyInvalid}
+            autoComplete="off"
+          />
+          <p className="text-xs text-muted-foreground">{tChannels('telegramProxyHint')}</p>
+          {proxyInvalid ? <p className="text-xs text-destructive">{tChannels('telegramProxyInvalid')}</p> : null}
+        </div>
+      ) : null}
       {pendingConnection ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
           <p className="font-medium text-amber-800 dark:text-amber-200">{t('pendingTitle')}</p>

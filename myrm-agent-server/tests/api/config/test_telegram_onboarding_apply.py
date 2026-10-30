@@ -171,6 +171,100 @@ def test_apply_telegram_onboarding_tells_a_refused_token_from_an_unreachable_bot
         app.router.lifespan_context = original_lifespan
 
 
+def test_apply_telegram_onboarding_checks_the_token_through_the_proxy_the_user_typed_and_saves_it() -> None:
+    original_lifespan = app.router.lifespan_context
+    app.router.lifespan_context = _noop_lifespan
+    verify_token = AsyncMock(return_value="myrm_bot")
+    try:
+        with (
+            patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
+            patch("app.api.config.router._verify_telegram_token", new=verify_token),
+            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
+            patch("app.api.config.router._wait_for_telegram_channel_state", new=AsyncMock(return_value=(True, "running"))),
+            patch("app.core.channel_bridge.setup.refresh_reaction_policy", new=AsyncMock()),
+            patch("app.core.channel_bridge.topic_config.SqlTopicManager.bind_topic", new=AsyncMock()),
+            patch("app.services.agent.agent_service.AgentService.get_agents_by_name", new=AsyncMock(return_value=[])),
+            patch(
+                "app.services.agent.agent_service.AgentService.create_agent",
+                new=AsyncMock(return_value=SimpleNamespace(id="agent-proxy-1", display_name="Proxy Assistant")),
+            ),
+            TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False) as client,
+        ):
+            _put_config(client, "telegramCredentials", {"botToken": "old-token", "proxy": "http://127.0.0.1:7890"})
+
+            response = client.post(
+                "/api/v1/config/onboarding/telegram-assistant/apply",
+                json={
+                    "botToken": "1234567890:VALID_TOKEN",
+                    "assistantName": "Proxy Assistant",
+                    "proxy": " socks://127.0.0.1:1080 ",
+                },
+            )
+
+            assert response.status_code == 200
+            verify_token.assert_awaited_once_with("1234567890:VALID_TOKEN", "socks5://127.0.0.1:1080")
+            assert _get_config_value(client, "telegramCredentials")["proxy"] == "socks5://127.0.0.1:1080"
+    finally:
+        app.router.lifespan_context = original_lifespan
+
+
+@pytest.mark.parametrize("proxy", ["ftp://127.0.0.1:21", "http://169.254.169.254:80"])
+def test_apply_telegram_onboarding_refuses_an_unusable_proxy_before_any_request(proxy: str) -> None:
+    original_lifespan = app.router.lifespan_context
+    app.router.lifespan_context = _noop_lifespan
+    verify_token = AsyncMock(return_value="myrm_bot")
+    try:
+        with (
+            patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
+            patch("app.api.config.router._verify_telegram_token", new=verify_token),
+            patch("app.services.agent.agent_service.AgentService.create_agent", new=AsyncMock()) as create_agent_mock,
+            TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False) as client,
+        ):
+            response = client.post(
+                "/api/v1/config/onboarding/telegram-assistant/apply",
+                json={"botToken": "1234567890:SOME_TOKEN", "assistantName": "Assistant", "proxy": proxy},
+            )
+
+            assert response.status_code == 422
+            assert response.json()["detail"]["code"] == "TELEGRAM_PROXY_REJECTED"
+            verify_token.assert_not_awaited()
+            create_agent_mock.assert_not_awaited()
+    finally:
+        app.router.lifespan_context = original_lifespan
+
+
+def test_apply_telegram_onboarding_keeps_the_saved_proxy_when_the_token_check_through_a_new_one_fails() -> None:
+    original_lifespan = app.router.lifespan_context
+    app.router.lifespan_context = _noop_lifespan
+    verify_token = AsyncMock(side_effect=httpx.ConnectError("All connection attempts failed"))
+    try:
+        with (
+            patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
+            patch("app.api.config.router._verify_telegram_token", new=verify_token),
+            patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
+            TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False) as client,
+        ):
+            _put_config(client, "telegramCredentials", {"botToken": "old-token", "proxy": "http://127.0.0.1:7890"})
+
+            response = client.post(
+                "/api/v1/config/onboarding/telegram-assistant/apply",
+                json={
+                    "botToken": "1234567890:SOME_TOKEN",
+                    "assistantName": "Assistant",
+                    "proxy": "http://127.0.0.1:8080",
+                },
+            )
+
+            assert response.status_code == 400
+            assert response.json()["detail"]["code"] == "TELEGRAM_UNREACHABLE"
+            verify_token.assert_awaited_once_with("1234567890:SOME_TOKEN", "http://127.0.0.1:8080")
+            saved = _get_config_value(client, "telegramCredentials")
+            assert saved["botToken"] == "old-token"
+            assert saved["proxy"] == "http://127.0.0.1:7890"
+    finally:
+        app.router.lifespan_context = original_lifespan
+
+
 def test_telegram_verification_failure_log_does_not_carry_the_bot_token(caplog: pytest.LogCaptureFixture) -> None:
     token = "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ0123456789"
     failure = httpx.ConnectError(f"connection failed for https://api.telegram.org/bot{token}/getMe")

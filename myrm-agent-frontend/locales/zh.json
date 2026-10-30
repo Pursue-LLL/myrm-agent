@@ -12317,8 +12317,9 @@
         "retryingToast": "检测到配置正在处理中，正在自动重试...",
         "inProgressFriendlyError": "配置仍在处理中，请稍后再试。",
         "tokenRejectedError": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
-        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或先跳过，稍后在 设置 → 消息通道 中为 Telegram 配置代理。",
+        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或在下方填写代理后重试，也可以先跳过。",
         "telegramUnreachableSandboxError": "暂时无法连接 Telegram。请稍后重试，或先跳过。",
+        "proxyRejectedError": "该代理地址无法使用。请填写本机或局域网内代理的地址，例如 socks5://127.0.0.1:1080。",
         "setupFailed": "Telegram 助手配置失败。",
         "setupFailedToast": "配置失败，请检查凭据后重试。",
         "successToast": "Telegram 助手已就绪：{agentName}"

@@ -12317,8 +12317,9 @@
         "retryingToast": "Another setup request is finishing. Retrying now...",
         "inProgressFriendlyError": "Setup is still in progress. Please wait a few seconds and try again.",
         "tokenRejectedError": "Telegram did not accept this bot token. Copy the full token again from @BotFather.",
-        "telegramUnreachableError": "Could not reach Telegram from this device. Check your network, or skip for now and set a proxy for Telegram in Settings → Channels.",
+        "telegramUnreachableError": "Could not reach Telegram from this device. Check your network, or enter a proxy below and try again. You can also skip for now.",
         "telegramUnreachableSandboxError": "Could not reach Telegram right now. Try again in a moment, or skip for now.",
+        "proxyRejectedError": "That proxy address cannot be used. Use the address of a proxy on this computer or your local network, for example socks5://127.0.0.1:1080.",
         "setupFailed": "Failed to set up Telegram assistant.",
         "setupFailedToast": "Telegram setup failed. Please check your credentials and retry.",
         "successToast": "Telegram assistant is ready: {agentName}"

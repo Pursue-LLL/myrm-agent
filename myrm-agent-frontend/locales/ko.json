@@ -12317,8 +12317,9 @@
         "retryingToast": "다른 설정 요청이 마무리되는 중입니다. 지금 재시도합니다...",
         "inProgressFriendlyError": "설정이 아직 진행 중입니다. 몇 초 기다린 후 다시 시도하세요.",
         "tokenRejectedError": "Telegram이 이 봇 토큰을 받아들이지 않았습니다. @BotFather에서 토큰 전체를 다시 복사하세요.",
-        "telegramUnreachableError": "이 기기에서 Telegram에 연결할 수 없습니다. 네트워크를 확인하거나 먼저 건너뛴 뒤 설정 → 채널에서 Telegram 프록시를 설정하세요.",
+        "telegramUnreachableError": "이 기기에서 Telegram에 연결할 수 없습니다. 네트워크를 확인하거나 아래에 프록시를 입력한 뒤 다시 시도하세요. 먼저 건너뛰어도 됩니다.",
         "telegramUnreachableSandboxError": "지금은 Telegram에 연결할 수 없습니다. 잠시 후 다시 시도하거나 먼저 건너뛰세요.",
+        "proxyRejectedError": "이 프록시 주소는 사용할 수 없습니다. 이 컴퓨터 또는 로컬 네트워크에 있는 프록시 주소를 입력하세요 (예: socks5://127.0.0.1:1080).",
         "setupFailed": "텔레그램 어시스턴트 설정에 실패했습니다.",
         "setupFailedToast": "텔레그램 설정에 실패했습니다. 자격 증명을 확인하고 다시 시도하세요.",
         "successToast": "텔레그램 어시스턴트 준비 완료: {agentName}"

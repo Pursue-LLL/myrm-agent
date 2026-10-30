@@ -12317,8 +12317,9 @@
         "retryingToast": "別のセットアップリクエストが完了中です。今すぐ再試行します…",
         "inProgressFriendlyError": "セットアップはまだ進行中です。数秒待ってからもう一度お試しください。",
         "tokenRejectedError": "Telegram がこのボットトークンを受け付けませんでした。@BotFather からトークン全体をコピーし直してください。",
-        "telegramUnreachableError": "このデバイスから Telegram に接続できません。ネットワークを確認するか、いったんスキップして 設定 → メッセージチャネル で Telegram のプロキシを設定してください。",
+        "telegramUnreachableError": "このデバイスから Telegram に接続できません。ネットワークを確認するか、下の欄にプロキシを入力して再試行してください。いったんスキップすることもできます。",
         "telegramUnreachableSandboxError": "現在 Telegram に接続できません。しばらくしてから再試行するか、いったんスキップしてください。",
+        "proxyRejectedError": "このプロキシ URL は使用できません。このコンピューターまたはローカルネットワーク内のプロキシの URL を入力してください（例: socks5://127.0.0.1:1080）。",
         "setupFailed": "Telegramアシスタントのセットアップに失敗しました。",
         "setupFailedToast": "Telegramのセットアップに失敗しました。資格情報を確認して再試行してください。",
         "successToast": "Telegramアシスタントの準備ができました: {agentName}"

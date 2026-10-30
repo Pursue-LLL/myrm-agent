@@ -16,6 +16,7 @@ import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
 import { isSandbox } from '@/lib/deploy-mode';
+import { isProxyUrlInvalid } from '@/lib/proxy-url';
 import type { BotCommand, TelegramCredentials } from '@/services/channels';
 import { getTelegramCredentials, saveTelegramCredentials, testTelegramConnection } from '@/services/channels';
 import { ConnectionBadge } from './ConnectionBadge';
@@ -33,7 +34,6 @@ const EMPTY_CREDS: TelegramCredentials = {
   guestMode: false,
 };
 const CMD_PATTERN = /^[a-z0-9_]{1,32}$/;
-const PROXY_PATTERN = /^(https?|socks5h?):\/\/\S+$/i;
 
 function validateCommand(cmd: BotCommand): { command?: string; description?: string } {
   const errors: { command?: string; description?: string } = {};
@@ -44,11 +44,6 @@ function validateCommand(cmd: BotCommand): { command?: string; description?: str
     errors.description = 'telegramCommandDescRequired';
   }
   return errors;
-}
-
-function isProxyInvalid(proxy: string | undefined): boolean {
-  const value = proxy?.trim() ?? '';
-  return value !== '' && !PROXY_PATTERN.test(value);
 }
 
 export function TelegramConfigCard() {
@@ -72,7 +67,7 @@ export function TelegramConfigCard() {
   const commandErrors = useMemo(() => commands.map(validateCommand), [commands]);
 
   const hasCommandErrors = useMemo(() => commandErrors.some((e) => e.command || e.description), [commandErrors]);
-  const proxyInvalid = !sandbox && isProxyInvalid(creds.proxy);
+  const proxyInvalid = !sandbox && isProxyUrlInvalid(creds.proxy);
 
   const addCommand = useCallback(() => {
     handleChange('commands', [...commands, { command: '', description: '' }]);

@@ -26,6 +26,8 @@ export async function completeOnboarding(): Promise<{ success: boolean; message:
 export interface TelegramAssistantOnboardingRequest {
   botToken: string;
   webhookUrl?: string;
+  /** Forward proxy for Telegram traffic; omitted keeps the proxy already saved. */
+  proxy?: string;
   assistantName?: string;
   assistantDescription?: string;
   assistantSystemPrompt?: string;

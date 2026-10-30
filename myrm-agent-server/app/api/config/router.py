@@ -80,7 +80,12 @@ class TelegramAssistantOnboardingRequest(BaseModel):
     """Zero-code Telegram assistant onboarding request payload."""
 
     bot_token: str = Field(..., alias="botToken", min_length=10, max_length=256)
-    webhook_url: str | None = Field(None, alias="webhookUrl", max_length=2048)
+    webhook_url: str | None = Field(default=None, alias="webhookUrl", max_length=2048)
+    proxy: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Forward proxy for Telegram traffic; blank keeps the proxy already saved",
+    )
     assistant_name: str = Field(
         default="Personal Telegram Assistant",
         alias="assistantName",
@@ -209,6 +214,7 @@ def _assert_webhook_url_valid(raw: str) -> None:
 def _build_telegram_credentials(
     previous: dict[str, object] | None,
     request: TelegramAssistantOnboardingRequest,
+    proxy: str | None,
 ) -> dict[str, object]:
     merged = deepcopy(previous) if previous is not None else {}
     merged["botToken"] = request.bot_token.strip()
@@ -220,6 +226,11 @@ def _build_telegram_credentials(
         merged["webhookUrl"] = webhook_url
     else:
         merged["webhookUrl"] = ""
+
+    if proxy:
+        merged["proxy"] = proxy
+    else:
+        merged.pop("proxy", None)
 
     auto_topic = merged.get("autoTopic")
     merged["autoTopic"] = bool(auto_topic) if isinstance(auto_topic, bool) else True
@@ -255,6 +266,19 @@ def _stored_telegram_proxy(credentials: dict[str, object] | None) -> str | None:
     """The forward proxy saved with the Telegram credentials, if any."""
     proxy = credentials.get("proxy") if credentials else None
     return (proxy.strip() or None) if isinstance(proxy, str) else None
+
+
+def _resolve_telegram_proxy(requested: str | None, credentials: dict[str, object] | None) -> str | None:
+    """The proxy for this onboarding run: a typed one (validated, canonical scheme) wins; a blank one keeps the saved one."""
+    from myrm_agent_harness.toolkits.llms.utils.proxy import normalize_proxy_url, validate_proxy_url
+
+    typed = normalize_proxy_url(requested)
+    if typed is None:
+        return _stored_telegram_proxy(credentials)
+    is_valid, reason = validate_proxy_url(typed)
+    if not is_valid:
+        raise HTTPException(status_code=422, detail={"code": "TELEGRAM_PROXY_REJECTED", "message": reason or "Invalid proxy URL"})
+    return typed
 
 
 async def _verify_telegram_token(bot_token: str, proxy: str | None) -> str:
@@ -715,8 +739,9 @@ async def apply_telegram_assistant_onboarding(
         telegram_topics=deepcopy(previous_topics.value) if previous_topics else None,
     )
 
+    proxy = _resolve_telegram_proxy(body.proxy, snapshot.telegram_credentials)
     try:
-        bot_username = await _verify_telegram_token(bot_token, _stored_telegram_proxy(snapshot.telegram_credentials))
+        bot_username = await _verify_telegram_token(bot_token, proxy)
     except Exception as exc:
         raise _telegram_verification_error(exc) from exc
 
@@ -724,7 +749,7 @@ async def apply_telegram_assistant_onboarding(
     try:
         agent_id, agent_name, created_agent_id = await _resolve_or_create_telegram_agent(body)
 
-        telegram_credentials = _build_telegram_credentials(snapshot.telegram_credentials, body)
+        telegram_credentials = _build_telegram_credentials(snapshot.telegram_credentials, body, proxy)
         await config_service.set(
             config_key="telegramCredentials",
             value=telegram_credentials,
