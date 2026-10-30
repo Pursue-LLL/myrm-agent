@@ -197,6 +197,10 @@ class StreamContentCollector:
         """
         self._completion_status = "error"
 
+    def mark_stream_completion_cancelled(self) -> None:
+        """Mark the persisted turn as cancelled when the stream task is cancelled before ``message_end``."""
+        self._completion_status = "cancelled"
+
     def cleanup(self) -> None:
         """Remove from active collectors registry."""
         if self._chat_id and ACTIVE_COLLECTORS.get(self._chat_id) is self:

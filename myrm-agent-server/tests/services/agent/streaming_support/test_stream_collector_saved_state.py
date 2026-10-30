@@ -117,3 +117,11 @@ def test_a_stream_that_dies_without_ending_is_saved_as_errored() -> None:
     collector.mark_stream_completion_error()
 
     assert _saved(collector)["completionStatus"] == "error"
+
+
+def test_a_stream_task_cancelled_before_it_ends_is_saved_as_cancelled() -> None:
+    collector = StreamContentCollector()
+
+    collector.mark_stream_completion_cancelled()
+
+    assert _saved(collector)["completionStatus"] == "cancelled"

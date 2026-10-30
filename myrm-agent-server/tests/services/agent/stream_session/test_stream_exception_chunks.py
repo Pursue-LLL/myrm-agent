@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Callable
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -288,38 +290,76 @@ class TestExceptionChunkBranches:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("exc", "fatal"),
+        ("make_exc", "fatal", "records_terminal"),
         [
-            (AgentQueueTimeout("queue full", reason="user_limit", active_sessions=[]), True),
-            (AgentExecutionTimeout("slow"), True),
-            (RuntimeError("unexpected"), True),
-            (ValueError("not a resume failure"), False),
-            (AgentDrainingError("draining"), False),
-            (AgentBusyError("busy"), False),
+            pytest.param(lambda: ValueError("Resume failed: gone"), True, True, id="resume-failed"),
+            pytest.param(lambda: ValueError("not a resume failure"), False, True, id="plain-value-error"),
+            pytest.param(
+                lambda: AgentQueueTimeout("queue full", reason="user_limit", active_sessions=[]),
+                True,
+                True,
+                id="queue-timeout",
+            ),
+            pytest.param(lambda: AgentDrainingError("draining"), False, True, id="draining"),
+            pytest.param(lambda: AgentExecutionTimeout("slow"), True, True, id="execution-timeout"),
+            pytest.param(asyncio.CancelledError, False, True, id="cancelled"),
+            pytest.param(lambda: AgentBusyError("busy"), False, False, id="busy"),
+            pytest.param(
+                lambda: ConfigIncompleteError(
+                    user_friendly_message={"en": "Model is not configured."},
+                    technical_details="missing model config",
+                    resolution_steps=["open settings"],
+                    error_code="model_not_configured",
+                ),
+                True,
+                True,
+                id="config-incomplete",
+            ),
+            pytest.param(
+                lambda: MyrmLLMError(error_code=FailoverReason.MODEL_NOT_FOUND, default_msg="Model does not exist"),
+                True,
+                True,
+                id="llm-error",
+            ),
+            pytest.param(lambda: RuntimeError("unexpected"), True, True, id="unexpected"),
         ],
-        ids=["queue-timeout", "execution-timeout", "unexpected", "plain-value-error", "draining", "busy"],
     )
-    async def test_only_fatal_errors_mark_the_turn_and_its_collector(self, exc: BaseException, fatal: bool) -> None:
+    async def test_each_error_marks_the_turn_and_records_the_failed_terminal_state_as_designed(
+        self,
+        make_exc: Callable[[], BaseException],
+        fatal: bool,
+        records_terminal: bool,
+    ) -> None:
+        """Fatal errors mark the turn and its collector; every error but a busy refusal records the failed terminal state."""
         session = _make_session()
-        await self._chunks(exc, session=session)
-        assert session.had_fatal_error is fatal
-        collector = cast(MagicMock, session.collector)
-        assert collector.mark_stream_completion_error.call_count == (1 if fatal else 0)
-
-    @pytest.mark.asyncio
-    async def test_agent_draining_error_records_the_failed_capability_terminal(self) -> None:
-        session = _make_session()
+        session.cancel_token = MagicMock()
         session.request.turn_capability_telemetry = TurnCapabilityTelemetryRequest(
             source="direct", effective_skill_count=1, effective_mcp_count=0
         )
-        with patch(
-            "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_failed",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as record_failed:
-            await self._chunks(AgentDrainingError("draining"), session=session)
-        record_failed.assert_awaited_once()
-        assert session.turn_capability_terminal_recorded is True
+        with (
+            patch(
+                "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_failed",
+                new_callable=AsyncMock,
+                return_value=True,
+            ) as record_failed,
+            patch("app.core.errors.llm_errors.generate_recovery_actions", return_value=[]),
+        ):
+            await self._chunks(make_exc(), session=session)
+        assert session.had_fatal_error is fatal
+        assert cast(MagicMock, session.collector).mark_stream_completion_error.call_count == (1 if fatal else 0)
+        assert record_failed.await_count == (1 if records_terminal else 0)
+        assert session.turn_capability_terminal_recorded is records_terminal
+
+    @pytest.mark.asyncio
+    async def test_a_cancelled_task_marks_the_collector_cancelled_and_other_errors_do_not(self) -> None:
+        cancelled = _make_session()
+        cancelled.cancel_token = MagicMock()
+        await self._chunks(asyncio.CancelledError(), session=cancelled)
+        cast(MagicMock, cancelled.collector).mark_stream_completion_cancelled.assert_called_once_with()
+
+        errored = _make_session()
+        await self._chunks(RuntimeError("unexpected"), session=errored)
+        cast(MagicMock, errored.collector).mark_stream_completion_cancelled.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_turn_capability_failed_recorded_once(self) -> None:
