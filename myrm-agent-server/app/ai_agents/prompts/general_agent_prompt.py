@@ -6,6 +6,7 @@ myrm_agent_harness.utils.locale::is_chinese (POS: 语言检测工具)
 
 [OUTPUT]
 get_core_system_prompt(mode, ...): 按模式与语言返回核心 System Prompt（默认英文）
+coerce_prompt_mode: 将存储的 prompt_mode 字符串收窄为已知模式（未知值回落 full）
 CORE_SYSTEM_PROMPT: 默认 full 模式预构建常量
 get_citation_rules_if_needed: 条件返回引用规则
 
@@ -42,6 +43,16 @@ from app.ai_agents.prompts.shared_rules import (
 )
 
 PromptMode = Literal["full", "lean", "naked", "search"]
+
+
+def coerce_prompt_mode(value: str) -> PromptMode:
+    """Narrow a stored (free-form) prompt mode to a known mode; unknown values mean "full"."""
+    match value:
+        case "lean" | "naked" | "search":
+            return value
+        case _:
+            return "full"
+
 
 # =============================================================================
 # Search mode prompt 常量

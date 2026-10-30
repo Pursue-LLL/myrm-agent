@@ -19,14 +19,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 
+    from app.core.types import MCPServerConfig
+
 logger = logging.getLogger(__name__)
 
 
-async def prepare_mcp_configs_for_runtime(
+async def prepare_mcp_configs_for_runtime[Config: (MCPConfig, MCPServerConfig)](
     agent_id: str | None,
-    configs: list[MCPConfig],
-) -> list[MCPConfig]:
-    """Inject agent secrets and OAuth providers into MCP configs before routing."""
+    configs: list[Config],
+) -> list[Config]:
+    """Inject agent secrets and OAuth providers into MCP configs before routing.
+
+    Accepts harness ``MCPConfig`` or the business-layer ``MCPServerConfig`` and returns the same type.
+    """
     if not agent_id or not configs:
         return list(configs)
 
@@ -43,7 +48,7 @@ async def prepare_mcp_configs_for_runtime(
         if global_env:
             logger.info("Loaded %d secrets for agent %s MCP runtime prepare", len(global_env), agent_id)
 
-        prepared: list[MCPConfig] = []
+        prepared: list[Config] = []
         for cfg in configs:
             if cfg.type == "stdio":
                 ep_raw = cfg.extra_params or {}

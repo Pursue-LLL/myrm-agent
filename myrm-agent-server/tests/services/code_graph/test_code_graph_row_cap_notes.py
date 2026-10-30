@@ -56,8 +56,8 @@ def _populate(root: Path) -> None:
     _write(root, "imp/sub.py", "import pkg.sub\n")
 
 
-async def _ask(root: Path, action: str, target: str) -> dict[str, object]:
-    result = await create_code_graph_tool(root).ainvoke({"action": action, "target": target})
+async def _ask(root: Path, action: str, query: str) -> dict[str, object]:
+    result = await create_code_graph_tool(root).ainvoke({"action": action, "query": query})
     return cast(dict[str, object], json.loads(str(result["content"])))
 
 
@@ -102,7 +102,7 @@ async def test_a_longer_name_brings_resolve_and_importers_under_the_cap(
 
 
 @pytest.mark.parametrize(
-    ("action", "target", "matches"),
+    ("action", "query", "matches"),
     [
         ("callers", "target", 2 * _OVER_CAP),
         ("tests_calling", "target", _OVER_CAP),
@@ -113,18 +113,18 @@ async def test_a_longer_name_brings_resolve_and_importers_under_the_cap(
     ],
 )
 async def test_total_counts_every_match_and_not_only_the_rows_shown(
-    workspace: Path, action: str, target: str, matches: int
+    workspace: Path, action: str, query: str, matches: int
 ) -> None:
     _populate(workspace)
 
-    answer = await _ask(workspace, action, target)
+    answer = await _ask(workspace, action, query)
 
     assert _total(answer) == matches
     assert len(cast(list[object], answer["rows"])) == MAX_ROWS
 
 
 @pytest.mark.parametrize(
-    ("action", "target", "hint"),
+    ("action", "query", "hint"),
     [
         ("callers", "target", "returns the same rows"),
         ("tests_calling", "target", "returns the same rows"),
@@ -135,11 +135,11 @@ async def test_total_counts_every_match_and_not_only_the_rows_shown(
     ],
 )
 async def test_the_row_cap_note_carries_the_hint_that_is_true_for_that_action(
-    workspace: Path, action: str, target: str, hint: str
+    workspace: Path, action: str, query: str, hint: str
 ) -> None:
     _populate(workspace)
 
-    answer = await _ask(workspace, action, target)
+    answer = await _ask(workspace, action, query)
 
     assert _total(answer) > MAX_ROWS
     cut_notes = [note for note in cast(list[str], answer["notes"]) if note.startswith(_CUT_NOTE)]

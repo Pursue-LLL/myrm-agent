@@ -23,7 +23,7 @@ class SubagentManagementExtension(AgentExtension):
 
     def __init__(
         self,
-        jit_subagents: dict[str, object],
+        jit_subagents: dict[str, object] | None,
         subagent_ids: list[str],
         *,
         incognito_mode: bool = False,

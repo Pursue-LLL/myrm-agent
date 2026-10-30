@@ -110,7 +110,7 @@ def create_safety_dispatcher() -> AgentMiddleware[Any, Any, Any]:
 
             result = await handler(request)
 
-            if hasattr(result, "status") and result.status == "error" and batch_id:
+            if getattr(result, "status", None) == "error" and batch_id:
                 batch_failures[batch_id] = time.time()
 
             return result

@@ -90,8 +90,8 @@ def workspace(tmp_path: Path, persistent: Path) -> Path:
     return root
 
 
-async def _ask(tool: BaseTool, action: str, target: str) -> Answer:
-    result = await tool.ainvoke({"action": action, "target": target})
+async def _ask(tool: BaseTool, action: str, query: str) -> Answer:
+    result = await tool.ainvoke({"action": action, "query": query})
     content = str(result["content"])
     try:
         body = json.loads(content)
@@ -269,7 +269,7 @@ async def test_a_cut_file_listing_is_reported_so_a_missing_result_is_not_taken_f
     assert any("more files" in note and "grep" in note for note in cut.notes)
 
 
-async def test_a_target_with_no_match_says_what_to_try_next(workspace: Path) -> None:
+async def test_a_query_with_no_match_says_what_to_try_next(workspace: Path) -> None:
     _write(workspace, "m.py", "def present():\n    return 1\n")
     tool = create_code_graph_tool(workspace)
 
@@ -301,12 +301,12 @@ async def test_typescript_callers_name_the_enclosing_function_without_an_attribu
     assert answer.notes == []
 
 
-async def test_blank_target_is_rejected_before_anything_is_indexed(workspace: Path, persistent: Path) -> None:
+async def test_blank_query_is_rejected_before_anything_is_indexed(workspace: Path, persistent: Path) -> None:
     tool = create_code_graph_tool(workspace)
 
     answer = await _ask(tool, "callers", "   ")
 
-    assert answer.body == {"text": "target is required."}
+    assert answer.body == {"text": "query is required."}
     assert answer.metadata["error"] is True
     assert not persistent.exists()
 

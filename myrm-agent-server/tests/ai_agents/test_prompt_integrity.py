@@ -10,6 +10,7 @@ from myrm_agent_harness.core.security.detection.content_boundary import SECURITY
 
 from app.ai_agents.prompts.general_agent_prompt import (
     CORE_SYSTEM_PROMPT,
+    coerce_prompt_mode,
     get_citation_rules_if_needed,
     get_core_system_prompt,
 )
@@ -258,7 +259,7 @@ class TestDesktopControlRules:
             DESKTOP_CONTROL_RULES_ZH,
         )
 
-        assert 'printable operators' in DESKTOP_CONTROL_RULES_EN
+        assert "printable operators" in DESKTOP_CONTROL_RULES_EN
         assert '"*"' in DESKTOP_CONTROL_RULES_EN
         assert '"/"' in DESKTOP_CONTROL_RULES_EN
         assert '"+"' in DESKTOP_CONTROL_RULES_EN
@@ -322,3 +323,16 @@ class TestPromptBilingualSupport:
         assert get_core_system_prompt(locale="en") is get_core_system_prompt(locale="en")
         assert get_core_system_prompt(locale="zh-CN") is get_core_system_prompt(locale="zh")
         assert get_core_system_prompt(locale="en") is not get_core_system_prompt(locale="zh-CN")
+
+
+class TestCoercePromptMode:
+    """Stored prompt modes are free-form strings; only known modes select a non-full prompt."""
+
+    @pytest.mark.parametrize("mode", ["full", "lean", "naked", "search"])
+    def test_known_modes_are_kept(self, mode: str) -> None:
+        assert coerce_prompt_mode(mode) == mode
+
+    @pytest.mark.parametrize("mode", ["", "FULL", "legacy", "naked "])
+    def test_unknown_modes_fall_back_to_full(self, mode: str) -> None:
+        assert coerce_prompt_mode(mode) == "full"
+        assert get_core_system_prompt(coerce_prompt_mode(mode)) is get_core_system_prompt("full")

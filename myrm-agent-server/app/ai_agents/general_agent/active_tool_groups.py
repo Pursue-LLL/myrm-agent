@@ -16,7 +16,7 @@ Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed t
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+from dataclasses import dataclass
 from typing import Protocol
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
@@ -36,9 +36,16 @@ class ActiveToolGroupSource(Protocol):
     enable_structured_clarify: bool
     enable_external_cli: bool
     enable_cron_eager: bool
-    image_generation_params: object | None
-    video_generation_params: object | None
-    tts_params: object | None
+
+    # Read-only so that a source may declare a narrower concrete params type.
+    @property
+    def image_generation_params(self) -> object | None: ...
+
+    @property
+    def video_generation_params(self) -> object | None: ...
+
+    @property
+    def tts_params(self) -> object | None: ...
 
 
 ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
@@ -88,9 +95,31 @@ def derive_active_tool_groups(
     return [group for group, enabled in flag_to_group if enabled]
 
 
+@dataclass(slots=True)
+class _ParamsToolGroupSource:
+    """``ActiveToolGroupSource`` view over ``GeneralAgentParams`` entitlement flags."""
+
+    enable_web_search: bool
+    enable_browser: bool
+    file_access_mode: FileAccessMode
+    enable_shell_tools: bool
+    enable_computer_use: bool
+    enable_memory: bool
+    incognito_mode: bool
+    enable_kanban: bool
+    enable_wiki: bool
+    enable_answer_tool: bool
+    enable_structured_clarify: bool
+    enable_external_cli: bool
+    enable_cron_eager: bool
+    image_generation_params: object | None
+    video_generation_params: object | None
+    tts_params: object | None
+
+
 def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
     """Map ``GeneralAgentParams`` entitlement flags to harness group names for gap preflight."""
-    adapter = SimpleNamespace(
+    adapter = _ParamsToolGroupSource(
         enable_web_search=bool(getattr(params, "enable_web_search", False)),
         enable_browser=bool(getattr(params, "enable_browser", False)),
         file_access_mode=getattr(params, "file_access_mode", FileAccessMode.FULL),

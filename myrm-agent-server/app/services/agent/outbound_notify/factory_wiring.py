@@ -13,15 +13,10 @@ Single SSOT for factory.py and integration tests — avoids duplicated wiring lo
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from langchain_core.tools import BaseTool
-
 
 def append_channel_notify_tool(
     notify_targets: tuple[dict[str, str], ...],
-    tools: list[BaseTool],
+    tools: list[object],
     *,
     allowed_roots: tuple[str, ...] = (),
     is_readonly: bool = False,

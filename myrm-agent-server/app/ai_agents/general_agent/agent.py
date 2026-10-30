@@ -4,6 +4,7 @@
 - tool_setup::ToolSetupMixin (POS: 工具初始化混入)
 - compression_intent (POS: 压缩意图构建)
 - llm_factory (POS: LLM 实例创建工厂)
+- wiki_search::build_wiki_bm25_search_fn (POS: 注入 Wiki 查询引擎的 BM25 检索后端)
 - core.memory.adapters.setup (POS: 记忆系统适配器)
 - app.services.agent.params.workspace_resolve::chat_session_id (POS: the session key of a chat's agent runs)
 
@@ -18,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
+from collections.abc import AsyncGenerator, Collection, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+    from myrm_agent_harness.toolkits.wiki import SemanticSearchFn
     from myrm_agent_harness.utils import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
@@ -284,7 +286,8 @@ class GeneralAgent(ToolSetupMixin):
         self.tail_budget_ratio = tail_budget_ratio
         self.approval_session_key: str | None = None
         self.agent: SkillAgent | None = None
-        self._lite_llm: BaseChatModel | object | None = None
+        self._lite_llm: BaseChatModel | None = None
+        self._task_user_id = "default"
         self._browser_session: BrowserSession | None = None
         self._desktop_session: object | None = None
         self._executor: CodeExecutor | None = None
@@ -300,13 +303,13 @@ class GeneralAgent(ToolSetupMixin):
         self.notify_targets = notify_targets
         self.moa_overlay_skip_reason: str | None = None
 
-    def _resolve_wiki_base_dir(self) -> str | None:
+    def _resolve_wiki_base_dir(self) -> str:
         """Resolve writable wiki base directory for this agent."""
         from app.services.wiki.vault import resolve_agent_wiki_vault_path
 
         return str(resolve_agent_wiki_vault_path(self.agent_id))
 
-    def _resolve_wiki_public_dirs(self) -> list[str]:
+    def _resolve_wiki_public_dirs(self) -> list[Path | str]:
         """Resolve shared read-only wiki vaults bound to this agent."""
         from app.services.wiki.vault import resolve_shared_wiki_vault_paths
 
@@ -322,39 +325,11 @@ class GeneralAgent(ToolSetupMixin):
             context_name_map=context_name_map or None,
         )
 
-    def _build_wiki_search_fn(
-        self,
-    ) -> Callable[[str, list[Path]], Coroutine[None, None, list[tuple[Path, float]]]]:
-        """Build BM25 search function for wiki query engine.
+    def _build_wiki_search_fn(self) -> SemanticSearchFn:
+        """Build the BM25 search backend for the wiki query engine."""
+        from .wiki_search import build_wiki_bm25_search_fn
 
-        Returns path for wiki storage.
-        BM25 provides significantly better relevance than simple keyword overlap
-        via TF-IDF weighting and document length normalization.
-        """
-        from myrm_agent_harness.toolkits.retriever.bm25_retrieval import bm25_retrieval
-
-        async def _wiki_bm25_search(
-            query: str,
-            concept_paths: list[Path],
-        ) -> list[tuple[Path, float]]:
-            """BM25 search over wiki concept files."""
-            docs: list[tuple[Path, str]] = []
-            for p in concept_paths:
-                try:
-                    docs.append((p, p.read_text(encoding="utf-8")))
-                except Exception:
-                    continue
-
-            if not docs:
-                return []
-
-            texts = [content for _, content in docs]
-            paths = [path for path, _ in docs]
-
-            scored = bm25_retrieval(texts, query, top_k=len(texts), only_relevant=True)
-            return [(paths[idx], score) for idx, score in scored]
-
-        return _wiki_bm25_search
+        return build_wiki_bm25_search_fn(self._resolve_wiki_base_dir(), self._resolve_wiki_public_dirs())
 
     def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
         """Resolve the unified context binding contract for the current agent run."""

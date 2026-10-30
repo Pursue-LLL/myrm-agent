@@ -59,12 +59,12 @@ CodeGraphAction = Literal["resolve", "definition", "callers", "callees", "implem
 
 _DESCRIPTION = (
     "Navigate Python and TypeScript/JavaScript code in the workspace by structure instead of text search. "
-    "One call answers one question; the index refreshes itself first. Actions (target in brackets):\n"
+    "One call answers one question; the index refreshes itself first. Actions (query in brackets):\n"
     "- resolve [name, qualified name, or path:line]: matching functions, classes and methods with qualified name and line range. "
     "Start here when you only have a plain name.\n"
     "- definition [qualified name]: kind, location and docstring of one symbol.\n"
     "- callers [function name]: call sites that call it, each with the calling function. match=exact: the call text "
-    "equals the target; match=name: only the last name part matches, so it may be another function with the same name. "
+    "equals the query; match=name: only the last name part matches, so it may be another function with the same name. "
     "definitions is how many functions share the name; when it is above 1, treat match=name rows as candidates.\n"
     "- callees [qualified name from resolve]: calls made inside that function, as written at the call site "
     "(not resolved to definitions).\n"
@@ -82,7 +82,7 @@ class CodeGraphInput(BaseModel):
     """Input schema for code_graph_tool."""
 
     action: CodeGraphAction = Field(..., description="What to look up; see the tool description for what each action returns.")
-    target: str = Field(
+    query: str = Field(
         ...,
         description="The name the action works on: a function, class or module name, a qualified name, or path:line for resolve.",
     )
@@ -123,15 +123,15 @@ def _importer_row(row: Row) -> Row:
 
 @dataclass(frozen=True)
 class _Action:
-    query: Callable[[CodeGraphService, str], list[Row]]
+    lookup: Callable[[CodeGraphService, str], list[Row]]
     row: Callable[[Row], Row]
     cut_hint: str
     # What the action cannot see although the index holds it; stated in every answer, empty when it sees all of it.
     gap: str = ""
 
 
-def _definition_query(service: CodeGraphService, target: str) -> list[Row]:
-    found = service.definition(target)
+def _definition_lookup(service: CodeGraphService, query: str) -> list[Row]:
+    found = service.definition(query)
     return [found] if found else []
 
 
@@ -142,7 +142,7 @@ _ACTIONS: dict[str, _Action] = {
         cut_hint=_HINT_QUALIFIED_NAME,
     ),
     # At most one row, so it is never cut.
-    "definition": _Action(_definition_query, _definition_row, cut_hint=""),
+    "definition": _Action(_definition_lookup, _definition_row, cut_hint=""),
     "callers": _Action(
         lambda s, t: s.callers(t),
         lambda r: _call_row(r, caller=r["caller"], callee=r["callee"], match=r["match"]),
@@ -215,29 +215,29 @@ class _Navigator:
         # Queues the callers of this tool without holding a thread each; index runs are serialised by the service.
         self._lock = asyncio.Lock()
 
-    async def ask(self, action: CodeGraphAction, target: str) -> dict[str, object]:
-        if not target.strip():
-            return {"content": "target is required.", "metadata": {"error": True, "action": action}}
+    async def ask(self, action: CodeGraphAction, query: str) -> dict[str, object]:
+        if not query.strip():
+            return {"content": "query is required.", "metadata": {"error": True, "action": action}}
         async with self._lock:
             try:
-                return await asyncio.to_thread(self._ask, action, target.strip())
+                return await asyncio.to_thread(self._ask, action, query.strip())
             except (OSError, sqlite3.Error) as exc:
                 return {"content": f"code_graph_tool failed: {exc}", "metadata": {"error": True, "action": action}}
 
-    def _ask(self, action: CodeGraphAction, target: str) -> dict[str, object]:
+    def _ask(self, action: CodeGraphAction, query: str) -> dict[str, object]:
         if self._service is None:
             database = _database_path(self._root)
             _remove_stale_indexes(database)
             self._service = CodeGraphService(database)
         stats = self._service.index_directory(self._root)
         spec = _ACTIONS[action]
-        found = spec.query(self._service, target)
+        found = spec.lookup(self._service, query)
         rows = [spec.row(r) for r in found[:MAX_ROWS]]
 
-        payload: dict[str, object] = {"action": action, "target": target, "total": len(found), "rows": rows}
+        payload: dict[str, object] = {"action": action, "query": query, "total": len(found), "rows": rows}
         definitions = 0
         if action in ("callers", "tests_calling"):
-            definitions = self._service.definition_count(target)
+            definitions = self._service.definition_count(query)
             payload["definitions"] = definitions
         notes = _notes(len(found), definitions, stats, spec)
         if notes:
@@ -253,8 +253,8 @@ def create_code_graph_tool(workspace_root: Path) -> BaseTool:
     navigator = _Navigator(workspace_root)
 
     @tool("code_graph_tool", description=_DESCRIPTION, args_schema=CodeGraphInput)
-    async def code_graph_tool(action: CodeGraphAction, target: str) -> dict[str, object]:
-        return await navigator.ask(action, target)
+    async def code_graph_tool(action: CodeGraphAction, query: str) -> dict[str, object]:
+        return await navigator.ask(action, query)
 
     return code_graph_tool
 

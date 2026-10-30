@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import cast
 
 from langchain_core.language_models import BaseChatModel
+from myrm_agent_harness.agent.context_management.infra.schemas import StructuredSummary, SummaryPersistCallback
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +45,13 @@ def make_summary_persist_with_wiki_archive(
     *,
     enable_wiki: bool,
     wiki_archive_llm: BaseChatModel | None,
-) -> Callable[[str, object, str, int], Awaitable[None]]:
+) -> SummaryPersistCallback:
     """Wrap compaction persist to archive SessionNotes into wiki after context compression."""
     base_persist = get_persist_compaction()
 
     async def _persist_with_wiki(
         chat_id: str,
-        summary: object,
+        summary: StructuredSummary,
         before_message_id: str,
         tokens_saved: int,
     ) -> None:

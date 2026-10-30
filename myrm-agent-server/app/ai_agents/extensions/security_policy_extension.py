@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -26,10 +27,10 @@ class SecurityPolicyExtension(AgentExtension):
         privacy_s2_action: str,
         privacy_s3_action: str,
         channel_name: str,
-        security_config_raw: dict[str, object],
-        agent_security_raw: dict[str, object],
-        declared_capabilities: list[str],
-        declared_allowed_roots: list[str],
+        security_config_raw: dict[str, object] | None,
+        agent_security_raw: dict[str, object] | None,
+        declared_capabilities: Sequence[str],
+        declared_allowed_roots: Sequence[str],
         privacy_custom_keywords_s2: list[str] | None = None,
         privacy_custom_keywords_s3: list[str] | None = None,
         privacy_custom_patterns_s2: list[str] | None = None,

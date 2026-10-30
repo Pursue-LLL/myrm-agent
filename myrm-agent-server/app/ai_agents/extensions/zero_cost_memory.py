@@ -1,11 +1,10 @@
 """[INPUT]
-- myrm_agent_harness.agent.context_management.infra.schemas::EvictedToolCall (POS: 上下文裁剪淘汰工具调用模型)
+- myrm_agent_harness.agent.context_management.infra.schemas::EvictedToolCall, ContextCompressEvictionCallback (POS: 上下文裁剪淘汰工具调用模型与回调协议)
 - myrm_agent_harness.agent.extensions.protocols::AgentExtension (POS: 智能体运行时扩展协议)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: 核心记忆管理器)
 
 [OUTPUT]
 - ZeroCostMemoryExtension: 基于上下文管道工具淘汰的零开销后台自动记忆提取扩展
-- EvictionCallback: 上下文裁剪淘汰回调函数类型
 
 [POS]
 零开销后台自动记忆提取扩展。在上下文管道清理历史工具调用时，异步调用轻量 LLM
@@ -16,12 +15,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
-from myrm_agent_harness.agent.context_management.infra.schemas import EvictedToolCall
+from myrm_agent_harness.agent.context_management.infra.schemas import ContextCompressEvictionCallback, EvictedToolCall
 from myrm_agent_harness.agent.extensions.protocols import AgentExtension
 
 if TYPE_CHECKING:
@@ -30,11 +28,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
 logger = logging.getLogger(__name__)
-
-EvictionCallback = Callable[
-    [list[EvictedToolCall], str],
-    Coroutine[object, object, None],
-]
 
 
 class ZeroCostMemoryExtension(AgentExtension):
@@ -77,7 +70,7 @@ class ZeroCostMemoryExtension(AgentExtension):
     def name(self) -> str:
         return "ZeroCostMemoryExtension"
 
-    def build_eviction_callback(self) -> EvictionCallback | None:
+    def build_eviction_callback(self) -> ContextCompressEvictionCallback | None:
         """Build the compress-eviction callback for the context pipeline middleware.
 
         Returns ``None`` when memory extraction is disabled or unavailable.
@@ -195,5 +188,5 @@ class ZeroCostMemoryExtension(AgentExtension):
     def get_tools(self) -> list[BaseTool] | None:
         return None
 
-    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+    def get_middlewares(self) -> list[AgentMiddleware] | None:
         return None

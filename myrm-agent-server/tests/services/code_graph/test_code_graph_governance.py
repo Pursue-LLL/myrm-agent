@@ -34,7 +34,7 @@ from app.ai_agents.general_agent.tools._tool_layer_bootstrap import register_ser
 from app.services.code_graph.agent_tool import SKILL_NAME
 
 TOOL = "code_graph_tool"
-ARGS: dict[str, object] = {"action": "callers", "target": "parse_args"}
+ARGS: dict[str, object] = {"action": "callers", "query": "parse_args"}
 _SKILL_MD = Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / SKILL_NAME / "SKILL.md"
 
 
@@ -66,6 +66,22 @@ def test_the_tool_is_governed_as_a_read_of_the_workspace() -> None:
 def test_a_call_needs_no_approval(config: SecurityConfig) -> None:
     action, _reason = evaluate_tool_call(
         resolve_permission_type(TOOL, ARGS), ARGS, config, workspace_root="/workspace", tool_name=TOOL
+    )
+
+    assert action == PermissionAction.ALLOW
+
+
+@pytest.mark.parametrize("config", [SecurityConfig(), SecurityConfig.readonly()], ids=["default", "readonly"])
+@pytest.mark.parametrize(
+    "query",
+    ["Settings.key", "config.env", "app.config.env", "app.core.db", "../outside.py", "pkg.module.pem"],
+)
+def test_a_symbol_name_that_looks_like_a_sensitive_file_is_not_checked_as_a_path(query: str, config: SecurityConfig) -> None:
+    """The query names a symbol, so it must not share an argument name the engine reads as a file path."""
+    args: dict[str, object] = {"action": "callers", "query": query}
+
+    action, _reason = evaluate_tool_call(
+        resolve_permission_type(TOOL, args), args, config, workspace_root="/workspace", tool_name=TOOL
     )
 
     assert action == PermissionAction.ALLOW

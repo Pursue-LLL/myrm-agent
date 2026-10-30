@@ -36,7 +36,7 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 async def _resolve(workspace: Path) -> None:
-    await create_code_graph_tool(workspace).ainvoke({"action": "resolve", "target": "helper"})
+    await create_code_graph_tool(workspace).ainvoke({"action": "resolve", "query": "helper"})
 
 
 def test_database_name_carries_the_format_version(workspace: Path) -> None:

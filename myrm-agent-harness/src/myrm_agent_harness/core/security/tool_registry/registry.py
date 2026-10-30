@@ -45,7 +45,11 @@ declaration improves transparency and self-documentation.
 5. Add test case in tests/unit/test_tool_registry.py
 
 [INPUT]
-- (none — pure static mapping + dynamic resolver rules)
+- governance (POS: governance audit declarations, re-exported here)
+- safety_table (POS: SafetyMetadata model and the built-in TOOL_SAFETY_METADATA table, re-exported here)
+- ptc_safety (POS: dynamic safety store of MCP tools, re-exported here)
+- external_tools::declared_permission_type, declared_safety_metadata (POS: declarations of host-defined tools)
+- file_args::FILE_ARG_KEYS (POS: argument names that carry a file tool's files)
 
 [OUTPUT]
 - TOOL_PERMISSION_MAP: concrete tool name → permission type
@@ -61,6 +65,7 @@ declaration improves transparency and self-documentation.
 - resolve_permission_type(): tool name → permission type (with dynamic sub-action, host declarations and MCP fallback)
 - compute_canonical_args_hash(): stable hash for tool arguments (core params only)
 - resolve_safety_metadata(): tool name → SafetyMetadata (host declarations; fail-closed for undeclared tools)
+- MCPAnnotations / register_ptc_safety_metadata / get_ptc_safety_metadata / unregister_ptc_safety_metadata / evict_skill_safety_metadata: dynamic MCP tool safety store (defined in ptc_safety.py)
 
 [POS]
 Pure functions, no side effects, trivially testable.
@@ -75,12 +80,10 @@ read-only concurrent-safe, concurrent-safe with side effects, destructive,
 and stateful. resolve_safety_metadata uses four-level fallback:
 built-in static registry → MCP dynamic registry → host declarations → fail-closed defaults.
 Used by safety_dispatcher middleware for concurrency control.
+The dynamic MCP tool safety store lives in ``ptc_safety.py``; this module re-exports it with the other tables.
 """
 
 from __future__ import annotations
-
-import threading
-from typing import TypedDict
 
 from .external_tools import declared_permission_type, declared_safety_metadata
 from .file_args import FILE_ARG_KEYS
@@ -98,6 +101,30 @@ from .governance import (
 )
 from .governance import (
     RULESET_COVERAGE_WHITELIST as RULESET_COVERAGE_WHITELIST,
+)
+from .ptc_safety import (
+    _PTC_LOCK as _PTC_LOCK,
+)
+from .ptc_safety import (
+    _PTC_SAFETY_METADATA as _PTC_SAFETY_METADATA,
+)
+from .ptc_safety import (
+    _PTC_TOOL_FLAT_INDEX as _PTC_TOOL_FLAT_INDEX,
+)
+from .ptc_safety import (
+    MCPAnnotations as MCPAnnotations,
+)
+from .ptc_safety import (
+    evict_skill_safety_metadata as evict_skill_safety_metadata,
+)
+from .ptc_safety import (
+    get_ptc_safety_metadata as get_ptc_safety_metadata,
+)
+from .ptc_safety import (
+    register_ptc_safety_metadata as register_ptc_safety_metadata,
+)
+from .ptc_safety import (
+    unregister_ptc_safety_metadata as unregister_ptc_safety_metadata,
 )
 from .safety_table import (
     _FAIL_CLOSED_DEFAULTS as _FAIL_CLOSED_DEFAULTS,
@@ -402,75 +429,6 @@ def resolve_permission_type(tool_name: str, tool_input: dict[str, object] | None
         return tool_name
     # Every other tool, MCP tools (``mcp__{server}__{tool}``) included, is governed as ``mcp_invoke``
     return declared_permission_type(tool_name) or "mcp_invoke"
-
-
-class MCPAnnotations(TypedDict, total=False):
-    """Native MCP tool annotations."""
-
-    readOnlyHint: bool
-    idempotentHint: bool
-    destructiveHint: bool
-    thirdPartyVisibleHint: bool
-    openWorldHint: bool
-
-
-_PTC_SAFETY_METADATA: dict[str, dict[str, tuple[SafetyMetadata, MCPAnnotations]]] = {}
-
-# Flat index for O(1) lookup by tool_name, consumed by resolve_safety_metadata.
-_PTC_TOOL_FLAT_INDEX: dict[str, SafetyMetadata] = {}
-
-# Thread lock protecting dynamic PTC safety registry mutations
-_PTC_LOCK = threading.RLock()
-
-
-def register_ptc_safety_metadata(
-    skill_name: str,
-    tool_name: str,
-    safety_meta: SafetyMetadata,
-    annotations: MCPAnnotations,
-) -> None:
-    """Register dynamically extracted safety metadata for an MCP tool."""
-    with _PTC_LOCK:
-        if skill_name not in _PTC_SAFETY_METADATA:
-            _PTC_SAFETY_METADATA[skill_name] = {}
-        _PTC_SAFETY_METADATA[skill_name][tool_name] = (safety_meta, annotations)
-        _PTC_TOOL_FLAT_INDEX[tool_name] = safety_meta
-
-
-def get_ptc_safety_metadata(skill_name: str, tool_name: str) -> tuple[SafetyMetadata, MCPAnnotations] | None:
-    """Retrieve dynamic safety metadata for an MCP tool."""
-    with _PTC_LOCK:
-        return _PTC_SAFETY_METADATA.get(skill_name, {}).get(tool_name)
-
-
-def unregister_ptc_safety_metadata(skill_name: str, tool_name: str) -> bool:
-    """Unregister dynamic safety metadata for a single tool under a skill.
-
-    Returns True if the tool was found and removed, False otherwise.
-    """
-    with _PTC_LOCK:
-        skill_tools = _PTC_SAFETY_METADATA.get(skill_name)
-        if not skill_tools or tool_name not in skill_tools:
-            return False
-        del skill_tools[tool_name]
-        if not skill_tools:
-            _PTC_SAFETY_METADATA.pop(skill_name, None)
-        _PTC_TOOL_FLAT_INDEX.pop(tool_name, None)
-        return True
-
-
-def evict_skill_safety_metadata(skill_name: str) -> int:
-    """Evict all dynamic safety metadata registered under the given skill.
-
-    Returns the number of tools evicted.
-    """
-    with _PTC_LOCK:
-        skill_tools = _PTC_SAFETY_METADATA.pop(skill_name, None)
-        if not skill_tools:
-            return 0
-        for tool_name in skill_tools:
-            _PTC_TOOL_FLAT_INDEX.pop(tool_name, None)
-        return len(skill_tools)
 
 
 def resolve_safety_metadata(tool_name: str) -> SafetyMetadata:

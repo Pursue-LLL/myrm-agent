@@ -1,7 +1,7 @@
 """Tool safety registry domain — built-in tool names, safety metadata, PTC registration.
 
 Aggregates ``registry.py`` (tool registry SSOT: built-in tool names, safety
-metadata, permission resolution, PTC registration), ``external_tools.py`` (declarations of the
+metadata, permission resolution; it re-exports the PTC store of ``ptc_safety.py``), ``external_tools.py`` (declarations of the
 tools a host application defines) and ``safety.py`` (module-load
 gate warning on missing safety declarations; taint argument extractors live in
 ``taint_extractors.py``) behind ``core.security.tool_registry``,

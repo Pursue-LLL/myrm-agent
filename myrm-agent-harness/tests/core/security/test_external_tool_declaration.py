@@ -14,6 +14,8 @@ from myrm_agent_harness.agent.middlewares.tooling._runtime_tool_governance impor
 from myrm_agent_harness.agent.security.engine import evaluate_tool_call
 from myrm_agent_harness.agent.security.types import PermissionAction, SecurityConfig
 from myrm_agent_harness.core.security.tool_registry import (
+    DYNAMICALLY_RESOLVED_TOOL_NAMES,
+    EXPLICIT_MCP_FALLBACK_TOOLS,
     SafetyMetadata,
     declare_external_tool,
     external_tools,
@@ -93,6 +95,20 @@ def test_declaring_a_tool_with_different_values_is_rejected() -> None:
 def test_a_built_in_or_mcp_tool_name_cannot_be_declared(tool_name: str) -> None:
     with pytest.raises(ValueError, match="cannot be declared"):
         declare_external_tool(tool_name, "file_read", READ_ONLY)
+
+
+@pytest.mark.parametrize("tool_name", sorted(EXPLICIT_MCP_FALLBACK_TOOLS | DYNAMICALLY_RESOLVED_TOOL_NAMES))
+def test_a_tool_the_resolver_governs_by_name_cannot_be_declared(tool_name: str) -> None:
+    """A deliberate ask or a sub-action decision belongs to the resolver, so a declaration cannot take the name over."""
+    with pytest.raises(ValueError, match="cannot be declared"):
+        declare_external_tool(tool_name, "file_read", READ_ONLY)
+
+    assert external_tools.declared_permission_type(tool_name) is None
+
+
+def test_the_resolver_governed_name_sets_are_not_empty() -> None:
+    assert EXPLICIT_MCP_FALLBACK_TOOLS
+    assert DYNAMICALLY_RESOLVED_TOOL_NAMES
 
 
 @pytest.mark.parametrize("permission_type", ["mcp_invoke", "file_raed", ""])

@@ -17,12 +17,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+    from langchain_core.tools import BaseTool
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
     from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.kanban import KanbanStore
     from myrm_agent_harness.toolkits.mcp.config import MCPConfig
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     from app.ai_agents.general_agent.agent import GeneralAgent
+    from app.core.types import MCPServerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +62,7 @@ async def build_general_agent(
         user_instructions_middleware,
         widget_capability_middleware,
     )
-    from app.ai_agents.prompts.general_agent_prompt import get_core_system_prompt
+    from app.ai_agents.prompts.general_agent_prompt import coerce_prompt_mode, get_core_system_prompt
     from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
     from app.core.skills.loader import create_skill_backend
     from app.core.utils.media_file_reader import read_uploaded_media_file_content
@@ -383,6 +386,7 @@ async def build_general_agent(
     )
     from myrm_agent_harness.agent.middlewares.guardrails import (
         GuardrailMiddleware,
+        GuardrailProvider,
         SkillBoundaryProvider,
     )
 
@@ -390,7 +394,7 @@ async def build_general_agent(
 
     permission_checker = await create_async_permission_checker()
 
-    guardrail_providers = [
+    guardrail_providers: list[GuardrailProvider] = [
         SkillBoundaryProvider(permission_checker=permission_checker),
     ]
 
@@ -500,7 +504,7 @@ async def build_general_agent(
     # 8. System prompt (core + CLI tool awareness)
     effective_prompt_locale = getattr(agent_wrapper, "prompt_locale", None) or getattr(agent_wrapper, "locale", None)
     system_prompt = get_core_system_prompt(
-        mode=agent_wrapper.prompt_mode,
+        mode=coerce_prompt_mode(agent_wrapper.prompt_mode),
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         locale=effective_prompt_locale,
     )
@@ -658,7 +662,7 @@ async def build_general_agent(
         )
 
         elicitation_handler = build_mcp_elicitation_handler(
-            agent_id=agent_wrapper.agent_id,
+            agent_id=agent_wrapper.agent_id or "default",
             chat_id=effective_chat_id,
         )
         agent_wrapper.mcp_config = [
@@ -720,7 +724,8 @@ async def build_general_agent(
         tool_groups=active_tool_groups,
         skill_ids=runtime_skill_ids,
         skill_configs=agent_wrapper.skill_configs,
-        mcp_servers=agent_wrapper.mcp_config or [],
+        # The harness reads MCP configs by attribute; MCPServerConfig carries the same field set.
+        mcp_servers=cast("list[MCPConfig]", agent_wrapper.mcp_config or []),
         openapi_services=agent_wrapper.openapi_services or [],
         memory_namespaces=memory_namespaces,
         workspace_binding=workspace_binding,
@@ -814,7 +819,7 @@ async def build_general_agent(
         enable_memory_auto_extraction=agent_wrapper.enable_memory and agent_wrapper.enable_memory_auto_extraction,
         extraction_llm=agent_wrapper._lite_llm,
         middlewares=middlewares,
-        tools=tools,
+        tools=cast("list[BaseTool]", tools),
         collect_artifacts=True,
         fallback_llm=fallback_llm,
         fallback_llms=stream_fallback_llms,
@@ -891,7 +896,7 @@ async def build_general_agent(
     return agent
 
 
-async def _try_inject_mcp_oauth(cfg: "MCPConfig") -> "MCPConfig":
+async def _try_inject_mcp_oauth[Config: (MCPConfig, MCPServerConfig)](cfg: Config) -> Config:
     """Inject MCPOAuthProvider if the server has stored OAuth tokens."""
     if cfg.type not in ("sse", "streamable_http"):
         return cfg
@@ -981,12 +986,12 @@ def _should_enable_subagent_tools() -> bool:
 
 
 async def _resolve_kanban_default_board_id(
-    store: object,
+    store: "KanbanStore",
     *,
     preferred_board_id: str | None,
 ) -> str | None:
     """Pick default board for kanban tools: preferred id when valid, else newest when unset."""
-    boards = await store.list_boards()  # type: ignore[attr-defined]
+    boards = await store.list_boards()
     if not boards:
         return None
 
@@ -1000,7 +1005,7 @@ async def _resolve_kanban_default_board_id(
 
 async def _setup_kanban_tools(
     agent_wrapper: "GeneralAgent",
-    tools: list,
+    tools: list[object],
 ) -> None:
     """Load kanban tools according to agent_wrapper.kanban_tool_mode."""
     from myrm_agent_harness.toolkits.kanban import create_kanban_tools

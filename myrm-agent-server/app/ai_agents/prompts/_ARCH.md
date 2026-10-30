@@ -14,7 +14,7 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `general_agent_prompt.py` | ✅ 核心 | 通用 Agent 系统提示词（四档预构建 + get_core_system_prompt API） |
+| `general_agent_prompt.py` | ✅ 核心 | 通用 Agent 系统提示词（四档预构建 + get_core_system_prompt API；`coerce_prompt_mode` 把库里存的自由字符串收窄为已知档位，未知值按 full） |
 | `fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（被 general_agent_prompt search 模式静态引用） |
 | `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量 |
 | `deliverable_discipline.py` | ✅ 辅助 | Deliverable-first SSOT（Knowledge Work / builtin-economy user_instructions；含 kanban 任务板引导 + 反幻觉写文件约束；不绑定具体工具名，工具由 schema 暴露） |
