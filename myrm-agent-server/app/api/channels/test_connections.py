@@ -40,6 +40,7 @@ from app.api.channels.schemas import (
     SMSTestRequest,
     TeamsTestRequest,
     TelegramTestRequest,
+    TelegramTestResponse,
     TestInboundRequest,
     VoiceTestRequest,
     WeComTestRequest,
@@ -210,20 +211,21 @@ async def matrix_test_connection(
         return ChannelTestResponse(ok=ok, message=msg)
 
 
-@router.post("/telegram/test", response_model=ChannelTestResponse)
+@router.post("/telegram/test", response_model=TelegramTestResponse, response_model_exclude_none=True)
 async def telegram_test_connection(
     body: TelegramTestRequest,
-) -> ChannelTestResponse:
+) -> TelegramTestResponse:
     """Test Telegram Bot API connectivity with the provided token."""
     from app.channels.providers.telegram.api import TelegramClient
+    from app.channels.providers.telegram.api_core import getme_failure_reason
 
     client = TelegramClient(body.bot_token, proxy=body.proxy or None)
     try:
         me = await client.get_me()
         username = me.get("username", "unknown")
-        return ChannelTestResponse(ok=True, message=f"Connected as @{username}")
+        return TelegramTestResponse(ok=True, message=f"Connected as @{username}")
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return TelegramTestResponse(ok=False, message=_safe_err_msg(e), reason=getme_failure_reason(e).value)
     finally:
         await client.close()
 

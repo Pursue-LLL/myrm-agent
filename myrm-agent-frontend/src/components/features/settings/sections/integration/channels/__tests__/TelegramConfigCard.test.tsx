@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-const stableT = (key: string) => key;
+const KNOWN_REASON_KEYS = new Set(['testReasons.TELEGRAM_TOKEN_REJECTED', 'testReasons.TELEGRAM_UNREACHABLE']);
+const stableT = Object.assign((key: string) => key, { has: (key: string) => KNOWN_REASON_KEYS.has(key) });
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -36,12 +37,14 @@ vi.mock('@/services/channels', async (importOriginal) => {
 
 vi.mock('../CpInboundUrlBanner', () => ({ CpInboundUrlBanner: () => null }));
 
+import { toast } from 'sonner';
 import { TelegramConfigCard } from '../TelegramConfigCard';
 
 const SAVED = { botToken: '123:abc', botPolicy: 'deny', proxy: 'socks5://127.0.0.1:1080' };
 
 describe('TelegramConfigCard', () => {
   beforeEach(() => {
+    vi.mocked(toast.error).mockClear();
     mocks.sandbox = false;
     mocks.getTelegramCredentials.mockReset().mockResolvedValue(SAVED);
     mocks.saveTelegramCredentials.mockReset().mockResolvedValue(undefined);
@@ -114,6 +117,41 @@ describe('TelegramConfigCard', () => {
 
     fireEvent.change(proxy, { target: { value: 'socks5://127.0.0.1:1080' } });
     expect(test).toBeEnabled();
+  });
+
+  describe('a failed connection check', () => {
+    const SERVER_MESSAGE = 'English detail from the server';
+
+    it.each([
+      ['TELEGRAM_TOKEN_REJECTED', 'testReasons.TELEGRAM_TOKEN_REJECTED'],
+      ['TELEGRAM_UNREACHABLE', 'testReasons.TELEGRAM_UNREACHABLE'],
+      ['A_REASON_THE_PAGE_HAS_NO_TEXT_FOR', SERVER_MESSAGE],
+      [undefined, SERVER_MESSAGE],
+    ])('is explained for reason %s when the test button is used', async (reason, expectedToast) => {
+      render(<TelegramConfigCard />);
+      await waitFor(() => expect(mocks.testTelegramConnection).toHaveBeenCalledTimes(1));
+      mocks.testTelegramConnection.mockResolvedValue({ ok: false, message: SERVER_MESSAGE, reason });
+
+      fireEvent.click(screen.getByRole('button', { name: /telegramTestConnection/ }));
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expectedToast));
+    });
+
+    it('is explained in the same way when it follows a save', async () => {
+      render(<TelegramConfigCard />);
+      const proxy = await screen.findByLabelText('telegramProxy');
+      await waitFor(() => expect(mocks.testTelegramConnection).toHaveBeenCalledTimes(1));
+      mocks.testTelegramConnection.mockResolvedValue({
+        ok: false,
+        message: SERVER_MESSAGE,
+        reason: 'TELEGRAM_UNREACHABLE',
+      });
+
+      fireEvent.change(proxy, { target: { value: 'http://127.0.0.1:7890' } });
+      fireEvent.click(screen.getByRole('button', { name: /telegramSave/ }));
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('testReasons.TELEGRAM_UNREACHABLE'));
+    });
   });
 
   it('leaves the proxy to the hosted service in sandbox mode', async () => {

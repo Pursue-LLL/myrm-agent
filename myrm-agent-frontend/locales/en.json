@@ -8439,6 +8439,10 @@
   "channels": {
     "sectionTitle": "Message Channels",
     "sectionDesc": "Manage notification channels and external platform integrations for receiving task results and bidirectional conversations.",
+    "testReasons": {
+      "TELEGRAM_TOKEN_REJECTED": "Telegram did not accept this bot token. Copy the full token again from @BotFather.",
+      "TELEGRAM_UNREACHABLE": "Could not reach Telegram from this device. Check your network, and the proxy address if you set one."
+    },
     "issues": {
       "notConfigured": "Not configured",
       "missingCredentials": "Missing credentials",
@@ -8962,8 +8966,8 @@
     "telegramSaved": "Telegram Configuration Save",
     "telegramSaveError": "Save Telegram ConfigurationFailed",
     "telegramTestConnection": "TestConnect",
-    "telegramTestSuccess": "Telegram Bot API ConnectSuccess",
-    "telegramTestFailed": "Telegram Bot API ConnectFailed",
+    "telegramTestSuccess": "Connected to Telegram Bot API",
+    "telegramTestFailed": "Could not connect to Telegram Bot API",
     "telegramCredentialsRequired": "Please fill in Bot Token first",
     "telegramBotCommands": "Bot Commands",
     "telegramAddCommand": "Add Command",

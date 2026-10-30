@@ -5,6 +5,8 @@ import { apiRequest, BACKEND_BASE_URL } from '@/lib/api';
 export interface ChannelTestResult {
   ok: boolean;
   message: string;
+  /** Machine-readable cause of a failed check, when the server classifies it; keys `channels.testReasons`. */
+  reason?: string;
 }
 
 export async function cpChannelRequest<T>(path: string, options: RequestInit = {}): Promise<T> {

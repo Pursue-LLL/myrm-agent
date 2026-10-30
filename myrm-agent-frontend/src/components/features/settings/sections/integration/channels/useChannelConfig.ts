@@ -11,7 +11,7 @@ interface ChannelConfigOptions<T extends object> {
   requiredFields: (keyof T)[];
   getCreds: () => Promise<T | null>;
   saveCreds: (creds: T) => Promise<void>;
-  testConnection: (creds: T) => Promise<{ ok: boolean; message?: string }>;
+  testConnection: (creds: T) => Promise<{ ok: boolean; message?: string; reason?: string }>;
   i18nPrefix: string;
 }
 
@@ -46,6 +46,20 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
   const isConfigured = useCallback(
     (c: T): boolean => optionsRef.current.requiredFields.every((f) => Boolean(c[f])),
     [],
+  );
+
+  /** A failure cause the page has localized text for wins over the server's English message. */
+  const testFailureMessage = useCallback(
+    (result: { message?: string; reason?: string }): string => {
+      if (result.reason) {
+        const reasonKey = `testReasons.${result.reason}`;
+        if (t.has(reasonKey)) {
+          return t(reasonKey);
+        }
+      }
+      return result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`);
+    },
+    [t],
   );
 
   useEffect(() => {
@@ -116,7 +130,7 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
           if (result.ok) {
             toast.success(t(`${optionsRef.current.i18nPrefix}TestSuccess`));
           } else {
-            toast.error(result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`));
+            toast.error(testFailureMessage(result));
           }
         } catch {
           setConnStatus('error');
@@ -129,7 +143,7 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
     } finally {
       setSaving(false);
     }
-  }, [creds, isConfigured, t]);
+  }, [creds, isConfigured, t, testFailureMessage]);
 
   const handleTest = useCallback(async () => {
     if (!isConfigured(creds)) {
@@ -144,7 +158,7 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
       if (result.ok) {
         toast.success(t(`${optionsRef.current.i18nPrefix}TestSuccess`));
       } else {
-        toast.error(result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`));
+        toast.error(testFailureMessage(result));
       }
     } catch {
       setConnStatus('error');
@@ -152,7 +166,7 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
     } finally {
       setTesting(false);
     }
-  }, [creds, isConfigured, t]);
+  }, [creds, isConfigured, t, testFailureMessage]);
 
   const refreshCreds = useCallback(async () => {
     try {

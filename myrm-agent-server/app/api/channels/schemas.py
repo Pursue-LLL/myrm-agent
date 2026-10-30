@@ -300,6 +300,13 @@ class ChannelTestResponse(BaseModel):
     message: str
 
 
+class TelegramTestResponse(ChannelTestResponse):
+    """A failed check also says why (a ``TelegramFailureReason`` code), so the WebUI can explain it in the user's
+    language; a successful one carries no reason."""
+
+    reason: str | None = None
+
+
 class ChannelInstanceCreate(BaseModel):
     channel_type: str = Field(..., alias="channelType", min_length=1, max_length=50)
     display_name: str = Field("", alias="displayName", max_length=100)

@@ -8439,6 +8439,10 @@
   "channels": {
     "sectionTitle": "메시지 채널",
     "sectionDesc": "작업 결과 수신과 양방향 대화를 위한 알림 채널 및 외부 플랫폼 통합을 관리하세요.",
+    "testReasons": {
+      "TELEGRAM_TOKEN_REJECTED": "Telegram이 이 봇 토큰을 받아들이지 않았습니다. @BotFather에서 토큰 전체를 다시 복사하세요.",
+      "TELEGRAM_UNREACHABLE": "이 기기에서 Telegram에 연결할 수 없습니다. 네트워크를 확인하고, 프록시를 설정했다면 프록시 주소도 확인하세요."
+    },
     "issues": {
       "notConfigured": "구성되지 않음",
       "missingCredentials": "자격 증명 누락",

@@ -8439,6 +8439,10 @@
   "channels": {
     "sectionTitle": "Nachrichtenkanäle",
     "sectionDesc": "Verwalten Sie Benachrichtigungskanäle und externe Plattformintegrationen für den Empfang von Aufgabenergebnissen und bidirektionalen Gesprächen.",
+    "testReasons": {
+      "TELEGRAM_TOKEN_REJECTED": "Telegram hat diesen Bot-Token nicht akzeptiert. Kopieren Sie den vollständigen Token erneut von @BotFather.",
+      "TELEGRAM_UNREACHABLE": "Telegram ist von diesem Gerät aus nicht erreichbar. Prüfen Sie Ihr Netzwerk und, falls eingerichtet, die Proxy-Adresse."
+    },
     "issues": {
       "notConfigured": "Nicht konfiguriert",
       "missingCredentials": "Fehlende Anmeldeinformationen",

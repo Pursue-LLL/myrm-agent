@@ -6,9 +6,11 @@ from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from app.channels.providers.telegram.api_core import TelegramApiError
 from tests.support.minimal_app import build_minimal_app
 
 _URL = "/api/v1/channels/manage/telegram/test"
@@ -65,3 +67,24 @@ def test_an_unusable_proxy_is_reported_without_its_credentials(client: TestClien
     body = response.json()
     assert body["ok"] is False
     assert "hunter2" not in body["message"]
+    assert body["reason"] == "TELEGRAM_UNREACHABLE"
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_reason"),
+    [
+        (TelegramApiError(401, "Unauthorized"), "TELEGRAM_TOKEN_REJECTED"),
+        (TelegramApiError(404, "Not Found"), "TELEGRAM_TOKEN_REJECTED"),
+        (httpx.ConnectError("All connection attempts failed"), "TELEGRAM_UNREACHABLE"),
+    ],
+    ids=["unknown_token", "malformed_token", "unreachable"],
+)
+def test_a_failed_check_says_why_it_failed(
+    client: TestClient, telegram_client: MagicMock, failure: Exception, expected_reason: str
+) -> None:
+    telegram_client.return_value.get_me = AsyncMock(side_effect=failure)
+
+    response = client.post(_URL, json={"botToken": "tok"})
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": False, "message": str(failure), "reason": expected_reason}

@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from app.channels.providers.telegram.api import TelegramClient
-from app.channels.providers.telegram.api_core import TelegramApiError
+from app.channels.providers.telegram.api_core import TelegramApiError, getme_failure_reason
 from tests.channels.providers.telegram.telegram_client_mocks import error_response, mock_client, ok_response
 
 
@@ -33,6 +33,26 @@ class TestTelegramApiError:
     )
     def test_is_invalid_token(self, error_code: int, expected: bool) -> None:
         assert TelegramApiError(error_code, "x").is_invalid_token is expected
+
+
+class TestGetMeFailureReason:
+    """The wire values are shared with the WebUI, which keys its localized messages on them."""
+
+    @pytest.mark.parametrize(
+        ("failure", "expected"),
+        [
+            (TelegramApiError(401, "Unauthorized"), "TELEGRAM_TOKEN_REJECTED"),
+            (TelegramApiError(404, "Not Found"), "TELEGRAM_TOKEN_REJECTED"),
+            (TelegramApiError(429, "Too Many Requests"), "TELEGRAM_UNREACHABLE"),
+            (TelegramApiError(500, "Internal Server Error"), "TELEGRAM_UNREACHABLE"),
+            (httpx.ConnectError("All connection attempts failed"), "TELEGRAM_UNREACHABLE"),
+            (httpx.ReadTimeout(""), "TELEGRAM_UNREACHABLE"),
+            (ValueError("Unknown scheme for proxy URL"), "TELEGRAM_UNREACHABLE"),
+        ],
+        ids=["unknown_token", "malformed_token", "rate_limited", "bot_api_error", "connect_error", "timeout", "bad_proxy"],
+    )
+    def test_tells_a_refused_token_from_an_unreachable_bot_api(self, failure: Exception, expected: str) -> None:
+        assert getme_failure_reason(failure) == expected
 
 
 class TestTelegramClient:

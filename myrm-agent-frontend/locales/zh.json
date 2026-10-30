@@ -8439,6 +8439,10 @@
   "channels": {
     "sectionTitle": "消息通道",
     "sectionDesc": "管理通知通道和外部平台集成，用于接收任务结果和双向对话。",
+    "testReasons": {
+      "TELEGRAM_TOKEN_REJECTED": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
+      "TELEGRAM_UNREACHABLE": "当前设备无法连接 Telegram。请检查网络；如已设置代理，也请检查代理地址。"
+    },
     "issues": {
       "notConfigured": "未配置",
       "missingCredentials": "缺少凭证",

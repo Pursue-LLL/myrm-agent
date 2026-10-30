@@ -8439,6 +8439,10 @@
   "channels": {
     "sectionTitle": "メッセージチャネル",
     "sectionDesc": "通知チャンネルと外部プラットフォームの統合を管理し、タスク結果の受信と双方向の会話に使用します。",
+    "testReasons": {
+      "TELEGRAM_TOKEN_REJECTED": "Telegram がこのボットトークンを受け付けませんでした。@BotFather からトークン全体をコピーし直してください。",
+      "TELEGRAM_UNREACHABLE": "このデバイスから Telegram に接続できません。ネットワークを確認してください。プロキシを設定している場合は、そのアドレスも確認してください。"
+    },
     "issues": {
       "notConfigured": "未設定",
       "missingCredentials": "認証情報が不足しています",

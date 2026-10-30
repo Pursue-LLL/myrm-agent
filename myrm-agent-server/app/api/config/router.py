@@ -131,8 +131,6 @@ _TELEGRAM_AGENT_RESOLUTION_LOCK = asyncio.Lock()
 _TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
 _TELEGRAM_ONBOARDING_IN_PROGRESS_CODE = "TELEGRAM_ONBOARDING_IN_PROGRESS"
 _TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE = "Telegram onboarding is already in progress. Please retry shortly."
-_TELEGRAM_TOKEN_REJECTED_CODE = "TELEGRAM_TOKEN_REJECTED"
-_TELEGRAM_UNREACHABLE_CODE = "TELEGRAM_UNREACHABLE"
 _SECOND_BRAIN_APPLY_LOCK = asyncio.Lock()
 _SECOND_BRAIN_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
 _SECOND_BRAIN_ONBOARDING_IN_PROGRESS_CODE = "SECOND_BRAIN_ONBOARDING_IN_PROGRESS"
@@ -276,14 +274,16 @@ def _telegram_verification_error(exc: Exception) -> HTTPException:
     """Tell a token Telegram refused from a Bot API this machine could not reach: the next step differs."""
     from myrm_agent_harness.api import redact_sensitive_text
 
-    from app.channels.providers.telegram.api_core import TelegramApiError
+    from app.channels.providers.telegram.api_core import TelegramFailureReason, getme_failure_reason
 
-    if isinstance(exc, TelegramApiError) and exc.is_invalid_token:
-        code, message = _TELEGRAM_TOKEN_REJECTED_CODE, "Telegram rejected the bot token"
-    else:
-        code, message = _TELEGRAM_UNREACHABLE_CODE, "Telegram Bot API could not be reached"
-    logger.warning("Telegram onboarding token check failed (%s): %s", code, redact_sensitive_text(str(exc)))
-    return HTTPException(status_code=400, detail={"code": code, "message": message})
+    reason = getme_failure_reason(exc)
+    message = (
+        "Telegram rejected the bot token"
+        if reason is TelegramFailureReason.TOKEN_REJECTED
+        else "Telegram Bot API could not be reached"
+    )
+    logger.warning("Telegram onboarding token check failed (%s): %s", reason.value, redact_sensitive_text(str(exc)))
+    return HTTPException(status_code=400, detail={"code": reason.value, "message": message})
 
 
 def _is_channel_bindable_agent(agent_profile: object) -> bool:

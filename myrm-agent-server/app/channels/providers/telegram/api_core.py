@@ -11,6 +11,8 @@ the caller as the ``httpx`` error it is, so the caller's retry policy can tell a
 
 [OUTPUT]
 - TelegramApiError: raised when the Bot API answers ok=false
+- TelegramFailureReason, getme_failure_reason: why a ``getMe`` check failed, in the codes the WebUI keys its
+  localized messages on
 - TelegramApiBase: endpoint, pooled HTTP client and the unified ``_call``; the method groups subclass it
 
 [POS]
@@ -19,6 +21,8 @@ on it.
 """
 
 from __future__ import annotations
+
+from enum import StrEnum
 
 import httpx
 
@@ -58,6 +62,22 @@ class TelegramApiError(Exception):
             and ("method" in desc or "endpoint" in desc)
             and ("not found" in desc or "does not exist" in desc)
         )
+
+
+class TelegramFailureReason(StrEnum):
+    """Why a ``getMe`` check failed. The values are wire codes shared with the WebUI; the two reasons call for
+    different user actions (copy the token again vs. fix the network or proxy)."""
+
+    TOKEN_REJECTED = "TELEGRAM_TOKEN_REJECTED"
+    UNREACHABLE = "TELEGRAM_UNREACHABLE"
+
+
+def getme_failure_reason(exc: Exception) -> TelegramFailureReason:
+    """Classify a failed ``getMe`` call: only an answer from the Bot API refusing the token counts as a rejected
+    token; anything else (no connection, timeout, unusable proxy, rate limit, server error) is unreachable."""
+    if isinstance(exc, TelegramApiError) and exc.is_invalid_token:
+        return TelegramFailureReason.TOKEN_REJECTED
+    return TelegramFailureReason.UNREACHABLE
 
 
 class TelegramApiBase:
