@@ -49,6 +49,11 @@ class TelegramHooksMixin:
     _background_tasks: set[asyncio.Task[None]]
     _user_topic_map: dict[str, int]
 
+    if TYPE_CHECKING:
+        # Provided by the Forum Topic mixin; declared with its signatures for the type checker.
+        async def ensure_topic_for_user(self, chat_id: str, sender_name: str, sender_id: str) -> int | None: ...
+        async def sync_topic_name(self, chat_id: str, message_thread_id: int, current_name: str) -> None: ...
+
     async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage | None:
         """Intercept bot commands and apply auto-topic before emitting."""
         intercepted = await self._handle_agent_command(msg)
@@ -113,7 +118,7 @@ class TelegramHooksMixin:
                 label = f"✅ {label}"
             keyboard_rows.append([{"text": label, "callback_data": f"ag:{agent.id}"}])
 
-        reply_markup = {"inline_keyboard": keyboard_rows}
+        reply_markup: dict[str, object] = {"inline_keyboard": keyboard_rows}
         await self._client.send_message(
             chat_id,
             get_text(msg, "agent_picker_select"),
@@ -129,7 +134,7 @@ class TelegramHooksMixin:
 
         origin_msg_id = msg.metadata.get("origin_message_id")
         chat_id = msg.chat_id or msg.sender_id
-        if origin_msg_id and chat_id:
+        if origin_msg_id and chat_id and isinstance(origin_msg_id, int | str):
             try:
                 from app.services.agent.agent_service import AgentService
 
@@ -159,22 +164,23 @@ class TelegramHooksMixin:
 
         metadata = msg.metadata or {}
         is_forum = metadata.get("is_forum", False)
-        if not is_forum or not msg.is_group:
+        chat_id = msg.chat_id
+        if not is_forum or not msg.is_group or not chat_id:
             return msg
 
         if msg.thread_id and msg.sender_id:
-            map_key = f"{msg.chat_id}:{msg.sender_id}"
+            map_key = f"{chat_id}:{msg.sender_id}"
             self._user_topic_map[map_key] = int(msg.thread_id)
 
             if msg.sender_name:
-                task = asyncio.create_task(self.sync_topic_name(msg.chat_id, int(msg.thread_id), msg.sender_name))
+                task = asyncio.create_task(self.sync_topic_name(chat_id, int(msg.thread_id), msg.sender_name))
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
             return msg
 
         if not msg.thread_id and msg.sender_id:
             thread_id = await self.ensure_topic_for_user(
-                msg.chat_id,
+                chat_id,
                 msg.sender_name or "",
                 msg.sender_id,
             )

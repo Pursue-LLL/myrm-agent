@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -30,10 +31,19 @@ def test_telegram_inbound_mixin_does_not_define_pre_emit_hook() -> None:
 
 @pytest.mark.architecture
 def test_telegram_inbound_source_has_no_pre_emit_hook_definition() -> None:
-    """Static guard: inbound.py must not reintroduce a passthrough _pre_emit_hook stub."""
-    source = _TELEGRAM_INBOUND_PATH.read_text(encoding="utf-8")
-    tree_body = source.split("class TelegramInboundMixin", 1)[-1]
-    assert "def _pre_emit_hook" not in tree_body
+    """Static guard: inbound.py must not reintroduce a passthrough _pre_emit_hook stub.
+
+    Only a definition in the class body counts; the ``if TYPE_CHECKING`` declaration that tells the type checker
+    the host provides the hook is nested one level deeper and never exists at runtime.
+    """
+    tree = ast.parse(_TELEGRAM_INBOUND_PATH.read_text(encoding="utf-8"))
+    mixin = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "TelegramInboundMixin")
+    defined = [
+        node.name
+        for node in mixin.body
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == "_pre_emit_hook"
+    ]
+    assert defined == []
 
 
 @pytest.mark.architecture
