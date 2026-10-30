@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import uuid
 from collections.abc import Callable
@@ -14,6 +15,8 @@ from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability_tool import (
     sync_discover_capability_tool,
 )
+from myrm_agent_harness.agent.skills.runtime.catalog_display import should_mount_skill_search_tool
+from myrm_agent_harness.agent.skills.runtime.registry import L1_CATALOG_MAX_TOKENS
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
     StreamExecutor,
@@ -22,11 +25,11 @@ from myrm_agent_harness.agent.streaming.types import AgentEventType, AgentStream
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSource
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from myrm_agent_harness.backends.skills.types import SkillMetadata
 from pydantic import BaseModel, Field
 
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
-_SEARCH_MOUNT_SKILL_COUNT = 21
 _DISCOVER_MISS_QUERY = "zzz_nonexistent_qwerty_9847261"
 
 
@@ -43,10 +46,8 @@ class _DummyDeferredTool(BaseTool):
         return "ok"
 
 
-def _discover_gateway_skills() -> list:
-    """21 searchable bound skills so sync_discover_capability_tool mounts (hidden_count > 0)."""
-    from myrm_agent_harness.backends.skills.types import SkillMetadata
-
+def _bound_skills(count: int) -> list[SkillMetadata]:
+    """One always-on skill plus ``count - 1`` searchable bound skills."""
     featured = SkillMetadata(
         name="cap_integration_skill",
         description="Integration test skill to enable discover gateway binding.",
@@ -54,17 +55,30 @@ def _discover_gateway_skills() -> list:
         available=True,
         always=True,
     )
-    skills = [
+    searchable = [
         SkillMetadata(
             name=f"cap_bound_skill_{index:02d}",
             description=f"Capability integration bound skill {index}",
             model_invocable=True,
             available=True,
         )
-        for index in range(_SEARCH_MOUNT_SKILL_COUNT)
+        for index in range(1, count)
     ]
-    skills[0] = featured
-    return skills
+    return [featured, *searchable]
+
+
+@functools.cache
+def _mounting_skill_count() -> int:
+    """Smallest bound-skill count whose catalog overflows the L1 token budget, so the discover tool mounts."""
+    for count in range(1, L1_CATALOG_MAX_TOKENS + 2):
+        if should_mount_skill_search_tool(_bound_skills(count)):
+            return count
+    raise AssertionError("no bound-skill count overflows the L1 catalog budget")
+
+
+def _discover_gateway_skills() -> list[SkillMetadata]:
+    """Enough searchable bound skills that ``sync_discover_capability_tool`` mounts (hidden skills > 0)."""
+    return _bound_skills(_mounting_skill_count())
 
 
 def _bm25_tokens(text: str) -> set[str]:
