@@ -758,7 +758,7 @@ Scanner（编排器）
    - 用户不满（DERIVED）：会话结束时，`EvolutionIntegration.register_hooks` 注册的 SESSION_END 钩子扫描对话，命中不满信号就把 DERIVED 请求以普通优先级压入后台队列；用户在 GUI 里给技能提的反馈走同一类型。
    - 后台复盘（新技能）：Harness 的复盘结果统一交给 `process_skill_review_result`：依次过锁定/已存在、语义去重、CRITICAL 预检和高危新增复核，安全的新技能自动落盘，其余进入人工审核。
 2. 失败轨迹 (Failure Trajectory，仅 FIX) →
-   - `TraceAnalyzer.extract_trajectory_with_code(session_id, skill)` 从事件日志读出失败那个会话的概览、失败模式、工具统计、聚类后的错误和最近 5 条时间线事件（约 1500 token 预算），再附上技能当前代码和人类接管示范。
+   - `TraceAnalyzer.extract_trajectory(session_id, skill_id)` 读事件日志的末尾（聊天的日志含该聊天的所有轮次，限量读取只返回开头）：失败那个会话的概览、失败模式、工具统计、最近 20 条失败聚类后的错误、工具事件总数和最近 5 条工具事件（英文，约 1500 token 预算），再附上人类接管示范。技能全文不进轨迹：变体生成与评审各自完整接收技能正文，不再截断。
    - `session_id` 是事件日志的文件名。聊天的日志以聊天 ID 命名，Server 在调用前把失败事件里的会话键换成它，并要求结果是安全的文件名。
    - 读出的每个事件都再经一遍写入侧的脱敏，更早版本落盘的凭据不会进入提示词。
    - 没有以该键命名的日志文件时（无痕聊天不写日志；定时任务的日志按日分片，文件名带日期）返回空串，修复提示只带错误文本。

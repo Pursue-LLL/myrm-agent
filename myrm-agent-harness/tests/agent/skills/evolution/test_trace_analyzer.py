@@ -3,7 +3,6 @@ import pytest
 from myrm_agent_harness.agent.event_log.types import (
     EventFilter,
     EventPayload,
-    SessionAnalytics,
     StructuredEvent,
     ToolUsageStats,
 )
@@ -65,11 +64,8 @@ async def test_extract_trajectory(mock_backend):
     analyzer = TraceAnalyzer(mock_backend)
     result = await analyzer.extract_trajectory("test_session", "test_skill")
 
-    assert "会话概览 (Session Overview)" in result
-    assert "根因分析 (Per-task Analysis)" in result
-    assert "工具统计 (Tool Stats)" in result
-    assert "关键错误详情 (Error Details)" in result
-    assert "全局概览 (Benchmark-level Overview)" in result
+    for heading in ("Session Overview", "Failure Analysis", "Tool Stats", "Error Details", "Run Totals"):
+        assert f"## {heading}" in result
 
     # Check if permission error was detected
     assert "permission" in result or "Permission denied" in result
@@ -78,15 +74,6 @@ async def test_extract_trajectory(mock_backend):
 @pytest.mark.asyncio
 async def test_analyze_failure_mode_timeout():
     analyzer = TraceAnalyzer(None)  # type: ignore
-
-    # Mock summary and stats
-    summary = SessionAnalytics(
-        session_id="test",
-        duration_ms=1000,
-        tool_breakdown=[],
-        events_timeline=[],
-        task_metrics={},
-    )
 
     tool_stats = []
 
@@ -101,21 +88,13 @@ async def test_analyze_failure_mode_timeout():
         for _ in range(4)
     ]
 
-    mode = analyzer._analyze_failure_mode(summary, tool_stats, error_events)
+    mode = analyzer._analyze_failure_mode(tool_stats, error_events)
     assert mode == "timeout"
 
 
 @pytest.mark.asyncio
 async def test_analyze_failure_mode_permission():
     analyzer = TraceAnalyzer(None)  # type: ignore
-
-    summary = SessionAnalytics(
-        session_id="test",
-        duration_ms=1000,
-        tool_breakdown=[],
-        events_timeline=[],
-        task_metrics={},
-    )
 
     tool_stats = [
         ToolUsageStats(
@@ -132,7 +111,7 @@ async def test_analyze_failure_mode_permission():
 
     error_events = []
 
-    mode = analyzer._analyze_failure_mode(summary, tool_stats, error_events)
+    mode = analyzer._analyze_failure_mode(tool_stats, error_events)
     assert mode == "permission"
 
 

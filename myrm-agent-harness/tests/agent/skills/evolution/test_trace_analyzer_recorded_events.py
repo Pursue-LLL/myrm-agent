@@ -8,7 +8,6 @@ through ``TraceAnalyzer``.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -51,8 +50,8 @@ async def test_a_recorded_failure_reaches_the_trajectory_with_its_tool_and_error
 
     trajectory = await analyzer.extract_trajectory(_SESSION_ID, "bash")
 
-    assert "- **bash** (Target): 1 次调用, 成功率 0.0%, 失败 1 次" in trajectory
-    assert "- **read_file**: 1 次调用, 成功率 100.0%, 失败 0 次" in trajectory
+    assert "- **bash** (Target): 1 calls, success rate 0.0%, 1 failures" in trajectory
+    assert "- **read_file**: 1 calls, success rate 100.0%, 0 failures" in trajectory
     assert "[tool_failure]" in trajectory
     assert "exit 1" in trajectory
 
@@ -70,7 +69,5 @@ async def test_the_trajectory_holds_no_credential_the_log_masked(tmp_path: Path)
 @pytest.mark.asyncio
 async def test_a_session_the_log_holds_nothing_for_has_no_trajectory(tmp_path: Path) -> None:
     analyzer = await _record_failed_bash_session(tmp_path, error="exit 1")
-    skill = MagicMock(skill_id="bash", content="def run():\n    pass")
 
     assert await analyzer.extract_trajectory("another-session", "bash") == ""
-    assert await analyzer.extract_trajectory_with_code("another-session", skill) == ""

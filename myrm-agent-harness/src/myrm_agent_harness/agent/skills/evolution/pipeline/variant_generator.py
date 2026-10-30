@@ -262,7 +262,7 @@ class VariantGenerator:
         if gene_bank_section:
             sections.append(gene_bank_section)
 
-        sections.append(f"\nCurrent Skill Content:\n{skill.content[:4000]}")
+        sections.append(f"\nCurrent Skill Content:\n{skill.content}")
         sections.append(_STRUCTURED_OUTPUT)
 
         return "\n\n".join(sections)

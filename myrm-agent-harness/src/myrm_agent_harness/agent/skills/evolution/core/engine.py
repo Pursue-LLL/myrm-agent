@@ -133,7 +133,7 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
         # 1. Extract Trajectory
         trajectory = ""
         if self._trace_analyzer and session_id:
-            trajectory = await self._trace_analyzer.extract_trajectory_with_code(session_id, old_skill)
+            trajectory = await self._trace_analyzer.extract_trajectory(session_id, old_skill.skill_id)
         if not trajectory:
             trajectory = f"Trajectory extraction not available. Error: {error_message}"
 

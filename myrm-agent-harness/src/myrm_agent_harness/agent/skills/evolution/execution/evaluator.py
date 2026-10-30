@@ -230,7 +230,7 @@ Trajectory Context:
 {trajectory}
 
 Candidate Skill Content:
-{candidate[:3000]}
+{candidate}
 
 Please evaluate the candidate skill based on the following dimensions:
 1. **Accuracy**: Does it fundamentally address the error shown in the trajectory without hallucination?

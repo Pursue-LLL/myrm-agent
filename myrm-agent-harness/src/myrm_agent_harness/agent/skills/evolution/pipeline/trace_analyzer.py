@@ -8,14 +8,20 @@
 - agent.event_log.types::EventFilter (POS: Single source of truth for event log data structures.)
 
 [OUTPUT]
-- TraceAnalyzer: Extracts and formats full trajectories to inform LLM of exact failure steps.
+- TraceAnalyzer: Builds the English failure report a repair prompt carries from the end of a session's event log.
 
 [POS]
-Trace Analyzer for Skill Evolution. Provides progressive disclosure analysis.
+Trace Analyzer for Skill Evolution. Progressive disclosure: overview, failure mode, tool stats, clustered errors, recent tool events.
 """
+
+from __future__ import annotations
 
 import logging
 import time
+from collections import Counter
+from collections.abc import Sequence
+from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from myrm_agent_harness.agent.event_log import sanitize_event_data
 from myrm_agent_harness.agent.event_log.analytics_queries import (
@@ -23,10 +29,44 @@ from myrm_agent_harness.agent.event_log.analytics_queries import (
     get_tool_usage_stats,
 )
 from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
-from myrm_agent_harness.agent.event_log.types import EventFilter, EventPayload, StructuredEvent
-from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
+from myrm_agent_harness.agent.event_log.types import (
+    EventFilter,
+    EventPayload,
+    SessionAnalytics,
+    StructuredEvent,
+    ToolUsageStats,
+)
 
 logger = logging.getLogger(__name__)
+
+_FAILURE_EVENT_TYPES = frozenset({"tool_failure", "tool_timeout"})
+_MAX_ERROR_EVENTS = 20
+_MAX_ERROR_CLUSTERS = 10
+_MAX_TOOL_STATS = 5
+_RECENT_TOOL_EVENTS = 5
+_MAX_TAKEOVER_EVENTS = 3
+_TAKEOVER_ARIA_CHARS = 800
+_ERROR_MESSAGE_CHARS = 200
+_CHARS_PER_TOKEN = 4
+_DEFAULT_TOKEN_BUDGET = 1500
+_CLUSTER_SIMILARITY = 0.8
+_TIMEOUT_MODE_MIN_EVENTS = 4
+
+# Failure mode -> (likely cause, suggested fix) lines the report prints under the mode.
+_FAILURE_GUIDANCE: dict[str, tuple[str, str]] = {
+    "timeout": (
+        "A tool call timed out.",
+        "Raise the timeout, or reduce the algorithmic cost.",
+    ),
+    "permission": (
+        "Permission was missing or access was denied.",
+        "Check file and directory permissions, or the API credentials.",
+    ),
+    "tool_error": (
+        "A tool call failed.",
+        "Check that the arguments match the tool schema, and the logic for flaws.",
+    ),
+}
 
 
 def _stored_tool_name(name: object) -> str:
@@ -37,41 +77,87 @@ def _stored_tool_name(name: object) -> str:
     return str(sanitize_event_data({"tool_name": str(name)}).get("tool_name", ""))
 
 
-class TraceAnalyzer:
-    """Extracts and formats full trajectories to inform LLM of exact failure steps.
+def _redacted(events: Sequence[StructuredEvent]) -> list[StructuredEvent]:
+    """The events with the redaction of the write path applied again.
 
-    Provides progressive disclosure analysis (Overview -> Root Cause -> Tool Stats -> Error Details -> Benchmark Overview).
+    The log is the record and may predate a rule; what these events hold goes into a model prompt. Callers slice to
+    the events the prompt shows first: the redaction runs on the event loop and costs about half a millisecond each.
+    """
+    return [
+        event.model_copy(update={"data": EventPayload.model_validate(sanitize_event_data(event.data.model_dump()))})
+        for event in events
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class _TraceEvidence:
+    """What the report is written from: the session summary and the end of its tool events."""
+
+    summary: SessionAnalytics
+    tool_stats: list[ToolUsageStats]
+    error_events: list[StructuredEvent]
+    recent_events: list[StructuredEvent]
+    tool_event_count: int
+
+
+class TraceAnalyzer:
+    """Builds the failure report a repair prompt carries, from the end of a session's event log.
+
+    Progressive disclosure: Overview -> Failure Analysis -> Tool Stats -> Error Details -> Run Totals -> Recent Tool Events.
     """
 
     def __init__(self, backend: EventLogBackend) -> None:
         self._backend = backend
 
-    async def _read_events(self, session_id: str, event_filter: EventFilter) -> list[StructuredEvent]:
-        """The stored events with the redaction of the write path applied again.
+    async def extract_trajectory(
+        self, session_id: str, skill_id: str, max_token_budget: int = _DEFAULT_TOKEN_BUDGET
+    ) -> str:
+        """The report of the run in which ``skill_id`` failed, with the human takeover evidence of the session.
 
-        The log is the record and may predate a rule; what these events hold goes into a model prompt.
+        A chat's log holds every turn of the chat, so the report reads the end of the log: the last tool events and
+        the last failures, not the first ones a limited read returns. The report text is held to ``max_token_budget``
+        (estimated, 4 characters per token); the takeover evidence follows it.
+
+        Returns:
+            The report, or an empty string when the log holds no events for the session so the caller keeps its own
+            description of the failure.
         """
-        events = await self._backend.get_events(session_id, event_filter)
-        return [
-            event.model_copy(update={"data": EventPayload.model_validate(sanitize_event_data(event.data.model_dump()))})
-            for event in events
-        ]
+        start_time = time.time()
 
-    async def extract_trajectory_with_code(self, session_id: str, skill: "SkillRecord") -> str:
-        """Extract trajectory and include the skill's code context.
+        if not self._backend:
+            return "Trace analysis unavailable (no EventLogBackend)."
 
-        The model sees the execution trace together with the code that failed. Returns an empty string when the
-        log holds no events for the session, so the caller keeps its own description of the failure.
-        """
-        trajectory = await self.extract_trajectory(session_id, skill.skill_id, max_token_budget=1500)
-        if not trajectory:
+        # The summary supplies duration, distinct tools and token use; one event is enough to tell the log is not empty.
+        summary = await get_session_summary(self._backend, session_id, events_limit=1, timeline_limit=1)
+        if not summary.events_timeline:
             return ""
 
-        code_context = f"\n\n## 技能代码上下文 (Skill Code Context)\n```python\n{skill.content}\n```\n"
+        tool_stats = await get_tool_usage_stats(self._backend, session_id)
+        tool_events = await self._backend.get_events(
+            session_id,
+            EventFilter(event_types=frozenset({"tool_start", "tool_end", "tool_failure", "tool_timeout"})),
+        )
+        failures = [event for event in tool_events if event.event_type in _FAILURE_EVENT_TYPES]
+        evidence = _TraceEvidence(
+            summary=summary,
+            tool_stats=tool_stats,
+            error_events=_redacted(failures[-_MAX_ERROR_EVENTS:]),
+            recent_events=_redacted(tool_events[-_RECENT_TOOL_EVENTS:]),
+            tool_event_count=len(tool_events),
+        )
 
-        takeover_context = await self._extract_takeover_evidence(session_id)
+        report = self._format_for_llm(
+            evidence,
+            self._analyze_failure_mode(evidence.tool_stats, evidence.error_events),
+            skill_id,
+            max_token_budget,
+        )
+        takeover = await self._extract_takeover_evidence(session_id)
 
-        return trajectory + code_context + takeover_context
+        elapsed_ms = (time.time() - start_time) * 1000
+        logger.info(f"TraceAnalyzer executed in {elapsed_ms:.1f}ms for session {session_id}")
+
+        return report + takeover
 
     async def _extract_takeover_evidence(self, session_id: str) -> str:
         """Extract human takeover traces as supplementary evidence for evolution.
@@ -82,7 +168,7 @@ class TraceAnalyzer:
         if not self._backend:
             return ""
 
-        takeover_events = await self._read_events(
+        takeover_events = await self._backend.get_events(
             session_id,
             EventFilter(event_types=frozenset({"takeover_trace"})),
         )
@@ -90,213 +176,125 @@ class TraceAnalyzer:
         if not takeover_events:
             return ""
 
-        lines = ["\n\n## 人类接管示范 (Human Takeover Evidence)"]
-        for evt in takeover_events[-3:]:
+        lines = ["\n\n## Human Takeover Evidence"]
+        for evt in _redacted(takeover_events[-_MAX_TAKEOVER_EVENTS:]):
             reason = evt.data.get("reason", "")
             pre_url = evt.data.get("pre_url", "")
             post_url = evt.data.get("post_url", "")
             duration = evt.data.get("duration_s", 0)
             post_aria = str(evt.data.get("post_aria_tree", ""))
 
-            lines.append(f"\n### 接管记录 (duration: {duration}s)")
+            lines.append(f"\n### Takeover (duration: {duration}s)")
             if reason:
-                lines.append(f"- 原因: {reason}")
+                lines.append(f"- Reason: {reason}")
             if pre_url != post_url:
-                lines.append(f"- 页面变化: {pre_url} → {post_url}")
+                lines.append(f"- Page change: {pre_url} -> {post_url}")
             elif pre_url:
-                lines.append(f"- 页面: {pre_url} (URL 未变, DOM 结构变化)")
+                lines.append(f"- Page: {pre_url} (URL unchanged, DOM structure changed)")
             if post_aria:
-                lines.append(f"- 接管后页面状态:\n```\n{post_aria[:800]}\n```")
+                lines.append(f"- Page state after the takeover:\n```\n{post_aria[:_TAKEOVER_ARIA_CHARS]}\n```")
 
         return "\n".join(lines)
 
-    async def extract_trajectory(self, session_id: str, skill_id: str, max_token_budget: int = 2000) -> str:
-        """Extract a formatted string of the execution trace leading to a failure.
-
-        Args:
-            session_id: The session where the failure occurred.
-            skill_id: The skill that failed.
-            max_token_budget: Maximum token budget for the output (approximate).
-
-        Returns:
-            A formatted markdown string showing the agent's step-by-step actions, or an empty string when the
-            log holds no events for the session.
-        """
-        start_time = time.time()
-
-        if not self._backend:
-            return "Trace analysis unavailable (no EventLogBackend)."
-
-        # 1. Get session overview (fetch all to get the latest timeline events)
-        summary = await get_session_summary(self._backend, session_id, events_limit=10000, timeline_limit=10000)
-        if not summary.events_timeline:
-            return ""
-
-        # 2. Get tool usage stats
-        tool_stats = await get_tool_usage_stats(self._backend, session_id)
-
-        # 3. Get error events (fetch all to get the latest errors)
-        all_error_events = await self._read_events(
-            session_id,
-            EventFilter(event_types=frozenset({"tool_timeout", "tool_failure"})),
-        )
-        # Take the last 20 errors
-        error_events = all_error_events[-20:] if all_error_events else []
-
-        # 4. Analyze failure mode
-        failure_mode = self._analyze_failure_mode(summary, tool_stats, error_events)
-
-        # 5. Format for LLM
-        result = self._format_for_llm(
-            summary=summary,
-            tool_stats=tool_stats,
-            error_events=error_events,
-            failure_mode=failure_mode,
-            skill_id=skill_id,
-            max_tokens=max_token_budget,
-        )
-
-        elapsed_ms = (time.time() - start_time) * 1000
-        logger.info(f"TraceAnalyzer executed in {elapsed_ms:.1f}ms for session {session_id}")
-
-        return result
-
-    def _analyze_failure_mode(self, summary, tool_stats, error_events) -> str:
+    def _analyze_failure_mode(
+        self, tool_stats: Sequence[ToolUsageStats], error_events: Sequence[StructuredEvent]
+    ) -> str:
         """Analyze failure mode (Root cause analysis)."""
-        error_types = {}
-        for evt in error_events:
-            evt_type = evt.event_type
-            error_types[evt_type] = error_types.get(evt_type, 0) + 1
+        error_types = Counter(evt.event_type for evt in error_events)
 
-        failure_reasons = {}
+        failure_reasons: Counter[str] = Counter()
         for stat in tool_stats:
-            for reason, count in stat.failure_reasons.items():
-                failure_reasons[reason] = failure_reasons.get(reason, 0) + count
+            failure_reasons.update(stat.failure_reasons)
 
-        if "tool_timeout" in error_types and error_types["tool_timeout"] > 3:
+        if error_types["tool_timeout"] >= _TIMEOUT_MODE_MIN_EVENTS:
             return "timeout"
-        elif any("permission" in r.lower() or "403" in r.lower() for r in failure_reasons):
+        if any("permission" in reason.lower() or "403" in reason for reason in failure_reasons):
             return "permission"
-        elif "tool_failure" in error_types:
+        if error_types["tool_failure"]:
             return "tool_error"
-        else:
-            return "unknown"
+        return "unknown"
 
-    def _cluster_similar_errors(self, error_events) -> dict[str, list]:
+    def _cluster_similar_errors(self, error_events: Sequence[StructuredEvent]) -> dict[str, list[StructuredEvent]]:
         """Cluster similar errors to reduce redundancy."""
-        from difflib import SequenceMatcher
-
-        clusters = {}
+        clusters: dict[str, list[StructuredEvent]] = {}
         for evt in error_events:
-            error_msg = evt.data.get("error") or evt.data.get("error_code") or ""
-            error_msg_str = str(error_msg)
+            error_msg = str(evt.data.get("error") or evt.data.get("error_code") or "")
 
-            matched = False
-            for cluster_key in clusters:
-                if SequenceMatcher(None, cluster_key, error_msg_str).ratio() > 0.8:
-                    clusters[cluster_key].append(evt)
-                    matched = True
+            for cluster_key, members in clusters.items():
+                if SequenceMatcher(None, cluster_key, error_msg).ratio() > _CLUSTER_SIMILARITY:
+                    members.append(evt)
                     break
-
-            if not matched:
-                clusters[error_msg_str] = [evt]
+            else:
+                clusters[error_msg] = [evt]
 
         return clusters
 
-    def _format_for_llm(
-        self,
-        summary,
-        tool_stats,
-        error_events,
-        failure_mode: str,
-        skill_id: str,
-        max_tokens: int,
-    ) -> str:
+    def _format_for_llm(self, evidence: _TraceEvidence, failure_mode: str, skill_id: str, max_tokens: int) -> str:
         """Format for LLM with progressive disclosure and token budget locking."""
-        lines = []
-
-        # 1. Overview
-        lines.append("## 会话概览 (Session Overview)")
-        lines.append(f"- 会话 ID: {summary.session_id}")
-        lines.append(f"- 目标分析技能 (Target Skill): **{skill_id}**")
-        lines.append(f"- 执行时长: {summary.duration_ms / 1000:.1f}s")
-        lines.append(f"- 工具调用: {len(summary.tool_breakdown)} 个")
-
+        summary = evidence.summary
+        tool_stats = evidence.tool_stats
+        lines = [
+            "## Session Overview",
+            f"- Target skill: **{skill_id}**",
+            f"- Duration: {summary.duration_ms / 1000:.1f}s",
+            f"- Distinct tools used: {len(summary.tool_breakdown)}",
+        ]
         if summary.token_economics:
-            total_tokens = summary.token_economics.get("total_tokens", 0)
-            lines.append(f"- Token 消耗: {total_tokens}")
-
+            lines.append(f"- Tokens used: {summary.token_economics.get('total_tokens', 0)}")
         lines.append("")
 
-        # 2. Root Cause Analysis
-        lines.append("## 根因分析 (Per-task Analysis)")
-        lines.append(f"**失败模式**: `{failure_mode}`")
-
-        if failure_mode == "timeout":
-            lines.append(" **可能原因**: 工具执行超时。")
-            lines.append(" **修复建议**: 增加超时时间，或优化算法复杂度。")
-        elif failure_mode == "permission":
-            lines.append(" **可能原因**: 权限不足或被拒绝访问。")
-            lines.append(" **修复建议**: 检查文件/目录权限，或检查 API 认证信息。")
-        elif failure_mode == "tool_error":
-            lines.append(" **可能原因**: 工具调用错误。")
-            lines.append(" **修复建议**: 检查传入参数是否符合工具 schema，或检查逻辑漏洞。")
-
+        lines.append("## Failure Analysis")
+        lines.append(f"**Failure mode**: `{failure_mode}`")
+        guidance = _FAILURE_GUIDANCE.get(failure_mode)
+        if guidance:
+            lines.append(f"**Likely cause**: {guidance[0]}")
+            lines.append(f"**Suggested fix**: {guidance[1]}")
         lines.append("")
 
-        # 3. Tool Stats
         if tool_stats:
-            lines.append("## 工具统计 (Tool Stats)")
-            for stat in tool_stats[:5]:
+            lines.append("## Tool Stats")
+            for stat in tool_stats[:_MAX_TOOL_STATS]:
                 success_rate = stat.success_count / stat.total_calls if stat.total_calls > 0 else 0
                 marker = " (Target)" if stat.tool_name == skill_id else ""
                 lines.append(
                     f"- **{_stored_tool_name(stat.tool_name)}**{marker}: "
-                    f"{stat.total_calls} 次调用, "
-                    f"成功率 {success_rate:.1%}, "
-                    f"失败 {stat.failure_count} 次"
+                    f"{stat.total_calls} calls, "
+                    f"success rate {success_rate:.1%}, "
+                    f"{stat.failure_count} failures"
                 )
             lines.append("")
 
-        # 4. Error Details (Clustered)
-        if error_events:
-            lines.append("## 关键错误详情 (Error Details)")
-            clusters = self._cluster_similar_errors(error_events)
+        if evidence.error_events:
+            lines.append("## Error Details")
+            clusters = self._cluster_similar_errors(evidence.error_events)
 
-            for i, (error_msg, evts) in enumerate(list(clusters.items())[:10]):
-                if len(error_msg) > 200:
-                    error_msg = error_msg[:200] + "...(truncated)"
+            for i, (error_msg, evts) in enumerate(list(clusters.items())[:_MAX_ERROR_CLUSTERS]):
+                if len(error_msg) > _ERROR_MESSAGE_CHARS:
+                    error_msg = error_msg[:_ERROR_MESSAGE_CHARS] + "...(truncated)"
 
-                # Check if this error is related to the target skill
-                is_target = any(e.data.get("tool_name") == skill_id for e in evts)
-                marker = " " if is_target else ""
-
-                lines.append(f"{i + 1}. [{evts[0].event_type}]{marker} (出现 {len(evts)} 次) {error_msg}")
+                marker = " (Target)" if any(e.data.get("tool_name") == skill_id for e in evts) else ""
+                lines.append(f"{i + 1}. [{evts[0].event_type}]{marker} (seen {len(evts)}x) {error_msg}")
             lines.append("")
 
-        # 5. Benchmark Overview
-        lines.append("## 全局概览 (Benchmark-level Overview)")
-        lines.append(f"- 总事件数: {len(summary.events_timeline)}")
-        lines.append(f"- 错误总数: {len(error_events)}")
+        lines.append("## Run Totals")
+        lines.append(f"- Tool events: {evidence.tool_event_count}")
+        lines.append(f"- Latest errors listed: {len(evidence.error_events)}")
         if tool_stats:
             avg_success_rate = sum(
                 s.success_count / s.total_calls if s.total_calls > 0 else 0 for s in tool_stats
             ) / len(tool_stats)
-            lines.append(f"- 平均成功率: {avg_success_rate:.1%}")
+            lines.append(f"- Average success rate: {avg_success_rate:.1%}")
 
-        # 6. Timeline (Brief)
-        if summary.events_timeline:
-            lines.append("\n## 执行时间线 (Timeline)")
-            for evt in summary.events_timeline[-5:]:  # Last 5 events
-                marker = " " if evt.data.get("tool_name") == skill_id else ""
+        if evidence.recent_events:
+            lines.append("\n## Recent Tool Events")
+            for evt in evidence.recent_events:
+                marker = " (Target)" if evt.data.get("tool_name") == skill_id else ""
                 lines.append(f"- {evt.event_type}: {_stored_tool_name(evt.data.get('tool_name', ''))}{marker}")
 
         output = "\n".join(lines)
 
-        # Token Locking (1 token ≈ 4 chars)
-        estimated_tokens = len(output) // 4
-        if estimated_tokens > max_tokens:
-            max_chars = max_tokens * 4
+        max_chars = max_tokens * _CHARS_PER_TOKEN
+        if len(output) > max_chars:
             output = output[:max_chars] + "\n\n...(truncated to fit token budget)"
 
         return output

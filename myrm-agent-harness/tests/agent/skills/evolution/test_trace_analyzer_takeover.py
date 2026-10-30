@@ -64,7 +64,7 @@ class TestExtractTakeoverEvidence:
 
         result = await analyzer._extract_takeover_evidence("sess-1")
 
-        assert "人类接管示范" in result
+        assert "Human Takeover Evidence" in result
         assert "user stuck" in result
         assert "https://example.com/login" in result
         assert "https://example.com/dashboard" in result
@@ -82,7 +82,7 @@ class TestExtractTakeoverEvidence:
         analyzer = TraceAnalyzer(backend=backend)
 
         result = await analyzer._extract_takeover_evidence("sess-1")
-        assert "URL 未变, DOM 结构变化" in result
+        assert "URL unchanged, DOM structure changed" in result
 
     @pytest.mark.asyncio
     async def test_limits_to_last_3_events(self) -> None:

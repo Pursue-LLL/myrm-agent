@@ -132,6 +132,22 @@ class TestPromptAssembly:
         assert f"Current Description: {mock_skill.description}" in prompt
         assert "Scenarios where this skill" not in prompt
 
+    def test_the_prompt_holds_the_whole_skill_however_long(self, generator: VariantGenerator) -> None:
+        """A repair that rewrites only the part the model saw would drop the rest of the skill."""
+        skill = SkillRecord(
+            skill_id="long-001",
+            name="long-skill",
+            description="A skill longer than any prompt cut.",
+            content="# Long\n" + "A filler line of instructions.\n" * 400 + "## Last Section\nLAST-SECTION-MARKER\n",
+            path="/skills/long-skill.md",
+            lineage=None,
+        )
+        assert len(skill.content) > 10_000
+
+        prompt = generator._build_variant_prompt(skill, "error", "trace")
+
+        assert prompt.count("LAST-SECTION-MARKER") == 1
+
     def test_constraints_injected(self, generator: VariantGenerator, mock_skill: SkillRecord) -> None:
         prompt = generator._build_variant_prompt(
             mock_skill, "error", "trace", constraints="Must preserve API port 8080"

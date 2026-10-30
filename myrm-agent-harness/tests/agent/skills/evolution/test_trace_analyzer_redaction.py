@@ -11,7 +11,7 @@ import json
 import pytest
 
 from myrm_agent_harness.agent.event_log.types import EventFilter, EventPayload, StructuredEvent
-from myrm_agent_harness.agent.skills.evolution.pipeline.trace_analyzer import TraceAnalyzer
+from myrm_agent_harness.agent.skills.evolution.pipeline.trace_analyzer import TraceAnalyzer, _redacted
 
 _SESSION_ID = "sess-redact"
 # A key with no prefix a text rule knows: only the entropy tier masks it.
@@ -131,7 +131,7 @@ async def test_a_payload_nested_deeper_than_the_redaction_walks_carries_no_crede
         nested = {"inner": nested}
     stored = _event(1, "tool_start", tool_call_id=_CALL_ID, tool_name="bash", args=nested)
 
-    read = await TraceAnalyzer(_StoredLog([stored]))._read_events(_SESSION_ID, EventFilter())
+    read = _redacted([stored])
 
     assert _KEY not in json.dumps(read[0].data.model_dump())
 
@@ -146,7 +146,7 @@ async def test_events_with_nothing_to_redact_are_read_as_stored() -> None:
         duration_ms=12.5,
     )
 
-    read = await TraceAnalyzer(_StoredLog([stored]))._read_events(_SESSION_ID, EventFilter())
+    read = _redacted([stored])
 
     assert [event.data.model_dump() for event in read] == [stored.data.model_dump()]
     assert [event.sequence for event in read] == [stored.sequence]

@@ -295,11 +295,11 @@ async def test_the_repair_prompt_holds_the_failed_run_of_the_chat_and_no_credent
 
     trajectory = await _repair_prompt_trajectory(monkeypatch, created_record_ids, tmp_path, failing_chat_id=chat_id)
 
-    assert "- **bash**: 1 次调用, 成功率 0.0%, 失败 1 次" in trajectory
+    assert "- **bash**: 1 calls, success rate 0.0%, 1 failures" in trajectory
     assert "deploy failed: 401 for key" in trajectory
     assert credential not in trajectory
-    assert "step one" in trajectory
-    assert len(trajectory.split("## 技能代码上下文")[0]) <= 1500 * 4
+    assert "step one" not in trajectory  # the generator and the judge receive the skill on its own
+    assert len(trajectory) <= 1500 * 4
 
 
 @pytest.mark.asyncio
