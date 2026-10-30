@@ -40,7 +40,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness `agent/errors/diagnostics/`：新增 `catalog_result.py`，改 `engine.py`、`transport_diagnosis.py`、`account_diagnosis.py`、`recovery_actions.py`、`types.py`、五份 `i18n/locales/*.json`；`infra/tls_compat.py`；删除 `agent/errors/operator_error_sanitizer.py`；server 新增跨层同步测试并扩展深链守护；公开文档同步；没有改提示词）。 |
+| **状态** | **FIXED**（harness `agent/errors/diagnostics/`：新增 `catalog_result.py`，改 `engine.py`、`transport_diagnosis.py`、`account_diagnosis.py`、`recovery_actions.py`、`types.py`、五份 `i18n/locales/*.json`；`infra/tls_compat.py`；删除 `operator_error_sanitizer.py`（`agent/errors` 目录下）；server 新增跨层同步测试并扩展深链守护；公开文档同步；没有改提示词）。 |
 | **发现时间** | 2026-10-30（复核 BUG-HARNESS-2026-10-30-122 时，把诊断文案里写出的「设置 > ……」逐个对到前端菜单文案，并用真实 litellm 异常走一遍诊断）。 |
 | **修复时间** | 2026-10-30 |
 | **严重程度** | P2（用户照着错误卡去找不存在的设置项；过载等常见失败看不到针对性的处理建议）。 |
@@ -57,7 +57,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（server `Dockerfile`、`docker/Dockerfile.official` 的 apt 清单加 `x11-utils`；harness `backends/linux/probes.py` 读不到分辨率时记 WARNING；测试 `tests/toolkits/computer_use/test_linux_probes.py`；没有改提示词与工具 schema）。 |
+| **状态** | **FIXED**（server `Dockerfile`、`docker/Dockerfile.official` 的 apt 清单加 `x11-utils`；harness `toolkits/computer_use/backends/linux/probes.py` 读不到分辨率时记 WARNING；测试 `tests/toolkits/computer_use/test_linux_probes.py`；没有改提示词与工具 schema）。 |
 | **发现时间** | 2026-10-30（复核 Linux 前台程序识别时，不再只用假的子进程输出，改在真实容器里跑：沙箱镜像里 `xprop`、`xdpyinfo` 都不存在）。 |
 | **修复时间** | 2026-10-30 |
 | **严重程度** | P2（沙箱里敏感程序守卫拿不到程序名，等于失效；分辨率回退的值与真实屏幕不同）。 |
@@ -68,7 +68,7 @@
 | **踩坑** | ① 我先前判断「代码层面没有值得做的」，依据只有假的子进程输出；换成真实容器才发现缺 `x11-utils`。② 本机是 arm64，容器按 `linux/arm64` 跑，没有验证 amd64 镜像。③ 第一次在容器里跑截图探测得到 `False`，原因是容器没装 Pillow，`png_bytes_look_capturable` 缺解码器时按设计返回 `False`；装上 Pillow 后为 `True`，不是代码问题。④ `apt-get` 在容器里偶尔长时间没有输出，杀掉重跑后正常。 |
 | **回归** | [1] 真实容器（`python:3.13-slim` + 与 `Dockerfile.official` 相同的 apt 清单，另加 `xterm`、1280x800 的 Xvfb、fluxbox）：缺 `x11-utils` 时分辨率 `(1920, 1080)`、类名为空；装上后分辨率 `(1280, 800)`、前台 `('KeePassXC', 'Vault - Unlock')`，`xprop`、`xdpyinfo` 都在。[2] 单测：把 WARNING 去掉，`test_the_guess_is_logged_when_no_tool_answers` 失败；把 xdpyinfo 与 xrandr 的顺序对调，`test_xdpyinfo_dimensions_are_read` 失败，还原后通过。[3] `uv run pytest tests/toolkits/computer_use --ignore=tests/toolkits/computer_use/test_macos_ax_script.py`：1234 通过、12 跳过（12 个跳过全部来自 `test_linux_real_x11.py` 与 `test_windows_native_smoke.py`；同一命令的第一次运行曾得 1231 通过、15 跳过，原因没有查明）。`ruff check`、`ruff format --check`、`mypy` 对 `probes.py` 与新测试干净；`check_fractal_docs.py`、`validate_arch_inventory.py --md-refs --repo-refs`、`check_file_line_limit.py` 通过。[4] 补测：`test_linux_probes.py` 由 6 例增至 18 例，加上 `test_linux_backend.py`、`test_capture_probe.py`、`test_permission_status.py` 一起跑，`probes.py` 82 条语句全部覆盖（补测前只有 `test_linux_probes.py` 等三个文件时为 37%，加 `test_linux_backend.py` 等相关文件后为 74%）。[5] 真实容器（同上，另装 Pillow）经 `LinuxBackend`：`screen_info()` 在装有 `x11-utils` 时为 `1280x800`，设置 `WIDTH=800 HEIGHT=600` 后为 `800x600`；`window_text()` 的 `window_title` 为 `Vault - Unlock`；窗口类型用 `xprop -set` 设为 `_NET_WM_WINDOW_TYPE_DIALOG` 前 `has_blocking_dialog()` 为 `False`，设置后任意应用、目标 `keepassxc` 为 `True`，目标 `firefox` 为 `False`；`is_sensitive_app('KeePassXC', 'Vault - Unlock')` 返回拦截原因，类名为空时返回 `None`；没有 pyatspi 时 `inspect_foreground()` 返回 `{'app_name': 'KeePassXC', 'window_title': 'Vault - Unlock'}`；`probe_linux_capturable()` 为 `True`。卸掉 `x11-utils` 后分辨率回退 `1920x1080` 并输出 WARNING，`window_text()` 的 `app_name` 为空。 |
 | **仍然存在** | ① 点击坐标整体偏移只是根据 `session.py:283-310`、`coordinate_scaler.py:53` 推断，没有做端到端的点击测试。② `has_blocking_dialog` 只用 `xprop -set` 把窗口类型改成对话框来模拟，没有验证真正弹出的系统对话框；缺 `xprop` 时它是否检测不到对话框，只从代码推断（`backend.py` 的异常分支返回 `False`），没有实测。③ `x11-utils` 带来的镜像体积增量与每次取前台的子进程耗时没有测。④ 没有核实生产控制面是否注入 `WIDTH`、`HEIGHT`（容器实测注入后 `screen_info()` 不走探测，所以注入了则分辨率回退不会触发）。⑤ 没有真实构建过两份 Dockerfile，也没有验证 amd64。⑥ 镜像里仍没有 AT-SPI 的 Python 绑定，沙箱内的 AT-SPI 元素树没有验证；加上它要处理系统 Python 与镜像 Python 的路径冲突，本次没做。⑦ 补的 12 例没有做变异验证，只看了语句覆盖。⑧ `LinuxBackend.window_text()` 的 `app_name` 是 `xprop` 原始输出（形如 `WM_CLASS(STRING) = "xterm", "KeePassXC"`），没有解析成类名；`rg` 在 harness 与 server 源码里找到的调用只有 `cua_driver/backend.py` 的一处转发，没有生产代码读取该字段，没有处理。 |
-| **代码位置** | `myrm-agent-server/Dockerfile` · `myrm-agent-server/docker/Dockerfile.official` · `myrm-agent-server/ARCHITECTURE.md` · `src/myrm_agent_harness/toolkits/computer_use/backends/linux/probes.py` · `backends/linux/_ARCH.md` · `tests/toolkits/computer_use/test_linux_probes.py` |
+| **代码位置** | `myrm-agent-server/Dockerfile` · `myrm-agent-server/docker/Dockerfile.official` · `myrm-agent-server/ARCHITECTURE.md` · `src/myrm_agent_harness/toolkits/computer_use/backends/linux/probes.py` · `toolkits/computer_use/backends/linux/_ARCH.md` · `tests/toolkits/computer_use/test_linux_probes.py` |
 
 ### BUG-HARNESS-2026-10-30-122 · 面向最终用户的诊断步骤里写着配置项名与环境变量，用户无处可改；空字符串语言码让限流的等待步骤与其余步骤说两种语言
 
