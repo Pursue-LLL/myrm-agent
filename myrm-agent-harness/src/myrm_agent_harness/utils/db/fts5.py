@@ -175,11 +175,15 @@ def _validate_table_name(table: str) -> str:
 def fts5_integrity_check(conn: sqlite3.Connection, table: str) -> bool:
     """Return True if the FTS5 virtual table index is healthy.
 
-    Uses the official FTS5 ``integrity-check`` command. Returns False when the
-    shadow tables are inconsistent (e.g. after unclean shutdown with un-flushed
-    WAL pages). SQLite reports a malformed index as ``sqlite3.DatabaseError``
-    ("database disk image is malformed"); ``OperationalError`` is a subclass of
-    it, so catching only ``OperationalError`` would miss a really damaged index.
+    Uses the official FTS5 ``integrity-check`` command. Returns False on any
+    ``sqlite3.DatabaseError``: an inconsistent index ("database disk image is
+    malformed", e.g. after an unclean shutdown), but also a lock held past the
+    connection's timeout or a closed connection, because the command is an
+    ``INSERT`` and fails like any other write. Treat False as a signal to rebuild
+    (which is idempotent), never as proof of damage. The statement is constant
+    text with a validated table name, so a ``ProgrammingError`` here can only mean
+    a closed connection. ``OperationalError`` is a subclass of ``DatabaseError``,
+    so catching only ``OperationalError`` would miss a really damaged index.
     """
     table = _validate_table_name(table)
     try:
