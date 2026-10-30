@@ -95,7 +95,7 @@ class _McpSession:
             EnvInheritPolicy,
             build_isolated_child_env,
         )
-        from myrm_agent_harness.toolkits.computer_use.backends.cua_driver_spawn import (
+        from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.spawn import (
             mcp_stdio_args,
         )
 

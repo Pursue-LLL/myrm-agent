@@ -16,8 +16,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos_input
-from myrm_agent_harness.toolkits.computer_use.backends.macos_input import _Point, _Size
+from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input
+from myrm_agent_harness.toolkits.computer_use.backends.macos.input import _Point, _Size
 
 
 def _fake_quartz() -> MagicMock:
@@ -296,7 +296,7 @@ class TestMousePrimitives:
 
     @patch("time.sleep")
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.backends.macos_input.position",
+        "myrm_agent_harness.toolkits.computer_use.backends.macos.input.position",
         return_value=_Point(10, 20),
     )
     def test_drag_from_current_position(self, _mock_position, _mock_sleep, _patch_quartz) -> None:
@@ -311,7 +311,7 @@ class TestMousePrimitives:
 
     @patch("time.sleep")
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.backends.macos_input.position",
+        "myrm_agent_harness.toolkits.computer_use.backends.macos.input.position",
         return_value=_Point(10, 20),
     )
     def test_drag_zero_duration_single_step(self, _mock_position, _mock_sleep, _patch_quartz) -> None:

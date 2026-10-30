@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import cua_driver_spawn as spawn
+from myrm_agent_harness.toolkits.computer_use.backends.cua_driver import spawn as spawn
 
 
 @pytest.fixture(autouse=True)
@@ -35,18 +34,22 @@ class TestDefaultCuaNoOverlay:
         monkeypatch.delenv("MYRM_CUA_NO_OVERLAY", raising=False)
         monkeypatch.setenv("DISPLAY", ":0")
         monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
-        with patch.object(spawn.sys, "platform", "linux"):
-            with patch.object(spawn, "_detect_wsl", return_value=False):
-                assert spawn.default_cua_no_overlay() is False
+        with (
+            patch.object(spawn.sys, "platform", "linux"),
+            patch.object(spawn, "_detect_wsl", return_value=False),
+        ):
+            assert spawn.default_cua_no_overlay() is False
 
     def test_linux_x11_defaults_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MYRM_CUA_NO_OVERLAY", raising=False)
         monkeypatch.setenv("DISPLAY", ":0")
         monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
-        with patch.object(spawn.sys, "platform", "linux"):
-            with patch.object(spawn, "_detect_wsl", return_value=False):
-                assert spawn.default_cua_no_overlay() is True
+        with (
+            patch.object(spawn.sys, "platform", "linux"),
+            patch.object(spawn, "_detect_wsl", return_value=False),
+        ):
+            assert spawn.default_cua_no_overlay() is True
 
 
 class TestMcpStdioArgs:

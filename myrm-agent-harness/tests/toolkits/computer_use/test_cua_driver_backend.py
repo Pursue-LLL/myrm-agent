@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends.cua_driver import (
+from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend import (
     CuaDriverBackend,
     _extract_result,
     is_cua_driver_available,
@@ -412,7 +412,7 @@ def test_session_factory_no_cua_driver():
 
     native = MagicMock()
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+        "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
         return_value=False,
     ):
         result = _try_wrap_with_cua_driver(native)
@@ -425,7 +425,7 @@ def test_session_factory_with_cua_driver():
 
     native = MagicMock()
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+        "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
         return_value=True,
     ):
         result = _try_wrap_with_cua_driver(native)
@@ -498,7 +498,7 @@ def test_create_computer_session_linux_with_cua_driver():
             return_value=_mock_linux_platform(),
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
             return_value=True,
         ),
     ):
@@ -508,7 +508,7 @@ def test_create_computer_session_linux_with_cua_driver():
 
 def test_create_computer_session_linux_without_cua_driver():
     """Linux + cua-driver absent → plain LinuxBackend (not CuaDriverBackend)."""
-    from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+    from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
     from myrm_agent_harness.toolkits.computer_use.session import create_computer_session
 
     with (
@@ -517,7 +517,7 @@ def test_create_computer_session_linux_without_cua_driver():
             return_value=_mock_linux_platform(),
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
             return_value=False,
         ),
     ):
@@ -559,7 +559,7 @@ def test_create_computer_session_passes_config():
     config = ComputerUseConfig()
 
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+        "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
         return_value=False,
     ):
         session = create_computer_session(config=config)
@@ -573,7 +573,7 @@ def test_create_computer_session_linux_mcp_sdk_missing():
     """Linux + mcp SDK not installed → graceful fallback to LinuxBackend."""
     import importlib
 
-    from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+    from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
     from myrm_agent_harness.toolkits.computer_use.session import create_computer_session
 
     orig_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__

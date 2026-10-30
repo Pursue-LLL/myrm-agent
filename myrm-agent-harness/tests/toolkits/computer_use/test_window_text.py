@@ -57,7 +57,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run")
     def test_success_full_output(self, mock_run: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -75,7 +75,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run")
     def test_success_no_text(self, mock_run: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -92,7 +92,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run")
     def test_success_only_app_name(self, mock_run: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -109,7 +109,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run")
     def test_permission_denied_chinese(self, mock_run: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -124,7 +124,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run")
     def test_permission_denied_english(self, mock_run: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -139,7 +139,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run")
     def test_generic_failure(self, mock_run: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -154,7 +154,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="osascript", timeout=10))
     def test_timeout(self, _mock: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -163,7 +163,7 @@ class TestExtractWindowTextMacOS:
 
     @patch("subprocess.run", side_effect=OSError("No such file"))
     def test_os_error(self, _mock: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -173,7 +173,7 @@ class TestExtractWindowTextMacOS:
     @patch("subprocess.run")
     def test_text_with_pipes(self, mock_run: MagicMock) -> None:
         """Ensure text containing ||| is handled correctly (splitn(3))."""
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             _extract_window_text,
         )
 
@@ -193,13 +193,13 @@ class TestLinuxBackendWindowText:
 
     @pytest.fixture
     def backend(self) -> object:
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         return LinuxBackend(display_num=1)
 
     @pytest.mark.asyncio
     async def test_success(self, backend: object) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         assert isinstance(backend, LinuxBackend)
 
@@ -220,7 +220,7 @@ class TestLinuxBackendWindowText:
 
     @pytest.mark.asyncio
     async def test_failure(self, backend: object) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         assert isinstance(backend, LinuxBackend)
 
@@ -239,7 +239,7 @@ class TestProtocolCompliance:
     def test_macos_has_window_text(self) -> None:
         import inspect
 
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
 
         assert hasattr(MacOSBackend, "window_text")
         assert inspect.iscoroutinefunction(MacOSBackend.window_text)
@@ -247,7 +247,7 @@ class TestProtocolCompliance:
     def test_linux_has_window_text(self) -> None:
         import inspect
 
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         assert hasattr(LinuxBackend, "window_text")
         assert inspect.iscoroutinefunction(LinuxBackend.window_text)

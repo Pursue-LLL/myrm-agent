@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos as macos_mod
-from myrm_agent_harness.toolkits.computer_use.backends import macos_input
-from myrm_agent_harness.toolkits.computer_use.backends.cua_driver import CuaDriverBackend
+from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend import CuaDriverBackend
+from myrm_agent_harness.toolkits.computer_use.backends.macos import backend as macos_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 _CURTAIN = ["Privacy Curtain"]

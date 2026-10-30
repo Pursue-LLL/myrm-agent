@@ -14,10 +14,10 @@ from unittest.mock import MagicMock
 
 from myrm_agent_harness.api import security as security_facade
 from myrm_agent_harness.toolkits.computer_use import exclude_capture_windows
-from myrm_agent_harness.toolkits.computer_use.backends import macos as macos_mod
-from myrm_agent_harness.toolkits.computer_use.backends import windows as windows_mod
-from myrm_agent_harness.toolkits.computer_use.backends.cua_driver import CuaDriverBackend
+from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend import CuaDriverBackend
+from myrm_agent_harness.toolkits.computer_use.backends.macos import backend as macos_mod
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
+from myrm_agent_harness.toolkits.computer_use.backends.windows import backend as windows_mod
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 

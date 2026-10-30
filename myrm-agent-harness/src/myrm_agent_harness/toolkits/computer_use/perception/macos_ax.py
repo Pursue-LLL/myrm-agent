@@ -23,7 +23,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 
-from myrm_agent_harness.toolkits.computer_use.backends.macos_permissions import _MACOS_DEEPLINKS
+from myrm_agent_harness.toolkits.computer_use.backends.macos.permissions import _MACOS_DEEPLINKS
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError, AXTreeEmptyError
 from myrm_agent_harness.toolkits.computer_use.dref.types import (
     INTERACTIVE_AX_ROLES,
@@ -399,7 +399,7 @@ def capture_ax_snapshot(
 
     if target_app is not None:
         # Electron apps hide nodes without AXEnhancedUserInterface; fail-soft.
-        from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
             _set_enhanced_ui,
             resolve_app_pid,
         )

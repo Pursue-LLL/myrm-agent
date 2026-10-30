@@ -6,7 +6,7 @@
 本模块直接使用 pyobjc Quartz 原语，功能等价且绕开该缺陷。
 
 [INPUT]
-- types::ModifierKey（经 backends/macos.py 映射为 Quartz 键名后传入）
+- types::ModifierKey（经 backends/macos/backend.py 映射为 Quartz 键名后传入）
 
 [OUTPUT]
 - 键鼠模拟原语：key_down/key_up/press/hotkey/write/click/move_to/scroll/hscroll/drag
@@ -14,7 +14,7 @@
 - 后台路由：set_input_target/clear_input_target（目标进程定向投递）、has_input_target（当前是否定向）
 
 [POS]
-macOS 输入原语。仅被 backends/macos.py 引用，随 computer-use extra 安装。
+macOS 输入原语。仅被 backends/macos/backend.py 引用，随 computer-use extra 安装。
 投递默认走全局 HID；设置 target pid 后经 CGEventPostToPid 直投目标进程。
 """
 

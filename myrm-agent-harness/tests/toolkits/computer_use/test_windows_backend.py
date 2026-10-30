@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import windows_text_io
+from myrm_agent_harness.toolkits.computer_use.backends.windows import text_io as windows_text_io
 from myrm_agent_harness.toolkits.computer_use.types import (
     ScreenContext,
     ScreenInfo,
@@ -78,7 +78,7 @@ def _mock_windows_env():
             patch.object(real_ctypes, "create_unicode_buffer", return_value=MagicMock(value="Notepad")),
         ):
             # Reload windows module with mocked ctypes
-            import myrm_agent_harness.toolkits.computer_use.backends.windows as win_mod
+            import myrm_agent_harness.toolkits.computer_use.backends.windows.backend as win_mod
 
             importlib.reload(win_mod)
             windows_text_io._user32.cache_clear()

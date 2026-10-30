@@ -23,9 +23,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos as macos_mod
-from myrm_agent_harness.toolkits.computer_use.backends import macos_background
-from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+from myrm_agent_harness.toolkits.computer_use.backends.macos import backend as macos_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
+from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
     _capture_screen_excluding_titles,
     _lowest_overlay_window_id,
 )
@@ -214,9 +214,7 @@ class TestMacOSBackendExclusionRouting:
             result = asyncio.run(backend.screenshot())
 
         assert result == b"EXCLUDED"
-        channel.assert_called_once_with(
-            frozenset({"Privacy Curtain"}) | SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES
-        )
+        channel.assert_called_once_with(frozenset({"Privacy Curtain"}) | SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES)
 
     def test_snapshot_only_titles_merge_without_curtain_injection(self) -> None:
         backend = macos_mod.MacOSBackend()

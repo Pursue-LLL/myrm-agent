@@ -11,7 +11,7 @@
 - linux_permission_status: 按 xdotool、截图工具、DISPLAY / Wayland 是否齐备给出桌面自动化就绪度
 
 [POS]
-Linux 后端的只读探测原语。仅被 backends/linux.py 引用；不发输入事件、不碰剪贴板。
+Linux 后端的只读探测原语。仅被 backends/linux/backend.py 引用；不发输入事件、不碰剪贴板。
 """
 
 from __future__ import annotations

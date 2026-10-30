@@ -8,11 +8,11 @@ arm64 (Apple Silicon) due to a missing `objc_msgSendSuper_stret` symbol
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
-- backends.macos_input (POS: Quartz CGEvent keyboard/mouse primitives, global HID unless a target pid is set)
-- backends.macos_pasteboard (POS: NSPasteboard snapshot, temporary text write and guarded restore for clipboard-paste typing)
-- backends.macos_background (POS: window targeting, window-only capture, foreground guard, event-post permission, overlay-window probe)
-- backends.macos_ax_scripts (POS: AppleScript sources of the accessibility probes)
-- backends.macos_permissions (POS: TCC permission probes — Accessibility, Screen Recording, capture usability)
+- backends.macos.input (POS: Quartz CGEvent keyboard/mouse primitives, global HID unless a target pid is set)
+- backends.macos.pasteboard (POS: NSPasteboard snapshot, temporary text write and guarded restore for clipboard-paste typing)
+- backends.macos.background (POS: window targeting, window-only capture, foreground guard, event-post permission, overlay-window probe)
+- backends.macos.ax_scripts (POS: AppleScript sources of the accessibility probes)
+- backends.macos.permissions (POS: TCC permission probes — Accessibility, Screen Recording, capture usability)
 
 [OUTPUT]
 - MacOSBackend: ComputerBackend implementation for macOS
@@ -31,15 +31,16 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos_input, macos_pasteboard
-from myrm_agent_harness.toolkits.computer_use.backends.macos_ax_scripts import AX_DIALOG_SCRIPT, AX_TEXT_SCRIPT
-from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input
+from myrm_agent_harness.toolkits.computer_use.backends.macos import pasteboard as macos_pasteboard
+from myrm_agent_harness.toolkits.computer_use.backends.macos.ax_scripts import AX_DIALOG_SCRIPT, AX_TEXT_SCRIPT
+from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
     _capture_screen_excluding_titles,
     _capture_window_png,
     _lowest_overlay_window_id,
     _resolve_target_window,
 )
-from myrm_agent_harness.toolkits.computer_use.backends.macos_permissions import _check_macos_permissions
+from myrm_agent_harness.toolkits.computer_use.backends.macos.permissions import _check_macos_permissions
 from myrm_agent_harness.toolkits.computer_use.capture_title_contracts import (
     SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES,
 )

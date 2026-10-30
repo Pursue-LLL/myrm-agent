@@ -147,7 +147,7 @@ def _probe_textedit_ax_ready() -> tuple[bool, str]:
     """Return whether TextEdit AX snapshot currently has usable refs."""
     if platform.system() != "Darwin":
         return False, "unsupported-platform"
-    from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
     from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
     from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
         capture_snapshot,

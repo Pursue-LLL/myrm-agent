@@ -4,8 +4,8 @@ Covers both native Linux desktops and SaaS sandbox environments (which run Linux
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
-- linux_probes::detect_linux_resolution, read_screen_context, linux_permission_status (POS: read-only screen and environment probes)
-- linux_text_io::X11TextInput (POS: text bridge of the Linux backend)
+- linux.probes::detect_linux_resolution, read_screen_context, linux_permission_status (POS: read-only screen and environment probes)
+- linux.text_io::X11TextInput (POS: text bridge of the Linux backend)
 
 [OUTPUT]
 - LinuxBackend: ComputerBackend implementation for Linux
@@ -25,12 +25,12 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.computer_use.backends.linux_probes import (
+from myrm_agent_harness.toolkits.computer_use.backends.linux.probes import (
     detect_linux_resolution,
     linux_permission_status,
     read_screen_context,
 )
-from myrm_agent_harness.toolkits.computer_use.backends.linux_text_io import X11TextInput
+from myrm_agent_harness.toolkits.computer_use.backends.linux.text_io import X11TextInput
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ModifierKey,

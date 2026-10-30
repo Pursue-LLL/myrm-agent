@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
 # The system interpreter carries python3-tk; a managed interpreter may not.
 _TK_PYTHON = "/usr/bin/python3"

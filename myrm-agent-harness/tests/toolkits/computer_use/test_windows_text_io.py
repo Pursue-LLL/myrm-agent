@@ -1,4 +1,4 @@
-"""Tests for windows_text_io.type_unicode_text (SendInput Unicode typing).
+"""Tests for backends/windows/text_io.type_unicode_text (SendInput Unicode typing).
 
 Covers:
 - the INPUT structure has the real Win32 size SendInput validates (fixed-width fields)
@@ -18,8 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import windows_text_io
-from myrm_agent_harness.toolkits.computer_use.backends.windows_text_io import type_unicode_text
+from myrm_agent_harness.toolkits.computer_use.backends.windows import text_io as windows_text_io
+from myrm_agent_harness.toolkits.computer_use.backends.windows.text_io import type_unicode_text
 
 _UNICODE = 0x0004
 _KEYUP = 0x0002

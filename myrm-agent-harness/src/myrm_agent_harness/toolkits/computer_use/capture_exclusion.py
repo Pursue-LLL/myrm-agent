@@ -10,7 +10,7 @@
 Public capability for hosts that put an always-on-top window of their own over the desktop (a
 privacy curtain). The host names the window titles; a backend that supports it then captures the
 desktop beneath those windows and refuses global pointer input while one is on screen
-(backends/macos.py). The backend chain is resolved here, inside the package that owns it, so a
+(backends/macos/backend.py). The backend chain is resolved here, inside the package that owns it, so a
 host never reaches into private attributes.
 """
 

@@ -13,7 +13,7 @@ import sys
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import windows_text_io
+from myrm_agent_harness.toolkits.computer_use.backends.windows import text_io as windows_text_io
 from myrm_agent_harness.toolkits.computer_use.perception import windows_process
 
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="exercises the real Win32 APIs")

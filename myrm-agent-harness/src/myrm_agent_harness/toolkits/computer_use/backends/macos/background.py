@@ -1,7 +1,7 @@
 """macOS background operation helpers — window targeting, focus guard, event-posting permission.
 
 [INPUT]
-- backends.macos_input::set_input_target (POS: PID-targeted delivery switch)
+- backends.macos.input::set_input_target (POS: PID-targeted delivery switch)
 - dref.errors::FocusChangedError (POS: focus-leak abort error)
 
 [OUTPUT]
@@ -11,7 +11,7 @@
 
 [POS]
 Background-operation primitives for the macOS backend. Imported by
-backends.macos (screenshot/permissions), perception.macos_ax (EnhancedUI)
+backends.macos.backend (screenshot/permissions), perception.macos_ax (EnhancedUI)
 and execution.healer (routed input + guard).
 """
 

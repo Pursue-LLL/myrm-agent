@@ -2,7 +2,7 @@
 
 [INPUT]
 - types::PermissionStatus (POS: shared type definitions)
-- backends.macos_background::_check_post_event_access (POS: event-posting permission probe)
+- backends.macos.background::_check_post_event_access (POS: event-posting permission probe)
 - capture_probe::png_bytes_look_capturable (POS: shared functional capture probe, imported lazily)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.computer_use.backends.macos_background import _check_post_event_access
+from myrm_agent_harness.toolkits.computer_use.backends.macos.background import _check_post_event_access
 from myrm_agent_harness.toolkits.computer_use.types import PermissionStatus
 
 _MACOS_DEEPLINKS: dict[str, str] = {

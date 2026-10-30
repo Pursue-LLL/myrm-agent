@@ -493,7 +493,7 @@ class TestCreateComputerSession:
             lambda: FakePlatform(),
         )
         monkeypatch.setattr(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos.MacOSBackend",
+            "myrm_agent_harness.toolkits.computer_use.backends.macos.backend.MacOSBackend",
             lambda: fake_backend,
         )
         monkeypatch.setattr(session_module, "_try_wrap_with_cua_driver", lambda backend: backend)
@@ -508,11 +508,11 @@ class TestCreateComputerSession:
         native = MagicMock()
         wrapped = MagicMock()
         monkeypatch.setattr(
-            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
             lambda: True,
         )
         monkeypatch.setattr(
-            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.CuaDriverBackend",
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.CuaDriverBackend",
             lambda *, fallback: wrapped,
         )
         assert session_module._try_wrap_with_cua_driver(native) is wrapped
@@ -522,7 +522,7 @@ class TestCreateComputerSession:
 
         native = MagicMock()
         monkeypatch.setattr(
-            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
             lambda: False,
         )
         assert session_module._try_wrap_with_cua_driver(native) is native
@@ -532,7 +532,7 @@ class TestCreateComputerSession:
 
         native = MagicMock()
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.is_cua_driver_available",
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
             side_effect=ImportError("missing mcp sdk"),
         ):
             assert session_module._try_wrap_with_cua_driver(native) is native

@@ -1,7 +1,7 @@
 """MacOSBackend 分支与错误路径单测 — 补足既有方法的分支覆盖。
 
 [INPUT]
-- backends.macos::MacOSBackend（POS: macOS 平台 backend 实现）
+- backends.macos.backend::MacOSBackend（POS: macOS 平台 backend 实现）
 
 [OUTPUT]
 - 窗口目标解析、输入原语错误路径、剪贴板粘贴编排、
@@ -18,13 +18,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos as macos_mod
-from myrm_agent_harness.toolkits.computer_use.backends import macos_permissions as permissions_mod
-from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+from myrm_agent_harness.toolkits.computer_use.backends.macos import backend as macos_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos import permissions as permissions_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
     MacOSBackend,
     _detect_dpi_scale_quartz,
 )
-from myrm_agent_harness.toolkits.computer_use.backends.macos_background import _WindowTarget
+from myrm_agent_harness.toolkits.computer_use.backends.macos.background import _WindowTarget
 from myrm_agent_harness.toolkits.computer_use.types import ScreenLockState
 
 

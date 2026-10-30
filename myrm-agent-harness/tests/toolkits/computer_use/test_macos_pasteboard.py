@@ -1,8 +1,8 @@
 """macos_pasteboard 单测 — 真实 NSPasteboard（独立名称剪贴板）上的快照、写入、守卫还原。
 
 [INPUT]
-- backends.macos_pasteboard (POS: NSPasteboard 全类型快照、临时写入文本、带守卫还原)
-- backends.macos::MacOSBackend (POS: macOS 平台 backend 实现)
+- backends.macos.pasteboard (POS: NSPasteboard 全类型快照、临时写入文本、带守卫还原)
+- backends.macos.backend::MacOSBackend (POS: macOS 平台 backend 实现)
 
 [OUTPUT]
 - 多 item 多类型往返、空剪贴板、临时标记、写入失败抛错、changeCount 守卫，以及
@@ -25,8 +25,8 @@ from unittest.mock import patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos as macos_mod
-from myrm_agent_harness.toolkits.computer_use.backends import macos_pasteboard
+from myrm_agent_harness.toolkits.computer_use.backends.macos import backend as macos_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos import pasteboard as macos_pasteboard
 
 if TYPE_CHECKING:
     from AppKit import NSPasteboard

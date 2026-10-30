@@ -308,7 +308,7 @@ class TestDesktopSessionInterruption:
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="macos_input drives Quartz CGEvent")
 def test_macos_input_write_interrupted_when_locked() -> None:
-    from myrm_agent_harness.toolkits.computer_use.backends import macos_input
+    from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input
     from myrm_agent_harness.toolkits.computer_use.screen_detector import get_default_screen_detector
 
     detector = get_default_screen_detector()

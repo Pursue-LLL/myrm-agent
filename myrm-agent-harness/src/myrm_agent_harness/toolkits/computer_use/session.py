@@ -526,17 +526,17 @@ def create_computer_session(
     platform_info = detect_platform()
 
     if platform_info.os_type == "macos":
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
 
         native_backend: ComputerBackend = MacOSBackend()
     elif platform_info.os_type == "windows":
-        from myrm_agent_harness.toolkits.computer_use.backends.windows import (
+        from myrm_agent_harness.toolkits.computer_use.backends.windows.backend import (
             WindowsBackend,
         )
 
         native_backend = WindowsBackend()
     else:
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         native_backend = LinuxBackend()
 
@@ -547,7 +547,7 @@ def create_computer_session(
 def _try_wrap_with_cua_driver(native_backend: ComputerBackend) -> ComputerBackend:
     """Wrap *native_backend* with CuaDriverBackend if cua-driver is available."""
     try:
-        from myrm_agent_harness.toolkits.computer_use.backends.cua_driver import (
+        from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend import (
             CuaDriverBackend,
             is_cua_driver_available,
         )

@@ -7,13 +7,13 @@ pytestmark = pytest.mark.skipif(
     sys.platform != "darwin", reason="macOS backend drives Quartz and the macOS input stack"
 )
 
-from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
     MacOSBackend,
     _detect_dpi_scale_quartz,
     _has_blocking_dialog,
     _is_browser_active,
 )
-from myrm_agent_harness.toolkits.computer_use.backends.macos_input import _Point, _Size
+from myrm_agent_harness.toolkits.computer_use.backends.macos.input import _Point, _Size
 
 
 @pytest.fixture
@@ -92,11 +92,11 @@ async def test_wait(backend):
 def test_screen_info(backend):
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos.macos_input.size",
+            "myrm_agent_harness.toolkits.computer_use.backends.macos.backend.macos_input.size",
             return_value=_Size(1920, 1080),
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos._detect_dpi_scale_quartz",
+            "myrm_agent_harness.toolkits.computer_use.backends.macos.backend._detect_dpi_scale_quartz",
             return_value=2.0,
         ),
     ):
@@ -109,11 +109,11 @@ def test_screen_info(backend):
 def test_screen_context(backend):
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos.macos_input.position",
+            "myrm_agent_harness.toolkits.computer_use.backends.macos.backend.macos_input.position",
             return_value=_Point(10, 20),
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos._get_active_window_title",
+            "myrm_agent_harness.toolkits.computer_use.backends.macos.backend._get_active_window_title",
             return_value="Title",
         ),
     ):
@@ -125,9 +125,7 @@ def test_screen_context(backend):
 
 @pytest.mark.asyncio
 async def test_window_text(backend):
-    with patch(
-        "asyncio.to_thread", return_value=MagicMock(success=True, window_title="Title")
-    ):
+    with patch("asyncio.to_thread", return_value=MagicMock(success=True, window_title="Title")):
         res = await backend.window_text()
         assert res.success is True
         assert res.window_title == "Title"

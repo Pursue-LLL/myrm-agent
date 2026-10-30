@@ -25,8 +25,8 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from myrm_agent_harness.toolkits.computer_use.backends.cua_driver import CuaDriverBackend
-from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend import CuaDriverBackend
+from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.safety import ScreenLockedInterruptionError

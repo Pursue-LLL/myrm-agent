@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos_input as macos_input_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input_mod
 
 
 @pytest.fixture()

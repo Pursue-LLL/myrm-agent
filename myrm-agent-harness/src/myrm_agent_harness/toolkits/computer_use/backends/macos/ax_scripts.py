@@ -8,7 +8,7 @@
 - AX_DIALOG_SCRIPT: frontmost app name and whether window 1 is a dialog / sheet, ``|||``-delimited
 
 [POS]
-Data-only companion of ``macos.py``: parsing and timeouts stay with the callers there.
+Data-only companion of ``backend.py``: parsing and timeouts stay with the callers there.
 """
 
 from __future__ import annotations

@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import linux_text_io
-from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+from myrm_agent_harness.toolkits.computer_use.backends.linux import text_io as linux_text_io
+from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="relies on /bin/sh and POSIX PATH lookup")

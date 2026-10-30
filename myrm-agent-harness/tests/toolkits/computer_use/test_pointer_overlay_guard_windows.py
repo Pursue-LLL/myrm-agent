@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import windows as win_mod
+from myrm_agent_harness.toolkits.computer_use.backends.windows import backend as win_mod
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 _CURTAIN = ["Privacy Curtain"]
@@ -27,6 +27,7 @@ def _stub_pyautogui():
         setattr(stub, name, MagicMock())
     with patch.dict("sys.modules", {"pyautogui": stub}):
         yield
+
 
 _PointerCall = Callable[[win_mod.WindowsBackend], Coroutine[object, object, ActionResult]]
 

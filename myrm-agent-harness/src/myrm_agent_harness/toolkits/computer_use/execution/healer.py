@@ -61,8 +61,8 @@ async def try_bbox_click(
 
     target_pid = meta.pid if meta and meta.pid else None
     if type(backend).__name__ == "MacOSBackend" and target_pid:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_input
-        from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
             ensure_post_event_access,
             guard_foreground,
         )

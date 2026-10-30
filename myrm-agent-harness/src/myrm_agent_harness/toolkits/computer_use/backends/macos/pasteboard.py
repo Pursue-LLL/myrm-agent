@@ -13,7 +13,7 @@
 - paste_text: 同步编排「快照、写入、粘贴、等待、还原」，调用方被取消时仍完整跑完
 
 [POS]
-macOS 剪贴板借用原语。仅被 backends/macos.py 的 `_paste_text` 引用。
+macOS 剪贴板借用原语。仅被 backends/macos/backend.py 的 `_paste_text` 引用。
 所有函数可注入 `pb`（NSPasteboard），默认操作通用剪贴板；测试注入独立名称剪贴板。
 """
 

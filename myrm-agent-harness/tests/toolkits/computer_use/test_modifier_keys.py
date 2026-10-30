@@ -59,7 +59,7 @@ def _mock_macos_env():
     """Fixture that swaps MacOSBackend's input module for a fully mocked macos_input."""
     import importlib
 
-    import myrm_agent_harness.toolkits.computer_use.backends.macos as macos_mod
+    import myrm_agent_harness.toolkits.computer_use.backends.macos.backend as macos_mod
 
     importlib.reload(macos_mod)
     with patch.object(macos_mod, "macos_input", _mock_macos_input()):
@@ -191,7 +191,7 @@ class TestLinuxBackendModifiers:
 
     @pytest.fixture
     def backend(self):
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         return LinuxBackend(display_num=99)
 
@@ -425,7 +425,7 @@ class TestEdgeCases:
 
     @pytest.fixture
     def linux_backend(self):
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import LinuxBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
 
         return LinuxBackend(display_num=99)
 

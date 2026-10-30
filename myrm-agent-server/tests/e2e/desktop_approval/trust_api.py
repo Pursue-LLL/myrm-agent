@@ -100,7 +100,7 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
 
     if platform.system() != "Darwin":
         return None
-    from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
     from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
     from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
         capture_snapshot,

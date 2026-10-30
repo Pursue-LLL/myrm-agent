@@ -58,10 +58,7 @@ def default_cua_no_overlay() -> bool:
         return True
 
     session_type = (os.environ.get("XDG_SESSION_TYPE") or "").strip().lower()
-    if session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY"):
-        return False
-
-    return True
+    return not (session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY"))
 
 
 @lru_cache(maxsize=8)

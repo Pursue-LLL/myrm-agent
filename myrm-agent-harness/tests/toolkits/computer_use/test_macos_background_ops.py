@@ -20,8 +20,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends import macos_input as macos_input_mod
-from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+from myrm_agent_harness.toolkits.computer_use.backends.macos import input as macos_input_mod
+from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
     _check_post_event_access,
     _request_post_event_access,
     _resolve_target_window,
@@ -75,28 +75,31 @@ class TestForegroundGuard:
     def test_stable_focus_passes(self) -> None:
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background._frontmost_pid",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background._frontmost_pid",
                 side_effect=[100, 100],
-            ),guard_foreground()
+            ),
+            guard_foreground(),
         ):
             pass
 
     def test_changed_focus_raises(self) -> None:
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background._frontmost_pid",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background._frontmost_pid",
                 side_effect=[100, 200],
             ),
-            pytest.raises(FocusChangedError, match="Foreground app changed"),guard_foreground()
+            pytest.raises(FocusChangedError, match="Foreground app changed"),
+            guard_foreground(),
         ):
             pass
 
     def test_unknown_pid_never_raises(self) -> None:
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background._frontmost_pid",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background._frontmost_pid",
                 return_value=None,
-            ),guard_foreground()
+            ),
+            guard_foreground(),
         ):
             pass
 
@@ -138,7 +141,7 @@ class TestResolveTargetWindow:
         assert _resolve_target_window("Finder") is None
 
     def test_resolve_app_pid_passthrough(self, quartz_stub: MagicMock) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
             resolve_app_pid,
         )
 
@@ -151,7 +154,7 @@ class TestCaptureWindowPng:
     def test_success_reads_bytes(self) -> None:
         import asyncio
 
-        from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
             _capture_window_png,
         )
 
@@ -160,11 +163,11 @@ class TestCaptureWindowPng:
         proc.returncode = 0
 
         async def _run() -> bytes:
-            with patch(
-                "asyncio.create_subprocess_exec", return_value=proc
-            ), patch(
-                "pathlib.Path.read_bytes", return_value=b"PNG"
-            ), patch("pathlib.Path.unlink"):
+            with (
+                patch("asyncio.create_subprocess_exec", return_value=proc),
+                patch("pathlib.Path.read_bytes", return_value=b"PNG"),
+                patch("pathlib.Path.unlink"),
+            ):
                 return await _capture_window_png(11)
 
         assert asyncio.get_event_loop().run_until_complete(_run()) == b"PNG"
@@ -172,7 +175,7 @@ class TestCaptureWindowPng:
     def test_failure_raises(self) -> None:
         import asyncio
 
-        from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
             _capture_window_png,
         )
 
@@ -190,7 +193,7 @@ class TestCaptureWindowPng:
 
 class TestFrontmostPidBranches:
     def test_app_none_and_bad_pid(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         workspace = MagicMock()
         workspace.frontmostApplication.return_value = None
@@ -205,7 +208,7 @@ class TestFrontmostPidBranches:
             assert macos_background._frontmost_pid_nsworkspace() is None
 
     def test_osascript_branches(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         with (
             patch.dict("sys.modules", {"AppKit": None}),
@@ -261,7 +264,7 @@ class TestPostEventBranches:
             assert _request_post_event_access() is False
 
     def test_enhanced_ui_spawn_error_disables(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         macos_background._enhanced_ui_usable = None
         with (
@@ -273,10 +276,8 @@ class TestPostEventBranches:
 
 
 class TestTargetedScreenshot:
-    def test_missing_window_raises_no_silent_fullscreen(
-        self, quartz_stub: MagicMock
-    ) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+    def test_missing_window_raises_no_silent_fullscreen(self, quartz_stub: MagicMock) -> None:
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             MacOSBackend,
         )
 
@@ -285,17 +286,15 @@ class TestTargetedScreenshot:
         with pytest.raises(RuntimeError, match="no on-screen window"):
             import asyncio
 
-            asyncio.get_event_loop().run_until_complete(
-                backend.screenshot(app_name="Ghost")
-            )
+            asyncio.get_event_loop().run_until_complete(backend.screenshot(app_name="Ghost"))
 
     def test_other_platforms_raise_loudly(self) -> None:
         import asyncio
 
-        from myrm_agent_harness.toolkits.computer_use.backends.linux import (
+        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import (
             LinuxBackend,
         )
-        from myrm_agent_harness.toolkits.computer_use.backends.windows import (
+        from myrm_agent_harness.toolkits.computer_use.backends.windows.backend import (
             WindowsBackend,
         )
 
@@ -333,9 +332,7 @@ class TestPostEventAccess:
 
     def test_all_granted_unchanged_by_new_field(self) -> None:
         # Post-event denial must not flip the existing readiness gates.
-        status = PermissionStatus(
-            accessibility=True, screen_recording=True, post_event_access=False
-        )
+        status = PermissionStatus(accessibility=True, screen_recording=True, post_event_access=False)
         assert status.all_granted is True
 
 
@@ -345,7 +342,7 @@ class TestEnhancedUI:
             assert _set_enhanced_ui(1234) is False
 
     def test_denied_write_is_contained_and_reprobed(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         macos_background._enhanced_ui_usable = None
         crashed = MagicMock(returncode=-5, stdout=b"", stderr=b"")
@@ -383,9 +380,7 @@ class TestOriginAwareScaling:
         assert scaler.screen_to_api(100, 50) == (0, 0)
 
     def test_fullscreen_origin_defaults_zero(self) -> None:
-        scaler = CoordinateScaler(
-            screen_width=1440, screen_height=900, sent_width=720, sent_height=450
-        )
+        scaler = CoordinateScaler(screen_width=1440, screen_height=900, sent_width=720, sent_height=450)
         assert scaler.api_to_screen(0, 0) == (0, 0)
 
 
@@ -414,14 +409,12 @@ class TestHealerBackgroundRouting:
         return session
 
     def _backend(self) -> MagicMock:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import (
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import (
             MacOSBackend,
         )
 
         backend = MacOSBackend()
-        backend.click = AsyncMock(
-            return_value=MagicMock(success=True, error=None)
-        )
+        backend.click = AsyncMock(return_value=MagicMock(success=True, error=None))
         return backend
 
     def _run_click(self, session: MagicMock, action: str = "click") -> MagicMock:
@@ -431,21 +424,18 @@ class TestHealerBackgroundRouting:
             try_bbox_click,
         )
 
-        return asyncio.get_event_loop().run_until_complete(
-            try_bbox_click(session, self._element(), action, "", None)
-        )
+        return asyncio.get_event_loop().run_until_complete(try_bbox_click(session, self._element(), action, "", None))
 
     def test_mac_backend_routes_and_clears(self) -> None:
         session = self._session(pid=200)
         session._backend = self._backend()
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background"
-                ".ensure_post_event_access",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background.ensure_post_event_access",
                 return_value=True,
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background._frontmost_pid",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background._frontmost_pid",
                 side_effect=[200, 200],
             ),
         ):
@@ -458,12 +448,11 @@ class TestHealerBackgroundRouting:
         session._backend = self._backend()
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background"
-                ".ensure_post_event_access",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background.ensure_post_event_access",
                 return_value=True,
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background._frontmost_pid",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background._frontmost_pid",
                 side_effect=[100, 999],
             ),
         ):
@@ -478,8 +467,7 @@ class TestHealerBackgroundRouting:
         session._backend = backend
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.backends.macos_background"
-                ".ensure_post_event_access",
+                "myrm_agent_harness.toolkits.computer_use.backends.macos.background.ensure_post_event_access",
                 return_value=False,
             ),
             patch.object(
@@ -497,9 +485,7 @@ class TestHealerBackgroundRouting:
     def test_pid_less_snapshot_keeps_legacy_path(self) -> None:
         session = self._session(pid=0)
         session._backend = self._backend()
-        with patch.object(
-            macos_input_mod, "set_input_target", wraps=macos_input_mod.set_input_target
-        ) as spy:
+        with patch.object(macos_input_mod, "set_input_target", wraps=macos_input_mod.set_input_target) as spy:
             result = self._run_click(session)
         assert result.success is True
         spy.assert_not_called()
@@ -507,7 +493,7 @@ class TestHealerBackgroundRouting:
 
 class TestEnsurePostEventAccess:
     def test_granted_skips_prompt(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         macos_background._post_event_prompted = False
         with (
@@ -518,7 +504,7 @@ class TestEnsurePostEventAccess:
             req.assert_not_called()
 
     def test_denial_prompts_once(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         macos_background._post_event_prompted = False
         with (
@@ -531,15 +517,11 @@ class TestEnsurePostEventAccess:
         macos_background._post_event_prompted = False
 
     def test_later_grant_takes_effect(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         macos_background._post_event_prompted = False
-        with patch.object(
-            macos_background, "_check_post_event_access", side_effect=[False, True]
-        ):
-            with patch.object(
-                macos_background, "_request_post_event_access", return_value=False
-            ):
+        with patch.object(macos_background, "_check_post_event_access", side_effect=[False, True]):
+            with patch.object(macos_background, "_request_post_event_access", return_value=False):
                 assert macos_background.ensure_post_event_access() is False
             assert macos_background.ensure_post_event_access() is True
         macos_background._post_event_prompted = False
@@ -547,7 +529,7 @@ class TestEnsurePostEventAccess:
 
 class TestFastFrontmostPid:
     def test_nsworkspace_path(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         app = MagicMock()
         app.processIdentifier.return_value = 777
@@ -563,7 +545,7 @@ class TestFastFrontmostPid:
             run.assert_not_called()
 
     def test_nsworkspace_failure_falls_back_to_osascript(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends import macos_background
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
 
         with (
             patch.dict("sys.modules", {"AppKit": None}),

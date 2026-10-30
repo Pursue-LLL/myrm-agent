@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.backends.linux import (
+from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import (
     LinuxBackend,
     _parse_display_num,
 )
@@ -286,7 +286,7 @@ async def test_check_permissions_without_any_display_points_at_xvfb(backend, mon
 async def test_check_permissions_capture_probe_only_runs_when_capture_is_possible(backend, monkeypatch):
     monkeypatch.setenv("DISPLAY", ":1")
     probe = MagicMock(return_value=True)
-    monkeypatch.setattr("myrm_agent_harness.toolkits.computer_use.backends.linux_probes.probe_linux_capturable", probe)
+    monkeypatch.setattr("myrm_agent_harness.toolkits.computer_use.backends.linux.probes.probe_linux_capturable", probe)
 
     _tools_on_path(monkeypatch, "xdotool", "scrot")
     assert (await backend.check_permissions(probe_capture=True)).screen_recording_capturable is True

@@ -2,7 +2,7 @@
 
 [INPUT]
 - types::ScreenInfo, ScreenContext, ActionResult, WindowTextResult (POS: shared type definitions)
-- windows_text_io::type_unicode_text, extract_window_text (POS: Windows Unicode typing and UI Automation text bridges)
+- windows.text_io::type_unicode_text, extract_window_text (POS: Windows Unicode typing and UI Automation text bridges)
 [OUTPUT]
 - WindowsBackend: ComputerBackend implementation for Windows
 [POS]
@@ -15,11 +15,11 @@ import asyncio
 import ctypes
 import logging
 
-from myrm_agent_harness.toolkits.computer_use.backends.windows_background import (
+from myrm_agent_harness.toolkits.computer_use.backends.windows.background import (
     _capture_screen_excluding_titles,
     _lowest_overlay_hwnd,
 )
-from myrm_agent_harness.toolkits.computer_use.backends.windows_text_io import (
+from myrm_agent_harness.toolkits.computer_use.backends.windows.text_io import (
     extract_window_text,
     type_unicode_text,
 )

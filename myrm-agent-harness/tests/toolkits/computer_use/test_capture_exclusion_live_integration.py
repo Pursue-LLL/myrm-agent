@@ -1,8 +1,8 @@
 """Live overlay-exclusion integration tests (real Quartz/AppKit, no mock).
 
 [INPUT]
-- backends.macos_background::_capture_screen_excluding_titles (POS: exclusion channel)
-- backends.macos::MacOSBackend (POS: backend screenshot routing)
+- backends.macos.background::_capture_screen_excluding_titles (POS: exclusion channel)
+- backends.macos.backend::MacOSBackend (POS: backend screenshot routing)
 - 真实 macOS 屏幕/Quartz 窗口服务（本机无头环境自动跳过）
 
 [OUTPUT]
@@ -32,20 +32,18 @@ def _require_macos() -> None:
 def test_real_exclusion_channel_returns_png_for_absurd_title() -> None:
     """真实 Quartz 链路：无关 title 时返回 None（无锚点，降级原路径）。"""
     _require_macos()
-    from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
         _capture_screen_excluding_titles,
     )
 
-    result = _capture_screen_excluding_titles(
-        frozenset({"__myrm_no_such_window_title_zzz__"})
-    )
+    result = _capture_screen_excluding_titles(frozenset({"__myrm_no_such_window_title_zzz__"}))
     assert result is None
 
 
 def test_real_anchor_resolution_reads_live_window_list() -> None:
     """真实 CGWindowListCopyWindowInfo：无关 title 解析为 None 且不抛异常。"""
     _require_macos()
-    from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
         _lowest_overlay_window_id,
     )
 
@@ -62,7 +60,7 @@ def test_real_backend_falls_back_to_screencapture_without_overlay() -> None:
     _require_macos()
     import asyncio
 
-    from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
     from myrm_agent_harness.toolkits.computer_use.capture_probe import (
         png_bytes_look_capturable,
     )
@@ -85,8 +83,8 @@ def test_real_targeted_window_capture_bypasses_exclusion() -> None:
     _require_macos()
     import asyncio
 
-    from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
-    from myrm_agent_harness.toolkits.computer_use.backends.macos_background import (
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
+    from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
         _resolve_target_window,
     )
 

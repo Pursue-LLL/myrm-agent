@@ -107,7 +107,7 @@ async def _ephemeral_foreground_desktop_snapshot() -> dict[str, object] | None:
     if platform.system() != "Darwin":
         return None
     try:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
         from myrm_agent_harness.toolkits.computer_use.desktop_session import (
             DesktopSession,
         )

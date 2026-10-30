@@ -28,13 +28,11 @@ def _user32() -> ctypes.WinDLL:
 
 def _window_title(hwnd: int) -> str:
     user32 = _user32()
-    GetWindowTextLengthW = user32.GetWindowTextLengthW
-    GetWindowTextW = user32.GetWindowTextW
-    length = GetWindowTextLengthW(hwnd)
+    length = user32.GetWindowTextLengthW(hwnd)
     if length <= 0:
         return ""
     buf = ctypes.create_unicode_buffer(length + 1)
-    GetWindowTextW(hwnd, buf, length + 1)
+    user32.GetWindowTextW(hwnd, buf, length + 1)
     return buf.value
 
 
@@ -42,11 +40,11 @@ def _collect_visible_titled_windows() -> list[tuple[int, str]]:
     """Front-to-back z-order of visible top-level windows with non-empty titles."""
     ordered: list[tuple[int, str]] = []
     user32 = _user32()
-    IsWindowVisible = user32.IsWindowVisible
+    is_window_visible = user32.IsWindowVisible
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def _enum_proc(hwnd: int, _lparam: int) -> bool:
-        if not IsWindowVisible(hwnd):
+        if not is_window_visible(hwnd):
             return True
         title = _window_title(hwnd)
         if title:

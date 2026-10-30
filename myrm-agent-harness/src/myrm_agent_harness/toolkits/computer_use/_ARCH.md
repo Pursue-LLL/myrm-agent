@@ -31,7 +31,7 @@ Detailed design: [DESKTOP_SYSTEM.md](DESKTOP_SYSTEM.md).
 
 | Submodule | Description |
 |-----------|-------------|
-| backends/ | Platform I/O: macOS, Windows, Linux |
+| backends/ | Platform I/O: one subpackage per platform (macos/, linux/, windows/) plus cua_driver/ — see [backends/_ARCH.md](backends/_ARCH.md) |
 | perception/ | AX tree capture, incremental diff, overlay role SSOT, renderer, ax_dispatch — see [perception/_ARCH.md](perception/_ARCH.md) |
 | execution/ | BBox click healer fallback — see [execution/_ARCH.md](execution/_ARCH.md) |
 | dref/ | @dref types, registry, errors (internal submodule) |
