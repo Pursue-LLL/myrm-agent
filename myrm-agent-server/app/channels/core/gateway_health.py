@@ -5,7 +5,8 @@ Health loop:
 - Updates ``channel.health`` (ChannelHealth) on success/failure
 - Uses exponential backoff with jitter for restart decisions
 - Consecutive failures ≥ DEGRADED_THRESHOLD → DEGRADED (warn only)
-- DEGRADED/ERROR channels restart when backoff cooldown has elapsed
+- DEGRADED/ERROR channels restart once their own backoff window has elapsed; the window opens when a restart is issued
+  and is cleared when the channel is healthy again, removed or reloaded. IDLE channels are never restarted
 - A dead router consume loop or bus dispatch loop is restarted behind its own backoff
 
 [INPUT]
@@ -16,7 +17,7 @@ Health loop:
 
 [OUTPUT]
 - ChannelHealthMixin: ``_run_channel`` (start one channel with error isolation), ``_health_loop`` and the checks it runs
-  (channel, router consume loop, bus dispatch loop), ``_compute_backoff``, ``_should_restart``, ``_restart_channel``
+  (channel, router consume loop, bus dispatch loop), ``_compute_backoff``, ``_restart_due``, ``_restart_channel``
 - _HEALTH_CHECK_INTERVAL, _BASE_BACKOFF, _MAX_BACKOFF, _BACKOFF_FACTOR, _JITTER_RATIO, _DEGRADED_THRESHOLD: the timing and thresholds of the supervision
 
 [POS]
@@ -55,6 +56,7 @@ class ChannelHealthMixin:
     # Assigned in ``ChannelGateway.__init__``.
     bus: MessageBus
     _channel_tasks: dict[str, asyncio.Task[None]]
+    _channel_restart_not_before: dict[str, float]
     _running: bool
     _router: AgentRouter | None
     _router_restart_attempts: int
@@ -119,6 +121,7 @@ class ChannelHealthMixin:
                     channel.health.consecutive_failures,
                 )
             channel.health.record_success()
+            self._channel_restart_not_before.pop(name, None)
             if channel.status == ChannelStatus.DEGRADED:
                 channel._status = ChannelStatus.RUNNING
             return
@@ -134,12 +137,14 @@ class ChannelHealthMixin:
                 failures,
             )
 
-        if self._should_restart(channel):
+        if self._restart_due(name, channel):
+            backoff = self._compute_backoff(failures)
+            self._channel_restart_not_before[name] = time.monotonic() + backoff
             logger.warning(
-                "Channel '%s' restarting (failures=%d, backoff=%.1fs)",
+                "Channel '%s' restarting (failures=%d, next restart in %.1fs at the earliest)",
                 name,
                 failures,
-                self._compute_backoff(failures),
+                backoff,
             )
             await self._restart_channel(name, channel)
 
@@ -216,19 +221,19 @@ class ChannelHealthMixin:
         jitter = base * _JITTER_RATIO * (2 * random.random() - 1)
         return base + jitter
 
-    @staticmethod
-    def _should_restart(channel: BaseChannel) -> bool:
-        """Decide whether enough time has elapsed since the last failure to retry."""
-        h = channel.health
-        if h.consecutive_failures < _DEGRADED_THRESHOLD:
+    def _restart_due(self, name: str, channel: BaseChannel) -> bool:
+        """Whether a failing channel is restarted by this health check.
+
+        The backoff window is kept per channel in ``_channel_restart_not_before``: every health check
+        re-stamps ``ChannelHealth.last_failure_at``, so the time since the last failure can never outgrow
+        the check interval. IDLE (not configured or on-demand) is left alone because stopping it for a
+        restart would turn it STOPPED.
+        """
+        if channel.status not in (ChannelStatus.ERROR, ChannelStatus.DEGRADED):
             return False
-        if h.last_failure_at is None:
-            return True
-        backoff = min(
-            _BASE_BACKOFF * (_BACKOFF_FACTOR ** (h.consecutive_failures - 1)),
-            _MAX_BACKOFF,
-        )
-        return (time.monotonic() - h.last_failure_at) >= backoff
+        if channel.health.consecutive_failures < _DEGRADED_THRESHOLD:
+            return False
+        return time.monotonic() >= self._channel_restart_not_before.get(name, 0.0)
 
     async def _restart_channel(self, name: str, channel: BaseChannel) -> None:
         """Restart a failed channel."""

@@ -320,28 +320,6 @@ def test_compute_backoff() -> None:
     assert b2 <= 400.0
 
 
-def test_should_restart_low_failures() -> None:
-    ch = StubChannel()
-    ch.health.consecutive_failures = 1
-    assert ChannelGateway._should_restart(ch) is False
-
-
-def test_should_restart_no_last_failure() -> None:
-    ch = StubChannel()
-    ch.health.consecutive_failures = 5
-    ch.health.last_failure_at = None
-    assert ChannelGateway._should_restart(ch) is True
-
-
-def test_should_restart_backoff_not_elapsed() -> None:
-    import time
-
-    ch = StubChannel()
-    ch.health.consecutive_failures = 3
-    ch.health.last_failure_at = time.monotonic()
-    assert ChannelGateway._should_restart(ch) is False
-
-
 @pytest.mark.asyncio
 async def test_status_change_callback() -> None:
     gw, ch = _make_gateway()

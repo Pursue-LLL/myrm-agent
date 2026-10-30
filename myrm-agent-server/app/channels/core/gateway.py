@@ -124,6 +124,7 @@ class ChannelGateway(ChannelInstancesMixin):
         )
         self._inbound_journal = inbound_journal
         self._channel_tasks: dict[str, asyncio.Task[None]] = {}
+        self._channel_restart_not_before: dict[str, float] = {}
         self._health_task: asyncio.Task[None] | None = None
         self._running = False
         self._router: AgentRouter | None = None

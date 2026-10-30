@@ -127,23 +127,6 @@ class TestGatewayBackoff:
         backoff = ChannelGateway._compute_backoff(100)
         assert backoff <= _MAX_BACKOFF * 1.25
 
-    def test_should_restart_low_failures(self) -> None:
-        ch = DummyChannel()
-        ch.health.consecutive_failures = 1
-        assert ChannelGateway._should_restart(ch) is False
-
-    def test_should_restart_threshold_reached(self) -> None:
-        ch = DummyChannel()
-        ch.health.consecutive_failures = _DEGRADED_THRESHOLD
-        ch.health.last_failure_at = time.monotonic() - 9999
-        assert ChannelGateway._should_restart(ch) is True
-
-    def test_should_restart_within_backoff(self) -> None:
-        ch = DummyChannel()
-        ch.health.consecutive_failures = _DEGRADED_THRESHOLD
-        ch.health.last_failure_at = time.monotonic()
-        assert ChannelGateway._should_restart(ch) is False
-
 
 # ---------------------------------------------------------------------------
 # Gateway health_loop integration

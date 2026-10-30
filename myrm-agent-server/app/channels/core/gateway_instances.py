@@ -231,6 +231,7 @@ class ChannelInstancesMixin(ChannelHealthMixin):
         if not channel:
             return False
 
+        self._channel_restart_not_before.pop(name, None)
         task = self._channel_tasks.pop(name, None)
         if task and not task.done():
             task.cancel()
@@ -280,6 +281,7 @@ class ChannelInstancesMixin(ChannelHealthMixin):
         if not channel:
             return False
 
+        self._channel_restart_not_before.pop(name, None)
         task = self._channel_tasks.pop(name, None)
         if task and not task.done():
             task.cancel()
