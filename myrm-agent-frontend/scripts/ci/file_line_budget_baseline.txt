@@ -44,7 +44,6 @@ src/components/features/cron/CronAdvancedEditors.tsx
 src/components/features/cron/CronDeliveryEditors.tsx
 src/components/features/cron/CronJobCard.tsx
 src/components/features/cron/CronJobCreateDialog.tsx
-src/components/features/cron/CronRunItem.tsx
 src/components/features/eval-lab/EvalLabDashboard.tsx
 src/components/features/eval-lab/components/BenchmarkSources.tsx
 src/components/features/eval-lab/components/MatrixResultView.tsx

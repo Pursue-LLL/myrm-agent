@@ -54,11 +54,7 @@ export function formatDuration(ms: number): string {
 }
 
 export type SkipReasonLabelKey =
-  | 'skippedUsageLimit'
-  | 'skippedBudgetBlocked'
-  | 'skippedCreditExhausted'
-  | 'skippedPreflight'
-  | 'skippedNoContent';
+  'skippedUsageLimit' | 'skippedBudgetBlocked' | 'skippedCreditExhausted' | 'skippedPreflight' | 'skippedNoContent';
 
 /**
  * Codes the server records as the output of a skipped run, each with the label that explains it.

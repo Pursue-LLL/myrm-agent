@@ -7732,6 +7732,7 @@
     "auditPauseFail": "작업이 생성되었지만 검토를 위해 일시 중지하지 못했습니다. 나중에 작업 세부 정보에서 확인하세요.",
     "copyAuditTrace": "감사 Trace 복사",
     "traceCopied": "실행 Trace를 클립보드에 복사했습니다",
+    "stepFallback": "단계 {index}",
     "prerequisite": {
       "checkingPrerequisite": "수동 검증 상태 확인 중…",
       "satisfiedTitle": "수동 검증 전제조건 충족 (성공 {count}/{threshold}회)",

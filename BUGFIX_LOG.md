@@ -51,6 +51,18 @@
 | **仍然存在** | ① 路径穿透能否被利用：没有证据。Telegram 文档把 `language_code` 写成 IETF 语言标签，MTProto 的 `lang_code` 可以是语言包名，文档没有说服务端会拒绝含 `/` 的串；这条只是让它在引擎里无害。② 真实部署里有多少不同的 locale 字符串没有数据：745 KB/个是实测单价，不是节省总量。③ 运行中往已登记的目录里新放语言文件，要等下一次 `add_root` 或重启才会被识别（之前对没请求过的 locale 会立即生效）；`add_locale_root` 在 `app` 里没有调用者，发布的语言文件随代码一起发布。④ 同一次调用里 `_get_fallback_chain` 算两遍（收敛时一遍、取文案时一遍），实测（暖调用，每个组合 10 万次取 7 轮中位数，测量时机器上还有别的测试在跑；旧引擎 → 新引擎）：`en` 3.45 → 3.90 µs，`zh-CN` 3.70 → 4.25 µs，`zh-TW` 3.91 → 4.41 µs，`en` 的另一个 key 1.44 → 1.88 µs，`pt-BR` 1.76 → 2.41 µs，即每次调用多 0.44 到 0.64 µs。⑤ macOS（大小写不敏感的文件系统）上 `EN` 以前能命中 `en.json`、Linux 上不能，现在两边一致都走回退。⑥ 每个语言仍各有一份各自解析 `.ftl` 的 `FluentLocalization`，按实测单价 6 个语言约 4.5 MB，没有改。⑦ 带扩展子标签的 `zh-TW-x`、`zh-TW-u-ca-roc` 现在先收敛到 `zh-TW`，与 `zh-TW` 共用同一条回退链（含 `zh-Hant`）；旧引擎对它们的链里没有 `zh-Hant`（只有精确的 `zh-tw`/`zh-hk`/`zh-mo` 才加）。只有宿主另外登记了 `zh-Hant` 目录、且 `zh-TW` 缺某个 key 时才看得出差别（实测：旧引擎对 `zh-TW-x` 返回 key 名，新引擎返回 `zh-Hant` 目录里的文案）。入站管线不会把这类串送进引擎：`normalize_locale` 在引擎之前就把 `zh*` 收成单一的区域值，只有直接调用 `channel_t` 的代码才可能带着它进来。 |
 | **代码位置** | `myrm-agent-server/app/channels/i18n/engine.py`（`_known_locales`、`_resolve_locale`、`format_value`、`add_root`） · `app/channels/i18n/_ARCH.md` · `app/channels/CHANNELS_SYSTEM.md` · `tests/channels/i18n/test_locale_resolution.py` |
 
+## 2026-10-31 · 定时任务运行记录：展开后的 token 输入/输出标签与步骤序号写死英文，`CronRunItem.tsx` 超过行数上限且「复制审计轨迹」没有单测
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；代码、测试与文档在同一提交）。「仍然存在」里的项未处理。 |
+| **症状** | ① [代码] 展开一条运行记录，`Input: …`、`Output: …` 以及没有工具名、没有步骤键的步骤名 `step N` 是 `CronRunItem.tsx` 里的字符串字面量，六种语言下都显示英文。② `CronRunItem.tsx` 417 行（上限 400，靠 `scripts/ci/file_line_budget_baseline.txt` 豁免），其中的「复制审计轨迹」是用户可见功能，没有单测。 |
+| **根因** | 当初直接写了字面量，没有走 `cron` 命名空间；步骤列表与审计轨迹复制一直内联在行记录组件里。 |
+| **修复** | `Input` / `Output` 复用已有的 `cron.statInput` / `cron.statOutput`；新增 `cron.stepFallback`（`Step {index}`）六种语言；执行步骤列表与复制审计轨迹原样搬到 `CronRunSteps.tsx`（`CronRunItem.tsx` 417→336 行），删除基线里该文件的豁免；`cron-utils.ts` 里 `SkipReasonLabelKey` 联合类型按 prettier 折成一行（上一个提交里漏了格式化）。 |
+| **回归证据** | [1] 新增 `CronRunSteps.test.tsx` 6 例：没有步骤时不渲染（2 例）；步骤依次取工具名、步骤键、本地化序号；失败步骤带错误文本；复制的 JSON 含 run_id、job_id、status、trigger_source、model、usage、steps、output，并提示已复制；没有触发来源时记为 `cron`。`CronRunItem.test.tsx` 新增展开后的 token 标签与步骤 1 例。7 个变异体逐个注入，全部被杀（写死 `step N`、去掉 `cron` 兜底、轨迹里不带步骤、去掉复制提示、空步骤也渲染、`CronRunItem` 不挂 `CronRunSteps`、写死 `Input` 标签）。[2] 全量：`src/components/features/cron` 18 个文件 167 例通过；`tsc --noEmit`、`verify:i18n`（key parity、占位符、术语表）、prettier 检查通过；`check_file_line_budget.py` 的违规列表里没有 cron 文件（列出的 `useRetrievalStore.ts` 等不是本次改动）；`bun run lint` 里 `verify:a11y`、`verify:hardcoded-copy` 仍红，输出里没有 `CronRunItem`、`CronRunSteps`、`cron-utils`。[3] 提示缓存：`cron_manage_tool` 的名称、描述与 schema 指纹（JSON 取 sha256 前 12 位）仍是 `f65b63967f87`，描述 4762 字符。 |
+| **仍然存在** | ① 「已复制」的 2 秒复位用的 `setTimeout` 原样搬迁，组件在这 2 秒内卸载仍会在卸载后设置状态（React 18 不报警告，没有处理）。② 步骤列表沿用 `key={idx}`。③ 没有在浏览器里看（没有版式变化，各语言文案长度没有实测）。 |
+| **代码位置** | frontend：`src/components/features/cron/CronRunSteps.tsx`（新增）、`CronRunItem.tsx`、`cron-utils.ts`、`_ARCH.md`、`__tests__/CronRunSteps.test.tsx`（新增）、`__tests__/CronRunItem.test.tsx`、`scripts/ci/file_line_budget_baseline.txt`、六个 `locales/*.json`。 |
+
 ## 2026-10-31 · 定时任务：跳过与推迟的运行也消耗 `max_fires`，设了最大执行次数的任务在没执行过任何事时就被暂停
 
 | 字段 | 内容 |

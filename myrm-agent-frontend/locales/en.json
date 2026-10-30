@@ -7732,6 +7732,7 @@
     "auditPauseFail": "Task created but could not be paused for review. Confirm from the job detail later.",
     "copyAuditTrace": "Copy Audit Trace",
     "traceCopied": "Execution trace copied to clipboard",
+    "stepFallback": "Step {index}",
     "prerequisite": {
       "checkingPrerequisite": "Checking workflow manual verification status…",
       "satisfiedTitle": "Manual verification prerequisite satisfied ({count}/{threshold} successful runs)",

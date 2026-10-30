@@ -2,25 +2,12 @@
 
 import { memo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import {
-  ChevronDown,
-  ChevronUp,
-  Cpu,
-  Send,
-  CircleX,
-  Coins,
-  ShieldAlert,
-  ShieldCheck,
-  Zap,
-  Wrench,
-  Copy,
-  Check,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
 import { ShieldWarning } from '@phosphor-icons/react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import CronRunBlockedActions from './CronRunBlockedActions';
+import CronRunSteps from './CronRunSteps';
 import { formatDuration, formatTime, skipReasonLabelKey } from './cron-utils';
 
 interface CronRunItemProps {
@@ -37,7 +24,6 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
   const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
   const isOk = run.status === 'ok';
   const isSkipped = run.status === 'skipped';
   const isCircuitBreak = run.status === 'circuit_break';
@@ -88,31 +74,6 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
     ) : run.delivery_status === 'failed' ? (
       <CircleX className="h-3 w-3 text-destructive" />
     ) : null;
-
-  const handleCopyAuditTrace = () => {
-    const traceData = {
-      run_id: run.id,
-      job_id: run.job_id,
-      status: run.status,
-      started_at: run.started_at,
-      duration_ms: run.duration_ms,
-      trigger_source: run.trigger_source || 'cron',
-      model: run.model,
-      usage: {
-        input: run.usage_input_tokens,
-        output: run.usage_output_tokens,
-        total: run.usage_total_tokens,
-      },
-      steps: run.metadata?.progressSteps || [],
-      verification: run.metadata?.verification,
-      output: run.output,
-      error: run.error,
-    };
-    void navigator.clipboard.writeText(JSON.stringify(traceData, null, 2));
-    setCopied(true);
-    toast.success(t('traceCopied'));
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="flex gap-3">
@@ -281,53 +242,17 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             )}
             {run.usage_input_tokens != null && (
               <div className="flex gap-3 text-[10px] text-muted-foreground">
-                <span>Input: {formatTokens(run.usage_input_tokens)}</span>
-                {run.usage_output_tokens != null && <span>Output: {formatTokens(run.usage_output_tokens)}</span>}
+                <span>
+                  {t('statInput')}: {formatTokens(run.usage_input_tokens)}
+                </span>
+                {run.usage_output_tokens != null && (
+                  <span>
+                    {t('statOutput')}: {formatTokens(run.usage_output_tokens)}
+                  </span>
+                )}
               </div>
             )}
-            {run.metadata?.progressSteps &&
-              Array.isArray(run.metadata.progressSteps) &&
-              run.metadata.progressSteps.length > 0 && (
-                <div className="rounded-lg border border-border/40 bg-muted/20 p-2 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                      <Wrench className="h-3 w-3" />
-                      {t('executionSteps')} ({run.metadata.progressSteps.length})
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleCopyAuditTrace}
-                      className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 bg-background/50 border border-border/50 rounded px-1.5 py-0.5"
-                    >
-                      {copied ? <Check className="h-2.5 w-2.5 text-green-500" /> : <Copy className="h-2.5 w-2.5" />}
-                      {t('copyAuditTrace')}
-                    </button>
-                  </div>
-                  <div className="space-y-1">
-                    {run.metadata.progressSteps.map((step, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-1.5 text-[10px] bg-background/30 rounded px-1.5 py-1"
-                      >
-                        <span
-                          className={cn(
-                            'h-1.5 w-1.5 rounded-full shrink-0',
-                            step.error ? 'bg-red-400' : 'bg-emerald-400',
-                          )}
-                        />
-                        <span className="font-mono font-medium text-foreground/90 truncate">
-                          {step.tool_name || step.step_key || `step ${idx + 1}`}
-                        </span>
-                        {step.error && (
-                          <span className="text-red-400 truncate ml-auto" title={step.error}>
-                            {step.error}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <CronRunSteps run={run} />
             {run.output && (
               <pre className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-60 overflow-y-auto">
                 {displayOutput}

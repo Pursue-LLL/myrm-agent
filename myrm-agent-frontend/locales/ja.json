@@ -7732,6 +7732,7 @@
     "auditPauseFail": "タスクは作成されましたが、レビュー用に一時停止できませんでした。後でジョブ詳細から確認してください。",
     "copyAuditTrace": "監査 Trace をコピー",
     "traceCopied": "実行 Trace をクリップボードにコピーしました",
+    "stepFallback": "ステップ {index}",
     "prerequisite": {
       "checkingPrerequisite": "手動検証のステータスを確認中…",
       "satisfiedTitle": "前置手動検証済み（成功 {count}/{threshold} 回）",

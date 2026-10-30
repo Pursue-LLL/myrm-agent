@@ -7732,6 +7732,7 @@
     "auditPauseFail": "任务已创建，但未能暂停以供审查，请稍后在任务详情中确认",
     "copyAuditTrace": "复制审计 Trace",
     "traceCopied": "已复制执行 Trace 到剪贴板",
+    "stepFallback": "步骤 {index}",
     "prerequisite": {
       "checkingPrerequisite": "正在检测任务前置手动验证状态…",
       "satisfiedTitle": "已达成前置手动验证（成功 {count}/{threshold} 次）",

@@ -7732,6 +7732,7 @@
     "auditPauseFail": "Aufgabe erstellt, konnte aber nicht zur Überprüfung angehalten werden. Bestätigen Sie dies später anhand der Auftragsdetails.",
     "copyAuditTrace": "Audit-Ablaufverfolgung kopieren",
     "traceCopied": "Ablaufverfolgung in die Zwischenablage kopiert",
+    "stepFallback": "Schritt {index}",
     "prerequisite": {
       "checkingPrerequisite": "Überprüfe Status der manuellen Workflow-Verifizierung…",
       "satisfiedTitle": "Voraussetzung für manuelle Verifizierung erfüllt ({count}/{threshold} erfolgreiche Durchläufe)",

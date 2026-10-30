@@ -93,4 +93,21 @@ describe('CronRunItem', () => {
     expect(screen.getByText('no-content')).toBeInTheDocument();
     expect(screen.queryByText('skippedNoContent')).toBeNull();
   });
+
+  it('labels the token counts and lists the steps in the expanded view', () => {
+    const detailedRun: CronRun = {
+      ...baseRun,
+      id: 'run-detail-1',
+      usage_input_tokens: 1200,
+      usage_output_tokens: 300,
+      metadata: { progressSteps: [{ tool_name: 'web_search' }] },
+    };
+
+    render(<CronRunItem run={detailedRun} isLast={false} />);
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.getByText('statInput: 1.2k')).toBeInTheDocument();
+    expect(screen.getByText('statOutput: 300')).toBeInTheDocument();
+    expect(screen.getByText('web_search')).toBeInTheDocument();
+  });
 });
