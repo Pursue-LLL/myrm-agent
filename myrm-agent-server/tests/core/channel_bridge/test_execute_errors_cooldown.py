@@ -38,5 +38,7 @@ def test_llm_error_reply_states_the_wait_exactly_once() -> None:
 
     reply = build_llm_error_reply(_inbound_message(), exc)
 
-    assert reply.content.count("3 hours") == 1
+    assert reply.content.count("Retry after") == 1
+    assert "Wait 60 seconds" not in reply.content
+    assert "Upgrade API plan" in reply.content  # the steps that remain are still offered
     assert "retry in" not in reply.content.lower()

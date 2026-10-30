@@ -41,8 +41,8 @@
     "如果未安装，请下载该模型"
   ],
   "rate_limit_user_message": "API 速率限制超出",
+  "rate_limit_wait_step": "等待 60 秒后重试",
   "rate_limit_resolution_steps": [
-    "等待 60 秒后重试",
     "升级 API 计划以获得更高的速率限制",
     "检查是否有其他进程正在使用相同的 API 密钥",
     "使用 fallback_llm 自动处理速率限制"

@@ -56,6 +56,8 @@ def _unflatten_locale_json(flat_data: dict[str, object]) -> LocaleBundle:
         elif key.endswith("_user_message"):
             err_type = key.replace("_user_message", "")
             trans.setdefault(err_type, {})["user_message"] = str(value)
+        elif key.endswith("_wait_step"):
+            trans.setdefault(key.removesuffix("_wait_step"), {})["wait_step"] = str(value)
 
     return trans
 
@@ -168,16 +170,11 @@ class LocaleManager:
         if locale is None:
             locale = self.detect_locale()
 
-        for fallback_locale in (locale, "en"):
-            if fallback_locale in self._translations:
-                translations = self._translations[fallback_locale]
-                if error_type in translations:
-                    error_translations = translations[error_type]
-                    if key in error_translations:
-                        template = error_translations[key]
-                        if isinstance(template, list):
-                            return [self._safe_format(step, params) for step in template]
-                        return self._safe_format(str(template), params)
+        template = self._find_template(error_type, key, locale)
+        if template is not None:
+            if isinstance(template, list):
+                return [self._safe_format(step, params) for step in template]
+            return self._safe_format(template, params)
 
         logger.warning(
             "Translation missing: %s.%s for locale %s. Available locales: %s",
@@ -189,6 +186,19 @@ class LocaleManager:
         if key == "resolution_steps":
             return []
         return f"[Missing translation: {error_type}.{key}]"
+
+    def translate_optional(self, error_type: str, key: str, locale: str | None = None, **params: object) -> str | None:
+        """Translate a text a bundle may not carry (a custom bundle written before the key existed); None when absent."""
+        template = self._find_template(error_type, key, locale or self.detect_locale())
+        return self._safe_format(template, params) if isinstance(template, str) else None
+
+    def _find_template(self, error_type: str, key: str, locale: str) -> str | list[str] | None:
+        """The text of ``error_type.key`` in ``locale``, else in English; None when neither has it."""
+        for candidate in (locale, "en"):
+            template = self._translations.get(candidate, {}).get(error_type, {}).get(key)
+            if template is not None:
+                return template
+        return None
 
     def _validate_translations(self) -> None:
         """Validate that all required error types have complete translations."""

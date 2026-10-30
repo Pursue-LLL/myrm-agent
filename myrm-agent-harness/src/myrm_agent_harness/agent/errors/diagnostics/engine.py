@@ -327,6 +327,10 @@ class LLMErrorDiagnostic:
 
             cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
             user_message += cooldown_hint
+            # A known wait is already in the message; a second, different one would contradict it.
+            wait_step = None if cooldown_hint else locale_manager.translate_optional("rate_limit", "wait_step", locale)
+            if wait_step:
+                resolution_steps = [wait_step, *resolution_steps]
 
             return DiagnosticResult(
                 error_type="rate_limit",

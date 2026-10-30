@@ -41,8 +41,8 @@
     "Download the model if not installed"
   ],
   "rate_limit_user_message": "API rate limit exceeded",
+  "rate_limit_wait_step": "Wait 60 seconds and retry",
   "rate_limit_resolution_steps": [
-    "Wait 60 seconds and retry",
     "Upgrade API plan for higher rate limits",
     "Check if other processes are using the same API key",
     "Use fallback_llm to handle rate limits automatically"

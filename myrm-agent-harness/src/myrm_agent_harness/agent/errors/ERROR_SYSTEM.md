@@ -483,9 +483,11 @@ from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
 get_locale_manager().register_translations(
     "zh-CN",
-    {"rate_limit": {"message": "API 请求频率受限，请稍后重试", "hint": "可升级 API 计划或切换模型"}},
+    {"rate_limit": {"user_message": "API 请求频率受限", "resolution_steps": ["可升级 API 计划或切换模型"]}},
 )
-# 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 cooldown_hint_* 自动展平）
+# 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 `<error_type>_user_message` / `_resolution_steps` / `_wait_step` 与 cooldown_hint_* 自动展平）
+# 限流诊断只说一次等待：供应商给出等待时长时，消息里已有该时长，resolution_steps 不再带通用的 rate_limit_wait_step；
+# 没有给出时它排在 resolution_steps 之首。自定义目录缺少 rate_limit_wait_step 时 resolution_steps 原样返回。
 ```
 
 ---

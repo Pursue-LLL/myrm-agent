@@ -41,8 +41,8 @@
     "Laden Sie das Modell herunter, falls es nicht installiert ist"
   ],
   "rate_limit_user_message": "API-Ratenlimit erreicht",
+  "rate_limit_wait_step": "Bitte versuchen Sie es in einigen Minuten erneut",
   "rate_limit_resolution_steps": [
-    "Bitte versuchen Sie es in einigen Minuten erneut",
     "Wenn dies häufig auftritt, upgraden Sie Ihren Provider-Plan",
     "Erwägen Sie das Hinzufügen von Verzögerungen bei Batch-Anfragen",
     "Reduzieren Sie die Anfragehäufigkeit"
