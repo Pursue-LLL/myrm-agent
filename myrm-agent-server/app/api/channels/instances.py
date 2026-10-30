@@ -109,7 +109,7 @@ async def create_channel_instance(
         from app.services.config.service import ConfigService
 
         config_key = channel_credentials_key(channel_name)
-        await ConfigService().set(config_key, body.credentials, device_id="web")
+        await ConfigService().set(config_key, dict(body.credentials), device_id="web")
 
     current = await load_persisted_instances()
     current.append(
