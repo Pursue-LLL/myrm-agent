@@ -10,6 +10,8 @@
 [POS]
 Dev Gate layer — unified ADMIT → BOOTSTRAP → BODY → TEARDOWN lifecycle.
 BODY budget: dev LIVE_AGENT 600s (R96-R62); READ and signoff 600s. Queue/bootstrap never consume BODY budget.
+The wall clock starts at submit and is cumulative; leaving ADMIT charges it at most its own cap, so an
+admission that outran its cap (private queue + private runtime start) does not shorten bootstrap or BODY.
 """
 
 from __future__ import annotations
@@ -30,6 +32,8 @@ from dev_gate.contract import (
     is_e2e_signoff_runtime,
 )
 
+from e2e_session_runtime.coordinator_seal import seal_coordinator_body
+
 SessionPhase = Literal["admit", "bootstrap", "body", "teardown"]
 LifecycleProfile = Literal["dev", "signoff"]
 
@@ -37,13 +41,6 @@ ENV_WALL_STARTED: Final[str] = "MYRM_E2E_WALL_STARTED_MONOTONIC"
 ENV_MONO_STARTED: Final[str] = "MYRM_E2E_MONO_STARTED_MONOTONIC"
 ENV_PROGRESS_AT: Final[str] = "MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"
 ENV_WALL_PHASE: Final[str] = "MYRM_E2E_WALL_PHASE"
-
-# dev_gate.session.TERMINAL_STATES 的字符串镜像：并发 complete_bootstrap_phase
-# 可能已把 coordinator session 推到终态（TEARDOWN→SUCCEEDED/FAILED/CANCELLED），
-# 此时本地 BODY seal 不再必要，应静默返回而非误报（见 _transition_dev_gate_to_body）。
-_DEV_GATE_TERMINAL_STATES: Final[frozenset[str]] = frozenset(
-    {"SUCCEEDED", "FAILED", "CANCELLED"}
-)
 
 _LEGACY_PHASE_ALIASES: Final[dict[str, SessionPhase]] = {
     "admission": "admit",
@@ -264,8 +261,41 @@ def remaining_wall_sec() -> float:
     )
 
 
+def _shift_wall_origin(seconds: float) -> None:
+    for name in (ENV_MONO_STARTED, ENV_WALL_STARTED):
+        raw = os.environ.get(name, "").strip()
+        if not raw:
+            continue
+        try:
+            os.environ[name] = str(float(raw) + seconds)
+        except ValueError:
+            continue
+
+
+def _release_admit_overrun() -> None:
+    """Charge ADMIT at most its own cap once the session leaves it.
+
+    The clock starts at submit and is cumulative, but admission is not bounded by it: the
+    private queue and the private runtime start run in shell steps with limits of their
+    own. Whatever they spend beyond ``admit_sec`` must not shorten the phases that follow,
+    so the origin moves forward by exactly that overrun.
+    """
+    admit_sec = resolve_budget_policy().admit_sec
+    overrun = elapsed_wall_sec() - float(admit_sec)
+    if overrun <= 0.0:
+        return
+    _shift_wall_origin(overrun)
+    print(
+        f"E2E_ADMIT_OVERRUN_FORGIVEN: overrun={int(overrun)}s admit_cap={admit_sec}s",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def transition_to_phase(phase: SessionPhase, *, label: str = "") -> None:
     _ensure_mono_started()
+    if phase != "admit" and current_phase() == "admit":
+        _release_admit_overrun()
     if wall_started_monotonic() is None:
         stamp = str(time.monotonic())
         os.environ[ENV_WALL_STARTED] = stamp
@@ -296,7 +326,7 @@ def export_session_env(*, phase: SessionPhase = "admit") -> dict[str, str]:
 
 
 def begin_bootstrap_phase(*, phase_label: str = "bootstrap") -> None:
-    """Enter bootstrap phase with a fresh wall clock (even if body already started).
+    """Enter bootstrap phase on the session's cumulative wall clock (even if body already started).
 
     R215: when BODY is already active (mux heal CDP re-bootstrap), keep BODY wall
     budget — do not downgrade to bootstrap cap.
@@ -318,7 +348,7 @@ def _begin_body_cdp_rebootstrap(*, phase_label: str) -> None:
 
 
 def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
-    """Re-enter body phase with a fresh wall clock after cdp bootstrap finishes."""
+    """Re-enter body phase after cdp bootstrap finishes; the cumulative wall clock is not reset."""
     if current_phase() == "body":
         touch_wall_progress(current_node=phase_label)
         try:
@@ -340,82 +370,7 @@ def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
         flush=True,
     )
     begin_body_wall_budget(phase_label=phase_label)
-    _transition_dev_gate_to_body(current_node=phase_label)
-
-
-def _transition_dev_gate_to_body(*, current_node: str) -> None:
-    """Seal coordinator PAGE_OPEN→BODY and emit the product SLO measurement."""
-    session_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
-    owner_token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
-    if not session_id or not owner_token:
-        return
-    from dev_gate.cli import send
-
-    response = send({"operation": "snapshot", "session_id": session_id})
-    session = response.get("session") if isinstance(response, dict) else None
-    if not isinstance(session, dict):
-        raise TypeError(f"E2E_DEV_GATE_BODY_TRANSITION: session missing {session_id}")
-    state = str(session.get("state", ""))
-    if state == "PREPARING":
-        response = send(
-            {
-                "operation": "transition",
-                "session_id": session_id,
-                "owner_token": owner_token,
-                "target": "PAGE_OPEN",
-                "current_node": "E2E_PYTEST_SUBPROCESS",
-            }
-        )
-        session = response.get("session") if isinstance(response, dict) else None
-        state = str(session.get("state", "")) if isinstance(session, dict) else ""
-    if state == "PAGE_OPEN":
-        # Re-snapshot before BODY: parallel open_mcp_page / post_cdp_bootstrap may
-        # have sealed BODY while local wall phase is still bootstrap.
-        response = send({"operation": "snapshot", "session_id": session_id})
-        session = response.get("session") if isinstance(response, dict) else None
-        state = str(session.get("state", "")) if isinstance(session, dict) else ""
-        if state == "PAGE_OPEN":
-            try:
-                response = send(
-                    {
-                        "operation": "transition",
-                        "session_id": session_id,
-                        "owner_token": owner_token,
-                        "target": "BODY",
-                        "current_node": current_node,
-                    }
-                )
-            except RuntimeError as exc:
-                # TOCTOU: a concurrent complete_bootstrap_phase (pytest fixture +
-                # post_cdp_bootstrap) may seal BODY between re-snapshot and this
-                # transition. Treat an already-sealed BODY as success.
-                if "BODY->BODY" not in str(exc):
-                    raise
-                response = send({"operation": "snapshot", "session_id": session_id})
-            session = response.get("session") if isinstance(response, dict) else None
-            state = str(session.get("state", "")) if isinstance(session, dict) else ""
-    if state != "BODY" or not isinstance(session, dict):
-        if state in _DEV_GATE_TERMINAL_STATES:
-            # 并发 complete_bootstrap_phase（pytest fixture + post_cdp_bootstrap）
-            # 可能已把 session 直接推到终态（TEARDOWN→SUCCEEDED/FAILED/CANCELLED）。
-            # 本地 wall phase 独立运行，BODY seal 不再必要——静默返回避免误报。
-            return
-        raise RuntimeError(
-            f"E2E_DEV_GATE_BODY_TRANSITION: expected BODY, got {state or 'UNKNOWN'}"
-        )
-    submitted_at = session.get("submitted_at")
-    phase_started_at = session.get("phase_started_at")
-    if not isinstance(submitted_at, (int, float)) or not isinstance(
-        phase_started_at, (int, float)
-    ):
-        raise TypeError("E2E_DEV_GATE_BODY_TRANSITION: timestamps unavailable")
-    admit_to_body = max(0.0, float(phase_started_at) - float(submitted_at))
-    print(
-        f"E2E_DEV_GATE_BODY_START: admit_to_body_sec={admit_to_body:.3f} "
-        f"session={session_id} node={current_node}",
-        file=sys.stderr,
-        flush=True,
-    )
+    seal_coordinator_body(current_node=phase_label)
 
 
 def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:

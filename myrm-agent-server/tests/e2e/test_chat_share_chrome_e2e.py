@@ -90,7 +90,10 @@ def _open_share_dialog_js(chat_id: str) -> str:
     return {{ ready: true, alreadyOpen: true }};
   }}
   const href = {json.dumps(f"/{chat_id}")};
-  const row = document.querySelector(`a[href="${{href}}"]`);
+  // The NavBar chat icon links to the active chat too (no More button); only
+  // the history row carries one, so prefer the anchor that has a button.
+  const anchors = Array.from(document.querySelectorAll(`a[href="${{href}}"]`));
+  const row = anchors.find((a) => a.querySelector('button')) || anchors[0];
   if (!row) {{
     const store = window.__myrmChatStore;
     const state = store ? store.getState() : null;
@@ -112,7 +115,7 @@ def _open_share_dialog_js(chat_id: str) -> str:
   const more = Array.from(row.querySelectorAll('button')).find(
     (b) => !(b.textContent || '').trim(),
   );
-  if (!more) return {{ ready: false, reason: 'no-more-btn' }};
+  if (!more) return {{ ready: false, reason: 'no-more-btn', anchors: anchors.length }};
   more.dispatchEvent(new PointerEvent('pointerdown', {{
     bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0,
   }}));
