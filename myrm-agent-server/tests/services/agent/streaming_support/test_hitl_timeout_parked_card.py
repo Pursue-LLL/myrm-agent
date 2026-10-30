@@ -247,6 +247,26 @@ async def test_a_failed_timer_run_hands_the_card_back_so_a_manual_answer_still_h
 
 
 @pytest.mark.asyncio
+async def test_a_timer_run_that_cannot_read_the_history_hands_the_card_back(
+    parked: StreamContentCollector, resumed_run: list[bool], stored_history: AsyncMock, received_params: list[object]
+) -> None:
+    """Failing before the agent starts is a failed run like any other: the card goes back and no run starts."""
+    stored_history.side_effect = RuntimeError("database is locked")
+    scheduler = ApprovalTimeoutScheduler.get()
+    with (
+        patch.object(hitl_timeout, "server_turn_lease", _granted_lease),
+        patch.object(scheduler, "reopen") as reopen,
+        pytest.raises(RuntimeError, match="database is locked"),
+    ):
+        await hitl_timeout._resume_after_timeout(CHAT_ID, _params(), {"decision": "deny"}, "approval")
+
+    reopen.assert_called_once_with(CHAT_ID)
+    assert received_params == []
+    assert parked.has_pending_tool_approval() is True
+    assert ACTIVE_COLLECTORS.get(CHAT_ID) is parked
+
+
+@pytest.mark.asyncio
 async def test_a_stopped_timer_run_ends_the_parked_run_too(parked: StreamContentCollector, resumed_run: list[bool]) -> None:
     """The user's Stop (or an E-Stop) cancels the timer run: the turn is over, whatever the stream was doing."""
     with (
