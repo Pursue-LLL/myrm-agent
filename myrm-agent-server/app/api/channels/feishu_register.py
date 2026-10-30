@@ -8,7 +8,7 @@ to scan a QR code to automatically create a bot application.
 - POST /channels/manage/feishu/qr-register/poll - Poll for scan status
 
 [INPUT]
-- app.channels.providers.feishu.registration::FeishuAppRegistration
+- app.channels.providers.feishu.registration::FeishuAppRegistration, RegistrationCredentials (POS: Channel provider utility for the Feishu device-code registration flow)
 - app.core.channel_bridge.channel_gateway::add_channel, remove_channel
 - app.core.channel_bridge.channel_factory::create_channel_instance, flatten_credential_strings
 - app.services.config.service::ConfigService
@@ -36,6 +36,7 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from app.channels.providers.feishu.registration import (
         FeishuAppRegistration,
+        RegistrationCredentials,
     )
 
 logger = logging.getLogger(__name__)
@@ -228,7 +229,7 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
 
 
 async def _save_credentials_to_db(
-    creds: dict[str, str | None],
+    creds: RegistrationCredentials,
     *,
     display_name: str | None = None,
 ) -> dict[str, str] | None:

@@ -38,6 +38,7 @@ async def get_channel_credentials(
     Boolean values are normalized to lowercase strings (``"true"/"false"``)
     so the frontend ``useLark === 'true'`` comparison stays stable.
     """
+    from app.core.channel_bridge.channel_factory import flatten_credential_strings
     from app.services.config.service import ConfigService
 
     config_key = channel_credentials_key(channel_name)
@@ -46,10 +47,10 @@ async def get_channel_credentials(
     if record is None:
         return {}
 
-    credentials = {str(k): (str(v).lower() if isinstance(v, bool) else v) for k, v in record.value.items()}
+    credentials = flatten_credential_strings(record.value)
 
     for key, value in credentials.items():
-        if isinstance(value, str) and any(sensitive in key.lower() for sensitive in ["token", "password", "secret", "key"]):
+        if any(sensitive in key.lower() for sensitive in ["token", "password", "secret", "key"]):
             if len(value) > 4:
                 credentials[key] = "•" * (len(value) - 4) + value[-4:]
             else:
@@ -80,7 +81,7 @@ async def save_channel_credentials(
 
     config_key = channel_credentials_key(channel_name)
     record = await ConfigService().get(config_key)
-    merged = dict(record.value) if record else {}
+    merged: dict[str, object] = dict(record.value) if record else {}
     merged.update(credentials)
     await ConfigService().set(config_key, merged, device_id="web")
 
@@ -101,6 +102,7 @@ async def save_channel_credentials(
         from app.core.channel_bridge.channel_factory import (
             create_channel_instance as factory_create,
         )
+        from app.core.channel_bridge.channel_factory import flatten_credential_strings
 
         # Build the replacement first so a construction failure (e.g. invalid
         # credentials) leaves the current channel untouched instead of removing
@@ -110,7 +112,7 @@ async def save_channel_credentials(
         new_channel = await factory_create(
             channel_type=base_type,
             instance_id=ch.instance_id or channel_name,
-            credentials=merged,
+            credentials=flatten_credential_strings(merged),
         )
         new_channel.display_name = ch.display_name
         await channel_gateway.swap_channel(new_channel, ch)

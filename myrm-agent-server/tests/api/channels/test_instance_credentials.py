@@ -488,6 +488,50 @@ async def test_save_channel_credentials_rebuilds_multi_instance() -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_channel_credentials_rebuild_passes_string_credentials() -> None:
+    """Credentials stored as booleans (QR flow) reach the channel factory as
+    lowercase strings, the same shape the other provisioning paths use."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    instance_id = uuid.uuid4().hex[:8]
+    channel_name = f"feishu_{instance_id}"
+    config_key = channel_credentials_key(channel_name)
+    await ConfigService().set(
+        config_key,
+        {"appId": "cli_flat", "appSecret": "old", "useLark": True},
+        device_id="test",
+    )
+
+    old_channel = MagicMock()
+    old_channel.instance_id = instance_id
+    old_channel.display_name = "flat"
+
+    gateway = MagicMock()
+    gateway._resolve_channel_type = MagicMock(return_value="feishu")
+    gateway.bus.get_channel = MagicMock(return_value=old_channel)
+    gateway.swap_channel = AsyncMock()
+
+    create = AsyncMock(return_value=MagicMock())
+
+    try:
+        with (
+            patch("app.core.channel_bridge.channel_gateway", gateway),
+            patch("app.core.channel_bridge.channel_factory.create_channel_instance", create),
+        ):
+            await save_channel_credentials(channel_name, {"appSecret": "rotated"})
+    finally:
+        await ConfigService().delete(config_key)
+
+    assert create.await_args.kwargs["credentials"] == {
+        "appId": "cli_flat",
+        "appSecret": "rotated",
+        "useLark": "true",
+    }
+
+
+@pytest.mark.asyncio
 async def test_save_channel_credentials_default_instance_hot_reloads() -> None:
     """A default (non-instance) channel reloads via reload_channel_credentials."""
     from app.api.channels.instances import save_channel_credentials
