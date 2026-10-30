@@ -121,7 +121,16 @@ _PICK_SKILL_CHIP_JS = """((needle) => {
   const items = palette ? Array.from(palette.querySelectorAll('[cmdk-item], [role="option"]')) : [];
   const target = items.find((el) => (el.textContent || '').toLowerCase().includes(needle));
   if (target) target.click();
-  return { ready: false, paletteEntries: items.slice(0, 6).map((el) => (el.textContent || '').slice(0, 60)) };
+  // Tells a page replaced after typing (empty composer, new timeOrigin) from a palette that did not render.
+  const input = document.querySelector('[data-chat-input]');
+  const state = window.__myrmChatStore?.getState?.();
+  const entries = items.slice(0, 6).map((el) => (el.textContent || '').slice(0, 60));
+  return {
+    ready: false, paletteEntries: entries, hasPalette: Boolean(palette), composerText: input?.value ?? null,
+    timeOrigin: performance.timeOrigin, storeInput: state?.inputMessage ?? null,
+    boundSkillIds: state?.agentConfig?.selectedSkillIds ?? null, caret: input?.selectionStart ?? null,
+    visibility: document.visibilityState, composerFocused: document.activeElement === input,
+  };
 })"""
 
 # The composer's own file input, driven like the browser does when a user picks a file in the dialog.

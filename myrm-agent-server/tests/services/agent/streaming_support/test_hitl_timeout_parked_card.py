@@ -283,3 +283,54 @@ def test_a_failed_later_run_does_not_hand_back_a_card_an_earlier_run_answered(pa
     parked.unsettle_tool_approvals()
 
     assert parked.has_pending_tool_approval() is False
+
+
+@pytest.mark.asyncio
+async def test_a_clarification_timer_marks_the_card_answered_and_ends_the_parked_turn(resumed_run: list[bool]) -> None:
+    """The clarification card is stored with the message, so the timer flips it there; the parked run still leaves with the turn."""
+    RunDigestStore.begin_run(CHAT_ID)
+    parked_clarification = StreamContentCollector(chat_id=CHAT_ID)
+    parked_clarification.feed_event({"type": "clarification_required", "messageId": "msg-1", "data": {}})
+    mark_answered = AsyncMock()
+    try:
+        with (
+            patch.object(hitl_timeout, "server_turn_lease", _granted_lease),
+            patch.object(hitl_timeout, "mark_pending_clarification_answered", new=mark_answered),
+        ):
+            await hitl_timeout._resume_after_timeout(CHAT_ID, _params(), {}, "clarification")
+
+        mark_answered.assert_awaited_once_with(CHAT_ID, {"by": "timeout", "value": {}})
+        assert ACTIVE_COLLECTORS.get(CHAT_ID) is None
+        assert _digest_phase() is RunDigestPhase.COMPLETED
+    finally:
+        parked_clarification.cleanup()
+        RunDigestStore.clear(CHAT_ID)
+
+
+@pytest.mark.asyncio
+async def test_an_approval_timer_leaves_the_stored_clarification_card_alone(
+    parked: StreamContentCollector, resumed_run: list[bool]
+) -> None:
+    """Only a clarification timer answers the stored clarification card; a tool-approval timer must not flip it."""
+    mark_answered = AsyncMock()
+    with (
+        patch.object(hitl_timeout, "server_turn_lease", _granted_lease),
+        patch.object(hitl_timeout, "mark_pending_clarification_answered", new=mark_answered),
+    ):
+        await hitl_timeout._resume_after_timeout(CHAT_ID, _params(), {"decision": "deny"}, "approval")
+
+    mark_answered.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_timer_run_without_a_parked_run_ends_cleanly(resumed_run: list[bool]) -> None:
+    """The parked run is gone (its chat was cleaned up meanwhile): the timer run still answers and ends its digest."""
+    assert ACTIVE_COLLECTORS.get(CHAT_ID) is None
+    try:
+        with patch.object(hitl_timeout, "server_turn_lease", _granted_lease):
+            await hitl_timeout._resume_after_timeout(CHAT_ID, _params(), {"decision": "deny"}, "approval")
+
+        assert resumed_run == [False]
+        assert _digest_phase() is RunDigestPhase.COMPLETED
+    finally:
+        RunDigestStore.clear(CHAT_ID)
