@@ -10,7 +10,7 @@
 - ApprovalResult: 审批流结果（含风控降级原因）
 - ConfidenceApprovalFlow: 多信号风控审批流
 [POS]
-基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。
+基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review；基于已过期技能文本生成的提案直接丢弃。
 """
 
 from __future__ import annotations
@@ -66,12 +66,17 @@ class ConfidenceApprovalFlow:
         2. changed-content ratio <= 50% (prevents silent large-scale rewrites)
         3. historical success rate over observed runs >= 50% or insufficient data (prevents risky fixes on low-quality skills)
         4. no new HIGH-level security finding versus the original content (prevents silently adding outbound or privileged behavior)
+
+        A proposal built from text the skill's SKILL.md no longer holds is discarded and the store's copy refreshed,
+        so the next proposal starts from the file.
         """
         from app.core.skills.store.evolution_store import get_evolution_skill_store
         from app.services.skills.evolution_reviews import (
             EvolutionApplyError,
             approve_evolution_review_record,
             create_evolution_review_record,
+            skill_file_differs,
+            sync_store_from_disk,
         )
 
         logger.info(
@@ -85,6 +90,19 @@ class ConfidenceApprovalFlow:
 
         skill_path = skill_record.path if skill_record else ""
         skill_name = skill_record.name if skill_record else proposal.skill_id
+
+        if skill_record is not None and proposal.original_content and skill_file_differs(skill_path, proposal.original_content):
+            await sync_store_from_disk(store, skill_record)
+            logger.warning(
+                "Discarded evolution proposal for skill '%s': it was built from text the skill no longer has",
+                skill_name,
+            )
+            return ApprovalResult(
+                approved=False,
+                requires_manual_review=False,
+                reason="The skill changed after this proposal was generated.",
+                confidence=proposal.score,
+            )
 
         risk_signals = self._evaluate_risk_signals(proposal, skill_record)
         risk_signals.extend(await self._scan_risk_signals(proposal, skill_name))

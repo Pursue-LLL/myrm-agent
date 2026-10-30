@@ -86,6 +86,18 @@ async def test_applying_a_supported_type_writes_the_evolved_content(skill_file: 
 
 
 @pytest.mark.asyncio
+async def test_the_store_keeps_the_text_written_for_an_agent_scoped_skill(skill_file: Path) -> None:
+    store = _store()
+
+    await apply_content_update(_payload(skill_file, EvolutionType.CAPTURED.value), store, agent_id="agent-1")
+
+    written = skill_file.read_text(encoding="utf-8")
+    assert "scope_agent_id: agent-1" in written
+    saved: SkillRecord = store.save_skill.await_args.args[0]
+    assert saved.content == written
+
+
+@pytest.mark.asyncio
 async def test_applying_an_unsupported_type_is_refused_before_the_skill_file_is_touched(skill_file: Path) -> None:
     store = _store()
 
@@ -353,6 +365,7 @@ async def test_an_applied_fork_gives_the_payload_the_fork_identity(skill_file: P
     assert payload.original_content == ""
     saved: SkillRecord = store.save_skill.await_args.args[0]
     assert (saved.skill_id, saved.name) == (payload.skill_id, payload.skill_name)
+    assert saved.content == fork_file.read_text(encoding="utf-8")
 
 
 @pytest.mark.asyncio

@@ -5,7 +5,7 @@
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before a model reads it)
 
 [OUTPUT]
-- derive_skill: Trigger a user-driven derived evolution for an existing skill.
+- derive_skill: Trigger a user-driven derived evolution for an existing skill from its current SKILL.md.
 
 [POS]
 Evolution API endpoint for triggering derived evolution.
@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.risk.refusal import reject_if_risky
+from app.services.skills.evolution_reviews import sync_store_from_disk
 
 from .helpers import _get_skill_store
 
@@ -56,6 +57,9 @@ async def derive_skill(
     engine = evolution.engine if evolution is not None else None
     if engine is None:
         raise HTTPException(status_code=503, detail="Evolution engine not initialized. Please try again later.")
+
+    # The engine derives from the store's copy of the skill, which the editor and the agent's skill tool leave behind.
+    await sync_store_from_disk(store, skill)
 
     async def _run_derive() -> None:
         try:

@@ -5,6 +5,7 @@
 - myrm_agent_harness.infra.atomic_write::atomic_write (POS: crash-safe file replace)
 [OUTPUT]
 - skill_file_hash: hash of the SKILL.md on disk (the proposal's base)
+- skill_file_differs, sync_store_from_disk: whether the SKILL.md holds other text than a copy, and bringing the evolution store's copy up to the file
 - Full skill content apply (stale-base and loadability checks, atomic file write that is undone when the record or snapshot fails, SkillStore, agent fork bindings) and rollback (file system + SkillStore)
 [POS]
 Evolution 全量内容更新落盘与回滚（含 Copy-on-Write fork）。
@@ -57,13 +58,45 @@ def _require_loadable_skill_md(content: str, skill_path: Path) -> None:
         raise EvolutionApplyError(f"Evolved SKILL.md cannot be loaded: {exc}", code=REASON_SKILL_MD_UNLOADABLE) from exc
 
 
-def skill_file_hash(skill_path: Path) -> str | None:
-    """Hash of the SKILL.md on disk (undecodable bytes are replaced, so the hash is stable), None when unreadable."""
+def _read_skill_md(skill_path: Path) -> str | None:
+    """The SKILL.md text (undecodable bytes are replaced, so the text and its hash are stable), None when unreadable."""
     try:
-        raw = skill_path.read_bytes()
+        return skill_path.read_bytes().decode("utf-8", errors="replace")
     except OSError:
         return None
-    return compute_content_hash(raw.decode("utf-8", errors="replace"))
+
+
+def skill_file_hash(skill_path: Path) -> str | None:
+    """Hash of the SKILL.md on disk, None when unreadable."""
+    text = _read_skill_md(skill_path)
+    return None if text is None else compute_content_hash(text)
+
+
+def skill_file_differs(skill_path: str, content: str) -> bool:
+    """Whether the SKILL.md at ``skill_path`` holds other text than ``content``; False where there is no file to compare."""
+    if not skill_path:
+        return False
+    disk_hash = skill_file_hash(Path(skill_path))
+    return disk_hash is not None and disk_hash != compute_content_hash(content)
+
+
+async def sync_store_from_disk(store: SkillStore, skill: SkillRecord) -> bool:
+    """Make the store's copy of a skill the SKILL.md on disk; True when the copy was out of date.
+
+    The editor, a version rollback and the agent's skill tool change the file but not the store, and a proposal
+    built from the store would diff against, and on approval overwrite, text the skill no longer has.
+    ``updated_at`` stays as it was: the evolution cooldown counts from the last evolution, not from this copy.
+    A file larger than the store takes is reported but not copied.
+    """
+    text = _read_skill_md(Path(skill.path)) if skill.path else None
+    if text is None or compute_content_hash(text) == compute_content_hash(skill.content):
+        return False
+    if len(text) > SkillStore.MAX_SKILL_CONTENT_CHARS:
+        logger.warning("SKILL.md of '%s' is too large for the evolution store; its copy there stays behind", skill.name)
+        return True
+    skill.content = text
+    await store.save_skill(skill)
+    return True
 
 
 def _require_unchanged_base(payload: EvolutionApprovalPayload, base_path: Path, content_to_write: str) -> None:
@@ -162,7 +195,7 @@ async def apply_content_update(
 
     if existing:
         skill_record = existing
-        skill_record.content = payload.evolved_content
+        skill_record.content = content_to_write
         skill_record.lineage = lineage
         skill_record.is_active = True
         if payload.eval_cases:
@@ -180,7 +213,7 @@ async def apply_content_update(
             skill_id=skill_id,
             name=skill_name,
             description="Auto-evolved skill",
-            content=payload.evolved_content,
+            content=content_to_write,
             path=str(skill_path),
             lineage=lineage,
             is_active=True,

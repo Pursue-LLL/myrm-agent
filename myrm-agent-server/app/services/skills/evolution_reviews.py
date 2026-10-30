@@ -3,8 +3,9 @@
 - app.services.skills.evolution_review.types (POS: Evolution 审核域类型)
 - app.services.skills.evolution_review.queries (POS: Evolution 审核记录创建与只读查询)
 - app.services.skills.evolution_review.actions (POS: Evolution 审核写操作)
+- app.services.skills.evolution_review.disk_content (POS: Evolution 全量内容更新落盘与回滚)
 [OUTPUT]
-- Public evolution review lifecycle API (类型 + 查询 + 写操作统一 re-export)
+- Public evolution review lifecycle API (类型 + 查询 + 写操作 + 进化存储与磁盘对齐，统一 re-export)
 [POS]
 Evolution 审核生命周期门面：类型 + 查询 + 写操作统一导出。
 """
@@ -15,6 +16,7 @@ from app.services.skills.evolution_review.actions import (
     revise_evolution_review_record,
     rollback_evolution_review_record,
 )
+from app.services.skills.evolution_review.disk_content import skill_file_differs, sync_store_from_disk
 from app.services.skills.evolution_review.queries import (
     bump_runtime_failure_review_record,
     count_evolution_review_records,
@@ -57,4 +59,6 @@ __all__ = [
     "reject_evolution_review_record",
     "revise_evolution_review_record",
     "rollback_evolution_review_record",
+    "skill_file_differs",
+    "sync_store_from_disk",
 ]
