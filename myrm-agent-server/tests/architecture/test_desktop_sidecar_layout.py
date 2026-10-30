@@ -135,15 +135,14 @@ def test_no_removed_sidecar_layout_remains_in_build_and_ci_files() -> None:
 
 def test_apple_signing_env_is_exported_only_when_configured() -> None:
     # A defined-but-empty APPLE_* variable makes the bundler attempt a keychain import and fail.
-    for job_id in ("build-macos-arm", "build-macos-x64"):
-        steps = release_steps(job_id)
-        tauri_index = next(i for i, step in enumerate(steps) if str(step.get("uses", "")).startswith("tauri-apps/tauri-action"))
-        export_index = next(i for i, step in enumerate(steps) if "export-apple-signing-env.sh" in str(step.get("run", "")))
+    steps = release_steps("build-macos-arm")
+    tauri_index = next(i for i, step in enumerate(steps) if str(step.get("uses", "")).startswith("tauri-apps/tauri-action"))
+    export_index = next(i for i, step in enumerate(steps) if "export-apple-signing-env.sh" in str(step.get("run", "")))
 
-        assert export_index < tauri_index, f"{job_id}: Apple env must be exported before the bundle step"
-        tauri_env = cast("YamlMapping", steps[tauri_index].get("env", {}))
-        declared = [key for key in tauri_env if key.startswith("APPLE_")]
-        assert not declared, f"{job_id}: tauri-action must not declare APPLE_* env: {declared}"
+    assert export_index < tauri_index, "Apple env must be exported before the bundle step"
+    tauri_env = cast("YamlMapping", steps[tauri_index].get("env", {}))
+    declared = [key for key in tauri_env if key.startswith("APPLE_")]
+    assert not declared, f"tauri-action must not declare APPLE_* env: {declared}"
 
 
 def _parse_github_env(text: str) -> dict[str, str]:
@@ -202,7 +201,7 @@ class TestAppleEnvExport:
 def test_only_tag_runs_publish_to_a_release() -> None:
     assert "refs/tags/v" in str(release_jobs()["publish-release"]["if"])
 
-    for job_id in ("build-macos-arm", "build-macos-x64", "build-windows", "build-linux"):
+    for job_id in ("build-macos-arm", "build-windows", "build-linux"):
         for step in release_steps(job_id):
             if "gh release upload" in str(step.get("run", "")):
                 assert step.get("if") == "github.ref_type == 'tag'", f"{job_id}: upload must be tag-only"

@@ -2,12 +2,13 @@
 
 [INPUT]
 - myrm-agent-desktop/sidecar/build.py: the sidecar build script, imported as a module
-- .github/workflows/desktop-release.yml: the release workflow, parsed into job and step mappings
+- .github/workflows/desktop-release*.yml: the release workflow and the repair workflow, parsed into job and step mappings
 - .github/actions/*/action.yml: the local composite actions the release jobs call
 
 [OUTPUT]
 - REPO_ROOT / DESKTOP / FRONTEND / CI_SCRIPTS / WORKFLOWS / ACTIONS / TAURI_CONF: locations inside the OSS repo
 - sidecar_build_module(): `sidecar/build.py`, imported once
+- workflow_jobs(): the jobs of one workflow file
 - release_jobs() / release_steps(): the release workflow's jobs, and the steps of one job as written
 - expanded_release_steps(): the steps of one job with every local composite action replaced by its own steps
 - bundle_config(platform): the `bundle` section Tauri compiles for a platform (base config + platform patch)
@@ -49,9 +50,14 @@ def sidecar_build_module() -> ModuleType:
     return module
 
 
-def release_jobs() -> dict[str, YamlMapping]:
-    workflow = cast("YamlMapping", yaml.safe_load((WORKFLOWS / "desktop-release.yml").read_text(encoding="utf-8")))
+def workflow_jobs(name: str) -> dict[str, YamlMapping]:
+    """The jobs of `.github/workflows/<name>`, keyed by job id."""
+    workflow = cast("YamlMapping", yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8")))
     return cast("dict[str, YamlMapping]", workflow["jobs"])
+
+
+def release_jobs() -> dict[str, YamlMapping]:
+    return workflow_jobs("desktop-release.yml")
 
 
 def release_steps(job_id: str) -> list[YamlMapping]:

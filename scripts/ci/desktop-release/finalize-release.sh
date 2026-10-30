@@ -89,7 +89,7 @@ is_required_ota_key() {
   esac
 }
 
-for tauri_key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
+for tauri_key in darwin-aarch64 windows-x86_64 linux-x86_64; do
   if asset_name="$(pick_platform_asset "$tauri_key")"; then
     if ! read_asset_signature "$asset_name" >/dev/null 2>&1; then
       if is_required_ota_key "$tauri_key"; then

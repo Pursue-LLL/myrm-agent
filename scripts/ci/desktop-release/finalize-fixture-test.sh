@@ -22,6 +22,7 @@ mkdir -p "$FIXTURE_ASSETS"
 
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent.app.tar.gz"
 echo "sig-aarch64" >"$FIXTURE_ASSETS/MyrmAgent.app.tar.gz.sig"
+# Releases up to v0.1.39 also hold an Intel updater bundle; it must never be offered as an OTA platform.
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz"
 echo "sig-x64" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64-setup.exe"
@@ -35,11 +36,10 @@ aarch64_asset="$(pick_platform_asset darwin-aarch64 "$FIXTURE_ASSETS")"
   exit 1
 }
 
-x64_asset="$(pick_platform_asset darwin-x86_64 "$FIXTURE_ASSETS")"
-[[ "$x64_asset" == "MyrmAgent_x64.app.tar.gz" ]] || {
-  echo "expected MyrmAgent_x64.app.tar.gz, got ${x64_asset}" >&2
+if intel_asset="$(pick_platform_asset darwin-x86_64 "$FIXTURE_ASSETS")"; then
+  echo "darwin-x86_64 is not an OTA platform, but ${intel_asset} was offered for it" >&2
   exit 1
-}
+fi
 
 sig="$(read_asset_signature "$aarch64_asset")"
 [[ "$sig" == "sig-aarch64" ]] || {

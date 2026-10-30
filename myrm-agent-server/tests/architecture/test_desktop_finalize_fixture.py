@@ -55,19 +55,19 @@ def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
     )
     assert res_unknown.returncode == 1
 
-    # 3. Darwin Intel matching exact pattern
+    # 3. An Intel bundle on an older release is never served as the Apple Silicon update
     intel_pkg = tmp_path / "MyrmAgent_x64.app.tar.gz"
     intel_pkg.write_text("intel-content")
     res_intel = subprocess.run(
         [
             "bash",
             "-c",
-            f'source "{pick_script}" && pick_platform_asset darwin-x86_64 "{tmp_path}"',
+            f'source "{pick_script}" && pick_platform_asset darwin-aarch64 "{tmp_path}"',
         ],
         cwd=_REPO_ROOT,
         check=False,
         capture_output=True,
         text=True,
     )
-    assert res_intel.returncode == 0
-    assert res_intel.stdout.strip() == "MyrmAgent_x64.app.tar.gz"
+    assert res_intel.returncode == 1
+    assert res_intel.stdout.strip() == ""

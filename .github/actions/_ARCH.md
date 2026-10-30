@@ -8,7 +8,7 @@
 
 | 目录 | 职责 |
 |------|------|
-| `build-sidecar/` | 桌面四个平台构建 job 共用的“还原前端产物、装工具链、构建 PyInstaller sidecar”序列：下载 `frontend-tauri-build` 到 `myrm-agent-frontend/.next`，装 Bun / Rust / uv / Python 3.13，注入版本，把 `TARGET_ARCH` 导出到后续步骤，同步生产依赖 venv，运行 `sidecar/build.py`。输入 `arch`（必填：`arm64` 或 `x86_64`，构建结束时与产物架构对账）、`rust-target`（可选：macOS 构建非宿主三元组时要额外装的 Rust target） |
+| `build-sidecar/` | 桌面三个平台构建 job 共用的“还原前端产物、装工具链、构建 PyInstaller sidecar”序列：下载 `frontend-tauri-build` 到 `myrm-agent-frontend/.next`，装 Bun / Rust / uv / Python 3.13，注入版本，把 `TARGET_ARCH` 导出到后续步骤，同步生产依赖 venv，运行 `sidecar/build.py`。输入 `arch`（必填：`arm64` 或 `x86_64`，构建结束时与产物架构对账）、`rust-target`（可选：macOS 构建非宿主三元组时要额外装的 Rust target） |
 
 ## 约束
 

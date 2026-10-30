@@ -30,7 +30,7 @@ from tests.support.desktop_release import (
 )
 
 # The architecture of the app each build job bundles its sidecar into; PyInstaller cannot cross-compile.
-_SIDECAR_ARCH = {"build-macos-arm": "arm64", "build-macos-x64": "x86_64", "build-windows": "x86_64", "build-linux": "x86_64"}
+_SIDECAR_ARCH = {"build-macos-arm": "arm64", "build-windows": "x86_64", "build-linux": "x86_64"}
 _BUILD_JOBS = frozenset(_SIDECAR_ARCH)
 _SIDECAR_ACTION = "./.github/actions/build-sidecar"
 
@@ -116,13 +116,14 @@ def test_the_sidecar_action_exports_the_architecture_and_syncs_the_venv_before_i
     assert sync < build
 
 
-def test_a_macos_job_installs_the_rust_target_it_builds() -> None:
+def test_the_macos_job_installs_the_rust_target_it_builds() -> None:
     # The target is written twice (toolchain and bundle step) and drifts silently when only one is edited.
-    for job_id in ("build-macos-arm", "build-macos-x64"):
-        tauri = next(step for step in release_steps(job_id) if str(step.get("uses", "")).startswith("tauri-apps/tauri-action@"))
-        target = _sidecar_call(job_id)["rust-target"]
+    tauri = next(
+        step for step in release_steps("build-macos-arm") if str(step.get("uses", "")).startswith("tauri-apps/tauri-action@")
+    )
+    target = _sidecar_call("build-macos-arm")["rust-target"]
 
-        assert f"--target {target}" in str(cast("YamlMapping", tauri["with"])["args"]), job_id
+    assert f"--target {target}" in str(cast("YamlMapping", tauri["with"])["args"])
 
 
 def test_frontend_artifact_carries_every_next_output_the_bundle_declares() -> None:

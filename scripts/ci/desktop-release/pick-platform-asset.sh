@@ -7,11 +7,9 @@ pick_platform_asset() {
   local candidates=()
   case "$tauri_key" in
     darwin-aarch64)
-      # ARM keeps Tauri canonical name; Intel is renamed to MyrmAgent_x64.app.tar.gz before upload.
+      # Apple Silicon is the only macOS target, so its bundle keeps Tauri's canonical name. Releases up to v0.1.39
+      # also hold an Intel bundle (MyrmAgent_x64.app.tar.gz); no pattern below matches it and no key offers it.
       candidates=(MyrmAgent.app.tar.gz '*aarch64*.tar.gz' '*arm64*.tar.gz' '*universal*.tar.gz')
-      ;;
-    darwin-x86_64)
-      candidates=(MyrmAgent_x64.app.tar.gz '*x86_64*.tar.gz' '*x64*.tar.gz' '*intel*.tar.gz')
       ;;
     windows-x86_64)
       candidates=(
