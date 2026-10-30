@@ -4,29 +4,31 @@
 - Raw markdown note content (pre/post edit)
 
 [OUTPUT]
+- FRONTMATTER_BLOCK_RE: the leading frontmatter block, found after an optional UTF-8 BOM
 - parse_frontmatter: metadata dict + body
 - has_frontmatter_block / extract_frontmatter_block
 - preserve_frontmatter_on_edit: reinject FM when LLM drops the block
 
 [POS]
-Generic markdown FM utilities shared by vault write guard, toolkits wiki and server wiki import.
+Generic markdown FM utilities shared by vault write guard, toolkits wiki and server wiki import. A note saved
+with a UTF-8 BOM (Windows editors do) still has its block recognised; parsing drops the BOM from the body.
 """
 
 from __future__ import annotations
 
 import re
 
-_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+FRONTMATTER_BLOCK_RE = re.compile(r"^\ufeff?---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def has_frontmatter_block(content: str) -> bool:
     """Return True when content starts with a YAML frontmatter block."""
-    return _FRONTMATTER_RE.match(content) is not None
+    return FRONTMATTER_BLOCK_RE.match(content) is not None
 
 
 def extract_frontmatter_block(content: str) -> str | None:
     """Return the full frontmatter region including trailing newline, if present."""
-    match = _FRONTMATTER_RE.match(content)
+    match = FRONTMATTER_BLOCK_RE.match(content)
     if match is None:
         return None
     return content[: match.end()]
@@ -38,7 +40,7 @@ def parse_frontmatter(content: str) -> tuple[dict[str, object], str]:
     Returns (metadata_dict, body_without_frontmatter).
     Supports inline arrays and YAML indented lists common in Obsidian notes.
     """
-    match = _FRONTMATTER_RE.match(content)
+    match = FRONTMATTER_BLOCK_RE.match(content)
     if not match:
         return {}, content
 

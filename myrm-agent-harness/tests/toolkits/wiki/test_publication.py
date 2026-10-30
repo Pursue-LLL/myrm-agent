@@ -14,6 +14,7 @@ from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
 )
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.publication import (
+    demote_stale_published_article,
     publish_concept_article,
     repair_publication_status,
 )
@@ -123,6 +124,63 @@ def test_repair_publication_skips_blocked(wiki_structure: WikiStructure) -> None
 
     metadata, _body = parse_frontmatter(article.read_text(encoding="utf-8"))
     assert metadata[PUBLISH_STATUS_KEY] == WikiPublishStatus.BLOCKED.value
+
+
+def _write_bom_page(structure: WikiStructure, concept: str, front: str) -> tuple[Path, bytes]:
+    """Write a concept page saved with a UTF-8 BOM, as Windows editors do; return its path and bytes."""
+    saved = f"\ufeff---\n{front}---\n\n## Compiled Truth\nBody.\n".encode()
+    article = structure.get_concept_file_path(concept)
+    article.parent.mkdir(parents=True, exist_ok=True)
+    article.write_bytes(saved)
+    return article, saved
+
+
+@pytest.mark.parametrize("status", ["draft", "blocked"])
+def test_repair_publication_skips_an_intentional_draft_saved_with_a_bom(
+    wiki_structure: WikiStructure, status: str
+) -> None:
+    article, saved = _write_bom_page(wiki_structure, "bom/page", f"type: concept\npublish_status: {status}\n")
+
+    result = repair_publication_on_disk(wiki_structure)
+
+    assert result.files_repaired == 0
+    assert result.files_skipped_intentional_draft == 1
+    assert article.read_bytes() == saved
+
+
+def test_repair_publication_stamps_a_bom_page_without_a_status_once(wiki_structure: WikiStructure) -> None:
+    article, _saved = _write_bom_page(wiki_structure, "bom/legacy", "type: concept\n")
+
+    result = repair_publication_on_disk(wiki_structure)
+
+    assert result.files_repaired == 1
+    metadata, body = parse_frontmatter(article.read_text(encoding="utf-8"))
+    assert metadata[PUBLISH_STATUS_KEY] == WikiPublishStatus.PUBLISHED.value
+    assert metadata["type"] == "concept"
+    assert body.startswith("## Compiled Truth")
+
+
+@pytest.mark.asyncio
+async def test_demote_leaves_a_draft_saved_with_a_bom_untouched(wiki_structure: WikiStructure) -> None:
+    article, saved = _write_bom_page(wiki_structure, "bom/draft", "type: concept\npublish_status: draft\n")
+
+    demoted = await demote_stale_published_article(wiki_structure, WikiIndexer(wiki_structure), "bom/draft")
+
+    assert demoted is False
+    assert article.read_bytes() == saved
+
+
+@pytest.mark.asyncio
+async def test_demote_turns_a_published_page_saved_with_a_bom_into_one_draft(wiki_structure: WikiStructure) -> None:
+    article, _saved = _write_bom_page(wiki_structure, "bom/live", "type: concept\npublish_status: published\n")
+
+    demoted = await demote_stale_published_article(wiki_structure, WikiIndexer(wiki_structure), "bom/live")
+
+    assert demoted is True
+    metadata, body = parse_frontmatter(article.read_text(encoding="utf-8"))
+    assert metadata[PUBLISH_STATUS_KEY] == WikiPublishStatus.DRAFT.value
+    assert metadata["type"] == "concept"
+    assert body.startswith("## Compiled Truth")
 
 
 @pytest.mark.asyncio

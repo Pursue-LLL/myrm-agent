@@ -1,7 +1,7 @@
 """Wiki page frontmatter contract — required `type` field and enum validation.
 
 [INPUT]
-- utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
+- utils.markdown_frontmatter::parse_frontmatter, FRONTMATTER_BLOCK_RE (POS: YAML FM parse SSOT, BOM-tolerant)
 - utils.logger_utils::get_agent_logger (POS: logger)
 
 [OUTPUT]
@@ -20,7 +20,6 @@ out of all of them.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum, StrEnum
@@ -31,6 +30,7 @@ import yaml
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.markdown_frontmatter import (
+    FRONTMATTER_BLOCK_RE,
     parse_frontmatter,
 )
 
@@ -80,12 +80,9 @@ class WikiProvenance(StrEnum):
     WEB_FETCH = "web_fetch"
 
 
-_FRONTMATTER_BLOCK_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-
-
 def load_frontmatter_metadata(content: str) -> tuple[dict[str, object], str]:
     """Load frontmatter metadata, preserving nested YAML structures such as claims."""
-    match = _FRONTMATTER_BLOCK_RE.match(content)
+    match = FRONTMATTER_BLOCK_RE.match(content)
     if match is not None:
         parsed = yaml.safe_load(match.group(1))
         body = content[match.end() :]
@@ -284,8 +281,8 @@ def ensure_draft_frontmatter(content: str) -> str:
 
 
 def resolve_publish_status(content: str) -> WikiPublishStatus:
-    """Publish status a page declares (a leading BOM is ignored); a missing or unknown value reads as published."""
-    metadata, _body = parse_frontmatter(content.removeprefix("\ufeff"))
+    """Publish status a page declares; a missing or unknown value reads as published."""
+    metadata, _body = parse_frontmatter(content)
     status = str(metadata.get(PUBLISH_STATUS_KEY, "")).strip().lower()
     if status in WIKI_PUBLISH_STATUSES:
         return WikiPublishStatus(status)

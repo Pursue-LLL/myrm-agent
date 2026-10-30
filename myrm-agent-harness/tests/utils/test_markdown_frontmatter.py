@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.utils.markdown_frontmatter import (
     extract_frontmatter_block,
     has_frontmatter_block,
@@ -84,4 +86,34 @@ def test_parse_frontmatter_quoted_single_value() -> None:
 def test_preserve_frontmatter_on_edit_without_pre_block() -> None:
     merged, warnings = preserve_frontmatter_on_edit("no frontmatter", "post\n")
     assert merged == "post\n"
+    assert not warnings
+
+
+@pytest.mark.parametrize("bom", ["", "\ufeff"])
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_frontmatter_block_is_found_with_or_without_a_leading_bom(bom: str, newline: str) -> None:
+    block = newline.join(["---", "title: Roadmap", "publish_status: draft", "---", ""])
+    content = f"{bom}{block}# Body{newline}"
+
+    meta, body = parse_frontmatter(content)
+
+    assert meta == {"title": "Roadmap", "publish_status": "draft"}
+    assert body == f"# Body{newline}"
+    assert has_frontmatter_block(content)
+    assert extract_frontmatter_block(content) == f"{bom}{block}"
+
+
+def test_preserve_frontmatter_on_edit_reinjects_a_block_that_starts_with_a_bom() -> None:
+    pre = "\ufeff---\ndate: 2026-07-28\n---\n# Title\n\nOld body\n"
+    merged, warnings = preserve_frontmatter_on_edit(pre, "# Title\n\nNew body\n")
+
+    assert merged == "\ufeff---\ndate: 2026-07-28\n---\n# Title\n\nNew body\n"
+    assert warnings
+
+
+def test_preserve_frontmatter_on_edit_keeps_an_edit_that_starts_with_a_bom() -> None:
+    post = "\ufeff---\ndate: new\n---\n# Title\n"
+    merged, warnings = preserve_frontmatter_on_edit("---\ndate: old\n---\n# Title\n", post)
+
+    assert merged == post
     assert not warnings

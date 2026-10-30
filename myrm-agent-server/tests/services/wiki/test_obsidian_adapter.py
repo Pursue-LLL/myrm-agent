@@ -289,6 +289,20 @@ class TestAdaptObsidianFile:
         assert dest is not None
         assert meta["tags"] == ["python", "web"]
 
+    def test_note_saved_with_a_bom_keeps_its_frontmatter(self, tmp_path: Path) -> None:
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "note.md"
+        note.write_bytes(b"\xef\xbb\xbf---\r\ntitle: Roadmap\r\ntags: [plan]\r\n---\r\n# Body\r\n")
+        raw = tmp_path / "raw"
+        assets = tmp_path / "assets"
+
+        dest, meta, _ = adapt_obsidian_file(note, vault, raw, assets)
+        assert dest is not None
+        assert meta["title"] == "Roadmap"
+        assert meta["tags"] == ["plan"]
+        assert dest.read_text().count("title: Roadmap") == 1
+
 
 # ---------------------------------------------------------------------------
 # ObsidianImportStats

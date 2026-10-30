@@ -25,6 +25,20 @@ def test_apply_preserves_frontmatter_in_vault(tmp_path: Path) -> None:
     assert warnings
 
 
+def test_apply_preserves_frontmatter_of_a_note_saved_with_a_bom(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / ".obsidian").mkdir()
+    note = vault / "daily.md"
+
+    pre = "\ufeff---\ndate: 2026-07-28\n---\n# Daily\n\nOld\n"
+    post = "# Daily\n\nUpdated journal\n"
+    merged, warnings = MarkdownVaultWriteGuard.apply(str(note), pre, post)
+
+    assert merged == "\ufeff---\ndate: 2026-07-28\n---\n# Daily\n\nUpdated journal\n"
+    assert warnings
+
+
 def test_apply_noop_outside_vault(tmp_path: Path) -> None:
     note = tmp_path / "readme.md"
     pre = "# Title\n"

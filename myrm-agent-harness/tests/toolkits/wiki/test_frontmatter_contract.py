@@ -12,7 +12,9 @@ from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     WikiPageType,
     WikiPublishStatus,
     apply_compile_gate,
+    ensure_published_frontmatter,
     infer_type_for_import,
+    load_frontmatter_metadata,
     read_published_text,
     repair_file_frontmatter,
     repair_missing_types,
@@ -168,6 +170,30 @@ def test_resolve_publish_status_without_frontmatter_is_published() -> None:
 )
 def test_resolve_publish_status_reads_a_page_that_starts_with_a_bom(status: str, expected: WikiPublishStatus) -> None:
     assert resolve_publish_status(f"\ufeff---\ntype: concept\npublish_status: {status}\n---\n# Title\n") == expected
+
+
+def test_load_frontmatter_metadata_reads_a_page_that_starts_with_a_bom() -> None:
+    content = "\ufeff---\ntype: concept\nclaims:\n  - id: claim.a\n    text: Fact\n---\n# Title\n"
+
+    metadata, body = load_frontmatter_metadata(content)
+
+    assert metadata["type"] == "concept"
+    assert metadata["claims"] == [{"id": "claim.a", "text": "Fact"}]
+    assert body == "# Title\n"
+
+
+def test_ensure_published_frontmatter_stamps_a_page_that_starts_with_a_bom_once() -> None:
+    stamped = ensure_published_frontmatter(
+        "\ufeff---\ntype: concept\nclaims:\n  - id: claim.a\n    text: Fact\n---\n# Title\n"
+    )
+
+    metadata, body = load_frontmatter_metadata(stamped)
+
+    assert metadata["type"] == "concept"
+    assert metadata["claims"] == [{"id": "claim.a", "text": "Fact"}]
+    assert resolve_publish_status(stamped) is WikiPublishStatus.PUBLISHED
+    assert body == "# Title\n"
+    assert stamped.count("---\n") == 2
 
 
 def test_apply_compile_gate_injects_concept_type() -> None:
