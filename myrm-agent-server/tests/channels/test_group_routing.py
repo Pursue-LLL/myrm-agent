@@ -17,13 +17,28 @@ from app.channels.protocols.pairing import (
     DmPolicy,
     GroupPolicy,
     GroupTriggerMode,
+    PairingRole,
     PairingStatus,
 )
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.session_gate import SessionGateConfig
 from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate
+from app.channels.types.status import ReactionLevel
+from app.platform_utils import reset_database_engine
 
 _NO_DEBOUNCE = SessionGateConfig(debounce_window_ms=0)
+
+
+@pytest.fixture(autouse=True)
+async def _close_pooled_db_connections() -> AsyncGenerator[None]:
+    """Close the process-wide engine's pooled connections on the event loop of the test that used them.
+
+    The router writes group context and ledger rows through that engine, and every test runs on its own
+    event loop. A pooled aiosqlite connection that outlives its loop leaves a close task that can never
+    finish at loop teardown, which hangs the run.
+    """
+    yield
+    await reset_database_engine()
 
 
 class FakePairingStore:
@@ -32,7 +47,20 @@ class FakePairingStore:
     async def resolve(self, channel: str, sender_id: str) -> str | None:
         return None
 
-    async def bind(self, channel: str, sender_id: str, user_id: str, *, status: PairingStatus = PairingStatus.ACTIVE) -> None:
+    async def touch_display_name(self, channel: str, sender_id: str, display_name: str) -> None:
+        pass
+
+    async def bind(
+        self,
+        channel: str,
+        sender_id: str,
+        user_id: str,
+        *,
+        status: PairingStatus = PairingStatus.ACTIVE,
+        display_name: str | None = None,
+        role: PairingRole = PairingRole.MEMBER,
+        daily_quota: int | None = None,
+    ) -> None:
         pass
 
     async def unbind(self, channel: str, sender_id: str) -> None:
@@ -97,8 +125,14 @@ class FakePolicyProvider:
     async def get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
         return self._trigger_mode, self._trigger_prefixes
 
+    async def get_reaction_level(self, channel: str) -> ReactionLevel:
+        return ReactionLevel.SIMPLE
+
     async def get_enabled_groups(self) -> set[str]:
         return self._enabled_groups
+
+    async def get_free_response_chats(self, channel: str) -> set[str]:
+        return set()
 
     async def get_guest_mode(self, channel: str) -> bool:
         return False
@@ -148,12 +182,18 @@ async def _wait_until(predicate: Callable[[], bool], timeout: float = 5.0, inter
     return predicate()
 
 
+def _outbound_queue(bus: MessageBus) -> asyncio.PriorityQueue[tuple[int, int, OutboundMessage]]:
+    queue = bus._outbound
+    assert queue is not None, "the bus has no outbound queue yet"
+    return queue
+
+
 async def _drain_outbound(bus: MessageBus, timeout: float = 0.5) -> list[OutboundMessage]:
     """Collect all outbound messages from the internal queue within timeout."""
     results: list[OutboundMessage] = []
     try:
         while True:
-            item = await asyncio.wait_for(bus._outbound.get(), timeout=timeout)
+            item = await asyncio.wait_for(_outbound_queue(bus).get(), timeout=timeout)
             results.append(item[2] if isinstance(item, tuple) else item)
     except (TimeoutError, Exception):
         pass
@@ -293,7 +333,7 @@ async def test_error_reply_routes_to_group_chat_id() -> None:
     try:
         msg = _make_group_msg(mentioned=True, content="@bot trigger error")
         await bus._handle_inbound(msg)
-        await _wait_until(lambda: not bus._outbound.empty())
+        await _wait_until(lambda: not _outbound_queue(bus).empty())
 
         outbound = await _drain_outbound(bus)
         assert len(outbound) == 1
