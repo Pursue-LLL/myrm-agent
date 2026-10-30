@@ -13,23 +13,7 @@ pytest.importorskip("discord")
 from app.channels.providers.discord.voice.manager import (
     VoiceManager,
     _GuildVoiceState,
-    _is_whisper_hallucination,
 )
-
-
-class TestWhisperHallucination:
-    def test_common_hallucinations(self) -> None:
-        assert _is_whisper_hallucination("Thanks for watching")
-        assert _is_whisper_hallucination("thank you")
-        assert _is_whisper_hallucination("...")
-        assert _is_whisper_hallucination("bye")
-        assert _is_whisper_hallucination("")
-        assert _is_whisper_hallucination("  The end.  ")
-
-    def test_real_speech(self) -> None:
-        assert not _is_whisper_hallucination("Hello, how are you?")
-        assert not _is_whisper_hallucination("What is the weather like?")
-        assert not _is_whisper_hallucination("Thank you for helping me with this project")
 
 
 class TestVoiceManagerInit:
@@ -51,7 +35,12 @@ class TestVoiceManagerInit:
         )
         assert mgr._voice_timeout == 60
         assert mgr._allowed_user_ids == {"100", "200"}
-        assert mgr._on_voice_input is cb
+        assert mgr._input._on_voice_input is cb
+
+    def test_voice_input_options_reach_the_input_pipeline(self) -> None:
+        mgr = VoiceManager(MagicMock(), voice_wake_words=["Hey Bot"], voice_barge_in_enabled=True)
+        assert mgr._input._wake_words == ["hey bot"]
+        assert mgr._input._barge_in_enabled is True
 
     def test_guild_lock_creates_on_demand(self) -> None:
         client = MagicMock()
@@ -401,46 +390,6 @@ class TestVoiceManagerAutoDisconnect:
         assert 1 in mgr._guilds
 
 
-class TestResolveDisplayName:
-    def test_resolve_success(self) -> None:
-        client = MagicMock()
-        guild = MagicMock()
-        member = MagicMock()
-        member.display_name = "TestUser"
-        guild.get_member.return_value = member
-        client.get_guild.return_value = guild
-
-        mgr = VoiceManager(client)
-        name = mgr._resolve_display_name(1, 42)
-        assert name == "TestUser"
-
-    def test_resolve_no_guild(self) -> None:
-        client = MagicMock()
-        client.get_guild.return_value = None
-
-        mgr = VoiceManager(client)
-        name = mgr._resolve_display_name(1, 42)
-        assert name == "42"
-
-    def test_resolve_no_member(self) -> None:
-        client = MagicMock()
-        guild = MagicMock()
-        guild.get_member.return_value = None
-        client.get_guild.return_value = guild
-
-        mgr = VoiceManager(client)
-        name = mgr._resolve_display_name(1, 42)
-        assert name == "42"
-
-    def test_resolve_exception(self) -> None:
-        client = MagicMock()
-        client.get_guild.side_effect = RuntimeError("fail")
-
-        mgr = VoiceManager(client)
-        name = mgr._resolve_display_name(1, 42)
-        assert name == "42"
-
-
 class TestListenLoop:
     @pytest.mark.asyncio
     async def test_listen_loop_exits_when_no_state(self) -> None:
@@ -480,7 +429,7 @@ class TestListenLoop:
         )
         mgr._guilds[1] = state
 
-        with patch.object(mgr, "_process_voice_input", new_callable=AsyncMock) as mock_pvi:
+        with patch.object(mgr._input, "process", new_callable=AsyncMock) as mock_pvi:
             await mgr._listen_loop(1)
 
         mock_pvi.assert_called_once_with(1, 42, b"\x00" * min_bytes, 789)
@@ -510,7 +459,7 @@ class TestListenLoop:
         state = _GuildVoiceState(voice_client=mock_vc, receiver=mock_receiver)
         mgr._guilds[1] = state
 
-        with patch.object(mgr, "_process_voice_input", new_callable=AsyncMock) as mock_pvi:
+        with patch.object(mgr._input, "process", new_callable=AsyncMock) as mock_pvi:
             await mgr._listen_loop(1)
 
         mock_pvi.assert_not_called()
@@ -567,196 +516,6 @@ class TestListenLoop:
             await mgr._listen_loop(1)
 
         mock_vc.send_audio_packet.assert_called()
-
-
-class TestProcessVoiceInput:
-    @pytest.mark.asyncio
-    async def test_process_voice_input_full_pipeline(self) -> None:
-        client = MagicMock()
-        guild = MagicMock()
-        member = MagicMock()
-        member.display_name = "Alice"
-        guild.get_member.return_value = member
-        client.get_guild.return_value = guild
-
-        cb = AsyncMock()
-        mgr = VoiceManager(client, on_voice_input=cb)
-
-        pcm = b"\x00" * 3200
-
-        mock_result = MagicMock()
-        mock_result.text = "Hello world"
-
-        with (
-            patch.object(
-                VoiceManager,
-                "_resolve_display_name",
-                return_value="Alice",
-            ),
-            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
-            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
-            patch(
-                "app.channels.voice.stt.transcribe",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch(
-                "app.channels.types.VoiceConfig",
-            ),
-        ):
-            mock_asyncio.to_thread = AsyncMock()
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, pcm, 789)
-
-        cb.assert_awaited_once()
-        call_args = cb.call_args[0]
-        assert call_args[0] == 789
-        assert call_args[1] == 42
-        assert call_args[2] == "Hello world"
-        assert call_args[3] == "Alice"
-
-    @pytest.mark.asyncio
-    async def test_process_voice_input_uses_guild_id_when_no_text_channel(self) -> None:
-        client = MagicMock()
-        cb = AsyncMock()
-        mgr = VoiceManager(client, on_voice_input=cb)
-
-        mock_result = MagicMock()
-        mock_result.text = "Test"
-
-        with (
-            patch.object(VoiceManager, "_resolve_display_name", return_value="Bob"),
-            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
-            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
-            patch(
-                "app.channels.voice.stt.transcribe",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch("app.channels.types.VoiceConfig"),
-        ):
-            mock_asyncio.to_thread = AsyncMock()
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, b"\x00" * 3200, 0)
-
-        cb.assert_awaited_once()
-        assert cb.call_args[0][0] == 1
-
-    @pytest.mark.asyncio
-    async def test_process_voice_input_hallucination_filtered(self) -> None:
-        client = MagicMock()
-        cb = AsyncMock()
-        mgr = VoiceManager(client, on_voice_input=cb)
-
-        mock_result = MagicMock()
-        mock_result.text = "Thanks for watching"
-
-        with (
-            patch.object(VoiceManager, "_resolve_display_name", return_value="X"),
-            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
-            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
-            patch(
-                "app.channels.voice.stt.transcribe",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch("app.channels.types.VoiceConfig"),
-        ):
-            mock_asyncio.to_thread = AsyncMock()
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, b"\x00" * 3200, 0)
-
-        cb.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_process_voice_input_empty_result(self) -> None:
-        client = MagicMock()
-        cb = AsyncMock()
-        mgr = VoiceManager(client, on_voice_input=cb)
-
-        mock_result = MagicMock()
-        mock_result.text = ""
-
-        with (
-            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
-            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
-            patch(
-                "app.channels.voice.stt.transcribe",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch("app.channels.types.VoiceConfig"),
-        ):
-            mock_asyncio.to_thread = AsyncMock()
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, b"\x00" * 3200, 0)
-
-        cb.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_process_voice_input_no_result(self) -> None:
-        client = MagicMock()
-        cb = AsyncMock()
-        mgr = VoiceManager(client, on_voice_input=cb)
-
-        with (
-            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
-            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
-            patch(
-                "app.channels.voice.stt.transcribe",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-            patch("app.channels.types.VoiceConfig"),
-        ):
-            mock_asyncio.to_thread = AsyncMock()
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, b"\x00" * 3200, 0)
-
-        cb.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_process_voice_input_exception(self) -> None:
-        client = MagicMock()
-        cb = AsyncMock()
-        mgr = VoiceManager(client, on_voice_input=cb)
-
-        with patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio:
-            mock_asyncio.to_thread = AsyncMock(side_effect=RuntimeError("ffmpeg fail"))
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, b"\x00" * 3200, 0)
-
-        cb.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_process_voice_input_no_callback(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, on_voice_input=None)
-
-        mock_result = MagicMock()
-        mock_result.text = "Hello"
-
-        with (
-            patch.object(VoiceManager, "_resolve_display_name", return_value="X"),
-            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
-            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
-            patch(
-                "app.channels.voice.stt.transcribe",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch("app.channels.types.VoiceConfig"),
-        ):
-            mock_asyncio.to_thread = AsyncMock()
-            mock_asyncio.sleep = asyncio.sleep
-
-            await mgr._process_voice_input(1, 42, b"\x00" * 3200, 0)
 
 
 class TestVoiceManagerFollowIntegration:
@@ -899,95 +658,6 @@ class TestShouldLeaveGuild:
         assert result is False
 
 
-class TestBargeIn:
-    def test_barge_in_echo_detected(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_barge_in_enabled=True)
-        player = MagicMock()
-        player.is_playing = True
-        mgr._active_players[1] = player
-        mgr._active_play_texts[1] = "Hello world how are you today"
-        result = mgr._handle_barge_in(1, "Hello world how are you today", "hello world how are you today")
-        assert result is True
-
-    def test_barge_in_real_interruption(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_barge_in_enabled=True)
-        player = MagicMock()
-        player.is_playing = True
-        player.stop = MagicMock()
-        mgr._active_players[1] = player
-        mgr._active_play_texts[1] = "Hello world"
-        result = mgr._handle_barge_in(1, "Stop please", "stop please")
-        assert result is False
-        player.stop.assert_called_once()
-
-    def test_barge_in_no_player(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_barge_in_enabled=True)
-        result = mgr._handle_barge_in(1, "Test", "test")
-        assert result is False
-
-
-class TestWakeWord:
-    def test_wake_word_activates(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_wake_words=["hey bot"])
-        result = mgr._check_wake_word(1, "hey bot what is the time")
-        assert result is True
-        assert mgr._wake_until.get(1, 0) > 0
-
-    def test_wake_word_asleep_no_match(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_wake_words=["hey bot"])
-        result = mgr._check_wake_word(1, "what is the time")
-        assert result is False
-
-    def test_wake_word_stays_awake_within_ttl(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_wake_words=["hey bot"])
-        mgr._wake_until[1] = time.time() + 30
-        result = mgr._check_wake_word(1, "what is the time")
-        assert result is True
-
-    def test_wake_word_non_ascii(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_wake_words=["\u5c0f\u52a9\u624b"])
-        result = mgr._check_wake_word(1, "\u5c0f\u52a9\u624b\u5e2e\u6211\u67e5\u5929\u6c14")
-        assert result is True
-
-    def test_wake_word_ascii_boundary(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_wake_words=["bot"])
-        assert mgr._check_wake_word(1, "hey bot how are you") is True
-        mgr._wake_until.clear()
-        assert mgr._check_wake_word(1, "robot is here") is False
-
-
-class TestRegisterUnregisterPlayer:
-    def test_register_player(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client)
-        player = MagicMock()
-        mgr.register_player(1, player, "hello world")
-        assert mgr._active_players[1] is player
-        assert mgr._active_play_texts[1] == "hello world"
-
-    def test_unregister_player(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client)
-        mgr._active_players[1] = MagicMock()
-        mgr._active_play_texts[1] = "text"
-        mgr.unregister_player(1)
-        assert 1 not in mgr._active_players
-        assert 1 not in mgr._active_play_texts
-
-    def test_unregister_nonexistent(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client)
-        mgr.unregister_player(999)
-
-
 class TestStartReconciliation:
     @pytest.mark.asyncio
     async def test_start_reconciliation_delegates(self) -> None:
@@ -1046,14 +716,17 @@ class TestShouldLeaveGuildNoChannel:
         assert result is True
 
 
-class TestBargeInStopException:
-    def test_barge_in_stop_exception_handled(self) -> None:
-        client = MagicMock()
-        mgr = VoiceManager(client, voice_barge_in_enabled=True)
+class TestRegisterUnregisterPlayer:
+    def test_register_player_reaches_the_input_pipeline(self) -> None:
+        mgr = VoiceManager(MagicMock())
         player = MagicMock()
-        player.is_playing = True
-        player.stop = MagicMock(side_effect=RuntimeError("stop failed"))
-        mgr._active_players[1] = player
-        mgr._active_play_texts[1] = "Hello world"
-        result = mgr._handle_barge_in(1, "Stop please", "stop please")
-        assert result is False
+        mgr.register_player(1, player, "hello world")
+        assert mgr._input._active_players[1] is player
+        assert mgr._input._active_play_texts[1] == "hello world"
+
+    def test_unregister_player_reaches_the_input_pipeline(self) -> None:
+        mgr = VoiceManager(MagicMock())
+        mgr.register_player(1, MagicMock(), "text")
+        mgr.unregister_player(1)
+        assert 1 not in mgr._input._active_players
+        assert 1 not in mgr._input._active_play_texts

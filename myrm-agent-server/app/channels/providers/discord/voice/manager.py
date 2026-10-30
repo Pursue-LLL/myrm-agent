@@ -9,13 +9,15 @@ Follow-user delegates to VoiceFollowManager for user tracking.
 - discord.Client (POS: Discord bot client)
 - VoiceReceiver (POS: RTP packet capture)
 - VoicePlayer (POS: audio playback)
+- VoiceInputPipeline (POS: one utterance from PCM to the agent, or dropped)
 
 [OUTPUT]
 - VoiceManager: class - voice lifecycle manager
 
 [POS]
 High-level voice orchestration. Owns per-guild state and
-coordinates receiver/player lifecycle with follow-user support.
+coordinates receiver/player lifecycle with follow-user support;
+each finished utterance is handed to the input pipeline.
 Leaving every guild is concurrent, so one guild that waits for
 the gateway's confirmation does not hold up the others. A join over a
 state whose VoiceClient discord.py has dropped releases that state first;
@@ -27,7 +29,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable, Set
+from collections.abc import Set
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -36,6 +38,10 @@ import discord
 from app.channels.providers.discord.voice.follow import (
     VoiceFollowManager,
     VoiceTarget,
+)
+from app.channels.providers.discord.voice.input_pipeline import (
+    VoiceInputCallback,
+    VoiceInputPipeline,
 )
 from app.channels.providers.discord.voice.receiver import (
     VoiceReceiver,
@@ -48,31 +54,6 @@ logger = logging.getLogger(__name__)
 
 _KEEPALIVE_INTERVAL = 15
 _LISTEN_POLL_INTERVAL = 0.2
-
-_WHISPER_HALLUCINATIONS = frozenset(
-    {
-        "thanks for watching",
-        "thank you for watching",
-        "thank you",
-        "thanks for watching!",
-        "thank you for watching!",
-        "you",
-        "",
-        "...",
-        "bye",
-        "bye bye",
-        "bye.",
-        "the end",
-        "the end.",
-        "subtitles by the amara.org community",
-        "subtitle by the amara.org community",
-    }
-)
-
-
-def _is_whisper_hallucination(text: str) -> bool:
-    """Filter common Whisper hallucinations from silence."""
-    return text.strip().lower() in _WHISPER_HALLUCINATIONS
 
 
 @dataclass
@@ -87,14 +68,11 @@ class _GuildVoiceState:
     last_speech_at: float = field(default_factory=time.monotonic)
 
 
-VoiceInputCallback = Callable[[int, int, str, str], Awaitable[None]]
-
-
 class VoiceManager:
     """Manages Discord voice connections across guilds.
 
-    Provides join/leave lifecycle, auto-timeout, listen loops,
-    speech-to-text processing, and follow-user delegation.
+    Provides join/leave lifecycle, auto-timeout, listen loops that hand
+    each utterance to the input pipeline, and follow-user delegation.
     """
 
     def __init__(
@@ -112,16 +90,16 @@ class VoiceManager:
         self._client = client
         self._voice_timeout = voice_timeout
         self._allowed_user_ids: set[str] = set(allowed_user_ids) if allowed_user_ids else set()
-        self._on_voice_input = on_voice_input
-        self._voice_wake_words = [w.lower() for w in (voice_wake_words or [])]
-        self._voice_barge_in_enabled = voice_barge_in_enabled
 
         self._guilds: dict[int, _GuildVoiceState] = {}
         self._locks: dict[int, asyncio.Lock] = {}
 
-        self._active_players: dict[int, VoicePlayer] = {}
-        self._active_play_texts: dict[int, str] = {}
-        self._wake_until: dict[int, float] = {}
+        self._input = VoiceInputPipeline(
+            client,
+            on_voice_input=on_voice_input,
+            wake_words=voice_wake_words,
+            barge_in_enabled=voice_barge_in_enabled,
+        )
 
         self._follow = VoiceFollowManager(
             client,
@@ -140,13 +118,11 @@ class VoiceManager:
 
     def register_player(self, guild_id: int, player: VoicePlayer, text: str = "") -> None:
         """Register the currently active VoicePlayer and the text it is playing."""
-        self._active_players[guild_id] = player
-        self._active_play_texts[guild_id] = text
+        self._input.register_player(guild_id, player, text)
 
     def unregister_player(self, guild_id: int) -> None:
         """Unregister the player once playback completes."""
-        self._active_players.pop(guild_id, None)
-        self._active_play_texts.pop(guild_id, None)
+        self._input.unregister_player(guild_id)
 
     @property
     def active_guilds(self) -> list[int]:
@@ -358,133 +334,9 @@ class VoiceManager:
                     if self._allowed_user_ids and str(user_id) not in self._allowed_user_ids:
                         continue
                     state.last_speech_at = time.monotonic()
-                    await self._process_voice_input(guild_id, user_id, pcm_data, state.text_channel_id)
+                    await self._input.process(guild_id, user_id, pcm_data, state.text_channel_id)
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
             logger.error("Voice listen loop error in guild %d: %s", guild_id, e, exc_info=True)
-
-    def _resolve_display_name(self, guild_id: int, user_id: int) -> str:
-        """Resolve a user's display name from guild membership."""
-        try:
-            guild = self._client.get_guild(guild_id)
-            if guild:
-                member = guild.get_member(user_id)
-                if member:
-                    return member.display_name
-        except Exception:
-            pass
-        return str(user_id)
-
-    async def _process_voice_input(
-        self,
-        guild_id: int,
-        user_id: int,
-        pcm_data: bytes,
-        text_channel_id: int,
-    ) -> None:
-        """Convert PCM -> WAV -> STT -> callback."""
-        try:
-            wav_bytes = await asyncio.to_thread(VoiceReceiver.pcm_to_wav_bytes, pcm_data)
-
-            from app.channels.types import VoiceConfig
-            from app.channels.voice.stt import transcribe
-
-            vc = VoiceConfig(stt_enabled=True)
-            result = await transcribe(None, vc, audio_bytes=wav_bytes)
-            if not result or not result.text:
-                return
-
-            transcript = result.text.strip()
-            if not transcript or _is_whisper_hallucination(transcript):
-                return
-
-            transcript_lower = transcript.lower()
-
-            if self._voice_barge_in_enabled:
-                if self._handle_barge_in(guild_id, transcript, transcript_lower):
-                    return
-
-            if self._voice_wake_words:
-                if not self._check_wake_word(guild_id, transcript_lower):
-                    return
-
-            display_name = self._resolve_display_name(guild_id, user_id)
-            logger.info(
-                "Voice input from %s (%d) in guild %d: %s",
-                display_name,
-                user_id,
-                guild_id,
-                transcript[:100],
-            )
-
-            if self._on_voice_input:
-                await self._on_voice_input(
-                    text_channel_id or guild_id,
-                    user_id,
-                    transcript,
-                    display_name,
-                )
-
-        except Exception as e:
-            logger.warning("Voice input processing failed: %s", e, exc_info=True)
-
-    def _handle_barge_in(self, guild_id: int, transcript: str, transcript_lower: str) -> bool:
-        """Check for echo/barge-in. Returns True if input should be discarded."""
-        player = self._active_players.get(guild_id)
-        if not player or not getattr(player, "is_playing", False):
-            return False
-
-        playback_text = self._active_play_texts.get(guild_id, "")
-        if playback_text:
-            import difflib
-            import re
-
-            clean_transcript = re.sub(r"[^\w\s]", "", transcript_lower).strip()
-            clean_playback = re.sub(r"[^\w\s]", "", playback_text.lower()).strip()
-
-            if clean_transcript and clean_playback:
-                match = difflib.SequenceMatcher(None, clean_transcript, clean_playback).find_longest_match(
-                    0, len(clean_transcript), 0, len(clean_playback)
-                )
-
-                if match.size / len(clean_transcript) > 0.8:
-                    logger.info(
-                        "Voice input discarded as echo (match=%.0f%%): %s",
-                        match.size / len(clean_transcript) * 100,
-                        transcript,
-                    )
-                    return True
-
-        logger.info("Barge-in detected! Stopping playback. User said: %s", transcript)
-        try:
-            player.stop()
-        except Exception as e:
-            logger.error("Failed to stop player on barge-in: %s", e)
-        return False
-
-    def _check_wake_word(self, guild_id: int, transcript_lower: str) -> bool:
-        """Check wake word activation. Returns True if input should be processed."""
-        import re
-
-        now = time.time()
-        is_awake = self._wake_until.get(guild_id, 0) > now
-
-        woke_up = False
-        for w in self._voice_wake_words:
-            is_ascii = all(ord(c) < 128 for c in w)
-            if is_ascii:
-                if re.search(r"\b" + re.escape(w) + r"\b", transcript_lower):
-                    woke_up = True
-                    break
-            elif w in transcript_lower:
-                woke_up = True
-                break
-
-        if not is_awake and not woke_up:
-            logger.debug("Voice input discarded (asleep): %s", transcript_lower)
-            return False
-
-        self._wake_until[guild_id] = now + 30.0
-        return True

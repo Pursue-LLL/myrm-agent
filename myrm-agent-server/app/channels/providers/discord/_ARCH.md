@@ -63,4 +63,4 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 | `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规 |
 | `test_discord_deduplication.py` | Discord 消息去重单元测试 |
 | `test_discord_splitter_integration.py` | Splitter 对 Discord 消息拆分约束的集成测试 |
-| `voice/test_*.py` | Discord 语音子模块（`voice/test_leave_all.py`：各公会并发离开，一个公会卡住或出错不挡其余；`voice/test_join_stale_state.py`：再次加入时先释放 discord.py 已摘掉的会话，重连中的会话原样保留，旧会话的静默超时不结束新会话，连接失败不留下已释放的登记） |
+| `voice/test_*.py` | Discord 语音子模块（`voice/test_leave_all.py`：各公会并发离开，一个公会卡住或出错不挡其余；`voice/test_input_pipeline.py`：语音输入门控（转写幻觉过滤、回声与打断、唤醒词与唤醒窗口、显示名、播放登记）；`voice/test_join_stale_state.py`：再次加入时先释放 discord.py 已摘掉的会话，重连中的会话原样保留，旧会话的静默超时不结束新会话，连接失败不留下已释放的登记） |
