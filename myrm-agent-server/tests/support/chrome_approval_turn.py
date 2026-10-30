@@ -7,9 +7,10 @@
 - tests.support.hitl_live_e2e (POS: set_private_approval_timeout)
 
 [OUTPUT]
-- bash_request(): the user's request that makes the model call the bash tool once and then reply with the given answer
+- bash_request(): the user's request that makes the model call the bash tool once and then reply with the given answer, whether the command ran or was denied
 - run_one_turn(): prepare the skill chat (and, when asked, the probe backend's approval timeout), send the request, hand the open page to a watcher
 - SHORT_ANSWER: the answer asked for when the reply's content does not matter, only that it exists
+- LONG_LIST_ANSWER: the answer asked for when the run must keep writing well past the few seconds a reload takes
 
 [POS]
 Shared by the approval-card Chrome E2E files (tests/e2e/test_approval_resume_reply_chrome_e2e.py, test_approval_timer_resume_chrome_e2e.py).
@@ -28,13 +29,20 @@ from tests.support.hitl_live_e2e import set_private_approval_timeout
 
 APPROVAL_PROBE_URL = "http://127.0.0.1:9/APPROVAL_RESUME_REPLY"
 SHORT_ANSWER = f"reply with exactly: {DONE_TOKEN}"
+# A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
+_LONG_ANSWER_LINES = 600
+LONG_LIST_ANSWER = (
+    f"write the integers from 1 to {_LONG_ANSWER_LINES} as a bulleted list, one per bullet, "
+    f"and after a blank line end with a last line of exactly: {DONE_TOKEN}"
+)
 
 
 def bash_request(answer: str) -> str:
     # One plain command keeps the turn at a single approval card.
     return (
         f"Run exactly this one plain command with the bash tool, with no ';', '&&', pipe or redirect: "
-        f"curl -sS {APPROVAL_PROBE_URL} . Run no other command. After it finishes, whatever its result, {answer}"
+        f"curl -sS {APPROVAL_PROBE_URL} . Run no other command. After it finishes, whatever its result, and even if it was "
+        f"denied and never ran, {answer}"
     )
 
 

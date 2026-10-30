@@ -4,11 +4,13 @@
 - app.services.agent.streaming_support.hitl_timeout::arm_interrupt_timeout (POS: arms or reopens the timer of the interrupt the turn stopped at)
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content)
 - app.services.agent.stream_session.turn_history_sync::commit_turn_history_sync (POS: records that the agent thread mirrors the stored chat once a turn completed)
+- app.services.agent.stream_session.turn_end (POS: compaction drain, run digest close and lifecycle event, shared with the end of a timer-resumed turn)
 - app.services.agent.stream_session.turn_capability_terminal (POS: records the completed or failed terminal state of a turn that carries capability telemetry)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
 
 [OUTPUT]
 - finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt and release the turn's session state
+- assistant_turn_payload: the content and extra data a collector's turn is stored with (shared with the persistence of a timer-resumed turn)
 
 [POS]
 Teardown half of the stream pipeline: runs once per turn after the chunk generator ends, however it ended.
@@ -52,6 +54,7 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     record_turn_capability_completed_once,
     record_turn_capability_failed_once,
 )
+from app.services.agent.stream_session.turn_end import close_run_digest, schedule_compaction_drain
 from app.services.agent.stream_session.turn_history_sync import commit_turn_history_sync
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
@@ -63,6 +66,7 @@ from app.services.agent.streaming_support.sse_helpers import (
 
 if TYPE_CHECKING:
     from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
+    from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +113,17 @@ async def _settle_session_draft(session: AgentStreamSession) -> PendingSessionDr
     return draft
 
 
-def _assistant_turn_payload(session: AgentStreamSession, chat_id: str) -> tuple[str, dict[str, object]]:
-    """The answer text and the extra data the turn is stored with; citation tags are lifted out of the text."""
+def assistant_turn_payload(
+    collector: StreamContentCollector,
+    chat_id: str,
+    *,
+    extra_context: dict[str, object],
+    stream_ttft_ms: int | None,
+) -> tuple[str, dict[str, object]]:
+    """The answer text and the extra data a turn is stored with; citation tags are lifted out of the text.
+
+    The turn a request ran and the one a fired approval timer resumed are stored through this one builder.
+    """
     import re
 
     from myrm_agent_harness.api.hooks import (
@@ -118,17 +131,17 @@ def _assistant_turn_payload(session: AgentStreamSession, chat_id: str) -> tuple[
         get_memory_runtime_injection,
     )
 
-    content = session.collector.content
-    extra_data = dict(session.collector.extra_data or {})
-    if session.stream_ttft_ms is not None and session.stream_ttft_ms >= 0:
-        extra_data["streamTtftMs"] = session.stream_ttft_ms
+    content = collector.content
+    extra_data = dict(collector.extra_data or {})
+    if stream_ttft_ms is not None and stream_ttft_ms >= 0:
+        extra_data["streamTtftMs"] = stream_ttft_ms
     merge_memory_citation_fallback(extra_data)
-    preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+    preview = extra_context.get("memory_brief_preview") if isinstance(extra_context, dict) else None
     if isinstance(preview, dict):
         snapshot_id = preview.get("snapshot_id")
         if isinstance(snapshot_id, str) and snapshot_id.strip():
             extra_data["memoryBriefSnapshotId"] = snapshot_id.strip()
-    brief_status = session.extra_context.get("memory_brief_status") if isinstance(session.extra_context, dict) else None
+    brief_status = extra_context.get("memory_brief_status") if isinstance(extra_context, dict) else None
     # Parse and strip citations
     citations = list(dict.fromkeys(re.findall(r"<cite:([^>]+)>", content)))
     if citations:
@@ -170,7 +183,9 @@ async def _persist_assistant_turn(session: AgentStreamSession, draft: PendingSes
 
     from app.services.chat.chat_service import ChatService
 
-    content, extra_data = _assistant_turn_payload(session, chat_id)
+    content, extra_data = assistant_turn_payload(
+        session.collector, chat_id, extra_context=session.extra_context, stream_ttft_ms=session.stream_ttft_ms
+    )
     await ChatService.persist_assistant_message_safe(
         chat_id,
         content,
@@ -206,24 +221,6 @@ def _arm_pending_interrupt_timeout(
         )
 
 
-def _schedule_compaction_drain(session: AgentStreamSession) -> None:
-    """Drain in the background when the turn left compaction debt behind."""
-    if session.request.chat_id:
-        from myrm_agent_harness.agent.context_management.tracking.task_metrics import (
-            get_task_metrics,
-        )
-
-        metrics = get_task_metrics(session.request.chat_id)
-        if metrics and getattr(metrics, "compaction_debt_pending", False):
-            from app.services.chat.chat_service import ChatService
-
-            logger.info(
-                "Scheduling background drain for %s due to compaction debt.",
-                session.request.chat_id,
-            )
-            ChatService.schedule_background_drain(session.request.chat_id)
-
-
 def _release_turn_state(session: AgentStreamSession) -> None:
     """Flush the compaction telemetry and drop what the turn registered: Stop handle, steering and goal."""
     enqueue_context_compaction_telemetry(session.request.chat_id)
@@ -252,21 +249,15 @@ async def _record_turn_capability_terminal(session: AgentStreamSession) -> None:
 def _close_run_digest(session: AgentStreamSession) -> None:
     """End the run digest of the chat and announce the session outcome to the lifecycle webhooks."""
     if session.request.chat_id:
-        from app.services.copilot.run_digest_store import RunDigestStore
-
         phase = RunDigestPhase.COMPLETED
         if session.cancel_token.is_cancelled:
             phase = RunDigestPhase.CANCELLED
         elif session.had_fatal_error:
             phase = RunDigestPhase.ERROR
-        RunDigestStore.end_run(
+        close_run_digest(
             session.request.chat_id,
             phase=phase,
             progress_steps=list(session.collector._progress_steps),
-        )
-        _publish_session_lifecycle_webhook_event(
-            chat_id=session.request.chat_id,
-            phase=phase,
             agent_id=getattr(session.request, "agent_id", None),
             was_cancelled=session.cancel_token.is_cancelled,
             had_fatal_error=session.had_fatal_error,
@@ -298,7 +289,7 @@ async def finalize_agent_stream_session(
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
 
     _arm_pending_interrupt_timeout(session, approval, clarification_sched_needed)
-    _schedule_compaction_drain(session)
+    schedule_compaction_drain(session.request.chat_id)
     _release_turn_state(session)
 
     pending_hitl = bool(
@@ -318,36 +309,6 @@ async def finalize_agent_stream_session(
     else:
         _close_run_digest(session)
         session.collector.cleanup()
-
-
-def _publish_session_lifecycle_webhook_event(
-    *,
-    chat_id: str,
-    phase: RunDigestPhase,
-    agent_id: str | None,
-    was_cancelled: bool,
-    had_fatal_error: bool,
-) -> None:
-    """Publish session_completed / session_failed for outbound lifecycle webhooks."""
-    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-    if phase == RunDigestPhase.COMPLETED:
-        event_type = AppEventType.SESSION_COMPLETED
-    else:
-        event_type = AppEventType.SESSION_FAILED
-
-    get_event_bus().publish(
-        AppEvent(
-            event_type=event_type,
-            data={
-                "chat_id": chat_id,
-                "agent_id": agent_id,
-                "phase": phase.value,
-                "was_cancelled": was_cancelled,
-                "had_fatal_error": had_fatal_error,
-            },
-        )
-    )
 
 
 async def _clear_interrupted_turn_marker(chat_id: str) -> None:

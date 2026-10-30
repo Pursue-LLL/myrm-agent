@@ -14,7 +14,7 @@
 - wait_for_card_of_open_chat(): the open chat's own card is in the shared approval queue and on screen
 - wait_for_mobile_status_board(): the phone's status board is the page on screen
 - wait_until_not_streaming() / stored_reply_is_final() / assert_run_still_working()
-- turn_state() / wait_until_parked_at_the_card() / wait_for_the_stored_reply_watching_the_turn(): what the server holds of the chat's turn (running, parked behind a card), read from /agents/chat/<id>/turn-state
+- turn_state() / wait_until_parked_at_the_card() / wait_until_the_turn_runs() / wait_for_the_stored_reply_watching_the_turn(): what the server holds of the chat's turn (running, parked behind a card), read from /agents/chat/<id>/turn-state; the last returns every state it saw, in order, and on a timeout lists the stored assistant turns (completion status and tail of their words)
 
 [POS]
 Shared by tests/e2e/test_approval_resume_reply_chrome_e2e.py and test_approval_timer_resume_chrome_e2e.py; the scenarios stay there, the page-side probes live here.
@@ -199,22 +199,48 @@ def wait_until_parked_at_the_card(probe: SkillChat, *, timeout_sec: float = 120.
     )
 
 
-def wait_for_the_stored_reply_watching_the_turn(probe: SkillChat, *, timeout_sec: float = 240.0) -> None:
-    """Wait for the reply the run stores without any click, printing how the server's view of the turn changed meanwhile."""
+def wait_until_the_turn_runs(probe: SkillChat, *, timeout_sec: float = 120.0) -> None:
+    """The server runs the chat's turn: a run a timer started holds the chat for as long as it works."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if turn_state(probe).get("running") is True:
+            return
+        time.sleep(0.25)
+    pytest.fail(f"the server ran no turn within {timeout_sec:.0f}s; last turn-state: {turn_state(probe)}")
+
+
+def _stored_assistant_turns(probe: SkillChat) -> list[str]:
+    """Every stored assistant turn as ``completionStatus: tail of its words``: why a run that ended left no final reply."""
+    turns: list[str] = []
+    for message in stored_messages(probe.chat_id, get_e2e_api_url()):
+        if message.get("role") != "assistant":
+            continue
+        metadata = message.get("metadata")
+        status = metadata.get("completionStatus") if isinstance(metadata, dict) else None
+        words = message.get("content") or message.get("message") or ""
+        turns.append(f"{status}: {str(words)[-_FAILURE_TAIL_CHARS:]!r}")
+    return turns
+
+
+def wait_for_the_stored_reply_watching_the_turn(probe: SkillChat, *, timeout_sec: float = 240.0) -> list[tuple[object, object]]:
+    """Wait for the reply the run stores without any click; returns the (running, awaitingApproval) states seen, in order."""
     started = time.monotonic()
     timeline: list[str] = []
-    last: tuple[object, object] | None = None
+    states: list[tuple[object, object]] = []
     while time.monotonic() - started < timeout_sec:
         state = turn_state(probe)
         seen = (state.get("running"), state.get("awaitingApproval"))
-        if seen != last:
+        if not states or seen != states[-1]:
             timeline.append(f"{time.monotonic() - started:.0f}s running={seen[0]} awaitingApproval={seen[1]}")
-            last = seen
+            states.append(seen)
         if stored_reply_is_final(probe):
             print(f"E2E_TURN_STATE_TIMELINE: {timeline}", flush=True)
-            return
+            return states
         time.sleep(1.0)
-    pytest.fail(f"no stored reply within {timeout_sec:.0f}s; turn-state timeline: {timeline}")
+    pytest.fail(
+        f"no stored reply within {timeout_sec:.0f}s; turn-state timeline: {timeline}; "
+        f"stored assistant turns: {_stored_assistant_turns(probe)}"
+    )
 
 
 def assert_reply_shown_once(client: ChromeMcpClient, page: McpPage) -> None:

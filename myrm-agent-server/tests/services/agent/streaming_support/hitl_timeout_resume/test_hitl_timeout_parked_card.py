@@ -1,8 +1,9 @@
-"""A timer that answers a tool-approval card takes the card away from the parked run and ends the turn with it.
+"""A timer that answers a tool-approval card takes the chat from the run parked at it and ends the turn with it.
 
-The resume a fired timer runs registers no collector of its own, so the parked run stays the chat's collector for the whole
-resumed run. A page that reloads in that time must not get a card back that the timer already answered, and neither the parked
-run nor the run digest may outlive the turn they were opened for.
+The resume a fired timer runs becomes the chat's collector for the whole resumed run, as the run of a page-driven resume does.
+A page that reloads in that time must not get a card back that the timer already answered, and neither the run that held the
+chat nor the run digest may outlive the turn they were opened for. When the run fails before it consumed the answer, the chat
+and its card go back to the parked run.
 """
 
 from __future__ import annotations
@@ -31,14 +32,15 @@ from tests.support.hitl_timeout_run import (
 
 
 @pytest.mark.asyncio
-async def test_the_card_is_gone_from_the_parked_run_while_the_timer_run_works(
-    parked: StreamContentCollector, resumed_run: list[bool]
+async def test_the_answered_card_is_not_where_a_reloading_page_finds_it_while_the_timer_run_works(
+    parked: StreamContentCollector, resumed_run: list[bool], registered_runs: list[StreamContentCollector | None]
 ) -> None:
     with patch.object(hitl_timeout, "server_turn_lease", granted_lease):
         await hitl_timeout._resume_after_timeout(CHAT_ID, params_of_the_card(), {"decision": "deny"}, "approval")
 
     assert resumed_run == [False]
-    assert parked.has_pending_tool_approval() is False
+    assert registered_runs[0] is not None
+    assert registered_runs[0] is not parked
 
 
 @pytest.mark.asyncio
@@ -63,14 +65,18 @@ async def test_the_run_digest_ends_when_the_timer_run_finishes(parked: StreamCon
 
 
 @pytest.mark.asyncio
-async def test_the_parked_run_stays_registered_when_the_timer_run_stops_at_another_card(
-    parked: StreamContentCollector, resumed_run: list[bool], stops_at_a_card: list[bool]
+async def test_the_timer_run_stays_the_chat_collector_when_it_stops_at_another_card(
+    parked: StreamContentCollector,
+    resumed_run: list[bool],
+    stops_at_a_card: list[bool],
+    registered_runs: list[StreamContentCollector | None],
 ) -> None:
     stops_at_a_card.append(True)
     with patch.object(hitl_timeout, "server_turn_lease", granted_lease):
         await hitl_timeout._resume_after_timeout(CHAT_ID, params_of_the_card(), {"decision": "deny"}, "approval")
 
-    assert ACTIVE_COLLECTORS.get(CHAT_ID) is parked
+    assert ACTIVE_COLLECTORS.get(CHAT_ID) is registered_runs[0]
+    assert ACTIVE_COLLECTORS.get(CHAT_ID) is not parked
     assert digest_phase() is RunDigestPhase.RUNNING
 
 
@@ -185,16 +191,6 @@ async def test_the_card_of_another_chat_is_left_alone(parked: StreamContentColle
         assert other.has_pending_tool_approval() is True
     finally:
         other.cleanup()
-
-
-def test_a_failed_later_run_does_not_hand_back_a_card_an_earlier_run_answered(parked: StreamContentCollector) -> None:
-    """Chained timers: the parked run settles once per answered card, and only the latest answer can be handed back."""
-    parked.settle_tool_approvals()
-    parked.settle_tool_approvals()
-
-    parked.unsettle_tool_approvals()
-
-    assert parked.has_pending_tool_approval() is False
 
 
 @pytest.mark.asyncio

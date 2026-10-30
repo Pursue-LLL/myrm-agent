@@ -46,6 +46,8 @@ def params_of_the_card() -> MagicMock:
     params = MagicMock()
     params.chat_id = CHAT_ID
     params.message_id = "msg-1"
+    params.agent_id = "agent-timer"
+    params.timezone = "Asia/Shanghai"
     params.model_copy.return_value = params
     return params
 

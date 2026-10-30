@@ -50,6 +50,12 @@ def received_params() -> list[object]:
 
 
 @pytest.fixture
+def registered_runs() -> list[StreamContentCollector | None]:
+    """The chat's collector as the stand-in agent stream of ``resumed_run`` sees it once its first chunk was collected."""
+    return []
+
+
+@pytest.fixture
 def armed_timer() -> MagicMock:
     """Stand-in for the arming of the next interrupt's timer, which ``_resume_after_timeout`` does as its run stops."""
     return MagicMock()
@@ -57,7 +63,11 @@ def armed_timer() -> MagicMock:
 
 @pytest.fixture
 def resumed_run(
-    stops_at_a_card: list[bool], stored_history: AsyncMock, received_params: list[object], armed_timer: MagicMock
+    stops_at_a_card: list[bool],
+    stored_history: AsyncMock,
+    received_params: list[object],
+    registered_runs: list[StreamContentCollector | None],
+    armed_timer: MagicMock,
 ) -> Iterator[list[bool]]:
     """A stand-in agent stream for ``_resume_after_timeout``; the list records the parked card as the run starts."""
     seen: list[bool] = []
@@ -67,6 +77,7 @@ def resumed_run(
         collector = ACTIVE_COLLECTORS.get(CHAT_ID)
         seen.append(collector is not None and collector.has_pending_tool_approval())
         yield {"type": "message", "data": "continued"}
+        registered_runs.append(ACTIVE_COLLECTORS.get(CHAT_ID))
         if stops_at_a_card:
             yield {
                 "type": "tool_approval_request",

@@ -6,8 +6,10 @@
 - app.services.agent.gateway::AgentBusyError, AgentDrainingError (POS: the chat is held by a live run, or the app drains)
 - app.services.agent.streaming::ai_agent_service_stream (POS: gateway-managed agent run, imported lazily)
 - app.services.agent.streaming_support.sse_helpers (POS: interrupt event detection)
-- app.services.agent.streaming_support.stream_collector::StreamContentCollector, settle_tool_approvals_of (POS: persisted turn content; takes the answered card off the parked run)
-- app.services.copilot.run_digest_store::RunDigestStore (POS: the run digest the resumed turn ends)
+- app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content; the chat's collector while the resumed run works)
+- app.services.agent.stream_session.turn_end (POS: compaction drain, run digest close and lifecycle event, shared with a request's finalize)
+- app.services.agent.stream_session.turn_history_sync::commit_run_history_sync (POS: records that the agent thread mirrors the stored chat once the turn completed)
+- app.services.agent.stream_session.stream_finalize::assistant_turn_payload (POS: the stored form of a turn's answer, imported lazily)
 
 [OUTPUT]
 - CLARIFICATION_TIMEOUT_SECONDS / CLARIFICATION_NO_ANSWER_RESUME_VALUE: ask_question timeout and its empty answer
@@ -19,11 +21,13 @@
 [POS]
 A turn that stops at an interrupt leaves a suspended graph; when nobody answers, the timer resumes it with the
 timeout decision. The resumed run takes the chat under a server turn lease like any turn the server starts, so it
-yields to a run that is already live and the chat Stop button and the emergency stop reach it. When it stops at the
-next interrupt it arms that interrupt's timer; an interrupt without a timer is reopened so its manual answer is not
-refused as already resolved. It registers no collector, so it takes the answered card off the parked run and, when it
-ends without another interrupt, ends the turn the way a normal run's finalize does: the run digest and the parked run's
-registration.
+yields to a run that is already live and the chat Stop button and the emergency stop reach it. It also takes the chat's
+collector from the run parked at the answered card, as a page-driven resume does: a page that reloads meanwhile attaches
+to the resumed run, and the next card the run stops at is held by that run, where a reload and the turn state find it.
+When it stops at the next interrupt it arms that interrupt's timer; an interrupt without a timer is reopened so its
+manual answer is not refused as already resolved. When it ends without another interrupt it ends the turn the way a
+request's finalize does: it stores the answer through the same builder, records the thread as in sync with the chat,
+closes the run digest, announces the outcome to the lifecycle webhooks and gives the chat's collector up.
 """
 
 from __future__ import annotations
@@ -37,14 +41,17 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from myrm_agent_harness.utils.coercion import parse_float
 
+from app.services.agent.context_compaction_telemetry import enqueue_context_compaction_telemetry
 from app.services.agent.gateway import AgentBusyError, AgentDrainingError
+from app.services.agent.stream_session.turn_end import close_run_digest, schedule_compaction_drain
+from app.services.agent.stream_session.turn_history_sync import commit_run_history_sync
 from app.services.agent.streaming_support.sse_helpers import (
+    clear_context_task_metrics,
     extract_approval_timeout,
     extract_clarification_required,
 )
-from app.services.agent.streaming_support.stream_collector import StreamContentCollector, settle_tool_approvals_of
+from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.agent.turn_lease import server_turn_lease
-from app.services.copilot.run_digest_store import RunDigestStore
 
 if TYPE_CHECKING:
     from app.ai_agents import GeneralAgentParams
@@ -170,19 +177,32 @@ def _arm(
     )
 
 
-def _end_parked_turn(
-    chat_id: str, parked_run: StreamContentCollector | None, collector: StreamContentCollector, phase: RunDigestPhase
-) -> None:
-    """End the turn a timer resumed, as a normal run's finalize ends it, unless the run stopped at another interrupt.
+async def _end_turn(chat_id: str, params: GeneralAgentParams, collector: StreamContentCollector, phase: RunDigestPhase) -> None:
+    """End the turn a timer resumed, as a request's finalize ends it, unless the run stopped at another interrupt.
 
-    Left registered, the parked run would keep a reloading page attached to a stream that never ends, and the run digest
-    would keep showing a run that is over. A newer run of the chat has replaced the registration by now and is left alone.
+    A run that stopped at another interrupt stays the chat's collector, parked at its card. Otherwise the turn is over:
+    left registered, the run would keep a reloading page attached to a stream that never ends, and the run digest would
+    keep showing a run that is over. A newer run of the chat has replaced the registration by now and is left alone.
     """
-    if collector.has_pending_hitl_replay():
-        return
-    RunDigestStore.end_run(chat_id, phase=phase, progress_steps=list(collector._progress_steps))
-    if parked_run is not None:
-        parked_run.cleanup()
+    awaiting_answer = collector.has_pending_hitl_replay()
+    try:
+        schedule_compaction_drain(chat_id)
+        enqueue_context_compaction_telemetry(chat_id)
+        clear_context_task_metrics(chat_id)
+        if awaiting_answer:
+            return
+        await commit_run_history_sync(chat_id, params.message_id, collector, interrupted=phase is not RunDigestPhase.COMPLETED)
+        close_run_digest(
+            chat_id,
+            phase=phase,
+            progress_steps=list(collector._progress_steps),
+            agent_id=params.agent_id,
+            was_cancelled=phase is RunDigestPhase.CANCELLED,
+            had_fatal_error=False,
+        )
+    finally:
+        if not awaiting_answer:
+            collector.cleanup()
 
 
 async def _resume_after_timeout(
@@ -202,6 +222,7 @@ async def _resume_after_timeout(
     resume_params = params.model_copy()
     resume_params.query = Command(resume=resume_value)
     collector = StreamContentCollector()
+    extra_context: dict[str, object] = {}
     next_approval_timeout: dict[str, object] | None = None
     clarification_pending = False
     parked_run: StreamContentCollector | None = None
@@ -212,9 +233,9 @@ async def _resume_after_timeout(
             # A message id keys the cancel token; the original turn's token is gone by the time a timer fires.
             async with server_turn_lease(chat_id, params.message_id or f"hitl-resume-{chat_id}") as cancel_token:
                 turn_over = True
-                # This run registers no collector, so the card it answers would stay on the parked run until the chat's next run.
-                # Settled only once the lease is held: a refused run answered nothing.
-                parked_run = settle_tool_approvals_of(chat_id)
+                # The answered card must not stay where a reloading page finds it. Taken only once the lease is held: a refused
+                # run answered nothing.
+                parked_run = collector.take_over_chat(chat_id)
                 # What a page-driven resume reads: the stored history now holds the user message that opened the turn, whose
                 # [use ...] tag is how a resume finds the turn's skill hooks. The params captured when the card appeared
                 # hold the history from before that message.
@@ -235,11 +256,11 @@ async def _resume_after_timeout(
             phase = RunDigestPhase.CANCELLED
             raise
         except Exception as exc:
-            # The answer was not consumed by a finished run: the card goes back to the parked run and the turn is not over, so a
-            # manual answer has something to answer. Refused because a live run owns the chat, that run arms its own interrupt.
+            # The answer was not consumed by a finished run: the chat goes back to the parked run, which still holds the card, and
+            # the turn is not over, so a manual answer has something to answer. Refused because a live run owns the chat, that
+            # run arms its own interrupt.
             scheduler.reopen(chat_id)
-            if parked_run is not None:
-                parked_run.unsettle_tool_approvals()
+            collector.hand_chat_back(parked_run)
             turn_over = False
             if isinstance(exc, AgentBusyError | AgentDrainingError):
                 logger.warning("HITL timeout resume skipped: chat_id=%s, reason=%s", chat_id, exc)
@@ -252,11 +273,15 @@ async def _resume_after_timeout(
             if kind == "clarification":
                 await mark_pending_clarification_answered(chat_id, timeout_record)
 
-            if collector.has_content:
+            if collector.has_persistable_turn:
+                from app.services.agent.stream_session.stream_finalize import assistant_turn_payload
+
+                content, extra_data = assistant_turn_payload(collector, chat_id, extra_context=extra_context, stream_ttft_ms=None)
                 await ChatService.persist_assistant_message_safe(
                     chat_id,
-                    collector.content,
-                    extra_data=collector.extra_data,
+                    content,
+                    extra_data=extra_data,
+                    timezone=resume_params.timezone,
                     request_message_id=resume_params.message_id,
                 )
         finally:
@@ -270,5 +295,5 @@ async def _resume_after_timeout(
             )
     finally:
         if turn_over:
-            _end_parked_turn(chat_id, parked_run, collector, phase)
+            await _end_turn(chat_id, resume_params, collector, phase)
     logger.info("HITL timeout auto-resume completed: kind=%s, chat_id=%s", kind, chat_id)

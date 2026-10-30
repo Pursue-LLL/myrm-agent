@@ -6,9 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 
-from app.services.agent.stream_session.stream_finalize import (
-    _publish_session_lifecycle_webhook_event,
-)
+from app.services.agent.stream_session.turn_end import publish_session_lifecycle_webhook_event
 from app.services.event.app_event_bus import AppEventType
 
 
@@ -17,7 +15,7 @@ def test_publish_session_completed_event() -> None:
         bus = MagicMock()
         mock_get_bus.return_value = bus
 
-        _publish_session_lifecycle_webhook_event(
+        publish_session_lifecycle_webhook_event(
             chat_id="chat-123",
             phase=RunDigestPhase.COMPLETED,
             agent_id="agent-abc",
@@ -38,7 +36,7 @@ def test_publish_session_failed_event_on_error_phase() -> None:
         bus = MagicMock()
         mock_get_bus.return_value = bus
 
-        _publish_session_lifecycle_webhook_event(
+        publish_session_lifecycle_webhook_event(
             chat_id="chat-456",
             phase=RunDigestPhase.ERROR,
             agent_id=None,

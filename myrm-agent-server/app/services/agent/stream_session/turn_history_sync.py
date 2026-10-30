@@ -4,10 +4,12 @@
 - app.services.chat.history_sync (POS: digest comparison and commit of the thread-mirrors-chat record)
 - app.services.agent.params::AgentRequest (POS: chat, resume and regenerate flags of the request)
 - app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: outcome of the turn)
+- app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: the history mode the agent loop reported)
 
 [OUTPUT]
 - resolve_turn_history_mode: the ``history_mode`` a turn declares to the agent loop, or ``None`` when it declares none
 - commit_turn_history_sync: record that the thread mirrors the stored chat after a turn that completed on it
+- commit_run_history_sync: the same record for a turn that has no stream session (a resume the approval timer ran)
 
 [POS]
 Stream-layer policy of the single-authority history rule (mechanics live in ``services/chat/history_sync``).
@@ -26,6 +28,7 @@ from app.services.chat.history_sync import commit_history_sync, decide_history_m
 if TYPE_CHECKING:
     from app.services.agent.params import AgentRequest
     from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+    from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 # The agent loop reports the mode it ran a turn with. Only these mean the turn ran on the chat's thread: a
 # turn served by another lane (fast, research, workflow) leaves the thread without the exchange.
@@ -51,18 +54,30 @@ async def commit_turn_history_sync(session: AgentStreamSession, *, pending_hitl:
     A turn that was cancelled, failed, is waiting on the user, or ran on another lane records nothing: the
     previous record no longer matches the stored chat, so the next turn rebuilds the thread.
     """
-    request = session.request
-    if not request.chat_id or not request.message_id:
-        return
-    if pending_hitl or session.had_fatal_error or session.cancel_token.is_cancelled:
-        return
-    if _reported_history_mode(session) not in _THREAD_BOUND_MODES:
-        return
-    await commit_history_sync(request.chat_id, request.message_id)
+    await commit_run_history_sync(
+        session.request.chat_id,
+        session.request.message_id,
+        session.collector,
+        interrupted=pending_hitl or session.had_fatal_error or session.cancel_token.is_cancelled,
+    )
 
 
-def _reported_history_mode(session: AgentStreamSession) -> object:
-    extra_data = session.collector.extra_data or {}
+async def commit_run_history_sync(
+    chat_id: str | None, message_id: str | None, collector: StreamContentCollector, *, interrupted: bool
+) -> None:
+    """Record that the thread mirrors the stored chat after the turn of ``message_id`` completed on it.
+
+    ``interrupted`` is a turn that was cancelled, failed or is waiting on the user.
+    """
+    if not chat_id or not message_id or interrupted:
+        return
+    if _reported_history_mode(collector) not in _THREAD_BOUND_MODES:
+        return
+    await commit_history_sync(chat_id, message_id)
+
+
+def _reported_history_mode(collector: StreamContentCollector) -> object:
+    extra_data = collector.extra_data or {}
     economics = extra_data.get("tokenEconomics")
     turn_context = economics.get("turn_context") if isinstance(economics, dict) else None
     return turn_context.get("history_mode") if isinstance(turn_context, dict) else None

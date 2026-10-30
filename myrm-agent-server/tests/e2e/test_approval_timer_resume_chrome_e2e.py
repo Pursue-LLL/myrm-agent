@@ -11,8 +11,10 @@ The user leaves the chat for a static document of the same origin, which keeps t
 
   - one card, answered by deny and by allow: the reopened chat shows the reply, the server no longer holds the card the timer
     answered, and the timer's run brought the turn's skill hooks back (they fire for the command only when the timer allowed it);
-  - two cards in a row, both answered by allow: the run the first timer continues stops at the second card, which gets its own
-    timer, and that timer's run finishes the turn: both commands ran, in order, with the skill hooks around each of them.
+  - two cards in a row, both answered by allow: the run the first timer continues stops at the second card, which that run holds
+    for the server's turn state while the card's own timer is still running, and that timer's run finishes the turn: both
+    commands ran, in order, with the skill hooks around each of them;
+  - a reload while the timer's run is still writing: the page attaches to that run and ends with its reply, without a second reload.
 
 Formal run::
 
@@ -27,14 +29,22 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.chrome_approval_turn import APPROVAL_PROBE_URL, SHORT_ANSWER, bash_request, run_one_turn
+from tests.support.chrome_approval_turn import (
+    APPROVAL_PROBE_URL,
+    LONG_LIST_ANSWER,
+    SHORT_ANSWER,
+    bash_request,
+    run_one_turn,
+)
 from tests.support.chrome_chat_page_observe import (
     assert_page_settled,
+    assert_run_still_working,
     open_in_fresh_page,
     turn_state,
     wait_for_reply_on_page,
     wait_for_the_stored_reply_watching_the_turn,
     wait_until_parked_at_the_card,
+    wait_until_the_turn_runs,
 )
 from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_ui_url
 from tests.support.chrome_skill_hooks_approval import wait_for_approval_card
@@ -137,7 +147,12 @@ def test_two_cards_in_a_row_are_answered_by_the_timer_one_after_the_other(
         wait_until_parked_at_the_card(probe)
         wait_for_approval_card(client, page)
         _leave_the_chat_for_a_static_document(client, page)
-        wait_for_the_stored_reply_watching_the_turn(probe, timeout_sec=_CHAIN_REPLY_TIMEOUT_SEC)
+        states = wait_for_the_stored_reply_watching_the_turn(probe, timeout_sec=_CHAIN_REPLY_TIMEOUT_SEC)
+        # The run the first timer started stopped at the second card, and nobody answered that card for another timer period: the
+        # server held it for that whole time, so a page that reloaded then would have got it back. Seen as a state that awaits
+        # approval again after the first card was answered.
+        awaiting = [awaiting_approval for _running, awaiting_approval in states]
+        assert True in awaiting[awaiting.index(False) :], f"the second card was held by no run: turn states {states}"
         open_in_fresh_page(client, page, chat_url)
         wait_for_reply_on_page(
             client, page, probe, "after the timers answered both cards the reloaded chat did not show the reply"
@@ -160,4 +175,42 @@ def test_two_cards_in_a_row_are_answered_by_the_timer_one_after_the_other(
         approval_timeout_sec=_TIMER_SEC,
         approval_timeout_behavior="allow",
         hooks_for=_recording_hooks,
+    )
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_a_reload_while_the_timer_run_is_still_writing_ends_with_its_reply(
+    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger
+) -> None:
+    def reload_while_the_timer_run_writes(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
+        wait_until_parked_at_the_card(probe)
+        wait_for_approval_card(client, page)
+        _leave_the_chat_for_a_static_document(client, page)
+        # The timer answered: the server runs the rest of the turn and the long answer keeps it working while the page comes up.
+        wait_until_the_turn_runs(probe)
+        open_in_fresh_page(client, page, chat_url)
+        assert_run_still_working(probe)
+        # The page attached to the run that is writing, so it ends with that run's reply without another reload.
+        wait_for_reply_on_page(
+            client, page, probe, "the page that reloaded while the timer's run was writing did not end with the run's reply"
+        )
+        assert_page_settled(client, page)
+        assert turn_state(probe) == _IDLE_TURN
+
+    run_one_turn(
+        tmp_path,
+        e2e_resource_ledger,
+        "timermid",
+        bash_request(LONG_LIST_ANSWER),
+        reload_while_the_timer_run_writes,
+        approval_timeout_sec=_TIMER_SEC,
+        approval_timeout_behavior="allow",
     )

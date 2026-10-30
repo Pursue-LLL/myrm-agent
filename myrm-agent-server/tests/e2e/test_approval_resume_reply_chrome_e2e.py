@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.chrome_approval_turn import SHORT_ANSWER, bash_request, run_one_turn
+from tests.support.chrome_approval_turn import LONG_LIST_ANSWER, SHORT_ANSWER, bash_request, run_one_turn
 from tests.support.chrome_chat_page_observe import (
     assert_board_settled,
     assert_page_settled,
@@ -59,12 +59,6 @@ from tests.support.chrome_skill_hooks_live_e2e import DONE_TOKEN, SkillChat, aud
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 _RELOAD_AFTER_APPROVE_SEC = 1.5
-# A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
-_LONG_ANSWER_LINES = 600
-_LONG_LIST = (
-    f"the integers from 1 to {_LONG_ANSWER_LINES} as a bulleted list, one per bullet, "
-    f"and after a blank line end with a last line of exactly: {DONE_TOKEN}"
-)
 
 
 @pytest.mark.chrome_e2e(
@@ -165,7 +159,7 @@ def test_a_reload_while_the_approved_run_is_still_working_ends_with_its_reply(
         assert not reply_on_page(client, page), "the run had already answered; the reload would not interrupt anything"
         _reload_and_finish(client, page, probe, chat_url, working=True)
 
-    run_one_turn(tmp_path, e2e_resource_ledger, "reloadmid", bash_request(f"write {_LONG_LIST}"), approve_then_reload_mid_run)
+    run_one_turn(tmp_path, e2e_resource_ledger, "reloadmid", bash_request(LONG_LIST_ANSWER), approve_then_reload_mid_run)
 
 
 @pytest.mark.chrome_e2e(
@@ -186,7 +180,7 @@ def test_a_reload_right_after_pressing_approve_ends_with_the_reply(
         # Whether the resume request left the page before it went away is up to the browser: both outcomes must end the same way.
         _reload_and_finish(client, page, probe, chat_url, working=False)
 
-    run_one_turn(tmp_path, e2e_resource_ledger, "reloadnow", bash_request(f"write {_LONG_LIST}"), approve_then_reload_at_once)
+    run_one_turn(tmp_path, e2e_resource_ledger, "reloadnow", bash_request(LONG_LIST_ANSWER), approve_then_reload_at_once)
 
 
 @pytest.mark.chrome_e2e(
@@ -210,7 +204,7 @@ def test_a_reload_while_the_first_run_is_still_writing_ends_with_its_reply(
         tmp_path,
         e2e_resource_ledger,
         "reloadfirst",
-        f"Use no tool. Write {_LONG_LIST}",
+        f"Use no tool. {LONG_LIST_ANSWER}",
         reload_while_the_first_run_writes,
         asks_approval=False,
     )
