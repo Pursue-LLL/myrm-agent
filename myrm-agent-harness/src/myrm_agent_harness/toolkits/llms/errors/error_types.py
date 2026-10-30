@@ -41,7 +41,9 @@ class FailoverReason(Enum):
     OVERLOADED = "overloaded"  # Service overloaded/high demand
     TIMEOUT = "timeout"  # Network timeout or service unavailable
     THINKING_SIGNATURE = "thinking_signature"  # Anthropic thinking block signature invalid (retryable after strip)
-    REASONING_MANDATORY = "reasoning_mandatory"  # Provider rejects reasoning disable/level (retryable with floor effort, cache preserved)
+    REASONING_MANDATORY = (
+        "reasoning_mandatory"  # Provider rejects reasoning disable/level (retryable with floor effort, cache preserved)
+    )
     DUPLICATE_TOOL_USE_ID = "duplicate_tool_use_id"  # Duplicate tool_use / tool_call_id (retryable after sanitize)
     IMAGE_TOO_LARGE = "image_too_large"  # Per-image size limit exceeded (retryable after shrink)
     MEDIA_REJECTED = "media_rejected"  # Model does not support multimodal input (retryable after strip)
