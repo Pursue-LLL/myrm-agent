@@ -1,4 +1,7 @@
-"""Held files wait for a scan that began after they were written, and leave once the duplicate review clears them."""
+"""Held files wait for a scan that began after they were written, and leave once the duplicate review clears them.
+
+A new fingerprint algorithm version voids the scan coverage, so every hold waits for a fresh scan again.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +21,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import (
     DispositionAction,
     GroupStatus,
 )
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import store as store_module
 from myrm_agent_harness.toolkits.wiki.pipeline.queue import WikiIngestionQueue
 
 _SAME_BODY = "# Report\n\nThe very same body, imported twice."
@@ -331,3 +335,55 @@ async def test_an_unguarded_release_queues_only_the_given_files_whatever_the_gro
     assert await governor.release_unguarded(enqueuer, ["a.md", "b.md"]) == 2
     assert sorted(enqueuer.names) == ["a.md", "b.md"]
     assert _held_paths(governor) == ["other.md"]
+
+
+async def test_a_new_fingerprint_algorithm_owes_a_fresh_scan_before_any_hold_is_released(
+    structure: WikiStructure, governor: CorpusDedupGovernor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write(structure, "a.md", "# A\n\nfirst")
+    governor.hold_for_compile(["a.md"])
+    _scan(structure)
+    assert not governor.has_unscanned_holds()
+
+    monkeypatch.setattr(store_module, "FINGERPRINT_ALGORITHM_VERSION", "next-algorithm")
+    reopened = CorpusDedupGovernor(structure)
+    enqueuer = RecordingEnqueuer()
+
+    assert reopened.has_unscanned_holds()
+    assert await reopened.release_held(enqueuer) == 0
+    assert _held_paths(reopened) == ["a.md"]
+
+    _scan(structure)
+
+    assert not reopened.has_unscanned_holds()
+    assert await reopened.release_held(enqueuer) == 1
+
+
+async def test_a_new_fingerprint_algorithm_keeps_the_groups_and_the_time_of_the_last_scan(
+    structure: WikiStructure, governor: CorpusDedupGovernor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write(structure, "a.md", _SAME_BODY)
+    _write(structure, "b.md", _SAME_BODY)
+    scanner = _scan(structure)
+    (group,) = scanner.store.list_groups(status=GroupStatus.OPEN)
+    scanner.store.update_group_status(group.group_id, GroupStatus.DEFERRED)
+    last_scan_at = scanner.store.get_last_scan_at()
+
+    monkeypatch.setattr(store_module, "FINGERPRINT_ALGORITHM_VERSION", "next-algorithm")
+    reopened = CorpusDedupGovernor(structure).store
+
+    assert reopened.collect_deferred_member_sets() == {frozenset({"a.md", "b.md"})}
+    assert reopened.get_last_scan_at() == last_scan_at
+
+
+async def test_reopening_the_store_with_the_same_algorithm_keeps_the_scan_coverage(
+    structure: WikiStructure, governor: CorpusDedupGovernor, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write(structure, "a.md", "# A\n\nfirst")
+    monkeypatch.setattr(store_module, "FINGERPRINT_ALGORITHM_VERSION", "next-algorithm")
+    CorpusDedupGovernor(structure)
+    _scan(structure)
+    covered = governor.store.get_scan_coverage_ns()
+    assert covered > 0
+
+    assert CorpusDedupGovernor(structure).store.get_scan_coverage_ns() == covered

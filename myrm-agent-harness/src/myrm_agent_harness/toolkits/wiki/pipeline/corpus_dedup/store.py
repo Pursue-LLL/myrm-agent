@@ -13,8 +13,9 @@
 [POS]
 One SQLite file per vault, opened per call with WAL and a busy timeout, one transaction per ``with``. The store owns
 the group tables and scan bookkeeping and creates every table of the file; the sub-stores borrow its connection factory.
-Opening the file drops the cached fingerprints when they were computed by another fingerprint algorithm version, so the
-next scan recomputes every file.
+Opening the file drops the cached fingerprints and the scan coverage when they were computed by another fingerprint
+algorithm version: the next scan recomputes every file, and held files wait for that scan because the stored groups
+no longer vouch for them. Groups and their review status stay.
 """
 
 from __future__ import annotations
@@ -64,12 +65,17 @@ def _write_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
     )
 
 
-def _discard_fingerprints_of_other_algorithm(conn: sqlite3.Connection) -> None:
-    """Drop the cached fingerprints unless this file's cache was filled by the current fingerprint algorithm."""
+def _reset_scan_state_of_other_algorithm(conn: sqlite3.Connection) -> None:
+    """Drop the cached fingerprints and the scan coverage unless the current fingerprint algorithm produced them.
+
+    Groups built from other fingerprints no longer describe the corpus, so the coverage that vouched for them goes too;
+    without it a held file would be released against groups the new algorithm would not have formed.
+    """
     row = conn.execute("SELECT value FROM dedup_meta WHERE key = ?", (_META_FINGERPRINT_ALGORITHM,)).fetchone()
     if row is not None and row["value"] == FINGERPRINT_ALGORITHM_VERSION:
         return
     discard_all_fingerprints(conn)
+    conn.execute("DELETE FROM dedup_meta WHERE key = ?", (_META_SCAN_COVERAGE_NS,))
     _write_meta(conn, _META_FINGERPRINT_ALGORITHM, FINGERPRINT_ALGORITHM_VERSION)
 
 
@@ -127,7 +133,7 @@ class CorpusDedupStore:
                 + FINGERPRINT_SCHEMA
                 + COMPILE_HOLD_SCHEMA
             )
-            _discard_fingerprints_of_other_algorithm(conn)
+            _reset_scan_state_of_other_algorithm(conn)
 
     def collect_deferred_member_sets(self) -> set[frozenset[str]]:
         groups = self.list_groups(status=GroupStatus.DEFERRED)

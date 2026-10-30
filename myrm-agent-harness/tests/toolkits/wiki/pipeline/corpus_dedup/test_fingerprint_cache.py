@@ -1,4 +1,4 @@
-"""A scan reads the fingerprint cache once and stores what it recomputed in one batch after the groups, so the cache never runs ahead of them."""
+"""A scan reads the fingerprint cache once and stores what it recomputed in one batch after the groups, so the cache never runs ahead of them; fingerprints of another algorithm version are never reused."""
 
 from __future__ import annotations
 
