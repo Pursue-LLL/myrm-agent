@@ -12317,8 +12317,8 @@
         "retryingToast": "检测到配置正在处理中，正在自动重试...",
         "inProgressFriendlyError": "配置仍在处理中，请稍后再试。",
         "tokenRejectedError": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
-        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或先跳过，稍后在 设置 → 集成 中为 Telegram 配置代理。",
-        "telegramUnreachableSandboxError": "暂时无法连接 Telegram。请稍后重试，或先跳过，稍后在 设置 → 集成 中连接。",
+        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或先跳过，稍后在 设置 → 消息通道 中为 Telegram 配置代理。",
+        "telegramUnreachableSandboxError": "暂时无法连接 Telegram。请稍后重试，或先跳过。",
         "setupFailed": "Telegram 助手配置失败。",
         "setupFailedToast": "配置失败，请检查凭据后重试。",
         "successToast": "Telegram 助手已就绪：{agentName}"
