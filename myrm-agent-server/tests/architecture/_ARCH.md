@@ -46,7 +46,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；禁止 import 含 ``._`` 的 harness 私有模块路径；并校验每个被 import 的 harness 模块在 harness 源包里**真实存在**（harness 单侧改名/移动时，服务端测试期即红，而不是等首个真实回合 `ImportError`） |
 | `test_runtime_image_x11_tools.py` | 两个运行时镜像（`Dockerfile`、`docker/Dockerfile.official`）的 `apt-get install` 必须在 xdotool 旁同时装 xclip（harness Linux 后端含非 ASCII 字符的文本走 xclip 剪贴板粘贴，缺失则中日韩文本整体失败） |
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |
-| `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source；lock 只含 `pypi.org`/`files.pythonhosted.org`；禁止 GPL/optional 包与 harness 已 pin 的 `litellm`/`langchain`/`langchain-core` 回流 main |
+| `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source，且 lock 不解析出平台 core 轮子包（`compiled-core` extra 里的需求声明不算）；lock 只含 `pypi.org`/`files.pythonhosted.org`；禁止 GPL/optional 包与 harness 已 pin 的 `litellm`/`langchain`/`langchain-core` 回流 main |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
 | `test_no_private_references.py` | 开源仓全部已跟踪文本文件（不限 `*.md`）禁止出现私有开发壳的规划目录、名称、维护者速查文档名与 `topic_NN` 规划条目编号；一次 `git grep -I -i -E` 扫描（不区分大小写，目录名带不带斜杠都命中），编号用显式边界，紧贴中文的写法也命中；模式与样例由片段拼成，守卫文件不会命中自己；自带模式正反例自证；整树扫描另由不带路径过滤的 `.github/workflows/public-tree-guards.yml` 在每次 push main 与 PR 上独立运行（前端、桌面、脚本、根目录文档的改动同样被覆盖） |
 | `test_no_provider_shaped_secrets_in_tests.py` | server 测试目录禁止出现完整的厂商格式凭据（Stripe 密钥、Slack token），否则 GitHub push protection 会拒绝整个推送；假值统一经 `tests/support/fake_secrets.py` 拼装。含守卫自检：正则必须仍能匹配夹具输出，避免扫描空转 |

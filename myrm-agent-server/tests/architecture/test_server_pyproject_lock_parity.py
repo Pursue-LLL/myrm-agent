@@ -109,7 +109,9 @@ def test_harness_is_in_repo_editable_path_source() -> None:
         r'name = "myrm-agent-harness"\nversion = "[^"]+"\nsource = \{ editable = "\.\./myrm-agent-harness" \}',
         lock_text,
     ), "uv.lock must resolve myrm-agent-harness from the in-repo editable path"
-    assert "myrm-agent-harness-core" not in lock_text, "platform core wheels no longer exist"
+    assert not re.search(r'^name = "myrm-agent-harness-core', lock_text, re.MULTILINE), (
+        "platform core wheels must not resolve as packages (the harness's compiled-core extra only lists their specs)"
+    )
 
 
 @pytest.mark.architecture

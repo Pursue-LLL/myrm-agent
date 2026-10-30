@@ -5,12 +5,44 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.cron.types import CronRunRecord
+from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, CronRunRecord, JobType, Schedule, ScheduleKind
 
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
 
 _SLOT_FN = "app.platform_utils.sandbox.entitlements.entitlement_guard.require_cron_slot"
+
+_STOP_CRITERIA = (
+    {"type": "shell", "command": "./myrm restart"},
+    {"type": "shell", "command": "pkill -f myrm-agent-server"},
+)
+_ORDINARY_CRITERIA = (
+    {"type": "shell", "command": "test -f /tmp/done"},
+    {"type": "shell", "command": "curl -s http://example.com"},
+    {"type": "semantic", "criteria": "The report must not tell the reader to run ./myrm restart"},
+)
+
+
+def _existing_job(*, pre_condition_script: str | None = None, acceptance_criteria: tuple[dict[str, object], ...] = ()) -> CronJob:
+    return CronJob(
+        id="job-1",
+        user_id="user-1",
+        name="Probe",
+        job_type=JobType.AGENT,
+        schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
+        prompt="Check inbox",
+        pre_condition_script=pre_condition_script,
+        acceptance_criteria=acceptance_criteria,
+    )
+
+
+def _manager_around(existing: CronJob | None = None) -> tuple[EntitlementGuardedCronManager, MagicMock]:
+    inner = MagicMock()
+    inner.count_jobs = AsyncMock(return_value=0)
+    inner.create_job = AsyncMock(return_value=MagicMock(id="job-1"))
+    inner.get_job = AsyncMock(return_value=existing)
+    inner.update_job = AsyncMock(return_value=existing)
+    return EntitlementGuardedCronManager(inner), inner
 
 
 @pytest.mark.asyncio
@@ -112,18 +144,8 @@ async def test_list_runs_forwards_every_argument() -> None:
 
 @pytest.mark.asyncio
 async def test_update_job_clear_pre_condition_script_merges_for_lifecycle_guard() -> None:
-    from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, JobType, Schedule, ScheduleKind
-
     inner = MagicMock()
-    existing = CronJob(
-        id="job-1",
-        user_id="user-1",
-        name="Probe",
-        job_type=JobType.AGENT,
-        schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
-        prompt="Check inbox",
-        pre_condition_script='print("ok")',
-    )
+    existing = _existing_job(pre_condition_script='print("ok")')
     inner.get_job = AsyncMock(return_value=existing)
     inner.update_job = AsyncMock(return_value=existing)
     mgr = EntitlementGuardedCronManager(inner)
@@ -184,3 +206,66 @@ async def test_create_job_forwards_every_harness_field() -> None:
         await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), project_id="p1", skill_ids=("s1",))
     kwargs = inner.create_job.await_args.kwargs
     assert kwargs["project_id"] == "p1" and kwargs["skill_ids"] == ("s1",)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("criterion", _STOP_CRITERIA)
+async def test_create_job_rejects_a_shell_acceptance_criterion_that_stops_the_service(criterion: dict[str, object]) -> None:
+    mgr, inner = _manager_around()
+
+    with patch(_SLOT_FN), pytest.raises(ValueError, match="acceptance criterion command"):
+        await mgr.create_job("user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), acceptance_criteria=(criterion,))
+
+    inner.create_job.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_job_forwards_ordinary_acceptance_criteria() -> None:
+    mgr, inner = _manager_around()
+
+    with patch(_SLOT_FN):
+        await mgr.create_job(
+            "user-1", name="t", job_type=MagicMock(), schedule=MagicMock(), acceptance_criteria=_ORDINARY_CRITERIA
+        )
+
+    assert inner.create_job.await_args.kwargs["acceptance_criteria"] == _ORDINARY_CRITERIA
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("criterion", _STOP_CRITERIA)
+async def test_update_job_rejects_a_shell_acceptance_criterion_that_stops_the_service(criterion: dict[str, object]) -> None:
+    mgr, inner = _manager_around(_existing_job(acceptance_criteria=_ORDINARY_CRITERIA))
+
+    with pytest.raises(ValueError, match="acceptance criterion command"):
+        await mgr.update_job("job-1", "user-1", CronJobPatch(acceptance_criteria=(criterion,)))
+
+    inner.update_job.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_job_checks_the_stored_criteria_a_patch_leaves_unchanged() -> None:
+    mgr, inner = _manager_around(_existing_job(acceptance_criteria=_STOP_CRITERIA))
+
+    with pytest.raises(ValueError, match="acceptance criterion command"):
+        await mgr.update_job("job-1", "user-1", CronJobPatch(name="Renamed"))
+
+    inner.update_job.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_job_clearing_the_criteria_lets_a_stored_stop_criterion_go() -> None:
+    mgr, inner = _manager_around(_existing_job(acceptance_criteria=_STOP_CRITERIA))
+
+    await mgr.update_job("job-1", "user-1", CronJobPatch(clear_acceptance_criteria=True))
+
+    inner.update_job.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_job_accepts_ordinary_criteria_stored_or_patched() -> None:
+    mgr, inner = _manager_around(_existing_job(acceptance_criteria=_ORDINARY_CRITERIA))
+
+    await mgr.update_job("job-1", "user-1", CronJobPatch(name="Renamed"))
+    await mgr.update_job("job-1", "user-1", CronJobPatch(acceptance_criteria=_ORDINARY_CRITERIA[:2]))
+
+    assert inner.update_job.await_count == 2

@@ -100,6 +100,7 @@ class EntitlementGuardedCronManager:
             prompt=prompt,
             command=command,
             pre_condition_script=pre_condition_script,
+            acceptance_criteria=acceptance_criteria,
         )
         await self._enforce_slot(user_id)
         normalized_tools = normalize_cron_tools_allowed(tools_allowed) if tools_allowed else None
@@ -155,10 +156,16 @@ class EntitlementGuardedCronManager:
                 next_pre_condition = None
             elif patch.pre_condition_script is not None:
                 next_pre_condition = patch.pre_condition_script
+            next_criteria = existing.acceptance_criteria
+            if patch.clear_acceptance_criteria:
+                next_criteria = ()
+            elif patch.acceptance_criteria is not None:
+                next_criteria = patch.acceptance_criteria
             assert_cron_job_lifecycle_safe(
                 prompt=next_prompt,
                 command=next_command,
                 pre_condition_script=next_pre_condition,
+                acceptance_criteria=next_criteria,
             )
 
         if patch.clear_tools_allowed:
