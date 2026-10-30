@@ -67,8 +67,7 @@ class ConfidenceApprovalFlow:
         3. historical success rate over observed runs >= 50% or insufficient data (prevents risky fixes on low-quality skills)
         4. no new HIGH-level security finding versus the original content (prevents silently adding outbound or privileged behavior)
 
-        A proposal built from text the skill's SKILL.md no longer holds is discarded and the store's copy refreshed,
-        so the next proposal starts from the file.
+        A proposal built from text the skill's SKILL.md no longer holds is discarded: the next one starts from the file.
         """
         from app.core.skills.store.evolution_store import get_evolution_skill_store
         from app.services.skills.evolution_reviews import (
@@ -76,7 +75,6 @@ class ConfidenceApprovalFlow:
             approve_evolution_review_record,
             create_evolution_review_record,
             skill_file_differs,
-            sync_store_from_disk,
         )
 
         logger.info(
@@ -92,7 +90,6 @@ class ConfidenceApprovalFlow:
         skill_name = skill_record.name if skill_record else proposal.skill_id
 
         if skill_record is not None and proposal.original_content and skill_file_differs(skill_path, proposal.original_content):
-            await sync_store_from_disk(store, skill_record)
             logger.warning(
                 "Discarded evolution proposal for skill '%s': it was built from text the skill no longer has",
                 skill_name,

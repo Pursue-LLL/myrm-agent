@@ -1,6 +1,7 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
+- .decision_lock::serialized_per_evolution (POS: 同一提案的决议串行化)
 - .disk (POS: Evolution 落盘编排)
 - .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
@@ -9,7 +10,7 @@
 [OUTPUT]
 - approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary，仅扫描器判定 REJECT（CRITICAL）才拦为 FAILED_SCAN；拒绝适用于待审批与已批准但从未落地（应用失败）的记录，已落地的拒绝返回冲突
 [POS]
-Evolution 审核写操作：审批决议、修订提案、回滚已落地变更。
+Evolution 审核写操作：审批决议、修订提案、回滚已落地变更；同一条提案的四个写操作由 `decision_lock` 串行，后到的读到先到的最终结果。
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from ..experience_ledger import (
     ExperienceLedgerWrite,
     record_experience_event,
 )
+from .decision_lock import serialized_per_evolution
 from .disk import (
     apply_approval_record,
     get_skill_store,
@@ -47,6 +49,7 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 
+@serialized_per_evolution
 async def approve_evolution_review_record(
     evolution_id: str,
     *,
@@ -88,6 +91,7 @@ def _approved_but_never_applied(approval_status: str, payload: EvolutionApproval
     }
 
 
+@serialized_per_evolution
 async def reject_evolution_review_record(
     evolution_id: str,
     *,
@@ -163,6 +167,7 @@ async def reject_evolution_review_record(
     return review_record
 
 
+@serialized_per_evolution
 async def revise_evolution_review_record(
     evolution_id: str,
     *,
@@ -258,6 +263,7 @@ async def revise_evolution_review_record(
     return review_record
 
 
+@serialized_per_evolution
 async def rollback_evolution_review_record(evolution_id: str) -> dict[str, object]:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:

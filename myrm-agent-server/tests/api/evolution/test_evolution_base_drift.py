@@ -1,15 +1,12 @@
-"""A proposal is built from the skill's SKILL.md as it is now, not from a copy the evolution store let fall behind."""
+"""A proposal built from text the skill's SKILL.md no longer holds is discarded; one built from the file goes to review."""
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.agent.skills.evolution import SkillStore
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
@@ -23,14 +20,10 @@ from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 from app.services.skills.evolution_review.disk_content import skill_file_hash
-from tests.support.minimal_app import build_minimal_app
-
-app = build_minimal_app(preset="evolution")
 
 _STORED = "---\nname: demo-skill\ndescription: As the store has it.\n---\n"
 _ON_DISK = "---\nname: demo-skill\ndescription: As the user edited it.\nevolution-locked: true\n---\n"
 _EVOLVED = "---\nname: demo-skill\ndescription: As evolved.\n---\n"
-_INTEGRATION = "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration"
 
 
 def _record(skill_path: Path | str) -> SkillRecord:
@@ -71,19 +64,9 @@ async def store(tmp_path: Path, skill_file: Path) -> AsyncIterator[SkillStore]:
     """A store whose copy of the skill is the text before the user's edit, as the evolution store lets it fall behind."""
     skill_store = SkillStore(db_path=tmp_path / "skills.db")
     await skill_store.save_skill(_record(skill_file))
-    with (
-        patch("app.core.skills.store.evolution_store.get_evolution_skill_store", return_value=skill_store),
-        patch("app.api.skills.evolution.fix._get_skill_store", return_value=skill_store),
-        patch("app.api.skills.evolution.derive._get_skill_store", return_value=skill_store),
-    ):
+    with patch("app.core.skills.store.evolution_store.get_evolution_skill_store", return_value=skill_store):
         yield skill_store
     skill_store.close()
-
-
-@pytest.fixture
-async def async_client() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
 
 
 async def _evolution_approvals() -> list[ApprovalRecord]:
@@ -99,13 +82,13 @@ def _stored_content(store: SkillStore) -> str:
 
 
 @pytest.mark.asyncio
-async def test_a_proposal_built_on_a_store_copy_that_fell_behind_is_discarded_and_the_copy_refreshed(store: SkillStore) -> None:
+async def test_a_proposal_built_on_text_the_file_no_longer_has_is_discarded(store: SkillStore) -> None:
     result = await ConfidenceApprovalFlow().process_evolution(_proposal(_STORED))
 
     assert not result.approved
     assert not result.requires_manual_review
     assert await _evolution_approvals() == []
-    assert _stored_content(store) == _ON_DISK
+    assert _stored_content(store) == _STORED
 
 
 @pytest.mark.asyncio
@@ -137,72 +120,3 @@ async def test_a_proposal_without_original_content_has_nothing_to_compare(store:
 
     assert result.requires_manual_review
     assert len(await _evolution_approvals()) == 1
-
-
-async def _await_call(calls: list[str]) -> None:
-    for _ in range(200):
-        if calls:
-            return
-        await asyncio.sleep(0.01)
-    pytest.fail("the evolution request never reached the engine or the queue")
-
-
-@pytest.fixture
-def seen_by_engine(store: SkillStore) -> Iterator[Callable[[str], AsyncMock]]:
-    """An engine or queue method that records the store's copy of the skill at the moment it is asked to work."""
-    seen: list[str] = []
-
-    def make(_name: str) -> AsyncMock:
-        async def record_copy(*_args: object, **_kwargs: object) -> None:
-            seen.append(_stored_content(store))
-
-        mock = AsyncMock(side_effect=record_copy)
-        mock.seen = seen  # type: ignore[attr-defined]
-        return mock
-
-    yield make
-
-
-@pytest.mark.asyncio
-async def test_fix_has_the_engine_work_from_the_skill_file(
-    async_client: AsyncClient, store: SkillStore, seen_by_engine: Callable[[str], AsyncMock]
-) -> None:
-    fix_skill = seen_by_engine("fix_skill")
-    integration = SimpleNamespace(engine=SimpleNamespace(fix_skill=fix_skill), queue=None)
-
-    with patch(_INTEGRATION, return_value=integration):
-        response = await async_client.post("/api/v1/evolution/fix/skill-1", json={"reason": "it fails"})
-        await _await_call(fix_skill.seen)
-
-    assert response.status_code == 200
-    assert fix_skill.seen == [_ON_DISK]
-
-
-@pytest.mark.asyncio
-async def test_fix_has_the_queue_work_from_the_skill_file(
-    async_client: AsyncClient, store: SkillStore, seen_by_engine: Callable[[str], AsyncMock]
-) -> None:
-    enqueue = seen_by_engine("enqueue")
-    integration = SimpleNamespace(engine=object(), queue=SimpleNamespace(enqueue=enqueue))
-
-    with patch(_INTEGRATION, return_value=integration):
-        response = await async_client.post("/api/v1/evolution/fix/skill-1", json={"reason": "it fails", "force_retry": True})
-        await _await_call(enqueue.seen)
-
-    assert response.status_code == 200
-    assert enqueue.seen == [_ON_DISK]
-
-
-@pytest.mark.asyncio
-async def test_derive_has_the_engine_work_from_the_skill_file(
-    async_client: AsyncClient, store: SkillStore, seen_by_engine: Callable[[str], AsyncMock]
-) -> None:
-    derive_skill_simple = seen_by_engine("derive_skill_simple")
-    integration = SimpleNamespace(engine=SimpleNamespace(derive_skill_simple=derive_skill_simple))
-
-    with patch(_INTEGRATION, return_value=integration):
-        response = await async_client.post("/api/v1/evolution/derive/skill-1", json={"instruction": "also cover edge cases"})
-        await _await_call(derive_skill_simple.seen)
-
-    assert response.status_code == 200
-    assert derive_skill_simple.seen == [_ON_DISK]

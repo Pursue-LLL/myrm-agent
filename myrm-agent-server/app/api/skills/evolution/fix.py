@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system)
 
 [OUTPUT]
-- fix_skill: Trigger a FIX evolution for an existing skill from its current SKILL.md, optionally bypassing cooldown.
+- fix_skill: Trigger a FIX evolution for an existing skill, optionally bypassing cooldown.
 
 [POS]
 Evolution API endpoint for triggering FIX evolution with GUI-First force retry support.
@@ -17,8 +17,6 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
-from app.services.skills.evolution_reviews import sync_store_from_disk
 
 from .helpers import _get_skill_store
 
@@ -51,9 +49,6 @@ async def fix_skill(
     engine = evolution.engine if evolution is not None else None
     if evolution is None or engine is None:
         raise HTTPException(status_code=503, detail="Evolution engine not initialized. Please try again later.")
-
-    # The engine repairs the store's copy of the skill, which the editor and the agent's skill tool leave behind.
-    await sync_store_from_disk(store, skill)
 
     async def _run_fix() -> None:
         try:
