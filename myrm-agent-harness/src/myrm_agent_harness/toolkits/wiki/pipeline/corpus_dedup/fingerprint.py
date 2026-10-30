@@ -1,7 +1,19 @@
 """Deterministic fingerprinting for wiki raw corpus files.
 
+[INPUT]
+- utils.markdown_frontmatter::parse_frontmatter (POS: leading frontmatter block parse, BOM-tolerant)
+- core.claims_contract::sha256_raw_file (POS: SHA256 of a raw file's bytes)
+- memory._internal.hash_utils::compute_normalized_hash (POS: normalized text hash)
+
+[OUTPUT]
+- FINGERPRINT_ALGORITHM_VERSION: identifies how a file is reduced to its fingerprints
+- extract_body_text, compute_exact_hash, compute_normalized_body_hash, compute_simhash, hamming_distance,
+  is_near_duplicate, build_fingerprint, recommend_keep_path
+
 [POS]
-See module docstring.
+Three-tier fingerprints (exact bytes, normalized body, simhash) of one raw file. The body is the text after a leading
+frontmatter block; a horizontal rule and the text between two of them are content. A change that alters any
+fingerprint must bump FINGERPRINT_ALGORITHM_VERSION so the cache does not reuse fingerprints of the old algorithm.
 """
 
 from __future__ import annotations
@@ -19,16 +31,18 @@ from myrm_agent_harness.toolkits.wiki.core.claims_contract import sha256_raw_fil
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     RawFileFingerprint,
 )
+from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
+
+FINGERPRINT_ALGORITHM_VERSION = "1"
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
-_FENCE_RE = re.compile(r"^---[\s\S]*?---\n", re.MULTILINE)
 _SIMHASH_BITS = 64
 _NEAR_DUP_HAMMING_THRESHOLD = 3
 
 
 def extract_body_text(content: str) -> str:
     """Extract comparable body text from markdown or HTML."""
-    text = _FENCE_RE.sub("", content)
+    text = parse_frontmatter(content)[1]
     if "<" in text and ">" in text:
         text = unescape(_HTML_TAG_RE.sub(" ", text))
     return text

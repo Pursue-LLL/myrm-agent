@@ -5,11 +5,13 @@
 
 [OUTPUT]
 - FINGERPRINT_SCHEMA: DDL the store creates together with the rest of ``.raw_dedup.db``
+- discard_all_fingerprints: forget every cached fingerprint on the connection the store is already using
 - FingerprintCache: load every cached fingerprint at once, upsert a batch, prune the vanished, keyed by raw-relative path
 
 [POS]
 Storage detail of ``CorpusDedupScanner``. It borrows the store's connection factory, so one vault keeps one SQLite
-file. A cached entry is valid while the file's size and mtime are unchanged; simhash is stored as a signed 64-bit
+file. A cached entry is valid while the file's size and mtime are unchanged and the store still records the fingerprint
+algorithm version it was computed with; simhash is stored as a signed 64-bit
 integer because SQLite has no unsigned type. Reads and writes move whole batches per call: a scan looks at every raw
 file, and a connection per file would cost more than hashing the files that did not change.
 """
@@ -34,6 +36,11 @@ CREATE TABLE IF NOT EXISTS file_fingerprints (
 """
 
 _SIMHASH_MASK = (1 << 64) - 1
+
+
+def discard_all_fingerprints(conn: sqlite3.Connection) -> None:
+    """Forget every cached fingerprint on an open connection."""
+    conn.execute("DELETE FROM file_fingerprints")
 
 
 def _simhash_to_sqlite(value: int) -> int:

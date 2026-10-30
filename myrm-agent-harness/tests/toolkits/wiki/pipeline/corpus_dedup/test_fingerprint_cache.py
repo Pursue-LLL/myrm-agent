@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import CorpusDedupScanner, CorpusDedupStore
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import scanner as scanner_module
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import store as store_module
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.fingerprint_cache import FingerprintCache
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import RawFileFingerprint
 
@@ -239,3 +241,41 @@ def test_a_deleted_file_leaves_the_cache(structure: WikiStructure) -> None:
     scanner.scan(incremental=True)
 
     assert sorted(scanner.store.fingerprints.load_all()) == ["notes/doc-0.md", "notes/doc-1.md", "notes/doc-3.md"]
+
+
+def test_reopening_the_store_keeps_fingerprints_of_the_same_algorithm(structure: WikiStructure) -> None:
+    _write_documents(structure, 3)
+    CorpusDedupScanner(structure).scan(incremental=False)
+
+    assert len(CorpusDedupStore(structure).fingerprints.load_all()) == 3
+
+
+def test_fingerprints_of_another_algorithm_version_are_discarded_so_the_next_scan_rehashes_every_file(
+    structure: WikiStructure, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_documents(structure, 3)
+    CorpusDedupScanner(structure).scan(incremental=False)
+
+    monkeypatch.setattr(store_module, "FINGERPRINT_ALGORITHM_VERSION", "next-algorithm")
+    reopened = CorpusDedupStore(structure)
+    assert reopened.fingerprints.load_all() == {}
+
+    hashed = _record_hashed(monkeypatch)
+    CorpusDedupScanner(structure).scan(incremental=True)
+    assert len(hashed) == 3
+
+
+def test_a_dedup_database_that_never_recorded_an_algorithm_version_starts_with_an_empty_cache(
+    structure: WikiStructure, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_documents(structure, 3)
+    scanner = CorpusDedupScanner(structure)
+    scanner.scan(incremental=False)
+    with sqlite3.connect(scanner.store.db_path) as conn:
+        conn.execute("DELETE FROM dedup_meta WHERE key = 'fingerprint_algorithm'")
+
+    assert CorpusDedupStore(structure).fingerprints.load_all() == {}
+
+    hashed = _record_hashed(monkeypatch)
+    CorpusDedupScanner(structure).scan(incremental=True)
+    assert len(hashed) == 3

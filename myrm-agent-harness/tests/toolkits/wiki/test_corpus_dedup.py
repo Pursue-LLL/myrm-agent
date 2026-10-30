@@ -304,6 +304,19 @@ def test_scan_finds_normalized_duplicate_group(wiki_structure: WikiStructure) ->
     assert groups[0].tier == DedupTier.NORMALIZED
 
 
+def test_documents_that_differ_between_two_horizontal_rules_are_not_normalized_duplicates(
+    wiki_structure: WikiStructure,
+) -> None:
+    sections = "# Notes\n\nIntro.\n\n---\n\nFirst chapter about {fruit}.\n\n---\n\nOutro.\n"
+    _write_raw(wiki_structure, "apples.md", sections.format(fruit="apples"))
+    _write_raw(wiki_structure, "oranges.md", sections.format(fruit="oranges"))
+
+    result = CorpusDedupScanner(wiki_structure).scan(incremental=False)
+
+    assert result.normalized_groups == 0
+    assert result.exact_groups == 0
+
+
 def test_scan_finds_near_duplicate_group(wiki_structure: WikiStructure) -> None:
     shared = "the quick brown fox jumps over the lazy dog "
     _write_raw(wiki_structure, "near-a.md", f"# Near A\n\n{shared * 12}end")

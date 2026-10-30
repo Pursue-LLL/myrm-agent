@@ -3,6 +3,7 @@
 [INPUT]
 - core.structure::WikiStructure (POS: vault directory that holds ``.raw_dedup.db``)
 - corpus_dedup.disposition_ledger / fingerprint_cache / compile_holds (POS: sub-stores that own their tables)
+- corpus_dedup.fingerprint::FINGERPRINT_ALGORITHM_VERSION (POS: identifies how a file is reduced to its fingerprints)
 - corpus_dedup.types (POS: group, progress and stats value types)
 
 [OUTPUT]
@@ -12,6 +13,8 @@
 [POS]
 One SQLite file per vault, opened per call with WAL and a busy timeout, one transaction per ``with``. The store owns
 the group tables and scan bookkeeping and creates every table of the file; the sub-stores borrow its connection factory.
+Opening the file drops the cached fingerprints when they were computed by another fingerprint algorithm version, so the
+next scan recomputes every file.
 """
 
 from __future__ import annotations
@@ -28,9 +31,11 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.disposition_ledger i
     DISPOSITION_SCHEMA,
     DispositionLedger,
 )
+from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.fingerprint import FINGERPRINT_ALGORITHM_VERSION
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.fingerprint_cache import (
     FINGERPRINT_SCHEMA,
     FingerprintCache,
+    discard_all_fingerprints,
 )
 from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
     DedupStats,
@@ -43,6 +48,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.types import (
 )
 
 _META_COMPILE_JOBS_PREVENTED = "compile_jobs_prevented"
+_META_FINGERPRINT_ALGORITHM = "fingerprint_algorithm"
 _META_LAST_SCAN_AT = "last_scan_at"
 _META_SCAN_COVERAGE_NS = "scan_coverage_ns"
 _META_SCAN_PROGRESS = "scan_progress"
@@ -56,6 +62,15 @@ def _write_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
         """,
         (key, value),
     )
+
+
+def _discard_fingerprints_of_other_algorithm(conn: sqlite3.Connection) -> None:
+    """Drop the cached fingerprints unless this file's cache was filled by the current fingerprint algorithm."""
+    row = conn.execute("SELECT value FROM dedup_meta WHERE key = ?", (_META_FINGERPRINT_ALGORITHM,)).fetchone()
+    if row is not None and row["value"] == FINGERPRINT_ALGORITHM_VERSION:
+        return
+    discard_all_fingerprints(conn)
+    _write_meta(conn, _META_FINGERPRINT_ALGORITHM, FINGERPRINT_ALGORITHM_VERSION)
 
 
 class CorpusDedupStore:
@@ -112,6 +127,7 @@ class CorpusDedupStore:
                 + FINGERPRINT_SCHEMA
                 + COMPILE_HOLD_SCHEMA
             )
+            _discard_fingerprints_of_other_algorithm(conn)
 
     def collect_deferred_member_sets(self) -> set[frozenset[str]]:
         groups = self.list_groups(status=GroupStatus.DEFERRED)
