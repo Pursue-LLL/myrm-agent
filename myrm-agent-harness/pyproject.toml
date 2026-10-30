@@ -262,7 +262,8 @@ files = ["src/myrm_agent_harness"]
 
 [[tool.mypy.overrides]]
 # pyobjc Quartz / AppKit / Foundation 无类型 stubs（官方包未带 py.typed）；仅在 computer_use/backends 的 macOS 模块中惰性导入。
-module = ["Quartz", "AppKit", "Foundation"]
+# pyatspi（Linux AT-SPI）同为无类型 stubs 的可选依赖；仅在 computer_use/perception/linux_ax.py 中惰性导入。
+module = ["Quartz", "AppKit", "Foundation", "pyatspi"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

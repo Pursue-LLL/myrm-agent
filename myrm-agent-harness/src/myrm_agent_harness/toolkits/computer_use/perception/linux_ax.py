@@ -1,8 +1,9 @@
-"""Linux AT-SPI snapshot with graceful fallback."""
+"""Linux AT-SPI snapshot with graceful fallback; the active X11 window names the foreground app when the tree is empty."""
 
 from __future__ import annotations
 
 import logging
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -19,6 +20,10 @@ from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 logger = logging.getLogger(__name__)
 
 _MAX_ELEMENTS = 500
+
+# One X11 query must not stall the safety check that depends on it.
+_X11_QUERY_TIMEOUT_S = 2
+_QUOTED_STRING = re.compile(r'"([^"]*)"')
 
 _INTERACTIVE_ROLES: frozenset[str] = frozenset(
     {
@@ -46,7 +51,7 @@ def _try_pyatspi_snapshot(
     role: str | None = None,
 ) -> LinuxAxSnapshot | None:
     try:
-        import pyatspi  # type: ignore[import-untyped]
+        import pyatspi
     except ImportError:
         return None
 
@@ -93,7 +98,7 @@ def _try_pyatspi_snapshot(
             if match_query and match_role:
                 try:
                     component = node.queryComponent()  # type: ignore[attr-defined]
-                    extents = component.getExtents(0)  # type: ignore[attr-defined]
+                    extents = component.getExtents(0)
                 except Exception:
                     extents = None
                 if extents and extents.width > 0 and extents.height > 0:
@@ -195,7 +200,7 @@ def invoke_ax_element(
         return ActionResult(success=False, error=f"Index {index} out of range [0, {_MAX_ELEMENTS})")
 
     try:
-        import pyatspi  # type: ignore[import-untyped]
+        import pyatspi
     except ImportError:
         return ActionResult(
             success=False,
@@ -219,7 +224,7 @@ def invoke_ax_element(
         if role_name in _INTERACTIVE_ROLES:
             try:
                 component = node.queryComponent()  # type: ignore[attr-defined]
-                extents = component.getExtents(0)  # type: ignore[attr-defined]
+                extents = component.getExtents(0)
             except Exception:
                 extents = None
             if extents and extents.width > 0 and extents.height > 0:
@@ -252,7 +257,7 @@ def invoke_ax_element(
         if normalized in {"fill", "type", "set_value"}:
             try:
                 editable = target.queryEditableText()  # type: ignore[attr-defined]
-                editable.setTextContents(text)  # type: ignore[attr-defined]
+                editable.setTextContents(text)
             except Exception:
                 # Typing is the backend's job (stdin/clipboard, UTF-8 locale, cancellable); failing here hands the
                 # element to the caller's coordinate fallback, which clicks it and types through the backend.
@@ -273,8 +278,8 @@ def invoke_ax_element(
         }:
             try:
                 action_if = target.queryAction()  # type: ignore[attr-defined]
-                if action_if.getNActions() > 0:  # type: ignore[attr-defined]
-                    action_if.doAction(0)  # type: ignore[attr-defined]
+                if action_if.getNActions() > 0:
+                    action_if.doAction(0)
                 else:
                     target.queryComponent().grabFocus()  # type: ignore[attr-defined]
             except Exception:
@@ -328,13 +333,38 @@ def _native_api_hint(app_name: str) -> str:
     return ""
 
 
+def _x11_query(argv: list[str]) -> str:
+    """Stdout of one X11 helper command; empty when the tool is missing, times out or fails."""
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=_X11_QUERY_TIMEOUT_S, check=False)
+    except (subprocess.TimeoutExpired, OSError):
+        return ""
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def _read_foreground_meta() -> tuple[str, str]:
+    """(application name, window title) of the active X11 window, read without AT-SPI.
+
+    The application name is the window's WM_CLASS class. Either field is empty when it cannot be read.
+    """
+    win_id = _x11_query(["xdotool", "getactivewindow"])
+    if not win_id:
+        return "", ""
+    title = _x11_query(["xdotool", "getwindowname", win_id])
+    # xprop prints: WM_CLASS(STRING) = "instance", "Class"
+    quoted = _QUOTED_STRING.findall(_x11_query(["xprop", "-id", win_id, "WM_CLASS"]))
+    return (quoted[-1] if quoted else ""), title
+
+
 def inspect_foreground() -> dict[str, str | int | bool]:
     try:
         snapshot = capture_ax_snapshot("foreground")
     except AXTreeEmptyError as exc:
+        # The sensitive-app guard keys on this name, so an unreadable AT-SPI tree must not erase the app identity.
+        wm_class, title = _read_foreground_meta()
         return {
-            "app_name": "",
-            "window_title": "",
+            "app_name": wm_class or title,
+            "window_title": title,
             "interactive_estimate": 0,
             "needs_permission": False,
             "recommendation": str(exc),

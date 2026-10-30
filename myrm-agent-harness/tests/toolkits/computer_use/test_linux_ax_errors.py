@@ -7,6 +7,7 @@ Covers:
 - invoke_ax_element: collection cap, component/child/target failures, grabFocus
   fallback, action failure
 - inspect_foreground: empty tree and success paths
+- inspect_foreground X11 fallback: the sensitive-app guard still sees the active window when AT-SPI shows nothing
 """
 
 from __future__ import annotations
@@ -173,9 +174,7 @@ class TestCaptureXdotoolFallback:
                 raise ImportError("No module named 'pyatspi'")
             return original_import(name, *args, **kwargs)
 
-        self._import_patch = patch.object(
-            _builtins, "__import__", side_effect=mock_import
-        )
+        self._import_patch = patch.object(_builtins, "__import__", side_effect=mock_import)
         self._import_patch.start()
 
     def _reload_no_pyatspi(self):
@@ -219,9 +218,7 @@ class TestCaptureXdotoolFallback:
         self._no_pyatspi_module()
         try:
             module = self._reload_no_pyatspi()
-            result = subprocess.CompletedProcess(
-                args=[], returncode=1, stdout="", stderr=""
-            )
+            result = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="")
             with (
                 patch.object(module.shutil, "which", return_value="/usr/bin/xdotool"),
                 patch.object(module.subprocess, "run", return_value=result),
@@ -235,9 +232,7 @@ class TestCaptureXdotoolFallback:
         self._no_pyatspi_module()
         try:
             module = self._reload_no_pyatspi()
-            result = subprocess.CompletedProcess(
-                args=[], returncode=0, stdout="My Window\n", stderr=""
-            )
+            result = subprocess.CompletedProcess(args=[], returncode=0, stdout="My Window\n", stderr="")
             with (
                 patch.object(module.shutil, "which", return_value="/usr/bin/xdotool"),
                 patch.object(module.subprocess, "run", return_value=result),
@@ -306,9 +301,7 @@ class TestInvokeActionFailures:
         action_if = MagicMock()
         action_if.getNActions.side_effect = Exception("broken action")
         button.queryAction.return_value = action_if
-        button.queryComponent.return_value.grabFocus.side_effect = Exception(
-            "broken action"
-        )
+        button.queryComponent.return_value.grabFocus.side_effect = Exception("broken action")
         module = _reload_with(_desktop_with_children([button]))
         result = module.invoke_ax_element("0", "click")
         assert result.success is False
@@ -318,25 +311,102 @@ class TestInvokeActionFailures:
 class TestInspectForegroundLinux:
     def test_empty_tree_returns_recommendation(self) -> None:
         module = _reload_with(None)
-        with patch.object(
-            module,
-            "capture_ax_snapshot",
-            side_effect=AXTreeEmptyError("AT-SPI empty"),
+        with (
+            patch.object(
+                module,
+                "capture_ax_snapshot",
+                side_effect=AXTreeEmptyError("AT-SPI empty"),
+            ),
+            patch.object(module, "_read_foreground_meta", return_value=("", "")),
         ):
             result = module.inspect_foreground()
+        assert result["app_name"] == ""
         assert result["needs_permission"] is False
         assert "AT-SPI empty" in result["recommendation"]
 
     def test_success_path_appends_hint(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
 
-        meta = SnapshotMeta(
-            ref_count=4, app_name="nautilus", window_title="Files", scope="foreground"
-        )
+        meta = SnapshotMeta(ref_count=4, app_name="nautilus", window_title="Files", scope="foreground")
         module = _reload_with(None)
-        with patch.object(
-            module, "capture_ax_snapshot", return_value=MagicMock(meta=meta, refs={})
-        ):
+        with patch.object(module, "capture_ax_snapshot", return_value=MagicMock(meta=meta, refs={})):
             result = module.inspect_foreground()
         assert result["app_name"] == "nautilus"
         assert "D-Bus" in result["recommendation"]
+
+
+def _fake_x11(window_id: str, title: str, wm_class: str):  # type: ignore[no-untyped-def]
+    """subprocess.run stand-in answering the three X11 queries; an empty answer means the tool failed."""
+
+    def run(argv: list[str], **_: object) -> MagicMock:
+        answers = {
+            ("xdotool", "getactivewindow"): window_id,
+            ("xdotool", "getwindowname"): title,
+            ("xprop", "-id", window_id, "WM_CLASS"): wm_class,
+        }
+        key = tuple(argv[:2]) if argv[0] == "xdotool" and argv[1] == "getwindowname" else tuple(argv)
+        out = answers.get(key, "")
+        return MagicMock(stdout=out + "\n", returncode=0 if out else 1)
+
+    return run
+
+
+class TestForegroundX11Fallback:
+    """With no AT-SPI tree the guard must still learn which application is in front."""
+
+    @staticmethod
+    def _inspect(module, run) -> dict[str, str | int | bool]:  # type: ignore[no-untyped-def]
+        with (
+            patch.object(module, "capture_ax_snapshot", side_effect=AXTreeEmptyError("AT-SPI empty")),
+            patch.object(module.subprocess, "run", side_effect=run),
+        ):
+            return module.inspect_foreground()
+
+    def test_wm_class_names_the_application(self) -> None:
+        module = _reload_with(None)
+        run = _fake_x11("77", "alacritty: sudo -i", 'WM_CLASS(STRING) = "alacritty", "Alacritty"')
+        result = self._inspect(module, run)
+        assert result["app_name"] == "Alacritty"
+        assert result["window_title"] == "alacritty: sudo -i"
+
+    def test_terminal_is_blocked_without_at_spi(self) -> None:
+        from myrm_agent_harness.toolkits.computer_use.safety import is_sensitive_app
+
+        module = _reload_with(None)
+        run = _fake_x11("77", "user@host: ~", 'WM_CLASS(STRING) = "gnome-terminal-server", "Gnome-terminal"')
+        result = self._inspect(module, run)
+        assert is_sensitive_app(str(result["app_name"]), str(result["window_title"])) is not None
+
+    def test_title_names_the_application_when_class_is_unreadable(self) -> None:
+        from myrm_agent_harness.toolkits.computer_use.safety import is_sensitive_app
+
+        module = _reload_with(None)
+        result = self._inspect(module, _fake_x11("77", "konsole - bash", ""))
+        assert result["app_name"] == "konsole - bash"
+        assert is_sensitive_app(str(result["app_name"]), str(result["window_title"])) is not None
+
+    def test_ordinary_application_is_not_blocked(self) -> None:
+        from myrm_agent_harness.toolkits.computer_use.safety import is_sensitive_app
+
+        module = _reload_with(None)
+        run = _fake_x11("77", "Docs - Mozilla Firefox", 'WM_CLASS(STRING) = "Navigator", "firefox"')
+        result = self._inspect(module, run)
+        assert result["app_name"] == "firefox"
+        assert is_sensitive_app(str(result["app_name"]), str(result["window_title"])) is None
+
+    def test_no_active_window_leaves_the_name_empty(self) -> None:
+        module = _reload_with(None)
+        result = self._inspect(module, _fake_x11("", "", ""))
+        assert result["app_name"] == ""
+        assert result["window_title"] == ""
+
+    @pytest.mark.parametrize("failure", [FileNotFoundError("xdotool"), subprocess.TimeoutExpired("xdotool", 2)])
+    def test_missing_tool_or_timeout_leaves_the_name_empty(self, failure: Exception) -> None:
+        module = _reload_with(None)
+
+        def run(argv: list[str], **_: object) -> MagicMock:
+            raise failure
+
+        result = self._inspect(module, run)
+        assert result["app_name"] == ""
+        assert result["window_title"] == ""

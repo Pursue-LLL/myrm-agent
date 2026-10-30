@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-118 · Linux 上 AT-SPI 读不到当前窗口时，敏感应用守卫拿到空应用名而放行（终端、银行、密码管理器、Agent 自身界面都不再被拦）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/perception/linux_ax.py`；测试 `tests/toolkits/computer_use/test_linux_ax_errors.py`；没有改提示词与工具 schema，不影响提示词缓存） |
+| **发现时间** | 2026-10-30（评估「终端里粘贴非 ASCII 文本」是否需要单独处理时，沿 `type_text` 的全部调用方回溯到守卫，读 `inspect_foreground` 的返回值） |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P1（安全守卫默认失效）：视觉动作路径在 `desktop_session.py:472-480` 用 `inspect_backend` 取前台应用名交给 `safety.is_sensitive_app`，后者在应用名为空时直接返回「放行」（`safety.py:277`）。Linux 上 pyatspi 没装、或 AT-SPI 没有暴露当前窗口时，`capture_ax_snapshot("foreground")` 在 xdotool 回退分支里即使读到了窗口标题，也无条件抛 `AXTreeEmptyError`，`inspect_foreground` 因此返回空应用名与空标题。用 mock 复现：窗口标题为 `alacritty: sudo -i` 时守卫返回「放行」，应用名已知为 `Alacritty` 时返回 `Blocked`。语义（snapshot）路径读不到树就失败，不受影响。没有统计过真实环境里缺 pyatspi 或窗口不暴露 AT-SPI 的比例，xterm、kitty、alacritty 是否不暴露 AT-SPI 来自记忆、没有查证。 |
+| **关联产品** | Linux 桌面端与云沙箱里的桌面视觉动作（点击、输入、按键）。 |
+| **根因** | Linux 的 `inspect_foreground` 在 AT-SPI 树为空时丢弃了 X11 已经能给出的前台窗口身份；macOS 的同名函数在同样情形下用 `_read_foreground_meta()` 从系统读前台应用名（`macos_ax.py:630-640`），Linux 缺这一步。 |
+| **修复** | `inspect_foreground` 捕获 `AXTreeEmptyError` 后读当前 X11 活动窗口：应用名取 `WM_CLASS` 的类名（`xdotool getactivewindow` 加 `xprop -id <窗口> WM_CLASS`），读不到类名时用窗口标题（否则 `safety.py:277` 仍会因应用名为空跳过标题匹配），两者都读不到才返回空，与原行为一致。每次查询 2 秒超时，工具缺失或失败按「读不到」处理。没有改 `is_sensitive_app`（三个平台共用，改成「应用名为空也匹配标题」会连带改变 macOS 与 Windows 的行为，没有证据证明安全）。同一文件里 8 处早就存在的 mypy 错误（`pyatspi` 缺类型存根、其余 `type: ignore` 已无用）一并清掉：`pyatspi` 加入 `pyproject.toml` 的 `ignore_missing_imports` 名单。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 起初要修的是另一个问题：非 ASCII 文本粘贴在终端里用 `Ctrl+V` 不生效（终端要 `Ctrl+Shift+V`），并已按一个成熟 X11 文本扩展工具的补丁表设计好方案。落地前读 `safety.py:182-195` 发现终端本来就在 GUI 自动化的拦截名单里，主流终端不会走到 `type_text`，那个方案收益极小而撤回；顺着这条线才发现名单本身在 Linux 上会因空应用名失效。 |
+| **回归** | [1] 7 个新用例：类名命名应用（`Alacritty`）、`gnome-terminal` 类在没有 AT-SPI 时被守卫拦下、类名读不到时用标题（`konsole - bash`）并被拦下、普通应用（`firefox`）不被拦、没有活动窗口时仍为空、`xdotool` 缺失与超时都按读不到处理。原有的「空树」用例补了 `_read_foreground_meta` 的隔离，避免在装了 xdotool 的 Linux 开发机上读到真实窗口。[2] 变异验证：把兜底改回空应用名，4 个新用例变红（22 通过）。[3] `tests/toolkits/computer_use` 1184 passed、12 skipped（8 个真实 X11 与 4 个 Windows 原生用例由平台门控跳过）；`linux_ax.py` 的 mypy 与 ruff 通过。 |
+| **仍然存在** | ① `_try_pyatspi_snapshot` 的「前台」范围遍历桌面上的全部应用，`app_name` 取遍历到的第一个应用、`window_title` 取第一个窗口（`linux_ax.py` 的 `for idx in range(desktop.childCount)` 循环，没有用活动窗口状态过滤）；pyatspi 可用时，守卫与语义路径检查的可能是桌面上第一个应用而不是前台应用。这是读代码得出的结论，没有真实 AT-SPI 环境复现，也就没有改。② Windows 的 `inspect_foreground` 在 UIA 树为空时同样返回空应用名（`windows_ax.py:406-413`），没有 Windows 真机，不能验证兜底读法，没有改。③ `WM_CLASS` 的 `xprop` 输出格式 `WM_CLASS(STRING) = "实例", "类"` 只由单元测试里的样例覆盖，没有在真实 X11 上跑过（容器无网络）。④ 守卫关键词是子串匹配，`wt`、`cmd`、`warp` 等短词原本在 macOS 与 Windows 上就可能误拦，现在也会作用于 Linux 窗口，方向偏安全。⑤ 原生 Wayland 窗口 xdotool 读不到，仍然是空名。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/toolkits/computer_use/perception/linux_ax.py`（`_x11_query`、`_read_foreground_meta`、`inspect_foreground`） · `myrm-agent-harness/pyproject.toml`（mypy `ignore_missing_imports`） · `myrm-agent-harness/tests/toolkits/computer_use/test_linux_ax_errors.py`（`TestForegroundX11Fallback`） |
+
 ### BUG-HARNESS-2026-10-30-117 · 技能从 git 安装时，克隆地址以 `-` 开头会被 git 当成命令行选项
 
 | 字段 | 内容 |
