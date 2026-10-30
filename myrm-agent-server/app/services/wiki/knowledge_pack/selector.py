@@ -3,13 +3,17 @@
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
 - app.services.wiki.vault::resolve_shared_wiki_vault_paths, resolve_shared_wiki_vault_labels
+- myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::resolve_publish_status (POS: wiki publish gate SSOT)
+- myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
 
 [OUTPUT]
 - calculate_jaccard_similarity: Fast character-ngram / word overlap for semantic dedup.
 - KnowledgePackSelector: Select, dedup, and enforce strict token/character budget on snippets.
 
 [POS]
-High-performance snippet selection pipeline for pre-turn proactive injection.
+High-performance snippet selection pipeline for pre-turn proactive injection. Every page text it reads goes through
+the wiki publish gate, so a draft or blocked page never reaches the injected context, and snippets never lead with
+the page's frontmatter.
 """
 
 from __future__ import annotations
@@ -19,6 +23,9 @@ import re
 import sqlite3
 import time
 from pathlib import Path
+
+from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
+from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
 from app.services.wiki.knowledge_pack.schemas import (
     KnowledgePackConfig,
@@ -62,6 +69,20 @@ def calculate_jaccard_similarity(text_a: str, text_b: str) -> float:
     intersection = words_a.intersection(words_b)
     union = words_a.union(words_b)
     return len(intersection) / len(union)
+
+
+def _published_page_body(page_file: Path) -> str:
+    """Body of a page that passes the wiki publish gate, without its frontmatter.
+
+    Empty for a draft or blocked page and for a file that cannot be read: an unverifiable page is held back.
+    """
+    try:
+        text = page_file.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+    if resolve_publish_status(text) is not WikiPublishStatus.PUBLISHED:
+        return ""
+    return parse_frontmatter(text)[1]
 
 
 def truncate_snippet_text(text: str, max_chars: int = 200) -> str:
@@ -220,16 +241,14 @@ async def resolve_proactive_snippets_from_vaults(
                         )
                         for row in cursor.fetchall():
                             c_name = str(row["concept_name"] or "")
-                            raw_content = ""
                             concept_file = vault_path / "wiki" / "concepts" / f"{c_name}.md"
                             if not concept_file.is_file():
                                 concept_file = vault_path / f"{c_name}.md"
+                            # The page file is the source of truth for its publish status; the index row's
+                            # text stands in only for rows that have no page file (e.g. raw sources).
                             if concept_file.is_file():
-                                try:
-                                    raw_content = concept_file.read_text(encoding="utf-8", errors="ignore")
-                                except Exception:
-                                    raw_content = ""
-                            if not raw_content:
+                                raw_content = _published_page_body(concept_file)
+                            else:
                                 raw_content = str(row["truth_content"] or "")
 
                             paras = [p.strip() for p in raw_content.split("\n\n") if p.strip()]
@@ -280,10 +299,7 @@ async def resolve_proactive_snippets_from_vaults(
             for md_file in md_files:
                 title = md_file.stem.lower()
                 title_matches = sum(1 for t in match_terms if t in title)
-                try:
-                    content = md_file.read_text(encoding="utf-8", errors="ignore")
-                except Exception:
-                    continue
+                content = _published_page_body(md_file)
 
                 raw_paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
                 for p in raw_paragraphs:
