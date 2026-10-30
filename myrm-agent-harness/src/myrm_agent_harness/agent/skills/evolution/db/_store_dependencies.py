@@ -142,18 +142,6 @@ class SkillDependencyMixin:
             (skill_id, skill_id),
         )
 
-    async def sync_skill_dependencies(self, record: object) -> None:
-        """Persist dependency edges for a skill record (idempotent).
-
-        Use this only for out-of-band content updates; regular saves go
-        through :meth:`SkillStore.save_skill`, which already maintains edges.
-
-        Args:
-            record: SkillRecord to persist dependencies for.
-        """
-        self._ensure_open()  # type: ignore[attr-defined]
-        await asyncio.to_thread(self._sync_skill_dependencies_locked, record)
-
     async def delete_skill_dependencies(self, skill_id: str) -> None:
         """Remove dependency edges for a deleted skill.
 

@@ -1,13 +1,13 @@
-"""Retry of SkillStore operations on transient SQLite errors.
+"""Retry of SkillStore operations on SQLite database errors.
 
 [INPUT]
 - (none)
 
 [OUTPUT]
-- db_retry: Decorator retrying a synchronous store operation on lock contention and other transient database errors.
+- db_retry: Decorator retrying a synchronous store operation on any sqlite3.DatabaseError, lock contention included.
 
 [POS]
-Transient-error retry for SkillStore operations.
+Database-error retry for SkillStore operations.
 """
 
 from __future__ import annotations
@@ -26,10 +26,12 @@ __all__ = ["db_retry"]
 def db_retry[**P, R](
     max_retries: int = 5, initial_delay: float = 0.1, backoff: float = 2.0
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Retry on transient SQLite errors with exponential backoff.
+    """Retry a store operation on any ``sqlite3.DatabaseError`` (``OperationalError`` is one of them).
 
-    Handles OperationalError (e.g. "database is locked") and DatabaseError.
-    Does NOT retry programming errors like InterfaceError.
+    Every ``DatabaseError`` subclass is retried, constraint violations included. ``InterfaceError`` and
+    exceptions outside sqlite3 propagate at once. ``max_retries`` is the number of attempts; the pause between
+    attempts starts at ``initial_delay`` and is multiplied by ``backoff`` after each one (1.5 s in total with
+    the defaults). The last failure is re-raised.
     """
 
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
@@ -39,7 +41,7 @@ def db_retry[**P, R](
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (sqlite3.OperationalError, sqlite3.DatabaseError) as exc:
+                except sqlite3.DatabaseError as exc:
                     if attempt == max_retries - 1:
                         logger.error(
                             "DB %s failed after %d retries: %s",

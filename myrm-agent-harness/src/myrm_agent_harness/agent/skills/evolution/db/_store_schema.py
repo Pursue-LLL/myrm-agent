@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - SCHEMA_DDL: Idempotent CREATE statements for the skills, rejections and constraints tables.
-- migrate_existing_db: Bring a database written by an earlier version up to date.
+- migrate_existing_db: Bring an existing database up to the current schema and vocabulary.
 
 [POS]
 Schema and data migrations run by SkillStore on every open; each step is idempotent.
@@ -79,7 +79,8 @@ CREATE INDEX IF NOT EXISTS idx_constraints_time ON evolution_constraints(created
 """
 
 
-# Notes the engine and the screener once saved on their own as constraints; the table keeps only what a user rejected.
+# Constraint notes starting with one of these prefixes come from the engine or the screener, not from a user
+# rejection; the constraints table holds user rejection reasons only.
 _AUTOMATIC_CONSTRAINT_PREFIXES = ("FIX succeeded", "DERIVED succeeded", "LLM screener rejected FIX")
 
 
@@ -87,7 +88,7 @@ def migrate_existing_db(conn: sqlite3.Connection) -> None:
     """Apply every migration; the caller holds the write lock and commits."""
     _add_record_columns(conn)
     _purge_automatic_constraints(conn)
-    _retire_description_evolution_type(conn)
+    _retype_description_records(conn)
 
 
 def _add_record_columns(conn: sqlite3.Connection) -> None:
@@ -104,7 +105,7 @@ def _add_record_columns(conn: sqlite3.Connection) -> None:
 
 
 def _purge_automatic_constraints(conn: sqlite3.Connection) -> None:
-    """Drop the constraints nobody rejected: the exact, case-sensitive prefixes the engine and the screener wrote."""
+    """Delete the constraints whose text starts with an engine or screener prefix (exact, case-sensitive match)."""
     removed = sum(
         conn.execute(
             "DELETE FROM evolution_constraints WHERE substr(constraint_text, 1, ?) = ?", (len(prefix), prefix)
@@ -115,10 +116,10 @@ def _purge_automatic_constraints(conn: sqlite3.Connection) -> None:
         logger.info("Removed %d automatic evolution constraints; the table keeps user rejection reasons only", removed)
 
 
-def _retire_description_evolution_type(conn: sqlite3.Connection) -> None:
-    """Load the records of the retired description-only evolution as FIX, the nearest type left."""
+def _retype_description_records(conn: sqlite3.Connection) -> None:
+    """Re-type ``optimize_description`` records as FIX: the evolution types are fix, derived and captured."""
     updated = conn.execute(
         "UPDATE skills SET evolution_type = 'fix' WHERE evolution_type = 'optimize_description'"
     ).rowcount
     if updated:
-        logger.warning("Re-typed %d skill record(s) of the retired description-only evolution as FIX", updated)
+        logger.warning("Re-typed %d skill record(s) of type optimize_description as FIX", updated)
