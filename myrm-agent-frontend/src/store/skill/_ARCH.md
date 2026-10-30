@@ -8,7 +8,7 @@
 
 | 文件                    | 职责                             |
 | ----------------------- | -------------------------------- |
-| `useSkillStore.ts`      | 技能列表、选中技能、安装状态     |
+| `useSkillStore.ts`      | 技能列表、选中技能、安装状态；`setLocalSkillEvolutionLocked` 把服务端已确认的进化锁变化写进本地技能列表 |
 | `useSkillDraftStore.ts` | 进化/优化草稿与审核队列          |
 | `types.ts`              | 技能 store 专用类型              |
 | `index.ts`              | 再导出（子模块唯一允许的桶入口） |

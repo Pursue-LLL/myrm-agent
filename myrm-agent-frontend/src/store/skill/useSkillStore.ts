@@ -345,6 +345,14 @@ const useSkillStore = create<SkillStore>((set, get) => ({
     }
   },
 
+  setLocalSkillEvolutionLocked: (skillId: string, locked: boolean) => {
+    set((state) => ({
+      localSkills: state.localSkills.map((skill) =>
+        skill.id === skillId ? { ...skill, evolution_locked: locked } : skill,
+      ),
+    }));
+  },
+
   setFilters: (newFilters: Partial<SkillFilters>) => {
     const { filters } = get();
     set({ filters: { ...filters, ...newFilters } });

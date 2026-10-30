@@ -10887,6 +10887,7 @@
       "reasonCode": "原因代码",
       "actions": "操作",
       "forceRetry": "强制重试",
+      "forceRetryLocked": "该技能已开启「防自动修改保护」。请先在技能详情中关闭保护，再重试。",
       "status": {
         "PENDING_REVIEW": "待审核",
         "AUTO_APPLIED": "已自动应用",

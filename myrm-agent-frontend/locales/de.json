@@ -10887,6 +10887,7 @@
       "reasonCode": "Ursachencode",
       "actions": "Aktionen",
       "forceRetry": "Wiederholung erzwingen",
+      "forceRetryLocked": "Dieser Skill ist vor automatischen Änderungen geschützt. Schalte den Evolutionsschutz in den Skill-Details aus und versuche es dann erneut.",
       "status": {
         "PENDING_REVIEW": "Ausstehende Überprüfung",
         "AUTO_APPLIED": "Automatisch angewendet",

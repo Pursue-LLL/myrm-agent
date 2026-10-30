@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.skills.converter import skills_to_responses
 from app.api.skills.schemas import (
     EnableSkillResponse,
     RegistryPresetResponse,
@@ -15,7 +16,6 @@ from app.api.skills.schemas import (
     UpdateSkillEnvVarsRequest,
     UpdateUserSkillConfigRequest,
     UserSkillConfigResponse,
-    skill_to_response,
 )
 from app.core.skills.audit import audit_skill_action as _audit_skill_action
 from app.core.skills.config_version import (
@@ -357,6 +357,6 @@ async def get_user_available_skills(
     skills = await skills_service.get_user_available_skills()
     await apply_integration_oauth_availability(skills, db)
     return SkillListResponse(
-        skills=[skill_to_response(s) for s in skills],
+        skills=skills_to_responses(skills),
         total=len(skills),
     )

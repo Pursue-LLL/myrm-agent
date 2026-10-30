@@ -9,6 +9,7 @@ from myrm_agent_harness.api.skills import SkillMetadataError, compute_content_ha
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.skills.converter import skills_to_responses
 from app.api.skills.schemas import (
     SkillFileUpdateRequest,
     SkillFileUpdateResponse,
@@ -59,7 +60,7 @@ async def list_skills(
     await apply_integration_oauth_availability(skills, db)
 
     return SkillListResponse(
-        skills=[skill_to_response(s) for s in skills],
+        skills=skills_to_responses(skills),
         total=len(skills),
     )
 

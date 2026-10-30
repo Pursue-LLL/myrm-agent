@@ -12,9 +12,9 @@
 | `_deploy_capability.py` | 模块 | 部署能力门控：`require_local_skills_capability()` 供所有落盘本地技能的 install/import/export API 复用，沙箱模式 fail-closed。 | ✅ |
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
 | `batch_import/`（子包） | 模块 | 批量导入 (GUI-First 技能迁移) 域：`batch_import.py`（`preview/confirm` 路由，错误统一输出 `detail={message,error_code}`）、`batch_import_execute.py`（落盘执行器 `execute_batch_import_confirm`，蓝绿原子写入 + DB 事务）、`batch_import_helpers.py`（错误映射助手）、`batch_import_schemas.py`（请求/响应 Pydantic 模型）。`batch_import/__init__.py` 为聚合门面（导出 `router`）。 | ✅ |
-| `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；PUT 只接受产品提供的进化策略（balanced / innovate，其余 422），修改后即热更新运行中的筛选器；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents）；`POST /{skill_id}/evolution-lock` 对 `find_evolution_records` 找到的每一行写库标志，并在该技能有 SKILL.md 时同时写它的 `evolution-locked` | ✅ |
-| `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
-| `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability；源文件写入（`PUT /{skill_id}/files/...`）先过安全扫描，写技能根目录的 `SKILL.md` 时还须能被技能加载器解析，否则 400 且不落盘（加载器会跳过解析失败的文件，保存后技能会从 agent 视野里消失） | ✅ |
+| `config.py` | 模块 | User skill config CRUD；`GET /available` 经 `skills_to_responses` 转换；GET 返回 registry_presets + clawhub_registry_url；PUT 只接受产品提供的进化策略（balanced / innovate，其余 422），修改后即热更新运行中的筛选器；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents）；`POST /{skill_id}/evolution-lock` 对 `find_evolution_records` 找到的每一行写库标志，并在该技能有 SKILL.md 时同时写它的 `evolution-locked` | ✅ |
+| `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型；`skills_to_responses` 转换一次列表请求的全部技能，其中的本地技能共用一次进化行读取；进化锁与回归用例读自存放该技能 SKILL.md 的进化行（与 `/derive`、`/fix` 同一匹配规则，同名而在不同目录的技能互不串用，改过名的技能仍读到自己的行），锁状态为 SKILL.md 里的锁或该行的库标志任一为真。 | ✅ |
+| `core.py` | 模块 | 核心技能获取与 reveal；列表经 `skills_to_responses` 转换；list/get 时 apply integration OAuth availability；源文件写入（`PUT /{skill_id}/files/...`）先过安全扫描，写技能根目录的 `SKILL.md` 时还须能被技能加载器解析，否则 400 且不落盘（加载器会跳过解析失败的文件，保存后技能会从 agent 视野里消失） | ✅ |
 | `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断（每条发现标明是否被 Agent、定时任务或看板任务绑定）与修复；运行与历史响应带 `skipped_pinned`/`skipped_protected`，界面据此解释"0 变化"的清理为何没动任何技能 | ✅ |
 | `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
 | `discovery/`（子包） | 模块 | 技能发现域：`discovery.py`（search/install/preview/update/sources 路由）+ `discovery_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`discovery/_ARCH.md`](discovery/_ARCH.md) | ✅ |
@@ -23,7 +23,7 @@
 | `draft_record.py` | 模块 | 技能草稿记录视图 `SkillDraftRecord`：路由层 `drafts.py` 从审批记录构造，落地写入层 `draft_materialize.py` 只读取，两者共享同一份数据形状而互不依赖 | ✅ |
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
-| `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、安全评分准入门禁原子采纳 (`/adopt`)、全量扫描与健康状态实时透出 (`path_statuses`)、严格防范路径穿越 (CWE-22) | ✅ |
+| `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、安全评分准入门禁原子采纳 (`/adopt`)、全量扫描（经 `skills_to_responses` 转换）与健康状态实时透出 (`path_statuses`)、严格防范路径穿越 (CWE-22) | ✅ |
 | `migrations.py` | 模块 | Controlled migration review API；approve skill_import 委托 `services/migration/skill_bundle_writer.py` 写 `~/.myrm/skills`，受本地技能能力门控（`MYRM_ALLOW_LOCAL_SKILLS=0` 时 403；延迟导入避免独立加载循环依赖） | ✅ |
 | `packaging.py` | 模块 | Skill packaging and upload endpoints；预览返回文件树摘要 `review_digest`，导出携带“忽略脱敏”决定时回传校验，技能预览后被改动则 409 `skill_changed_since_preview`；`export_format` 仅接受 `agent_plugin` / `raw_skill`，其余值 422 | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |

@@ -10887,6 +10887,7 @@
       "reasonCode": "사유 코드",
       "actions": "작업",
       "forceRetry": "강제 재시도",
+      "forceRetryLocked": "이 스킬은 '진화 보호'로 자동 변경이 차단되어 있습니다. 스킬 상세에서 '진화 보호'를 끈 뒤 다시 시도하세요.",
       "status": {
         "PENDING_REVIEW": "검토 대기",
         "AUTO_APPLIED": "자동 적용됨",

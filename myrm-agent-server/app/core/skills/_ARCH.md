@@ -28,7 +28,7 @@
 | `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |
 | `store/service.py` | 核心 | 技能 CRUD 服务 | — |
 | `store/reader.py` | 核心 | 技能读取 | — |
-| `store/evolution_store.py` | 核心 | 进化技能存储进程级单例（get/reset，热读路径复用） | ✅ |
+| `store/evolution_store.py` | 核心 | 进化技能存储进程级单例（get/reset，热读路径复用）与技能到其进化行的定位（按存放 SKILL.md 的目录，列表请求共用一次索引） | ✅ |
 | `store/user_config.py` | 核心 | 用户技能配置（enabled/disabled prebuilt、本地路径） | ✅ |
 | `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配（转发 harness packer/validator） | — |
 | `packaging/_helpers.py` | 内部 | 打包内部辅助（`_load_evolution_record`/`_sync_skill_md_version`） | — |

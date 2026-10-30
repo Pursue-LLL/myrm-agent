@@ -13,10 +13,7 @@ import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import { useSkillStore } from '@/store/skill';
 import type { Skill } from '@/store/skill/types';
 import type { SkillSectionTranslator } from './SkillDetailHelpers';
-import {
-  SKILL_CONTENT_CHANGED_EVENT,
-  type SkillContentChangedDetail,
-} from '@/lib/skills/skillContentSync';
+import { SKILL_CONTENT_CHANGED_EVENT, type SkillContentChangedDetail } from '@/lib/skills/skillContentSync';
 
 /** Saved keys change a skill's availability on the server; pull the new verdict into the list that holds it. */
 function refreshSkillAvailability(skillId: string): void {
@@ -263,6 +260,7 @@ export function useSkillDetailSheet({
     try {
       await toggleEvolutionLock(skill.id, newLocked);
       setIsEvolutionLocked(newLocked);
+      useSkillStore.getState().setLocalSkillEvolutionLocked(skill.id, newLocked);
       toast({
         title: newLocked ? t('detail.evolutionLocked') : t('detail.evolutionUnlocked'),
         description: newLocked

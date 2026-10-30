@@ -8,7 +8,9 @@
 
 [OUTPUT]
 - get_evolution_skill_store: 返回 skills.db 上的进程级单例 SkillStore 实例
+- EvolutionRowIndex: 进化库的有效行按其所存 SKILL.md 的目录分组（最新在前），一次请求只读一次库
 - find_evolution_records: 一个技能在进化库里的全部行（按引用精确匹配的行优先，其次存放同一 SKILL.md 目录的行，不看行的名字）
+- find_primary_evolution_record: 技能的进化状态读自哪一行（本地技能即 /derive、/fix 所跑的那一行，其余技能按名字）
 - evolution_record_for_page_skill: 没有进化行的本地页面技能的新行（以页面 id 为键，读自它的 SKILL.md；非本地技能或无 SKILL.md 返回 None）
 - reset_evolution_skill_store: 清空单例缓存（测试隔离用）
 
@@ -58,12 +60,34 @@ def get_evolution_skill_store() -> SkillStore:
     return store
 
 
-def find_evolution_records(store: SkillStore, skill_ref: str, page_skill: Skill | None = None) -> list[SkillRecord]:
+class EvolutionRowIndex:
+    """The active evolution rows grouped by the directory of the SKILL.md each one holds, newest first.
+
+    Built once per request, so finding the rows of many skills reads the store once instead of once per skill.
+    """
+
+    __slots__ = ("_by_directory",)
+
+    def __init__(self, store: SkillStore) -> None:
+        by_directory: dict[Path, list[SkillRecord]] = {}
+        for record in store.get_active_skills():
+            if record.path:
+                by_directory.setdefault(Path(record.path).parent.resolve(), []).append(record)
+        self._by_directory = by_directory
+
+    def holding(self, skill_dir: Path) -> list[SkillRecord]:
+        return self._by_directory.get(skill_dir, [])
+
+
+def find_evolution_records(
+    store: SkillStore, skill_ref: str, page_skill: Skill | None = None, index: EvolutionRowIndex | None = None
+) -> list[SkillRecord]:
     """Evolution rows of one skill, the row keyed by ``skill_ref`` first.
 
     Rows are keyed by whoever wrote them (skill name, generated id, page id) and a skill's name can change, so a page
     skill's other rows are the ones that hold its own SKILL.md, whatever they are named: a renamed skill keeps its
     row and two skills sharing a name never share one. Without ``page_skill`` ``skill_ref`` is taken as the name.
+    ``index`` is the row index a caller already built for several skills.
     """
     records: list[SkillRecord] = []
     exact = store.get_skill(skill_ref)
@@ -74,11 +98,23 @@ def find_evolution_records(store: SkillStore, skill_ref: str, page_skill: Skill 
         if by_name is not None and by_name.skill_id != skill_ref:
             records.append(by_name)
         return records
-    skill_dir = Path(page_skill.storage_path).resolve()
-    records.extend(
-        record for record in store.get_active_skills() if record.skill_id != skill_ref and _holds_skill_md(record, skill_dir)
-    )
+    if not page_skill.storage_path:
+        return records
+    held = (index if index is not None else EvolutionRowIndex(store)).holding(Path(page_skill.storage_path).resolve())
+    records.extend(record for record in held if record.skill_id != skill_ref)
     return records
+
+
+def find_primary_evolution_record(store: SkillStore, skill: Skill, index: EvolutionRowIndex | None = None) -> SkillRecord | None:
+    """The row a skill's evolution state (lock, regression cases) is read from.
+
+    A local skill's is the row /derive and /fix run on, the first of ``find_evolution_records``. Any other skill has
+    no directory of its own, so its row is found by name.
+    """
+    if skill.type is not SkillType.LOCAL:
+        return store.get_skill_by_name_version(skill.name)
+    records = find_evolution_records(store, skill.id, skill, index)
+    return records[0] if records else None
 
 
 async def evolution_record_for_page_skill(page_skill: Skill) -> SkillRecord | None:
@@ -104,10 +140,6 @@ async def evolution_record_for_page_skill(page_skill: Skill) -> SkillRecord | No
         path=str(skill_md),
         lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, created_by=_PAGE_ROW_CREATOR),
     )
-
-
-def _holds_skill_md(record: SkillRecord, skill_dir: Path) -> bool:
-    return bool(record.path) and Path(record.path).parent.resolve() == skill_dir
 
 
 def reset_evolution_skill_store() -> None:

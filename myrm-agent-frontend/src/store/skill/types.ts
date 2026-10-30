@@ -6,13 +6,7 @@ export type SkillType = 'prebuilt' | 'local' | 'workspace';
 
 export type SkillLifecycleStatus = 'active' | 'stale' | 'archived';
 export type SkillLifecycleAction =
-  | 'pin'
-  | 'unpin'
-  | 'restore'
-  | 'archive'
-  | 'reset-to-default'
-  | 'accept-upstream'
-  | 'undo-last-replace';
+  'pin' | 'unpin' | 'restore' | 'archive' | 'reset-to-default' | 'accept-upstream' | 'undo-last-replace';
 
 export type SkillCategory =
   | 'development'
@@ -293,6 +287,8 @@ export interface SkillActions {
   updateEvolutionStrategy: (strategy: string) => Promise<void>;
   scanLocalSkills: () => Promise<void>;
   toggleLocalSkill: (skillId: string) => Promise<void>;
+  /** Mirror a confirmed evolution-lock change into the scanned list so reopened details agree with the server. */
+  setLocalSkillEvolutionLocked: (skillId: string, locked: boolean) => void;
 
   /** Batch enable/disable multiple skills */
   batchToggleSkills: (skillIds: string[], enable: boolean) => Promise<void>;

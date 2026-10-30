@@ -1,5 +1,5 @@
 /**
- * [INPUT] skills growth audit API via @/services
+ * [INPUT] skills growth audit API via @/services; useEvolutionForceRetry (强制重试提交与锁定提示)
  * [OUTPUT] EvolutionRejectionDashboard: 技能进化拒绝/失败审计面板
  * [POS] features/skills 技能进化负向结果审计入口
  */
@@ -24,6 +24,7 @@ import {
   type SkillGrowthAuditStats,
 } from '@/services/skill/growth';
 import { toast } from 'sonner';
+import { useEvolutionForceRetry } from './useEvolutionForceRetry';
 
 const STATUS_TONE: Record<
   SkillGrowthStatus,
@@ -77,7 +78,20 @@ export function EvolutionRejectionDashboard() {
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(30);
-  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const { retryingIds, retry } = useEvolutionForceRetry({
+    messages: {
+      started: text('已强制重试 / Force retry started'),
+      failed: text('重试失败 / Retry failed'),
+      locked: t('forceRetryLocked'),
+    },
+    // The server accepted the retry: show the row as pending review right away instead of waiting for the next sync.
+    onStarted: (eventId) =>
+      setEntries((prev) =>
+        prev.map((entry) =>
+          entry.eventId === eventId ? { ...entry, status: 'PENDING_REVIEW' as SkillGrowthStatus } : entry,
+        ),
+      ),
+  });
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -342,37 +356,7 @@ export function EvolutionRejectionDashboard() {
                             variant="outline"
                             size="sm"
                             disabled={retryingIds.has(entry.eventId)}
-                            onClick={async () => {
-                              setRetryingIds((prev) => new Set(prev).add(entry.eventId));
-                              try {
-                                const res = await fetch(`/api/v1/evolution/fix/${entry.skillId || entry.skillName}`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ reason: entry.reason, force_retry: true }),
-                                });
-                                if (!res.ok) {
-                                  throw new Error('Failed to force retry');
-                                }
-                                toast.success(text('已强制重试 / Force retry started'));
-
-                                // Optimistic UI update: instantly change status to PENDING_REVIEW
-                                setEntries((prev) =>
-                                  prev.map((e) =>
-                                    e.eventId === entry.eventId
-                                      ? { ...e, status: 'PENDING_REVIEW' as SkillGrowthStatus }
-                                      : e,
-                                  ),
-                                );
-                              } catch {
-                                toast.error(text('重试失败 / Retry failed'));
-                              } finally {
-                                setRetryingIds((prev) => {
-                                  const next = new Set(prev);
-                                  next.delete(entry.eventId);
-                                  return next;
-                                });
-                              }
-                            }}
+                            onClick={() => void retry(entry)}
                           >
                             {retryingIds.has(entry.eventId) ? (
                               <>

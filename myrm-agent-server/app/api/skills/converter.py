@@ -2,19 +2,25 @@
 
 [INPUT]
 - app.core.skills.models::Skill (POS: 统一业务层技能数据模型)
+- app.core.skills.store.evolution_store::EvolutionRowIndex, find_primary_evolution_record (POS: core/skills/store 进化 SQLite 入口)
 
 [OUTPUT]
 - skill_to_response: 将核心 Skill 实体精确适配转换为 API SkillResponse 强类型响应模型
+- skills_to_responses: 一次列表请求的批量转换，其中的本地技能共用一次进化行读取
 
 [POS]
-技能模型转换适配器。解耦业务模型与 HTTP 传输模式，负责安全审计摘要、演进指标与使用统计的规整映射。
+技能模型转换适配器。解耦业务模型与 HTTP 传输模式，负责安全审计摘要、演进指标与使用统计的规整映射；
+本地技能的进化锁与回归用例读自存放其 SKILL.md 的进化行，与 /derive、/fix 同一规则。
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 from .schemas import (
     SecurityFindingResponse,
@@ -23,6 +29,11 @@ from .schemas import (
     SkillResponse,
     SkillUsageStatsResponse,
 )
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.skills.evolution import SkillStore
+
+    from app.core.skills.store.evolution_store import EvolutionRowIndex
 
 logger = logging.getLogger(__name__)
 
@@ -37,31 +48,58 @@ def _stat_float(stats: dict[str, object], key: str) -> float:
     return float(value) if isinstance(value, (int, float, str)) else 0.0
 
 
-def _lookup_evolution_data(
-    skill_name: str,
-) -> tuple[list[dict[str, object]], bool, list[dict[str, object]]]:
-    """Best-effort lookup of evolution verification steps, lock status and eval cases."""
+def _evolution_store() -> SkillStore | None:
+    """The evolution store when the evolution system is running; the skill pages work without it."""
     try:
         from myrm_agent_harness.agent.skills.evolution.infra.integration import (
             get_global_evolution_integration,
         )
 
         evolution = get_global_evolution_integration()
-        if evolution and evolution.store:
-            record = evolution.store.get_skill_by_name_version(skill_name)
-            if record:
-                return (
-                    record.verification_steps,
-                    record.evolution_locked,
-                    record.eval_cases,
-                )
+        return evolution.store if evolution and evolution.store else None
     except Exception as e:
-        logger.debug("Evolution data lookup failed for %s: %s", skill_name, e)
+        logger.debug("Evolution store unavailable: %s", e)
+        return None
+
+
+def _lookup_evolution_data(
+    skill: Skill, rows: EvolutionRowIndex | None
+) -> tuple[list[dict[str, object]], bool, list[dict[str, object]]]:
+    """Best-effort lookup of evolution verification steps, lock status and eval cases."""
+    try:
+        from app.core.skills.store.evolution_store import find_primary_evolution_record
+
+        store = _evolution_store()
+        record = find_primary_evolution_record(store, skill, rows) if store is not None else None
+        if record:
+            return record.verification_steps, record.evolution_locked, record.eval_cases
+    except Exception as e:
+        logger.debug("Evolution data lookup failed for %s: %s", skill.name, e)
     return [], False, []
 
 
-def skill_to_response(skill: Skill) -> SkillResponse:
-    """Convert Skill model to SkillResponse."""
+def _evolution_row_index(skills: Sequence[Skill]) -> EvolutionRowIndex | None:
+    """One read of the evolution rows for the local skills of a list; ``None`` when there is nothing to look up."""
+    if not any(skill.type is SkillType.LOCAL for skill in skills):
+        return None
+    try:
+        from app.core.skills.store.evolution_store import EvolutionRowIndex
+
+        store = _evolution_store()
+        return EvolutionRowIndex(store) if store is not None else None
+    except Exception as e:
+        logger.debug("Evolution row index failed: %s", e)
+        return None
+
+
+def skills_to_responses(skills: Sequence[Skill]) -> list[SkillResponse]:
+    """Convert the skills of one list request; its local skills share one read of the evolution rows."""
+    rows = _evolution_row_index(skills)
+    return [skill_to_response(skill, rows) for skill in skills]
+
+
+def skill_to_response(skill: Skill, rows: EvolutionRowIndex | None = None) -> SkillResponse:
+    """Convert Skill model to SkillResponse; ``rows`` is the evolution row index of the list it belongs to."""
     security = None
     if skill.security is not None:
         security = SecurityScanSummaryResponse(
@@ -80,7 +118,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             ],
         )
 
-    verification_steps, store_evolution_locked, eval_cases = _lookup_evolution_data(skill.name)
+    verification_steps, store_evolution_locked, eval_cases = _lookup_evolution_data(skill, rows)
     evolution_locked = skill.evolution_locked or store_evolution_locked
 
     usage = SkillUsageStatsResponse()

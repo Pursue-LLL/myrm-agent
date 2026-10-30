@@ -10887,6 +10887,7 @@
       "reasonCode": "Reason Code",
       "actions": "Actions",
       "forceRetry": "Force Retry",
+      "forceRetryLocked": "This skill is protected from automatic changes. Turn off Evolution Protection in the skill details, then retry.",
       "status": {
         "PENDING_REVIEW": "Pending Review",
         "AUTO_APPLIED": "Auto Applied",

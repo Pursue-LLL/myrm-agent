@@ -1,7 +1,8 @@
 """Evolution API tests — bypass auth for TestClient (non-loopback client).
 
 Also the shared wiring of the skill-row tests: a real ``SkillStore`` on a temp file, the evolution integration with a
-mocked engine and queue, and an HTTP client on the evolution and skills routers.
+mocked engine and queue, an HTTP client on the evolution and skills routers, and the real local scan of skill
+directories that makes their pages known to the page service.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from sqlalchemy import delete
 
 from app.core.security.auth.identity import LOCAL_USER_ID
 from app.core.skills.models import Skill
+from app.core.skills.providers.local import LocalSkillsProvider
 from app.core.storage.types import SkillType
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent
@@ -51,6 +53,21 @@ async def until(condition: Callable[[], object]) -> None:
             return
         await asyncio.sleep(0.01)
     raise AssertionError("background evolution task did not run")
+
+
+def write_skill(root: Path, dir_name: str, *, name: str = "demo", locked: bool = False) -> Path:
+    skill_md = root / dir_name / "SKILL.md"
+    skill_md.parent.mkdir(parents=True)
+    lock = "evolution-locked: true\n" if locked else ""
+    skill_md.write_text(f"---\nname: {name}\ndescription: Demo skill.\n{lock}---\n", encoding="utf-8")
+    return skill_md
+
+
+def publish_pages(evolution: SimpleNamespace, root: Path) -> dict[str, Skill]:
+    """Scan ``root`` as the Skills page does and make its skills known to the page service, keyed by directory."""
+    skills = LocalSkillsProvider(paths=[str(root)]).scan_all()
+    evolution.pages.update({skill.id: skill for skill in skills})
+    return {Path(skill.storage_path).name: skill for skill in skills}
 
 
 @dataclass(frozen=True, slots=True)

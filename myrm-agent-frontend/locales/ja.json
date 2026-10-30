@@ -10887,6 +10887,7 @@
       "reasonCode": "理由コード",
       "actions": "操作",
       "forceRetry": "強制再試行",
+      "forceRetryLocked": "このスキルは「進化保護」により自動変更から守られています。スキルの詳細で「進化保護」をオフにしてから、もう一度お試しください。",
       "status": {
         "PENDING_REVIEW": "レビュー待ち",
         "AUTO_APPLIED": "自動適用済み",
