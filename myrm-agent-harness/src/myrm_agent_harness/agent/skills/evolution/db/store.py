@@ -12,7 +12,8 @@ Core properties:
 
 [INPUT]
 - agent.skills.evolution.core.types::SkillLineage, (POS: Data types for skill evolution system.)
-- agent.skills.evolution.db._store_migrations::migrate_existing_db (POS: Schema and data migrations run by SkillStore on every open; each step is idempotent.)
+- agent.skills.evolution.db._store_schema::SCHEMA_DDL, migrate_existing_db (POS: Schema and data migrations run by SkillStore on every open; each step is idempotent.)
+- agent.skills.evolution.db._store_retry::db_retry (POS: Transient-error retry for SkillStore operations.)
 
 [OUTPUT]
 - SkillStore: Simplified SQLite persistence for skill evolution.
@@ -28,11 +29,9 @@ import json
 import logging
 import sqlite3
 import threading
-import time
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from datetime import datetime
-from functools import wraps
 from pathlib import Path
 from typing import Self
 
@@ -47,112 +46,13 @@ from myrm_agent_harness.agent.skills.evolution.db._store_dependencies import (
 from myrm_agent_harness.agent.skills.evolution.db._store_evolution_tracking import (
     SkillEvolutionTrackingMixin,
 )
-from myrm_agent_harness.agent.skills.evolution.db._store_migrations import migrate_existing_db
+from myrm_agent_harness.agent.skills.evolution.db._store_retry import db_retry
+from myrm_agent_harness.agent.skills.evolution.db._store_schema import SCHEMA_DDL, migrate_existing_db
 from myrm_agent_harness.agent.skills.evolution.db.store_queries import SkillStoreQueries
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["SkillStore"]
-
-
-def _db_retry[**P, R](
-    max_retries: int = 5, initial_delay: float = 0.1, backoff: float = 2.0
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Retry on transient SQLite errors with exponential backoff.
-
-    Handles OperationalError (e.g. "database is locked") and DatabaseError.
-    Does NOT retry programming errors like InterfaceError.
-    """
-
-    def decorator(func: Callable[P, R]) -> Callable[P, R]:
-        @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            delay = initial_delay
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (sqlite3.OperationalError, sqlite3.DatabaseError) as exc:
-                    if attempt == max_retries - 1:
-                        logger.error(
-                            "DB %s failed after %d retries: %s",
-                            func.__name__,
-                            max_retries,
-                            exc,
-                        )
-                        raise
-                    logger.warning(
-                        "DB %s retry %d/%d: %s",
-                        func.__name__,
-                        attempt + 1,
-                        max_retries,
-                        exc,
-                    )
-                    time.sleep(delay)
-                    delay *= backoff
-            raise AssertionError("unreachable: the final attempt re-raises")
-
-        return wrapper
-
-    return decorator
-
-
-_DDL = """
-CREATE TABLE IF NOT EXISTS skills (
-    skill_id            TEXT PRIMARY KEY,
-    name                TEXT NOT NULL,
-    description         TEXT NOT NULL DEFAULT '',
-    content             TEXT NOT NULL,
-    path                TEXT NOT NULL DEFAULT '',
-
-    evolution_type      TEXT NOT NULL,
-    version             INTEGER NOT NULL DEFAULT 1,
-    parent_id           TEXT,
-    change_summary      TEXT NOT NULL DEFAULT '',
-    lineage_created_at  TEXT NOT NULL,
-    lineage_created_by  TEXT NOT NULL DEFAULT '',
-
-    verification_steps  TEXT NOT NULL DEFAULT '[]',
-    eval_cases          TEXT NOT NULL DEFAULT '[]',
-    environment         TEXT,
-
-    created_at          TEXT NOT NULL,
-    updated_at          TEXT NOT NULL,
-    is_active           INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
-CREATE INDEX IF NOT EXISTS idx_skills_parent ON skills(parent_id);
-CREATE INDEX IF NOT EXISTS idx_skills_version ON skills(skill_id, version);
-CREATE INDEX IF NOT EXISTS idx_skills_active ON skills(is_active);
-CREATE INDEX IF NOT EXISTS idx_skills_updated ON skills(updated_at);
-
-CREATE TABLE IF NOT EXISTS evolution_rejections (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    skill_id            TEXT NOT NULL,
-    trigger_type        TEXT NOT NULL,
-    proposed_type       TEXT NOT NULL,
-    rejection_reason    TEXT NOT NULL,
-    confidence          REAL NOT NULL DEFAULT 0.5,
-    trigger_context     TEXT NOT NULL DEFAULT '',
-    rejected_at         TEXT NOT NULL,
-    FOREIGN KEY(skill_id) REFERENCES skills(skill_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_rejections_skill ON evolution_rejections(skill_id);
-CREATE INDEX IF NOT EXISTS idx_rejections_trigger ON evolution_rejections(trigger_type);
-CREATE INDEX IF NOT EXISTS idx_rejections_time ON evolution_rejections(rejected_at);
-
-CREATE TABLE IF NOT EXISTS evolution_constraints (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    skill_id            TEXT NOT NULL,
-    constraint_text     TEXT NOT NULL,
-    created_at          TEXT NOT NULL,
-    FOREIGN KEY(skill_id) REFERENCES skills(skill_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_constraints_skill ON evolution_constraints(skill_id);
-CREATE INDEX IF NOT EXISTS idx_constraints_time ON evolution_constraints(created_at);
-"""
 
 
 class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQueries):
@@ -243,11 +143,11 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
 
         cleanup_orphan_wal(self._db_path)
 
-    @_db_retry()
+    @db_retry()
     def _init_db(self) -> None:
         """Create tables (idempotent via IF NOT EXISTS) and run migrations."""
         with self._mu:
-            self._conn.executescript(_DDL)
+            self._conn.executescript(SCHEMA_DDL)
             self._conn.executescript(_DEPENDENCY_TABLE_DDL)
             migrate_existing_db(self._conn)
             self._conn.commit()
@@ -293,7 +193,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
             raise RuntimeError("SkillStore is closed")
 
     # Write operations (async)
-    @_db_retry()
+    @db_retry()
     def _delete_skill_sync(self, skill_id: str) -> None:
         """Synchronous delete - called via asyncio.to_thread()."""
         with self._mu:
@@ -366,7 +266,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
 
         return len(skill_data)
 
-    @_db_retry()
+    @db_retry()
     def _save_skill_sync(self, record: SkillRecord) -> None:
         """Synchronous save - called via asyncio.to_thread()."""
         with self._mu:
@@ -404,7 +304,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
             self._sync_skill_dependencies_locked(record)
             self._conn.commit()
 
-    @_db_retry()
+    @db_retry()
     def _save_skills_batch_sync(self, records: list[SkillRecord]) -> None:
         """Synchronous batch save - called via asyncio.to_thread()."""
         if not records:
@@ -485,7 +385,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
         await asyncio.to_thread(self._save_skill_sync, record)
 
     # Evolution lock operations
-    @_db_retry()
+    @db_retry()
     def _set_evolution_lock_sync(self, skill_id: str, *, locked: bool) -> None:
         """Synchronous evolution lock update."""
         with self._mu:
@@ -508,7 +408,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
         self._ensure_open()
         await asyncio.to_thread(self._set_evolution_lock_sync, skill_id, locked=locked)
 
-    @_db_retry()
+    @db_retry()
     def is_evolution_locked(self, skill_id: str) -> bool:
         """Check if a skill is locked from auto-evolution.
 
@@ -526,7 +426,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
             return bool(row["evolution_locked"])
 
     # Read operations (sync, use _reader())
-    @_db_retry()
+    @db_retry()
     def get_skill(self, skill_id: str) -> SkillRecord | None:
         """Load skill by ID.
 

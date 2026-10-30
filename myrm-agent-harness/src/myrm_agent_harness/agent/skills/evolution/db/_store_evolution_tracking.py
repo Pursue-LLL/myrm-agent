@@ -33,7 +33,7 @@ class SkillEvolutionTrackingMixin:
     - _conn: sqlite3.Connection
     - _ensure_open(): None
     - _reader(): context manager yielding sqlite3.Connection
-    - _db_retry decorator on the class (applied at host level)
+    - db_retry decorator on the class (applied at host level)
     """
 
     _mu: threading.Lock
