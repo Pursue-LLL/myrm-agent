@@ -242,8 +242,9 @@ async def _handle_evolution_lock(name: str, *, locked: bool) -> str:
     """Handle the 'lock'/'unlock' action: set or clear the evolution lock the store holds for a skill.
 
     Locked skills are protected from auto-evolution (FIX/DERIVED), preserving user-edited content. The store's
-    flag is the tool's own guard; the lock a user wrote into SKILL.md is theirs to remove, so an unlock that
-    leaves it in place says so instead of reporting evolution as re-enabled.
+    flag is the tool's own guard; the lock SKILL.md carries (written when the skill was created, or by the user)
+    is not the flag unlock clears, so an unlock that leaves it in place says so instead of reporting evolution as
+    re-enabled.
     """
     try:
         from myrm_agent_harness.agent.skills.evolution.core.skill_on_disk import skill_from_disk
@@ -264,8 +265,8 @@ async def _handle_evolution_lock(name: str, *, locked: bool) -> str:
         if not locked and skill_from_disk(replace(skill, evolution_locked=False)).evolution_locked:
             return (
                 f"Skill '{name}' is unlocked in the evolution store, but its SKILL.md still carries an evolution "
-                "lock written by the user, so auto-evolution stays disabled. Only the user can remove it, "
-                "on the Skills page."
+                "lock (set when the skill was created, or by the user), which unlock leaves in place, so "
+                "auto-evolution stays disabled. Removing it is the user's decision."
             )
         action_word = "locked" if locked else "unlocked"
         return (

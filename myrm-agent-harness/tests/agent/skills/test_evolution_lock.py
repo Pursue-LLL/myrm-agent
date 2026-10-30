@@ -186,7 +186,7 @@ class TestHandleEvolutionLock:
 
     @pytest.mark.asyncio
     async def test_unlock_says_so_when_the_skill_file_still_holds_the_lock(self, tmp_path: Path):
-        """The store's flag is the tool's to clear; a lock the user wrote into SKILL.md stays and is reported."""
+        """The store's flag is the tool's to clear; the lock SKILL.md carries stays and is reported as a fact."""
         from myrm_agent_harness.agent.meta_tools.skills.manage._manage_handlers import _handle_evolution_lock
 
         skill_md = tmp_path / "test_skill" / "SKILL.md"
@@ -211,7 +211,9 @@ class TestHandleEvolutionLock:
         mock_store.set_evolution_lock.assert_called_once_with("test_skill_v1", locked=False)
         assert "re-enabled" not in result
         assert "SKILL.md" in result
-        assert "Skills page" in result
+        assert "stays disabled" in result
+        assert "Skills page" not in result
+        assert "Only the user" not in result
 
     @pytest.mark.asyncio
     async def test_lock_is_confirmed_even_when_the_skill_file_is_locked_too(self, tmp_path: Path):
