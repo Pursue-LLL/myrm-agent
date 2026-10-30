@@ -15,7 +15,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ClipboardList, Info, Clock, Layers } from 'lucide-react';
 import type { ProgressItem, RecoveryAction } from '@/store/chat/types';
-import useChatStore from '@/store/useChatStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { isUrl } from '@/lib/utils/urlUtils';
@@ -129,12 +128,9 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   };
 
   const handleActionClick = (action: RecoveryAction) => {
-    if (action.url?.startsWith('command://')) {
-      const command = action.url.replace('command://', '');
-      useChatStore.getState().sendMessage(command);
-    } else if (action.url?.startsWith('/')) {
+    if (action.url.startsWith('/')) {
       window.location.href = action.url;
-    } else if (action.url) {
+    } else {
       window.open(action.url, '_blank', 'noopener,noreferrer');
     }
   };
@@ -188,6 +184,8 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
     // Determine if this is a plan node
     const isPlanNode = step.is_plan;
+    // An action without a destination has nothing to open, so it is not offered as a button.
+    const recoveryActions = (step.recovery_actions ?? []).filter((action) => action.url);
 
     return (
       <div
@@ -403,14 +401,11 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                     </div>
                   )}
 
-                  {step.recovery_actions && step.recovery_actions.length > 0 && (
+                  {recoveryActions.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {step.recovery_actions.map((action, idx) => {
+                      {recoveryActions.map((action, idx) => {
                         const isPrimary =
-                          action.id === 'top_up' ||
-                          action.id === 'retry' ||
-                          action.id.includes('install') ||
-                          action.id.includes('mock');
+                          action.id === 'top_up' || action.id.includes('install') || action.id.includes('mock');
 
                         return (
                           <button
