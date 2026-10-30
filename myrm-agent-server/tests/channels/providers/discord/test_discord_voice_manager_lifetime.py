@@ -9,59 +9,21 @@ belong to a stop that was cancelled after its follow loop had been shut down.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 pytest.importorskip("discord")
-import discord
 
 from app.channels.providers.discord.channel import DiscordChannel
-from app.channels.providers.discord.config import DiscordChannelConfig
 from app.channels.providers.discord.voice.manager import _GuildVoiceState
 from app.channels.types import ChannelStatus
-
-
-class _FakeClient:
-    """Stands in for ``discord.Client``: records the event handlers and ends its gateway session at once."""
-
-    def __init__(self, **_: object) -> None:
-        self.user = SimpleNamespace(id=99)
-        self.voice_clients: list[object] = []
-        self.handlers: dict[str, Callable[..., Awaitable[None]]] = {}
-
-    def event(self, handler: Callable[..., Awaitable[None]]) -> Callable[..., Awaitable[None]]:
-        self.handlers[handler.__name__] = handler
-        return handler
-
-    async def start(self, token: str) -> None:
-        return None
-
-    def is_closed(self) -> bool:
-        return False
-
-    async def close(self) -> None:
-        return None
-
-
-async def _ready(channel: DiscordChannel) -> None:
-    assert isinstance(channel._client, _FakeClient)
-    await channel._client.handlers["on_ready"]()
+from tests.channels.providers.discord.gateway_testkit import ready, start_channel
 
 
 @pytest.fixture
 async def channel(monkeypatch: pytest.MonkeyPatch) -> DiscordChannel:
-    monkeypatch.setattr(discord, "Client", _FakeClient)
-    tree = MagicMock()
-    tree.sync = AsyncMock()
-    monkeypatch.setattr(discord.app_commands, "CommandTree", lambda client: tree)
-    monkeypatch.setattr(DiscordChannel, "_ensure_opus_loaded", staticmethod(lambda: None))
-    channel = DiscordChannel(DiscordChannelConfig(bot_token="test_token", enable_gateway=True, voice_enabled=True))
-    await channel.start()
-    await _ready(channel)
-    return channel
+    return await start_channel(monkeypatch)
 
 
 def _join_guild(channel: DiscordChannel) -> MagicMock:
@@ -77,7 +39,7 @@ async def test_a_second_ready_keeps_the_manager_and_its_sessions(channel: Discor
     first = channel._voice_manager
     voice_client = _join_guild(channel)
 
-    await _ready(channel)
+    await ready(channel)
 
     assert channel._voice_manager is first
     assert first is not None
@@ -102,6 +64,6 @@ async def test_a_restart_after_a_cancelled_stop_builds_a_new_manager(
     assert channel._voice_manager is first
 
     await channel.start()
-    await _ready(channel)
+    await ready(channel)
 
     assert channel._voice_manager is not first

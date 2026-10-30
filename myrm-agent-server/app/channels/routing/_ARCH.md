@@ -169,6 +169,12 @@ attachments and logs a warning): skipping would hand an admitted sender's voice 
 - Not fenced: the owner's own messages, and the other trigger sources (schedule, manual run, REST, webhook, system
   event).
 
+The same verdict answers a channel that needs to know whether a user may act on the bot without sending a message
+(`BaseChannel.is_sender_admitted`, used by the Discord `/voice` command): `AgentRouter.__init__` registers
+`_is_sender_admitted` on the bus (`MessageBus.set_sender_gate`) and the bus hands each registered channel a callback
+that asks it. A channel nothing is registered for admits no one.
+`tests/channels/routing/test_router_sender_gate.py` pins the registration and the fail-closed wrapper.
+
 The verdict and the resolvers read the same LID-to-phone mapping (`lid_mapped_phone` in `policy_resolver_support.py`);
 only the resolvers go on to bind it. `tests/channels/routing/test_sender_admission.py` runs both verdicts and the real
 resolvers over the same matrix of DM policy, pairing status, group state and guest mention: admission is compared with

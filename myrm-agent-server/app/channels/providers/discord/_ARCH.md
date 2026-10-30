@@ -14,7 +14,7 @@ Discord 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 | `helpers.py` | 模块 | Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects; forum detection, thread titles and native reply targets. | ✅ |
 | `inbound.py` | 模块 | `DiscordInboundMixin`: gateway message / reaction / interaction parsing, reply context, media extraction, auto-threading and history fetch. | ✅ |
 | `outbound.py` | 模块 | `DiscordOutboundMixin`: REST sending with `render()` multi-chunk delivery through `deliver_chunks`, forum threads (tags via `ForumChannel.flags.require_tag`), placeholder / edit / delete / react / typing. | ✅ |
-| `voice_control.py` | 模块 | `DiscordVoiceMixin`: opus loading, `VoiceManager` wiring (one manager per gateway client, kept across READY events), join / leave / play_audio, voice-input emission and the `/voice` slash command. | ✅ |
+| `voice_control.py` | 模块 | `DiscordVoiceMixin`: opus loading, `VoiceManager` wiring (one manager per gateway client, kept across READY events), join / leave / play_audio, voice-input emission and the `/voice` slash command, whose caller is checked against the access policy first. | ✅ |
 
 ## Reply Threading / Quote 保真
 
@@ -51,6 +51,12 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 - `VoiceManager.join` 遇到「已登记、VoiceClient 未连接」的公会时，看 discord.py 是否还持有该 VoiceClient（`channel.guild.voice_client`）：还持有，说明它在重连，本次加入返回 False、会话原样保留（释放它会留下一个无人管理却仍在频道里的连接：`leave` 找不到状态，`join` 被 `Already connected` 拒绝）；已被摘掉（没有事件把状态从登记表里摘掉，例如网关断开时的本地离开），先摘掉登记并 `_release` 旧会话，再建立新连接：旧会话的监听循环不能活过它的连接，否则它的静默超时会按公会号离开，结束新会话；
 - 语音离开上限 `_VOICE_LEAVE_TIMEOUT` 必须小于网关的停止上限 `_STOP_TIMEOUT`，`test_discord_stop_voice.py` 钉住这个关系。
 
+## `/voice` 命令的发送者准入
+
+`/voice join|leave|status` 是 Discord 交互，不经过入站管道，所以不会像文本消息那样被访问策略筛一遍。命令入口先问 `_voice_command_admitted`：用调用者构造一条与文本消息同形的入站消息（发送者与 `user_id` 为调用者 id，`chat_id` 为发出命令的频道，公会内为群聊且视为已提及），交给 `BaseChannel.is_sender_admitted`，由路由器的发送者准入判定回答：公会里，所有者（有效的管理员配对）与已启用群聊的成员放行，群聊策略为 DISABLED 或群聊未启用则拒绝（命令不带显式提及，访客模式不放行）；私聊里 `user_id` 已识别，直接放行，之后命令自身以「只能在服务器里使用」回应。拒绝时只回一条仅调用者可见的「You are not allowed to use this command.」、记一条 WARNING，不加入、不离开、不回报状态；判定未接线或查询出错同样拒绝。
+
+语音转写出的文本走的是另一条路径（`_on_voice_input` 以已识别的 `user_id` 进入入站管道，按私聊准入）；它与 `/voice` 命令的准入口径不同，未在这里统一。
+
 ## 测试（`tests/channels/providers/discord/`）
 
 | 文件 | 职责 |
@@ -58,6 +64,8 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 | `test_discord_channel.py` | Gateway/forum/lifecycle（含网关任务已失败时的停止）、edit/delete、原生 reply 引用（首分片携带 message_id + channel_id）、voice 配置、health_check REST probe |
 | `test_discord_stop_voice.py` | 停止时的语音离开：真实 `VoiceConnectionState`（只替换网络），覆盖网关永远不确认、某个公会在等待之前就卡住、网关正常确认、`stop()` 在等待中被取消四种情形；前两种在限时内返回，所有公会的套接字都已释放；另钉住语音离开上限小于网关停止上限 |
 | `test_discord_voice_manager_lifetime.py` | 语音管理器的生命周期：第二次 READY 沿用管理器及其会话（`stop()` 仍断开该会话一次）；被取消的 `stop()` 之后重启得到新管理器 |
+| `test_discord_voice_command_admission.py` | `/voice` 命令的发送者准入：被拒绝的调用者三个子命令都只收到仅自己可见的拒绝回复，不加入、不离开、不回报状态；判定未接线时拒绝所有人；放行的调用者三个子命令照常；判定收到的消息字段（发送者、用户、频道、群聊）；拒绝记 WARNING |
+| `gateway_testkit.py` | 构造不联网的 `DiscordChannel` 与网关客户端替身（生命周期、语音命令两组测试共用） |
 | `test_discord_allowed_mentions.py` | 网关客户端的提及策略：discord.py 实际发出的 `allowed_mentions` 载荷只放行用户与回复引用，不含 everyone、角色 |
 | `test_discord_reply_context.py` | `_parse_reply_context` / `_resolve_mentioned` 单元测试（reference.resolved API 验证） |
 | `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规 |

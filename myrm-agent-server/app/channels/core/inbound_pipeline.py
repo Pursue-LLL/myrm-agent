@@ -7,8 +7,9 @@
 
 [OUTPUT]
 - InboundHandler: callable the gateway registers to receive inbound messages
+- SenderGate: callable the bus registers to answer whether the access policy admits a sender
 - DedupMode: message deduplication mode (LRU or TTL)
-- InboundPipelineMixin: ``_build_inbound`` / ``_emit_inbound`` and the pipeline stages behind them
+- InboundPipelineMixin: ``_build_inbound`` / ``_emit_inbound`` and the pipeline stages behind them, and ``is_sender_admitted`` for what a user does to the bot without sending a message
 
 [POS]
 The inbound half of BaseChannel. Providers call ``_emit_inbound`` when the platform delivers a message; the state the
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 InboundHandler = Callable[[InboundMessage], Awaitable[None]]
+SenderGate = Callable[[InboundMessage], Awaitable[bool]]
 
 _DEFAULT_DEDUP_TTL = 120.0
 _DEFAULT_DEDUP_CAPACITY = 2000
@@ -64,6 +66,7 @@ class InboundPipelineMixin:
     _status: ChannelStatus
     _bot_id: str
     _inbound_handler: InboundHandler | None
+    _sender_gate: SenderGate | None
     _seen_msg_ids: OrderedDict[str, float]
     _debounce_tasks: dict[str, asyncio.Task[None]]
     _debounce_buffers: dict[str, InboundMessage]
@@ -137,6 +140,15 @@ class InboundPipelineMixin:
             await self._debounce_emit(msg)
         else:
             await self._dispatch_inbound(msg)
+
+    async def is_sender_admitted(self, msg: InboundMessage) -> bool:
+        """Whether the access policy admits ``msg``'s sender, for an action that is not a message.
+
+        A user can act on the bot without sending it a message (a Discord slash command that moves it between voice
+        channels). Such an action follows the sender policy of a message from that user. Nothing wired to a policy
+        admits no one.
+        """
+        return self._sender_gate is not None and await self._sender_gate(msg)
 
     async def _dispatch_inbound(self, msg: InboundMessage) -> None:
         """Final dispatch to the registered handler."""

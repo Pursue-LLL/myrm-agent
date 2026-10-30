@@ -6,7 +6,7 @@
 - app.channels.types::InboundMessage (POS: channel message value types)
 
 [OUTPUT]
-- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission and /voice command registration used by DiscordChannel
+- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission and /voice command registration (the caller is checked against the access policy first) used by DiscordChannel
 
 [POS]
 Voice half of DiscordChannel. The host owns the gateway client and the config; the mixin drives the voice subsystem.
@@ -187,6 +187,30 @@ class DiscordVoiceMixin(BaseChannel):
         except Exception as e:
             logger.error("Failed to auto-join voice channel %s: %s", channel_id, e)
 
+    async def _voice_command_admitted(self, interaction: discord.Interaction) -> bool:
+        """Whether the access policy admits the caller of a /voice command, as it would a message from them in that chat.
+
+        The command moves the bot without a message, so it never passes the inbound pipeline's admission.
+        """
+        sender_id = str(interaction.user.id)
+        msg = self._build_inbound(
+            sender_id,
+            "/voice",
+            str(interaction.channel_id),
+            sender_name=interaction.user.display_name,
+            user_id=sender_id,
+            is_group=interaction.guild_id is not None,
+            mentioned=True,
+            metadata={
+                "guild_id": str(interaction.guild_id) if interaction.guild_id else None,
+                "interaction_type": "slash_command",
+            },
+        )
+        if await self.is_sender_admitted(msg):
+            return True
+        logger.warning("Discord /voice refused for user %s in guild %s", sender_id, interaction.guild_id)
+        return False
+
     def _register_voice_commands(self) -> None:
         """Register /voice slash commands."""
         if not self._command_tree:
@@ -212,6 +236,10 @@ class DiscordVoiceMixin(BaseChannel):
             action: str,
             channel: discord.VoiceChannel | None = None,
         ) -> None:
+            if not await channel_self._voice_command_admitted(interaction):
+                await interaction.response.send_message("You are not allowed to use this command.", ephemeral=True)
+                return
+
             if not channel_self._voice_manager:
                 await interaction.response.send_message("Voice is not enabled.", ephemeral=True)
                 return

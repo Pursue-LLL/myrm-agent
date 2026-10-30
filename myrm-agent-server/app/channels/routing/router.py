@@ -243,6 +243,7 @@ class AgentRouter(
             fx=self._fx,
             get_channel=bus.get_channel,
         )
+        bus.set_sender_gate(self._is_sender_admitted)
         self._semaphore = asyncio.Semaphore(_MAX_CONCURRENT_AGENTS)
         self._gate = SessionGate(
             session_gate_config or SessionGateConfig(),
