@@ -230,7 +230,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/reliability/test_durable_outbound_persist_failure.py` | 单元 | 持久化出站写盘失败（磁盘满等）时降级为不落盘的内存发送并记 WARNING：原消息原样返回、`mark_attempting` / `ack` 为空操作、真实总线仍把消息投递出去；取消信号不被吞掉 |
 | `api/memory/test_pending_proposal_seed.py` | 单元 | `POST /memory/test/seed-pending-proposal` 契约（local-only 404 · correct/delete 入队 · 目标不存在或非语义记忆 404 · 重复提案 409） |
 | `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ 已退役的 JSON 导入导出与工作区文件束路由不再对外提供（404/405 守卫） |
-| `integration/test_diagnostic_copy_ui_labels_i18n_sync.py` | 模块 | 跨层同步：harness 错误诊断目录里引用的产品入口（如「设置 > 模型服务 > 默认模型」）须与 5 个 locale 的前端 `settings.*` 菜单文案逐一一致；目录里任何新的「A > B」路径必须登记后才能通过，避免界面改名后诊断步骤指向不存在的入口 |
+| `integration/test_diagnostic_copy_ui_labels_i18n_sync.py` | 模块 | 跨层同步：harness 错误诊断目录里引用的产品入口（如「设置 > 模型服务 > 默认模型」）须与 6 个 locale 的前端 `settings.*` 菜单文案逐一一致；目录里任何新的「A > B」路径必须登记后才能通过，避免界面改名后诊断步骤指向不存在的入口 |
 | `integration/test_expert_export_i18n_sync.py` | 模块 | 跨层同步：专家导出的 `Omit` 原因码与 `OmittedKind` 种类须与 6 个 locale 的 `agent.expertExport.omitReason` / `omittedKinds` 键完全一致，避免导出对话框显示原始 key |
 | `integration/test_readiness_i18n_sync.py` | 模块 | 跨层同步：`ReadinessCode` 须与 6 个 locale 的 `Agent.readiness.reasons` 键完全一致，`ExportErrorCode`（重试流程码除外）须被 `agent.expertExport.errors` 覆盖，文案均非空，避免新增错误码在界面上静默降级为通用句 |
 | `integration/test_skill_scan_threat_i18n_sync.py` | 模块 | 跨层同步：技能扫描器可报告的威胁类别（正则分组 + Unicode/AST/LLM 审计/包审计）须与 6 个 locale 的 `settings.skills.scanRisk.threat` 键完全一致，避免待审卡片把扫描发现显示为「其他风险」 |
