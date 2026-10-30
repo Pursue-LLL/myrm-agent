@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
@@ -19,6 +20,24 @@ logger = logging.getLogger(__name__)
 
 
 class SkillEvolutionEngineBatchMixin:
+    """The engine class supplies the semaphore and the evolution methods this mixin dispatches to."""
+
+    _semaphore: asyncio.Semaphore
+
+    if TYPE_CHECKING:
+
+        async def fix_skill(
+            self,
+            skill_id: str,
+            error_message: str,
+            task_context: str | None = None,
+            session_id: str | None = None,
+        ) -> EvolutionProposal | None: ...
+
+        async def derive_skill_simple(self, skill_id: str, user_feedback: str) -> EvolutionProposal | None: ...
+
+        async def optimize_description(self, skill_id: str) -> EvolutionProposal | None: ...
+
     async def evolve_multiple_concurrent(self, requests: list[EvolutionRequest]) -> list[EvolutionProposal | None]:
         """Evolve multiple skills concurrently with rate limiting."""
         if not requests:
@@ -32,8 +51,6 @@ class SkillEvolutionEngineBatchMixin:
                     return await self.derive_skill_simple(req.skill_id or "", req.user_feedback)
                 elif req.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION:
                     return await self.optimize_description(req.skill_id or "")
-                elif req.evolution_type == EvolutionType.CAPTURED:
-                    return None
                 return None
 
         results = await asyncio.gather(*[_evolve_with_limit(req) for req in requests], return_exceptions=True)

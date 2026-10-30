@@ -29,7 +29,7 @@ class EvolutionType(StrEnum):
 
     FIX = "fix"  # Auto-repair failed/outdated skills
     DERIVED = "derived"  # Optimize/enhance based on user feedback
-    CAPTURED = "captured"  # Capture repeated user commands as new skills
+    CAPTURED = "captured"  # A new skill from a review, a draft, an import or an auto-extraction
     OPTIMIZE_DESCRIPTION = "optimize_description"  # Refine description for better matching
 
 
@@ -297,10 +297,9 @@ class EvolutionRequest:
     """Request for skill evolution (for concurrent processing)."""
 
     evolution_type: EvolutionType
-    skill_id: str | None = None  # For FIX/DERIVED, None for CAPTURED
-    reason: str = ""  # Error message for FIX, user feedback for DERIVED, pattern for CAPTURED
+    skill_id: str | None = None
+    reason: str = ""  # Error message for FIX, user feedback for DERIVED
     user_feedback: str = ""  # Optional user feedback for DERIVED
-    repeated_commands: list[str] = field(default_factory=list)  # For CAPTURED
     force_retry: bool = False  # GUI-First explicit flag to bypass cooldowns
 
     def to_dict(self) -> dict[str, Any]:
@@ -309,7 +308,6 @@ class EvolutionRequest:
             "skill_id": self.skill_id,
             "reason": self.reason,
             "user_feedback": self.user_feedback,
-            "repeated_commands": self.repeated_commands,
             "force_retry": self.force_retry,
         }
 

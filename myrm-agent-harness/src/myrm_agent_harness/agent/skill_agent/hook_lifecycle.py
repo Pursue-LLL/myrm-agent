@@ -68,15 +68,6 @@ class SkillAgentHookLifecycleMixin:
         if not has_callable_hook(registry, HookEvent.PRE_TOOL_USE, "on_pre_tool_use"):
             register_to_hook_registry(registry)
 
-        # Register evolution sliding window hooks if integration is active
-        from myrm_agent_harness.agent.skills.evolution.infra.integration import (
-            get_global_evolution_integration,
-        )
-
-        evo = get_global_evolution_integration()
-        if evo is not None:
-            evo.register_hooks(registry)
-
         logger.debug(" Framework-level hooks activated (%d hooks)", registry.total_count)
 
     async def _activate_skill_hooks(self, skills: Sequence[SkillMetadata]) -> SkillHookActivation:

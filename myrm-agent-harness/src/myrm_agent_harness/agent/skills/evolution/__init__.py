@@ -5,7 +5,6 @@ Provides out-of-the-box skill self-evolution capabilities for myrm-agent-harness
 Core Features (满分完整强大方案):
 - FIX evolution: Auto-repair failed skills (收益9/10)
 - DERIVED evolution: Optimize based on feedback (收益7/10)
-- CAPTURED evolution: Learn from repeated patterns (收益6/10)
 - Fuzzy Match: 6-level matching chain (收益10/10)
 - Concurrent Evolution: Parallel processing for multiple skills (收益7/10)
 - 2-Layer Embedding Cache: Reduces redundant LLM API calls (收益7/10)

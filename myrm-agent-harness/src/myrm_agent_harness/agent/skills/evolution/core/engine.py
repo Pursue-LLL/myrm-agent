@@ -1,9 +1,8 @@
 """Skill evolution engine - Core of self-evolution system.
 
-Implements 4 evolution types as a lightweight orchestrator:
+Implements 3 evolution types as a lightweight orchestrator:
 - FIX: Auto-repair failed skills via trace analysis
 - DERIVED: Optimize based on feedback (with Improvement Gate)
-- CAPTURED: Learn from patterns
 - OPTIMIZE_DESCRIPTION: Refine description for better matching
 
 Improvement Gate: the DERIVED path injects the original skill as a baseline
@@ -19,7 +18,6 @@ and persistence to the business layer (Server/GUI).
 - agent.skills.evolution.pipeline.trace_analyzer::TraceAnalyzer (POS: Trace Analyzer for Skill Evolution.)
 - agent.skills.evolution.pipeline.variant_generator::VariantGenerator (POS: Variant Generator for Skill Evolution.)
 - agent.event_log.protocol::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
-- agent.skills.evolution.pipeline.structured_extractor::StructuredExtractor (POS: Provides SkillCaptureResult, StructuredExtractor.)
 - agent.skills.evolution.safety.validator::SkillValidator (POS: Skill evolution validation system.)
 - agent.skills.evolution.execution.sandbox_validator::SandboxValidator (POS: Sandbox validation for evolved skills.)
 - agent.skills.evolution.core.eval_regression::filter_variants_by_regression (POS: Non-blocking regression gate for the skill evolution pipeline.)
@@ -35,7 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
@@ -43,10 +41,8 @@ from myrm_agent_harness.agent.skills.evolution.core.proposal_builder import (
     ProposalBuilder,
 )
 from myrm_agent_harness.agent.skills.evolution.core.types import (
-    EnvironmentFingerprint,
     EvolutionProposal,
     EvolutionType,
-    SkillRecord,
 )
 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 from myrm_agent_harness.agent.skills.evolution.execution.evaluator import BatchEvaluator
@@ -318,139 +314,3 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
             trajectory="",
             is_general=True,
         )
-
-    async def capture_skill_from_trajectory(
-        self,
-        trajectory: str,
-        session_id: str,
-        env_fingerprint: EnvironmentFingerprint | None = None,
-        agent_id: str | None = None,
-    ) -> EvolutionProposal | None:
-        """CAPTURED evolution: Learn from conversation trajectory.
-
-        Returns a proposal for a brand new skill if a reusable pattern is detected.
-        """
-        logger.info(f"CAPTURED evolution started for session {session_id}.")
-
-        from myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor import (
-            StructuredExtractor,
-        )
-
-        if not self._llm:
-            logger.error("No LLM provided to SkillEvolutionEngine.")
-            return None
-
-        extractor = StructuredExtractor(self._llm)
-        result = await extractor.extract_from_trajectory(trajectory)
-
-        if not result:
-            logger.debug(f"No valid skill extracted from trajectory of session {session_id}")
-            return None
-
-        if result.recommended_form == "skip":
-            logger.debug(f"Skill {result.name} skipped by form routing (reason: {result.form_reasoning})")
-            return None
-
-        if not result.is_general:
-            logger.debug(f"Skill {result.name} rejected: not generalizable.")
-            return None
-
-        if float(result.confidence) < 0.8:
-            logger.debug(f"Skill {result.name} rejected: low confidence ({result.confidence}).")
-            return None
-
-        # Deduplication check (Trigram / Similarity)
-        active_skills = self._store.get_active_skills()
-        if active_skills:
-            from difflib import SequenceMatcher
-
-            max_sim = 0.0
-            similar_skill = None
-            for s in active_skills:
-                # Compare content similarity
-                sim = SequenceMatcher(None, s.content, result.content).ratio()
-                if sim > max_sim:
-                    max_sim = sim
-                    similar_skill = s.name
-
-            if max_sim > 0.85:
-                logger.warning(
-                    f"Skill {result.name} rejected: Highly similar to existing skill {similar_skill} (sim={max_sim:.2f})."
-                )
-                return None
-
-        from myrm_agent_harness.agent.skills.evolution.safety.validator import (
-            SkillValidator,
-        )
-
-        validator = SkillValidator()
-        # Create a temporary record with the new content to validate
-        temp_record = SkillRecord(
-            skill_id=result.name,
-            name=result.name,
-            description="Validation draft",
-            content=result.content,
-            path="",
-            lineage=None,  # type: ignore
-        )
-
-        validation = validator.validate(temp_record)
-        if not validation.valid:
-            logger.warning(f"Skill {result.name} rejected: Validation failed - {validation.errors}")
-            return None
-
-        from myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator import (
-            SandboxValidator,
-        )
-
-        sandbox = SandboxValidator()
-        is_safe, error_msg = await sandbox.dry_run_skill(temp_record)
-        if not is_safe:
-            logger.warning(f"Skill {result.name} rejected: Sandbox dry-run failed: {error_msg}")
-            return None
-
-        # Multi-dimensional security sanitization scan
-        from myrm_agent_harness.backends.skills.scanning.scanner import (
-            compute_scan_summary,
-            scan_skill_content,
-        )
-        from myrm_agent_harness.backends.skills.types import SkillTrustRecommendation
-
-        scan_result = scan_skill_content(result.name, result.content)
-        if scan_result.trust_recommendation == SkillTrustRecommendation.REJECT:
-            logger.warning(f"Captured skill '{result.name}' rejected by security scan: {scan_result.summary}")
-            return None
-
-        security_summary_dict = compute_scan_summary(scan_result).to_dict()
-
-        # Build proposal with form routing metadata
-        from datetime import datetime
-
-        form_metadata: dict[str, Any] | None = None
-        if result.recommended_form == "cron_job" and result.schedule_hint:
-            form_metadata = {
-                "schedule_hint": result.schedule_hint,
-                "form_reasoning": result.form_reasoning,
-            }
-        elif result.form_reasoning:
-            form_metadata = {"form_reasoning": result.form_reasoning}
-
-        proposal = EvolutionProposal(
-            skill_id=result.name,
-            evolution_type=EvolutionType.CAPTURED,
-            original_content="",
-            proposed_content=result.content,
-            diff="",
-            score=float(result.confidence),
-            reasoning=f"Auto-extracted. Safety: {result.safety_analysis}",
-            task_context=f"Session {session_id}",
-            is_general=result.is_general,
-            environment=env_fingerprint,
-            agent_id=agent_id,
-            recommended_form=result.recommended_form,
-            form_metadata=form_metadata,
-            created_at=datetime.now(),
-            security_scan_summary=security_summary_dict,
-        )
-
-        return proposal

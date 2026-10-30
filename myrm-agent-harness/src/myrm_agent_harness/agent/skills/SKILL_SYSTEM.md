@@ -755,7 +755,7 @@ Scanner（编排器）
 ```
 1. 触发源 (Triggers) →
    - 运行时失败（FIX）：Harness 把失败的工具调用归因到已加载的技能并发出 `SkillFailureEvent`；Server 的 `skill_immune_service` 做业务分类（配置、环境、瞬时故障只落拦截案例，不改技能）、按错误签名幂等去重，其余交给 `SkillEvolutionEngine.fix_skill` 起草修复。
-   - 用户不满（DERIVED）：会话结束时，`EvolutionIntegration.register_hooks` 注册的 SESSION_END 钩子扫描对话，命中不满信号就把 DERIVED 请求以普通优先级压入后台队列；用户在 GUI 里给技能提的反馈走同一类型。
+   - 用户反馈与不满：用户在 GUI 里给技能提的反馈走 DERIVED 请求；Server 的不满路由（`frustration_routing.py`）在一轮对话结束后扫描对话，命中偏好类不满信号时，把提炼出的偏好作为技能补丁草稿交给 `process_skill_review_result` 进入用户审核，不经过进化引擎。
    - 后台复盘（新技能）：Harness 的复盘结果统一交给 `process_skill_review_result`：依次过锁定/已存在、语义去重、CRITICAL 预检和高危新增复核，安全的新技能自动落盘，其余进入人工审核。
 2. 失败轨迹 (Failure Trajectory，仅 FIX) →
    - `TraceAnalyzer.extract_trajectory(session_id, skill_id)` 读事件日志的末尾（聊天的日志含该聊天的所有轮次，限量读取只返回开头）：失败那个会话的概览、失败模式、工具统计、最近 20 条失败聚类后的错误、工具事件总数和最近 5 条工具事件（英文，约 1500 token 预算），再附上人类接管示范。技能全文不进轨迹：变体生成与评审各自完整接收技能正文，不再截断。

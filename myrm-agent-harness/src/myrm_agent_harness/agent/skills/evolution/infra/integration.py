@@ -10,7 +10,7 @@ Framework provides the hooks, business layer decides when to use them.
 - toolkits.code_execution.executors.test_executor::SubprocessCodeExecutor (POS: Subprocess-based test execution for skill evolution TDE.)
 - agent.skills.evolution.execution.tool_selector::EvolutionToolConfig (POS: Tool Selector for Evolution System)
 - agent.skills.evolution.pipeline.screener::EvolutionScreener (POS: myrm_agent_harness/agent/skills/evolution/screener.py ## Architecture Two-phase screening to block "snowball effect" of blind fixes: **Phase 1: Rule-based (Cooldown)** Rejects repeated evolution attempts within cooldown period Checks both skill.updated_at and rejection history Zero LLM cost, instant response **Phase 2: LLM Confirmation (Cheap Model)** Only for FIX evolution type Analyzes real error logs (HTTP status, exception stack) Asks cheap LLM: "Is this really a skill code defect?" Returns YES (proceed) or NO + reason (block) **Prometheus Metrics (Observability)** evolution_screening_total: Counter by phase + result evolution_screening_confidence: Histogram of LLM confidence evolution_screening_duration_seconds: Histogram of screening duration by phase ## Design Principles 1. **Cost Optimization**: Use gpt-4o-mini/claude-haiku for Phase 2 2. **Fail-Safe**: LLM errors → Allow (don't block valid fixes) 3. **Transparency**: Record all rejections for audit 4. **Signal Extraction**: Focus on HTTP status + exception type vs full stack 5. **Observability**: Expose Prometheus metrics for monitoring and tuning)
-- agent.context_management.pipeline::ContextPipeline (POS: Message filter pipeline for composing multiple filters.)
+- agent.event_log.protocols::EventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 - toolkits.code_execution::CodeExecutor (POS: Code execution toolkit entry point. Aggregates execution configuration, executor implementations, workspace management, and factory functions for the Agent-in-Sandbox architecture.)
 - toolkits.web_search::SearchServiceConfig (POS: Web search toolkit entry point. Aggregates and re-exports search tools, result types, metrics, and error hierarchy for unified import.)
 
@@ -22,12 +22,14 @@ Framework provides the hooks, business layer decides when to use them.
 
 [POS]
 Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with
-the session-end frustration trigger and background queue orchestration.
+screening, manual evolution and background queue orchestration.
 """
 
+import inspect
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
@@ -46,7 +48,6 @@ from myrm_agent_harness.agent.skills.evolution.execution.tool_selector import (
 )
 from myrm_agent_harness.agent.skills.evolution.infra.queue import (
     EvolutionQueue,
-    QueuePriority,
     get_evolution_queue,
 )
 from myrm_agent_harness.agent.skills.evolution.pipeline.screener import (
@@ -59,14 +60,14 @@ from myrm_agent_harness.toolkits.code_execution.executors.test_executor import (
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
-    from myrm_agent_harness.agent.context_management.pipeline import ContextPipeline
-    from myrm_agent_harness.agent.hooks.registry import HookRegistry
-    from myrm_agent_harness.agent.skills.evolution.safety.anti_loop_state import AntiLoopState
+    from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
     from myrm_agent_harness.toolkits.code_execution import CodeExecutor
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 logger = logging.getLogger(__name__)
 
+# Receives each proposal a background evolution produces; may be sync or async.
+ProposalCallback = Callable[[EvolutionProposal], Awaitable[None] | None]
 
 _global_evolution_integration: "EvolutionIntegration | None" = None
 
@@ -109,25 +110,18 @@ class EvolutionIntegration:
         db_path: Path | str = ".myrm/skills_evolution.db",
         *,
         llm: BaseChatModel | None = None,
-        context_pipeline: "ContextPipeline | None" = None,
         enable_background_queue: bool = False,
         queue_workers: int = 2,
         max_concurrent_evolutions: int = 5,
-        anti_loop_state: "AntiLoopState | None" = None,
         screener: "EvolutionScreener | None" = None,
-        enable_background_tasks: bool = False,
-        background_shutdown_timeout: float = 30.0,
-        max_concurrent_background: int = 5,
         enable_tde: bool = False,
         test_executor: "SubprocessCodeExecutor | None" = None,
         enable_tool_calling: bool = False,
         evolution_tools: "list[BaseTool] | None" = None,
         tool_config: "EvolutionToolConfig | None" = None,
         executor: "CodeExecutor | None" = None,
-        workspace_path: Path | str | None = None,
         search_service_cfg: "SearchServiceConfig | None" = None,
-        auto_apply_fs: bool = False,
-        event_log_backend: Any | None = None,
+        event_log_backend: "EventLogBackend | None" = None,
         evolution_strategy: str = "balanced",
     ):
         """Initialize evolution integration.
@@ -135,24 +129,18 @@ class EvolutionIntegration:
         Args:
             db_path: Path to SQLite database for skill storage
             llm: LLM client for evolution (BaseChatModel, business layer provides)
-            context_pipeline: Optional context management pipeline (auto-created if None)
             enable_background_queue: Enable background evolution queue
             queue_workers: Number of queue workers (if enabled)
             max_concurrent_evolutions: Max concurrent evolution tasks (default 5, for all deployment modes)
-            anti_loop_state: Anti-loop state backend (auto-creates InMemoryAntiLoopState if None)
             screener: Optional EvolutionScreener instance for two-phase filtering (injected by business layer)
-            enable_background_tasks: Enable background task management (default False)
-            background_shutdown_timeout: Background task shutdown timeout in seconds (default 30.0)
-            max_concurrent_background: Max concurrent background tasks (default 5)
             enable_tde: Enable test-driven evolution with generated pytest validation (default False)
             test_executor: Optional subprocess test executor (auto-created if enable_tde=True and None)
             enable_tool_calling: Enable Evolution Agent tool calling (default False, +8-12% success rate)
             evolution_tools: Pre-configured tools (auto-created if None and enable_tool_calling=True)
             tool_config: Tool configuration (limits, smart error handling, etc.)
             executor: Executor for file operations (auto-created if None)
-            workspace_path: Workspace path for executor (defaults to db_path.parent)
             search_service_cfg: Web search config injected by business layer (required when auto-creating evolution tools)
-            auto_apply_fs: Auto-apply evolved content to file system with .bak backup (default False)
+            event_log_backend: Event log read by the engine to build the FIX failure trajectory
             evolution_strategy: Controls screener behavior: balanced (all types),
                 innovate (all + lower rejection threshold), harden (FIX + optimize only),
                 repair-only (FIX only). Business layer injects user preference.
@@ -178,8 +166,7 @@ class EvolutionIntegration:
             if enable_tool_calling and self.executor is None:
                 from myrm_agent_harness.toolkits.code_execution import create_executor
 
-                # Note: workspace_path param is for documentation only;
-                # executor uses current working directory by default
+                # The executor works in the current working directory.
                 self.executor = create_executor()
                 logger.debug("EvolutionIntegration: auto-created executor")
 
@@ -247,72 +234,23 @@ class EvolutionIntegration:
             self.screener.evolution_strategy = value
         logger.info("Evolution strategy updated to '%s'", value)
 
-    def register_hooks(self, registry: "HookRegistry") -> None:
-        """Register the SESSION_END hook that turns user frustration into a DERIVED evolution.
-
-        Safe to call multiple times — skips if already registered.
-        """
-        from myrm_agent_harness.agent.hooks.types import (
-            CallableHookDefinition,
-            HookEvent,
-            HookResult,
-        )
-
-        if any(
-            isinstance(h, CallableHookDefinition) and h.fn.__name__ == "_session_end_frustration"
-            for h in registry.get(HookEvent.SESSION_END)
-        ):
-            return
-
-        async def _session_end_frustration(event: str, payload: dict[str, object]) -> HookResult:
-            """Scan the finished conversation for style/behavior frustration and queue a DERIVED evolution."""
-            session_id = str(payload.get("session_id", ""))
-
-            messages = payload.get("messages")
-            if messages and isinstance(messages, (list, tuple)) and len(messages) >= 2:
-                from myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector import (
-                    detect_frustration,
-                )
-
-                signal = detect_frustration(messages)
-                if signal and self.queue:
-                    logger.info(
-                        "Frustration detected [%s]: '%s' — triggering DERIVED evolution",
-                        signal.category,
-                        signal.matched_text,
-                    )
-                    try:
-                        await self.queue.enqueue(
-                            EvolutionRequest(
-                                evolution_type=EvolutionType.DERIVED,
-                                skill_id=f"frustration_{signal.category}_{session_id[:8]}",
-                                reason=f"User frustration [{signal.category}]: {signal.matched_text}",
-                                user_feedback=signal.user_message[:500],
-                            ),
-                            priority=QueuePriority.NORMAL,
-                        )
-                    except Exception as e:
-                        logger.warning("Failed to enqueue frustration-driven evolution: %s", e)
-
-            return HookResult(hook_type="callable", success=True)
-
-        registry.register(
-            HookEvent.SESSION_END,
-            CallableHookDefinition(
-                fn=_session_end_frustration,
-                block_on_failure=False,
-            ),
-        )
-
     async def evolve_skill(
-        self, skill_id: str, evolution_type: EvolutionType, **kwargs: Any
+        self,
+        skill_id: str,
+        evolution_type: EvolutionType,
+        *,
+        reason: str | None = None,
+        user_feedback: str = "",
+        force_retry: bool = False,
     ) -> EvolutionProposal | None:
         """Manually trigger skill evolution.
 
         Args:
             skill_id: Skill to evolve
             evolution_type: Type of evolution
-            **kwargs: Additional arguments (reason, user_feedback, etc.)
+            reason: Failure description for FIX ("Manual fix" when omitted)
+            user_feedback: User feedback for DERIVED
+            force_retry: Bypass the screener cooldown (explicit GUI retry)
 
         Returns:
             EvolutionProposal or None if failed
@@ -326,10 +264,9 @@ class EvolutionIntegration:
             request = EvolutionRequest(
                 evolution_type=evolution_type,
                 skill_id=skill_id,
-                reason=kwargs.get("reason", ""),
-                user_feedback=kwargs.get("user_feedback", ""),
-                repeated_commands=kwargs.get("repeated_commands", []),
-                force_retry=kwargs.get("force_retry", False),
+                reason=reason or "",
+                user_feedback=user_feedback,
+                force_retry=force_retry,
             )
             screening_result = await self.screener.screen_request(request)
             if not screening_result.allowed:
@@ -341,13 +278,13 @@ class EvolutionIntegration:
                 return None
 
         if evolution_type == EvolutionType.FIX:
-            return await self.engine.fix_skill(skill_id, kwargs.get("reason", "Manual fix"))
+            return await self.engine.fix_skill(skill_id, "Manual fix" if reason is None else reason)
         elif evolution_type == EvolutionType.DERIVED:
-            return await self.engine.derive_skill_simple(skill_id, kwargs.get("user_feedback", ""))
+            return await self.engine.derive_skill_simple(skill_id, user_feedback)
 
         return None
 
-    async def start_background_queue(self, on_proposal_callback: Any | None = None) -> None:
+    async def start_background_queue(self, on_proposal_callback: ProposalCallback | None = None) -> None:
         """Start background evolution queue.
 
         Args:
@@ -370,17 +307,13 @@ class EvolutionIntegration:
                 request.evolution_type,
                 reason=request.reason,
                 user_feedback=request.user_feedback,
-                repeated_commands=request.repeated_commands,
                 force_retry=request.force_retry,
             )
             if proposal and on_proposal_callback:
                 try:
-                    import asyncio
-
-                    if asyncio.iscoroutinefunction(on_proposal_callback):
-                        await on_proposal_callback(proposal)
-                    else:
-                        on_proposal_callback(proposal)
+                    outcome = on_proposal_callback(proposal)
+                    if inspect.isawaitable(outcome):
+                        await outcome
                 except Exception as e:
                     logger.error(f"Proposal callback failed: {e}")
             return proposal
@@ -408,11 +341,12 @@ def enable_skill_evolution(
     db_path: Path | str = ".myrm/skills_evolution.db",
     *,
     llm: BaseChatModel | None = None,
-    context_pipeline: "ContextPipeline | None" = None,
+    enable_background_queue: bool = False,
+    queue_workers: int = 2,
     max_concurrent_evolutions: int = 5,
-    event_log_backend: Any | None = None,
+    screener: "EvolutionScreener | None" = None,
+    event_log_backend: "EventLogBackend | None" = None,
     evolution_strategy: str = "balanced",
-    **kwargs: Any,
 ) -> EvolutionIntegration:
     """Enable skill evolution with one function call.
 
@@ -421,11 +355,14 @@ def enable_skill_evolution(
     Args:
         db_path: Path to evolution database
         llm: LLM client for evolution (BaseChatModel)
-        context_pipeline: Optional context management pipeline (auto-created if None)
+        enable_background_queue: Enable the background evolution queue
+        queue_workers: Number of queue workers (if enabled)
         max_concurrent_evolutions: Max concurrent evolution tasks (default 5)
+        screener: Optional EvolutionScreener for two-phase filtering
         event_log_backend: Optional backend for trace extraction.
         evolution_strategy: Controls screener behavior (balanced/innovate/harden/repair-only).
-        **kwargs: Additional options (screener, enable_background_queue, etc.)
+
+    Options beyond these (test-driven evolution, tool calling) are set on ``EvolutionIntegration`` directly.
 
     Returns:
         EvolutionIntegration instance
@@ -448,9 +385,10 @@ def enable_skill_evolution(
     return EvolutionIntegration(
         db_path,
         llm=llm,
-        context_pipeline=context_pipeline,
+        enable_background_queue=enable_background_queue,
+        queue_workers=queue_workers,
         max_concurrent_evolutions=max_concurrent_evolutions,
+        screener=screener,
         event_log_backend=event_log_backend,
         evolution_strategy=evolution_strategy,
-        **kwargs,
     )

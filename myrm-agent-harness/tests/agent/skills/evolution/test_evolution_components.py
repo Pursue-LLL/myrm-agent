@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -9,9 +9,6 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 from myrm_agent_harness.agent.skills.evolution.execution.evaluator import BatchEvaluator
-from myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor import (
-    SkillCaptureResult,
-)
 from myrm_agent_harness.agent.skills.evolution.pipeline.variant_generator import (
     VariantGenerator,
 )
@@ -94,48 +91,7 @@ async def test_variant_generator_constraint_injection():
     assert "- Do not use requests" in prompt_text
 
 
-# --- 3. Test Engine (Orchestration & CAPTURED type) ---
-@pytest.mark.asyncio
-async def test_engine_capture_skill_from_trajectory():
-    # Mock store
-    mock_store = MagicMock(spec=SkillStore)
-    mock_store.get_active_skills.return_value = []  # No duplicates
-
-    # Mock LLM
-    mock_llm = MagicMock()
-
-    engine = SkillEvolutionEngine(store=mock_store, llm=mock_llm)
-
-    mock_result = SkillCaptureResult(
-        is_general=True,
-        confidence=0.9,
-        safety_analysis="Safe",
-        name="test-skill",
-        content="## Instructions\n1. Do something.",
-    )
-
-    # Mock StructuredExtractor and SandboxValidator
-    with (
-        patch(
-            "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-        ) as MockExtractor,  # noqa: N806 mock 类名别名
-        patch("myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator.SandboxValidator") as MockSandbox,  # noqa: N806 mock 类名别名
-    ):
-        instance = MockExtractor.return_value
-        instance.extract_from_trajectory = AsyncMock(return_value=mock_result)
-
-        sandbox_instance = MockSandbox.return_value
-        sandbox_instance.dry_run_skill = AsyncMock(return_value=(True, "Passed"))
-
-        proposal = await engine.capture_skill_from_trajectory("some trajectory", "session-123")
-
-    assert proposal is not None
-    assert proposal.evolution_type == EvolutionType.CAPTURED
-    assert proposal.proposed_content == "## Instructions\n1. Do something."
-    assert proposal.score == 0.9
-    assert proposal.is_general is True
-
-
+# --- 3. Test Engine (Orchestration) ---
 @pytest.mark.asyncio
 async def test_engine_fix_skill_with_constraints():
     # Mock store
@@ -281,13 +237,11 @@ async def test_engine_evolve_multiple_concurrent():
         skill_id="mock-1",
         evolution_type=EvolutionType.FIX,
         reason="error",
-        repeated_commands=[],
     )
     req2 = EvolutionRequest(
         skill_id="mock-1",
         evolution_type=EvolutionType.DERIVED,
         user_feedback="optimize",
-        repeated_commands=[],
     )
 
     results = await engine.evolve_multiple_concurrent([req1, req2])
@@ -301,102 +255,6 @@ async def test_engine_evolve_multiple_concurrent():
     # test empty
     empty_res = await engine.evolve_multiple_concurrent([])
     assert empty_res == []
-
-
-@pytest.mark.asyncio
-async def test_engine_capture_skill_edge_cases():
-    mock_store = MagicMock(spec=SkillStore)
-    mock_store.get_active_skills.return_value = []
-
-    # 1. No LLM
-    engine_no_llm = SkillEvolutionEngine(store=mock_store, llm=None)
-    assert await engine_no_llm.capture_skill_from_trajectory("t", "1") is None
-
-    # 2. No valid extraction
-    mock_llm = MagicMock()
-    engine = SkillEvolutionEngine(store=mock_store, llm=mock_llm)
-    with patch(
-        "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-    ) as MockExtractor:  # noqa: N806 mock 类名别名
-        MockExtractor.return_value.extract_from_trajectory = AsyncMock(return_value=None)
-        assert await engine.capture_skill_from_trajectory("t", "2") is None
-
-    # 3. Not general
-    with patch(
-        "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-    ) as MockExtractor:  # noqa: N806 mock 类名别名
-        res = SkillCaptureResult(is_general=False, confidence=1.0, safety_analysis="", name="x", content="x")
-        MockExtractor.return_value.extract_from_trajectory = AsyncMock(return_value=res)
-        assert await engine.capture_skill_from_trajectory("t", "3") is None
-
-    # 4. Low confidence
-    with patch(
-        "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-    ) as MockExtractor:  # noqa: N806 mock 类名别名
-        res = SkillCaptureResult(is_general=True, confidence=0.5, safety_analysis="", name="x", content="x")
-        MockExtractor.return_value.extract_from_trajectory = AsyncMock(return_value=res)
-        assert await engine.capture_skill_from_trajectory("t", "4") is None
-
-    # 5. Validation failure
-    with (
-        patch(
-            "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-        ) as MockExtractor,  # noqa: N806 mock 类名别名
-        patch("myrm_agent_harness.agent.skills.evolution.safety.validator.SkillValidator") as MockValidator,  # noqa: N806 mock 类名别名
-    ):
-        res = SkillCaptureResult(is_general=True, confidence=0.9, safety_analysis="", name="x", content="x")
-        MockExtractor.return_value.extract_from_trajectory = AsyncMock(return_value=res)
-        MockValidator.return_value.validate.return_value = MagicMock(valid=False, errors=["err"])
-        assert await engine.capture_skill_from_trajectory("t", "5") is None
-
-    # 6. Sandbox dry-run failure
-    with (
-        patch(
-            "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-        ) as MockExtractor,  # noqa: N806 mock 类名别名
-        patch("myrm_agent_harness.agent.skills.evolution.safety.validator.SkillValidator") as MockValidator,  # noqa: N806 mock 类名别名
-        patch("myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator.SandboxValidator") as MockSandbox,  # noqa: N806 mock 类名别名
-    ):
-        res = SkillCaptureResult(is_general=True, confidence=0.9, safety_analysis="", name="x", content="x")
-        MockExtractor.return_value.extract_from_trajectory = AsyncMock(return_value=res)
-        MockValidator.return_value.validate.return_value = MagicMock(valid=True)
-        MockSandbox.return_value.dry_run_skill = AsyncMock(return_value=(False, "Failed"))
-        assert await engine.capture_skill_from_trajectory("t", "6") is None
-
-
-@pytest.mark.asyncio
-async def test_engine_capture_skill_deduplication():
-    mock_store = MagicMock(spec=SkillStore)
-
-    # Create an active skill that is highly similar
-    active_skill = SkillRecord(
-        skill_id="mock",
-        name="mock-skill",
-        description="mock",
-        content="## Instructions\n1. Exactly the same thing.",
-        path="",
-        lineage=None,
-        evolution_locked=False,  # type: ignore
-    )
-    mock_store.get_active_skills.return_value = [active_skill]
-
-    engine = SkillEvolutionEngine(store=mock_store, llm=MagicMock())
-
-    with patch(
-        "myrm_agent_harness.agent.skills.evolution.pipeline.structured_extractor.StructuredExtractor"
-    ) as MockExtractor:  # noqa: N806 mock 类名别名
-        # Same content should trigger dedup
-        res = SkillCaptureResult(
-            is_general=True,
-            confidence=0.9,
-            safety_analysis="",
-            name="test-skill",
-            content="## Instructions\n1. Exactly the same thing.",
-        )
-        MockExtractor.return_value.extract_from_trajectory = AsyncMock(return_value=res)
-
-        proposal = await engine.capture_skill_from_trajectory("t", "1")
-        assert proposal is None  # Rejected due to deduplication
 
 
 @pytest.mark.asyncio

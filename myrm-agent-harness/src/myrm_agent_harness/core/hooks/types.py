@@ -272,14 +272,6 @@ class SubagentMergeConflictPayload:
 
 
 @dataclass(frozen=True, slots=True)
-class TraceSliceReadyPayload:
-    session_id: str
-    tool_call_ids: list[str]
-    agent_id: str | None = None
-    agent_type: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class ApprovalCorrectionPayload:
     """Payload emitted when a user edits tool-call arguments in the approval flow.
 
