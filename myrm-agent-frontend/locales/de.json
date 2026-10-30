@@ -8974,6 +8974,8 @@
     "telegramWebhookUrl": "Webhook-URL (optional)",
     "telegramWebhookHint": "Lassen Sie das Feld leer, um den langen Abfragemodus zu verwenden. Konfigurieren Sie HTTPS URL für den Empfang von Nachrichten per Webhook (geringere Latenz, empfohlen für die Produktion).",
     "telegramWebhookHttpsRequired": "Webhook URL muss HTTPS verwenden",
+    "telegramProxy": "Proxyserver",
+    "telegramProxyHint": "HTTP/HTTPS/SOCKS5-Proxy-URL für den Telegram-Verkehr (optional). Eintragen, wenn Telegram nicht direkt erreichbar ist.",
     "telegramAutoTopic": "Auto-Thema (Forumsgruppen)",
     "telegramAutoTopicHint": "Erstellen Sie automatisch ein Forumsthema für jeden Benutzer in Forum-Supergruppen. Der Themenname wird mit dem Anzeigenamen des Benutzers synchronisiert.",
     "telegramNotificationsMode": "Push-Benachrichtigungen",

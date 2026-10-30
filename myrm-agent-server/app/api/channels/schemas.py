@@ -196,6 +196,7 @@ class MatrixTestRequest(BaseModel):
 
 class TelegramTestRequest(BaseModel):
     bot_token: str = Field(..., alias="botToken", min_length=1)
+    proxy: str | None = None
 
     class Config:
         populate_by_name = True

@@ -26,6 +26,7 @@ const EMPTY_CREDS: TelegramCredentials = {
   botToken: '',
   commands: [],
   webhookUrl: '',
+  proxy: '',
   botPolicy: 'deny',
   autoTopic: false,
   notificationsMode: 'important',
@@ -55,7 +56,7 @@ export function TelegramConfigCard() {
       requiredFields: ['botToken'],
       getCreds: getTelegramCredentials,
       saveCreds: saveTelegramCredentials,
-      testConnection: (c) => testTelegramConnection(c.botToken),
+      testConnection: (c) => testTelegramConnection(c.botToken, c.proxy),
       i18nPrefix: 'telegram',
     });
 
@@ -137,6 +138,19 @@ export function TelegramConfigCard() {
           {creds.webhookUrl && !creds.webhookUrl.startsWith('https://') && (
             <p className="text-xs text-destructive">{t('telegramWebhookHttpsRequired')}</p>
           )}
+        </div>
+      )}
+
+      {!sandbox && (
+        <div className="space-y-2">
+          <Label htmlFor="telegram-proxy">{t('telegramProxy')}</Label>
+          <Input
+            id="telegram-proxy"
+            placeholder="http://127.0.0.1:7890 or socks5://127.0.0.1:1080"
+            value={creds.proxy ?? ''}
+            onChange={(e) => handleChange('proxy', e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{t('telegramProxyHint')}</p>
         </div>
       )}
 

@@ -6,7 +6,7 @@
 - telegram.api_forum::TelegramForumApi (POS: Forum Topic group of the client)
 
 [OUTPUT]
-- TelegramClient: async Telegram Bot API client (bot_token, optional api_base)
+- TelegramClient: async Telegram Bot API client (bot_token, optional api_base and proxy)
 
 [POS]
 Telegram Bot API async HTTP client. Holds the text, interaction, command, webhook and rich-message calls; the media

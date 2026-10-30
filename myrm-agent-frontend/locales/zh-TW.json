@@ -8974,6 +8974,8 @@
     "telegramWebhookUrl": "Webhook URL（可選）",
     "telegramWebhookHint": "留空使用長輪詢模式。設定 HTTPS URL 後透過 Webhook 接收訊息（更低延遲，推薦生產環境使用）。",
     "telegramWebhookHttpsRequired": "Webhook URL 必須使用 HTTPS",
+    "telegramProxy": "代理",
+    "telegramProxyHint": "Telegram 網路代理 URL（可選，支援 HTTP/HTTPS/SOCKS5）。無法直連 Telegram 時填寫。",
     "telegramAutoTopic": "自動話題（Forum 群組）",
     "telegramAutoTopicHint": "在 Forum 超級群組中自動為每個使用者建立獨立話題，話題名稱隨使用者顯示名稱自動同步。",
     "telegramNotificationsMode": "推送通知",

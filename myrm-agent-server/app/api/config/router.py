@@ -251,10 +251,16 @@ def _build_channels_config_with_open_telegram_dm(
     return cfg
 
 
-async def _verify_telegram_token(bot_token: str) -> str:
+def _stored_telegram_proxy(credentials: dict[str, object] | None) -> str | None:
+    """The forward proxy saved with the Telegram credentials, if any."""
+    proxy = credentials.get("proxy") if credentials else None
+    return (proxy.strip() or None) if isinstance(proxy, str) else None
+
+
+async def _verify_telegram_token(bot_token: str, proxy: str | None) -> str:
     from app.channels.providers.telegram.api import TelegramClient
 
-    client = TelegramClient(bot_token)
+    client = TelegramClient(bot_token, proxy=proxy)
     try:
         me = await client.get_me()
     finally:
@@ -682,11 +688,6 @@ async def apply_telegram_assistant_onboarding(
     webhook_url = _normalize_webhook_url(body.webhook_url)
     _assert_webhook_url_valid(webhook_url)
 
-    try:
-        bot_username = await _verify_telegram_token(bot_token)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Telegram token verification failed") from exc
-
     previous_telegram, previous_channels, previous_topics = await asyncio.gather(
         config_service.get("telegramCredentials"),
         config_service.get("channels"),
@@ -697,6 +698,11 @@ async def apply_telegram_assistant_onboarding(
         channels_config=(deepcopy(previous_channels.value) if previous_channels else None),
         telegram_topics=deepcopy(previous_topics.value) if previous_topics else None,
     )
+
+    try:
+        bot_username = await _verify_telegram_token(bot_token, _stored_telegram_proxy(snapshot.telegram_credentials))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Telegram token verification failed") from exc
 
     created_agent_id: str | None = None
     try:

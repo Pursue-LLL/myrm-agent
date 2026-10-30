@@ -217,7 +217,7 @@ async def telegram_test_connection(
     """Test Telegram Bot API connectivity with the provided token."""
     from app.channels.providers.telegram.api import TelegramClient
 
-    client = TelegramClient(body.bot_token)
+    client = TelegramClient(body.bot_token, proxy=body.proxy or None)
     try:
         me = await client.get_me()
         username = me.get("username", "unknown")

@@ -368,6 +368,7 @@ export interface TelegramCredentials {
   botToken: string;
   commands?: BotCommand[];
   webhookUrl?: string;
+  proxy?: string;
   botPolicy: 'deny' | 'mention_only' | 'allow';
   autoTopic?: boolean;
   notificationsMode?: 'important' | 'all';
@@ -411,6 +412,6 @@ export async function saveTelegramCredentials(creds: TelegramCredentials): Promi
   }
   await telegramService.save(creds);
 }
-export async function testTelegramConnection(botToken: string): Promise<ChannelTestResult> {
-  return telegramService.test({ botToken });
+export async function testTelegramConnection(botToken: string, proxy?: string): Promise<ChannelTestResult> {
+  return telegramService.test({ botToken, proxy });
 }

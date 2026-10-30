@@ -19,7 +19,7 @@ dependencies = [
   "pydantic-settings>=2.15.0", # 统一配置管理 (BaseSettings + .env)
   "PyYAML>=6.0.3",             # YAML 解析配置 (配置迁移)
   # --- HTTP & I/O ---
-  "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
+  "httpx[socks]>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；socks extra 供 Telegram socks5 代理；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
   # --- Agent 框架 (litellm/langchain/langchain-core via harness; server 不重复 pin) ---
   "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,computer-use]",

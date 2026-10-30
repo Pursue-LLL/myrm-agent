@@ -8974,6 +8974,8 @@
     "telegramWebhookUrl": "Webhook URL（可选）",
     "telegramWebhookHint": "留空使用长轮询模式。设置 HTTPS URL 后通过 Webhook 接收消息（更低延迟，推荐生产环境使用）。",
     "telegramWebhookHttpsRequired": "Webhook URL 必须使用 HTTPS",
+    "telegramProxy": "代理",
+    "telegramProxyHint": "Telegram 网络代理 URL（可选，支持 HTTP/HTTPS/SOCKS5）。无法直连 Telegram 时填写。",
     "telegramAutoTopic": "自动话题（Forum 群组）",
     "telegramAutoTopicHint": "在 Forum 超级群组中自动为每个用户创建独立话题，话题名称随用户显示名称自动同步。",
     "telegramNotificationsMode": "推送通知",

@@ -64,10 +64,11 @@ def setup_test_database():
 def test_apply_telegram_onboarding_success() -> None:
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
+    verify_token = AsyncMock(return_value="myrm_bot")
     try:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
-            patch("app.api.config.router._verify_telegram_token", new=AsyncMock(return_value="myrm_bot")),
+            patch("app.api.config.router._verify_telegram_token", new=verify_token),
             patch("app.api.config.router._try_hot_register_channel", new=AsyncMock()),
             patch("app.api.config.router._wait_for_telegram_channel_state", new=AsyncMock(return_value=(True, "running"))),
             patch("app.core.channel_bridge.setup.refresh_reaction_policy", new=AsyncMock()),
@@ -92,6 +93,7 @@ def test_apply_telegram_onboarding_success() -> None:
                     "enabled": True,
                     "botPolicy": "mention_only",
                     "webhookUrl": "https://legacy.example.com/webhook",
+                    "proxy": "http://127.0.0.1:7890",
                 },
             )
 
@@ -117,6 +119,8 @@ def test_apply_telegram_onboarding_success() -> None:
             assert telegram_creds["enabled"] is True
             assert telegram_creds["botPolicy"] == "mention_only"
             assert telegram_creds["webhookUrl"] == ""
+            assert telegram_creds["proxy"] == "http://127.0.0.1:7890"
+            verify_token.assert_awaited_once_with("1234567890:VALID_TOKEN", "http://127.0.0.1:7890")
 
             channels_cfg = _get_config_value(client, "channels")
             channels = channels_cfg.get("channels")

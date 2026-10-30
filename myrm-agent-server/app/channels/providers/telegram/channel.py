@@ -99,6 +99,7 @@ class TelegramChannel(
         "telegramCredentials",
         token=credential_field("botToken", "TELEGRAM_BOT_TOKEN"),
         webhook_url=credential_field("webhookUrl", "TELEGRAM_WEBHOOK_URL"),
+        proxy=credential_field("proxy", "TELEGRAM_PROXY", required=False),
         bot_policy=credential_field("botPolicy", "TELEGRAM_BOT_POLICY", default="deny"),
         auto_topic=credential_field("autoTopic", "TELEGRAM_AUTO_TOPIC", default="false", required=False, is_sensitive=False),
         notifications_mode=credential_field(
@@ -162,6 +163,7 @@ class TelegramChannel(
             bot_token=creds.get("token", ""),
             commands=list(cls._DEFAULT_COMMANDS),
             webhook_url=creds.get("webhook_url") or None,
+            proxy=creds.get("proxy") or None,
             auto_topic=parse_bool(creds.get("auto_topic", "false")),
         )
         instance._apply_bot_policy(creds.get("bot_policy", "deny"))
@@ -176,12 +178,12 @@ class TelegramChannel(
         *,
         commands: list[BotCommand] | None = None,
         webhook_url: str | None = None,
-        api_base: str | None = None,
+        proxy: str | None = None,
         auto_topic: bool = False,
     ) -> None:
         super().__init__()
         self._token = bot_token
-        self._client = TelegramClient(bot_token, api_base=api_base)
+        self._client = TelegramClient(bot_token, proxy=proxy)
         self._poll_task: asyncio.Task[None] | None = None
         self._offset: int = 0
         self._bot_username: str | None = None

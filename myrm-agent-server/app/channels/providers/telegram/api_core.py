@@ -1,7 +1,8 @@
 """Telegram Bot API transport shared by every method group of the client.
 
 Talks to the official ``api.telegram.org`` or, through ``api_base``, to a self-hosted Bot API server or a
-proxy. A transport error reaches the caller as the ``httpx`` error it is, so the caller's retry policy can tell
+reverse proxy. ``proxy`` (an ``http://``, ``https://``, ``socks5://`` or ``socks5h://`` URL) routes every call
+and file download through a forward proxy; without it the process environment decides. A transport error reaches the caller as the ``httpx`` error it is, so the caller's retry policy can tell
 a connection that never opened (safe to repeat) from a request the platform may already have taken (not).
 
 [INPUT]
@@ -57,8 +58,9 @@ class TelegramApiBase:
     Call ``close()`` during application shutdown to release resources.
     """
 
-    def __init__(self, token: str, *, api_base: str | None = None) -> None:
+    def __init__(self, token: str, *, api_base: str | None = None, proxy: str | None = None) -> None:
         self._token = token
+        self._proxy = proxy
         self._http: httpx.AsyncClient | None = None
         base = api_base.rstrip("/") if api_base else _DEFAULT_API_BASE
         self._base = f"{base}/bot{token}"
@@ -70,7 +72,7 @@ class TelegramApiBase:
 
     def _get_http(self) -> httpx.AsyncClient:
         if self._http is None or self._http.is_closed:
-            self._http = httpx.AsyncClient(timeout=_TIMEOUT)
+            self._http = httpx.AsyncClient(timeout=_TIMEOUT, proxy=self._proxy)
         return self._http
 
     async def close(self) -> None:
