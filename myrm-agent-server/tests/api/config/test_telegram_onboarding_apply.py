@@ -11,9 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from filelock import FileLock
 
 from app.database.connection import init_database
 from tests.support.minimal_app import build_minimal_app
@@ -321,94 +319,3 @@ def test_apply_telegram_onboarding_reuses_existing_general_agent_after_search_na
             create_agent_mock.assert_not_awaited()
     finally:
         app.router.lifespan_context = original_lifespan
-
-
-@pytest.mark.asyncio
-async def test_resolve_or_create_telegram_agent_avoids_duplicate_create_under_concurrency() -> None:
-    from app.api.config.telegram_onboarding import (
-        TelegramAssistantOnboardingRequest,
-        _resolve_or_create_telegram_agent,
-    )
-
-    requested_name = "Concurrent Assistant"
-    created_profile = SimpleNamespace(
-        id="agent-concurrent-1",
-        display_name=requested_name,
-        metadata={"prompt_mode": "full"},
-    )
-    created_once = False
-    create_calls = 0
-
-    async def _fake_get_agents_by_name(name: str) -> list[SimpleNamespace]:
-        if name == requested_name and created_once:
-            return [created_profile]
-        return []
-
-    async def _fake_create_agent(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        nonlocal created_once, create_calls
-        create_calls += 1
-        await asyncio.sleep(0.05)
-        created_once = True
-        return created_profile
-
-    with (
-        patch(
-            "app.services.agent.agent_service.AgentService.get_agents_by_name",
-            new=AsyncMock(side_effect=_fake_get_agents_by_name),
-        ),
-        patch(
-            "app.services.agent.agent_service.AgentService.create_agent",
-            new=AsyncMock(side_effect=_fake_create_agent),
-        ),
-    ):
-        request = TelegramAssistantOnboardingRequest(
-            botToken="1234567890:VALID_TOKEN",
-            assistantName=requested_name,
-        )
-        first, second = await asyncio.gather(
-            _resolve_or_create_telegram_agent(request),
-            _resolve_or_create_telegram_agent(request),
-        )
-
-    assert first[0] == "agent-concurrent-1"
-    assert second[0] == "agent-concurrent-1"
-    assert create_calls == 1
-
-
-@pytest.mark.asyncio
-async def test_resolve_or_create_telegram_agent_returns_conflict_when_cross_process_lock_busy(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import app.api.config.telegram_onboarding as telegram_onboarding
-
-    request = telegram_onboarding.TelegramAssistantOnboardingRequest(
-        botToken="1234567890:VALID_TOKEN",
-        assistantName="Busy Assistant",
-    )
-    lock_path = telegram_onboarding._telegram_agent_cross_process_lock_path(request.assistant_name)
-    busy_lock = FileLock(str(lock_path))
-    busy_lock.acquire(timeout=0)
-    monkeypatch.setattr(
-        telegram_onboarding,
-        "_TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC",
-        0.0,
-    )
-
-    try:
-        with patch(
-            "app.services.agent.agent_service.AgentService.get_agents_by_name",
-            new=AsyncMock(return_value=[]),
-        ) as get_agents_mock:
-            with pytest.raises(HTTPException) as exc_info:
-                await telegram_onboarding._resolve_or_create_telegram_agent(request)
-    finally:
-        if busy_lock.is_locked:
-            busy_lock.release()
-
-    assert exc_info.value.status_code == 409
-    detail: object = exc_info.value.detail
-    assert detail == {
-        "code": "TELEGRAM_ONBOARDING_IN_PROGRESS",
-        "message": "Telegram onboarding is already in progress. Please retry shortly.",
-    }
-    get_agents_mock.assert_not_awaited()

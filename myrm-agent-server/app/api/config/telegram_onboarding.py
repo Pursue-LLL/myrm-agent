@@ -432,10 +432,10 @@ async def apply_telegram_assistant_onboarding(
     except Exception as exc:
         raise _telegram_verification_error(exc, proxy) from exc
 
-    created_agent_id: str | None = None
+    # Resolved before anything is written, so a busy or invalid request has nothing to roll back; rolling back this
+    # request's snapshot would overwrite what a concurrent onboarding has just saved.
+    agent_id, agent_name, created_agent_id = await _resolve_or_create_telegram_agent(body)
     try:
-        agent_id, agent_name, created_agent_id = await _resolve_or_create_telegram_agent(body)
-
         telegram_credentials = _build_telegram_credentials(snapshot.telegram_credentials, body, proxy)
         await config_service.set(
             config_key="telegramCredentials",

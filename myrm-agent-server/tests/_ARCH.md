@@ -436,9 +436,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_lone_surrogate_real_model_e2e.py` | 模块 | 真实提供方：含孤立代理项的消息经 LITE 模型的原生路由与 OpenAI 兼容路由（openai SDK）都被回答；无净化的源在 OpenAI 兼容路由上于 `openai/_utils/_json.py` 抛 `UnicodeEncodeError`；`@pytest.mark.e2e` + 需要 `LITE_API_KEY`，默认套件 deselect |
 | `integration/test_chat_share_integration.py` | 模块 | 会话分享真实全链路集成（无 mock 关键路径）：SQLite 内存库 + TestClient 进程内——create 非加密分享 → status 反映活跃链接 → public GET 200；revoke → status revoked → public GET 404 → 重建链接不可复活已撤销链接；密码分享 gate（错误密码 403）→ 签名 unlock cookie → 放行 → revoke 后死链（含**无 cookie 新访客直接 404「Link Revoked」，不显示密码 gate**）；未分享/过期链接按 unshared 上报；chat 删除后 public GET 404 |
 | `api/config/test_readiness_empty_install.py` | 模块 | 全新安装、没选默认模型的供应商、封存供应商配置的密钥丢失，都按「供应商未就绪」的正常答案返回（不降级），引导标志取自数据库；配置齐全即就绪；真正的加载失败仍报降级 |
-| `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功且令牌校验经已保存的代理、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
+| `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功且令牌校验经已保存的代理、失败回滚、同名冲突复用） |
 | `api/config/test_telegram_onboarding_verification.py` | 模块 | Telegram onboarding 的令牌校验失败如何到达向导：令牌被拒（401/404）与 Bot API 不可达（连接、超时、限流）分别返回 `TELEGRAM_TOKEN_REJECTED` / `TELEGRAM_UNREACHABLE`；不可达的详情带 `viaProxy`（输入的代理或已保存的代理参与了校验时为真）；经新输入的代理校验失败时已保存的代理保持不变；日志不带令牌 |
 | `api/config/test_telegram_onboarding_proxy_resolution.py` | 模块 | onboarding 用哪个代理：输入的优先（归一并校验，不可用的返回 `TELEGRAM_PROXY_REJECTED`），留空沿用已保存的；构建出的凭据只带解析出的代理（无代理时不留 `proxy` 键，旧代理被移除） |
+| `api/config/test_telegram_onboarding_agent_resolution.py` | 模块 | onboarding 解析助手时的竞争与非法请求：并发请求不重复创建同名 Agent；跨进程锁被占用时辅助函数与端点都返回 `409 + TELEGRAM_ONBOARDING_IN_PROGRESS`，空白助手名返回 `422`，这两类请求都不触发回滚、已保存的凭据不变 |
 | `services/channels/test_credential_hot_register.py` | 模块 | 凭据保存后的热加载：每个声明凭据的渠道，其配置键都在 `CREDENTIAL_KEY_TO_CHANNEL` 里（voice 声明的 `twilioCredentials` 不在表内，以严格 xfail 记录）；GitHub 与 OneBot 的保存经真实 `from_credentials` 构建渠道并交给网关 `swap_channel` |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
