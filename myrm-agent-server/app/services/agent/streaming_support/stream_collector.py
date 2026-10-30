@@ -206,19 +206,6 @@ class StreamContentCollector:
 
     def get_snapshot(self) -> dict[str, object]:
         """Get the current snapshot without subscribing."""
-        merged_steps_dict: dict[str, dict[str, object]] = {}
-        ordered_steps: list[dict[str, object]] = []
-        for step in self._progress_steps:
-            step_id = step.get("id")
-            if isinstance(step_id, str):
-                if step_id not in merged_steps_dict:
-                    merged_steps_dict[step_id] = step.copy()
-                    ordered_steps.append(merged_steps_dict[step_id])
-                else:
-                    merged_steps_dict[step_id].update(step)
-            else:
-                ordered_steps.append(step)
-
         merged_sources_dict: dict[str, dict[str, object]] = {}
         ordered_sources: list[dict[str, object]] = []
         for source in self._sources:
@@ -232,7 +219,7 @@ class StreamContentCollector:
         return {
             "content": self._answer.text,
             "reasoning": "".join(self._reasoning_parts),
-            "progress_steps": ordered_steps,
+            "progress_steps": list(self._progress_steps),
             "sources": ordered_sources,
         }
 
@@ -610,7 +597,7 @@ class StreamContentCollector:
     @property
     def has_active_generation(self) -> bool:
         """True when authentic model output (text, reasoning, or tool step) was collected."""
-        return self.has_content or bool(self._progress_steps) or bool(getattr(self, "_clarification", None))
+        return self.has_content or bool(self._progress_steps) or bool(self._clarification)
 
     @property
     def sibling_group_id(self) -> str | None:
@@ -725,7 +712,7 @@ class StreamContentCollector:
         if self._stream_ttft_ms is not None:
             result["streamTtftMs"] = self._stream_ttft_ms
 
-        if hasattr(self, "_usage_alert") and self._usage_alert:
+        if self._usage_alert:
             result["usageAlert"] = self._usage_alert
 
         if self._model_name:
