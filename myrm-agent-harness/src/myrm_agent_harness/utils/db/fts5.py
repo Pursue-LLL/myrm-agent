@@ -178,12 +178,13 @@ def fts5_integrity_check(conn: sqlite3.Connection, table: str) -> bool:
     Uses the official FTS5 ``integrity-check`` command. Returns False on any
     ``sqlite3.DatabaseError``: an inconsistent index ("database disk image is
     malformed", e.g. after an unclean shutdown), but also a lock held past the
-    connection's timeout or a closed connection, because the command is an
-    ``INSERT`` and fails like any other write. Treat False as a signal to rebuild
-    (which is idempotent), never as proof of damage. The statement is constant
-    text with a validated table name, so a ``ProgrammingError`` here can only mean
-    a closed connection. ``OperationalError`` is a subclass of ``DatabaseError``,
-    so catching only ``OperationalError`` would miss a really damaged index.
+    connection's timeout or a connection that is closed or used from another
+    thread, because the command is an ``INSERT`` and fails like any other write.
+    Treat False as a signal to rebuild (which is idempotent), never as proof of
+    damage. The statement is constant text with a validated table name, so a
+    ``ProgrammingError`` here means the connection itself is unusable, not a bad
+    statement. ``OperationalError`` is a subclass of ``DatabaseError``, so
+    catching only ``OperationalError`` would miss a really damaged index.
     """
     table = _validate_table_name(table)
     try:
