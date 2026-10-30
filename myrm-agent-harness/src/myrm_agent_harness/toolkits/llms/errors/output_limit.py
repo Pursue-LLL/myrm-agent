@@ -1,7 +1,7 @@
 """Output-token limits that a provider states when it rejects a request.
 
 [INPUT]
-- errors.classifier::normalize_provider_error (POS: lower-cased text of an error including nested bodies)
+- errors.normalize::normalize_provider_error (POS: lower-cased text of an error including nested bodies)
 
 [OUTPUT]
 - OutputLimit: the largest ``max_tokens`` a provider says it accepts, and what kind of statement that is
@@ -19,7 +19,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from myrm_agent_harness.toolkits.llms.errors.classifier import normalize_provider_error
+from myrm_agent_harness.toolkits.llms.errors.normalize import normalize_provider_error
 
 _NUM = r"(\d[\d,]*)"
 

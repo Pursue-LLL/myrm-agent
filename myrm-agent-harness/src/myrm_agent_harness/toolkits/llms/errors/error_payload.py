@@ -9,23 +9,31 @@
 - walk_exception_chain: the exception and its causes, outermost first, each once
 - extract_error_body: the JSON-object payload of one exception, ``{}`` when it has none
 - provider_error_message: the provider's own sentence for a rejected request, ``None`` when no payload came back
+- parse_json_object: a JSON object read out of provider text, ``None`` when the text is anything else or too deeply nested to parse
+- is_json_shaped: whether text opens as a JSON object or array, which is data and not words for a user
 
 [POS]
 The one reader of the provider's answer in an LLM exception, shared by the failure classifier, the retry-window
 extractor and the error diagnostics. A failure the client library raises before anything is sent (an unknown provider
 prefix, an unsupported parameter) carries no payload, so ``provider_error_message`` returns ``None`` for it instead of
-the library's text.
+the library's text. Provider text is parsed only through ``parse_json_object``, so a truncated or hostile payload can
+cost the reader its detail but never the failure being read.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 
 MAX_CHAIN_DEPTH = 6
 
 # An aggregator nests the upstream provider's error inside its own: payload -> error.metadata.raw -> payload.
 _MAX_UPSTREAM_NESTING = 2
+
+# How `json.dumps` and a Python repr open an object or an array. A bracketed tag such as "[Errno 28] ..." or
+# "[ERROR] ..." is prose, so an array counts only when its first element is a value.
+_JSON_SHAPED = re.compile(r"""\s*(?:\{|\[\s*(?:[{\["'\d-]|\]|true\b|false\b|null\b))""")
 
 
 def walk_exception_chain(exc: BaseException) -> list[BaseException]:
@@ -81,14 +89,11 @@ def _upstream_message(error: Mapping[str, object], depth: int) -> str | None:
     if isinstance(raw, Mapping):
         return _body_message(raw, depth + 1)
     text = _text(raw)
-    if text is None or text[0] not in "{[":
+    if text is None or not is_json_shaped(text):
         return text
-    try:
-        parsed = json.loads(text)
-    except ValueError:
-        # Truncated JSON is not a sentence, so the wrapper's own message stands.
-        return None
-    return _body_message(parsed, depth + 1) if isinstance(parsed, Mapping) else None
+    parsed = parse_json_object(text)
+    # Truncated JSON, an array and an object nested too deep to parse are not sentences, so the wrapper's own message stands.
+    return _body_message(parsed, depth + 1) if parsed is not None else None
 
 
 def _plain_text_payload(err: BaseException) -> str | None:
@@ -102,7 +107,25 @@ def _plain_text_payload(err: BaseException) -> str | None:
             body = None
     text = _text(body)
     # JSON that carried no message was already read above; it is data, not words for a user.
-    return None if text is None or text[0] in "{[" else text
+    return None if text is None or is_json_shaped(text) else text
+
+
+def is_json_shaped(text: str) -> bool:
+    """Whether *text* opens as a JSON object or array: data the provider returned, not words for a user."""
+    return _JSON_SHAPED.match(text) is not None
+
+
+def parse_json_object(text: str) -> dict[str, object] | None:
+    """Parse *text* as a JSON object, or ``None`` when it is anything else.
+
+    The text comes from the provider, so a payload the parser cannot take (truncated, not an object, nested past the
+    recursion limit, where the parser raises ``RecursionError`` instead of ``ValueError``) is skipped, never raised.
+    """
+    try:
+        parsed = json.loads(text)
+    except (ValueError, RecursionError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _text(value: object) -> str | None:

@@ -391,7 +391,7 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 
 | 模块 | 职责 |
 |------|------|
-| `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时，随后经 `classify_error` 桥接供应商侧失败（`overloaded` / `safety_block` / `format_error` / `challenge_blocked`），最后兜底 `unknown` |
+| `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时，随后经 `classify_error` 桥接分类器认得而关键词族没认出的失败（`api_key` / `billing` / `rate_limit` / `timeout` / `context_overflow` / `response_format_error` / `overloaded` / `safety_block` / `format_error` / `challenge_blocked`；`model_not_found` 与订阅档位门槛不在其中：分类器把供应商策略拦截归在前者、把档位门槛归在 `context_overflow` 之下，二者用供应商自己的话展示更准），最后兜底 `unknown` |
 | `catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点（文案、步骤、供应商给出的等待时长；`entry` 选同一错误类型的另一版措辞，结果的类型不变） |
 | `transport_diagnosis.py` | TLS（`tls_certificate`、`tls_transient`）与连接（`connection`、`custom_endpoint_unreachable`）诊断；自定义端点的服务名、端口推断 |
 | `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
@@ -414,15 +414,15 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `format_error` | 请求格式错误 |
 | `response_format_error` | 响应格式错误 |
 | `context_overflow` | 上下文过长 |
-| `safety_block` | 安全拦截（供应商内容策略或内容过滤器拒绝，含错误码 `content_filter`、`ResponsibleAIPolicyViolation`、`data_inspection_failed`，DashScope 的 “may contain inappropriate content”，Codex 的网络安全标记） |
+| `safety_block` | 安全拦截（供应商内容策略或内容过滤器拒绝，含错误码 `content_filter`、`ResponsibleAIPolicyViolation`、`data_inspection_failed`，DashScope 的 “may contain inappropriate content”，Codex 的网络安全标记，MiniMax 的 `new_sensitive`（1027）与 “Content Exists Risk”） |
 | `challenge_blocked` | 出口被 WAF/反爬质询拦截（请求未到达模型） |
 | `unknown` | 未知错误 |
 
 恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，`update_key` 与 `change_model` 落到「设置 > 模型服务」（`/settings/models`），`top_up` 落到 `/settings`；其余类型不下发按钮。
 
-供应商原文的展示约定：`unknown` 与 `format_error`（供应商拒绝了请求）的 `user_message` 带供应商自己的话，用户看到的是原因而不是库内部的样子。原话的来源：先读异常自带的应答（`toolkits/llms/errors/error_payload.py::provider_error_message`，沿 `__cause__` / `__context__` 链，依次取 SDK 解析好的 `body`、响应 JSON、非 JSON 的网关页或纯文本；聚合网关把上游错误放在 `error.metadata.raw` 时先取上游那句，包装层的 “Provider returned error” 只在上游缺失时才显示；JSON 转义由 JSON 解码器还原，中文与 emoji 不会变成乱码），应答里什么都没有时才退回异常文本，去掉 `litellm.XxxError:`、`XxxException -`、`Error code: NNN -` 三段库前缀，正文是 JSON 或 Python dict 时只取 `message` 字段。随后统一整理（`engine._present`）：HTML 错误页只留可见文字（去掉标签、`script`、`style`）；**先脱敏再截断**，供应商回显的密钥不会被截断线切成漏网的前半截；折叠空白，超过 200 字符时截断并以 `…` 标明；整段为空时 `unknown` 退回异常类名。
+供应商原文的展示约定：`unknown` 与 `format_error`（供应商拒绝了请求）的 `user_message` 带供应商自己的话，用户看到的是原因而不是库内部的样子。原话的来源：先读异常自带的应答（`toolkits/llms/errors/error_payload.py::provider_error_message`，沿 `__cause__` / `__context__` 链，依次取 SDK 解析好的 `body`、响应 JSON、非 JSON 的网关页或纯文本；聚合网关把上游错误放在 `error.metadata.raw` 时先取上游那句，包装层的 “Provider returned error” 只在上游缺失时才显示；JSON 转义由 JSON 解码器还原，中文与 emoji 不会变成乱码），应答里什么都没有时才退回异常文本，去掉 `litellm.XxxError:`、`XxxException -`、`Error code: NNN -` 三段库前缀，正文是 JSON 或 Python dict 时只取 `message` 字段；没有句子的 JSON 对象或数组（`{}`、`{'code': 1027, 'msg': …}`、校验记录列表）是数据而不是话，不展示：`format_error` 退到模型词条或通用词条，`unknown` 退回异常类名（以 `[Errno 28]`、`[ERROR]` 这类方括号标签开头的文字是话，照常展示，只有首个元素是值的数组才算数据）。随后统一整理（`engine._present`）：HTML 错误页只留可见文字（去掉标签、`script`、`style`）；**先脱敏再截断**，供应商回显的密钥不会被截断线切成漏网的前半截；折叠空白，超过 200 字符时截断并以 `…` 标明；整段为空时 `unknown` 退回异常类名。
 
-`format_error` 在异常没有任何供应商应答时（客户端库在发请求之前就抛出的失败，例如缺少服务商前缀、参数不被支持）不引用库文本：调用方给了 `ErrorContext.model_name` 时用 `format_error_model` 词条（点出请求发往的模型，处理步骤指向「设置 > 模型服务」），没有模型信息时用不含占位符的 `format_error_generic`（结果的 `error_type` 仍是 `format_error`，恢复按钮与上游消费者不受影响）；`unknown` 是兜底，可以展示整理后的异常文本。五种语言目录里引用原话的词条一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）。守护测试：`tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py`（占位符）、`test_provider_message_text.py`（整理管线）、`test_provider_failure_diagnostics.py`（各种应答形态与客户端侧失败）、`tests/toolkits/llms/errors/test_error_payload.py`（应答读取）、`test_locale_placeholder_parity.py`（五种语言的键集与英文目录一致，缺键会静默退回英文）。
+`format_error` 在异常没有任何供应商应答时（客户端库在发请求之前就抛出的失败，例如缺少服务商前缀、参数不被支持）不引用库文本：调用方给了 `ErrorContext.model_name` 时用 `format_error_model` 词条（点出请求发往的模型，处理步骤指向「设置 > 模型服务」），没有模型信息时用不含占位符的 `format_error_generic`（结果的 `error_type` 仍是 `format_error`，恢复按钮与上游消费者不受影响）；`unknown` 是兜底，可以展示整理后的异常文本。五种语言目录里引用原话的词条一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）。守护测试：`tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py`（占位符）、`test_provider_message_text.py`（整理管线）、`test_provider_failure_diagnostics.py`（各种应答形态与客户端侧失败）、`test_classified_failure_diagnostics.py`（分类器认得的每种失败都有自己的卡片，含 litellm 的 Anthropic、Gemini、DeepSeek 密钥失败与供应商策略拦截不被当成缺失模型）、`test_data_shaped_provider_text.py`（数据形正文不被展示）、`tests/toolkits/llms/errors/test_error_payload.py`（应答读取）、`test_normalize.py`（嵌套过深的上游应答不让分类失败）、`test_locale_placeholder_parity.py`（五种语言的键集与英文目录一致，缺键会静默退回英文）。
 
 目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型服务」「设置 > 模型服务 > 默认模型」。入口名称与前端菜单文案的一致性由 server 侧 `tests/integration/test_diagnostic_copy_ui_labels_i18n_sync.py` 对五种语言逐一守护。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
 
@@ -516,7 +516,8 @@ get_locale_manager().register_translations(
 | 文件 | 角色 |
 |------|------|
 | `toolkits/llms/errors/classifier.py` | LLM错误分类器（`classify_error()`，`ErrorKind` enum） |
-| `toolkits/llms/errors/error_payload.py` | 供应商应答的唯一读取点：异常链遍历、响应体提取、供应商原话（`provider_error_message`），分类器、重试窗口与诊断共用 |
+| `toolkits/llms/errors/normalize.py` | 把异常读成状态码、响应体与一段小写文本供分类器匹配（含聚合网关放在 `error.metadata.raw` 里的上游错误）；上游应答只经 `parse_json_object` 解析，嵌套过深或被截断的应答只损失细节，不会让分类抛错 |
+| `toolkits/llms/errors/error_payload.py` | 供应商应答的唯一读取点：异常链遍历、响应体提取、供应商原话（`provider_error_message`）、JSON 对象解析（`parse_json_object`）与数据形文字判定（`is_json_shaped`），归一化、重试窗口与诊断共用 |
 | `toolkits/llms/errors/error_types.py` | 三层分类体系（RecoverabilityLevel / FailoverReason / ProbePolicy） |
 | `agent/errors/diagnostics/engine.py` | `LLMErrorDiagnostic`：LLM 异常 → 本地化 `DiagnosticResult` |
 | `agent/errors/diagnostics/catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点 |

@@ -7,7 +7,7 @@ ceiling and the messages to rewrite.
 [INPUT]
 - utils.media.image_compressor::ImageCompressor, SEND_COMPRESS_TRIGGER_BYTES (POS: 压缩器与 base64 字节阈值)
 - utils.image_utils::estimate_base64_byte_size, is_base64_data_url (POS: base64 体积与格式判定)
-- toolkits.llms.errors.classifier::normalize_provider_error (POS: provider 错误归一化)
+- toolkits.llms.errors.normalize::normalize_provider_error (POS: provider 错误归一化)
 
 [OUTPUT]
 - parse_image_max_dimension(): provider 声明的单边像素上限（缺省 8000）
@@ -53,9 +53,7 @@ def parse_image_max_dimension(exc: Exception) -> int:
     "exceeds the maximum of 8000px per side".  Returns the parsed
     integer or ``DEFAULT_MAX_DIMENSION`` when not parseable.
     """
-    from myrm_agent_harness.toolkits.llms.errors.classifier import (
-        normalize_provider_error,
-    )
+    from myrm_agent_harness.toolkits.llms.errors.normalize import normalize_provider_error
 
     msg = normalize_provider_error(exc).message
     match = _IMAGE_MAX_DIM_RE.search(msg)

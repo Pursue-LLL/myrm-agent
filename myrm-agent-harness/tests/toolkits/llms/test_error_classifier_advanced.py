@@ -7,9 +7,9 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import (
     ErrorKind,
     classify_error,
     classify_failover_reason,
-    normalize_provider_error,
 )
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
+from myrm_agent_harness.toolkits.llms.errors.normalize import normalize_provider_error
 
 
 # Mock exception classes for testing
@@ -99,6 +99,8 @@ _GUARDRAIL_REFUSALS = {
         None,
         "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request.",
     ),
+    "minimax output guardrail": (None, "output new_sensitive (1027) [MiniMax-M2.7]"),
+    "minimax input guardrail": (400, "Error code: 400 - {'error': {'message': 'Content Exists Risk'}}"),
 }
 
 
@@ -112,6 +114,12 @@ def test_classify_provider_guardrail_refusal_as_safety_block(status: int | None,
 
 def test_classify_an_unrelated_inspection_error_is_not_a_safety_block() -> None:
     exc = APIStatusError("The data inspection mode is not supported for this model", 400)
+
+    assert classify_error(exc) != ErrorKind.SAFETY_BLOCK
+
+
+def test_classify_an_identifier_that_only_contains_a_guardrail_code_is_not_a_safety_block() -> None:
+    exc = APIStatusError("The new_sensitive_flag parameter is not supported by this model", 400)
 
     assert classify_error(exc) != ErrorKind.SAFETY_BLOCK
 

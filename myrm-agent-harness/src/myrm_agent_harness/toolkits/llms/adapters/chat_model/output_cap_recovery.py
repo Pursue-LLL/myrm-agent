@@ -2,7 +2,7 @@
 
 [INPUT]
 - errors.output_limit::parse_output_limit (POS: output limit a provider printed in a rejection)
-- errors.classifier::normalize_provider_error (POS: HTTP status of the rejection)
+- errors.normalize::normalize_provider_error (POS: HTTP status of the rejection)
 - toolkits.llms.ephemeral_output_tokens (POS: one-shot larger budget set by truncation recovery)
 
 [OUTPUT]
@@ -27,7 +27,7 @@ from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
     get_ephemeral_max_output_tokens,
     reset_ephemeral_max_output_tokens,
 )
-from myrm_agent_harness.toolkits.llms.errors.classifier import normalize_provider_error
+from myrm_agent_harness.toolkits.llms.errors.normalize import normalize_provider_error
 from myrm_agent_harness.toolkits.llms.errors.output_limit import parse_output_limit
 
 logger = logging.getLogger(__name__)

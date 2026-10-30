@@ -21,6 +21,8 @@ from litellm import exceptions as litellm_errors
 from myrm_agent_harness.toolkits.llms.errors.error_payload import (
     MAX_CHAIN_DEPTH,
     extract_error_body,
+    is_json_shaped,
+    parse_json_object,
     provider_error_message,
     walk_exception_chain,
 )
@@ -30,6 +32,8 @@ _PROVIDER = "stub-provider"
 
 
 _URL = "https://provider.test/v1/chat/completions"
+# Nested far past the interpreter's recursion limit, as a hostile or broken upstream could return it.
+_DEEP_OBJECT = '{"a":' * 50_000 + "1" + "}" * 50_000
 
 
 def _openai_response(status: int, *, json: object | None = None, text: str | None = None) -> httpx2.Response:
@@ -197,3 +201,59 @@ def test_the_body_attribute_wins_over_the_response_and_a_mapping_is_copied_to_a_
 )
 def test_a_missing_or_non_object_body_is_an_empty_dict(exc: Exception) -> None:
     assert extract_error_body(exc) == {}
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [('{"a": 1}', {"a": 1}), ("{}", {}), ("[1]", None), ("3", None), ("null", None), ("{", None), ("", None)],
+    ids=["object", "empty object", "array", "number", "null", "truncated", "empty"],
+)
+def test_only_a_json_object_is_parsed(text: str, expected: dict[str, object] | None) -> None:
+    assert parse_json_object(text) == expected
+
+
+def test_a_json_object_nested_beyond_the_recursion_limit_is_not_parsed() -> None:
+    assert parse_json_object(_DEEP_OBJECT) is None
+
+
+def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_wrapper_sentence() -> None:
+    body = {"error": {"message": "Provider returned error", "metadata": {"raw": _DEEP_OBJECT}}}
+
+    assert provider_error_message(_openai_rejection(body)) == "Provider returned error"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("{}", True),
+        ('  {"a": 1}', True),
+        ("[]", True),
+        ("[1, 2]", True),
+        ('["a"]', True),
+        ("[{'a': 1}]", True),
+        ("Bad Request", False),
+        ("", False),
+        ("an {inline} brace", False),
+        ("[Errno 28] No space left on device", False),
+        ("[ERROR] upstream down", False),
+    ],
+    ids=[
+        "object",
+        "indented object",
+        "empty array",
+        "number array",
+        "string array",
+        "python repr array",
+        "sentence",
+        "empty",
+        "brace inside a sentence",
+        "errno tag",
+        "level tag",
+    ],
+)
+def test_text_is_json_shaped_when_it_opens_as_an_object_or_an_array(text: str, expected: bool) -> None:
+    assert is_json_shaped(text) is expected
+
+
+def test_a_plain_text_body_that_opens_with_a_tag_is_still_the_providers_sentence() -> None:
+    assert provider_error_message(_openai_rejection("[ERROR] upstream down")) == "[ERROR] upstream down"

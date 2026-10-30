@@ -9,8 +9,9 @@
 - diagnostics.transport_diagnosis::diagnose_transport, infer_service_name (POS: TLS and connection diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
 - core.security.redact::redact_sensitive_text (POS: Secret redaction of text shown to users and logs)
-- toolkits.llms.errors.classifier::ErrorKind, classify_error (POS: LLM error classifier for failover decisions)
-- toolkits.llms.errors.error_payload::provider_error_message (POS: The one reader of the provider's answer in an LLM exception)
+- toolkits.llms.errors.classifier::ErrorKind, classify_error, classify_failover_reason (POS: LLM error classifier for failover decisions)
+- toolkits.llms.errors.error_payload::is_json_shaped, provider_error_message (POS: The one reader of the provider's answer in an LLM exception)
+- toolkits.llms.errors.error_types::FailoverReason (POS: Three-layer error classification system)
 
 [OUTPUT]
 - LLMErrorDiagnostic: Static classifier that maps LLM exceptions to localized DiagnosticResult
@@ -19,8 +20,8 @@
 LLM error diagnostic engine. Classifies exceptions from LLM calls into actionable categories
 with localized user messages and resolution steps. Transport and account failures are diagnosed by
 their own modules and tried first; the model, rate-limit, response-format, context and timeout
-families, the provider failures the shared classifier recognizes (overload, safety filter, rejected request, WAF
-challenge), the unknown fallback and the truncation diagnoses live here.
+families, every failure the shared classifier recognizes beyond them (a rejected key, billing, overload, safety
+filter, rejected request, WAF challenge), the unknown fallback and the truncation diagnoses live here.
 """
 
 import html
@@ -39,8 +40,9 @@ from myrm_agent_harness.agent.errors.diagnostics.types import (
     ErrorContext,
 )
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
-from myrm_agent_harness.toolkits.llms.errors.error_payload import provider_error_message
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error, classify_failover_reason
+from myrm_agent_harness.toolkits.llms.errors.error_payload import is_json_shaped, provider_error_message
+from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 
 _MODEL_NOT_FOUND_KEYWORDS = ("model not found", "model does not exist", "unknown model")
 _RATE_LIMIT_KEYWORDS = ("rate limit", "too many requests", "quota exceeded")
@@ -55,9 +57,16 @@ _KEYWORD_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("timeout", ("timeout", "timed out", "time out")),
 )
 
-# Provider failures the shared classifier recognizes by status code and provider wording: each reads
-# from its own catalogue entry instead of the raw exception text.
-_PROVIDER_KIND_TYPES: dict[ErrorKind, str] = {
+# Failures the shared classifier recognizes by the status code the SDK parsed as well as by the provider's wording,
+# so the keyword families above miss some of them: each reads from its own catalogue entry instead of the raw
+# exception text. A missing model is left out because the classifier files provider policy blocks under it, and
+# those read better in the provider's own words than as a model that was not found.
+_CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
+    ErrorKind.AUTH: "api_key",
+    ErrorKind.BILLING: "billing",
+    ErrorKind.CONTEXT_OVERFLOW: "context_overflow",
+    ErrorKind.TIMEOUT: "timeout",
+    ErrorKind.RESPONSE_FORMAT_ERROR: "response_format_error",
     ErrorKind.OVERLOADED: "overloaded",
     ErrorKind.SAFETY_BLOCK: "safety_block",
     ErrorKind.CHALLENGE_BLOCKED: "challenge_blocked",
@@ -109,14 +118,18 @@ def _unescape_json(text: str) -> str:
 
 
 def _embedded_message(raw: str) -> str | None:
-    """The provider's words inside exception text: a body's `message` field, the text after provider framing, or a page."""
+    """The provider's words inside exception text: a body's `message` field, the text after provider framing, or a page.
+
+    Framing followed by a bare JSON payload yields nothing: data with no sentence in it is not for a user.
+    """
     field = _MESSAGE_FIELD.search(raw)
     if field:
         double = field.group("double")
         return _unescape_json(double) if double is not None else _unescape(field.group("single"))
     prefix = _LLM_LIBRARY_PREFIX.match(raw)
     if prefix and prefix.group("provider"):
-        return raw[prefix.end() :]
+        words = raw[prefix.end() :]
+        return None if is_json_shaped(words) else words
     return raw if _HTML_DOCUMENT.search(raw) else None
 
 
@@ -145,9 +158,16 @@ def _provider_message(exc: Exception) -> str | None:
 
 
 def _error_text(exc: Exception) -> str:
-    """The text of an unclassified failure as one clean line: the provider's words, else the exception's own text."""
+    """The text of an unclassified failure as one clean line: the provider's words, else the exception's own text.
+
+    Text that is only a rendering of data names the exception instead.
+    """
     raw = str(exc)[:_MAX_ERROR_SOURCE_CHARS]
-    words = _provider_words(exc, raw) or _LLM_LIBRARY_PREFIX.sub("", raw)
+    words = _provider_words(exc, raw)
+    if not words:
+        words = _LLM_LIBRARY_PREFIX.sub("", raw)
+        if is_json_shaped(words):
+            words = ""
     return _present(words[:_MAX_ERROR_SOURCE_CHARS]) or type(exc).__name__
 
 
@@ -170,6 +190,12 @@ def _diagnose_rejected_request(
             "format_error", locale, cooldown_remaining_ms, entry="format_error_model", model_name=context.model_name
         )
     return build_catalog_result("format_error", locale, cooldown_remaining_ms, entry="format_error_generic")
+
+
+def _is_tier_gate(exc: Exception, kind: ErrorKind) -> bool:
+    """The classifier files an Anthropic subscription tier gate under context overflow, but the gate is no overflow of
+    the model's window: the provider's own words say what the plan lacks."""
+    return kind is ErrorKind.CONTEXT_OVERFLOW and classify_failover_reason(exc) is FailoverReason.LONG_CONTEXT_TIER
 
 
 def _is_model_not_found(full_text: str) -> bool:
@@ -287,13 +313,15 @@ class LLMErrorDiagnostic:
             if any(kw in full_text for kw in keywords):
                 return build_catalog_result(error_type, locale, cooldown_remaining_ms)
 
-        # 9. Provider failures only the shared classifier recognizes
+        # 9. Failures only the shared classifier recognizes
         kind = classify_error(exc)
         if kind is ErrorKind.FORMAT_ERROR:
             return _diagnose_rejected_request(exc, context, locale, cooldown_remaining_ms)
-        provider_type = _PROVIDER_KIND_TYPES.get(kind)
-        if provider_type is not None:
-            return build_catalog_result(provider_type, locale, cooldown_remaining_ms)
+        if kind is ErrorKind.RATE_LIMIT:
+            return _diagnose_rate_limit(locale, cooldown_remaining_ms)
+        classified_type = _CLASSIFIED_KIND_TYPES.get(kind)
+        if classified_type is not None and not _is_tier_gate(exc, kind):
+            return build_catalog_result(classified_type, locale, cooldown_remaining_ms)
 
         # 10. Generic fallback
         return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=_error_text(exc))

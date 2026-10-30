@@ -38,11 +38,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from myrm_agent_harness.toolkits.llms.errors.classifier import (
-    classify_failover_reason,
-    normalize_provider_error,
-)
+from myrm_agent_harness.toolkits.llms.errors.classifier import classify_failover_reason
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
+from myrm_agent_harness.toolkits.llms.errors.normalize import normalize_provider_error
 from myrm_agent_harness.toolkits.llms.errors.output_limit import parse_output_limit
 from myrm_agent_harness.toolkits.llms.utils.model_utils import get_model_context_limit
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
