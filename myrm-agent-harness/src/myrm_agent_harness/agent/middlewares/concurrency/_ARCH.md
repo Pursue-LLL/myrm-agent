@@ -2,8 +2,8 @@
 
 ## Overview
 
-Concurrency and parallel-execution controls — subagent semaphore limits, safe
-tool dispatch, and smart tool batch routing by path scope and safety metadata.
+Concurrency controls — subagent semaphore limits, and the gate that keeps the tool calls of one agent that are
+not concurrency-safe from overlapping any other call.
 
 Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 
@@ -11,10 +11,10 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `__init__.py` | Package | Public exports for concurrency factories and stage planners. | — |
+| `__init__.py` | Package | Public exports for the concurrency limiter and the tool conflict gate. | — |
 | `concurrency_limiter.py` | Core | Subagent Semaphore by agent_type; `get_subagent_semaphore` accessor. | ✅ |
-| `concurrency_router.py` | Core | Smart tool routing: host-serial MCP lane awareness, canonical path identity, default CWD scope reservation for omitted paths, cross-platform path line range normalization (`_PATH_LINE_RANGE_PATTERN`), precise `file_read_tool.paths[]` & alias/string conflict modeling, `build_tool_execution_stages()` + `should_parallelize_tool_batch()`. | ✅ |
-| `safety_dispatcher.py` | Core | safe→concurrent / unsafe→serial tool routing middleware factory. | ✅ |
+| `conflict_gate.py` | Core | `ConflictGate`: shared holders run together, an exclusive holder runs alone, admission in arrival order, cancellation-safe. | ✅ |
+| `tool_conflict_gate.py` | Core | `ToolConflictGateMiddleware`: concurrency-safe calls take a shared hold, every other call (undeclared tools and host-serial MCP tools included) an exclusive one; later exclusive calls of a model turn whose earlier exclusive call failed are answered as skipped. | ✅ |
 
 ## Key Dependencies
 

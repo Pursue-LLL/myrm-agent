@@ -1,11 +1,12 @@
-"""Integration tests for parallel tool execution pipeline.
+"""Integration tests for the parallel tool execution pipeline.
 
-Validates the full concurrency control stack:
-1. safety_dispatcher: safe tools run concurrently, unsafe tools serialize
-2. concurrency_limiter: subagent spawn respects per-type semaphore limits
-3. Combined: mixed tool batches execute with correct concurrency behavior
-4. _apply_parallel_tool_calls: monkey-patch injects parallel_tool_calls
-5. Edge cases: missing args, Command returns, handler exceptions
+Validates the concurrency controls around tool calls:
+1. concurrency_limiter: subagent spawn respects per-type semaphore limits
+2. _apply_parallel_tool_calls: monkey-patch injects parallel_tool_calls
+3. Edge cases: missing args, Command returns, handler exceptions
+
+How the calls of one turn share or exclude each other is pinned in ``test_tool_conflict_gate`` and, on the graph a
+run builds, in ``test_shipped_stack_tool_dispatch``.
 """
 
 from __future__ import annotations
@@ -19,9 +20,6 @@ import pytest
 
 from myrm_agent_harness.agent.middlewares.concurrency.concurrency_limiter import (
     create_concurrency_limiter,
-)
-from myrm_agent_harness.agent.middlewares.concurrency.safety_dispatcher import (
-    create_safety_dispatcher,
 )
 
 
@@ -129,153 +127,6 @@ class TestConcurrencyLimiterMiddleware:
 
 
 # ---------------------------------------------------------------------------
-# Combined safety_dispatcher + concurrency_limiter
-# ---------------------------------------------------------------------------
-
-
-class TestCombinedMiddlewareStack:
-    """Test realistic scenarios with both middlewares chained."""
-
-    @pytest.mark.asyncio
-    async def test_mixed_safe_and_unsafe_tools_parallel(self) -> None:
-        """Simulate LLM returning 4 tool_uses: 2 safe (parallel) + 2 unsafe (serialized)."""
-        safety = create_safety_dispatcher()
-        execution_log: list[str] = []
-
-        async def tracked_handler(req: object) -> str:
-            name = req.tool_call["name"]  # type: ignore[attr-defined]
-            execution_log.append(f"{name}:start")
-            await asyncio.sleep(0.03)
-            execution_log.append(f"{name}:end")
-            return f"{name}:done"
-
-        safe_requests = [
-            _make_request("file_read_tool"),
-            _make_request("grep_tool"),
-        ]
-        unsafe_requests = [
-            _make_request("file_write_tool"),
-            _make_request("bash_code_execute_tool"),
-        ]
-
-        all_requests = safe_requests + unsafe_requests
-        results = await asyncio.gather(*[_invoke_middleware(safety, r, tracked_handler) for r in all_requests])
-
-        assert len(results) == 4
-        assert all(r.endswith(":done") for r in results)
-
-        safe_starts = [i for i, e in enumerate(execution_log) if e in ("file_read_tool:start", "grep_tool:start")]
-        assert len(safe_starts) == 2
-        assert abs(safe_starts[0] - safe_starts[1]) <= 1
-
-        unsafe_events = [
-            e for e in execution_log if e.startswith("file_write_tool") or e.startswith("bash_code_execute_tool")
-        ]
-        assert len(unsafe_events) == 4
-        assert unsafe_events[0].endswith(":start")
-        assert unsafe_events[1].endswith(":end")
-
-    @pytest.mark.asyncio
-    async def test_all_safe_tools_truly_parallel(self) -> None:
-        """5 safe tools should all start before any finishes."""
-        safety = create_safety_dispatcher()
-        start_times: list[float] = []
-        end_times: list[float] = []
-
-        async def timed_handler(req: object) -> str:
-            start_times.append(time.monotonic())
-            await asyncio.sleep(0.05)
-            end_times.append(time.monotonic())
-            return "done"
-
-        safe_tools = ["file_read_tool", "grep_tool", "glob_tool", "web_search_tool", "web_fetch_tool"]
-        requests = [_make_request(t) for t in safe_tools]
-
-        await asyncio.gather(*[_invoke_middleware(safety, r, timed_handler) for r in requests])
-
-        assert len(start_times) == 5
-        assert len(end_times) == 5
-        assert max(start_times) < min(end_times)
-
-    @pytest.mark.asyncio
-    async def test_all_unsafe_tools_fully_serialized(self) -> None:
-        """3 unsafe tools should execute one at a time."""
-        safety = create_safety_dispatcher()
-        execution_log: list[tuple[str, str]] = []
-
-        async def tracked_handler(req: object) -> str:
-            name = req.tool_call["name"]  # type: ignore[attr-defined]
-            execution_log.append((name, "start"))
-            await asyncio.sleep(0.02)
-            execution_log.append((name, "end"))
-            return "done"
-
-        unsafe_tools = ["bash_code_execute_tool", "file_write_tool", "file_edit_tool"]
-        requests = [_make_request(t) for t in unsafe_tools]
-
-        await asyncio.gather(*[_invoke_middleware(safety, r, tracked_handler) for r in requests])
-
-        assert len(execution_log) == 6
-        for i in range(0, 6, 2):
-            assert execution_log[i][1] == "start"
-            assert execution_log[i + 1][1] == "end"
-            assert execution_log[i][0] == execution_log[i + 1][0]
-
-    @pytest.mark.asyncio
-    async def test_mcp_tools_use_fail_closed_serialization(self) -> None:
-        """Unknown MCP tools should be serialized (fail-closed)."""
-        safety = create_safety_dispatcher()
-        execution_log: list[str] = []
-
-        async def tracked_handler(req: object) -> str:
-            name = req.tool_call["name"]  # type: ignore[attr-defined]
-            execution_log.append(f"{name}:start")
-            await asyncio.sleep(0.02)
-            execution_log.append(f"{name}:end")
-            return "done"
-
-        requests = [
-            _make_request("mcp_weather_tool"),
-            _make_request("mcp_database_tool"),
-        ]
-
-        await asyncio.gather(*[_invoke_middleware(safety, r, tracked_handler) for r in requests])
-
-        assert execution_log[0].endswith(":start")
-        assert execution_log[1].endswith(":end")
-
-    @pytest.mark.asyncio
-    async def test_handler_error_in_parallel_does_not_block_others(self) -> None:
-        """One failing safe tool should not prevent others from completing."""
-        safety = create_safety_dispatcher()
-        results: list[str] = []
-
-        async def mixed_handler(req: object) -> str:
-            name = req.tool_call["name"]  # type: ignore[attr-defined]
-            if name == "web_search_tool":
-                raise ValueError("search failed")
-            await asyncio.sleep(0.01)
-            results.append(name)
-            return f"{name}:done"
-
-        requests = [
-            _make_request("file_read_tool"),
-            _make_request("web_search_tool"),
-            _make_request("grep_tool"),
-        ]
-
-        tasks = [_invoke_middleware(safety, r, mixed_handler) for r in requests]
-        gathered = await asyncio.gather(*tasks, return_exceptions=True)
-
-        successful = [r for r in gathered if not isinstance(r, Exception)]
-        errors = [r for r in gathered if isinstance(r, Exception)]
-
-        assert len(successful) == 2
-        assert len(errors) == 1
-        assert isinstance(errors[0], ValueError)
-
-
-# ---------------------------------------------------------------------------
 # Edge cases: handler exceptions, missing args, Command returns
 # ---------------------------------------------------------------------------
 
@@ -341,44 +192,6 @@ class TestConcurrencyLimiterEdgeCases:
 
         result = await _invoke_middleware(middleware, request, handler)
         assert result == command_obj
-
-
-class TestSafetyDispatcherEdgeCases:
-    """Additional edge cases for safety_dispatcher."""
-
-    @pytest.mark.asyncio
-    async def test_handler_returns_command_type(self) -> None:
-        """Safety dispatcher should transparently pass Command return type."""
-        safety = create_safety_dispatcher()
-        command_obj = {"goto": "next_node"}
-        handler = AsyncMock(return_value=command_obj)
-        request = _make_request("file_read_tool")
-
-        result = await _invoke_middleware(safety, request, handler)
-        assert result == command_obj
-
-    @pytest.mark.asyncio
-    async def test_unsafe_handler_exception_does_not_deadlock(self) -> None:
-        """After unsafe handler exception, subsequent calls should still work."""
-        safety = create_safety_dispatcher()
-
-        call_count = 0
-
-        async def handler(req: object) -> str:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise ValueError("first call fails")
-            return "recovered"
-
-        request = _make_request("file_write_tool")
-
-        with pytest.raises(ValueError):
-            await _invoke_middleware(safety, request, handler)
-
-        result = await _invoke_middleware(safety, request, handler)
-        assert result == "recovered"
-        assert call_count == 2
 
 
 # ---------------------------------------------------------------------------

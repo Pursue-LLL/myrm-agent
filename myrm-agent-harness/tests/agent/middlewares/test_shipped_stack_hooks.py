@@ -73,6 +73,13 @@ def step(n: int) -> str:
 
 
 @tool
+def step_again(n: int) -> str:
+    """Record that step *n* ran; a second tool, so that one tool's call-frequency limit is not what a run hits."""
+    RAN.append(n)
+    return f"step {n} done again"
+
+
+@tool
 def leak() -> str:
     """Answer with a credential."""
     return f"the key is {KEY}"
@@ -96,7 +103,11 @@ def _shipped_agent(
     engine: EngineParams | None = None,
 ) -> tuple[ScriptedModel, CompiledStateGraph]:
     return shipped_agent(
-        script, [ping, leak, step, ask_question_tool], checkpointer=checkpointer, without=without, engine=engine
+        script,
+        [ping, leak, step, step_again, ask_question_tool],
+        checkpointer=checkpointer,
+        without=without,
+        engine=engine,
     )
 
 
@@ -240,8 +251,13 @@ async def test_a_hook_hands_back_what_it_changed_not_the_whole_thread(upgraded: 
 async def test_a_tool_call_cap_applies_only_when_it_is_configured(
     engine: EngineParams | None, expected_runs: int
 ) -> None:
-    """35 calls is more than the 30 the engine once defaulted to; with no cap configured every one of them runs."""
-    script = [_tool_call(f"c{n}", "step", n=n) for n in range(1, 36)] + [AIMessage(content="done")]
+    """35 calls is more than the 30 the engine once defaulted to; with no cap configured every one of them runs.
+
+    The calls alternate between two tools: a single tool is limited to 30 calls a minute by the frequency guard, which
+    is not the cap under test.
+    """
+    script = [_tool_call(f"c{n}", "step" if n % 2 else "step_again", n=n) for n in range(1, 36)]
+    script.append(AIMessage(content="done"))
     _, agent = _shipped_agent(script, engine=engine)
 
     await agent.ainvoke({"messages": [HumanMessage(content="step 35 times")]}, {"recursion_limit": 2000})

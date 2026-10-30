@@ -56,7 +56,7 @@ def export_middleware_stack_snapshot() -> list[dict[str, Any]]:
         "FilesystemFileSearchMiddleware",
         "create_context_pipeline_middleware",
         "create_concurrency_limiter",
-        "create_safety_dispatcher",
+        "ToolConflictGateMiddleware",
         "PlanConfirmMiddleware",
         "goal_focus_middleware",
         "subagent_limit_middleware",

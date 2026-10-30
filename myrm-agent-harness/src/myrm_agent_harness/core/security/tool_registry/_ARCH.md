@@ -62,7 +62,7 @@ annotates them as `server_managed` and never forces a declaration on them.
 ## Consumers
 
 - `agent/security/tool_registry.py` — thin facade re-exporting public + private symbols
-- `agent/middlewares/` (safety_dispatcher, concurrency_router, approval, _runtime_tool_governance) — permission/safety resolution
+- `agent/middlewares/` (tool_conflict_gate, approval, _runtime_tool_governance) — permission/safety resolution
 - `toolkits/mcp/tool_processing.py` — PTC dynamic safety registration
 - Host applications — `declare_external_tool` at startup for tools they define
 - `backends/skills/_runtime.py` — TOOL_GROUP_NAMES for skill conditional activation

@@ -19,8 +19,8 @@
   (POS: 用户发起轮在末位 HumanMessage 注入 ACTIVE goal objective；continuation/wrap-up 轮跳过)
 - concurrency.concurrency_limiter::create_concurrency_limiter, (POS: Subagent  Semaphore  SUBAGENT_CONFIGS)
   (POS: Subagent 并发限制器，根据 agent_type 限制并发)
-- concurrency.safety_dispatcher::create_safety_dispatcher (POS: TOOL_SAFETY_METADATA  ToolNode  Lock)
-  (POS: 工具并发安全分层调度，safe→并发/unsafe→Lock 串行)
+- concurrency.tool_conflict_gate::ToolConflictGateMiddleware (POS: TOOL_SAFETY_METADATA  ToolNode  ConflictGate)
+  (POS: 工具冲突闸门，并发安全的调用共享、其余调用独占)
 - subagent_limit_middleware::subagent_limit_middleware (POS: Subagent limit middleware. Ensures the LLM cannot spawn more than MAX_CONCURRENT_SUBAGENTS in a single turn.)
   (POS: LLM Fan-out 保护，限制单轮 delegate_task 调用数)
 - security.tool_result_validator::ValidationResult, (POS: Provides ValidationResult, validate_tool_result, should_apply_validation.)
@@ -33,7 +33,7 @@
 - FilesystemFileSearchMiddleware: 文件系统搜索中间件类
 - create_filesystem_search_middleware(): 文件系统搜索中间件工厂函数
 - create_concurrency_limiter(): Subagent 并发限制中间件工厂函数
-- create_safety_dispatcher(): 工具并发安全分层调度中间件工厂函数
+- ToolConflictGateMiddleware: 工具冲突闸门中间件类
 - get_subagent_semaphore(): 获取特定 agent_type 的 semaphore
 - PlanConfirmMiddleware: Plan-phase HITL 中间件类
 - reset_plan_confirm_state(): 重置 plan confirm 状态
@@ -67,8 +67,8 @@ from myrm_agent_harness.agent.middlewares.concurrency.concurrency_limiter import
     create_concurrency_limiter,
     get_subagent_semaphore,
 )
-from myrm_agent_harness.agent.middlewares.concurrency.safety_dispatcher import (
-    create_safety_dispatcher,
+from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import (
+    ToolConflictGateMiddleware,
 )
 from myrm_agent_harness.agent.middlewares.context_pipeline.context_pipeline_middleware import (
     create_context_pipeline_middleware,
@@ -132,7 +132,7 @@ __all__ = [
     "create_context_pipeline_middleware",
     "create_filesystem_search_middleware",
     "create_moa_advisor_middleware",
-    "create_safety_dispatcher",
+    "ToolConflictGateMiddleware",
     "debug_logger_middleware",
     "get_approval_rate_limiter",
     "get_delegation_token",

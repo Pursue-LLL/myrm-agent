@@ -10,6 +10,11 @@
     "type": "class"
   },
   {
+    "present": true,
+    "symbol": "ToolConflictGateMiddleware",
+    "type": "class"
+  },
+  {
     "present": false,
     "symbol": "clarification_guard_middleware",
     "type": "function"
@@ -22,11 +27,6 @@
   {
     "present": true,
     "symbol": "create_context_pipeline_middleware",
-    "type": "function"
-  },
-  {
-    "present": true,
-    "symbol": "create_safety_dispatcher",
     "type": "function"
   },
   {

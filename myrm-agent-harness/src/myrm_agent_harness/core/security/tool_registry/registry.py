@@ -79,7 +79,7 @@ Safety metadata declares all built-in tools with four categories:
 read-only concurrent-safe, concurrent-safe with side effects, destructive,
 and stateful. resolve_safety_metadata uses four-level fallback:
 built-in static registry → MCP dynamic registry → host declarations → fail-closed defaults.
-Used by safety_dispatcher middleware for concurrency control.
+Used by ToolConflictGateMiddleware for concurrency control.
 The dynamic MCP tool safety store lives in ``ptc_safety.py``; this module re-exports it with the other tables.
 """
 

@@ -38,7 +38,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `tooling/` | Single interception point for all tool calls: interceptor, executor, history hygiene, dangling-call repair, skill attenuation, and their guards/helpers. See [tooling/_ARCH.md](tooling/_ARCH.md). |
 | `context_pipeline/` | Request-time context assembly and budget (compression intent, cache feedback, schema fingerprint). See [context_pipeline/_ARCH.md](context_pipeline/_ARCH.md). |
 | `memory_context/` | User memory injection into model calls (`<user_memory_context>`, scope boundary, untrusted wrapping, telemetry). See [memory_context/_ARCH.md](memory_context/_ARCH.md). |
-| `concurrency/` | Subagent semaphore limits, safe tool dispatch, parallel tool batch routing. See [concurrency/_ARCH.md](concurrency/_ARCH.md). |
+| `concurrency/` | Subagent semaphore limits and the tool conflict gate (concurrency-safe calls share, every other call runs alone). See [concurrency/_ARCH.md](concurrency/_ARCH.md). |
 | `security/` | Security enforcement middleware: boundary rules injection + eight-layer guardrail defense. See [security/_ARCH.md](security/_ARCH.md). |
 
 ## Key Dependencies

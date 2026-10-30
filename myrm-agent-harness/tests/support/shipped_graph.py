@@ -7,7 +7,7 @@
 [OUTPUT]
 - ScriptedModel: answers from a script and records what each call was sent
 - shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools
-- shipped_session: the session context of a run that may use tools without asking, restored on exit
+- shipped_session: the session context of a run that may use tools without asking, with its own call-frequency window
 - yolo_config: the security config of such a run
 
 [POS]
@@ -40,6 +40,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     set_security_config,
     set_workspace_root,
 )
+from myrm_agent_harness.agent.security.guards.frequency_guard import isolated_frequency_guard
 from myrm_agent_harness.agent.security.types import PrivacyPolicy, SecurityConfig
 from myrm_agent_harness.agent.types import EngineParams
 from myrm_agent_harness.core.security.audit import reset_audit_log
@@ -92,14 +93,19 @@ def yolo_config(policy: PrivacyPolicy | None = None) -> SecurityConfig:
 
 @contextmanager
 def shipped_session(workspace: Path) -> Iterator[None]:
-    """The session context of a run in *workspace* that may use tools without asking; restored on exit."""
+    """The session context of a run in *workspace* that may use tools without asking; restored on exit.
+
+    The run gets a call-frequency window of its own: the guard lives in a context variable that an earlier test of the
+    process may have set, and its per-tool limit would then count the calls of tests that share nothing with this one.
+    """
     reset_terminal_errors()
     reset_audit_log()
     reset_privacy_tracker()
     set_security_config(yolo_config())
     set_workspace_root(str(workspace))
     try:
-        yield
+        with isolated_frequency_guard():
+            yield
     finally:
         set_security_config(None)
         set_canary_token("")

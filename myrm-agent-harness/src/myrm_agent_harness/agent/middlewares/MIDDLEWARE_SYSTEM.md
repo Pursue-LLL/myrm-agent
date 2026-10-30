@@ -8,7 +8,7 @@
 
 1. **单一工具拦截点**：`tool_interceptor_middleware` 编排所有 guard，避免分散 patch
 2. **可组合**：各 middleware 独立文件，通过 `_factory/builder.py` 或 Server 注入组装
-3. **安全 fail-closed**：`safety_dispatcher` 未知工具默认串行；security 层验证 tool result
+3. **安全 fail-closed**：`ToolConflictGateMiddleware` 对未知工具默认独占运行；security 层验证 tool result
 4. **Cache 安全**：context/progress/replan 类 middleware 通过 `request.override` 注入 HumanMessage，不污染 system 前缀
 
 ---
@@ -40,7 +40,7 @@
 │ completion_guard                        │  ← 完成门控 + 外部证据门控 + 混合消息 guard
 │ completion_directive_middleware         │  ← 被拦草稿的复核指令，仅随下一次模型请求送达
 │ rate_limit                              │  ← Provider 429 主动节流
-│ concurrency/ (safety_dispatcher + router)│  ← 工具并发安全路由
+│ concurrency/ (tool_conflict_gate)        │  ← 并发安全的调用共享，其余调用独占
 │ debug_logger_middleware (dev)           │
 └─────────────────────────────────────────┘
     │
@@ -66,7 +66,7 @@
 | `completion/` | 完成验证门子系统：`completion_guard/guard.py`（代码任务完成验证门 + 外部证据缺失门控（web/browser/MCP：PTC bash `skills.mcp_*` 或 Direct FC `mcp__{server}__{tool}`；自有项目/材料与纯文本改写请求豁免，触发判定见 `completion_guard/freshness.py`，词表覆盖英文、简体与繁体中文）+ 未落盘交付物门控与自动暂存保全（只对能落盘的运行生效：挂载 `file_write_tool` 且策略未禁止 `file_write`；不能落盘的运行不被要求写文件、也不被强制暂存；虚假“已保存”声称对所有运行照常拦截）；各项要求只对能满足它的运行提出（`completion_guard/capabilities.py` 的 `CompletionCapabilities`，由 `_agent_build.build_middlewares` 按注册表与策略逐次判定）：没有任何可产出证据工具的运行只被提醒一次“如实说明无法核实”，之后放行+ **执行断言接地门**（三类承重断言——验证结论/外发动作/代码修改——与本轮执行轨迹对齐，命中即要求取证或诚实改写）；Mixed Message Guard（保留变异调用 `is_mutating_tool` registry fail-closed + 交互/UI 承载工具，仅剥离确定无副作用无交互的只读工具；证据缺失或断言无法接地时保留只读 tool_calls 防未核实内容直达用户））、`completion_guard/capabilities.py`（运行能力探针：能否保有 todo 清单/落盘/取证）、`completion_guard/hold_back.py`（被拦草稿的去向与指令挂靠位置：有文字的草稿保留、不带文字的结束工具草稿移出会话）、`completion_guard/mixed_message.py`（Mixed Message Guard 的剥离判定）、`completion_guard/checklist/`（子包：`assessment.py` 验证清单与拦截原因，`record_rules.py` 判定它的规则）与 `completion_guard/verification.py`（验证清单、判定它的规则——最后一次代码写入之后有没有通过的验证、各验证类别的最新结果、最后一次写入之后仍然成立的失败（写入之前的探索性失败与已被同一调用重试成功的失败不拦）——与验证命令分类）、`completion_guard/external_evidence.py`（外部证据判定）、`completion_guard/directive.py`（`BlockReasons` 与按拦截原因渲染的模型侧复核指令、无原因时的验证清单回退）、`completion_guard/directive_middleware.py`（复核指令随下一次模型请求送达，不入会话）、`completion_guard/events.py`（`completion_guard` 决策事件 + `answer_recheck` 重启状态）、`completion_guard/freshness.py`（外部证据门的触发规则：词表 + 自有工作/文本改写豁免 + 「今天/现在」类短问句分支（求建议与超过 200 字的粘贴材料不算），带人工标注回归集）、`completion_guard/rerun.py`（修改代码后、且没有别的问题时，在沙箱里独立复跑最近一次验证命令；复跑通过只能解除“代码改在最后一次通过的验证之后”这一件事）、`completion_guard/state.py`（按轮次消息 id 分桶的拦截预算与强制收尾闩锁 + 整轮调用账本（按调用顺序、按记录对象身份合并；所有拦截判定读它，而不是 LoopGuard 只留最近 20 条的窗口）+ 每轮证据档/暂存披露登记，`attach_disclosure_to_event` 供 `message_end` 事件消费）、`execution_claim/verifier.py`（断言接地判定：真实测试运行器约束、零用例否决、外发动作证据集、引用/条件/否定/讲解排除与需求侧意图收口）、`completion_guard/safety.py`（effectful 工具判定 SSOT，供 Mixed Message Guard 与 server Cron 后验消费）、`deliverable/auto_staging.py`（未落盘交付物沙箱草案自动安全暂存与 LRU 保护）、`deliverable/confidence_tier.py`（交付置信档解析 + 披露策略：证据档总是展示，PLAN 档仅在回答含完成式断言时展示）、`deliverable/write_verifier.py`（写盘声称检测与实质未落盘交付物代码块启发式嗅探） |
 | `context_pipeline/` | `context_pipeline_middleware.py`（桥接 `context_management/pipeline/`）、`context_pipeline_helpers.py`（压缩意图/cache feedback/schema fingerprint） |
 | `memory_context/` | `memory_context_middleware.py`（记忆上下文注入编排，首轮 LLM 前 idempotent 注入）、`memory_context_format.py`（注入格式化纯函数：stable SystemMessage / learned UNTRUSTED HumanMessage） |
-| `concurrency/` | `concurrency_limiter.py`（按 agent_type Semaphore）、`concurrency_router.py`（智能并发路由：host-serial MCP lane + canonical path + `build_tool_execution_stages`）、`safety_dispatcher.py`（safe→concurrent / unsafe→serial） |
+| `concurrency/` | `concurrency_limiter.py`（按 agent_type Semaphore）、`conflict_gate.py`（先到先得的共享/独占闸门，取消安全）、`tool_conflict_gate.py`（并发安全的调用共享、其余调用——含未声明工具与 host-serial MCP 工具——独占，永不与同一 Agent 的任何其他调用重叠；契约是互斥而不是调用顺序；同一轮里先前的独占调用失败后，后到的独占调用以 `[SKIPPED]` 作答；装配在 `tool_interceptor_middleware` 外侧，调用等待期间超时不计时） |
 | `security/` | `security_boundary_middleware.py`（SECURITY_BOUNDARY_SYSTEM_RULES 每次运行注入一次，state 以追加方式合并，落在最新用户消息之后）、`security_guardrail_middleware.py`（八层防御：circuit-breaker cognition / intent router / prompt guard / PII / leak / canary / history redact）、`user_input_guard.py`（意图 / 注入 / PII 三层筛查用户亲写消息，文本或图文块均可；runtime 追加的 `is_system_synthetic` 消息不筛。最新一条完整筛查：审计、日志、安全告诫前缀与 PII 改写只在该输入的首次模型调用写入，之后每轮工具调用字节不变；更早的用户消息随历史在每轮再次送入模型，故静默执行同一策略（PII 改写；注入 / 危险意图为 `fail_closed` 时拦截），不写审计、日志与告诫，且无任何策略生效时整段跳过）、`pii_actions.py`（按级别执行 warn / redact / pseudonymize / block，入站、出站、工具结果与模型调用出口共用）、`outbound_privacy_guard.py`（模型调用出口闸门：注册到 `toolkits.llms` 的 `outbound_guard`，对每一次 ChatLiteLLM 调用的非 system 消息按隐私策略处理（直连 litellm / 厂商 SDK 的调用与 embedding、语音、图像、视频等非对话调用不经过它）——运行策略优先，其次进程级策略；与主循环同一动作语义，主循环已处理过的文本字节不变，不伤 prompt cache；主循环自带 `privacy_enforced_by_loop` 标记避免重复处理；出错即中止调用，不放行）、`text_blocks.py`（文本与图文块内容的统一文本变换） |
 | `subagent_limit_middleware.py` | 单轮 delegate 上限 |
 | `plan_confirm_middleware.py` | 计划阶段人机协同确认与重大 Re-plan 拦截门禁 |

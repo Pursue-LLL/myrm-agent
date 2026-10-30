@@ -109,6 +109,17 @@ class TestBuildMiddlewares:
         assert class_names[-3:-1] == ["SkillAttenuationMiddleware", "stringified_json_args_middleware"]
         assert class_names.index("SkillAttenuationMiddleware") > class_names.index("ToolApprovalMiddleware")
 
+    def test_conflict_gate_wraps_the_interceptor_so_waiting_does_not_run_down_a_call_timeout(self):
+        from myrm_agent_harness.agent._internals.agent_runtime import (
+            build_middlewares,
+            create_registry,
+        )
+
+        class_names = _middleware_class_names(build_middlewares(create_registry(), []))
+        gate = class_names.index("ToolConflictGateMiddleware")
+        assert class_names[gate - 1] == "SubagentLimitMiddleware"
+        assert class_names[gate + 1] == "tool_interceptor_middleware"
+
     def test_contains_core_middlewares(self):
         from myrm_agent_harness.agent._internals.agent_runtime import (
             build_middlewares,

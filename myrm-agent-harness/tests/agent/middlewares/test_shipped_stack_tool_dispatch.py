@@ -14,14 +14,19 @@ from pathlib import Path
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from langchain_core.tools import tool
+from langchain_core.tools import ToolException, tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command, interrupt
 
+from myrm_agent_harness.agent.middlewares.tooling import tool_executor
 from myrm_agent_harness.agent.security.tool_registry import TOOL_SAFETY_METADATA, SafetyMetadata
 from tests.support.shipped_graph import shipped_agent, shipped_session
 
-HOLD_SECONDS = 0.08
+HOLD_SECONDS = 0.15
+# Two slow calls one after the other take longer than SLOW_TOOL_TIMEOUT, each one alone takes less; the margins are
+# wide so that a busy machine does not tip a call over its timeout.
+SLOW_HOLD_SECONDS = 0.6
+SLOW_TOOL_TIMEOUT = 0.9
 
 
 class Probe:
@@ -31,14 +36,15 @@ class Probe:
         self.running: list[str] = []
         self.together: list[frozenset[str]] = []
         self.finished: list[str] = []
+        self.ran: list[str] = []
         self.received: dict[str, object] = {}
 
-    async def hold(self, name: str) -> None:
+    async def hold(self, name: str, seconds: float = HOLD_SECONDS) -> None:
         self.running.append(name)
         if len(self.running) > 1:
             self.together.append(frozenset(self.running))
         try:
-            await asyncio.sleep(HOLD_SECONDS)
+            await asyncio.sleep(seconds)
         finally:
             self.running.remove(name)
             self.finished.append(name)
@@ -79,11 +85,43 @@ async def write_two(tag: str) -> str:
 
 
 @tool
+async def slow_write_one(tag: str) -> str:
+    """Change the first target slowly."""
+    await PROBE.hold("slow_write_one", SLOW_HOLD_SECONDS)
+    return "slowly wrote one"
+
+
+@tool
+async def slow_write_two(tag: str) -> str:
+    """Change the second target slowly."""
+    await PROBE.hold("slow_write_two", SLOW_HOLD_SECONDS)
+    return "slowly wrote two"
+
+
+@tool
 async def write_after_asking(tag: str) -> str:
     """Change a target once the user agreed."""
     answer = interrupt({"question": "go ahead?"})
     await PROBE.hold("write_after_asking")
     return f"wrote after {answer}"
+
+
+@tool
+async def fail_one(tag: str) -> str:
+    """Change the first target, which fails."""
+    PROBE.ran.append("fail_one")
+    raise ToolException("fail_one failed")
+
+
+@tool
+async def fail_two(tag: str) -> str:
+    """Change the second target, which fails."""
+    PROBE.ran.append("fail_two")
+    raise ToolException("fail_two failed")
+
+
+fail_one.handle_tool_error = True
+fail_two.handle_tool_error = True
 
 
 @tool
@@ -100,9 +138,21 @@ async def filter_rows(filters: dict[str, str], tag: str) -> str:
     return "selected"
 
 
-TOOLS = [read_one, read_two, write_one, write_two, write_after_asking, collect, filter_rows]
+TOOLS = [
+    read_one,
+    read_two,
+    write_one,
+    write_two,
+    slow_write_one,
+    slow_write_two,
+    write_after_asking,
+    fail_one,
+    fail_two,
+    collect,
+    filter_rows,
+]
 READERS = {"read_one", "read_two"}
-WRITERS = {"write_one", "write_two", "write_after_asking"}
+WRITERS = {"write_one", "write_two", "slow_write_one", "slow_write_two", "write_after_asking", "fail_one", "fail_two"}
 
 
 @pytest.fixture(autouse=True)
@@ -145,6 +195,33 @@ async def test_mutating_calls_of_one_turn_never_run_at_the_same_time() -> None:
 
     assert sorted(m.content for m in answers) == ["wrote one", "wrote two"]
     assert PROBE.together == []
+
+
+async def test_a_mutating_call_never_runs_while_a_read_only_call_of_the_same_turn_does() -> None:
+    answers = await _run("mixed", read_one={}, write_one={}, read_two={})
+
+    assert sorted(m.content for m in answers) == ["read one", "read two", "wrote one"]
+    assert not PROBE.overlapped("write_one", "read_one")
+    assert not PROBE.overlapped("write_one", "read_two")
+
+
+async def test_a_call_waiting_for_another_does_not_spend_its_timeout_waiting_and_is_not_run_twice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tool_executor, "get_tool_timeout", lambda name, args: SLOW_TOOL_TIMEOUT)
+
+    answers = await _run("slow", slow_write_one={}, slow_write_two={})
+
+    assert [m.status for m in answers] == ["success", "success"]
+    assert sorted(PROBE.finished) == ["slow_write_one", "slow_write_two"]
+
+
+async def test_when_a_mutating_call_fails_the_turns_other_mutating_call_is_skipped_not_run() -> None:
+    answers = await _run("failing", fail_one={}, fail_two={})
+
+    assert len(PROBE.ran) == 1
+    assert sorted(m.status for m in answers) == ["error", "error"]
+    assert sorted("[SKIPPED]" in str(m.content) for m in answers) == [False, True]
 
 
 async def test_a_list_argument_sent_as_a_json_string_reaches_the_tool_as_a_list() -> None:
