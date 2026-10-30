@@ -8,6 +8,8 @@ from myrm_agent_harness.agent.meta_tools.skills.search.engine import (
 )
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 
+from .fixtures import create_comprehensive_mock_skills
+
 
 @pytest.fixture
 def sample_skills() -> list[SkillMetadata]:
@@ -112,9 +114,7 @@ class TestSkillSearchEngine:
         assert all("railway" in result.name.lower() or "railway" in result.description.lower() for result in results)
 
     def test_required_term_is_filtered_before_top_k(self) -> None:
-        skills = [
-            SkillMetadata(name=f"generic_{idx}_skill", description=f"generic result {idx}") for idx in range(20)
-        ]
+        skills = [SkillMetadata(name=f"generic_{idx}_skill", description=f"generic result {idx}") for idx in range(20)]
         skills.append(SkillMetadata(name="needle_skill", description="needle capability"))
         engine = SkillSearchEngine(skills, min_relevance_score=-1.0)
         results = engine.search_bm25("+needle generic", top_k=5)
@@ -256,3 +256,25 @@ class TestSkillSearchEngine:
         results = engine.search_bm25("railway ticket", top_k=3)
         assert results
         assert engine._expander is None
+
+
+class TestSnakeCaseIdentifiers:
+    """A raw ``snake_case`` name typed as a query must find the skill that bears it."""
+
+    @pytest.fixture
+    def corpus(self) -> list[SkillMetadata]:
+        skills = [s for s in create_comprehensive_mock_skills() if "_" in s.name]
+        assert len(skills) > 100  # guards against the fixture silently shrinking
+        return skills
+
+    @pytest.fixture
+    def engine(self) -> SkillSearchEngine:
+        return SkillSearchEngine(create_comprehensive_mock_skills())
+
+    def test_raw_name_query_ranks_its_skill_in_top_three(self, corpus, engine) -> None:
+        misses = [s.name for s in corpus if s.name not in [r.name for r in engine.search_bm25(s.name, top_k=3)]]
+        assert not misses
+
+    def test_upper_case_raw_name_query_ranks_its_skill_in_top_three(self, corpus, engine) -> None:
+        misses = [s.name for s in corpus if s.name not in [r.name for r in engine.search_bm25(s.name.upper(), top_k=3)]]
+        assert not misses

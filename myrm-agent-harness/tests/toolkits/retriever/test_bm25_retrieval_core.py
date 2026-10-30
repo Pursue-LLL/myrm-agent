@@ -81,3 +81,25 @@ def test_bm25_retriever_query_empty_after_preprocess() -> None:
     retriever = BM25Retriever(["valid document"])
     assert retriever.search("!!!") == []
 
+
+def test_bm25_retriever_keeps_document_term_frequency() -> None:
+    """A document that repeats the query term outranks a shorter single mention.
+
+    With duplicates dropped from documents the shorter one wins on length alone,
+    so this ordering only holds when term frequency reaches the scorer.
+    """
+    repeated = "cloud cloud cloud alpha beta gamma"
+    single = "cloud delta epsilon"
+    fillers = [
+        "weather forecast report",
+        "email send message",
+        "database query tool",
+        "image resize filter",
+        "calendar event invite",
+        "payment refund flow",
+    ]
+    retriever = BM25Retriever([repeated, single, *fillers])
+
+    ranked = [index for index, _score in retriever.search("cloud", top_k=2)]
+
+    assert ranked == [0, 1]

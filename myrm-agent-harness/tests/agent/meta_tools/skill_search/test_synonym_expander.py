@@ -79,43 +79,23 @@ class TestSynonymExpander:
         assert "auth token" in expanded
         assert any("authentication token" in q for q in expanded)
 
-    def test_hardcoded_fallback_when_config_empty(self) -> None:
-        """Use built-in mappings when external config sections are empty."""
-        from unittest.mock import patch
+    def test_shipped_config_is_loaded(self) -> None:
+        """The packaged synonyms.yaml is the only source; an empty load would silence expansion."""
+        expander = SynonymExpander()
+        assert len(expander._all_synonyms) > 100
+        assert "数据库" in expander._all_synonyms
+        assert "database" in expander._all_synonyms
 
-        from myrm_agent_harness.agent.meta_tools.skills.search.config_loader import (
-            ConfigLoader,
-        )
+    def test_missing_config_leaves_expander_inert(self, tmp_path) -> None:
+        """No built-in copy of the tables: a missing file means no expansion, not stale defaults."""
+        expander = SynonymExpander(config_path=tmp_path / "absent.yaml")
+        assert expander.expand("database") == ["database"]
 
-        with patch.object(
-            ConfigLoader,
-            "load_synonyms",
-            return_value={"english": {}, "chinese": {}, "typos": {}},
-        ):
-            expander = SynonymExpander()
-        expanded = expander.expand("database")
-        assert "database" in expanded
-        assert any("db" in q for q in expanded)
+    def test_custom_config_path_is_honored(self, tmp_path) -> None:
+        config = tmp_path / "synonyms.yaml"
+        config.write_text("english:\n  widget: [gadget]\nchinese:\n  部件: [component]\n", encoding="utf-8")
 
-    def test_external_config_loading(self) -> None:
-        """Test that external config can be loaded"""
-        from pathlib import Path
+        expander = SynonymExpander(config_path=config)
 
-        config_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "src"
-            / "myrm_agent_harness"
-            / "agent"
-            / "meta_tools"
-            / "skills"
-            / "search"
-            / "config"
-            / "synonyms.yaml"
-        )
-
-        if config_path.exists():
-            expander = SynonymExpander(config_path=config_path)
-            # Should have loaded from external config
-            expanded = expander.expand("数据库")
-            assert "数据库" in expanded
-            assert any("database" in q or "db" in q for q in expanded)
+        assert expander.expand("widget") == ["widget", "gadget"]
+        assert expander.expand("部件") == ["部件", "component"]

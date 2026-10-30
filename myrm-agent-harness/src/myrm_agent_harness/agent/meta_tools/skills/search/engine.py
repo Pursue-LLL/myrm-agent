@@ -33,6 +33,16 @@ DEFAULT_BM25_MIN_RELEVANCE_SCORE = 0.5
 MCP_TOOL_SHORT_DESC_MAX_CHARS = 80
 
 
+def _split_snake_case(text: str) -> str:
+    """Read ``snake_case`` identifiers as separate words.
+
+    Index text and queries share this one rule, so a caller who types ``get_issue`` hits the
+    words of ``get issue`` whichever form the document spelled out. Nothing else about the
+    query is rewritten: case, hyphens, versions and URLs reach the tokenizer as typed.
+    """
+    return text.replace("_", " ")
+
+
 def _truncate_tool_desc(description: str, max_chars: int = MCP_TOOL_SHORT_DESC_MAX_CHARS) -> str:
     text = " ".join((description or "").split())
     if not text:
@@ -48,13 +58,13 @@ def _truncate_tool_desc(description: str, max_chars: int = MCP_TOOL_SHORT_DESC_M
 
 def _build_skill_index_document(skill: SkillMetadata) -> str:
     """Build BM25 index text for a skill; enrich MCP skills with tool-level tokens."""
-    base = f"{skill.name.replace('_', ' ')} {skill.description}"
+    base = f"{_split_snake_case(skill.name)} {skill.description}"
     if not skill.mcp or not skill.mcp.tools:
         return base
     tool_schemas = skill.mcp.tool_schemas or {}
     tool_parts: list[str] = []
     for tool_name in skill.mcp.tools:
-        token = tool_name.replace("_", " ")
+        token = _split_snake_case(tool_name)
         schema_entry = tool_schemas.get(tool_name)
         if not isinstance(schema_entry, dict):
             tool_parts.append(token)
@@ -93,7 +103,6 @@ class SkillSearchEngine:
         self._min_relevance_score = min_relevance_score
         self._enable_expansion = enable_query_expansion
         self._expander = QueryExpander() if enable_query_expansion else None
-        # Normalize skill names: replace underscores with spaces for better tokenization
         self._documents = [_build_skill_index_document(s) for s in self._skills]
         self._retriever = BM25Retriever(self._documents)
         logger.info(
@@ -135,6 +144,7 @@ class SkillSearchEngine:
             )[:top_k]
 
         start_time = time.perf_counter()
+        query = _split_snake_case(query)
 
         # Query expansion if enabled
         if self._enable_expansion and self._expander:
@@ -224,11 +234,7 @@ class SkillSearchEngine:
         if not required_terms:
             return results
         by_name = {skill.name: self._documents[idx].lower() for idx, skill in enumerate(self._skills)}
-        return [
-            result
-            for result in results
-            if all(term in by_name.get(result.name, "") for term in required_terms)
-        ]
+        return [result for result in results if all(term in by_name.get(result.name, "") for term in required_terms)]
 
     def search_regex(self, pattern: str, top_k: int = SKILL_SEARCH_TOP_K) -> list[SkillSearchResult]:
         """Regex 模式匹配搜索

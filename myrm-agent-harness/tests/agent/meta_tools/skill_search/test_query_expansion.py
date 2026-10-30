@@ -13,7 +13,6 @@ class TestQueryExpander:
         """Test expander initialization with modular components"""
         expander = QueryExpander()
         assert expander is not None
-        assert expander._normalizer is not None
         assert expander._typo_corrector is not None
         assert expander._synonym_expander is not None
 
@@ -58,24 +57,25 @@ class TestQueryExpander:
         assert expanded == [""]
 
     def test_no_expansion_needed(self) -> None:
-        """Test query with no known synonyms (underscores normalized to spaces)"""
+        """A query with no known synonyms or typos comes back exactly as written"""
         expander = QueryExpander()
-        expanded = expander.expand("unknown_term_xyz")
-        # Underscores are replaced with spaces during normalization
-        assert expanded == ["unknown term xyz"]
+        assert expander.expand("unknown_term_xyz") == ["unknown_term_xyz"]
+
+    def test_query_text_is_not_rewritten(self) -> None:
+        """Case, punctuation, versions and hyphenated names reach BM25 untouched"""
+        expander = QueryExpander()
+        for query in ("Parse docs.litellm.ai/release_notes v1.77.2", "pptx-editor camelCaseName", "Python 3.13"):
+            assert expander.expand(query)[0] == query
+
+    def test_typo_correction_ignores_case(self) -> None:
+        expander = QueryExpander()
+        assert "kubernetes cluster" in expander.expand("Kubernets cluster")
 
     def test_expansion_limit(self) -> None:
         """Test expansion is limited to 5 variations"""
         expander = QueryExpander()
         expanded = expander.expand("api")
         assert len(expanded) <= 5
-
-    def test_preprocess(self) -> None:
-        """Test query preprocessing"""
-        expander = QueryExpander()
-        assert expander.preprocess("  multiple   spaces  ") == "multiple spaces"
-        assert expander.preprocess("query") == "query"
-        assert expander.preprocess("") == ""
 
 
 class TestQueryExpansionIntegration:
@@ -149,9 +149,7 @@ class TestAdaptiveExpansion:
 
         # Multilingual format should skip synonym expansion
         expanded = expander.expand("火车票/railway/train")
-        # Should only include normalized version (no synonyms added)
-        # Normalized: removes "/" but doesn't add synonyms
-        assert len(expanded) <= 2  # Original + maybe typo-corrected, but no synonyms
+        assert expanded == ["火车票/railway/train"]
 
     def test_adaptive_strategy_comparison(self) -> None:
         """Compare expansion behavior for different query formats"""
@@ -165,9 +163,8 @@ class TestAdaptiveExpansion:
         multi_expanded = expander.expand("票/ticket/booking")
         multi_count = len(multi_expanded)
 
-        # Single keyword should have more expansions (synonyms added)
-        # Multilingual should be minimal (only normalization)
-        assert single_count >= multi_count
+        # Single keyword gets synonym variations; the multilingual format stays as written
+        assert single_count > multi_count == 1
 
     def test_adaptive_logs_decision(self, caplog) -> None:
         """Verify adaptive decision is logged for observability"""

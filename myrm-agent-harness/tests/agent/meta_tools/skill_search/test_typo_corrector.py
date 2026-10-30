@@ -55,3 +55,21 @@ class TestTypoCorrector:
         corrector = TypoCorrector()
         assert corrector.correct("databse query") == "database query"
         assert corrector.correct("postgress backup") == "postgres backup"
+
+    def test_correct_ignores_case(self) -> None:
+        """Queries reach the corrector as typed, so lookup must not depend on case."""
+        corrector = TypoCorrector()
+        assert corrector.correct("Kubernets") == "kubernetes"
+        assert corrector.correct("POSTGRESS backup") == "postgres backup"
+
+    def test_correct_keeps_untouched_query_verbatim(self) -> None:
+        """Without a typo the original text, punctuation included, is returned as is."""
+        corrector = TypoCorrector()
+        assert corrector.correct("k8s-deployment v1.2") == "k8s-deployment v1.2"
+
+    def test_shipped_config_is_loaded(self) -> None:
+        assert len(TypoCorrector()._corrections) > 10
+
+    def test_missing_config_leaves_corrector_inert(self, tmp_path) -> None:
+        corrector = TypoCorrector(config_path=tmp_path / "absent.yaml")
+        assert corrector.correct("databse") == "databse"

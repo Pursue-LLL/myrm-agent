@@ -254,8 +254,7 @@ def preprocess_text(text: str, *, dedupe: bool = True) -> list[str]:
 
     Args:
         text: Raw text
-        dedupe: Drop duplicate tokens (BM25Okapi dedupes on its own; the sparse
-            index passes ``dedupe=False`` to keep term frequencies)
+        dedupe: Drop duplicate tokens; documents pass False so BM25 sees term frequency.
 
     Returns:
         List of tokens
@@ -370,7 +369,7 @@ class BM25Retriever:
             documents: List of documents, each a string
         """
         self.documents = documents
-        self.processed_docs = [preprocess_text(doc) for doc in documents]
+        self.processed_docs = [preprocess_text(doc, dedupe=False) for doc in documents]
 
         # Filter empty documents
         valid_indices = [i for i, doc in enumerate(self.processed_docs) if doc]
