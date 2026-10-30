@@ -38,7 +38,10 @@ If cua-driver fails for any individual action, it transparently falls back to th
 - `pyobjc-framework-Quartz` (macOS input simulation — native CGEvent, avoids rubicon-objc arm64 bug)
 - `pyautogui` (Windows input simulation — native fallback)
 - `uiautomation` (Windows accessibility text extraction, optional)
-- `xdotool` (Linux input simulation)
+- `xdotool` (Linux key and mouse input, active window)
+- `scrot` or `gnome-screenshot` (Linux screen capture)
+- `xclip` (Linux clipboard paste for text containing non-ASCII characters)
+- `x11-utils` — `xprop` and `xdpyinfo` (Linux foreground window class and screen size)
 - `cua-driver` (macOS/Windows/Linux background input, optional, MIT license)
 - `mcp` (Python MCP SDK, required only when cua-driver is used)
 - `computer_use.capture_probe` + Pillow (optional decode) when `probe_capture=True`
