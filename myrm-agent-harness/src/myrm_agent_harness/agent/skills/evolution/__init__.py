@@ -12,6 +12,7 @@ Core features:
 from .core.engine import SkillEvolutionEngine
 from .core.gene_bank import GeneBankArchive
 from .core.proposal_builder import ProposalBuilder
+from .core.skill_on_disk import skill_from_disk
 from .core.types import (
     EvolutionLayer,
     EvolutionProposal,
@@ -78,4 +79,5 @@ __all__ = [
     "get_evolution_queue",
     "get_global_evolution_integration",
     "parse_multi_file_full",
+    "skill_from_disk",
 ]

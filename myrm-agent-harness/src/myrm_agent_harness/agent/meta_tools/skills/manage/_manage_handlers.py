@@ -5,6 +5,7 @@
 - backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
 - agent.context_management.context::extract_context_from_runnable_config (POS: Context extraction helper)
 - utils.fuzzy_match::fuzzy_replace (POS: Progressive fuzzy replace utility)
+- agent.skills.evolution.core.skill_on_disk::skill_from_disk (POS: The SKILL.md of a skill as it is on disk, the text and the evolution lock the evolution engine works from)
 
 [OUTPUT]
 - SkillContentSource: Where a patch reads the SKILL.md it edits
@@ -16,7 +17,7 @@
 - _handle_delete: Remove a skill
 - _handle_write_file: Add or overwrite a supporting file
 - _handle_remove_file: Delete a supporting file
-- _handle_evolution_lock: Toggle evolution lock on a skill
+- _handle_evolution_lock: Set or clear the store's evolution lock of a skill; unlock reports a lock the skill's file still holds
 
 [POS]
 Internal handlers and validation logic for skill_manage_tool actions (save, patch, delete, write_file, remove_file, lock, unlock).
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import replace
 from typing import TYPE_CHECKING, Protocol
 
 from langchain_core.runnables import RunnableConfig
@@ -237,13 +239,14 @@ async def _handle_remove_file(write_backend: ScanningSkillWriteBackend, name: st
 
 
 async def _handle_evolution_lock(name: str, *, locked: bool) -> str:
-    """Handle the 'lock'/'unlock' action: toggle evolution lock on a skill.
+    """Handle the 'lock'/'unlock' action: set or clear the evolution lock the store holds for a skill.
 
-    Uses the global evolution integration's SkillStore to set/unset the lock.
-    Locked skills are protected from auto-evolution (FIX/DERIVED), preserving
-    user-edited content.
+    Locked skills are protected from auto-evolution (FIX/DERIVED), preserving user-edited content. The store's
+    flag is the tool's own guard; the lock a user wrote into SKILL.md is theirs to remove, so an unlock that
+    leaves it in place says so instead of reporting evolution as re-enabled.
     """
     try:
+        from myrm_agent_harness.agent.skills.evolution.core.skill_on_disk import skill_from_disk
         from myrm_agent_harness.agent.skills.evolution.infra.integration import (
             get_global_evolution_integration,
         )
@@ -258,6 +261,12 @@ async def _handle_evolution_lock(name: str, *, locked: bool) -> str:
             return f"Error: Skill '{name}' not found in evolution store."
 
         await store.set_evolution_lock(skill.skill_id, locked=locked)
+        if not locked and skill_from_disk(replace(skill, evolution_locked=False)).evolution_locked:
+            return (
+                f"Skill '{name}' is unlocked in the evolution store, but its SKILL.md still carries an evolution "
+                "lock written by the user, so auto-evolution stays disabled. Only the user can remove it, "
+                "on the Skills page."
+            )
         action_word = "locked" if locked else "unlocked"
         return (
             f"Skill '{name}' {action_word} successfully. "

@@ -19,6 +19,7 @@ from myrm_agent_harness.agent.meta_tools.skills.manage.batch_runner import (
     run_skill_manage_batch,
 )
 from myrm_agent_harness.agent.meta_tools.skills.manage.skill_manage_tool import resolve_skill_manage_tool_description
+from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType, SkillLineage, SkillRecord
 from tests.agent.meta_tools.skill_manage.batch_fakes import (
     STORED,
     FailingHook,
@@ -53,10 +54,18 @@ class _FakeEvolutionStore:
         self.locked = dict(locked)
         self.writes: list[tuple[str, bool]] = []
 
-    def get_skill(self, skill_id: str) -> SimpleNamespace | None:
+    def get_skill(self, skill_id: str) -> SkillRecord | None:
         if skill_id not in self.locked:
             return None
-        return SimpleNamespace(skill_id=skill_id, evolution_locked=self.locked[skill_id])
+        return SkillRecord(
+            skill_id=skill_id,
+            name=skill_id,
+            description="Demo.",
+            content="stored body",
+            path="",
+            lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
+            evolution_locked=self.locked[skill_id],
+        )
 
     async def set_evolution_lock(self, skill_id: str, *, locked: bool) -> None:
         self.writes.append((skill_id, locked))

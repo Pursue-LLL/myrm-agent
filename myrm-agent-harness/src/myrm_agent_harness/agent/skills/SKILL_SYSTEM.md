@@ -795,8 +795,11 @@ Scanner（编排器）
 - **双向同步写入**：通过 API (`/skills/{skill_id}/evolution-lock`) 切换状态时，系统会同时更新 SQLite 缓存账本（用于极速查询）并物理复写 `SKILL.md` 的 YAML 头部。
 - **EvolutionScreener 拦截 (双重纵深防御)**：
   1. **Phase 0 DB Check**：查询 SQLite 中 `store.is_evolution_locked`（极速零开销阻断，不读技能与文件）。
-  2. **Phase 0 File Check**：`skill_from_disk` 把 SKILL.md frontmatter 里的锁并入技能（库里的标志或文件里的标志任一为真即锁定），防范文件被本地手动加锁、新建技能的锁只写进文件而数据库未同步的情况；随后的冷却判断与 FIX 的 LLM 确认读的也是这份磁盘文本。
+  2. **Phase 0 File Check**：`skill_from_disk` 把 SKILL.md frontmatter 里的锁并入技能（库里的标志或文件里的标志任一为真即锁定），防范文件被本地手动加锁、新建技能的锁只写进文件而数据库未同步的情况；强制重试只跳过冷却，不跳过锁；冷却看 `updated_at` 与拒绝历史，FIX 的 LLM 确认读的是这份磁盘文本。
 - **引擎入口复核**：`/derive` 与没有进化队列时的 `/fix` 不经过 Screener，`fix_skill` / `derive_skill_simple` 在入口先经 `skill_from_disk` 取磁盘上的技能，再判一次锁。
+- **两把锁，任一为真即锁定**：用户锁是 SKILL.md frontmatter 里的 `evolution-locked`（持久、归用户所有，新建技能默认带上）；库里的 `evolution_locked` 是 agent 经 `skill_manage lock/unlock` 设置的临时编辑保护，同时镜像技能页的开关。`skill_manage` 只写库、不写文件，所以 agent 解除不了用户写进文件的锁；文件里的锁还在时，unlock 的返回文本如实说明，不再回复「已重新启用」。技能页开关同时写库与文件。
+- **库行的键**：进化库的行以技能页 id（本地扫描、导入）或技能名（草稿批准、自动提取）为键。技能页开关、`/derive`、`/fix` 经 `find_evolution_records` 找到两种键的行；按名字找到的行必须存放同一个 SKILL.md 目录才算，同名的两个技能不会共用一行。
+- **入口预检**：`/derive`、`/fix` 在应答前按引擎同一标准（`skill_from_disk`）判锁，被锁返回 409，强制重试同样不绕过；引擎在应答之后才丢弃被锁的请求，用户看到的却是「已接受」。
 - **防覆盖保护**：不论是 FIX 还是 DERIVED 进化，锁定状态均作为防御纵深，确保持久化内容绝对不会被修改，将代码控制权完全交还给用户。
 
 ### 14.4 语义去重防御 (Semantic Deduplication)

@@ -185,6 +185,63 @@ class TestHandleEvolutionLock:
         assert "re-enabled" in result
 
     @pytest.mark.asyncio
+    async def test_unlock_says_so_when_the_skill_file_still_holds_the_lock(self, tmp_path: Path):
+        """The store's flag is the tool's to clear; a lock the user wrote into SKILL.md stays and is reported."""
+        from myrm_agent_harness.agent.meta_tools.skills.manage._manage_handlers import _handle_evolution_lock
+
+        skill_md = tmp_path / "test_skill" / "SKILL.md"
+        skill_md.parent.mkdir()
+        skill_md.write_text(
+            "---\nname: test_skill\ndescription: Test skill\nevolution-locked: true\n---\n", encoding="utf-8"
+        )
+        skill = _make_skill(locked=True)
+        skill.path = str(skill_md)
+        mock_store = MagicMock(spec=SkillStore)
+        mock_store.get_skill.return_value = skill
+        mock_store.set_evolution_lock = AsyncMock()
+        mock_evolution = MagicMock()
+        mock_evolution.store = mock_store
+
+        with patch(
+            "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration",
+            return_value=mock_evolution,
+        ):
+            result = await _handle_evolution_lock("test_skill", locked=False)
+
+        mock_store.set_evolution_lock.assert_called_once_with("test_skill_v1", locked=False)
+        assert "re-enabled" not in result
+        assert "SKILL.md" in result
+        assert "Skills page" in result
+
+    @pytest.mark.asyncio
+    async def test_lock_is_confirmed_even_when_the_skill_file_is_locked_too(self, tmp_path: Path):
+        """Only an unlock has anything to report about the file's lock."""
+        from myrm_agent_harness.agent.meta_tools.skills.manage._manage_handlers import _handle_evolution_lock
+
+        skill_md = tmp_path / "test_skill" / "SKILL.md"
+        skill_md.parent.mkdir()
+        skill_md.write_text(
+            "---\nname: test_skill\ndescription: Test skill\nevolution-locked: true\n---\n", encoding="utf-8"
+        )
+        skill = _make_skill(locked=False)
+        skill.path = str(skill_md)
+        mock_store = MagicMock(spec=SkillStore)
+        mock_store.get_skill.return_value = skill
+        mock_store.set_evolution_lock = AsyncMock()
+        mock_evolution = MagicMock()
+        mock_evolution.store = mock_store
+
+        with patch(
+            "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration",
+            return_value=mock_evolution,
+        ):
+            result = await _handle_evolution_lock("test_skill", locked=True)
+
+        mock_store.set_evolution_lock.assert_called_once_with("test_skill_v1", locked=True)
+        assert "locked successfully" in result
+        assert "disabled" in result
+
+    @pytest.mark.asyncio
     async def test_lock_no_evolution_system(self):
         """Lock should fail gracefully when evolution system is not initialized."""
         from myrm_agent_harness.agent.meta_tools.skills.manage._manage_handlers import _handle_evolution_lock
