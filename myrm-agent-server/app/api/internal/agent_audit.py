@@ -4,6 +4,7 @@
 - settings.database.event_log_dir (POS: harness JSONL event-log location)
 - myrm_agent_harness.agent.event_log (POS: FileEventLogBackend + EventFilter)
 - myrm_agent_harness.core.security.audit::is_policy_denial (POS: the deny rule behind policy_denial_total)
+- myrm_agent_harness.api::sanitize_event_data (POS: redaction every event payload passes before it is written; applied again on every read that leaves the sandbox)
 
 [OUTPUT]
 - GET /api/admin/agent-audit/events: read-only agent event pull for org audit
@@ -11,11 +12,13 @@
 [POS]
 Exposes the harness event log (the agent-event SSOT shared by all three
 deployment modes) as an internal pull API for the control plane's org-level
-agent compliance audit.
+agent compliance audit. The events are redacted again on the way out: a line written
+before a redaction rule existed, or past the logger, must not leave the sandbox as it was stored.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -24,6 +27,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.types import EventFilter
+from myrm_agent_harness.api import sanitize_event_data
 from myrm_agent_harness.core.security.audit import is_policy_denial
 from pydantic import BaseModel
 
@@ -109,7 +113,8 @@ async def agent_audit_events(
     tool_call_total = sum(1 for e in collected if e.type == "tool_start")
     security_event_total = sum(1 for e in collected if e.type == "security_audit")
     security_deny_total = _count_security_denies(collected)
-    truncated = collected[:capped_limit]
+    # Redacting costs about 0.4 ms per event, so it runs on the page that is returned, off the event loop.
+    truncated = await asyncio.to_thread(_redacted, collected[:capped_limit])
     logger.info(
         "Agent audit pull: sessions=%d window_hours=%d total=%d returned=%d tool_calls=%d security_events=%d security_denies=%d",
         len(session_ids),
@@ -129,6 +134,11 @@ async def agent_audit_events(
         window_hours=hours,
         limit=capped_limit,
     )
+
+
+def _redacted(events: list[AgentAuditEventResponse]) -> list[AgentAuditEventResponse]:
+    """The events with the redaction of the write path applied to their payloads again."""
+    return [event.model_copy(update={"data": sanitize_event_data(event.data)}) for event in events]
 
 
 def _count_security_denies(events: list[AgentAuditEventResponse]) -> int:

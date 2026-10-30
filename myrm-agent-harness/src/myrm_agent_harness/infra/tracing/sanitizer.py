@@ -11,7 +11,7 @@
 
 [POS]
 实现 Agent Tracing 规范中的“先脱敏再落盘”三层隐私防护体系：
-第一层：高危敏感字段键名识别与安全命名空间放行（键名像凭据时遮蔽文本与容器；数字只在共享字段名策略也判为凭据名时遮蔽，计数器照常放行；布尔与空值原样保留）；
+第一层：高危敏感字段键名识别与安全命名空间放行（键名含高危关键字或共享字段名策略判为凭据名时遮蔽文本与容器；数字只在共享字段名策略也判为凭据名时遮蔽，计数器照常放行；布尔与空值原样保留）；
 第二层：敏感凭据值深度正则扫描（API Key / Bearer / 连接串 / 密码）；
 第三层：超长大文本有界哈希截断与 SHA-256 指纹保全。
 """
@@ -94,7 +94,10 @@ class TraceSpanSanitizer:
         lower_key = key.lower()
         if any(lower_key.startswith(prefix) for prefix in self._safe_prefixes):
             return True
-        return not any(keyword in lower_key for keyword in _SENSITIVE_KEY_KEYWORDS)
+        if any(keyword in lower_key for keyword in _SENSITIVE_KEY_KEYWORDS):
+            return False
+        # The keywords are a broad net; the shared name policy also knows the credential nouns they miss (``passwd``).
+        return not is_secret_field_name(key)
 
     def sanitize_string_value(self, val: str) -> str:
         """Apply pattern-based redaction and bounded SHA-256 truncation."""

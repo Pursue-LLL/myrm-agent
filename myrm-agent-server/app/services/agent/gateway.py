@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.event_log import EventLogBackend
     from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent
     from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
     from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
@@ -311,7 +312,7 @@ class AgentGateway:
                 cleared += 1
         return cleared
 
-    def get_active_event_log_backend(self) -> tuple[str, object] | None:
+    def get_active_event_log_backend(self) -> tuple[str, EventLogBackend] | None:
         """Get (session_id, EventLogBackend) from the first active agent that has one."""
         for info in self._session_info.values():
             if info.agent is None:

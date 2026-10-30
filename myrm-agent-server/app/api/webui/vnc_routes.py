@@ -4,6 +4,7 @@
 - myrm_agent_harness.toolkits.vnc::VncServer (POS: VNC server lifecycle manager)
 - myrm_agent_harness.toolkits.vnc::TakeoverCoordinator (POS: human-agent control handoff)
 - myrm_agent_harness.utils.runtime.user_control::get_user_control (POS: process-wide "a person drives the agent's browser/desktop" fact)
+- myrm_agent_harness.api::sanitize_event_data (POS: redaction every event payload passes before it is written)
 - fastapi (POS: HTTP routing)
 
 [OUTPUT]
@@ -16,7 +17,8 @@ Takeover works without VNC (a local headed window or the desktop client is taken
 coordinator's state changes are reflected into the process-wide UserControl, which makes the Agent's
 browser and desktop tools wait while a person drives. The client renews the lease by POSTing again.
 Registers lifecycle hooks on TakeoverCoordinator to capture pre/post
-page snapshots and persist TakeoverTrace events to EventLog.
+page snapshots and persist TakeoverTrace events to EventLog. The trace is written to the backend directly, past the
+logger that redacts every other event, so its page state (URLs, accessibility tree) is redacted here.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ import time
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException
+from myrm_agent_harness.api import sanitize_event_data
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
@@ -160,6 +163,34 @@ async def _on_takeover_start(reason: str) -> None:
         logger.info("Takeover trace: pre-snapshot captured (url=%s)", _pre_takeover_url)
 
 
+# The accessibility tree is kept to this length; the redaction reads a little further, so a credential that straddles
+# the cut is masked whole before the cut is made.
+_ARIA_TREE_LIMIT = 3000
+_ARIA_TREE_READ_AHEAD = 1000
+
+
+def _redacted_trace(
+    pre_url: str, post_url: str, pre_snapshot: str, post_snapshot: str, reason: str, duration_s: float
+) -> dict[str, object]:
+    """The takeover trace as it is written: the page state (URLs, accessibility trees) redacted and clipped."""
+    read = _ARIA_TREE_LIMIT + _ARIA_TREE_READ_AHEAD
+    trace = sanitize_event_data(
+        {
+            "pre_url": pre_url,
+            "post_url": post_url,
+            "pre_aria_tree": pre_snapshot[:read],
+            "post_aria_tree": post_snapshot[:read],
+            "reason": reason,
+            "duration_s": duration_s,
+        }
+    )
+    for key in ("pre_aria_tree", "post_aria_tree"):
+        tree = trace.get(key)
+        if isinstance(tree, str):
+            trace[key] = tree[:_ARIA_TREE_LIMIT]
+    return trace
+
+
 async def _on_takeover_end(reason: str) -> None:
     """Lifecycle hook: capture post-takeover page state and write TakeoverTrace event."""
     global _pre_takeover_snapshot, _pre_takeover_url, _takeover_start_time  # noqa: PLW0603
@@ -184,14 +215,7 @@ async def _on_takeover_end(reason: str) -> None:
         logger.debug("Takeover trace: no page change detected, skipping event")
         return
 
-    trace_data: dict[str, object] = {
-        "pre_url": pre_url,
-        "post_url": post_url,
-        "pre_aria_tree": pre_snap[:3000],
-        "post_aria_tree": post_snapshot[:3000],
-        "reason": reason,
-        "duration_s": duration_s,
-    }
+    trace_data = _redacted_trace(pre_url, post_url, pre_snap, post_snapshot, reason, duration_s)
 
     try:
         from app.services.agent.gateway import get_agent_gateway

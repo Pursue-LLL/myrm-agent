@@ -187,3 +187,50 @@ class TestOnTakeoverEnd:
             patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway),
         ):
             await _on_takeover_end("no backend")
+
+
+class TestTakeoverTraceCarriesNoCredential:
+    """The trace is written beside the events the logger redacts, so it is redacted before it is written."""
+
+    @pytest.mark.asyncio
+    async def test_a_credential_in_the_page_state_is_masked_in_the_written_event(self) -> None:
+        secret = "hunter2xyz-takeover"
+        vnc_routes._pre_takeover_snapshot = "aria: heading 'Login'"
+        vnc_routes._pre_takeover_url = f"https://example.com/login?token={secret}"
+        vnc_routes._takeover_start_time = 1000.0
+
+        mock_backend = AsyncMock()
+        mock_gateway = MagicMock()
+        mock_gateway.get_active_event_log_backend.return_value = ("sess-123", mock_backend)
+        post_snapshot = f"aria: heading 'Dashboard'\nDB_PASSWORD={secret}"
+
+        with (
+            patch.object(
+                vnc_routes,
+                "_capture_page_state",
+                new_callable=AsyncMock,
+                return_value=(post_snapshot, f"https://example.com/dashboard?api_key={secret}"),
+            ),
+            patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway),
+        ):
+            await _on_takeover_end("navigated")
+
+        event = mock_backend.append.call_args[0][0][0]
+        assert secret not in str(event.data)
+        assert event.data.get("reason") == "navigated"
+        assert "Dashboard" in str(event.data.get("post_aria_tree"))
+
+    @pytest.mark.asyncio
+    async def test_a_credential_that_straddles_the_clip_is_masked_whole(self) -> None:
+        secret = "ghp_" + "aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5"
+        # The clip falls in the middle of the token: 12 of its 40 characters lie before it, too few for a scan to know it.
+        tree = "x" * (vnc_routes._ARIA_TREE_LIMIT - 13) + f" {secret} " + "y" * 100
+
+        trace = vnc_routes._redacted_trace("https://a.example", "https://b.example", "pre", tree, "done", 1.5)
+
+        post_tree = trace["post_aria_tree"]
+        assert isinstance(post_tree, str)
+        assert len(post_tree) <= vnc_routes._ARIA_TREE_LIMIT
+        assert "ghp_aB3dE5" not in post_tree
+        assert "aB3dE5fG7hI9" not in post_tree
+        assert trace["duration_s"] == 1.5

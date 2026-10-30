@@ -187,6 +187,27 @@ async def test_a_tool_command_the_event_log_wrote_reaches_the_bundle_without_its
     assert _PLAIN_WORD_VALUE not in files["traces/session.jsonl"]
 
 
+async def test_an_event_stored_before_a_redaction_rule_existed_is_redacted_again_when_it_is_bundled(event_logs: Path) -> None:
+    """The log is the record and may predate a rule: the entropy tier masks a key that has no prefix a text rule knows."""
+    unprefixed_key = "Zq8Xv2Lm9Tp4Rk7Ws1Yb5Nc3Hd6Jf0Ga"
+    call_id = "call_00_3nrnFlx48weKv0yTotV43729_vtx8763"
+    event = {
+        "seq": 1,
+        "ts": 1.0,
+        "type": "tool_end",
+        "sid": "s1",
+        "data": {"tool_call_id": call_id, "output": f"key {unprefixed_key}"},
+    }
+    (event_logs / "session.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+
+    files = await _build()
+
+    bundled = json.loads(files["traces/session.jsonl"])
+    assert unprefixed_key not in files["traces/session.jsonl"]
+    assert bundled["data"]["tool_call_id"] == call_id
+    assert bundled["seq"] == 1
+
+
 async def test_a_slow_doctor_degrades_its_section_without_failing_the_bundle(event_logs: Path) -> None:
     async def never_in_time() -> HealthSnapshot:
         await asyncio.sleep(1)

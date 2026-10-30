@@ -14,6 +14,7 @@ debugging, cross-session analysis, and task-level replay.
 [OUTPUT]
 - EventLogBackend: 5th framework protocol (append / query / get_all_session_ids / close)
 - StructuredEvent: typed event record
+- sanitize_event_data: the redaction every event payload passes before it is written; a writer that bypasses the logger applies it itself
 - EventLogger: session-level analysis (classify → sanitize → buffer → write + analytics)
 - EventLogAnalytics: global-level analysis (cross-session aggregation)
 - FileEventLogBackend: built-in JSONL file backend
@@ -26,15 +27,16 @@ Complements Checkpointer with full event history. Optional — omitting
 ``event_log_backend`` leaves agent behaviour unchanged.
 """
 
+from ._sanitize import sanitize_event_data
 from .analytics import EventLogAnalytics
+from .backends.file_backend import FileEventLogBackend
+from .durable_atomic_writer import DurableLogWriter, loop_write_all
 from .integrity_gate import (
     assert_log_integrity,
     install_log_integrity_invariants,
     verify_sequence_continuity,
     verify_session_enclosure,
 )
-from .backends.file_backend import FileEventLogBackend
-from .durable_atomic_writer import DurableLogWriter, loop_write_all
 from .logger import EventLogger
 from .protocols import EventLogBackend, FlushableEventLogBackend
 from .torn_tail_repairer import (
@@ -99,6 +101,7 @@ __all__ = [
     "install_log_integrity_invariants",
     "loop_write_all",
     "repair_torn_tail",
+    "sanitize_event_data",
     "verify_sequence_continuity",
     "verify_session_enclosure",
 ]

@@ -6,6 +6,7 @@
 - app.core.infra.health.health_presenter::present_health_report (POS: Deploy-aware Doctor report fields)
 - app.services.agent.agent_service::AgentService (POS: Business agent list)
 - myrm_agent_harness.api::redact_sensitive_text (POS: Harness-level credential redaction)
+- myrm_agent_harness.api::sanitize_event_data (POS: redaction every event payload passes before it is written; applied again to the events a bundle publishes)
 - myrm_agent_harness.observability.diagnostics.protocols::redact_health_report (POS: Diagnostic report sanitization)
 
 [OUTPUT]
@@ -15,6 +16,7 @@
 Generates a structured, self-contained, and deeply redacted diagnostic ZIP package
 for developer support, issue reporting, and cluster health auditing.
 Every piece of text leaves through ``_scrub``: credentials are masked and the home folder is written as ``~``.
+The payload of each event is redacted as the write path does before that, so a line stored before a rule existed is not published as it was.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path, PurePath
 
-from myrm_agent_harness.api import redact_sensitive_text
+from myrm_agent_harness.api import redact_sensitive_text, sanitize_event_data
 from myrm_agent_harness.observability.diagnostics.protocols import redact_health_report
 
 from app.config.deploy_mode import get_deploy_mode
@@ -105,6 +107,23 @@ def _event_marker(line: str, size: int) -> str:
     return json.dumps(marker, ensure_ascii=False)
 
 
+def _redacted_event(line: str) -> str:
+    """``line`` with the redaction of the write path applied to the payload of the event it holds.
+
+    The log is the record and may predate a rule, or come from a writer that skipped it. A line that holds no event, or
+    whose payload the redaction leaves as it is, is returned untouched.
+    """
+    try:
+        event = json.loads(line)
+    except ValueError:
+        return line
+    data = event.get("data") if isinstance(event, dict) else None
+    if not isinstance(data, dict):
+        return line
+    redacted = sanitize_event_data(data)
+    return line if redacted == data else json.dumps({**event, "data": redacted}, ensure_ascii=False)
+
+
 def _read_log_tail(path: Path, max_bytes: int) -> str:
     """The last ``max_bytes`` of a log as text, from its first whole line; a log is never read past that window.
 
@@ -129,7 +148,8 @@ def _newest_whole_events(text: str, max_bytes: int) -> str:
     Lines are never cut: a window that began inside a line would carry the tail of a credential without the
     key name or prefix the redactor needs, and the unterminated last line is a write still in progress. An event
     longer than ``_MAX_BYTES_PER_TRACE_LINE`` (a full prompt, an unbounded command output) becomes a marker, so a
-    single one cannot push the tool calls and errors around it out of the window. Splitting on ``\\n`` only keeps a
+    single one cannot push the tool calls and errors around it out of the window. Each kept event has its payload
+    redacted again (``_redacted_event``). Splitting on ``\\n`` only keeps a
     line separator character inside a JSON string from ending the event early.
     """
     kept: list[str] = []
@@ -138,7 +158,7 @@ def _newest_whole_events(text: str, max_bytes: int) -> str:
         if not line.strip():
             continue
         size = len(line.encode("utf-8"))
-        entry = (line if size <= _MAX_BYTES_PER_TRACE_LINE else _event_marker(line, size)) + "\n"
+        entry = (_redacted_event(line) if size <= _MAX_BYTES_PER_TRACE_LINE else _event_marker(line, size)) + "\n"
         used += len(entry.encode("utf-8"))
         if used > max_bytes:
             break

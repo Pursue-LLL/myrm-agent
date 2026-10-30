@@ -10,13 +10,14 @@ One key policy serves all three. A field name is a credential when it is one of
 the bare credential words (``token``, ``secret``, ``bearer``, ``authorization``,
 ``cookie`` ... and the variables known by name, ``sshpass`` and ``mysql_pwd``),
 or ends in an unambiguous credential noun (``api key``, ``client secret``,
-``refresh token``, ``secret access key``, ``password``, ``passphrase`` ...)
-in any spelling: snake, kebab, dotted, camel or Pascal case. Bare ``token`` and
-``secret`` are not matched as suffixes, so pagination cursors such as
+``refresh token``, ``secret access key``, ``password``, ``passphrase``,
+``passcode`` ...) in any spelling: snake, kebab, dotted, camel or Pascal case.
+Bare ``token`` is not matched as a suffix, so pagination cursors such as
 ``nextPageToken``, identifiers such as ``file_token`` and metadata such as
-``token_count`` stay readable.
+``token_count`` stay readable. ``pwd`` is no credential name either: it is also
+the working directory (``PWD``), so only the variables known by name are masked.
 
-Channel credential nouns (``app secret``, ``signing secret``, ``bot token``,
+Channel credential nouns (``secret`` as the last word, ``app secret``, ``signing secret``, ``bot token``,
 ``verification token``) are credential names too, but locale files key their form
 labels by them (``"feishuAppSecret": "App Secret"``), so a field named by one of
 them keeps a plain label: letters of any script separated by spaces, ``-`` or
@@ -32,7 +33,9 @@ and, rarely, a random URL-safe base64 value that happens to hold no digit.
 - ``_JSON_FIELD_RE`` / ``_redact_json_field`` - plain JSON member (group 1 = quoted key, group 2 = value)
 - ``_JSON_ESCAPED_FIELD_RE`` / ``_redact_json_escaped_field`` - JSON member inside a JSON-encoded string
 - ``_REPR_DIAGNOSTIC_LINE_RE`` / ``_redact_repr_diagnostic_line`` - Python repr entries on diagnostic lines
+- ``_JSON_NUMBER_MEMBER_RE`` / ``_redact_json_number_member`` - JSON member whose value is a bare number (group 1 = quoted key, group 2 = the number)
 - ``is_secret_field_name`` - the shared key policy
+- ``mask_credential_number`` - a number under a credential name is masked like a string, a flag or a number elsewhere is kept
 - ``_mask_field_value`` - value masking of the three detectors (a password or passphrase is hidden completely; variable references and plain labels stay readable)
 
 [POS]
@@ -43,6 +46,7 @@ and by ``agent/skills/security/content_sanitizer.py`` (plain JSON rule).
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from .masking import _mask_secret
 from .patterns import _CREDENTIAL_VARIABLE_NAMES, _is_env_reference
@@ -76,12 +80,14 @@ _SUFFIX_NOUNS = "|".join(
         "password",
         "passwd",
         rf"pass{_SEP}phrase",
+        rf"pass{_SEP}code",
     )
 )
 
 # Channel credential nouns: also the keys of form labels in locale files, so their values pass ``_PLAIN_LABEL_RE``.
 _CHANNEL_NOUNS = "|".join(
     (
+        "secret",
         rf"app{_SEP}secret",
         rf"signing{_SEP}secret",
         rf"(?:bot|verification){_SEP}token",
@@ -102,6 +108,11 @@ _PLAIN_LABEL_RE = re.compile(r"[^\W\d_]{1,19}|[^\W\d_]+(?:[\s_-]+[^\W\d_]+)+")
 # JSON string values accept ``\"`` escapes so ``{"password": "my\"secret"}`` is captured whole.
 _JSON_FIELD_RE = re.compile(rf'("{_FIELD_NAME}")\s*:\s*"((?:[^"\\\\]|\\.)*)"', re.IGNORECASE)
 
+# A credential needs no quotes to be one: ``"password": 834921``. Every numeric member is found by its shape and the
+# cached name policy decides, which costs less than scanning each quote for a credential name. The number ends at a
+# delimiter, so ``1e5`` is left alone.
+_JSON_NUMBER_MEMBER_RE = re.compile(r'("[^"\\\n]{1,64}")\s*:\s*(-?\d[\d.]*)(?![\w.])')
+
 # Inside a JSON-encoded string every quote is backslash-escaped; the backreference keeps the key's and the
 # value's escape depth equal, which covers any nesting depth. A match starts where the run of backslashes starts,
 # so a long run costs one attempt instead of one per offset.
@@ -115,9 +126,21 @@ _REPR_DIAGNOSTIC_LINE_RE = re.compile(
 )
 
 
+@lru_cache(maxsize=2048)
 def is_secret_field_name(name: str) -> bool:
-    """Whether ``name`` (unquoted, any spelling) names a credential field."""
+    """Whether ``name`` (unquoted, any spelling) names a credential field; cached, as a payload repeats its field names."""
     return _FIELD_NAME_RE.fullmatch(name) is not None
+
+
+def mask_credential_number(name: str, value: float) -> float | str:
+    """``value`` of field ``name``: masked like a string when ``name`` is a credential, as it is otherwise.
+
+    A number has no shape for a scan, so the name decides (``"password": 834921``). A flag is no secret, and a counter
+    whose name only looks like a credential (``max_tokens``) is not a credential name.
+    """
+    if isinstance(value, bool) or not is_secret_field_name(name):
+        return value
+    return _mask_field_value(name, str(value))
 
 
 def _mask_field_value(name: str, value: str) -> str:
@@ -143,6 +166,14 @@ def _redact_json_field(m: re.Match[str]) -> str:
     if not m.group(2).strip():
         return m.group(0)
     return f'{m.group(1)}: "{_mask_field_value(_unquoted(m.group(1)), m.group(2))}"'
+
+
+def _redact_json_number_member(m: re.Match[str]) -> str:
+    """Replacement for ``_JSON_NUMBER_MEMBER_RE``; a number under a name that is no credential is left as it is."""
+    name = _unquoted(m.group(1))
+    if not is_secret_field_name(name):
+        return m.group(0)
+    return f'{m.group(1)}: "{_mask_field_value(name, m.group(2))}"'
 
 
 def _redact_json_escaped_field(m: re.Match[str]) -> str:

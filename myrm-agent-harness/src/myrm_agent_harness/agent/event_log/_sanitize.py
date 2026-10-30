@@ -14,7 +14,8 @@
 Pure filter between ``EventLogger.log`` and the backend. Masks secrets in nested dict/list/tuple payloads (tool
 args/results, error diagnostics) like top-level fields and withholds a payload it cannot redact. The shared walker
 bounds the depth and cuts a container where it holds itself; this module supplies the text rule: the value of a
-credential-named field (``Cookie``, ``password``) is masked by its name, any other text goes through both redactors.
+credential-named field (``Cookie``, ``password``) is masked by its name, an identifier field (``tool_call_id``) skips the
+entropy tier that would take a provider call id for a key, any other text goes through both redactors.
 """
 
 from __future__ import annotations
@@ -35,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 # A key whose last word is ``command`` or ``cmd`` (``command``, ``verify_command``, ``rerun_cmd``) holds a command line.
 _COMMAND_KEY = re.compile(r"(?:^|_)(?:command|cmd)$")
+# A key whose last word is ``id`` or ``ids`` (``id``, ``tool_call_id``, ``request-id``, ``toolCallIds``) holds identifiers:
+# a camel-case word needs its capital, so ``valid`` and ``android`` are not identifier fields.
+_IDENTIFIER_KEY = re.compile(r"(?i:(?:^|[_-])ids?$)|[a-z]Ids?$")
 
 
 def sanitize_event_data(data: dict[str, object]) -> dict[str, object]:
@@ -67,4 +71,7 @@ def _scan(text: str) -> str:
 def _redact_text(key: str, text: str) -> str:
     if _COMMAND_KEY.search(key):
         text = redact_command_line(text)
-    return redact_field_text(key, text, scan=_scan)
+    # Providers issue call ids as long mixed alphanumeric runs, the shape the entropy tier masks as a key; the id is
+    # what links a tool's start to its result. A token shape inside an id field is still masked by the full redactor.
+    scan = redact_sensitive_text if _IDENTIFIER_KEY.search(key) else _scan
+    return redact_field_text(key, text, scan=scan)

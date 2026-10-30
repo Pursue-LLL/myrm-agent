@@ -227,6 +227,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "redact_field_text": ("myrm_agent_harness.core.security.redact.engine", "redact_field_text"),
     "redact_nested": ("myrm_agent_harness.core.security.redact.nested", "redact_nested"),
     "redact_sensitive_text": ("myrm_agent_harness.core.security.redact.engine", "redact_sensitive_text"),
+    "sanitize_event_data": ("myrm_agent_harness.agent.event_log", "sanitize_event_data"),
     "register_ptc_safety_metadata": (
         "myrm_agent_harness.core.security.tool_registry.registry",
         "register_ptc_safety_metadata",

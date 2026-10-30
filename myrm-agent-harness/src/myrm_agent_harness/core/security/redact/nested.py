@@ -5,20 +5,23 @@ holds itself, so a loop costs one visit per container. A container reached by tw
 redacted in both.
 
 [INPUT]
-- (none — pure walker; the caller supplies the text redactor)
+- structured_fields::mask_credential_number (POS: Masks a number held by a credential-named field; the other exits of the domain read the same name policy)
 
 [OUTPUT]
-- ``redact_nested`` - a copy of a dict/list/tuple tree whose strings (and, on request, dict keys) went through ``leaf(field name, text)``
+- ``redact_nested`` - a copy of a dict/list/tuple tree whose strings (and, on request, dict keys) went through ``leaf(field name, text)`` and whose numbers under a credential name are masked
 - ``MAX_DEPTH`` / ``TOO_DEEP`` / ``CIRCULAR`` - the depth limit and the markers that replace a container past it or one that holds itself
 
 [POS]
 Shared walker of the redaction domain; ``engine.py`` (approval display), ``agent/event_log`` (event payloads and
-dataset export) and the server's chat export bring their own leaf.
+dataset export) and the server's chat export bring their own text rule, and every one of them gets the same rule for a
+number: only the name of its field can say that it is a credential.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+
+from .structured_fields import mask_credential_number
 
 # Payloads that are shown or persisted nest a handful of levels; a deeper container is replaced, not walked.
 MAX_DEPTH = 32
@@ -34,7 +37,7 @@ def redact_nested(value: object, leaf: TextRedactor, *, mask_keys: bool = False)
 
     A string inside a list or tuple is redacted under the name of the field that holds the list. With ``mask_keys`` a
     dict key is redacted too (a map keyed by credential); the value under it still sees the original field name.
-    Values that are not strings or containers are returned as they are.
+    A number under a credential name is masked, a number elsewhere and any other value are returned as they are.
     """
     return _walk(value, "", 1, set(), leaf, mask_keys)
 
@@ -43,6 +46,8 @@ def _walk(value: object, key: str, depth: int, ancestors: set[int], leaf: TextRe
     """Redact ``value``; ``ancestors`` holds the containers on the path from the root to it."""
     if isinstance(value, str):
         return leaf(key, value)
+    if isinstance(value, int | float):
+        return mask_credential_number(key, value)
     if not isinstance(value, dict | list | tuple):
         return value
     if depth > MAX_DEPTH:

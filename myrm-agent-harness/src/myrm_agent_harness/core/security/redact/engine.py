@@ -11,7 +11,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 - command_patterns::_redact_command_credentials (POS: Command-line rules of the runtime redactor)
 - header_patterns::_redact_secret_headers (POS: Header rules of the runtime redactor)
 - patterns::_PREFIX_RE and the other compiled regexes and replacers (POS: Compiled regex patterns, keyword guard and shared value-masking helpers of the runtime redactor)
-- structured_fields::_redact_json_field, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line, structured_fields::is_secret_field_name, structured_fields::_mask_field_value (POS: structured-field detectors of the redaction engine)
+- structured_fields::_redact_json_field, structured_fields::_redact_json_number_member, structured_fields::_redact_json_escaped_field, structured_fields::_redact_repr_diagnostic_line, structured_fields::is_secret_field_name, structured_fields::_mask_field_value (POS: structured-field detectors of the redaction engine)
 - url_credentials::_DB_CONNSTR_RE, url_credentials::_URL_USERINFO_RE, url_credentials::_URL_BARE_TOKEN_RE and their replacers (POS: URL credential regexes and replacers of the runtime redactor)
 
 [OUTPUT]
@@ -62,10 +62,12 @@ from .patterns import (
 from .structured_fields import (
     _JSON_ESCAPED_FIELD_RE,
     _JSON_FIELD_RE,
+    _JSON_NUMBER_MEMBER_RE,
     _REPR_DIAGNOSTIC_LINE_RE,
     _mask_field_value,
     _redact_json_escaped_field,
     _redact_json_field,
+    _redact_json_number_member,
     _redact_repr_diagnostic_line,
     is_secret_field_name,
 )
@@ -163,6 +165,7 @@ def _redact_name_assignments(text: str) -> str:
 
     # Credential-named fields in JSON, in JSON nested inside a JSON string, and in Python repr diagnostics
     text = _replace_pattern_bounded(text, _JSON_FIELD_RE, _redact_json_field)
+    text = _replace_pattern_bounded(text, _JSON_NUMBER_MEMBER_RE, _redact_json_number_member)
     text = _replace_pattern_bounded(text, _JSON_ESCAPED_FIELD_RE, _redact_json_escaped_field)
     text = _replace_pattern_bounded(text, _REPR_DIAGNOSTIC_LINE_RE, _redact_repr_diagnostic_line)
 

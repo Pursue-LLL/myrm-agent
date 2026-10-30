@@ -17,6 +17,9 @@ from myrm_agent_harness.agent.context_management.salient_tool_filter import (
 from myrm_agent_harness.agent.context_management.salient_tool_filter import (
     strip_ansi_sequences as strip_ansi_sequences,
 )
+from myrm_agent_harness.agent.event_log import (
+    sanitize_event_data as sanitize_event_data,
+)
 from myrm_agent_harness.agent.middlewares.approval.helpers import (
     reset_denial_counter as reset_denial_counter,
 )
