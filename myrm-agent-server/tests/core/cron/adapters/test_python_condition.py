@@ -1,7 +1,7 @@
 """Unit tests for SandboxedPythonCondition.
 
 Validates script execution, SKIP signals, context injection, and that a script which cannot reach a verdict
-(crash, timeout, cannot start) raises ``PreFlightConditionError`` instead of reading as a skip.
+(crash, timeout, cannot start) raises ``PreFlightConditionError``: only a verdict of "skip" returns False.
 """
 
 import asyncio
