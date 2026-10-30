@@ -5,7 +5,8 @@
 - locale JSON keys `cooldown_hint_template` / `cooldown_hint_joiner` and the unit words `cooldown_hint_<second|minute|hour|day>_one` / `_other`
 
 [OUTPUT]
-- format_cooldown_hint(): the sentence to append to a rate-limit message, or "" when there is no wait
+- format_cooldown_hint(): the sentence to append to a rate-limit message, or "" when there is no wait;
+  a template that cannot be rendered gives the English sentence in seconds and a logged warning
 
 [POS]
 Keeps the unit-and-template lookup out of the diagnostic engine: the engine states that a wait
@@ -27,7 +28,7 @@ _SECONDS_PER_HOUR = 3600
 _MINUTES_PER_HOUR = 60
 _HOURS_PER_DAY = 24
 _MINUTES_PER_DAY = _MINUTES_PER_HOUR * _HOURS_PER_DAY
-_MINUTES_FROM_SECONDS = 300
+_MINUTE_TIER_STARTS_AT_S = 300
 
 
 def _units(seconds: int) -> list[tuple[str, int]]:
@@ -38,7 +39,7 @@ def _units(seconds: int) -> list[tuple[str, int]]:
     rounds up, because a wait stated too short sends the retry in too early, and a figure that rounds up to
     the next unit is spelled in that unit (``60 minutes`` is ``1 hour``, ``24 hours`` is ``1 day``).
     """
-    if seconds < _MINUTES_FROM_SECONDS:
+    if seconds < _MINUTE_TIER_STARTS_AT_S:
         return [("second", seconds)]
     minutes = math.ceil(seconds / _SECONDS_PER_MINUTE)
     if minutes < _MINUTES_PER_HOUR:
@@ -95,7 +96,9 @@ def format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
             return _FALLBACK_TEMPLATE.format(duration=_duration({}, cooldown_seconds))
         return template.format(duration=_duration(translations, cooldown_seconds))
     except Exception:
-        logger.debug("cooldown hint could not be rendered", exc_info=True)
+        logger.warning(
+            "Cooldown hint for locale '%s' could not be rendered; using the English sentence", locale, exc_info=True
+        )
         return _FALLBACK_TEMPLATE.format(duration=_duration({}, cooldown_seconds))
 
 

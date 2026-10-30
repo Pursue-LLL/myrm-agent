@@ -171,7 +171,9 @@ async def test_execute_fatal_error(fire_hook_mock, base_ctx):
 
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
-async def test_a_key_the_provider_echoed_back_is_masked_in_the_session_end_hook_payload(fire_hook_mock, base_ctx):
+async def test_a_key_the_provider_echoed_back_is_masked_in_the_session_end_hook_payload(
+    fire_hook_mock: AsyncMock, base_ctx: StreamContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The hook payload leaves the process, so the failure text it carries has its credentials masked."""
     from myrm_agent_harness.agent.hooks.types import HookEvent
     from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
@@ -179,11 +181,11 @@ async def test_a_key_the_provider_echoed_back_is_masked_in_the_session_end_hook_
     echoed_key = "sk-" + "a1b2c3d4" * 5
     executor = _make_executor(base_ctx)
 
-    async def _astream_fatal(*args, **kwargs):
+    async def _astream_fatal(*args: object, **kwargs: object) -> AsyncGenerator[object]:
         raise RuntimeError(f"Incorrect API key provided: {echoed_key}.")
         yield
 
-    base_ctx.agent.astream = _astream_fatal
+    monkeypatch.setattr(base_ctx.agent, "astream", _astream_fatal)
 
     with pytest.raises(MyrmLLMError):
         await executor.execute()

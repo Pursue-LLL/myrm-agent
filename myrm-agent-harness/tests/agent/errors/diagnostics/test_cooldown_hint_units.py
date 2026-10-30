@@ -1,11 +1,12 @@
 """Cooldown hint units: below five minutes a wait stays in seconds, a longer one is spelled in its two largest units."""
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.errors.diagnostics import i18n
+from myrm_agent_harness.agent.errors.diagnostics import cooldown_hint, i18n
 from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
@@ -126,3 +127,27 @@ def test_without_any_bundle_the_wait_is_an_english_sentence_in_seconds(monkeypat
     monkeypatch.setattr(get_locale_manager(), "_translations", {})
 
     assert format_cooldown_hint(23_000_000, "en") == " Retry after 23000 seconds."
+
+
+@pytest.mark.parametrize(
+    ("template", "error"),
+    [
+        pytest.param("{duration.nope}", AttributeError, id="unknown-attribute"),
+        pytest.param("{0}", IndexError, id="positional-field"),
+        pytest.param("{duration!x}", ValueError, id="unknown-conversion"),
+        pytest.param("{when}", KeyError, id="unknown-key"),
+    ],
+)
+def test_a_custom_template_that_cannot_be_rendered_gives_the_english_sentence_and_one_warning(
+    template: str, error: type[Exception], monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setitem(get_locale_manager()._translations, "xx", {"_cooldown_hint": {"template": template}})
+
+    with caplog.at_level(logging.WARNING):
+        sentence = format_cooldown_hint(23_000_000, "xx")
+
+    records = [record for record in caplog.records if record.name == cooldown_hint.__name__]
+    assert sentence == " Retry after 23000 seconds."
+    assert [record.levelno for record in records] == [logging.WARNING]
+    assert records[0].exc_info is not None
+    assert records[0].exc_info[0] is error
