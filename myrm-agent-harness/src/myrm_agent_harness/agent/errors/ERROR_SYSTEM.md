@@ -414,13 +414,13 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `format_error` | 请求格式错误 |
 | `response_format_error` | 响应格式错误 |
 | `context_overflow` | 上下文过长 |
-| `safety_block` | 安全拦截 |
+| `safety_block` | 安全拦截（供应商内容策略或内容过滤器拒绝，含错误码 `content_filter`、`ResponsibleAIPolicyViolation`） |
 | `challenge_blocked` | 出口被 WAF/反爬质询拦截（请求未到达模型） |
 | `unknown` | 未知错误 |
 
 恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，`update_key` 与 `change_model` 落到「设置 > 模型服务」（`/settings/models`），`top_up` 落到 `/settings`；其余类型不下发按钮。
 
-`unknown` 兜底诊断的文案约定：`user_message` 带提供方原文前 200 字符（先去掉 `litellm.XxxError:` 库前缀，用户看到的是供应商自己的话），五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串），由 `tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py` 守护。
+供应商原文的展示约定：`unknown` 与 `format_error`（供应商拒绝了请求）的 `user_message` 都带供应商自己的话，由 `engine._provider_message` 统一整理，用户看到的是原因而不是库内部的样子：去掉 `litellm.XxxError:`、`XxxException -`、`Error code: NNN -` 三段库前缀；错误正文是 JSON 或 Python dict 时只取其中的 `message` 字段；HTML 错误页只留可见文字（去掉标签、`script`、`style`）；**先脱敏再截断**，供应商回显的密钥不会被截断线切成漏网的前半截；折叠空白并最多留 200 字符；整段为空时退回异常类名。五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）。守护测试：`tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py`（占位符）、`test_provider_message_text.py`（整理管线）、`test_locale_placeholder_parity.py`（五种语言的键集与英文目录一致，缺键会静默退回英文）。
 
 目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型服务」「设置 > 模型服务 > 默认模型」。入口名称与前端菜单文案的一致性由 server 侧 `tests/integration/test_diagnostic_copy_ui_labels_i18n_sync.py` 对五种语言逐一守护。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
 
@@ -445,7 +445,7 @@ class DiagnosticResult:
 
 - `agentControlEvents.ts`：收到 ERROR 事件 → 优先消费后端 `diagnostic_result`（`user_message` + `resolution_steps`），`diagnostic_result` 缺失时 fallback `getUserFriendlyError(error_kind, rawError, cooldown_remaining_ms)`
 - `streamHelpers.ts` `getUserFriendlyError()`：`concurrency_limit` 特判中英双语消息，其余分类原样返回原始错误
-- `ProgressSteps.tsx`：渲染错误 UI（红色区域 + 重试历史）
+- `ProgressSteps.tsx`：渲染错误 UI（红色区域 + 重试历史）与恢复按钮；只渲染带 `url` 的恢复动作（`/` 开头跳站内页，其余新标签页打开），没有落点的动作（如 `wait`、`retry`）点了也无处可去，不渲染成按钮
 
 ```typescript
 // streamHelpers.ts 真实实现（简化）
