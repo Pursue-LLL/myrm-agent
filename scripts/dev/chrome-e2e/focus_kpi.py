@@ -26,7 +26,8 @@ from datetime import datetime
 
 # A SetFrontProcess call is blamed for a switch logged within this window after it.
 CALLER_WINDOW_S = 0.15
-# Switches without a SetFrontProcess caller come from user clicks, Cmd+Tab or the system.
+# Switches without a logged SetFrontProcess call: user clicks, Cmd+Tab, LaunchServices activation
+# (`open`, AppleScript `activate`) or the system. Only calls made through SetFrontProcess are attributable.
 NO_CALLER = "none(user/system)"
 UNKNOWN_APP = "unknown"
 
