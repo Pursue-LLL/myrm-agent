@@ -94,6 +94,21 @@ def test_hot_key_pages_are_the_first_five_published_pages(wiki_structure: WikiSt
     ]
 
 
+def test_hot_key_pages_are_empty_when_every_page_is_unpublished(wiki_structure: WikiStructure) -> None:
+    for name, status in (("one", "draft"), ("two", "blocked")):
+        wiki_structure.get_concept_file_path(name).write_text(
+            f"---\ntype: concept\npublish_status: {status}\n---\n# {name}\nBody.\n", encoding="utf-8"
+        )
+
+    WikiCognitiveMapService(wiki_structure).refresh(
+        WikiMapEvent(event_type=WikiMapEventType.COMPILE, summary="Nothing published")
+    )
+
+    hot = read_hot_context(wiki_structure)
+    assert "## Key pages" in hot
+    assert not [line for line in hot.splitlines() if line.startswith("- [[")]
+
+
 def test_log_prepends_newest_entry(wiki_structure: WikiStructure) -> None:
     service = WikiCognitiveMapService(wiki_structure)
     service.refresh(
