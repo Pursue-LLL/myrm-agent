@@ -109,7 +109,7 @@ async def handle_skill_failure_event(event: SkillFailureEvent) -> None:
         )
         if existing is not None:
             await bump_runtime_failure_review_record(
-                evolution_id=existing.id,
+                existing.id,
                 last_seen_at=evidence.last_seen_at,
             )
             return

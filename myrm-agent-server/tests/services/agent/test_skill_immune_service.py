@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.skills.evolution.core.engine import SkillEvolutionEngine
-from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
+from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType, SkillLineage, SkillRecord
 from myrm_agent_harness.runtime.events import SkillFailureCandidate, SkillFailureEvent
 from pytest import MonkeyPatch
 from sqlalchemy import delete, select
@@ -98,7 +98,7 @@ async def test_runtime_failure_review_record_is_deduped_and_bumped(
     assert found.runtime_failure.failure_count == 1
 
     bumped = await bump_runtime_failure_review_record(
-        evolution_id=created.id,
+        created.id,
         last_seen_at="2026-05-07T00:00:00+00:00",
     )
     assert bumped is not None
@@ -154,7 +154,9 @@ async def test_skill_failure_event_without_evolution_engine_creates_one_blocked_
     assert payload["growth_status"] == EvolutionGrowthStatus.FAILED_SCAN.value
     assert payload["reason_code"] == "runtime:no_evolution_engine"
     assert payload["test_passed"] is None
-    assert payload["runtime_failure"]["failure_count"] == 2
+    runtime_failure = payload["runtime_failure"]
+    assert isinstance(runtime_failure, dict)
+    assert runtime_failure["failure_count"] == 2
 
     with pytest.raises(EvolutionApplyError, match="Blocked evolution cannot be approved"):
         await approve_evolution_review_record(records[0].id)
@@ -256,7 +258,7 @@ async def _repair_prompt_trajectory(
         description="Deploys the service",
         content="step one",
         path="/skills/deploy/SKILL.md",
-        lineage=None,
+        lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
     )
     store = MagicMock()
     store.get_skill.return_value = skill

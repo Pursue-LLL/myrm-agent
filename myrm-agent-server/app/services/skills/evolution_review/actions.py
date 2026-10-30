@@ -1,7 +1,7 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
-- .decision_lock::serialized_per_evolution (POS: 同一提案的决议串行化)
+- .decision_lock::serialized_per_evolution (POS: Evolution 审核记录写入串行化)
 - .disk (POS: Evolution 落盘编排)
 - .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)

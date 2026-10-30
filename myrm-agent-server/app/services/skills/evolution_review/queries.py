@@ -2,13 +2,15 @@
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
 - .persistence::load_approval_record, list_approval_review_records (POS: Evolution 审核 ApprovalRecord 持久化读写)
+- .decision_lock::serialized_per_evolution (POS: Evolution 审核记录写入串行化)
 - .types::EvolutionReviewRecord (POS: Evolution 审核域类型)
 - .disk_content::skill_file_hash (POS: Evolution 全量内容更新落盘与回滚)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
 - create/list/count/find/get evolution review records；创建时记录提案所基于的 SKILL.md 内容哈希
+- bump_runtime_failure_review_record: 运行时失败重复出现时更新计数，与决议共用同一把提案锁
 [POS]
-Evolution 审核记录创建与只读查询（ApprovalRecord 为事实源）。
+Evolution 审核记录创建、只读查询与运行时失败计数更新（ApprovalRecord 为事实源）。
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from ..experience_ledger import (
     ExperienceLedgerWrite,
     record_experience_event,
 )
+from .decision_lock import serialized_per_evolution
 from .disk_content import skill_file_hash
 from .persistence import (
     count_approval_review_records,
@@ -167,9 +170,10 @@ async def find_runtime_failure_review_record(
     )
 
 
+@serialized_per_evolution
 async def bump_runtime_failure_review_record(
-    *,
     evolution_id: str,
+    *,
     last_seen_at: str,
 ) -> EvolutionReviewRecord | None:
     record = await load_approval_record(evolution_id)
