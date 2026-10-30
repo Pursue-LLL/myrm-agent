@@ -1,6 +1,7 @@
 /**
- * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; detail fetched on expand; ./growth-card (头部徽章、证据面板、修订编辑器)
- * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝）; SkillGrowthViewMode type
+ * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; detail fetched on expand; ./growth-card (头部徽章、证据面板、修订编辑器);
+ *         @/lib/skills/growthReason::parseApplyFailure (POS: 成长卡片原因码解析)
+ * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝；应用失败后只提供能改变结果的操作）; SkillGrowthViewMode type
  * [POS] features/skills 单个技能进化提案的展示与交互卡片；持有展开、详情加载、修订与拒绝的交互状态
  */
 'use client';
@@ -14,6 +15,7 @@ import { GrowthCaseEvidence } from '@/components/features/skills/growth-card/Gro
 import { GrowthCaseTitleRow } from '@/components/features/skills/growth-card/GrowthCaseTitleRow';
 import { GrowthRevisionEditor } from '@/components/features/skills/growth-card/GrowthRevisionEditor';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
+import { parseApplyFailure } from '@/lib/skills/growthReason';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -59,7 +61,11 @@ export default function SkillGrowthCaseCard({
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
-  const canRevise = showReviewActions && item.source === 'evolution' && onRevise;
+  // A failed apply is only worth retrying unchanged when its cause may pass; an edited skill or an unloadable file
+  // fails again until the proposal itself changes, and a revision stays tied to the skill version the proposal was made against.
+  const applyFailure = item.status === 'APPLY_FAILED' ? parseApplyFailure(item.reasonCode) : null;
+  const canApprove = applyFailure === null || applyFailure === 'generic';
+  const canRevise = showReviewActions && item.source === 'evolution' && onRevise && applyFailure !== 'staleBase';
   // Only revision proposals record why they were turned down; a new-skill draft is simply discarded.
   const collectsRejectReason = item.source === 'evolution';
 
@@ -220,10 +226,12 @@ export default function SkillGrowthCaseCard({
               <X className="mr-2 h-4 w-4" />
               {showRejectInput ? t('actions.confirmReject') : t('actions.reject')}
             </Button>
-            <Button size="sm" onClick={onApprove} disabled={isProcessing}>
-              <Check className="mr-2 h-4 w-4" />
-              {approveLabel}
-            </Button>
+            {canApprove && (
+              <Button size="sm" onClick={onApprove} disabled={isProcessing}>
+                <Check className="mr-2 h-4 w-4" />
+                {approveLabel}
+              </Button>
+            )}
           </div>
         )}
       </div>
