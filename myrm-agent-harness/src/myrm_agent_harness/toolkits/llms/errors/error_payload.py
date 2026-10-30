@@ -10,8 +10,8 @@
 - extract_error_body: the JSON-object payload of one exception, ``{}`` when it has none
 - provider_error_message: the provider's own sentence for a rejected request, ``None`` when no payload came back
 - parse_json_object: a JSON object read out of provider text, ``None`` when the text is anything else or too deeply nested to parse
-- is_json_shaped: whether text opens as a JSON object or an array of objects, arrays or strings, which is data and not
-  words for a user
+- is_json_shaped: whether text opens as data, not as words for a user: an object, or an array that closes at once or
+  whose first element is an object, an array or a string
 
 [POS]
 The one reader of the provider's answer in an LLM exception, shared by the failure classifier, the retry-window
@@ -113,7 +113,10 @@ def _plain_text_payload(err: BaseException) -> str | None:
 
 
 def is_json_shaped(text: str) -> bool:
-    """Whether *text* opens as a JSON object or an array of objects, arrays or strings: data, not words for a user."""
+    """Whether *text* opens as data, not as words for a user.
+
+    Data is an object, or an array that closes at once or whose first element is an object, an array or a string.
+    """
     return _JSON_SHAPED.match(text) is not None
 
 

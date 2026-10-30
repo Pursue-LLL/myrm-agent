@@ -234,6 +234,7 @@ def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_w
         ("[ ]", True),
         ('["a"]', True),
         ("[{'a': 1}]", True),
+        ("['a']", True),
         ("[['a']]", True),
         ('[{"error": {"message": "x"}', True),
         ("Bad Request", False),
@@ -255,6 +256,7 @@ def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_w
         "empty array with a space",
         "string array",
         "python repr array",
+        "python repr string array",
         "nested array",
         "truncated array of objects",
         "sentence",
@@ -270,7 +272,7 @@ def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_w
         "number array",
     ],
 )
-def test_text_is_json_shaped_when_it_opens_as_an_object_or_an_array(text: str, expected: bool) -> None:
+def test_json_shaped_text_is_an_object_or_a_data_array_and_never_a_tag_or_a_sentence(text: str, expected: bool) -> None:
     assert is_json_shaped(text) is expected
 
 
