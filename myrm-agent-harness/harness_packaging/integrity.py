@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import re
 import zipfile
+from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path
 
 from harness_packaging.manifest import load_core_manifest, repo_root
+from harness_packaging.native_arch import HEADER_BYTES, native_binary_machines
+from harness_packaging.platforms import platform_spec_for_key
 from harness_packaging.release import manifest_source_paths
 
 
@@ -197,6 +201,9 @@ _FORBIDDEN_DEBUG_SUFFIXES: tuple[str, ...] = (".map", ".c.src")
 
 _CORE_PACKAGE_INIT_RELPATH = "myrm_agent_harness_core/__init__.py"
 _UNKNOWN_PLATFORM_KEY_MARKER = '__platform_key__: str = "unknown"'
+_STAMPED_PLATFORM_KEY = re.compile(r'^__platform_key__: str = "(?P<key>[^"]+)"', re.MULTILINE)
+_NATIVE_SUFFIXES = (".so", ".pyd")
+_PREVIEW_ITEMS = 3
 
 
 def _manifest_compiled_prefix(manifest_py: str) -> str:
@@ -227,7 +234,13 @@ def _forbidden_debug_entries(entries: tuple[str, ...]) -> tuple[str, ...]:
 
 def _has_compiled_artifact(entries: tuple[str, ...], manifest_py: str) -> bool:
     prefix = _manifest_compiled_prefix(manifest_py)
-    return any(name.startswith(prefix) and (name.endswith(".so") or name.endswith(".pyd")) for name in entries)
+    return any(name.startswith(prefix) and name.endswith(_NATIVE_SUFFIXES) for name in entries)
+
+
+def _preview(items: Sequence[str]) -> str:
+    """First few entries of a violation list, with the count of the rest."""
+    shown = ", ".join(items[:_PREVIEW_ITEMS])
+    return f"{shown} (+{len(items) - _PREVIEW_ITEMS} more)" if len(items) > _PREVIEW_ITEMS else shown
 
 
 def _read_wheel_entry_text(wheel_path: Path, entry_name: str) -> str | None:
@@ -238,8 +251,26 @@ def _read_wheel_entry_text(wheel_path: Path, entry_name: str) -> str | None:
             return None
 
 
-def _core_wheel_platform_key_violations(wheel_path: Path) -> tuple[str, ...]:
-    """Fail closed when a core wheel ships without a stamped platform key."""
+def _compiled_architecture_violations(
+    wheel_path: Path, entries: tuple[str, ...], platform_key: str, machine: str
+) -> tuple[str, ...]:
+    """Compiled modules that hold no code for ``machine``: the loader rejects code built for another CPU."""
+    wrong: list[str] = []
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        for name in entries:
+            if not name.endswith(_NATIVE_SUFFIXES):
+                continue
+            with zf.open(name) as artifact:
+                found = native_binary_machines(artifact.read(HEADER_BYTES))
+            if machine not in found:
+                wrong.append(f"{name.rsplit('/', 1)[-1]} ({'/'.join(sorted(found)) or 'not an x64/arm64 binary'})")
+    if not wrong:
+        return ()
+    return (f"Compiled modules must hold {machine} code for platform key {platform_key}: {_preview(wrong)}",)
+
+
+def _core_wheel_platform_violations(wheel_path: Path, entries: tuple[str, ...]) -> tuple[str, ...]:
+    """Fail closed when a core wheel has no stamped platform key or its binaries are for another CPU."""
     init_text = _read_wheel_entry_text(wheel_path, _CORE_PACKAGE_INIT_RELPATH)
     if init_text is None:
         return (
@@ -250,7 +281,15 @@ def _core_wheel_platform_key_violations(wheel_path: Path) -> tuple[str, ...]:
         return (
             "Core wheel platform key is still 'unknown'; rebuild with scripts/build_core.py / assemble_production.",
         )
-    return ()
+    stamped = _STAMPED_PLATFORM_KEY.search(init_text)
+    if stamped is None:
+        return (f"Core wheel does not stamp __platform_key__ in {_CORE_PACKAGE_INIT_RELPATH}.",)
+    platform_key = stamped.group("key")
+    try:
+        machine = platform_spec_for_key(platform_key).machine
+    except ValueError:
+        return (f"Core wheel platform key {platform_key!r} is not a platform the release builds.",)
+    return _compiled_architecture_violations(wheel_path, entries, platform_key, machine)
 
 
 def distribution_wheel_artifact_violations(
@@ -273,25 +312,18 @@ def distribution_wheel_artifact_violations(
     manifest_paths = manifest_source_paths()
     leaked = [path for path in manifest_paths if path in entry_set]
     if leaked:
-        preview = ", ".join(leaked[:3])
-        suffix = f" (+{len(leaked) - 3} more)" if len(leaked) > 3 else ""
-        violations.append(f"Manifest .py source must not ship in wheel: {preview}{suffix}")
+        violations.append(f"Manifest .py source must not ship in wheel: {_preview(leaked)}")
 
     debug_entries = _forbidden_debug_entries(entries)
     if debug_entries:
-        preview = ", ".join(debug_entries[:3])
-        suffix = f" (+{len(debug_entries) - 3} more)" if len(debug_entries) > 3 else ""
-        violations.append(f"Debug mapping artifacts must not ship in wheel: {preview}{suffix}")
+        violations.append(f"Debug mapping artifacts must not ship in wheel: {_preview(debug_entries)}")
 
     if role is DistributionWheelRole.CORE:
         missing_compiled = [path for path in manifest_paths if not _has_compiled_artifact(entries, path)]
         if missing_compiled:
-            preview = ", ".join(missing_compiled[:3])
-            suffix = f" (+{len(missing_compiled) - 3} more)" if len(missing_compiled) > 3 else ""
-            violations.append(f"Missing Nuitka .so/.pyd for manifest modules: {preview}{suffix}")
+            violations.append(f"Missing Nuitka .so/.pyd for manifest modules: {_preview(missing_compiled)}")
 
-        for platform_violation in _core_wheel_platform_key_violations(wheel_path):
-            violations.append(platform_violation)
+        violations.extend(_core_wheel_platform_violations(wheel_path, entries))
 
     return tuple(violations)
 

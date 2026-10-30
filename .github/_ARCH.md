@@ -16,7 +16,7 @@ OSS `myrm-agent` 仓库 GitHub Actions 工作流与 CI 配置根。
 | 文件 | 职责 |
 |------|------|
 | `secret_scanning.yml` | 密钥扫描与推送保护的路径排除：仅列出刻意含有仿真假密钥的脱敏/泄露防护测试夹具文件，逐文件列出，不排除整个目录 |
-| `core-platform-matrix.json` | harness 平台 core wheel 的构建矩阵（8 个平台，含 2 个 musl）：`harness-publish.yml` 的 `prepare-matrix` job 读取它，与 `myrm-agent-harness/harness_packaging/platforms.py` 的 `PUBLISH_PLATFORMS` 保持一致 |
+| `core-platform-matrix.json` | harness 平台 core wheel 的构建矩阵（8 个平台，含 2 个 musl）：`harness-publish.yml` 的 `prepare-matrix` job 读取它，与 `myrm-agent-harness/harness_packaging/platforms.py` 的 `PUBLISH_PLATFORMS` 保持一致；每个平台的 runner 与平台键同 CPU（darwin-x64 用 `macos-15-intel`，Nuitka 不能交叉编译），由 `tests/architecture/test_core_platform_matrix.py` 钉住 |
 
 ## 依赖
 

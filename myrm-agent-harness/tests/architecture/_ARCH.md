@@ -20,8 +20,11 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_wheel_browser_assets.py` | Gate | wheel 须含 `browser/assets/ad_domains.txt`（≥3500 域） | — |
 | `test_package_root_flat_layout.py` | Gate | 包根禁止平铺实现模块；`tests/` 根禁止散落测试模块；`runtime/install_guard/` 子包 layout 与 legacy 文件名回归 |
 | `test_distribution_packaging.py` | Gate | 分发打包管线不变量（wheel build/install；`slow` 标记项在 CI `distribution-packaging-slow` job） | — |
-| `test_distribution_wheel_artifact.py` | Gate | release/core wheel zip + `finalize_stripped_release_wheel` strip+verify | — |
-| `distribution_wheel_helpers.py` | 辅助 | architecture 测试用最小合法 wheel zip 构造 | — |
+| `test_distribution_wheel_artifact.py` | Gate | release/core wheel zip + `finalize_stripped_release_wheel` strip+verify；core wheel 里每个编译产物的 CPU 须等于平台键的 CPU（头里是别的 CPU、不是可识别的二进制、缺平台键戳、键不在发布平台集里，均失败） | — |
+| `test_native_arch.py` | Gate | 从编译产物头读 CPU：Mach-O 薄 / 通用、ELF、PE 的合成头逐格式覆盖；截断、未知格式、不属于 x64 / arm64 的 CPU 返回空集；发布的每个平台都有解析路径 | — |
+| `test_core_platform_matrix.py` | Gate | `.github/core-platform-matrix.json` 与 `PUBLISH_PLATFORMS` 一一对应；每个平台的 runner CPU 等于平台键的 CPU（Nuitka 不能交叉编译） | — |
+| `test_core_build_host_cpu.py` | Gate | `scripts/build_core.py` 在编译前拒绝 CPU 与构建机不符的平台键（不需要 Nuitka） | — |
+| `distribution_wheel_helpers.py` | 辅助 | architecture 测试用最小合法 wheel zip 构造（core wheel 按平台键写入对应 CPU 的 Mach-O / ELF / PE 头） | — |
 | `test_distribution_manifest_gate.py` | Gate | 算法区新增模块须 manifest 或 `@distribution-public` | — |
 | `test_distribution_codegen.py` | Gate | manifest codegen 新鲜度 + core IP import 可加载 | — |
 | `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |

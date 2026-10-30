@@ -16,6 +16,10 @@ Usage::
 
 Requires ``nuitka`` in the active environment (``uv sync --group build``). Modules compile in
 parallel (at most 4 workers; override with ``MYRM_NUITKA_JOBS``).
+
+A platform key can only be built on a host with the same CPU: Nuitka does not cross-compile (``--target`` covers
+wasi only, ``--macos-target-arch`` is capped by the running Python), so a foreign-CPU build would silently produce
+host binaries under the wrong name.
 """
 
 from __future__ import annotations
@@ -53,9 +57,16 @@ _WHEEL_OUT = _BUILD_ROOT / "wheels"
 
 def _require_nuitka() -> None:
     if importlib.util.find_spec("nuitka") is None:
+        msg = "Nuitka is required for core compilation. Install with: uv sync --group build"
+        raise SystemExit(msg)
+
+
+def _require_host_cpu(platform: PlatformSpec) -> None:
+    host = get_current_platform()
+    if host.machine != platform.machine:
         msg = (
-            "Nuitka is required for core compilation. "
-            "Install with: uv sync --group build"
+            f"Cannot build {platform.key} on this host ({host.key}): Nuitka does not cross-compile, "
+            f"so run it on a native {platform.machine} machine."
         )
         raise SystemExit(msg)
 
@@ -74,13 +85,7 @@ def _compile_jobs() -> int:
     return max(1, min(os.cpu_count() or 1, 4))
 
 
-def _compile_module(
-    module_file: Path,
-    compile_root: Path,
-    platform: PlatformSpec,
-    *,
-    native: bool,
-) -> Path:
+def _compile_module(module_file: Path, compile_root: Path) -> Path:
     import_name = _module_import_name(module_file)
     rel = module_file.relative_to(_REPO_ROOT / "src" / "myrm_agent_harness")
     nuitka_input = nuitka_compile_input(module_file)
@@ -97,9 +102,6 @@ def _compile_module(
         "--assume-yes-for-downloads",
         "--remove-output",
     ]
-    # Only pass --target for cross-compilation; native builds break with wrong target.
-    if not native and platform.nuitka_target is not None:
-        cmd.append(f"--target={platform.nuitka_target}")
 
     print(f"Compiling {import_name} ...", flush=True)
     started = time.monotonic()
@@ -134,17 +136,15 @@ def compile_core(platform: PlatformSpec | None = None) -> Path:
     """Compile all manifest modules and stage under build/core/staging/."""
     _require_nuitka()
     plat = platform or get_current_platform()
+    _require_host_cpu(plat)
     manifest = load_core_manifest()
     compile_dir = _BUILD_ROOT / "compile" / plat.key
     compile_dir.mkdir(parents=True, exist_ok=True)
 
-    current = get_current_platform()
-    native = plat.key == current.key
-
     modules = list(manifest.module_paths)
 
     def compile_one(module_file: Path) -> tuple[Path, Path]:
-        return module_file, _compile_module(module_file, compile_dir, plat, native=native)
+        return module_file, _compile_module(module_file, compile_dir)
 
     # Each module is an independent ``nuitka --module`` process. The first one runs alone so the
     # one-time toolchain/dependency downloads are not raced by parallel workers.
@@ -276,7 +276,7 @@ def main() -> None:
     parser.add_argument(
         "--platform",
         default=None,
-        help="Override platform key (e.g. darwin-arm64). Defaults to auto-detect.",
+        help="Platform key to stamp and build (e.g. darwin-arm64); its CPU must match this host. Defaults to auto-detect.",
     )
     args = parser.parse_args()
 

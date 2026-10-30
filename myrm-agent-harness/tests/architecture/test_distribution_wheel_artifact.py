@@ -14,6 +14,15 @@ sys.path.insert(0, str(_REPO_ROOT))
 sys.path.insert(0, str(_ARCH_DIR))
 
 from distribution_wheel_helpers import (
+    ELF_ARM64,
+    ELF_X64,
+    MACHO_ARM64,
+    MACHO_X64,
+    PE_X64,
+    elf_header,
+    fat_macho_header,
+    macho_header,
+    pe_header,
     stub_compiled_artifact_path,
     write_minimal_core_wheel,
     write_minimal_release_wheel,
@@ -25,6 +34,7 @@ from harness_packaging.integrity import (
     distribution_wheel_artifact_violations,
     verify_distribution_wheel_artifact,
 )
+from harness_packaging.platforms import ALL_PLATFORMS, platform_spec_for_key
 from harness_packaging.release import finalize_stripped_release_wheel, manifest_source_paths
 
 
@@ -211,3 +221,94 @@ def test_core_wheel_artifact_rejects_missing_core_package_init(tmp_path: Path) -
         role=DistributionWheelRole.CORE,
     )
     assert any("missing myrm_agent_harness_core/__init__.py" in item for item in violations)
+
+
+def _core_wheel_path(tmp_path: Path, platform_key: str) -> Path:
+    return tmp_path / f"myrm_agent_harness_core_{platform_key.replace('-', '_')}-0.1.0-py3-none-any.whl"
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize("platform_key", ALL_PLATFORMS)
+def test_core_wheel_artifact_accepts_native_code_for_every_platform_key(tmp_path: Path, platform_key: str) -> None:
+    wheel_path = _core_wheel_path(tmp_path, platform_key)
+    write_minimal_core_wheel(wheel_path, platform_key)
+    assert distribution_wheel_artifact_violations(wheel_path, role=DistributionWheelRole.CORE) == ()
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize(
+    ("platform_key", "binary", "found"),
+    [
+        ("darwin-x64", macho_header(MACHO_ARM64), "arm64"),
+        ("win32-arm64", pe_header(PE_X64), "x64"),
+        ("darwin-arm64", macho_header(MACHO_X64), "x64"),
+        ("linux-x64", elf_header(ELF_ARM64), "arm64"),
+        ("linux-arm64-musl", elf_header(ELF_X64), "x64"),
+    ],
+)
+def test_core_wheel_artifact_rejects_code_built_for_another_cpu(
+    tmp_path: Path, platform_key: str, binary: bytes, found: str
+) -> None:
+    """Nuitka cannot cross-compile, so a wheel stamped for one CPU but built on another holds host code."""
+    wheel_path = _core_wheel_path(tmp_path, platform_key)
+    write_minimal_core_wheel(wheel_path, platform_key, binary=binary)
+    machine = platform_spec_for_key(platform_key).machine
+
+    violations = distribution_wheel_artifact_violations(wheel_path, role=DistributionWheelRole.CORE)
+
+    assert len(violations) == 1
+    assert violations[0].startswith(f"Compiled modules must hold {machine} code for platform key {platform_key}: ")
+    assert f"({found})" in violations[0]
+    assert "more)" in violations[0], "a wheel of wrong modules names a few of them and counts the rest"
+    with pytest.raises(
+        DistributionWheelArtifactError, match=f"must hold {machine} code for platform key {platform_key}"
+    ):
+        verify_distribution_wheel_artifact(wheel_path, role=DistributionWheelRole.CORE)
+
+
+@pytest.mark.architecture
+def test_core_wheel_artifact_rejects_a_compiled_module_that_is_no_native_binary(tmp_path: Path) -> None:
+    wheel_path = _core_wheel_path(tmp_path, "linux-x64")
+    write_minimal_core_wheel(wheel_path, "linux-x64", binary=b"")
+
+    violations = distribution_wheel_artifact_violations(wheel_path, role=DistributionWheelRole.CORE)
+
+    assert len(violations) == 1
+    assert "(not an x64/arm64 binary)" in violations[0]
+
+
+@pytest.mark.architecture
+def test_core_wheel_artifact_accepts_a_universal_binary_that_holds_the_key_cpu(tmp_path: Path) -> None:
+    both = _core_wheel_path(tmp_path / "both", "darwin-x64")
+    arm_only = _core_wheel_path(tmp_path / "arm-only", "darwin-x64")
+    for path in (both, arm_only):
+        path.parent.mkdir()
+    write_minimal_core_wheel(both, "darwin-x64", binary=fat_macho_header(MACHO_ARM64, MACHO_X64))
+    write_minimal_core_wheel(arm_only, "darwin-x64", binary=fat_macho_header(MACHO_ARM64))
+
+    assert distribution_wheel_artifact_violations(both, role=DistributionWheelRole.CORE) == ()
+    assert distribution_wheel_artifact_violations(arm_only, role=DistributionWheelRole.CORE)
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize(
+    ("init_text", "expected"),
+    [
+        ('__version__ = "0.1.0"\n', "does not stamp __platform_key__"),
+        ('__platform_key__: str = "darwin-riscv64"\n', "'darwin-riscv64' is not a platform the release builds"),
+    ],
+    ids=["no-stamp", "unknown-key"],
+)
+def test_core_wheel_artifact_rejects_a_platform_stamp_it_cannot_check_binaries_against(
+    tmp_path: Path, init_text: str, expected: str
+) -> None:
+    wheel_path = _core_wheel_path(tmp_path, "linux-x64")
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr("myrm_agent_harness_core/__init__.py", init_text)
+        for manifest_py in manifest_source_paths():
+            zf.writestr(stub_compiled_artifact_path(manifest_py), elf_header(ELF_X64))
+
+    violations = distribution_wheel_artifact_violations(wheel_path, role=DistributionWheelRole.CORE)
+
+    assert len(violations) == 1
+    assert expected in violations[0]

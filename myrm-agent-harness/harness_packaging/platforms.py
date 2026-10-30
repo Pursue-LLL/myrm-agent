@@ -11,12 +11,16 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class PlatformSpec:
-    """Normalized platform identifier for core wheel naming."""
+    """Normalized platform identifier for core wheel naming.
+
+    ``machine`` is the CPU token of the key (``x64`` or ``arm64``): the compiled modules in a core wheel only
+    load on that CPU.
+    """
 
     key: str
     package_suffix: str
-    nuitka_target: str | None
     pep508_marker: str
+    machine: str
     is_musl: bool = False
 
 
@@ -28,7 +32,7 @@ def get_current_platform() -> PlatformSpec:
 
 
 def platform_spec_for_key(key: str) -> PlatformSpec:
-    """Resolve a CI matrix platform key to a Nuitka build spec."""
+    """Resolve a CI matrix platform key to its core wheel spec."""
     if key not in ALL_PLATFORMS:
         msg = f"Unknown platform key: {key!r}. Expected one of {ALL_PLATFORMS}"
         raise ValueError(msg)
@@ -41,28 +45,21 @@ def platform_spec_for_key(key: str) -> PlatformSpec:
             if machine == "arm64"
             else "platform_system == 'Darwin' and platform_machine == 'x86_64'"
         )
-        return PlatformSpec(key=key, package_suffix=key, nuitka_target=f"macos-{machine}", pep508_marker=marker)
+        return PlatformSpec(key=key, package_suffix=key, pep508_marker=marker, machine=machine)
     if os_name == "linux":
-        nuitka = f"linux-{machine}{'-musl' if is_musl else ''}"
         marker = (
             "platform_system == 'Linux' and platform_machine == 'x86_64'"
             if machine == "x64"
             else "platform_system == 'Linux' and platform_machine == 'aarch64'"
         )
-        return PlatformSpec(
-            key=key,
-            package_suffix=key,
-            nuitka_target=nuitka,
-            pep508_marker=marker,
-            is_musl=is_musl,
-        )
+        return PlatformSpec(key=key, package_suffix=key, pep508_marker=marker, machine=machine, is_musl=is_musl)
     if os_name == "win32":
         marker = (
             "platform_system == 'Windows' and platform_machine == 'AMD64'"
             if machine == "x64"
             else "platform_system == 'Windows' and platform_machine == 'ARM64'"
         )
-        return PlatformSpec(key=key, package_suffix=key, nuitka_target=f"windows-{machine}-msvc", pep508_marker=marker)
+        return PlatformSpec(key=key, package_suffix=key, pep508_marker=marker, machine=machine)
     msg = f"Unsupported platform key: {key!r}"
     raise ValueError(msg)
 
@@ -89,8 +86,6 @@ PUBLISH_PLATFORMS: tuple[str, ...] = ALL_PLATFORMS
 # Musl core PyPI projects require one-time bootstrap (scripts/bootstrap_pypi_core_upload.sh)
 # before OIDC publish succeeds. Post-upload verify treats musl as optional until indexed.
 MUSL_PLATFORMS: tuple[str, ...] = tuple(key for key in ALL_PLATFORMS if key.endswith("-musl"))
-PYPI_VERIFY_PLATFORMS: tuple[str, ...] = tuple(
-    key for key in PUBLISH_PLATFORMS if key not in MUSL_PLATFORMS
-)
+PYPI_VERIFY_PLATFORMS: tuple[str, ...] = tuple(key for key in PUBLISH_PLATFORMS if key not in MUSL_PLATFORMS)
 
 SUPPORTED_PLATFORMS = ALL_PLATFORMS

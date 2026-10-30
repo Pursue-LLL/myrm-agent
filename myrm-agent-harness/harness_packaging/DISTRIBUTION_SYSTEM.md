@@ -30,14 +30,15 @@ Publish `myrm-agent-harness` to PyPI as a **dual-wheel package** that third-part
 |-----------|------|------|
 | Public API | `src/myrm_agent_harness/api/` | Stable import surface (factory, Protocol, DTO, `hooks`, `skills`) |
 | Core manifest | `harness_packaging/core_manifest.yaml` | Modules compiled to native extensions |
-| Platform detection | `harness_packaging/platforms.py` | Eight supported platform keys (incl. linux-*-musl) |
+| Platform detection | `harness_packaging/platforms.py` | Eight supported platform keys (incl. linux-*-musl), each naming its CPU |
+| Native architecture | `harness_packaging/native_arch.py` | Reads the CPU from a compiled binary's Mach-O / ELF / PE header |
 | Metadata codegen | `scripts/sync_distribution_metadata.py` | Generate `runtime/install_guard/_generated/core_ip_manifest.py`, `platform.py` + sync compiled-core pins |
-| Core build | `scripts/build_core.py` | Nuitka `--module` + static hatch `force-include` wheel + inline artifact verify |
+| Core build | `scripts/build_core.py` | Nuitka `--module` + static hatch `force-include` wheel + inline artifact verify; exits before compiling when the platform key's CPU is not the host's |
 | Release build | `scripts/build_release_wheel.py` | `uv build --wheel` + `finalize_stripped_release_wheel` (strip + verify) |
 | Browser data assets | `pyproject.toml` `[tool.hatch.build.targets.wheel.force-include]` | Ships `toolkits/browser/assets/ad_domains.txt` in release wheel (guard: `tests/architecture/test_wheel_browser_assets.py`) |
 | Production assemble | `harness_packaging/assemble.py` | Core + release via same finalize helper + optional `--install` |
 | Post-install verify | `src/myrm_agent_harness/runtime/install_guard/verify.py` | Console script `verify-harness-distribution` |
-| Wheel artifact gate | `harness_packaging/integrity.py` + `release.py::finalize_stripped_release_wheel` | Zip scan: no manifest `.py` / debug maps in release; compiled-only core; inline at all build entrypoints |
+| Wheel artifact gate | `harness_packaging/integrity.py` + `release.py::finalize_stripped_release_wheel` | Zip scan: no manifest `.py` / debug maps in release; compiled-only core whose binaries hold the CPU of the stamped platform key; inline at all build entrypoints |
 | Install guard probe | `src/myrm_agent_harness/runtime/install_guard/probe.py` | `source` vs `compiled` + fail-closed + version + platform key match (rejects unstamped `unknown` key) |
 | Platform key SSOT | `harness_packaging/platform_key.py` → codegen `runtime/install_guard/platform.py` | Build + runtime platform key alignment |
 
@@ -89,7 +90,7 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 Tag `harness-v*` (e.g. `harness-v0.1.0rc1`, aligned with `project.version`) on the **myrm-agent** repository triggers `.github/workflows/harness-publish.yml` (the repository-root workflow; GitHub only runs workflows kept at the repository root, never in a subproject's own `.github` directory): the `harness-v` prefix is what separates a harness release from the desktop release, which uses plain `v*`:
 
 0. `scripts/verify_release_tag.py` asserts `refs/tags/harness-v{version}` matches `project.version` before any wheel build
-1. Matrix build eight `myrm-agent-harness-core-*` wheels
+1. Matrix build eight `myrm-agent-harness-core-*` wheels, each on a runner with its platform key's own CPU (Nuitka cannot cross-compile: `--target` is wasi-only and `--macos-target-arch` is capped by the running Python, so a foreign-CPU build silently yields the host's code)
 2. Build stripped release wheel (`scripts/build_release_wheel.py`: strip manifest `.py` + inline artifact verify)
 3. `validate-wheels` job runs `scripts/validate_pypi_wheels.py` on release + all core wheels (count/version + zip artifact scan)
 4. `publish-release` job uploads the release wheel (OIDC, `environment: pypi`)
@@ -110,7 +111,7 @@ One-time bootstrap for new core project names (OIDC cannot create projects): `sc
 
 | Workflow | Role |
 |----------|------|
-| `harness-publish.yml` | `harness-v*` tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` at the repository root |
+| `harness-publish.yml` | `harness-v*` tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` at the repository root, every runner on its key's CPU (`test_core_platform_matrix.py`) |
 | `harness-boundary.yml` | Architecture gates (`boundary_check`, fractal docs, `_ARCH` inventory, import resolvability, package layout, `-m "architecture and not slow"`) plus a `distribution-packaging-slow` job running `test_distribution_packaging.py -m "architecture and slow"` (dual-wheel COMPILED e2e, manifest drift gate, wheel artifact zip scan via `validate_pypi_wheels.py`) |
 | `harness-test.yml` | Unit suite (`-n 2`) and serial browser integration on push to `main` and PRs; locked source tree (`uv sync --locked`: `[all]` + `dev` group; `compiled-core*` excluded via `[tool.uv]`) |
 | `harness-cli-contract.yml` | Weekly and on demand: the latest real `claude` / `codex` CLIs against the CLI runtime's resume flags and failure classification (stub API, no login or billing); detects CLI release drift, not a PR gate |

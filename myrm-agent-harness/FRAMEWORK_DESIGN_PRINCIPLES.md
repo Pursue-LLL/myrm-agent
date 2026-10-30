@@ -52,7 +52,7 @@
 **唯一发布流程**：仓库根的 `.github/workflows/harness-publish.yml`（GitHub 只执行仓库根的工作流目录）。`harness-v<version>` tag → `scripts/verify_release_tag.py` 校验 tag 与 `pyproject.toml` 版本一致 → 矩阵编译 8 个平台 core wheel（`scripts/build_core.py`）→ 剥离源码的 release wheel（`scripts/build_release_wheel.py`）→ `scripts/validate_pypi_wheels.py` 校验全套产物 → 按项目逐个以 OIDC 上传 release wheel 与各平台 core wheel → `scripts/verify_pypi_publish.py` 校验索引。
 
 - `harness_packaging/core_manifest.yaml` 是编译范围的 SSOT（10 个目录 → 120 个叶子模块），`scripts/sync_distribution_metadata.py` 据此生成 `runtime/install_guard/_generated/core_ip_manifest.py` 与 `compiled-core` pin。
-- 平台矩阵：`harness_packaging/platforms.py` 的 8 个 key（含 2 个 musl），与仓库根 `.github/core-platform-matrix.json` 一致。
+- 平台矩阵：`harness_packaging/platforms.py` 的 8 个 key（含 2 个 musl），与仓库根 `.github/core-platform-matrix.json` 一致；每个 key 在与其 CPU 相同的原生 runner 上构建（Nuitka 不能交叉编译），wheel 校验读取编译产物头里的 CPU，与 key 不符即失败。
 - `verify-harness-distribution` 校验「包能导入 + 公开 API 可解析」；发行模式下额外由 `runtime.install_guard.probe` 校验 release/core 版本与平台 key 一致。
 - 本地等价流程：`uv sync --group build && .venv/bin/python scripts/assemble_production.py`（`--install` 可直接装进消费方 venv）。
 
