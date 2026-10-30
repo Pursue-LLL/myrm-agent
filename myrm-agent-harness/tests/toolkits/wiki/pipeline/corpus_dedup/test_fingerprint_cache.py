@@ -279,3 +279,18 @@ def test_a_dedup_database_that_never_recorded_an_algorithm_version_starts_with_a
     hashed = _record_hashed(monkeypatch)
     CorpusDedupScanner(structure).scan(incremental=True)
     assert len(hashed) == 3
+
+
+def test_discarding_the_fingerprint_cache_keeps_the_users_dispositions(
+    structure: WikiStructure, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_documents(structure, 2)
+    scanner = CorpusDedupScanner(structure)
+    scanner.scan(incremental=False)
+    scanner.store.dispositions.add_excluded_path("notes/doc-0.md", reason="manual exclude")
+
+    monkeypatch.setattr(store_module, "FINGERPRINT_ALGORITHM_VERSION", "next-algorithm")
+    reopened = CorpusDedupStore(structure)
+
+    assert reopened.fingerprints.load_all() == {}
+    assert "notes/doc-0.md" in reopened.dispositions.get_excluded_paths()
