@@ -58,7 +58,10 @@ describe('CronRunSteps', () => {
   it('shows the error of a failed step', () => {
     render(<CronRunSteps run={runWithSteps([{ tool_name: 'shell', error: 'exit code 2' }])} />);
 
-    expect(screen.getByText('exit code 2')).toHaveAttribute('title', 'exit code 2');
+    const error = screen.getByText('exit code 2');
+    expect(error).toHaveAttribute('title', 'exit code 2');
+    // This 10px text is a failure's only explanation: rose-700 keeps it above 4.5:1 on the light theme (5.9:1).
+    expect(error).toHaveClass('text-rose-700', 'dark:text-rose-400');
   });
 
   it('copies the whole audit trace of the run and says so', () => {

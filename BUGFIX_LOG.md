@@ -63,6 +63,18 @@
 | **仍然存在** | ① 路径穿透能否被利用：没有证据。Telegram 文档把 `language_code` 写成 IETF 语言标签，MTProto 的 `lang_code` 可以是语言包名，文档没有说服务端会拒绝含 `/` 的串；这条只是让它在引擎里无害。② 真实部署里有多少不同的 locale 字符串没有数据：745 KB/个是实测单价，不是节省总量。③ 运行中往已登记的目录里新放语言文件，要等下一次 `add_root` 或重启才会被识别（之前对没请求过的 locale 会立即生效）；`add_locale_root` 在 `app` 里没有调用者，发布的语言文件随代码一起发布。④ 同一次调用里 `_get_fallback_chain` 算两遍（收敛时一遍、取文案时一遍），实测（暖调用，每个组合 10 万次取 7 轮中位数，测量时机器上还有别的测试在跑；旧引擎 → 新引擎）：`en` 3.45 → 3.90 µs，`zh-CN` 3.70 → 4.25 µs，`zh-TW` 3.91 → 4.41 µs，`en` 的另一个 key 1.44 → 1.88 µs，`pt-BR` 1.76 → 2.41 µs，即每次调用多 0.44 到 0.64 µs。⑤ macOS（大小写不敏感的文件系统）上 `EN` 以前能命中 `en.json`、Linux 上不能，现在两边一致都走回退。⑥ 每个语言仍各有一份各自解析 `.ftl` 的 `FluentLocalization`，按实测单价 6 个语言约 4.5 MB，没有改。⑦ 带扩展子标签的 `zh-TW-x`、`zh-TW-u-ca-roc` 现在先收敛到 `zh-TW`，与 `zh-TW` 共用同一条回退链（含 `zh-Hant`）；旧引擎对它们的链里没有 `zh-Hant`（只有精确的 `zh-tw`/`zh-hk`/`zh-mo` 才加）。只有宿主另外登记了 `zh-Hant` 目录、且 `zh-TW` 缺某个 key 时才看得出差别（实测：旧引擎对 `zh-TW-x` 返回 key 名，新引擎返回 `zh-Hant` 目录里的文案）。入站管线不会把这类串送进引擎：`normalize_locale` 在引擎之前就把 `zh*` 收成单一的区域值，只有直接调用 `channel_t` 的代码才可能带着它进来。 |
 | **代码位置** | `myrm-agent-server/app/channels/i18n/engine.py`（`_known_locales`、`_resolve_locale`、`format_value`、`add_root`） · `app/channels/i18n/_ARCH.md` · `app/channels/CHANNELS_SYSTEM.md` · `tests/channels/i18n/test_locale_resolution.py` |
 
+## 2026-10-31 · 定时任务运行记录：失败步骤旁的错误原因在浅色主题下对比度只有 2.8:1
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；代码与测试在同一提交）。「仍然存在」里的项未处理。 |
+| **症状** | [实测：在 Chrome 里取 Tailwind 的 oklch 色值渲染后的 sRGB，按 WCAG 公式计算] 展开运行记录，失败步骤旁的错误原因（`CronRunSteps.tsx`，10px，是这一步唯一的失败说明）用 `text-red-400`（渲染为 rgb(255,100,103)）：浅色主题下对 `--background`（`#fdfdfb`）只有 2.84:1，对步骤区底色（`bg-muted/20` 叠在背景上）2.79:1，低于 AA 正文下限 4.5:1；深色主题下 6.85:1 与 6.68:1，没有问题。 |
+| **根因** | 写死了在深色主题里好读的 400 档，没有给浅色主题配值。 |
+| **修复** | `text-rose-700 dark:text-rose-400`：浅色 5.92:1（步骤区底色上 5.82:1），深色 6.92:1（步骤区底色上 6.75:1），都高于 4.5:1。浅色用 700 而不是本模块别处用的 600：600 实测 4.45:1（步骤区底色上 4.37:1），仍低于 4.5:1。`text-rose-700` 在别处已有 20 个文件在用。 |
+| **回归证据** | [1] 既有「失败步骤带错误文本」用例加一条断言（两个 class）；把 class 改回 `text-red-400` 后该用例红、其余 5 例通过，还原后 `cmp` 逐字节一致。[2] `src/components/features/cron` 18 个文件 167 例通过；`tsc --noEmit`、`verify:i18n`、`verify:theme-colors`、prettier、oxlint 通过。 |
+| **仍然存在** | ① 同组件里的状态圆点（`bg-red-400`、`bg-emerald-400`）与复制成功后的对勾（`text-green-500`）同样偏浅，它们与旁边的文字重复表达同一信息，没有改。② 对比度由 Chrome 渲染出的 sRGB 值按公式算出，没有在运行中的页面上取色；步骤区底色按 `bg-muted/20` 叠在 `--background` 上估算（浅色 `--muted` 的透明度按 0.675 计）。③ 没有查全站其余 `text-red-400` 的用法。 |
+| **代码位置** | frontend：`src/components/features/cron/CronRunSteps.tsx`、`src/components/features/cron/__tests__/CronRunSteps.test.tsx`。 |
+
 ## 2026-10-31 · 定时任务：前置条件探针脚本崩溃或超时被记成「跳过」，失败告警与一次性任务的保护触发不了；超时的探针脚本进程不被终止
 
 | 字段 | 内容 |

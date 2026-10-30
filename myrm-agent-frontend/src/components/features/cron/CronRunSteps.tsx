@@ -70,7 +70,7 @@ const CronRunSteps = memo<CronRunStepsProps>(({ run }) => {
               {step.tool_name || step.step_key || t('stepFallback', { index: idx + 1 })}
             </span>
             {step.error && (
-              <span className="text-red-400 truncate ml-auto" title={step.error}>
+              <span className="text-rose-700 dark:text-rose-400 truncate ml-auto" title={step.error}>
                 {step.error}
               </span>
             )}
