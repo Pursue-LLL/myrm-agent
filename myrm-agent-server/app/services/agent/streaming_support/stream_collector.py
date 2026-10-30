@@ -177,6 +177,16 @@ class StreamContentCollector:
         """
         return any(event.get("type") == "tool_approval_request" for event in self._pending_interrupt_events)
 
+    def settle_tool_approvals(self) -> None:
+        """Forget the tool-approval cards once they are answered.
+
+        The parked run stays the chat's collector until the resumed run registers its own, a moment that lasts about a second:
+        a page that attaches in that window would otherwise get the card back and offer an answer that is already taken.
+        """
+        self._pending_interrupt_events = [
+            event for event in self._pending_interrupt_events if event.get("type") != "tool_approval_request"
+        ]
+
     @property
     def tool_stuck_paused(self) -> bool:
         """True when the loop guard paused the turn: it has no card to answer, so the turn is over."""

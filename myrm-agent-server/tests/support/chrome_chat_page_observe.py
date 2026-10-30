@@ -9,8 +9,10 @@
 [OUTPUT]
 - reply_on_page() / wait_for_reply_on_page(): the reply is a line of the transcript (the sidebar's previews do not count)
 - assert_reply_shown_once() / assert_page_settled(): reply shown once; settled adds not streaming and no approval card
-- reload_the_chat() / open_chat_from_sidebar(): reload the document, or switch chats inside the running page
+- assert_board_settled(): the phone's board shows progress, not the reply: not streaming, no approval card, the stored reply is final
+- reload_the_chat() / open_in_fresh_page() / open_chat_from_sidebar(): reload the document, visit another page afresh (directly or through the UI server's relay), or switch chats inside the running page
 - wait_for_card_of_open_chat(): the open chat's own card is in the shared approval queue and on screen
+- wait_for_mobile_status_board(): the phone's status board is the page on screen
 - wait_until_not_streaming() / stored_reply_is_final() / assert_run_still_working()
 
 [POS]
@@ -45,6 +47,10 @@ _CARD_ON_PAGE_TIMEOUT_SEC = 60.0
 # A flag on the window lives exactly as long as the document: it proves the reload replaced the page the reply was streamed to.
 _MARK_DOCUMENT_JS = "(() => { window.__MYRM_E2E_BEFORE_RELOAD__ = true; return true; })()"
 _DOCUMENT_IS_MARKED_JS = "window.__MYRM_E2E_BEFORE_RELOAD__ === true"
+# The page talks to the backend directly only while it carries the runtime binding the harness injected; without it every
+# request goes through the UI server's /api/v1 relay.
+_PAGE_IS_BOUND_JS = """Boolean(window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__)
+  || String(window.name).startsWith('myrm-e2e-v1:')"""
 
 # The answer is a line of its own; the user's message that asks for it is a longer line. The sidebar previews the last
 # message of every chat, so only the lines outside it belong to the transcript.
@@ -61,9 +67,12 @@ _REPLY_PLACES_JS = f"""(() => {{
   const rows = (chat?.messages ?? []).map((m) => ({{
     role: m.role,
     id: String(m.messageId).slice(0, 14),
+    requestId: m.requestMessageId ? String(m.requestMessageId).slice(0, 14) : null,
     status: m.completionStatus ?? null,
+    length: typeof m.content === 'string' ? m.content.length : null,
     tail: typeof m.content === 'string' ? m.content.slice(-40) : null,
   }}));
+  const bodyText = document.body?.innerText ?? '';
   const holders = Array.from(document.querySelectorAll('*'))
     .filter((el) => el.children.length === 0 && (el.textContent ?? '').trim() === {json.dumps(DONE_TOKEN)})
     .map((el) => {{
@@ -71,7 +80,13 @@ _REPLY_PLACES_JS = f"""(() => {{
       for (let node = el; node && path.length < 6; node = node.parentElement) path.push(node.tagName.toLowerCase());
       return path.join('<');
     }});
-  return {{ chatId: chat?.chatId, rows, holders }};
+  return {{
+    chatId: chat?.chatId,
+    rows,
+    holders,
+    innerTextLines: bodyText.split('\\n').filter((line) => line.trim() === {json.dumps(DONE_TOKEN)}).length,
+    textContentHasToken: (document.body?.textContent ?? '').includes({json.dumps(DONE_TOKEN)}),
+  }};
 }})()"""
 
 # The page has stopped streaming and holds no approval card: the user can send the next message.
@@ -97,6 +112,19 @@ def _card_of_open_chat_js(chat_id: str) -> str:
 def wait_for_card_of_open_chat(client: ChromeMcpClient, page: McpPage, chat_id: str) -> dict[str, object]:
     """Block until `chat_id` is the open chat and an approval card of it is on screen; returns the queued chats' ids."""
     return wait_for_state(client, page, _card_of_open_chat_js(chat_id), timeout_sec=_CARD_ON_PAGE_TIMEOUT_SEC)
+
+
+# The phone's status board, not the desktop chat page: its header carries this link and its route is /mobile/status/<chat id>.
+_MOBILE_BOARD_OPEN_JS = """(() => ({
+  ready: location.pathname.startsWith('/mobile/status/')
+    && document.querySelector('[data-testid="mobile-command-view-full-conversation"]') !== null,
+  path: location.pathname,
+}))()"""
+
+
+def wait_for_mobile_status_board(client: ChromeMcpClient, page: McpPage) -> None:
+    """Block until the mobile status board is the page on screen."""
+    wait_for_state(client, page, _MOBILE_BOARD_OPEN_JS, timeout_sec=_CARD_ON_PAGE_TIMEOUT_SEC)
 
 
 def wait_until_not_streaming(client: ChromeMcpClient, page: McpPage) -> None:
@@ -143,6 +171,12 @@ def assert_reply_shown_once(client: ChromeMcpClient, page: McpPage) -> None:
         pytest.fail(f"the reply is shown {shown} times on the page: {json.dumps(places, ensure_ascii=False)}")
 
 
+def assert_board_settled(client: ChromeMcpClient, page: McpPage, probe: SkillChat) -> None:
+    """The run ended and the board holds no card. The board shows progress, not the reply, so the stored reply is the proof."""
+    wait_for_state(client, page, _SETTLED_JS, timeout_sec=_SETTLED_TIMEOUT_SEC)
+    assert stored_reply_is_final(probe), "the board settled but the run has no completed reply"
+
+
 def assert_page_settled(client: ChromeMcpClient, page: McpPage) -> None:
     """The reply is on the page and the turn is over for it: not streaming, no approval card, the reply shown once."""
     wait_for_state(client, page, _SETTLED_JS, timeout_sec=_SETTLED_TIMEOUT_SEC)
@@ -161,8 +195,10 @@ def wait_for_reply_on_page(client: ChromeMcpClient, page: McpPage, probe: SkillC
             return
         time.sleep(1.0)
     page_tail = client.evaluate(page, _PAGE_TEXT_TAIL_JS, timeout_sec=15.0)
+    places = client.evaluate(page, _REPLY_PLACES_JS, timeout_sec=15.0)
     pytest.fail(
         f"{failure} within {_REPLY_ON_PAGE_TIMEOUT_SEC:.0f}s\n{describe_page(client, page)}\n"
+        f"store rows and elements that hold the reply: {json.dumps(places, ensure_ascii=False)}\n"
         f"page text ends with: {page_tail!r}\nstored reply ends with: {_stored_reply_tail(probe)!r}"
     )
 
@@ -174,8 +210,34 @@ def open_chat_from_sidebar(client: ChromeMcpClient, page: McpPage, chat_id: str)
     assert isinstance(clicked, dict) and clicked.get("ready") is True, clicked
 
 
-def reload_the_chat(client: ChromeMcpClient, page: McpPage, chat_url: str) -> None:
+def _replace_document(client: ChromeMcpClient, page: McpPage, url: str, *, navigate: bool, bound: bool = True) -> None:
     assert client.evaluate(page, _MARK_DOCUMENT_JS, timeout_sec=15.0) is True
-    reload_mcp_page(client, page, target_url=chat_url, timeout_ms=_RELOAD_TIMEOUT_MS)
-    wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
-    assert client.evaluate(page, _DOCUMENT_IS_MARKED_JS, timeout_sec=15.0) is False, "the page was not reloaded"
+    if not bound:
+        # Going through about:blank drops the binding that lives in window.name: the page reaches the backend through the
+        # UI server's /api/v1 relay, as a browser outside the harness does.
+        reload_mcp_page(client, page, target_url=url, ignore_cache=True, timeout_ms=_RELOAD_TIMEOUT_MS)
+    elif navigate:
+        # A direct same-origin navigation keeps the binding, so the page talks to the backend directly.
+        client.navigate(page, url, timeout_ms=_RELOAD_TIMEOUT_MS)
+    else:
+        reload_mcp_page(client, page, target_url=url, timeout_ms=_RELOAD_TIMEOUT_MS)
+    wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=url)
+    assert client.evaluate(page, _DOCUMENT_IS_MARKED_JS, timeout_sec=15.0) is False, "the page was not replaced"
+    is_bound = client.evaluate(page, _PAGE_IS_BOUND_JS, timeout_sec=15.0)
+    assert is_bound is bound, (
+        f"the page is {'' if is_bound else 'not '}bound to the backend, expected {'bound' if bound else 'unbound'}"
+    )
+
+
+def reload_the_chat(client: ChromeMcpClient, page: McpPage, chat_url: str) -> None:
+    """Reload the open chat page."""
+    _replace_document(client, page, chat_url, navigate=False)
+
+
+def open_in_fresh_page(client: ChromeMcpClient, page: McpPage, page_url: str, *, through_the_ui_relay: bool = False) -> None:
+    """Visit ``page_url`` as a freshly loaded page: nothing of the page that was open is left in the stores.
+
+    The page talks to the backend directly, like every page the harness opens. With ``through_the_ui_relay`` it reaches the
+    same backend the way a browser outside the harness does, through the UI server's ``/api/v1`` rewrite.
+    """
+    _replace_document(client, page, page_url, navigate=True, bound=not through_the_ui_relay)

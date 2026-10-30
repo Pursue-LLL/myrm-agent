@@ -295,17 +295,13 @@ interface ServerTurnState {
   awaitingApproval: boolean;
 }
 
-/** 服务端状态采样（探测失败按「没有回合」处理，恢复只是尽力而为）。 */
+/**
+ * 服务端状态采样（探测失败按「没有回合」处理，恢复只是尽力而为）。
+ * 按 chat 取，不读全局会话列表：手机端配对令牌只绑定这一个 chat，读不到别的 chat 的会话。
+ */
 async function sampleServerTurn(chatId: string): Promise<ServerTurnState> {
   try {
-    const sessions = await apiRequest<{
-      activeSessions?: Array<{ chatId: string }>;
-      awaitingApprovalChatIds?: string[];
-    }>('/agents/active-sessions', { silent: true });
-    return {
-      running: sessions.activeSessions?.some((session) => session.chatId === chatId) ?? false,
-      awaitingApproval: sessions.awaitingApprovalChatIds?.includes(chatId) ?? false,
-    };
+    return await apiRequest<ServerTurnState>(`/agents/chat/${chatId}/turn-state`, { silent: true });
   } catch {
     return { running: false, awaitingApproval: false };
   }

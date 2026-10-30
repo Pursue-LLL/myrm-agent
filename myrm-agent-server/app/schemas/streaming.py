@@ -14,7 +14,9 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 SSE_RESPONSE_HEADERS: dict[str, str] = {
-    "Cache-Control": "no-cache",
+    # ``no-transform`` keeps a compressing proxy (the Next.js server that relays ``/api/v1``) from gzip-buffering the stream:
+    # a quiet stream such as a HITL attach would otherwise deliver nothing until the idle timeout.
+    "Cache-Control": "no-cache, no-transform",
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
     # SHPOIB E2E: allow cross-origin SSE reads from :3000 under COEP credentialless.

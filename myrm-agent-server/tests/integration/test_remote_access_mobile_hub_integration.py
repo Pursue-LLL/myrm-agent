@@ -7,7 +7,8 @@ uses real implementations — no mocks.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Iterator
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -35,7 +36,7 @@ _REMOTE_HEADERS = {"Host": "abc.trycloudflare.com"}
 
 
 @pytest.fixture(autouse=True)
-def _local_remote_webui(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _local_remote_webui(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("DEPLOY_MODE", "local")
     monkeypatch.setenv("WEBUI_MODE", "true")
     monkeypatch.setenv("WEBUI_REMOTE_MODE", "true")
@@ -69,7 +70,7 @@ def _local_remote_webui(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def integration_client() -> TestClient:
+def integration_client() -> Iterator[TestClient]:
     app = FastAPI()
     app.include_router(remote_access_router, prefix="/api/v1/remote-access")
     app.include_router(agents_attach_router, prefix="/api/v1/agents")
@@ -100,7 +101,7 @@ async def active_chat_with_collector() -> AsyncIterator[str]:
     # Gateway-only registration would 404 the upgrade leg of the chain.
     await ChatService.create_or_update_chat(ChatCreate(chat_id=chat_id, last_message="hello"))
 
-    async def long_stream() -> AsyncIterator[dict[str, object]]:
+    async def long_stream() -> AsyncGenerator[dict[str, object], None]:
         for _ in range(2400):
             await asyncio.sleep(0.05)
             yield {"type": "message", "data": "ping"}
@@ -209,6 +210,69 @@ class TestMobileHubIntegration:
         response = integration_client.get(
             "/api/v1/agents/chat/other-chat/attach?multiplexed=true",
             headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
+        )
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_scoped_pair_reads_the_turn_state_of_its_own_chat(
+        self,
+        integration_client: TestClient,
+        active_chat_with_collector: str,
+    ) -> None:
+        """The phone's status page samples this before it decides whether a parked tool-approval card can be brought back."""
+        chat_id = active_chat_with_collector
+        scoped_token = create_pairing_token(chat_id=chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+        headers = {**_REMOTE_HEADERS, "X-Pair-Token": scoped_token}
+
+        running = integration_client.get(f"/api/v1/agents/chat/{chat_id}/turn-state", headers=headers)
+        assert running.status_code == 200
+        assert running.json()["data"] == {"running": True, "awaitingApproval": False}
+
+        ACTIVE_COLLECTORS[chat_id].feed_event(
+            {
+                "type": "tool_approval_request",
+                "messageId": "msg-hub-approval",
+                "data": {"actionRequests": [], "reviewConfigs": []},
+            }
+        )
+        parked = integration_client.get(f"/api/v1/agents/chat/{chat_id}/turn-state", headers=headers)
+        assert parked.json()["data"] == {"running": True, "awaitingApproval": True}
+
+    @pytest.mark.asyncio
+    async def test_scoped_pair_rejects_turn_state_of_other_chat(
+        self,
+        integration_client: TestClient,
+        active_chat_with_collector: str,
+    ) -> None:
+        scoped_token = create_pairing_token(chat_id=active_chat_with_collector, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+        response = integration_client.get(
+            "/api/v1/agents/chat/other-chat/turn-state",
+            headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
+        )
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_scoped_pair_stays_out_of_the_global_session_list(
+        self,
+        integration_client: TestClient,
+        active_chat_with_collector: str,
+    ) -> None:
+        """The turn state is per chat so the scoped token needs no view of the other chats' sessions."""
+        scoped_token = create_pairing_token(chat_id=active_chat_with_collector, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+        response = integration_client.get(
+            "/api/v1/agents/active-sessions",
+            headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
+        )
+        assert response.status_code == 401
+
+    def test_hub_list_pair_rejected_on_turn_state_without_upgrade(
+        self,
+        integration_client: TestClient,
+    ) -> None:
+        list_token = create_pairing_token(purpose=MOBILE_HUB_LIST_PURPOSE)
+        response = integration_client.get(
+            "/api/v1/agents/chat/chat-a/turn-state",
+            headers={**_REMOTE_HEADERS, "X-Pair-Token": list_token},
         )
         assert response.status_code == 401
 

@@ -242,6 +242,8 @@ async def run_agent_stream(
         # The harness timer and this manual resume race for one approval; the loser must not run the turn again.
         # Refused here, before the response is accepted, so the client gets a status code it can act on.
         # The winner is the timer or another client's resume, and the scheduler does not record which.
+        # The accepted answer also takes the card away from the parked run, which stays the chat's collector until the
+        # resumed run registers its own.
         if request.resume_value is not None and request.chat_id:
             if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
                 logger.warning("Resume rejected (already resolved): chat_id=%s", request.chat_id)
@@ -250,6 +252,11 @@ async def run_agent_stream(
                     status_code=409,
                     content={"detail": "This approval has already been resolved."},
                 )
+            from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
+
+            parked_run = ACTIVE_COLLECTORS.get(request.chat_id)
+            if parked_run is not None:
+                parked_run.settle_tool_approvals()
 
         # A run that gets this far is a new one, also when it resumes under the id of the turn that asked for the
         # approval: the finished turn's buffer would replay that turn and never carry the resumed one.

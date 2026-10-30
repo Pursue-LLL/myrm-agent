@@ -11,6 +11,7 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
 
 from app.services.agent.stream_session import run_agent_stream
+from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
 
 _ORCHESTRATOR = "app.services.agent.stream_session.orchestrator"
 
@@ -159,3 +160,37 @@ async def test_a_new_run_leaves_the_timeout_arbiter_untouched(handoff: SimpleNam
     await run_agent_stream(handoff.request, handoff.http_request)
 
     assert ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff") is True
+
+
+def _parked_behind_a_tool_approval(chat_id: str) -> StreamContentCollector:
+    collector = StreamContentCollector(chat_id=chat_id)
+    collector.feed_event({"type": "tool_approval_request", "messageId": "msg-handoff", "data": {"actionRequests": []}})
+    assert collector.has_pending_tool_approval() is True
+    return collector
+
+
+@pytest.mark.asyncio
+async def test_an_accepted_resume_stops_the_parked_run_from_offering_the_answered_card(handoff: SimpleNamespace) -> None:
+    """Until the resumed run registers its own collector the parked one is still the chat's: a reloading page must not get the card."""
+    parked = _parked_behind_a_tool_approval("chat-handoff")
+    handoff.request.resume_value = {"decision": "approve"}
+    try:
+        await run_agent_stream(handoff.request, handoff.http_request)
+
+        assert parked.has_pending_tool_approval() is False
+        assert ACTIVE_COLLECTORS.get("chat-handoff") is parked
+    finally:
+        parked.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_a_refused_resume_leaves_the_parked_run_as_it_was(handoff: SimpleNamespace) -> None:
+    parked = _parked_behind_a_tool_approval("chat-handoff")
+    handoff.request.resume_value = {"decision": "approve"}
+    ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff")
+    try:
+        await run_agent_stream(handoff.request, handoff.http_request)
+
+        assert parked.has_pending_tool_approval() is True
+    finally:
+        parked.cleanup()

@@ -13,10 +13,18 @@ import { getSuggestions as getSuggestionsService } from '@/services/chat';
 import { buildSimpleChatHistory } from './chatHistoryBuilder';
 
 /**
- * 查找指定messageId的assistant消息索引
+ * 查找指定messageId的assistant消息索引。
+ *
+ * 流事件用请求 id 命名回合，而从 DB 载入的 assistant 行用 UUID 作 messageId、把请求 id 记在 `requestMessageId`
+ * （重载后接上还在跑的回合就是这种情况）。先按 messageId 精确匹配；没有则取最近一条以该请求 id 命名的行，
+ * 暂停又续跑的回合每段各存一行，最近一段才是还在写的那段。
  */
 export const findAssistantMessageIndex = (messages: Message[], messageId: string): number => {
-  return messages.findIndex((msg) => msg.messageId === messageId && msg.role === 'assistant');
+  const exact = messages.findIndex((msg) => msg.messageId === messageId && msg.role === 'assistant');
+  if (exact !== -1 || !messageId) {
+    return exact;
+  }
+  return messages.findLastIndex((msg) => msg.role === 'assistant' && msg.requestMessageId === messageId);
 };
 
 /**

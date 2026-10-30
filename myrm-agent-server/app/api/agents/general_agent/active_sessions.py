@@ -97,20 +97,41 @@ async def attach_to_chat(
 async def get_active_sessions() -> JSONResponse:
     """Get active agent sessions for Multi-Pane status overview.
 
-    Returns running sessions, the chats parked behind a tool-approval card (their session is released while they wait, yet a
-    reloaded page can still get the card back through attach), and available concurrent execution slots.
+    Returns running sessions and available concurrent execution slots.
     """
     from app.core.utils.response_utils import success_response
-    from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
 
     gateway = get_agent_gateway()
     return success_response(
         data={
             "activeSessions": gateway.get_active_sessions(),
-            "awaitingApprovalChatIds": sorted(
-                chat_id for chat_id, collector in ACTIVE_COLLECTORS.items() if collector.has_pending_tool_approval()
-            ),
             "maxConcurrent": gateway.config.max_per_user,
             "availableSlots": gateway.get_available_slots(),
+        }
+    )
+
+
+@router.get("/chat/{chat_id}/turn-state")
+async def get_chat_turn_state(chat_id: str, request: Request) -> JSONResponse:
+    """What the server still holds for one chat: a running turn, or one parked behind a tool-approval card.
+
+    A parked turn has released its gateway session, yet its collector still holds the card that a reloaded page can get back
+    through attach. A tool-approval card has no stored record (a clarification is stored with the message, an
+    ``approval_required`` card has its registry record), so only the collector can hand it back.
+
+    The state is read per chat, not from the global session list, so a phone paired to this chat alone can ask for it.
+    The two flags are not secret and the page reads them with the shared ``apiRequest``, which never decrypts, so the
+    answer is plain JSON even when the request carries an E2EE session.
+    """
+    from app.core.utils.response_utils import success_response
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
+    from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
+
+    require_mobile_pair_chat_access(request, chat_id)
+    collector = ACTIVE_COLLECTORS.get(chat_id)
+    return success_response(
+        data={
+            "running": get_agent_gateway().is_session_active(chat_id),
+            "awaitingApproval": collector is not None and collector.has_pending_tool_approval(),
         }
     )

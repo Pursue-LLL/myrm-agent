@@ -119,25 +119,33 @@ function chatDetailPayload(): { chat: Record<string, unknown> } {
   };
 }
 
-const ACTIVE_SESSIONS_ENDPOINT = '/agents/active-sessions';
+interface TurnState {
+  running: boolean;
+  awaitingApproval: boolean;
+}
+
+/** The turn state is asked per chat: a phone paired to one chat can read nothing else. */
+const TURN_STATE_ENDPOINT = /^\/agents\/chat\/([^/]+)\/turn-state$/;
+
+function isTurnStateEndpoint(endpoint: string): boolean {
+  return TURN_STATE_ENDPOINT.test(endpoint);
+}
 
 /**
  * What the server reports about its chats: the ones executing a turn right now, and the ones parked behind a tool-approval card.
  * Every other endpoint answers like an idle sandbox.
  */
 function serverReports(running: string[], awaitingApproval: string[] = []): void {
-  apiRequestMock.mockImplementation(async (endpoint: string) =>
-    endpoint === ACTIVE_SESSIONS_ENDPOINT
-      ? {
-          activeSessions: running.map((chatId) => ({ chatId })),
-          awaitingApprovalChatIds: awaitingApproval,
-        }
-      : { active: false },
-  );
+  apiRequestMock.mockImplementation(async (endpoint: string) => {
+    const chatId = TURN_STATE_ENDPOINT.exec(endpoint)?.[1];
+    return chatId === undefined
+      ? { active: false }
+      : { running: running.includes(chatId), awaitingApproval: awaitingApproval.includes(chatId) };
+  });
 }
 
-function activeSessionProbes(): unknown[][] {
-  return apiRequestMock.mock.calls.filter(([endpoint]) => endpoint === ACTIVE_SESSIONS_ENDPOINT);
+function turnStateProbes(): unknown[][] {
+  return apiRequestMock.mock.calls.filter(([endpoint]) => isTurnStateEndpoint(endpoint));
 }
 
 function lastMessageIs(role: 'user' | 'assistant'): void {
@@ -225,7 +233,7 @@ describe('loadMessages active-turn SSE recovery', () => {
     await vi.waitFor(() => {
       expect(attachToChatMock).toHaveBeenCalledTimes(1);
     });
-    expect(activeSessionProbes()).toHaveLength(1);
+    expect(turnStateProbes()).toEqual([['/agents/chat/chat-active/turn-state', { silent: true }]]);
     expect(attachToChatMock).toHaveBeenCalledWith('chat-active', expect.anything(), expect.any(Function));
   });
 
@@ -236,18 +244,18 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     await loadMessages('chat-active', makeActions());
     await vi.waitFor(() => {
-      expect(activeSessionProbes()).toHaveLength(1);
+      expect(turnStateProbes()).toHaveLength(1);
     });
     await settleRecovery();
 
     expect(attachToChatMock).not.toHaveBeenCalled();
   });
 
-  it('does not attach, and does not fail the load, when the active-session probe fails', async () => {
+  it('does not attach, and does not fail the load, when the turn-state probe fails', async () => {
     setupStore('chat-active');
     lastMessageIs('assistant');
     apiRequestMock.mockImplementation(async (endpoint: string) => {
-      if (endpoint === ACTIVE_SESSIONS_ENDPOINT) {
+      if (isTurnStateEndpoint(endpoint)) {
         throw new Error('probe failed');
       }
       return { active: false };
@@ -255,7 +263,7 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     await expect(loadMessages('chat-active', makeActions())).resolves.toBeUndefined();
     await vi.waitFor(() => {
-      expect(activeSessionProbes()).toHaveLength(1);
+      expect(turnStateProbes()).toHaveLength(1);
     });
     await settleRecovery();
 
@@ -271,7 +279,7 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     const probeOrder =
       apiRequestMock.mock.invocationCallOrder[
-        apiRequestMock.mock.calls.findIndex(([endpoint]) => endpoint === ACTIVE_SESSIONS_ENDPOINT)
+        apiRequestMock.mock.calls.findIndex(([endpoint]) => isTurnStateEndpoint(endpoint))
       ];
     expect(probeOrder).toBeLessThan(getMessagesMock.mock.invocationCallOrder[0]);
   });
@@ -282,8 +290,8 @@ describe('loadMessages active-turn SSE recovery', () => {
     // The server answers "running" until the messages are read and "idle" for every later ask: a probe sent after the
     // messages would find nothing, and the page would keep the stored messages from before the run ended.
     apiRequestMock.mockImplementation(async (endpoint: string) =>
-      endpoint === ACTIVE_SESSIONS_ENDPOINT
-        ? { activeSessions: getMessagesMock.mock.calls.length === 0 ? [{ chatId: 'chat-active' }] : [] }
+      isTurnStateEndpoint(endpoint)
+        ? { running: getMessagesMock.mock.calls.length === 0, awaitingApproval: false }
         : { active: false },
     );
 
@@ -317,7 +325,7 @@ describe('loadMessages active-turn SSE recovery', () => {
     await loadMessages('chat-active', makeActions(), options);
     await settleRecovery();
 
-    expect(activeSessionProbes()).toHaveLength(0);
+    expect(turnStateProbes()).toHaveLength(0);
     expect(attachToChatMock).not.toHaveBeenCalled();
     expect(attachForHitlRecoveryMock).not.toHaveBeenCalled();
   });
@@ -325,9 +333,9 @@ describe('loadMessages active-turn SSE recovery', () => {
   it('does not attach when the user moved to another chat while the probe was in flight', async () => {
     setupStore('chat-active');
     lastMessageIs('assistant');
-    let answerProbe: (sessions: { activeSessions: Array<{ chatId: string }> }) => void = () => {};
+    let answerProbe: (state: TurnState) => void = () => {};
     apiRequestMock.mockImplementation(async (endpoint: string) => {
-      if (endpoint !== ACTIVE_SESSIONS_ENDPOINT) {
+      if (!isTurnStateEndpoint(endpoint)) {
         return { active: false };
       }
       return new Promise((resolve) => {
@@ -337,10 +345,10 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     await loadMessages('chat-active', makeActions());
     await vi.waitFor(() => {
-      expect(activeSessionProbes()).toHaveLength(1);
+      expect(turnStateProbes()).toHaveLength(1);
     });
     mockStore.chatId = 'chat-other';
-    answerProbe({ activeSessions: [{ chatId: 'chat-active' }] });
+    answerProbe({ running: true, awaitingApproval: false });
     await settleRecovery();
 
     expect(attachToChatMock).not.toHaveBeenCalled();
@@ -349,9 +357,9 @@ describe('loadMessages active-turn SSE recovery', () => {
   it('does not attach when the user started a turn while the probe was in flight', async () => {
     setupStore('chat-active');
     lastMessageIs('assistant');
-    let answerProbe: (sessions: { activeSessions: Array<{ chatId: string }> }) => void = () => {};
+    let answerProbe: (state: TurnState) => void = () => {};
     apiRequestMock.mockImplementation(async (endpoint: string) => {
-      if (endpoint !== ACTIVE_SESSIONS_ENDPOINT) {
+      if (!isTurnStateEndpoint(endpoint)) {
         return { active: false };
       }
       return new Promise((resolve) => {
@@ -361,10 +369,10 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     await loadMessages('chat-active', makeActions());
     await vi.waitFor(() => {
-      expect(activeSessionProbes()).toHaveLength(1);
+      expect(turnStateProbes()).toHaveLength(1);
     });
     mockStore.loading = true;
-    answerProbe({ activeSessions: [{ chatId: 'chat-active' }] });
+    answerProbe({ running: true, awaitingApproval: false });
     await settleRecovery();
 
     expect(attachToChatMock).not.toHaveBeenCalled();
@@ -407,7 +415,7 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     await loadMessages('chat-active', makeActions());
     await vi.waitFor(() => {
-      expect(activeSessionProbes()).toHaveLength(1);
+      expect(turnStateProbes()).toHaveLength(1);
     });
     await settleRecovery();
 
@@ -418,9 +426,9 @@ describe('loadMessages active-turn SSE recovery', () => {
   it('does not bring a card back when the user started a turn while the probe was in flight', async () => {
     setupStore('chat-active');
     lastMessageIs('assistant');
-    let answerProbe: (sessions: { activeSessions: never[]; awaitingApprovalChatIds: string[] }) => void = () => {};
+    let answerProbe: (state: TurnState) => void = () => {};
     apiRequestMock.mockImplementation(async (endpoint: string) => {
-      if (endpoint !== ACTIVE_SESSIONS_ENDPOINT) {
+      if (!isTurnStateEndpoint(endpoint)) {
         return { active: false };
       }
       return new Promise((resolve) => {
@@ -430,10 +438,10 @@ describe('loadMessages active-turn SSE recovery', () => {
 
     await loadMessages('chat-active', makeActions());
     await vi.waitFor(() => {
-      expect(activeSessionProbes()).toHaveLength(1);
+      expect(turnStateProbes()).toHaveLength(1);
     });
     mockStore.loading = true;
-    answerProbe({ activeSessions: [], awaitingApprovalChatIds: ['chat-active'] });
+    answerProbe({ running: false, awaitingApproval: true });
     await settleRecovery();
 
     expect(attachForHitlRecoveryMock).not.toHaveBeenCalled();

@@ -51,6 +51,10 @@ def resolve_request_pair_token(request: object, pair_query: str | None = None) -
     return extract_pair_token(headers, query_string)
 
 
+# Reads under /agents/chat/<id>/ that a pair token bound to that chat may make: the live stream and the turn state a reloaded page samples.
+_MOBILE_CHAT_SCOPED_SUFFIXES = ("/attach", "/turn-state")
+
+
 def is_mobile_remote_api_path(path: str) -> bool:
     """Return True when the path is used by the mobile Hub / Status control surface."""
     if path.startswith("/api/v1/remote-access/"):
@@ -59,7 +63,7 @@ def is_mobile_remote_api_path(path: str) -> bool:
         if path.startswith("/api/v1/remote-access/e2ee/"):
             return False
         return True
-    if path.startswith("/api/v1/agents/chat/") and path.endswith("/attach"):
+    if path.startswith("/api/v1/agents/chat/") and path.endswith(_MOBILE_CHAT_SCOPED_SUFFIXES):
         return True
     if path == "/api/v1/agents/agent-stream":
         return True
