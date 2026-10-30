@@ -20,6 +20,7 @@ import { isSandbox } from '@/lib/deploy-mode';
 import { CardSkeleton } from '../../../common/SettingsSkeleton';
 import { useIngressRequirement } from '@/hooks/billing/useIngressRequirement';
 import { ChannelIngressBadge } from './ChannelIngressBadge';
+import { ISSUE_FIX_PATTERNS, ISSUE_MESSAGE_PATTERNS, resolveIssueKey, type IssuePattern } from './issueMessages';
 
 // 动态加载渠道卡片
 const WhatsAppCard = dynamic(() => import('./WhatsAppCard').then((mod) => mod.WhatsAppCard), {
@@ -107,49 +108,15 @@ const SEVERITY_STYLES: Record<string, { bg: string; border: string; icon: typeof
   info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: IconAlertCircle },
 };
 
-type IssuePattern = [pattern: RegExp, key: string, prefixOnly?: boolean];
-
-const ISSUE_MESSAGE_PATTERNS: IssuePattern[] = [
-  [/not configured/i, 'notConfigured'],
-  [/missing (configuration|credentials)/i, 'missingCredentials'],
-  [/authentication failed/i, 'authFailed'],
-  [/degraded (state|mode)/i, 'degradedMode'],
-  [/(error state|in ERROR)/i, 'errorState'],
-  [/must use HTTPS/i, 'webhookHttps'],
-  [/webhook.*(setup|set up) failed/i, 'webhookFailed'],
-  [/SDK.*not installed/i, 'sdkNotInstalled'],
-  [/mautrix not installed/i, 'msgMautrixMissing'],
-  [/lark-oapi not installed/i, 'msgLarkMissing'],
-  [/SILK decoder.*not installed/i, 'msgWechatSilkMissing'],
-  [/Run: uv sync/i, 'msgUvSyncRequired'],
-  [/token.*failed/i, 'tokenFailed'],
-  [/connection failed/i, 'connectionFailed'],
-  [/encryption not configured/i, 'encryptionNotConfigured'],
-  [/not logged in/i, 'notLoggedIn'],
-  [/^last error:\s*/i, 'lastError', true],
-];
-
-const ISSUE_FIX_PATTERNS: IssuePattern[] = [
-  [/configure in settings/i, 'fixConfigureInSettings'],
-  [/verify.*valid.*permissions/i, 'fixCheckCredentials'],
-  [/verify.*(token|password|secret)/i, 'fixVerifyToken'],
-  [/scan QR code to login/i, 'fixScanQrCode'],
-];
-
 function useIssueTranslator() {
   const t = useTranslations('channels.issues');
   return useCallback(
     (text: string, patterns: IssuePattern[]) => {
-      for (const [pattern, key, prefixOnly] of patterns) {
-        if (!pattern.test(text)) {
-          continue;
-        }
-        if (prefixOnly) {
-          return `${t(key)} ${text.replace(pattern, '').trim()}`;
-        }
-        return t(key);
+      const resolved = resolveIssueKey(text, patterns);
+      if (!resolved) {
+        return text;
       }
-      return text;
+      return resolved.rest === null ? t(resolved.key) : `${t(resolved.key)} ${resolved.rest}`;
     },
     [t],
   );
