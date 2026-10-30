@@ -337,6 +337,18 @@ def no_agent_bindings() -> Iterator[None]:
 
 
 @pytest.mark.asyncio
+async def test_the_store_keeps_the_text_written_over_an_existing_scoped_skill(skill_file: Path) -> None:
+    store = _forking_store()
+
+    await apply_content_update(_payload(skill_file), store, agent_id="owner-agent")
+
+    written = skill_file.read_text(encoding="utf-8")
+    assert "scope_agent_id: owner-agent" in written
+    saved: SkillRecord = store.save_skill.await_args.args[0]
+    assert saved.content == written
+
+
+@pytest.mark.asyncio
 async def test_a_refused_fork_leaves_the_proposal_as_it_was_reviewed(skill_file: Path) -> None:
     payload = _payload(skill_file, evolved_content="not a skill")
 
