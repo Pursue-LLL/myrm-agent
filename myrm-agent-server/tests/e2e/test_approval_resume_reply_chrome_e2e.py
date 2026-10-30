@@ -20,9 +20,10 @@ The reload tests reload the page in the middle of a run, and the reloaded chat m
   - 1.5 s after Approve, while the resumed run writes a long answer;
   - at once after Approve, whether or not the click had reached the server (a card that is still there gets approved again);
   - during the first run of a chat, before any approval, which only has the user's message stored;
-  - after the user left the chat and nobody pressed Approve, so the server's approval timer denied the command and ran the rest of
-    the turn (an open chat page would answer the expired card itself): the reopened chat shows the reply, and the server no
-    longer holds the card the timer answered.
+  - after the user left the chat and nobody pressed Approve, so the server's approval timer answered as the security setting says
+    (deny and allow) and ran the rest of the turn (an open chat page would answer the expired card itself): the reopened chat
+    shows the reply, the server no longer holds the card the timer answered, and the timer's run brought the turn's skill hooks
+    back (they fire for the command only when the timer allowed it).
 
 Formal run::
 
@@ -32,6 +33,7 @@ Formal run::
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -65,7 +67,7 @@ from tests.support.hitl_live_e2e import set_private_approval_timeout
 
 _APPROVAL_PROBE_URL = "http://127.0.0.1:9/APPROVAL_RESUME_REPLY"
 _RELOAD_AFTER_APPROVE_SEC = 1.5
-# Seconds before the approval timer denies a card nobody answered.
+# Seconds before the approval timer answers a card nobody answered.
 _TIMER_SEC = 45
 # A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
 _LONG_ANSWER_LINES = 600
@@ -93,11 +95,12 @@ def _run_one_turn(
     *,
     asks_approval: bool = True,
     approval_timeout_sec: int | None = None,
+    approval_timeout_behavior: str = "deny",
 ) -> None:
     probe = setup_skill_chat(tmp_path, e2e_resource_ledger, tag, audit_hooks, yolo=not asks_approval)
     if approval_timeout_sec is not None:
         # The probe's own backend only: the global setting the harness pins on the shared one keeps every other test's card waiting.
-        set_private_approval_timeout(get_e2e_api_url(), approval_timeout_sec)
+        set_private_approval_timeout(get_e2e_api_url(), approval_timeout_sec, approval_timeout_behavior)
     chat_url = f"{get_e2e_ui_url().rstrip('/')}{probe.ui_path}"
     drive_chat_turn(
         get_e2e_ui_url(),
@@ -196,8 +199,9 @@ def test_a_reload_while_the_run_waits_for_approval_brings_the_card_back(
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
+@pytest.mark.parametrize("behavior", ["deny", "allow"])
 def test_a_reload_after_the_timeout_answered_the_card_shows_the_reply_and_no_card(
-    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger
+    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger, behavior: str
 ) -> None:
     def let_the_timer_answer_then_reload(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
         wait_until_parked_at_the_card(probe)
@@ -205,13 +209,20 @@ def test_a_reload_after_the_timeout_answered_the_card_shows_the_reply_and_no_car
         # An open chat page answers an expired card itself (ToolApprovalExpiryWatcher), so the server's timer would never be the
         # one to act. The user leaves the chat for a static document of the same origin, which keeps the page bound to the backend.
         client.navigate(page, f"{get_e2e_ui_url().rstrip('/')}/favicon.ico", timeout_ms=30_000)
-        # Nobody presses Approve: the timer denies the command and the server runs the rest of the turn without any page.
+        # Nobody presses Approve: the timer answers as the security setting says and the server runs the rest of the turn without any page.
         wait_for_the_stored_reply_watching_the_turn(probe)
         open_in_fresh_page(client, page, chat_url)
         wait_for_reply_on_page(client, page, probe, "after the timer answered the card the reloaded chat did not show the reply")
         # The card was answered by the timer: the parked run must not hand it to the reloaded page again.
         assert_page_settled(client, page)
         assert turn_state(probe) == {"running": False, "awaitingApproval": False}
+        # The timer's run is a resume like the page's: it brings the turn's skill hooks back, and the PreToolUse/PostToolUse
+        # hooks fire for a command that ran, which the timer's answer decided.
+        assert json.loads((probe.out / "session_payload.json").read_text())["is_resume"] is True, (
+            "the timer run lost the skill hooks"
+        )
+        for hook_payload in ("pre_tool_payload.json", "post_tool_payload.json"):
+            assert (probe.out / hook_payload).exists() is (behavior == "allow"), f"{hook_payload} with timer behavior {behavior}"
 
     _run_one_turn(
         tmp_path,
@@ -220,6 +231,7 @@ def test_a_reload_after_the_timeout_answered_the_card_shows_the_reply_and_no_car
         _bash_request(_SHORT_ANSWER),
         let_the_timer_answer_then_reload,
         approval_timeout_sec=_TIMER_SEC,
+        approval_timeout_behavior=behavior,
     )
 
 

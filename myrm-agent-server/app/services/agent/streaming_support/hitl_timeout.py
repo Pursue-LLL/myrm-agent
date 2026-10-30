@@ -215,6 +215,10 @@ async def _resume_after_timeout(
                 # This run registers no collector, so the card it answers would stay on the parked run until the chat's next run.
                 # Settled only once the lease is held: a refused run answered nothing.
                 parked_run = settle_tool_approvals_of(chat_id)
+                # What a page-driven resume reads: the stored history now holds the user message that opened the turn, whose
+                # [use ...] tag is how a resume finds the turn's skill hooks. The params captured when the card appeared
+                # hold the history from before that message.
+                resume_params.chat_history = await ChatService.load_web_chat_history(chat_id)
                 extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
                 async for chunk in ai_agent_service_stream(
                     params=resume_params, cancel_token=cancel_token, extra_context=extra_context

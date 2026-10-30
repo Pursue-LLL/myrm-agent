@@ -40,13 +40,22 @@ def pin_and_verify_hitl_mode(api_url: str) -> None:
             raise AssertionError(f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}")
 
 
-def set_private_approval_timeout(api_url: str, seconds: int) -> None:
-    """Shorten how long an unanswered approval card waits, on the probe's own backend (pin_and_verify_hitl_mode wants 300 s)."""
+def set_private_approval_timeout(api_url: str, seconds: int, behavior: str = "deny") -> None:
+    """Shorten how long an unanswered approval card waits and say what the expiry does ("deny" or "allow").
+
+    Applies to the probe's own backend only (pin_and_verify_hitl_mode wants 300 s on the shared one).
+    """
     current = fetch_config_value("securityConfig", api_url=api_url)
     put_config_value(
         "securityConfig",
-        {**current, "approvalTimeoutSeconds": seconds, "approval_timeout_seconds": seconds},
+        {
+            **current,
+            "approvalTimeoutSeconds": seconds,
+            "approval_timeout_seconds": seconds,
+            "approvalTimeoutBehavior": behavior,
+        },
         api_url=api_url,
     )
     persisted = fetch_config_value("securityConfig", api_url=api_url)
     assert persisted.get("approvalTimeoutSeconds") == seconds, persisted
+    assert persisted.get("approvalTimeoutBehavior") == behavior, persisted

@@ -98,11 +98,24 @@ def stops_at_a_card() -> Iterator[list[bool]]:
 
 
 @pytest.fixture
-def resumed_run(stops_at_a_card: list[bool]) -> Iterator[list[bool]]:
+def stored_history() -> AsyncMock:
+    """The chat's stored history as the history loader hands it to the timer run (empty unless a test fills it)."""
+    return AsyncMock(return_value=[])
+
+
+@pytest.fixture
+def received_params() -> list[object]:
+    """The params the stand-in agent stream of ``resumed_run`` was started with."""
+    return []
+
+
+@pytest.fixture
+def resumed_run(stops_at_a_card: list[bool], stored_history: AsyncMock, received_params: list[object]) -> Iterator[list[bool]]:
     """A stand-in agent stream for ``_resume_after_timeout``; the list records the parked card as the run starts."""
     seen: list[bool] = []
 
-    async def stream(**_kwargs: object) -> AsyncGenerator[dict[str, object], None]:
+    async def stream(**kwargs: object) -> AsyncGenerator[dict[str, object], None]:
+        received_params.append(kwargs.get("params"))
         collector = ACTIVE_COLLECTORS.get(CHAT_ID)
         seen.append(collector is not None and collector.has_pending_tool_approval())
         yield {"type": "message", "data": "continued"}
@@ -113,6 +126,7 @@ def resumed_run(stops_at_a_card: list[bool]) -> Iterator[list[bool]]:
         patch("app.services.agent.streaming.ai_agent_service_stream", new=stream),
         patch("app.services.agent.runtime_context.build_agent_runtime_context", new=AsyncMock(return_value={})),
         patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new=AsyncMock()),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", new=stored_history),
         patch.object(hitl_timeout, "arm_interrupt_timeout"),
     ):
         yield seen
@@ -127,6 +141,27 @@ async def test_the_card_is_gone_from_the_parked_run_while_the_timer_run_works(
 
     assert resumed_run == [False]
     assert parked.has_pending_tool_approval() is False
+
+
+@pytest.mark.asyncio
+async def test_the_timer_run_reads_the_history_a_page_driven_resume_reads(
+    parked: StreamContentCollector,
+    resumed_run: list[bool],
+    stored_history: AsyncMock,
+    received_params: list[object],
+) -> None:
+    """A resume finds the turn's skill hooks in the user message that opened the turn.
+
+    The params the timer captured hold the history from before that message, so the run would start without the hooks.
+    """
+    turn_history = [["human", "[use probe] run the command"], ["assistant", "on it"]]
+    stored_history.return_value = turn_history
+
+    with patch.object(hitl_timeout, "server_turn_lease", _granted_lease):
+        await hitl_timeout._resume_after_timeout(CHAT_ID, _params(), {"decision": "allow"}, "approval")
+
+    stored_history.assert_awaited_once_with(CHAT_ID)
+    assert [getattr(p, "chat_history", None) for p in received_params] == [turn_history]
 
 
 @pytest.mark.asyncio
