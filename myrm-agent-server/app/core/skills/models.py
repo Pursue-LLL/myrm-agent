@@ -411,8 +411,7 @@ class UserSkillConfig:
             skill_env_vars=env_vars,
             trusted_skill_ids=trusted_ids,
             clawhub_registry_url=str(data.get("clawhub_registry_url", "")),
-            # Any other stored value (the retired harden and repair-only presets, a hand-edited file) behaved
-            # like balanced.
+            # Only innovate is kept; any other stored value reads as balanced.
             evolution_strategy="innovate" if data.get("evolution_strategy") == "innovate" else "balanced",
             updated_at=updated_at,
         )

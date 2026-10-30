@@ -77,10 +77,13 @@ class UserSkillConfigManager:
         except FileNotFoundError:
             return UserSkillConfig(user_id="sandbox")
         try:
-            return UserSkillConfig.from_dict(json.loads(content))
-        except (TypeError, ValueError):
+            raw_config = json.loads(content)
+            if not isinstance(raw_config, dict):
+                raise TypeError(f"expected a JSON object, got {type(raw_config).__name__}")
+            return UserSkillConfig.from_dict(raw_config)
+        except (TypeError, ValueError) as exc:
             # 损坏的配置不应让技能子系统整体不可用；原文件保持原样，便于人工排查。
-            logger.error("Skill config is not valid JSON, falling back to defaults: %s", config_path)
+            logger.error("Skill config is unusable (%s), falling back to defaults: %s", exc, config_path)
             return UserSkillConfig(user_id="sandbox")
 
     async def ensure_prebuilt_enabled_after_sync(self, prebuilt_skill_ids: list[str]) -> UserSkillConfig:
