@@ -10,6 +10,9 @@ Runs a user-provided Python script in an isolated subprocess before a job and re
 - toolkits.cron.protocols::PreFlightCondition, PreFlightConditionError (POS: Protocols for the cron toolkit.)
 - toolkits.cron.types::CronJob (POS: In-memory representation of a cron job.)
 - myrm_agent_harness.api::redact_sensitive_text (POS: Masks credentials in text before it is stored or shown.)
+- toolkits.code_execution.session.process_tree::kill_process_tree (POS: Stops a process and its whole tree, escalating from
+  terminate to kill after a grace period.)
+- utils.os_compat::IS_WIN (POS: Unified abstractions for POSIX/Windows differences.)
 
 [OUTPUT]
 - SandboxedPythonCondition: Executes Python scripts in a sandboxed subprocess.
@@ -19,7 +22,6 @@ Sandboxed Python condition execution. Implements PreFlightCondition.
 """
 
 import asyncio
-import contextlib
 import json
 import logging
 import sys
@@ -31,15 +33,20 @@ from myrm_agent_harness.api import (
     build_isolated_child_env,
     redact_sensitive_text,
 )
+from myrm_agent_harness.toolkits.code_execution.session.process_tree import kill_process_tree
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightCondition, PreFlightConditionError
 from myrm_agent_harness.toolkits.cron.types import CronJob
+from myrm_agent_harness.utils.os_compat import IS_WIN
 
 logger = logging.getLogger(__name__)
 
-# The reason reaches the run history and the delivery channels, so it is one short credential-free line.
+# The reason reaches the run history and the delivery channels, so it is one short line with credentials masked.
 _MAX_REASON_CHARS = 300
-# Bounds the masking work. A secret cut by this limit lies beyond the characters the reason shows.
+# Bounds the masking work on a very long line.
 _MAX_RAW_CHARS = 1000
+# A probe has no state to flush: after the deadline or a cancel the script and everything it started get this long
+# to stop on a polite signal and as long again after the forced kill, so the extra wait is at most twice this.
+_KILL_GRACE_SECONDS = 1.0
 
 
 class SandboxedPythonCondition(PreFlightCondition):
@@ -93,11 +100,10 @@ class SandboxedPythonCondition(PreFlightCondition):
             )
             try:
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_seconds)
-            except TimeoutError:
-                # Cancelling the wait leaves the script running; a probe stuck on a network call would pile up.
-                with contextlib.suppress(ProcessLookupError):
-                    proc.kill()
-                await proc.wait()
+            except BaseException:
+                # A deadline or a cancel only stops the wait: the script and what it started keep running, and a
+                # descendant holding the pipes would keep `wait()` from returning. Stop the whole tree first.
+                await asyncio.shield(kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS))
                 raise
             returncode = await proc.wait()
             return returncode, stdout.decode(errors="replace").strip(), stderr.decode(errors="replace").strip()
@@ -125,7 +131,7 @@ def _read_verdict(stdout: str) -> tuple[bool, str]:
 
 
 def _failure_reason(stderr: str) -> str:
-    """The last stderr line, where a traceback names the exception, as one credential-free line of bounded length."""
+    """The last stderr line, where a traceback names the exception, as one bounded line with credentials masked."""
     lines = stderr.splitlines()
     if not lines:
         return ""

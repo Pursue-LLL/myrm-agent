@@ -1,11 +1,15 @@
 """Unit tests for SandboxedPythonCondition.
 
-Validates script execution, SKIP signals, context injection, and that a script which cannot reach a verdict
-(crash, timeout, cannot start) raises ``PreFlightConditionError``: only a verdict of "skip" returns False.
+Validates script execution, SKIP signals, context injection, that a script which cannot reach a verdict
+(crash, timeout, cannot start) raises ``PreFlightConditionError`` (only a verdict of "skip" returns False), and
+that a deadline or a cancel stops the script together with everything it started.
 """
 
 import asyncio
+import shlex
+import sys
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -21,6 +25,14 @@ def _make_job(script: str | None = None) -> MagicMock:
     job.id = "test-job-001"
     job.pre_condition_script = script
     return job
+
+
+def _is_running(pid: int) -> bool:
+    """A process that exited but is not reaped yet is not running."""
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
 
 
 @pytest.mark.asyncio
@@ -109,7 +121,54 @@ async def test_a_script_that_times_out_fails_the_run_and_is_killed(tmp_path: Pat
     condition = SandboxedPythonCondition(timeout_seconds=2)
     with pytest.raises(PreFlightConditionError, match=r"^timed out after 2s$"):
         await condition.evaluate(_make_job(script))
-    assert not psutil.pid_exists(int(pid_file.read_text()))
+    assert not _is_running(int(pid_file.read_text()))
+
+
+@pytest.mark.asyncio
+async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started(tmp_path: Path):
+    # Each child reports its pid and would run for 30 s, ten times the deadline.
+    child = tmp_path / "child.py"
+    child.write_text("import os, sys, time\nopen(sys.argv[1], 'w').write(str(os.getpid()))\ntime.sleep(30)\n")
+
+    def argv(pid_file: Path) -> list[str]:
+        return [sys.executable, str(child), str(pid_file)]
+
+    # How scripts run commands: `subprocess.run` and `os.system` hand the child the script's own output pipes,
+    # and a child that starts a session of its own is out of the script's process group.
+    scripts = {
+        "subprocess.run": lambda p: f"import subprocess\nsubprocess.run({argv(p)!r})\n",
+        "os.system": lambda p: f"import os\nos.system({shlex.join(argv(p))!r})\n",
+        "own-session": lambda p: (
+            f"import subprocess, time\nsubprocess.Popen({argv(p)!r}, start_new_session=True)\ntime.sleep(60)\n"
+        ),
+    }
+    pid_files = {name: tmp_path / f"{name}.pid" for name in scripts}
+
+    async def run(name: str) -> float:
+        started = time.monotonic()
+        with pytest.raises(PreFlightConditionError, match=r"^timed out after 3s$"):
+            await SandboxedPythonCondition(timeout_seconds=3).evaluate(_make_job(scripts[name](pid_files[name])))
+        return time.monotonic() - started
+
+    elapsed = dict(zip(scripts, await asyncio.gather(*(run(name) for name in scripts)), strict=True))
+
+    for name, seconds in elapsed.items():
+        assert seconds < 10, f"{name}: returned after {seconds:.1f}s against a 3s deadline"
+        assert not _is_running(int(pid_files[name].read_text())), f"{name}: the child is still running"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_probe_stops_its_script(tmp_path: Path):
+    pid_file = tmp_path / "pid"
+    script = f"import os, time\nopen({str(pid_file)!r}, 'w').write(str(os.getpid()))\ntime.sleep(30)\n"
+    task = asyncio.create_task(SandboxedPythonCondition(timeout_seconds=60).evaluate(_make_job(script)))
+    async with asyncio.timeout(10):
+        while not (pid_file.exists() and pid_file.read_text()):
+            await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not _is_running(int(pid_file.read_text()))
 
 
 @pytest.mark.asyncio

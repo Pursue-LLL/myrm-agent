@@ -212,7 +212,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, SkippedRunMixin
         started: datetime,
         trigger_source: str,
     ) -> None:
-        """Close a run that reached a verdict: monitoring, delivery, the run record, the push, the job's new state."""
+        """Close a run with a known outcome: monitoring, delivery, the run record, the push, the job's new state."""
         finished = datetime.now(UTC)
         duration_ms = int((finished - started).total_seconds() * 1000)
 

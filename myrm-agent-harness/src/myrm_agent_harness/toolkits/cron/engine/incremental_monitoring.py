@@ -10,11 +10,11 @@
   `_next_monitor_failure_count` counts consecutive monitor failures, with an in-memory fallback
 
 [POS]
-Mixed into ``JobExecutor``. Runs between the runner and the closing steps. A successful run of a monitored job
-leaves with exit code 0 (nothing new) or 1 (new content, carried in ``incremental_delta``); a monitor that
-fails leaves the full output untouched, except for an invalid JSON-like output, which turns the run into a
-failed one so the problem is visible. The consecutive failure count is persisted; when the store refuses it,
-an in-memory count keeps the escalation steady.
+Mixed into ``JobExecutor``. The first step of closing a run, before delivery; a run that already failed passes
+through unchanged. A successful run of a monitored job leaves with exit code 0 (nothing new) or 1 (new content,
+carried in ``incremental_delta``); a monitor that fails leaves the full output untouched, except for an invalid
+JSON-like output, which turns the run into a failed one so the problem is visible. The consecutive failure count
+is persisted; when the store refuses it, an in-memory count keeps the escalation steady.
 """
 
 from __future__ import annotations

@@ -7,6 +7,7 @@
 - subprocess
 
 [OUTPUT]
+- IS_WIN: Whether the host operating system is Windows.
 - SIGKILL: The signal that force-kills a process tree (SIGTERM on Windows, which has no SIGKILL).
 - get_process_group_kwargs: Subprocess kwargs for creating process groups.
 - kill_process_group: Safely kill a process group tree.
