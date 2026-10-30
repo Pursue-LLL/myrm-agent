@@ -8,7 +8,7 @@
 [OUTPUT]
 - HotSnapshot: immutable hot.md section data
 - build_hot_snapshot: derive snapshot from vault filesystem state
-- render_hot_markdown: render Molio-style hot.md body
+- render_hot_markdown: render the three-section hot.md body
 
 [POS]
 Hot cache snapshot builder. Derives recent ops, key pages, and open questions without LLM calls. Key pages are
@@ -94,7 +94,7 @@ def build_hot_snapshot(
 
 
 def render_hot_markdown(snapshot: HotSnapshot) -> str:
-    """Render Molio-style three-section hot.md body."""
+    """Render the three-section hot.md body."""
     timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# Recent context",
