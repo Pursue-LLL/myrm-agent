@@ -348,7 +348,7 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
         )
         if not slice_result or not slice_result.is_coherent:
             logger.info(
-                f"Slice {session_id} ({len(tool_call_ids)} calls) rejected by AST/Static analyzer: Not a coherent workflow."
+                f"Slice {session_id} ({len(tool_call_ids)} calls) rejected by the slice coherence check: Not a coherent workflow."
             )
             return None
 

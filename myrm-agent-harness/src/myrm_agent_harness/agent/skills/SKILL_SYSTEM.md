@@ -753,14 +753,14 @@ Scanner（编排器）
 系统支持**真·自动进化**能力，彻底抛弃了低效的全量人工介入草稿确认流程，并从根本上解决了长会话提炼引发的“提炼幻觉（Context Noise）”问题。
 
 ```
-1. 目标感知拦截 (Goal-Aware Slicing) → 在 StreamExecutor 主执行循环中，维护一个零内存占用的游标 `last_extracted_idx`。
-   - 当检测到当前任务的 `GoalExecutionSummary` 为完成状态，或遇到 SubAgent 退出等“语义边界”时。
-   - 或作为兜底保障，当累计工具调用次数达到 15 次（15-Call Sliding Window）时。
-   系统瞬间切断这一段高内聚的执行轨迹游标 `(start_idx, end_idx)`。
-2. 零阻塞后台入队 (Zero-Blocking Dispatch) → 将切片游标作为 `TRACE_SLICE_READY` Hook 抛出，异步压入后台队列，主 Agent 继续对话毫无感知。
-3. 数据库游标回拉与 0 成本 AST 分析 → 
-   - 后台 Worker (TraceAnalyzer) 根据游标去 SQLite 捞出对应的 Trace 日志。
-   - 引入 AST-Aware Static Analyzer，直接评估该切片是否闭环（比如如果切片中全是在报错死循环，直接丢弃），实现 0 Token 成本的垃圾拦截。
+1. 窗口切片 (Window Slicing) → 一轮执行累计的工具调用达到 15 次，或这一轮结束时仍有剩余，`StreamExecutor` 把这些 `tool_call_ids` 作为一个切片；另有按会话计数的窗口钩子（`EvolutionIntegration.SLICE_WINDOW_THRESHOLD`，同为 15 次）。
+   - 两处都以 `TRACE_SLICE_READY` Hook 抛出；切片只是一组工具调用 ID，没有游标，也不按目标完成或子智能体退出来切。
+   - 两处带的 `session_id` 取值不同：`StreamExecutor` 带本轮消息 ID，窗口钩子带审批会话键；事件按运行上下文里的 `session_id` 落盘。
+2. 零阻塞后台入队 (Zero-Blocking Dispatch) → Hook 处理函数把 `SLICE_EXTRACTION` 请求以低优先级压入后台队列，主 Agent 继续对话毫无感知。
+3. 事件日志回读与连贯性判断 → 
+   - 后台 Worker 经 `TraceAnalyzer.analyze_slice(session_id, tool_call_ids)` 从事件日志后端读出该会话的 `tool_start` / `tool_end` / `tool_failure` 事件，按 `tool_call_ids` 过滤、脱敏后拼成轨迹；按 `session_id` 读不到事件时返回 None，切片被丢弃。
+   - 连贯性只看两条：切片里至少有 1 次工具调用，且错误率低于 0.8；不满足则丢弃，不调用进化模型。
+   - `TraceAnalyzer` 只在 `EvolutionIntegration` 拿到 `event_log_backend` 时创建；没有它，进化引擎跳过切片请求。
 4. LLM 提炼与事件解耦 (Event-Driven Decoupling) →
    - 提取出可复用的套路 (EvolutionProposal)。
    - 不再越权直接写库，而是附带出错时的 `Agent_ID`，封装进 `IdleTaskProgressEvent` 广播。
