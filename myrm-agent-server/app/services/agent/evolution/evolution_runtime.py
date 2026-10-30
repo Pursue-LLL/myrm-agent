@@ -3,9 +3,10 @@
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with the session-end frustration trigger and background queue orchestration.)
 - myrm_agent_harness.agent.event_log.backends.file_backend::FileEventLogBackend (POS: JSONL event log storage; the repair prompt of a FIX reads the failed run back from it)
 - app.services.agent.confidence_approval_flow::ConfidenceApprovalFlow (POS: 基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。)
+- app.core.skills.store.service::skills_service (POS: 技能服务；user_config 持有用户保存的进化策略)
 [OUTPUT]
 - handle_new_proposal: 将后台进化队列产出的提案交给审批流落地（自动合并发布 SKILL_EVOLVED，其余进入审核队列）。
-- init_evolution_runtime: 启动期构建全局 EvolutionIntegration（进化模型、筛选器、后台队列）。
+- init_evolution_runtime: 启动期构建全局 EvolutionIntegration（进化模型、用户保存的进化策略、筛选器、后台队列）。
 - shutdown_evolution_runtime: 停止本模块启动的后台进化队列。
 [POS]
 技能进化运行时装配。把 Harness 的后台进化队列接到业务审批流。
@@ -26,6 +27,7 @@ from myrm_agent_harness.agent.skills.evolution.pipeline.screener import Evolutio
 from myrm_agent_harness.toolkits.llms import llm_manager
 
 from app.config.settings import settings
+from app.core.skills.store.service import skills_service
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 from app.services.agent.platform_config import load_platform_evolution_model_config
 
@@ -57,12 +59,14 @@ async def init_evolution_runtime() -> None:
         return
 
     llm = await llm_manager.get_llm_from_config(evolution_model)
+    skill_config = await skills_service.user_config.get_config()
 
     evolution = EvolutionIntegration(
         db_path=Path(settings.database.state_dir).expanduser() / "skills.db",
         llm=llm,
         enable_background_queue=True,
         enable_tde=True,
+        evolution_strategy=skill_config.evolution_strategy,
         # Reads address a session by the id they pass; the constructor's own id only names the file appends go to,
         # and this backend never appends.
         event_log_backend=FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default"),

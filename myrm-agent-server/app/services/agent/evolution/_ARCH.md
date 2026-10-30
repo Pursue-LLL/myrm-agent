@@ -9,7 +9,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `evolution_runtime.py` | 核心 | 技能进化运行时装配。启动期构建全局 `EvolutionIntegration`（进化模型、筛选器、后台队列），把队列产出的 `EvolutionProposal` 经 `ConfidenceApprovalFlow` 落地：高分且具备通用性的提议静默自动合并 (Auto-Merge，发布 `SKILL_EVOLVED`)，其余进入审核队列。修复提案只由失败事件（`skill_immune_service.py`）与用户操作触发。装配时向 `EvolutionIntegration` 传一个读取智能体事件日志目录的只读 `FileEventLogBackend`，引擎因此带 `TraceAnalyzer`，修复提案的提示词里带失败那次对话的执行轨迹。 | ✅ |
+| `evolution_runtime.py` | 核心 | 技能进化运行时装配。启动期构建全局 `EvolutionIntegration`（进化模型、筛选器、后台队列），把队列产出的 `EvolutionProposal` 经 `ConfidenceApprovalFlow` 落地：高分且具备通用性的提议静默自动合并 (Auto-Merge，发布 `SKILL_EVOLVED`)，其余进入审核队列。修复提案只由失败事件（`skill_immune_service.py`）与用户操作触发。装配时向 `EvolutionIntegration` 传一个读取智能体事件日志目录的只读 `FileEventLogBackend`，引擎因此带 `TraceAnalyzer`，修复提案的提示词里带失败那次对话的执行轨迹。装配时读取用户保存的进化策略（`skills_service.user_config`）构建 `EvolutionIntegration` 与筛选器，后端重启后该策略仍然生效。 | ✅ |
 | `skill_immune_service.py` | 核心 | 技能免疫业务服务。监听 Harness 运行时技能失败证据（含 session/LoopGuard 元数据），执行业务分类、幂等去重、修复提案生成与审批落地。修复前把失败事件的会话键换成该聊天的事件日志名（`chat_id_from_session_id`，且必须是安全的文件名）；没有以该键命名日志的会话（无痕聊天不写日志；定时任务的日志按日分片，文件名带日期）沿用只带错误文本的修复提示 | ✅ |
 
 ## 触发链路

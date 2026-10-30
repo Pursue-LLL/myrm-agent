@@ -14,6 +14,7 @@ from myrm_agent_harness.agent.event_log.logger import EventLogger
 from myrm_agent_harness.agent.skills.evolution.infra.integration import set_global_evolution_integration
 from myrm_agent_harness.agent.streaming.broadcast.tool_call_broadcaster import ToolCallBroadcaster
 
+from app.core.skills.models import UserSkillConfig
 from app.services.agent.evolution import evolution_runtime
 
 
@@ -25,8 +26,14 @@ def _fresh_runtime() -> Iterator[None]:
     evolution_runtime._started_integration = original
 
 
+def _skills_service(evolution_strategy: str = "balanced") -> SimpleNamespace:
+    """Stands in for the stored user skill configuration, so no test reads the real config file."""
+    config = UserSkillConfig(user_id="sandbox", evolution_strategy=evolution_strategy)
+    return SimpleNamespace(user_config=SimpleNamespace(get_config=AsyncMock(return_value=config)))
+
+
 @contextmanager
-def _startup_environment(integration: MagicMock) -> Iterator[tuple[MagicMock, MagicMock]]:
+def _startup_environment(integration: MagicMock, evolution_strategy: str = "balanced") -> Iterator[tuple[MagicMock, MagicMock]]:
     """Patch every startup dependency; yields (screener_cls, integration_factory)."""
     llm_manager = MagicMock()
     llm_manager.get_llm_from_config = AsyncMock(return_value=MagicMock())
@@ -34,6 +41,7 @@ def _startup_environment(integration: MagicMock) -> Iterator[tuple[MagicMock, Ma
     with ExitStack() as stack:
         stack.enter_context(patch.object(evolution_runtime, "get_global_evolution_integration", return_value=None))
         stack.enter_context(patch.object(evolution_runtime, "llm_manager", llm_manager))
+        stack.enter_context(patch.object(evolution_runtime, "skills_service", _skills_service(evolution_strategy)))
         stack.enter_context(
             patch.object(
                 evolution_runtime,
@@ -69,6 +77,18 @@ async def test_runtime_starts_with_evolution_model_only() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("evolution_strategy", ["balanced", "innovate", "repair-only"])
+async def test_runtime_starts_with_the_strategy_the_user_stored(evolution_strategy: str) -> None:
+    integration = MagicMock()
+    integration.start_background_queue = AsyncMock()
+
+    with _startup_environment(integration, evolution_strategy) as (_, integration_factory):
+        await evolution_runtime.init_evolution_runtime()
+
+    assert integration_factory.call_args.kwargs["evolution_strategy"] == evolution_strategy
+
+
+@pytest.mark.asyncio
 async def test_the_engine_the_runtime_builds_reads_the_event_logs_the_agents_write(tmp_path: Path) -> None:
     state_dir = tmp_path / "state"
     log_dir = tmp_path / "event_logs"
@@ -93,6 +113,7 @@ async def test_the_engine_the_runtime_builds_reads_the_event_logs_the_agents_wri
             patch.object(evolution_runtime, "settings", settings),
             patch.object(evolution_runtime, "get_global_evolution_integration", return_value=None),
             patch.object(evolution_runtime, "llm_manager", llm_manager),
+            patch.object(evolution_runtime, "skills_service", _skills_service()),
             patch.object(
                 evolution_runtime, "load_platform_evolution_model_config", new=AsyncMock(return_value=SimpleNamespace())
             ),
