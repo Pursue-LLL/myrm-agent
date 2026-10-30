@@ -183,6 +183,9 @@ async def test_fix_skill_with_eval_cases_regression_gate(tmp_path: Path):
         name="nginx-installer",
         description="Install and configure nginx web server",
         content=(
+            "---\n"
+            "description: Install and configure nginx web server\n"
+            "---\n"
             "Use apt-get to install nginx, then configure the default site.\n"
             "Steps:\n"
             "1. Run: sudo apt-get update && sudo apt-get install -y nginx\n"

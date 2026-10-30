@@ -13,12 +13,18 @@ from myrm_agent_harness.agent.skills.evolution.pipeline.variant_generator import
     VariantGenerator,
 )
 
+
+def _skill_md(body: str) -> str:
+    """A SKILL.md the skill loader accepts; evolution drops variants it would skip."""
+    return f"---\ndescription: A mock skill\n---\n{body}"
+
+
 # --- Mock Data ---
 MOCK_SKILL = SkillRecord(
     skill_id="mock-1",
     name="mock-skill",
     description="A mock skill",
-    content="## Instructions\n1. Do something.",
+    content=_skill_md("## Instructions\n1. Do something."),
     path="/fake/path",
     lineage=None,
     evolution_locked=False,
@@ -51,9 +57,9 @@ async def test_evaluator_dry_run_validation():
     evaluator = BatchEvaluator(mock_llm)
 
     # Variant 1: Good Python code
-    good_variant = "```python\nprint('Hello')\nx = 1\n```"
+    good_variant = _skill_md("```python\nprint('Hello')\nx = 1\n```")
     # Variant 2: Bad Python code (SyntaxError)
-    bad_variant = "```python\nprint('Hello'\nx = 1\n```"  # Missing parenthesis
+    bad_variant = _skill_md("```python\nprint('Hello'\nx = 1\n```")  # Missing parenthesis
 
     variants = [good_variant, bad_variant]
 
@@ -106,7 +112,7 @@ async def test_engine_fix_skill_with_constraints():
     async def fake_ainvoke(messages, **kwargs):
         content = messages if isinstance(messages, str) else messages[0].content
         if "expert AI agent skill optimizer" in content:
-            return MagicMock(content="Fixed Variant")
+            return MagicMock(content=_skill_md("Fixed Variant"))
         else:
             return SkillEvaluationRubric(
                 accuracy_score=0.85,
@@ -129,7 +135,7 @@ async def test_engine_fix_skill_with_constraints():
 
     assert proposal is not None
     assert proposal.evolution_type == EvolutionType.FIX
-    assert proposal.proposed_content == "Fixed Variant"
+    assert proposal.proposed_content == _skill_md("Fixed Variant")
     assert proposal.score >= 0.85
     # A proposal is not a constraint: only a user's rejection reason is saved.
     mock_store.add_evolution_constraint.assert_not_called()
@@ -148,7 +154,7 @@ async def test_engine_derive_skill_simple():
     async def fake_ainvoke(messages, **kwargs):
         content = messages if isinstance(messages, str) else messages[0].content
         if "expert AI agent skill optimizer" in content:
-            return MagicMock(content="Derived Variant")
+            return MagicMock(content=_skill_md("Derived Variant"))
         # The improvement gate keeps the original unless a variant scores strictly higher than it.
         improved = "Derived Variant" in content
         return SkillEvaluationRubric(
@@ -172,7 +178,7 @@ async def test_engine_derive_skill_simple():
 
     assert proposal is not None
     assert proposal.evolution_type == EvolutionType.DERIVED
-    assert proposal.proposed_content == "Derived Variant"
+    assert proposal.proposed_content == _skill_md("Derived Variant")
     assert proposal.score >= 0.90
     mock_store.add_evolution_constraint.assert_not_called()
 

@@ -9,7 +9,7 @@ Agent Skills Evolution Execution module.
 |------|------|-------------|-------|
 | __init__.py | Package |   Init   | — |
 | dependency.py | Core | Skill dependency management for evolution safety — `parse_skill_dependencies` extracts skill/tool edges from YAML frontmatter `dependencies` and body tool markers (`@tool_use`, `uses:`, `*_tool` / `*_api` / `*_client` names), feeding the persistent `skill_dependencies` graph. | ✅ |
-| evaluator.py | Core | Batch Evaluator for Skill Evolution. The judge prompt holds the whole candidate skill, so a variant that drops a late section is seen. Description scoring parsed via `parse_llm_json_object` (robust against fences, prose, bare control chars, trailing commas). | ✅ |
+| evaluator.py | Core | Batch Evaluator for Skill Evolution. The judge prompt holds the whole candidate skill, so a variant that drops a late section is seen. A variant the skill loader would skip scores 0.0 without being sent to the judge. Description scoring parsed via `parse_llm_json_object` (robust against fences, prose, bare control chars, trailing commas). | ✅ |
 | hollow_detector.py | Core | Anti-hollow test detector analyzing AST trivial asserts and vacuous shell commands. | ✅ |
 | sandbox_validator.py | Core | Sandbox validation for evolved skills. Integrates syntax checks, AST static analysis, anti-hollow detection of assertion-bearing blocks and verification steps, and verified capsule generation. Returns no proof when nothing executable was checked (pure prompt instructions, bash-only blocks); `dry_run_skill` is the import gate and still rejects empty skills. | ✅ |
 

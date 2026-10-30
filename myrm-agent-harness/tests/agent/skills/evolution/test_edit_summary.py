@@ -8,6 +8,8 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from myrm_agent_harness.agent.skills.evolution.execution.evaluator import BatchEvaluator
 
+_UPDATED_SKILL_MD = "---\ndescription: The updated skill.\n---\nUpdated skill content here"
+
 
 @pytest.mark.asyncio
 async def test_proposal_builder_split_edit_summary():
@@ -26,7 +28,7 @@ async def test_proposal_builder_split_edit_summary():
         lineage=None,
     )
     variant_with_summary = (
-        "Updated skill content here\n---EDIT_SUMMARY---\n"
+        f"{_UPDATED_SKILL_MD}\n---EDIT_SUMMARY---\n"
         '{"preserved_sections": ["setup"], "changed_sections": ["validation"], "notes": "fixed"}'
     )
     proposal = builder.build_proposal(
@@ -36,7 +38,7 @@ async def test_proposal_builder_split_edit_summary():
         score=0.9,
         reasoning="Good fix",
     )
-    assert proposal.proposed_content == "Updated skill content here"
+    assert proposal.proposed_content == _UPDATED_SKILL_MD
     assert proposal.edit_summary is not None
     assert proposal.edit_summary["changed_sections"] == ["validation"]
 
@@ -58,7 +60,7 @@ async def test_proposal_builder_split_edit_summary_malformed():
         lineage=None,
     )
     variant_with_summary = (
-        "Updated skill content here\n---EDIT_SUMMARY---\n"
+        f"{_UPDATED_SKILL_MD}\n---EDIT_SUMMARY---\n"
         '{"preserved_sections": ["setup"], "changed_sections": ["validation"], "notes": "fixed",}'
     )
     proposal = builder.build_proposal(
@@ -68,7 +70,7 @@ async def test_proposal_builder_split_edit_summary_malformed():
         score=0.9,
         reasoning="Good fix",
     )
-    assert proposal.proposed_content == "Updated skill content here"
+    assert proposal.proposed_content == _UPDATED_SKILL_MD
     assert proposal.edit_summary is not None
     assert proposal.edit_summary["changed_sections"] == ["validation"]
 

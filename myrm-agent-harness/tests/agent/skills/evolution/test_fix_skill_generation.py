@@ -22,7 +22,11 @@ from myrm_agent_harness.agent.skills.evolution.execution.evaluator import (
 )
 
 _ERROR = "AttributeError: 'DataFrame' object has no attribute 'append'"
-_FIXED_BODY = "# excel-report\nBuild frames with pd.concat instead of DataFrame.append."
+_ORIGINAL_SKILL_MD = "---\ndescription: Build xlsx weekly reports\n---\n# excel-report\nUse DataFrame.append."
+_FIXED_SKILL_MD = (
+    "---\ndescription: Build xlsx weekly reports\n---\n"
+    "# excel-report\nBuild frames with pd.concat instead of DataFrame.append."
+)
 _OTHER_BODY = "# pandas-troubleshooting\nNotes on pandas errors, unrelated to excel reports."
 
 
@@ -48,7 +52,7 @@ def _llm() -> MagicMock:
 
     async def ainvoke(messages: list[MagicMock], **kwargs: object) -> object:
         if "expert AI agent skill optimizer" in messages[0].content:
-            return MagicMock(content=_FIXED_BODY)
+            return MagicMock(content=_FIXED_SKILL_MD)
         return rubric
 
     llm = MagicMock()
@@ -68,9 +72,7 @@ def store(tmp_path: Path) -> Iterator[SkillStore]:
 
 @pytest.mark.asyncio
 async def test_fix_uses_llm_variant_even_when_another_skill_mentions_the_error(store: SkillStore) -> None:
-    await store.save_skill(
-        _record("excel-report", "Build xlsx weekly reports", "# excel-report\nUse DataFrame.append.")
-    )
+    await store.save_skill(_record("excel-report", "Build xlsx weekly reports", _ORIGINAL_SKILL_MD))
     await store.save_skill(_record("pandas-troubleshooting", f"Known errors: {_ERROR}", _OTHER_BODY))
     llm = _llm()
     engine = SkillEvolutionEngine(store=store, llm=llm)
@@ -80,5 +82,5 @@ async def test_fix_uses_llm_variant_even_when_another_skill_mentions_the_error(s
     assert proposal is not None
     assert proposal.skill_id == "excel-report"
     assert proposal.evolution_type == EvolutionType.FIX
-    assert proposal.proposed_content == _FIXED_BODY
+    assert proposal.proposed_content == _FIXED_SKILL_MD
     assert llm.ainvoke.await_count >= 1

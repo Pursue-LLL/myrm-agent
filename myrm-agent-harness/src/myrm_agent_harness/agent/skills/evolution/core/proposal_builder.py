@@ -5,9 +5,11 @@ framework from direct file-system modifications.
 
 [INPUT]
 - utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM output — fences, prose, bare control chars, trailing commas)
+- backends.skills._utils::parse_skill_frontmatter (POS: SKILL.md frontmatter parser, the one the skill loader uses)
 
 [OUTPUT]
 - ProposalBuilder: Builds an EvolutionProposal for review by Server/Frontend.
+- unloadable_reason: Why the skill loader would skip a SKILL.md content, None when it loads.
 
 [POS]
 Proposal Builder for Skill Evolution.
@@ -23,6 +25,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionType,
     SkillRecord,
 )
+from myrm_agent_harness.backends.skills._utils import SkillMetadataError, parse_skill_frontmatter
 from myrm_agent_harness.backends.skills.scanning import (
     SkillTrustRecommendation,
     compute_scan_summary,
@@ -31,6 +34,19 @@ from myrm_agent_harness.backends.skills.scanning import (
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
 logger = logging.getLogger(__name__)
+
+
+def unloadable_reason(content: str, skill_name: str) -> str | None:
+    """Why the skill loader would skip this SKILL.md content, or None when it loads.
+
+    A skill the loader skips vanishes from the agent's skill list, so a variant that is not loadable
+    must never become a proposal.
+    """
+    try:
+        parse_skill_frontmatter(content, skill_name)
+    except SkillMetadataError as exc:
+        return str(exc)
+    return None
 
 
 class ProposalBuilder:
@@ -60,9 +76,17 @@ class ProposalBuilder:
             is_general: Whether the skill is globally reusable.
 
         Returns:
-            A constructed EvolutionProposal object.
+            A constructed EvolutionProposal object, or None when the variant is not a loadable
+            SKILL.md or the security scan rejects it.
         """
         content, edit_summary = self._split_edit_summary(best_variant)
+
+        load_error = unloadable_reason(content, skill.name)
+        if load_error is not None:
+            logger.warning(
+                "ProposalBuilder: variant for skill '%s' is not a loadable SKILL.md: %s", skill.name, load_error
+            )
+            return None
 
         original = skill.content
         diff = self._generate_diff(original, content)

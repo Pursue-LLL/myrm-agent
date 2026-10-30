@@ -6,6 +6,7 @@ ensuring the fix works and preventing skill bloat.
 
 [INPUT]
 - agent.skills.evolution.core.types::SkillRecord (POS: Data types for skill evolution system.)
+- agent.skills.evolution.core.proposal_builder::unloadable_reason (POS: Why the skill loader would skip a SKILL.md content.)
 
 [OUTPUT]
 - BatchEvaluator: Evaluates multiple skill variants and picks the highest s...
@@ -20,6 +21,7 @@ import logging
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, Field
 
+from myrm_agent_harness.agent.skills.evolution.core.proposal_builder import unloadable_reason
 from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 
 logger = logging.getLogger(__name__)
@@ -93,6 +95,11 @@ class BatchEvaluator:
 
         async def _score_variant(content: str) -> tuple[float, str, bool]:
             scoring_content = self._strip_edit_summary(content)
+
+            load_error = unloadable_reason(scoring_content, original_skill.name)
+            if load_error is not None:
+                logger.warning("Variant is not a loadable SKILL.md: %s", load_error)
+                return 0.0, f"Not a loadable SKILL.md: {load_error}", False
 
             is_valid, validation_reason = self._dry_run_validation(scoring_content)
             if not is_valid:
