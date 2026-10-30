@@ -18,7 +18,8 @@ High-level voice orchestration. Owns per-guild state and
 coordinates receiver/player lifecycle with follow-user support.
 Leaving every guild is concurrent, so one guild that waits for
 the gateway's confirmation does not hold up the others. A join over a
-state whose connection has already ended releases that state first.
+state whose VoiceClient discord.py has dropped releases that state first;
+over one discord.py is still reconnecting, the join is declined.
 """
 
 from __future__ import annotations
@@ -182,8 +183,13 @@ class VoiceManager:
                 return True
 
             if state:
-                # The connection ended without an event that removes the state; its listen loop must not
-                # outlive it, or its voice timeout would leave this guild by id and end the new session.
+                if channel.guild.voice_client is state.voice_client:
+                    # discord.py still holds this VoiceClient and is bringing it back up; releasing the session
+                    # would orphan a live connection that no command could reach.
+                    logger.debug("Voice session in guild %d is reconnecting, join declined", guild_id)
+                    return False
+                # discord.py dropped the VoiceClient without an event that removes the state; its listen loop
+                # must not outlive it, or its voice timeout would leave this guild by id and end the new session.
                 del self._guilds[guild_id]
                 await self._release(state)
 
