@@ -209,7 +209,7 @@ async def test_yield_stream_exception_chunks_cancelled_error():
             chunks.append(chunk)
 
         assert cancel_token.is_cancelled
-        assert session.collector._completion_status == "cancelled"
+        assert (collector.extra_data or {})["completionStatus"] == "cancelled"
 
 
 @pytest.mark.asyncio

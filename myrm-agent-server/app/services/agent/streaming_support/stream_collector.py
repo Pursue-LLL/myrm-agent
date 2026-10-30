@@ -320,7 +320,7 @@ class StreamContentCollector:
         if detail is not None:
             payload["detail"] = detail
         self._set_stop_reason(payload)
-        self._completion_status = "cancelled"
+        self.mark_stream_completion_cancelled()
 
     def _on_error(self, event: dict[str, object], data: object) -> None:
         raw_error = event.get("error")
