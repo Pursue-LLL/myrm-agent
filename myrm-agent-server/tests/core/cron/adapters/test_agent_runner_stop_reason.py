@@ -36,6 +36,21 @@ def test_derive_engine_limit_stop_reason_from_tasks_steps_error() -> None:
     assert reason["category"] == "limit"
 
 
+def test_derive_iteration_limit_stop_reason_from_the_step_that_reports_it() -> None:
+    reason = _derive_stop_reason_from_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "iteration_limit_reached",
+            "data": [{"text": " 50 iterations / 50 nodes "}],
+        }
+    )
+    assert reason == {
+        "code": "iteration_limit_reached",
+        "category": "limit",
+        "message": "Iteration limit reached (50 iterations / 50 nodes)",
+    }
+
+
 def test_accumulator_persists_highest_priority_stop_reason() -> None:
     acc = _StreamAccumulator()
     acc.set_stop_reason(
@@ -57,6 +72,16 @@ def test_accumulator_persists_highest_priority_stop_reason() -> None:
     stop_reason = result.metadata.get("stopReason")
     assert isinstance(stop_reason, dict)
     assert stop_reason.get("code") == "iteration_limit_reached"
+
+
+def test_accumulator_keeps_a_stronger_stop_reason_over_a_later_weaker_one() -> None:
+    acc = _StreamAccumulator()
+    acc.set_stop_reason({"code": "iteration_limit_reached", "category": "limit", "message": "Iteration limit reached"})
+    acc.set_stop_reason({"code": "error", "category": "error", "message": "late failure"})
+    acc.set_stop_reason({"code": "  "})
+
+    assert acc.stop_reason is not None
+    assert acc.stop_reason["code"] == "iteration_limit_reached"
 
 
 def test_accumulator_answer_drops_the_segment_a_recovery_restarts() -> None:

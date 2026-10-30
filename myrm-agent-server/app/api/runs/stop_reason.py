@@ -2,10 +2,11 @@
 
 [INPUT]
 - app.api.runs.schemas::RunStatus (POS: unified run status enum)
+- app.core.agent.stop_reason (POS: stored shape of a stop reason)
 - Cron/Kanban/Shell metadata and error strings
 
 [OUTPUT]
-- normalize_stop_reason / extract_stop_reason_from_metadata helpers
+- extract_stop_reason_from_metadata helper
 - stop_reason_from_error / stop_reason_from_shell_task inference
 
 [POS]
@@ -15,42 +16,7 @@ Pure normalization layer shared by GET /runs aggregation fetchers.
 from __future__ import annotations
 
 from app.api.runs.schemas import RunStatus
-
-_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
-
-
-def normalize_stop_reason(raw: object) -> dict[str, object] | None:
-    if not isinstance(raw, dict):
-        return None
-    code_obj = raw.get("code")
-    if not isinstance(code_obj, str) or not code_obj.strip():
-        return None
-    code = code_obj.strip()
-    category_obj = raw.get("category")
-    category = category_obj if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES else "other"
-    message_obj = raw.get("message")
-    message = message_obj.strip() if isinstance(message_obj, str) and message_obj.strip() else code.replace("_", " ")
-    normalized: dict[str, object] = {
-        "code": code,
-        "category": category,
-        "message": message,
-    }
-    detail_obj = raw.get("detail")
-    if isinstance(detail_obj, dict):
-        normalized["detail"] = {str(k): v for k, v in detail_obj.items() if isinstance(k, str)}
-    return normalized
-
-
-def _extract_step_item_text(items: object) -> str | None:
-    if not isinstance(items, list):
-        return None
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        text = item.get("text")
-        if isinstance(text, str) and text.strip():
-            return text.strip()
-    return None
+from app.core.agent.stop_reason import normalize_stop_reason, step_item_text
 
 
 def extract_stop_reason_from_metadata(metadata: dict[str, object] | None) -> dict[str, object] | None:
@@ -68,7 +34,7 @@ def extract_stop_reason_from_metadata(metadata: dict[str, object] | None) -> dic
         step_key = step_obj.get("step_key")
         if step_key == "iteration_limit_reached":
             message = "Iteration limit reached"
-            step_text = _extract_step_item_text(step_obj.get("items"))
+            step_text = step_item_text(step_obj.get("items"))
             if step_text:
                 message = f"Iteration limit reached ({step_text})"
             return {

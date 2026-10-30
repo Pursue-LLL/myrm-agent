@@ -52,6 +52,7 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 - `../../../services/agent/profile/profile_resolver`：AgentProfileResolver（agent_runner 使用，agent_id 绑定时加载完整配置）
 - `../../../services/chat/chat_service`：`ChatService.load_web_chat_history`（agent_runner 使用，Thread Automation 模式加载会话历史）
 - `../../../services/memory/shared_context`：Shared Context 绑定解析（agent_runner 使用）
+- `../../agent/stop_reason`：停止原因的存储形态与取舍（agent_runner 使用）
 - `../../../database/`：CronJob / CronRun ORM
 
 ### 外部依赖

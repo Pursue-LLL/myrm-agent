@@ -162,6 +162,7 @@ class TestFetchCronRuns:
         assert len(items) == 1
         assert items[0].stop_reason is not None
         assert items[0].stop_reason.code == "iteration_limit_reached"
+        assert items[0].stop_reason.message == "Iteration limit reached (50 iterations / 50 nodes)"
 
     @pytest.mark.asyncio
     async def test_applies_status_filter(self) -> None:

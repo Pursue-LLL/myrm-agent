@@ -54,6 +54,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.core.agent.run_activity import track_background_agent_run
+from app.core.agent.stop_reason import merge_stop_reason, step_item_text
 
 from .blocked_actions import blocked_actions_metadata
 from .injection_scan import scan_cron_prompt
@@ -138,61 +139,6 @@ def _coerce_usage_int(v: object) -> int:
     return 0
 
 
-_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
-
-
-def _stop_reason_priority(code: str) -> int:
-    if code in {"iteration_limit_reached", "engine_limit_reached"}:
-        return 40
-    if code == "agent_cancelled":
-        return 30
-    if code == "error":
-        return 20
-    return 10
-
-
-def _normalize_stop_reason_payload(
-    payload: dict[str, object] | None,
-) -> dict[str, object] | None:
-    if payload is None:
-        return None
-    code_obj = payload.get("code")
-    if not isinstance(code_obj, str) or not code_obj.strip():
-        return None
-    code = code_obj.strip()
-    category_obj = payload.get("category")
-    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
-        category = category_obj
-    else:
-        category = "other"
-    message_obj = payload.get("message")
-    if isinstance(message_obj, str) and message_obj.strip():
-        message = message_obj.strip()
-    else:
-        message = code.replace("_", " ")
-    normalized: dict[str, object] = {
-        "code": code,
-        "category": category,
-        "message": message,
-    }
-    detail_obj = payload.get("detail")
-    if isinstance(detail_obj, dict):
-        normalized["detail"] = {str(k): v for k, v in detail_obj.items() if isinstance(k, str)}
-    return normalized
-
-
-def _extract_step_item_text(items: object) -> str | None:
-    if not isinstance(items, list):
-        return None
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        text = item.get("text")
-        if isinstance(text, str) and text.strip():
-            return text.strip()
-    return None
-
-
 def _derive_stop_reason_from_event(
     event: dict[str, object],
 ) -> dict[str, object] | None:
@@ -250,7 +196,7 @@ def _derive_stop_reason_from_event(
     if event_type == "tasks_steps":
         step_key = event.get("step_key")
         if step_key == "iteration_limit_reached":
-            text = _extract_step_item_text(event.get("data"))
+            text = step_item_text(event.get("data"))
             message = "Iteration limit reached"
             if text:
                 message = f"Iteration limit reached ({text})"
@@ -1106,18 +1052,7 @@ class _StreamAccumulator:
         )
 
     def set_stop_reason(self, payload: dict[str, object]) -> None:
-        normalized = _normalize_stop_reason_payload(payload)
-        if normalized is None:
-            return
-        if self.stop_reason is None:
-            self.stop_reason = normalized
-            return
-        current_code = self.stop_reason.get("code")
-        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
-        next_code = normalized.get("code")
-        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
-        if next_priority >= current_priority:
-            self.stop_reason = normalized
+        self.stop_reason = merge_stop_reason(self.stop_reason, payload)
 
 
 async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:

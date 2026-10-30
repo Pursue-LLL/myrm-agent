@@ -14,7 +14,7 @@
 - collect_tool_stuck_pause (a loop guard pause: the step that says why, and that it is no card to answer)
 - merge_sources_list, source_dedup_key
 - merge_tasks_step (tasks_steps merged by tool_call_id, carrying the skill mutation batch id)
-- normalize_stop_reason, stop_reason_priority, iteration_limit_message (why a turn stopped, and which reason wins)
+- iteration_limit_message (the message of an iteration limit stop reason)
 - string_keyed_dict, string_keyed_dicts
 
 [POS]
@@ -33,7 +33,6 @@ TOOL_STUCK_PAUSED_STEP_KEY = "tool_stuck_paused"
 _MEMORY_CITATION_TOOL_NAMES = frozenset(
     {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}
 )  # legacy aliases retained for persisted message metadata
-_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
 
 
 def is_memory_citation_tool(tool_name: object) -> bool:
@@ -308,44 +307,6 @@ def collect_file_mutation_failures(
                 "error_preview": preview if isinstance(preview, str) else "",
             }
         )
-
-
-def stop_reason_priority(code: str) -> int:
-    if code in {"iteration_limit_reached", "engine_limit_reached"}:
-        return 40
-    if code == "agent_cancelled":
-        return 30
-    if code == "error":
-        return 20
-    return 10
-
-
-def normalize_stop_reason(raw: dict[str, object] | None) -> dict[str, object] | None:
-    if raw is None:
-        return None
-    code_obj = raw.get("code")
-    if not isinstance(code_obj, str) or not code_obj.strip():
-        return None
-    code = code_obj.strip()
-    category_obj = raw.get("category")
-    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
-        category = category_obj
-    else:
-        category = "other"
-    message_obj = raw.get("message")
-    if isinstance(message_obj, str) and message_obj.strip():
-        message = message_obj.strip()
-    else:
-        message = code.replace("_", " ")
-    normalized: dict[str, object] = {
-        "code": code,
-        "category": category,
-        "message": message,
-    }
-    detail = string_keyed_dict(raw.get("detail"))
-    if detail:
-        normalized["detail"] = detail
-    return normalized
 
 
 def iteration_limit_message(detail: dict[str, object] | None) -> str:

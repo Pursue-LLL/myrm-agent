@@ -3,6 +3,7 @@
 [INPUT]
 JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 - stream_collector_helpers (POS: stateless SSE event parsing helpers)
+- app.core.agent.stop_reason (POS: stored shape of a stop reason, and which reason is kept)
 - evicted_output (POS: evicted tool output references matched to progress steps)
 - myrm_agent_harness.toolkits.code_execution.executors.models::scrub_sensitive_info
   (POS: Harness-level sensitive token/path scrubbing)
@@ -44,6 +45,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import (
 )
 from myrm_agent_harness.utils.text_sanitizer import sanitize_llm_output
 
+from app.core.agent.stop_reason import merge_stop_reason
 from app.services.agent.streaming_support.evicted_output import (
     BASH_EXECUTE_TOOL,
     attach_evicted_to_step,
@@ -62,9 +64,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     iteration_limit_message,
     merge_sources_list,
     merge_tasks_step,
-    normalize_stop_reason,
     source_dedup_key,
-    stop_reason_priority,
     string_keyed_dict,
     string_keyed_dicts,
 )
@@ -765,18 +765,7 @@ class StreamContentCollector:
         return result or None
 
     def _set_stop_reason(self, payload: dict[str, object]) -> None:
-        normalized = normalize_stop_reason(payload)
-        if normalized is None:
-            return
-        if self._stop_reason is None:
-            self._stop_reason = normalized
-            return
-        current_code = self._stop_reason.get("code")
-        current_priority = stop_reason_priority(current_code) if isinstance(current_code, str) else 0
-        next_code = normalized.get("code")
-        next_priority = stop_reason_priority(next_code) if isinstance(next_code, str) else 0
-        if next_priority >= current_priority:
-            self._stop_reason = normalized
+        self._stop_reason = merge_stop_reason(self._stop_reason, payload)
 
     def _extend_cited_memory_refs(self, refs: list[object]) -> None:
         seen = {str(ref.get("id")) for ref in self._cited_memory_refs if isinstance(ref.get("id"), str)}
