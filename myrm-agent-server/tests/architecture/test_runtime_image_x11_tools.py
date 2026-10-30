@@ -4,7 +4,7 @@ The harness LinuxBackend runs xdotool for input and xclip to paste any text with
 (xdotool's per-character key remapping drops characters in real applications); an image with xdotool
 but no xclip loses all CJK typing. x11-utils provides xprop (the foreground window's WM_CLASS that the
 sensitive-app guard keys on) and xdpyinfo (the screen size behind click coordinates); without it the class
-name is empty and the size silently falls back to 1920x1080.
+name is empty and the size falls back to a guessed 1920x1080.
 """
 
 from __future__ import annotations
