@@ -9,8 +9,9 @@
 [POS]
 Shared locale utilities consumed by channel i18n, error diagnostics, and
 component text fallbacks. Single source of truth for locale string handling.
-Chinese is a family: prompt and tool text branch on is_chinese, while text catalogs pick a
-bundle by the exact locale and let zh-TW fall back to zh-CN.
+Chinese is a family: prompt and tool text branch on is_chinese, while a text catalog reads the
+bundle of the exact locale first and then the other bundles of its language (a zh-TW request
+reads zh-CN when the catalog has no Traditional bundle).
 """
 
 from __future__ import annotations

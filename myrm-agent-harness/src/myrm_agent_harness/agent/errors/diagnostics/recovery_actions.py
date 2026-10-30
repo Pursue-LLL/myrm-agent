@@ -1,7 +1,7 @@
 """Recovery action buttons for LLM error diagnostics.
 
 [INPUT]
-- diagnostics.i18n::get_locale_manager (POS: Framework-level i18n for LLM error diagnostics)
+- diagnostics.i18n::get_locale_manager (POS: bundled and override locale bundles, and the locale_chain() a text is read along)
 
 [OUTPUT]
 - build_recovery_actions: Localized {id, label, url} buttons for a diagnostic error type
@@ -54,13 +54,9 @@ def build_recovery_actions(error_type: str, locale: str | None = "en") -> list[d
     if not defs:
         return []
 
-    locale_labels = _LABELS_I18N.get(locale, {})
-    if not locale_labels:
-        lang = locale.split("-")[0].split("_")[0]
-        for key in _LABELS_I18N:
-            if key.split("-")[0] == lang:
-                locale_labels = _LABELS_I18N[key]
-                break
+    locale_labels = next(
+        (_LABELS_I18N[loc] for loc in get_locale_manager().locale_chain(locale) if loc in _LABELS_I18N), {}
+    )
 
     return [
         {

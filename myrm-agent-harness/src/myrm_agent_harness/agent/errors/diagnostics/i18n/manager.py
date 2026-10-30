@@ -4,12 +4,12 @@ Supports automatic locale detection with fallback to English.
 
 [INPUT]
 - constants::REQUIRED_ERROR_TYPES (POS: Required error types for translation completeness validation)
-- utils.locale::is_chinese (POS: Chinese-family detection, Simplified or Traditional)
+- utils.locale::normalize_locale (POS: canonical locale tag; Chinese resolves to zh-CN or zh-TW, C/POSIX to English)
 
 [OUTPUT]
 - LocaleManager: Locale detection, bundled JSON locale loading, and message formatting; a text a bundle lacks
-  or cannot render is read from the next locale of locale_chain(): Simplified Chinese for any Chinese
-  locale, then English
+  or cannot render is read from the next locale of locale_chain(): the locale's canonical form, the other
+  bundles of its language, then English
 
 [POS]
 Framework-level i18n for LLM error diagnostics. Loads bundled locale JSON from the
@@ -26,7 +26,7 @@ import os
 from pathlib import Path
 from typing import Literal, overload
 
-from myrm_agent_harness.utils.locale import is_chinese
+from myrm_agent_harness.utils.locale import normalize_locale
 
 from .constants import REQUIRED_ERROR_TYPES
 
@@ -44,6 +44,11 @@ def _resolve_locales_dir() -> Path:
     if override:
         return Path(override)
     return _BUNDLED_LOCALES_DIR
+
+
+def _language(locale: str) -> str:
+    """The primary language subtag of a hyphenated locale, lowercase (``ja-JP`` -> ``ja``)."""
+    return locale.split("-", 1)[0].lower()
 
 
 def _unflatten_locale_json(flat_data: dict[str, object]) -> LocaleBundle:
@@ -91,8 +96,6 @@ class LocaleManager:
                     flat_data: dict[str, object] = json.load(f)
                 trans = _unflatten_locale_json(flat_data)
                 self._translations[name] = trans
-                if name == "zh-CN":
-                    self._translations["zh_cn"] = trans
             except Exception as e:
                 logger.warning("Failed to load JSON locale %s: %s", json_path, e)
 
@@ -198,13 +201,16 @@ class LocaleManager:
         rendered = self._render(error_type, key, locale, params)
         return rendered if isinstance(rendered, str) else None
 
-    @staticmethod
-    def locale_chain(locale: str) -> tuple[str, ...]:
-        """The locales a text is read from, best first: ``locale``, Simplified Chinese for any Chinese locale, English.
+    def locale_chain(self, locale: str) -> tuple[str, ...]:
+        """The locales a text is read from, best first: ``locale``, its canonical form, its language's bundles, English.
 
-        No Traditional Chinese bundle ships, so a Traditional reader gets the Chinese bundle before the English one.
+        A locale reads its own bundle first and then the other bundles of its language: ``ja_JP`` reads ``ja``, and
+        ``zh-HK`` reads ``zh-TW`` and then ``zh-CN``. A language with no bundle reads English.
         """
-        return tuple(dict.fromkeys((locale, *(("zh-CN",) if is_chinese(locale) else ()), "en")))
+        canonical = normalize_locale(locale)
+        language = _language(canonical)
+        same_language = (name for name in self._translations if _language(name) == language)
+        return tuple(dict.fromkeys((locale, canonical, *same_language, "en")))
 
     def _render(self, error_type: str, key: str, locale: str, params: dict[str, object]) -> str | list[str] | None:
         """``error_type.key`` filled in from ``params`` along ``locale_chain(locale)``; None when no locale yields a text.
@@ -234,9 +240,6 @@ class LocaleManager:
     def _validate_translations(self) -> None:
         """Validate that all required error types have complete translations."""
         for locale, translations in self._translations.items():
-            if locale == "zh_cn":
-                continue
-
             for error_type in REQUIRED_ERROR_TYPES:
                 if error_type not in translations:
                     logger.warning("Missing translation for error type '%s' in locale '%s'", error_type, locale)
@@ -269,4 +272,4 @@ class LocaleManager:
 
     def get_supported_locales(self) -> list[str]:
         """Get list of supported locales."""
-        return [loc for loc in self._translations if loc != "zh_cn"]
+        return list(self._translations)
