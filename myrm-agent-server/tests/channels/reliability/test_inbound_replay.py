@@ -16,7 +16,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.core.gateway import ChannelGateway
-from app.channels.reliability.inbound_journal import JournalEntry, SqliteInboundJournal, create_journal_entry_from_inbound
+from app.channels.reliability.inbound_journal import (
+    METADATA_IS_RECOVERY,
+    METADATA_RECOVERY_ENTRY_IDS,
+    JournalEntry,
+    SqliteInboundJournal,
+    create_journal_entry_from_inbound,
+)
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage, MediaAttachment, MediaType
 from tests.channels.inbound_message_testkit import full_message
@@ -61,7 +67,7 @@ async def test_a_replayed_message_carries_every_field_of_the_original(tmp_path: 
 
     replayed = await _replay(journal)
 
-    marked = {**original.metadata, "is_recovery": True, "recovery_entry_id": entry_id}
+    marked = {**original.metadata, METADATA_IS_RECOVERY: True, METADATA_RECOVERY_ENTRY_IDS: [entry_id]}
     assert replayed == [dataclasses.replace(original, metadata=marked)]
 
 

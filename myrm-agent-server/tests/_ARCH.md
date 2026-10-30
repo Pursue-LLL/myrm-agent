@@ -144,9 +144,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/pipeline/inbound_dispatch_testkit.py` | 辅助 | 入站路由步骤测试的共享构建器：`inbound_msg()`（消息）、`dispatch_router()`（发送者判定已定、会话闸门与各步骤的处理器皆为记录器的 `AgentRouter`）、`running_turn()`（登记一个正在运行的回合、其转向令牌与发起人）、`run_dispatch()`、`published_messages()`、`gate_submissions()` |
 | `channels/routing/pipeline/test_inbound_dispatch_steps.py` | 单元 | 一条入站消息的路由顺序（真实路由器，各步骤交出去的处理器换成记录器）：重复消息先被丢；群里有话题管理器才记群活动；按钮点击、反应（永不成回合）、显式与裸审批词、斜杠命令与裸 shell 命令各自认领消息，认领后不进会话闸门；事件触发只对放行的发送者按其围栏触发且不认领；准入、可信或所有者检查出错时失败即关闭（跳过触发、按不可信围栏、拒绝委派），消息仍到会话闸门 |
 | `channels/routing/pipeline/test_inbound_steering_steps.py` | 单元 | 回合已在运行或发送者在转交任务时消息的去向：回合进行中输入的文字不会被并入该回合而是留给会话闸门，斜杠消息同样；委派请求仅属主、缺任务时的提示、置信度门槛；转向进行中的委派任务的前置条件（该聊天已有回合时文字留给闸门，不注入委派任务） |
-| `channels/routing/pipeline/turn_pipeline_testkit.py` | 辅助 | 回合流水线步骤测试的共享构建器：`turn_msg()`（消息）、`turn_router()`（准备返回上下文、执行与消息效果皆为记录器的 `AgentRouter`）、`prepared_message()`、`attach_journal()`、`tag_enricher()` / `tag_enricher_async()`（给内容打标记以显示富化顺序） |
+| `channels/routing/pipeline/turn_pipeline_testkit.py` | 辅助 | 回合流水线步骤测试的共享构建器：`turn_msg()`（消息）、`turn_router()`（准备返回上下文、执行与消息效果皆为记录器的 `AgentRouter`）、`prepared_message()`、`execution_kwargs()`（回合启动运行时的关键字参数）、`attach_journal()`、`tag_enricher()` / `tag_enricher_async()`（给内容打标记以显示富化顺序） |
 | `channels/routing/pipeline/test_turn_attachment_gate.py` | 单元 | 附件处理前的准入闸门：被访问策略拒绝的发送者，语音、视频、图片、联系人、文档与贴纸一概不处理（含读取所有者配置），消息原样交给准备步骤；放行的发送者照常处理且只查一次；准入判定本身出错时照常处理并记 WARNING；纯文本消息与审批答复不触发判定；另用真实 `PolicyResolver` 逐例钉住陌生人私聊、已配对成员、所有者、未启用群、启用群、访客模式 @mention 与无访客模式的 @mention |
-| `channels/routing/pipeline/test_turn_pipeline_steps.py` | 单元 | `_handle_merged` 在运行之前的步骤顺序（准备与执行换成记录器）：收件日志写入与确认（重放的消息不重写）、yolo 窗口与人格写进消息、各类附件按固定顺序富化且审批答复不富化 |
+| `channels/routing/pipeline/test_turn_pipeline_steps.py` | 单元 | `_handle_merged` 在运行之前的步骤顺序（准备与执行换成记录器）：收件日志写入与确认（重放的消息不重写；由多个重放合并成的回合确认其全部条目）、yolo 窗口与人格写进消息、各类附件按固定顺序富化且审批答复不富化 |
 | `channels/routing/pipeline/test_turn_run_steps.py` | 单元 | `_handle_merged` 围绕一次运行的步骤（准备与执行换成记录器）：风险闸门只看键入文本、智能体别名改写与单独别名的绑定、状态反应（标记、撤标记、完成表情的调用顺序与策略；失败时先发错误文本再显示失败表情）、无法准备的回合静默结束、失败路径（用运行所用的消息回复、已发出的占位符改成错误文本） |
 | `channels/routing/pipeline/test_delivery_setup_effects.py` | 单元 | 新回合的投递准备不再重复设置「处理中」反应（该反应只由回合的 ack 步骤设置一次），同时仍登记占位符与清理 |
 | `channels/types/test_context_document.py` | 单元 | 参考文档契约：每种状态经元数据往返不变、元数据是纯 JSON 数据、非元数据形态的输入不当作文档、`clamped` 截断正文并保留原始长度、不超限原样返回 |
@@ -210,6 +210,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/approvals/test_registry_concurrency.py` | 集成 | 生产同构 SQLite（WAL + 延迟 BEGIN 升级写锁）上的并发定案：批准与拒绝同时、TTL 清理与点击同时，每条被扣留回复恰好定案并收尾一次，落败方读到已定案状态而不是 `database is locked` |
 | `core/notifications/test_approval_card.py` | 单元 | 审批通知卡片：草稿正文预览（截断/附件摘要/自动发送提示/剩余时间）不含内部标识与链接，仅 Telegram 带批准/拒绝按钮、其他渠道提示打开应用，按用户语言渲染 |
 | `channels/reliability/test_inbound_replay.py` | 集成 | 入站日志的重放保真：按生产路径（回合开始写日志条目 → SQLite → 网关启动恢复 → 路由闸门）走一遍，重放回来的消息与原消息逐字段相等（仅多出 `is_recovery` 标记）；交给真实的 `_handle_merged` 后，到达回合的消息仍带着附件、引用回复、群上下文、发送者与发送时间，日志条目被确认且不重复写；无聊天标识的消息仍无；yolo 窗口不跨重启；本地文件已不存在的附件有 url 则保留 url、否则从附件里去掉并在正文里点名；无法解码的条目不拖垮其后的条目；另一种列结构的表在打开时重建，日志继续可用 |
+| `channels/reliability/test_inbound_replay_merging.py` | 集成 | 重放经过会话闸门的合并：同一聊天的两条重放合并成一个回合，回合带着两条日志条目，经真实闸门、`_handle_merged` 与 SQLite 日志走完后两个条目都被确认；重放与实时消息不合并，按到达顺序各占一个回合（两种先后顺序），实时消息不带条目 |
 | `channels/inbound_message_testkit.py` | 辅助 | `full_message()`：每个会持久化的字段都取非默认值的 `InboundMessage`（含两层嵌套的引用回复、群上下文、关联上下文与一个本地附件），`test_inbound_wire.py` 与 `test_inbound_replay.py` 共用 |
 | `channels/types/test_inbound_wire.py` | 单元 | `InboundMessage` 线格式：夹具覆盖全部会持久化的字段、经 JSON 往返后逐字段相等、`channel_capabilities` 不持久化、最小消息往返、TypedDict 键集与 dataclass 字段集一致 |
 | `channels/reliability/test_durable_outbound_poison_isolation.py` | 单元 | 持久化出站队列：带按钮的消息重启后完整读回；无法解码的记录隔离到失败桶，不拖垮其余记录、仅一次性上报永久失败且绝不重发，网关启动不受影响 |

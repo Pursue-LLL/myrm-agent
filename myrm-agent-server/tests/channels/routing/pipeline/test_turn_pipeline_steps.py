@@ -19,6 +19,7 @@ from .turn_pipeline_testkit import (
     STATE_KEY,
     TURN,
     attach_journal,
+    execution_kwargs,
     prepared_message,
     tag_enricher,
     tag_enricher_async,
@@ -45,10 +46,21 @@ async def test_a_replayed_message_is_not_journaled_again_and_acknowledges_its_ow
     router = turn_router()
     journal = attach_journal(router)
 
-    await router._handle_merged(turn_msg(metadata={"is_recovery": True, "recovery_entry_id": "entry-7"}))
+    await router._handle_merged(turn_msg(metadata={"is_recovery": True, "recovery_entry_ids": ["entry-7"]}))
 
     journal.write.assert_not_called()
     journal.acknowledge.assert_called_once_with("entry-7")
+
+
+@pytest.mark.asyncio
+async def test_a_turn_merged_from_replays_acknowledges_every_entry_it_stands_for() -> None:
+    router = turn_router()
+    journal = attach_journal(router)
+
+    await router._handle_merged(turn_msg(metadata={"is_recovery": True, "recovery_entry_ids": ["entry-7", "entry-8"]}))
+
+    journal.write.assert_not_called()
+    assert [call.args for call in journal.acknowledge.call_args_list] == [("entry-7",), ("entry-8",)]
 
 
 @pytest.mark.asyncio
@@ -183,6 +195,7 @@ async def test_a_document_is_enriched_with_the_owners_extraction_setting() -> No
         await router._handle_merged(turn_msg("report"))
 
     should_extract.assert_called_once_with({"k": 1})
+    assert enrich.await_args is not None
     assert enrich.await_args.kwargs == {"extract_enabled": True}
     assert prepared_message(router).content == "report+document"
 
@@ -198,7 +211,7 @@ async def test_a_voice_message_is_transcribed_and_the_run_is_told_it_was_voice()
         await router._handle_merged(turn_msg("spoken"))
 
     assert prepared_message(router).content == "spoken+voice"
-    assert router._execute_prepared_context.await_args.kwargs == {"is_resume": False, "inbound_had_voice": True}
+    assert execution_kwargs(router) == {"is_resume": False, "inbound_had_voice": True}
 
 
 @pytest.mark.asyncio
@@ -210,7 +223,7 @@ async def test_the_answer_to_an_approval_is_not_checked_for_voice() -> None:
 
     present.assert_not_called()
     transcribe.assert_not_called()
-    assert router._execute_prepared_context.await_args.kwargs == {"is_resume": True, "inbound_had_voice": False}
+    assert execution_kwargs(router) == {"is_resume": True, "inbound_had_voice": False}
 
 
 @pytest.mark.asyncio

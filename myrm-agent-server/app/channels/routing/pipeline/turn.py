@@ -17,7 +17,7 @@
 - RouterTurnMixin: ``_handle_merged`` (the SessionGate ``on_ready`` entry: ``_journal_inbound``, ``_apply_session_state``, ``_enrich_attachments`` (skipped for a sender the access policy refuses), the risk gate, ``_apply_agent_route``, then prepare and execute the turn under the concurrency semaphore, with ``_report_turn_failure`` as the friendly error path) and ``_acknowledge_inbound``
 
 [POS]
-Turn segment of ``AgentRouter``. The journal entry is acknowledged on every way out. The turn ends for the gate when this coroutine returns (``SessionGate`` owns that signal), which also starts the messages queued behind it. The turn owns the status reaction of the message: it starts marking the message as the run begins, without waiting for the platform, and settles the mark once, after the run or in the error path.
+Turn segment of ``AgentRouter``. The journal entries of the turn are acknowledged on every way out. The turn ends for the gate when this coroutine returns (``SessionGate`` owns that signal), which also starts the messages queued behind it. The turn owns the status reaction of the message: it starts marking the message as the run begins, without waiting for the platform, and settles the mark once, after the run or in the error path.
 """
 
 from __future__ import annotations
@@ -50,11 +50,7 @@ from app.channels.media.video_enrichment import (
 from app.channels.media.video_enrichment import (
     has_video_attachment as has_video_attachment_fn,
 )
-from app.channels.reliability.inbound_journal import (
-    METADATA_IS_RECOVERY,
-    METADATA_RECOVERY_ENTRY_ID,
-    create_journal_entry_from_inbound,
-)
+from app.channels.reliability.inbound_journal import create_journal_entry_from_inbound, is_replay, replay_entry_ids
 from app.channels.routing.command_defs import CommandKind
 from app.channels.routing.commands import parse_topic_args
 from app.channels.routing.friendly_errors import friendly_error_message
@@ -100,16 +96,17 @@ async def _is_refused(resolver: PolicyResolver, msg: InboundMessage) -> bool:
 class RouterTurnMixin:
     """Mixin: the turn a session gate hands over, from journal and enrichment to the agent run."""
 
-    def _acknowledge_inbound(self: RouterTurnHost, journal_entry_id: str | None) -> None:
-        """Delete the journal entry of a message that needs no replay: it was handled, or held by the risk gate."""
-        if self._inbound_journal and journal_entry_id:
-            self._inbound_journal.acknowledge(journal_entry_id)
+    def _acknowledge_inbound(self: RouterTurnHost, journal_entry_ids: tuple[str, ...]) -> None:
+        """Delete the journal entries of the messages a turn consumed, which need no replay: handled, or held by the risk gate."""
+        if self._inbound_journal:
+            for entry_id in journal_entry_ids:
+                self._inbound_journal.acknowledge(entry_id)
 
     async def _handle_merged(self: RouterTurnHost, msg: InboundMessage) -> None:
         """Process a (possibly merged) inbound message with concurrency control.
 
         Called by SessionGate after debounce timer expires or pending queue drains.
-        The journal entry is acknowledged on every way out: the early returns before the ``try`` do it themselves, the
+        The journal entries are acknowledged on every way out: the early returns before the ``try`` do it themselves, the
         ``finally`` covers the rest (and notifies the gate, which also drains pending messages once this returns).
 
         ``exec_for_error`` is the InboundMessage passed to ``send_error_reply`` and
@@ -118,7 +115,7 @@ class RouterTurnMixin:
         after ``_prepare_execution_context`` succeeds. Successful ``prepare`` hands
         off to ``_execute_prepared_context`` (active task registration, stream, delivery).
         """
-        journal_entry_id = self._journal_inbound(msg)
+        journal_entry_ids = self._journal_inbound(msg)
         msg = self._apply_session_state(msg)
 
         scratch = _AgentTurnScratch()
@@ -131,12 +128,12 @@ class RouterTurnMixin:
         exec_for_error: InboundMessage = msg
 
         if not is_resume and msg.content and await hold_risky_inbound(self._bus, msg, msg.content):
-            self._acknowledge_inbound(journal_entry_id)
+            self._acknowledge_inbound(journal_entry_ids)
             return
 
         routed = self._apply_agent_route(msg)
         if routed is None:
-            self._acknowledge_inbound(journal_entry_id)
+            self._acknowledge_inbound(journal_entry_ids)
             return
         msg = routed
 
@@ -171,21 +168,21 @@ class RouterTurnMixin:
         finally:
             if status is not None:
                 status.cancel()
-            self._acknowledge_inbound(journal_entry_id)
+            self._acknowledge_inbound(journal_entry_ids)
 
-    def _journal_inbound(self: RouterTurnHost, msg: InboundMessage) -> str | None:
-        """Write the message to the inbound journal and return the id of the entry to acknowledge afterwards.
+    def _journal_inbound(self: RouterTurnHost, msg: InboundMessage) -> tuple[str, ...]:
+        """Write the message to the inbound journal and return the ids of the entries to acknowledge afterwards.
 
-        A message replayed after a restart has its entry already: it is neither written again nor, without an entry
-        id, acknowledged.
+        A message replayed after a restart has its entries already, one for each replay merged into it: they are
+        neither written again nor, when it names none, acknowledged.
         """
-        if self._inbound_journal and not msg.metadata.get(METADATA_IS_RECOVERY):
-            entry = create_journal_entry_from_inbound(msg)
-            self._inbound_journal.write(entry)
-            return entry.id
-        if self._inbound_journal and msg.metadata.get(METADATA_RECOVERY_ENTRY_ID):
-            return str(msg.metadata[METADATA_RECOVERY_ENTRY_ID])
-        return None
+        if not self._inbound_journal:
+            return ()
+        if is_replay(msg):
+            return replay_entry_ids(msg)
+        entry = create_journal_entry_from_inbound(msg)
+        self._inbound_journal.write(entry)
+        return (entry.id,)
 
     def _apply_session_state(self: RouterTurnHost, msg: InboundMessage) -> InboundMessage:
         """Put what the channel and the session decided onto the message: capabilities, the yolo window, the personality.

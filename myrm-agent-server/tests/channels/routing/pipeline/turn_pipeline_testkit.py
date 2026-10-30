@@ -6,6 +6,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 from app.channels.routing.router import AgentRouter
@@ -53,20 +54,30 @@ def turn_router(*, prepared_chat_id: str = "chat-1", exec_content: str | None = 
         exec_msg = inbound if exec_content is None else dataclasses.replace(inbound, content=exec_content)
         return SimpleNamespace(chat_id=prepared_chat_id, exec_msg=exec_msg)
 
-    router._prepare_execution_context = AsyncMock(side_effect=prepare)
-    router._execute_prepared_context = AsyncMock()
-    router._retire_open_approval = AsyncMock()
+    router._prepare_execution_context = AsyncMock(side_effect=prepare)  # type: ignore[method-assign]
+    router._execute_prepared_context = AsyncMock()  # type: ignore[method-assign]
+    router._retire_open_approval = AsyncMock()  # type: ignore[method-assign]
     return router
 
 
 def shown_reactions(router: AgentRouter) -> list[tuple[str, str, str, str]]:
     """Every reaction call the turn made, as (channel, chat, message, emoji); an empty emoji takes the reaction off."""
-    return [tuple(call.args) for call in router._fx.reactions.react.await_args_list]  # type: ignore[misc]
+    react = cast("AsyncMock", router._fx.reactions.react)
+    return [tuple(call.args) for call in react.await_args_list]
 
 
 def prepared_message(router: AgentRouter) -> InboundMessage:
-    prepared: InboundMessage = router._prepare_execution_context.await_args.args[0]
+    prepare = cast("AsyncMock", router._prepare_execution_context)
+    assert prepare.await_args is not None
+    prepared: InboundMessage = prepare.await_args.args[0]
     return prepared
+
+
+def execution_kwargs(router: AgentRouter) -> dict[str, object]:
+    """The keyword arguments the turn started its run with."""
+    run = cast("AsyncMock", router._execute_prepared_context)
+    assert run.await_args is not None
+    return dict(run.await_args.kwargs)
 
 
 def attach_journal(router: AgentRouter) -> MagicMock:

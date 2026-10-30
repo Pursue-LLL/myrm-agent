@@ -24,9 +24,9 @@ Six complementary mechanisms:
    and any other turn of the session ends the run the answer belongs to.
 5. **One Turn, One Sender**: A turn runs as the sender of its first message
    (identity and tool permissions), so text is merged per sender: consecutive
-   messages of one sender form a turn, and text of another sender waits for a
-   turn of its own, in arrival order. A group shares one gate key, a DM never
-   has a second sender.
+   messages of one sender form a turn (replays after a restart apart from live
+   ones), and text of another sender waits for a turn of its own, in arrival
+   order. A group shares one gate key, a DM never has a second sender.
 6. **Turn Identity**: Every turn has a number that is unique across the gate. The
    next turn is marked running in the step that picks it, so no message can slip
    in between two turns of a session and start a third. A turn is ended by naming
@@ -36,6 +36,7 @@ Six complementary mechanisms:
 
 [INPUT]
 - channels.routing.router_keys::routing_state_key (POS: debounce grouping key format, consistent with Router ``state_key``)
+- channels.reliability.inbound_journal::is_replay, replay_entry_ids, METADATA_RECOVERY_ENTRY_IDS (POS: which messages are replays and the journal entries they stand for)
 
 [OUTPUT]
 - Merged InboundMessage delivered via callback to Router
@@ -59,6 +60,7 @@ import math
 import time
 from collections.abc import Awaitable, Callable
 
+from app.channels.reliability.inbound_journal import METADATA_RECOVERY_ENTRY_IDS, is_replay, replay_entry_ids
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import (
     METADATA_EXPLICIT_MENTION_KEY,
@@ -107,13 +109,14 @@ def _take_next_turn(queue: list[InboundMessage]) -> tuple[InboundMessage, ...]:
     """Remove from the non-empty ``queue`` what runs next: its oldest answer on its own, else the first sender's text.
 
     A turn runs as the sender of its first message, so only the consecutive text of that sender is taken; what another
-    sender wrote stays queued, in order, for a turn of its own.
+    sender wrote stays queued, in order, for a turn of its own. Replays and live messages take separate turns: a turn
+    acknowledges the journal entries of the replays it merged, and a live message has none.
     """
     for index, msg in enumerate(queue):
         if _is_answer(msg):
             return (queue.pop(index),)
-    sender = queue[0].sender_id
-    count = next((index for index, msg in enumerate(queue) if msg.sender_id != sender), len(queue))
+    lane = (queue[0].sender_id, is_replay(queue[0]))
+    count = next((index for index, msg in enumerate(queue) if (msg.sender_id, is_replay(msg)) != lane), len(queue))
     turn = tuple(queue[:count])
     del queue[:count]
     return turn
@@ -139,8 +142,8 @@ def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
     - ``content``: newline-joined (preserves user's segmentation intent)
     - ``media``: concatenated in arrival order
     - ``context_messages``: concatenated in arrival order
-    - ``metadata``: from the *last* message (keeps final message_id for reaction), plus the explicit-mention flag
-      when any message carries it: admission must not depend on which message came last
+    - ``metadata``: from the *last* message (keeps final message_id for reaction), plus the explicit-mention flag when any
+      message carries it (admission must not depend on which came last) and the journal entries of every replay
     - ``mentioned``: true when any message is
     - ``thread_id``: first non-None value
     - Other fields (channel, sender_id, chat_id, is_group, is_bot): from first message, which is the sender of all
@@ -173,6 +176,8 @@ def merge_messages(msgs: tuple[InboundMessage, ...]) -> InboundMessage:
     metadata = dict(last.metadata)
     if explicit_mention:
         metadata[METADATA_EXPLICIT_MENTION_KEY] = "1"
+    if entry_ids := [entry_id for m in msgs for entry_id in replay_entry_ids(m)]:
+        metadata[METADATA_RECOVERY_ENTRY_IDS] = entry_ids
 
     return InboundMessage(
         channel=first.channel,

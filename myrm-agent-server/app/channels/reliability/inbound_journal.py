@@ -18,7 +18,8 @@ Lifecycle:
 
 [OUTPUT]
 - InboundJournal: Protocol for journal persistence
-- METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_ID: the metadata keys that mark a replayed message and name its entry
+- METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_IDS: the metadata keys that mark a replayed message and name its entries
+- is_replay, replay_entry_ids: whether a message is a replay, and the journal entries it stands for
 - JournalEntry: one persisted message (its wire form as JSON) with its age limit
 - SqliteInboundJournal: SQLite implementation (framework default)
 - create_journal_entry_from_inbound, restore_inbound: message to entry, and entry back to the message
@@ -50,9 +51,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Set on a replayed message by ``restore_inbound``; the turn keeps its entry instead of writing a new one, and the agent is told.
+# Set on a replayed message by ``restore_inbound``; the turn keeps its entries instead of writing a new one, and the agent
+# is told. The ids are a list because one turn can stand for several replays: the gate merges what it holds for a chat.
 METADATA_IS_RECOVERY = "is_recovery"
-METADATA_RECOVERY_ENTRY_ID = "recovery_entry_id"
+METADATA_RECOVERY_ENTRY_IDS = "recovery_entry_ids"
 
 _DEFAULT_TTL_SECONDS = 600  # 10 minutes
 _COLUMNS = ("id", "payload_json", "created_at", "ttl_seconds")
@@ -266,5 +268,16 @@ def restore_inbound(entry: JournalEntry) -> InboundMessage:
     if lost:
         notes = [f"[Attachment: {name}] (file lost in the restart)" for name in lost]
         content = "\n".join(filter(None, [content, *notes]))
-    metadata = {**msg.metadata, METADATA_IS_RECOVERY: True, METADATA_RECOVERY_ENTRY_ID: entry.id}
+    metadata = {**msg.metadata, METADATA_IS_RECOVERY: True, METADATA_RECOVERY_ENTRY_IDS: [entry.id]}
     return replace(msg, content=content, media=media, metadata=metadata)
+
+
+def is_replay(msg: InboundMessage) -> bool:
+    """Whether ``msg`` was rebuilt from the journal after a restart."""
+    return bool(msg.metadata.get(METADATA_IS_RECOVERY))
+
+
+def replay_entry_ids(msg: InboundMessage) -> tuple[str, ...]:
+    """The journal entries ``msg`` stands for: its own when it is a replay, those of every replay merged into it."""
+    ids = msg.metadata.get(METADATA_RECOVERY_ENTRY_IDS)
+    return tuple(str(entry_id) for entry_id in ids) if isinstance(ids, list | tuple) else ()

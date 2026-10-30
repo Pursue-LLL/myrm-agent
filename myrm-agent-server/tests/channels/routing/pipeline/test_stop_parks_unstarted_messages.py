@@ -149,7 +149,7 @@ async def test_a_stop_without_a_journal_still_starts_no_further_turn() -> None:
 async def test_a_replayed_message_keeps_its_entry_and_is_not_written_twice(
     harness: _Harness, journal: SqliteInboundJournal
 ) -> None:
-    replay = _dm("replayed", is_recovery=True, recovery_entry_id="entry-1")
+    replay = _dm("replayed", is_recovery=True, recovery_entry_ids=["entry-1"])
     await harness.start_running_turn_with_queue(replay)
     journal.write(replace(create_journal_entry_from_inbound(_dm("replayed")), id="entry-1"))
 
