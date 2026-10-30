@@ -256,7 +256,7 @@ class CodeGraphStore:
                         SELECT qualified_name, name, kind, file_path, line_start, line_end
                         FROM symbols
                         WHERE file_path = ? AND line_start <= ? AND line_end >= ?
-                        ORDER BY (line_end - line_start) ASC
+                        ORDER BY (line_end - line_start) ASC, (kind = 'module') ASC
                         """,
                         (f_path, line_no, line_no),
                     )

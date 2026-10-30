@@ -250,14 +250,15 @@ async def test_definition_returns_location_and_trimmed_docstring(workspace: Path
     assert len(str(row["doc"])) == 300
 
 
-async def test_typescript_rows_carry_the_attribution_warning(workspace: Path) -> None:
+async def test_typescript_callers_name_the_enclosing_function_without_an_attribution_warning(workspace: Path) -> None:
     _write(workspace, "web/api.ts", "export function load() {\n  return 1\n}\n\nexport function page() {\n  load()\n}\n")
     tool = create_code_graph_tool(workspace)
 
     answer = await _ask(tool, "callers", "load")
 
-    assert answer.rows
-    assert any("JS/TS rows" in note for note in answer.notes)
+    [row] = answer.rows
+    assert (row["at"], row["caller"], row["match"]) == ("web/api.ts:6", "web.api.page", "exact")
+    assert answer.notes == []
 
 
 async def test_blank_target_is_rejected_before_anything_is_indexed(workspace: Path, persistent: Path) -> None:

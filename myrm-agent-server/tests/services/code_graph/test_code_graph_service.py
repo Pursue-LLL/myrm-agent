@@ -1,13 +1,11 @@
-"""Unit tests for CodeGraphService and multi-language AST extractors."""
+"""Unit tests for CodeGraphService and the Python extractor."""
 
 from __future__ import annotations
 
 import tempfile
 from pathlib import Path
 
-import pytest
-
-from app.services.code_graph.ast_extractor import JsTsRegexExtractor, PythonAstExtractor
+from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.models import SymbolKind
 from app.services.code_graph.service import CodeGraphService
 
@@ -50,53 +48,6 @@ def standalone_helper():
     assert "services.user.standalone_helper" in callers
 
 
-def test_jsts_regex_extractor() -> None:
-    sample_ts = """
-export class AuthService extends BaseAuth {
-  async login(token: string) {
-    return true;
-  }
-}
-
-export function validateInput(val: string) {
-  if (val.length > 0) {
-    checkToken(val);
-  }
-  return val.length > 0;
-}
-"""
-    extractor = JsTsRegexExtractor("auth.ts", sample_ts)
-    extractor.extract()
-
-    symbols = {s.qualified_name: s for s in extractor.symbols}
-    assert "auth.AuthService" in symbols
-    assert "auth.validateInput" in symbols
-    assert len(extractor.inheritances) == 1
-    assert extractor.inheritances[0].super_type == "BaseAuth"
-    assert len(extractor.calls) >= 1
-    callee_names = [c.callee for c in extractor.calls]
-    assert "checkToken" in callee_names
-
-
-@pytest.mark.parametrize(
-    ("declaration", "name"),
-    [
-        ("function plain(a) {", "plain"),
-        ("export function exported(a) {", "exported"),
-        ("async function bare(a) {", "bare"),
-        ("export async function loader(a) {", "loader"),
-        ("export const arrow = (a) => {", "arrow"),
-        ("const asyncArrow = async (a) => {", "asyncArrow"),
-    ],
-)
-def test_jsts_regex_extractor_emits_a_function_symbol_for_each_declaration_form(declaration: str, name: str) -> None:
-    extractor = JsTsRegexExtractor("util.ts", f"// header\n{declaration}\n  return a;\n}}\n")
-    extractor.extract()
-
-    symbol = {s.qualified_name: s for s in extractor.symbols}[f"util.{name}"]
-    assert (symbol.name, symbol.kind, symbol.file_path, symbol.line_start) == (name, SymbolKind.FUNCTION, "util.ts", 2)
-
-
 def test_code_graph_service_indexes_typescript_functions(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
@@ -112,28 +63,6 @@ def test_code_graph_service_indexes_typescript_functions(tmp_path: Path) -> None
     assert definition is not None
     assert (definition["kind"], definition["file_path"], definition["line_start"]) == ("function", "auth.ts", 1)
     assert [r["qualified_name"] for r in service.resolve("auth.ts:1")][0] == "auth.validateInput"
-
-
-def test_jsts_regex_extractor_records_each_call_once_under_its_enclosing_function() -> None:
-    sample_ts = """bootstrap();
-
-export function validateInput(val: string) {
-  checkToken(val);
-}
-
-export const render = (val: string) => {
-  return format(val);
-};
-"""
-    extractor = JsTsRegexExtractor("auth.ts", sample_ts)
-    extractor.extract()
-
-    callers_by_callee: dict[str, list[str]] = {}
-    for call in extractor.calls:
-        callers_by_callee.setdefault(call.callee, []).append(call.caller)
-    assert callers_by_callee["bootstrap"] == ["auth"]
-    assert callers_by_callee["checkToken"] == ["auth.validateInput"]
-    assert callers_by_callee["format"] == ["auth.render"]
 
 
 def test_code_graph_service_returns_each_typescript_call_once(tmp_path: Path) -> None:
@@ -319,3 +248,16 @@ def test_python_walk_handles_an_expression_nested_deeper_than_the_recursion_limi
 
     assert extractor.extract() is True
     assert len(extractor.calls) == 3000
+
+
+def test_resolve_by_location_prefers_a_symbol_over_the_module_that_spans_the_same_lines(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "solo.ts").write_text("export function solo() {\n  return 1;\n}\n", encoding="utf-8")
+    (root / "lone.py").write_text("def lone():\n    return 1\n", encoding="utf-8")
+    service = CodeGraphService(tmp_path / "graph.db")
+
+    service.index_directory(root)
+
+    assert [r["qualified_name"] for r in service.resolve("solo.ts:2")] == ["solo.solo", "solo"]
+    assert [r["qualified_name"] for r in service.resolve("lone.py:2")] == ["lone.lone", "lone"]

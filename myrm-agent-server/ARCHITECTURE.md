@@ -131,7 +131,7 @@
 
 ### 代码智能
 
-- **内置**：预置技能 `repo-call-graph` 默认关闭；用户启用且 Agent 有工作区时，`app/ai_agents/general_agent/factory.py` 挂载 `code_graph_tool`（符号定义、调用方、被调用、子类、导入方、直接调用它的测试）。Python 用原生 AST，JS/TS 为按行正则、归属近似；索引按文件指纹增量同步，存放在持久卷、不写入工作区。挂载条件只有这两条，与 MCP 服务无关；详见 `app/services/code_graph/_ARCH.md`。
+- **内置**：预置技能 `repo-call-graph` 默认关闭；用户启用且 Agent 有工作区时，`app/ai_agents/general_agent/factory.py` 挂载 `code_graph_tool`（符号定义、调用方、被调用、子类、导入方、直接调用它的测试）。Python 用原生 AST，JS/TS 用 tree-sitter 语法树；索引按文件指纹增量同步，存放在持久卷、不写入工作区。挂载条件只有这两条，与 MCP 服务无关；详见 `app/services/code_graph/_ARCH.md`。
 - **外部 MCP**：用户可在 **Settings → Communication & Integrations** 的 Integration Catalog 中一键接入 `code-review-graph`（28 工具）或 `CodeGraph`（10 工具）等社区 MCP 服务。
 
 ### 0.05 Agent 模型凭据（WebUI only）

@@ -4,6 +4,7 @@
 - 无内部依赖（仅标准库 dataclasses、enum）
 
 [OUTPUT]
+- INDEX_FORMAT_VERSION: 持久化索引的格式版本，决定索引库的文件名
 - SymbolKind: 符号种类枚举
 - SymbolNode、CallEdge、InheritanceEdge、ImportEdge: 符号以及调用、继承、导入关系的记录
 - CallSite: 一次调用在源码中的位置、参数个数与关键字参数名
@@ -16,6 +17,11 @@
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+
+# Format of the persisted index: the tables and what the extractors write into them. It is part of the database
+# file name, because a file whose fingerprint is unchanged is never parsed again: any change to the tables or to
+# extraction output must increase it, which starts a fresh database that is indexed from scratch.
+INDEX_FORMAT_VERSION = 1
 
 
 class SymbolKind(str, Enum):

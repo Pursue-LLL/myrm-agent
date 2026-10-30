@@ -25,9 +25,6 @@ contract:
     - description: "Concluding a function is unused because callers returned nothing"
       mitigation: "Dynamic calls (getattr, strings, decorators, injection) are not seen; confirm with grep_tool"
       severity: high
-    - description: "Trusting the calling function of a TypeScript/JavaScript row"
-      mitigation: "Open the location; for JS/TS the enclosing function can be wrong"
-      severity: medium
   verification_steps:
     - step_id: call_sites_opened
       description: "Every call site that drives an edit was read in its file"
@@ -70,7 +67,7 @@ Use `code_graph_tool` for structural questions about Python and TypeScript/JavaS
 ## Limits
 
 - Calls are matched by name. The tool does not follow imports or infer types.
-- Python results are normally right about which function contains a call; a call outside any function (module level, class body) has the module name as `caller`. TypeScript/JavaScript results are approximate and that function can be wrong.
+- `caller` is the function or method that contains the call. A call outside any function (module level, class body) has the module name as `caller`; a call inside an unnamed callback or lambda is credited to the function around it.
 - Imports are indexed for Python only: `importers` finds nothing in TypeScript/JavaScript files.
 - Files ignored by git, dependency and build folders, files over 1 MB, symbolic links, and Python files with syntax errors are not indexed.
 - Very large workspaces are indexed only in part. When `notes` says so, a missing result is unconfirmed: use `grep_tool`.

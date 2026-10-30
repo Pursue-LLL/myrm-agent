@@ -49,6 +49,11 @@ dependencies = [
   "aioboto3>=15.5.0",                   # S3 异步客户端 (远程备份)；它锁 aiobotocore 2.25.1 → boto3<1.40.62，这决定了 harness 的 litellm 下限
   "regex>=2026.4.4", # Risk-rule pattern engine: a per-match time budget that stdlib re lacks (services/risk/detection.py)
   "pywebpush>=2.4.0", # Web Push (VAPID) notifications (core/web_push/)
+  # --- 代码结构索引 ---
+  # JS/TS 语法树解析，原生扩展 (services/code_graph/js_ts_extractor.py)。0.26.0 读取 Point.row/.column 会过度释放引用，
+  # 解析较大文件时随机崩溃整个进程（py-tree-sitter#505，修复只在未发布的 master），所以固定在 0.25
+  "tree-sitter>=0.25.2,<0.26",
+  "tree-sitter-typescript>=0.23.2", # TypeScript 与 TSX 语法
 ]
 
 [project.optional-dependencies]

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.code_graph.service::CodeGraphService (POS: incremental directory index and graph queries)
-- app.services.code_graph.models::IndexStats (POS: state of the index after one run)
+- app.services.code_graph.models::(INDEX_FORMAT_VERSION, IndexStats) (POS: code graph data contracts and index format version)
 - myrm_agent_harness.runtime.paths.execution_paths::get_persistent_root (POS: persistent volume root)
 
 [OUTPUT]
@@ -12,7 +12,8 @@
 
 [POS]
 Conditional business tool. The index lives in the persistent volume, never inside the workspace, and is brought
-up to date before every query, so the model never indexes or refreshes anything itself.
+up to date before every query, so the model never indexes or refreshes anything itself. Its file name carries the
+index format version, and the databases of other versions are removed when it is opened.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -31,13 +33,14 @@ from langchain_core.tools import BaseTool
 from myrm_agent_harness.runtime.paths.execution_paths import get_persistent_root
 from pydantic import BaseModel, Field
 
-from app.services.code_graph.models import IndexStats
+from app.services.code_graph.models import INDEX_FORMAT_VERSION, IndexStats
 from app.services.code_graph.service import CodeGraphService
+
+logger = logging.getLogger(__name__)
 
 SKILL_NAME = "repo-call-graph"
 MAX_ROWS = 50
 _DOC_CHARS = 300
-_JS_TS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
 
 # What can narrow an answer cut at MAX_ROWS. callers, tests_calling and implementors match on the last name part,
 # so a qualified name returns the same rows and only a text search inside a directory narrows them.
@@ -63,8 +66,8 @@ _DESCRIPTION = (
     "TypeScript/JavaScript imports are not indexed.\n"
     "- tests_calling [function name]: call sites in test files that call it directly; tests that reach it through "
     "other functions are not listed.\n"
-    "Rows give file:line. Open the location before editing: JS/TS attribution is approximate and dynamic calls are "
-    "not seen. Use grep for plain text, strings and comments."
+    "Rows give file:line. Open the location before editing: dynamic calls are not seen. "
+    "Use grep for plain text, strings and comments."
 )
 
 
@@ -157,10 +160,22 @@ _ACTIONS: dict[str, _Action] = {
 
 def _database_path(workspace_root: Path) -> Path:
     digest = hashlib.sha256(str(workspace_root.resolve()).encode()).hexdigest()[:16]
-    return Path(get_persistent_root()) / "code_graph" / f"{digest}.db"
+    return Path(get_persistent_root()) / "code_graph" / f"{digest}.v{INDEX_FORMAT_VERSION}.db"
 
 
-def _notes(shown_rows: list[Row], total: int, definitions: int, stats: IndexStats, cut_hint: str) -> list[str]:
+def _remove_stale_indexes(current: Path) -> None:
+    """Delete this workspace's databases of other format versions with their WAL files; nothing reads them again."""
+    digest = current.name.split(".", 1)[0]
+    for entry in current.parent.glob(f"{digest}.*"):
+        if entry.name.startswith(current.name):
+            continue
+        try:
+            entry.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("Code graph could not remove the stale index %s: %s", entry, exc)
+
+
+def _notes(total: int, definitions: int, stats: IndexStats, cut_hint: str) -> list[str]:
     notes: list[str] = []
     if stats.truncated:
         notes.append(
@@ -176,8 +191,6 @@ def _notes(shown_rows: list[Row], total: int, definitions: int, stats: IndexStat
         notes.append(f"More rows exist than the {MAX_ROWS} shown; {cut_hint}")
     if definitions > 1:
         notes.append(f"{definitions} functions share this name, so match=name rows may call another one.")
-    if any(str(row["at"]).rsplit(":", 1)[0].endswith(_JS_TS_SUFFIXES) for row in shown_rows):
-        notes.append("JS/TS rows are approximate: the calling function may be wrong, so open the location.")
     if stats.skipped_files:
         notes.append(f"{stats.skipped_files} source files were not indexed (links, oversized, unreadable or not valid Python).")
     return notes
@@ -203,7 +216,9 @@ class _Navigator:
 
     def _ask(self, action: CodeGraphAction, target: str) -> dict[str, object]:
         if self._service is None:
-            self._service = CodeGraphService(_database_path(self._root))
+            database = _database_path(self._root)
+            _remove_stale_indexes(database)
+            self._service = CodeGraphService(database)
         stats = self._service.index_directory(self._root)
         spec = _ACTIONS[action]
         found = spec.query(self._service, target)
@@ -214,7 +229,7 @@ class _Navigator:
         if action in ("callers", "tests_calling"):
             definitions = self._service.definition_count(target)
             payload["definitions"] = definitions
-        notes = _notes(rows, len(found), definitions, stats, spec.cut_hint)
+        notes = _notes(len(found), definitions, stats, spec.cut_hint)
         if notes:
             payload["notes"] = notes
         return {

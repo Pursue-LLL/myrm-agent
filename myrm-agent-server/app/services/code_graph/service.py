@@ -1,7 +1,8 @@
 """Code graph service orchestration facade for AST indexing and graph queries.
 
 [INPUT]
-- ast_extractor.py::(JsTsRegexExtractor, PythonAstExtractor) (POS: 静态解析层，把单个源文件解析为符号与关系)
+- ast_extractor.py::PythonAstExtractor (POS: 静态解析层，把单个源文件解析为符号与关系)
+- js_ts_extractor.py::JsTsTreeSitterExtractor (POS: 静态解析层，TypeScript/JavaScript 的语法树抽取)
 - graph_store.py::CodeGraphStore (POS: 本地轻量级代码 AST 符号图谱与调用关系持久化存储库)
 - models.py::(IndexStats, ParsedFile) (POS: 代码图谱领域数据模型与契约)
 - myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer (POS: git-aware workspace file lister)
@@ -23,8 +24,9 @@ from pathlib import Path, PurePosixPath
 
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 
-from app.services.code_graph.ast_extractor import JsTsRegexExtractor, PythonAstExtractor
+from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
+from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
 from app.services.code_graph.models import IndexStats, ParsedFile
 
 logger = logging.getLogger(__name__)
@@ -152,7 +154,9 @@ class CodeGraphService:
         try:
             # utf-8-sig drops a leading BOM, which would otherwise make the whole Python file a syntax error.
             code = (root / rel_path).read_text(encoding="utf-8-sig", errors="ignore")
-            extractor = PythonAstExtractor(rel_path, code) if rel_path.endswith(".py") else JsTsRegexExtractor(rel_path, code)
+            extractor = (
+                PythonAstExtractor(rel_path, code) if rel_path.endswith(".py") else JsTsTreeSitterExtractor(rel_path, code)
+            )
             if not extractor.extract():
                 logger.debug("Code graph skipped %s: not valid Python", rel_path)
                 return None

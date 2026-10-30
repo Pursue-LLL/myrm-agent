@@ -1,20 +1,18 @@
-"""Static extraction of symbols and relations from one Python or TypeScript/JavaScript source file.
+"""Static extraction of symbols and relations from one Python source file.
 
 [INPUT]
 - models.py::(CallEdge, CallSite, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
-- ast、re、pathlib（标准库）
+- ast、pathlib（标准库）
 
 [OUTPUT]
-- module_name_for: 相对路径到点分模块名的规则，两个抽取器共用
+- module_name_for: 相对路径到点分模块名的规则，Python 与 JS/TS 两个抽取器共用
 - PythonAstExtractor: 基于原生 ast 的 Python 符号、调用、继承、导入抽取；不是合法 Python 时返回 False
-- JsTsRegexExtractor: 基于按行正则的 TypeScript/JavaScript 符号与调用抽取，调用归属是近似的
 
 [POS]
 静态解析层。把单个源文件的路径与源码文本解析为符号和关系，不读取文件系统与存储。
 """
 
 import ast
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,7 +29,7 @@ from app.services.code_graph.models import (
 def module_name_for(file_path: str) -> str:
     """Dotted module name from a path relative to the index root.
 
-    Both extractors use this rule so that two files with the same basename in different
+    The Python and the JS/TS extractor use this rule so that two files with the same basename in different
     directories keep different qualified names.
     """
     path = Path(file_path)
@@ -193,123 +191,3 @@ class PythonAstExtractor:
             val = self._resolve_name(node.value)
             return f"{val}.{node.attr}" if val else node.attr
         return ""
-
-
-class JsTsRegexExtractor:
-    """针对 TypeScript/JavaScript/TSX 源码的轻量确定性符号与调用抽取器。"""
-
-    def __init__(self, file_path: str, source_code: str):
-        self.file_path = file_path
-        self.source_code = source_code
-        self.lines = source_code.splitlines()
-        self.module_name = module_name_for(file_path)
-
-        self.symbols: list[SymbolNode] = []
-        self.calls: list[CallEdge] = []
-        self.inheritances: list[InheritanceEdge] = []
-        self.imports: list[ImportEdge] = []
-
-    def extract(self) -> bool:
-        """Fill the symbol and call lists; line scanning never rejects a file, so the result is always True."""
-        # 1. Module
-        self.symbols.append(
-            SymbolNode(
-                qualified_name=self.module_name,
-                name=self.module_name.split(".")[-1],
-                kind=SymbolKind.MODULE,
-                file_path=self.file_path,
-                line_start=1,
-                line_end=len(self.lines) if self.lines else 1,
-            )
-        )
-
-        # 2. 正则提取顶层 class 与 function（含 `const f = (...) =>` 箭头函数）
-        fn_pattern = re.compile(
-            r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(",
-            re.MULTILINE,
-        )
-        const_fn_pattern = re.compile(
-            r"^(?:export\s+)?const\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>",
-            re.MULTILINE,
-        )
-        cls_pattern = re.compile(
-            r"^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z0-9_$]+)(?:\s+extends\s+([A-Za-z0-9_$]+))?",
-            re.MULTILINE,
-        )
-
-        function_at_line: dict[int, str] = {}
-        for i, line in enumerate(self.lines, start=1):
-            cls_match = cls_pattern.search(line)
-            if cls_match:
-                cls_name = cls_match.group(1)
-                super_cls = cls_match.group(2)
-                cls_qname = f"{self.module_name}.{cls_name}"
-                self.symbols.append(
-                    SymbolNode(
-                        qualified_name=cls_qname,
-                        name=cls_name,
-                        kind=SymbolKind.CLASS,
-                        file_path=self.file_path,
-                        line_start=i,
-                        line_end=i,
-                    )
-                )
-                if super_cls:
-                    self.inheritances.append(
-                        InheritanceEdge(
-                            sub_type=cls_qname,
-                            super_type=super_cls,
-                            file_path=self.file_path,
-                            line=i,
-                        )
-                    )
-                continue
-
-            fn_match = fn_pattern.search(line) or const_fn_pattern.search(line)
-            if fn_match:
-                fn_name = fn_match.group(1)
-                fn_qname = f"{self.module_name}.{fn_name}"
-                function_at_line[i] = fn_qname
-                self.symbols.append(
-                    SymbolNode(
-                        qualified_name=fn_qname,
-                        name=fn_name,
-                        kind=SymbolKind.FUNCTION,
-                        file_path=self.file_path,
-                        line_start=i,
-                        line_end=i,
-                    )
-                )
-
-        # 3. 提取调用点 (Calls)
-        call_pattern = re.compile(
-            r"(?:([A-Za-z0-9_$]+)\.)?([A-Za-z0-9_$]+)\s*\(",
-        )
-
-        current_fn = self.module_name
-        for i, line in enumerate(self.lines, start=1):
-            current_fn = function_at_line.get(i, current_fn)
-
-            # 扫描函数调用
-            stripped = line.strip()
-            if not stripped.startswith("//") and not stripped.startswith("/*") and not stripped.startswith("*"):
-                for m in call_pattern.finditer(line):
-                    prefix = m.group(1)
-                    callee = m.group(2)
-                    if callee in ("function", "if", "for", "while", "switch", "catch", "return", "import"):
-                        continue
-                    full_callee = f"{prefix}.{callee}" if prefix else callee
-                    self.calls.append(
-                        CallEdge(
-                            caller=current_fn,
-                            callee=full_callee,
-                            call_site=CallSite(
-                                file_path=self.file_path,
-                                line=i,
-                                col=m.start(),
-                                end_line=i,
-                                end_col=m.end(),
-                            ),
-                        )
-                    )
-        return True
