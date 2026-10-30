@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,7 @@ from myrm_agent_harness.utils.db.fts5 import (
     relevance_from_rank,
     sanitize_fts5_query,
 )
-from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
+from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_content_page, corrupt_fts5_index
 
 
 def test_sanitize_fts5_query_strips_dangerous_chars():
@@ -152,6 +153,17 @@ def test_auto_heal_rebuilds_a_really_damaged_index(notes: sqlite3.Connection, ki
     assert fts5_auto_heal(notes, "notes_fts") is True
     assert fts5_integrity_check(notes, "notes_fts") is True
     assert _payment_matches(notes) == _NOTES
+
+
+def test_auto_heal_declines_when_the_stored_text_cannot_be_read(tmp_path: Path, notes: sqlite3.Connection) -> None:
+    """The rebuild reads the stored text, so a table whose rows are unreadable is not reported as healed."""
+    notes.close()
+    db_path = tmp_path / "notes.db"
+    corrupt_fts5_content_page(db_path, "notes_fts")
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        assert fts5_auto_heal(conn, "notes_fts") is False
+        assert fts5_integrity_check(conn, "notes_fts") is False
 
 
 def test_auto_heal_leaves_a_healthy_index_alone(notes: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -407,6 +407,8 @@ class WikiAssetIndexer:
             with self._get_conn() as conn:
                 try:
                     return _query_fts(conn, fts_query, limit)
+                except sqlite3.ProgrammingError:
+                    raise  # a query the code built wrongly is a bug to surface, not a damaged index to heal
                 except sqlite3.DatabaseError as exc:
                     logger.error("Asset FTS search error: %s", exc)
                     if not fts5_auto_heal(conn, "wiki_assets_fts"):

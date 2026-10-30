@@ -126,7 +126,7 @@ class FtsSearchMixin:
                     r = c.fetchone()
                     if r is not None:
                         return str(r["publish_status"]) == WikiPublishStatus.PUBLISHED.value
-                except (sqlite3.OperationalError, sqlite3.DatabaseError):
+                except sqlite3.DatabaseError:
                     continue
         return True
 
@@ -180,6 +180,8 @@ class FtsSearchMixin:
             with self._get_conn() as conn:
                 try:
                     return self._query_fts(conn, fts_query, limit, offset)
+                except sqlite3.ProgrammingError:
+                    raise  # a query the code built wrongly is a bug to surface, not a damaged index to heal
                 except sqlite3.DatabaseError as e:
                     logger.error(f"FTS search error: {e}")
                     if not fts5_auto_heal(conn, "wiki_fts"):

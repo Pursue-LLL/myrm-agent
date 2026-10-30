@@ -9,6 +9,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.retrieval import asset_index
 from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import WikiAssetIndexer
 from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
 
@@ -183,3 +184,20 @@ async def test_asset_search_heals_an_index_the_query_cannot_read(
     _damage(indexer, "empty-docsize")
 
     assert len(await indexer.search("payment gateway", limit=5)) == 5
+
+
+@pytest.mark.asyncio
+async def test_asset_search_raises_a_programming_error_instead_of_hiding_it_as_no_results(
+    wiki_structure: WikiStructure, assets_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A query that binds the wrong number of values is a bug in the code, not a damaged index."""
+    indexer = await _indexed(wiki_structure, assets_dir, {"a.png": "payment gateway"})
+
+    def binds_one_value_too_many(conn: sqlite3.Connection, fts_query: str, limit: int) -> list[tuple[str, float]]:
+        conn.execute("SELECT filename FROM wiki_assets_fts WHERE wiki_assets_fts MATCH ?", (fts_query, limit))
+        return []
+
+    monkeypatch.setattr(asset_index, "_query_fts", binds_one_value_too_many)
+
+    with pytest.raises(sqlite3.ProgrammingError, match="number of bindings"):
+        await indexer.search("payment gateway")

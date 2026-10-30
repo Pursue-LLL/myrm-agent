@@ -11,8 +11,8 @@ conversion of an FTS5 bm25 rank into a relevance score.
 [OUTPUT]
 - sanitize_fts5_query: Sanitize user input for safe use in FTS5 MATCH queries.
 - fts5_integrity_check: Check FTS5 virtual table health via official command.
-- fts5_rebuild: Rebuild a corrupted FTS5 index (safe, data-preserving).
-- fts5_auto_heal: Detect corruption on query failure and rebuild transparently.
+- fts5_rebuild: Rebuild the FTS5 inverted index from the text the table itself stores.
+- fts5_auto_heal: Detect corruption on query failure and rebuild transparently; declines when the stored rows cannot be read.
 - relevance_from_rank: FTS5 bm25 rank turned into a relevance score in [0, 1) where a higher score is a better match.
 
 [POS]
@@ -178,8 +178,8 @@ def fts5_integrity_check(conn: sqlite3.Connection, table: str) -> bool:
     Uses the official FTS5 ``integrity-check`` command. Returns False when the
     shadow tables are inconsistent (e.g. after unclean shutdown with un-flushed
     WAL pages). SQLite reports a malformed index as ``sqlite3.DatabaseError``
-    ("database disk image is malformed"), which ``OperationalError`` only
-    partly covers, so the broader class is caught.
+    ("database disk image is malformed"); ``OperationalError`` is a subclass of
+    it, so catching only ``OperationalError`` would miss a really damaged index.
     """
     table = _validate_table_name(table)
     try:
@@ -190,11 +190,12 @@ def fts5_integrity_check(conn: sqlite3.Connection, table: str) -> bool:
 
 
 def fts5_rebuild(conn: sqlite3.Connection, table: str) -> None:
-    """Rebuild the FTS5 index from source data (safe, data-preserving).
+    """Rebuild the FTS5 inverted index from the text the table itself stores.
 
-    The ``rebuild`` command re-reads all content and reconstructs the inverted
-    index from scratch. No user data is lost — only the index is regenerated.
-    Typical cost: <100 ms for tables with <10 000 rows.
+    The ``rebuild`` command re-reads every stored row and reconstructs the
+    index from scratch, so no row is dropped. It cannot tell whether the stored
+    text is intact: text that was altered inside readable pages is indexed as it
+    now reads. Typical cost: <100 ms for tables with <10 000 rows.
     """
     table = _validate_table_name(table)
     conn.execute(f"INSERT INTO {table}({table}) VALUES('rebuild')")
@@ -204,10 +205,17 @@ def fts5_rebuild(conn: sqlite3.Connection, table: str) -> None:
 def fts5_auto_heal(conn: sqlite3.Connection, table: str) -> bool:
     """Attempt to heal a corrupted FTS5 index after a query failure.
 
-    Call this from an ``except sqlite3.DatabaseError`` block. It runs
+    Call this from an ``except sqlite3.DatabaseError`` block that lets
+    ``ProgrammingError`` (a query the code built wrongly) propagate. It runs
     ``integrity-check`` to confirm corruption, then ``rebuild`` to fix it.
     Returns True if the index was repaired, False if repair failed or was
     unnecessary.
+
+    The rebuild reads the stored text, so it repairs damage to the inverted
+    index and returns False when the stored rows cannot be read. Stored text
+    that was altered inside readable pages looks the same as a damaged index to
+    the integrity check and is indexed as it now reads; a caller that keeps the
+    source documents re-indexes them to restore it.
     """
     try:
         if fts5_integrity_check(conn, table):

@@ -181,6 +181,22 @@ async def test_search_returns_nothing_when_the_database_error_is_not_a_damaged_i
     assert await indexer.search("kelvin") == []
 
 
+async def test_search_raises_a_programming_error_instead_of_hiding_it_as_no_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A query that binds the wrong number of values is a bug in the code, not a damaged index."""
+    indexer = await _indexer_with_one_page(tmp_path / "vault")
+    real = fts_search._published_match_select
+    monkeypatch.setattr(
+        fts_search,
+        "_published_match_select",
+        lambda conn, fts_table, columns: real(conn, fts_table, columns) + " AND ? IS NOT NULL",
+    )
+
+    with pytest.raises(sqlite3.ProgrammingError, match="number of bindings"):
+        await indexer.search("kelvin")
+
+
 _GRADED_PAGES = 31
 
 

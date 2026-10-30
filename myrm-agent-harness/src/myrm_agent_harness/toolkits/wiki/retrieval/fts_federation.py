@@ -35,7 +35,7 @@ def attached_tables(conn: sqlite3.Connection, table: str) -> list[str]:
                 f"SELECT 1 FROM {alias}.sqlite_master WHERE type IN ('table', 'view') AND name = ?",
                 (table,),
             ).fetchone()
-        except (sqlite3.OperationalError, sqlite3.DatabaseError):
+        except sqlite3.DatabaseError:
             continue
         if found:
             tables.append(f"{alias}.{table}")
