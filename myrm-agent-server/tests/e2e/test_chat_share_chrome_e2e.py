@@ -37,6 +37,7 @@ Prerequisite:
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import re
 import sys
@@ -307,7 +308,32 @@ async def _wait_ui_state(chat: McpChatSession, js: str, *, timeout_sec: float) -
 
 def _norm_ws(text: str) -> str:
     """Collapse whitespace so markdown paragraph breaks do not break substrings."""
-    return re.sub(r"\\s+", "", text)
+    return re.sub(r"\s+", "", text)
+
+
+def _page_text(body: str) -> str:
+    """What a reader sees on the public page: no scripts, styles, tags or comments."""
+    visible = re.sub(r"<(script|style)\b.*?</\1>", "", body, flags=re.DOTALL | re.IGNORECASE)
+    return _norm_ws(html.unescape(re.sub(r"<[^>]+>", "", visible)))
+
+
+# Letters, digits and CJK ideographs: HTML escaping and markdown rendering leave them as written.
+_PROBE_RUN = re.compile(r"[0-9A-Za-z\u4e00-\u9fff]{4,}")
+_PROBE_MAX_CHARS = 24
+
+
+def _reply_probe(reply: str, prompt: str) -> str:
+    """A fragment of the real model reply that the public page must reproduce.
+
+    It comes from the reply itself: a token the prompt asked the model to say fails the
+    test whenever the model words its answer differently, and a token the prompt also
+    contains is found on the page even when the reply is missing from it.
+    """
+    prompt_text = _norm_ws(prompt)
+    runs = (run.group()[:_PROBE_MAX_CHARS] for run in _PROBE_RUN.finditer(reply))
+    fragments = [run for run in runs if run not in prompt_text]
+    assert fragments, f"reply has no 4+ char text run the prompt does not already contain: {reply[:200]!r}"
+    return max(fragments, key=len)
 
 
 def _seed_chat_share_fixture(api_url: str) -> dict[str, str]:
@@ -602,8 +628,8 @@ async def test_chat_share_real_conversation_via_ui() -> None:
 
         # The LIVE-turn completion contract requires the assistant's final text
         # to contain an OK/DONE marker (main_state.okInAssistant), so the prompt
-        # demands an "OK" prefix; "SUNSHINE" is our content-verification token.
-        prompt = "【E2E 分享真实对话】请用一句中文介绍你自己，回答必须以 OK 开头，并且必须包含 SUNSHINE 字样，不超过 80 字。"
+        # demands an "OK" prefix; the rest of the reply is the model's own words.
+        prompt = "【E2E 分享真实对话】请用一句中文介绍你自己，回答必须以 OK 开头，不超过 80 字。"
         await chat.send_message(prompt, prompt)
         heartbeat_once()
         after = await chat.wait_turn_done(prompt, timeout_sec=240.0)
@@ -624,8 +650,8 @@ async def test_chat_share_real_conversation_via_ui() -> None:
         reply = await _wait_ui_state(chat, _LAST_ASSISTANT_TEXT_JS, timeout_sec=60.0)
         assistant_text = str(reply["text"]).strip()
         assert len(assistant_text) >= 10, f"assistant reply too short: {assistant_text[:200]}"
-        assert "SUNSHINE" in assistant_text, assistant_text[:200]
-        assistant_probe = "SUNSHINE"
+        assistant_probe = _reply_probe(assistant_text, prompt)
+        print(f"E2E_DIAG_REPLY_PROBE: {assistant_probe}", flush=True)
 
         # Share the real conversation (unprotected) from the sidebar row menu.
         opened = await _wait_ui_state(chat, _open_share_dialog_js(chat_id), timeout_sec=45.0)
@@ -643,9 +669,8 @@ async def test_chat_share_real_conversation_via_ui() -> None:
 
         status, body = _fetch_public_page(share_url, api_url)
         assert status == 200, f"public page status={status} body={body[:300]}"
-        body_norm = _norm_ws(body)
-        assert _norm_ws(prompt) in body_norm, body[:800]
-        assert _norm_ws(assistant_probe) in body_norm, body[:800]
+        assert _norm_ws(prompt) in _norm_ws(body), body[:800]
+        assert assistant_probe in _page_text(body), f"public page lacks the reply fragment {assistant_probe!r}: {body[:800]}"
 
         # Revoke from the dialog; the real conversation's link dies (404).
         revoked_click = await chat.evaluate(_CLICK_REVOKE_JS, intent=EvaluateIntent.SYNC_PROBE)
