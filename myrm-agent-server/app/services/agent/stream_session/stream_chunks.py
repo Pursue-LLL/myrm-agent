@@ -4,7 +4,8 @@
 - app.services.agent.stream_session.stream_session_types (POS: 会话上下文数据类)
 - app.services.agent.stream_session.stream_loop (POS: Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval timeouts, compression exhaustion, workflow escalation, and context overflow reset)
 - app.services.agent.stream_session.stream_disconnect (POS: 直连 SSE 断连监控的启停作用域，先于 finalize 退出)
-- app.services.agent.stream_session.stream_finalize (POS: 流错误处理与会话 teardown)
+- app.services.agent.stream_session.stream_exception_chunks (POS: 把流异常转成用户可见的错误 chunk)
+- app.services.agent.stream_session.stream_finalize (POS: 会话 teardown)
 
 [OUTPUT]
 - generate_cancellable_stream: 可取消的 SSE chunk 异步生成器
@@ -23,10 +24,8 @@ from myrm_agent_harness.toolkits.llms.fallback import with_failover_emitter
 
 from app.schemas.streaming import SSEEnvelope
 from app.services.agent.stream_session.stream_disconnect import watch_client_disconnect
-from app.services.agent.stream_session.stream_finalize import (
-    finalize_agent_stream_session,
-    yield_stream_exception_chunks,
-)
+from app.services.agent.stream_session.stream_exception_chunks import yield_stream_exception_chunks
+from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
 from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
     ClarificationTimeoutHolder,

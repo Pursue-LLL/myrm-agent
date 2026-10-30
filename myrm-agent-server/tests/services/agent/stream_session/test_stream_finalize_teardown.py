@@ -75,7 +75,7 @@ def _collaborators(teardown: _Teardown, *, residual_slice: bool) -> Iterator[Non
         stack.enter_context(patch(f"{_FINALIZE}.SteeringRegistry", teardown.steering))
         stack.enter_context(patch(f"{_FINALIZE}._clear_interrupted_turn_marker", teardown.clear_marker))
         stack.enter_context(patch(f"{_FINALIZE}.has_turn_capability_terminal_context", return_value=True))
-        stack.enter_context(patch(f"{_FINALIZE}._record_turn_capability_failed_once", teardown.capability_failed))
+        stack.enter_context(patch(f"{_FINALIZE}.record_turn_capability_failed_once", teardown.capability_failed))
         stack.enter_context(patch("app.services.agent.goals.goal_registry.GoalRegistry"))
         stack.enter_context(patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", teardown.persist))
         stack.enter_context(patch("app.services.copilot.run_digest_store.RunDigestStore.end_run", teardown.end_run))

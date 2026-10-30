@@ -58,15 +58,15 @@ async def test_memorysaver_full_cycle() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stream_finalize_uses_adelete_thread() -> None:
-    """Verify stream_finalize.py uses adelete_thread (not the defunct adelete)."""
+async def test_stream_exception_chunks_uses_adelete_thread() -> None:
+    """Verify stream_exception_chunks.py uses adelete_thread (not the defunct adelete)."""
     import inspect
 
-    import app.services.agent.stream_session.stream_finalize as sf
+    import app.services.agent.stream_session.stream_exception_chunks as sec
 
-    source = inspect.getsource(sf)
+    source = inspect.getsource(sec)
     assert "adelete_thread" in source
-    assert 'getattr(checkpointer, "adelete"' not in source, "stream_finalize.py must not use the defunct adelete API"
+    assert 'getattr(checkpointer, "adelete"' not in source, "stream_exception_chunks.py must not use the defunct adelete API"
 
 
 @pytest.mark.asyncio

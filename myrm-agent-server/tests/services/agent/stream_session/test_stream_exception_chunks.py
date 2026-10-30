@@ -1,4 +1,4 @@
-"""Tests for structured AgentQueueTimeout error rendering in stream_finalize."""
+"""Tests for the user-visible error chunks of stream exceptions, including the structured AgentQueueTimeout error."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from app.services.agent.gateway import (
     AgentQueueTimeout,
 )
 from app.services.agent.params.models import TurnCapabilityTelemetryRequest
-from app.services.agent.stream_session import stream_finalize
+from app.services.agent.stream_session import stream_exception_chunks
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 
 
@@ -34,7 +34,7 @@ def _make_session(locale: str | None = None) -> AgentStreamSession:
 
 async def _collect_payload(exc: AgentQueueTimeout, locale: str | None = None) -> dict[str, object]:
     session = _make_session(locale)
-    chunks = [chunk async for chunk in stream_finalize.yield_stream_exception_chunks(session, exc)]
+    chunks = [chunk async for chunk in stream_exception_chunks.yield_stream_exception_chunks(session, exc)]
     assert len(chunks) == 1
     raw = chunks[0]
     assert raw.startswith("data: ")
@@ -139,7 +139,7 @@ class TestExceptionChunkBranches:
         session: AgentStreamSession | None = None,
     ) -> list[str]:
         session = session or _make_session(locale)
-        return [chunk async for chunk in stream_finalize.yield_stream_exception_chunks(session, exc)]
+        return [chunk async for chunk in stream_exception_chunks.yield_stream_exception_chunks(session, exc)]
 
     @staticmethod
     def _decode(raw: str) -> dict[str, object]:
@@ -287,6 +287,41 @@ class TestExceptionChunkBranches:
         assert session.had_fatal_error is True
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("exc", "fatal"),
+        [
+            (AgentQueueTimeout("queue full", reason="user_limit", active_sessions=[]), True),
+            (AgentExecutionTimeout("slow"), True),
+            (RuntimeError("unexpected"), True),
+            (ValueError("not a resume failure"), False),
+            (AgentDrainingError("draining"), False),
+            (AgentBusyError("busy"), False),
+        ],
+        ids=["queue-timeout", "execution-timeout", "unexpected", "plain-value-error", "draining", "busy"],
+    )
+    async def test_only_fatal_errors_mark_the_turn_and_its_collector(self, exc: BaseException, fatal: bool) -> None:
+        session = _make_session()
+        await self._chunks(exc, session=session)
+        assert session.had_fatal_error is fatal
+        collector = cast(MagicMock, session.collector)
+        assert collector.mark_stream_completion_error.call_count == (1 if fatal else 0)
+
+    @pytest.mark.asyncio
+    async def test_agent_draining_error_records_the_failed_capability_terminal(self) -> None:
+        session = _make_session()
+        session.request.turn_capability_telemetry = TurnCapabilityTelemetryRequest(
+            source="direct", effective_skill_count=1, effective_mcp_count=0
+        )
+        with patch(
+            "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_failed",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as record_failed:
+            await self._chunks(AgentDrainingError("draining"), session=session)
+        record_failed.assert_awaited_once()
+        assert session.turn_capability_terminal_recorded is True
+
+    @pytest.mark.asyncio
     async def test_turn_capability_failed_recorded_once(self) -> None:
         """The terminal failure telemetry is recorded when context is present."""
         session = _make_session()
@@ -294,7 +329,7 @@ class TestExceptionChunkBranches:
             source="direct", effective_skill_count=1, effective_mcp_count=0
         )
         with patch(
-            "app.services.agent.stream_session.stream_finalize.record_turn_capability_send_failed",
+            "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_failed",
             new_callable=AsyncMock,
             return_value=True,
         ):

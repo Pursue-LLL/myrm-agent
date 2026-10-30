@@ -9,10 +9,8 @@ from myrm_agent_harness.utils.runtime.cancellation import (
 )
 
 from app.core.utils.chat_utils import convert_chat_history
-from app.services.agent.stream_session.stream_finalize import (
-    finalize_agent_stream_session,
-    yield_stream_exception_chunks,
-)
+from app.services.agent.stream_session.stream_exception_chunks import yield_stream_exception_chunks
+from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
 from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
     ClarificationTimeoutHolder,
@@ -203,7 +201,7 @@ async def test_yield_stream_exception_chunks_cancelled_error():
     session.turn_capability_terminal_recorded = False
 
     with patch(
-        "app.services.agent.stream_session.stream_finalize._record_turn_capability_failed_once",
+        "app.services.agent.stream_session.stream_exception_chunks.record_turn_capability_failed_once",
         new_callable=AsyncMock,
     ):
         chunks = []

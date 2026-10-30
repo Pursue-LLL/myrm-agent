@@ -3,7 +3,7 @@
 These tests exercise timeout scheduling, compaction debt drain, residual slice
 flush, artifact patching, turn-capability terminal recording and the failure
 fallbacks of the persistence hooks. They complement
-test_stream_finalize_evolution_trigger.py and test_stream_finalize_queue_timeout.py.
+test_stream_finalize_evolution_trigger.py and test_stream_exception_chunks.py.
 """
 
 from __future__ import annotations
@@ -170,7 +170,7 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.services.agent.stream_session.stream_finalize.record_turn_capability_send_completed",
+                "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_completed",
                 new_callable=AsyncMock,
                 return_value=True,
             ),

@@ -1,4 +1,4 @@
-"""Regression: ``stream_finalize`` CancelledError path must kill background jobs.
+"""Regression: the ``stream_exception_chunks`` CancelledError path must kill background jobs.
 
 uvicorn worker timeouts and abrupt SSE disconnects raise
 ``asyncio.CancelledError`` *outside* the ``stream_loop`` body, so the
@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.agent.stream_session import stream_finalize
+from app.services.agent.stream_session import stream_exception_chunks
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 
 
@@ -39,7 +39,9 @@ async def test_cancelled_error_kills_session_background_jobs() -> None:
         "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
-        chunks = [chunk async for chunk in stream_finalize.yield_stream_exception_chunks(session, asyncio.CancelledError())]
+        chunks = [
+            chunk async for chunk in stream_exception_chunks.yield_stream_exception_chunks(session, asyncio.CancelledError())
+        ]
 
     assert chunks == []
     fake_registry.kill_session_jobs.assert_awaited_once_with("chat-xyz")
@@ -56,7 +58,7 @@ async def test_cancelled_error_skips_kill_when_no_chat_id() -> None:
         "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
-        async for _ in stream_finalize.yield_stream_exception_chunks(session, asyncio.CancelledError()):
+        async for _ in stream_exception_chunks.yield_stream_exception_chunks(session, asyncio.CancelledError()):
             pass
 
     fake_registry.kill_session_jobs.assert_not_called()
@@ -73,7 +75,7 @@ async def test_cancelled_error_swallows_kill_failure() -> None:
         "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
-        async for _ in stream_finalize.yield_stream_exception_chunks(session, asyncio.CancelledError()):  # must NOT raise
+        async for _ in stream_exception_chunks.yield_stream_exception_chunks(session, asyncio.CancelledError()):  # must NOT raise
             pass
 
     fake_registry.kill_session_jobs.assert_awaited_once_with("chat-fail")

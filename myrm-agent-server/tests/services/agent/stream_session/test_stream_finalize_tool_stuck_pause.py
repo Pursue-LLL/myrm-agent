@@ -74,8 +74,13 @@ async def _finalize(session: MagicMock) -> _Outcome:
             "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
             new_callable=AsyncMock,
         ),
-        patch("app.services.agent.stream_session.stream_finalize.record_turn_capability_send_completed", outcome.send_completed),
-        patch("app.services.agent.stream_session.stream_finalize.record_turn_capability_send_failed", outcome.send_failed),
+        patch(
+            "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_completed",
+            outcome.send_completed,
+        ),
+        patch(
+            "app.services.agent.stream_session.turn_capability_terminal.record_turn_capability_send_failed", outcome.send_failed
+        ),
         patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", outcome.persist),
         patch("app.services.copilot.run_digest_store.RunDigestStore.end_run", outcome.end_run),
     ):

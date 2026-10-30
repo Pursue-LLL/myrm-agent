@@ -2,11 +2,14 @@
 [INPUT]
 - app.services.agent.params.models::AgentRequest (POS: agent-stream request contract)
 - app.database.models::TurnCapabilityMetricEvent (POS: turn capability telemetry ORM)
+- app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: carries the once-only terminal recorded flag of the turn)
 
 [OUTPUT]
 - has_turn_capability_terminal_context: gate terminal telemetry writes by request payload.
 - record_turn_capability_send_completed: persist authoritative send_completed terminal event.
 - record_turn_capability_send_failed: persist authoritative send_failed terminal event.
+- record_turn_capability_failed_once: record send_failed for a session unless its terminal state is already recorded.
+- record_turn_capability_completed_once: record send_completed for a session unless its terminal state is already recorded.
 - classify_turn_capability_failure_reason: map runtime exceptions to failure_reason enum.
 
 [POS]
@@ -17,11 +20,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from app.database.models import TurnCapabilityMetricEvent
 from app.platform_utils import get_session_factory
 from app.services.agent.params.models import AgentRequest, TurnCapabilityTelemetryRequest
+
+if TYPE_CHECKING:
+    from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 
 TurnCapabilityFailureReason = Literal[
     "network_error",
@@ -129,3 +135,27 @@ async def record_turn_capability_send_failed(
         context_key=_resolve_turn_capability_context_key(request),
         failure_reason=reason,
     )
+
+
+async def record_turn_capability_failed_once(
+    session: AgentStreamSession,
+    reason: TurnCapabilityFailureReason,
+) -> None:
+    if session.turn_capability_terminal_recorded or not has_turn_capability_terminal_context(session.request):
+        return
+    recorded = await record_turn_capability_send_failed(
+        session.request,
+        reason,
+    )
+    if recorded:
+        session.turn_capability_terminal_recorded = True
+
+
+async def record_turn_capability_completed_once(
+    session: AgentStreamSession,
+) -> None:
+    if session.turn_capability_terminal_recorded or not has_turn_capability_terminal_context(session.request):
+        return
+    recorded = await record_turn_capability_send_completed(session.request)
+    if recorded:
+        session.turn_capability_terminal_recorded = True
