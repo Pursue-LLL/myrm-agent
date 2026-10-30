@@ -110,7 +110,7 @@ def _parse_quoted_message(body: dict) -> ReplyContext | None:
 
 ---
 
-### 2. Telegram (`telegram/inbound.py`)
+### 2. Telegram (`telegram/inbound_message.py`)
 
 **Mapping**: `msg.reply_to_message` → `ReplyContext`
 

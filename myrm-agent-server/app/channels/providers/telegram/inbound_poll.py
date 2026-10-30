@@ -13,7 +13,7 @@ channel degraded.
 - TelegramPollingMixin: _poll_loop, _is_polling_conflict
 
 [POS]
-Telegram polling mixin. Each update goes through ``_parse_update``, ``_pre_emit_hook`` and ``_buffer_or_emit``, which
+Telegram long-polling loop mixin. Each update goes through ``_parse_update``, ``_pre_emit_hook`` and ``_buffer_or_emit``, which
 the host channel provides from its inbound, hooks and media-group parts.
 """
 

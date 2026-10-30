@@ -163,9 +163,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/core/test_reaction_ledger.py` | 单元 | `ReactionLedger`：取走一次后不再有、没反应过的消息取不到、同消息号不同聊天是不同条目、后一次反应覆盖前一次、满了淘汰最旧、被刷新的条目不被淘汰 |
 | `channels/providers/test_default_status_reactions.py` | 单元 | 路由器默认的处理中 / 完成 / 失败表情（`StatusReaction`）在各有词表的渠道上实际显示什么（不显示被拒表情，失败绝不显示成功表情或 👎）；每个支持反应的渠道都在表里 |
 | `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束的回合以结果表情替换处理中表情（先按名撤销刚加的那一个），被停止的回合不留处理中表情 |
-| `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 七家 Provider（Slack、钉钉、LINE、Telegram、SMS、Zalo、Signal）经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线：建立不了的连接（`httpx.ConnectError`）都按重试策略重试，等答复时的读、写超时、连接被重置、协议错误都只发一次，不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`；把错误包成 `ChannelSendError` 的四家（LINE、Zalo、Signal、SMS）对连接超时、连接池超时、代理拒绝同样重试 |
+| `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 八家 Provider（Slack、钉钉、LINE、Mattermost、Telegram、SMS、Zalo、Signal）经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线：建立不了的连接（`httpx.ConnectError`）都按重试策略重试，等答复时的读、写超时、连接被重置、协议错误都只发一次，不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`；把错误包成 `ChannelSendError` 的五家（LINE、Mattermost、SMS、Zalo、Signal）对连接超时、连接池超时、代理拒绝同样重试 |
 | `channels/providers/zalo/test_zalo_upload_errors.py` | 单元 | Zalo 上传附件时的传输错误：连接失败可重试，读超时不重试 |
 | `channels/providers/telegram/test_telegram_api.py` | 单元 | Telegram 客户端只调用一个端点：传输错误（连接失败、连接超时、读超时）在对官方主机发出一次请求后原样抛出，业务错误一次请求后抛出，下载不带 Host 覆盖 |
+| `channels/providers/telegram/test_telegram_proxy.py` | 单元 | Telegram 经转发代理：真实 `httpx` 客户端对本机的代理替身，HTTP 代理收到绝对形式的 `getMe` 与文件下载请求，SOCKS5 代理收到对 Bot API 主机的 CONNECT；存下的 `proxy` 凭据进入客户端，空值或缺省为无代理，`proxy` 是可选凭据字段 |
+| `channels/providers/telegram/test_telegram_auto_topic.py` | 单元 | 论坛群消息没有 `chat_id` 时，自动话题原样放行：不建话题、不同步话题名、不起后台任务 |
+| `channels/providers/telegram/test_telegram_{channel,parse_update,parse_mentions_replies,parse_special_updates,client_calls,outbound,setup,draft_streaming,helpers,forum_topics,polling}.py` | 单元 | Telegram 渠道按主题拆开的单元测试：渠道契约与生命周期、入站解析（更新模型与媒体组、群提及与回复上下文、回调、位置、反应）、客户端调用、出站发送与编辑、命令与 webhook 设置、草稿流式、内联键盘与附件发送、论坛话题与自动话题、长轮询的冲突与网络恢复；共用工厂在 `telegram_channel_factories.py` |
 | `channels/providers/telegram/test_telegram_webhook_route.py` | 单元 | Telegram webhook 路由经真实请求适配与安全中间件：有效更新返回 200 并分发；错误密钥返回 403、坏 JSON 返回 4xx 且都不分发；处理异常返回 500；路由为未鉴权的 POST webhook；不是路由注册器的对象被忽略 |
 | `channels/providers/telegram/test_telegram_reactions.py` | 单元 | Telegram 官方 73 个反应表情：词表内的接受、词表外的拒绝（ZWJ 序列整体保留），按词表拼写发送，空串清除反应 |
 | `channels/providers/msteams/test_msteams_reactions.py` | 单元 | Teams 反应走 Bot Framework 连接器：状态表情按官方反应 ID 以 `PUT …/reactions/{ID}` 发送，没有官方 ID 的表情不发送；空串按记账 `DELETE` 同一个 ID 且只撤一次、没发过或服务地址未知不发请求；被拒与传输错误抛出且不记账；假连接器按 Teams SDK 的方法、路径、令牌规则校验 |
@@ -416,6 +419,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
 | `api/chats/test_prior_chat_recall_integration.py` | 模块 | prior_chat seed → GET `/recall/search` SSOT + mention inject 集成（真 DB，无 mock） |
+| `api/channels/test_telegram_test_connection.py` | 模块 | Telegram 连接测试接口：令牌经表单带来的代理校验（有、空串、缺省三种），不可用的代理地址在响应里不带其中的凭据 |
 | `api/channels/test_instance_lifecycle_integration.py` | 模块 | 渠道实例真实全链路集成（`@pytest.mark.integration`，关键路径无 mock）：`POST /instances` → 真实 `channel_factory` 创建 WebhookChannel → 真实 `ChannelGateway.add_channel` 热注册 → 持久化列表落库 → `DELETE /instances` → 真实 `remove_channel` 移除 + 持久化/凭据清理；删除不存在实例 404（覆盖设置页「删除实例确认」背后后端链路） |
 | `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；选择器与分页探针统一来自 `support/evicted_drawer_selectors.py`；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
 | `e2e/test_bash_failure_dual_evicted_drawer_chrome_e2e.py` | 模块 | 失败 bash 双 evicted 流 Chrome MCP E2E（SHARED+NAMESPACE_WRITE×1：seed `bash_failure` variant → LiveTerminal stdout/stderr 双入口 → 各自 Drawer 读回；`evicted_view_full_output` / `evicted_view_full_stderr_output` data-testid） |
@@ -426,7 +430,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_lone_surrogate_real_model_e2e.py` | 模块 | 真实提供方：含孤立代理项的消息经 LITE 模型的原生路由与 OpenAI 兼容路由（openai SDK）都被回答；无净化的源在 OpenAI 兼容路由上于 `openai/_utils/_json.py` 抛 `UnicodeEncodeError`；`@pytest.mark.e2e` + 需要 `LITE_API_KEY`，默认套件 deselect |
 | `integration/test_chat_share_integration.py` | 模块 | 会话分享真实全链路集成（无 mock 关键路径）：SQLite 内存库 + TestClient 进程内——create 非加密分享 → status 反映活跃链接 → public GET 200；revoke → status revoked → public GET 404 → 重建链接不可复活已撤销链接；密码分享 gate（错误密码 403）→ 签名 unlock cookie → 放行 → revoke 后死链（含**无 cookie 新访客直接 404「Link Revoked」，不显示密码 gate**）；未分享/过期链接按 unshared 上报；chat 删除后 public GET 404 |
 | `api/config/test_readiness_empty_install.py` | 模块 | 全新安装、没选默认模型的供应商、封存供应商配置的密钥丢失，都按「供应商未就绪」的正常答案返回（不降级），引导标志取自数据库；配置齐全即就绪；真正的加载失败仍报降级 |
-| `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
+| `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功且令牌校验经已保存的代理、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
 | `e2e/test_search_priority_chain_chrome_e2e.py` | 模块 | Search priority chain signoff（API integration persist + Chrome READ `lane=READ private_backend=False` Settings priority badges；payload Tavily p1 + Perplexity p2；`@pytest.mark.timeout(180)`） |

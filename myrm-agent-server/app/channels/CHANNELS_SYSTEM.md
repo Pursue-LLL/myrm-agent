@@ -489,7 +489,7 @@ StreamCoordinator
 
 - **出站**：`TokenBucket` per-channel 速率限制，防平台封禁
 - **入站**：`InboundRateLimiter` per-IP/per-endpoint Token Bucket，防 DoS 攻击（框架提供内存实现，业务层可注入 Redis 实现）
-- **重试**：`RetryConfig` + `send_with_retry` 指数退避；未被 Provider 翻译的原始传输错误按类型重试（`OSError`、`TimeoutError`、`httpx.ConnectError`），`httpx` 的读、写、连接超时不重试：前两者的请求可能已被平台收下，重发会让收件人看到两遍；Provider 自己把传输错误包成 `ChannelSendError` 时用 `ChannelSendError.from_transport_error` 判（请求没发出去才可重试，等答复时的超时、重置、协议错误不重试）
+- **重试**：`RetryConfig` + `send_with_retry` 指数退避；未被 Provider 翻译的原始传输错误按类型重试（`OSError`、`TimeoutError`、`httpx.ConnectError`），`httpx` 的读、写、连接超时不重试：前两者的请求可能已被平台收下，重发会让收件人看到两遍；Provider 自己把传输错误包成 `ChannelSendError` 时写 `raise ChannelSendError(...) from exc`，`ChannelSendError.retriable` 读取 `__cause__` 判（请求没发出去才可重试，等答复时的超时、重置、协议错误不重试；带附件的汇总同样不重发这类失败）
 - **会话级**：`SessionRateLimiter` 单 session 60 次/分钟上限，防异常循环
 
 ### 7.4 健康检查

@@ -45,6 +45,7 @@
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
 - `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
 - `__tests__/GitHubConfigCard.test.tsx` — GitHub 卡片仅出站：只要求访问令牌一个输入，不出现 Webhook 密钥/地址
+- `__tests__/TelegramConfigCard.test.tsx` — Telegram 卡片的转发代理：回显已保存的代理并用它做连接检查，改过的代理随连接测试与保存带出，沙箱模式不显示该输入
 
 ## Reaction 配置链路
 

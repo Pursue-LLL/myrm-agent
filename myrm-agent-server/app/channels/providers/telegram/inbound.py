@@ -11,8 +11,8 @@ dispatch, callback_query and message_reaction conversion, and media groups (debo
 - TelegramInboundMixin: _parse_update, _parse_reaction_model, _parse_callback_query_model, _buffer_or_emit, _flush_media_group
 
 [POS]
-Telegram inbound dispatch mixin. Message conversion lives in `inbound_message`, the polling loop in `inbound_poll`;
-_pre_emit_hook is implemented by TelegramHooksMixin on the host channel.
+Telegram inbound update dispatch and media-group aggregation mixin. Message conversion lives in `inbound_message`,
+the polling loop in `inbound_poll`; _pre_emit_hook is implemented by TelegramHooksMixin on the host channel.
 """
 
 from __future__ import annotations
