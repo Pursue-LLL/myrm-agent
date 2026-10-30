@@ -1,7 +1,7 @@
 """Tests for the Global Adaptive Maintenance Scheduler.
 
-Covers: protocol types, sensors, scheduler logic, and integrations
-with BackgroundEvolutionTaskManager and SimpleStorageQuotaManager.
+Covers: protocol types, sensors, scheduler logic, and the integration
+with SimpleStorageQuotaManager.
 """
 
 from __future__ import annotations
