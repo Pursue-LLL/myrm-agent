@@ -120,14 +120,6 @@ class TestSqliteInboundJournal:
 class TestJournalEntryModel:
     """Tests for JournalEntry dataclass."""
 
-    def test_is_expired_true(self) -> None:
-        entry = _make_entry(ttl_seconds=1, created_at=time.time() - 100)
-        assert entry.is_expired is True
-
-    def test_is_expired_false(self) -> None:
-        entry = _make_entry(ttl_seconds=600)
-        assert entry.is_expired is False
-
     def test_frozen_dataclass(self) -> None:
         entry = _make_entry()
         with pytest.raises(AttributeError):

@@ -69,10 +69,6 @@ class JournalEntry:
     created_at: float
     ttl_seconds: int = _DEFAULT_TTL_SECONDS
 
-    @property
-    def is_expired(self) -> bool:
-        return (time.time() - self.created_at) > self.ttl_seconds
-
 
 class InboundJournal(Protocol):
     """Protocol for inbound message journal persistence.
