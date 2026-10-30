@@ -496,6 +496,8 @@ get_locale_manager().register_translations(
 # 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 `<error_type>_user_message` / `_resolution_steps` / `_wait_step` 与 cooldown_hint_* 自动展平）
 # 限流诊断只说一次等待：供应商给出等待时长时，消息里已有该时长，resolution_steps 不含通用的 rate_limit_wait_step；
 # 没有给出时它排在 resolution_steps 之首。自定义目录没有 rate_limit_wait_step 时，resolution_steps 就是目录里的步骤。
+# 自定义文案里 str.format 不认的模板（如 `{}`、`{model`、`{x[a]}`）视为该语言没有这条文案：回退英文并记一条带异常栈的 WARNING，错误卡保持完整；
+# 步骤列表里只要有一步无法渲染，整个列表回退；英文也无法渲染时按缺失翻译处理。
 ```
 
 ---

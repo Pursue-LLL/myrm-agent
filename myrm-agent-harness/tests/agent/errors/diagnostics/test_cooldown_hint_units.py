@@ -136,6 +136,7 @@ def test_without_any_bundle_the_wait_is_an_english_sentence_in_seconds(monkeypat
         pytest.param("{0}", IndexError, id="positional-field"),
         pytest.param("{duration!x}", ValueError, id="unknown-conversion"),
         pytest.param("{when}", KeyError, id="unknown-key"),
+        pytest.param("{duration[a]}", TypeError, id="text-subscript"),
     ],
 )
 def test_a_custom_template_that_cannot_be_rendered_gives_the_english_sentence_and_one_warning(

@@ -6,7 +6,8 @@ Supports automatic locale detection with fallback to English.
 - constants::REQUIRED_ERROR_TYPES (POS: Required error types for translation completeness validation)
 
 [OUTPUT]
-- LocaleManager: Locale detection, bundled JSON locale loading, and message formatting
+- LocaleManager: Locale detection, bundled JSON locale loading, and message formatting; a text a bundle cannot
+  render gives way to the English one
 
 [POS]
 Framework-level i18n for LLM error diagnostics. Loads bundled locale JSON from the
@@ -170,11 +171,9 @@ class LocaleManager:
         if locale is None:
             locale = self.detect_locale()
 
-        template = self._find_template(error_type, key, locale)
-        if template is not None:
-            if isinstance(template, list):
-                return [self._safe_format(step, params) for step in template]
-            return self._safe_format(template, params)
+        rendered = self._render(error_type, key, locale, params)
+        if rendered is not None:
+            return rendered
 
         logger.warning(
             "Translation missing: %s.%s for locale %s. Available locales: %s",
@@ -192,15 +191,32 @@ class LocaleManager:
         if locale is None:
             locale = self.detect_locale()
 
-        template = self._find_template(error_type, key, locale)
-        return self._safe_format(template, params) if isinstance(template, str) else None
+        rendered = self._render(error_type, key, locale, params)
+        return rendered if isinstance(rendered, str) else None
 
-    def _find_template(self, error_type: str, key: str, locale: str) -> str | list[str] | None:
-        """The text of ``error_type.key`` in ``locale``, else in English; None when neither has it."""
-        for candidate in (locale, "en"):
+    def _render(self, error_type: str, key: str, locale: str, params: dict[str, object]) -> str | list[str] | None:
+        """``error_type.key`` filled in from ``params`` in ``locale``, else in English; None when neither yields a text.
+
+        A bundle a host wrote can hold a template ``str.format`` rejects (``{}``, ``{model``, ``{x[a]}``); it counts as
+        absent for its language, so the diagnosis keeps its card in the next one. A step list is one text: a single
+        step that cannot be rendered sets the whole list aside, so the steps stay in one language.
+        """
+        for candidate in dict.fromkeys((locale, "en")):
             template = self._translations.get(candidate, {}).get(error_type, {}).get(key)
-            if template is not None:
-                return template
+            if template is None:
+                continue
+            try:
+                if isinstance(template, list):
+                    return [self._safe_format(step, params) for step in template]
+                return self._safe_format(template, params)
+            except Exception:
+                logger.warning(
+                    "Template %s.%s of locale '%s' could not be rendered; trying the next language",
+                    error_type,
+                    key,
+                    candidate,
+                    exc_info=True,
+                )
         return None
 
     def _validate_translations(self) -> None:
