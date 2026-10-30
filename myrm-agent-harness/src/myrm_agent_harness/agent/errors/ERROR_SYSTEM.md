@@ -358,7 +358,7 @@ class MyToolkitError(Exception):
 ```
 LLM执行异常（RateLimitError / AuthenticationError / TimeoutError / etc.）
     ↓
-stream_executor.py `_emit_fatal_error`（异常捕获，executor 内层）
+stream_fatal_error.py `_emit_fatal_error`（异常捕获，executor 内层）
 agent/_internals/agent_runtime.py run_agent_loop 外层 except（executor 外层兜底）
     │ classify_error(exc) → ErrorKind（toolkits/llms/errors/classifier.py）
     │ LLMErrorDiagnostic.diagnose(exc, ErrorContext) → DiagnosticResult（本地化 user_message + resolution_steps + is_retryable）
@@ -522,7 +522,7 @@ get_locale_manager().register_translations(
 | `agent/errors/diagnostics/types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
 | `agent/errors/diagnostics/i18n/manager.py` | `LocaleManager`（locale 检测 + 捆绑 JSON + `register_translations()` 扩展） |
 | `agent/errors/diagnostics/i18n/__init__.py` | `get_locale_manager()` 全局单例 |
-| `agent/streaming/stream_executor.py` | LLM异常捕获（`_emit_fatal_error`）+ `classify_error()` + SSE推送 |
+| `agent/streaming/stream_fatal_error.py` | LLM异常捕获（`_emit_fatal_error`，经 `StreamExecutor` 多继承使用）+ `classify_error()` + SSE推送 |
 
 ### 前端错误渲染
 
