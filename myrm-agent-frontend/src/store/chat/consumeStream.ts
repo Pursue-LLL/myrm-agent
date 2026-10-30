@@ -24,9 +24,9 @@ import { createStreamWatchdog } from './messageStream/streamWatchdog';
 import { AgentBusyError, RiskBlockedError, StreamInterruptedError, isAgentBusySseEvent } from './streamErrors';
 
 export type ConsumeStreamOptions = {
-  /** Stop once tool approval queue is populated (SHPOIB HITL attach recovery). */
-  untilApprovalQueued?: boolean;
-  /** Wall-clock cap in ms; only used with untilApprovalQueued. */
+  /** Stop once the approval queue holds a card of this chat (HITL attach recovery); the cards of other chats do not count. */
+  untilApprovalQueuedFor?: string;
+  /** Wall-clock cap in ms; only used with untilApprovalQueuedFor. */
   maxWaitMs?: number;
   /** Called for every validated SSE envelope before reducer handling. */
   onBusinessEvent?: (event: AgentStreamEvent) => void;
@@ -250,7 +250,12 @@ export async function consumeStream(
               if (meta) {
                 turnMeta = meta;
               }
-              if (options?.untilApprovalQueued && useToolApprovalStore.getState().queue.length > 0) {
+              if (
+                options?.untilApprovalQueuedFor !== undefined &&
+                useToolApprovalStore
+                  .getState()
+                  .queue.some((request) => request.chatId === options.untilApprovalQueuedFor)
+              ) {
                 stoppedEarly = true;
                 break;
               }

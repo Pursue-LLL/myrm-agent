@@ -1252,6 +1252,7 @@ export default function E2EChatBridge() {
       toolApprovalSnapshot: () => ({
         queueLen: useToolApprovalStore.getState().queue.length,
         tools: useToolApprovalStore.getState().queue.map((row) => row.toolName),
+        chatIds: useToolApprovalStore.getState().queue.map((row) => row.chatId),
       }),
       sseSnapshot: (messageId?: string | null) => {
         const filterId = typeof messageId === 'string' ? messageId.trim() : '';

@@ -1285,13 +1285,18 @@ export type HitlRecoveryResult = {
 
 const HITL_ATTACH_RECOVERY_MS = 12_000;
 
+/** Cards waiting for this chat: the queue is shared by every chat, so the cards of other chats say nothing about this one. */
+function approvalsQueuedFor(chatId: string): number {
+  return useToolApprovalStore.getState().queue.filter((request) => request.chatId === chatId).length;
+}
+
 async function replayPendingHitlFromProbe(
   chatId: string,
   state: ChatActionsState,
   actions: ChatActionsMethods,
 ): Promise<number> {
   if (!resolveE2eApiBase()) {
-    return useToolApprovalStore.getState().queue.length;
+    return approvalsQueuedFor(chatId);
   }
   try {
     const response = await fetchWithTimeout(
@@ -1300,12 +1305,12 @@ async function replayPendingHitlFromProbe(
       10_000,
     );
     if (!response.ok) {
-      return useToolApprovalStore.getState().queue.length;
+      return approvalsQueuedFor(chatId);
     }
     const probe = (await response.json()) as { pending_interrupt_events?: unknown[] };
     const events = probe.pending_interrupt_events;
     if (!Array.isArray(events) || events.length === 0) {
-      return useToolApprovalStore.getState().queue.length;
+      return approvalsQueuedFor(chatId);
     }
 
     const { handleMessageStream } = await import('./messageStream/handleMessageStream');
@@ -1345,7 +1350,7 @@ async function replayPendingHitlFromProbe(
         streamActions,
         state.files,
       ));
-      if (useToolApprovalStore.getState().queue.length > 0) {
+      if (approvalsQueuedFor(chatId) > 0) {
         break;
       }
     }
@@ -1354,7 +1359,7 @@ async function replayPendingHitlFromProbe(
   } catch (error) {
     console.warn('SHPOIB HITL probe replay failed:', error);
   }
-  return useToolApprovalStore.getState().queue.length;
+  return approvalsQueuedFor(chatId);
 }
 
 /**
@@ -1371,7 +1376,7 @@ export const attachForHitlRecovery = async (
     return { ok: true, attached: false, queueLen: 0, source: 'none' };
   }
 
-  const existingQueue = useToolApprovalStore.getState().queue.length;
+  const existingQueue = approvalsQueuedFor(normalized);
   if (existingQueue > 0) {
     return { ok: true, attached: true, queueLen: existingQueue, source: 'attach' };
   }
@@ -1418,15 +1423,16 @@ export const attachForHitlRecovery = async (
       };
     }
 
-    const streamResult = await consumeStream(response, '', state, smartActions, attachAbort, false, '', {
-      untilApprovalQueued: true,
+    await consumeStream(response, '', state, smartActions, attachAbort, false, '', {
+      untilApprovalQueuedFor: normalized,
       maxWaitMs: HITL_ATTACH_RECOVERY_MS,
     });
-    if (streamResult.queueLen > 0) {
+    const queuedForChat = approvalsQueuedFor(normalized);
+    if (queuedForChat > 0) {
       return {
         ok: true,
         attached: true,
-        queueLen: streamResult.queueLen,
+        queueLen: queuedForChat,
         source: 'attach',
       };
     }
