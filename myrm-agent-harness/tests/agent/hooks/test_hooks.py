@@ -725,7 +725,7 @@ Content
 
         from myrm_agent_harness.agent.hooks.skill_parser import parse_hooks_from_skill_md
 
-        os.environ["TEST_HOOK_TOKEN"] = "Bearer test123"
+        os.environ["MYRM_HOOK_TEST_TOKEN"] = "Bearer test123"
         try:
             content = """---
 name: test
@@ -733,7 +733,7 @@ hooks:
   SessionStart:
     - description: Auth
       url: https://example.com/hook
-      auth: ${TEST_HOOK_TOKEN}
+      auth: ${MYRM_HOOK_TEST_TOKEN}
 ---
 
 Content
@@ -744,7 +744,7 @@ Content
             assert isinstance(hook_def, HttpHookDefinition)
             assert hook_def.headers.get("Authorization") == "Bearer test123"
         finally:
-            del os.environ["TEST_HOOK_TOKEN"]
+            del os.environ["MYRM_HOOK_TEST_TOKEN"]
 
     def test_parse_auth_literal(self):
         from myrm_agent_harness.agent.hooks.skill_parser import parse_hooks_from_skill_md
@@ -808,7 +808,7 @@ Content
 
         from myrm_agent_harness.agent.hooks.skill_parser import parse_hooks_from_skill_md
 
-        os.environ["TEST_WEBHOOK_SECRET"] = "env-secret-value"
+        os.environ["MYRM_HOOK_TEST_WEBHOOK_SECRET"] = "env-secret-value"
         try:
             content = """---
 name: test
@@ -816,7 +816,7 @@ hooks:
   PostToolUse:
     - description: SIEM audit
       url: https://siem.corp.com/events
-      secret: ${TEST_WEBHOOK_SECRET}
+      secret: ${MYRM_HOOK_TEST_WEBHOOK_SECRET}
       fire_and_forget: true
 ---
 
@@ -829,7 +829,7 @@ Content
             assert hook_def.secret == "env-secret-value"
             assert hook_def.fire_and_forget is True
         finally:
-            del os.environ["TEST_WEBHOOK_SECRET"]
+            del os.environ["MYRM_HOOK_TEST_WEBHOOK_SECRET"]
 
     def test_parse_http_hook_defaults_no_secret_no_fire_and_forget(self):
         from myrm_agent_harness.agent.hooks.skill_parser import parse_hooks_from_skill_md

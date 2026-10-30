@@ -3,8 +3,13 @@
 Parses hook definitions and allowed-tools from skill YAML frontmatter,
 producing new-style HookDefinition objects that can be registered with HookRegistry.
 
+A value written as ``$NAME`` or ``${NAME}`` is read from the process environment, but only a name the
+process-env SSOT does not treat as a secret, or one carrying the ``MYRM_HOOK_`` prefix: a skill is
+third-party text and must not turn a host credential into a request header or a signature key.
+
 [INPUT]
 - hooks.types::CommandHookDefinition, HttpHookDefinition, HookEvent (POS: Hook type definitions)
+- core.security.process_env::is_non_inheritable_env_var (POS: Core security SSOT for the environment a started process gets)
 
 [OUTPUT]
 - parse_hooks_from_skill_md: Parse hooks and allowed-tools from SKILL.md frontmatter.
@@ -29,6 +34,7 @@ from myrm_agent_harness.agent.hooks.types import (
     HookSource,
     HttpHookDefinition,
 )
+from myrm_agent_harness.core.security.process_env import is_non_inheritable_env_var
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +220,7 @@ def _build_auth_headers(auth_raw: object) -> dict[str, str]:
 
 
 _ENV_VAR_PATTERN = re.compile(r"^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$")
+_HOOK_ENV_PREFIX = "MYRM_HOOK_"
 
 
 def _resolve_auth(raw: str) -> str:
@@ -221,15 +228,25 @@ def _resolve_auth(raw: str) -> str:
 
 
 def _resolve_env_or_literal(raw: object, *, warn_missing: bool = False) -> str:
-    """Resolve ``$VAR`` / ``${VAR}`` to env value, or return literal string."""
+    """Resolve ``$VAR`` / ``${VAR}`` to env value, or return literal string.
+
+    A name the process-env SSOT treats as a secret (``OPENAI_API_KEY``, ``DB_PASSWORD``) is refused unless it
+    carries the ``MYRM_HOOK_`` prefix: the declaration comes from a skill, and the value would leave the host in a
+    request header, or as the key of a signature whose receiver can test guesses against it.
+    """
     text = str(raw).strip()
     if not text:
         return ""
     match = _ENV_VAR_PATTERN.match(text)
     if match:
-        env_val = os.environ.get(match.group(1), "")
+        name = match.group(1)
+        if is_non_inheritable_env_var(name) and not name.startswith(_HOOK_ENV_PREFIX):
+            raise ValueError(
+                f"environment variable {name} holds a secret; a hook may only read one named {_HOOK_ENV_PREFIX}*"
+            )
+        env_val = os.environ.get(name, "")
         if not env_val and warn_missing:
-            logger.warning("Hook env var '%s' not set", match.group(1))
+            logger.warning("Hook env var '%s' not set", name)
         return env_val
     return text
 
