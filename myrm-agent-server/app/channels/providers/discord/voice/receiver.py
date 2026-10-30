@@ -17,6 +17,7 @@ for packet capture, with check_silence() polled from async code.
 The transport key, the mode, the DAVE session and the bot's SSRC are read from the connection for every packet:
 discord.py replaces them when the connection is re-established or upgraded, and keeps delivering packets meanwhile.
 A run of packets that fail to decrypt is reported once as a warning, not once per packet.
+discard_pending() drops the speech buffered but not yet delivered, for a session that moves to another conversation.
 """
 
 from __future__ import annotations
@@ -132,6 +133,12 @@ class VoiceReceiver:
     def resume(self) -> None:
         """Resume packet capture after playback."""
         self._paused = False
+
+    def discard_pending(self) -> None:
+        """Drop the speech buffered but not yet delivered; the SSRC mappings and decoders stay, the streams go on."""
+        with self._lock:
+            self._buffers.clear()
+            self._last_packet_time.clear()
 
     def _install_speaking_hook(self, conn: VoiceConnectionState) -> None:
         """Hook SPEAKING events (op 5) to map SSRC -> user_id."""

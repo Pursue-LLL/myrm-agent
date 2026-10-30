@@ -26,7 +26,8 @@ the gateway's confirmation does not hold up the others. A join over a
 state whose VoiceClient discord.py has dropped releases that state first;
 over one discord.py is still reconnecting, the join is declined.
 A leave disconnects the VoiceClient for as long as discord.py holds it, connected or not. The utterances finished in
-one poll keep the text-channel binding they were admitted under.
+one poll keep the text-channel binding they were admitted under; a join that binds the session to another
+text channel drops the speech the receiver has not yet delivered.
 """
 
 from __future__ import annotations
@@ -152,6 +153,19 @@ class VoiceManager:
             self._locks[guild_id] = asyncio.Lock()
         return self._locks[guild_id]
 
+    @staticmethod
+    def _bind_text_channel(guild_id: int, state: _GuildVoiceState, text_channel_id: int) -> None:
+        """Bind the session to ``text_channel_id`` (0 keeps the binding); a different one drops the undelivered speech.
+
+        What the receiver still buffers was said for the conversation it was captured under; the next poll would
+        deliver it into the new one.
+        """
+        if not text_channel_id or text_channel_id == state.text_channel_id:
+            return
+        state.receiver.discard_pending()
+        state.text_channel_id = text_channel_id
+        logger.info("Voice session in guild %d bound to text channel %d, undelivered speech dropped", guild_id, text_channel_id)
+
     async def join(
         self,
         channel: VoiceTarget,
@@ -165,12 +179,10 @@ class VoiceManager:
             state = self._guilds.get(guild_id)
             if state and state.voice_client.is_connected():
                 if state.voice_client.channel and state.voice_client.channel.id == channel.id:
-                    if text_channel_id:
-                        state.text_channel_id = text_channel_id
+                    self._bind_text_channel(guild_id, state, text_channel_id)
                     return True
                 await state.voice_client.move_to(channel)
-                if text_channel_id:
-                    state.text_channel_id = text_channel_id
+                self._bind_text_channel(guild_id, state, text_channel_id)
                 return True
 
             if state:

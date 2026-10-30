@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import struct
+from functools import partial
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,6 +22,7 @@ import nacl.secret
 from discord.utils import MISSING
 
 from app.channels.providers.discord.voice.receiver import _UNDECRYPTABLE_STREAK_WARNING, VoiceReceiver
+from tests.channels.providers.discord.voice.receiver_testkit import make_mock_vc
 
 _RECEIVER_LOGGER = "app.channels.providers.discord.voice.receiver"
 _KEY_A = bytes(range(32))
@@ -31,15 +33,7 @@ _BOT_SSRC = 999
 _OPUS_FRAME = b"\x01" * 120
 
 
-def _voice_client(*, key: bytes = _KEY_A, mode: str = _SECRETBOX_MODE, dave_session: object | None = None) -> MagicMock:
-    voice_client = MagicMock()
-    connection = voice_client._connection
-    connection.secret_key = list(key)
-    connection.ssrc = _BOT_SSRC
-    connection.hook = None
-    connection.mode = mode
-    connection.dave_session = dave_session
-    return voice_client
+_voice_client = partial(make_mock_vc, mode=_SECRETBOX_MODE, key=_KEY_A)
 
 
 def _started(voice_client: MagicMock) -> VoiceReceiver:

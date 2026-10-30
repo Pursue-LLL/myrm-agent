@@ -219,6 +219,34 @@ class TestSilenceDetection:
         assert ssrc in r._buffers
 
 
+class TestDiscardPending:
+    def test_drops_finished_and_unfinished_speech(self) -> None:
+        r = VoiceReceiver(make_mock_vc())
+        r._ssrc_to_user.update({100: 42, 101: 43})
+        r._buffers[100] = bytearray(b"\x00" * (int(_MIN_SPEECH_DURATION * _BYTES_PER_SECOND) + 100))
+        r._last_packet_time[100] = time.monotonic() - _SILENCE_THRESHOLD - 0.1
+        r._buffers[101] = bytearray(b"\x00" * 100)
+        r._last_packet_time[101] = time.monotonic()
+
+        r.discard_pending()
+
+        assert r.check_silence() == []
+        assert not r._buffers
+        assert not r._last_packet_time
+
+    def test_keeps_what_the_streams_continue_with(self) -> None:
+        r = VoiceReceiver(make_mock_vc())
+        decoder = MagicMock()
+        r._decoders[100] = decoder
+        r._ssrc_to_user[100] = 42
+        r._buffers[100] = bytearray(b"\x00" * 100)
+
+        r.discard_pending()
+
+        assert r._decoders == {100: decoder}
+        assert r._ssrc_to_user == {100: 42}
+
+
 class TestSSRCInference:
     def test_infer_sole_user(self) -> None:
         vc = make_mock_vc()
