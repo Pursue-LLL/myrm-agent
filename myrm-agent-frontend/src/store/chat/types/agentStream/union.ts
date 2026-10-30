@@ -49,7 +49,6 @@ import type {
   CouncilPhaseStreamEvent,
   GoalStatusStreamEvent,
   IterationLimitReachedStreamEvent,
-  MascotXpUpdateStreamEvent,
   MemoryBriefStreamEvent,
   MessageEndStreamEvent,
   ModelEscalatedStreamEvent,
@@ -143,7 +142,6 @@ export type AgentStreamEvent =
   | DesktopControlApprovalRequestStreamEvent
   | BrowserTakeoverRequestedStreamEvent
   | BrowserTakeoverCompletedStreamEvent
-  | MascotXpUpdateStreamEvent
   | IterationLimitReachedStreamEvent
   | ContextOverflowResetStreamEvent
   | ContextReferenceWarningStreamEvent

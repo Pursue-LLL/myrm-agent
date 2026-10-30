@@ -72,7 +72,6 @@ export const AgentEventType = {
   MODEL_FAILOVER: 'model_failover',
   MODEL_RECOVERY: 'model_recovery',
   FILE_MUTATION_FAILED: 'file_mutation_failed',
-  MASCOT_XP_UPDATE: 'mascot_xp_update',
   TOOL_IMAGE_OUTPUT: 'tool_image_output',
   BROWSER_VIEW_UPDATE: 'browser_view_update',
   DESKTOP_VIEW_UPDATE: 'desktop_view_update',

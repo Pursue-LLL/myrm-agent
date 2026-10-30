@@ -13,9 +13,9 @@
 | 名称 | 路径 | 职责 |
 |------|------|------|
 | **Companion** | `companion/` + `api/companion/` | 桌宠 Observer 反应、进化资格查询（用户可见「伴侣」行为） |
-| **Mascot** | `mascot/` | XP / 状态映射、情绪转换、LRU 缓存清理（流式事件 `mascot_xp` 驱动） |
+| **Mascot** | `mascot/` | 流式事件到桌宠动画状态的映射（结果写入事件的 `mascot_status` 字段） |
 
-前端桌宠 UI 在 `myrm-agent-frontend/src/components/features/companion/`；SSE 事件经 `messageStream/handlers/companionEvents.ts` 分发。
+前端桌宠 UI 在 `myrm-agent-frontend/src/components/features/companion/`；桌宠状态由 `messageStream/handleMessageStream.ts` 读取事件的 `mascot_status` 字段更新。
 
 ---
 
@@ -50,7 +50,7 @@
 | `checkpoint/` | ✅ 核心 | 会话检查点业务服务 | [_ARCH.md](checkpoint/_ARCH.md) |
 | `companion/` | ✅ 辅助 | 桌宠 Observer 反应与进化状态（见上方术语表） | [_ARCH.md](companion/_ARCH.md) |
 | `copilot/` | ✅ 辅助 | Lean Co-Pilot：RunDigest SSOT + Session Advisor（旁路只读问答） | [_ARCH.md](copilot/_ARCH.md) |
-| `mascot/` | ✅ 辅助 | Mascot XP / 状态映射与缓存清理（见上方术语表） | [_ARCH.md](mascot/_ARCH.md) |
+| `mascot/` | ✅ 辅助 | 流式事件到桌宠动画状态的映射（见上方术语表） | [_ARCH.md](mascot/_ARCH.md) |
 | `context/` | ✅ 核心 | Shared Context / Context Bundle 业务编排 | [_ARCH.md](context/_ARCH.md) |
 | `artifacts/` | ✅ 核心 | 产物业务编排与 API 侧用例 | [_ARCH.md](artifacts/_ARCH.md) |
 | `audit/` | ✅ 辅助 | 审计日志业务服务 | [_ARCH.md](audit/_ARCH.md) |

@@ -416,15 +416,4 @@ export interface GoalStatusStreamEvent {
   data: GoalStatusPayload;
 }
 
-export interface MascotXpUpdateStreamEvent {
-  type: typeof AgentEventType.MASCOT_XP_UPDATE;
-  messageId?: string;
-  data: {
-    level: number;
-    xp: number;
-    next_level_xp: number;
-    unlocked_tools: string[];
-  };
-}
-
 export type { CatchupSnapshotStreamEvent } from './part2Catchup';

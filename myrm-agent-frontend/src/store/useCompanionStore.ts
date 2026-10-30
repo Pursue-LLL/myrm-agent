@@ -81,12 +81,6 @@ interface CompanionState {
   mood: Mood;
   lastInteractionAt: number | null;
 
-  // Mascot XP State
-  mascotLevel: number;
-  mascotXp: number;
-  mascotNextLevelXp: number;
-  mascotUnlockedTools: string[];
-
   // Sprite overlay state
   spriteEnabled: boolean;
   spriteConfig: SpriteConfig | null;
@@ -105,7 +99,6 @@ interface CompanionActions {
   setMascotStatus: (status: string) => void;
   setMood: (mood: Mood) => void;
   touchInteraction: () => void;
-  setMascotXpState: (state: { level: number; xp: number; next_level_xp: number; unlocked_tools: string[] }) => void;
   hatch: () => void;
   pet: () => void;
   setReaction: (reaction: string | null) => void;
@@ -154,11 +147,6 @@ const useCompanionStore = create<CompanionStore>()(
       mood: 'neutral' as Mood,
       lastInteractionAt: null,
 
-      mascotLevel: 1,
-      mascotXp: 0,
-      mascotNextLevelXp: 100,
-      mascotUnlockedTools: [],
-
       spriteEnabled: false,
       spriteConfig: null,
       petPaletteOpen: false,
@@ -172,13 +160,6 @@ const useCompanionStore = create<CompanionStore>()(
       setMascotStatus: (mascotStatus) => set({ mascotStatus }),
       setMood: (mood) => set({ mood }),
       touchInteraction: () => set({ lastInteractionAt: Date.now() }),
-      setMascotXpState: (state) =>
-        set({
-          mascotLevel: state.level,
-          mascotXp: state.xp,
-          mascotNextLevelXp: state.next_level_xp,
-          mascotUnlockedTools: state.unlocked_tools,
-        }),
       hatch: () => {
         if (!get().hatchedAt) {
           set({ hatchedAt: Date.now(), enabled: true });
@@ -215,7 +196,6 @@ const useCompanionStore = create<CompanionStore>()(
         set({
           snacksRemaining: remaining - 1,
           lastSnackReset: today,
-          mascotXp: s.mascotXp + 10,
           mood: 'happy' as Mood,
           lastInteractionAt: Date.now(),
         });

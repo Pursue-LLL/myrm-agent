@@ -16,7 +16,6 @@ describe('Snack Reward System', () => {
     useCompanionStore.setState({
       snacksRemaining: 3,
       lastSnackReset: null,
-      mascotXp: 0,
       mood: 'neutral',
     });
   });
@@ -26,13 +25,12 @@ describe('Snack Reward System', () => {
     expect(snacksRemaining).toBe(3);
   });
 
-  it('feedSnack decrements remaining and adds XP', () => {
+  it('feedSnack decrements remaining and makes the mascot happy', () => {
     const store = useCompanionStore.getState();
     const ok = store.feedSnack();
     expect(ok).toBe(true);
     const after = useCompanionStore.getState();
     expect(after.snacksRemaining).toBe(2);
-    expect(after.mascotXp).toBe(10);
     expect(after.mood).toBe('happy');
   });
 
@@ -42,7 +40,7 @@ describe('Snack Reward System', () => {
     const store = useCompanionStore.getState();
     const ok = store.feedSnack();
     expect(ok).toBe(false);
-    expect(useCompanionStore.getState().mascotXp).toBe(0);
+    expect(useCompanionStore.getState().snacksRemaining).toBe(0);
   });
 
   it('feedSnack resets to 3 on new day', () => {
@@ -62,7 +60,6 @@ describe('Snack Reward System', () => {
     expect(store.feedSnack()).toBe(true);
     expect(store.feedSnack()).toBe(false);
     expect(useCompanionStore.getState().snacksRemaining).toBe(0);
-    expect(useCompanionStore.getState().mascotXp).toBe(30);
   });
 
   it('updates lastInteractionAt on feed', () => {
@@ -103,13 +100,5 @@ describe('Snack Reward System', () => {
     useCompanionStore.setState({ snacksRemaining: 0, lastSnackReset: today, mood: 'neutral' });
     useCompanionStore.getState().feedSnack();
     expect(useCompanionStore.getState().mood).toBe('neutral');
-  });
-
-  it('feedSnack accumulates XP correctly across feeds', () => {
-    useCompanionStore.setState({ mascotXp: 50 });
-    useCompanionStore.getState().feedSnack();
-    expect(useCompanionStore.getState().mascotXp).toBe(60);
-    useCompanionStore.getState().feedSnack();
-    expect(useCompanionStore.getState().mascotXp).toBe(70);
   });
 });

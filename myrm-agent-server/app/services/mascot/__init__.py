@@ -1,6 +1,6 @@
 """Mascot services package.
 
-Provides status mapping, emotional transitions, and cache cleanup for Mascot systems.
+Provides the event-to-mascot-status mapping used for mascot animation states.
 """
 
 from .status_mapper import MascotStateMapper, MascotStatus

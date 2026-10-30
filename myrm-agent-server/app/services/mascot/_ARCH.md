@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-桌宠 **Mascot** 业务服务：XP 事件驱动的状态映射、情绪转换、LRU 缓存清理。Companion UI 通过 SSE `mascot_xp` 等事件消费。与 `companion/` 分工见 [../_ARCH.md](../_ARCH.md) 术语表。
+桌宠 **Mascot** 业务服务：把流式事件映射为桌宠动画状态（`MascotStatus`）。`agent/streaming.py` 把结果写入事件的 `mascot_status` 字段，前端 `messageStream/handleMessageStream.ts` 据此切换桌宠动画。与 `companion/` 分工见 [../_ARCH.md](../_ARCH.md) 术语表。
 
 ## 文件清单
 

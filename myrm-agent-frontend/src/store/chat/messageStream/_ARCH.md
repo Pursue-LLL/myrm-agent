@@ -5,7 +5,7 @@
 聊天 SSE 流式 reducer 子系统。将 `AgentStreamEvent` 合并进 `Message` 状态。
 
 - **入口**：`handleMessageStream.ts`（dispatcher：mascot 副作用 + 顺序调用 `handlers/*`）
-- **切片**：[`handlers/`](handlers/_ARCH.md) 按事件域拆分（companion / tools / completion 等）
+- **切片**：[`handlers/`](handlers/_ARCH.md) 按事件域拆分（catchup / tools / completion 等）
 - **纯函数**：`streamHelpers.ts`、`fileDiffMerge.ts`、`textSanitize.ts`、`skillManageBatchLink.ts`、`disclosure.ts`
 - **上下文**：`streamContext.ts`（`StreamCtx`、`done()`）
 
