@@ -30,6 +30,7 @@ _LABELS: dict[str, str] = {
 
 _LABELS_I18N: dict[str, dict[str, str]] = {
     "zh-CN": {"update_key": "更新 API 密钥", "top_up": "充值余额", "change_model": "切换模型"},
+    "zh-TW": {"update_key": "更新 API 金鑰", "top_up": "儲值餘額", "change_model": "切換模型"},
     "ja": {"update_key": "APIキーを更新", "top_up": "残高をチャージ", "change_model": "モデルを変更"},
     "ko": {"update_key": "API 키 업데이트", "top_up": "잔액 충전", "change_model": "모델 변경"},
     "de": {

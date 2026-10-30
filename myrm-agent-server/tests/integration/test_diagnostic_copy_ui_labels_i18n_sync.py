@@ -22,7 +22,14 @@ _HARNESS_LOCALES_DIR = Path(harness_i18n.__file__).parent / "locales"
 _FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
 
 # Harness catalogue locale -> frontend locale file.
-_FRONTEND_FILES = {"en": "en.json", "zh-CN": "zh.json", "ja": "ja.json", "ko": "ko.json", "de": "de.json"}
+_FRONTEND_FILES = {
+    "en": "en.json",
+    "zh-CN": "zh.json",
+    "zh-TW": "zh-TW.json",
+    "ja": "ja.json",
+    "ko": "ko.json",
+    "de": "de.json",
+}
 
 _PATH_SEPARATOR = re.compile(r"\s[>→]\s")
 
@@ -49,7 +56,7 @@ _QUOTES: tuple[_Quote, ...] = (
     _Quote(
         "rate_limit_resolution_steps",
         (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel"),
-        locales=("en", "zh-CN"),
+        locales=("en", "zh-CN", "zh-TW"),
     ),
     _Quote("overloaded_resolution_steps", (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel")),
     _Quote("tls_certificate_resolution_steps", _TLS_COMPAT),

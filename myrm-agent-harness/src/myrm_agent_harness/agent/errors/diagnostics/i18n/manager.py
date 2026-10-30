@@ -33,7 +33,7 @@ from .constants import REQUIRED_ERROR_TYPES
 logger = logging.getLogger(__name__)
 
 _BUNDLED_LOCALES_DIR = Path(__file__).parent / "locales"
-_SUPPORTED_LOCALE_NAMES = ("en", "zh-CN", "ja", "ko", "de")
+_SUPPORTED_LOCALE_NAMES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
 ErrorFields = dict[str, str | list[str]]
 LocaleBundle = dict[str, ErrorFields]
 

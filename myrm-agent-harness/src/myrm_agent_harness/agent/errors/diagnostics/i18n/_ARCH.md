@@ -1,7 +1,7 @@
 # i18n/
 
 ## Overview
-Framework-level i18n for LLM error diagnostics. Bundled JSON locales (en/zh-CN/ja/ko/de); override via `MYRM_LOCALES_DIR`. Business layers may extend via `register_translations()`. A text is read along `LocaleManager.locale_chain()`: the locale's own bundle, its canonical form, the other bundles of its language (`ja-JP` reads `ja`; a Traditional Chinese request reads Simplified Chinese because no Traditional bundle ships), then English.
+Framework-level i18n for LLM error diagnostics. Bundled JSON locales (en/zh-CN/zh-TW/ja/ko/de); override via `MYRM_LOCALES_DIR`. Business layers may extend via `register_translations()`. A text is read along `LocaleManager.locale_chain()`: the locale's own bundle, its canonical form, the other bundles of its language (`ja-JP` reads `ja`; `zh-HK` reads `zh-TW`, then `zh-CN` when a catalog ships no Traditional bundle), then English.
 
 ## File & Submodule Index
 
@@ -13,6 +13,7 @@ Framework-level i18n for LLM error diagnostics. Bundled JSON locales (en/zh-CN/j
 | locales/ | Data | Bundled flat JSON locale files shipped with the wheel | — |
 | locales/en.json | Data | English diagnostic strings | — |
 | locales/zh-CN.json | Data | Simplified Chinese diagnostic strings | — |
+| locales/zh-TW.json | Data | Traditional Chinese diagnostic strings in Taiwan wording, product menu names as the zh-TW UI shows them | — |
 | locales/ja.json | Data | Japanese diagnostic strings | — |
 | locales/ko.json | Data | Korean diagnostic strings | — |
 | locales/de.json | Data | German diagnostic strings | — |

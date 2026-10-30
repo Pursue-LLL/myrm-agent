@@ -5,7 +5,7 @@ import pytest
 from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 
 
-def test_diagnose_connection_error():
+def test_diagnose_connection_error() -> None:
     """测试连接错误诊断"""
     exc = ConnectionRefusedError("Connection refused on localhost:11434")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -16,7 +16,7 @@ def test_diagnose_connection_error():
     assert any("ollama serve" in step.lower() for step in result.resolution_steps)
 
 
-def test_diagnose_api_key_error():
+def test_diagnose_api_key_error() -> None:
     """测试API key错误诊断"""
     exc = ValueError("Invalid API key: authentication failed (401)")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -27,7 +27,7 @@ def test_diagnose_api_key_error():
     assert any("API key" in step for step in result.resolution_steps)
 
 
-def test_diagnose_model_not_found():
+def test_diagnose_model_not_found() -> None:
     """测试模型未找到错误诊断"""
     exc = ValueError("Model llama3.2 does not exist (404)")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -38,7 +38,7 @@ def test_diagnose_model_not_found():
     assert any("ollama pull" in step.lower() for step in result.resolution_steps)
 
 
-def test_diagnose_rate_limit_error():
+def test_diagnose_rate_limit_error() -> None:
     """测试速率限制错误诊断"""
     exc = Exception("Rate limit exceeded: too many requests (429)")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -49,7 +49,7 @@ def test_diagnose_rate_limit_error():
     assert any("60 seconds" in step for step in result.resolution_steps)
 
 
-def test_diagnose_billing_error_openai():
+def test_diagnose_billing_error_openai() -> None:
     """测试 OpenAI 余额不足错误诊断"""
     exc = Exception("You exceeded your current quota, please check your plan and billing details (402)")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -59,7 +59,7 @@ def test_diagnose_billing_error_openai():
     assert len(result.resolution_steps) == 3
 
 
-def test_diagnose_billing_error_deepseek():
+def test_diagnose_billing_error_deepseek() -> None:
     """测试 DeepSeek 余额不足错误诊断（中文关键词）"""
     exc = Exception("余额不足，请充值后再试")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -67,7 +67,7 @@ def test_diagnose_billing_error_deepseek():
     assert result.error_type == "billing"
 
 
-def test_diagnose_billing_error_anthropic():
+def test_diagnose_billing_error_anthropic() -> None:
     """测试 Anthropic insufficient credits 错误诊断"""
     exc = Exception("Your account has insufficient credits to complete this request")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -75,7 +75,7 @@ def test_diagnose_billing_error_anthropic():
     assert result.error_type == "billing"
 
 
-def test_diagnose_context_overflow():
+def test_diagnose_context_overflow() -> None:
     """测试上下文溢出错误诊断"""
     exc = ValueError("Context length 150000 exceeds model limit 128000")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -86,7 +86,7 @@ def test_diagnose_context_overflow():
     assert any("new conversation" in step.lower() for step in result.resolution_steps)
 
 
-def test_diagnose_timeout_error():
+def test_diagnose_timeout_error() -> None:
     """测试超时错误诊断"""
     exc = TimeoutError("Request timed out after 30 seconds")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -97,7 +97,7 @@ def test_diagnose_timeout_error():
     assert any("network" in step.lower() for step in result.resolution_steps)
 
 
-def test_diagnose_unknown_error():
+def test_diagnose_unknown_error() -> None:
     """测试未知错误诊断（fallback）"""
     exc = RuntimeError("Some random error message")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -107,7 +107,7 @@ def test_diagnose_unknown_error():
     assert len(result.resolution_steps) > 0
 
 
-def test_diagnose_case_insensitive():
+def test_diagnose_case_insensitive() -> None:
     """测试大小写不敏感"""
     exc = Exception("CONNECTION REFUSED ON LOCALHOST")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -116,7 +116,7 @@ def test_diagnose_case_insensitive():
     assert result.error_type == "connection"
 
 
-def test_diagnostic_result_immutable():
+def test_diagnostic_result_immutable() -> None:
     """测试DiagnosticResult不可变性"""
     from myrm_agent_harness.agent.errors.diagnostics import DiagnosticResult
 
@@ -130,7 +130,7 @@ def test_diagnostic_result_immutable():
         pass
 
 
-def test_custom_endpoint_connection_refused_ollama():
+def test_custom_endpoint_connection_refused_ollama() -> None:
     """测试自定义端点（Ollama）连接拒绝错误的精准诊断"""
     from myrm_agent_harness.agent.errors.diagnostics import ErrorContext
 
@@ -150,7 +150,7 @@ def test_custom_endpoint_connection_refused_ollama():
     assert any("11434" in step for step in result.resolution_steps)
 
 
-def test_custom_endpoint_model_not_found():
+def test_custom_endpoint_model_not_found() -> None:
     """测试自定义端点模型未找到错误的精准诊断"""
     from myrm_agent_harness.agent.errors.diagnostics import ErrorContext
 
@@ -169,7 +169,7 @@ def test_custom_endpoint_model_not_found():
     assert any("case-sensitive" in step.lower() for step in result.resolution_steps)
 
 
-def test_error_context_immutable():
+def test_error_context_immutable() -> None:
     """测试ErrorContext不可变性"""
     from myrm_agent_harness.agent.errors.diagnostics import ErrorContext
 
@@ -183,7 +183,7 @@ def test_error_context_immutable():
         pass
 
 
-def test_diagnose_response_format_error():
+def test_diagnose_response_format_error() -> None:
     """测试响应格式错误诊断"""
     exc = ValueError("400 Bad Request: must be in JSON format")
     result = LLMErrorDiagnostic.diagnose(exc)
@@ -194,7 +194,7 @@ def test_diagnose_response_format_error():
     assert any("fallback" in step.lower() for step in result.resolution_steps)
 
 
-def test_diagnose_response_format_error_zh():
+def test_diagnose_response_format_error_zh() -> None:
     """测试响应格式错误诊断（中文）"""
     exc = ValueError("schema validation error")
     result = LLMErrorDiagnostic.diagnose(exc, locale="zh-CN")
@@ -204,7 +204,7 @@ def test_diagnose_response_format_error_zh():
     assert result.locale == "zh-CN"
 
 
-def test_diagnose_truncation_thinking_budget_exhausted():
+def test_diagnose_truncation_thinking_budget_exhausted() -> None:
     """Test thinking budget exhausted truncation diagnosis."""
     result = LLMErrorDiagnostic.diagnose_truncation("thinking_budget_exhausted", locale="en")
 
@@ -214,7 +214,7 @@ def test_diagnose_truncation_thinking_budget_exhausted():
     assert result.locale == "en"
 
 
-def test_diagnose_truncation_tool_call_truncated():
+def test_diagnose_truncation_tool_call_truncated() -> None:
     """Test tool call truncated diagnosis."""
     result = LLMErrorDiagnostic.diagnose_truncation("tool_call_truncated", locale="en")
 
@@ -224,7 +224,7 @@ def test_diagnose_truncation_tool_call_truncated():
     assert result.locale == "en"
 
 
-def test_diagnose_truncation_zh():
+def test_diagnose_truncation_zh() -> None:
     """Test truncation diagnosis in Chinese."""
     result = LLMErrorDiagnostic.diagnose_truncation("thinking_budget_exhausted", locale="zh-CN")
 
@@ -233,7 +233,7 @@ def test_diagnose_truncation_zh():
     assert result.locale == "zh-CN"
 
 
-def test_diagnose_truncation_tool_call_zh():
+def test_diagnose_truncation_tool_call_zh() -> None:
     """Test tool call truncation in Chinese."""
     result = LLMErrorDiagnostic.diagnose_truncation("tool_call_truncated", locale="zh-CN")
 
@@ -244,7 +244,7 @@ def test_diagnose_truncation_tool_call_zh():
 
 @pytest.mark.parametrize("locale", ["en", "zh-CN", "ja", "ko", "de"])
 @pytest.mark.parametrize("truncation_type", ["tool_call_retry", "tool_call_truncated"])
-def test_tool_call_truncation_diagnostics_are_translated_in_every_locale(truncation_type: str, locale: str):
+def test_tool_call_truncation_diagnostics_are_translated_in_every_locale(truncation_type: str, locale: str) -> None:
     """Retry and give-up diagnostics reach the user through the status event; a missing key would leak a placeholder."""
     result = LLMErrorDiagnostic.diagnose_truncation(truncation_type, locale=locale)
 
@@ -255,7 +255,7 @@ def test_tool_call_truncation_diagnostics_are_translated_in_every_locale(truncat
     assert isinstance(result.resolution_steps, list)
 
 
-def test_diagnose_truncation_tool_call_retry_has_no_resolution_steps():
+def test_diagnose_truncation_tool_call_retry_has_no_resolution_steps() -> None:
     """A retry is informational (the system acts on its own), so it carries no manual steps."""
     result = LLMErrorDiagnostic.diagnose_truncation("tool_call_retry", locale="en")
 
@@ -263,7 +263,7 @@ def test_diagnose_truncation_tool_call_retry_has_no_resolution_steps():
     assert result.resolution_steps == []
 
 
-def test_status_code_boundary_no_false_positive():
+def test_status_code_boundary_no_false_positive() -> None:
     """HTTP 状态码不应因端口号子串而误判"""
     # port 4023 不应被误判为 billing (402)
     r1 = LLMErrorDiagnostic.diagnose(Exception("port 4023 is unavailable"))
@@ -278,7 +278,7 @@ def test_status_code_boundary_no_false_positive():
     assert r3.error_type != "rate_limit"
 
 
-def test_billing_with_cooldown_hint():
+def test_billing_with_cooldown_hint() -> None:
     """billing 诊断应包含 cooldown 提示"""
     exc = Exception("You exceeded your current quota (402)")
     result = LLMErrorDiagnostic.diagnose(exc, cooldown_remaining_ms=5000)
@@ -290,69 +290,69 @@ def test_billing_with_cooldown_hint():
 class TestGetRecoveryActions:
     """Tests for LLMErrorDiagnostic.get_recovery_actions()."""
 
-    def test_api_key_returns_update_action(self):
+    def test_api_key_returns_update_action(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key")
         assert len(actions) == 1
         assert actions[0]["id"] == "update_key"
         assert actions[0]["url"] == "/settings/models"
         assert actions[0]["label"] == "Update API Key"
 
-    def test_billing_returns_top_up_action(self):
+    def test_billing_returns_top_up_action(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("billing")
         assert len(actions) == 1
         assert actions[0]["id"] == "top_up"
         assert actions[0]["url"] == "/settings"
 
-    def test_model_returns_change_model_action(self):
+    def test_model_returns_change_model_action(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("model")
         assert len(actions) == 1
         assert actions[0]["id"] == "change_model"
         assert actions[0]["url"] == "/settings/models"
 
-    def test_custom_model_not_found_returns_change_model(self):
+    def test_custom_model_not_found_returns_change_model(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("custom_model_not_found")
         assert len(actions) == 1
         assert actions[0]["id"] == "change_model"
         assert actions[0]["url"] == "/settings/models"
 
-    def test_unknown_error_returns_empty(self):
+    def test_unknown_error_returns_empty(self) -> None:
         assert LLMErrorDiagnostic.get_recovery_actions("unknown") == []
 
-    def test_connection_error_returns_empty(self):
+    def test_connection_error_returns_empty(self) -> None:
         assert LLMErrorDiagnostic.get_recovery_actions("connection") == []
 
-    def test_rate_limit_returns_empty(self):
+    def test_rate_limit_returns_empty(self) -> None:
         assert LLMErrorDiagnostic.get_recovery_actions("rate_limit") == []
 
-    def test_chinese_locale(self):
+    def test_chinese_locale(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="zh-CN")
         assert actions[0]["label"] == "更新 API 密钥"
 
-    def test_japanese_locale(self):
+    def test_japanese_locale(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("billing", locale="ja")
         assert actions[0]["label"] == "残高をチャージ"
 
-    def test_korean_locale(self):
+    def test_korean_locale(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("model", locale="ko")
         assert actions[0]["label"] == "모델 변경"
 
-    def test_german_locale(self):
+    def test_german_locale(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="de")
         assert actions[0]["label"] == "API-Schlüssel aktualisieren"
 
-    def test_unsupported_locale_falls_back_to_english(self):
+    def test_unsupported_locale_falls_back_to_english(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="fr")
         assert actions[0]["label"] == "Update API Key"
 
-    def test_locale_prefix_fallback_zh_to_zh_cn(self):
+    def test_locale_prefix_fallback_zh_to_zh_cn(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="zh")
         assert actions[0]["label"] == "更新 API 密钥"
 
-    def test_locale_prefix_fallback_zh_tw_to_zh_cn(self):
+    def test_underscore_zh_tw_reads_the_traditional_label(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("billing", locale="zh_TW")
-        assert actions[0]["label"] == "充值余额"
+        assert actions[0]["label"] == "儲值餘額"
 
-    def test_none_locale_falls_back_to_detected(self):
+    def test_none_locale_falls_back_to_detected(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale=None)
         assert len(actions) == 1
         assert actions[0]["id"] == "update_key"

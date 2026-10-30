@@ -6,7 +6,7 @@
 - Localized error messages and resolution steps
 
 [POS]
-Framework-level i18n for LLM error diagnostics, supporting en/zh-CN/ja/ko/de
+Framework-level i18n for LLM error diagnostics, supporting en/zh-CN/zh-TW/ja/ko/de
 """
 
 from .manager import LocaleManager

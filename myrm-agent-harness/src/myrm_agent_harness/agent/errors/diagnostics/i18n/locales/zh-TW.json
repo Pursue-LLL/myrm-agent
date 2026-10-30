@@ -1,0 +1,155 @@
+{
+  "connection_user_message": "無法連線到 LLM 端點",
+  "connection_resolution_steps": [
+    "檢查端點服務是否執行（例如 Ollama: ollama serve）",
+    "檢查網路連線",
+    "檢查防火牆設定"
+  ],
+  "custom_endpoint_unreachable_user_message": "無法連線到 {service_name} ({base_url_display})",
+  "custom_endpoint_unreachable_resolution_steps": [
+    "確認 {service_name} 服務正在執行",
+    "在瀏覽器中測試: {base_url_display}/v1/models",
+    "檢查連接埠 {port} 是否被佔用",
+    "在 設定 > 模型服務 中檢查 API URL: {base_url_display}"
+  ],
+  "billing_user_message": "您的 API 帳戶餘額不足",
+  "billing_resolution_steps": [
+    "前往 LLM 供應商主控台儲值",
+    "新增備用 API 金鑰（設定 > 模型服務 > API 金鑰）",
+    "切換到其他 LLM 供應商"
+  ],
+  "api_key_user_message": "API 金鑰驗證失敗",
+  "api_key_resolution_steps": [
+    "在 設定 > 模型服務 中更新您的 API 金鑰",
+    "確認 API 金鑰是否有效且未過期",
+    "檢查 API 金鑰是否具有正確的權限",
+    "對於 Ollama/LM Studio: API 金鑰可填 'dummy' 或留空"
+  ],
+  "model_user_message": "找不到模型 '{model_name}'",
+  "model_resolution_steps": [
+    "安裝該模型（例如 Ollama: ollama pull {model_name}）",
+    "列出可用模型並確認",
+    "對於 OpenAI: 檢查模型名稱拼字"
+  ],
+  "custom_model_not_found_user_message": "在 {service_name} 上找不到模型 '{model_name}'",
+  "custom_model_not_found_resolution_steps": [
+    "確認 '{model_name}' 已下載到 {service_name}",
+    "執行 'ollama list' 或檢查 LM Studio 模型清單",
+    "檢查模型名稱拼字（區分大小寫）",
+    "如果尚未安裝，請下載該模型"
+  ],
+  "rate_limit_user_message": "已超出 API 速率限制",
+  "rate_limit_wait_step": "等待 60 秒後重試",
+  "rate_limit_resolution_steps": [
+    "升級 API 方案以獲得更高的速率限制",
+    "檢查是否有其他程序正在使用相同的 API 金鑰",
+    "在 設定 > 模型服務 > 預設模型 中設定備用模型，觸發限流時自動切換"
+  ],
+  "response_format_error_user_message": "模型輸出驗證失敗，正在自動切換至更強的模型",
+  "response_format_error_resolution_steps": [
+    "系統已自動切換到 fallback 模型",
+    "如果問題持續，請考慮升級主模型",
+    "檢查弱模型設定，確保 JSON 模式正確",
+    "確認工具呼叫參數 schema 是否正確"
+  ],
+  "context_overflow_user_message": "上下文長度超出模型限制",
+  "context_overflow_resolution_steps": [
+    "開啟新的對話",
+    "使用具有更大上下文視窗的模型",
+    "縮短對話歷史長度"
+  ],
+  "timeout_user_message": "LLM 請求逾時",
+  "timeout_resolution_steps": [
+    "檢查網路延遲",
+    "使用更快的模型或端點",
+    "啟用串流模式以獲得更好的回應速度"
+  ],
+  "overloaded_user_message": "AI 服務暫時過載",
+  "overloaded_resolution_steps": [
+    "稍候片刻後重新傳送訊息",
+    "如果持續出現，請切換到其他模型或供應商",
+    "在 設定 > 模型服務 > 預設模型 中設定備用模型，過載時自動切換"
+  ],
+  "safety_block_user_message": "請求被供應商的安全過濾器攔截",
+  "safety_block_resolution_steps": [
+    "調整措辭後重新傳送",
+    "移除訊息和附件中的敏感或受限內容",
+    "嘗試使用其他模型或供應商"
+  ],
+  "format_error_user_message": "供應商無法處理該請求: {error_message}",
+  "format_error_resolution_steps": [
+    "請重新傳送訊息",
+    "如果對話包含圖片或檔案，請移除或改用較小的檔案",
+    "問題持續時請開啟新的對話"
+  ],
+  "format_error_generic_user_message": "請求無法處理",
+  "format_error_generic_resolution_steps": [
+    "請重新傳送訊息",
+    "在 設定 > 模型服務 中檢查所選模型",
+    "問題持續時請開啟新的對話"
+  ],
+  "format_error_model_user_message": "無法處理傳往模型 '{model_name}' 的請求",
+  "format_error_model_resolution_steps": [
+    "請重新傳送訊息",
+    "在 設定 > 模型服務 中檢查所選模型",
+    "問題持續時請開啟新的對話"
+  ],
+  "challenge_blocked_user_message": "請求在到達模型之前被供應商的網路防護攔截",
+  "challenge_blocked_resolution_steps": [
+    "稍候片刻後重新傳送訊息",
+    "如果使用了代理伺服器、VPN 或中繼服務，請關閉或更換",
+    "攔截持續時請嘗試其他供應商"
+  ],
+  "unknown_user_message": "LLM 錯誤: {error_message}",
+  "unknown_resolution_steps": [
+    "請重新傳送訊息，許多錯誤是暫時的",
+    "如果問題持續，請切換到其他模型或供應商",
+    "查看錯誤訊息了解詳情"
+  ],
+  "thinking_budget_exhausted_user_message": "模型將所有輸出 token 用於推理，未產生實際回覆",
+  "thinking_budget_exhausted_resolution_steps": [
+    "切換到輸出容量更大的模型",
+    "簡化問題以降低推理深度",
+    "將複雜問題拆分為多個子問題"
+  ],
+  "tool_call_truncated_user_message": "工具呼叫被截斷，未執行",
+  "tool_call_truncated_resolution_steps": [
+    "對大型檔案使用分塊寫入，而非一次性寫入",
+    "將任務拆分為更小的步驟",
+    "重新傳送該請求"
+  ],
+  "tool_call_retry_user_message": "工具呼叫被截斷，正在重試",
+  "tool_call_retry_resolution_steps": [],
+  "text_continuation_user_message": "回覆被截斷——正在自動續寫",
+  "text_continuation_resolution_steps": [],
+  "text_continuation_exhausted_user_message": "經過 3 次續寫仍未完成回覆",
+  "text_continuation_exhausted_resolution_steps": [
+    "要求模型更簡潔地回答",
+    "將問題拆分為更小的部分"
+  ],
+  "opencode_training_policy_user_message": "OpenCode Go 拒絕了此請求：Muse Spark Contributor 模型需要在 workspace 中同意訓練資料共享政策。請在 OpenCode Go 主控台開啟 Contributor 訓練授權，或改用非 Contributor 模型。",
+  "opencode_training_policy_resolution_steps": [
+    "開啟 OpenCode Go workspace 設定，為 Contributor 模型開啟訓練資料授權",
+    "或改用 muse-spark-1.2（非 Contributor）或 deepseek-v4-flash 等模型"
+  ],
+  "tls_certificate_user_message": "TLS 憑證驗證失敗 — 可能由企業 TLS 偵測代理伺服器導致",
+  "tls_certificate_resolution_steps": [
+    "在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」"
+  ],
+  "tls_transient_user_message": "TLS 交握被中斷 — 疑似網路不穩，系統正在自動重試",
+  "tls_transient_resolution_steps": [
+    "自動重試成功則無需任何操作",
+    "若持續出現，請檢查 VPN/代理伺服器連線穩定性",
+    "若處於企業 TLS 偵測環境，請在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」"
+  ],
+  "cooldown_hint_template": " 請等待{duration}後重試。",
+  "cooldown_hint_joiner": "",
+  "cooldown_hint_second_one": "{n}秒",
+  "cooldown_hint_second_other": "{n}秒",
+  "cooldown_hint_minute_one": "{n}分鐘",
+  "cooldown_hint_minute_other": "{n}分鐘",
+  "cooldown_hint_hour_one": "{n}小時",
+  "cooldown_hint_hour_other": "{n}小時",
+  "cooldown_hint_day_one": "{n}天",
+  "cooldown_hint_day_other": "{n}天"
+}
