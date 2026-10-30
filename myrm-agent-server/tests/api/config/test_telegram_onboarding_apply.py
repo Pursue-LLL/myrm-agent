@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,7 +25,7 @@ app = build_minimal_app(preset="config")
 
 
 @asynccontextmanager
-async def _noop_lifespan(_app: object):
+async def _noop_lifespan(_app: object) -> AsyncIterator[None]:
     yield
 
 
@@ -55,7 +56,7 @@ def _get_config_value(client: TestClient, key: str) -> dict[str, object]:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def setup_test_database():
+def setup_test_database() -> Iterator[None]:
     asyncio.run(init_database())
     yield
     _cleanup_db_files()
@@ -334,7 +335,8 @@ async def test_resolve_or_create_telegram_agent_returns_conflict_when_cross_proc
             busy_lock.release()
 
     assert exc_info.value.status_code == 409
-    assert exc_info.value.detail == {
+    detail: object = exc_info.value.detail
+    assert detail == {
         "code": "TELEGRAM_ONBOARDING_IN_PROGRESS",
         "message": "Telegram onboarding is already in progress. Please retry shortly.",
     }
