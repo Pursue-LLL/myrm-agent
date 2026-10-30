@@ -10,7 +10,7 @@ from fluent.runtime import FluentLocalization, FluentResourceLoader
 logger = logging.getLogger(__name__)
 
 
-class SafeDict(dict):
+class SafeDict(dict[str, Any]):
     """A dictionary that returns the key wrapped in braces for missing keys."""
 
     def __missing__(self, key: str) -> str:
@@ -36,6 +36,7 @@ class I18nEngine:
         self._roots: list[str] = []
         self._localizations: dict[str, FluentLocalization] = {}
         self._json_catalogs: dict[str, dict[str, Any]] = {}
+        self._known: frozenset[str] | None = None
         self._loader: FluentResourceLoader | None = None
         self._default_locale = "en"
 
@@ -52,6 +53,7 @@ class I18nEngine:
             self._loader = FluentResourceLoader(self._roots)
             self._localizations.clear()  # Clear cache
             self._json_catalogs.clear()  # Clear JSON cache
+            self._known = None
 
     def _get_fallback_chain(self, locale: str) -> list[str]:
         """Generate a BCP 47 fallback chain.
@@ -80,6 +82,26 @@ class I18nEngine:
             chain.append(self._default_locale)
 
         return chain
+
+    def _known_locales(self) -> frozenset[str]:
+        """Names of the catalogs the roots hold; the only locale names a request is ever served from."""
+        if self._known is None:
+            self._known = frozenset(
+                path.stem for root in self._roots for pattern in ("*.json", "*.ftl") for path in Path(root).glob(pattern)
+            )
+        return self._known
+
+    def _resolve_locale(self, locale: str | None) -> str:
+        """The language whose catalogs serve ``locale``: its first fallback that has a catalog, else the default.
+
+        ``locale`` is a string a chat platform supplied. Only catalog names become file paths and cache keys, so a
+        variant such as ``en-GB`` shares the catalog of the language it falls back to, and a string that names no
+        catalog cannot reach a file.
+        """
+        if not locale:
+            return self._default_locale
+        known = self._known_locales()
+        return next((candidate for candidate in self._get_fallback_chain(locale) if candidate in known), self._default_locale)
 
     def _load_json_catalog(self, locale: str) -> dict[str, Any]:
         """Load JSON translations for a locale across all roots."""
@@ -119,7 +141,7 @@ class I18nEngine:
 
     def format_value(self, locale: str | None, key: str, **kwargs: Any) -> Any:
         """Format a message using Fluent or JSON."""
-        target_locale = locale or self._default_locale
+        target_locale = self._resolve_locale(locale)
         chain = self._get_fallback_chain(target_locale)
 
         # 1. Try JSON catalogs first (Server overrides)
