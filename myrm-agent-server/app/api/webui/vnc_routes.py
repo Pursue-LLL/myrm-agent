@@ -160,7 +160,7 @@ async def _on_takeover_start(reason: str) -> None:
     _takeover_start_time = time.time()
     _pre_takeover_snapshot, _pre_takeover_url = await _capture_page_state()
     if _pre_takeover_snapshot:
-        logger.info("Takeover trace: pre-snapshot captured (url=%s)", _pre_takeover_url)
+        logger.info("Takeover trace: pre-snapshot captured")
 
 
 # The accessibility tree is kept to this length; the redaction reads a little further, so a credential that straddles

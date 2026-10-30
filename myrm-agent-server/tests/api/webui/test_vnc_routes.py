@@ -234,3 +234,20 @@ class TestTakeoverTraceCarriesNoCredential:
         assert "ghp_aB3dE5" not in post_tree
         assert "aB3dE5fG7hI9" not in post_tree
         assert trace["duration_s"] == 1.5
+
+    @pytest.mark.asyncio
+    async def test_the_server_log_does_not_carry_the_page_url(self, caplog: pytest.LogCaptureFixture) -> None:
+        secret = "hunter2xyz-takeover"
+        with (
+            caplog.at_level("DEBUG", logger=vnc_routes.logger.name),
+            patch.object(
+                vnc_routes,
+                "_capture_page_state",
+                new_callable=AsyncMock,
+                return_value=("aria: heading 'Login'", f"https://example.com/login?token={secret}"),
+            ),
+        ):
+            await _on_takeover_start("login")
+
+        assert "pre-snapshot captured" in caplog.text
+        assert secret not in caplog.text

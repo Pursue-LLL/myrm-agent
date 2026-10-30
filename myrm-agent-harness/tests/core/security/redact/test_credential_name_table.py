@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from myrm_agent_harness.core.security.redact import redact_sensitive_text, structured_fields
 from myrm_agent_harness.core.security.redact.structured_fields import is_secret_field_name
 from myrm_agent_harness.infra.tracing.sanitizer import TraceSpanSanitizer
 
@@ -74,3 +74,14 @@ def test_the_trace_api_withholds_the_value_of_every_credential_name(key: str) ->
 
     assert _VALUE not in written
     assert "db.internal" in written
+
+
+def test_a_name_too_long_to_be_a_field_is_judged_without_being_kept() -> None:
+    """The verdicts are cached for the names a payload repeats; a long key is a value in disguise and must not stay alive."""
+    before = structured_fields._cached_secret_field_name.cache_info()
+
+    assert not is_secret_field_name("x" * 500 + "_password")
+    assert not is_secret_field_name("y" * 500 + "_length")
+
+    after = structured_fields._cached_secret_field_name.cache_info()
+    assert (after.hits, after.misses) == (before.hits, before.misses)

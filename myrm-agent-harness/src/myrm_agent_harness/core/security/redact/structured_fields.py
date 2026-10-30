@@ -126,10 +126,21 @@ _REPR_DIAGNOSTIC_LINE_RE = re.compile(
 )
 
 
+# A payload repeats its field names, so their verdicts are cached; a longer name is a value in disguise (no credential
+# name is that long) and would keep its whole text alive in the cache.
+_CACHED_NAME_MAX_CHARS = 128
+
+
 @lru_cache(maxsize=2048)
-def is_secret_field_name(name: str) -> bool:
-    """Whether ``name`` (unquoted, any spelling) names a credential field; cached, as a payload repeats its field names."""
+def _cached_secret_field_name(name: str) -> bool:
     return _FIELD_NAME_RE.fullmatch(name) is not None
+
+
+def is_secret_field_name(name: str) -> bool:
+    """Whether ``name`` (unquoted, any spelling) names a credential field."""
+    if len(name) > _CACHED_NAME_MAX_CHARS:
+        return _FIELD_NAME_RE.fullmatch(name) is not None
+    return _cached_secret_field_name(name)
 
 
 def mask_credential_number(name: str, value: float) -> float | str:
