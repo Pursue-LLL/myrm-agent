@@ -21,6 +21,13 @@ chrome_e2e_focus_recover_log() {
     >>"${MYRM_CHROME_E2E_STATE_DIR}/chrome-e2e-focus-recover.log" 2>/dev/null || true
 }
 
+# True while macOS routes keyboard input to pid $1. `lsappinfo front` agrees with WindowServer; System Events does not
+# see IFM's feedback window as the front app and reports the app behind it instead, which let this fallback pull the
+# front out from under the window the user was typing in.
+chrome_e2e_is_front() {
+  [[ "$(lsappinfo info -only pid "$(lsappinfo front 2>/dev/null)" 2>/dev/null)" == "\"pid\"=$1" ]]
+}
+
 # Hand the front back to the app the user was in, but ONLY while the dedicated E2E Chrome itself holds the front.
 # Any other front app means the user has already moved on; re-activating the saved app would then hijack their focus.
 # Never minimizes windows: a minimized window is hidden, freezes rAF and strands React on its skeleton
@@ -34,16 +41,23 @@ chrome_e2e_focus_recover() {
   if [[ ! "${chrome_pid}" =~ ^[0-9]+$ || ! "${saved_pid}" =~ ^[0-9]+$ ]]; then
     return 0
   fi
+  # Cheap filter: while Chrome is not the front (the usual case) no osascript is started at all.
+  chrome_e2e_is_front "${chrome_pid}" || return 0
+  # osascript needs a good fraction of a second to start and the front may move on meanwhile, so the same check
+  # runs again inside the script, right before the restore.
   local script outcome
-  printf -v script '%s\n' \
-    'tell application "System Events"' \
-    "  if (unix id of first application process whose frontmost is true) is not ${chrome_pid} then return \"idle\"" \
-    '  try' \
-    "    set frontmost of (first application process whose unix id is ${saved_pid}) to true" \
-    '  end try' \
-    '  return "recovered"' \
-    'end tell'
-  outcome="$(osascript -e "${script}" 2>/dev/null || true)"
+  IFS= read -r -d '' script <<'APPLESCRIPT' || true
+on run argv
+  set chromePid to item 1 of argv
+  set savedPid to (item 2 of argv) as integer
+  tell application "System Events" to set savedProc to first application process whose unix id is savedPid
+  set frontInfo to do shell script "/usr/bin/lsappinfo info -only pid \"$(/usr/bin/lsappinfo front)\""
+  if frontInfo is not ("\"pid\"=" & chromePid) then return "idle"
+  tell application "System Events" to set frontmost of savedProc to true
+  return "recovered"
+end run
+APPLESCRIPT
+  outcome="$(osascript -e "${script}" "${chrome_pid}" "${saved_pid}" 2>/dev/null || true)"
   if [[ "${outcome}" == "recovered" ]]; then
     chrome_e2e_focus_recover_log "${chrome_pid}" "${saved_pid}"
   fi
