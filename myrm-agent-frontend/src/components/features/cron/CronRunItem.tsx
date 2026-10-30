@@ -33,8 +33,11 @@ function formatTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-/** Run-history code the server records when a run waits for the provider usage limit to reset. */
-const USAGE_LIMIT_SKIP_REASON = 'usage_limit';
+/** Run-history codes the server records for a skipped run, each shown as a localized label instead of the raw code. */
+const SKIP_REASON_LABEL_KEYS = new Map<string, 'skippedUsageLimit' | 'skippedBudgetBlocked'>([
+  ['usage_limit', 'skippedUsageLimit'],
+  ['budget_blocked', 'skippedBudgetBlocked'],
+]);
 
 const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
@@ -46,7 +49,8 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const isCircuitBreak = run.status === 'circuit_break';
   const blockedCount = run.metadata?.blockedCount ?? 0;
   const hasContent = !!(run.output || run.error) || blockedCount > 0;
-  const displayOutput = isSkipped && run.output === USAGE_LIMIT_SKIP_REASON ? t('skippedUsageLimit') : run.output;
+  const skipLabelKey = isSkipped && run.output ? SKIP_REASON_LABEL_KEYS.get(run.output) : undefined;
+  const displayOutput = skipLabelKey ? t(skipLabelKey) : run.output;
   const verification = run.metadata?.verification;
   const monitorContractError = run.metadata?.monitor_contract_error;
   const monitorContractErrorLabel =

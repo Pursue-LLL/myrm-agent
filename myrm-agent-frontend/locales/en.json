@@ -7428,6 +7428,7 @@
     "runCircuitBreak": "Circuit Break",
     "circuitBreakBanner": "Runaway loop detected: execution halted and retries blocked to protect compute budget",
     "skippedUsageLimit": "Usage limit reached. Runs again once it resets.",
+    "skippedBudgetBlocked": "Daily budget limit reached. This run was skipped.",
     "circuitBreakTitle": "Runaway Loop Circuit Breaker",
     "circuitBreakDesc": "The agent encountered persistent identical errors in unattended mode. Execution was halted immediately to prevent wasted compute.",
     "runError": "Error",

@@ -7428,6 +7428,7 @@
     "runCircuitBreak": "無限ループ遮断",
     "circuitBreakBanner": "無限ループを検知し、計算コストを保護するため実行を自動中断して再試行を阻止しました",
     "skippedUsageLimit": "利用上限に達しました。解除後に自動で再実行します。",
+    "skippedBudgetBlocked": "日次予算の上限に達したため、今回の実行をスキップしました。",
     "circuitBreakTitle": "無限ループ自動サーキットブレーカー",
     "circuitBreakDesc": "無人実行中に同一エラーが連続して発生したため、算力消費の暴走を防ぐ目的で強制中断されました。",
     "runError": "失敗",

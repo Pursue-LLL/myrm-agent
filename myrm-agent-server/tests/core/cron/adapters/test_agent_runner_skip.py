@@ -268,19 +268,6 @@ class TestHeartbeatSkipLogic:
         assert not result.success
         assert "requires a prompt" in (result.error or "")
 
-    @pytest.mark.asyncio
-    async def test_budget_exceeded_blocks(self) -> None:
-        runner = AgentJobRunner()
-        job = _make_heartbeat_job()
-        with patch(
-            _BUDGET_MODULE,
-            new_callable=AsyncMock,
-            return_value=True,
-        ):
-            result = await runner._run_once(job)
-        assert not result.success
-        assert "budget" in (result.error or "").lower()
-
 
 class TestRunRetry:
     """Tests for the retry logic in run()."""

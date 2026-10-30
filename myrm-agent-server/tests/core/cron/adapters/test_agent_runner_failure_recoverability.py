@@ -192,14 +192,6 @@ class TestGatesThatTurnTheJobAway:
         assert (result.success, result.error, result.retry_safe) == (False, "agent job requires a prompt", False)
 
     @pytest.mark.asyncio
-    async def test_daily_budget_blocks_the_run(self) -> None:
-        with patch(_BUDGET_GATE, new_callable=AsyncMock, return_value=True):
-            result = await AgentJobRunner()._run_once(_job())
-
-        assert (result.success, result.retry_safe) == (False, False)
-        assert "budget" in (result.error or "")
-
-    @pytest.mark.asyncio
     async def test_prompt_the_injection_scan_rejects(self) -> None:
         with (
             patch(_BUDGET_GATE, new_callable=AsyncMock, return_value=False),

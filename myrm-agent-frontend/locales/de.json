@@ -7428,6 +7428,7 @@
     "runCircuitBreak": "Schutzabschaltung",
     "circuitBreakBanner": "Endlosschleife erkannt: Ausführung gestoppt und Wiederholungen blockiert, um Ressourcen zu schonen",
     "skippedUsageLimit": "Nutzungslimit erreicht. Wird nach dem Zurücksetzen erneut ausgeführt.",
+    "skippedBudgetBlocked": "Tagesbudget erreicht. Dieser Lauf wurde übersprungen.",
     "circuitBreakTitle": "Schutzabschaltung gegen Endlosschleifen",
     "circuitBreakDesc": "Der Agent ist im unbeaufsichtigten Modus auf wiederholte identische Fehler gestoßen. Die Ausführung wurde sofort gestoppt.",
     "runError": "Fehler",

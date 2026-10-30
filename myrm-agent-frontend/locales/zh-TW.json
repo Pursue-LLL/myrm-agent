@@ -7428,6 +7428,7 @@
     "runCircuitBreak": "無窮迴圈熔斷",
     "circuitBreakBanner": "智慧偵測到無窮迴圈，已主動熔斷並阻止重試以保護算力消耗",
     "skippedUsageLimit": "額度已用盡，恢復後將自動重新執行。",
+    "skippedBudgetBlocked": "已達每日預算上限，本次執行已跳過。",
     "circuitBreakTitle": "無窮迴圈主動熔斷保護",
     "circuitBreakDesc": "智慧體在無人值守執行時遭遇相同連續錯誤，系統已切斷執行鏈並阻止後續重試，防止無謂算力浪費。",
     "runError": "失敗",

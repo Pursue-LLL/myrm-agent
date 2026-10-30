@@ -71,11 +71,20 @@ describe('CronRunItem', () => {
     expect(screen.queryByText('usage_limit')).toBeNull();
   });
 
-  it('keeps showing other skip outputs verbatim', () => {
-    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output: 'no-content' };
+  it('shows a localized label instead of the raw code for a run the daily budget blocked', () => {
+    const blockedRun: CronRun = { ...baseRun, id: 'run-bb-1', status: 'skipped', output: 'budget_blocked' };
+
+    render(<CronRunItem run={blockedRun} isLast={false} />);
+
+    expect(screen.getByText('skippedBudgetBlocked')).toBeInTheDocument();
+    expect(screen.queryByText('budget_blocked')).toBeNull();
+  });
+
+  it.each(['no-content', 'constructor'])('keeps showing the skip output %s verbatim', (output) => {
+    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output };
 
     render(<CronRunItem run={skippedRun} isLast={false} />);
 
-    expect(screen.getByText('no-content')).toBeInTheDocument();
+    expect(screen.getByText(output)).toBeInTheDocument();
   });
 });

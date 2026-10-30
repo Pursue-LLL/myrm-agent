@@ -442,8 +442,9 @@ class AgentJobRunner:
 
         for attempt in range(1 + job.max_retries):
             last_result = await self._run_once(job, context=context)
-            if last_result.success or last_result.retry_at is not None:
-                # A deferral names the instant a repeat can succeed; retrying now only burns attempts.
+            if last_result.success or last_result.skipped or last_result.retry_at is not None:
+                # A skip waits for the next regular slot and a deferral names the instant a repeat can succeed;
+                # retrying now only burns attempts.
                 return last_result
 
             # If circuit breaker was tripped, abort immediately — do not retry!
@@ -561,7 +562,12 @@ class AgentJobRunner:
         from app.services.budget.enforcer import should_block_execution
 
         if await should_block_execution():
-            return _deterministic_failure("daily budget exceeded (block policy)")
+            if job.schedule.kind is ScheduleKind.ONCE:
+                # A skipped one-shot job would be consumed as completed, so it fails instead.
+                return _deterministic_failure("daily budget exceeded (block policy)")
+            # The budget reopens by itself (next day, top-up); a failure would pause the job for good.
+            logger.warning("Cron agent job %s skipped: daily budget exceeded (block policy)", job.id)
+            return JobResult(success=False, skipped=True, skip_reason="budget_blocked")
 
         # A non-owner's message started this run, so its trigger context is a stranger's text: the run gets the
         # read-only lease and no memory or owner chat history (below), is never queued as a goal in the owner's
@@ -991,7 +997,7 @@ def _timeout_result(job: CronJob) -> JobResult:
 
 
 def _deterministic_failure(error: str) -> JobResult:
-    """A gate turned the job away (no prompt, budget, prompt scan, workflow template); a repeat meets the same gate."""
+    """A gate turned the job away (no prompt, one-shot budget, prompt scan, workflow template); a repeat meets it again."""
     return JobResult(success=False, error=error, retry_safe=False)
 
 
