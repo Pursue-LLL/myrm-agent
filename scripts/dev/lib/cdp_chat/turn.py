@@ -1414,13 +1414,12 @@ class CdpChatTurn(CdpChatSubmit):
                     on_chat_path = False
                     on_sealed_chat = False
                 await self.ensure_react_e2e_bridge(timeout_sec=60.0)
-                if streaming_active:
-                    # Page.navigate during an active stream drops Turn1 SSE (tools_snapshot)
-                    # before the UI store hydrates; soft attach preserves direct SSE.
-                    if not on_chat_path or not on_sealed_chat:
-                        await self._attach_chat_session(chat_id)
-                else:
-                    await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                # The turn is running or already finished inside this page, which holds its
+                # direct-SSE capture (tools_snapshot). Page.navigate would discard it, and
+                # streaming=False only means the reply may have finished before the seal loop
+                # looked, so the page is never navigated here; _attach_chat_session keeps the
+                # hard navigation as its own recovery step.
+                if not streaming_active or not on_chat_path or not on_sealed_chat:
                     await self._attach_chat_session(chat_id)
             _touch_live_turn_progress("send_turn_sealed")
             return {"fill": fill, "submit": submit, "started": started}
