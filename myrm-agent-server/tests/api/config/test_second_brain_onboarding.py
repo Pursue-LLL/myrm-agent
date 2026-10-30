@@ -7,11 +7,12 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.database.connection import init_database
 from app.services.wiki.vault import (
     resolve_agent_wiki_vault_path,
@@ -106,11 +107,9 @@ def _triple_cron_mock_mgr(
             return maintain_job
         return None
 
-    create_job = AsyncMock(
-        side_effect=create_side_effect,
-    )
-    if create_side_effect is None:
-        create_job = AsyncMock(side_effect=[read_later_job, delta_job, maintain_job])
+    # Spec'd from the real wrapper: a keyword it does not accept fails the apply instead of being hidden by a bare mock.
+    create_job = create_autospec(EntitlementGuardedCronManager, instance=True).create_job
+    create_job.side_effect = create_side_effect if create_side_effect is not None else [read_later_job, delta_job, maintain_job]
 
     return SimpleNamespace(
         list_jobs=AsyncMock(return_value=list_jobs or []),

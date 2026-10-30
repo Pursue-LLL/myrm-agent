@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
 
+from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.wiki_router_job_runner import WIKI_SOURCE_SYNC_COMMAND
 from app.services.wiki.source_sync.read_it_later_hygiene import (
     is_stale_read_it_later_job,
@@ -50,10 +51,10 @@ def test_is_stale_skips_router_job() -> None:
 async def test_migrate_recreates_stale_job() -> None:
     legacy = _legacy_job()
     recreated = _router_job(job_id="job-new")
-    mgr = MagicMock()
-    mgr.list_jobs = AsyncMock(return_value=[legacy])
-    mgr.delete_job = AsyncMock()
-    mgr.create_job = AsyncMock(return_value=recreated)
+    # Spec'd from the real wrapper: a keyword it does not accept fails the test instead of being swallowed by the hygiene loop.
+    mgr = create_autospec(EntitlementGuardedCronManager, instance=True)
+    mgr.list_jobs.return_value = [legacy]
+    mgr.create_job.return_value = recreated
 
     fill = MagicMock(
         job_type="router",

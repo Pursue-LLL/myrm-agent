@@ -494,6 +494,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/kanban/test_workdir_gate_api.py` | 模块 | 看板任务 `workspace_path` 与 board `default_workdir` 的写入口（真实路由 + 真 DB）：家目录 / `/` / 凭据目录被 400 拒绝并带 `field` + `issue`，相对路径拒绝（`not_absolute`），普通目录按 realpath 规范化后保存，不带目录的任务不受影响；更新 board 时没带 `default_workdir` 的请求不重新判已存的值、显式 `null` 清除 |
 | `services/kanban/test_workdir_gate.py` | 模块 | 运行入口闸门 `hold_for_unusable_workdir`：任务自己的过宽目录（家目录、`/`）、继承自 board 的过宽默认目录与应用状态目录返回 HUMAN 阻塞（原因即 `WORKDIR_TOO_BROAD_REASON`），任务自己的普通目录优先于 board 的过宽默认，普通目录与没有目录的任务放行；`KanbanTaskRunner.run` 在构造任务上下文之前就返回该阻塞 |
 | `api/cron/test_cron_allowed_roots_gate.py` | 模块 | 定时任务 `allowed_roots` 的写入口（真实路由 + 内存 cron 存储）：create 与 PATCH 拒绝家目录、`/`、凭据目录（400 带 `field=allowed_roots` + `issue`），普通根按输入原样保存，根可以是单个文件，没有根的任务与不改根的更新不受影响 |
+| `api/cron/test_cron_skip_if_active.py` | 模块 | 「上次运行未结束则跳过」开关经 REST 的往返（真实路由 + 内存 cron 存储）：创建时写入并在响应里如实回报、请求不带时为关、PATCH 带了才改，只改名时保持原值 |
 | `core/agent/test_stop_reason.py` | 单元 | 停止原因的统一存储形态：缺 code 不成立、未知类别落 `other`、空消息由 code 生成、`detail` 只留文本键且为空不存；限制类优先于取消优先于错误；同级后到者替换先到者、更弱者不替换、无 code 者不改动；步骤文本取第一条非空 `text` |
 | `core/cron/adapters/test_agent_runner_allowed_roots.py` | 模块 | 运行时再判允许根 `_resolve_effective_allowed_roots`：普通根原样使用，已存的含受保护位置的根使本次运行失败（`TOO_BROAD`），没有根时用所属项目的工作区、该工作区变得过宽同样失败，没有根也没有项目时为空 |
 | `services/chat/test_effective_workspace_grantable.py` | 单元 | `resolve_effective_chat_workspace` 不把已存的、绑定闸门会拒绝的目录交给沙箱：普通目录照用，含受保护位置的目录与应用状态目录（及其上级）被跳过，项目工作区不可用时让位给会话自己的目录 |

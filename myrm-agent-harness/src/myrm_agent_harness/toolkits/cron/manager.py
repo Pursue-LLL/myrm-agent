@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -197,6 +198,7 @@ class CronManager(CronValidationMixin):
         delete_after_run: bool | None = None,
         run_retention_days: int = 30,
         deduplicate: bool = False,
+        skip_if_active: bool = False,
         monitor_config: MonitorConfig | None = None,
         triggers: TriggerConfig | None = None,
         context_from: tuple[str, ...] = (),
@@ -254,6 +256,7 @@ class CronManager(CronValidationMixin):
                 delete_after_run=delete_after_run,
                 run_retention_days=run_retention_days,
                 deduplicate=deduplicate,
+                skip_if_active=skip_if_active,
                 monitor_config=monitor_config,
                 triggers=triggers,
                 context_from=context_from,
@@ -276,8 +279,10 @@ class CronManager(CronValidationMixin):
     async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:
         """Duplicate an existing job with all configuration fields.
 
-        Copies every config field from the source job while resetting all
-        runtime state (fire_count, failures, run history, etc.).
+        Every ``CronJob`` field is carried over except the identity (id, name,
+        status, timestamps), the webhook credentials and the run state
+        (fire count, last run, failures, scratchpad), which start fresh, so a
+        field added to ``CronJob`` later is copied without touching this method.
         The new job starts in PAUSED status to prevent accidental triggering.
         Webhook triggers get fresh path/secret to avoid conflicts.
         """
@@ -302,45 +307,22 @@ class CronManager(CronValidationMixin):
 
         new_id = secrets.token_urlsafe(12)
         now = datetime.now(UTC)
-        cloned = CronJob(
+        cloned = replace(
+            source,
             id=new_id,
-            user_id=user_id,
             name=final_name,
-            job_type=source.job_type,
-            schedule=source.schedule,
             status=JobStatus.PAUSED,
-            prompt=source.prompt,
-            model=source.model,
-            chat_id=source.chat_id,
-            agent_id=source.agent_id,
-            project_id=source.project_id,
-            workflow_template_id=source.workflow_template_id,
             workflow_template_args=(dict(source.workflow_template_args) if source.workflow_template_args else None),
-            command=source.command,
-            required_capabilities=source.required_capabilities,
-            allowed_roots=source.allowed_roots,
-            tools_allowed=source.tools_allowed,
-            skill_ids=source.skill_ids,
-            delivery=source.delivery,
-            failure_delivery=source.failure_delivery,
-            failure_alert=source.failure_alert,
-            active_hours=source.active_hours,
-            max_retries=source.max_retries,
-            retry_backoff_ms=source.retry_backoff_ms,
-            timeout_seconds=source.timeout_seconds,
-            misfire_grace_seconds=source.misfire_grace_seconds,
-            cooldown_seconds=source.cooldown_seconds,
-            max_fires=source.max_fires,
-            expires_at=source.expires_at,
-            session_target=source.session_target,
-            delete_after_run=source.delete_after_run,
-            run_retention_days=source.run_retention_days,
-            deduplicate=source.deduplicate,
-            monitor_config=source.monitor_config,
             triggers=triggers,
-            context_from=source.context_from,
-            pre_condition_script=source.pre_condition_script,
+            fire_count=0,
+            last_output_hash=None,
+            job_scratchpad={},
             next_run_at=None,
+            last_run_at=None,
+            last_status=None,
+            last_error=None,
+            consecutive_failures=0,
+            last_failure_alert_at=None,
             created_at=now,
             updated_at=now,
         )
@@ -478,6 +460,8 @@ class CronManager(CronValidationMixin):
             job.deduplicate = patch.deduplicate
             if not patch.deduplicate:
                 job.last_output_hash = None
+        if patch.skip_if_active is not None:
+            job.skip_if_active = patch.skip_if_active
         if patch.clear_monitor_config:
             job.monitor_config = None
         elif patch.monitor_config is not None:

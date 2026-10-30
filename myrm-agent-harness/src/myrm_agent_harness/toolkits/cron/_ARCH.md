@@ -22,7 +22,7 @@ cross-task data piping (inject referenced jobs' latest successful output), incre
 | delivery.py | Core | Built-in webhook ResultDelivery for cron job results. | ✅ |
 | delivery_guard.py | Core | Exact-token `[SILENT]` detection for delivery filtering (`is_silent_output`). | ✅ |
 | heartbeat.py | Core | Heartbeat — convenience layer over CronManager for periodic agent self-checks. Supports both INTERVAL and CRON scheduling (time-of-day triggers). Optional `agent_id` binding to inherit Agent Profile (model, prompt, skills). | ✅ |
-| manager.py | Core | Cron CRUD orchestration layer. Validates job configurations, persists changes via CronStore, | ✅ |
+| manager.py | Core | Cron CRUD orchestration layer. Validates job configurations, persists changes via CronStore and notifies CronScheduler. `create_job` / `update_job` accept every user-set field, including `skip_if_active` and `acceptance_criteria`. `duplicate_job` copies every `CronJob` field with `dataclasses.replace` except the identity, the webhook credentials and the run state, so a field added to `CronJob` is copied without touching it (`tests/toolkits/cron/test_cron_job_config_fields.py` pins the exceptions). | ✅ |
 | protocols.py | Core | Protocols for the cron toolkit. | ✅ |
 | runners.py | Core | Built-in job runners (ShellJobRunner, RouterJobRunner, NotificationRunner). | ✅ |
 | situation.py | Core | Situation Report — pluggable context aggregator for heartbeat ticks. SituationSection Protocol + SituationReportBuilder (concurrent build, token budget, fault-tolerant) + SituationContext. | ✅ |

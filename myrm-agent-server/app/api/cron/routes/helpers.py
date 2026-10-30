@@ -146,6 +146,7 @@ def _to_response(
         delete_after_run=job.delete_after_run,
         run_retention_days=job.run_retention_days,
         deduplicate=job.deduplicate,
+        skip_if_active=job.skip_if_active,
         monitor_config=_monitor_config_to_response(job.monitor_config, monitor_state),
         next_run_at=job.next_run_at,
         last_run_at=job.last_run_at,
