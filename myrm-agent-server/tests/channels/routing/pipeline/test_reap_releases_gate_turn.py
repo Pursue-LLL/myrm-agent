@@ -2,7 +2,8 @@
 
 Runs on the real ``AgentRouter`` and the real ``SessionGate``. The gate session of a direct message is keyed by its
 sender and the router's task registry by its chat, so only the key recorded when the task started names the session the
-watchdog must release; a turn that ignores its cancellation is freed by that release alone.
+watchdog must release; a turn that ignores its cancellation is freed by that release alone, and a notice to the chat that
+never goes out does not keep the watchdog from releasing it.
 """
 
 from __future__ import annotations
@@ -10,10 +11,11 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.channels.routing.pipeline import lifecycle
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
 from app.channels.routing.router_models import _ActiveTask, _AgentTurnScratch, _RouterExecutionContext
@@ -143,3 +145,26 @@ async def test_the_late_unwinding_of_a_reaped_turn_does_not_end_the_turn_that_to
     harness.finish_waiting.set()
     await asyncio.sleep(0.1)
     assert harness.ran == ["stuck", "waiting", "later"]
+
+
+@pytest.mark.asyncio
+async def test_a_notice_that_never_goes_out_does_not_keep_the_watchdog_from_freeing_the_chat(
+    make_harness: Callable[[bool], _Harness], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(lifecycle, "_NOTICE_SEND_TIMEOUT", 0.2)
+    harness = make_harness(True)
+    harness.gate.submit(_dm("stuck"))
+    await asyncio.sleep(0.1)
+    harness.gate.submit(_dm("waiting"))
+    await asyncio.sleep(0.1)
+    assert harness.registered is not None
+    harness.registered.placeholder_id = "ph-1"
+
+    async def never_returns(*_args: object) -> None:
+        await asyncio.sleep(3600)
+
+    with patch.object(harness.router._fx, "cleanup_placeholder", new=never_returns):
+        await asyncio.wait_for(harness.reap_after_the_timeout(), timeout=2.0)
+    await asyncio.sleep(0.1)
+
+    assert harness.ran == ["stuck", "waiting"]

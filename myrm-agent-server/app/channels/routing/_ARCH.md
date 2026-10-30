@@ -249,8 +249,10 @@ A turn the stop cancels is not replayed: re-running a half-done turn would repea
 chat is told instead: `stop` sends `turn_interrupted_by_restart` (`channels/i18n`) to the chat of every turn it cancelled,
 through the same `_notify_chat` the stuck-task watchdog uses (the turn's live placeholder message becomes the notice; a turn
 without one gets a new message), and `ChannelGateway.stop` drains the outbound queue before closing the channels, so the
-notice is sent while they are still up. The notice is best effort; a failed send is logged at debug level and does not hold
-the shutdown up.
+notice is sent while they are still up. The notices go out together, and each send has `_NOTICE_SEND_TIMEOUT` (3s, shorter
+than the gateway's outbound drain) to finish; a placeholder edit is a call to the channel's API with no time limit of its own,
+so without the bound one unresponsive API would hold the whole shutdown up. A send that times out is logged at warning level,
+a failed one at debug level; the notice is best effort.
 
 What a stop does not park: a message that reaches the bus after the stop has begun. `ChannelGateway.stop` stops the router
 first, drains the outbound queue for up to 5 seconds, and only then stops the channels (`core/gateway.py`), so the channels
@@ -285,7 +287,8 @@ cancellation ends the loop. For each stuck task:
 
 1. **Cancel** — `cancel_token.cancel()` + `task.cancel()`.
 2. **Resource cleanup** — stop typing indicators, clean up placeholder message
-   with a localized timeout notification (`stuck_task_timeout_user_message`).
+   with a localized timeout notification (`stuck_task_timeout_user_message`); the send is bounded by
+   `_NOTICE_SEND_TIMEOUT`, so a channel API that does not answer cannot keep the watchdog from freeing the chat (step 4).
 3. **State cleanup** — remove from `_active_tasks`, `_cleanups`, `_pending_approvals` (which also ends its timeout timer).
 4. **SessionGate release** — `release_turn(entry.gate_key, entry.gate_turn)` frees the turn
    the task ran as (both recorded on `_ActiveTask` when the task started) and starts the next
@@ -361,7 +364,7 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 | reactions/（子包） | Core | Reactions: `ReactionFunnel` (the one place a reaction leaves the router: best-effort send, one warning per window for a failure that keeps happening, glyph negotiation) and the status reaction of one turn: `StatusReaction.received` starts marking the user's message beside the run (the agent does not wait for the platform), `finish(TurnOutcome)` waits for the mark, takes it off and shows the verdict once; owned by `pipeline/turn.py` alone. See `reactions/_ARCH.md`. | [OK] |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | `AgentRouter`: the inbound routing hub, composed from the `pipeline/` mixins (run loop, inbound routing, command dispatch, turn, execution), `RouterStreamMixin` and `RouterCommandsMixin`. It owns construction and the per-router state the mixins share (active tasks, cleanups, pending approvals, dedup map, session yolo/personality, SessionGate, the streaming stack), `set_inbound_journal`, `set_reaction_policy` and the `delegation_coordinator` accessor. | [OK] |
-| router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
+| router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds, the time limit of a notice to a chat (`_NOTICE_SEND_TIMEOUT`) and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by the stream and command mixins (`pipeline/hosts.py` holds the protocols of the pipeline mixins). | [OK] |
 | router_keys.py | Core | ``routing_state_key`` builds the key for the router's in-memory state maps (active task, /stop target, YOLO flag, pending approval, debounce queue): ``f"{channel}:{peer_id}"`` for DMs and untopiced chats, ``f"{channel}:{peer_id}:{thread}"`` for a forum topic. The topic is required because a supergroup topic binds its own agent (``SqlTopicManager`` keys bindings by ``(chat_id, thread_id)``), so a key without it let two topics overwrite each other's turn. Conversation history uses ``app.channels.types.session.SessionKey`` instead, which carries channel, peer, thread and agent for ``Chat.channel_session_key`` — the two keys answer different questions and are not interchangeable. ``routing_session_key`` keeps the chat-wide key for cross-topic chat lookups; ``routing_enclave_key`` builds the 4-tuple ``tenant_id:channel:peer_id:agent_profile_id`` enclave form. | [OK] |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py, pipeline/ and commands/ (_ActiveTask with steering_token, `requester_id` for reaction approval auth and for who may `/steer` a group run, `locale` for stuck watchdog i18n, `gate_key` + `gate_turn` for the watchdog's gate release, ReactionPolicy, etc.) | — |

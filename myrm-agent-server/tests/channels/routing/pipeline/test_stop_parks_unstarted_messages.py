@@ -3,7 +3,8 @@
 Runs on a started ``AgentRouter`` (its consume loop and janitor are the awaits during which the cancelled turn unwinds),
 the real ``SessionGate`` and a real SQLite journal. The sender of a queued message was told it is queued: the next start
 replays it from the journal, and the turn ending under the cancellation of the stop must not pick it up as a new turn on
-the way out. The turn the stop cancels is not replayed, so its chat is told to send the request again.
+the way out. The turn the stop cancels is not replayed, so its chat is told to send the request again; that notice is
+sent to all the chats together and a send that never returns does not hold the stop up.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from app.channels.reliability.inbound_journal import (
     create_journal_entry_from_inbound,
     restore_inbound,
 )
+from app.channels.routing.pipeline import lifecycle
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.routing.session_gate import SessionGate, SessionGateConfig
@@ -201,3 +203,56 @@ async def test_a_turn_that_shows_a_placeholder_has_it_replaced_by_the_notice(har
 
     cleanup.assert_awaited_once_with("telegram", "chat-1", "ph-1", channel_t("en", "turn_interrupted_by_restart"))
     harness.bus.publish_outbound.assert_not_awaited()
+
+
+def _register_running_turn(harness: _Harness, chat_id: str, placeholder_id: str | None) -> asyncio.Task[None]:
+    task = asyncio.create_task(asyncio.sleep(3600))
+    harness.router._active_tasks[f"telegram:{chat_id}"] = _ActiveTask(
+        task=task,
+        cancel_token=MagicMock(spec=CancellationToken),
+        channel="telegram",
+        chat_id=chat_id,
+        placeholder_id=placeholder_id,
+        started_at=time.monotonic(),
+    )
+    return task
+
+
+@pytest.mark.asyncio
+async def test_a_notice_whose_send_never_returns_does_not_hold_the_stop_up(
+    harness: _Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(lifecycle, "_NOTICE_SEND_TIMEOUT", 0.2)
+    _register_running_turn(harness, "chat-1", "ph-1")
+
+    async def never_returns(*_args: object) -> None:
+        await asyncio.sleep(3600)
+
+    with patch.object(harness.router._fx, "cleanup_placeholder", new=never_returns):
+        await asyncio.wait_for(harness.router.stop(), timeout=2.0)
+
+    assert harness.router._active_tasks == {}
+
+
+@pytest.mark.asyncio
+async def test_the_chats_of_all_cancelled_turns_are_told_together(harness: _Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each send waits for all of them to have started: sent one after another, none could finish."""
+    monkeypatch.setattr(lifecycle, "_NOTICE_SEND_TIMEOUT", 0.5)
+    placeholders = ["ph-1", "ph-2", "ph-3"]
+    for index, placeholder_id in enumerate(placeholders, start=1):
+        _register_running_turn(harness, f"chat-{index}", placeholder_id)
+    started: list[str] = []
+    all_started = asyncio.Event()
+    told: list[str] = []
+
+    async def cleanup(_channel: str, _chat_id: str, placeholder_id: str, _text: str) -> None:
+        started.append(placeholder_id)
+        if len(started) == len(placeholders):
+            all_started.set()
+        await all_started.wait()
+        told.append(placeholder_id)
+
+    with patch.object(harness.router._fx, "cleanup_placeholder", new=cleanup):
+        await harness.router.stop()
+
+    assert sorted(told) == placeholders

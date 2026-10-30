@@ -2,7 +2,7 @@
 
 [INPUT]
 - channels.routing.pipeline.hosts::RouterLifecycleHost (POS: typing protocol for the host attributes this mixin reads)
-- channels.routing.router_constants::_CLEANUP_TTL, _JANITOR_INTERVAL, _MAX_CONCURRENT_AGENTS, _STUCK_TASK_TIMEOUT (POS: concurrency, cleanup TTL and watchdog limits)
+- channels.routing.router_constants::_CLEANUP_TTL, _JANITOR_INTERVAL, _MAX_CONCURRENT_AGENTS, _NOTICE_SEND_TIMEOUT, _STUCK_TASK_TIMEOUT (POS: concurrency, cleanup TTL, watchdog limits and the longest a notice to a chat may take)
 - channels.routing.router_models::_ActiveTask (POS: record of one running agent turn)
 - channels.i18n::get_text (POS: localized channel copy)
 - core.infra.background_task::spawn_observed_task (POS: background task whose failure is logged)
@@ -13,7 +13,7 @@
 - RouterLifecycleMixin: ``start`` / ``stop`` / ``is_consume_loop_alive``, the consume loop that hands every inbound message to dispatch, the janitor (expired callbacks, streaming-session TTL, stale session state) and the stuck-task reaper
 
 [POS]
-Run-loop segment of ``AgentRouter``. ``stop`` parks the messages its gate still holds, those that have not started a turn, in the inbound journal, then ends every in-flight turn and approval wait and tells each turn's chat to send the request again (an ended turn is not replayed); the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
+Run-loop segment of ``AgentRouter``. ``stop`` parks the messages its gate still holds, those that have not started a turn, in the inbound journal, then ends every in-flight turn and approval wait and tells each turn's chat to send the request again (an ended turn is not replayed; the notices go out together and each is bounded, so an unresponsive channel API cannot hold the shutdown up); the janitor is the only evictor of expired callbacks and stuck turns, so one failed sweep never ends it.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from app.channels.routing.router_constants import (
     _CLEANUP_TTL,
     _JANITOR_INTERVAL,
     _MAX_CONCURRENT_AGENTS,
+    _NOTICE_SEND_TIMEOUT,
     _STUCK_TASK_TIMEOUT,
 )
 from app.channels.routing.router_models import _ActiveTask
@@ -56,15 +57,22 @@ def _locale_probe(entry: _ActiveTask) -> InboundMessage:
 async def _notify_chat(bus: MessageBus, fx: MessageEffects, entry: _ActiveTask, text: str) -> None:
     """Tell the chat of ``entry`` something: the turn's live placeholder becomes ``text``, else ``text`` is a new message.
 
-    A failed send must not hold up a shutdown or a janitor sweep.
+    A failed or unresponsive send must not hold up a shutdown or a janitor sweep: the edit of a placeholder is a call to the
+    channel's API with no time limit of its own, so the send is given ``_NOTICE_SEND_TIMEOUT`` and then given up on.
     """
-    try:
+
+    async def send() -> None:
         if entry.placeholder_id:
             await fx.cleanup_placeholder(entry.channel, entry.chat_id, entry.placeholder_id, text)
         else:
             await bus.publish_outbound(
                 OutboundMessage(channel=entry.channel, recipient_id=entry.chat_id, content=text, user_id="")
             )
+
+    try:
+        await asyncio.wait_for(send(), timeout=_NOTICE_SEND_TIMEOUT)
+    except TimeoutError:
+        logger.warning("Notice to %s/%s not sent within %.1fs; giving up", entry.channel, entry.chat_id, _NOTICE_SEND_TIMEOUT)
     except Exception:
         logger.debug("Notice to %s/%s failed (non-critical)", entry.channel, entry.chat_id)
 
@@ -101,7 +109,9 @@ class RouterLifecycleMixin:
         replays them; taking them out of the gate also keeps the turns cancelled below from starting the next ones. A message
         that reaches the bus after this has begun is not journaled: the gateway keeps the channels open until the router and
         the outbound drain are done. Delegated tasks are interrupted next, while the channels are still up, so each tells its
-        chat the work was cut short. A turn the stop cancels is not replayed, so its chat is told to send the request again.
+        chat the work was cut short. A turn the stop cancels is not replayed, so its chat is told to send the request again; the
+        chats are told together and a send that does not finish in time is given up on, so a stalled channel API cannot hold the
+        shutdown up.
         """
         self._running = False
         for msg in self._gate.drain_unstarted():
@@ -118,8 +128,12 @@ class RouterLifecycleMixin:
         self._active_tasks.clear()
         self._cleanups.clear()
         self._pending_approvals.clear()
-        for entry in interrupted:
-            await _notify_chat(self._bus, self._fx, entry, get_text(_locale_probe(entry), "turn_interrupted_by_restart"))
+        await asyncio.gather(
+            *(
+                _notify_chat(self._bus, self._fx, entry, get_text(_locale_probe(entry), "turn_interrupted_by_restart"))
+                for entry in interrupted
+            )
+        )
 
         await self._stop_janitor()
 
