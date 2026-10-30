@@ -6,6 +6,8 @@ import inspect
 import json
 from dataclasses import MISSING, fields
 
+import pytest
+
 from myrm_agent_harness.infra.incremental.types import MonitorConfig
 from myrm_agent_harness.toolkits.cron.blueprint_job_spec import DEFAULT_JOB_TIMEOUT_SECONDS, BlueprintJobSpec
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import create_cron_tools
@@ -221,6 +223,26 @@ async def test_blueprint_interval_keeps_the_minimum_interval_rail() -> None:
 
     assert result == "A blueprint interval must be at least 5 minutes."
     assert await harness.store.list_jobs() == []
+
+
+@pytest.mark.parametrize("schedule_arg", [{"every_minutes": 30}, {"at": "2030-01-01T09:00:00"}])
+async def test_blueprint_rejects_a_schedule_param_it_would_ignore(schedule_arg: dict[str, object]) -> None:
+    harness = _Harness(_full_spec())
+
+    result = await harness.add(**schedule_arg)
+
+    assert result == "A blueprint sets its own schedule; do not pass every_minutes or at with it."
+    assert await harness.store.list_jobs() == []
+
+
+async def test_blueprint_schedule_wins_over_an_explicit_cron_expr() -> None:
+    # The tool description asks for one schedule parameter next to a blueprint, so a cron_expr is accepted.
+    harness = _Harness(_full_spec())
+
+    await harness.add(cron_expr="0 1 * * *")
+
+    job = await harness.only_job()
+    assert (job.schedule.kind, job.schedule.expr) == (ScheduleKind.CRON, "30 8 * * 1-5")
 
 
 async def test_recurring_blueprint_still_needs_confirmation() -> None:

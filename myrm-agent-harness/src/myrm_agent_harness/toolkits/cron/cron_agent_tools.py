@@ -67,6 +67,7 @@ DeliveryResolver = Callable[[str], DeliveryConfig]
 logger = logging.getLogger(__name__)
 
 _MIN_INTERVAL_MINUTES = 5
+_MIN_INTERVAL_MS = _MIN_INTERVAL_MINUTES * 60_000
 
 _IN_CRON_EXECUTION: ContextVar[bool] = ContextVar("_in_cron_execution", default=False)
 _CRON_EXECUTION_MUTATING_ACTIONS = frozenset({"add", "update", "remove", "run", "pause", "resume"})
@@ -558,14 +559,12 @@ async def _do_add(
 
     schedule: Schedule | None = None
     if has_schedule:
+        if spec and (every_minutes > 0 or at):
+            return "A blueprint sets its own schedule; do not pass every_minutes or at with it."
         err, schedule = (None, spec.schedule) if spec else _build_schedule(cron_expr, every_minutes, at, tz)
         if err or not schedule:
             return err or "Schedule build failed."
-        if (
-            spec
-            and schedule.kind == ScheduleKind.INTERVAL
-            and (schedule.interval_ms or 0) < _MIN_INTERVAL_MINUTES * 60_000
-        ):
+        if spec and schedule.kind == ScheduleKind.INTERVAL and (schedule.interval_ms or 0) < _MIN_INTERVAL_MS:
             return f"A blueprint interval must be at least {_MIN_INTERVAL_MINUTES} minutes."
 
         is_recurring = schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL)
@@ -577,7 +576,7 @@ async def _do_add(
             )
 
     if not has_schedule and has_stream_or_poll:
-        schedule = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=_MIN_INTERVAL_MINUTES * 60_000)
+        schedule = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=_MIN_INTERVAL_MS)
 
     if schedule is None:
         return "Schedule build failed."
