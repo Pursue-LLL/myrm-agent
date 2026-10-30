@@ -130,20 +130,6 @@
     "より簡潔な回答を求めてください",
     "質問をより小さな部分に分割してください"
   ],
-  "thinking_signature_user_message": "思考チェーン署名が無効です——自動的にリトライ中",
-  "thinking_signature_resolution_steps": [],
-  "image_too_large_user_message": "画像がプロバイダーのサイズ制限を超えています——自動的に圧縮してリトライ中",
-  "image_too_large_resolution_steps": [],
-  "long_context_tier_user_message": "会話がサブスクリプションのコンテキスト制限を超えました——自動的に圧縮中",
-  "long_context_tier_resolution_steps": [
-    "APIサブスクリプションをアップグレードして大きなコンテキストにアクセスしてください",
-    "新しい会話を開始してコンテキスト長を減らしてください"
-  ],
-  "provider_policy_blocked_user_message": "リクエストがプロバイダーのデータ/プライバシーポリシーによりブロックされました",
-  "provider_policy_blocked_resolution_steps": [
-    "プロバイダーのコンソールでプライバシー設定を調整してください（例：OpenRouter 設定 > プライバシー）",
-    "別のモデルまたはプロバイダーをお試しください"
-  ],
   "opencode_training_policy_user_message": "OpenCode Go はこのリクエストをブロックしました。Muse Spark Contributor モデルを使うには、ワークスペースでトレーニングデータ共有への同意が必要です。Contributor 向けのトレーニング同意を有効にするか、Contributor ではないモデルを選んでください。",
   "opencode_training_policy_resolution_steps": [
     "OpenCode Go のワークスペース設定を開き、Contributor モデル向けのトレーニングデータ共有への同意を有効にします",

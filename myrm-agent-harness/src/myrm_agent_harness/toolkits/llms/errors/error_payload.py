@@ -10,7 +10,8 @@
 - extract_error_body: the JSON-object payload of one exception, ``{}`` when it has none
 - provider_error_message: the provider's own sentence for a rejected request, ``None`` when no payload came back
 - parse_json_object: a JSON object read out of provider text, ``None`` when the text is anything else or too deeply nested to parse
-- is_json_shaped: whether text opens as a JSON object or array, which is data and not words for a user
+- is_json_shaped: whether text opens as a JSON object or an array of objects, arrays or strings, which is data and not
+  words for a user
 
 [POS]
 The one reader of the provider's answer in an LLM exception, shared by the failure classifier, the retry-window
@@ -31,9 +32,10 @@ MAX_CHAIN_DEPTH = 6
 # An aggregator nests the upstream provider's error inside its own: payload -> error.metadata.raw -> payload.
 _MAX_UPSTREAM_NESTING = 2
 
-# How `json.dumps` and a Python repr open an object or an array. A bracketed tag such as "[Errno 28] ..." or
-# "[ERROR] ..." is prose, so an array counts only when its first element is a value.
-_JSON_SHAPED = re.compile(r"""\s*(?:\{|\[\s*(?:[{\["'\d-]|\]|true\b|false\b|null\b))""")
+# How `json.dumps` and a Python repr open an object or an array. An array is data when it closes at once or its first
+# element is an object, an array or a string. A bracketed number, date or word in front of text ("[400] ...",
+# "[2024-10-30 12:00:00] ...", "[Errno 28] ...", "[ERROR] ...") is a tag, so the text after it is words.
+_JSON_SHAPED = re.compile(r"""\s*(?:\{|\[\s*(?:[{\["']|\]))""")
 
 
 def walk_exception_chain(exc: BaseException) -> list[BaseException]:
@@ -111,7 +113,7 @@ def _plain_text_payload(err: BaseException) -> str | None:
 
 
 def is_json_shaped(text: str) -> bool:
-    """Whether *text* opens as a JSON object or array: data the provider returned, not words for a user."""
+    """Whether *text* opens as a JSON object or an array of objects, arrays or strings: data, not words for a user."""
     return _JSON_SHAPED.match(text) is not None
 
 

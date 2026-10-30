@@ -3,8 +3,7 @@
 A diagnostic step such as "Update your API key in Settings > Model Service" only helps when the user finds a screen
 with exactly that name. The copy lives in the harness catalogues and the labels in the frontend locales, so a rename
 on either side breaks the step silently. Every in-product location the catalogues name is registered here with the
-frontend labels it must quote, per locale; a new "A > B" path in a catalogue must be registered (or listed as an
-external provider path) before the suite passes.
+frontend labels it must quote, per locale; a new "A > B" path in a catalogue must be registered before the suite passes.
 
 This test is cross-layer by design: harness diagnostic catalogues + frontend locales.
 """
@@ -57,9 +56,6 @@ _QUOTES: tuple[_Quote, ...] = (
     _Quote("tls_transient_resolution_steps", _TLS_COMPAT),
 )
 
-# Paths into a provider's own dashboard (OpenRouter, OpenCode Go), not into this product.
-_EXTERNAL_PATH_KEYS = frozenset({"provider_policy_blocked_resolution_steps"})
-
 
 def _text(value: str | list[str]) -> str:
     return " ".join(value) if isinstance(value, list) else value
@@ -97,7 +93,7 @@ def test_catalogue_text_quotes_the_frontend_labels(quote: _Quote, locale: str) -
 
 @pytest.mark.parametrize("locale", _FRONTEND_FILES)
 def test_every_product_path_in_the_catalogue_is_registered(locale: str) -> None:
-    registered = {quote.catalogue_key for quote in _QUOTES} | _EXTERNAL_PATH_KEYS
+    registered = {quote.catalogue_key for quote in _QUOTES}
     unregistered = [
         key for key, value in _catalogue(locale).items() if _PATH_SEPARATOR.search(_text(value)) and key not in registered
     ]

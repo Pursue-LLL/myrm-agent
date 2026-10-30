@@ -127,20 +127,6 @@
     "要求模型更简洁地回答",
     "将问题拆分为更小的部分"
   ],
-  "thinking_signature_user_message": "思维链签名已失效——正在自动重试",
-  "thinking_signature_resolution_steps": [],
-  "image_too_large_user_message": "图片超出服务商大小限制——正在自动压缩并重试",
-  "image_too_large_resolution_steps": [],
-  "long_context_tier_user_message": "对话超出订阅上下文层级限制——正在自动压缩",
-  "long_context_tier_resolution_steps": [
-    "升级 API 订阅以获取更大上下文访问权限",
-    "开始新对话以减少上下文长度"
-  ],
-  "provider_policy_blocked_user_message": "请求被服务商数据/隐私策略阻止",
-  "provider_policy_blocked_resolution_steps": [
-    "前往服务商控制台调整隐私设置（如 OpenRouter 设置 > 隐私）",
-    "尝试使用其他模型或服务商"
-  ],
   "opencode_training_policy_user_message": "OpenCode Go 拒绝了此请求：Muse Spark Contributor 模型需要在 workspace 中同意训练数据共享政策。请在 OpenCode Go 控制台开启 Contributor 训练授权，或改用非 Contributor 模型。",
   "opencode_training_policy_resolution_steps": [
     "打开 OpenCode Go workspace 设置，为 Contributor 模型开启训练数据授权",

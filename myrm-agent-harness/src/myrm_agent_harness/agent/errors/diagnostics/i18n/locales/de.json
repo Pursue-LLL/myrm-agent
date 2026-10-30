@@ -130,20 +130,6 @@
     "Bitten Sie das Modell, prägnanter zu antworten",
     "Teilen Sie die Frage in kleinere Teile auf"
   ],
-  "thinking_signature_user_message": "Denkblock-Signatur ungültig — automatischer Wiederholungsversuch",
-  "thinking_signature_resolution_steps": [],
-  "image_too_large_user_message": "Bild überschreitet das Größenlimit des Anbieters — automatische Komprimierung und Wiederholung",
-  "image_too_large_resolution_steps": [],
-  "long_context_tier_user_message": "Die Konversation überschreitet das Kontextlimit Ihres Abonnements — automatische Komprimierung",
-  "long_context_tier_resolution_steps": [
-    "Aktualisieren Sie Ihr API-Abonnement für größeren Kontextzugang",
-    "Starten Sie eine neue Konversation, um die Kontextlänge zu reduzieren"
-  ],
-  "provider_policy_blocked_user_message": "Die Anfrage wurde durch die Daten-/Datenschutzrichtlinie des Anbieters blockiert",
-  "provider_policy_blocked_resolution_steps": [
-    "Passen Sie die Datenschutzeinstellungen in der Anbieterkonsole an (z.B. OpenRouter Einstellungen > Datenschutz)",
-    "Versuchen Sie ein anderes Modell oder einen anderen Anbieter"
-  ],
   "opencode_training_policy_user_message": "OpenCode Go hat diese Anfrage blockiert, weil Muse Spark Contributor die Zustimmung zur Weitergabe von Trainingsdaten voraussetzt. Aktivieren Sie die Trainingseinwilligung in Ihrem OpenCode-Go-Workspace oder wählen Sie ein Modell ohne Contributor-Status.",
   "opencode_training_policy_resolution_steps": [
     "Öffnen Sie die Workspace-Einstellungen von OpenCode Go und aktivieren Sie die Einwilligung zur Weitergabe von Trainingsdaten für Contributor-Modelle",

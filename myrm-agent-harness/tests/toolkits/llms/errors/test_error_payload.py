@@ -132,8 +132,9 @@ def test_the_upstream_error_an_aggregator_wraps_beats_the_wrapper_sentence() -> 
         ({"error": {"message": "nested mapping"}}, "nested mapping"),
         ("", "Provider returned error"),
         ("{not json", "Provider returned error"),
+        ("[400] Upstream said no", "[400] Upstream said no"),
     ],
-    ids=["plain text", "mapping", "empty", "broken json"],
+    ids=["plain text", "mapping", "empty", "broken json", "bracketed number"],
 )
 def test_an_aggregators_raw_field_may_be_text_a_mapping_or_missing(raw: object, expected: str) -> None:
     body = {"error": {"message": "Provider returned error", "metadata": {"raw": raw}}}
@@ -222,38 +223,61 @@ def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_w
     assert provider_error_message(_openai_rejection(body)) == "Provider returned error"
 
 
+# An array is data when it opens with an object, an array or a string, or closes at once. A bracketed number, date or
+# word in front of text is a tag the provider or a gateway put there, so the text after it is still words.
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
         ("{}", True),
         ('  {"a": 1}', True),
         ("[]", True),
-        ("[1, 2]", True),
+        ("[ ]", True),
         ('["a"]', True),
         ("[{'a': 1}]", True),
+        ("[['a']]", True),
+        ('[{"error": {"message": "x"}', True),
         ("Bad Request", False),
         ("", False),
         ("an {inline} brace", False),
         ("[Errno 28] No space left on device", False),
         ("[ERROR] upstream down", False),
+        ("[400] Bad Request: voice id invalid", False),
+        ("[400 Bad Request] during [POST]", False),
+        ("[1004] speaker id is not allowed", False),
+        ("[2024-10-30 12:00:00] upstream timeout", False),
+        ("[-1] unknown", False),
+        ("[1, 2]", False),
     ],
     ids=[
         "object",
         "indented object",
         "empty array",
-        "number array",
+        "empty array with a space",
         "string array",
         "python repr array",
+        "nested array",
+        "truncated array of objects",
         "sentence",
         "empty",
         "brace inside a sentence",
         "errno tag",
         "level tag",
+        "status code tag",
+        "status line tag",
+        "provider code tag",
+        "timestamp tag",
+        "negative code tag",
+        "number array",
     ],
 )
 def test_text_is_json_shaped_when_it_opens_as_an_object_or_an_array(text: str, expected: bool) -> None:
     assert is_json_shaped(text) is expected
 
 
-def test_a_plain_text_body_that_opens_with_a_tag_is_still_the_providers_sentence() -> None:
-    assert provider_error_message(_openai_rejection("[ERROR] upstream down")) == "[ERROR] upstream down"
+@pytest.mark.parametrize(
+    "text",
+    ["[ERROR] upstream down", "[400] Bad Request: voice id invalid", "[2024-10-30 12:00:00] upstream timeout"],
+    ids=["level tag", "status code tag", "timestamp tag"],
+)
+def test_a_plain_text_body_that_opens_with_a_tag_is_still_the_providers_sentence(text: str) -> None:
+    assert provider_error_message(_openai_rejection(text)) == text

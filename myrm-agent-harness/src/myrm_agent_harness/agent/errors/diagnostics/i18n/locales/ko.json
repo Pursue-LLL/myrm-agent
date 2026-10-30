@@ -130,20 +130,6 @@
     "모델에게 더 간결하게 답변하도록 요청하세요",
     "질문을 더 작은 부분으로 나누세요"
   ],
-  "thinking_signature_user_message": "사고 체인 서명이 무효화되었습니다 — 자동으로 재시도 중",
-  "thinking_signature_resolution_steps": [],
-  "image_too_large_user_message": "이미지가 제공업체의 크기 제한을 초과했습니다 — 자동으로 압축 후 재시도 중",
-  "image_too_large_resolution_steps": [],
-  "long_context_tier_user_message": "대화가 구독 컨텍스트 제한을 초과했습니다 — 자동으로 압축 중",
-  "long_context_tier_resolution_steps": [
-    "더 큰 컨텍스트에 접근하려면 API 구독을 업그레이드하세요",
-    "새 대화를 시작하여 컨텍스트 길이를 줄이세요"
-  ],
-  "provider_policy_blocked_user_message": "요청이 제공업체의 데이터/개인정보 정책에 의해 차단되었습니다",
-  "provider_policy_blocked_resolution_steps": [
-    "제공업체 콘솔에서 개인정보 설정을 조정하세요 (예: OpenRouter 설정 > 개인정보)",
-    "다른 모델이나 제공업체를 사용해 보세요"
-  ],
   "opencode_training_policy_user_message": "OpenCode Go가 이 요청을 차단했습니다. Muse Spark Contributor 모델은 워크스페이스에서 학습 데이터 공유에 동의해야 사용할 수 있습니다. Contributor 학습 동의를 켜거나 Contributor가 아닌 모델을 선택하세요.",
   "opencode_training_policy_resolution_steps": [
     "OpenCode Go 워크스페이스 설정을 열고 Contributor 모델에 대한 학습 데이터 공유 동의를 켭니다",

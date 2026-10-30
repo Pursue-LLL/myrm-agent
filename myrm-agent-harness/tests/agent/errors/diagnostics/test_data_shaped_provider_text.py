@@ -10,6 +10,7 @@ from __future__ import annotations
 import httpx2
 import openai
 import pytest
+from litellm import exceptions as litellm_errors
 
 from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
 
@@ -86,12 +87,33 @@ def test_a_body_that_carries_a_sentence_still_shows_it(body: object, shown: str)
     assert shown in result.user_message
 
 
-@pytest.mark.parametrize("text", ["[Errno 28] No space left on device", "[ERROR] upstream down"])
+_TAGGED_WORDS = {
+    "errno tag": "[Errno 28] No space left on device",
+    "level tag": "[ERROR] upstream down",
+    "status code tag": "[400] Bad Request: voice id invalid",
+    "provider code tag": "[1004] speaker id is not allowed",
+    "timestamp tag": "[2024-10-30 12:00:00] voice id invalid",
+}
+
+
+@pytest.mark.parametrize("text", _TAGGED_WORDS.values(), ids=_TAGGED_WORDS.keys())
 def test_failure_text_that_opens_with_a_bracketed_tag_is_still_shown(text: str) -> None:
     result = LLMErrorDiagnostic.diagnose(RuntimeError(text), _CONTEXT, locale="en")
 
     assert result.error_type == "unknown"
     assert text in result.user_message
+
+
+@pytest.mark.parametrize("words", _TAGGED_WORDS.values(), ids=_TAGGED_WORDS.keys())
+def test_a_rejection_whose_words_after_the_provider_framing_open_with_a_tag_shows_them(words: str) -> None:
+    exc = litellm_errors.BadRequestError(
+        message=f"VolcengineException - {words}", model=_MODEL, llm_provider="volcengine"
+    )
+
+    result = LLMErrorDiagnostic.diagnose(exc, _CONTEXT, locale="en")
+
+    assert result.error_type == "format_error"
+    assert words in result.user_message
 
 
 def test_a_body_whose_message_is_empty_still_names_the_model() -> None:
