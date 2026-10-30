@@ -10,9 +10,7 @@ Core Features (满分完整强大方案):
 - 2-Layer Embedding Cache: Reduces redundant LLM API calls (收益7/10)
 
 New Features (vs lime):
--  Anti-loop state with TTL (lime: in-memory, no expiry)
 -  Rejection tracking (lime: no analysis)
--  Background task management (lime: basic tracking)
 -  Two-phase screener (lime: no screening, blocks 70-80% blind fixes)
 
 总体收益: 9.2/10
@@ -40,21 +38,14 @@ from .execution.evaluator import BatchEvaluator
 from .execution.executor_context import ExecutorContextManager
 from .execution.tool_selector import EvolutionToolConfig, create_evolution_tools
 from .execution.tool_wrapper import ToolWrapper
-from .infra.background_task_manager import BackgroundEvolutionTask, BackgroundEvolutionTaskManager
 from .infra.integration import EvolutionIntegration, enable_skill_evolution, get_global_evolution_integration
 from .infra.queue import EvolutionQueue, QueuePriority, get_evolution_queue
 from .pipeline.patch import PatchType, SkillPatchResult, apply_skill_patch, detect_patch_type, parse_multi_file_full
 from .pipeline.screener import EvolutionScreener, ScreeningResult
 from .pipeline.trace_analyzer import TraceAnalyzer
 from .pipeline.variant_generator import VariantGenerator
-from .safety.anti_loop_state import AntiLoopState, InMemoryAntiLoopState
 
 __all__ = [
-    # Anti-loop state (P0-X)
-    "AntiLoopState",
-    # Background tasks (P1-10)
-    "BackgroundEvolutionTask",
-    "BackgroundEvolutionTaskManager",
     "BatchEvaluator",
     # Caching
     # Integration ( One-line enablement)
@@ -77,7 +68,6 @@ __all__ = [
     "VerificationProof",
     # Tool System (P1-7: +8-12%成功率, 优化版 9.7/10)
     "ExecutorContextManager",
-    "InMemoryAntiLoopState",
     # Patch system
     "PatchType",
     "ProposalBuilder",
