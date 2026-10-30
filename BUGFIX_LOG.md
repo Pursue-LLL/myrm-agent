@@ -10224,3 +10224,59 @@ Next.js 在多包仓库配置下（`outputFileTracingRoot` 指向 monorepo 根�
 ### 反复次数
 
 第 1 次
+
+## BUG-AGENT-2026-10-30-001: 技能进化的「滑动窗口切片」链路在生产里从未产出过提案；同一处缺口让 FIX 修复提示永远拿不到失败现场
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-30 |
+| 修复日期 | 2026-10-30 |
+| 严重程度 | P2（切片链路是不会运行的代码，却被文档、前端标签与测试当成已交付能力；FIX 修复提示缺少失败现场，只影响修复质量，没有数据损坏） |
+| 影响范围 | harness：`core/hooks/types.py`、`agent/skills/evolution/core/{engine,types}.py`、`agent/skills/evolution/infra/integration.py`、`agent/skills/evolution/pipeline/trace_analyzer.py`、`agent/streaming/{stream_executor,stream_dispatcher}.py`、`agent/streaming/recovery/stream_recovery_continuation.py`、`scripts/file_line_baseline.txt`；server：`app/services/agent/evolution/{evolution_runtime,skill_immune_service}.py`、`app/services/agent/stream_session/stream_finalize.py`、`app/services/skills/evolution_review/disk_content.py`；frontend：6 个 locale 与 `useGrowthTypeLabel.test.tsx`；官网 3 个 locale 与营销守门；各目录 `_ARCH.md`、`SKILL_SYSTEM.md` §14.1、公开文档 |
+| 出现次数 | 1（读代码确认；红灯测试与真实旧格式日志实验复现，未用真实 LLM） |
+| 关联 | `BUG-AGENT-2026-10-14-026` 局限 5 与 `BUG-AGENT-2026-10-16-004` 更正里关于切片抽取的描述（该链路已删除，不再成立） |
+
+### 现象
+
+1. `TRACE_SLICE_READY`、`EvolutionType.SLICE_EXTRACTION`、`extract_skill_from_slice`、`TraceAnalyzer.analyze_slice`、`stream_finalize` 末尾的残余窗口冲刷、`disk_content` 的切片分支，合起来是一条「每 15 次工具调用切一段、抽取新技能」的链路。`SKILL_SYSTEM.md` §14.1、公开文档的「3 种并发自愈机制」、前端的 `slice_extraction` 标签都在描述它。但 server 构造 `EvolutionIntegration` 时没传 `event_log_backend`，`SkillEvolutionEngine._trace_analyzer` 恒为 `None`（`core/engine.py:104`），抽取在入口就被跳过，没有任何真实路径能产出切片提案；
+2. 同一处缺口让 FIX 路径失明：`fix_skill` 只有在 `_trace_analyzer` 存在且带 `session_id` 时才读失败轨迹（`core/engine.py:135-138`），否则修复提示里只有 `Trajectory extraction not available. Error: …`；`skill_immune_service` 虽然把会话键传了进去，没有分析器就等于没传；
+3. 只把分析器接上还不够：事件日志后端按文件名 `<log_dir>/<session_id>.jsonl` 读取，聊天的日志文件名是聊天 ID，而失败事件里的会话键是 `chat_<聊天ID>`（落盘事件的 `sid` 也是这一形式），直接接线会去读一个不存在的文件，轨迹仍为空；
+4. `extract_trajectory` 在读不到事件时没有「返回空」的出口，`fix_skill` 里「没有轨迹就回退到错误文本」的分支不会被触发。
+
+### 根因
+
+切片链路和 FIX 轨迹读取共用 `TraceAnalyzer`，而它的唯一创建条件（传入 `event_log_backend`）在 server 里从未满足；链路上的每一环各自有单元测试，用的都是手工构造的分析器，没有一条测试从 `evolution_runtime` 真实构造出来的引擎出发，所以「整条链路不会运行」一直没有暴露。
+
+### 修复
+
+按「接上的成本小、管道已经通到的，接上；接上的成本大、已经被另一通道取代的，删掉」分开处理：
+
+1. 删除切片链路（接上的成本大：要同时对齐审批会话键与事件日志的会话 ID，并重新设计窗口游标；新技能的沉淀已由后台复盘经 `growth/lifecycle.py` 承担）：harness 删 `TRACE_SLICE_READY`、`SLICE_EXTRACTION`、`extract_skill_from_slice`、`analyze_slice`/`SliceResult`、窗口计数与游标、`StreamExecutor` 的切片发射与 `_slice_tool_call_ids` 追踪，以及 `EvolutionRequest` 上只服务切片的三个字段；`SESSION_END` 的不满检测钩子保留；server 删残余窗口冲刷与 `disk_content` 的切片分支；frontend 删 6 个 locale 与测试里的 `slice_extraction` 标签；
+2. 接上 FIX 的轨迹读取（管道已通，只差分析器）：`evolution_runtime.py:73` 传入只读的 `FileEventLogBackend`；`skill_immune_service._event_log_session_id` 把 `chat_<聊天ID>` 换成日志文件名（`chat_id_from_session_id`），并要求结果是安全的文件名（`is_safe_session_id`，挡住路径穿越）；
+3. `TraceAnalyzer` 读不到事件时返回空串，`fix_skill` 因此回到错误文本回退；读出的每个事件仍会再经一遍写入侧的脱敏；
+4. 附带清理：`register_hooks` 的参数与钩子返回值改成真实类型（`HookRegistry`、`HookResult`），用 `registry.get` 代替读私有字段；顺手修了触及文件里 3 处已有的 pyright 报错（`stream_dispatcher.py` 的事件类型取值、`stream_recovery_continuation.py` 的两处 `create_task` 传入 `Awaitable`）；
+5. 门禁与文案：`file_line_baseline.txt` 按实测收紧 3 条（`engine.py`、`integration.py` 降回默认上限以内，`stream_executor.py` 623 → 597）；`HookEvent` 由 13 个降为 12 个，官网「生命周期钩点」数字（3 个 locale 的 stat 与对比表一格）与 `check-marketing-claims.ts` 的期望值同步改为 12；`SKILL_SYSTEM.md` §14.1 改写成当前的触发源、失败轨迹读取与审批闭环；其中原有的「拒绝时写入负样本」一句在代码里没有读取方（`BUG-AGENT-2026-10-14-026` 已删写入点），改为实际存在的机制：拒绝理由写入技能的进化约束，之后每次起草变体都会读取最近 5 条。
+
+### 验证
+
+1. 新增服务端测试：运行时构造的引擎带分析器（`test_evolution_runtime.py`）；会话键到日志文件名的映射，含 `chat_` 前缀、嵌套 `chat_`、`kanban:` 键原样透传、空值、`..` 与 `/` 被拒（`test_skill_immune_service.py`）；用真实旧格式日志（明文密钥在脱敏之前落盘）证明修复提示里没有该密钥、且带上失败那一轮；没有日志的会话保持错误文本回退；轨迹部分不超过 1500 token 预算（按 4 字符一个 token 估算）。会话键映射与安全文件名白名单做过变异检查，改坏后对应用例变红；
+2. harness：`tests/agent/skills`、`tests/agent/streaming`、`tests/core/hooks` 全部通过；改后再单跑 `tests/agent/skills/evolution` 与 `tests/agent/skill_agent` 543 例通过；`ruff check`、`ruff format --check`、`pyright` 对本条改动的 15 个文件无告警；`check_fractal_docs.py`、`validate_arch_inventory.py --md-refs` 通过；
+3. server：`test_skill_immune_service.py`、`test_evolution_runtime.py`、`tests/services/agent/stream_session`、`tests/services/skills` 601 例通过；改动的 8 个文件 `ruff`、`pyright`（`--pythonpath .venv/bin/python`）无告警；
+4. frontend：成长标签相关 vitest 124 例通过，`verify-i18n` 通过；
+5. 文档与官网：`myrm-docs` 的 `validate:private-refs` 与 fractal 检查通过；`myrm-website` 的 `validate:claims` 先在 `lifecycleHooks` 锚点报 13 ≠ 12，同步文案后通过；
+6. 失败数核对（本次实跑，工作区含他人在途改动）：server `tests/architecture` 7 失败、1259 通过，全部与本条无关——`test_routes_have_callers` 与 `test_external_consumer_evidence_still_names_the_route`（他人新增的 pairing、embed、approvals/credentials、activity-feed 等路由没有前端调用方）、`test_data_dir_contract` 3 例（Dockerfile 与 compose）、`test_tests_do_not_import_app_main`（`tests/middleware/test_trailing_slash_alias.py:63`）、`test_harness_is_in_repo_editable_path_source`（`uv.lock` 里的 core 平台包）；harness `tests/architecture` 2 失败、6922 通过，其中行数门禁是本条删代码后基线需收紧，已 `--ratchet` 并重跑通过，另一例 `test_wheel_browser_assets` 是本机 PATH 里没有 `uv`。较早条目里写的 13、7、10 等失败数是各自提交时工作区的状态，随他人在途改动变化，不是同一个数。
+
+### 局限
+
+1. 修复提示里的失败轨迹只覆盖「日志文件名等于聊天 ID」的会话（WebUI 聊天）；无痕聊天不写事件日志；定时任务的日志按日分片、文件名带日期，与 `cron:<任务>` 的会话键对不上，所以都回退到只带错误文本的提示。看板、子智能体、渠道会话是否对得上没有逐一核对；
+2. 失败轨迹对修复质量的实际帮助没有测过：没有用真实 LLM 比较有无轨迹的修复结果，验证只到「提示里有什么、没有什么」；
+3. 删除 `EvolutionType.SLICE_EXTRACTION` 后，读取带这个值的历史记录会在 `EvolutionType(row["evolution_type"])` 处失败。本机的库扫描过，没有这样的记录；生产里从没有产出过（分析器不存在），但没有扫描过别的机器上的库；
+4. 日志写入有缓冲，失败那一轮的最后一两个事件可能还没落盘（缓冲不超过 0.5 秒），轨迹的尾部可能缺一两条；
+5. 审批会话键（`chat_<聊天ID>`）与日志文件名没有统一，靠 `chat_id_from_session_id` 在读取一侧换算；没有加读取方的权限闸门，也没有把脱敏抽成共享函数，`EventLogger._session_id` 仍是私有字段；
+6. 前端只删了一个标签，没有在真实浏览器里看过成长列表。
+
+### 踩坑经验
+
+1. 「整条链路不会运行」要用从真实装配出发的测试证明，而不是给每一环手工造输入；这条链路的每个单元测试都是绿的；
+2. 接线前先查读取方的键从哪来：日志文件名、事件里的 `sid`、审批键是三个不同的字符串，只看接口签名会得出「传个 session_id 就行」的错误结论；
+3. 删除一个事件类型要同时清点文案里的数字：钩子总数写在官网、对比表与架构文档里，守门脚本能抓到数字不一致，抓不到「描述了不存在的机制」，后者只能靠读代码。
