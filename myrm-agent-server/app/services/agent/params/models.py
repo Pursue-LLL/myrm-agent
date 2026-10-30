@@ -220,7 +220,6 @@ class AgentRequest(BaseModel):
         max_length=255,
         description="One-shot post-migration project bind applied after chat persist, before workspace resolve.",
     )
-    multiplexed: bool = False
     blueprint_id: str | None = None
     ephemeral_subagents: dict[str, object] | None = None
     query: MultimodalQuery = ""

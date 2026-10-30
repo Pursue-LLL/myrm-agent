@@ -161,7 +161,6 @@ class TestSpecialtyRoutingSSEChunkEmission:
             chat_id="chat-spec-456",
             query="def solve(): pass",
             model_selection=get_model_selection(),
-            multiplexed=True,
         )
         session = AgentStreamSession(
             request=fake_request,

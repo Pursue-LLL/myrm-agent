@@ -11,8 +11,7 @@
 [POS]
 A direct-SSE client that stays away past ``GRACE_PERIOD_SECONDS`` cancels its turn.
 Long-running turns are never cancelled for a disconnect: they finish in the
-background and ``stream_pump`` notifies the user. Multiplexed turns are decoupled
-from the HTTP request, so there is no connection to watch.
+background and ``stream_pump`` notifies the user.
 """
 
 from __future__ import annotations
@@ -103,10 +102,6 @@ async def watch_client_disconnect(session: AgentStreamSession) -> AsyncIterator[
     The monitor is created, started and stopped inside this one scope, so a
     finished turn can never leave its polling task behind.
     """
-    if session.request.multiplexed:
-        yield
-        return
-
     monitor = CancellationMonitor(
         token=session.cancel_token,
         disconnect_checker=build_disconnect_checker(session),

@@ -33,7 +33,6 @@ from app.services.agent.params import (
     ArchiveRestoreRequestError,
     prevalidate_archive_restore_actions,
 )
-from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.stream_session.chat_history_bootstrap import stream_text_content
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
 from app.services.agent.stream_session.risk_gate import check_stream_risk, resume_typed_texts
@@ -105,7 +104,6 @@ async def run_agent_stream(
     then loads chat history from DB (frontend no longer sends chat_history).
     """
     stream_started_at_monotonic = time.perf_counter()
-    request = prefer_direct_agent_stream(request)
     consensus_rejection = _reject_legacy_consensus_request(request)
     if consensus_rejection is not None:
         return consensus_rejection

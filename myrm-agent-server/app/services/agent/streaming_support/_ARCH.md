@@ -15,7 +15,7 @@ Agent 流式传输辅助工具层，供 orchestrator、reconnect 与 API 流式�
 | `citation_persistence.py` | 辅助 | finalize 阶段 citation fallback：当 collector 未写入 `citedMemoryIds` 时，从 harness `MemoryManager.last_cited_memory_ids` 回填 | ✅ |
 | `takeover_live_assist.py` | 辅助 | browser takeover 事件的签名 live-assist 链接注入：`inject_takeover_live_assist_url` 给 `browser_takeover_requested` 与 `browser_takeover` 类 `approval_required` 事件写入手机端可打开的 `live_assist_url`（相同请求复用上一条链接，托管浏览器不签发），其余事件原样放行；`TakeoverLiveAssistCache` 由单条流携带 | ✅ |
 | `deep_research_stream.py` | 核心 | Deep Research SSE 流 `ai_deep_research_service_stream`：创建 `DeepResearchOrchestrator`，事件经 Gateway 转 SSE；澄清与计划确认两阶段挂在 `PhaseWaiter` 上并以心跳保持连接，流结束或被关闭时清掉两把 waiter 键 | ✅ |
-| `multiplexer.py` | 核心 | `WorkspaceMultiplexer` — 全局 SSE 事件总线，单连接多会话广播，绕过浏览器 6 连接限制 | ✅ |
+| `multiplexer.py` | 核心 | `WorkspaceMultiplexer` — 全局 SSE 事件总线，单连接把所有会话的状态变化（`session_status`：generating / awaiting_approval / idle）广播给每个标签页，绕过浏览器 6 连接限制；回合正文不经此总线 | ✅ |
 
 ## 依赖关系
 

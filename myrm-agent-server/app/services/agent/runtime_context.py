@@ -22,12 +22,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
 
 from app.services.agent.execution_cache.types import ExecutionMode
-
-if TYPE_CHECKING:
-    from app.services.agent.params.models import AgentRequest
 
 logger = logging.getLogger(__name__)
 
@@ -38,19 +34,6 @@ SINGLE_TENANT_USER_ID = "default"
 def resolve_stream_execution_mode() -> ExecutionMode:
     """POOLED by default for agent streams."""
     return ExecutionMode.POOLED
-
-
-def prefer_direct_agent_stream(request: AgentRequest) -> AgentRequest:
-    """Answer this turn on the POST response body when the instance cannot multiplex.
-
-    An isolated per-lane backend does not serve the shared workspace stream, so a
-    multiplexed request would otherwise hand the turn to a stream nobody reads.
-    """
-    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
-
-    if get_deployment_capabilities().supports_multiplexed_stream or not request.multiplexed:
-        return request
-    return request.model_copy(update={"multiplexed": False})
 
 
 async def build_agent_runtime_context(

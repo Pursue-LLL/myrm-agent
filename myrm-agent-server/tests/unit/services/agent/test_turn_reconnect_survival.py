@@ -1,11 +1,10 @@
 """Unit tests for remote turn reconnect survival, monotonic activity-freshness deferral,
 
-and multiplexed offline guardian detection.
+and offline guardian detection.
 """
 
 from __future__ import annotations
 
-import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -21,7 +20,6 @@ from app.services.agent.stream_session.stream_session_types import (
     GRACE_PERIOD_SECONDS,
     AgentStreamSession,
 )
-from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 
@@ -29,7 +27,6 @@ def _create_mock_session(
     *,
     is_disconnected: bool = True,
     is_long_running: bool = False,
-    multiplexed: bool = False,
     message_id: str = "msg_test_reconnect",
 ) -> tuple[AgentStreamSession, AsyncMock]:
     mock_disconnect_fn = AsyncMock(return_value=is_disconnected)
@@ -39,7 +36,6 @@ def _create_mock_session(
     request = AgentRequest(
         chat_id="chat_test_123",
         message_id=message_id,
-        multiplexed=multiplexed,
     )
     cancel_token = MagicMock()
     collector = StreamContentCollector(sibling_group_id=None, chat_id="chat_test_123")
@@ -122,41 +118,23 @@ async def test_activity_stale_cancels_turn() -> None:
     assert result is True
 
 
-def test_workspace_multiplexer_has_subscribers_property() -> None:
-    mux = WorkspaceMultiplexer()
-    assert mux.has_subscribers is False
+@pytest.mark.asyncio
+async def test_is_client_detached_follows_the_http_connection() -> None:
+    session, mock_disconnect = _create_mock_session(is_disconnected=True)
+    assert await _is_client_detached(session) is True
 
-    queue: asyncio.Queue[str] = asyncio.Queue()
-    mux._subscribers.add(queue)
-    assert mux.has_subscribers is True
-
-    mux._subscribers.discard(queue)
-    assert mux.has_subscribers is False
+    mock_disconnect.return_value = False
+    assert await _is_client_detached(session) is False
 
 
 @pytest.mark.asyncio
-async def test_is_client_detached_multiplexed_vs_direct() -> None:
-    # 1. Direct-SSE session
-    session_direct, mock_disconnect = _create_mock_session(is_disconnected=True, multiplexed=False)
-    assert await _is_client_detached(session_direct) is True
-
-    mock_disconnect.return_value = False
-    assert await _is_client_detached(session_direct) is False
-
-    # 2. Multiplexed session
-    session_mux, _ = _create_mock_session(is_disconnected=True, multiplexed=True)
-    mux = WorkspaceMultiplexer.get()
-    # With no subscribers in multiplexer
-    mux._subscribers.clear()
-    assert await _is_client_detached(session_mux) is True
-
-    # With a subscriber queue in multiplexer
-    dummy_q: asyncio.Queue[str] = asyncio.Queue()
-    mux._subscribers.add(dummy_q)
+async def test_is_client_detached_is_false_while_a_tab_is_attached_to_the_turn() -> None:
+    session, _ = _create_mock_session(is_disconnected=True)
+    _snapshot, queue = session.collector.subscribe()
     try:
-        assert await _is_client_detached(session_mux) is False
+        assert await _is_client_detached(session) is False
     finally:
-        mux._subscribers.discard(dummy_q)
+        session.collector.unsubscribe(queue)
 
 
 @pytest.mark.asyncio

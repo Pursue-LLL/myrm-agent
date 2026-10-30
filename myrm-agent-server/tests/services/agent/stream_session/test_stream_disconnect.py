@@ -29,7 +29,6 @@ _FAST_INTERVAL_SECONDS = 0.01
 
 def _session(
     *,
-    multiplexed: bool = False,
     disconnected: bool = True,
     has_subscribers: bool = False,
     long_running: bool = False,
@@ -41,7 +40,6 @@ def _session(
     return cast(
         AgentStreamSession,
         SimpleNamespace(
-            request=SimpleNamespace(multiplexed=multiplexed),
             http_request=SimpleNamespace(is_disconnected=AsyncMock(return_value=disconnected)),
             collector=SimpleNamespace(has_subscribers=has_subscribers),
             params=SimpleNamespace(message_id="msg-1"),
@@ -145,14 +143,6 @@ def spy_monitors(monkeypatch: pytest.MonkeyPatch) -> list[_SpyMonitor]:
 
     monkeypatch.setattr(stream_disconnect, "CancellationMonitor", factory)
     return created
-
-
-@pytest.mark.asyncio
-async def test_multiplexed_turn_has_no_connection_to_watch(spy_monitors: list[_SpyMonitor]) -> None:
-    async with watch_client_disconnect(_session(multiplexed=True)):
-        pass
-
-    assert spy_monitors == []
 
 
 @pytest.mark.asyncio

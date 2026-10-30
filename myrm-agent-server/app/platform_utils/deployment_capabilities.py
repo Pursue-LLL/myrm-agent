@@ -37,7 +37,6 @@ class DeploymentCapabilities:
     runs_sandbox_startup_validation: bool
     skips_webui_model_preflight: bool
     is_sandbox_instance: bool
-    supports_multiplexed_stream: bool = True
 
 
 @lru_cache(maxsize=1)
@@ -54,10 +53,6 @@ def get_deployment_capabilities() -> DeploymentCapabilities:
     else:
         allows_local = local or sandbox
 
-    # An isolated per-lane backend cannot serve the shared workspace multiplex stream,
-    # so such an instance must answer agent turns on the POST response body instead.
-    private_backend = os.getenv("MYRM_PRIVATE_BACKEND", "").strip() == "1"
-
     return DeploymentCapabilities(
         allows_local_skills=allows_local,
         requires_api_key_auth=sandbox or remote,
@@ -72,7 +67,6 @@ def get_deployment_capabilities() -> DeploymentCapabilities:
         runs_sandbox_startup_validation=sandbox,
         skips_webui_model_preflight=sandbox or not local,
         is_sandbox_instance=sandbox,
-        supports_multiplexed_stream=not private_backend,
     )
 
 

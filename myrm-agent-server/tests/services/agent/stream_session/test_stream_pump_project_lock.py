@@ -53,7 +53,7 @@ def _appended_chunks(buf: MagicMock) -> list[str]:
 
 
 def _install_mocks(monkeypatch, orch: ProjectOrchestrator, stream_factory) -> None:
-    """注入 orchestrator + stream/mux/notification 依赖（全部 monkeypatch，幂等）。"""
+    """注入 orchestrator + stream/notification 依赖（全部 monkeypatch，幂等）。"""
     monkeypatch.setattr("app.services.project.orchestrator.project_orchestrator", orch)
 
     async def _fake_stream(_session):
@@ -66,12 +66,6 @@ def _install_mocks(monkeypatch, orch: ProjectOrchestrator, stream_factory) -> No
         _fake_stream,
     )
 
-    mock_mux = MagicMock()
-    mock_mux.get.return_value.publish = AsyncMock()
-    monkeypatch.setattr(
-        "app.services.agent.streaming_support.multiplexer.WorkspaceMultiplexer",
-        mock_mux,
-    )
     monkeypatch.setattr(
         "app.services.infra.system_notification.SystemNotificationService.create_notification",
         AsyncMock(),

@@ -44,7 +44,6 @@ def _session(request: Request) -> AgentStreamSession:
     return cast(
         AgentStreamSession,
         SimpleNamespace(
-            request=SimpleNamespace(multiplexed=False),
             http_request=request,
             collector=SimpleNamespace(has_subscribers=False),
             params=SimpleNamespace(message_id="msg-1"),

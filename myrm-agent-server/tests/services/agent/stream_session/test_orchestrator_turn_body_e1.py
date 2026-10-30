@@ -115,10 +115,10 @@ async def _start_turn_blocked_in_setup(
     """Launch a real background turn and hold it at its first setup await (persisting the user message)."""
     request = MagicMock()
     request.message_id = message_id
-    request.multiplexed = True
     request.chat_id = None
     request.agent_id = None
     buffer = MagicMock()
+    buffer.subscribe = MagicMock(return_value=iter(()))
     buffer.append = AsyncMock()
     buffer.end_stream = AsyncMock()
 

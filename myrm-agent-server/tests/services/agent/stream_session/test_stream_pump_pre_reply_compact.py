@@ -10,7 +10,6 @@ from app.services.agent.stream_session.stream_pump import pump_to_buffer
 from app.services.chat.compact_service import CompactResult
 
 _PUMP_STREAM_PATH = "app.services.agent.stream_session.stream_pump.generate_cancellable_stream"
-_MUX_PATH = "app.services.agent.streaming_support.multiplexer.WorkspaceMultiplexer"
 
 
 async def _empty_stream():
@@ -40,11 +39,7 @@ async def test_pump_emits_context_compaction_when_pre_reply_compact_succeeded() 
     buffer.append = AsyncMock()
     buffer.end_stream = AsyncMock()
 
-    with (
-        patch(_PUMP_STREAM_PATH, return_value=_empty_stream()),
-        patch(_MUX_PATH) as mock_mux,
-    ):
-        mock_mux.get.return_value.publish = AsyncMock()
+    with patch(_PUMP_STREAM_PATH, return_value=_empty_stream()):
         await pump_to_buffer(session, buffer)
 
     first_chunk = buffer.append.await_args_list[0].args[0]
@@ -70,11 +65,7 @@ async def test_pump_skips_context_compaction_when_pre_reply_compact_skipped() ->
     buffer.append = AsyncMock()
     buffer.end_stream = AsyncMock()
 
-    with (
-        patch(_PUMP_STREAM_PATH, return_value=_empty_stream()),
-        patch(_MUX_PATH) as mock_mux,
-    ):
-        mock_mux.get.return_value.publish = AsyncMock()
+    with patch(_PUMP_STREAM_PATH, return_value=_empty_stream()):
         await pump_to_buffer(session, buffer)
 
     for call in buffer.append.await_args_list:
@@ -103,11 +94,7 @@ async def test_pump_skips_duplicate_sse_when_already_sent() -> None:
     buffer.append = AsyncMock()
     buffer.end_stream = AsyncMock()
 
-    with (
-        patch(_PUMP_STREAM_PATH, return_value=_empty_stream()),
-        patch(_MUX_PATH) as mock_mux,
-    ):
-        mock_mux.get.return_value.publish = AsyncMock()
+    with patch(_PUMP_STREAM_PATH, return_value=_empty_stream()):
         await pump_to_buffer(session, buffer)
 
     for call in buffer.append.await_args_list:

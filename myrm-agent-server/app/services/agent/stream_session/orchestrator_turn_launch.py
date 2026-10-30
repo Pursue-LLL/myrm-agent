@@ -7,7 +7,7 @@
 - app.services.agent.stream_session.session_reservation::release_unstreamed_reservation (POS: clears a reservation the stream never took over)
 
 [OUTPUT]
-- launch_early_buffered_stream: start the turn task, hand the reservation to the stream, return the SSE response or the multiplexed accepted JSON
+- launch_early_buffered_stream: start the turn task, hand the reservation to the stream, return the SSE response
 
 [POS]
 E1 accept phase: the HTTP response leaves here while setup (persist, pre-reply compact, params) still runs in the background task.
@@ -21,7 +21,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from fastapi import Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.stream_session.orchestrator_turn_body import (
@@ -52,8 +52,8 @@ async def launch_early_buffered_stream(
     buffer: ResilientStreamBuffer,
     session_reservation: ChatSessionReservation,
     record_terminal_failure: Callable[[TurnCapabilityFailureReason], Awaitable[None]],
-) -> StreamingResponse | JSONResponse:
-    """Start turn execution in background and return stream or multiplexed accepted JSON."""
+) -> StreamingResponse:
+    """Start turn execution in background and return the SSE response that streams it."""
 
     async def _background_turn() -> None:
         chat_id_token = None
@@ -124,10 +124,6 @@ async def launch_early_buffered_stream(
     )
     task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() is not None else None)
     session_reservation.transfer_to_stream()
-    if getattr(request, "multiplexed", False):
-        return JSONResponse(
-            content={"status": "accepted", "message_id": request.message_id},
-        )
     return StreamingResponse(
         content=buffer.subscribe(),
         media_type="text/event-stream",

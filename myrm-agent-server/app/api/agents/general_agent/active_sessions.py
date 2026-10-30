@@ -21,11 +21,10 @@ async def attach_to_chat(
     request: Request,
     multiplexed: bool = False,
 ) -> StreamingResponse | JSONResponse:
-    """Attach to an ongoing agent chat session via SSE or fetch snapshot.
+    """Attach to an ongoing agent chat session via SSE or fetch its snapshot.
 
-    If multiplexed=True, returns a JSONResponse containing the catchup_snapshot
-    instead of opening an SSE stream. This is used by the frontend ConnectionManager
-    to recover lost data after a network drop without breaking the multiplexed stream.
+    If multiplexed=True, returns a JSONResponse containing the catchup_snapshot instead of
+    opening an SSE stream, so a client can refresh many chats without holding a connection per chat.
     """
     from app.remote_access.mobile_gate import require_mobile_pair_chat_access
     from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
@@ -36,7 +35,7 @@ async def attach_to_chat(
         raise HTTPException(status_code=404, detail="No active task found for this chat in memory")
 
     if multiplexed:
-        # For multiplexed recovery, we just need the snapshot, no need to subscribe to the queue
+        # Snapshot only: no subscription to the collector queue is held.
         snapshot = collector.get_snapshot()
         from app.remote_access.e2ee import e2ee_success_response
 

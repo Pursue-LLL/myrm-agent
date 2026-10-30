@@ -1,10 +1,8 @@
 """Architecture test: server product code must not branch on test-only env vars.
 
 Business behaviour is selected by configuration and injected values, not by a pytest/E2E
-switch. Historically `MYRM_E2E_SHPOIB` sat inside the config loader and the agent stream
-entrypoint, which meant the test harness could change production semantics and a real
-capability (an instance that cannot multiplex) was expressed as an E2E flag instead of a
-deployment capability. Both are now modelled explicitly, so this test keeps them out.
+switch: a test harness that can flip production semantics makes the tested build differ from
+the shipped one. A real capability belongs in `DeploymentCapabilities`, not in an E2E flag.
 """
 
 from __future__ import annotations

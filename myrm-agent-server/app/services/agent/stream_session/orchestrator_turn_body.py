@@ -97,7 +97,7 @@ async def execute_agent_turn_after_reserve(
     CancellationRegistry.register(cancel_token)
 
     # Commit the user row before any optional profile/model-window/compact work.
-    # The multiplexed HTTP response is already accepted at this point; API
+    # The HTTP response is already accepted at this point; API
     # observers must see the turn even when stale-context setup is slow.
     persisted_message_id = await chat_history_bootstrap.persist_user_message(
         request,

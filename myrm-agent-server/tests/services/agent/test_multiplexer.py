@@ -1,4 +1,4 @@
-"""Tests for WorkspaceMultiplexer — broadcast, subscribe, and session_status events."""
+"""Tests for WorkspaceMultiplexer — the workspace event bus that carries session status changes to every connected tab."""
 
 from __future__ import annotations
 
@@ -30,36 +30,14 @@ class TestMultiplexerSingleton:
         assert a is not b
 
 
-class TestMultiplexerPublish:
+def _payload(raw: str) -> dict[str, str]:
+    data_line = next(line for line in raw.strip().split("\n") if line.startswith("data: "))
+    return json.loads(data_line[len("data: ") :])
+
+
+class TestMultiplexerDelivery:
     @pytest.mark.asyncio
-    async def test_publish_delivers_to_subscriber(self) -> None:
-        mux = WorkspaceMultiplexer.get()
-
-        received: list[str] = []
-
-        async def consume():
-            async for chunk in mux.subscribe():
-                received.append(chunk)
-                break
-
-        task = asyncio.create_task(consume())
-        await asyncio.sleep(0.01)
-
-        await mux.publish("chat-1", "msg-1", "data: hello")
-
-        await asyncio.wait_for(task, timeout=1.0)
-        assert len(received) == 1
-        assert "multiplex" in received[0]
-
-        lines = received[0].strip().split("\n")
-        data_line = next(line for line in lines if line.startswith("data: "))
-        payload = json.loads(data_line[len("data: ") :])
-        assert payload["chat_id"] == "chat-1"
-        assert payload["message_id"] == "msg-1"
-        assert payload["raw_chunk"] == "data: hello"
-
-    @pytest.mark.asyncio
-    async def test_publish_to_multiple_subscribers(self) -> None:
+    async def test_status_reaches_every_subscriber(self) -> None:
         mux = WorkspaceMultiplexer.get()
 
         results: dict[str, list[str]] = {"a": [], "b": []}
@@ -73,25 +51,23 @@ class TestMultiplexerPublish:
         tb = asyncio.create_task(consume("b"))
         await asyncio.sleep(0.01)
 
-        await mux.publish("c1", "m1", "data: test\n\n")
+        mux.publish_session_status("c1", "generating")
 
         await asyncio.gather(
             asyncio.wait_for(ta, timeout=1.0),
             asyncio.wait_for(tb, timeout=1.0),
         )
-        assert len(results["a"]) == 1
-        assert len(results["b"]) == 1
+        assert [_payload(raw)["chat_id"] for raw in results["a"]] == ["c1"]
+        assert [_payload(raw)["chat_id"] for raw in results["b"]] == ["c1"]
 
-    @pytest.mark.asyncio
-    async def test_no_subscribers_no_error(self) -> None:
-        mux = WorkspaceMultiplexer.get()
-        await mux.publish("c1", "m1", "data: lonely\n\n")
+    def test_no_subscribers_no_error(self) -> None:
+        WorkspaceMultiplexer.get().publish_session_status("c1", "idle")
 
     @pytest.mark.asyncio
     async def test_orphan_buffer_replayed_to_late_subscriber(self) -> None:
         mux = WorkspaceMultiplexer.get()
 
-        await mux.publish("chat-late", "msg-late", 'data: {"type":"tool_approval_request"}\n\n')
+        mux.publish_session_status("chat-late", "awaiting_approval", "general")
 
         received: list[str] = []
 
@@ -100,14 +76,19 @@ class TestMultiplexerPublish:
                 received.append(chunk)
                 break
 
-        task = asyncio.create_task(consume())
-        await asyncio.wait_for(task, timeout=1.0)
+        await asyncio.wait_for(asyncio.create_task(consume()), timeout=1.0)
         assert len(received) == 1
-        data_line = next(line for line in received[0].strip().split("\n") if line.startswith("data: "))
-        payload = json.loads(data_line[len("data: ") :])
-        assert payload["chat_id"] == "chat-late"
-        assert payload["message_id"] == "msg-late"
-        assert "tool_approval_request" in payload["raw_chunk"]
+        assert received[0].startswith("event: session_status\n")
+        assert _payload(received[0]) == {"chat_id": "chat-late", "status": "awaiting_approval", "agent_type": "general"}
+
+    def test_orphan_buffer_is_bounded_and_keeps_the_newest_statuses(self) -> None:
+        mux = WorkspaceMultiplexer.get()
+
+        for index in range(600):
+            mux.publish_session_status(f"chat-{index}", "generating")
+
+        assert len(mux._orphan_buffer) <= 500
+        assert _payload(mux._orphan_buffer[-1])["chat_id"] == "chat-599"
 
 
 class TestMultiplexerSessionStatus:

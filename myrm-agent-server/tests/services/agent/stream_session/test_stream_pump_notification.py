@@ -18,7 +18,6 @@ import pytest
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
 
 _PUMP_STREAM_PATH = "app.services.agent.stream_session.stream_pump.generate_cancellable_stream"
-_MUX_PATH = "app.services.agent.streaming_support.multiplexer.WorkspaceMultiplexer"
 _NOTIF_PATH = "app.services.infra.system_notification.SystemNotificationService.create_notification"
 
 
@@ -36,7 +35,6 @@ def _make_session(
     session.had_fatal_error = False
     session.request.chat_id = chat_id
     session.request.message_id = message_id
-    session.request.multiplexed = False
     session.params.project_id = None
     session.collector = MagicMock()
     session.collector.has_subscribers = False
@@ -60,10 +58,8 @@ async def _run_pump(session: MagicMock, buf: MagicMock, gen):
     """Helper to run pump_to_buffer with patched dependencies."""
     with (
         patch(_PUMP_STREAM_PATH, return_value=gen),
-        patch(_MUX_PATH) as mock_mux,
         patch(_NOTIF_PATH, new_callable=AsyncMock) as mock_notif,
     ):
-        mock_mux.get.return_value.publish = AsyncMock()
         await pump_to_buffer(session, buf)
     return mock_notif
 

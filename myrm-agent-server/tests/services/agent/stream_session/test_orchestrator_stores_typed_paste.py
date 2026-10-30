@@ -136,10 +136,10 @@ async def test_a_text_within_the_limit_of_a_person_is_read_and_stored_as_it_is(
 async def test_the_launched_turn_hands_the_typed_text_to_the_persistence_call(monkeypatch: pytest.MonkeyPatch) -> None:
     request = MagicMock()
     request.message_id = "msg-typed"
-    request.multiplexed = True
     request.chat_id = None
     request.agent_id = None
     buffer = MagicMock()
+    buffer.subscribe = MagicMock(return_value=iter(()))
     buffer.append = AsyncMock()
     buffer.end_stream = AsyncMock()
     persisted: dict[str, object] = {}

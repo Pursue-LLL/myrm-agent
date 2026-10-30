@@ -6,13 +6,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
 from app.services.agent.execution_cache import ExecutionMode
-from app.services.agent.params.models import AgentRequest
 from app.services.agent.runtime_context import (
     SINGLE_TENANT_USER_ID,
     build_agent_runtime_context,
-    prefer_direct_agent_stream,
     resolve_stream_execution_mode,
 )
 
@@ -73,44 +70,6 @@ async def test_build_agent_runtime_context_defaults_roots_on_failure() -> None:
 
     assert ctx["execution_mode"] is ExecutionMode.EPHEMERAL
     assert ctx["disabled_skill_roots"] == []
-
-
-def test_prefer_direct_agent_stream_when_instance_cannot_multiplex(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("MYRM_PRIVATE_BACKEND", "1")
-    _reset_capabilities_cache_for_testing()
-    try:
-        request = AgentRequest(message_id="m1", chat_id="c1", query="hi", multiplexed=True)
-        resolved = prefer_direct_agent_stream(request)
-        assert resolved.multiplexed is False
-    finally:
-        _reset_capabilities_cache_for_testing()
-
-
-def test_prefer_direct_agent_stream_keeps_multiplex_when_supported(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("MYRM_PRIVATE_BACKEND", raising=False)
-    _reset_capabilities_cache_for_testing()
-    try:
-        request = AgentRequest(message_id="m1", chat_id="c1", query="hi", multiplexed=True)
-        resolved = prefer_direct_agent_stream(request)
-        assert resolved.multiplexed is True
-    finally:
-        _reset_capabilities_cache_for_testing()
-
-
-def test_prefer_direct_agent_stream_leaves_direct_request_untouched(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("MYRM_PRIVATE_BACKEND", "1")
-    _reset_capabilities_cache_for_testing()
-    try:
-        request = AgentRequest(message_id="m1", chat_id="c1", query="hi", multiplexed=False)
-        assert prefer_direct_agent_stream(request) is request
-    finally:
-        _reset_capabilities_cache_for_testing()
 
 
 def test_resolve_stream_execution_mode_defaults_pooled(
