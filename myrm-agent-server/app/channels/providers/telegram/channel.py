@@ -303,9 +303,21 @@ class TelegramChannel(
             logger.warning("TelegramChannel: polling started")
 
     async def stop(self) -> None:
-        """Stop the channel, flush pending media groups, and clean up resources."""
+        """Stop the channel, flush pending media groups, and clean up resources.
+
+        The poll loop is released before any network step: a stop that hangs is abandoned by the gateway, and a loop left
+        behind would poll next to the one the restart starts.
+        """
         self._set_connected(False)
         self._status = ChannelStatus.STOPPED
+
+        if self._poll_task:
+            self._poll_task.cancel()
+            try:
+                await self._poll_task
+            except asyncio.CancelledError:
+                pass
+            self._poll_task = None
 
         for draft_key, draft_id in list(self._active_drafts.items()):
             parts = draft_key.split(":draft:", 1)
@@ -326,14 +338,6 @@ class TelegramChannel(
         for buf in pending:
             if buf.messages:
                 await self._emit_inbound(self._merge_group(buf.messages))
-
-        if self._poll_task:
-            self._poll_task.cancel()
-            try:
-                await self._poll_task
-            except asyncio.CancelledError:
-                pass
-            self._poll_task = None
 
         if self.is_webhook_mode:
             await self._cleanup_webhook()

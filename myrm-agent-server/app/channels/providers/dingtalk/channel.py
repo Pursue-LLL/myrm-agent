@@ -152,13 +152,11 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         logger.info("DingTalkChannel: started")
 
     async def stop(self) -> None:
-        for track_id in list(self._streaming_cards.values()):
-            try:
-                await self._api.streaming_update(track_id, "content", "", is_finalize=True)
-            except Exception:
-                logger.debug("Failed to finalize streaming card %s on stop", track_id)
-        self._streaming_cards.clear()
-        self._chat_sender_map.clear()
+        """Release the stream, then finalize open streaming cards.
+
+        The stream task is released before any network step: a stop that hangs is abandoned by the gateway, and a stream
+        left running would keep consuming events next to the one the restart starts.
+        """
         self._set_connected(False)
         self._status = ChannelStatus.STOPPED
         if self._stream_task:
@@ -168,6 +166,13 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
             except asyncio.CancelledError:
                 pass
             self._stream_task = None
+        for track_id in list(self._streaming_cards.values()):
+            try:
+                await self._api.streaming_update(track_id, "content", "", is_finalize=True)
+            except Exception:
+                logger.debug("Failed to finalize streaming card %s on stop", track_id)
+        self._streaming_cards.clear()
+        self._chat_sender_map.clear()
         self._group_conversations.clear()
         await self._api.close()
         logger.info("DingTalkChannel: stopped")

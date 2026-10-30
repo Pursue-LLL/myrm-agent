@@ -236,7 +236,12 @@ class BaseChannel(InboundPipelineMixin, ReplyShortcutsMixin, ProviderHooksMixin,
         self._set_connected(True)
 
     async def stop(self) -> None:
-        """Stop the channel and release resources."""
+        """Stop the channel and release resources.
+
+        Release the channel's own task or connection and leave the status at ``STOPPED`` first, and do the best-effort
+        network cleanup (drafts, streaming cards, commands) last: ``stop_channel`` abandons a stop that outlives its
+        cap, and the steps it had not reached never run.
+        """
         self._set_connected(False)
         self._status = ChannelStatus.STOPPED
 

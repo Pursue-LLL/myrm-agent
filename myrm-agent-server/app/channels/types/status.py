@@ -67,7 +67,10 @@ class ChannelHealth:
     """Mutable health metrics for a channel instance.
 
     Updated by ``BaseChannel.health_check()`` and consumed by
-    ``ChannelGateway._health_loop`` for backoff decisions.
+    ``ChannelGateway._health_loop`` for backoff decisions. A failed check counts once: a channel
+    records its own failure (with the reason) in ``health_check()``, and the gateway records it
+    only when the channel did not. Outbound send failures and Telegram poll failures count on the
+    same counter.
 
     Circuit breaker: after ``_CIRCUIT_BREAKER_THRESHOLD`` consecutive
     send failures, outbound dispatch is paused for ``_CIRCUIT_BREAKER_COOLDOWN``

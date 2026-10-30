@@ -3,7 +3,8 @@
 ``channel.stop()`` may talk to the platform (clear drafts, delete commands, log out), and on a network that drops
 packets each of those calls waits out the client timeout. The gateway stops channels while holding up something
 else (the health loop, a credential save, the shutdown), so the wait is capped and a stop that does not finish is
-abandoned with a warning instead of blocking the caller.
+abandoned with a warning instead of blocking the caller. An abandoned stop ends where it is, so a provider's
+``stop()`` releases its own task or connection first and leaves the network cleanup for last (``BaseChannel.stop``).
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: channel abstract base class)

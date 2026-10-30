@@ -3,7 +3,7 @@
 [INPUT]
 - app.channels.types::ChannelCapabilities, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - app.channels.core.rate_limit::RateLimitConfig (POS: Rate limiting for inbound messages.)
-- app.channels.protocols.route_registrar::HttpMethod, RouteMetadata (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
+- app.channels.protocols.route_registrar::HttpMethod, RouteMetadata, GenericRequest, GenericResponse (POS: Protocol layer for dynamic HTTP route registration. Enables channels to declare their own HTTP endpoints while maintaining framework independence. Business layer implements RouteRegistrar for a specific web framework (e.g. FastAPI via ``myrm-agent-harness[fastapi]``).)
 - app.channels.security::SecurityLimits, (POS: Delegates SSRF logic to agent.security.guards.ssrf_guard (single source of truth). Adds media-specific concerns: max-length filenames, path traversal prevention, extension allowlisting.)
 - app.channels.providers.feishu.inbound::FeishuInboundMixin (POS: webhook / websocket event handling)
 - app.channels.core.reaction_ledger::ReactionLedger (POS: remembers the reaction id added per message so an empty emoji deletes it)
@@ -26,7 +26,8 @@ import hashlib
 import hmac
 import json
 import logging
-from typing import TYPE_CHECKING, Self
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Self, cast
 
 from fastapi import Request
 
@@ -53,11 +54,22 @@ from .reactions import FEISHU_REACTION_GLYPHS
 from .user_resolver import FeishuUserResolver
 
 if TYPE_CHECKING:
+    from app.channels.protocols.route_registrar import GenericRequest, GenericResponse
+
     from .ws_transport import FeishuWSTransport
 
 logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 4000
+
+
+@dataclass(frozen=True, slots=True)
+class _JsonResponse:
+    """Webhook HTTP response implementing the GenericResponse protocol."""
+
+    status_code: int
+    body: bytes
+    headers: dict[str, str] = field(default_factory=dict)
 
 
 class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
@@ -183,16 +195,21 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         )
 
     async def stop(self) -> None:
+        """Release the websocket transport, then finalize open streaming cards.
+
+        The transport is released before any network step: a stop that hangs is abandoned by the gateway, and a
+        connection left open would receive events next to the one the restart opens.
+        """
+        self._set_connected(False)
+        self._status = ChannelStatus.STOPPED
+        if self._ws_transport:
+            await self._ws_transport.stop()
+            self._ws_transport = None
         for msg_id in list(self._streaming_card_ids):
             try:
                 await self._streaming_finalize(msg_id, "")
             except Exception:
                 logger.debug("Failed to finalize streaming for %s on stop", msg_id)
-        if self._ws_transport:
-            await self._ws_transport.stop()
-            self._ws_transport = None
-        self._set_connected(False)
-        self._status = ChannelStatus.STOPPED
         await self._client.close()
 
     async def health_check(self) -> bool:
@@ -388,56 +405,26 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
             protocols=SecurityProtocols(signature_verifier=self),
         )
 
-        async def webhook_handler(request):
+        async def webhook_handler(request: GenericRequest) -> GenericResponse:
             """Handle Feishu webhook events."""
-            import json
-
             try:
-                ctx = await middleware.process_request(request, "feishu")
+                # The registrar hands over an adapter that forwards every FastAPI Request attribute the middleware reads.
+                ctx = await middleware.process_request(cast("Request", request), "feishu")
 
                 if ctx.parsed_data is None:
-
-                    class _ErrorResponse:
-                        status_code = 400
-                        headers = {}
-                        body = b'{"error": "Invalid JSON"}'
-
-                    return _ErrorResponse()
+                    return _JsonResponse(400, b'{"error": "Invalid JSON"}')
 
                 result = await self.handle_webhook_event(ctx.parsed_data)
                 if result is not None:
-
-                    class _JsonResponse:
-                        status_code = 200
-                        headers = {}
-                        body = json.dumps(result).encode("utf-8")
-
-                    return _JsonResponse()
+                    return _JsonResponse(200, json.dumps(result).encode("utf-8"))
 
             except WebhookResponseError as e:
-
-                class _WebhookErrorResponse:
-                    status_code = e.status_code
-                    headers = {}
-                    body = json.dumps(e.to_dict()).encode("utf-8")
-
-                return _WebhookErrorResponse()
+                return _JsonResponse(e.status_code, json.dumps(e.to_dict()).encode("utf-8"))
             except Exception as e:
                 logger.warning("Feishu webhook error: %s", e, exc_info=True)
+                return _JsonResponse(500, json.dumps({"ok": False, "error": "Internal error"}).encode("utf-8"))
 
-                class _InternalErrorResponse:
-                    status_code = 500
-                    headers = {}
-                    body = json.dumps({"ok": False, "error": "Internal error"}).encode("utf-8")
-
-                return _InternalErrorResponse()
-
-            class _SuccessResponse:
-                status_code = 200
-                headers = {}
-                body = b'{"ok": true}'
-
-            return _SuccessResponse()
+            return _JsonResponse(200, b'{"ok": true}')
 
         registrar.add_route(
             method=HttpMethod.POST,
