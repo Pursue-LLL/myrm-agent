@@ -18,7 +18,6 @@ from app.services.skills.growth.case_types import (
     SkillGrowthCaseDetailRead,
     SkillGrowthCaseStatus,
     SkillGrowthCaseSummaryRead,
-    SkillGrowthFormMetadataRead,
 )
 from app.services.skills.growth.queries import (
     detail_to_summary,
@@ -28,11 +27,6 @@ from app.services.skills.growth.queries import (
 )
 
 router = APIRouter(prefix="/skill-growth", tags=["skill-growth"])
-
-
-class SkillGrowthFormMetadataResponse(BaseModel):
-    schedule_hint: str | None = None
-    form_reasoning: str | None = None
 
 
 class SkillGrowthCaseSummaryResponse(BaseModel):
@@ -52,7 +46,6 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     remediation: str | None = None
     runtime_failure: dict[str, object] | None = None
     chat_id: str | None = None
-    form_metadata: SkillGrowthFormMetadataResponse | None = None
     has_diff: bool = False
     has_trajectory: bool = False
     has_trigger_condition: bool = False
@@ -127,17 +120,6 @@ class SkillGrowthAuditStatsResponse(BaseModel):
     time_range_days: int
 
 
-def _form_metadata_response(
-    metadata: SkillGrowthFormMetadataRead | None,
-) -> SkillGrowthFormMetadataResponse | None:
-    if metadata is None:
-        return None
-    return SkillGrowthFormMetadataResponse(
-        schedule_hint=metadata.schedule_hint,
-        form_reasoning=metadata.form_reasoning,
-    )
-
-
 def _dependents_for(dependents_map: dict[str, list[str]], skill_id: str | None) -> list[str] | None:
     return dependents_map.get(skill_id) if skill_id else None
 
@@ -163,7 +145,6 @@ def _summary_response(
         remediation=item.remediation,
         runtime_failure=(item.runtime_failure.model_dump(mode="json") if item.runtime_failure is not None else None),
         chat_id=item.chat_id,
-        form_metadata=_form_metadata_response(item.form_metadata),
         has_diff=item.has_diff,
         has_trajectory=item.has_trajectory,
         has_trigger_condition=item.has_trigger_condition,

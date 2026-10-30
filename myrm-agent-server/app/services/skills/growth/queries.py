@@ -31,7 +31,6 @@ from .case_types import (
     SkillGrowthCaseSource,
     SkillGrowthCaseStatus,
     SkillGrowthCaseSummaryRead,
-    SkillGrowthFormMetadataRead,
 )
 
 _GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
@@ -63,17 +62,6 @@ def _float_value(value: object) -> float | None:
     if isinstance(value, bool):
         return None
     return float(value) if isinstance(value, int | float) else None
-
-
-def _form_metadata(payload: dict[str, object]) -> SkillGrowthFormMetadataRead | None:
-    raw = payload.get("form_metadata")
-    if not isinstance(raw, dict):
-        return None
-    schedule_hint = _text(raw.get("schedule_hint"))
-    form_reasoning = _text(raw.get("form_reasoning"))
-    if schedule_hint is None and form_reasoning is None:
-        return None
-    return SkillGrowthFormMetadataRead(schedule_hint=schedule_hint, form_reasoning=form_reasoning)
 
 
 def _approval_growth_status(record: ApprovalRecord) -> SkillGrowthCaseStatus:
@@ -131,7 +119,6 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         runtime_failure=None,
         trajectory=None,
         chat_id=record.chat_id,
-        form_metadata=_form_metadata(payload),
         created_at=record.created_at,
         verification_proof=verification_proof,
         target_layer=target_layer,
@@ -170,7 +157,6 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         runtime_failure=record.runtime_failure,
         trajectory=record.trajectory,
         chat_id=record.chat_id,
-        form_metadata=None,
         created_at=record.created_at,
         verification_proof=(verification_proof if isinstance(verification_proof, dict) else None),
         target_layer=target_layer,
@@ -197,7 +183,6 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         remediation=detail.remediation,
         runtime_failure=detail.runtime_failure,
         chat_id=detail.chat_id,
-        form_metadata=detail.form_metadata,
         has_diff=bool(detail.proposed_content),
         has_trajectory=bool(detail.trajectory),
         has_trigger_condition=bool(detail.trigger_condition),

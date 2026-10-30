@@ -36,12 +36,6 @@ class SkillGrowthCaseStatus(StrEnum):
 
 
 @dataclass(slots=True)
-class SkillGrowthFormMetadataRead:
-    schedule_hint: str | None = None
-    form_reasoning: str | None = None
-
-
-@dataclass(slots=True)
 class SkillGrowthCaseSummaryRead:
     id: str
     source: SkillGrowthCaseSource
@@ -59,7 +53,6 @@ class SkillGrowthCaseSummaryRead:
     remediation: str | None
     runtime_failure: RuntimeFailureEvidence | None
     chat_id: str | None
-    form_metadata: SkillGrowthFormMetadataRead | None
     has_diff: bool
     has_trajectory: bool
     has_trigger_condition: bool
@@ -94,7 +87,6 @@ class SkillGrowthCaseDetailRead:
     runtime_failure: RuntimeFailureEvidence | None
     trajectory: str | None
     chat_id: str | None
-    form_metadata: SkillGrowthFormMetadataRead | None
     created_at: datetime
     verification_proof: dict[str, object] | None = None
     target_layer: str | None = None

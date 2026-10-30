@@ -333,8 +333,6 @@ class EvolutionProposal:
     agent_id: str | None = None
     edit_summary: dict[str, Any] | None = None  # {preserved_sections, changed_sections, notes}
     updated_eval_cases: list[dict[str, Any]] | None = None
-    recommended_form: str = "skill"  # "skill" | "cron_job" | "skip"
-    form_metadata: dict[str, Any] | None = None  # {schedule_hint, form_reasoning}
     verification_proof: VerificationProof | None = None
     target_layer: EvolutionLayer = EvolutionLayer.PROMPT
     target_pathology: FailurePathology = FailurePathology.UNHANDLED_EXCEPTION
@@ -359,8 +357,6 @@ class EvolutionProposal:
             "agent_id": self.agent_id,
             "edit_summary": self.edit_summary,
             "updated_eval_cases": self.updated_eval_cases,
-            "recommended_form": self.recommended_form,
-            "form_metadata": self.form_metadata,
             "verification_proof": (self.verification_proof.to_dict() if self.verification_proof else None),
             "target_layer": self.target_layer.value,
             "target_pathology": self.target_pathology.value,
