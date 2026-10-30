@@ -18,12 +18,13 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 - telegram.topics::TelegramTopicsMixin (POS: Telegram Forum Topic lifecycle helpers.)
 - telegram.hooks::TelegramHooksMixin (POS: Telegram pre-emit hook mixin.)
 - telegram.webhook::TelegramWebhookMixin (POS: Telegram webhook verification and route registration.)
+- telegram.diagnostics::TelegramDiagnosticsMixin (POS: Telegram configuration and runtime diagnostics.)
 
 [OUTPUT]
 - TelegramChannel: Telegram Bot bidirectional Channel (polling + webhook)
 
 [POS]
-Telegram Bot channel implementation. Composes inbound (dispatch, message parsing, polling)/outbound/topics/hooks/webhook mixins
+Telegram Bot channel implementation. Composes inbound (dispatch, message parsing, polling)/outbound/topics/hooks/webhook/diagnostics mixins
 for DM and group chat, media group debounce, webhook/polling dual mode, inline keyboard
 rendering, Markdown -> HTML conversion, message splitting, command registration, /agent
 inline picker (agent switching via Inline Keyboard), diagnostics,
@@ -49,10 +50,7 @@ from app.channels.providers.telegram.notification import NotificationKwargs, not
 from app.channels.reliability.retry import RetryConfig
 from app.channels.types import (
     ChannelCapabilities,
-    ChannelIssue,
     ChannelStatus,
-    IssueKind,
-    IssueSeverity,
     OutboundMessage,
     ReasoningDisplay,
     RenderStyle,
@@ -66,6 +64,7 @@ from app.channels.types.notification import (
 from .api import TelegramClient
 from .api_core import TelegramApiError
 from .constants import TELEGRAM_REACTION_EMOJI
+from .diagnostics import TelegramDiagnosticsMixin
 from .helpers import (
     MAX_TEXT_LENGTH,
     BotCommand,
@@ -92,6 +91,7 @@ class TelegramChannel(
     TelegramTopicsMixin,
     TelegramHooksMixin,
     TelegramWebhookMixin,
+    TelegramDiagnosticsMixin,
     BaseChannel,
 ):
     """Telegram Bot channel with long-polling/webhook and message sending.
@@ -357,65 +357,6 @@ class TelegramChannel(
         except Exception as exc:
             self.health.record_failure(self._redact(str(exc)))
             return False
-
-    def collect_issues(self) -> list[ChannelIssue]:
-        """Diagnostics for Telegram channel configuration and runtime health."""
-        issues: list[ChannelIssue] = []
-        if not self._token:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.ERROR,
-                    message="No bot token configured.",
-                    fix="Set TELEGRAM_BOT_TOKEN environment variable or configure in Settings → Channels → Telegram.",
-                )
-            )
-            return issues
-        if self._webhook_url and not self._webhook_url.startswith("https://"):
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.CONFIG,
-                    severity=IssueSeverity.WARNING,
-                    message="Webhook URL must use HTTPS. Telegram rejects non-HTTPS URLs.",
-                    fix="Update TELEGRAM_WEBHOOK_URL to use https://.",
-                )
-            )
-        if self._status == ChannelStatus.ERROR and not self.health.last_error:
-            # A failed start records no health error; when one exists, the runtime issue below names the cause.
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.RUNTIME,
-                    severity=IssueSeverity.ERROR,
-                    message="Channel in ERROR state; check credentials and network",
-                )
-            )
-        if self._status == ChannelStatus.DEGRADED:
-            if self.is_webhook_mode:
-                issues.append(
-                    ChannelIssue(
-                        kind=IssueKind.CONFIG,
-                        severity=IssueSeverity.WARNING,
-                        message="Webhook setup failed. Channel running in degraded mode.",
-                        fix="Check TELEGRAM_WEBHOOK_URL is reachable and retry, or switch to polling mode.",
-                    )
-                )
-            else:
-                issues.append(
-                    ChannelIssue(
-                        kind=IssueKind.RUNTIME,
-                        severity=IssueSeverity.WARNING,
-                        message="Channel running in degraded mode: polling keeps failing.",
-                    )
-                )
-        if self.health.last_error:
-            issues.append(
-                ChannelIssue(
-                    kind=IssueKind.RUNTIME,
-                    severity=IssueSeverity.ERROR,
-                    message=self._redact(self.health.last_error),
-                )
-            )
-        return issues
 
     async def download_voice_message(self, file_id: str) -> Path | None:
         """Download a Telegram voice/audio file via getFile API to a local temp path."""

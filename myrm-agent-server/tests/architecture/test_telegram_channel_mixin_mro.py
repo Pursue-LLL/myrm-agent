@@ -1,4 +1,4 @@
-"""Architecture test: TelegramChannel mixin MRO must route _pre_emit_hook to hooks."""
+"""Architecture test: TelegramChannel mixin MRO must route _pre_emit_hook to hooks and collect_issues to diagnostics."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.channels.providers.telegram.channel import TelegramChannel
+from app.channels.providers.telegram.diagnostics import TelegramDiagnosticsMixin
 from app.channels.providers.telegram.hooks import TelegramHooksMixin
 from app.channels.providers.telegram.inbound import TelegramInboundMixin
 from app.channels.providers.telegram.inbound_message import TelegramMessageParserMixin
@@ -24,6 +25,13 @@ def test_telegram_pre_emit_hook_resolves_to_hooks_mixin() -> None:
     """Inbound must not shadow agent-command interception on TelegramChannel."""
     owner = next(cls for cls in TelegramChannel.__mro__ if "_pre_emit_hook" in cls.__dict__)
     assert owner is TelegramHooksMixin
+
+
+@pytest.mark.architecture
+def test_telegram_collect_issues_resolves_to_diagnostics_mixin() -> None:
+    """BaseChannel's generic collect_issues must not shadow the Telegram diagnostics."""
+    owner = next(cls for cls in TelegramChannel.__mro__ if "collect_issues" in cls.__dict__)
+    assert owner is TelegramDiagnosticsMixin
 
 
 @pytest.mark.architecture
