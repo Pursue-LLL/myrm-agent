@@ -69,8 +69,8 @@ ProgressSteps.tsx  ← UI 渲染
 # _tool_helpers.format_tool_error() 的核心逻辑（tool_interceptor_middleware 的 execute_with_retry 捕获后调用）：
 format_fn = getattr(e, "format_for_llm", None)
 if callable(format_fn):
-    return format_fn()           # 优先使用结构化格式
-content = f"{tool_name} execution failed: {e}"   # fallback
+    return format_fn()  # 优先使用结构化格式
+content = f"{tool_name} execution failed: {e}"  # fallback
 ```
 
 ### 实现了 `format_for_llm()` 的异常
@@ -428,11 +428,11 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 ```python
 @dataclass(frozen=True)
 class DiagnosticResult:
-    error_type: str                   # 错误类型（如 "rate_limit"）
-    user_message: str                 # 本地化用户消息
-    resolution_steps: list[str]       # 恢复步骤建议
-    is_retryable: bool                # 是否可重试
-    locale: str                       # 已解析语言（en/zh-CN/ja/ko/de）
+    error_type: str  # 错误类型（如 "rate_limit"）
+    user_message: str  # 本地化用户消息
+    resolution_steps: list[str]  # 恢复步骤建议
+    is_retryable: bool  # 是否可重试
+    locale: str  # 已解析语言（en/zh-CN/ja/ko/de）
 ```
 
 ### 前端错误处理
