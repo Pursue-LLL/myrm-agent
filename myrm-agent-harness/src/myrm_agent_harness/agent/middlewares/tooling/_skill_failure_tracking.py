@@ -9,6 +9,7 @@ Counting never deactivates or repairs a skill by itself.
 
 [INPUT]
 - agent.errors.tool_error_category::ToolErrorCategory (POS: Canonical tool error categories for structured error classification.)
+- agent.event_log::sanitize_event_data (POS: The redaction every event payload passes before it is written; applied again to the events and the tool names a prompt is built from.)
 - agent.skill_agent (POS: loaded skills + task intent queries)
 - runtime.events (POS: SkillFailureCandidate, SkillFailureEvent, event bus)
 - backends.skills.usage_recorder (POS: run-scoped skill usage ledger)
@@ -30,6 +31,7 @@ import re
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
+from myrm_agent_harness.agent.event_log import sanitize_event_data
 from myrm_agent_harness.agent.middlewares._session_context import (
     get_approval_session,
 )
@@ -40,7 +42,9 @@ if TYPE_CHECKING:
 
 logger = get_agent_logger(__name__)
 
+# An opaque run of 32+ characters: a key with no label or known prefix, or an id that would make two errors differ.
 _SECRETISH_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_./+=:-]{32,}")
+_ERROR_MESSAGE_CHARS = 1000
 
 NON_SKILL_FAILURE_CATEGORIES: frozenset[str] = frozenset(
     {
@@ -203,9 +207,16 @@ def _publish_skill_failure_event(
 
 
 def _sanitize_error_message(error_message: str) -> str:
+    """The last three lines of an error, masked for the event bus: the evolution prompt is built from them.
+
+    Opaque long strings go first, whole: the shared redaction knows only labelled or known-format secrets. It then masks
+    what the long-string rule cannot see (``api_key=...``, ``Bearer ...``, connection strings, cookies). The cut comes
+    last, so it cannot leave half a secret that no rule recognises.
+    """
     lines = [line.strip() for line in error_message.splitlines() if line.strip()]
     compact = " | ".join(lines[-3:]) if lines else error_message.strip()
-    return _SECRETISH_TOKEN_PATTERN.sub("<redacted>", compact)[:1000]
+    masked = _SECRETISH_TOKEN_PATTERN.sub("<redacted>", compact)
+    return str(sanitize_event_data({"error": masked}).get("error", ""))[:_ERROR_MESSAGE_CHARS]
 
 
 def _error_signature(tool_name: str, error_message: str) -> str:
