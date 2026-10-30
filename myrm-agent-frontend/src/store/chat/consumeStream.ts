@@ -6,7 +6,7 @@
  * ./streamErrors (POS: busy / risk-blocked / interrupted 错误分类)
  *
  * [OUTPUT]
- * consumeStream: 读取一个 SSE Response（POST 响应体或 multiplex 桥）→ 解密 e2ee 帧 → 校验 → reducer；busy 帧在 reducer 之前抛 AgentBusyError，reducer 抛出的 RiskBlockedError（服务端风控拦下）原样上抛，首帧之后读取失败抛 StreamInterruptedError；回合被中止时立即以 AbortError 结束（取消 reader 唤醒挂起的读取，不触发 watchdog 自愈）
+ * consumeStream: 读取一个 SSE Response（agent-stream POST 响应体或 attach 响应）→ 解密 e2ee 帧 → 校验 → reducer；busy 帧在 reducer 之前抛 AgentBusyError，reducer 抛出的 RiskBlockedError（服务端风控拦下）原样上抛，首帧之后读取失败抛 StreamInterruptedError；回合被中止时立即以 AbortError 结束（取消 reader 唤醒挂起的读取，不触发 watchdog 自愈）
  *
  * [POS]
  * 单段 SSE 消费循环（跳过心跳帧、喂养 watchdog、流结束清理调度器）；重试与 attach 编排由 streamConsumer 负责。
@@ -103,8 +103,8 @@ export async function consumeStream(
     },
   });
 
-  // A stop must wake a read that waits for the next chunk: once the multiplex bridge is disposed it neither closes
-  // nor errors by itself, and the watchdog would heal the shared turn state seconds later instead.
+  // A stop must wake a read that waits for the next chunk; otherwise the watchdog would heal the shared turn state
+  // seconds later instead.
   const cancelReaderOnAbort = (): void => {
     reader.cancel().catch(() => undefined);
   };

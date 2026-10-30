@@ -245,7 +245,7 @@ const useWorkspaceStore = create<WorkspaceState>()(
   })),
 );
 
-// Global lifecycle listeners for sleep/wake, network reconnect, and multiplex resume
+// Global lifecycle listeners for sleep/wake, network reconnect, and workspace stream reconnect
 if (typeof window !== 'undefined') {
   let wakeSyncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -260,7 +260,7 @@ if (typeof window !== 'undefined') {
     }, 300);
   };
 
-  window.addEventListener('multiplex_reconnected', triggerWakeResumeSync);
+  window.addEventListener('myrm_workspace_stream_reconnected', triggerWakeResumeSync);
   window.addEventListener('online', triggerWakeResumeSync);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {

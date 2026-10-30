@@ -9,7 +9,7 @@
  * executeStreamWithRetry: 网络重试、AgentBusyError / ApprovalAlreadyResolvedError（resume 命中已被他人处理的中断，HTTP 409：超时或另一设备，服务端不区分）fail-fast、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出）；回合正文只从 POST 响应体（SSE）读取；turn 成功后 finalizeAgentStreamTurn
  *
  * [POS]
- * Chat agent-stream 前端回合编排 SSOT。busy 检测：SSE error_type=AgentBusyError（HTTP 200）；resume 收到 HTTP 409 表示该中断已被他人处理（`ApprovalAlreadyResolvedError`，可能是超时也可能是另一设备），非 resume 的 409 按普通拒绝处理；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；回合正文一律从 POST 响应体读取（multiplex 传输已移除），非 SSE 响应按协议错误拒绝。
+ * Chat agent-stream 前端回合编排 SSOT。busy 检测：SSE error_type=AgentBusyError（HTTP 200）；resume 收到 HTTP 409 表示该中断已被他人处理（`ApprovalAlreadyResolvedError`，可能是超时也可能是另一设备），非 resume 的 409 按普通拒绝处理；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；回合正文一律从 POST 响应体读取，非 SSE 响应按协议错误拒绝。
  */
 import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';

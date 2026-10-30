@@ -238,7 +238,6 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
 _DIAG_SNAPSHOT_JS = """(() => ({
   sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
   workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-  multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
   directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
   tools: window.__MYRM_E2E_CHAT__?.getCurrentBuiltinTools?.() ?? [],
   turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
@@ -310,18 +309,10 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
           streamMessageId = probe.trim();
         }}
       }}
-      const muxMessageId = window.__MYRM_MULTIPLEX_STATS__?.()?.lastMessageId ?? null;
       const allSseEvents = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
       let sseEvents = streamMessageId
         ? (window.__MYRM_E2E_CHAT__?.sseSnapshot?.(streamMessageId) ?? [])
         : allSseEvents;
-      if (!sseEvents.includes('capability_gap') && typeof muxMessageId === 'string' && muxMessageId.trim()) {{
-        const muxSse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.(muxMessageId.trim()) ?? [];
-        if (muxSse.includes('capability_gap')) {{
-          sseEvents = muxSse;
-          streamMessageId = muxMessageId.trim();
-        }}
-      }}
       if (!sseEvents.includes('capability_gap') && allSseEvents.includes('capability_gap')) {{
         sseEvents = allSseEvents;
       }}
@@ -353,7 +344,6 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
         allSseEvents,
         toolNames,
         streamMessageId: streamMessageId ?? null,
-        muxMessageId: typeof muxMessageId === 'string' ? muxMessageId : null,
       }};
     }})()"""
 
@@ -524,7 +514,6 @@ async def _send_and_collect_gap_while_streaming(
           sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.({json.dumps(stream_message_id)}) ?? [],
           allSse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
           workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-          multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
           directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
           tools: window.__MYRM_E2E_CHAT__?.getCurrentBuiltinTools?.() ?? [],
           turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,

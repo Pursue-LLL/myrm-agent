@@ -481,7 +481,6 @@ async def _wait_for_shell_approval_ui(
                           sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
                           attach: window.__MYRM_E2E_ATTACH_DIAG__ ?? null,
                           workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-                          multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
                         }))()""",
                         intent=EvaluateIntent.SYNC_PROBE,
                     )

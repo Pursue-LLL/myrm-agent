@@ -138,7 +138,6 @@ _E2E_DIAG_JS = """(() => {
     runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
     directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
     workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-    multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
     loading: Boolean(store?.loading || store?.streaming || false),
     chatId: store?.chatId ?? null,
     msg_count: msgs.length,

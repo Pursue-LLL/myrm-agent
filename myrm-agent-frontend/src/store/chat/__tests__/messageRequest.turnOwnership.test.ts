@@ -60,7 +60,7 @@ const MESSAGE_END = 'data: {"type":"message_end","messageId":"a-1"}\n\n';
 const requests: AbortController[] = [];
 
 const store = () => useChatStore.getState();
-/** Sends through the direct (non-multiplexed) transport, which the request assembly reads from this flag. */
+/** Sends a turn with the E2E direct-SSE flag set, as the E2E harness does. */
 const send = (input: string) => {
   window.__MYRM_E2E_DIRECT_SSE__ = true;
   return store().sendMessage(input);

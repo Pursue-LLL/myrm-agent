@@ -320,14 +320,14 @@ describe('streamConsumer resilience paths', () => {
   });
 
   it('throws AgentBusyError when the direct SSE body carries a busy envelope', async () => {
-    const state = createBaseState({ chatId: 'chat-multiplex-busy', actionMode: 'agent' });
+    const state = createBaseState({ chatId: 'chat-busy-body', actionMode: 'agent' });
     const actions = createActions(state);
     const abortController = new AbortController();
     const busyEvent = {
       type: 'error',
       error_type: 'AgentBusyError',
       status_code: 409,
-      messageId: 'msg-multiplex-busy',
+      messageId: 'msg-busy-body',
       data: 'Agent is busy processing another request for this session.',
     };
     mockResolveE2eApiBase.mockReturnValue(null);
@@ -335,7 +335,7 @@ describe('streamConsumer resilience paths', () => {
     mockParseSseEnvelope.mockReturnValue(busyEvent);
 
     await expect(
-      executeStreamWithRetry('hello', 'msg-multiplex-busy', state, actions, null, abortController, false, ''),
+      executeStreamWithRetry('hello', 'msg-busy-body', state, actions, null, abortController, false, ''),
     ).rejects.toBeInstanceOf(AgentBusyError);
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();

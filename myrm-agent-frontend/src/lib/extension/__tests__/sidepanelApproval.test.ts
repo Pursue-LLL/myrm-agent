@@ -401,7 +401,6 @@ describe('resume request', () => {
       query: 'hi',
       action_mode: 'agent',
       agent_config: { enabled_builtin_tools: ['web_search', 'memory'] },
-      multiplexed: false,
       timezone: 'UTC',
       timestamp: 1,
     });

@@ -365,6 +365,49 @@ describe('messageRequest - security preset contract', () => {
   });
 });
 
+describe('messageRequest - turn transport contract', () => {
+  it('answers a turn on the POST response body: the request carries no transport switch', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+    const state = {
+      chatId: 'chat-transport',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest('plain turn', 'msg-transport', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({ message_id: 'msg-transport', action_mode: 'agent' });
+    expect(requestBody).not.toHaveProperty('multiplexed');
+  });
+});
+
 describe('messageRequest - memory settings contract', () => {
   it('includes enable_conversation_search when memory opt-in is enabled', async () => {
     const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;

@@ -8,7 +8,7 @@ interface Window {
   __MYRM_TRACE_ID__?: string;
   /** Chrome E2E SHPOIB: private backend API base injected before chat automation. */
   __MYRM_E2E_API_BASE__?: string;
-  /** SHPOIB Chrome E2E: force POST agent-stream direct SSE (skip workspace multiplex). */
+  /** Chrome E2E: skip the bridge's wait for the workspace stream before a send, and attach after a turn to recover pending approvals. */
   __MYRM_E2E_DIRECT_SSE__?: boolean;
   /** Chrome E2E: block outbound ConfigSync for searchServices (gap toast tests). */
   __MYRM_E2E_BLOCK_SEARCH_SYNC__?: boolean;

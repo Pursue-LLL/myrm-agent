@@ -218,13 +218,6 @@ _WAIT_TOOLS_PANEL_READY_JS = """(async () => {
         sseTypes = filtered;
       }
     }
-    const muxMessageId = window.__MYRM_MULTIPLEX_STATS__?.()?.lastMessageId ?? null;
-    if (!sseTypes.includes('tools_snapshot') && typeof muxMessageId === 'string' && muxMessageId.trim()) {
-      const muxSse = bridge?.sseSnapshot?.(muxMessageId.trim()) ?? [];
-      if (muxSse.includes('tools_snapshot')) {
-        sseTypes = muxSse;
-      }
-    }
     if (!sseTypes.includes('tools_snapshot') && allSse.includes('tools_snapshot')) {
       sseTypes = allSse;
     }
@@ -246,7 +239,6 @@ _WAIT_TOOLS_PANEL_READY_JS = """(async () => {
       sseTypes: sseTypes.slice(0, 12),
       allSseTypes: allSse.slice(0, 12),
       streamMessageId,
-      muxMessageId: typeof muxMessageId === 'string' ? muxMessageId : null,
       directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
       turn: bridge?.turnSnapshot?.() ?? null,
     };

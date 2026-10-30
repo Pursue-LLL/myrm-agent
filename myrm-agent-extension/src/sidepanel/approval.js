@@ -295,7 +295,6 @@ export function buildStreamBody({ messageId, chatId, query, resumeValue, timezon
     query,
     action_mode: "agent",
     agent_config: { enabled_builtin_tools: PANEL_BUILTIN_TOOLS },
-    multiplexed: false,
     timezone,
     timestamp,
     ...(resumeValue && { resume_value: resumeValue }),

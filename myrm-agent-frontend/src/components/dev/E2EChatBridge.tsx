@@ -357,7 +357,6 @@ function buildSendTurnDiagnostic(chatId: string | null): Record<string, unknown>
     turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
     provider: window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null,
     workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-    multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
     chatId,
     processingIds,
     approvalQueueLen: useToolApprovalStore.getState().queue.length,
@@ -489,7 +488,7 @@ async function submitAndObserveTurn(
     const e2eApiBase = resolveE2eApiBase();
     if (e2eApiBase) {
       const win = window as unknown as Record<string, unknown>;
-      // Dual-Plane gap chrome_e2e tests pin false before send to capture SSE via mux.
+      // Gap chrome_e2e tests pin false so the bridge waits for the workspace stream before it sends.
       if (win.__MYRM_E2E_DIRECT_SSE__ !== false) {
         win.__MYRM_E2E_DIRECT_SSE__ = true;
       }

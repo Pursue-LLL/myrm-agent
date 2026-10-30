@@ -88,7 +88,7 @@ describe('useGoalPlanSync', () => {
     expect(usePlanStore.getState().plan).toBeNull();
   });
 
-  it('clears active plan on multiplex_reconnected when not loading', () => {
+  it('clears active plan on myrm_workspace_stream_reconnected when not loading', () => {
     renderHook(() => useGoalPlanSync('chat-1'));
 
     act(() => {
@@ -96,13 +96,13 @@ describe('useGoalPlanSync', () => {
     });
 
     act(() => {
-      window.dispatchEvent(new CustomEvent('multiplex_reconnected'));
+      window.dispatchEvent(new CustomEvent('myrm_workspace_stream_reconnected'));
     });
 
     expect(usePlanStore.getState().plan).toBeNull();
   });
 
-  it('does NOT clear active plan on multiplex_reconnected when loading', async () => {
+  it('does NOT clear active plan on myrm_workspace_stream_reconnected when loading', async () => {
     const useChatStore = await import('@/store/useChatStore');
     (useChatStore.default.getState as ReturnType<typeof vi.fn>).mockReturnValue({ loading: true });
 
@@ -113,7 +113,7 @@ describe('useGoalPlanSync', () => {
     });
 
     act(() => {
-      window.dispatchEvent(new CustomEvent('multiplex_reconnected'));
+      window.dispatchEvent(new CustomEvent('myrm_workspace_stream_reconnected'));
     });
 
     expect(usePlanStore.getState().plan).not.toBeNull();
@@ -250,7 +250,7 @@ describe('useGoalPlanSync', () => {
 
     const removedEvents = removeSpy.mock.calls.map((c) => c[0]);
     expect(removedEvents).toContain('tasks_steps');
-    expect(removedEvents).toContain('multiplex_reconnected');
+    expect(removedEvents).toContain('myrm_workspace_stream_reconnected');
     removeSpy.mockRestore();
   });
 });

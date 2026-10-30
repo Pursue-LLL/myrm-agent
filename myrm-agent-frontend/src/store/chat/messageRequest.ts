@@ -13,7 +13,7 @@
  * createMessageRequest: Assemble the agent chat request payload and stream it.
  * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, a text a risk rule holds retracts it too and resolves false with only the risk notice (no failure notice), a resume that someone else (the timeout or another device) already resolved rejects with `ApprovalAlreadyResolvedError` without a failure notice, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
  * createSmartUpdater: Route state updates to active store or background snapshot.
- * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn; ending never resets the turn state of a newer turn.
+ * attachToChat: Re-attach to a chat's running turn over its attach SSE stream; post-consume finalizeAgentStreamTurn; ending never resets the turn state of a newer turn.
  *
  * [POS]
  * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
@@ -679,8 +679,6 @@ export const createMessageRequest = async (
     message_id: messageId,
     chat_id: chatId,
     action_mode: actionMode,
-    // 回合正文只走 POST 响应体（SSE）；后端仍接受 multiplexed 字段以兼容其它客户端。
-    multiplexed: false,
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
     ...(useWorkflowLane && { use_workflow: true }),
     ...(pendingWorkflowTemplateId && { workflow_template_id: pendingWorkflowTemplateId }),

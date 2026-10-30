@@ -69,10 +69,10 @@ export function useGoalPlanSync(chatId: string | null | undefined): void {
     };
 
     window.addEventListener('tasks_steps', handlePlanUpdate);
-    window.addEventListener('multiplex_reconnected', handleReconnect);
+    window.addEventListener('myrm_workspace_stream_reconnected', handleReconnect);
     return () => {
       window.removeEventListener('tasks_steps', handlePlanUpdate);
-      window.removeEventListener('multiplex_reconnected', handleReconnect);
+      window.removeEventListener('myrm_workspace_stream_reconnected', handleReconnect);
     };
   }, [chatId, fetchPlan, clearPlan, clearActivePlan, updateStepStatus]);
 }

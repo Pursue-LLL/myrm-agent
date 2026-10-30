@@ -313,18 +313,10 @@ def _gap_poll_snapshot_js(
         const probe = window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.streamRequestMessageId;
         if (typeof probe === 'string' && probe.trim()) streamMessageId = probe.trim();
       }}
-      const muxMessageId = window.__MYRM_MULTIPLEX_STATS__?.()?.lastMessageId ?? null;
       const allSseEvents = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
       let sseEvents = streamMessageId
         ? (window.__MYRM_E2E_CHAT__?.sseSnapshot?.(streamMessageId) ?? [])
         : allSseEvents;
-      if (!sseEvents.includes('capability_gap') && typeof muxMessageId === 'string' && muxMessageId.trim()) {{
-        const muxSse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.(muxMessageId.trim()) ?? [];
-        if (muxSse.includes('capability_gap')) {{
-          sseEvents = muxSse;
-          streamMessageId = muxMessageId.trim();
-        }}
-      }}
       if (!sseEvents.includes('capability_gap') && allSseEvents.includes('capability_gap')) {{
         sseEvents = allSseEvents;
       }}

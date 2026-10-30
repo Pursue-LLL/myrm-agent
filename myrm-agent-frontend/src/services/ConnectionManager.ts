@@ -8,21 +8,12 @@ interface ActiveSessionsResponse {
   activeSessions: Array<{ chatId: string; agentType: string }>;
 }
 
-type MultiplexChunkHandler = (chunk: string) => void;
-
 declare global {
   interface Window {
     __MYRM_WAIT_WORKSPACE_STREAM__?: (timeoutMs?: number) => Promise<{ ok: boolean; origin?: string; err?: string }>;
     __MYRM_WORKSPACE_STREAM_STATUS__?: () => { connected: boolean; origin: string | null };
-    __MYRM_MULTIPLEX_STATS__?: () => {
-      pendingByMessage: Record<string, number>;
-      dispatched: number;
-      lastMessageId: string | null;
-    };
   }
 }
-
-const _PENDING_MAX = 500;
 
 class ConnectionManager {
   private static instance: ConnectionManager;
@@ -32,10 +23,6 @@ class ConnectionManager {
   private readyResolve: (() => void) | null = null;
   private readyReject: ((error: Error) => void) | null = null;
   private readyPromise: Promise<void> = Promise.resolve();
-  private handlers = new Map<string, Set<MultiplexChunkHandler>>();
-  private pending = new Map<string, string[]>();
-  private dispatchedCount = 0;
-  private lastMessageId: string | null = null;
 
   private constructor() {
     if (typeof window !== 'undefined') {
@@ -43,11 +30,6 @@ class ConnectionManager {
       window.__MYRM_WORKSPACE_STREAM_STATUS__ = () => ({
         connected: this.isConnected,
         origin: this.connectedOrigin,
-      });
-      window.__MYRM_MULTIPLEX_STATS__ = () => ({
-        pendingByMessage: Object.fromEntries([...this.pending.entries()].map(([id, chunks]) => [id, chunks.length])),
-        dispatched: this.dispatchedCount,
-        lastMessageId: this.lastMessageId,
       });
     }
   }
@@ -57,28 +39,6 @@ class ConnectionManager {
       ConnectionManager.instance = new ConnectionManager();
     }
     return ConnectionManager.instance;
-  }
-
-  public registerMultiplexHandler(messageId: string, handler: MultiplexChunkHandler): () => void {
-    let bucket = this.handlers.get(messageId);
-    if (!bucket) {
-      bucket = new Set();
-      this.handlers.set(messageId, bucket);
-    }
-    bucket.add(handler);
-    const queued = this.pending.get(messageId);
-    if (queued?.length) {
-      for (const chunk of queued) {
-        handler(chunk);
-      }
-      this.pending.delete(messageId);
-    }
-    return () => {
-      bucket?.delete(handler);
-      if (bucket && bucket.size === 0) {
-        this.handlers.delete(messageId);
-      }
-    };
   }
 
   private resetReadyPromise(): void {
@@ -154,7 +114,7 @@ class ConnectionManager {
           ConnectionManager.getInstance().resolveReady();
           ConnectionManager.getInstance().fetchActiveSessionsSnapshot();
           if (!isFirstConnection) {
-            window.dispatchEvent(new CustomEvent('multiplex_reconnected'));
+            window.dispatchEvent(new CustomEvent('myrm_workspace_stream_reconnected'));
           }
           isFirstConnection = false;
         } else {
@@ -162,15 +122,7 @@ class ConnectionManager {
         }
       },
       async onmessage(ev) {
-        if (ev.event === 'multiplex') {
-          try {
-            const data = JSON.parse(ev.data);
-            const { chat_id, message_id, raw_chunk } = data;
-            ConnectionManager.getInstance().dispatchChunk(chat_id, message_id, raw_chunk);
-          } catch (e) {
-            console.error('Failed to parse multiplex event', e);
-          }
-        } else if (ev.event === 'session_status') {
+        if (ev.event === 'session_status') {
           try {
             const { chat_id, status } = JSON.parse(ev.data) as { chat_id: string; status: string };
             useChatStore.getState().setSessionStatus(chat_id, status);
@@ -220,36 +172,6 @@ class ConnectionManager {
     } catch {
       // Non-critical; sidebar will show correct status on next SSE event
     }
-  }
-
-  private dispatchChunk(chatId: string | null, messageId: string, rawChunk: string) {
-    if (!chatId || !messageId) {
-      return;
-    }
-    this.dispatchedCount += 1;
-    this.lastMessageId = messageId;
-
-    // 本端回合正文只走 POST SSE，不再消费 multiplex chunk；无人注册 handler 时
-    // 直接丢弃而不是进 pending 缓冲，避免其它客户端/旧协议的事件按 message_id 累积内存。
-    if (this.handlers.size === 0) {
-      return;
-    }
-
-    const handlers = this.handlers.get(messageId);
-    if (handlers && handlers.size > 0) {
-      for (const handler of handlers) {
-        handler(rawChunk);
-      }
-    } else {
-      const queue = this.pending.get(messageId) ?? [];
-      queue.push(rawChunk);
-      if (queue.length > _PENDING_MAX) {
-        queue.splice(0, queue.length - _PENDING_MAX / 2);
-      }
-      this.pending.set(messageId, queue);
-    }
-
-    window.dispatchEvent(new CustomEvent(`multiplex_chunk_${messageId}`, { detail: rawChunk }));
   }
 }
 
