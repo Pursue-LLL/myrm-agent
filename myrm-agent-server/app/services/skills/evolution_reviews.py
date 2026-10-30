@@ -7,7 +7,7 @@
 [OUTPUT]
 - Public evolution review lifecycle API (类型 + 查询 + 写操作 + 进化存储与磁盘对齐，统一 re-export)
 [POS]
-Evolution 审核生命周期门面：类型 + 查询 + 写操作统一导出。
+Evolution 审核生命周期门面：类型 + 查询 + 写操作 + 进化存储与磁盘对齐统一导出。
 """
 
 from app.services.skills.evolution_review.actions import (

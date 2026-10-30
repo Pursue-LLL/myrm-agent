@@ -13,7 +13,7 @@
 | `nightly_review/` | 子域 | 夜间体检：协作评分 + 不再犯盯梢验收 + 早晨 digest（清单见 [`nightly_review/_ARCH.md`](nightly_review/_ARCH.md)） | — |
 | `growth/` | 子域 | 技能成长：动作 SSOT + case DTO + case 查询 + 账本审计/投影 + 生命周期编排（清单见 [`growth/_ARCH.md`](growth/_ARCH.md)） | — |
 | `solidify/` | 子域 | 交付物固化为全包 Skill：参数最小化提取 + 4合1资产打包 + 外部真机预览（清单见 [`solidify/_ARCH.md`](solidify/_ARCH.md)） | — |
-| `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API） | ✅ |
+| `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API，含让进化存储副本跟随磁盘 SKILL.md 的 `sync_store_from_disk`） | ✅ |
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |
 | `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检（CRITICAL 硬拦截）+ 24h 去重 + 草稿 payload 携带结构化的 `reason_code`（`REASON_*`：`risk:` / `similar:` / `scan_failed` / `evolution_locked` / `apply_failed`）/ `security_scan_summary` / `apply_error`，审核备注从不写进会成为 SKILL.md `description` 的字段，由卡片按原因码本地化 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` 事件发布单一出口 + `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
 | `auto_extractor.py` | 核心 | 技能物化辅助器。执行 Python AST 语法门禁，将已通过策略判断的新技能安全落盘（补丁一律走人工审核，这里直接拒绝），并发布 `notify=False` 的 `SKILL_EVOLVED` 事件，提示由成长事件承担，避免同一次学习弹两条；`render_skill_draft_markdown` 渲染新技能落盘文本，安全预检与物化共用；description 经 `yaml_scalar` 引号转义，缺失时回退 trigger_condition 再回退技能名，不写占位文案 | ✅ |
