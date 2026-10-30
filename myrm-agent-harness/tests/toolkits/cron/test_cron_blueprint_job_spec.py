@@ -250,7 +250,7 @@ async def test_recurring_blueprint_still_needs_confirmation() -> None:
 
     result = await harness.add(recurring_confirmed=False)
 
-    assert "recurring_confirmed" in result
+    assert "(cron_expr, every_minutes or a blueprint) require recurring_confirmed=true" in result
     assert await harness.store.list_jobs() == []
 
 

@@ -570,9 +570,9 @@ async def _do_add(
         is_recurring = schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL)
         if is_recurring and not recurring_confirmed:
             return (
-                "Recurring schedules (cron_expr or every_minutes) require "
+                "Recurring schedules (cron_expr, every_minutes or a blueprint) require "
                 "recurring_confirmed=true to prevent accidental creation. "
-                "For one-time reminders, use 'at' instead."
+                "For a one-time reminder without a blueprint, use 'at' instead."
             )
 
     if not has_schedule and has_stream_or_poll:

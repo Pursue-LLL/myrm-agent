@@ -1439,9 +1439,9 @@ def _slot_name_for_tool_description(slot: BlueprintSlot) -> str:
 
 
 def get_blueprints_for_tool_description(locale: str = "en") -> str:
-    """Generate a concise blueprint catalog for injection into the cron_manage tool description.
+    """Generate the concise blueprint catalog returned by the cron_manage ``blueprints`` action.
 
-    Kept short to avoid bloating the tool schema and harming prompt cache.
+    Returned on demand as a tool result, never injected into the tool schema, so the prompt cache is unaffected.
     """
     lines: list[str] = ["Available blueprints (use blueprint param for pre-tuned prompts):"]
     for bp in BUILTIN_BLUEPRINTS:

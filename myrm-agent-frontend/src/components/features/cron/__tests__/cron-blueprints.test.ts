@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Sun } from 'lucide-react';
-import type { BlueprintDef } from '@/services/cron';
+import type { BlueprintDef, BlueprintFillResponse } from '@/services/cron';
 import {
   humanizeSchedule,
   buildBlueprintCreatePayload,
@@ -278,6 +278,76 @@ describe('cron-blueprints', () => {
       expect(payload.schedule.expr).toBe('0 8 * * *');
       expect(payload.required_capabilities).toEqual(['web_search_tool', 'net_fetch']);
       expect(payload.tools_allowed).toEqual(['web_search']);
+    });
+
+    it('carries every field of the server fill into the create payload', async () => {
+      // Required<> makes the type checker demand a value for every field the fill response declares.
+      const filled: Required<BlueprintFillResponse> = {
+        schedule: { kind: 'cron', expr: '30 8 * * 1-5', tz: 'Asia/Shanghai' },
+        prompt: 'Server prompt',
+        name: 'Weekday digest',
+        required_capabilities: ['web_search_tool'],
+        tools_allowed: ['web_search'],
+        skill_ids: ['digest-skill'],
+        job_type: 'router',
+        session_target: 'daily',
+        deduplicate: true,
+        skip_if_active: true,
+        timeout_seconds: 45,
+        monitor_config: { monitor_type: 'hash', ttl_days: 7, enabled: true },
+        failure_alert: { enabled: true, after: 2, cooldown_seconds: 900 },
+        pre_condition_script: 'echo ok',
+        command: 'wiki.source_sync',
+      };
+      vi.mocked(fillBlueprint).mockResolvedValue(filled);
+
+      const payload = await buildBlueprintCreatePayload(mockBlueprint, {}, 'Asia/Shanghai', 'en');
+
+      expect(payload).toEqual(filled);
+    });
+
+    it('leaves out every optional key the server fill reports at its default', async () => {
+      vi.mocked(fillBlueprint).mockResolvedValue({
+        schedule: { kind: 'cron', expr: '0 8 * * *' },
+        prompt: 'Server prompt',
+        name: 'Morning Briefing',
+        required_capabilities: [],
+        tools_allowed: [],
+        skill_ids: [],
+        job_type: 'agent',
+        session_target: 'isolated',
+        deduplicate: false,
+        skip_if_active: false,
+        timeout_seconds: null,
+        monitor_config: null,
+        failure_alert: null,
+        pre_condition_script: null,
+        command: null,
+      });
+
+      const payload = await buildBlueprintCreatePayload(mockBlueprint, {}, 'UTC', 'en');
+
+      expect(Object.keys(payload).sort()).toEqual(['job_type', 'name', 'prompt', 'schedule', 'session_target']);
+    });
+
+    it.each([
+      { flags: { deduplicate: true, skip_if_active: false }, expected: { deduplicate: true } },
+      { flags: { deduplicate: false, skip_if_active: true }, expected: { skip_if_active: true } },
+    ])('keeps the two run-control flags apart: $flags', async ({ flags, expected }) => {
+      vi.mocked(fillBlueprint).mockResolvedValue({
+        schedule: { kind: 'cron', expr: '0 8 * * *' },
+        prompt: 'Server prompt',
+        name: 'Morning Briefing',
+        required_capabilities: [],
+        tools_allowed: [],
+        job_type: 'agent',
+        session_target: 'isolated',
+        ...flags,
+      });
+
+      const payload = await buildBlueprintCreatePayload(mockBlueprint, {}, 'UTC', 'en');
+
+      expect({ deduplicate: payload.deduplicate, skip_if_active: payload.skip_if_active }).toEqual(expected);
     });
 
     it('propagates server errors without local fallback', async () => {

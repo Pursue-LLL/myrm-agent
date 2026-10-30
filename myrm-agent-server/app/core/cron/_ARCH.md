@@ -264,8 +264,8 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 `cron_manage_tool` 工具内置三道安全机制，防止 Agent 误创建高频/周期任务或无限循环：
 
-1. **`recurring_confirmed`**：创建周期性调度（cron_expr / every_minutes）时必须显式设置
-   `recurring_confirmed=true`，否则返回错误并建议使用一次性 `at` 调度。
+1. **`recurring_confirmed`**：创建周期性调度（cron_expr / every_minutes / 蓝图）时必须显式设置
+   `recurring_confirmed=true`，否则返回错误；不带蓝图的一次性提醒，错误信息建议改用 `at` 调度。
    LLM 在工具调用时需要主动"确认"这是周期性意图。
 2. **最小间隔限制**：`every_minutes` 不得低于 `_MIN_INTERVAL_MINUTES`（5 分钟），
    防止创建过于频繁的轮询任务导致 token 浪费。
