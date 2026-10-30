@@ -82,6 +82,18 @@
     "If the conversation includes images or files, remove them or use smaller ones",
     "Start a new conversation if the problem persists"
   ],
+  "format_error_generic_user_message": "The request could not be processed",
+  "format_error_generic_resolution_steps": [
+    "Send your message again",
+    "Check the selected model in Settings > Model Service",
+    "Start a new conversation if the problem persists"
+  ],
+  "format_error_model_user_message": "The request to model '{model_name}' could not be processed",
+  "format_error_model_resolution_steps": [
+    "Send your message again",
+    "Check the selected model in Settings > Model Service",
+    "Start a new conversation if the problem persists"
+  ],
   "challenge_blocked_user_message": "The request was blocked by the provider's network protection before it reached the model",
   "challenge_blocked_resolution_steps": [
     "Wait a moment, then send your message again",

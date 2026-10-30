@@ -85,6 +85,18 @@
     "대화에 이미지나 파일이 포함되어 있으면 제거하거나 더 작은 것을 사용하세요",
     "문제가 계속되면 새 대화를 시작하세요"
   ],
+  "format_error_generic_user_message": "요청을 처리하지 못했습니다",
+  "format_error_generic_resolution_steps": [
+    "메시지를 다시 보내세요",
+    "설정 > 모델 서비스 에서 선택한 모델을 확인하세요",
+    "문제가 계속되면 새 대화를 시작하세요"
+  ],
+  "format_error_model_user_message": "모델 '{model_name}'에 대한 요청을 처리하지 못했습니다",
+  "format_error_model_resolution_steps": [
+    "메시지를 다시 보내세요",
+    "설정 > 모델 서비스 에서 선택한 모델을 확인하세요",
+    "문제가 계속되면 새 대화를 시작하세요"
+  ],
   "challenge_blocked_user_message": "요청이 모델에 도달하기 전에 제공업체의 네트워크 보호에 의해 차단되었습니다",
   "challenge_blocked_resolution_steps": [
     "잠시 기다린 후 메시지를 다시 보내세요",

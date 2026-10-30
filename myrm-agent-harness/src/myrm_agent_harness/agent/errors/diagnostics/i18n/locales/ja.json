@@ -85,6 +85,18 @@
     "会話に画像やファイルが含まれる場合は、削除するか、より小さいものを使用してください",
     "問題が続く場合は新しい会話を開始してください"
   ],
+  "format_error_generic_user_message": "リクエストを処理できませんでした",
+  "format_error_generic_resolution_steps": [
+    "メッセージをもう一度送信してください",
+    "設定 > モデルサービス で選択中のモデルを確認してください",
+    "問題が続く場合は新しい会話を開始してください"
+  ],
+  "format_error_model_user_message": "モデル '{model_name}' へのリクエストを処理できませんでした",
+  "format_error_model_resolution_steps": [
+    "メッセージをもう一度送信してください",
+    "設定 > モデルサービス で選択中のモデルを確認してください",
+    "問題が続く場合は新しい会話を開始してください"
+  ],
   "challenge_blocked_user_message": "リクエストはモデルに届く前にプロバイダーのネットワーク保護によりブロックされました",
   "challenge_blocked_resolution_steps": [
     "しばらく待ってからメッセージを再送信してください",

@@ -8,7 +8,7 @@ Features multi-dimensional probe pipeline to handle nested gateway errors
 identify specific local/remote edge cases.
 
 [INPUT]
-- (none)
+- errors.error_payload::extract_error_body (POS: The one reader of the provider's answer in an LLM exception)
 
 [OUTPUT]
 - ErrorKind: Classified LLM error category.
@@ -57,6 +57,7 @@ from .classifier_patterns import (
     _USAGE_LIMIT_PATTERNS,
     _USAGE_LIMIT_TRANSIENT_SIGNALS,
 )
+from .error_payload import extract_error_body
 from .error_types import FailoverReason
 from .provider_window import has_rejected_quota_window
 from .retry_after import extract_retry_after as extract_retry_after
@@ -176,25 +177,10 @@ def _extract_status_code(error: Exception) -> int | None:
     return None
 
 
-def _extract_error_body(error: Exception) -> dict[str, object]:
-    body = getattr(error, "body", None)
-    if isinstance(body, dict):
-        return body
-    response = getattr(error, "response", None)
-    if response is not None:
-        try:
-            json_body = response.json()
-            if isinstance(json_body, dict):
-                return json_body
-        except Exception:
-            pass
-    return {}
-
-
 def normalize_provider_error(error: Exception) -> NormalizedError:
     """Extract deep nested errors (e.g. OpenRouter metadata.raw) and status codes."""
     status_code = _extract_status_code(error)
-    body = _extract_error_body(error)
+    body = extract_error_body(error)
 
     # Extract deeply nested message, structured error codes, and types
     _raw_msg = str(error).lower()

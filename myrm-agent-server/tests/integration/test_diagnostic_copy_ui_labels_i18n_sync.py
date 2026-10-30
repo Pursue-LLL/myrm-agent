@@ -44,6 +44,8 @@ _QUOTES: tuple[_Quote, ...] = (
     _Quote("custom_endpoint_unreachable_resolution_steps", (_MODEL_SERVICE, "modelService.apiUrl")),
     _Quote("billing_resolution_steps", (_MODEL_SERVICE, "modelService.apiKeys")),
     _Quote("api_key_resolution_steps", (_MODEL_SERVICE,)),
+    _Quote("format_error_generic_resolution_steps", (_MODEL_SERVICE,)),
+    _Quote("format_error_model_resolution_steps", (_MODEL_SERVICE,)),
     # The German, Japanese and Korean rate-limit steps carry no fallback-model step.
     _Quote(
         "rate_limit_resolution_steps",

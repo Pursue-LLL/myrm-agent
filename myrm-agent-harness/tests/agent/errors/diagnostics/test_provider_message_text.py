@@ -89,3 +89,20 @@ def test_line_breaks_in_the_provider_text_collapse_to_spaces() -> None:
 
 def test_a_silent_exception_still_names_what_failed() -> None:
     assert _shown("").endswith("RuntimeError")
+
+
+def test_a_message_that_is_cut_says_so() -> None:
+    shown = _shown("word " * 100)
+
+    assert shown.endswith("…")
+    assert len(shown) <= len("LLM error: ") + 201
+
+
+def test_a_message_that_fits_is_not_marked_as_cut() -> None:
+    assert not _shown("short sentence").endswith("…")
+
+
+def test_a_json_body_without_a_response_object_is_unescaped_by_the_json_decoder() -> None:
+    shown = _shown('{"error": {"message": "caf\\u00e9 \\ud83d\\ude00 \\"quoted\\" tab\\there"}}')
+
+    assert shown.endswith('café 😀 "quoted" tab here')

@@ -3,6 +3,8 @@
 [INPUT]
 - Exception chain of a failed LLM call (``__cause__``/``__context__``), their HTTP response
   headers and JSON bodies as raised by litellm / OpenAI / Anthropic SDKs
+- errors.error_payload::walk_exception_chain, extract_error_body (POS: The one reader of the provider's answer in an
+  LLM exception)
 
 [OUTPUT]
 - extract_provider_window: first usable ProviderWindowHint, or None
@@ -24,9 +26,9 @@ import time
 from collections.abc import Mapping
 from email.utils import parsedate_to_datetime
 
+from ..error_payload import extract_error_body, walk_exception_chain
 from .types import ProviderWindowHint, WindowSource
 
-_MAX_CHAIN_DEPTH = 6
 _MAX_PLAUSIBLE_WAIT_S = 366 * 24 * 3600.0
 
 # Quota windows are duration-named buckets (``5h``, ``7d``). ``overage`` is the pay-as-you-go pool: an
@@ -38,7 +40,7 @@ _MESSAGE_RETRY_AFTER_RE = re.compile(r"retry.*?after.*?(\d+).*?second", re.IGNOR
 def extract_provider_window(exc: BaseException, *, now: float | None = None) -> ProviderWindowHint | None:
     """Return the provider-stated retry boundary carried by *exc*, if any."""
     now_ts = time.time() if now is None else now
-    chain = _walk_chain(exc)
+    chain = walk_exception_chain(exc)
     headers = _merged_headers(chain)
 
     rejected = _rejected_windows(headers)
@@ -65,7 +67,7 @@ def extract_provider_window(exc: BaseException, *, now: float | None = None) -> 
 
 def has_rejected_quota_window(exc: BaseException) -> bool:
     """Whether the provider reports at least one rejected (spent) quota window."""
-    return bool(_rejected_windows(_merged_headers(_walk_chain(exc))))
+    return bool(_rejected_windows(_merged_headers(walk_exception_chain(exc))))
 
 
 def _hint(reset_at: float, now: float, source: WindowSource, quota_window: bool) -> ProviderWindowHint | None:
@@ -73,17 +75,6 @@ def _hint(reset_at: float, now: float, source: WindowSource, quota_window: bool)
     if not 0 < wait_s <= _MAX_PLAUSIBLE_WAIT_S:
         return None
     return ProviderWindowHint(reset_at=reset_at, wait_s=wait_s, source=source, quota_window=quota_window)
-
-
-def _walk_chain(exc: BaseException) -> list[BaseException]:
-    chain: list[BaseException] = []
-    seen: set[int] = set()
-    current: BaseException | None = exc
-    while current is not None and id(current) not in seen and len(chain) < _MAX_CHAIN_DEPTH:
-        seen.add(id(current))
-        chain.append(current)
-        current = current.__cause__ or current.__context__
-    return chain
 
 
 def _merged_headers(chain: list[BaseException]) -> dict[str, str]:
@@ -141,15 +132,7 @@ def _codex_body_reset(chain: list[BaseException], now: float) -> float | None:
 
 
 def _body_candidates(err: BaseException) -> list[Mapping[str, object]]:
-    body = getattr(err, "body", None)
-    if not isinstance(body, Mapping):
-        response = getattr(err, "response", None)
-        try:
-            body = response.json() if response is not None else None
-        except Exception:
-            body = None
-    if not isinstance(body, Mapping):
-        return []
+    body = extract_error_body(err)
     nested = body.get("error")
     return [body, nested] if isinstance(nested, Mapping) else [body]
 

@@ -1,0 +1,199 @@
+"""What the provider itself said, read from an LLM exception.
+
+SDKs and gateways put the provider's payload in different places: the OpenAI and Anthropic SDKs keep the parsed
+``body`` on the exception, litellm keeps the ``httpx`` response and re-raises the SDK's exception from inside its
+own, and an aggregator wraps the upstream error one level deeper. A failure the client library raises before any
+request is sent has no payload at all, and its words are the library's, not the provider's.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping
+from types import MappingProxyType
+
+import httpx
+import httpx2
+import openai
+import pytest
+from litellm import exceptions as litellm_errors
+
+from myrm_agent_harness.toolkits.llms.errors.error_payload import (
+    MAX_CHAIN_DEPTH,
+    extract_error_body,
+    provider_error_message,
+    walk_exception_chain,
+)
+
+_MODEL = "stub-model"
+_PROVIDER = "stub-provider"
+
+
+_URL = "https://provider.test/v1/chat/completions"
+
+
+def _openai_response(status: int, *, json: object | None = None, text: str | None = None) -> httpx2.Response:
+    """The response an OpenAI SDK exception carries; the SDK builds it with httpx2."""
+    return httpx2.Response(status, request=httpx2.Request("POST", _URL), json=json, text=text)
+
+
+def _response(
+    status: int, *, json: object | None = None, text: str | None = None, content: bytes | None = None
+) -> httpx.Response:
+    """The response a litellm exception carries."""
+    return httpx.Response(status, request=httpx.Request("POST", _URL), json=json, text=text, content=content)
+
+
+def _openai_rejection(body: Mapping[str, object] | str) -> openai.BadRequestError:
+    response = _openai_response(400, json=body) if isinstance(body, Mapping) else _openai_response(400, text=body)
+    return openai.BadRequestError(f"Error code: 400 - {body}", response=response, body=body)
+
+
+def _litellm_rejection(response: httpx.Response | None = None, message: str = "") -> litellm_errors.BadRequestError:
+    return litellm_errors.BadRequestError(message=message, model=_MODEL, llm_provider=_PROVIDER, response=response)
+
+
+def _raised_from(cause: Exception) -> Exception:
+    """litellm's own exception raised inside the handler of the SDK's, as litellm does it."""
+    try:
+        try:
+            raise cause
+        except Exception as inner:
+            raise _litellm_rejection(message="OpenAIException - ") from inner
+    except Exception as wrapped:
+        return wrapped
+
+
+_OPENAI_BODY = {"error": {"message": "Invalid value: 'foo'.", "type": "invalid_request_error"}}
+_ANTHROPIC_BODY = {
+    "type": "error",
+    "error": {"type": "invalid_request_error", "message": "tool_use ids must be unique"},
+}
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected"),
+    [
+        (_openai_rejection(_OPENAI_BODY), "Invalid value: 'foo'."),
+        (_openai_rejection(_ANTHROPIC_BODY), "tool_use ids must be unique"),
+        (_openai_rejection({"message": "top-level sentence"}), "top-level sentence"),
+        (_openai_rejection({"detail": "gateway detail"}), "gateway detail"),
+        (_openai_rejection({"error": "bare error string"}), "bare error string"),
+        (_openai_rejection("field x is invalid"), "field x is invalid"),
+    ],
+    ids=["openai", "anthropic", "top-level message", "detail", "error string", "plain text body"],
+)
+def test_the_sdk_body_gives_the_providers_sentence(exc: Exception, expected: str) -> None:
+    assert provider_error_message(exc) == expected
+
+
+def test_litellm_keeps_the_payload_on_the_http_response_not_on_the_exception() -> None:
+    exc = _litellm_rejection(_response(400, json=_OPENAI_BODY))
+
+    assert getattr(exc, "body", None) is None
+    assert provider_error_message(exc) == "Invalid value: 'foo'."
+
+
+def test_the_payload_is_found_down_the_cause_chain() -> None:
+    assert provider_error_message(_raised_from(_openai_rejection(_OPENAI_BODY))) == "Invalid value: 'foo'."
+
+
+def test_a_json_payload_with_escaped_characters_is_decoded_by_the_json_parser() -> None:
+    body = json.dumps({"error": {"message": "参数错误：temperature 超出范围\t请检查"}})
+
+    assert provider_error_message(_litellm_rejection(_response(400, content=body.encode()))) == (
+        "参数错误：temperature 超出范围\t请检查"
+    )
+
+
+def test_the_upstream_error_an_aggregator_wraps_beats_the_wrapper_sentence() -> None:
+    upstream = json.dumps({"error": {"message": "Invalid schema for function 'search': 'items' is required"}})
+    body = {
+        "error": {
+            "message": "Provider returned error",
+            "code": 400,
+            "metadata": {"raw": upstream, "provider_name": "Azure"},
+        }
+    }
+
+    assert (
+        provider_error_message(_openai_rejection(body)) == "Invalid schema for function 'search': 'items' is required"
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Upstream said no", "Upstream said no"),
+        ({"error": {"message": "nested mapping"}}, "nested mapping"),
+        ("", "Provider returned error"),
+        ("{not json", "Provider returned error"),
+    ],
+    ids=["plain text", "mapping", "empty", "broken json"],
+)
+def test_an_aggregators_raw_field_may_be_text_a_mapping_or_missing(raw: object, expected: str) -> None:
+    body = {"error": {"message": "Provider returned error", "metadata": {"raw": raw}}}
+
+    assert provider_error_message(_openai_rejection(body)) == expected
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        litellm_errors.BadRequestError(
+            message="LLM Provider NOT provided. Pass in the LLM provider you are trying to call. You passed model=foo",
+            model="foo",
+            llm_provider="",
+        ),
+        litellm_errors.UnsupportedParamsError(
+            message="openai does not support parameters: ['foo']", model=_MODEL, llm_provider=_PROVIDER
+        ),
+        _litellm_rejection(_response(400, content=b"")),
+        ValueError("temperature must be between 0 and 1"),
+        _openai_rejection({}),
+    ],
+    ids=["provider not provided", "unsupported params", "empty response", "plain exception", "empty body"],
+)
+def test_a_failure_with_no_provider_payload_has_no_provider_sentence(exc: Exception) -> None:
+    assert provider_error_message(exc) is None
+
+
+def test_a_self_referencing_cause_does_not_loop() -> None:
+    exc = ValueError("loop")
+    exc.__cause__ = exc
+
+    assert walk_exception_chain(exc) == [exc]
+    assert provider_error_message(exc) is None
+
+
+def test_the_chain_walk_is_bounded() -> None:
+    exc: BaseException = ValueError("root")
+    for depth in range(MAX_CHAIN_DEPTH * 2):
+        outer = ValueError(f"level {depth}")
+        outer.__cause__ = exc
+        exc = outer
+
+    assert len(walk_exception_chain(exc)) == MAX_CHAIN_DEPTH
+
+
+def test_the_body_attribute_wins_over_the_response_and_a_mapping_is_copied_to_a_dict() -> None:
+    exc = _openai_rejection(_OPENAI_BODY)
+    exc.body = MappingProxyType({"error": {"message": "from the attribute"}})
+
+    body = extract_error_body(exc)
+
+    assert type(body) is dict
+    assert body == {"error": {"message": "from the attribute"}}
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        ValueError("no payload"),
+        _litellm_rejection(_response(400, text="plain")),
+        _litellm_rejection(_response(400, json=[1])),
+    ],
+    ids=["no payload", "text response", "non-object json"],
+)
+def test_a_missing_or_non_object_body_is_an_empty_dict(exc: Exception) -> None:
+    assert extract_error_body(exc) == {}
