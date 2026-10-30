@@ -33,6 +33,7 @@ const EMPTY_CREDS: TelegramCredentials = {
   guestMode: false,
 };
 const CMD_PATTERN = /^[a-z0-9_]{1,32}$/;
+const PROXY_PATTERN = /^(https?|socks5h?):\/\/\S+$/i;
 
 function validateCommand(cmd: BotCommand): { command?: string; description?: string } {
   const errors: { command?: string; description?: string } = {};
@@ -146,11 +147,14 @@ export function TelegramConfigCard() {
           <Label htmlFor="telegram-proxy">{t('telegramProxy')}</Label>
           <Input
             id="telegram-proxy"
-            placeholder="http://127.0.0.1:7890 or socks5://127.0.0.1:1080"
+            placeholder="http://127.0.0.1:7890"
             value={creds.proxy ?? ''}
             onChange={(e) => handleChange('proxy', e.target.value)}
           />
           <p className="text-xs text-muted-foreground">{t('telegramProxyHint')}</p>
+          {creds.proxy?.trim() && !PROXY_PATTERN.test(creds.proxy.trim()) && (
+            <p className="text-xs text-destructive">{t('telegramProxyInvalid')}</p>
+          )}
         </div>
       )}
 

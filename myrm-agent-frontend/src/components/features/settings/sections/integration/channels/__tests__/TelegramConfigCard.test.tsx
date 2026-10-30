@@ -76,6 +76,21 @@ describe('TelegramConfigCard', () => {
     );
   });
 
+  it('points out a proxy address that lacks a supported scheme', async () => {
+    render(<TelegramConfigCard />);
+    const proxy = await screen.findByLabelText('telegramProxy');
+    expect(screen.queryByText('telegramProxyInvalid')).not.toBeInTheDocument();
+
+    fireEvent.change(proxy, { target: { value: '127.0.0.1:7890' } });
+    expect(screen.getByText('telegramProxyInvalid')).toBeInTheDocument();
+
+    fireEvent.change(proxy, { target: { value: ' socks5h://127.0.0.1:1080 ' } });
+    expect(screen.queryByText('telegramProxyInvalid')).not.toBeInTheDocument();
+
+    fireEvent.change(proxy, { target: { value: '' } });
+    expect(screen.queryByText('telegramProxyInvalid')).not.toBeInTheDocument();
+  });
+
   it('leaves the proxy to the hosted service in sandbox mode', async () => {
     mocks.sandbox = true;
 

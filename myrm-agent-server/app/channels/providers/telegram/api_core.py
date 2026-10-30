@@ -2,8 +2,9 @@
 
 Talks to the official ``api.telegram.org`` or, through ``api_base``, to a self-hosted Bot API server or a
 reverse proxy. ``proxy`` (an ``http://``, ``https://``, ``socks5://`` or ``socks5h://`` URL) routes every call
-and file download through a forward proxy; without it the process environment decides. A transport error reaches the caller as the ``httpx`` error it is, so the caller's retry policy can tell
-a connection that never opened (safe to repeat) from a request the platform may already have taken (not).
+and file download through a forward proxy; without it the process environment decides. A transport error reaches
+the caller as the ``httpx`` error it is, so the caller's retry policy can tell a connection that never opened
+(safe to repeat) from a request the platform may already have taken (not).
 
 [INPUT]
 - httpx::AsyncClient (POS: pooled HTTP client)
@@ -60,7 +61,7 @@ class TelegramApiBase:
 
     def __init__(self, token: str, *, api_base: str | None = None, proxy: str | None = None) -> None:
         self._token = token
-        self._proxy = proxy
+        self._proxy = (proxy or "").strip() or None
         self._http: httpx.AsyncClient | None = None
         base = api_base.rstrip("/") if api_base else _DEFAULT_API_BASE
         self._base = f"{base}/bot{token}"

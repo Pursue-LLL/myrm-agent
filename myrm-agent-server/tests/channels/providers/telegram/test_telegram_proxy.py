@@ -131,6 +131,14 @@ class TestProxyCredential:
 
         assert channel._client._proxy is None
 
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [("  http://127.0.0.1:7890\n", "http://127.0.0.1:7890"), ("   ", None)],
+        ids=["padded", "blank"],
+    )
+    def test_whitespace_around_a_pasted_proxy_is_dropped(self, stored: str, expected: str | None) -> None:
+        assert TelegramClient(FAKE_TELEGRAM_BOT_TOKEN, proxy=stored)._proxy == expected
+
     def test_proxy_is_an_optional_credential_field(self) -> None:
         fields = dict(TelegramChannel.credential_spec.fields)
 
