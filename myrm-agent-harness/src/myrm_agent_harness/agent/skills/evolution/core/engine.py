@@ -8,8 +8,9 @@ Improvement Gate: the DERIVED path injects the original skill as a baseline
 candidate in evaluation. If no variant scores higher than the original,
 evolution is skipped to prevent quality regression.
 
-Returns standardized EvolutionProposal objects, delegating application
-and persistence to the business layer (Server/GUI).
+Works from the SKILL.md on disk (the store's copy can lag behind an edit) and returns
+standardized EvolutionProposal objects, delegating application and persistence to the
+business layer (Server/GUI).
 
 [INPUT]
 - agent.skills.evolution.db.store::SkillStore (POS: SQLite persistence for skill evolution system.)
@@ -20,6 +21,7 @@ and persistence to the business layer (Server/GUI).
 - agent.skills.evolution.safety.validator::SkillValidator (POS: Skill evolution validation system.)
 - agent.skills.evolution.execution.sandbox_validator::SandboxValidator (POS: Sandbox validation for evolved skills.)
 - agent.skills.evolution.core.eval_regression::filter_variants_by_regression (POS: Non-blocking regression gate for the skill evolution pipeline.)
+- agent.skills.evolution.core.skill_on_disk::skill_from_disk (POS: The SKILL.md of a skill as it is on disk, the text the evolution engine works from.)
 
 [OUTPUT]
 - SkillEvolutionEngine: Core orchestrator for skill self-evolution.
@@ -52,6 +54,7 @@ from myrm_agent_harness.agent.skills.evolution.pipeline.variant_generator import
 )
 
 from .eval_regression import filter_variants_by_regression
+from .skill_on_disk import skill_from_disk
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
@@ -117,6 +120,8 @@ class SkillEvolutionEngine:
         if old_skill.evolution_locked:
             logger.warning(f"FIX skipped: skill '{old_skill.name}' is locked.")
             return None
+
+        old_skill = skill_from_disk(old_skill)
 
         logger.info(f"FIX evolution started for '{old_skill.name}'")
 
@@ -192,6 +197,8 @@ class SkillEvolutionEngine:
         if old_skill.evolution_locked:
             logger.warning(f"DERIVED skipped: '{old_skill.name}' is locked.")
             return None
+
+        old_skill = skill_from_disk(old_skill)
 
         logger.info(f"DERIVED evolution started for '{old_skill.name}'")
 

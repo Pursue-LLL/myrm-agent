@@ -91,6 +91,7 @@ description: Demo skill for api.skills smoke test.
                 "build_skill_metadata",
                 "compute_content_hash",
                 "parse_skill_frontmatter",
+                "read_skill_md",
                 "update_frontmatter_evolution_lock",
             ],
         ),

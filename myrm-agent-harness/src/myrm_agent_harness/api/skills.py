@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - SkillMetadataError, parse_skill_frontmatter, update_frontmatter_evolution_lock,
-  compute_content_hash, build_skill_metadata
+  compute_content_hash, read_skill_md, build_skill_metadata
 
 [POS]
 Public re-export facade. Product skill CRUD/sync code imports here instead of
@@ -18,6 +18,7 @@ from __future__ import annotations
 from myrm_agent_harness.backends.skills._runtime import (
     build_skill_metadata,
     compute_content_hash,
+    read_skill_md,
 )
 from myrm_agent_harness.backends.skills._utils import (
     SkillMetadataError,
@@ -32,5 +33,6 @@ __all__ = [
     "build_skill_metadata",
     "compute_content_hash",
     "parse_skill_frontmatter",
+    "read_skill_md",
     "update_frontmatter_evolution_lock",
 ]

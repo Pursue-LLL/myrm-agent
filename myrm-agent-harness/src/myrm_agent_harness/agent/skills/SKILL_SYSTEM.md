@@ -767,6 +767,7 @@ Scanner（编排器）
    - 入队的请求由后台 Worker 经 `EvolutionIntegration.evolve_skill` 先过 `EvolutionScreener`（冷却、静态拦截、FIX 的 LLM 确认），再交给进化引擎；主 Agent 继续对话毫无感知。
 4. 提案与审批 (Proposal & Approval) →
    - 引擎产出 `EvolutionProposal`（FIX 与 DERIVED 先过 EvalCase 回归门，DERIVED 另过 Improvement Gate），不直接写库；Server 的 `ConfidenceApprovalFlow` 落地：运行时失败的修复一律人工审核，其余按置信度与风控信号决定自动合并或进入审核队列。
+   - 引擎起草时读的是磁盘上的 SKILL.md（`core/skill_on_disk.py`）：编辑器、版本回滚和 agent 的技能工具改的是文件，不是进化库里的副本，基于副本的提案会在批准时覆盖技能已不再有的文本。文件与副本不同就以文件为准且不回写副本；文件大于进化库能存的上限（65,536 字符）时仍用副本。引擎运行期间文件又被改动的提案，Server 在落地前丢弃，下一次起草从新文件开始。
    - 前端 GUI 的审核收件箱亮起红点，等待用户显式批准。保护了系统 Prompt Cache 不被后台提炼静默击穿。
 5. 拒绝反馈 (Rejection Feedback) →
    - 用户拒绝并给出理由时，理由写入该技能的进化约束；之后每次 FIX / DERIVED 起草变体，最近 5 条约束作为必须遵守的历史约束进入提示词，防止同一类废料被重复提出。

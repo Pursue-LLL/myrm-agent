@@ -10,6 +10,7 @@
 - evaluate_requires(): 按进程环境（可叠加调用方提供的 env）检查声明的依赖是否满足
 - check_requirements(): 基于 frontmatter 对进程环境检查技能依赖
 - compute_content_hash(): 计算内容 SHA-256 哈希
+- read_skill_md(): 读取磁盘上的 SKILL.md 文本（无法解码的字节被替换，读不到返回 None）
 - scan_skill_content(): 技能内容安全扫描（软检测）
 
 [POS]
@@ -87,6 +88,14 @@ def compute_content_hash(content: str) -> str:
     """
     normalized = content.replace("\r\n", "\n").replace("\r", "\n")
     return f"sha256:{hashlib.sha256(normalized.encode('utf-8')).hexdigest()}"
+
+
+def read_skill_md(skill_path: Path) -> str | None:
+    """The SKILL.md text at ``skill_path`` (undecodable bytes are replaced, so the text and its hash are stable), None when unreadable."""
+    try:
+        return skill_path.read_bytes().decode("utf-8", errors="replace")
+    except (OSError, ValueError):  # ValueError: a path with an embedded NUL
+        return None
 
 
 def build_skill_metadata(
