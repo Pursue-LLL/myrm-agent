@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-121 · 限流诊断说了两个不同的等待：消息里是供应商给出的时长，步骤里却还有固定的「等待 60 秒后重试」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/errors/diagnostics/engine.py`、`i18n/manager.py`、五份 `i18n/locales/*.json`；测试 `tests/agent/errors/diagnostics/test_rate_limit_wait_step.py`；没有改提示词与工具 schema）。 |
+| **发现时间** | 2026-10-30（盘点入站日志重放那条留下的失败用例时：`tests/core/channel_bridge/test_execute_errors_cooldown.py` 写死了「3 hours」，实际输出是秒；把那条回复完整渲染出来，才看到消息与步骤各说了一个等待）。 |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P3（文案：供应商给出等待时长的限流错误，同一条诊断里出现两个不同的等待；本次修复只改文案，没有动重试逻辑）。 |
+| **关联产品** | 网页端与桌面端的错误事件（`stream_exception_chunks.py` 把整份 `diagnostic_result` 交给前端）；可信所有者私聊的渠道回复（`execute_errors.py` 的 `build_llm_error_reply`，只取前 3 步）。 |
+| **根因** | 限流的等待步骤是 `rate_limit_resolution_steps` 的第一项，写死「Wait 60 seconds and retry」（zh-CN「等待 60 秒后重试」，de、ja、ko 是「几分钟后再试」）。引擎对每个错误类型都把供应商的等待时长追加进消息，但步骤是固定列表，不看有没有供应商的等待。[实测] `LLMErrorDiagnostic.diagnose(Exception("rate limit"), locale="en", cooldown_remaining_ms=10_800_000)` 经 `build_llm_error_reply` 渲染：`❌ API rate limit exceeded Retry after 10800 seconds.`，空一行，`Next steps:`，第一条 `• Wait 60 seconds and retry`。扫描五份目录里所有 `*_resolution_steps`：除限流的等待步骤外，没有步骤点出时长。 |
+| **修复** | ① 等待步骤拆成独立的 `rate_limit_wait_step`（五份目录，文案原样沿用，只是从步骤列表里挪出来），`LocaleManager` 认 `_wait_step` 后缀，并新增 `translate_optional`（目录没有这条文案时返回 None，不返回缺失标记）。② 引擎只在供应商没给等待时长时把它放到步骤最前；给了就不放，等待只在消息里说一次。③ 按旧结构写的自定义目录（`MYRM_LOCALES_DIR`）没有这个键：步骤原样返回，旧行为不变。④ 服务端两个与它们守护的代码脱节的用例一并修复：`test_execute_errors_cooldown.py` 写死了「3 hours」（harness 刻意让等待保持供应商报告的秒数，`d1207d8b3a`），改成断言「Retry after」只出现一次、「Wait 60 seconds」不出现、其余步骤仍在；`test_btw_notifier.py` 的移动状态按钮用例补丁的 `ChatService.get_channel_chat_by_key` 已不被 `btw_notifier.py` 调用（`6498b515e1` 改成 `source_chat_id` 加 `get_chat_by_id`），改成走现行路径，另加没有来源会话、来源会话为空白、来源会话已删除三种不出按钮的用例。⑤ `ERROR_SYSTEM.md` 的自定义翻译示例用 `message`、`hint`，而 `LocaleManager.translate` 从不读这两个键，改成 `user_message`、`resolution_steps`，并运行验证了示例能被读到。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 渠道回复只取 `resolution_steps[:3]`（`execute_errors.py:62`）：拆走第一步后，有供应商等待时第 3 步由「检查其它进程是否在用同一个密钥」变成「使用 fallback_llm 自动处理限流」（en、zh-CN 的第 4 步；de、ja、ko 的目录没有这一步）。该回复只发给可信所有者私聊（`build_llm_error_reply` 只有 `executor.py:220` 一个调用点，渠道执行器的 `_ARCH.md` 写明访客、成员与群聊走成员安全文案），网页端本来就整段显示，所以没有新增读者，但可信所有者私聊里会多看到一个配置项名。② 不要把等待步骤改写成带供应商时长的模板：harness 刻意让等待保持供应商报告的秒数（`d1207d8b3a`），这里只是不再说第二个等待。 |
+| **回归** | [1] 变异：`test_rate_limit_wait_step.py` 16 例（五种语言有、无供应商等待各一，等待取整为 0 的三种取值，没有目录的语言取英文，旧结构自定义目录，`translate_optional` 的缺失情形）；去掉“没有供应商等待才加”的条件，5 例（有等待时不得带等待步骤）失败，服务端 `test_execute_errors_cooldown.py` 同样失败；让等待步骤永不加入，9 例失败；均已还原。这些用例是改动后写的，没有对旧代码跑出红，红由变异代替。[2] 服务端两个失败用例单独运行时改动前都失败，文件在 HEAD 上未被修改；没有在干净 HEAD 上复跑（不能用 checkout 与 worktree）。移动状态按钮用例的变异：让没有来源会话时也去取会话，2 例失败；让取到会话后不解析按钮，1 例失败；均已还原。[3] harness `tests/agent/errors` 与触及诊断的 `tests/integration/test_error_diagnostics_e2e.py`、`tests/agent/_internals`、`tests/agent/event_log/test_trace_builder.py`、`tests/agent/streaming` 的两个文件共 504 例通过；服务端 `tests/core/channel_bridge` 869 例通过（含原先失败的两例），`tests/channels` 8852 过、55 跳过。[4] ruff check 与 format、harness `engine.py` 与 `manager.py` 的 mypy 干净；harness 分形文档检查通过，`--strict-headers` 只报 `i18n/constants.py`、`types.py` 两个既有的无头文件，本次没有动。 |
+| **仍然存在** | ① 自定义目录混用新旧结构（旧结构的 ja 包、新结构的 en 包）时，没有供应商等待的限流诊断会在旧 ja 步骤（自带等待步骤）前多出一条英文等待步骤，因为 `translate_optional` 回退到英文；[代码阅读，未测]，约定是自定义目录整套更新，没有处理。② 步骤目录本身 en、zh-CN 与 de、ja、ko 不一致（de、ja、ko 没有 `fallback_llm` 步骤，多了「批量请求加延迟」「降低请求频率」），没有对齐。③ `engine.py` 现在 490 行，离 500 行的上限很近（此前 486），下一次往里加内容前要先拆分。④ 没有在真实供应商的 429 上走一遍。 |
+| **代码位置** | `src/myrm_agent_harness/agent/errors/diagnostics/engine.py`（限流分支） · `diagnostics/i18n/manager.py`（`_unflatten_locale_json`、`translate_optional`、`_find_template`） · `diagnostics/i18n/locales/{en,zh-CN,de,ja,ko}.json`（`rate_limit_wait_step`） · `tests/agent/errors/diagnostics/test_rate_limit_wait_step.py` · 服务端 `tests/core/channel_bridge/test_execute_errors_cooldown.py`、`test_btw_notifier.py` |
+
 ### BUG-HARNESS-2026-10-30-120 · Linux 上同一程序开了两个进程时，前台快照里的元素可能点到另一个进程；界面在快照与调用之间变化时会点到位置顶上来的另一个元素
 
 | 字段 | 内容 |
