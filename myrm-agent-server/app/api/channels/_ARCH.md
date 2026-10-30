@@ -18,8 +18,8 @@
 | `login.py` | 模块 | Business layer API router. | ✅ |
 | `pairing_router.py` | 路由 | 模型无关化外部渠道动态扫码配对、Token 自动协商与连通性自测端点 | ✅ |
 | `router.py` | 路由 | Channel 管理核心路由。提供频道状态查询、启用/禁用切换、账号绑定 CRUD（集成当日用量实时统计 `today_usage`）与群组管理。 | ✅ |
-| `schemas.py` | 模块 | Channel 管理 API 数据模型。定义 Channel 状态查询、账号绑定（含 `PairingResponse.today_usage`）的 schema。 | ✅ |
-| `test_connections.py` | 测试 | 频道连接测试路由。提供各频道凭据连通性验证端点，用于前端配置时实时测试。 | ✅ |
+| `schemas.py` | 模块 | Channel 管理 API 数据模型。定义 Channel 状态查询、账号绑定（含 `PairingResponse.today_usage`）的 schema；`TelegramTestResponse` 在失败时带 `reason`（`TelegramFailureReason` 编码）。 | ✅ |
+| `test_connections.py` | 测试 | 频道连接测试路由。提供各频道凭据连通性验证端点，用于前端配置时实时测试；Telegram 的失败响应带 `reason`，区分令牌被拒与无法连接，成功响应不带该字段。 | ✅ |
 | `topics.py` | 模块 | 频道 Topic 路由。提供 Topic 列表查询、Agent 绑定和频道级默认 Agent 设置功能。 | ✅ |
 | `wechat.py` | 模块 | WeChat/WhatsApp 专用路由。提供扫码登录、QR 码获取、连接状态查询和登出操作。 | ✅ |
 | `wechat_official.py` | 模块 | WeChat Official Account 凭证测试、出口 IP 查询与 HITL 草稿推送 API（uploadimg + draft/add）；路径校验 `relative_to` + workspace 未知 fail-closed (503)；合规 scan（title + resolved digest + HTML 可见正文）高危 422 hits、非高危 200 `complianceWarnings`；502 返回 locale-aware 微信 errcode 可操作提示；author ≤8；WebUI 推稿面板含 author/digest/title/cover；文内首图封面预填。 | ✅ |

@@ -21,7 +21,7 @@
 | `PairingManager.tsx`                                                          | 外部渠道配对审批管理容器（数据获取、状态更新、角色切换与配额管理回调编排）                                                                                 |
 | `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除）                                                                   |
 | `PairingForm.tsx`                                                             | 新增配对表单（Channel/Sender ID 输入、角色选择与每日调用上限配置）                                                                                         |
-| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota）                                                                                     |
+| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota；`useChannelConfig` 的连接测试失败时，服务端 `reason` 在 `channels.testReasons` 有文案就显示它，否则显示服务端消息）                                                                                     |
 | `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                                                         |
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatConfigCard` 微信多实例+风控披露+企微跳转闭环、`WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
 | `WeChatRiskDisclosureBanner.tsx`                                              | 个人微信接入风控告示横幅（可折叠持久化记忆、企微官方通道跳转分流引导）                                                                                     |
@@ -45,7 +45,7 @@
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
 - `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
 - `__tests__/GitHubConfigCard.test.tsx` — GitHub 卡片仅出站：只要求访问令牌一个输入，不出现 Webhook 密钥/地址
-- `__tests__/TelegramConfigCard.test.tsx` — Telegram 卡片的转发代理：回显已保存的代理并用它做连接检查，改过的代理随连接测试与保存带出，地址缺协议时给出提示并禁用保存，沙箱模式不显示该输入
+- `__tests__/TelegramConfigCard.test.tsx` — Telegram 卡片的转发代理：回显已保存的代理并用它做连接检查，改过的代理随连接测试与保存带出，地址缺协议时给出提示并禁用保存与连接测试，沙箱模式不显示该输入；失败的连接检查（含保存后的检查）按 `reason` 显示本地化提示，未知 `reason` 回退到服务端消息
 
 ## Reaction 配置链路
 

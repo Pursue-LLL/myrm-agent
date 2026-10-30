@@ -10,7 +10,7 @@
 
 | 文件                                    | 职责                                                                                                                                                        |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core.ts`                               | CP 请求、`createChannelCredentialService` 工厂、`ChannelTestResult`                                                                                         |
+| `core.ts`                               | CP 请求、`createChannelCredentialService` 工厂、`ChannelTestResult`（失败时可带 `reason`）                                                                                         |
 | `manage.ts`                             | 类型、状态/实例、配对、策略、群组、路由绑定；`getChannelCredentials` / `saveChannelCredentials`（实例凭据读取与 merge 更新，后端重建 channel 生效）         |
 | `channelAgentBinding.ts`                | Channel 路由 Agent 下拉过滤（General-only；builtin Search ID 黑名单 + `prompt_mode=search`）                                                                |
 | `__tests__/channelAgentBinding.test.ts` | 上述过滤单元测试                                                                                                                                            |
