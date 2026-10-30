@@ -155,3 +155,24 @@ async def test_the_repair_trajectory_holds_the_run_and_not_the_skill_text(tmp_pa
     (trajectory,) = trajectories
     assert "exit 1" in trajectory
     assert skill_text not in trajectory
+
+
+@pytest.mark.asyncio
+async def test_a_call_written_whole_into_the_tool_name_does_not_push_the_failure_out_of_the_report(
+    tmp_path: Path,
+) -> None:
+    badly_formed_call = 'write_file(path="/tmp/a.txt", content="' + "x" * 1_500 + '")'
+    events: list[StructuredEvent] = []
+    for index in range(5):
+        events.append(_event(2 * index + 1, "tool_start", tool_name=f"{badly_formed_call}{index}"))
+        events.append(_event(2 * index + 2, "tool_end", tool_name=f"{badly_formed_call}{index}"))
+    events.append(_event(11, "tool_start", tool_name="skill_runner"))
+    events.append(_event(12, "tool_failure", tool_name="skill_runner", error="connection refused by the upstream host"))
+    analyzer = TraceAnalyzer(await _write(tmp_path, events))
+
+    report = await analyzer.extract_trajectory(_SESSION_ID, "skill_runner")
+
+    assert "connection refused by the upstream host" in _section(report, "## Error Details")
+    assert "## Run Totals" in report
+    assert "x" * 200 not in report
+    assert "truncated to fit token budget" not in report

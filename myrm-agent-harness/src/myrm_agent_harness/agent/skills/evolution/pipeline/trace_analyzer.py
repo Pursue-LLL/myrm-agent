@@ -47,6 +47,7 @@ _RECENT_TOOL_EVENTS = 5
 _MAX_TAKEOVER_EVENTS = 3
 _TAKEOVER_ARIA_CHARS = 800
 _ERROR_MESSAGE_CHARS = 200
+_TOOL_NAME_CHARS = 80
 _CHARS_PER_TOKEN = 4
 _DEFAULT_TOKEN_BUDGET = 1500
 _CLUSTER_SIMILARITY = 0.8
@@ -70,11 +71,13 @@ _FAILURE_GUIDANCE: dict[str, tuple[str, str]] = {
 
 
 def _stored_tool_name(name: object) -> str:
-    """A tool name from the summary helpers, which read the log as stored, redacted for the prompt.
+    """A tool name from the summary helpers, which read the log as stored, redacted for the prompt and cut to a name.
 
-    A call the model wrote badly is kept whole, arguments included, where the name belongs.
+    A call the model wrote badly is kept whole, arguments included, where the name belongs; left whole, a few of them
+    fill the report's budget and the failure details behind them are cut off.
     """
-    return str(sanitize_event_data({"tool_name": str(name)}).get("tool_name", ""))
+    redacted = str(sanitize_event_data({"tool_name": str(name)}).get("tool_name", ""))
+    return redacted if len(redacted) <= _TOOL_NAME_CHARS else redacted[:_TOOL_NAME_CHARS] + "..."
 
 
 def _redacted(events: Sequence[StructuredEvent]) -> list[StructuredEvent]:
