@@ -282,8 +282,9 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
     async def stop(self) -> None:
         """Leave voice, close the client, then end the gateway session.
 
-        Voice comes first because discord.py waits for a gateway event that confirms leaving. A session that already
-        ended with an error (a rejected token, for one) is logged instead of re-raised, so the stop still completes.
+        The session is ended last: leaving voice waits for a gateway event that confirms it, so the session must
+        still be running. A session that already ended with an error (a rejected token, for one) is logged instead of
+        re-raised, so the stop still completes.
         """
         if self._status == ChannelStatus.STOPPED:
             return
@@ -300,7 +301,7 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
             except asyncio.CancelledError:
                 pass
             except Exception as exc:
-                logger.warning("Discord gateway session had already failed: %s", exc)
+                logger.warning("Discord gateway session had already failed: %r", exc)
         self._status = ChannelStatus.STOPPED
 
     async def health_check(self) -> bool:

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -77,8 +78,8 @@ async def test_stop(channel):
 
 
 @pytest.mark.asyncio
-async def test_stop_after_the_gateway_session_failed_still_closes_the_client(channel):
-    """Reloading a channel whose session already ended with an error (a rejected token) stops it cleanly."""
+async def test_stop_completes_when_the_gateway_session_already_failed(channel, caplog):
+    """A session that already ended with an error (a rejected token) must not make stop() raise."""
 
     async def failed_session() -> None:
         raise discord.LoginFailure("Improper token has been passed.")
@@ -89,10 +90,12 @@ async def test_stop_after_the_gateway_session_failed_still_closes_the_client(cha
     channel._gateway_task = asyncio.create_task(failed_session())
     await asyncio.sleep(0)
 
-    await channel.stop()
+    with caplog.at_level(logging.WARNING, logger="app.channels.providers.discord.channel"):
+        await channel.stop()
 
     assert channel.status == ChannelStatus.STOPPED
     channel._client.close.assert_called_once()
+    assert "LoginFailure" in caplog.text
 
 
 @pytest.mark.asyncio
