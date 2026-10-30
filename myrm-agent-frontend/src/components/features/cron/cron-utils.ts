@@ -53,6 +53,35 @@ export function formatDuration(ms: number): string {
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
+/** What the server accepts for a job's run time limit, in whole seconds. */
+export const CRON_TIMEOUT_MIN_SECONDS = 10;
+export const CRON_TIMEOUT_MAX_SECONDS = 3600;
+export const CRON_TIMEOUT_DEFAULT_SECONDS = 300;
+
+/** The limit the user typed, or null when it is empty, not a whole number or outside the accepted range. */
+export function parseTimeoutSeconds(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const seconds = Number(trimmed);
+  return seconds >= CRON_TIMEOUT_MIN_SECONDS && seconds <= CRON_TIMEOUT_MAX_SECONDS ? seconds : null;
+}
+
+/** A run time limit as `1h 5m 30s`, leaving out the zero parts. */
+export function formatTimeoutSeconds(seconds: number): string {
+  const parts: Array<[number, string]> = [
+    [Math.floor(seconds / 3600), 'h'],
+    [Math.floor((seconds % 3600) / 60), 'm'],
+    [seconds % 60, 's'],
+  ];
+  const text = parts
+    .filter(([amount]) => amount > 0)
+    .map(([amount, unit]) => `${amount}${unit}`)
+    .join(' ');
+  return text || '0s';
+}
+
 export function formatTime(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',

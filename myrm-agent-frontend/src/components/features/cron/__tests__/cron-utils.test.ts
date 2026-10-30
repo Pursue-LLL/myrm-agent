@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CRON_OVERDUE_THRESHOLD_MS, formatRelativeTime, isCronOverdue } from '../cron-utils';
+import {
+  CRON_OVERDUE_THRESHOLD_MS,
+  formatRelativeTime,
+  formatTimeoutSeconds,
+  isCronOverdue,
+  parseTimeoutSeconds,
+} from '../cron-utils';
 import type { CronJob } from '@/services/cron.types';
 
 function makeJob(overrides: Partial<CronJob>): CronJob {
@@ -126,5 +132,34 @@ describe('formatRelativeTime', () => {
 
   it('非法时间戳 → 空字符串', () => {
     expect(formatRelativeTime('not-a-date', t, locale, now)).toBe('');
+  });
+});
+
+describe('parseTimeoutSeconds', () => {
+  it.each([
+    ['10', 10],
+    ['300', 300],
+    [' 900 ', 900],
+    ['3600', 3600],
+  ])('accepts %j as %i seconds', (typed, seconds) => {
+    expect(parseTimeoutSeconds(typed)).toBe(seconds);
+  });
+
+  it.each(['', '  ', '9', '3601', '1.5', '-30', '1e3', '0x20', 'abc', '30s'])('rejects %j', (typed) => {
+    expect(parseTimeoutSeconds(typed)).toBeNull();
+  });
+});
+
+describe('formatTimeoutSeconds', () => {
+  it.each([
+    [45, '45s'],
+    [60, '1m'],
+    [90, '1m 30s'],
+    [300, '5m'],
+    [3600, '1h'],
+    [3690, '1h 1m 30s'],
+    [0, '0s'],
+  ])('writes %i seconds as %s', (seconds, text) => {
+    expect(formatTimeoutSeconds(seconds)).toBe(text);
   });
 });

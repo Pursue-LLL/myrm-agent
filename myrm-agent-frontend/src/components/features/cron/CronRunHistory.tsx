@@ -40,6 +40,7 @@ import {
   ContextFromEditor,
   PreConditionEditor,
 } from './CronAdvancedEditors';
+import { CronTimeoutEditor } from './CronTimeoutEditor';
 import { ActiveHoursEditor } from './ActiveHoursEditor';
 import { CapabilityEditor } from './CapabilityEditor';
 import { AllowedRootsEditor } from './AllowedRootsEditor';
@@ -203,6 +204,7 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
       <ContextFromEditor job={job} onUpdated={handleEditorUpdated} />
       <PreConditionEditor job={job} onUpdated={handleEditorUpdated} />
       <CooldownEditor job={job} onUpdated={handleEditorUpdated} />
+      {job.job_type !== 'reminder' && <CronTimeoutEditor job={job} onUpdated={handleEditorUpdated} />}
       <MaxFiresEditor job={job} onUpdated={handleEditorUpdated} />
       <ExpiresAtEditor job={job} onUpdated={handleEditorUpdated} />
       <RunRetentionEditor job={job} onUpdated={handleEditorUpdated} />

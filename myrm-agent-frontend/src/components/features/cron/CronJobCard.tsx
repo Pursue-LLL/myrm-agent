@@ -42,6 +42,7 @@ import {
   formatNextRun,
   formatRelativeTime,
   formatTime,
+  formatTimeoutSeconds,
   isCronOverdue,
   statusBorderColor,
   STATUS_BADGE_STYLE,
@@ -483,7 +484,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               <TooltipTrigger asChild>
                 <span className="inline-flex items-center gap-0.5">
                   <Hourglass className="h-3 w-3" />
-                  {job.timeout_seconds >= 60 ? `${Math.round(job.timeout_seconds / 60)}m` : `${job.timeout_seconds}s`}
+                  {formatTimeoutSeconds(job.timeout_seconds)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('timeoutLabel')}</TooltipContent>

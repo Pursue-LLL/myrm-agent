@@ -14,6 +14,7 @@ import {
   Send,
   Sparkles,
   ShieldCheck,
+  Hourglass,
   Trash2,
 } from 'lucide-react';
 import useAgentStore from '@/store/useAgentStore';
@@ -48,6 +49,8 @@ import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintInlineFill from './BlueprintInlineFill';
 import CronDeployModeNotice from './CronDeployModeNotice';
 import { CRON_PRESETS, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
+import { parseTimeoutSeconds } from './cron-utils';
+import { TimeoutInput } from './CronTimeoutEditor';
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
@@ -104,6 +107,7 @@ export default function CronJobCreateDialog({
   const [createMode, setCreateMode] = useState<'template' | 'custom'>('template');
   const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<Array<{ type: string; description: string }>>([]);
+  const [timeoutSeconds, setTimeoutSeconds] = useState('');
   const [createdJob, setCreatedJob] = useState<CronJob | null>(null);
   const [workflowTemplateId, setWorkflowTemplateId] = useState('__none__');
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateSummary[]>([]);
@@ -213,6 +217,7 @@ export default function CronJobCreateDialog({
     setCreateMode('template');
     setSelectedBlueprint(null);
     setAcceptanceCriteria([]);
+    setTimeoutSeconds('');
     setCreatedJob(null);
     setWorkflowTemplateId('__none__');
     setWorkflowTemplateArgs(null);
@@ -290,7 +295,9 @@ export default function CronJobCreateDialog({
         ? command.trim().length > 0
         : scriptCode.trim().length > 0;
   const sessionValid = sessionTarget === 'isolated' || effectiveChatId !== null;
-  const canSubmit = contentValid && schedule !== null && sessionValid;
+  // Empty keeps the server default; a typed limit must be one the server accepts.
+  const timeoutValid = timeoutSeconds.trim() === '' || parseTimeoutSeconds(timeoutSeconds) !== null;
+  const canSubmit = contentValid && schedule !== null && sessionValid && timeoutValid;
 
   const executeCreate = useCallback(
     async (templateArgs: Record<string, string> | null) => {
@@ -347,6 +354,11 @@ export default function CronJobCreateDialog({
           }));
         }
 
+        const timeout = uiMode === 'reminder' ? null : parseTimeoutSeconds(timeoutSeconds);
+        if (timeout !== null) {
+          payload.timeout_seconds = timeout;
+        }
+
         if (overridePrerequisite) {
           payload.override_prerequisite = true;
         }
@@ -384,6 +396,7 @@ export default function CronJobCreateDialog({
       deliveryChannel,
       deliveryTarget,
       acceptanceCriteria,
+      timeoutSeconds,
       overridePrerequisite,
       createJob,
       t,
@@ -832,6 +845,17 @@ export default function CronJobCreateDialog({
                         model: defaultModel.model,
                       })}
                     </p>
+                  </div>
+                )}
+
+                {/* Run time limit */}
+                {uiMode !== 'reminder' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1">
+                      <Hourglass className="h-3 w-3" />
+                      {t('timeoutLabel')}
+                    </Label>
+                    <TimeoutInput value={timeoutSeconds} onChange={setTimeoutSeconds} invalid={!timeoutValid} />
                   </div>
                 )}
 
