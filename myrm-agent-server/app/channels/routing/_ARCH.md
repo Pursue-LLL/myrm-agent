@@ -269,8 +269,10 @@ What a replay is: the message as it arrived, not its text alone. An entry holds 
 (`types/inbound_wire.py`), so attachments, the quoted reply, group context, thread, sender, timestamps and an approval answer's
 `resume_value` come back. Two things are left out because the replayed turn derives them again: `channel_capabilities` (read
 from the live channel) and the yolo window (a stale window must not outlive its restart). `restore_inbound` rebuilds the
-message and marks it `is_recovery`; an attachment whose local file no longer exists keeps its url when it has one, otherwise it is
-dropped and named in the message text so the agent does not wait for a file that cannot arrive. An entry that cannot be
+message and marks it `is_recovery`; the turn keeps its entry instead of writing a new one, and the agent is told on the live turn
+only that the message reached the server before a restart, may already have been partly handled, and that a step with effects outside
+the chat is to be checked before it is repeated (`execute_preamble/replay_notice.py`). An attachment whose local file no longer exists
+keeps its url when it has one, otherwise it is dropped and named in the message text so the agent does not wait for a file that cannot arrive. An entry that cannot be
 decoded is logged and skipped, the others still replay. The journal table holds one JSON payload per entry; a table of another
 column set is dropped when the journal opens (entries live ten minutes, so there is nothing to migrate) and the drop is logged.
 

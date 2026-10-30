@@ -34,5 +34,6 @@
 - `tests/core/channel_bridge/test_approval_card.py` — 审批卡按发送者语言（en/ja/zh-CN/zh-TW）出句式、超时行、安全审查前缀与按钮，工具名与未编码的理由原样、编码的理由按码出句（harness 的每个理由码在四种语言都有句子，不认识的码回退原文，批量里各请求各自出句）；批量按钮、无理由不带悬空冒号、超时自动批准/拒绝的措辞、长时限不带千分位、时限缺失或不可读回退默认 300 秒/拒绝、无目录的语言读英文
 - `tests/core/channel_bridge/test_executor_approval_card_locale.py` — 真实执行器停在审批请求处，卡片按发送者的 locale 出，并带 `expiry` 与本回合的会话键
 - `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable、Outcome XOR）
+- `tests/core/channel_bridge/test_execute_preamble_replay_notice.py` — 重启后重放的消息在 live turn 带一句重放提示，其余消息与审批答复不带
 - `tests/core/channel_bridge/test_enrich_preamble_instructions.py` — IM Persona 注入触发/非触发验证
 - `tests/core/channel_bridge/test_channel_inbound_user_text.py` — 入站 query 组装（banner、reply context、group context、multimodal、forwarded email context）

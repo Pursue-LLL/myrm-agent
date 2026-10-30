@@ -18,6 +18,7 @@ Lifecycle:
 
 [OUTPUT]
 - InboundJournal: Protocol for journal persistence
+- METADATA_IS_RECOVERY, METADATA_RECOVERY_ENTRY_ID: the metadata keys that mark a replayed message and name its entry
 - JournalEntry: one persisted message (its wire form as JSON) with its age limit
 - SqliteInboundJournal: SQLite implementation (framework default)
 - create_journal_entry_from_inbound, restore_inbound: message to entry, and entry back to the message
@@ -48,6 +49,10 @@ if TYPE_CHECKING:
     from app.channels.types import InboundMessage, MediaAttachment
 
 logger = logging.getLogger(__name__)
+
+# Set on a replayed message by ``restore_inbound``; the turn keeps its entry instead of writing a new one, and the agent is told.
+METADATA_IS_RECOVERY = "is_recovery"
+METADATA_RECOVERY_ENTRY_ID = "recovery_entry_id"
 
 _DEFAULT_TTL_SECONDS = 600  # 10 minutes
 _COLUMNS = ("id", "payload_json", "created_at", "ttl_seconds")
@@ -265,5 +270,5 @@ def restore_inbound(entry: JournalEntry) -> InboundMessage:
     if lost:
         notes = [f"[Attachment: {name}] (file lost in the restart)" for name in lost]
         content = "\n".join(filter(None, [content, *notes]))
-    metadata = {**msg.metadata, "is_recovery": True, "recovery_entry_id": entry.id}
+    metadata = {**msg.metadata, METADATA_IS_RECOVERY: True, METADATA_RECOVERY_ENTRY_ID: entry.id}
     return replace(msg, content=content, media=media, metadata=metadata)

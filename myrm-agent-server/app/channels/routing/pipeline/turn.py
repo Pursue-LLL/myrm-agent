@@ -50,7 +50,11 @@ from app.channels.media.video_enrichment import (
 from app.channels.media.video_enrichment import (
     has_video_attachment as has_video_attachment_fn,
 )
-from app.channels.reliability.inbound_journal import create_journal_entry_from_inbound
+from app.channels.reliability.inbound_journal import (
+    METADATA_IS_RECOVERY,
+    METADATA_RECOVERY_ENTRY_ID,
+    create_journal_entry_from_inbound,
+)
 from app.channels.routing.command_defs import CommandKind
 from app.channels.routing.commands import parse_topic_args
 from app.channels.routing.friendly_errors import friendly_error_message
@@ -175,12 +179,12 @@ class RouterTurnMixin:
         A message replayed after a restart has its entry already: it is neither written again nor, without an entry
         id, acknowledged.
         """
-        if self._inbound_journal and not msg.metadata.get("is_recovery"):
+        if self._inbound_journal and not msg.metadata.get(METADATA_IS_RECOVERY):
             entry = create_journal_entry_from_inbound(msg)
             self._inbound_journal.write(entry)
             return entry.id
-        if self._inbound_journal and msg.metadata.get("recovery_entry_id"):
-            return str(msg.metadata["recovery_entry_id"])
+        if self._inbound_journal and msg.metadata.get(METADATA_RECOVERY_ENTRY_ID):
+            return str(msg.metadata[METADATA_RECOVERY_ENTRY_ID])
         return None
 
     def _apply_session_state(self: RouterTurnHost, msg: InboundMessage) -> InboundMessage:
