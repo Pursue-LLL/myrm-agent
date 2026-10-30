@@ -10,7 +10,8 @@
 - preserve_frontmatter_on_edit: reinject FM when LLM drops the block
 
 [POS]
-Generic markdown FM utilities shared by vault write guard, toolkits wiki and server wiki import. A note saved
+Generic markdown FM utilities shared by vault write guard, toolkits wiki, server wiki import and the server
+knowledge pack. A note saved
 with a UTF-8 BOM (Windows editors do) still has its block recognised; parsing drops the BOM from the body.
 """
 

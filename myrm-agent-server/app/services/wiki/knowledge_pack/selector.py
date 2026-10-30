@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
 - app.services.wiki.vault::resolve_shared_wiki_vault_paths, resolve_shared_wiki_vault_labels
+- myrm_agent_harness.api::search_published_index, tokenize_for_fts (POS: read-only published-pages-only FTS search; query tokenizer)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
 
@@ -11,19 +12,21 @@
 - KnowledgePackSelector: Select, dedup, and enforce strict token/character budget on snippets.
 
 [POS]
-High-performance snippet selection pipeline for pre-turn proactive injection. Every page text it reads goes through
-the wiki publish gate, so a draft or blocked page never reaches the injected context, and snippets never lead with
-the page's frontmatter.
+High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
+its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out);
+tier 2 scans markdown files. Every page file it reads goes through the wiki publish gate again, so a draft or
+blocked page never reaches the injected context, and snippets never lead with the page's frontmatter.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
-import sqlite3
 import time
 from pathlib import Path
 
+from myrm_agent_harness.api import search_published_index, tokenize_for_fts
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
@@ -36,6 +39,8 @@ from app.services.wiki.knowledge_pack.schemas import (
 logger = logging.getLogger(__name__)
 
 _EN_NUM_PATTERN = re.compile(r"[a-z0-9]+", re.ASCII)
+_MAX_INDEXED_SNIPPETS = 5
+_MAX_FTS_TERMS = 8
 
 
 def tokenize_text(text: str) -> set[str]:
@@ -97,6 +102,60 @@ def truncate_snippet_text(text: str, max_chars: int = 200) -> str:
         if last_idx > max_chars // 2:
             return truncated[: last_idx + len(punct)].strip()
     return truncated + "…"
+
+
+def _fts_match_query(query: str, match_terms: set[str]) -> str:
+    """Tolerant FTS5 query: OR of the alphanumeric terms and CJK bigrams, else the harness tokenizer's output."""
+    safe_terms = [t for t in match_terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))]
+    if safe_terms:
+        return " OR ".join(f'"{t}"' for t in safe_terms[:_MAX_FTS_TERMS])
+    return tokenize_for_fts(query)
+
+
+def _best_paragraph(text: str, match_terms: set[str]) -> str:
+    """The paragraph that matches the most query terms, else the first one; headings are dropped."""
+    paras = [p.strip() for p in text.split("\n\n") if p.strip()]
+    best_para = ""
+    best_matches = 0
+    for p in paras:
+        lines = [line.strip() for line in p.split("\n") if line.strip() and not line.strip().startswith("#")]
+        if not lines:
+            continue
+        joined = " ".join(lines)
+        joined_lower = joined.lower()
+        matches = sum(1 for t in match_terms if t in joined_lower)
+        if matches > best_matches:
+            best_matches = matches
+            best_para = joined
+    if not best_para and paras:
+        first_lines = [line.strip() for line in paras[0].split("\n") if line.strip() and not line.strip().startswith("#")]
+        best_para = " ".join(first_lines) if first_lines else paras[0]
+    return best_para
+
+
+def _indexed_snippets(vault_path: Path, label: str, fts_query: str, match_terms: set[str]) -> list[RelevantSnippet]:
+    """Tier 1: the best paragraph of each published page the vault's FTS index ranks first for the query."""
+    db_path = vault_path / ".wiki_index.db"
+    found: list[RelevantSnippet] = []
+    for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_SNIPPETS):
+        concept_file = vault_path / "wiki" / "concepts" / f"{concept_name}.md"
+        if not concept_file.is_file():
+            concept_file = vault_path / f"{concept_name}.md"
+        # The page file is the source of truth for its publish status; the index row's text stands in only for
+        # rows that have no page file (e.g. raw sources).
+        raw_content = _published_page_body(concept_file) if concept_file.is_file() else indexed_text
+        best_para = _best_paragraph(raw_content, match_terms)
+        if best_para:
+            found.append(
+                RelevantSnippet(
+                    kb_name=label,
+                    article_title=concept_name,
+                    snippet=best_para,
+                    confidence=0.95,
+                    source_path=str(db_path),
+                )
+            )
+    return found
 
 
 class KnowledgePackSelector:
@@ -184,8 +243,6 @@ async def resolve_proactive_snippets_from_vaults(
     timeout_seconds: float = 0.150,
 ) -> ProactiveKnowledgeResult:
     """Asynchronously retrieve and budget proactive snippets within timeout guardrail."""
-    import asyncio
-
     t0 = time.monotonic()
     selector = KnowledgePackSelector(config)
 
@@ -210,82 +267,9 @@ async def resolve_proactive_snippets_from_vaults(
         db_path = vault_path / ".wiki_index.db"
         if db_path.is_file():
             try:
-                fts_query = ""
-                # Build tolerant FTS5 query using OR join of CJK bigrams & alphanumeric terms for robust matching
-                safe_fts_terms = [
-                    t for t in match_terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))
-                ]
-                if safe_fts_terms:
-                    fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
-                if not fts_query:
-                    try:
-                        from myrm_agent_harness.api import tokenize_for_fts
-
-                        fts_query = tokenize_for_fts(trimmed_query)
-                    except ImportError:
-                        pass
-
+                fts_query = _fts_match_query(trimmed_query, match_terms)
                 if fts_query.strip():
-                    # Open read-only connection to guarantee zero write contention and sandboxed safety
-                    with sqlite3.connect(f"file:{db_path.resolve()}?mode=ro", uri=True) as conn:
-                        conn.row_factory = sqlite3.Row
-                        cursor = conn.execute(
-                            """
-                            SELECT concept_name, truth_content
-                            FROM wiki_fts
-                            WHERE wiki_fts MATCH ?
-                            ORDER BY rank
-                            LIMIT 5
-                            """,
-                            (fts_query,),
-                        )
-                        for row in cursor.fetchall():
-                            c_name = str(row["concept_name"] or "")
-                            concept_file = vault_path / "wiki" / "concepts" / f"{c_name}.md"
-                            if not concept_file.is_file():
-                                concept_file = vault_path / f"{c_name}.md"
-                            # The page file is the source of truth for its publish status; the index row's
-                            # text stands in only for rows that have no page file (e.g. raw sources).
-                            if concept_file.is_file():
-                                raw_content = _published_page_body(concept_file)
-                            else:
-                                raw_content = str(row["truth_content"] or "")
-
-                            paras = [p.strip() for p in raw_content.split("\n\n") if p.strip()]
-                            best_para = ""
-                            best_matches = 0
-                            for p in paras:
-                                lines = [
-                                    line.strip() for line in p.split("\n") if line.strip() and not line.strip().startswith("#")
-                                ]
-                                if not lines:
-                                    continue
-                                text = " ".join(lines)
-                                text_lower = text.lower()
-                                matches = sum(1 for t in match_terms if t in text_lower)
-                                if matches > best_matches:
-                                    best_matches = matches
-                                    best_para = text
-                            if not best_para and paras:
-                                first_lines = [
-                                    line.strip()
-                                    for line in paras[0].split("\n")
-                                    if line.strip() and not line.strip().startswith("#")
-                                ]
-                                best_para = " ".join(first_lines) if first_lines else paras[0]
-
-                            if best_para:
-                                found.append(
-                                    RelevantSnippet(
-                                        kb_name=label,
-                                        article_title=c_name,
-                                        snippet=best_para,
-                                        confidence=0.95,
-                                        source_path=str(db_path),
-                                    )
-                                )
-                                if len(found) >= 5:
-                                    break
+                    found = _indexed_snippets(vault_path, label, fts_query, match_terms)
                 if found:
                     return found
             except Exception as exc:

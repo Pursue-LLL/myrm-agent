@@ -13,12 +13,16 @@
 
 [OUTPUT]
 - FtsSearchMixin: FTS5 + vector search/get_truth with the publish_status gate for WikiIndexer; vector hits under another spelling collapse onto the page key
+- search_published_index: read-only top published pages of an index file the caller does not own
 - migrate_wiki_fts_schema: rebuild wiki_fts when it predates the search_terms column
 
 [POS]
 Wiki index read operations mixin. Keeps hybrid search fusion, the publish gate and
 truth lookup apart from the write side in `FtsWriteMixin`, so each module stays
-single-responsibility and within size limits.
+single-responsibility and within size limits. The FTS publish gate is a SQL predicate
+of the match query itself, so ranking, LIMIT and OFFSET count published pages only; the
+vector side filters its hits after the search because vectors are written for
+published pages only.
 """
 
 from __future__ import annotations
@@ -44,6 +48,7 @@ from .vector_chunks import collapse_vector_hits
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from contextlib import AbstractContextManager
+    from pathlib import Path
 
     from myrm_agent_harness.toolkits.memory.protocols.embedding import (
         EmbeddingProtocol,
@@ -53,6 +58,28 @@ if TYPE_CHECKING:
     from ..core.structure import WikiStructure
 
 logger = logging.getLogger(__name__)
+
+
+def _published_match_select(conn: sqlite3.Connection, fts_table: str, columns: str) -> str:
+    """Build a SELECT over ``fts_table`` (``wiki_fts`` or ``pub_N.wiki_fts``) that yields published pages only.
+
+    The gate belongs in the query: a gate applied to the fetched rows lets drafts fill the LIMIT window and starves
+    the caller. Sidecar rows never match. A page without a publish row (a raw interim entry) and an index that
+    predates the publish table both read as published, like ``_is_published``.
+    """
+    schema, _, name = fts_table.rpartition(".")
+    qualifier = f"{schema}." if schema else ""
+    where = f"{name} MATCH ? AND concept_name NOT GLOB '{_SIDECAR_PREFIX}:*'"
+    has_publish_table = conn.execute(
+        f"SELECT 1 FROM {qualifier}sqlite_master WHERE type = 'table' AND name = 'wiki_index_meta'"
+    ).fetchone()
+    if has_publish_table:
+        where += (
+            f" AND NOT EXISTS (SELECT 1 FROM {qualifier}wiki_index_meta AS meta"
+            f" WHERE meta.concept_name = {name}.concept_name"
+            f" AND meta.publish_status <> '{WikiPublishStatus.PUBLISHED.value}')"
+        )
+    return f"SELECT {columns} FROM {fts_table} WHERE {where}"
 
 
 class FtsSearchMixin:
@@ -141,11 +168,7 @@ class FtsSearchMixin:
                         # In SQLite FTS5, the MATCH operator can be used on the table name.
                         # e.g., pub_0.wiki_fts MATCH ? is valid, but the column name inside WHERE is wiki_fts MATCH ?
                         fts_union = " UNION ALL ".join(
-                            (
-                                f"SELECT concept_name, rank, '{t}' AS src_tbl FROM {t} "
-                                f"WHERE {t.split('.')[-1]} MATCH ? "
-                                f"AND concept_name NOT GLOB '{_SIDECAR_PREFIX}:*'"
-                            )
+                            _published_match_select(conn, t, f"concept_name, rank, '{t}' AS src_tbl")
                             for t in fts_tables
                         )
                         params = (fts_query,) * len(fts_tables)
@@ -168,7 +191,6 @@ class FtsSearchMixin:
                             decay = 0.9 if str(row["src_tbl"]).startswith("pub_") else 1.0
                             score = (1.0 / (abs(row["rank"]) + 1.0)) * decay
                             results.append((row["concept_name"], score))
-                    results[:] = self._filter_published(conn, results)
                 except sqlite3.OperationalError as e:
                     logger.error(f"FTS search error: {e}")
                     healed = fts5_auto_heal(conn, "wiki_fts")
@@ -190,7 +212,6 @@ class FtsSearchMixin:
                                 decay = 0.9 if str(row["src_tbl"]).startswith("pub_") else 1.0
                                 score = (1.0 / (abs(row["rank"]) + 1.0)) * decay
                                 results.append((row["concept_name"], score))
-                        results[:] = self._filter_published(conn, results)
             return results
 
         fts_results = await asyncio.to_thread(sync_fts_search)
@@ -266,6 +287,19 @@ class FtsSearchMixin:
             cursor = conn.execute(fts_union, params)
             row = cursor.fetchone()
             return row["truth_content"] if row else None
+
+
+def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> list[tuple[str, str]]:
+    """Return the ``limit`` best published pages of an index file as (concept_name, truth_content).
+
+    For callers that read an index they do not own, such as a shared vault another process writes: the file is
+    opened read-only and nothing is migrated or created. ``fts_query`` is FTS5 MATCH syntax. Raises
+    ``sqlite3.Error`` when the file is missing or unreadable or the query is invalid.
+    """
+    with contextlib.closing(sqlite3.connect(f"{index_db.resolve().as_uri()}?mode=ro", uri=True)) as conn:
+        select = _published_match_select(conn, "wiki_fts", "concept_name, truth_content")
+        rows = conn.execute(f"{select} ORDER BY rank LIMIT ?", (fts_query, limit)).fetchall()
+    return [(str(name or ""), str(truth or "")) for name, truth in rows]
 
 
 def migrate_wiki_fts_schema(conn: sqlite3.Connection) -> None:

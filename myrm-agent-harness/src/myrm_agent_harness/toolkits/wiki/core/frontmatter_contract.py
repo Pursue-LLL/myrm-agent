@@ -13,9 +13,9 @@
 
 [POS]
 Harness SSOT for wiki page type and metric schema gate used by compile, import writeback, linter, pending approve,
-and server repair API. `read_published_text` gates every path that reads page files straight into an answer
+and server repair API. `read_published_text` gates every harness path that reads page files straight into an answer
 (keyword matching, graph expansion, directory sidecars, index.md, hot.md key pages), so a draft or blocked page stays
-out of all of them.
+out of all of them; the server's knowledge pack reads page text itself and applies `resolve_publish_status` to it.
 """
 
 from __future__ import annotations

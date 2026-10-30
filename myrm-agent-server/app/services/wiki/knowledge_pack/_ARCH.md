@@ -10,7 +10,7 @@
 3. **预算截断与硬限制**：最多 3 个关键段落，单段 ≤ 200 字符，总字符 ≤ 600 字符。
 4. **150ms 严格超时降级**：后台预热超时自动静默跳过，绝不阻塞用户首字输出（TTFT 零负面影响）。
 5. **Jaccard 相似度去重**：相似度 ≥ 0.70 的重复段落直接剔除，确保信息高增益。
-6. **发布门禁**：读到的每份页面文本先过 harness 的 `resolve_publish_status`，draft 与 blocked 页整页跳过（索引命中的页面也一样，页面文件才是发布状态的依据）；只有没有页面文件的索引行（如 raw 来源）才用索引里存的文本。缺失或未知的状态按已发布处理，与 wiki 全局约定一致。片段取自去掉 frontmatter 的正文。
+6. **发布门禁（两层）**：层 1 经 harness 的 `search_published_index` 只读打开 vault 的 FTS 索引，draft、blocked 与 sidecar 行在匹配查询内就被排除，排名与 `LIMIT` 只数已发布页面，草稿再多也挤不掉已发布页面；没有发布元数据表的旧索引整体按已发布读取。层 2 在读页面文件时：读到的每份页面文本再过 harness 的 `resolve_publish_status`（索引可能落后于文件），draft 与 blocked 页整页跳过（索引命中的页面也一样，页面文件才是发布状态的依据），读不出的页面同样整页跳过；只有没有页面文件的索引行（如 raw 来源）才用索引里存的文本。缺失或未知的状态按已发布处理，与 wiki 全局约定一致。片段取自去掉 frontmatter 的正文。
 
 ## 3. 模块内部文件清单与接口职责
 
@@ -18,4 +18,4 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `__init__.py` | Facade 门面 | 聚合导出模块内所有核心契约与算法 | 内部各子模块 | 统一向外暴露稳定 API |
 | `schemas.py` | Core 实体 | 定义 KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult | 无 | 强类型数据传输对象 (DTO) |
-| `selector.py` | Pipeline 引擎 | 发布门禁与 frontmatter 剥离后的段落检索、Jaccard 语义去重、硬预算截断与异步 Vault 扫描 | schemas, resolver, harness 的 `resolve_publish_status` 与 `parse_frontmatter` | ProactiveKnowledgeResult |
+| `selector.py` | Pipeline 引擎 | 层 1 只读 FTS 索引取已发布页面、层 2 扫 markdown；页面文件再过发布门禁并剥离 frontmatter 后的段落检索、Jaccard 语义去重、硬预算截断与异步 Vault 扫描 | schemas, resolver, harness 的 `search_published_index`、`tokenize_for_fts`、`resolve_publish_status` 与 `parse_frontmatter` | ProactiveKnowledgeResult |
