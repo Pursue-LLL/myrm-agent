@@ -102,7 +102,8 @@ class SandboxedPythonCondition(PreFlightCondition):
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_seconds)
             except BaseException:
                 # A deadline or a cancel only stops the wait: the script and what it started keep running, and a
-                # descendant holding the pipes would keep `wait()` from returning. Stop the whole tree first.
+                # descendant holding the pipes would keep `wait()` from returning. Stop the whole tree first;
+                # a script that already exited has no tree left to find, so what it left behind is not stopped.
                 await asyncio.shield(kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS))
                 raise
             returncode = await proc.wait()
