@@ -1,4 +1,4 @@
-"""AgentRunStatistics keeps a run's failure as one line of text with credentials masked."""
+"""AgentRunStatistics keeps a run's failure as text with credentials masked."""
 
 from myrm_agent_harness.agent.types import AgentRunStatistics
 

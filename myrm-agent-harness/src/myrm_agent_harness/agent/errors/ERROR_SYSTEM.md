@@ -370,17 +370,17 @@ agent/_internals/agent_runtime.py run_agent_loop 外层 except（executor 外层
     │     error_kind 优先；error_kind 为 UNKNOWN 时以 diagnostic.error_type 兜底（如 api_key → env）
     │   - diagnostic_result: { error_type, user_message, resolution_steps, locale }（本地化诊断结果）
     │   - recovery_actions: list[{id, label, url}]（本地化恢复按钮，由 `diagnostics/recovery_actions.py` 生成，可选）
-    │   - cooldown_remaining_ms: int（瞬态错误的重试倒计时，可选）
+    │   - cooldown_remaining_ms: int（供应商给出的剩余等待毫秒数，可选；诊断引擎把它写进 user_message，网页前端不读取该字段）
     ↓
 SSE推送到前端（compactor.put）
     │ event_logger.log("error", ...)（同字段去 type/messageId 后持久化，供 trace 重建）
     ↓
 agentControlEvents.ts（前端消费）
     │ 优先消费 diagnostic_result（user_message + resolution_steps）
-    │ 缺失时 fallback getUserFriendlyError(error_kind, rawError, cooldown_remaining_ms)
+    │ 缺失时 fallback getUserFriendlyError(error_kind, rawError)
     ↓
 ProgressSteps.tsx（UI展示）
-    └ 显示本地化错误消息 + fault_side badge + hint提示 + 恢复动作 + 倒计时
+    └ 显示本地化错误消息 + fault_side badge + hint提示 + 恢复动作
 
 event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.errors（含 fault_side / error_kind / recovery_actions / diagnostic_result），确保会话分析时间线的 outcome 与首不可恢复点对 LLM 致命错误也准确。
 ```
@@ -445,8 +445,8 @@ class DiagnosticResult:
 
 #### 前端消费链路
 
-- `agentControlEvents.ts`：收到 ERROR 事件 → 优先消费后端 `diagnostic_result`（`user_message` + `resolution_steps`），`diagnostic_result` 缺失时 fallback `getUserFriendlyError(error_kind, rawError, cooldown_remaining_ms)`
-- `streamHelpers.ts` `getUserFriendlyError()`：`concurrency_limit` 特判中英双语消息，其余分类原样返回原始错误
+- `agentControlEvents.ts`：收到 ERROR 事件 → 优先消费后端 `diagnostic_result`（`user_message` + `resolution_steps`），`diagnostic_result` 缺失时 fallback `getUserFriendlyError(error_kind, rawError)`
+- `streamHelpers.ts` `getUserFriendlyError()`：`wake_turn_failed` 取语言包词条，`concurrency_limit` 特判中英双语消息，其余分类原样返回原始错误
 - `ProgressSteps.tsx`：渲染错误 UI（红色区域 + 重试历史）与恢复按钮；只渲染带 `url` 的恢复动作（`/` 开头跳站内页，其余新标签页打开），没有落点的动作（如 `wait`、`retry`）点了也无处可去，不渲染成按钮
 
 ```typescript
@@ -454,8 +454,10 @@ class DiagnosticResult:
 export async function getUserFriendlyError(
   errorKind: ErrorKind | undefined,
   rawError: string,
-  _cooldownMs?: number,
 ): Promise<FriendlyError> {
+  if (errorKind === 'wake_turn_failed') {
+    return { message: translateI18nKey('chat.wakeupNotice.failed') };
+  }
   if (errorKind === 'concurrency_limit') {
     const isZh =
       typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh');

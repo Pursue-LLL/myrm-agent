@@ -12,7 +12,7 @@
 [OUTPUT]
 - CompletionStatus: LLM 回复完成状态枚举（COMPLETE, TRUNCATED, CONTENT_FILTERED）
 - map_to_completion_status(): 将 LLM 提供商原始 finish_reason（含断流哨兵）映射为领域枚举
-- AgentRunStatistics: Agent 执行统计数据类（duration, tool_call_count, token_usage, completion_status 等），`record_error()` 以脱敏后的单行文本记录运行失败
+- AgentRunStatistics: Agent 执行统计数据类（duration, tool_call_count, token_usage, completion_status 等），`record_error()` 以脱敏后的文本记录运行失败
 - QuoteAttachment: 划词引用附件（source_message_id, quoted_text），通过 HumanMessage.additional_kwargs 传递给 inject_ephemeral_quote()
 - WorkspaceBinding: Agent 运行工作区绑定配置（mode, root_path, chat_id, task_id）
 - AgentRuntimeSpec: Agent 运行时规范（agent_id, name, system_prompt, allowed_tools, skill_ids 等），Server 层编译、Harness 层执行
@@ -102,7 +102,7 @@ class AgentRunStatistics:
     context_budget: ContextBudgetSnapshot | None = None
 
     def record_error(self, error_type: str, message: str) -> None:
-        """Keep the run's failure as one line of text with credentials masked.
+        """Keep the run's failure as text with credentials masked.
 
         The text leaves the process in the SESSION_END hook payload, so a key a provider echoed back in its
         error message never reaches a hook endpoint.

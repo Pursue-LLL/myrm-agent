@@ -1,4 +1,4 @@
-"""Cooldown hint units: below an hour a wait stays in seconds, a longer one is spelled in its two largest units."""
+"""Cooldown hint units: below five minutes a wait stays in seconds, a longer one is spelled in its two largest units."""
 
 import json
 from pathlib import Path
@@ -17,6 +17,7 @@ _LOCALES_DIR = Path(i18n.__file__).parent / "locales"
 _SPELLINGS = (
     (1, (("second_one", 1),)),
     (2, (("second_other", 2),)),
+    (300, (("minute_other", 5),)),
     (3600, (("hour_one", 1),)),
     (7200, (("hour_other", 2),)),
     (3660, (("hour_one", 1), ("minute_one", 1))),
@@ -38,18 +39,26 @@ def _bundle(locale: str) -> dict[str, str]:
     ("seconds", "spelled"),
     [
         (1, "1 second"),
-        (3599, "3599 seconds"),
+        (299, "299 seconds"),
+        (300, "5 minutes"),
+        (301, "6 minutes"),
+        (2820, "47 minutes"),
+        (3540, "59 minutes"),
+        (3541, "1 hour"),
+        (3599, "1 hour"),
         (3600, "1 hour"),
         (3601, "1 hour 1 minute"),
         (23000, "6 hours 24 minutes"),
-        (86399, "24 hours"),
+        (86340, "23 hours 59 minutes"),
+        (86341, "1 day"),
+        (86399, "1 day"),
         (86400, "1 day"),
         (90000, "1 day 1 hour"),
         (604800, "7 days"),
         (604801, "7 days 1 hour"),
     ],
 )
-def test_a_wait_below_an_hour_stays_in_seconds_and_a_longer_one_rounds_up_in_its_two_largest_units(
+def test_a_wait_below_five_minutes_stays_in_seconds_and_a_longer_one_rounds_up_into_its_largest_units(
     seconds: int, spelled: str
 ) -> None:
     assert format_cooldown_hint(seconds * 1000, "en") == f" Retry after {spelled}."
@@ -59,6 +68,7 @@ def test_a_wait_below_an_hour_stays_in_seconds_and_a_longer_one_rounds_up_in_its
     ("locale", "seconds", "sentence"),
     [
         ("zh-CN", 23000, " 请等待6小时24分钟后重试。"),
+        ("zh-CN", 2820, " 请等待47分钟后重试。"),
         ("zh-CN", 90000, " 请等待1天1小时后重试。"),
         ("ja", 23000, " 6時間24分後に再試行してください。"),
         ("ko", 23000, " 6시간 24분 후에 다시 시도하세요."),

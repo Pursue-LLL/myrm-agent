@@ -24,22 +24,27 @@ _FALLBACK_TEMPLATE = " Retry after {duration}."
 
 _SECONDS_PER_MINUTE = 60
 _SECONDS_PER_HOUR = 3600
-_SECONDS_PER_DAY = 86400
 _MINUTES_PER_HOUR = 60
 _HOURS_PER_DAY = 24
+_MINUTES_PER_DAY = _MINUTES_PER_HOUR * _HOURS_PER_DAY
+_MINUTES_FROM_SECONDS = 300
 
 
 def _units(seconds: int) -> list[tuple[str, int]]:
     """The units a wait of ``seconds`` is spelled in, largest first; a unit with nothing left is left out.
 
-    Below an hour the wait stays in seconds, the unit the provider reports it in. From an hour up the two
-    largest units place it on a clock (``6 hours 24 minutes``, ``7 days``) and the smaller one rounds up:
-    a wait stated too short sends the retry in too early.
+    Below five minutes the wait stays in seconds, the unit a provider states a short wait in. From there the
+    two largest units place it on a clock (``47 minutes``, ``6 hours 24 minutes``, ``7 days``). Every figure
+    rounds up, because a wait stated too short sends the retry in too early, and a figure that rounds up to
+    the next unit is spelled in that unit (``60 minutes`` is ``1 hour``, ``24 hours`` is ``1 day``).
     """
-    if seconds < _SECONDS_PER_HOUR:
+    if seconds < _MINUTES_FROM_SECONDS:
         return [("second", seconds)]
-    if seconds < _SECONDS_PER_DAY:
-        hours, minutes = divmod(math.ceil(seconds / _SECONDS_PER_MINUTE), _MINUTES_PER_HOUR)
+    minutes = math.ceil(seconds / _SECONDS_PER_MINUTE)
+    if minutes < _MINUTES_PER_HOUR:
+        return [("minute", minutes)]
+    if minutes < _MINUTES_PER_DAY:
+        hours, minutes = divmod(minutes, _MINUTES_PER_HOUR)
         return [(unit, n) for unit, n in (("hour", hours), ("minute", minutes)) if n]
     days, hours = divmod(math.ceil(seconds / _SECONDS_PER_HOUR), _HOURS_PER_DAY)
     return [(unit, n) for unit, n in (("day", days), ("hour", hours)) if n]
