@@ -3,7 +3,7 @@
 3-table design:
 - skills: Skill records with lineage, eval_cases
 - evolution_rejections: Screener rejection audit trail
-- evolution_constraints: Historical fix constraints for preventing repeated mistakes
+- evolution_constraints: The reasons a user gave when rejecting a proposal, fed to the next proposal
 
 Core properties:
 - WAL mode for concurrent reads
@@ -152,6 +152,9 @@ CREATE INDEX IF NOT EXISTS idx_constraints_skill ON evolution_constraints(skill_
 CREATE INDEX IF NOT EXISTS idx_constraints_time ON evolution_constraints(created_at);
 """
 
+# Notes the engine and the screener once saved on their own as constraints; the table keeps only what a user rejected.
+_AUTOMATIC_CONSTRAINT_PREFIXES = ("FIX succeeded", "DERIVED succeeded", "LLM screener rejected FIX")
+
 
 class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQueries):
     """Simplified SQLite persistence for skill evolution.
@@ -248,6 +251,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
             self._conn.executescript(_DDL)
             self._conn.executescript(_DEPENDENCY_TABLE_DDL)
             self._migrate_add_record_columns()
+            self._purge_automatic_constraints()
             self._conn.commit()
 
     def _migrate_add_record_columns(self) -> None:
@@ -261,6 +265,19 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
             self._conn.execute("ALTER TABLE skills ADD COLUMN evolution_locked INTEGER NOT NULL DEFAULT 0")
         if "environment" not in cols:
             self._conn.execute("ALTER TABLE skills ADD COLUMN environment TEXT")
+
+    def _purge_automatic_constraints(self) -> None:
+        """Drop the constraints nobody rejected: the exact, case-sensitive prefixes the engine and the screener wrote."""
+        removed = sum(
+            self._conn.execute(
+                "DELETE FROM evolution_constraints WHERE substr(constraint_text, 1, ?) = ?", (len(prefix), prefix)
+            ).rowcount
+            for prefix in _AUTOMATIC_CONSTRAINT_PREFIXES
+        )
+        if removed:
+            logger.info(
+                "Removed %d automatic evolution constraints; the table keeps user rejection reasons only", removed
+            )
 
     def close(self) -> None:
         """Close persistent connection and checkpoint WAL.

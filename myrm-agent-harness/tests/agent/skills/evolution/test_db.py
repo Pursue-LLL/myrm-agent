@@ -276,6 +276,26 @@ async def test_evolution_constraints(temp_db_path, skill_record):
 
 
 @pytest.mark.asyncio
+async def test_reopening_the_store_keeps_only_the_constraints_a_user_gave(temp_db_path, skill_record):
+    store = SkillStore(db_path=temp_db_path)
+    await store.save_skill(skill_record)
+    automatic = [
+        "FIX succeeded (score=0.90): boom → rewrote the step",
+        "DERIVED succeeded (score=0.80): make it better → tightened the intro",
+        "LLM screener rejected FIX (conf=0.90): not worth a repair",
+    ]
+    from_the_user = ["Do not rename the output file", "fix succeeded is what I wanted, keep the headings"]
+    for text in [*automatic, *from_the_user]:
+        await store.add_evolution_constraint("test_skill_1", text)
+    store.close()
+
+    reopened = SkillStore(db_path=temp_db_path)
+
+    assert sorted(reopened.get_evolution_constraints("test_skill_1", limit=10)) == sorted(from_the_user)
+    reopened.close()
+
+
+@pytest.mark.asyncio
 async def test_delete_skill(temp_db_path, skill_record):
     store = SkillStore(db_path=temp_db_path)
     await store.save_skill(skill_record)

@@ -131,6 +131,8 @@ async def test_engine_fix_skill_with_constraints():
     assert proposal.evolution_type == EvolutionType.FIX
     assert proposal.proposed_content == "Fixed Variant"
     assert proposal.score >= 0.85
+    # A proposal is not a constraint: only a user's rejection reason is saved.
+    mock_store.add_evolution_constraint.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -172,6 +174,7 @@ async def test_engine_derive_skill_simple():
     assert proposal.evolution_type == EvolutionType.DERIVED
     assert proposal.proposed_content == "Derived Variant"
     assert proposal.score >= 0.90
+    mock_store.add_evolution_constraint.assert_not_called()
 
 
 @pytest.mark.asyncio

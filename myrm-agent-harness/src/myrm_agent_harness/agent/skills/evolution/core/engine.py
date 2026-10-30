@@ -133,7 +133,7 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
         if not trajectory:
             trajectory = f"Trajectory extraction not available. Error: {error_message}"
 
-        # 1.5 Fetch historical constraints to prevent repeated mistakes
+        # 1.5 The reasons the user gave when rejecting earlier proposals for this skill
         constraints = self._store.get_evolution_constraints(skill_id, limit=5)
         formatted_constraints = "\n".join([f"- {c}" for c in constraints]) if constraints else ""
 
@@ -185,14 +185,6 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
             trajectory=trajectory,
             is_general=is_general,
         )
-
-        # 4.5 Persist learning: record successful fix as evolution constraint
-        if proposal and score >= 0.7:
-            constraint = f"FIX succeeded (score={score:.2f}): {error_message[:200]} → {reason[:200]}"
-            try:
-                await self._store.add_evolution_constraint(skill_id, constraint)
-            except Exception as e:
-                logger.debug("Failed to persist FIX constraint for %s: %s", skill_id, e)
 
         return proposal
 
@@ -263,13 +255,6 @@ class SkillEvolutionEngine(SkillEvolutionEngineBatchMixin):
             trajectory=trajectory,
             is_general=is_general,
         )
-
-        if proposal and score >= 0.7:
-            constraint = f"DERIVED succeeded (score={score:.2f}): {user_feedback[:200]} → {reason[:200]}"
-            try:
-                await self._store.add_evolution_constraint(skill_id, constraint)
-            except Exception as e:
-                logger.debug("Failed to persist DERIVED constraint for %s: %s", skill_id, e)
 
         return proposal
 

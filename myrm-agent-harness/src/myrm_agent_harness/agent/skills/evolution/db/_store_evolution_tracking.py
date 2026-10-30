@@ -165,11 +165,11 @@ class SkillEvolutionTrackingMixin:
             self._conn.commit()
 
     async def add_evolution_constraint(self, skill_id: str, constraint_text: str) -> None:
-        """Add a constraint/lesson for a specific skill.
+        """Remember the reason a user gave for rejecting a proposal for a skill.
 
         Args:
             skill_id: Skill identifier
-            constraint_text: The constraint or lesson to remember
+            constraint_text: The rejection reason the next proposal must respect
         """
         if not constraint_text.strip():
             return
@@ -178,7 +178,7 @@ class SkillEvolutionTrackingMixin:
         await asyncio.to_thread(self._add_evolution_constraint_sync, skill_id, constraint_text.strip())
 
     def get_evolution_constraints(self, skill_id: str, limit: int = 5) -> list[str]:
-        """Get recent constraints for a specific skill.
+        """Get the most recent user rejection reasons for a specific skill.
 
         Args:
             skill_id: Skill identifier
