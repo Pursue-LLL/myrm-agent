@@ -1059,17 +1059,12 @@ class TestRunAndRecordTracing:
         assert TracingContext.get_session_id() == "-"
 
     @pytest.mark.asyncio
-    async def test_structured_alert_and_connector_failure_in_metadata(self) -> None:
-        """Delivery failure embeds connector_failure into metadata, and consecutive failures generate structured alert."""
+    async def test_delivery_failure_records_connector_failure_in_run_metadata(self) -> None:
+        """A failed delivery puts the classified, credential-free connector failure into the run's metadata."""
         executor, store, delivery = _make_executor()
         job = _make_job(
             delivery=DeliveryConfig(channel="webhook", target="https://api.example.com/webhook?token=secret99"),
-            failure_alert=FailureAlertConfig(
-                after=3,
-                delivery=DeliveryConfig(channel="webhook", target="https://alert.example.com/notify"),
-            ),
             consecutive_failures=2,
-            last_error="Webhook returned 502: Bad Gateway",
         )
         delivery.deliver = AsyncMock(side_effect=RuntimeError("Webhook returned 502: Bad Gateway"))
 

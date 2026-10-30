@@ -380,12 +380,12 @@ class JobResult:
     ``RunStatus.SKIPPED`` and counts no failure; it takes precedence over ``skipped``
     and, unlike it, keeps one-shot jobs alive.
 
-    ``retry_safe`` is False when a repeat could redo something the run already did (a tool
-    that changes state ran, a workflow step began) or would spend the same time budget again
-    (the run used up its whole time budget). If such a run counts as failed, repeating it ahead
-    of its schedule could duplicate those effects, so the executor leaves the job for its next
-    regular slot and the runner stops retrying in-process. Runners that cannot tell keep the
-    default.
+    ``retry_safe`` is False when a repeat cannot help or could do harm: it could redo something
+    the run already did (a tool that changes state was called, a workflow step began), spend the
+    same time budget again, or meet the same cause of failure (a revoked key, a context that is
+    too long, a gate that turned the job away). If such a run counts as failed, the executor
+    leaves the job for its next regular slot instead of re-running it early, and the runner stops
+    retrying in-process. Runners that cannot tell keep the default.
     """
 
     success: bool

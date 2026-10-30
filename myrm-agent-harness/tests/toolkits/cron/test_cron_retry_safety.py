@@ -193,6 +193,31 @@ class TestFailureAlert:
         assert text == text.strip()
         assert "Settings" not in text
         assert "side effects" not in text
+        assert "Category" not in text
+        assert "Suggestion" not in text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            "Error code: 401 - Incorrect API key provided",
+            "This model's maximum context length is 128000 tokens",
+            "Error code: 429 - Rate limit reached for requests",
+        ],
+        ids=["credential", "context", "rate-limit"],
+    )
+    async def test_alert_reports_a_run_error_as_it_is(self, error: str) -> None:
+        """A run error is not a delivery problem: the alert quotes it and gives no advice about destinations."""
+        executor, store, delivery = _executor(_ALERT_AFTER_THREE)
+        job = _job()
+        _store_holds(store, job)
+
+        await executor._update_after_run(job, _failed(retry_safe=False, error=error), 1, _NOW)
+
+        text = await self._alert_text(delivery)
+        assert f"Last error: {error}\n" in text
+        assert "destination" not in text
+        assert delivery.deliver.call_args.args[1].metadata is None
 
     @pytest.mark.asyncio
     async def test_safe_failure_below_the_threshold_stays_quiet(self) -> None:

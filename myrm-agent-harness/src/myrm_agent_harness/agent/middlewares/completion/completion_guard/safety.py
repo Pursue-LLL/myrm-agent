@@ -1,8 +1,9 @@
 """Effectful tool detection SSOT for completion-related guards.
 
 Consumed by the Mixed Message Guard (which tool_calls must be preserved)
-and the server-side Cron post-run verification (which runs need an
-adversarial-reviewer pass). Classification order:
+and by the server-side Cron run: its post-run verification (which runs need an
+adversarial-reviewer pass) and its retry decision (a failed run that issued such
+a call is not repeated). Classification order:
 
 1. Static alias sets are authoritative (`_MUTATION_TOOLS`,
    `INTERACTION_UI_TOOLS`).
@@ -72,8 +73,8 @@ INTERACTION_UI_TOOLS: frozenset[str] = frozenset(
 def is_mutating_tool(tool_name: str) -> bool:
     """Return True when the tool mutates workspace or external state (effectful).
 
-    SSOT used by Cron post-run verification to decide whether a run needs an
-    adversarial-reviewer pass. The static alias set is authoritative; everything
+    SSOT used by the Cron run to decide whether it needs an adversarial-reviewer
+    pass and whether a failed run may be repeated. The static alias set is authoritative; everything
     else resolves via registry metadata (fail-closed: unknown tools assumed
     effectful, since a side effect must never go unverified).
     """

@@ -58,6 +58,7 @@ from app.core.agent.stop_reason import merge_stop_reason, step_item_text
 
 from .blocked_actions import blocked_actions_metadata
 from .effectful_steps import has_effectful_tools
+from .failure_recoverability import is_transient_failure
 from .injection_scan import scan_cron_prompt
 from .provider_window_deferral import usage_limit_deferral
 from .research_lease import grant_run_lease, release_run_lease
@@ -456,8 +457,8 @@ class AgentJobRunner:
                 )
                 return last_result
 
-            # A run whose steps may already have taken effect (a send, a write, a payment) or that spent its whole time
-            # budget would do it all again in a repeat.
+            # A run whose steps may already have taken effect (a send, a write, a payment), that spent its whole time
+            # budget, or whose failure no repeat can clear would only do it all again.
             if not last_result.retry_safe:
                 logger.warning(
                     "Cron agent job %s failed and is not safe to repeat (attempt %d/%d): %s. Not retrying in-process.",
@@ -555,12 +556,12 @@ class AgentJobRunner:
 
     async def _run_once(self, job: CronJob, *, context: str = "") -> JobResult:
         if not job.prompt:
-            return JobResult(success=False, error="agent job requires a prompt")
+            return _deterministic_failure("agent job requires a prompt")
 
         from app.services.budget.enforcer import should_block_execution
 
         if await should_block_execution():
-            return JobResult(success=False, error="daily budget exceeded (block policy)")
+            return _deterministic_failure("daily budget exceeded (block policy)")
 
         # A non-owner's message started this run, so its trigger context is a stranger's text: the run gets the
         # read-only lease and no memory or owner chat history (below), is never queued as a goal in the owner's
@@ -587,10 +588,7 @@ class AgentJobRunner:
                 job.id,
                 "; ".join(injection_findings),
             )
-            return JobResult(
-                success=False,
-                error=f"prompt injection detected: {injection_findings[0]}",
-            )
+            return _deterministic_failure(f"prompt injection detected: {injection_findings[0]}")
 
         if self._situation_builder and job.name == HEARTBEAT_JOB_NAME:
             effective_prompt, has_content = await self._inject_situation_report(job, effective_prompt)
@@ -915,7 +913,7 @@ class AgentJobRunner:
                                 job.id,
                                 template_error,
                             )
-                            return JobResult(success=False, error=template_error)
+                            return _deterministic_failure(template_error)
 
                         params.message_id = f"cron-{job.id}-{secrets.token_urlsafe(6)}"
                         dw_stream = create_dynamic_workflow_stream(
@@ -992,6 +990,11 @@ def _timeout_result(job: CronJob) -> JobResult:
     return JobResult(success=False, error=f"agent timed out after {timeout}s", retry_safe=False)
 
 
+def _deterministic_failure(error: str) -> JobResult:
+    """A gate turned the job away (no prompt, budget, prompt scan, workflow template); a repeat meets the same gate."""
+    return JobResult(success=False, error=error, retry_safe=False)
+
+
 def _failure_result(job: CronJob, exc: Exception, acc: _StreamAccumulator) -> JobResult:
     """Map an exception escaping an agent run to its JobResult (breaker, usage-limit deferral, failure)."""
     from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
@@ -1008,7 +1011,7 @@ def _failure_result(job: CronJob, exc: Exception, acc: _StreamAccumulator) -> Jo
         logger.warning("Cron agent job %s hit a provider usage limit: %s", job.id, exc)
         return deferral
     logger.warning("Cron agent job %s failed: %s", job.id, exc)
-    return JobResult(success=False, error=str(exc), retry_safe=not acc.effectful)
+    return JobResult(success=False, error=str(exc), retry_safe=not acc.effectful and is_transient_failure(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -1031,7 +1034,10 @@ class _StreamAccumulator:
 
     @property
     def effectful(self) -> bool:
-        """What a step already did (send, write, pay) survives a failure of the run, so a repeat would do it again."""
+        """A step issued a state-changing call (send, write, pay).
+
+        It may already have taken effect and survives a failure of the run, so a repeat could do it again.
+        """
         return self.workflow_step_ran or has_effectful_tools(self.progress_steps)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:

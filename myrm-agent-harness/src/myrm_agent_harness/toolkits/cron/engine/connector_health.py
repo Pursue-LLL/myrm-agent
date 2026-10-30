@@ -1,8 +1,7 @@
 """Structured connector health degradation and failure classification for cron automations.
 
 Pure deterministic functions and data models — no I/O, safe to import anywhere in harness and server.
-Used to classify outbound delivery and connector failures, redact credentials in target endpoints,
-and construct structured alert payloads for human and machine consumption.
+Used to classify outbound delivery and connector failures and to redact credentials in target endpoints.
 
 [INPUT]
 - Exception or error message text
@@ -14,7 +13,6 @@ and construct structured alert payloads for human and machine consumption.
 - classify_connector_error: Classifies raw exceptions or error strings into categories
 - redact_connector_url: Strips passwords, auth tokens, and sensitive query params from target URLs
 - ConnectorFailureDetail: Structured error metadata
-- StructuredAlertPayload: Standard alert contract for notification channels and webhooks
 
 [POS]
 Harness-level domain models and taxonomy for automation connector health diagnostics.
@@ -218,37 +216,6 @@ class ConnectorFailureDetail:
         }
 
 
-@dataclass(frozen=True, slots=True)
-class StructuredAlertPayload:
-    """Standardized machine-readable alert payload for automation notifications."""
-
-    job_id: str
-    job_name: str
-    consecutive_failures: int
-    status: ConnectorHealthStatus
-    category: ConnectorErrorCategory
-    target: str
-    error_summary: str
-    fix_suggestion: str
-    last_status_code: int | None = None
-    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "event": "cron.connector.degraded",
-            "job_id": self.job_id,
-            "job_name": self.job_name,
-            "consecutive_failures": self.consecutive_failures,
-            "status": self.status.value,
-            "category": self.category.value,
-            "target": self.target,
-            "error_summary": self.error_summary,
-            "fix_suggestion": self.fix_suggestion,
-            "last_status_code": self.last_status_code,
-            "timestamp": self.timestamp,
-        }
-
-
 def generate_fix_suggestion(category: ConnectorErrorCategory, status_code: int | None = None) -> str:
     """Generate an actionable, language-neutral fix suggestion for a connector error."""
     if category == ConnectorErrorCategory.AUTH_FAILURE:
@@ -278,7 +245,6 @@ __all__ = [
     "ConnectorErrorCategory",
     "ConnectorFailureDetail",
     "ConnectorHealthStatus",
-    "StructuredAlertPayload",
     "classify_connector_error",
     "generate_fix_suggestion",
     "redact_connector_url",

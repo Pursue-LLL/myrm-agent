@@ -2,7 +2,6 @@
 
 [INPUT]
 - toolkits.cron.engine.helpers::resolve_failure_alert, should_send_failure_alert (POS: alert config resolution and throttling)
-- toolkits.cron.engine.connector_health::classify_connector_error, generate_fix_suggestion, redact_connector_url, StructuredAlertPayload (POS: structured connector failure classification)
 - toolkits.cron.protocols::ResultDelivery (POS: Protocols for the cron toolkit.)
 - toolkits.cron.types::CronJob, JobResult, FailureAlertConfig, DeliveryConfig (POS: Cron job domain types.)
 
@@ -23,13 +22,6 @@ import logging
 from dataclasses import replace as dc_replace
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.engine.connector_health import (
-    ConnectorHealthStatus,
-    StructuredAlertPayload,
-    classify_connector_error,
-    generate_fix_suggestion,
-    redact_connector_url,
-)
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     resolve_failure_alert,
     should_send_failure_alert,
@@ -72,35 +64,13 @@ class FailureAlertMixin:
         job.last_failure_alert_at = now
 
         error_snippet = (job.last_error or "unknown error")[:200]
-        category, summary = classify_connector_error(job.last_error or "unknown error")
-        fix_suggestion = generate_fix_suggestion(category)
-        target = redact_connector_url(job.delivery.target if job.delivery else "")
-        status = ConnectorHealthStatus.DOWN if failures >= 3 else ConnectorHealthStatus.DEGRADED
-
-        structured_payload = StructuredAlertPayload(
-            job_id=job.id,
-            job_name=job.name,
-            consecutive_failures=failures,
-            status=status,
-            category=category,
-            target=target,
-            error_summary=summary,
-            fix_suggestion=fix_suggestion,
-            timestamp=now.isoformat(),
-        )
-
         alert_result = JobResult(
             success=True,
             output=(
                 f'Cron job "{job.name}" failed {failures} consecutive times.\n'
-                f"Category: {category.value}\n"
-                f"Last error: {error_snippet}\n"
-                f"Suggestion: {fix_suggestion}\n\n"
+                f"Last error: {error_snippet}\n\n"
                 f"{_failure_outlook(job, retry_safe=retry_safe)}"
             ),
-            metadata={
-                "structured_alert": structured_payload.to_dict(),
-            },
         )
 
         effective_delivery = alert_config.delivery or job.failure_delivery or self._global_failure_delivery
@@ -122,7 +92,7 @@ def _failure_outlook(job: CronJob, *, retry_safe: bool) -> str:
         return "The task has been auto-paused."
     if retry_safe:
         return "The task will retry with backoff."
-    outlook = "The task is not re-run ahead of schedule: repeating it could redo actions it already took, or run out of time again."
+    outlook = "The task is not re-run ahead of schedule."
     if job.next_run_at is not None:
         outlook += f" Its next regular run is at {job.next_run_at.isoformat()}."
     return outlook

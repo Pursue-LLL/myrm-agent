@@ -1,4 +1,4 @@
-"""Unit tests for connector health classification and structured alerts."""
+"""Unit tests for connector health classification, redaction and failure details."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ import pytest
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorErrorCategory,
     ConnectorFailureDetail,
-    ConnectorHealthStatus,
-    StructuredAlertPayload,
     classify_connector_error,
     generate_fix_suggestion,
     redact_connector_url,
@@ -76,52 +74,6 @@ class TestConnectorErrorClassification:
         cat, _ = classify_connector_error("Unknown internal anomaly")
         assert cat == ConnectorErrorCategory.UNKNOWN
 
-
-class TestFixSuggestions:
-    def test_suggestions(self) -> None:
-        sug = generate_fix_suggestion(ConnectorErrorCategory.AUTH_FAILURE)
-        assert "secret" in sug or "token" in sug
-
-        sug502 = generate_fix_suggestion(ConnectorErrorCategory.HTTP_SERVER_ERROR, status_code=502)
-        assert "reverse proxy" in sug502 or "backend" in sug502
-
-        sug_to = generate_fix_suggestion(ConnectorErrorCategory.TIMEOUT)
-        assert "timeout" in sug_to or "latency" in sug_to
-
-    @pytest.mark.parametrize("category", list(ConnectorErrorCategory))
-    def test_no_suggestion_names_a_product_screen(self, category: ConnectorErrorCategory) -> None:
-        assert "Settings" not in generate_fix_suggestion(category)
-
-
-class TestStructuredAlertPayload:
-    def test_to_dict_schema(self) -> None:
-        detail = ConnectorFailureDetail(
-            category=ConnectorErrorCategory.HTTP_SERVER_ERROR,
-            target="https://api.example.com/hook",
-            status_code=502,
-            message="Bad Gateway",
-        )
-        d = detail.to_dict()
-        assert d["category"] == "http_server_error"
-        assert d["target"] == "https://api.example.com/hook"
-        assert d["status_code"] == 502
-
-        payload = StructuredAlertPayload(
-            job_id="job_123",
-            job_name="Sync Task",
-            consecutive_failures=3,
-            status=ConnectorHealthStatus.DOWN,
-            category=ConnectorErrorCategory.HTTP_SERVER_ERROR,
-            target="https://api.example.com/hook",
-            error_summary="Destination gateway down (502 Bad Gateway)",
-            fix_suggestion="Check server logs.",
-            last_status_code=502,
-        )
-        data = payload.to_dict()
-        assert data["event"] == "cron.connector.degraded"
-        assert data["job_id"] == "job_123"
-        assert data["status"] == "down"
-
     def test_edge_cases_redaction_and_classification(self) -> None:
         """Thorough verification of edge cases and boundary conditions."""
         # Malformed or exotic URLs
@@ -155,3 +107,33 @@ class TestStructuredAlertPayload:
         assert cat == ConnectorErrorCategory.HTTP_CLIENT_ERROR
         sug429 = generate_fix_suggestion(ConnectorErrorCategory.HTTP_CLIENT_ERROR, status_code=429)
         assert "rate limit" in sug429.lower() or "quota" in sug429.lower() or "429" in sug429
+
+
+class TestFixSuggestions:
+    def test_suggestions(self) -> None:
+        sug = generate_fix_suggestion(ConnectorErrorCategory.AUTH_FAILURE)
+        assert "secret" in sug or "token" in sug
+
+        sug502 = generate_fix_suggestion(ConnectorErrorCategory.HTTP_SERVER_ERROR, status_code=502)
+        assert "reverse proxy" in sug502 or "backend" in sug502
+
+        sug_to = generate_fix_suggestion(ConnectorErrorCategory.TIMEOUT)
+        assert "timeout" in sug_to or "latency" in sug_to
+
+    @pytest.mark.parametrize("category", list(ConnectorErrorCategory))
+    def test_no_suggestion_names_a_product_screen(self, category: ConnectorErrorCategory) -> None:
+        assert "Settings" not in generate_fix_suggestion(category)
+
+
+class TestConnectorFailureDetail:
+    def test_to_dict_schema(self) -> None:
+        detail = ConnectorFailureDetail(
+            category=ConnectorErrorCategory.HTTP_SERVER_ERROR,
+            target="https://api.example.com/hook",
+            status_code=502,
+            message="Bad Gateway",
+        )
+        d = detail.to_dict()
+        assert d["category"] == "http_server_error"
+        assert d["target"] == "https://api.example.com/hook"
+        assert d["status_code"] == 502
