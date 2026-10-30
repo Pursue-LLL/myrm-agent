@@ -17,7 +17,7 @@ and play back TTS audio.
 - app.channels.core.base::BaseChannel (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
 
 [OUTPUT]
-- DiscordChannel: Discord channel provider (credentials, capabilities, gateway lifecycle and health); event parsing, sending and voice come from the mixins.
+- DiscordChannel: Discord channel provider (credentials, capabilities, gateway lifecycle and health; a stop leaves voice within a bound); event parsing, sending and voice come from the mixins.
 
 [POS]
 Discord channel implementation with Forum channel support.
@@ -67,7 +67,17 @@ logger = logging.getLogger(__name__)
 MAX_TEXT_LENGTH = 2000
 
 
+def _consume_result(task: asyncio.Task[None]) -> None:
+    """Retrieve an abandoned task's outcome so its failure is not reported as never retrieved."""
+    if not task.cancelled():
+        task.exception()
+
+
 _HEALTH_PROBE_TIMEOUT = 10.0
+
+# discord.py waits up to 30 s per voice connection for the gateway to confirm a leave, and swallows a cancellation while
+# it waits. The gateway caps a whole stop at 10 s, so the leave gets a share of that and is then abandoned.
+_VOICE_LEAVE_TIMEOUT = 4.0
 
 # Guests steer the agent's text and the bot usually holds more permissions than they do, so a reply must never be
 # able to notify @everyone or a role. User mentions stay on so the owner can have the agent notify a named person;
@@ -280,7 +290,7 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
         self._gateway_task = loop.create_task(self._client.start(self.config.bot_token))
 
     async def stop(self) -> None:
-        """Leave voice, close the client, then end the gateway session.
+        """Leave voice (within a bound), close the client, then end the gateway session.
 
         The session is ended last: leaving voice waits for a gateway event that confirms it, so the session must
         still be running. A session that already ended with an error (a rejected token, for one) is logged instead of
@@ -290,7 +300,7 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
             return
         logger.info("Stopping Discord channel")
         if self._voice_manager:
-            await self._voice_manager.leave_all()
+            await self._leave_voice(self._voice_manager)
             self._voice_manager = None
         if self._client and not self._client.is_closed():
             await self._client.close()
@@ -303,6 +313,33 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
             except Exception as exc:
                 logger.warning("Discord gateway session had already failed: %r", exc)
         self._status = ChannelStatus.STOPPED
+
+    async def _leave_voice(self, voice_manager: VoiceManager) -> None:
+        """Leave every voice channel, giving up on the wait after ``_VOICE_LEAVE_TIMEOUT``.
+
+        The leave runs as its own task and is cancelled, not awaited, when the deadline passes or the caller is
+        cancelled: a wait that swallows the cancellation would otherwise keep this stop past the gateway's cap. The
+        connections it did not finish are detached, so the client closes without waiting on them again, and the
+        channel can start again on this same instance.
+        """
+        leave = asyncio.create_task(voice_manager.leave_all())
+        done: set[asyncio.Task[None]] = set()
+        try:
+            done, _ = await asyncio.wait({leave}, timeout=_VOICE_LEAVE_TIMEOUT)
+        finally:
+            if leave not in done:
+                leave.cancel()
+                leave.add_done_callback(_consume_result)
+        if leave in done:
+            await leave
+            return
+        logger.warning(
+            "Discord voice leave did not finish within %gs; closing the client without waiting for it",
+            _VOICE_LEAVE_TIMEOUT,
+        )
+        if self._client:
+            for voice in self._client.voice_clients:
+                voice.cleanup()
 
     async def health_check(self) -> bool:
         """Verify Discord connectivity via REST API probe.

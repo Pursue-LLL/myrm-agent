@@ -16,6 +16,8 @@ Follow-user delegates to VoiceFollowManager for user tracking.
 [POS]
 High-level voice orchestration. Owns per-guild state and
 coordinates receiver/player lifecycle with follow-user support.
+Leaving every guild is concurrent, so one guild that waits for
+the gateway's confirmation does not hold up the others.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Set
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import discord
 
@@ -34,6 +37,9 @@ from app.channels.providers.discord.voice.follow import (
 from app.channels.providers.discord.voice.receiver import (
     VoiceReceiver,
 )
+
+if TYPE_CHECKING:
+    from app.channels.providers.discord.voice.player import VoicePlayer
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +116,7 @@ class VoiceManager:
         self._guilds: dict[int, _GuildVoiceState] = {}
         self._locks: dict[int, asyncio.Lock] = {}
 
-        self._active_players: dict[int, object] = {}
+        self._active_players: dict[int, VoicePlayer] = {}
         self._active_play_texts: dict[int, str] = {}
         self._wake_until: dict[int, float] = {}
 
@@ -129,7 +135,7 @@ class VoiceManager:
     async def start_reconciliation(self) -> None:
         await self._follow.start_reconciliation()
 
-    def register_player(self, guild_id: int, player: object, text: str = "") -> None:
+    def register_player(self, guild_id: int, player: VoicePlayer, text: str = "") -> None:
         """Register the currently active VoicePlayer and the text it is playing."""
         self._active_players[guild_id] = player
         self._active_play_texts[guild_id] = text
@@ -175,7 +181,7 @@ class VoiceManager:
                     return True
 
             try:
-                vc = await channel.connect(timeout=10.0)
+                vc: discord.VoiceClient = await channel.connect(timeout=10.0)
             except Exception as e:
                 logger.error("Failed to join voice channel %s: %s", channel.id, e)
                 return False
@@ -220,11 +226,18 @@ class VoiceManager:
         logger.info("Left voice channel in guild %d", guild_id)
 
     async def leave_all(self) -> None:
-        """Disconnect from all voice channels and stop reconciliation."""
+        """Disconnect from all voice channels and stop reconciliation.
+
+        The guilds leave concurrently: discord.py waits for a gateway event that confirms each leave, so a guild
+        that waits it out must not hold up the others, and a caller that gives up on the whole leave still has
+        every guild's leave under way.
+        """
         await self._follow.destroy()
-        guild_ids = list(self._guilds.keys())
-        for gid in guild_ids:
-            await self.leave(gid)
+        guild_ids = list(self._guilds)
+        results = await asyncio.gather(*(self.leave(gid) for gid in guild_ids), return_exceptions=True)
+        for gid, result in zip(guild_ids, results, strict=True):
+            if isinstance(result, Exception):
+                logger.warning("Failed to leave voice in guild %d: %r", gid, result)
 
     def get_voice_client(self, guild_id: int) -> discord.VoiceClient | None:
         state = self._guilds.get(guild_id)
@@ -243,7 +256,8 @@ class VoiceManager:
         """Handle voice state changes - follow-user + auto-disconnect when alone."""
         guild_id = member.guild.id
 
-        if member.id == self._client.user.id:
+        bot_user = self._client.user
+        if bot_user is not None and member.id == bot_user.id:
             await self._handle_bot_voice_update(member, before, after)
             return
 
