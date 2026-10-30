@@ -6,11 +6,11 @@
 - ..core.config::WikiConfig (POS: Wiki configuration)
 - ..core.link_extraction::extract_markdown_link_targets, extract_wikilink_targets (POS: link syntax SSOT; code regions are never links)
 - ..core.link_resolver::WikiLinkResolver, concept_index_key, concept_page_exists (POS: link target resolution and page-key identity SSOT)
-- myrm_agent_harness.utils.db.fts5::fts5_integrity_check, fts5_rebuild (POS: FTS5 health and rebuild helpers)
+- myrm_agent_harness.utils.db.fts5::fts5_integrity_check, fts5_rebuild, fts5_swap_tokenizer (POS: FTS5 health, rebuild and tokenizer swap helpers)
 - myrm_agent_harness.toolkits.memory.protocols.embedding::EmbeddingProtocol (POS: embedding provider protocol)
 - myrm_agent_harness.toolkits.memory.protocols.vector::VectorStoreProtocol (POS: vector store protocol)
 - .fts_federation::MAX_FEDERATED_DATABASES (POS: how many shared vault indexes a connection attaches)
-- .fts_search::FtsSearchMixin, migrate_wiki_fts_schema (POS: FTS5 + vector search and truth lookup mixin)
+- .fts_search::FtsSearchMixin, WIKI_FTS_COLUMNS, create_wiki_fts_table, migrate_wiki_fts_schema (POS: FTS5 + vector search and truth lookup mixin, wiki_fts table declaration)
 - .fts_write::FtsWriteMixin (POS: FTS5 + vector upsert/delete mixin)
 - .concept_links::ConceptLinks (POS: typed concept link lookup result)
 - .edge_links::canonical_edge_target, linkers_to_reread, relink_dangling_edges, store_edge (POS: edge targets stored as page keys, converged when pages appear or disappear)
@@ -18,6 +18,7 @@
 - .graph_store::WikiGraphStore (POS: knowledge graph storage)
 - .identity_migration::migrate_index_schema (POS: one-time index migrations: page identity, edge link spellings)
 - .sidecar_index::SidecarIndexMixin (POS: L0/L1 sidecar index operations)
+- .tokenizer::FTS_TOKENIZER (POS: tokenizer every wiki FTS5 table uses)
 
 [OUTPUT]
 - WikiIndexer: hybrid search engine; one index row per page key; wiki_index_meta publish_status gate for FTS/vector/get_truth
@@ -39,6 +40,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.utils.db.fts5 import (
     fts5_integrity_check,
     fts5_rebuild,
+    fts5_swap_tokenizer,
 )
 
 from ..core.config import WikiConfig
@@ -49,11 +51,12 @@ from .concept_links import ConceptLinks
 from .edge_links import canonical_edge_target, linkers_to_reread, relink_dangling_edges, store_edge
 from .edge_weights import refresh_edge_weights
 from .fts_federation import MAX_FEDERATED_DATABASES
-from .fts_search import FtsSearchMixin, migrate_wiki_fts_schema
+from .fts_search import WIKI_FTS_COLUMNS, FtsSearchMixin, create_wiki_fts_table, migrate_wiki_fts_schema
 from .fts_write import FtsWriteMixin
 from .graph_store import WikiGraphStore
 from .identity_migration import migrate_index_schema
 from .sidecar_index import SidecarIndexMixin
+from .tokenizer import FTS_TOKENIZER
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
@@ -133,17 +136,7 @@ class WikiIndexer(FtsWriteMixin, FtsSearchMixin, SidecarIndexMixin):
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
-            # Use FTS5 for full-text search
-            conn.execute(
-                """
-                CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
-                    concept_name,
-                    truth_content,
-                    search_terms,
-                    tokenize="unicode61 remove_diacritics 1"
-                )
-            """
-            )
+            create_wiki_fts_table(conn)
             migrate_wiki_fts_schema(conn)
             # 增量 O(1) 图谱双链关系表 (Holographic Graph Persistence)
             conn.execute(
@@ -178,6 +171,9 @@ class WikiIndexer(FtsWriteMixin, FtsSearchMixin, SidecarIndexMixin):
             if not fts5_integrity_check(conn, "wiki_fts"):
                 logger.warning("FTS5 index corrupted on startup, rebuilding: wiki_fts")
                 fts5_rebuild(conn, "wiki_fts")
+            # An index created with another tokenizer is re-created with the current one, after the check
+            # above so a damaged table is rebuilt first; the stored rows are copied, not re-derived.
+            fts5_swap_tokenizer(conn, "wiki_fts", WIKI_FTS_COLUMNS, FTS_TOKENIZER)
 
             migrate_index_schema(conn, self._structure, self._link_resolver)
 

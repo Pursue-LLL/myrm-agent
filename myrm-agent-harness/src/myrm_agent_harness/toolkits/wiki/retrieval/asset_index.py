@@ -4,8 +4,8 @@
 - ..core.structure::WikiStructure (POS: wiki paths)
 - ..core.config::WikiConfig (POS: feature flags)
 - myrm_agent_harness.toolkits.retriever.fusion_strategies::rrf_fusion (POS: RRF merge)
-- myrm_agent_harness.utils.db.fts5::fts5_auto_heal, fts5_integrity_check, fts5_rebuild, relevance_from_rank (POS: FTS5 index self-heal and rank relevance)
-- .tokenizer::tokenize_for_fts (POS: FTS5 query builder)
+- myrm_agent_harness.utils.db.fts5::fts5_auto_heal, fts5_integrity_check, fts5_rebuild, fts5_swap_tokenizer, relevance_from_rank (POS: FTS5 index self-heal, tokenizer swap and rank relevance)
+- .tokenizer::FTS_TOKENIZER, tokenize_for_fts (POS: table tokenizer and FTS5 query builder)
 
 [OUTPUT]
 - WikiAssetIndexer: FTS5 + optional Qdrant index for image captions
@@ -39,12 +39,13 @@ from myrm_agent_harness.utils.db.fts5 import (
     fts5_auto_heal,
     fts5_integrity_check,
     fts5_rebuild,
+    fts5_swap_tokenizer,
     relevance_from_rank,
 )
 
 from ..core.config import WikiConfig
 from ..core.structure import WikiStructure
-from .tokenizer import tokenize_for_fts
+from .tokenizer import FTS_TOKENIZER, tokenize_for_fts
 from .vector_chunks import upsert_text_vectors
 
 if TYPE_CHECKING:
@@ -56,6 +57,7 @@ logger = logging.getLogger(__name__)
 _IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".avif"})
 _MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 _COLLECTION_NAME = "wiki_assets"
+_ASSET_FTS_COLUMNS = ("filename", "caption")
 
 
 class AssetCaptionProvider(Protocol):
@@ -141,13 +143,10 @@ class WikiAssetIndexer:
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
-            conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS wiki_assets_fts USING fts5(
-                    filename,
-                    caption,
-                    tokenize="unicode61 remove_diacritics 1"
-                )
-            """)
+            conn.execute(
+                f"CREATE VIRTUAL TABLE IF NOT EXISTS wiki_assets_fts USING fts5("
+                f'{", ".join(_ASSET_FTS_COLUMNS)}, tokenize="{FTS_TOKENIZER}")'
+            )
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS wiki_assets_meta(
                     filename TEXT PRIMARY KEY,
@@ -161,6 +160,8 @@ class WikiAssetIndexer:
             if not fts5_integrity_check(conn, "wiki_assets_fts"):
                 logger.warning("FTS5 index corrupted on startup, rebuilding: wiki_assets_fts")
                 fts5_rebuild(conn, "wiki_assets_fts")
+            # Captions are copied into the re-created table, so a changed tokenizer costs no vision-model calls.
+            fts5_swap_tokenizer(conn, "wiki_assets_fts", _ASSET_FTS_COLUMNS, FTS_TOKENIZER)
 
     @staticmethod
     def _asset_to_uuid(filename: str) -> str:

@@ -12,6 +12,7 @@ from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval import asset_index
 from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import WikiAssetIndexer
 from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
+from tests.support.fts5_legacy import downgrade_fts5_tokenizer, fts5_declaration, fts5_rows
 
 
 class _StubCaptionProvider:
@@ -201,3 +202,38 @@ async def test_asset_search_raises_a_programming_error_instead_of_hiding_it_as_n
 
     with pytest.raises(sqlite3.ProgrammingError, match="number of bindings"):
         await indexer.search("payment gateway")
+
+
+_ASSET_COLUMNS = ("filename", "caption")
+
+
+@pytest.mark.asyncio
+async def test_asset_search_finds_a_caption_under_another_form_of_the_word(
+    wiki_structure: WikiStructure, assets_dir: Path
+) -> None:
+    indexer = await _indexed(wiki_structure, assets_dir, {"model.png": "Transformers trained on large datasets"})
+
+    assert [hit.filename for hit in await indexer.search("transformer training dataset")] == ["model.png"]
+
+
+@pytest.mark.asyncio
+async def test_an_asset_index_without_stemming_is_converted_without_captioning_again(
+    wiki_structure: WikiStructure, assets_dir: Path
+) -> None:
+    indexer = await _indexed(
+        wiki_structure,
+        assets_dir,
+        {"model.png": "Transformers trained on large datasets", "tea.png": "Green tea leaves"},
+    )
+    downgrade_fts5_tokenizer(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS)
+    rows = fts5_rows(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS)
+    assert await indexer.search("transformer") == [], "an index without stemming misses another form of the word"
+    provider = _StubCaptionProvider({})
+
+    reopened = WikiAssetIndexer(wiki_structure, _CONFIG, caption_provider=provider)
+
+    assert "porter" in fts5_declaration(indexer.db_path, "wiki_assets_fts")
+    assert fts5_rows(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS) == rows
+    assert [hit.filename for hit in await reopened.search("transformer")] == ["model.png"]
+    assert await reopened.index_file(assets_dir / "model.png") is False
+    assert provider.calls == [], "converting the index must not call the vision model again"

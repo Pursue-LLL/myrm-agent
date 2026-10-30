@@ -9,12 +9,14 @@
 - ..core.frontmatter_contract::WikiPublishStatus (POS: publish_status SSOT)
 - .fts_federation::MAX_FEDERATED_DATABASES, attached_tables (POS: shared index discovery)
 - .sidecar_index::_SIDECAR_PREFIX (POS: L0/L1 sidecar index operations)
-- .tokenizer::tokenize_for_fts (POS: FTS5 query tokenizer)
+- .tokenizer::FTS_TOKENIZER, tokenize_for_fts (POS: table tokenizer and FTS5 query tokenizer)
 - .vector_chunks::collapse_vector_hits (POS: L2 chunk vector hit collapsing)
 
 [OUTPUT]
 - FtsSearchMixin: FTS5 + vector search/get_truth with the publish_status gate for WikiIndexer; vector hits under another spelling collapse onto the page key
 - search_published_index: read-only top published pages of an index file the caller does not own
+- WIKI_FTS_COLUMNS: columns of the wiki_fts table
+- create_wiki_fts_table: declare a wiki_fts table with those columns and FTS_TOKENIZER (the one place the table is declared)
 - migrate_wiki_fts_schema: rebuild wiki_fts when it predates the search_terms column
 
 [POS]
@@ -44,7 +46,7 @@ from ..core.config import WikiConfig
 from ..core.frontmatter_contract import WikiPublishStatus
 from .fts_federation import MAX_FEDERATED_DATABASES, attached_tables
 from .sidecar_index import _SIDECAR_PREFIX
-from .tokenizer import tokenize_for_fts
+from .tokenizer import FTS_TOKENIZER, tokenize_for_fts
 from .vector_chunks import collapse_vector_hits
 
 if TYPE_CHECKING:
@@ -267,6 +269,16 @@ def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> lis
     return [(str(name or ""), str(truth or "")) for name, truth in rows]
 
 
+WIKI_FTS_COLUMNS = ("concept_name", "truth_content", "search_terms")
+
+
+def create_wiki_fts_table(conn: sqlite3.Connection, table: str = "wiki_fts") -> None:
+    """Declare the wiki search table ``table`` unless it exists; ``table`` is a fixed internal name."""
+    conn.execute(
+        f'CREATE VIRTUAL TABLE IF NOT EXISTS {table} USING fts5({", ".join(WIKI_FTS_COLUMNS)}, tokenize="{FTS_TOKENIZER}")'
+    )
+
+
 def migrate_wiki_fts_schema(conn: sqlite3.Connection) -> None:
     """Rebuild wiki_fts when it predates the ``search_terms`` column.
 
@@ -279,16 +291,7 @@ def migrate_wiki_fts_schema(conn: sqlite3.Connection) -> None:
         return
 
     logger.info("Migrating wiki_fts to the truth_content + search_terms schema")
-    conn.execute(
-        """
-        CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts_v2 USING fts5(
-            concept_name,
-            truth_content,
-            search_terms,
-            tokenize="unicode61 remove_diacritics 1"
-        )
-    """
-    )
+    create_wiki_fts_table(conn, "wiki_fts_v2")
     conn.execute(
         "INSERT INTO wiki_fts_v2 (concept_name, truth_content, search_terms) "
         "SELECT concept_name, truth_content, truth_content FROM wiki_fts"
