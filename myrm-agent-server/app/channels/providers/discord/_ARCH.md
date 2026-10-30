@@ -9,7 +9,7 @@ Discord 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Discord channel provider. | ✅ |
-| `channel.py` | 模块 | Discord channel implementation with Forum channel support: credentials, capabilities, gateway lifecycle (`stop()` releases the gateway session before the websocket close handshake) and health probe; builds the client with `allowed_mentions` that keep user and reply pings but never `@everyone`, `@here` or role pings; composes the three mixins below. | ✅ |
+| `channel.py` | 模块 | Discord channel implementation with Forum channel support: credentials, capabilities, gateway lifecycle and health probe; builds the client with `allowed_mentions` that keep user and reply pings but never `@everyone`, `@here` or role pings; composes the three mixins below. | ✅ |
 | `config.py` | 模块 | Discord channel configuration. | ✅ |
 | `helpers.py` | 模块 | Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects; forum detection, thread titles and native reply targets. | ✅ |
 | `inbound.py` | 模块 | `DiscordInboundMixin`: gateway message / reaction / interaction parsing, reply context, media extraction, auto-threading and history fetch. | ✅ |

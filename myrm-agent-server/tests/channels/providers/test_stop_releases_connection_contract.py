@@ -12,16 +12,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock
 
-import discord
 import pytest
 
 from app.channels.core import channel_stop
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
 from app.channels.providers.dingtalk.channel import DingTalkChannel
-from app.channels.providers.discord.channel import DiscordChannel
-from app.channels.providers.discord.config import DiscordChannelConfig
-from app.channels.providers.discord.voice.manager import VoiceManager
 from app.channels.providers.feishu.channel import FeishuChannel
 from app.channels.providers.telegram.api import TelegramClient
 from app.channels.types import ChannelStatus
@@ -73,7 +69,7 @@ class _Provider:
     release: Callable[[], Awaitable[None]]
 
 
-async def _cancel(task: asyncio.Task[object] | None) -> None:
+async def _cancel(task: asyncio.Task[None] | None) -> None:
     if task is not None and not task.done():
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -126,54 +122,13 @@ async def _feishu(monkeypatch: pytest.MonkeyPatch) -> _Provider:
     return _Provider(channel, connections, release)
 
 
-async def _discord(monkeypatch: pytest.MonkeyPatch) -> _Provider:
-    """A gateway bot the health loop has flagged degraded, whose websocket close handshake never completes."""
-    connections = _Connections()
-    sessions: list[asyncio.Task[object]] = []
-
-    class _FakeClient:
-        def __init__(self, **_kwargs: object) -> None:
-            pass
-
-        def event(self, handler: Callable[..., Awaitable[None]]) -> Callable[..., Awaitable[None]]:
-            return handler
-
-        def is_closed(self) -> bool:
-            return False
-
-        async def start(self, _token: str) -> None:
-            session = asyncio.current_task()
-            if session is not None:
-                sessions.append(session)
-            await connections.hold()
-
-        close = _hang
-
-    monkeypatch.setattr(discord, "Client", _FakeClient)
-    channel = DiscordChannel(DiscordChannelConfig(bot_token="token"))
-    await channel.start()
-    await _settle()
-    channel._status = ChannelStatus.DEGRADED
-
-    async def release() -> None:
-        for session in sessions:
-            await _cancel(session)
-
-    return _Provider(channel, connections, release)
-
-
 _Builder = Callable[[pytest.MonkeyPatch], Awaitable[_Provider]]
 _STOPPABLE = [
     pytest.param(_telegram, id="telegram"),
     pytest.param(_dingtalk, id="dingtalk"),
     pytest.param(_feishu, id="feishu"),
-    pytest.param(_discord, id="discord"),
 ]
-_RESTARTABLE = [
-    pytest.param(_telegram, id="telegram"),
-    pytest.param(_dingtalk, id="dingtalk"),
-    pytest.param(_discord, id="discord"),
-]
+_RESTARTABLE = [pytest.param(_telegram, id="telegram"), pytest.param(_dingtalk, id="dingtalk")]
 
 
 @pytest.fixture(autouse=True)
@@ -209,29 +164,5 @@ async def test_a_restart_after_a_cut_off_stop_leaves_exactly_one_connection(
         await _settle()
 
         assert provider.connections.live == 1
-    finally:
-        await provider.release()
-
-
-@pytest.mark.asyncio
-async def test_discord_leaves_voice_while_the_gateway_session_is_still_running(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Leaving a voice channel waits for a confirmation the gateway delivers, so the session is cancelled after it."""
-    provider = await _discord(monkeypatch)
-    channel = provider.channel
-    assert isinstance(channel, DiscordChannel)
-    gateway_task = channel._gateway_task
-    assert gateway_task is not None
-    session_was_running: list[bool] = []
-
-    async def leave_all() -> None:
-        session_was_running.append(not gateway_task.done() and gateway_task.cancelling() == 0)
-
-    voice = MagicMock(spec=VoiceManager)
-    voice.leave_all = AsyncMock(side_effect=leave_all)
-    channel._voice_manager = voice
-    try:
-        await asyncio.wait_for(channel_stop.stop_channel(_CHANNEL, channel), _GUARD_SECONDS)
-
-        assert session_was_running == [True]
     finally:
         await provider.release()
