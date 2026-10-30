@@ -1,8 +1,9 @@
 """
 [INPUT]
 - .types::EvolutionApprovalPayload, EvolutionApplyError (POS: Evolution 审核域类型)
+- myrm_agent_harness.api.skills::parse_skill_frontmatter (POS: SKILL.md frontmatter parser, the one the skill loader uses)
 [OUTPUT]
-- Full skill content apply (file system + SkillStore + agent fork bindings) and rollback (file system + SkillStore)
+- Full skill content apply (loadability check, atomic file write that is undone when the record or snapshot fails, SkillStore, agent fork bindings) and rollback (file system + SkillStore)
 [POS]
 Evolution 全量内容更新落盘与回滚（含 Copy-on-Write fork）。
 """
@@ -15,6 +16,7 @@ import re
 import shutil
 import tempfile
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -25,6 +27,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
+from myrm_agent_harness.api.skills import SkillMetadataError, parse_skill_frontmatter
 
 from .types import EvolutionApplyError, EvolutionApprovalPayload
 
@@ -39,11 +42,46 @@ def _require_evolution_type(payload: EvolutionApprovalPayload) -> EvolutionType:
         raise EvolutionApplyError(f"Unsupported evolution type: {payload.evolution_type}") from exc
 
 
+def _require_loadable_skill_md(content: str, skill_path: Path) -> None:
+    """Refuse content the skill loader would skip, before any side effect (the loader parses with the same function)."""
+    try:
+        parse_skill_frontmatter(content, skill_path.parent.name)
+    except SkillMetadataError as exc:
+        raise EvolutionApplyError(f"Evolved SKILL.md cannot be loaded: {exc}") from exc
+
+
+def _write_atomic(path: Path, data: bytes) -> None:
+    """Replace ``path`` with ``data`` in one step, so a reader never sees a half-written file."""
+    fd, temp_path = tempfile.mkstemp(dir=path.parent, prefix="skill_write_")
+    try:
+        with os.fdopen(fd, "wb") as file_obj:
+            file_obj.write(data)
+        os.replace(temp_path, path)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
+
+
+def _restore_previous_file(path: Path, previous: bytes | None) -> None:
+    """Undo the file write of an apply that failed afterwards: put the earlier bytes back, or remove the new file."""
+    try:
+        if previous is None:
+            path.unlink(missing_ok=True)
+            with suppress(OSError):  # a directory that still holds other files stays
+                path.parent.rmdir()
+        else:
+            _write_atomic(path, previous)
+    except OSError:
+        logger.exception("Could not restore %s after a failed apply; it still holds the evolved content", path)
+
+
 async def apply_content_update(
     payload: EvolutionApprovalPayload,
     store: SkillStore,
     agent_id: str | None = None,
 ) -> None:
+    """Write the evolved SKILL.md and record it; a failure after the file was written puts the earlier file back."""
     evolution_type = _require_evolution_type(payload)
     skill_path = Path(payload.skill_path)
     existing = store.get_skill(payload.skill_id)
@@ -85,16 +123,11 @@ async def apply_content_update(
             flags=re.DOTALL,
         )
 
+    _require_loadable_skill_md(content_to_write, skill_path)
+
+    previous = skill_path.read_bytes() if skill_path.is_file() else None
     skill_path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_evolve_")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
-            file_obj.write(content_to_write)
-        os.replace(temp_path, skill_path)
-    except Exception:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        raise
+    _write_atomic(skill_path, content_to_write.encode("utf-8"))
 
     lineage = SkillLineage(
         parent_id=payload.skill_id,
@@ -132,14 +165,10 @@ async def apply_content_update(
             eval_cases=payload.eval_cases,
         )
 
-    await store.save_skill(skill_record)
-
-    from app.services.skills.write_orchestrator import (
-        persist_skill_md_snapshot,
-        restore_skill_md_from_active_version,
-    )
+    from app.services.skills.write_orchestrator import persist_skill_md_snapshot
 
     try:
+        await store.save_skill(skill_record)
         await persist_skill_md_snapshot(
             payload.skill_id,
             content_to_write,
@@ -148,7 +177,7 @@ async def apply_content_update(
             disk_path=skill_path,
         )
     except Exception:
-        await restore_skill_md_from_active_version(payload.skill_id)
+        _restore_previous_file(skill_path, previous)
         raise
 
     if is_fork and agent_id:
@@ -204,15 +233,7 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
         except Exception as exc:
             logger.warning("Failed to delete skill from DB during rollback: %s", exc)
     else:
-        fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_rollback_")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
-                file_obj.write(payload.original_content)
-            os.replace(temp_path, skill_path)
-        except Exception:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            raise
+        _write_atomic(skill_path, payload.original_content.encode("utf-8"))
 
         lineage = SkillLineage(
             evolution_type=evolution_type,

@@ -27,6 +27,8 @@ from app.services.skills.evolution_reviews import (
     reject_evolution_review_record,
 )
 
+_EVOLVED_SKILL_MD = "---\nname: test-skill\ndescription: Fixes the skill.\n---\n\n# Test skill\n"
+
 
 @pytest.fixture
 async def async_client():
@@ -54,7 +56,7 @@ async def _create_record(
         evolution_type="fix",
         reason="Test reason",
         original_content="def foo(): pass",
-        evolved_content="def foo(): return 1",
+        evolved_content=_EVOLVED_SKILL_MD,
         confidence=0.8,
         test_passed=True,
         task_context="history test",

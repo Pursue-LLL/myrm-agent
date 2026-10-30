@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -15,6 +16,8 @@ app = build_minimal_app(preset="evolution")
 from app.platform_utils import get_database_engine
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 from app.services.skills.evolution_reviews import EvolutionReviewRecord, create_evolution_review_record
+
+_EVOLVED_SKILL_MD = "---\nname: test-skill\ndescription: Fixes the skill.\n---\n\n# Test skill\n"
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +50,7 @@ async def sample_pending_evolution() -> EvolutionReviewRecord:
         evolution_type="fix",
         reason="Fix a bug",
         original_content="def foo(): pass",
-        evolved_content="def foo(): return 1",
+        evolved_content=_EVOLVED_SKILL_MD,
         confidence=0.8,
         test_passed=True,
         task_context="pending evolution regression",
@@ -92,7 +95,7 @@ async def test_approve_pending_evolution(async_client: AsyncClient, sample_pendi
         assert record.payload["apply_status"] == "APPLIED"
 
     with open(sample_pending_evolution.skill_path, "r", encoding="utf-8") as file_obj:
-        assert file_obj.read() == "def foo(): return 1"
+        assert file_obj.read() == _EVOLVED_SKILL_MD
 
 
 @pytest.mark.asyncio
@@ -106,7 +109,7 @@ async def test_approve_pending_evolution_returns_apply_failed_state(async_client
         evolution_type="fix",
         reason="Apply should fail because the parent path is not a directory",
         original_content="def foo(): pass",
-        evolved_content="def foo(): return 1",
+        evolved_content=_EVOLVED_SKILL_MD,
         confidence=0.9,
         test_passed=True,
         task_context="apply failure regression",
@@ -118,6 +121,7 @@ async def test_approve_pending_evolution_returns_apply_failed_state(async_client
     assert body["status"] == "apply_failed"
     assert body["apply_status"] == "FAILED"
     assert body["apply_error"] is not None
+    assert "cannot be loaded" not in body["apply_error"]
     assert body["remediation"] is not None
 
     async with get_session() as db:
@@ -127,6 +131,36 @@ async def test_approve_pending_evolution_returns_apply_failed_state(async_client
         assert isinstance(approval_record.payload, dict)
         assert approval_record.payload["growth_status"] == "APPLY_FAILED"
         assert approval_record.payload["apply_status"] == "FAILED"
+
+
+@pytest.mark.asyncio
+async def test_approve_pending_evolution_refuses_content_the_skill_loader_would_skip(
+    async_client: AsyncClient, tmp_path: Path
+) -> None:
+    skill_file = tmp_path / "unloadable-skill" / "SKILL.md"
+    record = await create_evolution_review_record(
+        agent_id="test-agent",
+        chat_id=None,
+        proposal_skill_id="unloadable_skill_123",
+        skill_name="unloadable-skill",
+        skill_path=str(skill_file),
+        evolution_type="fix",
+        reason="The drafted file lost its frontmatter",
+        original_content="# Unloadable skill\n",
+        evolved_content="# Unloadable skill, fixed\n",
+        confidence=0.9,
+        test_passed=True,
+        task_context="unloadable content regression",
+    )
+
+    response = await async_client.post(f"/api/v1/evolution/pending/{record.id}/approve")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "apply_failed"
+    assert "cannot be loaded" in body["apply_error"]
+    assert "revise the proposal" in body["remediation"]
+    assert not skill_file.parent.exists()
 
 
 @pytest.mark.asyncio

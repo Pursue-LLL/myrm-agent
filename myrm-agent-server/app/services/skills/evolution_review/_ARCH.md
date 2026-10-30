@@ -13,7 +13,7 @@ Evolution 审核子域。以 `ApprovalRecord` 为唯一事实源，提供类型�
 | `queries.py` | 核心 | 创建与只读查询（list/count 委托 persistence SQL） | ✅ |
 | `actions.py` | 核心 | 审批 / 拒绝 / 修订 / 回滚 | ✅ |
 | `disk.py` | 核心 | 落盘编排（content / approval 成功路径） | ✅ |
-| `disk_content.py` | 核心 | 全量内容 apply（含 Copy-on-Write fork 及其 Agent 绑定改写）+ rollback（fork/衍生技能删除文件与记录、编辑类还原原内容；不改动 Agent 绑定）；不支持的进化类型在任何写盘之前即以 `EvolutionApplyError` 拒绝 | ✅ |
+| `disk_content.py` | 核心 | 全量内容 apply（含 Copy-on-Write fork 及其 Agent 绑定改写）+ rollback（fork/衍生技能删除文件与记录、编辑类还原原内容；不改动 Agent 绑定）；写盘之前先校验：不支持的进化类型、技能加载器无法加载的 SKILL.md（frontmatter 缺失/非法、无有效 description）一律以 `EvolutionApplyError` 拒绝；写盘后记录或快照失败时按字节还原原文件（新建则删除文件及空目录）并重新抛出原异常，已写入的技能库记录不做补偿（`save_skill` 为 `INSERT OR REPLACE`，重试 apply 时被覆盖） | ✅ |
 
 ## 设计原则
 

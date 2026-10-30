@@ -127,7 +127,8 @@ def evolution_lineage_id(evolution_id: str) -> str:
 
 def apply_failure_remediation(skill_name: str) -> str:
     return (
-        f'Resolve the file-system issue for "{skill_name}" and retry apply, or reject the proposal if the change should not land.'
+        f'Check the error for "{skill_name}", revise the proposal if its content is at fault, then retry apply; '
+        "or reject the proposal if the change should not land."
     )
 
 
