@@ -71,7 +71,7 @@ class Tally:
     reference: int = 0
     extractor: int = 0
     missed: int = 0
-    missed_in_unreadable_files: int = 0
+    missed_in_error_files: int = 0
     extra: int = 0
     examples: list[str] = field(default_factory=list)
 
@@ -153,16 +153,16 @@ def _extractor_facts(code: str, rel_path: str) -> Facts:
 
 
 def _compare(
-    tally: Tally, reference: Counter[Fact], extractor: Counter[Fact], where: str, *, unreadable: bool, show: int
+    tally: Tally, reference: Counter[Fact], extractor: Counter[Fact], where: str, *, syntax_error: bool, show: int
 ) -> None:
     missed, extra = reference - extractor, extractor - reference
     tally.reference += reference.total()
     tally.extractor += extractor.total()
     tally.missed += missed.total()
     tally.extra += extra.total()
-    if unreadable:
-        tally.missed_in_unreadable_files += missed.total()
-    note = " [tree-sitter error]" if unreadable else ""
+    if syntax_error:
+        tally.missed_in_error_files += missed.total()
+    note = " [tree-sitter error]" if syntax_error else ""
     for label, diff in (("missed", missed), ("extra", extra)):
         for fact in diff:
             if len(tally.examples) < show:
@@ -173,7 +173,7 @@ def _report(kind: str, tally: Tally) -> None:
     print(
         f"{kind:<13} reference {tally.reference:>8,}  extractor {tally.extractor:>8,}  "
         f"recall {tally.recall:8.2%}  precision {tally.precision:8.2%}  "
-        f"missed {tally.missed:,} ({tally.missed_in_unreadable_files:,} in files tree-sitter reports errors in)  "
+        f"missed {tally.missed:,} ({tally.missed_in_error_files:,} in files tree-sitter reports errors in)  "
         f"extra {tally.extra:,}"
     )
 
@@ -188,21 +188,21 @@ def main() -> None:
     root: Path = args.root.expanduser().resolve()
     sources = _read_sources(root, _source_files(root))
     tallies = {kind: Tally() for kind in KINDS}
-    unreadable_files = 0
+    error_files = 0
     failed: list[str] = []
     for row in _reference_rows(sources, args.typescript):
         if "error" in row:
             failed.append(f"{row['path']}: {row['error']}")
             continue
         code = sources[row["path"]]
-        unreadable = _PARSERS[not row["path"].endswith(".ts")].parse(code.encode("utf-8")).root_node.has_error
-        unreadable_files += unreadable
+        syntax_error = _PARSERS[not row["path"].endswith(".ts")].parse(code.encode("utf-8")).root_node.has_error
+        error_files += syntax_error
         reference, extractor = _reference_facts(row), _extractor_facts(code, row["path"])
         for kind in KINDS:
-            _compare(tallies[kind], reference[kind], extractor[kind], row["path"], unreadable=unreadable, show=args.show)
+            _compare(tallies[kind], reference[kind], extractor[kind], row["path"], syntax_error=syntax_error, show=args.show)
 
     print(
-        f"{root}: {len(sources):,} files, {unreadable_files:,} that tree-sitter reports syntax errors in, "
+        f"{root}: {len(sources):,} files, {error_files:,} that tree-sitter reports syntax errors in, "
         f"{len(failed):,} the reference run failed on"
     )
     for kind, tally in tallies.items():

@@ -4,8 +4,9 @@
 
 Tool metadata registry domain — the SSOT for built-in tool names, permission-type
 mapping, canonical params, safety metadata, and canonical tool-group mapping.
-Five files by concern: `registry.py` holds permission/group/governance SSOTs and PTC dynamic
-registration; `file_args.py` is the one definition of which arguments carry a file tool's files that the engine, the approval hash, the taint extractors and the session grant share;
+Six files by concern: `registry.py` holds permission/group/governance SSOTs and PTC dynamic
+registration; `external_tools.py` holds the declarations a host application makes for the tools it
+defines; `file_args.py` is the one definition of which arguments carry a file tool's files that the engine, the approval hash, the taint extractors and the session grant share;
 `safety_table.py` holds the `SafetyMetadata` model and the `TOOL_SAFETY_METADATA`
 table; `taint_extractors.py` holds the pure argument extractors that label taint sources;
 `safety.py` is the module-load coverage gate warning when built-in
@@ -18,6 +19,7 @@ preserving the flat-module import surface for all consumers.
 |------|------|-------------|-------|
 | __init__.py | Package | Aggregation facade — re-exports registry + safety public/internal symbols. | ✅ |
 | registry.py | Core | Tool safety SSOT — TOOL_PERMISSION_MAP, BUILTIN_TOOL_NAMES, TOOL_GROUP_MAP/TOOL_TO_GROUP/TOOL_GROUP_NAMES, PARENT_BOUND_WRITER_TOOLS (writers over the running agent's own todo file, goal and kanban board, derived from the groups and safety metadata), TOOL_CANONICAL_PARAMS, AUTO_APPROVED_BUILTIN_TOOLS/AUTO_APPROVE_REASONS/RULESET_COVERAGE_WHITELIST/EXPLICIT_MCP_FALLBACK_TOOLS/DYNAMICALLY_RESOLVED_TOOL_NAMES (governance audit declarations), MCPAnnotations, resolve_safety_metadata/resolve_permission_type/compute_canonical_args_hash, PTC dynamic registration & thread-safe eviction (`unregister_ptc_safety_metadata` / `evict_skill_safety_metadata`), module-load safety gate. | ✅ |
+| external_tools.py | Core | `declare_external_tool` — a host application states the permission type and safety attributes of one tool it defines (it reuses a permission type the built-in tools use, and cannot take a built-in, deliberately-asking or MCP tool name); `declared_permission_type` / `declared_safety_metadata` are what `resolve_permission_type` / `resolve_safety_metadata` read. An undeclared tool keeps the `mcp_invoke` ask baseline and fail-closed safety attributes. | ✅ |
 | safety_table.py | Core | `SafetyMetadata` dataclass, `_FAIL_CLOSED_DEFAULTS` and the `TOOL_SAFETY_METADATA` opt-in whitelist (re-exported by `registry.py`); taint extractors are imported from `taint_extractors.py`. | ✅ |
 | file_args.py | Core | `FILE_ARG_KEYS` (every argument name a file tool receives its files under), `PATHS_ALIAS_KEYS` (the subset `file_read_tool` accepts for its `paths`), `coerce_path_list` (the one reading of an array or JSON-array-text path argument, shared with `FileReadInput` and the concurrency router), `file_arg_values` (string or list), `strip_read_range`, `is_url`, `host_file_paths` (the host files a call may open: URLs and the `/mcp/` and `vault://` namespaces left out, each path in the form with and without its range / cut at the first colon). Shared by the engine's path-zone verdict and rule targets, the session directory grant, the approval-hash canonical params of `file_read_tool` and the taint extractors. | ✅ |
 | taint_extractors.py | Core | Pure taint-label extractors for tool arguments — `sanitize_url_for_taint` / `taint_url_from_args` (scheme+host+path only), `taint_secret_file_from_args` (credential files named by any file-tool argument spelling, including the `paths` list `file_read_tool` actually sends and its `path:START-END` selector; template markers are judged on the file name only), `taint_secret_command_from_args`; wired into `TOOL_SAFETY_METADATA` as `taint_extractor` callbacks. | ✅ |
@@ -49,17 +51,19 @@ own name — promoting would flip the runtime baseline to ALLOW). The gate also
 enforces bidirectional consistency: `BUILTIN_TOOL_NAMES` must be a subset of
 the registered built-in universe, and must not overlap
 `EXPLICIT_MCP_FALLBACK_TOOLS`. EXTERNAL-layer tools are server vendor tools
-governed by the server layer; the harness gate only annotates them as
-`server_managed` and never forces a declaration on them.
+governed by the server layer: one with known effects declares itself through
+`declare_external_tool`, any other keeps the `mcp_invoke` ask baseline; the harness gate only
+annotates them as `server_managed` and never forces a declaration on them.
 
 ## Key Dependencies
 
-- None within `core.security` (foundation layer); `safety.py` lazily imports `registry.py` from within the function body to avoid a load-time cycle.
+- None within `core.security` (foundation layer); `safety.py` and `external_tools.py` lazily import `registry.py` from within function bodies to avoid a load-time cycle.
 
 ## Consumers
 
 - `agent/security/tool_registry.py` — thin facade re-exporting public + private symbols
 - `agent/middlewares/` (safety_dispatcher, concurrency_router, approval, _runtime_tool_governance) — permission/safety resolution
 - `toolkits/mcp/tool_processing.py` — PTC dynamic safety registration
+- Host applications — `declare_external_tool` at startup for tools they define
 - `backends/skills/_runtime.py` — TOOL_GROUP_NAMES for skill conditional activation
 - `tests/agent/security/test_tool_registry.py` — monkeypatches `registry.BUILTIN_TOOL_NAMES` + logs via `core.security.tool_registry.safety`

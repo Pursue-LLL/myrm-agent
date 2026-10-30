@@ -1375,15 +1375,16 @@ LangChain 工具有具体名称（如 `bash_code_execute_tool`），而安全策
 
 ### MCP 工具兜底
 
-未知工具名（不在 `BUILTIN_TOOL_NAMES` 中）自动映射为 `mcp_invoke`。MCP 工具名称是动态的，无法预先注册，统一归类为需要审批的 MCP 调用。另外，`EXPLICIT_MCP_FALLBACK_TOOLS` 中的内置工具（名字已知但刻意不晋升）同样保持 `mcp_invoke` 兜底——它们因外部副作用/高爆炸半径而要求运行时 ASK，见上文「刻意保留 mcp_invoke 兜底的工具」。
+未知工具名（不在 `BUILTIN_TOOL_NAMES` 中）自动映射为 `mcp_invoke`。MCP 工具名称是动态的，无法预先注册，统一归类为需要审批的 MCP 调用。宿主应用自带的工具（不是内置、也不是 MCP）可以在启动时用 `declare_external_tool(tool_name, permission_type, safety)` 声明权限类型与安全属性（`core/security/tool_registry/external_tools.py`）：权限类型必须是内置工具实际使用的类型（拼错会让默认规则 `("*", "*", ALLOW)` 放行，所以直接拒绝），内置、MCP 与动态解析的工具名不能声明，同名工具重复声明为不同值会报错；没有声明的外部工具保持 `mcp_invoke`。另外，`EXPLICIT_MCP_FALLBACK_TOOLS` 中的内置工具（名字已知但刻意不晋升）同样保持 `mcp_invoke` 兜底——它们因外部副作用/高爆炸半径而要求运行时 ASK，见上文「刻意保留 mcp_invoke 兜底的工具」。
 
-### 安全元数据解析 — 三级 Fallback
+### 安全元数据解析 — 四级 Fallback
 
-`resolve_safety_metadata(tool_name)` 使用三级 fallback 策略：
+`resolve_safety_metadata(tool_name)` 使用四级 fallback 策略：
 
 1. **内置工具静态表** (`TOOL_SAFETY_METADATA`)：最高优先级，所有内置工具在此声明
 2. **MCP 动态注册表** (`_PTC_TOOL_FLAT_INDEX`)：启动时从 MCP 服务端读取 hint annotations 并映射
-3. **fail-closed 默认值**：未知工具获得保守默认（is_concurrent_safe=False）
+3. **宿主声明** (`declare_external_tool`)：宿主应用声明的工具
+4. **fail-closed 默认值**：未知工具获得保守默认（is_concurrent_safe=False）
 
 MCP annotations 映射规则：`readOnlyHint` → `is_read_only` + `is_concurrent_safe`，`idempotentHint` → `is_idempotent`，`destructiveHint` → `is_destructive`，`openWorldHint` → `is_open_world`。只有只读工具才被标记为并发安全，幂等但有副作用的工具仍串行执行。
 

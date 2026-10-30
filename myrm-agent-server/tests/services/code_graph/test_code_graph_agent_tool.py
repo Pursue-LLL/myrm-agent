@@ -135,6 +135,24 @@ def test_agent_factory_mounts_the_tool_with_the_users_enabled_skill_set_and_the_
     assert "allowed_prebuilt = frozenset(_user_skill_cfg.enabled_prebuilt_ids)" in source
 
 
+def test_agent_factory_builds_without_the_tool_when_it_cannot_be_loaded() -> None:
+    """A native parser that fails to import must cost the agent this tool, not its creation."""
+    tree = ast.parse(_FACTORY.read_text(encoding="utf-8"))
+    guarded = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Try)
+        and any(
+            isinstance(inner, ast.ImportFrom) and inner.module == "app.services.code_graph.agent_tool"
+            for stmt in node.body
+            for inner in ast.walk(stmt)
+        )
+    ]
+
+    assert len(guarded) == 1
+    assert [ast.unparse(handler.type) for handler in guarded[0].handlers if handler.type] == ["Exception"]
+
+
 async def test_callers_label_exact_and_name_matches_and_flag_shared_names(workspace: Path) -> None:
     _write(workspace, "a.py", "class A:\n    def save(self):\n        return 1\n")
     _write(workspace, "b.py", "class B:\n    def save(self):\n        return 2\n\ndef run(x):\n    x.save()\n")

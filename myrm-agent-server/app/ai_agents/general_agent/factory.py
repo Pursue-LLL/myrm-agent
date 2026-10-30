@@ -206,10 +206,13 @@ async def build_general_agent(
 
     await agent_wrapper._setup_artifact_publish_tool(tools)
 
-    from app.services.code_graph.agent_tool import append_code_graph_tool
+    try:
+        from app.services.code_graph.agent_tool import append_code_graph_tool
 
-    if append_code_graph_tool(tools, enabled_prebuilt_ids=allowed_prebuilt, workspace_root=workspace_root):
-        logger.info("Loaded code_graph_tool [conditional, repo-call-graph skill enabled]")
+        if append_code_graph_tool(tools, enabled_prebuilt_ids=allowed_prebuilt, workspace_root=workspace_root):
+            logger.info("Loaded code_graph_tool [conditional, repo-call-graph skill enabled]")
+    except Exception as e:
+        logger.warning("code_graph_tool load failed (degraded): %s", e)
 
     from app.ai_agents.general_agent.external_agents import (
         needs_runtime_pool,

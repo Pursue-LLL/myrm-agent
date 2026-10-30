@@ -12,7 +12,7 @@
 
 [POS]
 Tool concurrency safety dispatcher middleware. Queries resolve_safety_metadata
-(three-level fallback: built-in → MCP dynamic → fail-closed) for the
+(four-level fallback: built-in → MCP dynamic → host-declared → fail-closed) for the
 is_concurrent_safe attribute to route concurrent vs. sequential execution.
 
 """

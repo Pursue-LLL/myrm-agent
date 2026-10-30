@@ -1,7 +1,8 @@
 """Tool safety registry domain — built-in tool names, safety metadata, PTC registration.
 
 Aggregates ``registry.py`` (tool registry SSOT: built-in tool names, safety
-metadata, permission resolution, PTC registration) and ``safety.py`` (module-load
+metadata, permission resolution, PTC registration), ``external_tools.py`` (declarations of the
+tools a host application defines) and ``safety.py`` (module-load
 gate warning on missing safety declarations; taint argument extractors live in
 ``taint_extractors.py``) behind ``core.security.tool_registry``,
 preserving the flat-module import surface for all consumers.
@@ -14,12 +15,14 @@ preserving the flat-module import surface for all consumers.
 - PARENT_BOUND_WRITER_TOOLS — writers over the running agent's own todo file, goal and kanban board
 - TOOL_PERMISSION_MAP / AUTO_APPROVED_BUILTIN_TOOLS / EXPLICIT_MCP_FALLBACK_TOOLS / DYNAMICALLY_RESOLVED_TOOL_NAMES / RULESET_COVERAGE_WHITELIST — governance audit declarations
 - SafetyMetadata / MCPAnnotations / resolve_safety_metadata / resolve_permission_type
+- declare_external_tool — a host application states the permission type and safety attributes of a tool it defines (``external_tools.py``)
 - register_ptc_safety_metadata / get_ptc_safety_metadata / compute_canonical_args_hash
 - host_file_paths / is_url / coerce_path_list / PATHS_ALIAS_KEYS — the host files a file-tool call may open (``file_args.py``)
 - check_safety_coverage / _check_safety_coverage — module-load safety gate
 - _FAIL_CLOSED_DEFAULTS / _PTC_* — internal helpers
 """
 
+from .external_tools import declare_external_tool
 from .file_args import PATHS_ALIAS_KEYS, coerce_path_list, host_file_paths, is_url
 from .registry import (
     _PTC_SAFETY_METADATA,
@@ -77,6 +80,7 @@ __all__ = [
     "check_safety_coverage",
     "coerce_path_list",
     "compute_canonical_args_hash",
+    "declare_external_tool",
     "evict_skill_safety_metadata",
     "get_ptc_safety_metadata",
     "host_file_paths",

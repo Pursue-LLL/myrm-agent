@@ -32,7 +32,7 @@ Detailed design: [SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)
 | rate_limiter.py | Core | Agent security rate limiter. Prevents brute-force attacks (e.g., WebUI login) with configurable rate | ✅ |
 | redact.py | Core | Re-export shim for `core.security.redact` — keeps the `agent.security.*` import path stable. Logic-free; the forwarded surface is the core package's `__all__`. The redaction itself is the output-level counterpart of `sanitize_env` (source-level dangerous env var removal). | ✅ |
 | terminal_error_registry.py | Core | Turn-scoped terminal error state + durable God-Mode file injection channel (survives reset; runtime add() is memory-only). | ✅ |
-| tool_registry.py | Core | Tool metadata registry: permission mapping, canonical params, safety metadata (6-dim), MCP annotation ingestion. resolve_safety_metadata uses 3-level fallback: built-in → MCP dynamic → fail-closed. | ✅ |
+| tool_registry.py | Core | Tool metadata registry: permission mapping, canonical params, safety metadata (6-dim), MCP annotation ingestion. resolve_safety_metadata uses 4-level fallback: built-in → MCP dynamic → host-declared (`declare_external_tool`) → fail-closed. | ✅ |
 | types.py | Core | Foundation layer of the security type hierarchy. All other security modules import from here. Includes SecurityConfig factory methods (readonly/workspace/full_access/remote_exposed) and PathPolicy with workspace_label. | ✅ |
 | managed_approval_policy.py | Core | Org floor MAP model + env/process loader (empty = local noop). | ✅ |
 | managed_policy_gates.py | Core | Pure gate helpers: honor allowlist, global/per-model YOLO, effective auto_mode. | ✅ |

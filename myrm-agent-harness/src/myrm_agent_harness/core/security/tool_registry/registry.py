@@ -58,21 +58,22 @@ declaration improves transparency and self-documentation.
 - DYNAMICALLY_RESOLVED_TOOL_NAMES: built-in tools resolved by resolve_permission_type() sub-action branches (audit declaration)
 - AUTO_APPROVE_REASONS: valid governance reason categories
 - RULESET_COVERAGE_WHITELIST: permission type → governance approval reason (no DEFAULT_RULESET rule)
-- resolve_permission_type(): tool name → permission type (with dynamic sub-action and MCP fallback)
+- resolve_permission_type(): tool name → permission type (with dynamic sub-action, host declarations and MCP fallback)
 - compute_canonical_args_hash(): stable hash for tool arguments (core params only)
-- resolve_safety_metadata(): tool name → SafetyMetadata (fail-closed for undeclared tools)
+- resolve_safety_metadata(): tool name → SafetyMetadata (host declarations; fail-closed for undeclared tools)
 
 [POS]
 Pure functions, no side effects, trivially testable.
 Browser tools use dynamic resolution: browser_interact's permission varies
 by ``action`` parameter (fill→browser_fill, upload_file→browser_upload, etc.).
-MCP tools (``mcp__`` prefixed) and unknown tools both map to ``mcp_invoke``.
+MCP tools (``mcp__`` prefixed) and unknown tools both map to ``mcp_invoke``, except a tool the host application
+declared through ``external_tools.declare_external_tool``.
 Canonical parameter hashing ensures same functional operation produces same hash,
 regardless of LLM's wording variations in auxiliary fields.
 Safety metadata declares all built-in tools with four categories:
 read-only concurrent-safe, concurrent-safe with side effects, destructive,
-and stateful. resolve_safety_metadata uses three-level fallback:
-built-in static registry → MCP dynamic registry → fail-closed defaults.
+and stateful. resolve_safety_metadata uses four-level fallback:
+built-in static registry → MCP dynamic registry → host declarations → fail-closed defaults.
 Used by safety_dispatcher middleware for concurrency control.
 """
 
@@ -81,6 +82,7 @@ from __future__ import annotations
 import threading
 from typing import TypedDict
 
+from .external_tools import declared_permission_type, declared_safety_metadata
 from .file_args import FILE_ARG_KEYS
 from .governance import (
     AUTO_APPROVE_REASONS as AUTO_APPROVE_REASONS,
@@ -369,7 +371,8 @@ def resolve_permission_type(tool_name: str, tool_input: dict[str, object] | None
     1. Dynamic resolution for browser_interact/browser_manage (sub-action → fine-grained permission)
     2. Explicit mapping in ``TOOL_PERMISSION_MAP`` (e.g. bash_code_execute_tool → code_interpreter)
     3. Built-in tool with no mapping → keep original name (e.g. web_search_tool)
-    4. Unknown tool → ``mcp_invoke`` (MCP tools have dynamic names)
+    4. Tool declared by the host application (``declare_external_tool``) → its declared permission type
+    5. Unknown tool → ``mcp_invoke`` (MCP tools have dynamic names)
     """
     if tool_input and tool_name == "browser_interact_tool":
         action = str(tool_input.get("action", ""))
@@ -397,10 +400,8 @@ def resolve_permission_type(tool_name: str, tool_input: dict[str, object] | None
         return TOOL_PERMISSION_MAP[tool_name]
     if tool_name in BUILTIN_TOOL_NAMES:
         return tool_name
-    # MCP tools use mcp__{server}__{tool} prefix — fast-path before fallback
-    if tool_name.startswith("mcp__"):
-        return "mcp_invoke"
-    return "mcp_invoke"
+    # Every other tool, MCP tools (``mcp__{server}__{tool}``) included, is governed as ``mcp_invoke``
+    return declared_permission_type(tool_name) or "mcp_invoke"
 
 
 class MCPAnnotations(TypedDict, total=False):
@@ -475,17 +476,18 @@ def evict_skill_safety_metadata(skill_name: str) -> int:
 def resolve_safety_metadata(tool_name: str) -> SafetyMetadata:
     """Resolve safety attributes for a tool.
 
-    Three-level fallback:
+    Four-level fallback:
     1. Built-in tools: ``TOOL_SAFETY_METADATA`` (highest priority)
     2. MCP dynamic tools: ``_PTC_TOOL_FLAT_INDEX`` (populated by ``register_ptc_safety_metadata``)
-    3. Fail-closed defaults for unknown tools
+    3. Tools declared by the host application (``declare_external_tool``)
+    4. Fail-closed defaults for unknown tools
     """
     if tool_name in TOOL_SAFETY_METADATA:
         return TOOL_SAFETY_METADATA[tool_name]
     with _PTC_LOCK:
         if tool_name in _PTC_TOOL_FLAT_INDEX:
             return _PTC_TOOL_FLAT_INDEX[tool_name]
-    return _FAIL_CLOSED_DEFAULTS
+    return declared_safety_metadata(tool_name) or _FAIL_CLOSED_DEFAULTS
 
 
 from .safety import check_safety_coverage  # noqa: E402

@@ -48,7 +48,7 @@ _HINT_QUALIFIED_NAME = "use a qualified name to narrow the result."
 _HINT_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
 _HINT_OPEN_FUNCTION = "they are listed by line number, so open the function to see the rest."
 
-_INDEXED = "Only Python and TypeScript/JavaScript files are indexed."
+_INDEXED_LANGUAGES = "Only Python and TypeScript/JavaScript files are indexed."
 # An empty importers answer reads as "nothing imports it" unless it says TypeScript/JavaScript imports are not seen.
 _GAP_IMPORTS = (
     "Only Python imports are indexed, so TypeScript/JavaScript files that import this module are not listed: "
@@ -193,7 +193,7 @@ def _notes(total: int, definitions: int, stats: IndexStats, spec: _Action) -> li
         )
     if total == 0:
         notes.append(
-            f"Nothing found. Names are case-sensitive; try resolve with a shorter name or use grep. {spec.gap or _INDEXED}"
+            f"Nothing found. Names are case-sensitive; try resolve with a shorter name or use grep. {spec.gap or _INDEXED_LANGUAGES}"
         )
     elif spec.gap:
         notes.append(spec.gap)

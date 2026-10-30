@@ -19,10 +19,11 @@
 
 ## 已知限制
 - JS/TS 只记录标识符与成员链形式的调用：括号、下标形式的被调用者、`super()`、`import()` 与标签模板不记录；只有签名没有函数体的声明（`.d.ts`、函数重载签名）不产出符号；`.mjs`、`.cjs` 不在 `SOURCE_SUFFIXES` 内。
-- tree-sitter-typescript 有解析不了的写法：类型参数里的 `typeof import('x')`（vitest 的 `importOriginal<typeof import('x')>()` 与 `vi.importActual<typeof import('x')>()`）、类型参数里带对象类型的调用（`apiRequest<{ a: string; b?: string }>(url)`）。遇到时只丢这一处的调用（夹着这种调用的 `vi.mock` 回调还会多算一个参数），文件其余部分照常抽取。`scripts/dev/check_code_graph_js_ts_accuracy.py` 把抽取结果与 TypeScript 编译器逐文件比对；取本仓库前端 `src` 的一份已提交快照（4,827 个文件）：符号 10,221 个，召回与精确率均 100.00%；调用点 238,748 个，召回 99.92%（漏 184 个：`importOriginal` 144、`vi.importActual` 25、参数个数记错的 `vi.mock` 12、其余 3）、精确率 99.99%（多记 13 个：12 个是上述 `vi.mock`、1 个在语法错误的文件里）；类继承 40 个全部一致；134 个文件含 tree-sitter 语法错误，漏记的 161 个在其中。命中要求行号、被调用者文本、归属函数与参数个数全部相等；符号的取法与调用的归属是我们定的规则，比对只说明解析没有走样，不说明规则最优。
+- tree-sitter-typescript 有解析不了的写法：类型参数里的 `typeof import('x')`（vitest 的 `importOriginal<typeof import('x')>()` 与 `vi.importActual<typeof import('x')>()`）、类型参数里带对象类型的调用（`apiRequest<{ a: string; b?: string }>(url)`）。遇到时只丢这一处的调用（夹着这种调用的 `vi.mock` 回调还会多算一个参数），文件其余部分照常抽取。`scripts/dev/check_code_graph_js_ts_accuracy.py` 把抽取结果与 TypeScript 编译器逐文件比对；取本仓库前端 `src` 的工作目录（目录在持续改动，数字会漂移；最近一次 4,821 个文件）：符号 10,219 个，召回与精确率均 100.00%；调用点 238,596 个，召回 99.92%（漏 186 个：`importOriginal` 146、`vi.importActual` 25、参数个数记错的 `vi.mock` 12、其余 3）、精确率 99.99%（多记 13 个：12 个是上述 `vi.mock`、1 个在语法错误的文件里）；类继承 40 个全部一致；135 个文件含 tree-sitter 语法错误，漏记的 163 个在其中。命中要求行号、被调用者文本、归属函数与参数个数全部相等；符号的取法与调用的归属是我们定的规则，比对只说明解析没有走样，不说明规则最优。
 - 具名定义最多嵌套 `MAX_SCOPE_DEPTH`（32）层，更深的定义不是符号，其中的调用记给最深的一个：限定名重复每一层外层的名字，1 MB 文件嵌套 7.6 万层曾占用 5 至 6.5 GB 内存。
 - JS/TS 解析没有超时：`MAX_SOURCE_BYTES` 限定单文件 1 MB。20 种 1 MB 以内的对抗性形状（深层括号、数组、泛型、三元、JSX、未闭合括号、链式调用、参数里的调用、嵌套定义等）实测每个文件 0.02 至 6.6 s（机器负载约 50；有一次读数 10.9 s，重测为 2.2 s）。最慢的是未闭合泛型 `f<a<a<…`，耗时在 tree-sitter 解析本身而不在遍历。解析持有 GIL：1 MB 的 `f<a<a<…` 解析 2.4 s，期间同进程的其他线程整体停顿 2.3 s（机器负载约 33）；这样的输入只能人为构造，前端 `src` 与浏览器扩展的 4,839 个真实源文件解析最慢 71 ms。不设超时：py-tree-sitter 0.25 的 `Parser.timeout_micros` 已弃用，`progress_callback` 返回 `False` 时会让进程崩溃；超时的文件不记指纹，每次同步都要再等满一次超时，而不设超时时，病态文件只在指纹变化时付一次代价。
-- `tree-sitter` 固定在 `>=0.25.2,<0.26`：0.26.0 读取 `Point.row` / `.column` 时过度释放引用，解析较大文件时随机崩溃整个进程（py-tree-sitter#505），修复尚未发布；放开版本前必须确认这一点。
+- `tree-sitter` 固定在 `>=0.25.2,<0.26`：0.26.0 读取 `Point.row` / `.column` 时少一次引用计数（py-tree-sitter#472、#500 的分析），遍历语法树读取 `Point.row` 时约三分之一的运行段错误（#505 的复现）；上游称 master 已修复，尚无包含修复的发布版；放开版本前必须确认已发布的版本包含修复。
+- 权限引擎把名为 `target` 的参数当作文件路径检查（与文件工具的路径参数同名）：以 `.db`、`.env`、`.key`、`.pem`、`.sqlite` 结尾的限定名或模块名（例如 `app.core.db`、方法 `Settings.key`）会命中敏感文件规则而要求审批，工作区之外的路径同样要求审批或被拒绝；普通函数名、类名、限定名与 `路径:行号` 不受影响。
 - 大小与修改时间都没变的改写不会被发现。
 - 同一目录下同名的 `.ts` 与 `.js`（例如提交了编译产物）限定名相同，后写入的覆盖先写入的符号。
 - 索引库约为源码体积的 4 倍（harness 仓库 45.1 MB 源码对应 185.7 MB），按工作区路径存放，不随工作区删除而清理。
@@ -34,4 +35,6 @@
 - 结果最多 50 行：`callers`、`tests_calling` 按文件路径、`implementors` 按类名排序后取前 50 行，被截掉的部分不可见；这三个动作按最后一段名字匹配，限定名返回同样的行，只能在关心的目录里用 grep 缩小；`resolve` 与 `importers` 用限定名可以缩小，`callees` 按行号取前 50 行。每个动作超过上限时给出的建议由 `agent_tool.py` 的 `_Action.cut_hint` 自述，新增动作必须填写；动作看不到、索引里却有的那部分由 `_Action.gap` 在每个回答里说明（目前只有 `importers`：看不到 JS/TS 的导入）；预置技能 `assets/prebuilt_skills/repo-call-graph/SKILL.md` 只指向 `notes`，不复制各动作的建议。
 
 ## 架构边界
-属于 Server 业务层提供的预置代码智能能力，不侵入 Harness 核心执行框架；对 Harness 只使用公开的 `WorkspacePathIndexer` 与持久卷根路径；JS/TS 解析依赖第三方原生扩展 `tree-sitter` 与 `tree-sitter-typescript`。Agent 侧的挂载点在 `app/ai_agents/general_agent/factory.py`，工具层级登记在 `tools/_tool_layer_bootstrap.py`（EXTERNAL）。
+属于 Server 业务层提供的预置代码智能能力，不侵入 Harness 核心执行框架；对 Harness 只使用公开的 `WorkspacePathIndexer` 与持久卷根路径；JS/TS 解析依赖第三方原生扩展 `tree-sitter` 与 `tree-sitter-typescript`。Agent 侧的挂载点在 `app/ai_agents/general_agent/factory.py`（导入或构建失败只记 WARNING，Agent 少这一个工具，创建不受影响），工具层级登记在 `tools/_tool_layer_bootstrap.py`（EXTERNAL）。
+
+权限：工具按读取工作区文件归类。`tools/_tool_layer_bootstrap.py` 经 harness 的 `declare_external_tool` 把 `code_graph_tool` 声明为 `file_read`（只读、可并发、幂等；调用在工具自己的锁上排队，索引是工作区之外的缓存），所以默认与只读配置下调用不需要审批，只读回合的工具收窄也不会剔除它。预置技能 `repo-call-graph` 在 frontmatter 声明 `required_permissions: [file_read]`（`prebuilt_sync` 把它写进目录快照），用户启用技能时授权一次；技能边界守卫据此放行 `code_graph_tool` 以及技能步骤里的 `file_read_tool`、`grep_tool`。

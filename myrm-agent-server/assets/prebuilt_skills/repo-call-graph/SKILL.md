@@ -7,6 +7,8 @@ description: >-
   or location, when plain-text search would return too many unrelated matches.
 version: 2.0.0
 category: development
+required_permissions:
+  - file_read
 tags:
   - code-intelligence
   - call-graph

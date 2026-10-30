@@ -19,7 +19,8 @@ Protects user-modified prebuilt skills from silent overwrite during upgrades:
 - If user hasn't modified, silently apply upstream updates.
 After each sync the snapshot's ``requires`` matches the SKILL.md that stays in storage (the user's copy
 when it differs from the seed), so the Skills page gates what the runtime gates. Editing SKILL.md
-through the files API refreshes it at the next sync.
+through the files API refreshes it at the next sync. The snapshot also carries the seed's declared
+``required_permissions``, which the enable-time permission gate reads.
 Also handles stale entry cleanup for removed bundled skills.
 """
 
@@ -86,6 +87,7 @@ def _build_skill_from_seed(
     requires: SkillRequires | None = None,
     required_oauth_issuers: list[str] | None = None,
     required_mcp_server_ids: list[str] | None = None,
+    required_permissions: list[str] | None = None,
 ) -> Skill:
     skill_id = frontmatter_name or skill_dir_name
     storage_path = f"skills/prebuilt/{skill_id}"
@@ -110,6 +112,7 @@ def _build_skill_from_seed(
         requires=requires or SkillRequires(),
         required_oauth_issuers=required_oauth_issuers or [],
         required_mcp_server_ids=required_mcp_server_ids or [],
+        required_permissions=required_permissions or [],
         trust="trusted",
         created_at=now,
         updated_at=now,
@@ -248,6 +251,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             requires=seed_requires,
             required_oauth_issuers=frontmatter.required_oauth_issuers,
             required_mcp_server_ids=frontmatter.required_mcp_server_ids,
+            required_permissions=[permission.value for permission in frontmatter.required_permissions],
         )
 
         skill_md_storage = get_skill_file_path(SkillType.PREBUILT, skill_id, SKILL_MD_FILE)

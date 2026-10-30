@@ -124,7 +124,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 判定 | `is_oauth_issuer_connected(db, issuer)` |
 | Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
-| 快照与适配 | Skills 页读取持久化快照；prebuilt 快照的 `requires` 在同步时取自实际留存的 SKILL.md（用户改过则以用户副本为准），在线编辑 SKILL.md 后于下次同步对齐。绑定到 Agent 的技能经 `/user/` 路由由 `runtime_metadata.skill_to_runtime_metadata` 还原为运行时元数据（requires / trust / allowed_tools / always / 调用开关等），availability 由运行时 gate 重算 |
+| 快照与适配 | Skills 页读取持久化快照；prebuilt 快照的 `requires` 在同步时取自实际留存的 SKILL.md（用户改过则以用户副本为准），在线编辑 SKILL.md 后于下次同步对齐；快照还带上种子 frontmatter 声明的 `required_permissions`，启用技能的授权门读取它。绑定到 Agent 的技能经 `/user/` 路由由 `runtime_metadata.skill_to_runtime_metadata` 还原为运行时元数据（requires / trust / allowed_tools / always / 调用开关等），availability 由运行时 gate 重算 |
 | 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、x-live-search provider gate（`resolve_xai_search_config`）；所有声明了 `requires`（bins / env / config）的 skill 由 `requirements_availability.py` 统一重算，无需逐 skill 登记 |
 | Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
 | GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill；仅依赖 env 密钥且不可用的技能卡片提供就地「配置密钥」按钮，打开详情侧栏（密钥在侧栏内填写，保存后可用性按 `skill_env_vars` 重算）；缺账号或连接器的技能显示本地化的“去设置连接”提示，同时声明了 bins / env / config 的技能显示服务端原因（缺的可能不是账号） |
