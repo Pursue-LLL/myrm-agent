@@ -46,6 +46,11 @@ function validateCommand(cmd: BotCommand): { command?: string; description?: str
   return errors;
 }
 
+function isProxyInvalid(proxy: string | undefined): boolean {
+  const value = proxy?.trim() ?? '';
+  return value !== '' && !PROXY_PATTERN.test(value);
+}
+
 export function TelegramConfigCard() {
   const t = useTranslations('channels');
   const sandbox = isSandbox();
@@ -67,6 +72,7 @@ export function TelegramConfigCard() {
   const commandErrors = useMemo(() => commands.map(validateCommand), [commands]);
 
   const hasCommandErrors = useMemo(() => commandErrors.some((e) => e.command || e.description), [commandErrors]);
+  const proxyInvalid = !sandbox && isProxyInvalid(creds.proxy);
 
   const addCommand = useCallback(() => {
     handleChange('commands', [...commands, { command: '', description: '' }]);
@@ -152,9 +158,7 @@ export function TelegramConfigCard() {
             onChange={(e) => handleChange('proxy', e.target.value)}
           />
           <p className="text-xs text-muted-foreground">{t('telegramProxyHint')}</p>
-          {creds.proxy?.trim() && !PROXY_PATTERN.test(creds.proxy.trim()) && (
-            <p className="text-xs text-destructive">{t('telegramProxyInvalid')}</p>
-          )}
+          {proxyInvalid && <p className="text-xs text-destructive">{t('telegramProxyInvalid')}</p>}
         </div>
       )}
 
@@ -260,7 +264,7 @@ export function TelegramConfigCard() {
       </div>
 
       <div className="flex items-center gap-3 pt-2">
-        <Button onClick={handleSave} disabled={saving || hasCommandErrors || !dirty} size="sm">
+        <Button onClick={handleSave} disabled={saving || hasCommandErrors || proxyInvalid || !dirty} size="sm">
           {saving && <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />}
           {t('telegramSave')}
         </Button>

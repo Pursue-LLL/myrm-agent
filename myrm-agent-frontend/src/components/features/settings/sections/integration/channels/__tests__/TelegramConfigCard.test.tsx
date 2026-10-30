@@ -91,6 +91,18 @@ describe('TelegramConfigCard', () => {
     expect(screen.queryByText('telegramProxyInvalid')).not.toBeInTheDocument();
   });
 
+  it('does not let a proxy address without a supported scheme be saved', async () => {
+    render(<TelegramConfigCard />);
+    const proxy = await screen.findByLabelText('telegramProxy');
+    const save = screen.getByRole('button', { name: /telegramSave/ });
+
+    fireEvent.change(proxy, { target: { value: '127.0.0.1:7890' } });
+    expect(save).toBeDisabled();
+
+    fireEvent.change(proxy, { target: { value: 'http://127.0.0.1:7890' } });
+    expect(save).toBeEnabled();
+  });
+
   it('leaves the proxy to the hosted service in sandbox mode', async () => {
     mocks.sandbox = true;
 
