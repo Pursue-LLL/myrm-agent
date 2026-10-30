@@ -90,7 +90,7 @@ def test_diagnose_context_overflow():
     assert result.error_type == "context_overflow"
     assert "context length" in result.user_message.lower() or "exceeds" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
-    assert any("compression" in step.lower() for step in result.resolution_steps)
+    assert any("new conversation" in step.lower() for step in result.resolution_steps)
     assert result.is_retryable is True
 
 
@@ -102,7 +102,7 @@ def test_diagnose_timeout_error():
     assert result.error_type == "timeout"
     assert "timed out" in result.user_message.lower()
     assert len(result.resolution_steps) > 0
-    assert any("timeout_seconds" in step for step in result.resolution_steps)
+    assert any("network" in step.lower() for step in result.resolution_steps)
     assert result.is_retryable is True
 
 

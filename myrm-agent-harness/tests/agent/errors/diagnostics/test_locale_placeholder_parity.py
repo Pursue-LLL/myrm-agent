@@ -19,7 +19,8 @@ _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
 def _load(locale_file: Path) -> dict[str, str | list[str]]:
-    return json.loads(locale_file.read_text(encoding="utf-8"))
+    bundle: dict[str, str | list[str]] = json.loads(locale_file.read_text(encoding="utf-8"))
+    return bundle
 
 
 def _placeholders(value: str | list[str]) -> set[str]:

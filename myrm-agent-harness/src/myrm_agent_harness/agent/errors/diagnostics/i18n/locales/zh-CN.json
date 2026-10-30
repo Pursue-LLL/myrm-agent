@@ -2,7 +2,6 @@
   "connection_user_message": "无法连接到 LLM 端点",
   "connection_resolution_steps": [
     "检查端点服务是否运行（例如 Ollama: ollama serve）",
-    "验证 LLMConfig 中的 base_url 配置",
     "检查网络连接",
     "检查防火墙设置"
   ],
@@ -11,7 +10,7 @@
     "确认 {service_name} 服务正在运行",
     "在浏览器中测试: {base_url_display}/v1/models",
     "检查端口 {port} 是否被占用",
-    "验证 base_url 配置: {base_url_display}"
+    "在 设置 > 模型 中检查 Base URL: {base_url_display}"
   ],
   "billing_user_message": "您的 API 账户余额不足",
   "billing_resolution_steps": [
@@ -24,12 +23,11 @@
     "在 设置 > 模型 中更新您的 API 密钥",
     "验证 API 密钥是否有效且未过期",
     "检查 API 密钥是否具有正确的权限",
-    "对于 Ollama/LM Studio: 使用 'dummy' 或空字符串作为 api_key"
+    "对于 Ollama/LM Studio: API 密钥可填 'dummy' 或留空"
   ],
   "model_user_message": "模型 '{model_name}' 未找到",
   "model_resolution_steps": [
     "安装该模型（例如 Ollama: ollama pull {model_name}）",
-    "检查 LLMConfig 中的模型名称是否正确",
     "列出可用模型并验证",
     "对于 OpenAI: 检查模型名称拼写"
   ],
@@ -45,7 +43,7 @@
   "rate_limit_resolution_steps": [
     "升级 API 计划以获得更高的速率限制",
     "检查是否有其他进程正在使用相同的 API 密钥",
-    "使用 fallback_llm 自动处理速率限制"
+    "在设置中配置备用模型，限流时自动切换"
   ],
   "response_format_error_user_message": "模型输出验证失败，正在自动切换至更强模型",
   "response_format_error_resolution_steps": [
@@ -56,14 +54,12 @@
   ],
   "context_overflow_user_message": "上下文长度超出模型限制",
   "context_overflow_resolution_steps": [
-    "在 AgentConfig 中启用压缩（context_management_strategy）",
     "开始新的对话会话",
     "使用具有更大上下文窗口的模型",
     "减少对话历史长度"
   ],
   "timeout_user_message": "LLM 请求超时",
   "timeout_resolution_steps": [
-    "在 AgentConfig 中增加 timeout_seconds",
     "检查网络延迟",
     "使用更快的模型或端点",
     "启用流式模式以获得更好的响应性"
@@ -92,7 +88,6 @@
   "text_continuation_resolution_steps": [],
   "text_continuation_exhausted_user_message": "经过 3 次续写仍未完成回复",
   "text_continuation_exhausted_resolution_steps": [
-    "增大模型配置中的 max_tokens",
     "要求模型更简洁地回答",
     "将问题拆分为更小的部分"
   ],
@@ -117,9 +112,7 @@
   ],
   "tls_certificate_user_message": "TLS 证书验证失败 — 可能由企业 TLS 检测代理导致",
   "tls_certificate_resolution_steps": [
-    "在 设置 → 系统 → 高级 中启用「企业网络兼容模式」",
-    "或设置环境变量 MYRM_TLS_STRICT=0",
-    "如使用自定义 CA 证书包，请设置 SSL_CERT_FILE 为其路径"
+    "在 设置 → 系统 → 高级 中启用「企业网络兼容模式」"
   ],
   "tls_transient_user_message": "TLS 握手被中断 — 疑似网络抖动，系统正在自动重试",
   "tls_transient_resolution_steps": [

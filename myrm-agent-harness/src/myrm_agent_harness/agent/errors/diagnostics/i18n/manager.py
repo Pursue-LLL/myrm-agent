@@ -188,8 +188,11 @@ class LocaleManager:
         return f"[Missing translation: {error_type}.{key}]"
 
     def translate_optional(self, error_type: str, key: str, locale: str | None = None, **params: object) -> str | None:
-        """Translate a text a bundle may not carry (a custom bundle written before the key existed); None when absent."""
-        template = self._find_template(error_type, key, locale or self.detect_locale())
+        """Translate a text a bundle may not carry; None when neither the locale nor English has it, or it is a step list."""
+        if locale is None:
+            locale = self.detect_locale()
+
+        template = self._find_template(error_type, key, locale)
         return self._safe_format(template, params) if isinstance(template, str) else None
 
     def _find_template(self, error_type: str, key: str, locale: str) -> str | list[str] | None:

@@ -9,7 +9,7 @@ Framework-level i18n for LLM error diagnostics. Bundled JSON locales (en/zh-CN/j
 |------------|------|-------------|-------|
 | __init__.py | Package | Re-exports LocaleManager and get_locale_manager singleton | ✅ |
 | constants.py | Config | REQUIRED_ERROR_TYPES for completeness validation | ✅ |
-| manager.py | Core | LocaleManager — detection, bundled JSON load, formatting. Flat keys `<error_type>_user_message` / `_resolution_steps` / `_wait_step` and `cooldown_hint_*` are unflattened per error type; `translate_optional` returns None for a text a custom bundle does not carry, so a caller can keep the old behaviour instead of showing a missing-translation marker | ✅ |
+| manager.py | Core | LocaleManager — detection, bundled JSON load, formatting. Flat keys `<error_type>_user_message` / `_resolution_steps` / `_wait_step` and `cooldown_hint_*` are unflattened per error type; `translate_optional` returns None for a text a custom bundle does not carry, so a caller can leave the text out instead of showing a missing-translation marker | ✅ |
 | locales/ | Data | Bundled flat JSON locale files shipped with the wheel | — |
 | locales/en.json | Data | English diagnostic strings | — |
 | locales/zh-CN.json | Data | Simplified Chinese diagnostic strings | — |

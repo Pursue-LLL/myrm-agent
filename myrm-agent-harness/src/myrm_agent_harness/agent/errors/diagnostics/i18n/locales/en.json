@@ -2,7 +2,6 @@
   "connection_user_message": "Unable to connect to LLM endpoint",
   "connection_resolution_steps": [
     "Check if the endpoint service is running (e.g., Ollama: ollama serve)",
-    "Verify base_url configuration in LLMConfig",
     "Check network connectivity",
     "Check firewall settings"
   ],
@@ -11,7 +10,7 @@
     "Confirm {service_name} service is running",
     "Test in browser: {base_url_display}/v1/models",
     "Check if port {port} is occupied",
-    "Verify base_url configuration: {base_url_display}"
+    "Check the Base URL in Settings > Models: {base_url_display}"
   ],
   "billing_user_message": "Your API account balance is insufficient",
   "billing_resolution_steps": [
@@ -24,12 +23,11 @@
     "Update your API key in Settings > Models",
     "Verify API key is valid and not expired",
     "Check if API key has correct permissions",
-    "For Ollama/LM Studio: use 'dummy' or empty string as api_key"
+    "For Ollama/LM Studio: enter 'dummy' as the API key, or leave it empty"
   ],
   "model_user_message": "Model '{model_name}' not found",
   "model_resolution_steps": [
     "Install the model (e.g., Ollama: ollama pull {model_name})",
-    "Check if model name is correct in LLMConfig",
     "List available models and verify",
     "For OpenAI: check model name spelling"
   ],
@@ -45,11 +43,10 @@
   "rate_limit_resolution_steps": [
     "Upgrade API plan for higher rate limits",
     "Check if other processes are using the same API key",
-    "Use fallback_llm to handle rate limits automatically"
+    "Configure a backup model in Settings so rate limits switch over automatically"
   ],
   "context_overflow_user_message": "Context length exceeds model limit",
   "context_overflow_resolution_steps": [
-    "Enable compression in AgentConfig (context_management_strategy)",
     "Start a new conversation session",
     "Use a model with larger context window",
     "Reduce conversation history length"
@@ -63,7 +60,6 @@
   ],
   "timeout_user_message": "LLM request timed out",
   "timeout_resolution_steps": [
-    "Increase timeout_seconds in AgentConfig",
     "Check network latency",
     "Use a faster model or endpoint",
     "Enable streaming mode for better responsiveness"
@@ -92,7 +88,6 @@
   "text_continuation_resolution_steps": [],
   "text_continuation_exhausted_user_message": "Response remained truncated after 3 continuation attempts",
   "text_continuation_exhausted_resolution_steps": [
-    "Increase max_tokens in model configuration",
     "Ask the model to be more concise",
     "Break the question into smaller parts"
   ],
@@ -117,9 +112,7 @@
   ],
   "tls_certificate_user_message": "TLS certificate verification failed — likely caused by enterprise TLS inspection proxy",
   "tls_certificate_resolution_steps": [
-    "Enable 'Enterprise Network Compatibility' in Settings → System → Advanced",
-    "Or set environment variable MYRM_TLS_STRICT=0",
-    "If using a custom CA bundle, set SSL_CERT_FILE to its path"
+    "Enable 'Enterprise Network Compatibility' in Settings → System → Advanced"
   ],
   "tls_transient_user_message": "TLS handshake interrupted — likely transient network instability, retrying automatically",
   "tls_transient_resolution_steps": [

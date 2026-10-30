@@ -21,7 +21,8 @@ _RATE_LIMITED = Exception("429 too many requests")
 
 def _bundled(locale: str) -> dict[str, str | list[str]]:
     path = Path(manager_module.__file__).parent / "locales" / f"{locale}.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    bundle: dict[str, str | list[str]] = json.loads(path.read_text(encoding="utf-8"))
+    return bundle
 
 
 @pytest.mark.parametrize("locale", _LOCALES)
@@ -60,7 +61,20 @@ def test_a_locale_without_a_bundle_takes_the_english_steps_and_the_english_wait_
     ]
 
 
-def test_a_bundle_written_before_the_wait_step_existed_keeps_its_steps_as_they_are(
+def test_an_empty_locale_takes_the_english_steps_and_the_english_wait_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    # An empty locale is not "unset": it resolves like any locale without a bundle, so the wait step and the
+    # steps come from the same language instead of the wait step following the detected system locale.
+    monkeypatch.setattr(get_locale_manager(), "detect_locale", lambda: "zh-CN")
+
+    result = LLMErrorDiagnostic.diagnose(_RATE_LIMITED, locale="")
+
+    assert result.resolution_steps == [
+        _bundled("en")["rate_limit_wait_step"],
+        *_bundled("en")["rate_limit_resolution_steps"],
+    ]
+
+
+def test_a_bundle_without_the_wait_step_keeps_its_steps_as_they_are(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     old_steps = ["Retry shortly", "Upgrade the plan"]

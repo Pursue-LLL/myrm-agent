@@ -391,7 +391,9 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 
 | 模块 | 职责 |
 |------|------|
-| `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult` |
+| `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时与兜底 |
+| `transport_diagnosis.py` | TLS（`tls_certificate`、`tls_transient`）与连接（`connection`、`custom_endpoint_unreachable`）诊断；自定义端点的服务名、端口推断 |
+| `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
 | `types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
 | `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化 |
 | `i18n/__init__.py` | `get_locale_manager()` 全局单例 |
@@ -417,7 +419,9 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 
 恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，三者的 url 均为 `/settings`；其余类型不下发按钮。
 
-`unknown` 兜底诊断的文案约定：`user_message` 带提供方原文前 200 字符，五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）；`resolution_steps` 不得指向库内部概念（LiteLLM、LLMConfig、调试日志开关），该约定由 `tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py` 守护。
+`unknown` 兜底诊断的文案约定：`user_message` 带提供方原文前 200 字符，五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串），由 `tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py` 守护。
+
+目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型」「在设置中配置备用模型」。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
 
 #### 3. DiagnosticResult结构
 
@@ -486,8 +490,8 @@ get_locale_manager().register_translations(
     {"rate_limit": {"user_message": "API 请求频率受限", "resolution_steps": ["可升级 API 计划或切换模型"]}},
 )
 # 或通过环境变量 MYRM_LOCALES_DIR 指定自定义 locale JSON 目录（扁平键 `<error_type>_user_message` / `_resolution_steps` / `_wait_step` 与 cooldown_hint_* 自动展平）
-# 限流诊断只说一次等待：供应商给出等待时长时，消息里已有该时长，resolution_steps 不再带通用的 rate_limit_wait_step；
-# 没有给出时它排在 resolution_steps 之首。自定义目录缺少 rate_limit_wait_step 时 resolution_steps 原样返回。
+# 限流诊断只说一次等待：供应商给出等待时长时，消息里已有该时长，resolution_steps 不含通用的 rate_limit_wait_step；
+# 没有给出时它排在 resolution_steps 之首。自定义目录没有 rate_limit_wait_step 时，resolution_steps 就是目录里的步骤。
 ```
 
 ---
@@ -512,6 +516,8 @@ get_locale_manager().register_translations(
 | `toolkits/llms/errors/classifier.py` | LLM错误分类器（`classify_error()`，`ErrorKind` enum） |
 | `toolkits/llms/errors/error_types.py` | 三层分类体系（RecoverabilityLevel / FailoverReason / ProbePolicy） |
 | `agent/errors/diagnostics/engine.py` | `LLMErrorDiagnostic`：LLM 异常 → 本地化 `DiagnosticResult` |
+| `agent/errors/diagnostics/transport_diagnosis.py` | TLS 与连接类诊断（`diagnose_transport`），自定义端点的服务名、端口推断 |
+| `agent/errors/diagnostics/account_diagnosis.py` | 余额、供应商策略与密钥类诊断（`diagnose_account`） |
 | `agent/errors/diagnostics/recovery_actions.py` | 恢复按钮目录：`api_key` / `billing` / `model` 等有单击修复的错误类型 → 本地化 `{id, label, url}` |
 | `agent/errors/diagnostics/types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
 | `agent/errors/diagnostics/i18n/manager.py` | `LocaleManager`（locale 检测 + 捆绑 JSON + `register_translations()` 扩展） |

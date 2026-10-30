@@ -46,9 +46,11 @@ def format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
         from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 
         manager = get_locale_manager()
-        translations = manager._translations.get(locale, {}).get("_cooldown_hint", {})
-        if not translations:
-            translations = manager._translations.get("en", {}).get("_cooldown_hint", {})
+        bundle = manager._translations.get(locale, {}).get("_cooldown_hint", {})
+        if not bundle:
+            bundle = manager._translations.get("en", {}).get("_cooldown_hint", {})
+        # The bundle type also admits step lists; only text entries are templates.
+        translations = {key: text for key, text in bundle.items() if isinstance(text, str)}
 
         template = translations.get("template", "")
         if not template:

@@ -2,7 +2,6 @@
   "connection_user_message": "Verbindung zum LLM-Endpunkt fehlgeschlagen",
   "connection_resolution_steps": [
     "Überprüfen Sie, ob der Endpunkt-Dienst läuft (z.B. Ollama: ollama serve)",
-    "Überprüfen Sie die base_url-Konfiguration in LLMConfig",
     "Überprüfen Sie die Netzwerkverbindung",
     "Überprüfen Sie die Firewall-Einstellungen"
   ],
@@ -11,7 +10,7 @@
     "Bestätigen Sie, dass der {service_name}-Dienst läuft",
     "Test im Browser: {base_url_display}/v1/models",
     "Überprüfen Sie, ob Port {port} belegt ist",
-    "Überprüfen Sie die base_url-Konfiguration: {base_url_display}"
+    "Überprüfen Sie die Base URL unter Einstellungen > Modelle: {base_url_display}"
   ],
   "billing_user_message": "Das Guthaben Ihres API-Kontos ist nicht ausreichend",
   "billing_resolution_steps": [
@@ -24,7 +23,7 @@
     "Aktualisieren Sie Ihren API-Schlüssel unter Einstellungen > Modelle",
     "Stellen Sie sicher, dass der API-Schlüssel gültig und nicht abgelaufen ist",
     "Überprüfen Sie, ob der API-Schlüssel die richtigen Berechtigungen hat",
-    "Für Ollama/LM Studio: Verwenden Sie 'dummy' oder einen leeren String als api_key"
+    "Für Ollama/LM Studio: Verwenden Sie 'dummy' als API-Schlüssel oder lassen Sie ihn leer"
   ],
   "model_user_message": "Modell '{model_name}' nicht gefunden",
   "model_resolution_steps": [
@@ -92,7 +91,6 @@
   "text_continuation_resolution_steps": [],
   "text_continuation_exhausted_user_message": "Die Antwort blieb nach 3 Fortsetzungsversuchen abgeschnitten",
   "text_continuation_exhausted_resolution_steps": [
-    "Erhöhen Sie max_tokens in der Modellkonfiguration",
     "Bitten Sie das Modell, prägnanter zu antworten",
     "Teilen Sie die Frage in kleinere Teile auf"
   ],
@@ -112,9 +110,7 @@
   ],
   "tls_certificate_user_message": "TLS-Zertifikatsüberprüfung fehlgeschlagen — möglicherweise verursacht durch einen Enterprise-TLS-Inspektionsproxy",
   "tls_certificate_resolution_steps": [
-    "Aktivieren Sie den 'Enterprise-Netzwerk-Kompatibilitätsmodus' unter Einstellungen → System → Erweitert",
-    "Oder setzen Sie die Umgebungsvariable MYRM_TLS_STRICT=0",
-    "Bei Verwendung eines benutzerdefinierten CA-Zertifikatbündels setzen Sie SSL_CERT_FILE auf den Pfad"
+    "Aktivieren Sie den 'Enterprise-Netzwerk-Kompatibilitätsmodus' unter Einstellungen → System → Erweitert"
   ],
   "tls_transient_user_message": "TLS-Handshake unterbrochen — vermutlich vorübergehende Netzwerkinstabilität, automatischer Wiederholungsversuch läuft",
   "tls_transient_resolution_steps": [

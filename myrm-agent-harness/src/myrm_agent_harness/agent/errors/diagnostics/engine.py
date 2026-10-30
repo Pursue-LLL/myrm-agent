@@ -1,32 +1,31 @@
 """LLM error diagnostic engine.
 
 [INPUT]
+- diagnostics.account_diagnosis::diagnose_account (POS: Billing, provider-policy and API key diagnostics)
 - diagnostics.i18n::get_locale_manager (POS: Framework-level i18n for LLM error diagnostics)
 - diagnostics.recovery_actions::build_recovery_actions (POS: Recovery action catalogue of the diagnostics engine)
+- diagnostics.transport_diagnosis::diagnose_transport, infer_service_name (POS: TLS and connection diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
-- infra.tls_compat::is_tls_strict_error, get_tls_remediation_hint (POS: Enterprise TLS compatibility)
 
 [OUTPUT]
 - LLMErrorDiagnostic: Static classifier that maps LLM exceptions to localized DiagnosticResult
 
 [POS]
 LLM error diagnostic engine. Classifies exceptions from LLM calls into actionable categories
-with localized user messages and resolution steps.
+with localized user messages and resolution steps. Transport and account failures are diagnosed by
+their own modules and tried first; the model, rate-limit, response-format, context, timeout and
+unknown families, the truncation diagnoses and the cooldown wrapper live here.
 """
 
 import re
 
+from myrm_agent_harness.agent.errors.diagnostics.account_diagnosis import diagnose_account
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_recovery_actions
+from myrm_agent_harness.agent.errors.diagnostics.transport_diagnosis import diagnose_transport, infer_service_name
 from myrm_agent_harness.agent.errors.diagnostics.types import (
     DiagnosticResult,
     ErrorContext,
-)
-from myrm_agent_harness.infra.tls_compat import (
-    get_tls_remediation_hint,
-    is_tls_hard_error,
-    is_tls_strict_error,
-    is_tls_transient_error,
 )
 
 
@@ -83,191 +82,14 @@ class LLMErrorDiagnostic:
         error_repr = repr(exc).lower()
         full_text = f"{error_str} {error_repr}"
 
-        # 0. TLS/SSL errors: hard failure (fail-fast) vs transient handshake
-        # interruption (retryable). Hard signals win: a rejected certificate
-        # can never verify by retrying.
-        if is_tls_hard_error(full_text) or is_tls_strict_error(full_text):
-            hint = get_tls_remediation_hint()
-            raw_msg = locale_manager.translate("tls_certificate", "user_message", locale)
-            raw_steps = locale_manager.translate("tls_certificate", "resolution_steps", locale)
-            user_message = (
-                raw_msg
-                if isinstance(raw_msg, str) and not raw_msg.startswith("[Missing")
-                else f"TLS certificate verification failed. {hint}"
-            )
-            steps: list[str] = raw_steps if isinstance(raw_steps, list) and raw_steps else [hint]
+        # 0-3. Transport (TLS, connection) then account (billing, provider policy, API key) families
+        transport = diagnose_transport(full_text, context, locale, cooldown_remaining_ms)
+        if transport is not None:
+            return transport
 
-            return DiagnosticResult(
-                error_type="tls_certificate",
-                user_message=user_message,
-                resolution_steps=steps,
-                is_retryable=False,
-                locale=locale,
-            )
-
-        if is_tls_transient_error(full_text):
-            raw_msg = locale_manager.translate("tls_transient", "user_message", locale)
-            raw_steps = locale_manager.translate("tls_transient", "resolution_steps", locale)
-            fallback_msg = "TLS handshake interrupted — likely transient network instability, retrying automatically."
-            user_message = raw_msg if isinstance(raw_msg, str) and not raw_msg.startswith("[Missing") else fallback_msg
-            steps = raw_steps if isinstance(raw_steps, list) and raw_steps else [fallback_msg]
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="tls_transient",
-                user_message=user_message,
-                resolution_steps=steps,
-                is_retryable=True,
-                locale=locale,
-            )
-
-        # 1. Connection errors (精准自定义端点诊断)
-        if any(
-            kw in full_text
-            for kw in [
-                "connection refused",
-                "connection reset",
-                "connection error",
-                "failed to establish",
-            ]
-        ):
-            # 自定义端点(Ollama/LM Studio)专属诊断
-            if context and context.is_custom_endpoint:
-                service_name = LLMErrorDiagnostic._infer_service_name(context.base_url)
-                base_url_display = context.base_url or "custom endpoint"
-                port = LLMErrorDiagnostic._extract_port(context.base_url)
-
-                params = {
-                    "service_name": service_name,
-                    "base_url_display": base_url_display,
-                    "port": port,
-                }
-
-                user_message = locale_manager.translate("custom_endpoint_unreachable", "user_message", locale, **params)
-                resolution_steps = locale_manager.translate(
-                    "custom_endpoint_unreachable", "resolution_steps", locale, **params
-                )
-
-                cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-                user_message += cooldown_hint
-
-                return DiagnosticResult(
-                    error_type="custom_endpoint_unreachable",
-                    user_message=user_message,
-                    resolution_steps=resolution_steps,
-                    is_retryable=True,
-                    locale=locale,
-                )
-
-            # 通用连接错误诊断
-            user_message = locale_manager.translate("connection", "user_message", locale)
-            resolution_steps = locale_manager.translate("connection", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="connection",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=True,
-                locale=locale,
-            )
-
-        # 2. Billing / insufficient balance errors
-        billing_keywords = [
-            "billing",
-            "insufficient balance",
-            "insufficient funds",
-            "insufficient credits",
-            "insufficient quota",
-            "payment required",
-            "exceeded your current quota",
-            "exceeded quota",
-            "credit balance",
-            "account is deactivated",
-            "top up your credits",
-            "run out of credits",
-            "used all available credits",
-            "grok subscription",
-            "余额不足",
-            "额度不足",
-            "欠费",
-            "请充值",
-        ]
-        if any(kw in full_text for kw in billing_keywords) or re.search(r"(?<!\d)402(?!\d)", full_text):
-            user_message = locale_manager.translate("billing", "user_message", locale)
-            resolution_steps = locale_manager.translate("billing", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="billing",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=False,
-                locale=locale,
-            )
-
-        # 2b. OpenCode Go contributor training policy (muse-spark contributor)
-        from myrm_agent_harness.toolkits.llms.adapters.wire.normalizer import ResponsesStreamError
-
-        if isinstance(exc, ResponsesStreamError):
-            user_message = locale_manager.translate("opencode_training_policy", "user_message", locale)
-            resolution_steps = locale_manager.translate("opencode_training_policy", "resolution_steps", locale)
-            return DiagnosticResult(
-                error_type="opencode_training_policy",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=False,
-                locale=locale,
-            )
-
-        training_policy_keywords = [
-            "trainingnotallowed",
-            "datapolicyerror",
-            "allowtraining",
-        ]
-        compact = full_text.replace(" ", "").replace("_", "")
-        if any(kw in compact for kw in training_policy_keywords) or (
-            "muse-spark" in full_text
-            and "contributor" in full_text
-            and "training" in full_text
-            and "not allowed" in full_text
-        ):
-            user_message = locale_manager.translate("opencode_training_policy", "user_message", locale)
-            resolution_steps = locale_manager.translate("opencode_training_policy", "resolution_steps", locale)
-            return DiagnosticResult(
-                error_type="opencode_training_policy",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=False,
-                locale=locale,
-            )
-
-        # 3. API key errors
-        api_key_keywords = [
-            "invalid api key",
-            "authentication failed",
-            "unauthorized",
-        ]
-        if any(kw in full_text for kw in api_key_keywords) or re.search(r"(?<!\d)(401|403)(?!\d)", full_text):
-            user_message = locale_manager.translate("api_key", "user_message", locale)
-            resolution_steps = locale_manager.translate("api_key", "resolution_steps", locale)
-
-            cooldown_hint = LLMErrorDiagnostic._format_cooldown_hint(cooldown_remaining_ms, locale)
-            user_message += cooldown_hint
-
-            return DiagnosticResult(
-                error_type="api_key",
-                user_message=user_message,
-                resolution_steps=resolution_steps,
-                is_retryable=False,
-                locale=locale,
-            )
+        account = diagnose_account(exc, full_text, locale, cooldown_remaining_ms)
+        if account is not None:
+            return account
 
         # 4. Model not found (精准自定义端点诊断)
         model_keywords = ["model not found", "model does not exist", "unknown model"]
@@ -284,7 +106,7 @@ class LLMErrorDiagnostic:
 
             # 自定义端点(Ollama/LM Studio)专属诊断
             if context and context.is_custom_endpoint:
-                service_name = LLMErrorDiagnostic._infer_service_name(context.base_url)
+                service_name = infer_service_name(context.base_url)
                 params = {"model_name": model_name, "service_name": service_name}
 
                 user_message = locale_manager.translate("custom_model_not_found", "user_message", locale, **params)
@@ -455,32 +277,6 @@ class LLMErrorDiagnostic:
     def get_recovery_actions(error_type: str, locale: str | None = "en") -> list[dict[str, str]]:
         """Return localized actionable recovery buttons for the given error type."""
         return build_recovery_actions(error_type, locale)
-
-    @staticmethod
-    def _infer_service_name(base_url: str | None) -> str:
-        """推断服务名称(Ollama/LM Studio/vLLM/自定义LLM服务)"""
-        if not base_url:
-            return "custom LLM service"
-
-        base_url_lower = base_url.lower()
-
-        if "11434" in base_url_lower:
-            return "Ollama"
-        elif "1234" in base_url_lower:
-            return "LM Studio"
-        elif "vllm" in base_url_lower:
-            return "vLLM"
-        else:
-            return "custom LLM service"
-
-    @staticmethod
-    def _extract_port(base_url: str | None) -> str:
-        """提取端口号"""
-        if not base_url:
-            return "unknown"
-
-        port_match = re.search(r":(\d+)", base_url)
-        return port_match.group(1) if port_match else "unknown"
 
     @staticmethod
     def _format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:

@@ -2,7 +2,6 @@
   "connection_user_message": "LLM 엔드포인트에 연결하지 못했습니다",
   "connection_resolution_steps": [
     "엔드포인트 서비스가 실행 중인지 확인하세요(예: Ollama: ollama serve)",
-    "LLMConfig의 base_url 설정을 확인하세요",
     "네트워크 연결을 확인하세요",
     "방화벽 설정을 확인하세요"
   ],
@@ -11,7 +10,7 @@
     "{service_name} 서비스가 실행 중인지 확인하세요",
     "브라우저에서 테스트: {base_url_display}/v1/models",
     "포트 {port}가 사용 중인지 확인하세요",
-    "base_url 설정 확인: {base_url_display}"
+    "설정 > 모델 에서 Base URL 확인: {base_url_display}"
   ],
   "billing_user_message": "API 계정 잔액이 부족합니다",
   "billing_resolution_steps": [
@@ -24,7 +23,7 @@
     "설정 > 모델 에서 API 키를 업데이트하세요",
     "API 키가 유효하고 만료되지 않았는지 확인하세요",
     "API 키에 올바른 권한이 있는지 확인하세요",
-    "Ollama/LM Studio의 경우: api_key로 'dummy' 또는 빈 문자열을 사용하세요"
+    "Ollama/LM Studio의 경우: API 키에 'dummy'를 입력하거나 비워 두세요"
   ],
   "model_user_message": "모델 '{model_name}'을(를) 찾을 수 없습니다",
   "model_resolution_steps": [
@@ -92,7 +91,6 @@
   "text_continuation_resolution_steps": [],
   "text_continuation_exhausted_user_message": "3회 연속 시도 후에도 응답이 계속 잘렸습니다",
   "text_continuation_exhausted_resolution_steps": [
-    "모델 설정에서 max_tokens 값을 늘리세요",
     "모델에게 더 간결하게 답변하도록 요청하세요",
     "질문을 더 작은 부분으로 나누세요"
   ],
@@ -112,9 +110,7 @@
   ],
   "tls_certificate_user_message": "TLS 인증서 확인 실패 — 기업 TLS 검사 프록시로 인한 것일 수 있습니다",
   "tls_certificate_resolution_steps": [
-    "설정 → 시스템 → 고급에서 '기업 네트워크 호환 모드'를 활성화하세요",
-    "또는 환경 변수 MYRM_TLS_STRICT=0을 설정하세요",
-    "사용자 정의 CA 인증서 번들을 사용하는 경우 SSL_CERT_FILE에 경로를 설정하세요"
+    "설정 → 시스템 → 고급에서 '기업 네트워크 호환 모드'를 활성화하세요"
   ],
   "tls_transient_user_message": "TLS 핸드셰이크가 중단되었습니다 — 일시적인 네트워크 불안정일 가능성이 있어 자동으로 다시 시도하고 있습니다",
   "tls_transient_resolution_steps": [
