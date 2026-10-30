@@ -54,10 +54,9 @@ def get_evolution_skill_store() -> SkillStore:
 def find_evolution_records(store: SkillStore, skill_ref: str, page_skill: Skill | None = None) -> list[SkillRecord]:
     """Evolution rows of one skill, the row keyed by ``skill_ref`` first.
 
-    A skill's rows are not keyed alike (draft approval and auto extraction key by the skill name, batch import
-    by a generated id), so the page's skill id alone can miss them. A row found by name counts only when it holds
-    the skill's own SKILL.md, so two skills sharing a name never share a row. Without ``page_skill`` ``skill_ref``
-    is taken as the name.
+    Rows are not keyed uniformly across the code paths that write them, so the page's skill id alone can miss
+    one. A row found by name counts only when it holds the skill's own SKILL.md, so two skills sharing a name
+    never share a row. Without ``page_skill`` ``skill_ref`` is taken as the name.
     """
     records: list[SkillRecord] = []
     exact = store.get_skill(skill_ref)
