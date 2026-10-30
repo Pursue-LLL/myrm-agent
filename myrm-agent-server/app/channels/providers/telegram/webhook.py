@@ -6,7 +6,7 @@ Mixin providing webhook lifecycle and HTTP endpoint registration for TelegramCha
 - channels.security::WebhookSecurityMiddleware, WebhookResponseError
 - channels.protocols.route_registrar::HttpMethod, RouteMetadata, RouteRegistrar, GenericRequest, GenericResponse
 - fastapi::Request
-- telegram.inbound::_ALLOWED_UPDATES
+- telegram.helpers::_ALLOWED_UPDATES
 
 [OUTPUT]
 - TelegramWebhookMixin: verify, handle_webhook_update, register_routes, webhook setup/cleanup
@@ -29,7 +29,7 @@ from fastapi import Request
 from app.channels.security.errors import WebhookResponseError
 
 from .api_core import TelegramApiError
-from .inbound import _ALLOWED_UPDATES
+from .helpers import _ALLOWED_UPDATES
 
 if TYPE_CHECKING:
     from app.channels.protocols.route_registrar import GenericRequest, GenericResponse

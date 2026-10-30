@@ -2,27 +2,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
-from app.channels.providers.telegram import TelegramChannel
-from app.channels.providers.telegram.api import TelegramClient
 from app.channels.types import InboundMessage
-from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
-
-
-def _forum_channel() -> tuple[TelegramChannel, MagicMock]:
-    channel = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN, auto_topic=True)
-    client = MagicMock(spec=TelegramClient)
-    channel._client = client
-    return channel, client
+from tests.channels.providers.telegram.telegram_channel_factories import make_topic_channel
 
 
 @pytest.mark.parametrize("thread_id", [None, "7"], ids=["no_topic_yet", "inside_a_topic"])
 @pytest.mark.asyncio
 async def test_a_forum_message_without_a_chat_id_is_passed_through_untouched(thread_id: str | None) -> None:
-    channel, client = _forum_channel()
+    channel, client = make_topic_channel(auto_topic=True)
     msg = InboundMessage(
         channel="telegram",
         sender_id="42",

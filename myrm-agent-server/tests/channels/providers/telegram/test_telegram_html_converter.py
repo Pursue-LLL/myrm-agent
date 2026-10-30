@@ -126,3 +126,133 @@ class TestSplitMessage:
         text = "hello world"
         chunks = split_message(text, limit=5)
         assert len(chunks) >= 2
+
+
+class TestTableDegradation:
+    """Verify GFM tables degrade to <pre> monospace ASCII tables in HTML path."""
+
+    def test_basic_table_converted(self) -> None:
+        md = "| A | B |\n|---|---|\n| 1 | 2 |"
+        result = md_to_telegram_html(md)
+        assert "<pre>" in result
+        assert "┌" in result and "┘" in result
+        assert "1" in result and "2" in result
+
+    def test_table_with_surrounding_text(self) -> None:
+        md = "Hello\n\n| X | Y |\n|---|---|\n| a | b |\n\nBye"
+        result = md_to_telegram_html(md)
+        assert "Hello" in result
+        assert "Bye" in result
+        assert "┌" in result
+
+    def test_code_block_table_not_converted(self) -> None:
+        md = "```\n| A | B |\n|---|---|\n| 1 | 2 |\n```"
+        result = md_to_telegram_html(md)
+        assert "┌" not in result
+
+    def test_no_data_rows_not_converted(self) -> None:
+        md = "| A | B |\n|---|---|"
+        result = md_to_telegram_html(md)
+        assert "┌" not in result
+
+    def test_multiple_tables(self) -> None:
+        md = "| A | B |\n|---|---|\n| 1 | 2 |\n\n| X | Y |\n|---|---|\n| 3 | 4 |"
+        result = md_to_telegram_html(md)
+        assert result.count("┌") == 2
+
+    def test_html_entities_escaped_in_table(self) -> None:
+        md = "| Key | Value |\n|-----|-------|\n| a<b | 1&2 |"
+        result = md_to_telegram_html(md)
+        assert "&lt;" in result or "&amp;" in result
+
+    def test_alignment_markers(self) -> None:
+        md = "| L | C | R |\n|:--|:-:|--:|\n| a | b | c |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+
+    def test_uneven_columns_padded(self) -> None:
+        md = "| A | B | C |\n|---|---|---|\n| 1 | 2 |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+
+    def test_no_table_unchanged(self) -> None:
+        md = "Hello **world**"
+        result = md_to_telegram_html(md)
+        assert "┌" not in result
+        assert "<b>world</b>" in result
+
+    def test_table_split_message_compatibility(self) -> None:
+        md = "| A | B |\n|---|---|\n| 1 | 2 |"
+        html_result = md_to_telegram_html(md)
+        chunks = split_message(html_result)
+        assert len(chunks) >= 1
+        assert "┌" in chunks[0]
+
+    def test_single_column_table(self) -> None:
+        md = "| Status |\n|--------|\n| OK |\n| FAIL |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "OK" in result and "FAIL" in result
+
+    def test_wide_table_preserved(self) -> None:
+        md = "| " + " | ".join(f"Col{i}" for i in range(10)) + " |\n"
+        md += "|" + "|".join(["---"] * 10) + "|\n"
+        md += "| " + " | ".join(f"v{i}" for i in range(10)) + " |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "Col0" in result and "Col9" in result
+
+    def test_table_with_bold_text(self) -> None:
+        md = "| **Name** | Value |\n|----------|-------|\n| Alice | 100 |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "Alice" in result
+
+    def test_table_with_inline_code(self) -> None:
+        md = "| Key | Value |\n|-----|-------|\n| `id` | 42 |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+
+    def test_empty_cells(self) -> None:
+        md = "| A | B |\n|---|---|\n|   | x |\n| y |   |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "x" in result and "y" in result
+
+    def test_pipe_in_non_table_text(self) -> None:
+        md = "Use cmd | grep for filtering"
+        result = md_to_telegram_html(md)
+        assert "┌" not in result
+        assert "cmd" in result
+
+    def test_table_between_code_blocks(self) -> None:
+        md = "```python\nprint('hi')\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n```js\nconsole.log()\n```"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "print" in result
+        assert "console" in result
+
+    def test_table_preserves_surrounding_formatting(self) -> None:
+        md = "**Title**\n\n| X | Y |\n|---|---|\n| a | b |\n\n*footer*"
+        result = md_to_telegram_html(md)
+        assert "<b>Title</b>" in result
+        assert "<i>footer</i>" in result
+        assert "┌" in result
+
+    def test_horizontal_rule_not_misidentified(self) -> None:
+        md = "some text with | pipe\n---\nother text with | pipe"
+        result = md_to_telegram_html(md)
+        assert "┌" not in result
+
+    def test_many_data_rows(self) -> None:
+        rows = "\n".join(f"| item{i} | {i} |" for i in range(20))
+        md = f"| Name | Count |\n|------|-------|\n{rows}"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "item0" in result and "item19" in result
+
+    def test_unicode_content_in_table(self) -> None:
+        md = "| 名前 | 値 |\n|------|----|\n| アリス | 百 |"
+        result = md_to_telegram_html(md)
+        assert "┌" in result
+        assert "アリス" in result

@@ -48,6 +48,9 @@ _MAX_CONFLICT_RETRIES = 5
 _CONFLICT_RETRY_DELAY = 10.0
 _DEGRADED_THRESHOLD = 3
 
+# Update types Telegram is asked to deliver, by polling and by webhook alike.
+_ALLOWED_UPDATES = ["message", "edited_message", "callback_query", "message_reaction"]
+
 
 @dataclass(frozen=True, slots=True)
 class BotCommand:

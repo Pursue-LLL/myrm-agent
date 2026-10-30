@@ -10,11 +10,13 @@ import pytest
 from app.channels.providers.telegram.channel import TelegramChannel
 from app.channels.providers.telegram.hooks import TelegramHooksMixin
 from app.channels.providers.telegram.inbound import TelegramInboundMixin
+from app.channels.providers.telegram.inbound_message import TelegramMessageParserMixin
+from app.channels.providers.telegram.inbound_poll import TelegramPollingMixin
 from app.channels.providers.telegram.topics import TelegramTopicsMixin
 
-_TELEGRAM_INBOUND_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "app" / "channels" / "providers" / "telegram" / "inbound.py"
-)
+_TELEGRAM_DIR = Path(__file__).resolve().parent.parent.parent / "app" / "channels" / "providers" / "telegram"
+_INBOUND_MODULES = ("inbound.py", "inbound_message.py", "inbound_poll.py")
+_INBOUND_MIXINS = (TelegramInboundMixin, TelegramMessageParserMixin, TelegramPollingMixin)
 
 
 @pytest.mark.architecture
@@ -25,23 +27,26 @@ def test_telegram_pre_emit_hook_resolves_to_hooks_mixin() -> None:
 
 
 @pytest.mark.architecture
-def test_telegram_inbound_mixin_does_not_define_pre_emit_hook() -> None:
-    """TelegramInboundMixin is parse/poll only; hooks own _pre_emit_hook."""
-    assert "_pre_emit_hook" not in TelegramInboundMixin.__dict__
+@pytest.mark.parametrize("mixin", _INBOUND_MIXINS, ids=lambda cls: cls.__name__)
+def test_telegram_inbound_mixins_do_not_define_pre_emit_hook(mixin: type) -> None:
+    """The inbound mixins dispatch, parse and poll only; hooks own _pre_emit_hook."""
+    assert "_pre_emit_hook" not in mixin.__dict__
 
 
 @pytest.mark.architecture
-def test_telegram_inbound_source_has_no_pre_emit_hook_definition() -> None:
-    """Static guard: inbound.py must not reintroduce a passthrough _pre_emit_hook stub.
+@pytest.mark.parametrize("module", _INBOUND_MODULES)
+def test_telegram_inbound_source_has_no_pre_emit_hook_definition(module: str) -> None:
+    """Static guard: no inbound module may reintroduce a passthrough _pre_emit_hook.
 
-    Only a definition in the class body counts; the ``if TYPE_CHECKING`` declaration that tells the type checker
+    Only a definition in a class body counts; the ``if TYPE_CHECKING`` declaration that tells the type checker
     the host provides the hook is nested one level deeper and never exists at runtime.
     """
-    tree = ast.parse(_TELEGRAM_INBOUND_PATH.read_text(encoding="utf-8"))
-    mixin = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "TelegramInboundMixin")
+    tree = ast.parse((_TELEGRAM_DIR / module).read_text(encoding="utf-8"))
     defined = [
-        node.name
-        for node in mixin.body
+        f"{cls.name}.{node.name}"
+        for cls in tree.body
+        if isinstance(cls, ast.ClassDef)
+        for node in cls.body
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == "_pre_emit_hook"
     ]
     assert defined == []

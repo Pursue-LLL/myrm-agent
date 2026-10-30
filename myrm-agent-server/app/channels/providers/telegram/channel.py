@@ -11,7 +11,9 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 [INPUT]
 - channels.core.base::BaseChannel (POS: Abstract base for channel providers.)
 - channels.types::OutboundMessage, InboundMessage
-- telegram.inbound::TelegramInboundMixin (POS: Telegram inbound message parsing and media-group aggregation mixin.)
+- telegram.inbound::TelegramInboundMixin (POS: Telegram inbound update dispatch and media-group aggregation mixin.)
+- telegram.inbound_message::TelegramMessageParserMixin (POS: Telegram message conversion mixin.)
+- telegram.inbound_poll::TelegramPollingMixin (POS: Telegram long-polling loop mixin.)
 - telegram.outbound::TelegramOutboundMixin (POS: Telegram outbound messaging mixin.)
 - telegram.topics::TelegramTopicsMixin (POS: Telegram Forum Topic lifecycle helpers.)
 - telegram.hooks::TelegramHooksMixin (POS: Telegram pre-emit hook mixin.)
@@ -21,7 +23,7 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 - TelegramChannel: Telegram Bot bidirectional Channel (polling + webhook)
 
 [POS]
-Telegram Bot channel implementation. Composes inbound/outbound/topics/hooks/webhook mixins
+Telegram Bot channel implementation. Composes inbound (dispatch, message parsing, polling)/outbound/topics/hooks/webhook mixins
 for DM and group chat, media group debounce, webhook/polling dual mode, inline keyboard
 rendering, Markdown -> HTML conversion, message splitting, command registration, /agent
 inline picker (agent switching via Inline Keyboard), diagnostics,
@@ -71,6 +73,8 @@ from .helpers import (
 )
 from .hooks import TelegramHooksMixin
 from .inbound import TelegramInboundMixin
+from .inbound_message import TelegramMessageParserMixin
+from .inbound_poll import TelegramPollingMixin
 from .outbound import TelegramOutboundMixin
 from .topics import TelegramTopicsMixin
 from .webhook import TelegramWebhookMixin
@@ -82,6 +86,8 @@ _RICH_MAX_TEXT_LENGTH = 32000  # practical limit below 32768 to leave headroom
 
 class TelegramChannel(
     TelegramInboundMixin,
+    TelegramMessageParserMixin,
+    TelegramPollingMixin,
     TelegramOutboundMixin,
     TelegramTopicsMixin,
     TelegramHooksMixin,
