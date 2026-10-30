@@ -9,13 +9,13 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `evolution_runtime.py` | 核心 | 技能进化运行时装配。启动期构建全局 `EvolutionIntegration`（进化模型、筛选器、后台队列），把队列产出的 `EvolutionProposal` 经 `ConfidenceApprovalFlow` 落地：高分且具备通用性的提议静默自动合并 (Auto-Merge，发布 `SKILL_EVOLVED`)，其余进入审核队列。修复提案只由失败事件（`skill_immune_service.py`）、轨迹切片与用户操作触发。 | ✅ |
+| `evolution_runtime.py` | 核心 | 技能进化运行时装配。启动期构建全局 `EvolutionIntegration`（进化模型、筛选器、后台队列），把队列产出的 `EvolutionProposal` 经 `ConfidenceApprovalFlow` 落地：高分且具备通用性的提议静默自动合并 (Auto-Merge，发布 `SKILL_EVOLVED`)，其余进入审核队列。修复提案只由失败事件（`skill_immune_service.py`）与用户操作触发。装配时不向 `EvolutionIntegration` 传 `event_log_backend`，引擎因此没有 `TraceAnalyzer`：轨迹切片提取（`SLICE_EXTRACTION`）直接跳过，修复提案也不带执行轨迹。 | ✅ |
 | `skill_immune_service.py` | 核心 | 技能免疫业务服务。监听 Harness 运行时技能失败证据（含 session/LoopGuard 元数据），执行业务分类、幂等去重、修复提案生成与审批落地 | ✅ |
 
 ## 触发链路
 
 ```
-进化事件（工具失败证据 / 轨迹切片 / 用户操作）
+进化事件（工具失败证据 / 用户操作）
   ├── skill_immune_service.py → 修复提案
   └── evolution_runtime.py → 后台队列 → EvolutionProposal
         └── ConfidenceApprovalFlow.process_evolution
