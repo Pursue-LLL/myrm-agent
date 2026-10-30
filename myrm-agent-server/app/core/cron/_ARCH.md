@@ -166,9 +166,9 @@ harness `JobExecutor` 用 `asyncio.wait_for` 包装 `runner.run(job)`，超时�
 - **进程内重试**（`AgentJobRunner._run_with_retries`）：agent 任务一次触发失败后，最多再跑 `max_retries` 次，间隔 `min(retry_backoff_ms × 2^attempt, 30s)` 加抖动；带 `retry_at` 的推迟与熔断不重试。
 - **按计划重试**（harness `JobExecutor._update_after_run`）：整次触发失败后，下次执行时间按失败次数取退避档 `BACKOFF_SCHEDULE_MS`（30s → 1m → 5m → 15m → 60m）；连续失败超过 `max_retries` 次自动暂停。一次性任务只对瞬时错误（限流、过载、网络、超时、5xx）重试。
 
-`JobResult.retry_safe=False` 的运行两层都不重试，三类原因：已经发起过会改变状态的工具调用（步骤记录里有对 `is_mutating_tool` 判为有副作用的工具，未登记的工具按有副作用计；动态工作流任务以任一步骤开始为准）、用尽了整段时间预算、失败的原因重跑也不会消失。后者由 `adapters/failure_recoverability.is_transient_failure` 判定：agent 流的 `MyrmLLMError` 取它记录的 `error_code`，其余异常现场分类，按 `FailoverReason.recoverability` 只有 TRANSIENT 可重跑（未知原因按 TRANSIENT）；缺少必需设置（`ConfigIncompleteError`）同样不重跑。任务本身被门禁拒绝（没有 prompt、提示词注入扫描、工作流模板执行校验，以及一次性任务的日预算超限）恒不重跑。进程内不再重跑；recurring 任务把下次执行定到下一个常规时间点而不是退避时间，一次性任务直接暂停；失败照常计数，第 `max_retries + 1` 次连续失败时暂停。失败告警不等 `after` 次连续失败，立即发出（冷却仍生效），正文只写任务名、连续失败次数、最后一次错误，以及「不会提前重跑」和下次常规执行时间。没有发起过这类工具调用、失败原因又是瞬时的运行（例如模型服务商限流、过载、网络错误，或只做了搜索、读文件之后的失败）仍按上面两层重试。
+`JobResult.retry_safe=False` 的运行两层都不重试，三类原因：已经发起过会改变状态的工具调用（步骤记录里有对 `is_mutating_tool` 判为有副作用的工具，未登记的工具按有副作用计；动态工作流任务以任一步骤开始为准）、用尽了整段时间预算、失败的原因重跑也不会消失。后者由 `adapters/failure_recoverability.is_transient_failure` 判定：agent 流的 `MyrmLLMError` 取它记录的 `error_code`，其余异常现场分类，按 `FailoverReason.recoverability` 只有 TRANSIENT 可重跑（未知原因按 TRANSIENT）；缺少必需设置（`ConfigIncompleteError`）同样不重跑。任务本身被门禁拒绝（没有 prompt、提示词注入扫描、工作流模板执行校验，以及一次性任务的预算用尽）恒不重跑。进程内不再重跑；recurring 任务把下次执行定到下一个常规时间点而不是退避时间，一次性任务直接暂停；失败照常计数，第 `max_retries + 1` 次连续失败时暂停。失败告警不等 `after` 次连续失败，立即发出（冷却仍生效），正文只写任务名、连续失败次数、最后一次错误，以及「不会提前重跑」和下次常规执行时间。没有发起过这类工具调用、失败原因又是瞬时的运行（例如模型服务商限流、过载、网络错误，或只做了搜索、读文件之后的失败）仍按上面两层重试。
 
-日预算阻断（预算的 `block` 策略，托管版为额度用尽）对 recurring 任务不是失败而是跳过：`AgentJobRunner._run_once` 返回 `skip_reason=budget_blocked` 的跳过结果并写一条 WARNING，executor 记为 SKIPPED、不计失败、任务保持 ACTIVE，进程内不重跑，下一个常规时间点再检查预算；预算按天重置或充值后自动恢复，不需要手动恢复任务。一次性任务没有下一个时间点（跳过会把它记成已完成），遇到该门禁仍记为失败。
+预算阻断（本地是日预算的 `block` 策略，托管版是平台额度用尽）对 recurring 任务不是失败而是跳过：`AgentJobRunner._run_once` 返回跳过结果并写一条 WARNING，跳过原因本地为 `budget_blocked`、托管版为 `credit_exhausted`（`_budget_skip_reason` 按 `get_deployment_capabilities().uses_platform_budget` 选），executor 记为 SKIPPED、不计失败、任务保持 ACTIVE，进程内不重跑，下一个常规时间点再检查预算；预算恢复（本地日预算按天重置或上调上限，托管版充值）后自动恢复，不需要手动恢复任务。一次性任务没有下一个时间点（跳过会把它记成已完成），遇到该门禁仍记为失败。
 
 ### 并发控制
 

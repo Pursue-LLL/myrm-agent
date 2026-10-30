@@ -1,10 +1,11 @@
-"""A cron run the daily budget blocks is skipped, not failed: the budget reopens while the job stays as it is."""
+"""A cron run the budget blocks is skipped, not failed: the budget reopens while the job stays as it is."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,6 +24,7 @@ from app.core.cron.adapters import agent_runner
 from app.core.cron.adapters.agent_runner import AgentJobRunner
 
 _BUDGET_GATE = "app.services.budget.enforcer.should_block_execution"
+_CAPABILITIES = "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
 
 
 def _schedule(kind: ScheduleKind) -> Schedule:
@@ -54,6 +56,12 @@ def _no_memory_pressure(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(agent_runner, "_memory_overload_reason", lambda: None)
 
 
+@pytest.fixture(autouse=True)
+def _local_deployment() -> Iterator[None]:
+    with patch(_CAPABILITIES, return_value=SimpleNamespace(uses_platform_budget=False)):
+        yield
+
+
 @pytest.fixture
 def budget_blocked() -> Iterator[AsyncMock]:
     with patch(_BUDGET_GATE, new_callable=AsyncMock, return_value=True) as gate:
@@ -68,6 +76,14 @@ class TestBudgetBlockedRun:
         result = await AgentJobRunner()._run_once(_job(kind))
 
         assert (result.success, result.skipped, result.skip_reason, result.retry_at) == (False, True, "budget_blocked", None)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("hosted", "code"), [(False, "budget_blocked"), (True, "credit_exhausted")], ids=["local", "hosted"])
+    async def test_the_skip_code_names_what_ran_out(self, hosted: bool, code: str) -> None:
+        with patch(_CAPABILITIES, return_value=SimpleNamespace(uses_platform_budget=hosted)):
+            result = await AgentJobRunner()._run_once(_job())
+
+        assert result.skip_reason == code
 
     @pytest.mark.asyncio
     async def test_a_one_shot_run_fails_because_a_skip_would_consume_it(self) -> None:

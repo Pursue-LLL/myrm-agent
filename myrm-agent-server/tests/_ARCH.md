@@ -530,7 +530,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/agent/test_stop_reason.py` | 单元 | 停止原因的统一存储形态：缺 code 不成立、未知类别落 `other`、空消息由 code 生成、`detail` 只留文本键且为空不存；限制类优先于取消优先于错误；同级后到者替换先到者、更弱者不替换、无 code 者不改动；步骤文本取第一条非空 `text` |
 | `core/cron/adapters/test_agent_runner_allowed_roots.py` | 模块 | 运行时再判允许根 `_resolve_effective_allowed_roots`：普通根原样使用，已存的含受保护位置的根使本次运行失败（`TOO_BROAD`），没有根时用所属项目的工作区、该工作区变得过宽同样失败，没有根也没有项目时为空 |
 | `core/cron/adapters/test_agent_runner_failure_recoverability.py` | 模块 | 失败的 cron 运行只在重跑能清除原因时才重跑：永久、瞬时与未知原因的判定，`MyrmLLMError` 记录的原因优先于文字，副作用与原因两个条件的四种组合，真实重试循环对永久错误只跑一次、对限流跑满次数；没有 prompt、提示词注入扫描、工作流模板校验与缺少模型设置经真实 `_run_once` 得到不可重跑 |
-| `core/cron/adapters/test_agent_runner_budget_gate.py` | 模块 | 日预算阻断的 cron 运行记为跳过而不是失败：recurring 任务得到 `budget_blocked` 跳过结果并写一条 WARNING，一次性任务仍失败（跳过会把它记成已完成）；真实重试循环只问一次预算且不等待；真实 `JobExecutor` 连续 5 个时间点都记为 SKIPPED，任务保持 ACTIVE、失败数为 0 |
+| `core/cron/adapters/test_agent_runner_budget_gate.py` | 模块 | 预算阻断的 cron 运行记为跳过而不是失败：recurring 任务得到跳过结果并写一条 WARNING，跳过码本地为 `budget_blocked`、托管版为 `credit_exhausted`，一次性任务仍失败（跳过会把它记成已完成）；真实重试循环只问一次预算且不等待；真实 `JobExecutor` 连续 5 个时间点都记为 SKIPPED，任务保持 ACTIVE、失败数为 0 |
 | `services/chat/test_effective_workspace_grantable.py` | 单元 | `resolve_effective_chat_workspace` 不把已存的、绑定闸门会拒绝的目录交给沙箱：普通目录照用，含受保护位置的目录与应用状态目录（及其上级）被跳过，项目工作区不可用时让位给会话自己的目录 |
 | `services/security/test_workspace_trust_store.py` | 模块 | 文件夹信任条目记录用户在信任弹窗中看过的仓库声明命令前缀：信任时记录、受限时为空、撤销时清除、重载后保留，没有记录前缀的条目不披露任何前缀；预览清单只把信任之后新增的前缀列为待决；沙箱 agent 在信任之后写入的前缀在用户再次批准前不生效，没有记录前缀的已信任条目要求重新决定 |
 | `api/security/test_workspace_trust_api.py` | 模块 | 信任 REST：预览清单与干净目录自动信任、决定持久化、TRUSTED 决定缺少或带过期 `manifest_hash` 被 400 拒绝且不落库，RESTRICTED 不需要哈希、已信任列表 |

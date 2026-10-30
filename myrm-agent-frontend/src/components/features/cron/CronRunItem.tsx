@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import CronRunBlockedActions from './CronRunBlockedActions';
-import { formatDuration, formatTime } from './cron-utils';
+import { formatDuration, formatTime, skipReasonLabelKey } from './cron-utils';
 
 interface CronRunItemProps {
   run: CronRun;
@@ -33,12 +33,6 @@ function formatTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-/** Run-history codes the server records for a skipped run, each shown as a localized label instead of the raw code. */
-const SKIP_REASON_LABEL_KEYS = new Map<string, 'skippedUsageLimit' | 'skippedBudgetBlocked'>([
-  ['usage_limit', 'skippedUsageLimit'],
-  ['budget_blocked', 'skippedBudgetBlocked'],
-]);
-
 const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
   const locale = useLocale();
@@ -49,7 +43,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const isCircuitBreak = run.status === 'circuit_break';
   const blockedCount = run.metadata?.blockedCount ?? 0;
   const hasContent = !!(run.output || run.error) || blockedCount > 0;
-  const skipLabelKey = isSkipped && run.output ? SKIP_REASON_LABEL_KEYS.get(run.output) : undefined;
+  const skipLabelKey = isSkipped ? skipReasonLabelKey(run.output) : undefined;
   const displayOutput = skipLabelKey ? t(skipLabelKey) : run.output;
   const verification = run.metadata?.verification;
   const monitorContractError = run.metadata?.monitor_contract_error;

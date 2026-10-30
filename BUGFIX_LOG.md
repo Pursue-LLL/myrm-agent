@@ -63,6 +63,18 @@
 | **仍然存在** | ① 设了 `max_fires` 且前置条件一直不满足的任务，以前在 N 次检查后停下，现在会一直检查，直到 `expires_after` 到期；没有证据表明有人把前者当保险丝。② 前端「Max Fires」「Fire Count」的措辞（`fire`）没改。③ 受影响任务的真实占比没有数据；前置条件脚本只能经界面与 API 配置，agent 工具没有暴露。④ 跳过会把 `last_run_at` 前移（`_record_skipped`），而 `pre_execution_check` 的冷却按 `last_run_at` 计算，所以设了 `cooldown_seconds` 的任务在一次跳过之后会进入冷却；这是另一个行为，本次没有评估也没有改。 |
 | **代码位置** | harness：`toolkits/cron/engine/skipped_runs.py`、`engine/_ARCH.md`、`tests/toolkits/cron/test_cron_fire_accounting.py`（新增）；server：`app/core/cron/_ARCH.md`。 |
 
+## 2026-10-31 · 定时任务运行记录：托管版预算阻断的跳过被写成「每日预算」，前置条件探针跳过与心跳无内容的原因码原样显示
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；代码、测试与文档在同一提交）。「仍然存在」里的项未处理。 |
+| **症状** | ① [代码，未在托管版实机验证] 托管版的预算门禁看的是平台 Work Units 余额（`should_block_execution` 在 `uses_platform_budget` 时走 `PlatformBudgetAdapter`），而上一个提交给 `budget_blocked` 配的文案是「已达每日预算上限」：托管用户没设过每日预算，也看不出该去充值；应用内其他位置的额度用尽提示叫「Work Units 已耗尽」。② [代码] 前置条件探针跳过的运行（`pre-flight-condition`）与心跳没有内容的运行（`no-content`）在运行历史里显示原码；探针任务每个未命中的时间点都是这样一行。 |
+| **根因** | 跳过原因码与文案一一对应，没有区分部署模式；探针与心跳两个码没有登记标签。 |
+| **修复** | server：`_budget_skip_reason()` 在 `get_deployment_capabilities().uses_platform_budget` 时记 `credit_exhausted`，否则记 `budget_blocked`；WARNING、一次性任务失败的错误文本与注释改为中性的「预算用尽」。frontend：码到标签的映射从 `CronRunItem.tsx` 移到 `cron-utils.ts` 的 `skipReasonLabelKey`（`usage_limit`、`budget_blocked`、`credit_exhausted`、`pre-flight-condition`、`no-content` 五个码），`CronRunItem` 只调用它；六种语言各 3 条新文案，托管版沿用应用内「Work Units」的叫法且不承诺恢复时间；没有标签的码（`memory_pressure:*`、`untrusted-workflow`、wiki 路由的跳过）仍原样显示。 |
+| **回归证据** | [1] server `test_agent_runner_budget_gate.py` 8 例：新增本地与托管两种部署的跳过码 2 例，其余沿用，并把部署能力固定为本地，使结果不依赖运行环境；3 个变异体逐个注入，全部被杀（去掉托管分支 1 例红；恒为 `credit_exhausted` 3 例红；条件取反 4 例红）。[2] 前端 `CronRunItem.test.tsx` 把两个标签用例并成 5 个码的参数化用例，「原样显示」用例把 `no-content` 换成 `memory_pressure:critical`，新增「非跳过运行的输出不转标签」；`cron-utils.test.ts` 新增 `skipReasonLabelKey` 5 个码与 7 个无标签的值（含 `constructor`、`toString`、`__proto__`）；6 个变异体全部被杀（去掉探针、心跳、托管版三个映射项各 2 例红；预算码对应错标签 2 例红；改用对象查表 4 例红；非跳过运行也转标签 1 例红）。[3] 全量：server `tests/core/cron tests/unit/core/cron tests/api/cron` 834 例通过（2 例未被选取，与此前相同）；前端 `src/components/features/cron` 17 个文件 160 例通过；`tsc --noEmit` 与 `verify:i18n`（key parity、占位符、术语表）通过；`bun run lint` 7 个门禁里 `verify:a11y`、`verify:hardcoded-copy` 仍红，涉及的文件不是本次改动的文件（输出里没有 `CronRunItem`、`cron-utils`）；server `ruff check`、`ruff format --check`、pyright 对改动的两个文件 0 条，`check_fractal_docs` 通过。[4] 提示缓存：`cron_manage_tool` 的名称、描述与 schema 指纹（JSON 取 sha256 前 12 位）仍是 `f65b63967f87`，描述 4762 字符。 |
+| **仍然存在** | ① 托管版 Work Units 的重置周期没有证据（`en.json` 里「Monthly Work Unit balance」与「wait for daily refresh」自相矛盾，控制平面不在本仓库），所以文案不承诺恢复时间。② 托管版控制平面没有配置时 `should_block_execution` 同样判为阻断，运行历史会显示「Work Units 已耗尽」，聊天同样被拦，两者在这里没有区分。③ 心跳任务在真实部署里有多少没有数据。④ 没有在浏览器里看（没有版式变化，各语言文案长度没有实测）。 |
+| **代码位置** | server：`app/core/cron/adapters/agent_runner.py`、`app/core/cron/_ARCH.md`、`app/core/cron/adapters/_ARCH.md`、`tests/core/cron/adapters/test_agent_runner_budget_gate.py`、`tests/_ARCH.md`；frontend：`src/components/features/cron/cron-utils.ts`、`CronRunItem.tsx`、`_ARCH.md`、`__tests__/CronRunItem.test.tsx`、`__tests__/cron-utils.test.ts`、六个 `locales/*.json`。 |
+
 ## 2026-10-31 · 定时任务（对上一条「能否重跑」的再次修订）：永久性失败和任务门禁拒绝仍被整段重跑，失败告警把运行错误当连接器故障分类，一个没有消费者的告警载荷类，日预算阻断被记成失败而让 recurring 任务被永久暂停
 
 | 字段 | 内容 |

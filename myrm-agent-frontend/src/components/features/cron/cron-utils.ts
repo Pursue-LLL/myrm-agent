@@ -53,6 +53,30 @@ export function formatDuration(ms: number): string {
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
+export type SkipReasonLabelKey =
+  | 'skippedUsageLimit'
+  | 'skippedBudgetBlocked'
+  | 'skippedCreditExhausted'
+  | 'skippedPreflight'
+  | 'skippedNoContent';
+
+/**
+ * Codes the server records as the output of a skipped run, each with the label that explains it.
+ * A `Map`, because an object lookup would treat `constructor` or `toString` as a known code.
+ */
+const SKIP_REASON_LABEL_KEYS = new Map<string, SkipReasonLabelKey>([
+  ['usage_limit', 'skippedUsageLimit'],
+  ['budget_blocked', 'skippedBudgetBlocked'],
+  ['credit_exhausted', 'skippedCreditExhausted'],
+  ['pre-flight-condition', 'skippedPreflight'],
+  ['no-content', 'skippedNoContent'],
+]);
+
+/** The label key for a skipped run's output, or `undefined` when the output is not a code with a label. */
+export function skipReasonLabelKey(output: string | undefined): SkipReasonLabelKey | undefined {
+  return output ? SKIP_REASON_LABEL_KEYS.get(output) : undefined;
+}
+
 /** What the server accepts for a job's run time limit, in whole seconds. */
 export const CRON_TIMEOUT_MIN_SECONDS = 10;
 export const CRON_TIMEOUT_MAX_SECONDS = 3600;

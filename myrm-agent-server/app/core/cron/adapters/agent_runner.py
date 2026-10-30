@@ -410,6 +410,13 @@ def _memory_overload_reason() -> str | None:
         return None
 
 
+def _budget_skip_reason() -> str:
+    """Skip code of a budget-blocked run: a hosted deployment is out of plan credit, a local one over its daily budget."""
+    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+
+    return "credit_exhausted" if get_deployment_capabilities().uses_platform_budget else "budget_blocked"
+
+
 class AgentJobRunner:
     """JobRunner implementation that delegates to AgentFactory.
 
@@ -564,10 +571,10 @@ class AgentJobRunner:
         if await should_block_execution():
             if job.schedule.kind is ScheduleKind.ONCE:
                 # A skipped one-shot job would be consumed as completed, so it fails instead.
-                return _deterministic_failure("daily budget exceeded (block policy)")
-            # The budget reopens by itself (next day, top-up); a failure would pause the job for good.
-            logger.warning("Cron agent job %s skipped: daily budget exceeded (block policy)", job.id)
-            return JobResult(success=False, skipped=True, skip_reason="budget_blocked")
+                return _deterministic_failure("budget exhausted (block policy)")
+            # The budget reopens on its own or through a top-up; a failure would pause the job for good.
+            logger.warning("Cron agent job %s skipped: budget exhausted (block policy)", job.id)
+            return JobResult(success=False, skipped=True, skip_reason=_budget_skip_reason())
 
         # A non-owner's message started this run, so its trigger context is a stranger's text: the run gets the
         # read-only lease and no memory or owner chat history (below), is never queued as a goal in the owner's

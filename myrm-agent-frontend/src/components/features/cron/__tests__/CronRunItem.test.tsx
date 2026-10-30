@@ -62,29 +62,35 @@ describe('CronRunItem', () => {
     expect(screen.getByText('circuitBreakDesc')).toBeInTheDocument();
   });
 
-  it('shows a localized label instead of the raw code for a run waiting on the usage limit', () => {
-    const deferredRun: CronRun = { ...baseRun, id: 'run-ul-1', status: 'skipped', output: 'usage_limit' };
+  it.each([
+    ['usage_limit', 'skippedUsageLimit'],
+    ['budget_blocked', 'skippedBudgetBlocked'],
+    ['credit_exhausted', 'skippedCreditExhausted'],
+    ['pre-flight-condition', 'skippedPreflight'],
+    ['no-content', 'skippedNoContent'],
+  ])('shows a localized label instead of the raw skip code %s', (code, labelKey) => {
+    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output: code };
 
-    render(<CronRunItem run={deferredRun} isLast={false} />);
+    render(<CronRunItem run={skippedRun} isLast={false} />);
 
-    expect(screen.getByText('skippedUsageLimit')).toBeInTheDocument();
-    expect(screen.queryByText('usage_limit')).toBeNull();
+    expect(screen.getByText(labelKey)).toBeInTheDocument();
+    expect(screen.queryByText(code)).toBeNull();
   });
 
-  it('shows a localized label instead of the raw code for a run the daily budget blocked', () => {
-    const blockedRun: CronRun = { ...baseRun, id: 'run-bb-1', status: 'skipped', output: 'budget_blocked' };
-
-    render(<CronRunItem run={blockedRun} isLast={false} />);
-
-    expect(screen.getByText('skippedBudgetBlocked')).toBeInTheDocument();
-    expect(screen.queryByText('budget_blocked')).toBeNull();
-  });
-
-  it.each(['no-content', 'constructor'])('keeps showing the skip output %s verbatim', (output) => {
-    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output };
+  it.each(['memory_pressure:critical', 'constructor'])('keeps showing the skip output %s verbatim', (output) => {
+    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-2', status: 'skipped', output };
 
     render(<CronRunItem run={skippedRun} isLast={false} />);
 
     expect(screen.getByText(output)).toBeInTheDocument();
+  });
+
+  it('does not turn the output of a run that is not skipped into a label', () => {
+    const okRun: CronRun = { ...baseRun, id: 'run-ok-2', status: 'ok', output: 'no-content' };
+
+    render(<CronRunItem run={okRun} isLast={false} />);
+
+    expect(screen.getByText('no-content')).toBeInTheDocument();
+    expect(screen.queryByText('skippedNoContent')).toBeNull();
   });
 });
