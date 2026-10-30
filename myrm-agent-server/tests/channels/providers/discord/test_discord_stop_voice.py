@@ -12,6 +12,7 @@ import asyncio
 import logging
 import time
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
 import pytest
@@ -19,6 +20,7 @@ import pytest
 pytest.importorskip("discord")
 from discord.voice_state import VoiceConnectionState
 
+from app.channels.core.channel_stop import _STOP_TIMEOUT
 from app.channels.providers.discord import channel as discord_channel
 from app.channels.providers.discord.channel import DiscordChannel
 from app.channels.providers.discord.config import DiscordChannelConfig
@@ -108,6 +110,16 @@ async def _channel(
     return channel
 
 
+def _close_mock(channel: DiscordChannel) -> AsyncMock:
+    assert channel._client is not None
+    return cast(AsyncMock, channel._client.close)
+
+
+def _gateway_task(channel: DiscordChannel) -> asyncio.Task[None]:
+    assert channel._gateway_task is not None
+    return channel._gateway_task
+
+
 async def _stop(channel: DiscordChannel) -> float:
     started = time.monotonic()
     async with asyncio.timeout(3.0):
@@ -137,8 +149,8 @@ async def test_stop_does_not_wait_for_a_confirmation_the_gateway_never_sends(
 
     assert elapsed < _RETURNS_BEFORE_ONE_WAIT
     assert channel.status == ChannelStatus.STOPPED
-    channel._client.close.assert_awaited_once()
-    assert channel._gateway_task.cancelled()
+    _close_mock(channel).assert_awaited_once()
+    assert _gateway_task(channel).cancelled()
     assert attached == []
     assert "voice leave did not finish" in caplog.text
     assert await _settle(everyone) == [True, True]
@@ -155,7 +167,7 @@ async def test_stop_closes_the_client_when_a_guild_hangs_before_it_starts_waitin
 
     assert elapsed < _RETURNS_BEFORE_ONE_WAIT
     assert channel.status == ChannelStatus.STOPPED
-    channel._client.close.assert_awaited_once()
+    _close_mock(channel).assert_awaited_once()
     assert await _settle(everyone) == [True, True, True]
 
 
@@ -173,7 +185,7 @@ async def test_stop_leaves_voice_then_closes_the_client_without_a_warning_when_t
     assert elapsed < _RETURNS_BEFORE_ONE_WAIT
     assert events == ["leave", "leave", "close"]
     assert channel.status == ChannelStatus.STOPPED
-    assert channel._gateway_task.cancelled()
+    assert _gateway_task(channel).cancelled()
     assert caplog.text == ""
     assert await _settle(everyone) == [True, True]
 
@@ -203,3 +215,8 @@ async def test_a_stop_cancelled_while_it_leaves_voice_cancels_the_leave(monkeypa
 
     assert leaves[0].cancelled()
     channel._client.close.assert_not_awaited()
+
+
+def test_the_voice_leave_bound_is_below_the_gateways_stop_cap() -> None:
+    # At or above the cap, the gateway abandons the whole stop first and the bound never applies.
+    assert discord_channel._VOICE_LEAVE_TIMEOUT < _STOP_TIMEOUT

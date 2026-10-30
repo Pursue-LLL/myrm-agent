@@ -30,11 +30,14 @@ logger = logging.getLogger(__name__)
 _RECONCILE_INTERVAL = 10.0
 _RECONCILE_JITTER = 3.0
 
+# Both kinds of channel accept a voice connection, and a followed user can be in either.
+VoiceTarget = discord.VoiceChannel | discord.StageChannel
+
 
 class VoiceJoinLeave(Protocol):
     """Abstraction for join/leave operations used by follow logic."""
 
-    async def join(self, channel: discord.VoiceChannel, *, text_channel_id: int = 0) -> bool: ...
+    async def join(self, channel: VoiceTarget, *, text_channel_id: int = 0) -> bool: ...
 
     async def leave(self, guild_id: int) -> None: ...
 
@@ -152,8 +155,8 @@ class VoiceFollowManager:
     async def handle_bot_voice_update(
         self,
         guild_id: int,
-        before_channel: discord.VoiceChannel | None,
-        after_channel: discord.VoiceChannel | None,
+        before_channel: VoiceTarget | None,
+        after_channel: VoiceTarget | None,
     ) -> bool:
         """Handle when the bot is moved by an admin. Returns True if handled."""
         if not after_channel and before_channel:

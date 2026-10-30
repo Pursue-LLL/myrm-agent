@@ -66,13 +66,6 @@ logger = logging.getLogger(__name__)
 
 MAX_TEXT_LENGTH = 2000
 
-
-def _consume_result(task: asyncio.Task[None]) -> None:
-    """Retrieve an abandoned task's outcome so its failure is not reported as never retrieved."""
-    if not task.cancelled():
-        task.exception()
-
-
 _HEALTH_PROBE_TIMEOUT = 10.0
 
 # discord.py waits up to 30 s per voice connection for the gateway to confirm a leave, and swallows a cancellation while
@@ -83,6 +76,12 @@ _VOICE_LEAVE_TIMEOUT = 4.0
 # able to notify @everyone or a role. User mentions stay on so the owner can have the agent notify a named person;
 # replied_user keeps the ping on the author of the message a reply answers.
 _ALLOWED_MENTIONS = discord.AllowedMentions(everyone=False, roles=False, users=True, replied_user=True)
+
+
+def _consume_result(task: asyncio.Task[None]) -> None:
+    """Retrieve an abandoned task's outcome so its failure is not reported as never retrieved."""
+    if not task.cancelled():
+        task.exception()
 
 
 class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixin, BaseChannel):
@@ -245,6 +244,8 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
             intents.voice_states = True
 
         self._client = discord.Client(intents=intents, allowed_mentions=_ALLOWED_MENTIONS)
+        # A manager left by a stop that was cancelled belongs to the previous client, and its follow loop is shut down.
+        self._voice_manager = None
         channel_self = self
 
         if self.config.voice_enabled:

@@ -17,7 +17,8 @@ Follow-user delegates to VoiceFollowManager for user tracking.
 High-level voice orchestration. Owns per-guild state and
 coordinates receiver/player lifecycle with follow-user support.
 Leaving every guild is concurrent, so one guild that waits for
-the gateway's confirmation does not hold up the others.
+the gateway's confirmation does not hold up the others. A join over a
+state whose connection has already ended releases that state first.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ import discord
 
 from app.channels.providers.discord.voice.follow import (
     VoiceFollowManager,
+    VoiceTarget,
 )
 from app.channels.providers.discord.voice.receiver import (
     VoiceReceiver,
@@ -160,7 +162,7 @@ class VoiceManager:
 
     async def join(
         self,
-        channel: discord.VoiceChannel,
+        channel: VoiceTarget,
         *,
         text_channel_id: int = 0,
     ) -> bool:
@@ -168,17 +170,22 @@ class VoiceManager:
         guild_id = channel.guild.id
 
         async with self._guild_lock(guild_id):
-            if guild_id in self._guilds:
-                state = self._guilds[guild_id]
-                if state.voice_client.is_connected():
-                    if state.voice_client.channel and state.voice_client.channel.id == channel.id:
-                        if text_channel_id:
-                            state.text_channel_id = text_channel_id
-                        return True
-                    await state.voice_client.move_to(channel)
+            state = self._guilds.get(guild_id)
+            if state and state.voice_client.is_connected():
+                if state.voice_client.channel and state.voice_client.channel.id == channel.id:
                     if text_channel_id:
                         state.text_channel_id = text_channel_id
                     return True
+                await state.voice_client.move_to(channel)
+                if text_channel_id:
+                    state.text_channel_id = text_channel_id
+                return True
+
+            if state:
+                # The connection ended without an event that removes the state; its listen loop must not
+                # outlive it, or its voice timeout would leave this guild by id and end the new session.
+                del self._guilds[guild_id]
+                await self._release(state)
 
             try:
                 vc: discord.VoiceClient = await channel.connect(timeout=10.0)
@@ -210,20 +217,23 @@ class VoiceManager:
             state = self._guilds.pop(guild_id, None)
             if not state:
                 return
-
-            if state.listen_task and not state.listen_task.done():
-                state.listen_task.cancel()
-                try:
-                    await state.listen_task
-                except asyncio.CancelledError:
-                    pass
-
-            state.receiver.stop()
-
-            if state.voice_client.is_connected():
-                await state.voice_client.disconnect(force=True)
+            await self._release(state)
 
         logger.info("Left voice channel in guild %d", guild_id)
+
+    async def _release(self, state: _GuildVoiceState) -> None:
+        """Stop a session's listen loop and receiver, and leave voice if the connection is still up."""
+        if state.listen_task and not state.listen_task.done():
+            state.listen_task.cancel()
+            try:
+                await state.listen_task
+            except asyncio.CancelledError:
+                pass
+
+        state.receiver.stop()
+
+        if state.voice_client.is_connected():
+            await state.voice_client.disconnect(force=True)
 
     async def leave_all(self) -> None:
         """Disconnect from all voice channels and stop reconciliation.

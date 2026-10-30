@@ -10,6 +10,7 @@
 
 [POS]
 Voice half of DiscordChannel. The host owns the gateway client and the config; the mixin drives the voice subsystem.
+The VoiceManager lives as long as the gateway client.
 """
 
 from __future__ import annotations
@@ -82,8 +83,12 @@ class DiscordVoiceMixin(BaseChannel):
             )
 
     def _init_voice_manager(self) -> None:
-        """Initialize the VoiceManager after client is ready."""
-        if not self._client or not self.config.voice_enabled:
+        """Create the VoiceManager once the client is ready; a repeated READY on the same client keeps it.
+
+        The manager owns the live voice sessions, so replacing it would leave them out of reach of ``/voice leave``
+        and of the stop.
+        """
+        if not self._client or not self.config.voice_enabled or self._voice_manager:
             return
 
         self._ensure_opus_loaded()
