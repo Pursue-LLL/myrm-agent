@@ -6,9 +6,9 @@
 [OUTPUT]
 - Tests that a page skill id reaches the evolution row keyed by the skill name, and that a locked skill is refused.
 [POS]
-Evolution rows are keyed by the page's skill id or by the skill name (draft approval, auto extraction). The lock
-toggle, /derive and /fix take the page id, so each must find the row of either key, and refuse a locked skill up
-front instead of accepting a request the engine drops.
+A skill's evolution rows are not keyed alike (draft approval and auto extraction key by the skill name, batch
+import by a generated id). The lock toggle, /derive and /fix take the page id or a row reference, so each must find
+the row of any key, and refuse a locked skill up front instead of accepting a request the engine drops.
 """
 
 from __future__ import annotations
@@ -114,6 +114,18 @@ async def test_derive_finds_the_row_keyed_by_name_from_the_page_id(
     assert response.status_code == 200
     await _until(lambda: evolution.engine.derive_skill_simple.await_count)
     assert evolution.engine.derive_skill_simple.await_args.kwargs["skill_id"] == "demo"
+
+
+async def test_derive_finds_a_row_by_the_skill_name_when_the_ref_is_not_a_page_id(
+    client: AsyncClient, store: SkillStore, skill_md: Path, evolution: SimpleNamespace
+) -> None:
+    await store.save_skill(_row("row-1", skill_md))
+
+    response = await client.post("/api/v1/evolution/derive/demo", json=_DERIVE)
+
+    assert response.status_code == 200
+    await _until(lambda: evolution.engine.derive_skill_simple.await_count)
+    assert evolution.engine.derive_skill_simple.await_args.kwargs["skill_id"] == "row-1"
 
 
 async def test_derive_prefers_the_row_keyed_by_the_page_id(

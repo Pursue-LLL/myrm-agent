@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - get_evolution_skill_store: 返回 skills.db 上的进程级单例 SkillStore 实例
-- find_evolution_records: 一个技能在进化库里的全部行（页面 id 键优先，其次同目录的技能名键）
+- find_evolution_records: 一个技能在进化库里的全部行（按引用精确匹配的行优先，其次存放同一 SKILL.md 目录的同名行）
 - reset_evolution_skill_store: 清空单例缓存（测试隔离用）
 
 [POS]
@@ -54,9 +54,9 @@ def get_evolution_skill_store() -> SkillStore:
 def find_evolution_records(store: SkillStore, skill_ref: str, page_skill: Skill | None = None) -> list[SkillRecord]:
     """Evolution rows of one skill, the row keyed by ``skill_ref`` first.
 
-    Rows are keyed by the page's skill id (local scan, imports) or by the skill name (draft approval, auto
-    extraction), so a page id alone misses the second kind. A row found by name counts only when it holds the
-    skill's own SKILL.md, so two skills sharing a name never share a row. Without ``page_skill`` ``skill_ref``
+    A skill's rows are not keyed alike (draft approval and auto extraction key by the skill name, batch import
+    by a generated id), so the page's skill id alone can miss them. A row found by name counts only when it holds
+    the skill's own SKILL.md, so two skills sharing a name never share a row. Without ``page_skill`` ``skill_ref``
     is taken as the name.
     """
     records: list[SkillRecord] = []
