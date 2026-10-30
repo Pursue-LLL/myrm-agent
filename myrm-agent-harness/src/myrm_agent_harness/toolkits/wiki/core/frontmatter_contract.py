@@ -14,7 +14,8 @@
 [POS]
 Harness SSOT for wiki page type and metric schema gate used by compile, import writeback, linter, pending approve,
 and server repair API. `read_published_text` gates every path that reads page files straight into an answer
-(keyword matching, graph expansion, directory sidecars, index.md), so a draft or blocked page stays out of all of them.
+(keyword matching, graph expansion, directory sidecars, index.md, hot.md key pages), so a draft or blocked page stays
+out of all of them.
 """
 
 from __future__ import annotations
@@ -283,8 +284,8 @@ def ensure_draft_frontmatter(content: str) -> str:
 
 
 def resolve_publish_status(content: str) -> WikiPublishStatus:
-    """Publish status a page declares; a missing or unknown value reads as published."""
-    metadata, _body = parse_frontmatter(content)
+    """Publish status a page declares (a leading BOM is ignored); a missing or unknown value reads as published."""
+    metadata, _body = parse_frontmatter(content.removeprefix("\ufeff"))
     status = str(metadata.get(PUBLISH_STATUS_KEY, "")).strip().lower()
     if status in WIKI_PUBLISH_STATUSES:
         return WikiPublishStatus(status)

@@ -74,6 +74,26 @@ def test_index_uses_directory_abstract_summary(wiki_structure: WikiStructure) ->
     assert "Body first line should not win." not in index_text
 
 
+@pytest.mark.parametrize("status", ["draft", "blocked"])
+def test_hot_key_pages_are_the_first_five_published_pages(wiki_structure: WikiStructure, status: str) -> None:
+    wiki_structure.get_concept_file_path("aa-hidden").write_text(
+        f"---\ntype: concept\npublish_status: {status}\n---\n# Hidden\nBody.\n", encoding="utf-8"
+    )
+    for index in range(1, 7):
+        wiki_structure.get_concept_file_path(f"page-{index}").write_text(
+            f"---\ntype: concept\n---\n# Page {index}\nBody.\n", encoding="utf-8"
+        )
+
+    WikiCognitiveMapService(wiki_structure).refresh(
+        WikiMapEvent(event_type=WikiMapEventType.COMPILE, summary="Hot publish gate")
+    )
+
+    key_pages = [line for line in read_hot_context(wiki_structure).splitlines() if line.startswith("- [[")]
+    assert [line.split("]]")[0].removeprefix("- [[") for line in key_pages] == [
+        f"page-{index}" for index in range(1, 6)
+    ]
+
+
 def test_log_prepends_newest_entry(wiki_structure: WikiStructure) -> None:
     service = WikiCognitiveMapService(wiki_structure)
     service.refresh(

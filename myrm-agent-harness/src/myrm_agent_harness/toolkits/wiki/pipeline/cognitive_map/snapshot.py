@@ -2,6 +2,8 @@
 
 [INPUT]
 - ..core.structure::WikiStructure (POS: Wiki file system abstraction layer)
+- ..core.frontmatter_contract::read_published_text (POS: published-page reader, the publish_status gate)
+- ..core.link_resolver::concept_link_name (POS: vault-relative page name)
 
 [OUTPUT]
 - HotSnapshot: immutable hot.md section data
@@ -9,7 +11,9 @@
 - render_hot_markdown: render Molio-style hot.md body
 
 [POS]
-Hot cache snapshot builder. Derives recent ops, key pages, and open questions without LLM calls.
+Hot cache snapshot builder. Derives recent ops, key pages, and open questions without LLM calls. Key pages are
+published pages only: the snapshot prefixes every `wiki_query` answer, which must not name a page retrieval refuses to
+return.
 """
 
 from __future__ import annotations
@@ -19,7 +23,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import read_published_text
+from myrm_agent_harness.toolkits.wiki.core.link_resolver import concept_link_name
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+_KEY_PAGE_LIMIT = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,10 +69,11 @@ def build_hot_snapshot(
         recent_ops.append(f"HITL pending edits: {pending_count} awaiting review")
 
     key_pages: list[tuple[str, str]] = []
-    for path in concept_paths[:5]:
-        rel = path.relative_to(structure.concepts_dir)
-        wiki_name = str(rel.with_suffix("")).replace("\\", "/")
-        key_pages.append((wiki_name, "Indexed concept page"))
+    for path in concept_paths:
+        if len(key_pages) == _KEY_PAGE_LIMIT:
+            break
+        if read_published_text(path) is not None:
+            key_pages.append((concept_link_name(path, structure.concepts_dir), "Indexed concept page"))
 
     open_questions: list[str] = []
     if pending_count > 0:

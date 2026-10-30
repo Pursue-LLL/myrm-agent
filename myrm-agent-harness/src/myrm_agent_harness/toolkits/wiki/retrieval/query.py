@@ -22,7 +22,7 @@ convergence with context-budgeted loading (L0/L1 before L2). Prepends hot.md vau
 wiki_query answers only (no global agent middleware), and falls back to keyword matching when
 semantic retrieval is unavailable. Supports raw_claim rerank, claim-health multipliers, and
 derived confidence for citation scoring. Draft and blocked pages never reach an answer: the FTS5 index,
-keyword matching, graph expansion, directory sidecars and index.md all leave them out.
+keyword matching, graph expansion, directory sidecars, index.md and the hot.md key pages all leave them out.
 """
 
 from __future__ import annotations
@@ -570,21 +570,6 @@ class WikiQueryEngine:
         if ranked_names:
             return [name for name in ranked_names if name in candidate_name_to_path]
         return [self._concept_name_from_path(path) for path in candidates[:top_n]]
-
-    def _expand_via_graph(self, seed_names: list[str], max_results: int) -> list[str]:
-        """Expand seed results via best-first weighted graph convergence."""
-        if not seed_names:
-            return []
-
-        seeds = [RetrievalSeed(name, 1.0, "index") for name in seed_names]
-        return converge_retrieval_candidates(
-            query="",
-            query_config=self._query_config,
-            structure=self._structure,
-            indexer=self._indexer,
-            seeds=seeds,
-            max_results=max_results,
-        )
 
     async def _load_articles_context(
         self,

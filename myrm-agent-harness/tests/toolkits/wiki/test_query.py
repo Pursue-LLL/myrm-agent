@@ -141,25 +141,6 @@ async def test_wiki_query_engine_no_results(wiki_structure, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_graph_expansion(wiki_structure, mock_llm):
-    """_expand_via_graph discovers 1-hop neighbors via weighted edges."""
-    config = WikiConfig(enable_semantic_search=True)
-    engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=config)
-
-    for name in ("AlphaNode", "BetaNode", "GammaNode"):
-        p = wiki_structure.get_concept_file_path(name)
-        p.write_text(f"## Compiled Truth\n{name} content.", encoding="utf-8")
-
-    await engine._indexer.upsert("AlphaNode", "## Compiled Truth\nAlphaNode content.")
-    engine._indexer.upsert_edges("AlphaNode", ["BetaNode", "GammaNode"])
-
-    expanded = engine._expand_via_graph(["AlphaNode"], max_results=10)
-    assert "AlphaNode" in expanded
-    assert "BetaNode" in expanded
-    assert "GammaNode" in expanded
-
-
-@pytest.mark.asyncio
 async def test_keyword_search_fallback(wiki_structure, mock_llm):
     """When FTS5 returns nothing, keyword_search should find concepts by content overlap."""
     config = WikiConfig(enable_semantic_search=False)
@@ -334,13 +315,6 @@ Budget fact
     assert len(claim_snippets) == 1
     assert claim_snippets[0].evidence_snapshot_status == "stale"
     assert claim_snippets[0].evidence_path == "raw/source.md"
-
-
-def test_expand_via_graph_empty_seeds(wiki_structure, mock_llm):
-    """_expand_via_graph with empty seeds returns empty list."""
-    config = WikiConfig(enable_semantic_search=True)
-    engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=config)
-    assert engine._expand_via_graph([], max_results=10) == []
 
 
 @pytest.mark.asyncio

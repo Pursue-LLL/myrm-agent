@@ -163,6 +163,13 @@ def test_resolve_publish_status_without_frontmatter_is_published() -> None:
     assert resolve_publish_status("# Title\n") == WikiPublishStatus.PUBLISHED
 
 
+@pytest.mark.parametrize(
+    ("status", "expected"), [("draft", WikiPublishStatus.DRAFT), ("blocked", WikiPublishStatus.BLOCKED)]
+)
+def test_resolve_publish_status_reads_a_page_that_starts_with_a_bom(status: str, expected: WikiPublishStatus) -> None:
+    assert resolve_publish_status(f"\ufeff---\ntype: concept\npublish_status: {status}\n---\n# Title\n") == expected
+
+
 def test_apply_compile_gate_injects_concept_type() -> None:
     raw = "## Compiled Truth\n\nSummary"
     gated = apply_compile_gate(raw, "Programming/Rust", ["raw/rust.md"])
@@ -295,6 +302,14 @@ def test_read_published_text_returns_published_and_unmarked_pages(tmp_path: Path
 def test_read_published_text_is_none_for_unpublished_pages(tmp_path: Path, status: str) -> None:
     page = tmp_path / "page.md"
     page.write_text(f"---\npublish_status: {status}\n---\nBody", encoding="utf-8")
+
+    assert read_published_text(page) is None
+
+
+@pytest.mark.parametrize("status", ["draft", "blocked"])
+def test_read_published_text_is_none_for_an_unpublished_page_saved_with_a_bom(tmp_path: Path, status: str) -> None:
+    page = tmp_path / "page.md"
+    page.write_bytes(f"\ufeff---\npublish_status: {status}\n---\nBody".encode())
 
     assert read_published_text(page) is None
 

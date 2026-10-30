@@ -8,7 +8,12 @@ from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig, WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import write_index_markdown
+from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
+    WikiCognitiveMapService,
+    WikiMapEvent,
+    WikiMapEventType,
+    write_index_markdown,
+)
 from myrm_agent_harness.toolkits.wiki.pipeline.sidecar import build_directory_sidecars
 from myrm_agent_harness.toolkits.wiki.retrieval.query import WikiQueryEngine
 
@@ -114,3 +119,22 @@ async def test_graph_expansion_skips_a_linked_page_that_is_not_utf8(
     result = await engine.query("zephyr")
 
     assert [Path(article).stem for article in result.related_articles] == ["hub-zephyr"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("question", ["gravity", "zzzqqq matches nothing"])
+async def test_answer_prefix_names_no_unpublished_page(
+    wiki_structure: WikiStructure, mock_llm: AsyncMock, question: str
+) -> None:
+    _write_page(wiki_structure, "Published Gravity", "published", "Gravity pulls masses together.")
+    _write_page(wiki_structure, "Hidden Gravity", "draft", f"{_MARKER} gravity.")
+    WikiCognitiveMapService(wiki_structure).refresh(
+        WikiMapEvent(event_type=WikiMapEventType.COMPILE, summary="Answer prefix publish gate")
+    )
+    engine = WikiQueryEngine(llm=mock_llm, structure=wiki_structure, config=WikiConfig(enable_semantic_search=False))
+
+    result = await engine.query(question)
+
+    assert "published-gravity" in result.answer
+    assert "hidden-gravity" not in result.answer
+    assert _MARKER not in result.answer
