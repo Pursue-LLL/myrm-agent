@@ -8,7 +8,6 @@ These tests compile that stack with ``create_agent`` and read what the model is 
 from __future__ import annotations
 
 import inspect
-import time
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
@@ -17,29 +16,23 @@ from types import SimpleNamespace
 import pytest
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import Field
 
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares, create_registry
 from myrm_agent_harness.agent.middlewares._session_context import (
-    reset_terminal_errors,
     set_canary_token,
     set_pseudonym_store,
     set_security_config,
-    set_workspace_root,
 )
 from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy, SecurityConfig
 from myrm_agent_harness.agent.streaming.event_handlers import process_updates_chunk
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics, EngineParams
-from myrm_agent_harness.core.security.audit import reset_audit_log
-from myrm_agent_harness.core.security.guards.privacy_tracker import reset_privacy_tracker
 from myrm_agent_harness.utils.token_economics.budget_guard import BudgetStatus
+from tests.support.shipped_graph import ScriptedModel, shipped_agent, shipped_session, yolo_config
 
 PHONE = "13812345678"
 KEY = "sk-ant-abcdefghijklmnopqrstuvwxyz0123456789"
@@ -95,27 +88,6 @@ def _tool_call(call_id: str, name: str = "ping", **args: int) -> AIMessage:
     return AIMessage(content="", tool_calls=[{"id": call_id, "name": name, "args": args}])
 
 
-class ScriptedModel(BaseChatModel):
-    """Answers from a script and records the messages each call was sent, as ``(type, text)`` pairs."""
-
-    script: list[AIMessage]
-    calls: list[list[tuple[str, str]]] = Field(default_factory=list)
-
-    @property
-    def _llm_type(self) -> str:
-        return "scripted"
-
-    def bind_tools(self, tools: object, **kwargs: object) -> ScriptedModel:
-        return self
-
-    def _generate(
-        self, messages: list[BaseMessage], stop: list[str] | None = None, run_manager: object = None, **kwargs: object
-    ) -> ChatResult:
-        self.calls.append([(type(m).__name__, str(m.content)) for m in messages])
-        reply = self.script[min(len(self.calls), len(self.script)) - 1]
-        return ChatResult(generations=[ChatGeneration(message=reply)])
-
-
 def _shipped_agent(
     script: list[AIMessage],
     *,
@@ -123,25 +95,13 @@ def _shipped_agent(
     without: Sequence[str] = (),
     engine: EngineParams | None = None,
 ) -> tuple[ScriptedModel, CompiledStateGraph]:
-    """The agent's own middleware stack in a graph, minus the middlewares named in *without*."""
-    model = ScriptedModel(script=script)
-    middlewares = [m for m in build_middlewares(create_registry(), [], engine) if m.name not in without]
-    return model, create_agent(
-        model, tools=[ping, leak, step, ask_question_tool], middleware=middlewares, checkpointer=checkpointer
-    )
-
-
-def _config(policy: PrivacyPolicy | None = None) -> SecurityConfig:
-    # yolo mode lets the test tool run without an approval interrupt.
-    return SecurityConfig(
-        yolo_mode_enabled=True,
-        yolo_mode_enabled_at=time.time(),
-        privacy_policy=policy or PrivacyPolicy(enabled=False),
+    return shipped_agent(
+        script, [ping, leak, step, ask_question_tool], checkpointer=checkpointer, without=without, engine=engine
     )
 
 
 def _redacting() -> SecurityConfig:
-    return _config(PrivacyPolicy(enabled=True, s2_action=PIIAction.REDACT, s3_action=PIIAction.REDACT))
+    return yolo_config(PrivacyPolicy(enabled=True, s2_action=PIIAction.REDACT, s3_action=PIIAction.REDACT))
 
 
 def _budget_status(monkeypatch: pytest.MonkeyPatch, status: BudgetStatus, remaining: float) -> None:
@@ -158,17 +118,8 @@ def _texts(call: list[tuple[str, str]], kind: type[BaseMessage]) -> list[str]:
 @pytest.fixture(autouse=True)
 def _clean_session(tmp_path: Path) -> Iterator[None]:
     RAN.clear()
-    reset_terminal_errors()
-    reset_audit_log()
-    reset_privacy_tracker()
-    set_security_config(_config())
-    set_workspace_root(str(tmp_path))
-    yield
-    set_security_config(None)
-    set_canary_token("")
-    set_pseudonym_store(None)
-    set_workspace_root("")
-    reset_terminal_errors()
+    with shipped_session(tmp_path):
+        yield
 
 
 def test_the_shipped_graph_runs_the_hooks_its_middlewares_define() -> None:
@@ -202,7 +153,7 @@ async def test_pii_in_the_user_input_never_reaches_the_model(action: PIIAction, 
 
     store = PseudonymStore(str(tmp_path / "pseudonyms.db"))
     set_pseudonym_store(store)
-    set_security_config(_config(PrivacyPolicy(enabled=True, s2_action=action, s3_action=action)))
+    set_security_config(yolo_config(PrivacyPolicy(enabled=True, s2_action=action, s3_action=action)))
     model, agent = _shipped_agent([AIMessage(content="noted")])
 
     try:
