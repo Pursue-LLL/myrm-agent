@@ -10,6 +10,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
@@ -102,7 +103,7 @@ def test_inspect_backend_routes(platform: str, module: str) -> None:
 def test_inspect_backend_unsupported_returns_fallback() -> None:
     result = inspect_backend(_backend_named("UnsupportedBackend"))
     assert result["needs_permission"] is False
-    assert "desktop_snapshot_tool" in result["recommendation"]
+    assert "desktop_snapshot_tool" in str(result["recommendation"])
 
 
 @pytest.mark.parametrize(
@@ -124,8 +125,9 @@ def test_invoke_element_routes(platform: str, module: str) -> None:
         result = invoke_element(_backend_named(platform), element, "click")
 
     if module == "linux_ax":
-        # A Linux backend_key names its own application, so no app name is passed.
-        mock_invoke.assert_called_once_with("0", "click", "")
+        # A Linux backend_key names its own application instance, so no app name is passed; role and name let
+        # the invoke confirm the element is still the one the snapshot listed.
+        mock_invoke.assert_called_once_with("0", "click", "", role=element.role, name=element.name)
     else:
         mock_invoke.assert_called_once_with("0", "click", "", app_name=None)
     assert result.success is True
@@ -153,7 +155,10 @@ def test_desktop_snapshot_tool_schema_exposes_target_scope_and_app_name() -> Non
     tools = create_desktop_tools(session)
     snapshot_tool = next(t for t in tools if t.name == "desktop_snapshot_tool")
 
-    schema = snapshot_tool.args_schema.model_json_schema()
+    args_schema = snapshot_tool.args_schema
+    assert isinstance(args_schema, type)
+    assert issubclass(args_schema, BaseModel)
+    schema = args_schema.model_json_schema()
     props = schema["properties"]
     assert "scope" in props
     assert "app_name" in props

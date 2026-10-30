@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-120 · Linux 上同一程序开了两个进程时，前台快照里的元素可能点到另一个进程；界面在快照与调用之间变化时会点到位置顶上来的另一个元素
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/computer_use/perception/linux_ax.py`、`linux_x11.py`（新）、`ax_dispatch.py`；测试 `tests/toolkits/computer_use/test_linux_ax_scoping.py` 等；没有改提示词与工具 schema，`backend_key` 不进入模型可见输出，不影响提示词缓存） |
+| **发现时间** | 2026-10-30（对 BUG-119 的提交做对抗式审查时，用两个同名、进程号不同的假应用复现） |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P2（仅装了 `python3-pyatspi` 的 Linux 桌面；官方沙箱镜像没有 pyatspi，不受影响）。两个问题：① BUG-119 的前台快照按进程号只遍历前台窗口所属的应用，但 `backend_key` 只带应用名，调用时按名字选应用，会把同名的所有进程一起遍历，序号接着第一个进程算，因此点到另一个进程里同序号的元素（复现输出：`invoke ok: True \| clicked foreground: False \| clicked OTHER instance: True`，用的是测试里的同一套假节点，没有在真实 AT-SPI 上运行）。② 调用时重新遍历再按序号找元素，界面在快照与调用之间变化（菜单展开、列表刷新）时，同一个序号对应的是另一个元素，调用静默点到它。 |
+| **关联产品** | 有 `python3-pyatspi` 的 Linux 桌面（本地 WebUI、桌面端）。 |
+| **根因** | 元素范围（按进程）与元素身份（按名字）由两处代码各自决定；元素的身份只有序号，没有任何自检。 |
+| **修复** | `backend_key` 改为 `<AT-SPI 应用名小写>@<进程号>:<序号>`，序号按「应用实例」（名字加进程）计数，进程号读不到时为空（`<名字>@:<序号>`）；按最后一个冒号再按最后一个 `@` 拆分，应用名含这两个字符也成立；`@` 是必需的，缺少的 key 被拒。调用按名字与进程号选应用。`invoke_ax_element` 新增必填的关键字参数 `role`、`name`（`ax_dispatch.invoke_element` 从 `ElementRef` 传入），找到的元素与快照的角色或名字不一致时返回 `Stale element index`，由调用方走既有的坐标点击回退。`_walk` 的元素名统一经 `_node_name` 取字符串。前台范围回退到全部应用、目标名字解析失败时各记一条 debug 日志。X11 读取（`read_foreground_meta`、`foreground_pid`）移到新文件 `linux_x11.py`，`linux_ax.py` 回到 500 行以内。顺带清零 4 个相关测试文件里的 22 个 mypy 错误（其中 2 个是上一个提交新增的）。 |
+| **反复次数** | 第 2 次（同一条代码路径上连续第三次因为「范围」与「身份」分别决定而出错：BUG-118 漏了 `refs`，BUG-119 漏了同名多进程）。 |
+| **踩坑** | ① 起初计划「只在范围由进程限定时才给 key 加进程号」，重读代码后发现这会让 key 格式随范围变化，改为总是带进程号，范围怎么选都不影响 key 的正确性。② 变异验证的第一个「各进程共用序号」变异写成了空操作而显示存活，改写后被杀。 |
+| **回归** | [1] 新增 10 个用例（另有格式错误 key 的参数化从 4 种扩到 7 种）：前台进程的实例被调用而不是另一个、各进程独立计数、重启后的进程不继承旧元素、同时含 `@` 与 `:` 的应用名往返、元素移位/角色变化时不被操作、角色名字不变时被操作、前台范围回退与目标未解析的日志；原有 invoke、errors、dispatch 用例改用新 key 格式与必填参数。[2] 变异验证：11 个变异里 10 个被杀（调用忽略进程号、去掉角色名字校验、只校验角色、只校验名字、key 不含进程号、序号按名字共用、`partition` 代替 `rpartition`、去掉无匹配回退、别名匹配任意窗口、进程号接受非整数）；第 11 个「进程号接受非正整数」与原行为等价（读不到的进程号本来就匹配不到前台进程），已删除该冗余判断。[3] `tests/toolkits/computer_use`（排除 `test_macos_ax_script.py`）全量通过；4 个相关测试文件 mypy 0 错误。 |
+| **仍然存在** | ① 仍然没有真实 pyatspi 与 Linux 桌面：`get_process_id()` 的调用形式、真实应用的树顺序只用 mock 验证。② 元素身份仍是序号加角色名字校验，不是 D-Bus 对象引用；两个元素同角色同名且互换位置时校验发现不了。③ 范围是应用级，不是窗口级，同一应用的多个窗口都会列出。④ 每次前台快照仍有若干 `xdotool`/`xprop` 子进程与每个应用一次 D-Bus 取进程号，没有测量耗时。⑤ 官方沙箱镜像没有 pyatspi，沙箱里的语义路径不工作。⑥ 焦点转移后，用 X11 类名做的跟进快照按名字找不到应用时只丢失跟进信息，动作本身已经完成。 |
+| **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/toolkits/computer_use/perception/linux_ax.py`（`_instance_key`、`_iter_interactive`、`_parse_backend_key`、`invoke_ax_element`） · `perception/linux_x11.py` · `perception/ax_dispatch.py` · `myrm-agent-harness/tests/toolkits/computer_use/test_linux_ax_scoping.py` |
+
 ### BUG-HARNESS-2026-10-30-119 · Linux AT-SPI 元素的编号在快照与调用之间对不上，前台快照还混入后台应用的元素；BUG-118 的前台改名又让语义调用与跟进快照按名字找不到应用
 
 | 字段 | 内容 |
@@ -16,7 +33,7 @@
 | **反复次数** | 第 1 次。 |
 | **踩坑** | 起初设计成「invoke 自己重新读前台进程」，审查时发现快照可能是 `scope="target"` 的、调用时焦点也可能已经换了，invoke 无法分辨，改为让 `backend_key` 自己说明范围。 |
 | **回归** | [1] 新增 24 个用例（`test_linux_ax_scoping.py`）：过滤后的 ref 调用到模型看到的元素、各应用独立计数、含冒号的应用名往返、输出上限之后的匹配项仍可达、扫描上限限制序号、缺少数字序号的 key 被拒、X11 名与 AT-SPI 名不同时调用与前台快照仍成功、目标快照可按 X11 名到达前台应用、按 AT-SPI 名的目标快照不查询 X11、另一个窗口的 X11 名不会解析目标、前台只列活动窗口的应用、过滤只匹配别的应用时找不到、进程无法匹配时列出全部应用、应用进程不可读时不被匹配、`_foreground_pid` 的读取与失败。原有的 invoke 与 dispatch 用例改用新 key 格式。[2] 变异验证：10 个变异里 9 个被杀（调用忽略应用 key、前台列出全部、去掉回退、去掉 X11 别名解析、别名匹配任意窗口、`partition` 代替 `rpartition`、序号取过滤后计数、去掉扫描上限、用输出上限做扫描上限）；第 10 个「接受 -1 的进程号」与原行为等价（真实进程号不会等于它），已删除该冗余判断。[3] `tests/toolkits/computer_use`（排除 `test_macos_ax_script.py`）1213 passed、12 skipped。 |
-| **仍然存在** | ① 本机没有 pyatspi 与 Linux 桌面，`get_process_id()` 的调用形式、真实 AT-SPI 的子节点顺序都只用 mock 验证，没有在真实 AT-SPI 上运行；`get_process_id` 在 libatspi 文档中存在（经 D-Bus `GetConnectionUnixProcessID` 取进程号），pyatspi 包装层里不存在时按「读不到」处理，行为退回遍历全部应用。② Flatpak/Snap 应用的进程号命名空间可能与 X11 的 `_NET_WM_PID` 不同，匹配不上时同样遍历全部应用。③ 前台快照每次多一次 `xdotool` 子进程，没有测量耗时。④ 官方沙箱镜像没有 pyatspi，沙箱里的语义路径不工作，本条不改变这一点。 |
+| **仍然存在** | ⓪ 同名多进程与元素移位的问题已在 BUG-HARNESS-2026-10-30-120 处理。① 本机没有 pyatspi 与 Linux 桌面，`get_process_id()` 的调用形式、真实 AT-SPI 的子节点顺序都只用 mock 验证，没有在真实 AT-SPI 上运行；`get_process_id` 在 libatspi 文档中存在（经 D-Bus `GetConnectionUnixProcessID` 取进程号），pyatspi 包装层里不存在时按「读不到」处理，行为退回遍历全部应用。② Flatpak/Snap 应用的进程号命名空间可能与 X11 的 `_NET_WM_PID` 不同，匹配不上时同样遍历全部应用。③ 前台快照每次多一次 `xdotool` 子进程，没有测量耗时。④ 官方沙箱镜像没有 pyatspi，沙箱里的语义路径不工作，本条不改变这一点。 |
 | **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/toolkits/computer_use/perception/linux_ax.py`（`_iter_interactive`、`_foreground_apps`、`_target_apps`、`_parse_backend_key`、`invoke_ax_element`） · `perception/ax_dispatch.py` · `myrm-agent-harness/tests/toolkits/computer_use/test_linux_ax_scoping.py` |
 
 ### BUG-HARNESS-2026-10-30-118 · Linux 上敏感应用守卫拿不到真正的前台应用：AT-SPI 读不到窗口时是空名放行，读得到时是桌面上第一个应用（终端、银行、密码管理器、Agent 自身界面都可能不被拦）

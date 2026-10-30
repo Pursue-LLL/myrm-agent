@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
+from myrm_agent_harness.toolkits.computer_use.perception.linux_ax import LinuxAxSnapshot
 
 
 def _make_button(*, fail_role: bool = False, fail_component: bool = False) -> MagicMock:
@@ -53,7 +54,7 @@ def _make_app(name: str, children: list[MagicMock]) -> MagicMock:
     return app
 
 
-def _reload_with(pyatspi: MagicMock | None):
+def _reload_with(pyatspi: MagicMock | None) -> ModuleType:
     import sys as _sys
 
     from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
@@ -180,7 +181,7 @@ class TestCaptureXdotoolFallback:
         self._import_patch = patch.object(_builtins, "__import__", side_effect=mock_import)
         self._import_patch.start()
 
-    def _reload_no_pyatspi(self):
+    def _reload_no_pyatspi(self) -> ModuleType:
         from importlib import reload
 
         from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
@@ -259,13 +260,13 @@ class TestInvokeCollectionFailures:
     def test_collection_stops_after_index(self) -> None:
         button = _make_button()
         module = _reload_with(_desktop_with_children([button, button]))
-        result = module.invoke_ax_element(":0", "click")
+        result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is True
 
     def test_component_failure_yields_stale(self) -> None:
         button = _make_button(fail_component=True)
         module = _reload_with(_desktop_with_children([button]))
-        result = module.invoke_ax_element(":0", "click")
+        result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is False
         assert "Stale" in result.error
 
@@ -276,7 +277,7 @@ class TestInvokeCollectionFailures:
         app.childCount = 1
         app.getChildAtIndex.side_effect = Exception("child")
         module = _reload_with(_desktop_with_children([app]))
-        result = module.invoke_ax_element(":0", "click")
+        result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is False
         assert "Stale" in result.error
 
@@ -286,7 +287,7 @@ class TestInvokeCollectionFailures:
         button = _make_button()
         app = _make_app("Slack", [button])
         module = _reload_with(_desktop_with_children([bad, app]))
-        result = module.invoke_ax_element("slack:0", "click")
+        result = module.invoke_ax_element("slack@:0", "click", role="push button", name="")
         assert result.success is True
 
 
@@ -295,7 +296,7 @@ class TestInvokeActionFailures:
         button = _make_button()
         button.queryAction.side_effect = Exception("action")
         module = _reload_with(_desktop_with_children([button]))
-        result = module.invoke_ax_element(":0", "click")
+        result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is True
         button.queryComponent.return_value.grabFocus.assert_called()
 
@@ -306,7 +307,7 @@ class TestInvokeActionFailures:
         button.queryAction.return_value = action_if
         button.queryComponent.return_value.grabFocus.side_effect = Exception("broken action")
         module = _reload_with(_desktop_with_children([button]))
-        result = module.invoke_ax_element(":0", "click")
+        result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is False
         assert "broken action" in result.error
 
@@ -320,7 +321,7 @@ class TestInspectForegroundLinux:
                 "capture_ax_snapshot",
                 side_effect=AXTreeEmptyError("AT-SPI empty"),
             ),
-            patch.object(module, "_read_foreground_meta", return_value=("", "")),
+            patch.object(module, "read_foreground_meta", return_value=("", "")),
         ):
             result = module.inspect_foreground()
         assert result["app_name"] == ""
@@ -363,7 +364,8 @@ class TestForegroundX11Fallback:
             patch.object(module, "capture_ax_snapshot", side_effect=AXTreeEmptyError("AT-SPI empty")),
             patch.object(module.subprocess, "run", side_effect=run),
         ):
-            return module.inspect_foreground()
+            result: dict[str, str | int | bool] = module.inspect_foreground()
+        return result
 
     def test_wm_class_names_the_application(self) -> None:
         module = _reload_with(None)
@@ -427,12 +429,12 @@ class TestForegroundIdentityFromX11:
         )
         return module.LinuxAxSnapshot(meta=meta, refs={"d0": MagicMock()})
 
-    def _capture(self, x11: tuple[str, str]) -> tuple[ModuleType, object]:
+    def _capture(self, x11: tuple[str, str]) -> tuple[ModuleType, LinuxAxSnapshot]:
         module = _reload_with(None)
         snapshot = self._desktop_snapshot(module)
         with (
             patch.object(module, "_try_pyatspi_snapshot", return_value=snapshot),
-            patch.object(module, "_read_foreground_meta", return_value=x11),
+            patch.object(module, "read_foreground_meta", return_value=x11),
         ):
             return module, module.capture_ax_snapshot("foreground")
 
@@ -463,7 +465,7 @@ class TestForegroundIdentityFromX11:
         snapshot = self._desktop_snapshot(module)
         with (
             patch.object(module, "_try_pyatspi_snapshot", return_value=snapshot),
-            patch.object(module, "_read_foreground_meta", return_value=("Alacritty", "sudo -i")),
+            patch.object(module, "read_foreground_meta", return_value=("Alacritty", "sudo -i")),
         ):
             result = module.inspect_foreground()
         assert result["app_name"] == "Alacritty"

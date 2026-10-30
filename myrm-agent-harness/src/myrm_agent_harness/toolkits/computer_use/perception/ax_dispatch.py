@@ -85,5 +85,5 @@ def invoke_element(
     if platform == "WindowsBackend":
         return windows_ax.invoke_ax_element(element.backend_key, action, text, app_name=app_name)
     if platform == "LinuxBackend":
-        return linux_ax.invoke_ax_element(element.backend_key, action, text)
+        return linux_ax.invoke_ax_element(element.backend_key, action, text, role=element.role, name=element.name)
     return ActionResult(success=False, error=f"Unsupported backend for AX invoke: {platform}")

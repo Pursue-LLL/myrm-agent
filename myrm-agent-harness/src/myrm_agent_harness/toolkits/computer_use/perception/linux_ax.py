@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import shutil
 import subprocess
 from collections.abc import Callable, Iterator
@@ -16,17 +15,15 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
     SnapshotMeta,
     SnapshotScope,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.linux_x11 import foreground_pid, read_foreground_meta
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 logger = logging.getLogger(__name__)
 
 _MAX_ELEMENTS = 500  # refs one snapshot returns
 _MAX_ORDINAL = 5000  # interactive elements scanned per application; bounds the ordinal in a backend_key
-_KEY_SEPARATOR = ":"
-
-# One X11 query must not stall the safety check that depends on it.
-_X11_QUERY_TIMEOUT_S = 2
-_QUOTED_STRING = re.compile(r'"([^"]*)"')
+_KEY_SEPARATOR = ":"  # between an application instance and an element's ordinal
+_PID_SEPARATOR = "@"  # between an application's name and its process id
 
 _INTERACTIVE_ROLES: frozenset[str] = frozenset(
     {
@@ -48,29 +45,6 @@ class LinuxAxSnapshot:
     refs: dict[str, ElementRef]
 
 
-def _x11_query(argv: list[str]) -> str:
-    """Stdout of one X11 helper command; empty when the tool is missing, times out or fails."""
-    try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=_X11_QUERY_TIMEOUT_S, check=False)
-    except (subprocess.TimeoutExpired, OSError):
-        return ""
-    return proc.stdout.strip() if proc.returncode == 0 else ""
-
-
-def _read_foreground_meta() -> tuple[str, str]:
-    """(application name, window title) of the active X11 window, read without AT-SPI.
-
-    The application name is the window's WM_CLASS class. Either field is empty when it cannot be read.
-    """
-    win_id = _x11_query(["xdotool", "getactivewindow"])
-    if not win_id:
-        return "", ""
-    title = _x11_query(["xdotool", "getwindowname", win_id])
-    # xprop prints: WM_CLASS(STRING) = "instance", "Class"
-    quoted = _QUOTED_STRING.findall(_x11_query(["xprop", "-id", win_id, "WM_CLASS"]))
-    return (quoted[-1] if quoted else ""), title
-
-
 @dataclass(frozen=True)
 class _Interactive:
     """One interactive element in AT-SPI traversal order."""
@@ -81,13 +55,15 @@ class _Interactive:
     role: str
     name: str
     bbox: BBox
-    # Position among the application's interactive elements, assigned before any query/role filter so that a
+    # The application instance (name and process) the element belongs to.
+    instance: str
+    # Position among the instance's interactive elements, assigned before any query/role filter so that a
     # snapshot and a later invoke count the same elements.
     ordinal: int
 
     @property
     def backend_key(self) -> str:
-        return f"{_app_key(self.app_name)}{_KEY_SEPARATOR}{self.ordinal}"
+        return f"{self.instance}{_KEY_SEPARATOR}{self.ordinal}"
 
 
 def _app_key(app_name: str) -> str:
@@ -104,9 +80,15 @@ def _node_name(node: object) -> str:
 
 def _app_pid(app: object) -> int | None:
     try:
-        return int(app.get_process_id())  # type: ignore[attr-defined]
+        pid = app.get_process_id()  # type: ignore[attr-defined]
     except Exception:
         return None
+    return pid if isinstance(pid, int) else None
+
+
+def _instance_key(app_key: str, pid: int | None) -> str:
+    """Names one running application: two windows of the same program are two instances when their processes differ."""
+    return f"{app_key}{_PID_SEPARATOR}{pid or ''}"
 
 
 def _select_apps(desktop: object, keep: Callable[[object], bool]) -> list[object]:
@@ -124,18 +106,18 @@ def _select_apps(desktop: object, keep: Callable[[object], bool]) -> list[object
 def _walk(
     node: object,
     app_name: str,
+    instance: str,
     window_title: str,
     ordinals: dict[str, int],
 ) -> Iterator[_Interactive]:
-    key = _app_key(app_name)
-    if ordinals.get(key, 0) >= _MAX_ORDINAL:
+    if ordinals.get(instance, 0) >= _MAX_ORDINAL:
         return
     try:
         role_name = node.getRoleName()  # type: ignore[attr-defined]
-        name = node.name or ""  # type: ignore[attr-defined]
         node.getState()  # type: ignore[attr-defined]
     except Exception:
         return
+    name = _node_name(node)
 
     if role_name in {"frame", "window"} and not window_title:
         window_title = name
@@ -146,8 +128,8 @@ def _walk(
         except Exception:
             extents = None
         if extents and extents.width > 0 and extents.height > 0:
-            ordinal = ordinals.get(key, 0)
-            ordinals[key] = ordinal + 1
+            ordinal = ordinals.get(instance, 0)
+            ordinals[instance] = ordinal + 1
             yield _Interactive(
                 node=node,
                 app_name=app_name,
@@ -155,12 +137,13 @@ def _walk(
                 role=role_name,
                 name=name,
                 bbox=BBox(extents.x, extents.y, extents.width, extents.height),
+                instance=instance,
                 ordinal=ordinal,
             )
 
     try:
         for idx in range(node.childCount):  # type: ignore[attr-defined]
-            yield from _walk(node.getChildAtIndex(idx), app_name, window_title, ordinals)  # type: ignore[attr-defined]
+            yield from _walk(node.getChildAtIndex(idx), app_name, instance, window_title, ordinals)  # type: ignore[attr-defined]
     except Exception:
         return
 
@@ -169,12 +152,9 @@ def _iter_interactive(apps: list[object]) -> Iterator[_Interactive]:
     """Interactive elements of *apps* in document order; the single source of element order for snapshot and invoke."""
     ordinals: dict[str, int] = {}
     for app in apps:
-        yield from _walk(app, _node_name(app), "", ordinals)
-
-
-def _foreground_pid() -> int | None:
-    out = _x11_query(["xdotool", "getactivewindow", "getwindowpid"])
-    return int(out) if out.isdigit() and int(out) > 0 else None
+        app_name = _node_name(app)
+        instance = _instance_key(_app_key(app_name), _app_pid(app))
+        yield from _walk(app, app_name, instance, "", ordinals)
 
 
 def _apps_of_pid(desktop: object, pid: int) -> list[object]:
@@ -184,10 +164,14 @@ def _apps_of_pid(desktop: object, pid: int) -> list[object]:
 def _foreground_apps(desktop: object) -> list[object]:
     """Applications of the active window; every application when its process cannot be matched."""
     everyone = _select_apps(desktop, lambda _app: True)
-    pid = _foreground_pid()
+    pid = foreground_pid()
     if pid is None:
+        logger.debug("Active window's process is unknown; the snapshot lists every application")
         return everyone
-    return _apps_of_pid(desktop, pid) or everyone
+    scoped = _apps_of_pid(desktop, pid)
+    if not scoped:
+        logger.debug("No AT-SPI application runs as process %d; the snapshot lists every application", pid)
+    return scoped or everyone
 
 
 def _target_apps(desktop: object, target_lower: str) -> list[object]:
@@ -198,11 +182,12 @@ def _target_apps(desktop: object, target_lower: str) -> list[object]:
     )
     if named:
         return named
-    wm_class, title = _read_foreground_meta()
-    if _app_key(wm_class or title) != target_lower:
-        return []
-    pid = _foreground_pid()
-    return _apps_of_pid(desktop, pid) if pid is not None else []
+    wm_class, title = read_foreground_meta()
+    pid = foreground_pid() if _app_key(wm_class or title) == target_lower else None
+    apps = _apps_of_pid(desktop, pid) if pid is not None else []
+    if not apps:
+        logger.debug("No AT-SPI application matches the target %r", target_lower)
+    return apps
 
 
 def _try_pyatspi_snapshot(
@@ -265,7 +250,7 @@ def _with_x11_identity(snapshot: LinuxAxSnapshot) -> LinuxAxSnapshot:
     AT-SPI lists every running application, so the first one it yields is not the foreground one; the sensitive-app
     guard keys on this name. The AT-SPI name stays when X11 cannot name the active window.
     """
-    wm_class, title = _read_foreground_meta()
+    wm_class, title = read_foreground_meta()
     app_name = wm_class or title
     if not app_name:
         return snapshot
@@ -313,13 +298,17 @@ def capture_ax_snapshot(
     raise AXTreeEmptyError("AT-SPI tree unavailable in this environment. Install pyatspi or use desktop_vision_tool.")
 
 
-def _parse_backend_key(backend_key: str) -> tuple[str, int] | None:
-    """Split ``<application>:<ordinal>``; the application name may itself contain the separator."""
-    app_key, separator, ordinal_text = backend_key.rpartition(_KEY_SEPARATOR)
-    if not separator:
+def _parse_backend_key(backend_key: str) -> tuple[str, int | None, int] | None:
+    """Split ``<application>@<pid>:<ordinal>``; the application name may itself contain either separator.
+
+    The pid is empty, and None here, when the application's process could not be read.
+    """
+    instance, key_separator, ordinal_text = backend_key.rpartition(_KEY_SEPARATOR)
+    app_key, pid_separator, pid_text = instance.rpartition(_PID_SEPARATOR)
+    if not key_separator or not pid_separator:
         return None
     try:
-        return app_key, int(ordinal_text)
+        return app_key, (int(pid_text) if pid_text else None), int(ordinal_text)
     except ValueError:
         return None
 
@@ -328,16 +317,21 @@ def invoke_ax_element(
     backend_key: str,
     action: str,
     text: str = "",
+    *,
+    role: str,
+    name: str,
 ) -> ActionResult:
-    """Invoke the AT-SPI element a snapshot named ``<application>:<ordinal>``.
+    """Invoke the AT-SPI element a snapshot named ``<application>@<pid>:<ordinal>``.
 
-    The key carries its application, so the call needs neither the snapshot's app name (the foreground snapshot
-    reports X11's name for the window, not AT-SPI's) nor the focus to be where it was.
+    The key carries its application instance, so the call needs neither the snapshot's app name (the foreground
+    snapshot reports X11's name for the window, not AT-SPI's) nor the focus to be where it was. The interface may
+    have changed since the snapshot, so the element found at that position must still have the snapshot's role and
+    name; otherwise the call fails and the caller falls back to the element's coordinates.
     """
     parsed = _parse_backend_key(backend_key)
     if parsed is None:
         return ActionResult(success=False, error=f"Invalid backend_key: {backend_key}")
-    app_key, index = parsed
+    app_key, pid, index = parsed
     if index < 0 or index >= _MAX_ORDINAL:
         return ActionResult(success=False, error=f"Index {index} out of range [0, {_MAX_ORDINAL})")
 
@@ -353,10 +347,19 @@ def invoke_ax_element(
     if desktop.childCount == 0:
         return ActionResult(success=False, error="AT-SPI desktop has no applications")
 
-    apps = _select_apps(desktop, lambda app: _app_key(_node_name(app)) == app_key)
-    target = next((item.node for item in _iter_interactive(apps) if item.ordinal == index), None)
-    if target is None:
+    apps = _select_apps(desktop, lambda app: _app_key(_node_name(app)) == app_key and _app_pid(app) == pid)
+    found = next((item for item in _iter_interactive(apps) if item.ordinal == index), None)
+    if found is None:
         return ActionResult(success=False, error=f"Stale element index {index}")
+    if (found.role, found.name) != (role, name):
+        logger.debug(
+            "AT-SPI element %s changed since the snapshot: %r is now %r",
+            backend_key,
+            (role, name),
+            (found.role, found.name),
+        )
+        return ActionResult(success=False, error=f"Stale element index {index}")
+    target = found.node
 
     normalized = action.lower()
     try:
@@ -444,7 +447,7 @@ def inspect_foreground() -> dict[str, str | int | bool]:
         snapshot = capture_ax_snapshot("foreground")
     except AXTreeEmptyError as exc:
         # The sensitive-app guard keys on this name, so an unreadable AT-SPI tree must not erase the app identity.
-        wm_class, title = _read_foreground_meta()
+        wm_class, title = read_foreground_meta()
         return {
             "app_name": wm_class or title,
             "window_title": title,
