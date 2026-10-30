@@ -154,5 +154,5 @@
   "cooldown_hint_hour_one": "{n} Stunde",
   "cooldown_hint_hour_other": "{n} Stunden",
   "cooldown_hint_day_one": "{n} Tag",
-  "cooldown_hint_day_other": "{n} Tage"
+  "cooldown_hint_day_other": "{n} Tagen"
 }

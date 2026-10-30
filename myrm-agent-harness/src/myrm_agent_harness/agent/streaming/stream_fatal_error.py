@@ -8,7 +8,7 @@
 - toolkits.llms.errors.provider_window::extract_provider_window (POS: Facade for the provider-window subpackage.)
 
 [OUTPUT]
-- StreamFatalErrorMixin: `_emit_fatal_error` builds the diagnosed error event, persists it to the event journal and raises MyrmLLMError.
+- StreamFatalErrorMixin: `_emit_fatal_error` records the run's failure on the statistics with credentials masked (it leaves the process in the SESSION_END hook payload), builds the diagnosed error event, persists it to the event journal and raises MyrmLLMError.
 
 [POS]
 Fatal-error reporting for StreamExecutor: one place that turns an exception of the run into the GUI error event and the typed exception.
@@ -53,7 +53,7 @@ class StreamFatalErrorMixin:
         error_type = type(exc).__name__
         failover_reason = classify_failover_reason(exc)
         error_kind = classify_error(exc)
-        ctx.stats.error_message = f"{error_type}: {error_msg}"
+        ctx.stats.record_error(error_type, error_msg)
         logger.error(
             " Agent execution error [%s]: %s: %s",
             failover_reason.value,

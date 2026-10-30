@@ -640,7 +640,7 @@ async def run_agent_loop(
             error_type = type(e).__name__
 
             if not stats.error_message:
-                stats.error_message = f"{error_type}: {error_msg}"
+                stats.record_error(error_type, error_msg)
                 logger.error(
                     "Outer loop exception — %s: %s",
                     error_type,

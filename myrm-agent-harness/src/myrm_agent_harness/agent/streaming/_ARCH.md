@@ -28,7 +28,7 @@
 | `stream_compactor.py` | 核心 | 高频文本片段流式合并压实器（降低前端事件风暴与渲染开销） |
 | `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传（含 `restart`：丢弃正在流出的草稿）与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`） |
 | `stream_executor.py` | 核心 | 流式执行引擎生命周期封装（Agent.astream 调度、重试恢复与异常拦截；被 Stop 打断的模型请求以 `OperationCancelledError` 早退，与循环内 Stop 同一收尾） |
-| `stream_fatal_error.py` | 核心 | 致命错误上报 Mixin：把一次运行的异常转成带诊断的 GUI 错误事件（故障归属、恢复建议、冷却剩余时间）、写入事件日志并抛出 `MyrmLLMError`；`StreamExecutor` 经多继承使用 |
+| `stream_fatal_error.py` | 核心 | 致命错误上报 Mixin：把一次运行的异常转成带诊断的 GUI 错误事件（故障归属、恢复建议、冷却剩余时间）、以脱敏文本记入运行统计（`AgentRunStatistics.record_error`，随 SESSION_END 钩子载荷离开进程）、写入事件日志并抛出 `MyrmLLMError`；`StreamExecutor` 经多继承使用 |
 | `types.py` | 核心 | 流式事件类型定义与 core.events.types 兼容重导出 |
 | `utils.py` | 辅助 | 时间戳规则、时区管理上下文变量及工具名称规范化等通用辅助函数 |
 | `zero_replay/` | 子包 | 零事件重放前后端无缝重连协议核心引擎（单次原子快照基线 + 纯实时增量流门禁过滤）。参见 [zero_replay/_ARCH.md](zero_replay/_ARCH.md) |

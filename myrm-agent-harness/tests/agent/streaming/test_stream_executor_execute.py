@@ -171,6 +171,31 @@ async def test_execute_fatal_error(fire_hook_mock, base_ctx):
 
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
+async def test_a_key_the_provider_echoed_back_is_masked_in_the_session_end_hook_payload(fire_hook_mock, base_ctx):
+    """The hook payload leaves the process, so the failure text it carries has its credentials masked."""
+    from myrm_agent_harness.agent.hooks.types import HookEvent
+    from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
+
+    echoed_key = "sk-" + "a1b2c3d4" * 5
+    executor = _make_executor(base_ctx)
+
+    async def _astream_fatal(*args, **kwargs):
+        raise RuntimeError(f"Incorrect API key provided: {echoed_key}.")
+        yield
+
+    base_ctx.agent.astream = _astream_fatal
+
+    with pytest.raises(MyrmLLMError):
+        await executor.execute()
+
+    payloads = [call.args[1] for call in fire_hook_mock.await_args_list if call.args[0] is HookEvent.SESSION_END]
+    assert len(payloads) == 1
+    assert echoed_key not in payloads[0]["error"]
+    assert payloads[0]["error"].startswith("RuntimeError: Incorrect API key provided: ")
+
+
+@pytest.mark.asyncio
+@patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
 async def test_emit_fatal_error_with_compression_exhausted(fire_hook_mock, base_ctx):
     """compression_exhausted flag propagates to error event."""
     from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError

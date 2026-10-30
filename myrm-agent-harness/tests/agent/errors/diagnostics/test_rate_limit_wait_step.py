@@ -40,7 +40,7 @@ def test_with_a_provider_wait_no_generic_wait_step_follows_it(locale: str) -> No
 
     result = LLMErrorDiagnostic.diagnose(_RATE_LIMITED, locale=locale, cooldown_remaining_ms=10_800_000)
 
-    assert "10800" in result.user_message
+    assert str(bundle["cooldown_hint_hour_other"]).format(n=3) in result.user_message
     assert result.resolution_steps == bundle["rate_limit_resolution_steps"]
     assert bundle["rate_limit_wait_step"] not in result.resolution_steps
 

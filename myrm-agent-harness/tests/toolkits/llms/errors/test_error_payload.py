@@ -248,6 +248,9 @@ def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_w
         ("[2024-10-30 12:00:00] upstream timeout", False),
         ("[-1] unknown", False),
         ("[1, 2]", False),
+        ("[true] x", False),
+        ("[false] x", False),
+        ("[null] x", False),
     ],
     ids=[
         "object",
@@ -270,9 +273,12 @@ def test_an_aggregators_raw_field_nested_beyond_the_recursion_limit_leaves_the_w
         "timestamp tag",
         "negative code tag",
         "number array",
+        "true tag",
+        "false tag",
+        "null tag",
     ],
 )
-def test_json_shaped_text_is_an_object_or_a_data_array_and_never_a_tag_or_a_sentence(text: str, expected: bool) -> None:
+def test_text_is_json_shaped_only_when_it_opens_as_an_object_or_a_data_array(text: str, expected: bool) -> None:
     assert is_json_shaped(text) is expected
 
 

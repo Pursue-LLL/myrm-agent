@@ -2,7 +2,7 @@
 
 [INPUT]
 - diagnostics.i18n::get_locale_manager (POS: bundled and override locale bundles)
-- locale JSON keys `cooldown_hint_template` / `cooldown_hint_second_one` / `cooldown_hint_second_other`
+- locale JSON keys `cooldown_hint_template` / `cooldown_hint_joiner` and the unit words `cooldown_hint_<second|minute|hour|day>_one` / `_other`
 
 [OUTPUT]
 - format_cooldown_hint(): the sentence to append to a rate-limit message, or "" when there is no wait
@@ -15,22 +15,55 @@ exists, this module states how the wait reads in the caller's language.
 from __future__ import annotations
 
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
 _FALLBACK_UNIT = "{n} seconds"
 _FALLBACK_TEMPLATE = " Retry after {duration}."
 
+_SECONDS_PER_MINUTE = 60
+_SECONDS_PER_HOUR = 3600
+_SECONDS_PER_DAY = 86400
+_MINUTES_PER_HOUR = 60
+_HOURS_PER_DAY = 24
 
-def _duration_seconds(translations: dict[str, str], seconds: int) -> str:
-    """Render ``seconds`` with the locale's own word for it.
 
-    Seconds stay seconds: the provider reports the wait in seconds, so restating 120 as "2 minutes"
-    would replace a number the caller already holds with a derived one.
+def _units(seconds: int) -> list[tuple[str, int]]:
+    """The units a wait of ``seconds`` is spelled in, largest first; a unit with nothing left is left out.
+
+    Below an hour the wait stays in seconds, the unit the provider reports it in. From an hour up the two
+    largest units place it on a clock (``6 hours 24 minutes``, ``7 days``) and the smaller one rounds up:
+    a wait stated too short sends the retry in too early.
     """
-    plural = "one" if seconds == 1 else "other"
-    template = translations.get(f"second_{plural}") or translations.get("second_other") or _FALLBACK_UNIT
-    return template.format(n=seconds)
+    if seconds < _SECONDS_PER_HOUR:
+        return [("second", seconds)]
+    if seconds < _SECONDS_PER_DAY:
+        hours, minutes = divmod(math.ceil(seconds / _SECONDS_PER_MINUTE), _MINUTES_PER_HOUR)
+        return [(unit, n) for unit, n in (("hour", hours), ("minute", minutes)) if n]
+    days, hours = divmod(math.ceil(seconds / _SECONDS_PER_HOUR), _HOURS_PER_DAY)
+    return [(unit, n) for unit, n in (("day", days), ("hour", hours)) if n]
+
+
+def _spell(translations: dict[str, str], units: list[tuple[str, int]]) -> str | None:
+    """``units`` in the locale's own words, or None when the bundle lacks the word of one of them."""
+    words: list[str] = []
+    for unit, n in units:
+        plural = "one" if n == 1 else "other"
+        template = translations.get(f"{unit}_{plural}") or translations.get(f"{unit}_other")
+        if not template:
+            return None
+        words.append(template.format(n=n))
+    return translations.get("joiner", " ").join(words)
+
+
+def _duration(translations: dict[str, str], seconds: int) -> str:
+    """The wait in the locale's words; a bundle without the words of a long wait still states it in seconds."""
+    return (
+        _spell(translations, _units(seconds))
+        or _spell(translations, [("second", seconds)])
+        or _FALLBACK_UNIT.format(n=seconds)
+    )
 
 
 def format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
@@ -54,11 +87,11 @@ def format_cooldown_hint(cooldown_remaining_ms: int | None, locale: str) -> str:
 
         template = translations.get("template", "")
         if not template:
-            return _FALLBACK_TEMPLATE.format(duration=_duration_seconds({}, cooldown_seconds))
-        return template.format(duration=_duration_seconds(translations, cooldown_seconds))
+            return _FALLBACK_TEMPLATE.format(duration=_duration({}, cooldown_seconds))
+        return template.format(duration=_duration(translations, cooldown_seconds))
     except Exception:
         logger.debug("cooldown hint could not be rendered", exc_info=True)
-        return _FALLBACK_TEMPLATE.format(duration=_duration_seconds({}, cooldown_seconds))
+        return _FALLBACK_TEMPLATE.format(duration=_duration({}, cooldown_seconds))
 
 
 __all__ = ["format_cooldown_hint"]

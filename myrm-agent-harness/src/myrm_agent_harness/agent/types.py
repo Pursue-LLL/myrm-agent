@@ -3,6 +3,7 @@
 1. 本文件的 INPUT/OUTPUT/POS 注释
 
 [INPUT]
+- core.security.redact::redact_sensitive_text (POS: Full redactor: assignments, header lines, connection strings, token shapes)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: 断流 finish_reason 遥测哨兵)
 - utils.token_tracker::TokenUsage (POS: Token 使用追踪类型，记录 prompt/completion/total tokens)
 - agent.security.types::SecurityConfig (POS: 工具执行安全配置)
@@ -11,7 +12,7 @@
 [OUTPUT]
 - CompletionStatus: LLM 回复完成状态枚举（COMPLETE, TRUNCATED, CONTENT_FILTERED）
 - map_to_completion_status(): 将 LLM 提供商原始 finish_reason（含断流哨兵）映射为领域枚举
-- AgentRunStatistics: Agent 执行统计数据类（duration, tool_call_count, token_usage, completion_status 等）
+- AgentRunStatistics: Agent 执行统计数据类（duration, tool_call_count, token_usage, completion_status 等），`record_error()` 以脱敏后的单行文本记录运行失败
 - QuoteAttachment: 划词引用附件（source_message_id, quoted_text），通过 HumanMessage.additional_kwargs 传递给 inject_ephemeral_quote()
 - WorkspaceBinding: Agent 运行工作区绑定配置（mode, root_path, chat_id, task_id）
 - AgentRuntimeSpec: Agent 运行时规范（agent_id, name, system_prompt, allowed_tools, skill_ids 等），Server 层编译、Harness 层执行
@@ -28,6 +29,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.utils.token_economics.tracker import TokenUsage
 from myrm_agent_harness.utils.token_economics.usage_ledger import (
     DROPPED_STREAM_FINISH_REASON,
@@ -98,6 +100,14 @@ class AgentRunStatistics:
     completion_status: CompletionStatus = CompletionStatus.COMPLETE
     compression_exhausted: bool = False
     context_budget: ContextBudgetSnapshot | None = None
+
+    def record_error(self, error_type: str, message: str) -> None:
+        """Keep the run's failure as one line of text with credentials masked.
+
+        The text leaves the process in the SESSION_END hook payload, so a key a provider echoed back in its
+        error message never reaches a hook endpoint.
+        """
+        self.error_message = redact_sensitive_text(f"{error_type}: {message}")
 
 
 @dataclass(frozen=True, slots=True)
