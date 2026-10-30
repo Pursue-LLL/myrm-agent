@@ -50,7 +50,7 @@ async def attach_to_chat(
             # 1. Yield the full snapshot first
             from app.schemas.streaming import SSEEnvelope
 
-            yield SSEEnvelope(type="catchup_snapshot", data=snapshot, message_id=collector.message_id).to_sse_chunk()
+            yield SSEEnvelope(type="catchup_snapshot", data=snapshot, messageId=collector.message_id).to_sse_chunk()
 
             # 2. Yield real-time events
             while True:
@@ -97,14 +97,19 @@ async def attach_to_chat(
 async def get_active_sessions() -> JSONResponse:
     """Get active agent sessions for Multi-Pane status overview.
 
-    Returns running sessions and available concurrent execution slots.
+    Returns running sessions, the chats parked behind a tool-approval card (their session is released while they wait, yet a
+    reloaded page can still get the card back through attach), and available concurrent execution slots.
     """
     from app.core.utils.response_utils import success_response
+    from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
 
     gateway = get_agent_gateway()
     return success_response(
         data={
             "activeSessions": gateway.get_active_sessions(),
+            "awaitingApprovalChatIds": sorted(
+                chat_id for chat_id, collector in ACTIVE_COLLECTORS.items() if collector.has_pending_tool_approval()
+            ),
             "maxConcurrent": gateway.config.max_per_user,
             "availableSlots": gateway.get_available_slots(),
         }

@@ -1357,7 +1357,10 @@ async function replayPendingHitlFromProbe(
   return useToolApprovalStore.getState().queue.length;
 }
 
-/** Bounded attach for SHPOIB E2E: replay pending tool_approval_request without blocking on HITL wait. */
+/**
+ * Bounded attach that brings back the tool-approval card of a turn parked behind it, without holding the page's turn state open
+ * (the collector of a parked turn never ends its attach stream). Used by the reload recovery in `loadMessages` and by the SHPOIB E2E bridge.
+ */
 export const attachForHitlRecovery = async (
   chatId: string,
   actions: ChatActionsMethods,

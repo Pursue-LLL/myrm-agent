@@ -52,10 +52,10 @@ export const loadMessages = async (
   // the DB snapshot may not have persisted the in-flight assistant message
   // (SSE-injected routingTier etc.), so we merge instead of replacing below.
   const activeStreamAtStart = useChatStore.getState().currentSessionMessageId ?? null;
-  // 服务端是否仍在执行必须在取消息快照之前采样：回合恰好在快照之后才收尾时，页面拿到的是它收尾前的消息，
+  // 服务端对这个 chat 的状态必须在取消息快照之前采样：回合恰好在快照之后才收尾时，页面拿到的是它收尾前的消息，
   // 若探测排在快照之后，就会把它当成「已结束」而永远停在旧状态；先采样则记为「仍在执行」，由 attach 补齐。
-  const runningProbe =
-    !preserveInstantSessionConfig && !options?.skipActiveTurnAttach ? isTurnRunningOnServer(chatId) : null;
+  const serverTurnProbe =
+    !preserveInstantSessionConfig && !options?.skipActiveTurnAttach ? sampleServerTurn(chatId) : null;
   try {
     actions.setMessages((state) => {
       state.loading = true;
@@ -191,13 +191,13 @@ export const loadMessages = async (
       });
     }
 
-    if (runningProbe) {
+    if (serverTurnProbe) {
       console.log('[MYRM-ATTACH] loadMessages triggers maybeAttachToActiveTurn', {
         chatId,
         preserveInstantSessionConfig,
         skip: options?.skipActiveTurnAttach,
       });
-      void maybeAttachToActiveTurn(chatId, actions, runningProbe);
+      void maybeAttachToActiveTurn(chatId, actions, serverTurnProbe);
     } else {
       console.log('[MYRM-ATTACH] loadMessages SKIPS attach', {
         chatId,
@@ -289,15 +289,25 @@ export const loadMessages = async (
 /** 正在尝试恢复进行中 agent 执行的 chat，防止并发重复 attach。 */
 const activeTurnAttachInFlight = new Set<string>();
 
-/** 服务端此刻是否正在执行这个 chat 的回合（探测失败按「没有」处理，恢复只是尽力而为）。 */
-async function isTurnRunningOnServer(chatId: string): Promise<boolean> {
+/** 服务端对一个 chat 的回合状态：正在执行，或停在工具审批卡上（会话已释放，只有 collector 还握着卡片）。 */
+interface ServerTurnState {
+  running: boolean;
+  awaitingApproval: boolean;
+}
+
+/** 服务端状态采样（探测失败按「没有回合」处理，恢复只是尽力而为）。 */
+async function sampleServerTurn(chatId: string): Promise<ServerTurnState> {
   try {
-    const sessions = await apiRequest<{ activeSessions?: Array<{ chatId: string }> }>('/agents/active-sessions', {
-      silent: true,
-    });
-    return sessions.activeSessions?.some((session) => session.chatId === chatId) ?? false;
+    const sessions = await apiRequest<{
+      activeSessions?: Array<{ chatId: string }>;
+      awaitingApprovalChatIds?: string[];
+    }>('/agents/active-sessions', { silent: true });
+    return {
+      running: sessions.activeSessions?.some((session) => session.chatId === chatId) ?? false,
+      awaitingApproval: sessions.awaitingApprovalChatIds?.includes(chatId) ?? false,
+    };
   } catch {
-    return false;
+    return { running: false, awaitingApproval: false };
   }
 }
 
@@ -308,16 +318,18 @@ function isIdleOnChat(chatId: string): boolean {
 }
 
 /**
- * 页面重载 / 重新进入 chat 后恢复仍在后端执行的回合：
+ * 页面重载 / 重新进入 chat 后恢复后端上还没结束的回合：
  * - 最后一条是 user 消息：agent 可能仍在执行，尝试 attachToChat 恢复 SSE 流。
- * - 最后一条是 assistant 消息：通常回合已结束；但点了 Approve 后续跑还在进行时重载，最后一条就是停在审批处的
- *   assistant 消息，服务端仍在跑，只有 `runningProbe`（加载开始时对服务端的采样）确认这个 chat 在执行时才 attach。
+ * - 最后一条是 assistant 消息：通常回合已结束，只有 `serverTurnProbe`（加载开始时对服务端的采样）说这个 chat 还有回合时才恢复：
+ *   - 在执行（点了 Approve 后续跑还在进行时重载，最后一条就是停在审批处的 assistant 消息）：attachToChat 接上它的流；
+ *   - 停在工具审批卡上（回合已停下、会话已释放，卡片只在服务端 collector 里，没有落库）：有界 attach 把卡片重放回来，
+ *     不能用 attachToChat——collector 一直挂着，那条流不会结束，页面会永远停在加载中。
  * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在「已发送未回复」。
  */
 async function maybeAttachToActiveTurn(
   chatId: string,
   actions: ChatActionsMethods,
-  runningProbe: Promise<boolean>,
+  serverTurnProbe: Promise<ServerTurnState>,
 ): Promise<void> {
   if (activeTurnAttachInFlight.has(chatId)) {
     return;
@@ -344,11 +356,17 @@ async function maybeAttachToActiveTurn(
 
   activeTurnAttachInFlight.add(chatId);
   try {
-    if (last.role !== 'user' && !(await runningProbe)) {
+    const serverTurn = last.role === 'user' ? null : await serverTurnProbe;
+    if (serverTurn && !serverTurn.running && !serverTurn.awaitingApproval) {
       return;
     }
     // 等探测结果期间，用户可能已经发起了自己的回合，或离开了这个 chat。
     if (!isIdleOnChat(chatId)) {
+      return;
+    }
+    if (serverTurn && !serverTurn.running) {
+      const { attachForHitlRecovery } = await import('./messageRequest');
+      await attachForHitlRecovery(chatId, actions, useChatStore.getState);
       return;
     }
     console.log('[MYRM-ATTACH] calling attachToChat', chatId);

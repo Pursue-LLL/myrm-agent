@@ -169,6 +169,14 @@ class StreamContentCollector:
         """True when attach subscribers may still need interrupt replay."""
         return bool(self._pending_interrupt_events)
 
+    def has_pending_tool_approval(self) -> bool:
+        """True while the turn is parked behind a tool-approval card that only this collector can hand back to a new page.
+
+        A clarification is stored with the message and an ``approval_required`` card has its registry record; a tool-approval card
+        has neither, so a page that reloads while the turn waits gets it again only by replaying the collector's events.
+        """
+        return any(event.get("type") == "tool_approval_request" for event in self._pending_interrupt_events)
+
     @property
     def tool_stuck_paused(self) -> bool:
         """True when the loop guard paused the turn: it has no card to answer, so the turn is over."""

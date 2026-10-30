@@ -6,6 +6,7 @@ import { loadMessages } from '@/store/chat/messageManagement';
 const getChatDetailMock = vi.hoisted(() => vi.fn());
 const getMessagesMock = vi.hoisted(() => vi.fn());
 const attachToChatMock = vi.hoisted(() => vi.fn());
+const attachForHitlRecoveryMock = vi.hoisted(() => vi.fn());
 const apiRequestMock = vi.hoisted(() => vi.fn());
 const restoreAgentConfigFromChatMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
@@ -83,7 +84,7 @@ vi.mock('@/services/uploadController', () => ({
 
 vi.mock('@/store/chat/messageRequest', () => ({
   attachToChat: attachToChatMock,
-  attachForHitlRecovery: vi.fn(),
+  attachForHitlRecovery: attachForHitlRecoveryMock,
 }));
 
 vi.mock('@/store/chat/chatAgentSessionRestore', () => ({
@@ -120,11 +121,17 @@ function chatDetailPayload(): { chat: Record<string, unknown> } {
 
 const ACTIVE_SESSIONS_ENDPOINT = '/agents/active-sessions';
 
-/** The chats the server reports as executing a turn right now; every other endpoint answers like an idle sandbox. */
-function runningChats(chatIds: string[]): void {
+/**
+ * What the server reports about its chats: the ones executing a turn right now, and the ones parked behind a tool-approval card.
+ * Every other endpoint answers like an idle sandbox.
+ */
+function serverReports(running: string[], awaitingApproval: string[] = []): void {
   apiRequestMock.mockImplementation(async (endpoint: string) =>
     endpoint === ACTIVE_SESSIONS_ENDPOINT
-      ? { activeSessions: chatIds.map((chatId) => ({ chatId })) }
+      ? {
+          activeSessions: running.map((chatId) => ({ chatId })),
+          awaitingApprovalChatIds: awaitingApproval,
+        }
       : { active: false },
   );
 }
@@ -159,7 +166,8 @@ describe('loadMessages active-turn SSE recovery', () => {
     vi.clearAllMocks();
     getChatDetailMock.mockResolvedValue(chatDetailPayload());
     attachToChatMock.mockResolvedValue(true);
-    runningChats([]);
+    attachForHitlRecoveryMock.mockResolvedValue({ ok: true, attached: true, queueLen: 1, source: 'attach' });
+    serverReports([]);
   });
 
   it('attaches to resume a possibly in-flight agent turn when last message is a user message', async () => {
@@ -210,7 +218,7 @@ describe('loadMessages active-turn SSE recovery', () => {
   it('attaches when the last message is an assistant message and the server is still running the chat', async () => {
     setupStore('chat-active');
     lastMessageIs('assistant');
-    runningChats(['chat-active']);
+    serverReports(['chat-active']);
 
     await loadMessages('chat-active', makeActions());
 
@@ -224,7 +232,7 @@ describe('loadMessages active-turn SSE recovery', () => {
   it('does not attach when the server only runs another chat', async () => {
     setupStore('chat-active');
     lastMessageIs('assistant');
-    runningChats(['chat-other']);
+    serverReports(['chat-other']);
 
     await loadMessages('chat-active', makeActions());
     await vi.waitFor(() => {
@@ -289,7 +297,7 @@ describe('loadMessages active-turn SSE recovery', () => {
   it('attaches after a user message without needing the server to report the chat as running', async () => {
     setupStore('chat-active');
     lastMessageIs('user');
-    runningChats([]);
+    serverReports([]);
 
     await loadMessages('chat-active', makeActions());
 
@@ -304,12 +312,37 @@ describe('loadMessages active-turn SSE recovery', () => {
   ])('does not ask the server whether the chat runs when %s is set', async (_name, options) => {
     setupStore('chat-active');
     lastMessageIs('assistant');
-    runningChats(['chat-active']);
+    serverReports(['chat-active'], ['chat-active']);
 
     await loadMessages('chat-active', makeActions(), options);
     await settleRecovery();
 
     expect(activeSessionProbes()).toHaveLength(0);
+    expect(attachToChatMock).not.toHaveBeenCalled();
+    expect(attachForHitlRecoveryMock).not.toHaveBeenCalled();
+  });
+
+  it('does not attach when the user moved to another chat while the probe was in flight', async () => {
+    setupStore('chat-active');
+    lastMessageIs('assistant');
+    let answerProbe: (sessions: { activeSessions: Array<{ chatId: string }> }) => void = () => {};
+    apiRequestMock.mockImplementation(async (endpoint: string) => {
+      if (endpoint !== ACTIVE_SESSIONS_ENDPOINT) {
+        return { active: false };
+      }
+      return new Promise((resolve) => {
+        answerProbe = resolve;
+      });
+    });
+
+    await loadMessages('chat-active', makeActions());
+    await vi.waitFor(() => {
+      expect(activeSessionProbes()).toHaveLength(1);
+    });
+    mockStore.chatId = 'chat-other';
+    answerProbe({ activeSessions: [{ chatId: 'chat-active' }] });
+    await settleRecovery();
+
     expect(attachToChatMock).not.toHaveBeenCalled();
   });
 
@@ -335,6 +368,95 @@ describe('loadMessages active-turn SSE recovery', () => {
     await settleRecovery();
 
     expect(attachToChatMock).not.toHaveBeenCalled();
+  });
+
+  it('brings the approval card back, without attaching to a turn, when the chat is parked behind a tool approval', async () => {
+    setupStore('chat-active');
+    lastMessageIs('assistant');
+    serverReports([], ['chat-active']);
+
+    await loadMessages('chat-active', makeActions());
+
+    await vi.waitFor(() => {
+      expect(attachForHitlRecoveryMock).toHaveBeenCalledTimes(1);
+    });
+    expect(attachForHitlRecoveryMock).toHaveBeenCalledWith('chat-active', expect.anything(), expect.any(Function));
+    // A parked turn has no stream to follow: an attach would never end and the page would stay on "loading".
+    expect(attachToChatMock).not.toHaveBeenCalled();
+    expect(getMessagesMock).toHaveBeenCalledTimes(1);
+    expect(mockStore.loading).toBe(false);
+  });
+
+  it('follows the running turn when the chat is both running and listed as awaiting', async () => {
+    setupStore('chat-active');
+    lastMessageIs('assistant');
+    serverReports(['chat-active'], ['chat-active']);
+
+    await loadMessages('chat-active', makeActions());
+
+    await vi.waitFor(() => {
+      expect(attachToChatMock).toHaveBeenCalledTimes(1);
+    });
+    expect(attachForHitlRecoveryMock).not.toHaveBeenCalled();
+  });
+
+  it('does not bring a card back for a chat other than the one loaded', async () => {
+    setupStore('chat-active');
+    lastMessageIs('assistant');
+    serverReports([], ['chat-other']);
+
+    await loadMessages('chat-active', makeActions());
+    await vi.waitFor(() => {
+      expect(activeSessionProbes()).toHaveLength(1);
+    });
+    await settleRecovery();
+
+    expect(attachForHitlRecoveryMock).not.toHaveBeenCalled();
+    expect(attachToChatMock).not.toHaveBeenCalled();
+  });
+
+  it('does not bring a card back when the user started a turn while the probe was in flight', async () => {
+    setupStore('chat-active');
+    lastMessageIs('assistant');
+    let answerProbe: (sessions: { activeSessions: never[]; awaitingApprovalChatIds: string[] }) => void = () => {};
+    apiRequestMock.mockImplementation(async (endpoint: string) => {
+      if (endpoint !== ACTIVE_SESSIONS_ENDPOINT) {
+        return { active: false };
+      }
+      return new Promise((resolve) => {
+        answerProbe = resolve;
+      });
+    });
+
+    await loadMessages('chat-active', makeActions());
+    await vi.waitFor(() => {
+      expect(activeSessionProbes()).toHaveLength(1);
+    });
+    mockStore.loading = true;
+    answerProbe({ activeSessions: [], awaitingApprovalChatIds: ['chat-active'] });
+    await settleRecovery();
+
+    expect(attachForHitlRecoveryMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the load and later recoveries working when bringing the card back fails', async () => {
+    setupStore('chat-active');
+    lastMessageIs('assistant');
+    serverReports([], ['chat-active']);
+    attachForHitlRecoveryMock.mockRejectedValueOnce(new Error('attach failed'));
+
+    await expect(loadMessages('chat-active', makeActions())).resolves.toBeUndefined();
+    await vi.waitFor(() => {
+      expect(attachForHitlRecoveryMock).toHaveBeenCalledTimes(1);
+    });
+    await settleRecovery();
+    expect(mockStore.isMessagesLoaded).toBe(true);
+
+    // The failed recovery must not leave the chat marked as "recovery in flight".
+    await loadMessages('chat-active', makeActions());
+    await vi.waitFor(() => {
+      expect(attachForHitlRecoveryMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('refetches final messages when attach returns false (agent already finished)', async () => {

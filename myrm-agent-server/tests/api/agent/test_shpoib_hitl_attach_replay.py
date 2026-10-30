@@ -7,6 +7,7 @@ is flaky: pending tool_approval_request → collector replay → hitl-probe / at
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 from unittest.mock import patch
 
@@ -38,7 +39,7 @@ def _approval_event() -> dict[str, object]:
 
 
 @pytest.fixture(autouse=True)
-def _clear_active_collectors() -> None:
+def _clear_active_collectors() -> Iterator[None]:
     ACTIVE_COLLECTORS.clear()
     yield
     ACTIVE_COLLECTORS.clear()
@@ -100,8 +101,58 @@ def test_hitl_probe_exposes_pending_interrupt_events() -> None:
     collector.cleanup()
 
 
+def _awaiting_approval_chat_ids(client: TestClient) -> list[str]:
+    response = client.get("/api/v1/agents/active-sessions")
+    assert response.status_code == 200
+    ids = response.json()["data"]["awaitingApprovalChatIds"]
+    assert isinstance(ids, list)
+    return ids
+
+
+def test_active_sessions_lists_the_chat_parked_behind_a_tool_approval(client: TestClient) -> None:
+    """A parked turn has released its gateway session: this list is how a reloaded page learns the card can be brought back."""
+    chat_id = "chat-parked-behind-approval"
+    collector = StreamContentCollector(chat_id=chat_id)
+    collector.feed_event(_approval_event())
+
+    assert _awaiting_approval_chat_ids(client) == [chat_id]
+    assert chat_id not in [s["chatId"] for s in client.get("/api/v1/agents/active-sessions").json()["data"]["activeSessions"]]
+
+
+def test_active_sessions_leaves_out_chats_without_a_tool_approval_to_hand_back(client: TestClient) -> None:
+    """Only a tool-approval card needs the collector: a plain run, a clarification and an approval record are restored elsewhere."""
+    parked_elsewhere: dict[str, dict[str, object]] = {
+        "chat-plain-run": {"type": "message", "data": "partial"},
+        "chat-clarification": {"type": "clarification_required", "messageId": "msg-c", "data": {}},
+        "chat-approval-record": {"type": "approval_required", "messageId": "msg-a", "data": {}},
+    }
+    for chat_id, event in parked_elsewhere.items():
+        StreamContentCollector(chat_id=chat_id).feed_event(event)
+
+    assert _awaiting_approval_chat_ids(client) == []
+
+
+def test_active_sessions_drops_the_chat_once_the_resumed_run_took_over(client: TestClient) -> None:
+    """Approve starts a new collector for the chat, so the page that reloads afterwards is not offered the answered card."""
+    chat_id = "chat-approved-and-resumed"
+    parked = StreamContentCollector(chat_id=chat_id)
+    parked.feed_event(_approval_event())
+    assert _awaiting_approval_chat_ids(client) == [chat_id]
+
+    StreamContentCollector(chat_id=chat_id).feed_event({"type": "message", "data": "resumed"})
+
+    assert _awaiting_approval_chat_ids(client) == []
+    parked.cleanup()
+    assert chat_id in ACTIVE_COLLECTORS
+
+
 def test_sse_response_headers_enable_shpoib_cross_origin_reads() -> None:
     assert SSE_RESPONSE_HEADERS.get("Cross-Origin-Resource-Policy") == "cross-origin"
+
+
+async def _next_chunk(body: AsyncIterator[str | bytes | memoryview]) -> str:
+    chunk = await anext(body)
+    return chunk if isinstance(chunk, str) else bytes(chunk).decode()
 
 
 class _FakeRequest:
@@ -131,20 +182,20 @@ async def test_attach_stream_terminates_after_collector_cleanup() -> None:
 
         response = await attach_to_chat(chat_id, _FakeRequest())  # type: ignore[arg-type]
         assert isinstance(response, StreamingResponse)
-        body = response.body_iterator
+        body = aiter(response.body_iterator)
 
         # 1. catchup_snapshot is yielded first
-        first = await anext(body)
+        first = await _next_chunk(body)
         assert "catchup_snapshot" in first
 
         # 2. Real-time event is streamed while collector is active
         collector.feed_event({"type": "message", "data": "live-chunk"})
-        second = await anext(body)
+        second = await _next_chunk(body)
         assert "live-chunk" in second
 
         # 3. Once the turn finalizes, the stream must terminate promptly
         collector.cleanup()
         with pytest.raises(StopAsyncIteration):
-            await asyncio.wait_for(anext(body), timeout=5)
+            await asyncio.wait_for(_next_chunk(body), timeout=5)
     finally:
         collector.cleanup()
