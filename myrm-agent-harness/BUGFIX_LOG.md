@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-127 · Agent 工具按蓝图建定时任务时丢掉蓝图声明的 job 类型、命令、会话模式、去重、跳过未结束的运行、超时、监控、失败告警与预检脚本；任务内容规则只管创建、router 任务被当成 agent 任务
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `toolkits/cron/`：新增 `blueprint_job_spec.py`，改 `cron_agent_tools.py`、`manager.py`、`manager_validation.py`、`__init__.py`、`_ARCH.md`；`scripts/file_line_baseline.txt` 里 `cron_agent_tools.py` 上限 870→860；server 侧的转换与创建见产品台账同日条目；没有改提示词与工具 schema）。本地提交 `7a6cf61b3d`，未 push。 |
+| **发现时间** | 2026-10-30（收口 `skip_if_active` 字段链问题时，把「蓝图填充结果 → 创建任务」这一跳逐个蓝图对比）。 |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P2（蓝图任务悄悄少了设置：wiki 系列蓝图应是带内置命令的 router 任务，却被建成没有命令的 agent 任务；金融监控蓝图少了失败告警、监控配置与超时）。 |
+| **关联产品** | Agent 的定时任务工具（`cron_manage` 的 `add` + 蓝图）、REST 创建与编辑定时任务。工具 schema 与描述不变（sha256 前后相同），Prompt Cache 不受影响。 |
+| **根因** | ① `create_cron_tools` 的 `blueprint_filler` 约定是一个 6 元组（调度、提示词、名称、能力、工具、技能），`_do_add` 另有一组局部变量接着用；蓝图声明的其余设置没有通道到达 `create_job`，字段漏了谁谁就消失，没有测试把蓝图声明与存下来的任务逐个对上。② 内容规则（shell 要命令、其余要提示词）只在 `_validate_create`；`update_job` 在改动前不检查，所以编辑可以把提示词清空；router 任务按 agent 规则要求提示词，只有预检脚本的 router 任务被拒。 |
+| **修复** | ① 新增冻结的 `BlueprintJobSpec`（15 个字段）与 `BlueprintFiller`；`blueprint_filler` 改为返回 spec（未知蓝图仍返回 `None`）；`_do_add` 的调度、类型、会话模式、监控、命令、去重、跳过、超时、失败告警、预检脚本都以 spec 为后备，显式工具参数优先；spec 里的间隔调度同样要求不小于 5 分钟；`type_label` 加 `Router`；`_do_add` 只多接一个 `spec` 参数；`BlueprintJobSpec` 从 `toolkits.cron` 包根导出。② `manager_validation.py` 新增 `_validate_job_content`（shell 要命令；router 要提示词或预检脚本；其余要提示词）与 `_validate_update_content`；`_validate_create` 多收 `pre_condition_script`；`update_job` 在所有权检查之后、改动之前校验「补丁生成的记录」，补丁没碰提示词、命令、预检脚本时不检查，`clear_pre_condition_script` 压过新的脚本值。`manager.py` 保持 583 行。 |
+| **反复次数** | 第 2 次（承接同日 server 台账「定时任务编辑时不写入前置检查脚本」：同一类「手写字段清单漏字段」，这次补的是蓝图到创建任务这一跳与内容规则）。 |
+| **踩坑** | ① 自审发现 spec 的间隔调度直接进入创建、绕过了工具原有的 5 分钟下限（`_build_schedule` 里的检查），补了检查与测试，`cron_agent_tools.py` 由 854 行回到 860。② server 的逐字段对比第一次红在 `tools_allowed`：包装管理器把空元组归一为 `None`，两边都改为按 `or None` 比较。③ server 把 `toolkits.cron.blueprint_job_spec` 当作深导入，两个架构测试变红（新增深导入、基线不符），改为从包根导出后恢复；同时发现基线里还留着已删除的 BM25 后端的条目，一并删除。④ 在 `toolkits/cron` 目录里直接跑 python 脚本，本地 `types.py` 遮住标准库 `types` 导入失败，改到仓库根运行。⑤ 提交脚本里用了 zsh 的 `path` 作循环变量，它与 `PATH` 绑定，`git` 随即找不到；提交本身已经完成，重新同步索引后确认只含本次文件。 |
+| **回归** | [1] 前后快照（实测）：工具 schema 与描述 sha256 前后同为 `1ddd03f23465…`；18 个蓝图里 11 个前后一致，7 个变为与蓝图定义一致。[2] 新测试 31 例：`test_cron_job_content_rule.py` 13 例（创建与编辑的规则、改动前校验、清除标志优先），`test_cron_blueprint_job_spec.py` 18 例（`BlueprintJobSpec` 每个字段都到达存下来的任务、显式参数优先、间隔下限、重复任务确认、超时默认值与 `CronJob`/`create_job` 不漂移、无蓝图的 `add` 不变）。[3] 变异验证（进程内、改后还原）：编辑一侧去掉校验、`_do_add` 少转发 6 个字段中的任何一个，各自变红。[4] `tests/toolkits/cron` 783 passed；`check_file_line_limit`、`boundary_check`、`check_package_root_layout`、`check_import_resolvability`、`check_test_source_assertions`、`check_fractal_docs`、`md_ref_validator` 通过；ruff、ruff format、pyright 触及文件 0 条。[5] `test_cron_manager.py` 里 `TestValidation` 两例（`_validate_create(JobType.AGENT/SHELL, schedule, None, None)`）未改动，仍通过。 |
+| **仍然存在** | ① 已建出的旧任务不回填。② server 的 REST `/blueprints/fill` 把填充结果交给前端表单，那一跳没有改。③ `cron_agent_tools.py` 仍有 860 行，超过 500 行上限，由基线登记；没有拆分。④ `tool_setup.py` 把 `EntitlementGuardedCronManager`（不是 `CronManager` 的子类）传给 `create_cron_tools`，类型检查一直报错，没有处理。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/cron/{blueprint_job_spec,cron_agent_tools,manager,manager_validation,__init__}.py` · `src/myrm_agent_harness/toolkits/cron/_ARCH.md` · `scripts/file_line_baseline.txt` · `tests/toolkits/cron/{test_cron_job_content_rule,test_cron_blueprint_job_spec}.py` |
+
 ### BUG-HARNESS-2026-10-30-126 · 错误卡把供应商正文里的中文显示成乱码、聚合网关只显示包装层的话、客户端库在发请求之前抛出的错误被当成供应商的话；DashScope 与 Codex 的内容策略拒绝被当成普通请求错误
 
 | 字段 | 内容 |
