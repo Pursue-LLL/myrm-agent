@@ -32,7 +32,9 @@ export const PresentationTrigger: React.FC<PresentationTriggerProps> = ({ showTr
     const handleKeyDown = (e: KeyboardEvent) => {
       const isAltOrOption = e.altKey;
       const isMetaOrCtrl = e.metaKey || e.ctrlKey;
-      if (isAltOrOption && isMetaOrCtrl && (e.key === 'p' || e.key === 'P')) {
+      // macOS rewrites `key` while Option is held (Option+P yields 'π'), so match the physical `code` first.
+      // The modifier checks stay in front so `key` is only read for real shortcut presses.
+      if (isAltOrOption && isMetaOrCtrl && (e.code === 'KeyP' || e.key.toLowerCase() === 'p')) {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       }
