@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-30-133 · 技能进化引擎从进化存储里的副本起草修复与派生：用户在编辑器、版本回滚或 agent 的技能工具里改过的技能，提案基于已经不存在的文本
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness `agent/skills/evolution/core/{engine,skill_on_disk}.py`、`backends/skills/_runtime.py`、`api/skills.py` 与对应 `_ARCH.md`、`agent/skills/SKILL_SYSTEM.md`、`tests/agent/skills/evolution/test_skill_on_disk.py`、`tests/api/test_integration_surface.py`；没有改提示词与工具 schema；server 一并改动，见产品台账同日条目「技能进化：批准后应用失败的提案点「拒绝」返回 404…」）。本地提交 `809b1549f1`，未 push。 |
+| **发现时间** | 2026-10-30（复核同日 server 条目里「在两个接口里让存储副本跟随磁盘」的做法时，追到引擎的另外两个调用方不经过那两个接口）。 |
+| **修复时间** | 2026-10-30 |
+| **严重程度** | P3。server 有一环丢弃「基于已过期文本」的提案，所以后果是一次多余的模型调用；没有这一环的使用方会拿到基于旧文本的提案。没有观察到数据丢失。 |
+| **关联产品** | 所有使用 `SkillEvolutionEngine` 的产品；server 是仓库里唯一的产品调用方。引擎只在后台起草，模型输入里的技能正文换成文件的文本，不进主 agent 的系统提示、工具 schema 与历史消息，Prompt Cache 不受影响。 |
+| **根因** | `fix_skill` 与 `derive_skill_simple` 用 `self._store.get_skill(skill_id)` 读到的 `SkillRecord.content` 当「原技能」：它既是模型输入与变体基线，也是 `ProposalBuilder` 写进提案的 `original_content`（`proposal_builder.py:91`）。存储副本只在保存与批准应用时更新，而加载器读的是磁盘文件；设置页编辑器、版本回滚与 agent 的技能工具（读代码推断）只改文件。 |
+| **修复** | ① `core/skill_on_disk.py` 新增 `skill_from_disk(skill)`：读磁盘上的 SKILL.md（`read_skill_md`），与存储副本不同（换行写法不计）时返回内容换成文件文本的副本（`dataclasses.replace`，不改原对象）；没有路径、读不到、文本相同、或文件超过存储能存的 `MAX_SKILL_CONTENT_CHARS`（65,536 字符）时原样返回，超限记 WARNING。② `fix_skill` 与 `derive_skill_simple` 在锁定检查之后各调用一次，所有调用方（手动修复与派生、运行时自动修复、harness 队列）都经过这两个入口；模型输入、变体基线与提案的 `original_content` 取文件文本。引擎对存储保持只读，存储副本只在批准应用时由业务层更新。③ `read_skill_md` 放在 `backends/skills/_runtime.py`（`compute_content_hash` 旁），经 `api.skills` 导出：无法解码的字节替换后读取，同一个文件两次读到的文本与哈希相同；server 用同一个读法计算提案的基线哈希。 |
+| **反复次数** | 第 2 次：同日 server 条目里先做过一版，在修复与派生接口里把存储副本刷新成文件，只覆盖这两个接口，队列与运行时自动修复不经过它，已删除，改为在引擎入口读文件。 |
+| **踩坑** | ① 起初想把「从磁盘同步」做成 `SkillStore` 的方法；读代码发现 `save_skill` 是整行 `INSERT OR REPLACE` 且重新解析依赖边，引擎读与写之间别处写入的字段会被覆盖，引擎文档也约定对存储只读，改成内存覆盖。② server 一度直接导入 `core.skill_on_disk`，server 的深层导入基线测试（`test_no_new_server_deep_harness_imports`、`test_baseline_matches_current_imports`）各红 1 例；把读函数移到 `backends/skills/_runtime.py` 并经 `api.skills` 导出后消失，`tests/api/test_integration_surface.py` 里 `api.skills` 的导出名单同步加了 `read_skill_md`。 |
+| **回归** | [1] 变异（先备份、改、只跑 `test_skill_on_disk.py`、还原并用 `cmp` 核对）：去掉 `fix_skill` 入口的调用 1 例红；去掉 `derive_skill_simple` 入口的调用 1 例红；`skill_from_disk` 永不替换 2 例红；不看大小上限 1 例红；把忽略换行的哈希比较改成逐字符比较 1 例红；5 个变异全被杀，不变异时 6 例通过。[2] 新增 `test_skill_on_disk.py` 6 例：覆盖层不改原对象、仅换行写法不同时返回原对象、读不到的路径（含带 NUL 的路径）返回原对象、超限文件返回原对象并记 WARNING、无法解码的字节两次读取相同、引擎的修复与派生交给变体生成的是文件文本而存储里的行不变。[3] `tests/agent/skills/evolution` 377 通过；加上 `tests/api`、`tests/backends/skills` 共 1040 通过；改动文件的 ruff、格式检查、pyright（带 `-p pyproject.toml`）0 错误；`validate_arch_inventory`、`check_fractal_docs`、`check_file_line_limit`、`boundary_check` 通过。harness 的 mypy 在未改动的 `core/types.py` 上也会内部崩溃，没有 mypy 结果。 |
+| **仍然存在** | ① 超过 65,536 字符的 SKILL.md 仍用存储副本起草，由读代码得出，没有用真实的超大文件跑。② 引擎起草期间文件又被改动的情形，引擎自己不处理，由业务层在落地前比对丢弃（server 的自动批准流程做了这一步）。③ 存储副本落后于文件的频率没有测过。 |
+| **代码位置** | `src/myrm_agent_harness/agent/skills/evolution/core/{engine.py,skill_on_disk.py,_ARCH.md}` · `src/myrm_agent_harness/backends/skills/{_runtime.py,_ARCH.md}` · `src/myrm_agent_harness/api/{skills.py,_ARCH.md}` · `src/myrm_agent_harness/agent/skills/SKILL_SYSTEM.md` · `tests/agent/skills/evolution/test_skill_on_disk.py` · `tests/api/test_integration_surface.py` |
+
 ### BUG-HARNESS-2026-10-30-132 · 技能自带的钩子能把宿主进程里任何环境变量的值写进请求头或签名密钥：`auth`、`secret` 的 `$NAME` 引用不挑变量名
 
 | 字段 | 内容 |
