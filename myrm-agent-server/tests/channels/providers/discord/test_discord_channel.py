@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -72,6 +73,25 @@ async def test_stop(channel):
     assert channel.status == ChannelStatus.STOPPED
     channel._client.close.assert_called_once()
     channel._gateway_task.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_stop_after_the_gateway_session_failed_still_closes_the_client(channel):
+    """A health-triggered restart stops a channel whose session already ended with an error."""
+
+    async def failed_session() -> None:
+        raise discord.LoginFailure("Improper token has been passed.")
+
+    channel._client = MagicMock()
+    channel._client.is_closed.return_value = False
+    channel._client.close = AsyncMock()
+    channel._gateway_task = asyncio.create_task(failed_session())
+    await asyncio.sleep(0)
+
+    await channel.stop()
+
+    assert channel.status == ChannelStatus.STOPPED
+    channel._client.close.assert_called_once()
 
 
 @pytest.mark.asyncio

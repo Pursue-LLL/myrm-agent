@@ -280,14 +280,18 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
         self._gateway_task = loop.create_task(self._client.start(self.config.bot_token))
 
     async def stop(self) -> None:
+        """Leave voice, release the gateway session, then close the client.
+
+        Leaving voice comes first because discord.py waits for a gateway event that confirms it. The session is released
+        before the close handshake: a stop that hangs there is abandoned by the gateway supervisor, and a session left
+        running would keep receiving events next to the one the restart starts.
+        """
         if self._status == ChannelStatus.STOPPED:
             return
         logger.info("Stopping Discord channel")
         if self._voice_manager:
             await self._voice_manager.leave_all()
             self._voice_manager = None
-        if self._client and not self._client.is_closed():
-            await self._client.close()
         if self._gateway_task:
             self._gateway_task.cancel()
             try:
@@ -295,7 +299,11 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
                     await self._gateway_task
             except asyncio.CancelledError:
                 pass
+            except Exception as exc:
+                logger.warning("Discord gateway session had already failed: %s", exc)
         self._status = ChannelStatus.STOPPED
+        if self._client and not self._client.is_closed():
+            await self._client.close()
 
     async def health_check(self) -> bool:
         """Verify Discord connectivity via REST API probe.
