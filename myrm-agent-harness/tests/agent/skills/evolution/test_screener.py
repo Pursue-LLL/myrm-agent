@@ -13,6 +13,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
+from myrm_agent_harness.agent.skills.evolution.pipeline.confirmation import extract_error_signals
 from myrm_agent_harness.agent.skills.evolution.pipeline.screener import EvolutionScreener
 
 _CODE = "def test():\n    pass"
@@ -179,11 +180,9 @@ async def test_screener_intent_override(mock_store):
     assert result.phase == "none"
 
 
-@pytest.mark.asyncio
-async def test_screener_extract_signals(mock_store):
-    screener = EvolutionScreener(store=mock_store)
+def test_extract_signals_reads_status_exception_and_keywords():
     log = "HTTP 404 Not Found at url. Connection timeout during request. ValueError: invalid format."
-    signals = screener._extract_error_signals(log)
+    signals = extract_error_signals(log)
 
     assert "404" in signals.get("http_status", "")
     assert "ValueError" in signals.get("exception_types", "")

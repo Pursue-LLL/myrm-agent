@@ -1,12 +1,14 @@
-"""More tests for EvolutionScreener."""
+"""Tests for the screener's text helpers."""
 
-from myrm_agent_harness.agent.skills.evolution.pipeline.screener import EvolutionScreener
+from myrm_agent_harness.agent.skills.evolution.pipeline.confirmation import (
+    extract_error_signals,
+    parse_confirmation_response,
+)
 
 
 def test_extract_error_signals():
-    screener = EvolutionScreener(store=None)
     error_log = "HTTP 404 timeout ValueError connection"
-    signals = screener._extract_error_signals(error_log)
+    signals = extract_error_signals(error_log)
     assert "404" in signals["http_status"]
     assert "ValueError" in signals["exception_types"]
     assert "timeout" in signals["error_keywords"]
@@ -14,25 +16,24 @@ def test_extract_error_signals():
 
 
 def test_parse_llm_response():
-    screener = EvolutionScreener(store=None)
 
-    dec, reason, conf = screener._parse_llm_response("YES\nReason: fix it")
+    dec, reason, conf = parse_confirmation_response("YES\nReason: fix it")
     assert dec is True
     assert "fix it" in reason
 
-    dec, reason, conf = screener._parse_llm_response("NO\nReason: too hard")
+    dec, reason, conf = parse_confirmation_response("NO\nReason: too hard")
     assert dec is False
     assert "too hard" in reason
 
-    dec, reason, conf = screener._parse_llm_response('{"approved": true, "reason": "ok", "confidence": 0.9}')
+    dec, reason, conf = parse_confirmation_response('{"approved": true, "reason": "ok", "confidence": 0.9}')
     assert dec is True
     assert reason == "ok"
     assert conf == 0.9
 
-    dec, reason, conf = screener._parse_llm_response("CONFIRMED it's good")
+    dec, reason, conf = parse_confirmation_response("CONFIRMED it's good")
     assert dec is True
     assert "good" in reason
 
-    dec, reason, conf = screener._parse_llm_response("REJECTED it's bad")
+    dec, reason, conf = parse_confirmation_response("REJECTED it's bad")
     assert dec is False
     assert "bad" in reason
