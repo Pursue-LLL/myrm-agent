@@ -12,7 +12,7 @@
 - calculate_jaccard_similarity: Fast character-ngram / word overlap for semantic dedup.
 - truncate_snippet_text: Cut a snippet to a character budget at a sentence or word boundary.
 - KnowledgePackSelector: Select, dedup, and enforce strict token/character budget on snippets.
-- resolve_proactive_snippets_from_vaults: Retrieve and budget snippets from the shared vaults; the vaults are scanned in one worker thread so the timeout can fire.
+- resolve_proactive_snippets_from_vaults: Retrieve and budget snippets from the shared vaults; the vaults are scanned in one thread of a small pool of its own so the timeout can fire.
 
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
@@ -25,10 +25,13 @@ covers. Both tiers give each page its one best paragraph by ``paragraph_relevanc
 the page answers the question, ranked by that score, so most questions the vault does not answer inject nothing, one
 long page cannot take every slot, and the order of the mounted vaults never decides which page wins. Every page file
 it reads goes through the wiki publish gate again, so a draft or blocked page never reaches the injected context,
-and snippets never lead with the page's frontmatter. A shared vault is written by another process, so a page file
-is read only when it lies inside the vault, whatever the index or a symlink says. The scan blocks on file and
-database reads, so every vault is scanned in one worker thread, one after the other: the timeout fires on time and a
-slow mount does not stall the loop.
+and snippets never lead with the page's frontmatter. A shared vault is written by another process, so its index
+file and its page files are read only when they lie inside the vault, whatever the index or a symlink says: an indexed
+page whose file lies outside is held back and logged, while a page with no file at all (a raw interim entry) stands
+on its index row. The scan blocks on file and database reads, so each turn scans all vaults in one thread, one after
+the other, of a small pool of its own: the timeout fires on time, a slow mount does not stall the loop, and a mount
+that never answers pins at most that pool's threads instead of the default pool every other ``asyncio.to_thread``
+caller shares.
 """
 
 from __future__ import annotations
@@ -38,6 +41,7 @@ import heapq
 import logging
 import time
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from myrm_agent_harness.api import index_has_pages, is_within_boundary, search_published_index
@@ -60,6 +64,8 @@ logger = logging.getLogger(__name__)
 
 _MAX_INDEXED_SNIPPETS = 5
 _MAX_SCANNED_FILES = 15
+# A scan that never returns (a mount that does not answer) pins its thread for good; this bounds what it can pin.
+_SCAN_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="knowledge-pack-scan")
 
 
 def calculate_jaccard_similarity(text_a: str, text_b: str) -> float:
@@ -119,7 +125,6 @@ def _best_paragraph(title: str, text: str, terms: Sequence[str]) -> tuple[str, f
     The first of equally relevant paragraphs wins. A text made of headings only, such as the one flat line an index
     row stores for a page that has no file, is read as its first block as it is.
     """
-
     paragraphs = _paragraphs(text) or [block.strip() for block in text.split("\n\n") if block.strip()][:1]
     best, best_score = "", 0.0
     for paragraph in paragraphs:
@@ -143,16 +148,24 @@ def _page_snippet(label: str, title: str, body: str, terms: Sequence[str], sourc
     )
 
 
-def _page_file(vault_path: Path, concept_name: str) -> Path | None:
-    """The markdown file of an indexed page inside the vault, or None when the vault has no such file.
+def _inside_vault(path: Path, vault_path: Path) -> bool:
+    """Whether ``path`` resolves inside the vault; a path that does not is refused and logged."""
+    if is_within_boundary(path, vault_path):
+        return True
+    logger.warning("Shared vault %s refused %r: it resolves outside the vault", vault_path, path)
+    return False
 
-    The name comes from an index another process wrote: a name that climbs out of the vault, like a file that links
-    out of it, is not a page of this vault.
+
+def _indexed_page_body(vault_path: Path, concept_name: str, indexed_text: str) -> str:
+    """The text of an indexed page, from its file through the publish gate.
+
+    The name comes from an index another process wrote. A page that has no file at all (a raw interim entry) stands on
+    its index row; a page whose file lies outside the vault, by a name that climbs out of it or a link, is held back.
     """
     for candidate in (vault_path / "wiki" / "concepts" / f"{concept_name}.md", vault_path / f"{concept_name}.md"):
-        if candidate.is_file() and is_within_boundary(candidate, vault_path):
-            return candidate
-    return None
+        if candidate.is_file():
+            return _published_page_body(candidate) if _inside_vault(candidate, vault_path) else ""
+    return indexed_text
 
 
 def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
@@ -160,10 +173,7 @@ def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequen
     fts_query = " OR ".join(f'"{t}"' for t in terms)
     found: list[RelevantSnippet] = []
     for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_SNIPPETS):
-        page_file = _page_file(vault_path, concept_name)
-        # The page file is the source of truth for its publish status; the index row's text stands in only for
-        # rows that have no page file (e.g. raw sources).
-        body = _published_page_body(page_file) if page_file else indexed_text
+        body = _indexed_page_body(vault_path, concept_name, indexed_text)
         snippet = _page_snippet(label, concept_name, body, terms, db_path)
         if snippet:
             found.append(snippet)
@@ -180,7 +190,7 @@ def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> li
     )
     found: list[RelevantSnippet] = []
     for md_file in md_files:
-        if not is_within_boundary(md_file, vault_path):
+        if not _inside_vault(md_file, vault_path):
             continue
         snippet = _page_snippet(label, md_file.stem, _published_page_body(md_file), terms, md_file)
         if snippet:
@@ -273,7 +283,7 @@ def _scan_vault(vault_path: Path, label: str, terms: Sequence[str]) -> list[Rele
     # An index that holds pages answers for its vault, an empty answer included. An index file without concept page
     # rows is no index (the file is created by any WikiIndexer, filled or not), so the vault goes to tier 2.
     db_path = vault_path / ".wiki_index.db"
-    if db_path.is_file():
+    if db_path.is_file() and _inside_vault(db_path, vault_path):
         try:
             found = _indexed_snippets(db_path, vault_path, label, terms)
             if found or index_has_pages(db_path):
@@ -290,7 +300,7 @@ def _scan_vault(vault_path: Path, label: str, terms: Sequence[str]) -> list[Rele
 
 
 def _scan_vaults(vaults: Sequence[tuple[Path, str]], terms: Sequence[str]) -> list[RelevantSnippet]:
-    """The snippets the vaults give for the question, vault after vault. Blocking: it runs in a worker thread."""
+    """The snippets the vaults give for the question, vault after vault. Blocking: it runs in a scan pool thread."""
     return [snippet for vault_path, label in vaults for snippet in _scan_vault(vault_path, label, terms)]
 
 
@@ -304,8 +314,9 @@ async def resolve_proactive_snippets_from_vaults(
 ) -> ProactiveKnowledgeResult:
     """Asynchronously retrieve and budget proactive snippets within timeout guardrail.
 
-    The vaults are scanned in one worker thread, so the timeout cuts the wait on time; a scan that overruns it
-    finishes in the background and its result is dropped.
+    The vaults are scanned in one thread of a pool of their own, so the timeout cuts the wait on time and a scan that
+    never returns cannot starve the default pool; a scan that overruns the timeout finishes in the background and its
+    result is dropped.
     """
     t0 = time.monotonic()
     selector = KnowledgePackSelector(config)
@@ -317,7 +328,10 @@ async def resolve_proactive_snippets_from_vaults(
     vaults = [(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name))) for p in vault_paths]
 
     try:
-        candidates = await asyncio.wait_for(asyncio.to_thread(_scan_vaults, vaults, terms), timeout=timeout_seconds)
+        candidates = await asyncio.wait_for(
+            asyncio.get_running_loop().run_in_executor(_SCAN_EXECUTOR, _scan_vaults, vaults, terms),
+            timeout=timeout_seconds,
+        )
     except asyncio.TimeoutError:
         logger.warning(
             "Proactive knowledge retrieval timed out after %.3fs, degrading gracefully",

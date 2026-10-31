@@ -4,6 +4,7 @@
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
 - app.services.wiki.knowledge_pack.selector::KnowledgePackSelector, calculate_jaccard_similarity, resolve_proactive_snippets_from_vaults, truncate_snippet_text
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::PUBLISH_STATUS_KEY, serialize_frontmatter_block (POS: wiki page frontmatter contract)
+- tests.support.knowledge_pack_vaults::make_vault (POS: shared vault fixtures of the knowledge-pack tests)
 
 [OUTPUT]
 - Unit test suite verifying Jaccard dedup, hard budget truncation (600 chars), timeout fallback, vault scanning,
@@ -26,7 +27,6 @@ from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     PUBLISH_STATUS_KEY,
     serialize_frontmatter_block,
 )
-from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
 from app.services.wiki.knowledge_pack import selector
 from app.services.wiki.knowledge_pack.schemas import (
@@ -39,6 +39,7 @@ from app.services.wiki.knowledge_pack.selector import (
     resolve_proactive_snippets_from_vaults,
     truncate_snippet_text,
 )
+from tests.support.knowledge_pack_vaults import make_vault
 
 
 def test_jaccard_similarity_calculation() -> None:
@@ -276,26 +277,6 @@ def _page(status: str | None, text: str, *, bom: bool = False) -> str:
     return "\ufeff" + page if bom else page
 
 
-def _make_vault(root: Path, pages: dict[str, str], *, indexed: bool) -> Path:
-    """A vault holding the given page files; with `indexed`, every page also gets a row in the FTS index."""
-    vault = root / "vault"
-    concepts = vault / "wiki" / "concepts"
-    concepts.mkdir(parents=True)
-    for name, page in pages.items():
-        (concepts / f"{name}.md").write_text(page, encoding="utf-8")
-    if indexed:
-        with sqlite3.connect(vault / ".wiki_index.db") as conn:
-            conn.execute(
-                'CREATE VIRTUAL TABLE wiki_fts USING fts5(concept_name, truth_content, tokenize="unicode61 remove_diacritics 1")'
-            )
-            for name, page in pages.items():
-                conn.execute(
-                    "INSERT INTO wiki_fts(concept_name, truth_content) VALUES (?, ?)",
-                    (name, build_cjk_index_segment(parse_frontmatter(page)[1])),
-                )
-    return vault
-
-
 async def _injected_text(vault: Path) -> str:
     result = await resolve_proactive_snippets_from_vaults(
         "zephyr budget limit",
@@ -311,8 +292,9 @@ async def _injected_text(vault: Path) -> str:
 @pytest.mark.parametrize("bom", [False, True], ids=["plain", "bom"])
 async def test_draft_and_blocked_pages_are_never_injected(tmp_path: Path, indexed: bool, bom: bool) -> None:
     """Both retrieval tiers hold back pages that await approval or were blocked; the published one still comes."""
-    vault = _make_vault(
+    vault = make_vault(
         tmp_path,
+        "vault",
         {
             "approved": _page("published", "Zephyr budget limit is 120 per night.", bom=bom),
             "pending": _page("draft", "Zephyr budget limit is 999 pending approval.", bom=bom),
@@ -333,8 +315,9 @@ async def test_draft_and_blocked_pages_are_never_injected(tmp_path: Path, indexe
 @pytest.mark.parametrize("bom", [False, True], ids=["plain", "bom"])
 async def test_injected_snippet_carries_no_frontmatter(tmp_path: Path, indexed: bool, bom: bool) -> None:
     """The page's frontmatter block is metadata, not knowledge: it must not lead the injected snippet."""
-    vault = _make_vault(
+    vault = make_vault(
         tmp_path,
+        "vault",
         {"approved": _page("published", "Zephyr budget limit is 120 per night.", bom=bom)},
         indexed=indexed,
     )
@@ -351,8 +334,9 @@ async def test_injected_snippet_carries_no_frontmatter(tmp_path: Path, indexed: 
 @pytest.mark.parametrize("status", [None, "reviewed"], ids=["missing", "unknown"])
 async def test_page_without_a_known_publish_status_stays_visible(tmp_path: Path, indexed: bool, status: str | None) -> None:
     """A missing or unknown status reads as published, the wiki-wide contract, so imported notes stay usable."""
-    vault = _make_vault(
+    vault = make_vault(
         tmp_path,
+        "vault",
         {"imported": _page(status, "Zephyr budget limit is 120 per night.")},
         indexed=indexed,
     )

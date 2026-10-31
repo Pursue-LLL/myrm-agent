@@ -264,7 +264,8 @@ def _open_read_only(index_db: Path) -> AbstractContextManager[sqlite3.Connection
 
     A WAL index needs write access to its directory for the shared-memory file, so in a directory this process
     cannot write (a read-only volume) the file is opened immutable instead: nothing on this side can change it,
-    and rows still in a ``-wal`` file are not seen.
+    and rows still in a ``-wal`` file are not seen. SQLite then assumes nobody changes the file, so a writer that
+    keeps updating it makes reads fail or return inconsistent rows.
     """
     resolved = index_db.resolve()
     immutable = "" if os.access(resolved.parent, os.W_OK) else "&immutable=1"
