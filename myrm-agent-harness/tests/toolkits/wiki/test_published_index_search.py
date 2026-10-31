@@ -1,4 +1,5 @@
-"""The publish gate runs inside the index query, so drafts never crowd published pages out of a result page."""
+"""The publish gate runs inside the index query, so drafts never crowd published pages out of a result page,
+and an index that was created but never filled is told apart from a query that matched nothing."""
 
 from __future__ import annotations
 
@@ -160,5 +161,50 @@ def test_the_read_only_search_raises_for_a_missing_index_instead_of_creating_one
 
     with pytest.raises(sqlite3.OperationalError):
         fts_search.search_published_index(db_path, '"kelvin"', limit=5)
+
+    assert not db_path.exists()
+
+
+def test_an_index_that_was_created_but_never_filled_has_no_pages(indexer: WikiIndexer) -> None:
+    assert fts_search.search_published_index(indexer.db_path, '"kelvin"', limit=5) == []
+
+    assert fts_search.index_has_pages(indexer.db_path) is False
+
+
+@pytest.mark.parametrize("status", [None, "draft", "blocked"])
+async def test_an_index_with_a_page_has_pages_whatever_its_publish_status(
+    indexer: WikiIndexer, status: str | None
+) -> None:
+    await indexer.upsert("page", _page(status, _published_body(0)))
+    before = indexer.db_path.read_bytes()
+
+    assert fts_search.index_has_pages(indexer.db_path) is True
+    assert indexer.db_path.read_bytes() == before
+
+
+def test_sidecar_rows_alone_are_not_pages(indexer: WikiIndexer) -> None:
+    _add_sidecar_row(indexer.db_path, "__sidecar__:L0:docs")
+
+    assert fts_search.index_has_pages(indexer.db_path) is False
+
+
+def test_an_index_that_predates_publish_metadata_has_pages(tmp_path: Path) -> None:
+    db_path = tmp_path / ".wiki_index.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute("CREATE VIRTUAL TABLE wiki_fts USING fts5(concept_name, truth_content)")
+            conn.execute("INSERT INTO wiki_fts VALUES ('legacy', 'kelvin scale')")
+    finally:
+        conn.close()
+
+    assert fts_search.index_has_pages(db_path) is True
+
+
+def test_has_pages_raises_for_a_missing_index_instead_of_creating_one(tmp_path: Path) -> None:
+    db_path = tmp_path / ".wiki_index.db"
+
+    with pytest.raises(sqlite3.OperationalError):
+        fts_search.index_has_pages(db_path)
 
     assert not db_path.exists()

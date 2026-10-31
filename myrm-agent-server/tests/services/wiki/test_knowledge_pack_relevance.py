@@ -1,15 +1,17 @@
 """The pack injects only what answers the question, ranks it by how much of the question it answers, scans markdown
-only for a vault without a readable index, and reads the same pages in every listing order.
+only for a vault whose index is unreadable or holds no pages, and reads the same pages in every listing order.
 
 [INPUT]
 - app.services.wiki.knowledge_pack.query_terms::carried_terms, paragraph_relevance, MAX_QUERY_CHARS
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig
-- app.services.wiki.knowledge_pack.selector::resolve_proactive_snippets_from_vaults, _markdown_snippets
+- app.services.wiki.knowledge_pack.selector::resolve_proactive_snippets_from_vaults
 - myrm_agent_harness.toolkits.retriever.cjk_tokenizer::build_cjk_index_segment (POS: writes the CJK search column the way the index does)
+- myrm_agent_harness.toolkits.wiki.retrieval.indexer::WikiIndexer (POS: creates the index file on construction, filled or not)
 
 [OUTPUT]
-- Tests of the relevance floor (unit and through both retrieval tiers), of the ranking across vaults, of the question
-  length cap, of when the markdown scan runs and of the name order it reads its files in.
+- Tests of the relevance floor (unit and through both retrieval tiers), of the ranking across vaults and across the
+  pages of one vault, of the question length cap, of when the markdown scan runs and of the name order it reads its
+  files in.
 
 [POS]
 Relevance counterpart of the retrieval cases in ``test_knowledge_pack.py``.
@@ -17,16 +19,20 @@ Relevance counterpart of the retrieval cases in ``test_knowledge_pack.py``.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
-from collections.abc import Sequence
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_segment
+from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
+from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 
 from app.services.wiki.knowledge_pack import selector
 from app.services.wiki.knowledge_pack.query_terms import MAX_QUERY_CHARS, carried_terms, paragraph_relevance
-from app.services.wiki.knowledge_pack.schemas import KnowledgePackConfig, RelevantSnippet
+from app.services.wiki.knowledge_pack.schemas import KnowledgePackConfig
 from app.services.wiki.knowledge_pack.selector import resolve_proactive_snippets_from_vaults
 
 _TERMS = ["zurich", "office", "rules", "wifi", "desk"]
@@ -156,29 +162,67 @@ async def test_the_snippet_is_the_paragraph_that_carries_most_of_the_question(tm
 
 
 @pytest.mark.asyncio
-async def test_a_vault_with_a_readable_index_is_never_scanned_page_by_page(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_a_vault_whose_index_holds_pages_does_not_read_a_page_that_exists_only_as_a_file(tmp_path: Path) -> None:
     """The index answers for its vault, an empty answer included: listing a large vault to read fifteen pages is not free."""
-    scanned: list[Path] = []
-
-    def record_scan(vault: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
-        scanned.append(vault)
-        return []
-
-    monkeypatch.setattr(selector, "_markdown_snippets", record_scan)
     vault = _make_vault(tmp_path, "kb", {"Indexed": "Alpha beta gamma notes."}, indexed=True)
+    (vault / "wiki" / "concepts" / "OnDisk.md").write_text("Zephyr budget limit is 120 per night.", encoding="utf-8")
 
     assert await _titles("zephyr budget limit", vault) == []
-    assert scanned == []
 
 
 @pytest.mark.asyncio
-async def test_a_vault_with_an_unreadable_index_is_scanned_page_by_page(tmp_path: Path) -> None:
+async def test_a_vault_whose_index_was_created_but_never_filled_is_scanned_page_by_page(tmp_path: Path) -> None:
+    """Any WikiIndexer creates its index file on construction, filled or not: the file alone must not silence the vault."""
+    vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
+    WikiIndexer(WikiStructure(vault), WikiConfig(enable_hybrid_search=False))
+    assert (vault / ".wiki_index.db").is_file()
+
+    assert await _titles("zephyr budget limit", vault) == ["Policy"]
+
+
+@pytest.mark.asyncio
+async def test_a_vault_with_an_unreadable_index_is_scanned_page_by_page_and_the_fallback_is_logged(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
     (vault / ".wiki_index.db").write_bytes(b"not a database")
 
-    assert await _titles("zephyr budget limit", vault) == ["Policy"]
+    with caplog.at_level(logging.WARNING):
+        titles = await _titles("zephyr budget limit", vault)
+
+    assert titles == ["Policy"]
+    assert "falling back to markdown" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_failing_markdown_scan_injects_nothing_and_is_logged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def fail(*_: object) -> NoReturn:
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(selector, "_markdown_snippets", fail)
+    vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
+
+    with caplog.at_level(logging.WARNING):
+        titles = await _titles("zephyr budget limit", vault)
+
+    assert titles == []
+    assert "markdown scan skipped" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_the_markdown_scan_picks_the_strongest_paragraph_of_all_pages_not_of_the_first_ones(tmp_path: Path) -> None:
+    """Which pages come first by name must not decide which paragraph wins: only confidence does."""
+    weak = [f"Zephyr budget limit memo {word}." for word in ("alpha", "bravo", "charlie", "delta", "echo", "foxtrot")]
+    pages = {
+        "a-notes": "\n\n".join(weak),
+        "z-guide": "Zephyr budget limit memo golf.\n\nZephyr budget limit hotel berlin night rules.",
+    }
+    vault = _make_vault(tmp_path, "kb", pages, indexed=False)
+    config = KnowledgePackConfig(pack_id="p", name="p", max_snippets=1)
+
+    assert await _titles("zephyr budget limit hotel berlin night", vault, config=config) == ["z-guide"]
 
 
 @pytest.mark.asyncio

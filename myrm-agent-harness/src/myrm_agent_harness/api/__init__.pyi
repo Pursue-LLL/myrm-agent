@@ -628,6 +628,9 @@ from myrm_agent_harness.toolkits.vector.quantization import (
     quantize_int8 as quantize_int8,
 )
 from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import (
+    index_has_pages as index_has_pages,
+)
+from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import (
     search_published_index as search_published_index,
 )
 from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import (

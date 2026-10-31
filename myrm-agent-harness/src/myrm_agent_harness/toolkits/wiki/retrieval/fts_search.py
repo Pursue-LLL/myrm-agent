@@ -15,6 +15,7 @@
 [OUTPUT]
 - FtsSearchMixin: FTS5 + vector search/get_truth with the publish_status gate for WikiIndexer; vector hits under another spelling collapse onto the page key
 - search_published_index: read-only top published pages of an index file the caller does not own
+- index_has_pages: whether such an index file holds any page row, so a caller can tell an empty index from a query that matched nothing
 - WIKI_FTS_COLUMNS: columns of the wiki_fts table
 - create_wiki_fts_table: declare a wiki_fts table with those columns and FTS_TOKENIZER (the one place the table is declared)
 - migrate_wiki_fts_schema: rebuild wiki_fts when it predates the search_terms column
@@ -255,6 +256,11 @@ class FtsSearchMixin:
             return row["truth_content"] if row else None
 
 
+def _open_read_only(index_db: Path) -> AbstractContextManager[sqlite3.Connection]:
+    """Open an index file read-only: no table is created and no schema is migrated; a missing file raises."""
+    return contextlib.closing(sqlite3.connect(f"{index_db.resolve().as_uri()}?mode=ro", uri=True))
+
+
 def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> list[tuple[str, str]]:
     """Return the ``limit`` best published pages of an index file as (concept_name, truth_content).
 
@@ -263,10 +269,25 @@ def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> lis
     next to the index). ``fts_query`` is FTS5 MATCH syntax. Raises ``sqlite3.Error`` when the file is missing
     or unreadable or the query is invalid.
     """
-    with contextlib.closing(sqlite3.connect(f"{index_db.resolve().as_uri()}?mode=ro", uri=True)) as conn:
+    with _open_read_only(index_db) as conn:
         select = _published_match_select(conn, "wiki_fts", "concept_name, truth_content")
         rows = conn.execute(f"{select} ORDER BY rank LIMIT ?", (fts_query, limit)).fetchall()
     return [(str(name or ""), str(truth or "")) for name, truth in rows]
+
+
+def index_has_pages(index_db: Path) -> bool:
+    """Whether an index file holds at least one page row, sidecar rows aside.
+
+    ``search_published_index`` returns the same empty list for a question nothing matches and for an index that
+    was created but never filled (any ``WikiIndexer`` creates its file on construction); this tells them apart.
+    A draft or blocked page counts: the index was built for the vault. Opened read-only like
+    ``search_published_index``; raises ``sqlite3.Error`` when the file is missing or unreadable.
+    """
+    with _open_read_only(index_db) as conn:
+        row = conn.execute(
+            f"SELECT 1 FROM wiki_fts WHERE concept_name NOT GLOB '{_SIDECAR_PREFIX}:*' LIMIT 1"
+        ).fetchone()
+    return row is not None
 
 
 WIKI_FTS_COLUMNS = ("concept_name", "truth_content", "search_terms")

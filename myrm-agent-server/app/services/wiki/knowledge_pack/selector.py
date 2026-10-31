@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
 - app.services.wiki.knowledge_pack.query_terms::MAX_QUERY_CHARS, search_terms, carried_terms, paragraph_relevance, tokenize_text (POS: the question's terms and the relevance floor)
-- myrm_agent_harness.api::search_published_index (POS: read-only published-pages-only FTS search)
+- myrm_agent_harness.api::search_published_index, index_has_pages (POS: read-only published-pages-only FTS search, and whether an index file holds any page row)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
 
@@ -16,12 +16,13 @@
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
 its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out)
-with an OR query of the question's search terms; tier 2 scans the markdown files of a vault that has no readable
-index, because listing thousands of pages to read fifteen of them would cost more than it finds. Both tiers keep a
-paragraph only when ``paragraph_relevance`` says the page answers the question, and rank it by that score, so a
-question the vault does not answer injects nothing and the order of the mounted vaults never decides which page
-wins. Every page file it reads goes through the wiki publish gate again, so a draft or blocked page never reaches
-the injected context, and snippets never lead with the page's frontmatter.
+with an OR query of the question's search terms; tier 2 scans the markdown files of a vault whose index is missing,
+unreadable or holds no page rows (an index file alone says nothing: any ``WikiIndexer`` creates it on construction),
+because listing thousands of pages to read fifteen of them would cost more than it finds in a vault the index
+already covers. Both tiers keep a paragraph only when ``paragraph_relevance`` says the page answers the question,
+and rank it by that score, so most questions the vault does not answer inject nothing and the order of the mounted
+vaults never decides which page wins. Every page file it reads goes through the wiki publish gate again, so a draft
+or blocked page never reaches the injected context, and snippets never lead with the page's frontmatter.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from myrm_agent_harness.api import search_published_index
+from myrm_agent_harness.api import index_has_pages, search_published_index
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
@@ -54,7 +55,6 @@ logger = logging.getLogger(__name__)
 
 _MAX_INDEXED_SNIPPETS = 5
 _MAX_SCANNED_FILES = 15
-_MAX_SCANNED_SNIPPETS = 5
 
 
 def calculate_jaccard_similarity(text_a: str, text_b: str) -> float:
@@ -149,7 +149,10 @@ def _indexed_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> lis
 
 
 def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
-    """Tier 2: the paragraphs that answer the question in the first markdown pages of the vault, in name order."""
+    """Tier 2: the paragraphs that answer the question in the first markdown pages of the vault, in name order.
+
+    Every relevant paragraph is returned: the selector ranks them by confidence across pages and applies the budget.
+    """
     concepts_dir = vault_path / "wiki" / "concepts"
     search_dir = concepts_dir if concepts_dir.is_dir() else vault_path
     # The first files by name, picked without sorting the whole listing: a vault can hold thousands of pages.
@@ -170,8 +173,6 @@ def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> li
                         source_path=str(md_file),
                     )
                 )
-                if len(found) >= _MAX_SCANNED_SNIPPETS:
-                    break
     return found
 
 
@@ -274,19 +275,22 @@ async def resolve_proactive_snippets_from_vaults(
             return []
 
         # ── Tier 1: SQLite FTS5 index-first retrieval (O(1) ms latency) ──
-        # An index answers for its vault, an empty answer included.
+        # An index that holds pages answers for its vault, an empty answer included. An index file without page
+        # rows is no index (the file is created by any WikiIndexer, filled or not), so the vault goes to tier 2.
         db_path = vault_path / ".wiki_index.db"
         if db_path.is_file():
             try:
-                return _indexed_snippets(vault_path, label, terms)
+                found = _indexed_snippets(vault_path, label, terms)
+                if found or index_has_pages(db_path):
+                    return found
             except Exception as exc:
-                logger.debug("FTS5 index scan failed for %s, falling back to markdown: %s", db_path, exc)
+                logger.warning("FTS5 index scan failed for %s, falling back to markdown: %s", db_path, exc)
 
-        # ── Tier 2: Concept markdown files fallback (for uncompiled vaults and unreadable indexes) ──
+        # ── Tier 2: Concept markdown files (for vaults whose index is missing, unreadable or holds no pages) ──
         try:
             return _markdown_snippets(vault_path, label, terms)
         except Exception as exc:
-            logger.debug("Vault markdown scan skipped for %s: %s", vault_path, exc)
+            logger.warning("Vault markdown scan skipped for %s: %s", vault_path, exc)
             return []
 
     try:
