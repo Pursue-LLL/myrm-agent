@@ -360,12 +360,19 @@ async def test_a_poll_that_cannot_be_answered_is_warned_once_per_window_for_each
 ) -> None:
     caplog.set_level(logging.WARNING, logger=_FOLLOW_LOGGER)
     voice = _Voice(guild_ids=(1, 2), users=(_USER, _OTHER_USER))
+    voice.answers = {(guild_id, user): failure for guild_id in (1, 2) for user in (_USER, _OTHER_USER)}
+
+    # Nothing waits on the poll while no guild has follow state, so its failure is not warned about and uses up no window.
+    await voice.reconcile()
+    assert _warnings(caplog) == []
+    voice.join.assert_not_awaited()
+    voice.leave.assert_not_awaited()
+
     # Guild 1 keeps only its flag (the user moved on to guild 2), guild 2 only the record (the bot was disconnected there).
     await voice.user_joins(1, 10)
     await voice.user_joins(2, 20)
     await voice.manager.handle_bot_voice_update(2, voice.channels[20], None)
     assert voice.manager.followed_guilds == {1}
-    voice.answers = {(guild_id, user): failure for guild_id in (1, 2) for user in (_USER, _OTHER_USER)}
 
     for _ in range(3):
         await voice.reconcile()
@@ -383,18 +390,3 @@ async def test_a_poll_that_cannot_be_answered_is_warned_once_per_window_for_each
     assert len(_warnings(caplog)) == 8
     voice.leave.assert_not_awaited()
     assert voice.records == {_USER: (2, 20)}
-
-
-async def test_a_poll_that_cannot_be_answered_is_not_warned_in_a_guild_without_follow_state(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level(logging.WARNING, logger=_FOLLOW_LOGGER)
-    voice = _Voice()
-    voice.answers[(1, _USER)] = _forbidden()
-
-    for _ in range(3):
-        await voice.reconcile()
-
-    assert _warnings(caplog) == []
-    voice.join.assert_not_awaited()
-    voice.leave.assert_not_awaited()
