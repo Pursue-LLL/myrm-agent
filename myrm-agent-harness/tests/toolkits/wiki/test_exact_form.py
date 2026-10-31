@@ -68,6 +68,18 @@ def test_candidates_that_spell_the_same_number_of_terms_keep_their_score_order()
     assert rank_exact_forms_first(candidates, frozenset({"transformers"})) == [("a", 0.9), ("b", 0.8), ("c", 0.7)]
 
 
+def test_a_score_lowered_by_the_shared_library_decay_loses_a_tie_and_the_scores_are_handed_out_in_order() -> None:
+    # The candidates arrive in match order, but a shared page's score carries the 0.9 decay, so the
+    # score order is not the arrival order.
+    candidates = [("shared", 0.63, "transformers"), ("primary", 0.70, "transformers"), ("stems", 0.65, "transformer")]
+
+    assert rank_exact_forms_first(candidates, frozenset({"transformers"})) == [
+        ("primary", 0.70),
+        ("shared", 0.65),
+        ("stems", 0.63),
+    ]
+
+
 def test_a_term_inside_a_longer_word_does_not_count() -> None:
     candidates = [("long-word", 0.9, "pretransformers"), ("whole-word", 0.5, "many-transformers here")]
 

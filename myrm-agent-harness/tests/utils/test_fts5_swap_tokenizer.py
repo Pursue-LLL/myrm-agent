@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -172,6 +173,36 @@ def test_two_connections_swapping_at_once_swap_the_table_once(tmp_path: Path) ->
     with closing(sqlite3.connect(db_path)) as check:
         assert "porter" in _declaration(check)
         assert _rows(check) == [*_ROWS, *filler]
+
+
+def test_a_swap_waits_for_a_writer_that_holds_the_lock_and_does_not_fail(tmp_path: Path) -> None:
+    db_path = tmp_path / "busy.db"
+    with closing(sqlite3.connect(db_path)) as setup:
+        _create_notes(setup)
+        setup.execute("PRAGMA journal_mode = wal")
+        setup.execute("CREATE TABLE audit(note)")
+        setup.commit()
+    writer_has_written = threading.Event()
+
+    def write_and_release_later() -> None:
+        with closing(sqlite3.connect(db_path, isolation_level=None)) as writer:
+            writer.execute("BEGIN IMMEDIATE")
+            writer.execute("INSERT INTO audit VALUES ('written while the swap waits')")
+            writer_has_written.set()
+            time.sleep(0.3)
+            writer.execute("COMMIT")
+
+    writer_thread = threading.Thread(target=write_and_release_later)
+    writer_thread.start()
+    try:
+        assert writer_has_written.wait(timeout=10)
+        with closing(sqlite3.connect(db_path, timeout=10)) as conn:
+            assert fts5_swap_tokenizer(conn, "notes", _COLUMNS, _STEMMING) is True
+            assert "porter" in _declaration(conn)
+            assert _rows(conn) == _ROWS
+            assert conn.execute("SELECT note FROM audit").fetchall() == [("written while the swap waits",)]
+    finally:
+        writer_thread.join()
 
 
 def test_a_blocked_staging_name_makes_the_swap_fail_without_touching_anything(notes: sqlite3.Connection) -> None:
