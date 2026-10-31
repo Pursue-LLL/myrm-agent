@@ -35,7 +35,7 @@ from ..creation.service import skill_creation_service
 from ..models import Skill, SkillType
 from ..providers.local import LocalSkillsProvider, compute_local_skill_id, is_sandbox_mode
 from . import reader
-from .local_lookup import local_skill_dir_listed_as, local_skill_dir_named
+from .local_lookup import local_skill_dir_known_as, local_skill_dir_named
 from .user_config import UserSkillConfigManager
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ class SkillsService:
         skills_root = skill_creation_service.base_path
         skill_dir = local_skill_dir_named(skills_root, ref)
         if skill_dir is None:
-            skill_dir = await reader.scan_off_loop(partial(local_skill_dir_listed_as, skills_root, ref))
+            skill_dir = await reader.scan_off_loop(partial(local_skill_dir_known_as, skills_root, ref))
         return skill_dir
 
     async def get_local_skill(self, skill_dir: Path) -> Skill | None:

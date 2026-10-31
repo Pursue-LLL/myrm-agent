@@ -3,6 +3,7 @@
 A scan parses every SKILL.md and runs the security patterns over it, about a second for two dozen skills. Run on the
 loop it froze every other request, stream and health check for that long, so the scan runs on a worker thread. The
 loop tests make a scan wait for a task that only the event loop can run: the scan returns only when the loop was free.
+Finding a skill by a name it is known by reads every SKILL.md too, and is held to the same rule.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
+from app.core.skills.creation.service import skill_creation_service
 from app.core.skills.models import Skill
 from app.core.skills.providers.local import LocalSkillsProvider
 from app.core.skills.store import reader
@@ -73,6 +75,22 @@ async def test_get_local_skill_leaves_the_event_loop_free(monkeypatch: pytest.Mo
 
     other_request = asyncio.create_task(probe.serve_another_request())
     assert await service.get_skill("local::deadbeef") is None
+    await other_request
+
+
+async def test_find_local_skill_dir_leaves_the_event_loop_free(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    probe = _LoopProbe()
+
+    def local_skill_dir_known_as(_skills_root: Path, _name: str) -> Path | None:
+        probe.enter_scan()
+        return None
+
+    monkeypatch.setattr(skill_creation_service, "base_path", tmp_path)
+    monkeypatch.setattr("app.core.skills.store.service.local_skill_dir_known_as", local_skill_dir_known_as)
+    service = SkillsService(LocalStorageBackend(str(tmp_path)))
+
+    other_request = asyncio.create_task(probe.serve_another_request())
+    assert await service.find_local_skill_dir("report_builder_skill") is None
     await other_request
 
 

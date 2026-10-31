@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - local_skill_dir_named: the directory of the skill kept under a directory name
-- local_skill_dir_listed_as: the one directory whose skill is known by a name
+- local_skill_dir_known_as: the one directory whose skill is known by a name
 
 [POS]
 Blocking file system lookups in the primary local skills directory, without the security scan a full local scan
@@ -67,7 +67,7 @@ def _known_names(skill_dir: Path) -> frozenset[str]:
     return frozenset({name, normalize_skill_name(name)})
 
 
-def local_skill_dir_listed_as(skills_root: Path, name: str) -> Path | None:
+def local_skill_dir_known_as(skills_root: Path, name: str) -> Path | None:
     """The directory below ``skills_root`` of the one skill known by ``name``, ``None`` when no skill or several are.
 
     A background review is shown the names the agent runtime lists skills under, which are neither the directory
