@@ -17,6 +17,7 @@ from cdp_chat.input import CdpChatInput
 from cdp_chat.send_turn_contract import (
     SendTurnError,
     SendTurnPhase,
+    format_api_poll,
     resolve_send_turn_profile,
 )
 from cdp_chat.support import PREPARE_AUTOMATION_SEND_JS
@@ -70,7 +71,7 @@ class CdpChatSubmit(CdpChatInput):
                     f"userCount={debug.get('userCount')} "
                     f"streaming={debug.get('streaming')} "
                     f"baseline={debug.get('baselineUsers')} "
-                    f"rev={debug.get('rev')} "
+                    f"rev={debug.get('rev')}{format_api_poll(debug)} "
                     # Whether the page's observe window is marginal for a live model can
                     # only be judged from how long the sends that sealed took.
                     f"elapsed={time.monotonic() - started:.1f}s"

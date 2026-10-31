@@ -333,13 +333,19 @@ function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
   return bridge;
 }
 
-const SEND_TURN_REV = 'R72-G';
+const SEND_TURN_REV = 'R72-H';
 const SEND_TURN_NO_OP_MS = 3_000;
 /**
  * How long a new chat may take to commit its first assistant output, which persists the user
  * row. Must equal SEND_TURN_OBSERVE_SEC in scripts/dev/lib/dev_gate/contract.py (a test pins it).
  */
 const SEND_TURN_OBSERVE_MS = 90_000;
+/**
+ * Cap on one message-list poll. Must equal SEND_TURN_API_POLL_TIMEOUT_SEC in
+ * scripts/dev/lib/dev_gate/contract.py (a test pins it). Without it a poll that never answers
+ * holds the observe loop until the Python wall ends the send as an unclassified timeout.
+ */
+const SEND_TURN_API_POLL_TIMEOUT_MS = 10_000;
 
 /** SHPOIB private-backend E2E: user persist + SSE arm can exceed 3s under parallel MUX. */
 function resolveSendTurnNoOpMs(): number {
@@ -427,19 +433,54 @@ function resolveE2eTurnProgress(
   };
 }
 
-async function countApiUserMessages(chatId: string): Promise<number> {
+interface ApiUserPoll {
+  users: number;
+  /** HTTP 404: the API does not know the chat, which a new chat stays until its first assistant output. */
+  notFound: boolean;
+  /** Why the API could not be asked or did not answer; null when it answered or said 404. */
+  failure: string | null;
+}
+
+interface ApiPollStats {
+  polls: number;
+  notFound: number;
+  failures: number;
+  lastFailure: string | null;
+  /** Slowest answer or abort, in ms: how close the polls ran to SEND_TURN_API_POLL_TIMEOUT_MS. */
+  slowestMs: number;
+}
+
+function describeApiPollFailure(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'TimeoutError') {
+    return 'timeout';
+  }
+  return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
+/**
+ * "The user row is not persisted", "the API does not know the chat yet" and "the API could not
+ * be asked" all read as zero users, so a poll says which one it was and the turn counts them.
+ */
+async function pollApiUserMessages(chatId: string): Promise<ApiUserPoll> {
   const messagesUrl = `${getApiBaseUrl().replace(/\/+$/, '')}/chats/${encodeURIComponent(chatId)}/messages`;
   try {
-    const resp = await fetch(messagesUrl, { cache: 'no-store' });
+    const resp = await fetch(messagesUrl, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(SEND_TURN_API_POLL_TIMEOUT_MS),
+    });
+    if (resp.status === 404) {
+      return { users: 0, notFound: true, failure: null };
+    }
     if (!resp.ok) {
-      return 0;
+      return { users: 0, notFound: false, failure: `http-${resp.status}` };
     }
     const payload = (await resp.json()) as {
       data?: { messages?: Array<{ role?: string }> };
     };
-    return payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
-  } catch {
-    return 0;
+    const users = payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
+    return { users, notFound: false, failure: null };
+  } catch (error) {
+    return { users: 0, notFound: false, failure: describeApiPollFailure(error) };
   }
 }
 
@@ -567,6 +608,21 @@ async function submitAndObserveTurn(
     }
     let submitError: string | null = null;
     let sendSettledEmpty = false;
+    const apiPoll: ApiPollStats = { polls: 0, notFound: 0, failures: 0, lastFailure: null, slowestMs: 0 };
+    const countApiUsers = async (id: string): Promise<number> => {
+      const startedAt = Date.now();
+      const poll = await pollApiUserMessages(id);
+      apiPoll.polls += 1;
+      apiPoll.slowestMs = Math.max(apiPoll.slowestMs, Date.now() - startedAt);
+      if (poll.notFound) {
+        apiPoll.notFound += 1;
+      }
+      if (poll.failure !== null) {
+        apiPoll.failures += 1;
+        apiPoll.lastFailure = poll.failure;
+      }
+      return poll.users;
+    };
     const kickoffAt = Date.now();
     const sendPromise = useChatStore
       .getState()
@@ -612,7 +668,7 @@ async function submitAndObserveTurn(
       const { userCount, streaming, uiProgress } = resolveE2eTurnProgress(chatId, baselineUsers);
       const elapsedMs = Date.now() - kickoffAt;
       if (sendSettledEmpty && elapsedMs >= 1_500) {
-        const apiUsersProbe = await countApiUserMessages(chatId);
+        const apiUsersProbe = await countApiUsers(chatId);
         return {
           ok: false,
           err: 'send-message-settled-without-progress',
@@ -623,6 +679,7 @@ async function submitAndObserveTurn(
             profile,
             sendGeneration: startGen,
             apiUsers: apiUsersProbe,
+            apiPoll: { ...apiPoll },
             userCount,
             streaming,
             baselineUsers,
@@ -632,7 +689,7 @@ async function submitAndObserveTurn(
         };
       }
       if (elapsedMs >= resolveSendTurnNoOpMs() && !uiProgress) {
-        const apiUsersProbe = await countApiUserMessages(chatId);
+        const apiUsersProbe = await countApiUsers(chatId);
         if (apiUsersProbe <= baselineUsers) {
           return {
             ok: false,
@@ -644,6 +701,7 @@ async function submitAndObserveTurn(
               profile,
               sendGeneration: startGen,
               apiUsers: apiUsersProbe,
+              apiPoll: { ...apiPoll },
               userCount,
               streaming,
               baselineUsers,
@@ -654,7 +712,7 @@ async function submitAndObserveTurn(
           };
         }
       }
-      const apiUsers = await countApiUserMessages(chatId);
+      const apiUsers = await countApiUsers(chatId);
       const apiOk = apiUsers > baselineUsers;
       // A local placeholder/stream can be produced before the private backend
       // accepts the POST. It is not an admission signal: sealing here would
@@ -676,6 +734,7 @@ async function submitAndObserveTurn(
             rev: SEND_TURN_REV,
             sendGeneration: startGen,
             apiUsers,
+            apiPoll: { ...apiPoll },
             userCount,
             streaming,
             baselineUsers,
@@ -692,7 +751,7 @@ async function submitAndObserveTurn(
     const finalProgress = finalChatId
       ? resolveE2eTurnProgress(finalChatId, baselineUsers)
       : { userCount: 0, streaming: false, uiProgress: false };
-    const finalApiUsers = finalChatId ? await countApiUserMessages(finalChatId) : 0;
+    const finalApiUsers = finalChatId ? await countApiUsers(finalChatId) : 0;
     return {
       ok: false,
       err: 'send-turn-observe-timeout',
@@ -704,6 +763,7 @@ async function submitAndObserveTurn(
         rev: SEND_TURN_REV,
         sendGeneration: startGen,
         apiUsers: finalApiUsers,
+        apiPoll: { ...apiPoll },
         userCount: finalProgress.userCount,
         streaming: finalProgress.streaming,
         baselineUsers,

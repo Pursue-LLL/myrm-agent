@@ -1628,6 +1628,9 @@ MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN: Final[str] = (
 # SEND_TURN_OBSERVE_MS in E2EChatBridge.tsx.
 SEND_TURN_OBSERVE_SEC: Final[int] = 90
 SEND_TURN_API_POLL_SEC: Final[int] = 60
+# Cap on one message-list poll in the page (SEND_TURN_API_POLL_TIMEOUT_MS in E2EChatBridge.tsx);
+# a poll that never answers would otherwise hold the observe loop until the Python wall.
+SEND_TURN_API_POLL_TIMEOUT_SEC: Final[int] = 10
 SEND_TURN_EVAL_RECV_SEC: Final[float] = float(
     SEND_TURN_OBSERVE_SEC + SEND_TURN_API_POLL_SEC + 10
 )

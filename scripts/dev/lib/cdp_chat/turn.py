@@ -14,6 +14,7 @@ import cdp_chat.support as cdp_chat_support
 from cdp_chat.send_turn_contract import (
     SendTurnError,
     SendTurnPhase,
+    format_api_poll,
     is_live_send_turn_profile,
 )
 from cdp_chat.submit import CdpChatSubmit
@@ -775,6 +776,7 @@ class CdpChatTurn(CdpChatSubmit):
         return (
             f" apiUsers={debug.get('apiUsers')} userCount={debug.get('userCount')} "
             f"streaming={debug.get('streaming')} phase={debug.get('phase')}"
+            f"{format_api_poll(debug)}"
         )
 
     async def _native_fill_and_click(self, text: str) -> dict[str, object]:
