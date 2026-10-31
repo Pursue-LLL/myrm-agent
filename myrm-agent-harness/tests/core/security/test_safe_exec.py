@@ -95,7 +95,7 @@ class TestSafeExec:
 
 
 def _is_gone(pid: int) -> bool:
-    """True once the process no longer exists, a zombie that was not reaped included."""
+    """True once the process no longer exists; an exited child nobody has waited for yet still exists."""
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
