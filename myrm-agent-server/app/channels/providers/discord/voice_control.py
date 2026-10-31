@@ -1,12 +1,13 @@
 """Discord voice control: opus loading, VoiceManager wiring and the /voice slash command.
 
 [INPUT]
+- app.channels.i18n::channel_t (POS: gateway slash command replies and system-generated channel messages, by locale)
 - app.channels.providers.discord.voice.manager::VoiceManager (POS: voice sessions: join / leave, RTP receive, speaker admission, speech-to-text)
 - app.channels.providers.discord.voice.player::VoicePlayer (POS: TTS audio playback into a voice client)
 - app.channels.types::InboundMessage (POS: channel message value types)
 
 [OUTPUT]
-- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission (a speaker is checked against the access policy before their audio is transcribed) and /voice command registration (the caller is checked against the access policy first; every action but the read-only status also needs the owner) used by DiscordChannel
+- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission (a speaker is checked against the access policy before their audio is transcribed) and /voice command registration (the caller is checked against the access policy first; every action but the read-only status also needs the owner; every reply is worded in the caller's Discord language) used by DiscordChannel
 
 [POS]
 Voice half of DiscordChannel. The host owns the gateway client and the config; the mixin drives the voice subsystem.
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from app.channels.core.base import BaseChannel
+from app.channels.i18n import channel_t
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
@@ -36,15 +38,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_VOICE_REFUSAL = "You are not allowed to use this command. Ask the bot owner to give you access."
-_VOICE_OWNER_ONLY = "Only the bot owner can make the bot join or leave a voice channel."
 # Every other action acts on the owner's voice session, not on the caller's own conversation; ``status`` only reads.
 _READ_ONLY_ACTIONS = frozenset({"status"})
 
 
-async def _reply(interaction: discord.Interaction, text: str) -> None:
-    """Answer a /voice command that has been acknowledged, visible to its caller only."""
-    await interaction.followup.send(text, ephemeral=True)
+async def _reply(interaction: discord.Interaction, key: str, **params: str) -> None:
+    """Answer a /voice command that has been acknowledged with the catalog message ``key``.
+
+    The reply is worded in the language Discord reports for the caller and is visible to them only.
+    """
+    await interaction.followup.send(channel_t(str(interaction.locale), key, **params), ephemeral=True)
 
 
 class DiscordVoiceMixin(BaseChannel):
@@ -206,7 +209,7 @@ class DiscordVoiceMixin(BaseChannel):
             logger.error("Failed to auto-join voice channel %s: %s", channel_id, e)
 
     async def _voice_command_refusal(self, interaction: discord.Interaction, action: str) -> str | None:
-        """The refusal to answer the caller of a /voice command with, or None when they may run ``action``.
+        """The catalog key of the refusal to answer the caller of a /voice command with, or None when they may run ``action``.
 
         The command moves the bot without a message, so it never passes the inbound pipeline's admission: the access
         policy judges the caller as it would a message from them in that chat. Every action but the read-only status
@@ -231,7 +234,7 @@ class DiscordVoiceMixin(BaseChannel):
                 interaction.channel_id,
                 interaction.guild_id,
             )
-            return _VOICE_REFUSAL
+            return "voice_not_admitted"
         if action not in _READ_ONLY_ACTIONS and not await self.is_sender_owner(msg):
             logger.warning(
                 "Discord /voice %s refused for non-owner user %s in chat %s (guild %s)",
@@ -240,7 +243,7 @@ class DiscordVoiceMixin(BaseChannel):
                 interaction.channel_id,
                 interaction.guild_id,
             )
-            return _VOICE_OWNER_ONLY
+            return "voice_owner_only"
         return None
 
     def _register_voice_commands(self) -> None:
@@ -276,12 +279,12 @@ class DiscordVoiceMixin(BaseChannel):
                 return
 
             if not channel_self._voice_manager:
-                await _reply(interaction, "Voice is not enabled.")
+                await _reply(interaction, "voice_disabled")
                 return
 
             guild = interaction.guild
             if not guild:
-                await _reply(interaction, "This command can only be used in a server.")
+                await _reply(interaction, "voice_server_only")
                 return
 
             if action == "join":
@@ -291,17 +294,21 @@ class DiscordVoiceMixin(BaseChannel):
                     if member and member.voice and member.voice.channel:
                         target = member.voice.channel  # type: ignore[assignment]
                 if not target or not isinstance(target, discord.VoiceChannel):
-                    await _reply(interaction, "Please specify a voice channel or join one first.")
+                    await _reply(interaction, "voice_channel_required")
                     return
                 text_ch_id = interaction.channel_id or 0
-                ok = await channel_self.join_voice(target, text_channel_id=text_ch_id)
-                await _reply(interaction, f"Joined **{target.name}**" if ok else "Failed to join voice channel.")
+                if await channel_self.join_voice(target, text_channel_id=text_ch_id):
+                    await _reply(interaction, "voice_joined", name=target.name)
+                else:
+                    await _reply(interaction, "voice_join_failed")
 
             elif action == "leave":
-                await channel_self.leave_voice(guild.id)
-                await _reply(interaction, "Left voice channel.")
+                if channel_self._voice_manager.get_voice_client(guild.id) is None:
+                    await _reply(interaction, "voice_not_in_voice")
+                else:
+                    await channel_self.leave_voice(guild.id)
+                    await _reply(interaction, "voice_left")
 
             elif action == "status":
                 connected = channel_self._voice_manager.is_connected(guild.id)
-                status = "Connected" if connected else "Not connected"
-                await _reply(interaction, f"Voice status: **{status}**")
+                await _reply(interaction, "voice_status_connected" if connected else "voice_status_disconnected")

@@ -195,6 +195,7 @@ def _interaction(*, user_id: int, in_guild: bool = True, channel_id: int = _ENAB
     interaction.guild.id = _GUILD if in_guild else None
     interaction.guild_id = _GUILD if in_guild else None
     interaction.channel_id = channel_id
+    interaction.locale = discord.Locale.american_english
     interaction.response.send_message = AsyncMock()
     interaction.response.defer = AsyncMock()
     interaction.followup.send = AsyncMock()

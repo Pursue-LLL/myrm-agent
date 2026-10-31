@@ -521,6 +521,7 @@ StreamCoordinator
 - Discord 的语音管理器与网关客户端同寿命：同一个客户端上重复的 READY 沿用它，新建客户端时丢掉上一个，再次加入时先释放 discord.py 已摘掉的旧会话、重连中的旧会话原样保留（`test_discord_voice_manager_lifetime.py`、`voice/test_join_stale_state.py` 守住）
 - Discord 适配器的入站只填 `sender_id`，不预置 `user_id`（私聊、按钮点击、语音转写因此按 DM 策略与配对解析，未配对者不进入回合，`test_discord_sender_identity.py` 守住）
 - Discord 的 `/voice` 命令不经入站管道，命令先应答（defer）再按调用者在该频道发消息时的访问策略判定（`BaseChannel.is_sender_admitted` → 总线 → 路由器的发送者准入，公会里所有者与已启用群聊的成员放行，群聊未启用或群聊策略为 DISABLED 则拒绝；拒绝时只给调用者回一条仅其可见的提示并记带频道的 WARNING，判定未接线同样拒绝；除只读的 `status` 外（`join`、`leave`，未列为只读的动作同样）准入之后还要所有者（`BaseChannel.is_sender_owner` → 总线 → 路由器的所有者判定，即系统命令用的那一个：有效的管理员配对或控制面转发，出错拒绝），被准入的非所有者收到专用提示、不加入不离开，`status` 按准入放行；`test_discord_voice_command_admission.py`、`core/test_sender_gate.py` 与 `routing/test_router_sender_gate.py` 守住）
+- Discord `/voice` 命令的全部回复（无权限、仅所有者、语音未启用、仅限服务器、需指定频道、加入成功与失败、离开、状态）取自渠道目录的 `voice_*`，按 Discord 报告的调用者语言渲染（`en-US` / `en-GB` 为英文，`zh-CN` / `zh-TW` / `ja` 为本地化，其余回退英文）；没有会话时 `leave` 回复不在语音频道而不调用离开；加入另一语音频道的会话时，只有 VoiceClient 事后连接在目标频道才算加入（discord.py 的移动超时只记日志、正常返回），否则回复加入失败且会话与文字频道绑定不变；`test_discord_voice_command_replies.py` 与 `voice/test_join_move_outcome.py` 守住
 - 语音说话人在转写之前先过同一判定（私聊口径，已配对者），被拒绝者的音频不进语音转写（`voice/test_speaker_gate.py` 守住）
 - `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
 - `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测

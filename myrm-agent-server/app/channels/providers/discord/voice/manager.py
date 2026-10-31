@@ -24,7 +24,8 @@ never reaches speech-to-text, and with no gate wired no speaker is admitted.
 Leaving every guild is concurrent, so one guild that waits for
 the gateway's confirmation does not hold up the others. A join over a
 state whose VoiceClient discord.py has dropped releases that state first;
-over one discord.py is still reconnecting, the join is declined.
+over one discord.py is still reconnecting, the join is declined. A join over a live session in another channel
+moves it, and counts only once the client is connected in the new channel.
 A leave disconnects the VoiceClient for as long as discord.py holds it, connected or not. The utterances finished in
 one poll keep the text-channel binding they were admitted under; a join that binds the session to another
 text channel drops the speech the receiver has not yet delivered.
@@ -41,6 +42,10 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from app.channels.providers.discord.voice.channel_move import (
+    is_in_channel,
+    move_to_channel,
+)
 from app.channels.providers.discord.voice.follow import (
     VoiceFollowManager,
     VoiceTarget,
@@ -178,10 +183,8 @@ class VoiceManager:
         async with self._guild_lock(guild_id):
             state = self._guilds.get(guild_id)
             if state and state.voice_client.is_connected():
-                if state.voice_client.channel and state.voice_client.channel.id == channel.id:
-                    self._bind_text_channel(guild_id, state, text_channel_id)
-                    return True
-                await state.voice_client.move_to(channel)
+                if not is_in_channel(state.voice_client, channel) and not await move_to_channel(state.voice_client, channel):
+                    return False
                 self._bind_text_channel(guild_id, state, text_channel_id)
                 return True
 

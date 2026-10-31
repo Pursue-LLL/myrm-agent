@@ -158,7 +158,7 @@ class TestVoiceManagerJoinLeave:
         mock_vc = MagicMock()
         mock_vc.is_connected.return_value = True
         mock_vc.channel = old_channel
-        mock_vc.move_to = AsyncMock()
+        mock_vc.move_to = AsyncMock(side_effect=lambda channel: setattr(mock_vc, "channel", channel))
 
         mock_receiver = MagicMock()
         mock_receiver.running = False

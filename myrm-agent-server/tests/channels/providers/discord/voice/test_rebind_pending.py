@@ -46,7 +46,7 @@ def _session(text_channel_id: int) -> tuple[VoiceManager, VoiceReceiver, MagicMo
     voice_client = MagicMock()
     voice_client.is_connected.return_value = True
     voice_client.channel = voice_channel
-    voice_client.move_to = AsyncMock()
+    voice_client.move_to = AsyncMock(side_effect=lambda channel: setattr(voice_client, "channel", channel))
     receiver = VoiceReceiver(make_mock_vc())
     receiver._ssrc_to_user[_SSRC] = _SPEAKER
 

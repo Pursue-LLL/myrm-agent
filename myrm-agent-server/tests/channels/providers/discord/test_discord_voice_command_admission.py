@@ -64,6 +64,7 @@ def _interaction(*, user_id: int = 123) -> MagicMock:
     interaction.guild.id = _GUILD
     interaction.guild_id = _GUILD
     interaction.channel_id = 456
+    interaction.locale = discord.Locale.american_english
     interaction.response.send_message = AsyncMock()
     interaction.response.defer = AsyncMock()
     interaction.followup.send = AsyncMock()
