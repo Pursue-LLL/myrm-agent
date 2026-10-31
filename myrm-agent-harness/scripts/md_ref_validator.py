@@ -90,11 +90,12 @@ _MD_SKIP_DIR_NAMES = frozenset({"prebuilt_skills"})
 # existing files.
 _MD_REF_SKIP_FILES = frozenset(
     {
-        "src/myrm_agent_harness/agent/skills/SKILL_SYSTEM.md",
         "src/myrm_agent_harness/eval/_ARCH.md",
     }
 )
-PRUNE_DIR_NAMES = frozenset({"__pycache__", "node_modules", ".git", ".venv", ".mypy_cache", ".myrm", "external_reference_project"})
+PRUNE_DIR_NAMES = frozenset(
+    {"__pycache__", "node_modules", ".git", ".venv", ".mypy_cache", ".myrm", "external_reference_project"}
+)
 
 
 @dataclass(frozen=True)
@@ -337,9 +338,7 @@ def _resolve_md_ref(
             rest = cand.split("/", 1)[1]
             if _path_exists(monorepo_root / target_dir, rest):
                 return True
-            if first == "myrm-agent-harness" and _path_exists(
-                monorepo_root / target_dir / _PKG_REL, rest
-            ):
+            if first == "myrm-agent-harness" and _path_exists(monorepo_root / target_dir / _PKG_REL, rest):
                 return True
             continue
         # Module shortcut: md directory -> package root -> tests mirror.

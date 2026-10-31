@@ -18,10 +18,10 @@
 | 6 | 确定性技能选择器 | **CORE** | ironclaw 评分 + 排除关键词 + Token 预算 |
 | 7 | 依赖检查与可用性 | **CORE** | Nanobot + ironclaw gating |
 | 8 | 安全扫描框架 | **CORE** | CoPaw 可扩展框架 + ironclaw 内容转义 |
-| 9 | 安装与卸载 | **CORE** | nexu 异步队列 + Deer-Flow 安全提取 |
-| 10 | 状态管理 | **CORE** | nexu JSON 账本 + 目录监听 |
+| 9 | 安装与卸载 | **CORE** | Deer-Flow 安全提取 + 隔离区安装流水线（评分门禁、事务式回滚） |
+| 10 | 状态管理 | **CORE** | 文件即真相：技能目录内的 `.stats.json` / `origin.json` / `receipt.json`；SQLite 快照 + 目录监听 |
 | 11 | 技能失败事件与可选隔离读取 | **CORE** | `SkillFailureEvent` 交给宿主处置；`QuarantineAwareSkillBackend` 仅过滤宿主置为 `is_active=False` 的技能 |
-| 12 | 搜索缓存 | **CORE** | picoclaw Trigram Jaccard |
+| 12 | 搜索缓存 | **CORE** | 精确键 + TTL 的查询结果缓存 |
 | 13 | Marketplace 集成 | ENHANCE | NextClaw API + CoPaw 多源 |
 | 14 | 技能创建与评估 | ENHANCE | Deer-Flow AI 驱动 |
 | 15 | Skill Packs 技能集合 | ENHANCE | NanoClaw Flavor + Clawith Template |
@@ -62,7 +62,7 @@
 | `SkillBackend` Protocol | `backends/skills/protocols.py` | **保留**，作为存储抽象层 |
 | `SkillMarketBackend` Protocol | `backends/skills/market_protocols.py` | **保留**，作为 Marketplace 抽象层 |
 | `SkillWriteBackend` Protocol | `backends/skills/creation_protocols.py` | **保留**，作为技能写入抽象层（save/delete） |
-| `SkillMetadata` 数据类 | `backends/skills/types.py`（aggregate；定义见 `types_metadata.py` 等） | **已实现** trust、requires、tool 条件激活等字段 |
+| `SkillMetadata` 数据类 | `backends/skills/types/`（定义见 `types_metadata.py` 等） | **已实现** trust、requires、tool 条件激活等字段 |
 | `SkillRegistry` | `agent/skills/runtime/registry.py` | **增强**，集成信任模型和状态管理 |
 | `get_metadata_summary()` | `agent/skills/runtime/registry.py` | **升级**，改为安全 XML 摘要格式 |
 | `LocalSkillBackend` | `backends/skills/local.py` | **保留**，映射为 builtin 层（Trusted） |
@@ -73,18 +73,18 @@
 
 | 新模块 | 包路径 | 核心来源 |
 |--------|--------|----------|
-| 信任衰减器 | `agent/skills/security/attenuation.py` | ironclaw |
-| 安全扫描器 | `agent/skills/security/scanner.py` | CoPaw |
-| 内容转义器 | `agent/skills/security/sanitizer.py` | ironclaw |
-| 确定性选择器 | `agent/skills/runtime/selector.py` | ironclaw |
-| 依赖检查器 | `agent/skills/runtime/gating.py` | Nanobot + ironclaw |
-| Frontmatter 验证器 | `agent/skills/runtime/validator.py` | Deer-Flow |
-| 安装队列 | `agent/skills/installer/queue.py` | nexu |
-| 安全提取器 | `agent/skills/installer/extractor.py` | Deer-Flow + nexu |
-| 状态账本 | `agent/skills/state/ledger.py` | nexu |
-| 目录监听器 | `agent/skills/state/watcher.py` | nexu + LobsterAI |
-| 搜索缓存 | `agent/skills/search/trigram_cache.py` | picoclaw |
-| XML 摘要生成器 | `agent/skills/runtime/prompt.py` | ironclaw + LobsterAI + picoclaw |
+| 信任衰减器 | `agent/skills/runtime/attenuator.py` | ironclaw |
+| 安全扫描器 | `backends/skills/scanning/scanner.py` | CoPaw |
+| 内容转义器 | `agent/skills/runtime/registry.py`（`xml.sax.saxutils.escape` / `quoteattr`） | ironclaw |
+| 确定性选择器 | 未落地：由 `agent/meta_tools/skills/select/skill_select_tool.py`（模型选择技能并加载 SOP）承担 | ironclaw |
+| 依赖检查器 | `backends/skills/prerequisites/` | Nanobot + ironclaw |
+| Frontmatter 验证器 | `backends/skills/_utils.py`（`parse_skill_frontmatter`） | Deer-Flow |
+| 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | Deer-Flow + nexu |
+| 安全提取器 | `backends/skills/scanning/zip_extract.py`、`agent/skills/market/installers/zip_installer.py` | Deer-Flow + nexu |
+| 使用与生命周期账本 | `backends/skills/stats_collector.py` | 本仓 |
+| 快照与目录监听器 | `backends/skills/snapshot.py`、`backends/skills/watcher.py` | nexu + LobsterAI |
+| 搜索缓存 | `agent/skills/market/service.py`（`BaseSkillMarketService.search`） | 本仓 |
+| XML 摘要生成器 | `agent/skills/runtime/registry.py`（`get_metadata_summary`） | ironclaw + LobsterAI + picoclaw |
 
 ---
 
@@ -352,6 +352,8 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 
 ## 6. 确定性技能选择器 [CORE]
 
+> 落地状态：本章的评分选择器未实现。当前由模型经 `skill_select` 元工具选择技能并加载 SOP（`agent/meta_tools/skills/select/skill_select_tool.py`），可选技能目录的披露方式见 §4 与「L1/L2 缓存架构」。
+
 ### 6.1 设计理念（来自 ironclaw）
 
 技能选择的第一阶段是**纯确定性的**，不依赖 LLM：
@@ -502,7 +504,7 @@ Scanner（编排器）
 每个技能的 SKILL.md 计算 SHA-256 内容哈希：
 - 行尾规范化后计算（`\r\n` → `\n`），确保跨平台一致性
 - 用途：白名单精确匹配、篡改检测、缓存失效判断、变更检测
-- 哈希存储在状态账本中，每次加载时比对
+- 哈希在加载时随 `SkillMetadata.content_hash` 一并计算（`backends/skills/_runtime.py::compute_content_hash`），不另存账本；预置技能同步、磁盘内容比对等需要判断变更的地方按当前内容重算后比较
 
 ### 8.6 白名单机制（来自 CoPaw）
 
@@ -530,130 +532,106 @@ Scanner（编排器）
 | **Git URL** | GitHub/GitLab 仓库 | Installed | NextClaw + picoclaw |
 | **Marketplace API** | 在线商店 | Installed | NextClaw |
 
-### 9.2 异步安装队列（来自 nexu）
+### 9.2 隔离区安装流水线
 
-**核心特性**：
-- 状态机：`queued` → `downloading` → `installing-deps` → `done` / `failed`
-- 并发控制：`asyncio.Semaphore`（默认 max_concurrency=2）
-- 智能 Rate Limit 处理：解析错误消息中的 `retry in Xs`，暂停队列并重试
-- 取消支持：pending 任务直接移除，active 任务标记取消
-- 去重：同一技能不重复入队
-- 自动清理：完成的任务在一定时间后从队列移除
+所有来源（market 下载、LobeHub 模板、Agent Plugin 内的技能、业务层导入）都汇入同一条通路 `install_skill_files`（`agent/skills/market/file_install.py`）：`BaseSkillMarketService.install` / `install_from_url` 负责解析技能、下载并清洗文件（`sanitize_skill_files`），再交给它。
 
-**Rate Limit 处理流程**：
-```
-1. 安装失败，错误消息包含 "retry in 30s"
-2. 解析出暂停时长 30s
-3. 暂停整个队列 30s
-4. 重试失败的任务（最多 3 次）
-5. 超过重试次数则标记为 failed
-```
+**进度回调**：调用方可传 `progress_callback(skill_id, stage, message)`。阶段依次为 `resolving → downloading → quarantine → scanning → installing → completed`；被门禁拒绝时为 `rejected`，解析或下载失败时为 `failed`。
+
+**拒绝门禁**（按顺序执行，每一道都返回失败的 `SkillInstallResult`，不抛异常）：
+
+| 顺序 | 门禁 | 错误码 |
+|------|------|--------|
+| 1 | 安装目录名必须是单个相对路径段（名称由发布方控制，防目录穿越） | `INVALID_SKILL_NAME` |
+| 2 | 生命周期脚本门禁：`package.json` 的 `preinstall` / `install` / `postinstall` 非空即拒绝（§9.4） | `LIFECYCLE_SCRIPT_BLOCKED` |
+| 3 | 安全评分低于 50 分 | `SECURITY_SCORE_BELOW_THRESHOLD` |
+| 4 | 版本降级保护（`allow_downgrade=True` 可放行，§9.5） | `DOWNGRADE_BLOCKED` |
+| 5 | 安装目标是符号链接 / junction，或是装着其他子技能的分类桶 | `PATH_REDIRECT_ATTACK` / `CATEGORY_BUCKET_COLLISION` |
+
+**事务式提升**：文件先写入系统临时目录下的隔离目录（`skill-quarantine-*`），门禁全部通过后由 `SkillInstallTransaction.stage_replace` 复制到安装目录；目标已存在时先把旧目录快照备份，随后写入 `origin.json` 与 `receipt.json`（§10.1），最后 `commit` 清理备份。任何一步异常都回滚到旧目录的快照，新建的目录被删除；Agent Plugin 包内的技能与主目录在同一个事务里提升，要么全部生效，要么全部回滚。隔离目录在 `finally` 里一律删除。
+
+**设计决策**：
+- 门禁在提升之前执行；提升阶段才发现的拒绝（目标不安全）由事务回滚，被拒绝的包不会留下痕迹
+- 先快照后覆盖，升级失败时用户的旧版本原样保留
+- 评分通过但带有告警的技能照常安装，告警写入 `SkillInstallResult.scan_summary`，回执的 `security_verified` 记为 `false`
+- 安装根是 `<状态根>/skills`（`LOCAL_INSTALL_DIR`）；安装流水线不决定信任级别，由宿主载入技能时赋予（§5）
 
 ### 9.3 安全提取（来自 Deer-Flow + nexu）
 
-`.skill` 文件是标准 ZIP 归档。安全提取防护措施：
-- 路径穿越检查（绝对路径、`../` 组件、Windows 驱动器前缀）
-- 符号链接跳过
-- Zip Bomb 防御（总大小 50MB、文件数 500、单文件 10MB）
-- 使用 staging 目录提取，验证通过后原子移动到目标位置
-- Frontmatter 验证
-- 安全扫描（§8）
+`.skill` 文件是标准 ZIP 归档，由 `safe_extract_zip`（`backends/skills/scanning/zip_extract.py`）在内存中解压，所有业务层共用这一个入口：
+- 下载上限 50MB（`zip_installer.MAX_ZIP_SIZE`）
+- 压缩比超过 100:1 视为 Zip Bomb 并拒绝；解压后总大小上限 50MB，条目数上限 4096
+- 符号链接条目跳过；含 `..` 组件、以 `/` 或 `\` 开头、带 Windows 盘符前缀的条目跳过
+- 含 ELF / PE / Mach-O 可执行二进制的成员，整个归档拒绝
+- 解压结果交给 §9.2 的隔离区流水线（安全扫描见 §8）
 
-### 9.4 npm 依赖自动安装（来自 nexu）
+### 9.4 package.json 生命周期脚本门禁
 
-如果技能目录中存在 `package.json`，自动执行依赖安装。
+技能含 `package.json` 且声明了非空的 `preinstall` / `install` / `postinstall` 脚本时，安装前由 `check_lifecycle_scripts`（`backends/skills/scanning/package_audit.py`）判为 high 并直接拒绝（§9.2 门禁 2）；其他可疑的脚本命令只产生 medium 发现，进入 §8 的扫描结果，不阻断。安装流程本身不执行任何依赖安装命令。
 
-### 9.5 版本比较与自动升级（来自 CoPaw）
+### 9.5 版本比较与升级（来自 CoPaw）
 
-- builtin 技能的 frontmatter 中有 `version` 字段
-- 启动时比较 builtin 版本与 workspace 中的覆盖版本
-- 如果 builtin 版本更新，提示用户是否升级（不自动覆盖）
-- 使用语义化版本比较（`packaging.version.Version`）
+- `backends/skills/versioning.py`：`compare_versions` 先按 `major.minor.patch` 比较，任一方不是语义化版本时退回字符串比较；`classify_version_bump` 把一次变更归为 initial / same / patch / minor / major / downgrade；`validate_version_guard` 在提升前拦截降级（§9.2 门禁 4）
+- 搜索结果带 `installed_version` 与 `upgrade_available`（`BaseSkillMarketService._enrich_results`）
+- `SkillAutoUpdateChecker`（`agent/skills/market/autoupdate.py`）惰性检查已安装技能，优先查询 `origin.json` 记录的来源，10 分钟冷却内复用上次结果；它只给出升级建议（`SkillUpdateInfo`），不原地改文件，`update_skill` 经 §9.2 的流水线重新安装
 
 ### 9.6 卸载流程
 
-- 仅允许卸载 `workspace/` 和 `installed/` 层的技能
-- `builtin/` 技能不可卸载
-- 卸载后更新状态账本（§10）
+- 入口 `uninstall_skill`（`agent/skills/market/file_uninstall.py`）只接受 `local::` 开头的技能 ID，经 `resolve_local_install_dir` 映射到安装目录；其他 ID（如预置技能）直接返回失败
+- 删除任何东西之前先过 `assert_safe_install_target`：符号链接 / junction / 越界目标整体拒绝，不会先删了子技能再失败
+- 级联：安装根下 `origin.json` 的 `parent_plugin` 等于被卸载技能名、`skill_id` 相同，或被 `receipt.json` 的 `installed_skills` 列出的子目录一并删除；单个子目录删除失败只记警告，不中止
+- 返回被删除的技能清单与原回执；启用 / 禁用、权限等宿主状态由宿主在卸载成功后自行清理（server 的做法：从启用列表移除，并清理该技能的权限数据）
 
 **设计决策**：
-- 异步队列是生产级必备（防止同时安装 100 个技能压垮系统）
-- Rate Limit 处理是与外部 API 交互的必备能力（nexu 独有）
-- staging 目录 + 原子移动确保安装的原子性（nexu）
-- 安装到 `installed/` 目录自动获得 Installed 信任级别
+- 回执（`receipt.json`）记录了装了哪些子技能，级联卸载不靠目录名猜测
+- 卸载只动安装根，不碰用户自己放置的技能目录
 
 ---
 
 ## 10. 状态管理 [CORE]
 
-### 10.1 JSON 账本系统（来自 nexu）
+### 10.1 文件即真相：状态随技能目录存放
 
-使用 JSON 文件作为技能状态的单一事实来源：
+技能没有集中账本。每个技能的状态就是它自己目录里的文件，复制、备份、删除技能目录时状态随之走：
 
-```json
-{
-  "version": 1,
-  "skills": {
-    "web-search": {
-      "enabled": true,
-      "installed_at": "2025-01-15T10:30:00Z",
-      "source": "builtin"
-    },
-    "community-tool": {
-      "enabled": true,
-      "installed_at": "2025-03-20T14:00:00Z",
-      "source": "clawhub",
-      "install_url": "https://clawhub.io/skills/community-tool"
-    }
-  }
-}
-```
+| 文件 | 内容 | 写入者 |
+|------|------|--------|
+| `SKILL.md` | 技能定义与 frontmatter | 作者 / 创建服务 |
+| `origin.json` | 来源 `source`、`skill_id`、`version`、`installed_at`；Agent Plugin 内的技能另有 `parent_plugin`，声明了 MCP 服务时有 `declared_mcp_servers` | 安装流水线（`agent/skills/market/helpers.py::write_origin`） |
+| `receipt.json` | 安装回执：每个文件的 SHA-256 与大小、清单哈希 `manifest_hash`、`scan_score`、`security_verified`、`installed_skills` | 安装流水线（`agent/skills/market/transaction.py::write_receipt_file`），用于级联卸载与取证校验 |
+| `.stats.json` | 使用计数（调用 / 成功 / 失败）、近期使用记录、`created_at`、`last_used_at`、生命周期状态（`active` → `stale` → `archived`）、`pinned`、`merged_into` | `SkillStatsCollector`（`backends/skills/stats_collector.py`），Curator 据此治理 |
 
-**文件路径**：`~/.myrm/skills_ledger.json`
+另有实例配置与运行状态：`SkillStateManager`（`backends/skills/state_manager.py`）在 `.myrm/skills/instances/<技能>/<实例>.json` 与 `.myrm/skills/states/<技能>/<实例>.json` 下保存（默认相对工作目录）。
 
-### 10.2 原子写入
+启用 / 禁用、各智能体可用的技能清单属于宿主状态，框架层不保存；server 把它们存在用户配置与 Agent profile 里。
 
-- 写入 `.tmp` 文件 → `os.rename()` 原子替换
-- 确保断电/崩溃时不会损坏账本
-- Pydantic 模型验证，格式错误时回退到空账本
+### 10.2 原子写入与损坏处理
 
-### 10.3 目录监听 + 双向同步（来自 nexu + LobsterAI）
+- `.stats.json`、实例配置与状态文件用 `infra.atomic_write.atomic_write` 写入：同目录 `mkstemp` 临时文件 → 写入并 `fsync` → `os.replace` 原子替换（跨设备时退回 `shutil.move`）→ 再 `fsync` 父目录；文件权限默认 `0600`
+- `origin.json` 与 `receipt.json` 在安装事务内随目录一起提升，失败时整个目录回滚，不单独做原子写入
+- `.stats.json` 读到无法解析的内容时改名为 `.stats.json.corrupt` 保留现场，再从空账本开始（创建时间取 `SKILL.md` 的修改时间）；读不出来（`OSError`）时绝不用空账本覆盖；纯读取从不写文件
+- 账本不加锁：同一时刻两个写入方改同一个账本可能丢一次更新，调用方都在同一个事件循环里且读写之间不 `await`
 
-使用 `watchdog` 库监听技能目录变更：
-- 新增 `SKILL.md` → 自动注册到账本（标记为 `managed`）
-- 删除技能目录 → 自动标记为 `uninstalled`
-- 防抖（500ms）避免频繁触发
-- 与安装队列协同：正在安装的技能不触发同步
+### 10.3 SQLite 快照与目录监听（来自 nexu + LobsterAI）
 
-**双向同步**：
-- 磁盘 → 账本：新发现的技能自动记录
-- 账本 → 磁盘：账本中存在但磁盘缺失的技能标记为已卸载
+`SQLiteSkillSnapshot`（`backends/skills/snapshot.py`）把每个技能的 `SKILL.md` 原文、存放路径、信任级别与文件修改时间存进技能根目录下的 `.skills_snapshot.sqlite`（表 `skill_snapshots`）；`SkillWatcher`（`backends/skills/watcher.py`）用 watchdog 递归监听同一目录，让快照跟上磁盘：
 
-### 10.4 极速热重载与增量同步 (Hot Reload)
+- 只关心 `SKILL.md`（父目录名以 `.` 开头的忽略）：创建 / 修改 / 移动 → 解析并写入快照（`upsert_from_path`）；删除 → 从快照移除（`delete_from_path`）；整个技能目录被删除或改名同理
+- 500ms 防抖，窗口内的多次事件合并为一次处理
+- `sync_all(root)`：按 `file_mtime` 增量对账——磁盘有而库里没有、修改时间更新、路径变了的写入快照，库里有而磁盘没有的删除；只重新解析有变动的文件
+- 谁来维护：server 在非沙箱实例启动 `SkillWatcher`（监听 `<状态根>/skills`）；沙箱实例没有监听器；写入路径（技能创建服务、技能下载）无论有无监听器都直接调用 `upsert_from_path` / `delete_from_path`
+- 读取：`LocalSkillBackend` 与 `scan_workspace_skills` 默认 `use_snapshot=True`，快照文件存在且非空时直接用它的内容、不再遍历磁盘；快照缺失或为空时遍历磁盘（遍历结果不回写快照）。两条路径都会读取技能目录的 `.stats.json` 补上生命周期状态，已归档（`archived`）的技能不进入列表
+- 信任级别：快照写入固定为 `INSTALLED`（`upsert_from_path` 不区分来源），而 `LocalSkillBackend` 遍历磁盘时给 `TRUSTED`，同一个技能走两条路径得到的信任级别不同
 
-系统支持极速热重载与增量同步，确保技能变更实时生效，同时保持极低的性能开销：
+### 10.4 热重载与性能
 
-- **O(N) 快照读取**：Agent 执行时直接读取 SQLite 快照中预解析的元数据，避免重复文件 I/O 和 frontmatter 解析。性能基准测试显示：
-  - 10 技能：3.8ms
-  - 200 技能：68.7ms
-  - 随规模增长加速比提升，在网络文件系统或容器环境中优势更明显
-
-- **O(1) 精准增量更新**：
-  - **本地开发模式**：启动 `SkillWatcher`（基于 watchdog）监听外部编辑器修改，自动 debouncing 并触发精准更新。100 个技能中修改 1 个，仅需 5.8ms。
-  - **SaaS 模式**：可通过 API 触发 `snapshot.upsert_from_path` 实现零监听开销。
-
-- **O(N) 增量冷启动同步**：启动时执行 `sync_all()`，仅通过 `os.stat` 检查 `file_mtime`，只重新解析有变动的文件。
-
-**技术细节**：
-- SQLite WAL 模式支持多读单写并发
-- 基于 `file_mtime` 的增量同步避免全量扫描
-- Cursor 显式关闭防止资源泄漏
-- Debouncing 机制（0.5秒窗口）批量处理快速连续变化
+- **快照的收益有限**：本地磁盘上，快照路径与遍历磁盘路径的 `list_skills` 进程 CPU 耗时相差不到 5%（30 次中位数：10 个技能 26.3ms 对 26.6ms；200 个技能 508.6ms 对 533.1ms）。单个技能约 2.5ms，主要花在解析 frontmatter 与读 `.stats.json` 上，快照省掉的只是读取 `SKILL.md`
+- **增量更新是文件级**：`upsert_from_path` / `delete_from_path` 只动一个技能；无变动的 `sync_all` 只做 `os.stat` 与一次查询
+- SQLite 以 WAL 模式打开（`harden_connection_sync` 的 `CACHE` 档案），连接超时 10 秒，每次操作开连接、用完即关，游标显式关闭防止资源泄漏
 
 **设计决策**：
-- 采用混合架构（API 主动触发 + 本地按需监听），兼顾 SaaS 大规模部署的资源节约和本地开发的实时热重载体验
-- 快照存储完整 content，支持离线查询，无需回读文件
-- Agent 层不缓存技能列表，确保"文件即真相"，避免状态不一致
+- 快照存完整 `SKILL.md` 原文，读取时无需回读文件
+- 混合架构：非沙箱实例用 `SkillWatcher` 捕获外部编辑；沙箱实例靠写入路径直接更新快照，不常驻监听线程
 
 ---
 
@@ -671,30 +649,20 @@ Scanner（编排器）
 
 ## 12. 搜索缓存 [CORE]
 
-### 12.1 Trigram Jaccard 相似度缓存（来自 picoclaw）
+### 12.1 查询结果缓存
 
-**核心思想**：相似的搜索查询应该返回相似的结果，无需重复调用 API。
+`BaseSkillMarketService.search`（`agent/skills/market/service.py`）按查询词缓存聚合后的搜索结果：
 
-**算法**：
-1. 将查询字符串分解为 trigrams（3 字符滑动窗口）
-2. 对 trigrams 计算哈希（uint32）以节省内存
-3. 新查询与缓存中所有查询计算 Jaccard 相似度
-4. 相似度 ≥ 0.7 → 缓存命中，直接返回结果
-5. 相似度 < 0.7 → 缓存未命中，执行实际搜索并缓存结果
-
-**缓存策略**：
-- LRU 淘汰（最大 100 条）
-- TTL 过期（5 分钟）
-- 线程安全（`threading.Lock`）
-
-**效果**：
-- "web search tool" 和 "web searching tools" 的 Jaccard 相似度 > 0.7 → 缓存命中
-- 显著减少对 Marketplace API 的重复调用
+- **缓存键**：小写并去掉首尾空白的查询词，精确匹配，不做相似度匹配
+- **过期**：300 秒（`CACHE_TTL_SECONDS`）；命中时直接取缓存并按 `limit` 截断
+- **容量**：最多 100 条（`CACHE_MAX_ENTRIES`），满了淘汰写入时间最早的一条
+- **空查询**（浏览模式）：不查询任何源，返回空列表，同样进缓存
+- 缓存只存原始搜索结果；「已安装版本 / 可升级」标记（§9.5）每次命中后重新计算，不进缓存
+- 不加锁：缓存只在事件循环里读写
 
 **设计决策**：
-- 在所有 14 个项目中，只有 picoclaw 实现了这种搜索缓存，是我们的差异化优势
-- 算法简单高效，无额外依赖
-- 阈值 0.7 经过 picoclaw 验证，平衡了命中率和准确率
+- 精确键 + TTL，不依赖近似匹配，命中行为可预测
+- 已安装状态不进缓存，安装或卸载后的下一次搜索立即反映
 
 ---
 
@@ -702,30 +670,30 @@ Scanner（编排器）
 
 ### 13.1 多源聚合搜索（来自 CoPaw + picoclaw）
 
-支持多个技能源的并发搜索：
-- ClawHub（官方商店）
-- GitHub（仓库搜索）
-- skills.sh（在线目录）
-- 本地索引
+`BaseSkillMarketService` 聚合多个技能源的搜索。默认源：预置（prebuilt，宿主提供技能存储时才有）、静态索引（static_index）、ClawHub、GitHub、skills.sh、LobeHub、ModelScope、阿里云；宿主可用 `register_source` / `unregister_source` 增删自定义源。
 
 **并发策略**（来自 picoclaw）：
-- 使用 `asyncio.gather()` 并发查询所有源
-- 每个源有独立超时（60s）
-- 支持部分成功（至少一个源返回结果即可）
-- 结果按评分排序后合并去重
+- 对所有源并发发起搜索（`asyncio.as_completed`），逐个等待先返回的源，每次最多等 20 秒（`SEARCH_TIMEOUT`）
+- 支持部分成功：超时或出错的源只记警告并跳过，已拿到的结果照常返回
+- 各源结果先按来源优先级排序（`SOURCE_PRIORITY`：prebuilt > static_index > clawhub > skills_sh > github > lobehub，未列出的源为 0），再去重（`deduplicate`）、按查询词评分排序（`rank_results`）并截到 `limit`
 
 ### 13.2 统一 API（来自 NextClaw）
 
+宿主 server 的实现，挂载在 `/api` 下：
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/skills` | GET | 列出已安装技能（含状态） |
-| `/api/skills/search` | GET | 搜索 Marketplace |
-| `/api/skills/{name}` | GET | 技能详情 |
-| `/api/skills/{name}/content` | GET | SKILL.md 正文 |
-| `/api/skills/install` | POST | 安装技能（入队） |
-| `/api/skills/{name}` | DELETE | 卸载技能 |
-| `/api/skills/{name}/enable` | PUT | 启用/禁用技能 |
-| `/api/skills/queue` | GET | 安装队列状态 |
+| `/api/skills/` | GET | 列出技能（含启用状态） |
+| `/api/skills/discovery/search` | GET | 搜索 Marketplace |
+| `/api/skills/discovery/preview` | POST | 安装前预览（含安全扫描） |
+| `/api/skills/discovery/install` | POST | 安装技能（§9.2 流水线） |
+| `/api/skills/discovery/install-from-url` | POST | 从 GitHub URL 安装 |
+| `/api/skills/discovery/updates` | GET | 检查已安装技能的升级（§9.5） |
+| `/api/skills/discovery/update` | POST | 升级技能 |
+| `/api/skills/discovery/uninstall` | POST | 卸载技能（§9.6） |
+| `/api/skills/{skill_id}` | GET | 技能详情 |
+| `/api/skills/{skill_id}/files/{filename}` | GET | 读取技能文件（含 `SKILL.md`） |
+| `/api/skills/local/toggle` | POST | 启用 / 禁用本地技能 |
 
 ### 13.3 多语言支持（来自 NextClaw + nexu）
 
@@ -741,8 +709,8 @@ Scanner（编排器）
 
 **设计决策**：
 - Marketplace 是增强模块，不影响核心功能
-- 并发搜索 + Trigram 缓存确保搜索性能
-- 安装通过异步队列（§9.2），不阻塞 UI
+- 并发搜索 + 查询结果缓存（§12）确保搜索性能
+- 安装是异步调用，经 `progress_callback` 上报阶段（§9.2），不阻塞 UI
 
 ---
 
@@ -767,7 +735,7 @@ Scanner（编排器）
    - 入队的请求由后台 Worker 经 `EvolutionIntegration.evolve_skill` 先过 `EvolutionScreener`（锁定、冷却、静态拦截、FIX 的 LLM 确认），再交给进化引擎；主 Agent 继续对话毫无感知。
 4. 提案与审批 (Proposal & Approval) →
    - 引擎产出 `EvolutionProposal`（FIX 与 DERIVED 先过 EvalCase 回归门，DERIVED 另过 Improvement Gate），不直接写库；Server 的 `ConfidenceApprovalFlow` 落地：运行时失败的修复一律人工审核，其余按置信度与风控信号决定自动合并或进入审核队列。
-   - 引擎起草时读的是磁盘上的 SKILL.md（`core/skill_on_disk.py`）：编辑器、版本回滚和 agent 的技能工具改的是文件，不是进化库里的副本，基于副本的提案会在批准时覆盖技能已不再有的文本。文件与副本不同就以文件为准且不回写副本；文件大于进化库能存的上限（65,536 字符）时仍用副本。进化锁同样以文件为准：库里的标志或文件 frontmatter 里的标志任一为真即锁定，不受上述文本规则影响（文本相同、文件超限时照样读文件里的锁，读不到文件时读副本里的）。引擎运行期间文件又被改动的提案，Server 在落地前丢弃，下一次起草从新文件开始。
+   - 引擎起草时读的是磁盘上的 SKILL.md（`evolution/core/skill_on_disk.py`）：编辑器、版本回滚和 agent 的技能工具改的是文件，不是进化库里的副本，基于副本的提案会在批准时覆盖技能已不再有的文本。文件与副本不同就以文件为准且不回写副本；文件大于进化库能存的上限（65,536 字符）时仍用副本。进化锁同样以文件为准：库里的标志或文件 frontmatter 里的标志任一为真即锁定，不受上述文本规则影响（文本相同、文件超限时照样读文件里的锁，读不到文件时读副本里的）。引擎运行期间文件又被改动的提案，Server 在落地前丢弃，下一次起草从新文件开始。
    - 前端 GUI 的审核收件箱亮起红点，等待用户显式批准。保护了系统 Prompt Cache 不被后台提炼静默击穿。
 5. 拒绝反馈 (Rejection Feedback) →
    - 用户拒绝并给出理由时，理由写入该技能的进化约束；之后每次 FIX / DERIVED 起草变体，最近 5 条约束作为必须遵守的历史约束进入提示词，防止同一类废料被重复提出。
@@ -873,14 +841,14 @@ skills:
 
 1. 加载 Pack 定义
 2. 检查所有技能是否已安装
-3. 安装缺失技能（通过异步队列 §9.2）
+3. 安装缺失技能（逐个走 §9.2 的安装流水线）
 4. 按 Pack 配置设置启用状态
 5. 应用 Pack 不会影响未包含在 Pack 中的技能状态
 
 **设计决策**：
 - YAML 格式定义，简单直观
 - 类似 Clawith 的 Agent Template 和 NanoClaw 的 Flavor System
-- 缺失技能自动入队安装，无需手动逐个安装
+- 缺失技能自动安装，无需手动逐个安装
 
 ---
 
@@ -907,7 +875,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 
 1. 首次启动时检测 `installed/` 目录
 2. `STATIC_SKILL_SLUGS`：从 builtin 复制到 installed（本地操作，无网络）
-3. `CURATED_SKILL_SLUGS`：入队到异步安装队列（§9.2）从 Marketplace 下载
+3. `CURATED_SKILL_SLUGS`：经 §9.2 的安装流水线从 Marketplace 下载
 4. 幂等：已安装的跳过
 5. 安装失败不阻塞启动
 
@@ -926,12 +894,12 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 技能选择 | 确定性评分 + 正则模式 + 排除关键词 + Token 预算 | LLM 选择 | 防止循环操纵，可预测，正则精确匹配 |
 | 安全扫描 | 可扩展框架 + 核心 6 种威胁 | 17 种威胁类别 | 覆盖 95% 威胁，不过度设计 |
 | 内容完整性 | SHA-256 哈希 + 行尾规范化 | 无 | 白名单精确匹配、篡改检测、跨平台一致性 |
-| 安装队列 | asyncio 异步队列 + Rate Limit 处理 | 同步安装 | 生产级必备，防止系统过载 |
-| 搜索缓存 | Trigram Jaccard 相似度 | 精确匹配缓存 | 模糊匹配减少 API 调用，差异化优势 |
-| 状态持久化 | JSON 账本 + 原子写入 | SQLite / 数据库 | 轻量、无依赖、人类可读 |
+| 安装方式 | 隔离区流水线：评分门禁 + 事务式提升 | 直接解压覆盖 | 被拒绝的包不留痕迹，升级失败保留旧版本 |
+| 搜索缓存 | 精确键 + 300 秒 TTL + 100 条上限 | 相似度匹配缓存 | 实现简单，命中行为可预测 |
+| 状态持久化 | 技能目录内的 `.stats.json` / `origin.json` / `receipt.json`（`.stats.json` 原子写入） | 集中账本 / 数据库 | 随技能目录复制、备份与删除，没有集中状态可漂移 |
 | 目录结构 | 三层 + 信任分离 | 两层 | 物理隔离确保信任级别不可伪造 |
 | 摘要格式 | 安全 XML + 路由指令 | Markdown 表格 | 结构化、可嵌套、防注入 |
-| 目录监听 | watchdog + 双向同步 | 仅 mtime 检查 | 实时性 + 一致性 |
+| 目录监听 | watchdog + SQLite 快照（`sync_all` 按 mtime 对账） | 仅 mtime 检查 | 实时性 + 一致性 |
 | 内容安全 | XML 转义 + 标签逃逸检测 | 无 | 防止 Prompt 注入的最后一道防线 |
 | 版本管理 | 语义化版本比较 + 升级提示 | 无版本管理 | 长期维护必备，用户不会错过重要更新 |
 | 预安装 | Curated Skills 种子（按需启用） | 强行装配 / 空白启动 | 遵循所见即所得：种子预置库供用户按需启用，内置通用智能体默认不加载技能（skill_ids = []，纯指令零启动基线） |
@@ -942,7 +910,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 
 | 方案模块 | 现有代码 | 状态 |
 |----------|----------|------|
-| 技能定义规范 | `backends/skills/types.py` + `types_*.py` 子模块 | **已实现**（`types_enums`/`types_metadata`/`types_instance`/`types_visibility` 等） |
+| 技能定义规范 | `backends/skills/types/` 包 | **已实现**（`types_enums`/`types_metadata`/`types_instance`/`types_visibility` 等） |
 | 存储抽象层 | `backends/skills/protocols.py` | **无需修改** |
 | 发现抽象层 | `backends/skills/market_protocols.py` | **无需修改** |
 | 创建抽象层 | `backends/skills/creation_protocols.py` | **无需修改** |
@@ -952,17 +920,17 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 技能注册表 | `agent/skills/runtime/registry.py` | 需增强（集成信任模型和状态管理） |
 | 文档加载 | `agent/meta_tools/skills/select/skill_document_loader.py` | **无需修改** |
 | 元数据摘要 | `agent/skills/runtime/registry.py::get_metadata_summary` | 需升级为安全 XML 格式 |
-| 信任衰减器 | — | **新增** `agent/skills/security/attenuation.py` |
-| 安全扫描器 | — | **新增** `agent/skills/security/scanner.py` |
-| 内容转义器 | — | **新增** `agent/skills/security/sanitizer.py` |
-| 确定性选择器 | — | **新增** `agent/skills/runtime/selector.py` |
-| 依赖检查器 | — | **新增** `agent/skills/runtime/gating.py` |
-| Frontmatter 验证器 | — | **新增** `agent/skills/runtime/validator.py` |
-| 安装队列 | — | **新增** `agent/skills/installer/queue.py` |
-| 安全提取器 | — | **新增** `agent/skills/installer/extractor.py` |
-| 状态账本 | — | **新增** `agent/skills/state/ledger.py` |
-| 目录监听器 | — | **新增** `agent/skills/state/watcher.py` |
-| 搜索缓存 | — | **新增** `agent/skills/search/trigram_cache.py` |
+| 信任衰减器 | `agent/skills/runtime/attenuator.py` | **已实现** |
+| 安全扫描器 | `backends/skills/scanning/scanner.py` | **已实现** |
+| 内容转义器 | `agent/skills/runtime/registry.py`（XML 转义） | **已实现** |
+| 确定性选择器 | `agent/meta_tools/skills/select/skill_select_tool.py` | **未落地**：由模型经元工具选择技能，见 §6 |
+| 依赖检查器 | `backends/skills/prerequisites/` | **已实现** |
+| Frontmatter 验证器 | `backends/skills/_utils.py`（`parse_skill_frontmatter`） | **已实现** |
+| 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | **已实现** |
+| 安全提取器 | `backends/skills/scanning/zip_extract.py` | **已实现** |
+| 使用与生命周期账本 | `backends/skills/stats_collector.py` | **已实现** |
+| 目录监听器 | `backends/skills/snapshot.py`、`backends/skills/watcher.py` | **已实现** |
+| 搜索缓存 | `agent/skills/market/service.py` | **已实现** |
 
 ---
 
@@ -974,11 +942,11 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 技能选择 | 确定性评分 + 正则模式 + veto + 预算 | ironclaw | **≥** 等价，正则模式精确匹配 |
 | 安全扫描 | 可扩展框架 + 核心规则 | CoPaw (17 种) | **≥** 更灵活，不过度设计 |
 | 内容完整性 | SHA-256 + 行尾规范化 | ironclaw | **≥** 等价 |
-| 安装队列 | 异步 + 重试 + 取消 | nexu | **≥** 等价，Python asyncio 更简洁 |
-| 搜索缓存 | Trigram Jaccard | picoclaw | **≥** 等价，独一无二 |
+| 安装 | 隔离区 + 评分门禁 + 事务式回滚 | nexu（异步队列 + 限流重试） | 取舍不同：不排队，换取门禁与回滚 |
+| 搜索缓存 | 精确键 + TTL | picoclaw（Trigram Jaccard） | 取舍不同：不做相似度匹配 |
 | 多源安装 | ClawHub + GitHub + ZIP | CoPaw (6 源) | **≥** 覆盖核心场景，可扩展 |
-| 状态管理 | JSON 账本 + 原子写入 | nexu | **≥** 等价，更轻量 |
-| 目录监听 | watchdog + 双向同步 | nexu | **≥** 等价 |
+| 状态管理 | 技能目录内的分散文件 | nexu（集中 JSON 账本） | 取舍不同：状态随目录走，没有集中账本 |
+| 目录监听 | watchdog + SQLite 快照 | nexu | **≥** 等价 |
 | 内容安全 | XML 转义 + 标签逃逸 | ironclaw | **≥** 等价 |
 | 权限过滤 | Agent 级别权限 | opencode | **≥** 等价 |
 | 多语言 | 中英双语 + 标签翻译 | nexu (110+ 标签) | **≥** 等价 |
@@ -986,7 +954,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 预安装 | Curated + Static 双轨 | nexu | **≥** 等价 |
 | 技能集合 | Skill Packs YAML | NanoClaw Flavor | **≥** 更简洁 |
 
-**综合评估**：本方案在所有 15 个核心能力维度上均达到或超过最强竞品水平。三层安全防御（信任衰减 + 安全扫描 + 内容转义）+ SHA-256 完整性校验是所有竞品中独一无二的组合。
+**综合评估**：除「安装」「状态管理」「搜索缓存」三个维度取舍不同外，其余维度为设计期的对比结论。三层安全防御（信任衰减 + 安全扫描 + 内容转义）+ SHA-256 完整性校验是所有竞品中独一无二的组合。
 
 ---
 
@@ -1003,8 +971,8 @@ STATIC_SKILL_SLUGS: list[str] = [
 | **CoPaw** | 安全扫描框架（Scanner + Analyzer + Policy）、多源 Hub 安装、白名单机制 |
 | **LobsterAI** | XML 路由指令、安装前用户确认、Skill Service Manager |
 | **ironclaw** | **信任模型与权限衰减**、确定性选择器、内容安全转义、Token 预算 |
-| **nexu** | **异步安装队列**、JSON 账本系统、目录监听双向同步、Rate Limit 处理 |
-| **picoclaw** | **Trigram 搜索缓存**、多注册表并发搜索、GitHub 智能安装 |
+| **nexu** | 目录监听与增量对账的思路、staging 目录安装；异步安装队列、集中 JSON 账本与 Rate Limit 处理未采用 |
+| **picoclaw** | 多注册表并发搜索、GitHub 智能安装；Trigram 搜索缓存未采用 |
 | **nullclaw** | SkillForge 自动发现管线（Scout → Evaluate → Integrate） |
 | **zeroclaw** | SkillForge Rust 版、GitHub PAT 支持 |
 | **opencode** | Effect-TS 函数式架构、Agent 级别权限过滤、多源发现 |
@@ -1023,10 +991,10 @@ STATIC_SKILL_SLUGS: list[str] = [
 
 ### 2. 性能最优
 
-- Trigram 搜索缓存减少 API 调用
+- 查询结果缓存（§12）减少 API 调用
 - 确定性选择器避免 LLM 调用
-- 异步安装队列不阻塞主流程
-- LRU 缓存 + mtime 热重载零开销
+- 安装是异步调用，不阻塞主流程
+- `SkillWatcher` 防抖后只更新变动的那一个技能（§10.3）
 
 ### 3. 简洁不冗余
 
@@ -1065,7 +1033,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 | SkillForge 自动发现 | 实际使用场景有限，可作为未来扩展 |
 | Container Skills | 过度设计，普通技能已满足需求 |
 | Git 分支即技能 | 过度设计，目录结构更直观 |
-| 完整安装历史 | 账本已有 installed_at/source，足够 |
+| 完整安装历史 | `origin.json` 已有 installed_at/source，`receipt.json` 有文件清单，足够 |
 | Skill Service Manager | 后台服务管理复杂度高，收益低 |
 
 ## L1/L2 缓存架构与降噪 (L1/L2 Cache & Noise Reduction)
