@@ -4,16 +4,19 @@
 - diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
 - infra.tls_compat::is_tls_hard_error, is_tls_transient_error (POS: Enterprise TLS compatibility)
+- toolkits.llms.errors.error_payload::walk_exception_chain (POS: The one reader of the provider's answer in an LLM exception)
 
 [OUTPUT]
-- diagnose_transport: maps a TLS or connection failure to a localized DiagnosticResult, None for any other error
+- diagnose_transport: maps a TLS or connection failure to a localized DiagnosticResult, None for any other error;
+  a connection failure whose cause names a rejected certificate is a TLS failure
 - infer_service_name: names the local LLM service behind a custom endpoint URL
 - extract_port: reads the port out of a custom endpoint URL
 
 [POS]
 Transport half of the diagnostic engine: errors where the request never reached a model (certificate
 rejected, handshake interrupted, endpoint unreachable). The engine calls it first; every later family
-assumes the request got through.
+assumes the request got through. A client library words a rejected certificate as a bare "Connection error."
+and keeps the reason in the cause chain, so a connection failure is also read through its causes.
 """
 
 import re
@@ -21,6 +24,7 @@ import re
 from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
 from myrm_agent_harness.agent.errors.diagnostics.types import DiagnosticResult, ErrorContext
 from myrm_agent_harness.infra.tls_compat import is_tls_hard_error, is_tls_transient_error
+from myrm_agent_harness.toolkits.llms.errors.error_payload import walk_exception_chain
 
 _CONNECTION_KEYWORDS = (
     "connection refused",
@@ -30,7 +34,18 @@ _CONNECTION_KEYWORDS = (
 )
 
 
+def _cause_rejects_certificate(exc: Exception) -> bool:
+    """True when a cause wrapped by *exc* carries a hard TLS signal that the wrapper's own text lacks.
+
+    Only hard signals are read through the chain. The transient ones include protocol-agnostic phrases
+    ("wrong version number", "broken pipe"), which would turn an https URL pointed at a plain-HTTP service
+    into a retry hint.
+    """
+    return any(is_tls_hard_error(str(cause)) for cause in walk_exception_chain(exc)[1:])
+
+
 def diagnose_transport(
+    exc: Exception,
     full_text: str,
     context: ErrorContext | None,
     locale: str,
@@ -49,6 +64,11 @@ def diagnose_transport(
 
     # 1. Connection errors (精准自定义端点诊断)
     if any(kw in full_text for kw in _CONNECTION_KEYWORDS):
+        # A wrapper's own text says only that the connection failed; a rejected certificate shows in its
+        # causes, and no amount of checking the service, the network or the firewall fixes it.
+        if _cause_rejects_certificate(exc):
+            return build_catalog_result("tls_certificate", locale)
+
         # 自定义端点(Ollama/LM Studio)专属诊断
         if context and context.is_custom_endpoint:
             return build_catalog_result(

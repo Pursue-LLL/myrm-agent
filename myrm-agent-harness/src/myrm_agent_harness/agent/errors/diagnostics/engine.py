@@ -292,7 +292,7 @@ class LLMErrorDiagnostic:
         full_text = f"{str(exc).lower()} {repr(exc).lower()}"
 
         # 0-3. Transport (TLS, connection) then account (billing, provider policy, API key) families
-        transport = diagnose_transport(full_text, context, locale, cooldown_remaining_ms)
+        transport = diagnose_transport(exc, full_text, context, locale, cooldown_remaining_ms)
         if transport is not None:
             return transport
 
