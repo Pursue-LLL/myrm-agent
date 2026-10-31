@@ -19,7 +19,7 @@
   (POS: 用户发起轮在末位 HumanMessage 注入 ACTIVE goal objective；continuation/wrap-up 轮跳过)
 - concurrency.concurrency_limiter::create_concurrency_limiter, (POS: Subagent  Semaphore  SUBAGENT_CONFIGS)
   (POS: Subagent 并发限制器，根据 agent_type 限制并发)
-- concurrency.tool_conflict_gate::ToolConflictGateMiddleware (POS: TOOL_SAFETY_METADATA  ToolNode  ConflictGate)
+- concurrency.tool_conflict_gate::ToolConflictGateMiddleware (POS: Which tool calls of one agent may run at the same moment.)
   (POS: 工具冲突闸门，并发安全的调用共享、其余调用独占)
 - subagent_limit_middleware::subagent_limit_middleware (POS: Subagent limit middleware. Ensures the LLM cannot spawn more than MAX_CONCURRENT_SUBAGENTS in a single turn.)
   (POS: LLM Fan-out 保护，限制单轮 delegate_task 调用数)
