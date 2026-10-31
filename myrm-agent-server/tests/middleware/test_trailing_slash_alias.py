@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.middleware.trailing_slash_alias（POS: 去斜杠别名中间件与路由树采集）
-- app.main::app（POS: 真实路由表，用于契约对账）
+- tests.support.public_api_app::build_public_api_app、app.api.mem0_compat.router::mem0_compat_router（POS: 公开 API 路由树加上 `app/main.py` 自己挂载的 `/mem0`，用于契约对账；测试不 import app.main）
 
 [OUTPUT]
 - 覆盖别名改写、非别名透传、以及「别名集合与真实路由表一致」的漂移门禁
@@ -60,7 +60,13 @@ def test_unrelated_paths_keep_their_original_routing() -> None:
 
 def test_real_route_tree_alias_set_matches_openapi_contract() -> None:
     """别名集合必须与真实路由表一致：新增 `/x/` 集合端点时自动获得去斜杠别名。"""
-    from app.main import app
+    from app.api.mem0_compat.router import mem0_compat_router
+    from tests.support.public_api_app import build_public_api_app
+
+    # 公开 API 路由树不含 `app/main.py` 自己挂载的路由（测试禁止 import app.main）；其中 `/mem0` 有以斜杠结尾的集合端点，
+    # 需补挂，别名集合才覆盖它们。
+    app = build_public_api_app()
+    app.include_router(mem0_compat_router)
 
     slashed = collect_slashed_paths(app)
 

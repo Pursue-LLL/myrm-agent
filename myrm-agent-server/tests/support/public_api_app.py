@@ -8,11 +8,12 @@
 [OUTPUT]
 - public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告 + 指向不存在组件的 `$ref`
 - public_api_handlers(): 每个操作背后的端点函数（`app/` 下的文件 + 函数名 + 方法 + 客户端路径）
+- build_public_api_app(): 每次新建一个挂好全部公开路由的应用；共享快照有缓存、不可改，要补挂路由的测试用这个
 - API_VERBS: 计入「操作」的 HTTP 方法
 
 [POS]
 架构测试共享的路由快照；不 import app.main（见 test_no_app_main_in_tests），所以 `app/main.py` 直接挂载的内部/管理路由、`/mem0`、OpenAI 兼容接口与 `/health` 不在其中。
-单次生成并缓存，因为 FastAPI 只在首次 `openapi()` 时发出重复 operationId 警告。端点函数经 `fastapi.routing.iter_route_contexts`
+共享快照单次生成并缓存，因为 FastAPI 只在首次 `openapi()` 时发出重复 operationId 警告。端点函数经 `fastapi.routing.iter_route_contexts`
 从同一个应用读出：函数名相同的端点（`create_task`、`create_job`）无法靠 operationId 区分文件。
 """
 
@@ -41,8 +42,11 @@ class PublicApiOpenApi:
     unresolved_schema_refs: tuple[str, ...]
 
 
-@cache
-def _build_app() -> FastAPI:
+def build_public_api_app() -> FastAPI:
+    """A new app with every public router mounted, for a caller that mounts further routers on top of it.
+
+    `public_api_openapi()` and `public_api_handlers()` read one cached instance of it, which must stay untouched.
+    """
     from app.api.internal.org_policy_sync.org_model_policy_sync import frontend_router as org_policy_router
     from app.api.memory.operations import command_center, command_center_consolidation, command_center_diagnostics
     from app.api.router import api_router
@@ -59,6 +63,11 @@ def _build_app() -> FastAPI:
             app.include_router(lab_router, prefix=f"{API_PREFIX}/memory")
     app.include_router(webui_router)
     return app
+
+
+@cache
+def _shared_app() -> FastAPI:
+    return build_public_api_app()
 
 
 def _collect_schema_refs(node: object, refs: set[str]) -> None:
@@ -84,7 +93,7 @@ def _unresolved_schema_refs(schema: dict[str, object]) -> tuple[str, ...]:
 
 @cache
 def public_api_openapi() -> PublicApiOpenApi:
-    app = _build_app()
+    app = _shared_app()
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         schema = app.openapi()
@@ -113,7 +122,7 @@ def public_api_handlers() -> tuple[ApiHandler, ...]:
     decorator that hides the function it wraps; a caller must treat such an operation as unmapped, not as absent.
     """
     handlers: list[ApiHandler] = []
-    for context in iter_route_contexts(_build_app().routes):
+    for context in iter_route_contexts(_shared_app().routes):
         endpoint = context.endpoint
         if endpoint is None or context.path_format is None:
             continue
