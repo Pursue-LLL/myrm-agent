@@ -40,7 +40,8 @@ python build.py
 ## 技术细节
 
 - **后端入口**: `myrm-agent-server/app/main.py`
-- **打包**: PyInstaller `--onedir`，并 `--add-data` 打入 `shared/config/provider_legacy_remap.json`（供 server provider remap）；工作文件落在临时目录，`binaries/` 下只有最终产物
+- **打包**: PyInstaller `--onedir`，并 `--add-data` 打入 `shared/config/provider_legacy_remap.json`（供 server provider remap）与 server 的随包数据（见下条）；工作文件落在临时目录，`binaries/` 下只有最终产物
+- **随包数据**: PyInstaller 只归档 Python（`.py` 进 PYZ），server 里用 `Path(__file__)` 相对路径读的数据文件不会自己进包；冻结后 `__file__` 是 `_internal/app/…`，所以数据必须按源码布局镜像到包内同一相对路径。`build.py` 的 `SERVER_DATA` 逐项列出（`app/config/subagents`、`app/channels/i18n/locales`、`app/core/eval/fixtures`、`app/core/integrations/catalog/data`、`app/core/integrations/search_catalog/manifest.json`、`assets/`），`SERVER_DATA_NOT_SHIPPED` 登记有意不随包的路径与理由（WhatsApp bridge：它在自己的目录里 `npm install`、再用 PATH 上的 Node.js 启动，安装后的应用既没有可写目录也没有 Finder 的 PATH 上的 Node.js；是否在桌面端提供 WhatsApp 是待定的产品决策）。漏掉的后果是后端健康检查全绿、数据列表却是空的：技能、智能体模板、集成目录、搜索服务商全空，渠道文案显示成原始 key，且无任何报错。`test_desktop_sidecar_data.py` 钉住：用 `__file__` 拼路径的模块都登记了它读什么、读到的路径与 `app/`、`assets/` 下的每个数据文件都在包里或登记为不随包、没有模块用工作目录相对路径找随包数据；整壳烟测再对打包产物断言四个列表非空
 - **架构**: PyInstaller 不能交叉编译，产物架构等于构建所用 Python 的架构；macOS 构建结束用 `lipo -archs` 与 `TARGET_ARCH` 对账，不一致直接失败（不会静默产出错架构的包）
 - **布局契约**: 目录名与入口名在 `build.py`、`src-tauri/tauri.conf.json`（`bundle.resources`；Linux 为 `tauri.linux.conf.json` 的 `bundle.linux.appimage.files`）、`src-tauri/src/runtime/sidecar_path.rs` 必须一致，由 `myrm-agent-server/tests/architecture/test_desktop_sidecar_layout.py` 钉住；`bundle.resources` 的每一项都有产出方（sidecar 目录 ← `build.py`，`.next` 产物 ← 前端 artifact），由同目录 `test_desktop_release_inputs.py` 钉住
 - **分词表**: token 计数用的 BPE 表（`cl100k_base`、`o200k_base`）随 litellm 的数据文件（`--collect-data litellm`）进入 `_internal/`，litellm 导入时把 `TIKTOKEN_CACHE_DIR` 指向它，无外网的安装包同样能计数；因此没有单独的 tiktoken 缓存资源，Tauri 壳也不注入相关环境变量。前提（litellm 仍自带这两张表）由 `test_desktop_release_inputs.py` 以断网子进程钉住

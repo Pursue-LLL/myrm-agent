@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.integrations.oauth_store::is_oauth_issuer_connected (POS: OAuth credential persistence)
-- app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader with TTL cache)
+- app.core.channel_bridge.config_readiness::load_readiness_inputs (POS: stored provider bundle, also before a default model exists)
 - app.services.agent.platform_config::resolve_xai_search_config (POS: xAI provider key resolver)
 - app.core.skills.gates.requirements_availability (POS: bins/env/config verdict honouring saved skill env)
 - app.database.connection::get_session (POS: async DB session factory)
@@ -78,11 +78,12 @@ async def _issuer_connected_map(db: AsyncSession, skill_ids: set[str]) -> dict[s
 
 
 async def _is_xai_provider_configured() -> bool:
-    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_readiness import load_readiness_inputs
     from app.services.agent.platform_config import resolve_xai_search_config
 
-    configs = await load_user_configs()
-    if resolve_xai_search_config(configs.providers_dict) is not None:
+    # A fresh install has no default model, which makes load_user_configs() refuse; the catalog must still list.
+    providers_dict, _ = await load_readiness_inputs()
+    if resolve_xai_search_config(providers_dict) is not None:
         return True
 
     from app.database.connection import get_session

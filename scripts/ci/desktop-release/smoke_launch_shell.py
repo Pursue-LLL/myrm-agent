@@ -3,7 +3,8 @@
 The shell is started from its install location with the working directory and environment of a Finder,
 Start-menu or desktop launch: no Node.js on PATH and, on macOS and Linux, a fresh profile directory (the
 slowest, first launch). It has to bring up the Python backend and the bundled Next.js server on their fixed
-ports, serve a page whose static assets resolve, stay up, and shut its children down when asked to quit.
+ports, serve a page whose static assets resolve, serve the data the backend ships (skills, agent templates,
+integration catalog, search providers), stay up, and shut its children down when asked to quit.
 
 Usage:
     python smoke_launch_shell.py --bundle <MyrmAgent.app | AppImage squashfs-root | install directory>
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import http.client
+import json
 import os
 import plistlib
 import re
@@ -24,7 +26,7 @@ import sys
 import tempfile
 import time
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,6 +40,10 @@ MAIN_BINARY = "myrm-agent"
 # The shell gives the backend 120 s (python_backend.rs) and the Next server 45 s, started in parallel; the rest is
 # slack for a cold hosted runner.
 READY_TIMEOUT_SEC = 180
+# A fresh profile serves each list from the backend's first answer; the window is for a request that is slow or fails
+# once on a loaded runner, which must not fail the run.
+DATA_TIMEOUT_SEC = 60
+DATA_REQUEST_TIMEOUT_SEC = 20.0
 STABLE_SEC = 5
 STOP_TIMEOUT_SEC = 30
 POLL_INTERVAL_SEC = 1.0
@@ -61,8 +67,12 @@ class Ports:
     frontend: int = FRONTEND_PORT
 
     @property
+    def backend_root(self) -> str:
+        return f"http://{HOST}:{self.backend}"
+
+    @property
     def backend_health(self) -> str:
-        return f"http://{HOST}:{self.backend}/health"
+        return f"{self.backend_root}/health"
 
     @property
     def frontend_root(self) -> str:
@@ -186,6 +196,67 @@ def check_static_assets(base_url: str) -> None:
     body = fetch(f"{base_url}{asset.group(1)}")
     if not body:
         raise SmokeFailure(f"{base_url}{asset.group(1)} is not served")
+
+
+@dataclass(frozen=True)
+class BundledData:
+    """A list the backend builds from files it ships next to its code; `list_key` names the list inside the response."""
+
+    label: str
+    path: str
+    list_key: str | None
+
+
+# PyInstaller archives Python only, so a data directory the bundle forgot leaves the backend healthy and these lists
+# empty. A fresh profile must already serve each of them; tests/architecture/test_desktop_sidecar_data.py pins the
+# bundle list, this proves the built app really has the data.
+BUNDLED_DATA = (
+    BundledData("skills", "/api/v1/skills/", "skills"),
+    BundledData("agent templates", "/api/v1/agents/templates", None),
+    BundledData("integration catalog", "/api/v1/integrations/catalog", "entries"),
+    BundledData("search providers", "/api/v1/integrations/search/providers", "providers"),
+)
+
+
+def count_listed(body: bytes, list_key: str | None) -> int:
+    """How many items a list endpoint returned, whether or not the API wraps the list in a `data` envelope."""
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return 0
+    if isinstance(payload, dict) and "data" in payload:
+        payload = payload["data"]
+    if list_key is not None and isinstance(payload, dict):
+        payload = payload.get(list_key)
+    return len(payload) if isinstance(payload, list) else 0
+
+
+def unserved_data(base_url: str, wanted: Iterable[BundledData]) -> list[BundledData]:
+    """The entries of `wanted` for which the backend at `base_url` does not (yet) return a non-empty list."""
+    unserved: list[BundledData] = []
+    for data in wanted:
+        body = fetch(f"{base_url}{data.path}", timeout=DATA_REQUEST_TIMEOUT_SEC)
+        if body is None or count_listed(body, data.list_key) == 0:
+            unserved.append(data)
+    return unserved
+
+
+def check_bundled_data(shell: subprocess.Popen[bytes], log: Path, ports: Ports) -> None:
+    """Every bundled list must be non-empty within DATA_TIMEOUT_SEC of the backend answering; the shell must stay up."""
+    deadline = time.monotonic() + DATA_TIMEOUT_SEC
+    pending = unserved_data(ports.backend_root, BUNDLED_DATA)
+    while pending and time.monotonic() < deadline:
+        if shell.poll() is not None:
+            raise SmokeFailure(
+                f"the shell exited with {shell.returncode} while the backend was loading its data\n{log_tail(log)}"
+            )
+        time.sleep(POLL_INTERVAL_SEC)
+        pending = unserved_data(ports.backend_root, pending)
+    if pending:
+        lists = ", ".join(f"{data.label} ({data.path})" for data in pending)
+        raise SmokeFailure(
+            f"no non-empty list from the backend {DATA_TIMEOUT_SEC:.0f}s after it became ready: {lists}\n{log_tail(log)}"
+        )
 
 
 def served_ports(ports: Ports) -> list[int]:
@@ -317,6 +388,7 @@ def run(bundle: Path, platform: str, *, ports: Ports = DEFAULT_PORTS, ready_time
         try:
             wait_until_ready(shell, log, ports, ready_timeout_sec)
             check_static_assets(ports.frontend_root)
+            check_bundled_data(shell, log, ports)
             stay_up(shell, log, ports)
             if platform == "win32":
                 # Windows has no SIGTERM to send, so the graceful quit is not exercised here; the tree kill is

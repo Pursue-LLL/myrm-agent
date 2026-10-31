@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 SERVER_ROOT = PROJECT_ROOT / "myrm-agent-server"
@@ -22,6 +22,28 @@ HARNESS_ROOT = PROJECT_ROOT / "myrm-agent-harness"
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 SHARED_PROVIDER_REMAP = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
 STDIO_RUNTIME_HOOK = Path(__file__).parent / "stdio_runtime_hook.py"
+
+# Server data that code opens by a path relative to its own module (`Path(__file__)...`), as paths under the server
+# root. PyInstaller archives Python only, so each entry is a build input of its own, and a forgotten one breaks
+# nothing at build or start: the endpoint that reads it answers with an empty list. The bundle mirrors the source
+# layout, because that is where the code looks: a directory keeps its path, a file goes into its parent.
+# tests/architecture/test_desktop_sidecar_data.py fails when a data file is neither listed here nor accounted for below.
+SERVER_DATA = (
+    "app/config/subagents",
+    "app/channels/i18n/locales",
+    "app/core/eval/fixtures",
+    "app/core/integrations/catalog/data",
+    "app/core/integrations/search_catalog/manifest.json",
+    "assets",
+)
+
+# Server data left out of the bundle on purpose, with the reason.
+SERVER_DATA_NOT_SHIPPED = {
+    "app/channels/providers/whatsapp/bridge": (
+        "the bridge runs `npm install` inside its own directory and starts the Node.js found on PATH; an installed "
+        "app has neither a writable directory there nor a Node.js on a launcher's PATH"
+    ),
+}
 
 SYSTEM = platform.system().lower()
 if SYSTEM not in ("darwin", "linux", "windows"):
@@ -107,6 +129,16 @@ def _server_python() -> Path:
     return venv_python
 
 
+def _server_data_options(data_sep: str) -> list[str]:
+    """`--add-data` options that place every SERVER_DATA entry at its own relative path inside the bundle."""
+    options: list[str] = []
+    for relative in SERVER_DATA:
+        source = SERVER_ROOT / relative
+        destination = relative if source.is_dir() else str(PurePosixPath(relative).parent)
+        options += ["--add-data", f"{source}{data_sep}{destination}"]
+    return options
+
+
 def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
     """PyInstaller invocation that writes the one-folder bundle to SIDECAR_DIR."""
     data_sep = ";" if SYSTEM == "windows" else ":"
@@ -132,7 +164,7 @@ def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
         "--hidden-import", "tiktoken_ext.openai_public",
         "--collect-data", "myrm_agent_harness",
         "--collect-submodules", "myrm_agent_harness",
-        "--add-data", f"{SERVER_ROOT / 'app' / 'config'}{data_sep}app/config",
+        *_server_data_options(data_sep),
         "--add-data", f"{SHARED_PROVIDER_REMAP}{data_sep}shared/config",
         "--exclude-module", "matplotlib",
         "--exclude-module", "tkinter",

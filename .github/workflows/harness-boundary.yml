@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'myrm-agent-harness/**'
+      # tests/architecture/test_core_platform_matrix.py judges this file, which sits outside the harness directory.
+      - '.github/core-platform-matrix.json'
       - '.github/workflows/harness-boundary.yml'
 
 permissions:

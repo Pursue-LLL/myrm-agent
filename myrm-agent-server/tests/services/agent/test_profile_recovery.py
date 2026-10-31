@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.skills.prebuilt_sync import SEEDS_DIR
 from app.services.agent.profile.profile_recovery_service import (
     ProfileStartupRecoveryService,
 )
@@ -85,6 +86,19 @@ async def test_probe_single_skill(tmp_path):
     res_valid = await ProfileStartupRecoveryService._probe_single_skill(str(skill_file))
     assert res_valid.status == "healthy"
     assert res_valid.component_type == "skill"
+
+
+@pytest.mark.asyncio
+async def test_a_prebuilt_skill_is_found_whatever_directory_the_backend_runs_in(tmp_path, monkeypatch):
+    # An installed app starts the backend from its own data directory, not from the server source tree.
+    skill_id = next(seed.name for seed in sorted(SEEDS_DIR.iterdir()) if (seed / "SKILL.md").is_file())
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+
+    result = await ProfileStartupRecoveryService._probe_single_skill(skill_id)
+
+    assert result.status == "healthy"
 
 
 @pytest.mark.asyncio

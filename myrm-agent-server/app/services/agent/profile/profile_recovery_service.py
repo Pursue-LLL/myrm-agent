@@ -110,8 +110,10 @@ class ProfileStartupRecoveryService:
                 error_message="Empty skill ID",
             )
 
-        # 1. 检查 prebuilt skills
-        prebuilt_path = Path("assets/prebuilt_skills") / skill_id_clean / "SKILL.md"
+        # 1. 检查 prebuilt skills（锚定在随包种子目录，而非进程工作目录）
+        from app.core.skills.prebuilt_sync import SEEDS_DIR
+
+        prebuilt_path = SEEDS_DIR / skill_id_clean / "SKILL.md"
         local_user_skill_path = Path.home() / ".myrm" / "skills" / skill_id_clean / "SKILL.md"
 
         target_file: Path | None = None

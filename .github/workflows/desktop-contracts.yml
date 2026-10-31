@@ -1,47 +1,30 @@
 name: Desktop release contracts
 
-# The release pipeline is spread over the Tauri config, the sidecar build, the CI scripts and the workflow;
-# these tests pin what those files must agree on, so they run whenever one of them changes.
+# The release pipeline is spread over the Tauri config, the sidecar build, the CI scripts and the workflows;
+# these tests pin what those files must agree on, so they run whenever one of them changes: the whole desktop
+# project rather than a hand-kept list of the files they read, because a list silently stops covering a file the
+# next time a test starts reading it (tests/architecture/test_desktop_workflow_triggers.py pins the two lists).
+# Changes under myrm-agent-server/ and shared/ are covered by the server workflows, which run these tests too.
 on:
   push:
     branches:
       - main
     paths:
-      - 'myrm-agent-desktop/sidecar/**'
-      - 'myrm-agent-desktop/src-tauri/tauri*.json'
-      - 'myrm-agent-desktop/src-tauri/src/runtime/sidecar_path.rs'
-      - 'myrm-agent-desktop/src-tauri/src/runtime/python_backend.rs'
-      - 'myrm-agent-desktop/src-tauri/src/runtime/node_runtime.rs'
-      - 'myrm-agent-desktop/src-tauri/src/config.rs'
-      - 'myrm-agent-desktop/src-tauri/Cargo.toml'
-      - 'myrm-agent-desktop/scripts/fetch_node_runtime.py'
-      - 'myrm-agent-desktop/scripts/node_runtime.json'
-      - 'myrm-agent-desktop/scripts/ci/cargo-check.sh'
+      - 'myrm-agent-desktop/**'
       - 'scripts/ci/desktop-release/**'
-      - '.github/workflows/desktop-release.yml'
-      - '.github/workflows/desktop-release-repair.yml'
-      - '.github/workflows/desktop-contracts.yml'
+      - '.github/workflows/desktop-*.yml'
       - '.github/actions/**'
       - 'myrm-agent-server/tests/support/desktop_release.py'
+      - 'myrm-agent-server/tests/support/stand_in_shell_bundle.py'
       - 'myrm-agent-server/tests/architecture/test_desktop_*.py'
   pull_request:
     paths:
-      - 'myrm-agent-desktop/sidecar/**'
-      - 'myrm-agent-desktop/src-tauri/tauri*.json'
-      - 'myrm-agent-desktop/src-tauri/src/runtime/sidecar_path.rs'
-      - 'myrm-agent-desktop/src-tauri/src/runtime/python_backend.rs'
-      - 'myrm-agent-desktop/src-tauri/src/runtime/node_runtime.rs'
-      - 'myrm-agent-desktop/src-tauri/src/config.rs'
-      - 'myrm-agent-desktop/src-tauri/Cargo.toml'
-      - 'myrm-agent-desktop/scripts/fetch_node_runtime.py'
-      - 'myrm-agent-desktop/scripts/node_runtime.json'
-      - 'myrm-agent-desktop/scripts/ci/cargo-check.sh'
+      - 'myrm-agent-desktop/**'
       - 'scripts/ci/desktop-release/**'
-      - '.github/workflows/desktop-release.yml'
-      - '.github/workflows/desktop-release-repair.yml'
-      - '.github/workflows/desktop-contracts.yml'
+      - '.github/workflows/desktop-*.yml'
       - '.github/actions/**'
       - 'myrm-agent-server/tests/support/desktop_release.py'
+      - 'myrm-agent-server/tests/support/stand_in_shell_bundle.py'
       - 'myrm-agent-server/tests/architecture/test_desktop_*.py'
 
 concurrency:
