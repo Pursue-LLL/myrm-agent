@@ -7,8 +7,10 @@
 
 [OUTPUT]
 - Fails when a rejected certificate is filed under another failure (retried, rotated against a key, cooled as a
-  rate limit), when a 4xx answer that merely quotes a certificate error is taken for one, or when the root cause of a
-  deep client chain is no longer read.
+  rate limit), when a 4xx answer that merely quotes a certificate error is taken for one, when the root cause of a
+  deep client chain is no longer read, when a verification failure worded by the operating system (in its own
+  language) is no longer recognized by its type, or when a wrapper that states another verdict loses it to the
+  certificate error it wraps.
 
 [POS]
 Unit tests of the certificate verdict on hand-built exception chains; the real client stacks are pinned by
@@ -85,8 +87,13 @@ def _wrapped_in_connection_error(root: Exception, outermost: str) -> Exception:
         "litellm.APIConnectionError: Connection error.",
     ],
 )
-def test_classify_connection_error_wrapping_a_rejected_certificate(outermost: str) -> None:
-    exc = _wrapped_in_connection_error(ssl.SSLCertVerificationError(1, _CERT), outermost)
+@pytest.mark.parametrize(
+    "root",
+    [ssl.SSLCertVerificationError(1, _CERT), ssl.SSLError(1, _CERT)],
+    ids=["typed", "text_only"],
+)
+def test_classify_connection_error_wrapping_a_rejected_certificate(root: Exception, outermost: str) -> None:
+    exc = _wrapped_in_connection_error(root, outermost)
     assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
     assert classify_error(exc) == ErrorKind.TLS_CERTIFICATE
 
@@ -112,6 +119,53 @@ def test_classify_connection_error_without_a_rejected_certificate_stays_transien
     """An https URL pointed at a plain-HTTP service or an interrupted handshake is no certificate verdict."""
     exc = _wrapped_in_connection_error(root, "litellm.InternalServerError: OpenAIException - Connection error.")
     assert classify_failover_reason(exc) == FailoverReason.TIMEOUT
+
+
+# What a verifier that asks the operating system reports: the system's own sentence, in the system's language
+# (macOS, Windows), with no OpenSSL wording to match.
+_SYSTEM_WORDINGS = [
+    "\u201c127.0.0.1\u201d certificate is not trusted",
+    "\u201c127.0.0.1\u201d certificate is expired",
+    "\u201capi.example.com\u201d certificate name does not match input",
+    "\u201c127.0.0.1\u201d\u8bc1\u4e66\u4e0d\u53d7\u4fe1\u4efb",
+    "Certificate chain policy error 0x800b0109 [1]",
+]
+
+
+@pytest.mark.parametrize("wording", _SYSTEM_WORDINGS)
+def test_a_failed_certificate_verification_is_read_by_its_type_in_any_wording(wording: str) -> None:
+    root = ssl.SSLCertVerificationError(wording)
+
+    assert classify_error(root) is ErrorKind.TLS_CERTIFICATE
+    wrapped = _wrapped_in_connection_error(root, "litellm.InternalServerError: OpenAIException - Connection error.")
+    assert classify_error(wrapped) is ErrorKind.TLS_CERTIFICATE
+
+
+@pytest.mark.parametrize("wording", _SYSTEM_WORDINGS)
+def test_the_same_wording_without_the_verification_type_is_no_certificate_verdict(wording: str) -> None:
+    """The type is what carries the verdict; a sentence a client merely echoes is not matched."""
+    wrapped = _wrapped_in_connection_error(
+        ssl.SSLError(1, wording), "litellm.InternalServerError: OpenAIException - Connection error."
+    )
+
+    assert classify_error(wrapped) is not ErrorKind.TLS_CERTIFICATE
+
+
+@pytest.mark.parametrize("outer", ["Request timed out.", "Rate limit exceeded", "Error code: 401 - invalid api key"])
+def test_a_wrapper_that_states_another_verdict_keeps_it_whatever_verification_error_it_wraps(outer: str) -> None:
+    wrapper = Exception(outer)
+    wrapper.__cause__ = ssl.SSLCertVerificationError(_SYSTEM_WORDINGS[0])
+
+    assert rejects_certificate(wrapper, outer.lower()) is False
+
+
+def test_a_layer_that_only_repeats_the_verification_error_is_read_through() -> None:
+    """A client that relays the system's sentence unchanged (httpx) has no connection wording to hand."""
+    cause = ssl.SSLCertVerificationError(_SYSTEM_WORDINGS[0])
+    relay = OSError(str(cause))
+    relay.__cause__ = cause
+
+    assert classify_error(relay) is ErrorKind.TLS_CERTIFICATE
 
 
 def test_a_rejected_certificate_is_permanent_failoverable_and_probed_on_the_timeout_schedule() -> None:

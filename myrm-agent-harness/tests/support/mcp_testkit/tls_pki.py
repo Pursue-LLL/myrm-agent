@@ -6,12 +6,15 @@
 [OUTPUT]
 - TlsPki: file paths of a private CA, an unrelated rogue CA, a 127.0.0.1 server leaf and a client leaf (plain + passphrase-encrypted key)
 - generate_tls_pki: materialise the PKI inside a pytest tmp directory
+- InspectionChain / generate_inspection_chain: a server chain shaped like a TLS-inspection proxy's, whose CA fails strict verification
 - VERIFY_FAILURE_MARKERS / ABORTED_CONNECTION_MARKERS: lowercase error-text fragments that identify TLS-layer rejections
 
 [POS]
 Harness pytest-only helper. Leaves chain to a real CA with the RFC 5280 extensions
 OpenSSL's strict verification (the Python 3.13 default) demands, so live handshakes
 exercise the production ``ssl.SSLContext`` construction instead of bypassing verification.
+The inspection chain is the one deliberate exception: its CA omits the critical bit on ``basicConstraints``,
+which is what makes a corporate inspection root fail strict verification.
 """
 
 from __future__ import annotations
@@ -72,26 +75,35 @@ def _builder(
     subject: x509.Name,
     issuer: x509.Name,
     public_key: rsa.RSAPublicKey,
+    *,
+    expired: bool = False,
 ) -> x509.CertificateBuilder:
     now = datetime.datetime.now(datetime.UTC)
+    not_before, not_after = (
+        (now - datetime.timedelta(days=60), now - datetime.timedelta(days=30))
+        if expired
+        else (now - datetime.timedelta(minutes=5), now + datetime.timedelta(days=30))
+    )
     return (
         x509.CertificateBuilder()
         .subject_name(subject)
         .issuer_name(issuer)
         .public_key(public_key)
         .serial_number(x509.random_serial_number())
-        .not_valid_before(now - datetime.timedelta(minutes=5))
-        .not_valid_after(now + datetime.timedelta(days=30))
+        .not_valid_before(not_before)
+        .not_valid_after(not_after)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False)
     )
 
 
-def _build_ca(common_name: str) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
+def _build_ca(
+    common_name: str, *, basic_constraints_critical: bool = True
+) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     key = _new_key()
     name = _name(common_name)
     cert = (
         _builder(name, name, key.public_key())
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=basic_constraints_critical)
         .add_extension(x509.KeyUsage(**_CA_USAGE_FLAGS), critical=True)
         .sign(key, hashes.SHA256())
     )
@@ -105,12 +117,13 @@ def _build_leaf(
     common_name: str,
     usage: x509.ObjectIdentifier,
     san: x509.SubjectAlternativeName | None = None,
+    expired: bool = False,
 ) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     key = _new_key()
     ca_public_key = ca_cert.public_key()
     assert isinstance(ca_public_key, rsa.RSAPublicKey)
     builder = (
-        _builder(_name(common_name), ca_cert.subject, key.public_key())
+        _builder(_name(common_name), ca_cert.subject, key.public_key(), expired=expired)
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(x509.KeyUsage(**_LEAF_USAGE_FLAGS), critical=True)
         .add_extension(x509.ExtendedKeyUsage([usage]), critical=False)
@@ -158,4 +171,48 @@ def generate_tls_pki(directory: Path) -> TlsPki:
         client_key=_write_key(directory / "client.key", client_key),
         client_key_encrypted=_write_key(directory / "client.enc.key", client_key, passphrase=CLIENT_KEY_PASSPHRASE),
         client_key_passphrase=CLIENT_KEY_PASSPHRASE,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InspectionChain:
+    """A server leaf issued by a CA whose ``basicConstraints`` is not marked critical, as written by :func:`generate_inspection_chain`."""
+
+    ca_cert: Path
+    server_cert: Path
+    server_key: Path
+
+
+def generate_inspection_chain(
+    directory: Path,
+    *,
+    server_names: tuple[str, ...] = ("127.0.0.1", "localhost"),
+    expired: bool = False,
+) -> InspectionChain:
+    """Create a server chain the way a TLS-inspection proxy issues it.
+
+    The CA sets ``CA:TRUE`` without the critical bit: a verifier running OpenSSL's strict mode (the Python 3.13
+    default) rejects the chain with "Basic Constraints of CA cert not marked critical", one that does not
+    enforce RFC 5280 §4.2.1.9 accepts it. *server_names* are the leaf's subject alternative names (IP literals
+    become IP entries); *expired* gives the leaf a validity window that ended 30 days ago.
+    """
+    ca_key, ca_cert = _build_ca("inspection-test-ca", basic_constraints_critical=False)
+    names: list[x509.GeneralName] = []
+    for name in server_names:
+        try:
+            names.append(x509.IPAddress(ipaddress.ip_address(name)))
+        except ValueError:
+            names.append(x509.DNSName(name))
+    server_key, server_cert = _build_leaf(
+        ca_key,
+        ca_cert,
+        common_name=server_names[0],
+        usage=ExtendedKeyUsageOID.SERVER_AUTH,
+        san=x509.SubjectAlternativeName(names),
+        expired=expired,
+    )
+    return InspectionChain(
+        ca_cert=_write_cert(directory / "inspection-ca.pem", ca_cert),
+        server_cert=_write_cert(directory / "inspection-server.crt", server_cert),
+        server_key=_write_key(directory / "inspection-server.key", server_key),
     )

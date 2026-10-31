@@ -20074,7 +20074,7 @@
     "autoContinueInterruptedTurns": "충돌 후 자동 재개",
     "autoContinueInterruptedTurnsDesc": "충돌 후 서버가 재시작될 때 중단된 대화 자동 재개",
     "enterpriseTlsCompat": "엔터프라이즈 네트워크 호환성",
-    "enterpriseTlsCompatDesc": "기업 프록시 환경(Zscaler, Netskope 등)을 위해 엄격한 TLS 인증서 검증 완화. 인증서 체인 및 호스트 이름 검증 유지.",
+    "enterpriseTlsCompatDesc": "기업 프록시 환경(Zscaler, Netskope 등)을 위해 엄격한 TLS 인증서 검증 완화. 인증서 체인 및 호스트 이름 검증 유지. 변경 사항은 앱을 다시 시작한 후 적용됩니다.",
     "publicIngressBaseUrl": "공용 인그레스 URL",
     "publicIngressBaseUrlDesc": "공용 인그레스를 통한 외부 콜백의 기본 URL",
     "notificationDeliveries": "알림 전달",

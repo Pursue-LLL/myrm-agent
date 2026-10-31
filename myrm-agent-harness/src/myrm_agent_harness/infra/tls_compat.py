@@ -1,28 +1,37 @@
 """Enterprise TLS compatibility for Python 3.13+ / OpenSSL 3.x environments.
 
-Python 3.13 enables ``VERIFY_X509_STRICT`` by default, which enforces
-RFC 5280 §4.2.1.9 — a CA cert's ``basicConstraints`` MUST be marked critical.
-Corporate TLS-inspection roots (Zscaler, Netskope, Palo Alto Prisma, etc.)
-commonly set ``CA:TRUE`` *without* the critical bit, causing chain rejection
-with ``BasicConstraints of CA cert not marked critical``.
+Two things go wrong behind a corporate TLS-inspection proxy (Zscaler, Netskope, Palo Alto Prisma, ...):
 
-This module provides a narrow relaxation: clearing *only* ``VERIFY_X509_STRICT``
-while preserving certificate chain validation, hostname verification, and
-expiry checks — strictly narrower than ``verify=False``.
+- Python 3.13 enables ``VERIFY_X509_STRICT``, which enforces RFC 5280 §4.2.1.9 — a CA's ``basicConstraints`` MUST be
+  critical. Inspection roots commonly set ``CA:TRUE`` without the critical bit, so the chain is rejected with
+  ``BasicConstraints of CA cert not marked critical``.
+- The proxy's root lives in the operating system's trust store (pushed by the administrator), not in the CA file
+  Python or ``certifi`` ship, so the chain is rejected as an unknown issuer.
+
+When ``MYRM_TLS_STRICT`` is off, ``apply_global_tls_relaxation()`` fixes both at the one place every client gets its
+context from: it wraps ``ssl.create_default_context``. A client-purpose context built for the default trust then
+validates against the operating system's roots (``truststore``) plus any CA bundle the environment names
+(``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``, ``NODE_EXTRA_CA_CERTS``, added on top, never replacing), with only
+``VERIFY_X509_STRICT`` cleared. Certificate chain validation, hostname verification and expiry checks stay on, which
+is strictly narrower than ``verify=False``. A context built for an explicit CA file, directory or data (a pinned CA)
+keeps exactly that trust and only has the strict flag cleared; server-purpose contexts are never touched.
 
 Activation:
-    Set ``MYRM_TLS_STRICT=0`` (or ``false``/``no``/``off``) to enable
-    enterprise-compatible mode. Default (unset) keeps strict verification.
+    Set ``MYRM_TLS_STRICT=0`` (or ``false``/``no``/``off``). Default (unset) keeps strict verification and installs
+    nothing. The host calls ``apply_global_tls_relaxation()`` once at startup, before any client is created.
+    Libraries cache the context they were first given (litellm keeps one per CA file for the process), so a change of
+    the setting reaches every client only after a restart.
 
 [INPUT]
 - ssl (POS: Python standard library SSL module)
+- truststore (POS: validates server chains against the operating system's trust store)
+- certifi (POS: identifies the default CA bundle httpx asks the standard library for)
 - os (POS: environment variable access)
 
 [OUTPUT]
 - tls_strict_disabled(): check if strict mode is opted out
-- build_httpx_verify(): SSLContext or True for httpx/LiteLLM verify param
-- create_httpx_client(): factory that auto-injects TLS-compat verify param
-- apply_global_tls_relaxation(): urllib3 monkeypatch for 3rd-party libs
+- create_httpx_client(): the one construction point of the harness's ``httpx.AsyncClient``
+- apply_global_tls_relaxation(): installs the context policy above and relaxes urllib3's context builder; idempotent
 - is_tls_hard_error(): whether an error text carries a certificate-rejection signal (the single signal list the LLM
   failure classifier and the error diagnostics both read)
 - is_tls_transient_error(): whether an error text is an interrupted handshake with no certificate verdict
@@ -34,24 +43,31 @@ TLS-inspection proxies without disabling certificate verification entirely.
 
 from __future__ import annotations
 
+import functools
 import logging
 import os
 import ssl
+import sys
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import httpx
+    from _typeshed import ReadableBuffer, StrOrBytesPath
 
 logger = logging.getLogger(__name__)
 
 _TLS_STRICT_ENV = "MYRM_TLS_STRICT"
-
-_REPLACEMENT_CA_VARS = (
-    "SSL_CERT_FILE",
-    "REQUESTS_CA_BUNDLE",
-)
-
 _TLS_STRICT_OFF_VALUES = frozenset({"0", "false", "no", "off"})
+
+# CA bundles the environment can name; each is added to the trust the context already has.
+_EXTRA_CA_ENV_VARS = ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
+
+# litellm builds its default context while it is imported and caches one per CA file for the process.
+_LITELLM_HTTP_HANDLER = "litellm.llms.custom_httpx.http_handler"
+
+# Set on the wrapped builders so a second install finds the first.
+_CONTEXT_POLICY_MARK = "_myrm_enterprise_tls"
+_URLLIB3_MARK = "_myrm_strict_relaxed"
 
 
 def tls_strict_disabled() -> bool:
@@ -63,138 +79,146 @@ def tls_strict_disabled() -> bool:
     return os.environ.get(_TLS_STRICT_ENV, "").strip().lower() in _TLS_STRICT_OFF_VALUES
 
 
-def _clear_x509_strict(ctx: ssl.SSLContext, *, reason: str) -> ssl.SSLContext:
-    """Clear only ``VERIFY_X509_STRICT`` from a context.
-
-    Keeps certificate verification, hostname verification, expiry checks, and
-    chain validation enabled — far narrower than disabling verify.
-    """
+def _clear_x509_strict(ctx: ssl.SSLContext) -> ssl.SSLContext:
+    """Clear only ``VERIFY_X509_STRICT`` from a context."""
     strict_flag = getattr(ssl, "VERIFY_X509_STRICT", 0)
     if strict_flag and ctx.verify_flags & strict_flag:
         ctx.verify_flags &= ~strict_flag
-        logger.info("event=tls_x509_strict_disabled reason=%s", reason)
     return ctx
 
 
-def _replacement_ca_context(path: str) -> ssl.SSLContext:
-    """Build a replacement trust-store context from a CA bundle path."""
-    ctx = ssl.create_default_context(cafile=path)
-    ctx.set_alpn_protocols(["h2", "http/1.1"])
-    return _clear_x509_strict(ctx, reason=f"custom_ca:{path}")
+def _platform_trust_context() -> ssl.SSLContext | None:
+    """A client context that validates against the operating system's trust store, or None when it cannot be built.
 
-
-def _additive_ca_context(path: str) -> ssl.SSLContext:
-    """Build an additive trust-store context (default roots + extra bundle)."""
-    ctx = ssl.create_default_context()
-    ctx.load_verify_locations(cafile=path)
-    ctx.set_alpn_protocols(["h2", "http/1.1"])
-    return _clear_x509_strict(ctx, reason=f"additive_ca:{path}")
-
-
-def _find_ca_bundle() -> ssl.SSLContext | None:
-    """Resolve CA bundle from environment variables.
-
-    Priority:
-    1. SSL_CERT_FILE / REQUESTS_CA_BUNDLE — replacement semantics
-    2. NODE_EXTRA_CA_CERTS — additive semantics (system roots + extra)
-
-    Returns None when no env var is set (caller uses default verification).
+    None sends the caller back to the context the standard library would have built, so a platform where the
+    system store is unreachable keeps the narrower trust instead of failing every connection.
     """
-    for var in _REPLACEMENT_CA_VARS:
+    try:
+        import truststore
+
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception as exc:
+        logger.warning("event=tls_platform_trust_unavailable error=%s", exc)
+        return None
+
+
+def _trust_environment_ca_files(ctx: ssl.SSLContext) -> None:
+    """Add the CA bundles the environment names to *ctx*; an unreadable bundle is skipped, which only narrows trust."""
+    for var in _EXTRA_CA_ENV_VARS:
         path = os.environ.get(var, "").strip()
-        if path and os.path.isfile(path):
-            logger.info("event=tls_ca_bundle_loaded var=%s path=%s semantics=replacement", var, path)
-            return _replacement_ca_context(path)
-
-    node_extra = os.environ.get("NODE_EXTRA_CA_CERTS", "").strip()
-    if node_extra and os.path.isfile(node_extra):
-        logger.info("event=tls_ca_bundle_loaded var=NODE_EXTRA_CA_CERTS path=%s semantics=additive", node_extra)
-        return _additive_ca_context(node_extra)
-
-    return None
+        if not path or not os.path.isfile(path):
+            continue
+        try:
+            ctx.load_verify_locations(cafile=path)
+        except (OSError, ssl.SSLError) as exc:
+            logger.warning("event=tls_ca_bundle_skipped var=%s error=%s", var, exc)
+            continue
+        logger.debug("event=tls_ca_bundle_loaded var=%s path=%s", var, path)
 
 
-def _default_strict_relaxed_context() -> ssl.SSLContext:
-    """Build a default trust-store context with VERIFY_X509_STRICT cleared."""
-    ctx = ssl.create_default_context()
-    ctx.set_alpn_protocols(["h2", "http/1.1"])
-    return _clear_x509_strict(ctx, reason="env_toggle")
+def _install_default_context_policy() -> None:
+    """Wrap ``ssl.create_default_context`` with the enterprise policy (see the module docstring); idempotent.
 
-
-def build_httpx_verify() -> ssl.SSLContext | bool:
-    """Return the value for httpx/LiteLLM ``verify=`` / ``ssl_verify=`` parameter.
-
-    Resolution order:
-    1. Custom CA bundle env var → context trusting that bundle, strict relaxed.
-    2. No bundle but ``MYRM_TLS_STRICT=0`` → default store with strict cleared.
-    3. Otherwise → ``True`` (default strict verification).
+    The policy is decided when a context is created, not when the wrapper is installed, so switching the toggle off
+    stops relaxing every context created afterwards.
     """
-    ca_ctx = _find_ca_bundle()
-    if ca_ctx is not None:
-        return ca_ctx
-    if tls_strict_disabled():
-        return _default_strict_relaxed_context()
-    return True
+    original = ssl.create_default_context
+    if getattr(original, _CONTEXT_POLICY_MARK, False):
+        return
+
+    import certifi
+
+    bundled_cafile = certifi.where()
+
+    @functools.wraps(original)
+    def create_default_context(
+        purpose: ssl.Purpose = ssl.Purpose.SERVER_AUTH,
+        *,
+        cafile: StrOrBytesPath | None = None,
+        capath: StrOrBytesPath | None = None,
+        cadata: str | ReadableBuffer | None = None,
+    ) -> ssl.SSLContext:
+        if purpose is not ssl.Purpose.SERVER_AUTH or not tls_strict_disabled():
+            return original(purpose, cafile=cafile, capath=capath, cadata=cadata)
+        if capath is None and cadata is None and cafile in (None, bundled_cafile):
+            ctx = _platform_trust_context() or original(purpose, cafile=cafile)
+            _trust_environment_ca_files(ctx)
+        else:
+            ctx = original(purpose, cafile=cafile, capath=capath, cadata=cadata)
+        return _clear_x509_strict(ctx)
+
+    setattr(create_default_context, _CONTEXT_POLICY_MARK, True)
+    ssl.create_default_context = create_default_context
 
 
-def create_httpx_client(**kwargs: Any) -> httpx.AsyncClient:
-    """Factory for ``httpx.AsyncClient`` with enterprise TLS auto-injection.
+def _discard_litellm_cached_contexts() -> None:
+    """Drop the contexts litellm cached before the policy was in place, so the next client it builds gets the policy.
 
-    When ``MYRM_TLS_STRICT=0`` and the caller does **not** supply an explicit
-    ``verify`` kwarg, the factory injects ``build_httpx_verify()`` so the
-    client honours custom CA bundles and the ``X509_STRICT`` relaxation.
-
-    Non-enterprise environments (env unset) get an identical ``httpx.AsyncClient``
-    with zero behaviour change.
+    A context built earlier is strict and trusts only the bundled roots. Contexts a live client already holds are
+    not touched. Nothing happens when litellm has not been imported yet: its first context will go through the policy.
     """
-    import httpx
-
-    if "verify" not in kwargs and tls_strict_disabled():
-        verify = build_httpx_verify()
-        if verify is not True:
-            kwargs["verify"] = verify
-    return httpx.AsyncClient(**kwargs)
+    handler = sys.modules.get(_LITELLM_HTTP_HANDLER)
+    cache = getattr(handler, "_ssl_context_cache", None)
+    if isinstance(cache, dict):
+        cache.clear()
 
 
-def apply_global_tls_relaxation() -> bool:
-    """Strip ``VERIFY_X509_STRICT`` from urllib3's context builder when opted in.
+def _install_urllib3_relaxation() -> None:
+    """Strip ``VERIFY_X509_STRICT`` from urllib3's context builder, which ``requests`` and ``huggingface_hub`` use.
 
-    Covers the ``requests``/``huggingface_hub``/``urllib3`` dependency chain
-    that bypasses our httpx/LiteLLM context. The patch is idempotent (guarded
-    by a sentinel attribute) and a no-op when urllib3 isn't importable.
-
-    Call at application startup before any HTTP client is created.
-
-    Returns True if patch was applied (or already in place), False otherwise.
+    urllib3 builds its own contexts without going through ``ssl.create_default_context``. A no-op when urllib3
+    isn't importable or the patch is already in place.
     """
-    if not tls_strict_disabled():
-        return False
-
     strict_flag = getattr(ssl, "VERIFY_X509_STRICT", 0)
-    if not strict_flag:
-        return False
-
     try:
         import urllib3.util.ssl_ as _u3ssl
     except Exception:
         logger.debug("event=tls_urllib3_patch_skipped reason=import_failed")
-        return False
-
-    if getattr(_u3ssl.create_urllib3_context, "_myrm_strict_relaxed", False):
-        return True
+        return
 
     _orig = _u3ssl.create_urllib3_context
+    if getattr(_orig, _URLLIB3_MARK, False):
+        return
 
+    @functools.wraps(_orig)
     def _relaxed_create_urllib3_context(*args: Any, **kwargs: Any) -> ssl.SSLContext:
         ctx = _orig(*args, **kwargs)
         if tls_strict_disabled() and ctx.verify_flags & strict_flag:
             ctx.verify_flags &= ~strict_flag
         return ctx
 
-    _relaxed_create_urllib3_context._myrm_strict_relaxed = True  # type: ignore[attr-defined]
+    setattr(_relaxed_create_urllib3_context, _URLLIB3_MARK, True)
     _u3ssl.create_urllib3_context = _relaxed_create_urllib3_context
-    logger.info("event=tls_x509_strict_disabled reason=urllib3_global_patch")
+
+
+def apply_global_tls_relaxation() -> bool:
+    """Install the enterprise TLS policy process-wide when ``MYRM_TLS_STRICT`` opts out of strict mode.
+
+    Covers every client that asks the standard library for its context (httpx, litellm's aiohttp transport) and the
+    ``urllib3`` chain. Call at application startup before any HTTP client is created; idempotent.
+
+    Returns True when the policy is in place, False when strict mode is on (nothing is installed).
+    """
+    if not tls_strict_disabled() or not getattr(ssl, "VERIFY_X509_STRICT", 0):
+        return False
+
+    _install_default_context_policy()
+    _discard_litellm_cached_contexts()
+    _install_urllib3_relaxation()
+    logger.info("event=tls_enterprise_compat_active")
     return True
+
+
+def create_httpx_client(**kwargs: Any) -> httpx.AsyncClient:
+    """The one construction point of the harness's ``httpx.AsyncClient``.
+
+    The client takes its TLS context from ``ssl.create_default_context``, so the policy
+    ``apply_global_tls_relaxation()`` installed applies to it with no per-client injection. A caller-supplied
+    ``verify`` is passed through untouched.
+    """
+    import httpx
+
+    return httpx.AsyncClient(**kwargs)
 
 
 # Hard TLS failure signals: the certificate/chain itself is rejected.

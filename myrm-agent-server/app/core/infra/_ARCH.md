@@ -15,5 +15,5 @@
 | `idle_handlers.py` | 模块 | Server-side idle task handlers: 上下文压缩实现（`register_all_idle_handlers`）。 | ✅ |
 | `ingress.py` | 模块 | 公网 Ingress 单一解析入口；30s 内存缓存 + `invalidate_public_ingress_cache()`，避免 AuthMiddleware 每条 API 请求打 DB；`resolve_share_url_base(fallback)` 供 chat/artifact 分享链接组装公网 base（无 ingress 降级 fallback） | ✅ |
 | `ingress_requirement.py` | 模块 | 汇总已配置渠道与 Cron Webhook，判定是否需公网 Ingress；供 `/system/ingress-requirement` 与渠道 issues 补充。 | ✅ |
-| `tls_config.py` | 模块 | Enterprise TLS configuration bridge (DB→env var sync for MYRM_TLS_STRICT). | ✅ |
+| `tls_config.py` | 模块 | Enterprise TLS configuration bridge (DB→env var sync for MYRM_TLS_STRICT; applies to TLS contexts built afterwards, so a change fully takes effect after restart). | ✅ |
 | `ws_origin_guard.py` | 模块 | WebSocket Origin guard. | ✅ |

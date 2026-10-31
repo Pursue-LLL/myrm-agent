@@ -20074,7 +20074,7 @@
     "autoContinueInterruptedTurns": "Auto-Resume After Crash",
     "autoContinueInterruptedTurnsDesc": "Automatically resume interrupted conversations when the server restarts after a crash",
     "enterpriseTlsCompat": "Enterprise Network Compatibility",
-    "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
+    "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification. Takes effect after the app restarts.",
     "publicIngressBaseUrl": "Public Ingress URL",
     "publicIngressBaseUrlDesc": "Base URL for external callbacks via public ingress",
     "notificationDeliveries": "Notification Deliveries",

@@ -33,7 +33,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
-from myrm_agent_harness.infra.tls_compat import build_httpx_verify, tls_strict_disabled
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     ChatLiteLLM as ChatLiteLLM,
 )
@@ -254,11 +253,6 @@ def create_litellm_model(
     resolved_wso = _resolve_web_search_options(model, native_tools, web_search_options)
     if resolved_wso is not None:
         llm_kwargs["web_search_options"] = resolved_wso
-
-    if tls_strict_disabled() and "ssl_verify" not in llm_kwargs:
-        verify = build_httpx_verify()
-        if verify is not True:
-            llm_kwargs["ssl_verify"] = verify
 
     # Capture user-explicit timeout keys before internal processing
     user_explicit_timeouts = frozenset(

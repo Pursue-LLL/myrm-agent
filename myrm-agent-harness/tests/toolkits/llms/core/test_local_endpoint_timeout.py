@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -64,7 +64,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_local_endpoint_relaxes_timeouts(self, _mock_clean, mock_llm) -> None:
+    def test_local_endpoint_relaxes_timeouts(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("llama-3.1-70b", base_url="http://localhost:11434", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert kwargs["first_event_timeout"] == _LOCAL_FIRST_EVENT_TIMEOUT
@@ -76,7 +76,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_remote_endpoint_no_override(self, _mock_clean, mock_llm) -> None:
+    def test_remote_endpoint_no_override(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("gpt-4o", base_url="https://api.openai.com/v1", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert "first_event_timeout" not in kwargs
@@ -88,7 +88,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_user_override_preserved(self, _mock_clean, mock_llm) -> None:
+    def test_user_override_preserved(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model(
             "llama-3.1-70b",
             base_url="http://localhost:11434",
@@ -102,7 +102,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_reasoning_model_remote(self, _mock_clean, mock_llm) -> None:
+    def test_reasoning_model_remote(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("o3", base_url="https://api.openai.com/v1", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert kwargs["request_timeout"] == 600.0
@@ -113,7 +113,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_reasoning_model_with_user_request_timeout(self, _mock_clean, mock_llm) -> None:
+    def test_reasoning_model_with_user_request_timeout(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         """Regression: reasoning floor must compute first_event even when request_timeout is user-provided."""
         create_litellm_model("o3", base_url="https://api.openai.com/v1", request_timeout=900)
         kwargs = mock_llm.call_args[1]
@@ -125,7 +125,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_local_reasoning_model(self, _mock_clean, mock_llm) -> None:
+    def test_local_reasoning_model(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("deepseek-r1", base_url="http://localhost:11434", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert kwargs["request_timeout"] == 1800.0  # max(reasoning 600, local 1800)
@@ -137,7 +137,7 @@ class TestCreateLitellmModelLocalTimeout:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_no_base_url_no_detection(self, _mock_clean, mock_llm) -> None:
+    def test_no_base_url_no_detection(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("gpt-4o", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert "first_event_timeout" not in kwargs
@@ -190,7 +190,7 @@ class TestOllamaNumCtxInjection:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_ollama_endpoint_gets_num_ctx(self, _mock_clean, mock_llm) -> None:
+    def test_ollama_endpoint_gets_num_ctx(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("llama-3.1-70b", base_url="http://localhost:11434", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert kwargs["extra_body"]["options"]["num_ctx"] == 64000
@@ -200,19 +200,7 @@ class TestOllamaNumCtxInjection:
         "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
         side_effect=lambda kwargs, model: kwargs,
     )
-    def test_gateway_endpoint_gets_no_ollama_options(self, _mock_clean, mock_llm) -> None:
+    def test_gateway_endpoint_gets_no_ollama_options(self, _mock_clean: MagicMock, mock_llm: MagicMock) -> None:
         create_litellm_model("qwen2.5-7b", base_url="http://127.0.0.1:20128/v1", streaming=True)
         kwargs = mock_llm.call_args[1]
         assert "options" not in kwargs.get("extra_body", {})
-
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
-    @patch(
-        "myrm_agent_harness.toolkits.llms.core.llm.clean_model_kwargs",
-        side_effect=lambda kwargs, model: kwargs,
-    )
-    def test_tls_strict_disabled_sets_ssl_verify(self, _mock_clean, mock_llm, monkeypatch) -> None:
-        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
-        create_litellm_model("gpt-4o", base_url="https://api.openai.com/v1")
-        kwargs = mock_llm.call_args[1]
-        assert "ssl_verify" in kwargs
-        assert kwargs["ssl_verify"] is not True

@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-31 · 打开「企业网络兼容」并给出企业根证书后，聊天模型调用仍报证书错误：开关只管到 harness 自己构造的客户端，管不到 litellm 的
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-148）。「仍然存在」里的项未处理。 |
+| **症状** | [真实探针，本机 https 监听口，证书链按 TLS 检查代理的形状签发，改前改后同一组用例，详见 harness 148] 开关打开、企业根证书经三个环境变量之一给出：httpx 路径改前就 3/3 放行，聊天模型路径改前 0/3 放行、改后 3/3 放行；默认、只开开关不给 CA、只给 CA 不开开关仍全部被拒；开了开关与 CA，过期证书与主机名不符的证书仍被拒。 |
+| **根因** | harness 里有三处各自构造客户端 SSL 上下文，开关只管到其中的 `create_httpx_client`；`llm.py` 注入的 `ssl_verify` 没有到达 litellm 的传输，litellm 的默认上下文在导入时就按 certifi 建好并缓存。 |
+| **行为变化** | ① 开关打开后，客户端用途的默认 TLS 上下文改信任操作系统证书库，并叠加 `SSL_CERT_FILE` / `REQUESTS_CA_BUNDLE` / `NODE_EXTRA_CA_CERTS` 指向的 CA，只去掉 `VERIFY_X509_STRICT`，证书链、主机名、有效期检查不变；显式指定 CA 的调用方只多去掉严格标志。② 设置里的开关说明加「修改后需重启应用生效」（六种语言）。③ 开关打开时，证书被拒的判定增加类型判断（操作系统用自己的语言报错，文字清单匹配不到）；声明了其他结论（限流、密钥被拒、超时）的外层保持自己的结论。④ 开关关闭时不安装任何东西，建上下文的行为与改前一致（证书被拒的类型判断与开关无关）。⑤ `truststore` 成为 harness 直接依赖。 |
+| **回归证据** | harness 148 的 [1]–[5]；server 启动路径、跨层标签守护、锁文件一致、cron 恢复性、设置深链共 108 通过。 |
+| **仍然存在** | ① 只在 macOS 实测，Windows、Linux、钥匙串里的真实企业根证书、真实检查代理都没测。② 需要重启才完全生效；aiohttp 自带默认上下文（Matrix 渠道、`alert_notifier.py`）、httpx2、`urllib.request.urlopen` 没覆盖（读码得出）。③ 诊断卡的步骤没提到要重启。 |
+| **代码位置** | harness：`infra/tls_compat.py`、`toolkits/llms/errors/tls_rejection.py`、`toolkits/llms/core/llm.py`、`pyproject.toml`，见 harness 148；server：`app/core/infra/tls_config.py`；前端：`locales/{en,zh,zh-TW,ja,ko,de}.json`。 |
+
 ## 2026-10-31 · 模型端点返回 4xx、正文里引用证书报错时，也被当成「证书被拒」：不重试、不换 Key，错误卡指向企业网络兼容开关；多包一层客户端封装就读不到真正的证书被拒
 
 | 字段 | 内容 |

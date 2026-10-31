@@ -20074,7 +20074,7 @@
     "autoContinueInterruptedTurns": "崩潰自動恢復",
     "autoContinueInterruptedTurnsDesc": "伺服器崩潰重啟後自動恢復被中斷的對話",
     "enterpriseTlsCompat": "企業網路相容模式",
-    "enterpriseTlsCompatDesc": "放寬嚴格的 TLS 證書校驗，適配企業代理環境（Zscaler、Netskope 等）。仍保留證書鏈和主機名驗證。",
+    "enterpriseTlsCompatDesc": "放寬嚴格的 TLS 證書校驗，適配企業代理環境（Zscaler、Netskope 等）。仍保留證書鏈和主機名驗證。修改後需重新啟動應用程式才會生效。",
     "publicIngressBaseUrl": "公網訪問地址",
     "publicIngressBaseUrlDesc": "用於外部回撥的公網 Ingress 基礎 URL",
     "notificationDeliveries": "通知投遞",

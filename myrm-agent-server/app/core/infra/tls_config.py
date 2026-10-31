@@ -11,6 +11,8 @@
 [POS]
 Server-level bridge that reads enterpriseTlsCompat from personalSettings
 and syncs it to the harness-level MYRM_TLS_STRICT environment variable.
+The harness applies the setting to the TLS contexts it builds afterwards; clients that already exist keep theirs,
+so a change made while running takes full effect after a restart.
 """
 
 from __future__ import annotations
@@ -52,7 +54,7 @@ async def apply_tls_config_from_db() -> None:
 def sync_tls_env_from_config(personal_settings: dict[str, object]) -> None:
     """Update TLS env var when personalSettings changes at runtime.
 
-    Called from config router after personalSettings write.
+    Called from config router after personalSettings write. Only TLS contexts built from now on follow the new value.
     """
     enabled = personal_settings.get("enterpriseTlsCompat") is True
 
