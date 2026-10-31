@@ -11,7 +11,7 @@ cannot pass for a clean tree:
 
 1. In-place rewrites of framework objects: a method swapped on a model instance, a patched class, ``__class__``.
 2. Imports: no private module or name, and a name must be listed in its module's ``__all__``. A module that declares no
-   ``__all__`` is accepted only when it is in ``DOCUMENTED_MODULES_WITHOUT_ALL``, so a new one is a reviewed choice.
+   ``__all__`` is accepted only when it is in ``ACCEPTED_MODULES_WITHOUT_ALL``, so a new one is a reviewed choice.
 3. Private config keys: a string literal starting with ``__pregel`` or ``__langgraph`` is the framework's runtime
    wiring, not an interface.
 
@@ -48,8 +48,9 @@ FRAMEWORK_METHODS = frozenset(
     if not name.startswith("__") and callable(getattr(framework_class, name, None))
 )
 
-# Modules the frameworks document as the place to import from although they declare no ``__all__``.
-DOCUMENTED_MODULES_WITHOUT_ALL = frozenset(
+# Modules the harness imports from although they declare no ``__all__``. Each is accepted by hand: a new one is a
+# decision, not a side effect of an import.
+ACCEPTED_MODULES_WITHOUT_ALL = frozenset(
     {
         "langchain_core.callbacks.manager",
         "langchain_core.language_models.chat_models",
@@ -170,7 +171,7 @@ def _has_private_segment(module: str) -> bool:
     return any(part.startswith("_") for part in module.split("."))
 
 
-def _import_problem(module: str, name: str, published: PublishedNames, documented: Collection[str]) -> str | None:
+def _import_problem(module: str, name: str, published: PublishedNames, accepted: Collection[str]) -> str | None:
     statement = f"from {module} import {name}"
     if _has_private_segment(module) or name.startswith("_"):
         return f"{statement}: private"
@@ -179,14 +180,14 @@ def _import_problem(module: str, name: str, published: PublishedNames, documente
     except ImportError:
         return f"{statement}: the module cannot be imported here"
     if names is None:
-        return None if module in documented else f"{statement}: the module declares no __all__ and is not documented"
+        return None if module in accepted else f"{statement}: the module declares no __all__ and is not accepted"
     return None if name in names else f"{statement}: not listed in the module's __all__"
 
 
 def find_non_public_imports(
     source: str,
     published: PublishedNames = _published_names,
-    documented: Collection[str] = DOCUMENTED_MODULES_WITHOUT_ALL,
+    accepted: Collection[str] = ACCEPTED_MODULES_WITHOUT_ALL,
 ) -> list[tuple[int, str]]:
     """Line and kind of each import of a framework name that the framework does not publish."""
     found: list[tuple[int, str]] = []
@@ -204,7 +205,7 @@ def find_non_public_imports(
             and node.module.startswith(_FRAMEWORK_PACKAGES)
         ):
             for alias in node.names:
-                problem = _import_problem(node.module, alias.name, published, documented)
+                problem = _import_problem(node.module, alias.name, published, accepted)
                 if problem:
                     found.append((node.lineno, problem))
     return sorted(found)
@@ -252,18 +253,18 @@ def test_harness_source_imports_only_published_framework_names() -> None:
 
 
 @pytest.mark.architecture
-def test_documented_modules_without_all_are_all_in_use() -> None:
+def test_accepted_modules_without_all_are_all_in_use() -> None:
     """An entry nobody imports from, or one whose module has gained an ``__all__``, no longer belongs on the list."""
     imported = {
         node.module
         for _, source in _source_files()
         for node in ast.walk(_parse(source))
-        if isinstance(node, ast.ImportFrom) and node.module in DOCUMENTED_MODULES_WITHOUT_ALL and not node.level
+        if isinstance(node, ast.ImportFrom) and node.module in ACCEPTED_MODULES_WITHOUT_ALL and not node.level
     }
-    unused = sorted(DOCUMENTED_MODULES_WITHOUT_ALL - imported)
-    published = sorted(module for module in DOCUMENTED_MODULES_WITHOUT_ALL if _published_names(module) is not None)
-    assert not unused, f"Not imported from any more, remove from DOCUMENTED_MODULES_WITHOUT_ALL: {unused}"
-    assert not published, f"Declares an __all__ now, remove from DOCUMENTED_MODULES_WITHOUT_ALL: {published}"
+    unused = sorted(ACCEPTED_MODULES_WITHOUT_ALL - imported)
+    published = sorted(module for module in ACCEPTED_MODULES_WITHOUT_ALL if _published_names(module) is not None)
+    assert not unused, f"Not imported from any more, remove from ACCEPTED_MODULES_WITHOUT_ALL: {unused}"
+    assert not published, f"Declares an __all__ now, remove from ACCEPTED_MODULES_WITHOUT_ALL: {published}"
 
 
 @pytest.mark.architecture
@@ -355,7 +356,7 @@ def _fake_published(module: str) -> frozenset[str] | None:
     ],
 )
 def test_the_import_scanner_sees_each_unpublished_name(source: str) -> None:
-    assert find_non_public_imports(source, _fake_published, documented=frozenset())
+    assert find_non_public_imports(source, _fake_published, accepted=frozenset())
 
 
 @pytest.mark.architecture
@@ -370,8 +371,8 @@ def test_the_import_scanner_sees_each_unpublished_name(source: str) -> None:
     ],
 )
 def test_the_import_scanner_accepts_published_names_and_the_harness_own(source: str) -> None:
-    documented = frozenset({"langchain_core.runnables.config"})
-    assert find_non_public_imports(source, _fake_published, documented) == []
+    accepted = frozenset({"langchain_core.runnables.config"})
+    assert find_non_public_imports(source, _fake_published, accepted) == []
 
 
 @pytest.mark.architecture

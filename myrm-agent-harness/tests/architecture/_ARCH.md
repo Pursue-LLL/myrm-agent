@@ -78,7 +78,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_toolkits_llms_media_layout.py` | Gate | LLM 媒体理解归属 `toolkits/llms/`，禁止顶层平铺 | — |
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
 | `test_command_log_masking.py` | Gate | AST：`src/` 内日志调用不得直接引用名字里带 `command` / `cmd` 一词的变量，须经 `command_preview` 或 `redact_command_line`；按名字拦截，是绊线而不是证明；允许清单以 `路径::函数::变量` 登记且过期条目报错；自带检测器正反例 | — |
-| `test_framework_public_surface.py` | Gate | AST：`src/` 只经框架公开的面接触 LangChain / LangGraph——① 禁止就地改写框架对象（在非自有对象上替换框架方法、改写框架类的属性、重赋 `__class__`），须改用中间件钩子或 `request.override(...)`；② 导入的名字须列在其模块的 `__all__` 里，无 `__all__` 的模块须登记在 `DOCUMENTED_MODULES_WITHOUT_ALL`（登记项无人导入或模块已有 `__all__` 即报错）；③ 禁止读 `__pregel*` / `__langgraph*` 私有配置键，暂无公开替代者登记在 `KNOWN_PRIVATE_KEYS`（读取消失而条目仍在即报错）；不覆盖框架递给我们的对象上的属性访问与运行时拼出的键；自带三类检测器正反例，防退化为 no-op | — |
+| `test_framework_public_surface.py` | Gate | AST：`src/` 只经框架公开的面接触 LangChain / LangGraph——① 禁止就地改写框架对象（在非自有对象上替换框架方法、改写框架类的属性、重赋 `__class__`），须改用中间件钩子或 `request.override(...)`；② 导入的名字须列在其模块的 `__all__` 里，无 `__all__` 的模块须登记在 `ACCEPTED_MODULES_WITHOUT_ALL`（登记项无人导入或模块已有 `__all__` 即报错）；③ 禁止读 `__pregel*` / `__langgraph*` 私有配置键，暂无公开替代者登记在 `KNOWN_PRIVATE_KEYS`（读取消失而条目仍在即报错）；不覆盖框架递给我们的对象上的属性访问与运行时拼出的键；自带三类检测器正反例，防退化为 no-op | — |
 | `test_framework_dependency_bounds.py` | Gate | `pyproject.toml` 里每个 LangChain / LangGraph 系依赖须同时声明 `>=` 下限与 `<` 上限（每周金丝雀安装的正是这些声明）；自带规则正反例 | — |
 
 ## 运行
