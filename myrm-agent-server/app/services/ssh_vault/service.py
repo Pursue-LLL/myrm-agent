@@ -6,8 +6,10 @@ and handles parameterized, safe subprocess remote execution with timeout and saf
 [INPUT]
 - .models::SSHAssetSummary, SSHHostConfig, SSHProbeResult, SSHCommandResult, SFTPTransferResult
 - myrm_agent_harness.api::ReadOnlySSHValidator, command_preview (a log line shows the command masked and cut)
+- myrm_agent_harness.api::communicate_bounded (POS: Reads a child process's stdout and stderr with a cap on each and
+  stops it through the caller on a deadline or a cancel.)
 - pathlib::Path
-- asyncio, logging, os, re, socket, time
+- asyncio, contextlib, logging, os, re, socket, time
 - typing::Dict, List, Optional
 
 [OUTPUT]
@@ -21,6 +23,7 @@ Domain service in app/services/ssh_vault/.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import re
@@ -29,7 +32,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from myrm_agent_harness.api import ReadOnlySSHValidator, command_preview
+from myrm_agent_harness.api import ReadOnlySSHValidator, command_preview, communicate_bounded
 
 from app.services.ssh_vault.change_window import (
     ProtectedChangeWindowService,
@@ -42,6 +45,10 @@ from app.services.ssh_vault.models import (
 )
 
 logger = logging.getLogger("myrm.services.ssh_vault")
+
+# What a remote command may write to each of stdout and stderr before the rest is dropped: `tail -f`, `journalctl -f`
+# and `cat` of a large file pass the read-only gate and never end or never stop printing.
+_MAX_OUTPUT_BYTES = 5 * 1024 * 1024
 
 # Strict pattern guard for destructive commands without explicit confirmation
 _HIGH_RISK_COMMAND_PATTERNS = [
@@ -323,19 +330,25 @@ class SSHAssetService:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout_seconds,
-            )
+
+            async def stop_ssh() -> None:
+                with contextlib.suppress(ProcessLookupError):
+                    proc.kill()
+
+            captured = await communicate_bounded(proc, timeout=timeout_seconds, on_abort=stop_ssh, max_bytes=_MAX_OUTPUT_BYTES)
             duration_ms = int((time.perf_counter() - start_time) * 1000)
             exit_code = proc.returncode if proc.returncode is not None else 0
+            stderr = captured.stderr.decode("utf-8", errors="replace")
+            if captured.truncated:
+                note = f"[Output limit reached: a pipe held more than {_MAX_OUTPUT_BYTES} bytes; the rest was discarded]"
+                stderr = f"{stderr}\n{note}" if stderr else note
 
             return SSHCommandResult(
                 host_alias=host_alias,
                 command=command,
                 exit_code=exit_code,
-                stdout=stdout_bytes.decode("utf-8", errors="replace"),
-                stderr=stderr_bytes.decode("utf-8", errors="replace"),
+                stdout=captured.stdout.decode("utf-8", errors="replace"),
+                stderr=stderr,
                 duration_ms=duration_ms,
                 break_glass_token_used=break_glass_used,
             )

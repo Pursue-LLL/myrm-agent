@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-31 · SSH 保险库执行远程命令：命令无休止打印时服务端内存数秒内涨数 GB，超时或取消后本机的 ssh 进程不被终止
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；harness 原语见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-144，同组的 Python 工具、命令钩子、skill 动态命令见 BUG-HARNESS-2026-10-31-146）。「仍然存在」里的项未处理。 |
+| **症状** | [实测，macOS，每次一个新进程，`ssh` 换成 PATH 最前面的替身脚本，它无休止向 stderr 写 1 KiB 的行；`execute_remote_command(timeout_seconds=3)`，进程峰值内存增长] 改前 4 次依次为 +3484、+4116、+3979、+3947 MB，3.00 秒按时返回退出码 124，返回时本机的 `ssh` 进程 4 次都还在运行。[直接调用] `tail -f`、`journalctl -f`、`cat /var/log/big.log` 都通过只读门（`ReadOnlySSHValidator.validate` 返回 `is_safe=True`），`yes` 不通过；超时默认 30 秒，请求体里的 `timeout_seconds` 没有上限（`models.py:61`），非只读主机不过只读门。 |
+| **根因** | `service.py::execute_remote_command` 用 `asyncio.wait_for(proc.communicate(), timeout)` 收集输出：`communicate()` 把两个管道读到 EOF 并全部留在内存里；超时和取消时只放弃等待，没有终止本机的 `ssh`（harness 144 同一原因）。 |
+| **修复** | `service.py` 改用 harness 的 `communicate_bounded`（经 `myrm_agent_harness.api` 导入）：每个管道只留前 `_MAX_OUTPUT_BYTES`（5 MiB），超出的读出后丢弃；`on_abort` 终止本机 `ssh`（`proc.kill()`，进程已不在时忽略），超时和取消时读取继续排空，所以内存有界。超时的返回结构不变（退出码 124、`is_timeout=True`）。输出被截断时在 `stderr` 末尾加一行 `[Output limit reached: a pipe held more than 5242880 bytes; the rest was discarded]`（`stderr` 为空时就是这一行）。文档：`app/services/ssh_vault/_ARCH.md`、`tests/services/ssh_vault/_ARCH.md`。 |
+| **行为变化** | 单个管道超过 5 MiB 的输出不再整段返回，只返回前 5 MiB 加说明行；改前没有上限。5 MiB 之内的输出、退出码、超时与异常分支不变。 |
+| **回归证据** | [1] 实测对比（同一替身脚本，同一台机器，各 4 次，导入在计时之前，改前取自 `git show HEAD`）：内存增长改前 +3484、+4116、+3979、+3947 MB，改后 4 次都是 +13 MB；返回耗时两边都是 3.00 秒（超时 3 秒，这里看不出差别）；返回时 `ssh` 进程仍在运行：改前 4/4，改后 0/4。[2] 新增 `tests/services/ssh_vault/test_ssh_vault_output_bound.py` 7 例（输出与退出码 0、3 两格；stdout 与 stderr 各一格无休止打印，断言按时返回、退出码 124、`ssh` 进程已不在、`tracemalloc` 峰值低于 15 MiB；5 MiB 加 4096 字节被截并带说明行；恰好 5 MiB 不带说明行；取消调用后 `ssh` 进程已不在）。`ssh` 是 `tests/services/ssh_vault/conftest.py` 里的替身（PATH 最前的 Python 脚本，不连任何主机，按测试设定输出、无休止打印或挂住；测试结束时杀掉失败测试留下的进程）。原来两个靠 mock `communicate` 的用例（`test_ssh_vault.py` 的成功用例、`test_ssh_vault_readonly_gate.py` 的越权与放行用例）在新读取下不能用（成功用例改后立即失败，报「An asyncio.Future, a coroutine or an awaitable is required」），前者并入新文件的参数化用例，后者改用替身。2 个变异体逐个注入，被改文件逐字节还原（`cmp`）：换回无上限的 `wait_for(proc.communicate())`（4 例红：两格无休止打印、超过上限、取消）；`on_abort` 不再终止 `ssh`（3 例红：两格无休止打印、取消）。换回无上限版本时取消那一例让替身 `ssh` 在测试结束后仍在运行（我手工杀掉；后来加了清理，并再注入一次确认清理有效）。[3] 套件：`tests/services/ssh_vault`、`tests/api/ssh_vault` 共 37 例通过；加上 `tests/architecture` 共 1451 例通过、6 例失败，6 例都不在本次文件里：与探针条目记录的同类 5 例（路由调用方 2 例、数据目录约定 3 例），加 `test_no_app_main_in_tests`（`tests/middleware/test_trailing_slash_alias.py:63` 导入 `app.main`，该文件最近一次提交是 `e029a04ec8`，本次未改）。[4] 门禁：`ruff check` 与 `ruff format --check`、`mypy`（私有缓存）、`pyright`（0 错误）对 5 个文件通过，`check_fractal_docs.py` 通过；`check_file_line_budget.py` 报 `app/api/skills/discovery/discovery.py`（713 行）超预算，不在本次文件里，未处理。 |
+| **踩坑** | `ruff format` 顺带整理了 `test_ssh_vault.py` 里 3 处原有的格式问题（多余空行、一处断言换行），一并带进本次提交。 |
+| **仍然存在** | ① 远端命令在 `ssh` 被杀之后何时停止取决于远端：它的下一次写入碰到已关闭的连接才会收到信号，不写东西的远端命令（如 `sleep 100`）会继续跑到结束；没有用真实 SSH 主机测过。② 只用替身 `ssh` 测过，没有连真实主机（认证、`ConnectTimeout`、`ServerAliveInterval` 等路径没有跑）。③ 只在 macOS 上测过，Windows 没有测。④ `ssh_vault` 里只有这一处启动子进程（`service.py:328`）；`app/services/ssh_bridge` 里没有 `communicate(`、`create_subprocess`、`subprocess.`、`asyncssh`、`paramiko` 这些写法（grep 无结果），它实际怎么执行没有读。 |
+| **代码位置** | server：`app/services/ssh_vault/service.py`、`app/services/ssh_vault/_ARCH.md`、`tests/services/ssh_vault/{__init__.py,conftest.py,test_ssh_vault_output_bound.py,test_ssh_vault.py,test_ssh_vault_readonly_gate.py,_ARCH.md}`；harness：`src/myrm_agent_harness/core/security/bounded_communicate.py`（见 harness 条目）。 |
+
 ## 2026-10-31 · 模型端点的证书被拒时，错误卡说「证书被拒」，运行时却照网络抖动重试约 11 分钟，或把整个 Key 池冷却 24 小时；渠道回复与 Wiki 队列都不认这个原因
 
 | 字段 | 内容 |

@@ -4,6 +4,7 @@
 - pytest
 - httpx::AsyncClient
 - app.services.ssh_vault::SSHAssetService, SSHHostConfig, ProtectedChangeWindowService
+- tests.services.ssh_vault.conftest::StandInSsh (a program named `ssh` that never connects)
 
 [OUTPUT]
 - Test suite verifying read-only enforcement, single-use break-glass token lifecycle, policy APIs, and that no copy of a command or full token is retained or logged
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
-from unittest.mock import AsyncMock, patch
+from typing import TYPE_CHECKING
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -24,6 +25,9 @@ from httpx import ASGITransport, AsyncClient
 from app.services.ssh_vault.change_window import ProtectedChangeWindowService
 from app.services.ssh_vault.models import SSHHostConfig
 from app.services.ssh_vault.service import SSHAssetService, get_ssh_asset_service
+
+if TYPE_CHECKING:
+    from tests.services.ssh_vault.conftest import StandInSsh
 
 
 @pytest.fixture
@@ -133,7 +137,7 @@ def test_break_glass_token_expiration(change_window_service: ProtectedChangeWind
 
 
 @pytest.mark.asyncio
-async def test_vault_service_read_only_blocking_and_break_glass(vault_service: SSHAssetService) -> None:
+async def test_vault_service_read_only_blocking_and_break_glass(vault_service: SSHAssetService, stand_in_ssh: StandInSsh) -> None:
     # 1. State-mutating command on read-only host is blocked
     res = await vault_service.execute_remote_command(
         host_alias="prod-server-01",
@@ -151,34 +155,26 @@ async def test_vault_service_read_only_blocking_and_break_glass(vault_service: S
         reason="Fix crash",
     )
 
-    mock_proc = AsyncMock()
-    mock_proc.communicate.return_value = (b"nginx restarted\n", b"")
-    mock_proc.returncode = 0
-
-    with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-        res_authorized = await vault_service.execute_remote_command(
-            host_alias="prod-server-01",
-            command="systemctl restart nginx",
-            break_glass_token=token_data.token,
-        )
-        assert res_authorized.exit_code == 0
-        assert res_authorized.break_glass_token_used is True
-        assert res_authorized.is_read_only_violation is False
-        assert "nginx restarted" in res_authorized.stdout
+    stand_in_ssh.print_and_exit(stdout="nginx restarted\n")
+    res_authorized = await vault_service.execute_remote_command(
+        host_alias="prod-server-01",
+        command="systemctl restart nginx",
+        break_glass_token=token_data.token,
+    )
+    assert res_authorized.exit_code == 0
+    assert res_authorized.break_glass_token_used is True
+    assert res_authorized.is_read_only_violation is False
+    assert "nginx restarted" in res_authorized.stdout
 
     # 3. Read-only command executes without break-glass token
-    mock_proc_ro = AsyncMock()
-    mock_proc_ro.communicate.return_value = (b"Active: active (running)\n", b"")
-    mock_proc_ro.returncode = 0
-
-    with patch("asyncio.create_subprocess_exec", return_value=mock_proc_ro):
-        res_ro = await vault_service.execute_remote_command(
-            host_alias="prod-server-01",
-            command="systemctl status nginx",
-        )
-        assert res_ro.exit_code == 0
-        assert res_ro.is_read_only_violation is False
-        assert res_ro.break_glass_token_used is False
+    stand_in_ssh.print_and_exit(stdout="Active: active (running)\n")
+    res_ro = await vault_service.execute_remote_command(
+        host_alias="prod-server-01",
+        command="systemctl status nginx",
+    )
+    assert res_ro.exit_code == 0
+    assert res_ro.is_read_only_violation is False
+    assert res_ro.break_glass_token_used is False
 
 
 @pytest.mark.asyncio
