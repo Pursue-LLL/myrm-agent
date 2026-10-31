@@ -76,8 +76,6 @@ def test_truncate_snippet_text() -> None:
 def test_selector_deduplication_and_budget() -> None:
     """Verify selector caps snippets at 3, enforces 600 chars total, and drops duplicates."""
     cfg = KnowledgePackConfig(
-        pack_id="pack_test",
-        name="Test Pack",
         max_snippets=3,
         max_chars_per_snippet=150,
         max_total_chars=400,

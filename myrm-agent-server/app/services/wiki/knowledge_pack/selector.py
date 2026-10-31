@@ -206,10 +206,7 @@ class KnowledgePackSelector:
     """Selector that deduplicates and enforces hard budget on proactive snippets."""
 
     def __init__(self, config: KnowledgePackConfig | None = None) -> None:
-        self._config = config or KnowledgePackConfig(
-            pack_id="default",
-            name="Default Knowledge Pack",
-        )
+        self._config = config or KnowledgePackConfig()
 
     def select(
         self,

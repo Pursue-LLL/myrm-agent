@@ -4,7 +4,7 @@
 - None (pure domain dataclasses)
 
 [OUTPUT]
-- KnowledgePackConfig: Lightweight composite container for agent/session knowledge binding.
+- KnowledgePackConfig: Budget and dedup limits of one proactive injection.
 - RelevantSnippet: High-confidence paragraph-level citation extracted from knowledge bases.
 - ProactiveKnowledgeResult: Container for turn-level proactive injection payload.
 
@@ -36,24 +36,11 @@ class RelevantSnippet:
             "source_path": self.source_path,
         }
 
-    @classmethod
-    def from_dict(cls, data: dict[str, object]) -> RelevantSnippet:
-        return cls(
-            kb_name=str(data.get("kb_name", "Wiki")),
-            article_title=str(data.get("article_title", "")),
-            snippet=str(data.get("snippet", "")),
-            confidence=float(data.get("confidence", 1.0)),  # type: ignore[arg-type]
-            source_path=str(data.get("source_path", "")),
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class KnowledgePackConfig:
-    """Lightweight composite container configuring proactive knowledge injection."""
+    """Budget and dedup limits of one proactive injection."""
 
-    pack_id: str
-    name: str
-    shared_context_ids: list[str] = field(default_factory=list)
     max_snippets: int = 3
     max_chars_per_snippet: int = 200
     max_total_chars: int = 600
@@ -78,19 +65,3 @@ class ProactiveKnowledgeResult:
             "is_truncated": self.is_truncated,
             "source_count": self.source_count,
         }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, object]) -> ProactiveKnowledgeResult:
-        raw_snippets = data.get("snippets")
-        snippets = (
-            [RelevantSnippet.from_dict(item) for item in raw_snippets if isinstance(item, dict)]
-            if isinstance(raw_snippets, list)
-            else []
-        )
-        return cls(
-            snippets=snippets,
-            total_chars=int(data.get("total_chars", 0)),  # type: ignore[arg-type]
-            latency_ms=float(data.get("latency_ms", 0.0)),  # type: ignore[arg-type]
-            is_truncated=bool(data.get("is_truncated", False)),
-            source_count=int(data.get("source_count", 0)),  # type: ignore[arg-type]
-        )
