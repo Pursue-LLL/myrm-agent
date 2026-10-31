@@ -52,8 +52,8 @@ _MAX_REASON_CHARS = 300
 _MAX_RAW_CHARS = 1000
 # A probe has no state to flush: after the deadline or a cancel, the script and what is in its process tree get this
 # long to stop on a polite signal and as long again after the forced kill, so the extra wait is at most twice this.
-# A background command that init has adopted is in no tree: it gets the group's polite signal, and the group kill
-# ends it as soon as the script is gone, so it has no time to act on it.
+# A background command that init has adopted is in no tree: it gets the group's polite signal only if the script is
+# still running, and the group kill comes when the tree stop returns, so it can wrap up only while that stop waits.
 _KILL_GRACE_SECONDS = 1.0
 # What the script wrote becomes the job's prompt or its delivered text, so a script that fills this much is broken. It
 # fails the run instead of being cut: the verdict is the last line, which a cut would drop.
