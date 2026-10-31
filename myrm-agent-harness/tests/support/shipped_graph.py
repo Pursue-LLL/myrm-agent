@@ -14,7 +14,7 @@
 A test of the stack that is not about one middleware compiles the same graph a run does, so what it observes
 (which tool calls run together, what the model is sent, what a hook returns) is what a user's run does. Mocks of
 the framework would only show what the mock does. The one difference is that default window: a run installs no
-call-frequency guard of its own, and a test of that gap asks for the run as it is.
+call-frequency guard of its own, and a test of what that means asks for the run as it is.
 """
 
 from __future__ import annotations

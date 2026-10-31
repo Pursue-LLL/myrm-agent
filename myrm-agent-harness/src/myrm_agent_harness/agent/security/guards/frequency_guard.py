@@ -31,6 +31,9 @@ Response levels:
 Layer 5 (Anti-Abuse) guard, parallel to LoopGuard. Integrated into
 tool_interceptor_middleware pre-call phase. Prevents DoS and cost overruns
 via time-based frequency limits, complementing LoopGuard's logic-based detection.
+
+The window counts only in a run that installs a guard before it starts (``isolated_frequency_guard``, which a
+delegated run uses). The run of a user installs none, so each of its tool calls meets a new, empty guard.
 """
 
 from __future__ import annotations

@@ -18,6 +18,9 @@ other tools consume one unit per invocation. Pre-call check and record.
 [POS]
 Layer 5 (Anti-Abuse) guard, integrated into tool_interceptor_middleware pre-call
 phase alongside FrequencyGuard.
+
+The budget counts only in a run that installs a guard before it starts (``isolated_tool_turn_budget_guard``,
+which a delegated run uses). The run of a user installs none, so each of its tool calls meets a new, empty guard.
 """
 
 from __future__ import annotations

@@ -6,6 +6,10 @@ Four layers of protection:
 3. Predictive overflow detection (warn before overflow, not after)
 4. Graceful degradation (UECD disk-persist → truncate fallback chain)
 
+Layers 1 and 4 act on each result alone. Layers 2 and 3 count across the results of a run, which needs one guard for
+the whole run: only a run that installs a guard before it starts (``isolated_context_budget_guard``, which a
+delegated run uses) has one. The run of a user installs none, so each result meets a new, empty budget.
+
 [INPUT]
 - text_utils::smart_truncate (POS: Head+Tail truncation with intelligent tail detection)
 - infra.evicted::write_evicted_content_sync (UECD persist)

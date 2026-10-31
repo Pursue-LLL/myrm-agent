@@ -816,7 +816,9 @@ Layer 5 包含三个并列的防滥用机制：
 - **FrequencyGuard**（频率检测）— 检测时间窗口内的高频调用
 - **ToolTurnBudgetGuard**（单轮配额）— 检测单条用户消息内的工具调用总量
 
-两者通过 `tool_interceptor_middleware` 集成，互为补充。
+三者通过 `tool_interceptor_middleware` 集成，互为补充。
+
+**作用范围**：LoopGuard 对每一次 run 生效（按 session 登记，含迭代预算提示与 `ToolStuckException`）。FrequencyGuard 与 ToolTurnBudgetGuard 的计数对象存放在 `ContextVar` 中；LangGraph 在上下文副本里执行工具、调用结束即丢弃副本，所以只有在 run 开始前就装入守卫的 run 才会累计——委托 run（子 Agent、深度研究，经 `isolated_run_guards`）会装入，用户 run 不装入，其每次工具调用拿到的都是新的空守卫，这两项限制不会触发。该行为由 `tests/agent/middlewares/test_shipped_stack_run_guards.py` 固定；若要让用户 run 也受限，需要在 run 开始时装入新实例，同时更新这条说明、该测试与公开文档。
 
 ### 6.1 LoopGuard — 循环检测
 
@@ -973,7 +975,7 @@ Consider reducing call frequency to avoid hitting the limit.
 
 - `tool_interceptor_middleware._run_pre_call_guards()`：在 LoopGuard 之后、Invalid tool 检查之前
 - `tool_interceptor_middleware._run_post_call_guards()`：在 LoopGuard 记录之后记录成功调用
-- `agent_runtime.reset_session_state()`：每次 Agent run 开始时调用 `reset_frequency_guard()` 与 `reset_tool_turn_budget_guard()`
+- `agent_runtime`：每次 Agent run 开始时调用 `reset_all_guards()`，其中 `reset_frequency_guard()` 与 `reset_tool_turn_budget_guard()` 只清零已装入的实例，不会为用户 run 装入新实例（见本章开头的作用范围）
 
 **竞品对比**：
 
@@ -1007,14 +1009,14 @@ OpenAI Assistants API 实现了类似的频率限制（40 requests/minute for ru
 
 1. **Pre-call 检查与计次**：LoopGuard 之后、FrequencyGuard 之前 `check(units=…)`；全部 pre-call guard 通过后 `record(units=…)`。`web_search_tool` 的 units = `len(questions)`（1–5）；其他工具 units=1。工具实际执行失败仍计入；steering/frequency 等 pre-call 拦截不计入。
 2. **Turn 切换**：`active_message_id` 变化时自动清零计数
-3. **Run 重置**：`reset_all_guards()` 调用 `reset_tool_turn_budget_guard()`
+3. **Run 重置**：`reset_all_guards()` 调用 `reset_tool_turn_budget_guard()`，只清零已装入的实例（用户 run 不装入，见 §6 开头的作用范围）
 
 **前端展示**：阻止时 `error_category=turn_budget_guard`，ProgressSteps badge 显示「Search Quota / 搜索配额」（`progressSteps.errorCategories.turn_budget_guard`）。
 
 **集成点**：
 
 - `tool_interceptor_middleware.run_pre_call_guards()`：LoopGuard 之后、FrequencyGuard 之前（check + record）
-- `agent_runtime.reset_all_guards()`：每次 Agent run 开始时调用 `reset_tool_turn_budget_guard()`
+- `agent_runtime.reset_all_guards()`：每次 Agent run 开始时调用 `reset_tool_turn_budget_guard()`（只清零已装入的实例）
 
 ---
 
