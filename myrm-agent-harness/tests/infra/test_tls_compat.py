@@ -15,7 +15,6 @@ from myrm_agent_harness.infra.tls_compat import (
     build_httpx_verify,
     create_httpx_client,
     is_tls_hard_error,
-    is_tls_strict_error,
     is_tls_transient_error,
     tls_strict_disabled,
 )
@@ -196,33 +195,6 @@ class TestApplyGlobalTlsRelaxation:
             assert second is True
 
 
-class TestIsTlsStrictError:
-    """Tests for is_tls_strict_error() pattern detection."""
-
-    @pytest.mark.parametrize(
-        "msg",
-        [
-            "BasicConstraints of CA cert not marked critical",
-            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed",
-            "unable to get local issuer certificate",
-            "self-signed certificate in certificate chain",
-        ],
-    )
-    def test_detects_tls_errors(self, msg: str) -> None:
-        assert is_tls_strict_error(msg) is True
-
-    @pytest.mark.parametrize(
-        "msg",
-        [
-            "Connection refused",
-            "DNS resolution failed",
-            "Timeout exceeded",
-        ],
-    )
-    def test_ignores_non_tls_errors(self, msg: str) -> None:
-        assert is_tls_strict_error(msg) is False
-
-
 class TestIsTlsHardVsTransient:
     """Hard certificate rejections fail fast; interrupted handshakes retry."""
 
@@ -237,6 +209,8 @@ class TestIsTlsHardVsTransient:
             "certificate has expired",
             "ERR_TLS_CERT_ALTNAME_INVALID",
             "BasicConstraints of CA cert not marked critical",
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed",
+            "self-signed certificate in certificate chain",
         ],
     )
     def test_hard_errors_fail_fast(self, msg: str) -> None:
@@ -263,6 +237,8 @@ class TestIsTlsHardVsTransient:
         "msg",
         [
             "Connection refused",
+            "DNS resolution failed",
+            "Timeout exceeded",
             "Rate limit exceeded",
             "Invalid API key",
         ],

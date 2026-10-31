@@ -194,7 +194,12 @@ def apply_global_tls_relaxation() -> bool:
     return True
 
 
-_TLS_ERROR_PATTERNS = (
+# Hard TLS failure signals: the certificate/chain itself is rejected.
+# These are permanent (fail-fast) — retrying cannot change the verdict.
+# Python/OpenSSL strict-mode wordings come first, then the Bun/Node ones
+# (e.g. "unable to verify the first certificate"), hostname/altname mismatch
+# and an expired leaf — all deliberately hard.
+_TLS_HARD_SIGNALS = (
     "basic constraints",
     "basicconstraints",
     "not marked critical",
@@ -203,15 +208,6 @@ _TLS_ERROR_PATTERNS = (
     "unable to get local issuer",
     "[ssl: certificate_verify_failed]",
     "self-signed certificate in certificate chain",
-)
-
-# Hard TLS failure signals: the certificate/chain itself is rejected.
-# These are permanent (fail-fast) — retrying cannot change the verdict.
-# Extends _TLS_ERROR_PATTERNS with Bun/Node/OpenSSL wordings that the
-# strict-mode patterns miss (e.g. "unable to verify the first certificate",
-# hostname/altname mismatch, expired leaf).
-_TLS_HARD_SIGNALS = (
-    *_TLS_ERROR_PATTERNS,
     "self-signed",
     "self signed",
     "unable to verify the first certificate",
@@ -248,19 +244,10 @@ _TLS_TRANSIENT_PATTERNS = (
 )
 
 
-def is_tls_strict_error(error_message: str) -> bool:
-    """Detect if an error message indicates a TLS strict-mode rejection.
-
-    Used by error handlers to attach actionable remediation hints.
-    """
-    lower = error_message.lower()
-    return any(pattern in lower for pattern in _TLS_ERROR_PATTERNS)
-
-
 def is_tls_hard_error(error_message: str) -> bool:
     """Detect a permanent TLS failure (bad chain, not a flaky network).
 
-    Superset of :func:`is_tls_strict_error` with Bun/Node/OpenSSL wordings.
+    Covers the strict-mode, Bun, Node and OpenSSL wordings of a rejected certificate.
     Hard failures must fail fast with remediation — never retried.
     """
     lower = error_message.lower()

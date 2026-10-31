@@ -392,8 +392,8 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | 模块 | 职责 |
 |------|------|
 | `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时，随后经 `classify_error` 桥接分类器认得而关键词族没认出的失败（`api_key` / `billing` / `rate_limit` / `timeout` / `context_overflow` / `response_format_error` / `overloaded` / `safety_block` / `format_error` / `challenge_blocked`；`model_not_found` 与订阅档位门槛不在其中：分类器把供应商策略拦截归在前者、把档位门槛归在 `context_overflow` 之下，二者用供应商自己的话展示更准），最后兜底 `unknown` |
-| `catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点（文案、步骤、供应商给出的等待时长；`entry` 选同一错误类型的另一版措辞，结果的类型不变） |
-| `transport_diagnosis.py` | TLS（`tls_certificate`、`tls_transient`）与连接（`connection`、`custom_endpoint_unreachable`）诊断；自定义端点的服务名、端口推断 |
+| `catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点（文案、步骤、供应商给出的等待时长；`entry` 选同一错误类型的另一版措辞，结果的类型不变）；守卫测试 `test_diagnostic_result_single_source.py` 保证全库只有这里构造 `DiagnosticResult` |
+| `transport_diagnosis.py` | TLS（`tls_certificate`：证书被拒（链不受信、主机名不符、过期），步骤先核对端点证书、再给企业网络兼容开关；`tls_transient`：握手被中断）与连接（`connection`、`custom_endpoint_unreachable`）诊断；自定义端点的服务名、端口推断 |
 | `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
 | `types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
 | `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化；`locale_chain()` 定义文案的回退链：请求的语言 → 其规范形式 → 同语言的其他目录（`ja-JP` 读 `ja`；`zh-HK` 读 `zh-TW`，宿主目录没有繁体目录时再读 `zh-CN`）→ `en`；文案、等待提示与恢复按钮标签共用这条链 |

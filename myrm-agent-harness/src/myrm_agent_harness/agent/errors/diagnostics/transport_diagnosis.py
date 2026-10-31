@@ -3,7 +3,7 @@
 [INPUT]
 - diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
-- infra.tls_compat::is_tls_hard_error, is_tls_strict_error, is_tls_transient_error (POS: Enterprise TLS compatibility)
+- infra.tls_compat::is_tls_hard_error, is_tls_transient_error (POS: Enterprise TLS compatibility)
 
 [OUTPUT]
 - diagnose_transport: maps a TLS or connection failure to a localized DiagnosticResult, None for any other error
@@ -20,11 +20,7 @@ import re
 
 from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
 from myrm_agent_harness.agent.errors.diagnostics.types import DiagnosticResult, ErrorContext
-from myrm_agent_harness.infra.tls_compat import (
-    is_tls_hard_error,
-    is_tls_strict_error,
-    is_tls_transient_error,
-)
+from myrm_agent_harness.infra.tls_compat import is_tls_hard_error, is_tls_transient_error
 
 _CONNECTION_KEYWORDS = (
     "connection refused",
@@ -44,7 +40,7 @@ def diagnose_transport(
     # 0. TLS/SSL errors: hard failure (fail-fast) vs transient handshake
     # interruption (retryable). Hard signals win: a rejected certificate
     # can never verify by retrying.
-    if is_tls_hard_error(full_text) or is_tls_strict_error(full_text):
+    if is_tls_hard_error(full_text):
         # No wait to announce: the provider's cooldown belongs to a rate limit, not to a rejected certificate.
         return build_catalog_result("tls_certificate", locale)
 

@@ -134,9 +134,10 @@
     "OpenCode Go のワークスペース設定を開き、Contributor モデル向けのトレーニングデータ共有への同意を有効にします",
     "または muse-spark-1.2（Contributor ではないモデル）や deepseek-v4-flash などの別のモデルに切り替えます"
   ],
-  "tls_certificate_user_message": "TLS証明書の検証に失敗しました — 企業のTLS検査プロキシが原因の可能性があります",
+  "tls_certificate_user_message": "TLS証明書の検証に失敗しました — サーバー証明書が受け入れられませんでした",
   "tls_certificate_resolution_steps": [
-    "設定 > 環境設定 > 詳細設定 で「エンタープライズネットワーク互換モード」を有効にしてください"
+    "エンドポイントのアドレスが正しいこと、証明書が有効でそのアドレスと一致していることを確認してください。期限切れ・自己署名・アドレス不一致の証明書は自然には解消されません",
+    "企業TLS検査環境では設定 > 環境設定 > 詳細設定 で「エンタープライズネットワーク互換モード」を有効にしてください"
   ],
   "tls_transient_user_message": "TLSハンドシェイクが中断されました — 一時的なネットワークの不安定が原因の可能性があります",
   "tls_transient_resolution_steps": [
