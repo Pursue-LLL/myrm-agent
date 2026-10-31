@@ -42,8 +42,8 @@ def _list_answer(lines: int) -> str:
 # A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
 LONG_LIST_ANSWER = _list_answer(600)
 # A run that must outlast what a page needs to open the chat and press Stop: the model writes 600 bullets in about the time a
-# freshly loaded page takes to ask the server about the chat.
-STOP_LIST_ANSWER = _list_answer(1500)
+# freshly loaded page takes to ask the server about the chat, and on a loaded machine every page request takes seconds.
+STOP_LIST_ANSWER = _list_answer(3000)
 
 
 def bash_request(answer: str) -> str:

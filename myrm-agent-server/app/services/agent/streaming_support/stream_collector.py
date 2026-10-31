@@ -642,6 +642,11 @@ class StreamContentCollector:
         return bool(self._answer) or bool(self._reasoning_parts)
 
     @property
+    def completion_status(self) -> str | None:
+        """How the stream said the turn ended (``complete``, ``cancelled``, ``error``); ``None`` until it said so."""
+        return self._completion_status
+
+    @property
     def has_persistable_turn(self) -> bool:
         """True when finalize should persist an assistant message row."""
         return self.has_content or self.extra_data is not None

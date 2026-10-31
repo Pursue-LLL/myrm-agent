@@ -285,6 +285,44 @@ def _inject_message_end_memory_insights(
         logger.warning("Failed to enqueue stream memory brief status telemetry: %s", e)
 
 
+async def _cancelled_chunk(session: AgentStreamSession) -> str:
+    """Wind a cancelled turn down and return its ``agent_cancelled`` chunk, which the collector has seen.
+
+    The collector builds the stored turn: without the event a stopped reply is stored as if it had finished.
+    """
+    logger.warning(
+        "Agent cancelled: message_id=%s, reason=%s",
+        session.params.message_id,
+        session.cancel_token.cancel_reason,
+    )
+    # Cooperative cleanup: ``npm install`` / ``webpack --watch``
+    # backgrounded by the agent must not outlive the cancelled
+    # chat or they keep eating RAM/CPU/sandbox quota. Mirrors
+    # ``hermes-agent`` ``process_registry.kill_all(task_id=...)``
+    # called from its cleanup hook.
+    if session.request.chat_id:
+        try:
+            from myrm_agent_harness.api.hooks import (
+                get_background_registry,
+            )
+
+            await get_background_registry().kill_session_jobs(session.request.chat_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to kill background jobs for cancelled session %s: %s",
+                session.request.chat_id,
+                exc,
+            )
+    cancel_event = {
+        "type": "agent_cancelled",
+        "messageId": session.params.message_id,
+        "data": {"reason": str(session.cancel_token.cancel_reason)},
+    }
+    cancel_chunk = SSEEnvelope.from_any(cancel_event).to_sse_chunk()
+    session.collector.feed_sse(cancel_chunk)
+    return cancel_chunk
+
+
 async def iter_agent_stream_chunks(
     session: AgentStreamSession,
     approval: ApprovalTimeoutHolder,
@@ -447,37 +485,7 @@ async def iter_agent_stream_chunks(
                 await commit_lazy_session_barrier(session)
 
             if session.cancel_token.is_cancelled:
-                logger.warning(
-                    "Agent cancelled: message_id=%s, reason=%s",
-                    session.params.message_id,
-                    session.cancel_token.cancel_reason,
-                )
-                # Cooperative cleanup: ``npm install`` / ``webpack --watch``
-                # backgrounded by the agent must not outlive the cancelled
-                # chat or they keep eating RAM/CPU/sandbox quota. Mirrors
-                # ``hermes-agent`` ``process_registry.kill_all(task_id=...)``
-                # called from its cleanup hook.
-                if session.request.chat_id:
-                    try:
-                        from myrm_agent_harness.api.hooks import (
-                            get_background_registry,
-                        )
-
-                        await get_background_registry().kill_session_jobs(
-                            session.request.chat_id
-                        )
-                    except Exception as exc:
-                        logger.warning(
-                            "Failed to kill background jobs for cancelled session %s: %s",
-                            session.request.chat_id,
-                            exc,
-                        )
-                cancel_event = {
-                    "type": "agent_cancelled",
-                    "messageId": session.params.message_id,
-                    "data": {"reason": str(session.cancel_token.cancel_reason)},
-                }
-                yield SSEEnvelope.from_any(cancel_event).to_sse_chunk()
+                yield await _cancelled_chunk(session)
                 break
 
             if isinstance(chunk, dict) and chunk.get("type") == "message":
@@ -769,6 +777,11 @@ async def iter_agent_stream_chunks(
                 yield SSEEnvelope.from_any(reset_event).to_sse_chunk()
 
             yield sse_chunk
+        else:
+            # The stream ended without handing over a chunk after the Stop, so the check above never ran. A turn that said
+            # how it ended (``message_end``) stays as it said.
+            if session.cancel_token.is_cancelled and session.collector.completion_status is None:
+                yield await _cancelled_chunk(session)
     except Exception as stream_err:
         lang = _stream_locale(getattr(session.params, "locale", None))
         if isinstance(stream_err, PrivacyFailClosedViolationError):

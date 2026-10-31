@@ -61,7 +61,7 @@ from tests.support.chrome_chat_page_observe import (
     wait_until_the_turn_ends,
     wait_until_the_turn_runs,
 )
-from tests.support.chrome_chat_page_stop import attach_console_lines, press_stop
+from tests.support.chrome_chat_page_stop import finished_fetches, press_stop
 from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_api_url, get_e2e_ui_url
 from tests.support.chrome_skill_hooks_approval import wait_for_approval_card
 from tests.support.chrome_skill_hooks_composer import drive_chat_turn
@@ -265,7 +265,7 @@ def test_stop_pressed_on_a_page_attached_to_the_timer_run_ends_that_run(
             raise AssertionError(
                 f"{error}; server turn when the page came up: {turn_when_the_page_came_up}; server turn now: {turn_state(probe)}; "
                 f"stored turns: {stored_assistant_turns(probe)}; backend attach lines: {backend_attach_lines(probe)!r}; "
-                f"page console about attaching:\n{attach_console_lines(client, page)}"
+                f"page requests that ended: {finished_fetches(client, page)}"
             ) from error
         print(
             f"E2E_STOP_TIMELINE: seconds from the timer run's start to the pressed Stop: {time.monotonic() - run_seen_at:.1f}",
