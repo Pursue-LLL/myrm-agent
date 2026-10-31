@@ -3,8 +3,8 @@ name: imap-smtp-email
 description: >-
   Manage personal email accounts via IMAP/SMTP: check inbox, search messages,
   read full content, download attachments, send and reply. Works with any
-  provider (163, QQ Mail, Outlook, Yahoo, corporate Exchange, etc.).
-version: 1.0.1
+  provider (163, QQ Mail, Outlook, Yahoo, Exchange, etc.).
+version: 1.0.2
 category: productivity
 tags:
   - email

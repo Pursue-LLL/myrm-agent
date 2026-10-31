@@ -8448,7 +8448,8 @@
     "sectionDesc": "Manage notification channels and external platform integrations for receiving task results and bidirectional conversations.",
     "testReasons": {
       "TELEGRAM_TOKEN_REJECTED": "Telegram did not accept this bot token. Copy the full token again from @BotFather.",
-      "TELEGRAM_UNREACHABLE": "Could not reach Telegram from this device. Check your network, and the proxy address if you set one."
+      "TELEGRAM_UNREACHABLE": "Could not reach Telegram from this device. Check your network, and the proxy address if you set one.",
+      "EMAIL_CERT_REJECTED": "The mail server's security certificate was not accepted. Check that the server address is correct and that its certificate is valid and matches that address — an expired, self-signed or mismatched certificate does not fix itself. Behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings, then restart the app."
     },
     "issues": {
       "notConfigured": "Not configured",

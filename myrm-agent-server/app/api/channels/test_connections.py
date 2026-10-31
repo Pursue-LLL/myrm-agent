@@ -9,9 +9,9 @@
 
 [POS]
 Channel connection test routes. Each probe checks the credentials of the settings form against the live service, so
-the page can tell the user at once whether they work. The messaging-platform probes live in ``connection_probes``;
-this module mounts them and keeps the mail, telephony, bridge and IRC probes, the external-agent probe and the
-simulated inbound message.
+the page can tell the user at once whether they work. The probes for the hosted messaging platforms live in
+``connection_probes``; this module mounts them and keeps the mail, Twilio voice and SMS, Signal, BlueBubbles and IRC
+probes, the external-agent probe and the simulated inbound message.
 """
 
 from __future__ import annotations
@@ -30,13 +30,11 @@ from app.api.channels.schemas import (
     ExternalAgentTestRequest,
     IMessageTestRequest,
     IRCTestRequest,
-    LINETestRequest,
-    MattermostTestRequest,
+    ReasonedTestResponse,
     SignalTestRequest,
     SMSTestRequest,
     TestInboundRequest,
     VoiceTestRequest,
-    ZaloTestRequest,
 )
 
 router = APIRouter()
@@ -44,6 +42,10 @@ router.include_router(bot_platforms_router)
 
 # Seconds the settings page waits on a mail server that does not answer, in line with the other connectivity probes.
 _IMAP_TEST_TIMEOUT = 10
+
+# Wire code the settings page turns into localized text (``channels.testReasons``): the mail server's certificate was
+# not accepted, which a user fixes at the server address or the trust store, not in the credentials.
+_EMAIL_CERT_REJECTED = "EMAIL_CERT_REJECTED"
 
 
 @router.post("/test-inbound", status_code=202)
@@ -64,13 +66,13 @@ async def test_inbound(
     return {"status": "queued"}
 
 
-@router.post("/email/test", response_model=ChannelTestResponse)
+@router.post("/email/test", response_model=ReasonedTestResponse, response_model_exclude_none=True)
 async def email_test_connection(
     body: EmailTestRequest,
-) -> ChannelTestResponse:
+) -> ReasonedTestResponse:
     """Test IMAP connectivity."""
 
-    def _check() -> tuple[bool, str]:
+    def _check() -> ReasonedTestResponse:
         try:
             conn = imaplib.IMAP4_SSL(
                 body.imap_host,
@@ -81,12 +83,13 @@ async def email_test_connection(
             conn.login(body.username, body.password)
             conn.noop()
             conn.logout()
-            return True, "IMAP connection successful"
+            return ReasonedTestResponse(ok=True, message="IMAP connection successful")
+        except ssl.SSLCertVerificationError as e:
+            return ReasonedTestResponse(ok=False, message=safe_err_msg(e), reason=_EMAIL_CERT_REJECTED)
         except Exception as e:
-            return False, safe_err_msg(e)
+            return ReasonedTestResponse(ok=False, message=safe_err_msg(e))
 
-    ok, msg = await asyncio.to_thread(_check)
-    return ChannelTestResponse(ok=ok, message=msg)
+    return await asyncio.to_thread(_check)
 
 
 @router.post("/voice/test", response_model=ChannelTestResponse)
@@ -164,30 +167,6 @@ async def signal_test_connection(
         return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
-@router.post("/line/test", response_model=ChannelTestResponse)
-async def line_test_connection(
-    body: LINETestRequest,
-) -> ChannelTestResponse:
-    """Test LINE Messaging API connectivity."""
-    import httpx
-
-    try:
-        async with httpx.AsyncClient(timeout=10) as http:
-            resp = await http.get(
-                "https://api.line.me/v2/bot/info",
-                headers={"Authorization": f"Bearer {body.channel_access_token}"},
-            )
-            ok = resp.status_code == 200
-            if ok:
-                data = resp.json()
-                msg = f"Connected as {data.get('displayName', 'unknown')}"
-            else:
-                msg = f"HTTP {resp.status_code}"
-            return ChannelTestResponse(ok=ok, message=msg)
-    except Exception as e:
-        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
-
-
 @router.post("/imessage/test", response_model=ChannelTestResponse)
 async def imessage_test_connection(
     body: IMessageTestRequest,
@@ -243,57 +222,6 @@ async def irc_test_connection(
             ok=True,
             message=f"TCP connection to {body.server}:{body.port} successful",
         )
-    except Exception as e:
-        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
-
-
-@router.post("/zalo/test", response_model=ChannelTestResponse)
-async def zalo_test_connection(
-    body: ZaloTestRequest,
-) -> ChannelTestResponse:
-    """Test Zalo OA API connectivity."""
-    import httpx
-
-    try:
-        async with httpx.AsyncClient(timeout=10) as http:
-            resp = await http.get(
-                "https://openapi.zalo.me/v3.0/oa/getoa",
-                headers={"access_token": body.access_token},
-            )
-            ok = resp.status_code == 200
-            return ChannelTestResponse(
-                ok=ok,
-                message="Connection successful" if ok else f"HTTP {resp.status_code}",
-            )
-    except Exception as e:
-        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
-
-
-@router.post("/mattermost/test", response_model=ChannelTestResponse)
-async def mattermost_test_connection(
-    body: MattermostTestRequest,
-) -> ChannelTestResponse:
-    """Test Mattermost server connectivity with Bot Access Token."""
-    import httpx
-
-    try:
-        api_url = f"{body.server_url.rstrip('/')}/api/v4"
-        async with httpx.AsyncClient(timeout=10) as http:
-            resp = await http.get(
-                f"{api_url}/users/me",
-                headers={"Authorization": f"Bearer {body.access_token}"},
-            )
-            if resp.status_code == 200:
-                data: dict[str, object] = resp.json()
-                username = data.get("username", "")
-                return ChannelTestResponse(
-                    ok=True,
-                    message=f"Connected as @{username}",
-                )
-            return ChannelTestResponse(
-                ok=False,
-                message=f"HTTP {resp.status_code}",
-            )
     except Exception as e:
         return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
