@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - Tests of `execute_remote_command`: output and exit code come through, a flood stops at the timeout, output past the cap
-  is cut with a note, a cancelled call stops the `ssh` process.
+  is cut with a note (alone when stderr is empty), a cancelled call stops the `ssh` process.
 
 [POS]
 Tests in tests/services/ssh_vault/. They run a real child process in place of `ssh`.
@@ -79,6 +79,16 @@ async def test_output_past_the_cap_is_cut_with_a_note(stand_in_ssh: StandInSsh) 
     assert result.exit_code == 0
     assert len(result.stdout) == _CAP
     assert result.stderr.startswith("warn\n[Output limit reached: ")
+
+
+async def test_output_past_the_cap_without_stderr_leaves_the_note_alone(stand_in_ssh: StandInSsh) -> None:
+    stand_in_ssh.print_and_exit(stdout="x" * (_CAP + 4096))
+
+    result = await _service().execute_remote_command("exec-node", "cat /var/log/big.log")
+
+    assert len(result.stdout) == _CAP
+    assert result.stderr.startswith("[Output limit reached: ")
+    assert result.stderr.endswith("the rest was discarded]")
 
 
 async def test_output_within_the_cap_has_no_note(stand_in_ssh: StandInSsh) -> None:

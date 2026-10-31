@@ -21,6 +21,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_git_spawn_sites.py` | 读取或改写索引、工作树与引用的 git 命令（`status`/`diff`/`add`/`commit`/`merge`/`checkout`/`worktree`/`branch`/`update-ref`…）一律经 harness 的 `hardened_git_argv`（仓库自己的配置能指定 git 运行的程序、钩子、过滤器、合并驱动、签名程序，部分克隆还能借惰性抓取联网），或登记在 `_BARE_GIT_SITES` 并写明理由；现登记项为空，已登记项消失即失败；自带扫描器正反例 |
 | `test_event_writers_redact.py` | 在 `EventLogger` 之外自己构造 `StructuredEvent` 并直接写后端的服务端模块必须登记在 `_DIRECT_WRITERS` 并写明理由；登记项里带自由文本的（接管轨迹的页面状态）必须调用 `sanitize_event_data`；已登记项消失即失败 |
 | `test_html_pages_contrast_gate.py` | 写整页 HTML 的 `app/` 模块（源码里有 `<!DOCTYPE html>` 或 `<html` 开标签）必须登记对应的对比度测试（文件须存在且真的调用 `assert_readable` / `assert_visible` / `contrast`，只导入不算），或列入 `_NOT_A_PAGE` 并写明它不展示页面的理由；登记项对应的模块不再写页面即失败，同一模块不得两边都登记；自带开标签探测器与「只导入不调用」的正反例自检 |
+| `test_unbounded_communicate_sites.py` | `app/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：写明输出与时长已由命令本身限定，或列入「待决」一栏（已知缺口，等待改用 harness 的 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败，并自带检测器正反例自检 |
 | `test_outbound_model_calls.py` | `app/` 内直接调用 litellm 对话接口的文件必须登记：要么先用 `sanitize_outbound_text` 脱敏（文件内须真有该调用），要么写明其文本不含对话内容的理由；否则隐私开关挡不住它。自带检测器正反例与过期登记检查 |
 | `test_answer_text_consumers.py` | 每个 `process_stream` / `ai_agent_service_stream` 调用点必须归类：自己或其委托的协作者用 `AnswerDraft` / `StreamContentCollector` 拼装回复，或不拼装文本（语音、丢弃事件、网关出口，附理由），使恢复重启只替换在途段落；新增调用点未归类即失败，并自带探测器自检 |
 | `test_agent_run_tracking.py` | 每个 `process_stream` 调用点必须登记：经 `AgentGateway.execute_stream`（计入 `activeCount`）或文件内 `with track_background_agent_run()`（计入 `backgroundRunCount`），否则托管空闲回收器会在该运行中途暂停沙箱；新增/删除调用点未登记即失败，并自带探测器正反例自检 |
