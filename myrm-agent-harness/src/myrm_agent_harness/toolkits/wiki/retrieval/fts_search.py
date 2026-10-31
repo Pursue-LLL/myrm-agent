@@ -8,13 +8,12 @@
 - ..core.config::WikiConfig (POS: wiki configuration center)
 - ..core.frontmatter_contract::WikiPublishStatus (POS: publish_status SSOT)
 - .fts_federation::MAX_FEDERATED_DATABASES, attached_tables (POS: shared index discovery)
-- .exact_form::MAX_REORDERED_ROWS, exact_form_terms, rank_exact_forms_first (POS: exact-form-first ordering of FTS candidates)
 - .sidecar_index::_SIDECAR_PREFIX (POS: L0/L1 sidecar index operations)
 - .tokenizer::FTS_TOKENIZER, tokenize_for_fts (POS: table tokenizer and FTS5 query tokenizer)
 - .vector_chunks::collapse_vector_hits (POS: L2 chunk vector hit collapsing)
 
 [OUTPUT]
-- FtsSearchMixin: FTS5 + vector search/get_truth with the publish_status gate for WikiIndexer; FTS hits that spell more of the query words exactly come first; vector hits under another spelling collapse onto the page key
+- FtsSearchMixin: FTS5 + vector search/get_truth with the publish_status gate for WikiIndexer; vector hits under another spelling collapse onto the page key
 - search_published_index: read-only top published pages of an index file the caller does not own
 - WIKI_FTS_COLUMNS: columns of the wiki_fts table
 - create_wiki_fts_table: declare a wiki_fts table with those columns and FTS_TOKENIZER (the one place the table is declared)
@@ -45,7 +44,6 @@ from myrm_agent_harness.utils.db.fts5 import fts5_auto_heal, relevance_from_rank
 
 from ..core.config import WikiConfig
 from ..core.frontmatter_contract import WikiPublishStatus
-from .exact_form import MAX_REORDERED_ROWS, exact_form_terms, rank_exact_forms_first
 from .fts_federation import MAX_FEDERATED_DATABASES, attached_tables
 from .sidecar_index import _SIDECAR_PREFIX
 from .tokenizer import FTS_TOKENIZER, tokenize_for_fts
@@ -137,51 +135,33 @@ class FtsSearchMixin:
     def _filter_published(self, conn: sqlite3.Connection, results: list[tuple[str, float]]) -> list[tuple[str, float]]:
         return [(name, score) for name, score in results if self._is_published(conn, name)]
 
-    def _query_fts(
-        self,
-        conn: sqlite3.Connection,
-        fts_query: str,
-        limit: int,
-        offset: int,
-        exact_terms: frozenset[str],
-    ) -> list[tuple[str, float]]:
+    def _query_fts(self, conn: sqlite3.Connection, fts_query: str, limit: int, offset: int) -> list[tuple[str, float]]:
         """Run the gated match over the primary index and every attached shared index; best match first.
 
-        Returns up to ``2 * limit`` rows from ``offset`` so the hybrid fusion has more candidates to rank. The
-        stemmed match scores ``Transformers`` and ``transformer`` alike, so a query with ``exact_terms`` reads
-        the rows before ``offset`` too, orders them all with the pages that spell more of the terms first and
-        cuts the list at ``offset``, which keeps a page from being on two pages of results. A window longer than
-        ``MAX_REORDERED_ROWS`` keeps the order of the match and does not read the page text.
+        Fetches ``2 * limit`` rows from ``offset`` so the hybrid fusion has more candidates to rank.
         """
-        offset = max(offset, 0)  # SQLite reads a negative OFFSET as 0, and so must the cut below
-        reorder = bool(exact_terms) and offset + limit * 2 <= MAX_REORDERED_ROWS
-        first_row, row_count = (0, offset + limit * 2) if reorder else (offset, limit * 2)
-        text_column = "truth_content" if reorder else "'' AS truth_content"
         fts_tables = attached_tables(conn, "wiki_fts")
         fts_union = " UNION ALL ".join(
-            _published_match_select(conn, t, f"concept_name, {text_column}, rank, '{t}' AS src_tbl") for t in fts_tables
+            _published_match_select(conn, t, f"concept_name, rank, '{t}' AS src_tbl") for t in fts_tables
         )
         cursor = conn.execute(
             f"""
-            SELECT concept_name, truth_content, rank, src_tbl
+            SELECT concept_name, rank, src_tbl
             FROM ({fts_union})
             ORDER BY rank
             LIMIT ? OFFSET ?
             """,
-            (*((fts_query,) * len(fts_tables)), row_count, first_row),
+            (*((fts_query,) * len(fts_tables)), limit * 2, offset),
         )
-        candidates: list[tuple[str, float, str]] = []
+        results: list[tuple[str, float]] = []
         for row in cursor.fetchall():
             if self._is_sidecar_entry(str(row["concept_name"])):
                 continue
             # The primary vault has decay 1.0; attached shared vaults get 0.9 so generic terms
             # cannot overtake the primary vault's own pages.
             decay = 0.9 if str(row["src_tbl"]).startswith("pub_") else 1.0
-            text = f"{row['concept_name']} {row['truth_content']}" if reorder else ""
-            candidates.append((row["concept_name"], relevance_from_rank(row["rank"]) * decay, text))
-        if not reorder:
-            return [(name, score) for name, score, _ in candidates]
-        return rank_exact_forms_first(candidates, exact_terms)[offset:]
+            results.append((row["concept_name"], relevance_from_rank(row["rank"]) * decay))
+        return results
 
     async def search(self, query: str, limit: int = 5, offset: int = 0) -> list[tuple[str, float]]:
         """
@@ -195,14 +175,13 @@ class FtsSearchMixin:
 
         # 1. FTS5 Search
         fts_query = tokenize_for_fts(safe_query)
-        exact_terms = exact_form_terms(safe_query)
 
         def sync_fts_search() -> list[tuple[str, float]]:
             if not fts_query:
                 return []
             with self._get_conn() as conn:
                 try:
-                    return self._query_fts(conn, fts_query, limit, offset, exact_terms)
+                    return self._query_fts(conn, fts_query, limit, offset)
                 except sqlite3.ProgrammingError:
                     raise  # a query the code built wrongly is a bug to surface, not a damaged index to heal
                 except sqlite3.DatabaseError as e:
@@ -211,7 +190,7 @@ class FtsSearchMixin:
                         return []
                     logger.info("FTS5 auto-heal succeeded, retrying search")
                     with contextlib.suppress(sqlite3.DatabaseError):
-                        return self._query_fts(conn, fts_query, limit, offset, exact_terms)
+                        return self._query_fts(conn, fts_query, limit, offset)
                     return []
 
         fts_results = await asyncio.to_thread(sync_fts_search)
