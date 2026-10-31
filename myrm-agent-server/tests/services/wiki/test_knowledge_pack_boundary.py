@@ -3,13 +3,15 @@ never answers costs the turn its snippets but not the rest of the process its th
 
 [INPUT]
 - app.services.wiki.knowledge_pack.selector::resolve_proactive_snippets_from_vaults (POS: retrieves and budgets the snippets of the shared vaults within the timeout)
+- myrm_agent_harness.observability.tracing::TracingContext (POS: ContextVar-based trace and session ids that log records are stamped with)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::PUBLISH_STATUS_KEY (POS: wiki page frontmatter contract)
 - tests.support.knowledge_pack_vaults::make_vault, titles, write_index (POS: shared vault fixtures of the knowledge-pack tests)
 
 [OUTPUT]
 - Tests that an index file, an indexed name and a page file that resolve outside the vault are never read, that such a
-  page is held back and logged, that a page without any file stands on its index row, and that a scan which never
-  returns leaves the default thread pool free.
+  page is held back and logged, that a page without any file, or whose link points at nothing, stands on its index row,
+  that the scan runs in the context of the turn that asked, and that a scan which never returns leaves the default
+  thread pool free and pins at most the four threads of the scan pool.
 
 [POS]
 Boundary and isolation counterpart of the retrieval cases in ``test_knowledge_pack.py``.
@@ -26,6 +28,7 @@ import time
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.observability.tracing import TracingContext
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import PUBLISH_STATUS_KEY
 
 from app.services.wiki.knowledge_pack import selector
@@ -78,6 +81,18 @@ async def test_an_indexed_page_without_any_file_stands_on_its_index_row(tmp_path
 
 @pytest.mark.asyncio
 @_needs_symlinks
+async def test_an_indexed_page_whose_link_points_at_nothing_stands_on_its_index_row(tmp_path: Path) -> None:
+    """A link to a missing target holds no file to read and no content to leak, so the page is a row of the index like
+    any other without a file; treating the link itself as the page file would hold the page back instead."""
+    vault = make_vault(tmp_path, "kb", {}, indexed=False)
+    (vault / "wiki" / "concepts" / "Policy.md").symlink_to(tmp_path / "gone.md")
+    write_index(vault, {"Policy": "Zephyr budget limit is an indexed figure."})
+
+    assert await titles(_QUERY, vault) == ["Policy"]
+
+
+@pytest.mark.asyncio
+@_needs_symlinks
 async def test_a_page_file_that_links_out_of_the_vault_is_not_scanned(tmp_path: Path) -> None:
     other = tmp_path / "other"
     other.mkdir()
@@ -115,11 +130,32 @@ async def test_a_refusal_is_logged_with_the_vault_and_the_escaped_path(tmp_path:
 
 
 @pytest.mark.asyncio
+async def test_the_scan_runs_in_the_context_of_the_turn_that_asked(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """What the scan thread logs is stamped with the trace and session ids of the context it runs in."""
+    seen: list[str] = []
+
+    def probe(*_: object) -> list[object]:
+        seen.append(TracingContext.get_session_id())
+        return []
+
+    monkeypatch.setattr(selector, "_scan_vault", probe)
+    vault = make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
+
+    token = TracingContext.set_session_id("turn-42")
+    try:
+        await titles(_QUERY, vault)
+    finally:
+        TracingContext.reset_session_id(token)
+
+    assert seen == ["turn-42"]
+
+
+@pytest.mark.asyncio
 async def test_a_scan_that_never_returns_leaves_the_default_thread_pool_free(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A mount that never answers pins one scan thread per turn; the default pool, which every other `to_thread` caller
-    in the process shares, must not be where they pile up."""
+    """A mount that never answers pins one scan thread per turn, at most the four of the scan pool; the default pool,
+    which every other `to_thread` caller in the process shares, must not be where they pile up."""
     release = threading.Event()
 
     def never_returns(*_: object) -> list[object]:
@@ -137,5 +173,6 @@ async def test_a_scan_that_never_returns_leaves_the_default_thread_pool_free(
             assert time.monotonic() - started < 0.5
 
         assert await asyncio.wait_for(asyncio.to_thread(lambda: "alive"), timeout=1.0) == "alive"
+        assert sum(thread.name.startswith("knowledge-pack-scan") for thread in threading.enumerate()) == 4
     finally:
         release.set()

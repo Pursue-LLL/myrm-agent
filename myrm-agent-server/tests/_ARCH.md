@@ -451,7 +451,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/wiki/test_wiki_dedup_hold_release.py` | 模块 | 被「先扫描后编译」暂扣的文档，在用户经 REST 处理重复组（trash/dismiss）后由用户的模型编译，无需手动点「编译」；暂扣期间队列与模型都没被触碰 |
 | `services/wiki/test_dedup_runner_model_binding.py` | 模块 | 排重扫描/列表/水合只读 vault，不构建无模型归档器、不抢编译 worker 槽位；处置与恢复走带模型的归档器 |
 | `services/wiki/test_dedup_scan_serialization.py` | 模块 | 同一 vault 的扫描一次一个：较旧的扫描不能覆盖较新的分组（`None` 与 `"default"` 是同一个 vault），并发扫描后每个重复组只出现一次 |
-| `services/wiki/test_knowledge_pack_boundary.py` | 模块 | 知识包只读库内的文件：解析到库外的索引文件整个不读（库走第 2 层）、指向库外的索引页名与页面文件整页不注入并记 WARNING（含库外已发布文件，不退回索引行文本）、完全没有页面文件的索引行仍用索引文本；永不返回的扫描钉死专用扫描池后，默认线程池里的 `asyncio.to_thread` 仍然畅通 |
+| `services/wiki/test_knowledge_pack_boundary.py` | 模块 | 知识包只读库内的文件：解析到库外的索引文件整个不读（库走第 2 层）、指向库外的索引页名与页面文件整页不注入并记 WARNING（含库外已发布文件，不退回索引行文本）、完全没有页面文件的索引行、页面文件是目标不存在的符号链接的索引行仍用索引文本；扫描在发起这一轮的上下文里运行（线程里读到调用方设的 session id）；永不返回的扫描钉死专用扫描池后，默认线程池里的 `asyncio.to_thread` 仍然畅通，且存活的扫描线程恰为 4 个 |
 | `services/wiki/source_sync/test_deferred_enqueue.py` | 模块 | `DeferredCompileEnqueue` 基于持久暂扣账本：扫描看过之前不入队、幂等释放、开放的 exact/normalized 组暂扣其余入队、near 与已 dismiss 不暂扣、扫描未完成放行本轮文件、崩溃遗留在下次扫描后放行、无需扫描的一轮重试入队失败的遗留且不放行 open 组成员、处置后幸存者编译、账本/暂扣写入失败直接入队、单个入队失败不丢其余并保留其行 |
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |

@@ -27,21 +27,24 @@ long page cannot take every slot, and the order of the mounted vaults never deci
 it reads goes through the wiki publish gate again, so a draft or blocked page never reaches the injected context,
 and snippets never lead with the page's frontmatter. A shared vault is written by another process, so its index
 file and its page files are read only when they lie inside the vault, whatever the index or a symlink says: an indexed
-page whose file lies outside is held back and logged, while a page with no file at all (a raw interim entry) stands
-on its index row. The scan blocks on file and database reads, so each turn scans all vaults in one thread, one after
-the other, of a small pool of its own: the timeout fires on time, a slow mount does not stall the loop, and a mount
-that never answers pins at most that pool's threads instead of the default pool every other ``asyncio.to_thread``
-caller shares.
+page whose file lies outside is held back and logged, while a page with no file at all (a raw interim entry, or a link
+that points at nothing) stands on its index row. The scan blocks on file and database reads, so each turn scans all
+vaults in one thread, one after the other, of a small pool of its own, in a copy of the turn's context so what the scan
+logs still carries the turn's trace and session ids: the timeout fires on time, a slow mount does not stall the loop,
+and a mount that never answers pins at most that pool's threads instead of the default pool every other
+``asyncio.to_thread`` caller shares.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import heapq
 import logging
 import time
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 from myrm_agent_harness.api import index_has_pages, is_within_boundary, search_published_index
@@ -159,8 +162,9 @@ def _inside_vault(path: Path, vault_path: Path) -> bool:
 def _indexed_page_body(vault_path: Path, concept_name: str, indexed_text: str) -> str:
     """The text of an indexed page, from its file through the publish gate.
 
-    The name comes from an index another process wrote. A page that has no file at all (a raw interim entry) stands on
-    its index row; a page whose file lies outside the vault, by a name that climbs out of it or a link, is held back.
+    The name comes from an index another process wrote. A page that has no file at all (a raw interim entry, or a link
+    that points at nothing) stands on its index row; a page whose file lies outside the vault, by a name that climbs
+    out of it or a link, is held back.
     """
     for candidate in (vault_path / "wiki" / "concepts" / f"{concept_name}.md", vault_path / f"{concept_name}.md"):
         if candidate.is_file():
@@ -314,9 +318,10 @@ async def resolve_proactive_snippets_from_vaults(
 ) -> ProactiveKnowledgeResult:
     """Asynchronously retrieve and budget proactive snippets within timeout guardrail.
 
-    The vaults are scanned in one thread of a pool of their own, so the timeout cuts the wait on time and a scan that
-    never returns cannot starve the default pool; a scan that overruns the timeout finishes in the background and its
-    result is dropped.
+    The vaults are scanned in one thread of a pool of their own, in a copy of the caller's context, so the timeout cuts
+    the wait on time, a scan that never returns cannot starve the default pool, and the scan's log records keep the
+    caller's trace and session ids; a scan that overruns the timeout finishes in the background and its result is
+    dropped.
     """
     t0 = time.monotonic()
     selector = KnowledgePackSelector(config)
@@ -327,9 +332,11 @@ async def resolve_proactive_snippets_from_vaults(
 
     vaults = [(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name))) for p in vault_paths]
 
+    scan = partial(_scan_vaults, vaults, terms)
+    context = contextvars.copy_context()
     try:
         candidates = await asyncio.wait_for(
-            asyncio.get_running_loop().run_in_executor(_SCAN_EXECUTOR, _scan_vaults, vaults, terms),
+            asyncio.get_running_loop().run_in_executor(_SCAN_EXECUTOR, partial(context.run, scan)),
             timeout=timeout_seconds,
         )
     except asyncio.TimeoutError:
