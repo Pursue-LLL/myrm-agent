@@ -5,13 +5,14 @@ executor itself — so these tests verify the integrated pipeline: execute() →
 ExecutionResult auto-classification → error_hint populated.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
+from tests.support.fake_process import FakeProcess
 
 
 @pytest.mark.asyncio
@@ -23,13 +24,11 @@ async def test_local_executor_module_not_found_uses_error_hint():
     with patch(
         "myrm_agent_harness.toolkits.code_execution.executors.local.executor.asyncio.create_subprocess_exec"
     ) as mock_exec:
-        mock_process = AsyncMock()
-        mock_process.communicate.return_value = (
-            b"",
-            b"Traceback (most recent call last):\nModuleNotFoundError: No module named 'requests'",
+        mock_exec.return_value = FakeProcess(
+            stdout=b"",
+            stderr=b"Traceback (most recent call last):\nModuleNotFoundError: No module named 'requests'",
+            returncode=1,
         )
-        mock_process.returncode = 1
-        mock_exec.return_value = mock_process
 
         result = await executor.execute(context)
 
@@ -49,10 +48,9 @@ async def test_local_executor_pypi_mapping_in_hint():
     with patch(
         "myrm_agent_harness.toolkits.code_execution.executors.local.executor.asyncio.create_subprocess_exec"
     ) as mock_exec:
-        mock_process = AsyncMock()
-        mock_process.communicate.return_value = (b"", b"ModuleNotFoundError: No module named 'PIL'")
-        mock_process.returncode = 1
-        mock_exec.return_value = mock_process
+        mock_exec.return_value = FakeProcess(
+            stdout=b"", stderr=b"ModuleNotFoundError: No module named 'PIL'", returncode=1
+        )
 
         result = await executor.execute(context)
 
@@ -70,10 +68,7 @@ async def test_local_executor_no_hint_for_syntax_errors():
     with patch(
         "myrm_agent_harness.toolkits.code_execution.executors.local.executor.asyncio.create_subprocess_exec"
     ) as mock_exec:
-        mock_process = AsyncMock()
-        mock_process.communicate.return_value = (b"", b"SyntaxError: invalid syntax")
-        mock_process.returncode = 1
-        mock_exec.return_value = mock_process
+        mock_exec.return_value = FakeProcess(stdout=b"", stderr=b"SyntaxError: invalid syntax", returncode=1)
 
         result = await executor.execute(context)
 
@@ -90,10 +85,7 @@ async def test_local_executor_success():
     with patch(
         "myrm_agent_harness.toolkits.code_execution.executors.local.executor.asyncio.create_subprocess_exec"
     ) as mock_exec:
-        mock_process = AsyncMock()
-        mock_process.communicate.return_value = (b"hello\n", b"")
-        mock_process.returncode = 0
-        mock_exec.return_value = mock_process
+        mock_exec.return_value = FakeProcess(stdout=b"hello\n", stderr=b"", returncode=0)
 
         result = await executor.execute(context)
 

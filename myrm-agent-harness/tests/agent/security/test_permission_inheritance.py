@@ -17,6 +17,7 @@ from myrm_agent_harness.agent.security.types import (
 from myrm_agent_harness.core.security.safe_exec import credential_env_overrides, safe_exec
 from myrm_agent_harness.toolkits.openapi_bridge import AuthConfig, AuthType
 from myrm_agent_harness.toolkits.openapi_bridge.http_executor import OpenAPIExecutor
+from tests.support.fake_process import FakeProcess
 
 
 def test_credentials_context_isolation() -> None:
@@ -42,11 +43,7 @@ async def test_safe_exec_credentials_injection() -> None:
 
     # Mock asyncio.create_subprocess_exec to inspect the env parameter passed down
     with patch("asyncio.create_subprocess_exec") as mock_exec:
-        mock_proc = MagicMock()
-        mock_proc.pid = 9999
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"success", b""))
-        mock_exec.return_value = mock_proc
+        mock_exec.return_value = FakeProcess(stdout=b"success", pid=9999)
 
         await safe_exec("echo hello", env={"EXISTING_VAR": "value"})
 
@@ -193,11 +190,7 @@ async def test_safe_exec_scoped_credential_injection() -> None:
 
     # Test injecting only github
     with patch("asyncio.create_subprocess_exec") as mock_exec:
-        mock_proc = MagicMock()
-        mock_proc.pid = 9999
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"success", b""))
-        mock_exec.return_value = mock_proc
+        mock_exec.return_value = FakeProcess(stdout=b"success", pid=9999)
 
         await safe_exec("echo hello", allowed_issuers=["github"])
 
@@ -212,11 +205,7 @@ async def test_safe_exec_scoped_credential_injection() -> None:
 
     # Test injecting empty list (none allowed)
     with patch("asyncio.create_subprocess_exec") as mock_exec:
-        mock_proc = MagicMock()
-        mock_proc.pid = 9999
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"success", b""))
-        mock_exec.return_value = mock_proc
+        mock_exec.return_value = FakeProcess(stdout=b"success", pid=9999)
 
         await safe_exec("echo hello", allowed_issuers=[])
 
@@ -232,11 +221,7 @@ async def test_safe_exec_scoped_credential_injection() -> None:
     cred3 = EphemeralUserCredential(issuer="GitHub", token="gh_mixed_token")
     user_credentials_ctx.set((cred1, cred3))
     with patch("asyncio.create_subprocess_exec") as mock_exec:
-        mock_proc = MagicMock()
-        mock_proc.pid = 9999
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"success", b""))
-        mock_exec.return_value = mock_proc
+        mock_exec.return_value = FakeProcess(stdout=b"success", pid=9999)
 
         await safe_exec("echo hello", allowed_issuers=["github"])
 

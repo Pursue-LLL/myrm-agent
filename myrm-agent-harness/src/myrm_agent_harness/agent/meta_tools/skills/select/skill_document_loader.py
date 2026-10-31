@@ -5,6 +5,7 @@
 - backends.skills.types::SkillMetadata, SkillInstance (POS: metadata + instance config)
 - l1_disclosure_footer::build_l1_disclosure_footer (POS: L1 footer append)
 - core.security.redact::command_preview (POS: masked, cut command for a log line)
+- core.security.bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through the caller's on_abort)
 
 [OUTPUT]
 - get_skill_document: processed SOP + L1 footer for context injection
@@ -18,6 +19,7 @@ Document loader for skill_select_tool and preload mixin. ToolMessage/HumanMessag
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -26,6 +28,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
 
 from myrm_agent_harness.backends.skills.types import SkillInstance, SkillMetadata
+from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.core.security.redact import command_preview
 
 logger = logging.getLogger(__name__)
@@ -224,10 +227,15 @@ async def _resolve_dynamic_context(content: str) -> str:
             proc = await asyncio.create_subprocess_shell(
                 cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=_DYNAMIC_CMD_TIMEOUT)
-            output = stdout.decode("utf-8", errors="replace").strip()
+
+            async def stop_command() -> None:
+                with contextlib.suppress(ProcessLookupError):
+                    proc.kill()
+
+            captured = await communicate_bounded(proc, timeout=_DYNAMIC_CMD_TIMEOUT, on_abort=stop_command)
+            output = captured.stdout.decode("utf-8", errors="replace").strip()
             if proc.returncode != 0 and not output:
-                err = stderr.decode("utf-8", errors="replace").strip()
+                err = captured.stderr.decode("utf-8", errors="replace").strip()
                 return f"[command failed: {err[:200]}]"
             if len(output) > _DYNAMIC_CMD_MAX_OUTPUT:
                 output = output[:_DYNAMIC_CMD_MAX_OUTPUT] + "\n[output truncated]"

@@ -6,6 +6,7 @@
 - agent.hooks.command_gate (POS: 命令钩子安全网关(判模板、不判载荷)+载荷环境变量绑定+审批注入点)
 - agent.hooks.session_access (POS: 会话级 ContextVar 访问 API，本文件头部 re-export)
 - core.security.http.secure_fetch::secure_request (POS: SSRF-protected outbound HTTP)
+- core.security.bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through the caller's on_abort)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 - utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM hook output — fences, prose, bare control chars, trailing commas)
 - utils.logger_utils (POS: 日志工具)
@@ -24,6 +25,7 @@ Hook execution layer. Dispatches hooks from a registry with ContextVar-based ses
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import fnmatch
 import json
 import os
@@ -70,6 +72,7 @@ from myrm_agent_harness.agent.hooks.types import (
     HttpHookDefinition,
     LLMHookDefinition,
 )
+from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.utils.chat_utils import extract_answer_text
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -227,13 +230,18 @@ class HookExecutor:
             env=env,
         )
 
+        async def stop_process() -> None:
+            with contextlib.suppress(ProcessLookupError):
+                process.kill()
+
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                process.communicate(payload_json.encode("utf-8")), timeout=hook.timeout_seconds
+            captured = await communicate_bounded(
+                process,
+                timeout=hook.timeout_seconds,
+                on_abort=stop_process,
+                stdin_data=payload_json.encode("utf-8"),
             )
         except TimeoutError:
-            process.kill()
-            await process.wait()
             return HookResult(
                 hook_type="command",
                 success=False,
@@ -244,8 +252,8 @@ class HookExecutor:
         output = "\n".join(
             part
             for part in (
-                stdout_bytes.decode("utf-8", errors="replace").strip(),
-                stderr_bytes.decode("utf-8", errors="replace").strip(),
+                captured.stdout.decode("utf-8", errors="replace").strip(),
+                captured.stderr.decode("utf-8", errors="replace").strip(),
             )
             if part
         )

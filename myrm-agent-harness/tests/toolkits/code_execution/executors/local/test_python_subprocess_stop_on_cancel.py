@@ -17,6 +17,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, Can
 from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 _SETTLE_S = 10
+_MAX_OUTPUT_BYTES = 5 * 1024 * 1024
 _SCRIPT = "hold_4711_8.py"
 
 
@@ -40,6 +41,7 @@ async def _run(script: Path, token: CancellationToken | None, timeout: int = 60)
             python_executable=sys.executable,
             cwd=script.parent,
             context=context,
+            max_output_bytes=_MAX_OUTPUT_BYTES,
         )
     )
 

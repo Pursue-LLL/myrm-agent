@@ -7,6 +7,7 @@ executors.base::ExecutionResult (POS: Code executor base classes)
 executors.common::parse_execution_output (POS: Shared execution utilities)
 code_execution.sandbox::detect_sandbox_provider (POS: Sandbox detection and wrapping)
 core.security.process_env::sanitize_env, is_non_inheritable_env_var (POS: Environment sanitization)
+core.security.bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through the caller's on_abort)
 
 [OUTPUT]
 run_python_subprocess: Execute a Python script in a sandboxed subprocess with timeout.
@@ -14,7 +15,8 @@ run_python_subprocess: Execute a Python script in a sandboxed subprocess with ti
 [POS]
 Python subprocess execution. Handles environment preparation, sandbox wrapping,
 graceful timeout (SIGTERM → SIGKILL), cancel-aware stop (a cancelled request ends the script like a timeout, but
-reports "cancelled"), and output parsing for Python code execution.
+reports "cancelled"), and output parsing for Python code execution. Each pipe is read up to a cap, so a script that
+never stops writing cannot grow the host's memory.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ import traceback
 from pathlib import Path
 from types import ModuleType
 
+from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.toolkits.code_execution.executors.base import (
     ExecutionContext,
     ExecutionResult,
@@ -38,6 +41,20 @@ from myrm_agent_harness.utils.os_compat import SIGKILL
 from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel
 
 logger = logging.getLogger(__name__)
+
+# The wrapper prints its result with json.dumps (ensure_ascii), which spells one character with up to 12 bytes: a
+# character outside the BMP becomes a surrogate pair of \uXXXX escapes. The slack holds the rest of the JSON.
+_JSON_BYTES_PER_CHAR = 12
+_RESULT_SLACK_BYTES = 64 * 1024
+
+
+def _pipe_limit(max_output_bytes: int) -> int:
+    """Bytes of a pipe that always hold the whole result of a script whose captured stdout stays within the wrapper's cap.
+
+    The wrapper bounds only the stdout it captures, counted in characters. What a script writes around it, to stderr or
+    straight to a file descriptor, reaches the pipes unbounded, so the host stops reading into memory at this size.
+    """
+    return max_output_bytes * _JSON_BYTES_PER_CHAR + _RESULT_SLACK_BYTES
 
 
 async def _kill_process_tree(process: asyncio.subprocess.Process, os_compat: ModuleType) -> None:
@@ -77,6 +94,8 @@ async def run_python_subprocess(
     env: dict[str, str] | None = None,
     allow_network: bool = True,
     context: ExecutionContext | None = None,
+    *,
+    max_output_bytes: int,
 ) -> ExecutionResult:
     """Execute a Python script via subprocess with sandbox and timeout.
 
@@ -88,6 +107,7 @@ async def run_python_subprocess(
         env: User-defined environment variables.
         allow_network: Whether to allow network access.
         context: Optional execution context for readonly_workspace flag.
+        max_output_bytes: The script's cap on captured stdout characters, as given to ``generate_wrapper_script``.
 
     Returns:
         Execution result with stdout, stderr, exit code.
@@ -178,13 +198,21 @@ async def run_python_subprocess(
             **kwargs,
         )
 
+        pipe_limit = _pipe_limit(max_output_bytes)
         cut = DeadlineCut()
         try:
             async with (
                 asyncio.timeout(timeout) as deadline,
                 cut_deadline_on_cancel(context.cancel_token if context else None, deadline, cut),
             ):
-                stdout_bytes, stderr_bytes = await process.communicate()
+                # The surrounding scope owns the deadline and its early cut on cancel; the equal timeout is only
+                # there because the primitive takes one.
+                piped = await communicate_bounded(
+                    process,
+                    timeout=timeout,
+                    on_abort=lambda: _kill_process_tree(process, os_compat),
+                    max_bytes=pipe_limit,
+                )
         except TimeoutError:
             await _kill_process_tree(process, os_compat)
             if cut.by_cancel:
@@ -204,17 +232,21 @@ async def run_python_subprocess(
             await _kill_process_tree(process, os_compat)
             raise
 
-        stdout = stdout_bytes.decode("utf-8", errors="replace")
-        stderr = stderr_bytes.decode("utf-8", errors="replace")
+        stdout = piped.stdout.decode("utf-8", errors="replace")
+        stderr = piped.stderr.decode("utf-8", errors="replace")
         exit_code = process.returncode or 0
 
         output = parse_execution_output(stdout, stderr, exit_code)
+        result_stderr = output.stderr
+        if piped.truncated:
+            note = f"[Output limit reached: a pipe of the script held more than {pipe_limit} bytes; the rest was discarded]"
+            result_stderr = f"{result_stderr}\n{note}" if result_stderr else note
 
         return ExecutionResult(
             success=output.success,
             result=output.result,
             stdout=output.stdout,
-            stderr=output.stderr,
+            stderr=result_stderr,
             error=output.error,
             exit_code=exit_code,
         )

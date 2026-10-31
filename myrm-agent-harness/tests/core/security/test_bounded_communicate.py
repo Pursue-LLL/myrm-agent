@@ -19,11 +19,12 @@ from myrm_agent_harness.utils.os_compat import get_process_group_kwargs
 _FLOOD = "import sys\nwhile True:\n    sys.stdout.write('x' * 1023 + '\\n')\n"
 
 
-async def _spawn(code: str) -> asyncio.subprocess.Process:
+async def _spawn(code: str, *, stdin: bool = False) -> asyncio.subprocess.Process:
     return await asyncio.create_subprocess_exec(
         sys.executable,
         "-c",
         code,
+        stdin=asyncio.subprocess.PIPE if stdin else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         **get_process_group_kwargs(),
@@ -122,5 +123,52 @@ async def test_a_process_without_both_pipes_is_refused() -> None:
     try:
         with pytest.raises(ValueError, match="both stdout and stderr"):
             await communicate_bounded(proc, timeout=5, on_abort=_Abort(proc))
+    finally:
+        await proc.wait()
+
+
+@pytest.mark.asyncio
+async def test_stdin_data_is_fed_and_stdin_is_closed_so_the_child_sees_the_end() -> None:
+    proc = await _spawn("import sys; sys.stdout.write(sys.stdin.read().upper())", stdin=True)
+    output = await communicate_bounded(proc, timeout=10, on_abort=_Abort(proc), stdin_data=b"payload")
+    assert output.stdout == b"PAYLOAD"
+
+
+@pytest.mark.asyncio
+async def test_a_payload_larger_than_the_pipes_is_fed_while_the_child_answers_it() -> None:
+    # The child echoes while it reads. Feeding before reading, or the reverse, would deadlock on the full pipes.
+    payload = bytes(range(256)) * 8192  # 2 MiB
+    proc = await _spawn("import shutil, sys; shutil.copyfileobj(sys.stdin.buffer, sys.stdout.buffer)", stdin=True)
+    output = await communicate_bounded(proc, timeout=20, on_abort=_Abort(proc), stdin_data=payload)
+    assert output.stdout == payload
+    assert output.truncated is False
+
+
+@pytest.mark.asyncio
+async def test_a_child_that_exits_without_reading_its_stdin_is_not_an_error() -> None:
+    proc = await _spawn("pass", stdin=True)
+    output = await communicate_bounded(proc, timeout=10, on_abort=_Abort(proc), stdin_data=b"x" * 2_000_000)
+    assert (output.stdout, proc.returncode) == (b"", 0)
+
+
+@pytest.mark.asyncio
+async def test_a_deadline_stops_a_child_that_floods_and_never_reads_its_stdin() -> None:
+    proc = await _spawn(_FLOOD, stdin=True)
+    abort = _Abort(proc)
+    started = time.monotonic()
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(
+            communicate_bounded(proc, timeout=1, on_abort=abort, stdin_data=b"x" * 2_000_000), timeout=15
+        )
+    assert time.monotonic() - started < 6
+    assert proc.returncode is not None
+
+
+@pytest.mark.asyncio
+async def test_stdin_data_without_a_stdin_pipe_is_refused() -> None:
+    proc = await _spawn("pass")
+    try:
+        with pytest.raises(ValueError, match="stdin"):
+            await communicate_bounded(proc, timeout=5, on_abort=_Abort(proc), stdin_data=b"x")
     finally:
         await proc.wait()

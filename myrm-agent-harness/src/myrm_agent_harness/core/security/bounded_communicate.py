@@ -3,7 +3,8 @@
 ``Process.communicate()`` keeps everything the child writes, so a command that prints without end (a retry loop
 without a sleep, ``yes``, a listing of a whole disk) grows the host's memory for as long as it runs. This module
 reads both pipes as ``communicate()`` does and keeps only the first ``max_bytes`` of each; the rest is read and
-dropped, so the child never blocks on a full pipe.
+dropped, so the child never blocks on a full pipe. Bytes for the child's stdin are fed alongside, as ``communicate()``
+feeds them.
 
 [INPUT]
 - none (standard library only)
@@ -11,9 +12,11 @@ dropped, so the child never blocks on a full pipe.
 [OUTPUT]
 - BoundedOutput: the kept stdout and stderr, and whether either pipe wrote more than the cap
 - communicate_bounded(): ``communicate()`` with a cap, whose deadline and cancel stop the process through the caller
+- DEFAULT_MAX_OUTPUT_BYTES: the cap per pipe when the caller names none
 
 [POS]
-Output-bounding primitive for the commands the framework starts on its own (cron shell jobs, pre-flight probes).
+Output-bounding primitive for every command whose text or output size the framework does not control (cron shell
+jobs, pre-flight probes, agent Python scripts, command hooks, skill dynamic commands, remote SSH commands).
 It stops the process only through the ``on_abort`` it is given: how a tree dies differs by caller.
 """
 
@@ -54,30 +57,52 @@ async def _read_capped(stream: asyncio.StreamReader, max_bytes: int) -> tuple[by
     return bytes(kept), truncated
 
 
+async def _feed_stdin(stdin: asyncio.StreamWriter | None, data: bytes | None) -> None:
+    """Write *data* to *stdin* and close it. A child that stops reading, or exits, is not an error."""
+    if stdin is None or data is None:
+        return
+    try:
+        stdin.write(data)
+        await stdin.drain()
+    except (BrokenPipeError, ConnectionResetError):
+        pass
+    finally:
+        stdin.close()
+
+
 async def communicate_bounded(
     proc: asyncio.subprocess.Process,
     *,
     timeout: float,
     on_abort: Callable[[], Awaitable[None]],
     max_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
+    stdin_data: bytes | None = None,
 ) -> BoundedOutput:
     """Wait for *proc* to exit and return its output, at most *max_bytes* of each pipe.
 
     The deadline and a cancel run *on_abort* (which must stop the process and whatever it started), wait until the
     pipes close, and then raise ``TimeoutError`` or ``CancelledError``. The process must have been started with both
-    stdout and stderr as pipes. ``proc.returncode`` is set when this returns.
+    stdout and stderr as pipes, and with stdin as a pipe when *stdin_data* is given (it is written, then stdin is
+    closed). ``proc.returncode`` is set when this returns.
     """
     if proc.stdout is None or proc.stderr is None:
         raise ValueError("communicate_bounded needs both stdout and stderr started as pipes")
+    if stdin_data is not None and proc.stdin is None:
+        raise ValueError("communicate_bounded needs stdin started as a pipe to feed stdin_data")
 
     collecting = asyncio.ensure_future(
-        asyncio.gather(_read_capped(proc.stdout, max_bytes), _read_capped(proc.stderr, max_bytes), proc.wait())
+        asyncio.gather(
+            _read_capped(proc.stdout, max_bytes),
+            _read_capped(proc.stderr, max_bytes),
+            proc.wait(),
+            _feed_stdin(proc.stdin, stdin_data),
+        )
     )
     try:
         # The shield lets the readers outlive the deadline. They must keep emptying the pipes while on_abort runs: an
         # unread pipe fills and pauses the transport, and asyncio resolves ``wait()`` only after the pipes close,
         # so a process killed with its readers cancelled never reports its exit.
-        (stdout, stdout_cut), (stderr, stderr_cut), _ = await asyncio.wait_for(asyncio.shield(collecting), timeout)
+        (stdout, stdout_cut), (stderr, stderr_cut), _, _ = await asyncio.wait_for(asyncio.shield(collecting), timeout)
     except BaseException:
         try:
             await asyncio.shield(on_abort())

@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -10,28 +11,30 @@ from myrm_agent_harness.toolkits.code_execution.executors.common.subprocess_guar
     guarded_communicate,
 )
 
+_MAX_OUTPUT_BYTES = 5 * 1024 * 1024
+
 
 class TestSubprocessTimeoutError:
-    def test_message_with_label(self):
+    def test_message_with_label(self) -> None:
         err = SubprocessTimeoutError(30.0, "docker cp")
         assert "30" in str(err)
         assert "docker cp" in str(err)
         assert err.timeout == 30.0
         assert err.label == "docker cp"
 
-    def test_message_without_label(self):
+    def test_message_without_label(self) -> None:
         err = SubprocessTimeoutError(10.0)
         assert "10" in str(err)
         assert err.label == ""
 
-    def test_inherits_timeout_error(self):
+    def test_inherits_timeout_error(self) -> None:
         err = SubprocessTimeoutError(5.0)
         assert isinstance(err, TimeoutError)
 
 
 class TestGuardedCommunicate:
     @pytest.mark.asyncio
-    async def test_success(self):
+    async def test_success(self) -> None:
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",
@@ -44,7 +47,7 @@ class TestGuardedCommunicate:
         assert proc.returncode == 0
 
     @pytest.mark.asyncio
-    async def test_timeout_kills_process(self):
+    async def test_timeout_kills_process(self) -> None:
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",
@@ -60,7 +63,7 @@ class TestGuardedCommunicate:
         assert proc.returncode is not None
 
     @pytest.mark.asyncio
-    async def test_already_finished_process(self):
+    async def test_already_finished_process(self) -> None:
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",
@@ -73,7 +76,7 @@ class TestGuardedCommunicate:
         assert proc.returncode == 0
 
     @pytest.mark.asyncio
-    async def test_nonzero_exit_code_preserved(self):
+    async def test_nonzero_exit_code_preserved(self) -> None:
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",
@@ -85,7 +88,7 @@ class TestGuardedCommunicate:
         assert proc.returncode == 42
 
     @pytest.mark.asyncio
-    async def test_stderr_captured(self):
+    async def test_stderr_captured(self) -> None:
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",
@@ -99,7 +102,7 @@ class TestGuardedCommunicate:
 
 class TestPythonSubprocessIsolation:
     @pytest.mark.asyncio
-    async def test_pythonpath_pollution_sanitized(self, tmp_path):
+    async def test_pythonpath_pollution_sanitized(self, tmp_path: Path) -> None:
         from myrm_agent_harness.toolkits.code_execution.executors.local._python_subprocess import (
             run_python_subprocess,
         )
@@ -118,13 +121,14 @@ class TestPythonSubprocessIsolation:
                 timeout=10,
                 python_executable=sys.executable,
                 cwd=tmp_path,
+                max_output_bytes=_MAX_OUTPUT_BYTES,
             )
             assert res.success is True
             # Assert hostile dir was stripped
             assert hostile_dir not in res.stdout
 
     @pytest.mark.asyncio
-    async def test_ptc_session_keeps_stub_pythonpath(self, tmp_path):
+    async def test_ptc_session_keeps_stub_pythonpath(self, tmp_path: Path) -> None:
         from myrm_agent_harness.toolkits.code_execution.executors.local._python_subprocess import (
             run_python_subprocess,
         )
@@ -143,6 +147,7 @@ class TestPythonSubprocessIsolation:
                 timeout=10,
                 python_executable=sys.executable,
                 cwd=tmp_path,
+                max_output_bytes=_MAX_OUTPUT_BYTES,
                 env=user_env,
             )
             assert res.success is True
@@ -151,7 +156,7 @@ class TestPythonSubprocessIsolation:
             assert "stubs" in res.stdout
 
     @pytest.mark.asyncio
-    async def test_non_ptc_user_pythonpath_still_scrubbed(self, tmp_path):
+    async def test_non_ptc_user_pythonpath_still_scrubbed(self, tmp_path: Path) -> None:
         from myrm_agent_harness.toolkits.code_execution.executors.local._python_subprocess import (
             run_python_subprocess,
         )
@@ -169,6 +174,7 @@ class TestPythonSubprocessIsolation:
                 timeout=10,
                 python_executable=sys.executable,
                 cwd=tmp_path,
+                max_output_bytes=_MAX_OUTPUT_BYTES,
                 env={"PYTHONPATH": evil_dir},
             )
             assert res.success is True
@@ -176,9 +182,8 @@ class TestPythonSubprocessIsolation:
             assert evil_dir not in res.stdout
 
     @pytest.mark.asyncio
-    async def test_cancellation_kills_child_process_group(self, tmp_path):
+    async def test_cancellation_kills_child_process_group(self, tmp_path: Path) -> None:
         """Cancelling the host task must reap the sandboxed child, not orphan it."""
-        import os
 
         from myrm_agent_harness.toolkits.code_execution.executors.local._python_subprocess import (
             run_python_subprocess,
@@ -187,9 +192,7 @@ class TestPythonSubprocessIsolation:
         pid_file = tmp_path / "child.pid"
         script = tmp_path / "sleeper.py"
         script.write_text(
-            "import os, pathlib, time\n"
-            "pathlib.Path('child.pid').write_text(str(os.getpid()))\n"
-            "time.sleep(300)\n"
+            "import os, pathlib, time\npathlib.Path('child.pid').write_text(str(os.getpid()))\ntime.sleep(300)\n"
         )
 
         task = asyncio.create_task(
@@ -198,6 +201,7 @@ class TestPythonSubprocessIsolation:
                 timeout=299,
                 python_executable=sys.executable,
                 cwd=tmp_path,
+                max_output_bytes=_MAX_OUTPUT_BYTES,
             )
         )
 
@@ -224,7 +228,6 @@ class TestPythonSubprocessIsolation:
 def _process_alive(pid: int) -> bool:
     """Return True when ``pid`` still exists (zombies count as dead)."""
     import os
-    import signal
 
     try:
         os.kill(pid, 0)

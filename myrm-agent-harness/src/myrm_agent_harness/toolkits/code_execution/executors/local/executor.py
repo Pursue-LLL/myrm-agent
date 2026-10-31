@@ -276,6 +276,7 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
             env=env,
             allow_network=allow_network,
             context=context,
+            max_output_bytes=self.config.local.max_output_bytes,
         )
 
     async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:

@@ -238,6 +238,7 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 - `start_new_session=True` 创建新进程组，确保超时时可杀死整个进程树
 - 超时或调用方被取消时通过跨平台原语杀死整个进程组（包括所有子进程），不留孤儿进程
 - **输出有界**：stdout 与 stderr 经 `core/security/bounded_communicate.py` 的 `communicate_bounded` 读取，各保留前 5 MiB，其余读出后丢弃（一次 WARNING），所以无休止打印的命令不会撑大宿主内存，也不会因管道写满而卡住；超时与取消时先杀进程树、读取继续排空，管道关闭后才抛出 `TimeoutError` / `CancelledError`
+- **同一原语的其他使用方**：命令内容或输出量不由框架决定的命令都经 `communicate_bounded` 读取——agent 的 Python 脚本（`toolkits/code_execution/executors/local/_python_subprocess.py`，宿主读管道的上限是脚本自身输出上限的 12 倍加 64 KiB：包装脚本用 `json.dumps` 打印结果，一个字符最多占 12 字节，上限过小会把合法的大输出截断而丢掉结构化结果）、命令钩子（`agent/hooks/executor.py`，载荷经 `stdin_data` 写入）、技能动态命令（`agent/meta_tools/skills/select/skill_document_loader.py`），以及服务端的 SSH 远程命令；超时或取消时都会杀掉对应进程
 - `ExecResult.mode` 记录实际执行模式，支持审计
 - **env 隔离**：子进程环境由 `build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)`（`core/security/process_env/env_isolation.py`）构造——只继承经证实安全的系统/工具链变量，调用方显式 `env` 先过滤动态链接器注入再叠加，最后剔除不可继承的宿主凭证；`credential_env_overrides()` 在隔离**之后**注入合法凭证，防止无人值守路径（cron）发生环境变量逃逸
 - **沙箱 fail-closed**：`require_sandbox=True` 且沙箱不可用时直接拒绝执行（`MissingSemanticsBlockedError`）
