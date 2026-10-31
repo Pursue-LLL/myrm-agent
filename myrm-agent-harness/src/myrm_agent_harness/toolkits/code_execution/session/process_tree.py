@@ -4,7 +4,8 @@
 - psutil (POS: process tree inspection for shells that share the server's process group)
 
 [OUTPUT]
-kill_process_tree: stop a process and its whole tree, escalating from terminate to kill after a grace period.
+kill_process_tree: stop a process and its whole tree. POSIX terminates first and kills after a grace period;
+  Windows kills at once.
 
 [POS]
 Process-tree reaper for persistent shells. A shell with its own process group is stopped with one group signal;

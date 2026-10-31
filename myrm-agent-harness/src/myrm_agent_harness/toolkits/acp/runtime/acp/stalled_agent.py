@@ -7,7 +7,8 @@ everything it started fails the write, because nothing holds the read end of the
 everything queued behind it.
 
 [INPUT]
-- toolkits.code_execution.session.process_tree::kill_process_tree (POS: ends a process and its whole tree, escalating from terminate to kill)
+- toolkits.code_execution.session.process_tree::kill_process_tree (POS: ends a process and its whole tree; POSIX
+  terminates first and kills after a grace period, Windows kills at once)
 - utils.os_compat::IS_WIN (POS: platform switch of the tree kill)
 
 [OUTPUT]

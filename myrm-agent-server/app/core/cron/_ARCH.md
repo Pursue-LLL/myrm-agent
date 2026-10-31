@@ -26,7 +26,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
 | `adapters/agent_runner.py` | 核心 | JobRunner：ConfigService + AgentFactory；可选 `workflow_template_id` 走 pinned DW（`create_dynamic_workflow_stream` unattended）；执行前 `validate_cron_template_at_execution`（trust/args/readonly）；Cron 绑模板同 SSOT；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
-| `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth），及 builder 工厂函数 | ✅ |
+| `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth、PatternDiscovery、DailyWorkSummary），及 builder 工厂函数 | ✅ |
 | `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道经 `MessageBus.send_now` 同步投递（与队列发送同一套准备/路由/失败记账，失败抛给调度器），产出里的工作区交付物随消息作为附件；Webhook 委托给框架的 `WebhookDelivery` | — |
 | `adapters/channel_deliverables.py` | 核心 | Cron 产出 → IM 交付物：扫描产出文本中的工作区相对路径（绑定 chat 的 workspace）→ 附件 + 超限/压缩提示 + 网页接力按钮（仅有附件时；纯文本路由降级为链接） | ✅ |
 | `adapters/delivery_resolver.py` | 核心 | Cron 工具 webhook URL → `DeliveryConfig`（非空 → `webhook`；格式化在投递层） | — |

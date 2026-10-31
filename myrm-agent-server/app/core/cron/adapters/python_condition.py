@@ -13,8 +13,8 @@ Runs a user-provided Python script in an isolated subprocess before a job and re
 - myrm_agent_harness.api::redact_sensitive_text (POS: Masks credentials in text before it is stored or shown.)
 - myrm_agent_harness.api::communicate_bounded (POS: Reads a child process's stdout and stderr with a cap on each and
   stops it through the caller on a deadline or a cancel.)
-- toolkits.code_execution.session.process_tree::kill_process_tree (POS: Stops a process and its whole tree, escalating from
-  terminate to kill after a grace period.)
+- toolkits.code_execution.session.process_tree::kill_process_tree (POS: Stops a process and its whole tree; POSIX
+  terminates first and kills after a grace period, Windows kills at once.)
 - utils.os_compat::IS_WIN, get_process_group_kwargs, kill_spawned_group (POS: Unified abstractions for POSIX/Windows
   differences.)
 
