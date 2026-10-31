@@ -16,7 +16,8 @@ feeds them.
 
 [POS]
 Output-bounding primitive for every command whose text or output size the framework does not control (cron shell
-jobs, pre-flight probes, agent Python scripts, command hooks, skill dynamic commands, remote SSH commands).
+jobs, pre-flight probes, agent Python scripts, command hooks, skill dynamic commands, the layout check's soffice
+conversion, remote SSH commands).
 It stops the process only through the ``on_abort`` it is given: how a tree dies differs by caller.
 """
 
