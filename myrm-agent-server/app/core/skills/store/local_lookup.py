@@ -21,7 +21,7 @@ import logging
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.api.skills import SkillMetadataError, parse_skill_frontmatter
+from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
 from ..utils import normalize_skill_name
 
@@ -52,16 +52,16 @@ def _known_names(skill_dir: Path) -> frozenset[str]:
     """The names the skill in ``skill_dir`` goes by.
 
     They are the name the local scan lists it under (its name in SKILL.md; the directory's when it has none or the name
-    is longer than a skill name may be) and the name the agent runtime lists it under. A directory entry whose SKILL.md
-    is missing, unreadable or rejected by the scan, and one with a blank name, goes by none: one broken skill must not
-    hide the others, and it could not be patched anyway.
+    is longer than a skill name may be) and the name the agent runtime lists it under. A directory entry the scan would
+    not list (no SKILL.md, or one that fails to load for any reason) and one with a blank name go by none: as in the
+    scan, one broken skill must not hide the others, and it could not be patched anyway.
     """
     skill_md = skill_dir / SKILL_MD_FILE
     try:
         if not skill_md.is_file():
             return frozenset()
         frontmatter = parse_skill_frontmatter(skill_md.read_text(encoding="utf-8"), skill_dir.name)
-    except (OSError, UnicodeDecodeError, SkillMetadataError) as exc:
+    except Exception as exc:
         logger.warning("Skipping unusable %s: %s", skill_md, exc)
         return frozenset()
     name = frontmatter.name or skill_dir.name

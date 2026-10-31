@@ -6,8 +6,9 @@
 - tests.api.skills.conftest (POS: primary local skills directory moved to a temporary one, real local scan)
 [OUTPUT]
 - Tests that a review result finds the skill it names whether it carries the skill's directory name, its listed name
-  or the name from its SKILL.md, whatever that name's spelling, that the lock and the approval act on that skill, that two skills a name cannot tell
-  apart are not guessed between, and that a name no directory can have is recorded and not dropped.
+  or the name from its SKILL.md, whatever that name's spelling, that the lock and the approval act on that skill,
+  that two skills a name cannot tell apart are not guessed between, and that a name no directory can have is recorded
+  and not dropped.
 [POS]
 The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
 pipeline keeps, locks and patches skills by directory. The names are built by the product's own adapter and the skills

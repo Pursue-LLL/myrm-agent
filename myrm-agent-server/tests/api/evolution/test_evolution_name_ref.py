@@ -7,9 +7,9 @@
 - Tests that /derive and /fix take a local skill's name as its reference even when the skill has no evolution row,
   and that the lookup by name never leaves the primary local skills directory, finds the skill by its directory name
   first and then by a name it is known by (the name in its SKILL.md or the one the agent runtime lists it under),
-  chooses none of several skills that go by one name, skips a SKILL.md that cannot be read or that the scan rejects and
-  a directory with a blank name, finds no skill for a name no
-  directory can have, and does not turn an unreadable directory into a missing skill.
+  chooses none of several skills that go by one name, skips a SKILL.md that cannot be read, one the scan cannot load
+  and a directory with a blank name, finds no skill for a name no directory can have, and does not turn an unreadable
+  directory into a missing skill.
 [POS]
 The growth audit names a skill only by the name its draft carried, and most local skills (made in chat, placed by hand)
 have no evolution row yet, so a name has to reach the Skills page skill itself: a locked skill is refused without being
@@ -210,10 +210,18 @@ async def test_an_unreadable_skill_md_does_not_hide_the_other_skills(skills_root
     assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "good"
 
 
-async def test_a_skill_md_the_scan_rejects_does_not_hide_the_other_skills(skills_root: Path) -> None:
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("A SKILL.md without a frontmatter.\n", id="no-frontmatter"),
+        # PyYAML builds the date, so an impossible one raises ValueError and not the parser's own error.
+        pytest.param("---\ndescription: Demo skill.\ncreated: 2024-02-30\n---\n", id="impossible-date"),
+    ],
+)
+async def test_a_skill_md_the_scan_cannot_load_does_not_hide_the_other_skills(skills_root: Path, content: str) -> None:
     write_skill(skills_root, "good", name="report-builder")
     (skills_root / "invalid").mkdir()
-    (skills_root / "invalid" / "SKILL.md").write_text("A SKILL.md without a frontmatter.\n", encoding="utf-8")
+    (skills_root / "invalid" / "SKILL.md").write_text(content, encoding="utf-8")
 
     assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "good"
 
