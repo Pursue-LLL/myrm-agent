@@ -32,7 +32,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push：本条记录先入本地提交 `2be5e643ac`，见「网关会话失效」条目的状态行；代码、测试与其余文档在随后的本地提交里，条目不写自己的提交号）。「仍然存在」里的项未处理。 |
+| **状态** | **FIXED**（`myrm-agent` 提交：本条记录先入提交 `2be5e643ac`，见「网关会话失效」条目的状态行；代码、测试与其余文档在随后的提交里，条目不写自己的提交号）。「仍然存在」里的项未处理。 |
 | **症状** | ① [真实 `discord.http.HTTPClient.request`（带 aiohttp 会话）与真实 `VoiceFollowManager` 的探针；读代码] 跟随用户的对账循环是补收错过的网关事件的兜底，改前它一轮出错就整个结束：`_reconcile_loop`（改前 `follow.py:206-216`）只接 `CancelledError`，`_reconcile_once`（`:218`）逐个公会 `await`、没有保护，`_find_followed_user_channel_rest` 只接 `discord.NotFound`（`:255`）与 `discord.HTTPException`（`:257`）。discord.py 的 `HTTPClient.request` 只对 errno 54 与 10054 的 `OSError` 重试（最多 4 次），其余 `OSError` 与 aiohttp 的错误原样抛出（`http.py:781-786`）。探针里 aiohttp 会话抛 `aiohttp.ClientConnectionError`：对账任务在第一次错误之后就 `done()`，0.3 秒内（间隔 0.01 秒）只有 1 次 REST 轮询，之后调 `start_reconciliation`（改前 `:91`，守卫是 `_reconcile_task is not None`）没有重启它。② [读代码；替身] `join` 抛异常同样结束循环，并且跳过同一轮里排在后面的公会；改前 `join` 里只有首次连接与移动两处有保护，其余抛出路径没有穷举，守卫放在循环里就是不依赖这一点。`move_to` 的失败被 `move_to_channel` 接住之前（见「`/voice join` 在 discord.py 的移动超时后仍回复 Joined」一条），它抛出的异常也会走这条路，那一次只用替身演示过。③ [读代码] `test_follow.py:211-219` 只测启动与停止，没有一轮失败之后的行为。④ 影响范围：事件路径（`on_voice_state_update`）照常工作，丢掉的是补收错过的事件这一层兜底；之后即使 READY 再次调 `start_reconciliation`（`channel.py:266-267`）也起不来，错过事件之后机器人不会被拉回跟随用户所在的频道，也不会在没有跟随用户时离开。 |
 | **根因** | 对账循环按「一轮不会失败」写成：循环与每个公会的处理都没有「这一轮失败，下一轮再来」的结构；`start_reconciliation` 又把「任务对象存在」当成「任务在跑」。 |
 | **修复** | ① `_reconcile_once` 把每个公会的处理放进 `_reconcile_guild`，逐公会 `try/except Exception`：公会处理里的错误（REST 轮询、加入、离开）记 WARNING（带公会号与异常类型和信息，不带堆栈），继续下一个公会，下一轮照常；`CancelledError` 是 `BaseException`，不被接住，`stop_reconciliation` 照常取消。② `start_reconciliation` 只在任务存在且未结束时拒绝启动，已结束的任务再次启动会换成新任务。有意没做：同一轮里重试（REST 轮询与加入失败时公会状态不变，下一轮约 10–13 秒后自然重试；离开失败不重试，见「仍然存在」⑤）；退避；给 `_listen_loop` 与输入管道再加保护（读代码：语音包里长寿命的循环只有 `_listen_loop` 与这个对账循环，前者在 `manager.py:395-396` 已有保护，输入管道在 `input_pipeline.py:122-164` 逐段话保护）。 |
@@ -387,7 +387,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（`myrm-agent` 本地提交 `cdbd79984f`，未 push：代码、测试与文档，与「`/voice leave`」条目和上一条的 ⑱ 同提交；本条文字的更正在本地提交 `2be5e643ac` 里，见「网关会话失效」条目的状态行）。「仍然存在」里的项未处理。 |
+| **状态** | **FIXED**（`myrm-agent` 提交 `cdbd79984f`：代码、测试与文档，与「`/voice leave`」条目和上一条的 ⑱ 同提交；本条文字的更正在提交 `2be5e643ac` 里，见「网关会话失效」条目的状态行）。「仍然存在」里的项未处理。 |
 | **症状** | ① [读 discord.py 2.7.1 源码；真实 `VoiceConnectionState` 的测试] `VoiceClient.move_to` 的文档写会抛 `asyncio.TimeoutError`（`voice_client.py:372-376`），但它调用的 `VoiceConnectionState.move_to`（`voice_state.py:575-597`）在超时时只写一条 WARNING、把状态回退，然后正常返回，不抛。改前 `VoiceManager.join` 对「会话已连接、目标是另一个频道」的情形 `await move_to(channel)` 之后不看结果（HEAD 的 `manager.py:184`），直接改绑文字频道并返回 True；`/voice join` 于是回复「Joined **X**」，机器人当时其实还在原频道，之后转写的交付频道却已改到发命令的频道（交付频道这一点是读代码得出的，没有端到端运行）。② [读代码；新用例在改前代码上红] `move_to` 抛出别的异常（连接重置、网关错误）时，异常从 `join` 与 `join_voice` 一路传出；`/voice` 的命令处理函数没有 try/except，`providers/discord/*.py` 里也没有命令树级的错误处理（按 `tree.error`、`on_app_command_error`、`on_error` 查过），已 defer 的命令不会有回复（没有在真实 Discord 上观察调用者看到什么）。 |
 | **根因** | `join` 把「`move_to` 没抛异常」当成「已经移动」，而 discord.py 的移动在超时这条失败路径上不抛。同一个函数里首次连接的路径（`except Exception`）已经处理了失败，移动路径没有。成功与否唯一可靠的信号是 VoiceClient 事后是否已连接且在目标频道：成功的移动会更新 VoiceClient 所在的频道（`voice_state.py:347-351`），超时则回退状态，检查那一刻频道不变；但这只在检查时成立：超时回退之后，Discord 迟到的确认仍会更新频道（`voice_state.py:357-358`，探针里频道先是 111、随后变成 222），`VoiceClient.move_to` 的文档也写着移动「可能仍在进行」（`voice_client.py:372-376`），所以失败之后机器人仍会在稍后出现在目标频道。 |
 | **修复** | ① 新增 `voice/channel_move.py`：`move_to_channel` 接住 `move_to` 抛出的异常（取消不接），移动之后用 `is_in_channel`（已连接且在目标频道）判结果；异常或结果不成立都记 ERROR（带目标频道号与原因）并返回 False。② `VoiceManager.join` 的移动分支用它：失败返回 False，不改绑文字频道、不丢接收器里未交付的话、会话原样；已在目标频道的加入不移动，行为不变。③ 命令层不改：`join_voice` 返回 False 时本来就回复加入失败（现为目录里的 `voice_join_failed`）。有意没做：让 `move_to_channel` 自己重试移动（超时可能只是慢，没有数据说明重试有用；跟随用户时的重试见「仍然存在」②）；给 `leave` 与 `_release` 也包上异常处理（discord.py 在 `voice_state.py:512-517,543-546` 吞掉断开的失败与超时，抛出的可能性小）。 |
@@ -399,7 +399,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（`myrm-agent` 本地提交 `cdbd79984f`，未 push，与上一条同提交；本条文字的更正在本地提交 `2be5e643ac` 里，见「网关会话失效」条目的状态行）。「仍然存在」里的项未处理。 |
+| **状态** | **FIXED**（`myrm-agent` 提交 `cdbd79984f`，与上一条同提交；本条文字的更正在提交 `2be5e643ac` 里，见「网关会话失效」条目的状态行）。「仍然存在」里的项未处理。 |
 | **症状** | [读代码；新用例在改前代码上红 1 例] 改前 `/voice leave` 对公会无条件调用 `leave_voice(guild.id)` 并回复「Left voice channel.」；机器人不在任何语音频道（没有会话）时，命令也报告了一次没有发生的离开。 |
 | **根因** | 命令把 `leave` 当幂等动作，回复是固定文案，不看有没有会话。 |
 | **修复** | 命令先问 `VoiceManager.get_voice_client(guild.id)`：没有会话就回复目录里的 `voice_not_in_voice`（「Not in a voice channel.」，四种语言），不调用 `leave_voice`；有会话照常离开并回复「Left voice channel.」。判据选 `get_voice_client` 而不是 `is_connected`：discord.py 仍在重连的会话 `is_connected` 为 False，却仍登记在公会上，`/voice leave` 必须能结束它（`voice/test_release_held_client.py` 守这一行为，改前就有）。有意没做：让 `VoiceManager.leave` 返回「是否有会话」——要改 `follow.py:37-42` 的 `VoiceJoinLeave` 协议与它的三个调用点，为一条回复文案不值得。 |
