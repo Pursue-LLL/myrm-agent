@@ -12,7 +12,7 @@ Runs a user-provided Python script in an isolated subprocess before a job and re
 - myrm_agent_harness.api::redact_sensitive_text (POS: Masks credentials in text before it is stored or shown.)
 - toolkits.code_execution.session.process_tree::kill_process_tree (POS: Stops a process and its whole tree, escalating from
   terminate to kill after a grace period.)
-- utils.os_compat::IS_WIN (POS: Unified abstractions for POSIX/Windows differences.)
+- utils.os_compat::IS_WIN, get_process_group_kwargs (POS: Unified abstractions for POSIX/Windows differences.)
 
 [OUTPUT]
 - SandboxedPythonCondition: Executes Python scripts in a sandboxed subprocess.
@@ -36,7 +36,7 @@ from myrm_agent_harness.api import (
 from myrm_agent_harness.toolkits.code_execution.session.process_tree import kill_process_tree
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightCondition, PreFlightConditionError
 from myrm_agent_harness.toolkits.cron.types import CronJob
-from myrm_agent_harness.utils.os_compat import IS_WIN
+from myrm_agent_harness.utils.os_compat import IS_WIN, get_process_group_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 _MAX_REASON_CHARS = 300
 # Bounds the masking work on a very long line.
 _MAX_RAW_CHARS = 1000
-# A probe has no state to flush: after the deadline or a cancel the script and everything it started get this long
-# to stop on a polite signal and as long again after the forced kill, so the extra wait is at most twice this.
+# A probe has no state to flush: after the deadline or a cancel the script and the processes stopped with it get this
+# long to stop on a polite signal and as long again after the forced kill, so the extra wait is at most twice this.
 _KILL_GRACE_SECONDS = 1.0
 
 
@@ -97,13 +97,17 @@ class SandboxedPythonCondition(PreFlightCondition):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
+                # A session of its own, so the cleanup below can signal the script's whole process group.
+                **get_process_group_kwargs(),
             )
             try:
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_seconds)
             except BaseException:
                 # A deadline or a cancel only stops the wait: the script and what it started keep running, and a
-                # descendant holding the pipes would keep `wait()` from returning. Stop the whole tree first;
-                # a script that already exited has no tree left to find, so what it left behind is not stopped.
+                # descendant holding the pipes would keep `wait()` from returning. The group signal reaches what the
+                # script left in its group, and the process tree read before signalling reaches what moved to another
+                # session. Not found: a process that left the group and was adopted by init, one that ignores the
+                # polite signal and holds none of the pipes, and what a script that already exited left behind.
                 await asyncio.shield(kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS))
                 raise
             returncode = await proc.wait()

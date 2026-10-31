@@ -2,7 +2,8 @@
 
 Validates script execution, SKIP signals, context injection, that a script which cannot reach a verdict
 (crash, timeout, cannot start) raises ``PreFlightConditionError`` (only a verdict of "skip" returns False), and
-that a deadline or a cancel stops the script together with everything it started.
+that a deadline or a cancel stops the script together with its children, those in a session of their own,
+and its background commands.
 """
 
 import asyncio
@@ -133,14 +134,16 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
     def argv(pid_file: Path) -> list[str]:
         return [sys.executable, str(child), str(pid_file)]
 
-    # How scripts run commands: `subprocess.run` and `os.system` hand the child the script's own output pipes,
-    # and a child that starts a session of its own is out of the script's process group.
+    # How scripts run commands: `subprocess.run` and `os.system` hand the child the script's own output pipes, a child
+    # that starts a session of its own is out of the script's process group, and a command sent to the background
+    # is adopted by init once the shell that started it exits, while the script keeps running.
     scripts = {
         "subprocess.run": lambda p: f"import subprocess\nsubprocess.run({argv(p)!r})\n",
         "os.system": lambda p: f"import os\nos.system({shlex.join(argv(p))!r})\n",
         "own-session": lambda p: (
             f"import subprocess, time\nsubprocess.Popen({argv(p)!r}, start_new_session=True)\ntime.sleep(60)\n"
         ),
+        "background": lambda p: f"import os, time\nos.system({shlex.join(argv(p)) + ' &'!r})\ntime.sleep(60)\n",
     }
     pid_files = {name: tmp_path / f"{name}.pid" for name in scripts}
 
