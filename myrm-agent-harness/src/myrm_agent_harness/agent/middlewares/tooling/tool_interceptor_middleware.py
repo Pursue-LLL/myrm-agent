@@ -2,25 +2,32 @@
 
 Orchestrates all security guards in a single interception point:
 
-PRE-CALL:
- 1. E-Stop check — global emergency brake (fail-closed)
- 2. LoopGuard pre-check — tool-call loop detection
- 3. Steering skip — user injected new message at runtime
- 4. Invalid tool check — tool does not exist
- 5. Trust attenuation — INSTALLED skills restrict dangerous tools
- 5b. PII Guard — classify tool parameters for PII, block if policy requires
+PRE-CALL (in this order; the first guard that refuses answers for the call):
+ 1. PRE_TOOL_USE hook — a hook may block the call or rewrite its arguments
+ 2. Circuit breaker — a registered terminal error refuses the tools that depend on the broken resource
+ 3. E-Stop check — global emergency brake (fail-closed)
+ 4. LoopGuard pre-check — tool-call loop detection (WARN lets the call run, BREAK refuses it)
+ 5. Turn budget — per-turn tool and search budget of a delegated run
+ 6. Steering skip — user injected new message at runtime
+ 7. Invalid tool check — tool does not exist
+ 8. Trust attenuation — turn tool policy and INSTALLED skills restrict the available tools
+ 9. PII Guard — classify tool parameters for PII, block if policy requires
 
-POST-CALL:
- 6. Steering activation — check steering queue after execution
- 6b. Empty output normalization — replace empty/whitespace content with "(no output)"
- 7. Archive restore blocked event — emit structured GUI-safe status payloads
- 7b. Mutation Verifier — track file-mutating tool outcomes for turn-end summary
- 8. Context Budget Guard — truncate oversized results, track budget
- 9. Context Poisoning detection — validate tool result content
-10. Taint recording — propagate taint labels to session TaintTracker
-10b. PII detection — classify tool result, redact PII per policy
+POST-CALL (in this order):
+ 1. Steering activation — check steering queue after execution
+ 2. Empty output normalization — replace empty/whitespace content with "(no output)"
+ 3. Archive restore blocked event — emit structured GUI-safe status payloads
+ 4. Semantic failure sniffer — elevate HTTP 200 pseudo-success business errors to errors
+ 5. Mutation Verifier — track file-mutating tool outcomes for turn-end summary
+ 6. Context Budget Guard — persist or truncate oversized results, track budget
+ 7. Context Poisoning detection — validate tool result content
+ 8. Taint recording — propagate taint labels to session TaintTracker
+ 9. PII detection — classify tool result, redact PII per policy
+10. Workspace rules — append the rule files of a newly entered directory to the result
 11. LoopGuard record — record result hash for future detection
 12. Verification evidence — tag bash commands containing test/lint/typecheck/build
+13. Loop warning — append the loop hint when a WARN was issued
+14. POST_TOOL_USE hook — a failing or blocking hook turns the result into a failure result
 
 [INPUT]
 - agent.middlewares.tooling._tool_guards (POS: Pre/post-call guard orchestration)
