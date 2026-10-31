@@ -1,7 +1,8 @@
 /**
  * Regression tests for "Force Retry" in the evolution audit dashboard: a skill that is locked against automatic
  * changes is refused by the server, and the user is told in plain words how to proceed instead of seeing a generic
- * failure; the row only moves on when the retry was actually accepted.
+ * failure; the row only moves on when the retry was actually accepted. A rejected new-skill draft names no skill, so
+ * it offers no retry.
  */
 /** @vitest-environment jsdom */
 
@@ -79,11 +80,21 @@ function stubFixResponse(status: number) {
   return fetchMock;
 }
 
-async function renderAndForceRetry() {
+async function renderAndForceRetry(skillName = 'my-skill') {
   render(<EvolutionRejectionDashboard />);
-  await waitFor(() => expect(screen.getByText('my-skill')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText(skillName)).toBeInTheDocument());
   fireEvent.click(forceRetryButton());
 }
+
+const rejectedDraft = {
+  ...entry,
+  source: 'draft',
+  status: 'REJECTED',
+  skillId: null,
+  skillName: 'brand-new',
+  growthType: 'skill_draft',
+  reason: 'not useful',
+};
 
 describe('EvolutionRejectionDashboard force retry', () => {
   beforeEach(() => {
@@ -107,7 +118,7 @@ describe('EvolutionRejectionDashboard force retry', () => {
     expect(hint).not.toMatch(/409|HTTP|force_retry|evolution_locked|status/i);
     expect(mockToastSuccess).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/v1/evolution/fix/local::abc',
+      '/api/v1/evolution/fix/local%3A%3Aabc',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(screen.getByText(en.settingsTabs.evolutionRejection.status.BLOCKED_LOCKED)).toBeInTheDocument();
@@ -132,5 +143,44 @@ describe('EvolutionRejectionDashboard force retry', () => {
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledTimes(1));
     expect(mockToastError).not.toHaveBeenCalled();
     expect(screen.getByText(en.settingsTabs.evolutionRejection.status.PENDING_REVIEW)).toBeInTheDocument();
+  });
+
+  it('names the skill by its directory name, kept whole when it holds URL syntax', async () => {
+    mockListSkillGrowthAudit.mockResolvedValue([
+      { ...rejectedDraft, growthType: 'skill_patch', skillName: 'notes#v2?x' },
+    ]);
+    const fetchMock = stubFixResponse(200);
+
+    await renderAndForceRetry('notes#v2?x');
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/evolution/fix/notes%23v2%3Fx',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('offers no retry for a rejected new-skill draft, which never became a skill', async () => {
+    mockListSkillGrowthAudit.mockResolvedValue([rejectedDraft]);
+
+    render(<EvolutionRejectionDashboard />);
+
+    await waitFor(() => expect(screen.getByText('brand-new')).toBeInTheDocument());
+    expect(
+      screen.queryByRole('button', { name: en.settingsTabs.evolutionRejection.forceRetry }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['a rejected patch of an existing skill', { ...rejectedDraft, growthType: 'skill_patch' }],
+    ['a rejected evolution of a skill', { ...rejectedDraft, source: 'evolution', skillId: 'local::abc' }],
+    ['a new-skill draft refused because the skill is locked', { ...rejectedDraft, status: 'BLOCKED_LOCKED' }],
+  ])('still offers a retry for %s', async (_label, row) => {
+    mockListSkillGrowthAudit.mockResolvedValue([row]);
+
+    render(<EvolutionRejectionDashboard />);
+
+    await waitFor(() => expect(screen.getByText(row.skillName)).toBeInTheDocument());
+    expect(forceRetryButton()).toBeEnabled();
   });
 });

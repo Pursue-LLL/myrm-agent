@@ -1,5 +1,5 @@
 /**
- * [INPUT] skills growth audit API via @/services; useEvolutionForceRetry (强制重试提交与锁定提示)
+ * [INPUT] skills growth audit API via @/services; useEvolutionForceRetry / canForceRetry (强制重试提交、锁定提示与可重试判断)
  * [OUTPUT] EvolutionRejectionDashboard: 技能进化拒绝/失败审计面板
  * [POS] features/skills 技能进化负向结果审计入口
  */
@@ -24,7 +24,7 @@ import {
   type SkillGrowthAuditStats,
 } from '@/services/skill/growth';
 import { toast } from 'sonner';
-import { useEvolutionForceRetry } from './useEvolutionForceRetry';
+import { canForceRetry, useEvolutionForceRetry } from './useEvolutionForceRetry';
 
 const STATUS_TONE: Record<
   SkillGrowthStatus,
@@ -351,7 +351,7 @@ export function EvolutionRejectionDashboard() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatTime(entry.createdAt)}</TableCell>
                       <TableCell className="text-right">
-                        {(entry.status === 'REJECTED' || entry.status === 'BLOCKED_LOCKED') && (
+                        {canForceRetry(entry) && (
                           <Button
                             variant="outline"
                             size="sm"

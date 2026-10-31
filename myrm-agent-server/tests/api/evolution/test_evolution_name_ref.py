@@ -178,9 +178,7 @@ async def test_a_name_that_is_not_one_directory_below_the_skills_directory_is_no
 
 
 @pytest.mark.parametrize("length", [256, 300])
-async def test_a_name_longer_than_a_directory_name_can_be_is_no_skill(
-    skills_root: Path, evolution: SimpleNamespace, length: int
-) -> None:
+async def test_a_name_longer_than_a_directory_name_can_be_is_no_skill(skills_root: Path, length: int) -> None:
     write_skill(skills_root, "demo")
 
     assert await skills_service.get_local_skill_by_dir_name("a" * length) is None
@@ -205,7 +203,7 @@ async def test_a_reference_longer_than_a_directory_name_can_be_is_not_found(
 
 
 async def test_an_unreadable_skills_directory_is_an_error_and_not_a_missing_skill(
-    skills_root: Path, evolution: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+    skills_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     write_skill(skills_root, "demo", locked=True)
 

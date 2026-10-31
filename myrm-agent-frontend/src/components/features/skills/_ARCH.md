@@ -77,9 +77,9 @@
 | `skillCategories.ts`                                            | 辅助 | 技能分类常量与 i18n 键映射                                                                                                                                                                                                                                    | ✅    |
 | `PendingEvolutionsDashboard.tsx`                                | 核心 | 待审核技能进化列表（cases API total + stats 顶栏/filter 计数）；卡片展开按需 detail；Simple/Detailed 视图切换（localStorage 持久化）；批准后应用失败的 toast 按服务端原因码给出本地化结论，不展示原始错误文本                                                                                                                          | ✅    |
 | `pendingEvolutionsDashboardShared.tsx`                          | 辅助 | Dashboard 过滤器常量、`matchesFilter` 与 `SummaryCard` 视觉组件                                                                                                                                                                                               | ✅    |
-| `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板；「强制重试」经 `useEvolutionForceRetry`，被防自动修改保护锁定的技能提示先到技能详情关闭保护，行状态不变 | ✅ |
-| `useEvolutionForceRetry.ts` | 辅助 | 审计行「强制重试」：提交 `/api/v1/evolution/fix`（force_retry），进行中状态按行记录；服务端 409（技能被锁定）给出解锁指引（整句话，提示停留 8 秒，默认时长读不完），其它失败给通用失败提示，只有被接受时才通知调用方把该行改为待审核 | ✅ |
-| `__tests__/EvolutionRejectionDashboard.forceRetry.test.tsx` | 测试 | 强制重试回归（真实英文语言包）：被锁定时提示解锁指引（不含状态码与内部字段）且行与按钮保持可重试、其它失败给通用提示、被接受时该行变为待审核 | ✅ |
+| `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板；「强制重试」经 `useEvolutionForceRetry`，被防自动修改保护锁定的技能提示先到技能详情关闭保护，行状态不变；被用户拒绝的新技能草稿还没有成为技能，没有可重试的对象，不显示该按钮（`canForceRetry`） | ✅ |
+| `useEvolutionForceRetry.ts` | 辅助 | 审计行「强制重试」：提交 `/api/v1/evolution/fix`（force_retry），技能引用（页面 id 或目录名，目录名可含 `#`、`?`）经 `encodeURIComponent` 整段进入路径，进行中状态按行记录；`canForceRetry` 判定一行是否还有可重试的技能（被锁定的行、被拒绝的补丁与进化行有，被拒绝的新技能草稿没有）；服务端 409（技能被锁定）给出解锁指引（整句话，提示停留 8 秒，默认时长读不完），其它失败给通用失败提示，只有被接受时才通知调用方把该行改为待审核 | ✅ |
+| `__tests__/EvolutionRejectionDashboard.forceRetry.test.tsx` | 测试 | 强制重试回归（真实英文语言包）：被锁定时提示解锁指引（不含状态码与内部字段）且行与按钮保持可重试、其它失败给通用提示、被接受时该行变为待审核、目录名里的 `#` `?` 编码后到达服务端、被拒绝的新技能草稿不显示重试而补丁、进化行、被锁定的新技能草稿仍显示 | ✅ |
 
 ## 依赖
 
