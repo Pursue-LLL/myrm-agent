@@ -1,8 +1,8 @@
 """Pre-call and post-call guard orchestration for tool interception.
 
-Pre-call guards check conditions before a tool executes (e-stop, loop
-detection, steering, trust, PII).  Post-call guards process the result
-(budget truncation, poisoning, taint, hook validation, loop recording).
+Pre-call guards check conditions before a tool executes (circuit breaker, e-stop,
+loop detection, turn budget, steering, trust, PII).  Post-call guards process the
+result (budget truncation, poisoning, taint, hook validation, loop recording).
 
 [INPUT]
 - agent.errors.tool_error_category::ToolErrorCategory (POS: Canonical tool error categories for structured error classification.)
