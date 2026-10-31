@@ -333,8 +333,13 @@ function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
   return bridge;
 }
 
-const SEND_TURN_REV = 'R72-F';
+const SEND_TURN_REV = 'R72-G';
 const SEND_TURN_NO_OP_MS = 3_000;
+/**
+ * How long a new chat may take to commit its first assistant output, which persists the user
+ * row. Must equal SEND_TURN_OBSERVE_SEC in scripts/dev/lib/dev_gate/contract.py (a test pins it).
+ */
+const SEND_TURN_OBSERVE_MS = 90_000;
 
 /** SHPOIB private-backend E2E: user persist + SSE arm can exceed 3s under parallel MUX. */
 function resolveSendTurnNoOpMs(): number {
@@ -578,7 +583,7 @@ async function submitAndObserveTurn(
       .catch((error) => {
         submitError = error instanceof Error ? error.message : String(error);
       });
-    const observeDeadline = Date.now() + 45_000;
+    const observeDeadline = Date.now() + SEND_TURN_OBSERVE_MS;
     while (Date.now() < observeDeadline) {
       if (submitError) {
         return {

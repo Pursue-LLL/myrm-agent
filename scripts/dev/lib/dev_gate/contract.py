@@ -1622,10 +1622,16 @@ MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN: Final[str] = (
     "E2E_MUX_CROSS_SESSION_RECOVER_DENIED"
 )
 # R72 SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
-SEND_TURN_EVAL_RECV_SEC: Final[float] = 120.0
-SEND_TURN_PYTHON_WALL_SEC: Final[float] = 130.0
-SEND_TURN_OBSERVE_SEC: Final[int] = 45
+# The observe window is the longest a new chat may take to commit its first assistant output
+# (the user row is persisted after it). Real sends sealed in 10.8 to 45.3 s, the slowest under
+# host load, so the window keeps about twice that; the page declares the same value as
+# SEND_TURN_OBSERVE_MS in E2EChatBridge.tsx.
+SEND_TURN_OBSERVE_SEC: Final[int] = 90
 SEND_TURN_API_POLL_SEC: Final[int] = 60
+SEND_TURN_EVAL_RECV_SEC: Final[float] = float(
+    SEND_TURN_OBSERVE_SEC + SEND_TURN_API_POLL_SEC + 10
+)
+SEND_TURN_PYTHON_WALL_SEC: Final[float] = SEND_TURN_EVAL_RECV_SEC + 10.0
 SEND_TURN_LOG_TOKEN: Final[str] = "E2E_SEND_TURN"
 SEND_TURN_GENERATION_WINDOW_KEY: Final[str] = "__MYRM_E2E_SEND_GENERATION__"
 # run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
