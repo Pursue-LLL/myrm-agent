@@ -40,6 +40,7 @@ class _Rig:
     channel: DiscordChannel
     command: Callable[..., Awaitable[None]]
     voice_client: MagicMock
+    join_voice: AsyncMock
 
 
 @pytest.fixture
@@ -51,8 +52,9 @@ async def rig(monkeypatch: pytest.MonkeyPatch) -> _Rig:
     voice_client.is_connected.return_value = True
     voice_client.disconnect = AsyncMock()
     channel._voice_manager._guilds[_GUILD] = _GuildVoiceState(voice_client=voice_client, receiver=MagicMock())
-    channel.join_voice = AsyncMock(return_value=True)  # type: ignore[method-assign]
-    return _Rig(channel, commands["voice"], voice_client)
+    join_voice = AsyncMock(return_value=True)
+    channel.join_voice = join_voice  # type: ignore[method-assign]
+    return _Rig(channel, commands["voice"], voice_client, join_voice)
 
 
 def _interaction(*, user_id: int = 123) -> MagicMock:
@@ -87,7 +89,7 @@ async def test_a_caller_the_policy_does_not_admit_is_refused_and_nothing_happens
     await _run(rig, action, interaction)
 
     rig.voice_client.disconnect.assert_not_awaited()
-    rig.channel.join_voice.assert_not_awaited()  # type: ignore[attr-defined]
+    rig.join_voice.assert_not_awaited()
     assert _replies(interaction) == [_REFUSAL]
     assert interaction.followup.send.await_args.kwargs["ephemeral"] is True
 
@@ -116,7 +118,7 @@ async def test_the_owner_joins_a_voice_channel(rig: _Rig) -> None:
 
     await _run(rig, "join", _interaction())
 
-    rig.channel.join_voice.assert_awaited_once()  # type: ignore[attr-defined]
+    rig.join_voice.assert_awaited_once()
 
 
 async def test_an_admitted_caller_reads_the_voice_status(rig: _Rig) -> None:
@@ -137,7 +139,7 @@ async def test_an_admitted_caller_who_is_not_the_owner_cannot_move_the_bot(rig: 
     await _run(rig, action, interaction)
 
     rig.voice_client.disconnect.assert_not_awaited()
-    rig.channel.join_voice.assert_not_awaited()  # type: ignore[attr-defined]
+    rig.join_voice.assert_not_awaited()
     assert _replies(interaction) == [_OWNER_ONLY]
     assert interaction.followup.send.await_args.kwargs["ephemeral"] is True
 
@@ -162,7 +164,7 @@ async def test_a_channel_nobody_wired_to_an_owner_check_refuses_join_and_leave_t
     await _run(rig, action, interaction)
 
     rig.voice_client.disconnect.assert_not_awaited()
-    rig.channel.join_voice.assert_not_awaited()  # type: ignore[attr-defined]
+    rig.join_voice.assert_not_awaited()
     assert _replies(interaction) == [_OWNER_ONLY]
 
 
@@ -288,7 +290,7 @@ def _put_on_a_router_with_the_real_policy(rig: _Rig) -> None:
 
 def _took_effect(rig: _Rig, action: str, interaction: MagicMock) -> bool:
     if action == "join":
-        return bool(rig.channel.join_voice.await_count == 1)  # type: ignore[attr-defined]
+        return rig.join_voice.await_count == 1
     if action == "leave":
         return bool(rig.voice_client.disconnect.await_count == 1)
     return _replies(interaction) == ["Voice status: **Connected**"]
