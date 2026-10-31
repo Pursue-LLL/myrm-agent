@@ -15,8 +15,9 @@
 
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
-its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out);
-tier 2 scans markdown files. Every page file it reads goes through the wiki publish gate again, so a draft or
+its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out)
+with an OR query of the question's first eight terms in the order they appear, so one question always becomes one
+query; tier 2 scans markdown files. Every page file it reads goes through the wiki publish gate again, so a draft or
 blocked page never reaches the injected context, and snippets never lead with the page's frontmatter.
 """
 
@@ -45,24 +46,19 @@ _MAX_INDEXED_SNIPPETS = 5
 _MAX_FTS_TERMS = 8
 
 
+def _ordered_terms(text: str) -> list[str]:
+    """Alphanumeric words plus CJK unigrams and bigrams, each once, in the order they appear in ``text``."""
+    cleaned = text.lower()
+    found: list[tuple[int, int, str]] = [(m.start(), 0, m.group(0)) for m in _EN_NUM_PATTERN.finditer(cleaned)]
+    cjk_chars = [(i, c) for i, c in enumerate(cleaned) if "\u4e00" <= c <= "\u9fa5"]
+    found.extend((i, 1, c) for i, c in cjk_chars)
+    found.extend((i, 2, a + b) for (i, a), (_, b) in zip(cjk_chars, cjk_chars[1:], strict=False))
+    return list(dict.fromkeys(term for _, _, term in sorted(found)))
+
+
 def tokenize_text(text: str) -> set[str]:
     """Tokenize text into alphanumeric words and CJK unigrams + bigrams."""
-    if not text:
-        return set()
-    cleaned = text.lower()
-    tokens: set[str] = set()
-
-    # 1. Alphanumeric tokens (words/numbers)
-    for match in _EN_NUM_PATTERN.finditer(cleaned):
-        tokens.add(match.group(0))
-
-    # 2. CJK characters + 2-grams
-    cjk_chars = [c for c in cleaned if "\u4e00" <= c <= "\u9fa5"]
-    tokens.update(cjk_chars)
-    for i in range(len(cjk_chars) - 1):
-        tokens.add(cjk_chars[i] + cjk_chars[i + 1])
-
-    return tokens
+    return set(_ordered_terms(text))
 
 
 def calculate_jaccard_similarity(text_a: str, text_b: str) -> float:
@@ -106,9 +102,11 @@ def truncate_snippet_text(text: str, max_chars: int = 200) -> str:
     return truncated + "…"
 
 
-def _fts_match_query(query: str, match_terms: set[str]) -> str:
-    """Tolerant FTS5 query: OR of the alphanumeric terms and CJK bigrams, else the harness tokenizer's output."""
-    safe_terms = [t for t in match_terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))]
+def _fts_match_query(query: str, terms: list[str]) -> str:
+    """Tolerant FTS5 query: OR of the first ``_MAX_FTS_TERMS`` alphanumeric terms and CJK bigrams of ``terms``
+    (in the order they appear in the query, so one query always gives one match expression), else the harness
+    tokenizer's output."""
+    safe_terms = [t for t in terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))]
     if safe_terms:
         return " OR ".join(f'"{t}"' for t in safe_terms[:_MAX_FTS_TERMS])
     return tokenize_for_fts(query)
@@ -259,17 +257,17 @@ async def resolve_proactive_snippets_from_vaults(
         if not vault_path.exists() or not vault_path.is_dir():
             return found
 
-        terms = tokenize_text(trimmed_query)
+        terms = _ordered_terms(trimmed_query)
         if not terms:
             return found
 
-        match_terms = {t for t in terms if len(t) >= 2} or terms
+        match_terms = {t for t in terms if len(t) >= 2} or set(terms)
 
         # ── Tier 1: SQLite FTS5 index-first retrieval (O(1) ms latency) ──
         db_path = vault_path / ".wiki_index.db"
         if db_path.is_file():
             try:
-                fts_query = _fts_match_query(trimmed_query, match_terms)
+                fts_query = _fts_match_query(trimmed_query, terms)
                 if fts_query.strip():
                     found = _indexed_snippets(vault_path, label, fts_query, match_terms)
                 if found:
