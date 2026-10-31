@@ -1,0 +1,175 @@
+"""
+[INPUT]
+- app.services.skills.growth.lifecycle::process_skill_review_result (POS: unified entry for a background review result)
+- app.core.skills.runtime_metadata::skill_to_runtime_metadata (POS: the name a skill is listed under for the agent runtime)
+- app.api.skills.drafts::approve_skill_draft (POS: approval of a held draft)
+- tests.api.skills.conftest (POS: primary local skills directory moved to a temporary one, real local scan)
+[OUTPUT]
+- Tests that a review result finds the skill it names whether it carries the skill's directory name, its listed name
+  or the name from its SKILL.md, that the lock and the approval act on that skill, that two skills a name cannot tell
+  apart are not guessed between, and that a name no directory can have is recorded and not dropped.
+[POS]
+The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
+pipeline keeps, locks and patches skills by directory. The names are built by the product's own adapter and the skills
+come from the real local scan, so a mismatch between the two is what these tests would catch.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from app.api.skills.drafts import ApproveDraftRequest, approve_skill_draft
+from app.core.skills.providers.local import compute_local_skill_id
+from app.core.skills.runtime_metadata import skill_to_runtime_metadata
+from app.core.skills.store.service import skills_service
+from app.services.skills.growth.case_types import SkillGrowthCaseDetailRead, SkillGrowthCaseStatus
+from app.services.skills.growth.lifecycle import process_skill_review_result
+from app.services.skills.growth.queries import get_skill_growth_case_detail
+
+PATCH = "<<<<<<< SEARCH\n1. Old behavior\n=======\n1. New behavior\n>>>>>>> REPLACE"
+
+
+def _write_skill(root: Path, dir_name: str, *, name: str | None = None, locked: bool = False) -> Path:
+    directory = root / dir_name
+    directory.mkdir(parents=True)
+    lock = "evolution_locked: true\n" if locked else ""
+    (directory / "SKILL.md").write_text(
+        f"---\nname: {name or dir_name}\ndescription: Build the weekly report.\n{lock}---\n\n## Steps\n1. Old behavior\n",
+        encoding="utf-8",
+    )
+    return directory
+
+
+async def _listed_name(directory: Path) -> str:
+    """The name the agent runtime lists the skill in ``directory`` under, built by the product's own adapter."""
+    page = await skills_service.get_skill(compute_local_skill_id(directory))
+    assert page is not None
+    return skill_to_runtime_metadata(page).name
+
+
+def _review(kind: str, skill_name: str) -> dict[str, object]:
+    return {
+        "has_value": True,
+        "user_id": "growth_user_reference",
+        "type": kind,
+        "skill_name": skill_name,
+        "skill_description": "Build the weekly report.",
+        "trigger_condition": "When the user asks for the weekly report.",
+        "skill_steps": "1. Build the report.",
+        "content": PATCH if kind == "skill_patch" else "1. Build the report.",
+    }
+
+
+def _skill_dirs(root: Path) -> list[str]:
+    return sorted(path.name for path in root.iterdir() if path.is_dir())
+
+
+async def _recorded(result: dict[str, object]) -> SkillGrowthCaseDetailRead:
+    draft = await process_skill_review_result(result)
+    assert draft is not None
+    detail = await get_skill_growth_case_detail(f"draft:{draft.id}")
+    assert detail is not None
+    return detail
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("dir_name", ["report-builder", "plain"])
+async def test_a_patch_for_a_locked_skill_is_blocked_under_the_name_the_reviewer_saw(
+    mock_local_skills_dir: Path, dir_name: str
+) -> None:
+    directory = _write_skill(mock_local_skills_dir, dir_name, locked=True)
+    seen = await _listed_name(directory)
+    assert seen != dir_name
+
+    detail = await _recorded(_review("skill_patch", seen))
+
+    assert detail.status == SkillGrowthCaseStatus.BLOCKED_LOCKED
+    assert detail.reason_code == "evolution_locked"
+    assert detail.skill_name == dir_name
+
+
+@pytest.mark.asyncio
+async def test_a_patch_under_the_name_the_reviewer_saw_lands_on_that_skill_when_approved(
+    mock_local_skills_dir: Path,
+) -> None:
+    directory = _write_skill(mock_local_skills_dir, "report-builder")
+    seen = await _listed_name(directory)
+
+    detail = await _recorded(_review("skill_patch", seen))
+
+    assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert detail.skill_name == "report-builder"
+    approved = await approve_skill_draft(detail.id.removeprefix("draft:"), ApproveDraftRequest())
+    assert approved["materialized"] is True
+    assert "1. New behavior" in (directory / "SKILL.md").read_text(encoding="utf-8")
+    assert _skill_dirs(mock_local_skills_dir) == ["report-builder"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("named", ["report_builder_skill", "report-builder"], ids=["listed-name", "skill-md-name"])
+async def test_a_skill_whose_directory_is_not_its_name_is_found_by_either_name(mock_local_skills_dir: Path, named: str) -> None:
+    directory = _write_skill(mock_local_skills_dir, "rb", name="report-builder", locked=True)
+    assert await _listed_name(directory) == "report_builder_skill"
+
+    detail = await _recorded(_review("skill_patch", named))
+
+    assert detail.status == SkillGrowthCaseStatus.BLOCKED_LOCKED
+    assert detail.skill_name == "rb"
+
+
+@pytest.mark.asyncio
+async def test_a_skill_kept_behind_a_link_goes_by_the_name_of_its_entry(mock_local_skills_dir: Path, tmp_path: Path) -> None:
+    target = _write_skill(tmp_path / "elsewhere", "actual-dir", name="report-builder", locked=True)
+    try:
+        (mock_local_skills_dir / "linked").symlink_to(target, target_is_directory=True)
+    except OSError:
+        pytest.skip("the file system does not allow links")
+
+    detail = await _recorded(_review("skill_patch", "report_builder_skill"))
+
+    assert detail.status == SkillGrowthCaseStatus.BLOCKED_LOCKED
+    assert detail.skill_name == "linked"
+
+
+@pytest.mark.asyncio
+async def test_skills_a_name_cannot_tell_apart_are_not_guessed_between(mock_local_skills_dir: Path) -> None:
+    first = _write_skill(mock_local_skills_dir, "foo-bar", locked=True)
+    second = _write_skill(mock_local_skills_dir, "foo_bar")
+    assert await _listed_name(first) == await _listed_name(second) == "foo_bar_skill"
+
+    ambiguous = await _recorded(_review("skill_patch", "foo_bar_skill"))
+    exact = await _recorded(_review("skill_patch", "foo-bar"))
+
+    assert ambiguous.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert ambiguous.skill_name == "foo_bar_skill"
+    assert exact.status == SkillGrowthCaseStatus.BLOCKED_LOCKED
+
+
+@pytest.mark.asyncio
+async def test_a_new_skill_under_the_listed_name_of_an_existing_one_is_held_and_not_created_beside_it(
+    mock_local_skills_dir: Path,
+) -> None:
+    directory = _write_skill(mock_local_skills_dir, "report-builder")
+    seen = await _listed_name(directory)
+
+    detail = await _recorded(_review("skill_draft", seen))
+
+    assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert detail.skill_name == seen
+    assert _skill_dirs(mock_local_skills_dir) == ["report-builder"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("result_type", "reason_code"), [("skill_patch", None), ("skill_draft", "apply_failed")], ids=["patch", "draft"]
+)
+async def test_a_skill_name_longer_than_a_directory_name_can_be_is_recorded_not_dropped(
+    mock_local_skills_dir: Path, result_type: str, reason_code: str | None
+) -> None:
+    detail = await _recorded(_review(result_type, "a" * 300))
+
+    assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert detail.reason_code == reason_code
+    assert _skill_dirs(mock_local_skills_dir) == []

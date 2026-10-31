@@ -9,11 +9,11 @@
 
 from __future__ import annotations
 
-import errno
 import json
 import logging
 import mimetypes
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import (
@@ -35,6 +35,7 @@ from ..creation.service import skill_creation_service
 from ..models import Skill, SkillType
 from ..providers.local import LocalSkillsProvider, compute_local_skill_id, is_sandbox_mode
 from . import reader
+from .local_lookup import local_skill_dir_listed_as, local_skill_dir_named
 from .user_config import UserSkillConfigManager
 
 logger = logging.getLogger(__name__)
@@ -176,25 +177,21 @@ class SkillsService:
 
         return skill
 
-    async def get_local_skill_by_dir_name(self, dir_name: str) -> Skill | None:
-        """The local skill kept in the primary skills directory under ``dir_name``, ``None`` when there is none.
+    async def find_local_skill_dir(self, ref: str) -> Path | None:
+        """The directory in the primary skills directory of the skill ``ref`` names, ``None`` when there is none.
 
-        Directory names are not held to the skill-name convention. An empty name, ``..`` and a name of more than one
-        path component are refused: they would name no directory below the skills directory, or one outside it. A
-        name longer than a directory entry can be is no skill either; any other file system error is raised, because
-        the growth lifecycle takes a missing skill for one that is not locked.
+        ``ref`` is a directory name, which is how the growth audit and the draft pipeline keep skills, or a name the
+        skill is known by: the one a background review is shown, or the one in its SKILL.md. A directory of that
+        name wins; the names are read only when there is none, off the event loop.
         """
-        if not dir_name or dir_name == ".." or Path(dir_name).name != dir_name:
-            return None
-        skill_dir = skill_creation_service.base_path / dir_name
-        try:
-            has_skill_md = (skill_dir / SKILL_MD_FILE).is_file()
-        except OSError as exc:
-            if exc.errno != errno.ENAMETOOLONG:
-                raise
-            return None
-        if not has_skill_md:
-            return None
+        skills_root = skill_creation_service.base_path
+        skill_dir = local_skill_dir_named(skills_root, ref)
+        if skill_dir is None:
+            skill_dir = await reader.scan_off_loop(partial(local_skill_dir_listed_as, skills_root, ref))
+        return skill_dir
+
+    async def get_local_skill(self, skill_dir: Path) -> Skill | None:
+        """The Skills page skill kept in ``skill_dir``."""
         return await self.get_skill(compute_local_skill_id(skill_dir))
 
     async def list_skills(

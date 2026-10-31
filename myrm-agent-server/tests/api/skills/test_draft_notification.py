@@ -28,35 +28,6 @@ async def cleanup_rows() -> None:
         await db.commit()
 
 
-@pytest.fixture
-def mock_local_skills_dir(tmp_path: Path) -> Path:
-    import app.api.skills.sync as sync_module
-    import app.core.skills.models as models_module
-    from app.core.skills.creation.service import skill_creation_service
-    from app.core.skills.store.service import skills_service
-
-    test_path = tmp_path / "skills"
-    test_path.mkdir(parents=True, exist_ok=True)
-
-    original_path = skill_creation_service.base_path
-    original_default_paths = models_module.DEFAULT_LOCAL_SKILL_PATHS.copy()
-    original_local_skills = skills_service._local_skills
-
-    skill_creation_service.base_path = test_path
-    sync_module.LOCAL_SKILLS_DIR = test_path
-    models_module.DEFAULT_LOCAL_SKILL_PATHS.clear()
-    models_module.DEFAULT_LOCAL_SKILL_PATHS.append(str(test_path))
-    skills_service._local_skills = None
-
-    yield test_path
-
-    skill_creation_service.base_path = original_path
-    sync_module.LOCAL_SKILLS_DIR = original_path
-    models_module.DEFAULT_LOCAL_SKILL_PATHS.clear()
-    models_module.DEFAULT_LOCAL_SKILL_PATHS.extend(original_default_paths)
-    skills_service._local_skills = original_local_skills
-
-
 @pytest.mark.asyncio
 async def test_notify_skill_draft_patch_and_security(
     mock_local_skills_dir: Path,

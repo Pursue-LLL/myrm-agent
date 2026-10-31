@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
-- app.core.skills.store.service::skills_service (POS: Skill store service; finds the existing local skill of a draft by its directory name)
+- app.core.skills.store.service::skills_service (POS: Skill store service; finds the existing local skill a review result names, by directory name or by a name it is known by)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
 - ..auto_extractor::auto_extract_skill, render_skill_draft_markdown (POS: 技能物化辅助器)
 - ..draft_notification (POS: 技能成长记录持久化)
@@ -100,7 +100,13 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
         logger.warning("Skill growth lifecycle skipped: missing skill_name")
         return None
 
-    existing_skill = await skills_service.get_local_skill_by_dir_name(skill_name)
+    # The reviewer names a skill by the name the agent runtime lists it under; the pipeline from here on keeps,
+    # previews and applies a patch by the directory of the skill it patches.
+    skill_dir = await skills_service.find_local_skill_dir(skill_name)
+    existing_skill = await skills_service.get_local_skill(skill_dir) if skill_dir is not None else None
+    if skill_dir is not None and result_type == "skill_patch":
+        skill_name = skill_dir.name
+        result = {**result, "skill_name": skill_name}
     is_locked = existing_skill is not None and existing_skill.evolution_locked
 
     if is_locked:
