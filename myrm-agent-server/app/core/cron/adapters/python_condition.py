@@ -15,7 +15,8 @@ Runs a user-provided Python script in an isolated subprocess before a job and re
   stops it through the caller on a deadline or a cancel.)
 - toolkits.code_execution.session.process_tree::kill_process_tree (POS: Stops a process and its whole tree, escalating from
   terminate to kill after a grace period.)
-- utils.os_compat::IS_WIN, get_process_group_kwargs (POS: Unified abstractions for POSIX/Windows differences.)
+- utils.os_compat::IS_WIN, get_process_group_kwargs, kill_spawned_group (POS: Unified abstractions for POSIX/Windows
+  differences.)
 
 [OUTPUT]
 - SandboxedPythonCondition: Executes Python scripts in a sandboxed subprocess.
@@ -41,7 +42,7 @@ from myrm_agent_harness.api import (
 from myrm_agent_harness.toolkits.code_execution.session.process_tree import kill_process_tree
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightCondition, PreFlightConditionError
 from myrm_agent_harness.toolkits.cron.types import CronJob
-from myrm_agent_harness.utils.os_compat import IS_WIN, get_process_group_kwargs
+from myrm_agent_harness.utils.os_compat import IS_WIN, get_process_group_kwargs, kill_spawned_group
 
 logger = logging.getLogger(__name__)
 
@@ -122,14 +123,11 @@ class SandboxedPythonCondition(PreFlightCondition):
                 **get_process_group_kwargs(),
             )
             # A deadline or a cancel only stops the wait: the script and what it started keep running, and a
-            # descendant holding the pipes would keep `wait()` from returning. The group signal reaches what the
-            # script left in its group, and the process tree read before signalling reaches what moved to another
-            # session. Not found: a process that left the group and was adopted by init, one that ignores the
-            # polite signal and holds none of the pipes, and what a script that already exited left behind.
+            # descendant holding the pipes would keep `wait()` from returning.
             output = await communicate_bounded(
                 proc,
                 timeout=self.timeout_seconds,
-                on_abort=lambda: kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS),
+                on_abort=lambda: _stop_script(proc),
                 max_bytes=_MAX_OUTPUT_BYTES,
             )
             return _ScriptRun(
@@ -141,6 +139,19 @@ class SandboxedPythonCondition(PreFlightCondition):
         finally:
             if script_path is not None:
                 script_path.unlink(missing_ok=True)
+
+
+async def _stop_script(proc: asyncio.subprocess.Process) -> None:
+    """Stop the script and everything it started, also when the script exited first.
+
+    The process tree is read from the script, so it reaches what moved to another session while the script ran, and it
+    asks everything to stop before forcing it. It reaches nothing once the script has exited, and a background command
+    that ignores the polite signal outlives it. Both are still in the script's process group, which is named after the
+    script's pid, so the group is killed last. Not found: a process that left the group and was adopted by init before
+    the stop.
+    """
+    await kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS)
+    kill_spawned_group(proc.pid)
 
 
 def _read_verdict(stdout: str) -> tuple[bool, str]:

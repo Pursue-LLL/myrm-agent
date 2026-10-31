@@ -3,7 +3,8 @@
 Validates script execution, SKIP signals, context injection, that a script which cannot reach a verdict
 (crash, timeout, cannot start) raises ``PreFlightConditionError`` (only a verdict of "skip" returns False), and
 that a deadline or a cancel stops the script together with its children, those in a session of their own,
-and its background commands, even while it writes without end, and that output over 5 MiB fails the run.
+its background commands (also one that ignores the polite signal) and what it left running after it exited, even
+while it writes without end, and that output over 5 MiB fails the run.
 """
 
 import asyncio
@@ -37,6 +38,17 @@ def _is_running(pid: int) -> bool:
         return bool(psutil.Process(pid).status() != psutil.STATUS_ZOMBIE)
     except psutil.NoSuchProcess:
         return False
+
+
+async def _stops_running(pid: int, within: float = 2.0) -> bool:
+    """Whether the process stops running within `within` seconds: SIGKILL is delivered asynchronously, so a process
+    that was just killed can still be listed for a few milliseconds."""
+    deadline = time.monotonic() + within
+    while _is_running(pid):
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(0.01)
+    return True
 
 
 @pytest.mark.asyncio
@@ -133,14 +145,21 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
     # Each child reports its pid and would run for 30 s, ten times the deadline.
     child = tmp_path / "child.py"
     child.write_text("import os, sys, time\nopen(sys.argv[1], 'w').write(str(os.getpid()))\ntime.sleep(30)\n")
+    stubborn = tmp_path / "stubborn.py"
+    stubborn.write_text(
+        "import os, signal, sys, time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "open(sys.argv[1], 'w').write(str(os.getpid()))\ntime.sleep(30)\n"
+    )
 
-    def argv(pid_file: Path) -> list[str]:
-        return [sys.executable, str(child), str(pid_file)]
+    def argv(pid_file: Path, program: Path = child) -> list[str]:
+        return [sys.executable, str(program), str(pid_file)]
 
     # How scripts run commands: `subprocess.run` and `os.system` hand the child the script's own output pipes, a child
     # that starts a session of its own is out of the script's process group, and a command sent to the background
-    # is adopted by init once the shell that started it exits, while the script keeps running. A script that never
-    # stops writing is stopped while its pipes are still being emptied.
+    # is adopted by init once the shell that started it exits, while the script keeps running. A script that
+    # exits right after starting a child leaves it running with the script's pipes, and a background command
+    # may ignore the polite signal and hold no pipe. A script that never stops writing is stopped while its pipes are
+    # still being emptied.
     scripts = {
         "subprocess.run": lambda p: f"import subprocess\nsubprocess.run({argv(p)!r})\n",
         "os.system": lambda p: f"import os\nos.system({shlex.join(argv(p))!r})\n",
@@ -148,6 +167,10 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
             f"import subprocess, time\nsubprocess.Popen({argv(p)!r}, start_new_session=True)\ntime.sleep(60)\n"
         ),
         "background": lambda p: f"import os, time\nos.system({shlex.join(argv(p)) + ' &'!r})\ntime.sleep(60)\n",
+        "exited": lambda p: f"import subprocess\nsubprocess.Popen({argv(p)!r})\n",
+        "ignores-sigterm": lambda p: (
+            f"import os, time\nos.system({shlex.join(argv(p, stubborn)) + ' >/dev/null 2>&1 &'!r})\ntime.sleep(60)\n"
+        ),
         "flood": lambda p: (
             f"import os, sys\nopen({str(p)!r}, 'w').write(str(os.getpid()))\nwhile True:\n    sys.stdout.write('x' * 1023 + '\\n')\n"
         ),
@@ -164,7 +187,7 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
 
     for name, seconds in elapsed.items():
         assert seconds < 10, f"{name}: returned after {seconds:.1f}s against a 3s deadline"
-        assert not _is_running(int(pid_files[name].read_text())), f"{name}: the child is still running"
+        assert await _stops_running(int(pid_files[name].read_text())), f"{name}: the child is still running"
 
 
 @pytest.mark.asyncio
