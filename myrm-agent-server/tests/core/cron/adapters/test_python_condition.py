@@ -13,12 +13,13 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import psutil
 import pytest
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
 
+from app.core.cron.adapters import python_condition
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
 
 # The documented limit on what a script may write; the adapter fails the run past it.
@@ -202,6 +203,27 @@ async def test_a_cancelled_probe_stops_its_script(tmp_path: Path) -> None:
     with pytest.raises(asyncio.CancelledError):
         await task
     assert not _is_running(int(pid_file.read_text()))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("on_windows", [False, True], ids=["posix", "windows"])
+async def test_the_group_sweep_runs_only_where_the_group_is_named_after_the_script(
+    on_windows: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Windows has no group named after the script's pid: there `kill_spawned_group` runs `taskkill` on the pid, which
+    # needs the script to still exist, and the tree stop has just ended it.
+    stop_tree, sweep = AsyncMock(), MagicMock()
+    monkeypatch.setattr(python_condition, "IS_WIN", on_windows)
+    monkeypatch.setattr(python_condition, "kill_process_tree", stop_tree)
+    monkeypatch.setattr(python_condition, "kill_spawned_group", sweep)
+
+    await python_condition._stop_script(MagicMock(pid=4242))
+
+    stop_tree.assert_awaited_once()
+    if on_windows:
+        sweep.assert_not_called()
+    else:
+        sweep.assert_called_once_with(4242)
 
 
 @pytest.mark.asyncio

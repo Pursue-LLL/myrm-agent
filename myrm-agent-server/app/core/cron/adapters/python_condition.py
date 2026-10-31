@@ -50,8 +50,10 @@ logger = logging.getLogger(__name__)
 _MAX_REASON_CHARS = 300
 # Bounds the masking work on a very long line.
 _MAX_RAW_CHARS = 1000
-# A probe has no state to flush: after the deadline or a cancel the script and the processes stopped with it get this
+# A probe has no state to flush: after the deadline or a cancel, the script and what is in its process tree get this
 # long to stop on a polite signal and as long again after the forced kill, so the extra wait is at most twice this.
+# A background command that init has adopted is in no tree: it gets the group's polite signal, and the group kill
+# ends it as soon as the script is gone, so it has no time to act on it.
 _KILL_GRACE_SECONDS = 1.0
 # What the script wrote becomes the job's prompt or its delivered text, so a script that fills this much is broken. It
 # fails the run instead of being cut: the verdict is the last line, which a cut would drop.
@@ -148,10 +150,12 @@ async def _stop_script(proc: asyncio.subprocess.Process) -> None:
     asks everything to stop before forcing it. It reaches nothing once the script has exited, and a background command
     that ignores the polite signal outlives it. Both are still in the script's process group, which is named after the
     script's pid, so the group is killed last. Not found: a process that left the group and was adopted by init before
-    the stop.
+    the stop. Windows has no such group, and its group stop needs the script to still exist, so the tree stop is all
+    there is there.
     """
     await kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS)
-    kill_spawned_group(proc.pid)
+    if not IS_WIN:
+        kill_spawned_group(proc.pid)
 
 
 def _read_verdict(stdout: str) -> tuple[bool, str]:
