@@ -22,6 +22,7 @@ commands it sends.
 from __future__ import annotations
 
 import email
+import email.header
 import email.message
 import importlib
 import json
@@ -43,6 +44,10 @@ def message(skill_modules: None) -> ModuleType:
         pytest.param("=?utf-8?b?5Y+R56Wo?=", "发票", id="base64-word"),
         pytest.param("=?utf-8?b?A?=", "=?utf-8?b?A?=", id="malformed-base64-is-returned-as-written"),
         pytest.param("=?x-unknown?b?QQ==?=", "A", id="unknown-charset-is-read-as-utf-8"),
+        pytest.param("Re: =?utf-8?b?5Y+R56Wo?=", "Re: 发票", id="text-before-an-encoded-word"),
+        pytest.param("=?utf-8?b?5Y+R56Wo?= <eve@example.test>", "发票 <eve@example.test>", id="encoded-name-before-an-address"),
+        pytest.param("=?utf-8?b?5Y+R56Wo?=.pdf", "发票.pdf", id="text-glued-to-an-encoded-word"),
+        pytest.param("=?utf-8?q?a?= =?iso-8859-1?q?b?=", "ab", id="space-between-two-encoded-words-is-dropped"),
     ],
 )
 def test_a_header_is_decoded_and_an_unusable_one_does_not_raise(message: ModuleType, raw: str | None, text: str) -> None:
@@ -119,3 +124,48 @@ def test_a_header_with_raw_utf_8_bytes_is_summarized_as_text(
     written = json.loads(json.dumps(summary, ensure_ascii=False))
     if text is not None:
         assert written[field] == text
+
+
+@pytest.mark.parametrize("stored", ["<a@x.test>", "<a@x.test>\r\n <b@x.test>"], ids=["one-id", "folded-list"])
+def test_ids_that_are_plain_ascii_are_returned_as_they_are(message: ModuleType, stored: str) -> None:
+    value = email.message_from_bytes(f"References: {stored}\r\n\r\n".encode())["References"]
+
+    assert message.ascii_msg_ids(value) == value
+
+
+@pytest.mark.parametrize(
+    ("stored", "ids"),
+    [
+        pytest.param(None, "", id="missing"),
+        pytest.param("<发票@x.test>", "", id="the-only-id"),
+        pytest.param("<a@x.test> <发票@x.test> <b@x.test>", "<a@x.test> <b@x.test>", id="one-of-three"),
+    ],
+)
+def test_an_id_with_raw_utf_8_bytes_is_left_out(message: ModuleType, stored: str | None, ids: str) -> None:
+    """A threading header holds ids, not encoded words, so an id the parser hands over as a ``Header`` is dropped."""
+    value = None if stored is None else email.message_from_bytes(f"References: {stored}\r\n\r\n".encode())["References"]
+    assert stored is None or isinstance(value, email.header.Header)
+
+    assert message.ascii_msg_ids(value) == ids
+
+
+@pytest.mark.parametrize(
+    ("headers", "name"),
+    [
+        pytest.param([], "attachment", id="no-name"),
+        pytest.param(['Content-Disposition: attachment; filename="a.pdf"'], "a.pdf", id="plain"),
+        pytest.param(["Content-Disposition: attachment; filename*=UTF-8''%E5%8F%91%E7%A5%A8.pdf"], "发票.pdf", id="rfc-2231"),
+        pytest.param(['Content-Disposition: attachment; filename="=?utf-8?b?5Y+R56Wo?=.pdf"'], "发票.pdf", id="rfc-2047"),
+        pytest.param(['Content-Disposition: attachment; filename="发票.pdf"'], "发票.pdf", id="raw-utf-8-disposition"),
+        pytest.param(['Content-Type: application/pdf; name="发票.pdf"'], "发票.pdf", id="raw-utf-8-type-name"),
+        pytest.param(
+            ['Content-Type: application/pdf; name="x.pdf"', 'Content-Disposition: attachment; filename="发票.pdf"'],
+            "发票.pdf",
+            id="the-disposition-comes-first",
+        ),
+    ],
+)
+def test_an_attachment_is_named_by_its_disposition_or_its_type(message: ModuleType, headers: list[str], name: str) -> None:
+    raw = "".join(f"{line}\r\n" for line in headers).encode() + b"\r\nbody"
+
+    assert message.attachment_filename(email.message_from_bytes(raw)) == name

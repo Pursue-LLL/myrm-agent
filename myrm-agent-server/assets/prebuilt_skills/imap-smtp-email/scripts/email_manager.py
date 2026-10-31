@@ -7,10 +7,11 @@
 - Process env EMAIL_IMAP_PORT (default 993), EMAIL_SMTP_PORT (default 587)
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 - mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
-- mail_client.message: MIME header, date, summary and body decoding
+- mail_client.message: MIME header, date, summary, attachment name and body decoding
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
+- download never overwrites: a name that is taken, in the output directory or by an earlier attachment, gets a ``-1``, ``-2`` suffix
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. This file holds the
@@ -23,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import email as email_lib
+import email.message
 import email.mime.multipart
 import email.mime.text
 import email.utils
@@ -33,7 +35,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from mail_client.message import decode_header, extract_body, message_summary
+from mail_client.message import ascii_msg_ids, attachment_filename, decode_header, extract_body, message_summary
 from mail_client.transport import (
     connect_imap,
     deliver,
@@ -93,6 +95,30 @@ def _fetch_headers(conn: imaplib.IMAP4_SSL, criteria: str, limit: int) -> None:
     print(json.dumps({"messages": messages, "total": len(uids)}, ensure_ascii=False, indent=2))
 
 
+def _fetch_message(conn: imaplib.IMAP4_SSL, uid: int) -> email.message.Message:
+    """The full message *uid* of the selected folder; the command fails when it is gone or empty."""
+    _status, data = conn.uid("fetch", str(uid), "(RFC822)")
+    if not data or not data[0] or not isinstance(data[0], tuple):
+        fail(f"Message UID {uid} not found")
+
+    raw = data[0][1]
+    if not isinstance(raw, bytes):
+        fail(f"Message UID {uid} has no content")
+
+    return email_lib.message_from_bytes(raw)
+
+
+def _free_path(directory: Path, name: str) -> Path:
+    """``name`` in *directory*, or ``stem-1.ext``, ``stem-2.ext`` ... when that file exists, so a download replaces nothing."""
+    path = directory / name
+    stem, suffix = path.stem, path.suffix
+    counter = 0
+    while path.exists():
+        counter += 1
+        path = directory / f"{stem}-{counter}{suffix}"
+    return path
+
+
 def cmd_check(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
@@ -144,15 +170,7 @@ def cmd_read(args: argparse.Namespace) -> None:
         folder = args.folder or "INBOX"
         select_folder(conn, folder, readonly=True)
 
-        _status, data = conn.uid("fetch", str(args.uid), "(RFC822)")
-        if not data or not data[0] or not isinstance(data[0], tuple):
-            fail(f"Message UID {args.uid} not found")
-
-        raw = data[0][1]
-        if not isinstance(raw, bytes):
-            fail(f"Message UID {args.uid} has no content")
-
-        msg = email_lib.message_from_bytes(raw)
+        msg = _fetch_message(conn, args.uid)
         summary = message_summary(msg, args.uid)
         summary["body"] = extract_body(msg)
 
@@ -161,11 +179,9 @@ def cmd_read(args: argparse.Namespace) -> None:
             for part in msg.walk():
                 disp = str(part.get("Content-Disposition", ""))
                 if "attachment" in disp:
-                    filename = part.get_filename() or "attachment"
-                    filename = decode_header(filename)
                     attachments.append(
                         {
-                            "filename": filename,
+                            "filename": attachment_filename(part),
                             "content_type": part.get_content_type(),
                         }
                     )
@@ -182,15 +198,7 @@ def cmd_download(args: argparse.Namespace) -> None:
         folder = args.folder or "INBOX"
         select_folder(conn, folder, readonly=True)
 
-        _status, data = conn.uid("fetch", str(args.uid), "(RFC822)")
-        if not data or not data[0] or not isinstance(data[0], tuple):
-            fail(f"Message UID {args.uid} not found")
-
-        raw = data[0][1]
-        if not isinstance(raw, bytes):
-            fail(f"Message UID {args.uid} has no content")
-
-        msg = email_lib.message_from_bytes(raw)
+        msg = _fetch_message(conn, args.uid)
         saved: list[dict[str, object]] = []
         output_dir = Path(args.output_dir or tempfile.gettempdir())
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -200,15 +208,14 @@ def cmd_download(args: argparse.Namespace) -> None:
             disp = str(part.get("Content-Disposition", ""))
             if "attachment" not in disp:
                 continue
-            filename = part.get_filename() or "attachment"
-            filename = decode_header(filename)
+            filename = attachment_filename(part)
             if target_filename and target_filename.lower() not in filename.lower():
                 continue
             file_data = part.get_payload(decode=True)
             if not isinstance(file_data, bytes):
                 continue
             safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
-            dest = output_dir / safe_name
+            dest = _free_path(output_dir, safe_name)
             dest.write_bytes(file_data)
             saved.append({"filename": filename, "path": str(dest), "size": len(file_data)})
 
@@ -242,15 +249,7 @@ def cmd_reply(args: argparse.Namespace) -> None:
         folder = args.folder or "INBOX"
         select_folder(conn, folder, readonly=True)
 
-        _status, data = conn.uid("fetch", str(args.uid), "(RFC822)")
-        if not data or not data[0] or not isinstance(data[0], tuple):
-            fail(f"Message UID {args.uid} not found")
-
-        raw = data[0][1]
-        if not isinstance(raw, bytes):
-            fail(f"Message UID {args.uid} has no content")
-
-        original = email_lib.message_from_bytes(raw)
+        original = _fetch_message(conn, args.uid)
     finally:
         conn.logout()
 
@@ -260,8 +259,8 @@ def cmd_reply(args: argparse.Namespace) -> None:
     subject = decode_header(original.get("Subject", ""))
     if not subject.startswith("Re:"):
         subject = f"Re: {subject}"
-    original_msg_id = original.get("Message-ID", "")
-    references = original.get("References", "")
+    original_msg_id = ascii_msg_ids(original.get("Message-ID", ""))
+    references = ascii_msg_ids(original.get("References", ""))
     if original_msg_id:
         references = f"{references} {original_msg_id}".strip()
 

@@ -7,6 +7,9 @@
 [OUTPUT]
 - listener_tls: server TLS context and the certificate file a client has to trust to accept it
 - skill_modules: ``email_manager`` and ``mail_client`` importable as they are when the script runs, forgotten afterwards
+- email_manager: the imported ``email_manager`` module of the imap-smtp-email script
+- outgoing_mail: the settings ``send`` and ``reply`` need, with delivery reduced to the serialization ``smtplib`` starts with;
+  yields the bytes of every message sent
 
 [POS]
 Shared fixtures of ``tests/assets``; the skill scripts run from their own directory, so a test that imports them
@@ -15,10 +18,12 @@ in process has to put that directory on ``sys.path`` and must not leave the modu
 
 from __future__ import annotations
 
+import importlib
 import ssl
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -42,3 +47,19 @@ def skill_modules(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     yield
     for name in [name for name in sys.modules if name.partition(".")[0] in _SKILL_MODULES]:
         del sys.modules[name]
+
+
+@pytest.fixture
+def email_manager(skill_modules: None) -> ModuleType:
+    return importlib.import_module("email_manager")
+
+
+@pytest.fixture
+def outgoing_mail(email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch) -> list[bytes]:
+    """Settings for ``send`` and ``reply``; ``deliver`` only serializes the message, as ``smtplib`` does first, and keeps the bytes."""
+    sent: list[bytes] = []
+    monkeypatch.setenv("EMAIL_IMAP_HOST", "imap.example.test")
+    monkeypatch.setenv("EMAIL_IMAP_USER", "agent@example.test")
+    monkeypatch.setenv("EMAIL_IMAP_PASSWORD", "secret")
+    monkeypatch.setattr(email_manager, "deliver", lambda msg, *_connection: sent.append(msg.as_bytes()))
+    return sent

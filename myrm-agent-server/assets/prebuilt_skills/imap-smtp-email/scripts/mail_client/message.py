@@ -4,9 +4,12 @@
 - email.message.Message objects parsed by the email_manager.py facade
 
 [OUTPUT]
-- decode_header: RFC 2047 header text as a plain string; a malformed encoded word is returned as written
+- decode_header: RFC 2047 header text as a plain string, spaced as RFC 2047 §6.2 reads it; a malformed encoded word is
+  returned as written
 - message_summary: uid, from, to, subject, date and message id of one message, each a plain string even when the header
   holds raw 8-bit bytes
+- ascii_msg_ids: the ids of a Message-ID or References value that a header can carry; one with raw 8-bit bytes is left out
+- attachment_filename: decoded file name of an attachment part from Content-Disposition or Content-Type, raw 8-bit or not
 - extract_body: plain-text body, falling back to HTML; a charset Python does not know is read as UTF-8
 
 [POS]
@@ -45,7 +48,32 @@ def decode_header(raw: str | email.header.Header | None) -> str:
             decoded.append(_to_text(part, charset))
         else:
             decoded.append(part)
-    return " ".join(decoded)
+    # The text next to an encoded word keeps its own spaces, and the spaces between two encoded words are already gone.
+    return "".join(decoded)
+
+
+def ascii_msg_ids(raw: str | email.header.Header | None) -> str:
+    """The ids of a Message-ID or References value that a header can carry; an id with raw 8-bit bytes is left out.
+
+    A threading header holds ids, not encoded words (RFC 2047 §5), so an id the parser hands over as a ``Header`` would be
+    written as an encoded word. A value that is plain ASCII is returned unchanged.
+    """
+    text = str(raw or "")
+    return text if text.isascii() else " ".join(token for token in text.split() if token.isascii())
+
+
+def attachment_filename(part: email.message.Message) -> str:
+    """Decoded file name of an attachment part, ``attachment`` when it names none.
+
+    The standard library reads a ``Header`` (raw 8-bit bytes) as replacement characters, so the two headers that can name
+    a file are decoded into a fresh message first.
+    """
+    names = email.message.Message()
+    for header in ("Content-Disposition", "Content-Type"):
+        value = part.get(header)
+        if value is not None:
+            names[header] = decode_header(value) if isinstance(value, email.header.Header) else value
+    return decode_header(names.get_filename() or "attachment")
 
 
 def _parse_date(raw: str | None) -> str:

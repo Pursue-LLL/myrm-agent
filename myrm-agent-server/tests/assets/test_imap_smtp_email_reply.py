@@ -1,0 +1,122 @@
+"""A reply sent by the imap-smtp-email skill script goes to the sender, threads on the message and keeps its subject.
+
+The message being answered is untrusted. A header with raw 8-bit bytes comes back from the parser as a ``Header`` object,
+not a ``str``, and a subject can hold encoded words next to plain text; the reply is written to a third party, so what
+it carries has to be a valid header either way.
+
+[INPUT]
+- assets/prebuilt_skills/imap-smtp-email/scripts: email_manager.py imported in process
+- tests/assets/conftest.py: the script import path and the settings ``reply`` needs
+- tests/support/email_skill_inprocess.py: the IMAP double and the in-process ``main``
+
+[OUTPUT]
+- Fails when a reply to a sender whose name is raw UTF-8 does not go to that sender's address, when an id with raw 8-bit
+  bytes is written into ``In-Reply-To`` or ``References`` or takes the ASCII ids with it, when the ids of a clean message
+  change, or when the subject of a reply changes its spacing
+
+[POS]
+In-process test of what ``reply`` sends, next to ``test_imap_smtp_email_failures.py``, which covers how it fails.
+"""
+
+from __future__ import annotations
+
+import email
+import email.header
+import email.message
+import json
+from types import ModuleType
+
+import pytest
+
+from tests.support.email_skill_inprocess import conn_serving, run_main
+
+_REPLY = ["reply", "--uid", "1", "--body", "b"]
+
+
+def _reply_to(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    stored: dict[str, str],
+) -> tuple[dict[str, str], email.message.Message]:
+    """Reply to a stored message with the headers *stored* added to defaults; the script's answer and the message it sent."""
+    headers = {"From": "eve@example.test", "Subject": "invoice", "Message-ID": "<1@example.test>", **stored}
+    raw = "".join(f"{name}: {value}\r\n" for name, value in headers.items()).encode() + b"\r\nbody\r\n"
+
+    run_main(email_manager, monkeypatch, conn_serving(raw), *_REPLY)
+
+    return json.loads(capsys.readouterr().out), email.message_from_bytes(outgoing_mail[0])
+
+
+@pytest.mark.parametrize(
+    "sender",
+    [
+        pytest.param({"From": "发票 <a@b.test>"}, id="from"),
+        pytest.param({"Reply-To": "发票 <a@b.test>"}, id="reply-to"),
+    ],
+)
+def test_a_reply_goes_to_the_address_of_a_sender_whose_name_is_raw_utf_8(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    sender: dict[str, str],
+) -> None:
+    """Raw UTF-8 in the header makes the parser return a ``Header`` object, which ``parseaddr`` cannot read as an address."""
+    answer, _sent = _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, sender)
+
+    assert answer["to"] == "a@b.test"
+
+
+@pytest.mark.parametrize(
+    ("stored", "in_reply_to", "references"),
+    [
+        pytest.param({"References": "<0@example.test>"}, "<1@example.test>", "<0@example.test> <1@example.test>", id="ascii-ids"),
+        pytest.param(
+            {"Message-ID": "<发票@example.test>", "References": "<0@example.test>"}, None, "<0@example.test>", id="message-id"
+        ),
+        pytest.param(
+            {"References": "<ok@example.test> <发票@example.test>"},
+            "<1@example.test>",
+            "<ok@example.test> <1@example.test>",
+            id="one-reference",
+        ),
+    ],
+)
+def test_a_reply_threads_on_the_ids_a_header_can_carry(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    stored: dict[str, str],
+    in_reply_to: str | None,
+    references: str,
+) -> None:
+    """An id with raw UTF-8 would be written as an encoded word, which a threading header must not hold (RFC 2047 §5)."""
+    _answer, sent = _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, stored)
+
+    assert sent.get("In-Reply-To") == in_reply_to
+    assert sent["References"] == references
+
+
+@pytest.mark.parametrize(
+    ("stored", "subject"),
+    [
+        pytest.param("=?UTF-8?B?5Y+R56Wo?=", "Re: 发票", id="encoded-word-only"),
+        pytest.param("Re: =?UTF-8?B?5Y+R56Wo?=", "Re: 发票", id="text-before-an-encoded-word"),
+        pytest.param("Fwd: =?UTF-8?B?5Y+R56Wo?= - 2026", "Re: Fwd: 发票 - 2026", id="encoded-word-between-text"),
+    ],
+)
+def test_the_subject_of_a_reply_keeps_the_spacing_of_the_subject_it_answers(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    stored: str,
+    subject: str,
+) -> None:
+    answer, sent = _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, {"Subject": stored})
+
+    assert answer["subject"] == subject
+    assert str(email.header.make_header(email.header.decode_header(sent["Subject"]))) == subject
