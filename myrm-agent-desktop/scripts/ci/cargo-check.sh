@@ -5,9 +5,10 @@ set -euo pipefail
 DESKTOP_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TAURI_DIR="$DESKTOP_ROOT/src-tauri"
 
-# This gate compiles and unit-tests the shell, it does not bundle. Dropping the declared resources keeps it
-# independent of the sidecar tree and the frontend build, which dedicated CI jobs produce.
-export TAURI_CONFIG='{"bundle":{"resources":[]}}'
+# This gate compiles and unit-tests the shell, it does not bundle. Dropping the declared resources and the
+# external binary keeps it independent of the sidecar tree, the frontend build and the Node.js runtime, which
+# dedicated CI jobs produce.
+export TAURI_CONFIG='{"bundle":{"resources":[],"externalBin":[]}}'
 
 cd "$TAURI_DIR"
 cargo check --locked
@@ -21,6 +22,7 @@ cargo check --locked
 #   utils::protocol_page               custom-protocol page primitives
 #   runtime::product_origin            product page origin and URL building
 #   runtime::sidecar_path              sidecar entry-point lookup in the bundled resource folder
+#   runtime::node_runtime              bundled Node.js lookup next to the app executable
 #   app::chain                         shipped tauri.conf.json is accepted by every plugin (in-process
 #                                      boot with the real context) and the shell-open link scope
 #   ipc_security::acl_tests            window x origin x command ACL contract (in-process, real
@@ -30,7 +32,7 @@ cargo check --locked
 #   app::setup                         which windows the app-level window policy governs
 cargo test --locked -- config::tests commands::privacy_curtain commands::visual_approval_overlay \
   commands::pet_surface commands::session_window utils::protocol_page runtime::product_origin \
-  runtime::sidecar_path app::chain ipc_security::acl_tests \
+  runtime::sidecar_path runtime::node_runtime app::chain ipc_security::acl_tests \
   ipc_security::tests::build_manifest_commands_are_covered_by_policy \
   ipc_security::tests::command_registry app::setup --nocapture
 

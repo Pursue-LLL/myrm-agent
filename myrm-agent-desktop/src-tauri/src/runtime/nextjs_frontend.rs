@@ -2,6 +2,7 @@
 //!
 //! [INPUT]
 //! - config::FrontendConfig (POS: webui_port 与 standalone 资源路径)
+//! - runtime::node_runtime::bundled_node (POS: 运行 standalone 的随包 Node)
 //! - runtime::port::is_port_in_use (POS: 启动前端端口冲突检测)
 //! - runtime::TOXIC_ENV_VARS (POS: 子进程环境清洗)
 //!
@@ -17,6 +18,7 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
 use crate::config::FrontendConfig;
+use crate::runtime::node_runtime::bundled_node;
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::survivor_diag::{diagnose_and_reclaim_port, SurvivorDiagResult};
 use crate::runtime::TOXIC_ENV_VARS;
@@ -126,13 +128,10 @@ pub async fn start_frontend(
     // 确保 Next.js Standalone 内部的 API 代理目标端口与当前后端一致（自愈补丁）
     patch_standalone_rewrites(&nextjs_dir, config.api_port);
 
-    let node_exe = if cfg!(target_os = "windows") {
-        "node.exe"
-    } else {
-        "node"
-    };
+    let node = bundled_node()?;
+    println!("📦 Node.js runtime: {node:?}");
 
-    let mut cmd = Command::new(node_exe);
+    let mut cmd = Command::new(&node);
 
     for var in TOXIC_ENV_VARS {
         cmd.env_remove(var);

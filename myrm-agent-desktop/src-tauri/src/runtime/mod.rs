@@ -19,6 +19,7 @@ pub mod child_reaper;
 mod frontend_watchdog;
 mod inline_input;
 pub mod nextjs_frontend;
+pub mod node_runtime;
 pub mod port;
 pub mod process_registry;
 mod product_origin;
@@ -137,6 +138,11 @@ pub const TOXIC_ENV_VARS: &[&str] = &[
     "SSLKEYLOGFILE",
     "GCONV_PATH",
 ];
+
+/// 随包可执行文件是否可用：普通文件且非空。0 字节文件是占位产物（git 占位 / CI stub），不是可运行的程序。
+pub(crate) fn is_non_empty_file(path: &std::path::Path) -> bool {
+    matches!(std::fs::metadata(path), Ok(meta) if meta.is_file() && meta.len() > 0)
+}
 
 /// Windows: 设置 CREATE_NO_WINDOW 标志防止子进程弹出控制台窗口
 #[allow(unused_variables)]

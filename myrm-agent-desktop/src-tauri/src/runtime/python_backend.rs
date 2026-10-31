@@ -4,14 +4,15 @@
 //! - config::BackendConfig, ConfigManager (POS: 桌面端系统配置与后端绑定端口)
 //! - runtime::port::is_port_in_use (POS: 启动前端口冲突检测)
 //! - runtime::python_backend_stop::graceful_stop_backend (POS: 后端优雅停机序列层)
-//! - runtime::sidecar_path::bundled_executable (POS: release sidecar 可执行文件定位)
+//! - runtime::sidecar_path::{bundled_executable, sidecar_workdir} (POS: release sidecar 可执行文件与工作目录定位)
 //!
 //! [OUTPUT]
 //! - start_backend / stop_backend / check_backend_health IPC
 //! - PythonBackend: Sidecar 子进程句柄
 //!
 //! [POS]
-//! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 目录树里的可执行文件，
+//! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`（工作目录为 server 根）；release 走 bundled sidecar
+//! 目录树里的可执行文件（工作目录为应用私有的可写目录，不继承外壳的启动目录），
 //! 启动后最多 `BACKEND_STARTUP_TIMEOUT` 轮询 `/health`；超时则终止子进程并返回 `Err`。
 //! 向 sidecar 注入帷幕状态桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、
 //! 壳进程身份 `MYRM_SHELL_PID` 与 spawn-time `MYRM_LOCKED_USE_ENABLED`（server 运行时以 runtime 文件为准）。
@@ -28,7 +29,7 @@ use uuid::Uuid;
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::python_backend_stop::graceful_stop_backend;
 use crate::runtime::setup_token::SetupTokenState;
-use crate::runtime::sidecar_path::bundled_executable;
+use crate::runtime::sidecar_path::{bundled_executable, sidecar_workdir};
 use crate::runtime::survivor_diag::{diagnose_and_reclaim_port, SurvivorDiagResult};
 use crate::runtime::TOXIC_ENV_VARS;
 use crate::utils::process_tree::kill_process_tree;
@@ -158,12 +159,15 @@ pub async fn start_backend_with_config(
         cmd
     } else {
         let launch_binary = bundled_executable(&app)?;
+        let workdir = sidecar_workdir(&app)?;
         println!(
-            "📦 Production mode: launching bundled sidecar {:?}",
-            launch_binary
+            "📦 Production mode: launching bundled sidecar {:?} in {:?}",
+            launch_binary, workdir
         );
 
-        Command::new(launch_binary)
+        let mut cmd = Command::new(launch_binary);
+        cmd.current_dir(workdir);
+        cmd
     };
 
     for var in TOXIC_ENV_VARS {

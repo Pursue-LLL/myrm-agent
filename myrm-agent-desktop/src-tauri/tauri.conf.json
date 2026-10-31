@@ -18,6 +18,9 @@
       "../../myrm-agent-frontend/.next/static/": "frontend/.next/static",
       "../../myrm-agent-frontend/public/": "frontend/public"
     },
+    "externalBin": [
+      "binaries/myrm-node"
+    ],
     "icon": [
       "icons/icon.png",
       "icons/icon.ico",

@@ -32,9 +32,14 @@ python sidecar/build.py
 # 2. Next standalone（Tauri bundle 资源）
 bash scripts/build-frontend.sh
 
-# 3. Tauri 开发（自动拉起 frontend dev server）
+# 3. Node.js 运行时（Tauri externalBin：壳用它启动内置 Next；版本与 SHA-256 钉在 scripts/node_runtime.json，下载一次即可）
+python scripts/fetch_node_runtime.py
+
+# 4. Tauri 开发（自动拉起 frontend dev server）
 cd src-tauri && cargo tauri dev
 ```
+
+缺第 3 步时 `tauri-build` 会因找不到 `binaries/myrm-node-<目标三元组>` 而编译失败。
 
 Sidecar 对照见 [_ARCH.md](_ARCH.md) § Sidecar 对照表。
 

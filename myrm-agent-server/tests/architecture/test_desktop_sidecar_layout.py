@@ -3,8 +3,8 @@
 The sidecar ships as a PyInstaller one-folder tree, mapped by Tauri to the resource
 ``binaries/myrmagent-backend/``. On Linux the same tree is placed under ``usr/share`` of the AppImage
 instead, because linuxdeploy resolves and rewrites every ELF file below ``usr/lib``. The build script,
-the Tauri resource map, the Rust resolver, the CI smoke scripts and the release workflow must agree on
-that layout; this test pins them together so a one-sided change fails here instead of in a release build.
+the Tauri resource map, the Rust resolver and the release workflow must agree on that layout; this test
+pins them together so a one-sided change fails here instead of in a release build.
 """
 
 from __future__ import annotations
@@ -12,8 +12,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import socket
-import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -37,7 +35,6 @@ from tests.support.desktop_release import (
     sidecar_build_module,
 )
 
-_SMOKE_SH = CI_SCRIPTS / "smoke-launch-runtime.sh"
 _EXPORT_APPLE_ENV_SH = CI_SCRIPTS / "export-apple-signing-env.sh"
 
 # Leftovers of the removed layouts: triple-named single-file sidecar, agent-runner sidecar, the
@@ -111,6 +108,17 @@ def test_rust_resolver_constants_match_the_build_layout(build_module: ModuleType
     assert share_dir is not None
     appimage_files = cast("dict[str, dict[str, dict[str, str]]]", bundle_config("linux")["linux"])["appimage"]["files"]
     assert all(dest.startswith(f"usr/{share_dir.group(1)}/") for dest in appimage_files)
+
+
+def test_the_release_shell_gives_the_sidecar_its_own_working_directory() -> None:
+    # The backend creates its `.myrm/` state directories in its working directory while it is imported. A child that
+    # inherits the shell's directory gets `/` when Finder launches the app and the read-only `usr` directory of the
+    # image when AppRun does, and exits at startup.
+    source = (DESKTOP / "src-tauri/src/runtime/python_backend.rs").read_text(encoding="utf-8")
+    release_branch = source.split("bundled_executable(&app)?", 1)[1].split("\n    };", 1)[0]
+
+    assert "sidecar_workdir(&app)?" in release_branch
+    assert ".current_dir(" in release_branch
 
 
 def test_no_removed_sidecar_layout_remains_in_build_and_ci_files() -> None:
@@ -205,172 +213,3 @@ def test_only_tag_runs_publish_to_a_release() -> None:
         for step in release_steps(job_id):
             if "gh release upload" in str(step.get("run", "")):
                 assert step.get("if") == "github.ref_type == 'tag'", f"{job_id}: upload must be tag-only"
-
-
-def test_every_platform_job_smokes_the_built_bundle() -> None:
-    def runs(job_id: str) -> str:
-        return "\n".join(str(step.get("run", "")) for step in release_steps(job_id))
-
-    assert "smoke-launch-runtime.sh --bundle " in runs("build-macos-arm")
-    assert "smoke-launch-runtime.ps1 -BundleDir" in runs("build-windows")
-    assert "smoke-launch-runtime.sh --bundle " in runs("build-linux")
-
-
-def test_extracted_bundles_are_smoked_read_only() -> None:
-    # The backend must live with an install directory it cannot write to (a mounted AppImage, a translocated .app).
-    for job_id in ("build-macos-arm", "build-linux"):
-        extracted_runs = [
-            str(step["run"])
-            for step in release_steps(job_id)
-            if 'smoke-launch-runtime.sh --bundle "$EXTRACTED' in str(step.get("run", ""))
-        ]
-        assert extracted_runs, f"{job_id}: no smoke of an extracted bundle"
-        for run in extracted_runs:
-            assert "chmod -R a-w" in run, f"{job_id}: the extracted bundle must be read-only during the smoke"
-            assert run.index("chmod -R a-w") < run.index("smoke-launch-runtime.sh"), job_id
-
-
-def _free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
-
-
-_HEALTH_SERVER = f"""#!{sys.executable}
-import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"ok")
-
-    def log_message(self, *args):
-        pass
-
-
-HTTPServer(("127.0.0.1", int(os.environ["PORT"])), Handler).serve_forever()
-"""
-
-
-# Proportions of a real bundle: the backend executable is far larger than the Next server.js, so the
-# size threshold that rejects a placeholder backend must not be applied to server.js.
-_BACKEND_BYTES = 32_768
-_SERVER_JS_BYTES = 8_192
-_MIN_BINARY_BYTES = 16_384
-
-
-def _padded(body: str, size: int) -> str:
-    return body + "#" * max(0, size - len(body))
-
-
-def _write_executable(path: Path, body: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(body, encoding="utf-8")
-    path.chmod(path.stat().st_mode | stat.S_IXUSR)
-
-
-def _make_bundle(
-    root: Path,
-    *,
-    internal_dir: bool = True,
-    executable: bool = True,
-    backend_bytes: int = _BACKEND_BYTES,
-    appimage_layout: bool = False,
-) -> Path:
-    if appimage_layout:
-        # The sidecar tree sits in usr/share (linuxdeploy rewrites usr/lib); the frontend stays a resource in usr/lib.
-        bundle = root / "squashfs-root"
-        sidecar_root = bundle / "usr/share/MyrmAgent"
-        frontend_root = bundle / "usr/lib/MyrmAgent"
-    else:
-        bundle = root / "MyrmAgent.app"
-        sidecar_root = frontend_root = bundle / "Contents/Resources"
-    backend = sidecar_root / "binaries/myrmagent-backend/myrmagent-backend"
-    _write_executable(backend, _padded(_HEALTH_SERVER, backend_bytes))
-    if not executable:
-        backend.chmod(backend.stat().st_mode & ~(stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
-    if internal_dir:
-        (backend.parent / "_internal").mkdir()
-    (frontend_root / "frontend/app").mkdir(parents=True)
-    (frontend_root / "frontend/app/server.js").write_text(
-        _padded("// next standalone stand-in\n", _SERVER_JS_BYTES), encoding="utf-8"
-    )
-    return bundle
-
-
-def _run_smoke(bundle: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
-    # The frontend runs through `node server.js`; a stand-in `node` serves the same health response.
-    fake_bin = tmp_path / "fake-bin"
-    _write_executable(fake_bin / "node", _HEALTH_SERVER)
-    env = {
-        **os.environ,
-        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
-        "API_PORT": str(_free_port()),
-        "WEBUI_PORT": str(_free_port()),
-        "READY_TIMEOUT_SEC": "30",
-        "MIN_BINARY_BYTES": str(_MIN_BINARY_BYTES),
-    }
-    return subprocess.run(
-        ["bash", str(_SMOKE_SH), "--bundle", str(bundle)],
-        cwd=REPO_ROOT,
-        env=env,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-
-
-@pytest.mark.skipif(sys.platform == "win32", reason="bash smoke script")
-class TestSmokeScriptOnAFolderBundle:
-    def test_starts_the_bundled_sidecar_and_frontend(self, tmp_path: Path) -> None:
-        completed = _run_smoke(_make_bundle(tmp_path), tmp_path)
-
-        assert completed.returncode == 0, completed.stdout + completed.stderr
-        assert "Backend /health ready" in completed.stdout
-        assert "[launch-smoke] OK" in completed.stdout
-
-    def test_starts_an_appimage_whose_sidecar_and_frontend_are_in_different_resource_dirs(self, tmp_path: Path) -> None:
-        completed = _run_smoke(_make_bundle(tmp_path, appimage_layout=True), tmp_path)
-
-        assert completed.returncode == 0, completed.stdout + completed.stderr
-        assert "[launch-smoke] OK" in completed.stdout
-
-    def test_reports_a_bundle_without_a_frontend(self, tmp_path: Path) -> None:
-        bundle = _make_bundle(tmp_path)
-        (bundle / "Contents/Resources/frontend/app/server.js").unlink()
-
-        completed = _run_smoke(bundle, tmp_path)
-
-        assert completed.returncode != 0
-        assert "server.js not found" in completed.stderr
-
-    def test_rejects_a_placeholder_sidecar(self, tmp_path: Path) -> None:
-        completed = _run_smoke(_make_bundle(tmp_path, backend_bytes=len(_HEALTH_SERVER)), tmp_path)
-
-        assert completed.returncode != 0
-        assert "looks like a stub" in completed.stderr
-
-    def test_rejects_a_sidecar_without_its_internal_folder(self, tmp_path: Path) -> None:
-        completed = _run_smoke(_make_bundle(tmp_path, internal_dir=False), tmp_path)
-
-        assert completed.returncode != 0
-        assert "not a one-folder build" in completed.stderr
-
-    def test_rejects_a_non_executable_sidecar(self, tmp_path: Path) -> None:
-        completed = _run_smoke(_make_bundle(tmp_path, executable=False), tmp_path)
-
-        assert completed.returncode != 0
-        assert "not executable" in completed.stderr
-
-    def test_rejects_a_bundle_with_two_sidecar_folders(self, tmp_path: Path) -> None:
-        bundle = _make_bundle(tmp_path)
-        (bundle / "Contents/Resources/nested/binaries/myrmagent-backend").mkdir(parents=True)
-
-        completed = _run_smoke(bundle, tmp_path)
-
-        assert completed.returncode != 0
-        assert "expected one binaries/myrmagent-backend folder" in completed.stderr

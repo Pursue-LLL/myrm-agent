@@ -219,7 +219,7 @@ def main() -> None:
     print("[OK] Sidecar build complete!")
     print("=" * 60)
     print(f"\nBackend: {SIDECAR_DIR}")
-    print("\nNext: cd myrm-agent-desktop && cargo tauri build")
+    print("\nNext: cd myrm-agent-desktop && python scripts/fetch_node_runtime.py && cargo tauri build")
 
 
 if __name__ == "__main__":

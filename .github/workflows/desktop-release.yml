@@ -79,6 +79,9 @@ jobs:
           arch: arm64
           rust-target: aarch64-apple-darwin
 
+      - name: Fetch Node.js runtime
+        run: python myrm-agent-desktop/scripts/fetch_node_runtime.py --target aarch64-apple-darwin
+
       - name: Export Apple signing env (only when configured)
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -106,7 +109,7 @@ jobs:
             echo "[launch-smoke] no .app bundle found under target/release/bundle/macos" >&2
             exit 1
           fi
-          bash scripts/ci/desktop-release/smoke-launch-runtime.sh --bundle "$APP"
+          python scripts/ci/desktop-release/smoke_launch_shell.py --bundle "$APP"
 
       - name: Launch runtime smoke (updater tarball)
         run: |
@@ -117,9 +120,14 @@ jobs:
           fi
           EXTRACTED="$(mktemp -d)"
           tar -xzf "$TARBALL" -C "$EXTRACTED"
-          # A translocated .app is read-only; so is the install directory the backend must live with.
+          APP="$(find "$EXTRACTED" -maxdepth 1 -name '*.app' -type d | head -1)"
+          if [[ -z "$APP" ]]; then
+            echo "[launch-smoke] the updater tarball holds no .app" >&2
+            exit 1
+          fi
+          # A translocated .app is read-only; so is the install directory the shell and its servers must live with.
           chmod -R a-w "$EXTRACTED"
-          bash scripts/ci/desktop-release/smoke-launch-runtime.sh --bundle "$EXTRACTED"
+          python scripts/ci/desktop-release/smoke_launch_shell.py --bundle "$APP"
 
       - name: Ensure updater bundle signatures
         env:
@@ -183,6 +191,9 @@ jobs:
         with:
           arch: x86_64
 
+      - name: Fetch Node.js runtime
+        run: python myrm-agent-desktop/scripts/fetch_node_runtime.py --target x86_64-pc-windows-msvc
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -205,7 +216,7 @@ jobs:
           $installDir = Join-Path $env:RUNNER_TEMP 'MyrmAgent-install'
           # /D must be the last argument and must not be quoted.
           Start-Process -FilePath $installer.FullName -ArgumentList '/S', "/D=$installDir" -Wait
-          ./scripts/ci/desktop-release/smoke-launch-runtime.ps1 -BundleDir $installDir
+          python scripts/ci/desktop-release/smoke_launch_shell.py --bundle "$installDir"
 
       - name: Ensure updater bundle signatures
         env:
@@ -244,13 +255,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       # libxdo-dev: enigo (synthetic keyboard input) links libxdo on Linux; without it the shell compiles but
-      # does not link.
+      # does not link. xvfb: the launch smoke starts the real shell, which needs a display.
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 \
-            build-essential curl wget file libssl-dev libxdo-dev
+            build-essential curl wget file libssl-dev libxdo-dev xvfb
 
       - name: Build desktop sidecar
         uses: ./.github/actions/build-sidecar
@@ -259,6 +270,9 @@ jobs:
 
       - name: Prune linuxmusl native packages from frontend standalone
         run: bash scripts/ci/desktop-release/prune-frontend-linuxmusl.sh
+
+      - name: Fetch Node.js runtime
+        run: python myrm-agent-desktop/scripts/fetch_node_runtime.py --target x86_64-unknown-linux-gnu
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
@@ -282,10 +296,10 @@ jobs:
           EXTRACTED="$(mktemp -d)"
           chmod +x "$APPIMAGE"
           (cd "$EXTRACTED" && "$APPIMAGE" --appimage-extract >/dev/null)
-          # A mounted AppImage is read-only: run the smoke the same way, so a backend that writes into its own
-          # install directory fails here instead of on a user's machine.
+          # A mounted AppImage is read-only: run the smoke the same way, so a shell or backend that writes into its
+          # own install directory fails here instead of on a user's machine.
           chmod -R a-w "$EXTRACTED/squashfs-root"
-          bash scripts/ci/desktop-release/smoke-launch-runtime.sh --bundle "$EXTRACTED/squashfs-root"
+          xvfb-run -a python scripts/ci/desktop-release/smoke_launch_shell.py --bundle "$EXTRACTED/squashfs-root"
 
       - name: Ensure updater bundle signatures
         env:

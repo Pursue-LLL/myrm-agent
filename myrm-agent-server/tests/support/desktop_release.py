@@ -2,12 +2,14 @@
 
 [INPUT]
 - myrm-agent-desktop/sidecar/build.py: the sidecar build script, imported as a module
+- myrm-agent-desktop/scripts/fetch_node_runtime.py: the Node.js runtime fetch script, imported as a module
+- scripts/ci/desktop-release/smoke_launch_shell.py: the packaged-shell launch smoke, imported as a module
 - .github/workflows/desktop-release*.yml: the release workflow and the repair workflow, parsed into job and step mappings
 - .github/actions/*/action.yml: the local composite actions the release jobs call
 
 [OUTPUT]
 - REPO_ROOT / DESKTOP / FRONTEND / CI_SCRIPTS / WORKFLOWS / ACTIONS / TAURI_CONF: locations inside the OSS repo
-- sidecar_build_module(): `sidecar/build.py`, imported once
+- sidecar_build_module() / fetch_node_runtime_module() / smoke_launch_shell_module(): those scripts, each imported once
 - workflow_jobs(): the jobs of one workflow file
 - release_jobs() / release_steps(): the release workflow's jobs, and the steps of one job as written
 - expanded_release_steps(): the steps of one job with every local composite action replaced by its own steps
@@ -21,6 +23,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from functools import cache
 from pathlib import Path
 from types import ModuleType
@@ -41,13 +44,29 @@ TAURI_CONF = DESKTOP / "src-tauri/tauri.conf.json"
 Platform = Literal["macos", "windows", "linux"]
 
 
-@cache
-def sidecar_build_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("desktop_sidecar_build", DESKTOP / "sidecar/build.py")
+def _import_script(name: str, path: Path) -> ModuleType:
+    """Import a script that is not on the package path; `dataclass` resolves annotations through `sys.modules`."""
+    spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
+
+
+@cache
+def sidecar_build_module() -> ModuleType:
+    return _import_script("desktop_sidecar_build", DESKTOP / "sidecar/build.py")
+
+
+@cache
+def fetch_node_runtime_module() -> ModuleType:
+    return _import_script("desktop_fetch_node_runtime", DESKTOP / "scripts/fetch_node_runtime.py")
+
+
+@cache
+def smoke_launch_shell_module() -> ModuleType:
+    return _import_script("desktop_smoke_launch_shell", CI_SCRIPTS / "smoke_launch_shell.py")
 
 
 def workflow_jobs(name: str) -> dict[str, YamlMapping]:
