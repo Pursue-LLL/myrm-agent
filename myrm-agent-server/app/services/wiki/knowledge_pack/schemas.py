@@ -25,7 +25,6 @@ class RelevantSnippet:
     article_title: str
     snippet: str
     confidence: float
-    source_path: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -33,7 +32,6 @@ class RelevantSnippet:
             "article_title": self.article_title,
             "snippet": self.snippet,
             "confidence": self.confidence,
-            "source_path": self.source_path,
         }
 
 

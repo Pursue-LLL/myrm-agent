@@ -65,38 +65,6 @@ class TestFormatProactivePack:
         assert block is not None
         assert "[Knowledge Base | StandaloneDoc] Direct content" in block
 
-    def test_verified_claims_lead_with_a_verified_label_and_others_with_a_claim_label(self) -> None:
-        snippets = [
-            {
-                "kb_name": "KB",
-                "article_title": "A",
-                "snippet": "text a",
-                "claim_text": "limit is 650",
-                "claim_status": "Verified",
-            },
-            {
-                "kb_name": "KB",
-                "article_title": "B",
-                "snippet": "text b",
-                "claim_text": "limit is 700",
-                "claim_status": "disputed",
-            },
-        ]
-
-        block = format_proactive_pack({"snippets": snippets})
-
-        assert block is not None
-        assert "[KB | A | Verified: limit is 650] text a" in block
-        assert "[KB | B | Claim: limit is 700] text b" in block
-
-    def test_a_claim_without_snippet_text_still_renders(self) -> None:
-        block = format_proactive_pack(
-            {"snippets": [{"kb_name": "KB", "article_title": "A", "claim_text": "limit is 650"}]}
-        )
-
-        assert block is not None
-        assert "- [KB | A | Claim: limit is 650]" in block
-
     @pytest.mark.parametrize(
         "pack",
         [

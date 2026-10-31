@@ -137,18 +137,12 @@ def _best_paragraph(title: str, text: str, terms: Sequence[str]) -> tuple[str, f
     return best, best_score
 
 
-def _page_snippet(label: str, title: str, body: str, terms: Sequence[str], source_path: Path) -> RelevantSnippet | None:
+def _page_snippet(label: str, title: str, body: str, terms: Sequence[str]) -> RelevantSnippet | None:
     """The snippet a page gives: its best paragraph, or None when no paragraph of it answers the question."""
     paragraph, confidence = _best_paragraph(title, body, terms)
     if not paragraph:
         return None
-    return RelevantSnippet(
-        kb_name=label,
-        article_title=title,
-        snippet=paragraph,
-        confidence=confidence,
-        source_path=str(source_path),
-    )
+    return RelevantSnippet(kb_name=label, article_title=title, snippet=paragraph, confidence=confidence)
 
 
 def _inside_vault(path: Path, vault_path: Path) -> bool:
@@ -178,7 +172,7 @@ def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequen
     found: list[RelevantSnippet] = []
     for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_SNIPPETS):
         body = _indexed_page_body(vault_path, concept_name, indexed_text)
-        snippet = _page_snippet(label, concept_name, body, terms, db_path)
+        snippet = _page_snippet(label, concept_name, body, terms)
         if snippet:
             found.append(snippet)
     return found
@@ -196,7 +190,7 @@ def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> li
     for md_file in md_files:
         if not _inside_vault(md_file, vault_path):
             continue
-        snippet = _page_snippet(label, md_file.stem, _published_page_body(md_file), terms, md_file)
+        snippet = _page_snippet(label, md_file.stem, _published_page_body(md_file), terms)
         if snippet:
             found.append(snippet)
     return found
@@ -260,7 +254,6 @@ class KnowledgePackSelector:
                     article_title=candidate.article_title,
                     snippet=truncated_text,
                     confidence=candidate.confidence,
-                    source_path=candidate.source_path,
                 )
             )
 

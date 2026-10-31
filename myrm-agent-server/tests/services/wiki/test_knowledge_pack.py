@@ -7,7 +7,7 @@
 - tests.support.knowledge_pack_vaults::make_vault (POS: shared vault fixtures of the knowledge-pack tests)
 
 [OUTPUT]
-- Unit test suite verifying Jaccard dedup, hard budget truncation (600 chars), timeout fallback, vault scanning,
+- Unit test suite verifying Jaccard dedup, hard budget truncation (default and custom), timeout fallback, vault scanning,
   and that draft/blocked pages and page frontmatter never reach an injected snippet.
 
 [POS]
@@ -74,7 +74,7 @@ def test_truncate_snippet_text() -> None:
 
 
 def test_selector_deduplication_and_budget() -> None:
-    """Verify selector caps snippets at 3, enforces 600 chars total, and drops duplicates."""
+    """Verify a custom budget (3 snippets, 400 characters in total) is enforced and duplicates are dropped."""
     cfg = KnowledgePackConfig(
         max_snippets=3,
         max_chars_per_snippet=150,
@@ -134,6 +134,32 @@ def test_selector_deduplication_and_budget() -> None:
     assert res.total_chars <= 400
     assert res.is_truncated is True
     assert res.source_count >= 2
+
+
+def test_default_selector_enforces_the_published_budget() -> None:
+    """The selector production runs with (no config) keeps at most 3 snippets of at most 200 characters, 600 in total."""
+    sentences = [
+        "员工出差在深圳的住宿限额为每晚六百五十元，必须提前提交审批。",
+        "所有对外接口统一封装为信封模型，禁止直接抛出裸异常信息。",
+        "生产环境发布安排在周二或周四下午，通过灰度流水线完成金丝雀验证。",
+        "代码仓库禁止硬编码任何密钥凭证，必须从保密存储中读取。",
+        "客户数据导出前必须脱敏并记录审计日志，之后才能发送给第三方。",
+    ]
+    short = [
+        RelevantSnippet(kb_name="KB", article_title=f"Page{index}", snippet=sentence, confidence=0.9 - index / 100)
+        for index, sentence in enumerate(sentences)
+    ]
+    long = [
+        RelevantSnippet(kb_name="KB", article_title=f"Page{index}", snippet=sentence * 8, confidence=0.9 - index / 100)
+        for index, sentence in enumerate(sentences)
+    ]
+
+    by_count = KnowledgePackSelector().select(short)
+    by_length = KnowledgePackSelector().select(long)
+
+    assert len(by_count.snippets) == 3
+    assert all(len(snippet.snippet) <= 200 for snippet in by_length.snippets)
+    assert by_length.total_chars <= 600
 
 
 @pytest.mark.asyncio

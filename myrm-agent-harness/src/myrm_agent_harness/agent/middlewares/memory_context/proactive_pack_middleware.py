@@ -53,21 +53,8 @@ def format_proactive_pack(pack: Mapping[str, object]) -> str | None:
         kb_name = sanitize(str(snippet.get("kb_name", "Knowledge Base")))
         title = sanitize(str(snippet.get("article_title", "General")))
         snippet_text = sanitize(str(snippet.get("snippet", "")))
-        claim_text = sanitize(str(snippet.get("claim_text", "")).strip())
-        claim_status = str(snippet.get("claim_status", "")).strip().lower()
-
-        # Verified claims lead with a "Verified" label so the model weighs them above plain excerpts.
-        if claim_text and claim_status in ("verified", "supported"):
-            prefix = f"[{kb_name} | {title} | Verified: {claim_text}]"
-        elif claim_text:
-            prefix = f"[{kb_name} | {title} | Claim: {claim_text}]"
-        else:
-            prefix = f"[{kb_name} | {title}]"
-
         if snippet_text:
-            items.append(f"{prefix} {snippet_text}")
-        elif claim_text:
-            items.append(prefix)
+            items.append(f"[{kb_name} | {title}] {snippet_text}")
 
     if not items:
         return None
