@@ -4,6 +4,7 @@
 - draft_service::WeChatDraftService (POS: draft publishing)
 - wechat_api_client::WeChatOfficialApiClient (POS: token client)
 - ConfigService (credential loading)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - POST /wechat-official/test: credential connectivity test

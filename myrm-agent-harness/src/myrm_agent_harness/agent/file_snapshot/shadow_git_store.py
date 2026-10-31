@@ -1,12 +1,11 @@
 """Shadow Git snapshot store — workspace versioning via an isolated bare repo.
 
-All git operations use GIT_DIR + GIT_WORK_TREE + GIT_INDEX_FILE environment
-variables to isolate the shadow store from the user's repository. The user's
-.git, .gitignore, and git config are never touched.
+All git operations use GIT_DIR + GIT_WORK_TREE + GIT_INDEX_FILE environment variables to isolate the shadow
+store from the user's repository. The user's .git, .gitignore, and git config are never touched.
 
 Storage layout (single shared store, git objects deduplicated across projects):
 
-    {MYRM_DATA_DIR}/file_snapshots/
+    <state root>/file_snapshots/
         store/                          — shared bare-ish git repo
             HEAD, config, objects/      — standard git internals (shared)
             refs/myrm/<hash16>          — per-project branch tip
@@ -16,6 +15,7 @@ Storage layout (single shared store, git objects deduplicated across projects):
 
 [INPUT]
 shadow_git_maintenance::ShadowGitMaintenance (POS: Maintenance mixin for pruning, repair, workspace validation.)
+infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 ShadowGitSnapshotStore: Shadow Git-backed file snapshot store with env-variable isolation.

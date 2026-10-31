@@ -24,3 +24,4 @@ Wiki vault 域子包 — 路径 SSOT、生命周期、导出与 git 钩子。
 - `myrm_agent_harness.toolkits.wiki.core.structure` — `WikiStructure` (POS: vault paths)
 - `app.services.wiki.obsidian.export` — `build_obsidian_vault_zip` (POS: Obsidian vault ZIP presets)
 - `app.core.cron` — vault git snapshot 定时触发
+- `myrm_agent_harness.api::resolve_data_dir` — 状态根（`resolver.py` 的 legacy 沙箱 wiki 目录）

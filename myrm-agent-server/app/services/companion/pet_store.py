@@ -1,8 +1,9 @@
 """On-disk Petdex pet install store for Companion sprite overlays.
 
 [INPUT]
-- MYRM_DATA_DIR companion pets directory (POS: local pet install root)
+- <state root>/companion/pets directory (POS: local pet install root)
 - pet.json manifest + spritesheet assets (POS: installed pet payload)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - PetStore: list/install/remove installed pets for WebUI Companion
@@ -10,7 +11,7 @@
 [POS]
 Server persistence for GUI Petdex installs; mirrors Hermes pet store boundaries without CLI coupling.
 
-Pets live under ``{MYRM_DATA_DIR}/companion/pets/<slug>/`` with ``pet.json`` and
+Pets live under ``<state root>/companion/pets/<slug>/`` with ``pet.json`` and
 a local spritesheet copy. Mirrors Hermes ``agent/pet/store.py`` boundaries
 (profile-scoped disk, petdex host pinning) without CLI/npm coupling.
 """

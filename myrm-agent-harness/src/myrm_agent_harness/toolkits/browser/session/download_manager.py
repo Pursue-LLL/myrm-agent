@@ -2,6 +2,7 @@
 
 [INPUT]
 - patchright.async_api::Page, Download (POS: Patchright page and download objects)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - DownloadManager: file download manager

@@ -5,14 +5,14 @@ explicitly resumed. State is persisted to a JSON file so it survives
 process restarts. Active streams are cancelled by the server layer on activate.
 
 [INPUT]
-- MYRM_DATA_DIR (optional infra env): persistent data root; default ~/.myrm
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - EStopLevel: None / ToolFreeze / KillAll (KillAll reserved for fail-closed reads)
 - EStopState: current state snapshot (frozen dataclass)
 - EStopGuard: global singleton managing the stop state
 - check_estop(): fast-path check for middleware integration
-- Default state file: `{MYRM_DATA_DIR or ~/.myrm}/.estop_state.json`
+- Default state file: `<state root>/.estop_state.json`
 
 [POS]
 Global guard. Checked as the very first step in tool_interceptor_middleware.

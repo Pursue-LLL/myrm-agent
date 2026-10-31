@@ -54,4 +54,5 @@ Browser session components.
 ## Key Dependencies
 
 - `core`
+- `infra.data_dir` (state root of the downloads directory)
 - `toolkits/browser/pool` (`BrowserEngine`, engine affinity store, `camoufox_availability` readiness gate for engine switches)

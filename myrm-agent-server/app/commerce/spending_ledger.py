@@ -1,10 +1,11 @@
 """Spending Ledger Models and Tamper-Evident Storage for Agent Commerce.
 
 [INPUT]
-- json, os, threading, time: Python 标准库
+- json, threading, time: Python 标准库
 - datetime::datetime, timezone
 - pydantic::BaseModel, Field
 - typing::Literal
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - SpendingLedgerEntry: 单笔消费流水明细模型

@@ -75,7 +75,7 @@ class AgentCard:
 
 @dataclass
 class RegistryEntry:
-    """Persistent on-disk peer registration entry (~/.myrm/coms/projects/<project>/agents/<name>.json)."""
+    """Persistent on-disk peer registration entry (<state root>/coms/projects/<project>/agents/<name>.json)."""
 
     session_id: str
     name: str

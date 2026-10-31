@@ -22,3 +22,4 @@ Framework-level self-inspection and health-check protocol. Supports structured i
 ## Key Dependencies
 
 - `toolkits` (via probes — vector, retriever, web_search, llms)
+- `infra.data_dir` (probes: the state root under the storage and database health checks)

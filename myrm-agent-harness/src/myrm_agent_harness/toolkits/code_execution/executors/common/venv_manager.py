@@ -5,6 +5,7 @@ Manages shared virtual environment creation, initialization, and pip command rew
 [INPUT]
 - toolkits.code_execution.config::ExecutionConfig (POS: Code execution configuration layer. Defines execution modes, network policies, and runtime settings for the Agent-in-Sandbox architecture.)
 - core.security.redact::command_preview (POS: masked, cut command for a log line)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - VenvManager: Shared virtual environment manager (lazy create, pip rewrite, crash-safe discard).
@@ -32,9 +33,7 @@ logger = logging.getLogger(__name__)
 def _get_default_venv_path() -> Path:
     """Resolve the default shared virtual environment path.
 
-    Priority:
-    1. MYRM_DATA_DIR environment variable + /venvs
-    2. ~/.myrm/venvs (default)
+    Lives at ``<state root>/venvs``; the state root is MYRM_DATA_DIR, default ``~/.myrm``.
     """
     return resolve_data_dir().resolve() / "venvs"
 

@@ -1,12 +1,13 @@
 """Shared SQLite checkpointer for subagents.
 
 [INPUT]
-- MYRM_DATA_DIR / CHECKPOINTER_MODE / SUBAGENT_CHECKPOINT_DB_PATH env vars
+- CHECKPOINTER_MODE / SUBAGENT_CHECKPOINT_DB_PATH env vars
 - langgraph.checkpoint.base::BaseCheckpointSaver
 - langgraph.checkpoint.sqlite.aio::AsyncSqliteSaver
 - langgraph.checkpoint.memory::InMemorySaver
 - myrm_agent_harness.runtime.checkpointing.factory::PickleSerde
 - myrm_agent_harness.utils.db.sqlite::DEFAULT, harden_connection_async
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - get_subagent_checkpointer: shared checkpointer singleton (SubagentSqliteCheckpointer or InMemorySaver)
@@ -31,7 +32,7 @@ message history stays in its own thread and never pollutes the parent thread
 (see SUB_AGENT_SYSTEM.md §7).
 
 Persistence & Resilience:
-- Defaults to SQLite on persistent volume ({MYRM_DATA_DIR}/subagent_checkpoints.sqlite).
+- Defaults to SQLite on persistent volume (<state root>/subagent_checkpoints.sqlite).
 - Falls back to InMemorySaver when CHECKPOINTER_MODE=memory.
 - In test environments (PYTEST_CURRENT_TEST), defaults to an in-memory SQLite backend
   or isolated test directory to prevent state pollution.

@@ -27,3 +27,4 @@ Skill market module — search, install, update, and manage skills from external
 ## Key Dependencies
 
 - `backends`
+- `infra.data_dir` (state root of the skill install directory and the index cache)

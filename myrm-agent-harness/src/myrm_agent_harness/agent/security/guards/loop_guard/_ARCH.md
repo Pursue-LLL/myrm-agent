@@ -22,3 +22,4 @@ repetition. Provides WARN/BREAK verdicts with context-aware suggestions.
 ## Key Dependencies
 
 - `core/security` (indirectly, via parent guards)
+- `infra.data_dir` (state root of the optional statistics database)

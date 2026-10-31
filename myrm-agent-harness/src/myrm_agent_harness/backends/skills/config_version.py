@@ -2,14 +2,14 @@
 
 [INPUT]
 - myrm_agent_harness.infra.atomic_write::atomic_write (POS: Atomic file write with crash-consistency guarantee.)
-- MYRM_DATA_DIR (optional infra env): persistent data root; default ~/.myrm
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - bump_skill_config_version(): persist a monotonic version timestamp on Volume
 - get_skill_config_version(): read current version (0.0 if never changed)
 
 [POS]
-Framework-level skill config version tracker. Stored under MYRM_DATA_DIR so
+Framework-level skill config version tracker. Stored under the state root so
 API workers and long-lived agents in the same sandbox share invalidation state.
 """
 

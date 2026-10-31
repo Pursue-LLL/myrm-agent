@@ -1,17 +1,18 @@
-"""Persistent scan result cache using Volume storage.
+"""Persistent scan result cache under the Myrm state root.
 
 [INPUT]
 - scanner::ScanResult (POS: Skill content security scanner. Part of the framework's defense-in-depth. Trust attenuation is the hard limit (restricts tools), scanner is the soft detection layer (warns users and recommends trust levels). Detects 26 threat categories (108 patterns): prompt injection, command injection, credential exposure, data exfiltration, file system access, process operations, network access, screen/input capture, memory/config snooping, code injection, privilege escalation, environment manipulation, reflection/metaprogramming, deserialization attacks, log/audit tampering, scheduled task injection, container escape, memory manipulation, DNS tunneling, supply chain attacks, obfuscation, destructive operations, persistence mechanisms, path traversal, crypto mining, reverse shell, invisible unicode. Scan results influence SkillTrust level via SkillTrustRecommendation: Critical findings → REJECT High findings → UNTRUSTED Medium/Low findings → INSTALLED (normal install with attenuation) No findings → TRUSTED)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - ScanResultCache: Persistent cache for scan results
 
 [POS]
-Scan result cache layer. Stores scan results in Volume (~/.myrm/skill_scans/)
+Scan result cache layer. Stores scan results under the state root (<state root>/skill_scans/)
 to avoid redundant scanning. Critical for performance: 20x speedup for repeat scans.
 
 Cache key: SHA256 hash of skill content
-Cache location: ~/.myrm/skill_scans/{content_hash}.json
+Cache location: <state root>/skill_scans/{content_hash}.json
 Expiration: 60 days TTL (auto-cleanup on get)
 """
 
@@ -66,7 +67,7 @@ class ScanResultCache:
         """Initialize cache.
 
         Args:
-            cache_dir: Cache directory (default: ~/.myrm/skill_scans/)
+            cache_dir: Cache directory (default: <state root>/skill_scans/)
             ttl_days: Time-to-live in days (default: 60)
         """
         self.cache_dir = cache_dir or _DEFAULT_CACHE_DIR

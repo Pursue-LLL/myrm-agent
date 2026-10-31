@@ -5,9 +5,10 @@ Implements SkillMarketBackend protocol.
 
 [INPUT]
 - backends.skills.market_protocols::SkillInstallResult, (POS: SkillBackend SkillBackend SkillMarketBackend)
-- backends.skills.scanning::ScanFinding, (POS: Scan result cache layer. Stores scan results in Volume (~/.myrm/skill_scans/) to avoid redundant scanning. Critical for performance: 20x speedup for repeat scans. Cache key: SHA256 hash of skill content Cache location: ~/.myrm/skill_scans/{content_hash}.json Expiration: 60 days TTL (auto-cleanup on get))
+- backends.skills.scanning::ScanFinding, (POS: Scan result cache layer. Stores scan results under the state root (<state root>/skill_scans/) to avoid redundant scanning. Critical for performance: 20x speedup for repeat scans. Cache key: SHA256 hash of skill content Cache location: ~/.myrm/skill_scans/{content_hash}.json Expiration: 60 days TTL (auto-cleanup on get))
 - .file_install::install_skill_files, resolve_install_error (POS: The one install path for an in-memory file tree, and the mapping of install errors to codes)
 - .file_uninstall::uninstall_skill (POS: The one uninstall path, with cascade removal of a plugin's child skills)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - EnrichedSearchResult: Search result enriched with local installation info.

@@ -17,3 +17,4 @@ Agent Profile 业务域：统一配置解析、builtin 工具标志映射与配�
 
 - 父模块 [`agent/_ARCH.md`](../_ARCH.md)
 - `builtin_specs/builtin_tool_ids`（工具 ID 清单）
+- `myrm_agent_harness.api::resolve_data_dir` — 状态根（`profile_recovery_service.py` 取用户技能目录）

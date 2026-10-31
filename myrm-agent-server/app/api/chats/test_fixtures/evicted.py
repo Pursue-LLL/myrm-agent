@@ -6,6 +6,7 @@ app.services.agent.agent_service::AgentService (POS: agent list for seed scope)
 app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir (POS: workspace path)
 myrm_agent_harness.api.hooks::build_evicted_basename (POS: spill filename)
+myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 seed_evicted_live_terminal_fixture: UECD web_fetch spill + LiveTerminal progressSteps

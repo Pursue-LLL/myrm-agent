@@ -3,6 +3,7 @@
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: local-only route guard)
 - myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool::create_bash_code_execute_tool (POS: bash spawn)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - seed_shell_fixture: spawn a real harness background shell job on the live server registry

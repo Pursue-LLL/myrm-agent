@@ -21,5 +21,8 @@
 
 ## 依赖关系
 
+**依赖**：
+- `myrm_agent_harness.api::resolve_data_dir` — 状态根（`custom_source_config.py`）
+
 **被依赖**：
 - `app/api/skills/` — 技能 API

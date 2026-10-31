@@ -39,4 +39,5 @@ Detailed design: [BROWSER_SYSTEM.md](BROWSER_SYSTEM.md)
 
 - `core/security/credential_vault` — `fill_credential` resolves password/TOTP by label (secrets never in LLM context)
 - `core/security/guards/ssrf`, `core/security/audit`, `core/security/detection/content_boundary`
+- `infra.data_dir` (state root of the recording logs)
 - Optional extra `[browser]`: `patchright`, `camoufox` (version floor pinned in `pyproject.toml`; the ~1.2 GB browser build is a separate manual install, see `pool/camoufox_availability.py`), `orjson` (`session_vault/__init__.py`, `session/session_persistence.py`)

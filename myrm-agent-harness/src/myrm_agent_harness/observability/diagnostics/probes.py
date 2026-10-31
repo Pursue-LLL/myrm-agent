@@ -1,5 +1,6 @@
 """[INPUT]
 - toolkits.retriever.bm25::get_tokenizer_service (POS: Unified tokenization service for CJK/English)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - check_network_health: Verify outbound DNS resolution and TLS connectivity.

@@ -2,7 +2,7 @@
 
 Remembers which browser engine worked for a given domain so subsequent
 sessions skip the probe-and-upgrade cycle.  Storage is a lightweight JSON
-file under ``MYRM_DATA_DIR`` with in-memory LRU caching.
+file under the state root with in-memory LRU caching.
 
 Write path:  BrowserSession records ``domain → engine`` after a successful
              engine upgrade (e.g. Chromium → CAMOUFOX).
@@ -13,6 +13,7 @@ Invalidation: entries expire after ``_DEFAULT_TTL_DAYS``; a failed
 
 [INPUT]
 - .config::BrowserEngine (POS: browser engine enum)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - get_engine_affinity_store: module-level singleton accessor

@@ -3,6 +3,7 @@
 [INPUT]
 - memory.threshold_strategy::{AdaptiveThresholdStrategy, CountBasedThresholdStrategy} (POS: library-size dependent
   similarity threshold)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - RecallMode: Controls how memory context is delivered to the agent.

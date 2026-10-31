@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.config.settings::DatabaseSettings (POS: workspace layout and database connection parameters)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - resolve_wiki_vault_path(): agent-scoped wiki base directory

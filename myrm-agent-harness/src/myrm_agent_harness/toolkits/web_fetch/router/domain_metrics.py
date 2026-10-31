@@ -7,13 +7,13 @@ Responsibilities:
 
 Architecture:
 - Framework layer adapts to deployment scenarios via parameter injection
-- Local deployment: ~/.myrm/domain_metrics.json
-- Per-user cloud sandbox: /workspace/.myrm/domain_metrics.json
+- Local deployment: <state root>/domain_metrics.json; per-user cloud sandbox: /workspace/.myrm/domain_metrics.json
 - Per-task cloud sandbox: /tmp/domain_metrics.json (isolated) or /mnt/shared/ (shared)
 
 [INPUT]
 - infra.delivery.storage_metrics::MonitoredStorageCallback (POS: StorageProvider)
 - toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all storage backends. Supports file read/write, delete, list, and info query. Method names use read/write (not get/put).)
+- infra.data_dir::resolve_workspace_state_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - DomainMetricsManager: Domain-level learning metrics manager.

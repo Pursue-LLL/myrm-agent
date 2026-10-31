@@ -70,7 +70,7 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
 | `CHECKPOINTER_MODE` | (空) | 强制指定模式：`memory`/`sqlite`（空 = sqlite） |
 | `DEPLOY_MODE` | `local` | 部署模式：`local`/`tauri`/`sandbox` |
 | `MYRM_ALLOW_LOCAL_SKILLS` | (空/自动) | 显式控制本地技能持久化权限：`0`/`1`（默认 local 与 sandbox 自动允许） |
-| `MYRM_DATA_DIR` | `~/.myrm` | 数据根目录；`data.db` / `checkpoints.db` / `qdrant` / `.estop_state.json` 等由此派生 |
+| `MYRM_DATA_DIR` | `~/.myrm` | 数据根目录（状态根）；`data.db` / `checkpoints.db` / `qdrant` / `.estop_state.json` 等由此派生；其余 Myrm 自有路径经 harness `resolve_data_dir()` 解析 |
 | `DATABASE_URL` | (无) | 可选：PostgreSQL + AGE 图存储（默认 SQLite 图存储） |
 
 ---

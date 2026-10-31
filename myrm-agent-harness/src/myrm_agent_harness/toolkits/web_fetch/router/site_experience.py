@@ -12,6 +12,7 @@ Architecture:
 
 [INPUT]
 - (none)
+- infra.data_dir::resolve_workspace_state_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - SiteExperience: Site experience for a single domain (includes `prefer_http3` for L1 QUIC routing)

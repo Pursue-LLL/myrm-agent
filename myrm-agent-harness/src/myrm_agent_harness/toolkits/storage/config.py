@@ -3,15 +3,16 @@
 
 [INPUT]
 - dataclasses::dataclass (POS: Python dataclass)
-- os, pathlib::Path (POS: environment and path handling)
+- pathlib::Path (POS: path handling)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - StorageConfig: storage configuration (root directory of the filesystem backend)
 - storage_config: global storage configuration singleton
 
 [POS]
-Storage configuration module. The storage root is derived from MYRM_DATA_DIR, which the deployment layer injects
-(in cloud sandboxes it points at the persistent volume), and falls back to ~/.myrm/storage. Depended on by the
+Storage configuration module. The storage root is ``<state root>/storage``; the deployment layer injects
+MYRM_DATA_DIR (in cloud sandboxes it points at the persistent volume). Depended on by the
 storage factory and by consumers that need the root directory on disk.
 """
 
@@ -22,11 +23,9 @@ from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 
 def _get_default_storage_path() -> str:
-    """Get default storage path from MYRM_DATA_DIR env var or fallback.
+    """Resolve the default storage path.
 
-    Priority:
-    1. MYRM_DATA_DIR environment variable + /storage
-    2. ~/.myrm/storage (default)
+    Lives at ``<state root>/storage``; the state root is MYRM_DATA_DIR, default ``~/.myrm``.
     """
     return str(resolve_data_dir().resolve() / "storage")
 

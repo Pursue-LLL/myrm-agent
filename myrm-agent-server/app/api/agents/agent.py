@@ -7,6 +7,7 @@ database.dto::AgentCreate, AgentUpdate, AgentResponse (POS: Agent API 契约)
 _agent_response::_to_agent_response, _metadata_as_mapping (POS: 序列化共享层)
 services.agent.external_cli_gate::ExternalCliBackendUnavailableError (POS: 外部 CLI 后端不可用异常)
 services.agent.skill_instance_resolver::SkillConfigValidationError (POS: Skill 配置校验异常)
+myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 Agent CRUD（list/get/create/update/delete）、配置快照（GET /snapshots）、

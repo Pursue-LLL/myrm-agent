@@ -3,6 +3,7 @@
 [INPUT]
 - backends.skills.market_protocols::SkillSearchResult
 - pathlib::Path, httpx / aiohttp / aiofiles (standard io)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - SkillsIndexCache: Manages local file caching, ETag conditional GETs, 6h TTL, and <10ms in-memory filtering.

@@ -7,6 +7,7 @@
 - sys
 - time
 - pathlib
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - MeshRegistry
@@ -33,9 +34,9 @@ class MeshRegistry:
     """Manages decentralized agent discovery via per-project registry files.
 
     Location pattern:
-        ~/.myrm/coms/projects/<project>/agents/<name>.json
+        <state root>/coms/projects/<project>/agents/<name>.json
     Sockets pattern:
-        ~/.myrm/coms/sockets/<session_id>.sock (POSIX) or \\\\.\\pipe\\myrm-coms-<session_id> (Windows)
+        <state root>/coms/sockets/<session_id>.sock (POSIX) or \\\\.\\pipe\\myrm-coms-<session_id> (Windows)
     """
 
     def __init__(

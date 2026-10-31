@@ -26,3 +26,4 @@ individual failures are logged and silently skipped.
 ## Key Dependencies
 
 - `backends`
+- `infra.data_dir` (state root of the static index cache)

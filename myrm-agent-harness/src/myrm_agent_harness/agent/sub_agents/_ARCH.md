@@ -138,3 +138,4 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 ## Key Dependencies
 
 - `utils`
+- `infra.data_dir` (state root of the shared checkpointer database and the socket-mesh registry)

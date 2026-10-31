@@ -3,12 +3,13 @@
 [INPUT]
 app.services.memory.backup.snapshot::MemorySnapshot/encode_snapshot/decode_snapshot (POS: 备份快照契约)
 myrm_agent_harness.toolkits.memory.backup::BackupMetadata (POS: 框架备份元数据值对象)
+myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 BackupNotFoundError / VolumeBackupStore
 
 [POS]
-把 MemorySnapshot 以 ``~/.myrm/backups/{backup_id}/`` 目录形式存放在沙箱持久卷上。备份 id 只接受本模块生成的格式，
+把 MemorySnapshot 以 ``<状态根>/backups/{backup_id}/`` 目录形式存放在沙箱持久卷上。备份 id 只接受本模块生成的格式，
 因此 id 永远无法越出备份根目录；``metadata.json`` 最后写入，目录里没有它就不是一份完整备份。
 """
 

@@ -10,7 +10,7 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `profiles_router` | — |
 | `router.py` | 路由 | 仪表盘、setup-hints、rate-limits、alerts、audit、dependabot-prs | ✅ |
-| `estop.py` | 路由 | `POST/GET /security/estop`：全局工具冻结 + activate 时 `CancellationRegistry.cancel_all`；状态 `{MYRM_DATA_DIR or ~/.myrm}/.estop_state.json` | ✅ |
+| `estop.py` | 路由 | `POST/GET /security/estop`：全局工具冻结 + activate 时 `CancellationRegistry.cancel_all`；状态 `<状态根>/.estop_state.json` | ✅ |
 | `generate.py` | 路由 | `POST /security/generate-policy`：NL → SecurityConfig | ✅ |
 | `profiles.py` | 路由 | `/security/profiles` CRUD、clone、activate | ✅ |
 | `schemas.py` | 模块 | Profile API schema | — |

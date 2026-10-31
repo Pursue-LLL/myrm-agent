@@ -1,14 +1,14 @@
 """Delete legacy on-disk canvas snapshot directory if present.
 
 [INPUT]
-(none — leaf utility)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - remove_retired_canvas_data_dir: delete <state root>/canvas if present
 
 [POS]
 Filesystem companion to ``DROP TABLE IF EXISTS canvas`` in migrations.py.
-Legacy installs may still have tldraw JSON under ``~/.myrm/canvas/{uuid}/``.
+Legacy installs may still have tldraw JSON under ``<state root>/canvas/{uuid}/``.
 """
 
 from __future__ import annotations

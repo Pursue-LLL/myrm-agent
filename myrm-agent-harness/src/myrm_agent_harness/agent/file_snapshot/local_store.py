@@ -1,10 +1,11 @@
 """Local file snapshot store implementation.
 
 Provides workspace file versioning using file-copy snapshots with a JSON manifest.
-Snapshots are stored in {MYRM_DATA_DIR}/file_snapshots/local/{workspace_hash}/{snapshot_id}/.
+Snapshots are stored in <state root>/file_snapshots/local/{workspace_hash}/{snapshot_id}/.
 
 [INPUT]
 - core.security.path::is_sensitive_file (POS: path security domain)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 LocalFileSnapshotStore: file-copy snapshot store whose copy loop and diff walk both
@@ -95,7 +96,7 @@ class LocalFileSnapshotStore:
 
     Snapshots are stored as file copies with a JSON manifest.
     Storage layout:
-        .myrm/snapshots/{workspace_hash}/
+        <state root>/file_snapshots/local/{workspace_hash}/
             {snapshot_id}/
                 manifest.json  — file list + metadata
                 files/         — copied files preserving directory structure

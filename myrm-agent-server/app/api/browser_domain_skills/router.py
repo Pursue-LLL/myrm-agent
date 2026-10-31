@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.browser.domain_skills (POS: DomainSkillStore singleton)
+- myrm_agent_harness.api::resolve_workspace_state_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - router: FastAPI APIRouter with domain skill CRUD endpoints

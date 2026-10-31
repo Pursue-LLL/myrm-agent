@@ -3,6 +3,7 @@
 [INPUT]
 - mautrix.client::Client (POS: mautrix Matrix client)
 - mautrix.api::HTTPAPI (POS: Matrix HTTP API layer)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - create_aiohttp_session: Create aiohttp session with optional proxy

@@ -9,6 +9,7 @@ with uncompressed data.
 
 [INPUT]
 - gzip (POS: Standard library compression)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - compress_payload(): Gzip compress if size > threshold

@@ -10,6 +10,7 @@ DomainSkillStore tells the Agent *which ready-made tools to call*.
 
 [INPUT]
 - (none)
+- infra.data_dir::resolve_workspace_state_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - DomainSkillStore: Domain skill registry with manifest loading and domain matching.
@@ -65,7 +66,7 @@ class DomainSkillStore:
 
     Loads manifests from:
     1. Builtin directory (bundled with harness)
-    2. User directory (``MYRM_DATA_DIR/domain_skills/``)
+    2. User directory (``<state root>/domain_skills/``)
 
     Thread-safe via ``threading.RLock``.
     """

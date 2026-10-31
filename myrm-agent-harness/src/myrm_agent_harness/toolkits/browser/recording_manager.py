@@ -6,6 +6,7 @@ Unified management for trace, HAR, and profiler recording.
 [INPUT]
 - patchright.async_api::BrowserContext (POS: Playwright browser context)
 - patchright.async_api::Page (POS: Playwright page instance)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - RecordingState: Recording state for trace/HAR

@@ -3,6 +3,7 @@
 Stateless utilities shared by the channel and bridge modules.
 
 [INPUT]
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - Constants: _MAX_TEXT_LENGTH, _BRIDGE_DIR, _BRIDGE_SCRIPT, _PROCESS_STOP_TIMEOUT

@@ -128,7 +128,7 @@ class StorageConfig:
     base_path: str  # 存储根目录（从 MYRM_DATA_DIR 派生）
 ```
 
-路径解析策略：从 `MYRM_DATA_DIR` 环境变量读取根目录，自动派生存储路径。
+路径解析策略：经 `resolve_data_dir()`（`MYRM_DATA_DIR`，未设置时 `~/.myrm`）取得状态根，自动派生存储路径。
 
 **单一存储根**：所有存储 key（`files/`、`skills/`、`config/`、`goals/`、`media/` 等）都落在 `{MYRM_DATA_DIR}/storage` 下，路径前缀只决定子目录，存储根仅由 `MYRM_DATA_DIR` 决定。云端沙箱容器的根文件系统只读、仅持久卷可写，部署层把 `MYRM_DATA_DIR` 指向该持久卷；存储层不探测运行环境。
 

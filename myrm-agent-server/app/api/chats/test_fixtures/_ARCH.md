@@ -42,3 +42,4 @@ local-only Chrome E2E seed 路由子包。上级文档：[../_ARCH.md](../_ARCH.
 - `app.services.agent.agent_service` — E2E seed 选取 agent scope
 - `app.services.kanban.KanbanService` — Kanban seed 的看板/任务持久化（`_kanban.py`）
 - `myrm_agent_harness.toolkits.kanban.types` — TaskPriority/TaskStatus/source_chat metadata SSOT（`_kanban.py`）
+- `myrm_agent_harness.api::resolve_data_dir` — 状态根（`evicted.py` 取默认工作区）

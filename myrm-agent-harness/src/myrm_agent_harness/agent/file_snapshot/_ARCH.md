@@ -19,17 +19,18 @@ Workspace file versioning and rollback subsystem. Provides transparent file-leve
 ## Key Dependencies
 
 - `utils.logger_utils`
+- `infra.data_dir` (state root of both snapshot stores)
 - stdlib: hashlib, json, shutil, uuid, os, time, asyncio, re
 - External: git CLI (optional — fallback to LocalFileSnapshotStore when absent)
 
 ## Key Design Decisions
 
 - **Shadow Git over direct git**: Uses GIT_DIR + GIT_WORK_TREE + GIT_INDEX_FILE to isolate from user repos. Never touches user's .git, .gitignore, or git config.
-- **Single shared bare repo**: Content-addressable deduplication across projects and turns. Storage path: `{MYRM_DATA_DIR}/file_snapshots/store/`.
+- **Single shared bare repo**: Content-addressable deduplication across projects and turns. Storage path: `<state root>/file_snapshots/store/`.
 - **Per-project isolation**: Each project gets its own ref (`refs/myrm/<hash>`) and index file.
 - **Git plumbing commands**: write-tree + commit-tree + update-ref for precise control, bypassing hooks.
 - **Full env isolation**: GIT_CONFIG_GLOBAL=/dev/null + GIT_CONFIG_SYSTEM=/dev/null prevents gpgsign and hook interference. `_bare_env()` strips residual GIT_WORK_TREE/GIT_INDEX_FILE to prevent cross-contamination when host process has git env vars set.
-- **MYRM_DATA_DIR path derivation**: All storage paths derived from MYRM_DATA_DIR, compatible with SaaS persistent volumes.
+- **State-root path derivation**: All storage paths derive from `infra.data_dir::resolve_data_dir()` (`MYRM_DATA_DIR`, default `~/.myrm`), compatible with SaaS persistent volumes; the file-copy fallback lives in `<state root>/file_snapshots/local/`.
 - **Auto-maintenance**: Orphan detection, dual-layer pruning (per-project + global size cap), git gc.
 - **Factory pattern**: create_file_snapshot_store() auto-detects git and caches the result.
 - **Max file size**: 10MB per file to avoid snapshotting large binaries.

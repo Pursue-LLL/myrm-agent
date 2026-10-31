@@ -11,7 +11,7 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 | _runtime.py | Internal | Builds runtime SkillMetadata from frontmatter plus computed fields; `evaluate_requires` is the single dependency verdict (bins/env/config), counting caller-supplied env alongside the process environment, and is re-exported by `__init__.py`; `compute_content_hash` (line-ending-insensitive) and `read_skill_md` (the SKILL.md text at a path, undecodable bytes replaced) give a skill's file text and its hash one definition. | ✅ |
 | _utils.py | Internal | SKILL.md frontmatter parsing and shared parsing utilities. | ✅ |
 | composite.py | Core | Routes skill requests across multiple backends. A prefixed key (`/user/x`) goes to its route alone; any other key — the bare names and storage ids that `list_skills` returns — is offered to each backend in listing priority order (later routes first, default last) until one owns it, so every listed skill can be read, with its resources. | ✅ |
-| config_version.py | Core | MYRM_DATA_DIR file-backed skill config version for hot-reload polling (re-exported by server). | ✅ |
+| config_version.py | Core | State-root file-backed skill config version for hot-reload polling (re-exported by server). | ✅ |
 | creation_protocols.py | Core | SkillWriteBackend protocol and save/delete/write result types. | ✅ |
 | credentials/ | Core | Optional DX helpers for validating credentials and detecting missing skill secrets. | ✅ |
 | prerequisites/ | Core | Skill runtime prerequisites contract, host system dependency sniffing (OS/binaries/Python), and cross-platform one-click remediation command generators. | ✅ |
@@ -47,5 +47,5 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 
 - `toolkits` (storage, shared exceptions)
 - `utils` (crypto, db, coercion)
-- `infra` (atomic_write for config_version persistence)
+- `infra` (`atomic_write` and the `data_dir` state-root resolver for config_version persistence)
 - `core` (hooks types for SkillMetadata hook fields; `core.security.path.read_text_bounded` for the workspace scan)

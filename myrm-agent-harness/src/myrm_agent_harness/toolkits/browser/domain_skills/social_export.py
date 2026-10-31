@@ -7,6 +7,7 @@ Exports extracted social media feeds, notes, and comments to Excel (.xlsx) or UT
 - filename: Optional[str]
 - format: "xlsx" | "csv" (default: "xlsx")
 - output_dir: Optional[str | Path]
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - dict containing status, filepath, row_count, columns, file_size_bytes

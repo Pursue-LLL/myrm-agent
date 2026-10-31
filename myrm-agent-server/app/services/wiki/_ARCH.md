@@ -9,7 +9,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 
 - **Canonical path**: `{harness_dir}/wiki/agents/{agent_id}/` — `vault.resolve_wiki_vault_path(agent_id)`
 - **Shared read-only**: `{harness_dir}/wiki/shared/{context_id}/` — via `resolve_shared_wiki_vault_path()`
-- **Legacy paths** (one-time migration): `{state_dir}/wiki`, `~/.myrm/users/sandbox/wiki`
+- **Legacy paths** (one-time migration): `{state_dir}/wiki`, `<state root>/users/sandbox/wiki`
 - **Startup**: `vault.init_wiki_vault_at_startup()` from FastAPI lifespan
 - **Shared archiver**: `vault.get_wiki_archiver(llm)` — API、SessionNotes 归档、Deep Research vault、consolidation digest 共用；必须带模型（无模型直接 `TypeError`）
 - **Vault 布局（无模型）**: `vault.get_wiki_structure(agent_id)` — 去重扫描、卫生清单、`.wikiignore`、原文落盘等只读写文件的场景，不构造 archiver、不启动编译 worker

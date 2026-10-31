@@ -15,3 +15,4 @@ Delegates to harness-layer `DomainSkillStore` for storage and matching.
 ## Key Dependencies
 
 - `myrm_agent_harness.toolkits.browser.domain_skills` — `DomainSkillStore` singleton
+- `myrm_agent_harness.api::resolve_workspace_state_dir` — 用户域技能目录 `<状态根>/domain_skills/`

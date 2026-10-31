@@ -33,5 +33,5 @@ SiteExperience (prompt layer)     DomainSkill (executable layer)
 
 ## Allowed Dependencies
 
-- Standard library only (json, pathlib, threading, importlib)
+- Standard library and `infra.data_dir` (state-root resolver) (json, pathlib, threading, importlib)
 - No `agent/`, `runtime/`, `backends/` imports

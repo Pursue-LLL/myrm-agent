@@ -3,6 +3,7 @@
 [INPUT]
 - types::StaticSkillItem, StaticIndexManifest
 - backends.skills.market_protocols::SkillSearchResult
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - StaticSkillsIndexManager: syncs index from CDN/static URL with ETag/gzip, caches locally, provides sub-millisecond in-memory search

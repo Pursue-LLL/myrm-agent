@@ -67,11 +67,21 @@
 
 框架不隐式读取 Agent 行为环境变量；`LLMConfig.from_env()` 与 `AgentConfig.from_env()` 仅在调用方显式调用时生效。
 
-路径规则（按各模块实际实现；回退行为并不统一，改路径前先看该模块）：
+路径规则：Myrm 自有的持久化路径都从同一个状态根派生，状态根只有一个解析入口 `infra/data_dir.py::resolve_data_dir()`（`MYRM_DATA_DIR`，未设置时 `~/.myrm`；server 经 `myrm_agent_harness.api` 导出的同名函数使用）。云沙箱里按沙箱区分的状态用同文件的 `resolve_workspace_state_dir()`：显式设置了 `MYRM_DATA_DIR` 就用它，否则存在 `/workspace/` 时落 `/workspace/.myrm`，再否则 `~/.myrm`。
+
+禁止用 `Path.home()` 或 `"~/…"` 手拼 Myrm 目录：隔离进程（测试、E2E、第二个 profile）靠重定向 `MYRM_DATA_DIR` 互不触碰，手拼的路径会绕过它，读写别人的数据。两道门禁守住：harness `tests/infra/test_state_paths_isolated.py`（运行代码：把 `HOME` 指到别处、给进程独立状态根，每条默认状态路径都必须落在状态根内）与 server `tests/architecture/test_state_paths_follow_data_dir.py`（扫描 server 与 harness 源码，登记表里每一项都写明为何安全）。
 
 | 变量 | 已设置 | 未设置 |
 |---|---|---|
-| `MYRM_DATA_DIR` | `{root}/checkpoints`（`agent/sub_agents/checkpoint/saver.py`）、`{root}/storage`（`toolkits/storage/config.py`）、`{root}/.estop_state.json`（`agent/security/guards/estop.py`）、`{root}/subagent_checkpoints.sqlite`（`agent/sub_agents/checkpointer.py`） | checkpoints 用 cwd 相对 `.myrm/checkpoints`；storage 与 estop 用 `~/.myrm` |
+| `MYRM_DATA_DIR` | 状态根 `{root}`：`{root}/storage`（`toolkits/storage/config.py`）、`{root}/.estop_state.json`（`agent/security/guards/estop.py`）、`{root}/subagent_checkpoints.sqlite`（`agent/sub_agents/checkpointer.py`）、`{root}/file_snapshots`、`{root}/venvs` 等，用法见各模块 `[INPUT]` 里的 `infra.data_dir` 条目 | `~/.myrm` |
+
+不经过该入口、也不手拼主目录下 Myrm 目录的路径分两类：
+
+| 类别 | 路径 | 位置 |
+|---|---|---|
+| 有意的例外 | ACP 工具链安装 `~/.myrm-agent/toolchains`：按版本号分目录、所有 Myrm 进程共用的第三方安装，如同包管理器缓存 | `toolkits/acp/toolchains/manager.py` |
+| 有意的例外 | 记忆导入读取其他工具（`~/.claude`、`~/.codex` 等）自己的历史目录，不属于 Myrm 目录 | `toolkits/memory/onboarding/adapters.py` |
+| 已知偏离（§8） | 未设置 `MYRM_DATA_DIR` 时落 cwd 相对的 `.myrm/…`：子 agent JSON checkpoint（已设置 `{root}/checkpoints`）、Camoufox 指纹（已设置 `{root}/browser_fingerprints`）、动态工作流事件库的回退（优先落工作区 `.myrm/`，取不到工作区才看 `MYRM_DATA_DIR`，再回退 cwd） | `agent/sub_agents/checkpoint/saver.py`、`toolkits/browser/pool/browser_pool.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py` |
 | `MYRM_PERSISTENT_ROOT` | `.context` / `.memories` / `workspace` 由它派生 | `/persistent` |
 | `MYRM_LOCALES_DIR` | 覆盖诊断 i18n 目录 | 内置 `agent/errors/diagnostics/i18n/locales/`（de / en / ja / ko / zh-CN） |
 | `MYRM_GATEWAY_URL` / `_TOKEN` | 第三方工具中继地址与凭证 | 不需要该能力时不必设置 |
@@ -106,6 +116,7 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 |---|---|---|
 | §3 第1条 不留兼容包袱 | 7 个文件保留 `Backward-compatible alias` / `Legacy alias` | `core/security/missing_semantics.py`、`toolkits/browser/pool/extension_bridge.py` 等 |
 | §3 第2条 走持久化抽象 | 子 agent checkpoint 直接落文件系统，不经 `StorageProvider` | `agent/sub_agents/checkpoint/saver.py` 只用 `MYRM_DATA_DIR/checkpoints` + `atomic_write` |
+| §6 路径规则（单一状态根入口） | 一批状态目录仍用 cwd 相对的 `.myrm/…` 默认路径：不碰主目录，但依赖工作目录。harness：子 agent checkpoint、Camoufox 指纹、动态工作流事件库回退、技能进化库（`.myrm/skills_evolution.db`）、嵌入缓存（`.myrm/embeddings.db`）、技能状态（`.myrm/skills`）；server：功能配置、任务气囊、评测数据集与报告、认证审计日志。改成状态根之前要先迁移已有 cwd 相对目录里的数据 | `agent/sub_agents/checkpoint/saver.py::_default_checkpoint_storage_path`、`toolkits/browser/pool/browser_pool.py::_resolve_fingerprint_dir`、`agent/dynamic_workflow/paths.py`、`agent/skills/evolution/infra/integration.py`、`toolkits/retriever/embedding/cache.py`、`backends/skills/state_manager.py`；server `app/services/features/feature_config_service.py`、`app/services/checkpoint/task_airbag_service.py`、`app/core/eval/`、`app/middleware/auth_audit.py` |
 | §3 第3条 / §4 零拷贝契约 | 两处产出 `ArtifactVault` 无法解析的指针：`vault://{chat_id}/turns/{i}/transcript.log`（从不落盘）、`vault://artifacts/{task}/result.json`（`default_worker_runner` 的模拟实现） | `agent/context_management/strategies/summary/turn_refetcher.py`、`agent/sub_agents/swarm_offload/offload_dispatcher.py`（该包在 `src/` 内无任何引用方，仅单测使用） |
 | §5 发行状态 | `[compiled-core]` / `[compiled-core-musl]` 指向的 rc6 平台包未发布，两个 musl 项目在 PyPI 不存在，装 `[compiled-core]` 会解析失败 | PyPI 最新 0.1.0rc5；`pyproject.toml` 已 0.1.0rc6 |
 | §2 类型目标 | 无 lint / 类型门禁；mypy 2252、ruff 1331 未清 | 见 §2 实测表 |

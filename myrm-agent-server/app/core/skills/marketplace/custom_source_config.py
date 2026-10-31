@@ -3,6 +3,7 @@
 [INPUT]
 - pathlib::Path (POS: File system path operations)
 - json (POS: JSON serialization)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - load_custom_sources, save_custom_sources, add_custom_source, remove_custom_source

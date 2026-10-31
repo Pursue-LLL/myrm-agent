@@ -35,6 +35,6 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `snapshot.py` | 核心 | 可移植记忆快照：`MemorySnapshot` 格式（版本 3，gzip JSON）、`capture_snapshot` 完整性校验捕获、`apply_snapshot` 覆盖/合并回放与回放核对（覆盖只清当前嵌入模型的集合：快照里没有旧模型遗留的记忆，覆盖不能把它们一并销毁）、`encode_snapshot`/`decode_snapshot` | ✅ |
-| `volume_store.py` | 核心 | 沙箱持久卷备份库（默认 `~/.myrm/backups/{backup_id}/`）：`save`/`list_backups`/`load`/`delete`；`metadata.json` 最后原子写入，缺它即非完整备份；备份 id 严格校验 | ✅ |
+| `volume_store.py` | 核心 | 沙箱持久卷备份库（默认 `<状态根>/backups/{backup_id}/`）：`save`/`list_backups`/`load`/`delete`；`metadata.json` 最后原子写入，缺它即非完整备份；备份 id 严格校验 | ✅ |
 | `service.py` | 核心 | 本地备份编排 `MemoryBackupService`：`create`、`restore`（覆盖式恢复先留底，失败不丢副本） | ✅ |
 | `remote_sync/` | 子包 | 远程（云端）备份的全部：存储适配（`storage/`，WebDAV/S3）、运行器（单次备份与远程恢复，远程文件名的唯一写法与轮转规则）、云端定时备份（按用户所选间隔运行，记录每次结果，连续失败只告警一次）。见 [`remote_sync/_ARCH.md`](remote_sync/_ARCH.md) | ✅ |

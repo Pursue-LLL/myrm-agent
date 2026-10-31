@@ -5,6 +5,7 @@ data-driven decisions about which tools need suggestions.
 
 [INPUT]
 - types::LoopKind (POS: core types for the unified loop guard — verdict enums, analysis types)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - LoopGuardStatsDB: persistent event storage and analysis

@@ -22,3 +22,4 @@ Common executor components.
 
 - `core/security/redact` (`command_preview` for the log lines of `command_rewriter.py` and `venv_manager.py`)
 - `utils`
+- `infra.data_dir` (state root of the shared virtual environment)

@@ -173,7 +173,7 @@ class DomainMetrics:
     - last_access: Last access time
 
     Storage locations:
-    - Local deployment: ~/.myrm/domain_metrics.json
+    - Local deployment: <state root>/domain_metrics.json
     - Per-user cloud sandbox: /workspace/.myrm/domain_metrics.json
     - Per-task cloud sandbox: /tmp/domain_metrics.json (isolated) or /mnt/shared/ (shared)
 

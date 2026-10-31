@@ -8,6 +8,7 @@ graceful expiration handling.
 - myrm_agent_harness.api.hooks::read_evicted_line_range (POS: paginated evicted file I/O)
 - myrm_agent_harness.api.hooks::normalize_delivery_chat_id (POS: UECD delivery SSOT)
 - myrm_agent_harness.api.hooks::EVICTED_BASENAME_PATTERN (POS: spill filename validation)
+- myrm_agent_harness.api::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - GET /evicted: paginated line-range read (default limit 500); returns storage_truncated when disk cap applies

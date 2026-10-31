@@ -1,10 +1,10 @@
 """Three-layer smart deduplication: Hash → Vector → LLM judgment.
 
-
 [INPUT]
 - memory.protocols.vector::VectorStoreProtocol (POS: vector store protocol)
 - memory.types::{AnyMemory, MemoryType} (POS: memory data models)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应答案提取 — 兼容 reasoning 模型 content 空回退)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - SmartDeduplicator: Three-layer dedup engine (Hash→Vector→LLM), returns DUPLICATE/UPDATE_REPLACE/UPDATE_MERGE/NEW

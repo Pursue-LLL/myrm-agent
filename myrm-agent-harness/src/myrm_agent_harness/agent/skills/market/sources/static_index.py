@@ -7,6 +7,7 @@ Supports ETag/Last-Modified conditional sync, offline graceful degradation, and 
 [INPUT]
 - backends.skills.market_protocols::SkillSearchResult (POS: Unified search result data class)
 - infra.tls_compat::create_httpx_client (POS: Resilient HTTP client creation)
+- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
 - StaticIndexSkillSource: High-performance static index skill source.

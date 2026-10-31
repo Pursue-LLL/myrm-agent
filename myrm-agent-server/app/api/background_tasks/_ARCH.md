@@ -26,3 +26,4 @@
 - `app.core.channel_bridge.persistent_background::is_persistent_background` — metadata SSOT
 - `app.services.agent.shell_background_tasks` — registry + Store 门面
 - `app.services.kanban::KanbanService` — Agent 任务持久化（直查 list）
+- `myrm_agent_harness.api::resolve_data_dir` — 状态根（`test_fixtures.py` 取默认工作区）

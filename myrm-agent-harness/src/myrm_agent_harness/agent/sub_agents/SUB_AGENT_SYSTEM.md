@@ -265,7 +265,7 @@ Level 4: parent LLM (继承父 agent 的 LLM，兜底)
 为让停在 HITL 审批上的子 agent 与父线程隔离、暂停状态不占进程内存，所有子 agent 共享一个**持久化 Volume 级独立**的 SQLite Checkpointer（测试环境自适应内存）。线程会落盘，但审批不跨进程重启续跑：重启后 journal 清空，旧线程被清掉，由新子 agent 重新向用户提问（见下）：
 
 - `agent/sub_agents/checkpointer.py` 提供 `get_subagent_checkpointer()`（懒加载单例）、`close_subagent_checkpointer()`、`reset_subagent_checkpointer()`、`drop_subagent_checkpoint_if_terminal(task_id, status)`（终态线程卫生清理 SSOT 门禁）与 `discard_stale_subagent_thread(thread_id)`（新子 agent 首次 spawn 前先查后删同编号的旧线程；存储打不开时不处理，线程内容读不出来时同样删除，自身不抛异常）。
-- 默认落盘至 `{MYRM_DATA_DIR}/subagent_checkpoints.sqlite`，并通过 WAL 模式与 busy_timeout 进行并发安全加固；在 `CHECKPOINTER_MODE=memory`、单测环境或只读沙箱卷发生权限异常时自动平滑回退至 `:memory:` 确保任务不崩溃。
+- 默认落盘至 `<状态根>/subagent_checkpoints.sqlite`（`MYRM_DATA_DIR`，未设置时 `~/.myrm`），并通过 WAL 模式与 busy_timeout 进行并发安全加固；在 `CHECKPOINTER_MODE=memory`、单测环境或只读沙箱卷发生权限异常时自动平滑回退至 `:memory:` 确保任务不崩溃。
 - 每个子 agent 的 `thread_id == task_id`（context 中 `approval_session_key`），
   线程彼此隔离；审批中的子 agent 通过 `Command(resume=...)` 从同一线程恢复（journal 所在的 manager 存活期间）；进程重启后不续跑。
 - `drop_subagent_checkpoint_if_terminal` 仅在子 agent 到达**终态（非 PENDING_APPROVAL）**时
