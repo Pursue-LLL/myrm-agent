@@ -122,7 +122,7 @@ class SandboxedPythonCondition(PreFlightCondition):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
-                # A session of its own, so the cleanup below can signal the script's whole process group.
+                # On POSIX a session of its own, so the cleanup below can signal the script's whole process group.
                 **get_process_group_kwargs(),
             )
             # A deadline or a cancel only stops the wait: the script and what it started keep running, and a
