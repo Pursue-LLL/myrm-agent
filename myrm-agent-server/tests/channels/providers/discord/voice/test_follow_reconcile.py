@@ -1,12 +1,14 @@
 """The follow reconciliation is the heal path for missed gateway events, so one failed pass must not end it.
 
-A pass that fails (the REST poll hits a network error, a join raises) is logged and the next pass runs as if nothing
-happened; one guild's failure never skips the guilds after it; and a task that has ended can be started again.
+A pass that fails (the REST poll hits a network error, a join raises) is logged with the guild and the error and the
+next pass runs as if nothing happened; one guild's failure never skips the guilds after it; a cancel that lands inside
+a pass still ends the task; and a task that has ended can be started again.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock, MagicMock
 
@@ -118,3 +120,51 @@ async def test_a_reconcile_task_that_has_ended_is_started_again() -> None:
         assert not manager._reconcile_task.done()
     finally:
         await manager.stop_reconciliation()
+
+
+async def test_a_failed_pass_is_logged_with_the_guild_and_the_error(caplog: pytest.LogCaptureFixture) -> None:
+    guild, _ = _guild(7)
+
+    async def request(route: discord.http.Route) -> dict[str, str]:
+        raise aiohttp.ClientConnectionError("network blip")
+
+    manager, _ = _manager([guild], request)
+
+    with caplog.at_level(logging.WARNING, logger=follow.logger.name):
+        await manager._reconcile_once()
+
+    [record] = [r for r in caplog.records if r.levelno == logging.WARNING]
+    message = record.getMessage()
+    assert "guild 7" in message
+    assert "ClientConnectionError" in message
+    assert "network blip" in message
+    assert record.exc_info is None
+
+
+async def test_a_cancel_that_lands_inside_a_pass_ends_the_task() -> None:
+    """Stopping the loop cancels it wherever it is; a pass that logs and swallows the cancel would never end."""
+    guild, _ = _guild(1)
+    manager, join = _manager([guild], _channel_of_guild)
+    in_join = asyncio.Event()
+    release_join = asyncio.Event()
+
+    async def block_in_join(channel: discord.VoiceChannel) -> bool:
+        in_join.set()
+        await release_join.wait()
+        return True
+
+    join.side_effect = block_in_join
+    await manager.start_reconciliation()
+    task = manager._reconcile_task
+    assert task is not None
+    try:
+        await _until(in_join.is_set)
+        task.cancel()
+        # Not wait_for: a swallowed cancel must fail this assertion, not hang the test.
+        done, _ = await asyncio.wait({task}, timeout=1.0)
+        assert task in done
+    finally:
+        manager._destroyed = True
+        release_join.set()
+        task.cancel()
+        await asyncio.wait({task}, timeout=1.0)
