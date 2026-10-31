@@ -24,7 +24,7 @@
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理；快照 `requires` 取自实际留存的 SKILL.md（用户改过则以用户副本为准），未重写的快照仅补丁 `requires` 字段；快照带上种子 frontmatter 声明的 `required_permissions`，启用技能的授权门据此判断；在线编辑 SKILL.md 后于下次同步对齐 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore 协议适配器 | ✅ |
-| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name）；`yaml_scalar` 把模型生成文本渲染为 YAML 双引号标量，`render_skill_md` 以结构化字段组装 SKILL.md 文本（frontmatter 值全部经 `yaml_scalar`；插件闸门与批量导入的预检扫描共用），`resolve_skill_description` 给出 description 回退链（description → trigger_condition → 名称），自动与人工两条落盘路径共用 | — |
+| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name）；`slugify_draft_skill_name` 给出批准草稿时写入的目录名（技能名里每段 a-zA-Z0-9_- 之外的字符换成一个连字符、去掉首尾连字符、截到 64 个字符，什么都不剩则为 `auto-skill`；结果恒为一个目录项名，不含路径分隔符与 NUL），草稿落盘与「批准会写进哪个目录」的判断共用这一个实现；`yaml_scalar` 把模型生成文本渲染为 YAML 双引号标量，`render_skill_md` 以结构化字段组装 SKILL.md 文本（frontmatter 值全部经 `yaml_scalar`；插件闸门与批量导入的预检扫描共用），`resolve_skill_description` 给出 description 回退链（description → trigger_condition → 名称），自动与人工两条落盘路径共用 | — |
 | `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |
 | `store/service.py` | 核心 | 技能 CRUD 服务 | — |
 | `store/reader.py` | 核心 | 技能读取 | — |

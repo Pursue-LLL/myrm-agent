@@ -31,13 +31,17 @@ def _draft(*, description: str | None, content: str | None, trigger_condition: s
     )
 
 
-async def _written_skill_md(draft: SkillDraftRecord) -> str:
-    """Run materialization with the disk write stubbed out and return the SKILL.md it tried to save."""
+async def _saved(draft: SkillDraftRecord, override_name: str | None = None) -> dict[str, str]:
+    """Run materialization with the disk write stubbed out and return what it tried to save."""
     service = MagicMock()
     service.save_skill = AsyncMock(return_value=SimpleNamespace(success=False, error="stubbed"))
     with patch("app.core.skills.creation.service.skill_creation_service", service):
-        await materialize_skill_draft(draft, None)
-    return str(service.save_skill.await_args.kwargs["content"])
+        await materialize_skill_draft(draft, override_name)
+    return dict(service.save_skill.await_args.kwargs)
+
+
+async def _written_skill_md(draft: SkillDraftRecord) -> str:
+    return (await _saved(draft))["content"]
 
 
 @pytest.mark.asyncio
@@ -66,3 +70,16 @@ async def test_missing_description_falls_back_to_trigger_condition_then_name() -
 
     assert parse_skill_frontmatter(with_trigger, "convert-files").description == "When files need converting"
     assert parse_skill_frontmatter(bare, "convert-files").description == "convert-files"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("override_name", "saved_as"), [(None, "convert-files"), ("My Report!", "My-Report")], ids=["draft-name", "override-name"]
+)
+async def test_the_draft_is_saved_under_the_directory_name_its_name_is_cleansed_to(
+    override_name: str | None, saved_as: str
+) -> None:
+    saved = await _saved(_draft(description="d", content=None), override_name)
+
+    assert saved["name"] == saved_as
+    assert f"name: {saved_as}\n" in saved["content"]

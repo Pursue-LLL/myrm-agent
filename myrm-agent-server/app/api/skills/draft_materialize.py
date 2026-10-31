@@ -8,7 +8,7 @@ what gets written.
 - app.api.skills.draft_record::SkillDraftRecord (POS: 技能草稿记录视图)
 - app.core.skills.creation.service::skill_creation_service (POS: 技能创作服务)
 - app.core.skills.config_version::bump_skill_config_version (POS: skill 配置版本自增)
-- app.core.skills.utils::resolve_skill_description, yaml_scalar (POS: 技能描述回退与 frontmatter 标量转义)
+- app.core.skills.utils::resolve_skill_description, slugify_draft_skill_name, yaml_scalar (POS: 技能描述回退、批准写入的目录名与 frontmatter 标量转义)
 - app.core.skills.curator.service::describe_skill_lifecycle,set_skill_archived (POS: 技能归档/恢复的单一写入口)
 - app.database.connection::get_session (POS: 数据库连接管理)
 
@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.curator.service import describe_skill_lifecycle, set_skill_archived
-from app.core.skills.utils import resolve_skill_description, yaml_scalar
+from app.core.skills.utils import resolve_skill_description, slugify_draft_skill_name, yaml_scalar
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 
@@ -108,7 +108,7 @@ async def materialize_skill_draft(
         logger.warning("Skill draft %s has no name, skipping materialization", draft.id)
         return {"materialized": False, "error": "Skill draft has no name"}
 
-    skill_name = _slugify_skill_name(raw_name)
+    skill_name = slugify_draft_skill_name(raw_name)
     description = resolve_skill_description(draft.description, draft.trigger_condition, skill_name)
 
     if draft.content and draft.content.strip():
@@ -276,13 +276,6 @@ async def materialize_semantic_memory(
             "materialized": False,
             "error": "Semantic memory materialization failed",
         }
-
-
-def _slugify_skill_name(raw: str) -> str:
-    """Convert a human-readable skill name to a valid slug (a-zA-Z0-9_-)."""
-    slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", raw.strip())
-    slug = slug.strip("-")
-    return slug[:64] or "auto-skill"
 
 
 def _frontmatter(name: str, description: str) -> str:

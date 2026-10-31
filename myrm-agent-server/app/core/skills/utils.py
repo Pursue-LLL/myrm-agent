@@ -2,18 +2,21 @@
 
 [INPUT]
 - json: 标准库 JSON 序列化（YAML 双引号标量的转义依据）
+- re: 标准库正则（草稿名清洗为目录名）
 
 [OUTPUT]
 - normalize_skill_name: 技能名称标准化（统一 _skill 后缀）
+- slugify_draft_skill_name: 批准草稿时写入的目录名（技能名清洗为 a-zA-Z0-9_-，不超过 64 字符）
 - resolve_skill_description: 技能描述回退（description → trigger_condition → name）
 - yaml_scalar: 把模型生成文本渲染为 YAML 双引号标量，供 SKILL.md frontmatter 使用
 - render_skill_md: 由 name/description/正文组装带安全 frontmatter 的 SKILL.md 文本（供安全扫描等只读校验使用）
 
 [POS]
-技能公共工具函数。名称标准化、描述回退与 frontmatter 标量转义的单一实现，避免各落盘/校验路径重复。
+技能公共工具函数。名称标准化、批准写入的目录名、描述回退与 frontmatter 标量转义的单一实现，避免各落盘/校验路径重复。
 """
 
 import json
+import re
 
 
 def normalize_skill_name(name: str) -> str:
@@ -57,6 +60,18 @@ def normalize_skill_name(name: str) -> str:
     return normalized if normalized.endswith("_skill") else f"{normalized}_skill"
 
 
+def slugify_draft_skill_name(raw: str) -> str:
+    """The directory name an approved draft is written under.
+
+    Every run of characters outside ``a-zA-Z0-9_-`` becomes one hyphen, hyphens at either end are dropped and the
+    result is cut to 64 characters; ``auto-skill`` when nothing is left. The result is always one directory entry
+    name: it holds no path separator and no NUL, and is never empty.
+    """
+    slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", raw.strip())
+    slug = slug.strip("-")
+    return slug[:64] or "auto-skill"
+
+
 def yaml_scalar(value: str) -> str:
     """Render ``value`` as a YAML double-quoted scalar for SKILL.md frontmatter.
 
@@ -85,4 +100,4 @@ def resolve_skill_description(description: str | None, trigger_condition: str | 
     return name
 
 
-__all__ = ["normalize_skill_name", "render_skill_md", "resolve_skill_description", "yaml_scalar"]
+__all__ = ["normalize_skill_name", "render_skill_md", "resolve_skill_description", "slugify_draft_skill_name", "yaml_scalar"]
