@@ -4,7 +4,8 @@
 dev_gate.contract::SEND_TURN_* constants
 
 [OUTPUT]
-SendTurnPhase / SendTurnError / resolve_send_turn_profile / format_api_poll / format_turn_trace
+SendTurnPhase / SendTurnError / resolve_send_turn_profile / format_api_poll / format_turn_trace /
+format_store_timeline
 
 [POS]
 Dev Gate layer — UI+API dual-consistency for E2E send; not product chat logic.
@@ -134,3 +135,83 @@ def format_turn_trace(debug: dict[str, object]) -> str:
     else:
         settle_text = "pending"
     return f" trace=[{' '.join(entries)}]{dropped_text} settle={settle_text}"
+
+
+_STORE_STACK_FRAMES = 8
+_STORE_FRAME_MAX_CHARS = 80
+_STORE_ID_TAIL_CHARS = 8
+
+
+def _short_chat_id(chat_id: str) -> str:
+    return chat_id[-_STORE_ID_TAIL_CHARS:] if chat_id else "none"
+
+
+def _store_entry_fields(entry: dict[str, object]) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for key, label in (("chatId", "chat"), ("paneChatId", "pane")):
+        value = entry.get(key)
+        if isinstance(value, str):
+            fields[label] = _short_chat_id(value)
+    for key, label in (("users", "u"), ("assistants", "a")):
+        count = entry.get(key)
+        if isinstance(count, int) and not isinstance(count, bool):
+            fields[label] = str(count)
+    loading = entry.get("loading")
+    if isinstance(loading, bool):
+        fields["state"] = "busy" if loading else "idle"
+    return fields
+
+
+def _format_store_entry(entry: object, shown: dict[str, str]) -> str | None:
+    """One timeline entry: only the fields that changed since the last one printed."""
+    if not isinstance(entry, dict):
+        return None
+    at_ms = entry.get("atMs")
+    if not _is_number(at_ms):
+        return None
+    parts: list[str] = []
+    for key, value in _store_entry_fields(entry).items():
+        if shown.get(key) == value:
+            continue
+        shown[key] = value
+        parts.append(value if key == "state" else f"{key}={value}")
+    stack = entry.get("stack")
+    frames = [
+        _one_token(frame)[:_STORE_FRAME_MAX_CHARS]
+        for frame in (stack[:_STORE_STACK_FRAMES] if isinstance(stack, list) else [])
+        if isinstance(frame, str)
+    ]
+    if frames:
+        parts.append(f"stack={'<'.join(frames)}")
+    return f"@{at_ms / 1000:.1f}s({' '.join(parts)})"
+
+
+def format_store_timeline(debug: dict[str, object]) -> str:
+    """Log fragment for how the page's message list changed during the send.
+
+    `userCount=0` with a streaming assistant reply cannot say whether the user message was
+    never put into the store or was put there and then lost. The page records each change of
+    the chat id, the user and assistant message counts and the loading flag, with the call
+    stack of every change that lost a user message or switched chats (callee first, joined
+    by `<`). Fields print only when they change; the chat ids are shortened to their tail.
+    A malformed report is cut down, never raised: this runs while another failure is being
+    reported.
+    """
+    timeline = debug.get("storeTimeline")
+    if not isinstance(timeline, dict):
+        return ""
+    raw_entries = timeline.get("entries")
+    shown: dict[str, str] = {}
+    entries = [
+        text
+        for text in (
+            _format_store_entry(entry, shown)
+            for entry in (raw_entries if isinstance(raw_entries, list) else [])
+        )
+        if text is not None
+    ]
+    dropped = timeline.get("dropped")
+    dropped_text = (
+        f" dropped={dropped}" if isinstance(dropped, int) and dropped > 0 else ""
+    )
+    return f" store=[{' '.join(entries)}]{dropped_text}"

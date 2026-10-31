@@ -6,10 +6,12 @@
  * - @/store/useProviderStore::useProviderStore (POS: Provider 配置 store)
  * - @/store/chat/messageRequest::getModelSelection (POS: 发送前模型选择解析)
  * - @/components/dev/e2eTurnTrace::createTurnTrace (POS: 每次发送的 SSE 事件与结束方式记录)
+ * - @/components/dev/e2eStoreTimelineWatcher::watchChatStoreTimeline (POS: 每次发送期间 chat store 消息列表变化记录)
  *
  * [OUTPUT]
  * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E; submitAndObserveTurn results
- *   carry `turnTrace` (SSE event types/times and how the send promise ended) next to `apiPoll`
+ *   carry `turnTrace` (SSE event types/times and how the send promise ended) and `storeTimeline` (how the store's
+ *   message list changed, with the writer's stack when user messages were lost) next to `apiPoll`
  * - pinLiteModelForE2e: bind agent chat to defaultModelConfig.liteModel (API E2E parity)
  * - pinBasicModelForE2e: bind desktop E2E to defaultModelConfig.baseModel (mimo SSOT)
  * - releaseAgentModelPinForE2e: clear the agent's pinned model so the turn is smart-routed like a default user's
@@ -50,6 +52,7 @@ import { markPlatformUnreachable } from '@/lib/platform-readiness';
 import { isModelAvailable } from '@/lib/model-binding';
 import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '@/components/dev/e2eChatBridgeSendPolicy';
 import { createTurnTrace, type TurnTrace } from '@/components/dev/e2eTurnTrace';
+import { watchChatStoreTimeline, type StoreTimelineWatch } from '@/components/dev/e2eStoreTimelineWatcher';
 import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import { useRewindStore } from '@/store/chat/useRewindStore';
@@ -336,7 +339,7 @@ function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
   return bridge;
 }
 
-const SEND_TURN_REV = 'R72-I';
+const SEND_TURN_REV = 'R72-J';
 const SEND_TURN_NO_OP_MS = 3_000;
 /** Trace of the latest send: the SSE recorder feeds it, the send's own results report it. */
 let activeTurnTrace: TurnTrace | null = null;
@@ -503,6 +506,7 @@ async function submitAndObserveTurn(
     return { ok: false, err: 'empty-message', mode: 'sendTurnEmpty' };
   }
   const startGen = readE2eSendGeneration();
+  let storeWatch: StoreTimelineWatch | null = null;
   try {
     window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
     window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.();
@@ -631,6 +635,9 @@ async function submitAndObserveTurn(
     const kickoffAt = Date.now();
     const trace = createTurnTrace(Date.now);
     activeTurnTrace = trace;
+    const watch = watchChatStoreTimeline();
+    storeWatch = watch;
+    const turnEvidence = () => ({ turnTrace: trace.snapshot(), storeTimeline: watch.snapshot() });
     const sendPromise = useChatStore
       .getState()
       .sendMessage(trimmed, undefined, undefined, undefined, undefined, agentConfigOverride);
@@ -659,7 +666,7 @@ async function submitAndObserveTurn(
           debug: {
             phase: 'SUBMIT',
             sendGeneration: startGen,
-            turnTrace: trace.snapshot(),
+            ...turnEvidence(),
             ...buildSendTurnDiagnostic(chatIdBeforeSend),
           },
         };
@@ -694,7 +701,7 @@ async function submitAndObserveTurn(
             sendGeneration: startGen,
             apiUsers: apiUsersProbe,
             apiPoll: { ...apiPoll },
-            turnTrace: trace.snapshot(),
+            ...turnEvidence(),
             userCount,
             streaming,
             baselineUsers,
@@ -717,7 +724,7 @@ async function submitAndObserveTurn(
               sendGeneration: startGen,
               apiUsers: apiUsersProbe,
               apiPoll: { ...apiPoll },
-              turnTrace: trace.snapshot(),
+              ...turnEvidence(),
               userCount,
               streaming,
               baselineUsers,
@@ -751,7 +758,7 @@ async function submitAndObserveTurn(
             sendGeneration: startGen,
             apiUsers,
             apiPoll: { ...apiPoll },
-            turnTrace: trace.snapshot(),
+            ...turnEvidence(),
             userCount,
             streaming,
             baselineUsers,
@@ -781,7 +788,7 @@ async function submitAndObserveTurn(
         sendGeneration: startGen,
         apiUsers: finalApiUsers,
         apiPoll: { ...apiPoll },
-        turnTrace: trace.snapshot(),
+        ...turnEvidence(),
         userCount: finalProgress.userCount,
         streaming: finalProgress.streaming,
         baselineUsers,
@@ -796,6 +803,8 @@ async function submitAndObserveTurn(
       mode: 'sendTurnUnexpected',
       debug: { phase: 'SUBMIT', sendGeneration: startGen },
     };
+  } finally {
+    storeWatch?.stop();
   }
 }
 

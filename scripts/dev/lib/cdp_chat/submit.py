@@ -18,6 +18,7 @@ from cdp_chat.send_turn_contract import (
     SendTurnError,
     SendTurnPhase,
     format_api_poll,
+    format_store_timeline,
     format_turn_trace,
     resolve_send_turn_profile,
 )
@@ -72,7 +73,8 @@ class CdpChatSubmit(CdpChatInput):
                     f"userCount={debug.get('userCount')} "
                     f"streaming={debug.get('streaming')} "
                     f"baseline={debug.get('baselineUsers')} "
-                    f"rev={debug.get('rev')}{format_api_poll(debug)}{format_turn_trace(debug)} "
+                    f"rev={debug.get('rev')}{format_api_poll(debug)}{format_turn_trace(debug)}"
+                    f"{format_store_timeline(debug)} "
                     # Whether the page's observe window is marginal for a live model can
                     # only be judged from how long the sends that sealed took.
                     f"elapsed={time.monotonic() - started:.1f}s"
