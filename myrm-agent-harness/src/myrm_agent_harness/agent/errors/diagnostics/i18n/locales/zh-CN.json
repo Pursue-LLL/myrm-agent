@@ -134,13 +134,13 @@
   "tls_certificate_user_message": "TLS 证书验证失败 — 服务器证书未被接受",
   "tls_certificate_resolution_steps": [
     "检查端点地址是否正确，证书是否有效且与地址匹配——证书已过期、属于自签名证书或与地址不符，都不会自行恢复",
-    "若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」"
+    "若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」，然后重启应用"
   ],
   "tls_transient_user_message": "TLS 握手被中断 — 疑似网络暂时不稳定",
   "tls_transient_resolution_steps": [
     "请重新发送消息",
     "若持续出现，请检查 VPN/代理连接稳定性",
-    "若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」"
+    "若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」，然后重启应用"
   ],
   "cooldown_hint_template": " 请等待{duration}后重试。",
   "cooldown_hint_joiner": "",

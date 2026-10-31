@@ -137,13 +137,13 @@
   "tls_certificate_user_message": "TLS-Zertifikatsüberprüfung fehlgeschlagen — das Serverzertifikat wurde nicht akzeptiert",
   "tls_certificate_resolution_steps": [
     "Prüfen Sie, ob die Endpunktadresse stimmt und das Zertifikat gültig ist und zur Adresse passt — ein abgelaufenes, selbstsigniertes oder nicht passendes Zertifikat behebt sich nicht von selbst",
-    "Hinter Enterprise-TLS-Inspektion 'Kompatibilität mit Unternehmensnetzwerken' unter Einstellungen > Erweiterte Einstellungen aktivieren"
+    "Hinter Enterprise-TLS-Inspektion 'Kompatibilität mit Unternehmensnetzwerken' unter Einstellungen > Erweiterte Einstellungen aktivieren und die App anschließend neu starten"
   ],
   "tls_transient_user_message": "TLS-Handshake unterbrochen — vermutlich eine vorübergehende Netzwerkinstabilität",
   "tls_transient_resolution_steps": [
     "Senden Sie Ihre Nachricht erneut",
     "Bei Fortbestehen VPN-/Proxy-Verbindungsstabilität prüfen",
-    "Hinter Enterprise-TLS-Inspektion 'Kompatibilität mit Unternehmensnetzwerken' unter Einstellungen > Erweiterte Einstellungen aktivieren"
+    "Hinter Enterprise-TLS-Inspektion 'Kompatibilität mit Unternehmensnetzwerken' unter Einstellungen > Erweiterte Einstellungen aktivieren und die App anschließend neu starten"
   ],
   "cooldown_hint_template": " Versuchen Sie es in {duration} erneut.",
   "cooldown_hint_joiner": " ",

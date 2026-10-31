@@ -17,6 +17,11 @@ This module owns that expansion for the MCP runtime:
   when the corresponding plugin root is configured (§9.1). The Windows
   ``.bat``/``.cmd`` interpreter wrap is applied as the final step so every
   consumer of the tuple gets a spawnable command.
+- ``resolve_stdio_launch`` also passes the host's enterprise network compatibility
+  setting on: a stdio child inherits none of the host's environment, so while
+  ``MYRM_TLS_STRICT`` is off ``NODE_USE_SYSTEM_CA=1`` is added to its env and a
+  Node-based server validates against the operating system's trust store like
+  the host does. A value the server config sets itself is kept.
 - ``apply_windows_script_interpreter`` — Windows-only ``.bat`` / ``.cmd``
   interpreter wrapping (Agent Plugins §7.2.1 MAY): maps the resolved command
   to ``cmd.exe /d /c`` while keeping the script path a single token and
@@ -35,6 +40,7 @@ overrides a plugin-declared entry.
 - ``config_scan._extract_env_map`` convention: ``extra_params["env"]`` is a
   ``dict[str, str]`` (POS: static/runtime MCP scanners).
 - ``config.py::MCPConfig.extra_params`` (POS: MCP Configuration).
+- ``infra.tls_compat::tls_strict_disabled`` (POS: Enterprise TLS compatibility setting).
 
 [OUTPUT]
 - ``expand_placeholders``: one-pass placeholder expansion for a single value.
@@ -52,6 +58,8 @@ from __future__ import annotations
 import os
 import re
 
+from myrm_agent_harness.infra.tls_compat import tls_strict_disabled
+
 from .env_guard import sanitize_mcp_env
 
 _EnvDict = dict[str, str]
@@ -60,6 +68,8 @@ _PLACEHOLDER_PATTERN = re.compile(r"\$\{(PLUGIN_ROOT|PLUGIN_DATA)\}")
 # Allowed extra_params keys carrying the plugin root directories.
 _PLUGIN_ROOT_KEY = "plugin_root"
 _DATA_ROOT_KEY = "data_root"
+# Makes Node trust the operating system's CA store besides its bundled roots; a Node that does not know it ignores it.
+_NODE_SYSTEM_CA_ENV = "NODE_USE_SYSTEM_CA"
 # Script extensions that Windows cannot execute directly (Agent Plugins §7.2.1).
 _WINDOWS_SCRIPT_SUFFIXES = (".bat", ".cmd")
 # Characters that force double-quote wrapping inside a cmd.exe command line.
@@ -74,6 +84,18 @@ def _is_windows() -> bool:
     selected through this indirection instead.
     """
     return os.name == "nt"
+
+
+def _with_node_system_ca(env: _EnvDict | None) -> _EnvDict | None:
+    """Add ``NODE_USE_SYSTEM_CA=1`` while enterprise network compatibility is on; a value the server sets wins."""
+    if not tls_strict_disabled():
+        return env
+    env = {} if env is None else env
+    # Windows environment names are case-insensitive, so a differently cased declaration is the server's own value.
+    declared = {key.upper() for key in env} if _is_windows() else set(env)
+    if _NODE_SYSTEM_CA_ENV in declared:
+        return env
+    return {**env, _NODE_SYSTEM_CA_ENV: "1"}
 
 
 def expand_placeholders(
@@ -125,6 +147,8 @@ def resolve_stdio_launch(
       are injected into the subprocess environment so bundled server scripts
       can locate their package and persistent data directory (§9.1). Each
       variable is injected independently for whichever root is configured.
+    - While ``MYRM_TLS_STRICT`` is off, ``NODE_USE_SYSTEM_CA=1`` is injected too
+      (the server's own value for it wins), so ``env`` is then never ``None``.
     - ``cwd`` of ``./`` is the plugin-root-relative form and resolves to
       ``plugin_root`` when configured; a stdio ``command`` starting with
       ``./`` (a plugin-relative executable) implies the same cwd when the
@@ -163,6 +187,8 @@ def resolve_stdio_launch(
             env["PLUGIN_ROOT"] = plugin_root
         if data_root is not None:
             env["PLUGIN_DATA"] = data_root
+
+    env = _with_node_system_ca(env)
 
     cwd: str | None = None
     if extra_params:

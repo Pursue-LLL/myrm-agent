@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, damaged, old-tokenizer and out-of-space FTS5 indexes, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
+Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, loopback HTTPS and `CONNECT`-proxy peers with a clean TLS slate and probes of what a context trusts, damaged, old-tokenizer and out-of-space FTS5 indexes, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
 
 ## File Index
 
@@ -10,6 +10,8 @@ Pytest-only helpers, not shipped in the harness wheel: process teardown and mark
 |------|------|-------------|-------|
 | `browser_process_cleanup.py` | Core | Terminate automation child processes in a pytest process tree | ✅ |
 | `sse_shutdown_flag.py` | Core | Reset sse-starlette's process-global shutdown flag between test uvicorn servers | ✅ |
+| `tls_loopback.py` | Core | Enterprise network compatibility test kit on real sockets: `restore_standard_tls` puts every TLS builder the policy rebinds (`ssl` default and https default, urllib3's builder and context class, aiohttp's default context, urllib's cached opener) back to the library's own and clears the toggle and CA variables; `https_server` is a loopback HTTPS listener presenting a given chain; `connect_proxy` is a plain-HTTP proxy that tunnels `CONNECT` and records its targets; `isolate_from_system_proxy` keeps loopback traffic off whatever proxy the machine is behind | ✅ |
+| `tls_context_probe.py` | Core | Look inside a TLS context in the enterprise network compatibility unit tests: `is_truststore_context` (verifies against the operating system's store), `loaded_cas` (the CA certificates loaded into the context itself), `der_of` (a PEM file as DER), `STRICT_FLAG` and the `needs_strict_flag` skip marker for Python builds without `VERIFY_X509_STRICT` | ✅ |
 | `mcp_testkit/` | Core | Real-server helpers for the MCP transport, TLS, launch-gate and caller-cancellation tests (see its `_ARCH.md`) | ✅ |
 | `marked_processes.py` | Core | Find, wait for and remove worker processes by a marker in their command line (`process_alive` / `kill_marked` / `wait_until`; a shell that only carries the marker as script text does not count), so stop/cancel tests prove a sleeper they started is running before the stop and gone after it on any platform, without pgrep/pkill | ✅ |
 | `fake_process.py` | Core | `FakeProcess`: a finished child whose `stdout` / `stderr` are real `asyncio.StreamReader`s holding what it wrote, for tests that patch `asyncio.create_subprocess_exec`: code that reads the pipes (`communicate_bounded`) would never see the end of a `MagicMock` process with only `communicate` mocked | ✅ |

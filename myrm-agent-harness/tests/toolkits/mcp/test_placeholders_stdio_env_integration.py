@@ -12,7 +12,10 @@ mandates for bundled servers:
 - ``${PLUGIN_ROOT}`` / ``${PLUGIN_DATA}`` placeholders expand in ``cwd``, ``args``
   and ``env`` values at spawn time;
 - a ``./``-relative ``command`` runs from the plugin root even without an
-  explicit ``cwd`` (§7.2.1).
+  explicit ``cwd`` (§7.2.1);
+- the enterprise network compatibility setting reaches the child as
+  ``NODE_USE_SYSTEM_CA=1`` (unset while strict verification is on, and a value
+  the server config sets itself is kept).
 
 This is the wire-level complement to the pure unit tests in
 ``test_placeholders.py``.
@@ -22,6 +25,8 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -46,6 +51,7 @@ def probe() -> str:
         "PLUGIN_ROOT": os.environ.get("PLUGIN_ROOT", "UNSET"),
         "PLUGIN_DATA": os.environ.get("PLUGIN_DATA", "UNSET"),
         "CUSTOM_ENV": os.environ.get("CUSTOM_ENV", "UNSET"),
+        "NODE_USE_SYSTEM_CA": os.environ.get("NODE_USE_SYSTEM_CA", "UNSET"),
         "CWD": os.getcwd(),
         "ARGV": list(sys.argv),
     })
@@ -56,14 +62,18 @@ if __name__ == "__main__":
 """
 
 
+# What the probe server reports it received: strings, and ``ARGV`` as a list.
+ProbeReport = dict[str, str | list[str]]
+
+
 @pytest.fixture
-def _reset_manager() -> object:
+def _reset_manager() -> Iterator[None]:
     MCPConnectionManager._instance = None
     yield
     MCPConnectionManager._instance = None
 
 
-def _make_roots(tmp_path: object) -> tuple[str, str]:
+def _make_roots(tmp_path: Path) -> tuple[str, str]:
     plugin_root = tmp_path / "plugin_root"
     data_root = tmp_path / "plugin_data"
     plugin_root.mkdir()
@@ -71,24 +81,25 @@ def _make_roots(tmp_path: object) -> tuple[str, str]:
     return str(plugin_root), str(data_root)
 
 
-def _write_probe_script(tmp_path: object) -> str:
+def _write_probe_script(tmp_path: Path) -> str:
     script = tmp_path / "env_probe_server.py"
     script.write_text(_ENV_PROBE_SERVER_SRC, encoding="utf-8")
     return str(script)
 
 
-def _extract_json(raw: str) -> dict[str, object]:
+def _extract_json(raw: str) -> ProbeReport:
     """The call result wraps the tool output in a security notice; the first
     line after the ``---`` separator is the raw tool JSON payload."""
     body = raw.split("---\n", 1)[1]
-    return json.loads(body.splitlines()[0])
+    report: ProbeReport = json.loads(body.splitlines()[0])
+    return report
 
 
 async def _probe(
     command: str,
     args: list[str],
     extra_params: dict[str, object] | None,
-) -> dict[str, object]:
+) -> ProbeReport:
     cfg = MCPConfig(
         name="envprobe",
         type="stdio",
@@ -107,9 +118,7 @@ async def _probe(
 
 
 @pytest.mark.integration
-async def test_stdio_injects_plugin_roots_into_subprocess_env(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_injects_plugin_roots_into_subprocess_env(tmp_path: Path, _reset_manager: None) -> None:
     """Configured plugin roots must reach the subprocess as reserved vars (§9.1)."""
     plugin_root, data_root = _make_roots(tmp_path)
 
@@ -123,9 +132,7 @@ async def test_stdio_injects_plugin_roots_into_subprocess_env(
 
 
 @pytest.mark.integration
-async def test_stdio_skips_injection_without_configured_roots(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_skips_injection_without_configured_roots(tmp_path: Path, _reset_manager: None) -> None:
     """Without configured roots the reserved vars must stay unset in the subprocess."""
     report = await _probe(sys.executable, [_write_probe_script(tmp_path)], None)
     assert report["PLUGIN_ROOT"] == "UNSET"
@@ -133,11 +140,9 @@ async def test_stdio_skips_injection_without_configured_roots(
 
 
 @pytest.mark.integration
-async def test_stdio_treats_empty_string_root_as_unconfigured(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_treats_empty_string_root_as_unconfigured(tmp_path: Path, _reset_manager: None) -> None:
     """Empty-string roots must not inject bogus ``""`` values (regression guard)."""
-    plugin_root, data_root = _make_roots(tmp_path)
+    _plugin_root, data_root = _make_roots(tmp_path)
 
     report = await _probe(
         sys.executable,
@@ -149,11 +154,9 @@ async def test_stdio_treats_empty_string_root_as_unconfigured(
 
 
 @pytest.mark.integration
-async def test_stdio_injects_each_reserved_var_independently(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_injects_each_reserved_var_independently(tmp_path: Path, _reset_manager: None) -> None:
     """Partial configuration: only the configured root is injected (§9.1 per-var)."""
-    plugin_root, data_root = _make_roots(tmp_path)
+    plugin_root, _data_root = _make_roots(tmp_path)
 
     report = await _probe(
         sys.executable,
@@ -165,9 +168,7 @@ async def test_stdio_injects_each_reserved_var_independently(
 
 
 @pytest.mark.integration
-async def test_stdio_expands_placeholders_in_env_args_and_cwd(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_expands_placeholders_in_env_args_and_cwd(tmp_path: Path, _reset_manager: None) -> None:
     """``${PLUGIN_ROOT}`` / ``${PLUGIN_DATA}`` must expand in env/args/cwd (§9)."""
     plugin_root, data_root = _make_roots(tmp_path)
     script = _write_probe_script(tmp_path)
@@ -190,17 +191,13 @@ async def test_stdio_expands_placeholders_in_env_args_and_cwd(
 
 
 @pytest.mark.integration
-async def test_stdio_dot_slash_command_runs_from_plugin_root(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_dot_slash_command_runs_from_plugin_root(tmp_path: Path, _reset_manager: None) -> None:
     """A ``./``-relative command implies the plugin root as cwd (§7.2.1)."""
     plugin_root, data_root = _make_roots(tmp_path)
     bin_dir = tmp_path / "plugin_root" / "bin"
     bin_dir.mkdir()
     probe_bin = bin_dir / "probe.py"
-    probe_bin.write_text(
-        f"#!{sys.executable}\n" + _ENV_PROBE_SERVER_SRC, encoding="utf-8"
-    )
+    probe_bin.write_text(f"#!{sys.executable}\n" + _ENV_PROBE_SERVER_SRC, encoding="utf-8")
     probe_bin.chmod(0o755)
 
     report = await _probe("./bin/probe.py", [], {"plugin_root": plugin_root, "data_root": data_root})
@@ -210,9 +207,7 @@ async def test_stdio_dot_slash_command_runs_from_plugin_root(
 
 
 @pytest.mark.integration
-async def test_stdio_strips_dangerous_env_variables_at_runtime(
-    tmp_path: object, _reset_manager: object
-) -> None:
+async def test_stdio_strips_dangerous_env_variables_at_runtime(tmp_path: Path, _reset_manager: None) -> None:
     """Malicious injection variables (e.g. LD_PRELOAD, PYTHONPATH) must be stripped at launch time."""
     plugin_root, data_root = _make_roots(tmp_path)
     script = _write_probe_script(tmp_path)
@@ -236,5 +231,35 @@ async def test_stdio_strips_dangerous_env_variables_at_runtime(
     assert report["CUSTOM_ENV"] == "legitimate_value"
     # Ensure malicious env variables are not present in the subprocess environment
     import os
+
     assert os.environ.get("LD_PRELOAD") != "/tmp/rootkit.so"
 
+
+@pytest.mark.integration
+async def test_stdio_child_trusts_the_system_store_when_enterprise_network_is_on(
+    tmp_path: Path, _reset_manager: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A child inherits none of the host's environment, so the setting reaches it as ``NODE_USE_SYSTEM_CA``."""
+    monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+
+    report = await _probe(sys.executable, [_write_probe_script(tmp_path)], None)
+
+    assert report["NODE_USE_SYSTEM_CA"] == "1"
+
+
+@pytest.mark.integration
+async def test_stdio_child_gets_no_system_store_variable_while_strict(tmp_path: Path, _reset_manager: None) -> None:
+    report = await _probe(sys.executable, [_write_probe_script(tmp_path)], None)
+
+    assert report["NODE_USE_SYSTEM_CA"] == "UNSET"
+
+
+@pytest.mark.integration
+async def test_stdio_child_keeps_the_system_store_value_the_server_sets(
+    tmp_path: Path, _reset_manager: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+
+    report = await _probe(sys.executable, [_write_probe_script(tmp_path)], {"env": {"NODE_USE_SYSTEM_CA": "0"}})
+
+    assert report["NODE_USE_SYSTEM_CA"] == "0"

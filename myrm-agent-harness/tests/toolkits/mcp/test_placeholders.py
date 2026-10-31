@@ -21,16 +21,10 @@ class TestExpandPlaceholders:
 
     def test_expands_both_whitelisted(self) -> None:
         value = "${PLUGIN_ROOT}/bin/pdf --data ${PLUGIN_DATA}/cache"
-        assert (
-            expand_placeholders(value, plugin_root=_ROOT, data_root=_DATA)
-            == f"{_ROOT}/bin/pdf --data {_DATA}/cache"
-        )
+        assert expand_placeholders(value, plugin_root=_ROOT, data_root=_DATA) == f"{_ROOT}/bin/pdf --data {_DATA}/cache"
 
     def test_unknown_placeholder_preserved(self) -> None:
-        assert (
-            expand_placeholders("${OTHER_VAR}/x", plugin_root=_ROOT, data_root=_DATA)
-            == "${OTHER_VAR}/x"
-        )
+        assert expand_placeholders("${OTHER_VAR}/x", plugin_root=_ROOT, data_root=_DATA) == "${OTHER_VAR}/x"
 
     def test_missing_root_leaves_placeholder(self) -> None:
         assert expand_placeholders("${PLUGIN_ROOT}/bin") == "${PLUGIN_ROOT}/bin"
@@ -38,10 +32,7 @@ class TestExpandPlaceholders:
     def test_single_pass_non_recursive(self) -> None:
         # A substituted root value must never be re-expanded (single textual pass).
         nested_root = "${PLUGIN_ROOT}"
-        assert (
-            expand_placeholders("${PLUGIN_ROOT}", plugin_root=nested_root)
-            == "${PLUGIN_ROOT}"
-        )
+        assert expand_placeholders("${PLUGIN_ROOT}", plugin_root=nested_root) == "${PLUGIN_ROOT}"
 
 
 class TestResolveStdioLaunch:
@@ -162,6 +153,58 @@ class TestResolveStdioLaunch:
         assert cwd is None
 
 
+class TestNodeSystemCaTrust:
+    """A stdio child inherits none of the host's environment, so the enterprise network setting is passed on."""
+
+    @pytest.fixture(autouse=True)
+    def _enterprise_network_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+
+    def test_node_is_told_to_trust_the_system_store(self) -> None:
+        _, _, env, _ = resolve_stdio_launch("npx", ["-y", "server"], None)
+        assert env == {"NODE_USE_SYSTEM_CA": "1"}
+
+    def test_the_servers_own_environment_is_kept(self) -> None:
+        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"API_KEY": "abc"}})
+        assert env == {"API_KEY": "abc", "NODE_USE_SYSTEM_CA": "1"}
+
+    def test_it_sits_next_to_the_reserved_plugin_variables(self) -> None:
+        _, _, env, _ = resolve_stdio_launch("npx", None, {"plugin_root": _ROOT, "data_root": _DATA})
+        assert env == {"PLUGIN_ROOT": _ROOT, "PLUGIN_DATA": _DATA, "NODE_USE_SYSTEM_CA": "1"}
+
+    def test_a_value_the_server_sets_wins(self) -> None:
+        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"NODE_USE_SYSTEM_CA": "0"}})
+        assert env == {"NODE_USE_SYSTEM_CA": "0"}
+
+    def test_a_differently_cased_declaration_is_the_servers_own_value_on_windows(self, windows_platform: None) -> None:
+        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"node_use_system_ca": "0"}})
+        assert env == {"node_use_system_ca": "0"}
+
+    def test_a_differently_cased_name_is_another_variable_elsewhere(self) -> None:
+        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"node_use_system_ca": "0"}})
+        assert env == {"node_use_system_ca": "0", "NODE_USE_SYSTEM_CA": "1"}
+
+    @pytest.mark.parametrize("value", [None, "1", "true", "anything"])
+    def test_nothing_is_added_while_strict_verification_is_on(
+        self, value: str | None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        if value is None:
+            monkeypatch.delenv("MYRM_TLS_STRICT")
+        else:
+            monkeypatch.setenv("MYRM_TLS_STRICT", value)
+
+        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"API_KEY": "abc"}})
+
+        assert env == {"API_KEY": "abc"}
+
+    def test_the_variable_survives_the_launch_guard(self) -> None:
+        from myrm_agent_harness.toolkits.mcp.env_guard import sanitize_mcp_env
+
+        _, _, env, _ = resolve_stdio_launch("npx", None, None)
+        assert env is not None
+        assert sanitize_mcp_env(env) == (env, [])
+
+
 @pytest.fixture
 def windows_platform(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force the Windows branch without mutating the real ``os.name``.
@@ -181,18 +224,14 @@ class TestApplyWindowsScriptInterpreter:
             ["--x"],
         )
 
-    def test_passthrough_for_non_script_on_windows(
-        self, windows_platform: None
-    ) -> None:
+    def test_passthrough_for_non_script_on_windows(self, windows_platform: None) -> None:
         assert apply_windows_script_interpreter("python", ["-m", "srv"]) == (
             "python",
             ["-m", "srv"],
         )
 
     @pytest.mark.parametrize("script", ["srv.bat", "srv.BAT", "srv.cmd", "C:/t/srv.cmd"])
-    def test_batch_mapped_to_cmd(
-        self, windows_platform: None, script: str
-    ) -> None:
+    def test_batch_mapped_to_cmd(self, windows_platform: None, script: str) -> None:
         command, args = apply_windows_script_interpreter(script, ["--x"])
         assert command == "cmd.exe"
         assert args == ["/d", "/c", script, "--x"]
@@ -203,12 +242,8 @@ class TestApplyWindowsScriptInterpreter:
             ["/d", "/c", "srv.bat"],
         )
 
-    def test_components_with_spaces_or_metachars_are_quoted(
-        self, windows_platform: None
-    ) -> None:
-        command, args = apply_windows_script_interpreter(
-            "C:/Program Files/srv.bat", ["a&b", "plain"]
-        )
+    def test_components_with_spaces_or_metachars_are_quoted(self, windows_platform: None) -> None:
+        command, args = apply_windows_script_interpreter("C:/Program Files/srv.bat", ["a&b", "plain"])
         assert command == "cmd.exe"
         assert args == ["/d", "/c", '"C:/Program Files/srv.bat"', '"a&b"', "plain"]
 

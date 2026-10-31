@@ -134,13 +134,13 @@
   "tls_certificate_user_message": "TLS 憑證驗證失敗 — 伺服器憑證未被接受",
   "tls_certificate_resolution_steps": [
     "檢查端點位址是否正確，憑證是否有效且與位址相符——憑證已過期、屬於自簽憑證或與位址不符，都不會自行恢復",
-    "若處於企業 TLS 偵測環境，請在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」"
+    "若處於企業 TLS 偵測環境，請在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」，然後重新啟動應用程式"
   ],
   "tls_transient_user_message": "TLS 交握被中斷 — 疑似網路暫時不穩",
   "tls_transient_resolution_steps": [
     "請重新傳送訊息",
     "若持續出現，請檢查 VPN/代理伺服器連線穩定性",
-    "若處於企業 TLS 偵測環境，請在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」"
+    "若處於企業 TLS 偵測環境，請在 設定 > 偏好設定 > 高階配置 中啟用「企業網路相容模式」，然後重新啟動應用程式"
   ],
   "cooldown_hint_template": " 請等待{duration}後重試。",
   "cooldown_hint_joiner": "",

@@ -1,7 +1,7 @@
-"""Unit tests for infra/tls_compat.py.
+"""Unit tests for infra/tls_compat.py: the context policy of the standard library and httpx, and the TLS error classifiers.
 
-The policy rewires ``ssl.create_default_context`` for the whole process, so every test starts from the standard
-library's own builder and puts back whatever it found.
+The policy rewires the TLS context builders of the whole process, so every test starts from the libraries' own
+builders and puts back whatever it found. What aiohttp, urllib3 and litellm hold is in ``test_tls_compat_libraries.py``.
 """
 
 from __future__ import annotations
@@ -25,44 +25,10 @@ from myrm_agent_harness.infra.tls_compat import (
     tls_strict_disabled,
 )
 from tests.support.mcp_testkit.tls_pki import generate_inspection_chain
+from tests.support.tls_context_probe import STRICT_FLAG, der_of, is_truststore_context, loaded_cas, needs_strict_flag
+from tests.support.tls_loopback import CA_ENV_VARS
 
-_STRICT_FLAG = getattr(ssl, "VERIFY_X509_STRICT", 0)
-_CA_ENV_VARS = ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
-
-needs_strict_flag = pytest.mark.skipif(not _STRICT_FLAG, reason="VERIFY_X509_STRICT not available (Python < 3.13)")
-
-
-@pytest.fixture(autouse=True)
-def _pristine_tls(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Start every test with the standard builders and no TLS environment, and restore both afterwards."""
-    monkeypatch.setattr(ssl, "create_default_context", inspect.unwrap(ssl.create_default_context))
-    monkeypatch.setattr(urllib3_ssl, "create_urllib3_context", inspect.unwrap(urllib3_ssl.create_urllib3_context))
-    for name in ("MYRM_TLS_STRICT", *_CA_ENV_VARS):
-        monkeypatch.delenv(name, raising=False)
-
-
-@pytest.fixture
-def ca_file(tmp_path: Path) -> Path:
-    return generate_inspection_chain(tmp_path).ca_cert
-
-
-def _is_truststore_context(ctx: ssl.SSLContext) -> bool:
-    return type(ctx).__module__.startswith("truststore")
-
-
-def _loaded_cas(ctx: ssl.SSLContext) -> list[bytes]:
-    """The CA certificates loaded into *ctx* itself, not the ones the operating system holds."""
-    return ctx.get_ca_certs(binary_form=True)
-
-
-@pytest.fixture
-def inspectable_system_trust(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Stand a plain context in for the system-store one, whose loaded CAs cannot be listed (``get_ca_certs`` raises)."""
-    monkeypatch.setattr("truststore.SSLContext", ssl.SSLContext)
-
-
-def _der(pem_file: Path) -> bytes:
-    return ssl.PEM_cert_to_DER_cert(pem_file.read_text())
+pytestmark = pytest.mark.usefixtures("pristine_tls")
 
 
 class TestTlsStrictDisabled:
@@ -133,23 +99,23 @@ class TestDefaultContextPolicy:
     """What a client-purpose default context becomes once the policy is installed."""
 
     @pytest.fixture(autouse=True)
-    def _strict_off_and_installed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _strict_off_and_installed(self, pristine_tls: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MYRM_TLS_STRICT", "0")
         apply_global_tls_relaxation()
 
     def test_default_trust_is_the_operating_system_store_with_verification_on(self) -> None:
         ctx = ssl.create_default_context()
 
-        assert _is_truststore_context(ctx)
+        assert is_truststore_context(ctx)
         assert ctx.check_hostname is True
         assert ctx.verify_mode == ssl.CERT_REQUIRED
-        assert not ctx.verify_flags & _STRICT_FLAG
+        assert not ctx.verify_flags & STRICT_FLAG
 
     def test_the_bundled_ca_file_httpx_asks_for_means_the_default_trust(self) -> None:
-        assert _is_truststore_context(ssl.create_default_context(cafile=certifi.where()))
+        assert is_truststore_context(ssl.create_default_context(cafile=certifi.where()))
 
     @pytest.mark.usefixtures("inspectable_system_trust")
-    @pytest.mark.parametrize("env_var", _CA_ENV_VARS)
+    @pytest.mark.parametrize("env_var", CA_ENV_VARS)
     def test_a_ca_bundle_the_environment_names_is_added(
         self, env_var: str, ca_file: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -157,7 +123,7 @@ class TestDefaultContextPolicy:
 
         ctx = ssl.create_default_context()
 
-        assert _loaded_cas(ctx) == [_der(ca_file)]
+        assert loaded_cas(ctx) == [der_of(ca_file)]
         assert ctx.verify_mode == ssl.CERT_REQUIRED
 
     @pytest.mark.usefixtures("inspectable_system_trust")
@@ -171,7 +137,7 @@ class TestDefaultContextPolicy:
         with caplog.at_level(logging.WARNING, logger=tls_compat.logger.name):
             ctx = ssl.create_default_context()
 
-        assert _loaded_cas(ctx) == []
+        assert loaded_cas(ctx) == []
         assert ctx.verify_mode == ssl.CERT_REQUIRED
         assert "tls_ca_bundle_skipped var=NODE_EXTRA_CA_CERTS" in caplog.text
 
@@ -179,7 +145,7 @@ class TestDefaultContextPolicy:
     def test_a_missing_ca_bundle_is_ignored(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("SSL_CERT_FILE", str(tmp_path / "absent.pem"))
 
-        assert _loaded_cas(ssl.create_default_context()) == []
+        assert loaded_cas(ssl.create_default_context()) == []
 
     def test_a_pinned_ca_file_keeps_exactly_that_trust(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         pinned_dir = tmp_path / "pinned"
@@ -190,22 +156,22 @@ class TestDefaultContextPolicy:
 
         ctx = ssl.create_default_context(cafile=str(pinned))
 
-        assert not _is_truststore_context(ctx)
-        assert _loaded_cas(ctx) == [_der(pinned)]
-        assert not ctx.verify_flags & _STRICT_FLAG
+        assert not is_truststore_context(ctx)
+        assert loaded_cas(ctx) == [der_of(pinned)]
+        assert not ctx.verify_flags & STRICT_FLAG
 
     def test_pinned_ca_data_keeps_exactly_that_trust(self, ca_file: Path) -> None:
         ctx = ssl.create_default_context(cadata=ca_file.read_text())
 
-        assert not _is_truststore_context(ctx)
-        assert _loaded_cas(ctx) == [_der(ca_file)]
-        assert not ctx.verify_flags & _STRICT_FLAG
+        assert not is_truststore_context(ctx)
+        assert loaded_cas(ctx) == [der_of(ca_file)]
+        assert not ctx.verify_flags & STRICT_FLAG
 
     def test_server_purpose_contexts_are_untouched(self) -> None:
         ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 
-        assert not _is_truststore_context(ctx)
-        assert ctx.verify_flags & _STRICT_FLAG
+        assert not is_truststore_context(ctx)
+        assert ctx.verify_flags & STRICT_FLAG
 
     def test_when_the_system_store_cannot_be_reached_the_standard_trust_is_kept(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -218,10 +184,10 @@ class TestDefaultContextPolicy:
         with caplog.at_level(logging.WARNING, logger=tls_compat.logger.name):
             ctx = ssl.create_default_context()
 
-        assert not _is_truststore_context(ctx)
+        assert not is_truststore_context(ctx)
         assert ctx.verify_mode == ssl.CERT_REQUIRED
         assert ctx.check_hostname is True
-        assert not ctx.verify_flags & _STRICT_FLAG
+        assert not ctx.verify_flags & STRICT_FLAG
         assert "tls_platform_trust_unavailable" in caplog.text
 
     def test_switching_the_toggle_off_stops_relaxing_new_contexts(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -229,30 +195,11 @@ class TestDefaultContextPolicy:
 
         ctx = ssl.create_default_context()
 
-        assert not _is_truststore_context(ctx)
-        assert ctx.verify_flags & _STRICT_FLAG
+        assert not is_truststore_context(ctx)
+        assert ctx.verify_flags & STRICT_FLAG
 
     def test_a_context_httpx_builds_after_the_install_trusts_the_system_store(self) -> None:
-        assert _is_truststore_context(httpx.create_ssl_context())
-
-
-@needs_strict_flag
-class TestUrllib3Relaxation:
-    def test_urllib3_contexts_lose_only_the_strict_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
-        apply_global_tls_relaxation()
-
-        ctx = urllib3_ssl.create_urllib3_context()
-
-        assert not ctx.verify_flags & _STRICT_FLAG
-        assert ctx.verify_mode == ssl.CERT_REQUIRED
-
-    def test_urllib3_contexts_stay_strict_after_the_toggle_goes_off(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
-        apply_global_tls_relaxation()
-        monkeypatch.delenv("MYRM_TLS_STRICT")
-
-        assert urllib3_ssl.create_urllib3_context().verify_flags & _STRICT_FLAG
+        assert is_truststore_context(httpx.create_ssl_context())
 
 
 class TestCreateHttpxClient:

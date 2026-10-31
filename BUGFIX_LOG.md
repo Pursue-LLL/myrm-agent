@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-31 · 打开「企业网络兼容」并给出企业根证书后，标准库网络调用、aiohttp 默认会话、`requests` 与 Node 类 MCP 服务器仍报证书错误：这几类客户端各持一份自己的上下文入口
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 与 `myrm-agent-brand` 各本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-155）。关闭上一条「仍然存在」的 ② 里 aiohttp 默认上下文与 `urllib.request` 两项，以及 ③。 |
+| **症状** | [真实探针，本机 https 监听口，证书链形状同上一条，改前是 HEAD 的源码，改后同一组用例，详见 harness 155] 设置打开、企业根证书经三个环境变量之一给出：`urllib.request`、`http.client`、aiohttp 默认会话、`requests` 四种客户端 × 三个变量共 12 例，改前 0/12 放行、改后 12/12 放行；`requests` 的显式 `verify=` 文件与经 `CONNECT` 代理两条路径改前被拒、改后放行；默认、只给 CA 不开设置、开设置不给 CA 仍被拒，开了设置后过期证书与主机名不符仍被拒。MCP 的 Node 子进程不继承宿主环境，设置打开时它的环境里没有 `NODE_USE_SYSTEM_CA`。两张 TLS 诊断卡的末步没说要重启。 |
+| **根因** | 标准库把 https 默认入口在导入时绑成原函数；aiohttp 在导入时建好默认上下文；urllib3 用自己模块里的类建上下文且被 `urllib3.connection` 按名字持有；上一条只包了 `ssl.create_default_context` 这一个名字。MCP 子进程的环境由 `resolve_stdio_launch` 合成，没有 Node 读系统证书库的开关。 |
+| **行为变化** | ① 设置打开后，这四种客户端新建的上下文与 httpx、聊天模型一致：信任操作系统证书库，叠加三个环境变量指向的 CA，只去掉 `VERIFY_X509_STRICT`；`requests` 的显式 `verify=<文件>` 在策略下是叠加不是独占。② 设置打开时，MCP 的 stdio 服务器子进程环境带 `NODE_USE_SYSTEM_CA=1`（服务器配置里自己写了该变量则保留它的值，严格时不加）。③ 两张 TLS 诊断卡的末步写明「然后重启应用」（六种语言）。④ 设置关闭时不安装任何东西，MCP 子进程环境与改前一致。⑤ 公开文档的安全架构页（中英）同步。 |
+| **回归证据** | harness 155 的 [1]–[5]：入口集成 46 例改前 14 红改后全绿，13 个变异全部被杀；harness 宽套件 6633 通过（另有 30 个 `tests/infra/tracing` 失败，本机缺 OTLP 导出包，与本次无关），`tests/architecture` 7064 通过；server 的启动路径与诊断文案同步守护共 67 通过。 |
+| **仍然存在** | ① 只在 macOS 实测，真实检查代理没测。② 需要重启才完全生效：已构造的客户端、已建好的 aiohttp 会话、安装之前就调用过的 `urllib.request.urlopen` 保留各自的上下文。③ 没覆盖：httpx2；Node 以外的 MCP 子进程；用户经 bash 工具运行的 Node 命令；ACP 受管 Node 工具链里 npm 子进程的下载步骤（读码得出）。④ 依赖 aiohttp、urllib3、litellm 的私有细节，有契约用例守护，但只在本机装的版本上跑过。 |
+| **代码位置** | harness：`infra/tls_compat.py`、`toolkits/mcp/placeholders.py`、`agent/errors/diagnostics/i18n/locales/*.json`，见 harness 155。 |
+
 ## 2026-10-31 · 打开「企业网络兼容」并给出企业根证书后，聊天模型调用仍报证书错误：开关只管到 harness 自己构造的客户端，管不到 litellm 的
 
 | 字段 | 内容 |
@@ -11,7 +23,7 @@
 | **根因** | harness 里有三处各自构造客户端 SSL 上下文，开关只管到其中的 `create_httpx_client`；`llm.py` 注入的 `ssl_verify` 没有到达 litellm 的传输，litellm 的默认上下文在导入时就按 certifi 建好并缓存。 |
 | **行为变化** | ① 开关打开后，客户端用途的默认 TLS 上下文改信任操作系统证书库，并叠加 `SSL_CERT_FILE` / `REQUESTS_CA_BUNDLE` / `NODE_EXTRA_CA_CERTS` 指向的 CA，只去掉 `VERIFY_X509_STRICT`，证书链、主机名、有效期检查不变；显式指定 CA 的调用方只多去掉严格标志。② 设置里的开关说明加「修改后需重启应用生效」（六种语言）。③ 开关打开时，证书被拒的判定增加类型判断（操作系统用自己的语言报错，文字清单匹配不到）；声明了其他结论（限流、密钥被拒、超时）的外层保持自己的结论。④ 开关关闭时不安装任何东西，建上下文的行为与改前一致（证书被拒的类型判断与开关无关）。⑤ `truststore` 成为 harness 直接依赖。 |
 | **回归证据** | harness 148 的 [1]–[5]；server 启动路径、跨层标签守护、锁文件一致、cron 恢复性、设置深链共 108 通过。 |
-| **仍然存在** | ① 只在 macOS 实测，Windows、Linux、钥匙串里的真实企业根证书、真实检查代理都没测。② 需要重启才完全生效；aiohttp 自带默认上下文（Matrix 渠道、`alert_notifier.py`）、httpx2、`urllib.request.urlopen` 没覆盖（读码得出）。③ 诊断卡的步骤没提到要重启。 |
+| **仍然存在** | ① 只在 macOS 实测，Windows、Linux、钥匙串里的真实企业根证书、真实检查代理都没测。② 需要重启才完全生效；aiohttp 自带默认上下文（Matrix 渠道、`alert_notifier.py`）、httpx2、`urllib.request.urlopen` 没覆盖（读码得出；其中 aiohttp 与 `urllib.request` 已在上面一条修复）。③ 诊断卡的步骤没提到要重启（已在上面一条修复）。 |
 | **代码位置** | harness：`infra/tls_compat.py`、`toolkits/llms/errors/tls_rejection.py`、`toolkits/llms/core/llm.py`、`pyproject.toml`，见 harness 148；server：`app/core/infra/tls_config.py`；前端：`locales/{en,zh,zh-TW,ja,ko,de}.json`。 |
 
 ## 2026-10-31 · 模型端点返回 4xx、正文里引用证书报错时，也被当成「证书被拒」：不重试、不换 Key，错误卡指向企业网络兼容开关；多包一层客户端封装就读不到真正的证书被拒

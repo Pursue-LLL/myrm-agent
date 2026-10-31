@@ -134,13 +134,13 @@
   "tls_certificate_user_message": "TLS certificate verification failed — the server's certificate was not accepted",
   "tls_certificate_resolution_steps": [
     "Check that the endpoint address is correct and that its certificate is valid and matches that address — an expired, self-signed or mismatched certificate does not fix itself",
-    "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings"
+    "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings, then restart the app"
   ],
   "tls_transient_user_message": "TLS handshake interrupted — likely a temporary network problem",
   "tls_transient_resolution_steps": [
     "Send your message again",
     "If it persists, check VPN/proxy connection stability",
-    "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings"
+    "If behind enterprise TLS inspection, enable 'Enterprise Network Compatibility' in Settings > Preferences > Advanced Settings, then restart the app"
   ],
   "cooldown_hint_template": " Retry after {duration}.",
   "cooldown_hint_joiner": " ",
