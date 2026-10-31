@@ -86,8 +86,9 @@ _OWN_CARD: dict[ErrorKind, tuple[str, Exception]] = {
 }
 # The kinds that read differently: a rejected request quotes what the provider objected to, an unrecognized failure
 # quotes its own words, and a provider policy block is filed by the classifier under a missing model (a subscription
-# tier gate likewise under a context overflow, which is why that kind is tested for it below).
-_OTHER_CARDS = {ErrorKind.FORMAT_ERROR, ErrorKind.MODEL_NOT_FOUND, ErrorKind.UNKNOWN}
+# tier gate likewise under a context overflow, which is why that kind is tested for it below). A rejected certificate
+# is read by the transport family before the classifier is asked, so the engine never turns that kind into a card.
+_OTHER_CARDS = {ErrorKind.FORMAT_ERROR, ErrorKind.MODEL_NOT_FOUND, ErrorKind.TLS_CERTIFICATE, ErrorKind.UNKNOWN}
 
 
 def test_every_error_kind_has_a_decided_card() -> None:

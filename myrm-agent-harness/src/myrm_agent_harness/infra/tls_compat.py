@@ -23,6 +23,9 @@ Activation:
 - build_httpx_verify(): SSLContext or True for httpx/LiteLLM verify param
 - create_httpx_client(): factory that auto-injects TLS-compat verify param
 - apply_global_tls_relaxation(): urllib3 monkeypatch for 3rd-party libs
+- is_tls_hard_error(): whether an error text carries a certificate-rejection signal (the single signal list the LLM
+  failure classifier and the error diagnostics both read)
+- is_tls_transient_error(): whether an error text is an interrupted handshake with no certificate verdict
 
 [POS]
 Infrastructure TLS compatibility. Enables enterprise deployments behind
@@ -198,10 +201,14 @@ def apply_global_tls_relaxation() -> bool:
 # These are permanent (fail-fast) — retrying cannot change the verdict.
 # Python/OpenSSL strict-mode wordings come first, then the Bun/Node ones
 # (e.g. "unable to verify the first certificate"), hostname/altname mismatch
-# and an expired leaf — all deliberately hard.
+# and an expired leaf — all deliberately hard. A wording that differs from
+# another only in a separator or an apostrophe (the "self_signed" of Node's
+# DEPTH_ZERO_SELF_SIGNED_CERT, a typographic apostrophe) is listed as its own signal.
 _TLS_HARD_SIGNALS = (
     "basic constraints",
     "basicconstraints",
+    "basic_constraints",
+    "basic-constraints",
     "not marked critical",
     "certificate verify failed",
     "ssl: certificate_verify_failed",
@@ -210,9 +217,13 @@ _TLS_HARD_SIGNALS = (
     "self-signed certificate in certificate chain",
     "self-signed",
     "self signed",
+    "self_signed",
+    "selfsigned",
     "unable to verify the first certificate",
     "hostname mismatch",
     "hostname doesn't match",
+    "hostname doesn\u2019t match",
+    "hostname doesnt match",
     "certificate has expired",
     "cert has expired",
     "certificate expired",

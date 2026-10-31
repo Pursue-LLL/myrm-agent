@@ -63,6 +63,8 @@ _ENV_LLM_KINDS: frozenset[str] = frozenset(
         # level (``check_egress_proxy`` / ``rotate_proxy_ip`` /
         # ``verify_network_waf``), which is what puts it on the ENV side.
         "challenge_blocked",
+        # The server's certificate was rejected before any model was reached: the network or the endpoint's trust setup.
+        "tls_certificate",
     }
 )
 

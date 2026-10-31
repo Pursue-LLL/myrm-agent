@@ -38,6 +38,25 @@ def test_resolve_llm_auth_names_the_error_kind() -> None:
     assert resolution.retry_after_seconds == 0
 
 
+def test_resolve_llm_rejected_certificate_names_the_kind_and_is_not_retried_later() -> None:
+    resolution = resolve_llm_failure(
+        RuntimeError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate")
+    )
+    assert resolution.error_kind == ErrorKind.TLS_CERTIFICATE.value
+    assert resolution.retry_after_seconds == 0
+    assert not is_transient_error_kind(resolution.error_kind)
+
+
+def test_evaluate_batch_pause_names_a_rejected_certificate_without_blaming_credentials() -> None:
+    should_pause, reason, kind = evaluate_batch_pause(
+        success_count=0,
+        failure_kinds=[ErrorKind.TLS_CERTIFICATE.value] * 5,
+    )
+    assert should_pause is True
+    assert kind == ErrorKind.TLS_CERTIFICATE.value
+    assert "credentials" not in reason.lower()
+
+
 def test_evaluate_batch_pause_on_auth_cluster() -> None:
     should_pause, reason, kind = evaluate_batch_pause(
         success_count=0,

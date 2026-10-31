@@ -211,6 +211,13 @@ class TestIsTlsHardVsTransient:
             "BasicConstraints of CA cert not marked critical",
             "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed",
             "self-signed certificate in certificate chain",
+            # The same wordings with another separator or apostrophe, and the codes Node and OpenSSL print alone.
+            "Error: DEPTH_ZERO_SELF_SIGNED_CERT",
+            "SELF_SIGNED_CERT_IN_CHAIN",
+            "Hostname doesn\u2019t match certificate",
+            "basic_constraints of CA cert",
+            "[SSL: CERTIFICATE_VERIFY_FAILED]",
+            "cert has expired",
         ],
     )
     def test_hard_errors_fail_fast(self, msg: str) -> None:

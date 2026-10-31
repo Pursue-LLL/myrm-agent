@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-31 · 模型端点的证书被拒时，错误卡说「证书被拒」，运行时却照网络抖动重试约 11 分钟，或把整个 Key 池冷却 24 小时；渠道回复与 Wiki 队列都不认这个原因
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-145）。「仍然存在」里的项未处理。 |
+| **症状** | [真实探针，本机私有 CA 签发证书的监听口，五个供应商族的 litellm 调用，详见 harness 145] 同一次证书被拒：诊断卡是 `tls_certificate`，运行时的分类是 `timeout`（OpenAI、Gemini、Ollama 形状：没有备用模型时重试 15 次，总等待 665～689 秒后才出卡）或 `auth`（Anthropic、DeepSeek 形状：3 把 Key 全部试一遍并各冷却 24 小时，Wiki 编译批次以「API credentials or billing rejected further compiles」暂停）。渠道失败回复与 Wiki 队列也没有证书这一类：渠道回复在加载时断言每个错误类型都有词条，新类型不带词条模块就导入失败。 |
+| **根因** | 分类器与诊断各有一份「证书被拒」的判定与信号清单，分类器的判定还排在超时规则之后（见 harness 145）。 |
+| **行为变化** | ① 证书被拒的失败在运行时分类为 `tls_certificate`：不回合内重试、不换 Key、不冷却 Key，可故障转移（配了备用模型就切换，没配出「未配置备用模型」提示）。② 渠道失败回复新增一句证书文案（英、简中、繁中、日；英文是「The secure connection to the AI service was refused. Please contact the administrator.」），不含供应商原文、端点和排障步骤，沿用成员安全文案的约定。③ 失败细分原因新增 `tls_certificate`。④ Wiki 队列失败行显示「安全连接被拒绝」类标签（六种语言），批次暂停的原因不再指责凭据。⑤ 其余错误逐条一致（快照 2334 条，只有证书类写法改变）。 |
+| **回归证据** | harness 145 的 [1]–[6]；server 359 例通过（`friendly_errors` 与 `ErrorKind` 全成员参数化、渠道语言包 parity、`channel_bridge` 失败回复、`core/errors`、`core/utils`、跨层守护）；前端 `tsc --noEmit`、`verify:i18n`、`verify:icu-syntax` 通过，面板标签测试加入新类型（删掉映射一行即红）。 |
+| **仍然存在** | ① 渠道回复与 Wiki 队列标签没有用真实渠道、真实队列端到端跑过证书被拒。② 只实测了 litellm 的五个供应商族。 |
+| **代码位置** | server：`app/channels/routing/friendly_errors.py`、`app/channels/i18n/locales/{en,zh-CN,zh-TW,ja}.ftl`、`app/core/utils/errors.py`；前端：`src/components/features/settings/sections/knowledge/WikiQueuePanel.tsx`、`locales/{en,zh,zh-TW,ja,ko,de}.json`、`__tests__/WikiQueuePanel.errorKind.test.tsx`；harness：见 harness 145。 |
+
 ## 2026-10-31 · 定时任务前置条件探针：脚本无休止打印时服务端内存数秒内涨数 GB，超时后多等约 1.5 秒才返回
 
 | 字段 | 内容 |
@@ -23,7 +35,7 @@
 | **根因** | harness 的诊断引擎只读最外层异常文本，证书被拒的原因在 litellm 包装的异常链里（见 harness 143）。 |
 | **行为变化** | 外层是连接类、且异常链里有证书被拒的失败，错误卡由 `connection` / `custom_endpoint_unreachable` 变为 `tls_certificate`；其余失败逐字节不变。责任方归因（`FaultSide.ENV`）与恢复按钮（这四个类型都没有）不变；server、前端没有按这些类型分支的代码。 |
 | **回归证据** | harness 143 的 [1]–[5]；server 跨层守护 `tests/integration/test_diagnostic_copy_ui_labels_i18n_sync.py` 63 例通过。 |
-| **仍然存在** | ① 只实测了 OpenAI 兼容路径，其他供应商经 litellm 的异常映射未测。② 短暂 TLS 卡（`tls_transient`）在主路径上很可能到不了，没有改。③ 证书被拒在真实流量里的占比没有数据。 |
+| **仍然存在** | ① 只实测了 OpenAI 兼容路径，其他供应商经 litellm 的异常映射未测。② 短暂 TLS 卡（`tls_transient`）在主路径上很可能到不了，没有改。③ 证书被拒在真实流量里的占比没有数据。【更正】① 五个供应商族已在 harness 145 里实测：诊断五族都给出证书卡，真正的缺口在分类器侧的重试与换 Key（见本文件最上方的证书条目）。 |
 | **代码位置** | `myrm-agent-harness/src/myrm_agent_harness/agent/errors/diagnostics/transport_diagnosis.py`（本仓无改动） |
 
 ## 2026-10-31 · 审计面板里草稿来源的「强制重试」按技能名请求：没有进化库行的本地技能（对话里创建的默认情形）得到 404，被锁的指引与重试都到不了

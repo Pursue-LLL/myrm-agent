@@ -48,7 +48,6 @@ from .classifier_patterns import (
     _SAFETY_BLOCK_RE,
     _THINKING_SIGNATURE_RE,
     _TIMEOUT_RE,
-    _TLS_HARD_RE,
     _TLS_TRANSPORT_RE,
     _USAGE_LIMIT_PATTERNS,
     _USAGE_LIMIT_TRANSIENT_SIGNALS,
@@ -57,6 +56,7 @@ from .error_types import FailoverReason
 from .normalize import normalize_provider_error
 from .provider_window import has_rejected_quota_window
 from .retry_after import extract_retry_after as extract_retry_after
+from .tls_rejection import rejects_certificate
 
 # ============================================================================
 # ErrorKind enum
@@ -79,6 +79,7 @@ class ErrorKind(Enum):
     RESPONSE_FORMAT_ERROR = "response_format_error"
     MODEL_NOT_FOUND = "model_not_found"
     CHALLENGE_BLOCKED = "challenge_blocked"
+    TLS_CERTIFICATE = "tls_certificate"
     UNKNOWN = "unknown"
 
     @property
@@ -102,6 +103,7 @@ _FAILOVERABLE_KINDS = frozenset(
         ErrorKind.RESPONSE_FORMAT_ERROR,
         ErrorKind.MODEL_NOT_FOUND,
         ErrorKind.CHALLENGE_BLOCKED,
+        ErrorKind.TLS_CERTIFICATE,
     }
 )
 
@@ -118,6 +120,7 @@ _ERROR_KIND_TO_REASON: dict[ErrorKind, FailoverReason] = {
     ErrorKind.RESPONSE_FORMAT_ERROR: FailoverReason.RESPONSE_FORMAT_ERROR,
     ErrorKind.MODEL_NOT_FOUND: FailoverReason.MODEL_NOT_FOUND,
     ErrorKind.CHALLENGE_BLOCKED: FailoverReason.CHALLENGE_BLOCKED,
+    ErrorKind.TLS_CERTIFICATE: FailoverReason.TLS_CERTIFICATE,
     ErrorKind.UNKNOWN: FailoverReason.UNKNOWN,
 }
 
@@ -140,6 +143,7 @@ _REASON_TO_ERROR_KIND: dict[FailoverReason, ErrorKind] = {
     FailoverReason.FORMAT_ERROR: ErrorKind.FORMAT_ERROR,
     FailoverReason.RESPONSE_FORMAT_ERROR: ErrorKind.RESPONSE_FORMAT_ERROR,
     FailoverReason.CHALLENGE_BLOCKED: ErrorKind.CHALLENGE_BLOCKED,
+    FailoverReason.TLS_CERTIFICATE: ErrorKind.TLS_CERTIFICATE,
     FailoverReason.PROVIDER_POLICY_BLOCKED: ErrorKind.MODEL_NOT_FOUND,
     FailoverReason.MODEL_NOT_FOUND: ErrorKind.MODEL_NOT_FOUND,
     FailoverReason.UNKNOWN: ErrorKind.UNKNOWN,
@@ -163,7 +167,7 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
       thinking_signature → duplicate_tool_use_id → image_too_large → media_rejected →
       long_context_tier → billing → rate_limit → provider_policy_blocked → auth →
       provider_format → safety_block → model_not_found → overloaded → context_overflow →
-      timeout → UNKNOWN
+      tls_certificate → timeout → UNKNOWN
     """
     if isinstance(exc, TypeError) and _LITELLM_INIT_BUG_RE.search(str(exc)):
         return FailoverReason.TIMEOUT
@@ -249,19 +253,18 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if _is_context_overflow(msg):
         return FailoverReason.CONTEXT_OVERFLOW
 
+    # 6b. Rejected certificate: the request never reached a model and no retry changes the verdict. It must
+    # precede the timeout rule, whose "connection error" pattern also matches the name of the exception a client
+    # library wraps it in, and it is not a credential failure, so no key is rotated or cooled for it.
+    if rejects_certificate(exc, msg):
+        return FailoverReason.TLS_CERTIFICATE
+
     # 7. Transport/Timeouts (+ transient TLS: transport errors carrying an
-    # SSL/TLS/handshake trace but no hard certificate verdict — same class
+    # SSL/TLS/handshake trace but no certificate verdict — same class
     # as connection reset, e.g. Bun's "unknown certificate verification
     # error" emitted on mid-handshake reset)
-    if _TIMEOUT_RE.search(msg) or (_TLS_TRANSPORT_RE.search(msg) and not _TLS_HARD_RE.search(msg)):
+    if _TIMEOUT_RE.search(msg) or _TLS_TRANSPORT_RE.search(msg):
         return FailoverReason.TIMEOUT
-
-    # 7b. Hard TLS failure: the certificate/chain itself is rejected.
-    # Fail-fast as AUTH_PERMANENT (peer-identity credential can never verify
-    # by retrying); the diagnostic engine still surfaces the tls_certificate
-    # remediation hint for these.
-    if _TLS_HARD_RE.search(msg):
-        return FailoverReason.AUTH_PERMANENT
 
     # 8. Fallback Status Code Probes
     if normalized.status_code == 400:

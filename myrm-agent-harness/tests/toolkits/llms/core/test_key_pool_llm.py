@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ssl
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -39,6 +40,23 @@ def _make_context_overflow_error() -> Exception:
     exc = Exception("maximum context length exceeded")
     exc.status_code = 400  # type: ignore[attr-defined]
     return exc
+
+
+# The two wordings client libraries give a rejected certificate: the reason only in the cause of a bare connection
+# error, or already in the outer text beside "Cannot connect to host".
+_CERTIFICATE_OUTER_TEXTS = (
+    "litellm.InternalServerError: OpenAIException - Connection error.",
+    "litellm.InternalServerError: AnthropicException - Cannot connect to host 127.0.0.1:443 ssl:True "
+    "[SSLCertVerificationError: (1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
+    "unable to get local issuer certificate')]",
+)
+
+
+def _make_certificate_error(outer_text: str) -> Exception:
+    root = ssl.SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed")
+    wrapper = Exception(outer_text)
+    wrapper.__cause__ = root
+    return wrapper
 
 
 def _make_chat_result(text: str = "hello") -> ChatResult:
@@ -220,6 +238,32 @@ class TestKeyPoolLLMAuthBillingRotation:
         llm = KeyPoolLLM(instances=instances, pool=pool)
         with pytest.raises(Exception, match="maximum context length"):
             await llm._agenerate([HumanMessage(content="hi")])
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("outer_text", _CERTIFICATE_OUTER_TEXTS)
+    async def test_rejected_certificate_is_not_rotated_and_cools_no_key(self, outer_text: str) -> None:
+        """Every key meets the same certificate: rotating would try them all and cool each for a day."""
+        pool = CredentialPool(["k1", "k2", "k3"])
+        instances = {
+            key: _make_mock_llm(agenerate_result=_make_certificate_error(outer_text)) for key in ("k1", "k2", "k3")
+        }
+        llm = KeyPoolLLM(instances=instances, pool=pool)
+        with pytest.raises(Exception, match=r"litellm\.InternalServerError"):
+            await llm._agenerate([HumanMessage(content="hi")])
+        assert sum(instance._agenerate.await_count for instance in instances.values()) == 1
+        assert pool.available_count() == 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("outer_text", _CERTIFICATE_OUTER_TEXTS)
+    async def test_stream_rejected_certificate_is_not_rotated_and_cools_no_key(self, outer_text: str) -> None:
+        pool = CredentialPool(["k1", "k2", "k3"])
+        instances = {
+            key: _make_mock_llm(astream_chunks=_make_certificate_error(outer_text)) for key in ("k1", "k2", "k3")
+        }
+        llm = KeyPoolLLM(instances=instances, pool=pool)
+        with pytest.raises(Exception, match=r"litellm\.InternalServerError"):
+            _ = [chunk async for chunk in llm._astream([HumanMessage(content="hi")])]
+        assert pool.available_count() == 3
 
     @pytest.mark.asyncio
     async def test_stream_rotates_on_auth_error(self) -> None:

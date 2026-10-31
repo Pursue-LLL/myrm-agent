@@ -342,6 +342,7 @@ error_format = AI 生成了无效格式，请重试。
 error_model_not_found = 请求的模型不可用，请选择其他模型。
 error_safety_block = 请求被安全过滤器拦截。
 error_challenge_blocked = 请求被上游质询或安全验证拦截。
+error_tls_certificate = 与 AI 服务的安全连接被拒绝，请联系管理员。
 error_response_format = AI 生成了无效格式，请重试。
 error_unknown = 处理请求时出现问题，请稍后再试。
 error_billing_owner = AI 服务商账户的余额或额度已用尽，请先向服务商充值，再重新发送消息。

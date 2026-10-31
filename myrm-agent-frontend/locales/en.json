@@ -18081,7 +18081,8 @@
           "format_error": "Request rejected",
           "response_format_error": "Unusable model reply",
           "model_not_found": "Model unavailable",
-          "challenge_blocked": "Blocked by provider"
+          "challenge_blocked": "Blocked by provider",
+          "tls_certificate": "Secure connection refused"
         },
         "refresh": "Refresh",
         "refreshStale": "Queue status may be outdated. Check your connection and tap Refresh.",

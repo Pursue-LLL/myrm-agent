@@ -17,4 +17,4 @@ Pytest-only helpers that run real MCP servers and launch gates for the transport
 
 - `uvicorn`, `mcp.server.mcpserver`, `cryptography` (real listeners, protocol servers, certificate material)
 - `tests.support.sse_shutdown_flag::reset_sse_shutdown_flag` (per-server teardown)
-- Used by `tests/toolkits/mcp/`; `cancel_probe_server.py` is also launched as a stdio script, so it imports only the standard library and `mcp`
+- Used by `tests/toolkits/mcp/`; `tls_pki.py` is also used by `tests/integration/test_tls_certificate_rejection_integration.py`; `cancel_probe_server.py` is also launched as a stdio script, so it imports only the standard library and `mcp`

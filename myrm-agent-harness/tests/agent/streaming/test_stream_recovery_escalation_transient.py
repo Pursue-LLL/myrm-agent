@@ -10,6 +10,7 @@ Covers:
 """
 
 import asyncio
+import ssl
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -286,6 +287,25 @@ class TestHandleTransientRetry:
         ):
             result = await executor._handle_transient_retry(RuntimeError("auth"), 0)
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_rejected_certificate_is_not_retried(self, ctx):
+        """Waiting cannot change a certificate verdict, however the client library words the failure."""
+        executor = _make_executor(ctx)
+        wrapper = Exception("litellm.InternalServerError: OpenAIException - Connection error.")
+        wrapper.__cause__ = ssl.SSLCertVerificationError(
+            1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+        )
+
+        with patch(
+            "myrm_agent_harness.agent.streaming.recovery.stream_recovery_window.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as sleep:
+            result = await executor._handle_transient_retry(wrapper, 0)
+
+        assert result is False
+        sleep.assert_not_called()
+        assert not executor._compactor.events
 
     @pytest.mark.asyncio
     async def test_transient_rate_limit_retry(self, ctx):

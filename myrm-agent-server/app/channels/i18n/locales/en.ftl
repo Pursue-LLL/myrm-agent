@@ -342,6 +342,7 @@ error_format = The AI generated an invalid format. Please try again.
 error_model_not_found = The requested model is not available. Please select a different model.
 error_safety_block = The request was blocked by safety filters.
 error_challenge_blocked = The request was blocked by an upstream challenge or verification.
+error_tls_certificate = The secure connection to the AI service was refused. Please contact the administrator.
 error_response_format = The AI generated an invalid format. Please try again.
 error_unknown = Something went wrong while processing your request. Please try again later.
 error_billing_owner = Your AI provider account has run out of balance or quota. Top up with your provider, then send your message again.

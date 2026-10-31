@@ -18081,7 +18081,8 @@
           "format_error": "Anfrage abgelehnt",
           "response_format_error": "Antwort des Modells nicht verwertbar",
           "model_not_found": "Modell nicht verfügbar",
-          "challenge_blocked": "Vom Anbieter blockiert"
+          "challenge_blocked": "Vom Anbieter blockiert",
+          "tls_certificate": "Sichere Verbindung abgelehnt"
         },
         "refresh": "Aktualisieren",
         "refreshStale": "Der Warteschlangenstatus ist möglicherweise veraltet. Prüfen Sie Ihre Verbindung und tippen Sie auf „Aktualisieren\".",

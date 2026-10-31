@@ -48,6 +48,7 @@ const QUEUE_ERROR_KINDS = [
   'response_format_error',
   'model_not_found',
   'challenge_blocked',
+  'tls_certificate',
   'io_missing',
   'cancelled',
   'embed_window_violation',

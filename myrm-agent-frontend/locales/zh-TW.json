@@ -18081,7 +18081,8 @@
           "format_error": "請求被拒絕",
           "response_format_error": "模型回覆無法解析",
           "model_not_found": "模型無法使用",
-          "challenge_blocked": "被服務商攔截"
+          "challenge_blocked": "被服務商攔截",
+          "tls_certificate": "安全連線被拒絕"
         },
         "refresh": "重新整理",
         "refreshStale": "佇列狀態可能已過期，請檢查網路後點擊重新整理。",

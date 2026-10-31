@@ -626,6 +626,7 @@ _FAILOVER_REASON_TO_DETAILED_REASON: dict[FailoverReason, str] = {
     FailoverReason.IMAGE_TOO_LARGE: "image_too_large",
     FailoverReason.MEDIA_REJECTED: "media_rejected",
     FailoverReason.PROVIDER_POLICY_BLOCKED: "provider_policy_blocked",
+    FailoverReason.TLS_CERTIFICATE: "tls_certificate",
 }
 
 

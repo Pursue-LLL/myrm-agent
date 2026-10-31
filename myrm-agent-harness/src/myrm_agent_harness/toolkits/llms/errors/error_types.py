@@ -63,6 +63,7 @@ class FailoverReason(Enum):
     LONG_CONTEXT_TIER = "long_context_tier"  # Anthropic subscription tier gate (compress, don't retry)
     SAFETY_BLOCK = "safety_block"  # Content blocked by safety/moderation filters
     CHALLENGE_BLOCKED = "challenge_blocked"  # WAF/Cloudflare anti-bot challenge block (defense breaker)
+    TLS_CERTIFICATE = "tls_certificate"  # Server certificate rejected: the request never reached a model
 
     @property
     def recoverability(self) -> RecoverabilityLevel:
@@ -122,6 +123,7 @@ _REASON_TO_RECOVERABILITY: dict[FailoverReason, RecoverabilityLevel] = {
     FailoverReason.LONG_CONTEXT_TIER: RecoverabilityLevel.PERMANENT,
     FailoverReason.SAFETY_BLOCK: RecoverabilityLevel.PERMANENT,
     FailoverReason.CHALLENGE_BLOCKED: RecoverabilityLevel.PERMANENT,
+    FailoverReason.TLS_CERTIFICATE: RecoverabilityLevel.PERMANENT,
 }
 
 # ============================================================================
@@ -253,6 +255,14 @@ _REASON_TO_PROBE_POLICY: dict[FailoverReason, ProbePolicy] = {
         max_attempts=0,
         cooldown_ms=float("inf"),
     ),
+    # Permanent until the user fixes the trust setup, and that can happen within the session: probe on the
+    # timeout schedule instead of waiting out the longest cooldown.
+    FailoverReason.TLS_CERTIFICATE: ProbePolicy(
+        enabled=True,
+        interval_ms=30_000,
+        max_attempts=3,
+        cooldown_ms=120_000,  # 2 minutes
+    ),
 }
 
 # ============================================================================
@@ -273,6 +283,7 @@ _FAILOVERABLE_REASONS = frozenset(
         FailoverReason.PROVIDER_POLICY_BLOCKED,
         FailoverReason.LONG_CONTEXT_TIER,
         FailoverReason.CHALLENGE_BLOCKED,
+        FailoverReason.TLS_CERTIFICATE,
     }
 )
 

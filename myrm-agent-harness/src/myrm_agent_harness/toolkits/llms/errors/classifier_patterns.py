@@ -70,24 +70,13 @@ _TIMEOUT_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Permanent TLS failure: the certificate/chain itself is rejected (fail-fast,
-# never retried). Checked AFTER the transient-transport rule so that weak-
-# network handshakes interrupted before any certificate verdict stay retryable.
-_TLS_HARD_RE = re.compile(
-    r"self.?signed|unable to get local issuer"
-    r"|unable to verify the first certificate"
-    r"|hostname (?:mismatch|doesn.?t match)|err_tls_cert_altname_invalid|altname"
-    r"|certificate (?:has )?expired|expired certificate"
-    r"|basic.?constraints|not marked critical"
-    r"|certificate verify failed",
-    re.IGNORECASE,
-)
-
-# Transient TLS transport trace: SSL/TLS/handshake wording with NO hard
-# signal. Covers Bun's mislabeled "unknown certificate verification error"
-# (reset mid-handshake, no certificate ever rejected) and Python SSLEOFError /
-# BrokenPipeError wordings that _TIMEOUT_RE misses ("unexpected_eof" with
-# underscores, "eof occurred in violation of protocol", "broken pipe").
+# Transient TLS transport trace: SSL/TLS/handshake wording. The classifier tests
+# it after the rejected-certificate rule (tls_rejection.py), so a text that
+# carries a hard certificate signal never gets here. Covers Bun's mislabeled
+# "unknown certificate verification error" (reset mid-handshake, no certificate
+# ever rejected) and Python SSLEOFError / BrokenPipeError wordings that
+# _TIMEOUT_RE misses ("unexpected_eof" with underscores, "eof occurred in
+# violation of protocol", "broken pipe").
 _TLS_TRANSPORT_RE = re.compile(
     r"\bssl\b|\btls\b|handshake"
     r"|unknown[ _]certificate[ _]verification|certificate verification error"

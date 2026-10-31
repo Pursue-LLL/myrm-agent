@@ -18081,7 +18081,8 @@
           "format_error": "リクエストが拒否されました",
           "response_format_error": "モデルの応答を解釈できません",
           "model_not_found": "モデルを利用できません",
-          "challenge_blocked": "プロバイダーによりブロック"
+          "challenge_blocked": "プロバイダーによりブロック",
+          "tls_certificate": "安全な接続が拒否されました"
         },
         "refresh": "更新",
         "refreshStale": "キューの状態が古い可能性があります。接続を確認して「更新」を押してください。",

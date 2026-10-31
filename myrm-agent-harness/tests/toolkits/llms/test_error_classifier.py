@@ -1,6 +1,7 @@
 """Tests for myrm_agent_harness.toolkits.llms.errors.classifier
 and _runtime.stream_executor._emergency_compact."""
 
+import ssl
 from typing import ClassVar
 
 import pytest
@@ -16,7 +17,7 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import (
     is_context_overflow,
     is_quota_exhausted,
 )
-from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
+from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason, RecoverabilityLevel, get_probe_policy
 
 # ============================================================================
 # classify_error — context overflow
@@ -193,9 +194,84 @@ def test_classify_tls_transient_as_timeout(msg: str) -> None:
         "certificate has expired",
     ],
 )
-def test_classify_tls_hard_as_auth_permanent(msg: str) -> None:
-    assert classify_failover_reason(Exception(msg)) == FailoverReason.AUTH_PERMANENT
-    assert classify_error(Exception(msg)) == ErrorKind.AUTH
+def test_classify_tls_hard_as_tls_certificate(msg: str) -> None:
+    assert classify_failover_reason(Exception(msg)) == FailoverReason.TLS_CERTIFICATE
+    assert classify_error(Exception(msg)) == ErrorKind.TLS_CERTIFICATE
+
+
+@pytest.mark.parametrize(
+    "msg",
+    [
+        # Spellings that differ from another signal only in a separator or an apostrophe.
+        "Error: DEPTH_ZERO_SELF_SIGNED_CERT",
+        "SELF_SIGNED_CERT_IN_CHAIN",
+        "Hostname doesn\u2019t match certificate",
+        "basic_constraints of CA cert",
+        # Wordings the classifier once missed: the code alone, an expiry in Node's short form.
+        "[SSL: CERTIFICATE_VERIFY_FAILED]",
+        "cert has expired",
+    ],
+)
+def test_classify_tls_hard_spellings_as_tls_certificate(msg: str) -> None:
+    assert classify_error(Exception(msg)) == ErrorKind.TLS_CERTIFICATE
+
+
+_CERT = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1032)"
+
+
+def _wrapped_in_connection_error(root: Exception, outermost: str) -> Exception:
+    """A client library's layers around *root*: only the innermost carries the reason, the outermost is its wording."""
+    middle = ConnectionError("Connection error.")
+    middle.__cause__ = root
+    outer = Exception(outermost)
+    outer.__context__ = middle
+    return outer
+
+
+@pytest.mark.parametrize(
+    "outermost",
+    [
+        "litellm.InternalServerError: OpenAIException - Connection error.",
+        "litellm.InternalServerError: VertexAIException - Connection error",
+        "litellm.APIConnectionError: Connection error.",
+    ],
+)
+def test_classify_connection_error_wrapping_a_rejected_certificate(outermost: str) -> None:
+    exc = _wrapped_in_connection_error(ssl.SSLCertVerificationError(1, _CERT), outermost)
+    assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
+    assert classify_error(exc) == ErrorKind.TLS_CERTIFICATE
+
+
+def test_classify_certificate_inside_a_connection_error_class_name_is_not_a_timeout() -> None:
+    """The class name's "connection error" alone would file the rejection under the timeout rule."""
+    exc = Exception(f"litellm.APIConnectionError: {_CERT}")
+    assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
+
+
+@pytest.mark.parametrize(
+    "root",
+    [
+        ConnectionRefusedError(61, "Connection refused"),
+        OSError(8, "nodename nor servname provided, or not known"),
+        ssl.SSLError(1, "[SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1032)"),
+        BrokenPipeError(32, "Broken pipe"),
+        ssl.SSLEOFError(8, "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol"),
+    ],
+    ids=["refused", "dns", "wrong_version", "broken_pipe", "eof"],
+)
+def test_classify_connection_error_without_a_rejected_certificate_stays_transient(root: Exception) -> None:
+    """An https URL pointed at a plain-HTTP service or an interrupted handshake is no certificate verdict."""
+    exc = _wrapped_in_connection_error(root, "litellm.InternalServerError: OpenAIException - Connection error.")
+    assert classify_failover_reason(exc) == FailoverReason.TIMEOUT
+
+
+def test_a_rejected_certificate_is_permanent_failoverable_and_probed_on_the_timeout_schedule() -> None:
+    """No retry changes the verdict, a backup endpoint may still answer, and the user can fix the trust setup."""
+    assert FailoverReason.TLS_CERTIFICATE.recoverability is RecoverabilityLevel.PERMANENT
+    assert FailoverReason.TLS_CERTIFICATE.is_failoverable
+    assert ErrorKind.TLS_CERTIFICATE.is_failoverable
+    assert ErrorKind.TLS_CERTIFICATE.to_failover_reason() is FailoverReason.TLS_CERTIFICATE
+    assert get_probe_policy(FailoverReason.TLS_CERTIFICATE) == get_probe_policy(FailoverReason.TIMEOUT)
 
 
 # ============================================================================
@@ -820,11 +896,7 @@ class TestNormalizeProviderErrorCodeAndType:
     def test_structured_error_code_in_body(self) -> None:
         """When message is generic but body['error']['code'] indicates quota exhaustion."""
         exc = Exception("Request failed with status code 429")
-        setattr(
-            exc,
-            "body",
-            {"error": {"code": "insufficient_quota", "message": "Upstream error 429"}},
-        )
+        exc.body = {"error": {"code": "insufficient_quota", "message": "Upstream error 429"}}
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
         assert classify_error(exc) == ErrorKind.BILLING
@@ -832,14 +904,14 @@ class TestNormalizeProviderErrorCodeAndType:
     def test_top_level_code_in_body(self) -> None:
         """When proxy returns top-level code instead of nested error object."""
         exc = Exception("API error 429")
-        setattr(exc, "body", {"code": "insufficient_quota", "message": "Account balance zero"})
+        exc.body = {"code": "insufficient_quota", "message": "Account balance zero"}
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
 
     def test_direct_exception_code_attribute(self) -> None:
         """When SDK attaches code directly on exception object."""
         exc = Exception("Error processing completion")
-        setattr(exc, "code", "insufficient_quota")
+        exc.code = "insufficient_quota"
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
 
@@ -849,24 +921,13 @@ class TestNormalizeProviderErrorCodeAndType:
 
         inner_raw = json.dumps({"error": {"code": "insufficient_quota", "message": "Failed"}})
         exc = Exception("OpenRouter API error")
-        setattr(
-            exc,
-            "body",
-            {"error": {"message": "Provider returned error", "metadata": {"raw": inner_raw}}},
-        )
+        exc.body = {"error": {"message": "Provider returned error", "metadata": {"raw": inner_raw}}}
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
 
     def test_structured_rate_limit_not_confused_with_billing(self) -> None:
         """Standard rate limits in code field should stay RATE_LIMIT."""
         exc = Exception("Rate limit reached")
-        setattr(
-            exc,
-            "body",
-            {"error": {"code": "rate_limit_exceeded", "message": "15 RPM limit reached"}},
-        )
+        exc.body = {"error": {"code": "rate_limit_exceeded", "message": "15 RPM limit reached"}}
         assert is_quota_exhausted(exc) is False
         assert classify_failover_reason(exc) == FailoverReason.RATE_LIMIT
-
-
-

@@ -393,7 +393,7 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 |------|------|
 | `engine.py` | `LLMErrorDiagnostic` 静态分类器：LLM 异常 → 本地化 `DiagnosticResult`；先试传输类与账户类，再进入模型、限流、响应格式、上下文、超时，随后经 `classify_error` 桥接分类器认得而关键词族没认出的失败（`api_key` / `billing` / `rate_limit` / `timeout` / `context_overflow` / `response_format_error` / `overloaded` / `safety_block` / `format_error` / `challenge_blocked`；`model_not_found` 与订阅档位门槛不在其中：分类器把供应商策略拦截归在前者、把档位门槛归在 `context_overflow` 之下，二者用供应商自己的话展示更准），最后兜底 `unknown` |
 | `catalog_result.py` | `build_catalog_result`：错误类型 → 本地化 `DiagnosticResult` 的唯一装配点（文案、步骤、供应商给出的等待时长；`entry` 选同一错误类型的另一版措辞，结果的类型不变）；守卫测试 `test_diagnostic_result_single_source.py` 保证全库只有这里构造 `DiagnosticResult` |
-| `transport_diagnosis.py` | TLS（`tls_certificate`：证书被拒（链不受信、主机名不符、过期），步骤先核对端点证书、再给企业网络兼容开关；`tls_transient`：握手被中断）与连接（`connection`、`custom_endpoint_unreachable`）诊断（连接失败还会沿异常链读取：客户端库把被拒的证书包装成一句「Connection error.」，原因留在底层异常里，底层异常带硬证书信号就判为 `tls_certificate`，自定义端点同样；短暂信号不沿链读取，因为它包含「wrong version number」「broken pipe」这类也会出现在纯 HTTP 服务或被断开套接字上的措辞；外层不是连接失败的异常保持自己的诊断）；自定义端点的服务名、端口推断 |
+| `transport_diagnosis.py` | TLS（`tls_certificate`：证书被拒（链不受信、主机名不符、过期），步骤先核对端点证书、再给企业网络兼容开关；`tls_transient`：握手被中断）与连接（`connection`、`custom_endpoint_unreachable`）诊断（连接失败还会沿异常链读取：客户端库把被拒的证书包装成一句「Connection error.」，原因留在底层异常里，底层异常带硬证书信号就判为 `tls_certificate`，自定义端点同样；判定函数是 `toolkits/llms/errors/tls_rejection.py::rejects_certificate`，失败分类器用的是同一个，所以错误卡与重试、换 Key、故障转移说的是同一个原因；短暂信号不沿链读取，因为它包含「wrong version number」「broken pipe」这类也会出现在纯 HTTP 服务或被断开套接字上的措辞；外层不是连接失败的异常保持自己的诊断）；自定义端点的服务名、端口推断 |
 | `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
 | `types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
 | `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化；`locale_chain()` 定义文案的回退链：请求的语言 → 其规范形式 → 同语言的其他目录（`ja-JP` 读 `ja`；`zh-HK` 读 `zh-TW`，宿主目录没有繁体目录时再读 `zh-CN`）→ `en`；文案、等待提示与恢复按钮标签共用这条链 |
@@ -401,7 +401,7 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `i18n/constants.py` | `REQUIRED_ERROR_TYPES` 翻译完整性校验 |
 | `i18n/locales/` | 6 语言 JSON（en/zh-CN/zh-TW/ja/ko/de） |
 
-#### 2. ErrorKind分类（`toolkits/llms/errors/classifier.py`，12种）
+#### 2. ErrorKind分类（`toolkits/llms/errors/classifier.py`，13种）
 
 | ErrorKind | 含义 |
 |-----------|------|
@@ -416,6 +416,7 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `context_overflow` | 上下文过长 |
 | `safety_block` | 安全拦截（供应商内容策略或内容过滤器拒绝，含错误码 `content_filter`、`ResponsibleAIPolicyViolation`、`data_inspection_failed`，DashScope 的 “may contain inappropriate content”，Codex 的网络安全标记，MiniMax 的 `new_sensitive`（1027）与 “Content Exists Risk”） |
 | `challenge_blocked` | 出口被 WAF/反爬质询拦截（请求未到达模型） |
+| `tls_certificate` | 服务端证书被拒（链不受信、主机名不符、过期；请求未到达模型）：不是凭据问题，不换 Key、不冷却 Key、不做回合内重试，可故障转移到备用模型 |
 | `unknown` | 未知错误 |
 
 恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，`update_key` 与 `change_model` 落到「设置 > 模型服务」（`/settings/models`），`top_up` 落到 `/settings`；其余类型不下发按钮。

@@ -58,6 +58,7 @@ function errorKindLabel(
     response_format_error: t('errorKind.response_format_error'),
     model_not_found: t('errorKind.model_not_found'),
     challenge_blocked: t('errorKind.challenge_blocked'),
+    tls_certificate: t('errorKind.tls_certificate'),
   };
   return labels[kind] ?? t('errorKindUnknown');
 }
