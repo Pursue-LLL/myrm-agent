@@ -7,7 +7,8 @@
 - Tests that /derive and /fix take a local skill's name as its reference even when the skill has no evolution row,
   and that the lookup by name never leaves the primary local skills directory, finds the skill by its directory name
   first and then by a name it is known by (the name in its SKILL.md or the one the agent runtime lists it under),
-  chooses none of several skills that go by one name, skips an unreadable SKILL.md, finds no skill for a name no
+  chooses none of several skills that go by one name, skips a SKILL.md that cannot be read or that the scan rejects and
+  a directory with a blank name, finds no skill for a name no
   directory can have, and does not turn an unreadable directory into a missing skill.
 [POS]
 The growth audit names a skill only by the name its draft carried, and most local skills (made in chat, placed by hand)
@@ -19,6 +20,7 @@ another key is the one evolved. Page skills come from the real local scan, so th
 from __future__ import annotations
 
 import errno
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
@@ -204,6 +206,23 @@ async def test_an_unreadable_skill_md_does_not_hide_the_other_skills(skills_root
     write_skill(skills_root, "good", name="report-builder")
     (skills_root / "broken").mkdir()
     (skills_root / "broken" / "SKILL.md").write_bytes(b"\xff\xfe\x00")
+
+    assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "good"
+
+
+async def test_a_skill_md_the_scan_rejects_does_not_hide_the_other_skills(skills_root: Path) -> None:
+    write_skill(skills_root, "good", name="report-builder")
+    (skills_root / "invalid").mkdir()
+    (skills_root / "invalid" / "SKILL.md").write_text("A SKILL.md without a frontmatter.\n", encoding="utf-8")
+
+    assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "good"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows cannot create a directory whose name is blank")
+async def test_a_directory_with_a_blank_name_does_not_hide_the_other_skills(skills_root: Path) -> None:
+    write_skill(skills_root, "good", name="report-builder")
+    (skills_root / " ").mkdir()
+    (skills_root / " " / "SKILL.md").write_text("---\ndescription: Demo skill.\n---\n", encoding="utf-8")
 
     assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "good"
 

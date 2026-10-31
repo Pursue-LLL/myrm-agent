@@ -1,7 +1,7 @@
 """Local skill directory lookup by directory name and by the names a skill is known by.
 
 [INPUT]
-- app.core.skills.providers.local::parse_skill_md (POS: SKILL.md frontmatter reader of the local provider)
+- myrm_agent_harness.api.skills::parse_skill_frontmatter (POS: the frontmatter parse the local scan lists a skill by)
 - app.core.skills.utils::normalize_skill_name (POS: the name the agent runtime lists a skill under)
 - myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE (POS: entry file name of a skill package)
 
@@ -21,8 +21,8 @@ import logging
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
+from myrm_agent_harness.api.skills import SkillMetadataError, parse_skill_frontmatter
 
-from ..providers.local import parse_skill_md
 from ..utils import normalize_skill_name
 
 logger = logging.getLogger(__name__)
@@ -51,19 +51,22 @@ def local_skill_dir_named(skills_root: Path, dir_name: str) -> Path | None:
 def _known_names(skill_dir: Path) -> frozenset[str]:
     """The names the skill in ``skill_dir`` goes by.
 
-    They are its name in SKILL.md (the directory's when it has none) and the name the agent runtime lists it under. A
-    directory entry that holds no readable SKILL.md goes by none: one broken skill must not hide the others, and it
-    could not be patched anyway.
+    They are the name the local scan lists it under (its name in SKILL.md; the directory's when it has none or the name
+    is longer than a skill name may be) and the name the agent runtime lists it under. A directory entry whose SKILL.md
+    is missing, unreadable or rejected by the scan, and one with a blank name, goes by none: one broken skill must not
+    hide the others, and it could not be patched anyway.
     """
     skill_md = skill_dir / SKILL_MD_FILE
     try:
         if not skill_md.is_file():
             return frozenset()
-        frontmatter = parse_skill_md(skill_md.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError) as exc:
-        logger.warning("Skipping unreadable %s: %s", skill_md, exc)
+        frontmatter = parse_skill_frontmatter(skill_md.read_text(encoding="utf-8"), skill_dir.name)
+    except (OSError, UnicodeDecodeError, SkillMetadataError) as exc:
+        logger.warning("Skipping unusable %s: %s", skill_md, exc)
         return frozenset()
-    name = str((frontmatter or {}).get("name") or "").strip() or skill_dir.name
+    name = frontmatter.name or skill_dir.name
+    if not name.strip():
+        return frozenset()
     return frozenset({name, normalize_skill_name(name)})
 
 

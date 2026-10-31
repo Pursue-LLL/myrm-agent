@@ -6,7 +6,7 @@
 - tests.api.skills.conftest (POS: primary local skills directory moved to a temporary one, real local scan)
 [OUTPUT]
 - Tests that a review result finds the skill it names whether it carries the skill's directory name, its listed name
-  or the name from its SKILL.md, that the lock and the approval act on that skill, that two skills a name cannot tell
+  or the name from its SKILL.md, whatever that name's spelling, that the lock and the approval act on that skill, that two skills a name cannot tell
   apart are not guessed between, and that a name no directory can have is recorded and not dropped.
 [POS]
 The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
@@ -75,11 +75,20 @@ async def _recorded(result: dict[str, object]) -> SkillGrowthCaseDetailRead:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("dir_name", ["report-builder", "plain"])
+@pytest.mark.parametrize(
+    ("dir_name", "name"),
+    [
+        pytest.param("report-builder", None, id="hyphenated-directory"),
+        pytest.param("plain", None, id="plain-directory"),
+        pytest.param("plain", "MyTool", id="mixed-case-name"),
+        pytest.param("plain", '"quoted-name"', id="quoted-name"),
+        pytest.param("plain", "a" * 70, id="name-over-64-characters"),
+    ],
+)
 async def test_a_patch_for_a_locked_skill_is_blocked_under_the_name_the_reviewer_saw(
-    mock_local_skills_dir: Path, dir_name: str
+    mock_local_skills_dir: Path, dir_name: str, name: str | None
 ) -> None:
-    directory = _write_skill(mock_local_skills_dir, dir_name, locked=True)
+    directory = _write_skill(mock_local_skills_dir, dir_name, name=name, locked=True)
     seen = await _listed_name(directory)
     assert seen != dir_name
 
