@@ -18,7 +18,7 @@ Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.seal
 | `event_hub.py` / `event_wait.py` | 事件分发与等待 |
 | `signoff_export.py` | signoff artifact 导出 |
 | `private_resource_controller.py` | PRIVATE 1–4 credits 队列 |
-| `solo_launch_gate.py` | 维护者 signoff 窗口 |
+| `solo_launch_gate.py` | LIVE 启动门：探活对象随 lane 而定（启动前已指定隔离运行时则探它自己的 UI；full isolated 自带 UI，不探共享 UI；其余探共享 UI）→ orchestrator READY → 维护者 signoff 窗口 |
 | `cleanup_observed_seal.py` | observed cleanup seal |
 | `desktop_seat_controller.py` | macOS GUI seat |
 | `owner_identity.py` | pid + boot token 精确 owner |
