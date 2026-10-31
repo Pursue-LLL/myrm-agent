@@ -18,6 +18,7 @@ import contextvars
 import inspect
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -25,6 +26,7 @@ from langchain_core.tools import tool
 
 from myrm_agent_harness.agent._internals._agent_helpers import isolated_run_guards, reset_all_guards
 from myrm_agent_harness.agent.middlewares.tooling import _tool_guards
+from myrm_agent_harness.agent.security.guards import frequency_guard
 from myrm_agent_harness.agent.security.guards.frequency_guard import FrequencyGuard
 from myrm_agent_harness.agent.security.tool_registry import TOOL_SAFETY_METADATA, SafetyMetadata
 from tests.support.shipped_graph import shipped_agent, shipped_session
@@ -94,7 +96,11 @@ def test_every_tool_call_asks_for_each_of_the_three_guards(monkeypatch: pytest.M
 def _tool_replies_of_a_run(
     monkeypatch: pytest.MonkeyPatch, workspace: Path, *, delegated: bool, calls: int
 ) -> list[str]:
-    """The reply to each of *calls* successive calls of one tool, one call per model turn."""
+    """The reply to each of *calls* successive calls of one tool, one call per model turn.
+
+    The clock of the call window stands still, so that a slow machine cannot let early calls age out of the window
+    and change how many are refused."""
+    monkeypatch.setattr(frequency_guard, "time", SimpleNamespace(time=lambda: 1_000.0))
     monkeypatch.setitem(TOOL_SAFETY_METADATA, "read_source", SafetyMetadata(is_read_only=True, is_concurrent_safe=True))
     turns = [
         AIMessage(content="", tool_calls=[{"id": f"call-{n}", "name": "read_source", "args": {"tag": str(n)}}])
