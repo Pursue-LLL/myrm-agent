@@ -29,6 +29,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_distribution_codegen.py` | Gate | manifest codegen 新鲜度 + core IP import 可加载 | — |
 | `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |
 | `test_no_legacy_distribution_imports.py` | Gate | 禁止 Python 源码 reintroduce `myrm_agent_harness.distribution` import | — |
+| `test_unbounded_communicate_sites.py` | Gate | AST：`src/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：要么写明输出与时长已由命令本身限定，要么列入「待决」一栏（已知缺口，等待改用 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；自带检测器正反例 | — |
 | `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 litellm 对话接口（`litellm.acompletion` 等）的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 ChatLiteLLM）除外；自带检测器正反例与过期登记检查 | — |
 | `test_event_queries_name_written_types.py` | Gate | AST：`src/` 内 `event_types=` 的每个字符串必须是 `EventLogger` 实际写入的事件类型（持久化类型 + `session_start`/`session_end`/`security_audit`）；查询一个无人写入的类型只会得到空列表，其后的代码永不执行；自带检测器正反例 | — |
 | `test_public_api.py` | Gate | 公开 API 边界 smoke | — |

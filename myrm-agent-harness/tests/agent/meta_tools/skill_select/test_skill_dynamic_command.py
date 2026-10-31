@@ -54,6 +54,26 @@ async def test_a_command_that_runs_too_long_is_reported_and_stopped(monkeypatch:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "command",
+    ["sleep 4711; echo done", "sleep 4711 & echo started"],
+    ids=["after_the_sleeper", "background_sleeper"],
+)
+async def test_a_command_is_stopped_at_its_deadline_together_with_everything_it_started(
+    monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    monkeypatch.setattr(skill_document_loader, "_DYNAMIC_CMD_TIMEOUT", 2)
+    started = time.monotonic()
+
+    document = await asyncio.wait_for(_resolve_dynamic_context(f"!`{command}`"), timeout=30)
+
+    assert document == "[command timed out after 2s]"
+    # Left running, what the command started keeps its pipes open and the loader waits out the whole drain period.
+    assert time.monotonic() - started < 4.5
+    assert not process_alive(_SLEEP_MARKER)
+
+
+@pytest.mark.asyncio
 async def test_a_command_that_never_stops_writing_is_stopped_at_its_deadline_without_filling_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

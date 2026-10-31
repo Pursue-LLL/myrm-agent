@@ -4,9 +4,9 @@
 - agent.hooks.types (POS: Hook 类型定义)
 - agent.hooks.registry::HookRegistry (POS: 钩子存储，按事件分组，支持作用域生命周期)
 - agent.hooks.command_gate (POS: 命令钩子安全网关(判模板、不判载荷)+载荷环境变量绑定+审批注入点)
+- agent.hooks.command_runner::run_command_hook (POS: 命令钩子运行器：自成进程组、输出有界、超时或取消时整组停止)
 - agent.hooks.session_access (POS: 会话级 ContextVar 访问 API，本文件头部 re-export)
 - core.security.http.secure_fetch::secure_request (POS: SSRF-protected outbound HTTP)
-- core.security.bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through the caller's on_abort)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 - utils.json_parsing::parse_llm_json_object (POS: robust JSON object extraction from LLM hook output — fences, prose, bare control chars, trailing commas)
 - utils.logger_utils (POS: 日志工具)
@@ -25,7 +25,6 @@ Hook execution layer. Dispatches hooks from a registry with ContextVar-based ses
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import fnmatch
 import json
 import os
@@ -33,26 +32,9 @@ import time
 from dataclasses import replace
 
 from myrm_agent_harness.agent.hooks.command_gate import (
-    PAYLOAD_ENV_VAR,
-)
-from myrm_agent_harness.agent.hooks.command_gate import (
-    approve_hook_command as _approve_hook_command,
-)
-from myrm_agent_harness.agent.hooks.command_gate import (
-    bind_payload_reference as _bind_payload_reference,
-)
-from myrm_agent_harness.agent.hooks.command_gate import (
-    gate_hook_command as _gate_hook_command,
-)
-from myrm_agent_harness.agent.hooks.command_gate import (
-    is_strict_source as _is_strict_source,
-)
-from myrm_agent_harness.agent.hooks.command_gate import (
     merged_governance_metadata as _merged_metadata,
 )
-from myrm_agent_harness.agent.hooks.command_gate import (
-    payload_env_value as _payload_env_value,
-)
+from myrm_agent_harness.agent.hooks.command_runner import run_command_hook
 from myrm_agent_harness.agent.hooks.registry import HookRegistry
 from myrm_agent_harness.agent.hooks.session_access import (
     bootstrap_hook_registry,
@@ -72,7 +54,6 @@ from myrm_agent_harness.agent.hooks.types import (
     HttpHookDefinition,
     LLMHookDefinition,
 )
-from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.utils.chat_utils import extract_answer_text
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -182,90 +163,7 @@ class HookExecutor:
     # -- Command --
 
     async def _run_command(self, hook: CommandHookDefinition, event: str, payload: dict[str, object]) -> HookResult:
-        from myrm_agent_harness.core.security.process_env import (
-            EnvInheritPolicy,
-            build_isolated_child_env,
-        )
-
-        refusal = _gate_hook_command(hook.command, strict=_is_strict_source(hook))
-        if refusal is not None:
-            # The gate judges the hook, not the event: a refused command never
-            # blocks the main flow unless the hook itself opted into fail-closed.
-            if await _approve_hook_command(hook, event, hook.command):
-                logger.info("hooks: command hook approved via approver [event=%s source=%s]", event, hook.source.value)
-            else:
-                logger.warning(
-                    "hooks: command hook refused by safety gate [event=%s source=%s] — %s",
-                    event,
-                    hook.source.value,
-                    refusal,
-                )
-                return HookResult(
-                    hook_type="command",
-                    success=False,
-                    blocked=hook.block_on_failure,
-                    reason=f"Command refused by hook safety gate: {refusal}",
-                    metadata={"gate_blocked": True},
-                )
-
-        # Event data reaches the command only through the env var (see bind_payload_reference) and
-        # stdin. The env var is clipped to fit one environment string; stdin carries the complete payload.
-        command = _bind_payload_reference(hook.command)
-        payload_json = json.dumps(payload, default=str, ensure_ascii=True)
-        extra_env = {
-            "HOOK_EVENT": event,
-            PAYLOAD_ENV_VAR: _payload_env_value(payload_json),
-        }
-        env = build_isolated_child_env(
-            base_env=None,
-            extra_env=extra_env,
-            inherit_policy=EnvInheritPolicy.CORE,
-        )
-
-        process = await asyncio.create_subprocess_shell(
-            command,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-        )
-
-        async def stop_process() -> None:
-            with contextlib.suppress(ProcessLookupError):
-                process.kill()
-
-        try:
-            captured = await communicate_bounded(
-                process,
-                timeout=hook.timeout_seconds,
-                on_abort=stop_process,
-                stdin_data=payload_json.encode("utf-8"),
-            )
-        except TimeoutError:
-            return HookResult(
-                hook_type="command",
-                success=False,
-                blocked=hook.block_on_failure,
-                reason=f"Command hook timed out after {hook.timeout_seconds}s",
-            )
-
-        output = "\n".join(
-            part
-            for part in (
-                captured.stdout.decode("utf-8", errors="replace").strip(),
-                captured.stderr.decode("utf-8", errors="replace").strip(),
-            )
-            if part
-        )
-        success = process.returncode == 0
-        return HookResult(
-            hook_type="command",
-            success=success,
-            output=output,
-            blocked=hook.block_on_failure and not success,
-            reason=output or f"Exit code {process.returncode}",
-            metadata={"returncode": process.returncode},
-        )
+        return await run_command_hook(hook, event, payload)
 
     # -- HTTP --
 

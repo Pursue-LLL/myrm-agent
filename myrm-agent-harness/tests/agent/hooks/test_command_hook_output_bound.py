@@ -1,4 +1,4 @@
-"""A command hook keeps a bounded amount of what it writes, and its process is stopped at the deadline or a cancel."""
+"""A command hook keeps a bounded amount of what it writes, and what it started is stopped at the deadline or a cancel."""
 
 from __future__ import annotations
 
@@ -18,11 +18,16 @@ from myrm_agent_harness.agent.hooks import (
     HookRegistry,
     HookResult,
 )
+from myrm_agent_harness.agent.hooks.command_runner import MAX_HOOK_OUTPUT_CHARS
 from myrm_agent_harness.core.security.bounded_communicate import DEFAULT_MAX_OUTPUT_BYTES
 from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 _FLOOD_MARKER = "hook_flood_4711"
 _SLEEP_MARKER = "sleep 4711"
+# The shell stays alive next to its sleeper, or exits and leaves the sleeper holding the hook's pipes.
+_SLEEPER_BODIES = pytest.mark.parametrize(
+    "body", ["sleep 4711; echo done", "sleep 4711 & echo started"], ids=["after_the_sleeper", "background_sleeper"]
+)
 
 
 @pytest.fixture(autouse=True)
@@ -74,13 +79,43 @@ async def test_a_hook_that_never_stops_writing_is_stopped_at_its_deadline_withou
 
 
 @pytest.mark.asyncio
-async def test_output_over_the_cap_is_cut_and_the_hook_still_succeeds(tmp_path: Path) -> None:
-    command = _script(tmp_path, "head -c 7000000 /dev/zero | tr '\\0' x")
+async def test_output_past_what_the_pipe_keeps_is_cut_to_the_result_cap_and_the_hook_still_succeeds(
+    tmp_path: Path,
+) -> None:
+    command = _script(tmp_path, f"head -c {DEFAULT_MAX_OUTPUT_BYTES + 2_000_000} /dev/zero | tr '\\0' x")
 
     result = await asyncio.wait_for(_fire(command), timeout=30)
 
     assert result.success is True
-    assert result.output == "x" * DEFAULT_MAX_OUTPUT_BYTES
+    assert len(result.output) <= MAX_HOOK_OUTPUT_CHARS
+
+
+@pytest.mark.asyncio
+async def test_a_failing_hook_with_long_output_reports_its_first_and_last_lines_within_the_cap(tmp_path: Path) -> None:
+    command = _script(
+        tmp_path,
+        "echo 'FIRST: a.py:1: E501 line too long'\n"
+        'for i in $(seq 1 5000); do echo "a.py:$i: E501 line too long (120 > 100)"; done\n'
+        "echo 'LAST: Found 5000 errors.'\n"
+        "exit 1",
+    )
+
+    result = await asyncio.wait_for(_fire(command), timeout=30)
+
+    assert result.success is False
+    assert len(result.output) <= MAX_HOOK_OUTPUT_CHARS
+    assert result.reason == result.output
+    assert result.output.startswith("FIRST: ")
+    assert result.output.endswith("LAST: Found 5000 errors.")
+
+
+@pytest.mark.asyncio
+async def test_output_within_the_cap_is_reported_whole(tmp_path: Path) -> None:
+    command = _script(tmp_path, "echo out; echo err >&2")
+
+    result = await asyncio.wait_for(_fire(command), timeout=30)
+
+    assert result.output == "out\nerr"
 
 
 @pytest.mark.asyncio
@@ -95,8 +130,23 @@ async def test_a_payload_larger_than_the_pipe_buffer_reaches_the_hook_through_st
 
 
 @pytest.mark.asyncio
-async def test_cancelling_the_run_stops_the_hook_process(tmp_path: Path) -> None:
-    command = _script(tmp_path, "exec sleep 4711")
+@_SLEEPER_BODIES
+async def test_a_hook_is_stopped_at_its_deadline_together_with_everything_it_started(tmp_path: Path, body: str) -> None:
+    command = _script(tmp_path, body)
+    started = time.monotonic()
+
+    result = await asyncio.wait_for(_fire(command, timeout=2), timeout=30)
+
+    assert "timed out" in result.reason
+    # Left running, what the hook started keeps its pipes open and the host waits out the whole drain period for them.
+    assert time.monotonic() - started < 4.5
+    assert not process_alive(_SLEEP_MARKER)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("body", ["exec sleep 4711", "sleep 4711; echo done", "sleep 4711 & echo started"])
+async def test_cancelling_the_run_stops_the_hook_and_what_it_started(tmp_path: Path, body: str) -> None:
+    command = _script(tmp_path, body)
     running = asyncio.create_task(_fire(command, timeout=60))
     await wait_until(lambda: process_alive(_SLEEP_MARKER))
 

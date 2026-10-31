@@ -15,8 +15,9 @@ run_python_subprocess: Execute a Python script in a sandboxed subprocess with ti
 [POS]
 Python subprocess execution. Handles environment preparation, sandbox wrapping,
 graceful timeout (SIGTERM → SIGKILL), cancel-aware stop (a cancelled request ends the script like a timeout, but
-reports "cancelled"), and output parsing for Python code execution. Each pipe is read up to a cap, so a script that
-never stops writing cannot grow the host's memory.
+reports "cancelled"), and output parsing for Python code execution. Each pipe is read up to a cap (stdout has the
+headroom for the wrapper's encoded result, stderr is raw text), so a script that never stops writing cannot grow the
+host's memory.
 """
 
 from __future__ import annotations
@@ -48,13 +49,21 @@ _JSON_BYTES_PER_CHAR = 12
 _RESULT_SLACK_BYTES = 64 * 1024
 
 
-def _pipe_limit(max_output_bytes: int) -> int:
-    """Bytes of a pipe that always hold the whole result of a script whose captured stdout stays within the wrapper's cap.
+def _stdout_limit(max_output_bytes: int) -> int:
+    """Bytes of the stdout pipe that always hold the whole result of a script whose captured stdout stays within the wrapper's cap.
 
-    The wrapper bounds only the stdout it captures, counted in characters. What a script writes around it, to stderr or
-    straight to a file descriptor, reaches the pipes unbounded, so the host stops reading into memory at this size.
+    The wrapper bounds only the stdout it captures, counted in characters. What a script writes straight to the file
+    descriptor reaches the pipe unbounded, so the host stops reading into memory at this size.
     """
     return max_output_bytes * _JSON_BYTES_PER_CHAR + _RESULT_SLACK_BYTES
+
+
+def _stderr_limit(max_output_bytes: int) -> int:
+    """Bytes of the stderr pipe the host keeps: raw text the script wrote, plus room for a traceback.
+
+    The wrapper's result, which needs the stdout headroom, never travels on this pipe.
+    """
+    return max_output_bytes + _RESULT_SLACK_BYTES
 
 
 async def _kill_process_tree(process: asyncio.subprocess.Process, os_compat: ModuleType) -> None:
@@ -198,7 +207,6 @@ async def run_python_subprocess(
             **kwargs,
         )
 
-        pipe_limit = _pipe_limit(max_output_bytes)
         cut = DeadlineCut()
         try:
             async with (
@@ -211,7 +219,8 @@ async def run_python_subprocess(
                     process,
                     timeout=timeout,
                     on_abort=lambda: _kill_process_tree(process, os_compat),
-                    max_bytes=pipe_limit,
+                    max_bytes=_stdout_limit(max_output_bytes),
+                    stderr_max_bytes=_stderr_limit(max_output_bytes),
                 )
         except TimeoutError:
             await _kill_process_tree(process, os_compat)
@@ -239,7 +248,9 @@ async def run_python_subprocess(
         output = parse_execution_output(stdout, stderr, exit_code)
         result_stderr = output.stderr
         if piped.truncated:
-            note = f"[Output limit reached: a pipe of the script held more than {pipe_limit} bytes; the rest was discarded]"
+            note = (
+                "[Output limit reached: the script wrote more than the host keeps from a pipe; the rest was discarded]"
+            )
             result_stderr = f"{result_stderr}\n{note}" if result_stderr else note
 
         return ExecutionResult(

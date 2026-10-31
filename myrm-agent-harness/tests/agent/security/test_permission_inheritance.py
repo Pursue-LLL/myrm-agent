@@ -159,10 +159,12 @@ async def test_openapi_executor_reactive_401_refresh() -> None:
         mock_resp_200.headers = {}
 
         # Intercept call_args to capture copies of headers because they are mutated in-place
-        headers_history = []
+        headers_history: list[dict[str, str]] = []
 
-        async def mock_sr_side_effect(*args, **kwargs):
-            headers_history.append(dict(kwargs.get("headers", {})))
+        async def mock_sr_side_effect(
+            *args: object, headers: dict[str, str] | None = None, **kwargs: object
+        ) -> MagicMock:
+            headers_history.append(dict(headers or {}))
             if len(headers_history) == 1:
                 return mock_resp_401
             return mock_resp_200

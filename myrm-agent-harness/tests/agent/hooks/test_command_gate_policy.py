@@ -17,7 +17,14 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.hooks import CommandHookDefinition, HookEvent, HookExecutor, HookRegistry, HookSource
+from myrm_agent_harness.agent.hooks import (
+    CommandHookDefinition,
+    HookEvent,
+    HookExecutor,
+    HookRegistry,
+    HookResult,
+    HookSource,
+)
 from myrm_agent_harness.agent.hooks.command_gate import (
     MAX_PAYLOAD_ENV_CHARS,
     bind_payload_reference,
@@ -136,7 +143,7 @@ class TestPayloadNeverBecomesCode:
         }
 
     @staticmethod
-    async def _run_hook(command: str, payload: dict[str, object], source: HookSource = HookSource.SKILL):
+    async def _run_hook(command: str, payload: dict[str, object], source: HookSource = HookSource.SKILL) -> HookResult:
         registry = HookRegistry()
         registry.register(HookEvent.SESSION_START, CommandHookDefinition(command=command, source=source))
         result = await HookExecutor(registry).execute(HookEvent.SESSION_START, payload)
@@ -173,7 +180,9 @@ class TestPayloadNeverBecomesCode:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("payload_kind", ["plain", "hostile"])
     async def test_gate_verdict_does_not_depend_on_the_payload(self, tmp_path: Path, payload_kind: str) -> None:
-        payload = {"tool_name": "bash"} if payload_kind == "plain" else self._hostile_payload(tmp_path)
+        payload: dict[str, object] = (
+            {"tool_name": "bash"} if payload_kind == "plain" else self._hostile_payload(tmp_path)
+        )
 
         hook_result = await self._run_hook("echo $ARGUMENTS > /dev/null", payload)
 
@@ -191,7 +200,7 @@ class TestPayloadDelivery:
 
     @pytest.mark.asyncio
     async def test_small_payload_arrives_verbatim_on_stdin_and_in_the_environment(self) -> None:
-        payload = {"tool_name": "bash", "tool_input": {"command": "ls"}}
+        payload: dict[str, object] = {"tool_name": "bash", "tool_input": {"command": "ls"}}
         encoded = json.dumps(payload, default=str, ensure_ascii=True)
 
         from_env = await TestPayloadNeverBecomesCode._run_hook('printf "%s" "$HOOK_PAYLOAD"', payload)
@@ -204,19 +213,16 @@ class TestPayloadDelivery:
     async def test_oversized_payload_is_complete_on_stdin_and_clipped_in_the_environment(self) -> None:
         # Past macOS's 1 MiB ARG_MAX and far past Linux's 128 KiB cap on a single environment string.
         payload = self._large_write(2_000_000)
+        run = TestPayloadNeverBecomesCode._run_hook
 
-        from_env = await TestPayloadNeverBecomesCode._run_hook('printf "%s" "$HOOK_PAYLOAD"', payload)
-        from_stdin = await TestPayloadNeverBecomesCode._run_hook("cat", payload)
+        # A hook's output is capped, so the payload is measured at the receiving end rather than echoed back.
+        env_chars = await run('printf "%s" "$HOOK_PAYLOAD" | wc -c', payload)
+        env_marked = await run('printf "%s" "$HOOK_PAYLOAD" | grep -c payload_truncated', payload)
+        stdin_chars = await run("wc -c", payload)
 
-        assert from_env.success is True
-        assert len(from_env.output) <= MAX_PAYLOAD_ENV_CHARS
-        clipped = json.loads(from_env.output)
-        assert clipped["payload_truncated"] is True
-        assert clipped["tool_name"] == "file_write_tool"
-        assert clipped["tool_input"]["path"] == "report.md"
-        assert 0 < len(clipped["tool_input"]["content"]) < 2_000_000
-        assert from_stdin.success is True
-        assert json.loads(from_stdin.output) == payload
+        assert 0 < int(env_chars.output) <= MAX_PAYLOAD_ENV_CHARS
+        assert env_marked.output == "1"
+        assert int(stdin_chars.output) == len(json.dumps(payload, default=str, ensure_ascii=True))
 
     @pytest.mark.asyncio
     async def test_command_that_never_reads_stdin_still_succeeds_with_a_large_payload(self) -> None:
@@ -231,12 +237,12 @@ class TestPayloadEnvValue:
         return payload_env_value(json.dumps(payload, default=str, ensure_ascii=True))
 
     def test_payload_within_the_limit_is_untouched(self) -> None:
-        payload = {"tool_name": "bash", "n": [1, 2], "nested": {"ok": True}}
+        payload: dict[str, object] = {"tool_name": "bash", "n": [1, 2], "nested": {"ok": True}}
 
         assert self._value(payload) == json.dumps(payload, default=str, ensure_ascii=True)
 
     def test_long_strings_are_clipped_wherever_they_sit_and_the_result_is_marked(self) -> None:
-        payload = {"tool_input": {"content": "x" * 500_000, "items": ["y" * 400_000, "short"]}}
+        payload: dict[str, object] = {"tool_input": {"content": "x" * 500_000, "items": ["y" * 400_000, "short"]}}
 
         decoded = json.loads(self._value(payload))
 
@@ -244,6 +250,14 @@ class TestPayloadEnvValue:
         assert decoded["tool_input"]["items"][1] == "short"
         assert decoded["tool_input"]["content"].startswith("xxxx")
         assert decoded["tool_input"]["items"][0].startswith("yyyy")
+
+    def test_clipping_keeps_the_fields_that_identify_the_event(self) -> None:
+        decoded = json.loads(self._value(TestPayloadDelivery._large_write(2_000_000)))
+
+        assert decoded["payload_truncated"] is True
+        assert decoded["tool_name"] == "file_write_tool"
+        assert decoded["tool_input"]["path"] == "report.md"
+        assert 0 < len(decoded["tool_input"]["content"]) < 2_000_000
 
     @pytest.mark.parametrize(
         "payload",

@@ -14,7 +14,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.code_execution.executors.common import generate_wrapper_script
 from myrm_agent_harness.toolkits.code_execution.executors.local._python_subprocess import (
-    _pipe_limit,
+    _stderr_limit,
+    _stdout_limit,
     run_python_subprocess,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
@@ -22,7 +23,8 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import San
 from tests.support.marked_processes import kill_marked, process_alive
 
 _MARKER = "flood_4711_9"
-# The wrapper's cap on captured stdout characters; the pipes are read up to 12 times this plus 64 KiB (1,265,536 bytes).
+# The wrapper's cap on captured stdout characters; stdout is read up to 12 times this plus 64 KiB (1,265,536 bytes),
+# stderr up to this plus 64 KiB (165,536 bytes).
 _CAP = 100_000
 _NOTE = "Output limit reached"
 
@@ -96,6 +98,8 @@ async def test_stderr_beyond_the_cap_is_cut_and_the_result_still_arrives(tmp_pat
     assert result.success is True
     assert result.stdout.strip() == "done"
     assert _NOTE in result.stderr
+    # stderr is raw text, so the host keeps no more of it than the cap and a traceback's room, not the stdout headroom.
+    assert len(result.stderr) < _stderr_limit(_CAP) + 1_000
 
 
 @pytest.mark.asyncio
@@ -104,7 +108,7 @@ async def test_writes_to_the_stdout_pipe_beyond_the_cap_are_cut_with_a_note(tmp_
     result = await _run_script(tmp_path, "import os\nos.write(1, b'x' * 3_000_000)\n")
 
     assert _NOTE in result.stderr
-    assert len(result.stdout) <= _pipe_limit(_CAP)
+    assert len(result.stdout) <= _stdout_limit(_CAP)
 
 
 @pytest.mark.asyncio

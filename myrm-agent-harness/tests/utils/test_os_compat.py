@@ -4,6 +4,7 @@
 import importlib
 import signal
 import sys
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,7 +13,7 @@ import myrm_agent_harness.utils.os_compat as os_compat
 
 
 @pytest.fixture
-def win32_env():
+def win32_env() -> Iterator[None]:
     mock_msvcrt = MagicMock()
     mock_msvcrt.LK_NBLCK = 1
     mock_msvcrt.LK_LOCK = 2
@@ -24,25 +25,25 @@ def win32_env():
 
 
 @pytest.fixture
-def posix_env():
+def posix_env() -> Iterator[None]:
     with patch("sys.platform", "linux"):
         importlib.reload(os_compat)
         yield
     importlib.reload(os_compat)
 
 
-def test_get_process_group_kwargs_win32(win32_env):
+def test_get_process_group_kwargs_win32(win32_env: None) -> None:
     kwargs = os_compat.get_process_group_kwargs()
     assert "creationflags" in kwargs
 
 
-def test_get_process_group_kwargs_posix(posix_env):
+def test_get_process_group_kwargs_posix(posix_env: None) -> None:
     kwargs = os_compat.get_process_group_kwargs()
     assert "start_new_session" in kwargs
     assert kwargs["start_new_session"] is True
 
 
-def test_kill_process_group_win32(win32_env):
+def test_kill_process_group_win32(win32_env: None) -> None:
     with patch("subprocess.run") as mock_run:
         os_compat.kill_process_group(12345)
         mock_run.assert_called_once()
@@ -51,8 +52,8 @@ def test_kill_process_group_win32(win32_env):
         assert str(12345) in args
 
 
-def test_kill_process_group_posix(posix_env):
-    def mock_getpgid(p):
+def test_kill_process_group_posix(posix_env: None) -> None:
+    def mock_getpgid(p: int) -> int:
         if p == 12345:
             return 54321
         return 11111
@@ -66,7 +67,7 @@ def test_kill_process_group_posix(posix_env):
         mock_killpg.assert_called_once_with(54321, signal.SIGKILL)
 
     # Test safety check (shares process group with parent)
-    def mock_getpgid_same(p):
+    def mock_getpgid_same(p: int) -> int:
         return 11111
 
     with (
@@ -83,7 +84,33 @@ def test_kill_process_group_posix(posix_env):
         os_compat.kill_process_group(12345)
 
 
-def test_win_lock_emulation(win32_env):
+def test_kill_spawned_group_signals_the_group_named_after_the_child_pid(posix_env: None) -> None:
+    with patch("os.killpg") as mock_killpg:
+        os_compat.kill_spawned_group(12345)
+        mock_killpg.assert_called_once_with(12345, signal.SIGKILL)
+
+
+@pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+def test_kill_spawned_group_ignores_a_group_that_is_gone_or_not_ours(posix_env: None, error: type[Exception]) -> None:
+    with patch("os.killpg", side_effect=error):
+        os_compat.kill_spawned_group(12345)
+
+
+@pytest.mark.parametrize("pid", [0, 1, -5])
+def test_kill_spawned_group_never_signals_our_own_group_or_init(posix_env: None, pid: int) -> None:
+    with patch("os.killpg") as mock_killpg:
+        os_compat.kill_spawned_group(pid)
+        mock_killpg.assert_not_called()
+
+
+def test_kill_spawned_group_win32_kills_the_tree_from_the_pid(win32_env: None) -> None:
+    with patch("subprocess.run") as mock_run:
+        os_compat.kill_spawned_group(12345)
+        assert "taskkill" in mock_run.call_args[0][0]
+        assert "12345" in mock_run.call_args[0][0]
+
+
+def test_win_lock_emulation(win32_env: None) -> None:
     mock_msvcrt = sys.modules["msvcrt"]
 
     with patch("os.lseek", return_value=0):
@@ -105,12 +132,14 @@ def test_win_lock_emulation(win32_env):
             os_compat.flock(1, os_compat.LOCK_EX)
 
 
-def test_sigkill_is_the_posix_force_kill_signal(posix_env):
+def test_sigkill_is_the_posix_force_kill_signal(posix_env: None) -> None:
     assert os_compat.SIGKILL is signal.SIGKILL
     assert os_compat.kill_process_group.__defaults__ == (signal.SIGKILL,)
 
 
-def test_sigkill_falls_back_to_sigterm_where_windows_has_no_sigkill(win32_env, monkeypatch):
+def test_sigkill_falls_back_to_sigterm_where_windows_has_no_sigkill(
+    win32_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`signal.SIGKILL` as a default argument made the whole module unimportable on Windows."""
     monkeypatch.delattr(signal, "SIGKILL", raising=False)
 
@@ -120,7 +149,7 @@ def test_sigkill_falls_back_to_sigterm_where_windows_has_no_sigkill(win32_env, m
     assert os_compat.kill_process_group.__defaults__ == (signal.SIGTERM,)
 
 
-def test_terminate_process_graceful_escalates_to_sigkill(posix_env):
+def test_terminate_process_graceful_escalates_to_sigkill(posix_env: None) -> None:
     alive = {"value": True}
 
     def mock_getpgid(pid: int) -> int:
@@ -149,7 +178,7 @@ def test_terminate_process_graceful_escalates_to_sigkill(posix_env):
     assert alive["value"] is False
 
 
-def test_posix_lock(posix_env):
+def test_posix_lock(posix_env: None) -> None:
     if sys.platform == "win32":
         pytest.skip("Cannot reliably mock fcntl on Windows host")
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gc
+import logging
 import os
 import signal
 import sys
@@ -17,6 +19,12 @@ from myrm_agent_harness.utils.os_compat import get_process_group_kwargs
 
 # Writes as fast as the pipe takes it, never exits on its own.
 _FLOOD = "import sys\nwhile True:\n    sys.stdout.write('x' * 1023 + '\\n')\n"
+# Starts a child that holds both pipes, then keeps running itself: killing only this process leaves them open.
+_PIPE_HOLDER = (
+    "import subprocess, sys, time\n"
+    "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+    "time.sleep(30)\n"
+)
 
 
 async def _spawn(code: str, *, stdin: bool = False) -> asyncio.subprocess.Process:
@@ -76,6 +84,23 @@ async def test_each_pipe_has_its_own_cap() -> None:
 
 
 @pytest.mark.asyncio
+async def test_stderr_can_have_a_cap_of_its_own() -> None:
+    proc = await _spawn("import sys; sys.stdout.write('o' * 1500); sys.stderr.write('e' * 1500)")
+    output = await communicate_bounded(proc, timeout=10, on_abort=_Abort(proc), max_bytes=1000, stderr_max_bytes=100)
+    assert (len(output.stdout), len(output.stderr), output.truncated) == (1000, 100, True)
+
+
+@pytest.mark.asyncio
+async def test_the_warning_names_only_the_pipe_that_went_past_its_cap(caplog: pytest.LogCaptureFixture) -> None:
+    proc = await _spawn("import sys; sys.stdout.write('o' * 50); sys.stderr.write('e' * 1500)")
+    with caplog.at_level(logging.WARNING, logger=bounded_communicate.logger.name):
+        await communicate_bounded(proc, timeout=10, on_abort=_Abort(proc), max_bytes=1000, stderr_max_bytes=100)
+    messages = [record.getMessage() for record in caplog.records]
+    assert len(messages) == 1
+    assert "cap on stderr (stdout cap 1000 bytes, stderr cap 100 bytes)" in messages[0]
+
+
+@pytest.mark.asyncio
 async def test_a_deadline_stops_a_flooding_child_and_returns_on_time() -> None:
     proc = await _spawn(_FLOOD)
     abort = _Abort(proc)
@@ -105,14 +130,35 @@ async def test_a_cancel_stops_the_child_and_propagates() -> None:
 async def test_a_descendant_holding_the_pipes_is_given_up_on(monkeypatch: pytest.MonkeyPatch) -> None:
     # on_abort kills only the process itself; its child keeps both pipes open, so they never reach EOF.
     monkeypatch.setattr(bounded_communicate, "_DRAIN_SECONDS", 0.5)
-    code = "import subprocess, sys, time\nsubprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\ntime.sleep(30)\n"
-    proc = await _spawn(code)
+    proc = await _spawn(_PIPE_HOLDER)
     started = time.monotonic()
     try:
         with pytest.raises(TimeoutError):
             await asyncio.wait_for(communicate_bounded(proc, timeout=2, on_abort=_Abort(proc)), timeout=15)
         assert time.monotonic() - started < 6
     finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(proc.pid, signal.SIGKILL)
+
+
+@pytest.mark.asyncio
+async def test_giving_up_on_the_pipes_leaves_no_exception_for_asyncio_to_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # An abandoned collection ends with a CancelledError nobody awaits; asyncio would log it as never retrieved.
+    monkeypatch.setattr(bounded_communicate, "_DRAIN_SECONDS", 0.5)
+    loop = asyncio.get_running_loop()
+    reported: list[dict[str, object]] = []
+    loop.set_exception_handler(lambda _loop, context: reported.append(context))
+    proc = await _spawn(_PIPE_HOLDER)
+    try:
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(communicate_bounded(proc, timeout=1, on_abort=_Abort(proc)), timeout=15)
+        await asyncio.sleep(0.2)
+        gc.collect()
+        assert reported == []
+    finally:
+        loop.set_exception_handler(None)
         with contextlib.suppress(ProcessLookupError):
             os.killpg(proc.pid, signal.SIGKILL)
 

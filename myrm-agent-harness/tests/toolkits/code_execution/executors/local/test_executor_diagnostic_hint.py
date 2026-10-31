@@ -16,7 +16,7 @@ from tests.support.fake_process import FakeProcess
 
 
 @pytest.mark.asyncio
-async def test_local_executor_module_not_found_uses_error_hint():
+async def test_local_executor_module_not_found_uses_error_hint() -> None:
     """ModuleNotFoundError → error_category='import' + error_hint with install command."""
     executor = LocalExecutor(ExecutionConfig())
     context = ExecutionContext(session_id="test_session", code="import requests")
@@ -40,7 +40,7 @@ async def test_local_executor_module_not_found_uses_error_hint():
 
 
 @pytest.mark.asyncio
-async def test_local_executor_pypi_mapping_in_hint():
+async def test_local_executor_pypi_mapping_in_hint() -> None:
     """PIL import → error_hint suggests 'Pillow' (via _IMPORT_TO_PYPI)."""
     executor = LocalExecutor(ExecutionConfig())
     context = ExecutionContext(session_id="test_session", code="from PIL import Image")
@@ -61,7 +61,7 @@ async def test_local_executor_pypi_mapping_in_hint():
 
 
 @pytest.mark.asyncio
-async def test_local_executor_no_hint_for_syntax_errors():
+async def test_local_executor_no_hint_for_syntax_errors() -> None:
     executor = LocalExecutor(ExecutionConfig())
     context = ExecutionContext(session_id="test_session", code="print('hello'")
 
@@ -78,7 +78,7 @@ async def test_local_executor_no_hint_for_syntax_errors():
 
 
 @pytest.mark.asyncio
-async def test_local_executor_success():
+async def test_local_executor_success() -> None:
     executor = LocalExecutor(ExecutionConfig())
     context = ExecutionContext(session_id="test_session", code="print('hello')")
 
