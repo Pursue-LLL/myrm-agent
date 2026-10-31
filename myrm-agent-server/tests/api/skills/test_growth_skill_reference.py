@@ -8,8 +8,8 @@
 - Tests that a review result finds the skill it names whether it carries the skill's directory name, its listed name
   or the name from its SKILL.md, whatever that name's spelling, that the lock and the approval act on that skill,
   that two skills a name cannot tell apart are not guessed between, that on a volume that does not tell spellings apart
-  a name spelled unlike the directory's still finds the skill, and that a name no directory can have is recorded and
-  not dropped.
+  a name spelled unlike the directory's still finds the skill and an approved draft under it acts on that skill, and
+  that a name no directory can have is recorded and not dropped.
 [POS]
 The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
 pipeline keeps, locks and patches skills by directory. The names are built by the product's own adapter and the skills
@@ -181,9 +181,9 @@ async def test_a_new_skill_under_the_listed_name_of_an_existing_one_is_held_and_
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("result_type", "recorded_name"), [("skill_patch", "Report-Builder"), ("skill_draft", "report-builder")])
+@pytest.mark.parametrize("result_type", ["skill_patch", "skill_draft"])
 async def test_a_locked_skill_is_blocked_under_a_spelling_its_directory_name_does_not_have(
-    mock_local_skills_dir: Path, result_type: str, recorded_name: str
+    mock_local_skills_dir: Path, result_type: str
 ) -> None:
     directory = _write_skill_on_case_insensitive_volume(mock_local_skills_dir, "Report-Builder", locked=True)
     before = (directory / "SKILL.md").read_bytes()
@@ -191,7 +191,7 @@ async def test_a_locked_skill_is_blocked_under_a_spelling_its_directory_name_doe
     detail = await _recorded(_review(result_type, "report-builder"))
 
     assert detail.status == SkillGrowthCaseStatus.BLOCKED_LOCKED
-    assert detail.skill_name == recorded_name
+    assert detail.skill_name == "Report-Builder"
     assert (directory / "SKILL.md").read_bytes() == before
     assert _skill_dirs(mock_local_skills_dir) == ["Report-Builder"]
 
@@ -223,6 +223,20 @@ async def test_a_new_skill_spelled_unlike_an_existing_one_is_held_and_not_writte
 
     assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
     assert (directory / "SKILL.md").read_bytes() == before
+    assert _skill_dirs(mock_local_skills_dir) == ["Report-Builder"]
+
+
+@pytest.mark.asyncio
+async def test_approving_a_new_skill_spelled_unlike_an_existing_one_acts_on_the_skill_that_is_there(
+    mock_local_skills_dir: Path,
+) -> None:
+    directory = _write_skill_on_case_insensitive_volume(mock_local_skills_dir, "Report-Builder")
+    detail = await _recorded(_review("skill_draft", "report-builder"))
+
+    approved = await approve_skill_draft(detail.id.removeprefix("draft:"), ApproveDraftRequest())
+
+    assert approved["materialized"] is True
+    assert approved["skill_id"] == compute_local_skill_id(directory)
     assert _skill_dirs(mock_local_skills_dir) == ["Report-Builder"]
 
 
