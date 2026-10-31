@@ -13,6 +13,7 @@ import json
 import logging
 import mimetypes
 from datetime import datetime
+from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import (
     SKILL_MD_FILE,
@@ -29,8 +30,9 @@ from app.core.storage.paths import (
     get_skill_storage_path,
 )
 
+from ..creation.service import skill_creation_service
 from ..models import Skill, SkillType
-from ..providers.local import LocalSkillsProvider, is_sandbox_mode
+from ..providers.local import LocalSkillsProvider, compute_local_skill_id, is_sandbox_mode
 from . import reader
 from .user_config import UserSkillConfigManager
 
@@ -172,6 +174,19 @@ class SkillsService:
                 pass
 
         return skill
+
+    async def get_local_skill_by_name(self, name: str) -> Skill | None:
+        """The local skill kept in the primary skills directory under ``name``, ``None`` when there is none.
+
+        Directory names are not held to the skill-name convention, so only a name that is more than one path
+        component is refused: it can never reach outside the directory.
+        """
+        if not name or name == ".." or Path(name).name != name:
+            return None
+        skill_dir = skill_creation_service.base_path / name
+        if not (skill_dir / SKILL_MD_FILE).is_file():
+            return None
+        return await self.get_skill(compute_local_skill_id(skill_dir))
 
     async def list_skills(
         self,

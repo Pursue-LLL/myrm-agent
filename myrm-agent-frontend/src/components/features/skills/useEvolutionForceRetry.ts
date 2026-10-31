@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import type { SkillGrowthAuditEntry } from '@/services/skill/growth';
 
 const SKILL_LOCKED_STATUS = 409;
+/** The unlock hint is a full sentence, which the default toast time is too short to read. */
+const LOCKED_HINT_DURATION_MS = 8000;
 
 interface ForceRetryMessages {
   started: string;
@@ -36,7 +38,7 @@ export function useEvolutionForceRetry({ messages, onStarted }: UseEvolutionForc
         body: JSON.stringify({ reason: entry.reason, force_retry: true }),
       });
       if (res.status === SKILL_LOCKED_STATUS) {
-        toast.error(messages.locked);
+        toast.error(messages.locked, { duration: LOCKED_HINT_DURATION_MS });
         return;
       }
       if (!res.ok) {

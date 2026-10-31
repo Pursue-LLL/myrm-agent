@@ -103,7 +103,7 @@ describe('EvolutionRejectionDashboard force retry', () => {
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledTimes(1));
     const hint = en.settingsTabs.evolutionRejection.forceRetryLocked;
-    expect(mockToastError).toHaveBeenCalledWith(hint);
+    expect(mockToastError).toHaveBeenCalledWith(hint, { duration: 8000 });
     expect(hint).not.toMatch(/409|HTTP|force_retry|evolution_locked|status/i);
     expect(mockToastSuccess).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith(

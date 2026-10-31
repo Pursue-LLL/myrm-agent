@@ -2,9 +2,7 @@
 
 [INPUT]
 - app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
-- app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
-- app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
-- app.core.skills.store.service::skills_service (POS: Skill store service)
+- app.core.skills.store.service::skills_service (POS: Skill store service; finds the existing local skill of a draft by its directory name)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
 - ..auto_extractor::auto_extract_skill, render_skill_draft_markdown (POS: 技能物化辅助器)
 - ..draft_notification (POS: 技能成长记录持久化)
@@ -29,8 +27,6 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, cast
 
 from app.core.skills.config_version import bump_skill_config_version
-from app.core.skills.creation.service import skill_creation_service
-from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.store.service import skills_service
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
@@ -75,16 +71,6 @@ async def _find_similar_skill_names(skill_name: str, description: str) -> list[s
     return [match.name for match in similar]
 
 
-async def _get_existing_local_skill(skill_name: str) -> object | None:
-    skill_dir = skill_creation_service.base_path / skill_name
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
-        return None
-
-    skill_id = compute_local_skill_id(skill_dir)
-    return await skills_service.get_skill(skill_id)
-
-
 async def process_skill_review_result(result: dict[str, object]) -> object | None:
     """Process a Harness review result into the unified skill growth lifecycle."""
     if not result.get("has_value"):
@@ -114,8 +100,8 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
         logger.warning("Skill growth lifecycle skipped: missing skill_name")
         return None
 
-    existing_skill = await _get_existing_local_skill(skill_name)
-    is_locked = bool(existing_skill and getattr(existing_skill, "evolution_locked", False))
+    existing_skill = await skills_service.get_local_skill_by_name(skill_name)
+    is_locked = existing_skill is not None and existing_skill.evolution_locked
 
     if is_locked:
         return cast(

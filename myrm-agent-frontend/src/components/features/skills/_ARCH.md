@@ -78,7 +78,7 @@
 | `PendingEvolutionsDashboard.tsx`                                | 核心 | 待审核技能进化列表（cases API total + stats 顶栏/filter 计数）；卡片展开按需 detail；Simple/Detailed 视图切换（localStorage 持久化）；批准后应用失败的 toast 按服务端原因码给出本地化结论，不展示原始错误文本                                                                                                                          | ✅    |
 | `pendingEvolutionsDashboardShared.tsx`                          | 辅助 | Dashboard 过滤器常量、`matchesFilter` 与 `SummaryCard` 视觉组件                                                                                                                                                                                               | ✅    |
 | `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板；「强制重试」经 `useEvolutionForceRetry`，被防自动修改保护锁定的技能提示先到技能详情关闭保护，行状态不变 | ✅ |
-| `useEvolutionForceRetry.ts` | 辅助 | 审计行「强制重试」：提交 `/api/v1/evolution/fix`（force_retry），进行中状态按行记录；服务端 409（技能被锁定）给出解锁指引，其它失败给通用失败提示，只有被接受时才通知调用方把该行改为待审核 | ✅ |
+| `useEvolutionForceRetry.ts` | 辅助 | 审计行「强制重试」：提交 `/api/v1/evolution/fix`（force_retry），进行中状态按行记录；服务端 409（技能被锁定）给出解锁指引（整句话，提示停留 8 秒，默认时长读不完），其它失败给通用失败提示，只有被接受时才通知调用方把该行改为待审核 | ✅ |
 | `__tests__/EvolutionRejectionDashboard.forceRetry.test.tsx` | 测试 | 强制重试回归（真实英文语言包）：被锁定时提示解锁指引（不含状态码与内部字段）且行与按钮保持可重试、其它失败给通用提示、被接受时该行变为待审核 | ✅ |
 
 ## 依赖
