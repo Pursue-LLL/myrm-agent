@@ -5,6 +5,9 @@ the framework does not control (anything that runs text from a user, a model, a 
 grow the host's memory or hold a run for as long as it likes. A new call must be a conscious decision: use
 ``core.security.bounded_communicate.communicate_bounded``, or list the file below with the number of calls and why their
 output and run time are already bounded.
+
+The scan counts the ``.communicate(`` spelling only: ``subprocess.run(capture_output=True)`` and a pipe read by hand
+are not covered.
 """
 
 from __future__ import annotations

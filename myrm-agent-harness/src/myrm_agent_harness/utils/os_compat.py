@@ -127,6 +127,11 @@ def kill_spawned_group(pid: int, sig: int = SIGKILL) -> None:
     been reaped while something it started keeps running. The group is named after its leader, so it is addressed by
     that pid directly, and it exists until its last member exits. Windows has no group named after a pid: there the
     tree is killed from the pid, which needs the child itself to still exist.
+
+    The pid must be one this code started with ``get_process_group_kwargs()``: it is used as the group id as it is.
+    While a member of the group runs, POSIX keeps that id from going to another process; once the last member has
+    exited, a new group leader can take it, and a signal sent then reaches that unrelated group. Call this when the
+    stop is due, not later.
     """
     if IS_WIN:
         kill_process_group(pid, sig)

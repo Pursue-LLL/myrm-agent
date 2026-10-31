@@ -8,27 +8,28 @@ executors.common::parse_execution_output (POS: Shared execution utilities)
 code_execution.sandbox::detect_sandbox_provider (POS: Sandbox detection and wrapping)
 core.security.process_env::sanitize_env, is_non_inheritable_env_var (POS: Environment sanitization)
 core.security.bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through the caller's on_abort)
+utils.os_compat::get_process_group_kwargs, kill_spawned_group (POS: Unified abstractions for POSIX/Windows differences (file locks, process groups))
 
 [OUTPUT]
 run_python_subprocess: Execute a Python script in a sandboxed subprocess with timeout.
 
 [POS]
 Python subprocess execution. Handles environment preparation, sandbox wrapping,
-graceful timeout (SIGTERM → SIGKILL), cancel-aware stop (a cancelled request ends the script like a timeout, but
-reports "cancelled"), and output parsing for Python code execution. Each pipe is read up to a cap (stdout has the
-headroom for the wrapper's encoded result, stderr is raw text), so a script that never stops writing cannot grow the
-host's memory.
+graceful timeout (SIGTERM → SIGKILL of the whole process group, including what the script left running), cancel-aware
+stop (a cancelled request ends the script like a timeout, but reports "cancelled"), and output parsing for Python code
+execution. Each pipe is read up to a cap (stdout has the headroom for the wrapper's encoded result, stderr is raw
+text), so a script that never stops writing cannot grow the host's memory.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import signal
 import traceback
 from pathlib import Path
-from types import ModuleType
 
 from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.toolkits.code_execution.executors.base import (
@@ -38,7 +39,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import (
 from myrm_agent_harness.toolkits.code_execution.executors.common import (
     parse_execution_output,
 )
-from myrm_agent_harness.utils.os_compat import SIGKILL
+from myrm_agent_harness.utils.os_compat import SIGKILL, get_process_group_kwargs, kill_spawned_group
 from myrm_agent_harness.utils.runtime.cancel_hook import DeadlineCut, cut_deadline_on_cancel
 
 logger = logging.getLogger(__name__)
@@ -66,31 +67,19 @@ def _stderr_limit(max_output_bytes: int) -> int:
     return max_output_bytes + _RESULT_SLACK_BYTES
 
 
-async def _kill_process_tree(process: asyncio.subprocess.Process, os_compat: ModuleType) -> None:
-    """Terminate the child's whole process group, escalating to SIGKILL.
+async def _kill_process_tree(process: asyncio.subprocess.Process) -> None:
+    """Stop the child and everything in its process group: SIGTERM, then SIGKILL for what is left after 2 s.
 
-    Shared by the timeout and cancellation paths so both leave no orphaned
-    descendants behind. Never raises: cleanup failures must not mask the
-    original timeout/cancel outcome.
+    The group is addressed by the child's pid, so the SIGKILL also reaches what the child started and left running
+    after it had exited. It is the only stop for both the deadline and a cancel, run once through ``on_abort``. Never
+    raises: cleanup failures must not mask the original timeout/cancel outcome.
     """
-    kill_group = getattr(os_compat, "kill_process_group", None)
     try:
-        if process.returncode is not None:
-            return
-        if process.pid and kill_group:
-            kill_group(process.pid, signal.SIGTERM)
-        else:
-            process.terminate()
-        try:
-            await asyncio.wait_for(process.wait(), timeout=2)
-        except TimeoutError:
-            if process.pid and kill_group:
-                kill_group(process.pid, SIGKILL)
-            else:
-                process.kill()
-            await process.wait()
-    except ProcessLookupError:
-        return
+        if process.returncode is None:
+            kill_spawned_group(process.pid, signal.SIGTERM)
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(process.wait(), timeout=2)
+        kill_spawned_group(process.pid, SIGKILL)
     except Exception as e:
         logger.warning("Process group cleanup failed: %s", e)
 
@@ -193,10 +182,6 @@ async def run_python_subprocess(
             full_cmd_executable = python_executable
             full_cmd_args = (str(script_path),)
 
-        from myrm_agent_harness.utils import os_compat
-
-        kwargs = os_compat.get_process_group_kwargs()
-
         process = await asyncio.create_subprocess_exec(
             full_cmd_executable,
             *full_cmd_args,
@@ -204,7 +189,7 @@ async def run_python_subprocess(
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
             env=process_env,
-            **kwargs,
+            **get_process_group_kwargs(),
         )
 
         cut = DeadlineCut()
@@ -218,12 +203,11 @@ async def run_python_subprocess(
                 piped = await communicate_bounded(
                     process,
                     timeout=timeout,
-                    on_abort=lambda: _kill_process_tree(process, os_compat),
+                    on_abort=lambda: _kill_process_tree(process),
                     max_bytes=_stdout_limit(max_output_bytes),
                     stderr_max_bytes=_stderr_limit(max_output_bytes),
                 )
         except TimeoutError:
-            await _kill_process_tree(process, os_compat)
             if cut.by_cancel:
                 return ExecutionResult(
                     success=False,
@@ -235,11 +219,6 @@ async def run_python_subprocess(
                 error=f"Execution timed out after {timeout}s",
                 stderr="Timeout",
             )
-        except asyncio.CancelledError:
-            # The host task was cancelled from outside (tool deadline, shutdown). Reap the process group before
-            # propagating, otherwise the sandboxed child and its workers keep running.
-            await _kill_process_tree(process, os_compat)
-            raise
 
         stdout = piped.stdout.decode("utf-8", errors="replace")
         stderr = piped.stderr.decode("utf-8", errors="replace")

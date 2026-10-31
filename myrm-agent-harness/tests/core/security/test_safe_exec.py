@@ -7,6 +7,7 @@ import os
 import shlex
 import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,6 +19,7 @@ from myrm_agent_harness.core.security.types import (
     EphemeralUserCredential,
     with_user_credentials,
 )
+from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 
 class TestNeedsShell:
@@ -111,8 +113,16 @@ def _writer_command(tmp_path: Path, body: str) -> tuple[str, Path]:
     return shlex.join([sys.executable, str(script), str(pid_file)]), pid_file
 
 
+_BACKGROUND_COMMAND = "sleep 4753"
+
+
 @pytest.mark.asyncio
 class TestSafeExecStopsAndBoundsTheCommand:
+    @pytest.fixture(autouse=True)
+    def _remove_background_command(self) -> Iterator[None]:
+        yield
+        kill_marked(_BACKGROUND_COMMAND)
+
     async def test_a_timeout_stops_a_command_that_never_stops_writing(self, tmp_path: Path) -> None:
         command, pid_file = _writer_command(tmp_path, "while True:\n    sys.stdout.write('x' * 1023 + '\\n')\n")
         started = time.monotonic()
@@ -131,6 +141,21 @@ class TestSafeExecStopsAndBoundsTheCommand:
         with pytest.raises(asyncio.CancelledError):
             await task
         assert _is_gone(int(pid_file.read_text()))
+
+    async def test_a_timeout_stops_a_command_the_shell_left_running(self) -> None:
+        """`a & b`: the shell exits at once, the background command keeps the pipes open, and the deadline reaches it."""
+        with pytest.raises(TimeoutError):
+            await safe_exec(f"{_BACKGROUND_COMMAND} & echo started", timeout=2)
+        assert not process_alive(_BACKGROUND_COMMAND)
+
+    async def test_a_cancel_stops_a_command_the_shell_left_running(self) -> None:
+        task = asyncio.create_task(safe_exec(f"{_BACKGROUND_COMMAND} & echo started", timeout=60))
+        await wait_until(lambda: process_alive(_BACKGROUND_COMMAND))
+        await asyncio.sleep(0.5)  # the shell is gone by now and only the background command is left
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not process_alive(_BACKGROUND_COMMAND)
 
     async def test_output_over_the_cap_is_cut_and_the_command_still_succeeds(self, tmp_path: Path) -> None:
         command, _ = _writer_command(tmp_path, f"sys.stdout.write('x' * {DEFAULT_MAX_OUTPUT_BYTES + 1000})\n")
@@ -190,40 +215,17 @@ class TestSafeExecEnvSanitization:
 
 
 class TestKillProcessTreeSafety:
-    """Validate _kill_process_tree does not kill parent when pgid is shared."""
+    """``_kill_process_tree`` signals the process group named after the child's pid, and never reads the group from the pid."""
 
-    def test_same_pgid_falls_back_to_proc_kill(self) -> None:
-        """When child shares parent's process group, only os.kill is called."""
-        mock_proc = MagicMock(spec=asyncio.subprocess.Process)
-        mock_proc.pid = 12345
-
-        my_pgid = os.getpgid(os.getpid())
-
-        with (
-            patch("myrm_agent_harness.utils.os_compat.os.getpgid", return_value=my_pgid),
-            patch("myrm_agent_harness.utils.os_compat.os.kill") as mock_kill,
-            patch("myrm_agent_harness.utils.os_compat.os.killpg") as mock_killpg,
-        ):
-            _kill_process_tree(mock_proc)
-            import signal
-
-            mock_kill.assert_called_once_with(12345, signal.SIGKILL)
-            mock_killpg.assert_not_called()
-
-    def test_different_pgid_kills_group(self) -> None:
-        """When child has its own process group, killpg is used."""
+    def test_signals_the_group_named_after_the_child(self) -> None:
+        """The child is the leader of its own group, and the group outlives the child while a member runs on."""
         import signal
 
         mock_proc = MagicMock(spec=asyncio.subprocess.Process)
         mock_proc.pid = 99999
 
-        real_my_pgid = os.getpgid(os.getpid())
-
         with (
-            patch(
-                "myrm_agent_harness.utils.os_compat.os.getpgid",
-                side_effect=lambda pid: 99999 if pid == 99999 else real_my_pgid,
-            ),
+            patch("myrm_agent_harness.utils.os_compat.os.getpgid", side_effect=AssertionError("group read from pid")),
             patch("myrm_agent_harness.utils.os_compat.os.killpg") as mock_killpg,
             patch("myrm_agent_harness.utils.os_compat.os.kill") as mock_kill,
         ):
@@ -240,12 +242,12 @@ class TestKillProcessTreeSafety:
             _kill_process_tree(mock_proc)
             mock_killpg.assert_not_called()
 
-    def test_process_lookup_error_handled(self) -> None:
-        """ProcessLookupError should be silently caught."""
+    def test_a_group_that_is_gone_is_ignored(self) -> None:
+        """A group with no member left raises ProcessLookupError, which is not an error."""
         mock_proc = MagicMock(spec=asyncio.subprocess.Process)
         mock_proc.pid = 88888
 
-        with patch("myrm_agent_harness.utils.os_compat.os.getpgid", side_effect=ProcessLookupError):
+        with patch("myrm_agent_harness.utils.os_compat.os.killpg", side_effect=ProcessLookupError):
             _kill_process_tree(mock_proc)
 
     def test_credential_env_overrides_xai(self) -> None:

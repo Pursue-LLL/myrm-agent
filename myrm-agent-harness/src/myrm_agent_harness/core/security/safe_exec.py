@@ -21,6 +21,7 @@ Security guarantees:
 - redact::command_preview (POS: masked, cut command for a log line)
 - bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through
   the caller on a deadline or a cancel)
+- utils.os_compat::get_process_group_kwargs, kill_spawned_group (POS: Unified abstractions for POSIX/Windows differences (file locks, process groups))
 
 [OUTPUT]
 - ExecResult: structured execution result with mode audit field
@@ -128,14 +129,16 @@ def credential_env_overrides(
 def _kill_process_tree(proc: asyncio.subprocess.Process) -> None:
     """Kill the process and its entire process group (best-effort).
 
-    Requires the process to have been started with os_compat.get_process_group_kwargs().
+    Requires the process to have been started with os_compat.get_process_group_kwargs(). The group is addressed by the
+    process's pid, so it is reached even when the shell has already exited and a command it started in the background
+    keeps running.
     """
     pid = proc.pid
     if pid is None:
         return
-    from myrm_agent_harness.utils.os_compat import SIGKILL, kill_process_group
+    from myrm_agent_harness.utils.os_compat import SIGKILL, kill_spawned_group
 
-    kill_process_group(pid, SIGKILL)
+    kill_spawned_group(pid, SIGKILL)
 
 
 async def safe_exec(

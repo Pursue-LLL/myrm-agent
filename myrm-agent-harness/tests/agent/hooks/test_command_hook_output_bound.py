@@ -23,10 +23,10 @@ from myrm_agent_harness.core.security.bounded_communicate import DEFAULT_MAX_OUT
 from tests.support.marked_processes import kill_marked, process_alive, wait_until
 
 _FLOOD_MARKER = "hook_flood_4711"
-_SLEEP_MARKER = "sleep 4711"
+_SLEEP_MARKER = "sleep 4751"
 # The shell stays alive next to its sleeper, or exits and leaves the sleeper holding the hook's pipes.
 _SLEEPER_BODIES = pytest.mark.parametrize(
-    "body", ["sleep 4711; echo done", "sleep 4711 & echo started"], ids=["after_the_sleeper", "background_sleeper"]
+    "body", ["sleep 4751; echo done", "sleep 4751 & echo started"], ids=["after_the_sleeper", "background_sleeper"]
 )
 
 
@@ -144,7 +144,7 @@ async def test_a_hook_is_stopped_at_its_deadline_together_with_everything_it_sta
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("body", ["exec sleep 4711", "sleep 4711; echo done", "sleep 4711 & echo started"])
+@pytest.mark.parametrize("body", ["exec sleep 4751", "sleep 4751; echo done", "sleep 4751 & echo started"])
 async def test_cancelling_the_run_stops_the_hook_and_what_it_started(tmp_path: Path, body: str) -> None:
     command = _script(tmp_path, body)
     running = asyncio.create_task(_fire(command, timeout=60))

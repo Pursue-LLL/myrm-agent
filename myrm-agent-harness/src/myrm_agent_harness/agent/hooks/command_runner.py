@@ -40,7 +40,7 @@ from myrm_agent_harness.utils.text_utils import smart_truncate
 
 logger = get_agent_logger(__name__)
 
-# About 160 lines of linter output: enough to name the failures, small enough not to crowd the context.
+# Enough of a linter's report to name the failures, small enough not to crowd the context.
 MAX_HOOK_OUTPUT_CHARS = 16_000
 
 

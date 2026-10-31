@@ -14,7 +14,7 @@ from myrm_agent_harness.agent.meta_tools.skills.select.skill_document_loader imp
 from tests.support.marked_processes import kill_marked, process_alive
 
 _FLOOD_MARKER = "skill_flood_4711"
-_SLEEP_MARKER = "sleep 4711"
+_SLEEP_MARKER = "sleep 4752"
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +47,7 @@ async def test_a_failing_command_reports_what_it_wrote_to_stderr() -> None:
 async def test_a_command_that_runs_too_long_is_reported_and_stopped(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(skill_document_loader, "_DYNAMIC_CMD_TIMEOUT", 1)
 
-    document = await asyncio.wait_for(_resolve_dynamic_context("!`exec sleep 4711`"), timeout=15)
+    document = await asyncio.wait_for(_resolve_dynamic_context("!`exec sleep 4752`"), timeout=15)
 
     assert document == "[command timed out after 1s]"
     assert not process_alive(_SLEEP_MARKER)
@@ -56,7 +56,7 @@ async def test_a_command_that_runs_too_long_is_reported_and_stopped(monkeypatch:
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "command",
-    ["sleep 4711; echo done", "sleep 4711 & echo started"],
+    ["sleep 4752; echo done", "sleep 4752 & echo started"],
     ids=["after_the_sleeper", "background_sleeper"],
 )
 async def test_a_command_is_stopped_at_its_deadline_together_with_everything_it_started(

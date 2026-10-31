@@ -5,6 +5,9 @@ the server does not control (anything that runs text from a user, a model or a j
 process's memory or hold a request for as long as it likes. A new call must be a conscious decision: use the harness's
 ``communicate_bounded``, or list the file below with the number of calls and why their output and run time are already
 bounded.
+
+The scan counts the ``.communicate(`` spelling only: ``subprocess.run(capture_output=True)`` and a pipe read by hand
+are not covered.
 """
 
 from __future__ import annotations
