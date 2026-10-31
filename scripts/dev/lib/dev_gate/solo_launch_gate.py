@@ -21,6 +21,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass
+
 from e2e_core.dev_ports import shared_ui_base
 
 
@@ -37,6 +38,21 @@ def _signoff_mode() -> bool:
     return os.environ.get("MYRM_E2E_SOLO_SIGNOFF", "").strip() == "1"
 
 
+def _lane_ui_base() -> str | None:
+    """The UI this launch depends on and must find alive; None when the lane brings its own.
+
+    An isolated runtime named up front is probed at its own UI. A full isolated lane allocates
+    its frontend and backend after this gate and health-gates them in its own bootstrap, so
+    probing the shared UI would let a slow shared plane deny launches that never use it.
+    """
+    explicit = os.environ.get("MYRM_E2E_UI_BASE", "").strip()
+    if explicit:
+        return explicit
+    if os.environ.get("MYRM_E2E_FULL_ISOLATED", "").strip() == "1":
+        return None
+    return shared_ui_base()
+
+
 def solo_launch_denial_reason(*, workload: str) -> str | None:
     """Return a fail-closed denial line for LIVE workload, or None when allowed."""
     if workload != "LIVE":
@@ -46,20 +62,19 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
 
     from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
 
-    # The lane may target an isolated runtime instead of the shared UI, so the probe must use the
-    # UI base the lane actually runs against — a hardcoded shared port silently denies every isolated run.
-    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "").strip() or shared_ui_base()
-    probe_ok = False
-    for _attempt in range(3):
-        if frontend_tcp_html_probe_ok(ui_base, timeout_sec=5.0):
-            probe_ok = True
-            break
-        time.sleep(2.0)
-    if not probe_ok:
-        return (
-            f"SOLO_LAUNCH_DENIED: {ui_base} TCP+HTML probe failed after retries; "
-            "run ./myrm-dev ready --chrome / ui-heal before LIVE signoff"
-        )
+    ui_base = _lane_ui_base()
+    if ui_base is not None:
+        probe_ok = False
+        for _attempt in range(3):
+            if frontend_tcp_html_probe_ok(ui_base, timeout_sec=5.0):
+                probe_ok = True
+                break
+            time.sleep(2.0)
+        if not probe_ok:
+            return (
+                f"SOLO_LAUNCH_DENIED: {ui_base} TCP+HTML probe failed after retries; "
+                "run ./myrm-dev ready --chrome / ui-heal before LIVE signoff"
+            )
 
     from browser_orchestrator import (
         browser_orchestrator_snapshot,
