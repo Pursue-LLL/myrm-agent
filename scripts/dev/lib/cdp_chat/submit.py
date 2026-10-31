@@ -7,14 +7,19 @@ import json
 import sys
 import time
 
-from cdp_chat.input import CdpChatInput
-from cdp_chat.support import PREPARE_AUTOMATION_SEND_JS
 from dev_gate.contract import (
-    EvaluateIntent,
     SEND_TURN_LOG_TOKEN,
     SEND_TURN_PYTHON_WALL_SEC,
+    EvaluateIntent,
 )
-from cdp_chat.send_turn_contract import SendTurnError, SendTurnPhase, resolve_send_turn_profile
+
+from cdp_chat.input import CdpChatInput
+from cdp_chat.send_turn_contract import (
+    SendTurnError,
+    SendTurnPhase,
+    resolve_send_turn_profile,
+)
+from cdp_chat.support import PREPARE_AUTOMATION_SEND_JS
 
 
 class CdpChatSubmit(CdpChatInput):
@@ -29,6 +34,7 @@ class CdpChatSubmit(CdpChatInput):
         baseline = int(baseline_user_msgs)
         profile = resolve_send_turn_profile()
         profile_json = json.dumps(profile)
+        started = time.monotonic()
         try:
             result = await asyncio.wait_for(
                 self.evaluate(
@@ -64,7 +70,10 @@ class CdpChatSubmit(CdpChatInput):
                     f"userCount={debug.get('userCount')} "
                     f"streaming={debug.get('streaming')} "
                     f"baseline={debug.get('baselineUsers')} "
-                    f"rev={debug.get('rev')}"
+                    f"rev={debug.get('rev')} "
+                    # Whether the page's observe window is marginal for a live model can
+                    # only be judged from how long the sends that sealed took.
+                    f"elapsed={time.monotonic() - started:.1f}s"
                 )
                 print(
                     f"{SEND_TURN_LOG_TOKEN}: phase={phase} ok={result.get('ok')} "
