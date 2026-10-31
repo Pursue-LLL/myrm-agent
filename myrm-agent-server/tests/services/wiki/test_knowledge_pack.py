@@ -16,6 +16,8 @@ Unit test for KnowledgePackProactiveInjectionPerAgentTurn roadmap item.
 from __future__ import annotations
 
 import sqlite3
+import time
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -26,6 +28,7 @@ from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
 )
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
+from app.services.wiki.knowledge_pack import selector
 from app.services.wiki.knowledge_pack.schemas import (
     KnowledgePackConfig,
     RelevantSnippet,
@@ -176,18 +179,22 @@ async def test_resolve_proactive_snippets_from_vaults(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_proactive_snippets_timeout_degrades_gracefully(tmp_path: Path) -> None:
-    """Verify timeout guardrail safely degrades to empty snippets without failing."""
+async def test_resolve_proactive_snippets_timeout_degrades_gracefully(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A scan that overruns the timeout is dropped with its snippets: the result is empty, nothing fails."""
     vault_dir = tmp_path / "slow_vault"
     vault_dir.mkdir()
-    (vault_dir / "doc.md").write_text("政策内容测试", encoding="utf-8")
 
-    # Pass an ultra-short timeout (0.000001s) to force timeout branch
+    def slow_scan(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
+        time.sleep(0.3)
+        return [RelevantSnippet(kb_name=label, article_title="doc", snippet="政策内容测试", confidence=1.0)]
+
+    monkeypatch.setattr(selector, "_scan_vault", slow_scan)
+
     result = await resolve_proactive_snippets_from_vaults(
         query="政策",
         vault_paths=(vault_dir,),
         vault_labels={str(vault_dir): "测试库"},
-        timeout_seconds=0.0000001,
+        timeout_seconds=0.05,
     )
     assert len(result.snippets) == 0
 

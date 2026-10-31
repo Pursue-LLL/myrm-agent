@@ -6,11 +6,13 @@
 - .sidecar_index::_SIDECAR_PREFIX (POS: directory sidecar index entry prefix)
 
 [OUTPUT]
+- concept_rows_filter: SQL predicate for the rows of a `wiki_fts` table that are concept pages (not interim raw text, not sidecar entries)
 - federated_graph_queries: SQL selecting concept pages and edges across the local and public indexes
 
 [POS]
 Single definition of "which rows are graph nodes and edges", so the viewer, the insight
-panel and community detection always analyze the same graph.
+panel and community detection always analyze the same graph; the concept-page predicate is
+shared with the callers that ask whether an index holds any page.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ _INTERIM_RAW_PREFIX = "raw:"
 _SIDECAR_ENTRY_PREFIX = f"{_SIDECAR_PREFIX}:"
 
 
-def _concept_rows_filter() -> str:
+def concept_rows_filter() -> str:
     """Exclude interim raw-text and directory-sidecar entries: they are not concept pages."""
     return (
         f"substr(concept_name, 1, {len(_INTERIM_RAW_PREFIX)}) != '{_INTERIM_RAW_PREFIX}' "
@@ -39,7 +41,7 @@ def federated_graph_queries(conn: sqlite3.Connection) -> tuple[str, str]:
     ``edges_sql`` yields ``source, target, weight`` rows (duplicates across databases
     are left to the caller to collapse).
     """
-    row_filter = _concept_rows_filter()
+    row_filter = concept_rows_filter()
     names_sql = " UNION ".join(
         f"SELECT concept_name FROM {table} WHERE {row_filter}" for table in attached_tables(conn, "wiki_fts")
     )

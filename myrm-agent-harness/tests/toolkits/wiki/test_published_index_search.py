@@ -1,9 +1,13 @@
 """The publish gate runs inside the index query, so drafts never crowd published pages out of a result page,
-and an index that was created but never filled is told apart from a query that matched nothing."""
+an index that was created but never filled is told apart from a query that matched nothing, and an index in a
+read-only directory is still searchable."""
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -57,6 +61,20 @@ def _add_sidecar_row(db_path: Path, name: str) -> None:
 @pytest.fixture
 def indexer(tmp_path: Path) -> WikiIndexer:
     return _new_indexer(tmp_path / "vault")
+
+
+@pytest.fixture
+def read_only_dir() -> Iterator[Callable[[Path], None]]:
+    """Make a directory read-only for the test and restore it afterwards so ``tmp_path`` can be cleaned up."""
+    locked: list[Path] = []
+
+    def lock(directory: Path) -> None:
+        directory.chmod(0o555)
+        locked.append(directory)
+
+    yield lock
+    for directory in locked:
+        directory.chmod(0o755)
 
 
 async def test_drafts_never_crowd_published_pages_out_of_a_search_page(indexer: WikiIndexer) -> None:
@@ -208,3 +226,51 @@ def test_has_pages_raises_for_a_missing_index_instead_of_creating_one(tmp_path: 
         fts_search.index_has_pages(db_path)
 
     assert not db_path.exists()
+
+
+def test_an_index_with_only_raw_uploads_has_no_pages(indexer: WikiIndexer) -> None:
+    indexer.index_raw_text("upload", "kelvin notes waiting to be compiled")
+
+    assert fts_search.index_has_pages(indexer.db_path) is False
+
+
+async def test_a_compiled_page_next_to_raw_uploads_is_a_page(indexer: WikiIndexer) -> None:
+    indexer.index_raw_text("upload", "kelvin notes waiting to be compiled")
+    await indexer.upsert("page", _page(None, _published_body(0)))
+
+    assert fts_search.index_has_pages(indexer.db_path) is True
+
+
+def test_rows_still_in_the_wal_file_are_read_from_a_writable_directory(tmp_path: Path) -> None:
+    db_path = tmp_path / ".wiki_index.db"
+    writer = sqlite3.connect(db_path)
+    try:
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        fts_search.create_wiki_fts_table(writer)
+        with writer:
+            writer.execute(
+                "INSERT INTO wiki_fts (concept_name, truth_content, search_terms) VALUES ('wal-page', 'kelvin scale', 'kelvin')"
+            )
+
+        assert fts_search.search_published_index(db_path, '"kelvin"', limit=5) == [("wal-page", "kelvin scale")]
+        assert fts_search.index_has_pages(db_path) is True
+    finally:
+        writer.close()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+    reason="directory permissions do not restrict this user",
+)
+async def test_a_wal_index_in_a_read_only_directory_is_searchable(
+    indexer: WikiIndexer, read_only_dir: Callable[[Path], None]
+) -> None:
+    await indexer.upsert("page", _page(None, _published_body(0)))
+    assert not Path(f"{indexer.db_path}-wal").exists()
+    read_only_dir(indexer.db_path.parent)
+
+    hits = fts_search.search_published_index(indexer.db_path, '"kelvin"', limit=5)
+
+    assert [name for name, _ in hits] == ["page"]
+    assert fts_search.index_has_pages(indexer.db_path) is True

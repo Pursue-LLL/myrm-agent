@@ -1,5 +1,6 @@
-"""The pack injects only what answers the question, ranks it by how much of the question it answers, scans markdown
-only for a vault whose index is unreadable or holds no pages, and reads the same pages in every listing order.
+"""The pack injects only what answers the question, ranks it by how much of the question it answers, gives every page
+one slot, scans markdown only for a vault whose index is unreadable or holds no pages, reads the same pages in every
+listing order, never reads a file outside the vault, and does not hold the turn or the event loop for a slow vault.
 
 [INPUT]
 - app.services.wiki.knowledge_pack.query_terms::carried_terms, paragraph_relevance, MAX_QUERY_CHARS
@@ -11,7 +12,7 @@ only for a vault whose index is unreadable or holds no pages, and reads the same
 [OUTPUT]
 - Tests of the relevance floor (unit and through both retrieval tiers), of the ranking across vaults and across the
   pages of one vault, of the question length cap, of when the markdown scan runs and of the name order it reads its
-  files in.
+  files in, of the vault boundary of every page file, and of the timeout against a slow scan.
 
 [POS]
 Relevance counterpart of the retrieval cases in ``test_knowledge_pack.py``.
@@ -19,8 +20,11 @@ Relevance counterpart of the retrieval cases in ``test_knowledge_pack.py``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
+import sys
+import time
 from pathlib import Path
 from typing import NoReturn
 
@@ -242,3 +246,130 @@ async def test_markdown_scan_reads_the_first_fifteen_files_by_name(tmp_path: Pat
     vault = _make_vault(tmp_path, "kb", pages, indexed=False)
 
     assert await _titles("zephyr budget limit", vault) == ["p00", "p01", "p02"]
+
+
+@pytest.mark.asyncio
+async def test_a_vault_whose_index_holds_only_raw_uploads_is_scanned_page_by_page(tmp_path: Path) -> None:
+    """A raw upload waiting to be compiled is an index row, not an indexed page: it must not silence the vault."""
+    vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
+    WikiIndexer(WikiStructure(vault), WikiConfig(enable_hybrid_search=False)).index_raw_text("upload", "quokka notes")
+
+    assert await _titles("zephyr budget limit", vault) == ["Policy"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("indexed", [True, False], ids=["index-hit", "markdown-scan"])
+async def test_one_long_page_does_not_take_the_slots_of_the_pages_that_answer_other_parts(tmp_path: Path, indexed: bool) -> None:
+    engine = [
+        "Rocket engine thrust vector control uses hydraulic gimbal actuators on the nozzle.",
+        "With rocket engine thrust vector control the flight computer samples attitude at 200 Hz.",
+        "Rocket engine thrust vector control failures were traced to valve stiction in 2019 reviews.",
+        "A rocket engine thrust vector control retrofit replaced hydraulics by electromechanical drives.",
+    ]
+    pages = {
+        "a-engine": "\n\n".join(engine),
+        "b-guidance": "Guidance computer limits engine thrust during ascent.",
+        "c-staging": "Staging separation fires after rocket engine cutoff.",
+    }
+    vault = _make_vault(tmp_path, "kb", pages, indexed=indexed)
+
+    titles = await _titles("rocket engine thrust vector control guidance staging", vault)
+
+    assert sorted(titles) == ["a-engine", "b-guidance", "c-staging"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("indexed", [True, False], ids=["index-hit", "markdown-scan"])
+async def test_the_paragraph_that_scores_highest_wins_over_the_one_with_more_words_of_its_own(
+    tmp_path: Path, indexed: bool
+) -> None:
+    """The title counts for the page: a paragraph adding a term the title lacks answers more than one repeating it."""
+    page = "Alpha gamma policy booking.\n\nAlpha gamma policy flights."
+    vault = _make_vault(tmp_path, "kb", {"booking-delta": page}, indexed=indexed)
+
+    result = await resolve_proactive_snippets_from_vaults(
+        "travel policy flights booking expense report", (vault,), {str(vault): "kb"}, timeout_seconds=2.0
+    )
+
+    assert [snippet.snippet for snippet in result.snippets] == ["Alpha gamma policy flights."]
+
+
+def _write_index(vault: Path, rows: dict[str, str]) -> None:
+    """An index file whose rows another process wrote: the names are not checked against the vault's files."""
+    with sqlite3.connect(vault / ".wiki_index.db") as conn:
+        conn.execute(
+            'CREATE VIRTUAL TABLE wiki_fts USING fts5(concept_name, truth_content, tokenize="unicode61 remove_diacritics 1")'
+        )
+        conn.executemany("INSERT INTO wiki_fts(concept_name, truth_content) VALUES (?, ?)", list(rows.items()))
+
+
+@pytest.mark.asyncio
+async def test_an_indexed_name_that_climbs_out_of_the_vault_does_not_read_the_file_it_points_at(tmp_path: Path) -> None:
+    other = tmp_path / "other" / "wiki" / "concepts"
+    other.mkdir(parents=True)
+    (other / "payroll.md").write_text("Confidential zephyr budget limit payroll is 9 million.", encoding="utf-8")
+    vault = _make_vault(tmp_path, "kb", {}, indexed=False)
+    _write_index(vault, {"../../../other/wiki/concepts/payroll": "Zephyr budget limit filler words."})
+
+    result = await resolve_proactive_snippets_from_vaults(
+        "zephyr budget limit", (vault,), {str(vault): "kb"}, timeout_seconds=2.0
+    )
+
+    assert [snippet.snippet for snippet in result.snippets] == ["Zephyr budget limit filler words."]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(sys.platform == "win32", reason="creating symlinks needs a privilege on Windows")
+async def test_a_page_file_that_links_out_of_the_vault_is_not_scanned(tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    secret = other / "payroll.md"
+    secret.write_text("Confidential zephyr budget limit payroll is 9 million.", encoding="utf-8")
+    vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
+    (vault / "wiki" / "concepts" / "leak.md").symlink_to(secret)
+
+    assert await _titles("zephyr budget limit", vault) == ["Policy"]
+
+
+@pytest.mark.asyncio
+async def test_a_slow_vault_scan_neither_holds_the_turn_past_the_timeout_nor_stalls_the_event_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def slow_scan(*_: object) -> list[object]:
+        time.sleep(0.8)
+        return []
+
+    monkeypatch.setattr(selector, "_markdown_snippets", slow_scan)
+    vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit is 120 per night."}, indexed=False)
+    ticks: list[float] = []
+
+    async def heartbeat() -> None:
+        while True:
+            ticks.append(time.monotonic())
+            await asyncio.sleep(0.02)
+
+    beat = asyncio.create_task(heartbeat())
+    await asyncio.sleep(0.05)
+    started = time.monotonic()
+    result = await resolve_proactive_snippets_from_vaults(
+        "zephyr budget limit", (vault,), {str(vault): "kb"}, timeout_seconds=0.15
+    )
+    elapsed = time.monotonic() - started
+    await asyncio.sleep(0.05)
+    beat.cancel()
+
+    assert result.snippets == []
+    assert elapsed < 0.6
+    assert max(b - a for a, b in zip(ticks, ticks[1:], strict=False)) < 0.4
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("indexed", [True, False], ids=["index-hit", "markdown-scan"])
+async def test_of_two_equally_relevant_paragraphs_the_first_is_the_snippet(tmp_path: Path, indexed: bool) -> None:
+    vault = _make_vault(tmp_path, "kb", {"Policy": "Zephyr budget limit alpha.\n\nZephyr budget limit bravo."}, indexed=indexed)
+
+    result = await resolve_proactive_snippets_from_vaults(
+        "zephyr budget limit", (vault,), {str(vault): "kb"}, timeout_seconds=2.0
+    )
+
+    assert [snippet.snippet for snippet in result.snippets] == ["Zephyr budget limit alpha."]

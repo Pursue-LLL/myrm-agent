@@ -8,6 +8,7 @@
 - ..core.config::WikiConfig (POS: wiki configuration center)
 - ..core.frontmatter_contract::WikiPublishStatus (POS: publish_status SSOT)
 - .fts_federation::MAX_FEDERATED_DATABASES, attached_tables (POS: shared index discovery)
+- .graph_tables::concept_rows_filter (POS: which index rows are concept pages)
 - .sidecar_index::_SIDECAR_PREFIX (POS: L0/L1 sidecar index operations)
 - .tokenizer::FTS_TOKENIZER, tokenize_for_fts (POS: table tokenizer and FTS5 query tokenizer)
 - .vector_chunks::collapse_vector_hits (POS: L2 chunk vector hit collapsing)
@@ -15,7 +16,7 @@
 [OUTPUT]
 - FtsSearchMixin: FTS5 + vector search/get_truth with the publish_status gate for WikiIndexer; vector hits under another spelling collapse onto the page key
 - search_published_index: read-only top published pages of an index file the caller does not own
-- index_has_pages: whether such an index file holds any page row, so a caller can tell an empty index from a query that matched nothing
+- index_has_pages: whether such an index file holds any concept page row, so a caller can tell an index that was never filled from a query that matched nothing
 - WIKI_FTS_COLUMNS: columns of the wiki_fts table
 - create_wiki_fts_table: declare a wiki_fts table with those columns and FTS_TOKENIZER (the one place the table is declared)
 - migrate_wiki_fts_schema: rebuild wiki_fts when it predates the search_terms column
@@ -34,6 +35,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import sqlite3
 from typing import TYPE_CHECKING
 
@@ -46,6 +48,7 @@ from myrm_agent_harness.utils.db.fts5 import fts5_auto_heal, relevance_from_rank
 from ..core.config import WikiConfig
 from ..core.frontmatter_contract import WikiPublishStatus
 from .fts_federation import MAX_FEDERATED_DATABASES, attached_tables
+from .graph_tables import concept_rows_filter
 from .sidecar_index import _SIDECAR_PREFIX
 from .tokenizer import FTS_TOKENIZER, tokenize_for_fts
 from .vector_chunks import collapse_vector_hits
@@ -257,17 +260,24 @@ class FtsSearchMixin:
 
 
 def _open_read_only(index_db: Path) -> AbstractContextManager[sqlite3.Connection]:
-    """Open an index file read-only: no table is created and no schema is migrated; a missing file raises."""
-    return contextlib.closing(sqlite3.connect(f"{index_db.resolve().as_uri()}?mode=ro", uri=True))
+    """Open an index file read-only: no table is created and no schema is migrated; a missing file raises.
+
+    A WAL index needs write access to its directory for the shared-memory file, so in a directory this process
+    cannot write (a read-only volume) the file is opened immutable instead: nothing on this side can change it,
+    and rows still in a ``-wal`` file are not seen.
+    """
+    resolved = index_db.resolve()
+    immutable = "" if os.access(resolved.parent, os.W_OK) else "&immutable=1"
+    return contextlib.closing(sqlite3.connect(f"{resolved.as_uri()}?mode=ro{immutable}", uri=True))
 
 
 def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> list[tuple[str, str]]:
     """Return the ``limit`` best published pages of an index file as (concept_name, truth_content).
 
     For callers that read an index they do not own, such as a shared vault another process writes: the file is
-    opened read-only, so no table is created and no schema is migrated (SQLite may leave its WAL side files
-    next to the index). ``fts_query`` is FTS5 MATCH syntax. Raises ``sqlite3.Error`` when the file is missing
-    or unreadable or the query is invalid.
+    opened read-only, so no table is created and no schema is migrated (in a writable directory SQLite may leave
+    its WAL side files next to the index). ``fts_query`` is FTS5 MATCH syntax. Raises ``sqlite3.Error`` when the
+    file is missing or unreadable or the query is invalid.
     """
     with _open_read_only(index_db) as conn:
         select = _published_match_select(conn, "wiki_fts", "concept_name, truth_content")
@@ -276,17 +286,16 @@ def search_published_index(index_db: Path, fts_query: str, *, limit: int) -> lis
 
 
 def index_has_pages(index_db: Path) -> bool:
-    """Whether an index file holds at least one page row, sidecar rows aside.
+    """Whether an index file holds at least one concept page row; interim raw-text and sidecar rows do not count.
 
     ``search_published_index`` returns the same empty list for a question nothing matches and for an index that
     was created but never filled (any ``WikiIndexer`` creates its file on construction); this tells them apart.
-    A draft or blocked page counts: the index was built for the vault. Opened read-only like
-    ``search_published_index``; raises ``sqlite3.Error`` when the file is missing or unreadable.
+    A draft or blocked page counts: the index was built for the vault. A raw upload waiting to be compiled does
+    not: its pages are not indexed yet. Opened read-only like ``search_published_index``; raises ``sqlite3.Error``
+    when the file is missing or unreadable.
     """
     with _open_read_only(index_db) as conn:
-        row = conn.execute(
-            f"SELECT 1 FROM wiki_fts WHERE concept_name NOT GLOB '{_SIDECAR_PREFIX}:*' LIMIT 1"
-        ).fetchone()
+        row = conn.execute(f"SELECT 1 FROM wiki_fts WHERE {concept_rows_filter()} LIMIT 1").fetchone()
     return row is not None
 
 

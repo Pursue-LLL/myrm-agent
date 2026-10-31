@@ -2,8 +2,9 @@
 
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
-- app.services.wiki.knowledge_pack.query_terms::MAX_QUERY_CHARS, search_terms, carried_terms, paragraph_relevance, tokenize_text (POS: the question's terms and the relevance floor)
-- myrm_agent_harness.api::search_published_index, index_has_pages (POS: read-only published-pages-only FTS search, and whether an index file holds any page row)
+- app.services.wiki.knowledge_pack.query_terms::MAX_QUERY_CHARS, search_terms, paragraph_relevance, tokenize_text (POS: the question's terms and the relevance floor)
+- myrm_agent_harness.api::search_published_index, index_has_pages (POS: read-only published-pages-only FTS search, and whether an index file holds any concept page row)
+- myrm_agent_harness.api::is_within_boundary (POS: resolved-path containment check that follows symlinks)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
 
@@ -11,18 +12,23 @@
 - calculate_jaccard_similarity: Fast character-ngram / word overlap for semantic dedup.
 - truncate_snippet_text: Cut a snippet to a character budget at a sentence or word boundary.
 - KnowledgePackSelector: Select, dedup, and enforce strict token/character budget on snippets.
-- resolve_proactive_snippets_from_vaults: Retrieve and budget snippets from the shared vaults within a timeout.
+- resolve_proactive_snippets_from_vaults: Retrieve and budget snippets from the shared vaults; the vaults are scanned in one worker thread so the timeout can fire.
 
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
 its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out)
 with an OR query of the question's search terms; tier 2 scans the markdown files of a vault whose index is missing,
-unreadable or holds no page rows (an index file alone says nothing: any ``WikiIndexer`` creates it on construction),
-because listing thousands of pages to read fifteen of them would cost more than it finds in a vault the index
-already covers. Both tiers keep a paragraph only when ``paragraph_relevance`` says the page answers the question,
-and rank it by that score, so most questions the vault does not answer inject nothing and the order of the mounted
-vaults never decides which page wins. Every page file it reads goes through the wiki publish gate again, so a draft
-or blocked page never reaches the injected context, and snippets never lead with the page's frontmatter.
+unreadable or holds no concept page rows (an index file alone says nothing: any ``WikiIndexer`` creates it on
+construction), because
+listing thousands of pages to read fifteen of them would cost more than it finds in a vault the index already
+covers. Both tiers give each page its one best paragraph by ``paragraph_relevance`` and keep it only when
+the page answers the question, ranked by that score, so most questions the vault does not answer inject nothing, one
+long page cannot take every slot, and the order of the mounted vaults never decides which page wins. Every page file
+it reads goes through the wiki publish gate again, so a draft or blocked page never reaches the injected context,
+and snippets never lead with the page's frontmatter. A shared vault is written by another process, so a page file
+is read only when it lies inside the vault, whatever the index or a symlink says. The scan blocks on file and
+database reads, so every vault is scanned in one worker thread, one after the other: the timeout fires on time and a
+slow mount does not stall the loop.
 """
 
 from __future__ import annotations
@@ -34,13 +40,12 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from myrm_agent_harness.api import index_has_pages, search_published_index
+from myrm_agent_harness.api import index_has_pages, is_within_boundary, search_published_index
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
 from app.services.wiki.knowledge_pack.query_terms import (
     MAX_QUERY_CHARS,
-    carried_terms,
     paragraph_relevance,
     search_terms,
     tokenize_text,
@@ -108,51 +113,65 @@ def _paragraphs(text: str) -> list[str]:
     return paragraphs
 
 
-def _best_paragraph(text: str, terms: Sequence[str]) -> str:
-    """The paragraph that carries the most search terms, the first of them on a tie.
+def _best_paragraph(title: str, text: str, terms: Sequence[str]) -> tuple[str, float]:
+    """The paragraph of a page that answers the question best, with its relevance; ``("", 0.0)`` when none does.
 
-    A text made of headings only, such as the one flat line an index row stores for a page that has no file, falls
-    back to its first block as it is.
+    The first of equally relevant paragraphs wins. A text made of headings only, such as the one flat line an index
+    row stores for a page that has no file, is read as its first block as it is.
     """
 
-    paragraphs = _paragraphs(text)
-    if paragraphs:
-        return max(paragraphs, key=lambda paragraph: carried_terms(terms, paragraph.lower()))
-    return next((block.strip() for block in text.split("\n\n") if block.strip()), "")
+    paragraphs = _paragraphs(text) or [block.strip() for block in text.split("\n\n") if block.strip()][:1]
+    best, best_score = "", 0.0
+    for paragraph in paragraphs:
+        score = paragraph_relevance(terms, title, paragraph)
+        if score > best_score:
+            best, best_score = paragraph, score
+    return best, best_score
 
 
-def _indexed_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
+def _page_snippet(label: str, title: str, body: str, terms: Sequence[str], source_path: Path) -> RelevantSnippet | None:
+    """The snippet a page gives: its best paragraph, or None when no paragraph of it answers the question."""
+    paragraph, confidence = _best_paragraph(title, body, terms)
+    if not paragraph:
+        return None
+    return RelevantSnippet(
+        kb_name=label,
+        article_title=title,
+        snippet=paragraph,
+        confidence=confidence,
+        source_path=str(source_path),
+    )
+
+
+def _page_file(vault_path: Path, concept_name: str) -> Path | None:
+    """The markdown file of an indexed page inside the vault, or None when the vault has no such file.
+
+    The name comes from an index another process wrote: a name that climbs out of the vault, like a file that links
+    out of it, is not a page of this vault.
+    """
+    for candidate in (vault_path / "wiki" / "concepts" / f"{concept_name}.md", vault_path / f"{concept_name}.md"):
+        if candidate.is_file() and is_within_boundary(candidate, vault_path):
+            return candidate
+    return None
+
+
+def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
     """Tier 1: the best paragraph of each published page the vault's FTS index ranks first for the question."""
-    db_path = vault_path / ".wiki_index.db"
     fts_query = " OR ".join(f'"{t}"' for t in terms)
     found: list[RelevantSnippet] = []
     for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_SNIPPETS):
-        concept_file = vault_path / "wiki" / "concepts" / f"{concept_name}.md"
-        if not concept_file.is_file():
-            concept_file = vault_path / f"{concept_name}.md"
+        page_file = _page_file(vault_path, concept_name)
         # The page file is the source of truth for its publish status; the index row's text stands in only for
         # rows that have no page file (e.g. raw sources).
-        raw_content = _published_page_body(concept_file) if concept_file.is_file() else indexed_text
-        best_para = _best_paragraph(raw_content, terms)
-        confidence = paragraph_relevance(terms, concept_name, best_para) if best_para else 0.0
-        if confidence > 0.0:
-            found.append(
-                RelevantSnippet(
-                    kb_name=label,
-                    article_title=concept_name,
-                    snippet=best_para,
-                    confidence=confidence,
-                    source_path=str(db_path),
-                )
-            )
+        body = _published_page_body(page_file) if page_file else indexed_text
+        snippet = _page_snippet(label, concept_name, body, terms, db_path)
+        if snippet:
+            found.append(snippet)
     return found
 
 
 def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
-    """Tier 2: the paragraphs that answer the question in the first markdown pages of the vault, in name order.
-
-    Every relevant paragraph is returned: the selector ranks them by confidence across pages and applies the budget.
-    """
+    """Tier 2: the best paragraph of each of the vault's first markdown pages, in name order, that answers the question."""
     concepts_dir = vault_path / "wiki" / "concepts"
     search_dir = concepts_dir if concepts_dir.is_dir() else vault_path
     # The first files by name, picked without sorting the whole listing: a vault can hold thousands of pages.
@@ -161,18 +180,11 @@ def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> li
     )
     found: list[RelevantSnippet] = []
     for md_file in md_files:
-        for paragraph in _paragraphs(_published_page_body(md_file)):
-            confidence = paragraph_relevance(terms, md_file.stem, paragraph)
-            if confidence > 0.0:
-                found.append(
-                    RelevantSnippet(
-                        kb_name=label,
-                        article_title=md_file.stem,
-                        snippet=paragraph,
-                        confidence=confidence,
-                        source_path=str(md_file),
-                    )
-                )
+        if not is_within_boundary(md_file, vault_path):
+            continue
+        snippet = _page_snippet(label, md_file.stem, _published_page_body(md_file), terms, md_file)
+        if snippet:
+            found.append(snippet)
     return found
 
 
@@ -252,6 +264,36 @@ class KnowledgePackSelector:
         )
 
 
+def _scan_vault(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
+    """The snippets one vault gives for the question."""
+    if not vault_path.is_dir():
+        return []
+
+    # ── Tier 1: SQLite FTS5 index-first retrieval ──
+    # An index that holds pages answers for its vault, an empty answer included. An index file without concept page
+    # rows is no index (the file is created by any WikiIndexer, filled or not), so the vault goes to tier 2.
+    db_path = vault_path / ".wiki_index.db"
+    if db_path.is_file():
+        try:
+            found = _indexed_snippets(db_path, vault_path, label, terms)
+            if found or index_has_pages(db_path):
+                return found
+        except Exception as exc:
+            logger.warning("FTS5 index scan failed for %s, falling back to markdown: %s", db_path, exc)
+
+    # ── Tier 2: Concept markdown files (for vaults whose index is missing, unreadable or holds no pages) ──
+    try:
+        return _markdown_snippets(vault_path, label, terms)
+    except Exception as exc:
+        logger.warning("Vault markdown scan skipped for %s: %s", vault_path, exc)
+        return []
+
+
+def _scan_vaults(vaults: Sequence[tuple[Path, str]], terms: Sequence[str]) -> list[RelevantSnippet]:
+    """The snippets the vaults give for the question, vault after vault. Blocking: it runs in a worker thread."""
+    return [snippet for vault_path, label in vaults for snippet in _scan_vault(vault_path, label, terms)]
+
+
 async def resolve_proactive_snippets_from_vaults(
     query: str,
     vault_paths: tuple[Path, ...],
@@ -260,7 +302,11 @@ async def resolve_proactive_snippets_from_vaults(
     config: KnowledgePackConfig | None = None,
     timeout_seconds: float = 0.150,
 ) -> ProactiveKnowledgeResult:
-    """Asynchronously retrieve and budget proactive snippets within timeout guardrail."""
+    """Asynchronously retrieve and budget proactive snippets within timeout guardrail.
+
+    The vaults are scanned in one worker thread, so the timeout cuts the wait on time; a scan that overruns it
+    finishes in the background and its result is dropped.
+    """
     t0 = time.monotonic()
     selector = KnowledgePackSelector(config)
 
@@ -268,40 +314,10 @@ async def resolve_proactive_snippets_from_vaults(
     if not terms or not vault_paths:
         return ProactiveKnowledgeResult()
 
-    candidates: list[RelevantSnippet] = []
-
-    async def _scan_vault(vault_path: Path, label: str) -> list[RelevantSnippet]:
-        if not vault_path.is_dir():
-            return []
-
-        # ── Tier 1: SQLite FTS5 index-first retrieval (O(1) ms latency) ──
-        # An index that holds pages answers for its vault, an empty answer included. An index file without page
-        # rows is no index (the file is created by any WikiIndexer, filled or not), so the vault goes to tier 2.
-        db_path = vault_path / ".wiki_index.db"
-        if db_path.is_file():
-            try:
-                found = _indexed_snippets(vault_path, label, terms)
-                if found or index_has_pages(db_path):
-                    return found
-            except Exception as exc:
-                logger.warning("FTS5 index scan failed for %s, falling back to markdown: %s", db_path, exc)
-
-        # ── Tier 2: Concept markdown files (for vaults whose index is missing, unreadable or holds no pages) ──
-        try:
-            return _markdown_snippets(vault_path, label, terms)
-        except Exception as exc:
-            logger.warning("Vault markdown scan skipped for %s: %s", vault_path, exc)
-            return []
+    vaults = [(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name))) for p in vault_paths]
 
     try:
-        tasks = [_scan_vault(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name))) for p in vault_paths]
-        results = await asyncio.wait_for(
-            asyncio.gather(*tasks, return_exceptions=True),
-            timeout=timeout_seconds,
-        )
-        for res in results:
-            if isinstance(res, list):
-                candidates.extend(res)
+        candidates = await asyncio.wait_for(asyncio.to_thread(_scan_vaults, vaults, terms), timeout=timeout_seconds)
     except asyncio.TimeoutError:
         logger.warning(
             "Proactive knowledge retrieval timed out after %.3fs, degrading gracefully",
