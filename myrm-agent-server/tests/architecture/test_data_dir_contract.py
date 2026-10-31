@@ -12,6 +12,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+pytestmark = pytest.mark.architecture
+
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
 _STATE_DIR = "/home/myrm/.myrm"

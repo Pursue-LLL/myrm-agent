@@ -21,6 +21,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_git_spawn_sites.py` | 读取或改写索引、工作树与引用的 git 命令（`status`/`diff`/`add`/`commit`/`merge`/`checkout`/`worktree`/`branch`/`update-ref`…）一律经 harness 的 `hardened_git_argv`（仓库自己的配置能指定 git 运行的程序、钩子、过滤器、合并驱动、签名程序，部分克隆还能借惰性抓取联网），或登记在 `_BARE_GIT_SITES` 并写明理由；现登记项为空，已登记项消失即失败；自带扫描器正反例 |
 | `test_tls_single_trust_source.py` | `app/` 不得直接构造 TLS 上下文（`SSLContext(...)`、`_create_unverified_context(...)`）：手工构造的上下文绕过 `MYRM_TLS_STRICT` 与系统证书库，应走 `ssl.create_default_context` 或 harness 的 `create_httpx_client`；按名字匹配直接调用（含模块别名与 `from ... import` 后的调用，不含改名导入、变量绑定、`getattr`）；真实目录扫描带 `architecture` 标记；自带扫描器正反例 |
 | `test_state_paths_follow_data_dir.py` | `app/` 与 harness 源码里，凡在同一函数（或顶层语句）内既有主目录派生表达式（`Path.home()`、`"~/..."` 字面量、`HOME`）又有 Myrm 自有目录名（`.myrm`、`myrm-agent` 等）的，必须改用 harness `infra.data_dir.resolve_data_dir()`，否则 `MYRM_DATA_DIR` 挡不住它：隔离运行（测试、第二个档案）会读写真实用户目录，真实数据也会被带进该运行；例外登记在 `_ALLOWED` 并写明理由，登记项过期同样报错。自带扫描器正反例 |
+| `test_data_dir_contract.py` | Docker 数据卷挂载目标（server 与分发两份 compose、Dockerfile 建的目录）必须等于 `MYRM_DATA_DIR` 的默认状态目录，容器重建时才不会静默丢数据 |
 | `test_event_writers_redact.py` | 在 `EventLogger` 之外自己构造 `StructuredEvent` 并直接写后端的服务端模块必须登记在 `_DIRECT_WRITERS` 并写明理由；登记项里带自由文本的（接管轨迹的页面状态）必须调用 `sanitize_event_data`；已登记项消失即失败 |
 | `test_html_pages_contrast_gate.py` | 写整页 HTML 的 `app/` 模块（源码里有 `<!DOCTYPE html>` 或 `<html` 开标签）必须登记对应的对比度测试（文件须存在且真的调用 `assert_readable` / `assert_visible` / `contrast`，只导入不算），或列入 `_NOT_A_PAGE` 并写明它不展示页面的理由；登记项对应的模块不再写页面即失败，同一模块不得两边都登记；自带开标签探测器与「只导入不调用」的正反例自检 |
 | `test_unbounded_communicate_sites.py` | `app/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：写明输出与时长已由命令本身限定，或列入「待决」一栏（已知缺口，等待改用 harness 的 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；只数 `.communicate(` 这一种写法；自带检测器正反例自检 |
@@ -93,6 +94,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_openai_compat_agent_api_boundary.py` | `/v1` 仅 Agent API：`openai_compat/` 文件白名单 + 禁止 LLM gateway 模块（passthrough/ProxySettings/combo 等）复活 |
 | `test_kanban_attachment_storage_ssot.py` | Kanban 附件字节读取必须使用 `files_service.get_content`，禁止误用 `get_file_content(file_id)` |
 | `test_nas_docker_compose_template.py` | NAS / HomeLab Docker Compose 覆盖编排契约与三卷持久化挂载验证 |
+| `test_docker_compose_hardening.py` | 本地 Docker 栈的加固不得被悄悄删掉：后端去掉 `NET_RAW`/`NET_ADMIN`/`SYS_ADMIN`/`MKNOD` 并禁止提权、以 init 进程运行、停止宽限期不短于回合排空预算 + 30 秒；前端丢弃全部能力、禁止提权、根文件系统只读、仅 `/tmp` 为 `noexec,nosuid` 的 tmpfs |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` 的超标模块台账（本地自查用，非 CI 阻断） |
 
