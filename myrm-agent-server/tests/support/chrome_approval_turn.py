@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - bash_request(): the user's request that makes the model call the bash tool once and then reply with the given answer, whether the command ran or was denied
-- run_one_turn(): prepare the skill chat (and, when asked, the probe backend's approval timeout), send the request, hand the open page to a watcher
+- run_one_turn(): prepare the skill chat (and, when asked, the probe backend's approval timeout), send the request, hand the open page to a watcher; returns the chat's probe for what the scenario does next
 - SHORT_ANSWER: the answer asked for when the reply's content does not matter, only that it exists
 - LONG_LIST_ANSWER: the answer asked for when the run must keep writing well past the few seconds a reload takes
 
@@ -57,7 +57,7 @@ def run_one_turn(
     approval_timeout_sec: int | None = None,
     approval_timeout_behavior: str = "deny",
     hooks_for: Callable[[Path], str] = audit_hooks,
-) -> None:
+) -> SkillChat:
     probe = setup_skill_chat(tmp_path, e2e_resource_ledger, tag, hooks_for, yolo=not asks_approval)
     if approval_timeout_sec is not None:
         # The probe's own backend only: the global setting the harness pins on the shared one keeps every other test's card waiting.
@@ -70,3 +70,4 @@ def run_one_turn(
         invoke_skill=asks_approval,
         while_open=lambda client, page: watch(client, page, probe, chat_url),
     )
+    return probe

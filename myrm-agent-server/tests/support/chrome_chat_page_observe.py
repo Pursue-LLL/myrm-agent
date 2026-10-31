@@ -14,7 +14,8 @@
 - wait_for_card_of_open_chat(): the open chat's own card is in the shared approval queue and on screen
 - wait_for_mobile_status_board(): the phone's status board is the page on screen
 - wait_until_not_streaming() / stored_reply_is_final() / assert_run_still_working()
-- turn_state() / wait_until_parked_at_the_card() / wait_until_the_turn_runs() / wait_for_the_stored_reply_watching_the_turn(): what the server holds of the chat's turn (running, parked behind a card), read from /agents/chat/<id>/turn-state; the last returns every state it saw, in order, and on a timeout lists the stored assistant turns (completion status and tail of their words)
+- reported_history_mode() / last_completion_status() / stored_assistant_turns() / backend_cancel_lines(): what the stored turns and the backend log say of how a turn ran or was stopped (the thread mode the agent loop reported, how the newest turn ended)
+- turn_state() / wait_until_parked_at_the_card() / wait_until_the_turn_runs() / wait_until_the_turn_ends() / wait_for_the_stored_reply_watching_the_turn(): what the server holds of the chat's turn (running, parked behind a card), read from /agents/chat/<id>/turn-state; the last returns every state it saw, in order, and on a timeout lists the stored assistant turns (completion status and tail of their words)
 
 [POS]
 Shared by tests/e2e/test_approval_resume_reply_chrome_e2e.py and test_approval_timer_resume_chrome_e2e.py; the scenarios stay there, the page-side probes live here.
@@ -188,7 +189,11 @@ def wait_until_parked_at_the_card(probe: SkillChat, *, timeout_sec: float = 120.
             return
         time.sleep(0.25)
     log = backend_log_since(get_e2e_api_url(), probe.log_offset, limit=100_000)
-    relevant = [line for line in log.splitlines() if re.search(r"approv|guardrail|permission|blocked|HITL|denied", line, re.I)]
+    relevant = [
+        line
+        for line in log.splitlines()
+        if re.search(r"approv|guardrail|permission|blocked|HITL|denied|error|exception|rate.?limit|cancel", line, re.I)
+    ]
     stored = [
         f"{m.get('role')}: {str(m.get('content') or m.get('message') or '')[:240]!r}"
         for m in stored_messages(probe.chat_id, get_e2e_api_url())
@@ -209,7 +214,7 @@ def wait_until_the_turn_runs(probe: SkillChat, *, timeout_sec: float = 120.0) ->
     pytest.fail(f"the server ran no turn within {timeout_sec:.0f}s; last turn-state: {turn_state(probe)}")
 
 
-def _stored_assistant_turns(probe: SkillChat) -> list[str]:
+def stored_assistant_turns(probe: SkillChat) -> list[str]:
     """Every stored assistant turn as ``completionStatus: tail of its words``: why a run that ended left no final reply."""
     turns: list[str] = []
     for message in stored_messages(probe.chat_id, get_e2e_api_url()):
@@ -220,6 +225,18 @@ def _stored_assistant_turns(probe: SkillChat) -> list[str]:
         words = message.get("content") or message.get("message") or ""
         turns.append(f"{status}: {str(words)[-_FAILURE_TAIL_CHARS:]!r}")
     return turns
+
+
+def wait_until_the_turn_ends(probe: SkillChat, *, timeout_sec: float = 60.0) -> None:
+    """The server holds no turn of the chat any more: neither a run nor a card."""
+    deadline = time.monotonic() + timeout_sec
+    state: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        state = turn_state(probe)
+        if state.get("running") is False and state.get("awaitingApproval") is False:
+            return
+        time.sleep(0.5)
+    pytest.fail(f"the server still held the chat's turn after {timeout_sec:.0f}s; last turn-state: {state}")
 
 
 def wait_for_the_stored_reply_watching_the_turn(probe: SkillChat, *, timeout_sec: float = 240.0) -> list[tuple[object, object]]:
@@ -239,8 +256,37 @@ def wait_for_the_stored_reply_watching_the_turn(probe: SkillChat, *, timeout_sec
         time.sleep(1.0)
     pytest.fail(
         f"no stored reply within {timeout_sec:.0f}s; turn-state timeline: {timeline}; "
-        f"stored assistant turns: {_stored_assistant_turns(probe)}"
+        f"stored assistant turns: {stored_assistant_turns(probe)}"
     )
+
+
+def _newest_assistant_turn(probe: SkillChat, containing: str = "") -> dict[str, object]:
+    turns = [
+        message
+        for message in stored_messages(probe.chat_id, get_e2e_api_url())
+        if message.get("role") == "assistant" and containing in str(message.get("content") or message.get("message") or "")
+    ]
+    assert turns, f"no stored assistant turn containing {containing!r}"
+    raw_metadata = turns[-1].get("metadata")
+    return raw_metadata if isinstance(raw_metadata, dict) else {}
+
+
+def reported_history_mode(probe: SkillChat, reply_token: str) -> object:
+    """The thread mode the agent loop reported for the newest turn whose reply holds ``reply_token`` (``None`` when it reported none)."""
+    economics = _newest_assistant_turn(probe, reply_token).get("tokenEconomics")
+    turn_context = economics.get("turn_context") if isinstance(economics, dict) else None
+    return turn_context.get("history_mode") if isinstance(turn_context, dict) else None
+
+
+def backend_cancel_lines(probe: SkillChat) -> str:
+    """What the backend logged about stopping a turn since the probe began: whether a Stop reached it."""
+    log = backend_log_since(get_e2e_api_url(), probe.log_offset, limit=100_000)
+    return "\n".join(line for line in log.splitlines() if "ancel" in line)
+
+
+def last_completion_status(probe: SkillChat) -> object:
+    """How the newest stored assistant turn ended (``complete``, ``cancelled``, ``error``)."""
+    return _newest_assistant_turn(probe).get("completionStatus")
 
 
 def assert_reply_shown_once(client: ChromeMcpClient, page: McpPage) -> None:

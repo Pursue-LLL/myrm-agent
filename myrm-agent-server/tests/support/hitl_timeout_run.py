@@ -55,6 +55,7 @@ def params_of_the_card() -> MagicMock:
 def _token(*, cancelled: bool) -> MagicMock:
     token = MagicMock()
     token.is_cancelled = cancelled
+    token.cancel_reason = "user_cancelled" if cancelled else None
     return token
 
 

@@ -73,6 +73,37 @@ async def test_the_lifecycle_webhook_announces_a_timer_run_the_user_stopped_as_f
 
 
 @pytest.mark.asyncio
+async def test_a_timer_run_the_user_stopped_is_stored_as_stopped_with_its_reason(
+    parked: StreamContentCollector, resumed_run: list[bool]
+) -> None:
+    """Without the mark the stopped turn is stored like an unfinished one: no stop notice, and a page attached to the run is never told."""
+    persist = AsyncMock()
+    with patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new=persist):
+        await _resume(stopped_lease)
+
+    stored = persist.await_args
+    assert stored is not None
+    extra_data = stored.kwargs["extra_data"]
+    assert extra_data["completionStatus"] == "cancelled"
+    assert extra_data["stopReason"]["category"] == "cancelled"
+    assert extra_data["stopReason"]["message"] == "Cancelled by user"
+
+
+@pytest.mark.asyncio
+async def test_a_timer_run_that_finished_is_not_stored_as_stopped(
+    parked: StreamContentCollector, resumed_run: list[bool]
+) -> None:
+    persist = AsyncMock()
+    with patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new=persist):
+        await _resume()
+
+    stored = persist.await_args
+    assert stored is not None
+    assert "completionStatus" not in stored.kwargs["extra_data"]
+    assert "stopReason" not in stored.kwargs["extra_data"]
+
+
+@pytest.mark.asyncio
 async def test_no_lifecycle_event_while_the_turn_waits_at_another_card(
     parked: StreamContentCollector, resumed_run: list[bool], stops_at_a_card: list[bool]
 ) -> None:

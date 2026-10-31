@@ -14,7 +14,11 @@ The user leaves the chat for a static document of the same origin, which keeps t
   - two cards in a row, both answered by allow: the run the first timer continues stops at the second card, which that run holds
     for the server's turn state while the card's own timer is still running, and that timer's run finishes the turn: both
     commands ran, in order, with the skill hooks around each of them;
-  - a reload while the timer's run is still writing: the page attaches to that run and ends with its reply, without a second reload.
+  - a reload while the timer's run is still writing: the page attaches to that run and ends with its reply, without a second reload;
+  - Stop pressed on a page that attached to the timer's run: the server's run ends, the page stops streaming and the stored turn
+    says it was stopped;
+  - the next message of the chat after a turn the timer finished runs on the agent thread the timer's run continued (the agent
+    loop reports ``continue``), not on a thread rebuilt from the stored chat.
 
 Formal run::
 
@@ -39,16 +43,26 @@ from tests.support.chrome_approval_turn import (
 from tests.support.chrome_chat_page_observe import (
     assert_page_settled,
     assert_run_still_working,
+    backend_cancel_lines,
+    last_completion_status,
     open_in_fresh_page,
+    reported_history_mode,
+    stored_assistant_turns,
+    stored_reply_is_final,
     turn_state,
     wait_for_reply_on_page,
     wait_for_the_stored_reply_watching_the_turn,
+    wait_until_not_streaming,
     wait_until_parked_at_the_card,
+    wait_until_the_turn_ends,
     wait_until_the_turn_runs,
 )
-from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_ui_url
+from tests.support.chrome_chat_page_stop import press_stop
+from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_api_url, get_e2e_ui_url
 from tests.support.chrome_skill_hooks_approval import wait_for_approval_card
+from tests.support.chrome_skill_hooks_composer import drive_chat_turn
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat
+from tests.support.chrome_skill_hooks_observe import wait_assistant_reply_ending_with
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 # Seconds before the approval timer answers a card nobody answered.
@@ -58,6 +72,7 @@ _CHAIN_REPLY_TIMEOUT_SEC = 360.0
 _FIRST_COMMAND_URL = f"{APPROVAL_PROBE_URL}_FIRST"
 _SECOND_COMMAND_URL = f"{APPROVAL_PROBE_URL}_SECOND"
 _IDLE_TURN = {"running": False, "awaitingApproval": False}
+_FOLLOW_UP_TOKEN = "TIMER-FOLLOW-UP-OK"
 
 
 def _recording_hooks(out: Path) -> str:
@@ -214,3 +229,82 @@ def test_a_reload_while_the_timer_run_is_still_writing_ends_with_its_reply(
         approval_timeout_sec=_TIMER_SEC,
         approval_timeout_behavior="allow",
     )
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_stop_pressed_on_a_page_attached_to_the_timer_run_ends_that_run(
+    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger
+) -> None:
+    def stop_the_run_the_page_attached_to(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
+        wait_until_parked_at_the_card(probe)
+        wait_for_approval_card(client, page)
+        _leave_the_chat_for_a_static_document(client, page)
+        wait_until_the_turn_runs(probe)
+        open_in_fresh_page(client, page, chat_url)
+        assert_run_still_working(probe)
+        # The page offers Stop because it attached to the run: the run was started by the server's timer, not by this page.
+        running_when_pressed = turn_state(probe).get("running")
+        page_reaction = press_stop(client, page)
+        wait_until_the_turn_ends(probe)
+        wait_until_not_streaming(client, page)
+        outcome = (
+            f"turn running when Stop was pressed: {running_when_pressed}; stored turns: {stored_assistant_turns(probe)}; "
+            f"the page's reaction to Stop: {page_reaction}; backend cancel lines: {backend_cancel_lines(probe)!r}"
+        )
+        assert not stored_reply_is_final(probe), (
+            f"the run finished its whole answer although Stop was pressed while it wrote; {outcome}"
+        )
+        assert last_completion_status(probe) == "cancelled", f"the stored turn is not marked stopped; {outcome}"
+
+    run_one_turn(
+        tmp_path,
+        e2e_resource_ledger,
+        "timerstop",
+        bash_request(LONG_LIST_ANSWER),
+        stop_the_run_the_page_attached_to,
+        approval_timeout_sec=_TIMER_SEC,
+        approval_timeout_behavior="allow",
+    )
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_the_next_message_after_a_timer_finished_the_turn_continues_the_agent_thread(
+    tmp_path: Path, e2e_resource_ledger: E2EResourceLedger
+) -> None:
+    def let_the_timer_finish_the_turn(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
+        wait_until_parked_at_the_card(probe)
+        wait_for_approval_card(client, page)
+        _leave_the_chat_for_a_static_document(client, page)
+        wait_for_the_stored_reply_watching_the_turn(probe)
+        assert turn_state(probe) == _IDLE_TURN
+
+    probe = run_one_turn(
+        tmp_path,
+        e2e_resource_ledger,
+        "timernext",
+        bash_request(SHORT_ANSWER),
+        let_the_timer_finish_the_turn,
+        approval_timeout_sec=_TIMER_SEC,
+        approval_timeout_behavior="allow",
+    )
+    # The user keeps chatting in the same chat. The thread mirrors the stored chat only if the timer's turn recorded it, which
+    # the history mode the agent loop reports for this turn shows: without the record the thread is rebuilt (``replace``).
+    drive_chat_turn(get_e2e_ui_url(), probe, f"Reply with exactly: {_FOLLOW_UP_TOKEN}", invoke_skill=False)
+    wait_assistant_reply_ending_with(probe.chat_id, get_e2e_api_url(), _FOLLOW_UP_TOKEN, timeout_sec=240.0)
+    assert reported_history_mode(probe, _FOLLOW_UP_TOKEN) == "continue"

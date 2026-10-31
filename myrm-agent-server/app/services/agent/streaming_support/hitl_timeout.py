@@ -252,6 +252,15 @@ async def _resume_after_timeout(
                     clarification_pending = clarification_pending or extract_clarification_required(sse_line)
                 if cancel_token.is_cancelled:
                     phase = RunDigestPhase.CANCELLED
+                    # A request's stream loop turns a stopped run into this event; it is what stores the turn as stopped with
+                    # its reason and what ends the stream of every page attached to the run.
+                    collector.feed_event(
+                        {
+                            "type": "agent_cancelled",
+                            "messageId": resume_params.message_id,
+                            "data": {"reason": str(cancel_token.cancel_reason)},
+                        }
+                    )
         except asyncio.CancelledError:
             phase = RunDigestPhase.CANCELLED
             raise
