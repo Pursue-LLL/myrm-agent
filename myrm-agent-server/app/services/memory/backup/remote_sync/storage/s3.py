@@ -1,7 +1,8 @@
 """S3-compatible backup storage (AWS S3, MinIO, Alibaba OSS, Cloudflare R2 ...) over aioboto3.
 
 [INPUT]
-aioboto3 / botocore (POS: S3 client, imported on first use)
+aioboto3 / aiobotocore (POS: S3 client and its HTTP session, imported on first use)
+myrm_agent_harness.infra.tls_compat::tls_strict_disabled (POS: whether the enterprise network compatibility setting is on)
 app.services.memory.backup.remote_sync.storage.base::RemoteBackupStrategy/RemoteBackupFile/RemoteStorageError (POS: provider contract)
 
 [OUTPUT]
@@ -12,27 +13,53 @@ A listing follows every page (S3 returns at most 1000 keys per request, in key o
 ahead of the backups would otherwise hide them). It never returns a part: a page that cannot be read raises the transport
 error, and a listing that is longer than ``_LIST_PAGE_LIMIT`` pages or loses its continuation token raises
 ``RemoteStorageError``, so neither reads as a bucket without backups.
+
+aiobotocore builds its own TLS context from a fixed CA bundle, outside ``ssl.create_default_context``. While the
+enterprise network compatibility setting is on, the client takes its context from ``ssl.create_default_context`` instead,
+so it trusts the operating system's roots and the CA bundles the environment names like every other outbound client.
+With the setting off the client is aiobotocore's own.
 """
 
 from __future__ import annotations
 
+import functools
 import logging
+import ssl
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
+from myrm_agent_harness.infra.tls_compat import tls_strict_disabled
+
 from app.services.memory.backup.remote_sync.storage.base import RemoteBackupFile, RemoteBackupStrategy, RemoteStorageError
 
 if TYPE_CHECKING:
-    from botocore.config import Config as BotoConfig
+    from aiobotocore.config import AioConfig
+    from aiobotocore.httpsession import AIOHTTPSession
 
 logger = logging.getLogger(__name__)
 
 # 100 pages of up to 1000 keys: a prefix with more objects than that is a bucket used for something else, and reading it
 # all would hold the request for minutes. The user is told to narrow the prefix.
 _LIST_PAGE_LIMIT = 100
+
+
+@functools.cache
+def _policy_http_session_class() -> type[AIOHTTPSession]:
+    """aiobotocore's HTTP session, with the TLS context taken from the enterprise network compatibility policy.
+
+    Built on first use because aiobotocore is imported lazily. ``_get_ssl_context`` is the one place the session asks
+    for a context, for direct connections and for the connection to an HTTPS proxy alike.
+    """
+    from aiobotocore.httpsession import AIOHTTPSession
+
+    class PolicyHTTPSession(AIOHTTPSession):
+        def _get_ssl_context(self) -> ssl.SSLContext:
+            return ssl.create_default_context() if tls_strict_disabled() else super()._get_ssl_context()
+
+    return PolicyHTTPSession
 
 
 class _ListedObject(TypedDict):
@@ -140,13 +167,11 @@ class _S3Client:
             kwargs["endpoint_url"] = self._endpoint
         return kwargs
 
-    def _client_config(self) -> BotoConfig:
-        from botocore.config import Config as BotoConfig
+    def _client_config(self) -> AioConfig:
+        from aiobotocore.config import AioConfig
 
-        config_kwargs: dict[str, int | dict[str, str]] = {"connect_timeout": 15, "read_timeout": 300}
-        if self._force_path_style:
-            config_kwargs["s3"] = {"addressing_style": "path"}
-        return BotoConfig(**config_kwargs)
+        addressing: dict[str, dict[str, str]] = {"s3": {"addressing_style": "path"}} if self._force_path_style else {}
+        return AioConfig(connect_timeout=15, read_timeout=300, http_session_cls=_policy_http_session_class(), **addressing)
 
     @asynccontextmanager
     async def _client(self):
