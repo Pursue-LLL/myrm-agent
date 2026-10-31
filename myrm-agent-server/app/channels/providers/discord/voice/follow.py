@@ -286,7 +286,7 @@ class VoiceFollowManager:
                 dropped.append(user_id)
         if dropped:
             logger.info(
-                "Reconciliation: followed users %s are no longer in voice in guild %d, dropping their stale records",
+                "Reconciliation: followed users %s are in no channel the bot follows into in guild %d, dropping stale records",
                 ", ".join(dropped),
                 guild.id,
             )
