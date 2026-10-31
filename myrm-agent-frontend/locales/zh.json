@@ -13457,8 +13457,6 @@
     "submittingAction": "正在生成..."
   },
   "systemAssistant": {
-    "launcherAriaLabel": "小莫自然语言系统控制中枢启动器",
-    "launcherTooltip": "按 ⌘J 或点击打开小莫控制中枢",
     "assistantName": "小莫中枢",
     "shortcutHint": "⌘J",
     "hubTitle": "小莫全能自然语言控制中枢",
@@ -13514,8 +13512,7 @@
   },
   "toolPicker": {
     "menuLabel": "工具选择",
-    "triggerAriaLabel": "工具与技能分类选择器",
-    "triggerTooltip": "按 ⌘⇧T 或点击打开工具与技能分类抽屉",
+    "shortcutHint": "⌘⇧T",
     "modalTitle": "工具与技能分类中枢",
     "modalSubtitle": "集中管理内置核心能力、自定义 Skills 与 MCP 服务，支持常用置顶与拼音模糊过滤",
     "closeAriaLabel": "关闭工具选择器",
@@ -13542,8 +13539,7 @@
   },
   "presentation": {
     "menuLabel": "演示文稿",
-    "triggerAriaLabel": "企业级 PPT 演示文稿生成与图解中枢",
-    "triggerTooltip": "按 ⌥⌘P 或点击打开 PPT 演示文稿生成与预览中枢",
+    "shortcutHint": "⌥⌘P",
     "modalTitle": "高保真 PPT 演示文稿生成引擎",
     "modalSubtitle": "企业标准 16:9 宽屏母版排版、双栏对比、多步骤流程矩阵与多模态概念图解",
     "closeAriaLabel": "关闭演示文稿对话框",
@@ -14020,10 +14016,7 @@
     "cloudProfileName": "云端沙箱"
   },
   "sessionMap": {
-    "hudAriaLabel": "项目维度会话地图与 Agent 驾驶舱开关",
     "hudTrigger": "会话地图",
-    "hudActive": "地图运行中",
-    "toggleHint": "按 ⌘+Shift+M 唤起 2D 拓扑会话地图与多 Agent 驾驶舱",
     "shortcutHint": "⌘⇧M",
     "modalTitle": "项目维度会话地图与 Agent 状态全景驾驶舱",
     "modalSubtitle": "全景查看各项目下数十上百个并行 Agent 的拓扑结构、实时运行状态与算力负载，支持一键现场跳回",
@@ -14058,10 +14051,7 @@
     "dockBottom": "停靠在底部",
     "dockRight": "停靠在右侧",
     "closeAction": "关闭辅助工作台",
-    "triggerAriaLabel": "打开辅助工作台",
     "hudTrigger": "工作台",
-    "hudActive": "展开中",
-    "toggleHint": "切换辅助工作台",
     "shortcutHint": "⌘⇧B",
     "files": {
       "searchPlaceholder": "搜索工作区文件...",

@@ -31,22 +31,13 @@ describe('ToolPickerTrigger component', () => {
     }
   });
 
-  it('renders trigger capsule button with label and shortcut hint', () => {
+  it('renders no floating entrance and keeps the drawer closed', () => {
     render(<ToolPickerTrigger />);
 
-    expect(screen.getByText('Tools')).toBeDefined();
-    expect(screen.getByText('⌘⇧T')).toBeDefined();
-    expect(screen.getByRole('button', { name: /triggerAriaLabel/i })).toBeDefined();
-  });
-
-  it('opens tool picker drawer when trigger button is clicked', () => {
-    render(<ToolPickerTrigger />);
-
-    const triggerBtn = screen.getByRole('button', { name: /triggerAriaLabel/i });
-    fireEvent.click(triggerBtn);
-
-    expect(screen.getByText('modalTitle')).toBeDefined();
-    expect(screen.getByPlaceholderText('searchPlaceholder')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /triggerAriaLabel/i })).toBeNull();
+    expect(screen.queryByText('Tools')).toBeNull();
+    expect(screen.queryByText('⌘⇧T')).toBeNull();
+    expect(screen.queryByText('modalTitle')).toBeNull();
   });
 
   it('toggles tool drawer on Cmd+Shift+T shortcut', () => {
@@ -71,14 +62,14 @@ describe('ToolPickerTrigger component', () => {
     expect(screen.queryByText('modalTitle')).toBeNull();
   });
 
-  it('menu mode hides the capsule and opens from the utility event', () => {
-    render(<ToolPickerTrigger showTrigger={false} />);
-    expect(screen.queryByRole('button', { name: /triggerAriaLabel/i })).toBeNull();
+  it('opens from the Tools menu event and shows the searchable drawer', () => {
+    render(<ToolPickerTrigger />);
 
     act(() => {
       window.dispatchEvent(new Event('myrm:open-tool-picker'));
     });
 
     expect(screen.getByText('modalTitle')).toBeDefined();
+    expect(screen.getByPlaceholderText('searchPlaceholder')).toBeDefined();
   });
 });

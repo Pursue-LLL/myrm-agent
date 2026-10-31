@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { UtilityMenu } from '../UtilityMenu';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 
@@ -39,7 +39,33 @@ describe('UtilityMenu', () => {
     ]) {
       expect(screen.getByText(label)).toBeDefined();
     }
-    expect(screen.getByText('workbench.shortcutHint')).toBeDefined();
+    // Every shortcut is read from its own namespace, so a locale can never drift from the key binding it documents.
+    for (const namespace of ['workbench', 'sessionMap', 'presentation', 'toolPicker', 'systemAssistant']) {
+      expect(screen.getByText(`${namespace}.shortcutHint`)).toBeDefined();
+    }
+  });
+
+  it('marks the workbench entry pressed only while the docked workbench is open', () => {
+    const entry = () => screen.getByText('workbench.hudTrigger').closest('button');
+
+    const { rerender } = render(<UtilityMenu />);
+    expect(entry()?.getAttribute('aria-pressed')).toBe('false');
+
+    act(() => {
+      useWorkbenchStore.setState({ isOpen: true });
+    });
+    rerender(<UtilityMenu />);
+    expect(entry()?.getAttribute('aria-pressed')).toBe('true');
+
+    // The other panels are modal and cover the menu while open, so they carry no pressed state.
+    for (const label of [
+      'sessionMap.hudTrigger',
+      'presentation.menuLabel',
+      'toolPicker.menuLabel',
+      'systemAssistant.assistantName',
+    ]) {
+      expect(screen.getByText(label).closest('button')?.hasAttribute('aria-pressed')).toBe(false);
+    }
   });
 
   it('opens the workbench through its store', () => {

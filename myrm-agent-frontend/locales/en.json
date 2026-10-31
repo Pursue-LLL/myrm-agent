@@ -13457,8 +13457,6 @@
     "submittingAction": "Generating..."
   },
   "systemAssistant": {
-    "launcherAriaLabel": "XiaoMo system control launcher",
-    "launcherTooltip": "Press ⌘J or click to open XiaoMo Control Center",
     "assistantName": "XiaoMo Hub",
     "shortcutHint": "⌘J",
     "hubTitle": "XiaoMo Unified Natural Language Control Center",
@@ -13514,8 +13512,7 @@
   },
   "toolPicker": {
     "menuLabel": "Tool picker",
-    "triggerAriaLabel": "Categorized tool and skill picker",
-    "triggerTooltip": "Press ⌘⇧T or click to open categorized tool & skill drawer",
+    "shortcutHint": "⌘⇧T",
     "modalTitle": "Categorized Tool & Skill Hub",
     "modalSubtitle": "Manage built-in core tools, custom skills, and MCP protocols with pinning and instant fuzzy search",
     "closeAriaLabel": "Close tool picker",
@@ -13542,8 +13539,7 @@
   },
   "presentation": {
     "menuLabel": "Presentation",
-    "triggerAriaLabel": "Enterprise presentation slide generator and visual hub",
-    "triggerTooltip": "Press ⌥⌘P or click to open PPT presentation generation and preview hub",
+    "shortcutHint": "⌥⌘P",
     "modalTitle": "High-Fidelity Presentation Deck Generator",
     "modalSubtitle": "Enterprise 16:9 widescreen master layout, two-column comparison, matrix workflows, and multimodal concept illustrations",
     "closeAriaLabel": "Close presentation dialog",
@@ -14020,10 +14016,7 @@
     "cloudProfileName": "Cloud sandbox"
   },
   "sessionMap": {
-    "hudAriaLabel": "Project-Centric Session Map & Agent Cockpit Trigger",
     "hudTrigger": "Session Map",
-    "hudActive": "Map Active",
-    "toggleHint": "Press ⌘+Shift+M to toggle 2D Topology Session Map and Fleet Cockpit",
     "shortcutHint": "⌘⇧M",
     "modalTitle": "Project-Centric Session Map & Fleet State Cockpit",
     "modalSubtitle": "Global 2D topological overview across projects, concurrent agents, runtime pulses, and instant jump-back context",
@@ -14058,11 +14051,8 @@
     "dockBottom": "Dock to bottom",
     "dockRight": "Dock to right",
     "closeAction": "Close Workbench",
-    "triggerAriaLabel": "Open Auxiliary Workbench",
     "hudTrigger": "Workbench",
-    "hudActive": "Active",
-    "toggleHint": "Toggle Auxiliary Workbench",
-    "shortcutHint": "Cmd+Shift+B",
+    "shortcutHint": "⌘⇧B",
     "files": {
       "searchPlaceholder": "Search workspace files...",
       "emptyResults": "No matching files found",

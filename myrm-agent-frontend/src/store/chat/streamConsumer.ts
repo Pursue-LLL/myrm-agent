@@ -51,7 +51,7 @@ export async function tryE2eAttachForPendingApproval(
   if (typeof window === 'undefined') {
     return { attached: false, queueLen: 0, attempt: 0 };
   }
-  if (!window.__MYRM_E2E_DIRECT_SSE__ && !resolveE2eApiBase()) {
+  if (!resolveE2eApiBase()) {
     return { attached: false, queueLen: 0, attempt: 0 };
   }
   const chatId = state.chatId?.trim();

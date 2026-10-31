@@ -67,7 +67,6 @@ _ASSISTANT_DOM_PROBE_JS = """(() => {
 def _send_turn(prompt: str) -> str:
     prompt_json = json.dumps(prompt)
     return f"""(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   bridge.setActionMode?.('agent');

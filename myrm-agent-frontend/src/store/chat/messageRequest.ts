@@ -1253,7 +1253,7 @@ export const sendMessage = async (
 
     if (
       typeof window !== 'undefined' &&
-      (window.__MYRM_E2E_DIRECT_SSE__ || resolveE2eApiBase()) &&
+      resolveE2eApiBase() &&
       state.chatId?.trim() &&
       useToolApprovalStore.getState().queue.length === 0
     ) {

@@ -351,9 +351,6 @@ function buildSendTurnDiagnostic(chatId: string | null): Record<string, unknown>
   const processingIds = [...useToolApprovalStore.getState().processingMessageIds];
   return {
     rev: SEND_TURN_REV,
-    directSse: Boolean(
-      typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__,
-    ),
     turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
     provider: window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null,
     workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
@@ -481,35 +478,6 @@ async function submitAndObserveTurn(
             actionMode: currentActionMode,
             searchCount: configs.length,
             enabledCount: configs.filter((item) => item.enabled).length,
-          },
-        };
-      }
-    }
-    const e2eApiBase = resolveE2eApiBase();
-    if (e2eApiBase) {
-      const win = window as unknown as Record<string, unknown>;
-      // Gap chrome_e2e tests pin false so the bridge waits for the workspace stream before it sends.
-      if (win.__MYRM_E2E_DIRECT_SSE__ !== false) {
-        win.__MYRM_E2E_DIRECT_SSE__ = true;
-      }
-    }
-    if (
-      e2eApiBase &&
-      !(window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__ &&
-      typeof window.__MYRM_WAIT_WORKSPACE_STREAM__ === 'function'
-    ) {
-      const workspaceReady = await window.__MYRM_WAIT_WORKSPACE_STREAM__(30_000);
-      if (!workspaceReady?.ok) {
-        return {
-          ok: false,
-          err: workspaceReady?.err ?? 'workspace-stream-not-ready',
-          mode: 'sendTurnWorkspaceNotReady',
-          chatId: chatIdBeforeSend,
-          debug: {
-            phase: 'ARM',
-            workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-            apiBase: getApiBaseUrl(),
-            sendGeneration: startGen,
           },
         };
       }
@@ -1770,12 +1738,6 @@ export default function E2EChatBridge() {
           scheduleAutoSave: useChatStore.getState().scheduleAutoSave,
           setInputMessage: (message: string) => useChatStore.setState({ inputMessage: message }),
         };
-        {
-          const win = window as unknown as Record<string, unknown>;
-          if (win.__MYRM_E2E_DIRECT_SSE__ !== false) {
-            win.__MYRM_E2E_DIRECT_SSE__ = true;
-          }
-        }
         try {
           await executeStreamWithRetry(
             trimmedQuery,

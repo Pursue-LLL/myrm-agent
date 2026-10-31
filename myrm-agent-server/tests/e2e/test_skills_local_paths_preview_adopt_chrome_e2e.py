@@ -374,13 +374,6 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 timeout_sec=_warm_ui_parallel_wait_sec(120.0),
             )
 
-            # Pin direct SSE
-            chat_client.evaluate(
-                chat_page,
-                """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
-                timeout_sec=10.0,
-            )
-
             # Type task prompt and send like a real user
             task_prompt = "请回答：125乘以8等于多少？请只回复数字结果。"
             type_and_send_js = f"""(() => {{

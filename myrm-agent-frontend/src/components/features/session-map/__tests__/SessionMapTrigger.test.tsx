@@ -73,20 +73,25 @@ describe('SessionMapTrigger component', () => {
     mockFetchFleetCockpitSummary.mockResolvedValue(mockSummary);
   });
 
-  it('renders floating HUD capsule trigger in closed state initially', () => {
+  // The Tools menu is the only visible entrance; it opens the map through this event.
+  const openFromMenu = () => {
+    act(() => {
+      window.dispatchEvent(new CustomEvent('myrm:open-session-map'));
+    });
+  };
+
+  it('renders no floating entrance and keeps the map closed initially', () => {
     render(<SessionMapTrigger />);
 
-    const hudTriggerBtn = screen.getByRole('button', { name: /hudTrigger/i });
-    expect(hudTriggerBtn).toBeDefined();
-    expect(screen.getByText('shortcutHint')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /hudTrigger/i })).toBeNull();
+    expect(screen.queryByText('shortcutHint')).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('opens modal and loads data when clicking the trigger button', async () => {
+  it('opens modal and loads data when the Tools menu asks for it', async () => {
     render(<SessionMapTrigger />);
 
-    const hudTriggerBtn = screen.getByRole('button', { name: /hudTrigger/i });
-    fireEvent.click(hudTriggerBtn);
+    openFromMenu();
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeDefined();
@@ -101,7 +106,7 @@ describe('SessionMapTrigger component', () => {
     render(<SessionMapTrigger />);
 
     // Open
-    fireEvent.click(screen.getByRole('button', { name: /hudTrigger/i }));
+    openFromMenu();
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeDefined();
     });
@@ -139,24 +144,10 @@ describe('SessionMapTrigger component', () => {
     });
   });
 
-  it('opens modal on receiving custom event myrm:open-session-map', async () => {
-    render(<SessionMapTrigger />);
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-
-    await waitFor(() => {
-      window.dispatchEvent(new CustomEvent('myrm:open-session-map'));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeDefined();
-    });
-  });
-
   it('switches to list view and can open jump modal on session click', async () => {
     render(<SessionMapTrigger />);
 
-    fireEvent.click(screen.getByRole('button', { name: /hudTrigger/i }));
+    openFromMenu();
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeDefined();
@@ -182,19 +173,6 @@ describe('SessionMapTrigger component', () => {
     await waitFor(() => {
       expect(screen.getByText('sessionModalSubtitle')).toBeDefined();
       expect(screen.getByRole('button', { name: 'jumpInAction' })).toBeDefined();
-    });
-  });
-
-  it('menu mode hides the HUD capsule and opens from the utility event', async () => {
-    render(<SessionMapTrigger showTrigger={false} />);
-    expect(screen.queryByRole('button', { name: /hudTrigger/i })).toBeNull();
-
-    act(() => {
-      window.dispatchEvent(new Event('myrm:open-session-map'));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('modalTitle')).toBeDefined();
     });
   });
 });

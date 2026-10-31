@@ -53,7 +53,6 @@ _SHELL_WAIT_SEC = 45.0
 _MAX_ATTEMPTS = 2
 
 _SEND_TURN_JS = """(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   bridge.setActionMode?.('agent');
@@ -197,9 +196,7 @@ def _create_wiki_agent(api_url: str, name: str) -> str:
             "enabled_builtin_tools": ["wiki", "web_search", "memory"],
         },
     )
-    assert isinstance(agent_resp, dict) and agent_resp.get("data", {}).get("id"), (
-        f"Create wiki agent failed: {agent_resp}"
-    )
+    assert isinstance(agent_resp, dict) and agent_resp.get("data", {}).get("id"), f"Create wiki agent failed: {agent_resp}"
     return str(agent_resp["data"]["id"])
 
 
@@ -215,9 +212,7 @@ def _create_chat(api_url: str, chat_id: str, title: str, agent_id: str) -> None:
             "messages": [],
         },
     )
-    assert isinstance(chat_resp, dict) and chat_resp.get("success") is True, (
-        f"Create chat failed: {chat_resp}"
-    )
+    assert isinstance(chat_resp, dict) and chat_resp.get("success") is True, f"Create chat failed: {chat_resp}"
 
 
 def _open_chat_and_send(ui_url: str, chat_id: str, prompt: str) -> dict[str, object]:
@@ -309,9 +304,7 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
     agent_id = _create_wiki_agent(api_url, f"Wiki Gate Probe {suffix}")
     chat_id = f"e2ewikigate{suffix}"
     _create_chat(api_url, chat_id, "Wiki Pending Gate E2E", agent_id)
-    base_stats = http_json(
-        "GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=1"
-    )["stats"]
+    base_stats = http_json("GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=1")["stats"]
     assert isinstance(base_stats, dict)
     base_pending = int(base_stats["pending"])
     base_rejected = int(base_stats["rejected"])
@@ -376,9 +369,7 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
                 }))()""",
                 timeout_sec=15.0,
             )
-            raise AssertionError(
-                f"staged probe never became ready; diagnostics={json.dumps(diag, ensure_ascii=False)}"
-            ) from None
+            raise AssertionError(f"staged probe never became ready; diagnostics={json.dumps(diag, ensure_ascii=False)}") from None
         assert staged_state.get("conceptVisible") is True, (
             f"gate-staged draft must surface in the panel: {json.dumps(staged_state, ensure_ascii=False)}"
         )
@@ -410,9 +401,7 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
         assert rejected_state.get("errors") == [], rejected_state
 
     # Authoritative REST check after the UI action (model reply kept for the report).
-    final_stats = http_json(
-        "GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=1"
-    )["stats"]
+    final_stats = http_json("GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=1")["stats"]
     assert isinstance(final_stats, dict)
     assert int(final_stats["pending"]) == base_pending, final_stats
     assert int(final_stats["rejected"]) == base_rejected + 1, final_stats

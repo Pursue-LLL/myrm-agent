@@ -52,7 +52,6 @@ def _write_prompt(suffix: str) -> str:
 def _send_turn_js(prompt: str) -> str:
     prompt_json = json.dumps(prompt)
     return f"""(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   bridge.setActionMode?.('agent');
@@ -168,9 +167,7 @@ def _wait_active_ephemeral_deltas(api_url: str, chat_id: str, *, timeout_sec: fl
         except (RuntimeError, OSError, ValueError):
             pass
         time.sleep(2.0)
-    pytest.fail(
-        f"no active ephemeral deltas for chat {chat_id} after {timeout_sec}s; last={json.dumps(last)[:200]}"
-    )
+    pytest.fail(f"no active ephemeral deltas for chat {chat_id} after {timeout_sec}s; last={json.dumps(last)[:200]}")
 
 
 @pytest.mark.chrome_e2e(
@@ -247,6 +244,4 @@ def test_ephemeral_session_override_pill_after_memory_write_live() -> None:
                 "(() => document.body?.innerText?.slice(0, 800) ?? '')()",
                 timeout_sec=15.0,
             )
-            pytest.fail(
-                f"expected pill text {_PILL_TEXT_EN!r}; probe={probe}; body={body_snip!r}"
-            )
+            pytest.fail(f"expected pill text {_PILL_TEXT_EN!r}; probe={probe}; body={body_snip!r}")

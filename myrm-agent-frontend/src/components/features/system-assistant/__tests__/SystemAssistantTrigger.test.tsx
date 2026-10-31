@@ -36,23 +36,12 @@ describe('SystemAssistantTrigger component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders floating launcher button with assistant name and shortcut hint', () => {
+  it('renders no floating launcher and keeps the hub closed', () => {
     render(<SystemAssistantTrigger />);
 
-    const launcherBtn = screen.getByRole('button', { name: /assistantName/i });
-    expect(launcherBtn).toBeDefined();
-    expect(screen.getByText('shortcutHint')).toBeDefined();
-  });
-
-  it('opens modal when clicking launcher button', async () => {
-    render(<SystemAssistantTrigger />);
-
-    const launcherBtn = screen.getByRole('button', { name: /assistantName/i });
-    fireEvent.click(launcherBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText('hubTitle')).toBeDefined();
-    });
+    expect(screen.queryByRole('button', { name: /assistantName/i })).toBeNull();
+    expect(screen.queryByText('shortcutHint')).toBeNull();
+    expect(screen.queryByText('hubTitle')).toBeNull();
   });
 
   it('toggles modal on Cmd+J keyboard shortcut and closes on Escape', async () => {
@@ -76,9 +65,8 @@ describe('SystemAssistantTrigger component', () => {
     expect(screen.queryByText('hubTitle')).toBeNull();
   });
 
-  it('menu mode hides the launcher and opens from the utility event', async () => {
-    render(<SystemAssistantTrigger showTrigger={false} />);
-    expect(screen.queryByRole('button', { name: /assistantName/i })).toBeNull();
+  it('opens from the Tools menu event', async () => {
+    render(<SystemAssistantTrigger />);
 
     act(() => {
       window.dispatchEvent(new Event('myrm:open-system-assistant'));

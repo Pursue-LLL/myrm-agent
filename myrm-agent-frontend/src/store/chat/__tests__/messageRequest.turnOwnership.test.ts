@@ -60,17 +60,8 @@ const MESSAGE_END = 'data: {"type":"message_end","messageId":"a-1"}\n\n';
 const requests: AbortController[] = [];
 
 const store = () => useChatStore.getState();
-/** Sends a turn with the E2E direct-SSE flag set, as the E2E harness does. */
-const send = (input: string) => {
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
-  return store().sendMessage(input);
-};
-/**
- * Called by every request mock once the transport is chosen. A flag that stays set would send a finished turn
- * into the E2E-only loop that polls for pending approvals.
- */
+/** Called by every request mock: records the abort controller of the request the pipeline just made. */
 const requestStarted = (request?: AbortController) => {
-  delete window.__MYRM_E2E_DIRECT_SSE__;
   requests.push(request as AbortController);
 };
 // The first request waits for the cold request pipeline to load.
@@ -205,7 +196,6 @@ describe('turn ownership of the shared turn state', () => {
     requests.splice(0).forEach((request) => request.abort());
     releaseReconcile();
     vi.useRealTimers();
-    delete window.__MYRM_E2E_DIRECT_SSE__;
     vi.restoreAllMocks();
   });
 
@@ -216,14 +206,14 @@ describe('turn ownership of the shared turn state', () => {
       const first = endingStream();
       answerRequests(async () => first.response);
 
-      const firstTurn = send('first question');
+      const firstTurn = store().sendMessage('first question');
       await eventually(() => expect(requests).toHaveLength(1));
       first.end();
       // The stream is over and the chat is idle again, while turn 1 still waits for the reconcile.
       await eventually(() => expect(store().loading).toBe(false));
       await eventually(() => expect(reconcile.waiting.length).toBeGreaterThan(0));
 
-      const secondTurn = send('second question');
+      const secondTurn = store().sendMessage('second question');
       await eventually(() => expect(requests).toHaveLength(2));
       // The composer already holds an attachment for the message after this one, and hides its attach list while
       // the message it sent is running.
@@ -256,7 +246,7 @@ describe('turn ownership of the shared turn state', () => {
       throw new TypeError('Failed to fetch');
     });
 
-    const turn = send('only question');
+    const turn = store().sendMessage('only question');
     await eventually(() => expect(requests).toHaveLength(1));
     store().stopMessage();
     let turnEnded = false;
@@ -289,7 +279,7 @@ describe('turn ownership of the shared turn state', () => {
     await eventually(() => expect(store().loading).toBe(false));
     await eventually(() => expect(reconcile.waiting.length).toBeGreaterThan(0));
 
-    const nextTurn = send('follow-up');
+    const nextTurn = store().sendMessage('follow-up');
     await eventually(() => expect(requests).toHaveLength(1));
 
     releaseReconcile();
@@ -311,7 +301,7 @@ describe('turn ownership of the shared turn state', () => {
     const only = endingStream();
     answerRequests(async () => only.response);
 
-    const turn = send('only question');
+    const turn = store().sendMessage('only question');
     await eventually(() => expect(store().abortController).toBe(requests[0]));
     expect(store().loading).toBe(true);
     only.end();
@@ -339,7 +329,7 @@ describe('turn ownership of the shared turn state', () => {
         }),
     );
 
-    const turn = send('background question');
+    const turn = store().sendMessage('background question');
     await eventually(() => expect(paneHandle()).toBeTruthy());
     // The user moves to the other pane while the request is pending; the pane snapshot is then a JSON clone.
     useWorkspaceStore.setState({ activePaneId: OTHER_PANE_ID });

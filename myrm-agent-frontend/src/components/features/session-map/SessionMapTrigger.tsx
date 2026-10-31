@@ -7,13 +7,14 @@
  * - AgentFleetCockpit from ./AgentFleetCockpit
  * - SessionContextJumpModal from ./SessionContextJumpModal
  * - Translation strings from 'sessionMap' namespace
- * - Global event 'myrm:open-session-map'
+ * - UTILITY_PANEL_EVENTS.sessionMap ('myrm:open-session-map') dispatched by the nav rail's Tools menu
  *
  * [OUTPUT]
- * - SessionMapTrigger: Floating HUD capsule & full-screen 2D session map modal cockpit
+ * - SessionMapTrigger: global shortcut and open-event host of the full-screen 2D session map modal cockpit
  *
  * [POS]
- * HUD entrance and full-screen view orchestrator for Project-Centric Session Map and Fleet Management.
+ * Entrance and full-screen view orchestrator for Project-Centric Session Map and Fleet Management.
+ * The visible entrance is the Tools menu in the nav rail.
  * Strict typing: Zero `any`. File length < 360 lines. Zero native emoji.
  */
 
@@ -33,12 +34,7 @@ import { AgentFleetCockpit } from './AgentFleetCockpit';
 import { SessionContextJumpModal } from './SessionContextJumpModal';
 import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
-interface SessionMapTriggerProps {
-  /** 菜单内使用时只保留快捷键/事件监听与地图弹层。 */
-  showTrigger?: boolean;
-}
-
-export function SessionMapTrigger({ showTrigger = true }: SessionMapTriggerProps = {}) {
+export function SessionMapTrigger() {
   const t = useTranslations('sessionMap');
   const dialogTitleId = useId();
 
@@ -114,32 +110,6 @@ export function SessionMapTrigger({ showTrigger = true }: SessionMapTriggerProps
 
   return (
     <>
-      {/* Floating HUD Capsule Trigger */}
-      {showTrigger && (
-        <aside
-          data-session-map-ignore="true"
-          aria-label={t('hudAriaLabel')}
-          className="fixed bottom-6 right-48 z-[9985] flex items-center select-none"
-        >
-          <button
-            type="button"
-            onClick={() => setIsOpen((prev) => !prev)}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium shadow-xl backdrop-blur-md transition-all border ${
-              isOpen
-                ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/40'
-                : 'bg-card/90 text-foreground border-border/80 hover:bg-card hover:border-primary/50'
-            }`}
-            title={t('toggleHint')}
-          >
-            <IconActivity className="w-4 h-4 text-emerald-500 animate-pulse" />
-            <span>{isOpen ? t('hudActive') : t('hudTrigger')}</span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-background/60 border border-border/40 text-muted-foreground">
-              {t('shortcutHint')}
-            </kbd>
-          </button>
-        </aside>
-      )}
-
       {/* Full-screen 2D Session Map Modal Cockpit */}
       {isOpen && (
         <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 sm:p-6">

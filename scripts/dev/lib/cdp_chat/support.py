@@ -639,7 +639,6 @@ def e2e_runtime_binding_source(api_base: str | None = None) -> str | None:
         f"window.name = {json.dumps(name)};"
         f"window.__MYRM_E2E_RUNTIME__ = Object.freeze({json.dumps(binding)});"
         f"window.__MYRM_E2E_API_BASE__ = {json.dumps(binding['apiBase'])};"
-        f"window.__MYRM_E2E_DIRECT_SSE__ = true;"
         f"window.__MYRM_E2E_ATTACH_TIMEOUT_MS__ = {attach_ms};"
     )
 
@@ -660,7 +659,6 @@ def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
   window.name = prefix + JSON.stringify(binding);
   window.__MYRM_E2E_RUNTIME__ = binding;
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   window.__MYRM_E2E_ATTACH_TIMEOUT_MS__ = {attach_ms};
   const nativeFetch = window.fetch.bind(window);
   const healthUrl = `${{binding.apiBase}}/api/v1/health`;
@@ -717,7 +715,6 @@ E2E_API_BINDING_PROBE_JS = """
 (() => ({
   apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
   runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
-  directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
 }))()
 """.strip()
 
@@ -3179,9 +3176,7 @@ def print_private_backend_log_since(offset: int) -> None:
     """
     path = _session_private_backend_log()
     if path is not None:
-        _print_backend_log_since(
-            path, offset, tail_bytes=_SEND_FAILURE_LOG_TAIL_BYTES
-        )
+        _print_backend_log_since(path, offset, tail_bytes=_SEND_FAILURE_LOG_TAIL_BYTES)
 
 
 def count_execution_cache_in_log(

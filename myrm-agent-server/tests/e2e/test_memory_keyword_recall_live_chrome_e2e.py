@@ -55,7 +55,6 @@ _RECALL_PROMPT = "我的服务名叫什么?我部署时用什么包管理器?"
 def _send_turn_js(prompt: str) -> str:
     prompt_json = json.dumps(prompt)
     return f"""(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   bridge.setActionMode?.('agent');

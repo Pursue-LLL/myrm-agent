@@ -10,8 +10,8 @@
  * - UtilityMenu: one rail entry that opens the secondary tool panels
  *
  * [POS]
- * Replaces the five floating HUD capsules with a single, labelled menu in the nav rail.
- * The panels stay mounted elsewhere; this component only dispatches their open action.
+ * The single, labelled rail entry for the secondary tool panels.
+ * The panels stay mounted globally (i18n/LocalizedProviders); this component only dispatches their open action.
  */
 
 import { useState } from 'react';
@@ -29,6 +29,8 @@ interface UtilityMenuItem {
   shortcut: string;
   icon: typeof Wrench;
   action: () => void;
+  /** Set only for panels that dock beside the page; modal panels cover the menu, so they never show a state. */
+  pressed?: boolean;
 }
 
 const openPanel = (eventName: string) => {
@@ -44,6 +46,7 @@ export function UtilityMenu() {
   const tAssistant = useTranslations('systemAssistant');
   const [open, setOpen] = useState(false);
   const toggleWorkbench = useWorkbenchStore((state) => state.toggleOpen);
+  const workbenchOpen = useWorkbenchStore((state) => state.isOpen);
 
   const run = (action: () => void) => {
     setOpen(false);
@@ -57,6 +60,7 @@ export function UtilityMenu() {
       label: tWorkbench('hudTrigger'),
       shortcut: tWorkbench('shortcutHint'),
       action: () => run(toggleWorkbench),
+      pressed: workbenchOpen,
     },
     {
       id: 'session-map',
@@ -69,14 +73,14 @@ export function UtilityMenu() {
       id: 'presentation',
       icon: Presentation,
       label: tPresentation('menuLabel'),
-      shortcut: '⌥⌘P',
+      shortcut: tPresentation('shortcutHint'),
       action: () => run(() => openPanel(UTILITY_PANEL_EVENTS.presentation)),
     },
     {
       id: 'tool-picker',
       icon: Wrench,
       label: tToolPicker('menuLabel'),
-      shortcut: '⌘⇧T',
+      shortcut: tToolPicker('shortcutHint'),
       action: () => run(() => openPanel(UTILITY_PANEL_EVENTS.toolPicker)),
     },
     {
@@ -109,14 +113,22 @@ export function UtilityMenu() {
       </Tooltip>
       <PopoverContent side="right" align="end" sideOffset={10} className="w-60 p-1.5">
         <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t('tools')}</p>
-        {items.map(({ id, icon: Icon, label, shortcut, action }) => (
+        {items.map(({ id, icon: Icon, label, shortcut, action, pressed }) => (
           <button
             key={id}
             type="button"
             onClick={action}
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+            aria-pressed={pressed}
+            className={cn(
+              'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none',
+              pressed && 'bg-primary/10',
+            )}
           >
-            <Icon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Icon
+              size={16}
+              className={cn('shrink-0', pressed ? 'text-primary' : 'text-muted-foreground')}
+              aria-hidden="true"
+            />
             <span className="min-w-0 flex-1 truncate text-left">{label}</span>
             <kbd className="shrink-0 rounded border border-border/40 bg-background/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               {shortcut}

@@ -84,12 +84,11 @@ _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS = """(async () => {
   if (bridge.pinLiteModelForE2e) {
     await bridge.pinLiteModelForE2e();
   }
-  window.__MYRM_E2E_DIRECT_SSE__ = false;
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   bridge.setActionMode?.('agent');
   const prevTools = bridge.getCurrentBuiltinTools?.() ?? [];
   bridge.setCurrentBuiltinTools?.([...new Set([...prevTools, 'web_search'])]);
-  return { ok: true, tools: bridge.getCurrentBuiltinTools?.() ?? [], directSse: !!window.__MYRM_E2E_DIRECT_SSE__ };
+  return { ok: true, tools: bridge.getCurrentBuiltinTools?.() ?? [] };
 })()"""
 
 _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
@@ -238,7 +237,6 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
 _DIAG_SNAPSHOT_JS = """(() => ({
   sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
   workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-  directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
   tools: window.__MYRM_E2E_CHAT__?.getCurrentBuiltinTools?.() ?? [],
   turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
 }))()"""
@@ -514,7 +512,6 @@ async def _send_and_collect_gap_while_streaming(
           sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.({json.dumps(stream_message_id)}) ?? [],
           allSse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
           workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
-          directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
           tools: window.__MYRM_E2E_CHAT__?.getCurrentBuiltinTools?.() ?? [],
           turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
           streamMessageId: {json.dumps(stream_message_id)},
@@ -663,7 +660,6 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 """(() => ({
                   apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
                   runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
-                  directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
                 }))()""",
                 intent=EvaluateIntent.SYNC_PROBE,
             )

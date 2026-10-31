@@ -51,7 +51,6 @@ _PROBE_JS = """(() => {
 })()"""
 
 _SEND_JS = """(async () => {
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-sendChatMessage' };
   bridge.setActionMode?.('agent');

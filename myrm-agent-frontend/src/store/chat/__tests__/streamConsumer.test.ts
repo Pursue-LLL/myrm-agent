@@ -227,12 +227,10 @@ describe('streamConsumer resilience paths', () => {
       queueLen: 0,
       source: 'none',
     });
-    (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = true;
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    delete window.__MYRM_E2E_DIRECT_SSE__;
   });
 
   it('throws ApprovalAlreadyResolvedError without retrying when a resume hits an interrupt someone else already resolved (HTTP 409)', async () => {
@@ -868,6 +866,36 @@ describe('streamConsumer resilience paths', () => {
       }
     });
   });
+
+  it('runs the E2E attach fallback inside an E2E-bound runtime', async () => {
+    mockResolveE2eApiBase.mockReturnValue('http://127.0.0.1:8100');
+    const state = createBaseState({ chatId: 'chat-e2e-attach' });
+    const actions = createActions(state);
+    mockAttachForHitlRecovery.mockResolvedValue({ attached: true, queueLen: 0, source: 'e2e' });
+    mockCreateMessageRequest.mockResolvedValue(
+      createSseResponse('data: {"type":"message","messageId":"m-e2e","data":"ok"}\n\n'),
+    );
+
+    try {
+      await executeStreamWithRetry('hello', 'msg-e2e', state, actions, null, new AbortController(), false, '');
+      expect(window.__MYRM_E2E_ATTACH_DIAG__?.attached).toBe(true);
+    } finally {
+      delete window.__MYRM_E2E_ATTACH_DIAG__;
+    }
+  });
+
+  it('skips the E2E attach fallback outside an E2E-bound runtime', async () => {
+    const state = createBaseState({ chatId: 'chat-plain' });
+    const actions = createActions(state);
+    mockCreateMessageRequest.mockResolvedValue(
+      createSseResponse('data: {"type":"message","messageId":"m-plain","data":"ok"}\n\n'),
+    );
+
+    await executeStreamWithRetry('hello', 'msg-plain', state, actions, null, new AbortController(), false, '');
+
+    expect(mockAttachForHitlRecovery).not.toHaveBeenCalled();
+    expect(window.__MYRM_E2E_ATTACH_DIAG__).toBeUndefined();
+  });
 });
 
 describe('consumeStream stall / malformed-frame resilience', () => {
@@ -980,24 +1008,6 @@ describe('agent-stream protocol and error payload parsing', () => {
     await expect(
       executeStreamWithRetry('hello', 'msg-refused-array', state, actions, null, new AbortController(), false, ''),
     ).rejects.toBeInstanceOf(RequestRefusedError);
-  });
-
-  it('runs the E2E attach fallback when the direct-SSE flag is set', async () => {
-    window.__MYRM_E2E_DIRECT_SSE__ = true;
-    const state = createBaseState({ chatId: 'chat-e2e-attach' });
-    const actions = createActions(state);
-    mockAttachForHitlRecovery.mockResolvedValue({ attached: true, queueLen: 0, source: 'e2e' });
-    mockCreateMessageRequest.mockResolvedValue(
-      createSseResponse('data: {"type":"message","messageId":"m-e2e","data":"ok"}\n\n'),
-    );
-
-    try {
-      await executeStreamWithRetry('hello', 'msg-e2e', state, actions, null, new AbortController(), false, '');
-      expect(window.__MYRM_E2E_ATTACH_DIAG__?.attached).toBe(true);
-    } finally {
-      delete window.__MYRM_E2E_DIRECT_SSE__;
-      delete window.__MYRM_E2E_ATTACH_DIAG__;
-    }
   });
 });
 

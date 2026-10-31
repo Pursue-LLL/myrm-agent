@@ -79,14 +79,14 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <DeferredAppInitializers />
                 <PageLayout>{children}</PageLayout>
                 {isDev && <DesignerEyeOverlay />}
-                <SystemAssistantTrigger showTrigger={false} />
+                <SystemAssistantTrigger />
                 {isDev && <DevPortsBar />}
                 {isDev && <DevPortSplitPreviewer />}
-                <ToolPickerTrigger showTrigger={false} />
-                <PresentationTrigger showTrigger={false} />
+                <ToolPickerTrigger />
+                <PresentationTrigger />
                 <InteractiveSpreadsheetViewer />
-                <SessionMapTrigger showTrigger={false} />
-                <WorkbenchToggleTrigger showTrigger={false} />
+                <SessionMapTrigger />
+                <WorkbenchToggleTrigger />
                 <MultiTabWorkbench />
                 <Toaster position="top-right" expand={true} richColors />
               </ClientIntlProvider>

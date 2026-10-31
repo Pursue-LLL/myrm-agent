@@ -239,7 +239,6 @@ _WAIT_TOOLS_PANEL_READY_JS = """(async () => {
       sseTypes: sseTypes.slice(0, 12),
       allSseTypes: allSse.slice(0, 12),
       streamMessageId,
-      directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
       turn: bridge?.turnSnapshot?.() ?? null,
     };
     if (last.ready) {

@@ -13457,8 +13457,6 @@
     "submittingAction": "생성 중..."
   },
   "systemAssistant": {
-    "launcherAriaLabel": "샤오모 시스템 제어 런처",
-    "launcherTooltip": "⌘J를 누르거나 클릭하면 샤오모 제어 센터를 엽니다",
     "assistantName": "샤오모 허브",
     "shortcutHint": "⌘J",
     "hubTitle": "샤오모 통합 자연어 제어 센터",
@@ -13514,8 +13512,7 @@
   },
   "toolPicker": {
     "menuLabel": "도구 선택",
-    "triggerAriaLabel": "카테고리별 도구·스킬 선택기",
-    "triggerTooltip": "⌘⇧T를 누르거나 클릭하면 카테고리별 도구·스킬 서랍을 엽니다",
+    "shortcutHint": "⌘⇧T",
     "modalTitle": "카테고리별 도구·스킬 허브",
     "modalSubtitle": "기본 제공 핵심 도구, 사용자 지정 스킬, MCP 프로토콜을 고정 기능과 즉시 퍼지 검색으로 관리합니다",
     "closeAriaLabel": "도구 선택기 닫기",
@@ -13542,8 +13539,7 @@
   },
   "presentation": {
     "menuLabel": "프레젠테이션",
-    "triggerAriaLabel": "엔터프라이즈 프레젠테이션 슬라이드 생성 및 비주얼 허브",
-    "triggerTooltip": "⌥⌘P를 누르거나 클릭하면 PPT 생성·미리보기 허브를 엽니다",
+    "shortcutHint": "⌥⌘P",
     "modalTitle": "고해상도 프레젠테이션 덱 생성기",
     "modalSubtitle": "엔터프라이즈 16:9 와이드스크린 마스터 레이아웃, 2단 비교, 매트릭스 워크플로, 멀티모달 개념 일러스트",
     "closeAriaLabel": "프레젠테이션 대화상자 닫기",
@@ -14020,10 +14016,7 @@
     "cloudProfileName": "클라우드 샌드박스"
   },
   "sessionMap": {
-    "hudAriaLabel": "프로젝트 중심 세션 맵 및 에이전트 콕핏 트리거",
     "hudTrigger": "세션 맵",
-    "hudActive": "맵 활성",
-    "toggleHint": "⌘+Shift+M을 누르면 2D 토폴로지 세션 맵과 플릿 콕핏을 전환합니다",
     "shortcutHint": "⌘⇧M",
     "modalTitle": "프로젝트 중심 세션 맵 및 플릿 상태 콕핏",
     "modalSubtitle": "프로젝트, 동시 실행 에이전트, 런타임 펄스, 즉시 컨텍스트 복귀를 아우르는 전역 2D 토폴로지 개요",
@@ -14058,11 +14051,8 @@
     "dockBottom": "아래쪽에 고정",
     "dockRight": "오른쪽에 고정",
     "closeAction": "워크벤치 닫기",
-    "triggerAriaLabel": "보조 워크벤치 열기",
     "hudTrigger": "워크벤치",
-    "hudActive": "활성",
-    "toggleHint": "보조 워크벤치 전환",
-    "shortcutHint": "Cmd+Shift+B",
+    "shortcutHint": "⌘⇧B",
     "files": {
       "searchPlaceholder": "워크스페이스 파일 검색...",
       "emptyResults": "일치하는 파일이 없습니다",

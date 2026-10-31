@@ -184,7 +184,6 @@ _LIST_READY_JS = """((args) => {
 })(__ARGS__)"""
 
 _SEND_REVIEW_JS = """(() => {
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   // Fast mode needs a search service; revisions are agent turns.
   window.__MYRM_E2E_CHAT__?.setActionMode?.('agent');
   const send = Array.from(document.querySelectorAll('section[aria-label="Artifact annotations"] button'))

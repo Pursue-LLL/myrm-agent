@@ -165,7 +165,6 @@ describe('sendMessage queue semantics', () => {
     );
 
   beforeEach(() => {
-    window.__MYRM_E2E_DIRECT_SSE__ = true;
     setGlobalTranslator((key: string) => key);
     useToolApprovalStore.getState().clearAll();
     vi.mocked(showI18nToast).mockClear();
@@ -215,10 +214,6 @@ describe('sendMessage queue semantics', () => {
     } as unknown as ChatActionsState & { messages: Message[] };
 
     vi.mocked(createAISearchStream).mockReset();
-  });
-
-  afterEach(() => {
-    delete window.__MYRM_E2E_DIRECT_SSE__;
   });
 
   // The production busy refusal: HTTP 200 whose event stream carries one AgentBusyError frame.

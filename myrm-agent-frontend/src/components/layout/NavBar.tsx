@@ -484,7 +484,7 @@ function NavBarInner({
           </TooltipContent>
         </Tooltip>
 
-        {/* Secondary tools: one rail entry instead of floating capsules */}
+        {/* Secondary tools: one rail entry for the globally mounted panels */}
         <UtilityMenu />
 
         {/* Declarative Extension Slot for bottom tools */}

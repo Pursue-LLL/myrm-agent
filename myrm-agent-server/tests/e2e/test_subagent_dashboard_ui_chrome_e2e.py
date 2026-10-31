@@ -140,24 +140,6 @@ def _type_chat_input_text(
     return result
 
 
-def _pin_direct_sse(client: object, page: object) -> None:
-    """Pin SHPOIB direct-SSE so a real-UI send bypasses the workspace-multiplex bridge.
-
-    Mirrors bridge.submitAndObserveTurn (E2EChatBridge.tsx), which auto-sets
-    ``__MYRM_E2E_DIRECT_SSE__ = true`` before every bridge send. A plain UI send does
-    not, so without this pin the agent-stream POST would wait up to 30s on the
-    multiplex bridge (connectionManager.waitUntilReady) and, on timeout, the textarea
-    would never clear because the store only clears it after the first SSE chunk
-    (consumeStream.ts setInputMessage('')).
-    """
-    pinned = client.evaluate(
-        page,
-        """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
-        timeout_sec=10.0,
-    )
-    assert pinned is True, "Failed to pin __MYRM_E2E_DIRECT_SSE__"
-
-
 def _real_send_chat_message(
     client: object,
     page: object,
@@ -286,7 +268,6 @@ def _real_send_chat_message(
               const store = window.__myrmChatStore?.getState?.();
               return {
                 inputValue: el?.value?.slice(0, 120) ?? null,
-                directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
                 chatStoreLoading: store?.loading ?? null,
                 chatStoreInput: (store?.inputMessage ?? '').slice(0, 120),
                 streamRequestMessageId: provider?.streamRequestMessageId ?? null,
@@ -376,7 +357,6 @@ def _bridge_send_delegate_query(
     timeout_sec: float = 360.0,
 ) -> dict[str, object]:
     """Send via E2E chat bridge with explicit ephemeralSubagents (same submit path as WebUI)."""
-    _pin_direct_sse(client, page)
     sent = wait_for_state(
         client,
         page,
@@ -1295,7 +1275,6 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             }))()""",
             timeout_sec=30.0,
         )
-        _pin_direct_sse(client, page)
         attach_result = wait_for_state(
             client,
             page,
@@ -1357,7 +1336,6 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             timeout_sec=120.0,
         )
         assert reattached.get("ready") is True, f"Re-attach after reload failed: {reattached}"
-        _pin_direct_sse(client, page)
         _trigger_fetch_subagents(client, page, chat_id)
         restored = wait_for_state(
             client,
@@ -1553,7 +1531,6 @@ def _run_completed_flow_body(chat_id: str, ui_url: str) -> None:
             }))()""",
             timeout_sec=30.0,
         )
-        _pin_direct_sse(client, page)
         attach_result = wait_for_state(
             client,
             page,
@@ -1708,7 +1685,6 @@ def _run_textarea_send_body(chat_id: str, ui_url: str) -> None:
             }))()""",
             timeout_sec=30.0,
         )
-        _pin_direct_sse(client, page)
         attach_result = wait_for_state(
             client,
             page,

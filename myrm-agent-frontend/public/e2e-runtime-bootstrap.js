@@ -31,7 +31,6 @@
 
   window.__MYRM_E2E_RUNTIME__ = Object.freeze(binding);
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
 
   // Capture client-side failures from the very first script.
   // The bridge wait installs its own sink on the first poll, which is far too late for a hydration

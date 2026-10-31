@@ -31,9 +31,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 
 
-def _api_request(
-    path: str, method: str = "GET", data: dict[str, object] | None = None
-) -> dict[str, object] | None:
+def _api_request(path: str, method: str = "GET", data: dict[str, object] | None = None) -> dict[str, object] | None:
     from e2e_core.effect_guard import assert_http_effect_allowed
 
     url = f"{get_e2e_api_url()}{path}"
@@ -67,38 +65,41 @@ def _is_backend_ready() -> bool:
 
 
 _SAMPLE_HERMES_TRANSCRIPT = (
-    json.dumps({
-        "role": "user",
-        "content": "Debug token leak with API key sk-ant-api03-abcdef1234567890abcdef1234567890",
-        "timestamp": "2026-10-01T08:00:00Z"
-    })
+    json.dumps(
+        {
+            "role": "user",
+            "content": "Debug token leak with API key sk-ant-api03-abcdef1234567890abcdef1234567890",
+            "timestamp": "2026-10-01T08:00:00Z",
+        }
+    )
     + "\n"
-    + json.dumps({
-        "role": "assistant",
-        "content": "<thinking>Checking secrets scrubbing and token reduction</thinking>Found secret, scrubbing and continuing.",
-        "tool_calls": [{
-            "id": "call_1",
-            "type": "function",
-            "function": {
-                "name": "bash",
-                "arguments": "{\"command\": \"cat /var/log/app.log | head -n 100\"}"
-            }
-        }],
-        "timestamp": "2026-10-01T08:00:05Z"
-    })
+    + json.dumps(
+        {
+            "role": "assistant",
+            "content": "<thinking>Checking secrets scrubbing and token reduction</thinking>Found secret, scrubbing and continuing.",
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "bash", "arguments": '{"command": "cat /var/log/app.log | head -n 100"}'},
+                }
+            ],
+            "timestamp": "2026-10-01T08:00:05Z",
+        }
+    )
     + "\n"
-    + json.dumps({
-        "role": "tool",
-        "name": "bash",
-        "content": "[log line 1]\n[log line 2]\n[log line 3]\n[log line 4]\n[log line 5]\n[log line 6]\n[log line 7]\n[log line 8]",
-        "timestamp": "2026-10-01T08:00:06Z"
-    })
+    + json.dumps(
+        {
+            "role": "tool",
+            "name": "bash",
+            "content": "[log line 1]\n[log line 2]\n[log line 3]\n[log line 4]\n[log line 5]\n[log line 6]\n[log line 7]\n[log line 8]",
+            "timestamp": "2026-10-01T08:00:06Z",
+        }
+    )
     + "\n"
-    + json.dumps({
-        "role": "assistant",
-        "content": "All logs inspected. Leak resolved safely.",
-        "timestamp": "2026-10-01T08:00:10Z"
-    })
+    + json.dumps(
+        {"role": "assistant", "content": "All logs inspected. Leak resolved safely.", "timestamp": "2026-10-01T08:00:10Z"}
+    )
 )
 
 
@@ -312,7 +313,6 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
         send_res = client.evaluate(
             page,
             f"""(async () => {{
-                window.__MYRM_E2E_DIRECT_SSE__ = true;
                 return await window.__MYRM_E2E_CHAT__.sendChatMessage({query_escaped}, {{
                     preserveActionMode: true,
                     waitForStreamCompletion: true,
@@ -338,6 +338,3 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
             timeout_sec=30.0,
         )
         assert assistant_streamed.get("ready") is True, f"Assistant resumption response failed: {assistant_streamed}"
-
-
-

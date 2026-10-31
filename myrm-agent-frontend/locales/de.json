@@ -13457,8 +13457,6 @@
     "submittingAction": "Wird erzeugt..."
   },
   "systemAssistant": {
-    "launcherAriaLabel": "Launcher der XiaoMo-Systemsteuerung",
-    "launcherTooltip": "Drücken Sie ⌘J oder klicken Sie, um das XiaoMo-Kontrollzentrum zu öffnen",
     "assistantName": "XiaoMo-Hub",
     "shortcutHint": "⌘J",
     "hubTitle": "Einheitliches XiaoMo-Kontrollzentrum in natürlicher Sprache",
@@ -13514,8 +13512,7 @@
   },
   "toolPicker": {
     "menuLabel": "Werkzeugauswahl",
-    "triggerAriaLabel": "Tool- und Skill-Auswahl nach Kategorien",
-    "triggerTooltip": "Drücken Sie ⌘⇧T oder klicken Sie, um die Tool- und Skill-Schublade nach Kategorien zu öffnen",
+    "shortcutHint": "⌘⇧T",
     "modalTitle": "Tool- und Skill-Hub nach Kategorien",
     "modalSubtitle": "Integrierte Kerntools, eigene Skills und MCP-Protokolle verwalten – mit Anheften und sofortiger Fuzzy-Suche",
     "closeAriaLabel": "Tool-Auswahl schließen",
@@ -13542,8 +13539,7 @@
   },
   "presentation": {
     "menuLabel": "Präsentation",
-    "triggerAriaLabel": "Generator für Unternehmenspräsentationen und visueller Hub",
-    "triggerTooltip": "Drücken Sie ⌥⌘P oder klicken Sie, um den PPT-Generierungs- und Vorschau-Hub zu öffnen",
+    "shortcutHint": "⌥⌘P",
     "modalTitle": "Hochwertiger Präsentationsfolien-Generator",
     "modalSubtitle": "Unternehmens-Master-Layout im 16:9-Breitbildformat, zweispaltiger Vergleich, Matrix-Workflows und multimodale Konzeptillustrationen",
     "closeAriaLabel": "Präsentationsdialog schließen",
@@ -14020,10 +14016,7 @@
     "cloudProfileName": "Cloud-Sandbox"
   },
   "sessionMap": {
-    "hudAriaLabel": "Projektzentrierte Sitzungskarte und Agent-Cockpit-Auslöser",
     "hudTrigger": "Sitzungskarte",
-    "hudActive": "Karte aktiv",
-    "toggleHint": "Drücken Sie ⌘+Shift+M, um die 2D-Topologie-Sitzungskarte und das Flotten-Cockpit umzuschalten",
     "shortcutHint": "⌘⇧M",
     "modalTitle": "Projektzentrierte Sitzungskarte und Flottenstatus-Cockpit",
     "modalSubtitle": "Globale 2D-Topologieübersicht über Projekte, gleichzeitige Agents, Laufzeitpulse und sofortigen Kontextsprung",
@@ -14058,11 +14051,8 @@
     "dockBottom": "Unten andocken",
     "dockRight": "Rechts andocken",
     "closeAction": "Workbench schließen",
-    "triggerAriaLabel": "Zusatz-Workbench öffnen",
     "hudTrigger": "Werkbank",
-    "hudActive": "Aktiv",
-    "toggleHint": "Zusatz-Workbench umschalten",
-    "shortcutHint": "Cmd+Shift+B",
+    "shortcutHint": "⌘⇧B",
     "files": {
       "searchPlaceholder": "Workspace-Dateien durchsuchen...",
       "emptyResults": "Keine passenden Dateien gefunden",

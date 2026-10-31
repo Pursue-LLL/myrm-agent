@@ -85,7 +85,6 @@ _ATTACH_CHAT_JS_TEMPLATE = """(async () => {
 })()"""
 
 _SEND_TURN_JS_TEMPLATE = """(async () => {
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-sendChatMessage' };
   bridge.setActionMode?.('agent');
@@ -210,15 +209,9 @@ def _wait_assistant_reply(
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        last_messages = [
-            m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")
-        ]
+        last_messages = [m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
         assistant = next(
-            (
-                m
-                for m in reversed(last_messages)
-                if isinstance(m, dict) and m.get("role") == "assistant"
-            ),
+            (m for m in reversed(last_messages) if isinstance(m, dict) and m.get("role") == "assistant"),
             None,
         )
         if isinstance(assistant, dict):
@@ -248,8 +241,7 @@ def _open_agent_svg_preview(client: object, page: object) -> None:
             last_state = clicked
         time.sleep(1.0)
     pytest.fail(
-        f"workspace preview panel did not open for {_AGENT_SVG_FILENAME}; "
-        f"last={json.dumps(last_state, ensure_ascii=False)[:400]}"
+        f"workspace preview panel did not open for {_AGENT_SVG_FILENAME}; last={json.dumps(last_state, ensure_ascii=False)[:400]}"
     )
 
 

@@ -135,7 +135,6 @@ _SEND_READY_JS = """((text) => {
 # Pass-through trace of every request the page makes after the click, so a message the server never stored
 # can be told apart from one the page never sent.
 _CLICK_SEND_JS = """(() => {
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const send = document.querySelector('button.message-send-btn');
   if (!send || send.disabled) {
     // Tells a composer re-created after typing (a new node without the typed mark) from an empty composer or a running turn.
@@ -208,7 +207,6 @@ _SEND_DIAGNOSTICS_JS = """(() => {
     storeInput: window.__MYRM_E2E_CHAT__?.getInputMessage?.() ?? null,
     apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
     runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
-    directSse: Boolean(window.__MYRM_E2E_DIRECT_SSE__),
     chatId: snap.chatId ?? null,
     userCount: snap.userCount ?? null,
     isStreaming: snap.isStreaming ?? null,

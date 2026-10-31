@@ -426,14 +426,6 @@ def test_composer_context_chip_send_turn_e2e_flow() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
 
-        # Pin SHPOIB direct-SSE so real UI send bypasses workspace multiplex bridge
-        pinned = client.evaluate(
-            page,
-            """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
-            timeout_sec=10.0,
-        )
-        assert pinned is True
-
         # Clear drafts
         client.evaluate(
             page,

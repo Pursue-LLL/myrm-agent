@@ -230,13 +230,6 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
             assert unmounted_state.get("hasKbChip") is False
 
         # 6. 真实全链路业务闭环（Task Flow E2E）：挂载知识库 -> 发送查询 -> 触发模型与联邦知识检索
-        # Pin SHPOIB direct-SSE so real UI send bypasses workspace multiplex bridge
-        client.evaluate(
-            page,
-            """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
-            timeout_sec=10.0,
-        )
-
         # Clear drafts
         client.evaluate(
             page,

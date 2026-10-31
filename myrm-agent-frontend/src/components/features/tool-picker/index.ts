@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * ./ToolPickerTrigger (HUD capsule trigger & drawer provider)
+ * ./ToolPickerTrigger (shortcut and open-event host & drawer provider)
  * ./CategorizedToolPickerDrawer (Semantic dialog drawer)
  * ./ToolCategoryTabs (Category tab strip)
  * ./ToolPickerCard (Interactive tool card)
@@ -16,15 +16,6 @@
  */
 
 export { ToolPickerTrigger } from './ToolPickerTrigger';
-export {
-  CategorizedToolPickerDrawer,
-  type CategorizedToolPickerDrawerProps,
-} from './CategorizedToolPickerDrawer';
-export {
-  ToolCategoryTabs,
-  type ToolCategoryTabsProps,
-} from './ToolCategoryTabs';
-export {
-  ToolPickerCard,
-  type ToolPickerCardProps,
-} from './ToolPickerCard';
+export { CategorizedToolPickerDrawer, type CategorizedToolPickerDrawerProps } from './CategorizedToolPickerDrawer';
+export { ToolCategoryTabs, type ToolCategoryTabsProps } from './ToolCategoryTabs';
+export { ToolPickerCard, type ToolPickerCardProps } from './ToolPickerCard';

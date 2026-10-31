@@ -170,7 +170,6 @@ describe('sendMessage failure handling', () => {
   };
 
   beforeEach(() => {
-    window.__MYRM_E2E_DIRECT_SSE__ = true;
     setGlobalTranslator((key: string) => key);
     useToolApprovalStore.getState().clearAll();
     vi.mocked(showI18nToast).mockClear();
@@ -224,7 +223,6 @@ describe('sendMessage failure handling', () => {
   });
 
   afterEach(() => {
-    delete window.__MYRM_E2E_DIRECT_SSE__;
     vi.restoreAllMocks();
   });
 

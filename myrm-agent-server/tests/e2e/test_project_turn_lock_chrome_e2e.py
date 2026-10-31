@@ -136,7 +136,6 @@ _E2E_DIAG_JS = """(() => {
   return {
     apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
     runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
-    directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
     workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
     loading: Boolean(store?.loading || store?.streaming || false),
     chatId: store?.chatId ?? null,

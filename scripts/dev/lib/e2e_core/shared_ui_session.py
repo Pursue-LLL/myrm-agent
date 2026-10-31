@@ -89,7 +89,6 @@ def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
 
 RESET_GLOBALS_JS = """(() => {
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
-  window.__MYRM_E2E_DIRECT_SSE__ = false;
   window.__MYRM_E2E_SEND_GENERATION__ = (window.__MYRM_E2E_SEND_GENERATION__ ?? 0) + 1;
   const bridge = window.__MYRM_E2E_CHAT__;
   bridge?.abortActiveStream?.();
@@ -99,7 +98,6 @@ RESET_GLOBALS_JS = """(() => {
 })()"""
 
 RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS = """(() => {
-  window.__MYRM_E2E_DIRECT_SSE__ = false;
   window.__MYRM_E2E_SEND_GENERATION__ = (window.__MYRM_E2E_SEND_GENERATION__ ?? 0) + 1;
   const bridge = window.__MYRM_E2E_CHAT__;
   bridge?.abortActiveStream?.();

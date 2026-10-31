@@ -47,11 +47,6 @@ _MIGRATION_CRITICAL_GAP_TOAST_PATTERN = (
     r"diagnostics|诊断|/settings/memory|Memory Center"
 )
 
-_ENSURE_DIRECT_SSE_OFF_JS = """(() => {
-  window.__MYRM_E2E_DIRECT_SSE__ = false;
-  return { ok: true, directSse: !!window.__MYRM_E2E_DIRECT_SSE__ };
-})()"""
-
 
 def _wait_assistant_message_via_api(
     api_base: str,
@@ -195,7 +190,6 @@ def _prepare_migration_chat_js(seed: dict[str, str]) -> str:
       if (!bridge || !chat) return {{ ok: false, err: 'no-bridge-or-store' }};
       bridge.abortActiveStream?.();
       bridge.releaseActiveStreamForApiResume?.();
-      window.__MYRM_E2E_DIRECT_SSE__ = false;
       if (typeof bridge.ensureProviders === 'function') {{
         await bridge.ensureProviders();
       }}
@@ -381,12 +375,6 @@ async def _send_and_collect_migration_gap(
         intent=EvaluateIntent.SYNC_PROBE,
     )
 
-    direct_off = await chat.evaluate(
-        _ENSURE_DIRECT_SSE_OFF_JS,
-        intent=EvaluateIntent.SYNC_PROBE,
-    )
-    assert isinstance(direct_off, dict) and direct_off.get("directSse") is False, direct_off
-
     send_task = asyncio.create_task(
         chat.send_chat_message_atomic(_AGENT_PROMPT, baseline_user_msgs=0),
     )
@@ -431,7 +419,6 @@ async def _send_and_collect_migration_gap(
         f"""(() => ({{
           sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.({json.dumps(stream_message_id)}) ?? [],
           allSse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
-          directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
           apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
           turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
         }}))()""",
@@ -567,7 +554,6 @@ async def _run_migration_readiness_gap_e2e(
             """(() => ({
               apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
               runtimeApi: window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
-              directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
             }))()""",
             intent=EvaluateIntent.SYNC_PROBE,
         )

@@ -33,21 +33,11 @@ describe('PresentationTrigger component', () => {
     }
   });
 
-  it('renders HUD trigger button with accessible label and shortcut', () => {
+  it('renders no floating entrance, only the closed generator dialog', () => {
     render(<PresentationTrigger />);
-    const triggerBtn = screen.getByLabelText('triggerAriaLabel');
-    expect(triggerBtn).toBeInTheDocument();
-    expect(screen.getByText('PPT')).toBeInTheDocument();
-    expect(screen.getByText('⌥⌘P')).toBeInTheDocument();
-  });
-
-  it('opens generator modal when button is clicked', () => {
-    render(<PresentationTrigger />);
+    expect(screen.queryByRole('button', { name: /triggerAriaLabel|PPT/ })).toBeNull();
+    expect(screen.queryByText('⌥⌘P')).toBeNull();
     expect(getGeneratorDialog().open).toBe(false);
-
-    fireEvent.click(screen.getByLabelText('triggerAriaLabel'));
-
-    expect(getGeneratorDialog().open).toBe(true);
   });
 
   // macOS rewrites `key` while Option is held (Option+P yields 'π'), so the shortcut has to follow the physical key.
@@ -76,9 +66,8 @@ describe('PresentationTrigger component', () => {
     expect(getGeneratorDialog().open).toBe(false);
   });
 
-  it('menu mode hides the floating pill and opens from the utility event', () => {
-    render(<PresentationTrigger showTrigger={false} />);
-    expect(screen.queryByLabelText('triggerAriaLabel')).toBeNull();
+  it('opens from the Tools menu event', () => {
+    render(<PresentationTrigger />);
     expect(getGeneratorDialog().open).toBe(false);
 
     act(() => {

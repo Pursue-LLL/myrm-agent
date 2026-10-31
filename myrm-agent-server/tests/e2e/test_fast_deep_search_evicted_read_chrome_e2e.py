@@ -155,7 +155,6 @@ def _prep_fast_search_js(search_depth: str) -> str:
   }}
   bridge.setActionMode?.('fast');
   bridge.setSearchDepth?.({depth_json});
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const debug = bridge.debugProviderState?.() ?? {{}};
   return {{
     ok: bridge.getActionMode?.() === 'fast' && bridge.getSearchDepth?.() === {depth_json},
@@ -178,7 +177,6 @@ def _prep_fast_search_light_js(search_depth: str) -> str:
   bridge.releaseActiveStreamForApiResume?.();
   bridge.setActionMode?.('fast');
   bridge.setSearchDepth?.({depth_json});
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const debug = bridge.debugProviderState?.() ?? {{}};
   return {{
     ok: bridge.getActionMode?.() === 'fast' && bridge.getSearchDepth?.() === {depth_json},
@@ -193,7 +191,6 @@ def _prep_fast_search_light_js(search_depth: str) -> str:
 
 def _kickoff_fast_search_js(prompt: str) -> str:
     return f"""(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
@@ -210,7 +207,6 @@ def _kickoff_fast_search_with_prep_js(search_depth: str, prompt: str) -> str:
     """Single MUX evaluate: light prep + send (R242 — skip separate PREP under parallel load)."""
     depth_json = json.dumps(search_depth)
     return f"""(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
   bridge.abortActiveStream?.();
@@ -548,7 +544,6 @@ _TRANSIENT_KICKOFF_ERRORS = (
 )
 
 _FAST_SEARCH_ABORT_STREAM_JS = """(() => {
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   bridge?.abortActiveStream?.();
   bridge?.releaseActiveStreamForApiResume?.();
@@ -588,7 +583,6 @@ _IN_PAGE_RESET_CHAT_JS = """(() => {
 def _fast_search_attach_js(chat_id: str) -> str:
     chat_id_json = json.dumps(chat_id)
     return f"""(async () => {{
-  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.attachToChat) return {{ ok: false, err: 'no-bridge' }};
   await bridge.attachToChat({chat_id_json});
@@ -882,7 +876,6 @@ async def _recover_stalled_fast_search_turn(
     if message_id:
         touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry")
         retry_js = f"""(async () => {{
-          window.__MYRM_E2E_DIRECT_SSE__ = true;
           const bridge = window.__MYRM_E2E_CHAT__;
           if (!bridge?.retryStreamWithSameMessageId) {{
             return {{ ok: false, err: 'no-retryStreamWithSameMessageId' }};
@@ -954,7 +947,6 @@ async def _resume_orphaned_stream_after_web_fetch(
         return prep, None
     touch_wall_progress(current_node=f"fast_{search_depth}_web_fetch_stream_resume")
     retry_js = f"""(async () => {{
-      window.__MYRM_E2E_DIRECT_SSE__ = true;
       const bridge = window.__MYRM_E2E_CHAT__;
       if (!bridge?.retryStreamWithSameMessageId) {{
         return {{ ok: false, err: 'no-retryStreamWithSameMessageId' }};

@@ -13457,8 +13457,6 @@
     "submittingAction": "生成中..."
   },
   "systemAssistant": {
-    "launcherAriaLabel": "小墨システムコントロールのランチャー",
-    "launcherTooltip": "⌘J を押すかクリックすると、小墨コントロールセンターを開きます",
     "assistantName": "小墨ハブ",
     "shortcutHint": "⌘J",
     "hubTitle": "小墨 統合自然言語コントロールセンター",
@@ -13514,8 +13512,7 @@
   },
   "toolPicker": {
     "menuLabel": "ツール選択",
-    "triggerAriaLabel": "カテゴリ別ツール・スキルピッカー",
-    "triggerTooltip": "⌘⇧T を押すかクリックすると、カテゴリ別のツール・スキルドロワーを開きます",
+    "shortcutHint": "⌘⇧T",
     "modalTitle": "カテゴリ別ツール・スキルハブ",
     "modalSubtitle": "組み込みコアツール、カスタムスキル、MCP プロトコルをピン留めと即時あいまい検索で管理します",
     "closeAriaLabel": "ツールピッカーを閉じる",
@@ -13542,8 +13539,7 @@
   },
   "presentation": {
     "menuLabel": "プレゼンテーション",
-    "triggerAriaLabel": "エンタープライズ向けプレゼンテーションスライド生成とビジュアルハブ",
-    "triggerTooltip": "⌥⌘P を押すかクリックすると、PPT の生成・プレビューハブを開きます",
+    "shortcutHint": "⌥⌘P",
     "modalTitle": "高精細プレゼンテーションデッキ生成",
     "modalSubtitle": "エンタープライズ向け 16:9 ワイドスクリーンのマスターレイアウト、2 列比較、マトリクスワークフロー、マルチモーダルなコンセプト図",
     "closeAriaLabel": "プレゼンテーションのダイアログを閉じる",
@@ -14020,10 +14016,7 @@
     "cloudProfileName": "クラウドサンドボックス"
   },
   "sessionMap": {
-    "hudAriaLabel": "プロジェクト中心のセッションマップとエージェントコックピットのトリガー",
     "hudTrigger": "セッションマップ",
-    "hudActive": "マップ表示中",
-    "toggleHint": "⌘+Shift+M を押すと、2D トポロジーのセッションマップとフリートコックピットを切り替えます",
     "shortcutHint": "⌘⇧M",
     "modalTitle": "プロジェクト中心のセッションマップとフリート状態コックピット",
     "modalSubtitle": "プロジェクト、並行エージェント、実行パルス、即時の文脈復帰をまたぐグローバルな 2D トポロジー概観",
@@ -14058,11 +14051,8 @@
     "dockBottom": "下部にドック",
     "dockRight": "右側にドック",
     "closeAction": "ワークベンチを閉じる",
-    "triggerAriaLabel": "補助ワークベンチを開く",
     "hudTrigger": "ワークベンチ",
-    "hudActive": "アクティブ",
-    "toggleHint": "補助ワークベンチを切り替え",
-    "shortcutHint": "Cmd+Shift+B",
+    "shortcutHint": "⌘⇧B",
     "files": {
       "searchPlaceholder": "ワークスペースのファイルを検索...",
       "emptyResults": "一致するファイルが見つかりません",
