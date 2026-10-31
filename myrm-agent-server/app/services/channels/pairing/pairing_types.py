@@ -23,6 +23,7 @@ Decouples channel setup from LLM conversation turns and cognitive capability.
 from __future__ import annotations
 
 from enum import Enum
+
 from pydantic import BaseModel, Field
 
 

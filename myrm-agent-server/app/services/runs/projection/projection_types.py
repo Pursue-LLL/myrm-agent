@@ -21,6 +21,7 @@ MateClaw parity (UI = Project(RunState, Events)).
 from __future__ import annotations
 
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 SurfaceViewType = Literal["chat", "runtime_console", "deliverables", "audit"]

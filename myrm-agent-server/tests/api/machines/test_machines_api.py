@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.machines.router import router as machines_router
-from app.services.machines import MachinePlatform, MachineService
+from app.services.machines import MachineService
 
 
 @pytest.fixture

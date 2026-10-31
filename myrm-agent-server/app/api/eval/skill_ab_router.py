@@ -58,9 +58,10 @@ async def run_skill_ab_evaluation(
         )
 
     if "web_search" in benchmark_required_tools(request.benchmark_id):
+        from myrm_agent_harness.api.config import ConfigIncompleteError
+
         from app.core.channel_bridge.config_loader import load_user_configs
         from app.core.channel_bridge.config_parsers import verify_search_service_available
-        from myrm_agent_harness.api.config import ConfigIncompleteError
 
         try:
             configs = await load_user_configs()

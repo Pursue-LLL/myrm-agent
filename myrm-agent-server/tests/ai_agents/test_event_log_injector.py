@@ -8,7 +8,6 @@ import pytest
 from app.ai_agents.agent_params import GeneralAgentParams
 from app.ai_agents.agents import AgentFactory
 from app.ai_agents.event_log_injector import (
-    get_default_event_log_config,
     inject_event_log_config,
     resolve_cron_event_log_session_id,
     resolve_voice_realtime_session_id,

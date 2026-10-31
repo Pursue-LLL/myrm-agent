@@ -15,10 +15,10 @@ from app.api.skills import (
     packaging,
     permissions,
     prebuilt,
+    solidify_router,
     sync,
     test_fixtures,
 )
-from app.api.skills import solidify_router
 
 # Keep backward compatibility for imports from other modules
 

@@ -26,6 +26,7 @@ import time
 from collections.abc import Callable
 
 import pytest
+from e2e_core.dev_ports import current_api_base
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
@@ -39,7 +40,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_wiki_settings_shell,
     warm_ui_route,
 )
-from e2e_core.dev_ports import current_api_base
 
 _MAX_ATTEMPTS = 2
 _PANEL_WAIT_SEC = 90.0

@@ -3,6 +3,7 @@
 [POS] app/services/skills/solidify/__init__.py.
 """
 
+from .skill_solidify_service import SkillSolidifyService
 from .solidify_types import (
     ExternalPreviewCreateRequest,
     ExternalPreviewMetadata,
@@ -11,7 +12,6 @@ from .solidify_types import (
     SolidifySkillRequest,
     SolidifySkillResponse,
 )
-from .skill_solidify_service import SkillSolidifyService
 
 __all__ = [
     "ExternalPreviewCreateRequest",

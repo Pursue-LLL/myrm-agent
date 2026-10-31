@@ -56,7 +56,19 @@ pytest_plugins = (
 import pydantic.root_model  # noqa: F401
 import pytest
 from blockbuster import BlockBuster
+from dev_gate.contract import (  # noqa: E402
+    chrome_e2e_pytest_timeout_floor,
+    chrome_e2e_session_lane_from_profile,
+)
 from dotenv import load_dotenv
+from e2e_core.profile_contract import (  # noqa: E402
+    CHROME_E2E_MAX_TIMEOUT_SEC,
+    CHROME_E2E_TIMEOUT_EXCEED_ALLOWLIST,
+    EXCLUSIVE_BACKEND_CEILING,
+    PRIVATE_REASONS,
+    UNSUPPORTED_PRIVATE_REASONS,
+    is_allowed_exclusive_backend_test,
+)
 
 from tests.support.e2e_fixture_stamps import FixtureStamps
 from tests.support.e2e_runtime_guard import (
@@ -66,19 +78,6 @@ from tests.support.e2e_runtime_guard import (
     require_e2e_runtime_lease,
 )
 from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_secrets
-
-from dev_gate.contract import (  # noqa: E402
-    chrome_e2e_pytest_timeout_floor,
-    chrome_e2e_session_lane_from_profile,
-)
-from e2e_core.profile_contract import (  # noqa: E402
-    CHROME_E2E_MAX_TIMEOUT_SEC,
-    CHROME_E2E_TIMEOUT_EXCEED_ALLOWLIST,
-    EXCLUSIVE_BACKEND_CEILING,
-    PRIVATE_REASONS,
-    UNSUPPORTED_PRIVATE_REASONS,
-    is_allowed_exclusive_backend_test,
-)
 
 _logger = logging.getLogger(__name__)
 _T = TypeVar("_T")

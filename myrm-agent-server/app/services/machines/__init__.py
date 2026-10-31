@@ -3,6 +3,7 @@
 [POS] app/services/machines/__init__.py.
 """
 
+from .machine_service import MachineService
 from .machine_types import (
     MachineMetrics,
     MachineNode,
@@ -13,7 +14,6 @@ from .machine_types import (
     TakeoverSession,
     TakeoverState,
 )
-from .machine_service import MachineService
 
 __all__ = [
     "MachineMetrics",

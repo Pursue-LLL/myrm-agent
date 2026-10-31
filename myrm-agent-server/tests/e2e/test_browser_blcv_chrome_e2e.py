@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from e2e_core.dev_ports import shared_api_base
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
@@ -17,7 +18,6 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
     wait_for_state,
 )
-from e2e_core.dev_ports import shared_api_base
 
 _BRIDGE_READY_JS = """(() => ({
   ready:

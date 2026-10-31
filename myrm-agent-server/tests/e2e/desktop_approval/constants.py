@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+
 from e2e_core.dev_ports import shared_ui_base
 
 BASE_URL = os.getenv("E2E_UI_BASE", shared_ui_base()).rstrip("/")

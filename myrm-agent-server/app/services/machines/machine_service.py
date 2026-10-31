@@ -3,9 +3,9 @@
 [POS] app/services/machines/machine_service.py.
 """
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
-import uuid
 
 from .machine_types import (
     MachineMetrics,

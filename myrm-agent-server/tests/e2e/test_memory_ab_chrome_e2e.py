@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 from cdp_chat.support import fetch_config_value, put_config_value  # noqa: E402
+from e2e_core.dev_ports import shared_api_base
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
@@ -43,7 +44,6 @@ from tests.support.wb_bench_e2e_helpers import (
     click_subset_memory_ab_js,
     restore_eval_lab_route,
 )
-from e2e_core.dev_ports import shared_api_base
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 

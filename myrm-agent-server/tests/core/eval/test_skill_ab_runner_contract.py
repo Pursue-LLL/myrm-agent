@@ -6,7 +6,6 @@ import inspect
 from pathlib import Path
 
 import pytest
-
 from myrm_agent_harness.eval.matrix import MatrixRunner
 
 

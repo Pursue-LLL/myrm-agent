@@ -21,6 +21,7 @@ import time
 import uuid
 
 import pytest
+from e2e_core.dev_ports import shared_api_base
 
 from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
@@ -34,7 +35,6 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from e2e_core.dev_ports import shared_api_base
 
 _DIALOG_READY_JS = """(() => {
   const scope = document.getElementById('responsibility_scope');

@@ -6,6 +6,7 @@ import time
 from urllib.parse import urlparse
 
 import pytest
+from e2e_core.dev_ports import shared_backend_port
 
 from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
@@ -20,7 +21,6 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.extension_bridge_ws_stub import hold_extension_bridge_session
-from e2e_core.dev_ports import shared_backend_port
 
 _EXTENSION_BRIDGE_STATE = """(() => {
   const root = document.querySelector('[data-section="extensionBridge"][data-active]');

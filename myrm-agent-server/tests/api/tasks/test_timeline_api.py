@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.observability.timeline_visualizer import TimelineIOMetrics
 
 from app.api.tasks.timeline_router import router as timeline_router
 from app.services.observability.timeline import TaskTimelineInspectorService
-from myrm_agent_harness.observability.timeline_visualizer import TimelineIOMetrics
 
 
 @pytest.fixture(scope="function")

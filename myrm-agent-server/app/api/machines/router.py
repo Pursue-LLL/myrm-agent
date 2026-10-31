@@ -4,6 +4,7 @@
 """
 
 from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.services.machines import (
