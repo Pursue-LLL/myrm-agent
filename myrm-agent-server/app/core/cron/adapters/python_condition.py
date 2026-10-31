@@ -50,10 +50,11 @@ logger = logging.getLogger(__name__)
 _MAX_REASON_CHARS = 300
 # Bounds the masking work on a very long line.
 _MAX_RAW_CHARS = 1000
-# A probe has no state to flush: after the deadline or a cancel, the script gets this long to stop on a polite signal
-# and what is left of its process tree this long again before it is killed, so stopping the tree waits at most twice this.
+# A probe has no state to flush: on POSIX, after the deadline or a cancel, the script gets this long to stop on a polite
+# signal and what is left of its process tree this long again before it is killed, so stopping the tree waits at most twice this.
 # On POSIX a background command that init has adopted is in no tree, so the tree stop does not wait for it: it gets the
 # group's polite signal only if the script is not yet reaped, and the group kill ends it no later than the stop returns.
+# Windows does not use this value: the stop there is a forced kill, with no polite signal first.
 _KILL_GRACE_SECONDS = 1.0
 # What the script wrote becomes the job's prompt or its delivered text, so a script that fills this much is broken. It
 # fails the run instead of being cut: the verdict is the last line, which a cut would drop.
@@ -146,12 +147,12 @@ class SandboxedPythonCondition(PreFlightCondition):
 async def _stop_script(proc: asyncio.subprocess.Process) -> None:
     """Stop the script and everything it started, also when the script exited first.
 
-    The process tree is read from the script, so it reaches what moved to another session while the script ran, and it
-    asks everything to stop before forcing it. It reaches nothing once the script has exited, and a background command
-    that ignores the polite signal outlives it. Both are still in the script's process group, which is named after the
-    script's pid, so the group is killed last. Not found: a process that left the group and was adopted by init before
-    the stop; while it holds the pipes, `communicate_bounded` returns only once its drain limit has passed. Windows has
-    no such group, and its group stop needs the script to still exist, so the tree stop is all there is there.
+    The process tree is read from the script, so it reaches what moved to another session while the script ran, and on
+    POSIX it asks everything to stop before forcing it. It reaches nothing once the script has exited, and a background
+    command that ignores the polite signal outlives it. Both are still in the script's process group, which is named
+    after the script's pid, so the group is killed last. Not found: a process that left the group and was adopted by
+    init before the stop; if it holds the pipes, `communicate_bounded` waits for them at most its drain limit. Windows
+    has no such group, and its group stop needs the script to still exist, so the tree stop is all there is there.
     """
     await kill_process_tree(proc, IS_WIN, _KILL_GRACE_SECONDS)
     if not IS_WIN:
