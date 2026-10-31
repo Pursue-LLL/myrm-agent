@@ -236,7 +236,8 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 - `needs_shell()` 纯谓词，保守策略：任何元字符都触发 shell 模式，不会因误判破坏命令语义
 - 引号和反斜杠不在元字符集中，因为 `shlex.split()` 可正确处理
 - `start_new_session=True` 创建新进程组，确保超时时可杀死整个进程树
-- 超时时通过跨平台原语杀死整个进程组（包括所有子进程），不留孤儿进程
+- 超时或调用方被取消时通过跨平台原语杀死整个进程组（包括所有子进程），不留孤儿进程
+- **输出有界**：stdout 与 stderr 经 `core/security/bounded_communicate.py` 的 `communicate_bounded` 读取，各保留前 5 MiB，其余读出后丢弃（一次 WARNING），所以无休止打印的命令不会撑大宿主内存，也不会因管道写满而卡住；超时与取消时先杀进程树、读取继续排空，管道关闭后才抛出 `TimeoutError` / `CancelledError`
 - `ExecResult.mode` 记录实际执行模式，支持审计
 - **env 隔离**：子进程环境由 `build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)`（`core/security/process_env/env_isolation.py`）构造——只继承经证实安全的系统/工具链变量，调用方显式 `env` 先过滤动态链接器注入再叠加，最后剔除不可继承的宿主凭证；`credential_env_overrides()` 在隔离**之后**注入合法凭证，防止无人值守路径（cron）发生环境变量逃逸
 - **沙箱 fail-closed**：`require_sandbox=True` 且沙箱不可用时直接拒绝执行（`MissingSemanticsBlockedError`）

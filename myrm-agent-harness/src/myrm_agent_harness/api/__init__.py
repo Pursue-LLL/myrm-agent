@@ -325,6 +325,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "build_isolated_child_env",
     ),
     "EnvInheritPolicy": ("myrm_agent_harness.core.security.process_env", "EnvInheritPolicy"),
+    "communicate_bounded": ("myrm_agent_harness.core.security.bounded_communicate", "communicate_bounded"),
     "ProviderBalanceProbeProtocol": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceProbeProtocol"),
     "ProviderBalanceResult": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceResult"),
     "ProviderBalanceStatus": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceStatus"),
@@ -373,7 +374,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
 
 # ``__all__`` is derived from ``_EXPORTS`` so the two cannot drift: every name is declared once,
 # in ``_EXPORTS``, which is also what ``__getattr__`` resolves against.
-__all__: list[str] = list(_EXPORTS)
+__all__: list[str] = list(_EXPORTS)  # pyright: ignore[reportUnsupportedDunderAll]
 
 
 if __debug__:

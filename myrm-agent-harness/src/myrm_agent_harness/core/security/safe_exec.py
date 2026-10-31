@@ -12,11 +12,15 @@ Security guarantees:
 - DIRECT mode structurally eliminates $IFS, glob expansion, command substitution
 - SHELL mode still protected by shell_command_analyzer (called by caller)
 - Process group isolation (``start_new_session``) prevents orphan processes
-- Timeout kills entire process tree via ``os.killpg(SIGKILL)``
+- A timeout or a cancel kills the entire process tree via ``os.killpg(SIGKILL)``
+- Each of stdout and stderr is kept up to ``DEFAULT_MAX_OUTPUT_BYTES`` and the rest is dropped, so a command that
+  never stops writing does not grow the host's memory
 
 [INPUT]
 - types::user_credentials_ctx (POS: Security type definitions — ContextVar for user-affinity credentials)
 - redact::command_preview (POS: masked, cut command for a log line)
+- bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through
+  the caller on a deadline or a cancel)
 
 [OUTPUT]
 - ExecResult: structured execution result with mode audit field
@@ -38,6 +42,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.core.security.redact import command_preview
 
 if TYPE_CHECKING:
@@ -148,8 +153,9 @@ async def safe_exec(
     Process lifecycle:
     - If ``require_sandbox=True`` and ``sandbox_available=False``, fails closed immediately.
     - Each subprocess runs in its own process group (``start_new_session``)
-    - On timeout the entire process tree is killed via SIGKILL
+    - On timeout or cancel the entire process tree is killed via SIGKILL
     - Callers receive ``asyncio.TimeoutError`` after cleanup completes
+    - stdout and stderr are each kept up to 5 MiB; the rest is dropped and logged once
 
     Raises:
         MissingSemanticsBlockedError: when require_sandbox is True but sandbox is unavailable.
@@ -226,15 +232,13 @@ async def safe_exec(
         )
         mode = "direct"
 
-    try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except TimeoutError:
+    async def stop_tree() -> None:
         _kill_process_tree(proc)
-        raise
 
+    output = await communicate_bounded(proc, timeout=timeout, on_abort=stop_tree)
     return ExecResult(
-        stdout=stdout_bytes.decode(errors="replace").strip() if stdout_bytes else "",
-        stderr=stderr_bytes.decode(errors="replace").strip() if stderr_bytes else "",
+        stdout=output.stdout.decode(errors="replace").strip(),
+        stderr=output.stderr.decode(errors="replace").strip(),
         returncode=proc.returncode or 0,
         mode=mode,
     )

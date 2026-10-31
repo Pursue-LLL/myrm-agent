@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shlex
+import sys
+import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.core.security.bounded_communicate import DEFAULT_MAX_OUTPUT_BYTES
 from myrm_agent_harness.core.security.safe_exec import ExecResult, _kill_process_tree, needs_shell, safe_exec
 from myrm_agent_harness.core.security.types import (
     EphemeralUserCredential,
@@ -87,6 +92,51 @@ class TestSafeExec:
     async def test_timeout(self) -> None:
         with pytest.raises((asyncio.TimeoutError, TimeoutError)):
             await safe_exec("sleep 60", timeout=1)
+
+
+def _is_gone(pid: int) -> bool:
+    """True once the process no longer exists, a zombie that was not reaped included."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    return False
+
+
+def _writer_command(tmp_path: Path, body: str) -> tuple[str, Path]:
+    """A direct-mode command running *body* after it wrote its pid to the returned file."""
+    script = tmp_path / "writer.py"
+    pid_file = tmp_path / "pid"
+    script.write_text(f"import os, sys\nopen(sys.argv[1], 'w').write(str(os.getpid()))\n{body}")
+    return shlex.join([sys.executable, str(script), str(pid_file)]), pid_file
+
+
+@pytest.mark.asyncio
+class TestSafeExecStopsAndBoundsTheCommand:
+    async def test_a_timeout_stops_a_command_that_never_stops_writing(self, tmp_path: Path) -> None:
+        command, pid_file = _writer_command(tmp_path, "while True:\n    sys.stdout.write('x' * 1023 + '\\n')\n")
+        started = time.monotonic()
+        with pytest.raises(TimeoutError):
+            await safe_exec(command, timeout=2)
+        assert time.monotonic() - started < 8
+        assert _is_gone(int(pid_file.read_text()))
+
+    async def test_a_cancel_stops_the_command(self, tmp_path: Path) -> None:
+        command, pid_file = _writer_command(tmp_path, "import time\ntime.sleep(60)\n")
+        task = asyncio.create_task(safe_exec(command, timeout=60))
+        async with asyncio.timeout(10):
+            while not (pid_file.exists() and pid_file.read_text()):
+                await asyncio.sleep(0.05)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert _is_gone(int(pid_file.read_text()))
+
+    async def test_output_over_the_cap_is_cut_and_the_command_still_succeeds(self, tmp_path: Path) -> None:
+        command, _ = _writer_command(tmp_path, f"sys.stdout.write('x' * {DEFAULT_MAX_OUTPUT_BYTES + 1000})\n")
+        result = await safe_exec(command, timeout=30)
+        assert result.returncode == 0
+        assert len(result.stdout) == DEFAULT_MAX_OUTPUT_BYTES
 
 
 @pytest.mark.asyncio
