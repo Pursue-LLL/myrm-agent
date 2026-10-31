@@ -631,6 +631,9 @@ from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import (
     search_published_index as search_published_index,
 )
 from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import (
+    STOP_WORDS as STOP_WORDS,
+)
+from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import (
     tokenize_for_fts as tokenize_for_fts,
 )
 from myrm_agent_harness.utils.db.fts5 import (

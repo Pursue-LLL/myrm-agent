@@ -2,12 +2,12 @@
 
 [INPUT]
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
-- myrm_agent_harness.api::search_published_index, tokenize_for_fts (POS: read-only published-pages-only FTS search; query tokenizer)
+- app.services.wiki.knowledge_pack.query_terms::MAX_QUERY_CHARS, search_terms, carried_terms, paragraph_relevance, tokenize_text (POS: the question's terms and the relevance floor)
+- myrm_agent_harness.api::search_published_index (POS: read-only published-pages-only FTS search)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
 
 [OUTPUT]
-- tokenize_text: Alphanumeric words plus CJK unigrams and bigrams of a text.
 - calculate_jaccard_similarity: Fast character-ngram / word overlap for semantic dedup.
 - truncate_snippet_text: Cut a snippet to a character budget at a sentence or word boundary.
 - KnowledgePackSelector: Select, dedup, and enforce strict token/character budget on snippets.
@@ -16,23 +16,34 @@
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
 its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out)
-with an OR query of the question's first eight terms in the order they appear, so one question always becomes one
-query; tier 2 scans markdown files. Every page file it reads goes through the wiki publish gate again, so a draft or
-blocked page never reaches the injected context, and snippets never lead with the page's frontmatter.
+with an OR query of the question's search terms; tier 2 scans the markdown files of a vault that has no readable
+index, because listing thousands of pages to read fifteen of them would cost more than it finds. Both tiers keep a
+paragraph only when ``paragraph_relevance`` says the page answers the question, and rank it by that score, so a
+question the vault does not answer injects nothing and the order of the mounted vaults never decides which page
+wins. Every page file it reads goes through the wiki publish gate again, so a draft or blocked page never reaches
+the injected context, and snippets never lead with the page's frontmatter.
 """
 
 from __future__ import annotations
 
 import asyncio
+import heapq
 import logging
-import re
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
-from myrm_agent_harness.api import search_published_index, tokenize_for_fts
+from myrm_agent_harness.api import search_published_index
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
+from app.services.wiki.knowledge_pack.query_terms import (
+    MAX_QUERY_CHARS,
+    carried_terms,
+    paragraph_relevance,
+    search_terms,
+    tokenize_text,
+)
 from app.services.wiki.knowledge_pack.schemas import (
     KnowledgePackConfig,
     ProactiveKnowledgeResult,
@@ -41,24 +52,9 @@ from app.services.wiki.knowledge_pack.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_EN_NUM_PATTERN = re.compile(r"[a-z0-9]+", re.ASCII)
 _MAX_INDEXED_SNIPPETS = 5
-_MAX_FTS_TERMS = 8
-
-
-def _ordered_terms(text: str) -> list[str]:
-    """Alphanumeric words plus CJK unigrams and bigrams, each once, in the order they appear in ``text``."""
-    cleaned = text.lower()
-    found: list[tuple[int, int, str]] = [(m.start(), 0, m.group(0)) for m in _EN_NUM_PATTERN.finditer(cleaned)]
-    cjk_chars = [(i, c) for i, c in enumerate(cleaned) if "\u4e00" <= c <= "\u9fa5"]
-    found.extend((i, 1, c) for i, c in cjk_chars)
-    found.extend((i, 2, a + b) for (i, a), (_, b) in zip(cjk_chars, cjk_chars[1:], strict=False))
-    return list(dict.fromkeys(term for _, _, term in sorted(found)))
-
-
-def tokenize_text(text: str) -> set[str]:
-    """Tokenize text into alphanumeric words and CJK unigrams + bigrams."""
-    return set(_ordered_terms(text))
+_MAX_SCANNED_FILES = 15
+_MAX_SCANNED_SNIPPETS = 5
 
 
 def calculate_jaccard_similarity(text_a: str, text_b: str) -> float:
@@ -102,40 +98,33 @@ def truncate_snippet_text(text: str, max_chars: int = 200) -> str:
     return truncated + "…"
 
 
-def _fts_match_query(query: str, terms: list[str]) -> str:
-    """Tolerant FTS5 query: OR of the first ``_MAX_FTS_TERMS`` alphanumeric terms and CJK bigrams of ``terms``
-    (in the order they appear in the query, so one query always gives one match expression), else the harness
-    tokenizer's output."""
-    safe_terms = [t for t in terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))]
-    if safe_terms:
-        return " OR ".join(f'"{t}"' for t in safe_terms[:_MAX_FTS_TERMS])
-    return tokenize_for_fts(query)
+def _paragraphs(text: str) -> list[str]:
+    """The blank-line separated paragraphs of ``text``, each on one line, with markdown heading lines dropped."""
+    paragraphs: list[str] = []
+    for block in text.split("\n\n"):
+        lines = [line.strip() for line in block.split("\n") if line.strip() and not line.strip().startswith("#")]
+        if lines:
+            paragraphs.append(" ".join(lines))
+    return paragraphs
 
 
-def _best_paragraph(text: str, match_terms: set[str]) -> str:
-    """The paragraph that matches the most query terms, else the first one; headings are dropped."""
-    paras = [p.strip() for p in text.split("\n\n") if p.strip()]
-    best_para = ""
-    best_matches = 0
-    for p in paras:
-        lines = [line.strip() for line in p.split("\n") if line.strip() and not line.strip().startswith("#")]
-        if not lines:
-            continue
-        joined = " ".join(lines)
-        joined_lower = joined.lower()
-        matches = sum(1 for t in match_terms if t in joined_lower)
-        if matches > best_matches:
-            best_matches = matches
-            best_para = joined
-    if not best_para and paras:
-        first_lines = [line.strip() for line in paras[0].split("\n") if line.strip() and not line.strip().startswith("#")]
-        best_para = " ".join(first_lines) if first_lines else paras[0]
-    return best_para
+def _best_paragraph(text: str, terms: Sequence[str]) -> str:
+    """The paragraph that carries the most search terms, the first of them on a tie.
+
+    A text made of headings only, such as the one flat line an index row stores for a page that has no file, falls
+    back to its first block as it is.
+    """
+
+    paragraphs = _paragraphs(text)
+    if paragraphs:
+        return max(paragraphs, key=lambda paragraph: carried_terms(terms, paragraph.lower()))
+    return next((block.strip() for block in text.split("\n\n") if block.strip()), "")
 
 
-def _indexed_snippets(vault_path: Path, label: str, fts_query: str, match_terms: set[str]) -> list[RelevantSnippet]:
-    """Tier 1: the best paragraph of each published page the vault's FTS index ranks first for the query."""
+def _indexed_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
+    """Tier 1: the best paragraph of each published page the vault's FTS index ranks first for the question."""
     db_path = vault_path / ".wiki_index.db"
+    fts_query = " OR ".join(f'"{t}"' for t in terms)
     found: list[RelevantSnippet] = []
     for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_SNIPPETS):
         concept_file = vault_path / "wiki" / "concepts" / f"{concept_name}.md"
@@ -144,17 +133,45 @@ def _indexed_snippets(vault_path: Path, label: str, fts_query: str, match_terms:
         # The page file is the source of truth for its publish status; the index row's text stands in only for
         # rows that have no page file (e.g. raw sources).
         raw_content = _published_page_body(concept_file) if concept_file.is_file() else indexed_text
-        best_para = _best_paragraph(raw_content, match_terms)
-        if best_para:
+        best_para = _best_paragraph(raw_content, terms)
+        confidence = paragraph_relevance(terms, concept_name, best_para) if best_para else 0.0
+        if confidence > 0.0:
             found.append(
                 RelevantSnippet(
                     kb_name=label,
                     article_title=concept_name,
                     snippet=best_para,
-                    confidence=0.95,
+                    confidence=confidence,
                     source_path=str(db_path),
                 )
             )
+    return found
+
+
+def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
+    """Tier 2: the paragraphs that answer the question in the first markdown pages of the vault, in name order."""
+    concepts_dir = vault_path / "wiki" / "concepts"
+    search_dir = concepts_dir if concepts_dir.is_dir() else vault_path
+    # The first files by name, picked without sorting the whole listing: a vault can hold thousands of pages.
+    md_files = heapq.nsmallest(_MAX_SCANNED_FILES, search_dir.glob("*.md")) or heapq.nsmallest(
+        _MAX_SCANNED_FILES, vault_path.glob("*.md")
+    )
+    found: list[RelevantSnippet] = []
+    for md_file in md_files:
+        for paragraph in _paragraphs(_published_page_body(md_file)):
+            confidence = paragraph_relevance(terms, md_file.stem, paragraph)
+            if confidence > 0.0:
+                found.append(
+                    RelevantSnippet(
+                        kb_name=label,
+                        article_title=md_file.stem,
+                        snippet=paragraph,
+                        confidence=confidence,
+                        source_path=str(md_file),
+                    )
+                )
+                if len(found) >= _MAX_SCANNED_SNIPPETS:
+                    break
     return found
 
 
@@ -246,69 +263,31 @@ async def resolve_proactive_snippets_from_vaults(
     t0 = time.monotonic()
     selector = KnowledgePackSelector(config)
 
-    trimmed_query = query.strip()
-    if not trimmed_query or not vault_paths:
+    terms = search_terms(query.strip()[:MAX_QUERY_CHARS])
+    if not terms or not vault_paths:
         return ProactiveKnowledgeResult()
 
     candidates: list[RelevantSnippet] = []
 
     async def _scan_vault(vault_path: Path, label: str) -> list[RelevantSnippet]:
-        found: list[RelevantSnippet] = []
-        if not vault_path.exists() or not vault_path.is_dir():
-            return found
-
-        terms = _ordered_terms(trimmed_query)
-        if not terms:
-            return found
-
-        match_terms = {t for t in terms if len(t) >= 2} or set(terms)
+        if not vault_path.is_dir():
+            return []
 
         # ── Tier 1: SQLite FTS5 index-first retrieval (O(1) ms latency) ──
+        # An index answers for its vault, an empty answer included.
         db_path = vault_path / ".wiki_index.db"
         if db_path.is_file():
             try:
-                fts_query = _fts_match_query(trimmed_query, terms)
-                if fts_query.strip():
-                    found = _indexed_snippets(vault_path, label, fts_query, match_terms)
-                if found:
-                    return found
+                return _indexed_snippets(vault_path, label, terms)
             except Exception as exc:
                 logger.debug("FTS5 index scan failed for %s, falling back to markdown: %s", db_path, exc)
 
-        # ── Tier 2: Concept markdown files fallback (for newly created or uncompiled vaults) ──
+        # ── Tier 2: Concept markdown files fallback (for uncompiled vaults and unreadable indexes) ──
         try:
-            concepts_dir = vault_path / "wiki" / "concepts"
-            search_dir = concepts_dir if concepts_dir.is_dir() else vault_path
-            md_files = (list(search_dir.glob("*.md")) or list(vault_path.glob("*.md")))[:15]
-            for md_file in md_files:
-                title = md_file.stem.lower()
-                title_matches = sum(1 for t in match_terms if t in title)
-                content = _published_page_body(md_file)
-
-                raw_paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
-                for p in raw_paragraphs:
-                    content_lines = [line.strip() for line in p.split("\n") if line.strip() and not line.strip().startswith("#")]
-                    if not content_lines:
-                        continue
-                    body_text = " ".join(content_lines)
-                    p_lower = body_text.lower()
-                    content_matches = sum(1 for t in match_terms if t in p_lower)
-                    if content_matches > 0 or title_matches > 0:
-                        score = (title_matches * 2.0 + content_matches) / (len(match_terms) + 1.0)
-                        found.append(
-                            RelevantSnippet(
-                                kb_name=label,
-                                article_title=md_file.stem,
-                                snippet=body_text,
-                                confidence=min(1.0, score),
-                                source_path=str(md_file),
-                            )
-                        )
-                        if len(found) >= 5:
-                            break
+            return _markdown_snippets(vault_path, label, terms)
         except Exception as exc:
             logger.debug("Vault markdown scan skipped for %s: %s", vault_path, exc)
-        return found
+            return []
 
     try:
         tasks = [_scan_vault(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name))) for p in vault_paths]

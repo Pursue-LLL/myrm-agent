@@ -282,6 +282,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "FusedHit": ("myrm_agent_harness.toolkits.retriever.fusion_strategies", "FusedHit"),
     "RecallDebug": ("myrm_agent_harness.toolkits.retriever.fusion_strategies", "RecallDebug"),
     "search_published_index": ("myrm_agent_harness.toolkits.wiki.retrieval.fts_search", "search_published_index"),
+    "STOP_WORDS": ("myrm_agent_harness.toolkits.wiki.retrieval.tokenizer", "STOP_WORDS"),
     "tokenize_for_fts": ("myrm_agent_harness.toolkits.wiki.retrieval.tokenizer", "tokenize_for_fts"),
     "BehavioralMessage": ("myrm_agent_harness.toolkits.memory.strategies.behavioral_measurement", "BehavioralMessage"),
     "BehavioralStatsOptions": (
