@@ -6,11 +6,11 @@
 - Process env EMAIL_SMTP_HOST, EMAIL_SMTP_USER, EMAIL_SMTP_PASSWORD (optional, for send/reply)
 - Process env EMAIL_IMAP_PORT (default 993), EMAIL_SMTP_PORT (default 587)
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
-- mail_client.transport: verified IMAP/SMTP connections and the JSON error exit
+- mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
 - mail_client.message: MIME header, date, summary and body decoding
 
 [OUTPUT]
-- JSON on stdout for all CLI subcommands
+- JSON on stdout for all CLI subcommands, including failures (exit code 1 with {"error": ...})
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. This file holds the
@@ -34,7 +34,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from mail_client.message import decode_header, extract_body, message_summary
-from mail_client.transport import connect_imap, deliver, fail, get_smtp_config
+from mail_client.transport import (
+    connect_imap,
+    deliver,
+    fail,
+    get_smtp_config,
+    imap_quote,
+    json_errors,
+    parse_uids,
+    select_folder,
+)
 
 
 def _date_criteria(since: str | None) -> str:
@@ -54,7 +63,7 @@ def _date_criteria(since: str | None) -> str:
             weeks = int(since[:-1])
             target = now - timedelta(weeks=weeks)
         else:
-            return f'SINCE "{since}"'
+            return f"SINCE {imap_quote(since)}"
     except (ValueError, OverflowError):
         fail(f"Invalid --since format: '{since}'. Use e.g. '7d', '24h', '2w'")
     return f'SINCE "{target.strftime("%d-%b-%Y")}"'
@@ -88,7 +97,7 @@ def cmd_check(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=True)
+        select_folder(conn, folder, readonly=True)
 
         criteria_parts: list[str] = []
         if args.unread_only:
@@ -105,21 +114,21 @@ def cmd_search(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=True)
+        select_folder(conn, folder, readonly=True)
 
         criteria_parts: list[str] = []
         if args.sender:
-            criteria_parts.append(f'FROM "{args.sender}"')
+            criteria_parts.append(f"FROM {imap_quote(args.sender)}")
         if args.subject:
-            criteria_parts.append(f'SUBJECT "{args.subject}"')
+            criteria_parts.append(f"SUBJECT {imap_quote(args.subject)}")
         if args.to:
-            criteria_parts.append(f'TO "{args.to}"')
+            criteria_parts.append(f"TO {imap_quote(args.to)}")
         if args.since:
             date_crit = _date_criteria(args.since)
             if date_crit:
                 criteria_parts.append(date_crit)
         if args.keyword:
-            criteria_parts.append(f'BODY "{args.keyword}"')
+            criteria_parts.append(f"BODY {imap_quote(args.keyword)}")
 
         if not criteria_parts:
             fail("At least one search criterion is required (--from, --subject, --to, --since, --keyword)")
@@ -133,7 +142,7 @@ def cmd_read(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=True)
+        select_folder(conn, folder, readonly=True)
 
         _status, data = conn.uid("fetch", str(args.uid), "(RFC822)")
         if not data or not data[0] or not isinstance(data[0], tuple):
@@ -171,7 +180,7 @@ def cmd_download(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=True)
+        select_folder(conn, folder, readonly=True)
 
         _status, data = conn.uid("fetch", str(args.uid), "(RFC822)")
         if not data or not data[0] or not isinstance(data[0], tuple):
@@ -231,7 +240,7 @@ def cmd_reply(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=True)
+        select_folder(conn, folder, readonly=True)
 
         _status, data = conn.uid("fetch", str(args.uid), "(RFC822)")
         if not data or not data[0] or not isinstance(data[0], tuple):
@@ -279,10 +288,8 @@ def cmd_mark_read(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=False)
-        uids = [u.strip() for u in args.uids.split(",") if u.strip()]
-        if not uids:
-            fail("At least one UID is required")
+        select_folder(conn, folder, readonly=False)
+        uids = parse_uids(args.uids)
         for uid in uids:
             conn.uid("store", uid, "+FLAGS", "(\\Seen)")
         print(json.dumps({"status": "marked_read", "uids": uids}))
@@ -294,10 +301,8 @@ def cmd_mark_unread(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
-        conn.select(folder, readonly=False)
-        uids = [u.strip() for u in args.uids.split(",") if u.strip()]
-        if not uids:
-            fail("At least one UID is required")
+        select_folder(conn, folder, readonly=False)
+        uids = parse_uids(args.uids)
         for uid in uids:
             conn.uid("store", uid, "-FLAGS", "(\\Seen)")
         print(json.dumps({"status": "marked_unread", "uids": uids}))
@@ -385,7 +390,8 @@ def main() -> None:
         "mark-unread": cmd_mark_unread,
         "folders": cmd_folders,
     }
-    commands[args.command](args)
+    with json_errors(args.command):
+        commands[args.command](args)
 
 
 if __name__ == "__main__":

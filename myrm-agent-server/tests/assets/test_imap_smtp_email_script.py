@@ -7,7 +7,8 @@ against ``autospec`` doubles of the stdlib clients, where a keyword they do not 
 
 [INPUT]
 - assets/prebuilt_skills/imap-smtp-email/scripts: email_manager.py run as a subprocess; mail_client.transport imported
-- tests/support/self_signed_tls.py: the loopback certificate
+- tests/support/email_skill_script.py: the loopback listener and the script runner
+- tests/assets/conftest.py: the loopback certificate and the script import path
 - tests/support/bounded_wait.py: the timeout bound
 
 [OUTPUT]
@@ -23,15 +24,9 @@ from __future__ import annotations
 
 import importlib
 import json
-import os
 import smtplib
 import socket
 import ssl
-import subprocess
-import sys
-import threading
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from unittest.mock import create_autospec, patch
@@ -39,12 +34,7 @@ from unittest.mock import create_autospec, patch
 import pytest
 
 from tests.support.bounded_wait import assert_bounded_wait
-from tests.support.self_signed_tls import self_signed_certificate
-
-_SKILL_SCRIPTS = Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "imap-smtp-email" / "scripts"
-_SCRIPT = _SKILL_SCRIPTS / "email_manager.py"
-
-Session = Callable[[socket.socket, ssl.SSLContext], None]
+from tests.support.email_skill_script import run_email_script, serve_sessions
 
 
 def _imap_session(conn: socket.socket, context: ssl.SSLContext) -> None:
@@ -87,55 +77,9 @@ def _smtp_session(conn: socket.socket, context: ssl.SSLContext) -> None:
         stream.flush()
 
 
-@contextmanager
-def _listener(session: Session, context: ssl.SSLContext) -> Iterator[int]:
-    """Serve one client at a time on a loopback port; a client that rejects the certificate only ends its own session."""
-    server = socket.create_server(("127.0.0.1", 0))
-    server.settimeout(0.2)
-    stopped = threading.Event()
-
-    def serve() -> None:
-        while not stopped.is_set():
-            try:
-                conn, _addr = server.accept()
-            except TimeoutError:
-                continue
-            except OSError:
-                return
-            try:
-                session(conn, context)
-            except (OSError, ssl.SSLError):
-                pass
-            finally:
-                conn.close()
-
-    thread = threading.Thread(target=serve, daemon=True)
-    thread.start()
-    try:
-        yield server.getsockname()[1]
-    finally:
-        stopped.set()
-        thread.join(timeout=5)
-        server.close()
-
-
 def _run_script(tmp_path: Path, args: list[str], *, port: int, protocol: str, trust: Path | None) -> str:
-    """Run the script from another directory with a minimal environment; return its JSON ``error``."""
-    env = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT") if key in os.environ}
-    env |= {
-        "HOME": str(tmp_path),
-        "EMAIL_IMAP_HOST": "127.0.0.1",
-        "EMAIL_IMAP_USER": "agent@example.test",
-        "EMAIL_IMAP_PASSWORD": "secret",
-        f"EMAIL_{protocol.upper()}_PORT": str(port),
-    }
-    if protocol == "smtp":
-        env["EMAIL_SMTP_HOST"] = "127.0.0.1"
-    if trust is not None:
-        env["SSL_CERT_FILE"] = str(trust)
-    proc = subprocess.run(
-        [sys.executable, str(_SCRIPT), *args], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60, check=False
-    )
+    """Run the script; it has to fail, and its JSON ``error`` is returned."""
+    proc = run_email_script(tmp_path, args, port=port, protocol=protocol, trust=trust)
     assert proc.returncode == 1, proc.stderr
     return str(json.loads(proc.stdout)["error"])
 
@@ -146,20 +90,12 @@ _PROTOCOLS = {
 }
 
 
-@pytest.fixture
-def listener_tls(tmp_path: Path) -> tuple[ssl.SSLContext, Path]:
-    cert, key = self_signed_certificate(tmp_path)
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_cert_chain(cert, key)
-    return context, cert
-
-
 @pytest.mark.parametrize("protocol", _PROTOCOLS)
 def test_a_certificate_no_default_store_accepts_is_refused_with_a_hint(
     tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], protocol: str
 ) -> None:
     session, args, service = _PROTOCOLS[protocol]
-    with _listener(session, listener_tls[0]) as port:
+    with serve_sessions(session, listener_tls[0]) as port:
         error = _run_script(tmp_path, args, port=port, protocol=protocol, trust=None)
 
     assert error.startswith(f"{service} server certificate verification failed: ")
@@ -172,17 +108,17 @@ def test_ssl_cert_file_lets_the_handshake_through_to_the_login(
     tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], protocol: str
 ) -> None:
     session, args, service = _PROTOCOLS[protocol]
-    with _listener(session, listener_tls[0]) as port:
+    with serve_sessions(session, listener_tls[0]) as port:
         error = _run_script(tmp_path, args, port=port, protocol=protocol, trust=listener_tls[1])
 
     assert error.startswith(f"{service} authentication failed")
 
 
+@pytest.mark.usefixtures("skill_modules")
 def test_every_connection_is_bounded_and_verifies_the_peer_through_keywords_the_stdlib_accepts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The subprocess tests above cover IMAP and STARTTLS; this one also reaches implicit TLS (port 465)."""
-    monkeypatch.syspath_prepend(str(_SKILL_SCRIPTS))
     transport = importlib.import_module("mail_client.transport")
     monkeypatch.setenv("EMAIL_IMAP_HOST", "imap.example.test")
     monkeypatch.setenv("EMAIL_IMAP_USER", "agent@example.test")
