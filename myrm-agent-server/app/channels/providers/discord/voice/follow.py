@@ -220,8 +220,8 @@ class VoiceFollowManager:
     async def _reconcile_once(self) -> None:
         """Single reconciliation pass via REST API to bypass stale Gateway cache.
 
-        This loop is what heals missed gateway events, so a guild whose pass fails (a network error on the REST poll,
-        a join that raises) is logged and left for the next pass instead of ending the loop or skipping the guilds after it.
+        A guild whose pass fails (a network error on the REST poll, a join that raises) is logged and retried by the next pass,
+        so it neither ends the loop nor skips the guilds after it. A leave that raises is only logged: the guild is dropped first.
         """
         if not self._follow_user_ids:
             return
@@ -230,7 +230,7 @@ class VoiceFollowManager:
             try:
                 await self._reconcile_guild(guild)
             except Exception as e:
-                logger.warning("Voice reconciliation failed in guild %s, retrying on the next pass: %r", guild.id, e)
+                logger.warning("Voice reconciliation failed in guild %s: %r", guild.id, e)
             if self._destroyed:
                 return
 
