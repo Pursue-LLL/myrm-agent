@@ -115,8 +115,8 @@ async def communicate_bounded(
     )
     try:
         # The shield lets the readers outlive the deadline. They must keep emptying the pipes while on_abort runs: an
-        # unread pipe fills and pauses the transport, and asyncio resolves ``wait()`` only after the pipes close,
-        # so a process killed with its readers cancelled never reports its exit.
+        # unread pipe fills and pauses the transport, and where asyncio resolves ``wait()`` only after the pipes
+        # close, a process killed with its readers cancelled never reports its exit.
         (stdout, stdout_cut), (stderr, stderr_cut), _, _ = await asyncio.wait_for(asyncio.shield(collecting), timeout)
     except BaseException:
         try:
