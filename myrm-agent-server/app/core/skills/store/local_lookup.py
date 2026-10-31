@@ -75,7 +75,8 @@ def local_skill_dir_known_as(skills_root: Path, name: str) -> Path | None:
 
     A background review is shown the names the agent runtime lists skills under, which are neither the directory
     name nor, for most skills, the name in SKILL.md. Two skills that go by the same name cannot be told apart, so
-    neither is chosen. An unreadable ``skills_root`` is raised, for the reason ``local_skill_dir_named`` gives.
+    neither is chosen and the clash is logged. An unreadable ``skills_root`` is raised, for the reason
+    ``local_skill_dir_named`` gives.
     """
     if not name.strip():
         return None
@@ -84,4 +85,7 @@ def local_skill_dir_known_as(skills_root: Path, name: str) -> Path | None:
     except (FileNotFoundError, NotADirectoryError):
         return None
     matches = [entry for entry in entries if name in _known_names(entry)]
+    if len(matches) > 1:
+        clashing = ", ".join(sorted(entry.name for entry in matches))
+        logger.warning("Skill name %r is known by %d local skills (%s); none is chosen", name, len(matches), clashing)
     return matches[0] if len(matches) == 1 else None

@@ -7,9 +7,9 @@
 - Tests that /derive and /fix take a local skill's name as its reference even when the skill has no evolution row,
   and that the lookup by name never leaves the primary local skills directory, finds the skill by its directory name
   first and then by a name it is known by (the name in its SKILL.md or the one the agent runtime lists it under),
-  chooses none of several skills that go by one name, skips a SKILL.md that cannot be read, one the scan cannot load
-  and a directory with a blank name, finds no skill for a name no directory can have, and does not turn an unreadable
-  directory into a missing skill.
+  chooses none of several skills that go by one name and names them in a warning, skips a SKILL.md that cannot be read,
+  one the scan cannot load (naming it in a warning) and a directory with a blank name, finds no skill for a name no
+  directory can have, and does not turn an unreadable directory into a missing skill.
 [POS]
 The growth audit names a skill only by the name its draft carried, and most local skills (made in chat, placed by hand)
 have no evolution row yet, so a name has to reach the Skills page skill itself: a locked skill is refused without being
@@ -20,6 +20,7 @@ another key is the one evolved. Page skills come from the real local scan, so th
 from __future__ import annotations
 
 import errno
+import logging
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -35,6 +36,7 @@ from tests.api.evolution.conftest import DERIVE, UNLOCKED, evolution_row, publis
 
 FIX = {"reason": "The draft's description.", "force_retry": True}
 ENDPOINTS = [pytest.param("derive", DERIVE, id="derive"), pytest.param("fix", FIX, id="fix")]
+LOOKUP_LOGGER = "app.core.skills.store.local_lookup"
 
 
 @pytest.fixture
@@ -43,6 +45,12 @@ def skills_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root = tmp_path / "skills"
     monkeypatch.setattr(skill_creation_service, "base_path", root)
     return root
+
+
+def _lookup_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        record.getMessage() for record in caplog.records if record.name == LOOKUP_LOGGER and record.levelno == logging.WARNING
+    ]
 
 
 def _evolved_row_ids(evolution: SimpleNamespace, endpoint: str) -> list[object]:
@@ -202,6 +210,33 @@ async def test_skills_that_go_by_the_same_name_are_not_told_apart(skills_root: P
     assert await skills_service.find_local_skill_dir("report_builder_skill") is None
 
 
+async def test_the_skills_that_go_by_the_same_name_are_named_in_a_warning(
+    skills_root: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    write_skill(skills_root, "one", name="report-builder")
+    write_skill(skills_root, "two", name="report_builder")
+    write_skill(skills_root, "other", name="other-skill")
+
+    with caplog.at_level(logging.WARNING, logger=LOOKUP_LOGGER):
+        await skills_service.find_local_skill_dir("report_builder_skill")
+
+    (warning,) = _lookup_warnings(caplog)
+    assert "report_builder_skill" in warning
+    assert "(one, two)" in warning
+
+
+async def test_a_name_that_one_skill_goes_by_is_found_without_a_warning(
+    skills_root: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    write_skill(skills_root, "one", name="report-builder")
+    write_skill(skills_root, "other", name="other-skill")
+
+    with caplog.at_level(logging.WARNING, logger=LOOKUP_LOGGER):
+        assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "one"
+
+    assert _lookup_warnings(caplog) == []
+
+
 async def test_an_unreadable_skill_md_does_not_hide_the_other_skills(skills_root: Path) -> None:
     write_skill(skills_root, "good", name="report-builder")
     (skills_root / "broken").mkdir()
@@ -224,6 +259,19 @@ async def test_a_skill_md_the_scan_cannot_load_does_not_hide_the_other_skills(sk
     (skills_root / "invalid" / "SKILL.md").write_text(content, encoding="utf-8")
 
     assert await skills_service.find_local_skill_dir("report_builder_skill") == skills_root / "good"
+
+
+async def test_a_skipped_skill_md_is_named_in_a_warning(skills_root: Path, caplog: pytest.LogCaptureFixture) -> None:
+    write_skill(skills_root, "good", name="report-builder")
+    (skills_root / "invalid").mkdir()
+    skill_md = skills_root / "invalid" / "SKILL.md"
+    skill_md.write_text("A SKILL.md without a frontmatter.\n", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING, logger=LOOKUP_LOGGER):
+        await skills_service.find_local_skill_dir("report_builder_skill")
+
+    (warning,) = _lookup_warnings(caplog)
+    assert str(skill_md) in warning
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows cannot create a directory whose name is blank")
