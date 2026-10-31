@@ -155,7 +155,8 @@ jobs:
 
       # The enterprise policy validates against the operating system's trust store through truststore, which reaches
       # CryptoAPI on Windows; the Linux jobs only exercise OpenSSL's store. The selection overrides the default
-      # `not integration` filter because the loopback suites are integration-marked.
+      # `not integration` filter because the loopback suites are integration-marked. The tests that start a POSIX
+      # script as a Node child stay on the Linux jobs.
       - name: Run enterprise TLS tests
         run: >-
           uv run --no-sync pytest -n0 -q --tb=short -m "not e2e and not performance"
@@ -164,8 +165,6 @@ jobs:
           tests/integration/test_enterprise_tls_compat_integration.py
           tests/integration/test_enterprise_tls_entrypoints_integration.py
           tests/integration/test_tls_certificate_rejection_integration.py
-          tests/toolkits/mcp/test_placeholders.py
-          tests/toolkits/mcp/test_placeholders_stdio_env_integration.py
 
   linux-computer-use:
     name: Linux computer-use (real X11)

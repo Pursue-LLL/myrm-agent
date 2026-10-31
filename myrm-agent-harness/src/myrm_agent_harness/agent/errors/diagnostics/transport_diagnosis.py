@@ -3,7 +3,7 @@
 [INPUT]
 - diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
-- infra.tls_compat::is_tls_transient_error (POS: Enterprise TLS compatibility)
+- infra.tls_error_signals::is_tls_transient_error (POS: The one list of certificate-rejection and interrupted-handshake wordings)
 - toolkits.llms.errors.tls_rejection::CONNECTION_KEYWORDS, rejects_certificate (POS: The one verdict on a rejected certificate)
 
 [OUTPUT]
@@ -22,7 +22,7 @@ import re
 
 from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
 from myrm_agent_harness.agent.errors.diagnostics.types import DiagnosticResult, ErrorContext
-from myrm_agent_harness.infra.tls_compat import is_tls_transient_error
+from myrm_agent_harness.infra.tls_error_signals import is_tls_transient_error
 from myrm_agent_harness.toolkits.llms.errors.tls_rejection import CONNECTION_KEYWORDS, rejects_certificate
 
 

@@ -1,7 +1,7 @@
 """Whether an LLM call failed because the server's certificate was rejected.
 
 [INPUT]
-- infra.tls_compat::is_tls_hard_error (POS: Enterprise TLS compatibility)
+- infra.tls_error_signals::is_tls_hard_error (POS: The one list of certificate-rejection and interrupted-handshake wordings)
 - errors.error_payload::walk_exception_chain (POS: The one reader of the provider's answer in an LLM exception)
 - errors.normalize::extract_status_code (POS: Input stage of the failure classifier)
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import ssl
 
-from myrm_agent_harness.infra.tls_compat import is_tls_hard_error
+from myrm_agent_harness.infra.tls_error_signals import is_tls_hard_error
 
 from .error_payload import walk_exception_chain
 from .normalize import extract_status_code

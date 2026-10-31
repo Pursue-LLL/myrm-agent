@@ -27,6 +27,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import httpx
+import httpx2
 import litellm
 import pytest
 from langchain_core.messages import HumanMessage
@@ -37,9 +38,17 @@ from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation, cre
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from tests.support.mcp_testkit.tls_pki import InspectionChain, generate_inspection_chain
-from tests.support.tls_loopback import CA_ENV_VARS, https_server, isolate_from_system_proxy, restore_standard_tls
+from tests.support.tls_loopback import (
+    CA_ENV_VARS,
+    https_server,
+    isolate_from_system_proxy,
+    restore_standard_tls,
+    stand_in_system_trust,
+)
 
 _STACKS = ("httpx", "llm_factory")
+# The MCP SDK's transport is another client that reads ``SSL_CERT_FILE`` itself.
+_STACKS_READING_SSL_CERT_FILE = (*_STACKS, "httpx2")
 
 
 async def _forget_cached_litellm_state() -> None:
@@ -82,6 +91,10 @@ def _enterprise_mode(
 async def _call(stack: str, base_url: str) -> None:
     if stack == "httpx":
         async with create_httpx_client(timeout=10) as client:
+            (await client.get(base_url)).raise_for_status()
+        return
+    if stack == "httpx2":
+        async with httpx2.AsyncClient(timeout=10) as client:
             (await client.get(base_url)).raise_for_status()
         return
     model = create_litellm_model("openai/test-model", base_url=f"{base_url}/v1", api_key="test-key")
@@ -129,6 +142,21 @@ async def test_the_setting_with_a_named_ca_accepts_the_inspection_chain(
     stack: str, ca_env: str, chain: InspectionChain, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _enterprise_mode(monkeypatch, ca_env=ca_env, ca_file=chain.ca_cert)
+
+    with https_server(chain) as url:
+        await _call(stack, url)
+
+
+@pytest.mark.parametrize("stack", _STACKS_READING_SSL_CERT_FILE)
+async def test_a_bundle_named_by_ssl_cert_file_joins_the_system_trust_instead_of_replacing_it(
+    stack: str, chain: InspectionChain, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bundle holds only a private root, as an administrator exports it; the proxy's root is in the system store."""
+    private_dir = tmp_path / "private"
+    private_dir.mkdir()
+    private_only = generate_inspection_chain(private_dir)
+    stand_in_system_trust(monkeypatch, chain.ca_cert)
+    _enterprise_mode(monkeypatch, ca_env="SSL_CERT_FILE", ca_file=private_only.ca_cert)
 
     with https_server(chain) as url:
         await _call(stack, url)

@@ -17,13 +17,15 @@ place it takes its context from:
   (``truststore``) plus any CA bundle the environment names (``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``,
   ``NODE_EXTRA_CA_CERTS``, added on top, never replacing), with only ``VERIFY_X509_STRICT`` cleared. A context built
   for an explicit CA file, directory or data (a pinned CA) keeps exactly that trust and only has the strict flag
-  cleared; server-purpose contexts are never touched.
+  cleared. The one exception is the file ``SSL_CERT_FILE`` names: httpx, httpx2 and litellm read it themselves and pass
+  it on as a CA file, yet it is the environment's bundle, so it is added like the others. Server-purpose contexts are
+  never touched.
 - aiohttp builds its default context while it is imported and litellm caches the contexts it builds, so both are
   rebuilt through the wrapper.
 - urllib3 (``requests``) builds its contexts without ``ssl.create_default_context``, so its builder gets the same
   trust. A CA file a caller loads into such a context (``verify=path``) is added to that trust, not exclusive.
 - A child process inherits none of this. ``with_node_system_ca()`` adds ``NODE_USE_SYSTEM_CA=1`` to the environment of
-  a child that may run Node, so it validates against the operating system's store too (Node 22.15+ and 23.8+ read
+  a child that may run Node, so it validates against the operating system's store too (Node 22.19+ and 24.6+ read
   it; an older Node ignores it).
 
 Certificate chain validation, hostname verification and expiry checks stay on, which is strictly narrower than
@@ -52,9 +54,6 @@ Activation:
   built directly just the same
 - apply_global_tls_relaxation(): installs the context policy above on the standard library, aiohttp, litellm and
   urllib3; idempotent
-- is_tls_hard_error(): whether an error text carries a certificate-rejection signal (the single signal list the LLM
-  failure classifier and the error diagnostics both read)
-- is_tls_transient_error(): whether an error text is an interrupted handshake with no certificate verdict
 
 [POS]
 Infrastructure TLS compatibility. Enables enterprise deployments behind
@@ -83,7 +82,8 @@ _TLS_STRICT_ENV = "MYRM_TLS_STRICT"
 _TLS_STRICT_OFF_VALUES = frozenset({"0", "false", "no", "off"})
 
 # CA bundles the environment can name; each is added to the trust the context already has.
-_EXTRA_CA_ENV_VARS = ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
+_ENV_CA_FILE = "SSL_CERT_FILE"
+_EXTRA_CA_ENV_VARS = (_ENV_CA_FILE, "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
 
 # Makes Node trust the operating system's CA store besides its bundled roots; a Node that does not know it ignores it.
 _NODE_SYSTEM_CA_ENV = "NODE_USE_SYSTEM_CA"
@@ -193,7 +193,9 @@ def _install_default_context_policy() -> None:
     ) -> ssl.SSLContext:
         if purpose is not ssl.Purpose.SERVER_AUTH or not tls_strict_disabled():
             return original(purpose, cafile=cafile, capath=capath, cadata=cadata)
-        if capath is None and cadata is None and cafile in (None, bundled_cafile):
+        # httpx, httpx2 and litellm pass ``SSL_CERT_FILE`` on as ``cafile`` verbatim; it is not a pinned CA.
+        env_cafile = os.environ.get(_ENV_CA_FILE)
+        if capath is None and cadata is None and cafile in (None, bundled_cafile, env_cafile):
             ctx = _platform_trust_context() or original(purpose, cafile=cafile)
             _trust_environment_ca_files(ctx)
         else:
@@ -316,83 +318,3 @@ def create_httpx_client(**kwargs: object) -> httpx.AsyncClient:
     import httpx
 
     return httpx.AsyncClient(**kwargs)  # type: ignore[arg-type]
-
-
-# Hard TLS failure signals: the certificate/chain itself is rejected.
-# These are permanent (fail-fast) — retrying cannot change the verdict.
-# Python/OpenSSL strict-mode wordings come first, then the Bun/Node ones
-# (e.g. "unable to verify the first certificate"), hostname/altname mismatch
-# and an expired leaf — all deliberately hard. A wording that differs from
-# another only in a separator or an apostrophe (the "self_signed" of Node's
-# DEPTH_ZERO_SELF_SIGNED_CERT, a typographic apostrophe) is listed as its own signal.
-_TLS_HARD_SIGNALS = (
-    "basic constraints",
-    "basicconstraints",
-    "basic_constraints",
-    "basic-constraints",
-    "not marked critical",
-    "certificate verify failed",
-    "ssl: certificate_verify_failed",
-    "unable to get local issuer",
-    "[ssl: certificate_verify_failed]",
-    "self-signed certificate in certificate chain",
-    "self-signed",
-    "self signed",
-    "self_signed",
-    "selfsigned",
-    "unable to verify the first certificate",
-    "hostname mismatch",
-    "hostname doesn't match",
-    "hostname doesn\u2019t match",
-    "hostname doesnt match",
-    "certificate has expired",
-    "cert has expired",
-    "certificate expired",
-    "expired certificate",
-    "err_tls_cert_altname_invalid",
-    "altname",
-)
-
-# Transient TLS transport signals: the handshake was interrupted before any
-# certificate verdict (weak network, proxy reset, Bun mislabel). Bun's
-# "unknown certificate verification error" belongs here: it is emitted when
-# the connection is reset mid-handshake, with no certificate ever rejected.
-_TLS_TRANSIENT_PATTERNS = (
-    "unknown certificate verification",
-    "unknown_certificate_verification",
-    "certificate verification error",
-    "ssl routines",
-    "handshake failure",
-    "failure in handshake",
-    "unexpected eof",
-    "eof occurred in violation of protocol",
-    "broken pipe",
-    "wrong version number",
-    "bad record mac",
-    "decryption failed",
-    "tlsv1 alert",
-    "ssl3_read_bytes",
-    "ssl3_write_bytes",
-)
-
-
-def is_tls_hard_error(error_message: str) -> bool:
-    """Detect a permanent TLS failure (bad chain, not a flaky network).
-
-    Covers the strict-mode, Bun, Node and OpenSSL wordings of a rejected certificate.
-    Hard failures must fail fast with remediation — never retried.
-    """
-    lower = error_message.lower()
-    return any(pattern in lower for pattern in _TLS_HARD_SIGNALS)
-
-
-def is_tls_transient_error(error_message: str) -> bool:
-    """Detect an interrupted TLS handshake with no certificate verdict.
-
-    True when transport-level signals are present and no hard signal matches.
-    Callers should treat this as retryable (same class as connection reset).
-    """
-    lower = error_message.lower()
-    if any(pattern in lower for pattern in _TLS_HARD_SIGNALS):
-        return False
-    return any(pattern in lower for pattern in _TLS_TRANSIENT_PATTERNS)

@@ -9,7 +9,7 @@ WhatsApp 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | WhatsApp channel provider via Baileys multi-device bridge. | ✅ |
-| `bridge.py` | 模块 | Bridge process management. WhatsAppChannel inherits spawn/read/write/kill via Mixin; channel.py and inbound.py focus on business logic (messaging, event dispatch). | ✅ |
+| `bridge.py` | 模块 | Bridge process management. WhatsAppChannel inherits spawn/read/write/kill via Mixin; channel.py and inbound.py focus on business logic (messaging, event dispatch). The npm install and the bridge are Node processes that inherit none of the host's TLS policy, so both get `NODE_USE_SYSTEM_CA=1` through `with_node_system_ca` while the enterprise network compatibility setting is on (the proxy variables the bridge drops are removed first). | ✅ |
 | `channel.py` | 模块 | WhatsApp integration core: lifecycle, outbound bridge stdin commands and media/group/typing/reaction requests; composes `WhatsAppInboundMixin`, `WhatsAppLoginMixin` and `BridgeProcessMixin`. | ✅ |
 | `format_converter.py` | 模块 | WhatsApp format conversion. Protects code blocks/inline code, converts formatting markers, restores protected content. | ✅ |
 | `helpers.py` | 模块 | WhatsApp JID normalization, mention detection, self-chat detection, message-key and quote parsing, and path constants. Shared by channel.py and bridge.py. | ✅ |

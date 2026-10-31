@@ -40,6 +40,17 @@
 | **仍然存在** | ① 网络错误是在 aiohttp 会话层模拟的，没有在真实网络上观察；机器唤醒或换网时这类错误多常发生没有数据。② 没有在真实 Discord 上运行对账。③ 失败的一轮只记 WARNING，没有退避与失败计数：持续失败（例如离线）时，每 10–13 秒对每个公会各记一条 WARNING。④ 跟随用户本身默认关闭（语音默认关闭，`channel.py:108`），使用频率没有数据。⑤ 离开分支出错不重试：`_reconcile_guild` 先把公会从跟随集合里去掉再离开（`follow.py:247` 先于 `:256`），`manager.py:229` 的 `leave` 也先弹出会话状态再释放，所以 `leave` 抛错后只有一条 WARNING，之后的对账不再进这个分支。实测：REST 查不到跟随用户、公会在跟随集合里、`leave` 抛 `ConnectionResetError`，间隔 0.005 秒跑约 0.3 秒，三次分别跑了 24、44、49 轮（机器负载高，轮数不稳定），都只调用 `leave` 1 次；没有测试钉住。 |
 | **代码位置** | `myrm-agent-server/app/channels/providers/discord/voice/follow.py`（`start_reconciliation`、`_reconcile_once`、`_reconcile_guild`） · `tests/channels/providers/discord/voice/test_follow_reconcile.py`（新增） · `providers/discord/voice/_ARCH.md`、`providers/discord/_ARCH.md`、`app/channels/CHANNELS_SYSTEM.md` |
 
+## 2026-10-31 · 打开「企业网络兼容」并用 `SSL_CERT_FILE` 指向企业证书包后，聊天模型、httpx、httpx2 只信该文件、不再信系统证书库；WhatsApp 桥接进程没接系统证书开关
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 与 `myrm-agent-brand` 各本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-158）。关闭 BUG-HARNESS-2026-10-31-156 那一条「仍然存在」② 里的 httpx2 一项，并把 WhatsApp 桥接进程接上；其余「仍然存在」未处理。 |
+| **症状** | [实测，macOS，本机 https 监听口，系统证书库用测试替身] 打开设置后，环境用 `SSL_CERT_FILE` 指向一个只含私有根的证书包、代理的根在系统证书库里：聊天模型、httpx、httpx2 三路都报 `CERTIFICATE_VERIFY_FAILED`。这三个库自己读 `SSL_CERT_FILE` 再当显式 CA 文件传入，被当成钉死的 CA，只信该文件。WhatsApp 桥接进程与它的 npm 安装没有 `NODE_USE_SYSTEM_CA`（读码）。BUG-HARNESS-2026-10-31-156 那一条里 Node 变量的版本边界写成了 22.15+/23.8+（那是命令行标志的版本）。 |
+| **行为变化** | ① 打开设置时，`SSL_CERT_FILE` 指向的证书包叠加在系统证书库上（原先只信该文件）；其他显式给出的 CA 文件仍是钉死，`SSL_CERT_DIR` 仍是替换。② WhatsApp 桥接进程与它的 npm 安装在设置打开时带 `NODE_USE_SYSTEM_CA=1`（桌面安装包不带桥接目录，只对 WebUI、源码与服务端部署生效）。③ 公开文档安全架构页（中英）的 Node 版本要求改为 22.19+ 与 24.6+。④ CI 作业 `windows-enterprise-tls` 收窄为 5 个测试文件。 |
+| **回归证据** | harness 158 的 [1]–[4]：新测试改前红（三路 `CERTIFICATE_VERIFY_FAILED`）改后绿；8 个变异全被杀；宽套件 13198 通过、30 个失败全在 `tests/infra/tracing`（本机缺 OTLP 导出包）；server WhatsApp 套件 192 通过。 |
+| **仍然存在** | ① 没有用真实检查代理、真实钥匙串、真实 WhatsApp 连接实测；`windows-enterprise-tls` 没有在 GitHub 上跑过。② `SSL_CERT_DIR` 仍是替换语义；MCP 服务器配置里 `ssl_verify` 的字符串若恰与 `SSL_CERT_FILE` 相同，会被读成环境证书包。③ 前端 Next 服务对 models.dev 的请求不带 `NODE_USE_SYSTEM_CA`（开关值只存在 server 数据库，桌面端的 Rust 拉起时不可知），未改。④ `bridge.py` 有 3 个改动之前就有的 mypy 报错没动。 |
+| **代码位置** | harness：`infra/tls_compat.py`、`infra/tls_error_signals.py`；server：`app/channels/providers/whatsapp/bridge.py`；公开文档：安全架构页中英；见 harness 158。 |
+
 ## 2026-10-31 · 打开「企业网络兼容」后，委托 CLI/ACP 后端的子进程与受管 npm 安装仍用 Node 内置根证书，受管 Node 20.14.0 不认系统证书开关；设置说明少写了「同时信任本机证书库」
 
 | 字段 | 内容 |
@@ -48,7 +59,7 @@
 | **症状** | [实测，macOS] 受管 Node 钉在 v20.14.0，它不认 `NODE_USE_SYSTEM_CA`（`--use-system-ca` 报 bad option，`tls.getCACertificates` 未定义）；委托 CLI/ACP 后端子进程的环境与 npm 安装子进程的环境里没有该变量；httpx2 只接受 `SSL_CERT_FILE` 给出的 CA；设置说明（六种语言）与 server 设置描述只写了「放宽严格校验」。 |
 | **行为变化** | ① 设置打开时，委托 CLI/ACP 后端子进程与受管 npm 安装子进程的环境带 `NODE_USE_SYSTEM_CA=1`（配置里自己写了该变量则保留它的值，严格时不加）。② 受管 Node 升到 v24.22.2（真实下载：默认根证书 118 → 129，npm 11.19.1）。③ 设置说明（六种语言）与 server 设置描述写明「也信任本机证书库」。④ 公开文档的安全架构页（中英）同步：连接远程 MCP 服务器只读 `SSL_CERT_FILE`；Node 覆盖面与版本要求。⑤ 新增 CI 作业 `windows-enterprise-tls`。 |
 | **回归证据** | harness 156 的 [2]–[5]：8 个变异全被杀；Windows 作业的 7 个文件 214 通过；宽套件 10361 通过（另有 30 个 `tests/infra/tracing` 失败，本机缺 OTLP 导出包，与本次无关）。 |
-| **仍然存在** | ① `windows-enterprise-tls` 没有在 GitHub 上跑过；真实检查代理没测，没有让真实 CLI 经代理跑过。② 没覆盖：用户经 bash 工具运行的 Node 命令、委托 CLI 的登录子进程、Node 以外的 MCP 子进程、httpx2。③ Windows 上受管工具链不可用，委托 CLI 用宿主 PATH 里的 `node`。 |
+| **仍然存在** | ① `windows-enterprise-tls` 没有在 GitHub 上跑过；真实检查代理没测，没有让真实 CLI 经代理跑过。② 没覆盖：用户经 bash 工具运行的 Node 命令、委托 CLI 的登录子进程、Node 以外的 MCP 子进程；httpx2 的原因与处理见 harness BUG-HARNESS-2026-10-31-158。③ Windows 上受管工具链不可用，委托 CLI 用宿主 PATH 里的 `node`。 |
 | **代码位置** | harness：`infra/tls_compat.py`、`toolkits/mcp/placeholders.py`、`toolkits/acp/runtime/_base.py`、`toolkits/acp/toolchains/manager.py`；server：`app/schemas/config.py`；前端：`locales/*.json`；见 harness 156。 |
 
 ## 2026-10-31 · 打开「企业网络兼容」并给出企业根证书后，标准库网络调用、aiohttp 默认会话、`requests` 与 Node 类 MCP 服务器仍报证书错误：这几类客户端各持一份自己的上下文入口

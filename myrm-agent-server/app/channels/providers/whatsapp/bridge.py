@@ -6,9 +6,11 @@ operations without bloating the main channel module.
 
 [INPUT]
 - helpers::_BRIDGE_DIR, _BRIDGE_SCRIPT, _PROCESS_STOP_TIMEOUT (POS: path constants)
+- infra.tls_compat::with_node_system_ca (POS: Enterprise TLS compatibility)
 
 [OUTPUT]
-- BridgeProcessMixin: subprocess spawn, IPC read/write, graceful shutdown
+- BridgeProcessMixin: subprocess spawn, IPC read/write, graceful shutdown; the npm install and the bridge are Node
+  processes, so both read the operating system's certificate store while the enterprise network setting is on
 
 [POS]
 Bridge process management. WhatsAppChannel inherits spawn/read/write/kill via Mixin;
@@ -28,6 +30,7 @@ import sys
 import time
 from pathlib import Path
 
+from myrm_agent_harness.infra.tls_compat import with_node_system_ca
 from myrm_agent_harness.utils.os_compat import SIGKILL
 
 from app.channels.providers.whatsapp.helpers import (
@@ -105,6 +108,7 @@ class BridgeProcessMixin:
             "install",
             "--production",
             cwd=str(_BRIDGE_DIR),
+            env=with_node_system_ca(os.environ.copy()),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -192,6 +196,7 @@ class BridgeProcessMixin:
             "ALL_PROXY",
         ]:
             env.pop(key, None)
+        env = with_node_system_ca(env)
 
         self._process = await asyncio.create_subprocess_exec(
             node_bin,

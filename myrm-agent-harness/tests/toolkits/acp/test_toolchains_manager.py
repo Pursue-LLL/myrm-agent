@@ -30,8 +30,9 @@ class TestBackendNpmMap:
 
 class TestNodeVersion:
     def test_the_managed_node_honours_the_system_trust_store(self) -> None:
-        # NODE_USE_SYSTEM_CA is read by Node 22.15+ / 23.8+ only; the managed line has it from its first release.
-        assert int(NODE_VERSION.removeprefix("v").split(".")[0]) >= 24
+        # Node reads NODE_USE_SYSTEM_CA from 22.19 and, on the 24 line the managed Node is on, from 24.6.
+        major, minor = (int(part) for part in NODE_VERSION.removeprefix("v").split(".")[:2])
+        assert (major, minor) >= (24, 6)
 
 
 @pytest.fixture

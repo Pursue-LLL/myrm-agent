@@ -17,6 +17,7 @@ import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import aiohttp.connector
 import pytest
@@ -59,6 +60,22 @@ def restore_standard_tls(monkeypatch: pytest.MonkeyPatch) -> None:
 
     for name in ("MYRM_TLS_STRICT", *CA_ENV_VARS):
         monkeypatch.delenv(name, raising=False)
+
+
+def stand_in_system_trust(monkeypatch: pytest.MonkeyPatch, *roots: Path) -> None:
+    """The operating system's store holds exactly *roots* for as long as the test runs.
+
+    A plain context loaded with them stands in for the ``truststore`` one, whose contents a test can neither choose nor
+    list, so a test can tell the trust of the system apart from the trust of a bundle the environment names.
+    """
+
+    def system_store(protocol: int) -> ssl.SSLContext:
+        context = ssl.SSLContext(protocol)
+        for root in roots:
+            context.load_verify_locations(cafile=str(root))
+        return context
+
+    monkeypatch.setattr("truststore.SSLContext", system_store)
 
 
 def isolate_from_system_proxy(monkeypatch: pytest.MonkeyPatch) -> None:

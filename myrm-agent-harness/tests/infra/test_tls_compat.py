@@ -1,4 +1,4 @@
-"""Unit tests for infra/tls_compat.py: the context policy of the standard library and httpx, and the TLS error classifiers.
+"""Unit tests for infra/tls_compat.py: the context policy of the standard library and httpx.
 
 The policy rewires the TLS context builders of the whole process, so every test starts from the libraries' own
 builders and puts back whatever it found. What aiohttp, urllib3 and litellm hold is in ``test_tls_compat_libraries.py``.
@@ -20,14 +20,12 @@ from myrm_agent_harness.infra import tls_compat
 from myrm_agent_harness.infra.tls_compat import (
     apply_global_tls_relaxation,
     create_httpx_client,
-    is_tls_hard_error,
-    is_tls_transient_error,
     tls_strict_disabled,
     with_node_system_ca,
 )
 from tests.support.mcp_testkit.tls_pki import generate_inspection_chain
 from tests.support.tls_context_probe import STRICT_FLAG, der_of, is_truststore_context, loaded_cas
-from tests.support.tls_loopback import CA_ENV_VARS
+from tests.support.tls_loopback import CA_ENV_VARS, stand_in_system_trust
 
 pytestmark = pytest.mark.usefixtures("pristine_tls")
 
@@ -209,6 +207,30 @@ class TestDefaultContextPolicy:
         assert loaded_cas(ctx) == [der_of(pinned)]
         assert not ctx.verify_flags & STRICT_FLAG
 
+    def test_the_file_ssl_cert_file_names_joins_the_system_trust_wherever_it_is_passed_from(
+        self, ca_file: Path, other_ca_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stand_in_system_trust(monkeypatch, ca_file)
+        monkeypatch.setenv("SSL_CERT_FILE", str(other_ca_file))
+
+        ctx = ssl.create_default_context(cafile=str(other_ca_file))
+
+        assert set(loaded_cas(ctx)) == {der_of(ca_file), der_of(other_ca_file)}
+        assert not ctx.verify_flags & STRICT_FLAG
+
+    def test_another_pinned_file_stays_exactly_that_trust_while_ssl_cert_file_is_set(
+        self, tmp_path: Path, ca_file: Path, other_ca_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pinned_dir = tmp_path / "pinned"
+        pinned_dir.mkdir()
+        pinned = generate_inspection_chain(pinned_dir).ca_cert
+        stand_in_system_trust(monkeypatch, ca_file)
+        monkeypatch.setenv("SSL_CERT_FILE", str(other_ca_file))
+
+        ctx = ssl.create_default_context(cafile=str(pinned))
+
+        assert loaded_cas(ctx) == [der_of(pinned)]
+
     def test_pinned_ca_data_keeps_exactly_that_trust(self, ca_file: Path) -> None:
         ctx = ssl.create_default_context(cadata=ca_file.read_text())
 
@@ -272,63 +294,3 @@ class TestCreateHttpxClient:
     async def test_the_callers_verify_is_passed_through(self) -> None:
         async with create_httpx_client(verify=False) as client:
             assert isinstance(client, httpx.AsyncClient)
-
-
-class TestIsTlsHardVsTransient:
-    """Hard certificate rejections fail fast; interrupted handshakes retry."""
-
-    @pytest.mark.parametrize(
-        "msg",
-        [
-            # Real verified Python tracebacks (local socket reproduction).
-            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate",
-            "unable to get local issuer certificate",
-            "unable to verify the first certificate",
-            "hostname mismatch, certificate is not valid for 'api.example.com'",
-            "certificate has expired",
-            "ERR_TLS_CERT_ALTNAME_INVALID",
-            "BasicConstraints of CA cert not marked critical",
-            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed",
-            "self-signed certificate in certificate chain",
-            # The same wordings with another separator or apostrophe, and the codes Node and OpenSSL print alone.
-            "Error: DEPTH_ZERO_SELF_SIGNED_CERT",
-            "SELF_SIGNED_CERT_IN_CHAIN",
-            "Hostname doesn\u2019t match certificate",
-            "basic_constraints of CA cert",
-            "[SSL: CERTIFICATE_VERIFY_FAILED]",
-            "cert has expired",
-        ],
-    )
-    def test_hard_errors_fail_fast(self, msg: str) -> None:
-        assert is_tls_hard_error(msg) is True
-        assert is_tls_transient_error(msg) is False
-
-    @pytest.mark.parametrize(
-        "msg",
-        [
-            # Bun mislabel: reset mid-handshake, no certificate ever rejected.
-            "unknown certificate verification error",
-            "UNKNOWN_CERTIFICATE_VERIFICATION_ERROR",
-            # Real verified Python tracebacks (local socket reproduction).
-            "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol",
-            "[Errno 32] Broken pipe",
-            "ssl.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] handshake failure",
-        ],
-    )
-    def test_transient_errors_retryable(self, msg: str) -> None:
-        assert is_tls_transient_error(msg) is True
-        assert is_tls_hard_error(msg) is False
-
-    @pytest.mark.parametrize(
-        "msg",
-        [
-            "Connection refused",
-            "DNS resolution failed",
-            "Timeout exceeded",
-            "Rate limit exceeded",
-            "Invalid API key",
-        ],
-    )
-    def test_ignores_non_tls_errors(self, msg: str) -> None:
-        assert is_tls_transient_error(msg) is False
-        assert is_tls_hard_error(msg) is False

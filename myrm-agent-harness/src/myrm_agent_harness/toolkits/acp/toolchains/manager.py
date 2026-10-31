@@ -32,7 +32,7 @@ from myrm_agent_harness.infra.tls_compat import with_node_system_ca
 logger = logging.getLogger(__name__)
 
 TOOLCHAIN_BASE_DIR = Path.home() / ".myrm-agent" / "toolchains"
-# A release line that reads NODE_USE_SYSTEM_CA from its first release, which npm needs behind a TLS-inspection proxy.
+# Node 24.6 and later read NODE_USE_SYSTEM_CA, which npm needs behind a TLS-inspection proxy.
 NODE_VERSION = "v24.22.2"
 
 BACKEND_NPM_MAP = {

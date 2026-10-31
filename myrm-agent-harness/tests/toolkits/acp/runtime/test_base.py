@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 
 import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime._base import BaseRuntime, build_safe_env, truncate_response
 from myrm_agent_harness.toolkits.acp.types import (
+    AcpError,
     AcpErrorCode,
+    BackendType,
+    McpServerConfig,
     RuntimeConfig,
     RuntimeEvent,
     RuntimeEventType,
@@ -159,13 +163,44 @@ class TestBaseRuntime:
         assert caps.supports_streaming is True
 
 
+class _ScriptedRuntime(BaseRuntime):
+    """A runtime whose turn is the ``turn`` a test gives it; it records the sessions it was asked to cancel."""
+
+    def __init__(self, name: str, config: RuntimeConfig, backend_type: BackendType) -> None:
+        super().__init__(name, config, backend_type)
+        self.cancel_calls: list[str] = []
+
+    def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
+        raise NotImplementedError
+
+    async def _do_run_turn(
+        self,
+        prompt: str,
+        session_id: str,
+        *,
+        mcp_servers: list[McpServerConfig] | None = None,
+        images: list[str] | None = None,
+    ) -> AsyncGenerator[RuntimeEvent]:
+        async for event in self.turn(session_id):
+            yield event
+
+    async def _do_cancel(self, session_id: str) -> None:
+        self.cancel_calls.append(session_id)
+
+
+def _error_of(events: list[RuntimeEvent]) -> AcpError:
+    error = next(e for e in events if e.type == RuntimeEventType.ERROR).data["error"]
+    assert isinstance(error, AcpError)
+    return error
+
+
 class TestBaseRuntimeTimeout:
     """Tests for BaseRuntime timeout control in run_turn."""
 
     @pytest.mark.asyncio
     async def test_timeout_yields_error_event(self) -> None:
-        class _SlowRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
+        class _SlowRuntime(_ScriptedRuntime):
+            async def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="start")
                 await asyncio.sleep(100)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="never")
@@ -182,14 +217,14 @@ class TestBaseRuntimeTimeout:
         types = [e.type for e in events]
         assert RuntimeEventType.TEXT_DELTA in types
         assert RuntimeEventType.ERROR in types
-        error_event = next(e for e in events if e.type == RuntimeEventType.ERROR)
-        assert error_event.data["error"].code == AcpErrorCode.TIMEOUT
-        assert error_event.data["error"].retryable is True
+        error = _error_of(events)
+        assert error.code == AcpErrorCode.TIMEOUT
+        assert error.retryable is True
 
     @pytest.mark.asyncio
     async def test_runtime_exception_yields_error_event(self) -> None:
-        class _BrokenRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
+        class _BrokenRuntime(_ScriptedRuntime):
+            async def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="before")
                 raise RuntimeError("kaboom")
 
@@ -201,24 +236,17 @@ class TestBaseRuntimeTimeout:
         types = [e.type for e in events]
         assert RuntimeEventType.TEXT_DELTA in types
         assert RuntimeEventType.ERROR in types
-        error_event = next(e for e in events if e.type == RuntimeEventType.ERROR)
-        assert error_event.data["error"].code == AcpErrorCode.UNKNOWN
-        assert "kaboom" in error_event.data["error"].message
+        error = _error_of(events)
+        assert error.code == AcpErrorCode.UNKNOWN
+        assert "kaboom" in error.message
 
     @pytest.mark.asyncio
     async def test_timeout_cancels_process(self) -> None:
-        class _SlowRuntime(BaseRuntime):
-            def __init__(self, *args: object, **kwargs: object) -> None:
-                super().__init__(*args, **kwargs)
-                self.cancel_calls: list[str] = []
-
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
+        class _SlowRuntime(_ScriptedRuntime):
+            async def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="start")
                 await asyncio.sleep(100)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="never")
-
-            async def _do_cancel(self, session_id: str) -> None:
-                self.cancel_calls.append(session_id)
 
         rt = _SlowRuntime(
             "slow-rt",
@@ -231,17 +259,10 @@ class TestBaseRuntimeTimeout:
 
     @pytest.mark.asyncio
     async def test_runtime_exception_cancels_process(self) -> None:
-        class _BrokenRuntime(BaseRuntime):
-            def __init__(self, *args: object, **kwargs: object) -> None:
-                super().__init__(*args, **kwargs)
-                self.cancel_calls: list[str] = []
-
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
+        class _BrokenRuntime(_ScriptedRuntime):
+            async def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="before")
                 raise RuntimeError("kaboom")
-
-            async def _do_cancel(self, session_id: str) -> None:
-                self.cancel_calls.append(session_id)
 
         rt = _BrokenRuntime("broken", RuntimeConfig(backend_type="cli", command="x"), "cli")
         _ = [e async for e in rt.run_turn("hello", "s1")]
@@ -254,8 +275,8 @@ class TestBaseRuntimeStreamTruncation:
 
     @pytest.mark.asyncio
     async def test_truncation_stops_text_but_passes_non_text(self) -> None:
-        class _VerboseRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
+        class _VerboseRuntime(_ScriptedRuntime):
+            async def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="x" * 30_000)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="x" * 30_000)
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="should be dropped")
@@ -270,16 +291,16 @@ class TestBaseRuntimeStreamTruncation:
 
         types = [e.type for e in events]
         text_events = [e for e in events if e.type == RuntimeEventType.TEXT_DELTA]
-        assert any("[truncated" in e.data.get("content", "") for e in text_events)
+        assert any("[truncated" in str(e.data.get("content", "")) for e in text_events)
         assert RuntimeEventType.TOOL_START in types
         assert RuntimeEventType.DONE in types
-        normal_text = [e for e in text_events if "[truncated" not in e.data.get("content", "")]
+        normal_text = [e for e in text_events if "[truncated" not in str(e.data.get("content", ""))]
         assert len(normal_text) == 1
 
     @pytest.mark.asyncio
     async def test_cancelled_error_propagated(self) -> None:
-        class _CancelledRuntime(BaseRuntime):
-            async def _do_run_turn(self, prompt, session_id, *, mcp_servers=None, images=None):
+        class _CancelledRuntime(_ScriptedRuntime):
+            async def turn(self, session_id: str) -> AsyncGenerator[RuntimeEvent]:
                 yield create_event(RuntimeEventType.TEXT_DELTA, session_id, content="start")
                 raise asyncio.CancelledError
 

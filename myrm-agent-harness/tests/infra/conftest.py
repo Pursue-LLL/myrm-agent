@@ -6,13 +6,12 @@ runs; ``usefixtures`` alone would order it after the autouse ones.
 
 from __future__ import annotations
 
-import ssl
 from pathlib import Path
 
 import pytest
 
 from tests.support.mcp_testkit.tls_pki import generate_inspection_chain
-from tests.support.tls_loopback import restore_standard_tls
+from tests.support.tls_loopback import restore_standard_tls, stand_in_system_trust
 
 
 @pytest.fixture
@@ -27,6 +26,14 @@ def ca_file(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def other_ca_file(tmp_path: Path) -> Path:
+    """A CA other than ``ca_file``'s."""
+    directory = tmp_path / "other"
+    directory.mkdir()
+    return generate_inspection_chain(directory).ca_cert
+
+
+@pytest.fixture
 def inspectable_system_trust(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stand a plain context in for the system-store one, whose loaded CAs cannot be listed (``get_ca_certs`` raises)."""
-    monkeypatch.setattr("truststore.SSLContext", ssl.SSLContext)
+    stand_in_system_trust(monkeypatch)
