@@ -12,7 +12,8 @@ bot movement protection, and allowed-channel enforcement.
 
 [POS]
 Voice follow-user orchestration. Automatically tracks configured
-Discord users across voice channels with handoff and reconciliation.
+Discord users across voice channels with handoff and reconciliation;
+a failed reconciliation pass is logged and the next one runs.
 """
 
 from __future__ import annotations
@@ -87,8 +88,9 @@ class VoiceFollowManager:
         return (str(guild_id), str(channel_id)) in self._allowed_channel_set
 
     async def start_reconciliation(self) -> None:
-        """Start the periodic voice state reconciliation loop."""
-        if not self.enabled or self._reconcile_task is not None:
+        """Start the periodic voice state reconciliation loop; one that has ended is started again."""
+        task = self._reconcile_task
+        if not self.enabled or (task is not None and not task.done()):
             return
         self._reconcile_task = asyncio.get_running_loop().create_task(self._reconcile_loop(), name="voice-reconcile")
         logger.info("Voice follow reconciliation started")
@@ -216,29 +218,42 @@ class VoiceFollowManager:
             pass
 
     async def _reconcile_once(self) -> None:
-        """Single reconciliation pass via REST API to bypass stale Gateway cache."""
+        """Single reconciliation pass via REST API to bypass stale Gateway cache.
+
+        This loop is what heals missed gateway events, so a guild whose pass fails (a network error on the REST poll,
+        a join that raises) is logged and left for the next pass instead of ending the loop or skipping the guilds after it.
+        """
         if not self._follow_user_ids:
             return
 
         for guild in self._client.guilds:
-            target_channel = await self._find_followed_user_channel_rest(guild)
+            try:
+                await self._reconcile_guild(guild)
+            except Exception as e:
+                logger.warning("Voice reconciliation failed in guild %s, retrying on the next pass: %r", guild.id, e)
             if self._destroyed:
                 return
-            if target_channel:
-                await self._voice_ops.join(target_channel)
-            elif guild.id in self._followed_voice_guilds:
-                has_any = any(gid == guild.id for gid, _ in self._followed_user_channels.values())
-                if not has_any:
-                    self._followed_voice_guilds.discard(guild.id)
-                    should_leave = True
-                    if self._on_guild_leave_check:
-                        should_leave = await self._on_guild_leave_check(guild.id)
-                    if should_leave:
-                        logger.info(
-                            "Reconciliation: no followed users in guild %s, leaving",
-                            guild.name,
-                        )
-                        await self._voice_ops.leave(guild.id)
+
+    async def _reconcile_guild(self, guild: discord.Guild) -> None:
+        """Join the channel a followed user is in, or leave when no followed user remains in the guild."""
+        target_channel = await self._find_followed_user_channel_rest(guild)
+        if self._destroyed:
+            return
+        if target_channel:
+            await self._voice_ops.join(target_channel)
+        elif guild.id in self._followed_voice_guilds:
+            has_any = any(gid == guild.id for gid, _ in self._followed_user_channels.values())
+            if not has_any:
+                self._followed_voice_guilds.discard(guild.id)
+                should_leave = True
+                if self._on_guild_leave_check:
+                    should_leave = await self._on_guild_leave_check(guild.id)
+                if should_leave:
+                    logger.info(
+                        "Reconciliation: no followed users in guild %s, leaving",
+                        guild.name,
+                    )
+                    await self._voice_ops.leave(guild.id)
 
     async def _find_followed_user_channel_rest(self, guild: discord.Guild) -> discord.VoiceChannel | None:
         """Query REST API for followed users' voice state (bypasses Gateway cache)."""
