@@ -26,6 +26,7 @@ Prefix cache matches from the start of that byte stream. Anything that changes *
 |-----------------|---------------------------|
 | Wall-clock / timezone | Trailing segment on **HumanMessage** (see PROMPT_CACHE_PRACTICE §2.2) |
 | Retrieved memory brief | Middleware tail / human augmentation; SSE preview marks `injected_in_turn_prefix: false` in server `memory_brief.py` |
+| Knowledge-base snippets for this turn's question | Final **HumanMessage** tail inside an untrusted-data envelope via `proactive_pack_middleware.py`; the host retrieves them per turn and passes them in the run context, so the memory brief and the history before the final message stay byte-identical |
 | Ephemeral session deltas (LWW) | Final **HumanMessage** tail inside `<ephemeral_session_deltas>`; includes a short `<precedence>` line so deltas override stable memory on conflict (`ephemeral_delta/tail_injector.py`) |
 | Two-layer base context (cadence) | Final **HumanMessage** tail `<base_context>` via `two_layer_context_middleware.py` (Layer 2 dialectic off on live path) |
 | Tool results | Message history only; never rewrite prior turns to “refresh” memory |

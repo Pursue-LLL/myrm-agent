@@ -610,6 +610,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_stream_pump_buffer_cleanup.py` | 模块 | 泵的 300 秒延时缓冲清理（真实 `GlobalStreamRegistry`、闸门替换睡眠）：无人接替的回合清理后缓冲被移除；同 message id 下已有审批续跑换了新缓冲时，旧回合的清理不结束也不移除新缓冲，新缓冲照常收事件并结束；回合正文只进本回合缓冲，不上工作区事件流（真实订阅者收不到任何帧） |
 | `services/agent/stream_session/test_reconnect_after_resume.py` | 模块 | `try_stream_reconnect`（真实 `GlobalStreamRegistry`）：带着发起审批那个回合的 `Last-Event-ID` 重连，落在审批续跑的新缓冲上，只收到续跑事件；续跑中途断线重连只补断线期间错过的事件；缓冲已不在时答「Session expired」；没有 `Last-Event-ID` 的请求不是重连。契约锁定，不是新旧对照用例（旧代码同样通过） |
 | `services/agent/stream_session/test_orchestrator_risk_gate_order.py` | 模块 | 流式回合的风险闸门先于上下文守卫的大文本溢出落盘：含密钥的超长粘贴只得到 `risk_blocked`（响应里没有原文、命中只记一次），上下文守卫从未被调用；重新生成的补充指引单独过闸，含密钥时同样只得到 `risk_blocked`，且不并入上下文守卫与大小检查读取的提示词 |
+| `services/agent/stream_session/test_proactive_pack.py` | 模块 | 每轮知识包检索：挂载 vault 的片段按当轮问题返回（带知识库显示名），多模态问题只搜文本部分；记忆关、隐身、没挂知识库、空问题、纯图片、无匹配、vault 解析不到都不出包；检索抛错降级为无包并记 WARNING |
+| `services/agent/stream_session/test_turn_knowledge_pack_flow.py` | 模块 | 知识包走真实回合链路（真实预热协调器 + 真实 memory brief + 真实索引 vault）：聚焦预热后的第一问就带包；每问各取各的包而 brief 只建一次；缓存的 brief 与预览不含包；记忆关、隐身、resume 不出包；运行上下文经真实 harness 中间件落在末条用户消息的尾部 |
 | `services/agent/stream_session/test_orchestrator_stores_typed_paste.py` | 模块 | Web 回合里上下文守卫与入库走同一个落盘引擎：运行读的提示与库里存的提示逐字相同、指向聊天工作区永久目录里同一个文件（临时目录不存在）、`extra_data.spillover` 带相对路径与预览、文件内容与原文一致；`typed_text` 经 `launch_early_buffered_stream` 一路带到 `persist_user_message`；不超过人写文本停车线的文本，运行读到的与库里存的都是原文、不写文件 |
 | `services/chat/test_fork_carries_parked_pastes.py` | 集成 | 分叉对话带走历史里指名的粘贴文件：默认工作区聊天、沙箱聊天（落在仓库根）、父子共用目录时不复制、父文件已不在时分叉仍成功；只认永久目录里的直接子文件（`..`、绝对路径、临时目录的文件不复制，越界文件内容与粘贴不同以便看出差别）；按当年较低的限额停过的文件，今天的限额下仍被复制（复制不依赖限额） |
 | `services/agent/stream_session/test_orchestrator_resume_risk_gate.py` | 模块 | 续跑回合只筛用户键入的审批文字：驳回理由、指引与语义 DOM 审批的 `feedback` 含密钥时只得到 `risk_blocked`（响应里没有原文、上下文守卫从未被调用）；批量审批的每条文字逐一过闸，改过的工具参数不过闸；`resume_typed_texts` 对空值、畸形载荷、澄清回答与计划编辑返回空 |
@@ -687,6 +689,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_cognitive_clock_schedule.py` | 模块 | 虚拟时钟下真实协调器循环 + 唤醒心跳 + 守卫的节拍：空闲不算唤醒、间隔中途宿主挂起不拖延下一轮 T2、轮前一分钟挂起则等宽限期后重试、整个场景里 T3 只运行一次 |
 | `lifecycle/conftest.py` | 辅助 | 每个用例前后把认知时钟的进程级单例（唤醒守卫、活动感知器、暂停信号）重置为全新状态，用例之间不经全局状态互相影响 |
 | `lifecycle/test_memory_guardian_sqlite_backup.py` | 模块 | 维护周期末尾的 SQLite 热备份：对真实数据库落盘并校验、非文件库安静跳过、页拷贝脱离事件循环、失败只记 WARNING 不使周期失败 |
+| `ai_agents/general_agent/test_human_tail_mount_order.py` | 模块 | factory 里 Human 尾部中间件晚于上下文压缩挂载，顺序固定为知识包、会话覆盖 deltas、两层上下文 |
 | `ai_agents/general_agent/test_skill_tool_mount.py` | 模块 | `skill_manage` / `skill_market` 经 ToolSetupMixin 真实挂载：启用或 `/learn` 强制挂载的判定、挂载后的工具经真实创建服务落盘并在写入前拦截危险内容、撤销快照取自写入根而非轮次技能后端（轮次后端看不到该技能时，改写前的内容仍被记下）、factory 只经 tool_setup 挂载 |
 | `core/skills/test_draft_skill_name.py` | 模块 | `slugify_draft_skill_name`：技能名成为目录名的各种写法（空格、连续空白、结尾句号、首尾空白、首尾连字符、非 ASCII 字母、路径、NUL、Kelvin 符号、超长、清洗后什么都不剩、空名字）各一例；对敌意输入逐一确认结果恒为一个由 `a-zA-Z0-9_-` 组成、不超过 64 字符的目录项名 |
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |

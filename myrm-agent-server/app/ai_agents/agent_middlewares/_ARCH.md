@@ -26,8 +26,9 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 |------|------|------|
 | `workspace_rules_middleware` | `myrm_agent_harness.agent.workspace_rules` | Workspace 上下文注入（实时读取项目规则文件，沙箱快照按对话线程取一次，KV Cache 位置优化） |
 | `memory_context_middleware` | `myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware` | Stable：`<user_memory_context>` SystemMessage；Learned：`<<<UNTRUSTED_DATA>>>` HumanMessage（wrap_untrusted，对齐 SecurityBoundary）；Stable+Learned 共享统一预算 |
+| `proactive_pack_middleware` | `myrm_agent_harness.agent.middlewares.memory_context.proactive_pack_middleware` | 当轮知识包：把 server 按问题检索的片段（运行上下文键 `PROACTIVE_PACK_CONTEXT_KEY`）包成不可信数据信封，追加到最后一条 HumanMessage 的尾部；随记忆开关（无 memory manager 或 `RecallMode.TOOLS` 不注入）；不写入线程，不动 System 与此前历史；工厂里先于会话覆盖 deltas 挂载 |
 
-`__init__.py` 从框架层导入 `memory_context_middleware` 并统一导出。`workspace_rules_middleware` 由 `GeneralAgent` 直接从框架层导入。
+`__init__.py` 从框架层导入 `memory_context_middleware`、`ephemeral_delta_middleware`、`two_layer_context_middleware`、`proactive_pack_middleware` 与 `PROACTIVE_PACK_CONTEXT_KEY` 并统一导出。`workspace_rules_middleware` 由 `GeneralAgent` 直接从框架层导入。
 
 ## 中间件注入顺序
 
@@ -39,6 +40,7 @@ workspace_context (工作区规则与沙箱快照, 同对话线程稳定) ← KV
 project_roadmap (项目路线图, 同项目稳定)       ← KV Cache ✅
 Stable `<user_memory_context>` (System, 同用户稳定) ← KV Cache ✅；可选 Learned(`<<<UNTRUSTED_DATA>>>` Human advisory)
 对话消息...                                   ← 每轮变化
+当轮最后一条用户消息的尾部：知识包片段 → 会话覆盖 deltas ← 只改这一条，此前内容逐字节不变
 ```
 
 ---
