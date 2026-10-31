@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import logging
 import mimetypes
@@ -175,16 +176,24 @@ class SkillsService:
 
         return skill
 
-    async def get_local_skill_by_name(self, name: str) -> Skill | None:
+    async def get_local_skill_by_dir_name(self, name: str) -> Skill | None:
         """The local skill kept in the primary skills directory under ``name``, ``None`` when there is none.
 
         Directory names are not held to the skill-name convention, so only a name that is more than one path
-        component is refused: it can never reach outside the directory.
+        component is refused: it can never reach outside the directory. A name longer than a directory entry can be
+        is no skill either; any other file system error is raised, because the growth lifecycle takes a missing skill
+        for one that is not locked.
         """
         if not name or name == ".." or Path(name).name != name:
             return None
         skill_dir = skill_creation_service.base_path / name
-        if not (skill_dir / SKILL_MD_FILE).is_file():
+        try:
+            has_skill_md = (skill_dir / SKILL_MD_FILE).is_file()
+        except OSError as exc:
+            if exc.errno != errno.ENAMETOOLONG:
+                raise
+            return None
+        if not has_skill_md:
             return None
         return await self.get_skill(compute_local_skill_id(skill_dir))
 

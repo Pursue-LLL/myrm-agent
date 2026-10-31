@@ -5,7 +5,8 @@
 - tests.api.evolution.conftest (POS: shared store, integration and client wiring, and the real local scan of a skill directory)
 [OUTPUT]
 - Tests that /derive and /fix take a local skill's name as its reference even when the skill has no evolution row,
-  and that the lookup by name never leaves the primary local skills directory.
+  and that the lookup by name never leaves the primary local skills directory, finds no skill for a name no directory
+  can have, and does not turn an unreadable directory into a missing skill.
 [POS]
 The growth audit names a skill only by the name its draft carried, and most local skills (made in chat, placed by hand)
 have no evolution row yet, so a name has to reach the Skills page skill itself: a locked skill is refused without being
@@ -15,6 +16,7 @@ another key is the one evolved. Page skills come from the real local scan, so th
 
 from __future__ import annotations
 
+import errno
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -159,16 +161,58 @@ async def test_a_skill_directory_is_found_by_its_name_whatever_its_spelling(
     write_skill(skills_root, dir_name)
     page = _known_page(evolution, skills_root / dir_name)
 
-    assert await skills_service.get_local_skill_by_name(dir_name) == page
+    assert await skills_service.get_local_skill_by_dir_name(dir_name) == page
 
 
 @pytest.mark.parametrize("name", ["..", "group/inner", ""])
-async def test_a_name_that_leaves_the_skills_directory_is_no_skill(
+async def test_a_name_that_is_not_one_directory_below_the_skills_directory_is_no_skill(
     skills_root: Path, evolution: SimpleNamespace, name: str
 ) -> None:
     (skills_root.parent / "SKILL.md").write_text(UNLOCKED, encoding="utf-8")
     write_skill(skills_root, "group/inner")
+    (skills_root / "SKILL.md").write_text(UNLOCKED, encoding="utf-8")
     for directory in (skills_root.parent, skills_root, skills_root / "group" / "inner"):
         _known_page(evolution, directory)
 
-    assert await skills_service.get_local_skill_by_name(name) is None
+    assert await skills_service.get_local_skill_by_dir_name(name) is None
+
+
+@pytest.mark.parametrize("length", [256, 300])
+async def test_a_name_longer_than_a_directory_name_can_be_is_no_skill(
+    skills_root: Path, evolution: SimpleNamespace, length: int
+) -> None:
+    write_skill(skills_root, "demo")
+
+    assert await skills_service.get_local_skill_by_dir_name("a" * length) is None
+
+
+@pytest.mark.parametrize(("endpoint", "body"), ENDPOINTS)
+async def test_a_reference_longer_than_a_directory_name_can_be_is_not_found(
+    client: AsyncClient,
+    store: SkillStore,
+    skills_root: Path,
+    evolution: SimpleNamespace,
+    endpoint: str,
+    body: dict[str, object],
+) -> None:
+    write_skill(skills_root, "demo")
+    publish_pages(evolution, skills_root)
+
+    response = await client.post(f"/api/v1/evolution/{endpoint}/{'a' * 300}", json=body)
+
+    assert response.status_code == 404
+    assert store.get_active_skills() == []
+
+
+async def test_an_unreadable_skills_directory_is_an_error_and_not_a_missing_skill(
+    skills_root: Path, evolution: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_skill(skills_root, "demo", locked=True)
+
+    def deny(self: Path, *, follow_symlinks: bool = True) -> bool:
+        raise PermissionError(errno.EACCES, "Permission denied", str(self))
+
+    with monkeypatch.context() as patched:
+        patched.setattr(Path, "is_file", deny)
+        with pytest.raises(PermissionError):
+            await skills_service.get_local_skill_by_dir_name("demo")

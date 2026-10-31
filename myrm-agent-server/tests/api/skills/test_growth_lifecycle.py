@@ -424,6 +424,25 @@ async def test_failed_auto_apply_keeps_the_error_out_of_the_skill_description(mo
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("result_type", "reason_code"), [("skill_patch", None), ("skill_draft", "apply_failed")], ids=["patch", "draft"]
+)
+async def test_a_skill_name_longer_than_a_directory_name_can_be_is_recorded_not_dropped(
+    mock_local_skills_dir: Path, result_type: str, reason_code: str | None
+) -> None:
+    result = {**_skill_draft("a" * 300, steps="1. Build the report."), "type": result_type, "content": "1. Build the report."}
+
+    draft = await process_skill_review_result(result)
+
+    assert draft is not None
+    detail = await get_skill_growth_case_detail(f"draft:{draft.id}")
+    assert detail is not None
+    assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert detail.reason_code == reason_code
+    assert list(mock_local_skills_dir.iterdir()) == []
+
+
+@pytest.mark.asyncio
 async def test_auto_applied_skill_notifies_the_user_exactly_once(mock_local_skills_dir: Path) -> None:
     bus = MagicMock()
     with (

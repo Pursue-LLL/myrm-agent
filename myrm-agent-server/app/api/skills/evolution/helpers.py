@@ -57,7 +57,7 @@ async def _require_evolvable_record(skill_ref: str) -> SkillRecord:
         page_skill = await skills_service.get_skill(skill_ref)
         records = find_evolution_records(store, skill_ref, page_skill)
         if not records and page_skill is None:
-            page_skill = await skills_service.get_local_skill_by_name(skill_ref)
+            page_skill = await skills_service.get_local_skill_by_dir_name(skill_ref)
             records = find_evolution_records(store, skill_ref, page_skill) if page_skill is not None else []
         record = records[0] if records else None
         if record is None and page_skill is not None:

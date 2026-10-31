@@ -100,7 +100,7 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
         logger.warning("Skill growth lifecycle skipped: missing skill_name")
         return None
 
-    existing_skill = await skills_service.get_local_skill_by_name(skill_name)
+    existing_skill = await skills_service.get_local_skill_by_dir_name(skill_name)
     is_locked = existing_skill is not None and existing_skill.evolution_locked
 
     if is_locked:
