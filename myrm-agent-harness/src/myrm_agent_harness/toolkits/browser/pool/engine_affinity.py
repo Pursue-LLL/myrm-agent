@@ -30,6 +30,8 @@ import os
 import time
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 if TYPE_CHECKING:
     from .config import BrowserEngine
 
@@ -41,8 +43,7 @@ _MAX_ENTRIES = 500
 
 
 def _store_path() -> str:
-    data_dir = os.environ.get("MYRM_DATA_DIR", os.path.expanduser("~/.myrm"))
-    return os.path.join(data_dir, "browser", "engine_affinity.json")
+    return str(resolve_data_dir() / "browser" / "engine_affinity.json")
 
 
 class EngineAffinityStore:

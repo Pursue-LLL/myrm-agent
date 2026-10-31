@@ -32,6 +32,8 @@ import logging
 import os
 from pathlib import Path
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 logger = logging.getLogger(__name__)
 
 COMPRESSION_MAGIC_PREFIX = b"\x1f\x8b"
@@ -39,9 +41,13 @@ DEFAULT_COMPRESSION_THRESHOLD = 100 * 1024
 BLOB_POINTER_PREFIX = "blob://"
 
 
-def externalize_payload(
-    data: str | bytes, *, threshold: int = 4096, blob_dir: str | Path = "~/.myrm/blobs"
-) -> str | bytes:
+def _blob_root(blob_dir: str | Path | None) -> Path:
+    """The blob directory: the caller's choice, else ``<state root>/blobs``."""
+    root = Path(blob_dir).expanduser() if blob_dir is not None else resolve_data_dir() / "blobs"
+    return root.resolve()
+
+
+def externalize_payload(data: str | bytes, *, threshold: int = 4096, blob_dir: str | Path | None = None) -> str | bytes:
     """Compress and externalize large payloads to the local file system.
 
     If the data exceeds the threshold, it is compressed (gzip) and written to
@@ -51,7 +57,7 @@ def externalize_payload(
     Args:
         data: Text or binary data to externalize.
         threshold: Minimum size in bytes to trigger externalization.
-        blob_dir: Directory to store the externalized blobs.
+        blob_dir: Directory to store the externalized blobs (default: ``<state root>/blobs``).
 
     Returns:
         The original data if below threshold, or a blob pointer string.
@@ -61,7 +67,7 @@ def externalize_payload(
     if len(raw_bytes) < threshold:
         return data
 
-    blob_path_dir = Path(blob_dir).expanduser().resolve()
+    blob_path_dir = _blob_root(blob_dir)
     blob_path_dir.mkdir(parents=True, exist_ok=True)
 
     # Use SHA-256 hash of the content as the filename
@@ -80,7 +86,7 @@ def externalize_payload(
     return f"{BLOB_POINTER_PREFIX}{content_hash}"
 
 
-def internalize_payload(data: str | bytes, *, blob_dir: str | Path = "~/.myrm/blobs") -> str:
+def internalize_payload(data: str | bytes, *, blob_dir: str | Path | None = None) -> str:
     """Restore an externalized payload from the file system.
 
     If the data is a blob pointer, it reads the corresponding file from `blob_dir`,
@@ -88,14 +94,14 @@ def internalize_payload(data: str | bytes, *, blob_dir: str | Path = "~/.myrm/bl
 
     Args:
         data: The payload data (could be a blob pointer or actual content).
-        blob_dir: Directory where the blobs are stored.
+        blob_dir: Directory where the blobs are stored (default: ``<state root>/blobs``).
 
     Returns:
         The restored string content.
     """
     if isinstance(data, str) and data.startswith(BLOB_POINTER_PREFIX):
         content_hash = data[len(BLOB_POINTER_PREFIX) :]
-        blob_file_path = Path(blob_dir).expanduser().resolve() / f"{content_hash}.gz"
+        blob_file_path = _blob_root(blob_dir) / f"{content_hash}.gz"
 
         if not blob_file_path.exists():
             logger.error("Blob file not found: %s", blob_file_path)

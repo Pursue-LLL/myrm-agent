@@ -27,10 +27,11 @@ from myrm_agent_harness.backends.skills.scanning.scanner import (
     ScanResult,
     ScanSeverity,
 )
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CACHE_DIR = Path.home() / ".myrm" / "skill_scans"
+_DEFAULT_CACHE_DIR = resolve_data_dir() / "skill_scans"
 _DEFAULT_TTL_DAYS = 60
 
 

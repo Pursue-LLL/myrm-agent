@@ -362,9 +362,9 @@ def test_get_workspace_root_local_default(tmp_path: Path, monkeypatch: pytest.Mo
     from app.api.files import evicted as evicted_module
 
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
-    default_ws = tmp_path / ".myrm" / "workspace"
+    default_ws = tmp_path / "workspace"
     default_ws.mkdir(parents=True)
-    monkeypatch.setattr(evicted_module.os.path, "expanduser", lambda _p: str(tmp_path))
+    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(evicted_module, "is_local_mode", lambda: True)
 
     assert evicted_module._get_workspace_root() == str(default_ws)

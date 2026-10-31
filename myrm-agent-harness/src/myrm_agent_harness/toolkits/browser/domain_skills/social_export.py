@@ -26,6 +26,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ def _resolve_export_dir(output_dir: str | Path | None = None) -> Path:
     if os.path.exists("/workspace"):
         p = Path("/workspace/exports")
     else:
-        p = Path.home() / ".myrm" / "exports"
+        p = resolve_data_dir() / "exports"
 
     p.mkdir(parents=True, exist_ok=True)
     return p

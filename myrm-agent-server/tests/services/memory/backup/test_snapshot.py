@@ -223,16 +223,21 @@ def test_encode_decode_round_trips_the_snapshot() -> None:
     assert decode_snapshot(encode_snapshot(snapshot)) == snapshot
 
 
+def _gz(data: bytes) -> bytes:
+    """Compress with a fixed header: the bytes are parametrize ids, and a clock-dependent id splits xdist workers."""
+    return gzip.compress(data, mtime=0)
+
+
 @pytest.mark.parametrize(
     ("payload", "message"),
     [
         (b"not gzip at all", "corrupt"),
-        (gzip.compress(b"{truncated"), "corrupt"),
-        (gzip.compress(b"[1, 2, 3]"), "Unsupported backup format version: None"),
-        (gzip.compress(json.dumps({"version": 2, "collections": {}}).encode()), "Unsupported backup format version: 2"),
-        (gzip.compress(json.dumps({"version": 3, "memories": {}}).encode()), "invalid structure"),
+        (_gz(b"{truncated"), "corrupt"),
+        (_gz(b"[1, 2, 3]"), "Unsupported backup format version: None"),
+        (_gz(json.dumps({"version": 2, "collections": {}}).encode()), "Unsupported backup format version: 2"),
+        (_gz(json.dumps({"version": 3, "memories": {}}).encode()), "invalid structure"),
         (
-            gzip.compress(json.dumps({"version": 3, "created_at": "2026-10-13T00:00:00Z", "memories": {"claim": []}}).encode()),
+            _gz(json.dumps({"version": 3, "created_at": "2026-10-13T00:00:00Z", "memories": {"claim": []}}).encode()),
             "invalid structure",
         ),
     ],

@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +30,7 @@ if TYPE_CHECKING:
     from app.services.companion.pet_atlas import AtlasReport
 
 import httpx
+from myrm_agent_harness.api import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +60,6 @@ class InstalledPet:
     @property
     def exists(self) -> bool:
         return self.spritesheet.is_file()
-
-
-def resolve_data_dir() -> Path:
-    raw = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if raw:
-        return Path(raw).expanduser().resolve()
-    return Path.home() / ".myrm"
 
 
 def pets_dir() -> Path:
@@ -339,7 +332,6 @@ __all__ = [
     "list_installed_pets",
     "load_pet",
     "pets_dir",
-    "resolve_data_dir",
     "spritesheet_media_type",
     "uninstall_pet",
 ]

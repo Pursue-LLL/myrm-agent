@@ -480,17 +480,12 @@ def test_get_workspace_root_uses_local_default_when_available(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    home = tmp_path / "home"
-    workspace = home / ".myrm" / "workspace"
+    data_dir = tmp_path / "state"
+    workspace = data_dir / "workspace"
     workspace.mkdir(parents=True)
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
-    with (
-        patch.object(wechat_official_module, "is_local_mode", return_value=True),
-        patch(
-            "app.api.channels.wechat_official.os.path.expanduser",
-            return_value=str(home),
-        ),
-    ):
+    monkeypatch.setenv("MYRM_DATA_DIR", str(data_dir))
+    with patch.object(wechat_official_module, "is_local_mode", return_value=True):
         assert wechat_official_module._get_workspace_root() == str(workspace)
 
 
@@ -498,16 +493,13 @@ def test_collect_allowed_workspace_roots_includes_harness_in_local_mode(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    home = tmp_path / "home"
-    harness = home / ".myrm" / "harness" / "workspaces"
+    data_dir = tmp_path / "state"
+    harness = data_dir / "harness" / "workspaces"
     harness.mkdir(parents=True)
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
+    monkeypatch.setenv("MYRM_DATA_DIR", str(data_dir))
     with (
         patch.object(wechat_official_module, "is_local_mode", return_value=True),
-        patch(
-            "app.api.channels.wechat_official.os.path.expanduser",
-            return_value=str(home),
-        ),
         patch("app.api.channels.wechat_official._get_workspace_root", return_value=None),
     ):
         roots = wechat_official_module._collect_allowed_workspace_roots()

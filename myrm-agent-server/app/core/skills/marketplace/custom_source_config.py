@@ -16,18 +16,16 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+from myrm_agent_harness.api import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
 
 def _get_config_path() -> Path:
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir).expanduser().resolve() / "skill_sources.json"
-    return Path.home() / ".myrm" / "skill_sources.json"
+    return resolve_data_dir().resolve() / "skill_sources.json"
 
 
 @dataclass(frozen=True)

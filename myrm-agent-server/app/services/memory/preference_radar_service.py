@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
+from myrm_agent_harness.api import resolve_data_dir
 from myrm_agent_harness.toolkits.memory import (
     DynamicPreferenceFitter,
     DynamicPreferenceVector,
@@ -61,11 +62,7 @@ class PreferenceRadarService:
             candidate_dir = None
 
         if candidate_dir is None:
-            data_dir = os.environ.get("MYRM_DATA_DIR")
-            if data_dir:
-                candidate_dir = Path(data_dir).expanduser().resolve() / "harness" / ".memories"
-            else:
-                candidate_dir = Path.home() / ".myrm" / "memories"
+            candidate_dir = resolve_data_dir().resolve() / "harness" / ".memories"
 
         try:
             candidate_dir.mkdir(parents=True, exist_ok=True)

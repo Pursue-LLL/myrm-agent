@@ -23,9 +23,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 from pathlib import Path
+
+from myrm_agent_harness.infra.data_dir import resolve_workspace_state_dir
 
 from .types import DomainSkillManifest, DomainTool
 
@@ -98,12 +99,7 @@ class DomainSkillStore:
     def _resolve_user_dir(path: str | Path | None) -> Path:
         if path is not None:
             return Path(path)
-        data_dir = os.environ.get("MYRM_DATA_DIR", "")
-        if data_dir:
-            return Path(data_dir) / "domain_skills"
-        if os.path.exists("/workspace/"):
-            return Path("/workspace/.myrm/domain_skills")
-        return Path.home() / ".myrm" / "domain_skills"
+        return resolve_workspace_state_dir() / "domain_skills"
 
     def _load_directory(self, directory: Path) -> None:
         """Load all manifest.json files under *directory* (one level deep)."""

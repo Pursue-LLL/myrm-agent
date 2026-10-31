@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Literal
 
 from myrm_agent_harness.agent.skills.curator import CuratorRunResult, SkillCurator
+from myrm_agent_harness.api import resolve_data_dir
 from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
 from myrm_agent_harness.backends.skills.skill_doctor import evaluate_skill_health_findings
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
@@ -76,8 +77,8 @@ def _get_sweep_lock() -> asyncio.Lock:
 
 
 def _get_data_dir() -> Path:
-    """Get the myrm data directory (~/.myrm)."""
-    data_dir = Path.home() / ".myrm"
+    """Get the Myrm state directory, creating it when missing."""
+    data_dir = resolve_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 

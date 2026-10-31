@@ -13,9 +13,9 @@ Factory for creating file snapshot store instances with automatic git detection.
 from __future__ import annotations
 
 import asyncio
-import os
 from pathlib import Path
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .local_store import LocalFileSnapshotStore
@@ -27,10 +27,7 @@ logger = get_agent_logger(__name__)
 
 def _default_store_base() -> Path:
     """Resolve the base directory for file snapshot storage."""
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir) / "file_snapshots"
-    return Path.home() / ".myrm" / "file_snapshots"
+    return resolve_data_dir() / "file_snapshots"
 
 
 async def _detect_git() -> bool:

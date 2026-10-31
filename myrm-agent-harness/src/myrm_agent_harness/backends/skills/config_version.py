@@ -16,26 +16,19 @@ API workers and long-lived agents in the same sandbox share invalidation state.
 from __future__ import annotations
 
 import logging
-import os
 import time
 from pathlib import Path
 
 from myrm_agent_harness.infra.atomic_write import atomic_write
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
 _VERSION_FILENAME = ".skill_config_version"
 
 
-def _resolve_myrm_data_root() -> Path:
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir).expanduser().resolve()
-    return Path.home() / ".myrm"
-
-
 def _version_path() -> Path:
-    return _resolve_myrm_data_root() / _VERSION_FILENAME
+    return resolve_data_dir().resolve() / _VERSION_FILENAME
 
 
 def bump_skill_config_version() -> None:

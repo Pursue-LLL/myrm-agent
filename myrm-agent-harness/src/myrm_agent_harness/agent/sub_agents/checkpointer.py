@@ -65,6 +65,8 @@ from langgraph.checkpoint.base import (
 )
 from langgraph.checkpoint.memory import InMemorySaver
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 if TYPE_CHECKING:
     import aiosqlite
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -88,12 +90,7 @@ def resolve_subagent_checkpoint_db_path() -> str:
     if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("TESTING") == "1":
         return ":memory:"
 
-    data_dir = os.environ.get("MYRM_DATA_DIR")
-    if data_dir:
-        return str(Path(data_dir) / "subagent_checkpoints.sqlite")
-
-    default_dir = Path.home() / ".myrm" / "data"
-    return str(default_dir / "subagent_checkpoints.sqlite")
+    return str(resolve_data_dir() / "subagent_checkpoints.sqlite")
 
 
 class SubagentSqliteCheckpointer(BaseCheckpointSaver[str]):

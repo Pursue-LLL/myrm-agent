@@ -22,6 +22,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
+from myrm_agent_harness.api import resolve_data_dir
 
 from app.config.deploy_mode import is_local_mode
 from app.database.dto import ChatCreate
@@ -50,7 +51,7 @@ def _resolve_evicted_write_roots(workspace_dir: str) -> list[Path]:
         if candidate.is_dir() and candidate not in roots:
             roots.append(candidate)
     if is_local_mode():
-        default = Path.home() / ".myrm" / "workspace"
+        default = resolve_data_dir() / "workspace"
         if default.is_dir() and default not in roots:
             roots.append(default)
     return roots

@@ -60,6 +60,8 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "resolve_git_branch": ("myrm_agent_harness.infra.git", "resolve_git_branch"),
     "resolve_git_metadata": ("myrm_agent_harness.infra.git", "resolve_git_metadata"),
     "GitMetadata": ("myrm_agent_harness.infra.git", "GitMetadata"),
+    "resolve_data_dir": ("myrm_agent_harness.infra.data_dir", "resolve_data_dir"),
+    "resolve_workspace_state_dir": ("myrm_agent_harness.infra.data_dir", "resolve_workspace_state_dir"),
     "ExternalSecretResolutionError": ("myrm_agent_harness.backends.secrets", "ExternalSecretResolutionError"),
     "invalidate_external_secret": ("myrm_agent_harness.backends.secrets", "invalidate_external_secret"),
     "is_external_secret_reference": ("myrm_agent_harness.backends.secrets", "is_external_secret_reference"),

@@ -23,6 +23,7 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.observability.diagnostics.desktop_probe import check_desktop_permissions_health
 from myrm_agent_harness.observability.diagnostics.manager import DIAGNOSTIC_HOOK_TIMEOUT_S, register_diagnostic
 from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
@@ -121,8 +122,7 @@ async def check_network_health() -> HealthReport:
 
 async def check_workspace_storage_health() -> HealthReport:
     """Test read/write permissions and SQLite responsiveness in the data directory."""
-    data_dir = os.environ.get("MYRM_DATA_DIR", str(Path.home() / ".myrm"))
-    workspace_path = Path(data_dir)
+    workspace_path = resolve_data_dir()
 
     try:
         workspace_path.mkdir(parents=True, exist_ok=True)
@@ -196,11 +196,11 @@ async def check_workspace_storage_health() -> HealthReport:
         )
 
 
-def _check_fts5_indexes(data_dir: str) -> str:
+def _check_fts5_indexes(data_dir: Path) -> str:
     """Best-effort FTS5 integrity check for wiki_index.db. Returns status string."""
     from myrm_agent_harness.utils.db.fts5 import fts5_integrity_check, fts5_rebuild
 
-    workspace_dir = os.environ.get("MYRM_WORKSPACE_DIR", data_dir)
+    workspace_dir = os.environ.get("MYRM_WORKSPACE_DIR") or data_dir
     wiki_db = Path(workspace_dir) / "wiki" / ".wiki_index.db"
     if not wiki_db.exists():
         return ""
@@ -227,8 +227,8 @@ async def check_database_health() -> HealthReport:
         validate_sqlite_header,
     )
 
-    data_dir = os.environ.get("MYRM_DATA_DIR", str(Path.home() / ".myrm"))
-    db_path = Path(data_dir) / "data.db"
+    data_dir = resolve_data_dir()
+    db_path = data_dir / "data.db"
 
     try:
         # Cheap O(1) file-level guards: non-DB file / torn-write truncation.

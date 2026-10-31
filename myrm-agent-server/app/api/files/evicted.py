@@ -22,6 +22,7 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.api import resolve_data_dir
 from myrm_agent_harness.api.hooks import (
     EVICTED_BASENAME_PATTERN,
     normalize_delivery_chat_id,
@@ -124,10 +125,9 @@ def _get_workspace_root() -> str | None:
         return workspace
 
     if is_local_mode():
-        home = os.path.expanduser("~")
-        default_workspace = os.path.join(home, ".myrm", "workspace")
-        if os.path.isdir(default_workspace):
-            return default_workspace
+        default_workspace = resolve_data_dir() / "workspace"
+        if default_workspace.is_dir():
+            return str(default_workspace)
 
     return None
 

@@ -42,6 +42,8 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | `infra/test_tls_compat.py` | 单元 | 企业网络兼容的上下文策略，标准库与 httpx 一侧：开关值解析；安装只在关闭严格时发生且不重复包装；默认上下文信任系统证书库且验证保持开启；环境变量给出的 CA 追加信任、不可读或缺失的文件跳过并告警；显式 CA 文件、目录或数据保持原样信任（`SSL_CERT_FILE` 指向的那个文件除外：httpx、httpx2、litellm 自己读它再当 CA 文件传入，它仍是环境给出的证书包，与系统证书库并存；`SSL_CERT_FILE` 已设置时，另一个显式文件仍只信它自己）；服务端用途不动；系统证书库不可用时退回标准信任；开关关回去后新上下文不再放宽；安装后 `httpx.create_ssl_context` 取系统证书库；`create_httpx_client` 透传参数；子进程的 Node 信任变量 `with_node_system_ca`（开关打开才加、调用方的值优先、Windows 上名字大小写不敏感、不改调用方的字典）；夹具与上下文探查辅助来自 `infra/conftest.py`、`support/tls_context_probe.py` 与 `support/tls_loopback.py`（`stand_in_system_trust` 把指定的根放进系统证书库的替身） |
 | `infra/test_tls_error_signals.py` | 单元 | 硬证书信号与瞬时握手信号表：被拒的证书链（Python / OpenSSL 严格模式、Bun / Node 措辞、主机名或 altname 不符、过期）判为硬错误、不重试，被中断的握手判为瞬时、可重试，两者互斥（有硬信号时一律按硬错误），非 TLS 错误两者皆否 |
 | `infra/test_tls_compat_libraries.py` | 单元 | 同一策略在各第三方库一侧：urllib3 的构造函数与它实例化的上下文类都带上策略（系统证书库、环境 CA、去严格标志），持有构造函数的每个 urllib3 模块都被改绑、包外的同名绑定不动；`urllib.request` / `http.client` 用的 https 默认入口指向策略，宿主自己替换过的不动；aiohttp 默认上下文重建，aiohttp 未导入时不去导入，缺少内部构造函数时告警不报错；各库被策略伸手进去的内部（aiohttp 默认上下文与构造函数、urllib3 的类与构造函数、标准库 https 默认入口、litellm 上下文缓存）各有契约用例，发布改动它们时先红 |
+| `infra/test_data_dir.py` | 单元 | 状态根解析入口 `resolve_data_dir()`：默认 `~/.myrm`、`MYRM_DATA_DIR` 重定位（含 `~` 展开与首尾空白）、空白值回落默认、解析时不创建目录、每次调用都重新读环境变量；沙箱感知入口 `resolve_workspace_state_dir()` 的优先级（显式根 > 沙箱 `/workspace/.myrm` > 默认根） |
+| `infra/test_state_paths_isolated.py` | 单元 | 进程拥有独立状态根时，十三处默认状态路径（域指标、站点经验、域技能、文件快照三处、技能配置版本、共享 venv、存储根、引擎亲和、急停状态、记忆 blob 两处）都落在状态根内，且不在另一档案的主目录里创建任何东西；与服务端 `test_state_paths_follow_data_dir.py`（守源码文本）互补，这里跑真实代码 |
 
 ## Test file placement
 

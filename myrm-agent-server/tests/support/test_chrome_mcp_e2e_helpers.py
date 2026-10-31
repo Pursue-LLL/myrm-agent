@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.support import chrome_mcp_e2e
 from tests.support.chrome_mcp_e2e import (
     _APP_LAYOUT_READY_JS,
     _SETTINGS_LAYOUT_READY_JS,
@@ -19,6 +20,7 @@ from tests.support.chrome_mcp_e2e import (
     _open_page_parallel_budgets,
     _page_shell_ready_js_for_url,
     _shared_read_parallel_open_page_retry_allowed,
+    navigate_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -56,7 +58,7 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     reload_block = source.split("def reload_mcp_page", 1)[1].split("\ndef ", 1)[0]
     assert "client.reload" in reload_block
     assert "_reapply_shpoib_runtime_after_reload" in reload_block
-    assert "MYRM_E2E_ISOLATED" in reload_block
+    assert "_is_isolated_stack()" in reload_block
     assert reload_block.index("client.reload") < reload_block.index("_reapply_shpoib_runtime_after_reload")
 
 
@@ -869,3 +871,35 @@ def test_warm_heal_guard_launch_force_before_debounced_call() -> None:
     block = text[start : start + 900]
     assert "launch_force_blocks_frontend_heal" in block
     assert block.index("launch_force_blocks_frontend_heal") < block.index("heal_shared_frontend_debounced")
+
+
+class TestNavigateMcpPage:
+    """An isolated stack navigates directly; only a shared stack with a private binding rebinds the page."""
+
+    _TARGET = "http://127.0.0.1:3000/kanban"
+
+    def test_an_isolated_stack_navigates_without_rebinding(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MYRM_E2E_ISOLATED", "1")
+        monkeypatch.setattr(chrome_mcp_e2e, "e2e_runtime_binding", lambda: {"runtimeId": "private"})
+        rebind = MagicMock()
+        monkeypatch.setattr(chrome_mcp_e2e, "_reapply_shpoib_runtime_after_reload", rebind)
+        client = MagicMock()
+
+        navigate_mcp_page(client, "page", self._TARGET, timeout_ms=5000)
+
+        client.navigate.assert_called_once_with("page", self._TARGET, timeout_ms=5000)
+        client.evaluate.assert_not_called()
+        rebind.assert_not_called()
+
+    def test_a_shared_stack_with_a_private_binding_rebinds_the_page(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("MYRM_E2E_ISOLATED", raising=False)
+        monkeypatch.setattr(chrome_mcp_e2e, "e2e_runtime_binding", lambda: {"runtimeId": "private"})
+        rebind = MagicMock()
+        monkeypatch.setattr(chrome_mcp_e2e, "_reapply_shpoib_runtime_after_reload", rebind)
+        client = MagicMock()
+
+        navigate_mcp_page(client, "page", self._TARGET, timeout_ms=5000)
+
+        rebind.assert_called_once()
+        assert rebind.call_args.kwargs["target_url"] == self._TARGET
+        client.navigate.assert_not_called()

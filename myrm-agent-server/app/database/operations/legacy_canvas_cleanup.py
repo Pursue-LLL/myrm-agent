@@ -4,7 +4,7 @@
 (none — leaf utility)
 
 [OUTPUT]
-- remove_retired_canvas_data_dir: delete ~/.myrm/canvas if present
+- remove_retired_canvas_data_dir: delete <state root>/canvas if present
 
 [POS]
 Filesystem companion to ``DROP TABLE IF EXISTS canvas`` in migrations.py.
@@ -15,16 +15,15 @@ from __future__ import annotations
 
 import logging
 import shutil
-from pathlib import Path
+
+from myrm_agent_harness.api import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
-RETIRED_CANVAS_DATA_DIR = Path.home() / ".myrm" / "canvas"
-
 
 def remove_retired_canvas_data_dir() -> None:
-    """Delete legacy tldraw snapshot directory under ``~/.myrm/canvas/`` when present."""
-    target = RETIRED_CANVAS_DATA_DIR
+    """Delete the legacy tldraw snapshot directory ``<state root>/canvas/`` when present."""
+    target = resolve_data_dir() / "canvas"
     if not target.exists():
         return
     try:

@@ -23,12 +23,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 from threading import Lock
+
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +59,6 @@ _INACTIVE = EStopState(level=EStopLevel.NONE, reason="", activated_at=0.0, activ
 _LEGACY_CWD_STATE_FILE = Path(".estop_state.json")
 
 
-def _resolve_myrm_data_root() -> Path:
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir).expanduser().resolve()
-    return Path.home() / ".myrm"
-
-
 class EStopGuard:
     """Global emergency stop guard with JSON persistence.
 
@@ -81,7 +75,7 @@ class EStopGuard:
 
     @staticmethod
     def _default_path() -> Path:
-        return _resolve_myrm_data_root() / ".estop_state.json"
+        return resolve_data_dir().resolve() / ".estop_state.json"
 
     def _migrate_legacy_cwd_state(self) -> None:
         """Copy active legacy CWD state into the canonical data-dir path."""

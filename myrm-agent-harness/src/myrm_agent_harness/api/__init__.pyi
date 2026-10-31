@@ -317,6 +317,12 @@ from myrm_agent_harness.eval.assertions import (
 from myrm_agent_harness.eval.contracts import (
     evaluate_five_contract_progress as evaluate_five_contract_progress,
 )
+from myrm_agent_harness.infra.data_dir import (
+    resolve_data_dir as resolve_data_dir,
+)
+from myrm_agent_harness.infra.data_dir import (
+    resolve_workspace_state_dir as resolve_workspace_state_dir,
+)
 from myrm_agent_harness.infra.git import (
     GitMetadata as GitMetadata,
 )

@@ -24,6 +24,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.api import resolve_data_dir
+
 from app.channels.core.exceptions import ChannelAuthError
 
 if TYPE_CHECKING:
@@ -35,11 +37,8 @@ _CRYPTO_STORE_DIR_NAME = "matrix"
 
 
 def get_store_dir() -> Path:
-    """Resolve the crypto store directory based on environment."""
-    import os
-
-    base = Path(os.environ.get("MYRM_DATA_DIR", Path.home() / ".myrm"))
-    return base / _CRYPTO_STORE_DIR_NAME
+    """Resolve the crypto store directory under the Myrm state root."""
+    return resolve_data_dir() / _CRYPTO_STORE_DIR_NAME
 
 
 def create_aiohttp_session(proxy: str = "") -> aiohttp.ClientSession:

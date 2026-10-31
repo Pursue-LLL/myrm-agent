@@ -24,13 +24,14 @@ from myrm_agent_harness.agent.skills.market.static_index.types import (
     StaticSkillItem,
 )
 from myrm_agent_harness.backends.skills.market_protocols import SkillSearchResult
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_STATIC_INDEX_URL = "https://cdn.myrm.ai/skills/skills-index.json.gz"
 DEFAULT_CACHE_TTL_SECONDS = 6 * 3600  # 6 hours
-DEFAULT_LOCAL_CACHE_DIR = Path.home() / ".myrm" / "cache"
+DEFAULT_LOCAL_CACHE_DIR = resolve_data_dir() / "cache"
 
 
 class StaticSkillsIndexManager:

@@ -20,6 +20,8 @@ import json
 import logging
 from pathlib import Path
 
+from myrm_agent_harness.api import resolve_data_dir
+
 logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 4096
@@ -29,11 +31,8 @@ _PROCESS_STOP_TIMEOUT = 10
 
 
 def _default_auth_dir() -> Path:
-    """MYRM_DATA_DIR/whatsapp_auth — consistent with other user data."""
-    import os
-
-    data_dir = os.environ.get("MYRM_DATA_DIR", str(Path.home() / ".myrm"))
-    return Path(data_dir) / "whatsapp_auth"
+    """<state root>/whatsapp_auth — consistent with other user data."""
+    return resolve_data_dir() / "whatsapp_auth"
 
 
 def _prefer_pn_jid(primary: str, alt: object) -> str:

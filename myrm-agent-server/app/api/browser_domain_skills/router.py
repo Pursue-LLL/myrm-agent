@@ -16,10 +16,10 @@ from __future__ import annotations
 import json
 import logging
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException
+from myrm_agent_harness.api import resolve_workspace_state_dir
 from pydantic import BaseModel, Field, model_validator
 
 if TYPE_CHECKING:
@@ -152,7 +152,6 @@ async def distill_domain_skill(req: DistillSkillRequest) -> DomainSkillResponse:
     The frontend presents the agent's discovered pattern, the user confirms,
     and the skill is persisted to the user data directory.
     """
-    import os
 
     from myrm_agent_harness.toolkits.browser.domain_skills import (
         DomainSkillManifest,
@@ -168,11 +167,7 @@ async def distill_domain_skill(req: DistillSkillRequest) -> DomainSkillResponse:
             detail=f"Domain skill '{req.skill_id}' already exists. Delete first to replace.",
         )
 
-    data_dir = os.environ.get("MYRM_DATA_DIR", "")
-    if data_dir:
-        user_skills_dir = Path(data_dir) / "domain_skills"
-    else:
-        user_skills_dir = Path.home() / ".myrm" / "domain_skills"
+    user_skills_dir = resolve_workspace_state_dir() / "domain_skills"
 
     skill_dir = user_skills_dir / req.skill_id
     tools_dir = skill_dir / "tools"

@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.toolkits.memory._internal.hash_utils import NormalizationLevel
 from myrm_agent_harness.toolkits.memory.strategies.forgetting import ForgettingConfig
 from myrm_agent_harness.toolkits.memory.threshold_strategy import (
@@ -320,7 +321,7 @@ class DeduplicationParams:
         adaptive_capacity: Enable adaptive capacity management (auto-adjusts based on memory count)
         capacity_multiplier: Target cache size = memory_count * multiplier (when adaptive enabled)
         persist_hash_cache: Enable hash cache persistence to disk for cross-instance deduplication
-        hash_cache_path: Path to persist hash cache (defaults to ~/.cache/myrm/hash_cache.json)
+        hash_cache_path: Path to persist hash cache (defaults to <state root>/cache/hash_cache.json)
         warmup_cache: Enable embedding cache warmup on initialization (preloads recent memories)
         warmup_limit: Number of recent memories to preload into embedding cache
     """
@@ -459,7 +460,7 @@ class MemoryConfig:
     """Enable transparent external BLOB storage for large raw_exchange payloads."""
     blob_storage_threshold: int = 4096
     """Minimum size in bytes to trigger external BLOB storage (default 4KB)."""
-    blob_storage_path: str = "~/.myrm/blobs"
+    blob_storage_path: str = field(default_factory=lambda: str(resolve_data_dir() / "blobs"))
     """Directory path for external BLOB storage."""
     graph_sibling_limit: int = 10
     """Maximum number of graph siblings to retrieve during enrichment."""

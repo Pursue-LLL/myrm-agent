@@ -286,9 +286,9 @@ async def test_reset_subagent_checkpointer_active_connection_cleanup(tmp_path: P
 
 @pytest.mark.asyncio
 async def test_resolve_subagent_checkpoint_db_path_default():
-    """Default fallback path when no env vars are present."""
+    """Without MYRM_DATA_DIR the database sits at the same place in the default state root."""
     with patch.dict(os.environ, {}, clear=True):
-        expected = str(Path.home() / ".myrm" / "data" / "subagent_checkpoints.sqlite")
+        expected = str(Path.home() / ".myrm" / "subagent_checkpoints.sqlite")
         assert resolve_subagent_checkpoint_db_path() == expected
 
 

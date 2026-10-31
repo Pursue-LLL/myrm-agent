@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 if TYPE_CHECKING:
     from patchright.async_api import Download, Page
@@ -97,7 +98,7 @@ _FILENAME_SANITIZE_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 class DownloadConfig:
     """Download configuration."""
 
-    downloads_dir: Path = field(default_factory=lambda: Path.home() / ".myrm" / "downloads")
+    downloads_dir: Path = field(default_factory=lambda: resolve_data_dir() / "downloads")
     auto_download_pdf: bool = True
     max_file_size_mb: int = 100
     download_timeout_s: float = 60.0

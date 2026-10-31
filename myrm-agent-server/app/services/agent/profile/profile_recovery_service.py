@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
+from myrm_agent_harness.api import resolve_data_dir
 
 from app.services.agent.builtin_specs.builtin_tool_ids import (
     AGENT_BASELINE_BUILTIN_TOOLS,
@@ -114,7 +115,7 @@ class ProfileStartupRecoveryService:
         from app.core.skills.prebuilt_sync import SEEDS_DIR
 
         prebuilt_path = SEEDS_DIR / skill_id_clean / "SKILL.md"
-        local_user_skill_path = Path.home() / ".myrm" / "skills" / skill_id_clean / "SKILL.md"
+        local_user_skill_path = resolve_data_dir() / "skills" / skill_id_clean / "SKILL.md"
 
         target_file: Path | None = None
         if prebuilt_path.is_file():

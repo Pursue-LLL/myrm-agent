@@ -37,6 +37,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .shadow_git_maintenance import ShadowGitMaintenance
@@ -88,10 +89,7 @@ def _safe_path(base: Path, user_input: str) -> Path:
 
 
 def _default_store_path() -> Path:
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir) / "file_snapshots"
-    return Path.home() / ".myrm" / "file_snapshots"
+    return resolve_data_dir() / "file_snapshots"
 
 
 class ShadowGitSnapshotStore(ShadowGitMaintenance):

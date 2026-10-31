@@ -25,6 +25,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from myrm_agent_harness.api import resolve_data_dir
+
 logger = logging.getLogger(__name__)
 
 _LEGACY_MIGRATION_MARKER = ".wiki_legacy_merged"
@@ -161,7 +163,7 @@ def list_legacy_wiki_vault_paths() -> tuple[Path, ...]:
     from app.config.settings import settings
 
     state_dir = Path(settings.database.state_dir).expanduser().resolve()
-    sandbox_wiki = Path("~/.myrm/users").expanduser().resolve() / "sandbox" / "wiki"
+    sandbox_wiki = (resolve_data_dir() / "users").resolve() / "sandbox" / "wiki"
     return (state_dir / "wiki", sandbox_wiki)
 
 

@@ -60,6 +60,7 @@ from typing import TYPE_CHECKING
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.toolkits.memory._internal.hash_utils import (
     compute_normalized_hash,
 )
@@ -738,9 +739,7 @@ class SmartDeduplicator:
 
     def _get_default_cache_path(self) -> str:
         """Get default hash cache persistence path."""
-        from pathlib import Path
-
-        cache_dir = Path.home() / ".cache" / "myrm"
+        cache_dir = resolve_data_dir() / "cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
         return str(cache_dir / "hash_cache.json")
 

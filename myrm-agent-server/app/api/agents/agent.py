@@ -19,10 +19,10 @@ Agent CRUD（list/get/create/update/delete）、配置快照（GET /snapshots）
 import logging
 import os
 from math import ceil
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+from myrm_agent_harness.api import resolve_data_dir
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.agents._agent_response import (
@@ -332,7 +332,7 @@ async def upload_agent_avatar(
 
         agent_home = _meta_str(_metadata_as_mapping(agent), "home_directory")
         if not agent_home:
-            agent_home = str(Path.home() / ".myrm" / "agents" / agent_id)
+            agent_home = str(resolve_data_dir() / "agents" / agent_id)
         os.makedirs(agent_home, exist_ok=True)
 
         ext_map = {
@@ -373,7 +373,7 @@ async def get_agent_file(
 
     agent_home = _meta_str(_metadata_as_mapping(agent), "home_directory")
     if not agent_home:
-        agent_home = str(Path.home() / ".myrm" / "agents" / agent_id)
+        agent_home = str(resolve_data_dir() / "agents" / agent_id)
 
     try:
         from myrm_agent_harness.agent.security.path_security import safe_join_path

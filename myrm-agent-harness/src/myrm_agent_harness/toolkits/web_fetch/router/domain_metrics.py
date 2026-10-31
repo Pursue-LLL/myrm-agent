@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.infra.data_dir import resolve_workspace_state_dir
 from myrm_agent_harness.utils import os_compat as fcntl
 
 from ..fetchers.protocols import FetcherType
@@ -132,16 +133,12 @@ class DomainMetricsManager:
 
         Path selection priority:
         1. Explicit path parameter
-        2. Cloud sandbox: /workspace/.myrm/
-        3. Local: ~/.myrm/
+        2. ``MYRM_DATA_DIR``, then the cloud sandbox's ``/workspace/.myrm/``, then ``~/.myrm/``
         """
         if path is not None:
             return Path(path)
 
-        if os.path.exists("/workspace/"):
-            return Path("/workspace/.myrm/domain_metrics.json")
-
-        return Path.home() / ".myrm" / "domain_metrics.json"
+        return resolve_workspace_state_dir() / "domain_metrics.json"
 
     def _load_metrics(self) -> None:
         """Load domain metrics from JSON file (local file mode).

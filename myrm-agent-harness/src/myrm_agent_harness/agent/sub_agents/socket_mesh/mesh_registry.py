@@ -24,6 +24,8 @@ import sys
 import time
 from pathlib import Path
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 from .types import PeerStatus, RegistryEntry
 
 
@@ -46,7 +48,7 @@ class MeshRegistry:
             self.base_dir = Path(base_dir)
         else:
             env_dir = os.environ.get("MYRM_COMS_DIR")
-            self.base_dir = Path(env_dir) if env_dir else Path.home() / ".myrm" / "coms"
+            self.base_dir = Path(env_dir) if env_dir else resolve_data_dir() / "coms"
 
         self.stale_threshold_seconds = stale_threshold_seconds
         self.offline_threshold_seconds = offline_threshold_seconds

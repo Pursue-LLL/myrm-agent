@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from myrm_agent_harness.core.security.path import is_sensitive_file
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .types import (
@@ -42,11 +43,8 @@ logger = get_agent_logger(__name__)
 
 
 def _default_local_snapshot_path() -> Path:
-    """Resolve storage path from MYRM_DATA_DIR or home fallback."""
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir) / "file_snapshots" / "local"
-    return Path.home() / ".myrm" / "file_snapshots" / "local"
+    """Resolve the local snapshot storage path under the Myrm state root."""
+    return resolve_data_dir() / "file_snapshots" / "local"
 
 
 # Default patterns to exclude from snapshots

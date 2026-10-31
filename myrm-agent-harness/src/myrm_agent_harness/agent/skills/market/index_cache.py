@@ -21,11 +21,12 @@ from pathlib import Path
 from typing import Any
 
 from myrm_agent_harness.backends.skills.market_protocols import SkillSearchResult
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
 # Default local cache path
-_DEFAULT_CACHE_DIR = Path.home() / ".myrm" / "cache"
+_DEFAULT_CACHE_DIR = resolve_data_dir() / "cache"
 _INDEX_FILE_NAME = "skills-index.json"
 _META_FILE_NAME = "skills-index.meta.json"
 _DEFAULT_INDEX_TTL_SECONDS = 6 * 3600  # 6 Hours

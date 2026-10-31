@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from myrm_agent_harness.core.security.redact import command_preview
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.common.subprocess_guard import (
     guarded_communicate,
@@ -35,12 +36,7 @@ def _get_default_venv_path() -> Path:
     1. MYRM_DATA_DIR environment variable + /venvs
     2. ~/.myrm/venvs (default)
     """
-    import os
-
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return Path(data_dir).expanduser().resolve() / "venvs"
-    return Path.home() / ".myrm" / "venvs"
+    return resolve_data_dir().resolve() / "venvs"
 
 
 DEFAULT_SHARED_VENV_PATH = _get_default_venv_path()

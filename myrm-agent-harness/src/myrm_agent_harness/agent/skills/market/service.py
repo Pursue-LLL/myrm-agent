@@ -24,7 +24,6 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.skills.market.sanitizer import sanitize_skill_files
@@ -34,6 +33,7 @@ from myrm_agent_harness.backends.skills.market_protocols import (
 )
 from myrm_agent_harness.backends.skills.scanning import ScanFinding
 from myrm_agent_harness.backends.skills.versioning import compare_versions
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 from .file_install import install_skill_files, resolve_install_error
 from .file_uninstall import uninstall_skill
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-LOCAL_INSTALL_DIR = Path("~/.myrm/skills").expanduser()
+LOCAL_INSTALL_DIR = resolve_data_dir() / "skills"
 SEARCH_TIMEOUT = 20.0
 CACHE_MAX_ENTRIES = 100
 CACHE_TTL_SECONDS = 300

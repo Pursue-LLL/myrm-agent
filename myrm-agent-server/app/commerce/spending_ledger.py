@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from myrm_agent_harness.api import resolve_data_dir
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -56,8 +56,7 @@ class SpendingLedgerStore:
 
     def __init__(self, storage_path: str | Path | None = None) -> None:
         if storage_path is None:
-            base_dir = os.environ.get("MYRM_DATA_DIR") or os.path.expanduser("~/.myrm")
-            storage_path = Path(base_dir) / "spending_ledger.json"
+            storage_path = resolve_data_dir() / "spending_ledger.json"
         self._path: Path = Path(storage_path)
         self._entries: list[SpendingLedgerEntry] = []
         self._lock = threading.Lock()

@@ -15,9 +15,10 @@ Storage configuration module. The storage root is derived from MYRM_DATA_DIR, wh
 storage factory and by consumers that need the root directory on disk.
 """
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 
 def _get_default_storage_path() -> str:
@@ -27,10 +28,7 @@ def _get_default_storage_path() -> str:
     1. MYRM_DATA_DIR environment variable + /storage
     2. ~/.myrm/storage (default)
     """
-    data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
-    if data_dir:
-        return str(Path(data_dir).expanduser().resolve() / "storage")
-    return str(Path.home() / ".myrm" / "storage")
+    return str(resolve_data_dir().resolve() / "storage")
 
 
 @dataclass

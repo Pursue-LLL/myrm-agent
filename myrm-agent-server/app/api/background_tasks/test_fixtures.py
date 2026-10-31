@@ -23,6 +23,7 @@ from typing import Literal
 from unittest.mock import AsyncMock, patch
 
 from fastapi import APIRouter, HTTPException, Query
+from myrm_agent_harness.api import resolve_data_dir
 from myrm_agent_harness.api.hooks import INPUT_WAIT_IDLE_SECONDS
 
 from app.config.deploy_mode import is_local_mode
@@ -180,7 +181,7 @@ def _resolve_evicted_workspace_root(workspace: Path) -> Path:
         if candidate.is_dir():
             return candidate
     if is_local_mode():
-        default = Path.home() / ".myrm" / "workspace"
+        default = resolve_data_dir() / "workspace"
         if default.is_dir():
             return default
     return workspace

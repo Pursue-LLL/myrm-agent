@@ -103,7 +103,7 @@ python scripts/cli.py config validate
 **目标**：用户明确知道新配置已生效
 
 **流程**：
-1. 读取上次配置哈希（`~/.myrm-agent/config_hash`）
+1. 读取上次配置哈希（`MYRM_DATA_DIR/config_hash`，默认 `~/.myrm/config_hash`）
 2. 计算当前配置哈希（SHA256前16位）
 3. 比较哈希，输出变更摘要
 
@@ -118,7 +118,7 @@ python scripts/cli.py config validate
 **目标**：版本升级时自动迁移配置
 
 **流程**：
-1. 读取配置版本（`~/.myrm-agent/config_version`）
+1. 读取配置版本（`MYRM_DATA_DIR/config_version`，默认 `~/.myrm/config_version`）
 2. 如果版本不匹配，执行迁移规则
 3. 保存新版本号
 

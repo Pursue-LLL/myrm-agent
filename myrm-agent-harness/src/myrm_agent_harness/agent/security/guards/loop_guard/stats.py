@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 from .types import LoopKind
 
 
@@ -60,7 +62,7 @@ class LoopGuardStatsDB:
 
     def __init__(self, db_path: str | Path | None = None) -> None:
         if db_path is None:
-            default_dir = Path.home() / ".cache" / "myrm-agent-harness"
+            default_dir = resolve_data_dir() / "cache"
             default_dir.mkdir(parents=True, exist_ok=True)
             db_path = default_dir / "loop_detector_stats.db"
 

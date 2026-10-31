@@ -9,6 +9,7 @@ Infrastructure layer.
 |------|------|-------------|-------|
 | __init__.py | Package | Infrastructure layer. | — |
 | atomic_write.py | Core | Atomic file write with crash-consistency guarantee. | ✅ |
+| data_dir.py | Core | `resolve_data_dir()`: the single resolver of the Myrm state root (`$MYRM_DATA_DIR`, default `~/.myrm`). Every Myrm-owned persistent path derives from it so an isolated process never touches another process's data; enforced by `tests/architecture/test_state_paths_follow_data_dir.py`. | ✅ |
 | sqlite_backup.py | Core | SQLite hot-backup manager with integrity verification, SHA-256 checksum, quarantine, and manifest tracking; `hot_copy_database` is the standalone online page-wise copy it shares with `state_archive/`. | ✅ |
 | sqlite_backup_models.py | Core | Data models and low-level SQLite PRAGMA utilities for sqlite_backup snapshots, verification, and restore results; also the temporary-image lifecycle: an interrupted or failed backup removes its `.tmp-` image and SQLite sidecars, and each backup first sweeps images idle for more than 5 minutes (left by a killed process). | ✅ |
 | sqlite_salvage.py | Core | SQLite non-destructive B-Tree page-skipping rowid salvage engine with binary search bad page isolation, orphan session stub healing, native FTS rebuild, and deferred secondary index/view replay. | ✅ |

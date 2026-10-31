@@ -26,12 +26,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.infra.data_dir import resolve_workspace_state_dir
 
 if TYPE_CHECKING:
     from .domain_metrics import DomainMetricsManager
@@ -188,10 +189,7 @@ class SiteExperienceStore:
         if path is not None:
             return Path(path)
 
-        if os.path.exists("/workspace/"):
-            return Path("/workspace/.myrm/site_experience.json")
-
-        return Path.home() / ".myrm" / "site_experience.json"
+        return resolve_workspace_state_dir() / "site_experience.json"
 
     def _load(self) -> None:
         """Load site experience from JSON"""

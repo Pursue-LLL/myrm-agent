@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
+from myrm_agent_harness.api import resolve_data_dir
 from myrm_agent_harness.toolkits.memory.backup import BackupMetadata
 
 from app.services.memory.backup.snapshot import MemorySnapshot, decode_snapshot, encode_snapshot
@@ -39,10 +40,10 @@ class BackupNotFoundError(Exception):
 
 
 class VolumeBackupStore:
-    """Saves, lists, loads and deletes snapshots under one backup root (default ``~/.myrm/backups``)."""
+    """Saves, lists, loads and deletes snapshots under one backup root (default ``<state root>/backups``)."""
 
     def __init__(self, root: Path | None = None) -> None:
-        self._root = root or Path.home() / ".myrm" / "backups"
+        self._root = root or resolve_data_dir() / "backups"
 
     def save(self, snapshot: MemorySnapshot, description: str | None = None) -> BackupMetadata:
         created_at = datetime.now(UTC)

@@ -556,6 +556,11 @@ def _wait_for_shpoib_runtime_ready(
     )
 
 
+def _is_isolated_stack() -> bool:
+    """Isolated stacks reach their private API through Next rewrites, so a page needs no SHPOIB rebind (TAB-6b)."""
+    return os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1"
+
+
 def _reapply_shpoib_runtime_after_reload(
     client: ChromeMcpClient,
     page: McpPage,
@@ -569,8 +574,6 @@ def _reapply_shpoib_runtime_after_reload(
     api_base = get_e2e_api_url()
     bootstrap_js = e2e_runtime_bootstrap_apply_js()
     binding_source = e2e_runtime_binding_source()
-    if bootstrap_js is None and binding_source is None:
-        raise RuntimeError("SHPOIB bootstrap JS missing after reload")
     if is_e2e_signoff_runtime():
         timeout_sec = max(timeout_sec, float(SIGNOFF_SHPOIB_REBIND_WALL_SEC))
     parallel_peers = _parallel_open_page_peer_count()
@@ -703,8 +706,7 @@ def reload_mcp_page(
         client.navigate(page, target_url, timeout_ms=timeout_ms)
     else:
         client.reload(page, timeout_ms=timeout_ms)
-    # Isolated stacks use Next.js rewrites — skip expensive SHPOIB rebind (TAB-6b).
-    if e2e_runtime_binding() is not None and os.environ.get("MYRM_E2E_ISOLATED", "").strip() != "1":
+    if e2e_runtime_binding() is not None and not _is_isolated_stack():
         resolved_url = _normalize_rebind_target_url(target_url)
         if resolved_url is None:
             resolved_url = _resolve_page_target_url(client, page, timeout_sec=min(30.0, timeout_ms / 1000))
@@ -869,7 +871,13 @@ def navigate_mcp_page(
     *,
     timeout_ms: int = 90_000,
 ) -> None:
-    """Navigate preserving SHPOIB private API binding (full reload clears window globals)."""
+    """Navigate preserving SHPOIB private API binding (full reload clears window globals).
+
+    An isolated stack reaches its API through Next rewrites, so it navigates directly.
+    """
+    if _is_isolated_stack():
+        client.navigate(page, url, timeout_ms=timeout_ms)
+        return
     if e2e_runtime_binding() is not None:
         _reapply_shpoib_runtime_after_reload(
             client,
@@ -2972,9 +2980,7 @@ def wait_for_react_e2e_bridge(
             settle_outcome = _wait_for_page_load_to_settle(client, page, last, deadline=deadline)
             if settle_outcome == "stalled" and time.monotonic() < deadline:
                 _trigger_attach_frontend_heal_once()
-                _trigger_attach_client_warmup_once(
-                    page_url=target_url if isinstance(target_url, str) else None
-                )
+                _trigger_attach_client_warmup_once(page_url=target_url if isinstance(target_url, str) else None)
                 if isinstance(target_url, str) and reload_passes < max_reload_passes:
                     reload_passes += 1
                     reload_mcp_page(

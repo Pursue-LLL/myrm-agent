@@ -25,6 +25,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.infra.data_dir import resolve_data_dir
+
 if TYPE_CHECKING:
     from patchright.async_api import BrowserContext, Page
 
@@ -107,11 +109,11 @@ class RecordingManager:
         """Initialize recording manager.
 
         Args:
-            base_dir: Base directory for recordings (default: ~/.cursor/browser-logs)
+            base_dir: Base directory for recordings (default: <state root>/browser_logs)
             max_files: Maximum number of files to keep per type
         """
         if base_dir is None:
-            base_dir = Path.home() / ".cursor" / "browser-logs"
+            base_dir = resolve_data_dir() / "browser_logs"
 
         self._file_manager = FileManager(base_dir, max_files)
         self._trace_state = RecordingState()

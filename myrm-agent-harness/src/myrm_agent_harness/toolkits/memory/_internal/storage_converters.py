@@ -292,7 +292,7 @@ def doc_to_conversation(
                 internalize_payload,
             )
 
-            blob_dir = config.blob_storage_path if config else "~/.myrm/blobs"
+            blob_dir = config.blob_storage_path if config else None
             raw_exchange_value = internalize_payload(raw_data, blob_dir=blob_dir)
         else:
             is_compressed_flag = bool(meta.get("raw_exchange_compressed", False))

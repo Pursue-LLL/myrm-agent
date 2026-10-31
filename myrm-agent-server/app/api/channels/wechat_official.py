@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+from myrm_agent_harness.api import resolve_data_dir
 from pydantic import BaseModel, Field
 
 from app.api.channels.schemas import ChannelTestResponse, WeChatOfficialTestRequest
@@ -217,7 +218,7 @@ def _collect_allowed_workspace_roots() -> list[Path]:
     if primary:
         roots.append(Path(primary).resolve())
     if is_local_mode():
-        harness_workspaces = Path.home() / ".myrm" / "harness" / "workspaces"
+        harness_workspaces = resolve_data_dir() / "harness" / "workspaces"
         if harness_workspaces.is_dir():
             harness_resolved = harness_workspaces.resolve()
             if harness_resolved not in roots:
@@ -231,9 +232,9 @@ def _get_workspace_root() -> str | None:
         return workspace
 
     if is_local_mode():
-        default_workspace = os.path.join(os.path.expanduser("~"), ".myrm", "workspace")
-        if os.path.isdir(default_workspace):
-            return default_workspace
+        default_workspace = resolve_data_dir() / "workspace"
+        if default_workspace.is_dir():
+            return str(default_workspace)
 
     return None
 
