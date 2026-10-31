@@ -8,8 +8,9 @@
 [OUTPUT]
 - InboundHandler: callable the gateway registers to receive inbound messages
 - SenderGate: callable the bus registers to answer whether the access policy admits a sender
+- OwnerGate: callable the bus registers to answer whether a sender is the owner
 - DedupMode: message deduplication mode (LRU or TTL)
-- InboundPipelineMixin: ``_build_inbound`` / ``_emit_inbound`` and the pipeline stages behind them, and ``is_sender_admitted`` for work done before a message exists (a slash command, the transcription of an utterance)
+- InboundPipelineMixin: ``_build_inbound`` / ``_emit_inbound`` and the pipeline stages behind them, and ``is_sender_admitted`` / ``is_sender_owner`` for work done before a message exists (a slash command, the transcription of an utterance)
 
 [POS]
 The inbound half of BaseChannel. Providers call ``_emit_inbound`` when the platform delivers a message; the state the
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 InboundHandler = Callable[[InboundMessage], Awaitable[None]]
 SenderGate = Callable[[InboundMessage], Awaitable[bool]]
+OwnerGate = Callable[[InboundMessage], Awaitable[bool]]
 
 _DEFAULT_DEDUP_TTL = 120.0
 _DEFAULT_DEDUP_CAPACITY = 2000
@@ -67,6 +69,7 @@ class InboundPipelineMixin:
     _bot_id: str
     _inbound_handler: InboundHandler | None
     _sender_gate: SenderGate | None
+    _owner_gate: OwnerGate | None
     _seen_msg_ids: OrderedDict[str, float]
     _debounce_tasks: dict[str, asyncio.Task[None]]
     _debounce_buffers: dict[str, InboundMessage]
@@ -149,6 +152,15 @@ class InboundPipelineMixin:
         follows the sender policy of the message it stands for. Nothing wired to a policy admits no one.
         """
         return self._sender_gate is not None and await self._sender_gate(msg)
+
+    async def is_sender_owner(self, msg: InboundMessage) -> bool:
+        """Whether ``msg``'s sender is the owner, for an action that needs more than admission.
+
+        An action that acts on the owner's session rather than on the sender's own conversation (a Discord slash
+        command that moves the bot between voice channels) is for the owner alone, as a system command is. Nothing
+        wired has no owner.
+        """
+        return self._owner_gate is not None and await self._owner_gate(msg)
 
     async def _dispatch_inbound(self, msg: InboundMessage) -> None:
         """Final dispatch to the registered handler."""

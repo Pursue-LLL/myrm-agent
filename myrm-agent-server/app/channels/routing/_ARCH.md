@@ -178,7 +178,11 @@ The same verdict answers a channel that needs to know whether a sender is admitt
 transcribes an utterance): `AgentRouter.__init__` registers
 `_is_sender_admitted` on the bus (`MessageBus.set_sender_gate`) and the bus hands each registered channel a callback
 that asks it. A channel nothing is registered for admits no one.
-`tests/channels/routing/test_router_sender_gate.py` pins the registration and the fail-closed wrapper.
+An action that acts on the owner's session rather than on the sender's own conversation also asks whether the sender is
+the owner (`BaseChannel.is_sender_owner`, used by the Discord `/voice` join and leave): `AgentRouter.__init__` registers
+`_check_admin_permission`, the check owner-only commands use (an ACTIVE ADMIN pairing or a control-plane forward; an
+error denies), through `MessageBus.set_owner_gate`.
+`tests/channels/routing/test_router_sender_gate.py` pins both registrations and the fail-closed wrappers.
 
 The verdict and the resolvers read the same LID-to-phone mapping (`lid_mapped_phone` in `policy_resolver_support.py`);
 only the resolvers go on to bind it. `tests/channels/routing/test_sender_admission.py` runs both verdicts and the real

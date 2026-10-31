@@ -182,6 +182,9 @@ class _RecordingChannel:
     def set_sender_gate(self, gate: object) -> None:
         pass
 
+    def set_owner_gate(self, gate: object) -> None:
+        pass
+
     def extract_sender_locale(self, msg: InboundMessage) -> str | None:
         return None
 

@@ -35,7 +35,7 @@ from app.channels.core.allow_policy import (
     AllowPolicy,
 )
 from app.channels.core.events import EventEmitter
-from app.channels.core.inbound_pipeline import InboundHandler, InboundPipelineMixin, SenderGate
+from app.channels.core.inbound_pipeline import InboundHandler, InboundPipelineMixin, OwnerGate, SenderGate
 from app.channels.core.provider_hooks import ProviderHooksMixin
 from app.channels.core.rate_limit import (
     DISABLED_RATE_LIMIT,
@@ -164,6 +164,7 @@ class BaseChannel(InboundPipelineMixin, ReplyShortcutsMixin, ProviderHooksMixin,
         self.__connected = False
         self._inbound_handler: InboundHandler | None = None
         self._sender_gate: SenderGate | None = None
+        self._owner_gate: OwnerGate | None = None
         self.health = ChannelHealth()
         self.activity = ChannelActivity()
         self._bot_id: str = ""
@@ -266,6 +267,10 @@ class BaseChannel(InboundPipelineMixin, ReplyShortcutsMixin, ProviderHooksMixin,
     def set_sender_gate(self, gate: SenderGate) -> None:
         """Register the callback that answers whether the access policy admits a sender (set by the bus)."""
         self._sender_gate = gate
+
+    def set_owner_gate(self, gate: OwnerGate) -> None:
+        """Register the callback that answers whether a sender is the owner (set by the bus)."""
+        self._owner_gate = gate
 
     async def start_typing(self, chat_id: str) -> None:
         """Send a typing/composing indicator to the chat. Override in subclasses."""

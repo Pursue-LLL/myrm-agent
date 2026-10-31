@@ -1,7 +1,9 @@
-"""The router answers the bus's sender gate with the verdict it gives a message from that sender.
+"""The router answers the bus's sender and owner gates with the verdicts it gives a message from that sender.
 
 A channel that asks about a sender outside its inbound pipeline (a Discord slash command) must get the verdict a
-message from that sender would get: the enabled groups, the guest mode, and the owner who is always admitted.
+message from that sender would get: the enabled groups, the guest mode, and the owner who is always admitted. Who the
+owner is does not depend on the chat: an ADMIN pairing is, a MEMBER pairing or a sender the enabled chat merely admits
+is not.
 """
 
 from __future__ import annotations
@@ -37,7 +39,9 @@ def _router(bus: MessageBus, *, owner: str = "owner") -> AgentRouter:
     policy.get_guest_mode = AsyncMock(return_value=False)
 
     async def pairing_detail(channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole] | None:
-        return (PairingStatus.ACTIVE, PairingRole.ADMIN) if sender_id == owner else None
+        if sender_id == owner:
+            return (PairingStatus.ACTIVE, PairingRole.ADMIN)
+        return (PairingStatus.ACTIVE, PairingRole.MEMBER) if sender_id == "collaborator" else None
 
     pairing = MagicMock()
     pairing.get_pairing_detail = AsyncMock(side_effect=pairing_detail)
@@ -71,3 +75,37 @@ async def test_a_failing_policy_denies() -> None:
     router._resolver.is_sender_admitted = AsyncMock(side_effect=RuntimeError("policy store down"))  # type: ignore[method-assign]
 
     assert await channel.is_sender_admitted(_msg(chat_id=_ENABLED_CHAT)) is False
+
+
+async def test_the_owner_gate_answers_whether_the_sender_has_an_admin_pairing() -> None:
+    bus = MessageBus()
+    channel = _Channel()
+    _router(bus)
+    bus.register_channel(channel)
+
+    assert await channel.is_sender_owner(_msg(chat_id=_ENABLED_CHAT, sender_id="owner")) is True
+    assert await channel.is_sender_owner(_msg(chat_id="other-chat", sender_id="owner")) is True
+
+
+async def test_a_sender_the_chat_admits_or_a_member_pairing_is_not_the_owner() -> None:
+    bus = MessageBus()
+    channel = _Channel()
+    _router(bus)
+    bus.register_channel(channel)
+    stranger = _msg(chat_id=_ENABLED_CHAT)
+    collaborator = _msg(chat_id=_ENABLED_CHAT, sender_id="collaborator")
+
+    assert await channel.is_sender_admitted(stranger) is True
+    assert await channel.is_sender_admitted(collaborator) is True
+    assert await channel.is_sender_owner(stranger) is False
+    assert await channel.is_sender_owner(collaborator) is False
+
+
+async def test_a_failing_pairing_store_means_no_owner() -> None:
+    bus = MessageBus()
+    channel = _Channel()
+    bus.register_channel(channel)
+    router = _router(bus)
+    router._resolver.pairing.get_pairing_detail = AsyncMock(side_effect=RuntimeError("pairing store down"))  # type: ignore[method-assign]
+
+    assert await channel.is_sender_owner(_msg(chat_id=_ENABLED_CHAT, sender_id="owner")) is False

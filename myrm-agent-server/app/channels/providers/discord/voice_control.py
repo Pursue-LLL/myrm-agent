@@ -6,7 +6,7 @@
 - app.channels.types::InboundMessage (POS: channel message value types)
 
 [OUTPUT]
-- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission (a speaker is checked against the access policy before their audio is transcribed) and /voice command registration (the caller is checked against the access policy first) used by DiscordChannel
+- DiscordVoiceMixin: opus loading, voice manager lifecycle, join / leave / play_audio, voice-input emission (a speaker is checked against the access policy before their audio is transcribed) and /voice command registration (the caller is checked against the access policy first; every action but the read-only status also needs the owner) used by DiscordChannel
 
 [POS]
 Voice half of DiscordChannel. The host owns the gateway client and the config; the mixin drives the voice subsystem.
@@ -37,6 +37,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _VOICE_REFUSAL = "You are not allowed to use this command. Ask the bot owner to give you access."
+_VOICE_OWNER_ONLY = "Only the bot owner can make the bot join or leave a voice channel."
+# Every other action acts on the owner's voice session, not on the caller's own conversation; ``status`` only reads.
+_READ_ONLY_ACTIONS = frozenset({"status"})
 
 
 async def _reply(interaction: discord.Interaction, text: str) -> None:
@@ -202,10 +205,12 @@ class DiscordVoiceMixin(BaseChannel):
         except Exception as e:
             logger.error("Failed to auto-join voice channel %s: %s", channel_id, e)
 
-    async def _voice_command_admitted(self, interaction: discord.Interaction) -> bool:
-        """Whether the access policy admits the caller of a /voice command, as it would a message from them in that chat.
+    async def _voice_command_refusal(self, interaction: discord.Interaction, action: str) -> str | None:
+        """The refusal to answer the caller of a /voice command with, or None when they may run ``action``.
 
-        The command moves the bot without a message, so it never passes the inbound pipeline's admission.
+        The command moves the bot without a message, so it never passes the inbound pipeline's admission: the access
+        policy judges the caller as it would a message from them in that chat. Every action but the read-only status
+        also needs the owner.
         """
         sender_id = str(interaction.user.id)
         msg = self._build_inbound(
@@ -219,12 +224,24 @@ class DiscordVoiceMixin(BaseChannel):
                 "interaction_type": "slash_command",
             },
         )
-        if await self.is_sender_admitted(msg):
-            return True
-        logger.warning(
-            "Discord /voice refused for user %s in chat %s (guild %s)", sender_id, interaction.channel_id, interaction.guild_id
-        )
-        return False
+        if not await self.is_sender_admitted(msg):
+            logger.warning(
+                "Discord /voice refused for user %s in chat %s (guild %s)",
+                sender_id,
+                interaction.channel_id,
+                interaction.guild_id,
+            )
+            return _VOICE_REFUSAL
+        if action not in _READ_ONLY_ACTIONS and not await self.is_sender_owner(msg):
+            logger.warning(
+                "Discord /voice %s refused for non-owner user %s in chat %s (guild %s)",
+                action,
+                sender_id,
+                interaction.channel_id,
+                interaction.guild_id,
+            )
+            return _VOICE_OWNER_ONLY
+        return None
 
     def _register_voice_commands(self) -> None:
         """Register /voice slash commands."""
@@ -253,8 +270,9 @@ class DiscordVoiceMixin(BaseChannel):
         ) -> None:
             await interaction.response.defer(ephemeral=True)
 
-            if not await channel_self._voice_command_admitted(interaction):
-                await _reply(interaction, _VOICE_REFUSAL)
+            refusal = await channel_self._voice_command_refusal(interaction, action)
+            if refusal:
+                await _reply(interaction, refusal)
                 return
 
             if not channel_self._voice_manager:

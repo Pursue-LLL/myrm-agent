@@ -1,9 +1,11 @@
 """A channel asks the access policy about a sender outside the inbound pipeline.
 
 A platform can let a user act on the bot without sending it a message (a Discord slash command that moves the bot
-between voice channels). Such an action must follow the same sender policy as a message from that user. The bus hands
-every channel it registers a way to ask, and whatever answers (the router) is set on the bus once: a channel registered
-before or after it asks the same gate. Nothing wired, or a channel off the bus, admits no one.
+between voice channels). Such an action must follow the same sender policy as a message from that user, and one that
+acts on the owner's session rather than on the sender's own conversation also needs the sender to be the owner. The bus
+hands every channel it registers a way to ask both, and whatever answers (the router) is set on the bus once: a channel
+registered before or after it asks the same gate. Nothing wired, or a channel off the bus, admits no one and has no
+owner.
 """
 
 from __future__ import annotations
@@ -80,3 +82,65 @@ async def test_a_channel_removed_from_the_bus_admits_no_one() -> None:
     bus.unregister_channel(channel.name)
 
     assert await channel.is_sender_admitted(_msg()) is False
+
+
+async def test_a_channel_nobody_wired_has_no_owner() -> None:
+    assert await _Channel().is_sender_owner(_msg()) is False
+
+
+async def test_a_bus_without_an_owner_gate_has_no_owner() -> None:
+    bus = MessageBus()
+    channel = _Channel()
+    bus.register_channel(channel)
+
+    assert await channel.is_sender_owner(_msg()) is False
+
+
+async def test_a_registered_channel_asks_the_owner_gate_of_the_bus() -> None:
+    bus = MessageBus()
+    gate = AsyncMock(return_value=True)
+    bus.set_owner_gate(gate)
+    channel = _Channel()
+    bus.register_channel(channel)
+    msg = _msg()
+
+    assert await channel.is_sender_owner(msg) is True
+
+    gate.assert_awaited_once_with(msg)
+
+
+async def test_the_owner_gate_and_the_sender_gate_answer_their_own_question() -> None:
+    bus = MessageBus()
+    bus.set_sender_gate(AsyncMock(return_value=True))
+    bus.set_owner_gate(AsyncMock(return_value=False))
+    channel = _Channel()
+    bus.register_channel(channel)
+
+    assert await channel.is_sender_admitted(_msg()) is True
+    assert await channel.is_sender_owner(_msg()) is False
+
+    bus.set_sender_gate(AsyncMock(return_value=False))
+    bus.set_owner_gate(AsyncMock(return_value=True))
+
+    assert await channel.is_sender_admitted(_msg()) is False
+    assert await channel.is_sender_owner(_msg()) is True
+
+
+async def test_an_owner_gate_set_after_the_channel_registered_applies_to_it() -> None:
+    bus = MessageBus()
+    channel = _Channel()
+    bus.register_channel(channel)
+    bus.set_owner_gate(AsyncMock(return_value=True))
+
+    assert await channel.is_sender_owner(_msg()) is True
+
+
+async def test_a_channel_removed_from_the_bus_has_no_owner() -> None:
+    bus = MessageBus()
+    bus.set_owner_gate(AsyncMock(return_value=True))
+    channel = _Channel()
+    bus.register_channel(channel)
+
+    bus.unregister_channel(channel.name)
+
+    assert await channel.is_sender_owner(_msg()) is False

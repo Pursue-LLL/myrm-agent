@@ -164,7 +164,7 @@ class VoiceManager:
             return
         state.receiver.discard_pending()
         state.text_channel_id = text_channel_id
-        logger.info("Voice session in guild %d bound to text channel %d, undelivered speech dropped", guild_id, text_channel_id)
+        logger.info("Voice session in guild %d bound to text channel %d, receiver buffers cleared", guild_id, text_channel_id)
 
     async def join(
         self,

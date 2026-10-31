@@ -18,7 +18,7 @@ priority-based dispatch with back-pressure.
 - MessageBus.send_now() / send_tracked(): direct send that raises / returns the message id (from the dispatch mixin)
 - MessageBus.drain_outbound(): bounded wait until the queued messages are delivered (from the dispatch mixin)
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
-- MessageBus.set_sender_gate(): where the router answers a channel's question whether a sender is admitted
+- MessageBus.set_sender_gate() / set_owner_gate(): where the router answers a channel's question whether a sender is admitted / is the owner
 
 [POS]
 Message routing hub and state holder. Producers call publish_outbound; the dispatch loop (mixin) routes
@@ -44,7 +44,7 @@ from myrm_agent_harness.infra.delivery.storage import (
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.events import EventEmitter
-from app.channels.core.inbound_pipeline import SenderGate
+from app.channels.core.inbound_pipeline import OwnerGate, SenderGate
 from app.channels.core.outbound_dispatch import OutboundDispatchMixin
 from app.channels.core.outbound_prepare import apply_correlation_context, get_correlation_context
 from app.channels.reliability.durable_outbound import DurableOutboundGate
@@ -75,6 +75,7 @@ class MessageBus(OutboundDispatchMixin):
         self._inbound: asyncio.Queue[InboundMessage] | None = None
         self._channels = {}
         self._sender_gate: SenderGate | None = None
+        self._owner_gate: OwnerGate | None = None
         self._limiters = {}
         self._last_send_times = {}
         self._dispatch_task: asyncio.Task[None] | None = None
@@ -107,6 +108,7 @@ class MessageBus(OutboundDispatchMixin):
         self._limiters[channel.name] = create_limiter(channel.name)
         channel.set_inbound_handler(self._handle_inbound)
         channel.set_sender_gate(self._is_sender_admitted)
+        channel.set_owner_gate(self._is_sender_owner)
         logger.debug("Channel registered: %s", channel.name)
 
     def unregister_channel(self, name: str) -> BaseChannel | None:
@@ -117,6 +119,7 @@ class MessageBus(OutboundDispatchMixin):
         if channel:
             channel._inbound_handler = None
             channel._sender_gate = None
+            channel._owner_gate = None
             logger.debug("Channel unregistered: %s", name)
         return channel
 
@@ -126,6 +129,13 @@ class MessageBus(OutboundDispatchMixin):
 
     async def _is_sender_admitted(self, msg: InboundMessage) -> bool:
         return self._sender_gate is not None and await self._sender_gate(msg)
+
+    def set_owner_gate(self, gate: OwnerGate) -> None:
+        """Set what answers whether a sender is the owner (the router); channels ask it through the bus."""
+        self._owner_gate = gate
+
+    async def _is_sender_owner(self, msg: InboundMessage) -> bool:
+        return self._owner_gate is not None and await self._owner_gate(msg)
 
     def get_channel(self, name: str) -> BaseChannel | None:
         return self._channels.get(name)
