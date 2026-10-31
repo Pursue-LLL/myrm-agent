@@ -83,10 +83,6 @@ _UNBOUNDED_PENDING_DECISION: dict[str, tuple[int, str]] = {
         3,
         "external CLI agent: all output held in memory until `timeout_seconds`; the deadline signals only the leader",
     ),
-    "agent/meta_tools/file_ops/observers/layout_qa_observer.py": (
-        1,
-        "`soffice --convert-to pdf`: no deadline",
-    ),
     "toolkits/ssh_remote/executor.py": (
         1,
         "remote command: all output held in memory until the deadline, which does not stop the process",
