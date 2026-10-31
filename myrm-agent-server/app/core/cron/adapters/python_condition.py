@@ -50,10 +50,10 @@ logger = logging.getLogger(__name__)
 _MAX_REASON_CHARS = 300
 # Bounds the masking work on a very long line.
 _MAX_RAW_CHARS = 1000
-# A probe has no state to flush: after the deadline or a cancel, the script and what is in its process tree get this
-# long to stop on a polite signal and as long again after the forced kill, so the extra wait is at most twice this.
-# A background command that init has adopted is in no tree: it gets the group's polite signal only if the script is
-# still running, and the group kill comes when the tree stop returns, so it can wrap up only while that stop waits.
+# A probe has no state to flush: after the deadline or a cancel, the script gets this long to stop on a polite signal
+# and what is left of its process tree this long again before it is killed, so the extra wait is at most twice this.
+# On POSIX a background command that init has adopted is in no tree, so the tree stop does not wait for it: it gets the
+# group's polite signal only if the script is not yet reaped, and the group kill ends it no later than the stop returns.
 _KILL_GRACE_SECONDS = 1.0
 # What the script wrote becomes the job's prompt or its delivered text, so a script that fills this much is broken. It
 # fails the run instead of being cut: the verdict is the last line, which a cut would drop.
