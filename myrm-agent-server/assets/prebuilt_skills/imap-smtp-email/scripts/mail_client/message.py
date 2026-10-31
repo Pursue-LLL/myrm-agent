@@ -5,12 +5,14 @@
 
 [OUTPUT]
 - decode_header: RFC 2047 header text as a plain string; a malformed encoded word is returned as written
-- message_summary: uid, from, to, subject, date and message id of one message
+- message_summary: uid, from, to, subject, date and message id of one message, each a plain string even when the header
+  holds raw 8-bit bytes
 - extract_body: plain-text body, falling back to HTML; a charset Python does not know is read as UTF-8
 
 [POS]
 Pure message-parsing half of the email_manager.py facade; no network or process I/O. A message from the mailbox is
-untrusted, so one that declares a charset Python does not know or carries a malformed encoded word is still readable.
+untrusted, so one that declares a charset Python does not know, carries a malformed encoded word or holds raw 8-bit
+bytes in a header is still readable.
 """
 
 from __future__ import annotations
@@ -29,13 +31,14 @@ def _to_text(raw: bytes, charset: str | None) -> str:
         return raw.decode("utf-8", errors="replace")
 
 
-def decode_header(raw: str | None) -> str:
+def decode_header(raw: str | email.header.Header | None) -> str:
+    """Decode an RFC 2047 header value; the parser hands over a ``Header`` instead of a ``str`` for raw 8-bit bytes."""
     if not raw:
         return ""
     try:
         parts = email.header.decode_header(raw)
     except email.errors.HeaderParseError:
-        return raw
+        return str(raw)
     decoded: list[str] = []
     for part, charset in parts:
         if isinstance(part, bytes):
@@ -56,13 +59,14 @@ def _parse_date(raw: str | None) -> str:
 
 
 def message_summary(msg: email.message.Message, uid: int) -> dict[str, object]:
+    # str() because a header value with raw 8-bit bytes is a Header object, which json.dumps cannot write.
     return {
         "uid": uid,
         "from": decode_header(msg.get("From", "")),
         "to": decode_header(msg.get("To", "")),
         "subject": decode_header(msg.get("Subject", "")),
-        "date": _parse_date(msg.get("Date")),
-        "message_id": msg.get("Message-ID", ""),
+        "date": _parse_date(str(msg.get("Date", ""))),
+        "message_id": str(msg.get("Message-ID", "")),
     }
 
 

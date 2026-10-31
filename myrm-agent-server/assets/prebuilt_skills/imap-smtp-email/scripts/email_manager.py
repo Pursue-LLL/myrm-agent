@@ -256,7 +256,7 @@ def cmd_reply(args: argparse.Namespace) -> None:
 
     from_header = original.get("From", "")
     reply_to = original.get("Reply-To", from_header)
-    _, reply_addr = email.utils.parseaddr(reply_to)
+    _, reply_addr = email.utils.parseaddr(str(reply_to))  # raw 8-bit bytes make a header a Header object, not a str
     subject = decode_header(original.get("Subject", ""))
     if not subject.startswith("Re:"):
         subject = f"Re: {subject}"

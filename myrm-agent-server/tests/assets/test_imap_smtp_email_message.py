@@ -1,16 +1,18 @@
 """The imap-smtp-email skill script reads a message from the mailbox even when its charset or encoded words are unusable.
 
 A message in a mailbox is untrusted input: the sender chooses its charset names and header encoding. A charset Python
-has no codec for (``unknown-8bit``, ``x-unknown``) or an encoded word whose base64 is malformed used to end the whole
-command in a stack trace, so a single such message blinded ``check``, ``search``, ``read`` and ``reply``.
+has no codec for (``unknown-8bit``, ``x-unknown``), an encoded word whose base64 is malformed, or a header with raw
+UTF-8 bytes (the parser returns a ``Header`` object for it, not a ``str``) used to end the whole command in a stack
+trace, so a single such message blinded ``check``, ``search``, ``read`` and ``reply``.
 
 [INPUT]
 - assets/prebuilt_skills/imap-smtp-email/scripts: mail_client.message imported in process
 - tests/assets/conftest.py: the script import path
 
 [OUTPUT]
-- Fails when a header with a malformed encoded word or a body in a charset Python does not know raises instead of being
-  returned as written or read as UTF-8, or when a header or body that does decode changes
+- Fails when a header with a malformed encoded word, a header with raw UTF-8 bytes or a body in a charset Python does
+  not know raises or is not summarized as text instead of being returned as written or read as UTF-8, or when a header
+  or body that does decode changes
 
 [POS]
 Message-decoding test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which covers the
@@ -22,6 +24,7 @@ from __future__ import annotations
 import email
 import email.message
 import importlib
+import json
 from types import ModuleType
 
 import pytest
@@ -84,3 +87,35 @@ def test_a_summary_of_a_message_with_a_malformed_subject_still_lists_it(message:
     assert summary["uid"] == 7
     assert summary["from"] == "eve@example.test"
     assert summary["subject"] == "=?utf-8?b?A?="
+
+
+@pytest.mark.parametrize(
+    ("header", "value", "field", "text"),
+    [
+        pytest.param("From", "发票 <eve@example.test>", "from", "发票 <eve@example.test>", id="from"),
+        pytest.param("To", "发票 <bob@example.test>", "to", "发票 <bob@example.test>", id="to"),
+        pytest.param("Subject", "发票", "subject", "发票", id="subject"),
+        pytest.param("Date", "周一, 02 11月 2026 10:00:00 +0000", "date", None, id="date"),
+        pytest.param("Message-ID", "<发票@example.test>", "message_id", None, id="message-id"),
+    ],
+)
+def test_a_header_with_raw_utf_8_bytes_is_summarized_as_text(
+    message: ModuleType, header: str, value: str, field: str, text: str | None
+) -> None:
+    """Raw UTF-8 in a header makes the parser return a ``Header`` object, which ``check`` and ``read`` cannot print as JSON."""
+    fields = {
+        "From": "eve@example.test",
+        "To": "bob@example.test",
+        "Subject": "invoice",
+        "Date": "Mon, 02 Nov 2026 10:00:00 +0000",
+        "Message-ID": "<1@example.test>",
+        header: value,
+    }
+    raw = "".join(f"{name}: {content}\r\n" for name, content in fields.items()).encode() + b"\r\nbody\r\n"
+
+    summary = message.message_summary(email.message_from_bytes(raw), 7)
+
+    assert isinstance(summary[field], str)
+    written = json.loads(json.dumps(summary, ensure_ascii=False))
+    if text is not None:
+        assert written[field] == text

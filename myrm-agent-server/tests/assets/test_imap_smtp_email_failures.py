@@ -10,7 +10,8 @@ text), and a header value with a line break only fails inside the standard libra
 
 [OUTPUT]
 - Fails when a socket error, a refused folder, a NUL in an argument or a header value with a line break ends as a stack
-  trace instead of the JSON error, or when a message with clean headers is no longer sent
+  trace instead of the JSON error, when a message with clean headers is no longer sent, or when a reply to a sender
+  whose name is raw UTF-8 does not go to that sender's address
 
 [POS]
 In-process failure-reporting test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which
@@ -96,13 +97,18 @@ def outgoing_mail(email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(email_manager, "deliver", lambda msg, *_connection: msg.as_bytes())
 
 
+def _conn_serving(raw: bytes) -> MagicMock:
+    """An IMAP client whose UID FETCH returns the stored message *raw*."""
+    conn = _imap_client()
+    conn.uid.return_value = ("OK", [(b"1 (RFC822)", raw), b")"])
+    return conn
+
+
 def _conn_holding(subject: str | None) -> MagicMock:
     """An IMAP client whose UID FETCH returns a stored message with *subject*, if there is one."""
-    conn = _imap_client()
-    if subject is not None:
-        raw = f"From: eve@example.test\r\nSubject: {subject}\r\nMessage-ID: <1@example.test>\r\n\r\nbody\r\n".encode()
-        conn.uid.return_value = ("OK", [(b"1 (RFC822)", raw), b")"])
-    return conn
+    if subject is None:
+        return _imap_client()
+    return _conn_serving(f"From: eve@example.test\r\nSubject: {subject}\r\nMessage-ID: <1@example.test>\r\n\r\nbody\r\n".encode())
 
 
 _SEND = ["send", "--to", "bob@example.test", "--subject", "s", "--body", "b"]
@@ -151,6 +157,25 @@ def test_a_message_with_clean_headers_is_sent(
     _run_main(email_manager, monkeypatch, _conn_holding(stored_subject), *argv)
 
     assert json.loads(capsys.readouterr().out)["status"] == "sent"
+
+
+@pytest.mark.usefixtures("outgoing_mail")
+@pytest.mark.parametrize(
+    "sender_headers",
+    [
+        pytest.param("From: 发票 <a@b.test>\r\n", id="from"),
+        pytest.param("From: eve@example.test\r\nReply-To: 发票 <a@b.test>\r\n", id="reply-to"),
+    ],
+)
+def test_a_reply_goes_to_the_address_of_a_sender_whose_name_is_raw_utf_8(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], sender_headers: str
+) -> None:
+    """Raw UTF-8 in the header makes the parser return a ``Header`` object, which ``parseaddr`` cannot read as an address."""
+    raw = f"{sender_headers}Subject: invoice\r\nMessage-ID: <1@example.test>\r\n\r\nbody\r\n".encode()
+
+    _run_main(email_manager, monkeypatch, _conn_serving(raw), *_REPLY)
+
+    assert json.loads(capsys.readouterr().out)["to"] == "a@b.test"
 
 
 @pytest.mark.parametrize(
