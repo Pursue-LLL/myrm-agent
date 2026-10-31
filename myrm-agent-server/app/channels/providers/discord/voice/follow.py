@@ -13,18 +13,21 @@ bot movement protection, and allowed-channel enforcement.
 [POS]
 Voice follow-user orchestration. Automatically tracks configured
 Discord users across voice channels with handoff and reconciliation;
-a failed reconciliation pass is logged and the next one runs.
+reconciliation heals a missed join, move or leave from the REST voice
+state, and a failed pass is logged and the next one runs.
 """
 
 from __future__ import annotations
 
 import asyncio
+import enum
 import logging
 import random
 from collections.abc import Awaitable, Callable, Set
 from typing import Protocol
 
 import discord
+from discord.http import Route
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,15 @@ _RECONCILE_JITTER = 3.0
 
 # Both kinds of channel accept a voice connection, and a followed user can be in either.
 VoiceTarget = discord.VoiceChannel | discord.StageChannel
+
+
+class _Presence(enum.Enum):
+    """What one REST poll says about a followed user when it names no channel to join."""
+
+    # Discord confirmed the user is in no channel the bot follows into.
+    ABSENT = "absent"
+    # Nothing to act on: the poll failed, or the user is in a channel reconciliation cannot join (a stage channel, one not cached).
+    UNKNOWN = "unknown"
 
 
 class VoiceJoinLeave(Protocol):
@@ -132,11 +144,7 @@ class VoiceFollowManager:
                 await self._try_handoff_or_leave(guild_id)
                 return
 
-            self._followed_user_channels[user_id_str] = (
-                guild_id,
-                after.channel.id,
-            )
-            self._followed_voice_guilds.add(guild_id)
+            self._track(user_id_str, guild_id, after.channel.id)
             logger.info(
                 "Following user %s to voice channel %s in guild %d",
                 member.display_name,
@@ -175,6 +183,11 @@ class VoiceFollowManager:
                 return True
 
         return False
+
+    def _track(self, user_id: str, guild_id: int, channel_id: int) -> None:
+        """Record that a followed user is in a channel of the guild, so a later move, handoff or leave finds the record."""
+        self._followed_user_channels[user_id] = (guild_id, channel_id)
+        self._followed_voice_guilds.add(guild_id)
 
     async def _try_handoff_or_leave(self, guild_id: int) -> None:
         """Try to handoff to another followed user in the same guild, or leave."""
@@ -235,53 +248,64 @@ class VoiceFollowManager:
                 return
 
     async def _reconcile_guild(self, guild: discord.Guild) -> None:
-        """Join the channel a followed user is in, or leave when no followed user remains in the guild."""
-        target_channel = await self._find_followed_user_channel_rest(guild)
-        if self._destroyed:
-            return
-        if target_channel:
-            await self._voice_ops.join(target_channel)
-        elif guild.id in self._followed_voice_guilds:
-            has_any = any(gid == guild.id for gid, _ in self._followed_user_channels.values())
-            if not has_any:
-                self._followed_voice_guilds.discard(guild.id)
-                should_leave = True
-                if self._on_guild_leave_check:
-                    should_leave = await self._on_guild_leave_check(guild.id)
-                if should_leave:
-                    logger.info(
-                        "Reconciliation: no followed users in guild %s, leaving",
-                        guild.name,
-                    )
-                    await self._voice_ops.leave(guild.id)
+        """Bring the guild's follow state in line with what REST says.
 
-    async def _find_followed_user_channel_rest(self, guild: discord.Guild) -> discord.VoiceChannel | None:
-        """Query REST API for followed users' voice state (bypasses Gateway cache)."""
+        Joins the channel a followed user is in. Once every followed user is confirmed absent, the records the missed events
+        left behind are dropped and the bot hands off or leaves exactly as the leave event would have. An answer that is not
+        a confirmation changes nothing.
+        """
+        before = dict(self._followed_user_channels)
+        absent: list[str] = []
+        confirmed = True
         for user_id in self._follow_user_ids:
-            try:
-                data = await self._client.http.request(
-                    discord.http.Route(
-                        "GET",
-                        "/guilds/{guild_id}/voice-states/{user_id}",
-                        guild_id=guild.id,
-                        user_id=user_id,
-                    )
+            presence = await self._poll_presence(guild, user_id)
+            if self._destroyed:
+                return
+            if isinstance(presence, discord.VoiceChannel):
+                self._track(user_id, guild.id, presence.id)
+                await self._voice_ops.join(presence)
+                return
+            if presence is _Presence.ABSENT:
+                absent.append(user_id)
+            else:
+                confirmed = False
+        if not confirmed:
+            return
+
+        # A record that changed while the polls were in flight comes from an event newer than the answer, so it stays.
+        dropped = False
+        for user_id in absent:
+            record = before.get(user_id)
+            if record is not None and record[0] == guild.id and self._followed_user_channels.get(user_id) == record:
+                del self._followed_user_channels[user_id]
+                dropped = True
+        if dropped or guild.id in self._followed_voice_guilds:
+            await self._try_handoff_or_leave(guild.id)
+
+    async def _poll_presence(self, guild: discord.Guild, user_id: str) -> discord.VoiceChannel | _Presence:
+        """Query the REST API for a followed user's voice state (bypasses the Gateway cache)."""
+        try:
+            data = await self._client.http.request(
+                Route(
+                    "GET",
+                    "/guilds/{guild_id}/voice-states/{user_id}",
+                    guild_id=guild.id,
+                    user_id=user_id,
                 )
-            except discord.NotFound:
-                continue
-            except discord.HTTPException as e:
-                logger.debug("REST voice state query failed for %s: %s", user_id, e)
-                continue
+            )
+        except discord.NotFound:
+            return _Presence.ABSENT
+        except discord.HTTPException as e:
+            logger.debug("REST voice state query failed for %s: %s", user_id, e)
+            return _Presence.UNKNOWN
 
-            channel_id = data.get("channel_id")
-            if not channel_id:
-                continue
+        channel_id = data.get("channel_id")
+        if not channel_id:
+            return _Presence.ABSENT
 
-            cid = int(channel_id)
-            if not self.is_channel_allowed(guild.id, cid):
-                continue
+        cid = int(channel_id)
+        if not self.is_channel_allowed(guild.id, cid):
+            return _Presence.ABSENT
 
-            ch = guild.get_channel(cid)
-            if isinstance(ch, discord.VoiceChannel):
-                return ch
-        return None
+        channel = guild.get_channel(cid)
+        return channel if isinstance(channel, discord.VoiceChannel) else _Presence.UNKNOWN
