@@ -9,20 +9,24 @@
 - fail: print a JSON error on stdout and exit
 - get_smtp_config: SMTP host, port, user and password
 - connect_imap: logged-in IMAP4_SSL connection (RFC 2971 ID sent for 163/NetEase)
-- imap_quote: a value as an IMAP quoted string; a control character is refused because it would start another command
-- select_folder: open a mailbox, exiting with the server's reason when it refuses
-- parse_uids: a comma-separated UID list whose items are digits, optionally as ranges
-- json_errors: a failure after the connection is up becomes a JSON error instead of a stack trace
+- imap_quote: search text as an IMAP quoted string; control characters (a line break would start another command) and
+  non-ASCII text are refused
+- select_folder: open a mailbox; a name that is not ASCII, or that the server refuses, exits with a pointer to `folders`
+- parse_uids: a comma-separated UID list whose items consist only of digits, `:` and `*`
+- json_errors: a failure after the connection is up, or a message the standard library refuses to build or parse,
+  becomes a JSON error instead of a stack trace
 - deliver: send one message over SMTP (implicit TLS on 465, STARTTLS otherwise)
 
 [POS]
 Transport half of the email_manager.py facade. Every connection verifies the server certificate and times out on a
 silent server; a rejected certificate exits with a hint instead of a stack trace. Text that reaches the IMAP server is
-quoted or validated here, because imaplib joins string arguments into the command line unchecked.
+quoted or validated here, because imaplib joins string arguments into the command line unchecked and encodes them as
+ASCII.
 """
 
 from __future__ import annotations
 
+import email.errors
 import email.mime.multipart
 import imaplib
 import json
@@ -113,22 +117,33 @@ _UID_SET = re.compile(r"[0-9:*]+")
 
 
 def imap_quote(text: str) -> str:
-    """Quote *text* as an IMAP string; a control character would end the command line, so it is refused."""
+    """Quote search *text* as an IMAP string; refuse a control character (it would end the command line) and non-ASCII."""
     if _CONTROL_CHARS.search(text):
         fail("IMAP arguments must not contain control characters")
+    if not text.isascii():
+        fail(
+            "This script sends only ASCII search text to the IMAP server; "
+            "list recent messages with `check` and filter them by subject or sender yourself"
+        )
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def select_folder(conn: imaplib.IMAP4_SSL, folder: str, *, readonly: bool) -> None:
     """Open *folder*. A server that refuses it leaves the session unselected, so exit with the server's reason."""
-    status, data = conn.select(folder if _PLAIN_MAILBOX.fullmatch(folder) else imap_quote(folder), readonly=readonly)
+    if _PLAIN_MAILBOX.fullmatch(folder):
+        mailbox = folder
+    elif folder.isascii():
+        mailbox = imap_quote(folder)
+    else:
+        fail(f"Folder '{folder}' is not ASCII: use the name exactly as the `folders` command lists it")
+    status, data = conn.select(mailbox, readonly=readonly)
     if status != "OK":
         reason = data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else status
         fail(f"Mailbox '{folder}' could not be opened: {reason}. Run the `folders` command to list the available folders")
 
 
 def parse_uids(text: str) -> list[str]:
-    """Split a comma-separated UID list; every item is a UID or a UID range, never free text."""
+    """Split a comma-separated UID list. An item holds only digits, `:` and `*`, so no free text reaches the command line."""
     uids = [item.strip() for item in text.split(",") if item.strip()]
     if not uids:
         fail("At least one UID is required")
@@ -140,17 +155,14 @@ def parse_uids(text: str) -> list[str]:
 
 @contextmanager
 def json_errors(command: str) -> Iterator[None]:
-    """Turn a failure after the connection is up into the script's JSON error instead of a stack trace."""
+    """Turn a failure after the connection is up into the script's JSON error instead of a stack trace.
+
+    ``MessageError`` is what the standard library raises when it refuses to build or parse a message, for example a
+    header value that contains a line break.
+    """
     try:
         yield
-    except UnicodeEncodeError as exc:
-        if exc.encoding != "ascii":
-            raise
-        fail(
-            "This script sends only ASCII search text and folder names to the IMAP server; "
-            "list recent messages with `check` and filter them by subject or sender yourself"
-        )
-    except (imaplib.IMAP4.error, OSError) as exc:
+    except (imaplib.IMAP4.error, OSError, email.errors.MessageError) as exc:
         fail(f"Email command '{command}' failed: {exc}")
 
 

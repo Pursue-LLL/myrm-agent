@@ -4,29 +4,42 @@
 - email.message.Message objects parsed by the email_manager.py facade
 
 [OUTPUT]
-- decode_header: RFC 2047 header text as a plain string
+- decode_header: RFC 2047 header text as a plain string; a malformed encoded word is returned as written
 - message_summary: uid, from, to, subject, date and message id of one message
-- extract_body: plain-text body, falling back to HTML
+- extract_body: plain-text body, falling back to HTML; a charset Python does not know is read as UTF-8
 
 [POS]
-Pure message-parsing half of the email_manager.py facade; no network or process I/O.
+Pure message-parsing half of the email_manager.py facade; no network or process I/O. A message from the mailbox is
+untrusted, so one that declares a charset Python does not know or carries a malformed encoded word is still readable.
 """
 
 from __future__ import annotations
 
+import email.errors
 import email.header
 import email.message
 import email.utils
 
 
+def _to_text(raw: bytes, charset: str | None) -> str:
+    """Decode *raw* as *charset*; a name Python has no codec for (``unknown-8bit``, one with a NUL) is read as UTF-8."""
+    try:
+        return raw.decode(charset or "utf-8", errors="replace")
+    except (LookupError, ValueError):
+        return raw.decode("utf-8", errors="replace")
+
+
 def decode_header(raw: str | None) -> str:
     if not raw:
         return ""
-    parts = email.header.decode_header(raw)
+    try:
+        parts = email.header.decode_header(raw)
+    except email.errors.HeaderParseError:
+        return raw
     decoded: list[str] = []
     for part, charset in parts:
         if isinstance(part, bytes):
-            decoded.append(part.decode(charset or "utf-8", errors="replace"))
+            decoded.append(_to_text(part, charset))
         else:
             decoded.append(part)
     return " ".join(decoded)
@@ -57,8 +70,7 @@ def extract_body(msg: email.message.Message) -> str:
     if not msg.is_multipart():
         payload = msg.get_payload(decode=True)
         if isinstance(payload, bytes):
-            charset = msg.get_content_charset() or "utf-8"
-            return payload.decode(charset, errors="replace")
+            return _to_text(payload, msg.get_content_charset())
         return ""
 
     text_body = ""
@@ -71,8 +83,7 @@ def extract_body(msg: email.message.Message) -> str:
         payload = part.get_payload(decode=True)
         if not isinstance(payload, bytes):
             continue
-        charset = part.get_content_charset() or "utf-8"
-        decoded = payload.decode(charset, errors="replace")
+        decoded = _to_text(payload, part.get_content_charset())
         if ct == "text/plain" and not text_body:
             text_body = decoded
         elif ct == "text/html" and not html_body:

@@ -1,38 +1,32 @@
-"""The imap-smtp-email skill script sends only well-formed IMAP commands and reports every failure as JSON.
+"""The imap-smtp-email skill script sends only well-formed IMAP commands and says what it refuses.
 
 Search terms, folder names and UID lists come from the user or the model and end up inside a command line, and imaplib
 joins string arguments without quoting or validating them: a line break in any of them would start a second command.
 These tests run the script against a loopback IMAP server that records each command line it receives, so every
-assertion is on the exact lines that reached the wire. The failure paths that need a fault the server cannot produce on
-demand (a socket error after the connection is up) use an ``autospec`` double of the IMAP client in process.
+assertion is on the exact lines that reached the wire.
 
 [INPUT]
-- assets/prebuilt_skills/imap-smtp-email/scripts: email_manager.py run as a subprocess and imported
+- assets/prebuilt_skills/imap-smtp-email/scripts: email_manager.py run as a subprocess
 - tests/support/email_skill_script.py: the loopback listener and the script runner
-- tests/assets/conftest.py: the loopback certificate and the script import path
+- tests/assets/conftest.py: the loopback certificate
 
 [OUTPUT]
 - Fails when a line break or quote in a search term, folder name or UID list changes the command the server receives,
-  when a folder the server refuses is not reported with its reason, or when a failure after the connection is up
-  ends as a stack trace instead of the JSON error
+  when a refused argument is not explained, or when a folder the server refuses or a connection that drops ends as
+  anything but a JSON error with the reason
 
 [POS]
-Command-safety test of the prebuilt skill script, next to ``test_imap_smtp_email_script.py``, which covers the
-certificate handshake.
+Command-safety test of the prebuilt skill script, next to ``test_imap_smtp_email_failures.py``, which covers the
+failures only an in-process double can produce, and ``test_imap_smtp_email_script.py``, which covers the handshake.
 """
 
 from __future__ import annotations
 
-import imaplib
-import importlib
 import json
 import socket
 import ssl
 import subprocess
-import sys
 from pathlib import Path
-from types import ModuleType
-from unittest.mock import MagicMock, create_autospec
 
 import pytest
 
@@ -41,6 +35,7 @@ from tests.support.email_skill_script import run_email_script, serve_sessions
 # The connection set-up and tear-down of every run; the commands under test are what comes between.
 _HOUSEKEEPING = frozenset({"CAPABILITY", "ID", "LOGIN", "LOGOUT"})
 _INJECTED = "Z9 DELETE Archive"
+_TEXT = "<text>"  # where a test puts the argument under test in a command line
 _REFUSAL = b"[NONEXISTENT] Unknown Mailbox"
 
 
@@ -120,11 +115,33 @@ def test_a_line_break_in_an_argument_never_becomes_another_command(
     assert mailbox.commands == commands
 
 
+@pytest.mark.parametrize("separator", ["\r\n", "\r", "\n"], ids=["crlf", "cr", "lf"])
+@pytest.mark.parametrize(
+    ("template", "commands"),
+    [
+        pytest.param(["search", "--subject", _TEXT], ["EXAMINE INBOX"], id="search-text"),
+        pytest.param(["check", "--folder", _TEXT], [], id="folder"),
+        pytest.param(["mark-read", _TEXT], ["SELECT INBOX"], id="uids"),
+    ],
+)
+def test_every_kind_of_line_end_is_refused_in_each_kind_of_argument(
+    tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], template: list[str], commands: list[str], separator: str
+) -> None:
+    mailbox = _Mailbox()
+    args = [f"x{separator}y" if arg == _TEXT else arg for arg in template]
+
+    proc = _run_against(tmp_path, listener_tls, mailbox, args)
+
+    assert _error_of(proc)
+    assert mailbox.commands == commands
+
+
 @pytest.mark.parametrize(
     ("args", "commands"),
     [
         pytest.param(["check"], ["EXAMINE INBOX", "UID SEARCH (ALL)"], id="default-folder-unchanged"),
         pytest.param(["check", "--folder", "[Gmail]/Drafts"], ["EXAMINE [Gmail]/Drafts", "UID SEARCH (ALL)"], id="plain-name"),
+        pytest.param(["check", "--folder", "&XfJT0ZAB-"], ["EXAMINE &XfJT0ZAB-", "UID SEARCH (ALL)"], id="utf7-folder"),
         pytest.param(["check", "--folder", "Sent Items"], ['EXAMINE "Sent Items"', "UID SEARCH (ALL)"], id="spaced-folder"),
         pytest.param(["search", "--subject", "invoice"], ["EXAMINE INBOX", 'UID SEARCH (SUBJECT "invoice")'], id="plain-term"),
         pytest.param(
@@ -156,8 +173,13 @@ def test_arguments_reach_the_server_quoted_and_the_default_commands_are_unchange
 
 @pytest.mark.parametrize(
     ("uids", "message"),
-    [("1,abc", "Invalid UID 'abc'"), ("1,5:*x", "Invalid UID '5:*x'"), (" , ", "At least one UID is required")],
-    ids=["word", "range-with-letter", "empty"],
+    [
+        ("1,abc", "Invalid UID 'abc'"),
+        ("1,5:*x", "Invalid UID '5:*x'"),
+        ("1,\u0663", "Invalid UID '\u0663'"),
+        (" , ", "At least one UID is required"),
+    ],
+    ids=["word", "range-with-letter", "non-ascii-digit", "empty"],
 )
 def test_an_invalid_uid_list_is_refused_before_any_uid_is_sent(
     tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], uids: str, message: str
@@ -195,107 +217,29 @@ def test_a_connection_dropped_in_the_middle_of_a_command_is_a_json_error(
 
 
 @pytest.mark.parametrize(
-    ("args", "commands"),
+    ("args", "commands", "hint"),
     [
-        pytest.param(["search", "--subject", "发票"], ["EXAMINE INBOX"], id="search-term"),
-        pytest.param(["check", "--folder", "已发送"], [], id="folder"),
+        pytest.param(
+            ["search", "--subject", "发票"],
+            ["EXAMINE INBOX"],
+            "This script sends only ASCII search text to the IMAP server; list recent messages with `check` and filter them "
+            "by subject or sender yourself",
+            id="search-text",
+        ),
+        pytest.param(
+            ["check", "--folder", "已发送"],
+            [],
+            "Folder '已发送' is not ASCII: use the name exactly as the `folders` command lists it",
+            id="folder",
+        ),
     ],
 )
 def test_non_ascii_text_is_explained_instead_of_crashing(
-    tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], args: list[str], commands: list[str]
+    tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], args: list[str], commands: list[str], hint: str
 ) -> None:
     mailbox = _Mailbox()
 
     proc = _run_against(tmp_path, listener_tls, mailbox, args)
 
-    error = _error_of(proc)
-    assert "ASCII" in error
-    assert "`check`" in error
+    assert _error_of(proc) == hint
     assert mailbox.commands == commands
-
-
-@pytest.fixture
-def email_manager(skill_modules: None) -> ModuleType:
-    return importlib.import_module("email_manager")
-
-
-def _imap_client(select_result: tuple[str, list[bytes | None]] = ("OK", [b"0"])) -> MagicMock:
-    """A stand-in for the connected IMAP client whose folder selection answers *select_result*."""
-    conn: MagicMock = create_autospec(imaplib.IMAP4_SSL, instance=True)
-    conn.select.return_value = select_result
-    return conn
-
-
-def _run_main(email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, conn: MagicMock, *argv: str) -> None:
-    """Run the script's ``main`` in process against *conn* in place of a connected IMAP client."""
-    monkeypatch.setattr(email_manager, "connect_imap", lambda: conn)
-    monkeypatch.setattr(sys, "argv", ["email_manager.py", *argv])
-    email_manager.main()
-
-
-def _failure_of(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], conn: MagicMock, *argv: str
-) -> object:
-    with pytest.raises(SystemExit) as exit_info:
-        _run_main(email_manager, monkeypatch, conn, *argv)
-    assert exit_info.value.code == 1
-    return json.loads(capsys.readouterr().out)["error"]
-
-
-def test_a_socket_failure_after_the_connection_is_up_is_a_json_error(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    conn = _imap_client()
-    conn.uid.side_effect = OSError("cannot read from timed out object")
-
-    error = _failure_of(email_manager, monkeypatch, capsys, conn, "check")
-
-    assert error == "Email command 'check' failed: cannot read from timed out object"
-    conn.logout.assert_called_once_with()
-
-
-def test_an_encoding_error_that_is_not_about_ascii_text_is_not_hidden(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    conn = _imap_client()
-    conn.uid.side_effect = UnicodeEncodeError("utf-8", "\ud800", 0, 1, "surrogates not allowed")
-
-    with pytest.raises(UnicodeEncodeError):
-        _run_main(email_manager, monkeypatch, conn, "check")
-
-
-@pytest.mark.parametrize(
-    "argv",
-    [
-        ["check"],
-        ["search", "--subject", "x"],
-        ["read", "1"],
-        ["download", "1"],
-        ["reply", "--uid", "1", "--body", "b"],
-        ["mark-read", "1"],
-        ["mark-unread", "1"],
-    ],
-    ids=lambda argv: argv[0],
-)
-def test_every_command_that_opens_a_folder_reports_a_refusal(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], argv: list[str]
-) -> None:
-    conn = _imap_client(("NO", [_REFUSAL]))
-
-    error = _failure_of(email_manager, monkeypatch, capsys, conn, *argv, "--folder", "Nope")
-
-    assert (
-        error
-        == f"Mailbox 'Nope' could not be opened: {_REFUSAL.decode()}. Run the `folders` command to list the available folders"
-    )
-    conn.uid.assert_not_called()
-
-
-def test_a_refusal_without_text_is_reported_with_the_status(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    conn = _imap_client(("NO", [None]))
-
-    error = _failure_of(email_manager, monkeypatch, capsys, conn, "check", "--folder", "Nope")
-
-    assert str(error).startswith("Mailbox 'Nope' could not be opened: NO. ")

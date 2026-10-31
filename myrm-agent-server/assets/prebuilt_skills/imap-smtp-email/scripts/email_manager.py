@@ -10,7 +10,7 @@
 - mail_client.message: MIME header, date, summary and body decoding
 
 [OUTPUT]
-- JSON on stdout for all CLI subcommands, including failures (exit code 1 with {"error": ...})
+- JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. This file holds the
