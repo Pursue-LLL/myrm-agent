@@ -6,6 +6,7 @@
 - agent.sub_agents.registry::SUBAGENT_CONFIGS (POS: Subagent 配置注册表)
 - langchain.agents.middleware::wrap_tool_call (POS: 工具调用中间件装饰器)
 - langchain.agents.middleware::ToolCallRequest (POS: 工具调用请求)
+- langchain.agents.middleware::AgentMiddleware, AgentState (POS: 中间件工厂的返回类型)
 
 [OUTPUT]
 - create_concurrency_limiter: 创建并发限制中间件的工厂函数
@@ -21,7 +22,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 
-from langchain.agents.middleware import ToolCallRequest, wrap_tool_call
+from langchain.agents.middleware import AgentMiddleware, AgentState, ToolCallRequest, wrap_tool_call
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
@@ -52,7 +53,7 @@ def get_subagent_semaphore(agent_type: str) -> asyncio.Semaphore | None:
     return sem
 
 
-def create_concurrency_limiter():
+def create_concurrency_limiter() -> AgentMiddleware[AgentState[object], None, object]:
     """Create concurrency limiter middleware for subagent operations.
 
     Automatically detects tools with 'agent_type' parameter and applies
@@ -62,11 +63,11 @@ def create_concurrency_limiter():
         Middleware function that limits concurrent subagent execution per type.
     """
 
-    @wrap_tool_call  # type: ignore[arg-type]
+    @wrap_tool_call
     async def concurrency_limiter_middleware(
         request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
-    ) -> ToolMessage | Command:
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[object]]],
+    ) -> ToolMessage | Command[object]:
         """Limit concurrent execution for subagent spawn operations."""
         raw_args = request.tool_call.get("args")
         tool_args: dict[str, object] = raw_args if isinstance(raw_args, dict) else {}
