@@ -231,4 +231,37 @@ describe('loadMessages while the turn is still starting', () => {
     expect(attachToChatMock).toHaveBeenCalledTimes(1);
     expect(getMessagesMock).toHaveBeenCalledTimes(1);
   });
+
+  it('runs one waiting loop per chat: a second load while it waits does not start another', async () => {
+    attachToChatMock.mockResolvedValueOnce(false).mockResolvedValue(true);
+    serverRunsTheChatFor(Number.POSITIVE_INFINITY);
+
+    await loadMessages('chat-starting', makeActions());
+    await advance(0);
+    await loadMessages('chat-starting', makeActions());
+    await advance(0);
+    expect(attachToChatMock).toHaveBeenCalledTimes(1);
+
+    await advance(RETRY_INTERVAL_MS);
+
+    expect(attachToChatMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('ends the recovery when a retry fails, and lets the next load start a new one', async () => {
+    attachToChatMock.mockResolvedValueOnce(false).mockRejectedValueOnce(new Error('Attach failed: Bad Gateway'));
+    serverRunsTheChatFor(Number.POSITIVE_INFINITY);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await loadMessages('chat-starting', makeActions());
+    await advance(RETRY_INTERVAL_MS);
+    expect(attachToChatMock).toHaveBeenCalledTimes(2);
+    await advance(RETRY_BUDGET_MS);
+    expect(attachToChatMock).toHaveBeenCalledTimes(2);
+
+    attachToChatMock.mockResolvedValue(true);
+    await loadMessages('chat-starting', makeActions());
+    await advance(0);
+
+    expect(attachToChatMock).toHaveBeenCalledTimes(3);
+  });
 });
