@@ -12,7 +12,7 @@ from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval import fts_search
 from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import migrate_wiki_fts_schema
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
-from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import tokenize_for_fts
+from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import FTS_TOKENIZER, tokenize_for_fts
 from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
 
 
@@ -52,6 +52,10 @@ def test_migrates_legacy_schema_and_preserves_rows(tmp_path: Path) -> None:
             ("Legacy Concept",),
         ).fetchone()
         assert row == ("legacy searchable content", "legacy searchable content")
+        # The migrated table is declared with the current tokenizer, so one copy converts both the schema and the
+        # tokenizer and the tokenizer swap that follows has nothing left to do.
+        declaration = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'wiki_fts'").fetchone()[0]
+        assert FTS_TOKENIZER in declaration
     finally:
         conn.close()
 

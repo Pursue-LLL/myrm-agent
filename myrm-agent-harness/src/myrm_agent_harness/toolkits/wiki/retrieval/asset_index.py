@@ -161,6 +161,8 @@ class WikiAssetIndexer:
                 logger.warning("FTS5 index corrupted on startup, rebuilding: wiki_assets_fts")
                 fts5_rebuild(conn, "wiki_assets_fts")
             # Captions are copied into the re-created table, so a changed tokenizer costs no vision-model calls.
+            # The swap is its own transaction, so what the steps above wrote is committed before it starts.
+            conn.commit()
             fts5_swap_tokenizer(conn, "wiki_assets_fts", _ASSET_FTS_COLUMNS, FTS_TOKENIZER)
 
     @staticmethod

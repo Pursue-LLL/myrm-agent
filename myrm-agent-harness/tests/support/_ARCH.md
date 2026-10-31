@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, damaged FTS5 indexes, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
+Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, damaged, old-tokenizer and out-of-space FTS5 indexes, completion-guard drivers with call-record and run-context builders, and store doubles. The `test_*.py` files here test those helpers.
 
 ## File Index
 
@@ -23,6 +23,7 @@ Pytest-only helpers, not shipped in the harness wheel: process teardown and mark
 | `dense_vector_store.py` | Core | In-memory dense vector store double: refuses a vectorless document before writing anything and pages `scroll` by a cursor that is `None` only after the last page, so memory tests exercise the contracts a plain `AsyncMock` store hides | ✅ |
 | `fts5_corruption.py` | Core | `corrupt_fts5_index` / `CORRUPTIONS`: damage an FTS5 index the way a power loss does (an emptied `_docsize` shadow table, a truncated segment block) and assert the damage is real (`integrity-check` raises `DatabaseError`), so a heal test starts from an index SQLite itself reports as malformed; `corrupt_fts5_content_page`: break the page that stores the text of an FTS5 table in the database file and assert its rows can no longer be read | ✅ |
 | `fts5_legacy.py` | Core | `downgrade_fts5_tokenizer`: put an FTS5 table back on the plain `unicode61` tokenizer with plain SQL, rows and rowids kept, the way an index written without stemming looks (uses no code under test); `fts5_declaration` (the stored `CREATE` statement, which names the tokenizer) and `fts5_rows` (every row with its rowid, the fingerprint a tokenizer swap must keep) | ✅ |
+| `fts5_full_disk.py` | Core | `limit_database_growth`: from then on every connection the harness hardens may grow its database by only a few pages, in WAL or rollback-journal mode, so an indexer that copies a table when it opens fails the copy halfway the way SQLite reports a full disk (it undoes the transaction itself), where a mocked error could not | ✅ |
 | `test_dense_vector_store.py` | Unit | Unit tests for `dense_vector_store` (write refusal, read copies, cursor paging, filter shapes) | — |
 | `test_browser_process_cleanup.py` | Unit | Unit tests for `browser_process_cleanup` (100% line coverage) | — |
 | `test_conftest_browser_cleanup_wiring.py` | Integration | conftest hook smoke + harness/server marker parity | — |

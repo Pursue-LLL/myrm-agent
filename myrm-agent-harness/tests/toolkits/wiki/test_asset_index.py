@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,37 @@ from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval import asset_index
 from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import WikiAssetIndexer
 from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
+from tests.support.fts5_full_disk import limit_database_growth
 from tests.support.fts5_legacy import downgrade_fts5_tokenizer, fts5_declaration, fts5_rows
+
+
+@pytest.mark.asyncio
+async def test_an_old_asset_index_still_opens_when_the_disk_has_no_room_to_convert_it(
+    wiki_structure: WikiStructure, assets_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    indexer = await _indexed(wiki_structure, assets_dir, {"model.png": "Transformers trained on large datasets"})
+    with closing(sqlite3.connect(indexer.db_path)) as conn:
+        conn.executemany(
+            "INSERT INTO wiki_assets_fts(filename, caption) VALUES (?, ?)",
+            [(f"filler-{i}.png", f"{'Green tea leaves steeped slowly. ' * 30}{i}") for i in range(400)],
+        )
+        conn.commit()
+    downgrade_fts5_tokenizer(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS)
+    rows = fts5_rows(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS)
+    with monkeypatch.context() as full_disk:
+        limit_database_growth(full_disk, extra_pages=6, journal_mode="wal")
+
+        crowded = WikiAssetIndexer(wiki_structure, _CONFIG, caption_provider=_StubCaptionProvider({}))
+
+        assert "porter" not in fts5_declaration(indexer.db_path, "wiki_assets_fts")
+        assert fts5_rows(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS) == rows
+        assert [hit.filename for hit in await crowded.search("transformers")] == ["model.png"]
+
+    reopened = WikiAssetIndexer(wiki_structure, _CONFIG, caption_provider=_StubCaptionProvider({}))
+
+    assert "porter" in fts5_declaration(indexer.db_path, "wiki_assets_fts")
+    assert fts5_rows(indexer.db_path, "wiki_assets_fts", _ASSET_COLUMNS) == rows
+    assert [hit.filename for hit in await reopened.search("transformer")] == ["model.png"]
 
 
 class _StubCaptionProvider:

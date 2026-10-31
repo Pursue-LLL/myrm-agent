@@ -172,7 +172,9 @@ class WikiIndexer(FtsWriteMixin, FtsSearchMixin, SidecarIndexMixin):
                 logger.warning("FTS5 index corrupted on startup, rebuilding: wiki_fts")
                 fts5_rebuild(conn, "wiki_fts")
             # An index created with another tokenizer is re-created with the current one, after the check
-            # above so a damaged table is rebuilt first; the stored rows are copied, not re-derived.
+            # above so a damaged table is rebuilt first; the stored rows are copied, not re-derived. The
+            # swap is its own transaction, so what the steps above wrote is committed before it starts.
+            conn.commit()
             fts5_swap_tokenizer(conn, "wiki_fts", WIKI_FTS_COLUMNS, FTS_TOKENIZER)
 
             migrate_index_schema(conn, self._structure, self._link_resolver)

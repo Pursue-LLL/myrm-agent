@@ -15,7 +15,9 @@ from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval import indexer as indexer_module
 from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import WIKI_FTS_COLUMNS
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
+from myrm_agent_harness.utils.db.fts5 import fts5_swap_tokenizer
 from tests.support.fts5_corruption import CORRUPTIONS, corrupt_fts5_index
+from tests.support.fts5_full_disk import limit_database_growth
 from tests.support.fts5_legacy import downgrade_fts5_tokenizer, fts5_declaration, fts5_rows
 
 
@@ -45,11 +47,10 @@ async def _vault(root: Path) -> tuple[WikiStructure, WikiIndexer]:
 
 def _record_swaps(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
     """What every tokenizer swap an indexer starts up with returned."""
-    real = indexer_module.fts5_swap_tokenizer
     outcomes: list[bool] = []
 
     def recording(conn: sqlite3.Connection, table: str, columns: tuple[str, ...], tokenizer: str) -> bool:
-        swapped = real(conn, table, columns, tokenizer)
+        swapped = fts5_swap_tokenizer(conn, table, columns, tokenizer)
         outcomes.append(swapped)
         return swapped
 
@@ -134,6 +135,33 @@ async def test_two_indexers_opening_the_same_old_index_at_once_convert_it_once(
     assert sorted(swaps) == [False, True]
     assert fts5_rows(indexer.db_path, "wiki_fts", WIKI_FTS_COLUMNS) == rows
     assert await _names(first, "transformer") == await _names(second, "transformer") == ["attention"]
+
+
+@pytest.mark.parametrize("journal_mode", ["wal", "delete"])
+async def test_an_old_index_still_opens_when_the_disk_has_no_room_to_convert_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, journal_mode: str
+) -> None:
+    structure, indexer = _open(tmp_path / "vault")
+    for i in range(60):
+        await indexer.upsert(f"page-{i:02d}", _page(f"{'Transformers are trained on kelvin notes. ' * 30}{i}"))
+    downgrade_fts5_tokenizer(indexer.db_path, "wiki_fts", WIKI_FTS_COLUMNS)
+    rows = fts5_rows(indexer.db_path, "wiki_fts", WIKI_FTS_COLUMNS)
+    swaps = _record_swaps(monkeypatch)
+    with monkeypatch.context() as full_disk:
+        limit_database_growth(full_disk, extra_pages=6, journal_mode=journal_mode)
+
+        crowded = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+
+        assert swaps == [False]
+        assert "porter" not in fts5_declaration(indexer.db_path, "wiki_fts")
+        assert fts5_rows(indexer.db_path, "wiki_fts", WIKI_FTS_COLUMNS) == rows
+        assert len(await _names(crowded, "transformers", limit=60)) == 60
+
+    reopened = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+
+    assert swaps == [False, True]
+    assert fts5_rows(indexer.db_path, "wiki_fts", WIKI_FTS_COLUMNS) == rows
+    assert len(await _names(reopened, "transformer", limit=60)) == 60
 
 
 async def test_a_shared_index_without_stemming_is_searched_along_with_the_stemmed_local_index(tmp_path: Path) -> None:

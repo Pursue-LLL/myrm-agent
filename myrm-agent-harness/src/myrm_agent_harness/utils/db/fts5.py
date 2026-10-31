@@ -14,7 +14,7 @@ FTS5 bm25 rank into a relevance score.
 - fts5_integrity_check: Check FTS5 virtual table health via official command.
 - fts5_rebuild: Rebuild the FTS5 inverted index from the text the table itself stores.
 - fts5_auto_heal: Detect corruption on query failure and rebuild transparently; declines when the stored rows cannot be read.
-- fts5_swap_tokenizer: Re-create an FTS5 table with another tokenizer, keeping every stored row; a failed swap leaves the table as it was.
+- fts5_swap_tokenizer: Re-create an FTS5 table with another tokenizer in one transaction, keeping every stored row; a failed swap leaves the table as it was.
 - relevance_from_rank: FTS5 bm25 rank turned into a relevance score in [0, 1) where a higher score is a better match.
 
 [POS]
@@ -164,12 +164,12 @@ class CjkFtsQueryPlanner:
 # ---------------------------------------------------------------------------
 
 
-_VALID_TABLE_RE = re.compile(r"^[a-zA-Z_]\w*$")
+_VALID_TABLE_RE = re.compile(r"[a-zA-Z_]\w*")
 
 
 def _validate_table_name(table: str) -> str:
     """Guard against SQL injection in table name parameters."""
-    if not _VALID_TABLE_RE.match(table):
+    if not _VALID_TABLE_RE.fullmatch(table):
         raise ValueError(f"Invalid FTS5 table name: {table!r}")
     return table
 
@@ -239,8 +239,7 @@ def fts5_auto_heal(conn: sqlite3.Connection, table: str) -> bool:
 # ---------------------------------------------------------------------------
 
 _TOKENIZE_CLAUSE_RE = re.compile(r"""tokenize\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.IGNORECASE)
-_VALID_TOKENIZER_RE = re.compile(r"^[a-zA-Z0-9_ ]+$")
-_SWAP_SAVEPOINT = "fts5_swap_tokenizer"
+_VALID_TOKENIZER_RE = re.compile(r"[a-zA-Z0-9_ ]+")
 
 
 def _normalize_tokenizer(tokenizer: str) -> str:
@@ -257,45 +256,57 @@ def _declared_tokenizer(conn: sqlite3.Connection, table: str) -> str | None:
     return _normalize_tokenizer((match.group(1) or match.group(2)) if match else "unicode61")
 
 
+def _tokenizer_to_replace(conn: sqlite3.Connection, table: str, wanted: str) -> str | None:
+    """The tokenizer ``table`` uses when it exists and is not ``wanted``; None when there is nothing to swap."""
+    declared = _declared_tokenizer(conn, table)
+    return None if declared is None or declared == wanted else declared
+
+
 def fts5_swap_tokenizer(conn: sqlite3.Connection, table: str, columns: tuple[str, ...], tokenizer: str) -> bool:
     """Re-create the FTS5 ``table`` of the main database with ``tokenizer``, keeping every stored row and rowid.
 
     The tokenizer is fixed when an FTS5 table is created, and the stored text is the only input the new
     table needs, so the rows are copied and re-indexed here instead of being produced again by whatever
     first wrote them (a vision-model caption, an LLM-compiled page). Returns True when the table was swapped
-    and False when it already uses ``tokenizer``, does not exist in the main database, or the swap failed. A failed swap is
-    logged and rolled back, so the table stays as it was and keeps working with its old tokenizer.
+    and False when it already uses ``tokenizer``, does not exist in the main database, or the swap failed.
+
+    The swap is one transaction that takes the write lock before it looks again at the table, so a second
+    connection that starts the same swap waits and then finds it done. A failure of any kind, including a
+    full disk, which makes SQLite undo the transaction on its own, is logged and leaves the table as it was,
+    working with its old tokenizer.
 
     Only for tables declared as plain ``columns`` plus ``tokenize`` (no ``UNINDEXED`` columns, ``content=``
     or ``prefix=`` options): the table is declared again from ``columns`` and ``tokenizer`` alone. Call it
-    after the table's own integrity check or rebuild, which has by then taken the write lock, so a second
-    connection that opens the same database at the same time waits for this swap and then finds it done.
-    A bad ``table``, column or ``tokenizer`` name raises ``ValueError``.
+    outside a transaction, so the caller's own writes are committed first and not with the swap; a call inside
+    one raises ``ValueError``, as does a bad ``table``, column or ``tokenizer`` name.
     """
     table = _validate_table_name(table)
     columns = tuple(_validate_table_name(column) for column in columns)
-    if not _VALID_TOKENIZER_RE.match(tokenizer):
+    if not _VALID_TOKENIZER_RE.fullmatch(tokenizer):
         raise ValueError(f"Invalid FTS5 tokenizer: {tokenizer!r}")
+    if conn.in_transaction:
+        raise ValueError("fts5_swap_tokenizer must be called outside a transaction")
+    wanted = _normalize_tokenizer(tokenizer)
     column_list = ", ".join(columns)
     staging = f"{table}_retokenize"
     try:
-        declared = _declared_tokenizer(conn, table)
-        if declared is None or declared == _normalize_tokenizer(tokenizer):
+        # An up-to-date table, the usual case, is found without taking any lock.
+        if _tokenizer_to_replace(conn, table, wanted) is None:
             return False
-        conn.execute(f"SAVEPOINT {_SWAP_SAVEPOINT}")
-    except sqlite3.DatabaseError as exc:
-        logger.warning("FTS5 tokenizer swap skipped for %s: %s", table, exc)
-        return False
-    try:
+        conn.execute("BEGIN IMMEDIATE")
+        declared = _tokenizer_to_replace(conn, table, wanted)
+        if declared is None:
+            conn.execute("ROLLBACK")
+            return False
         conn.execute(f'CREATE VIRTUAL TABLE {staging} USING fts5({column_list}, tokenize="{tokenizer}")')
         conn.execute(f"INSERT INTO {staging}(rowid, {column_list}) SELECT rowid, {column_list} FROM {table}")
         conn.execute(f"DROP TABLE {table}")
         conn.execute(f"ALTER TABLE {staging} RENAME TO {table}")
-        conn.execute(f"RELEASE {_SWAP_SAVEPOINT}")
+        conn.execute("COMMIT")
     except sqlite3.DatabaseError as exc:
-        logger.warning("FTS5 tokenizer swap failed for %s, kept its %s tokenizer: %s", table, declared, exc)
-        conn.execute(f"ROLLBACK TO {_SWAP_SAVEPOINT}")
-        conn.execute(f"RELEASE {_SWAP_SAVEPOINT}")
+        logger.warning("FTS5 tokenizer swap failed for %s, kept the table as it was: %s", table, exc)
+        if conn.in_transaction:  # a full disk has already made SQLite undo the transaction
+            conn.execute("ROLLBACK")
         return False
     logger.info("FTS5 table %s now uses the %r tokenizer (was %r)", table, tokenizer, declared)
     return True
