@@ -218,12 +218,12 @@ async def test_a_call_waiting_for_another_does_not_spend_its_timeout_waiting_and
     assert sorted(PROBE.finished) == ["slow_write_one", "slow_write_two"]
 
 
-async def test_when_a_mutating_call_fails_the_turns_other_mutating_call_is_skipped_not_run() -> None:
+async def test_when_a_mutating_call_fails_the_turns_other_mutating_call_still_runs_and_answers_for_itself() -> None:
     answers = await _run("failing", fail_one={}, fail_two={})
 
-    assert len(PROBE.ran) == 1
-    assert sorted(m.status for m in answers) == ["error", "error"]
-    assert sorted("[SKIPPED]" in str(m.content) for m in answers) == [False, True]
+    assert sorted(PROBE.ran) == ["fail_one", "fail_two"]
+    assert [m.status for m in answers] == ["error", "error"]
+    assert sorted(str(m.content) for m in answers) == ["fail_one failed", "fail_two failed"]
 
 
 async def test_a_list_argument_sent_as_a_json_string_reaches_the_tool_as_a_list() -> None:
