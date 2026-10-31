@@ -176,14 +176,6 @@ class TestNodeSystemCaTrust:
         _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"NODE_USE_SYSTEM_CA": "0"}})
         assert env == {"NODE_USE_SYSTEM_CA": "0"}
 
-    def test_a_differently_cased_declaration_is_the_servers_own_value_on_windows(self, windows_platform: None) -> None:
-        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"node_use_system_ca": "0"}})
-        assert env == {"node_use_system_ca": "0"}
-
-    def test_a_differently_cased_name_is_another_variable_elsewhere(self) -> None:
-        _, _, env, _ = resolve_stdio_launch("npx", None, {"env": {"node_use_system_ca": "0"}})
-        assert env == {"node_use_system_ca": "0", "NODE_USE_SYSTEM_CA": "1"}
-
     @pytest.mark.parametrize("value", [None, "1", "true", "anything"])
     def test_nothing_is_added_while_strict_verification_is_on(
         self, value: str | None, monkeypatch: pytest.MonkeyPatch

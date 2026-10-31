@@ -98,6 +98,23 @@ class TestBuildSafeEnv:
         env = build_safe_env(cfg, base)
         assert "OPENAI_API_KEY" not in env
 
+    def test_a_node_cli_is_told_to_trust_the_system_store_while_enterprise_network_is_on(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+        env = build_safe_env(RuntimeConfig(backend_type="cli", command="gemini"), {"PATH": "/usr/bin"})
+        assert env == {"PATH": "/usr/bin", "NODE_USE_SYSTEM_CA": "1"}
+
+    def test_the_backends_own_value_for_it_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+        cfg = RuntimeConfig(backend_type="acp", command="gemini", env={"NODE_USE_SYSTEM_CA": "0"})
+        assert build_safe_env(cfg, {"PATH": "/usr/bin"})["NODE_USE_SYSTEM_CA"] == "0"
+
+    def test_nothing_is_added_while_strict_verification_is_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("MYRM_TLS_STRICT", raising=False)
+        env = build_safe_env(RuntimeConfig(backend_type="cli", command="gemini"), {"PATH": "/usr/bin"})
+        assert "NODE_USE_SYSTEM_CA" not in env
+
 
 class TestTruncateResponse:
     def test_no_truncation(self) -> None:

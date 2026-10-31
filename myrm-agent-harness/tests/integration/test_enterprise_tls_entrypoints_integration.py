@@ -50,10 +50,6 @@ _TIMEOUT = 10
 _STDLIB_STACKS = ("urllib", "http_client")
 _STACKS = (*_STDLIB_STACKS, "aiohttp", "requests")
 
-pytestmark = pytest.mark.skipif(
-    not getattr(ssl, "VERIFY_X509_STRICT", 0), reason="VERIFY_X509_STRICT not available (Python < 3.13)"
-)
-
 
 @pytest.fixture(autouse=True)
 def _pristine_tls(monkeypatch: pytest.MonkeyPatch) -> None:

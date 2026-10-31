@@ -4,7 +4,7 @@ Downloads portable environments (like Node.js) and installs CLI tools in an
 isolated directory to prevent global OS environment pollution.
 
 [INPUT]
-- (none)
+- infra.tls_compat::with_node_system_ca (POS: Enterprise TLS compatibility: the system trust store for a Node child)
 
 [OUTPUT]
 - TOOLCHAIN_BASE_DIR: Base directory for isolated toolchain installations.
@@ -27,10 +27,13 @@ import urllib.request
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
+from myrm_agent_harness.infra.tls_compat import with_node_system_ca
+
 logger = logging.getLogger(__name__)
 
 TOOLCHAIN_BASE_DIR = Path.home() / ".myrm-agent" / "toolchains"
-NODE_VERSION = "v20.14.0"
+# A release line that reads NODE_USE_SYSTEM_CA from its first release, which npm needs behind a TLS-inspection proxy.
+NODE_VERSION = "v24.22.2"
 
 BACKEND_NPM_MAP = {
     "claude": "@anthropic-ai/claude-code",
@@ -149,7 +152,7 @@ class IsolatedToolchainManager:
         ]
 
         # Setup env to use our isolated node
-        env = os.environ.copy()
+        env = with_node_system_ca(os.environ.copy())
         env["PATH"] = f"{self.node_dir / 'bin'}:{env.get('PATH', '')}"
 
         try:

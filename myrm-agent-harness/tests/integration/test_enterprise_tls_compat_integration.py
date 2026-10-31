@@ -41,11 +41,6 @@ from tests.support.tls_loopback import CA_ENV_VARS, https_server, isolate_from_s
 
 _STACKS = ("httpx", "llm_factory")
 
-needs_strict_flag = pytest.mark.skipif(
-    not getattr(ssl, "VERIFY_X509_STRICT", 0), reason="VERIFY_X509_STRICT not available (Python < 3.13)"
-)
-pytestmark = needs_strict_flag
-
 
 async def _forget_cached_litellm_state() -> None:
     """litellm keeps one SSL context per CA file and every client it built, for the life of the process."""

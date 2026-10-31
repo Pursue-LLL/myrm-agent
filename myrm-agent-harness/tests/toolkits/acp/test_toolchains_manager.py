@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import platform
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,11 +16,22 @@ from myrm_agent_harness.toolkits.acp.toolchains.manager import (
 )
 
 
+async def _node_ready() -> AsyncGenerator[str]:
+    """Stands in for the Node download, which these tests do not exercise."""
+    yield "Node.js ready."
+
+
 class TestBackendNpmMap:
     def test_known_backends_use_official_packages(self) -> None:
         assert BACKEND_NPM_MAP["claude"] == "@anthropic-ai/claude-code"
         assert BACKEND_NPM_MAP["codex"] == "@openai/codex"
         assert BACKEND_NPM_MAP["gemini"] == "@google/gemini-cli"
+
+
+class TestNodeVersion:
+    def test_the_managed_node_honours_the_system_trust_store(self) -> None:
+        # NODE_USE_SYSTEM_CA is read by Node 22.15+ / 23.8+ only; the managed line has it from its first release.
+        assert int(NODE_VERSION.removeprefix("v").split(".")[0]) >= 24
 
 
 @pytest.fixture
@@ -108,10 +120,7 @@ class TestInstallBackend:
 
     @pytest.mark.asyncio
     async def test_missing_npm_after_node_setup(self, manager: IsolatedToolchainManager) -> None:
-        async def fake_node_download():
-            yield "Node.js environment already exists."
-
-        manager._download_and_extract_node = fake_node_download  # type: ignore[method-assign]
+        manager._download_and_extract_node = _node_ready  # type: ignore[method-assign]
         # node_dir exists but npm binary missing
         (manager.node_dir / "bin").mkdir(parents=True, exist_ok=True)
 
@@ -126,10 +135,7 @@ class TestInstallBackendWithMockedNpm:
         npm_path.parent.mkdir(parents=True)
         npm_path.touch()
 
-        async def fake_node_download():
-            yield "Node.js ready."
-
-        manager._download_and_extract_node = fake_node_download  # type: ignore[method-assign]
+        manager._download_and_extract_node = _node_ready  # type: ignore[method-assign]
 
         mock_proc = MagicMock()
         mock_proc.returncode = 0
@@ -148,10 +154,7 @@ class TestInstallBackendWithMockedNpm:
         npm_path.parent.mkdir(parents=True)
         npm_path.touch()
 
-        async def fake_node_download():
-            yield "Node.js ready."
-
-        manager._download_and_extract_node = fake_node_download  # type: ignore[method-assign]
+        manager._download_and_extract_node = _node_ready  # type: ignore[method-assign]
 
         mock_proc = MagicMock()
         mock_proc.stdout = None
@@ -169,10 +172,7 @@ class TestInstallBackendWithMockedNpm:
         npm_path.parent.mkdir(parents=True)
         npm_path.touch()
 
-        async def fake_node_download():
-            yield "Node.js ready."
-
-        manager._download_and_extract_node = fake_node_download  # type: ignore[method-assign]
+        manager._download_and_extract_node = _node_ready  # type: ignore[method-assign]
 
         with patch(
             "asyncio.create_subprocess_exec",
@@ -182,6 +182,55 @@ class TestInstallBackendWithMockedNpm:
             messages = [msg async for msg in manager.install_backend("claude")]
 
         assert any("Error during installation" in m for m in messages)
+
+
+class TestNpmTrustsTheSystemStore:
+    """The npm child reaches a registry through the same TLS-inspection proxy the host does."""
+
+    @staticmethod
+    async def _npm_env(manager: IsolatedToolchainManager) -> dict[str, str]:
+        npm_path = manager.node_dir / "bin" / "npm"
+        npm_path.parent.mkdir(parents=True)
+        npm_path.touch()
+
+        manager._download_and_extract_node = _node_ready  # type: ignore[method-assign]
+        mock_proc = MagicMock(returncode=0, stdout=None)
+        mock_proc.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_proc) as spawn:
+            _ = [msg async for msg in manager.install_backend("gemini")]
+        env: dict[str, str] = spawn.call_args.kwargs["env"]
+        return env
+
+    @pytest.mark.asyncio
+    async def test_told_to_while_enterprise_network_is_on(
+        self, manager: IsolatedToolchainManager, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+        monkeypatch.delenv("NODE_USE_SYSTEM_CA", raising=False)
+
+        env = await self._npm_env(manager)
+
+        assert env["NODE_USE_SYSTEM_CA"] == "1"
+        assert env["PATH"].startswith(str(manager.node_dir / "bin"))
+
+    @pytest.mark.asyncio
+    async def test_the_hosts_own_value_wins(
+        self, manager: IsolatedToolchainManager, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+        monkeypatch.setenv("NODE_USE_SYSTEM_CA", "0")
+
+        assert (await self._npm_env(manager))["NODE_USE_SYSTEM_CA"] == "0"
+
+    @pytest.mark.asyncio
+    async def test_not_told_while_strict_verification_is_on(
+        self, manager: IsolatedToolchainManager, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("MYRM_TLS_STRICT", raising=False)
+        monkeypatch.delenv("NODE_USE_SYSTEM_CA", raising=False)
+
+        assert "NODE_USE_SYSTEM_CA" not in await self._npm_env(manager)
 
 
 class _FakeStdout:

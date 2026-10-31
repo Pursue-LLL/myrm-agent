@@ -247,7 +247,7 @@ RuntimeConfig (frozen dataclass)
 ```
 
 **环境变量管理 + 鉴权模式（`auth_mode`）**：
-- 环境基线：`build_safe_env()` 只让子进程继承核心变量（PATH、HOME、语言、代理等，复用 `core/security/process_env/env_isolation.py` 的 `CORE` 策略）加上该 CLI 自己的登录目录变量（`CLAUDE_CONFIG_DIR` / `CODEX_HOME`，取自 auth profile 的 `home_env`）；宿主的 provider 密钥与其余环境一律不带——委托 CLI 会把自己的环境原样交给它执行的每条命令。后端另需的变量（`JAVA_HOME`、`SSH_AUTH_SOCK`、云厂商路由变量等）经 `RuntimeConfig.env` 设置。`CliRuntime` 与 `AcpRuntime` 启动前统一调用
+- 环境基线：`build_safe_env()` 只让子进程继承核心变量（PATH、HOME、语言、代理等，复用 `core/security/process_env/env_isolation.py` 的 `CORE` 策略）加上该 CLI 自己的登录目录变量（`CLAUDE_CONFIG_DIR` / `CODEX_HOME`，取自 auth profile 的 `home_env`）；宿主的 provider 密钥与其余环境一律不带——委托 CLI 会把自己的环境原样交给它执行的每条命令。后端另需的变量（`JAVA_HOME`、`SSH_AUTH_SOCK`、云厂商路由变量等）经 `RuntimeConfig.env` 设置。`CliRuntime` 与 `AcpRuntime` 启动前统一调用；「企业网络兼容」打开时它还在末尾补上 `NODE_USE_SYSTEM_CA=1`（`infra/tls_compat.py::with_node_system_ca`），让基于 Node 的 CLI 像宿主一样信任操作系统证书库，`RuntimeConfig.env` 自己写了该变量则保留它的值；受管工具链下载的 Node 是认该变量的 `NODE_VERSION`，其 npm 安装子进程同样带它
 - 方言默认环境：CLI 方言的 `env_defaults` 垫在宿主与配置环境之下（后两者可覆盖）；Claude 的 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` 让无头回合不留后台任务（后台任务期间 `claude -p` 不会退出）
 - `subscription`（默认）：剥离所有 provider 密钥 **并丢弃** `env` 中注入的密钥，强制委托 CLI 走自身订阅登录态（用户的 ChatGPT Plus / Claude Max / Gemini 订阅），绝不静默回退按量计费的 API Key
 - `api_key`：业务层经 `env` 注入该后端应计费的单一 provider 密钥，剥离基线后重新应用

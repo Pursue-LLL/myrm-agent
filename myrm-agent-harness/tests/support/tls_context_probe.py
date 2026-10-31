@@ -5,11 +5,7 @@ from __future__ import annotations
 import ssl
 from pathlib import Path
 
-import pytest
-
-STRICT_FLAG = getattr(ssl, "VERIFY_X509_STRICT", 0)
-
-needs_strict_flag = pytest.mark.skipif(not STRICT_FLAG, reason="VERIFY_X509_STRICT not available (Python < 3.13)")
+STRICT_FLAG = ssl.VERIFY_X509_STRICT
 
 
 def is_truststore_context(ctx: ssl.SSLContext) -> bool:

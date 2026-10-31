@@ -22,6 +22,9 @@ place it takes its context from:
   rebuilt through the wrapper.
 - urllib3 (``requests``) builds its contexts without ``ssl.create_default_context``, so its builder gets the same
   trust. A CA file a caller loads into such a context (``verify=path``) is added to that trust, not exclusive.
+- A child process inherits none of this. ``with_node_system_ca()`` adds ``NODE_USE_SYSTEM_CA=1`` to the environment of
+  a child that may run Node, so it validates against the operating system's store too (Node 22.15+ and 23.8+ read
+  it; an older Node ignores it).
 
 Certificate chain validation, hostname verification and expiry checks stay on, which is strictly narrower than
 ``verify=False``. A client that constructs ``ssl.SSLContext`` itself is outside the policy.
@@ -39,10 +42,14 @@ Activation:
 - certifi (POS: identifies the default CA bundle httpx asks the standard library for)
 - aiohttp, litellm, urllib3 (POS: libraries whose default or cached contexts are brought under the policy when loaded)
 - os (POS: environment variable access)
+- utils.os_compat::IS_WIN (POS: whether the host operating system is Windows)
 
 [OUTPUT]
 - tls_strict_disabled(): check if strict mode is opted out
-- create_httpx_client(): the one construction point of the harness's ``httpx.AsyncClient``
+- with_node_system_ca(): the environment of a child process that may run Node, with the system trust store switched
+  on while strict mode is off
+- create_httpx_client(): the harness's construction point for ``httpx.AsyncClient``; the policy covers a client
+  built directly just the same
 - apply_global_tls_relaxation(): installs the context policy above on the standard library, aiohttp, litellm and
   urllib3; idempotent
 - is_tls_hard_error(): whether an error text carries a certificate-rejection signal (the single signal list the LLM
@@ -62,7 +69,9 @@ import os
 import ssl
 import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
+
+from myrm_agent_harness.utils.os_compat import IS_WIN
 
 if TYPE_CHECKING:
     import httpx
@@ -75,6 +84,9 @@ _TLS_STRICT_OFF_VALUES = frozenset({"0", "false", "no", "off"})
 
 # CA bundles the environment can name; each is added to the trust the context already has.
 _EXTRA_CA_ENV_VARS = ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
+
+# Makes Node trust the operating system's CA store besides its bundled roots; a Node that does not know it ignores it.
+_NODE_SYSTEM_CA_ENV = "NODE_USE_SYSTEM_CA"
 
 # litellm builds its default context while it is imported and caches one per CA file for the process.
 _LITELLM_HTTP_HANDLER = "litellm.llms.custom_httpx.http_handler"
@@ -98,11 +110,31 @@ def tls_strict_disabled() -> bool:
     return os.environ.get(_TLS_STRICT_ENV, "").strip().lower() in _TLS_STRICT_OFF_VALUES
 
 
+@overload
+def with_node_system_ca(env: dict[str, str]) -> dict[str, str]: ...
+@overload
+def with_node_system_ca(env: dict[str, str] | None) -> dict[str, str] | None: ...
+def with_node_system_ca(env: dict[str, str] | None) -> dict[str, str] | None:
+    """*env* for a child process that may run Node, with ``NODE_USE_SYSTEM_CA=1`` added while strict mode is off.
+
+    A child inherits none of the host's TLS policy and Node validates against its bundled roots, so behind an
+    inspection proxy it rejects a chain the host accepts. A value the caller already set wins. While strict mode is
+    on, *env* comes back as it is.
+    """
+    if not tls_strict_disabled():
+        return env
+    env = {} if env is None else env
+    # Windows environment names are case-insensitive, so a differently cased declaration is the caller's own value.
+    declared = {key.upper() for key in env} if IS_WIN else set(env)
+    if _NODE_SYSTEM_CA_ENV in declared:
+        return env
+    return {**env, _NODE_SYSTEM_CA_ENV: "1"}
+
+
 def _clear_x509_strict(ctx: ssl.SSLContext) -> ssl.SSLContext:
     """Clear only ``VERIFY_X509_STRICT`` from a context."""
-    strict_flag = getattr(ssl, "VERIFY_X509_STRICT", 0)
-    if strict_flag and ctx.verify_flags & strict_flag:
-        ctx.verify_flags &= ~strict_flag
+    if ctx.verify_flags & ssl.VERIFY_X509_STRICT:
+        ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
     return ctx
 
 
@@ -262,7 +294,7 @@ def apply_global_tls_relaxation() -> bool:
 
     Returns True when the policy is in place, False when strict mode is on (nothing is installed).
     """
-    if not tls_strict_disabled() or not getattr(ssl, "VERIFY_X509_STRICT", 0):
+    if not tls_strict_disabled():
         return False
 
     _install_default_context_policy()
@@ -274,11 +306,12 @@ def apply_global_tls_relaxation() -> bool:
 
 
 def create_httpx_client(**kwargs: object) -> httpx.AsyncClient:
-    """The one construction point of the harness's ``httpx.AsyncClient``.
+    """Construct the harness's ``httpx.AsyncClient``.
 
     The client takes its TLS context from ``ssl.create_default_context``, so the policy
-    ``apply_global_tls_relaxation()`` installed applies to it with no per-client injection. Every keyword argument,
-    a caller-supplied ``verify`` included, reaches ``httpx.AsyncClient`` untouched and is validated there.
+    ``apply_global_tls_relaxation()`` installed covers every ``httpx`` client in the process, this one and a directly
+    constructed one alike. Every keyword argument, a caller-supplied ``verify`` included, reaches
+    ``httpx.AsyncClient`` untouched and is validated there.
     """
     import httpx
 

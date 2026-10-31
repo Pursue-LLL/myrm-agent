@@ -20074,7 +20074,7 @@
     "autoContinueInterruptedTurns": "崩溃自动恢复",
     "autoContinueInterruptedTurnsDesc": "服务器崩溃重启后自动恢复被中断的对话",
     "enterpriseTlsCompat": "企业网络兼容模式",
-    "enterpriseTlsCompatDesc": "放宽严格的 TLS 证书校验，适配企业代理环境（Zscaler、Netskope 等）。仍保留证书链和主机名验证。修改后需重启应用生效。",
+    "enterpriseTlsCompatDesc": "放宽严格的 TLS 证书校验，适配企业代理环境（Zscaler、Netskope 等）。同时信任本设备上已安装的证书，例如所在组织下发的根证书。仍保留证书链和主机名验证。修改后需重启应用生效。",
     "publicIngressBaseUrl": "公网访问地址",
     "publicIngressBaseUrlDesc": "用于外部回调的公网 Ingress 基础 URL",
     "notificationDeliveries": "通知投递",

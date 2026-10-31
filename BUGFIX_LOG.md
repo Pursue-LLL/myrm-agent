@@ -40,6 +40,17 @@
 | **仍然存在** | ① 网络错误是在 aiohttp 会话层模拟的，没有在真实网络上观察；机器唤醒或换网时这类错误多常发生没有数据。② 没有在真实 Discord 上运行对账。③ 失败的一轮只记 WARNING，没有退避与失败计数：持续失败（例如离线）时，每 10–13 秒对每个公会各记一条 WARNING。④ 跟随用户本身默认关闭（语音默认关闭，`channel.py:108`），使用频率没有数据。⑤ 离开分支出错不重试：`_reconcile_guild` 先把公会从跟随集合里去掉再离开（`follow.py:247` 先于 `:256`），`manager.py:229` 的 `leave` 也先弹出会话状态再释放，所以 `leave` 抛错后只有一条 WARNING，之后的对账不再进这个分支。实测：REST 查不到跟随用户、公会在跟随集合里、`leave` 抛 `ConnectionResetError`，间隔 0.005 秒跑约 0.3 秒（约 60 轮），只调用 `leave` 1 次；没有测试钉住。 |
 | **代码位置** | `myrm-agent-server/app/channels/providers/discord/voice/follow.py`（`start_reconciliation`、`_reconcile_once`、`_reconcile_guild`） · `tests/channels/providers/discord/voice/test_follow_reconcile.py`（新增） · `providers/discord/voice/_ARCH.md`、`providers/discord/_ARCH.md`、`app/channels/CHANNELS_SYSTEM.md` |
 
+## 2026-10-31 · 打开「企业网络兼容」后，委托 CLI/ACP 后端的子进程与受管 npm 安装仍用 Node 内置根证书，受管 Node 20.14.0 不认系统证书开关；设置说明少写了「同时信任本机证书库」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 与 `myrm-agent-brand` 各本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-156）。关闭上一条「仍然存在」③ 里的 ACP 受管 Node 工具链下载步骤，并把委托 CLI/ACP 后端的子进程一并接上。 |
+| **症状** | [实测，macOS] 受管 Node 钉在 v20.14.0，它不认 `NODE_USE_SYSTEM_CA`（`--use-system-ca` 报 bad option，`tls.getCACertificates` 未定义）；委托 CLI/ACP 后端子进程的环境与 npm 安装子进程的环境里没有该变量；httpx2 只接受 `SSL_CERT_FILE` 给出的 CA；设置说明（六种语言）与 server 设置描述只写了「放宽严格校验」。 |
+| **行为变化** | ① 设置打开时，委托 CLI/ACP 后端子进程与受管 npm 安装子进程的环境带 `NODE_USE_SYSTEM_CA=1`（配置里自己写了该变量则保留它的值，严格时不加）。② 受管 Node 升到 v24.22.2（真实下载：默认根证书 118 → 129，npm 11.19.1）。③ 设置说明（六种语言）与 server 设置描述写明「也信任本机证书库」。④ 公开文档的安全架构页（中英）同步：连接远程 MCP 服务器只读 `SSL_CERT_FILE`；Node 覆盖面与版本要求。⑤ 新增 CI 作业 `windows-enterprise-tls`。 |
+| **回归证据** | harness 156 的 [2]–[5]：8 个变异全被杀；Windows 作业的 7 个文件 214 通过；宽套件 10361 通过（另有 30 个 `tests/infra/tracing` 失败，本机缺 OTLP 导出包，与本次无关）。 |
+| **仍然存在** | ① `windows-enterprise-tls` 没有在 GitHub 上跑过；真实检查代理没测，没有让真实 CLI 经代理跑过。② 没覆盖：用户经 bash 工具运行的 Node 命令、委托 CLI 的登录子进程、Node 以外的 MCP 子进程、httpx2。③ Windows 上受管工具链不可用，委托 CLI 用宿主 PATH 里的 `node`。 |
+| **代码位置** | harness：`infra/tls_compat.py`、`toolkits/mcp/placeholders.py`、`toolkits/acp/runtime/_base.py`、`toolkits/acp/toolchains/manager.py`；server：`app/schemas/config.py`；前端：`locales/*.json`；见 harness 156。 |
+
 ## 2026-10-31 · 打开「企业网络兼容」并给出企业根证书后，标准库网络调用、aiohttp 默认会话、`requests` 与 Node 类 MCP 服务器仍报证书错误：这几类客户端各持一份自己的上下文入口
 
 | 字段 | 内容 |
@@ -49,7 +60,7 @@
 | **根因** | 标准库把 https 默认入口在导入时绑成原函数；aiohttp 在导入时建好默认上下文；urllib3 用自己模块里的类建上下文且被 `urllib3.connection` 按名字持有；上一条只包了 `ssl.create_default_context` 这一个名字。MCP 子进程的环境由 `resolve_stdio_launch` 合成，没有 Node 读系统证书库的开关。 |
 | **行为变化** | ① 设置打开后，这四种客户端新建的上下文与 httpx、聊天模型一致：信任操作系统证书库，叠加三个环境变量指向的 CA，只去掉 `VERIFY_X509_STRICT`；`requests` 的显式 `verify=<文件>` 在策略下是叠加不是独占。② 设置打开时，MCP 的 stdio 服务器子进程环境带 `NODE_USE_SYSTEM_CA=1`（服务器配置里自己写了该变量则保留它的值，严格时不加）。③ 两张 TLS 诊断卡的末步写明「然后重启应用」（六种语言）。④ 设置关闭时不安装任何东西，MCP 子进程环境与改前一致。⑤ 公开文档的安全架构页（中英）同步。 |
 | **回归证据** | harness 155 的 [1]–[5]：入口集成 46 例改前 14 红改后全绿，13 个变异全部被杀；harness 宽套件 6633 通过（另有 30 个 `tests/infra/tracing` 失败，本机缺 OTLP 导出包，与本次无关），`tests/architecture` 7064 通过；server 的启动路径与诊断文案同步守护共 67 通过。 |
-| **仍然存在** | ① 只在 macOS 实测，真实检查代理没测。② 需要重启才完全生效：已构造的客户端、已建好的 aiohttp 会话、安装之前就调用过的 `urllib.request.urlopen` 保留各自的上下文。③ 没覆盖：httpx2；Node 以外的 MCP 子进程；用户经 bash 工具运行的 Node 命令；ACP 受管 Node 工具链里 npm 子进程的下载步骤（读码得出）。④ 依赖 aiohttp、urllib3、litellm 的私有细节，有契约用例守护，但只在本机装的版本上跑过。 |
+| **仍然存在** | ① 只在 macOS 实测，真实检查代理没测。② 需要重启才完全生效：已构造的客户端、已建好的 aiohttp 会话、安装之前就调用过的 `urllib.request.urlopen` 保留各自的上下文。③ 没覆盖：httpx2（已在 harness 156 实测）；Node 以外的 MCP 子进程；用户经 bash 工具运行的 Node 命令。ACP 受管 Node 工具链里 npm 子进程的下载步骤与委托 CLI/ACP 后端的子进程已在 harness 156 修复。④ 依赖 aiohttp、urllib3、litellm 的私有细节，有契约用例守护，但只在本机装的版本上跑过。 |
 | **代码位置** | harness：`infra/tls_compat.py`、`toolkits/mcp/placeholders.py`、`agent/errors/diagnostics/i18n/locales/*.json`，见 harness 155。 |
 
 ## 2026-10-31 · 打开「企业网络兼容」并给出企业根证书后，聊天模型调用仍报证书错误：开关只管到 harness 自己构造的客户端，管不到 litellm 的
@@ -61,7 +72,7 @@
 | **根因** | harness 里有三处各自构造客户端 SSL 上下文，开关只管到其中的 `create_httpx_client`；`llm.py` 注入的 `ssl_verify` 没有到达 litellm 的传输，litellm 的默认上下文在导入时就按 certifi 建好并缓存。 |
 | **行为变化** | ① 开关打开后，客户端用途的默认 TLS 上下文改信任操作系统证书库，并叠加 `SSL_CERT_FILE` / `REQUESTS_CA_BUNDLE` / `NODE_EXTRA_CA_CERTS` 指向的 CA，只去掉 `VERIFY_X509_STRICT`，证书链、主机名、有效期检查不变；显式指定 CA 的调用方只多去掉严格标志。② 设置里的开关说明加「修改后需重启应用生效」（六种语言）。③ 开关打开时，证书被拒的判定增加类型判断（操作系统用自己的语言报错，文字清单匹配不到）；声明了其他结论（限流、密钥被拒、超时）的外层保持自己的结论。④ 开关关闭时不安装任何东西，建上下文的行为与改前一致（证书被拒的类型判断与开关无关）。⑤ `truststore` 成为 harness 直接依赖。 |
 | **回归证据** | harness 148 的 [1]–[5]；server 启动路径、跨层标签守护、锁文件一致、cron 恢复性、设置深链共 108 通过。 |
-| **仍然存在** | ① 只在 macOS 实测，Windows、Linux、钥匙串里的真实企业根证书、真实检查代理都没测。② 需要重启才完全生效；aiohttp 自带默认上下文（Matrix 渠道、`alert_notifier.py`）、httpx2、`urllib.request.urlopen` 没覆盖（读码得出；其中 aiohttp 与 `urllib.request` 已在上面一条修复）。③ 诊断卡的步骤没提到要重启（已在上面一条修复）。 |
+| **仍然存在** | ① 只在 macOS 实测，Windows、Linux、钥匙串里的真实企业根证书、真实检查代理都没测。② 需要重启才完全生效；aiohttp 自带默认上下文（Matrix 渠道、`alert_notifier.py`）、httpx2、`urllib.request.urlopen` 没覆盖（读码得出；其中 aiohttp 与 `urllib.request` 已在上面一条修复，httpx2 已在 harness 156 实测：策略管不到它）。③ 诊断卡的步骤没提到要重启（已在上面一条修复）。 |
 | **代码位置** | harness：`infra/tls_compat.py`、`toolkits/llms/errors/tls_rejection.py`、`toolkits/llms/core/llm.py`、`pyproject.toml`，见 harness 148；server：`app/core/infra/tls_config.py`；前端：`locales/{en,zh,zh-TW,ja,ko,de}.json`。 |
 
 ## 2026-10-31 · 模型端点返回 4xx、正文里引用证书报错时，也被当成「证书被拒」：不重试、不换 Key，错误卡指向企业网络兼容开关；多包一层客户端封装就读不到真正的证书被拒

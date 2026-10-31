@@ -40,7 +40,7 @@ overrides a plugin-declared entry.
 - ``config_scan._extract_env_map`` convention: ``extra_params["env"]`` is a
   ``dict[str, str]`` (POS: static/runtime MCP scanners).
 - ``config.py::MCPConfig.extra_params`` (POS: MCP Configuration).
-- ``infra.tls_compat::tls_strict_disabled`` (POS: Enterprise TLS compatibility setting).
+- ``infra.tls_compat::with_node_system_ca`` (POS: Enterprise TLS compatibility: the system trust store for a Node child).
 
 [OUTPUT]
 - ``expand_placeholders``: one-pass placeholder expansion for a single value.
@@ -58,7 +58,7 @@ from __future__ import annotations
 import os
 import re
 
-from myrm_agent_harness.infra.tls_compat import tls_strict_disabled
+from myrm_agent_harness.infra.tls_compat import with_node_system_ca
 
 from .env_guard import sanitize_mcp_env
 
@@ -68,8 +68,6 @@ _PLACEHOLDER_PATTERN = re.compile(r"\$\{(PLUGIN_ROOT|PLUGIN_DATA)\}")
 # Allowed extra_params keys carrying the plugin root directories.
 _PLUGIN_ROOT_KEY = "plugin_root"
 _DATA_ROOT_KEY = "data_root"
-# Makes Node trust the operating system's CA store besides its bundled roots; a Node that does not know it ignores it.
-_NODE_SYSTEM_CA_ENV = "NODE_USE_SYSTEM_CA"
 # Script extensions that Windows cannot execute directly (Agent Plugins §7.2.1).
 _WINDOWS_SCRIPT_SUFFIXES = (".bat", ".cmd")
 # Characters that force double-quote wrapping inside a cmd.exe command line.
@@ -84,18 +82,6 @@ def _is_windows() -> bool:
     selected through this indirection instead.
     """
     return os.name == "nt"
-
-
-def _with_node_system_ca(env: _EnvDict | None) -> _EnvDict | None:
-    """Add ``NODE_USE_SYSTEM_CA=1`` while enterprise network compatibility is on; a value the server sets wins."""
-    if not tls_strict_disabled():
-        return env
-    env = {} if env is None else env
-    # Windows environment names are case-insensitive, so a differently cased declaration is the server's own value.
-    declared = {key.upper() for key in env} if _is_windows() else set(env)
-    if _NODE_SYSTEM_CA_ENV in declared:
-        return env
-    return {**env, _NODE_SYSTEM_CA_ENV: "1"}
 
 
 def expand_placeholders(
@@ -188,7 +174,7 @@ def resolve_stdio_launch(
         if data_root is not None:
             env["PLUGIN_DATA"] = data_root
 
-    env = _with_node_system_ca(env)
+    env = with_node_system_ca(env)
 
     cwd: str | None = None
     if extra_params:

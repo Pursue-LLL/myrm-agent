@@ -20074,7 +20074,7 @@
     "autoContinueInterruptedTurns": "Automatische Wiederaufnahme nach Absturz",
     "autoContinueInterruptedTurnsDesc": "Unterbrochene Gespräche automatisch fortsetzen, wenn der Server nach einem Absturz neu startet",
     "enterpriseTlsCompat": "Kompatibilität mit Unternehmensnetzwerken",
-    "enterpriseTlsCompatDesc": "Lockern Sie die strenge Validierung von TLS-Zertifikaten für Unternehmens-Proxy-Umgebungen (Zscaler, Netskope usw.). Verwaltet die Zertifikatskette und die Überprüfung des Hostnamens. Die Änderung wird nach einem Neustart der App wirksam.",
+    "enterpriseTlsCompatDesc": "Lockern Sie die strenge Validierung von TLS-Zertifikaten für Unternehmens-Proxy-Umgebungen (Zscaler, Netskope usw.). Vertraut zusätzlich den auf diesem Gerät installierten Zertifikaten, etwa dem Stammzertifikat Ihrer Organisation. Die Prüfung der Zertifikatskette und des Hostnamens bleibt aktiv. Die Änderung wird nach einem Neustart der App wirksam.",
     "publicIngressBaseUrl": "Öffentlicher Eingang URL",
     "publicIngressBaseUrlDesc": "Basis URL für externe Rückrufe über öffentlichen Eingang",
     "notificationDeliveries": "Benachrichtigungszustellungen",

@@ -267,7 +267,7 @@ class PersonalSettingsConfigValue(BaseModel):
     enterpriseTlsCompat: bool = _personal_settings_field(
         "preferences",
         default=False,
-        description="Enterprise network compatibility (relaxes strict TLS for corporate proxies)",
+        description="Enterprise network compatibility (relaxes strict TLS, trusts the OS cert store; for corporate proxies)",
         group="advanced",
     )
     publicIngressBaseUrl: str = _personal_settings_field("system", default="", description="公网 Ingress 地址")

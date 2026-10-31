@@ -21,13 +21,12 @@ import urllib3.util.ssl_ as urllib3_ssl
 
 from myrm_agent_harness.infra import tls_compat
 from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation
-from tests.support.tls_context_probe import STRICT_FLAG, der_of, is_truststore_context, loaded_cas, needs_strict_flag
+from tests.support.tls_context_probe import STRICT_FLAG, der_of, is_truststore_context, loaded_cas
 from tests.support.tls_loopback import CA_ENV_VARS
 
 pytestmark = pytest.mark.usefixtures("pristine_tls")
 
 
-@needs_strict_flag
 class TestInstalledBindings:
     """Every place a library holds its own reference to a context builder ends up on the policy."""
 
@@ -123,7 +122,6 @@ class TestLibraryContracts:
         assert isinstance(http_handler._ssl_context_cache, dict)
 
 
-@needs_strict_flag
 class TestUrllib3Policy:
     """What a context urllib3 (``requests``) builds becomes once the policy is installed."""
 

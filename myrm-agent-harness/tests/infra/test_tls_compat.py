@@ -23,9 +23,10 @@ from myrm_agent_harness.infra.tls_compat import (
     is_tls_hard_error,
     is_tls_transient_error,
     tls_strict_disabled,
+    with_node_system_ca,
 )
 from tests.support.mcp_testkit.tls_pki import generate_inspection_chain
-from tests.support.tls_context_probe import STRICT_FLAG, der_of, is_truststore_context, loaded_cas, needs_strict_flag
+from tests.support.tls_context_probe import STRICT_FLAG, der_of, is_truststore_context, loaded_cas
 from tests.support.tls_loopback import CA_ENV_VARS
 
 pytestmark = pytest.mark.usefixtures("pristine_tls")
@@ -52,6 +53,57 @@ class TestTlsStrictDisabled:
         assert tls_strict_disabled() is True
 
 
+class TestWithNodeSystemCa:
+    """A child process inherits none of the host's TLS policy, so a Node child is told to trust the system store."""
+
+    @pytest.fixture
+    def enterprise_network(self, pristine_tls: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MYRM_TLS_STRICT", "0")
+
+    @pytest.mark.usefixtures("enterprise_network")
+    def test_the_system_store_is_added_beside_the_callers_variables(self) -> None:
+        env = {"PATH": "/usr/bin"}
+
+        assert with_node_system_ca(env) == {"PATH": "/usr/bin", "NODE_USE_SYSTEM_CA": "1"}
+        assert env == {"PATH": "/usr/bin"}
+
+    @pytest.mark.usefixtures("enterprise_network")
+    def test_no_environment_becomes_one_that_carries_it(self) -> None:
+        assert with_node_system_ca(None) == {"NODE_USE_SYSTEM_CA": "1"}
+
+    @pytest.mark.usefixtures("enterprise_network")
+    def test_a_value_the_caller_sets_wins(self) -> None:
+        assert with_node_system_ca({"NODE_USE_SYSTEM_CA": "0"}) == {"NODE_USE_SYSTEM_CA": "0"}
+
+    @pytest.mark.usefixtures("enterprise_network")
+    def test_a_differently_cased_declaration_is_the_callers_own_value_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(tls_compat, "IS_WIN", True)
+
+        assert with_node_system_ca({"node_use_system_ca": "0"}) == {"node_use_system_ca": "0"}
+
+    @pytest.mark.usefixtures("enterprise_network")
+    def test_a_differently_cased_name_is_another_variable_elsewhere(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tls_compat, "IS_WIN", False)
+
+        assert with_node_system_ca({"node_use_system_ca": "0"}) == {
+            "node_use_system_ca": "0",
+            "NODE_USE_SYSTEM_CA": "1",
+        }
+
+    @pytest.mark.parametrize("value", [None, "1", "true", "anything"])
+    def test_nothing_is_added_while_strict_verification_is_on(
+        self, value: str | None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        if value is not None:
+            monkeypatch.setenv("MYRM_TLS_STRICT", value)
+        env = {"PATH": "/usr/bin"}
+
+        assert with_node_system_ca(env) is env
+        assert with_node_system_ca(None) is None
+
+
 class TestApplyGlobalTlsRelaxation:
     """Installing the policy: when it happens, and that it happens once."""
 
@@ -64,7 +116,6 @@ class TestApplyGlobalTlsRelaxation:
         assert ssl.create_default_context is builder
         assert urllib3_ssl.create_urllib3_context is urllib3_builder
 
-    @needs_strict_flag
     def test_installs_when_strict_is_off(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MYRM_TLS_STRICT", "0")
         builder = ssl.create_default_context
@@ -77,7 +128,6 @@ class TestApplyGlobalTlsRelaxation:
         assert urllib3_ssl.create_urllib3_context is not urllib3_builder
         assert inspect.unwrap(urllib3_ssl.create_urllib3_context) is urllib3_builder
 
-    @needs_strict_flag
     def test_a_second_call_does_not_wrap_again(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MYRM_TLS_STRICT", "0")
         builder = ssl.create_default_context
@@ -94,7 +144,6 @@ class TestApplyGlobalTlsRelaxation:
         assert inspect.unwrap(urllib3_installed) is urllib3_builder
 
 
-@needs_strict_flag
 class TestDefaultContextPolicy:
     """What a client-purpose default context becomes once the policy is installed."""
 

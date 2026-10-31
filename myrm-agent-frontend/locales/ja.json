@@ -20074,7 +20074,7 @@
     "autoContinueInterruptedTurns": "クラッシュ後の自動再開",
     "autoContinueInterruptedTurnsDesc": "クラッシュ後にサーバーが再起動したとき、中断された会話を自動的に再開します",
     "enterpriseTlsCompat": "エンタープライズネットワーク互換モード",
-    "enterpriseTlsCompatDesc": "企業プロキシ環境（Zscaler、Netskope など）向けに厳格な TLS 証明書検証を緩和します。証明書チェーンとホスト名の検証は維持されます。変更はアプリの再起動後に反映されます。",
+    "enterpriseTlsCompatDesc": "企業プロキシ環境（Zscaler、Netskope など）向けに厳格な TLS 証明書検証を緩和します。このデバイスにインストールされた証明書（組織が配布するルート証明書など）も信頼します。証明書チェーンとホスト名の検証は維持されます。変更はアプリの再起動後に反映されます。",
     "publicIngressBaseUrl": "パブリックイングレス URL",
     "publicIngressBaseUrlDesc": "外部コールバック用のパブリックイングレスベース URL",
     "notificationDeliveries": "通知配信",

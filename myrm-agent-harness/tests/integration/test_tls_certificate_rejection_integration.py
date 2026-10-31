@@ -37,6 +37,7 @@ from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from myrm_agent_harness.toolkits.llms.errors.error_payload import MAX_CHAIN_DEPTH, walk_exception_chain
 from tests.support.mcp_testkit.tls_pki import generate_tls_pki
+from tests.support.tls_loopback import isolate_from_system_proxy
 
 # One model per provider family whose client stack words a connection failure differently.
 _PROVIDER_MODELS = (
@@ -46,7 +47,6 @@ _PROVIDER_MODELS = (
     "ollama_chat/llama3",
     "deepseek/deepseek-chat",
 )
-_PROXY_VARIABLES = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy")
 _PLAIN_HTTP_ANSWER = b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"
 
 
@@ -111,9 +111,7 @@ def _plain_http_handler(connection: socket.socket) -> None:
 
 @pytest.fixture(autouse=True)
 def _direct_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
-    for variable in _PROXY_VARIABLES:
-        monkeypatch.delenv(variable, raising=False)
-    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    isolate_from_system_proxy(monkeypatch)
     # The chat model writes its endpoint onto the litellm module on every call and leaves it there; a direct
     # ``litellm.acompletion`` of the next test would then reach that endpoint instead of its own listener.
     monkeypatch.setattr(litellm, "api_base", None)

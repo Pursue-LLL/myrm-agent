@@ -5,12 +5,13 @@ environment variable sanitization, timeout control, and response truncation.
 
 [INPUT]
 - toolkits.acp.types::AcpError, AcpErrorCode, BackendCapabilities (POS: ACP runtime type definitions layer. Provides all ACP-related core abstractions and data structures, serving as the foundation for the entire ACP module.)
+- infra.tls_compat::with_node_system_ca (POS: Enterprise TLS compatibility: the system trust store for a Node child)
 - toolkits.acp.auth._profiles::profile_for (POS: Authentication profile registry; resolves a command to its backend)
 - core.security.process_env::EnvInheritPolicy, sanitize_env (POS: Child process environment isolation SSOT) [lazy]
 
 [OUTPUT]
 - BaseRuntime: Abstract base for RuntimeBackend implementations.
-- build_safe_env: Build the environment of a delegated child process: core variables only, plus the configured env.
+- build_safe_env: Build the environment of a delegated child process: core variables only, plus the configured env, plus the system trust store while enterprise network compatibility is on.
 - truncate_response: Truncate response text if it exceeds the configured limit.
 - KEEPALIVE_SECONDS / working_status: how long a turn may be silent, and the ``working`` status it reports then.
 
@@ -26,6 +27,7 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 
+from myrm_agent_harness.infra.tls_compat import with_node_system_ca
 from myrm_agent_harness.toolkits.acp.auth._profiles import profile_for
 from myrm_agent_harness.toolkits.acp.types import (
     AcpError,
@@ -101,7 +103,7 @@ def build_safe_env(
 ) -> dict[str, str]:
     """Build the environment of a delegated child process.
 
-    Two layers, both honouring ``config.auth_mode``:
+    Two layers, both honouring ``config.auth_mode``, then the trust setting:
 
     1. Baseline — from the parent environment only the shared core variables (PATH, HOME, locale, proxy, …)
        and the variable that relocates this CLI's own login home are inherited. A delegated CLI hands its
@@ -113,6 +115,9 @@ def build_safe_env(
        - ``subscription``: only non-secret entries are applied; injected provider
          secrets are dropped so the CLI is forced onto its own logged-in
          subscription session rather than silently falling back to a key.
+
+    While enterprise network compatibility is on, ``NODE_USE_SYSTEM_CA=1`` is added so a Node-based CLI validates
+    against the operating system's trust store the way the host does; a value ``config.env`` sets wins.
     """
     from myrm_agent_harness.core.security.process_env import EnvInheritPolicy, sanitize_env
 
@@ -136,7 +141,7 @@ def build_safe_env(
         else:
             env.update(config.env)
 
-    return env
+    return with_node_system_ca(env)
 
 
 def truncate_response(text: str, max_chars: int) -> str:
