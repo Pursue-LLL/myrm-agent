@@ -1,7 +1,7 @@
 """
 [INPUT]
-- app.api.skills.test_fixtures::(seed_growth_skill, seed_review_result, cleanup_growth_skills, request models) (POS: local-only fixture routes of the draft approval Chrome E2E)
-- app.services.skills.growth.lifecycle::process_skill_review_result (POS: the production entry a fixture review result is fed to)
+- app.api.skills.test_fixtures::(seed_growth_skill, seed_review_result, cleanup_growth_skills, request models) (POS: Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth drafts); gated by is_local_mode())
+- app.services.skills.growth.lifecycle::process_skill_review_result (POS: Skill growth lifecycle orchestration)
 [OUTPUT]
 - Tests that the three fixture routes answer 404 outside local mode, that a directory name outside one path component
   is refused before anything is written or removed, that seeding never overwrites an existing directory, that cleanup

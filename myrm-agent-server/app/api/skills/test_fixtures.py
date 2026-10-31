@@ -1,5 +1,10 @@
 """Local-only HTTP fixtures for skill catalog Chrome E2E tests.
 
+[INPUT]
+- app.services.skills.growth.lifecycle::process_skill_review_result (POS: Skill growth lifecycle orchestration)
+- app.core.skills.providers.local::compute_local_skill_id (POS: 本地技能扫描服务)
+- app.core.skills.models::LOCAL_SKILLS_DIR (POS: Skill system data models)
+
 [OUTPUT]
 - ensure_prebuilt_catalog: local/test route to seed prebuilt skills for Chrome E2E
 - seed_skill_manage_mutation_batch: local/test route that leaves a skill whose second version came from a
@@ -10,7 +15,8 @@
   test created
 
 [POS]
-Dev-only skills catalog fixture router; gated by is_local_mode().
+Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth
+drafts); gated by is_local_mode().
 """
 
 from __future__ import annotations

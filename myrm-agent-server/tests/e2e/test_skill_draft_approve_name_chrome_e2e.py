@@ -1,9 +1,9 @@
 """Real Chrome MCP E2E: approving a skill draft in the Instinct Inbox acts on the skill the draft's name points at.
 
 [INPUT]
-- app.api.skills.test_fixtures (POS: seeds an existing skill, feeds a review result through the production growth lifecycle)
-- tests.support.chrome_mcp_e2e::(open_settings_subroute, wait_for_state, http_json, get_e2e_api_url) (POS: owned Chrome page, state polling, loopback HTTP)
-- tests.e2e.test_skill_manage_undo_rollback_chrome_e2e::_fetch_skill_md (POS: a skill's SKILL.md as the API serves it)
+- app.api.skills.test_fixtures (POS: Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth drafts); gated by is_local_mode())
+- tests.support.chrome_mcp_e2e::(open_settings_subroute, wait_for_state, http_json, get_e2e_api_url) (POS: Shared real-Chrome MCP helpers for formal UI E2E tests)
+- tests.e2e.test_skill_manage_undo_rollback_chrome_e2e::_fetch_skill_md (POS: Chrome E2E: Task Steps rollback restores SKILL.md from a real skill_mutation batch)
 
 [OUTPUT]
 - test_approving_a_draft_spelled_unlike_a_skill_acts_on_that_skill_when_the_volume_ignores_case: the draft is recorded
