@@ -2,24 +2,6 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
-### BUG-HARNESS-2026-10-31-160 · 工具冲突闸门在一次独占调用失败后，把同一轮后面的独占调用统统换成 `[SKIPPED]`：被换掉的调用约一半本来会成功，Claude Code 已把这类连带取消分四次拆光；闸门只保留互斥
-
-| 字段 | 内容 |
-| --- | --- |
-| **状态** | **FIXED**（harness：`src/myrm_agent_harness/agent/middlewares/concurrency/tool_conflict_gate.py` 由 100 行降到 45 行，删除按 AI 消息 id 记「失败回合」的有序表（最多 128 个回合）、为找回合 id 而对每个独占调用逆序扫描消息的辅助函数、`[SKIPPED]` 通知；`tests/agent/middlewares/test_tool_conflict_gate.py` 删 10 例只测跳过的用例、新增 2 例；`tests/agent/middlewares/test_shipped_stack_tool_dispatch.py` 的真实图用例改为固定「失败不牵连」；`src/myrm_agent_harness/agent/middlewares/concurrency/_ARCH.md`、`src/myrm_agent_harness/agent/middlewares/MIDDLEWARE_SYSTEM.md` 同步；monorepo 材料文档 HARNESS_ARCHITECTURE_ADVANTAGE.md 删去「批次失败防护」小节、对比表一行与「批次级联损坏」的说法，TOOL_ECOSYSTEM_ADVANTAGE.md 删去「级联失败保护」一行）。 |
-| **发现时间** | 2026-10-31（评估闸门要不要加排队时长指标时，对照竞品并用本机数据量了一遍这条规则）。 |
-| **修复时间** | 2026-10-31 |
-| **严重程度** | P3：没有用户报告。本机数据里这条规则会作用在 62 个回合、79 次调用上（共 3832 个带工具的回合），每次让模型多走一轮。 |
-| **关联产品** | 所有一次回合里发出多个独占调用（bash、文件写入与编辑、记忆与看板写入、没有声明过安全属性的 MCP 与宿主工具）的 Agent 运行。共享/独占互斥、提示词、工具 schema、Prompt Cache 都不变。 |
-| **症状** | [实测，本机检查点库的只读副本；只输出计数，不读对话内容；脚本在 /tmp/probe，不入库] 1952 个对话各留最新检查点，共 3832 个带工具的回合、5013 次调用，单回合最多 6 个调用。① 独占调用失败后、同一回合后面还有独占调用：62 个回合、79 次调用。这 79 次调用当时都实际执行了：成功 42 次（53%）、失败 37 次（47%）。按现行闸门它们全会被换成 `[SKIPPED]`，其中 42 次是把本来会成功的调用换掉，模型要多一轮才能重发。② 79 次里有 66 次是 bash，用审批用的分类器粗判为只读的有 11 次（宽松上界）：互不相干的只读命令被前面一个失败的 bash 连带跳过。③ 历史里 `[SKIPPED]` 一次都没出现：旧调度器按 AIMessage 的 Python 对象 id 记批次（7da06196ec 之前的 safety_dispatcher.py），这批数据里它没起过作用，原因没有查；所以这条跳过在真实使用里没有运行记录 [推断]。 |
-| **根因** | ① 129 把旧调度器的「同批失败后跳过」原样带进闸门（旧版 `tool_conflict_gate.py` 第 84-91 行），当时没有对照竞品，也没有对照真实数据。② 竞品 [实测，读更新日志]：Claude Code 的更新日志把这类连带取消分四次拆掉：文件写入与编辑（claude-code 仓库 CHANGELOG.md 第 8018 行）、读取类（第 7665 行，「only Bash errors now cascade」）、只读 shell（第 6376 行）、最后是整个 Bash（第 5637 行，「each tool returns its own result independently」）。此前对照 Codex 源码时没有找到这种机制。③ 两种错误的代价不对称：被跳过的调用若本会成功，代价是一整轮模型往返加上下文里一条没有信息的 `[SKIPPED]`；若本会失败，代价只是一次毫秒级的失败和一条真实的错误信息。④ 与「bash 一律独占」叠加：一次发出多个互不相干的只读 bash，其中一个失败，其余全被跳过。 |
-| **修复** | ① 闸门只做互斥：共享/独占的选择不变；一个调用失败（返回 error 的 ToolMessage 或抛异常）不影响同一轮的其他调用，各自返回自己的结果。② 删除失败回合的有序表、回合 id 查找、`[SKIPPED]` 通知，以及只为它们存在的导入与日志。③ 先红后绿：新增「独占调用失败后，同一轮后面的调用（独占、共享各一例）照常执行」，真实图用例改为「两个失败的写入工具都执行、各自带自己的错误」；两者在旧闸门上都变红。④ 文档同步见状态。 |
-| **反复次数** | 第 1 次。 |
-| **踩坑** | ① 本条之前我提过「加排队时长直方图与跳过计数器、不改语义」，自查后撤回：只观测不解决问题；跳过本来就有一条 WARNING 日志，计数器多余；直方图没有下游决策（路径级互斥要每个工具声明碰哪些资源，bash 是黑盒）。② 新用例若不带「同一条 AI 消息」的 state，旧闸门也会通过（找不到回合 id 就从不跳过），用例是空转；带上 state 后才在旧闸门上变红。③ mypy 默认缓存损坏时报 INTERNAL ERROR，改用新的 `--cache-dir`。④ 材料文档那张测试表的「合计 259」与各行之和对不上，表里 test_staleness_guard、test_batch_cancel* 两个模块已不存在，是改动前就有的；这次只把受影响的数字按净删的 8 例同步（40→32、259→251），没有重算整张表。 |
-| **回归** | [1] 先红后绿（实测）：新单元用例在旧闸门上失败（回答是 error 与 `[SKIPPED]`，期望 success 与 ok），真实图用例在旧闸门上失败（日志为 Skipping fail_one）；改后 `test_tool_conflict_gate.py`、`test_conflict_gate.py`、`test_shipped_stack_tool_dispatch.py`、`test_shipped_stack_hooks.py` 共 65 例全过。[2] 变异验证（进程内、改后还原，文件逐字节一致）：全部改为共享、全部改为独占、共享与独占取反、让一个失败的调用毒化后面的独占调用，4 个变异全被杀死。[3] 更大范围（`tests/agent/middlewares`、`tests/agent/security`、`tests/agent/_internals/test_agent_runtime.py`、`tests/architecture`，`-n 4`）：12911 通过、13 跳过、9 xfail、1 失败；失败是 `test_harness_file_line_limit_gate`，点名 shadow_git_store.py、deduplicator.py、domain_metrics.py 三个文件的基线高于现值，这三个文件是别人尚未提交的工作区改动，与本次无关。[4] `check_fractal_docs`、`boundary_check`、`md_ref_validator`、`validate_arch_inventory`、`check_test_source_assertions` 通过。[5] 触及的三个文件 ruff 检查与格式检查通过；mypy（新缓存目录）对 `concurrency/` 包：本次文件 0 条，`concurrency_limiter.py` 有 4 条（no-untyped-def、unused-ignore、type-arg 两条），改动前就有，未动。[6] 全仓搜 `_failed_turns`、`_SKIPPED_NOTICE`、`_REMEMBERED_FAILED_TURNS`：除本日志的历史条目外无剩余。 |
-| **仍然存在** | ① 失去对「有依赖的写入链」的保护：例如 mv 失败后 rm 仍会执行。数据只能证明被换掉的调用 53% 成功，分不出其中有多少是危险的；兜底是审批与破坏性命令拦截，二者与闸门无关、未改。② 样本局限：只有一台机器的数据；每个对话只留最新检查点，被压缩掉的早期消息已丢，计数是下界；success 不等于结果符合预期；3 次旧工具名 kanban_show_tool 被现表当成独占，是小偏差。③ 历史上 `[SKIPPED]` 为 0 的原因没有查。④ 未做：bash 逐条只读分类（本机数据里一回合 ≥2 个 bash 的有 295 个，其中全是只读的至多 40 个；审批用的分类器把 find、sort -o、git branch 也算只读，直接复用会放出竞态，要另写更严的表）、共享并发上限（单回合最多 6 个调用，竞品的 8 到 10 不会触发）、路径级互斥、排队时长指标。⑤ 129 的「修复 ②」里「独占调用失败后……返回 `[SKIPPED]`」一句被本条取代，原文保留作历史记录。⑥ TOOL_ECOSYSTEM_ADVANTAGE.md 同一张表里「并发控制：Lock 串行化」「智能路径并发：不同文件的写入可并发」两行在改动前就与代码不符（129 已记路径级不存在），这次没动。 |
-| **代码位置** | `src/myrm_agent_harness/agent/middlewares/concurrency/tool_conflict_gate.py` · `src/myrm_agent_harness/agent/middlewares/concurrency/_ARCH.md` · `src/myrm_agent_harness/agent/middlewares/MIDDLEWARE_SYSTEM.md` · 测试 `tests/agent/middlewares/test_tool_conflict_gate.py`、`tests/agent/middlewares/test_shipped_stack_tool_dispatch.py` |
-
 ### BUG-HARNESS-2026-10-31-159 · 每分钟限频守卫 FrequencyGuard（全局 100 次、单工具 30 次）只在委托子 Agent 的 run 里计数，用户 run 的每次工具调用拿到的都是新的空守卫；它没有竞品先例、数字没有依据，整体删除，单轮搜索配额与「用户 run 不按量限制」不变
 
 | 字段 | 内容 |
