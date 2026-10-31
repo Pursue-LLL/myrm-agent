@@ -3,7 +3,7 @@
 - app.services.skills.growth.lifecycle::process_skill_review_result (POS: unified entry for a background review result)
 - app.core.skills.runtime_metadata::skill_to_runtime_metadata (POS: the name a skill is listed under for the agent runtime)
 - app.api.skills.drafts::approve_skill_draft (POS: approval of a held draft)
-- app.core.skills.store.local_lookup::approval_writes_into (POS: whether approving a draft under a name writes into the directory of the skill it names)
+- app.core.skills.store.local_lookup::approval_writes_into, _as_listed (POS: whether approving a draft under a name writes into the directory of the skill it names; a directory under the name the skills directory lists it by)
 - tests.api.skills.conftest (POS: primary local skills directory moved to a temporary one, real local scan)
 [OUTPUT]
 - Tests that a review result finds the skill it names whether it carries the skill's directory name, its listed name
@@ -11,8 +11,9 @@
   that two skills a name cannot tell apart are not guessed between, that on a volume that does not tell spellings apart
   a name spelled unlike the directory's still finds the skill and an approved draft under it acts on that skill, that
   on any volume a new skill is recorded under the directory's name exactly when approving it writes into that
-  directory (judged by the name the approval writes, so a name it rewrites is judged by that), and that a name no
-  directory can have is recorded and not dropped.
+  directory (judged by the name the approval writes, so a name it rewrites is judged by that), that a skill removed
+  while the skills directory is being listed keeps the name it was looked up by, and that a name no directory can
+  have is recorded and not dropped.
 [POS]
 The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
 pipeline keeps, locks and patches skills by directory. The names are built by the product's own adapter and the skills
@@ -28,7 +29,7 @@ import pytest
 from app.api.skills.drafts import ApproveDraftRequest, approve_skill_draft
 from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.runtime_metadata import skill_to_runtime_metadata
-from app.core.skills.store.local_lookup import approval_writes_into
+from app.core.skills.store.local_lookup import _as_listed, approval_writes_into
 from app.core.skills.store.service import skills_service
 from app.services.skills.growth.case_types import SkillGrowthCaseDetailRead, SkillGrowthCaseStatus
 from app.services.skills.growth.lifecycle import process_skill_review_result
@@ -305,6 +306,15 @@ def test_approving_a_draft_writes_into_a_skill_directory_only_when_its_cleansed_
     name = name.replace("{root}", mock_local_skills_dir.name).replace("{directory}", str(directory))
 
     assert approval_writes_into(directory, name) is writes_into
+
+
+def test_a_skill_removed_while_the_skills_directory_is_listed_keeps_the_name_it_was_looked_up_by(
+    mock_local_skills_dir: Path,
+) -> None:
+    removed = mock_local_skills_dir / "Report-Builder"
+    (mock_local_skills_dir / "another-directory").mkdir()
+
+    assert _as_listed(mock_local_skills_dir, removed) == removed
 
 
 @pytest.mark.asyncio
