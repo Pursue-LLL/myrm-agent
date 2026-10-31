@@ -95,10 +95,11 @@ async def communicate_bounded(
     *stderr_max_bytes* defaults to *max_bytes*; a caller whose stdout carries an encoded result passes a smaller one,
     because stderr is raw text and needs no such room.
 
-    The deadline and a cancel run *on_abort* (which must stop the process and whatever it started), wait until the
-    pipes close, and then raise ``TimeoutError`` or ``CancelledError``. The process must have been started with both
-    stdout and stderr as pipes, and with stdin as a pipe when *stdin_data* is given (it is written, then stdin is
-    closed). ``proc.returncode`` is set when this returns.
+    The deadline and a cancel run *on_abort* (which must stop the process and whatever it started), wait for the pipes
+    to close, but no longer than ``_DRAIN_SECONDS`` (a descendant that escaped the kill may hold them), and then raise
+    ``TimeoutError`` or ``CancelledError``. The process must have been started with both stdout and stderr as pipes,
+    and with stdin as a pipe when *stdin_data* is given (it is written, then stdin is closed). ``proc.returncode`` is
+    set when this returns.
     """
     if proc.stdout is None or proc.stderr is None:
         raise ValueError("communicate_bounded needs both stdout and stderr started as pipes")
