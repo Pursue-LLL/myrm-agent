@@ -7,20 +7,21 @@
 [OUTPUT]
 - ScriptedModel: answers from a script and records what each call was sent and the keyword arguments of each tool binding
 - shipped_agent: the shipped middleware stack compiled with ``create_agent`` around given tools
-- shipped_session: the session context of a run that may use tools without asking, with its own call-frequency window
+- shipped_session: the session context of a run that may use tools without asking, by default with a call-frequency window of its own
 - yolo_config: the security config of such a run
 
 [POS]
 A test of the stack that is not about one middleware compiles the same graph a run does, so what it observes
 (which tool calls run together, what the model is sent, what a hook returns) is what a user's run does. Mocks of
-the framework would only show what the mock does.
+the framework would only show what the mock does. The one difference is that default window: a run installs no
+call-frequency guard of its own, and a test of that gap asks for the run as it is.
 """
 
 from __future__ import annotations
 
 import time
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 from langchain.agents import create_agent
@@ -95,11 +96,13 @@ def yolo_config(policy: PrivacyPolicy | None = None) -> SecurityConfig:
 
 
 @contextmanager
-def shipped_session(workspace: Path) -> Iterator[None]:
+def shipped_session(workspace: Path, *, own_frequency_window: bool = True) -> Iterator[None]:
     """The session context of a run in *workspace* that may use tools without asking; restored on exit.
 
     The run gets a call-frequency window of its own: the guard lives in a context variable that an earlier test of the
     process may have set, and its per-tool limit would then count the calls of tests that share nothing with this one.
+    A run installs no such window, so a test that has to see the run as it is passes ``own_frequency_window=False`` and
+    starts from a context in which no earlier test has set one.
     """
     reset_terminal_errors()
     reset_audit_log()
@@ -107,7 +110,7 @@ def shipped_session(workspace: Path) -> Iterator[None]:
     set_security_config(yolo_config())
     set_workspace_root(str(workspace))
     try:
-        with isolated_frequency_guard():
+        with isolated_frequency_guard() if own_frequency_window else nullcontext():
             yield
     finally:
         set_security_config(None)
