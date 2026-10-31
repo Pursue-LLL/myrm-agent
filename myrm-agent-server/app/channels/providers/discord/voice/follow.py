@@ -47,7 +47,7 @@ class _Presence(enum.Enum):
 
     # Discord confirmed the user is in no channel the bot follows into.
     ABSENT = "absent"
-    # Nothing to act on: the poll failed, or the user is in a channel reconciliation cannot join (a stage channel, one not cached).
+    # Nothing to act on: the poll failed, or the user is in a channel it does not name to join (a stage channel, one not cached).
     UNKNOWN = "unknown"
 
 
