@@ -3,9 +3,8 @@
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
-from langchain.agents.middleware import AgentMiddleware
+from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
@@ -73,13 +72,6 @@ class GuardrailMiddleware(AgentMiddleware[object, object]):
                 "guardrail_code": reason_code,
             },
         )
-
-    async def on_tool_start(self, tool: str, input_str: str, **kwargs: object) -> str | None:
-        """Legacy compatibility for string-based check if needed.
-
-        We implement the actual interception in wrap_tool_call/awrap_tool_call instead.
-        """
-        return None
 
     async def awrap_tool_call(
         self,

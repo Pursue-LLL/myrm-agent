@@ -15,7 +15,7 @@ Judging the tool calls of a model response exactly once, in a graph node of thei
 
 ## Layering
 ```
-record.py     → langchain (AgentState, PrivateStateAttr), langchain_core.messages
+record.py     → langchain (AgentState, OmitFromSchema), langchain_core.messages
 target.py     → ..refusal, agent.security, middlewares._session_context
 evaluator.py  → ..batch_processor, ..intent_ledger, ..rate_limiter, record, target
 node.py       → evaluator, record, target

@@ -3,7 +3,7 @@
 [INPUT]
 - utils.json_args_repair::repair_json_args (POS: one deterministic syntax-level repair of a truncated JSON object string)
 - langchain.agents.middleware::wrap_tool_call (POS: public tool-call middleware hook)
-- langgraph.prebuilt.tool_node::ToolCallRequest (POS: tool execution request; ``override`` returns a modified copy)
+- langchain.agents.middleware::ToolCallRequest (POS: tool execution request; ``override`` returns a modified copy)
 
 [OUTPUT]
 - stringified_json_args_middleware: hands the tool the arguments with every JSON string for a list or object field parsed
@@ -24,9 +24,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from weakref import WeakKeyDictionary
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import ToolCallRequest, wrap_tool_call
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 from pydantic import BaseModel
 

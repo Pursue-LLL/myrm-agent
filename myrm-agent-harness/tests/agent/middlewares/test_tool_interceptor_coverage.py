@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
     _tool_interceptor_middleware_inner,
@@ -323,7 +323,7 @@ def test_record_skill_execution():
 
 @pytest.mark.asyncio
 async def test_run_pre_call_guards_blocks():
-    from langgraph.prebuilt.tool_node import ToolCallRequest
+    from langchain.agents.middleware import ToolCallRequest
 
     from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
         run_pre_call_guards as _run_pre_call_guards,
@@ -348,7 +348,7 @@ async def test_run_pre_call_guards_blocks():
 
 @pytest.mark.asyncio
 async def test_run_pre_call_guards_updated_input():
-    from langgraph.prebuilt.tool_node import ToolCallRequest
+    from langchain.agents.middleware import ToolCallRequest
 
     from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
         run_pre_call_guards as _run_pre_call_guards,

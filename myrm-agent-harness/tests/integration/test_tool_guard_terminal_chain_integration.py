@@ -319,7 +319,7 @@ def _make_request(tool_name: str, call_id: str):
     """Build a a minimal ToolCallRequest for the real middleware entry."""
     from unittest.mock import MagicMock
 
-    from langgraph.prebuilt.tool_node import ToolCallRequest
+    from langchain.agents.middleware import ToolCallRequest
 
     return ToolCallRequest(
         tool_call={"name": tool_name, "id": call_id, "args": {}},

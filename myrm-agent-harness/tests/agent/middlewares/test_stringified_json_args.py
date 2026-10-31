@@ -9,9 +9,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool, tool
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from pydantic import BaseModel
 
 from myrm_agent_harness.agent.middlewares.tooling.stringified_json_args import stringified_json_args_middleware

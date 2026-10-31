@@ -11,8 +11,8 @@ from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from myrm_agent_harness.agent.middlewares.guardrails import (
     GuardrailMiddleware,
     SkillBoundaryProvider,

@@ -4,7 +4,7 @@ Handles dynamic tool resolution, heartbeat emission during long-running
 executions, and structured error / cancellation handling.
 
 [INPUT]
-- langgraph.prebuilt.tool_node::ToolCallRequest
+- langchain.agents.middleware::ToolCallRequest
 - agent.errors.tool_error_category::ToolErrorCategory (POS: Canonical tool error categories for structured error classification.)
 - agent.middlewares._session_context (POS: active tool registry + terminal error registry)
 - agent.middlewares.tooling._tool_helpers (POS: error formatting + terminal error classification)
@@ -29,8 +29,8 @@ import asyncio
 import time
 from typing import TYPE_CHECKING
 
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers import (

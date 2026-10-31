@@ -50,9 +50,8 @@ from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import ToolCallRequest, wrap_tool_call
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (

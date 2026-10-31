@@ -18,4 +18,4 @@ OAP-style pre-tool-call guardrail chain. `GuardrailMiddleware` evaluates each to
 ## Module Dependencies
 
 - `langchain.agents.middleware::AgentMiddleware`
-- `langgraph.prebuilt.tool_node::ToolCallRequest`
+- `langchain.agents.middleware::ToolCallRequest`

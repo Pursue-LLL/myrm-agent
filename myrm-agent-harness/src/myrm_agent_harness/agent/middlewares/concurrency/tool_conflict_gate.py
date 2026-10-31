@@ -21,9 +21,8 @@ from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Mapping
 
-from langchain.agents.middleware import AgentMiddleware, AgentState
+from langchain.agents.middleware import AgentMiddleware, AgentState, ToolCallRequest
 from langchain_core.messages import AIMessage, ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.middlewares.concurrency.conflict_gate import ConflictGate

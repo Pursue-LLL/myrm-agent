@@ -6,7 +6,7 @@
 - agent.middlewares.tooling._runtime_tool_governance::compute_turn_allowed_names (POS: merged allowlist for model hint + execution enforcement)
 - toolkits.llms.allowed_tools_capability::model_supports_allowed_tools_tool_choice (POS: provider capability gate for cache-safe skill attenuation)
 - langchain.agents.middleware::AgentMiddleware (POS: Middleware base)
-- langgraph.prebuilt.tool_node::ToolCallRequest (POS: Tool execution request for interceptors)
+- langchain.agents.middleware::ToolCallRequest (POS: Tool execution request for interceptors)
 
 [OUTPUT]
 - SkillAttenuationMiddleware: applies skill attenuation via ``tool_choice.allowed_tools``
@@ -31,10 +31,10 @@ from langchain.agents.middleware import (
     AgentState,
     ModelRequest,
     ModelResponse,
+    ToolCallRequest,
 )
 from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.middlewares._session_context import (

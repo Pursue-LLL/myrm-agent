@@ -3,8 +3,8 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from myrm_agent_harness.agent.middlewares.tooling._tool_execution_lifecycle import (
     emit_tool_heartbeat as _emit_tool_heartbeat,

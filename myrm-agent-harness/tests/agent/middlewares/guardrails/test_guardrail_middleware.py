@@ -1,6 +1,6 @@
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from myrm_agent_harness.agent.middlewares.guardrails.core import (
     GuardrailDecision,
@@ -77,9 +77,7 @@ async def test_guardrail_allow_all(mock_request: ToolCallRequest) -> None:
 
 @pytest.mark.asyncio
 async def test_guardrail_deny(mock_request: ToolCallRequest) -> None:
-    middleware = GuardrailMiddleware(
-        providers=[MockAllowProvider(), MockDenyProvider()]
-    )
+    middleware = GuardrailMiddleware(providers=[MockAllowProvider(), MockDenyProvider()])
     result = await middleware.awrap_tool_call(mock_request, mock_handler)
 
     assert isinstance(result, ToolMessage)
@@ -93,9 +91,7 @@ async def test_guardrail_deny(mock_request: ToolCallRequest) -> None:
 async def test_guardrail_fail_closed_on_exception(
     mock_request: ToolCallRequest,
 ) -> None:
-    middleware = GuardrailMiddleware(
-        providers=[MockExceptionProvider()], fail_closed=True
-    )
+    middleware = GuardrailMiddleware(providers=[MockExceptionProvider()], fail_closed=True)
     result = await middleware.awrap_tool_call(mock_request, mock_handler)
 
     assert isinstance(result, ToolMessage)
@@ -105,9 +101,7 @@ async def test_guardrail_fail_closed_on_exception(
 
 @pytest.mark.asyncio
 async def test_guardrail_fail_open_on_exception(mock_request: ToolCallRequest) -> None:
-    middleware = GuardrailMiddleware(
-        providers=[MockExceptionProvider()], fail_closed=False
-    )
+    middleware = GuardrailMiddleware(providers=[MockExceptionProvider()], fail_closed=False)
     result = await middleware.awrap_tool_call(mock_request, mock_handler)
 
     assert isinstance(result, ToolMessage)
@@ -130,9 +124,7 @@ def test_guardrail_build_request_non_dict_args(mock_request: ToolCallRequest) ->
 def test_guardrail_build_denied_message_defaults() -> None:
     """Missing id/name in tool_call produce safe defaults in denied message."""
     middleware = GuardrailMiddleware(providers=[MockDenyProvider()])
-    request = ToolCallRequest(
-        tool=MagicMock(), state={}, runtime=MagicMock(), tool_call={}
-    )
+    request = ToolCallRequest(tool=MagicMock(), state={}, runtime=MagicMock(), tool_call={})
     msg = middleware._build_denied_message(
         request,
         GuardrailDecision(allow=False),
@@ -140,11 +132,3 @@ def test_guardrail_build_denied_message_defaults() -> None:
     assert "unknown_tool" in msg.content
     assert msg.tool_call_id == "missing_id"
     assert msg.additional_kwargs["guardrail_code"] == "oap.denied"
-
-
-def test_guardrail_on_tool_start_returns_none() -> None:
-    """Legacy on_tool_start hook always returns None."""
-    import asyncio
-
-    middleware = GuardrailMiddleware(providers=[MockAllowProvider()])
-    assert asyncio.run(middleware.on_tool_start("tool", "input")) is None

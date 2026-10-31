@@ -54,7 +54,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Annotated, NotRequired
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain.agents.middleware.types import AgentState, ExtendedModelResponse, PrivateStateAttr
+from langchain.agents.middleware.types import AgentState, ExtendedModelResponse, OmitFromSchema
 from langchain_core.messages import SystemMessage
 from langgraph.types import Command
 
@@ -67,14 +67,16 @@ SNAPSHOT_ROOT_KEY = "workspace_snapshot_root"
 # A snapshot takes 0.3-0.7 s in a git repository and took 1.5 s at most in four measured batches; twice that is the
 # longest wait a first model call is made to accept.
 _SNAPSHOT_DEADLINE_MS = 3000.0
+# A state key the graph keeps and checkpoints but leaves out of its input and output.
+_PRIVATE_STATE = OmitFromSchema(input=True, output=True)
 
 
 class WorkspaceContextState(AgentState[object]):
     """The agent state plus the sandbox snapshot of this chat thread and the workspace it describes (empty when
     the probe outran its deadline). Private: not part of the graph's input or output."""
 
-    workspace_snapshot: NotRequired[Annotated[str, PrivateStateAttr]]
-    workspace_snapshot_root: NotRequired[Annotated[str, PrivateStateAttr]]
+    workspace_snapshot: NotRequired[Annotated[str, _PRIVATE_STATE]]
+    workspace_snapshot_root: NotRequired[Annotated[str, _PRIVATE_STATE]]
 
 
 def _take_snapshot(workspace_root: str) -> str | None:

@@ -7,8 +7,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import AIMessage, ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.middlewares.concurrency import tool_conflict_gate

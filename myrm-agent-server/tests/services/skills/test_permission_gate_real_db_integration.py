@@ -14,8 +14,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from myrm_agent_harness.agent.middlewares.guardrails import (
     GuardrailMiddleware,
     SkillBoundaryProvider,

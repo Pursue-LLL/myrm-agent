@@ -2,7 +2,7 @@
 
 [INPUT]
 - langchain.agents.middleware::wrap_tool_call (POS: LangChain tool-call middleware hook)
-- langgraph.prebuilt.tool_node::ToolCallRequest (POS: the call being dispatched)
+- langchain.agents.middleware::ToolCallRequest (POS: the call being dispatched)
 - langchain_core.messages::HumanMessage (POS: the message the model reads as the user's)
 - core.context_vars::current_tool_call_id_var, claim_approval_note (POS: per-call note hand-off)
 
@@ -27,9 +27,8 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import ToolCallRequest, wrap_tool_call
 from langchain_core.messages import HumanMessage, ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.core.context_vars import (

@@ -92,9 +92,6 @@ class AgentConfig(BaseModel):
         le=1000,
     )
     timeout_seconds: int | None = Field(default=None, description="Global timeout in seconds", gt=0)
-    parallel_tool_calls: bool | None = Field(
-        default=None, description="Enable parallel tool calls (None=use LLM default)"
-    )
     locale: str | None = Field(
         default=None,
         description="Locale for error messages and diagnostics (e.g., 'en', 'zh-CN'). None=auto-detect from environment",
@@ -199,17 +196,11 @@ class AgentConfig(BaseModel):
             phoenix_project_name=os.getenv("MYRM_PHOENIX_PROJECT", "myrm-agent"),
         )
 
-        ptc_env = os.getenv("MYRM_PARALLEL_TOOL_CALLS")
-        parallel_tool_calls: bool | None = None
-        if ptc_env is not None:
-            parallel_tool_calls = ptc_env.lower() == "true"
-
         return cls(
             llm=llm_config,
             tracing_config=tracing_config,
             recursion_limit=int(os.getenv("MYRM_RECURSION_LIMIT", "50")),
             timeout_seconds=(int(ts) if (ts := os.getenv("MYRM_TIMEOUT_SECONDS")) else None),
-            parallel_tool_calls=parallel_tool_calls,
             enable_artifacts=os.getenv("MYRM_ENABLE_ARTIFACTS", "true").lower() == "true",
         )
 

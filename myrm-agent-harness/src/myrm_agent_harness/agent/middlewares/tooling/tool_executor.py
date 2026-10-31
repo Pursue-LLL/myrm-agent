@@ -2,7 +2,7 @@
 
 [INPUT]
 - langchain_core.messages::ToolMessage (POS: Core message type definitions)
-- langgraph.prebuilt.tool_node::ToolCallRequest
+- langchain.agents.middleware::ToolCallRequest
 - langgraph.types::Command
 - agent.middlewares.tooling._tool_helpers (POS: Stateless helper functions for tool_interceptor_middleware)
 - agent.middlewares._session_context (POS: Middleware session context)
@@ -33,8 +33,8 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.middlewares._session_context import (

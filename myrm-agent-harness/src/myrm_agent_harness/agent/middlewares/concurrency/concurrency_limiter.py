@@ -5,7 +5,7 @@
 [INPUT]
 - agent.sub_agents.registry::SUBAGENT_CONFIGS (POS: Subagent 配置注册表)
 - langchain.agents.middleware::wrap_tool_call (POS: 工具调用中间件装饰器)
-- langgraph.prebuilt.tool_node::ToolCallRequest (POS: 工具调用请求)
+- langchain.agents.middleware::ToolCallRequest (POS: 工具调用请求)
 
 [OUTPUT]
 - create_concurrency_limiter: 创建并发限制中间件的工厂函数
@@ -21,9 +21,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import ToolCallRequest, wrap_tool_call
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS

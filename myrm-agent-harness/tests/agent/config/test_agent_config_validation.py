@@ -95,7 +95,6 @@ def test_default_values():
     assert config.timeout_seconds is None
     assert config.system_prompt is None
     assert config.enable_artifacts is False
-    assert config.parallel_tool_calls is None
 
 
 def test_from_env_backward_compatibility():

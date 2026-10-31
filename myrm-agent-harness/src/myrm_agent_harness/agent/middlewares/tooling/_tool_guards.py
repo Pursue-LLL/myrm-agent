@@ -31,8 +31,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import ToolMessage
-from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
 from myrm_agent_harness.agent.middlewares.tooling._circuit_breaker import check_circuit_breaker

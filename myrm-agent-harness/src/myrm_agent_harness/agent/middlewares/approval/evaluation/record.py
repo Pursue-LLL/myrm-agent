@@ -1,7 +1,7 @@
 """What the approval stage decided for one model response, in the form the graph state keeps it.
 
 [INPUT]
-- langchain.agents.middleware.types::AgentState, PrivateStateAttr (POS: The agent state a middleware extends, and the marker that keeps a key out of the graph's input and output.)
+- langchain.agents.middleware.types::AgentState, OmitFromSchema (POS: The agent state a middleware extends, and the marker that keeps a key out of the graph's input and output.)
 - langchain_core.messages::ToolCall (POS: LangGraph message types)
 
 [OUTPUT]
@@ -21,10 +21,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Annotated, NotRequired, TypedDict
 
-from langchain.agents.middleware.types import AgentState, PrivateStateAttr
+from langchain.agents.middleware.types import AgentState, OmitFromSchema
 from langchain_core.messages import ToolCall
 
 APPROVAL_EVALUATION_KEY = "approval_evaluation"
+# A state key the graph keeps and checkpoints but leaves out of its input and output.
+_PRIVATE_STATE = OmitFromSchema(input=True, output=True)
 
 
 class RefusedCall(TypedDict):
@@ -56,7 +58,7 @@ class ApprovalEvaluation(TypedDict):
 class ApprovalEvaluationState(AgentState[object]):
     """The agent state plus the evaluation of the latest model response. Private: not part of the graph's input or output."""
 
-    approval_evaluation: NotRequired[Annotated[ApprovalEvaluation | None, PrivateStateAttr]]
+    approval_evaluation: NotRequired[Annotated[ApprovalEvaluation | None, _PRIVATE_STATE]]
 
 
 def build_evaluation(
