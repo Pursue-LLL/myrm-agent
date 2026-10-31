@@ -6,7 +6,7 @@
 - myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE (POS: entry file name of a skill package)
 
 [OUTPUT]
-- local_skill_dir_named: the directory of the skill kept under a directory name
+- local_skill_dir_named: the directory of the skill kept under a directory name, spelled as the volume lists it
 - local_skill_dir_known_as: the one directory whose skill is known by a name
 
 [POS]
@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import errno
 import logging
+import os
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
@@ -34,7 +35,9 @@ def local_skill_dir_named(skills_root: Path, dir_name: str) -> Path | None:
     Directory names are not held to the skill-name convention. An empty name, ``..`` and a name of more than one
     path component are refused: they would name no directory below ``skills_root``, or one outside it. A name longer
     than a directory entry can be is no skill either; any other file system error is raised, because the growth
-    lifecycle takes a missing skill for one that is not locked.
+    lifecycle takes a missing skill for one that is not locked. The directory is returned as the volume lists it:
+    on a case-insensitive volume another spelling opens it too, but a skill's page id, and so its lock, belong to the
+    listed one.
     """
     if not dir_name or dir_name == ".." or Path(dir_name).name != dir_name:
         return None
@@ -45,7 +48,23 @@ def local_skill_dir_named(skills_root: Path, dir_name: str) -> Path | None:
         if exc.errno != errno.ENAMETOOLONG:
             raise
         return None
-    return skill_dir if has_skill_md else None
+    return _as_listed(skills_root, skill_dir) if has_skill_md else None
+
+
+def _as_listed(skills_root: Path, skill_dir: Path) -> Path:
+    """``skill_dir`` under the name ``skills_root`` lists it by; ``skill_dir`` itself when it already is that name."""
+    names = os.listdir(skills_root)
+    if skill_dir.name in names:
+        return skill_dir
+    # The spelling differs from every entry, so only a volume that does not tell spellings apart opened it: the entry
+    # it opened is the one that is the same file. Sorted, so that links to one directory give the same answer each time.
+    for name in sorted(names):
+        try:
+            if (skills_root / name).samefile(skill_dir):
+                return skills_root / name
+        except OSError:
+            continue
+    return skill_dir
 
 
 def _known_names(skill_dir: Path) -> frozenset[str]:
