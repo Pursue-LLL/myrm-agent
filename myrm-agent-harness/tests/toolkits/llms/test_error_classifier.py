@@ -1,11 +1,10 @@
 """Tests for myrm_agent_harness.toolkits.llms.errors.classifier
 and _runtime.stream_executor._emergency_compact."""
 
-import ssl
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from myrm_agent_harness.toolkits.llms.adapters.converters import (
     ensure_arguments_json_string,
@@ -17,7 +16,7 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import (
     is_context_overflow,
     is_quota_exhausted,
 )
-from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason, RecoverabilityLevel, get_probe_policy
+from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 
 # ============================================================================
 # classify_error — context overflow
@@ -177,101 +176,6 @@ def test_classify_timeout(msg: str) -> None:
 def test_classify_tls_transient_as_timeout(msg: str) -> None:
     assert classify_error(Exception(msg)) == ErrorKind.TIMEOUT
     assert classify_failover_reason(Exception(msg)) == FailoverReason.TIMEOUT
-
-
-# ============================================================================
-# classify_error — hard TLS failure (rejected certificate, fail-fast)
-# ============================================================================
-
-
-@pytest.mark.parametrize(
-    "msg",
-    [
-        "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate",
-        "unable to get local issuer certificate",
-        "unable to verify the first certificate",
-        "hostname mismatch, certificate is not valid for 'api.example.com'",
-        "certificate has expired",
-    ],
-)
-def test_classify_tls_hard_as_tls_certificate(msg: str) -> None:
-    assert classify_failover_reason(Exception(msg)) == FailoverReason.TLS_CERTIFICATE
-    assert classify_error(Exception(msg)) == ErrorKind.TLS_CERTIFICATE
-
-
-@pytest.mark.parametrize(
-    "msg",
-    [
-        # Spellings that differ from another signal only in a separator or an apostrophe.
-        "Error: DEPTH_ZERO_SELF_SIGNED_CERT",
-        "SELF_SIGNED_CERT_IN_CHAIN",
-        "Hostname doesn\u2019t match certificate",
-        "basic_constraints of CA cert",
-        # Wordings the classifier once missed: the code alone, an expiry in Node's short form.
-        "[SSL: CERTIFICATE_VERIFY_FAILED]",
-        "cert has expired",
-    ],
-)
-def test_classify_tls_hard_spellings_as_tls_certificate(msg: str) -> None:
-    assert classify_error(Exception(msg)) == ErrorKind.TLS_CERTIFICATE
-
-
-_CERT = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1032)"
-
-
-def _wrapped_in_connection_error(root: Exception, outermost: str) -> Exception:
-    """A client library's layers around *root*: only the innermost carries the reason, the outermost is its wording."""
-    middle = ConnectionError("Connection error.")
-    middle.__cause__ = root
-    outer = Exception(outermost)
-    outer.__context__ = middle
-    return outer
-
-
-@pytest.mark.parametrize(
-    "outermost",
-    [
-        "litellm.InternalServerError: OpenAIException - Connection error.",
-        "litellm.InternalServerError: VertexAIException - Connection error",
-        "litellm.APIConnectionError: Connection error.",
-    ],
-)
-def test_classify_connection_error_wrapping_a_rejected_certificate(outermost: str) -> None:
-    exc = _wrapped_in_connection_error(ssl.SSLCertVerificationError(1, _CERT), outermost)
-    assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
-    assert classify_error(exc) == ErrorKind.TLS_CERTIFICATE
-
-
-def test_classify_certificate_inside_a_connection_error_class_name_is_not_a_timeout() -> None:
-    """The class name's "connection error" alone would file the rejection under the timeout rule."""
-    exc = Exception(f"litellm.APIConnectionError: {_CERT}")
-    assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
-
-
-@pytest.mark.parametrize(
-    "root",
-    [
-        ConnectionRefusedError(61, "Connection refused"),
-        OSError(8, "nodename nor servname provided, or not known"),
-        ssl.SSLError(1, "[SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1032)"),
-        BrokenPipeError(32, "Broken pipe"),
-        ssl.SSLEOFError(8, "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol"),
-    ],
-    ids=["refused", "dns", "wrong_version", "broken_pipe", "eof"],
-)
-def test_classify_connection_error_without_a_rejected_certificate_stays_transient(root: Exception) -> None:
-    """An https URL pointed at a plain-HTTP service or an interrupted handshake is no certificate verdict."""
-    exc = _wrapped_in_connection_error(root, "litellm.InternalServerError: OpenAIException - Connection error.")
-    assert classify_failover_reason(exc) == FailoverReason.TIMEOUT
-
-
-def test_a_rejected_certificate_is_permanent_failoverable_and_probed_on_the_timeout_schedule() -> None:
-    """No retry changes the verdict, a backup endpoint may still answer, and the user can fix the trust setup."""
-    assert FailoverReason.TLS_CERTIFICATE.recoverability is RecoverabilityLevel.PERMANENT
-    assert FailoverReason.TLS_CERTIFICATE.is_failoverable
-    assert ErrorKind.TLS_CERTIFICATE.is_failoverable
-    assert ErrorKind.TLS_CERTIFICATE.to_failover_reason() is FailoverReason.TLS_CERTIFICATE
-    assert get_probe_policy(FailoverReason.TLS_CERTIFICATE) == get_probe_policy(FailoverReason.TIMEOUT)
 
 
 # ============================================================================
@@ -496,7 +400,7 @@ class TestEnsureArgumentsJsonString:
         assert isinstance(original[0]["function"]["arguments"], dict)
 
     def test_multiple_tool_calls(self) -> None:
-        tcs = [
+        tcs: list[dict[str, Any]] = [
             {"function": {"name": "a", "arguments": {"x": 1}}},
             {"function": {"name": "b", "arguments": None}},
             {"function": {"name": "c", "arguments": '{"y": 2}'}},
@@ -572,7 +476,7 @@ class TestTruncateOldestRounds:
         from myrm_agent_harness.agent._internals.agent_recovery import _TRUNCATION_MARKER
         from myrm_agent_harness.agent._internals.agent_recovery import truncate_oldest_rounds as _truncate_oldest_rounds
 
-        msgs: list = [
+        msgs: list[BaseMessage] = [
             SystemMessage(content="system prompt"),
             HumanMessage(content="round 1"),
             AIMessage(content="reply 1"),
@@ -597,7 +501,7 @@ class TestTruncateOldestRounds:
 
         from myrm_agent_harness.agent._internals.agent_recovery import truncate_oldest_rounds as _truncate_oldest_rounds
 
-        msgs: list = [
+        msgs: list[BaseMessage] = [
             SystemMessage(content="sys1"),
             SystemMessage(content="sys2"),
             HumanMessage(content="round 1"),
@@ -615,7 +519,7 @@ class TestTruncateOldestRounds:
     def test_too_few_groups_returns_zero(self) -> None:
         from myrm_agent_harness.agent._internals.agent_recovery import truncate_oldest_rounds as _truncate_oldest_rounds
 
-        msgs: list = [
+        msgs: list[BaseMessage] = [
             HumanMessage(content="only one round"),
             AIMessage(content="reply"),
         ]
@@ -629,14 +533,14 @@ class TestTruncateOldestRounds:
 
         from myrm_agent_harness.agent._internals.agent_recovery import truncate_oldest_rounds as _truncate_oldest_rounds
 
-        msgs: list = [SystemMessage(content="only system")]
+        msgs: list[BaseMessage] = [SystemMessage(content="only system")]
         freed = _truncate_oldest_rounds(msgs)
         assert freed == 0
 
     def test_keeps_at_least_one_group(self) -> None:
         from myrm_agent_harness.agent._internals.agent_recovery import truncate_oldest_rounds as _truncate_oldest_rounds
 
-        msgs: list = [
+        msgs: list[BaseMessage] = [
             HumanMessage(content="round 1"),
             AIMessage(content="reply 1"),
             HumanMessage(content="round 2"),
@@ -651,7 +555,7 @@ class TestTruncateOldestRounds:
         from myrm_agent_harness.agent._internals.agent_recovery import _TRUNCATION_MARKER
         from myrm_agent_harness.agent._internals.agent_recovery import truncate_oldest_rounds as _truncate_oldest_rounds
 
-        msgs: list = [
+        msgs: list[BaseMessage] = [
             HumanMessage(content="round 1"),
             AIMessage(
                 content="",
@@ -719,7 +623,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers: ClassVar[dict[str, str]] = {"retry-after": "30"}
 
-        exc = Exception("rate limited")
+        exc = _ResponseError("rate limited")
         exc.response = FakeResponse()
         assert extract_retry_after(exc) == 30.0
 
@@ -729,7 +633,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers: ClassVar[dict[str, str]] = {"Retry-After": "45.5"}
 
-        exc = Exception("rate limited")
+        exc = _ResponseError("rate limited")
         exc.response = FakeResponse()
         assert extract_retry_after(exc) == 45.5
 
@@ -739,7 +643,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers: ClassVar[dict[str, str]] = {"retry-after": "0"}
 
-        exc = Exception("rate limited")
+        exc = _ResponseError("rate limited")
         exc.response = FakeResponse()
         assert extract_retry_after(exc) is None
 
@@ -749,7 +653,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers: ClassVar[dict[str, str]] = {"retry-after": "-5"}
 
-        exc = Exception("rate limited")
+        exc = _ResponseError("rate limited")
         exc.response = FakeResponse()
         assert extract_retry_after(exc) is None
 
@@ -759,7 +663,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers: ClassVar[dict[str, str]] = {"retry-after": "invalid"}
 
-        exc = Exception("rate limited")
+        exc = _ResponseError("rate limited")
         exc.response = FakeResponse()
         assert extract_retry_after(exc) is None
 
@@ -769,7 +673,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers = None
 
-        exc = Exception("rate limited")
+        exc = _ResponseError("rate limited")
         exc.response = FakeResponse()
         assert extract_retry_after(exc) is None
 
@@ -779,7 +683,7 @@ class TestExtractRetryAfter:
         class FakeResponse:
             headers: ClassVar[dict[str, str]] = {"retry-after": "60"}
 
-        inner = Exception("inner rate limit")
+        inner = _ResponseError("inner rate limit")
         inner.response = FakeResponse()
 
         outer = Exception("outer error")
@@ -802,9 +706,9 @@ class TestExtractRetryAfter:
 
         # Build a chain of 7 exceptions; only depth 0 has a response.
         # The function iterates 5 times, so from depth 6 it reaches depth 2 at most.
-        deepest = Exception("depth 0 with response")
+        deepest = _ResponseError("depth 0 with response")
         deepest.response = FakeResponse()
-        current = deepest
+        current: Exception = deepest
         for i in range(1, 7):
             exc = Exception(f"depth {i}")
             exc.__cause__ = current
@@ -814,7 +718,7 @@ class TestExtractRetryAfter:
         assert extract_retry_after(current) is None
 
         # But with a shorter chain (depth 3 → depth 0), it should find it
-        short_current = deepest
+        short_current: Exception = deepest
         for i in range(1, 4):
             exc = Exception(f"depth {i}")
             exc.__cause__ = short_current
@@ -890,12 +794,25 @@ def test_is_quota_exhausted_negative(msg: str) -> None:
     assert is_quota_exhausted(exc) is False
 
 
+class _SdkError(Exception):
+    """An exception carrying the attributes provider SDKs attach to theirs."""
+
+    body: dict[str, object]
+    code: str
+
+
+class _ResponseError(Exception):
+    """An exception carrying the HTTP response a provider SDK attaches to its errors."""
+
+    response: object
+
+
 class TestNormalizeProviderErrorCodeAndType:
     """Test structured code and type extraction from diverse proxy and SDK errors."""
 
     def test_structured_error_code_in_body(self) -> None:
         """When message is generic but body['error']['code'] indicates quota exhaustion."""
-        exc = Exception("Request failed with status code 429")
+        exc = _SdkError("Request failed with status code 429")
         exc.body = {"error": {"code": "insufficient_quota", "message": "Upstream error 429"}}
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
@@ -903,14 +820,14 @@ class TestNormalizeProviderErrorCodeAndType:
 
     def test_top_level_code_in_body(self) -> None:
         """When proxy returns top-level code instead of nested error object."""
-        exc = Exception("API error 429")
+        exc = _SdkError("API error 429")
         exc.body = {"code": "insufficient_quota", "message": "Account balance zero"}
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
 
     def test_direct_exception_code_attribute(self) -> None:
         """When SDK attaches code directly on exception object."""
-        exc = Exception("Error processing completion")
+        exc = _SdkError("Error processing completion")
         exc.code = "insufficient_quota"
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
@@ -920,14 +837,14 @@ class TestNormalizeProviderErrorCodeAndType:
         import json
 
         inner_raw = json.dumps({"error": {"code": "insufficient_quota", "message": "Failed"}})
-        exc = Exception("OpenRouter API error")
+        exc = _SdkError("OpenRouter API error")
         exc.body = {"error": {"message": "Provider returned error", "metadata": {"raw": inner_raw}}}
         assert is_quota_exhausted(exc) is True
         assert classify_failover_reason(exc) == FailoverReason.BILLING
 
     def test_structured_rate_limit_not_confused_with_billing(self) -> None:
         """Standard rate limits in code field should stay RATE_LIMIT."""
-        exc = Exception("Rate limit reached")
+        exc = _SdkError("Rate limit reached")
         exc.body = {"error": {"code": "rate_limit_exceeded", "message": "15 RPM limit reached"}}
         assert is_quota_exhausted(exc) is False
         assert classify_failover_reason(exc) == FailoverReason.RATE_LIMIT

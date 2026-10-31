@@ -34,7 +34,8 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | `agent/skills/evolution/` | 单元 | Skill evolution pipeline tests (incl. trace analyzer takeover, variant generator, the engine working from the SKILL.md on disk) |
 | `agent/errors/diagnostics/test_diagnostic_result_single_source.py` | 门禁 | AST：`DiagnosticResult(` 只在 `diagnostics/catalog_result.py` 构造（含别名与模块属性调用，且该构建器必须仍在构造；检测器自证 sample 防退化为 no-op）；`dataclasses.replace` 复制不算构造，不被拦 |
 | `agent/errors/diagnostics/test_transport_exception_chain.py` | 单元 | 连接失败沿异常链读取证书被拒：按 litellm 实际的六层链构造（外层隐式 `__context__`、内层 `raise ... from`），只有最内层带原因；带硬证书信号 → `tls_certificate`（自定义端点同样，而不是 `custom_endpoint_unreachable`）；拒绝连接、域名无法解析、`wrong version number`、`Broken pipe` 仍是连接类；外层是限流、认证、超时的异常不被链改写 |
-| `integration/test_tls_certificate_rejection_integration.py` | 集成 | 真实 litellm 客户端栈对一个本机监听口（证书由客户端不信任的私有 CA 签发）发起 https 调用，openai / anthropic / gemini / ollama_chat / deepseek 五个供应商族各一次：失败分类为 `TLS_CERTIFICATE`、诊断为 `tls_certificate`（各族客户端层把同一次证书被拒包装成不同形状，手工构造的异常链防不住这种漂移）；对照组是回纯 HTTP 的监听口，仍是 `TIMEOUT` 且不判证书被拒（https 打到纯 HTTP 服务仍按瞬时传输故障重试）；证书材料复用 `tests/support/mcp_testkit/tls_pki.py` |
+| `integration/test_tls_certificate_rejection_integration.py` | 集成 | 真实 litellm 客户端栈对一个本机监听口（证书由客户端不信任的私有 CA 签发）发起 https 调用，openai / anthropic / gemini / ollama_chat / deepseek 五个供应商族各一次：失败分类为 `TLS_CERTIFICATE`、诊断为 `tls_certificate`（各族客户端层把同一次证书被拒包装成不同形状，手工构造的异常链防不住这种漂移）；对照组是回纯 HTTP 的监听口，仍是 `TIMEOUT` 且不判证书被拒（https 打到纯 HTTP 服务仍按瞬时传输故障重试）；证书材料复用 `tests/support/mcp_testkit/tls_pki.py`；各族客户端的异常链长不得超过读取上限的一半，在多一层客户端封装把根因挤出读取范围之前就报警；聊天模型每次调用都会把端点写在 litellm 模块上且不还原，用例前先清掉，否则同进程里排在它之后的 ollama_chat 直接调用会打到上一个用例的端点 |
+| `toolkits/llms/test_tls_rejection.py` | 单元 | 证书被拒的统一判定，按手工构造的异常链：硬证书信号、被「Connection error.」封装的根因、不含证书的连接失败仍是瞬时故障；4xx 应答即使正文引用了证书报错也不判证书被拒，网关转发的 5xx 仍判；根因在链深上限内都能读到、超出上限则读不到；该原因永久、可切换、按超时节奏探测 |
 
 ## Test file placement
 

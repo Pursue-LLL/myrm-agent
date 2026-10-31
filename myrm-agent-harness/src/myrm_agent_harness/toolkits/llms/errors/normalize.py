@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - NormalizedError: the HTTP status, the lower-cased message text and the parsed body of one exception
+- extract_status_code: the HTTP status an exception, an SDK wrapper or a cause carries, ``None`` when no response came back
 - normalize_provider_error: reads an exception into a NormalizedError, including the upstream error a gateway nests in ``error.metadata.raw``
 
 [POS]
@@ -27,7 +28,8 @@ class NormalizedError:
     body: dict[str, object]
 
 
-def _extract_status_code(error: Exception) -> int | None:
+def extract_status_code(error: Exception) -> int | None:
+    """The HTTP status of *error*, own or a cause's; ``None`` when the request got no response."""
     current = error
     for _ in range(5):
         code = getattr(current, "status_code", None)
@@ -45,7 +47,7 @@ def _extract_status_code(error: Exception) -> int | None:
 
 def normalize_provider_error(error: Exception) -> NormalizedError:
     """Extract deep nested errors (e.g. OpenRouter metadata.raw) and status codes."""
-    status_code = _extract_status_code(error)
+    status_code = extract_status_code(error)
     body = extract_error_body(error)
 
     # Extract deeply nested message, structured error codes, and types

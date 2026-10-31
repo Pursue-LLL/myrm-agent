@@ -77,6 +77,7 @@ _PERMANENT_RAW: list[Exception] = [
         400, "This model's maximum context length is 128000 tokens. However, your messages resulted in 150000 tokens."
     ),
     _ProviderError(402, "You exceeded your current quota, please check your plan and billing details"),
+    _ProviderError(500, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate"),
     _CONFIG_INCOMPLETE,
 ]
 
@@ -100,6 +101,7 @@ class TestIsTransientFailure:
             (FailoverReason.CONTEXT_OVERFLOW, False),
             (FailoverReason.BILLING, False),
             (FailoverReason.FORMAT_ERROR, False),
+            (FailoverReason.TLS_CERTIFICATE, False),
         ],
     )
     def test_an_agent_stream_failure_is_judged_by_its_recorded_reason(self, reason: FailoverReason, repeatable: bool) -> None:

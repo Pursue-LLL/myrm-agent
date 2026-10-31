@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-31 · 模型端点返回 4xx、正文里引用证书报错时，也被当成「证书被拒」：不重试、不换 Key，错误卡指向企业网络兼容开关；多包一层客户端封装就读不到真正的证书被拒
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-147）。「仍然存在」里的项未处理。 |
+| **症状** | [真实探针，改前改后同一脚本，详见 harness 147] 带 HTTP 状态的 4xx 应答，正文引用 `certificate verify failed`，改前被分类为 `tls_certificate`（400、404、413、422）；异常链里证书被拒的根因在第 7 层起读不到，被读成 `timeout`。 |
+| **根因** | 「证书被拒」的共享判定只看文本，不看状态：HTTP 状态只会出现在握手完成之后，带 4xx 的应答不可能是证书被拒；链读取上限等于真实链长，没有余量。 |
+| **行为变化** | ① 4xx 应答不再判证书被拒，按状态与其余规则分类（400 `format_error`、404 与 422 `unknown`、413 `context_overflow`，正文含字面 `ssl` 的仍是 `timeout`，与改前一致）；5xx 与无状态的判定不变。② 证书被拒在异常链里的读取上限从 6 层放宽到 12 层。③ 其余错误逐条一致（见 harness 147 的套件结果）。 |
+| **回归证据** | harness 147 的 [1]–[4]；server 253 例通过（定时任务重试判定新增 `tls_certificate → 不重试` 一行）。 |
+| **仍然存在** | ① 正文含字面 `ssl` / `tls` 的 4xx（如 nginx 双向 TLS 的 400）仍按瞬时传输失败重试，改前同样。② 没有真实流量数据说明这两种误判的频率。 |
+| **代码位置** | harness：`toolkits/llms/errors/{tls_rejection,normalize,error_payload}.py`，见 harness 147；server：`tests/core/cron/adapters/test_agent_runner_failure_recoverability.py`。 |
+
 ## 2026-10-31 · SSH 保险库执行远程命令：命令无休止打印时服务端内存数秒内涨数 GB，超时或取消后本机的 ssh 进程不被终止
 
 | 字段 | 内容 |
@@ -23,7 +35,7 @@
 | **状态** | **FIXED**（`myrm-agent` 本地提交，未 push；根因、实现与全部证据见 `myrm-agent-harness/BUGFIX_LOG.md` 的 BUG-HARNESS-2026-10-31-145）。「仍然存在」里的项未处理。 |
 | **症状** | [真实探针，本机私有 CA 签发证书的监听口，五个供应商族的 litellm 调用，详见 harness 145] 同一次证书被拒：诊断卡是 `tls_certificate`，运行时的分类是 `timeout`（OpenAI、Gemini、Ollama 形状：没有备用模型时重试 15 次，总等待 665～689 秒后才出卡）或 `auth`（Anthropic、DeepSeek 形状：3 把 Key 全部试一遍并各冷却 24 小时，Wiki 编译批次以「API credentials or billing rejected further compiles」暂停）。渠道失败回复与 Wiki 队列也没有证书这一类：渠道回复在加载时断言每个错误类型都有词条，新类型不带词条模块就导入失败。 |
 | **根因** | 分类器与诊断各有一份「证书被拒」的判定与信号清单，分类器的判定还排在超时规则之后（见 harness 145）。 |
-| **行为变化** | ① 证书被拒的失败在运行时分类为 `tls_certificate`：不回合内重试、不换 Key、不冷却 Key，可故障转移（配了备用模型就切换，没配出「未配置备用模型」提示）。② 渠道失败回复新增一句证书文案（英、简中、繁中、日；英文是「The secure connection to the AI service was refused. Please contact the administrator.」），不含供应商原文、端点和排障步骤，沿用成员安全文案的约定。③ 失败细分原因新增 `tls_certificate`。④ Wiki 队列失败行显示「安全连接被拒绝」类标签（六种语言），批次暂停的原因不再指责凭据。⑤ 其余错误逐条一致（快照 2334 条，只有证书类写法改变）。 |
+| **行为变化** | ① 证书被拒的失败在运行时分类为 `tls_certificate`：不回合内重试、不换 Key、不冷却 Key，可故障转移（配了备用模型就切换，没配出「未配置备用模型」提示）。② 渠道失败回复新增一句证书文案（英、简中、繁中、日；英文是「The secure connection to the AI service was refused. Please contact the administrator.」），不含供应商原文、端点和排障步骤，沿用成员安全文案的约定。③ 失败细分原因新增 `tls_certificate`。④ Wiki 队列失败行显示「安全连接被拒绝」类标签（六种语言），批次暂停的原因不再指责凭据。⑤ 定时任务对证书被拒不再重复执行：只有 `TRANSIENT` 的失败才重试，`tls_certificate` 是 `PERMANENT`（`app/core/cron/adapters/failure_recoverability.py:34-35`）；OpenAI、Gemini、Ollama 形状以前分类为 `timeout`，会被重试，Anthropic、DeepSeek 形状以前是 `auth`，本来就不重试。⑥ Wiki 编译对证书被拒不再自动重试（队列只重试限流、过载、超时三类：`failure_policy.py:32-37`、`queue.py:342`；OpenAI、Gemini、Ollama 形状以前记成 `timeout`），整批全部失败时按失败个数暂停：≥5 个以通用原因「Too many compile failures in one batch」暂停（`failure_policy.py:95-97`），不再以「API credentials or billing rejected further compiles」（Anthropic、DeepSeek 形状以前是 `auth`）暂停。⑦ 其余错误逐条一致（快照 2334 条，只有证书类写法改变）。 |
 | **回归证据** | harness 145 的 [1]–[6]；server 359 例通过（`friendly_errors` 与 `ErrorKind` 全成员参数化、渠道语言包 parity、`channel_bridge` 失败回复、`core/errors`、`core/utils`、跨层守护）；前端 `tsc --noEmit`、`verify:i18n`、`verify:icu-syntax` 通过，面板标签测试加入新类型（删掉映射一行即红）。 |
 | **仍然存在** | ① 渠道回复与 Wiki 队列标签没有用真实渠道、真实队列端到端跑过证书被拒。② 只实测了 litellm 的五个供应商族。 |
 | **代码位置** | server：`app/channels/routing/friendly_errors.py`、`app/channels/i18n/locales/{en,zh-CN,zh-TW,ja}.ftl`、`app/core/utils/errors.py`；前端：`src/components/features/settings/sections/knowledge/WikiQueuePanel.tsx`、`locales/{en,zh,zh-TW,ja,ko,de}.json`、`__tests__/WikiQueuePanel.errorKind.test.tsx`；harness：见 harness 145。 |

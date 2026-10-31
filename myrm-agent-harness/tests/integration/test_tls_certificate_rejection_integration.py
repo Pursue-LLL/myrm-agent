@@ -2,6 +2,7 @@
 
 [INPUT]
 - toolkits.llms.errors::classify_error, ErrorKind (POS: LLM error classification)
+- toolkits.llms.errors.error_payload::MAX_CHAIN_DEPTH, walk_exception_chain (POS: The one reader of the provider's answer)
 - agent.errors.diagnostics::LLMErrorDiagnostic (POS: LLM error diagnostic engine)
 - tests.support.mcp_testkit.tls_pki::generate_tls_pki (POS: Throwaway PKI whose server certificate chains to a private CA)
 
@@ -9,6 +10,8 @@
 - Fails when a provider family's client layers word a rejected certificate in a shape the classifier or the
   diagnostics do not recognize, which sends the failure back to the retry, key-rotation or generic-connection paths.
 - Fails when a plain-HTTP answer to an https request is taken for a certificate rejection and stops being retried.
+- Fails when a client stack's exception chain grows past half of the bound the cause is read within, before one more
+  client layer can push the rejected certificate out of reach.
 
 [POS]
 Drift guard for ``rejects_certificate``. Hand-built exception chains prove the logic; this test proves the chains
@@ -32,6 +35,7 @@ import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
+from myrm_agent_harness.toolkits.llms.errors.error_payload import MAX_CHAIN_DEPTH, walk_exception_chain
 from tests.support.mcp_testkit.tls_pki import generate_tls_pki
 
 # One model per provider family whose client stack words a connection failure differently.
@@ -110,6 +114,10 @@ def _direct_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
     for variable in _PROXY_VARIABLES:
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    # The chat model writes its endpoint onto the litellm module on every call and leaves it there; a direct
+    # ``litellm.acompletion`` of the next test would then reach that endpoint instead of its own listener.
+    monkeypatch.setattr(litellm, "api_base", None)
+    monkeypatch.setattr(litellm, "api_key", None)
 
 
 @pytest.fixture
@@ -151,6 +159,7 @@ async def test_every_provider_family_reads_a_rejected_certificate_the_same_way(
 
     assert classify_error(failure) is ErrorKind.TLS_CERTIFICATE
     assert LLMErrorDiagnostic.diagnose(failure, None, locale="en").error_type == "tls_certificate"
+    assert len(walk_exception_chain(failure)) <= MAX_CHAIN_DEPTH // 2
 
 
 @pytest.mark.parametrize("model", _PROVIDER_MODELS)

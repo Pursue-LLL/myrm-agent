@@ -27,7 +27,9 @@ import json
 import re
 from collections.abc import Mapping
 
-MAX_CHAIN_DEPTH = 6
+# Twice the deepest chain a real client produces today (the OpenAI SDK behind litellm: 6 links), so one more
+# wrapping layer in a client upgrade does not push the root cause out of reach.
+MAX_CHAIN_DEPTH = 12
 
 # An aggregator nests the upstream provider's error inside its own: payload -> error.metadata.raw -> payload.
 _MAX_UPSTREAM_NESTING = 2
