@@ -14,7 +14,8 @@ bot movement protection, and allowed-channel enforcement.
 Voice follow-user orchestration. Automatically tracks configured
 Discord users across voice channels with handoff and reconciliation;
 reconciliation heals a missed join, move or leave from the REST voice
-state, and a failed pass is logged and the next one runs.
+state; a failed pass is logged and the next one runs, and a poll REST cannot answer in a guild with follow state is
+warned about once per window, because the guild's stale records are not healed until it answers.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ import asyncio
 import enum
 import logging
 import random
+import time
 from collections.abc import Awaitable, Callable, Set
 from typing import Protocol
 
@@ -33,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 _RECONCILE_INTERVAL = 10.0
 _RECONCILE_JITTER = 3.0
+# A poll that stays unanswerable (a missing permission, an outage) fails every pass: one warning per window and (guild, user).
+_WARN_INTERVAL = 600.0
 
 # Both kinds of channel accept a voice connection, and a followed user can be in either.
 VoiceTarget = discord.VoiceChannel | discord.StageChannel
@@ -81,6 +85,7 @@ class VoiceFollowManager:
         self._followed_voice_guilds: set[int] = set()
         # Channel changes the events have reported: a reconciliation pass compares it to tell its REST answers were overtaken.
         self._channel_change_count = 0
+        self._warned_at: dict[tuple[int, str], float] = {}
         self._reconcile_task: asyncio.Task[None] | None = None
         self._destroyed = False
 
@@ -194,6 +199,9 @@ class VoiceFollowManager:
         self._followed_user_channels[user_id] = (guild_id, channel_id)
         self._followed_voice_guilds.add(guild_id)
 
+    def _has_records(self, guild_id: int) -> bool:
+        return any(gid == guild_id for gid, _ in self._followed_user_channels.values())
+
     async def _try_handoff_or_leave(self, guild_id: int) -> None:
         """Try to handoff to another followed user in the same guild, or leave."""
         for uid, (gid, cid) in self._followed_user_channels.items():
@@ -210,8 +218,7 @@ class VoiceFollowManager:
                     await self._voice_ops.join(channel)
                     return
 
-        any_followed_in_guild = any(gid == guild_id for gid, _ in self._followed_user_channels.values())
-        if not any_followed_in_guild:
+        if not self._has_records(guild_id):
             self._followed_voice_guilds.discard(guild_id)
             should_leave = True
             if self._on_guild_leave_check:
@@ -307,7 +314,7 @@ class VoiceFollowManager:
         except discord.NotFound:
             return _Presence.ABSENT
         except discord.HTTPException as e:
-            logger.debug("REST voice state query failed for %s: %s", user_id, e)
+            self._report_unanswered(guild.id, user_id, e)
             return _Presence.UNKNOWN
 
         channel_id = data.get("channel_id")
@@ -320,3 +327,25 @@ class VoiceFollowManager:
 
         channel = guild.get_channel(cid)
         return channel if isinstance(channel, discord.VoiceChannel) else _Presence.UNKNOWN
+
+    def _report_unanswered(self, guild_id: int, user_id: str, error: discord.HTTPException) -> None:
+        """Log a poll REST could not answer: a WARNING once per window while the guild has follow state, else DEBUG.
+
+        Until the poll is answered the guild's stale records are not healed. A guild with no follow state has nothing to heal,
+        and every guild the bot is in is polled, so a failure there is not worth a warning.
+        """
+        key = (guild_id, user_id)
+        now = time.monotonic()
+        last_warned = self._warned_at.get(key)
+        has_follow_state = guild_id in self._followed_voice_guilds or self._has_records(guild_id)
+        if not has_follow_state or (last_warned is not None and now - last_warned < _WARN_INTERVAL):
+            logger.debug("REST voice state query failed for %s: %s", user_id, error)
+            return
+        self._warned_at[key] = now
+        logger.warning(
+            "Voice reconciliation could not read the voice state of user %s in guild %d (%s): "
+            "stale follow records there are not healed until the poll is answered",
+            user_id,
+            guild_id,
+            error,
+        )

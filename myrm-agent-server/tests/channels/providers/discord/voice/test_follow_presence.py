@@ -3,7 +3,8 @@
 A followed user the REST poll confirms absent has their record dropped and the bot hands off or leaves exactly as the
 leave event would have; a session the poll joined is tracked like one the event joined; an answer that confirms nothing
 (an HTTP error, a stage channel, a channel the cache does not hold) changes nothing; and a pass during which a followed
-user changed channel is discarded, because the event is newer than the answers the pass polled.
+user changed channel is discarded, because the event is newer than the answers the pass polled. A poll REST cannot answer
+leaves a WARNING once per window while its guild has follow state, since the guild's stale records wait on it.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import pytest
 pytest.importorskip("discord")
 import discord
 
+from app.channels.providers.discord.voice import follow
 from app.channels.providers.discord.voice.follow import VoiceFollowManager
 
 _USER = "100"
@@ -36,6 +38,10 @@ def _server_error() -> discord.HTTPException:
     return discord.HTTPException(MagicMock(status=500, reason="Server Error"), "Internal Server Error")
 
 
+def _forbidden() -> discord.Forbidden:
+    return discord.Forbidden(MagicMock(status=403, reason="Forbidden"), "Missing Access")
+
+
 def _voice_state(channel: MagicMock | None) -> MagicMock:
     state = MagicMock()
     state.channel = channel
@@ -45,6 +51,13 @@ def _voice_state(channel: MagicMock | None) -> MagicMock:
 def _heals(caplog: pytest.LogCaptureFixture) -> list[str]:
     """The messages a reconciliation pass logs when it drops stale records."""
     return [message for message in (record.getMessage() for record in caplog.records) if message.startswith("Reconciliation:")]
+
+
+def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    """The messages the follow manager logs at WARNING."""
+    return [
+        record.getMessage() for record in caplog.records if record.name == _FOLLOW_LOGGER and record.levelno == logging.WARNING
+    ]
 
 
 class _Voice:
@@ -339,3 +352,49 @@ async def test_one_unconfirmed_followed_user_keeps_every_record() -> None:
 
     voice.leave.assert_not_awaited()
     assert voice.records == {_USER: (1, 10), _OTHER_USER: (1, 11)}
+
+
+@pytest.mark.parametrize("failure", [_forbidden(), _server_error()], ids=["forbidden", "server-error"])
+async def test_a_poll_that_cannot_be_answered_is_warned_once_per_window_for_each_guild_and_user(
+    failure: discord.HTTPException, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    caplog.set_level(logging.WARNING, logger=_FOLLOW_LOGGER)
+    voice = _Voice(guild_ids=(1, 2), users=(_USER, _OTHER_USER))
+    # Guild 1 keeps only its flag (the user moved on to guild 2), guild 2 only the record (the bot was disconnected there).
+    await voice.user_joins(1, 10)
+    await voice.user_joins(2, 20)
+    await voice.manager.handle_bot_voice_update(2, voice.channels[20], None)
+    assert voice.manager.followed_guilds == {1}
+    voice.answers = {(guild_id, user): failure for guild_id in (1, 2) for user in (_USER, _OTHER_USER)}
+
+    for _ in range(3):
+        await voice.reconcile()
+
+    warnings = _warnings(caplog)
+    assert len(warnings) == 4
+    assert _heals(caplog) == []
+    for guild_id in (1, 2):
+        for user in (_USER, _OTHER_USER):
+            assert sum(f"user {user} in guild {guild_id} (" in message and str(failure) in message for message in warnings) == 1
+
+    monkeypatch.setattr(follow, "_WARN_INTERVAL", 0.0)
+    await voice.reconcile()
+
+    assert len(_warnings(caplog)) == 8
+    voice.leave.assert_not_awaited()
+    assert voice.records == {_USER: (2, 20)}
+
+
+async def test_a_poll_that_cannot_be_answered_is_not_warned_in_a_guild_without_follow_state(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger=_FOLLOW_LOGGER)
+    voice = _Voice()
+    voice.answers[(1, _USER)] = _forbidden()
+
+    for _ in range(3):
+        await voice.reconcile()
+
+    assert _warnings(caplog) == []
+    voice.join.assert_not_awaited()
+    voice.leave.assert_not_awaited()
