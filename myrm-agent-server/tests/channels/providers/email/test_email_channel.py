@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import smtplib
+import ssl
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -149,7 +150,11 @@ class TestEmailSend:
             result = await ch.send(msg)
 
         assert result is not None
-        mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465, timeout=30)
+        mock_smtp_ssl.assert_called_once()
+        args, kwargs = mock_smtp_ssl.call_args
+        assert (args, kwargs["timeout"]) == (("smtp.example.com", 465), 30)
+        assert kwargs["context"].verify_mode == ssl.CERT_REQUIRED
+        assert kwargs["context"].check_hostname is True
 
     @pytest.mark.asyncio
     async def test_send_empty_content(self) -> None:

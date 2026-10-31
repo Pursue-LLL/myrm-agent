@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import ssl
 
 from fastapi import APIRouter
 from myrm_agent_harness.api import redact_sensitive_text
@@ -300,7 +301,7 @@ async def email_test_connection(
 
     def _check() -> tuple[bool, str]:
         try:
-            conn = imaplib.IMAP4_SSL(body.imap_host, body.imap_port)
+            conn = imaplib.IMAP4_SSL(body.imap_host, body.imap_port, ssl_context=ssl.create_default_context())
             conn.login(body.username, body.password)
             conn.noop()
             conn.logout()

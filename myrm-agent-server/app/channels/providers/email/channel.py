@@ -15,7 +15,9 @@ Outbound: SMTP send (HTML body + file attachments)
 [POS]
 Email channel implementation: credentials, lifecycle, IMAP polling and SMTP transport. Message parsing (attachments,
 forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
-assembly live in ``outbound.py``.
+assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
+certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
+context verifies nothing).
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ import asyncio
 import imaplib
 import logging
 import smtplib
+import ssl
 from collections.abc import Sequence
 from typing import Self
 
@@ -253,7 +256,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         return issues
 
     def _imap_ping(self) -> bool:
-        conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port)
+        conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port, ssl_context=ssl.create_default_context())
         try:
             conn.login(self._imap_user, self._imap_password)
             _send_imap_id(conn)
@@ -280,6 +283,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
                 self._smtp_host,
                 self._smtp_port,
                 timeout=_SMTP_TIMEOUT,
+                context=ssl.create_default_context(),
             ) as server:
                 server.login(self._smtp_user, self._smtp_password)
                 server.send_message(msg)
@@ -289,7 +293,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
                 self._smtp_port,
                 timeout=_SMTP_TIMEOUT,
             ) as server:
-                server.starttls()
+                server.starttls(context=ssl.create_default_context())
                 server.login(self._smtp_user, self._smtp_password)
                 server.send_message(msg)
 
@@ -305,7 +309,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
 
     def _fetch_new_emails(self) -> list[InboundMessage]:
         results: list[InboundMessage] = []
-        conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port)
+        conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port, ssl_context=ssl.create_default_context())
         try:
             conn.login(self._imap_user, self._imap_password)
             _send_imap_id(conn)
@@ -316,7 +320,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             else:
                 criteria = "(UNSEEN)"
 
-            _status, msg_nums = conn.uid("search", None, criteria)
+            _status, msg_nums = conn.uid("search", criteria)
             if not msg_nums or not msg_nums[0]:
                 return results
 
