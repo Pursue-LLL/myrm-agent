@@ -11,7 +11,7 @@
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
-- download never overwrites: a name that is taken, in the output directory or by an earlier attachment, gets a ``-1``, ``-2`` suffix
+- download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. This file holds the
@@ -108,15 +108,21 @@ def _fetch_message(conn: imaplib.IMAP4_SSL, uid: int) -> email.message.Message:
     return email_lib.message_from_bytes(raw)
 
 
-def _free_path(directory: Path, name: str) -> Path:
-    """``name`` in *directory*, or ``stem-1.ext``, ``stem-2.ext`` ... when that file exists, so a download replaces nothing."""
-    path = directory / name
-    stem, suffix = path.stem, path.suffix
-    counter = 0
-    while path.exists():
-        counter += 1
-        path = directory / f"{stem}-{counter}{suffix}"
-    return path
+_MAX_SAME_NAME = 1000  # copies of one name saved per directory; a message that repeats a name must not probe without end
+
+
+def _save_new(directory: Path, name: str, data: bytes) -> Path:
+    """Write *data* to ``name`` in *directory*, or to ``stem-1.ext``, ``stem-2.ext`` ... when taken; replaces nothing."""
+    first = directory / name
+    for counter in range(_MAX_SAME_NAME):
+        path = directory / f"{first.stem}-{counter}{first.suffix}" if counter else first
+        try:
+            with path.open("xb") as handle:
+                handle.write(data)
+        except FileExistsError:
+            continue
+        return path
+    fail(f"Too many files named {name} in {directory}")
 
 
 def cmd_check(args: argparse.Namespace) -> None:
@@ -215,8 +221,7 @@ def cmd_download(args: argparse.Namespace) -> None:
             if not isinstance(file_data, bytes):
                 continue
             safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
-            dest = _free_path(output_dir, safe_name)
-            dest.write_bytes(file_data)
+            dest = _save_new(output_dir, safe_name, file_data)
             saved.append({"filename": filename, "path": str(dest), "size": len(file_data)})
 
         if not saved:

@@ -11,8 +11,10 @@ trace, so a single such message blinded ``check``, ``search``, ``read`` and ``re
 
 [OUTPUT]
 - Fails when a header with a malformed encoded word, a header with raw UTF-8 bytes or a body in a charset Python does
-  not know raises or is not summarized as text instead of being returned as written or read as UTF-8, or when a header
-  or body that does decode changes
+  not know raises or is not summarized as text instead of being returned as written or read as UTF-8, when a header or
+  body that does decode changes, when whitespace between encoded words is kept or dropped other than as RFC 2047 says,
+  when a message id with raw UTF-8 bytes is not left out of the ids a threading header takes, or when an attachment is
+  not named by its ``Content-Disposition`` or, failing that, its ``Content-Type``
 
 [POS]
 Message-decoding test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which covers the

@@ -12,8 +12,9 @@ must not let one attachment, or a file already in the output directory, replace 
 
 [OUTPUT]
 - Fails when ``read`` or ``download`` loses a file name that is raw UTF-8, RFC 2231 or RFC 2047, when two attachments end
-  up in one file or one replaces a file already in the output directory, when ``--filename`` misses a name that decodes
-  to it, or when a message without attachments is not reported as such
+  up in one file, when one replaces a file already in the output directory or is written through a symlink there that
+  points nowhere, when a message that repeats one name has no limit on the copies saved, when ``--filename`` misses a
+  name that decodes to it, or when a message without attachments is not reported as such
 
 [POS]
 In-process test of how ``read`` and ``download`` name attachments, next to ``test_imap_smtp_email_failures.py``, which
@@ -157,6 +158,40 @@ def test_download_keeps_a_file_that_is_already_in_the_output_directory(
     )
 
     assert _saved(tmp_path) == {"contract.pdf": b"EDITED BY THE USER", "contract-1.pdf": b"NEW"}
+
+
+def test_download_does_not_write_through_a_symlink_that_points_nowhere(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    out = tmp_path / "out"
+    out.mkdir()
+    try:
+        (out / "scan.pdf").symlink_to(elsewhere / "target.pdf")
+    except (OSError, NotImplementedError):
+        pytest.skip("this platform cannot create symlinks")
+
+    answer = _run(
+        email_manager, monkeypatch, capsys, _message(_attachment("scan.pdf", b"NEW")), "download", "1", "--output-dir", str(out)
+    )
+
+    assert not (elsewhere / "target.pdf").exists()
+    assert (out / "scan-1.pdf").read_bytes() == b"NEW"
+    assert [entry["path"] for entry in _entries(answer, "files")] == [str(out / "scan-1.pdf")]
+
+
+def test_download_stops_when_one_name_has_been_saved_as_often_as_allowed(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setattr(email_manager, "_MAX_SAME_NAME", 3)
+    raw = _message(*(_attachment("scan.pdf", b"DATA") for _ in range(4)))
+
+    with pytest.raises(SystemExit):
+        _run(email_manager, monkeypatch, capsys, raw, "download", "1", "--output-dir", str(tmp_path))
+
+    assert json.loads(capsys.readouterr().out)["error"] == f"Too many files named scan.pdf in {tmp_path}"
+    assert sorted(_saved(tmp_path)) == ["scan-1.pdf", "scan-2.pdf", "scan.pdf"]
 
 
 def test_the_filename_filter_matches_the_decoded_name(
