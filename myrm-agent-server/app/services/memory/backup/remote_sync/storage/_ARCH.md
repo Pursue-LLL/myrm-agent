@@ -11,7 +11,7 @@
 - **S3 列表读完每一页**：`list_objects_v2` 每次最多返回 1000 个键且按键序排列，同一前缀下排在 `myrm.` 之前的其它文件会把备份挤出第一页，所以沿 continuation token 一直读到不再截断。超过 `_LIST_PAGE_LIMIT`（100 页）或页被截断却没有 token 时抛 `RemoteStorageError`，不返回读了一半的列表；用户需要换一个更具体的前缀。
 - **WebDAV 列表只认文件夹的直接子项**：文件名先做百分号解码（与上传时的名字一致），解码后含路径分隔符或不以 `.gz` 结尾的条目直接跳过。
 - **按需加载依赖**：`httpx`、`aioboto3` 在首次使用时才导入，未配置远程备份时不加载。
-- **S3 的 TLS 上下文跟随企业网络兼容设置**：aiobotocore 用自带的构建器与固定的 CA 包建上下文，不经过 `ssl.create_default_context`，全局策略碰不到它。`s3.py` 的会话子类在设置打开时改用 `ssl.create_default_context()`（系统证书库加环境变量指向的 CA 包，只去掉严格标志，证书链、主机名、有效期仍校验），关闭时保持 aiobotocore 原样。WebDAV 经 `httpx` 取上下文，本来就在全局策略内。
+- **S3 的 TLS 上下文跟随企业网络兼容设置**：aiobotocore 用自带的构建器与固定的 CA 包建上下文，不经过 `ssl.create_default_context`，全局策略碰不到它。`s3.py` 的会话子类在设置打开时改用 `ssl.create_default_context()`（系统证书库加环境变量指向的 CA 包，只去掉严格标志，证书链、主机名、有效期仍校验），关闭时保持 aiobotocore 原样。WebDAV 经 `httpx` 取上下文，在全局策略内。
 
 ## 文件清单
 

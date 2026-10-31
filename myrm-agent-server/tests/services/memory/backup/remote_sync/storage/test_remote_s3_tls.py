@@ -31,7 +31,15 @@ from cryptography.x509.oid import NameOID
 
 from app.services.memory.backup.remote_sync.storage import S3BackupConfig, S3BackupStrategy
 
-_PROXY_VARIABLES = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy", "AWS_CA_BUNDLE")
+_AMBIENT_NETWORK_VARIABLES = (
+    "HTTPS_PROXY",
+    "https_proxy",
+    "HTTP_PROXY",
+    "http_proxy",
+    "ALL_PROXY",
+    "all_proxy",
+    "AWS_CA_BUNDLE",
+)
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -75,7 +83,7 @@ def _self_signed_certificate(directory: Path) -> tuple[Path, Path]:
 @pytest.fixture
 def listener(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[str, Path]]:
     """A loopback HTTPS listener that answers every ``HEAD``; yields its URL and its self-signed certificate."""
-    for name in _PROXY_VARIABLES:
+    for name in _AMBIENT_NETWORK_VARIABLES:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     monkeypatch.setenv("AWS_MAX_ATTEMPTS", "1")  # a rejected certificate would otherwise be retried with backoff
