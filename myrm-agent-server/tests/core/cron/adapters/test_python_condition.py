@@ -3,7 +3,7 @@
 Validates script execution, SKIP signals, context injection, that a script which cannot reach a verdict
 (crash, timeout, cannot start) raises ``PreFlightConditionError`` (only a verdict of "skip" returns False), and
 that a deadline or a cancel stops the script together with its children, those in a session of their own,
-and its background commands.
+and its background commands, even while it writes without end, and that output over 5 MiB fails the run.
 """
 
 import asyncio
@@ -20,6 +20,9 @@ from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
 
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
 
+# The documented limit on what a script may write; the adapter fails the run past it.
+_MAX_OUTPUT_BYTES = 5 * 1024 * 1024
+
 
 def _make_job(script: str | None = None) -> MagicMock:
     job = MagicMock()
@@ -31,13 +34,13 @@ def _make_job(script: str | None = None) -> MagicMock:
 def _is_running(pid: int) -> bool:
     """A process that exited but is not reaped yet is not running."""
     try:
-        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+        return bool(psutil.Process(pid).status() != psutil.STATUS_ZOMBIE)
     except psutil.NoSuchProcess:
         return False
 
 
 @pytest.mark.asyncio
-async def test_no_script_returns_true():
+async def test_no_script_returns_true() -> None:
     condition = SandboxedPythonCondition()
     should_run, ctx = await condition.evaluate(_make_job(None))
     assert should_run is True
@@ -45,7 +48,7 @@ async def test_no_script_returns_true():
 
 
 @pytest.mark.asyncio
-async def test_empty_script_returns_true():
+async def test_empty_script_returns_true() -> None:
     condition = SandboxedPythonCondition()
     should_run, ctx = await condition.evaluate(_make_job("   "))
     assert should_run is True
@@ -53,7 +56,7 @@ async def test_empty_script_returns_true():
 
 
 @pytest.mark.asyncio
-async def test_script_stdout_injected_as_context():
+async def test_script_stdout_injected_as_context() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     should_run, ctx = await condition.evaluate(_make_job("print('hello world')"))
     assert should_run is True
@@ -61,7 +64,7 @@ async def test_script_stdout_injected_as_context():
 
 
 @pytest.mark.asyncio
-async def test_skip_signal_string():
+async def test_skip_signal_string() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     should_run, ctx = await condition.evaluate(_make_job("print('[SKIP]')"))
     assert should_run is False
@@ -69,7 +72,7 @@ async def test_skip_signal_string():
 
 
 @pytest.mark.asyncio
-async def test_skip_signal_json():
+async def test_skip_signal_json() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     script = 'import json; print(json.dumps({"action": "skip"}))'
     should_run, ctx = await condition.evaluate(_make_job(script))
@@ -78,7 +81,7 @@ async def test_skip_signal_json():
 
 
 @pytest.mark.asyncio
-async def test_a_crashing_script_fails_the_run_with_the_exception_line():
+async def test_a_crashing_script_fails_the_run_with_the_exception_line() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     with pytest.raises(PreFlightConditionError) as raised:
         await condition.evaluate(_make_job("raise ValueError('boom')"))
@@ -86,7 +89,7 @@ async def test_a_crashing_script_fails_the_run_with_the_exception_line():
 
 
 @pytest.mark.asyncio
-async def test_a_failure_without_stderr_names_only_the_exit_code():
+async def test_a_failure_without_stderr_names_only_the_exit_code() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     with pytest.raises(PreFlightConditionError) as raised:
         await condition.evaluate(_make_job("import sys; sys.exit(3)"))
@@ -94,7 +97,7 @@ async def test_a_failure_without_stderr_names_only_the_exit_code():
 
 
 @pytest.mark.asyncio
-async def test_the_failure_reason_is_free_of_credentials():
+async def test_the_failure_reason_is_free_of_credentials() -> None:
     secret = "sk-proj-" + "A1b2C3d4E5f6G7h8" * 3
     script = f"raise RuntimeError('all_sources_failed: coingecko: Authorization: Bearer {secret}')"
     condition = SandboxedPythonCondition(timeout_seconds=5)
@@ -105,7 +108,7 @@ async def test_the_failure_reason_is_free_of_credentials():
 
 
 @pytest.mark.asyncio
-async def test_the_failure_reason_is_one_bounded_line():
+async def test_the_failure_reason_is_one_bounded_line() -> None:
     script = "import sys; sys.stderr.write('first line\\n' + 'x' * 5000 + '\\n'); sys.exit(1)"
     condition = SandboxedPythonCondition(timeout_seconds=5)
     with pytest.raises(PreFlightConditionError) as raised:
@@ -116,7 +119,7 @@ async def test_the_failure_reason_is_one_bounded_line():
 
 
 @pytest.mark.asyncio
-async def test_a_script_that_times_out_fails_the_run_and_is_killed(tmp_path: Path):
+async def test_a_script_that_times_out_fails_the_run_and_is_killed(tmp_path: Path) -> None:
     pid_file = tmp_path / "pid"
     script = f"import os, time\nwith open({str(pid_file)!r}, 'w') as f:\n    f.write(str(os.getpid()))\ntime.sleep(30)\n"
     condition = SandboxedPythonCondition(timeout_seconds=2)
@@ -126,7 +129,7 @@ async def test_a_script_that_times_out_fails_the_run_and_is_killed(tmp_path: Pat
 
 
 @pytest.mark.asyncio
-async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started(tmp_path: Path):
+async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started(tmp_path: Path) -> None:
     # Each child reports its pid and would run for 30 s, ten times the deadline.
     child = tmp_path / "child.py"
     child.write_text("import os, sys, time\nopen(sys.argv[1], 'w').write(str(os.getpid()))\ntime.sleep(30)\n")
@@ -136,7 +139,8 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
 
     # How scripts run commands: `subprocess.run` and `os.system` hand the child the script's own output pipes, a child
     # that starts a session of its own is out of the script's process group, and a command sent to the background
-    # is adopted by init once the shell that started it exits, while the script keeps running.
+    # is adopted by init once the shell that started it exits, while the script keeps running. A script that never
+    # stops writing is stopped while its pipes are still being emptied.
     scripts = {
         "subprocess.run": lambda p: f"import subprocess\nsubprocess.run({argv(p)!r})\n",
         "os.system": lambda p: f"import os\nos.system({shlex.join(argv(p))!r})\n",
@@ -144,6 +148,9 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
             f"import subprocess, time\nsubprocess.Popen({argv(p)!r}, start_new_session=True)\ntime.sleep(60)\n"
         ),
         "background": lambda p: f"import os, time\nos.system({shlex.join(argv(p)) + ' &'!r})\ntime.sleep(60)\n",
+        "flood": lambda p: (
+            f"import os, sys\nopen({str(p)!r}, 'w').write(str(os.getpid()))\nwhile True:\n    sys.stdout.write('x' * 1023 + '\\n')\n"
+        ),
     }
     pid_files = {name: tmp_path / f"{name}.pid" for name in scripts}
 
@@ -161,7 +168,7 @@ async def test_a_timeout_returns_on_time_and_stops_everything_the_script_started
 
 
 @pytest.mark.asyncio
-async def test_a_cancelled_probe_stops_its_script(tmp_path: Path):
+async def test_a_cancelled_probe_stops_its_script(tmp_path: Path) -> None:
     pid_file = tmp_path / "pid"
     script = f"import os, time\nopen({str(pid_file)!r}, 'w').write(str(os.getpid()))\ntime.sleep(30)\n"
     task = asyncio.create_task(SandboxedPythonCondition(timeout_seconds=60).evaluate(_make_job(script)))
@@ -175,7 +182,26 @@ async def test_a_cancelled_probe_stops_its_script(tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_a_script_that_cannot_start_fails_the_run(monkeypatch: pytest.MonkeyPatch):
+async def test_output_over_the_cap_fails_the_run_even_when_it_ends_with_a_skip() -> None:
+    # The verdict is the last line, which a cut would drop and so turn a skip into a run.
+    script = (
+        f"import json, sys\nsys.stdout.write('x' * {_MAX_OUTPUT_BYTES + 1000} + '\\n')\nprint(json.dumps({{'action': 'skip'}}))\n"
+    )
+    with pytest.raises(PreFlightConditionError, match=r"^wrote more than 5 MiB of output$"):
+        await SandboxedPythonCondition(timeout_seconds=30).evaluate(_make_job(script))
+
+
+@pytest.mark.asyncio
+async def test_output_of_exactly_the_cap_is_injected_whole() -> None:
+    # `print` adds the newline, which the context does not keep.
+    script = f"print('x' * {_MAX_OUTPUT_BYTES - 1})"
+    should_run, ctx = await SandboxedPythonCondition(timeout_seconds=30).evaluate(_make_job(script))
+    assert should_run is True
+    assert ctx == "x" * (_MAX_OUTPUT_BYTES - 1)
+
+
+@pytest.mark.asyncio
+async def test_a_script_that_cannot_start_fails_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
     async def cannot_start(*args: object, **kwargs: object) -> None:
         raise OSError("exec format error at /private/tmp/secret-path")
 
@@ -192,7 +218,7 @@ async def test_a_script_that_cannot_start_fails_the_run(monkeypatch: pytest.Monk
     ["print('ok')", "raise ValueError('boom')", "import sys; sys.exit(3)"],
     ids=["verdict", "crash", "exit-code"],
 )
-async def test_no_script_file_is_left_behind(script: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+async def test_no_script_file_is_left_behind(script: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
     condition = SandboxedPythonCondition(timeout_seconds=5)
     try:
@@ -203,13 +229,13 @@ async def test_no_script_file_is_left_behind(script: str, tmp_path: Path, monkey
 
 
 @pytest.mark.asyncio
-async def test_custom_timeout_parameter():
+async def test_custom_timeout_parameter() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=60)
     assert condition.timeout_seconds == 60
 
 
 @pytest.mark.asyncio
-async def test_multiline_stdout_full_injection():
+async def test_multiline_stdout_full_injection() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     script = "print('line1')\nprint('line2')\nprint('line3')"
     should_run, ctx = await condition.evaluate(_make_job(script))
@@ -220,7 +246,7 @@ async def test_multiline_stdout_full_injection():
 
 
 @pytest.mark.asyncio
-async def test_empty_stdout_returns_empty_context():
+async def test_empty_stdout_returns_empty_context() -> None:
     condition = SandboxedPythonCondition(timeout_seconds=5)
     should_run, ctx = await condition.evaluate(_make_job("x = 1"))
     assert should_run is True
