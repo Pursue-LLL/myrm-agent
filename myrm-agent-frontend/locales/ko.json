@@ -4329,7 +4329,6 @@
       "output_limit": "출력 한도",
       "loop_guard": "루프 한도",
       "sandbox_boundary": "경계 한도",
-      "frequency_guard": "요청 제한됨",
       "turn_budget_guard": "검색 할당량",
       "steering": "건너뜀",
       "invalid_tool": "잘못된 도구",

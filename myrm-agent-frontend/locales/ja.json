@@ -4329,7 +4329,6 @@
       "output_limit": "出力上限",
       "loop_guard": "ループ制限",
       "sandbox_boundary": "境界制限",
-      "frequency_guard": "頻度制限",
       "turn_budget_guard": "検索上限",
       "steering": "スキップ",
       "invalid_tool": "無効なツール",

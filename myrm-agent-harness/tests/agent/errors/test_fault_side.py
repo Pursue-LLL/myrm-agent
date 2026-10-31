@@ -73,7 +73,6 @@ class TestClassifyToolFaultSide:
             "estop",
             "loop_guard",
             "sandbox_boundary",
-            "frequency_guard",
             "turn_budget_guard",
             "steering",
             "invalid_tool",

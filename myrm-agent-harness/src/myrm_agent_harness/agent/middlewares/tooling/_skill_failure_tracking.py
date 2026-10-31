@@ -52,7 +52,6 @@ NON_SKILL_FAILURE_CATEGORIES: frozenset[str] = frozenset(
         ToolErrorCategory.CIRCUIT_BREAKER,
         ToolErrorCategory.CONTEXT_VALIDATION,
         ToolErrorCategory.ESTOP,
-        ToolErrorCategory.FREQUENCY_GUARD,
         ToolErrorCategory.GUARDRAIL_BLOCKED,
         ToolErrorCategory.HOOK_BLOCKED,
         ToolErrorCategory.INVALID_TOOL,

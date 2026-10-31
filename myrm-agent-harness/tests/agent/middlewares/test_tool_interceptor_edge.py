@@ -160,8 +160,6 @@ async def test_inner_success_path_with_token_logging() -> None:
     pre_result.blocked = False
     pre_result.loop_guard = MagicMock()
     pre_result.loop_verdict = MagicMock()
-    pre_result.freq_guard = MagicMock()
-    pre_result.freq_verdict = MagicMock()
     pre_result.steering_token = MagicMock()
 
     with (
@@ -216,8 +214,6 @@ async def test_inner_clarification_approve_continue() -> None:
     pre_result.blocked = False
     pre_result.loop_guard = MagicMock()
     pre_result.loop_verdict = MagicMock()
-    pre_result.freq_guard = MagicMock()
-    pre_result.freq_verdict = MagicMock()
     pre_result.steering_token = MagicMock()
 
     mock_execute = AsyncMock(side_effect=[ToolClarificationError("clarify"), result])
@@ -265,8 +261,6 @@ async def test_inner_clarification_edited_payload() -> None:
     pre_result.blocked = False
     pre_result.loop_guard = MagicMock()
     pre_result.loop_verdict = MagicMock()
-    pre_result.freq_guard = MagicMock()
-    pre_result.freq_verdict = MagicMock()
     pre_result.steering_token = MagicMock()
 
     mock_execute = AsyncMock(side_effect=[ToolClarificationError("clarify"), result])
@@ -318,8 +312,6 @@ async def test_inner_clarification_rejected_breaks() -> None:
     pre_result.blocked = False
     pre_result.loop_guard = MagicMock()
     pre_result.loop_verdict = MagicMock()
-    pre_result.freq_guard = MagicMock()
-    pre_result.freq_verdict = MagicMock()
     pre_result.steering_token = MagicMock()
 
     mock_execute = AsyncMock(side_effect=ToolClarificationError("clarify"))
@@ -372,8 +364,6 @@ async def test_inner_cancelled_error_handled() -> None:
     pre_result.blocked = False
     pre_result.loop_guard = MagicMock()
     pre_result.loop_verdict = MagicMock()
-    pre_result.freq_guard = MagicMock()
-    pre_result.freq_verdict = MagicMock()
     pre_result.steering_token = MagicMock()
 
     with (

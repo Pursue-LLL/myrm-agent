@@ -191,14 +191,6 @@ class TestPreCallGuardsEmitEvent:
             effective_follow_rate=0,
         )
 
-        mock_freq_verdict = MagicMock()
-        mock_freq_verdict.action = MagicMock()
-        # Ensure freq verdict action != BREAK and != WARN
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
-
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.check.return_value = mock_freq_verdict
-
         mock_request = MagicMock()
         mock_request.tool_call = {"args": {"command": "git status"}}
         mock_request.tool = MagicMock()
@@ -229,10 +221,6 @@ class TestPreCallGuardsEmitEvent:
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=mock_freq_guard,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
@@ -341,11 +329,6 @@ class TestPostCallGuardsEmitEvent:
         pre_verdict.action = LoopAction.ALLOW
         pre_verdict.backoff_hint = None
 
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.record.return_value = None
-        mock_freq_verdict = MagicMock()
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
-
         result_msg = ToolMessage(
             content="some output",
             name="bash_code_execute_tool",
@@ -409,8 +392,6 @@ class TestPostCallGuardsEmitEvent:
                 {"command": "ls"},
                 loop_guard=mock_loop_guard,
                 loop_verdict=pre_verdict,
-                freq_guard=mock_freq_guard,
-                freq_verdict=mock_freq_verdict,
                 steering_token=None,
             )
 
@@ -438,11 +419,6 @@ class TestPostCallGuardsEmitEvent:
         pre_verdict = MagicMock()
         pre_verdict.action = LoopAction.ALLOW
         pre_verdict.backoff_hint = None
-
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.record.return_value = None
-        mock_freq_verdict = MagicMock()
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
 
         result_msg = ToolMessage(
             content="error: permission denied",
@@ -507,8 +483,6 @@ class TestPostCallGuardsEmitEvent:
                 {"path": "/tmp/test.txt"},
                 loop_guard=mock_loop_guard,
                 loop_verdict=pre_verdict,
-                freq_guard=mock_freq_guard,
-                freq_verdict=mock_freq_verdict,
                 steering_token=None,
             )
 
@@ -535,11 +509,6 @@ class TestPostCallGuardsEmitEvent:
         pre_verdict = MagicMock()
         pre_verdict.action = LoopAction.ALLOW
         pre_verdict.backoff_hint = None
-
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.record.return_value = None
-        mock_freq_verdict = MagicMock()
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
 
         result_msg = ToolMessage(
             content="success",
@@ -604,8 +573,6 @@ class TestPostCallGuardsEmitEvent:
                 {"command": "echo hi"},
                 loop_guard=mock_loop_guard,
                 loop_verdict=pre_verdict,
-                freq_guard=mock_freq_guard,
-                freq_verdict=mock_freq_verdict,
                 steering_token=None,
             )
 

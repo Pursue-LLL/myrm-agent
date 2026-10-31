@@ -19,7 +19,6 @@ from myrm_agent_harness.agent._internals._agent_helpers import isolated_run_guar
 # Clears state shared by every run of the process or the context, and the guard ``isolated_run_guards`` gives a nested run instead.
 _RESET_IN_PLACE = {
     "reset_loop_guard": "child_loop_guard",
-    "reset_frequency_guard": "isolated_frequency_guard",
     "reset_tool_turn_budget_guard": "isolated_tool_turn_budget_guard",
     "reset_context_budget_guard": "isolated_context_budget_guard",
     "reset_terminal_errors": "isolated_terminal_errors",

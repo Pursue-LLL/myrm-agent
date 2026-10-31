@@ -234,8 +234,6 @@ async def test_handle_execution_error():
 
             mock_loop_verdict = MagicMock()
             mock_steering_token = MagicMock()
-            mock_freq_guard = MagicMock()
-            mock_freq_verdict = MagicMock()
 
             res = await _run_post_call_guards(
                 result,
@@ -244,8 +242,6 @@ async def test_handle_execution_error():
                 {},
                 mock_guard_inst,
                 mock_loop_verdict,
-                mock_freq_guard,
-                mock_freq_verdict,
                 mock_steering_token,
             )
             assert res == result
@@ -676,9 +672,6 @@ async def test_run_post_call_guards_full():
             mock_steering_token = MagicMock()
             mock_steering_token.has_pending = True
 
-            mock_freq_guard = MagicMock()
-            mock_freq_verdict = MagicMock()
-
             res = await _run_post_call_guards(
                 result,
                 "bash_code_execute_tool",
@@ -686,8 +679,6 @@ async def test_run_post_call_guards_full():
                 {},
                 mock_guard_inst,
                 mock_loop_verdict,
-                mock_freq_guard,
-                mock_freq_verdict,
                 mock_steering_token,
             )
 
@@ -745,9 +736,6 @@ async def test_run_post_call_guards_budget_persisted():
         mock_loop_verdict = MagicMock()
         mock_loop_verdict.action = "allow"
 
-        mock_freq_guard = MagicMock()
-        mock_freq_verdict = MagicMock()
-
         res = await _run_post_call_guards(
             result,
             "test_tool",
@@ -755,8 +743,6 @@ async def test_run_post_call_guards_budget_persisted():
             {},
             mock_guard_inst,
             mock_loop_verdict,
-            mock_freq_guard,
-            mock_freq_verdict,
             None,
         )
         assert res.content == "persisted"

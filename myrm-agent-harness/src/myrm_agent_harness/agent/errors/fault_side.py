@@ -142,7 +142,6 @@ _OWNER_TOOL_CATEGORIES: frozenset[str] = frozenset(
         "estop",
         "loop_guard",
         "sandbox_boundary",
-        "frequency_guard",
         "turn_budget_guard",
         "steering",
         "invalid_tool",

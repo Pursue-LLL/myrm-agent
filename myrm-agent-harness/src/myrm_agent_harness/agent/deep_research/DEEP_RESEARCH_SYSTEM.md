@@ -85,7 +85,7 @@ Server 层通过 `PhaseWaiter`（通用阶段暂停/恢复门控）实现 Clarif
 
 research agent 与分派它们的 run 在同一个 context 里并行运行，而每个 run 开始时都会就地重置它找到的守卫。`_dispatch_research_agents` 因此把每个 agent 放进 `agent/_internals/_agent_helpers.ephemeral_run_scope(scope_key)`（`scope_key = research-<分派 id>-<序号>`）：
 
-- 每个 agent 拥有自己的 LoopGuard、FrequencyGuard、ToolTurnBudgetGuard、ContextBudgetGuard、terminal-error 注册表与完成门禁回合状态，结束时分派方的守卫原样回来。没有隔离时，三个 agent 抓同一个 URL 会把调用数加在同一个循环检测窗口上，每个 agent 只抓了几次就被判定为循环（见 `tests/agent/deep_research/test_dispatch_real_agents.py`），且任何一个 agent 的启动都会清空其余 agent 与分派方的窗口。
+- 每个 agent 拥有自己的 LoopGuard、ToolTurnBudgetGuard、ContextBudgetGuard、terminal-error 注册表与完成门禁回合状态，结束时分派方的守卫原样回来。没有隔离时，三个 agent 抓同一个 URL 会把调用数加在同一个循环检测窗口上，每个 agent 只抓了几次就被判定为循环（见 `tests/agent/deep_research/test_dispatch_real_agents.py`），且任何一个 agent 的启动都会清空其余 agent 与分派方的窗口。
 - 与子 agent（`child_run_scope`）不同，research agent 保持分派方的 approval session，也不置 `is_subagent`：它们的工具审批仍按分派方的会话走，不会被当成委派出来的子任务。
 - 没有任何东西会恢复一个 research agent，所以它登记在 loop guard 注册表里的条目在 `ephemeral_run_scope` 结束时（无论怎样结束）即被释放。
 

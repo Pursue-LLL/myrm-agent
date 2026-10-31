@@ -25,7 +25,6 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.verificati
 )
 from myrm_agent_harness.agent.middlewares.tooling._tool_guards import run_post_call_guards
 from myrm_agent_harness.agent.security.guards.context_budget import BudgetAction
-from myrm_agent_harness.agent.security.guards.frequency_guard import FrequencyAction
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     LoopAction,
@@ -289,8 +288,6 @@ async def _one_bash_turn(guard: LoopGuard, command: str, text: str, truncated_to
             args,
             loop_guard=guard,
             loop_verdict=allow,
-            freq_guard=MagicMock(),
-            freq_verdict=MagicMock(action=FrequencyAction.ALLOW),
             steering_token=None,
             call_record=record,
         )

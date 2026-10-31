@@ -415,8 +415,6 @@ async def _tool_interceptor_middleware_inner(
             tool_args,
             pre_result.loop_guard,
             pre_result.loop_verdict,
-            pre_result.freq_guard,
-            pre_result.freq_verdict,
             pre_result.steering_token,
             pre_result.call_record,
         )

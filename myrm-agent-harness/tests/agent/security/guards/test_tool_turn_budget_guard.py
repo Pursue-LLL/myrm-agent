@@ -110,12 +110,6 @@ class TestToolTurnBudgetPreCallIntegration:
         type(mock_loop_verdict.action).__eq__ = lambda self, other: False
         mock_loop_guard.pre_check.return_value = mock_loop_verdict
 
-        mock_freq_verdict = MagicMock()
-        mock_freq_verdict.action = MagicMock()
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.check.return_value = mock_freq_verdict
-
         mock_request = MagicMock()
         mock_request.tool_call = {"args": {"questions": ["test"]}}
         mock_request.tool = MagicMock()
@@ -138,10 +132,6 @@ class TestToolTurnBudgetPreCallIntegration:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=mock_freq_guard,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
@@ -196,12 +186,6 @@ class TestToolTurnBudgetPreCallIntegration:
         type(mock_loop_verdict.action).__eq__ = lambda self, other: False
         mock_loop_guard.pre_check.return_value = mock_loop_verdict
 
-        mock_freq_verdict = MagicMock()
-        mock_freq_verdict.action = MagicMock()
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.check.return_value = mock_freq_verdict
-
         mock_request = MagicMock()
         mock_request.tool_call = {"args": {"questions": ["a", "b", "c"]}}
         mock_request.tool = MagicMock()
@@ -224,10 +208,6 @@ class TestToolTurnBudgetPreCallIntegration:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=mock_freq_guard,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
@@ -282,12 +262,6 @@ class TestToolTurnBudgetPreCallIntegration:
         type(mock_loop_verdict.action).__eq__ = lambda self, other: False
         mock_loop_guard.pre_check.return_value = mock_loop_verdict
 
-        mock_freq_verdict = MagicMock()
-        mock_freq_verdict.action = MagicMock()
-        type(mock_freq_verdict.action).__eq__ = lambda self, other: False
-        mock_freq_guard = MagicMock()
-        mock_freq_guard.check.return_value = mock_freq_verdict
-
         mock_request = MagicMock()
         mock_request.tool_call = {"args": {"questions": ["test"]}}
         mock_request.tool = MagicMock()
@@ -310,10 +284,6 @@ class TestToolTurnBudgetPreCallIntegration:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
                 return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=mock_freq_guard,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",

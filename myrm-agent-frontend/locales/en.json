@@ -4344,7 +4344,6 @@
       "output_limit": "Output Limit",
       "loop_guard": "Loop Limit",
       "sandbox_boundary": "Boundary Limit",
-      "frequency_guard": "Rate Limited",
       "turn_budget_guard": "Search Quota",
       "steering": "Skipped",
       "invalid_tool": "Invalid Tool",

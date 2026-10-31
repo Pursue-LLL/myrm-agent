@@ -1,11 +1,10 @@
 """Additional tests for _tool_guards — branch coverage for rare paths.
 
 Covers pre-call guard branches (e-stop KILL_ALL, turn budget BREAK,
-frequency BREAK/WARN, loop feed, sandbox boundary, circuit breaker "any",
-tracker-backed loop feed, ToolStuck re-raise) and post-call guard branches
-(steering activation, empty output, rules append, post sandbox boundary,
-freq WARN warning assembly, non-ToolMessage passthrough, completion
-verification tagging).
+loop feed, sandbox boundary, circuit breaker "any", tracker-backed loop
+feed, ToolStuck re-raise) and post-call guard branches (steering
+activation, empty output, rules append, post sandbox boundary,
+non-ToolMessage passthrough, completion verification tagging).
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
 )
 from myrm_agent_harness.agent.security.guards.context_budget import BudgetAction
 from myrm_agent_harness.agent.security.guards.estop import EStopLevel, EStopState
-from myrm_agent_harness.agent.security.guards.frequency_guard import FrequencyAction
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     LoopAction,
@@ -66,14 +64,8 @@ def _allow_verdict() -> MagicMock:
     return v
 
 
-def _freq_allow() -> MagicMock:
-    v = MagicMock()
-    v.action = FrequencyAction.ALLOW
-    return v
-
-
 def _base_pre_patches():
-    """Patches needed to reach loop/freq guards in run_pre_call_guards."""
+    """Patches needed to reach the loop guard in run_pre_call_guards."""
     return (
         patch(
             "myrm_agent_harness.agent.hooks.executor.fire_hook",
@@ -106,9 +98,6 @@ def _base_pre_patches():
         patch(
             "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
             return_value=None,
-        ),
-        patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
         ),
         patch(
             "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
@@ -179,8 +168,6 @@ class TestPreCallRareBranches:
         verdict.tool_remaining = 0
         budget_guard = MagicMock()
         budget_guard.check.return_value = verdict
-        freq_guard = MagicMock()
-        freq_guard.check.return_value = _freq_allow()
         with (
             patch(
                 "myrm_agent_harness.agent.hooks.executor.fire_hook",
@@ -206,10 +193,6 @@ class TestPreCallRareBranches:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
                 return_value=1,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=freq_guard,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
@@ -226,65 +209,6 @@ class TestPreCallRareBranches:
         assert "Turn budget exhausted" in result.content
 
     @pytest.mark.asyncio
-    async def test_frequency_break_returns_error(self) -> None:
-        verdict = MagicMock()
-        verdict.action = FrequencyAction.BREAK
-        verdict.reason = "Too many calls"
-        verdict.global_count = 10
-        verdict.global_limit = 10
-        verdict.global_remaining = 0
-        verdict.tool_count = 3
-        verdict.tool_limit = 3
-        verdict.tool_remaining = 0
-        freq_guard = MagicMock()
-        freq_guard.check.return_value = verdict
-        budget_guard = MagicMock()
-        budget_guard.check.return_value = MagicMock(action=TurnBudgetAction.ALLOW)
-        with (
-            patch(
-                "myrm_agent_harness.agent.hooks.executor.fire_hook",
-                new_callable=AsyncMock,
-                return_value=MagicMock(blocked=False, updated_input=None),
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
-                return_value=budget_guard,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
-                return_value=1,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=freq_guard,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
-            ),
-        ):
-            result = await run_pre_call_guards(
-                _request(),
-                "bash_code_execute_tool",
-                "c4",
-                {},
-                get_loop_guard_fn=lambda: _loop_guard(_allow_verdict()),
-            )
-        assert isinstance(result, ToolMessage)
-        assert "Too many calls" in result.content
-
-    @pytest.mark.asyncio
     async def test_loop_guard_feed_output_tokens_when_tracker_has_last_call(
         self,
     ) -> None:
@@ -294,8 +218,6 @@ class TestPreCallRareBranches:
         loop_guard = MagicMock()
         loop_guard.pre_check.return_value = _allow_verdict()
         loop_guard.get_metrics.return_value = _metrics()
-        freq_guard = MagicMock()
-        freq_guard.check.return_value = _freq_allow()
         budget_guard = MagicMock()
         budget_guard.check.return_value = MagicMock(action=TurnBudgetAction.ALLOW)
         with (
@@ -323,10 +245,6 @@ class TestPreCallRareBranches:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
                 return_value=1,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=freq_guard,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
@@ -473,10 +391,6 @@ class TestPreCallRareBranches:
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=MagicMock(check=MagicMock(return_value=_freq_allow())),
-            ),
-            patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
             ),
             patch(
@@ -532,10 +446,6 @@ class TestPreCallRareBranches:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
                 return_value=1,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=MagicMock(check=MagicMock(return_value=_freq_allow())),
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
@@ -597,10 +507,6 @@ class TestPreCallRareBranches:
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=MagicMock(check=MagicMock(return_value=_freq_allow())),
-            ),
-            patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
             ),
             patch(
@@ -658,10 +564,6 @@ class TestPreCallRareBranches:
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
                 return_value=1,
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_frequency_guard",
-                return_value=MagicMock(check=MagicMock(return_value=_freq_allow())),
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
@@ -753,8 +655,6 @@ class TestPostCallRareBranches:
             {},
             loop_guard=MagicMock(),
             loop_verdict=_allow_verdict(),
-            freq_guard=MagicMock(),
-            freq_verdict=_freq_allow(),
             steering_token=None,
         )
         assert result is sentinel
@@ -765,7 +665,6 @@ class TestPostCallRareBranches:
         post_verdict.action = LoopAction.ALLOW
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
         with self._enter_patches(
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
@@ -783,8 +682,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         assert "(no output)" in result.content
@@ -795,7 +692,6 @@ class TestPostCallRareBranches:
         post_verdict.action = LoopAction.ALLOW
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
         with self._enter_patches(
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
@@ -817,8 +713,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         assert "Rule: do not delete" in result.content
@@ -831,7 +725,6 @@ class TestPostCallRareBranches:
         post_verdict.loop_kind = "sandbox_boundary"
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
         mock_emit = AsyncMock()
         with self._enter_patches(
             patch(
@@ -854,50 +747,9 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         mock_emit.assert_called_once_with("sandbox_boundary", "t", "sandbox_boundary", "error")
-
-    @pytest.mark.asyncio
-    async def test_freq_warn_warning_assembled(self) -> None:
-        post_verdict = MagicMock()
-        post_verdict.action = LoopAction.ALLOW
-        loop_guard = MagicMock()
-        loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
-        freq_verdict = MagicMock()
-        freq_verdict.action = FrequencyAction.WARN
-        freq_verdict.reason = "approaching limit"
-        freq_verdict.global_count = 8
-        freq_verdict.global_limit = 10
-        freq_verdict.global_remaining = 2
-        freq_verdict.tool_count = 1
-        freq_verdict.tool_limit = 5
-        freq_verdict.tool_remaining = 4
-        with self._enter_patches(
-            patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
-                return_value=(
-                    ToolMessage(content="o", name="t", tool_call_id="c"),
-                    "o",
-                ),
-            ),
-        ):
-            msg = ToolMessage(content="o", name="t", tool_call_id="c")
-            result = await run_post_call_guards(
-                msg,
-                "t",
-                "c",
-                {},
-                loop_guard=loop_guard,
-                loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=freq_verdict,
-                steering_token=None,
-            )
-        assert "Frequency warning" in result.content
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -939,8 +791,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=pre_verdict,
-                freq_guard=MagicMock(),
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         assert result.content == f"o\n\nLoop detected: {expected_hint}"
@@ -969,8 +819,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=pre_verdict,
-                freq_guard=MagicMock(),
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         assert result.content == "o"
@@ -1001,8 +849,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=MagicMock(),
-                freq_verdict=_freq_allow(),
                 steering_token=steering,
             )
         steering.activate.assert_called_once()
@@ -1013,7 +859,6 @@ class TestPostCallRareBranches:
         post_verdict.action = LoopAction.ALLOW
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
         call_record = CallRecord(tool_name="bash_code_execute_tool", args_hash="h", args={})
         with self._enter_patches(
             patch(
@@ -1036,8 +881,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=_freq_allow(),
                 steering_token=None,
                 call_record=call_record,
             )
@@ -1069,8 +912,6 @@ class TestPostCallRareBranches:
                 {"command": "pytest -q"},
                 loop_guard=guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=MagicMock(),
-                freq_verdict=_freq_allow(),
                 steering_token=None,
                 call_record=verifying,
             )
@@ -1088,7 +929,6 @@ class TestPostCallRareBranches:
         post_verdict.action = LoopAction.ALLOW
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
         mock_emit = AsyncMock()
 
         hook_result = MagicMock()
@@ -1124,8 +964,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         assert isinstance(result, ToolMessage)
@@ -1156,7 +994,6 @@ class TestPostCallRareBranches:
         post_verdict.action = LoopAction.ALLOW
         loop_guard = MagicMock()
         loop_guard.record_result.return_value = post_verdict
-        freq_guard = MagicMock()
 
         hook_result = MagicMock()
         hook_result.blocked = True
@@ -1191,8 +1028,6 @@ class TestPostCallRareBranches:
                 {},
                 loop_guard=loop_guard,
                 loop_verdict=_allow_verdict(),
-                freq_guard=freq_guard,
-                freq_verdict=_freq_allow(),
                 steering_token=None,
             )
         after = registry.get_sample_value("agent_hook_failures_total", labels) or 0.0

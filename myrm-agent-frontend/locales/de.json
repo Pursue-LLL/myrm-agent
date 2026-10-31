@@ -4329,7 +4329,6 @@
       "output_limit": "Ausgabelimit",
       "loop_guard": "Schleifenlimit",
       "sandbox_boundary": "Grenzgrenze",
-      "frequency_guard": "Begrenzter Preis",
       "turn_budget_guard": "Suchkontingent",
       "steering": "Übersprungen",
       "invalid_tool": "Ungültiges Werkzeug",

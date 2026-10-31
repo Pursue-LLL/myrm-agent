@@ -111,9 +111,6 @@ from myrm_agent_harness.agent.security.detection.tool_result_validator import (
     ValidationResult,
     validate_tool_result,
 )
-from myrm_agent_harness.agent.security.guards.frequency_guard import (
-    reset_frequency_guard,
-)
 
 __all__ = [
     "AdvisorRiskTriggerRouter",
@@ -143,7 +140,6 @@ __all__ = [
     "notify_loop_guard_compaction",
     "progress_middleware",
     "reset_completion_guard",
-    "reset_frequency_guard",
     "reset_loop_guard",
     "reset_plan_confirm_state",
     "reset_replan_attempts",

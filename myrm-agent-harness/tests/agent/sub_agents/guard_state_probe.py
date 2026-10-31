@@ -30,7 +30,6 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
     get_loop_guard,
 )
 from myrm_agent_harness.agent.security.guards.context_budget import get_context_budget_guard
-from myrm_agent_harness.agent.security.guards.frequency_guard import get_frequency_guard
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import get_tool_turn_budget_guard
 from myrm_agent_harness.core.context_vars import approval_session_var, chat_id_var, scoped_value
@@ -45,7 +44,6 @@ class GuardState:
     """What each per-run guard currently remembers, comparable across a child run."""
 
     tool_calls: int
-    frequency_calls: int
     turn_budget_count: int
     context_tokens: int
     terminal_errors: frozenset[str]
@@ -60,7 +58,6 @@ def guard_state() -> GuardState:
     tier = turn_state._run_disclosures.get(turn_state.run_key(), {}).get("deliverable_tier")
     return GuardState(
         tool_calls=len(get_loop_guard()._window),
-        frequency_calls=int(get_frequency_guard().get_stats()["current_window_size"]),
         turn_budget_count=get_tool_turn_budget_guard().check("web_search_tool", message_id=MESSAGE).tool_count,
         context_tokens=get_context_budget_guard().used_tokens,
         terminal_errors=frozenset(get_terminal_errors().get_all()),
@@ -74,7 +71,6 @@ def guard_state() -> GuardState:
 def use_every_guard(*, error: str) -> None:
     """What a run leaves behind in the guards: one tool call, one result, one error category, one refusal."""
     get_loop_guard().pre_check("file_write_tool", {"path": "app.py"})
-    get_frequency_guard().record("file_write_tool")
     get_tool_turn_budget_guard().record("web_search_tool", message_id=MESSAGE)
     get_context_budget_guard().check_and_truncate("x" * 4_000, "bash_code_execute_tool")
     get_terminal_errors().add(error)

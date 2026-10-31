@@ -54,7 +54,6 @@ class ToolErrorCategory(str, enum.Enum):
     OUTPUT_LIMIT = "output_limit"
     LOOP_GUARD = "loop_guard"
     SANDBOX_BOUNDARY = "sandbox_boundary"
-    FREQUENCY_GUARD = "frequency_guard"
     TURN_BUDGET_GUARD = "turn_budget_guard"
     STEERING = "steering"
     INVALID_TOOL = "invalid_tool"

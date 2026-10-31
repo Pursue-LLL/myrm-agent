@@ -149,8 +149,6 @@ class TestPostCallGuardsIntegration:
 
         mock_loop_guard = MagicMock()
         mock_loop_verdict = MagicMock()
-        mock_freq_guard = MagicMock()
-        mock_freq_verdict = MagicMock()
         mock_steering_token = MagicMock(has_pending=False)
 
         with (
@@ -166,8 +164,6 @@ class TestPostCallGuardsIntegration:
                 tool_args={"id": "item_1"},
                 loop_guard=mock_loop_guard,
                 loop_verdict=mock_loop_verdict,
-                freq_guard=mock_freq_guard,
-                freq_verdict=mock_freq_verdict,
                 steering_token=mock_steering_token,
             )
 

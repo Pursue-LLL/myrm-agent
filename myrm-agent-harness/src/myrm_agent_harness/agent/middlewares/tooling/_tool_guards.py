@@ -10,7 +10,6 @@ detection, steering, trust, PII).  Post-call guards process the result
 - agent.security.guards.loop_guard (POS: Session-level loop detection guard)
 - agent.middlewares.tooling._circuit_breaker (POS: Hard circuit breaker over the run's terminal errors)
 - agent.security.guards.context_budget (POS: Session-level context budget guard)
-- agent.security.guards.frequency_guard (POS: Session-level frequency guard)
 - agent.security.guards.tool_turn_budget_guard (POS: Per-user-turn call budget for high-cost tools)
 - agent.security.audit (POS: Cross-cutting security audit)
 - agent.middlewares.tooling._tool_helpers (POS: Stateless helper functions)
@@ -59,10 +58,6 @@ from myrm_agent_harness.agent.security.guards.context_budget import (
     get_context_budget_guard,
 )
 from myrm_agent_harness.agent.security.guards.estop import EStopLevel, check_estop
-from myrm_agent_harness.agent.security.guards.frequency_guard import (
-    FrequencyAction,
-    get_frequency_guard,
-)
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, LoopAction, LoopGuard
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import (
     TurnBudgetAction,
@@ -112,8 +107,6 @@ class PreCallResult:
 
     __slots__ = (
         "call_record",
-        "freq_guard",
-        "freq_verdict",
         "loop_guard",
         "loop_verdict",
         "steering_token",
@@ -123,15 +116,11 @@ class PreCallResult:
         self,
         loop_guard: LoopGuard,
         loop_verdict: Any,
-        freq_guard: Any,
-        freq_verdict: Any,
         steering_token: Any,
         call_record: CallRecord | None,
     ) -> None:
         self.loop_guard = loop_guard
         self.loop_verdict = loop_verdict
-        self.freq_guard = freq_guard
-        self.freq_verdict = freq_verdict
         self.steering_token = steering_token
         self.call_record = call_record
 
@@ -310,26 +299,6 @@ async def run_pre_call_guards(
             error_category=ToolErrorCategory.TURN_BUDGET_GUARD,
         )
 
-    freq_guard = get_frequency_guard()
-    freq_verdict = freq_guard.check(tool_name)
-
-    if freq_verdict.action == FrequencyAction.BREAK:
-        record_decision(tool_name, "FREQUENCY_BREAK", freq_verdict.reason, tool_call_id=tool_call_id)
-        logger.warning("Frequency break: %s -- %s", tool_name, freq_verdict.reason)
-        return make_error_msg(
-            tool_name,
-            tool_call_id,
-            f"Error: {freq_verdict.reason}\n\n"
-            f"Global: {freq_verdict.global_count}/{freq_verdict.global_limit} calls, "
-            f"{freq_verdict.global_remaining} remaining.\n"
-            f"Tool: {freq_verdict.tool_count}/{freq_verdict.tool_limit} calls, "
-            f"{freq_verdict.tool_remaining} remaining.",
-            error_category=ToolErrorCategory.FREQUENCY_GUARD,
-        )
-    if freq_verdict.action == FrequencyAction.WARN:
-        record_decision(tool_name, "FREQUENCY_WARN", freq_verdict.reason, tool_call_id=tool_call_id)
-        logger.warning("Frequency warning: %s -- %s", tool_name, freq_verdict.reason)
-
     steering_token = get_steering_token()
     if steering_token and steering_token.is_active:
         logger.warning("Steering skip: %s", tool_name)
@@ -384,8 +353,6 @@ async def run_pre_call_guards(
     return PreCallResult(
         loop_guard,
         loop_verdict,
-        freq_guard,
-        freq_verdict,
         steering_token,
         call_record,
     )
@@ -403,8 +370,6 @@ async def run_post_call_guards(
     tool_args: dict[str, object],
     loop_guard: LoopGuard,
     loop_verdict: Any,
-    freq_guard: Any,
-    freq_verdict: Any,
     steering_token: Any,
     call_record: CallRecord | None = None,
 ) -> ToolMessage | Any:
@@ -582,8 +547,6 @@ async def run_post_call_guards(
         logger.warning("Loop output warning: %s -- %s", tool_name, post_verdict.reason)
         await _emit_loop_guard_event("loop_guard_warn", tool_name, post_verdict.loop_kind, "warning")
 
-    freq_guard.record(tool_name)
-
     if tool_name == "bash_code_execute_tool" and call_record is not None:
         from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import (
             tag_verification_call,
@@ -596,15 +559,6 @@ async def run_post_call_guards(
         hint = loop_verdict.backoff_hint or post_verdict.backoff_hint
         if hint:
             warnings.append(f"Loop detected: {hint}")
-
-    if freq_verdict.action == FrequencyAction.WARN:
-        warnings.append(
-            f"Frequency warning: {freq_verdict.reason}\n"
-            f"Global: {freq_verdict.global_count}/{freq_verdict.global_limit} calls, "
-            f"{freq_verdict.global_remaining} remaining.\n"
-            f"Tool: {freq_verdict.tool_count}/{freq_verdict.tool_limit} calls, "
-            f"{freq_verdict.tool_remaining} remaining."
-        )
 
     if warnings and isinstance(result.content, str):
         warning_text = "\n\n".join(warnings)

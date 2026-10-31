@@ -167,9 +167,6 @@ def reset_all_guards(
     from myrm_agent_harness.agent.security.guards.context_budget import (
         reset_context_budget_guard,
     )
-    from myrm_agent_harness.agent.security.guards.frequency_guard import (
-        reset_frequency_guard,
-    )
     from myrm_agent_harness.agent.security.guards.privacy_tracker import (
         reset_privacy_tracker,
     )
@@ -185,7 +182,6 @@ def reset_all_guards(
         round_budget=round_budget,
         unattended_mode=unattended_mode,
     )
-    reset_frequency_guard()
     reset_tool_turn_budget_guard()
     reset_context_budget_guard(is_resume=is_resume)
     reset_replan_attempts()
@@ -209,7 +205,7 @@ def isolated_run_guards(scope_key: str) -> Iterator[None]:
     """Run a nested agent on per-run guards of its own, handing the caller's back as they were.
 
     A run starts by resetting the guards it finds, in place. A nested run that shared its caller's would
-    erase the caller's tool-call history, call window, turn and context budgets, terminal errors and the
+    erase the caller's tool-call history, turn and context budgets, terminal errors and the
     completion guard's turn state; nested runs that overlap would also count each other's tool calls as their
     own. The nested run's loop guard is filed in the session registry under ``scope_key``.
 
@@ -221,12 +217,10 @@ def isolated_run_guards(scope_key: str) -> Iterator[None]:
     from myrm_agent_harness.agent.middlewares.completion.completion_guard.state import isolated_run_state
     from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import child_loop_guard
     from myrm_agent_harness.agent.security.guards.context_budget import isolated_context_budget_guard
-    from myrm_agent_harness.agent.security.guards.frequency_guard import isolated_frequency_guard
     from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import isolated_tool_turn_budget_guard
 
     with ExitStack() as scope:
         scope.enter_context(child_loop_guard(scope_key))
-        scope.enter_context(isolated_frequency_guard())
         scope.enter_context(isolated_tool_turn_budget_guard())
         scope.enter_context(isolated_context_budget_guard())
         scope.enter_context(isolated_terminal_errors())

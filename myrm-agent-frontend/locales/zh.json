@@ -4344,7 +4344,6 @@
       "output_limit": "输出上限",
       "loop_guard": "循环限制",
       "sandbox_boundary": "边界限制",
-      "frequency_guard": "频率限制",
       "turn_budget_guard": "搜索配额",
       "steering": "已跳过",
       "invalid_tool": "无效工具",

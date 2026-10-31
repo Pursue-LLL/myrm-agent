@@ -1,7 +1,7 @@
 """A child agent runs inline in its parent's context; its run must not touch the parent's per-run guard state.
 
 Every run begins by resetting the per-run guards in place. A child that reset the objects its parent was
-using would wipe the parent's tool-call history, frequency window, turn budget, context budget, terminal
+using would wipe the parent's tool-call history, turn budget, context budget, terminal
 errors and the completion guard's turn state (refusal budget, forced-finish latch, evidence, disclosure),
 so ``child_run_scope`` hands the child guards of its own and gives the parent's back.
 """
@@ -34,7 +34,6 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
     get_loop_guard,
 )
 from myrm_agent_harness.agent.security.guards.context_budget import get_context_budget_guard
-from myrm_agent_harness.agent.security.guards.frequency_guard import get_frequency_guard
 from myrm_agent_harness.agent.security.guards.taint_tracker import TaintTracker
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import get_tool_turn_budget_guard
 from myrm_agent_harness.agent.streaming.types import AgentEventType
@@ -58,7 +57,6 @@ def test_a_child_run_leaves_the_parents_guard_state_as_it_found_it() -> None:
     parent = guard_state()
     parent_guards = (
         get_loop_guard(),
-        get_frequency_guard(),
         get_tool_turn_budget_guard(),
         get_context_budget_guard(),
         get_terminal_errors(),
@@ -73,7 +71,6 @@ def test_a_child_run_leaves_the_parents_guard_state_as_it_found_it() -> None:
     assert guard_state() == parent
     assert parent_guards == (
         get_loop_guard(),
-        get_frequency_guard(),
         get_tool_turn_budget_guard(),
         get_context_budget_guard(),
         get_terminal_errors(),
@@ -87,7 +84,6 @@ def test_a_child_starts_from_empty_guards_even_when_its_run_is_a_resume() -> Non
 
         assert guard_state() == GuardState(
             tool_calls=0,
-            frequency_calls=0,
             turn_budget_count=0,
             context_tokens=0,
             terminal_errors=frozenset(),

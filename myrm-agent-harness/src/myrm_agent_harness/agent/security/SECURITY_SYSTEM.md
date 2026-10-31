@@ -49,7 +49,7 @@
 │   ↓              │
 │ Loop Detector    │ ← Layer 5: LLM循环检测（repetition/ping-pong/no-progress）
 │   ↓              │
-│ Frequency Guard  │ ← Layer 5: 工具调用频率异常检测（DoS防护/成本控制）
+│ Turn Budget Guard│ ← Layer 5: 单条用户消息内的工具调用配额（高成本工具，如搜索）
 └──────────────────┘
   │
   ▼
@@ -809,16 +809,15 @@ elif decision_type == "edit":
 
 ---
 
-## 六、Layer 5 — Anti-Abuse（循环检测与频率控制）
+## 六、Layer 5 — Anti-Abuse（循环检测与单轮配额）
 
-Layer 5 包含三个并列的防滥用机制：
+Layer 5 包含两个并列的防滥用机制：
 - **LoopGuard**（循环检测）— 检测逻辑循环模式
-- **FrequencyGuard**（频率检测）— 检测时间窗口内的高频调用
 - **ToolTurnBudgetGuard**（单轮配额）— 检测单条用户消息内的工具调用总量
 
-三者通过 `tool_interceptor_middleware` 集成，互为补充。
+两者通过 `tool_interceptor_middleware` 集成，互为补充。
 
-**作用范围**：LoopGuard 对每一次 run 生效（按 session 登记，含迭代预算提示与 `ToolStuckException`）。FrequencyGuard 与 ToolTurnBudgetGuard 的计数对象存放在 `ContextVar` 中；LangGraph 在上下文副本里执行工具、调用结束即丢弃副本，所以只有在 run 开始前就装入守卫的 run 才会累计——委托 run（子 Agent、深度研究，经 `isolated_run_guards`）会装入，用户 run 不装入，其每次工具调用拿到的都是新的空守卫，这两项限制不会触发。该行为由 `tests/agent/middlewares/test_shipped_stack_run_guards.py` 固定；若要让用户 run 也受限，需要在 run 开始时装入新实例，同时更新这条说明、该测试与公开文档。
+**作用范围**：LoopGuard 对每一次 run 生效（按 session 登记，含迭代预算提示与 `ToolStuckException`）。ToolTurnBudgetGuard 的计数对象存放在 `ContextVar` 中；LangGraph 在上下文副本里执行工具、调用结束即丢弃副本，所以只有在 run 开始前就装入守卫的 run 才会累计——委托 run（子 Agent、深度研究，经 `isolated_run_guards`）会装入，用户 run 不装入，其每次工具调用拿到的都是新的空守卫，这项限制不会触发。该行为由 `tests/agent/middlewares/test_shipped_stack_run_guards.py` 固定；若要让用户 run 也受限，需要在 run 开始时装入新实例，同时更新这条说明、该测试与公开文档。
 
 ### 6.1 LoopGuard — 循环检测
 
@@ -865,137 +864,11 @@ Try: (1) different command syntax, (2) check file permissions, (3) verify curren
 
 使用 `ContextVar` 实现每个 Agent run 的隔离实例。
 
-### 6.2 FrequencyGuard — 工具调用频率异常检测
-
-**位置**：`agent/security/guards/frequency_guard.py`（通过 `tool_interceptor_middleware` 集成）
-
-**防御目标**：防止 DoS 攻击和成本失控，通过检测异常高频的工具调用模式。
-
-**与 LoopGuard 的区别**：
-- **LoopGuard**：检测逻辑循环（相同参数的重复调用、ping-pong、无进展）
-- **FrequencyGuard**：检测时间窗口内的原始调用频率异常（不考虑参数）
-
-**检测维度**：
-
-| 维度 | 默认阈值 | 说明 |
-|-----|---------|------|
-| 全局频率 | 100 次/60s | 所有工具调用的总频率限制 |
-| 单工具频率 | 30 次/60s | 单个工具的调用频率限制 |
-
-**响应级别**：
-
-| 级别 | 触发条件 | 行为 |
-|-----|---------|------|
-| ALLOW | 正常使用 | 通过检查 |
-| WARN | 80% 阈值 | 附加警告到 ToolMessage，提醒剩余配额 |
-| BREAK | 100% 阈值 | 阻止执行，返回错误消息 |
-
-**豁免工具**：
-
-低成本、高频率的只读操作自动豁免单工具限制（但仍受全局限制约束）：
-
-```python
-_DEFAULT_EXEMPTED_TOOLS = {
-    # Memory system (high-frequency readonly)
-    "memory_search_tool",
-    "memory_save_tool",
-    "memory_manage_tool",
-    # Skill system (high-frequency readonly)
-    "skill_select_tool",
-    "skill_market_tool",
-    "skill_search_tool",
-    # Browser readonly operations
-    "browser_snapshot_tool",
-    "browser_extract_tool",
-    # File system readonly operations
-    "glob_tool",
-    "grep_tool",
-}
-```
-
-**工作机制**：
-
-1. **Pre-call 检查**：`tool_interceptor_middleware` 在工具执行前调用 `freq_guard.check(tool_name)`
-2. **滑动窗口**：使用 `deque` 存储每次调用的时间戳和工具名，自动过期超出时间窗口的记录
-3. **频率计算**：
-   - 全局计数：窗口内所有工具调用次数
-   - 单工具计数：窗口内特定工具的调用次数
-4. **阈值判断**：
-   - 如果达到 100% 阈值 → BREAK（阻止执行）
-   - 如果达到 80% 阈值 → WARN（附加警告）
-   - 否则 → ALLOW（正常通过）
-5. **Post-call 记录**：工具执行成功后调用 `freq_guard.record(tool_name)` 记录到滑动窗口
-
-**错误消息示例**：
-
-```
-Error: Global tool call frequency limit exceeded: 100/100 calls in 60.0s window.
-This indicates potential DoS or runaway loop.
-Please reduce call frequency or review agent logic.
-
-Global: 100/100 calls, 0 remaining.
-Tool: 15/30 calls, 15 remaining.
-```
-
-**警告消息示例**：
-
-```
-⚠️ Frequency warning: Tool 'bash_code_execute_tool' approaching frequency limit: 24/30 calls in 60.0s window (6 remaining).
-Consider reducing call frequency to avoid hitting the limit.
-   Global: 85/100 calls, 15 remaining.
-   Tool: 24/30 calls, 6 remaining.
-```
-
-**统计信息**：
-
-`freq_guard.get_stats()` 返回可观测性指标：
-
-```python
-{
-    "total_checks": 150,
-    "total_warns": 5,
-    "total_breaks": 1,
-    "current_window_size": 45,
-    "warn_rate": 0.033,
-    "break_rate": 0.0067,
-}
-```
-
-**配置选项**：
-
-| 参数 | 默认值 | 说明 |
-|-----|--------|------|
-| `window_seconds` | 60.0 | 时间窗口大小（秒） |
-| `global_limit` | 100 | 全局调用限制 |
-| `per_tool_limit` | 30 | 单工具调用限制 |
-| `warning_ratio` | 0.8 | 触发警告的比例（80%） |
-| `exempted_tools` | 见上 | 豁免工具集合 |
-
-**集成点**：
-
-- `tool_interceptor_middleware._run_pre_call_guards()`：在 LoopGuard 之后、Invalid tool 检查之前
-- `tool_interceptor_middleware._run_post_call_guards()`：在 LoopGuard 记录之后记录成功调用
-- `agent_runtime`：每次 Agent run 开始时调用 `reset_all_guards()`，其中 `reset_frequency_guard()` 与 `reset_tool_turn_budget_guard()` 只清零已装入的实例，不会为用户 run 装入新实例（见本章开头的作用范围）
-
-**竞品对比**：
-
-OpenAI Assistants API 实现了类似的频率限制（40 requests/minute for run creation），验证了该功能的必要性。FrequencyGuard 提供了更细粒度的控制（全局 + 单工具双重限制）和更灵活的配置（豁免列表、可配置阈值）。
-
-使用 `ContextVar` 实现每个 Agent run 的隔离实例。
-
-### 6.3 ToolTurnBudgetGuard — 单轮工具调用配额
+### 6.2 ToolTurnBudgetGuard — 单轮工具调用配额
 
 **位置**：`agent/security/guards/tool_turn_budget_guard.py`（通过 `tool_interceptor_middleware` 集成）
 
-**防御目标**：限制单条用户消息（`active_message_id`）内的高成本工具调用次数，防止长轮次内搜索失控；与 FrequencyGuard 的 60 秒滑动窗口互补。
-
-**与 FrequencyGuard 的区别**：
-
-| 维度 | FrequencyGuard | ToolTurnBudgetGuard |
-|------|----------------|---------------------|
-| 计数窗口 | 滑动 60 秒 | 单条用户消息（turn） |
-| 典型场景 | 短时 burst / DoS | 长轮次内反复补搜 |
-| 默认 `web_search_tool` 上限 | 30 次 / 60s | 20 search queries / turn |
+**防御目标**：限制单条用户消息（`active_message_id`）内的高成本工具调用次数，防止长轮次内搜索失控。
 
 **检测维度**：
 
@@ -1007,7 +880,7 @@ OpenAI Assistants API 实现了类似的频率限制（40 requests/minute for ru
 
 **工作机制**：
 
-1. **Pre-call 检查与计次**：LoopGuard 之后、FrequencyGuard 之前 `check(units=…)`；全部 pre-call guard 通过后 `record(units=…)`。`web_search_tool` 的 units = `len(questions)`（1–5）；其他工具 units=1。工具实际执行失败仍计入；steering/frequency 等 pre-call 拦截不计入。
+1. **Pre-call 检查与计次**：LoopGuard 之后 `check(units=…)`；全部 pre-call guard 通过后 `record(units=…)`。`web_search_tool` 的 units = `len(questions)`（1–5）；其他工具 units=1。工具实际执行失败仍计入；steering、非法工具、信任衰减、PII 等 pre-call 拦截不计入。
 2. **Turn 切换**：`active_message_id` 变化时自动清零计数
 3. **Run 重置**：`reset_all_guards()` 调用 `reset_tool_turn_budget_guard()`，只清零已装入的实例（用户 run 不装入，见 §6 开头的作用范围）
 
@@ -1015,7 +888,7 @@ OpenAI Assistants API 实现了类似的频率限制（40 requests/minute for ru
 
 **集成点**：
 
-- `tool_interceptor_middleware.run_pre_call_guards()`：LoopGuard 之后、FrequencyGuard 之前（check + record）
+- `tool_interceptor_middleware.run_pre_call_guards()`：LoopGuard 之后（check），全部 pre-call guard 通过后 record
 - `agent_runtime.reset_all_guards()`：每次 Agent run 开始时调用 `reset_tool_turn_budget_guard()`（只清零已装入的实例）
 
 ---
@@ -1441,7 +1314,7 @@ class SecurityDecision:
 |------|---------|
 | 规则与白名单 | `ALLOW` / `DENY` / `ASK`、`ALLOWLIST_ALLOW`、`ALLOWLIST_SESSION_ALLOW`、`YOLO_AUTO_APPROVE`、`CRON_DENY`、`TAINT_ESCALATE` |
 | 用户决策 | `USER_APPROVED`、`USER_EDITED`、`USER_REJECTED`、`USER_DENIED`、`USER_EDIT_REJECTED`、`TIMEOUT_DENIED`、`DIRECTORY_GRANTED`、`PATH_OPENED_ONCE` |
-| 防滥用 | `LOOP_WARN` / `LOOP_BREAK`、`FREQUENCY_WARN` / `FREQUENCY_BREAK`、`TURN_BUDGET_BREAK`、`ESTOP_BLOCKED`、`SANDBOX_BOUNDARY_ESCALATE` |
+| 防滥用 | `LOOP_WARN` / `LOOP_BREAK`、`TURN_BUDGET_BREAK`、`ESTOP_BLOCKED`、`SANDBOX_BOUNDARY_ESCALATE` |
 | 输入/输出检测 | `INJECTION_DETECTED` / `INJECTION_BLOCKED`、`DANGEROUS_INTENT_DETECTED` / `DANGEROUS_INTENT_BLOCKED`、`CANARY_LEAKED`、`CREDENTIAL_LEAK_DETECTED` / `CREDENTIAL_LEAK_BLOCKED`、`PII_DETECTED` / `PII_REDACTED` / `PII_BLOCKED`、`SSRF_BLOCKED`、`SCAN_FINDING` |
 | 自动审查 | `LLM_REVIEW_ALLOW` / `LLM_REVIEW_DENY` / `LLM_REVIEW_UNCERTAIN`、`SHELL_ESCALATION_ALLOW` / `SHELL_ESCALATION_DENY`、`OUTBOUND_ALLOW` / `OUTBOUND_DENY` |
 | YOLO 不可绕过的门禁 | `YOLO_DENY_OVERRIDE`、`YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED` |

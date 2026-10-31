@@ -26,7 +26,6 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
     get_loop_guard,
 )
 from myrm_agent_harness.agent.security.guards.context_budget import get_context_budget_guard
-from myrm_agent_harness.agent.security.guards.frequency_guard import get_frequency_guard
 from myrm_agent_harness.agent.security.guards.loop_guard import LoopAction
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import get_tool_turn_budget_guard
 from myrm_agent_harness.agent.streaming.types import AgentEventType
@@ -62,7 +61,6 @@ class _ResearchAgent:
 def _guards() -> tuple[object, ...]:
     return (
         get_loop_guard(),
-        get_frequency_guard(),
         get_tool_turn_budget_guard(),
         get_context_budget_guard(),
         get_terminal_errors(),
