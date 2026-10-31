@@ -1,9 +1,8 @@
-"""ToolConflictGateMiddleware: concurrency-safe calls share, every other call runs alone, a failed turn skips its rest."""
+"""ToolConflictGateMiddleware: concurrency-safe calls share, every other call runs alone, a failed call changes nothing for the rest."""
 
 from __future__ import annotations
 
 import asyncio
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +10,6 @@ from langchain.agents.middleware import ToolCallRequest
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.middlewares.concurrency import tool_conflict_gate
 from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import ToolConflictGateMiddleware
 
 SAFE = ("file_read_tool", "grep_tool")
@@ -183,108 +181,17 @@ async def test_a_command_result_is_passed_through(name: str) -> None:
     assert await ToolConflictGateMiddleware().awrap_tool_call(_request(name, "a"), handler) is command
 
 
-async def test_after_an_unsafe_call_of_a_turn_failed_the_turns_later_unsafe_calls_are_skipped() -> None:
+@pytest.mark.parametrize("later", [UNSAFE[1], SAFE[0]])
+async def test_a_failed_unsafe_call_does_not_stop_the_later_calls_of_its_turn(later: str) -> None:
     calls = Calls()
-    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})
+    state = _turn({"a": UNSAFE[0], "b": later})
     await calls.start(UNSAFE[0], "a", state)
-    second = await calls.start(UNSAFE[1], "b", state)
+    second = await calls.start(later, "b", state)
 
     await calls.finish("a", _failure("a", UNSAFE[0]))
+    await calls.finish("b")
 
     answer = await _answer(second)
     assert isinstance(answer, ToolMessage)
-    assert (answer.status, answer.name, answer.tool_call_id) == ("error", UNSAFE[1], "b")
-    assert "[SKIPPED]" in str(answer.content)
-    assert calls.log == ["a+", "a-"]
-
-
-async def test_a_safe_call_of_a_failed_turn_is_not_skipped() -> None:
-    calls = Calls()
-    state = _turn({"a": UNSAFE[0], "b": SAFE[0]})
-    await calls.start(UNSAFE[0], "a", state)
-    await calls.finish("a", _failure("a", UNSAFE[0]))
-
-    await calls.start(SAFE[0], "b", state)
-
-    assert calls.log == ["a+", "a-", "b+"]
-
-
-async def test_a_successful_unsafe_call_does_not_make_its_turn_skip_the_rest() -> None:
-    calls = Calls()
-    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})
-    await calls.start(UNSAFE[0], "a", state)
-    await calls.finish("a")
-
-    await calls.start(UNSAFE[1], "b", state)
-
-    assert calls.log == ["a+", "a-", "b+"]
-
-
-async def test_a_failure_does_not_reach_another_turn() -> None:
-    calls = Calls()
-    await calls.start(UNSAFE[0], "a", _turn({"a": UNSAFE[0]}, message_id="turn-1"))
-    await calls.finish("a", _failure("a", UNSAFE[0]))
-
-    await calls.start(UNSAFE[1], "b", _turn({"b": UNSAFE[1]}, message_id="turn-2"))
-
-    assert calls.log == ["a+", "a-", "b+"]
-
-
-@pytest.mark.parametrize(
-    "shape",
-    ["mapping", "list", "object"],
-)
-async def test_the_turn_is_found_in_every_shape_of_state(shape: str) -> None:
-    messages = _turn({"a": UNSAFE[0], "b": UNSAFE[1]})["messages"]
-    state = {"mapping": {"messages": messages}, "list": messages, "object": SimpleNamespace(messages=messages)}[shape]
-    calls = Calls()
-    await calls.start(UNSAFE[0], "a", state)
-    second = await calls.start(UNSAFE[1], "b", state)
-
-    await calls.finish("a", _failure("a", UNSAFE[0]))
-
-    answer = await _answer(second)
-    assert isinstance(answer, ToolMessage)
-    assert "[SKIPPED]" in str(answer.content)
-
-
-@pytest.mark.parametrize("message_id", [None])
-async def test_calls_of_a_message_without_an_id_are_never_skipped(message_id: str | None) -> None:
-    calls = Calls()
-    state = _turn({"a": UNSAFE[0], "b": UNSAFE[1]}, message_id=message_id)
-    await calls.start(UNSAFE[0], "a", state)
-    await calls.start(UNSAFE[1], "b", state)
-
-    await calls.finish("a", _failure("a", UNSAFE[0]))
-
-    assert calls.log == ["a+", "a-", "b+"]
-
-
-async def test_a_call_missing_from_the_state_is_never_skipped() -> None:
-    calls = Calls()
-    state = _turn({"a": UNSAFE[0]})
-    await calls.start(UNSAFE[0], "a", state)
-    await calls.start(UNSAFE[1], "stranger", state)
-
-    await calls.finish("a", _failure("a", UNSAFE[0]))
-
-    assert calls.log == ["a+", "a-", "stranger+"]
-
-
-async def test_only_the_latest_failed_turns_are_remembered(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tool_conflict_gate, "_REMEMBERED_FAILED_TURNS", 2)
-    calls = Calls()
-    for number in (1, 2, 3):
-        call_id = f"fail-{number}"
-        state = _turn({call_id: UNSAFE[0]}, message_id=f"turn-{number}")
-        await calls.start(UNSAFE[0], call_id, state)
-        await calls.finish(call_id, _failure(call_id, UNSAFE[0]))
-
-    await calls.start(UNSAFE[0], "late-1", _turn({"late-1": UNSAFE[0]}, message_id="turn-1"))
-    await calls.finish("late-1")
-    remembered = await calls.start(UNSAFE[0], "late-3", _turn({"late-3": UNSAFE[0]}, message_id="turn-3"))
-
-    assert "late-1-" in calls.log
-    answer = await _answer(remembered)
-    assert isinstance(answer, ToolMessage)
-    assert "[SKIPPED]" in str(answer.content)
+    assert (answer.status, answer.content) == ("success", "ok")
+    assert calls.log == ["a+", "a-", "b+", "b-"]

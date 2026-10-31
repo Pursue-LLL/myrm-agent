@@ -14,7 +14,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 | `__init__.py` | Package | Public exports for the concurrency limiter and the tool conflict gate. | — |
 | `concurrency_limiter.py` | Core | Subagent Semaphore by agent_type; `get_subagent_semaphore` accessor. | ✅ |
 | `conflict_gate.py` | Core | `ConflictGate`: shared holders run together, an exclusive holder runs alone, admission in arrival order, cancellation-safe. | ✅ |
-| `tool_conflict_gate.py` | Core | `ToolConflictGateMiddleware`: concurrency-safe calls take a shared hold, every other call (undeclared tools and host-serial MCP tools included) an exclusive one; later exclusive calls of a model turn whose earlier exclusive call failed are answered as skipped. | ✅ |
+| `tool_conflict_gate.py` | Core | `ToolConflictGateMiddleware`: concurrency-safe calls take a shared hold, every other call (undeclared tools and host-serial MCP tools included) an exclusive one; one call failing never changes what another does. | ✅ |
 
 ## Key Dependencies
 
