@@ -4,7 +4,7 @@ description: >-
   Manage personal email accounts via IMAP/SMTP: check inbox, search messages,
   read full content, download attachments, send and reply. Works with any
   provider (163, QQ Mail, Outlook, Yahoo, corporate Exchange, etc.).
-version: 1.0.0
+version: 1.0.1
 category: productivity
 tags:
   - email

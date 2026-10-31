@@ -5,12 +5,14 @@
 - Process env EMAIL_IMAP_HOST, EMAIL_IMAP_USER, EMAIL_IMAP_PASSWORD (injected by skill runtime)
 - Process env EMAIL_SMTP_HOST, EMAIL_SMTP_USER, EMAIL_SMTP_PASSWORD (optional, for send/reply)
 - Process env EMAIL_IMAP_PORT (default 993), EMAIL_SMTP_PORT (default 587)
+- Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 
 [OUTPUT]
 - JSON on stdout for all CLI subcommands
 
 [POS]
-Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client.
+Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. Every connection verifies the
+server certificate and times out on a silent server.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from __future__ import annotations
 import argparse
 import email as email_lib
 import email.header
+import email.message
 import email.mime.multipart
 import email.mime.text
 import email.utils
@@ -25,6 +28,7 @@ import imaplib
 import json
 import os
 import smtplib
+import ssl
 import sys
 import tempfile
 from datetime import datetime, timedelta
@@ -74,20 +78,53 @@ def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
         pass
 
 
-_IMAP_TIMEOUT = 30
+_SOCKET_TIMEOUT = 30
+
+_CERTIFICATE_HINT = (
+    "If this server is signed by a private or corporate CA, set SSL_CERT_FILE to a PEM bundle that contains that CA "
+    "in the environment the agent server runs in; the bundle replaces the default trust store, so it must also hold "
+    "every public CA this script still has to trust. Do not disable certificate verification."
+)
+
+
+def _fail_certificate(service: str, exc: ssl.SSLCertVerificationError) -> NoReturn:
+    _fail(f"{service} server certificate verification failed: {exc.verify_message}. {_CERTIFICATE_HINT}")
 
 
 def _connect_imap() -> imaplib.IMAP4_SSL:
     host, port, user, password = _get_imap_config()
     try:
-        conn = imaplib.IMAP4_SSL(host, port, timeout=_IMAP_TIMEOUT)
+        conn = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context(), timeout=_SOCKET_TIMEOUT)
         conn.login(user, password)
         _send_imap_id(conn)
         return conn
     except imaplib.IMAP4.error as exc:
         _fail(f"IMAP authentication failed: {exc}")
+    except ssl.SSLCertVerificationError as exc:
+        _fail_certificate("IMAP", exc)
     except (OSError, TimeoutError) as exc:
         _fail(f"IMAP connection failed: {exc}")
+
+
+def _deliver(msg: email.mime.multipart.MIMEMultipart, host: str, port: int, user: str, password: str) -> None:
+    """Send *msg* over an SMTP connection whose server certificate is verified; exit with an error when it fails."""
+    context = ssl.create_default_context()
+    try:
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=_SOCKET_TIMEOUT, context=context) as server:
+                server.login(user, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=_SOCKET_TIMEOUT) as server:
+                server.starttls(context=context)
+                server.login(user, password)
+                server.send_message(msg)
+    except smtplib.SMTPAuthenticationError as exc:
+        _fail(f"SMTP authentication failed: {exc}")
+    except ssl.SSLCertVerificationError as exc:
+        _fail_certificate("SMTP", exc)
+    except (smtplib.SMTPException, OSError) as exc:
+        _fail(f"SMTP send failed: {exc}")
 
 
 def _decode_header(raw: str | None) -> str:
@@ -113,7 +150,7 @@ def _parse_date(raw: str | None) -> str:
         return raw
 
 
-def _message_summary(msg: email_lib.message.Message, uid: int) -> dict[str, object]:
+def _message_summary(msg: email.message.Message, uid: int) -> dict[str, object]:
     return {
         "uid": uid,
         "from": _decode_header(msg.get("From", "")),
@@ -124,7 +161,7 @@ def _message_summary(msg: email_lib.message.Message, uid: int) -> dict[str, obje
     }
 
 
-def _extract_body(msg: email_lib.message.Message) -> str:
+def _extract_body(msg: email.message.Message) -> str:
     if not msg.is_multipart():
         payload = msg.get_payload(decode=True)
         if isinstance(payload, bytes):
@@ -177,7 +214,7 @@ def _date_criteria(since: str | None) -> str:
 
 def _fetch_headers(conn: imaplib.IMAP4_SSL, criteria: str, limit: int) -> None:
     """Search mailbox and print JSON summary of matching message headers."""
-    _status, msg_nums = conn.uid("search", None, criteria)
+    _status, msg_nums = conn.uid("search", criteria)
     if not msg_nums or not msg_nums[0]:
         print(json.dumps({"messages": [], "total": 0}))
         return
@@ -338,21 +375,8 @@ def cmd_send(args: argparse.Namespace) -> None:
     msg["Message-ID"] = msg_id
     msg.attach(email.mime.text.MIMEText(args.body, "plain", "utf-8"))
 
-    try:
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=30) as server:
-                server.login(user, password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=30) as server:
-                server.starttls()
-                server.login(user, password)
-                server.send_message(msg)
-        print(json.dumps({"status": "sent", "message_id": msg_id, "to": args.to}))
-    except smtplib.SMTPAuthenticationError as exc:
-        _fail(f"SMTP authentication failed: {exc}")
-    except (smtplib.SMTPException, OSError) as exc:
-        _fail(f"SMTP send failed: {exc}")
+    _deliver(msg, host, port, user, password)
+    print(json.dumps({"status": "sent", "message_id": msg_id, "to": args.to}))
 
 
 def cmd_reply(args: argparse.Namespace) -> None:
@@ -399,30 +423,8 @@ def cmd_reply(args: argparse.Namespace) -> None:
         msg["References"] = references
     msg.attach(email.mime.text.MIMEText(args.body, "plain", "utf-8"))
 
-    try:
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=30) as server:
-                server.login(user, password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=30) as server:
-                server.starttls()
-                server.login(user, password)
-                server.send_message(msg)
-        print(
-            json.dumps(
-                {
-                    "status": "sent",
-                    "message_id": msg_id,
-                    "to": reply_addr,
-                    "subject": subject,
-                }
-            )
-        )
-    except smtplib.SMTPAuthenticationError as exc:
-        _fail(f"SMTP authentication failed: {exc}")
-    except (smtplib.SMTPException, OSError) as exc:
-        _fail(f"SMTP send failed: {exc}")
+    _deliver(msg, host, port, user, password)
+    print(json.dumps({"status": "sent", "message_id": msg_id, "to": reply_addr, "subject": subject}))
 
 
 def cmd_mark_read(args: argparse.Namespace) -> None:

@@ -21,7 +21,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.channels.test_connections import _safe_err_msg
+from app.api.channels.connection_probes import safe_err_msg
 from app.core.utils.errors import MyrmError, register_exception_handlers
 from app.schemas.responses import BusinessCode
 
@@ -32,7 +32,7 @@ async def test_channel_test_connection_error_redaction_task_flow_e2e() -> None:
     # 1. Simulate an external connection error carrying raw credentials (using non-secret placeholder)
     sample_token = "token-" + "mock-auth-token-not-a-real-secret"
     raw_error = Exception(f"ConnectError: Failed to reach https://slack.com with Authorization: Bearer {sample_token}")
-    safe_msg = _safe_err_msg(raw_error)
+    safe_msg = safe_err_msg(raw_error)
 
     # 2. Verify complete sanitization of credentials
     assert sample_token not in safe_msg

@@ -17,7 +17,7 @@ Email channel implementation: credentials, lifecycle, IMAP polling and SMTP tran
 forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
 assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
 certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
-context verifies nothing).
+context verifies nothing). Every connection also times out on a silent server instead of blocking its thread.
 """
 
 from __future__ import annotations
@@ -53,7 +53,9 @@ logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 100000
 _POLL_INTERVAL = 30.0
-_SMTP_TIMEOUT = 30
+# Seconds a mail server may stay silent before connecting or a read gives up; without it a stalled server blocks the
+# worker thread, and with it the poll loop and the health check, indefinitely.
+_SOCKET_TIMEOUT = 30
 
 
 def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
@@ -255,8 +257,17 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             )
         return issues
 
+    def _connect_imap(self) -> imaplib.IMAP4_SSL:
+        """Open an IMAP connection whose server certificate is verified and whose operations time out."""
+        return imaplib.IMAP4_SSL(
+            self._imap_host,
+            self._imap_port,
+            ssl_context=ssl.create_default_context(),
+            timeout=_SOCKET_TIMEOUT,
+        )
+
     def _imap_ping(self) -> bool:
-        conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port, ssl_context=ssl.create_default_context())
+        conn = self._connect_imap()
         try:
             conn.login(self._imap_user, self._imap_password)
             _send_imap_id(conn)
@@ -282,7 +293,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             with smtplib.SMTP_SSL(
                 self._smtp_host,
                 self._smtp_port,
-                timeout=_SMTP_TIMEOUT,
+                timeout=_SOCKET_TIMEOUT,
                 context=ssl.create_default_context(),
             ) as server:
                 server.login(self._smtp_user, self._smtp_password)
@@ -291,7 +302,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             with smtplib.SMTP(
                 self._smtp_host,
                 self._smtp_port,
-                timeout=_SMTP_TIMEOUT,
+                timeout=_SOCKET_TIMEOUT,
             ) as server:
                 server.starttls(context=ssl.create_default_context())
                 server.login(self._smtp_user, self._smtp_password)
@@ -309,7 +320,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
 
     def _fetch_new_emails(self) -> list[InboundMessage]:
         results: list[InboundMessage] = []
-        conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port, ssl_context=ssl.create_default_context())
+        conn = self._connect_imap()
         try:
             conn.login(self._imap_user, self._imap_password)
             _send_imap_id(conn)

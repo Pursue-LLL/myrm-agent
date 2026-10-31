@@ -1,21 +1,26 @@
-"""Every TLS connection the server opens verifies the peer through the enterprise network compatibility policy.
+"""Every TLS connection the server, and every prebuilt skill script, opens verifies the peer.
 
 [INPUT]
-- app/**/*.py: every ``SSLContext(...)`` and ``_create_unverified_context(...)`` call, and every call of a stdlib TLS
-  client (``smtplib.SMTP_SSL``, ``imaplib.IMAP4_SSL``, ``poplib.POP3_SSL``, ``ftplib.FTP_TLS``, ``.starttls``)
+- app/**/*.py and assets/**/*.py: every ``SSLContext(...)`` and ``_create_unverified_context(...)`` call, and every call
+  of a stdlib TLS client (``smtplib.SMTP_SSL``, ``imaplib.IMAP4_SSL``, ``poplib.POP3_SSL``, ``ftplib.FTP_TLS``,
+  ``.starttls``)
 
 [OUTPUT]
-- Fails when a server module builds a TLS context by hand (it ignores ``MYRM_TLS_STRICT`` and the operating system trust
-  store), or opens a stdlib TLS connection without a context (the stdlib falls back to ``ssl._create_stdlib_context``,
-  an unverified context, so the peer is not checked at all). It matches calls by name, so a builder renamed on import
-  (``from ssl import SSLContext as Ctx``), bound to a variable first or reached through ``getattr`` is not seen, and a
-  client that turns verification off (``verify=False``) is not a context build.
+- Fails when a module builds a TLS context by hand (it ignores ``MYRM_TLS_STRICT`` and the operating system trust
+  store), or opens a stdlib TLS connection that passes no context keyword (the stdlib falls back to
+  ``ssl._create_stdlib_context``, an unverified context, so the peer is not checked at all). It matches calls by name,
+  so a builder renamed on import (``from ssl import SSLContext as Ctx``), bound to a variable first or reached through
+  ``getattr`` is not seen, and a client that turns verification off (``verify=False``) is not a context build. Either
+  keyword name (``context``, ``ssl_context``) satisfies the check for any client; the name a client really accepts is
+  pinned by the tests of its call site, where a wrong one is a ``TypeError``.
 
 [POS]
 tests/architecture/test_tls_single_trust_source.py - server half of the guard for ``myrm_agent_harness.infra.tls_compat``.
 The policy takes effect where a client takes its context from ``ssl.create_default_context`` (httpx, urllib, asyncio) or
-from the urllib3 and aiohttp context builders; this guard covers the two ways around it that live in server code. The S3
-backup client reaches its own TLS stack and is pinned by ``test_remote_s3_tls.py``.
+from the urllib3 and aiohttp context builders; this guard covers the two ways around it that live in server code. A
+prebuilt skill script runs in a child process the policy never reaches: it takes its trust from
+``ssl.create_default_context`` too, which honours ``SSL_CERT_FILE``. The S3 backup client reaches its own TLS stack and
+is pinned by ``test_remote_s3_tls.py``.
 """
 
 from __future__ import annotations
@@ -26,7 +31,9 @@ from pathlib import Path
 
 import pytest
 
-_APP = Path(__file__).resolve().parents[2] / "app"
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+# ``assets/`` holds the prebuilt skill scripts, which open their own connections.
+_SCANNED_ROOTS = (_SERVER_ROOT / "app", _SERVER_ROOT / "assets")
 _DIRECT_BUILDERS = frozenset({"SSLContext", "_create_unverified_context"})
 # Stdlib clients whose default, when no context is passed, is ``ssl._create_stdlib_context()``: an unverified one.
 _STDLIB_TLS_CLIENTS = frozenset({"SMTP_SSL", "IMAP4_SSL", "POP3_SSL", "FTP_TLS", "starttls"})
@@ -64,26 +71,37 @@ def stdlib_clients_without_context(source: str) -> Iterator[tuple[int, str]]:
             yield node.lineno, name
 
 
+def _sources() -> Iterator[tuple[str, str]]:
+    """``(path relative to the server root, source)`` of each Python file under the scanned roots."""
+    for root in _SCANNED_ROOTS:
+        for path in sorted(root.rglob("*.py")):
+            yield path.relative_to(_SERVER_ROOT).as_posix(), path.read_text(encoding="utf-8")
+
+
 @pytest.mark.architecture
-def test_no_server_module_builds_a_tls_context_by_hand() -> None:
+def test_every_scanned_root_holds_python_sources() -> None:
+    """A root that no longer exists (moved, renamed) would make both scans below pass over nothing."""
+    empty = [root.name for root in _SCANNED_ROOTS if not any(root.rglob("*.py"))]
+
+    assert not empty, f"no Python sources under: {', '.join(empty)}"
+
+
+@pytest.mark.architecture
+def test_no_module_builds_a_tls_context_by_hand() -> None:
     offenders = [
-        f"{path.relative_to(_APP).as_posix()}:{line}: {builder}(...)"
-        for path in sorted(_APP.rglob("*.py"))
-        for line, builder in direct_context_builds(path.read_text(encoding="utf-8"))
+        f"{name}:{line}: {builder}(...)" for name, source in _sources() for line, builder in direct_context_builds(source)
     ]
 
     assert not offenders, (
-        "build the context with ssl.create_default_context or myrm_agent_harness.infra.tls_compat.create_httpx_client "
-        "so it follows the enterprise network compatibility setting:\n" + "\n".join(offenders)
+        "build the context with ssl.create_default_context (in server code also "
+        "myrm_agent_harness.infra.tls_compat.create_httpx_client) so it follows the trust settings:\n" + "\n".join(offenders)
     )
 
 
 @pytest.mark.architecture
-def test_no_server_module_opens_a_stdlib_tls_connection_without_a_context() -> None:
+def test_no_module_opens_a_stdlib_tls_connection_without_a_context() -> None:
     offenders = [
-        f"{path.relative_to(_APP).as_posix()}:{line}: {client}(...)"
-        for path in sorted(_APP.rglob("*.py"))
-        for line, client in stdlib_clients_without_context(path.read_text(encoding="utf-8"))
+        f"{name}:{line}: {client}(...)" for name, source in _sources() for line, client in stdlib_clients_without_context(source)
     ]
 
     assert not offenders, (
@@ -143,3 +161,9 @@ class TestTheScannerSeesWhatItShould:
 
     def test_a_context_of_none_is_not_a_context(self) -> None:
         assert list(stdlib_clients_without_context("server.starttls(context=None)")) == [(1, "starttls")]
+
+    def test_either_keyword_name_satisfies_any_client(self) -> None:
+        """The scan does not know which name a client takes; the tests of the call site pin that."""
+        source = "conn = imaplib.IMAP4_SSL(host, context=ctx)\nserver = smtplib.SMTP_SSL(host, ssl_context=ctx)\n"
+
+        assert list(stdlib_clients_without_context(source)) == []

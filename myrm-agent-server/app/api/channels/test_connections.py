@@ -1,254 +1,49 @@
 """Channel connection test endpoints.
 
 [INPUT]
-- api.channels.schemas::各频道TestRequest/TestResponse (POS: Channel API 请求响应模型)
-- api.dependencies::get_deploy_identity (POS: 用户身份认证依赖)
+- api.channels.connection_probes::router, safe_err_msg (POS: probes for the hosted messaging platforms, error text)
+- api.channels.schemas::*TestRequest, *TestResponse (POS: request and response models of the channel API)
 
 [OUTPUT]
-- router: 16+ 频道连接测试端点
+- router: ``POST /{channel}/test`` for every channel, ``POST /test-inbound`` and ``POST /external-agents/test``
 
 [POS]
-频道连接测试路由。提供各频道凭据连通性验证端点，用于前端配置时实时测试。
+Channel connection test routes. Each probe checks the credentials of the settings form against the live service, so
+the page can tell the user at once whether they work. The messaging-platform probes live in ``connection_probes``;
+this module mounts them and keeps the mail, telephony, bridge and IRC probes, the external-agent probe and the
+simulated inbound message.
 """
 
 from __future__ import annotations
 
 import asyncio
-import logging
+import imaplib
 import ssl
 
 from fastapi import APIRouter
-from myrm_agent_harness.api import redact_sensitive_text
 
+from app.api.channels.connection_probes import router as bot_platforms_router
+from app.api.channels.connection_probes import safe_err_msg
 from app.api.channels.schemas import (
     ChannelTestResponse,
-    DingTalkTestRequest,
-    DingTalkTestResponse,
-    DiscordTestRequest,
     EmailTestRequest,
     ExternalAgentTestRequest,
-    FeishuTestRequest,
-    FeishuTestResponse,
-    GoogleChatTestRequest,
     IMessageTestRequest,
     IRCTestRequest,
     LINETestRequest,
-    MatrixTestRequest,
     MattermostTestRequest,
-    QQTestRequest,
     SignalTestRequest,
-    SlackTestRequest,
     SMSTestRequest,
-    TeamsTestRequest,
-    TelegramTestRequest,
-    TelegramTestResponse,
     TestInboundRequest,
     VoiceTestRequest,
-    WeComTestRequest,
     ZaloTestRequest,
 )
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+router.include_router(bot_platforms_router)
 
-
-def _safe_err_msg(e: Exception) -> str:
-    return redact_sensitive_text(str(e))
-
-
-@router.post("/feishu/test", response_model=FeishuTestResponse)
-async def feishu_test_connection(
-    body: FeishuTestRequest,
-) -> FeishuTestResponse:
-    """Test Feishu API connectivity with the provided credentials."""
-    from app.channels.providers.feishu.api import FeishuClient
-
-    client = FeishuClient(body.app_id, body.app_secret, use_lark=body.use_lark)
-    try:
-        ok = await client.verify_connectivity()
-        return FeishuTestResponse(
-            ok=ok,
-            message="Connection successful" if ok else "Token verification failed",
-        )
-    except Exception as e:
-        return FeishuTestResponse(ok=False, message=_safe_err_msg(e))
-    finally:
-        await client.close()
-
-
-@router.post("/dingtalk/test", response_model=DingTalkTestResponse)
-async def dingtalk_test_connection(
-    body: DingTalkTestRequest,
-) -> DingTalkTestResponse:
-    """Test DingTalk API connectivity with the provided credentials."""
-    from app.core.channel_bridge.providers.dingtalk_api import DingTalkClient
-
-    client = DingTalkClient(body.client_id, body.client_secret)
-    try:
-        ok = await client.verify_token()
-        return DingTalkTestResponse(
-            ok=ok,
-            message="Connection successful" if ok else "Token verification failed",
-        )
-    except Exception as e:
-        return DingTalkTestResponse(ok=False, message=_safe_err_msg(e))
-    finally:
-        await client.close()
-
-
-@router.post("/slack/test", response_model=ChannelTestResponse)
-async def slack_test_connection(
-    body: SlackTestRequest,
-) -> ChannelTestResponse:
-    """Test Slack API connectivity with the provided credentials."""
-    import httpx
-
-    async with httpx.AsyncClient(timeout=10) as http:
-        try:
-            resp = await http.post(
-                "https://slack.com/api/auth.test",
-                headers={"Authorization": f"Bearer {body.bot_token}"},
-            )
-            data = resp.json()
-            ok = bool(data.get("ok"))
-            return ChannelTestResponse(
-                ok=ok,
-                message=("Connection successful" if ok else f"Auth failed: {data.get('error', 'unknown')}"),
-            )
-        except Exception as e:
-            return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
-
-
-@router.post("/discord/test", response_model=ChannelTestResponse)
-async def discord_test_connection(
-    body: DiscordTestRequest,
-) -> ChannelTestResponse:
-    """Test Discord API connectivity with the provided bot token."""
-    import httpx
-
-    async with httpx.AsyncClient(timeout=10) as http:
-        resp = await http.get(
-            "https://discord.com/api/v10/users/@me",
-            headers={"Authorization": f"Bot {body.bot_token}"},
-        )
-        ok = resp.status_code == 200
-        return ChannelTestResponse(
-            ok=ok,
-            message="Connection successful" if ok else f"HTTP {resp.status_code}",
-        )
-
-
-@router.post("/wecom/test", response_model=ChannelTestResponse)
-async def wecom_test_connection(
-    body: WeComTestRequest,
-) -> ChannelTestResponse:
-    """Test WeCom API connectivity with the provided credentials."""
-    import httpx
-
-    async with httpx.AsyncClient() as client:
-        try:
-            resp = await client.get(
-                "https://qyapi.weixin.qq.com/cgi-bin/gettoken",
-                params={"corpid": body.corp_id, "corpsecret": body.corp_secret},
-                timeout=10.0,
-            )
-            data = resp.json()
-            ok = resp.status_code == 200 and data.get("errcode", -1) == 0
-            msg = "Connection successful" if ok else f"Error: {data.get('errmsg', 'Unknown')}"
-            return ChannelTestResponse(ok=ok, message=msg)
-        except Exception as e:
-            return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
-
-
-@router.post("/teams/test", response_model=ChannelTestResponse)
-async def teams_test_connection(
-    body: TeamsTestRequest,
-) -> ChannelTestResponse:
-    """Test MS Teams API connectivity with the provided credentials."""
-    import httpx
-
-    tenant = body.tenant_id or "botframework.com"
-    url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as http:
-            resp = await http.post(
-                url,
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": body.app_id,
-                    "client_secret": body.app_password,
-                    "scope": "https://api.botframework.com/.default",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            ok = bool(data.get("access_token"))
-            return ChannelTestResponse(
-                ok=ok,
-                message=("Connection successful" if ok else "OAuth token verification failed"),
-            )
-    except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
-
-
-@router.post("/matrix/test", response_model=ChannelTestResponse)
-async def matrix_test_connection(
-    body: MatrixTestRequest,
-) -> ChannelTestResponse:
-    """Test Matrix API connectivity with the provided credentials."""
-    import httpx
-
-    async with httpx.AsyncClient(timeout=10) as http:
-        url = f"{body.homeserver_url.rstrip('/')}/_matrix/client/v3/account/whoami"
-        resp = await http.get(
-            url,
-            headers={"Authorization": f"Bearer {body.access_token}"},
-        )
-        ok = resp.status_code == 200
-        msg = "Connection successful" if ok else f"HTTP {resp.status_code}"
-        if ok:
-            data = resp.json()
-            msg = f"Connected as {data.get('user_id', 'unknown')}"
-        return ChannelTestResponse(ok=ok, message=msg)
-
-
-@router.post("/telegram/test", response_model=TelegramTestResponse, response_model_exclude_none=True)
-async def telegram_test_connection(
-    body: TelegramTestRequest,
-) -> TelegramTestResponse:
-    """Test Telegram Bot API connectivity with the provided token."""
-    from app.channels.providers.telegram.api import TelegramClient
-    from app.channels.providers.telegram.api_core import getme_failure_reason
-
-    client = TelegramClient(body.bot_token, proxy=body.proxy or None)
-    try:
-        me = await client.get_me()
-        username = me.get("username", "unknown")
-        return TelegramTestResponse(ok=True, message=f"Connected as @{username}")
-    except Exception as e:
-        return TelegramTestResponse(ok=False, message=_safe_err_msg(e), reason=getme_failure_reason(e).value)
-    finally:
-        await client.close()
-
-
-@router.post("/googlechat/test", response_model=ChannelTestResponse)
-async def googlechat_test_connection(
-    body: GoogleChatTestRequest,
-) -> ChannelTestResponse:
-    """Test Google Chat API connectivity with the provided service account."""
-    from app.channels.providers.googlechat.api import GoogleChatClient
-
-    client = GoogleChatClient(body.service_account_json)
-    try:
-        ok = await client.verify_token()
-        return ChannelTestResponse(
-            ok=ok,
-            message="Connection successful" if ok else "Token verification failed",
-        )
-    except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
-    finally:
-        await client.close()
+# Seconds the settings page waits on a mail server that does not answer, in line with the other connectivity probes.
+_IMAP_TEST_TIMEOUT = 10
 
 
 @router.post("/test-inbound", status_code=202)
@@ -269,45 +64,26 @@ async def test_inbound(
     return {"status": "queued"}
 
 
-@router.post("/qq/test", response_model=ChannelTestResponse)
-async def qq_test_connection(
-    body: QQTestRequest,
-) -> ChannelTestResponse:
-    """Test QQ Bot API connectivity."""
-    import httpx
-
-    try:
-        async with httpx.AsyncClient(timeout=10) as http:
-            resp = await http.post(
-                "https://bots.qq.com/app/getAppAccessToken",
-                json={"appId": body.app_id, "clientSecret": body.client_secret},
-            )
-            ok = resp.status_code == 200 and "access_token" in resp.json()
-            return ChannelTestResponse(
-                ok=ok,
-                message="Connection successful" if ok else f"HTTP {resp.status_code}",
-            )
-    except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
-
-
 @router.post("/email/test", response_model=ChannelTestResponse)
 async def email_test_connection(
     body: EmailTestRequest,
 ) -> ChannelTestResponse:
     """Test IMAP connectivity."""
-    import asyncio
-    import imaplib
 
     def _check() -> tuple[bool, str]:
         try:
-            conn = imaplib.IMAP4_SSL(body.imap_host, body.imap_port, ssl_context=ssl.create_default_context())
+            conn = imaplib.IMAP4_SSL(
+                body.imap_host,
+                body.imap_port,
+                ssl_context=ssl.create_default_context(),
+                timeout=_IMAP_TEST_TIMEOUT,
+            )
             conn.login(body.username, body.password)
             conn.noop()
             conn.logout()
             return True, "IMAP connection successful"
         except Exception as e:
-            return False, _safe_err_msg(e)
+            return False, safe_err_msg(e)
 
     ok, msg = await asyncio.to_thread(_check)
     return ChannelTestResponse(ok=ok, message=msg)
@@ -332,7 +108,7 @@ async def voice_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/sms/test", response_model=ChannelTestResponse)
@@ -366,7 +142,7 @@ async def sms_test_connection(
                 )
             return ChannelTestResponse(ok=True, message="Connection successful (phone check skipped)")
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/signal/test", response_model=ChannelTestResponse)
@@ -385,7 +161,7 @@ async def signal_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/line/test", response_model=ChannelTestResponse)
@@ -409,7 +185,7 @@ async def line_test_connection(
                 msg = f"HTTP {resp.status_code}"
             return ChannelTestResponse(ok=ok, message=msg)
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/imessage/test", response_model=ChannelTestResponse)
@@ -448,7 +224,7 @@ async def imessage_test_connection(
                 message=message,
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/irc/test", response_model=ChannelTestResponse)
@@ -468,7 +244,7 @@ async def irc_test_connection(
             message=f"TCP connection to {body.server}:{body.port} successful",
         )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/zalo/test", response_model=ChannelTestResponse)
@@ -490,7 +266,7 @@ async def zalo_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/mattermost/test", response_model=ChannelTestResponse)
@@ -519,7 +295,7 @@ async def mattermost_test_connection(
                 message=f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
 
 
 @router.post("/external-agents/test", response_model=ChannelTestResponse)
