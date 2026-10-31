@@ -79,6 +79,8 @@ class VoiceFollowManager:
 
         self._followed_user_channels: dict[str, tuple[int, int]] = {}
         self._followed_voice_guilds: set[int] = set()
+        # Channel changes the events have reported: a reconciliation pass compares it to tell its REST answers were overtaken.
+        self._channel_change_count = 0
         self._reconcile_task: asyncio.Task[None] | None = None
         self._destroyed = False
 
@@ -132,6 +134,9 @@ class VoiceFollowManager:
         """Follow a configured user when they join/move/leave voice channels."""
         guild_id = member.guild.id
         user_id_str = str(member.id)
+
+        if after.channel != before.channel:
+            self._channel_change_count += 1
 
         if after.channel and after.channel != before.channel:
             if not self.is_channel_allowed(guild_id, after.channel.id):
@@ -252,14 +257,15 @@ class VoiceFollowManager:
 
         Joins the channel a followed user is in. Once every followed user is confirmed absent, the records the missed events
         left behind are dropped and the bot hands off or leaves exactly as the leave event would have. An answer that is not
-        a confirmation changes nothing.
+        a confirmation changes nothing, and neither do the answers of a pass during which a followed user changed channel:
+        the event is newer than they are.
         """
-        before = dict(self._followed_user_channels)
+        changes_seen = self._channel_change_count
         absent: list[str] = []
         confirmed = True
         for user_id in self._follow_user_ids:
             presence = await self._poll_presence(guild, user_id)
-            if self._destroyed:
+            if self._destroyed or self._channel_change_count != changes_seen:
                 return
             if isinstance(presence, discord.VoiceChannel):
                 self._track(user_id, guild.id, presence.id)
@@ -272,13 +278,18 @@ class VoiceFollowManager:
         if not confirmed:
             return
 
-        # A record that changed while the polls were in flight comes from an event newer than the answer, so it stays.
-        dropped = False
+        dropped: list[str] = []
         for user_id in absent:
-            record = before.get(user_id)
-            if record is not None and record[0] == guild.id and self._followed_user_channels.get(user_id) == record:
+            record = self._followed_user_channels.get(user_id)
+            if record is not None and record[0] == guild.id:
                 del self._followed_user_channels[user_id]
-                dropped = True
+                dropped.append(user_id)
+        if dropped:
+            logger.info(
+                "Reconciliation: followed users %s are no longer in voice in guild %d, dropping their stale records",
+                ", ".join(dropped),
+                guild.id,
+            )
         if dropped or guild.id in self._followed_voice_guilds:
             await self._try_handoff_or_leave(guild.id)
 
