@@ -35,6 +35,9 @@ LOG_MARKERS = {
     "stale_lock_reclaims": "Stale dev lock",
     "already_running": "Dev server already running",
     "yielded_still_starting": "still starting",
+    # The memory guard replaces the Next child inside dev.ts: no SIGTERM reaches dev.ts, so it never
+    # shows up as an unexplained kill, but its restarts belong in the same window.
+    "footprint_restarts": "FOOTPRINT_RESTART:",
 }
 
 

@@ -4,7 +4,7 @@
   dev_gate.contract: measured cold-compile bound and the restart thresholds derived from it
 
 [OUTPUT]
-  Reason / Verdict / Observation / Decision / Policy / decide()
+  Reason / Verdict / Observation / Decision / Policy / decide() / env_float()
 
 [POS]
   The single rule set deciding whether tooling may SIGTERM a running Next dev server.
@@ -88,28 +88,28 @@ class Policy:
     @classmethod
     def from_env(cls) -> Policy:
         return cls(
-            tick_sec=_env_float("MYRM_FRONTEND_GATE_TICK_SEC", 5.0),
-            wait_sec=_env_float(
+            tick_sec=env_float("MYRM_FRONTEND_GATE_TICK_SEC", 5.0),
+            wait_sec=env_float(
                 "MYRM_FRONTEND_GATE_WAIT_SEC", FRONTEND_RESTART_GATE_WAIT_SEC
             ),
-            stall_sec=_env_float(
+            stall_sec=env_float(
                 "MYRM_FRONTEND_GATE_STALL_SEC", FRONTEND_RESTART_STALL_SEC
             ),
-            min_age_sec=_env_float(
+            min_age_sec=env_float(
                 "MYRM_FRONTEND_GATE_MIN_AGE_SEC", FRONTEND_RESTART_MIN_AGE_SEC
             ),
-            episode_cap_sec=_env_float(
+            episode_cap_sec=env_float(
                 "MYRM_FRONTEND_GATE_EPISODE_CAP_SEC", FRONTEND_RESTART_EPISODE_CAP_SEC
             ),
             # An episode only spans observations that follow each other closely;
             # a long silence means the server recovered in between.
-            episode_gap_sec=_env_float("MYRM_FRONTEND_GATE_EPISODE_GAP_SEC", 120.0),
-            cpu_growth_eps_sec=_env_float("MYRM_FRONTEND_GATE_CPU_EPS_SEC", 1.0),
-            http_timeout_sec=_env_float("MYRM_FRONTEND_GATE_HTTP_TIMEOUT_SEC", 8.0),
+            episode_gap_sec=env_float("MYRM_FRONTEND_GATE_EPISODE_GAP_SEC", 120.0),
+            cpu_growth_eps_sec=env_float("MYRM_FRONTEND_GATE_CPU_EPS_SEC", 1.0),
+            http_timeout_sec=env_float("MYRM_FRONTEND_GATE_HTTP_TIMEOUT_SEC", 8.0),
         )
 
 
-def _env_float(name: str, default: float) -> float:
+def env_float(name: str, default: float) -> float:
     raw = os.environ.get(name, "").strip()
     if not raw:
         return float(default)

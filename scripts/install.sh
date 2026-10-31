@@ -132,6 +132,12 @@ setup_frontend() {
     log_info "Frontend (${FRONTEND_DIR}) ..."
     cd "${FRONTEND_DIR}"
     bun install
+    # The Next.js server runs on Node.js, not Bun; fetch the pinned runtime here (CN mirror already
+    # exported) so `myrm start` never has to download it.
+    if ! bun run scripts/node-runtime.ts ensure >/dev/null; then
+        log_error "No usable Node.js runtime. Install Node.js from https://nodejs.org and re-run install.sh."
+        exit 1
+    fi
     if [[ -f "${SCRIPT_DIR}/dev/ensure-next-native-swc.sh" ]]; then
         bash "${SCRIPT_DIR}/dev/ensure-next-native-swc.sh"
     fi

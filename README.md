@@ -73,6 +73,8 @@ myrm start
 
 Open **http://localhost:3000** and configure your LLM provider in the GUI.
 
+> `install.sh` sets up uv, Bun and Python 3.13 for you. The web UI runs on Node.js: the installer downloads a pinned Node.js on macOS (Apple Silicon), Windows and Linux x64. On other platforms (macOS Intel, Linux ARM) install Node.js ≥ 20.9 first; the installer stops with a message when it finds none.
+
 ### Desktop App
 
 Download the latest release for your platform from [Releases](https://github.com/Pursue-LLL/myrm-agent/releases).

@@ -73,6 +73,8 @@ myrm start
 
 打开 **http://localhost:3000**，在 GUI 中配置你的 LLM 提供商。
 
+> `install.sh` 会自动准备 uv、Bun 和 Python 3.13。Web 界面运行在 Node.js 上：macOS（Apple Silicon）、Windows 和 Linux x64 由安装脚本下载钉死版本的 Node.js；其它平台（macOS Intel、Linux ARM）请先自行安装 Node.js ≥ 20.9，找不到时安装脚本会停下并提示。
+
 ### 桌面客户端
 
 从 [Releases](https://github.com/Pursue-LLL/myrm-agent/releases) 下载适合你平台的最新版本。

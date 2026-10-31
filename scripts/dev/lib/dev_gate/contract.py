@@ -13,6 +13,7 @@ chrome_e2e_skips_attach_health_reprobe: test.sh bootstrap 已验 attach 时跳�
 is_e2e_signoff_runtime / resolve_e2e_wall_profile / E2E_SIGNOFF_* phase budgets: R62 four-phase lifecycle SSOT
 SIGNOFF_PYTEST_SAFE_BUFFER_SEC / clarify_skip_api_wait_sec: signoff outer kill · pytest body 600s · clarify wait 90s
 apply_chrome_e2e_pytest_timeout_args: dev floor 或 signoff ceiling 模式
+FRONTEND_COLD_COMPILE_MAX_SEC / FRONTEND_RESTART_* / FRONTEND_FOOTPRINT_LIMIT_MB: 共享前端 dev server 的冷编译上界、重启准入阈值、进程树物理内存上限
 
 [POS]
 Dev Gate v2 合约常量 SSOT。定义 Chrome MCP E2E 的错误分类、并行 cap、
@@ -374,9 +375,10 @@ SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 360
 # parallel attach fail before ui-heal could restore a cold-compiling frontend
 # (regression vs R161 "≥ heal+120"; R122 dogpile is solved by flock, not by cap).
 # R132: attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
-# Measured 2026-09-17: Turbopack dev cold compile of `/` takes 85s–282s (turbopackFileSystemCacheForDev
-# is deliberately off to avoid Next 16 cache-corruption panics), so the ensure subprocess budget must
-# exceed the coldest observed compile or the heal leader SIGTERMs its own child mid-compile.
+# Measured 2026-09-17 with the Turbopack disk cache off: dev cold compile of `/` takes 85s–282s.
+# `next.config.ts` enables the cache by default, but a first start, a poisoned-cache recovery and
+# MYRM_DISABLE_TURBOPACK_DISK_CACHE=1 still pay the full cold compile, so the ensure subprocess budget
+# must exceed the coldest observed compile or the heal leader SIGTERMs its own child mid-compile.
 # This stays SSOT: no caller may hardcode a smaller subprocess_timeout_sec.
 E2E_ATTACH_UI_HEAL_POST_ENSURE_FLOOR_SEC: Final[int] = 120
 E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC: Final[int] = 300
@@ -396,6 +398,11 @@ FRONTEND_RESTART_STALL_SEC: Final[int] = 90
 FRONTEND_RESTART_MIN_AGE_SEC: Final[int] = 60
 # One admission call may observe a progressing compile this long before refusing the restart.
 FRONTEND_RESTART_GATE_WAIT_SEC: Final[int] = FRONTEND_COLD_COMPILE_MAX_SEC
+# Physical-memory ceiling for the Next dev server's whole process tree (macOS phys_footprint, the
+# figure Activity Monitor bills; Linux sums RSS). Turbopack keeps its module graph in memory, so a
+# healthy tree grows with the number of compiled routes; past this the machine pages and every
+# other tool on it slows down, so the supervisor restarts the tree instead (scripts/next-supervisor.ts).
+FRONTEND_FOOTPRINT_LIMIT_MB: Final[int] = 10 * 1024
 # Solo ADMIT attach: readiness + dev_servers + chrome_cdp + attach_health exceed 180s under cold UI.
 READY_CHROME_ATTACH_WALL_SOLO_SEC: Final[int] = SHARED_ATTACH_RECOVERY_WAIT_SEC
 # Parallel ADMIT attach: must cover one full frontend heal cycle (R123/R161).

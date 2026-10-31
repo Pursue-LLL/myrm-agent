@@ -3,6 +3,8 @@
  * - dev-lock::tryAttachToHealthyDevServer / acquireDevLock / isDistDirInUse (POS: dev-server lock gate)
  * - frontend-dev-pause-gate::probeFrontendDevPause / enforceFrontendDevNotPaused (POS: TS pause gate SSOT)
  * - port-cleanup::APP_DEV_PORT / killListenersOnPort / foreignListenersOnPort (POS: LISTEN-only port cleanup; never another runtime's listener)
+ * - node-runtime::ensureNodeRuntime / nodeEnv (POS: the real Node.js Next runs on; Bun is only the launcher)
+ * - next-supervisor::superviseNext / footprintProbe (POS: keeps one Next child alive and replaces it when its process tree outgrows the memory limit)
  *
  * [OUTPUT]
  * - Next.js dev server via `node --require next-dev-gate.cjs` + next bin (Turbopack when native SWC present)
@@ -11,7 +13,7 @@
  * [POS]
  * Frontend dev entry (`bun run dev` / `dev:lan` / `dev:clean`). Respects shared pause stamp; supervises Next child.
  */
-import { type ChildProcess, execFile, spawn, spawnSync } from 'child_process';
+import { execFile, spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -23,6 +25,8 @@ import {
   tryAttachToHealthyDevServer,
 } from './dev-lock';
 import { isFrontendDevPaused, probeFrontendDevPause } from './frontend-dev-pause-gate';
+import { ensureNodeRuntime, nodeEnv } from './node-runtime';
+import { footprintProbe, type NextSupervisor, superviseNext } from './next-supervisor';
 import { APP_DEV_PORT, foreignListenersOnPort, killListenersOnPort } from './port-cleanup';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
@@ -169,14 +173,15 @@ function recoverPoisonedTurbopackCache(): void {
 
 recoverPoisonedTurbopackCache();
 
-function setupSignalHandlers(child: ChildProcess) {
+function setupSignalHandlers(supervisor: NextSupervisor) {
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
   signals.forEach((signal) => {
     process.on(signal, () => {
       console.log(`\n🛑 Received ${signal}, terminating Next.js on :${APP_DEV_PORT}...`);
+      supervisor.stop();
       try {
-        child.kill('SIGTERM');
+        supervisor.child.kill('SIGTERM');
       } catch {
         // ignore
       }
@@ -239,6 +244,15 @@ if (tryAttachToHealthyDevServer(APP_DEV_PORT)) {
 
 // After attach attempts: block cold start when cleanup wrote a pause stamp.
 reclaimAndExitIfPaused();
+
+// Resolved before anything is torn down: a missing runtime must fail without having freed the port.
+let nodeBin: string;
+try {
+  nodeBin = ensureNodeRuntime({ frontendRoot: process.cwd(), envPath: process.env.PATH });
+} catch (error) {
+  console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}
 
 console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
 killListenersOnPort(APP_DEV_PORT);
@@ -341,31 +355,44 @@ if (bindLan) {
 console.log(`🚀 Starting Next.js on port ${APP_DEV_PORT}...`);
 const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
 const preloadGate = path.join(__dirname, 'next-dev-gate.cjs');
-// 开发期内存的真实构成（实测 vmmap）：Turbopack 内存中的模块图/编译产物占绝大多数，
-// V8/JSC 堆只有数百 MB。因此 --max-old-space-size 无法约束整体占用，只有明确改用 Node
-// 运行时（Bun 是 JSC，不认 V8 参数）时才有意义，故仅在 Node 下按需追加。
-const runtimeIsNode = !process.versions.bun;
-const maxOldSpace = process.env.NODE_MAX_OLD_SPACE?.trim();
-const nodeArgs = runtimeIsNode && maxOldSpace ? [`--max-old-space-size=${maxOldSpace}`] : [];
-nodeArgs.push('--require', preloadGate, nextBin, ...nextArgs.slice(1));
-const child = spawn(process.execPath, nodeArgs, {
-  stdio: 'inherit',
-  detached: false,
+/** The backend venv's interpreter (uv-managed, new enough for the dev tooling); the system one may be 3.9. */
+function backendPython(): string {
+  const venv = path.join(process.cwd(), '..', 'myrm-agent-server', '.venv', 'bin', 'python');
+  return fs.existsSync(venv) ? venv : 'python3';
+}
+
+const requestedSampleSec = Number(process.env.MYRM_FRONTEND_FOOTPRINT_SAMPLE_SEC);
+const footprintSampleSec = requestedSampleSec > 0 ? requestedSampleSec : 30;
+// A restart drops the module graph and the routes that were served compile again, so the guard may fire only twice an hour before it steps aside.
+const FOOTPRINT_BREAKER = { max: 2, windowMs: 60 * 60 * 1000 };
+const supervisor = superviseNext({
+  spawnChild: () =>
+    spawn(nodeBin, ['--require', preloadGate, nextBin, ...nextArgs.slice(1)], {
+      stdio: 'inherit',
+      detached: false,
+      env: nodeEnv(nodeBin, process.env),
+    }),
+  // Next rewrites the shared tsconfig / next-env.d.ts on every start, and the old tree may still hold the port.
+  beforeRespawn: () => {
+    killListenersOnPort(APP_DEV_PORT, true);
+    normalizeSharedTsConfig();
+  },
+  probe: footprintProbe({ libDir: path.join(process.cwd(), '..', 'scripts', 'dev', 'lib'), python: backendPython() }),
+  onExit: (code) => {
+    console.log('🏁 Next.js exited with code:', code);
+    killListenersOnPort(APP_DEV_PORT, true);
+    normalizeSharedTsConfig();
+    releaseDevLock();
+    process.exit(code ?? 0);
+  },
+  onSpawnError: (err) => {
+    console.error('❌ Failed to start Next.js:', err);
+    killListenersOnPort(APP_DEV_PORT, true);
+    releaseDevLock();
+    process.exit(1);
+  },
+  intervalMs: footprintSampleSec * 1000,
+  breaker: FOOTPRINT_BREAKER,
 });
 
-setupSignalHandlers(child);
-
-child.on('exit', (code) => {
-  console.log('🏁 Next.js exited with code:', code);
-  killListenersOnPort(APP_DEV_PORT, true);
-  normalizeSharedTsConfig();
-  releaseDevLock();
-  process.exit(code ?? 0);
-});
-
-child.on('error', (err) => {
-  console.error('❌ Failed to start Next.js:', err);
-  killListenersOnPort(APP_DEV_PORT, true);
-  releaseDevLock();
-  process.exit(1);
-});
+setupSignalHandlers(supervisor);

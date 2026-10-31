@@ -221,7 +221,7 @@ CI enforces fractal docs, no-stub guards on `api/` and `channels/providers/`, an
 ## Code style
 
 - **Python:** Ruff + type hints (no `Any`). English for errors and logs.
-- **Frontend:** Bun, Next.js, Tailwind. User-facing copy must be bilingual (`locales/en.json` + `locales/zh.json`).
+- **Frontend:** Bun, Next.js, Tailwind. `bun run dev` launches the Next dev server on Node.js ≥ 20.9 (taken from `PATH`, or a pinned build downloaded into `myrm-agent-frontend/.myrm/node`). User-facing copy must be bilingual (`locales/en.json` + `locales/zh.json`).
 - **File size:** Prefer modules under ~400 lines; split when a file grows beyond ~500 lines.
 
 ## Questions

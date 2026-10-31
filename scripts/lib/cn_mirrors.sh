@@ -36,11 +36,13 @@ setup_cn_mirrors() {
     export UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"
     export BUN_CONFIG_REGISTRY="https://registry.npmmirror.com"
     export PLAYWRIGHT_DOWNLOAD_HOST="https://cdn.npmmirror.com/binaries/playwright"
+    export MYRM_NODE_DIST_URL="${MYRM_NODE_DIST_URL:-https://cdn.npmmirror.com/binaries/node}"
     if declare -f log_info >/dev/null 2>&1; then
         log_info "🇨🇳 检测到中国大陆网络，已自动切换至国内镜像加速"
         log_info "   PyPI: pypi.tuna.tsinghua.edu.cn"
         log_info "   npm:  registry.npmmirror.com"
         log_info "   Browser: cdn.npmmirror.com"
+        log_info "   Node.js: cdn.npmmirror.com"
     fi
 }
 

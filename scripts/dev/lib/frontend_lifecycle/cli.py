@@ -1,4 +1,4 @@
-"""CLI glue for dev-stack.sh: ``python -m frontend_lifecycle admit|journal|report``.
+"""CLI glue for dev-stack.sh and dev.ts: ``python -m frontend_lifecycle admit|journal|report|footprint``.
 
 [INPUT]
   argv from dev-stack.sh (reason, port, url, state/pid/log paths)
@@ -8,6 +8,7 @@
   (still compiling / not proven dead); a STACK_RESTART_* line on stderr.
   journal: appends a kill record naming the target pids.
   report: read-only comparison of journal kills with SIGTERMs in frontend.log (see report.py).
+  footprint: one FOOTPRINT line on stdout; exit 0 = within the limit, 12 = over it, 13 = not measurable.
 
 [POS]
   Thin process boundary so Bash restart paths consult the same policy as the unit tests.
@@ -21,13 +22,15 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from frontend_lifecycle import journal, report
+from frontend_lifecycle import footprint, journal, report
 from frontend_lifecycle.gate import GateContext, admit
 from frontend_lifecycle.policy import Policy, Reason, Verdict
 
 EXIT_ALLOW = 0
 EXIT_HEALTHY = 10
 EXIT_DENIED = 11
+EXIT_FOOTPRINT_EXCEEDED = 12
+EXIT_FOOTPRINT_UNMEASURABLE = 13
 _VERDICT_EXIT = {
     Verdict.ALLOW: EXIT_ALLOW,
     Verdict.HEALTHY: EXIT_HEALTHY,
@@ -69,6 +72,11 @@ def _parser() -> argparse.ArgumentParser:
     report_cmd.add_argument(
         "--mark", action="store_true", help="restart the window after reporting"
     )
+
+    footprint_cmd = sub.add_parser(
+        "footprint", help="memory footprint of a process tree against the limit"
+    )
+    footprint_cmd.add_argument("--pid", type=int, required=True)
     return parser
 
 
@@ -85,8 +93,19 @@ def _report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _footprint(args: argparse.Namespace) -> int:
+    measurement = footprint.measure(args.pid)
+    if measurement is None:
+        print(f"FOOTPRINT_UNMEASURABLE pid={args.pid}", file=sys.stderr)
+        return EXIT_FOOTPRINT_UNMEASURABLE
+    print(measurement.render())
+    return EXIT_FOOTPRINT_EXCEEDED if measurement.exceeded else EXIT_ALLOW
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "footprint":
+        return _footprint(args)
     if args.command == "report":
         return _report(args)
     if args.command == "journal":

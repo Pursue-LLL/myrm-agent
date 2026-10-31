@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-共享 Next dev server（共享 dev UI 端口，Turbopack，`turbopackFileSystemCacheForDev:false`）的**重启准入门**。冷编译 `/` 实测 85–282s（`dev_gate/contract.py`），而各调用方的等待预算（60/90/120/180s）更短；任何「探针超时 → SIGTERM → 冷编译重来」的路径都会形成正反馈风暴。本包把「能否 SIGTERM 前端」收敛为单一决策点：慢不等于死，只有**停滞证据**才放行启发式重启。
+共享 Next dev server（共享 dev UI 端口，Turbopack）的**重启准入门**，并提供其进程树的**内存 footprint 读数**（`footprint`，供 `scripts/next-supervisor.ts` 的内存守卫使用）。冷编译 `/` 实测 85–282s（磁盘缓存关闭时，见 `dev_gate/contract.py`；首次启动、缓存中毒恢复与 `MYRM_DISABLE_TURBOPACK_DISK_CACHE=1` 仍是冷编译），而各调用方的等待预算（60/90/120/180s）更短；任何「探针超时 → SIGTERM → 冷编译重来」的路径都会形成正反馈风暴。本包把「能否 SIGTERM 前端」收敛为单一决策点：慢不等于死，只有**停滞证据**才放行启发式重启。
 
 调用链：`dev-stack.sh` 的 kill 原语（`_kill_frontend_supervisor` / `_repair_orphan_frontend`）→ `python -m frontend_lifecycle admit`。所有决策与实际 kill 写入 `<state-dir>/frontend-restart-journal.jsonl`（含调用链 `ps` 祖先），用于归因。
 
@@ -24,13 +24,14 @@
 
 | 文件 | 职责 |
 |------|------|
-| `policy.py` | 纯函数 `decide()`、`Reason` / `Verdict` / `Observation` / `Policy`（阈值取自 `dev_gate.contract`，可由 `MYRM_FRONTEND_GATE_*` 缩放，仅供测试沙箱） |
+| `policy.py` | 纯函数 `decide()`、`Reason` / `Verdict` / `Observation` / `Policy`（阈值取自 `dev_gate.contract`，可由 `MYRM_FRONTEND_GATE_*` 缩放，仅供测试沙箱）；`env_float()` 是正浮点环境变量解析（`footprint` 共用） |
 | `process_tree.py` | `ps`/`lsof` 只读观测：进程树 CPU 时间、年龄、LISTEN 所有者 |
 | `gate.py` | `admit()` 观测循环、`is_stalled()` 停滞判定、可注入 `Probes` |
 | `episode.py` | `EpisodeStore`：跨调用持久化的「连续不健康时长」（flock + 原子替换，间隔超过 `gap_sec` 视为已恢复） |
 | `journal.py` | 带调用链的 JSONL 决策/kill 日志（2MiB 轮转，写失败不影响决策） |
 | `report.py` | 只读体检：基线窗口内的 journal 准入/kill 统计 vs `frontend.log` 的 `Received SIGTERM`，差值 = 门外的 kill 路径；入口 `dev-stack.sh frontend-only restart-report` |
-| `cli.py` / `__main__.py` | `admit` / `journal` / `report` 子命令，bash 的进程边界 |
+| `footprint.py` | 进程树物理内存：macOS 读 `proc_pid_rusage` 的 `ri_phys_footprint`（与 Activity Monitor / `footprint(1)` 一致；RSS 会漏掉压缩与换出页——实测同一 Bun 托管的 Next 进程树 RSS 2.7–8.5 GB 而 footprint 约 22 GB），Linux 汇总 `VmRSS`，其它平台无读数（守卫关闭）。`measure()` 对根 pid + 全部后代求和；限额取 `dev_gate.contract.FRONTEND_FOOTPRINT_LIMIT_MB`（`MYRM_FRONTEND_FOOTPRINT_LIMIT_MB` 覆盖）。**这不是准入决策**：内存超限是硬证据，由监管者（`dev.ts`）自己替换子进程，不经 `policy.decide`，也不写 journal 的 `kill`（SIGTERM 不会落到 dev.ts，混进去会抵消真正的未解释 SIGTERM）；重启记录在 frontend.log 的 `FOOTPRINT_RESTART:`，`report` 单独计数 |
+| `cli.py` / `__main__.py` | `admit` / `journal` / `report` / `footprint` 子命令，bash 与 `dev.ts` 的进程边界；`footprint` 退出码：`0` 未超限 · `12` 超限 · `13` 读不到（进程已退出 / 平台无读数） |
 
 ## 依赖
 
