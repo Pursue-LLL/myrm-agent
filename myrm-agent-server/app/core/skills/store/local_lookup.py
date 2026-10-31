@@ -8,6 +8,7 @@
 [OUTPUT]
 - local_skill_dir_named: the directory of the skill kept under a directory name, spelled as the volume lists it
 - local_skill_dir_known_as: the one directory whose skill is known by a name
+- opens_directory: whether a name opens a skill's directory on this volume
 
 [POS]
 Blocking file system lookups in the primary local skills directory, without the security scan a full local scan
@@ -65,6 +66,18 @@ def _as_listed(skills_root: Path, skill_dir: Path) -> Path:
         except OSError:
             continue
     return skill_dir
+
+
+def opens_directory(skill_dir: Path, name: str) -> bool:
+    """Whether the volume resolves ``name``, taken below the skills directory, to ``skill_dir``.
+
+    That holds for the directory's own name, for a link to it, and for another spelling of its name on a volume that
+    does not tell spellings apart. A name no entry can be called (it holds a NUL) and one no entry is called open nothing.
+    """
+    try:
+        return os.path.samefile(skill_dir.parent / name, skill_dir)
+    except (OSError, ValueError):
+        return False
 
 
 def _known_names(skill_dir: Path) -> frozenset[str]:

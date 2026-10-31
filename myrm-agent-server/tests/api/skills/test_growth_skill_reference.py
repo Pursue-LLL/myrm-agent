@@ -3,12 +3,14 @@
 - app.services.skills.growth.lifecycle::process_skill_review_result (POS: unified entry for a background review result)
 - app.core.skills.runtime_metadata::skill_to_runtime_metadata (POS: the name a skill is listed under for the agent runtime)
 - app.api.skills.drafts::approve_skill_draft (POS: approval of a held draft)
+- app.core.skills.store.local_lookup::opens_directory (POS: whether a draft's name opens the directory of the skill it names)
 - tests.api.skills.conftest (POS: primary local skills directory moved to a temporary one, real local scan)
 [OUTPUT]
 - Tests that a review result finds the skill it names whether it carries the skill's directory name, its listed name
   or the name from its SKILL.md, whatever that name's spelling, that the lock and the approval act on that skill,
   that two skills a name cannot tell apart are not guessed between, that on a volume that does not tell spellings apart
-  a name spelled unlike the directory's still finds the skill and an approved draft under it acts on that skill, and
+  a name spelled unlike the directory's still finds the skill and an approved draft under it acts on that skill, that
+  on any volume a new skill is recorded under the directory's name exactly when its name opens that directory, and
   that a name no directory can have is recorded and not dropped.
 [POS]
 The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
@@ -25,6 +27,7 @@ import pytest
 from app.api.skills.drafts import ApproveDraftRequest, approve_skill_draft
 from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.runtime_metadata import skill_to_runtime_metadata
+from app.core.skills.store.local_lookup import opens_directory
 from app.core.skills.store.service import skills_service
 from app.services.skills.growth.case_types import SkillGrowthCaseDetailRead, SkillGrowthCaseStatus
 from app.services.skills.growth.lifecycle import process_skill_review_result
@@ -238,6 +241,45 @@ async def test_approving_a_new_skill_spelled_unlike_an_existing_one_acts_on_the_
     assert approved["materialized"] is True
     assert approved["skill_id"] == compute_local_skill_id(directory)
     assert _skill_dirs(mock_local_skills_dir) == ["Report-Builder"]
+
+
+@pytest.mark.asyncio
+async def test_a_new_skill_is_recorded_under_the_directory_name_exactly_when_its_name_opens_that_directory(
+    mock_local_skills_dir: Path,
+) -> None:
+    directory = _write_skill(mock_local_skills_dir, "report-builder", name="Report-Builder")
+    before = (directory / "SKILL.md").read_bytes()
+    opens = (mock_local_skills_dir / "Report-Builder").exists()
+
+    detail = await _recorded(_review("skill_draft", "Report-Builder"))
+
+    assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert detail.skill_name == ("report-builder" if opens else "Report-Builder")
+    approved = await approve_skill_draft(detail.id.removeprefix("draft:"), ApproveDraftRequest())
+    assert approved["materialized"] is True
+    assert approved["skill_id"] in {compute_local_skill_id(path) for path in mock_local_skills_dir.iterdir() if path.is_dir()}
+    assert ((directory / "SKILL.md").read_bytes() != before) is opens
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["report-builder", "REPORT-BUILDER", "another-directory", "nowhere", "a\0b"],
+    ids=["itself", "spelled-in-capitals", "another-directory", "no-entry", "nul"],
+)
+def test_a_name_opens_a_skill_directory_only_where_the_volume_resolves_it_to_that_directory(
+    mock_local_skills_dir: Path, name: str
+) -> None:
+    directory = _write_skill(mock_local_skills_dir, "report-builder")
+    (mock_local_skills_dir / "another-directory").mkdir()
+    opens = {
+        "report-builder": True,
+        "REPORT-BUILDER": (mock_local_skills_dir / "REPORT-BUILDER").exists(),
+        "another-directory": False,
+        "nowhere": False,
+        "a\0b": False,
+    }
+
+    assert opens_directory(directory, name) is opens[name]
 
 
 @pytest.mark.asyncio

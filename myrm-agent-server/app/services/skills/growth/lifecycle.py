@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
+- app.core.skills.store.local_lookup::opens_directory (POS: Blocking file system lookups in the primary local skills directory; tells whether a draft's name opens the directory of the skill it names)
 - app.core.skills.store.service::skills_service (POS: Skill store service; finds the existing local skill a review result names, by directory name or by a name it is known by)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
 - ..auto_extractor::auto_extract_skill, render_skill_draft_markdown (POS: 技能物化辅助器)
@@ -27,6 +28,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, cast
 
 from app.core.skills.config_version import bump_skill_config_version
+from app.core.skills.store.local_lookup import opens_directory
 from app.core.skills.store.service import skills_service
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
@@ -102,11 +104,11 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
 
     # The reviewer names a skill by the name the agent runtime lists it under; the pipeline from here on keeps,
     # previews and applies a patch by the directory of the skill it patches. A new skill draft keeps its name unless
-    # that differs from the directory's in case alone: approving it then writes into that same directory, and the
-    # skill is enabled and bound by a page id that follows the directory's spelling.
+    # the name opens that directory: approving it writes there either way, but the skill is enabled and bound by the
+    # page id of the directory's own spelling.
     skill_dir = await skills_service.find_local_skill_dir(skill_name)
     existing_skill = await skills_service.get_local_skill(skill_dir) if skill_dir is not None else None
-    if skill_dir is not None and (result_type == "skill_patch" or skill_dir.name.casefold() == skill_name.casefold()):
+    if skill_dir is not None and (result_type == "skill_patch" or opens_directory(skill_dir, skill_name)):
         skill_name = skill_dir.name
         result = {**result, "skill_name": skill_name}
     is_locked = existing_skill is not None and existing_skill.evolution_locked
