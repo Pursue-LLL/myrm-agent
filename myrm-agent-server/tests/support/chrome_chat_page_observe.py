@@ -1,13 +1,14 @@
 """What a user sees on the chat page after a run was parked behind an approval card, and how the page is reloaded or switched.
 
 [INPUT]
+- tests.support.chrome_chat_page_stop (POS: the page's finished requests, for failure messages)
 - tests.support.chrome_mcp_e2e (POS: CDP page helpers, reload)
 - tests.support.chrome_skill_hooks_composer (POS: the page's own account of a turn)
 - tests.support.chrome_skill_hooks_live_e2e (POS: SkillChat probe, DONE_TOKEN)
 - tests.support.chrome_skill_hooks_observe (POS: stored chat)
 
 [OUTPUT]
-- reply_on_page() / wait_for_reply_on_page(): the reply is a line of the transcript (the sidebar's previews do not count)
+- reply_on_page() / wait_for_reply_on_page(): the reply is a line of the transcript (the sidebar's previews do not count); a timeout reports the page's store rows, the server's turn state, the backend's attach log lines and the page's finished requests
 - assert_reply_shown_once() / assert_page_settled(): reply shown once; settled adds not streaming and no approval card
 - assert_board_settled(): the phone's board shows progress, not the reply: not streaming, no approval card, the stored reply is final
 - reload_the_chat() / open_in_fresh_page() / open_chat_from_sidebar(): reload the document, visit another page afresh (directly or through the UI server's relay), or switch chats inside the running page
@@ -29,6 +30,7 @@ import time
 
 import pytest
 
+from tests.support.chrome_chat_page_stop import finished_fetches
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
@@ -331,7 +333,9 @@ def wait_for_reply_on_page(client: ChromeMcpClient, page: McpPage, probe: SkillC
     pytest.fail(
         f"{failure} within {_REPLY_ON_PAGE_TIMEOUT_SEC:.0f}s\n{describe_page(client, page)}\n"
         f"store rows and elements that hold the reply: {json.dumps(places, ensure_ascii=False)}\n"
-        f"page text ends with: {page_tail!r}\nstored reply ends with: {_stored_reply_tail(probe)!r}"
+        f"page text ends with: {page_tail!r}\nstored reply ends with: {_stored_reply_tail(probe)!r}\n"
+        f"server turn now: {turn_state(probe)}; backend attach lines: {backend_attach_lines(probe)!r}\n"
+        f"page requests that ended: {finished_fetches(client, page)}"
     )
 
 

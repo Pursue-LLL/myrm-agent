@@ -3,7 +3,8 @@
 Real business flow, no mocks and no API shortcut for the chat turn:
 
     user types a request that makes the model write a long answer and presses send -> the page offers Stop
-    -> the user presses it -> the server's run ends, the page stops streaming and the stored turn says it was stopped.
+    -> the user presses it -> the server's run ends, the page stops streaming and the stored turn says it was stopped
+    -> the user reloads the chat and the reply carries the notice that its generation was stopped.
 
 The page holds the request stream it opened itself (the controller ``sendMessage`` sets), the path every user takes. A page that
 attached to a run the server started is the case of ``test_approval_timer_resume_chrome_e2e.py``.
@@ -16,6 +17,7 @@ Formal run::
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -25,6 +27,7 @@ from tests.support.chrome_approval_turn import STOP_LIST_ANSWER, run_one_turn
 from tests.support.chrome_chat_page_observe import (
     backend_cancel_lines,
     last_completion_status,
+    reload_the_chat,
     stored_assistant_turns,
     stored_reply_is_final,
     turn_state,
@@ -32,7 +35,7 @@ from tests.support.chrome_chat_page_observe import (
     wait_until_the_turn_ends,
 )
 from tests.support.chrome_chat_page_stop import finished_fetches, press_stop
-from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage
+from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, wait_for_state
 from tests.support.chrome_skill_hooks_composer import describe_page
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat
 from tests.support.e2e_runtime_guard import E2EResourceLedger
@@ -40,6 +43,23 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 # A turn stopped before the model wrote anything stores no assistant turn (the session is committed with the first output);
 # the Stop of this test lands once a few bullets of the answer are on screen.
 _BULLETS_BEFORE_STOP = 5
+
+_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
+_LOCALES = ("en", "zh", "zh-TW", "ja", "ko", "de")
+_NOTICE_ON_PAGE_TIMEOUT_SEC = 60.0
+
+
+def _stopped_notice_on_page_js() -> str:
+    """Ready once the notice under a stopped reply (``chat.message.cancelled``, in any shipped locale) is on the page once."""
+    notices = [
+        json.loads((_LOCALES_DIR / f"{locale}.json").read_text(encoding="utf-8"))["chat"]["message"]["cancelled"]
+        for locale in _LOCALES
+    ]
+    return f"""(() => {{
+  const text = document.body?.innerText ?? '';
+  const shown = {json.dumps(notices, ensure_ascii=False)}.map((notice) => text.split(notice).length - 1).reduce((a, b) => a + b, 0);
+  return {{ ready: shown === 1, shown }};
+}})()"""
 
 
 def _wait_for_a_stored_assistant_turn(probe: SkillChat, *, timeout_sec: float = 30.0) -> None:
@@ -81,6 +101,14 @@ def test_stop_pressed_on_a_turn_the_page_sent_ends_that_turn(tmp_path: Path, e2e
         )
         assert not stored_reply_is_final(probe), f"the run finished its whole answer although Stop was pressed; {outcome}"
         assert last_completion_status(probe) == "cancelled", f"the stored turn is not marked stopped; {outcome}"
+
+        reload_the_chat(client, page, chat_url)
+        try:
+            wait_for_state(client, page, _stopped_notice_on_page_js(), timeout_sec=_NOTICE_ON_PAGE_TIMEOUT_SEC)
+        except AssertionError as error:
+            raise AssertionError(
+                f"the reloaded chat does not show the notice of a stopped reply exactly once: {error}; {describe_page(client, page)}"
+            ) from error
 
     run_one_turn(
         tmp_path,

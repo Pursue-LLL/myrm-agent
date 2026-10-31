@@ -289,6 +289,10 @@ export const loadMessages = async (
 /** 正在尝试恢复进行中 agent 执行的 chat，防止并发重复 attach。 */
 const activeTurnAttachInFlight = new Set<string>();
 
+const ATTACH_RETRY_INTERVAL_MS = 500;
+/** 启动窗口包含一次回复前压缩（摘要模型调用），没有更紧的上界；超出后按回合结束处理，退回重拉消息。 */
+const ATTACH_RETRY_BUDGET_MS = 60_000;
+
 /** 服务端对一个 chat 的回合状态：正在执行，或停在工具审批卡上（会话已释放，只有 collector 还握着卡片）。 */
 interface ServerTurnState {
   running: boolean;
@@ -320,7 +324,8 @@ function isIdleOnChat(chatId: string): boolean {
  *   - 在执行（点了 Approve 后续跑还在进行时重载，最后一条就是停在审批处的 assistant 消息）：attachToChat 接上它的流；
  *   - 停在工具审批卡上（回合已停下、会话已释放，卡片只在服务端 collector 里，没有落库）：有界 attach 把卡片重放回来，
  *     不能用 attachToChat——collector 一直挂着，那条流不会结束，页面会永远停在加载中。
- * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在「已发送未回复」。
+ * attach 404 时：服务端仍在执行（回合刚开始、流还没注册）就按间隔重试到接上或预算用完；回合已结束则重新拉取最终消息，
+ * 避免 UI 卡在「已发送未回复」。
  */
 async function maybeAttachToActiveTurn(
   chatId: string,
@@ -367,9 +372,20 @@ async function maybeAttachToActiveTurn(
     }
     console.log('[MYRM-ATTACH] calling attachToChat', chatId);
     const { attachToChat } = await import('./messageRequest');
-    const attached = await attachToChat(chatId, actions, useChatStore.getState);
+    let attached = await attachToChat(chatId, actions, useChatStore.getState);
+    // attach 失败有两种原因：回合已结束，或回合还在启动（会话已占用、用户消息已落库，流要等回复前压缩、历史加载之后才注册）。
+    // 只有服务端仍报告在执行才重试；否则此刻拉到的快照停在只有用户消息的状态，之后没有任何东西会刷新它。
+    const retryDeadline = Date.now() + ATTACH_RETRY_BUDGET_MS;
+    while (!attached && Date.now() < retryDeadline && (await sampleServerTurn(chatId)).running) {
+      await new Promise((resolve) => setTimeout(resolve, ATTACH_RETRY_INTERVAL_MS));
+      if (!isIdleOnChat(chatId)) {
+        return;
+      }
+      attached = await attachToChat(chatId, actions, useChatStore.getState);
+    }
     console.log('[MYRM-ATTACH] attachToChat done', { chatId, attached });
-    if (!attached) {
+    // 等待期间用户可能已离开这个 chat 或发起了自己的回合，此时重拉会把页面拽回来。
+    if (!attached && isIdleOnChat(chatId)) {
       // Agent finished before we could attach — refetch final messages.
       await loadMessages(chatId, actions, { skipActiveTurnAttach: true });
     }
