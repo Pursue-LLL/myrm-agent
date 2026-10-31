@@ -3,14 +3,16 @@
 The shell starts its bundled Next.js server with a Node.js it carries itself: a machine launching the app from
 Finder or the Start menu has no Node.js on PATH. The runtime is a Tauri `externalBin` that
 `scripts/fetch_node_runtime.py` downloads from nodejs.org against a pinned SHA-256. The Tauri config, the fetch
-script, its pins, the Rust resolver and the release workflow must agree; this test pins them together so a
-one-sided change fails here instead of in a release build, and runs the fetch script against offline archives.
+script, its pins, the Rust resolver, the release workflow and the macOS entitlements must agree; this test pins them
+together so a one-sided change fails here instead of in a release build, and runs the fetch script against offline
+archives.
 """
 
 from __future__ import annotations
 
 import io
 import json
+import plistlib
 import re
 import shutil
 import subprocess
@@ -115,6 +117,19 @@ def test_the_cargo_gate_compiles_without_the_runtime() -> None:
     # tauri-build fails when a declared resource or external binary is missing, even for `cargo check`.
     assert bundle["resources"] == []
     assert bundle["externalBin"] == []
+
+
+def test_the_entitlements_give_the_bundled_node_the_memory_v8_needs() -> None:
+    """Tauri re-signs an `externalBin` with the app's identity and entitlements, replacing Node's own signature.
+
+    A hardened-runtime Node without these two keys dies at start-up ("Failed to reserve virtual memory for
+    CodeRange"), and the unsigned CI builds never apply the hardened runtime, so only this check sees it.
+    """
+    macos = cast("dict[str, object]", bundle_config("macos")["macOS"])
+    entitlements = plistlib.loads((DESKTOP / "src-tauri" / str(macos["entitlements"])).read_bytes())
+
+    for key in ("com.apple.security.cs.allow-jit", "com.apple.security.cs.allow-unsigned-executable-memory"):
+        assert entitlements.get(key) is True, f"{key} is missing from the macOS entitlements"
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="needs git")

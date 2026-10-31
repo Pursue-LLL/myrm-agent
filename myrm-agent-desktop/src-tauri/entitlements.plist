@@ -19,7 +19,8 @@
         the audio-input entitlement below to trigger the TCC prompt.
     -->
 
-    <!-- WebView V8 engine -->
+    <!-- V8: the WebView and the bundled Node.js. Tauri re-signs the Node.js externalBin with this file;
+         under the hardened runtime it dies at start-up without these two keys. -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
