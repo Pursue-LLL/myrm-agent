@@ -17,6 +17,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_toolkits_vendor_boundary.py` | Gate | `toolkits/` 禁止 top-level vendor 包名 / vendor 前缀模块名 | — |
 | `test_artifact_vault_path_boundary.py` | Gate | harness `src/` 禁止 `.myrm/vault` 等品牌 vault 路径字面量 | — |
 | `test_harness_boundary.py` | Gate | harness 禁止 import 业务层（server/control-plane） | — |
+| `test_tls_single_trust_source.py` | Gate | AST：除 `infra/tls_compat.py` 外，harness `src/` 不得直接构造 TLS 上下文（`SSLContext(...)`、`_create_unverified_context(...)`），否则绕过企业网络兼容开关与系统证书库；自带扫描器正反例，并检查豁免模块仍在构造上下文 | — |
 | `test_wheel_browser_assets.py` | Gate | wheel 须含 `browser/assets/ad_domains.txt`（≥3500 域） | — |
 | `test_package_root_flat_layout.py` | Gate | 包根禁止平铺实现模块；`tests/` 根禁止散落测试模块；`runtime/install_guard/` 子包 layout 与 legacy 文件名回归 |
 | `test_distribution_packaging.py` | Gate | 分发打包管线不变量（wheel build/install；`slow` 标记项在 CI `distribution-packaging-slow` job） | — |

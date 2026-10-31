@@ -1,9 +1,10 @@
 /**
  * models.dev API 服务
- * 从 https://models.dev/api.json 获取模型信息
+ * 经后端 /integrations/models-dev 代理获取 https://models.dev/api.json 的模型信息
  */
 
 import type { CustomModelInfo } from '@/store/config/providerTypes';
+import { apiRequest } from '@/lib/api';
 import { discoverModelsFromEndpoint } from '@/services/llm-config';
 
 // ============ models.dev API 类型定义 ============
@@ -215,7 +216,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
 
 /**
  * 获取 models.dev 完整数据
- * 通过 Next.js API Route 代理以绕过 CORS 限制
+ * 经后端代理：出站请求与其他网络请求遵循同一套证书信任设置，浏览器无需跨域访问
  * 带缓存，5 分钟过期
  */
 export async function fetchModelsDevData(forceRefresh = false): Promise<ModelsDevApiResponse> {
@@ -225,23 +226,15 @@ export async function fetchModelsDevData(forceRefresh = false): Promise<ModelsDe
     return cachedData;
   }
 
-  const response = await fetch('/api/models-dev', {
-    headers: {
-      Accept: 'application/json',
-    },
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch models.dev data: ${response.status}`);
-  }
-
-  cachedData = await response.json();
-  cacheTimestamp = now;
-  if (!cachedData) {
+  // silent：失败由调用方在界面中展示，不弹全局错误提示
+  const data = await apiRequest<ModelsDevApiResponse>('/integrations/models-dev', { silent: true, timeout: 15_000 });
+  // apiRequest 对非 JSON 响应返回空对象，空目录不能当作有效数据缓存
+  if (Object.keys(data).length === 0) {
     throw new Error('models.dev returned empty payload');
   }
 
+  cachedData = data;
+  cacheTimestamp = now;
   return cachedData;
 }
 

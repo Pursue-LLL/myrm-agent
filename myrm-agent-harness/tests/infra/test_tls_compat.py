@@ -238,6 +238,12 @@ class TestDefaultContextPolicy:
         assert loaded_cas(ctx) == [der_of(ca_file)]
         assert not ctx.verify_flags & STRICT_FLAG
 
+    def test_a_pinned_ca_directory_is_not_replaced_by_the_system_trust(self, tmp_path: Path) -> None:
+        ctx = ssl.create_default_context(capath=str(tmp_path))
+
+        assert not is_truststore_context(ctx)
+        assert not ctx.verify_flags & STRICT_FLAG
+
     def test_server_purpose_contexts_are_untouched(self) -> None:
         ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 

@@ -155,8 +155,10 @@ jobs:
 
       # The enterprise policy validates against the operating system's trust store through truststore, which reaches
       # CryptoAPI on Windows; the Linux jobs only exercise OpenSSL's store. The selection overrides the default
-      # `not integration` filter because the loopback suites are integration-marked. The tests that start a POSIX
-      # script as a Node child stay on the Linux jobs.
+      # `not integration` filter because the loopback suites are integration-marked. Only files that build a TLS
+      # context or complete a handshake are selected: `tests/toolkits/mcp/test_placeholders*.py` check which
+      # environment a Node child receives and read no certificate store, so they run on the Linux jobs. One test
+      # in the stdio integration file also runs a `chmod`-ed shebang script, which Windows cannot execute.
       - name: Run enterprise TLS tests
         run: >-
           uv run --no-sync pytest -n0 -q --tb=short -m "not e2e and not performance"

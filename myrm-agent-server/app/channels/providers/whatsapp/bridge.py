@@ -29,6 +29,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.infra.tls_compat import with_node_system_ca
 from myrm_agent_harness.utils.os_compat import SIGKILL
@@ -88,6 +89,12 @@ class BridgeProcessMixin:
     _process: asyncio.subprocess.Process | None
     _reader_task: asyncio.Task[None] | None
     _connected: asyncio.Event
+    _auth_dir: Path
+    _status: ChannelStatus
+
+    if TYPE_CHECKING:
+
+        async def _handle_bridge_event(self, raw: str) -> None: ...
 
     async def _ensure_node_deps(self) -> None:
         """Install npm dependencies if node_modules is missing."""
@@ -119,7 +126,7 @@ class BridgeProcessMixin:
 
     @property
     def _pid_file(self) -> Path:
-        return self._auth_dir / "bridge.pid"  # type: ignore[attr-defined]
+        return self._auth_dir / "bridge.pid"
 
     def _kill_stale_bridge(self) -> None:
         """Kill any orphaned bridge process from a previous run."""
@@ -179,7 +186,7 @@ class BridgeProcessMixin:
         if not node_bin:
             raise RuntimeError("Node.js not found")
 
-        self._auth_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
+        self._auth_dir.mkdir(parents=True, exist_ok=True)
 
         from myrm_agent_harness.api import (
             EnvInheritPolicy,
@@ -201,7 +208,7 @@ class BridgeProcessMixin:
         self._process = await asyncio.create_subprocess_exec(
             node_bin,
             str(_BRIDGE_SCRIPT),
-            str(self._auth_dir),  # type: ignore[attr-defined]
+            str(self._auth_dir),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -242,14 +249,14 @@ class BridgeProcessMixin:
                 line = await self._process.stdout.readline()
                 if not line:
                     break
-                await self._handle_bridge_event(line.decode().strip())  # type: ignore[attr-defined]
+                await self._handle_bridge_event(line.decode().strip())
         except asyncio.CancelledError:
             return
         except Exception as exc:
             logger.warning("WhatsAppChannel: stdout reader error: %s", exc)
         finally:
-            if self._status == ChannelStatus.RUNNING:  # type: ignore[attr-defined]
-                self._status = ChannelStatus.ERROR  # type: ignore[attr-defined]
+            if self._status == ChannelStatus.RUNNING:
+                self._status = ChannelStatus.ERROR
                 self._connected.clear()
                 logger.warning("WhatsAppChannel: bridge process ended unexpectedly")
 

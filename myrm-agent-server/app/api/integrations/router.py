@@ -8,7 +8,17 @@ import logging
 
 from fastapi import APIRouter
 
-from app.api.integrations import catalog, credential_pool, hardware, integration_memory, llms, mcp, search, web_fetch
+from app.api.integrations import (
+    catalog,
+    credential_pool,
+    hardware,
+    integration_memory,
+    llms,
+    mcp,
+    models_dev,
+    search,
+    web_fetch,
+)
 from app.api.integrations.oauth import credentials as oauth_credentials
 from app.api.integrations.oauth import google_workspace as google_workspace_oauth
 from app.api.integrations.oauth import mcp as mcp_oauth
@@ -24,6 +34,7 @@ router = APIRouter()
 router.include_router(hardware.router, prefix="/hardware", tags=["integrations-hardware"])
 router.include_router(llms.router, prefix="/llm", tags=["integrations-llm"])
 router.include_router(credential_pool.router, prefix="/llm/credential-pool", tags=["integrations-credential-pool"])
+router.include_router(models_dev.router, prefix="/models-dev", tags=["integrations-models-dev"])
 router.include_router(search.router, prefix="/search", tags=["integrations-search"])
 router.include_router(web_fetch.router, prefix="/web-fetch", tags=["integrations-web-fetch"])
 router.include_router(mcp.router, prefix="/mcp", tags=["integrations-mcp"])

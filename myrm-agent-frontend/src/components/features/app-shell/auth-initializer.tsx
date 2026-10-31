@@ -49,7 +49,7 @@ function installFetchInterceptor(): () => void {
 
     if (shouldRedirectToLoginOnAuthFailure() && response.status === 401 && !redirecting && !isAuthPage()) {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes('/api/') && !url.includes('/api/proxy-models') && !url.includes('/api/models-dev')) {
+      if (url.includes('/api/') && !url.includes('/api/proxy-models')) {
         redirecting = true;
         clearAuthToken();
         window.location.href = '/auth/login';

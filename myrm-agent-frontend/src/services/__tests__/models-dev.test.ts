@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getProviderIdFromUrl, findProviderByApiUrl, type ModelsDevApiResponse } from '../models-dev';
+
+const apiRequest = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiRequest,
+}));
 
 // Minimal mock data mimicking models.dev structure
 const mockModelsDevData: ModelsDevApiResponse = {
@@ -126,5 +133,49 @@ describe('findProviderByApiUrl', () => {
 
   it('should return null for empty data', () => {
     expect(findProviderByApiUrl({}, 'https://api.deepseek.com')).toBeNull();
+  });
+});
+
+describe('fetchModelsDevData', () => {
+  let fetchModelsDevData: typeof import('../models-dev').fetchModelsDevData;
+
+  // The catalog cache lives at module level, so each test starts from a freshly loaded module.
+  beforeEach(async () => {
+    vi.resetModules();
+    apiRequest.mockReset();
+    ({ fetchModelsDevData } = await import('../models-dev'));
+  });
+
+  it('reads the catalog through the backend proxy without a global error toast', async () => {
+    apiRequest.mockResolvedValue(mockModelsDevData);
+
+    await expect(fetchModelsDevData()).resolves.toBe(mockModelsDevData);
+
+    expect(apiRequest).toHaveBeenCalledWith('/integrations/models-dev', { silent: true, timeout: 15_000 });
+  });
+
+  it('serves repeated reads from the cache until a refresh is forced', async () => {
+    apiRequest.mockResolvedValue(mockModelsDevData);
+
+    await fetchModelsDevData();
+    await fetchModelsDevData();
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+
+    await fetchModelsDevData(true);
+    expect(apiRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects an empty catalog and does not cache it', async () => {
+    apiRequest.mockResolvedValueOnce({}).mockResolvedValueOnce(mockModelsDevData);
+
+    await expect(fetchModelsDevData()).rejects.toThrow('models.dev returned empty payload');
+    await expect(fetchModelsDevData()).resolves.toBe(mockModelsDevData);
+    expect(apiRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes a failed request on to the caller', async () => {
+    apiRequest.mockRejectedValue(new Error('Failed to fetch models.dev data'));
+
+    await expect(fetchModelsDevData()).rejects.toThrow('Failed to fetch models.dev data');
   });
 });
