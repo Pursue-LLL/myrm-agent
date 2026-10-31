@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.channels.core.factory import create_channels
 from app.channels.providers.feishu.channel import FeishuChannel
 from app.channels.security.errors import WebhookResponseError
 
@@ -98,26 +99,57 @@ class TestAppIdValidation:
         await channel.verify(mock_request, body)
 
 
-class TestInitValidation:
-    """Test __init__() parameter validation."""
+class TestUnconfiguredChannel:
+    """A channel without app credentials exists, is inert, and refuses webhooks."""
 
-    def test_init_empty_app_id_raises(self) -> None:
-        """Test that empty app_id raises ValueError."""
-        with pytest.raises(ValueError, match="app_id cannot be empty"):
-            FeishuChannel(app_id="", app_secret="secret_test")
+    @pytest.mark.parametrize(
+        ("app_id", "app_secret"),
+        [("", ""), ("   ", "secret_test"), ("cli_test", ""), ("cli_test", "  ")],
+    )
+    def test_blank_credentials_construct_as_unconfigured(self, app_id: str, app_secret: str) -> None:
+        channel = FeishuChannel(app_id=app_id, app_secret=app_secret)
+        assert channel._client.is_configured is False
 
-    def test_init_whitespace_app_id_raises(self) -> None:
-        """Test that whitespace-only app_id raises ValueError."""
-        with pytest.raises(ValueError, match="app_id cannot be empty"):
-            FeishuChannel(app_id="   ", app_secret="secret_test")
+    def test_from_credentials_without_any_value_constructs(self) -> None:
+        channel = FeishuChannel.from_credentials({})
+        assert channel._client.is_configured is False
 
-    def test_init_empty_app_secret_raises(self) -> None:
-        """Test that empty app_secret raises ValueError."""
-        with pytest.raises(ValueError, match="app_secret cannot be empty"):
-            FeishuChannel(app_id="cli_test", app_secret="")
+    @pytest.mark.asyncio
+    async def test_factory_creates_it_from_an_empty_store(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Settings lists a channel only if the gateway holds an instance of it, so the factory
+        # must not drop Feishu when nothing is stored yet.
+        for variable in ("FEISHU_APP_ID", "FEISHU_APP_SECRET"):
+            monkeypatch.delenv(variable, raising=False)
 
-    def test_init_valid_params_pass(self) -> None:
-        """Test that valid params pass initialization."""
-        channel = FeishuChannel(app_id="cli_test", app_secret="secret_test")
+        async def empty_source(_config_key: str) -> dict[str, object]:
+            return {}
+
+        channels = await create_channels(empty_source, names=frozenset({"feishu"}), skip_empty=False)
+
+        channel = channels["feishu"]
+        assert isinstance(channel, FeishuChannel)
+        assert channel._client.is_configured is False
+
+    def test_credentials_are_stripped(self) -> None:
+        channel = FeishuChannel(app_id=" cli_test ", app_secret=" secret_test ")
         assert channel._app_id == "cli_test"
         assert channel._app_secret == "secret_test"
+        assert channel._client.is_configured is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"challenge": "c", "header": {"app_id": "cli_any"}},
+            {"header": {"event_type": "im.message.receive_v1"}},
+            {},
+        ],
+    )
+    async def test_webhook_is_refused_even_without_a_token(self, mock_request: MagicMock, payload: dict[str, object]) -> None:
+        channel = FeishuChannel(app_id="", app_secret="")
+
+        with pytest.raises(WebhookResponseError) as exc_info:
+            await channel.verify(mock_request, json.dumps(payload).encode())
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.error_type == "channel-not-configured"

@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-10-31 · 全新本地安装在设置页里配置不了飞书：构造函数在凭据为空时抛错，网关里没有飞书实例，状态接口没有这一行，开关禁用，扫码创建入口不渲染
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**。「仍然存在」里的项未处理。 |
+| **症状** | ① [实测，源码运行，隔离后端 + 全新数据目录] 改前 `GET /channels/manage/status` 返回 25 行，没有 feishu；对 feishu 调 `PATCH /channels/manage/feishu/toggle` 返回 **409**「Channel dependencies installed but channel is not registered; configure credentials and retry」，同样条件下 dingtalk 返回 200、状态 `idle`。② 启动日志有 WARNING `Channel 'feishu': invalid credentials, skipping: app_id cannot be empty`。③ [读码] 设置页开关在没有状态行时禁用（`ChannelsSection.tsx:469`），配置面板只在「有状态行且不是 disabled」时渲染（`:477`），飞书的配置卡（含扫码创建）在 `:344`；扫码创建的 HTTP 接口本身不依赖网关状态（`feishu_register.py`），所以挡路的只有这个渲染条件。`FeishuConfigCard` 里专门写了「appId 为空时显示扫码创建」的空状态，在全新安装上永远渲染不到。 |
+| **根因** | `FeishuChannel.__init__` 在 app_id / app_secret 为空时抛 `ValueError`（`channel.py`）。这 4 行是 2026-06-08 的 `ff15bcef2b` 加进来的，提交说明里没有理由；而同一个类里「空凭据时 `start()` 空转」与 `collect_issues()` 的「App ID or App Secret not configured」是 2026-06-02 的初始提交就有的，被这 4 行变成了死代码。`test_start_no_credentials` 与 `test_no_credentials_reports_issue` 当时被改成了断言抛错，注释写着「After validation was added to __init__」，把死代码留了下来。`create_channels` 遇到 `ValueError` 只记 WARNING 并跳过，网关里于是没有飞书实例。在各 provider 的 `channel.py` 里（grep `raise ValueError(...empty|required|missing)`）只有飞书这样做，其余渠道都允许空凭据。 |
+| **修复** | ① 删掉构造时的空凭据校验；app_id / app_secret 先 `strip`，纯空白仍按「未配置」处理（沿用旧语义），`FeishuClient.is_configured` 成为唯一判据。② `verify()` 在未配置时对所有 webhook（含 URL 验证的 challenge）返回 503 `channel-not-configured`：未配置时没有 app_id 可核对，token 校验又是可选的，不拦的话「启用但没凭据」的飞书会接收伪造事件。③ 两个被改歪的测试改回原意（空凭据时 `start()` 不取 token、状态保持 `IDLE`；`collect_issues()` 报一条 CONFIG/ERROR），三个「构造抛错」的测试换成「空白凭据可构造且未配置」「`from_credentials({})` 可构造」「凭据被 strip」「工厂能从空库建出实例」「未配置时三种 webhook 载荷都被 503 拒绝」。④ `feishu/_ARCH.md` 写明空凭据是合法状态。 |
+| **行为变化** | ① 全新安装的 `/status` 多出 feishu 一行（`disabled`，带 issue「App ID or App Secret not configured.」，前端 `issueMessages.ts` 已有 `/not configured/i` 规则翻译）；其余行与改前逐行一致（比较了状态、连接、类型、issues；探针库里残留的 dingtalk 开关复位后无差异）。② 飞书开关 409 → 200、状态 `idle`；启动日志不再有那条 WARNING。③ [真实浏览器，隔离 Next dev（Node）+ 隔离后端 + 全新数据目录，Chromium headless] 设置 → 渠道 → 飞书：列表里有飞书，切到它时开关可点、配置面板不显示；点开关后出现「Create Feishu App via QR Code / Scan to Create」卡片与 App ID / App Secret 表单（截图已看）。④ 启动成本没变：`python -m startup_budget check` 改后 import CPU 5.5 s、模块 8226（与改前相同）、网关启动 CPU 0.30 s（改前 0.34–0.42 s，在噪声内）。 |
+| **回归证据** | [1] 飞书 provider 目录 + 两个飞书 API 测试 + `tests/services/channels`：889 通过（另有 2 跳过、1 预期失败）。[2] 渠道相关四个目录（`tests/channels`、`tests/services/channels`、`tests/api/channels`、`tests/core/channel_bridge`，排除 e2e / chrome_e2e / integration）：10166 通过、1 失败：`test_wecom_stream_integration.py::test_wecom_aibot_reconnect_recovery_integration`（企业微信，不涉及飞书；全套在负载 60 以上跑了 13 分 50 秒时失败，单独跑通过，没有重复验证它是否间歇性）。[3] 其余碰飞书或网关状态的测试（cron、ingress_supplement、approval_card、handoff、source_filter、web_handoff、tool_description_locale）：744 通过。[4] ruff check 与 format 对改动文件干净。 |
+| **踩坑** | ① 最初把这条当成「启动时就初始化所有渠道」的问题，计划做渠道目录/实例分离；实施前的真实验证推翻了两个前提：未配置渠道的状态行里带着实例产生的 issues（25 行共 24 条：21 条 config error、3 条 warning，界面会渲染成横幅和角标），合成无实例的行会丢掉它们；而且合成 `disabled` 行修不好飞书（开关仍 409，disabled 时面板仍不渲染）。网关启动实测只占 0.3–0.5 s CPU（约 5%），所以那个重构不做。② 浏览器检查走了几次弯路：首启遮罩「Where does your assistant run?」要先在隔离后端上完成引导；同一个表单在桌面与移动两处各渲染一份，选择器要限定可见元素。 |
+| **仍然存在** | ① 浏览器检查跑在 Next dev 上，没有在桌面 App 壳里跑；扫码创建没有真正走完（需要线上飞书账号）。② `POST /api/channels/feishu/webhook` 在本地模式下先被鉴权层挡成 401，`verify()` 的 503 只有单元测试，没有 HTTP 实测。③ WhatsApp 同样没有状态行，但那是 `channel_factory.py` 里有意注释掉的（「WhatsApp bridge causes startup hang」），不在本条。 |
+| **代码位置** | `myrm-agent-server/app/channels/providers/feishu/channel.py`（`__init__`、`verify`）、`feishu/_ARCH.md`、`tests/channels/providers/feishu/test_app_id_validation.py`、`test_feishu_channel.py`；同批新增的启动预算门见 `scripts/dev/lib/startup_budget/`。 |
+
 ## 2026-10-31 · 打开「企业网络兼容」后，S3 远程备份仍按严格模式验证证书：aiobotocore 用自带的上下文构建器和固定的 CA 包，不经 `ssl.create_default_context`；同批更正安全架构文档里与代码不符的「4 层自动注入」
 
 | 字段 | 内容 |

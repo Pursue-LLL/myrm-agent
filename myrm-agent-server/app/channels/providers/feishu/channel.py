@@ -142,19 +142,18 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         bot_policy: str = "deny",
     ) -> None:
         super().__init__()
-        if not app_id or not app_id.strip():
-            raise ValueError("app_id cannot be empty")
-        if not app_secret or not app_secret.strip():
-            raise ValueError("app_secret cannot be empty")
-        self._app_id = app_id
-        self._app_secret = app_secret
+        # Blank credentials are a valid state, as for every other provider: the channel exists
+        # (so Settings can show it and offer the QR registration), reports the gap through
+        # collect_issues(), stays idle in start(), and refuses webhooks in verify().
+        self._app_id = app_id.strip()
+        self._app_secret = app_secret.strip()
         self._encrypt_key = encrypt_key
         self._use_lark = use_lark
         self._render_mode = render_mode
         self._transport = transport
         self._verification_token = verification_token
         self._apply_bot_policy(bot_policy)
-        self._client = FeishuClient(app_id, app_secret, use_lark=use_lark)
+        self._client = FeishuClient(self._app_id, self._app_secret, use_lark=use_lark)
         self._user_resolver = FeishuUserResolver(self._client)
         self._ws_transport: FeishuWSTransport | None = None  # lazy import
         self._streaming_seq: dict[str, int] = {}
@@ -227,7 +226,19 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
 
         Challenge requests (URL verification) skip validation since
         the Feishu platform sends them during webhook registration setup.
+        An unconfigured channel has nothing to verify against (no app_id, and the token check is
+        optional), so it refuses every request, challenges included.
         """
+        trace_id = getattr(request.state, "_webhook_trace_id", "")
+        if not self._client.is_configured:
+            raise WebhookResponseError(
+                status_code=503,
+                error_type="channel-not-configured",
+                title="Channel Not Configured",
+                detail="Feishu app credentials are not configured",
+                trace_id=trace_id,
+            )
+
         try:
             parsed = json.loads(body)
         except (json.JSONDecodeError, ValueError):
@@ -235,8 +246,6 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
 
         if isinstance(parsed, dict) and "challenge" in parsed:
             return
-
-        trace_id = getattr(request.state, "_webhook_trace_id", "")
 
         if "header" in parsed and isinstance(parsed["header"], dict):
             event_app_id = parsed["header"].get("app_id", "")

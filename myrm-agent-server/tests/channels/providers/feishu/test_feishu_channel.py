@@ -18,6 +18,8 @@ from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
     ChannelStatus,
     InboundMessage,
+    IssueKind,
+    IssueSeverity,
     MediaAttachment,
     MediaType,
     OutboundMessage,
@@ -422,9 +424,12 @@ class TestLifecycle:
 
     @pytest.mark.asyncio
     async def test_start_no_credentials(self) -> None:
-        # After validation was added to __init__, empty credentials now raise ValueError
-        with pytest.raises(ValueError, match="app_id cannot be empty"):
-            FeishuChannel(app_id="", app_secret="")
+        ch = FeishuChannel(app_id="", app_secret="")
+        with patch.object(ch._client, "ensure_token", new=AsyncMock()) as ensure_token:
+            await ch.start()
+
+        ensure_token.assert_not_awaited()
+        assert ch.status == ChannelStatus.IDLE
 
     @pytest.mark.asyncio
     async def test_health_check_running(self) -> None:
@@ -1173,10 +1178,12 @@ class TestDownloadAttachment:
 
 class TestCollectIssues:
     def test_no_credentials_reports_issue(self) -> None:
-        # After validation was added to __init__, empty credentials now raise ValueError
-        # So this test verifies that ValueError is raised when trying to create with empty credentials
-        with pytest.raises(ValueError, match="app_id cannot be empty"):
-            FeishuChannel(app_id="", app_secret="")
+        issues = FeishuChannel(app_id="", app_secret="").collect_issues()
+
+        assert len(issues) == 1
+        assert issues[0].kind == IssueKind.CONFIG
+        assert issues[0].severity == IssueSeverity.ERROR
+        assert "not configured" in issues[0].message
 
     def test_configured_no_issues(self) -> None:
         ch = _make_channel()
