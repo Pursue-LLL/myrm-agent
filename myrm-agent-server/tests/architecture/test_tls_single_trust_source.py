@@ -5,7 +5,9 @@
 
 [OUTPUT]
 - Fails when a server module builds a TLS context by hand: such a context ignores ``MYRM_TLS_STRICT`` and the operating
-  system trust store, and no test of the policy would notice it.
+  system trust store, and no test of the policy would notice it. It matches calls by name, so a builder renamed on import
+  (``from ssl import SSLContext as Ctx``), bound to a variable first or reached through ``getattr`` is not seen, and a
+  client that turns verification off (``verify=False``) is not a context build.
 
 [POS]
 tests/architecture/test_tls_single_trust_source.py - server half of the guard for
@@ -18,6 +20,8 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterator
 from pathlib import Path
+
+import pytest
 
 _APP = Path(__file__).resolve().parents[2] / "app"
 _DIRECT_BUILDERS = frozenset({"SSLContext", "_create_unverified_context"})
@@ -34,6 +38,7 @@ def direct_context_builds(source: str) -> Iterator[tuple[int, str]]:
             yield node.lineno, name
 
 
+@pytest.mark.architecture
 def test_no_server_module_builds_a_tls_context_by_hand() -> None:
     offenders = [
         f"{path.relative_to(_APP).as_posix()}:{line}: {builder}(...)"

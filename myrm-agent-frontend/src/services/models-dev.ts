@@ -226,7 +226,7 @@ export async function fetchModelsDevData(forceRefresh = false): Promise<ModelsDe
     return cachedData;
   }
 
-  // silent：失败由调用方在界面中展示，不弹全局错误提示
+  // silent：不弹全局错误提示，失败如何呈现由各调用方决定
   const data = await apiRequest<ModelsDevApiResponse>('/integrations/models-dev', { silent: true, timeout: 15_000 });
   // apiRequest 对非 JSON 响应返回空对象，空目录不能当作有效数据缓存
   if (Object.keys(data).length === 0) {

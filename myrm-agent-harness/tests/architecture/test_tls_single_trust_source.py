@@ -5,7 +5,9 @@
 
 [OUTPUT]
 - Fails when a module other than ``infra/tls_compat.py`` builds a TLS context by hand: such a context ignores
-  ``MYRM_TLS_STRICT`` and the operating system trust store, and no test of the policy would notice it.
+  ``MYRM_TLS_STRICT`` and the operating system trust store, and no test of the policy would notice it. It matches calls by name, so a builder renamed on import
+  (``from ssl import SSLContext as Ctx``), bound to a variable first or reached through ``getattr`` is not seen, and a
+  client that turns verification off (``verify=False``) is not a context build.
 
 [POS]
 tests/architecture/test_tls_single_trust_source.py - guard for ``infra/tls_compat.py``: ``ssl.create_default_context``

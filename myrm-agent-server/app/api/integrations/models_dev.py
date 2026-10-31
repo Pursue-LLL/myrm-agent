@@ -59,20 +59,32 @@ async def _fetch_catalog_body() -> bytes:
 
 
 class _CatalogCache:
-    """The enveloped catalog, downloaded at most once per TTL however many requests arrive together."""
+    """The enveloped catalog, downloaded at most once per TTL however many requests arrive together.
+
+    A request that arrives while a download is in flight awaits that same download, so an upstream that is down costs
+    one attempt rather than one per waiting request. A failed download is not cached: the next request starts a new one.
+    """
 
     def __init__(self) -> None:
         self._body: bytes | None = None
         self._expires_at = 0.0
-        self._lock = asyncio.Lock()
+        self._inflight: asyncio.Task[bytes] | None = None
 
     async def get(self) -> bytes:
-        async with self._lock:
-            # A request that waited on the lock finds the download the first one made.
-            if self._body is None or time.monotonic() >= self._expires_at:
-                self._body = await _fetch_catalog_body()
-                self._expires_at = time.monotonic() + _CACHE_TTL_S
+        if self._body is not None and time.monotonic() < self._expires_at:
             return self._body
+        if self._inflight is None:
+            self._inflight = asyncio.create_task(self._refresh())
+        return await self._inflight
+
+    async def _refresh(self) -> bytes:
+        try:
+            body = await _fetch_catalog_body()
+            self._body = body
+            self._expires_at = time.monotonic() + _CACHE_TTL_S
+            return body
+        finally:
+            self._inflight = None
 
 
 _catalog_cache = _CatalogCache()

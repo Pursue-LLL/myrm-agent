@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.integrations import models_dev
+from app.core.utils.errors import StandardHTTPException, external_service_error
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -110,6 +111,23 @@ async def test_requests_that_arrive_together_share_one_download() -> None:
 
     assert downloads == 1
     assert len(set(bodies)) == 1
+
+
+async def test_requests_that_arrive_together_share_one_failed_download() -> None:
+    downloads = 0
+
+    async def failing_download() -> bytes:
+        nonlocal downloads
+        downloads += 1
+        await asyncio.sleep(0.02)
+        raise external_service_error("models.dev", "Failed to fetch models.dev data")
+
+    cache = models_dev._CatalogCache()
+    with patch.object(models_dev, "_fetch_catalog_body", failing_download):
+        outcomes = await asyncio.gather(*(cache.get() for _ in range(5)), return_exceptions=True)
+
+    assert downloads == 1
+    assert all(isinstance(outcome, StandardHTTPException) and outcome.status_code == 502 for outcome in outcomes)
 
 
 @pytest.mark.parametrize(
