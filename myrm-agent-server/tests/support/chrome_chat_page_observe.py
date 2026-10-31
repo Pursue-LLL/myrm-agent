@@ -284,6 +284,12 @@ def backend_cancel_lines(probe: SkillChat) -> str:
     return "\n".join(line for line in log.splitlines() if "ancel" in line)
 
 
+def backend_attach_lines(probe: SkillChat) -> str:
+    """What the backend logged about pages attaching to the chat's run since the probe began: whether a page reached the run."""
+    log = backend_log_since(get_e2e_api_url(), probe.log_offset, limit=100_000)
+    return "\n".join(line for line in log.splitlines() if "ttach" in line)
+
+
 def last_completion_status(probe: SkillChat) -> object:
     """How the newest stored assistant turn ended (``complete``, ``cancelled``, ``error``)."""
     return _newest_assistant_turn(probe).get("completionStatus")

@@ -84,6 +84,7 @@ let chatStoreState: Record<string, unknown> = {
   sessionStatuses: {} as Record<string, string>,
   messages: [],
   loading: false,
+  abortController: null as AbortController | null,
   stopMessage: vi.fn(),
   isMessagesLoaded: true,
   sendMessage: mockSendMessage,
@@ -220,7 +221,7 @@ describe('MobileStatusBoard stop button', () => {
     vi.clearAllMocks();
     localStorage.clear();
     sessionStatuses({});
-    chatStoreState = { ...chatStoreState, loading: false, stopMessage };
+    chatStoreState = { ...chatStoreState, loading: false, abortController: null, stopMessage };
   });
 
   function sessionStatuses(statuses: Record<string, string>): void {
@@ -236,12 +237,21 @@ describe('MobileStatusBoard stop button', () => {
   });
 
   it('offers stop for a turn this client started', async () => {
-    chatStoreState = { ...chatStoreState, loading: true };
+    chatStoreState = { ...chatStoreState, loading: true, abortController: new AbortController() };
     await act(async () => {
       render(<MobileStatusBoard chatId="stop-chat-1" />);
     });
 
     expect(stopButton()).not.toBeNull();
+  });
+
+  it('offers no stop while the history of the chat loads: no turn is attached yet, so Stop would reach nothing', async () => {
+    chatStoreState = { ...chatStoreState, loading: true, abortController: null };
+    await act(async () => {
+      render(<MobileStatusBoard chatId="stop-chat-1" />);
+    });
+
+    expect(stopButton()).toBeNull();
   });
 
   it('offers stop for a turn the server started itself, such as a wake after background work', async () => {

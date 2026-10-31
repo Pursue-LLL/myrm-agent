@@ -3,6 +3,7 @@
  * - @/hooks/message-input/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
  * - @/hooks/message-input/messageInputKeyRouter::{resolveDualChannelAction, resolveBusySubmitMode, resolveBusyPlaceholderKey} (POS: 聊天输入框双通道键盘交互路由核心)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
+ * - @/hooks/chat/useTurnStoppable::useTurnStoppable (POS: 当前聊天是否有 Stop 能够到达的回合)
  * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
  * [OUTPUT]
@@ -80,6 +81,7 @@ import SessionAccessRootsBar from './SessionAccessRootsBar';
 import ProjectBoundaryBadge from './ProjectBoundaryBadge';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { selectChatGenerating } from '@/store/chat/serverTurn';
+import { useTurnStoppable } from '@/hooks/chat/useTurnStoppable';
 import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -122,6 +124,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const messages = useChatStore((s) => s.messages);
   const chatId = useChatStore((s) => s.chatId);
   const serverTurnActive = useChatStore(selectChatGenerating);
+  const turnStoppable = useTurnStoppable();
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
   const projects = useProjectStore((s) => s.projects);
   const projectsLoaded = useProjectStore((s) => s.loaded);
@@ -218,7 +221,9 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
     <button
       type="button"
       onClick={stopMessage}
-      className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
+      // While the chat's history loads nothing is attached yet: Stop stays in place but cannot be pressed.
+      disabled={!turnStoppable}
+      className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-500 dark:disabled:hover:bg-white transition duration-100 rounded-full p-2"
       aria-label={chatT('input.stop')}
     >
       <Square size={17} />

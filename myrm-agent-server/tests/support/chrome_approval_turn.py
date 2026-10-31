@@ -11,6 +11,7 @@
 - run_one_turn(): prepare the skill chat (and, when asked, the probe backend's approval timeout), send the request, hand the open page to a watcher; returns the chat's probe for what the scenario does next
 - SHORT_ANSWER: the answer asked for when the reply's content does not matter, only that it exists
 - LONG_LIST_ANSWER: the answer asked for when the run must keep writing well past the few seconds a reload takes
+- STOP_LIST_ANSWER: the answer asked for when the run must still be writing after a page opened the chat and pressed Stop
 
 [POS]
 Shared by the approval-card Chrome E2E files (tests/e2e/test_approval_resume_reply_chrome_e2e.py, test_approval_timer_resume_chrome_e2e.py).
@@ -29,12 +30,20 @@ from tests.support.hitl_live_e2e import set_private_approval_timeout
 
 APPROVAL_PROBE_URL = "http://127.0.0.1:9/APPROVAL_RESUME_REPLY"
 SHORT_ANSWER = f"reply with exactly: {DONE_TOKEN}"
+
+
+def _list_answer(lines: int) -> str:
+    return (
+        f"write the integers from 1 to {lines} as a bulleted list, one per bullet, "
+        f"and after a blank line end with a last line of exactly: {DONE_TOKEN}"
+    )
+
+
 # A long answer keeps the run working well past the few seconds a reload takes, whatever the model's speed.
-_LONG_ANSWER_LINES = 600
-LONG_LIST_ANSWER = (
-    f"write the integers from 1 to {_LONG_ANSWER_LINES} as a bulleted list, one per bullet, "
-    f"and after a blank line end with a last line of exactly: {DONE_TOKEN}"
-)
+LONG_LIST_ANSWER = _list_answer(600)
+# A run that must outlast what a page needs to open the chat and press Stop: the model writes 600 bullets in about the time a
+# freshly loaded page takes to ask the server about the chat.
+STOP_LIST_ANSWER = _list_answer(1500)
 
 
 def bash_request(answer: str) -> str:

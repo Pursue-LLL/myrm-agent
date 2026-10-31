@@ -29,6 +29,7 @@ Formal run::
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -37,14 +38,17 @@ from tests.support.chrome_approval_turn import (
     APPROVAL_PROBE_URL,
     LONG_LIST_ANSWER,
     SHORT_ANSWER,
+    STOP_LIST_ANSWER,
     bash_request,
     run_one_turn,
 )
 from tests.support.chrome_chat_page_observe import (
     assert_page_settled,
     assert_run_still_working,
+    backend_attach_lines,
     backend_cancel_lines,
     last_completion_status,
+    open_chat_from_sidebar,
     open_in_fresh_page,
     reported_history_mode,
     stored_assistant_turns,
@@ -57,7 +61,7 @@ from tests.support.chrome_chat_page_observe import (
     wait_until_the_turn_ends,
     wait_until_the_turn_runs,
 )
-from tests.support.chrome_chat_page_stop import press_stop
+from tests.support.chrome_chat_page_stop import attach_console_lines, press_stop
 from tests.support.chrome_mcp_e2e import ChromeMcpClient, McpPage, get_e2e_api_url, get_e2e_ui_url
 from tests.support.chrome_skill_hooks_approval import wait_for_approval_card
 from tests.support.chrome_skill_hooks_composer import drive_chat_turn
@@ -246,13 +250,28 @@ def test_stop_pressed_on_a_page_attached_to_the_timer_run_ends_that_run(
     def stop_the_run_the_page_attached_to(client: ChromeMcpClient, page: McpPage, probe: SkillChat, chat_url: str) -> None:
         wait_until_parked_at_the_card(probe)
         wait_for_approval_card(client, page)
-        _leave_the_chat_for_a_static_document(client, page)
+        # The user waits on the app's start page, which holds no card for the page to answer; the page is loaded long before the
+        # timer's run starts, so opening the chat from the sidebar attaches within moments, however slow a cold page load is.
+        open_in_fresh_page(client, page, f"{get_e2e_ui_url().rstrip('/')}/")
         wait_until_the_turn_runs(probe)
-        open_in_fresh_page(client, page, chat_url)
+        run_seen_at = time.monotonic()
+        open_chat_from_sidebar(client, page, probe.chat_id)
         assert_run_still_working(probe)
+        turn_when_the_page_came_up = turn_state(probe)
         # The page offers Stop because it attached to the run: the run was started by the server's timer, not by this page.
+        try:
+            page_reaction = press_stop(client, page)
+        except AssertionError as error:
+            raise AssertionError(
+                f"{error}; server turn when the page came up: {turn_when_the_page_came_up}; server turn now: {turn_state(probe)}; "
+                f"stored turns: {stored_assistant_turns(probe)}; backend attach lines: {backend_attach_lines(probe)!r}; "
+                f"page console about attaching:\n{attach_console_lines(client, page)}"
+            ) from error
+        print(
+            f"E2E_STOP_TIMELINE: seconds from the timer run's start to the pressed Stop: {time.monotonic() - run_seen_at:.1f}",
+            flush=True,
+        )
         running_when_pressed = turn_state(probe).get("running")
-        page_reaction = press_stop(client, page)
         wait_until_the_turn_ends(probe)
         wait_until_not_streaming(client, page)
         outcome = (
@@ -268,7 +287,7 @@ def test_stop_pressed_on_a_page_attached_to_the_timer_run_ends_that_run(
         tmp_path,
         e2e_resource_ledger,
         "timerstop",
-        bash_request(LONG_LIST_ANSWER),
+        bash_request(STOP_LIST_ANSWER),
         stop_the_run_the_page_attached_to,
         approval_timeout_sec=_TIMER_SEC,
         approval_timeout_behavior="allow",

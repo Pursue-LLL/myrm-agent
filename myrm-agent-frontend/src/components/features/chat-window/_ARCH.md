@@ -82,7 +82,7 @@
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
-| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`） | ✅ |
+| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`）；会话历史载入期间 `loading` 为真但没有回合，停止按钮保留位置并禁用，持有取消控制器或服务端报告在生成才可按（`useTurnStoppable`） | ✅ |
 | `WechatArticleComposerHint.tsx` | 组件 | 输入区 banner：检测 `mp.weixin.qq.com/s/` 链接 → 引导挂载 `wechat-article-formatter` skill | ✅ |
 | `wechatComposerHintUtils.ts` | 辅助 | 微信文章 URL 检测、formatter skill 挂载态判定、Agent 技能设置深链 | ✅ |
 | `speechKeyterms.ts` | 辅助 | STT 领域热词提取纯函数（近 6 轮消息词频 Top15）；主 composer 与移动端指挥条共用，保证两端口述识别词表一致 | ✅ |
