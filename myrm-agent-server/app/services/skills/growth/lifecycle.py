@@ -104,8 +104,8 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
 
     # The reviewer names a skill by the name the agent runtime lists it under; the pipeline from here on keeps,
     # previews and applies a patch by the directory of the skill it patches. A new skill draft keeps its name unless
-    # the name opens that directory: approving it writes there either way, but the skill is enabled and bound by the
-    # page id of the directory's own spelling.
+    # the name, as one entry of the skills directory, opens that directory: approving it then writes into that
+    # directory under either spelling, but the skill is enabled and bound by the page id of the directory's own spelling.
     skill_dir = await skills_service.find_local_skill_dir(skill_name)
     existing_skill = await skills_service.get_local_skill(skill_dir) if skill_dir is not None else None
     if skill_dir is not None and (result_type == "skill_patch" or opens_directory(skill_dir, skill_name)):

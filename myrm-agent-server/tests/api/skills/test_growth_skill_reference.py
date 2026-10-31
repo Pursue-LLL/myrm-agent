@@ -10,8 +10,9 @@
   or the name from its SKILL.md, whatever that name's spelling, that the lock and the approval act on that skill,
   that two skills a name cannot tell apart are not guessed between, that on a volume that does not tell spellings apart
   a name spelled unlike the directory's still finds the skill and an approved draft under it acts on that skill, that
-  on any volume a new skill is recorded under the directory's name exactly when its name opens that directory, and
-  that a name no directory can have is recorded and not dropped.
+  on any volume a new skill is recorded under the directory's name exactly when its name, as one entry of the skills
+  directory, opens that directory (a path to it does not), and that a name no directory can have is recorded and not
+  dropped.
 [POS]
 The reviewer is shown the names the agent runtime lists skills under (``normalize_skill_name``), while the draft
 pipeline keeps, locks and patches skills by directory. The names are built by the product's own adapter and the skills
@@ -261,25 +262,50 @@ async def test_a_new_skill_is_recorded_under_the_directory_name_exactly_when_its
     assert ((directory / "SKILL.md").read_bytes() != before) is opens
 
 
+@pytest.mark.asyncio
+async def test_a_new_skill_named_by_a_path_to_an_existing_one_is_not_written_over_it(mock_local_skills_dir: Path) -> None:
+    path_to_it = f"../{mock_local_skills_dir.name}/report-builder"
+    directory = _write_skill(mock_local_skills_dir, "report-builder", name=path_to_it)
+    before = (directory / "SKILL.md").read_bytes()
+
+    detail = await _recorded(_review("skill_draft", path_to_it))
+
+    assert detail.status == SkillGrowthCaseStatus.PENDING_REVIEW
+    assert detail.skill_name == path_to_it
+    approved = await approve_skill_draft(detail.id.removeprefix("draft:"), ApproveDraftRequest())
+    assert approved["materialized"] is True
+    assert approved["skill_id"] != compute_local_skill_id(directory)
+    assert (directory / "SKILL.md").read_bytes() == before
+
+
 @pytest.mark.parametrize(
-    "name",
-    ["report-builder", "REPORT-BUILDER", "another-directory", "nowhere", "a\0b"],
-    ids=["itself", "spelled-in-capitals", "another-directory", "no-entry", "nul"],
+    "case",
+    [
+        "itself",
+        "spelled-in-capitals",
+        "another-directory",
+        "no-entry",
+        "nul",
+        "path-back-through-the-skills-directory",
+        "absolute-path",
+    ],
 )
-def test_a_name_opens_a_skill_directory_only_where_the_volume_resolves_it_to_that_directory(
-    mock_local_skills_dir: Path, name: str
+def test_a_name_opens_a_skill_directory_only_as_an_entry_the_volume_resolves_to_that_directory(
+    mock_local_skills_dir: Path, case: str
 ) -> None:
     directory = _write_skill(mock_local_skills_dir, "report-builder")
     (mock_local_skills_dir / "another-directory").mkdir()
-    opens = {
-        "report-builder": True,
-        "REPORT-BUILDER": (mock_local_skills_dir / "REPORT-BUILDER").exists(),
-        "another-directory": False,
-        "nowhere": False,
-        "a\0b": False,
-    }
+    name, opens = {
+        "itself": ("report-builder", True),
+        "spelled-in-capitals": ("REPORT-BUILDER", (mock_local_skills_dir / "REPORT-BUILDER").exists()),
+        "another-directory": ("another-directory", False),
+        "no-entry": ("nowhere", False),
+        "nul": ("a\0b", False),
+        "path-back-through-the-skills-directory": (f"../{mock_local_skills_dir.name}/report-builder", False),
+        "absolute-path": (str(directory), False),
+    }[case]
 
-    assert opens_directory(directory, name) is opens[name]
+    assert opens_directory(directory, name) is opens
 
 
 @pytest.mark.asyncio

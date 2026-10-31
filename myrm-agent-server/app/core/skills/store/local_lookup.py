@@ -30,6 +30,11 @@ from ..utils import normalize_skill_name
 logger = logging.getLogger(__name__)
 
 
+def _is_entry_name(name: str) -> bool:
+    """Whether ``name`` can be one entry of a directory: not empty, not ``..``, and a single path component."""
+    return bool(name) and name != ".." and Path(name).name == name
+
+
 def local_skill_dir_named(skills_root: Path, dir_name: str) -> Path | None:
     """The directory below ``skills_root`` that holds a SKILL.md and is called ``dir_name``, ``None`` when there is none.
 
@@ -40,7 +45,7 @@ def local_skill_dir_named(skills_root: Path, dir_name: str) -> Path | None:
     on a case-insensitive volume another spelling opens it too, but a skill's page id, and so its lock, belong to the
     listed one.
     """
-    if not dir_name or dir_name == ".." or Path(dir_name).name != dir_name:
+    if not _is_entry_name(dir_name):
         return None
     skill_dir = skills_root / dir_name
     try:
@@ -69,11 +74,14 @@ def _as_listed(skills_root: Path, skill_dir: Path) -> Path:
 
 
 def opens_directory(skill_dir: Path, name: str) -> bool:
-    """Whether the volume resolves ``name``, taken below the skills directory, to ``skill_dir``.
+    """Whether the volume resolves ``name``, as one entry of the skills directory, to ``skill_dir``.
 
     That holds for the directory's own name, for a link to it, and for another spelling of its name on a volume that
-    does not tell spellings apart. A name no entry can be called (it holds a NUL) and one no entry is called open nothing.
+    does not tell spellings apart. A name that is a path rather than one entry, one no entry is called and one no entry
+    can be called (it holds a NUL) open nothing.
     """
+    if not _is_entry_name(name):
+        return False
     try:
         return os.path.samefile(skill_dir.parent / name, skill_dir)
     except (OSError, ValueError):
