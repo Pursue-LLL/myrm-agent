@@ -5,9 +5,11 @@
  * - @/store/useChatStore::useChatStore (POS: 聊天 Zustand store 的业务分层)
  * - @/store/useProviderStore::useProviderStore (POS: Provider 配置 store)
  * - @/store/chat/messageRequest::getModelSelection (POS: 发送前模型选择解析)
+ * - @/components/dev/e2eTurnTrace::createTurnTrace (POS: 每次发送的 SSE 事件与结束方式记录)
  *
  * [OUTPUT]
- * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E
+ * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E; submitAndObserveTurn results
+ *   carry `turnTrace` (SSE event types/times and how the send promise ended) next to `apiPoll`
  * - pinLiteModelForE2e: bind agent chat to defaultModelConfig.liteModel (API E2E parity)
  * - pinBasicModelForE2e: bind desktop E2E to defaultModelConfig.baseModel (mimo SSOT)
  * - releaseAgentModelPinForE2e: clear the agent's pinned model so the turn is smart-routed like a default user's
@@ -47,6 +49,7 @@ import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 import { isModelAvailable } from '@/lib/model-binding';
 import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '@/components/dev/e2eChatBridgeSendPolicy';
+import { createTurnTrace, type TurnTrace } from '@/components/dev/e2eTurnTrace';
 import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import { useRewindStore } from '@/store/chat/useRewindStore';
@@ -333,8 +336,10 @@ function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
   return bridge;
 }
 
-const SEND_TURN_REV = 'R72-H';
+const SEND_TURN_REV = 'R72-I';
 const SEND_TURN_NO_OP_MS = 3_000;
+/** Trace of the latest send: the SSE recorder feeds it, the send's own results report it. */
+let activeTurnTrace: TurnTrace | null = null;
 /**
  * How long a new chat may take to commit its first assistant output, which persists the user
  * row. Must equal SEND_TURN_OBSERVE_SEC in scripts/dev/lib/dev_gate/contract.py (a test pins it).
@@ -624,12 +629,15 @@ async function submitAndObserveTurn(
       return poll.users;
     };
     const kickoffAt = Date.now();
+    const trace = createTurnTrace(Date.now);
+    activeTurnTrace = trace;
     const sendPromise = useChatStore
       .getState()
       .sendMessage(trimmed, undefined, undefined, undefined, undefined, agentConfigOverride);
     await Promise.resolve();
     void sendPromise
-      .then(() => {
+      .then((dispatched) => {
+        trace.recordSettle(dispatched ? 'resolved' : 'resolved-undispatched');
         const chatId = useChatStore.getState().chatId?.trim() || chatIdBeforeSend;
         const progress = resolveE2eTurnProgress(chatId, baselineUsers);
         if (!progress.uiProgress) {
@@ -638,6 +646,7 @@ async function submitAndObserveTurn(
       })
       .catch((error) => {
         submitError = error instanceof Error ? error.message : String(error);
+        trace.recordSettle(`rejected:${submitError}`);
       });
     const observeDeadline = Date.now() + SEND_TURN_OBSERVE_MS;
     while (Date.now() < observeDeadline) {
@@ -647,7 +656,12 @@ async function submitAndObserveTurn(
           err: submitError,
           mode: 'sendTurnSubmitError',
           chatId: chatIdBeforeSend,
-          debug: { phase: 'SUBMIT', sendGeneration: startGen, ...buildSendTurnDiagnostic(chatIdBeforeSend) },
+          debug: {
+            phase: 'SUBMIT',
+            sendGeneration: startGen,
+            turnTrace: trace.snapshot(),
+            ...buildSendTurnDiagnostic(chatIdBeforeSend),
+          },
         };
       }
       if (readE2eSendGeneration() !== startGen) {
@@ -680,6 +694,7 @@ async function submitAndObserveTurn(
             sendGeneration: startGen,
             apiUsers: apiUsersProbe,
             apiPoll: { ...apiPoll },
+            turnTrace: trace.snapshot(),
             userCount,
             streaming,
             baselineUsers,
@@ -702,6 +717,7 @@ async function submitAndObserveTurn(
               sendGeneration: startGen,
               apiUsers: apiUsersProbe,
               apiPoll: { ...apiPoll },
+              turnTrace: trace.snapshot(),
               userCount,
               streaming,
               baselineUsers,
@@ -735,6 +751,7 @@ async function submitAndObserveTurn(
             sendGeneration: startGen,
             apiUsers,
             apiPoll: { ...apiPoll },
+            turnTrace: trace.snapshot(),
             userCount,
             streaming,
             baselineUsers,
@@ -764,6 +781,7 @@ async function submitAndObserveTurn(
         sendGeneration: startGen,
         apiUsers: finalApiUsers,
         apiPoll: { ...apiPoll },
+        turnTrace: trace.snapshot(),
         userCount: finalProgress.userCount,
         streaming: finalProgress.streaming,
         baselineUsers,
@@ -797,6 +815,7 @@ export default function E2EChatBridge() {
       messageId?: string | null,
       data?: unknown,
     ) => {
+      activeTurnTrace?.recordEvent(type);
       if (sseCaptureLocked) {
         const normalizedId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
         if (type !== 'capability_gap' || !normalizedId) {
