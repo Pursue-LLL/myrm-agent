@@ -292,8 +292,8 @@ async def build_turn_extra_context(
             get_turn_prewarm_coordinator,
         )
 
-        # The pack depends on this turn's question, so it is retrieved per turn instead of living in the prewarm
-        # cache; the vault scan runs beside the join, which already waits for the memory brief.
+        # The prewarm cache is keyed by the agent's fingerprint, which does not contain the question, so the pack is
+        # retrieved here on every non-resume turn, in parallel with the join that already waits for the memory brief.
         join_result, knowledge_pack = await asyncio.gather(
             get_turn_prewarm_coordinator().join_for_turn(params, action_mode=request.action_mode or "agent"),
             resolve_turn_knowledge_pack(params),
