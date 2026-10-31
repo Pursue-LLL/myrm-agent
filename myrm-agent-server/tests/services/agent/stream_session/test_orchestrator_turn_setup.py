@@ -48,6 +48,11 @@ def _params(**overrides: object) -> GeneralAgentParams:
     return cast("GeneralAgentParams", SimpleNamespace(**fields))
 
 
+def _joined(**overrides: object) -> SimpleNamespace:
+    fields = dict(preview=None, snapshot=None, brief_status={}, prewarm_hit=False, prewarm_ms=None, still_warming=False)
+    return SimpleNamespace(**{**fields, **overrides})
+
+
 @pytest.fixture
 def converted_params(monkeypatch: pytest.MonkeyPatch) -> GeneralAgentParams:
     params = cast("GeneralAgentParams", SimpleNamespace(query="hello"))
@@ -331,14 +336,7 @@ class TestBuildTurnExtraContext:
         from app.services.memory import ephemeral_delta_hydration
 
         join = AsyncMock(
-            return_value=SimpleNamespace(
-                preview={"items": 1},
-                snapshot=None,
-                brief_status={"status": "ready"},
-                prewarm_hit=True,
-                prewarm_ms=12,
-                still_warming=False,
-            )
+            return_value=_joined(preview={"items": 1}, brief_status={"status": "ready"}, prewarm_hit=True, prewarm_ms=12)
         )
         hydrate = MagicMock()
         monkeypatch.setattr(coordinator, "get_turn_prewarm_coordinator", lambda: SimpleNamespace(join_for_turn=join))
@@ -373,9 +371,7 @@ class TestBuildTurnExtraContext:
         async def join(*_: object, **__: object) -> SimpleNamespace:
             # The join can only return once the scan has begun: awaiting them one after the other would hang here.
             await asyncio.wait_for(scan_started.wait(), timeout=1.0)
-            return SimpleNamespace(
-                preview=None, snapshot=None, brief_status={}, prewarm_hit=False, prewarm_ms=None, still_warming=False
-            )
+            return _joined()
 
         async def resolve(_: object) -> dict[str, object]:
             scan_started.set()

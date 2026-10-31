@@ -1,4 +1,4 @@
-"""Appends per-turn blocks (ephemeral session deltas, knowledge pack) to the tail of the final HumanMessage.
+"""Appends per-turn blocks (ephemeral session deltas, knowledge pack, base context) to the tail of the final HumanMessage.
 
 [INPUT]
 - toolkits.memory.ephemeral_delta.models::EphemeralDeltaItem (POS: Types and models for ephemeral delta.)

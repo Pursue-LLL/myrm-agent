@@ -2,8 +2,9 @@
 
 The server retrieves the snippets for each turn's question and hands them over through the run
 context. This middleware appends them, wrapped as untrusted data, to the tail of the final
-HumanMessage. The SystemMessage and the history before that message are never touched, so the
-provider prompt-cache prefix survives every turn.
+HumanMessage. The SystemMessage and the history before that message are never touched. The block is
+not persisted, so the next turn recomputes the previous turn's reply and tool results, like the other
+Human-tail blocks (session deltas, base context).
 
 [INPUT]
 - toolkits.memory.config::RecallMode (POS: Memory configuration — functional switches and retrieval params only.)

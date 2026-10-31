@@ -207,11 +207,11 @@ class _SpyModel(GenericFakeChatModel):
 
     seen: list[list[BaseMessage]] = Field(default_factory=list)
 
-    def _generate(self, messages, stop=None, run_manager=None, **kwargs):  # type: ignore[no-untyped-def]
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         self.seen.append(list(messages))
         return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
-    def bind_tools(self, tools, **kwargs):  # type: ignore[no-untyped-def]
+    def bind_tools(self, tools, **kwargs):
         return self
 
 
@@ -238,9 +238,7 @@ async def _ask(agent: object, text: str, context: dict[str, object], *, first: b
     messages: list[BaseMessage] = [HumanMessage(content=text)]
     if first:
         messages.insert(0, SystemMessage(content="base system"))
-    await agent.ainvoke(  # type: ignore[attr-defined]
-        {"messages": messages}, {"configurable": {"thread_id": "t-1"}}, context=context
-    )
+    await agent.ainvoke({"messages": messages}, {"configurable": {"thread_id": "t-1"}}, context=context)
 
 
 def _agent(model: _SpyModel, *, tools: list[object] | None = None, middleware: list[object] | None = None) -> object:

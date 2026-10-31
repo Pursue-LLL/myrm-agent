@@ -18,7 +18,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](../MIDDLEWARE_SYSTEM.md)
 | `memory_context_budget.py` | Internal | Prompt budget partitioning and guidance generator helpers (split stable vs untrusted, cold-start prompt builder). | ✅ |
 | `proactive_pack_middleware.py` | Core | Per-turn knowledge pack: renders the snippets the server passes in the run context (`PROACTIVE_PACK_CONTEXT_KEY`) as one untrusted-data block, memoized per turn so every model call of the tool loop sends the same bytes, and appends it to the tail of the final HumanMessage; follows the memory switches (no manager or `RecallMode.TOOLS` skips); nothing is persisted to the thread. | ✅ |
 | `ephemeral_delta_middleware.py` | Core | Human-tail injection via `toolkits.memory.ephemeral_delta` SSOT store; runs after `memory_context_middleware`. | ✅ |
-| `two_layer_context_middleware.py` | Core | Layer-1 `<base_context>` tail via `two_layer_dialectic/injector.py`; runs after ephemeral; live dialectic off (`MYRM_TWO_LAYER_CONTEXT_LIVE=0` disables). | ✅ |
+| `two_layer_context_middleware.py` | Core | Layer-1 `<base_context>` tail via `two_layer_dialectic/injector.py`, appended through `append_block_to_last_human` (multimodal parts stay intact; a stale block on a text question is replaced, not stacked); runs after ephemeral; live dialectic off (`MYRM_TWO_LAYER_CONTEXT_LIVE=0` disables). | ✅ |
 
 ## Key Dependencies
 

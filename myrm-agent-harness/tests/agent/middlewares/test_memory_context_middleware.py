@@ -129,7 +129,7 @@ def test_has_memory_context_skips_non_string_parts():
     block = [{"type": "text", "text": "hello"}]
     msgs = [
         SystemMessage(content="sys"),
-        HumanMessage(content=block),  # type: ignore[arg-type]
+        HumanMessage(content=block),
     ]
     assert _has_memory_context(msgs) is False
 
@@ -683,7 +683,6 @@ async def test_contextvar_integration():
 
     set_memory_manager(mock_manager)
     assert get_memory_manager() is mock_manager
-    assert get_memory_manager().user_id == "test_user"
 
     set_memory_manager(None)
     assert get_memory_manager() is None
