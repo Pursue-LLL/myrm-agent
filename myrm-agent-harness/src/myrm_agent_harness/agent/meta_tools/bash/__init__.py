@@ -5,6 +5,7 @@ See _ARCH.md for file index and module structure.
 """
 
 from ._executor.executor import BashExecutionError, BashExecutor
+from ._tool.formatting import read_exit_code
 from .bash_code_execute_tool import create_bash_code_execute_tool
 from .bash_process_tools import BASH_PROCESS_TOOL_NAME, create_bash_process_tool
 
@@ -14,4 +15,5 @@ __all__ = [
     "BashExecutor",
     "create_bash_code_execute_tool",
     "create_bash_process_tool",
+    "read_exit_code",
 ]

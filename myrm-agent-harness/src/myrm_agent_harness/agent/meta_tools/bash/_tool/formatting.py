@@ -7,17 +7,20 @@
 - utils.context_format::wrap_with_tool_output_tag (POS: Tool output tag wrapping)
 
 [OUTPUT]
-- truncate_bash_output, format_result
+- truncate_bash_output, format_result, read_exit_code
 
 [POS]
 Formats BashExecutor results for LLM consumption with compression and redaction.
 Both stdout and stderr run through truncate_bash_output; large streams are
 already evicted upstream (see _compression/output_eviction) and arrive as compact previews
 with a read-back footer, so the 8k hard-truncation only ever touches small streams.
+read_exit_code is the reading half of what format_result writes: the exit code a finished result reports.
 """
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Mapping
 
 from myrm_agent_harness.agent.meta_tools.bash._compression.constants import (
@@ -125,3 +128,81 @@ def format_result(result: Mapping[str, object], command: str = "") -> tuple[str,
     meta = stdout_meta if stdout_trunc else (stderr_meta if stderr_trunc else {})
 
     return wrap_with_tool_output_tag(formatted), is_truncated, meta
+
+
+# The block ``wrap_with_tool_output_tag`` puts around a finished command's output. Its id is random per result, so
+# the output cannot close the block it sits in.
+_TOOL_OUTPUT_OPEN = re.compile(r'<<<TOOL_OUTPUT id="([^"]+)">>>\n')
+# The line ``format_result`` appends when a command exits non-zero, with or without the meaning after the dash.
+_EXIT_TRAILER = re.compile(r"\[exit_code: (\S+?)(?: — .*)?\]")
+_AUTO_HINT_PREFIX = "[Auto-Hint] "
+_NO_OUTPUT = "(no output)"
+_FINISHED_IN_YIELD_WINDOW = "Command finished during auto-yield window"
+
+
+def _as_int(text: str) -> int | None:
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _result_content(tool_result: str) -> str | None:
+    """The text of a bash tool result; None for a payload whose command has not ended or that is no payload."""
+    try:
+        payload = json.loads(tool_result)
+    except ValueError:
+        return tool_result
+    if not isinstance(payload, dict):
+        return None
+    content = payload.get("content")
+    metadata = payload.get("metadata")
+    if not isinstance(content, str) or (isinstance(metadata, dict) and metadata.get("background") is True):
+        return None
+    return content
+
+
+def _output_block_exit_code(block: str) -> int | None:
+    """The exit code of a finished command's output block: 0 unless the tool's own trailer ends it.
+
+    The tool appends its trailer after all output and, at most, an auto-hint after the trailer. A line spelled like a
+    trailer that more output follows is the program's text.
+    """
+    lines = block.splitlines()
+    for index in range(len(lines) - 1, -1, -1):
+        match = _EXIT_TRAILER.fullmatch(lines[index])
+        if match is None:
+            continue
+        after = lines[index + 1 :]
+        if after and not after[0].startswith(_AUTO_HINT_PREFIX):
+            return 0
+        return _as_int(match.group(1))
+    return 0
+
+
+def read_exit_code(tool_result: str) -> int | None:
+    """The exit code a bash tool result reports, read back from what ``format_result`` wrote; None when it says none.
+
+    ``tool_result`` is the tool's ``{"content", "metadata"}`` payload as JSON, or just its content. A finished
+    command's output sits in a ``TOOL_OUTPUT`` block that ends with ``[exit_code: N]`` unless the command exited 0,
+    so a block without that trailer, like the ``(no output)`` result, reports 0. A command that has not ended (a
+    background start, a run still going after the yield window), an error text and any text that is not a bash
+    result report None. The metadata is only used to see that a command is still running, never for the code, since
+    what a program can influence is not an exit code.
+
+    A program that exits 0 and ends its output with a line spelled like the trailer reads as that code: the text
+    carries no other mark of which line the tool wrote.
+    """
+    content = _result_content(tool_result)
+    if content is None:
+        return None
+    opened = _TOOL_OUTPUT_OPEN.search(content)
+    if opened is not None:
+        end = content.find(f'\n<<<END_TOOL_OUTPUT id="{opened.group(1)}">>>', opened.end())
+        return None if end == -1 else _output_block_exit_code(content[opened.end() : end])
+    if content.startswith(_NO_OUTPUT):
+        return 0
+    if content.startswith(_FINISHED_IN_YIELD_WINDOW):
+        match = _EXIT_TRAILER.fullmatch(content.rstrip().rsplit("\n", 1)[-1])
+        return _as_int(match.group(1)) if match else None
+    return None

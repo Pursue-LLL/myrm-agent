@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-31-161 · 完成验证门读 bash 退出码时取输出里最后一个 `[exit_code: N]` 字样：被验证的程序在输出里引用该字样、自己以 0 退出时，通过的验证被判为失败；读取收成 `read_exit_code`，只认工具自己追加的那一行
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness：`src/myrm_agent_harness/agent/meta_tools/bash/_tool/formatting.py` 新增 `read_exit_code`，放在写入端 `format_result` 旁，由 `bash/__init__.py` 导出；`src/myrm_agent_harness/agent/middlewares/completion/completion_guard/verification.py` 的 `_exited_with_failure` 改为调用它，删除 `_EXIT_MARKER`，码值的取舍不变；`tests/agent/meta_tools/bash/test_read_exit_code.py` 原有 16 例现在能收集并通过，新增 3 例用真实的 `build_auto_yield_return` 产出验证；`bash/_ARCH.md`、`bash/_tool/_ARCH.md`、`completion_guard/_ARCH.md` 同步）。 |
+| **发现时间** | 2026-10-31（清点遗留项时：GitHub 上 Browser integration 作业每次都在收集阶段失败，查到该测试要的函数在 `src` 里从未存在，再读它的调用方时发现读取本身有问题）。 |
+| **修复时间** | 2026-10-31 |
+| **严重程度** | P3：没有用户报告，只有本机复现。后果是一次本该通过的验证被记成失败，完成门据此拦截或让模型多跑一轮。 |
+| **关联产品** | 所有跑 `pytest`、`ruff`、`tsc`、`npm test` 等验证命令的代码任务运行。验证命令的分类、退出码 1 到 127 且不是 124 才算检查失败、「命令末尾不是验证就不按退出码判」这几条规则都不变。 |
+| **症状** | ① [实测，本机，脚本在 /tmp/probe，不入库] 一次 `pytest -q`，输出里有一行 `[exit_code: 1]`（测试打印它，或输出里引用了日志），命令自己以 0 退出：明文与 JSON 外壳两种形态都被判为 FAILURE，期望是 FULL_SUCCESS。同一条命令输出里没有这行时，退出 0 得 FULL_SUCCESS、退出 1 得 FAILURE，这两种本来就对。② [实测，GitHub 公开接口] Browser integration 作业在主干上每次都失败，注释写的是 `tests.agent.meta_tools.bash.test_read_exit_code::collection failure`（run 41194065753，提交 c5d7328b7e）。原因是测试 `from ...bash import read_exit_code`，而 `src` 里没有这个符号，`git log -S` 在 `src` 里也查不到它出现过。③ 这个测试 10-28 随 b1e93de700（一次打包提交）入库；10-30 另一份任务记录（temp-docs/temp-task-context/2026-10-30_1609_...md 第 1073、1483 行）已写「损坏、回归时排除」，没有人认领。 |
+| **根因** | ① `_exited_with_failure` 用 `findall` 取全文最后一个 `[exit_code: N]`，注释的前提是「工具把它追加在所有输出之后」。这对非零退出成立；对退出 0 不成立：工具在退出 0 时不追加任何标记，最后一个标记就是程序自己的输出。② 读取与写入分在两处：写入在 `format_result`，读取是 `verification.py` 里的一条正则，格式一变就各改各的。③ 后台还在跑的负载（`Partial output:` 里可能引用该字样）也没有被区分。 |
+| **修复** | ① `read_exit_code(tool_result)` 返回整数或 None：入参是工具的 `{"content", "metadata"}` JSON 或其中的 content。前台命令的输出在 `TOOL_OUTPUT` 块里（块 id 每次随机，输出关不掉它所在的块），块末尾是 `[exit_code: N]`，其后至多一行 `[Auto-Hint]`；退出 0 没有这行，所以没有该行的块读作 0，`(no output)` 也读作 0。后面还有别的输出的同形行是程序自己的文字，不算。后台启动、让出窗口后仍在跑、错误文本、不是 bash 结果的文本读作 None；让出窗口内已结束的作业认「Command finished during auto-yield window」开头且最后一行是标记的文本。metadata 只用来识别「还在跑」，不用来取码。② 完成门改为调用它。③ 先红后绿：同一脚本在改前 2 个引用场景为 FAILURE，改后为 FULL_SUCCESS，另 2 个对照场景不变。④ 没有改的：`loop_guard/suggestions/core.py` 与 `context_management/salient_tool_filter.py` 里按字符串找退出码的两处。它们读的是多种工具各自的写法（`exit code: N`、`exit_code: N`，不限 bash），不是 `format_result` 的格式，不能换成这个函数。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 我先前说「那两处字符串匹配是它的使用方」，读完源码后不对：真正的使用方是 `verification.py` 的 `_EXIT_MARKER`，那两处读的是别的格式，已在上面写明没改。② 手写的让出窗口用例只证明读取端认自己约定的措辞，改了 `auto_yield.py` 的措辞它们不会发现；所以加了 3 例用真实 `build_auto_yield_return` 与登记表产出的负载，已退出的作业（退出码 0 与 3）读到各自的码，仍在跑且输出里引用标记的作业读作 None。③ 变异验证用临时备份文件再还原（进程内改常量会被 pytest 的模块重写告警挡住）：把读取端的前缀改掉，4 例变红；还原后与备份逐字节一致。 |
+| **回归** | [1] 先红后绿（实测）：见修复 ③。[2] `test_read_exit_code.py` 19 例过（原来整个文件收集失败）。[3] `tests/agent/middlewares/completion`、`tests/agent/meta_tools/bash`、`tests/agent/security/guards`：1696 通过、4 取消选择、9 xfail，其中含 `test_verification_exit.py` 全部既有用例（明文与 JSON 外壳两种形态、引用标记、让出窗口、预算截断后的退出码）。[4] 与 CI 相同的架构门：`boundary_check`（3108 个文件）、`check_import_resolvability`、`check_package_root_layout`、`check_fractal_docs --strict-headers`、`validate_arch_inventory` 两次均通过，`pytest tests/architecture -m "architecture and not slow"`：6942 通过、2 跳过。三种导入顺序（先导入 verification、先导入 bash 包、先导入 middlewares 包）均无循环导入。[5] 三个源文件与测试文件 ruff 检查与格式检查通过；mypy（新缓存目录）对 `formatting.py`、`bash/__init__.py`、`verification.py` 无问题。[6] 同批：160 的回归 [5] 记的 `concurrency_limiter.py` 4 条 mypy 已由 3e5a922493 修掉，该条原文保留作历史记录。 |
+| **仍然存在** | ① 退出 0 且程序输出以一行与标记同形的文字结束时，会被读成那个码：文本里没有标记哪一行是工具写的，只能靠位置；已写进函数的文档。② 读取认两种写法（`TOOL_OUTPUT` 块、让出窗口已结束的开头），生产端（`format_result`、`build_auto_yield_return`）与读取端没有共用常量，漂移时读取返回 None、也就是不判失败，靠上面 3 例和既有用例发现。③ Browser integration 作业是否变绿没有验证：本机没跑那个作业的其余用例（要 Chromium），只确认了这个文件的收集失败已消除，其余看下次 CI。④ 不在本条：Harness tests 的 Unit tests 作业在同一批主干运行里另有失败（注释可见 7 条：沙箱目录、posix-only 模块导入、上下文行脱敏、沙箱规则两条、fd 用量），列出的最近 19 次已完成主干运行全为失败、最早一次 2026-10-29 05:20 UTC，早于这条线上的任何提交，未处理；Server architecture gates、Frontend build 也在红，3 个源文件超 500 行（shadow_git_store.py 647、deduplicator.py 780、domain_metrics.py 503），`Harness framework canary` 工作流已登记但没有运行记录。 |
+| **代码位置** | `src/myrm_agent_harness/agent/meta_tools/bash/_tool/formatting.py` · `src/myrm_agent_harness/agent/meta_tools/bash/__init__.py` · `src/myrm_agent_harness/agent/middlewares/completion/completion_guard/verification.py` · 测试 `tests/agent/meta_tools/bash/test_read_exit_code.py`、`tests/agent/middlewares/completion/completion_guard/test_verification_exit.py` |
+
 ### BUG-HARNESS-2026-10-31-160 · 工具冲突闸门在一次独占调用失败后，把同一轮后面的独占调用统统换成 `[SKIPPED]`：被换掉的调用约一半本来会成功，Claude Code 已把这类连带取消分四次拆光；闸门只保留互斥
 
 | 字段 | 内容 |

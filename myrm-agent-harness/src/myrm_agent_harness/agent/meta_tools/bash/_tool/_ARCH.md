@@ -9,7 +9,7 @@ bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退�
 |------|------|-------------|-------|
 | `__init__.py` | Package | 域聚合出口：导出 `TOOL_DESCRIPTION`。 | — |
 | `tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`（能力/独立与未知返回的批量观察规则/后台任务/eviction 读取提示）。 | ✅ |
-| `formatting.py` | Core | 输出压缩编排、截断、脱敏、wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS` 做硬截断。 | ✅ |
+| `formatting.py` | Core | 输出压缩编排、截断、脱敏、wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS` 做硬截断。`read_exit_code()` 是 `format_result` 的读回端：只认工具自己追加在输出块末尾的 `[exit_code: N]`（其后至多跟一行 `[Auto-Hint]`），输出里同形的文字不算；没有该行的完成输出为 0，后台未结束、报错文本与非 bash 结果为 None。 | ✅ |
 | `exit_semantics.py` | Core | Exit-code 语义解释（grep=1、git diff、信号）。 | ✅ |
 | `terminal_hints.py` | Core | 输出模式故障自愈诊断与伪成功（Masked Success）防护。 | ✅ |
 | `helpers.py` | Core | BashInput schema（reason 必填）、OS hint、上下文恢复/访问追踪。 | ✅ |

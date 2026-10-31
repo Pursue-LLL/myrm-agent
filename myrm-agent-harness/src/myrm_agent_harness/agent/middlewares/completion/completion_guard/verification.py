@@ -1,6 +1,7 @@
 """Verification command classification: is a bash command a test, lint, type-check or build run, and did it fail.
 
 [INPUT]
+- agent.meta_tools.bash::read_exit_code (POS: the exit code a bash tool result reports, as the tool wrote it)
 - agent.security.guards.loop_guard::VerificationCategory (POS: the kinds of verification a command can be)
 - agent.security.guards.loop_guard::CallRecord, SuccessLevel (POS: the recorded call and how its output was judged)
 
@@ -24,6 +25,7 @@ from __future__ import annotations
 
 import re
 
+from myrm_agent_harness.agent.meta_tools.bash import read_exit_code
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, SuccessLevel, VerificationCategory
 
 _TEST = VerificationCategory.TEST
@@ -31,8 +33,6 @@ _LINT = VerificationCategory.LINT
 _TYPECHECK = VerificationCategory.TYPECHECK
 _BUILD = VerificationCategory.BUILD
 
-# The bash tool ends the result of a command that exited non-zero with ``[exit_code: N]``.
-_EXIT_MARKER = re.compile(r"\[exit_code: (-?\d+)")
 # 124 is a timeout and 137 a SIGKILL (the tool's own hints); above 127 or negative is a signal. Those say the
 # run was cut short, not that the checks it runs failed.
 _TIMED_OUT = 124
@@ -238,14 +238,11 @@ def classify_verification(tool_args: dict[str, object]) -> VerificationCategory 
 def _exited_with_failure(result_text: str) -> bool:
     """True when the bash tool reported a program exit code that means the command's checks failed.
 
-    The last marker is the shell's own: the tool appends it after all output, so earlier text that quotes one is
-    output. A result without a marker (exit 0, or a run still going in the background) is not a failure.
+    The code is read the way the tool wrote it, so a line in the program's own output that quotes the exit marker is
+    not the shell's. A result that reports no code (a run still going in the background) is not a failure.
     """
-    markers = _EXIT_MARKER.findall(result_text)
-    if not markers:
-        return False
-    code = int(markers[-1])
-    return 1 <= code <= _LAST_PROGRAM_EXIT and code != _TIMED_OUT
+    code = read_exit_code(result_text)
+    return code is not None and 1 <= code <= _LAST_PROGRAM_EXIT and code != _TIMED_OUT
 
 
 def _ends_with_verification(command: str) -> bool:

@@ -65,7 +65,7 @@ bash/
 |------|------|-------------|
 | `_tool/_ARCH.md` | Doc | 工具能力域架构文档。 |
 | `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`（合并/OBSERVATION 规则）。 |
-| `_tool/formatting.py` | Core | 输出压缩编排/截断/脱敏/wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS`。 |
+| `_tool/formatting.py` | Core | 输出压缩编排/截断/脱敏/wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS`；`read_exit_code()` 读回工具写入的退出码（包出口导出，完成验证门使用）。 |
 | `_tool/exit_semantics.py` | Core | Exit-code 语义解释。 |
 | `_tool/terminal_hints.py` | Core | 输出模式故障自愈诊断与伪成功（Masked Success）防护。 |
 | `_tool/helpers.py` | Core | BashInput schema、OS hint、上下文恢复。 |
