@@ -5,37 +5,42 @@ Exercises the production progressive-disclosure chain without mocks:
 1. Boot a real streamable-http MCP server (4 tools > threshold 3).
 2. Connect through ``MCPConnectionManager`` (real wire protocol).
 3. Generate SkillMetadata from the real tools.
-4. ``generate_skill_content`` — SKILL.md must carry the conditional
-   ``timeout=120`` wording (prompt fix B), never the old "Always set".
-5. ``MCPFileSystemStrategy.read_file`` over ``/mcp/...`` — doc must include
-   the MCP Function Call Rules whose example code references ``result`` only
-   (prompt fix A), plus a live ``conn.call`` to prove the wire path.
+4. ``generate_skill_content`` — SKILL.md must carry the calling contract
+   (``SKILL_USAGE_TEMPLATE``) unconditionally.
+5. ``MCPFileSystemStrategy.read_file`` over ``/mcp/...`` — a tool whose required
+   parameter carries an example gets an awaited call example built from it, a
+   tool without one gets no placeholder call; a live ``conn.call`` proves the
+   wire path.
 """
 
 from __future__ import annotations
 
 import asyncio
 import socket
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
+from typing import Annotated
 
 import pytest
+from pydantic import Field
+from starlette.applications import Starlette
 
 from myrm_agent_harness.agent.meta_tools.file_ops.strategies.mcp_strategy import (
     MCPFileSystemStrategy,
 )
-from myrm_agent_harness.agent.skills.mcp.core_generator import MCPSkillGenerator
+from myrm_agent_harness.agent.skills.mcp.core_generator import SKILL_USAGE_TEMPLATE, MCPSkillGenerator
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 from tests.support.sse_shutdown_flag import reset_sse_shutdown_flag
 
 
-def _make_server_app():
+def _make_server_app() -> Starlette:
     from mcp.server.mcpserver import MCPServer
 
     server = MCPServer("live-skill-probe")
 
     @server.tool()
-    def echo(text: str) -> str:
+    def echo(text: Annotated[str, Field(examples=["hello"])]) -> str:
         return f"echo:{text}"
 
     @server.tool()
@@ -53,7 +58,7 @@ def _make_server_app():
     return server.streamable_http_app()
 
 
-async def _start_live_server() -> tuple[object, str]:
+async def _start_live_server() -> tuple[Callable[[], Awaitable[None]], str]:
     import uvicorn
 
     app = _make_server_app()
@@ -80,20 +85,13 @@ async def _start_live_server() -> tuple[object, str]:
     return teardown, f"http://127.0.0.1:{port}/mcp"
 
 
-@pytest.fixture
-def _reset_manager() -> object:
-    MCPConnectionManager._instance = None
-    yield
-    MCPConnectionManager._instance = None
-
-
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_skill_gen_live_chain_prompt_fixes(_reset_manager: object) -> None:
+async def test_real_server_tools_render_into_skill_and_tool_docs() -> None:
     teardown, url = await _start_live_server()
+    manager = MCPConnectionManager()
     try:
         cfg = MCPConfig(name="livesrv", type="streamable_http", url=url)
-        manager = MCPConnectionManager()
         conn = await manager.get_connection([cfg])
         assert conn is not None
         tools = conn.tools_by_server.get("livesrv")
@@ -107,23 +105,26 @@ async def test_skill_gen_live_chain_prompt_fixes(_reset_manager: object) -> None
         generator = MCPSkillGenerator()
         skill_meta = generator._create_skill_metadata("livesrv", tools, user_description="live skill probe")
         assert skill_meta.is_mcp_skill is True
+        assert skill_meta.mcp is not None
         assert len(skill_meta.mcp.tools) == 4
 
-        # --- Level 2 SKILL.md: calling contract is unconditional ---
+        # --- Level 2 SKILL.md: the calling contract is rendered unconditionally ---
         content = generator.generate_skill_content(skill_meta)
-        assert "## Calling" in content
-        assert "set `timeout=120` when declared" in content
-        assert "Always set" not in content
+        assert SKILL_USAGE_TEMPLATE.format(skill_name=skill_meta.name) in content
 
         # --- Level 3 doc via MCPFileSystemStrategy: doc template owns the call contract ---
         skill_name = skill_meta.name
         strategy = MCPFileSystemStrategy([skill_meta])
-        lines = await strategy.read_file(f"/mcp/{skill_name}/echo.md")
-        joined = "\n".join(lines)
-        assert "MCP Function Call Rules" not in joined
-        assert "[OBSERVATION]" in joined
-        example_block = joined.split("```python")[-1].split("```")[0]
-        assert "{variable}" not in example_block
-        assert "result = await echo(" in example_block
+        echo_doc = "\n".join(await strategy.read_file(f"/mcp/{skill_name}/echo.md"))
+        assert "MCP Function Call Rules" not in echo_doc
+        assert f"from skills.{skill_name} import echo" in echo_doc
+        assert 'result = await echo(text="hello")' in echo_doc
+
+        # A tool whose required parameters carry no example gets no placeholder call.
+        add_doc = "\n".join(await strategy.read_file(f"/mcp/{skill_name}/add.md"))
+        assert "## Parameters" in add_doc
+        assert "## Import & Call Example" not in add_doc
     finally:
+        # Release the pooled sessions before the server stops, or they reconnect to a dead port.
+        await manager.close_all()
         await teardown()
