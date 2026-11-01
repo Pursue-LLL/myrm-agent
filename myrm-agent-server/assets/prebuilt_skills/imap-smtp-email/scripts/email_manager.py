@@ -8,16 +8,18 @@
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 - mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
 - mail_client.message: MIME header, date, summary, attachment name and body decoding
+- mail_client.attachments: saving a download as a new file, never over one that exists
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
-- download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error
+- download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
+  a write that fails leaves no file behind
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. This file holds the
-subcommands and the argument parser; the connection and message logic lives in the sibling mail_client package, which
-Python resolves through the script directory on sys.path. The package ships without __init__.py because the prebuilt
-seed sync skips paths with an underscore-prefixed part, so it is a namespace package.
+subcommands and the argument parser; the connection, message and attachment logic lives in the sibling mail_client
+package, which Python resolves through the script directory on sys.path. The package ships without __init__.py because
+the prebuilt seed sync skips paths with an underscore-prefixed part, so it is a namespace package.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from mail_client.attachments import save_new
 from mail_client.message import ascii_msg_ids, attachment_filename, decode_header, extract_body, message_summary
 from mail_client.transport import (
     connect_imap,
@@ -106,23 +109,6 @@ def _fetch_message(conn: imaplib.IMAP4_SSL, uid: int) -> email.message.Message:
         fail(f"Message UID {uid} has no content")
 
     return email_lib.message_from_bytes(raw)
-
-
-_MAX_SAME_NAME = 1000  # copies of one name saved per directory; a message that repeats a name must not probe without end
-
-
-def _save_new(directory: Path, name: str, data: bytes) -> Path:
-    """Write *data* to ``name`` in *directory*, or to ``stem-1.ext``, ``stem-2.ext`` ... when taken; replaces nothing."""
-    first = directory / name
-    for counter in range(_MAX_SAME_NAME):
-        path = directory / f"{first.stem}-{counter}{first.suffix}" if counter else first
-        try:
-            with path.open("xb") as handle:
-                handle.write(data)
-        except FileExistsError:
-            continue
-        return path
-    fail(f"Too many files named {name} in {directory}")
 
 
 def cmd_check(args: argparse.Namespace) -> None:
@@ -221,7 +207,7 @@ def cmd_download(args: argparse.Namespace) -> None:
             if not isinstance(file_data, bytes):
                 continue
             safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
-            dest = _save_new(output_dir, safe_name, file_data)
+            dest = save_new(output_dir, safe_name, file_data)
             saved.append({"filename": filename, "path": str(dest), "size": len(file_data)})
 
         if not saved:
