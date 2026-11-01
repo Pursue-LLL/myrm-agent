@@ -162,17 +162,18 @@ def concept_index_key(structure: WikiStructure, name: str) -> str:
 
     Compile names such as ``Knowledge/Rust/Ownership`` are written to
     ``knowledge/rust/ownership.md``; indexing them under that path keeps one index
-    row per page. Names without a backing page (staged drafts, opaque keys) are
+    row per page. The path the writer files the name under comes first, so ``Notes.md``
+    keeps the row of ``notesmd.md`` and never takes the one of ``notes.md``; only when
+    no page sits there is the name read as a vault path (``wiki/concepts/`` prefix,
+    ``.md`` extension). Names without a backing page (staged drafts, opaque keys) are
     returned unchanged.
     """
     clean = _strip_vault_prefixes(name.replace("\\", "/").strip()).removesuffix(".md")
     if not clean:
         return name
-    safe = WikiStructure._sanitize_path(clean)
-    if safe and concept_page_exists(structure, safe):
-        return safe
-    if concept_page_exists(structure, clean):
-        return clean
+    for key in dict.fromkeys((WikiStructure._sanitize_path(name), WikiStructure._sanitize_path(clean), clean)):
+        if key and concept_page_exists(structure, key):
+            return key
     return name
 
 

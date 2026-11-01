@@ -175,8 +175,9 @@ class FtsWriteMixin:
         """
         Delete concept from FTS5 index, its outgoing Edges, and Vector Store.
 
-        Removes the concept under every spelling it may be indexed by (as given and as
-        its on-disk path), so deleting by compile name or by path both succeed. Edges
+        Removes the concept under every spelling it may be indexed by (as given, as the
+        path its page is filed under and as that path without ``.md``), so deleting by
+        compile name or by path both succeed. Edges
         other pages hold to the concept stay: the links are still written in those
         pages, they read as unresolved while the page is gone and name it again when
         it returns. A link that named the concept together with another page of the

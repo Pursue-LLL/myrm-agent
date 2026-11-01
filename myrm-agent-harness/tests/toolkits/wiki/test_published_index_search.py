@@ -32,7 +32,7 @@ def _published_body(rank: int) -> str:
     return f"{'kelvin ' * (8 - rank)}{_FILLER}"
 
 
-def _new_indexer(root: Path, *, public_dirs: list[Path] | None = None) -> WikiIndexer:
+def _new_indexer(root: Path, *, public_dirs: list[Path | str] | None = None) -> WikiIndexer:
     structure = WikiStructure(root, public_dirs=public_dirs or [])
     structure.ensure_structure()
     return WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
