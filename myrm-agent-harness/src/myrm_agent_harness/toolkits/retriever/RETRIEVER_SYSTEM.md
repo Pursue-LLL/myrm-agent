@@ -57,13 +57,20 @@ hybrid_retriever (混合检索器)
 | **vector_search/** | 向量搜索（纯内存 numpy 实现） |
 | **cjk_tokenizer** | 确定性单趟保序 CJK/ASCII 分词与两档检索规划（无 C 扩展依赖） |
 
+### 2.4 仓库内的调用方
+
+`RetrieverManager`（`engine.py`）服务于 `web_fetch` 的 `fetch_and_extract`：抓取页面、分块后，按问题取最相关的片段。分块数不超过 `hybrid_top_k_per_query`（默认 50）时直接重排；超过时先用 BM25 + 向量检索缩小范围，再重排。网页搜索（`web_search/`）把各搜索服务返回的结果直接合并，不调用 `RetrieverManager`。
+
 ---
 
 ## 三、融合策略
 
-- **RRF (Reciprocal Rank Fusion)**：无参数融合，常用默认
-- **加权融合**：可配置向量/BM25 权重
-- **自定义**：通过 `fusion_strategies` 扩展
+`fusion_strategies.py` 提供：
+
+- **`rrf_fusion`**：倒数排名融合（RRF），支持列表级权重；混合检索里 BM25 与向量两路结果用它合并
+- **`fuse_rrf_deterministic`**：带多级平局裁决与分数归一化的确定性 RRF，同时返回逐来源的召回调试信息
+- **`unified_fusion`**：四柱正交融合（质量、优势、共识、声望），合并多个查询的重排结果。`FusionPipeline` 与 `RetrieverManager` 的默认权重是 `(1, 0, 0, 0)`，即每篇文档的得分取它在所有查询里的最高重排分；其余三柱要调用方显式传入权重才生效
+- **自定义**：在 `fusion_strategies` 中扩展
 
 ---
 

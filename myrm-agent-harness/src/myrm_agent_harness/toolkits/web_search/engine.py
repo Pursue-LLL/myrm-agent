@@ -7,6 +7,10 @@
 - web_search.processing.search_results_processor::combine_search_results_unified, apply_domain_diversity_sort, search_results_to_documents (POS: search result merger and domain diversity sorting)
 - web_search.providers.web_searcher::WebSearcher, SearchServiceConfig, SearchServiceType (POS: web searcher supporting multiple engines)
 - utils.context_format::format_documents_with_metadata (POS: document formatting utility)
+- web_search.processing.intent_optimizer::SearchIntent, detect_search_intent, extract_and_pin_structured_identifiers, resolve_search_params (POS: search intent detection and parameter optimization) [lazy]
+- web_search.providers.bilibili_search::search_bilibili (POS: Bilibili search fast-path) [lazy]
+- web_search.providers.github_code_search::search_github_code (POS: GitHub code search fast-path) [lazy]
+- browser.domain_filter::DomainBlocklist (POS: domain pattern matcher shared with the browser domain filter) [lazy]
 
 [OUTPUT]
 - WebSearchTools: multi-query web search tool class

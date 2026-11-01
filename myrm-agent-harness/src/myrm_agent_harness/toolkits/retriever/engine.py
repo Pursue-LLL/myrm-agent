@@ -1,20 +1,22 @@
 """Retrieval tools orchestrator.
 
 [INPUT]
+- retriever.embedding::EmbeddingService (POS: embedding module facade, embedding service abstraction)
+- retriever.reranker::RerankerService (POS: reranker module facade, reranking interface abstraction)
 - retriever.preprocessing::create_document_chunks_from_crawl_results (POS: document preprocessing, convert crawl results to document chunks)
-- retriever.hybrid_retriever::hybrid_retriever (POS: hybrid retriever, combining vector and keyword search)
+- retriever.hybrid_retriever::hybrid_retriever (POS: stable public facade for hybrid retrieval)
 - web_fetch::SuccessResult, FailedResult (POS: web crawl result types)
 - utils.context_format::format_documents_with_metadata (POS: document formatting utility)
-- pydantic::BaseModel, Field (POS: configuration validation)
+- pydantic::BaseModel, ConfigDict, Field (POS: configuration validation)
 
 [OUTPUT]
 - RetrieverConfig: retrieval config class, unified management of retrieval parameters
 - RetrieverManager: retrieval manager class, providing hybrid retrieval and reranking
 
 [POS]
-Retrieval tools wrapper. Provides hybrid retrieval and reranking, integrating BM25, vector search,
-and Reranker with multi-query fusion support. As the toolkit's external interface, provides unified
-retrieval capability for Agent and business layer.
+Hybrid retrieval manager for fetched pages. Chunk sets no larger than `hybrid_top_k_per_query` go
+straight to the reranker; larger sets are first narrowed by BM25 + vector retrieval fused with RRF,
+then reranked. Multi-query input is supported.
 """
 
 from __future__ import annotations

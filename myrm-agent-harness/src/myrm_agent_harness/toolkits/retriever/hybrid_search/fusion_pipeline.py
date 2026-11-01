@@ -4,6 +4,7 @@ Fuses multi-query reranked results: deduplication → orthogonal fusion → fina
 
 [INPUT]
 - retriever.fusion_strategies::unified_fusion (POS: four-pillar orthogonal fusion algorithm)
+- utils.hash_utils::get_document_dedup_hash (POS: unified hash utilities, document content hashing)
 
 [OUTPUT]
 - FusionPipeline: Result fusion pipeline (deduplication, orthogonal fusion, top-k)

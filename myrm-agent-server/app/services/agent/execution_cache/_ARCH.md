@@ -60,6 +60,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | 媒体生成（image/video/tts） | image/video/tts params（model/fallback/size/quality/voice；api_key 排除） |
 | skill_market / skill_manage | enable_skill_market / skill_manage_mounted（`enable_skill_manage` 或 `/learn` 的 `force_skill_manage` 折叠；与 factory 挂载判定同源） |
 | memory 写入 | memory_require_confirmation / enable_memory_auto_extraction / memory_extraction_preset |
+| memory 召回 | embedding_config（稠密召回）/ reranker_config + enable_advanced_retrieval（重排；开关为关时不挂重排） |
 | kanban | kanban_tool_mode / kanban_default_board_id |
 | external_agents | external_agents（name/command/args/authMode 固化；api_key 剔除） |
 | openapi_services | openapi_services（spec/base_url/endpoints 固化；整个 auth 子树剥离） |
