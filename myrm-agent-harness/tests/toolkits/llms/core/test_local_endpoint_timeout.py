@@ -56,7 +56,7 @@ class TestIsLocalEndpoint:
         assert _is_local_endpoint(url) is False
 
 
-class TestCreateLitellmModelLocalTimeout:
+class TestCreateChatModelLocalTimeout:
     """Test that create_chat_model applies local timeout relaxation."""
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")

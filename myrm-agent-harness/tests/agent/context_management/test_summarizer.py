@@ -35,7 +35,7 @@ def _make_mock_llm() -> AsyncMock:
     Making both explicitly synchronous keeps the parser/ainvoke fallback paths
     exercised without unawaited coroutines. ``model_name``/``model`` are also
     pinned to empty strings so ``get_model_context_limit`` takes its early
-    ``None`` return instead of forwarding the AsyncMock into litellm.
+    ``None`` return instead of forwarding the AsyncMock into the catalog lookup.
     """
     llm = AsyncMock()
     llm.astream = MagicMock(

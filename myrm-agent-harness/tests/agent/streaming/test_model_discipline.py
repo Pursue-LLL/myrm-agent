@@ -490,7 +490,7 @@ class TestEdgeCases:
         assert _GPT_DISCIPLINE in result
 
     def test_provider_slash_prefix(self) -> None:
-        """LiteLLM model strings like 'openai/gpt-4o' should match gpt family."""
+        """Provider-prefixed model strings like 'openai/gpt-4o' should match gpt family."""
         llm = _make_llm(model_name="openai/gpt-4o")
         result = resolve_execution_discipline(llm)
         assert _GPT_DISCIPLINE in result

@@ -22,7 +22,7 @@ from myrm_agent_harness.utils.token_economics.tracker import (
 
 
 def _make_stream_chunks(*, include_usage: bool = True) -> list[dict[str, Any]]:
-    """Create a list of mock LiteLLM stream chunks."""
+    """Create a list of mock provider stream chunks."""
     chunks = [
         {
             "id": "chatcmpl-1",
@@ -126,7 +126,7 @@ def _make_tool_call_stream_chunks() -> list[dict[str, Any]]:
 
 
 class _MockModelResponse:
-    """Simulates LiteLLM's ModelResponse with attribute access."""
+    """Simulates an SDK response object with attribute access."""
 
     def __init__(self, data: dict[str, Any]) -> None:
         self._data = data

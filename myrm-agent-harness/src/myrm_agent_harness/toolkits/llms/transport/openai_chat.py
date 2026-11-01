@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - prepare: a PreparedRequest for ``/chat/completions`` (OpenAI, Azure OpenAI and every OpenAI-compatible provider)
-- parse: the provider's JSON answer as the chat.completion dict the adapter consumes (identity)
+- parse: the provider's JSON answer as the chat.completion dict the adapter consumes
 - decoder: the SSE decoder yielding chat.completion.chunk dicts
 - openai_endpoint: URL, query and auth headers for an OpenAI-family path (shared with the Responses wire)
 
@@ -15,7 +15,10 @@
 The wire most providers speak. The adapter's messages and parameters are already OpenAI-shaped, so building is
 a few deterministic rules: provider body defaults, the reasoning-model parameter names, text-content flattening
 for APIs that reject content arrays, and ``extra_body`` laid over the typed fields. Responses are returned as the
-provider sent them: the adapter reads the dict directly, so nothing is re-parsed into SDK models.
+provider sent them, with one correction: cache reads a provider reports at the top level of ``usage`` (DeepSeek's
+``prompt_cache_hit_tokens``, Anthropic-style ``cache_read_input_tokens`` from gateways) are also reported where every
+usage reader looks for them (``prompt_tokens_details.cached_tokens``). The adapter reads the dict directly, so nothing
+is re-parsed into SDK models.
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_AZURE_API_VERSION = "2024-10-21"
 _DEFAULT_AZURE_RESPONSES_API_VERSION = "preview"
 _OFFICIAL_HOST = "api.openai.com"
+_TOP_LEVEL_CACHE_READ_KEYS = ("prompt_cache_hit_tokens", "cache_read_input_tokens")
 
 
 def _flatten_text(messages: Sequence[Mapping[str, object]], mode: str) -> list[dict[str, object]]:
@@ -158,7 +162,30 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
     )
 
 
+def _report_cache_hits(payload: dict[str, object]) -> None:
+    """Mirror a top-level cache-read count of ``usage`` into ``prompt_tokens_details.cached_tokens``."""
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        return
+    hits = next(
+        (
+            value
+            for key in _TOP_LEVEL_CACHE_READ_KEYS
+            if isinstance(value := usage.get(key), int) and not isinstance(value, bool) and value > 0
+        ),
+        0,
+    )
+    if not hits:
+        return
+    details = usage.get("prompt_tokens_details")
+    if not isinstance(details, dict):
+        usage["prompt_tokens_details"] = {"cached_tokens": hits}
+    elif not details.get("cached_tokens"):
+        details["cached_tokens"] = hits
+
+
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    _report_cache_hits(payload)
     return payload
 
 
@@ -184,6 +211,7 @@ class OpenAIChunkDecoder:
             return []
         if "error" in chunk and not chunk.get("choices"):
             raise LLMStreamError(self._provider, chunk)
+        _report_cache_hits(chunk)
         return [chunk]
 
     def finish(self) -> list[Chunk]:

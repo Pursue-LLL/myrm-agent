@@ -31,7 +31,7 @@ pytestmark = pytest.mark.timeout(120)
 
 
 def _normalize_model(raw: str) -> tuple[str, str | None]:
-    """Convert env model name (e.g. openai-like/X) to LiteLLM (openai/X, provider)."""
+    """Convert env model name (e.g. openai-like/X) to the transport route form (openai/X, provider)."""
     openai_compat = {"openai-like", "openai_compatible", "openai-compatible", "openai_like"}
     if "/" in raw:
         prefix, model = raw.split("/", 1)

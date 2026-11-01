@@ -1,4 +1,4 @@
-"""GenAI provider label of a model configuration (asked of LiteLLM, never guessed from the string)."""
+"""GenAI provider label of a model configuration (asked of the transport's route resolution, never guessed from the string)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.model_provider import 
         ("ollama/qwen2.5", "http://localhost:11434", None, "ollama"),
     ],
 )
-def test_provider_is_resolved_the_way_litellm_routes_the_call(
+def test_provider_is_resolved_the_way_the_transport_routes_the_call(
     model: str, api_base: str | None, custom_provider: str | None, expected: str
 ) -> None:
     assert model_provider_name(model, api_base, custom_provider) == expected

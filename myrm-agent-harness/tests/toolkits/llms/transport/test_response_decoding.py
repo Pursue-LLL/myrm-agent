@@ -532,9 +532,53 @@ class TestOpenAIChatDecoder:
     def test_garbage_is_skipped(self, data: str) -> None:
         assert _feed(openai_chat.decoder(self.route), [(None, data)]) == []
 
-    def test_parse_is_the_identity(self) -> None:
+    def test_parse_returns_the_provider_answer_itself(self) -> None:
         payload: Payload = {"choices": [{"message": {"content": "x"}}]}
         assert openai_chat.parse(self.route, payload) is payload
+
+    def test_deepseek_cache_hits_are_reported_where_usage_readers_look(self) -> None:
+        payload: Payload = {
+            "choices": [{"message": {"content": "x"}}],
+            "usage": {"prompt_tokens": 100, "prompt_cache_hit_tokens": 64, "prompt_cache_miss_tokens": 36},
+        }
+        usage = openai_chat.parse(self.route, payload)["usage"]
+        assert isinstance(usage, dict)
+        assert usage["prompt_tokens_details"] == {"cached_tokens": 64}
+        assert usage["prompt_cache_hit_tokens"] == 64
+
+    def test_deepseek_cache_hits_are_reported_on_the_final_stream_chunk(self) -> None:
+        final = {"choices": [], "usage": {"prompt_tokens": 10, "prompt_cache_hit_tokens": 8}}
+        (chunk,) = _feed(openai_chat.decoder(self.route), [(None, final)])
+        usage = chunk["usage"]
+        assert isinstance(usage, dict)
+        assert usage["prompt_tokens_details"] == {"cached_tokens": 8}
+
+    def test_anthropic_style_cache_reads_from_a_gateway_are_reported_too(self) -> None:
+        payload: Payload = {"usage": {"prompt_tokens": 100, "cache_read_input_tokens": 30}}
+        usage = openai_chat.parse(self.route, payload)["usage"]
+        assert isinstance(usage, dict)
+        assert usage["prompt_tokens_details"] == {"cached_tokens": 30}
+
+    def test_an_existing_cached_count_is_not_overwritten(self) -> None:
+        payload: Payload = {
+            "usage": {"prompt_cache_hit_tokens": 5, "prompt_tokens_details": {"cached_tokens": 40, "audio_tokens": 0}}
+        }
+        usage = openai_chat.parse(self.route, payload)["usage"]
+        assert isinstance(usage, dict)
+        assert usage["prompt_tokens_details"] == {"cached_tokens": 40, "audio_tokens": 0}
+
+    def test_a_zero_cached_count_is_filled_in_from_the_deepseek_field(self) -> None:
+        payload: Payload = {"usage": {"prompt_cache_hit_tokens": 7, "prompt_tokens_details": {"cached_tokens": 0}}}
+        usage = openai_chat.parse(self.route, payload)["usage"]
+        assert isinstance(usage, dict)
+        assert usage["prompt_tokens_details"] == {"cached_tokens": 7}
+
+    @pytest.mark.parametrize("hits", [0, -3, True, "64", None])
+    def test_unusable_hit_counts_leave_usage_untouched(self, hits: object) -> None:
+        payload: Payload = {"usage": {"prompt_tokens": 9, "prompt_cache_hit_tokens": hits}}
+        usage = openai_chat.parse(self.route, payload)["usage"]
+        assert isinstance(usage, dict)
+        assert "prompt_tokens_details" not in usage
 
 
 class TestResponsesDecoder:

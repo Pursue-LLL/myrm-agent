@@ -112,7 +112,7 @@ class TestOpenAIReasoningEffortRemap:
         assert kwargs["reasoning_effort"] == "minimal"
 
 
-class TestCreateLiteLLMModelOpenAIIntegration:
+class TestCreateChatModelOpenAIIntegration:
     """Integration test via create_chat_model factory."""
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")

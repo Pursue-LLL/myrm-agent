@@ -121,7 +121,7 @@ class TestApplyDeepSeekReasoningEffort:
         assert "extra_body" not in kwargs or "thinking" not in kwargs.get("extra_body", {})
 
 
-class TestCreateLitellmModelIntegration:
+class TestCreateChatModelIntegration:
     """Tests for end-to-end integration via create_chat_model."""
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")

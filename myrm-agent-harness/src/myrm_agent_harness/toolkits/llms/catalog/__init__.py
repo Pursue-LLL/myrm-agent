@@ -10,8 +10,7 @@
 - supports_web_search: whether the model offers a provider-native search tool
 
 [POS]
-Replaces the price and capability table that came bundled with the previous multi-provider client library. The data
-is a trimmed snapshot of the community-maintained table; ``scripts/sync_model_catalog.py`` refreshes it from
+The single price and capability table of the harness. The data is a trimmed snapshot of the community-maintained table; ``scripts/sync_model_catalog.py`` refreshes it from
 upstream, so new models and price changes arrive by re-syncing, not by hand edits.
 """
 

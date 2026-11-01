@@ -16,6 +16,7 @@ from myrm_agent_harness.toolkits.web_search.core.error_handling import (
     is_retryable_search_error,
 )
 from myrm_agent_harness.toolkits.web_search.core.exceptions import SearchConfigError
+from myrm_agent_harness.toolkits.web_search.providers import rest_search
 from myrm_agent_harness.toolkits.web_search.providers.rest_search import RestSearch, SearchHTTPError
 
 
@@ -336,6 +337,24 @@ class TestFailures:
         with pytest.raises(ConnectionError) as dropped:
             await _search("tavily")
         assert is_retryable_search_error(dropped.value)
+
+    async def test_a_redirect_is_reported_and_never_followed_with_the_credential(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        requested: list[str] = []
+
+        def answer(request: httpx.Request) -> httpx.Response:
+            requested.append(str(request.url))
+            return httpx.Response(302, headers={"Location": "https://elsewhere.test/collect"}, request=request)
+
+        def client_with_fake_network(**kwargs: object) -> httpx.AsyncClient:
+            return httpx.AsyncClient(transport=httpx.MockTransport(answer), **kwargs)
+
+        monkeypatch.setattr(rest_search, "create_httpx_client", client_with_fake_network)
+        with pytest.raises(SearchHTTPError) as caught:
+            await _search("serper")
+        assert caught.value.status_code == 302
+        assert requested == ["https://google.serper.dev/search"]
 
     async def test_non_json_answer_is_an_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def html(self: httpx.AsyncClient, method: str, url: str, **kwargs: object) -> httpx.Response:

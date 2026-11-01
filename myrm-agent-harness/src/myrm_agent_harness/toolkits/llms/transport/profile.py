@@ -12,8 +12,7 @@
 [POS]
 Data-driven provider knowledge. Adding an OpenAI-compatible provider is one entry here; a provider with its
 own protocol additionally gets a wire module. The ``segment/model`` id format is the persisted one, so settings
-and saved model selections need no migration. Replaces the provider resolution of the previous LLM library
-with an explicit table instead of a hidden one.
+and saved model selections need no migration. Provider resolution is an explicit table, never a hidden rule.
 """
 
 from __future__ import annotations

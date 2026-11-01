@@ -249,7 +249,7 @@ Protocol-first architecture with strict framework-business separation.
     is unregistered from `GoalRegistry` in the runner's `finally` block to prevent leaks.
 
 24. **Per-task model override (model_override)**: Each `KanbanTask` carries an optional
-    `model_override: str | None` field in `'provider/model'` LiteLLM form. When set, the
+    `model_override: str | None` field in `'provider/model'` route form. When set, the
     server `TaskRunner` resolves this model for the task instead of the agent profile
     default — enabling task-level cost governance and model specialization. Child tasks
     created via decomposition inherit the parent's override unless they specify their own.

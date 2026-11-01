@@ -1,8 +1,8 @@
 """``request_timeout`` bounds how long a provider call waits for the provider, on every wire protocol.
 
 The tests talk to a real socket on loopback instead of a stub of the provider client: the property under test is
-that the limit reaches the HTTP layer, which no assertion on the parameters handed to ``litellm`` can show (it
-ignores some parameter names on some wires).
+that the limit reaches the HTTP layer, which no assertion on the parameters handed to the transport can show (a
+wire ignores the parameter names it does not map).
 """
 
 from __future__ import annotations

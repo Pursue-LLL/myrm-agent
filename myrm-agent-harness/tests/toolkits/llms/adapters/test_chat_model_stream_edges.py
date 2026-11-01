@@ -34,7 +34,7 @@ from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import StreamAg
 
 
 class _Chunk:
-    """Minimal duck-typed chunk with attribute access (mirrors LiteLLM ModelResponse)."""
+    """Minimal duck-typed chunk with attribute access (mirrors an SDK response object)."""
 
     def __init__(self, data: dict[str, Any]) -> None:
         self._data = data

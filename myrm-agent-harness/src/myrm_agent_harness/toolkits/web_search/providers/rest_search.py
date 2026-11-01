@@ -15,7 +15,8 @@ Sends the request an adapter built and turns the answer into ``SearchResult`` ro
 an exception that carries ``status_code`` and the body text, so the search retry loop and the quota / rate-limit
 classifier read it the same way for every provider; timeouts and dropped connections become the standard
 ``TimeoutError`` / ``ConnectionError`` the loop already treats as retryable. Only the credential passed in is
-used: no provider key is read from the environment.
+used: no provider key is read from the environment. A redirect is an error, not a hop: the request carries the
+provider credential in headers, so an answer that points elsewhere must not be followed with it.
 """
 
 from __future__ import annotations
@@ -75,7 +76,7 @@ class RestSearch:
     async def _send(self, request: SearchRequest) -> Mapping[str, object]:
         provider = self.search_provider
         try:
-            async with create_httpx_client(timeout=float(self.timeout_seconds), follow_redirects=True) as client:
+            async with create_httpx_client(timeout=float(self.timeout_seconds), follow_redirects=False) as client:
                 response = await client.request(
                     request.method,
                     request.url,

@@ -223,8 +223,8 @@ class TestEdgeCaseEndpoints:
         assert llm.first_event_timeout == _LOCAL_FIRST_EVENT_TIMEOUT
 
 
-class TestTimeoutPropagationToLiteLLM:
-    """Verify timeout values actually reach litellm layer (spy, no full mock)."""
+class TestTimeoutPropagationToTransport:
+    """Verify timeout values actually reach the transport layer (spy, no full mock)."""
 
     def test_timeout_equals_request_timeout(self) -> None:
         """TransportChatModel._default_params['timeout'] matches request_timeout."""

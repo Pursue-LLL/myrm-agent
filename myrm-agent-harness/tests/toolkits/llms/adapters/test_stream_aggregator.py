@@ -397,7 +397,7 @@ class TestFinalizeStreamProviderFinish:
             {"function": {"name": "write_file", "arguments": '{"path": "/tmp/a", '}, "id": "call_1", "type": "function"}
         ]
         agg.last_model = "gpt-4o"
-        agg.finish_reason = "stop"  # what LiteLLM synthesizes for a stream that just ended
+        agg.finish_reason = "stop"  # a finish reason the stream layer filled in for a stream that just ended
         if markers is not None:
             agg.track(markers)
         with (

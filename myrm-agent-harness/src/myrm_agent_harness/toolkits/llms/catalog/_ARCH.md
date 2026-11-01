@@ -18,5 +18,5 @@ sit on top of the snapshot.
 
 ## Key Dependencies
 
-- Consumed by `utils/token_economics` (cost and cache savings), `core/llm.py` and `utils/model_utils.py` (limits, native
-  search), `adapters/wire/routing.py` (responses-only models) and the server model-listing and pricing APIs
+- Consumed by `utils/token_economics` (cost and cache savings), `toolkits/llms/core/llm.py` and `toolkits/llms/utils/model_utils.py` (limits, native
+  search), `toolkits/llms/adapters/wire/routing.py` (responses-only models) and the server model-listing and pricing APIs

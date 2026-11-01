@@ -18,10 +18,13 @@
 
 [POS]
 LLM error diagnostic engine. Classifies exceptions from LLM calls into actionable categories
-with localized user messages and resolution steps. Transport and account failures are diagnosed by
-their own modules and tried first; the model, rate-limit, response-format, context and timeout
-families, every failure the shared classifier recognizes beyond them (a rejected key, billing, overload, safety
-filter, rejected request, WAF challenge), the unknown fallback and the truncation diagnoses live here.
+with localized user messages and resolution steps. Transport failures are diagnosed by their own module first. The
+transport's error text always carries the HTTP status digits and the provider's words, so the keyword families would
+read a WAF 403, a subscription-tier 429 or a policy 403 as a billing, rate-limit or key problem: the failures the
+classifier outranks the text on (challenge, tier gate, policy block) are therefore answered right after the transport
+family. Account failures follow, then the model, rate-limit, response-format, context and timeout families, every
+failure the shared classifier recognizes beyond them (a rejected key, billing, overload, safety filter, rejected
+request), the unknown fallback and the truncation diagnoses.
 """
 
 import html

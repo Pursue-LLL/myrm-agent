@@ -31,7 +31,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |
 | `test_no_legacy_distribution_imports.py` | Gate | 禁止 Python 源码 reintroduce `myrm_agent_harness.distribution` import | — |
 | `test_unbounded_communicate_sites.py` | Gate | AST：`src/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：要么写明输出与时长已由命令本身限定，要么列入「待决」一栏（已知缺口，等待改用 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；只数 `.communicate(` 这一种写法；自带检测器正反例 | — |
-| `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 litellm 对话接口（`litellm.acompletion` 等）的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 TransportChatModel）除外；自带检测器正反例与过期登记检查 | — |
+| `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 `get_transport()` 或一次性补全 helper `acomplete_text` 的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 TransportChatModel）除外；自带检测器正反例与过期登记检查 | — |
 | `test_event_queries_name_written_types.py` | Gate | AST：`src/` 内 `event_types=` 的每个字符串必须是 `EventLogger` 实际写入的事件类型（持久化类型 + `session_start`/`session_end`/`security_audit`）；查询一个无人写入的类型只会得到空列表，其后的代码永不执行；自带检测器正反例 | — |
 | `test_public_api.py` | Gate | 公开 API 边界 smoke | — |
 | `test_arch_no_placeholder.py` | Gate | `_ARCH.md` 禁止「见源码」等占位语 | — |
@@ -64,7 +64,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_md_ref_inline_links.py` | Gate | md 反引号 span 与内联链接统一解析回归（链接提取·anchor 剥离、裸文件名链接、`{placeholder}` 符号行跳过、导入规格表首列源文件锚定、TS/JS 扩展名探测、拒绝截断父级标记、非 UTF-8 跳过） | — |
 | `test_readme_claims.py` | Gate | README 声明与实际代码/性能基准一致性校验 | — |
 | `test_md_python_imports.py` | Gate | tracked md 的 python 围栏只解析不执行，其中 `myrm_agent_harness` 的 import 经 `scripts/import_resolvability_engine` 静态解析（模块与名称须存在）；含 harness import 却无法解析的围栏同样判错；自带缺失模块/缺失名称/不可解析围栏的检测器自证，防退化为 no-op；只校验 import，不校验调用签名 | — |
-| `test_core_dependencies.py` | Gate | core vs optional/dev 分层：4 项 optional-only 包不得回 core；uv.lock core 与 pyproject 严格对齐；uv.lock 只解析自 PyPI 本身（registry 与下载主机），镜像源生成的 lock 被拒（失配或被拒时运行 `UV_DEFAULT_INDEX=https://pypi.org/simple uv lock`） | — |
+| `test_core_dependencies.py` | Gate | core vs optional/dev 分层：4 项 optional-only 包不得回 core；uv.lock core 与 pyproject 严格对齐；`litellm` 不得出现在任何依赖表、uv.lock 或 src/tests/scripts/benchmarks 的 import 里（含检测器正反例）；uv.lock 只解析自 PyPI 本身（registry 与下载主机），镜像源生成的 lock 被拒（失配或被拒时运行 `UV_DEFAULT_INDEX=https://pypi.org/simple uv lock`） | — |
 | `test_orchestration_registry_parity.py` | Gate | `tool_registry_config` 与 orchestration SSOT 对齐（hook / signal 命名回归） | — |
 | `test_ruff_security_rules.py` | Gate | ruff S（security/bandit）规则保持激活，误报抑制不回归 | — |
 | `test_skill_analyze_tool_removed.py` | Gate | `skill_analyze` Agent tool 包不得存在（Curator GUI 为 SSOT） | — |

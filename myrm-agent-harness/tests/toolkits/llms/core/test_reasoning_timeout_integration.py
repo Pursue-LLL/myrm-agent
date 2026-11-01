@@ -140,7 +140,7 @@ class TestReasoningTimeoutRealAPI:
 
     @pytest.fixture()
     def env_config(self) -> dict[str, str]:
-        """Use LITE_MODEL (standard LiteLLM provider) for real API validation."""
+        """Use LITE_MODEL (a standard provider route) for real API validation."""
         api_key = os.environ.get("LITE_API_KEY", "")
         base_url = os.environ.get("LITE_BASE_URL", "")
         model = os.environ.get("LITE_MODEL", "")

@@ -5,7 +5,7 @@ from __future__ import annotations
 from myrm_agent_harness.agent.config.parsers import parse_route_model_id, to_route_model_id
 
 
-class TestToLiteLLMModel:
+class TestToRouteModelId:
     """Test to_route_model_id function."""
 
     def test_openai_model(self) -> None:
@@ -44,7 +44,7 @@ class TestToLiteLLMModel:
         assert result == "custom_provider/custom_model"
 
 
-class TestParseLiteLLMModel:
+class TestParseRouteModelId:
     """Test parse_route_model_id function."""
 
     def test_standard_format(self) -> None:

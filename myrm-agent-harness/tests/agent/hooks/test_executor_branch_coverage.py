@@ -89,7 +89,7 @@ class TestLLMHookExecution:
 
     @staticmethod
     def _install_model(monkeypatch: pytest.MonkeyPatch, response_content: str, *, delay: float = 0.0) -> list[str]:
-        """Patch the litellm adapter with a stub; return captured prompts."""
+        """Patch the chat-model factory with a stub; return captured prompts."""
 
         class _StubLLM:
             async def ainvoke(self, prompt: str) -> object:

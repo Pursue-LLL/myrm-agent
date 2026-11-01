@@ -240,7 +240,7 @@ class TestInstallation:
         message_dicts, _ = model._create_message_dicts([HumanMessage(content=content)], stop=None)
         return str(message_dicts[0]["content"])
 
-    def test_installed_guard_masks_what_chat_litellm_puts_on_the_wire(self) -> None:
+    def test_installed_guard_masks_what_the_chat_model_puts_on_the_wire(self) -> None:
         set_process_privacy_policy(_policy())
         install_outbound_privacy_guard()
         assert PHONE not in self._wire(ONLY_S2)

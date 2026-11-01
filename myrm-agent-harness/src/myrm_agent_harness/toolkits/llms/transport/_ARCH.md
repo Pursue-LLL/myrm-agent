@@ -19,12 +19,15 @@ Embeddings, rerank and image generation use the same HTTP layer and credential r
 | `client.py` | Core | `LLMTransport` facade: route -> wire `prepare` -> HTTP -> decoded answer; sync/async, chat and Responses | ✅ |
 | `profile.py` | Config | `ProviderProfile` data table, `resolve_route`, `normalize_base_url`, `speaks_openai_body`; providers without a wire raise `UnsupportedProviderError` | ✅ |
 | `params.py` | Core | `split_params`: transport options (credential, timeout, proxy, headers, `extra_body`) versus body parameters; `merge_headers` | ✅ |
-| `http.py` | Core | Shared `httpx` clients, one retry on connect failure, SSE and NDJSON framing, `ProviderStream` that remembers the provider's own finish reason | ✅ |
+| `http.py` | Core | Shared `httpx` clients per event loop (proxy- and TLS-policy aware, closed with `aclose_clients`), one retry on connect failure, SSE and NDJSON framing, `ProviderStream` that remembers the provider's own finish reason | ✅ |
 | `errors.py` | Core | `LLMHTTPError` (status, parsed body, response), `LLMStreamError`; the attribute shape `errors.normalize` reads | ✅ |
-| `openai_chat.py` | Core | OpenAI Chat Completions wire (also Azure and every OpenAI-compatible provider): request, identity parse, SSE decoder | ✅ |
+| `openai_chat.py` | Core | OpenAI Chat Completions wire (also Azure and every OpenAI-compatible provider): request, parse and SSE decoder; the answer is the provider's own except that a top-level cache-read count (DeepSeek `prompt_cache_hit_tokens`, gateway `cache_read_input_tokens`) is also reported as `prompt_tokens_details.cached_tokens` | ✅ |
 | `openai_responses.py` | Core | OpenAI Responses wire: routing and credential only, the adapter assembles the body | ✅ |
-| `anthropic_messages.py` / `anthropic_response.py` / `anthropic_schema.py` | Core | Anthropic Messages wire: request blocks, cache markers and thinking; answer and event decoding with cache accounting; structured-output schema reduction | ✅ |
-| `gemini_generate.py` / `gemini_schema.py` | Core | Gemini generateContent wire: request, answer and SSE decoding; tool-schema reduction to the Gemini subset | ✅ |
+| `anthropic_messages.py` | Core | Anthropic Messages wire request: content blocks, cache markers, thinking and `reasoning_effort` mapping | ✅ |
+| `anthropic_response.py` | Core | Anthropic answer and event decoding into the chat shape, with cache accounting folded into the prompt total | ✅ |
+| `anthropic_schema.py` | Core | Structured-output schema reduction to the subset the Messages API accepts | ✅ |
+| `gemini_generate.py` | Core | Gemini generateContent wire: request, answer and SSE decoding | ✅ |
+| `gemini_schema.py` | Core | Tool-schema reduction to the Gemini subset | ✅ |
 | `ollama_chat.py` | Core | Native Ollama `/api/chat` wire (tools, structured output, thinking) with NDJSON decoding | ✅ |
 | `json_schema.py` | Core | `inline_refs`: local `$ref` inlining shared by the Anthropic and Gemini schema converters | ✅ |
 | `service_routes.py` | Config | Endpoint and credential resolution for embedding, rerank and image providers | ✅ |

@@ -170,7 +170,7 @@ class TestResolveWebSearchOptions:
         assert _resolve_web_search_options("vendor/unlisted-model", None, None) is None
 
 
-class TestCreateLitellmModel:
+class TestCreateChatModel:
     """Tests for create_chat_model factory — verifies kwargs assembly."""
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
@@ -190,7 +190,7 @@ class TestCreateLitellmModel:
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_base_url_mapped_to_api_base(self, mock_cls: MagicMock) -> None:
-        """base_url should be mapped to api_base for LiteLLM."""
+        """base_url should be mapped to api_base for the transport."""
         create_chat_model("openai/gpt-4o", base_url="https://custom.api.com")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["api_base"] == "https://custom.api.com"
@@ -204,7 +204,7 @@ class TestCreateLitellmModel:
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_native_anthropic_gets_no_extra_body(self, mock_cls: MagicMock) -> None:
-        """The Messages API rejects an extra_body field; LiteLLM maps reasoning_effort to thinking itself."""
+        """The Messages API rejects an extra_body field; the Anthropic wire maps reasoning_effort to thinking itself."""
         create_chat_model("anthropic/claude-4-sonnet", reasoning_effort="high", top_p=0.5)
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["reasoning_effort"] == "high"

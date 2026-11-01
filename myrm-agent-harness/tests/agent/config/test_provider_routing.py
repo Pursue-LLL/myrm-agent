@@ -11,7 +11,7 @@ from myrm_agent_harness.agent.config.provider_routing import (
 )
 
 
-class TestLitellmRoutePrefixForEffective:
+class TestRoutePrefixForEffective:
     def test_openai_family(self) -> None:
         assert route_prefix_for_effective("openai") == "openai/"
         assert route_prefix_for_effective("siliconflow") == "openai/"
