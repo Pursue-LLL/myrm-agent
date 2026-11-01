@@ -100,6 +100,21 @@ class SearchServiceConfig(BaseModel):
 SearchServiceConfig.model_rebuild()
 
 
+def _provider_default_params(provider: str) -> dict[str, object]:
+    """Parameters a provider needs when neither the config nor the query set them; callers always win.
+
+    A fresh dict per call: LiteLLM and the retry loop receive these values and must not share state.
+    """
+    if provider == "searxng":
+        return {"language": "auto", "categories": "general", "safesearch": "0"}
+    if provider == "exa_ai":
+        # Exa returns no page content unless asked, and LiteLLM then asks for the full text of every result.
+        # Highlights are the passages Exa picked for the query, which is what a search call should hand the
+        # agent; reading a whole page is web_fetch's job.
+        return {"contents": {"highlights": True}}
+    return {}
+
+
 class WebSearcher:
     """Web search core implementation class, only responsible for basic search functionality"""
 
@@ -174,13 +189,8 @@ class WebSearcher:
         if extra_params_override:
             extra_params.update(extra_params_override)
 
-        if self.config.search_service == "searxng":
-            if "language" not in extra_params:
-                extra_params["language"] = "auto"
-            if "categories" not in extra_params:
-                extra_params["categories"] = "general"
-            if "safesearch" not in extra_params:
-                extra_params["safesearch"] = "0"
+        for key, value in _provider_default_params(self.config.search_service).items():
+            extra_params.setdefault(key, value)
 
         extra_suffix = json.dumps(extra_params, sort_keys=True, default=str) if extra_params else ""
         bucketed_limit = bucket_search_limit(num_results)

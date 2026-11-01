@@ -8,7 +8,7 @@ Search provider adapters, orchestration, and priority-ordered failover chain.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports WebSearcher, SearchServiceConfig, LiteLLMSearch, search_provider_chain | ✅ |
-| web_searcher.py | Core | Multi-provider search orchestrator with cache, coalescing, retry, and Document output; the search cache key carries the factory's `credential_scope_digest` of the credential the request is billed and answered under | ✅ |
+| web_searcher.py | Core | Multi-provider search orchestrator with cache, coalescing, retry, and Document output; fills provider defaults the caller left unset (SearxNG language/categories/safesearch; Exa `contents.highlights` instead of LiteLLM's full-text default); the search cache key carries the factory's `credential_scope_digest` of the credential the request is billed and answered under | ✅ |
 | search_service_factory.py | Core | Builds the concrete search client (native or LiteLLM, direct or gateway-routed) from a provider config, rejects missing credentials up front, and is the sole owner of the credential identity: `describe_credential_scope` reports the scope the routing decision implies (gateway token endpoint plus the direct key a routed request can fall back to) and `credential_scope_digest` is the single digest the result cache and the quota cooldown both address | ✅ |
 | litellm_search.py | Core | LiteLLM search adapter for provider-agnostic API calls | ✅ |
 | volcengine_doubao_search.py | Core | Volcengine Search Infinity native adapter | ✅ |
