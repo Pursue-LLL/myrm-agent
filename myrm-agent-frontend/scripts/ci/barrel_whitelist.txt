@@ -20,4 +20,3 @@ src/lib/utils/media/index.ts
 src/theme-engine/index.ts
 src/components/channels/pairing/index.ts
 src/components/chat/group/index.ts
-src/components/layout/adaptive-grid/index.ts

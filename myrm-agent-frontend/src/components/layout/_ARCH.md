@@ -32,7 +32,6 @@
 | `ContentSidebar.tsx`      | 内容区侧栏（chat → 聊天历史，work → 智能体列表）                                                                                                                                                                                                                                                                 |
 | `PageLayout.tsx`          | 根 layout：hydration 后直进 `AppLayout`；readiness 后台；仅云沙箱未完成 Onboarding 时出现全屏向导，本地安装直进首页（缺 Provider 由首页 `NoProviderBanner` 提示）；Boot 全屏 overlay；用 `<MotionConfig reducedMotion="user">` 包住应用内两种形态（含 `?mode=focused` 的无壳分支），让 framer-motion 过渡跟随系统「减少动态效果」偏好                                                                           |
 | `RouteSegmentLoading.tsx` | 路由 segment 统一 loading shell（chat/settings/dashboard）                                                                                                                                                                                                                                                       |
-| `adaptive-grid/`          | 折叠屏（8:7/4:3 展开态）/平板/多窗口异构设备弹性自适应分栏网格、TUI 等宽字符视口智能伸缩与 PTY 协商驾驶舱                                                                                                                                                                                                        |
 
 ## 依赖
 

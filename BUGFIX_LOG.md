@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 2 个没有任何入口的前端目录（`quad-graph`、`layout/adaptive-grid`：11 个源码文件、1648 行）从产品入口不可达，没有活跃规划条目，已整目录删除
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。孤儿门禁的存量从 441 个降到 430 个。 |
+| **症状** | [实测，孤儿门禁] 两个目录的每个模块都是孤儿：`features/quad-graph`（四视图拓扑画布，6 个文件、970 行）和 `layout/adaptive-grid`（折叠屏分栏、PTY 尺寸协商，5 个文件、678 行）。目录外只有 `features/_ARCH.md`、`layout/_ARCH.md` 两行说明和 `scripts/ci/barrel_whitelist.txt` 的一条放行记录提到它们；`quadGraph` 命名空间的 29 个键在 6 种语言文件里只被这个目录使用。 |
+| **根因** | [代码] 功能代码和测试一起提交后一直没有接产品入口。`quad-graph` 的状态仓库只有内置演示数据（`DEFAULT_DEMO_NODES` / `DEFAULT_DEMO_EDGES`，中文标签写死），不调用任何后端接口；`adaptive-grid` 是纯前端视口 Hook，也没有页面使用。对应的规划条目已闭合并从活跃规划里删除，没有任何还在排期的条目点名这两个目录。 |
+| **修复** | 删除条件（与上一条「25 个没有任何入口的前端目录」相同，每条都成立）：① 孤儿门禁把每个模块都列为孤儿；② 在整个 OSS 仓库里按整词检索两个目录的组件、Hook、状态仓库与类型文件名，目录外没有任何引用（`rg` 实测，只剩本文件的记述）；③ 目录里没有 `/api/`、`fetch(`、`axios`、`WebSocket`、`EventSource`、`@/services` 或 `@/lib/api`（`git grep` 无匹配）；④ 活跃规划里没有它们的目录路径、组件名、套件标题。删除 20 个已跟踪文件（`quad-graph` 11 个：6 个源码、4 个测试、`_ARCH.md`；`adaptive-grid` 9 个：5 个源码、3 个测试、`_ARCH.md`），并清理四处残留：6 种语言文件里的 `quadGraph` 命名空间（每种 29 个键）、`features/_ARCH.md` 与 `layout/_ARCH.md` 各一行、`barrel_whitelist.txt` 的一条放行记录（21 → 20）。两个目录的首次提交都是 `36edf65e55`，`git show 36edf65e55:myrm-agent-frontend/src/components/features/quad-graph/index.ts`（`layout/adaptive-grid` 同理）可以原样取回。 |
+| **行为变化** | 产品里没有任何变化：被删的代码从没有被页面渲染过。 |
+| **回归证据** | [实测，origin 树加本提交] `bun run lint` 7 个门禁全部通过（`verify:hardcoded-copy` 的可达存量仍是 859 处 / 168 个文件，范围外仍是 168 个孤儿文件 / 1775 处——这两个目录没有被统计的字面量）；`tsc --noEmit` 无错误；`check_typescript_strict.py`、`check_fractal_docs.py --no-stub`、`check_barrel_exports.py`（放行记录 20 条）、`check_module_resolution.py`、`verify:i18n` 通过；孤儿门禁对 `origin/main` 没有新增孤儿（存量 430）。 |
+| **踩坑** | 6 个语言文件是按文本行删除 `quadGraph` 块的：删除前后用 `json.loads` 比对，其余键与键序逐项相同；`locales/namespaces/` 是生成物（已在 `.gitignore`），删除后要重新跑 `bun run i18n:split` 才会和语言文件一致。 |
+| **仍然存在** | ① 剩下的 430 个孤儿模块、168 个孤儿文件里的 1775 处中文仍没有翻译，去留（挂载或删除）是产品决定。② 判断「规划里是否点名」靠的是目录路径、组件名、套件标题的文本检索，概念相同但名字不同的条目可能漏掉；两个目录都可以从首次提交取回。③ `quad-graph` 想表达的「多智能体拓扑可视化」在产品里没有对应实现；如果以后要做，是重新设计，不是把这个演示数据界面加回来。 |
+| **代码位置** | `myrm-agent-frontend/locales/{en,zh,zh-TW,ja,ko,de}.json` · `src/components/features/_ARCH.md` · `src/components/layout/_ARCH.md` · `scripts/ci/barrel_whitelist.txt` |
+
 ## 2026-11-01 · 精简首次引导后留下的尾巴：本地模型探测没人读却每次照跑、一个死函数、一条过期基线，用户文档还在讲已经不存在的向导
 
 | 字段 | 内容 |
