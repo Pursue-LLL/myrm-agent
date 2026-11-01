@@ -1,0 +1,19 @@
+"""The parent-run helper hands the run's terminal-error registry back as it found it.
+
+The circuit breaker refuses every network tool while ``network_blocked`` is registered, so a registry that outlives
+the helper fails whichever test the same worker process runs next.
+"""
+
+from __future__ import annotations
+
+from myrm_agent_harness.agent.middlewares._session_context import get_terminal_errors
+from tests.agent.sub_agents.guard_state_probe import parent_run_in_progress
+
+
+def test_a_parent_run_in_progress_leaves_no_terminal_error_behind() -> None:
+    before = get_terminal_errors().get_all()
+
+    with parent_run_in_progress():
+        assert "network_blocked" in get_terminal_errors().get_all()
+
+    assert get_terminal_errors().get_all() == before
