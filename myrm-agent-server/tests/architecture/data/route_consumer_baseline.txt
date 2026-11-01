@@ -19,7 +19,6 @@ POST /commerce/spending/commit
 POST /commerce/spending/preauth
 POST /commerce/spending/release
 POST /companion/react
-GET /config/onboarding/recommendations
 POST /context-bundle/migrate/dry-run
 GET /eval/matrix/status
 GET /eval/memory-ab/status

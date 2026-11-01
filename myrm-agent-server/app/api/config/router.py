@@ -308,17 +308,6 @@ async def complete_config_onboarding() -> dict[str, object]:
     return {"success": True, "message": "Onboarding completed successfully"}
 
 
-@router.get("/onboarding/recommendations")
-async def get_onboarding_recommendations() -> dict[str, object]:
-    """Get recommended provider configurations for new users.
-
-    Returns a list of provider recommendations with setup instructions.
-    """
-    from app.services.config.onboarding import get_recommended_providers
-
-    return {"providers": get_recommended_providers()}
-
-
 @router.get("/onboarding/second-brain/status")
 async def get_second_brain_onboarding_status(request: Request) -> dict[str, object]:
     """Return Second Brain preset checklist (agent, cron, vault, provider)."""

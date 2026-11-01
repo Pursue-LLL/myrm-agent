@@ -1,7 +1,7 @@
 """First-time configuration onboarding service.
 
 Handles checking and marking completion of first-time user configuration.
-Provides recommended provider configurations and local model auto-detection.
+Provides local model auto-detection.
 
 [INPUT]
 - user_id: User identifier
@@ -9,12 +9,10 @@ Provides recommended provider configurations and local model auto-detection.
 
 [OUTPUT]
 - Onboarding status (completed/not completed)
-- Recommended provider configurations
 - Local model probe results (Ollama, LM Studio)
 
 [POS]
-Business-layer onboarding service. Manages first-time user configuration flow,
-provides guidance for new users to set up their first provider.
+Business-layer onboarding service. Manages first-time user configuration flow.
 Uses UserConfig with config_key='onboarding' to persist completion state.
 Probes local model endpoints (Ollama, LM Studio) for zero-config experience.
 """
@@ -100,89 +98,6 @@ async def complete_onboarding(db: "AsyncSession", user_id: str) -> bool:
     return True
 
 
-def get_recommended_providers() -> list[dict[str, object]]:
-    """Get recommended provider configurations for new users.
-
-    Returns:
-        List of provider recommendations with pros/cons and setup instructions.
-        Icon values are string identifiers for frontend to render appropriate icons.
-    """
-    return [
-        {
-            "id": "ollama",
-            "name": "Ollama (Local)",
-            "category": "local",
-            "icon": "ollama",
-            "pros": [
-                "Completely free",
-                "Privacy - runs locally",
-                "No API key required",
-                "Fast once installed",
-            ],
-            "cons": [
-                "Requires manual installation",
-                "Needs sufficient RAM (8GB+)",
-                "Limited model selection",
-            ],
-            "setup_steps": [
-                "Download Ollama from https://ollama.com",
-                "Install and start the service",
-                "Run: ollama pull qwen3",
-                "Configure in Settings > Model Service",
-            ],
-            "recommended_for": "local_dev",
-        },
-        {
-            "id": "openai",
-            "name": "OpenAI",
-            "category": "api",
-            "icon": "openai",
-            "pros": [
-                "Best model quality",
-                "Fast and reliable",
-                "Easy to set up",
-                "Extensive documentation",
-            ],
-            "cons": [
-                "Requires payment",
-                "API key required",
-                "Privacy concerns (cloud)",
-            ],
-            "setup_steps": [
-                "Sign up at https://platform.openai.com",
-                "Generate API key in Dashboard > API Keys",
-                "Add API key in Settings > Model Service",
-                "Select GPT-4.1 or GPT-4o-mini model",
-            ],
-            "recommended_for": "production",
-        },
-        {
-            "id": "anthropic",
-            "name": "Anthropic Claude",
-            "category": "api",
-            "icon": "anthropic",
-            "pros": [
-                "Excellent reasoning",
-                "Long context window",
-                "Strong safety features",
-                "Good for code tasks",
-            ],
-            "cons": [
-                "Requires payment",
-                "API key required",
-                "Slightly slower than GPT-4",
-            ],
-            "setup_steps": [
-                "Sign up at https://console.anthropic.com",
-                "Generate API key in Account Settings",
-                "Add API key in Settings > Model Service",
-                "Select Claude Sonnet 4 or Claude Haiku 3.5",
-            ],
-            "recommended_for": "coding",
-        },
-    ]
-
-
 # ============================================================================
 # Local model auto-detection
 # ============================================================================
@@ -198,12 +113,7 @@ def get_ollama_base_url() -> str:
     Supports OLLAMA_BASE_URL, OLLAMA_HOST, and OLLAMA_HOST_URL.
     Automatically prepends 'http://' if protocol is missing, and strips trailing slashes.
     """
-    raw = (
-        os.getenv("OLLAMA_BASE_URL")
-        or os.getenv("OLLAMA_HOST")
-        or os.getenv("OLLAMA_HOST_URL")
-        or ""
-    ).strip()
+    raw = (os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST") or os.getenv("OLLAMA_HOST_URL") or "").strip()
     if raw:
         if not raw.startswith("http://") and not raw.startswith("https://"):
             raw = f"http://{raw}"
@@ -364,7 +274,6 @@ __all__ = [
     "LocalProbeResult",
     "check_onboarding_status",
     "complete_onboarding",
-    "get_recommended_providers",
     "probe_local_models",
     "probe_local_search",
 ]
