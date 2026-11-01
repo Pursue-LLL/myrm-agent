@@ -87,23 +87,24 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         reset_subagent_checkpointer()
 
 
-def _reset_subagent_checkpointer_if_loaded() -> None:
-    module = sys.modules.get("myrm_agent_harness.agent.sub_agents.checkpointer")
+def _drop_domain_metrics_manager() -> None:
+    module = sys.modules.get("myrm_agent_harness.toolkits.web_fetch.router.domain_metrics")
     if module is not None:
-        module.reset_subagent_checkpointer()
+        module.__dict__["_global_domain_metrics_manager"] = None
 
 
 @pytest.fixture(autouse=True)
-def _isolate_subagent_checkpointer() -> Iterator[None]:
-    """Give every test its own sub-agent checkpointer.
+def _isolate_domain_metrics() -> Iterator[None]:
+    """Start every test with an empty process-wide domain metrics manager.
 
-    The process-wide sqlite saver binds an ``asyncio.Lock`` and an aiosqlite worker thread to the event
-    loop of the test that first used it. Each test runs on a fresh loop, so a survivor makes later tests
-    fail with "bound to a different event loop" or an unhandled "Event loop is closed" thread error.
+    Wait-strategy learning is kept per ``host:port`` for the life of the process, and loopback test
+    servers draw their ports from the OS ephemeral range. Without this, a test can land on a port an
+    earlier one already taught the manager about and silently take another wait path. A module that was
+    never imported holds no manager, so nothing is imported here.
     """
-    _reset_subagent_checkpointer_if_loaded()
+    _drop_domain_metrics_manager()
     yield
-    _reset_subagent_checkpointer_if_loaded()
+    _drop_domain_metrics_manager()
 
 
 @pytest.fixture(autouse=True)

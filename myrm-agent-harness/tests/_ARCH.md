@@ -9,7 +9,7 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | Path | Role | Description |
 |------|------|-------------|
 | `__init__.py` | 核心 | tests 包标记（pytest 收集根） |
-| `conftest.py` | 核心 | 全局 pytest 配置：隔离 `MYRM_DATA_DIR`、`outside_tmp_path` 夹具（`/var/tmp` 下的临时目录，供"未加白名单即被拦截"类断言使用，因为校验器恒放行 `/tmp` 而 Linux 的 `tmp_path` 位于其下）、进程级状态隔离自动夹具（审批拒绝计数、会话 executor stash、`chat_id_var`、动态 MCP 安全元数据注册表、context 污点追踪器、已发布的 active tool registry/resolved tools、子代理 checkpointer 单例、CLI 工具探测缓存）、blocking_io gate、benchmark→performance 标记、浏览器 xdist 串行组、`pytest_collection_finish` warmup/acquire_page 漏标门禁、浏览器测试目录，或池内仍有存活浏览器/launcher 的测试，在夹具收尾调用 `reset_global_browser_pool_for_tests()`（带 30s 超时，超时则丢弃单例）；sessionfinish 浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`pytest_configure` 在 pytest 主进程与每个 xdist worker 中为 `SIGUSR1` 注册 faulthandler（写入测试开始前复制的真实 stderr，不受 fd capture 影响），供 `scripts/ci_stall_guard.py` 读取静默进程的全部线程栈 |
+| `conftest.py` | 核心 | 全局 pytest 配置：隔离 `MYRM_DATA_DIR`、`outside_tmp_path` 夹具（`/var/tmp` 下的临时目录，供"未加白名单即被拦截"类断言使用，因为校验器恒放行 `/tmp` 而 Linux 的 `tmp_path` 位于其下）、进程级状态隔离自动夹具（审批拒绝计数、会话 executor stash、`chat_id_var`、动态 MCP 安全元数据注册表、context 污点追踪器、已发布的 active tool registry/resolved tools、子代理 checkpointer 单例、CLI 工具探测缓存、域名学习指标单例）、blocking_io gate、benchmark→performance 标记、浏览器 xdist 串行组、`pytest_collection_finish` warmup/acquire_page 漏标门禁、浏览器测试目录，或池内仍有存活浏览器/launcher 的测试，在夹具收尾调用 `reset_global_browser_pool_for_tests()`（带 30s 超时，超时则丢弃单例）；sessionfinish 浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`pytest_configure` 在 pytest 主进程与每个 xdist worker 中为 `SIGUSR1` 注册 faulthandler（写入测试开始前复制的真实 stderr，不受 fd capture 影响），供 `scripts/ci_stall_guard.py` 读取静默进程的全部线程栈 |
 | `fixtures/` | 辅助 | 预留 harness-only 夹具目录 · [fixtures/_ARCH.md](fixtures/_ARCH.md) |
 | `examples/` | 辅助 | 非 shipping 参考实现 · [examples/_ARCH.md](examples/_ARCH.md) |
 | `mocks/` | 辅助 | 共享 in-memory backend mock · [mocks/_ARCH.md](mocks/_ARCH.md) |
@@ -114,6 +114,16 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    `SnapshotDiffEngine` baseline（`get_snapshot` 默认行为），用户导航后首次 `snapshot(diff=True)`
    就会拿到与 interactive/compact 范围对比的无效 diff。预览用途必须显式传
    `update_baseline=False`（`get_snapshot`/`BrowserSession.snapshot` 新增参数，默认 True 保持契约）。
+
+7. **等待探针期间页面自己跳转不是导航失败**：探针在它要等的那个文档里求值，文档被导航销毁时
+   patchright 抛一个没有子类的 `Error: Execution context was destroyed…`（`wait._impl.is_navigation_interrupt`
+   靠这句消息识别，别的驱动错误如页面已关闭照旧抛出），`wait_for_page_ready` 在新文档上用剩余预算重新等待，
+   一直在跳转的页面在 `max_ms` 处按 capped 放弃。`test_wait_navigation_interrupt.py`（假页面：五种策略、预算耗尽、
+   其他驱动错误仍抛出、混合探针被打断后不遗留任务、"没有历史"与"networkidle 实测不可靠"的分流）与
+   `test_navigation_during_wait_integration.py`（真 Chromium：域名 networkidle 历史差，走混合探针，页面 300 ms 后自己跳转）是证据。
+   域名历史是按 `host:port` 记账的进程单例，环回夹具的临时端口会撞上更早的测试，所以 conftest 的
+   `_isolate_domain_metrics` 在每个测试前后清掉它，`tests/toolkits/web_fetch/test_global_domain_metrics_isolation.py` 钉住这一点；
+   `test_domain_metrics_fast_path.py` 钉住"样本不足不等于要跳过快速路径"。
 
 ## Key Dependencies
 
