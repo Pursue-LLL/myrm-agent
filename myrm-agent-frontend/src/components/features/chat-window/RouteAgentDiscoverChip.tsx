@@ -6,7 +6,6 @@
  * - next/navigation::useRouter (POS: navigation to agent settings/fleet)
  * - lucide-react::Cpu, ShieldCheck, Sparkles, X, ChevronRight (POS: iconography)
  * - @/lib/utils/classnameUtils::cn
- * - @/lib/utils/a11y::activateOnKey
  *
  * [OUTPUT]
  * - RouteAgentDiscoverChip: CapabilityOwnerFit intelligent dispatch & specialist discovery capsule.
@@ -22,7 +21,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Cpu, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 export interface RouteAgentDiscoverChipProps {
   className?: string;
@@ -66,8 +64,7 @@ export const RouteAgentDiscoverChip = memo(function RouteAgentDiscoverChip({
     router.push('/agents?view=fleet&tab=capabilities');
   }, [router]);
 
-  const handleDismiss = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDismiss = useCallback(() => {
     try {
       sessionStorage.setItem(DISMISS_KEY, 'true');
     } catch {
@@ -77,8 +74,7 @@ export const RouteAgentDiscoverChip = memo(function RouteAgentDiscoverChip({
   }, []);
 
   const handleBadgeClick = useCallback(
-    (e: React.MouseEvent, agentType: string) => {
-      e.stopPropagation();
+    (agentType: string) => {
       if (onSelectAgent) {
         onSelectAgent(agentType);
       } else {
@@ -95,20 +91,21 @@ export const RouteAgentDiscoverChip = memo(function RouteAgentDiscoverChip({
   return (
     <div
       data-testid="route-agent-discover-chip"
-      onClick={handleNavigate}
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
-      role="button"
-      tabIndex={0}
-      onKeyDown={activateOnKey}
-      aria-label={t('title')}
       className={cn(
-        'group relative w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer select-none',
+        'group relative w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl select-none',
         'bg-gradient-to-r from-indigo-500/5 via-sky-500/5 to-cyan-500/5 dark:from-indigo-950/20 dark:via-sky-950/20 dark:to-cyan-950/20',
         'border border-indigo-500/20 dark:border-indigo-500/15 hover:border-indigo-500/35 dark:hover:border-indigo-500/30',
         'shadow-xs hover:shadow-sm transition-all duration-200',
         className,
       )}
     >
+      {/* The card-wide link sits under the specialist and dismiss buttons, so no button is nested in another. */}
+      <button
+        type="button"
+        onClick={handleNavigate}
+        aria-label={t('title')}
+        className="absolute inset-0 rounded-xl cursor-pointer"
+      />
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-105 transition-transform">
           <Cpu className="w-4 h-4" />
@@ -129,14 +126,14 @@ export const RouteAgentDiscoverChip = memo(function RouteAgentDiscoverChip({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 justify-between sm:justify-end shrink-0">
+      <div className="relative flex items-center gap-2 justify-between sm:justify-end shrink-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           {SPECIALIST_PREVIEWS.map((spec) => (
             <button
               key={spec.agentType}
               type="button"
               data-testid={`badge-${spec.agentType}`}
-              onClick={(e) => handleBadgeClick(e, spec.agentType)}
+              onClick={() => handleBadgeClick(spec.agentType)}
               className={cn(
                 'inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-md border transition-transform hover:scale-105',
                 spec.colorClass,

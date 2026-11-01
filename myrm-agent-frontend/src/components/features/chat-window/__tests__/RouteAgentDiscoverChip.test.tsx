@@ -69,8 +69,7 @@ describe('RouteAgentDiscoverChip', () => {
 
   it('navigates to fleet capabilities catalog on card click', () => {
     render(<RouteAgentDiscoverChip />);
-    const chip = screen.getByTestId('route-agent-discover-chip');
-    fireEvent.click(chip);
+    fireEvent.click(screen.getByRole('button', { name: '智能专职派发与能力画像' }));
     expect(mockPush).toHaveBeenCalledWith('/agents?view=fleet&tab=capabilities');
   });
 

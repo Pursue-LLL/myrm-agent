@@ -94,11 +94,9 @@ export const ViewSwitch: React.FC<{ value: TextView; onChange: (view: TextView) 
   ({ value, onChange }) => {
     const t = useTranslations('workspace');
     return (
-      <div
-        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a labelled group of toggle buttons; none of the suggested tags fits
-        role="group"
+      <fieldset
         aria-label={t('viewAsLabel')}
-        className="mr-1 inline-flex items-center rounded-md border border-border bg-muted/40 p-0.5 text-xs"
+        className="mr-1 inline-flex min-w-0 items-center rounded-md border border-border bg-muted/40 p-0.5 text-xs"
       >
         <button
           type="button"
@@ -116,7 +114,7 @@ export const ViewSwitch: React.FC<{ value: TextView; onChange: (view: TextView) 
         >
           {t('sourceView')}
         </button>
-      </div>
+      </fieldset>
     );
   },
 );

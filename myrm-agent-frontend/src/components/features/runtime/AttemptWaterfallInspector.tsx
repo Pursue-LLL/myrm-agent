@@ -1,5 +1,4 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * AttemptWaterfallInspector Component.
@@ -57,20 +56,15 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
             }`}
           >
             {/* Header / Summary Bar */}
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
+              aria-expanded={isExpanded}
               onClick={() => {
                 setExpandedAttemptId(isExpanded ? null : att.attempt_id);
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setExpandedAttemptId(isExpanded ? null : att.attempt_id);
-                }
-              }}
-              className="flex items-center justify-between p-3.5 cursor-pointer select-none"
+              className="flex w-full items-center justify-between p-3.5 text-start cursor-pointer select-none"
             >
-              <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-2.5">
                 {isCompleted ? (
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                 ) : isFailed ? (
@@ -92,29 +86,29 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                 >
                   {att.status}
                 </span>
-              </div>
+              </span>
 
               {/* Watermark Telemetry */}
-              <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+              <span className="flex items-center gap-4 text-xs font-mono text-slate-400">
                 {att.duration_ms ? (
-                  <div className="flex items-center gap-1">
+                  <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3 text-slate-400" />
                     <span>{(att.duration_ms / 1000).toFixed(1)}s</span>
-                  </div>
+                  </span>
                 ) : null}
 
                 {att.tokens_per_sec > 0 ? (
-                  <div className="flex items-center gap-1 text-indigo-400">
+                  <span className="flex items-center gap-1 text-indigo-400">
                     <Zap className="h-3 w-3" />
                     <span>{att.tokens_per_sec.toFixed(1)} tok/s</span>
-                  </div>
+                  </span>
                 ) : null}
 
-                <div className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-400">
                   {att.tokens_in + att.tokens_out} tokens
-                </div>
-              </div>
-            </div>
+                </span>
+              </span>
+            </button>
 
             {/* Diagnostic Details Accordion */}
             {isExpanded ? (

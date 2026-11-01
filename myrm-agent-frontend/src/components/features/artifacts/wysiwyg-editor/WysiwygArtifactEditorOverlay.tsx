@@ -1,4 +1,3 @@
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 import React from 'react';
 import {
   Edit3,
@@ -165,35 +164,29 @@ export const WysiwygArtifactEditorOverlay: React.FC<
           data-testid="artifact-sandbox-content"
           className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4"
         >
-          <div
+          <button
+            type="button"
             data-testid="editable-title-node"
-            className={`transition-all p-2 rounded-lg cursor-pointer ${
+            className={`block w-full text-left transition-all p-2 rounded-lg cursor-pointer ${
               selectedElement?.selector === 'h2.article-title'
                 ? 'ring-2 ring-indigo-500 bg-indigo-500/10'
                 : 'hover:bg-zinc-800/50'
             }`}
             onClick={handleSimulateSelectTitle}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSimulateSelectTitle();
-              }
-            }}
           >
-            <h2
-              className="text-base font-bold text-zinc-100"
+            <span
+              className="block text-base font-bold text-zinc-100"
               style={{
                 color: selectedElement?.styles.color,
                 fontSize: selectedElement?.styles.fontSize,
               }}
             >
               {selectedElement?.textContent || '飞书文档自动化处理周报'}
-            </h2>
-            <p className="text-xs text-zinc-400 mt-1">
+            </span>
+            <span className="block text-xs text-zinc-400 mt-1">
               按内容方向、文章类型和使用场景自动归纳，支持一键筛选与飞书源文档下钻
-            </p>
-          </div>
+            </span>
+          </button>
 
           {/* 行内即时修改文字测试输入条（当选中标题时呈现） */}
           {isEditing && selectedElement && (
