@@ -98,7 +98,7 @@ def _fail_certificate(service: str, exc: ssl.SSLCertVerificationError) -> NoRetu
 
 def _server_words(data: Sequence[object], fallback: str) -> str:
     """The server's own words from a reply's *data*, else *fallback*; imaplib hands them over as bytes."""
-    return data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else fallback
+    return (data[0].decode("utf-8", errors="replace").strip() if data and isinstance(data[0], bytes) else "") or fallback
 
 
 def connect_imap() -> imaplib.IMAP4_SSL:

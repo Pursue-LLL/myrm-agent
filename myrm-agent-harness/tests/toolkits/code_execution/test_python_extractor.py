@@ -1,5 +1,7 @@
 """Tests for python_extractor SSOT — quote-aware extraction and syntax validation."""
 
+import pytest
+
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     extract_python_from_bash,
     extract_python_from_pipe_stdin,
@@ -70,6 +72,38 @@ class TestExtractPythonFromBash:
         result = extract_python_from_bash(cmd)
         assert result is not None
         assert "import os" in result
+
+    @pytest.mark.parametrize("interpreter", ["python3", "python"])
+    def test_stdin_heredoc_extraction(self, interpreter):
+        cmd = f"{interpreter} - <<'PY'\nimport asyncio\nfrom skills.mcp_k8s_ops_skill import list_pods\nPY"
+        assert extract_python_from_bash(cmd) == "import asyncio\nfrom skills.mcp_k8s_ops_skill import list_pods"
+
+    @pytest.mark.parametrize(
+        "prefix",
+        ["cd /workspace && ", "cd /workspace 2>/dev/null || cd .; "],
+    )
+    def test_stdin_heredoc_after_cd_prefix(self, prefix):
+        cmd = f"{prefix}python3 - <<'PY'\nprint('ok')\nPY"
+        assert extract_python_from_bash(cmd) == "print('ok')"
+
+    def test_cat_heredoc_with_redirect_after_marker(self):
+        cmd = "cat << 'EOF' > /tmp/step1.py\nimport os\nprint(os.getcwd())\nEOF\npython3 /tmp/step1.py"
+        assert extract_python_from_bash(cmd) == "import os\nprint(os.getcwd())"
+
+    def test_cat_heredoc_after_cd_prefix(self):
+        cmd = "cd /workspace && cat > /tmp/step1.py <<'PY'\nimport os\nprint(os.getcwd())\nPY\npython3 /tmp/step1.py"
+        assert extract_python_from_bash(cmd) == "import os\nprint(os.getcwd())"
+
+    def test_cat_heredoc_without_space_after_redirect(self):
+        assert extract_python_from_bash("cat >/tmp/x.py <<EOF\nprint(1)\nEOF") == "print(1)"
+
+    def test_cat_heredoc_redirect_after_marker_keeps_non_python_verbatim(self):
+        cmd = "cat <<'EOF' > conf.yaml\nfilters:\n  - name: a\nEOF"
+        assert extract_python_from_bash(cmd) is None
+
+    def test_cat_heredoc_without_redirect_is_not_a_file_write(self):
+        cmd = "cat <<EOF\nfrom skills.mcp_k8s_ops_skill import list_pods\nEOF"
+        assert extract_python_from_bash(cmd) is None
 
     def test_skill_import_raw_python(self):
         cmd = "from skills.daily_briefing_skill import run"

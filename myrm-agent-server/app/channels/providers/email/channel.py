@@ -14,12 +14,13 @@ Outbound: SMTP send (HTML body + file attachments)
 
 [POS]
 Email channel implementation: credentials, lifecycle, IMAP polling and SMTP transport. Message parsing (attachments,
-forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
-assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
-certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
-context verifies nothing). Every connection also times out on a silent server instead of blocking its thread. A command
-the IMAP server refuses is an error carrying its reason, never read as data, and a message it refuses to hand over is
-fetched again by the next poll instead of being passed over.
+forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME assembly
+live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server certificate
+is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default context verifies
+nothing). Every connection also times out on a silent server instead of blocking its thread. Opening INBOX or searching it
+being refused is an error carrying the server's words, never read as data, and a message the server refuses to hand over
+is fetched again by the next poll instead of being passed over. A poll takes at most 20 messages, oldest first; one the
+parser cannot read is logged and skipped, one that fails on a disk error is read again.
 """
 
 from __future__ import annotations
@@ -55,6 +56,8 @@ logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 100000
 _POLL_INTERVAL = 30.0
+# Messages per poll: a backlog drains over the next polls, oldest first; the first poll has no mark and takes the newest.
+_MAX_FETCHED_PER_POLL = 20
 # Seconds a mail server may stay silent before connecting or a read gives up; without it a stalled server blocks the
 # worker thread, and with it the poll loop and the health check, indefinitely.
 _SOCKET_TIMEOUT = 30
@@ -76,8 +79,8 @@ _ReplyData = TypeVar("_ReplyData", bound=Sequence[object])
 
 def _refusal(action: str, status: str, data: Sequence[object]) -> str:
     """What the server refused and why: its own words when it gave any (imaplib hands them over as bytes), else the status."""
-    words = data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else status
-    return f"{action} was refused by the server: {words}"
+    words = data[0].decode("utf-8", errors="replace").strip() if data and isinstance(data[0], bytes) else ""
+    return f"{action} was refused by the server: {words or status}"
 
 
 def _require_ok(reply: tuple[str, _ReplyData], action: str) -> _ReplyData:
@@ -333,7 +336,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         return msg_id
 
     async def _poll_once(self) -> None:
-        """Single poll cycle. reconnect_loop handles retry on failure."""
+        """Poll until the channel stops; a raised error ends the loop and reconnect_loop restarts it after a backoff."""
         while self._status == ChannelStatus.RUNNING:
             new_messages = await asyncio.to_thread(self._fetch_new_emails)
             for inbound in new_messages:
@@ -341,11 +344,11 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             await asyncio.sleep(self._poll_interval)
 
     def _fetch_new_emails(self) -> list[InboundMessage]:
-        """The messages that arrived in INBOX after the high-water mark, oldest first.
+        """Up to ``_MAX_FETCHED_PER_POLL`` of the messages that arrived in INBOX after the high-water mark, oldest first.
 
         Opening INBOX or searching it being refused raises, and the reconnect loop retries. A refused fetch ends the batch
-        instead: the mark stays below that message so the next poll asks for it again, whereas skipping it would let the
-        next message move the mark past it for good.
+        instead: the mark stays below that message so the next poll asks for it again, as skipping it would lose it for good. A
+        message the parser cannot read is logged and skipped; a disk error saving its attachment raises, as it may clear.
         """
         results: list[InboundMessage] = []
         conn = self._connect_imap()
@@ -354,21 +357,16 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             _send_imap_id(conn)
             _require_ok(conn.select("INBOX"), "Opening INBOX")
 
-            if self._last_uid:
-                criteria = f"(UID {self._last_uid + 1}:*)"
-            else:
-                criteria = "(UNSEEN)"
+            criteria = f"(UID {self._last_uid + 1}:*)" if self._last_uid else "(UNSEEN)"
 
             msg_nums = _require_ok(conn.uid("search", criteria), "Search")
             if not msg_nums or not msg_nums[0]:
                 return results
 
-            uids = msg_nums[0].split()
-            for uid_bytes in uids[-20:]:
-                uid = int(uid_bytes)
-                if uid <= self._last_uid:
-                    continue
-
+            # `UID n:*` also answers with the newest message when n is past the end of the mailbox.
+            fresh = sorted(uid for uid in map(int, msg_nums[0].split()) if uid > self._last_uid)
+            batch = fresh[:_MAX_FETCHED_PER_POLL] if self._last_uid else fresh[-_MAX_FETCHED_PER_POLL:]
+            for uid in batch:
                 status, data = conn.uid("fetch", str(uid), "(RFC822)")
                 if status != "OK":
                     logger.warning("Email: %s; the next poll fetches it again", _refusal(f"Fetching UID {uid}", status, data))
@@ -378,7 +376,14 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
 
                 raw = data[0][1]
                 if isinstance(raw, bytes):
-                    parsed = self._parse_email(raw, uid)
+                    try:
+                        parsed = self._parse_email(raw, uid)
+                    except OSError:
+                        raise
+                    except Exception:
+                        # One unreadable message must not fail every poll; the mark moves past it like any other.
+                        logger.warning("Email: UID %d could not be parsed and is skipped", uid, exc_info=True)
+                        parsed = None
                     if parsed:
                         results.append(parsed)
                 self._last_uid = max(self._last_uid, uid)

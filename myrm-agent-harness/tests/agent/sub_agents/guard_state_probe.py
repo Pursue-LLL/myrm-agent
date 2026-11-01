@@ -19,6 +19,7 @@ from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer im
 )
 from myrm_agent_harness.agent.middlewares._session_context import (
     get_terminal_errors,
+    isolated_terminal_errors,
     set_approval_session,
     set_is_subagent,
     set_subagent_task_id,
@@ -96,11 +97,15 @@ def turn_registries() -> tuple[frozenset[str], frozenset[str]]:
 def parent_run_in_progress() -> Iterator[None]:
     """A parent run in progress: its guards are reset and it has done some work.
 
-    The bindings the test started with and the loop guards the run registered are put back afterwards.
+    The bindings and the terminal-error registry the test started with and the loop guards the run registered are put
+    back afterwards.
     """
     sessions_before = set(_session_loop_guards)
-    # ``set_approval_session`` overwrites both session vars; the scopes hand the test's own values back.
+    # ``set_approval_session`` overwrites both session vars; the scopes hand the test's own values back. The run's
+    # terminal errors stay in a registry of their own: the circuit breaker refuses every network tool while
+    # ``network_blocked`` is registered, so a registry that outlived the run would fail whichever test runs next.
     with (
+        isolated_terminal_errors(),
         scoped_value(approval_session_var, approval_session_var.get()),
         scoped_value(chat_id_var, chat_id_var.get()),
         scoped_message_id(get_bound_message_id()),

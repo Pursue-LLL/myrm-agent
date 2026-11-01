@@ -13,16 +13,24 @@ automated-sender filtering and forwarded-message parsing (MIME message/rfc822, s
 
 [POS]
 Inbound half of EmailChannel. The host owns IMAP/SMTP connectivity and polling; the mixin only converts a raw
-RFC 822 message into an InboundMessage.
+RFC 822 message into an InboundMessage. Headers, bodies and attachments are read as the sender wrote them: raw UTF-8
+headers (RFC 6532), a charset name Python has no codec for and a cut-off encoded word are decoded instead of failing the
+message; a part is an attachment however its disposition is spelled or when only its Content-Type names it, and a message
+that is one attachment is attached rather than read as text. The sender chooses the file name, so only a plain extension
+of it reaches the path an attachment is saved under.
 """
 
 from __future__ import annotations
 
 import email as email_lib
+import email.errors
 import email.header
 import email.utils
 import logging
+import re
 import tempfile
+import urllib.parse
+from email.message import Message
 from pathlib import Path
 
 from app.channels.core.base import BaseChannel
@@ -63,13 +71,41 @@ _AUTOMATED_HEADERS: dict[str, str] = {
 }
 
 
-def _is_automated_sender(address: str, msg: email_lib.message.Message) -> bool:
+def _to_text(raw: bytes, charset: str | None) -> str:
+    """Decode *raw* as *charset*; a name Python has no codec for (``unknown-8bit``, ``x-unknown``) is read as UTF-8."""
+    try:
+        return raw.decode(charset or "utf-8", errors="replace")
+    except (LookupError, ValueError):
+        return raw.decode("utf-8", errors="replace")
+
+
+def _decode_header(raw: str | email.header.Header) -> str:
+    """A header value as plain text: RFC 2047 encoded words (=?UTF-8?B?...?=) are decoded; a value that carries raw 8-bit
+    bytes is read as those bytes, and an encoded word inside it stays as written, as does one that is cut off."""
+    try:
+        parts = email.header.decode_header(raw)
+    except email.errors.HeaderParseError:
+        return str(raw)
+    # The text beside an encoded word keeps its own spaces, and the spaces between two encoded words are already gone.
+    return "".join(_to_text(part, charset) if isinstance(part, bytes) else part for part, charset in parts)
+
+
+def _text(value: str | email.header.Header) -> str:
+    """A header value as text, without decoding encoded words.
+
+    The parser returns ``str`` for an ASCII header but an ``email.header.Header`` for raw UTF-8 bytes (RFC 6532), which
+    neither ``parseaddr``, ``split`` nor JSON accept.
+    """
+    return value if isinstance(value, str) else _decode_header(value)
+
+
+def _is_automated_sender(address: str, msg: Message) -> bool:
     """Detect automated/noreply senders to prevent reply loops."""
     addr = address.lower()
     if any(pat in addr for pat in _NOREPLY_PATTERNS):
         return True
     for hdr, reject_vals in _AUTOMATED_HEADERS.items():
-        value = msg.get(hdr, "")
+        value = _text(msg.get(hdr, ""))
         if not value:
             continue
         if hdr == "Auto-Submitted":
@@ -83,18 +119,6 @@ def _is_automated_sender(address: str, msg: email_lib.message.Message) -> bool:
     return False
 
 
-def _decode_header(raw: str) -> str:
-    """Decode RFC 2047 encoded header (e.g. =?UTF-8?B?...?=) to plain text."""
-    parts = email.header.decode_header(raw)
-    decoded: list[str] = []
-    for part, charset in parts:
-        if isinstance(part, bytes):
-            decoded.append(part.decode(charset or "utf-8", errors="replace"))
-        else:
-            decoded.append(part)
-    return " ".join(decoded)
-
-
 def _html_to_markdown(html: str) -> str:
     """Convert email HTML body to clean Markdown for LLM consumption."""
     if not html:
@@ -104,6 +128,93 @@ def _html_to_markdown(html: str) -> str:
     converter = HTML2Markdown()
     converter.update_params(ignore_images=True)
     return converter.handle(html).strip()
+
+
+# An attachment is saved with the extension of the sender's file name so that extraction can route by it, but only a plain
+# one: the name is the sender's choice, and the extension ends up in a path, in prompts and in what the file system accepts.
+_SAFE_SUFFIX = re.compile(r"\.[A-Za-z0-9]{1,16}")
+# A ``cid:`` URL names the part it embeds by Content-ID (RFC 2392); the id ends at white space, a quote, a bracket or a parenthesis.
+_CID_URL = re.compile(r"cid:([^\s\"'<>()]+)", re.IGNORECASE)
+
+
+def _name_headers(part: Message) -> Message:
+    """A fresh message holding the two headers that can name a file or call a part an attachment.
+
+    The parser returns a ``Header`` for raw UTF-8 bytes (RFC 6532) and the standard library reads that as replacement
+    characters, so such a value is decoded first.
+    """
+    headers = Message()
+    for name in ("Content-Disposition", "Content-Type"):
+        value = part.get(name)
+        if value is not None:
+            headers[name] = _text(value)
+    return headers
+
+
+def _embedded_ids(msg: Message) -> frozenset[str]:
+    """The Content-IDs that the HTML parts of *msg* point at with a ``cid:`` URL, as written and with ``%`` escapes decoded.
+
+    RFC 2392 decodes the escapes of the URL to get the Content-ID, but its own example writes the id with the escape
+    kept, so both forms are kept.
+    """
+    ids: set[str] = set()
+    for part in msg.walk():
+        payload = part.get_payload(decode=True) if part.get_content_type() == "text/html" else None
+        if isinstance(payload, bytes):
+            for found in _CID_URL.findall(_to_text(payload, part.get_content_charset())):
+                ids.update((found, urllib.parse.unquote(found)))
+    return frozenset(ids)
+
+
+def _is_attachment(part: Message, embedded: frozenset[str] = frozenset()) -> bool:
+    """Whether the sender attached *part*, however it is written, rather than the HTML body embedding it through *embedded*.
+
+    The disposition type is case-insensitive (RFC 2183 section 2). A part that is not text and names a file counts
+    whether its disposition is ``inline`` or absent; a text part that names itself is the body, and so is a part that the
+    HTML points at by Content-ID. A disposition of ``attachment`` always counts.
+    """
+    headers = _name_headers(part)
+    if headers.get_content_disposition() == "attachment":
+        return True
+    content_id = _text(part.get("Content-ID", "")).strip().removeprefix("<").removesuffix(">")
+    return (
+        headers.get_content_maintype() not in ("text", "multipart")
+        and bool(headers.get_filename())
+        and content_id not in embedded
+    )
+
+
+def _attachment_filename(part: Message) -> str:
+    """The decoded file name an attachment part gives itself, ``attachment`` when it names none or the name decodes to nothing."""
+    return _decode_header(_name_headers(part).get_filename() or "") or "attachment"
+
+
+def _safe_suffix(filename: str) -> str:
+    """The extension of *filename* when it is plain, otherwise none."""
+    suffix = Path(filename).suffix
+    return suffix if _SAFE_SUFFIX.fullmatch(suffix) else ""
+
+
+def _media_type(content_type: str) -> MediaType:
+    if content_type.startswith("image/"):
+        return MediaType.IMAGE
+    if content_type.startswith("audio/"):
+        return MediaType.AUDIO
+    if content_type.startswith("video/"):
+        return MediaType.VIDEO
+    return MediaType.DOCUMENT
+
+
+def _save_attachment(part: Message, content_type: str) -> MediaAttachment:
+    """Describe an attachment *part* and save its payload to a temporary file."""
+    filename = _attachment_filename(part)
+    file_data = part.get_payload(decode=True)
+    saved_path: str | None = None
+    if isinstance(file_data, bytes) and file_data:
+        with tempfile.NamedTemporaryFile(delete=False, prefix="email_att_", suffix=_safe_suffix(filename)) as tmp:
+            tmp.write(file_data)
+        saved_path = tmp.name
+    return MediaAttachment(media_type=_media_type(content_type), filename=filename, mime_type=content_type, path=saved_path)
 
 
 class EmailInboundMixin(BaseChannel):
@@ -117,8 +228,7 @@ class EmailInboundMixin(BaseChannel):
     def _parse_email(self, raw: bytes, uid: int) -> InboundMessage | None:
         msg = email_lib.message_from_bytes(raw)
 
-        from_header = msg.get("From", "")
-        sender_email = email.utils.parseaddr(from_header)[1]
+        sender_email = email.utils.parseaddr(_text(msg.get("From", "")))[1]
         if not sender_email or sender_email == self._from_address:
             return None
         if _is_automated_sender(sender_email, msg):
@@ -126,67 +236,43 @@ class EmailInboundMixin(BaseChannel):
             return None
 
         subject = _decode_header(msg.get("Subject", ""))
-        message_id = msg.get("Message-ID", "")
-        in_reply_to = msg.get("In-Reply-To", "")
-        references = msg.get("References", "")
+        message_id = _text(msg.get("Message-ID", ""))
+        in_reply_to = _text(msg.get("In-Reply-To", ""))
+        references = _text(msg.get("References", ""))
 
         text_body = ""
         html_body = ""
         media_list: list[MediaAttachment] = []
-        forwarded_rfc822: email_lib.message.Message | None = None
+        forwarded_rfc822: Message | None = None
 
         if msg.is_multipart():
+            embedded = _embedded_ids(msg)
             for part in msg.walk():
                 ct = part.get_content_type()
-                disp = str(part.get("Content-Disposition", ""))
 
                 if ct == "message/rfc822":
                     payload = part.get_payload()
-                    if isinstance(payload, list) and payload:
+                    if isinstance(payload, list) and payload and isinstance(payload[0], Message):
                         forwarded_rfc822 = payload[0]
                     continue
 
-                if "attachment" in disp:
-                    filename = part.get_filename() or "attachment"
-                    if ct.startswith("image/"):
-                        mt = MediaType.IMAGE
-                    elif ct.startswith("audio/"):
-                        mt = MediaType.AUDIO
-                    elif ct.startswith("video/"):
-                        mt = MediaType.VIDEO
-                    else:
-                        mt = MediaType.DOCUMENT
-                    file_data = part.get_payload(decode=True)
-                    saved_path: str | None = None
-                    if isinstance(file_data, bytes) and file_data:
-                        suffix = Path(filename).suffix or ""
-                        tmp = tempfile.NamedTemporaryFile(delete=False, prefix="email_att_", suffix=suffix)
-                        tmp.write(file_data)
-                        tmp.close()
-                        saved_path = tmp.name
-                    media_list.append(
-                        MediaAttachment(
-                            media_type=mt,
-                            filename=filename,
-                            mime_type=ct,
-                            path=saved_path,
-                        )
-                    )
+                if _is_attachment(part, embedded):
+                    media_list.append(_save_attachment(part, ct))
                 elif ct == "text/html":
                     payload = part.get_payload(decode=True)
-                    charset = part.get_content_charset() or "utf-8"
                     if isinstance(payload, bytes):
-                        html_body = payload.decode(charset, errors="replace")
+                        html_body = _to_text(payload, part.get_content_charset())
                 elif ct == "text/plain" and not text_body:
                     payload = part.get_payload(decode=True)
-                    charset = part.get_content_charset() or "utf-8"
                     if isinstance(payload, bytes):
-                        text_body = payload.decode(charset, errors="replace")
+                        text_body = _to_text(payload, part.get_content_charset())
+        elif msg.get_content_maintype() != "text" and _is_attachment(msg):
+            # The message is itself the attachment; a single text part stays the body whatever its disposition says.
+            media_list.append(_save_attachment(msg, msg.get_content_type()))
         else:
             payload = msg.get_payload(decode=True)
-            charset = msg.get_content_charset() or "utf-8"
             if isinstance(payload, bytes):
-                decoded = payload.decode(charset, errors="replace")
+                decoded = _to_text(payload, msg.get_content_charset())
                 if msg.get_content_type() == "text/html":
                     html_body = decoded
                 else:
@@ -211,9 +297,9 @@ class EmailInboundMixin(BaseChannel):
 
         if forwarded_rfc822 is not None:
             is_forwarded = True
-            fwd_from = email.utils.parseaddr(forwarded_rfc822.get("From", ""))[1]
+            fwd_from = email.utils.parseaddr(_text(forwarded_rfc822.get("From", "")))[1]
             fwd_subject = _decode_header(forwarded_rfc822.get("Subject", ""))
-            fwd_date = forwarded_rfc822.get("Date", "")
+            fwd_date = _text(forwarded_rfc822.get("Date", ""))
             fwd_body = ""
             if forwarded_rfc822.is_multipart():
                 fwd_text = ""
@@ -223,17 +309,15 @@ class EmailInboundMixin(BaseChannel):
                     sub_payload = sub.get_payload(decode=True)
                     if not isinstance(sub_payload, bytes):
                         continue
-                    sub_charset = sub.get_content_charset() or "utf-8"
                     if sub_ct == "text/plain" and not fwd_text:
-                        fwd_text = sub_payload.decode(sub_charset, errors="replace")
+                        fwd_text = _to_text(sub_payload, sub.get_content_charset())
                     elif sub_ct == "text/html" and not fwd_html:
-                        fwd_html = sub_payload.decode(sub_charset, errors="replace")
+                        fwd_html = _to_text(sub_payload, sub.get_content_charset())
                 fwd_body = fwd_text or _html_to_markdown(fwd_html)
             else:
                 fwd_payload = forwarded_rfc822.get_payload(decode=True)
                 if isinstance(fwd_payload, bytes):
-                    fwd_charset = forwarded_rfc822.get_content_charset() or "utf-8"
-                    raw_fwd = fwd_payload.decode(fwd_charset, errors="replace")
+                    raw_fwd = _to_text(fwd_payload, forwarded_rfc822.get_content_charset())
                     if forwarded_rfc822.get_content_type() == "text/html":
                         fwd_body = _html_to_markdown(raw_fwd)
                     else:

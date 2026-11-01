@@ -50,7 +50,7 @@ from myrm_agent_harness.utils.locale import is_chinese
 from ._formatter import format_grep_results
 from ._redaction import redact_matches
 from .fallback_discovery import collect_candidate_files
-from .path_hint import format_path_not_found_hint, suggest_similar_paths
+from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
 from .regex_validator import RegexValidator
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
@@ -301,6 +301,9 @@ def create_grep_tool(
         """
         try:
             executor = ensure_executor(config)
+
+            if (mcp_error := mcp_namespace_error(path)) is not None:
+                raise ToolError(message=mcp_error, user_hint=mcp_error)
 
             try:
                 search_path = await executor.resolve_path(path)

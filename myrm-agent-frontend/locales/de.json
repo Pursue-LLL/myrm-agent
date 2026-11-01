@@ -16511,8 +16511,8 @@
       "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche (läuft lokal)",
       "embeddingModelDescriptionSaas": "Text-Vektorisierungsmodell für semantische Suche (kostenlos für Abonnenten)",
       "rerankerModel": "Reranker-Modell",
-      "rerankerModelDescription": "Such-Reranking-Modell für bessere Relevanz (läuft lokal)",
-      "rerankerModelDescriptionSaas": "Such-Reranking-Modell für bessere Relevanz (kostenlos für Abonnenten)",
+      "rerankerModelDescription": "Reranking-Modell, das Passagen beim Seitenlesen und Erinnerungsabruf nach Relevanz ordnet (läuft lokal)",
+      "rerankerModelDescriptionSaas": "Reranking-Modell, das Passagen beim Seitenlesen und Erinnerungsabruf nach Relevanz ordnet (kostenlos für Abonnenten)",
       "localModel": "Lokales Modell",
       "platformService": "Plattformdienst",
       "customProvider": "Benutzerdefinierter Anbieter",
@@ -16564,7 +16564,7 @@
         "networkError": "Netzwerkverbindung fehlgeschlagen"
       },
       "hint": {
-        "title": "Embedding- und Reranking-Modelle können die Suchqualität erheblich verbessern und den Token-Verbrauch bei Websuche und Seitenlesen reduzieren – bei weit geringeren Kosten als LLMs.",
+        "title": "Embedding- und Reranking-Modelle kommen beim Lesen von Webseiten und beim Abruf von Erinnerungen zum Einsatz und geben der LLM zuerst die Inhalte, die zur Frage am besten passen – bei weit geringeren Kosten als LLMs.",
         "options": "Sie können kostenlose oder kostenpflichtige Anbietermodelle verwenden. Für maximale Privatsphäre können Sie Open-Source-Modelle lokal im OpenAI-kompatiblen Format bereitstellen.",
         "recommendation": "Mehrsprachige Modelle werden empfohlen und können je nach tatsächlicher Nutzung ausgewählt werden.",
         "deployTip": "KI nach Bereitstellungsmethoden fragen",
@@ -17132,7 +17132,7 @@
         "reindexPartial": "{migrated} migriert, {failed} konnten nicht migriert werden. Erneut versuchen, um sie nachzuholen",
         "reindexError": "Die Migration wurde unterbrochen. Erneut starten, um fortzufahren",
         "rerankerModel": "Reranker-Modell",
-        "rerankerModelDescription": "Such-Reranking-Modell für semantische Rangfolge über Wissensdatenbank, Speicher und andere Funktionen",
+        "rerankerModelDescription": "Reranking-Modell, das Passagen beim Seitenlesen und Erinnerungsabruf nach Relevanz ordnet",
         "provider": "Anbieter",
         "modelName": "Modellname",
         "modelNamePlaceholder": "Modellname eingeben",

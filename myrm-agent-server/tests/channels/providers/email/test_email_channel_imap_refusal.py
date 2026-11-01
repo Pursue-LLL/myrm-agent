@@ -7,8 +7,6 @@ refused to hand over, so a refusal is neither read as data nor a mail that is lo
 
 from __future__ import annotations
 
-import email.mime.text
-import email.utils
 import imaplib
 import logging
 from unittest.mock import MagicMock, patch
@@ -17,19 +15,10 @@ import pytest
 
 from app.channels.providers.email import EmailChannel
 from app.channels.types import InboundMessage
-from tests.channels.providers.email.email_channel_factory import make_channel
+from tests.channels.providers.email.email_channel_factory import make_channel, raw_mail
 
 _REFUSAL = b"[SERVERBUG] Internal error"
 _LOGGER = "app.channels.providers.email.channel"
-
-
-def _raw_mail(uid: int) -> bytes:
-    msg = email.mime.text.MIMEText(f"Body {uid}", "plain")
-    msg["From"] = "sender@example.com"
-    msg["To"] = "bot@example.com"
-    msg["Subject"] = f"Subject {uid}"
-    msg["Message-ID"] = email.utils.make_msgid()
-    return msg.as_bytes()
 
 
 class _Mailbox:
@@ -55,7 +44,7 @@ class _Mailbox:
             return self._answer("search", [b"5 6"])
         uid = args[0]
         self.fetched.append(uid)
-        return self._answer(uid, [(f"{uid} (RFC822)".encode(), _raw_mail(int(uid))), b")"])
+        return self._answer(uid, [(f"{uid} (RFC822)".encode(), raw_mail(int(uid))), b")"])
 
     def poll(self, channel: EmailChannel) -> list[InboundMessage]:
         with patch("imaplib.IMAP4_SSL", return_value=self.conn):
@@ -74,8 +63,10 @@ class TestRefusalBeforeAnythingIsFetched:
         assert mailbox.fetched == []
         mailbox.conn.logout.assert_called_once_with()
 
-    def test_a_refusal_without_text_names_the_status(self) -> None:
-        mailbox = _Mailbox(refused={"search"}, reason=None)
+    @pytest.mark.parametrize("reason", [None, b"", b"   "], ids=["none", "empty", "blank"])
+    def test_a_refusal_without_text_names_the_status(self, reason: bytes | None) -> None:
+        """``imaplib`` hands a NO that carries no text over as ``b''``; ``None`` and blanks are defensive shapes."""
+        mailbox = _Mailbox(refused={"search"}, reason=reason)
 
         with pytest.raises(imaplib.IMAP4.error, match="Search was refused by the server: NO$"):
             mailbox.poll(make_channel())
@@ -104,12 +95,14 @@ class TestRefusedFetch:
         with caplog.at_level(logging.WARNING, logger=_LOGGER):
             first_poll = mailbox.poll(channel)
 
-        assert ["Body 5" in message.content for message in first_poll] == [True]
+        assert len(first_poll) == 1
+        assert "Body 5" in first_poll[0].content
         assert channel._last_uid == 5
         assert f"Fetching UID 6 was refused by the server: {_REFUSAL.decode()}" in caplog.text
 
         mailbox.refused.clear()
         second_poll = mailbox.poll(channel)
 
-        assert ["Body 6" in message.content for message in second_poll] == [True]
+        assert len(second_poll) == 1
+        assert "Body 6" in second_poll[0].content
         assert channel._last_uid == 6

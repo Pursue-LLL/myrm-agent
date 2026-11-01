@@ -5,7 +5,7 @@
 - .term_selector::select_selective_bm25_tokens (POS: IDF-aware query term selection)
 
 [OUTPUT]
-- TokenizerService, select_selective_bm25_tokens, get_tokenizer_service, preload_tokenizer
+- TokenizerService, select_selective_bm25_tokens, get_tokenizer_service, preload_tokenizer, _cjk_bigram_tokenize
 
 [POS]
 Retriever BM25 模块入口。聚合导出分词器服务与词项选择算法。

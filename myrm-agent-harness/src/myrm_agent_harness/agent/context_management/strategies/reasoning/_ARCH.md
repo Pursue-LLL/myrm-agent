@@ -8,8 +8,8 @@ Reasoning preservation strategy: Provider-agnostic thinking extraction, heuristi
 | File | Role | Description |
 |------|------|-------------|
 | `__init__.py` | Package | Export public data models and extraction APIs. |
-| `anchor_extractor.py` | Extractor | Universal multi-provider reasoning extractor & heuristic decision anchor miner. Zero secondary LLM cost. |
-| `anchor_ledger.py` | Ledger | Thread-safe, bounded session-scoped ledger for preserving core decision anchors across compaction. |
+| `anchor_extractor.py` | Extractor | Universal multi-provider reasoning extractor & heuristic decision anchor miner. Zero secondary LLM cost. The last-sentence fallback can be switched off (`tail_fallback=False`) for reasoning that leads into a tool call. |
+| `anchor_ledger.py` | Ledger | Thread-safe, bounded session-scoped ledger for preserving core decision anchors across compaction. `render_for_turn(turn_key)` freezes the rendered block at the first sight of a turn key. |
 | `_ARCH.md` | Doc | Architecture documentation. |
 
 ## Key Invariants

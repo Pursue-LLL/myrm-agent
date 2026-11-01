@@ -164,8 +164,7 @@ class ConsolidationJudge:
             if action is not None:
                 plan.actions.append(action)
                 plan.total_skills_affected += len(action.source_skills)
-                if action.action_type != ConsolidationActionType.KEEP:
-                    plan.estimated_reduction += len(action.source_skills) - 1
+                plan.estimated_reduction += action.net_reduction
 
         plan.preview_summary = self._build_preview_summary(plan)
         return plan

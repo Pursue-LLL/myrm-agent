@@ -610,7 +610,7 @@ BUILTIN_PROTECTED_TOOLS = frozenset({"skill_select_tool", "todo_write", "file_re
 都复用这条链，避免不同入口出现不同的缓存行为：
 
 ```
-ReasoningAnchorProcessor ← 提取思考链决策/约束锚点并稳定注入尾部 Human，杜绝缓存破坏
+ReasoningAnchorProcessor ← 提取思考链决策/约束锚点；注入尾部 Human 的块按用户轮冻结（工具循环里这条消息是请求的第一条，同一轮内各工具轮逐字节不变），工具调用前的推理不产生锚点
        ↓
 ThinkingBlockCleaner     ← 清理历史非活跃 thinking blocks，减少无效 token
        ↓

@@ -9,6 +9,7 @@
 - analyze_error_pattern: Analyze tool result content to identify common error patt...
 - is_result_successful: Determine if a tool result indicates success (no error pa...
 - analyze_warning_level: Analyze warning context to determine severity level.
+- evaluate_success_level: Grade a tool result, with the executor's verdict taking precedence over error wording.
 
 [POS]
 Core functions and static suggestions for loop detection.
@@ -19,6 +20,13 @@ from __future__ import annotations
 import re
 
 from ..types import ErrorPattern, SuccessLevel, SuggestionPriority, ToolGroup, WarningLevel, get_tool_group
+
+_BASH_TOOL = "bash_code_execute_tool"
+_OUTPUT_BLOCK_END = "<<<END_TOOL_OUTPUT"
+_EXIT_TRAILER = "[exit_code: "
+_SCAN_HEAD_CHARS = 300
+# Tool groups whose whole result is the tool's own text or the state of a page, so all of it is read for error wording.
+_WHOLE_TEXT_GROUPS = frozenset({ToolGroup.BROWSER, ToolGroup.WRITE})
 
 _TRIVIAL_TEST_PATTERNS: tuple[str, ...] = (
     "no tests ran",
@@ -253,14 +261,52 @@ def analyze_warning_level(content: str) -> WarningLevel:
     return WarningLevel.NORMAL_WARN
 
 
-def evaluate_success_level(tool_name: str, result_content: str) -> SuccessLevel:
-    """Evaluate success level with tool-specific criteria."""
-    if not result_content:
+def _bash_exited_zero(tool_name: str, result_content: str) -> bool:
+    """True when a bash result shows a finished command and the tool wrote no exit trailer.
+
+    The tool closes the output block of a finished command and adds ``[exit_code: N]`` only for N != 0. The two
+    markers are read as plain text, not through the JSON the result is wrapped in, because secret redaction can
+    leave that JSON unparseable. A result that does not show both stays with the whole-text read.
+    """
+    return tool_name == _BASH_TOOL and _OUTPUT_BLOCK_END in result_content and _EXIT_TRAILER not in result_content
+
+
+def _leading_text(result_content: str) -> str:
+    """The first line of a result, where a tool's own error text sits."""
+    return result_content.lstrip().split("\n", 1)[0][:_SCAN_HEAD_CHARS]
+
+
+def _passing_level(tool_group: ToolGroup, content_lower: str) -> SuccessLevel:
+    """Grade a result that raised no failure signal: a test run that collected nothing is not a pass."""
+    if (
+        tool_group == ToolGroup.EXECUTE
+        and any(pat in content_lower for pat in _TRIVIAL_TEST_PATTERNS)
+        and not _REAL_PASS_RE.search(content_lower)
+    ):
+        return SuccessLevel.EMPTY_OK
+    return SuccessLevel.FULL_SUCCESS
+
+
+def evaluate_success_level(tool_name: str, result_content: str, *, errored: bool = False) -> SuccessLevel:
+    """Evaluate success level with tool-specific criteria.
+
+    The executor's own verdict wins: an error status is a failure, and a bash command that exited 0 is not one
+    however its output reads. Without such a verdict, a tool that returns data (skill docs, file contents, query
+    results) is read for error wording on its first line only, where its own error text sits; words deeper in
+    belong to the data and say nothing about whether the call worked. Bash that failed or whose exit is unknown,
+    browser and write results are read whole, since their error text trails or is the whole message.
+    """
+    if not result_content or errored:
         return SuccessLevel.FAILURE
 
-    error_pattern = analyze_error_pattern(result_content)
     tool_group = get_tool_group(tool_name)
-    content_lower = result_content.lower()
+    if _bash_exited_zero(tool_name, result_content):
+        return _passing_level(tool_group, result_content.lower())
+
+    whole_text = tool_name == _BASH_TOOL or tool_group in _WHOLE_TEXT_GROUPS
+    scanned = result_content if whole_text else _leading_text(result_content)
+    error_pattern = analyze_error_pattern(scanned)
+    content_lower = scanned.lower()
 
     if error_pattern == ErrorPattern.EMPTY_RESULT:
         if tool_group in (ToolGroup.SEARCH, ToolGroup.MEMORY):
@@ -287,7 +333,7 @@ def evaluate_success_level(tool_name: str, result_content: str) -> SuccessLevel:
     ):
         return SuccessLevel.PARTIAL_SUCCESS
 
-    warning_level = analyze_warning_level(result_content)
+    warning_level = analyze_warning_level(scanned)
 
     if warning_level == WarningLevel.CRITICAL_WARN:
         return SuccessLevel.FAILURE
@@ -296,14 +342,7 @@ def evaluate_success_level(tool_name: str, result_content: str) -> SuccessLevel:
     elif warning_level == WarningLevel.INFO_WARN:
         return SuccessLevel.FULL_SUCCESS
 
-    if (
-        tool_group == ToolGroup.EXECUTE
-        and any(pat in content_lower for pat in _TRIVIAL_TEST_PATTERNS)
-        and not _REAL_PASS_RE.search(content_lower)
-    ):
-        return SuccessLevel.EMPTY_OK
-
-    return SuccessLevel.FULL_SUCCESS
+    return _passing_level(tool_group, content_lower)
 
 
 def prioritize_suggestions(

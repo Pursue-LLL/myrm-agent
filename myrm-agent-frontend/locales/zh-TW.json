@@ -16511,8 +16511,8 @@
       "embeddingModelDescription": "文字向量化模型，用於語義搜尋（本地執行）",
       "embeddingModelDescriptionSaas": "文字向量化模型，用於語義搜尋（訂閱使用者免費）",
       "rerankerModel": "重排序模型",
-      "rerankerModelDescription": "檢索結果重排序模型，提升相關性（本地執行）",
-      "rerankerModelDescriptionSaas": "檢索結果重排序模型，提升相關性（訂閱使用者免費）",
+      "rerankerModelDescription": "重排序模型，在網頁讀取與記憶召回時按相關性排序（本地執行）",
+      "rerankerModelDescriptionSaas": "重排序模型，在網頁讀取與記憶召回時按相關性排序（訂閱使用者免費）",
       "localModel": "本地模型",
       "platformService": "平臺服務",
       "customProvider": "自定義提供商",
@@ -16564,7 +16564,7 @@
         "networkError": "網路連線失敗"
       },
       "hint": {
-        "title": "嵌入和重排序模型在網路搜尋和網頁讀取時能大幅提高搜尋質量並減少 Token 消耗，且其價格遠遠低於大語言模型。",
+        "title": "嵌入和重排序模型用於讀取網頁和召回記憶，把與問題最相關的內容優先交給 LLM，且其價格遠遠低於大語言模型。",
         "options": "你可以使用免費或付費服務商模型，如果追求極致的隱私也可使用 OpenAI 相容的格式在本地部署開源模型。",
         "recommendation": "推薦使用多語言模型，可根據實際使用情況選擇。",
         "deployTip": "具體部署方法可以直接詢問 AI",
@@ -17132,7 +17132,7 @@
         "reindexPartial": "已遷移 {migrated} 條，{failed} 條未能遷移，可再次嘗試",
         "reindexError": "遷移被中斷，再次點擊可從中斷處繼續",
         "rerankerModel": "重排序模型",
-        "rerankerModelDescription": "檢索結果重排序模型，用於支援知識庫、記憶等能力的語義排序",
+        "rerankerModelDescription": "重排序模型，在網頁讀取與記憶召回時按相關性排序",
         "provider": "提供商",
         "modelName": "模型名稱",
         "modelNamePlaceholder": "輸入模型名稱",

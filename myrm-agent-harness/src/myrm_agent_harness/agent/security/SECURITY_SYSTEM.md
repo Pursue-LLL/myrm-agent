@@ -851,7 +851,7 @@ Layer 5 包含两个并列的防滥用机制：
 `LoopGuard` 使用滑动窗口（默认 20 条记录），通过 `tool_interceptor_middleware` 集成：
 
 - `pre_check(tool_name, args)` — 在工具执行前检测，返回 `LoopVerdict`（ALLOW/WARN/BREAK）
-- `record_result(tool_name, args, result_text)` — 在工具执行后记录结果并评估成功等级
+- `record_result(tool_name, args, result_text, *, record=None, errored=False)` — 在工具执行后记录结果并评估成功等级；`errored` 取自 `ToolMessage.status == "error"`，执行器判定的失败优先于文本关键词
 - 参数和结果均通过 `SHA256(canonical JSON)[:16]` 哈希化（大参数 >1KB 采用两段式摘要），避免存储大量数据并压制高频序列化 CPU 耗时
 - BREAK 阻止工具执行（防止资源浪费），WARN 附加建议到 ToolMessage 帮助 LLM 自我纠正
 

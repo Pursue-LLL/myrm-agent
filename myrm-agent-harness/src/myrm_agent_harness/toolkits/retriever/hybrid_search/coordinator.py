@@ -7,6 +7,11 @@ All model dependencies (embedding, reranker) are passed explicitly via method pa
 - toolkits.retriever.bm25_retrieval::BM25Retriever (POS: BM25 sparse retrieval engine)
 - toolkits.retriever.embedding::EmbeddingService (POS: Embedding protocol)
 - toolkits.retriever.reranker::RerankerService (POS: Reranker contract layer)
+- toolkits.retriever.vector_search::search_with_numpy_retriever (POS: in-memory vector search for ephemeral document chunks)
+- toolkits.retriever.fusion_strategies::rrf_fusion (POS: score-fusion utilities for hybrid retrieval)
+- toolkits.retriever.hybrid_search.fusion_pipeline::FusionPipeline (POS: multi-query result aggregation and ranking)
+- toolkits.retriever.hybrid_search.reranking_pipeline::RerankingPipeline (POS: batch reranker dispatch and score sorting)
+- toolkits.retriever.performance_monitor::get_performance_monitor (POS: performance monitor hooks)
 
 [OUTPUT]
 - HybridSearchCoordinator: Coordinates BM25 sparse retrieval and vector retrieval with RRF fusion and reranking
@@ -37,9 +42,11 @@ logger = logging.getLogger(__name__)
 class HybridSearchCoordinator:
     """Hybrid search coordinator.
 
-    Coordinates BM25 sparse retrieval and vector retrieval with two modes:
-    1. Direct reranking: for small document sets (< 100 docs).
-    2. Hybrid retrieval + reranking: for large document sets (> 100 docs).
+    Coordinates BM25 sparse retrieval and vector retrieval with two modes; the caller picks one
+    (``RetrieverManager`` switches on the chunk count versus ``hybrid_top_k_per_query``):
+    1. Direct reranking: every document goes to the reranker, for small document sets.
+    2. Hybrid retrieval + reranking: BM25 and vector search fused with RRF narrow each query to
+       ``hybrid_top_k_per_query`` candidates before reranking, for large document sets.
 
     All AI models (reranker/embedding) are passed via method parameters.
     """

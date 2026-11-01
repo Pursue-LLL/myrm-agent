@@ -16511,8 +16511,8 @@
       "embeddingModelDescription": "テキストベクトル化モデル。セマンティック検索用（ローカル実行）",
       "embeddingModelDescriptionSaas": "テキストベクトル化モデル。セマンティック検索に使用（サブスクリプションユーザーは無料）",
       "rerankerModel": "リランカーモデル",
-      "rerankerModelDescription": "検索結果の関連性を向上させるリランカーモデル（ローカル実行）",
-      "rerankerModelDescriptionSaas": "検索結果の再ランキングモデル。関連性を向上（サブスクリプションユーザーは無料）",
+      "rerankerModelDescription": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル（ローカル実行）",
+      "rerankerModelDescriptionSaas": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル（サブスクリプションユーザーは無料）",
       "localModel": "ローカルモデル",
       "platformService": "プラットフォームサービス",
       "customProvider": "カスタムプロバイダー",
@@ -16564,7 +16564,7 @@
         "networkError": "ネットワーク接続失敗"
       },
       "hint": {
-        "title": "エンベディングと再ランキングモデルを使用すると、Web 検索とページ読み取り時の検索品質が大幅に向上し、トークン消費も削減されます。コストは大規模言語モデルよりはるかに低くなります。",
+        "title": "エンベディングと再ランキングモデルは Web ページの読み取りとメモリの呼び出しで使われ、質問に最も関連する内容を優先して LLM に渡します。コストは大規模言語モデルよりはるかに低くなります。",
         "options": "無料または有料のサービスプロバイダーモデルを使用できます。究極のプライバシーを求める場合は、OpenAI 互換形式でローカルにオープンソースモデルをデプロイすることもできます。",
         "recommendation": "多言語モデルを推奨します。実際の利用状況に応じて選択できます。",
         "deployTip": "具体的なデプロイ方法は AI に直接質問できます",
@@ -17132,7 +17132,7 @@
         "reindexPartial": "{migrated} 件を移行、{failed} 件は移行できませんでした。もう一度お試しください",
         "reindexError": "移行が中断されました。もう一度実行すると続きから再開します",
         "rerankerModel": "リランカーモデル",
-        "rerankerModelDescription": "ナレッジベースやメモリなどのセマンティック再ランキング用モデル",
+        "rerankerModelDescription": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル",
         "provider": "プロバイダー",
         "modelName": "モデル名前",
         "modelNamePlaceholder": "モデル名を入力",

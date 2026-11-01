@@ -21,7 +21,7 @@ Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fall
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports FetchEngine and result types | ✅ |
-| web_fetch_agent_tools.py | Core | LangChain web_fetch_tool factory | ✅ |
+| web_fetch_agent_tools.py | Core | LangChain web_fetch_tool factory; `fetch_and_extract` requires both embedding and reranker configs, otherwise only `fetch_full_content` is available | ✅ |
 | _web_fetch_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH) | ✅ |
 
 ## L4 Escalation (WFEL)
