@@ -155,6 +155,7 @@ def test_an_id_with_raw_utf_8_bytes_is_left_out(message: ModuleType, stored: str
     ("headers", "name"),
     [
         pytest.param([], "attachment", id="no-name"),
+        pytest.param(['Content-Disposition: attachment; filename="=?utf-8?b??="'], "attachment", id="an-empty-encoded-word"),
         pytest.param(['Content-Disposition: attachment; filename="a.pdf"'], "a.pdf", id="plain"),
         pytest.param(["Content-Disposition: attachment; filename*=UTF-8''%E5%8F%91%E7%A5%A8.pdf"], "发票.pdf", id="rfc-2231"),
         pytest.param(['Content-Disposition: attachment; filename="=?utf-8?b?5Y+R56Wo?=.pdf"'], "发票.pdf", id="rfc-2047"),

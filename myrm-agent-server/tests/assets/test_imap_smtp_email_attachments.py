@@ -13,10 +13,12 @@ must not let one attachment, or a file already in the output directory, replace 
 [OUTPUT]
 - Fails when ``read`` or ``download`` loses a file name that is raw UTF-8, RFC 2231 or RFC 2047, when two attachments end
   up in one file, when one replaces a file already in the output directory or is written through a symlink there that
-  points nowhere, when a name such as ``../x`` or ``..`` puts a file outside the output directory, when a write that fails
-  leaves a partial file behind or its cleanup hides why it failed, when a directory that cannot be written is taken for a
-  name that is taken, when a message that repeats one name has no limit on the copies saved, when ``--filename`` misses a
-  name that decodes to it, or when a message without attachments is not reported as such
+  points nowhere, when a name such as ``../x`` puts a file outside the output directory, when a name of dots only or an
+  empty one is saved under any name but ``attachment``, when a name too long for a file system fails the download or leaves a
+  copy of it that cannot be numbered, when a write that fails leaves a partial file behind, hides why it failed or does not
+  name the files saved before it, when a directory that cannot be written is taken for a name that is taken, when a
+  message that repeats one name has no limit on the copies saved, when ``--filename`` misses a name that decodes to it, or
+  when a message without attachments is not reported as such
 
 [POS]
 In-process test of how ``read`` and ``download`` name attachments, next to ``test_imap_smtp_email_failures.py``, which
@@ -104,13 +106,24 @@ def _intercept_exclusive_create(monkeypatch: pytest.MonkeyPatch, replacement: Ca
     monkeypatch.setattr(Path, "open", open_)
 
 
+def _download(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    raw: bytes,
+    directory: Path,
+    *extra: str,
+) -> dict[str, object]:
+    """Run ``download`` of the message *raw* into *directory*; *extra* are further arguments such as ``--filename``."""
+    return _run(email_manager, monkeypatch, capsys, raw, "download", "1", *extra, "--output-dir", str(directory))
+
+
 def _download_fails(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], directory: Path, name: str
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], raw: bytes, directory: Path
 ) -> str:
-    """Download one attachment called *name* into *directory*, which has to end in the script's JSON error; return its text."""
-    raw = _message(_attachment(name, b"DATA"))
+    """Download the message *raw* into *directory*, which has to end in the script's JSON error; return its text."""
     with pytest.raises(SystemExit):
-        _run(email_manager, monkeypatch, capsys, raw, "download", "1", "--output-dir", str(directory))
+        _download(email_manager, monkeypatch, capsys, raw, directory)
     error: str = json.loads(capsys.readouterr().out)["error"]
     return error
 
@@ -148,7 +161,7 @@ def test_download_saves_an_attachment_under_the_name_its_sender_gave_it(
 ) -> None:
     raw = _message(_part(b"DATA", *headers))
 
-    answer = _run(email_manager, monkeypatch, capsys, raw, "download", "1", "--output-dir", str(tmp_path))
+    answer = _download(email_manager, monkeypatch, capsys, raw, tmp_path)
 
     assert _saved(tmp_path) == {"发票.pdf": b"DATA"}
     assert [(entry["filename"], entry["path"]) for entry in _entries(answer, "files")] == [
@@ -177,7 +190,7 @@ def test_download_gives_every_attachment_a_file_of_its_own(
     contents = [f"CONTENT-{number}".encode() for number, _name in enumerate(names)]
     raw = _message(*(_attachment(name, content) for name, content in zip(names, contents, strict=True)))
 
-    answer = _run(email_manager, monkeypatch, capsys, raw, "download", "1", "--output-dir", str(tmp_path))
+    answer = _download(email_manager, monkeypatch, capsys, raw, tmp_path)
 
     assert _saved(tmp_path) == dict(zip(saved, contents, strict=True))
     assert [Path(entry["path"]).name for entry in _entries(answer, "files")] == saved
@@ -188,16 +201,7 @@ def test_download_keeps_a_file_that_is_already_in_the_output_directory(
 ) -> None:
     (tmp_path / "contract.pdf").write_bytes(b"EDITED BY THE USER")
 
-    _run(
-        email_manager,
-        monkeypatch,
-        capsys,
-        _message(_attachment("contract.pdf", b"NEW")),
-        "download",
-        "1",
-        "--output-dir",
-        str(tmp_path),
-    )
+    _download(email_manager, monkeypatch, capsys, _message(_attachment("contract.pdf", b"NEW")), tmp_path)
 
     assert _saved(tmp_path) == {"contract.pdf": b"EDITED BY THE USER", "contract-1.pdf": b"NEW"}
 
@@ -214,38 +218,61 @@ def test_download_does_not_write_through_a_symlink_that_points_nowhere(
     except (OSError, NotImplementedError):
         pytest.skip("this platform cannot create symlinks")
 
-    answer = _run(
-        email_manager, monkeypatch, capsys, _message(_attachment("scan.pdf", b"NEW")), "download", "1", "--output-dir", str(out)
-    )
+    answer = _download(email_manager, monkeypatch, capsys, _message(_attachment("scan.pdf", b"NEW")), out)
 
     assert not (elsewhere / "target.pdf").exists()
     assert (out / "scan-1.pdf").read_bytes() == b"NEW"
     assert [entry["path"] for entry in _entries(answer, "files")] == [str(out / "scan-1.pdf")]
 
 
+# A file name holds 255 bytes on Linux; 4 of them stay free for the number of a copy, ``-999`` at the most.
 @pytest.mark.parametrize(
-    "name",
+    ("name", "saved_as"),
     [
-        pytest.param("../evil.pdf", id="parent-directory"),
-        pytest.param("/etc/evil.pdf", id="absolute-path"),
-        pytest.param("a/../../b.pdf", id="climbs-out-from-inside"),
-        pytest.param("..", id="double-dot"),
-        pytest.param(".", id="single-dot"),
+        pytest.param("Q3-report_v2.final.pdf", "Q3-report_v2.final.pdf", id="letters-digits-dot-underscore-dash-stay"),
+        pytest.param("a:b*c?.pdf", "a_b_c_.pdf", id="characters-a-file-system-reserves-become-underscores"),
+        pytest.param("发票 2026.pdf", "发票_2026.pdf", id="a-space-becomes-an-underscore-and-chinese-stays"),
+        pytest.param("../evil.pdf", ".._evil.pdf", id="parent-directory"),
+        pytest.param("/etc/evil.pdf", "_etc_evil.pdf", id="absolute-path"),
+        pytest.param("a/../../b.pdf", "a_.._.._b.pdf", id="climbs-out-from-inside"),
+        pytest.param(".", "attachment", id="single-dot"),
+        pytest.param("..", "attachment", id="double-dot"),
+        pytest.param("...", "attachment", id="three-dots"),
+        pytest.param("=?utf-8?b??=", "attachment", id="empty-encoded-word"),
+        pytest.param("a" * 251, "a" * 251, id="at-the-limit"),
+        pytest.param("a" * 252, "a" * 251, id="one-byte-over"),
+        pytest.param("文" * 100 + ".pdf", "文" * 82 + ".pdf", id="chinese-keeps-its-extension-and-whole-characters"),
+        pytest.param(f"{'x' * 300}.{'e' * 15}", f"{'x' * 235}.{'e' * 15}", id="a-16-byte-extension-is-kept"),
+        pytest.param(f"{'x' * 300}.{'e' * 16}", "x" * 251, id="a-17-byte-tail-is-no-extension-and-is-cut-with-the-name"),
     ],
 )
-def test_download_keeps_every_file_inside_the_output_directory(
-    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path, name: str
+def test_download_saves_each_name_as_one_safe_file_inside_the_output_directory(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    name: str,
+    saved_as: str,
 ) -> None:
     out = tmp_path / "out"
 
-    answer = _run(
-        email_manager, monkeypatch, capsys, _message(_attachment(name, b"DATA")), "download", "1", "--output-dir", str(out)
-    )
+    _download(email_manager, monkeypatch, capsys, _message(_attachment(name, b"DATA")), out)
 
     assert [path.name for path in tmp_path.iterdir()] == ["out"]
-    [saved] = [Path(entry["path"]) for entry in _entries(answer, "files")]
-    assert saved.parent == out
-    assert saved.read_bytes() == b"DATA"
+    assert _saved(out) == {saved_as: b"DATA"}
+
+
+def test_download_can_number_a_copy_of_a_name_that_fills_the_limit(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    name = "y" * 251 + ".pdf"  # 255 bytes: a number appended to it would exceed the limit
+    raw = _message(_attachment(name, b"ONE"), _attachment(name, b"TWO"))
+
+    _download(email_manager, monkeypatch, capsys, raw, tmp_path)
+
+    saved = _saved(tmp_path)
+    assert sorted(saved.values()) == [b"ONE", b"TWO"]
+    assert all(len(file.encode()) <= 255 for file in saved)
 
 
 def test_download_leaves_no_partial_file_when_a_write_fails(
@@ -253,10 +280,27 @@ def test_download_leaves_no_partial_file_when_a_write_fails(
 ) -> None:
     _intercept_exclusive_create(monkeypatch, _FullDisk)
 
-    error = _download_fails(email_manager, monkeypatch, capsys, tmp_path, "big.zip")
+    error = _download_fails(email_manager, monkeypatch, capsys, _message(_attachment("big.zip", b"DATA")), tmp_path)
 
     assert os.strerror(errno.ENOSPC) in error
+    assert "already saved" not in error
     assert list(tmp_path.iterdir()) == []
+
+
+def test_download_names_the_files_it_saved_before_a_write_failed(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    def fill_up_at_the_second_file(path: Path) -> object:
+        return _FullDisk(path) if path.name == "two.pdf" else open(path, "xb")  # noqa: SIM115 -- closed by the script
+
+    _intercept_exclusive_create(monkeypatch, fill_up_at_the_second_file)
+    raw = _message(_attachment("one.pdf", b"ONE"), _attachment("two.pdf", b"TWO"))
+
+    error = _download_fails(email_manager, monkeypatch, capsys, raw, tmp_path)
+
+    assert os.strerror(errno.ENOSPC) in error
+    assert error.endswith(f"already saved: {tmp_path / 'one.pdf'}")
+    assert _saved(tmp_path) == {"one.pdf": b"ONE"}
 
 
 def test_download_reports_why_a_write_failed_even_when_the_partial_file_cannot_be_removed(
@@ -269,7 +313,7 @@ def test_download_reports_why_a_write_failed_even_when_the_partial_file_cannot_b
 
     monkeypatch.setattr(Path, "unlink", refuse_to_unlink)
 
-    error = _download_fails(email_manager, monkeypatch, capsys, tmp_path, "big.zip")
+    error = _download_fails(email_manager, monkeypatch, capsys, _message(_attachment("big.zip", b"DATA")), tmp_path)
 
     assert os.strerror(errno.ENOSPC) in error
 
@@ -285,7 +329,7 @@ def test_download_does_not_take_an_unwritable_directory_for_a_name_that_is_taken
 
     _intercept_exclusive_create(monkeypatch, refuse)
 
-    error = _download_fails(email_manager, monkeypatch, capsys, tmp_path, "scan.pdf")
+    error = _download_fails(email_manager, monkeypatch, capsys, _message(_attachment("scan.pdf", b"DATA")), tmp_path)
 
     assert os.strerror(errno.EACCES) in error
     assert attempts == [tmp_path / "scan.pdf"]
@@ -297,11 +341,13 @@ def test_download_stops_when_one_name_has_been_saved_as_often_as_allowed(
     monkeypatch.setattr("mail_client.attachments.MAX_SAME_NAME", 3)
     raw = _message(*(_attachment("scan.pdf", b"DATA") for _ in range(4)))
 
-    with pytest.raises(SystemExit):
-        _run(email_manager, monkeypatch, capsys, raw, "download", "1", "--output-dir", str(tmp_path))
+    error = _download_fails(email_manager, monkeypatch, capsys, raw, tmp_path)
 
-    error = json.loads(capsys.readouterr().out)["error"]
-    assert error == f"Too many files named scan.pdf in {tmp_path}; remove some of them or pass a different --output-dir"
+    saved = ", ".join(str(tmp_path / name) for name in ("scan.pdf", "scan-1.pdf", "scan-2.pdf"))
+    assert error == (
+        f"Email command 'download' failed: Too many files named scan.pdf in {tmp_path}; "
+        f"remove some of them or pass a different --output-dir; already saved: {saved}"
+    )
     assert sorted(_saved(tmp_path)) == ["scan-1.pdf", "scan-2.pdf", "scan.pdf"]
 
 
@@ -310,7 +356,7 @@ def test_the_filename_filter_matches_the_decoded_name(
 ) -> None:
     raw = _message(_attachment("发票.pdf", b"INVOICE"), _attachment("合同.pdf", b"CONTRACT"))
 
-    _run(email_manager, monkeypatch, capsys, raw, "download", "1", "--filename", "发票", "--output-dir", str(tmp_path))
+    _download(email_manager, monkeypatch, capsys, raw, tmp_path, "--filename", "发票")
 
     assert _saved(tmp_path) == {"发票.pdf": b"INVOICE"}
 
@@ -318,7 +364,7 @@ def test_the_filename_filter_matches_the_decoded_name(
 def test_a_message_without_attachments_is_reported_as_such(
     email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    answer = _run(email_manager, monkeypatch, capsys, _message(), "download", "1", "--output-dir", str(tmp_path))
+    answer = _download(email_manager, monkeypatch, capsys, _message(), tmp_path)
 
     assert answer["status"] == "no_attachments"
     assert _saved(tmp_path) == {}

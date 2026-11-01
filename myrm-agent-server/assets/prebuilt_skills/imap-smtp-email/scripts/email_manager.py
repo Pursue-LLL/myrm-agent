@@ -8,12 +8,13 @@
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 - mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
 - mail_client.message: MIME header, date, summary, attachment name and body decoding
-- mail_client.attachments: saving a download as a new file, never over one that exists
+- mail_client.attachments: saving a download under a safe name as a new file, never over one that exists
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
 - download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
-  a write that fails leaves no file behind
+  a name is made safe and short enough for the file system; a write that fails leaves no file behind, and the error lists
+  the files saved before it
 
 [POS]
 Vendor skill script staged into workspace by bash_executor; stdlib-only IMAP/SMTP client. This file holds the
@@ -184,6 +185,32 @@ def cmd_read(args: argparse.Namespace) -> None:
         conn.logout()
 
 
+def _save_attachments(msg: email.message.Message, output_dir: Path, name_filter: str | None) -> list[dict[str, object]]:
+    """Save the attachments of *msg* whose name holds *name_filter* as new files in *output_dir*.
+
+    A failure after some files are saved names them in the error, because they stay on disk.
+    """
+    saved: list[dict[str, object]] = []
+    try:
+        for part in msg.walk():
+            disp = str(part.get("Content-Disposition", ""))
+            if "attachment" not in disp:
+                continue
+            filename = attachment_filename(part)
+            if name_filter and name_filter.lower() not in filename.lower():
+                continue
+            file_data = part.get_payload(decode=True)
+            if not isinstance(file_data, bytes):
+                continue
+            dest = save_new(output_dir, filename, file_data)
+            saved.append({"filename": filename, "path": str(dest), "size": len(file_data)})
+    except OSError as exc:
+        if not saved:
+            raise
+        raise OSError(f"{exc}; already saved: {', '.join(str(entry['path']) for entry in saved)}") from exc
+    return saved
+
+
 def cmd_download(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
@@ -191,25 +218,10 @@ def cmd_download(args: argparse.Namespace) -> None:
         select_folder(conn, folder, readonly=True)
 
         msg = _fetch_message(conn, args.uid)
-        saved: list[dict[str, object]] = []
         output_dir = Path(args.output_dir or tempfile.gettempdir())
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        target_filename = getattr(args, "filename", None)
-        for part in msg.walk():
-            disp = str(part.get("Content-Disposition", ""))
-            if "attachment" not in disp:
-                continue
-            filename = attachment_filename(part)
-            if target_filename and target_filename.lower() not in filename.lower():
-                continue
-            file_data = part.get_payload(decode=True)
-            if not isinstance(file_data, bytes):
-                continue
-            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
-            dest = save_new(output_dir, safe_name, file_data)
-            saved.append({"filename": filename, "path": str(dest), "size": len(file_data)})
-
+        saved = _save_attachments(msg, output_dir, getattr(args, "filename", None))
         if not saved:
             print(json.dumps({"status": "no_attachments", "message": "No attachments found in this message"}))
         else:

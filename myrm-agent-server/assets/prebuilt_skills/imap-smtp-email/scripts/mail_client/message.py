@@ -9,7 +9,8 @@
 - message_summary: uid, from, to, subject, date and message id of one message, each a plain string even when the header
   holds raw 8-bit bytes
 - ascii_msg_ids: the ids of a Message-ID or References value that a header can carry; one with raw 8-bit bytes is left out
-- attachment_filename: decoded file name of an attachment part from Content-Disposition or Content-Type, raw 8-bit or not
+- attachment_filename: decoded file name of an attachment part from Content-Disposition or Content-Type, raw 8-bit or not;
+  ``attachment`` when it names none, an encoded word that decodes to nothing included
 - extract_body: plain-text body, falling back to HTML; a charset Python does not know is read as UTF-8
 
 [POS]
@@ -63,7 +64,7 @@ def ascii_msg_ids(raw: str | email.header.Header | None) -> str:
 
 
 def attachment_filename(part: email.message.Message) -> str:
-    """Decoded file name of an attachment part, ``attachment`` when it names none.
+    """Decoded file name of an attachment part, ``attachment`` when it names none or its name decodes to nothing.
 
     The standard library reads a ``Header`` (raw 8-bit bytes) as replacement characters, so the two headers that can name
     a file are decoded into a fresh message first.
@@ -73,7 +74,7 @@ def attachment_filename(part: email.message.Message) -> str:
         value = part.get(header)
         if value is not None:
             names[header] = decode_header(value) if isinstance(value, email.header.Header) else value
-    return decode_header(names.get_filename() or "attachment")
+    return decode_header(names.get_filename() or "") or "attachment"
 
 
 def _parse_date(raw: str | None) -> str:
