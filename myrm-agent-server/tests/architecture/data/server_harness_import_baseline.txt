@@ -388,6 +388,7 @@ myrm_agent_harness.toolkits.kanban.protocols
 myrm_agent_harness.toolkits.kanban.retry
 myrm_agent_harness.toolkits.kanban.types
 myrm_agent_harness.toolkits.llms
+myrm_agent_harness.toolkits.llms.catalog
 myrm_agent_harness.toolkits.llms.consensus.moa_overlay_types
 myrm_agent_harness.toolkits.llms.core.manager
 myrm_agent_harness.toolkits.llms.errors
@@ -403,6 +404,7 @@ myrm_agent_harness.toolkits.llms.image.types
 myrm_agent_harness.toolkits.llms.media_task_types
 myrm_agent_harness.toolkits.llms.routing
 myrm_agent_harness.toolkits.llms.routing.complexity_router
+myrm_agent_harness.toolkits.llms.text_completion
 myrm_agent_harness.toolkits.llms.tts
 myrm_agent_harness.toolkits.llms.tts.generator
 myrm_agent_harness.toolkits.llms.tts.models
