@@ -3,24 +3,31 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=release-common.sh
+source "${SCRIPT_DIR}/release-common.sh"
 # shellcheck source=pick-platform-asset.sh
 source "${SCRIPT_DIR}/pick-platform-asset.sh"
 
-TAG="${TAG:?Set TAG to the release tag (e.g. v0.1.13)}"
+: "${TAG:?Set TAG to the release tag (e.g. v0.1.13)}"
 REPO="${GITHUB_REPOSITORY:?Set GITHUB_REPOSITORY}"
+use_release_tag
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 cd "$WORK_DIR"
 mkdir -p assets
-expected_count="$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets | length')"
+if ! release_json="$(gh release view "$TAG" --repo "$REPO" --json assets 2>"$WORK_DIR/gh.err")"; then
+  recent_tags="$(gh release list --repo "$REPO" --limit 5 --json tagName --jq '.[].tagName' 2>/dev/null | tr '\n' ' ' || true)"
+  fail "[finalize-release] cannot read release ${TAG} of ${REPO}: $(<"$WORK_DIR/gh.err") Latest releases: ${recent_tags:-<none readable>}"
+fi
+expected_count="$(jq '.assets | length' <<<"$release_json")"
 local_count=0
 max_attempts=6
 shopt -s nullglob
 for attempt in $(seq 1 "$max_attempts"); do
   rm -rf assets/*
-  gh release download "$TAG" --repo "$REPO" --dir assets
+  gh release download "$TAG" --repo "$REPO" --dir assets || fail "[finalize-release] downloading the assets of ${TAG} failed"
   shopt -s nullglob
   local_count=0
   for f in assets/*; do
@@ -36,8 +43,7 @@ done
 
 ASSETS=(assets/*)
 if [[ ${#ASSETS[@]} -eq 0 || "$local_count" -lt "$expected_count" ]]; then
-  echo "[finalize-release] incomplete release download for ${TAG} (${local_count}/${expected_count})" >&2
-  exit 1
+  fail "[finalize-release] incomplete release download for ${TAG} (${local_count}/${expected_count})"
 fi
 
 for file in "${ASSETS[@]}"; do
@@ -51,8 +57,9 @@ for file in "${ASSETS[@]}"; do
 done
 
 VERSION="${TAG#v}"
-PUB_DATE="$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.published_at // empty')"
-NOTES="$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.body // ""')"
+release_meta="$(gh api "repos/${REPO}/releases/tags/${TAG}")" || fail "[finalize-release] cannot read the metadata of release ${TAG}"
+PUB_DATE="$(jq -r '.published_at // empty' <<<"$release_meta")"
+NOTES="$(jq -r '.body // ""' <<<"$release_meta")"
 
 read_asset_signature() {
   local asset_name="$1"
@@ -93,8 +100,7 @@ for tauri_key in darwin-aarch64 windows-x86_64 linux-x86_64; do
   if asset_name="$(pick_platform_asset "$tauri_key")"; then
     if ! read_asset_signature "$asset_name" >/dev/null 2>&1; then
       if is_required_ota_key "$tauri_key"; then
-        echo "[finalize-release] required OTA platform ${tauri_key} missing .sig for ${asset_name}" >&2
-        exit 1
+        fail "[finalize-release] required OTA platform ${tauri_key} missing .sig for ${asset_name}"
       fi
       echo "latest.json skip: $tauri_key -> ${asset_name} (no .sig; OTA omitted, manual install still available)" >&2
       continue
@@ -108,8 +114,7 @@ done
 
 platform_count="$(jq 'keys | length' <<<"$PLATFORMS_JSON")"
 if [[ "$platform_count" -eq 0 ]]; then
-  echo "No platform assets matched for latest.json (tag=$TAG)" >&2
-  exit 1
+  fail "[finalize-release] no platform assets matched for latest.json (tag=${TAG})"
 fi
 
 if [[ -n "$required_ota_keys" ]]; then
@@ -117,7 +122,7 @@ if [[ -n "$required_ota_keys" ]]; then
   for key in ${required_ota_keys}; do
     [[ -n "$key" ]] || continue
     if ! jq -e --arg k "$key" '.[$k]' <<<"$PLATFORMS_JSON" >/dev/null; then
-      echo "[finalize-release] missing required OTA platform in latest.json: ${key}" >&2
+      report "[finalize-release] missing required OTA platform in latest.json: ${key}"
       missing_required=1
     fi
   done
@@ -141,5 +146,5 @@ for checksum in assets/*.sha256; do
   [[ -f "$checksum" ]] && UPLOAD+=("$checksum")
 done
 
-gh release upload "$TAG" --repo "$REPO" "${UPLOAD[@]}" --clobber
+gh release upload "$TAG" --repo "$REPO" "${UPLOAD[@]}" --clobber || fail "[finalize-release] uploading the manifest and checksums to ${TAG} failed"
 echo "Uploaded manifest and checksums to $TAG"
