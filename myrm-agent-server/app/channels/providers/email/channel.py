@@ -17,7 +17,9 @@ Email channel implementation: credentials, lifecycle, IMAP polling and SMTP tran
 forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
 assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
 certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
-context verifies nothing). Every connection also times out on a silent server instead of blocking its thread.
+context verifies nothing). Every connection also times out on a silent server instead of blocking its thread. A command
+the IMAP server refuses is an error carrying its reason, never read as data, and a message it refuses to hand over is
+fetched again by the next poll instead of being passed over.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ import logging
 import smtplib
 import ssl
 from collections.abc import Sequence
-from typing import Self
+from typing import Self, TypeVar
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
@@ -67,6 +69,26 @@ def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
         )
     except Exception:
         pass
+
+
+_ReplyData = TypeVar("_ReplyData", bound=Sequence[object])
+
+
+def _refusal(action: str, status: str, data: Sequence[object]) -> str:
+    """What the server refused and why: its own words when it gave any (imaplib hands them over as bytes), else the status."""
+    words = data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else status
+    return f"{action} was refused by the server: {words}"
+
+
+def _require_ok(reply: tuple[str, _ReplyData], action: str) -> _ReplyData:
+    """The data of an IMAP command's *reply*; any status but OK means the server refused *action*.
+
+    imaplib raises only for BAD and returns a NO to the caller, who would otherwise read the refusal text as data.
+    """
+    status, data = reply
+    if status != "OK":
+        raise imaplib.IMAP4.error(_refusal(action, status, data))
+    return data
 
 
 class EmailChannel(EmailInboundMixin, BaseChannel):
@@ -319,19 +341,25 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             await asyncio.sleep(self._poll_interval)
 
     def _fetch_new_emails(self) -> list[InboundMessage]:
+        """The messages that arrived in INBOX after the high-water mark, oldest first.
+
+        Opening INBOX or searching it being refused raises, and the reconnect loop retries. A refused fetch ends the batch
+        instead: the mark stays below that message so the next poll asks for it again, whereas skipping it would let the
+        next message move the mark past it for good.
+        """
         results: list[InboundMessage] = []
         conn = self._connect_imap()
         try:
             conn.login(self._imap_user, self._imap_password)
             _send_imap_id(conn)
-            conn.select("INBOX")
+            _require_ok(conn.select("INBOX"), "Opening INBOX")
 
             if self._last_uid:
                 criteria = f"(UID {self._last_uid + 1}:*)"
             else:
                 criteria = "(UNSEEN)"
 
-            _status, msg_nums = conn.uid("search", criteria)
+            msg_nums = _require_ok(conn.uid("search", criteria), "Search")
             if not msg_nums or not msg_nums[0]:
                 return results
 
@@ -341,7 +369,10 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
                 if uid <= self._last_uid:
                     continue
 
-                _status, data = conn.uid("fetch", str(uid), "(RFC822)")
+                status, data = conn.uid("fetch", str(uid), "(RFC822)")
+                if status != "OK":
+                    logger.warning("Email: %s; the next poll fetches it again", _refusal(f"Fetching UID {uid}", status, data))
+                    break
                 if not data or not data[0] or not isinstance(data[0], tuple):
                     continue
 

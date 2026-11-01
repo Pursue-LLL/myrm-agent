@@ -175,6 +175,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/providers/test_status_reaction_flow.py` | 单元 | 一整个回合的状态表情（Slack）：结束的回合以结果表情替换处理中表情（先按名撤销刚加的那一个），被停止的回合不留处理中表情 |
 | `channels/providers/test_connect_failure_retry_contract.py` | 单元 | 八家 Provider（Slack、钉钉、LINE、Mattermost、Telegram、SMS、Zalo、Signal）经真实 Channel、真实 HTTP 客户端（`MockTransport`）与真实总线：建立不了的连接（`httpx.ConnectError`）都按重试策略重试，等答复时的读、写超时、连接被重置、协议错误都只发一次，不取决于 Provider 把错误原样抛出还是包成 `ChannelSendError`；把错误包成 `ChannelSendError` 的五家（LINE、Mattermost、SMS、Zalo、Signal）对连接超时、连接池超时、代理拒绝同样重试 |
 | `channels/providers/test_stop_releases_connection_contract.py` | 单元 | 渠道的 `stop()` 被网关的上限打断时已经释放了长连接：Telegram（草稿清理卡住）、钉钉与飞书（流式卡片结算卡住）经真实 `stop_channel` 截断后状态为 STOPPED，轮询循环、流任务、传输层都不再存活；Telegram 与钉钉再经真实 `_restart_channel` 重启，恰好留下 1 个连接（5 例；网络的卡住用永不返回的假请求代替，不连真实平台） |
+| `channels/providers/email/test_email_channel_imap_refusal.py` | 单元 | 邮件渠道轮询遇到服务器的 `NO`：选 INBOX 与搜索被拒时抛 `IMAP4.error` 并带服务器原话（没有原话时回落到状态），不再是 `ValueError` 或被读成「没有新邮件」；单封取信被拒时记 warning 并结束本轮，高水位停在它之前，之前的邮件照常交付，下一轮重新取到它（5 例；连接是按命令指定拒绝的替身，不连真实服务器） |
 | `channels/providers/zalo/test_zalo_upload_errors.py` | 单元 | Zalo 上传附件时的传输错误：连接失败可重试，读超时不重试 |
 | `channels/providers/telegram/test_telegram_api.py` | 单元 | Telegram 客户端只调用一个端点：传输错误（连接失败、连接超时、读超时）在对官方主机发出一次请求后原样抛出，业务错误一次请求后抛出，下载不带 Host 覆盖 |
 | `channels/providers/telegram/test_telegram_proxy.py` | 单元 | Telegram 经转发代理：真实 `httpx` 客户端对本机的代理替身，HTTP 代理收到绝对形式的 `getMe` 与文件下载请求，SOCKS5 代理收到对 Bot API 主机的 CONNECT；存下的 `proxy` 凭据进入客户端，空值、缺省或全空白为无代理，首尾空白被去掉，`proxy` 是可选凭据字段 |
