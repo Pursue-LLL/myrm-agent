@@ -70,8 +70,10 @@ _CURL = """#!/usr/bin/env bash
 cat "$RELEASE_DIR/latest.json"
 """
 
+# The scripts need jq and sha256sum. CI always has them, so a missing tool there fails the run instead of skipping it.
 pytestmark = pytest.mark.skipif(
-    not all(shutil.which(tool) for tool in ("jq", "sha256sum")), reason="the release scripts need jq and sha256sum"
+    not os.environ.get("CI") and not all(shutil.which(tool) for tool in ("jq", "sha256sum")),
+    reason="the release scripts need jq and sha256sum",
 )
 
 
