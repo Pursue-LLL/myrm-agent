@@ -29,6 +29,8 @@ echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64-setup.exe"
 echo "sig-win" >"$FIXTURE_ASSETS/MyrmAgent_x64-setup.exe.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz"
 echo "sig-linux" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz.sig"
+# The installer beside the archive must not take its place.
+echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage"
 
 aarch64_asset="$(pick_platform_asset darwin-aarch64 "$FIXTURE_ASSETS")"
 [[ "$aarch64_asset" == "MyrmAgent.app.tar.gz" ]] || {
@@ -66,6 +68,24 @@ linux_asset="$(pick_platform_asset linux-x86_64 "$FIXTURE_ASSETS")"
 linux_sig="$(read_asset_signature "$linux_asset")"
 [[ "$linux_sig" == "sig-linux" ]] || {
   echo "unexpected linux signature: ${linux_sig}" >&2
+  exit 1
+}
+
+# A release whose Linux updater artifact is the signed bare AppImage: the `.sig` and `.sha256` beside it are no candidates.
+FIXTURE_ASSETS="${WORK_DIR}/bare-appimage"
+mkdir -p "$FIXTURE_ASSETS"
+echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_0.1.40_amd64.AppImage"
+echo "sig-bare" >"$FIXTURE_ASSETS/MyrmAgent_0.1.40_amd64.AppImage.sig"
+echo "sum" >"$FIXTURE_ASSETS/MyrmAgent_0.1.40_amd64.AppImage.sha256"
+
+bare_asset="$(pick_platform_asset linux-x86_64 "$FIXTURE_ASSETS")"
+[[ "$bare_asset" == "MyrmAgent_0.1.40_amd64.AppImage" ]] || {
+  echo "expected MyrmAgent_0.1.40_amd64.AppImage, got ${bare_asset}" >&2
+  exit 1
+}
+bare_sig="$(read_asset_signature "$bare_asset")"
+[[ "$bare_sig" == "sig-bare" ]] || {
+  echo "unexpected bare AppImage signature: ${bare_sig}" >&2
   exit 1
 }
 

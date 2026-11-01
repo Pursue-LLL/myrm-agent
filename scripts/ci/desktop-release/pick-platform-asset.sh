@@ -20,7 +20,13 @@ pick_platform_asset() {
       )
       ;;
     linux-x86_64)
-      candidates=('*x86_64*.AppImage.tar.gz' '*amd64*.AppImage.tar.gz' '*.AppImage.tar.gz')
+      # The AppImage updater artifact is a signed `.AppImage.tar.gz` where the bundler wrote one and the signed bare
+      # `.AppImage` otherwise. The archive is tried first, so a release that carries both keeps its archive. A bare
+      # pattern ends at `.AppImage`, so it never matches the `.sig` and `.sha256` files beside it.
+      candidates=(
+        '*x86_64*.AppImage.tar.gz' '*amd64*.AppImage.tar.gz' '*.AppImage.tar.gz'
+        '*x86_64*.AppImage' '*amd64*.AppImage'
+      )
       ;;
     *)
       return 1

@@ -19,7 +19,7 @@
 | `export-apple-signing-env.sh` | 仅当 `APPLE_*` secret 非空时写入 `GITHUB_ENV`；已定义但为空的变量会让 bundler 尝试导入钥匙串而失败 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；用 `bundle-paths` 过滤 |
-| `finalize-fixture-test.sh` | 无网络 fixture：三个 OTA 平台的匹配 + `.sig`，旧 release 里的 Intel 包不被任何平台选中；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
+| `finalize-fixture-test.sh` | 无网络 fixture：三个 OTA 平台的匹配 + `.sig`（Linux 含「压缩包与裸 AppImage 并存取压缩包」与「只有带签名的裸 AppImage」两种布局），旧 release 里的 Intel 包不被任何平台选中；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
 | `collect-bundle-assets.sh` | `find` + `bundle-paths` 收集 release/bundle 资产供 `gh release upload` |
 | `prune-frontend-linuxmusl.sh` | Linux AppImage 前剔除 standalone 内 `@img/sharp-linuxmusl-*` 等，避免 linuxdeploy 缺 `libc.musl-x86_64.so.1` |
 | `bundle-find.sh` | GHA Windows 强制 `/usr/bin/find`（规避 System32/find.exe） |
@@ -52,7 +52,7 @@
 
 ## OTA manifest 匹配规则
 
-`latest.json` 仅纳入 **updater 包**且存在配对 `.sig` 的平台：macOS `.app.tar.gz`、Windows `*-setup.exe`（上传前重命名为 `MyrmAgent_x64-setup.exe`）、Linux `.AppImage.tar.gz`。macOS 只有 Apple Silicon，包保留 Tauri 的 `MyrmAgent.app.tar.gz`；旧 release 里的 Intel 包 `MyrmAgent_x64.app.tar.gz` 不会被选作任何平台的更新。Tauri v2 的 `*.nsis.zip` 为 bundling 临时文件，不可作 OTA 资产。`pick-platform-asset.sh` 的 glob 必须加引号。不含裸 `.msi` / `.deb` / 裸 `.AppImage` 候选。Linux job：`prune-frontend-linuxmusl.sh` + `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
+`latest.json` 仅纳入 **updater 包**且存在配对 `.sig` 的平台：macOS `.app.tar.gz`、Windows `*-setup.exe`（上传前重命名为 `MyrmAgent_x64-setup.exe`）、Linux 的 AppImage updater 包（bundler 写了 `.AppImage.tar.gz` 就取压缩包，否则取带 `.sig` 的裸 `.AppImage`；客户端 `tauri-plugin-updater` 两种都会安装）。macOS 只有 Apple Silicon，包保留 Tauri 的 `MyrmAgent.app.tar.gz`；旧 release 里的 Intel 包 `MyrmAgent_x64.app.tar.gz` 不会被选作任何平台的更新。Tauri v2 的 `*.nsis.zip` 为 bundling 临时文件，不可作 OTA 资产。`pick-platform-asset.sh` 的 glob 必须加引号。不含裸 `.msi` / `.deb` 候选；裸 `.AppImage` 的 glob 以 `.AppImage` 结尾，不会匹配同名的 `.sig` / `.sha256`。Linux job：`prune-frontend-linuxmusl.sh` + `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
 
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 

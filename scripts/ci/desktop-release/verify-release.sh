@@ -55,7 +55,7 @@ while IFS= read -r key; do
   [[ -n "$key" ]] || continue
   url="$(jq -r --arg k "$key" '.platforms[$k].url // empty' <<<"$manifest")"
   case "$url" in
-    *.tar.gz|*.nsis.zip|*.AppImage.tar.gz|*-setup.exe) ;;
+    *.tar.gz|*.nsis.zip|*.AppImage|*-setup.exe) ;;
     *)
       echo "[verify-release] invalid OTA artifact URL for ${key}: ${url}" >&2
       invalid_ota_url=1
