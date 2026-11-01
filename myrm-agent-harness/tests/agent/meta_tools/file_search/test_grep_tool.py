@@ -437,6 +437,21 @@ class TestCreateGrepTool:
                 config=runnable_config,
             )
 
+    async def test_mcp_namespace_gets_guidance_not_a_workspace_error(self, runnable_config: RunnableConfig) -> None:
+        mock_executor_bad = AsyncMock()
+        mock_executor_bad.resolve_path = AsyncMock(side_effect=ValueError("Path traversal detected"))
+        tool_fn = create_grep_tool()
+        with (
+            patch(
+                "myrm_agent_harness.agent.meta_tools.file_search.grep_tool.ensure_executor",
+                return_value=mock_executor_bad,
+            ),
+            pytest.raises(ToolError, match="file_read_tool"),
+        ):
+            await tool_fn.ainvoke({"pattern": "pods", "path": "/mcp/mcp_k8s_ops_skill"}, config=runnable_config)
+
+        mock_executor_bad.resolve_path.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Tests: Python fallback path (when ripgrep is unavailable)

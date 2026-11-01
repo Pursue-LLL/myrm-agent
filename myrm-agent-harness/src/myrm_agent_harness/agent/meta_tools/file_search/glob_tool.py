@@ -36,7 +36,7 @@ from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
 from .fallback_discovery import collect_candidate_files
-from .path_hint import format_path_not_found_hint, suggest_similar_paths
+from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
 if TYPE_CHECKING:
@@ -167,6 +167,9 @@ def create_glob_tool(
         try:
             executor = ensure_executor(config)
 
+            if (mcp_error := mcp_namespace_error(path)) is not None:
+                raise ToolError(message=mcp_error, user_hint=mcp_error)
+
             try:
                 search_path = await executor.resolve_path(path)
             except ValueError as e:
@@ -223,18 +226,21 @@ def create_glob_tool(
                         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                     )
 
+                    stdout_pipe, stderr_pipe = proc.stdout, proc.stderr
+                    if stdout_pipe is None or stderr_pipe is None:
+                        raise RuntimeError("ripgrep pipes were not created")
                     stderr_data = bytearray()
 
-                    async def _read_stderr():
+                    async def _read_stderr() -> None:
                         while True:
-                            chunk = await proc.stderr.read(4096)
+                            chunk = await stderr_pipe.read(4096)
                             if not chunk:
                                 break
                             stderr_data.extend(chunk)
 
-                    async def _read_lines():
+                    async def _read_lines() -> None:
                         while True:
-                            line = await proc.stdout.readline()
+                            line = await stdout_pipe.readline()
                             if not line:
                                 break
                             files.append(Path(line.decode("utf-8", errors="replace").strip()))
