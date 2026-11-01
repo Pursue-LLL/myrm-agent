@@ -61,7 +61,7 @@ def _count_workspace_skills(workspace_root: str) -> int:
     try:
         from myrm_agent_harness.backends.skills.local import scan_workspace_skills
 
-        return len(scan_workspace_skills(workspace_root, use_snapshot=False, disclosure_only=True))
+        return len(scan_workspace_skills(workspace_root, disclosure_only=True))
     except Exception as exc:
         logger.debug("workspace trust manifest: skill scan failed: %s", exc)
         return 0

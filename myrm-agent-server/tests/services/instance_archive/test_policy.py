@@ -33,6 +33,7 @@ from tests.services.instance_archive.conftest import PERMISSIONS_ENFORCED
         (("inbound_journal.db",), PathCategory.RUNTIME),
         (("data", "subagent_checkpoints.sqlite"), PathCategory.RUNTIME),
         (("subagent_checkpoints.sqlite",), PathCategory.RUNTIME),
+        (("skills", ".skills_snapshot.sqlite"), PathCategory.RUNTIME),  # left by older versions; inside user content
         (("snapshots", "snap_1", "data.db"), PathCategory.LOCAL_HISTORY),
         (("some_api_token.json",), PathCategory.SECRET),  # unknown top-level secret-looking name
         (("harness", "oauth_credentials.json"), PathCategory.SECRET),

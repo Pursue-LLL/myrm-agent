@@ -3,7 +3,7 @@ name: conversational-skill-evolution
 description: >-
   Identify user feedback and operational corrective instructions in conversation,
   extract invariant rule patches and negative constraints, safely audit and update target
-  SKILL.md assets in-place, and trigger zero-downtime hot-reload via the skill watcher.
+  SKILL.md assets in-place, so the change is live on the next skill load without a restart.
 version: 1.0.0
 category: engineering
 tags:
@@ -24,7 +24,7 @@ contract:
     - 1. Ingest conversational feedback and isolate target skill context (Phase 1: Intent Ingestion)
     - 2. Formulate atomic rule patch diff and negative constraint additions (Phase 2: Patch Synthesis)
     - 3. Audit patch against schema, safety boundaries, and logic consistency (Phase 3: Pre-flight Audit)
-    - 4. Atomically write update to SKILL.md and trigger watcher hot-reload (Phase 4: In-place Hot-Reload)
+    - 4. Atomically write the update to SKILL.md; the next skill load reads it (Phase 4: In-place Hot-Reload)
   potential_traps:
     - description: Modifying system-critical framework prompts instead of user-facing or prebuilt skill rules
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
@@ -48,7 +48,7 @@ contract:
       validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
       is_required: true
     - step_id: verify_3
-      description: Ensure updated skill is verified against snapshot cache or watcher re-index
+      description: Ensure the updated skill is re-read from disk and shows the new content
       validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
       is_required: true
   success_criteria: 'Conversational feedback is crystallized into durable, permanent skill rule patches; Hot-reload takes effect immediately without requiring service or container restart; Clear before-and-after audit summary presented to user with verifiable diff'
@@ -82,7 +82,7 @@ warnings expressed by the user during live conversations, and permanently crysta
                ▼ Phase 3: Pre-flight Safety & Integrity Audit
                │   - Verify YAML frontmatter syntax, check for tool permission escalation or contradictions
                ▼ Phase 4: Atomic In-place Patch & Hot-Reload
-                   - Perform atomic file write; Harness SkillWatcher automatically syncs cache (0.5s debounce)
+                   - Perform atomic file write; skills are read from disk on every load, so there is no cache to sync
 ```
 
 ---
@@ -126,7 +126,7 @@ Before touching the file system, evaluate the patch against three gates:
 ### Phase 4: In-place Hot-Reload & Confirmation
 1. Read the target `SKILL.md` using `file_read_tool`.
 2. Apply the surgical edit using `file_edit_tool` or `atomic_write`.
-3. The underlying Harness `_SkillEventHandler` detects the `on_modified` event, debounces for 0.5s, and updates the SQLite snapshot cache (`snapshot.upsert_from_path`).
+3. No cache needs syncing: skills are read from disk on every load, so the edit is live for the next turn.
 4. Present a structured **Evolution Report** to the user.
 
 ---

@@ -52,19 +52,17 @@ class LocalSkillBackend(SkillBackend):
     - Clear error messages for invalid skills
     """
 
-    def __init__(self, skills_dir: str | Path, use_snapshot: bool = True):
+    def __init__(self, skills_dir: str | Path):
         """Initialize local skill backend.
 
         Args:
             skills_dir: Path to skills directory
-            use_snapshot: If True, attempts to load from O(1) SQLite snapshot first
 
         Raises:
             FileNotFoundError: If skills directory doesn't exist
             ValueError: If path is not a directory
         """
         self.skills_dir = Path(skills_dir).resolve()  #  转换为绝对路径
-        self.use_snapshot = use_snapshot
 
         if not self.skills_dir.exists():
             raise FileNotFoundError(
@@ -80,8 +78,7 @@ class LocalSkillBackend(SkillBackend):
     async def list_skills(self) -> list[SkillMetadata]:
         """List all skills by parsing SKILL.md frontmatter.
 
-        If use_snapshot is True, attempts to load from O(1) SQLite snapshot.
-        Otherwise falls back to pure implementation:
+        Reads the directory on every call, so an edit, a new skill or a deletion shows up in the next listing:
         - Only loads skills with valid SKILL.md
         - Skips directories without SKILL.md
         - Reports detailed errors for invalid skills
@@ -89,33 +86,6 @@ class LocalSkillBackend(SkillBackend):
         Returns:
             List of skill metadata (only valid skills)
         """
-        if self.use_snapshot:
-            snapshot_path = self.skills_dir / ".skills_snapshot.sqlite"
-            if snapshot_path.exists():
-                from myrm_agent_harness.backends.skills.snapshot import (
-                    SQLiteSkillSnapshot,
-                )
-
-                snapshot = SQLiteSkillSnapshot(snapshot_path)
-                snapshot_skills = snapshot.read_all()
-                if snapshot_skills:
-                    valid_snapshot_skills = []
-                    for skill in snapshot_skills:
-                        skill_dir = Path(skill.storage_path) if skill.storage_path else self.skills_dir / skill.name
-                        usage_stats = self._read_lifecycle_stats(skill_dir)
-                        if usage_stats is not None:
-                            object.__setattr__(skill, "usage_stats", usage_stats)
-
-                        if skill.usage_stats.lifecycle_status == SkillLifecycleStatus.ARCHIVED:
-                            logger.debug(f"Skipping archived skill '{skill.name}' from snapshot")
-                            continue
-                        valid_snapshot_skills.append(skill)
-
-                    logger.info(
-                        f" Loaded {len(valid_snapshot_skills)} valid skills from fast O(1) snapshot at {self.skills_dir.name}"
-                    )
-                    return valid_snapshot_skills
-
         skills: list[SkillMetadata] = []
 
         for skill_dir in self.skills_dir.iterdir():
@@ -266,7 +236,6 @@ def scan_workspace_skills(
     *,
     max_depth: int = 3,
     trust: SkillTrust = SkillTrust.INSTALLED,
-    use_snapshot: bool = True,
     disclosure_only: bool = False,
 ) -> list[SkillMetadata]:
     """Recursively scan a workspace directory for SKILL.md files.
@@ -278,7 +247,6 @@ def scan_workspace_skills(
         workspace_root: Root directory to scan
         max_depth: Maximum recursion depth (default 3)
         trust: Trust level for discovered skills (default INSTALLED)
-        use_snapshot: If True, attempts to load from O(1) SQLite snapshot first
         disclosure_only: If True, skip runtime trust gate (FolderGate manifest counting only)
 
     Returns:
@@ -302,32 +270,6 @@ def scan_workspace_skills(
             trust_level.value if trust_level is not None else "RESTRICTED",
         )
         return []
-
-    if use_snapshot:
-        snapshot_path = root / ".skills_snapshot.sqlite"
-        if snapshot_path.exists():
-            from myrm_agent_harness.backends.skills.snapshot import SQLiteSkillSnapshot
-
-            snapshot = SQLiteSkillSnapshot(snapshot_path)
-            snapshot_skills = snapshot.read_all(workspace_root=root)
-            if snapshot_skills:
-                valid_snapshot_skills = []
-                for skill in snapshot_skills:
-                    skill_dir = Path(skill.storage_path) if skill.storage_path else root / skill.name
-                    usage_stats = LocalSkillBackend._read_lifecycle_stats(skill_dir)
-                    if usage_stats is not None:
-                        object.__setattr__(skill, "usage_stats", usage_stats)
-
-                    if skill.usage_stats.lifecycle_status == SkillLifecycleStatus.ARCHIVED:
-                        logger.debug(f"Skipping archived workspace skill '{skill.name}' from snapshot")
-                        continue
-                    valid_snapshot_skills.append(skill)
-
-                logger.info(
-                    " Scanned %d workspace skills from fast O(1) snapshot",
-                    len(valid_snapshot_skills),
-                )
-                return valid_snapshot_skills
 
     skills: list[SkillMetadata] = []
 

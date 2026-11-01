@@ -82,7 +82,7 @@
 | 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | Deer-Flow + nexu |
 | 安全提取器 | `backends/skills/scanning/zip_extract.py`、`agent/skills/market/installers/zip_installer.py` | Deer-Flow + nexu |
 | 使用与生命周期账本 | `backends/skills/stats_collector.py` | 本仓 |
-| 快照与目录监听器 | `backends/skills/snapshot.py`、`backends/skills/watcher.py` | nexu + LobsterAI |
+| 内容缓存 | `backends/skills/_content_memo.py` | 本仓 |
 | 搜索缓存 | `agent/skills/market/service.py`（`BaseSkillMarketService.search`） | 本仓 |
 | XML 摘要生成器 | `agent/skills/runtime/registry.py`（`get_metadata_summary`） | ironclaw + LobsterAI + picoclaw |
 
@@ -482,7 +482,7 @@ Scanner（编排器）
 
 **设计决策**：
 - 模式定义独立于扫描逻辑（`patterns.py` vs `scanner.py`），便于扩展
-- 扫描结果缓存（基于 mtime + 内容 SHA-256 哈希）
+- 扫描结果在进程内按「技能名 + 扩展名 + 内容 SHA-256」缓存（`ContentMemo`，见 §10.3）：内容一变就重新扫描，不跨进程持久化，重启进程后不会沿用旧扫描器的结论
 - LLM 审计为可选增强，无 LLM 时 graceful fallback 到纯正则
 
 ### 8.3 内容转义（来自 ironclaw）
@@ -612,26 +612,29 @@ Scanner（编排器）
 - `.stats.json` 读到无法解析的内容时改名为 `.stats.json.corrupt` 保留现场，再从空账本开始（创建时间取 `SKILL.md` 的修改时间）；读不出来（`OSError`）时绝不用空账本覆盖；纯读取从不写文件
 - 账本不加锁：同一时刻两个写入方改同一个账本可能丢一次更新，调用方都在同一个事件循环里且读写之间不 `await`
 
-### 10.3 SQLite 快照与目录监听（来自 nexu + LobsterAI）
+### 10.3 列表每次读磁盘，派生结果按内容缓存
 
-`SQLiteSkillSnapshot`（`backends/skills/snapshot.py`）把每个技能的 `SKILL.md` 原文、存放路径、信任级别与文件修改时间存进技能根目录下的 `.skills_snapshot.sqlite`（表 `skill_snapshots`）；`SkillWatcher`（`backends/skills/watcher.py`）用 watchdog 递归监听同一目录，让快照跟上磁盘：
+`LocalSkillBackend.list_skills` 与 `scan_workspace_skills` 每次都遍历技能目录并读取 `SKILL.md`，没有快照文件，也没有目录监听器：编辑、新增、删除在下一次列表里立刻可见，热重载不依赖任何后台线程，沙箱实例与桌面实例行为一致。`list_skills` 还会读取技能目录的 `.stats.json` 补上生命周期状态，已归档（`archived`）的技能不进入结果；工作区扫描不读取 `.stats.json`。
 
-- 只关心 `SKILL.md`（父目录名以 `.` 开头的忽略）：创建 / 修改 / 移动 → 解析并写入快照（`upsert_from_path`）；删除 → 从快照移除（`delete_from_path`）；整个技能目录被删除或改名同理
-- 500ms 防抖，窗口内的多次事件合并为一次处理
-- `sync_all(root)`：按 `file_mtime` 增量对账——磁盘有而库里没有、修改时间更新、路径变了的写入快照，库里有而磁盘没有的删除；只重新解析有变动的文件
-- 谁来维护：server 在非沙箱实例启动 `SkillWatcher`（监听 `<状态根>/skills`）；沙箱实例没有监听器；写入路径（技能创建服务、技能下载）无论有无监听器都直接调用 `upsert_from_path` / `delete_from_path`
-- 读取：`LocalSkillBackend` 与 `scan_workspace_skills` 默认 `use_snapshot=True`，快照文件存在且非空时直接用它的内容、不再遍历磁盘；快照缺失或为空时遍历磁盘（遍历结果不回写快照）。两条路径都会读取技能目录的 `.stats.json` 补上生命周期状态，已归档（`archived`）的技能不进入列表
-- 信任级别：快照写入固定为 `INSTALLED`（`upsert_from_path` 不区分来源），而 `LocalSkillBackend` 遍历磁盘时给 `TRUSTED`，同一个技能走两条路径得到的信任级别不同
+遍历的开销用「内容缓存」压下来：安全扫描（`scan_skill_content`）、frontmatter 解析（`parse_skill_frontmatter`）、token 计数都是文本的纯函数，结果由 `ContentMemo`（`backends/skills/_content_memo.py`）按文本缓存：
+
+- 键 = 作用域 + 文本的 SHA-256，只存结果、不存文本；进程内、线程安全、最多 512 条（LRU），重启即空
+- 不缓存：超过 64 KB 的文本、发现超过 128 条的扫描结果（防恶意文本撑爆内存）、抛出异常的计算（无效 frontmatter 每次都会重新报错）
+- 返回的是独立副本：调用方改动返回的技能或扫描结果不会影响缓存
+- 不缓存环境相关的结果：依赖检查（`check_requirements`：环境变量、PATH 上的命令）与凭据校验每次现算，装上命令或补全凭据后下一次列表就可用
+- 副作用：同一内容的解析告警与 `Security scan:` 日志每个进程只出现一次
+
+旧版本留在技能目录与项目目录里的 `.skills_snapshot.sqlite` 不再被读取，实例归档按文件名排除它。
 
 ### 10.4 热重载与性能
 
-- **快照的收益有限**：本地磁盘上，快照路径与遍历磁盘路径的 `list_skills` 进程 CPU 耗时相差不到 5%（30 次中位数：10 个技能 26.3ms 对 26.6ms；200 个技能 508.6ms 对 533.1ms）。单个技能约 2.5ms，主要花在解析 frontmatter 与读 `.stats.json` 上，快照省掉的只是读取 `SKILL.md`
-- **增量更新是文件级**：`upsert_from_path` / `delete_from_path` 只动一个技能；无变动的 `sync_all` 只做 `os.stat` 与一次查询
-- SQLite 以 WAL 模式打开（`harden_connection_sync` 的 `CACHE` 档案），连接超时 10 秒，每次操作开连接、用完即关，游标显式关闭防止资源泄漏
+- **热重载 = 下一次列表重新读盘**：`SkillAgent._load_bound_skills` 总是向后端取列表、不做缓存，技能创建服务、市场安装与外部编辑器的改动在下一次取列表时生效，无需重启
+- **重复列表的 CPU 耗时**（进程 CPU 时间，同一批技能重复列表，改动前后对照实测）：5 个技能 49.0ms → 1.0ms；20 个 210.2ms → 3.9ms；50 个 563.8ms → 7.3ms；134 个 1636.9ms → 20.5ms；首次列表不比之前慢
+- 单个技能首次约 7–12ms（随 `SKILL.md` 体积），主要花在安全扫描与 frontmatter 解析上；内容不变之后只剩读文件与读 `.stats.json`
 
 **设计决策**：
-- 快照存完整 `SKILL.md` 原文，读取时无需回读文件
-- 混合架构：非沙箱实例用 `SkillWatcher` 捕获外部编辑；沙箱实例靠写入路径直接更新快照，不常驻监听线程
+- 不做持久化缓存：持久化缓存要处理版本失效（扫描器升级后旧结论不能沿用）、序列化丢字段、清理过期条目，进程内缓存没有这些问题，而重复列表的收益已经拿到
+- 不缓存任何依赖环境的结果：宁可多算一次，也不让「装好了却显示不可用」
 
 ---
 
@@ -929,7 +932,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | **已实现** |
 | 安全提取器 | `backends/skills/scanning/zip_extract.py` | **已实现** |
 | 使用与生命周期账本 | `backends/skills/stats_collector.py` | **已实现** |
-| 目录监听器 | `backends/skills/snapshot.py`、`backends/skills/watcher.py` | **已实现** |
+| 内容缓存 | `backends/skills/_content_memo.py` | **已实现** |
 | 搜索缓存 | `agent/skills/market/service.py` | **已实现** |
 
 ---
@@ -994,7 +997,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 - 查询结果缓存（§12）减少 API 调用
 - 确定性选择器避免 LLM 调用
 - 安装是异步调用，不阻塞主流程
-- `SkillWatcher` 防抖后只更新变动的那一个技能（§10.3）
+- 重复列表按内容复用扫描、解析与 token 计数结果，只有变动的技能重新计算（§10.3）
 
 ### 3. 简洁不冗余
 

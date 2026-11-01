@@ -50,7 +50,7 @@ def skills_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 async def _skill_id(root: Path, name: str) -> str:
-    skills = await LocalSkillBackend(root, use_snapshot=False).list_skills()
+    skills = await LocalSkillBackend(root).list_skills()
     skill = next(s for s in skills if s.name == name)
     assert skill.storage_path is not None
     return local_skill_id_from_path(Path(skill.storage_path))

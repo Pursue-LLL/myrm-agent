@@ -225,27 +225,6 @@ async def download_skill_to_workspace(
     if downloaded_count > 0:
         logger.warning(f"📦 Skill downloaded: {skill.id} v{skill.version} -> {target_path} ({downloaded_count} files)")
 
-        # Trigger fast O(1) snapshot upsert for the downloaded skill
-        import asyncio
-        from pathlib import Path
-
-        try:
-            workspace_root = Path(target_path).parent.parent.parent
-            if (workspace_root / ".myrm").exists():
-                from myrm_agent_harness.backends.skills.snapshot import SQLiteSkillSnapshot
-
-                snapshot_path = workspace_root / ".skills_snapshot.sqlite"
-                skill_md_path = Path(target_path) / "SKILL.md"
-
-                def _do_upsert() -> None:
-                    snapshot = SQLiteSkillSnapshot(snapshot_path)
-                    snapshot.upsert_from_path(skill_md_path, workspace_root=workspace_root)
-
-                loop = asyncio.get_running_loop()
-                loop.run_in_executor(None, _do_upsert)
-        except Exception as e:
-            logger.warning(f"Failed to trigger workspace snapshot upsert: {e}")
-
     return downloaded_count > 0
 
 

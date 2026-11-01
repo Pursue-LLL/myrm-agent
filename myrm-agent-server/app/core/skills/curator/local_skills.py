@@ -53,7 +53,7 @@ async def scan_local_skills() -> LocalSkillScan:
         expanded = Path(root).expanduser()
         if not expanded.exists():
             continue
-        found = await LocalSkillBackend(expanded, use_snapshot=False).list_skills()
+        found = await LocalSkillBackend(expanded).list_skills()
         skills.extend(found)
         installed.update(skill.name for skill in found if index != _PRIMARY_ROOT_INDEX or _has_origin_record(skill))
     return LocalSkillScan(skills=skills, installed_names=frozenset(installed))

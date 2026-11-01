@@ -34,8 +34,9 @@ _TRANSIENT_SUFFIXES = (".lock", ".pyc", ".tmp", ".partial")
 # Runtime stores recognised by file name because their directory is chosen by the deployment (a `data/` folder in
 # the state directory, or the state directory itself). The subagent checkpoint store holds the conversation of
 # every subagent run, keyed by task and not by chat, so no per-chat rule can scrub it; its threads cannot resume
-# after a restart, so a restored copy would be dead weight anyway.
-_RUNTIME_FILE_NAMES = frozenset({"subagent_checkpoints.sqlite"})
+# after a restart, so a restored copy would be dead weight anyway. The skill snapshot is a copy of SKILL.md text that
+# older versions kept beside the skills (and in project folders); nothing reads or writes it now, so it is not carried.
+_RUNTIME_FILE_NAMES = frozenset({"subagent_checkpoints.sqlite", ".skills_snapshot.sqlite"})
 
 
 class PathCategory(StrEnum):

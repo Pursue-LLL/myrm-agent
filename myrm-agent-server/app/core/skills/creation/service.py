@@ -119,26 +119,6 @@ class SkillCreationService:
 
         try:
             shutil.rmtree(target_dir)
-
-            # ⚡ Trigger O(1) snapshot delete for hot reload
-            try:
-                import asyncio
-
-                from myrm_agent_harness.backends.skills.snapshot import (
-                    SQLiteSkillSnapshot,
-                )
-
-                snapshot_path = self.base_path / ".skills_snapshot.sqlite"
-
-                def _do_delete() -> None:
-                    snapshot = SQLiteSkillSnapshot(snapshot_path)
-                    snapshot.delete_from_path(target_dir / SKILL_MD_FILE)
-
-                loop = asyncio.get_running_loop()
-                loop.run_in_executor(None, _do_delete)
-            except Exception as e:
-                logger.warning("Failed to trigger snapshot delete for %s: %s", name, e)
-
         except Exception as e:
             logger.error("Failed to delete skill directory '%s': %s", target_dir, e)
             return SkillDeleteResult(success=False, skill_name=name, error="Delete failed")
@@ -219,20 +199,6 @@ class SkillCreationService:
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
-
-            # ⚡ Trigger O(1) snapshot upsert if SKILL.md was modified
-            if target.name == "SKILL.md":
-                try:
-                    from myrm_agent_harness.backends.skills.snapshot import (
-                        SQLiteSkillSnapshot,
-                    )
-
-                    snapshot_path = self.base_path / ".skills_snapshot.sqlite"
-                    snapshot = SQLiteSkillSnapshot(snapshot_path)
-                    snapshot.upsert_from_path(target, workspace_root=self.base_path)
-                except Exception as e:
-                    logger.warning("Failed to trigger snapshot upsert for %s: %s", skill_name, e)
-
         except Exception as e:
             logger.error("Failed to write resource '%s/%s': %s", skill_name, resource_path, e)
             return SkillResourceWriteResult(
@@ -293,27 +259,6 @@ class SkillCreationService:
 
         try:
             target.unlink()
-
-            # ⚡ Trigger O(1) snapshot delete if SKILL.md was deleted
-            if target.name == "SKILL.md":
-                try:
-                    import asyncio
-
-                    from myrm_agent_harness.backends.skills.snapshot import (
-                        SQLiteSkillSnapshot,
-                    )
-
-                    snapshot_path = self.base_path / ".skills_snapshot.sqlite"
-
-                    def _do_delete() -> None:
-                        snapshot = SQLiteSkillSnapshot(snapshot_path)
-                        snapshot.delete_from_path(target)
-
-                    loop = asyncio.get_running_loop()
-                    loop.run_in_executor(None, _do_delete)
-                except Exception as e:
-                    logger.warning("Failed to trigger snapshot delete for %s: %s", skill_name, e)
-
         except Exception as e:
             logger.error("Failed to delete resource '%s/%s': %s", skill_name, resource_path, e)
             return SkillResourceWriteResult(
@@ -378,23 +323,6 @@ class SkillCreationService:
         skill_file.write_text(content, encoding="utf-8")
 
         self._reconcile_lifecycle_on_write(target_dir)
-
-        # ⚡ Trigger O(1) snapshot upsert for hot reload
-        try:
-            import asyncio
-
-            from myrm_agent_harness.backends.skills.snapshot import SQLiteSkillSnapshot
-
-            snapshot_path = self.base_path / ".skills_snapshot.sqlite"
-
-            def _do_upsert() -> None:
-                snapshot = SQLiteSkillSnapshot(snapshot_path)
-                snapshot.upsert_from_path(skill_file, workspace_root=self.base_path)
-
-            loop = asyncio.get_running_loop()
-            loop.run_in_executor(None, _do_upsert)
-        except Exception as e:
-            logger.warning("Failed to trigger snapshot upsert for %s: %s", name, e)
 
         await self._auto_enable_local(target_dir)
         self._notify_sync_manifest(name)

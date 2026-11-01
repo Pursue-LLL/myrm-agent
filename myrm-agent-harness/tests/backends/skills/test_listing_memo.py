@@ -70,7 +70,7 @@ def derivations(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
 
 
 async def _listing(root: Path) -> dict[str, SkillMetadata]:
-    return {skill.name: skill for skill in await LocalSkillBackend(root, use_snapshot=False).list_skills()}
+    return {skill.name: skill for skill in await LocalSkillBackend(root).list_skills()}
 
 
 def _facts(skill: SkillMetadata) -> tuple[object, ...]:

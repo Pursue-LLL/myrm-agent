@@ -81,7 +81,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 _checkpointer_cleanup: Callable[[], Awaitable[None]] | None = None
 _context_cleanup_scheduler_instance: ContextCleanupScheduler | None = None
-_skill_watcher = None
 
 
 async def _register_db_pool_metrics_task() -> None:
@@ -120,7 +119,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
     Shutdown: Storage → (Schedulers ‖ Cron ‖ Channel Gateway ‖ Browser Pool ‖ Checkpointer)
     """
-    global _checkpointer_cleanup, _context_cleanup_scheduler_instance, _skill_watcher
+    global _checkpointer_cleanup, _context_cleanup_scheduler_instance
 
     print(f"🐍 Python {sys.version.split()[0]}")
 
@@ -541,7 +540,7 @@ async def _phase_1a_sequential() -> None:
 
 async def _phase_1b_parallel() -> None:
     """Phase 1b: Parallel independent tasks after DB ready."""
-    global _checkpointer_cleanup, _context_cleanup_scheduler_instance, _skill_watcher
+    global _checkpointer_cleanup, _context_cleanup_scheduler_instance
 
     async def _init_subagent_configs() -> None:
         from app.ai_agents.subagent_presets import register_default_subagent_configs
@@ -572,27 +571,6 @@ async def _phase_1b_parallel() -> None:
 
         init_state_manager(base_dir=".myrm/skills")
         logger.info("[Startup] SkillStateManager initialized")
-
-    async def _init_skill_watcher_task() -> None:
-        from app.platform_utils.deployment_capabilities import (
-            get_deployment_capabilities,
-        )
-
-        if not get_deployment_capabilities().is_sandbox_instance:
-            from pathlib import Path
-
-            from myrm_agent_harness.backends.skills.watcher import SkillWatcher
-
-            from app.config.settings import settings
-
-            # Watch the user's local skills directory
-            local_skills_dir = Path(settings.database.state_dir) / "skills"
-            local_skills_dir.mkdir(parents=True, exist_ok=True)
-
-            global _skill_watcher
-            _skill_watcher = SkillWatcher(local_skills_dir)
-            _skill_watcher.start()
-            logger.info("[Startup] SkillWatcher initialized for local development")
 
     async def _init_allowlist_store_task() -> None:
         await init_allowlist_store()
@@ -723,7 +701,6 @@ async def _phase_1b_parallel() -> None:
         _init_code_execution_config(),
         _init_checkpointer_task(),
         _init_state_manager_task(),
-        _init_skill_watcher_task(),
         _init_allowlist_store_task(),
         _init_workspace_trust_store_task(),
         _init_permission_logger_task(),
@@ -744,7 +721,6 @@ async def _phase_1b_parallel() -> None:
         "Code execution config",
         "Checkpointer",
         "State manager",
-        "Skill watcher",
         "Allowlist store",
         "Workspace trust store",
         "Permission logger",
@@ -818,13 +794,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
             await _context_cleanup_scheduler_instance.stop()
         except Exception as e:
             logger.error("[Shutdown] Context cleanup task stop failed: %s", e)
-
-    if _skill_watcher is not None:
-        try:
-            _skill_watcher.stop()
-            logger.info("[Shutdown] SkillWatcher stopped")
-        except Exception as e:
-            logger.error("[Shutdown] SkillWatcher stop failed: %s", e)
 
     try:
         from app.services.agent.goals.goal_branch_stash import stop_branch_watcher

@@ -50,7 +50,7 @@ async def skills(tmp_path: Path) -> list[SkillMetadata]:
         skill_dir = root / name
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Skill {name}\n---\nBody.\n", encoding="utf-8")
-    return await LocalSkillBackend(root, use_snapshot=False).list_skills()
+    return await LocalSkillBackend(root).list_skills()
 
 
 def _canonical_id(skills: list[SkillMetadata], name: str) -> str:

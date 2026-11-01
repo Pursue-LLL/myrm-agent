@@ -235,8 +235,7 @@ class SkillAgent(
     async def _load_bound_skills(self) -> list[SkillMetadata] | None:
         """Load the bound skills from the backend, or ``None`` when the load failed.
 
-        Always hits the backend so hot-reloaded skill versions are seen; the backend
-        (e.g., LocalSkillBackend) serves it from a SQLiteSkillSnapshot in O(N).
+        Always hits the backend so edited, added and removed skills are seen on the next call.
         Applies user trust overrides: skills whose storage_skill_id is in
         _trusted_skill_ids are elevated to SkillTrust.TRUSTED. A backend-less agent
         has an empty (not failed) catalog.
