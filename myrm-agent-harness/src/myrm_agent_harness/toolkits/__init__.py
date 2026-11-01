@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.acp_agent_tools import create_invoke_acp_agent_tool
     from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
     from myrm_agent_harness.toolkits.cron.cron_agent_tools import create_cron_tools
-    from myrm_agent_harness.toolkits.llms import TransportChatModel, LLMManager, create_chat_model, llm_manager
+    from myrm_agent_harness.toolkits.llms import LLMManager, TransportChatModel, create_chat_model, llm_manager
     from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
     from myrm_agent_harness.toolkits.retriever.engine import RetrieverManager
     from myrm_agent_harness.toolkits.web_fetch import FetchEngine, web_fetch_tools

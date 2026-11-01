@@ -119,7 +119,7 @@ if __debug__:
         raise RuntimeError(f"llms: _LAZY_IMPORTS has symbols not in __all__: {_extra}")
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy load llms components on first access."""
     if name in _LAZY_IMPORTS:
         from importlib import import_module

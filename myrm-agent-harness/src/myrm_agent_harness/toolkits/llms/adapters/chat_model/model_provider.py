@@ -25,7 +25,9 @@ from myrm_agent_harness.toolkits.llms.transport import UnsupportedProviderError,
 def model_provider_name(model: str, api_base: str | None, custom_llm_provider: str | None) -> str:
     """Provider label for ``model``; resolved once per (model, endpoint, provider) configuration."""
     try:
-        resolved: str | None = resolve_route(model, custom_llm_provider=custom_llm_provider, api_base=api_base).profile.id
+        resolved: str | None = resolve_route(
+            model, custom_llm_provider=custom_llm_provider, api_base=api_base
+        ).profile.id
     except UnsupportedProviderError:
         resolved = custom_llm_provider
     return provider_name(resolved, model)

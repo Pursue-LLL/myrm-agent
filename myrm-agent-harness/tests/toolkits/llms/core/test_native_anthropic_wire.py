@@ -93,9 +93,7 @@ async def test_reasoning_effort_is_translated_into_thinking() -> None:
 
 async def test_tool_call_takes_one_request_and_keeps_the_parallelism_choice() -> None:
     with _strict_server() as server:
-        llm = create_chat_model(
-            CLAUDE, base_url=server.base_url, api_key="sk-offline", streaming=True, max_tokens=1024
-        )
+        llm = create_chat_model(CLAUDE, base_url=server.base_url, api_key="sk-offline", streaming=True, max_tokens=1024)
         bound = llm.bind_tools([read_file], tool_choice="auto", parallel_tool_calls=True)
         await bound.ainvoke([HumanMessage(content="hello")])
 
@@ -106,9 +104,7 @@ async def test_tool_call_takes_one_request_and_keeps_the_parallelism_choice() ->
 
 async def test_openai_shaped_call_kwargs_are_translated_not_duplicated() -> None:
     with _strict_server() as server:
-        llm = create_chat_model(
-            CLAUDE, base_url=server.base_url, api_key="sk-offline", streaming=True, max_tokens=1024
-        )
+        llm = create_chat_model(CLAUDE, base_url=server.base_url, api_key="sk-offline", streaming=True, max_tokens=1024)
         await llm.ainvoke([HumanMessage(content="hello")], stop=["END"], user="user-1")
 
     assert len(server.requests) == 1

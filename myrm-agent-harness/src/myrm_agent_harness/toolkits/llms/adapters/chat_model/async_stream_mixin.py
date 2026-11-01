@@ -35,6 +35,7 @@ from langchain_core.messages import (
 )
 from langchain_core.outputs import ChatGenerationChunk
 
+from myrm_agent_harness.core.config.wire import WireProtocol
 from myrm_agent_harness.infra.tracing.gen_ai import ModelCall
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher import renew_api_key
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
@@ -85,6 +86,8 @@ class TransportChatModelAsyncStreamMixin:
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, object]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, object]], dict[str, object]]]
         _apply_output_budget: Callable[..., None]
+        _wire_for: Callable[..., WireProtocol]
+        _chat_messages: Callable[..., list[dict[str, Any]]]
         _recover_output_cap: Callable[..., bool]
         _inject_prompt_routing_key: Callable[..., None]
         _process_chunk: Callable[..., tuple[ChatGenerationChunk | None, type[BaseMessageChunk]]]

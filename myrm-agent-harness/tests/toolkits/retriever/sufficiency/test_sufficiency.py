@@ -253,9 +253,7 @@ class TestBuildEvalModel:
 
     def test_top_level_temperature_wins_over_model_kwargs(self):
         """顶层显式 temperature 优先于 model_kwargs 中的同名键。"""
-        kwargs = self._capture_kwargs(
-            self._mock_config(model_kwargs={"temperature": 0.3}, temperature=0.7)
-        )
+        kwargs = self._capture_kwargs(self._mock_config(model_kwargs={"temperature": 0.3}, temperature=0.7))
         assert kwargs["temperature"] == 0.7
 
     def test_defaults_temperature_when_unset(self):

@@ -26,10 +26,7 @@ import urllib.request
 from pathlib import Path
 
 DEFAULT_SOURCE = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-OUTPUT = (
-    Path(__file__).resolve().parent.parent
-    / "src/myrm_agent_harness/toolkits/llms/catalog/data/model_catalog.json"
-)
+OUTPUT = Path(__file__).resolve().parent.parent / "src/myrm_agent_harness/toolkits/llms/catalog/data/model_catalog.json"
 MODES = frozenset({"chat", "completion", "responses", "embedding", "rerank", "image_generation", "image_edit"})
 FIELDS = re.compile(
     r"^(?:litellm_provider|mode|max_tokens|max_input_tokens|max_output_tokens|output_vector_size|deprecation_date"

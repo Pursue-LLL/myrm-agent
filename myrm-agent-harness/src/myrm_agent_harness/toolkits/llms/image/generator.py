@@ -216,7 +216,7 @@ class ImageGenerator:
     def _credentials(self, bypass_gateway: bool) -> tuple[str | None, str | None]:
         """``(api_key, api_base)`` of the next call: the tool gateway, or the user's own provider endpoint."""
         gateway = self._config.gateway_config
-        if not bypass_gateway and gateway and gateway.use_gateway:
+        if not bypass_gateway and gateway and gateway.use_gateway and gateway.gateway_url:
             return gateway.auth_token, f"{gateway.gateway_url.rstrip('/')}/image_gen"
         api_key = self._config.api_key.get_secret_value() if self._config.api_key else None
         return api_key, self._config.base_url or None

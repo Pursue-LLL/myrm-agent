@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Mapping
+from typing import cast
 
 import httpx
 
@@ -81,7 +82,8 @@ class RestSearch:
                     request.method,
                     request.url,
                     headers=request.headers,
-                    params=request.params or None,
+                    # Adapters fill the query only from the provider's documented scalar parameters.
+                    params=cast("dict[str, str | int | float | bool | None]", request.params) or None,
                     content=json.dumps(request.json_body, ensure_ascii=False).encode()
                     if request.json_body is not None
                     else None,

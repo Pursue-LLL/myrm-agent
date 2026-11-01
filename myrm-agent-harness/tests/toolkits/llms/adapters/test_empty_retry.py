@@ -16,9 +16,9 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
-    TransportChatModel,
     EmptyChoicesError,
     EmptyStreamError,
+    TransportChatModel,
 )
 
 

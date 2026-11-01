@@ -44,5 +44,6 @@ async def main() -> None:
     print(f"[ADDITIONAL_KWARGS]:\n{response.additional_kwargs}")
     print("\n[INFERENCE_STATUS]: SUCCESS")
 
+
 if __name__ == "__main__":
     asyncio.run(main())

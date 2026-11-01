@@ -29,6 +29,7 @@ from langchain_core.language_models.chat_models import agenerate_from_stream
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult
 
+from myrm_agent_harness.core.config.wire import WireProtocol
 from myrm_agent_harness.infra.tracing.gen_ai import ModelCall
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher import renew_api_key
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import EmptyChoicesError
@@ -80,6 +81,8 @@ class TransportChatModelAsyncMixin:
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, Any]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]
         _apply_output_budget: Callable[..., None]
+        _wire_for: Callable[..., WireProtocol]
+        _chat_messages: Callable[..., list[dict[str, Any]]]
         _recover_output_cap: Callable[..., bool]
         _inject_prompt_routing_key: Callable[..., None]
         _record_non_stream_usage: Callable[..., None]

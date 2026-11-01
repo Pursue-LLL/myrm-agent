@@ -3,6 +3,7 @@
 [INPUT]
 - transport.client (POS: LLMTransport facade)
 - transport.errors (POS: LLMHTTPError / LLMStreamError)
+- transport.http (POS: shared HTTP clients)
 - transport.profile (POS: provider table and route resolution)
 
 [OUTPUT]
@@ -14,19 +15,37 @@
 [POS]
 Five wires (OpenAI chat, OpenAI Responses, Anthropic Messages, Gemini generateContent, Ollama chat) cover every
 provider; a provider that speaks the OpenAI protocol is a data row in ``profile.PROFILES``. Imports stay light: no
-provider SDK is loaded.
+provider SDK is loaded, and the names resolve on first use, so reading an error class or a provider route (the
+failure classifier, the HTTP server's import path) does not load the wires.
 """
 
-from myrm_agent_harness.toolkits.llms.transport.client import LLMTransport, get_transport
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError, LLMStreamError
-from myrm_agent_harness.toolkits.llms.transport.http import aclose_clients
-from myrm_agent_harness.toolkits.llms.transport.profile import (
-    PROFILES,
-    Route,
-    UnsupportedProviderError,
-    resolve_route,
-    speaks_openai_body,
-)
+from importlib import import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.llms.transport.client import LLMTransport, get_transport
+    from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError, LLMStreamError
+    from myrm_agent_harness.toolkits.llms.transport.http import aclose_clients
+    from myrm_agent_harness.toolkits.llms.transport.profile import (
+        PROFILES,
+        Route,
+        UnsupportedProviderError,
+        resolve_route,
+        speaks_openai_body,
+    )
+
+_EXPORT_MODULES = {
+    "LLMTransport": "client",
+    "get_transport": "client",
+    "LLMHTTPError": "errors",
+    "LLMStreamError": "errors",
+    "aclose_clients": "http",
+    "PROFILES": "profile",
+    "Route": "profile",
+    "UnsupportedProviderError": "profile",
+    "resolve_route": "profile",
+    "speaks_openai_body": "profile",
+}
 
 __all__ = [
     "PROFILES",
@@ -40,3 +59,17 @@ __all__ = [
     "resolve_route",
     "speaks_openai_body",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Load an exported name from its module on first access."""
+    module = _EXPORT_MODULES.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(f"{__name__}.{module}"), name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    return __all__

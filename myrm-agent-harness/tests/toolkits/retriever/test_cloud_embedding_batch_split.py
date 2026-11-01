@@ -13,7 +13,6 @@ from myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding import (
     CloudEmbedding,
 )
 
-
 _AEMBED = "myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding.aembed"
 
 

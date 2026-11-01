@@ -30,26 +30,16 @@ class ModelPricingItem(BaseModel):
     model: str = Field(..., description="规范化模型名称或别名")
     input_cost_per_mtoken: float = Field(0.0, description="输入 Token 单价 ($/1M)")
     output_cost_per_mtoken: float = Field(0.0, description="输出 Token 单价 ($/1M)")
-    cache_read_cost_per_mtoken: float | None = Field(
-        None, description="Prompt Cache 命中读取单价 ($/1M)，若不支持则为 None"
-    )
-    cache_write_cost_per_mtoken: float | None = Field(
-        None, description="Prompt Cache 写入创建单价 ($/1M)，若不支持则为 None"
-    )
-    cache_read_discount: float | None = Field(
-        None, description="Prompt Cache 命中相对输入的折扣比率（例如 0.9 表示节省 90%）"
-    )
-    supports_prompt_caching: bool = Field(
-        False, description="模型提供方是否支持 Prompt Caching"
-    )
+    cache_read_cost_per_mtoken: float | None = Field(None, description="Prompt Cache 命中读取单价 ($/1M)，若不支持则为 None")
+    cache_write_cost_per_mtoken: float | None = Field(None, description="Prompt Cache 写入创建单价 ($/1M)，若不支持则为 None")
+    cache_read_discount: float | None = Field(None, description="Prompt Cache 命中相对输入的折扣比率（例如 0.9 表示节省 90%）")
+    supports_prompt_caching: bool = Field(False, description="模型提供方是否支持 Prompt Caching")
 
 
 class ModelPricingResponse(BaseModel):
     """模型单价矩阵查询响应"""
 
-    models: dict[str, ModelPricingItem] = Field(
-        default_factory=dict, description="模型单价字典，key 为模型名"
-    )
+    models: dict[str, ModelPricingItem] = Field(default_factory=dict, description="模型单价字典，key 为模型名")
 
 
 # 常见主流模型标杆，用于无特定参数时的默认对比视图
@@ -106,28 +96,16 @@ def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
         in_cost = float(raw_in) * multiplier if isinstance(raw_in, (int, float)) else 0.0
 
         raw_out = cost_dict.get("output_cost_per_token")
-        out_cost = (
-            float(raw_out) * multiplier if isinstance(raw_out, (int, float)) else 0.0
-        )
+        out_cost = float(raw_out) * multiplier if isinstance(raw_out, (int, float)) else 0.0
 
         raw_cache_read = cost_dict.get("cache_read_input_token_cost")
-        cache_read_cost = (
-            float(raw_cache_read) * multiplier
-            if isinstance(raw_cache_read, (int, float))
-            else None
-        )
+        cache_read_cost = float(raw_cache_read) * multiplier if isinstance(raw_cache_read, (int, float)) else None
 
         raw_cache_write = cost_dict.get("cache_creation_input_token_cost")
-        cache_write_cost = (
-            float(raw_cache_write) * multiplier
-            if isinstance(raw_cache_write, (int, float))
-            else None
-        )
+        cache_write_cost = float(raw_cache_write) * multiplier if isinstance(raw_cache_write, (int, float)) else None
 
         supports_cache = bool(
-            cost_dict.get("supports_prompt_caching")
-            or cache_read_cost is not None
-            or cache_write_cost is not None
+            cost_dict.get("supports_prompt_caching") or cache_read_cost is not None or cache_write_cost is not None
         )
 
         cache_discount: float | None = None
@@ -140,12 +118,8 @@ def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
             model=model_name,
             input_cost_per_mtoken=round(in_cost, 4),
             output_cost_per_mtoken=round(out_cost, 4),
-            cache_read_cost_per_mtoken=(
-                round(cache_read_cost, 4) if cache_read_cost is not None else None
-            ),
-            cache_write_cost_per_mtoken=(
-                round(cache_write_cost, 4) if cache_write_cost is not None else None
-            ),
+            cache_read_cost_per_mtoken=(round(cache_read_cost, 4) if cache_read_cost is not None else None),
+            cache_write_cost_per_mtoken=(round(cache_write_cost, 4) if cache_write_cost is not None else None),
             cache_read_discount=cache_discount,
             supports_prompt_caching=supports_cache,
         )
@@ -162,9 +136,7 @@ def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
 async def get_model_pricing(
     model: Annotated[
         str | None,
-        Query(
-            description="可选指定单个模型名进行查询。若留空则返回常用主流模型定价矩阵。"
-        ),
+        Query(description="可选指定单个模型名进行查询。若留空则返回常用主流模型定价矩阵。"),
     ] = None,
 ) -> ModelPricingResponse:
     """返回以 $/1M tokens 计价的模型输入、输出、Cache 读写单价及节省率。"""
