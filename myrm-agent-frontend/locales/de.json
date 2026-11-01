@@ -20852,8 +20852,7 @@
         "snapshotEmpty": "Noch keine Snapshots.",
         "snapshotRestore": "Wiederherstellen",
         "snapshotDelete": "Löschen",
-        "backupManualGuide": "Snapshots liegen im snapshots-Ordner des Datenverzeichnisses (Standard ~/.myrm). Nach Neuinstallation data.db und checkpoints.db manuell zurückkopieren — siehe Docs.",
-        "openUpgradeCockpit": "Konsole für unterbrechungsfreie Updates"
+        "backupManualGuide": "Snapshots liegen im snapshots-Ordner des Datenverzeichnisses (Standard ~/.myrm). Nach Neuinstallation data.db und checkpoints.db manuell zurückkopieren — siehe Docs."
       },
       "unattendedDesktop": {
         "guideIntro": "Nutzen Sie die Desktop-App, wenn Sie den Bildschirm sperren und weggehen, der Agent aber weiterarbeiten soll. Der reine Browser-Modus bietet nur Freigaben im Chat, aber nicht die folgenden Schutzfunktionen.",
@@ -20870,36 +20869,6 @@
         "guideTitle": "Computer-Nutzung bei Abwesenheit · Schnelleinrichtung",
         "statusOn": "An",
         "statusOptional": "Wahlweise"
-      },
-      "upgradeCockpit": {
-        "safeLabel": "Laufzeitzustand gesund und sicher:",
-        "activeTitle": "Schutz für laufende Langzeitaufgaben (erzwungener Neustart blockiert)",
-        "tasksRunning": "{count, plural, one {# Aufgabe läuft} other {# Aufgaben laufen}}",
-        "drainFirst": "Auf Abschluss der aktuellen Aufgaben warten und automatisch neu laden",
-        "checkpointUpgrade": "Checkpoint speichern und sofort upgraden",
-        "healthOptimal": "Schnell und stabil",
-        "healthHealthy": "Verbindung normal",
-        "healthDegraded": "Hohe Latenz",
-        "healthBlocked": "Port-Timeout",
-        "probeTitle": "Netzwerkdiagnose vor dem Upgrade",
-        "probeSubtitle": "Echtzeit-Prüfung mehrerer grenzüberschreitender Kanäle mit Ein-Klick-Wechsel, damit Downloads nicht abbrechen",
-        "probing": "Prüfung läuft...",
-        "retest": "Erneut messen",
-        "recommended": "Empfohlen",
-        "roundTripLatency": "Roundtrip-Latenz:",
-        "modalTitle": "Upgrade-Pipeline mit zwei Instanzen ohne Unterbrechung",
-        "modalSubtitle": "Atomare Blue-Green-Übergabe mit Ein-Klick-Snapshot-Rollback in Sekunden",
-        "oldInstance": "Alte Instanz {version} (aktiver Fallback)",
-        "newInstance": "Neue Instanz {version} (bereit zur Übernahme)",
-        "losslessSwitch": "Verlustfreier Wechsel",
-        "stepRunning": "Läuft...",
-        "stepReady": "Bereit",
-        "completeTitle": "Upgrade abgeschlossen! Die neue Instanz hat den Dienst atomar übernommen",
-        "completeBody": "Die Sandbox-Integritätsprüfung und die Datenbankmigration wurden automatisch abgeschlossen; alle Sitzungen und Erinnerungen bleiben verlustfrei erhalten.",
-        "rolledBack": "Atomar auf den vorherigen stabilen Snapshot zurückgesetzt",
-        "rollbackAction": "Atomarer Rollback in Sekunden per Klick",
-        "tryNewVersion": "Neue Version ausprobieren",
-        "closeWindow": "Fenster schließen"
       }
     },
     "push": {

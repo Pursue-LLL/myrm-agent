@@ -20852,8 +20852,7 @@
         "snapshotEmpty": "スナップショットなし。",
         "snapshotRestore": "復元",
         "snapshotDelete": "削除",
-        "backupManualGuide": "スナップショットはデータディレクトリの snapshots フォルダ（既定 ~/.myrm）にあります。再インストール後に data.db と checkpoints.db を戻せば手動復旧可——詳細はドキュメントへ。",
-        "openUpgradeCockpit": "シームレスアップグレードコンソール"
+        "backupManualGuide": "スナップショットはデータディレクトリの snapshots フォルダ（既定 ~/.myrm）にあります。再インストール後に data.db と checkpoints.db を戻せば手動復旧可——詳細はドキュメントへ。"
       },
       "unattendedDesktop": {
         "guideIntro": "画面をロックして席を離れた後も Agent にこのパソコンを操作させたい場合は、デスクトップアプリをご利用ください。ブラウザのみのモードではチャット内承認のみとなり、以下の保護は含まれません。",
@@ -20870,36 +20869,6 @@
         "guideTitle": "離席中のパソコン操作・クイック設定",
         "statusOn": "オン",
         "statusOptional": "任意"
-      },
-      "upgradeCockpit": {
-        "safeLabel": "実行状態は健全で安全です：",
-        "activeTitle": "実行中の長時間タスク保護（強制再起動をブロック済み）",
-        "tasksRunning": "{count} 件のタスクを実行中",
-        "drainFirst": "現在のタスクの完了を待って自動で再読み込み",
-        "checkpointUpgrade": "チェックポイントを保存してすぐにアップグレード",
-        "healthOptimal": "高速で安定",
-        "healthHealthy": "接続は正常",
-        "healthDegraded": "遅延が大きい",
-        "healthBlocked": "ポートがタイムアウト",
-        "probeTitle": "事前ネットワーク診断プローブ",
-        "probeSubtitle": "複数の国際回線をリアルタイムで診断し、ワンクリックで切り替えてダウンロードの中断を防ぎます",
-        "probing": "診断中...",
-        "retest": "再測定",
-        "recommended": "おすすめ",
-        "roundTripLatency": "往復遅延:",
-        "modalTitle": "デュアルインスタンス無停止アップグレードパイプライン",
-        "modalSubtitle": "ブルーグリーンのアトミックな引き継ぎと、ワンクリックの秒単位スナップショットロールバック",
-        "oldInstance": "旧インスタンス {version} (稼働中のフォールバック)",
-        "newInstance": "新インスタンス {version} (引き継ぎ準備完了)",
-        "losslessSwitch": "無損失の切り替え",
-        "stepRunning": "実行中...",
-        "stepReady": "準備完了",
-        "completeTitle": "アップグレード完了！新インスタンスがアトミックにサービスを引き継ぎました",
-        "completeBody": "サンドボックスのヘルスチェックとデータベース移行は自動で完了し、すべてのセッションとメモリは損失なく保持されています。",
-        "rolledBack": "直前の安定版スナップショットにアトミックにロールバックしました",
-        "rollbackAction": "ワンクリックで秒単位のアトミックロールバック",
-        "tryNewVersion": "新バージョンを試す",
-        "closeWindow": "ウィンドウを閉じる"
       }
     },
     "push": {

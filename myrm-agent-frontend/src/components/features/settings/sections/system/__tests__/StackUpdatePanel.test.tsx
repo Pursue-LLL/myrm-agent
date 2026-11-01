@@ -118,6 +118,24 @@ describe('StackUpdatePanel', () => {
     expect(screen.getByText('Improve UI layout')).toBeInTheDocument();
   });
 
+  it('offers no simulated upgrade pipeline or mirror probe', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ server_version: '0.1.0', latest: { version: 'v0.2.0' }, stale: true }),
+    } as Response);
+
+    render(<StackUpdatePanel />);
+    await waitFor(() => {
+      expect(screen.getByText(/serverRow/)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('start-blue-green-upgrade-btn')).not.toBeInTheDocument();
+    expect(screen.queryByText('openUpgradeCockpit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const labels = screen.getAllByRole('button').map((button) => button.textContent ?? '');
+    expect(labels.some((label) => /cockpit|pipeline|mirror/i.test(label))).toBe(false);
+  });
+
   it('toggles changelog showMore and showLess when items exceed 5', async () => {
     const mockPayload = {
       server_version: '0.1.0',

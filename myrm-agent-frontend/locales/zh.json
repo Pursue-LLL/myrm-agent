@@ -20852,8 +20852,7 @@
         "snapshotEmpty": "暂无快照。",
         "snapshotRestore": "恢复",
         "snapshotDelete": "删除",
-        "backupManualGuide": "快照在数据目录的 snapshots 文件夹（默认 ~/.myrm）。重装后可手动拷回 data.db 与 checkpoints.db 恢复——详见文档。",
-        "openUpgradeCockpit": "无感升级控制台"
+        "backupManualGuide": "快照在数据目录的 snapshots 文件夹（默认 ~/.myrm）。重装后可手动拷回 data.db 与 checkpoints.db 恢复——详见文档。"
       },
       "unattendedDesktop": {
         "guideIntro": "锁屏离开后仍要让 Agent 操作本机时，请使用桌面客户端。纯浏览器模式仅支持聊天内审批，不含下列保护。",
@@ -20870,36 +20869,6 @@
         "guideTitle": "离席用电脑 · 快速设置",
         "statusOn": "已开启",
         "statusOptional": "可选"
-      },
-      "upgradeCockpit": {
-        "safeLabel": "运行态健康安全：",
-        "activeTitle": "活动长任务防误杀保护（已拦截暴力重启）",
-        "tasksRunning": "{count} 个任务执行中",
-        "drainFirst": "等待当前任务完成自动重载",
-        "checkpointUpgrade": "保存 Checkpoint 即刻升级",
-        "healthOptimal": "极速稳定",
-        "healthHealthy": "连通正常",
-        "healthDegraded": "延迟较高",
-        "healthBlocked": "端口超时",
-        "probeTitle": "前置网络诊断探针",
-        "probeSubtitle": "多源跨境通道实时体检与一键切换，杜绝下载中断",
-        "probing": "正在体检...",
-        "retest": "重新测速",
-        "recommended": "推荐",
-        "roundTripLatency": "往返延迟:",
-        "modalTitle": "双实例无感升级流水线",
-        "modalSubtitle": "蓝绿原子接力与一键秒级快照回滚",
-        "oldInstance": "旧实例 {version} (活动兜底)",
-        "newInstance": "新实例 {version} (准备接力)",
-        "losslessSwitch": "无损切换",
-        "stepRunning": "执行中...",
-        "stepReady": "已就绪",
-        "completeTitle": "升级完成！新实例已原子接替服务",
-        "completeBody": "已自动完成沙箱健康度自检与数据库迁移，全量会话与记忆无损保留。",
-        "rolledBack": "已原子回滚至上一稳定版本快照",
-        "rollbackAction": "一键秒级原子回滚",
-        "tryNewVersion": "体验新版本",
-        "closeWindow": "关闭窗口"
       }
     },
     "push": {
