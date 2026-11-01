@@ -6,16 +6,21 @@ real-graph tests drive a LangGraph agent with a checkpointer to pin what the pro
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
+from typing import Protocol, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelRequest, ModelResponse
+from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.tools import tool
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.outputs import ChatResult
+from langchain_core.tools import BaseTool, tool
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.runtime import Runtime
 from pydantic import Field
 
 from myrm_agent_harness.agent.middlewares.memory_context.ephemeral_delta_middleware import ephemeral_delta_middleware
@@ -90,8 +95,10 @@ class TestFormatProactivePack:
         assert "&lt;b&gt;bold&lt;/b&gt;" in block
 
 
-def _request(messages: list[BaseMessage], context: object) -> ModelRequest:
-    return ModelRequest(messages=messages, model=MagicMock(), runtime=SimpleNamespace(context=context))
+def _request(messages: list[AnyMessage], context: object) -> ModelRequest:
+    # The run context is whatever the turn put there (a dict, or nothing), not the `None` a bare `Runtime` types it as.
+    runtime = cast("Runtime[None]", SimpleNamespace(context=context))
+    return ModelRequest(messages=messages, model=MagicMock(), runtime=runtime)
 
 
 async def _handled(request: ModelRequest, *, manager: SimpleNamespace | None) -> ModelRequest:
@@ -110,7 +117,7 @@ async def _handled(request: ModelRequest, *, manager: SimpleNamespace | None) ->
 class TestTailInjection:
     @pytest.mark.asyncio
     async def test_only_the_final_human_message_gains_the_block(self) -> None:
-        history = [
+        history: list[AnyMessage] = [
             SystemMessage(content="sys"),
             HumanMessage(content="first question"),
             AIMessage(content="first answer"),
@@ -135,8 +142,11 @@ class TestTailInjection:
         handled = await _handled(request, manager=_manager())
 
         parts = handled.messages[0].content
+        assert isinstance(parts, list)
         assert parts[:2] == [{"type": "text", "text": "what is this"}, image]
-        assert "650 RMB" in parts[2]["text"]
+        added = parts[2]
+        assert isinstance(added, dict)
+        assert "650 RMB" in added["text"]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -175,11 +185,17 @@ class _SpyModel(GenericFakeChatModel):
 
     seen: list[list[BaseMessage]] = Field(default_factory=list)
 
-    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: object,
+    ) -> ChatResult:
         self.seen.append(list(messages))
         return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
-    def bind_tools(self, tools, **kwargs):
+    def bind_tools(self, tools: object, **kwargs: object) -> _SpyModel:
         return self
 
 
@@ -187,6 +203,18 @@ class _SpyModel(GenericFakeChatModel):
 def echo_tool(text: str) -> str:
     """Return the text unchanged."""
     return text
+
+
+class _Agent(Protocol):
+    """The part of a compiled agent these tests drive."""
+
+    async def ainvoke(
+        self, input: Mapping[str, object], config: Mapping[str, object], *, context: Mapping[str, object]
+    ) -> object: ...
+
+
+# langchain bounds an agent's context type to TypedDicts, dataclasses and models; this harness runs agents on a plain dict.
+_create_agent = cast("Callable[..., _Agent]", create_agent)
 
 
 def _spy(*replies: AIMessage) -> _SpyModel:
@@ -202,17 +230,22 @@ def _turn_context(pack: dict[str, object] | None) -> dict[str, object]:
     return context
 
 
-async def _ask(agent: object, text: str, context: dict[str, object], *, first: bool = False) -> None:
-    messages: list[BaseMessage] = [HumanMessage(content=text)]
+async def _ask(agent: _Agent, text: str, context: dict[str, object], *, first: bool = False) -> None:
+    messages: list[AnyMessage] = [HumanMessage(content=text)]
     if first:
         messages.insert(0, SystemMessage(content="base system"))
     await agent.ainvoke({"messages": messages}, {"configurable": {"thread_id": "t-1"}}, context=context)
 
 
-def _agent(model: _SpyModel, *, tools: list[object] | None = None, middleware: list[object] | None = None) -> object:
-    return create_agent(
+def _agent(
+    model: _SpyModel,
+    *,
+    tools: Sequence[BaseTool] = (),
+    middleware: Sequence[object] = (),
+) -> _Agent:
+    return _create_agent(
         model=model,
-        tools=tools or [],
+        tools=list(tools),
         middleware=middleware or [memory_context_middleware, proactive_pack_middleware],
         checkpointer=InMemorySaver(),
         context_schema=dict,

@@ -639,6 +639,9 @@ from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import (
 from myrm_agent_harness.toolkits.wiki.retrieval.fts_search import (
     search_published_index as search_published_index,
 )
+from myrm_agent_harness.toolkits.wiki.retrieval.graph_tables import (
+    is_interim_raw_entry as is_interim_raw_entry,
+)
 from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import (
     STOP_WORDS as STOP_WORDS,
 )

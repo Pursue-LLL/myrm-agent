@@ -285,6 +285,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "RecallDebug": ("myrm_agent_harness.toolkits.retriever.fusion_strategies", "RecallDebug"),
     "search_published_index": ("myrm_agent_harness.toolkits.wiki.retrieval.fts_search", "search_published_index"),
     "index_has_pages": ("myrm_agent_harness.toolkits.wiki.retrieval.fts_search", "index_has_pages"),
+    "is_interim_raw_entry": ("myrm_agent_harness.toolkits.wiki.retrieval.graph_tables", "is_interim_raw_entry"),
     "STOP_WORDS": ("myrm_agent_harness.toolkits.wiki.retrieval.tokenizer", "STOP_WORDS"),
     "tokenize_for_fts": ("myrm_agent_harness.toolkits.wiki.retrieval.tokenizer", "tokenize_for_fts"),
     "BehavioralMessage": ("myrm_agent_harness.toolkits.memory.strategies.behavioral_measurement", "BehavioralMessage"),

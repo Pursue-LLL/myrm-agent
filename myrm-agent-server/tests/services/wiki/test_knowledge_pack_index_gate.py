@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - Tests that drafts and blocked pages in the index never crowd published pages out of the pack, that sidecar index rows
-  never reach it, and that a page whose file cannot be read is held back whole.
+  never reach it, that a page whose file cannot be read is held back whole, that so is a page whose file was removed
+  after it was indexed (logged), and that an interim raw entry, which has no page file, still stands on its index row.
 
 [POS]
 Real-index counterpart of the hand-built vaults in ``test_knowledge_pack.py``.
@@ -14,6 +15,7 @@ Real-index counterpart of the hand-built vaults in ``test_knowledge_pack.py``.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path
 
@@ -22,6 +24,7 @@ from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 
+from app.services.wiki.knowledge_pack import selector
 from app.services.wiki.knowledge_pack.schemas import ProactiveKnowledgeResult
 from app.services.wiki.knowledge_pack.selector import resolve_proactive_snippets_from_vaults
 
@@ -116,3 +119,29 @@ async def test_a_page_whose_file_cannot_be_read_is_held_back_whole(vault: _Vault
     result = await vault.pack()
 
     assert [s.article_title for s in result.snippets] == ["Hotel Limits"]
+
+
+async def test_a_page_removed_after_it_was_indexed_is_held_back_and_logged(
+    vault: _Vault, caplog: pytest.LogCaptureFixture
+) -> None:
+    await vault.add_page("Hotel Limits", None, _PUBLISHED["Hotel Limits"])
+    await vault.add_page("Old Policy", None, "Zephyr budget limit used to be 300 per night, a retired figure.")
+    (vault.structure.concepts_dir / "Old Policy.md").unlink()
+
+    with caplog.at_level(logging.WARNING, logger=selector.__name__):
+        result = await vault.pack()
+
+    assert [s.article_title for s in result.snippets] == ["Hotel Limits"]
+    warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert repr("Old Policy") in warnings[0]
+
+
+async def test_an_interim_raw_entry_stands_on_its_index_row(vault: _Vault) -> None:
+    """A raw upload waiting to be compiled has an index row and never a page file."""
+    await vault.add_page("Hotel Limits", None, _PUBLISHED["Hotel Limits"])
+    vault.indexer.index_raw_text("upload", "Zephyr budget limit quokka notes waiting to be compiled.")
+
+    result = await vault.pack()
+
+    assert sorted(s.article_title for s in result.snippets) == ["Hotel Limits", "raw:upload"]

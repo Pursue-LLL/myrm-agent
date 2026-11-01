@@ -4,6 +4,7 @@
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
 - app.services.wiki.knowledge_pack.query_terms::MAX_QUERY_CHARS, search_terms, paragraph_relevance, tokenize_text (POS: the question's terms and the relevance floor)
 - myrm_agent_harness.api::search_published_index, index_has_pages (POS: read-only published-pages-only FTS search, and whether an index file holds any concept page row)
+- myrm_agent_harness.api::is_interim_raw_entry (POS: whether an index row is raw text indexed before compilation, the one row kind without a page file)
 - myrm_agent_harness.api::is_within_boundary (POS: resolved-path containment check that follows symlinks)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
@@ -27,12 +28,12 @@ long page cannot take every slot, and the order of the mounted vaults never deci
 it reads goes through the wiki publish gate again, so a draft or blocked page never reaches the injected context,
 and snippets never lead with the page's frontmatter. A shared vault is written by another process, so its index
 file and its page files are read only when they lie inside the vault, whatever the index or a symlink says: an indexed
-page whose file lies outside is held back and logged, while a page with no file at all (a raw interim entry, or a link
-that points at nothing) stands on its index row. The scan blocks on file and database reads, so each turn scans all
-vaults in one thread, one after the other, of a small pool of its own, in a copy of the turn's context so what the scan
-logs still carries the turn's trace and session ids: the timeout fires on time, a slow mount does not stall the loop,
-and a mount that never answers pins at most that pool's threads instead of the default pool every other
-``asyncio.to_thread`` caller shares.
+page whose file lies outside is held back and logged, and so is one whose file is gone (the index was not rebuilt after
+the page was removed); only an interim raw entry, which never has a page file, stands on its index row. The scan blocks
+on file and database reads, so each turn scans all vaults in one thread, one after the other, of a small pool of its
+own, in a copy of the turn's context so what the scan logs still carries the turn's trace and session ids: the timeout
+fires on time, a slow mount does not stall the loop, and a mount that never answers pins at most that pool's threads
+instead of the default pool every other ``asyncio.to_thread`` caller shares.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 
-from myrm_agent_harness.api import index_has_pages, is_within_boundary, search_published_index
+from myrm_agent_harness.api import index_has_pages, is_interim_raw_entry, is_within_boundary, search_published_index
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
@@ -125,8 +126,7 @@ def _paragraphs(text: str) -> list[str]:
 def _best_paragraph(title: str, text: str, terms: Sequence[str]) -> tuple[str, float]:
     """The paragraph of a page that answers the question best, with its relevance; ``("", 0.0)`` when none does.
 
-    The first of equally relevant paragraphs wins. A text made of headings only, such as the one flat line an index
-    row stores for a page that has no file, is read as its first block as it is.
+    The first of equally relevant paragraphs wins. A text made of headings only is read as its first block as it is.
     """
     paragraphs = _paragraphs(text) or [block.strip() for block in text.split("\n\n") if block.strip()][:1]
     best, best_score = "", 0.0
@@ -156,14 +156,19 @@ def _inside_vault(path: Path, vault_path: Path) -> bool:
 def _indexed_page_body(vault_path: Path, concept_name: str, indexed_text: str) -> str:
     """The text of an indexed page, from its file through the publish gate.
 
-    The name comes from an index another process wrote. A page that has no file at all (a raw interim entry, or a link
-    that points at nothing) stands on its index row; a page whose file lies outside the vault, by a name that climbs
-    out of it or a link, is held back.
+    The name comes from an index another process wrote. A page whose file lies outside the vault, by a name that climbs
+    out of it or a link, is held back. So is a page with no file, a row the index kept after the page was removed (a
+    link that points at nothing is no file either): the publish gate reads the page file, and without one there is
+    nothing to verify the row against. That case is logged, as the provider's cue to rebuild the index. Only an
+    interim raw entry, which never has a page file, stands on its index row.
     """
     for candidate in (vault_path / "wiki" / "concepts" / f"{concept_name}.md", vault_path / f"{concept_name}.md"):
         if candidate.is_file():
             return _published_page_body(candidate) if _inside_vault(candidate, vault_path) else ""
-    return indexed_text
+    if is_interim_raw_entry(concept_name):
+        return indexed_text
+    logger.warning("Shared vault %s holds an index row for %r, whose page file is gone", vault_path, concept_name)
+    return ""
 
 
 def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:

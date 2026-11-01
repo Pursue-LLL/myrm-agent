@@ -1,6 +1,6 @@
 """The publish gate runs inside the index query, so drafts never crowd published pages out of a result page,
-an index that was created but never filled is told apart from a query that matched nothing, and an index in a
-read-only directory is still searchable."""
+an index that was created but never filled is told apart from a query that matched nothing, an interim raw row is
+told apart from a page by its name, and an index in a read-only directory is still searchable."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.retrieval import fts_search
+from myrm_agent_harness.toolkits.wiki.retrieval.graph_tables import is_interim_raw_entry
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 
 _DRAFT_BODY = "kelvin " * 12
@@ -54,6 +55,14 @@ def _add_sidecar_row(db_path: Path, name: str) -> None:
                 "INSERT INTO wiki_fts (concept_name, truth_content, search_terms) VALUES (?, ?, ?)",
                 (name, _DRAFT_BODY, _DRAFT_BODY),
             )
+    finally:
+        conn.close()
+
+
+def _row_names(indexer: WikiIndexer) -> list[str]:
+    conn = sqlite3.connect(indexer.db_path)
+    try:
+        return [str(name) for (name,) in conn.execute("SELECT concept_name FROM wiki_fts ORDER BY concept_name")]
     finally:
         conn.close()
 
@@ -239,6 +248,25 @@ async def test_a_compiled_page_next_to_raw_uploads_is_a_page(indexer: WikiIndexe
     await indexer.upsert("page", _page(None, _published_body(0)))
 
     assert fts_search.index_has_pages(indexer.db_path) is True
+
+
+async def test_the_interim_raw_row_is_recognized_until_the_compiled_page_replaces_it(indexer: WikiIndexer) -> None:
+    indexer.index_raw_text("upload", "kelvin notes waiting to be compiled")
+    await indexer.upsert("page", _page(None, _published_body(0)))
+
+    assert [name for name in _row_names(indexer) if is_interim_raw_entry(name)] == ["raw:upload"]
+
+    await indexer.upsert("upload", _page(None, _published_body(1)))
+
+    assert not any(is_interim_raw_entry(name) for name in _row_names(indexer))
+
+
+@pytest.mark.parametrize(
+    ("name", "is_raw"),
+    [("raw:upload", True), ("upload", False), ("raw", False), ("raw-materials", False), ("travel/raw:notes", False)],
+)
+def test_only_a_name_that_starts_with_the_raw_prefix_is_an_interim_raw_entry(name: str, is_raw: bool) -> None:
+    assert is_interim_raw_entry(name) is is_raw
 
 
 def test_rows_still_in_the_wal_file_are_read_from_a_writable_directory(tmp_path: Path) -> None:
