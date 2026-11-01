@@ -32,6 +32,7 @@ from __future__ import annotations
 import email.errors
 import email.header
 import email.message
+import email.policy
 import email.utils
 import re
 import urllib.parse
@@ -135,14 +136,19 @@ def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Messa
     return (part for part in msg.walk() if _is_attachment(part, embedded))
 
 
+# The UTF-8 SMTP policy ends lines with CRLF and leaves raw 8-bit text in a header alone; ``refold_source="none"`` leaves
+# the lines of a header as they are. The policy a parsed message carries folds a header at a vertical tab, a form feed
+# or a file, group or record separator, which cuts the header or makes the generator refuse it.
+_AS_RECEIVED = email.policy.SMTPUTF8.clone(refold_source="none")
+
+
 def attachment_bytes(part: email.message.Message) -> bytes | None:
     """What to save of an attachment part: its decoded content, or an attached message written out as it was sent.
 
-    A part that holds no file, such as a container, has none. So has an attached message that cannot be written: the
-    generator folds a header at a vertical tab, a form feed or a file, group or record separator and rejects the result,
-    and it runs out of stack for a message nested hundreds of levels deep. Such a message is left out rather than saved
-    in another form. The attached message is written with CRLF line breaks and without wrapping its header lines again,
-    so that what the parser read comes back unchanged.
+    A part that holds no file, such as a container, has none. So has an attached message the generator cannot write,
+    one nested so deep that it runs out of stack or one it refuses; such a message is left out rather than saved in
+    another form. The attached message is written with the policy above, so that what the parser read comes back
+    unchanged.
     """
     content = part.get_payload(decode=True)
     if isinstance(content, bytes):
@@ -152,7 +158,7 @@ def attachment_bytes(part: email.message.Message) -> bytes | None:
     if not isinstance(attached, email.message.Message):
         return None
     try:
-        return attached.as_bytes(policy=attached.policy.clone(linesep="\r\n", max_line_length=0))
+        return attached.as_bytes(policy=_AS_RECEIVED)
     except (email.errors.MessageError, RecursionError):
         return None
 

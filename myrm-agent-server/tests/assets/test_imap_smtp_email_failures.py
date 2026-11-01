@@ -12,8 +12,8 @@ client.
 [OUTPUT]
 - Fails when a socket error, a refused folder, a NUL in an argument, a header value with a line break or a message that
   is gone or empty ends as a stack trace or an unclear error instead of the JSON error, when a message with clean
-  headers is no longer sent, or when an attached message that the generator cannot write (a control character in a
-  header, a nesting that exhausts the stack) fails ``download``, or is saved cut short, instead of being left out
+  headers is no longer sent, or when an attached message that the generator cannot write (a nesting that exhausts the
+  stack, a refusal of the generator) fails ``download`` instead of being left out
 
 [POS]
 In-process failure-reporting test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which
@@ -22,8 +22,8 @@ covers the commands it sends.
 
 from __future__ import annotations
 
-import email
 import email.errors
+import email.message
 import json
 import sys
 from pathlib import Path
@@ -191,21 +191,8 @@ def test_a_refusal_without_text_is_reported_with_the_status(
     assert str(error).startswith("Mailbox 'Nope' could not be opened: NO. ")
 
 
-def _generator_rejects_a_form_feed() -> bool:
-    """Whether this interpreter's generator rejects a header it has to fold at a form feed; an older one writes it cut short."""
-    probe = email.message_from_string("Subject: in\x0cvoice\n\n")
-    try:
-        probe.as_bytes(policy=probe.policy.clone(linesep="\r\n", max_line_length=0))
-    except email.errors.MessageError:
-        return True
-    return False
-
-
 _FORWARDED = "From: eve@x.test\r\nSubject: invoice\r\n\r\nhello\r\n"
 _NESTED_PAST_THE_STACK = "Content-Type: message/rfc822\r\n\r\n" * (sys.getrecursionlimit() // 2) + _FORWARDED
-_FORM_FEED_REJECTED = pytest.mark.skipif(
-    not _generator_rejects_a_form_feed(), reason="the generator of this interpreter writes such a header cut short"
-)
 
 
 def _mail_with_an_attached_message(attached: str) -> bytes:
@@ -218,31 +205,37 @@ def _mail_with_an_attached_message(attached: str) -> bytes:
     ).encode()
 
 
-@pytest.mark.parametrize(
-    "attached",
-    [
-        pytest.param(_FORWARDED.replace("invoice", "in\x0cvoice"), marks=_FORM_FEED_REJECTED, id="form-feed"),
-        pytest.param(_FORWARDED.replace("invoice", "invoice\x1cX-Next: kept"), id="embedded-header"),
-        pytest.param(_NESTED_PAST_THE_STACK, id="nested-past-the-stack"),
-    ],
-)
-def test_download_saves_the_rest_when_an_attached_message_cannot_be_written(
-    email_manager: ModuleType,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: Path,
-    attached: str,
+def _download_leaving_out_the_attached_message(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path, attached: str
 ) -> None:
-    """The message is left out of what is saved, not saved cut short and not the end of the whole download."""
+    """``read`` lists both files and ``download`` saves the PDF only: the message is left out, not saved cut short."""
     raw = _mail_with_an_attached_message(attached)
 
     run_main(email_manager, monkeypatch, conn_serving(raw), "read", "1")
     listed = [entry["filename"] for entry in json.loads(capsys.readouterr().out)["attachments"]]
     run_main(email_manager, monkeypatch, conn_serving(raw), "download", "1", "--output-dir", str(tmp_path))
     answer = json.loads(capsys.readouterr().out)
-    saved = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
 
     assert listed == ["a.pdf", "fwd.eml"]
     assert answer["status"] == "downloaded"
-    assert saved["a.pdf"] == b"%PDF-1.4"
-    assert saved.get("fwd.eml", attached.encode()) == attached.encode()
+    assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == {"a.pdf": b"%PDF-1.4"}
+
+
+def test_download_saves_the_rest_when_an_attached_message_is_nested_past_the_stack(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """The parser reads such a message, but writing it back takes several frames a level and runs out of stack."""
+    _download_leaving_out_the_attached_message(email_manager, monkeypatch, capsys, tmp_path, _NESTED_PAST_THE_STACK)
+
+
+def test_download_saves_the_rest_when_the_generator_refuses_an_attached_message(
+    email_manager: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """A refusal of the generator, whatever its reason, ends no more than the file of that message."""
+
+    def refuse(*_args: object, **_kwargs: object) -> bytes:
+        raise email.errors.HeaderWriteError("folded header contains newline")
+
+    monkeypatch.setattr(email.message.Message, "as_bytes", refuse)
+
+    _download_leaving_out_the_attached_message(email_manager, monkeypatch, capsys, tmp_path, _FORWARDED)

@@ -17,8 +17,8 @@ as the message it was.
   ``attachment`` in it, or a part that names nothing, becomes one, when the attachments of a message come in another order
   than they were attached, when the body of a message holds an attachment, when an image that the HTML body points at with
   a ``cid:`` URL is listed or saved although nothing else makes it an attachment, or when one that is not pointed at, or
-  that is attached by its disposition, is not; when an attached message is not saved byte for byte as it was sent, or the
-  attachments inside it are no longer listed and saved on their own
+  that is attached by its disposition, is not; when an attached message is not saved as it was sent, raw UTF-8, long lines
+  and control characters in a header included, or the attachments inside it are no longer listed and saved on their own
 
 [POS]
 In-process test of which parts count as attachments and what is saved from an attached message, next to
@@ -289,6 +289,9 @@ _FWD_HEADERS = ('Content-Disposition: attachment; filename="fwd.eml"',)
         pytest.param(_FORWARDED.replace("hello", "From me to you\r\n>From you"), id="line-that-starts-with-from"),
         pytest.param(_FORWARDED.replace("hello\r\n", "hello"), id="no-line-break-at-the-end"),
         pytest.param(_FORWARDED.replace("invoice", "in\u2028voice"), id="unicode-line-separator-in-a-header"),
+        pytest.param(_FORWARDED.replace("invoice", "in\x0cvoice"), id="form-feed-in-a-header"),
+        pytest.param(_FORWARDED.replace("invoice", "invoice\x0b"), id="control-character-ending-a-header"),
+        pytest.param(_FORWARDED.replace("invoice", "invoice\x1cX-Next: kept"), id="control-character-before-a-header-name"),
     ],
 )
 def test_download_saves_an_attached_message_as_the_message_it_was(
