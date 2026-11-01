@@ -1,4 +1,5 @@
-"""What one poll takes from the mailbox: a message nobody can parse never stalls it, and a backlog drains oldest first.
+"""What one poll takes from the mailbox: a message nobody can parse never stalls it, a disk error is retried and a backlog
+drains oldest first.
 
 The inbox answers ``UID SEARCH`` the way an IMAP server does, including ``UID n:*`` returning the newest message when
 ``n`` is past the end of the mailbox, so the batch the channel picks is checked against what a server really sends.
@@ -6,6 +7,7 @@ The inbox answers ``UID SEARCH`` the way an IMAP server does, including ``UID n:
 
 from __future__ import annotations
 
+import errno
 import logging
 import re
 from unittest.mock import MagicMock, patch
@@ -85,6 +87,31 @@ class TestUnparseableMessage:
         assert caplog.records[0].exc_info is not None
         assert second_poll == []
         assert inbox.fetched == [5, 6]
+
+
+class TestDiskError:
+    def test_a_message_the_disk_could_not_take_is_read_again_by_the_next_poll(self) -> None:
+        """A full disk clears up, so the message it failed on is retried, unlike one the parser can never read."""
+        inbox = _Inbox({5: raw_mail(5), 6: raw_mail(6)})
+        channel = make_channel()
+        parse = channel._parse_email
+        disk_full = True
+
+        def parse_when_the_disk_has_room(raw: bytes, uid: int) -> InboundMessage | None:
+            if disk_full and uid == 5:
+                raise OSError(errno.ENOSPC, "No space left on device")
+            return parse(raw, uid)
+
+        with patch.object(channel, "_parse_email", side_effect=parse_when_the_disk_has_room):
+            with pytest.raises(OSError, match="No space left"):
+                inbox.poll(channel)
+            assert channel._last_uid == 0
+
+            disk_full = False
+            retry = inbox.poll(channel)
+
+        assert _uids(retry) == [5, 6]
+        assert inbox.fetched == [5, 5, 6]
 
 
 class TestBacklog:

@@ -14,13 +14,13 @@ Outbound: SMTP send (HTML body + file attachments)
 
 [POS]
 Email channel implementation: credentials, lifecycle, IMAP polling and SMTP transport. Message parsing (attachments,
-forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
-assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
-certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
-context verifies nothing). Every connection also times out on a silent server instead of blocking its thread. Opening
-INBOX or searching it being refused is an error carrying the server's words, never read as data, and a message the server
-refuses to hand over is fetched again by the next poll instead of being passed over. A poll takes at most 20 messages,
-oldest first, so a longer backlog drains over the next polls; one the parser cannot read is logged by UID and skipped.
+forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME assembly
+live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server certificate
+is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default context verifies
+nothing). Every connection also times out on a silent server instead of blocking its thread. Opening INBOX or searching it
+being refused is an error carrying the server's words, never read as data, and a message the server refuses to hand over
+is fetched again by the next poll instead of being passed over. A poll takes at most 20 messages, oldest first; one the
+parser cannot read is logged and skipped, one that fails on a disk error is read again.
 """
 
 from __future__ import annotations
@@ -56,8 +56,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 100000
 _POLL_INTERVAL = 30.0
-# Messages fetched per poll. A longer backlog drains over the next polls, oldest first; the first poll has no mark yet
-# and takes only the newest.
+# Messages per poll: a backlog drains over the next polls, oldest first; the first poll has no mark and takes the newest.
 _MAX_FETCHED_PER_POLL = 20
 # Seconds a mail server may stay silent before connecting or a read gives up; without it a stalled server blocks the
 # worker thread, and with it the poll loop and the health check, indefinitely.
@@ -348,8 +347,8 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         """Up to ``_MAX_FETCHED_PER_POLL`` of the messages that arrived in INBOX after the high-water mark, oldest first.
 
         Opening INBOX or searching it being refused raises, and the reconnect loop retries. A refused fetch ends the batch
-        instead: the mark stays below that message so the next poll asks for it again, whereas skipping it would let the
-        next message move the mark past it for good. A message the parser cannot read is logged and skipped.
+        instead: the mark stays below that message so the next poll asks for it again, as skipping it would lose it for good. A
+        message the parser cannot read is logged and skipped; a disk error saving its attachment raises, as it may clear.
         """
         results: list[InboundMessage] = []
         conn = self._connect_imap()
@@ -358,10 +357,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             _send_imap_id(conn)
             _require_ok(conn.select("INBOX"), "Opening INBOX")
 
-            if self._last_uid:
-                criteria = f"(UID {self._last_uid + 1}:*)"
-            else:
-                criteria = "(UNSEEN)"
+            criteria = f"(UID {self._last_uid + 1}:*)" if self._last_uid else "(UNSEEN)"
 
             msg_nums = _require_ok(conn.uid("search", criteria), "Search")
             if not msg_nums or not msg_nums[0]:
@@ -382,6 +378,8 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
                 if isinstance(raw, bytes):
                     try:
                         parsed = self._parse_email(raw, uid)
+                    except OSError:
+                        raise
                     except Exception:
                         # One unreadable message must not fail every poll; the mark moves past it like any other.
                         logger.warning("Email: UID %d could not be parsed and is skipped", uid, exc_info=True)
