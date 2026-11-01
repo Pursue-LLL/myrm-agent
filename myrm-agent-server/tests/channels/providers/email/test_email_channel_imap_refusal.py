@@ -7,8 +7,6 @@ refused to hand over, so a refusal is neither read as data nor a mail that is lo
 
 from __future__ import annotations
 
-import email.mime.text
-import email.utils
 import imaplib
 import logging
 from unittest.mock import MagicMock, patch
@@ -17,19 +15,10 @@ import pytest
 
 from app.channels.providers.email import EmailChannel
 from app.channels.types import InboundMessage
-from tests.channels.providers.email.email_channel_factory import make_channel
+from tests.channels.providers.email.email_channel_factory import make_channel, raw_mail
 
 _REFUSAL = b"[SERVERBUG] Internal error"
 _LOGGER = "app.channels.providers.email.channel"
-
-
-def _raw_mail(uid: int) -> bytes:
-    msg = email.mime.text.MIMEText(f"Body {uid}", "plain")
-    msg["From"] = "sender@example.com"
-    msg["To"] = "bot@example.com"
-    msg["Subject"] = f"Subject {uid}"
-    msg["Message-ID"] = email.utils.make_msgid()
-    return msg.as_bytes()
 
 
 class _Mailbox:
@@ -55,7 +44,7 @@ class _Mailbox:
             return self._answer("search", [b"5 6"])
         uid = args[0]
         self.fetched.append(uid)
-        return self._answer(uid, [(f"{uid} (RFC822)".encode(), _raw_mail(int(uid))), b")"])
+        return self._answer(uid, [(f"{uid} (RFC822)".encode(), raw_mail(int(uid))), b")"])
 
     def poll(self, channel: EmailChannel) -> list[InboundMessage]:
         with patch("imaplib.IMAP4_SSL", return_value=self.conn):
