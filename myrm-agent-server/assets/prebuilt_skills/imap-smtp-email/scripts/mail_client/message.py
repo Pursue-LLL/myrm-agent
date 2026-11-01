@@ -138,11 +138,11 @@ def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Messa
 def attachment_bytes(part: email.message.Message) -> bytes | None:
     """What to save of an attachment part: its decoded content, or an attached message written out as it was sent.
 
-    A part that holds no file, such as a container, has none. So has an attached message that the generator refuses to
-    write, as it does for a header with a vertical tab, a form feed or a file, group or record separator: it folds the
-    header there and rejects the result. Such a message is left out rather than saved in another form. The attached
-    message is written with CRLF line breaks and without wrapping its header lines again, so that what the parser read
-    comes back unchanged.
+    A part that holds no file, such as a container, has none. So has an attached message that cannot be written: the
+    generator folds a header at a vertical tab, a form feed or a file, group or record separator and rejects the result,
+    and it runs out of stack for a message nested hundreds of levels deep. Such a message is left out rather than saved
+    in another form. The attached message is written with CRLF line breaks and without wrapping its header lines again,
+    so that what the parser read comes back unchanged.
     """
     content = part.get_payload(decode=True)
     if isinstance(content, bytes):
@@ -153,7 +153,7 @@ def attachment_bytes(part: email.message.Message) -> bytes | None:
         return None
     try:
         return attached.as_bytes(policy=attached.policy.clone(linesep="\r\n", max_line_length=0))
-    except email.errors.MessageError:
+    except (email.errors.MessageError, RecursionError):
         return None
 
 

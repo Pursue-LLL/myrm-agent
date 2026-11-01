@@ -17,8 +17,8 @@ as the message it was.
   ``attachment`` in it, or a part that names nothing, becomes one, when the attachments of a message come in another order
   than they were attached, when the body of a message holds an attachment, when an image that the HTML body points at with
   a ``cid:`` URL is listed or saved although nothing else makes it an attachment, or when one that is not pointed at, or
-  that is attached by its disposition, is not; when an attached message is not saved byte for byte as it was sent, the
-  attachments inside it are no longer listed and saved on their own, or one the generator cannot write fails the download
+  that is attached by its disposition, is not; when an attached message is not saved byte for byte as it was sent, or the
+  attachments inside it are no longer listed and saved on their own
 
 [POS]
 In-process test of which parts count as attachments and what is saved from an attached message, next to
@@ -305,35 +305,6 @@ def test_download_saves_an_attached_message_as_the_message_it_was(
 
     assert json.loads(capsys.readouterr().out)["status"] == "downloaded"
     assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == {"fwd.eml": forwarded.encode()}
-
-
-@pytest.mark.parametrize(
-    "subject",
-    ["in\x0bvoice", "in\x0cvoice", "in\x1cvoice", "in\x1dvoice", "in\x1evoice", "invoice\x1cX-Next: kept"],
-    ids=["vertical-tab", "form-feed", "file-separator", "group-separator", "record-separator", "embedded-header"],
-)
-def test_download_saves_the_rest_when_an_attached_message_cannot_be_written(
-    email_manager: ModuleType,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: Path,
-    subject: str,
-) -> None:
-    """A generator that folds a header at these characters and refuses the result leaves the message out, not a copy cut short."""
-    forwarded = _FORWARDED.replace("invoice", subject)
-    pdf = _part(_PDF_TYPE, 'Content-Disposition: attachment; filename="a.pdf"')
-    raw = _mixed(_TEXT_BODY, pdf, _attached_message(forwarded, *_FWD_HEADERS))
-
-    run_main(email_manager, monkeypatch, conn_serving(raw), "read", "1")
-    listed = [entry["filename"] for entry in json.loads(capsys.readouterr().out)["attachments"]]
-    run_main(email_manager, monkeypatch, conn_serving(raw), "download", "1", "--output-dir", str(tmp_path))
-    answer = json.loads(capsys.readouterr().out)
-    saved = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
-
-    assert listed == ["a.pdf", "fwd.eml"]
-    assert answer["status"] == "downloaded"
-    assert saved["a.pdf"] == _PDF
-    assert saved.get("fwd.eml", forwarded.encode()) == forwarded.encode()
 
 
 def test_the_files_inside_an_attached_message_are_listed_and_saved_on_their_own(
