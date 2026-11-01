@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 INDEX_SCHEMA_VERSION = 4
-# The version whose rule for mapping a name to its page key the stored rows must follow; raise it together with a change to
-# ``concept_index_key`` so every index is merged once under the new rule.
+# The version at which the rule mapping a name to its page key last changed: rows stored by an older rule are merged
+# once. Raise INDEX_SCHEMA_VERSION to at least this value too: an index already at it returns before any step runs.
 _IDENTITY_RULE_VERSION = 4
 
 _CONCEPT_TABLES = ("wiki_fts", "wiki_index_meta")
