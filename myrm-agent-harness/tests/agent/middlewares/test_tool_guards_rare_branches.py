@@ -25,6 +25,7 @@ from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     LoopAction,
     LoopGuard,
+    SuccessLevel,
     VerificationCategory,
 )
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import (
@@ -919,6 +920,44 @@ class TestPostCallRareBranches:
         assert verifying.result_content == "3 passed"
         assert other.verification_type is None
         assert other.result_content == ""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status", "content", "expected"),
+        [
+            ("error", "all good", SuccessLevel.FAILURE),
+            (
+                "success",
+                "## fetch_pods\nRaises TimeoutError or ConnectionRefused when the cluster is down.",
+                SuccessLevel.FULL_SUCCESS,
+            ),
+        ],
+    )
+    async def test_executor_status_decides_how_the_loop_guard_records_a_result(
+        self, status: str, content: str, expected: SuccessLevel
+    ) -> None:
+        guard = LoopGuard()
+        guard.pre_check("skill_select_tool", {"name": "k8s"})
+        record = guard.latest_record()
+        assert record is not None
+        message = ToolMessage(content=content, name="skill_select_tool", tool_call_id="c", status=status)
+        with self._enter_patches(
+            patch(
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                return_value=(message, content),
+            ),
+        ):
+            await run_post_call_guards(
+                message,
+                "skill_select_tool",
+                "c",
+                {"name": "k8s"},
+                loop_guard=guard,
+                loop_verdict=_allow_verdict(),
+                steering_token=None,
+                call_record=record,
+            )
+        assert record.success_level == expected
 
     @pytest.mark.asyncio
     async def test_post_hook_blocked_replaces_result_and_emits_failure_event(

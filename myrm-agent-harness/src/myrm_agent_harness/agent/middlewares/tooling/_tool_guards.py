@@ -510,7 +510,9 @@ async def run_post_call_guards(
         result_text = extract_text_content(result.content)
 
     try:
-        post_verdict = loop_guard.record_result(tool_name, tool_args, result_text, record=call_record)
+        post_verdict = loop_guard.record_result(
+            tool_name, tool_args, result_text, record=call_record, errored=result.status == "error"
+        )
     except Exception as post_check_exc:
         from myrm_agent_harness.agent.errors.agent_errors import (
             RunawayCircuitBreakException,
@@ -548,9 +550,7 @@ async def run_post_call_guards(
         await _emit_loop_guard_event("loop_guard_warn", tool_name, post_verdict.loop_kind, "warning")
 
     if tool_name == "bash_code_execute_tool" and call_record is not None:
-        from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import (
-            tag_verification_call,
-        )
+        from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import tag_verification_call
 
         tag_verification_call(call_record, tool_args, untruncated_text)
 
