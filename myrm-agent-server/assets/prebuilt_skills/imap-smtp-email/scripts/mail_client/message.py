@@ -136,10 +136,23 @@ def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Messa
     return (part for part in msg.walk() if _is_attachment(part, embedded))
 
 
-# The UTF-8 SMTP policy ends lines with CRLF and leaves raw 8-bit text in a header alone; ``refold_source="none"`` leaves
-# the lines of a header as they are. The policy a parsed message carries folds a header at a vertical tab, a form feed
-# or a file, group or record separator, which cuts the header or makes the generator refuse it.
-_AS_RECEIVED = email.policy.SMTPUTF8.clone(refold_source="none")
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+
+
+class _AsReceivedPolicy(email.policy.Compat32):
+    """Writes each header as the parser stored it, with the line breaks inside a value changed to the policy's.
+
+    The stock policies fold a header at a vertical tab, a form feed or a file, group or record separator on some
+    interpreters, which cuts the header or makes the generator refuse it, so a header is never folded here. Raw 8-bit
+    bytes in a value, which the parser holds as surrogate escapes, are written back as the bytes they were.
+    """
+
+    def fold_binary(self, name: str, value: str) -> bytes:
+        text = self.linesep.join(_LINE_BREAK.split(value))
+        return f"{name}: {text}{self.linesep}".encode("utf-8", "surrogateescape")
+
+
+_AS_RECEIVED = _AsReceivedPolicy(linesep="\r\n")
 
 
 def attachment_bytes(part: email.message.Message) -> bytes | None:
@@ -147,7 +160,7 @@ def attachment_bytes(part: email.message.Message) -> bytes | None:
 
     A part that holds no file, such as a container, has none. So has an attached message the generator cannot write,
     one nested so deep that it runs out of stack or one it refuses; such a message is left out rather than saved in
-    another form. The attached message is written with the policy above, so that what the parser read comes back
+    another form. The attached message is written with ``_AS_RECEIVED``, so that what the parser read comes back
     unchanged.
     """
     content = part.get_payload(decode=True)

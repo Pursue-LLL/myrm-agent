@@ -18,7 +18,8 @@ as the message it was.
   than they were attached, when the body of a message holds an attachment, when an image that the HTML body points at with
   a ``cid:`` URL is listed or saved although nothing else makes it an attachment, or when one that is not pointed at, or
   that is attached by its disposition, is not; when an attached message is not saved as it was sent, raw UTF-8, long lines
-  and control characters in a header included, or the attachments inside it are no longer listed and saved on their own
+  and control characters in a header included, or when one sent with LF line breaks is not saved with CRLF ones, or the
+  attachments inside it are no longer listed and saved on their own
 
 [POS]
 In-process test of which parts count as attachments and what is saved from an attached message, next to
@@ -308,6 +309,22 @@ def test_download_saves_an_attached_message_as_the_message_it_was(
 
     assert json.loads(capsys.readouterr().out)["status"] == "downloaded"
     assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == {"fwd.eml": forwarded.encode()}
+
+
+def test_download_saves_an_attached_message_sent_with_lf_line_breaks_with_crlf_ones(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """The lines of a header, one that the sender folded included, and of the text end in CRLF, as in any mail message."""
+    forwarded = "From: eve@x.test\nSubject: an invoice\n for the month\nContent-Type: text/plain\n\nhello\n"
+    raw = _mixed(_TEXT_BODY, _attached_message(forwarded, *_FWD_HEADERS))
+
+    run_main(email_manager, monkeypatch, conn_serving(raw), "download", "1", "--output-dir", str(tmp_path), "--filename", "fwd")
+
+    assert json.loads(capsys.readouterr().out)["status"] == "downloaded"
+    assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == {"fwd.eml": forwarded.replace("\n", "\r\n").encode()}
 
 
 def test_the_files_inside_an_attached_message_are_listed_and_saved_on_their_own(
