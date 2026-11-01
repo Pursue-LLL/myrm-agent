@@ -13,7 +13,7 @@
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
 - read lists what the sender attached, a message that is one attachment included, but not a part the HTML body embeds;
-  download saves each part that holds a file, an attached message/rfc822 as it was sent unless the generator cannot write it;
+  download saves each part that holds a file, an attached message/rfc822 with its headers as read unless it cannot be written;
   reply goes to every address of Reply-To, else of From, and is refused when neither holds an address
 - download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
   a name is made safe and short enough for the file system; a write that fails leaves no file behind, and the error lists

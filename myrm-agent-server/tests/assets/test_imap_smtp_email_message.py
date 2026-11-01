@@ -14,7 +14,8 @@ trace, so a single such message blinded ``check``, ``search``, ``read`` and ``re
   not know raises or is not summarized as text instead of being returned as written or read as UTF-8, when a header or
   body that does decode changes, when whitespace between encoded words is kept or dropped other than as RFC 2047 says,
   when a message id with raw UTF-8 bytes is not left out of the ids a threading header takes, or when an attachment is
-  not named by its ``Content-Disposition`` or, failing that, its ``Content-Type``
+  not named by its ``Content-Disposition`` or, failing that, its ``Content-Type``, or when an attached message is written out
+  through the stock header folding, which before Python 3.12.5 cuts a header at a vertical tab or a file separator
 
 [POS]
 Message-decoding test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which covers the
@@ -26,6 +27,7 @@ from __future__ import annotations
 import email
 import email.header
 import email.message
+import email.policy
 import importlib
 import json
 from types import ModuleType
@@ -172,3 +174,21 @@ def test_an_attachment_is_named_by_its_disposition_or_its_type(message: ModuleTy
     raw = "".join(f"{line}\r\n" for line in headers).encode() + b"\r\nbody"
 
     assert message.attachment_filename(email.message_from_bytes(raw)) == name
+
+
+def test_an_attached_message_is_written_without_the_stock_header_folding(
+    message: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Before Python 3.12.5 the stock folding splits a header at a file separator or a vertical tab, so the writer must not use it."""
+
+    def stock_folding(*_args: object, **_kwargs: object) -> bytes:
+        raise AssertionError("the stock header folding was used")
+
+    monkeypatch.setattr(email.policy.EmailPolicy, "fold_binary", stock_folding)
+    monkeypatch.setattr(email.policy.Compat32, "fold_binary", stock_folding)
+    attached = "From: eve@x.test\r\nSubject: invoice\x1cX-Next: kept\r\n\r\nhello\r\n"
+    raw = f'Content-Type: message/rfc822\r\nContent-Disposition: attachment; filename="fwd.eml"\r\n\r\n{attached}'.encode()
+
+    part = next(message.attachment_parts(email.message_from_bytes(raw)))
+
+    assert message.attachment_bytes(part) == attached.encode()

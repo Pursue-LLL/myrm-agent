@@ -15,8 +15,8 @@
   not text and names itself, whether its disposition is ``inline`` or the name is only in Content-Type; a text part that
   names itself stays the body, so does a part the HTML points at with a ``cid:`` URL unless it is attached by its
   disposition, and a message that is one attachment is its own part
-- attachment_bytes: what to save of an attachment part: its decoded content, an attached message/rfc822 as the message that
-  was sent, or none for a part that holds no file or an attached message the generator cannot write
+- attachment_bytes: what to save of an attachment part: its decoded content, an attached message/rfc822 with each header as
+  the parser read it and CRLF line breaks, or none for a part that holds no file or an attached message the generator cannot write
 - reply_recipients: where a reply goes, every Reply-To address or, when Reply-To holds none, every From address, comma
   separated; empty when neither holds one
 - extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8
@@ -156,12 +156,12 @@ _AS_RECEIVED = _AsReceivedPolicy(linesep="\r\n")
 
 
 def attachment_bytes(part: email.message.Message) -> bytes | None:
-    """What to save of an attachment part: its decoded content, or an attached message written out as it was sent.
+    """What to save of an attachment part: its decoded content, or an attached message written out with its headers as read.
 
     A part that holds no file, such as a container, has none. So has an attached message the generator cannot write,
     one nested so deep that it runs out of stack or one it refuses; such a message is left out rather than saved in
-    another form. The attached message is written with ``_AS_RECEIVED``, so that what the parser read comes back
-    unchanged.
+    another form. ``_AS_RECEIVED`` writes each header as the parser read it (the blanks after the colon, which the parser
+    drops, become one space) and ends the lines of the headers and of a text body in CRLF.
     """
     content = part.get_payload(decode=True)
     if isinstance(content, bytes):
