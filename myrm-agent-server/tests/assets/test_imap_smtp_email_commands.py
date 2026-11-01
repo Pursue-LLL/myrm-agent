@@ -14,7 +14,7 @@ assertion is on the exact lines that reached the wire.
 - Fails when a line break or quote in a search term, folder name or UID list changes the command the server receives,
   when a refused argument is not explained, when marking messages does not store the flag change it reports, or when a
   login, folder, search, fetch, store or list the server refuses, or a connection that drops, ends as anything but a JSON
-  error with the reason
+  error with the reason (the status when the server gave no words)
 
 [POS]
 Command-safety test of the prebuilt skill script, next to ``test_imap_smtp_email_failures.py``, which covers the
@@ -44,12 +44,15 @@ class _Mailbox:
     """A logged-in IMAP server that records every command line it is sent, tags removed.
 
     The mailbox is empty unless *found* is a UID that SEARCH reports; *refuse* names the one operation (``LOGIN``,
-    ``EXAMINE``, ``SEARCH``, ``FETCH``, ``STORE``, ``LIST``) the server answers with NO.
+    ``EXAMINE``, ``SEARCH``, ``FETCH``, ``STORE``, ``LIST``) the server answers with a NO that carries *reason*.
     """
 
-    def __init__(self, *, refuse: str = "", found: str = "", drop_on_search: bool = False) -> None:
+    def __init__(
+        self, *, refuse: str = "", found: str = "", drop_on_search: bool = False, reason: str = _REFUSAL.decode()
+    ) -> None:
         self.commands: list[str] = []
         self._refuse = refuse
+        self._reason = reason
         self._found = found
         self._drop_on_search = drop_on_search
 
@@ -71,7 +74,7 @@ class _Mailbox:
         verb, _, rest = command.upper().partition(" ")
         operation = rest.split(" ", 1)[0] if verb == "UID" else verb
         if operation == self._refuse:
-            return f"{tag} NO {_REFUSAL.decode()}\r\n".encode()
+            return f"{tag} NO {self._reason}\r\n".encode()
         match operation:
             case "CAPABILITY":
                 return f"* CAPABILITY IMAP4rev1\r\n{tag} OK done\r\n".encode()
@@ -291,6 +294,17 @@ def test_a_login_the_server_refuses_is_reported_with_its_reason(
 
     assert _error_of(proc) == f"IMAP authentication failed: {_REFUSAL.decode()}"
     assert mailbox.commands == []
+
+
+@pytest.mark.parametrize("reason", ["", "   "], ids=["empty", "blank"])
+def test_a_refusal_that_carries_no_words_is_reported_with_its_status(
+    tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], reason: str
+) -> None:
+    mailbox = _Mailbox(refuse="SEARCH", reason=reason)
+
+    proc = _run_against(tmp_path, listener_tls, mailbox, ["check"])
+
+    assert _error_of(proc) == "Search was refused by the server: NO"
 
 
 def test_a_connection_dropped_in_the_middle_of_a_command_is_a_json_error(

@@ -17,9 +17,9 @@ Email channel implementation: credentials, lifecycle, IMAP polling and SMTP tran
 forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
 assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
 certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
-context verifies nothing). Every connection also times out on a silent server instead of blocking its thread. A command
-the IMAP server refuses is an error carrying its reason, never read as data, and a message it refuses to hand over is
-fetched again by the next poll instead of being passed over.
+context verifies nothing). Every connection also times out on a silent server instead of blocking its thread. Opening
+INBOX or searching it being refused is an error carrying the server's words, never read as data, and a message the server
+refuses to hand over is fetched again by the next poll instead of being passed over.
 """
 
 from __future__ import annotations
@@ -76,8 +76,8 @@ _ReplyData = TypeVar("_ReplyData", bound=Sequence[object])
 
 def _refusal(action: str, status: str, data: Sequence[object]) -> str:
     """What the server refused and why: its own words when it gave any (imaplib hands them over as bytes), else the status."""
-    words = data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else status
-    return f"{action} was refused by the server: {words}"
+    words = data[0].decode("utf-8", errors="replace").strip() if data and isinstance(data[0], bytes) else ""
+    return f"{action} was refused by the server: {words or status}"
 
 
 def _require_ok(reply: tuple[str, _ReplyData], action: str) -> _ReplyData:
@@ -333,7 +333,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         return msg_id
 
     async def _poll_once(self) -> None:
-        """Single poll cycle. reconnect_loop handles retry on failure."""
+        """Poll until the channel stops; a raised error ends the loop and reconnect_loop restarts it after a backoff."""
         while self._status == ChannelStatus.RUNNING:
             new_messages = await asyncio.to_thread(self._fetch_new_emails)
             for inbound in new_messages:
