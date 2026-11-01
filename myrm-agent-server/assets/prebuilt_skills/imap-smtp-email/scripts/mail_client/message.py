@@ -14,7 +14,8 @@
 - attachment_parts: the parts the sender attached, in order: a disposition of ``attachment`` in any case, or a file that is
   not text and names itself, as a file attached ``inline`` or named only in Content-Type does; a text part that names
   itself stays the body, and a message that is one attachment is its own part
-- reply_address: where a reply goes, the Reply-To address or, when Reply-To holds none, the From address; empty when neither does
+- reply_recipients: where a reply goes, every Reply-To address or, when Reply-To holds none, every From address, comma
+  separated; empty when neither holds one
 - extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8
 
 [POS]
@@ -104,13 +105,17 @@ def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Messa
     return (part for part in msg.walk() if _is_attachment(part))
 
 
-def reply_address(original: email.message.Message) -> str:
-    """The address a reply to *original* goes to: its Reply-To, or its From when Reply-To holds none; empty if neither does."""
+def reply_recipients(original: email.message.Message) -> str:
+    """The addresses a reply to *original* goes to, comma separated: all of its Reply-To, or all of its From when Reply-To
+    holds none; empty if neither does.
+
+    ``parseaddr`` reads one address and returns none for a list, so the header is read with ``getaddresses``, which also
+    takes the ``Header`` object the parser returns for a value with raw 8-bit bytes.
+    """
     for header in ("Reply-To", "From"):
-        # str() because raw 8-bit bytes make a header a Header object, which parseaddr cannot read.
-        _, address = email.utils.parseaddr(str(original.get(header, "")))
-        if address:
-            return address
+        addresses = [address for _, address in email.utils.getaddresses([original.get(header, "")]) if address]
+        if addresses:
+            return ", ".join(addresses)
     return ""
 
 

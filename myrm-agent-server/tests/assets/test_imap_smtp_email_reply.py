@@ -10,10 +10,11 @@ it carries has to be a valid header either way.
 - tests/support/email_skill_inprocess.py: the IMAP double and the in-process ``main``
 
 [OUTPUT]
-- Fails when a reply to a sender whose name is raw UTF-8 does not go to that sender's address, when an empty ``Reply-To``
-  does not leave the reply to ``From`` or a message that holds no address in either is not refused before anything is
-  sent, when an id with raw 8-bit bytes is written into ``In-Reply-To`` or ``References`` or takes the ASCII ids with it,
-  when the ids of a clean message change, or when the subject of a reply changes its spacing
+- Fails when a reply to a sender whose name is raw UTF-8 does not go to that sender's address, when a header that lists
+  several addresses does not send the reply to all of them or ``Reply-To`` does not come before ``From``, when an empty
+  ``Reply-To`` does not leave the reply to ``From`` or a message that holds no address in either is not refused before
+  anything is sent, when an id with raw 8-bit bytes is written into ``In-Reply-To`` or ``References`` or takes the ASCII
+  ids with it, when the ids of a clean message change, or when the subject of a reply changes its spacing
 
 [POS]
 In-process test of what ``reply`` sends, next to ``test_imap_smtp_email_failures.py``, which covers how it fails.
@@ -24,6 +25,7 @@ from __future__ import annotations
 import email
 import email.header
 import email.message
+import email.utils
 import json
 from types import ModuleType
 
@@ -70,7 +72,34 @@ def test_a_reply_goes_to_the_address_of_a_sender_whose_name_is_raw_utf_8(
     assert answer["to"] == "a@b.test"
 
 
-@pytest.mark.parametrize("reply_to", ["", "   ", "<>"], ids=["empty", "spaces", "no-address"])
+@pytest.mark.parametrize(
+    ("stored", "to"),
+    [
+        pytest.param({"Reply-To": "a@x.test, b@y.test"}, "a@x.test, b@y.test", id="two-reply-to-addresses"),
+        pytest.param({"Reply-To": "Ann <a@x.test>, 发票 <b@y.test>"}, "a@x.test, b@y.test", id="names-and-raw-utf-8"),
+        pytest.param({"Reply-To": "Team: a@x.test, b@y.test;"}, "a@x.test, b@y.test", id="a-group"),
+        pytest.param({"From": "a@x.test, b@y.test"}, "a@x.test, b@y.test", id="two-senders"),
+        pytest.param({"From": "a@x.test, b@y.test", "Reply-To": "c@z.test"}, "c@z.test", id="reply-to-wins"),
+    ],
+)
+def test_a_reply_goes_to_every_address_of_the_header_it_follows(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    stored: dict[str, str],
+    to: str,
+) -> None:
+    """A header can list several addresses, written in a group or not, and a mail client answers every one of them."""
+    answer, sent = _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, stored)
+
+    assert answer["to"] == to
+    assert [address for _, address in email.utils.getaddresses([sent["To"]])] == to.split(", ")
+
+
+@pytest.mark.parametrize(
+    "reply_to", ["", "   ", "<>", "undisclosed-recipients:;"], ids=["empty", "spaces", "no-address", "empty-group"]
+)
 def test_a_reply_goes_to_the_sender_when_reply_to_holds_no_address(
     email_manager: ModuleType,
     monkeypatch: pytest.MonkeyPatch,

@@ -7,14 +7,14 @@
 - Process env EMAIL_IMAP_PORT (default 993), EMAIL_SMTP_PORT (default 587)
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 - mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
-- mail_client.message: MIME header, date, summary, attachment, reply address and body decoding
+- mail_client.message: MIME header, date, summary, attachment, reply recipients and body decoding
 - mail_client.attachments: saving a download under a safe name as a new file, never over one that exists
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
 - read lists the parts the sender attached, however the disposition is written, a message that is one attachment included;
-  download saves those that carry bytes (an attached message/rfc822 is listed, not saved); reply goes to Reply-To, else
-  From, and is refused when neither holds an address
+  download saves those that carry bytes (an attached message/rfc822 is listed, not saved); reply goes to every address of Reply-To,
+  else of From, and is refused when neither holds an address
 - download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
   a name is made safe and short enough for the file system; a write that fails leaves no file behind, and the error lists
   the files saved before it
@@ -49,7 +49,7 @@ from mail_client.message import (
     decode_header,
     extract_body,
     message_summary,
-    reply_address,
+    reply_recipients,
 )
 from mail_client.transport import (
     connect_imap,
@@ -255,8 +255,8 @@ def cmd_reply(args: argparse.Namespace) -> None:
     finally:
         conn.logout()
 
-    reply_addr = reply_address(original)
-    if not reply_addr:
+    recipients = reply_recipients(original)
+    if not recipients:
         fail("The message has no Reply-To or From address to reply to")
     subject = decode_header(original.get("Subject", ""))
     if not subject.startswith("Re:"):
@@ -271,7 +271,7 @@ def cmd_reply(args: argparse.Namespace) -> None:
 
     msg = email.mime.multipart.MIMEMultipart("alternative")
     msg["From"] = from_addr
-    msg["To"] = reply_addr
+    msg["To"] = recipients
     msg["Subject"] = subject
     msg_id = email.utils.make_msgid()
     msg["Message-ID"] = msg_id
@@ -282,7 +282,7 @@ def cmd_reply(args: argparse.Namespace) -> None:
     msg.attach(email.mime.text.MIMEText(args.body, "plain", "utf-8"))
 
     deliver(msg, host, port, user, password)
-    print(json.dumps({"status": "sent", "message_id": msg_id, "to": reply_addr, "subject": subject}))
+    print(json.dumps({"status": "sent", "message_id": msg_id, "to": recipients, "subject": subject}))
 
 
 def cmd_mark_read(args: argparse.Namespace) -> None:
