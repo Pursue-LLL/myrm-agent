@@ -2,11 +2,25 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 硬编码文案门禁把从产品入口够不到的孤儿模块也算进去：`bun run lint` 因为没有页面渲染的 168 个文件而一直红，真正的新增违规被淹没
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。`bun run lint` 七个门禁全部通过。 |
+| **症状** | [实测，`bun run verify:hardcoded-copy`，修复前] 166 个文件、1768 处硬编码中文高于基线，全部在孤儿模块里（孤儿门禁 `bun run verify:orphans` 列出 441 个模块）。基线只降不升、不接受新文件，所以每个孤儿目录里的文件一出现就永久报红，CI 的「Lint gates」每次推送都失败，别的门禁真的退化时看不出区别。 |
+| **根因** | [代码] `scripts/check-hardcoded-copy.mjs` 遍历 `src/` 下全部 TSX 计数，没有「这个文件有没有页面渲染」的概念；而孤儿门禁已经单独管着「不可达的模块」（新增孤儿一律拦截，存量不计入）。用户看不到孤儿里的文案，两道门禁却对同一批文件各报一遍。 |
+| **修复** | ① 新增 `scripts/orphan-modules-project.mjs`（`scanProject`、`CONSUMER_EXTENSIONS`），把「工作区读成孤儿扫描入参」从 `check-orphan-modules.mjs` 里挪出来，两道门禁共用，对可达口径只有一个出处。② `hardcoded-copy-ratchet.ts` 新增 `partitionByReachability`；`check-hardcoded-copy.mjs` 只对可达文件做基线比较，孤儿里的字面量照常统计，通过时打印「不在范围内：N 个孤儿模块文件里有 M 处字面量，它们接入产品入口时才会计入」；孤儿扫描找不到任何模块时 fail-closed。③ 基线里本来就是孤儿的两个文件（`file-preview/ImagePreview.tsx` 1 处、`security/QuotedAsData.tsx` 6 处）随 `--write-baseline` 从 `hardcoded_copy_baseline.json` 移除。④ toast 文案的零容忍扫描仍覆盖全部 `.ts` / `.tsx`，不受影响。⑤ 新增 `orphan-modules-project.test.ts`（3 例，真实临时目录）与 `hardcoded-copy-ratchet.test.ts` 3 例；`scripts/_ARCH.md` 的五处描述同步。 |
+| **行为变化** | 孤儿模块里的硬编码文案不再让门禁失败；一个孤儿被接入产品入口的那一刻起，它的字面量按「基线里没有的新文件」计数，必须先走 i18n 才能通过。门禁不会因此放过正在被渲染的文案：可达文件的比较规则没有变。 |
+| **回归证据** | [实测] 修复前后同一棵树：`verify:hardcoded-copy` 失败（166 个文件、1768 处）→ 通过（可达文件 168 个、859 处与基线一致；不在范围内 168 个孤儿文件、1775 处，等于 1768 加上被移除基线条目的 7）；`bun run lint` 7 个门禁全部通过；变异检查：在 `src/app` 下临时放一个页面引入孤儿组件 `ReferralFissionDeck`，门禁立刻失败，列出被带活的 `ReferralFissionDeck.tsx`（0 → 39）与 `ReferralShareCardPreview.tsx`（0 → 8），删掉该页面后恢复通过；`scripts` 目录 26 个测试文件中 25 个通过，失败的 1 个是 `next-supervisor.test.ts` 的 `footprintProbe` 用例，与本次改动无关（只在这个临时工作树里失败）；孤儿门禁对 `origin/main` 没有新增孤儿（存量 441）；`tsc --noEmit`、`check_typescript_strict.py`、`check_fractal_docs.py`、`check_barrel_exports.py`、`check_module_resolution.py` 与 `verify:i18n` 通过；`prettier --check` 对 6 个触及文件通过。 |
+| **踩坑** | 基线里属于孤儿的条目在新口径下不在可达集合里，会被读作 drift，需要 `--write-baseline` 收紧（这次移除的就是这两条）；当前口径下 `--write-baseline` 仍只会降低、不会新增条目。 |
+| **仍然存在** | ① 168 个孤儿文件里的 1775 处中文没有翻译；它们的去留（挂载或删除）仍是产品决定，规划文档对其中大部分写的是「先挂载」。② 可达口径完全取决于孤儿扫描（产品入口、构建配置与脚本里的引用）；不在这张引用图里的使用方式识别不到，对应文件的文案会落在范围之外。③ 本地 `bun run lint` 不跑孤儿门禁（它在 CI 里按 diff 口径运行），所以本地看不到「新增孤儿」，只有 CI 会拦。 |
+| **代码位置** | `myrm-agent-frontend/scripts/{check-hardcoded-copy.mjs,hardcoded-copy-ratchet.ts,orphan-modules-project.mjs,check-orphan-modules.mjs,_ARCH.md,ci/hardcoded_copy_baseline.json}` · `scripts/__tests__/{orphan-modules-project,hardcoded-copy-ratchet}.test.*` |
+
 ## 2026-11-01 · a11y 豁免注释从 97 条回到 81 条：16 处用 `div role=…` 写的交互元素改成原生元素，额度由 82 收紧到 81
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（已推到 `origin/main`，未发版）。`verify:a11y` 通过；`bun run lint` 七个门禁里只剩 `verify:hardcoded-copy` 失败。 |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。`verify:a11y` 通过；`bun run lint` 七个门禁里当时只剩 `verify:hardcoded-copy` 失败，已由「硬编码文案门禁把从产品入口够不到的孤儿模块也算进去…」那一条处理。 |
 | **症状** | [实测，`bun scripts/check-a11y-ratchet.mjs`] 豁免注释（`oxlint-disable … jsx-a11y/`）97 条，额度 82，棘轮只允许降、不允许升，`verify:a11y` 因此失败。97 条里有 12 条是整文件的 `prefer-tag-over-role` 豁免，它们同时压住这些文件里其余所有 jsx-a11y 问题。 |
 | **根因** | [代码] 在制品快照 `36edf65e55` 的组件用 `<div role="dialog">`、`<div role="button">` 写弹层和可点元素，再在文件头加整文件豁免，而不是改成 `<dialog>`、`<button>`；`primitives/alert.tsx`、`primitives/card.tsx` 的标题组件把 `children` 放在 props 展开里，规则看不到内容，也靠豁免。 |
 | **修复** | ① 8 个弹层 `div role="dialog"` → `<dialog open aria-modal="true">`：`ConnectMachineModal`、`SolidifyToSkillWizardModal`、`PreFlightAlignmentModal`、`FactCheckSheetDrawer`、`MemoryRecallSimulator`、`RuntimeConsoleDrawer`、`LiveTakeoverDrawer`、`GlobalFuzzyCommandPalette`。`<dialog>` 的浏览器默认样式（居中边距、1em 内边距、边框、`fit-content` 宽高、最大尺寸）靠追加 `m-0 h-full max-h-none w-full max-w-none border-0 text-inherit`（有的再加 `p-0`）抵消，原有类名不动。`LiveTakeoverDrawer` 的屏幕视口原来是挂着 `onMouseMove` 的 `role="region"`，现在是 `<section aria-label>`，鼠标跟踪挂在它里面铺满的 `role="presentation"` 层上；`GlobalFuzzyCommandPalette` 的两组选项去掉 `role="option"` 与 `aria-selected`（外面没有 listbox，这个角色本来就无效），键盘高亮项改用 `aria-current`。② 6 处可点元素：`AttemptWaterfallInspector` 的头部改成带 `aria-expanded` 的 `<button>`（里面的布局 `div` 改 `span`，去掉重复的 `onKeyDown`）；`LocalSkillPreviewCard` 整卡改成包着复选框的 `<label>`，复选框有 `aria-label`，卡片上的 `onClick`、`onKeyDown`、`tabIndex` 和各处 `stopPropagation` 随之删除；`ViewSwitch` 的 `role="group"` 改 `<fieldset aria-label>`；`WysiwygArtifactEditorOverlay` 的标题演示节点改 `<button>`；`GoalStatusHeader` 与 `RouteAgentDiscoverChip` 的整行点击改成铺满整行的 `<button>`，操作按钮叠在它上面（不再是按钮里套按钮），`RouteAgentDiscoverChip` 里不再需要的 `stopPropagation` 删除。③ `AlertTitle`、`CardTitle` 显式渲染 `{children}`，去掉豁免。④ 测试：`LocalSkillPathScanPreviewBeforeAdoptDialog.test.tsx` 新增 1 例（点卡片任意处切换选择、点「展开风险明细」不切换）；`LiveTakeoverDrawer.test.tsx` 原来只断言「光标位置:」文字存在，改成在铺满的层上触发 `mouseMove` 并断言坐标；`RouteAgentDiscoverChip.test.tsx` 的点击对象改成按角色和名称取到的按钮。⑤ `a11y_ratchet_baseline.json` 的 `waivers` 由 82 收紧到 81（`--ratchet`）。 |

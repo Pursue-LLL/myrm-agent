@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { diffAgainstBaseline } from '../hardcoded-copy-ratchet';
+import { diffAgainstBaseline, partitionByReachability } from '../hardcoded-copy-ratchet';
 
 describe('diffAgainstBaseline', () => {
   it('reports nothing when every file matches its baseline', () => {
@@ -46,5 +46,38 @@ describe('diffAgainstBaseline', () => {
       'm.tsx',
       'z.tsx',
     ]);
+  });
+});
+
+describe('partitionByReachability', () => {
+  const sitesByFile = new Map([
+    ['src/live/Panel.tsx', ['a', 'b']],
+    ['src/dead/Studio.tsx', ['c']],
+  ]);
+
+  it('keeps reachable files in scope and sets orphan files aside with their literals intact', () => {
+    const { reachable, orphaned } = partitionByReachability(sitesByFile, new Set(['src/dead/Studio.tsx']));
+
+    expect([...reachable]).toEqual([['src/live/Panel.tsx', ['a', 'b']]]);
+    expect([...orphaned]).toEqual([['src/dead/Studio.tsx', ['c']]]);
+  });
+
+  it('puts every file in scope when nothing is an orphan, so an unmounted file cannot hide by accident', () => {
+    const { reachable, orphaned } = partitionByReachability(sitesByFile, new Set());
+
+    expect([...reachable.keys()]).toEqual(['src/live/Panel.tsx', 'src/dead/Studio.tsx']);
+    expect(orphaned.size).toBe(0);
+  });
+
+  it('makes a file count as a new offender once it stops being an orphan', () => {
+    const asOrphan = partitionByReachability(sitesByFile, new Set(['src/dead/Studio.tsx'])).reachable;
+    const mounted = partitionByReachability(sitesByFile, new Set()).reachable;
+    const counts = (m: Map<string, string[]>) => Object.fromEntries([...m].map(([f, s]) => [f, s.length]));
+
+    expect(diffAgainstBaseline(counts(asOrphan), { 'src/live/Panel.tsx': 2 })).toEqual({ increased: [], drifted: [] });
+    expect(diffAgainstBaseline(counts(mounted), { 'src/live/Panel.tsx': 2 })).toEqual({
+      increased: ['src/dead/Studio.tsx'],
+      drifted: [],
+    });
   });
 });
