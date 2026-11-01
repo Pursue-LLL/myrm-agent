@@ -9,15 +9,17 @@ Toolkits Llms module.
 |------|------|-------------|-------|
 | __init__.py | Package |   Init   | — |
 | media_task_types.py | Core | Image async-job payload/result DTOs for `toolkits/tasks` integration | ✅ |
-| config.py | Config | LiteLLM default configuration (privacy, caching, `drop_params` safety-net). Works with `ChatLiteLLM._inject_allowed_params()` to protect explicit params from provider whitelist gaps | ✅ |
 | capability_learner.py | Core | In-process model capability cache — records runtime-discovered capabilities (e.g. rejects_media, rejects_allowed_tools_tool_choice) with TTL. | ✅ |
 | allowed_tools_capability.py | Core | Provider gate for OpenAI ``tool_choice.type=allowed_tools``; execution-layer policy remains authoritative when skipped. | ✅ |
+| text_completion.py | Core | `acomplete_text`: one-shot plain chat request through the transport, outside the chat adapter (eval judge, spoken-summary rewrite, policy draft) | ✅ |
 | ephemeral_output_tokens.py | Core | ContextVar override for truncation-recovery output budget; read by `ChatLiteLLM`. | ✅ |
 | secrets.py | Core | Framework-neutral external secret reference resolution (`op://` 1Password / `bw://` Bitwarden) with Zero-Disk plaintext; stdlib-only, re-exported by `backends/secrets`. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
 | probe/ | Lightweight provider balance probe contracts and normalized data models. |
+| transport/ | Typed protocol wires over `httpx` for every provider (OpenAI chat/Responses, Anthropic Messages, Gemini, Ollama), embeddings, rerank and image calls. See [transport/_ARCH.md](transport/_ARCH.md). |
+| catalog/ | Model facts (context windows, output ceilings, prices, capability flags): bundled snapshot plus runtime registrations. See [catalog/_ARCH.md](catalog/_ARCH.md). |
 | consensus/ | Multi-model consensus (MoA) inference — parallel reference queries + aggregator synthesis (arXiv:2406.04692). |
 | _media_shared/ | Shared across video/ and image/ modules. Keeps media-specific logic |
 | adapters/ | LLM layer: LangChain , messageconverts, handles, toolcallsparse, Schema normalize; **wire/** Responses API transport; `image_payload_evictor.py` framework-neutral 400/413 image eviction |

@@ -46,7 +46,8 @@ def get_model_context_limit(llm: BaseChatModel) -> int | None:
                 return num_ctx
 
     model_name = getattr(llm, "model_name", "") or getattr(llm, "model", "") or ""
-    if not model_name:
+    # Chat-model objects are duck-typed here: a wrapper that exposes no usable name is "unknown", not an error.
+    if not isinstance(model_name, str) or not model_name:
         return None
 
     return _positive_int((model_info(model_name) or {}).get("max_input_tokens"))

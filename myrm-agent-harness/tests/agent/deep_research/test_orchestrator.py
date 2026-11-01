@@ -32,9 +32,16 @@ from myrm_agent_harness.agent.deep_research.helpers import (
 from myrm_agent_harness.agent.deep_research.orchestrator import DeepResearchOrchestrator
 from myrm_agent_harness.agent.meta_tools.clarification import AskQuestionInput
 from myrm_agent_harness.agent.streaming.types import AgentEventType
+from myrm_agent_harness.toolkits.llms.catalog import register_model, store as catalog_store
 
 if TYPE_CHECKING:
     pass
+
+
+@pytest.fixture
+def isolated_catalog(monkeypatch):
+    """Registrations a test makes never outlive it."""
+    monkeypatch.setattr(catalog_store, "_REGISTERED", {})
 
 
 # =========================================================================
@@ -129,19 +136,16 @@ class TestGetModelContextLimit:
         llm.max_input_tokens = 200000
         assert get_model_context_limit(llm) == 200000
 
-    def test_litellm_fallback(self):
+    def test_catalog_fallback(self, isolated_catalog):
+        register_model("vendor/windowed", {"provider": "vendor", "max_input_tokens": 128000})
         llm = MagicMock()
         llm.n_ctx = None
         llm.model_max_context_length = None
         llm.max_input_tokens = None
-        llm.model_name = "gpt-4o"
+        llm.model_name = "vendor/windowed"
         llm.model = None
 
-        mock_litellm = MagicMock()
-        mock_litellm.get_model_info.return_value = {"max_input_tokens": 128000}
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            result = get_model_context_limit(llm)
-            assert result == 128000
+        assert get_model_context_limit(llm) == 128000
 
     def test_no_info_returns_none(self):
         llm = MagicMock(spec=[])
@@ -192,13 +196,13 @@ class TestAccumulateUsage:
 
 
 class TestEstimateCost:
-    def test_calculates_cost(self):
+    def test_calculates_cost(self, isolated_catalog):
+        register_model(
+            "vendor/priced", {"provider": "vendor", "input_cost_per_token": 1e-5, "output_cost_per_token": 4e-5}
+        )
         result = DeepResearchResult(total_input_tokens=1000, total_output_tokens=500)
-        mock_litellm = MagicMock()
-        mock_litellm.cost_per_token.return_value = (0.01, 0.02)
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            estimate_cost(result, "gpt-4o")
-            assert result.estimated_cost_usd == 0.03
+        estimate_cost(result, "vendor/priced")
+        assert result.estimated_cost_usd == pytest.approx(0.03)
 
     def test_no_tokens_skips(self):
         result = DeepResearchResult()
@@ -210,13 +214,10 @@ class TestEstimateCost:
         estimate_cost(result, "")
         assert result.estimated_cost_usd == 0.0
 
-    def test_litellm_error_graceful(self):
+    def test_unpriced_model_leaves_the_estimate_unset(self):
         result = DeepResearchResult(total_input_tokens=100, total_output_tokens=50)
-        mock_litellm = MagicMock()
-        mock_litellm.cost_per_token.side_effect = Exception("Unknown model")
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            estimate_cost(result, "unknown-model")
-            assert result.estimated_cost_usd == 0.0
+        estimate_cost(result, "unknown-model")
+        assert result.estimated_cost_usd == 0.0
 
 
 class TestTruncateForOrchestrator:
@@ -763,18 +764,16 @@ class TestOrchestratorRun:
         assert event["data"] == "hello"
 
     @pytest.mark.asyncio
-    async def test_update_cost_estimate(self):
+    async def test_update_cost_estimate(self, isolated_catalog):
         llm = MagicMock()
         llm.model_name = "gpt-4o"
         llm.model = "gpt-4o"
         orch = DeepResearchOrchestrator(llm=llm)
         orch._result.total_input_tokens = 1000
         orch._result.total_output_tokens = 500
-        mock_litellm = MagicMock()
-        mock_litellm.cost_per_token.return_value = (0.01, 0.02)
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            orch._update_cost_estimate()
-            assert orch._result.estimated_cost_usd > 0
+        register_model("gpt-4o", {"provider": "openai", "input_cost_per_token": 1e-5, "output_cost_per_token": 4e-5})
+        orch._update_cost_estimate()
+        assert orch._result.estimated_cost_usd > 0
 
     @pytest.mark.asyncio
     async def test_is_cancelled_and_timed_out(self):
