@@ -22,6 +22,7 @@ BaseExecutor, and PTC verifier.
 
 from __future__ import annotations
 
+import ast
 import re
 
 
@@ -30,8 +31,9 @@ def extract_python_from_bash(command: str) -> str | None:
 
     Supports (in priority order):
     1. ``python3 -c "..."`` / ``python3 -c '...'`` — quote-aware extraction
-    2. ``python3 <<EOF ... EOF`` — heredoc
-    3. ``cat > path <<EOF ... EOF`` — shell heredoc file write wrappers
+    2. ``python3 <<EOF ... EOF`` / ``python3 - <<EOF ... EOF`` — heredoc
+    3. ``cat > path <<EOF ... EOF`` / ``cat <<EOF > path ... EOF`` — shell heredoc file write wrappers,
+       alone or after ``cd ... &&``
     4. Raw Python containing ``from skills.`` / ``from tools.`` imports (non-shell)
 
     Returns the extracted Python source or ``None`` if no Python is detected.
@@ -48,11 +50,7 @@ def extract_python_from_bash(command: str) -> str | None:
     if code is not None:
         return code
 
-    if (
-        SKILL_IMPORT_RE.search(command)
-        or TOOLS_IMPORT_RE.search(command)
-        or _IMPORT_STYLE_SKILL_RE.search(command)
-    ):
+    if SKILL_IMPORT_RE.search(command) or TOOLS_IMPORT_RE.search(command) or _IMPORT_STYLE_SKILL_RE.search(command):
         if _looks_like_shell_wrapper(command):
             return None
         return command
@@ -186,8 +184,6 @@ def detect_ptc_imports(code: str) -> tuple[bool, str | None] | None:
         nothing PTC-related, or ``None`` when the source is not parseable so the
         caller can fall back to regex heuristics.
     """
-    import ast
-
     try:
         tree = ast.parse(code)
     except SyntaxError:
@@ -226,21 +222,19 @@ def detect_ptc_imports(code: str) -> tuple[bool, str | None] | None:
     return False, None
 
 
-def _detect_dynamic_ptc_import(tree: object) -> tuple[bool, str | None] | None:
+def _detect_dynamic_ptc_import(tree: ast.AST) -> tuple[bool, str | None] | None:
     """Detect ``importlib.import_module("skills.x_skill")`` / ``__import__(...)``.
 
     Only literal first arguments are inspected: a computed module name cannot be
     resolved statically, and guessing would route non-PTC code into the sandbox.
     """
-    import ast
-
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
-        is_dynamic = (
-            isinstance(func, ast.Name) and func.id == "__import__"
-        ) or (isinstance(func, ast.Attribute) and func.attr == "import_module")
+        is_dynamic = (isinstance(func, ast.Name) and func.id == "__import__") or (
+            isinstance(func, ast.Attribute) and func.attr == "import_module"
+        )
         if not is_dynamic or not node.args:
             continue
         first = node.args[0]
@@ -255,20 +249,26 @@ def _detect_dynamic_ptc_import(tree: object) -> tuple[bool, str | None] | None:
             return True, parts[0]
     return None
 
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
 _PYTHON_CMD_RE = re.compile(r"python3?\s+-c\s+")
 
+_HEREDOC_OPEN = r"<<-?\s*['\"]?(\w+)['\"]?"
+
+# ``python3 <<EOF`` and the stdin form ``python3 - <<EOF``; any ``cd ... &&`` prefix is ignored by ``search``.
 _HEREDOC_RE = re.compile(
-    r"python3?\s+<<-?\s*['\"]?(\w+)['\"]?\s*\n(.+?)\n\1\b",
+    rf"python3?\s+(?:-\s+)?{_HEREDOC_OPEN}\s*\n(.+?)\n\1\b",
     re.DOTALL,
 )
 
-_CAT_HEREDOC_RE = re.compile(
-    r"^\s*cat\s+>\s+\S+\s+<<-?\s*['\"]?(\w+)['\"]?\s*\n(.+?)\n\1\b",
-    re.DOTALL | re.MULTILINE,
+# A file-writing ``cat`` at the start of a line or of a ``&&`` / ``;`` step, with the redirect on either side of the
+# heredoc marker: ``cat > path <<EOF`` and ``cat <<EOF > path`` are the same command to the shell.
+_CAT_HEREDOC_RES = tuple(
+    re.compile(rf"(?:^|&&|;)[ \t]*cat\s+{shape}\s*\n(.+?)\n\1\b", re.DOTALL | re.MULTILINE)
+    for shape in (rf">\s*\S+\s+{_HEREDOC_OPEN}", rf"{_HEREDOC_OPEN}\s*>\s*\S+")
 )
 
 _SHELL_WRAPPER_PREFIXES = (
@@ -341,15 +341,15 @@ def _extract_cat_heredoc(command: str) -> str | None:
     (e.g. writing YAML or shell config files) fall back to bash execution so the
     file is written verbatim instead of being rejected by Python syntax checks.
     """
-    match = _CAT_HEREDOC_RE.search(command)
-    if match is None:
+    for pattern in _CAT_HEREDOC_RES:
+        match = pattern.search(command)
+        if match is None:
+            continue
+        body = match.group(2).strip()
+        if body and validate_python_syntax(body) is None:
+            return body
         return None
-    body = match.group(2).strip()
-    if not body:
-        return None
-    if validate_python_syntax(body) is not None:
-        return None
-    return body
+    return None
 
 
 def _looks_like_shell_wrapper(command: str) -> bool:
