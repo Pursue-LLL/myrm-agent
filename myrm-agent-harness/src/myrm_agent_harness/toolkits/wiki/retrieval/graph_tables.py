@@ -7,12 +7,15 @@
 
 [OUTPUT]
 - concept_rows_filter: SQL predicate for the rows of a `wiki_fts` table that are concept pages (not interim raw text, not sidecar entries)
+- is_interim_raw_entry: Whether an index row name is interim raw text, the one row kind that has no page file
 - federated_graph_queries: SQL selecting concept pages and edges across the local and public indexes
 
 [POS]
 Single definition of "which rows are graph nodes and edges", so the viewer, the insight
 panel and community detection always analyze the same graph; the concept-page predicate is
-shared with the callers that ask whether an index holds any page.
+shared with the callers that ask whether an index holds any page, and the interim-raw
+predicate with the callers that read a row's page file and must tell a raw row from a page
+whose file is gone.
 """
 
 from __future__ import annotations
@@ -32,6 +35,15 @@ def concept_rows_filter() -> str:
         f"substr(concept_name, 1, {len(_INTERIM_RAW_PREFIX)}) != '{_INTERIM_RAW_PREFIX}' "
         f"AND substr(concept_name, 1, {len(_SIDECAR_ENTRY_PREFIX)}) != '{_SIDECAR_ENTRY_PREFIX}'"
     )
+
+
+def is_interim_raw_entry(concept_name: str) -> bool:
+    """Whether an index row name is raw text indexed before compilation (``WikiIndexer.index_raw_text``).
+
+    A raw entry never has a page file, so it stands on its index row; any other concept row names a page, and a page
+    whose file is gone is a stale row.
+    """
+    return concept_name.startswith(_INTERIM_RAW_PREFIX)
 
 
 def federated_graph_queries(conn: sqlite3.Connection) -> tuple[str, str]:

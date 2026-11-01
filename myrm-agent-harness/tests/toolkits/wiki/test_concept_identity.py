@@ -1,4 +1,5 @@
-"""Wiki index identity: one index row per concept page, edges stored as page keys."""
+"""Wiki index identity: one index row per concept page under the path its file is written to (a name ending in ``.md``
+or carrying a vault prefix included), edges stored as page keys."""
 
 from pathlib import Path
 
@@ -6,6 +7,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.wiki.core import link_resolver as link_resolver_module
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
+from myrm_agent_harness.toolkits.wiki.core.link_resolver import concept_index_key
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from myrm_agent_harness.toolkits.wiki.pipeline.publication import publish_concept_article
 from myrm_agent_harness.toolkits.wiki.retrieval.identity_migration import INDEX_SCHEMA_VERSION
@@ -63,7 +65,7 @@ async def test_compile_and_maintenance_publishing_share_one_index_row_per_page(
 
     expected = ["programming/rust/borrow-checker", "programming/rust/lifetimes", "programming/rust/ownership"]
     assert _fts_names(indexer) == expected
-    assert sorted(node["id"] for node in indexer.get_knowledge_graph()["nodes"]) == expected
+    assert sorted(str(node["id"]) for node in indexer.get_knowledge_graph()["nodes"]) == expected
 
 
 @pytest.mark.asyncio
@@ -196,9 +198,9 @@ def test_indexing_a_name_the_filesystem_rejects_keeps_the_name_as_key(indexer: W
     assert _edges(indexer) == {(too_long, "Elsewhere")}
 
 
-def _mark_unmigrated(indexer: WikiIndexer) -> None:
+def _set_user_version(indexer: WikiIndexer, version: int) -> None:
     with indexer._get_conn() as conn:
-        conn.execute("PRAGMA user_version = 0")
+        conn.execute(f"PRAGMA user_version = {version}")
 
 
 def _insert_row(indexer: WikiIndexer, name: str) -> None:
@@ -225,7 +227,7 @@ def test_index_rows_under_non_canonical_spellings_are_merged_once(structure: Wik
     assert _user_version(seeded) == INDEX_SCHEMA_VERSION
 
     # Unmigrated state: compile-name rows next to path rows, an orphan row, edges using both spellings.
-    _mark_unmigrated(seeded)
+    _set_user_version(seeded, 0)
     for name in ("Knowledge/X/Y", "Knowledge/X/Z", "knowledge/x/z", "Opaque Name"):
         _insert_row(seeded, name)
     seeded.upsert_edges("Knowledge/X/Y", ["Why Alias", "Opaque Name"])
@@ -245,3 +247,105 @@ def test_index_rows_under_non_canonical_spellings_are_merged_once(structure: Wik
     _insert_row(migrated, "Knowledge/Later")
     structure.get_concept_file_path("Knowledge/Later").write_text(_article("later"), encoding="utf-8")
     assert "Knowledge/Later" in _fts_names(WikiIndexer(structure, WikiConfig(enable_hybrid_search=False)))
+
+
+# Names a writer may file under a path that differs from the name with its ``.md`` or vault prefix removed.
+_FILE_LIKE_NAMES = {
+    "SKILL.md": "skillmd",
+    "AI Agents/AGENTS.md": "ai-agents/agentsmd",
+    "docs/Intro.md": "docs/intromd",
+    "wiki/concepts/Guide": "wiki/concepts/guide",
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "page_key"), _FILE_LIKE_NAMES.items())
+async def test_a_page_is_indexed_under_the_path_its_file_is_written_to(
+    structure: WikiStructure, indexer: WikiIndexer, name: str, page_key: str
+) -> None:
+    await publish_concept_article(structure, indexer, name, _article("Body."))
+
+    assert (structure.concepts_dir / f"{page_key}.md").is_file()
+    assert _fts_names(indexer) == [page_key]
+
+
+@pytest.mark.asyncio
+async def test_republishing_a_page_by_its_file_name_keeps_one_row(
+    structure: WikiStructure, indexer: WikiIndexer
+) -> None:
+    for name in _FILE_LIKE_NAMES:
+        await publish_concept_article(structure, indexer, name, _article("Body."))
+    for page in structure.list_concepts():
+        rel = str(page.relative_to(structure.concepts_dir).with_suffix("")).replace("\\", "/")
+        await publish_concept_article(structure, indexer, rel, page.read_text(encoding="utf-8"))
+
+    assert _fts_names(indexer) == sorted(_FILE_LIKE_NAMES.values())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("names", [("Notes", "Notes.md"), ("Notes.md", "Notes")])
+async def test_a_page_and_one_named_with_md_suffix_keep_their_own_rows(
+    structure: WikiStructure, indexer: WikiIndexer, names: tuple[str, str]
+) -> None:
+    for name in names:
+        await publish_concept_article(structure, indexer, name, _article(f"{name} body."))
+
+    with indexer._get_conn() as conn:
+        texts = {str(r["concept_name"]): str(r["truth_content"]) for r in conn.execute("SELECT * FROM wiki_fts")}
+    assert sorted(texts) == ["notes", "notesmd"]
+    assert "Notes body." in texts["notes"]
+    assert "Notes.md body." in texts["notesmd"]
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_page_by_its_md_ending_name_removes_its_row_and_edges(
+    structure: WikiStructure, indexer: WikiIndexer
+) -> None:
+    await publish_concept_article(structure, indexer, "SKILL.md", _article("See [[Other Page]]."))
+    assert _edges(indexer) == {("skillmd", "Other Page")}
+
+    await indexer.delete("SKILL.md")
+
+    assert _fts_names(indexer) == []
+    assert _edges(indexer) == set()
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_page_keeps_the_row_and_edges_of_the_page_named_without_md(
+    structure: WikiStructure, indexer: WikiIndexer
+) -> None:
+    await publish_concept_article(structure, indexer, "Notes", _article("Alpha. See [[Elsewhere]]."))
+    await publish_concept_article(structure, indexer, "Notes.md", _article("Bravo."))
+
+    await indexer.delete("Notes.md")
+
+    assert _fts_names(indexer) == ["notes"]
+    assert _edges(indexer) == {("notes", "Elsewhere")}
+
+
+def test_index_key_is_the_path_the_writer_files_the_name_under(structure: WikiStructure) -> None:
+    for name in ("Notes", "Notes.md"):
+        structure.get_concept_file_path(name).write_text(_article(name), encoding="utf-8")
+
+    assert concept_index_key(structure, "Notes") == "notes"
+    assert concept_index_key(structure, "Notes.md") == "notesmd"
+    # A vault-prefixed or ``.md`` spelling of a page the writer filed without them still finds the page.
+    assert concept_index_key(structure, "wiki/concepts/Notes") == "notes"
+    assert concept_index_key(structure, "concepts/Notes") == "notes"
+
+
+def test_migration_merges_rows_kept_under_an_md_ending_name_into_the_page_row(structure: WikiStructure) -> None:
+    for name in ("SKILL.md", "AI Agents/AGENTS.md"):
+        structure.get_concept_file_path(name).write_text(_article(name), encoding="utf-8")
+    seeded = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+    # The index of an install that already ran every earlier step: rows under the names the pages were published as.
+    _set_user_version(seeded, 3)
+    for name in ("SKILL.md", "skillmd", "AI Agents/AGENTS.md", "Removed Page.md"):
+        _insert_row(seeded, name)
+    seeded.upsert_edges("SKILL.md", ["Other Page"])
+
+    migrated = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+
+    assert _fts_names(migrated) == ["Removed Page.md", "ai-agents/agentsmd", "skillmd"]
+    assert _edges(migrated) == {("skillmd", "Other Page")}
+    assert _user_version(migrated) == INDEX_SCHEMA_VERSION

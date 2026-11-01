@@ -19,8 +19,9 @@ tests/architecture/test_tls_single_trust_source.py - server half of the guard fo
 The policy takes effect where a client takes its context from ``ssl.create_default_context`` (httpx, urllib, asyncio) or
 from the urllib3 and aiohttp context builders; this guard covers the two ways around it that live in server code. A
 prebuilt skill script runs in a child process the policy never reaches: it takes its trust from
-``ssl.create_default_context`` too, which honours ``SSL_CERT_FILE``. The S3 backup client reaches its own TLS stack and
-is pinned by ``test_remote_s3_tls.py``.
+``ssl.create_default_context`` too, which honours ``SSL_CERT_FILE``; ``assets/test_imap_smtp_email_script.py`` pins its
+keyword names and its real handshake. The S3 backup client reaches its own TLS stack and is pinned by
+``test_remote_s3_tls.py``.
 """
 
 from __future__ import annotations

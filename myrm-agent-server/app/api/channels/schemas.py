@@ -6,7 +6,7 @@
 [OUTPUT]
 - ChannelStatusResponse, PairingCreate, PairingResponse: 请求/响应模型
 - ChannelInstallDependenciesResponse: lazy-install 结果（ok/message/registered）
-- TelegramTestResponse: Telegram 连接测试结果，失败时带 reason（TelegramFailureReason 编码）
+- ReasonedTestResponse: 连接测试结果，失败时可带 reason（WebUI 用它换成本地化说明的编码），成功时不带
 
 [POS]
 Channel 管理 API 数据模型。定义 Channel 状态查询和账号绑定的 schema。
@@ -301,9 +301,9 @@ class ChannelTestResponse(BaseModel):
     message: str
 
 
-class TelegramTestResponse(ChannelTestResponse):
-    """A failed check also says why (a ``TelegramFailureReason`` code), so the WebUI can explain it in the user's
-    language; a successful one carries no reason."""
+class ReasonedTestResponse(ChannelTestResponse):
+    """A failed check can also say why (a wire code such as ``TelegramFailureReason`` or ``EMAIL_CERT_REJECTED``), so
+    the WebUI can explain it in the user's language; a successful one carries no reason."""
 
     reason: str | None = None
 

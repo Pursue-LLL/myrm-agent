@@ -8448,7 +8448,8 @@
     "sectionDesc": "管理通知通道和外部平台集成，用于接收任务结果和双向对话。",
     "testReasons": {
       "TELEGRAM_TOKEN_REJECTED": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
-      "TELEGRAM_UNREACHABLE": "当前设备无法连接 Telegram。请检查网络；如已设置代理，也请检查代理地址。"
+      "TELEGRAM_UNREACHABLE": "当前设备无法连接 Telegram。请检查网络；如已设置代理，也请检查代理地址。",
+      "EMAIL_CERT_REJECTED": "邮件服务器的证书未被接受。请检查服务器地址是否正确，证书是否有效且与地址匹配——证书已过期、属于自签名证书或与地址不符，都不会自行恢复。若处于企业 TLS 检测环境，请在 设置 > 偏好设置 > 高级配置 中启用「企业网络兼容模式」，然后重启应用。"
     },
     "issues": {
       "notConfigured": "未配置",

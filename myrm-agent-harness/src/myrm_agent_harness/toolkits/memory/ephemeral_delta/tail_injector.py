@@ -1,14 +1,15 @@
-"""Injects active ephemeral session deltas at the tail of the final HumanMessage.
+"""Appends per-turn blocks (ephemeral session deltas, knowledge pack, base context) to the tail of the final HumanMessage.
 
 [INPUT]
 - toolkits.memory.ephemeral_delta.models::EphemeralDeltaItem (POS: Types and models for ephemeral delta.)
 - Third-party: langchain_core
 
 [OUTPUT]
+- append_block_to_last_human: Returns the messages with a text block appended to the final HumanMessage; the history before it stays byte-identical.
 - HumanTailDeltaInjector: Injects active ephemeral session deltas at the tail of the final HumanMessage.
 
 [POS]
-Injects active ephemeral session deltas at the tail of the final HumanMessage.
+Tail-of-turn injection primitive: per-turn content lives only on the final HumanMessage so the SystemMessage and earlier history keep their prompt-cache prefix.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import logging
 from collections.abc import Sequence
 from typing import cast
 
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import AnyMessage, HumanMessage
 
 from myrm_agent_harness.toolkits.memory.ephemeral_delta.models import (
     EphemeralDeltaItem,
@@ -27,6 +28,41 @@ from myrm_agent_harness.toolkits.memory.ephemeral_delta.models import (
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MAX_DELTA_CHARS = 1500
+
+
+def append_block_to_last_human(messages: Sequence[AnyMessage], block: str) -> list[AnyMessage]:
+    """Return ``messages`` with ``block`` appended to the tail of the final HumanMessage.
+
+    The input sequence and its messages are never mutated. Multimodal content keeps
+    every original part untouched and gains one trailing text part. Without a block or
+    a HumanMessage the result is an unmodified copy.
+    """
+    out_messages = list(messages)
+    if not block:
+        return out_messages
+
+    target_idx = next(
+        (i for i in range(len(out_messages) - 1, -1, -1) if isinstance(out_messages[i], HumanMessage)),
+        -1,
+    )
+    if target_idx == -1:
+        logger.debug("No HumanMessage found in request messages; skipping tail injection")
+        return out_messages
+
+    original_human = cast(HumanMessage, out_messages[target_idx])
+    content = original_human.content
+    new_content: str | list[str | dict[str, object]]
+    if isinstance(content, str):
+        new_content = f"{content}\n\n{block}" if content else block
+    else:
+        new_content = [*content, {"type": "text", "text": f"\n\n{block}"}]
+    out_messages[target_idx] = HumanMessage(
+        content=new_content,
+        additional_kwargs=dict(original_human.additional_kwargs),
+        id=original_human.id,
+        name=original_human.name,
+    )
+    return out_messages
 
 
 class HumanTailDeltaInjector:
@@ -63,15 +99,12 @@ class HumanTailDeltaInjector:
             escaped_content = html.escape(item.content.strip())
 
             delta_line = (
-                f'  <delta id="{escaped_id}" key="{escaped_key}" '
-                f'action="{escaped_action}">{escaped_content}</delta>'
+                f'  <delta id="{escaped_id}" key="{escaped_key}" action="{escaped_action}">{escaped_content}</delta>'
             )
 
             # Enforce budget guard
             if total_chars + len(delta_line) > self.max_delta_chars:
-                lines.append(
-                    '  <!-- Remaining deltas truncated due to budget constraints -->'
-                )
+                lines.append("  <!-- Remaining deltas truncated due to budget constraints -->")
                 break
 
             lines.append(delta_line)
@@ -82,67 +115,13 @@ class HumanTailDeltaInjector:
 
     def inject_deltas(
         self,
-        messages: Sequence[BaseMessage],
+        messages: Sequence[AnyMessage],
         deltas: Sequence[EphemeralDeltaItem],
-    ) -> list[BaseMessage]:
+    ) -> list[AnyMessage]:
         """Attach active deltas to the tail of the last HumanMessage in the sequence.
 
         If no active deltas or no HumanMessage exists, returns the original sequence untouched.
         """
-        if not deltas or not messages:
+        if not deltas:
             return list(messages)
-
-        formatted_block = self.format_deltas_block(deltas)
-        if not formatted_block:
-            return list(messages)
-
-        # Locate the index of the final HumanMessage
-        target_idx = -1
-        for i in range(len(messages) - 1, -1, -1):
-            if isinstance(messages[i], HumanMessage):
-                target_idx = i
-                break
-
-        if target_idx == -1:
-            logger.debug(
-                "No HumanMessage found in request messages; skipping tail injection"
-            )
-            return list(messages)
-
-        out_messages = list(messages)
-        original_human = cast(HumanMessage, out_messages[target_idx])
-
-        # Preserve multimodal or plain string structures
-        if isinstance(original_human.content, str):
-            new_content = (
-                f"{original_human.content}\n\n{formatted_block}"
-                if original_human.content
-                else formatted_block
-            )
-            updated_msg = HumanMessage(
-                content=new_content,
-                additional_kwargs=dict(original_human.additional_kwargs),
-                id=original_human.id,
-                name=original_human.name,
-            )
-            out_messages[target_idx] = updated_msg
-        elif isinstance(original_human.content, list):
-            # Append as a text block at the end of the content array
-            new_content_list: list[dict[str, str]] = []
-            for block in original_human.content:
-                if isinstance(block, dict):
-                    new_content_list.append(
-                        {k: str(v) for k, v in block.items()}
-                    )
-            new_content_list.append(
-                {"type": "text", "text": f"\n\n{formatted_block}"}
-            )
-            updated_msg = HumanMessage(
-                content=cast(list[dict[str, str]], new_content_list),
-                additional_kwargs=dict(original_human.additional_kwargs),
-                id=original_human.id,
-                name=original_human.name,
-            )
-            out_messages[target_idx] = updated_msg
-
-        return out_messages
+        return append_block_to_last_human(messages, self.format_deltas_block(deltas))

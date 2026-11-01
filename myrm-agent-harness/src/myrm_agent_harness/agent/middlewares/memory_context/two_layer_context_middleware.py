@@ -2,6 +2,7 @@
 
 [INPUT]
 - toolkits.memory.two_layer_dialectic.injector::TwoLayerContextInjector
+- toolkits.memory.ephemeral_delta.tail_injector::append_block_to_last_human (POS: Tail-of-turn injection primitive: per-turn content lives only on the final HumanMessage so the SystemMessage and earlier history keep their prompt-cache prefix.)
 - core.context_vars::chat_id_var
 
 [OUTPUT]
@@ -20,10 +21,11 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import cast
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.middlewares._session_context import get_session_notes_summary
 from myrm_agent_harness.core.context_vars import chat_id_var
+from myrm_agent_harness.toolkits.memory.ephemeral_delta.tail_injector import append_block_to_last_human
 from myrm_agent_harness.toolkits.memory.two_layer_dialectic.injector import (
     TwoLayerContextInjector,
 )
@@ -116,48 +118,26 @@ def _strip_prior_tail_blocks(text: str) -> str:
 
 
 def _append_text_to_last_human(
-    messages: Sequence[BaseMessage],
+    messages: Sequence[AnyMessage],
     appendix: str,
-) -> list[BaseMessage] | None:
+) -> list[AnyMessage] | None:
     if not appendix.strip():
         return None
 
-    target_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage):
-            target_idx = i
-            break
+    target_idx = next((i for i in range(len(messages) - 1, -1, -1) if isinstance(messages[i], HumanMessage)), -1)
     if target_idx == -1:
         return None
 
     out = list(messages)
     original = cast(HumanMessage, out[target_idx])
     if isinstance(original.content, str):
-        base = _strip_prior_tail_blocks(original.content.rstrip())
-        new_content = f"{base}\n\n{appendix}" if base else appendix
         out[target_idx] = HumanMessage(
-            content=new_content,
+            content=_strip_prior_tail_blocks(original.content.rstrip()),
             additional_kwargs=dict(original.additional_kwargs),
             id=original.id,
             name=original.name,
         )
-        return out
-
-    if isinstance(original.content, list):
-        new_blocks: list[dict[str, str]] = []
-        for block in original.content:
-            if isinstance(block, dict):
-                new_blocks.append({k: str(v) for k, v in block.items()})
-        new_blocks.append({"type": "text", "text": f"\n\n{appendix}"})
-        out[target_idx] = HumanMessage(
-            content=cast(list[dict[str, str]], new_blocks),
-            additional_kwargs=dict(original.additional_kwargs),
-            id=original.id,
-            name=original.name,
-        )
-        return out
-
-    return None
+    return append_block_to_last_human(out, appendix)
 
 
 class TwoLayerContextMiddleware(AgentMiddleware):

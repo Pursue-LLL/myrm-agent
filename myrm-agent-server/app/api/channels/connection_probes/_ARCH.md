@@ -9,5 +9,5 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包门面：导出 `router` 与 `safe_err_msg` | ✅ |
-| `bot_platforms.py` | 模块 | 飞书、钉钉、Slack、Discord、企业微信、Teams、Matrix、Telegram、Google Chat、QQ 的 `POST /{platform}/test` 探测；各平台客户端在处理函数内导入，只有点「测试」时才加载 | ✅ |
+| `bot_platforms.py` | 模块 | 飞书、钉钉、Slack、Discord、企业微信、Teams、Matrix、Telegram、Google Chat、QQ、LINE、Zalo、Mattermost 的 `POST /{platform}/test` 探测；各平台客户端在处理函数内导入，只有点「测试」时才加载 | ✅ |
 | `error_text.py` | 模块 | `safe_err_msg`：探测失败文本的凭据脱敏，所有探测（含 `test_connections.py` 里的）共用 | ✅ |

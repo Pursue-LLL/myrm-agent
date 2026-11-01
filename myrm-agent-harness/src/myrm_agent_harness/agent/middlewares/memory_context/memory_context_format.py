@@ -234,19 +234,21 @@ def _format_memory_context(
             phase = ep.get("subtask_phase")
             is_failure = ep.get("is_failure_attempt", False)
             lesson = ep.get("negative_lesson")
-            reason = ep.get("failure_reason")
+            failure_reason = ep.get("failure_reason")
             confidence_tier = ep.get("confidence_tier", "strong")
 
             # Ignore empty or corrupted memory entries with no meaningful payload
-            if not content and not lesson and not reason:
+            if not content and not lesson and not failure_reason:
                 continue
 
             phase_label = f"[{phase.upper()}] " if phase else ""
             if is_failure:
                 warn_text = f"{phase_label}{content}" if content else phase_label.strip()
-                if reason:
+                if failure_reason:
                     warn_text = (
-                        f"{warn_text} | Cause: {sanitize(reason)}" if warn_text else f"Cause: {sanitize(reason)}"
+                        f"{warn_text} | Cause: {sanitize(failure_reason)}"
+                        if warn_text
+                        else f"Cause: {sanitize(failure_reason)}"
                     )
                 if lesson:
                     warn_text = (
@@ -280,38 +282,6 @@ def _format_memory_context(
                     background_memories,
                     priority=7,
                 )
-            )
-
-    # ── Proactive Knowledge Pack Snippets (Authoritative Context from Mounted Vaults) ──
-    # Injected into the untrusted layer before user HumanMessage, keeping System Prompt 100% cache-stable.
-    proactive_pack = ctx.get("proactive_knowledge_pack")
-    if isinstance(proactive_pack, dict):
-        raw_snippets = proactive_pack.get("snippets", [])
-        snippet_items: list[str] = []
-        for s in raw_snippets:
-            if not isinstance(s, dict):
-                continue
-            kb_name = sanitize(str(s.get("kb_name", "Knowledge Base")))
-            title = sanitize(str(s.get("article_title", "General")))
-            snip_text = sanitize(str(s.get("snippet", "")))
-            claim_text = sanitize(str(s.get("claim_text", "")).strip())
-            claim_status = str(s.get("claim_status", "")).strip().lower()
-
-            # Prepend verified claims to give high-certainty facts prominent placement
-            if claim_text and claim_status in ("verified", "supported"):
-                prefix = f"[{kb_name} | {title} | Verified: {claim_text}]"
-            elif claim_text:
-                prefix = f"[{kb_name} | {title} | Claim: {claim_text}]"
-            else:
-                prefix = f"[{kb_name} | {title}]"
-
-            if snip_text:
-                snippet_items.append(f"{prefix} {snip_text}")
-            elif claim_text:
-                snippet_items.append(prefix)
-        if snippet_items:
-            untrusted_sections.append(
-                BudgetedSection("Active Knowledge Pack Snippets (authoritative context)", snippet_items, priority=4)
             )
 
     is_cold = not stable_sections and not untrusted_sections

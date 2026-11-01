@@ -14,7 +14,9 @@
 [POS]
 Step 1 gives one index identity per concept page: an index may hold a page twice (compile
 name vs. on-disk path), so each such row is renamed to the page's on-disk key and the
-duplicate dropped when both exist; rows without a backing page are left untouched.
+duplicate dropped when both exist; rows without a backing page are left untouched. It runs
+again whenever the rule that maps a name to its page key changes (version 4: the path the
+writer files the name under comes first, so a page named ``SKILL.md`` is keyed ``skillmd``).
 Step 2 records the spellings of every edge target and re-resolves all unresolved edges
 under the current link rules (bare file names included). Step 3 derives every edge weight
 from the stored edges, replacing weights that depended on the order pages were written in.
@@ -37,7 +39,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-INDEX_SCHEMA_VERSION = 3
+INDEX_SCHEMA_VERSION = 4
+# The version at which the rule mapping a name to its page key last changed: rows stored by an older rule are merged
+# once. Raise INDEX_SCHEMA_VERSION to at least this value too: an index already at it returns before any step runs.
+_IDENTITY_RULE_VERSION = 4
 
 _CONCEPT_TABLES = ("wiki_fts", "wiki_index_meta")
 
@@ -52,7 +57,7 @@ def migrate_index_schema(
     if version >= INDEX_SCHEMA_VERSION:
         return
 
-    if version < 1:
+    if version < _IDENTITY_RULE_VERSION:
         _merge_concept_identity(conn, structure)
     if version < 2:
         _converge_edges(conn, resolver)

@@ -1,5 +1,7 @@
 """The email connection test verifies the server certificate, gives up on a silent server and reports why it failed.
 
+A rejected certificate carries the reason code the settings page localizes; every other failure carries none.
+
 ``imaplib.IMAP4_SSL`` is replaced by an ``autospec`` double, so a keyword the real constructor does not accept raises
 ``TypeError`` instead of being swallowed, and the arguments the endpoint passes are read back from the call.
 """
@@ -14,7 +16,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.channels.test_connections import _IMAP_TEST_TIMEOUT
+from tests.support.bounded_wait import assert_bounded_wait
 from tests.support.minimal_app import build_minimal_app
 
 _URL = "/api/v1/channels/manage/email/test"
@@ -54,23 +56,28 @@ def test_the_server_is_checked_over_a_verified_connection_that_times_out(client:
     assert isinstance(context, ssl.SSLContext)
     assert context.verify_mode == ssl.CERT_REQUIRED
     assert context.check_hostname is True
-    assert kwargs["timeout"] == _IMAP_TEST_TIMEOUT
+    assert_bounded_wait(kwargs["timeout"])
     imap.return_value.login.assert_called_once_with("bot@example.com", "secret")
+
+
+def test_a_rejected_certificate_is_reported_with_a_reason_the_page_can_localize(client: TestClient, imap: MagicMock) -> None:
+    imap.side_effect = ssl.SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] self-signed certificate")
+
+    response = client.post(_URL, json=_BODY)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert body["reason"] == "EMAIL_CERT_REJECTED"
+    assert "CERTIFICATE_VERIFY_FAILED" in body["message"]
 
 
 @pytest.mark.parametrize(
     ("failure", "reported"),
-    [
-        (
-            ssl.SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] self-signed certificate"),
-            "CERTIFICATE_VERIFY_FAILED",
-        ),
-        (TimeoutError("timed out"), "timed out"),
-        (ConnectionRefusedError("refused"), "refused"),
-    ],
-    ids=["rejected_certificate", "silent_server", "refused"],
+    [(TimeoutError("timed out"), "timed out"), (ConnectionRefusedError("refused"), "refused")],
+    ids=["silent_server", "refused"],
 )
-def test_a_connection_that_cannot_be_made_is_reported(
+def test_any_other_connection_failure_is_reported_without_a_reason(
     client: TestClient, imap: MagicMock, failure: OSError, reported: str
 ) -> None:
     imap.side_effect = failure
@@ -81,3 +88,4 @@ def test_a_connection_that_cannot_be_made_is_reported(
     body = response.json()
     assert body["ok"] is False
     assert reported in body["message"]
+    assert "reason" not in body

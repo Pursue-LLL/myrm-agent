@@ -5,7 +5,8 @@
 - api.channels.connection_probes.error_text::safe_err_msg (POS: credential-safe error text)
 
 [OUTPUT]
-- router: ``POST /{platform}/test`` for Feishu, DingTalk, Slack, Discord, WeCom, Teams, Matrix, Telegram, Google Chat, QQ
+- router: ``POST /{platform}/test`` for Feishu, DingTalk, Slack, Discord, WeCom, Teams, Matrix, Telegram, Google Chat, QQ,
+  LINE, Zalo, Mattermost
 
 [POS]
 Each probe calls the platform with the credentials of the form and answers whether they work. The platform clients
@@ -25,13 +26,16 @@ from app.api.channels.schemas import (
     FeishuTestRequest,
     FeishuTestResponse,
     GoogleChatTestRequest,
+    LINETestRequest,
     MatrixTestRequest,
+    MattermostTestRequest,
     QQTestRequest,
+    ReasonedTestResponse,
     SlackTestRequest,
     TeamsTestRequest,
     TelegramTestRequest,
-    TelegramTestResponse,
     WeComTestRequest,
+    ZaloTestRequest,
 )
 
 router = APIRouter()
@@ -193,10 +197,10 @@ async def matrix_test_connection(
         return ChannelTestResponse(ok=ok, message=msg)
 
 
-@router.post("/telegram/test", response_model=TelegramTestResponse, response_model_exclude_none=True)
+@router.post("/telegram/test", response_model=ReasonedTestResponse, response_model_exclude_none=True)
 async def telegram_test_connection(
     body: TelegramTestRequest,
-) -> TelegramTestResponse:
+) -> ReasonedTestResponse:
     """Test Telegram Bot API connectivity with the provided token."""
     from app.channels.providers.telegram.api import TelegramClient
     from app.channels.providers.telegram.api_core import getme_failure_reason
@@ -205,9 +209,9 @@ async def telegram_test_connection(
     try:
         me = await client.get_me()
         username = me.get("username", "unknown")
-        return TelegramTestResponse(ok=True, message=f"Connected as @{username}")
+        return ReasonedTestResponse(ok=True, message=f"Connected as @{username}")
     except Exception as e:
-        return TelegramTestResponse(ok=False, message=safe_err_msg(e), reason=getme_failure_reason(e).value)
+        return ReasonedTestResponse(ok=False, message=safe_err_msg(e), reason=getme_failure_reason(e).value)
     finally:
         await client.close()
 
@@ -249,6 +253,81 @@ async def qq_test_connection(
             return ChannelTestResponse(
                 ok=ok,
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
+            )
+    except Exception as e:
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
+
+
+@router.post("/line/test", response_model=ChannelTestResponse)
+async def line_test_connection(
+    body: LINETestRequest,
+) -> ChannelTestResponse:
+    """Test LINE Messaging API connectivity."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as http:
+            resp = await http.get(
+                "https://api.line.me/v2/bot/info",
+                headers={"Authorization": f"Bearer {body.channel_access_token}"},
+            )
+            ok = resp.status_code == 200
+            if ok:
+                data = resp.json()
+                msg = f"Connected as {data.get('displayName', 'unknown')}"
+            else:
+                msg = f"HTTP {resp.status_code}"
+            return ChannelTestResponse(ok=ok, message=msg)
+    except Exception as e:
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
+
+
+@router.post("/zalo/test", response_model=ChannelTestResponse)
+async def zalo_test_connection(
+    body: ZaloTestRequest,
+) -> ChannelTestResponse:
+    """Test Zalo OA API connectivity."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as http:
+            resp = await http.get(
+                "https://openapi.zalo.me/v3.0/oa/getoa",
+                headers={"access_token": body.access_token},
+            )
+            ok = resp.status_code == 200
+            return ChannelTestResponse(
+                ok=ok,
+                message="Connection successful" if ok else f"HTTP {resp.status_code}",
+            )
+    except Exception as e:
+        return ChannelTestResponse(ok=False, message=safe_err_msg(e))
+
+
+@router.post("/mattermost/test", response_model=ChannelTestResponse)
+async def mattermost_test_connection(
+    body: MattermostTestRequest,
+) -> ChannelTestResponse:
+    """Test Mattermost server connectivity with Bot Access Token."""
+    import httpx
+
+    try:
+        api_url = f"{body.server_url.rstrip('/')}/api/v4"
+        async with httpx.AsyncClient(timeout=10) as http:
+            resp = await http.get(
+                f"{api_url}/users/me",
+                headers={"Authorization": f"Bearer {body.access_token}"},
+            )
+            if resp.status_code == 200:
+                data: dict[str, object] = resp.json()
+                username = data.get("username", "")
+                return ChannelTestResponse(
+                    ok=True,
+                    message=f"Connected as @{username}",
+                )
+            return ChannelTestResponse(
+                ok=False,
+                message=f"HTTP {resp.status_code}",
             )
     except Exception as e:
         return ChannelTestResponse(ok=False, message=safe_err_msg(e))

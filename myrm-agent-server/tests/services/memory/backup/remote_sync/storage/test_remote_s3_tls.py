@@ -15,21 +15,16 @@ a stand-in context, so the test installs no process-wide TLS state.
 
 from __future__ import annotations
 
-import ipaddress
 import ssl
 import threading
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.x509.oid import NameOID
 
 from app.services.memory.backup.remote_sync.storage import S3BackupConfig, S3BackupStrategy
+from tests.support.self_signed_tls import self_signed_certificate
 
 _AMBIENT_NETWORK_VARIABLES = (
     "HTTPS_PROXY",
@@ -57,29 +52,6 @@ class _QuietServer(ThreadingHTTPServer):
         """A client that rejects the certificate abandons the handshake; that is the case under test, not an error."""
 
 
-def _self_signed_certificate(directory: Path) -> tuple[Path, Path]:
-    key = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "127.0.0.1")])
-    now = datetime.now(UTC)
-    certificate = (
-        x509.CertificateBuilder()
-        .subject_name(name)
-        .issuer_name(name)
-        .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now - timedelta(days=1))
-        .not_valid_after(now + timedelta(days=1))
-        .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), critical=False)
-        .sign(key, hashes.SHA256())
-    )
-    certificate_file, key_file = directory / "listener.pem", directory / "listener.key"
-    certificate_file.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
-    key_file.write_bytes(
-        key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
-    )
-    return certificate_file, key_file
-
-
 @pytest.fixture
 def listener(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[str, Path]]:
     """A loopback HTTPS listener that answers every ``HEAD``; yields its URL and its self-signed certificate."""
@@ -88,7 +60,7 @@ def listener(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     monkeypatch.setenv("AWS_MAX_ATTEMPTS", "1")  # a rejected certificate would otherwise be retried with backoff
 
-    certificate_file, key_file = _self_signed_certificate(tmp_path)
+    certificate_file, key_file = self_signed_certificate(tmp_path)
     server = _QuietServer(("127.0.0.1", 0), _Handler)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(certificate_file, key_file)

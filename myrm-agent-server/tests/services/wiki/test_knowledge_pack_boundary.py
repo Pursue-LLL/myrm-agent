@@ -9,9 +9,9 @@ never answers costs the turn its snippets but not the rest of the process its th
 
 [OUTPUT]
 - Tests that an index file, an indexed name and a page file that resolve outside the vault are never read, that such a
-  page is held back and logged, that a page without any file, or whose link points at nothing, stands on its index row,
-  that the scan runs in the context of the turn that asked, and that a scan which never returns leaves the default
-  thread pool free and pins at most the four threads of the scan pool.
+  page is held back and logged, that so is a page without any file or whose link points at nothing, that the scan runs
+  in the context of the turn that asked, and that a scan which never returns leaves the default thread pool free and
+  pins at most the four threads of the scan pool.
 
 [POS]
 Boundary and isolation counterpart of the retrieval cases in ``test_knowledge_pack.py``.
@@ -72,23 +72,29 @@ async def test_an_indexed_page_linked_out_of_the_vault_is_held_back(tmp_path: Pa
 
 
 @pytest.mark.asyncio
-async def test_an_indexed_page_without_any_file_stands_on_its_index_row(tmp_path: Path) -> None:
+async def test_an_indexed_page_without_any_file_is_held_back_and_logged(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """The index kept a row after its page was removed: there is no page file to verify the row against."""
     vault = make_vault(tmp_path, "kb", {}, indexed=False)
     write_index(vault, {"Notes": "Zephyr budget limit is an indexed figure."})
 
-    assert await titles(_QUERY, vault) == ["Notes"]
+    with caplog.at_level(logging.WARNING, logger=selector.__name__):
+        assert await titles(_QUERY, vault) == []
+
+    warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert str(vault) in warnings[0]
+    assert repr("Notes") in warnings[0]
 
 
 @pytest.mark.asyncio
 @_needs_symlinks
-async def test_an_indexed_page_whose_link_points_at_nothing_stands_on_its_index_row(tmp_path: Path) -> None:
-    """A link to a missing target holds no file to read and no content to leak, so the page is a row of the index like
-    any other without a file; treating the link itself as the page file would hold the page back instead."""
+async def test_an_indexed_page_whose_link_points_at_nothing_is_held_back(tmp_path: Path) -> None:
+    """A link to a missing target is no page file: the page is one whose file is gone, held back like any other."""
     vault = make_vault(tmp_path, "kb", {}, indexed=False)
     (vault / "wiki" / "concepts" / "Policy.md").symlink_to(tmp_path / "gone.md")
     write_index(vault, {"Policy": "Zephyr budget limit is an indexed figure."})
 
-    assert await titles(_QUERY, vault) == ["Policy"]
+    assert await titles(_QUERY, vault) == []
 
 
 @pytest.mark.asyncio

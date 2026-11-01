@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock
@@ -45,6 +46,11 @@ def _params(**overrides: object) -> GeneralAgentParams:
     fields: dict[str, object] = {"enable_web_search": True, "search_service_cfg": object()}
     fields.update(overrides)
     return cast("GeneralAgentParams", SimpleNamespace(**fields))
+
+
+def _joined(**overrides: object) -> SimpleNamespace:
+    fields = dict(preview=None, snapshot=None, brief_status={}, prewarm_hit=False, prewarm_ms=None, still_warming=False)
+    return SimpleNamespace(**{**fields, **overrides})
 
 
 @pytest.fixture
@@ -330,18 +336,12 @@ class TestBuildTurnExtraContext:
         from app.services.memory import ephemeral_delta_hydration
 
         join = AsyncMock(
-            return_value=SimpleNamespace(
-                preview={"items": 1},
-                snapshot=None,
-                brief_status={"status": "ready"},
-                prewarm_hit=True,
-                prewarm_ms=12,
-                still_warming=False,
-            )
+            return_value=_joined(preview={"items": 1}, brief_status={"status": "ready"}, prewarm_hit=True, prewarm_ms=12)
         )
         hydrate = MagicMock()
         monkeypatch.setattr(coordinator, "get_turn_prewarm_coordinator", lambda: SimpleNamespace(join_for_turn=join))
         monkeypatch.setattr(ephemeral_delta_hydration, "ensure_chat_ephemeral_deltas_hydrated", hydrate)
+        monkeypatch.setattr(setup, "resolve_turn_knowledge_pack", AsyncMock(return_value=None))
         params = _params()
 
         context = await setup.build_turn_extra_context(_request(), params, base=None, goal_provider=None)
@@ -355,6 +355,35 @@ class TestBuildTurnExtraContext:
         assert context["turn_prewarm_hit"] is True
         assert context["turn_prewarm_ms"] == 12
         assert context["turn_prewarm_still_warming"] is False
+        assert "proactive_knowledge_pack" not in context
+
+    @pytest.mark.asyncio
+    async def test_the_pack_is_retrieved_beside_the_prewarm_join_and_handed_over_in_the_run_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.ai_agents.agent_middlewares import PROACTIVE_PACK_CONTEXT_KEY
+        from app.services.agent.execution_cache.prewarm import coordinator
+        from app.services.memory import ephemeral_delta_hydration
+
+        scan_started = asyncio.Event()
+        pack: dict[str, object] = {"snippets": [{"article_title": "Hotel Limits"}]}
+
+        async def join(*_: object, **__: object) -> SimpleNamespace:
+            # The join can only return once the scan has begun: awaiting them one after the other would hang here.
+            await asyncio.wait_for(scan_started.wait(), timeout=1.0)
+            return _joined()
+
+        async def resolve(_: object) -> dict[str, object]:
+            scan_started.set()
+            return pack
+
+        monkeypatch.setattr(coordinator, "get_turn_prewarm_coordinator", lambda: SimpleNamespace(join_for_turn=join))
+        monkeypatch.setattr(ephemeral_delta_hydration, "ensure_chat_ephemeral_deltas_hydrated", MagicMock())
+        monkeypatch.setattr(setup, "resolve_turn_knowledge_pack", resolve)
+
+        context = await setup.build_turn_extra_context(_request(), _params(), base=None, goal_provider=None)
+
+        assert context[PROACTIVE_PACK_CONTEXT_KEY] is pack
 
     @pytest.mark.asyncio
     async def test_a_locale_lookup_failure_leaves_the_context_without_it(self, monkeypatch: pytest.MonkeyPatch) -> None:

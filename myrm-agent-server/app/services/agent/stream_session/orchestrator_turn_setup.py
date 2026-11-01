@@ -6,6 +6,8 @@
 - app.services.agent.session_access_service::apply_directory_resume_grant (POS: directory grant carried by a resume)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: per-chat GoalProvider registry)
 - app.services.agent.runtime_context::build_agent_runtime_context (POS: RunnableConfig context of one agent run)
+- app.services.agent.stream_session.proactive_pack::resolve_turn_knowledge_pack (POS: knowledge-base snippets for this turn's question)
+- app.ai_agents.agent_middlewares::PROACTIVE_PACK_CONTEXT_KEY (POS: run-context key the Human-tail pack middleware reads)
 
 [OUTPUT]
 - TurnParams: converted agent params plus routing attribution of one turn
@@ -13,7 +15,7 @@
 - resolve_research_model: light-model config for Deep Research planning
 - search_service_unavailable_detail: why a search-bound turn cannot run, or None
 - prepare_goal_provider: goal provider of the chat with the request's goal budget applied
-- build_turn_extra_context: runtime context handed to the agent run
+- build_turn_extra_context: runtime context handed to the agent run, with the prewarm join and the turn's knowledge pack
 
 [POS]
 Setup half of the E1 turn body: every step between "history loaded" and "session built", each one awaitable on its own.
@@ -21,6 +23,7 @@ Setup half of the E1 turn body: every step between "history loaded" and "session
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -28,6 +31,7 @@ from typing import TYPE_CHECKING
 from app.core.types import ChatHistoryReq, ModelConfig
 from app.services.agent.params import _resolve_model_config, convert_to_general_agent_params
 from app.services.agent.params.routing_memory import remember_turn_routing
+from app.services.agent.stream_session.proactive_pack import resolve_turn_knowledge_pack
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -247,7 +251,7 @@ async def build_turn_extra_context(
     base: dict[str, object] | None,
     goal_provider: GoalProvider | None,
 ) -> dict[str, object]:
-    """Run context of the turn: goal provider, execution mode, user locale and, for a fresh turn, the prewarm join."""
+    """Run context of the turn: goal provider, execution mode, locale and, for a fresh turn, prewarm join and knowledge pack."""
     extra_context: dict[str, object] = {} if base is None else base
     extra_context["goal_provider"] = goal_provider
 
@@ -283,14 +287,20 @@ async def build_turn_extra_context(
 
             ensure_chat_ephemeral_deltas_hydrated(request.chat_id)
 
+        from app.ai_agents.agent_middlewares import PROACTIVE_PACK_CONTEXT_KEY
         from app.services.agent.execution_cache.prewarm.coordinator import (
             get_turn_prewarm_coordinator,
         )
 
-        join_result = await get_turn_prewarm_coordinator().join_for_turn(
-            params,
-            action_mode=request.action_mode or "agent",
+        # The prewarm cache is keyed by chat/agent scope plus the agent fingerprint, and neither contains the question,
+        # so the pack is requested here on every non-resume turn (it returns None when memory is off, the chat is
+        # incognito or no shared vault is mounted), in parallel with the join that already waits for the memory brief.
+        join_result, knowledge_pack = await asyncio.gather(
+            get_turn_prewarm_coordinator().join_for_turn(params, action_mode=request.action_mode or "agent"),
+            resolve_turn_knowledge_pack(params),
         )
+        if knowledge_pack is not None:
+            extra_context[PROACTIVE_PACK_CONTEXT_KEY] = knowledge_pack
         if join_result.preview is not None:
             extra_context["memory_brief_preview"] = join_result.preview
         if join_result.snapshot is not None:

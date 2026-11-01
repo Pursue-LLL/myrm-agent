@@ -57,6 +57,7 @@ async def build_general_agent(
     from app.ai_agents.agent_middlewares import (
         ephemeral_delta_middleware,
         memory_context_middleware,
+        proactive_pack_middleware,
         project_roadmap_middleware,
         two_layer_context_middleware,
         user_instructions_middleware,
@@ -482,9 +483,11 @@ async def build_general_agent(
     if workspace_root:
         middlewares_list.append(FilesystemFileSearchMiddleware(root_path=workspace_root))
 
-    # Human-tail memory blocks run after context pipeline so compression cannot strip them.
+    # Human-tail blocks run after context pipeline so compression cannot strip them; the knowledge pack goes
+    # first so explicit session deltas stay closest to the end of the user turn.
     middlewares_list.extend(
         [
+            proactive_pack_middleware,
             ephemeral_delta_middleware,
             two_layer_context_middleware,
         ]

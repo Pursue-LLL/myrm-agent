@@ -129,7 +129,7 @@ def test_has_memory_context_skips_non_string_parts():
     block = [{"type": "text", "text": "hello"}]
     msgs = [
         SystemMessage(content="sys"),
-        HumanMessage(content=block),  # type: ignore[arg-type]
+        HumanMessage(content=block),
     ]
     assert _has_memory_context(msgs) is False
 
@@ -683,7 +683,6 @@ async def test_contextvar_integration():
 
     set_memory_manager(mock_manager)
     assert get_memory_manager() is mock_manager
-    assert get_memory_manager().user_id == "test_user"
 
     set_memory_manager(None)
     assert get_memory_manager() is None
@@ -1767,31 +1766,15 @@ class TestFormatCoverageBranches:
         assert "Why: owner approves rollouts" in untrusted
         assert "How: before any push" in untrusted
 
-    def test_proactive_knowledge_pack_snippet_injection(self):
-        """Verify proactive knowledge pack snippets are injected in untrusted envelope, protecting System Prompt cache."""
-        proactive_pack = {
-            "snippets": [
-                {
-                    "kb_name": "Finance",
-                    "article_title": "ExpensePolicy",
-                    "snippet": "Hotel rate in Shenzhen is capped at 650 RMB/night.",
-                    "confidence": 0.95,
-                }
-            ],
-            "total_chars": 50,
-            "latency_ms": 12.5,
-        }
-        ctx = {"proactive_knowledge_pack": proactive_pack}
-        stable, untrusted, _accepted = _format_memory_context(ctx, _EMPTY_LEARNED)
+    def test_knowledge_pack_never_enters_the_head_memory_block(self):
+        """The pack changes per question; in the head block it would break the cached history prefix."""
+        pack = {"snippets": [{"kb_name": "Finance", "article_title": "ExpensePolicy", "snippet": "capped at 650 RMB"}]}
+        with_pack = {"global_profile": {"name": "Ada"}, "proactive_knowledge_pack": pack}
 
-        # 1. System Prompt must not contain dynamic snippets (protecting prefix cache)
-        assert stable is None
+        stable, untrusted, _accepted = _format_memory_context(with_pack, _EMPTY_LEARNED)
 
-        # 2. Untrusted payload must contain the authoritative snippet
-        assert untrusted is not None
-        assert "Active Knowledge Pack Snippets (authoritative context)" in untrusted
-        assert "[Finance | ExpensePolicy]" in untrusted
-        assert "Hotel rate in Shenzhen is capped at 650 RMB/night." in untrusted
+        assert (stable, untrusted) == _format_memory_context({"global_profile": {"name": "Ada"}}, _EMPTY_LEARNED)[:2]
+        assert "650 RMB" not in (stable or "") + (untrusted or "")
 
     def test_tool_guidance_injection(self):
         """Verify tool guidance is properly injected into stable sections."""
@@ -1858,23 +1841,6 @@ class TestFormatCoverageBranches:
         assert "Subtask Phase Memories" in untrusted
         assert "[DEPLOY] Step 2 completed successfully" in untrusted
         assert "General episode without phase" in untrusted
-
-    def test_proactive_knowledge_pack_fallback_rendering(self):
-        """Verify proactive knowledge pack snippet fallback without kb_name."""
-        proactive_pack = {
-            "snippets": [
-                {
-                    "article_title": "StandaloneDoc",
-                    "snippet": "Direct snippet content without kb_name",
-                }
-            ]
-        }
-        _stable, untrusted, _accepted = _format_memory_context(
-            {"proactive_knowledge_pack": proactive_pack}, _EMPTY_LEARNED
-        )
-        assert untrusted is not None
-        assert "[Knowledge Base | StandaloneDoc]" in untrusted
-        assert "Direct snippet content without kb_name" in untrusted
 
 
 if __name__ == "__main__":

@@ -1,24 +1,32 @@
 """
 [INPUT]
-None
+keyring_gate::KeyringGate (POS: 限时执行 OS 钥匙串调用)
 
 [OUTPUT]
 VaultLockedError: 当缺少主密钥且金库锁定且无法获取时抛出
 MasterKeyProvider: 为单机业务容器提供主密钥派生和内存保管服务
 
 [POS]
-安全金库密钥派生模块。提供零落盘的主密钥内存派生与验证服务，保护凭证安全。
+安全金库密钥派生模块。提供零落盘的主密钥内存派生与验证服务，保护凭证安全；OS 钥匙串读写限时 10 秒，超时按金库锁定处理。
 """
 
 import hashlib
 import logging
 import os
+import threading
 from base64 import b64encode
+
+from .keyring_gate import KeyringGate
 
 logger = logging.getLogger(__name__)
 
 _KEYRING_SERVICE = "myrm-agent-vault"
 _KEYRING_ACCOUNT = "master-key"
+
+# A keyring read normally takes milliseconds. A longer wait means an OS authorization prompt is open or the keychain
+# service is wedged, and every caller (including server startup) would freeze behind it, so give up after this long.
+_KEYRING_TIMEOUT_SEC = 10.0
+_gate = KeyringGate(_KEYRING_TIMEOUT_SEC)
 
 
 class VaultLockedError(Exception):
@@ -37,28 +45,27 @@ def _keyring_available() -> bool:
         return False
 
 
-def _load_from_keyring() -> str | None:
-    """Attempt to load the master key from the OS keyring."""
-    try:
-        import keyring
+def _read_keyring() -> str | None:
+    import keyring
 
-        value = keyring.get_password(_KEYRING_SERVICE, _KEYRING_ACCOUNT)
-        return value if value else None
-    except Exception as e:
-        logger.debug(f"Keyring read failed (non-fatal): {e}")
-        return None
+    return keyring.get_password(_KEYRING_SERVICE, _KEYRING_ACCOUNT) or None
+
+
+def _write_keyring(key: str) -> bool:
+    import keyring
+
+    keyring.set_password(_KEYRING_SERVICE, _KEYRING_ACCOUNT, key)
+    return True
+
+
+def _load_from_keyring() -> str | None:
+    """Load the master key from the OS keyring; None when absent, failed, or the keyring did not answer in time."""
+    return _gate.run(_read_keyring, MasterKeyProvider._adopt_late_key)
 
 
 def _save_to_keyring(key: str) -> bool:
-    """Attempt to save the master key to the OS keyring."""
-    try:
-        import keyring
-
-        keyring.set_password(_KEYRING_SERVICE, _KEYRING_ACCOUNT, key)
-        return True
-    except Exception as e:
-        logger.debug(f"Keyring write failed (non-fatal): {e}")
-        return False
+    """Save the master key to the OS keyring; False when it failed or the keyring did not answer in time."""
+    return _gate.run(lambda: _write_keyring(key), lambda _saved: None) is True
 
 
 class MasterKeyProvider:
@@ -75,6 +82,7 @@ class MasterKeyProvider:
     """
 
     _master_key: str | None = None
+    _adopt_lock = threading.Lock()
 
     @classmethod
     def get_master_key(cls) -> str:
@@ -112,6 +120,14 @@ class MasterKeyProvider:
         # Zero-Disk Architecture: We absolutely refuse to write a fallback plaintext file to disk.
         logger.warning("Master Key not found in environment or OS keyring. Vault is locked.")
         raise VaultLockedError("Vault is locked. Provide MYRM_MASTER_KEY, configure OS keyring, or unlock via API.")
+
+    @classmethod
+    def _adopt_late_key(cls, key: str) -> None:
+        """Keep a key the OS keyring delivered after its caller gave up, unless the vault was unlocked meanwhile."""
+        with cls._adopt_lock:
+            if cls._master_key is None:
+                cls._master_key = key
+                logger.info("Master Key loaded from OS keyring after a delayed answer.")
 
     @classmethod
     def unlock_vault(cls, password: str, salt: bytes = b"myrm-vault-salt") -> str:

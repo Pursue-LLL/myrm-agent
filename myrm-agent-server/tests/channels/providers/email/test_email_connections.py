@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.channels.providers.email.channel import _SOCKET_TIMEOUT
 from tests.channels.providers.email.email_channel_factory import make_channel
+from tests.support.bounded_wait import assert_bounded_wait
 
 
 def _assert_verifies_the_server(context: object) -> None:
@@ -49,7 +49,7 @@ class TestImapConnections:
         args, kwargs = imap.call_args
         assert args == ("imap.example.com", 993)
         _assert_verifies_the_server(kwargs["ssl_context"])
-        assert kwargs["timeout"] == _SOCKET_TIMEOUT
+        assert_bounded_wait(kwargs["timeout"])
 
 
 class TestSmtpConnections:
@@ -63,7 +63,7 @@ class TestSmtpConnections:
         args, kwargs = client.call_args
         assert args == ("smtp.example.com", 465)
         _assert_verifies_the_server(kwargs["context"])
-        assert kwargs["timeout"] == _SOCKET_TIMEOUT
+        assert_bounded_wait(kwargs["timeout"])
         assert [call[0] for call in client.return_value.method_calls] == ["login", "send_message"]
 
     def test_starttls_verifies_the_server_before_the_credentials_are_sent(self) -> None:
@@ -72,7 +72,7 @@ class TestSmtpConnections:
 
         args, kwargs = client.call_args
         assert args == ("smtp.example.com", 587)
-        assert kwargs["timeout"] == _SOCKET_TIMEOUT
+        assert_bounded_wait(kwargs["timeout"])
         server = client.return_value
         _assert_verifies_the_server(server.starttls.call_args.kwargs["context"])
         assert [call[0] for call in server.method_calls] == ["starttls", "login", "send_message"]

@@ -7,7 +7,7 @@
 - tests.support.knowledge_pack_vaults::make_vault (POS: shared vault fixtures of the knowledge-pack tests)
 
 [OUTPUT]
-- Unit test suite verifying Jaccard dedup, hard budget truncation (600 chars), timeout fallback, vault scanning,
+- Unit test suite verifying Jaccard dedup, hard budget truncation (default and custom), timeout fallback, vault scanning,
   and that draft/blocked pages and page frontmatter never reach an injected snippet.
 
 [POS]
@@ -16,13 +16,11 @@ Unit test for KnowledgePackProactiveInjectionPerAgentTurn roadmap item.
 
 from __future__ import annotations
 
-import sqlite3
 import time
 from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_segment
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     PUBLISH_STATUS_KEY,
     serialize_frontmatter_block,
@@ -74,10 +72,8 @@ def test_truncate_snippet_text() -> None:
 
 
 def test_selector_deduplication_and_budget() -> None:
-    """Verify selector caps snippets at 3, enforces 600 chars total, and drops duplicates."""
+    """Verify a custom budget (3 snippets, 400 characters in total) is enforced and duplicates are dropped."""
     cfg = KnowledgePackConfig(
-        pack_id="pack_test",
-        name="Test Pack",
         max_snippets=3,
         max_chars_per_snippet=150,
         max_total_chars=400,
@@ -136,6 +132,34 @@ def test_selector_deduplication_and_budget() -> None:
     assert res.total_chars <= 400
     assert res.is_truncated is True
     assert res.source_count >= 2
+
+
+def test_default_selector_enforces_its_budget() -> None:
+    """The selector production runs with (no config) keeps at most 3 snippets of at most 200 characters, 600 in total."""
+    sentences = [
+        "员工出差在深圳的住宿限额为每晚六百五十元，必须提前提交审批。",
+        "所有对外接口统一封装为信封模型，禁止直接抛出裸异常信息。",
+        "生产环境发布安排在周二或周四下午，通过灰度流水线完成金丝雀验证。",
+        "代码仓库禁止硬编码任何密钥凭证，必须从保密存储中读取。",
+        "客户数据导出前必须脱敏并记录审计日志，之后才能发送给第三方。",
+    ]
+    short = [
+        RelevantSnippet(kb_name="KB", article_title=f"Page{index}", snippet=sentence, confidence=0.9 - index / 100)
+        for index, sentence in enumerate(sentences)
+    ]
+    long = [
+        RelevantSnippet(kb_name="KB", article_title=f"Page{index}", snippet=sentence * 8, confidence=0.9 - index / 100)
+        for index, sentence in enumerate(sentences)
+    ]
+
+    by_count = KnowledgePackSelector().select(short)
+    by_length = KnowledgePackSelector().select(long)
+
+    assert len(by_count.snippets) == 3
+    # Long snippets give the length caps something to bound; three of them still fit, so an empty result cannot pass.
+    assert len(by_length.snippets) == 3
+    assert all(len(snippet.snippet) <= 200 for snippet in by_length.snippets)
+    assert by_length.total_chars <= 600
 
 
 @pytest.mark.asyncio
@@ -202,32 +226,11 @@ async def test_resolve_proactive_snippets_timeout_degrades_gracefully(tmp_path: 
 
 @pytest.mark.asyncio
 async def test_resolve_proactive_snippets_with_fts5_index(tmp_path: Path) -> None:
-    """Verify Tier 1 FTS5 index-first retrieval on compiled vault."""
-    vault_dir = tmp_path / "compiled_vault"
-    vault_dir.mkdir()
-    db_path = vault_dir / ".wiki_index.db"
-
+    """Tier 1 index-first retrieval on a compiled vault: the page sorts after more files than the markdown scan reads,
+    so only the index can find it."""
     content = "## 差旅报销制度\n\n全员差旅住宿标准为每晚不超过 650 元人民币。\n\n交通补贴每日上限 50 元。"
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE VIRTUAL TABLE wiki_fts USING fts5(
-                concept_name,
-                truth_content,
-                tokenize="unicode61 remove_diacritics 1"
-            )
-            """
-        )
-        conn.execute(
-            """
-            INSERT INTO wiki_fts(concept_name, truth_content)
-            VALUES (?, ?)
-            """,
-            (
-                "ExpensePolicy",
-                build_cjk_index_segment(content),
-            ),
-        )
+    fillers = {f"A-filler-{i:02d}": f"Gardening note {i} about tomatoes and compost." for i in range(20)}
+    vault_dir = make_vault(tmp_path, "compiled_vault", {**fillers, "ExpensePolicy": content}, indexed=True)
 
     result = await resolve_proactive_snippets_from_vaults(
         query="差旅住宿标准每晚限额多少",

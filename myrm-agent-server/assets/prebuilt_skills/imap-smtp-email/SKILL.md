@@ -3,8 +3,8 @@ name: imap-smtp-email
 description: >-
   Manage personal email accounts via IMAP/SMTP: check inbox, search messages,
   read full content, download attachments, send and reply. Works with any
-  provider (163, QQ Mail, Outlook, Yahoo, corporate Exchange, etc.).
-version: 1.0.1
+  provider (163, QQ Mail, Outlook, Yahoo, Exchange, etc.).
+version: 1.0.2
 category: productivity
 tags:
   - email
@@ -88,6 +88,8 @@ python3 .claude/skills/imap-smtp-email/scripts/email_manager.py folders
 ```
 
 Run via `bash_code_execute_tool`. Credentials are injected as environment variables at runtime — **never** ask the user to paste credentials into chat.
+
+`email_manager.py` is the only entry point. The connection, message and attachment logic it imports lives in `.claude/skills/imap-smtp-email/scripts/mail_client/` (`transport.py`, `message.py`, `attachments.py`); do not run those modules directly.
 
 ## Secret Safety (MANDATORY)
 

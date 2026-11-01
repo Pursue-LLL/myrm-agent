@@ -4,6 +4,7 @@
 - app.services.wiki.knowledge_pack.schemas::KnowledgePackConfig, RelevantSnippet, ProactiveKnowledgeResult
 - app.services.wiki.knowledge_pack.query_terms::MAX_QUERY_CHARS, search_terms, paragraph_relevance, tokenize_text (POS: the question's terms and the relevance floor)
 - myrm_agent_harness.api::search_published_index, index_has_pages (POS: read-only published-pages-only FTS search, and whether an index file holds any concept page row)
+- myrm_agent_harness.api::is_interim_raw_entry (POS: whether an index row is raw text indexed before compilation, the one row kind without a page file)
 - myrm_agent_harness.api::is_within_boundary (POS: resolved-path containment check that follows symlinks)
 - myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: wiki publish gate SSOT)
 - myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: BOM-tolerant frontmatter parse SSOT)
@@ -17,22 +18,23 @@
 [POS]
 High-performance snippet selection pipeline for pre-turn proactive injection. Tier 1 asks the vault's FTS index for
 its best published pages (the harness applies the publish gate inside the query, so drafts cannot crowd them out)
-with an OR query of the question's search terms; tier 2 scans the markdown files of a vault whose index is missing,
-unreadable or holds no concept page rows (an index file alone says nothing: any ``WikiIndexer`` creates it on
-construction), because
-listing thousands of pages to read fifteen of them would cost more than it finds in a vault the index already
-covers. Both tiers give each page its one best paragraph by ``paragraph_relevance`` and keep it only when
-the page answers the question, ranked by that score, so most questions the vault does not answer inject nothing, one
-long page cannot take every slot, and the order of the mounted vaults never decides which page wins. Every page file
-it reads goes through the wiki publish gate again, so a draft or blocked page never reaches the injected context,
-and snippets never lead with the page's frontmatter. A shared vault is written by another process, so its index
-file and its page files are read only when they lie inside the vault, whatever the index or a symlink says: an indexed
-page whose file lies outside is held back and logged, while a page with no file at all (a raw interim entry, or a link
-that points at nothing) stands on its index row. The scan blocks on file and database reads, so each turn scans all
-vaults in one thread, one after the other, of a small pool of its own, in a copy of the turn's context so what the scan
-logs still carries the turn's trace and session ids: the timeout fires on time, a slow mount does not stall the loop,
-and a mount that never answers pins at most that pool's threads instead of the default pool every other
-``asyncio.to_thread`` caller shares.
+with an OR query of the question's search terms, and reads up to twenty rows to find five whose page it can read: a row
+whose page file is gone or is no longer published is skipped, so it never takes the place of a page ranked behind it.
+Tier 2 scans the markdown files of a vault whose index is missing, unreadable or holds no concept page rows (an index
+file alone says nothing: any ``WikiIndexer`` creates it on construction), because listing thousands of pages to read
+fifteen of them would cost more than it finds in a vault the index already covers. Both tiers give each page its one
+best paragraph by ``paragraph_relevance`` and keep it only when the page answers the question, ranked by that score, so
+most questions the vault does not answer inject nothing, one long page cannot take every slot, and the order of the
+mounted vaults never decides which page wins. Every page file it reads goes through the wiki publish gate again, so a
+draft or blocked page never reaches the injected context, and snippets never lead with the page's frontmatter. A shared
+vault is written by another process, so its index file and its page files are read only when they lie inside the vault,
+whatever the index or a symlink says: an indexed page whose file lies outside is held back and logged, and so are the
+rows whose page file is gone (the index was not rebuilt after the pages were removed; one warning per scan says how
+many); only an interim raw entry, which never has a page file, stands on its index row. The scan blocks
+on file and database reads, so each turn scans all vaults in one thread, one after the other, of a small pool of its
+own, in a copy of the turn's context so what the scan logs still carries the turn's trace and session ids: the timeout
+fires on time, a slow mount does not stall the loop, and a mount that never answers pins at most that pool's threads
+instead of the default pool every other ``asyncio.to_thread`` caller shares.
 """
 
 from __future__ import annotations
@@ -47,7 +49,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 
-from myrm_agent_harness.api import index_has_pages, is_within_boundary, search_published_index
+from myrm_agent_harness.api import index_has_pages, is_interim_raw_entry, is_within_boundary, search_published_index
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
@@ -65,7 +67,10 @@ from app.services.wiki.knowledge_pack.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_MAX_INDEXED_SNIPPETS = 5
+_MAX_INDEXED_PAGES = 5
+# Rows read to find those pages: a row whose page cannot be read is skipped instead of taking the place of a page behind it.
+_MAX_INDEXED_ROWS = 20
+_MAX_LOGGED_NAMES = 3
 _MAX_SCANNED_FILES = 15
 # A scan that never returns (a mount that does not answer) pins its thread for good; this bounds what it can pin.
 _SCAN_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="knowledge-pack-scan")
@@ -125,8 +130,7 @@ def _paragraphs(text: str) -> list[str]:
 def _best_paragraph(title: str, text: str, terms: Sequence[str]) -> tuple[str, float]:
     """The paragraph of a page that answers the question best, with its relevance; ``("", 0.0)`` when none does.
 
-    The first of equally relevant paragraphs wins. A text made of headings only, such as the one flat line an index
-    row stores for a page that has no file, is read as its first block as it is.
+    The first of equally relevant paragraphs wins. A text made of headings only is read as its first block as it is.
     """
     paragraphs = _paragraphs(text) or [block.strip() for block in text.split("\n\n") if block.strip()][:1]
     best, best_score = "", 0.0
@@ -137,18 +141,12 @@ def _best_paragraph(title: str, text: str, terms: Sequence[str]) -> tuple[str, f
     return best, best_score
 
 
-def _page_snippet(label: str, title: str, body: str, terms: Sequence[str], source_path: Path) -> RelevantSnippet | None:
+def _page_snippet(label: str, title: str, body: str, terms: Sequence[str]) -> RelevantSnippet | None:
     """The snippet a page gives: its best paragraph, or None when no paragraph of it answers the question."""
     paragraph, confidence = _best_paragraph(title, body, terms)
     if not paragraph:
         return None
-    return RelevantSnippet(
-        kb_name=label,
-        article_title=title,
-        snippet=paragraph,
-        confidence=confidence,
-        source_path=str(source_path),
-    )
+    return RelevantSnippet(kb_name=label, article_title=title, snippet=paragraph, confidence=confidence)
 
 
 def _inside_vault(path: Path, vault_path: Path) -> bool:
@@ -159,28 +157,50 @@ def _inside_vault(path: Path, vault_path: Path) -> bool:
     return False
 
 
-def _indexed_page_body(vault_path: Path, concept_name: str, indexed_text: str) -> str:
-    """The text of an indexed page, from its file through the publish gate.
+def _indexed_page_body(vault_path: Path, concept_name: str, indexed_text: str) -> str | None:
+    """The text of an indexed page, from its file through the publish gate; ``None`` when the row has no page file.
 
-    The name comes from an index another process wrote. A page that has no file at all (a raw interim entry, or a link
-    that points at nothing) stands on its index row; a page whose file lies outside the vault, by a name that climbs
-    out of it or a link, is held back.
+    The name comes from an index another process wrote. A page whose file lies outside the vault, by a name that climbs
+    out of it or a link, is held back, and so is a draft, blocked or unreadable page: all give empty text. A row with no
+    page file is the index outliving the page (a link that points at nothing is no file either): the publish gate reads
+    the page file, and without one there is nothing to verify the row against. Only an interim raw entry, which never
+    has a page file, stands on its index row.
     """
     for candidate in (vault_path / "wiki" / "concepts" / f"{concept_name}.md", vault_path / f"{concept_name}.md"):
         if candidate.is_file():
             return _published_page_body(candidate) if _inside_vault(candidate, vault_path) else ""
-    return indexed_text
+    return indexed_text if is_interim_raw_entry(concept_name) else None
 
 
 def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequence[str]) -> list[RelevantSnippet]:
-    """Tier 1: the best paragraph of each published page the vault's FTS index ranks first for the question."""
+    """Tier 1: the best paragraph of each of the first published pages the vault's FTS index ranks for the question.
+
+    A row whose page cannot be read is skipped, so it never takes the place of a page ranked behind it; the rows that
+    have no page file are logged together, once, so an index holding rows its vault cannot back shows up in the log.
+    """
     fts_query = " OR ".join(f'"{t}"' for t in terms)
     found: list[RelevantSnippet] = []
-    for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_SNIPPETS):
+    fileless: list[str] = []
+    pages = 0
+    for concept_name, indexed_text in search_published_index(db_path, fts_query, limit=_MAX_INDEXED_ROWS):
         body = _indexed_page_body(vault_path, concept_name, indexed_text)
-        snippet = _page_snippet(label, concept_name, body, terms, db_path)
+        if body is None:
+            fileless.append(concept_name)
+        if not body:
+            continue
+        snippet = _page_snippet(label, concept_name, body, terms)
         if snippet:
             found.append(snippet)
+        pages += 1
+        if pages == _MAX_INDEXED_PAGES:
+            break
+    if fileless:
+        logger.warning(
+            "Shared vault %s: %d index row(s) have no page file and are skipped, e.g. %s",
+            vault_path,
+            len(fileless),
+            ", ".join(repr(name) for name in fileless[:_MAX_LOGGED_NAMES]),
+        )
     return found
 
 
@@ -196,7 +216,7 @@ def _markdown_snippets(vault_path: Path, label: str, terms: Sequence[str]) -> li
     for md_file in md_files:
         if not _inside_vault(md_file, vault_path):
             continue
-        snippet = _page_snippet(label, md_file.stem, _published_page_body(md_file), terms, md_file)
+        snippet = _page_snippet(label, md_file.stem, _published_page_body(md_file), terms)
         if snippet:
             found.append(snippet)
     return found
@@ -206,10 +226,7 @@ class KnowledgePackSelector:
     """Selector that deduplicates and enforces hard budget on proactive snippets."""
 
     def __init__(self, config: KnowledgePackConfig | None = None) -> None:
-        self._config = config or KnowledgePackConfig(
-            pack_id="default",
-            name="Default Knowledge Pack",
-        )
+        self._config = config or KnowledgePackConfig()
 
     def select(
         self,
@@ -263,7 +280,6 @@ class KnowledgePackSelector:
                     article_title=candidate.article_title,
                     snippet=truncated_text,
                     confidence=candidate.confidence,
-                    source_path=candidate.source_path,
                 )
             )
 

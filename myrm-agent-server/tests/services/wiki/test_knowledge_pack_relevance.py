@@ -110,7 +110,7 @@ async def test_the_vault_that_answers_most_of_the_question_wins_whatever_the_vau
     """The ranking comes from how much of the question a paragraph answers, not from which vault is listed first."""
     partial = make_vault(tmp_path, "partial", {"Partial": "zulu yankee xray notes"}, indexed=indexed)
     full = make_vault(tmp_path, "full", {"Full": "zulu yankee xray whiskey victor uniform notes"}, indexed=indexed)
-    config = KnowledgePackConfig(pack_id="p", name="p", max_snippets=1)
+    config = KnowledgePackConfig(max_snippets=1)
     question = "zulu yankee xray whiskey victor uniform"
 
     assert await titles(question, partial, full, config=config) == ["Full"]
@@ -192,7 +192,7 @@ async def test_the_markdown_scan_picks_the_strongest_paragraph_of_all_pages_not_
         "z-guide": "Zephyr budget limit memo golf.\n\nZephyr budget limit hotel berlin night rules.",
     }
     vault = make_vault(tmp_path, "kb", pages, indexed=False)
-    config = KnowledgePackConfig(pack_id="p", name="p", max_snippets=1)
+    config = KnowledgePackConfig(max_snippets=1)
 
     assert await titles("zephyr budget limit hotel berlin night", vault, config=config) == ["z-guide"]
 

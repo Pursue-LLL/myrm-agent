@@ -5,7 +5,8 @@
 - connection_probes.error_text::safe_err_msg (POS: credential-safe error text)
 
 [OUTPUT]
-- router: ``POST /{platform}/test`` for Feishu, DingTalk, Slack, Discord, WeCom, Teams, Matrix, Telegram, Google Chat, QQ
+- router: ``POST /{platform}/test`` for Feishu, DingTalk, Slack, Discord, WeCom, Teams, Matrix, Telegram, Google Chat, QQ,
+  LINE, Zalo, Mattermost
 - safe_err_msg: the error text every probe answers with
 
 [POS]
