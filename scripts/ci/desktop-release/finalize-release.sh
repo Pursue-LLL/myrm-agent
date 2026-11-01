@@ -14,12 +14,14 @@ use_release_tag
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
+# The stderr of each gh call lands here, so a failure carries gh's own words into its annotation.
+gh_err="$WORK_DIR/gh.err"
 
 cd "$WORK_DIR"
 mkdir -p assets
-if ! release_json="$(gh release view "$TAG" --repo "$REPO" --json assets 2>"$WORK_DIR/gh.err")"; then
+if ! release_json="$(gh release view "$TAG" --repo "$REPO" --json assets 2>"$gh_err")"; then
   recent_tags="$(gh release list --repo "$REPO" --limit 5 --json tagName --jq '.[].tagName' 2>/dev/null | tr '\n' ' ' || true)"
-  fail "[finalize-release] cannot read release ${TAG} of ${REPO}: $(<"$WORK_DIR/gh.err") Latest releases: ${recent_tags:-<none readable>}"
+  fail "[finalize-release] cannot read release ${TAG} of ${REPO}: $(<"$gh_err") Latest releases: ${recent_tags:-<none readable>}"
 fi
 expected_count="$(jq '.assets | length' <<<"$release_json")"
 local_count=0
@@ -27,7 +29,8 @@ max_attempts=6
 shopt -s nullglob
 for attempt in $(seq 1 "$max_attempts"); do
   rm -rf assets/*
-  gh release download "$TAG" --repo "$REPO" --dir assets || fail "[finalize-release] downloading the assets of ${TAG} failed"
+  gh release download "$TAG" --repo "$REPO" --dir assets 2>"$gh_err" \
+    || fail "[finalize-release] downloading the assets of ${TAG} failed: $(<"$gh_err")"
   shopt -s nullglob
   local_count=0
   for f in assets/*; do
@@ -57,7 +60,8 @@ for file in "${ASSETS[@]}"; do
 done
 
 VERSION="${TAG#v}"
-release_meta="$(gh api "repos/${REPO}/releases/tags/${TAG}")" || fail "[finalize-release] cannot read the metadata of release ${TAG}"
+release_meta="$(gh api "repos/${REPO}/releases/tags/${TAG}" 2>"$gh_err")" \
+  || fail "[finalize-release] cannot read the metadata of release ${TAG}: $(<"$gh_err")"
 PUB_DATE="$(jq -r '.published_at // empty' <<<"$release_meta")"
 NOTES="$(jq -r '.body // ""' <<<"$release_meta")"
 
@@ -146,5 +150,6 @@ for checksum in assets/*.sha256; do
   [[ -f "$checksum" ]] && UPLOAD+=("$checksum")
 done
 
-gh release upload "$TAG" --repo "$REPO" "${UPLOAD[@]}" --clobber || fail "[finalize-release] uploading the manifest and checksums to ${TAG} failed"
+gh release upload "$TAG" --repo "$REPO" "${UPLOAD[@]}" --clobber 2>"$gh_err" \
+  || fail "[finalize-release] uploading the manifest and checksums to ${TAG} failed: $(<"$gh_err")"
 echo "Uploaded manifest and checksums to $TAG"

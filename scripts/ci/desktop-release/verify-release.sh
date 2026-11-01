@@ -10,11 +10,16 @@ source "${SCRIPT_DIR}/release-common.sh"
 REPO="${GITHUB_REPOSITORY:?Set GITHUB_REPOSITORY}"
 use_release_tag
 
+# The stderr of each curl / gh call lands here, so a failure carries the tool's own words into its annotation.
+call_err="$(mktemp)"
+trap 'rm -f "$call_err"' EXIT
+
 MANIFEST_URL="https://github.com/${REPO}/releases/download/${TAG}/latest.json"
 VERSION="${TAG#v}"
 
 echo "[verify-release] Fetching ${MANIFEST_URL}"
-manifest="$(curl -fsSL "$MANIFEST_URL")" || fail "[verify-release] cannot fetch ${MANIFEST_URL}"
+manifest="$(curl -fsSL "$MANIFEST_URL" 2>"$call_err")" \
+  || fail "[verify-release] cannot fetch ${MANIFEST_URL}: $(<"$call_err")"
 
 manifest_version="$(jq -r '.version // empty' <<<"$manifest")"
 if [[ "$manifest_version" != "$VERSION" ]]; then
@@ -71,7 +76,8 @@ if [[ "$invalid_ota_url" -ne 0 ]]; then
   exit 1
 fi
 
-release_json="$(gh release view "$TAG" --repo "$REPO" --json assets)" || fail "[verify-release] cannot read release ${TAG} of ${REPO}"
+release_json="$(gh release view "$TAG" --repo "$REPO" --json assets 2>"$call_err")" \
+  || fail "[verify-release] cannot read release ${TAG} of ${REPO}: $(<"$call_err")"
 asset_names="$(jq -r '.assets[].name' <<<"$release_json")"
 
 require_asset() {

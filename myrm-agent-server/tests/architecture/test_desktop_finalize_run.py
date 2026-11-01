@@ -40,6 +40,7 @@ class _Manifest(TypedDict):
 _GH = """#!/usr/bin/env bash
 # Serves $RELEASE_DIR as the release $RELEASE_TAG; every call is logged to $CALLS_LOG.
 echo "gh $*" >>"$CALLS_LOG"
+if [[ -n "${GH_FAIL:-}" && "$1 $2" == "$GH_FAIL"* ]]; then echo "stand-in failure of $GH_FAIL" >&2; exit 1; fi
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
   case "${args[i]}" in
@@ -65,7 +66,7 @@ esac
 
 _CURL = """#!/usr/bin/env bash
 # The public download URL of latest.json serves what the release holds.
-[[ -f "$RELEASE_DIR/latest.json" ]] || exit 22
+[[ -f "$RELEASE_DIR/latest.json" ]] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }
 cat "$RELEASE_DIR/latest.json"
 """
 
@@ -183,6 +184,29 @@ def test_a_required_platform_without_a_signature_names_the_platform(release: Rel
     assert done.returncode == 1
     assert f"{_ANNOTATION}[finalize-release] required OTA platform linux-x86_64 missing .sig" in done.stdout
     assert not (release.assets / "latest.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("failing_call", "what"),
+    [
+        ("release download", "downloading the assets of v0.1.40 failed"),
+        ("api repos/", "cannot read the metadata of release v0.1.40"),
+        ("release upload", "uploading the manifest and checksums to v0.1.40 failed"),
+    ],
+)
+def test_a_failing_gh_call_names_its_step_and_carries_gh_own_words(release: Release, failing_call: str, what: str) -> None:
+    done = release.run("finalize-release.sh", REQUIRED_OTA_PLATFORM_KEYS=_ALL_PLATFORMS, GH_FAIL=failing_call)
+
+    assert done.returncode == 1
+    assert f"{_ANNOTATION}[finalize-release] {what}: stand-in failure of {failing_call}" in done.stdout
+
+
+def test_verify_names_the_manifest_it_could_not_fetch(release: Release) -> None:
+    done = release.verify()
+
+    assert done.returncode == 1
+    manifest_url = f"https://github.com/{_REPO}/releases/download/{_TAG}/latest.json"
+    assert f"{_ANNOTATION}[verify-release] cannot fetch {manifest_url}: curl: (22)" in done.stdout
 
 
 def test_verify_names_every_platform_the_manifest_lacks(release: Release) -> None:
