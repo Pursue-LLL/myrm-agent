@@ -3,13 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { parseApplyFailure, parseHeldReason } from '@/lib/skills/growthReason';
 
 describe('parseHeldReason', () => {
-  it('reads the skills a draft was found similar to', () => {
-    expect(parseHeldReason('similar:deploy-flow,release_notes')).toEqual({
-      kind: 'similar',
-      names: ['deploy-flow', 'release_notes'],
-    });
-  });
-
   it.each([
     ['scan_failed', { kind: 'scanFailed' }],
     ['evolution_locked', { kind: 'evolutionLocked' }],
@@ -18,8 +11,6 @@ describe('parseHeldReason', () => {
   });
 
   it.each([
-    ['empty similar list', 'similar:'],
-    ['separators only', 'similar:,,'],
     ['risk signals (handled by scanRiskText)', 'risk:scan_unavailable'],
     ['apply failure (handled by applyError)', 'apply_failed'],
     ['an unknown code', 'manual_review'],

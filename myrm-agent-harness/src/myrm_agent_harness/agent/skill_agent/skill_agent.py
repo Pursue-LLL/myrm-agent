@@ -72,7 +72,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.scanning import (
         ScanningSkillWriteBackend,
     )
-    from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
     from myrm_agent_harness.backends.skills.state_manager import SkillStateManager
     from myrm_agent_harness.backends.skills.types import SkillInstance
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -151,7 +150,6 @@ class SkillAgent(
         wiki_public_dir_labels: dict[str, str] | None = None,
         wiki_search_fn: "SemanticSearchFn | None" = None,
         wiki_scope_id: str | None = None,
-        similarity_checker: "SkillSimilarityChecker | None" = None,
         on_session_cleanup: "Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]] | None" = None,
         on_loaded_skills_persist: "Callable[[list[str], str | None], Awaitable[None]] | None" = None,
         extraction_lifecycle_observer: "ExtractionLifecycleObserver | None" = None,
@@ -200,7 +198,6 @@ class SkillAgent(
         self._trusted_skill_ids: frozenset[str] = frozenset(trusted_skill_ids) if trusted_skill_ids else frozenset()
         self._skill_env_map = skill_env_map
         self._desired_skill_ids: list[str] | None = desired_skill_ids
-        self._similarity_checker: SkillSimilarityChecker | None = similarity_checker
         self._global_env = global_env
         self._wiki_base_dir = wiki_base_dir
         self._wiki_public_dirs = list(wiki_public_dirs) if wiki_public_dirs else []

@@ -43,7 +43,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.scanning import (
         ScanningSkillWriteBackend,
     )
-    from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +121,6 @@ class SkillManageInput(BaseModel):
 def create_skill_manage_tool(
     write_backend: ScanningSkillWriteBackend,
     skill_backend: SkillBackend | None,
-    similarity_checker: SkillSimilarityChecker | None = None,
     *,
     locale: str | None = None,
     batch_committed_hook: SkillManageBatchCommittedHook | None = None,
@@ -150,7 +148,6 @@ def create_skill_manage_tool(
             return await run_skill_manage_batch(
                 write_backend=write_backend,
                 skill_backend=skill_backend,
-                similarity_checker=similarity_checker,
                 operations=op_dicts,
                 batch_committed_hook=batch_committed_hook,
                 snapshot_reader=snapshot_reader,

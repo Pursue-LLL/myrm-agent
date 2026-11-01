@@ -741,31 +741,6 @@ async def build_general_agent(
         engine_params=normalized_engine_params,
         mcp_surface_mode=mcp_surface_mode,
     )
-    # Build similarity checker (for anti-entropy dedup in skill_manage_tool + growth_lifecycle)
-    sim_checker = None
-    if skill_backend and agent_wrapper.embedding_config:
-        try:
-            from myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine import (
-                HybridSkillSearchEngine,
-            )
-
-            from app.services.skills.similarity_checker import HybridSimilarityChecker
-
-            all_backend_skills = await skill_backend.list_skills()
-            if all_backend_skills:
-                engine = HybridSkillSearchEngine(all_backend_skills, agent_wrapper.embedding_config)
-                sim_checker = HybridSimilarityChecker(engine)
-                logger.info(
-                    "Skill similarity checker enabled (%d skills indexed)",
-                    len(all_backend_skills),
-                )
-        except Exception as e:
-            logger.warning("Failed to build similarity checker (non-blocking): %s", e)
-
-    # Also inject into growth_lifecycle for backend auto-review dedup
-    from app.services.skills.growth.lifecycle import set_similarity_checker
-
-    set_similarity_checker(sim_checker)
 
     library_skill_names: frozenset[str] = frozenset()
     if skill_backend is not None:
@@ -801,7 +776,6 @@ async def build_general_agent(
             tools,
             versioned_write_backend,
             skill_backend,
-            sim_checker,
             auxiliary_llm=fallback_llm or llm,
         )
 
@@ -853,7 +827,6 @@ async def build_general_agent(
         wiki_public_dirs=(agent_wrapper._resolve_wiki_public_dirs() if agent_wrapper.enable_wiki else None),
         wiki_public_dir_labels=(agent_wrapper._resolve_wiki_public_dir_labels() if agent_wrapper.enable_wiki else None),
         wiki_scope_id=agent_wrapper.agent_id,
-        similarity_checker=sim_checker,
         file_access_mode=effective_file_access,
         enable_shell_tools=effective_enable_shell,
         enable_answer_tool=agent_wrapper.enable_answer_tool,

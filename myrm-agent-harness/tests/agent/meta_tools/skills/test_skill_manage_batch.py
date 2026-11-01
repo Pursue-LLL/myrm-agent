@@ -33,7 +33,6 @@ async def test_batch_aborts_and_rolls_back_on_second_op_failure() -> None:
     result = await run_skill_manage_batch(
         write_backend=write_backend,
         skill_backend=skill_backend,
-        similarity_checker=None,
         operations=[
             {"action": "write_file", "name": "demo", "file_path": "scripts/a.py", "content": "new"},
             {"action": "write_file", "name": "demo", "file_path": "scripts/b.py", "content": "bad"},

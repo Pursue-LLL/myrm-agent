@@ -1,7 +1,7 @@
 # manage/
 
 ## Overview
-Skill management meta tool. Supports optional similarity checking to warn about semantically duplicate skills on save.
+Skill management meta tool: atomic skill_manage batches (save, patch, delete, supporting files, lock/unlock).
 
 ## File & Submodule Index
 

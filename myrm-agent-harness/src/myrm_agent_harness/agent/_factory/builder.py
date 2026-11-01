@@ -46,7 +46,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.scanning import (
         ScanningSkillWriteBackend,
     )
-    from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
     from myrm_agent_harness.backends.skills.state_manager import SkillStateManager
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -97,7 +96,6 @@ async def create_skill_agent(
     wiki_public_dir_labels: dict[str, str] | None = None,
     wiki_search_fn: SemanticSearchFn | None = None,
     wiki_scope_id: str | None = None,
-    similarity_checker: SkillSimilarityChecker | None = None,
     on_session_cleanup: (Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]] | None) = None,
     on_loaded_skills_persist: (Callable[[list[str], str | None], Awaitable[None]] | None) = None,
     extraction_lifecycle_observer: ExtractionLifecycleObserver | None = None,
@@ -430,7 +428,6 @@ async def create_skill_agent(
         wiki_public_dir_labels=wiki_public_dir_labels,
         wiki_search_fn=wiki_search_fn,
         wiki_scope_id=wiki_scope_id or spec.agent_id,
-        similarity_checker=similarity_checker,
         on_session_cleanup=on_session_cleanup,
         on_loaded_skills_persist=on_loaded_skills_persist,
         extraction_lifecycle_observer=extraction_lifecycle_observer,

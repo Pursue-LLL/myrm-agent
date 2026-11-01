@@ -145,9 +145,7 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
         <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('heldReason.title')}</p>
           <p className="mt-1 break-words text-sm text-foreground">
-            {t(`heldReason.${heldReason.kind}`, {
-              names: heldReason.kind === 'similar' ? heldReason.names.join(', ') : '',
-            })}
+            {t(`heldReason.${heldReason.kind}`)}
           </p>
         </div>
       )}

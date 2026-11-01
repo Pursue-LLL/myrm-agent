@@ -140,16 +140,6 @@ describe('SkillGrowthCaseCard held-for-review explanation', () => {
     expect(screen.queryByText(growthCopy.heldReason.title)).toBeNull();
   });
 
-  it('names the skills a draft was found similar to without exposing the code', () => {
-    renderCard(makeItem({ reasonCode: 'similar:deploy-flow,release_notes' }));
-
-    expect(screen.getByText(growthCopy.heldReason.title)).toBeInTheDocument();
-    expect(
-      screen.getByText(growthCopy.heldReason.similar.replace('{names}', 'deploy-flow, release_notes')),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/similar:/)).toBeNull();
-  });
-
   it.each([
     ['scan_failed', growthCopy.heldReason.scanFailed],
     ['evolution_locked', growthCopy.heldReason.evolutionLocked],
@@ -226,7 +216,7 @@ describe('SkillGrowthCaseCard held-for-review explanation', () => {
   });
 
   it('shows no technical details when there is nothing technical to show', () => {
-    renderCard(makeItem({ reasonCode: 'similar:deploy-flow' }));
+    renderCard(makeItem({ reasonCode: 'evolution_locked' }));
 
     expect(screen.queryByText(growthCopy.technical.toggle)).toBeNull();
   });

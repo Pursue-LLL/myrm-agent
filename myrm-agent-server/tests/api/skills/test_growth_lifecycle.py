@@ -1,7 +1,6 @@
 """Integration tests for the unified skill growth lifecycle."""
 
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,7 +10,7 @@ from app.api.skills.drafts import ApproveDraftRequest, approve_skill_draft
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, ExperienceLedgerEvent
 from app.services.skills.growth.case_types import SkillGrowthCaseStatus
-from app.services.skills.growth.lifecycle import process_skill_review_result, set_similarity_checker
+from app.services.skills.growth.lifecycle import process_skill_review_result
 from app.services.skills.growth.queries import get_skill_growth_case_detail
 
 
@@ -343,36 +342,9 @@ async def test_process_skill_review_result_keeps_semantic_memory_in_sandbox(
             await db.commit()
 
 
-class _SimilarSkillChecker:
-    async def find_similar(self, name: str, description: str, top_k: int, threshold: float) -> list[SimpleNamespace]:
-        return [SimpleNamespace(name="weekly-report", similarity_score=0.9)]
-
-
 def _approved_description(skill_dir: Path) -> str:
     skill_md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
     return next(line for line in skill_md.splitlines() if line.startswith("description:"))
-
-
-@pytest.mark.asyncio
-async def test_similar_skill_note_is_a_reason_code_and_never_reaches_the_approved_skill(
-    mock_local_skills_dir: Path,
-) -> None:
-    set_similarity_checker(_SimilarSkillChecker())
-    try:
-        draft = await process_skill_review_result(_skill_draft("weekly-report-copy", steps="1. Build the report."))
-    finally:
-        set_similarity_checker(None)
-
-    assert draft is not None
-    assert draft.reason == "Build and share the weekly report."
-    detail = await get_skill_growth_case_detail(f"draft:{draft.id}")
-    assert detail is not None
-    assert detail.reason_code == "similar:weekly-report"
-
-    await approve_skill_draft(draft.id, ApproveDraftRequest())
-    assert _approved_description(mock_local_skills_dir / "weekly-report-copy") == (
-        'description: "Build and share the weekly report."'
-    )
 
 
 @pytest.mark.asyncio

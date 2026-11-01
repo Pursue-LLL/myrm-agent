@@ -49,7 +49,6 @@ MAX_PENDING_PROPOSALS = 50
 # Why a growth case needs a human. Stored as ``reason_code`` (never in the description, which becomes the
 # skill's own description on approval); the front end renders the localized explanation.
 REASON_RISK_PREFIX = "risk:"
-REASON_SIMILAR_PREFIX = "similar:"
 REASON_SCAN_FAILED = "scan_failed"
 REASON_EVOLUTION_LOCKED = "evolution_locked"
 REASON_APPLY_FAILED = "apply_failed"

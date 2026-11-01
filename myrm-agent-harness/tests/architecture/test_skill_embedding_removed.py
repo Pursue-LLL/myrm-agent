@@ -89,7 +89,7 @@ _REMOVALS = (
 )
 
 # Removals not yet carried out; each step of the work deletes its own entry when it lands.
-_PENDING = {"skill-search-embedding", "skill-creation-similarity"}
+_PENDING = {"skill-search-embedding"}
 
 
 def _params(removals: tuple[_Removal, ...]) -> list[object]:

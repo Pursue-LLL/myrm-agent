@@ -2,7 +2,6 @@
 
 [INPUT]
 - backends.skills.scanning::ScanningSkillWriteBackend (POS: Framework-level security wrapper for SkillWriteBackend)
-- backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
 - agent.context_management.context::extract_context_from_runnable_config (POS: Context extraction helper)
 - utils.fuzzy_match::fuzzy_replace (POS: Progressive fuzzy replace utility)
 - agent.skills.evolution.core.skill_on_disk::skill_from_disk (POS: The SKILL.md of a skill as it is on disk, the text and the evolution lock the evolution engine works from)
@@ -40,7 +39,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.scanning import (
         ScanningSkillWriteBackend,
     )
-    from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +48,6 @@ __all__ = [
     "SKILL_NAME_PATTERN",
     "SkillContentSource",
     "_apply_patch",
-    "_check_similarity",
     "_extract_user_id",
     "_handle_delete",
     "_handle_evolution_lock",
@@ -91,7 +88,6 @@ async def _handle_save(
     name: str,
     content: str,
     description: str,
-    similarity_checker: SkillSimilarityChecker | None = None,
 ) -> str:
     """Handle the 'save' action: create or fully replace a skill."""
     if not content or not content.strip():
@@ -111,36 +107,11 @@ async def _handle_save(
             f"  Path: {result.saved_path}\n\n"
             f"The skill will be available in the user's next conversation."
         )
-        if not result.was_updated:
-            similarity_warning = await _check_similarity(similarity_checker, name, description)
-            if similarity_warning:
-                msg += f"\n\n--- Similarity Warning ---\n{similarity_warning}"
         if result.scan_report and "finding(s)" in result.scan_report:
             msg += f"\n\n--- Security Scan ---\n{result.scan_report}"
         return msg
 
     return f"Error: {result.error}"
-
-
-async def _check_similarity(
-    checker: SkillSimilarityChecker | None,
-    name: str,
-    description: str,
-) -> str:
-    """Check for semantically similar existing skills. Returns warning text or empty string."""
-    if checker is None:
-        return ""
-    try:
-        similar = await checker.find_similar(name, description, top_k=3, threshold=0.6)
-        if not similar:
-            return ""
-        lines = ["Similar skill(s) already exist. Consider using 'patch' to update instead of creating a duplicate:"]
-        for s in similar:
-            lines.append(f"  - '{s.name}' ({s.similarity_score:.0%} similar): {s.description}")
-        return "\n".join(lines)
-    except Exception as e:
-        logger.warning("Similarity check failed (non-blocking): %s", e)
-        return ""
 
 
 async def _handle_patch(

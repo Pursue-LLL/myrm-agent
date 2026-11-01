@@ -19113,7 +19113,6 @@
         "applyFailureBodyUnloadable": "Die vorgeschlagene Version ist keine gültige Fähigkeitsdatei und kann nicht angewendet werden. Überarbeiten Sie sie oder lehnen Sie den Vorschlag ab.",
         "heldReason": {
           "title": "Warum Ihre Prüfung nötig ist",
-          "similar": "Sie ähnelt vorhandenen Fähigkeiten: {names}. Genehmigen Sie sie nur, wenn sie etwas Neues bringt.",
           "evolutionLocked": "Die Fähigkeit, die sie ändern würde, ist vor automatischen Updates geschützt und wartet daher auf Ihre Entscheidung.",
           "scanFailed": "Sie hat die automatische Sicherheitsprüfung nicht bestanden. Sehen Sie sich die Befunde oben an, bevor Sie entscheiden."
         },

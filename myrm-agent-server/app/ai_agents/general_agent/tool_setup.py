@@ -189,7 +189,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         tools: list[object],
         write_backend: object,
         skill_backend: object,
-        similarity_checker: object | None,
         *,
         auxiliary_llm: object | None = None,
     ) -> None:
@@ -221,7 +220,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             create_skill_manage_tool(
                 scanning_backend,
                 skill_backend,
-                similarity_checker,
                 batch_committed_hook=ServerSkillManageBatchHook(),
                 snapshot_reader=ManagedSkillSnapshotReader(skill_creation_service),
             )

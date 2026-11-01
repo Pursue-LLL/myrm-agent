@@ -90,7 +90,6 @@ async def _run(
     return await run_skill_manage_batch(
         write_backend=write_backend or make_write_backend(),
         skill_backend=None,
-        similarity_checker=None,
         operations=operations,
         batch_committed_hook=hook,
         snapshot_reader=reader or make_reader(STORED),

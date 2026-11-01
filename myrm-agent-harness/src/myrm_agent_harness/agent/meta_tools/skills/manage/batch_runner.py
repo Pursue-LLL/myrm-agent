@@ -44,7 +44,6 @@ from myrm_agent_harness.agent.meta_tools.skills.manage._manage_handlers import (
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
     from myrm_agent_harness.backends.skills.scanning import ScanningSkillWriteBackend
-    from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +205,6 @@ def _collect_touch_sets(
 async def _run_single_op(
     write_backend: ScanningSkillWriteBackend,
     patch_source: SkillContentSource | None,
-    similarity_checker: SkillSimilarityChecker | None,
     op: dict[str, object],
     index: int,
 ) -> str:
@@ -218,7 +216,6 @@ async def _run_single_op(
             name,
             str(op.get("content") or ""),
             str(op.get("description") or ""),
-            similarity_checker,
         )
     if action == "patch":
         return await _handle_patch(
@@ -315,7 +312,6 @@ async def run_skill_manage_batch(
     *,
     write_backend: ScanningSkillWriteBackend,
     skill_backend: SkillBackend | None,
-    similarity_checker: SkillSimilarityChecker | None,
     operations: list[dict[str, object]],
     batch_committed_hook: SkillManageBatchCommittedHook | None = None,
     snapshot_reader: SkillSnapshotReader | None = None,
@@ -357,7 +353,7 @@ async def run_skill_manage_batch(
         for i, op in _execution_order(normalized):
             name = str(op["name"])
             was_locked = _evolution_lock_state(name) if op["action"] in _LOCK_ACTIONS else None
-            msg = await _run_single_op(write_backend, patch_source, similarity_checker, op, i)
+            msg = await _run_single_op(write_backend, patch_source, op, i)
             if _is_error_result(msg):
                 raise RuntimeError(f"operations[{i}] ({op['action']} on '{name}'): {msg}")
             if was_locked is not None:

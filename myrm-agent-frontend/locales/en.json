@@ -19113,7 +19113,6 @@
         "applyFailureBodyUnloadable": "The proposed version is not a valid skill file, so it can't be applied. Revise it, or reject the proposal.",
         "heldReason": {
           "title": "Why it needs your review",
-          "similar": "It looks similar to skills you already have: {names}. Approve it only if it adds something new.",
           "evolutionLocked": "The skill it would change is protected from automatic updates, so it waits for your decision.",
           "scanFailed": "It didn't pass the automatic safety check. Review the findings above before deciding."
         },

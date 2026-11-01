@@ -46,7 +46,7 @@ class SkillAgentToolsMixin:
 
     Requires the following attributes from SkillAgent:
     - skill_backend, market_backend, write_backend
-    - _embedding_config, skill_configs, _similarity_checker
+    - _embedding_config, skill_configs
     - _file_access_mode, _enable_shell_tools
     - _skill_env_map, _default_skill_instances, state_manager
     - llm, config
@@ -128,7 +128,6 @@ class SkillAgentToolsMixin:
                 create_skill_manage_tool(
                     self.write_backend,  # type: ignore[attr-defined]
                     self.skill_backend,  # type: ignore[attr-defined]
-                    self._similarity_checker,  # type: ignore[attr-defined]
                     locale=prompt_locale,
                 )
             )

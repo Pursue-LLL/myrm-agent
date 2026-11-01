@@ -727,7 +727,7 @@ Scanner（编排器）
 1. 触发源 (Triggers) →
    - 运行时失败（FIX）：Harness 把失败的工具调用归因到已加载的技能并发出 `SkillFailureEvent`；Server 的 `skill_immune_service` 做业务分类（配置、环境、瞬时故障只落拦截案例，不改技能）、按错误签名幂等去重，其余交给 `SkillEvolutionEngine.fix_skill` 起草修复。
    - 用户反馈与不满：用户在 GUI 里给技能提的反馈走 DERIVED 请求；Server 的不满路由（`frustration_routing.py`）在一轮对话结束后扫描对话，命中偏好类不满信号时，把提炼出的偏好作为技能补丁草稿交给 `process_skill_review_result` 进入用户审核，不经过进化引擎。
-   - 后台复盘（新技能）：Harness 的复盘结果统一交给 `process_skill_review_result`：依次过锁定/已存在、语义去重、CRITICAL 预检和高危新增复核，安全的新技能自动落盘，其余进入人工审核。
+   - 后台复盘（新技能）：Harness 的复盘结果统一交给 `process_skill_review_result`：依次过锁定/已存在、CRITICAL 预检和高危新增复核，安全的新技能自动落盘，其余进入人工审核。
 2. 失败轨迹 (Failure Trajectory，仅 FIX) →
    - `TraceAnalyzer.extract_trajectory(session_id, skill_id)` 读事件日志的末尾（聊天的日志含该聊天的所有轮次，限量读取只返回开头）：失败那个会话的概览、失败模式、工具统计、最近 20 条失败聚类后的错误、工具事件总数和最近 5 条工具事件（英文，约 1500 token 预算），再附上人类接管示范。技能全文不进轨迹：变体生成与评审各自完整接收技能正文，不再截断。
    - `session_id` 是事件日志的文件名。聊天的日志以聊天 ID 命名，Server 在调用前把失败事件里的会话键换成它，并要求结果是安全的文件名。
@@ -771,29 +771,25 @@ Scanner（编排器）
 - **两把锁，任一为真即锁定**：文件锁是 SKILL.md frontmatter 里的 `evolution-locked`（持久；宿主应用创建技能时可默认写入，用户也可手写）；库里的 `evolution_locked` 是 agent 经 `skill_manage lock/unlock` 设置的临时编辑保护，宿主应用也可经 `set_evolution_lock` 写同一个标志。`lock/unlock` 只写库、不写文件，所以 unlock 解除不了文件里的锁；文件里的锁还在时，unlock 的返回文本如实说明，不再回复「已重新启用」，是否移除由用户决定。
 - **防覆盖保护**：不论是 FIX 还是 DERIVED 进化，锁定状态均作为防御纵深，确保持久化内容绝对不会被修改，将代码控制权完全交还给用户。
 
-### 14.4 语义去重防御 (Semantic Deduplication)
+### 14.4 重复技能防御 (Duplicate Skill Defense)
 
 随着技能数量增长，功能相似但名称不同的 skill 会不断累积（"Skill 熵增"），导致 Agent 变慢变笨。
-系统实现了三层纵深防御来防止语义级重复：
+系统不用嵌入向量判断技能相似度，靠创建前的 LLM 判断与创建后的整理器收敛：
 
-**三层防御架构**：
+**两道防线**：
 
 ```
-第 1 层（软）: reviewer prompt → 传入全量 skill 目录 → LLM 自主判断转 patch
-第 2 层（硬）: growth_lifecycle → 代码级语义搜索 → 高相似度 draft 降级为人工审核
-第 3 层（硬）: manage_tool → 相似度警告 → Agent 可感知并选择 patch 而非创建新 skill
+创建前: reviewer prompt → 传入全量 skill 目录（名称 + 描述）→ LLM 自主判断转 patch 还是新建
+创建后: curator 整并 → 按名字前缀聚类 → LLM 判官出整并计划 → 默认关闭，先预览再确认
 ```
 
 **核心组件**：
-- `SkillSimilarityChecker` Protocol（框架层）：定义语义相似度检查接口
-- `HybridSimilarityChecker`（业务层）：基于 HybridSkillSearchEngine（BM25+Embedding）实现
-- `_check_similarity()`（框架层 manage_tool）：save 操作时返回相似度警告
-- `_check_semantic_duplicate()`（业务层 growth_lifecycle）：自动复盘时拦截重复 draft
+- `agent/skills/evolution/review/reviewer.py`：复盘提示词带全量技能目录；已有技能能覆盖时给 `skill_patch`，没有才给 `skill_draft`
+- `agent/skills/curator/consolidation/`：前缀聚类、判官、执行器（详见该目录的 `_ARCH.md`）
 
 **设计决策**：
-- 所有层均为可选注入（`None` 默认值），不影响已有逻辑
-- 失败时静默降级（try/except + warning log），绝不阻塞正常流程
-- 不阻断创建，只提供信息让 Agent 或人工审核做最终决策
+- 不阻断创建，最终决定权在 Agent 与人工审核
+- 整并默认关闭，且一定先预览再确认
 
 ### 14.5 多智能体技能池与按需加载 (Multi-Agent Skill Pool & On-Demand Loading)
 

@@ -27,7 +27,6 @@ async def test_snapshot_is_read_through_the_snapshot_reader_not_the_turn_backend
     await run_skill_manage_batch(
         write_backend=make_write_backend(),
         skill_backend=turn_backend,
-        similarity_checker=None,
         operations=_SAVE,
         batch_committed_hook=hook,
         snapshot_reader=make_reader(STORED),
@@ -46,7 +45,6 @@ async def test_snapshot_falls_back_to_the_skill_backend_without_a_reader() -> No
     await run_skill_manage_batch(
         write_backend=make_write_backend(),
         skill_backend=make_reader(STORED),
-        similarity_checker=None,
         operations=_SAVE,
         batch_committed_hook=hook,
     )
@@ -61,7 +59,6 @@ async def test_a_skill_the_reader_cannot_find_is_recorded_as_new() -> None:
     await run_skill_manage_batch(
         write_backend=make_write_backend(),
         skill_backend=None,
-        similarity_checker=None,
         operations=_SAVE,
         batch_committed_hook=hook,
         snapshot_reader=make_reader(None),
@@ -79,7 +76,6 @@ async def test_a_committed_batch_reports_its_id_and_the_undo_hint() -> None:
     output = await run_skill_manage_batch(
         write_backend=make_write_backend(),
         skill_backend=None,
-        similarity_checker=None,
         operations=_SAVE,
         batch_committed_hook=hook,
         snapshot_reader=make_reader(STORED),
@@ -100,7 +96,6 @@ async def test_a_delete_is_final_and_leaves_no_undo_record(locale: str, note: st
     output = await run_skill_manage_batch(
         write_backend=make_write_backend(),
         skill_backend=None,
-        similarity_checker=None,
         operations=[{"action": "delete", "name": "demo"}],
         batch_committed_hook=hook,
         snapshot_reader=make_reader(STORED),
@@ -123,7 +118,6 @@ async def test_a_patch_edits_a_skill_the_turn_backend_cannot_see_through_the_wri
     output = await run_skill_manage_batch(
         write_backend=write_backend,
         skill_backend=make_reader(None),
-        similarity_checker=None,
         operations=_PATCH,
         snapshot_reader=make_reader(STORED),
     )
@@ -140,7 +134,6 @@ async def test_a_patch_edits_what_the_writer_will_overwrite_not_a_stale_turn_vie
     output = await run_skill_manage_batch(
         write_backend=write_backend,
         skill_backend=stale_turn_backend,
-        similarity_checker=None,
         operations=_PATCH,
         snapshot_reader=make_reader(STORED),
     )
@@ -157,7 +150,6 @@ async def test_a_patch_falls_back_to_the_turn_backend_for_a_skill_outside_the_wr
     output = await run_skill_manage_batch(
         write_backend=write_backend,
         skill_backend=make_reader(STORED),
-        similarity_checker=None,
         operations=_PATCH,
         snapshot_reader=make_reader(None),
     )

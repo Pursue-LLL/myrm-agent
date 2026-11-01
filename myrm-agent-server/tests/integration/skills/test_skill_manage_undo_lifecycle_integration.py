@@ -95,7 +95,7 @@ async def session_factory(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[asyn
 @pytest.fixture
 def skill_manage_tool(skills_root: Path, session_factory: async_sessionmaker[AsyncSession]) -> BaseTool:
     tools: list[object] = []
-    _Host()._setup_skill_manage_tool(tools, creation_service_module.skill_creation_service, object(), None)
+    _Host()._setup_skill_manage_tool(tools, creation_service_module.skill_creation_service, object())
     return cast("BaseTool", tools[0])
 
 
