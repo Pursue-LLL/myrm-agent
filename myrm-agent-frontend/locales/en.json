@@ -16572,10 +16572,8 @@
       },
       "advancedRetrieval": {
         "title": "Advanced Retrieval",
-        "description": "Pick the most relevant passages when reading web pages and recalling memories, using embedding and reranking models",
         "toggleLabel": "Optimize page reading and memory recall",
         "toggleDescription": "When enabled, long web pages and memories are ranked by relevance with an embedding model and a reranking model, so the most useful passages are prioritized for the LLM. Requires both models to be configured.",
-        "modelsRequired": "Please configure and apply embedding and reranking models first",
         "cannotEnable": "Please configure and apply embedding and reranking models in the Default Model page first"
       },
       "validationMessages": {

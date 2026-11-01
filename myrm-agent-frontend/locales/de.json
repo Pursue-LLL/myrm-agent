@@ -16572,10 +16572,8 @@
       },
       "advancedRetrieval": {
         "title": "Erweiterte Suche",
-        "description": "Mit Embedding- und Reranking-Modellen beim Lesen von Webseiten und Abrufen von Erinnerungen die relevantesten Passagen bevorzugen",
         "toggleLabel": "Seitenlesen und Erinnerungsabruf optimieren",
         "toggleDescription": "Wenn aktiviert, werden lange Webseiten und Erinnerungen mit Embedding- und Reranking-Modellen nach Relevanz sortiert, sodass die nützlichsten Passagen bevorzugt an die LLM gehen (erfordert Embedding- und Reranking-Modellkonfiguration)",
-        "modelsRequired": "Bitte konfigurieren und wenden Sie zuerst Embedding- und Reranking-Modelle an",
         "cannotEnable": "Bitte konfigurieren und wenden Sie Embedding- und Reranking-Modelle zuerst auf der Seite „Standardmodell\" an"
       },
       "validationMessages": {

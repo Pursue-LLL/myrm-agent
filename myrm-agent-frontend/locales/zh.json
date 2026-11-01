@@ -16572,10 +16572,8 @@
       },
       "advancedRetrieval": {
         "title": "高级检索",
-        "description": "使用嵌入和重排序模型，在读取网页和召回记忆时优先选出最相关的内容",
         "toggleLabel": "优化网页读取与记忆召回",
         "toggleDescription": "开启后，将用嵌入和重排序模型对较长的网页内容和记忆按相关性排序，优先把最有用的内容交给 LLM（需先配置嵌入和重排序模型）",
-        "modelsRequired": "请先配置并应用嵌入模型和重排序模型",
         "cannotEnable": "请先在「默认模型」页配置并应用嵌入模型和重排序模型"
       },
       "validationMessages": {

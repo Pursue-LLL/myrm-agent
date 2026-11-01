@@ -16572,10 +16572,8 @@
       },
       "advancedRetrieval": {
         "title": "고급 검색",
-        "description": "임베딩 및 리랭커 모델로 웹 페이지 읽기와 메모리 불러오기에서 가장 관련성 높은 내용을 우선 선택",
         "toggleLabel": "페이지 읽기 및 메모리 불러오기 최적화",
         "toggleDescription": "활성화하면 긴 웹 페이지와 메모리를 임베딩 및 리랭커 모델로 관련성 순으로 정렬해 가장 유용한 내용을 LLM에 우선 전달합니다 (임베딩 및 리랭커 모델 구성 필요)",
-        "modelsRequired": "먼저 임베딩 및 리랭커 모델을 구성하고 적용하세요",
         "cannotEnable": "먼저 기본 모델 페이지에서 임베딩 및 리랭커 모델을 구성하고 적용하세요"
       },
       "validationMessages": {

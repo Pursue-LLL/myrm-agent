@@ -16572,10 +16572,8 @@
       },
       "advancedRetrieval": {
         "title": "高階檢索",
-        "description": "使用嵌入和重排序模型，在讀取網頁和召回記憶時優先選出最相關的內容",
         "toggleLabel": "最佳化網頁讀取與記憶召回",
         "toggleDescription": "開啟後，將用嵌入和重排序模型對較長的網頁內容和記憶按相關性排序，優先把最有用的內容交給 LLM（需先配置嵌入和重排序模型）",
-        "modelsRequired": "請先配置並應用嵌入模型和重排序模型",
         "cannotEnable": "請先在「預設模型」頁配置並應用嵌入模型和重排序模型"
       },
       "validationMessages": {
