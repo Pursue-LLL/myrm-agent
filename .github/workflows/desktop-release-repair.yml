@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Desktop release tag (e.g. v0.1.36)'
+        description: 'Tag of an existing desktop release, e.g. v0.1.40'
         required: true
         type: string
 

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.api.config import ConfigIncompleteError
 
 
 @pytest.fixture
@@ -85,6 +86,40 @@ class TestPrewarmEndpoint:
         assert body["data"]["started"] is True
         assert body["data"]["chat_id"] == "c-prewarm-ok"
         coordinator.ensure_warming.assert_awaited_once()
+
+    def test_prewarm_before_any_llm_provider_is_configured_is_skipped(self, client: TestClient) -> None:
+        """A fresh profile opens the chat page before provider setup; warming has nothing to warm, which is not a server fault."""
+        unconfigured = ConfigIncompleteError(
+            user_friendly_message={"en": "Please configure at least one LLM provider.", "zh": "请先配置 LLM 提供商。"},
+            technical_details="No providers config in WebUI settings",
+            resolution_steps=["Go to Settings > Model Service"],
+        )
+        with (
+            patch(
+                "app.api.agents.general_agent.prewarm.resolve_prewarm_agent_params",
+                new_callable=AsyncMock,
+                side_effect=unconfigured,
+            ),
+            patch("app.api.agents.general_agent.prewarm.get_turn_prewarm_coordinator") as mock_get_coordinator,
+        ):
+            coordinator = MagicMock()
+            coordinator.ensure_warming = AsyncMock()
+            mock_get_coordinator.return_value = coordinator
+
+            resp = client.post(
+                "/api/v1/agents/chats/c-prewarm-unconfigured/prewarm",
+                json={"agentId": "default", "actionMode": "agent"},
+            )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["data"] == {
+            "started": False,
+            "chat_id": "c-prewarm-unconfigured",
+            "reason": "model_not_configured",
+        }
+        coordinator.ensure_warming.assert_not_awaited()
 
     def test_cancel_prewarm(self, client: TestClient) -> None:
         with patch(

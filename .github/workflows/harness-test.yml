@@ -54,10 +54,17 @@ jobs:
       - name: Install dependencies
         run: uv sync --python 3.13 --locked --extra all --group dev
 
+      # The suite takes about 13 minutes. A stalled run would reach the 30-minute job limit, which cancels
+      # every later step and leaves no trace of what hung. The step limit fails it first so the reporting
+      # steps below still run. Per-test progress goes to a log they can read, and a test that outlives
+      # faulthandler_timeout dumps every thread's stack into it before pytest-timeout fires.
       - name: Run unit tests
+        shell: bash
+        timeout-minutes: 25
         run: >-
-          uv run --no-sync pytest -n 2 --dist=loadscope -q --tb=short tests/
-          --junitxml=/tmp/unit.xml
+          uv run --no-sync pytest -n 2 --dist=loadscope -v --tb=short tests/
+          --junitxml=/tmp/unit.xml -o faulthandler_timeout=240
+          2>&1 | tee /tmp/unit.log
 
       # Surface which tests failed without downloading the whole job log: the summary is
       # written to the step summary, which is readable from the run page and the API.
@@ -99,6 +106,49 @@ jobs:
           if not rows:
               print("::error title=failed-tests::no junit entries were written")
           sys.exit(0)
+          EOF
+
+      # A stalled run is killed before pytest writes the junit report, so the progress log is the only
+      # trace: the newest finished test of each worker (the stalled test is the next one in that module)
+      # and, when a test outlived faulthandler_timeout, the thread dump it left behind.
+      - name: Report where a stalled run stopped
+        if: failure() || cancelled()
+        run: |
+          python3 - <<'EOF'
+          import os, re, sys
+
+          if os.path.exists("/tmp/unit.xml"):
+              sys.exit(0)
+          try:
+              with open("/tmp/unit.log", encoding="utf-8", errors="replace") as handle:
+                  lines = handle.read().splitlines()
+          except OSError:
+              sys.exit(0)
+
+          def annotate(title, rows):
+              text = "\n".join(rows).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title={title}::{text}")
+
+          newest = {}
+          for line in lines:
+              match = re.match(r"\[(gw\d+)\]", line)
+              if match:
+                  newest[match.group(1)] = line[:160]
+          annotate("stalled-run-newest-finished-per-worker", list(newest.values()) or ["no test finished"])
+
+          # The dump header shares a line with the id of the test that was running.
+          stalls = [i for i, line in enumerate(lines) if re.search(r"Timeout \(\d+:\d\d:\d\d\)!", line)]
+          if stalls:
+              annotate("stalled-tests", [lines[i][:160] for i in stalls[:20]])
+              dump, frames_left = [], 0
+              for line in lines[stalls[0] : stalls[0] + 150]:
+                  if line.startswith(("Thread 0x", "Current thread")):
+                      dump.append(line)
+                      frames_left = 4
+                  elif frames_left and line.startswith("  File "):
+                      dump.append(line[-140:])
+                      frames_left -= 1
+              annotate("stalled-test-thread-dump", dump)
           EOF
 
   windows-computer-use:

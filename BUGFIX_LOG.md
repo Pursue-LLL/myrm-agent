@@ -16,6 +16,18 @@
 | **仍然存在** | ① 只在假服务器上验证：真实服务器回 `NO` 的频率与措辞没有测量，不知道这类拒绝在真实邮箱里多常见。② 多个 UID 时的部分完成：`mark-read 1,5:9` 在 UID 1 成功、`5:9` 被拒时，UID 1 的标志留着，错误里没有列出已完成的 UID（`\Seen` 重设幂等，调用方重跑即可）。③ 服务器对不存在的 UID 的 `STORE` 回 OK 时脚本照样报告成功（只看状态，不核对哪些邮件被改），没有对真实服务器验证。④ `--limit` 取负数时 `uids[-limit:]` 的方向反转：[实测，7 封邮件] `--limit -5` 取回 2 封，`--limit 3` 取回 3 封，`--limit 0` 回落到默认的 20；没有真实场景，没有改。⑤ 邮件渠道 `app/channels/providers/email/channel.py:334`、`:344` 有同样的 `_status, … = conn.uid(...)` 写法，不在这个脚本里，没有复现，没有改。⑥ 非 ASCII 的搜索词与文件夹名仍然不支持，见「预置邮件技能脚本把用户给的文本原样拼进 IMAP 命令…」条目的「仍然存在」②。 |
 | **代码位置** | server：`assets/prebuilt_skills/imap-smtp-email/scripts/{email_manager.py,mail_client/transport.py}`、`tests/assets/test_imap_smtp_email_commands.py`、`tests/_ARCH.md`。 |
 
+## 2026-11-01 · 全新本地安装（还没配任何 LLM 提供商）打开聊天页时，`POST /agents/chats/{id}/prewarm` 返回 500，后端日志里一条带完整回溯栈的 ERROR
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。 |
+| **症状** | [实测] 真实 v0.1.40 macOS aarch64 打包版（隔离的 HOME 和数据目录，没配提供商）启动后窗口停在首次设置页，同时日志里出现 `POST /api/v1/agents/chats/<id>/prewarm → 500`，原因是 `ConfigIncompleteError: Please configure at least one LLM provider before using the Agent.`。一次约 12 秒的启动里出现 1 次。前端的 `useChatTurnPrewarm.ts` 吞掉了这个失败，所以用户看不到弹窗，只在日志里留下 ERROR。 |
+| **根因** | [代码] `app/api/agents/general_agent/prewarm.py` 调 `resolve_prewarm_agent_params`，它经 `convert_to_general_agent_params` 到 `model_resolver._fallback_model_from_providers`，没有提供商就抛 `ConfigIncompleteError`；路由没有接这个异常，落到全局中间件按 500 记录。预热是尽力而为的加速，没有可预热的东西不是服务端故障；真正的对话轮次会把「未配置提供商」告诉用户。 |
+| **修复** | 路由接住 `ConfigIncompleteError`，按 INFO 记一行，返回 200 和 `{started: false, chat_id, reason: "model_not_configured"}`，与已有的 `skipped_mode` 同一形状；没有改前端（它不看 `reason`）。 |
+| **回归证据** | [实测] `tests/api/agent/test_prewarm_api.py` 新增一例：让参数解析抛 `ConfigIncompleteError`，断言 200、`reason == "model_not_configured"`、`ensure_warming` 没有被调用；改前该例失败（异常直接冒出），改后该文件 5 例通过；`ruff check`、`ruff format --check` 通过。 |
+| **仍然存在** | ① 异常是用测试替身抛出的，用的是线上同一个异常类；没有重新打包后端在真实打包版里再跑一遍。② 没有静态类型检查的结果：本机 pyright 要求升级后才能运行。 |
+| **代码位置** | `myrm-agent-server/app/api/agents/general_agent/prewarm.py`；测试 `tests/api/agent/test_prewarm_api.py` |
+
 ## 2026-11-01 · 后端启动读 OS 钥匙串没有超时：钥匙串不回答时（macOS 授权弹窗没人点、`securityd` 无响应）事件循环被卡死，`/health` 永远不通，外壳等满 120 秒才报启动失败
 
 | 字段 | 内容 |
@@ -34,13 +46,14 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（修复已推到 `origin/main` 的 `9b99c4ae81`）。已发布的 v0.1.40 的 `latest.json` 还没补上 Linux，要手动运行一次 `Repair Desktop Release Manifest`（见「仍然存在」）。 |
+| **状态** | **FIXED**。选包修复 `9b99c4ae81`；v0.1.40 的 `latest.json` 已由第二次手动运行 `Repair Desktop Release Manifest` 补上 `linux-x86_64`（Run 41285395009，main@`bed669d490`，成功）。第一次运行失败的原因没有确定（见「手动运行」）；之后两个脚本里的各个检查失败和 `gh` / `curl` 调用失败都成为公开可读的 annotation。 |
 | **症状** | [实测，公开 Actions 页面与 Release 资产] v0.1.40 的 tag 运行：三平台构建与整壳烟测、`publish-release`、`finalize-release` 都成功，`refinalize-after-linux` 的 `Regenerate latest.json + checksums (include Linux)` 失败。发布的 `latest.json` 只有 `darwin-aarch64`、`windows-x86_64`。Release 上的 Linux 资产是 `MyrmAgent_0.1.40_amd64.AppImage` 加它的 `.sig`、`.sha256`，没有 `.AppImage.tar.gz`（v0.1.39 两种都有）。 |
 | **根因** | `pick_platform_asset linux-x86_64` 只认 `*.AppImage.tar.gz`；`finalize-release.sh` 把 `linux-x86_64` 列为必需项，选不到就 `exit 1`；`verify-release.sh` 的 OTA 地址白名单也只收 `.AppImage.tar.gz`。这几步只在 tag 运行里执行，分支验证运行不会走到，所以此前的验证全绿。失败步骤的日志要登录才能读，没有看到日志原文，原因由脚本和资产名对出来。客户端 `tauri-plugin-updater 2.10.1`（`Cargo.lock`）对 gz 压缩包和裸 AppImage 都会安装（`updater.rs` 的 `install_appimage`）。 |
-| **修复** | `pick-platform-asset.sh`：先找压缩包，再找 `*x86_64*.AppImage`、`*amd64*.AppImage`（以 `.AppImage` 结尾，不会匹配同名的 `.sig`、`.sha256`）；`verify-release.sh` 的地址白名单收裸 `.AppImage`；`finalize-fixture-test.sh` 加「压缩包与裸 AppImage 并存取压缩包」和「只有带签名的裸 AppImage」两种布局；`scripts/ci/desktop-release/_ARCH.md` 同步。 |
-| **回归证据** | 新 fixture 在改前的挑选脚本上失败（退出码 1），改后通过；用 v0.1.40 Release 上的 15 个真实资产名跑改后的挑选脚本，三个平台都选中且各有 `.sig`，`darwin-x86_64` 仍然没有候选；`tests/architecture` 里发版相关的 5 个文件 44 例通过。 |
-| **仍然存在** | ① v0.1.40 的 `latest.json` 缺 `linux-x86_64`，Linux 用户收不到自动更新；要在 GitHub Actions 里手动运行 `Repair Desktop Release Manifest`，`tag` 填 `v0.1.40`（它用 `main` 上的脚本；本机没有登录 `gh`，未能代为触发）。 |
-| **代码位置** | `scripts/ci/desktop-release/pick-platform-asset.sh`、`verify-release.sh`、`finalize-fixture-test.sh` |
+| **修复** | `pick-platform-asset.sh`：先找压缩包，再找 `*x86_64*.AppImage`、`*amd64*.AppImage`（以 `.AppImage` 结尾，不会匹配同名的 `.sig`、`.sha256`）；`verify-release.sh` 的地址白名单收裸 `.AppImage`；`finalize-fixture-test.sh` 加「压缩包与裸 AppImage 并存取压缩包」和「只有带签名的裸 AppImage」两种布局；`scripts/ci/desktop-release/_ARCH.md` 同步。手动运行失败之后（`59d8df231a` 与随后的提交）：新增 `release-common.sh`，`finalize-release.sh` 与 `verify-release.sh` 里各个检查失败和 `gh` / `curl` 调用失败都经 `report` / `fail` 写日志，并在 GitHub Actions 里发 `::error` annotation（annotation 在运行摘要和 check-runs 接口里不用登录就能读，步骤日志要登录）；这些调用的失败带上工具自己的原话，找不到 release 时再带仓库最近 5 个 tag；`TAG` 先去掉空白、补 `v` 前缀、按 `v1.2.3` 校验，格式不对在任何网络调用之前失败（`0.1.40` 与 `v0.1.40` 指向同一个 release）。 |
+| **手动运行** | [实测，GitHub 公开接口] Run 41282717419（`workflow_dispatch`，main@`03a6503d49`，06:55:17Z 到 06:55:37Z）失败。注解里的 `Regenerate latest.json + checksums` 是 **job 名**，不是步骤名；步骤表：checkout 9 s、`Install jq` 4 s、`Regenerate latest.json + checksums` 06:55:34Z 到 06:55:35Z 失败、`Verify` 跳过。对照 tag 运行：`Generate and upload latest.json + checksums` 13 s 成功，旧脚本的 refinalize 在 8 s 后失败，按脚本的执行顺序，这两步结束时都已下载完 Release 的全部资产（发布页给出的大小合计约 2 GB）。所以这次在下载完成之前就退出了：退出点在变量与临时目录处理、`gh release view`、或 `gh release download` 刚开始之间，退出码 1。`latest.json` 资产的更新时间在 07:02Z 仍是 03:34:40Z，没有上传。[实测，复现] 把同一份脚本对着 v0.1.40 的 15 个真实资产名、真实 `.sig` 和真实 `latest.json`（二进制换成占位小文件，`gh` 用替身）跑：退出码 0，三平台齐全，`verify-release.sh` 通过。所以选包与签名逻辑不是原因。运行时填的 `tag` 在公开页面上看不到，没有验证它是什么；原因未确定。第二次运行 [实测，GitHub 公开接口]：Run 41285395009（07:35:26Z 到 07:36:02Z）所有步骤成功，`Regenerate latest.json + checksums` 14 s，`Verify` 1 s；之后 `latest.json` 的更新时间是 07:35:57Z，含 `darwin-aarch64`、`windows-x86_64`、`linux-x86_64` 三项，每项的 `signature` 与对应 `.sig` 资产的内容一致，三个 OTA 地址 302 后 200，`Content-Length` 与发布页给出的大小一致，安装包与 `.sig` 的上传时间没有变（只有 `latest.json` 与 `.sha256` 被重写）。第二次填的 `tag` 同样看不到，无法判断第一次失败是输入还是偶发。 |
+| **回归证据** | 新 fixture 在改前的挑选脚本上失败（退出码 1），改后通过；用 v0.1.40 Release 上的 15 个真实资产名跑改后的挑选脚本，三个平台都选中且各有 `.sig`，`darwin-x86_64` 仍然没有候选；`tests/architecture` 里发版相关的 5 个文件 44 例通过。新增 `tests/architecture/test_desktop_finalize_run.py`（12 例）：用替身 `gh` / `curl` 把一个目录当 release，对 v0.1.40 的真实资产布局真跑两个脚本；首版 8 例在未改的脚本上 6 例失败（其中不带 `v` 的 tag 退出码 1 而标准输出为空，与手动运行看到的「只有退出码」一致），另 2 例（真实布局出三平台、verify 通过）绿，说明替身与旧脚本兼容。变异检查：去掉 annotation 红 4 例；不补 `v` 红 1 例；去掉 `gh` 原话红 1 例；去掉最近 tag 红 1 例；上传的 stderr 不接红 1 例；verify 取不到清单时丢掉 curl 原话红 1 例。[实测，GitHub 公开接口] 推送 `59d8df231a` 与 `fec97925c4` 后，`Desktop release contracts`（运行 `tests/architecture/test_desktop_*.py`，含新测试）、`Desktop fractal docs`、`Public tree guards`、`Server architecture gates` 在两个提交上都成功。这两次运行里新测试是否被「缺 `jq` / `sha256sum`」跳过，日志没有读到；此后测试在 CI 里缺工具就失败而不是跳过。 |
+| **仍然存在** | ① 第一次手动运行失败的原因没有确定；改动只保证再失败时能从运行页面的 annotation（或 `GET /repos/Pursue-LLL/myrm-agent/check-runs/<job id>/annotations`）读到原因。② Linux 包的 minisign 签名没有用 `tauri.conf.json` 里的公钥验过（下载 522 MB 的速度约 0.15 MB/s，已中止）；Linux 实机的自动更新没有测过（v0.1.40 是当前最新版本，没有可升级的对象）。③ 本地命令（`jq`、`sha256sum`）失败仍只有退出码；tag 流水线里 finalize / refinalize 两处用的也是这两个脚本，改动后的真实运行要等下一次发版才会走到。 |
+| **代码位置** | `scripts/ci/desktop-release/pick-platform-asset.sh`、`release-common.sh`、`finalize-release.sh`、`verify-release.sh`、`finalize-fixture-test.sh`；测试 `myrm-agent-server/tests/architecture/test_desktop_finalize_run.py` |
 
 ## 2026-11-01 · wiki 索引的页面名与磁盘文件对不上：名字以 `.md` 结尾或带 `wiki/concepts/` 前缀的页面（如 `AGENTS.md`、`SKILL.md`）索引行用原名，维护流程再按磁盘名发布又多一行；`Notes` 与 `Notes.md` 共用一行，一页的索引内容是另一页的；知识片段把这类页面当作陈旧行扣下，陈旧行占满名额时整个话题注入 0 段
 
