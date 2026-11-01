@@ -2,8 +2,8 @@
 
 A message in a mailbox is untrusted input: the sender chooses its charset names and header encoding. A charset Python
 has no codec for (``unknown-8bit``, ``x-unknown``), an encoded word whose base64 is malformed, or a header with raw
-UTF-8 bytes (the parser returns a ``Header`` object for it, not a ``str``) used to end the whole command in a stack
-trace, so a single such message blinded ``check``, ``search``, ``read`` and ``reply``.
+UTF-8 bytes (the parser returns a ``Header`` object for it, not a ``str``) would otherwise end the whole command in a stack
+trace, so a single such message would blind ``check``, ``search``, ``read`` and ``reply``.
 
 [INPUT]
 - assets/prebuilt_skills/imap-smtp-email/scripts: mail_client.message imported in process
