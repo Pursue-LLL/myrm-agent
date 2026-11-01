@@ -16572,9 +16572,9 @@
       },
       "advancedRetrieval": {
         "title": "高级检索",
-        "description": "使用嵌入和重排序模型优化网络搜索与网页读取的结果质量",
-        "toggleLabel": "对网络搜索和抓取结果进行优选",
-        "toggleDescription": "开启后仅将最有用的内容提供给 LLM，嵌入和重排序模型能大幅提高搜索质量并减少 Token 消耗，且其价格远远低于大语言模型，建议开启（注意，开启需配置嵌入和重排序模型）",
+        "description": "使用嵌入和重排序模型，在读取网页和召回记忆时优先选出最相关的内容",
+        "toggleLabel": "优化网页读取与记忆召回",
+        "toggleDescription": "开启后，将用嵌入和重排序模型对较长的网页内容和记忆按相关性排序，优先把最有用的内容交给 LLM（需先配置嵌入和重排序模型）",
         "modelsRequired": "请先配置并应用嵌入模型和重排序模型",
         "cannotEnable": "请先在「默认模型」页配置并应用嵌入模型和重排序模型"
       },
@@ -17123,7 +17123,7 @@
       },
       "retrieval": {
         "embeddingModel": "嵌入模型",
-        "embeddingModelDescription": "文本向量化模型，用于支持知识库、记忆、网络搜索等能力的语义搜索",
+        "embeddingModelDescription": "文本向量化模型，用于支持知识库、记忆等能力的语义搜索",
         "dismiss": "忽略",
         "orphanWarning": "有 {count} 条记忆尚未迁移到新的嵌入模型，迁移前不会用于回答",
         "reindex": "迁移",
@@ -17134,7 +17134,7 @@
         "reindexPartial": "已迁移 {migrated} 条，{failed} 条未能迁移，可再次尝试",
         "reindexError": "迁移被中断，再次点击可从中断处继续",
         "rerankerModel": "重排序模型",
-        "rerankerModelDescription": "检索结果重排序模型，用于支持知识库、记忆、网络搜索等能力的语义排序",
+        "rerankerModelDescription": "检索结果重排序模型，用于支持知识库、记忆等能力的语义排序",
         "provider": "提供商",
         "modelName": "模型名称",
         "modelNamePlaceholder": "输入模型名称",

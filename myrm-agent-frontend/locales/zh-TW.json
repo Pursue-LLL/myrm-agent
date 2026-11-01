@@ -16572,9 +16572,9 @@
       },
       "advancedRetrieval": {
         "title": "高階檢索",
-        "description": "使用嵌入和重排序模型最佳化網路搜尋與網頁讀取的結果質量",
-        "toggleLabel": "對網路搜尋和抓取結果進行優選",
-        "toggleDescription": "開啟後僅將最有用的內容提供給 LLM，嵌入和重排序模型能大幅提高搜尋質量並減少 Token 消耗，且其價格遠遠低於大語言模型，建議開啟（注意，開啟需配置嵌入和重排序模型）",
+        "description": "使用嵌入和重排序模型，在讀取網頁和召回記憶時優先選出最相關的內容",
+        "toggleLabel": "最佳化網頁讀取與記憶召回",
+        "toggleDescription": "開啟後，將用嵌入和重排序模型對較長的網頁內容和記憶按相關性排序，優先把最有用的內容交給 LLM（需先配置嵌入和重排序模型）",
         "modelsRequired": "請先配置並應用嵌入模型和重排序模型",
         "cannotEnable": "請先在「預設模型」頁配置並應用嵌入模型和重排序模型"
       },
@@ -17123,7 +17123,7 @@
       },
       "retrieval": {
         "embeddingModel": "嵌入模型",
-        "embeddingModelDescription": "文字向量化模型，用於支援知識庫、記憶、網路搜尋等能力的語義搜尋",
+        "embeddingModelDescription": "文字向量化模型，用於支援知識庫、記憶等能力的語義搜尋",
         "dismiss": "忽略",
         "orphanWarning": "有 {count} 條記憶尚未遷移到新的嵌入模型，遷移前不會用於回答",
         "reindex": "遷移",
@@ -17134,7 +17134,7 @@
         "reindexPartial": "已遷移 {migrated} 條，{failed} 條未能遷移，可再次嘗試",
         "reindexError": "遷移被中斷，再次點擊可從中斷處繼續",
         "rerankerModel": "重排序模型",
-        "rerankerModelDescription": "檢索結果重排序模型，用於支援知識庫、記憶、網路搜尋等能力的語義排序",
+        "rerankerModelDescription": "檢索結果重排序模型，用於支援知識庫、記憶等能力的語義排序",
         "provider": "提供商",
         "modelName": "模型名稱",
         "modelNamePlaceholder": "輸入模型名稱",

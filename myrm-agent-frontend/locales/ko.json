@@ -16572,9 +16572,9 @@
       },
       "advancedRetrieval": {
         "title": "고급 검색",
-        "description": "임베딩 및 리랭커 모델로 웹 검색과 페이지 읽기 품질 최적화",
-        "toggleLabel": "웹 검색 및 스크래핑 결과 최적화",
-        "toggleDescription": "활성화하면 가장 유용한 콘텐츠만 LLM에 제공됩니다. 임베딩 및 리랭커 모델은 LLM보다 훨씬 낮은 비용으로 검색 품질을 크게 향상시키고 토큰 소비를 줄입니다. 활성화 권장 (임베딩 및 리랭커 모델 구성 필요)",
+        "description": "임베딩 및 리랭커 모델로 웹 페이지 읽기와 메모리 불러오기에서 가장 관련성 높은 내용을 우선 선택",
+        "toggleLabel": "페이지 읽기 및 메모리 불러오기 최적화",
+        "toggleDescription": "활성화하면 긴 웹 페이지와 메모리를 임베딩 및 리랭커 모델로 관련성 순으로 정렬해 가장 유용한 내용을 LLM에 우선 전달합니다 (임베딩 및 리랭커 모델 구성 필요)",
         "modelsRequired": "먼저 임베딩 및 리랭커 모델을 구성하고 적용하세요",
         "cannotEnable": "먼저 기본 모델 페이지에서 임베딩 및 리랭커 모델을 구성하고 적용하세요"
       },
@@ -17123,7 +17123,7 @@
       },
       "retrieval": {
         "embeddingModel": "임베딩 모델",
-        "embeddingModelDescription": "지식 베이스, 메모리, 웹 검색 등 기능의 의미 검색을 위한 텍스트 벡터화 모델",
+        "embeddingModelDescription": "지식 베이스, 메모리 등 기능의 의미 검색을 위한 텍스트 벡터화 모델",
         "dismiss": "닫기",
         "orphanWarning": "{count}개 메모리가 새 임베딩 모델로 아직 마이그레이션되지 않았습니다. 마이그레이션 전에는 답변에 사용되지 않습니다",
         "reindex": "마이그레이션",
@@ -17134,7 +17134,7 @@
         "reindexPartial": "{migrated}개 완료, {failed}개는 마이그레이션하지 못했습니다. 다시 시도해 주세요",
         "reindexError": "마이그레이션이 중단되었습니다. 다시 실행하면 이어서 진행합니다",
         "rerankerModel": "리랭커 모델",
-        "rerankerModelDescription": "지식 베이스, 메모리, 웹 검색 등 기능의 의미 순위 지정을 위한 검색 결과 재정렬 모델",
+        "rerankerModelDescription": "지식 베이스, 메모리 등 기능의 의미 순위 지정을 위한 검색 결과 재정렬 모델",
         "provider": "제공자",
         "modelName": "모델 이름",
         "modelNamePlaceholder": "모델 이름 입력",

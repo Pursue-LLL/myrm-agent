@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     )
     from myrm_agent_harness.toolkits.retriever.embedding import EmbeddingService, get_embedding_service
     from myrm_agent_harness.toolkits.retriever.engine import (
-        BM25CacheStats,
         RetrieverConfig,
         RetrieverManager,
     )
@@ -50,7 +49,6 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
-    "BM25CacheStats",
     # Embedding service
     "EmbeddingService",
     # hybrid retrieval(newarchitecture)
@@ -113,7 +111,6 @@ _LAZY_IMPORTS = {
     "RerankerConfig": ("myrm_agent_harness.toolkits.retriever.reranker", "RerankerConfig"),
     "RerankerService": ("myrm_agent_harness.toolkits.retriever.reranker", "RerankerService"),
     "get_reranker_service": ("myrm_agent_harness.toolkits.retriever.reranker", "get_reranker_service"),
-    "BM25CacheStats": ("myrm_agent_harness.toolkits.retriever.engine", "BM25CacheStats"),
     "RetrieverConfig": ("myrm_agent_harness.toolkits.retriever.engine", "RetrieverConfig"),
     "RetrieverManager": ("myrm_agent_harness.toolkits.retriever.engine", "RetrieverManager"),
     "TextChunker": ("myrm_agent_harness.toolkits.retriever.splitter", "TextChunker"),

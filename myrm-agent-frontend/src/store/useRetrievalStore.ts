@@ -46,7 +46,7 @@ export interface RetrievalConfig {
   rerankerApplyStatus: ApplyStatus;
   rerankerApplyMessage?: string;
 
-  // 高级检索开关（控制网络搜索重排序 + 网页抓取嵌入+重排序）
+  // 高级检索开关（控制网页抓取的嵌入+重排序与记忆召回的重排序）
   enableAdvancedRetrieval: boolean;
 
   // Orphan collection 状态（模型切换后的旧记忆检测）

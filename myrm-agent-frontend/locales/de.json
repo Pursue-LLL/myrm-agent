@@ -16572,9 +16572,9 @@
       },
       "advancedRetrieval": {
         "title": "Erweiterte Suche",
-        "description": "Websuche und Seitenlesequalität mit Embedding- und Reranking-Modellen optimieren",
-        "toggleLabel": "Websuche und Scraping-Ergebnisse optimieren",
-        "toggleDescription": "Wenn aktiviert, wird nur der nützlichste Inhalt an die LLM geliefert. Embedding- und Reranking-Modelle verbessern die Suchqualität erheblich und reduzieren den Token-Verbrauch zu weit geringeren Kosten als LLMs. Empfohlen (erfordert Embedding- und Reranking-Modellkonfiguration)",
+        "description": "Mit Embedding- und Reranking-Modellen beim Lesen von Webseiten und Abrufen von Erinnerungen die relevantesten Passagen bevorzugen",
+        "toggleLabel": "Seitenlesen und Erinnerungsabruf optimieren",
+        "toggleDescription": "Wenn aktiviert, werden lange Webseiten und Erinnerungen mit Embedding- und Reranking-Modellen nach Relevanz sortiert, sodass die nützlichsten Passagen bevorzugt an die LLM gehen (erfordert Embedding- und Reranking-Modellkonfiguration)",
         "modelsRequired": "Bitte konfigurieren und wenden Sie zuerst Embedding- und Reranking-Modelle an",
         "cannotEnable": "Bitte konfigurieren und wenden Sie Embedding- und Reranking-Modelle zuerst auf der Seite „Standardmodell\" an"
       },
@@ -17123,7 +17123,7 @@
       },
       "retrieval": {
         "embeddingModel": "Embedding-Modell",
-        "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche über Wissensdatenbank, Speicher, Websuche und andere Funktionen",
+        "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche über Wissensdatenbank, Speicher und andere Funktionen",
         "dismiss": "Verwerfen",
         "orphanWarning": "{count, plural, one {# Speicher wird erst nach der Migration auf das neue Embedding-Modell in Antworten verwendet} other {# Speicher werden erst nach der Migration auf das neue Embedding-Modell in Antworten verwendet}}",
         "reindex": "Migrieren",
@@ -17134,7 +17134,7 @@
         "reindexPartial": "{migrated} migriert, {failed} konnten nicht migriert werden. Erneut versuchen, um sie nachzuholen",
         "reindexError": "Die Migration wurde unterbrochen. Erneut starten, um fortzufahren",
         "rerankerModel": "Reranker-Modell",
-        "rerankerModelDescription": "Such-Reranking-Modell für semantische Rangfolge über Wissensdatenbank, Speicher, Websuche und andere Funktionen",
+        "rerankerModelDescription": "Such-Reranking-Modell für semantische Rangfolge über Wissensdatenbank, Speicher und andere Funktionen",
         "provider": "Anbieter",
         "modelName": "Modellname",
         "modelNamePlaceholder": "Modellname eingeben",

@@ -137,48 +137,6 @@ class HybridSearchCoordinator:
         monitor.log_performance_summary()
         return selected
 
-    async def rerank_with_mapping(
-        self,
-        query_doc_mapping: dict[str, list[tuple[Document, float]]],
-        reranker: RerankerService,
-        *,
-        final_top_k: int = 10,
-        dedup_strategy: str = "url",
-        fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
-        rerank_score_threshold: float = 0.0,
-        fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
-    ) -> list[Document]:
-        """Rerank with pre-built query-doc mapping."""
-        if not query_doc_mapping:
-            return []
-
-        total_pairs = sum(len(docs) for docs in query_doc_mapping.values())
-        logger.info(f"rerank_with_mapping: {len(query_doc_mapping)} queries, {total_pairs} pairs")
-
-        monitor = get_performance_monitor()
-        pipeline = RerankingPipeline(reranker)
-
-        async with monitor.track_operation("reranking (with mapping)"):
-            query_reranked = await pipeline.rerank_query_results(query_doc_mapping)
-
-        if not query_reranked:
-            return []
-
-        fusion = FusionPipeline(
-            dedup_strategy=dedup_strategy,
-            fusion_weights=fusion_weights,
-            rerank_score_threshold=rerank_score_threshold,
-            fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
-        )
-        async with monitor.track_operation("result fusion"):
-            selected = fusion.fuse_query_results(query_reranked, final_top_k)
-
-        monitor.log_performance_summary()
-        logger.info(f"rerank_with_mapping complete: returning {len(selected)} documents")
-        return selected
-
 
 def _validate_inputs(queries: list[str], documents: list[Document], final_top_k: int) -> bool:
     if not queries or not documents:

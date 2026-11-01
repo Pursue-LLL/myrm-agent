@@ -176,3 +176,17 @@ async def test_tool_forwards_blocked_hostnames_to_engine() -> None:
 
     mock_search.assert_awaited_once()
     assert mock_search.await_args.kwargs.get("blocked_hostnames") == ("huggingface.co",)
+
+
+def test_drop_blocked_hostname_docs_defensive_against_none_metadata() -> None:
+    """A document whose metadata is None has no host to match, so it is kept."""
+    from langchain_core.documents import Document
+
+    from myrm_agent_harness.toolkits.web_search.engine import _drop_blocked_hostname_docs
+
+    doc_none_meta = Document(page_content="some content")
+    doc_none_meta.metadata = None
+
+    result = _drop_blocked_hostname_docs([doc_none_meta], blocked_hostnames=("blocked.example",))
+    assert len(result) == 1
+    assert result[0].page_content == "some content"

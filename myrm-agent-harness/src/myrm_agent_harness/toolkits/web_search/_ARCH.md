@@ -19,8 +19,7 @@ and the intent-aware search parameter optimizer.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Toolkit entry point; lazy re-exports WebSearchTools, LiteLLMSearch, SearchServiceConfig | ✅ |
-| engine.py | Core | WebSearchTools wrapper: parallel search + dedup + basic mode; delegates precision mode to `precision_search.py` | ✅ |
-| precision_search.py | Core | Precision-mode pipeline: concurrent chunking, BM25 coarse filtering, reranker fine ranking, per-document chunk capping | ✅ |
+| engine.py | Core | WebSearchTools wrapper: parallel per-question search, one shared merge (round-robin, dedup, domain diversity), first `top_k` returned | ✅ |
 | web_search_agent_tools.py | Core | LangChain `web_search_tool` factory | ✅ |
 | _web_search_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH) | ✅ |
 
@@ -31,7 +30,7 @@ Root `.py` files are limited to orchestration facade and LangChain adapter; shar
 ## Key Dependencies
 
 - `utils`
-- `[retrieval]` extra — `precision_search.py` uses `TextChunker` from `toolkits/retriever/splitter/` for precision search chunking
+- `[retrieval]` extra — `web_search_agent_tools.py` lazily imports `toolkits/retriever/sufficiency` only when the sufficiency guard is enabled
 
 ## Intent-Aware Search Flow
 
@@ -60,18 +59,9 @@ User query → LLM Query Rewriting → questions: list[str]
          round-robin across questions + URL/content dedup: no question is crowded out
     → processing.apply_domain_diversity_sort()
     → _drop_blocked_hostname_docs()
-    → Basic mode: first top_k of the merged order (search-engine ranking is the relevance signal)
-      Precision mode (reranker configured): chunk → BM25 → rerank
+    → first top_k of the merged order (search-engine ranking is the relevance signal)
     → processing.citation_resolver.enrich_sources_with_resolved_urls()
 ```
-
-## Precision Mode Pipeline
-
-When precision mode is active (reranker configured, multi-query or long documents scenario):
-1. **Smart Chunking**: Split long docs (>1000 tokens) into 400-token chunks with 100-token overlap; keep short docs intact.
-2. **BM25 Candidate Mapping**: `bm25_retrieval_with_mapping()` filters relevant chunks per query, pruning cross-product candidate pairs. When it raises (logged at WARNING) or finds no hit, the fused `bm25_retrieval_only()` result feeds the reranker instead.
-3. **Semantic Reranking**: Cross-Encoder scores candidates with `Autocut` adaptive score drop-off truncation (top-20 max, automatic degradation to BM25 on failure).
-4. **Intra-Document Order Restoration**: `_cap_chunks_per_doc()` keeps at most 3 chunks per URL, preserving URL-level relevance order while sorting intra-document chunks in ascending `chunk_index` order for narrative coherence.
 
 ## Three-Priority Parameter Fusion
 

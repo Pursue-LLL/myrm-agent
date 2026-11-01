@@ -32,7 +32,6 @@ from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from myrm_agent_harness.core.config.llm import LLMConfig
-    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
     from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
     from myrm_agent_harness.toolkits.web_search.engine import SearchServiceConfig
 
@@ -44,7 +43,6 @@ from myrm_agent_harness.utils.errors import ToolError, ToolErrorCategory
 
 def create_web_search_tool(
     search_service_cfg: SearchServiceConfig,
-    reranker_config: RerankerConfig | None = None,
     sufficiency_config: SufficiencyConfig | None = None,
     sufficiency_llm_config: LLMConfig | None = None,
     *,
@@ -56,7 +54,6 @@ def create_web_search_tool(
 
     Args:
         search_service_cfg: Search service configuration
-        reranker_config: Reranker model configuration (optional); when provided, precision mode is auto-enabled
         sufficiency_config: RSG configuration (optional); enables retrieval quality evaluation
         sufficiency_llm_config: LLM config for the sufficiency evaluator (required if sufficiency_config.enabled)
         description_locale: BCP-47 locale for LLM-facing tool description (default English).
@@ -130,7 +127,7 @@ def create_web_search_tool(
         if time_range:
             explicit_params = {"time_range": time_range}
 
-        web_search = WebSearchTools(search_service_cfg, reranker_config=reranker_config)
+        web_search = WebSearchTools(search_service_cfg)
         sources_metadata, formatted_context = await web_search.fast_search_with_questions(
             questions=questions,
             search_results_per_query=10,

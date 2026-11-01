@@ -374,49 +374,6 @@ class TestDetectLanguageBranches:
 
 
 # ---------------------------------------------------------------------------
-# is_cross_language
-# ---------------------------------------------------------------------------
-
-
-class TestIsCrossLanguage:
-    def test_same_language(self) -> None:
-        from langchain_core.documents import Document
-
-        from myrm_agent_harness.utils.text_utils import is_cross_language
-
-        result = is_cross_language(
-            ["hello world"],
-            [Document(page_content="This is English content.")],
-        )
-        assert result is False
-
-    def test_cross_language(self) -> None:
-        from langchain_core.documents import Document
-
-        from myrm_agent_harness.utils.text_utils import is_cross_language
-
-        result = is_cross_language(
-            ["这是中文查询"],
-            [Document(page_content="This is purely English text content without any Chinese.")],
-        )
-        assert result is True
-
-    def test_empty_documents(self) -> None:
-        from myrm_agent_harness.utils.text_utils import is_cross_language
-
-        result = is_cross_language(["hello"], [])
-        assert result is False
-
-    def test_empty_queries(self) -> None:
-        from langchain_core.documents import Document
-
-        from myrm_agent_harness.utils.text_utils import is_cross_language
-
-        result = is_cross_language([], [Document(page_content="hello")])
-        assert result is False
-
-
-# ---------------------------------------------------------------------------
 # get_token_count
 # ---------------------------------------------------------------------------
 

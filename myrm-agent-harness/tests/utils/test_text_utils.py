@@ -9,7 +9,6 @@ from myrm_agent_harness.utils.text_utils import (
     find_sentence_boundary,
     get_token_count,
     has_important_tail,
-    is_cross_language,
     preheat_tiktoken,
     sanitize_binary_output,
     smart_truncate,
@@ -691,39 +690,6 @@ class TestSanitizeBinaryOutput:
     def test_mixed_printable_with_few_control(self):
         text = "Normal output " + "\x07" * 3 + " more text" + "a" * 490
         assert sanitize_binary_output(text) == text
-
-
-class TestIsCrossLanguage:
-    """测试跨语言检测"""
-
-    def test_empty_inputs(self):
-        assert is_cross_language([], []) is False
-
-    def test_empty_queries(self):
-        from langchain_core.documents import Document
-
-        docs = [Document(page_content="Hello world")]
-        assert is_cross_language([], docs) is False
-
-    def test_empty_documents(self):
-        assert is_cross_language(["查询"], []) is False
-
-    def test_same_language_chinese(self):
-        from langchain_core.documents import Document
-
-        docs = [Document(page_content="这是一段中文文档内容，包含很多中文字符。")]
-        queries = ["中文查询内容，搜索相关文档"]
-        assert is_cross_language(queries, docs) is False
-
-    def test_cross_language_detected(self):
-        from langchain_core.documents import Document
-
-        docs = [
-            Document(page_content="This is a document in English language with sufficient text content for detection.")
-        ]
-        queries = ["这是一个纯中文查询内容，包含很多中文字符用于检测"]
-        result = is_cross_language(queries, docs)
-        assert isinstance(result, bool)
 
 
 class TestFindSentenceBoundary:

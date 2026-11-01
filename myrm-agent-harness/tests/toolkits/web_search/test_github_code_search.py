@@ -6,7 +6,7 @@ Tests cover:
 - Engine Code fast-path routing and graceful fallback to generic search
 
 [POS]
-Unit tests for github_code_search.py and its integration with WebSearchEngine.
+Unit tests for github_code_search.py and its integration with WebSearchTools.
 """
 
 from __future__ import annotations

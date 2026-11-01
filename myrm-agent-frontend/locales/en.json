@@ -16572,9 +16572,9 @@
       },
       "advancedRetrieval": {
         "title": "Advanced Retrieval",
-        "description": "Optimize web search and page reading quality with embedding and reranking models",
-        "toggleLabel": "Optimize web search and scraping results",
-        "toggleDescription": "When enabled, only the most useful content is provided to the LLM. Embedding and reranking models significantly improve search quality and reduce token consumption at a much lower cost than LLMs. Recommended to enable (requires embedding and reranking model configuration)",
+        "description": "Pick the most relevant passages when reading web pages and recalling memories, using embedding and reranking models",
+        "toggleLabel": "Optimize page reading and memory recall",
+        "toggleDescription": "When enabled, long web pages and memories are ranked by relevance with an embedding model and a reranking model, so the most useful passages are prioritized for the LLM. Requires both models to be configured.",
         "modelsRequired": "Please configure and apply embedding and reranking models first",
         "cannotEnable": "Please configure and apply embedding and reranking models in the Default Model page first"
       },
@@ -17123,7 +17123,7 @@
       },
       "retrieval": {
         "embeddingModel": "Embedding Model",
-        "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
+        "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, and other capabilities",
         "dismiss": "Dismiss",
         "orphanWarning": "{count, plural, one {# memory is not used in replies until it is migrated to the new embedding model} other {# memories are not used in replies until they are migrated to the new embedding model}}",
         "reindex": "Migrate",
@@ -17134,7 +17134,7 @@
         "reindexPartial": "{migrated} migrated, {failed} could not be migrated. Try again to retry them.",
         "reindexError": "Migration was interrupted. Try again to continue where it left off.",
         "rerankerModel": "Reranker Model",
-        "rerankerModelDescription": "Search result reranking model for semantic ranking across knowledge base, memory, web search, and other capabilities",
+        "rerankerModelDescription": "Search result reranking model for semantic ranking across knowledge base, memory, and other capabilities",
         "provider": "Provider",
         "modelName": "Model Name",
         "modelNamePlaceholder": "Enter model name",

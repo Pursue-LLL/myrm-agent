@@ -66,7 +66,6 @@ myrm_agent_harness/toolkits/memory/strategies/deduplicator.py	780
 myrm_agent_harness/toolkits/memory/strategies/extractor.py	1081
 myrm_agent_harness/toolkits/memory/strategies/pattern_discovery.py	510
 myrm_agent_harness/toolkits/memory/types.py	934
-myrm_agent_harness/toolkits/retriever/engine.py	583
 myrm_agent_harness/toolkits/web_fetch/engine/base.py	532
 myrm_agent_harness/toolkits/web_fetch/router/adaptive_router.py	657
 myrm_agent_harness/toolkits/web_fetch/router/domain_metrics.py	503
@@ -74,7 +73,6 @@ myrm_agent_harness/toolkits/wiki/core/claims_contract.py	771
 myrm_agent_harness/toolkits/wiki/retrieval/query.py	896
 myrm_agent_harness/toolkits/wiki/wiki_agent_tools.py	542
 myrm_agent_harness/utils/context_format.py	564
-myrm_agent_harness/utils/text_utils.py	503
 myrm_agent_harness/utils/token_economics/tracker.py	569
 myrm_agent_harness/utils/url_utils.py	505
 myrm_agent_harness/toolkits/wiki/core/structure.py	507

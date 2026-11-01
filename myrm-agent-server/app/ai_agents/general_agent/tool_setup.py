@@ -282,7 +282,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             tools.append(
                 create_web_search_tool(
                     self.search_service_cfg,
-                    reranker_config=reranker_cfg,
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
                     description_locale=tool_description_locale,
@@ -291,7 +290,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 )
             )
 
-            logger.info(f"🔍 已加载 web_search_tool (advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})")
+            logger.info("Loaded web_search_tool")
 
         self._setup_image_generation_tools(
             tools,

@@ -7,7 +7,6 @@
 
 [OUTPUT]
 - detect_language(): 检测文本的主要语言类型（chinese/english/mixed）
-- is_cross_language(): 检测查询和文档是否跨语言（用于 BM25 fallback 判断）
 - preheat_tiktoken(): 预热 tiktoken 编码器（消除冷启动风险）
 - get_token_count(): 使用 tiktoken 精确计算 token 数量
 - estimate_tokens_fast(): 快速估算 token 数量（无需 tiktoken）
@@ -31,10 +30,6 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
 
@@ -80,37 +75,6 @@ def detect_language(text: str) -> str:
         return "chinese"
     else:
         return "english"
-
-
-def is_cross_language(
-    queries: list[str],
-    documents: list[Document],
-    sample_length: int = 200,
-) -> bool:
-    """检测查询和文档是否跨语言（用于 BM25 零召回时的 fallback 判断）
-
-    当 BM25 检索返回 0 结果时，判断是否因为查询和文档语言不匹配导致。
-    如果是跨语言场景，应该 fallback 到语义检索（Reranker）或返回原始文档顺序。
-
-    Args:
-        queries: 查询列表
-        documents: 文档列表
-        sample_length: 文档采样长度（默认200字符，平衡性能和准确性）
-
-    Returns:
-        True: 查询和文档语言不匹配（跨语言）
-        False: 同语言或包含 mixed（不确定）
-    """
-    if not documents or not queries:
-        return False
-
-    query_text = " ".join(queries)
-    query_lang = detect_language(query_text)
-
-    doc_sample = " ".join(doc.page_content[:sample_length] for doc in documents[:3])
-    doc_lang = detect_language(doc_sample)
-
-    return query_lang != doc_lang and "mixed" not in (query_lang, doc_lang)
 
 
 def preheat_tiktoken(encoding_name: str = PLANNING_ENCODING) -> bool:
