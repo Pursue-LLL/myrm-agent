@@ -12,8 +12,11 @@
 - attachment_filename: decoded file name of an attachment part from Content-Disposition or Content-Type, raw 8-bit or not;
   ``attachment`` when it names none, an encoded word that decodes to nothing included
 - attachment_parts: the parts the sender attached, in order: a disposition of ``attachment`` in any case, or a file that is
-  not text and names itself, as a file attached ``inline`` or named only in Content-Type does; a text part that names
-  itself stays the body, and a message that is one attachment is its own part
+  not text and names itself, whether its disposition is ``inline`` or the name is only in Content-Type; a text part that
+  names itself stays the body, so does an image the HTML points at with a ``cid:`` URL unless it is attached by its
+  disposition, and a message that is one attachment is its own part
+- attachment_bytes: what to save of an attachment part: its decoded content, an attached message/rfc822 as the message that
+  was sent, or none for a part that holds no file
 - reply_recipients: where a reply goes, every Reply-To address or, when Reply-To holds none, every From address, comma
   separated; empty when neither holds one
 - extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8
@@ -30,6 +33,8 @@ import email.errors
 import email.header
 import email.message
 import email.utils
+import re
+import urllib.parse
 from collections.abc import Iterator
 
 
@@ -87,22 +92,63 @@ def attachment_filename(part: email.message.Message) -> str:
     return decode_header(_name_headers(part).get_filename() or "") or "attachment"
 
 
-def _is_attachment(part: email.message.Message) -> bool:
-    """Whether the sender attached *part*, however it is written.
+# A cid: URL names the part it embeds by Content-ID (RFC 2392); the id ends at whitespace, a quote, a bracket or a parenthesis.
+_CID_URL = re.compile(r"cid:([^\s\"'<>()]+)", re.IGNORECASE)
 
-    The disposition type is case-insensitive (RFC 2183 §2). Some mail clients attach a file as ``inline`` and older mailers
-    name it only in Content-Type, so a file that is not text and names itself counts too; a text part that names itself is
-    the body.
+
+def _embedded_ids(msg: email.message.Message) -> frozenset[str]:
+    """The Content-IDs that the HTML parts of *msg* point at with a ``cid:`` URL, as written and with ``%`` escapes decoded.
+
+    RFC 2392 decodes the escapes of the URL to get the Content-ID, but its own example writes the id with the escape kept,
+    so both forms are kept.
+    """
+    ids: set[str] = set()
+    for part in msg.walk():
+        payload = part.get_payload(decode=True) if part.get_content_type() == "text/html" else None
+        if isinstance(payload, bytes):
+            for found in _CID_URL.findall(_to_text(payload, part.get_content_charset())):
+                ids.update((found, urllib.parse.unquote(found)))
+    return frozenset(ids)
+
+
+def _is_attachment(part: email.message.Message, embedded: frozenset[str] = frozenset()) -> bool:
+    """Whether the sender attached *part*, however it is written, rather than the HTML body embedding it through *embedded*.
+
+    The disposition type is case-insensitive (RFC 2183 §2). A part that is not text and names a file counts whether its
+    disposition is ``inline`` or absent; a text part that names itself is the body, and so is a part that the HTML points
+    at by Content-ID. A disposition of ``attachment`` always counts.
     """
     headers = _name_headers(part)
     if headers.get_content_disposition() == "attachment":
         return True
-    return headers.get_content_maintype() not in ("text", "multipart") and bool(headers.get_filename())
+    content_id = decode_header(part.get("Content-ID")).strip().removeprefix("<").removesuffix(">")
+    return (
+        headers.get_content_maintype() not in ("text", "multipart")
+        and bool(headers.get_filename())
+        and content_id not in embedded
+    )
 
 
 def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Message]:
     """The parts of *msg* that the sender attached, in order; a message that is one attachment is its own part."""
-    return (part for part in msg.walk() if _is_attachment(part))
+    embedded = _embedded_ids(msg)
+    return (part for part in msg.walk() if _is_attachment(part, embedded))
+
+
+def attachment_bytes(part: email.message.Message) -> bytes | None:
+    """What to save of an attachment part: its decoded content, or an attached message written out as it was sent.
+
+    A part that holds no file, such as a container, has none. The attached message is written with CRLF line breaks and
+    without wrapping its header lines again, so that what the parser read comes back unchanged.
+    """
+    content = part.get_payload(decode=True)
+    if isinstance(content, bytes):
+        return content
+    payload = part.get_payload()
+    attached = payload[0] if part.get_content_type() == "message/rfc822" and isinstance(payload, list) else None
+    if isinstance(attached, email.message.Message):
+        return attached.as_bytes(policy=attached.policy.clone(linesep="\r\n", max_line_length=0))
+    return None
 
 
 def reply_recipients(original: email.message.Message) -> str:

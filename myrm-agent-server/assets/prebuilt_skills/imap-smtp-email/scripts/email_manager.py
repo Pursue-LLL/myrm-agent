@@ -12,8 +12,8 @@
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
-- read lists the parts the sender attached, however the disposition is written, a message that is one attachment included;
-  download saves those that carry bytes (an attached message/rfc822 is listed, not saved); reply goes to every address of Reply-To,
+- read lists what the sender attached, a message that is one attachment included, but not an image the HTML body embeds;
+  download saves it, an attached message/rfc822 as the message that was sent; reply goes to every address of Reply-To,
   else of From, and is refused when neither holds an address
 - download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
   a name is made safe and short enough for the file system; a write that fails leaves no file behind, and the error lists
@@ -44,6 +44,7 @@ from pathlib import Path
 from mail_client.attachments import save_new
 from mail_client.message import (
     ascii_msg_ids,
+    attachment_bytes,
     attachment_filename,
     attachment_parts,
     decode_header,
@@ -198,8 +199,8 @@ def _save_attachments(msg: email.message.Message, output_dir: Path, name_filter:
             filename = attachment_filename(part)
             if name_filter and name_filter.lower() not in filename.lower():
                 continue
-            file_data = part.get_payload(decode=True)
-            if not isinstance(file_data, bytes):
+            file_data = attachment_bytes(part)
+            if file_data is None:
                 continue
             dest = save_new(output_dir, filename, file_data)
             saved.append({"filename": filename, "path": str(dest), "size": len(file_data)})
