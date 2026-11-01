@@ -8,10 +8,11 @@
 [OUTPUT]
 - fail: print a JSON error on stdout and exit
 - get_smtp_config: SMTP host, port, user and password
-- connect_imap: logged-in IMAP4_SSL connection (RFC 2971 ID sent for 163/NetEase)
+- connect_imap: logged-in IMAP4_SSL connection (RFC 2971 ID sent for 163/NetEase); a refused login exits with the server's words
 - imap_quote: search text as an IMAP quoted string; control characters (a line break would start another command) and
   non-ASCII text are refused
 - select_folder: open a mailbox; a name that is not ASCII, or that the server refuses, exits with a pointer to `folders`
+- require_ok: the data of an IMAP command's reply; a status other than OK exits with the reason the server gave
 - parse_uids: a comma-separated UID list whose items consist only of digits, `:` and `*`
 - json_errors: a failure after the connection is up, or a message the standard library refuses to build or parse,
   becomes a JSON error instead of a stack trace
@@ -35,9 +36,9 @@ import re
 import smtplib
 import ssl
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from typing import NoReturn
+from typing import NoReturn, TypeVar
 
 
 def fail(message: str, *, code: int = 1) -> NoReturn:
@@ -95,6 +96,11 @@ def _fail_certificate(service: str, exc: ssl.SSLCertVerificationError) -> NoRetu
     fail(f"{service} server certificate verification failed: {exc.verify_message}. {_CERTIFICATE_HINT}")
 
 
+def _server_words(data: Sequence[object], fallback: str) -> str:
+    """The server's own words from a reply's *data*, else *fallback*; imaplib hands them over as bytes."""
+    return data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else fallback
+
+
 def connect_imap() -> imaplib.IMAP4_SSL:
     host, port, user, password = _get_imap_config()
     try:
@@ -103,7 +109,7 @@ def connect_imap() -> imaplib.IMAP4_SSL:
         _send_imap_id(conn)
         return conn
     except imaplib.IMAP4.error as exc:
-        fail(f"IMAP authentication failed: {exc}")
+        fail(f"IMAP authentication failed: {_server_words(exc.args, str(exc))}")
     except ssl.SSLCertVerificationError as exc:
         _fail_certificate("IMAP", exc)
     except (OSError, TimeoutError) as exc:
@@ -114,6 +120,7 @@ _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 # Mailbox names sent as they are: none of the characters that end or split an IMAP argument. Anything else is quoted.
 _PLAIN_MAILBOX = re.compile(r"[A-Za-z0-9._/\[\]&+-]+")
 _UID_SET = re.compile(r"[0-9:*]+")
+_ReplyData = TypeVar("_ReplyData", bound=Sequence[object])
 
 
 def imap_quote(text: str) -> str:
@@ -138,8 +145,19 @@ def select_folder(conn: imaplib.IMAP4_SSL, folder: str, *, readonly: bool) -> No
         fail(f"Folder '{folder}' is not ASCII: use the name exactly as the `folders` command lists it")
     status, data = conn.select(mailbox, readonly=readonly)
     if status != "OK":
-        reason = data[0].decode("utf-8", errors="replace") if data and isinstance(data[0], bytes) else status
+        reason = _server_words(data, status)
         fail(f"Mailbox '{folder}' could not be opened: {reason}. Run the `folders` command to list the available folders")
+
+
+def require_ok(reply: tuple[str, _ReplyData], action: str) -> _ReplyData:
+    """The data of an IMAP command's *reply*; any status but OK means the server refused *action*, so exit with its reason.
+
+    imaplib raises only for BAD and returns a NO to the caller, who would otherwise read the refusal text as data.
+    """
+    status, data = reply
+    if status != "OK":
+        fail(f"{action} was refused by the server: {_server_words(data, status)}")
+    return data
 
 
 def parse_uids(text: str) -> list[str]:

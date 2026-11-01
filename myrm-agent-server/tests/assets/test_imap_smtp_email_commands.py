@@ -12,8 +12,9 @@ assertion is on the exact lines that reached the wire.
 
 [OUTPUT]
 - Fails when a line break or quote in a search term, folder name or UID list changes the command the server receives,
-  when a refused argument is not explained, or when a folder the server refuses or a connection that drops ends as
-  anything but a JSON error with the reason
+  when a refused argument is not explained, when marking messages does not store the flag change it reports, or when a
+  login, folder, search, fetch, store or list the server refuses, or a connection that drops, ends as anything but a JSON
+  error with the reason
 
 [POS]
 Command-safety test of the prebuilt skill script, next to ``test_imap_smtp_email_failures.py``, which covers the
@@ -36,15 +37,20 @@ from tests.support.email_skill_script import run_email_script, serve_sessions
 _HOUSEKEEPING = frozenset({"CAPABILITY", "ID", "LOGIN", "LOGOUT"})
 _INJECTED = "Z9 DELETE Archive"
 _TEXT = "<text>"  # where a test puts the argument under test in a command line
-_REFUSAL = b"[NONEXISTENT] Unknown Mailbox"
+_REFUSAL = b"[UNAVAILABLE] Try again later"
 
 
 class _Mailbox:
-    """A logged-in IMAP server with an empty mailbox that records every command line it is sent, tags removed."""
+    """A logged-in IMAP server that records every command line it is sent, tags removed.
 
-    def __init__(self, *, refuse_folder: bool = False, drop_on_search: bool = False) -> None:
+    The mailbox is empty unless *found* is a UID that SEARCH reports; *refuse* names the one operation (``LOGIN``,
+    ``EXAMINE``, ``SEARCH``, ``FETCH``, ``STORE``, ``LIST``) the server answers with NO.
+    """
+
+    def __init__(self, *, refuse: str = "", found: str = "", drop_on_search: bool = False) -> None:
         self.commands: list[str] = []
-        self._refuse_folder = refuse_folder
+        self._refuse = refuse
+        self._found = found
         self._drop_on_search = drop_on_search
 
     def session(self, conn: socket.socket, context: ssl.SSLContext) -> None:
@@ -62,16 +68,18 @@ class _Mailbox:
                 stream.flush()
 
     def _reply(self, tag: str, command: str) -> bytes:
-        verb, _, rest = command.partition(" ")
-        match verb.upper():
+        verb, _, rest = command.upper().partition(" ")
+        operation = rest.split(" ", 1)[0] if verb == "UID" else verb
+        if operation == self._refuse:
+            return f"{tag} NO {_REFUSAL.decode()}\r\n".encode()
+        match operation:
             case "CAPABILITY":
                 return f"* CAPABILITY IMAP4rev1\r\n{tag} OK done\r\n".encode()
-            case "SELECT" | "EXAMINE" if self._refuse_folder:
-                return f"{tag} NO {_REFUSAL.decode()}\r\n".encode()
             case "SELECT" | "EXAMINE":
                 return f"* 0 EXISTS\r\n{tag} OK [READ-WRITE] done\r\n".encode()
-            case "UID" if rest.upper().startswith("SEARCH"):
-                return f"* SEARCH\r\n{tag} OK done\r\n".encode()
+            case "SEARCH":
+                hit = f" {self._found}" if self._found else ""
+                return f"* SEARCH{hit}\r\n{tag} OK done\r\n".encode()
             case "LOGOUT":
                 return f"* BYE\r\n{tag} OK done\r\n".encode()
             case _:
@@ -172,6 +180,22 @@ def test_arguments_reach_the_server_quoted_and_the_default_commands_are_unchange
 
 
 @pytest.mark.parametrize(
+    ("command", "sign", "status"),
+    [("mark-read", "+", "marked_read"), ("mark-unread", "-", "marked_unread")],
+)
+def test_marking_messages_stores_the_flag_change_and_reports_what_was_marked(
+    tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path], command: str, sign: str, status: str
+) -> None:
+    mailbox = _Mailbox()
+
+    proc = _run_against(tmp_path, listener_tls, mailbox, [command, "1,5:9"])
+
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout) == {"status": status, "uids": ["1", "5:9"]}
+    assert mailbox.commands == ["SELECT INBOX", f"UID STORE 1 {sign}FLAGS (\\Seen)", f"UID STORE 5:9 {sign}FLAGS (\\Seen)"]
+
+
+@pytest.mark.parametrize(
     ("uids", "message"),
     [
         ("1,abc", "Invalid UID 'abc'"),
@@ -195,7 +219,7 @@ def test_an_invalid_uid_list_is_refused_before_any_uid_is_sent(
 def test_a_folder_the_server_refuses_is_reported_with_its_reason(
     tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path]
 ) -> None:
-    mailbox = _Mailbox(refuse_folder=True)
+    mailbox = _Mailbox(refuse="EXAMINE")
 
     proc = _run_against(tmp_path, listener_tls, mailbox, ["check", "--folder", "Sent"])
 
@@ -204,6 +228,69 @@ def test_a_folder_the_server_refuses_is_reported_with_its_reason(
     assert _REFUSAL.decode() in error
     assert "`folders`" in error
     assert mailbox.commands == ["EXAMINE Sent"]
+
+
+@pytest.mark.parametrize(
+    ("args", "refused", "found", "commands", "action"),
+    [
+        pytest.param(["check"], "SEARCH", "", ["EXAMINE INBOX", "UID SEARCH (ALL)"], "Search", id="check"),
+        pytest.param(
+            ["search", "--subject", "x"], "SEARCH", "", ["EXAMINE INBOX", 'UID SEARCH (SUBJECT "x")'], "Search", id="search"
+        ),
+        pytest.param(
+            ["check"],
+            "FETCH",
+            "7",
+            ["EXAMINE INBOX", "UID SEARCH (ALL)", "UID FETCH 7 (RFC822.HEADER)"],
+            "Fetching the headers of UID 7",
+            id="headers",
+        ),
+        pytest.param(["read", "5"], "FETCH", "", ["EXAMINE INBOX", "UID FETCH 5 (RFC822)"], "Fetching UID 5", id="read"),
+        pytest.param(
+            ["mark-read", "1,5:9"],
+            "STORE",
+            "",
+            ["SELECT INBOX", "UID STORE 1 +FLAGS (\\Seen)"],
+            "Marking UID 1 as read",
+            id="mark-read",
+        ),
+        pytest.param(
+            ["mark-unread", "1,5:9"],
+            "STORE",
+            "",
+            ["SELECT INBOX", "UID STORE 1 -FLAGS (\\Seen)"],
+            "Marking UID 1 as unread",
+            id="mark-unread",
+        ),
+        pytest.param(["folders"], "LIST", "", ['LIST "" *'], "Listing folders", id="folders"),
+    ],
+)
+def test_a_command_the_server_refuses_ends_with_its_reason_and_reports_no_success(
+    tmp_path: Path,
+    listener_tls: tuple[ssl.SSLContext, Path],
+    args: list[str],
+    refused: str,
+    found: str,
+    commands: list[str],
+    action: str,
+) -> None:
+    mailbox = _Mailbox(refuse=refused, found=found)
+
+    proc = _run_against(tmp_path, listener_tls, mailbox, args)
+
+    assert _error_of(proc) == f"{action} was refused by the server: {_REFUSAL.decode()}"
+    assert mailbox.commands == commands
+
+
+def test_a_login_the_server_refuses_is_reported_with_its_reason(
+    tmp_path: Path, listener_tls: tuple[ssl.SSLContext, Path]
+) -> None:
+    mailbox = _Mailbox(refuse="LOGIN")
+
+    proc = _run_against(tmp_path, listener_tls, mailbox, ["check"])
+
+    assert _error_of(proc) == f"IMAP authentication failed: {_REFUSAL.decode()}"
+    assert mailbox.commands == []
 
 
 def test_a_connection_dropped_in_the_middle_of_a_command_is_a_json_error(

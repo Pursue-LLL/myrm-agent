@@ -6,12 +6,14 @@
 - Process env EMAIL_SMTP_HOST, EMAIL_SMTP_USER, EMAIL_SMTP_PASSWORD (optional, for send/reply)
 - Process env EMAIL_IMAP_PORT (default 993), EMAIL_SMTP_PORT (default 587)
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
-- mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
+- mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, the check that the server did not refuse a
+  command, and the JSON error exit
 - mail_client.message: MIME header, date, summary, attachment, reply recipients and body decoding
 - mail_client.attachments: saving a download under a safe name as a new file, never over one that exists
 
 [OUTPUT]
-- JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
+- JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output;
+  a command the server refuses is such a failure carrying the server's reason, never a success or an empty list
 - read lists what the sender attached, a message that is one attachment included, but not a part the HTML body embeds;
   download saves each part that holds a file, an attached message/rfc822 with its headers as read unless it cannot be written;
   reply goes to every address of Reply-To, else of From, and is refused when neither holds an address
@@ -60,6 +62,7 @@ from mail_client.transport import (
     imap_quote,
     json_errors,
     parse_uids,
+    require_ok,
     select_folder,
 )
 
@@ -89,7 +92,7 @@ def _date_criteria(since: str | None) -> str:
 
 def _fetch_headers(conn: imaplib.IMAP4_SSL, criteria: str, limit: int) -> None:
     """Search mailbox and print JSON summary of matching message headers."""
-    _status, msg_nums = conn.uid("search", criteria)
+    msg_nums = require_ok(conn.uid("search", criteria), "Search")
     if not msg_nums or not msg_nums[0]:
         print(json.dumps({"messages": [], "total": 0}))
         return
@@ -100,7 +103,7 @@ def _fetch_headers(conn: imaplib.IMAP4_SSL, criteria: str, limit: int) -> None:
     messages: list[dict[str, object]] = []
     for uid_bytes in reversed(recent_uids):
         uid = int(uid_bytes)
-        _status, data = conn.uid("fetch", str(uid), "(RFC822.HEADER)")
+        data = require_ok(conn.uid("fetch", str(uid), "(RFC822.HEADER)"), f"Fetching the headers of UID {uid}")
         if not data or not data[0] or not isinstance(data[0], tuple):
             continue
         raw = data[0][1]
@@ -113,7 +116,7 @@ def _fetch_headers(conn: imaplib.IMAP4_SSL, criteria: str, limit: int) -> None:
 
 def _fetch_message(conn: imaplib.IMAP4_SSL, uid: int) -> email.message.Message:
     """The full message *uid* of the selected folder; the command fails when it is gone or empty."""
-    _status, data = conn.uid("fetch", str(uid), "(RFC822)")
+    data = require_ok(conn.uid("fetch", str(uid), "(RFC822)"), f"Fetching UID {uid}")
     if not data or not data[0] or not isinstance(data[0], tuple):
         fail(f"Message UID {uid} not found")
 
@@ -286,36 +289,32 @@ def cmd_reply(args: argparse.Namespace) -> None:
     print(json.dumps({"status": "sent", "message_id": msg_id, "to": recipients, "subject": subject}))
 
 
-def cmd_mark_read(args: argparse.Namespace) -> None:
+def _mark(args: argparse.Namespace, flag_change: str, state: str) -> None:
+    """Set (``+FLAGS``) or clear (``-FLAGS``) the Seen flag on the UIDs of *args*; the first UID the server refuses stops it."""
     conn = connect_imap()
     try:
         folder = args.folder or "INBOX"
         select_folder(conn, folder, readonly=False)
         uids = parse_uids(args.uids)
         for uid in uids:
-            conn.uid("store", uid, "+FLAGS", "(\\Seen)")
-        print(json.dumps({"status": "marked_read", "uids": uids}))
+            require_ok(conn.uid("store", uid, flag_change, "(\\Seen)"), f"Marking UID {uid} as {state}")
+        print(json.dumps({"status": f"marked_{state}", "uids": uids}))
     finally:
         conn.logout()
+
+
+def cmd_mark_read(args: argparse.Namespace) -> None:
+    _mark(args, "+FLAGS", "read")
 
 
 def cmd_mark_unread(args: argparse.Namespace) -> None:
-    conn = connect_imap()
-    try:
-        folder = args.folder or "INBOX"
-        select_folder(conn, folder, readonly=False)
-        uids = parse_uids(args.uids)
-        for uid in uids:
-            conn.uid("store", uid, "-FLAGS", "(\\Seen)")
-        print(json.dumps({"status": "marked_unread", "uids": uids}))
-    finally:
-        conn.logout()
+    _mark(args, "-FLAGS", "unread")
 
 
 def cmd_folders(args: argparse.Namespace) -> None:
     conn = connect_imap()
     try:
-        _status, folder_list = conn.list()
+        folder_list = require_ok(conn.list(), "Listing folders")
         folders: list[str] = []
         if folder_list:
             for item in folder_list:
