@@ -33,7 +33,6 @@ _TRANSPORT_KEYS: Final = frozenset(
         "proxy",
         "extra_headers",
         "extra_body",
-        "allowed_openai_params",
         "api_version",
         "organization",
     }

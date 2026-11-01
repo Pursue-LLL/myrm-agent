@@ -78,12 +78,12 @@ async def test_async_retry_metrics_success(chat_model, messages):
         "usage": {"prompt_tokens": 10, "completion_tokens": 20},
     }
 
-    mock_acreate = AsyncMock()
-    mock_acreate.side_effect = [
+    mock_acompletion = AsyncMock()
+    mock_acompletion.side_effect = [
         mock_response_empty,
         mock_response_success,
     ]
-    chat_model.client.acreate = mock_acreate
+    chat_model.client.acompletion = mock_acompletion
 
     _ = await chat_model._agenerate(messages)
 

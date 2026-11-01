@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import litellm
 import pytest
 
+from myrm_agent_harness.toolkits.llms.catalog import register_model, store
 from myrm_agent_harness.toolkits.llms.utils import model_utils
 from myrm_agent_harness.toolkits.llms.utils.model_utils import (
     clamp_budget_to_model_ceiling,
     get_model_context_limit,
     get_model_output_ceiling,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_registrations(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Registrations a test makes never outlive it."""
+    monkeypatch.setattr(store, "_REGISTERED", {})
 
 
 class TestGetModelContextLimit:
@@ -38,23 +44,18 @@ class TestGetModelContextLimit:
         result = get_model_context_limit(llm)
         assert result is None
 
-    def test_litellm_fallback(self) -> None:
+    def test_catalog_fallback(self) -> None:
+        register_model("vendor/windowed-model", {"max_input_tokens": 128000})
         llm = MagicMock(spec=[])
-        llm.model_name = "gpt-4o"
-        llm.model = "gpt-4o"
-        mock_litellm = MagicMock()
-        mock_litellm.get_model_info.return_value = {"max_input_tokens": 128000}
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            assert get_model_context_limit(llm) == 128000
+        llm.model_name = "vendor/windowed-model"
+        llm.model = "vendor/windowed-model"
+        assert get_model_context_limit(llm) == 128000
 
-    def test_litellm_exception_returns_none(self) -> None:
+    def test_unknown_model_returns_none(self) -> None:
         llm = MagicMock(spec=[])
-        llm.model_name = "unknown-model"
-        llm.model = "unknown-model"
-        mock_litellm = MagicMock()
-        mock_litellm.get_model_info.side_effect = Exception("not found")
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            assert get_model_context_limit(llm) is None
+        llm.model_name = "vendor/unlisted-model"
+        llm.model = "vendor/unlisted-model"
+        assert get_model_context_limit(llm) is None
 
     def test_zero_value_skipped(self) -> None:
         llm = MagicMock(spec=[])
@@ -91,30 +92,24 @@ class TestGetModelContextLimit:
 
 
 class TestGetModelOutputCeiling:
-    def test_reads_max_output_tokens_not_the_legacy_max_tokens_field(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_reads_max_output_tokens_not_the_legacy_max_tokens_field(self) -> None:
         """For part of the table ``max_tokens`` holds the context window, which is not an output limit."""
-        monkeypatch.setattr(
-            litellm, "get_model_info", lambda _model: {"max_tokens": 200_000, "max_output_tokens": 64_000}
-        )
+        register_model("vendor/ceiling-model", {"max_tokens": 200_000, "max_output_tokens": 64_000})
         assert get_model_output_ceiling("vendor/ceiling-model") == 64_000
 
-    def test_unmapped_model_has_no_ceiling(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        def _unmapped(_model: str) -> dict[str, int]:
-            raise ValueError("This model isn't mapped yet")
-
-        monkeypatch.setattr(litellm, "get_model_info", _unmapped)
+    def test_unmapped_model_has_no_ceiling(self) -> None:
         assert get_model_output_ceiling("vendor/unmapped-model") is None
 
-    @pytest.mark.parametrize("table_value", [None, 0, -5, "64000"])
-    def test_unusable_table_value_is_ignored(self, monkeypatch: pytest.MonkeyPatch, table_value: object) -> None:
-        monkeypatch.setattr(litellm, "get_model_info", lambda _model: {"max_output_tokens": table_value})
+    @pytest.mark.parametrize("table_value", [None, 0, -5, "64000", True])
+    def test_unusable_table_value_is_ignored(self, table_value: object) -> None:
+        register_model("vendor/odd-table-entry", {"max_output_tokens": table_value})
         assert get_model_output_ceiling("vendor/odd-table-entry") is None
 
     def test_empty_name_skips_the_lookup(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        def _unexpected(_model: str) -> dict[str, int]:
+        def _unexpected(_model: str) -> None:
             raise AssertionError("the table must not be consulted for an empty model name")
 
-        monkeypatch.setattr(litellm, "get_model_info", _unexpected)
+        monkeypatch.setattr(model_utils, "model_info", _unexpected)
         assert get_model_output_ceiling("") is None
 
 

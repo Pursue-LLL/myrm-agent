@@ -29,7 +29,7 @@ class CountingClient:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def acreate(self, **kwargs: Any) -> dict[str, Any]:
+    async def acompletion(self, **kwargs: Any) -> dict[str, Any]:
         self.calls += 1
         return dict(RESPONSE)
 

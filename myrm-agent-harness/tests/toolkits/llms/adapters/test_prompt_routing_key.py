@@ -219,10 +219,10 @@ class TestInjectXaiConversationId:
             prompt_routing_key_var.reset(token)
 
     @pytest.mark.asyncio
-    async def test_header_reaches_the_wire_next_to_the_authorization_header(self):
+    async def test_header_reaches_the_transport_call_and_the_key_stays_a_credential(self):
         model = ChatLiteLLM(model="xai/grok-4", api_base="https://api.x.ai/v1", api_key="xai-token")
         model.client = MagicMock()
-        model.client.acreate = AsyncMock(
+        model.client.acompletion = AsyncMock(
             return_value={
                 "id": "chatcmpl-1",
                 "model": "grok-4",
@@ -236,10 +236,9 @@ class TestInjectXaiConversationId:
         finally:
             prompt_routing_key_var.reset(token)
 
-        assert model.client.acreate.call_args.kwargs["extra_headers"] == {
-            "Authorization": "Bearer xai-token",
-            "x-grok-conv-id": "session-abc-123",
-        }
+        sent = model.client.acompletion.call_args.kwargs
+        assert sent["extra_headers"] == {"x-grok-conv-id": "session-abc-123"}
+        assert sent["api_key"] == "xai-token"
 
 
 # ---------------------------------------------------------------------------

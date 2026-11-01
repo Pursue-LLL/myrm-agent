@@ -132,27 +132,23 @@ class TestGateway400Downgrade:
             "model": "openai/gpt-4o",
             "stream": True,
             "stream_options": {"include_usage": True},
-            "allowed_openai_params": ["model", "stream", "stream_options"],
         }
         exc = Exception("400 Bad Request: unsupported stream_options")
         stripped = sanitize_gateway_params_on_400(params, exc)
 
         assert stripped == ["stream_options"]
         assert "stream_options" not in params
-        assert params["allowed_openai_params"] == ["model", "stream"]
 
     def test_sanitize_params_strips_parallel_tool_calls(self) -> None:
         params = {
             "model": "custom-model",
             "parallel_tool_calls": False,
-            "allowed_openai_params": ["model", "parallel_tool_calls"],
         }
         exc = Exception("400 unknown field parallel_tool_calls")
         stripped = sanitize_gateway_params_on_400(params, exc)
 
         assert stripped == ["parallel_tool_calls"]
         assert "parallel_tool_calls" not in params
-        assert params["allowed_openai_params"] == ["model"]
 
     def test_detect_max_completion_tokens_rejection(self) -> None:
         exc = Exception("BadRequestError: 400 Unknown field: max_completion_tokens")
@@ -170,7 +166,6 @@ class TestGateway400Downgrade:
         params = {
             "model": "deepseek-r1",
             "max_completion_tokens": 4096,
-            "allowed_openai_params": ["model", "max_completion_tokens"],
         }
         exc = Exception("400 unknown field max_completion_tokens")
         stripped = sanitize_gateway_params_on_400(params, exc)
@@ -178,34 +173,28 @@ class TestGateway400Downgrade:
         assert stripped == ["max_completion_tokens"]
         assert "max_completion_tokens" not in params
         assert params["max_tokens"] == 4096
-        assert "max_tokens" in params["allowed_openai_params"]
-        assert "max_completion_tokens" not in params["allowed_openai_params"]
 
     def test_sanitize_params_strips_temperature_on_unsupported(self) -> None:
         params = {
             "model": "o1-preview",
             "temperature": 0.7,
-            "allowed_openai_params": ["model", "temperature"],
         }
         exc = Exception("400 'temperature' does not support 0.7 for this model")
         stripped = sanitize_gateway_params_on_400(params, exc)
 
         assert stripped == ["temperature"]
         assert "temperature" not in params
-        assert params["allowed_openai_params"] == ["model"]
 
     def test_sanitize_params_strips_response_format(self) -> None:
         params = {
             "model": "local-model",
             "response_format": {"type": "json_object"},
-            "allowed_openai_params": ["model", "response_format"],
         }
         exc = Exception("400 unsupported parameter response_format")
         stripped = sanitize_gateway_params_on_400(params, exc)
 
         assert stripped == ["response_format"]
         assert "response_format" not in params
-        assert params["allowed_openai_params"] == ["model"]
 
     def test_detect_top_p_conflict_rejection(self) -> None:
         exc = Exception("BadRequestError: 400 temperature and top_p are mutually exclusive for this model")
@@ -216,7 +205,6 @@ class TestGateway400Downgrade:
             "model": "moonshot-v1-8k",
             "temperature": 0.7,
             "top_p": 0.95,
-            "allowed_openai_params": ["model", "temperature", "top_p"],
         }
         exc = Exception("BadRequestError: 400 temperature and top_p cannot both be set")
         stripped = sanitize_gateway_params_on_400(params, exc)
@@ -224,7 +212,6 @@ class TestGateway400Downgrade:
         assert stripped == ["top_p"]
         assert "top_p" not in params
         assert "temperature" in params
-        assert params["allowed_openai_params"] == ["model", "temperature"]
 
 
 def _internal_transport_response_format() -> dict:
@@ -261,7 +248,6 @@ class TestStructuredOutputSchemaDowngrade:
         params = {
             "model": "openai/qwen2.5-7b",
             "response_format": _internal_transport_response_format(),
-            "allowed_openai_params": ["model", "response_format"],
         }
         exc = Exception("[invalid_request_error] An object with no properties is not allowed.")
         stripped = sanitize_gateway_params_on_400(
@@ -270,14 +256,12 @@ class TestStructuredOutputSchemaDowngrade:
 
         assert stripped == ["response_format"]
         assert "response_format" not in params
-        assert params["allowed_openai_params"] == ["model"]
         assert is_transport_stripped(model="openai/qwen2.5-7b", base_url="http://127.0.0.1:11434/v1") is True
 
     def test_sanitize_preserves_user_response_format(self) -> None:
         params = {
             "model": "openai/gpt-4o",
             "response_format": {"type": "json_object"},
-            "allowed_openai_params": ["model", "response_format"],
         }
         exc = Exception("[invalid_request_error] An object with no properties is not allowed.")
         stripped = sanitize_gateway_params_on_400(params, exc)
@@ -301,7 +285,6 @@ class TestStructuredOutputSchemaDowngrade:
             "model": "openai/qwen2.5-7b",
             "response_format": _internal_transport_response_format(),
             "extra_body": {"response_format": _internal_transport_response_format()},
-            "allowed_openai_params": ["model", "response_format"],
         }
         exc = Exception("[invalid_request_error] An object with no properties is not allowed.")
         stripped = sanitize_gateway_params_on_400(
@@ -316,7 +299,6 @@ class TestStructuredOutputSchemaDowngrade:
         params = {
             "model": "openai/qwen2.5-7b",
             "response_format": _internal_transport_response_format(),
-            "allowed_openai_params": ["model", "response_format"],
         }
         exc = Exception("400 unsupported parameter: response_format")
         stripped = sanitize_gateway_params_on_400(
@@ -369,20 +351,19 @@ class TestAsyncAgenerateSchemaDowngrade:
         params = {
             "model": "openai/test-schema-downgrade-async",
             "response_format": _internal_transport_response_format(),
-            "allowed_openai_params": ["model", "response_format"],
         }
         monkeypatch.setattr(
             model, "_create_message_dicts", lambda *args, **kwargs: ([{"role": "user", "content": "hi"}], params)
         )
         schema_error = Exception("[invalid_request_error] An object with no properties is not allowed.")
-        mock_acreate = AsyncMock(side_effect=[schema_error, _agenerate_success_payload()])
-        model.client.acreate = mock_acreate
+        mock_acompletion = AsyncMock(side_effect=[schema_error, _agenerate_success_payload()])
+        model.client.acompletion = mock_acompletion
 
         result = await model._agenerate([HumanMessage(content="hi")])
 
         assert result.generations[0].message.content == "ok"
-        assert mock_acreate.call_count == 2
-        _, retry_kwargs = mock_acreate.call_args_list[1]
+        assert mock_acompletion.call_count == 2
+        _, retry_kwargs = mock_acompletion.call_args_list[1]
         assert "response_format" not in retry_kwargs
         assert is_transport_stripped(model="openai/test-schema-downgrade-async", base_url="") is True
 
@@ -393,19 +374,18 @@ class TestAsyncAgenerateSchemaDowngrade:
         params = {
             "model": "openai/test-schema-downgrade-user",
             "response_format": {"type": "json_object"},
-            "allowed_openai_params": ["model", "response_format"],
         }
         monkeypatch.setattr(
             model, "_create_message_dicts", lambda *args, **kwargs: ([{"role": "user", "content": "hi"}], params)
         )
         schema_error = Exception("[invalid_request_error] An object with no properties is not allowed.")
-        mock_acreate = AsyncMock(side_effect=schema_error)
-        model.client.acreate = mock_acreate
+        mock_acompletion = AsyncMock(side_effect=schema_error)
+        model.client.acompletion = mock_acompletion
 
         with pytest.raises(Exception, match="no properties"):
             await model._agenerate([HumanMessage(content="hi")])
 
-        assert mock_acreate.call_count == 1
+        assert mock_acompletion.call_count == 1
         assert params["response_format"] == {"type": "json_object"}
 
 
@@ -418,7 +398,6 @@ class TestSyncGenerateSchemaDowngrade:
         params = {
             "model": "openai/test-schema-downgrade-sync",
             "response_format": _internal_transport_response_format(),
-            "allowed_openai_params": ["model", "response_format"],
         }
         monkeypatch.setattr(
             model, "_create_message_dicts", lambda *args, **kwargs: ([{"role": "user", "content": "hi"}], params)
@@ -440,7 +419,6 @@ class TestSyncGenerateSchemaDowngrade:
         params = {
             "model": "openai/test-schema-downgrade-sync-user",
             "response_format": {"type": "json_object"},
-            "allowed_openai_params": ["model", "response_format"],
         }
         monkeypatch.setattr(
             model, "_create_message_dicts", lambda *args, **kwargs: ([{"role": "user", "content": "hi"}], params)
@@ -465,7 +443,6 @@ class TestSyncStreamSchemaDowngrade:
         params = {
             "model": "openai/test-schema-downgrade-stream",
             "response_format": _internal_transport_response_format(),
-            "allowed_openai_params": ["model", "response_format"],
         }
         monkeypatch.setattr(
             model, "_create_message_dicts", lambda *args, **kwargs: ([{"role": "user", "content": "hi"}], params)

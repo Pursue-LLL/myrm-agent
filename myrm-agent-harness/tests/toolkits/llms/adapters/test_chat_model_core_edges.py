@@ -36,13 +36,6 @@ class _PydanticSchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class TestClientParams:
-    def test_client_params_requires_initialized_client(self) -> None:
-        llm = ChatLiteLLM.model_construct(model="gpt-5-chat", client=None)
-        with pytest.raises(RuntimeError, match="client not initialized"):
-            _ = llm._client_params
-
-
 class TestConvertResponseToDict:
     def test_accepts_dict(self) -> None:
         assert _make_model()._convert_response_to_dict({"a": 1}) == {"a": 1}

@@ -56,7 +56,7 @@ class FakeClient:
         self._behaviours = list(behaviours)
         self.calls = 0
 
-    async def acreate(self, **kwargs: object) -> ProviderReply:
+    async def acompletion(self, **kwargs: object) -> ProviderReply:
         behaviour = self._behaviours[min(self.calls, len(self._behaviours) - 1)]
         self.calls += 1
         return behaviour()

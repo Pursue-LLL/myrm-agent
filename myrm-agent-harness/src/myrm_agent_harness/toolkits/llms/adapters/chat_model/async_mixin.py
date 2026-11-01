@@ -278,7 +278,7 @@ class ChatLiteLLMAsyncMixin:
                     logger.warning(" Context overflow, fast-failing to trigger compression.")
                     raise e
 
-                logger.error(f" LiteLLM acreate failed (Model: {self.model_name or self.model}): {e!s}")
+                logger.error(f" LLM request failed (Model: {self.model_name or self.model}): {e!s}")
                 raise
 
         if last_error:

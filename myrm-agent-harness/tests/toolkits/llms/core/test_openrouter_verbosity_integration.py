@@ -157,9 +157,8 @@ class TestOpenrouterVerbosityCoexistence:
     def test_bind_path_preserves_reasoning_effort_for_openrouter(self) -> None:
         """llm.bind(reasoning_effort=...) after creation adds it to _default_params.
 
-        The bind path does not re-run apply_openrouter_reasoning_effort, but
-        _inject_allowed_params whitelists it so it won't be dropped by LiteLLM.
-        OpenRouter accepts top-level reasoning_effort as a legacy compat path.
+        The bind path does not re-run apply_openrouter_reasoning_effort; the transport forwards the bound
+        parameter as given. OpenRouter accepts top-level reasoning_effort as a legacy compat path.
         """
         llm = create_litellm_model(
             "openrouter/anthropic/claude-4.6-opus",

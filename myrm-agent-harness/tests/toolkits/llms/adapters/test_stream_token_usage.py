@@ -252,7 +252,7 @@ class TestAsyncStreamSentinel:
         model = ChatLiteLLM(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
-        model.client.acreate = AsyncMock(return_value=_mock_astream(chunks))
+        model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
 
         results = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -271,7 +271,7 @@ class TestAsyncStreamSentinel:
         model = ChatLiteLLM(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
-        model.client.acreate = AsyncMock(return_value=_mock_astream(chunks))
+        model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
 
         results = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -292,7 +292,7 @@ class TestAsyncStreamSentinel:
         model = ChatLiteLLM(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=False)
-        model.client.acreate = AsyncMock(return_value=_mock_astream(chunks))
+        model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
 
         results = []
         async for chunk in model._astream([HumanMessage(content="hi")]):

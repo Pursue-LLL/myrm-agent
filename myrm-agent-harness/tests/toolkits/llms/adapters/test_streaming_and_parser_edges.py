@@ -41,20 +41,16 @@ class TestSafeGet:
 
 class TestProviderReportedFinish:
     def test_marker_set_by_the_provider(self) -> None:
-        assert provider_reported_finish(SimpleNamespace(received_finish_reason="stop", intermittent_finish_reason=None))
-        assert provider_reported_finish(
-            SimpleNamespace(received_finish_reason=None, intermittent_finish_reason="tool_calls")
-        )
+        assert provider_reported_finish(SimpleNamespace(received_finish_reason="stop"))
+        assert provider_reported_finish(SimpleNamespace(received_finish_reason="tool_calls"))
 
-    def test_both_unset_means_the_finish_reason_was_synthesized(self) -> None:
-        stream = SimpleNamespace(received_finish_reason=None, intermittent_finish_reason=None)
+    def test_unset_marker_means_the_finish_reason_was_synthesized(self) -> None:
+        assert provider_reported_finish(SimpleNamespace(received_finish_reason=None)) is False
 
-        assert provider_reported_finish(stream) is False
-
-    def test_stream_without_the_markers_cannot_tell(self) -> None:
+    def test_stream_without_the_marker_cannot_tell(self) -> None:
         assert provider_reported_finish(None) is None
         assert provider_reported_finish(iter(())) is None
-        assert provider_reported_finish(SimpleNamespace(received_finish_reason="stop")) is None
+        assert provider_reported_finish(SimpleNamespace()) is None
 
 
 class TestIsCompleteJsonFragment:

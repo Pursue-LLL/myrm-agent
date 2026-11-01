@@ -142,7 +142,7 @@ class TestStreamAggregator:
         agg = StreamAggregator(AIMessageChunk)
         assert agg.provider_finish is None  # nothing tracked yet
 
-        stream = SimpleNamespace(received_finish_reason=None, intermittent_finish_reason=None)
+        stream = SimpleNamespace(received_finish_reason=None)
 
         assert agg.track(stream) is stream
         assert agg.provider_finish is False
@@ -407,7 +407,7 @@ class TestFinalizeStreamProviderFinish:
             return finalize_stream(agg, None, "gpt-4o", is_async=False, record_usage_fn=MagicMock())
 
     def test_stream_the_provider_never_finished_withholds_the_call(self) -> None:
-        result = self._finalize(SimpleNamespace(received_finish_reason=None, intermittent_finish_reason=None))
+        result = self._finalize(SimpleNamespace(received_finish_reason=None))
 
         message = result.aggregated_response["choices"][0]["message"]
         assert "tool_calls" not in message
@@ -416,7 +416,7 @@ class TestFinalizeStreamProviderFinish:
         ]
 
     def test_provider_finished_stream_still_recovers_the_call(self) -> None:
-        result = self._finalize(SimpleNamespace(received_finish_reason="stop", intermittent_finish_reason=None))
+        result = self._finalize(SimpleNamespace(received_finish_reason="stop"))
 
         message = result.aggregated_response["choices"][0]["message"]
         assert [call["function"]["arguments"] for call in message["tool_calls"]] == ['{"path": "/tmp/a"}']

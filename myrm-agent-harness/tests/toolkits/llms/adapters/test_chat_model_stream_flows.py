@@ -139,7 +139,7 @@ class TestAsyncStreamRetryAndFlush:
                 return _async_iter([])
             return _async_iter(_stream_chunks())
 
-        model.client.acreate = AsyncMock(side_effect=_flaky)
+        model.client.acompletion = AsyncMock(side_effect=_flaky)
         model.empty_retry_max_attempts = 2
         model.empty_retry_delay = 0.05
 
@@ -169,7 +169,7 @@ class TestAsyncStreamRetryAndFlush:
             },
             {"choices": [{"delta": {"content": None}, "finish_reason": "stop"}]},
         ]
-        model.client.acreate = AsyncMock(return_value=_async_iter(chunks))
+        model.client.acompletion = AsyncMock(return_value=_async_iter(chunks))
 
         collected = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -247,7 +247,7 @@ class TestAsyncAgenerateStreaming:
         model = ChatLiteLLM(model="openai/test-model")
         model.streaming = True
         model.client = MagicMock()
-        model.client.acreate = AsyncMock(return_value=_async_iter(_stream_chunks()))
+        model.client.acompletion = AsyncMock(return_value=_async_iter(_stream_chunks()))
 
         result: ChatResult = await model._agenerate([HumanMessage(content="hi")])
 
@@ -264,7 +264,7 @@ class TestAsyncAgenerateStreaming:
         async def _boom(messages: Any, **kwargs: Any) -> Any:
             raise RuntimeError("provider down")
 
-        model.client.acreate = AsyncMock(side_effect=_boom)
+        model.client.acompletion = AsyncMock(side_effect=_boom)
 
         with pytest.raises(RuntimeError, match="provider down"):
             await model._agenerate([HumanMessage(content="hi")])
@@ -321,7 +321,7 @@ class TestAsyncAgenerateStreaming:
         async def _boom(messages: Any, **kwargs: Any) -> Any:
             raise ValueError("context length exceeded")
 
-        model.client.acreate = AsyncMock(side_effect=_boom)
+        model.client.acompletion = AsyncMock(side_effect=_boom)
         model.empty_retry_enabled = False
 
         import myrm_agent_harness.toolkits.llms.errors.classifier as cls
@@ -357,7 +357,7 @@ class TestAsyncAgenerateStreaming:
             {"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": "{}"}}]}}]},
             {"choices": [{"delta": {"content": None}, "finish_reason": "tool_calls"}]},
         ]
-        model.client.acreate = AsyncMock(return_value=_async_iter(chunks))
+        model.client.acompletion = AsyncMock(return_value=_async_iter(chunks))
 
         collected = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -375,7 +375,7 @@ class TestAsyncAgenerateStreaming:
             {"choices": [{"delta": {"role": "assistant", "content": "hi"}}]},
             {"choices": [{"delta": {"content": None}, "finish_reason": "stop"}]},
         ]
-        model.client.acreate = AsyncMock(return_value=_async_iter(chunks))
+        model.client.acompletion = AsyncMock(return_value=_async_iter(chunks))
         manager = _AsyncRunManager()
 
         async for _ in model._astream([HumanMessage(content="hi")], run_manager=manager):

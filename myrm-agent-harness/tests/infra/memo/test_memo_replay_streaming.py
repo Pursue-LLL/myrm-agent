@@ -38,7 +38,7 @@ class CountingStreamingClient:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def acreate(self, **kwargs: Any) -> Any:
+    async def acompletion(self, **kwargs: Any) -> Any:
         self.calls += 1
 
         async def _stream() -> Any:

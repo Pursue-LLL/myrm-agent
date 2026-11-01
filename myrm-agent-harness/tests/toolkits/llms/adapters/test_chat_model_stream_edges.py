@@ -243,7 +243,7 @@ class TestAsyncStreamEdges:
     async def test_empty_stream_retries_then_raises(self) -> None:
         model = ChatLiteLLM(model="openai/test-model")
         model.client = MagicMock()
-        model.client.acreate = AsyncMock(return_value=_async_chunks([]))
+        model.client.acompletion = AsyncMock(return_value=_async_chunks([]))
         model.empty_retry_max_attempts = 1
         model.empty_retry_delay = 0.1
 
@@ -267,7 +267,7 @@ class TestAsyncStreamEdges:
                 await asyncio.sleep(0.1)
                 raise StopAsyncIteration
 
-        model.client.acreate = AsyncMock(return_value=_StallingStream())
+        model.client.acompletion = AsyncMock(return_value=_StallingStream())
 
         with pytest.raises(StreamStallTimeoutError) as excinfo:
             async for _ in model._astream([HumanMessage(content="hi")]):
@@ -293,7 +293,7 @@ class TestAsyncStreamEdges:
             {"choices": [{"delta": {"content": " world"}, "finish_reason": "stop"}]},
             {"choices": [], "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}},
         ]
-        model.client.acreate = AsyncMock(return_value=_async_chunks(chunks))
+        model.client.acompletion = AsyncMock(return_value=_async_chunks(chunks))
 
         collected: list[str] = []
         async for chunk in model._astream([HumanMessage(content="hi")]):

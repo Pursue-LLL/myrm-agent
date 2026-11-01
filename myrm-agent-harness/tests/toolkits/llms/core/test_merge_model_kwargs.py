@@ -158,26 +158,16 @@ class TestResolveWebSearchOptions:
         assert result is None
 
     def test_auto_detect_supported(self) -> None:
-        """Auto-detect (native_tools=None) should call litellm.supports_web_search."""
-        mock_litellm = MagicMock()
-        mock_litellm.supports_web_search.return_value = True
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            result = _resolve_web_search_options("openai/gpt-4o-search", None, None)
-        assert result == {}
+        """Auto-detect (native_tools=None) enables native search for a model the catalog marks as searching."""
+        assert _resolve_web_search_options("openai/gpt-4o-search-preview", None, None) == {}
 
     def test_auto_detect_not_supported(self) -> None:
-        """Auto-detect should return None when model doesn't support web search."""
-        mock_litellm = MagicMock()
-        mock_litellm.supports_web_search.return_value = False
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
-            result = _resolve_web_search_options("anthropic/claude-4-sonnet", None, None)
-        assert result is None
+        """Auto-detect leaves native search off for a model the catalog does not mark as searching."""
+        assert _resolve_web_search_options("openai/gpt-4o", None, None) is None
 
-    def test_auto_detect_import_error(self) -> None:
-        """ImportError during auto-detect should gracefully return None."""
-        with patch.dict("sys.modules", {"litellm": None}):
-            result = _resolve_web_search_options("some-model", None, None)
-        assert result is None
+    def test_auto_detect_unknown_model(self) -> None:
+        """A model the catalog does not know never gets native search."""
+        assert _resolve_web_search_options("vendor/unlisted-model", None, None) is None
 
 
 class TestCreateLitellmModel:

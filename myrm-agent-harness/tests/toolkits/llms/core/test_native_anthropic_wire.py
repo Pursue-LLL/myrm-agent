@@ -1,7 +1,7 @@
 """Wire-level proof that a native Anthropic call carries what the Messages API accepts and nothing else.
 
 The Messages API rejects unknown top-level fields. Each test builds the LLM through the production factory,
-makes one real LiteLLM call against a strict loopback fake of that API and inspects what arrived there:
+makes one real transport call against a strict loopback fake of that API and inspects what arrived there:
 a request the fake refuses surfaces as a failed call or as a second request, because the adapter's
 reactive parameter stripping would otherwise hide the problem behind retries.
 """
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-import litellm
 import pytest
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
@@ -31,12 +30,9 @@ OPENAI_REASONING = "openai/gpt-5-mini"
 
 
 @pytest.fixture(autouse=True)
-def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Apply the global LiteLLM switches the harness sets in production and keep the loopback off any proxy."""
+def _loopback_without_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the loopback fake off any proxy the environment configures."""
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
-    monkeypatch.setattr(litellm, "drop_params", True)
-    monkeypatch.setattr(litellm, "modify_params", True)
-    monkeypatch.setattr(litellm, "cache", None)
 
 
 @pytest.fixture
@@ -84,7 +80,7 @@ async def test_plain_call_takes_one_request_with_only_messages_api_fields() -> N
 async def test_stream_usage_still_reaches_the_ledger(usages: list[object]) -> None:
     await _claude_requests(max_tokens=1024)
 
-    assert [(u.prompt_tokens, u.completion_tokens) for u in usages] == [(3, 9)]  # type: ignore[attr-defined]
+    assert [(u["prompt_tokens"], u["completion_tokens"]) for u in usages] == [(3, 9)]  # type: ignore[index]
 
 
 async def test_reasoning_effort_is_translated_into_thinking() -> None:

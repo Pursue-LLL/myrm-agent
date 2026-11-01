@@ -168,11 +168,6 @@ _PAYLOAD_TOO_LARGE_RE = re.compile(
 # Provider / model semantics
 # ============================================================================
 
-_LITELLM_INIT_BUG_RE = re.compile(
-    r"BadRequestError\.__init__\(\).*missing.*required positional argument",
-    re.IGNORECASE,
-)
-
 _PROVIDER_FORMAT_400_RE = re.compile(
     r"must be in JSON format|InvalidParameter.*(?:function|arguments)"
     r"|schema validation error|invalid format|invalid json format|valid JSON",

@@ -75,7 +75,7 @@ async def _stream() -> AsyncIterator[_Chunk]:
 def _model(**fields: Any) -> ChatLiteLLM:
     model = ChatLiteLLM(model="xai/grok-4", api_base="https://api.x.ai/v1", **fields)
     model.client = MagicMock()
-    model.client.acreate = AsyncMock(return_value=_response())
+    model.client.acompletion = AsyncMock(return_value=_response())
     return model
 
 
@@ -145,16 +145,15 @@ class TestRegistry:
 
 class TestChatModelRequests:
     @pytest.mark.asyncio
-    async def test_non_streaming_request_carries_the_renewed_key_everywhere(self) -> None:
+    async def test_non_streaming_request_carries_the_renewed_key(self) -> None:
         model = _model(api_key="old")
         refresher = _renewing({"old": "new"})
         set_api_key_refresher(refresher)
 
         await model.ainvoke([HumanMessage(content="hi")])
 
-        sent = model.client.acreate.call_args.kwargs
+        sent = model.client.acompletion.call_args.kwargs
         assert sent["api_key"] == "new"
-        assert sent["extra_headers"]["Authorization"] == "Bearer new"
         assert model.api_key == "new"
         refresher.assert_awaited_once_with("old")
 
@@ -168,16 +167,7 @@ class TestChatModelRequests:
         await model.ainvoke([HumanMessage(content="second")])
 
         assert [call.args[0] for call in refresher.await_args_list] == ["old", "new"]
-        assert model.client.acreate.call_args.kwargs["api_key"] == "new"
-
-    @pytest.mark.asyncio
-    async def test_key_held_only_as_openai_api_key_is_renewed_too(self) -> None:
-        model = _model(openai_api_key="old")
-        set_api_key_refresher(_renewing({"old": "new"}))
-
-        await model.ainvoke([HumanMessage(content="hi")])
-
-        assert model.client.acreate.call_args.kwargs["api_key"] == "new"
+        assert model.client.acompletion.call_args.kwargs["api_key"] == "new"
 
     @pytest.mark.asyncio
     async def test_without_a_refresher_the_key_is_untouched(self) -> None:
@@ -185,7 +175,7 @@ class TestChatModelRequests:
 
         await model.ainvoke([HumanMessage(content="hi")])
 
-        assert model.client.acreate.call_args.kwargs["api_key"] == "old"
+        assert model.client.acompletion.call_args.kwargs["api_key"] == "old"
 
     @pytest.mark.asyncio
     async def test_a_failing_refresher_does_not_fail_the_request(self) -> None:
@@ -195,29 +185,29 @@ class TestChatModelRequests:
         result = await model.ainvoke([HumanMessage(content="hi")])
 
         assert result.content == "ok"
-        assert model.client.acreate.call_args.kwargs["api_key"] == "old"
+        assert model.client.acompletion.call_args.kwargs["api_key"] == "old"
 
     @pytest.mark.asyncio
     async def test_streaming_request_carries_the_renewed_key_and_asks_once(self) -> None:
         model = _model(api_key="old")
-        model.client.acreate = AsyncMock(return_value=_stream())
+        model.client.acompletion = AsyncMock(return_value=_stream())
         refresher = _renewing({"old": "new"})
         set_api_key_refresher(refresher)
 
         chunks = [chunk async for chunk in model.astream([HumanMessage(content="hi")])]
 
         assert chunks
-        assert model.client.acreate.call_args.kwargs["api_key"] == "new"
+        assert model.client.acompletion.call_args.kwargs["api_key"] == "new"
         refresher.assert_awaited_once_with("old")
 
     @pytest.mark.asyncio
     async def test_streamed_generate_asks_once_not_per_layer(self) -> None:
         model = _model(api_key="old", streaming=True)
-        model.client.acreate = AsyncMock(return_value=_stream())
+        model.client.acompletion = AsyncMock(return_value=_stream())
         refresher = _renewing({"old": "new"})
         set_api_key_refresher(refresher)
 
         await model.ainvoke([HumanMessage(content="hi")])
 
-        assert model.client.acreate.call_args.kwargs["api_key"] == "new"
+        assert model.client.acompletion.call_args.kwargs["api_key"] == "new"
         refresher.assert_awaited_once_with("old")

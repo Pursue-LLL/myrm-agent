@@ -110,8 +110,8 @@ def _script(model: ChatLiteLLM, path: str, *outcomes: object) -> MagicMock:
     """Install the provider fake for ``path``: exceptions are raised, the string 'ok' becomes a normal response."""
     resolved = [_success(path) if outcome == "ok" else outcome for outcome in outcomes]
     if path in ASYNC_PATHS:
-        model.client.acreate = AsyncMock(side_effect=resolved)
-        return model.client.acreate
+        model.client.acompletion = AsyncMock(side_effect=resolved)
+        return model.client.acompletion
     model.client.completion = MagicMock(side_effect=resolved)
     return model.client.completion
 

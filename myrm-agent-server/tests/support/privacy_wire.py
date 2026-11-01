@@ -21,7 +21,7 @@ def wire_llm(reply: str = "ok", *, reasoning: str | None = None) -> tuple[ChatLi
     if reasoning is not None:
         answer["reasoning_content"] = reasoning
 
-    async def acreate(*, messages: list[dict[str, object]], **_: object) -> dict[str, object]:
+    async def acompletion(*, messages: list[dict[str, object]], **_: object) -> dict[str, object]:
         sent.extend(str(message["content"]) for message in messages)
         return {
             "id": "chatcmpl-test",
@@ -32,5 +32,5 @@ def wire_llm(reply: str = "ok", *, reasoning: str | None = None) -> tuple[ChatLi
 
     model = ChatLiteLLM(model="openai/test-model")
     model.client = MagicMock()
-    model.client.acreate = acreate
+    model.client.acompletion = acompletion
     return model, sent

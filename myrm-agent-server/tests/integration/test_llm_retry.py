@@ -31,7 +31,7 @@ async def test_normal_request_with_retry_enabled():
     # Create LLM with retry enabled
     llm = ChatLiteLLM(
         model=_normalized_model(),
-        openai_api_key=OPENAI_API_KEY,
+        api_key=OPENAI_API_KEY,
         api_base=_TEST_API_BASE,
         empty_retry_enabled=True,
         empty_retry_max_attempts=3,

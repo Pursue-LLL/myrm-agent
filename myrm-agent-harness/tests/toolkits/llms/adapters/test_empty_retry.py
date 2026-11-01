@@ -105,31 +105,31 @@ async def test_async_retry_success(chat_model, messages):
         "usage": {"prompt_tokens": 10, "completion_tokens": 20},
     }
 
-    mock_acreate = AsyncMock()
-    mock_acreate.side_effect = [
+    mock_acompletion = AsyncMock()
+    mock_acompletion.side_effect = [
         mock_response_empty,
         mock_response_success,
     ]
-    chat_model.client.acreate = mock_acreate
+    chat_model.client.acompletion = mock_acompletion
 
     result = await chat_model._agenerate(messages)
 
     assert len(result.generations) == 1
     assert result.generations[0].message.content == "test"
-    assert mock_acreate.call_count == 2
+    assert mock_acompletion.call_count == 2
 
 
 @pytest.mark.asyncio
 async def test_async_retry_exhausted(chat_model, messages):
     """Test async retry fails after max attempts."""
     mock_response_empty = {"choices": [], "usage": {}}
-    mock_acreate = AsyncMock(return_value=mock_response_empty)
-    chat_model.client.acreate = mock_acreate
+    mock_acompletion = AsyncMock(return_value=mock_response_empty)
+    chat_model.client.acompletion = mock_acompletion
 
     with pytest.raises(EmptyChoicesError):
         await chat_model._agenerate(messages)
 
-    assert mock_acreate.call_count == 3
+    assert mock_acompletion.call_count == 3
 
 
 @pytest.mark.asyncio
@@ -137,13 +137,13 @@ async def test_async_retry_disabled(chat_model, messages):
     """Test async retry disabled via config."""
     chat_model.empty_retry_enabled = False
     mock_response_empty = {"choices": [], "usage": {}}
-    mock_acreate = AsyncMock(return_value=mock_response_empty)
-    chat_model.client.acreate = mock_acreate
+    mock_acompletion = AsyncMock(return_value=mock_response_empty)
+    chat_model.client.acompletion = mock_acompletion
 
     with pytest.raises(EmptyChoicesError):
         await chat_model._agenerate(messages)
 
-    assert mock_acreate.call_count == 1
+    assert mock_acompletion.call_count == 1
 
 
 # Stream tests

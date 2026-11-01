@@ -302,6 +302,9 @@ def _body(route: Route, messages: Sequence[Mapping[str, object]], opts: CallOpti
         schema = schema_holder.get("schema") if isinstance(schema_holder, Mapping) else None
         if isinstance(schema, Mapping):
             body["output_format"] = {"type": "json_schema", "schema": to_output_schema(schema)}
+    user = params.get("user")
+    if isinstance(user, str) and user:
+        body["metadata"] = {"user_id": user}
     if opts.stream:
         body["stream"] = True
     body.update(opts.extra_body)

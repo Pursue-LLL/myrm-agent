@@ -102,11 +102,11 @@ async def test_an_async_request_reaches_the_provider_only_through_the_guard() ->
     set_outbound_message_guard(_mask_user_messages)
     model = ChatLiteLLM(model="openai/test-model")
     model.client = MagicMock()
-    model.client.acreate = AsyncMock(return_value=_response())
+    model.client.acompletion = AsyncMock(return_value=_response())
 
     await model.ainvoke([HumanMessage(content="call 13812345678")])
 
-    sent = model.client.acreate.call_args.kwargs["messages"]
+    sent = model.client.acompletion.call_args.kwargs["messages"]
     assert [m["content"] for m in sent] == ["[masked]"]
 
 

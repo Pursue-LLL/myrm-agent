@@ -43,19 +43,6 @@ def test_bind_tools_passes_named_function_tool_choice() -> None:
     }
 
 
-def test_inject_allowed_params_excludes_allowed_tools_from_force_whitelist() -> None:
-    params: dict[str, object] = {
-        "tool_choice": {
-            "type": "allowed_tools",
-            "mode": "auto",
-            "tools": [{"type": "function", "name": "file_write_tool"}],
-        },
-        "tools": [],
-    }
-    ChatLiteLLM._inject_allowed_params(params)
-    assert "tool_choice" not in params["allowed_openai_params"]
-
-
 def test_bind_tools_injects_grammar_json_schema_for_local_endpoints() -> None:
     """Local weak model endpoints (e.g. llama-server on localhost) get structured tool call schema."""
     llm = ChatLiteLLM(model="openai/qwen2.5-coder:7b", api_base="http://127.0.0.1:11434/v1")

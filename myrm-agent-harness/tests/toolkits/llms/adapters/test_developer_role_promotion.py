@@ -287,15 +287,7 @@ class TestCreateMessageDictsPromotion:
         assert message_dicts[0]["role"] == "developer"
         assert message_dicts[0]["content"] == "Be concise."
 
-    def test_service_tier_included_in_allowed_params(self) -> None:
-        """Verify service_tier is preserved in allowed_openai_params for speed tier passthrough."""
-        from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
-            _FRAMEWORK_REQUIRED_OPENAI_PARAMS,
-        )
-
-        assert "service_tier" in _FRAMEWORK_REQUIRED_OPENAI_PARAMS
-        params: dict[str, object] = {"service_tier": "ultrafast"}
-        ChatLiteLLM._inject_allowed_params(params)
-        allowed = params.get("allowed_openai_params", [])
-        assert isinstance(allowed, list)
-        assert "service_tier" in allowed
+    def test_service_tier_reaches_the_transport_call(self) -> None:
+        """A caller-supplied ``service_tier`` (speed tier) is forwarded untouched, never filtered by a capability table."""
+        model = _make_model("gpt-5", model_kwargs={"service_tier": "ultrafast"})
+        assert model._default_params["service_tier"] == "ultrafast"

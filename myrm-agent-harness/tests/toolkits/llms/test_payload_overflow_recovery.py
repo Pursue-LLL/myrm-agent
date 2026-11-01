@@ -190,7 +190,7 @@ class TestChatLiteLLMPayloadRecovery:
                 ]
             )
 
-        model.client.acreate = AsyncMock(side_effect=_flaky)
+        model.client.acompletion = AsyncMock(side_effect=_flaky)
         model.empty_retry_max_attempts = 2
         model.empty_retry_delay = 0.01
 
@@ -232,7 +232,7 @@ class TestChatLiteLLMPayloadRecovery:
                 "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
             }
 
-        model.client.acreate = AsyncMock(side_effect=_flaky_agenerate)
+        model.client.acompletion = AsyncMock(side_effect=_flaky_agenerate)
         model.empty_retry_max_attempts = 2
         model.empty_retry_delay = 0.01
 
