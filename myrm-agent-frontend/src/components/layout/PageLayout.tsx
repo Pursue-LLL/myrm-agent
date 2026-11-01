@@ -7,6 +7,7 @@ import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
 import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isTauriEnvironment } from '@/lib/tauri';
+import { isSandbox } from '@/lib/deploy-mode';
 import { getReadinessStatus, type ReadinessResponse } from '@/services/onboarding';
 import { shouldShowBootScreen } from '@/components/features/app-shell/boot-screen-gate';
 import { useFocusedMode } from '@/hooks/ui/useFocusedMode';
@@ -79,10 +80,12 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
         setReadinessDegraded(false);
       }
 
-      if (status && !status.onboarding_completed) {
+      // Only a hosted sandbox runs the first-run wizard; local installs go straight to the home page,
+      // where NoProviderBanner asks for the one thing they need (a model provider).
+      if (status && !status.onboarding_completed && isSandbox()) {
         setNeedsOnboarding(true);
         setShowNormalBoot(false);
-      } else if (status?.onboarding_completed && shouldShowBootScreen()) {
+      } else if (status && shouldShowBootScreen()) {
         setShowNormalBoot(true);
         setNeedsOnboarding(false);
       }

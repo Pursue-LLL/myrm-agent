@@ -3188,60 +3188,6 @@
       "sandbox_ro": "文件系统为只读",
       "healthy": "环境正常"
     },
-    "localModelDetected": {
-      "title": "检测到本地 AI 模型",
-      "description": "发现本地运行的 {provider}，共 {count} 个模型可用。无需配置，即可开始对话。",
-      "useModel": "使用 {model}",
-      "configureManually": "手动配置",
-      "detecting": "正在检测本地 AI 模型...",
-      "noModels": "未检测到本地 AI 模型",
-      "activated": "已就绪！",
-      "activatedDesc": "{model} 已连接成功。试试你的第一个任务：",
-      "tryDemo": "帮我总结今天的科技新闻",
-      "tryDemoLabel": "立即体验"
-    },
-    "localCapabilities": {
-      "detecting": "正在检测本地 AI 与搜索服务...",
-      "searchTitle": "可免费启用联网搜索",
-      "searchDescription": "启用本地 SearXNG（LiteLLM，无需 API Key）。",
-      "enableSearxng": "启用 SearXNG",
-      "enablingSearxng": "正在启用 SearXNG…",
-      "searxngDockerHint": "搜索为可选项；需要本地免费搜索时可一键启动 SearXNG（需本机 Docker）",
-      "startSearxngDocker": "启动 SearXNG（Docker）",
-      "startingSearxng": "正在启动 SearXNG…",
-      "startSearxngFailed": "SearXNG 启动失败，请确认已安装 Docker",
-      "usePaidSearchSettings": "改用付费搜索服务",
-      "configureSearch": "配置搜索",
-      "chipLabel": "启用搜索",
-      "searchEnabled": "已启用 {service} 搜索",
-      "searchEnableFailed": "启用搜索失败",
-      "modelActivateFailed": "启用本地模型失败",
-      "customEndpointTitle": "OpenAI 兼容本地端点",
-      "customEndpointDescription": "粘贴本地端点地址，自动探测模型并一步完成配置。",
-      "customApiUrlLabel": "API 地址",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API Key（本地/局域网分机可选）",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "localhost 或信任分机端点可留空 API Key；云端公网端点仍需提供 Key。",
-      "customSplitStackHint": "已识别局域网 / Tailscale 分机端点，支持留空 API Key 免密直连。",
-      "customNoAuthDetected": "已识别免鉴权模式，将不会强制附加或存储 API Key。",
-      "customDetectModels": "检测模型",
-      "customUseModel": "使用 {model}",
-      "customErrorApiUrlRequired": "请输入 API 地址",
-      "customErrorDetectFailed": "该端点模型探测失败",
-      "customErrorNoModels": "端点可达，但未返回任何模型",
-      "customErrorProbeFailed": "端点探测失败",
-      "customErrorDetectFirst": "请先执行模型探测",
-      "customErrorReachabilityFailed": "端点连通但模型健康检查失败",
-      "customDetectSuccess": "已检测到 {count} 个模型",
-      "checklistTitle": "工具调用推荐标杆",
-      "checklistSubtitle": "已验证支持复杂任务",
-      "recommendedBadge": "推荐",
-      "verifiedBadge": "已验证支持工具调用：{model}",
-      "verifiedDescription": "该模型经 Myrm 兼容性测试，可稳定执行函数调用、文件读写与联网搜索。",
-      "unverifiedWarningTitle": "未验证模型提示：{model}",
-      "unverifiedWarningDescription": "该模型尚未经官方工具调用兼容性验证，执行复杂技能时可能出现格式异常。建议优先选用推荐标杆模型。"
-    },
     "migrationDiscovery": {
       "detecting": "正在扫描本地 AI 助手数据...",
       "title": "检测到 {competitor} 数据",
@@ -5856,7 +5802,6 @@
           "description": "可选：连接本地文件夹，让助手就地读写你的文件。Wiki 导入会把笔记复制到独立知识库——若要用真实 vault 或同步目录，请在此绑定。",
           "chooseFolder": "选择文件夹",
           "preparing": "准备中…",
-          "skip": "暂时跳过",
           "linkedSuccess": "文件夹已链接，下一条对话将使用该工作区。",
           "defaultProjectName": "我的文件",
           "candidateGeneric": "已从先前助手配置检测到文件夹。",
@@ -12255,40 +12200,13 @@
       "ready": "准备就绪"
     },
     "skipHint": "点击或按 ESC 跳过",
-    "backendSetupHint": "后端未启动。请在项目根目录运行 ./myrm setup，然后刷新页面。",
     "onboarding": {
-      "migrationTitle": "发现历史数据",
-      "migrationDescription": "我们扫描到了您在其他 AI 助手中的数据，是否一键无缝导入？",
       "migrationCloudTitle": "从其他助手导入",
       "migrationCloudDescription": "上传导出包，将记忆与工作区偏好迁移到你的云端沙箱。",
       "instantStartTitle": "开箱即用体验",
       "instantStartDescription": "已为您预置通用助手、办公文档助手与代码智能体，零配置立即开启对话。",
       "instantStartButton": "即刻开启体验",
-      "customSetupButton": "高级配置向导",
       "skipStep": "跳过此步",
-      "capabilitiesTitle": "配置 AI 引擎",
-      "capabilitiesDescription": "连接本地大模型与联网搜索，实现开箱即用的 AI 体验。外部工具集成请前往设置 → 智能体 API 配置 Agent API。",
-      "syncFolder": {
-        "pageTitle": "关联笔记文件夹",
-        "pageDescription": "可选：将助手指向 Obsidian、Typora 或任意同步文档目录。",
-        "hint": "文件始终留在你的设备上，助手直接原地编辑，无需导入专用数据库。",
-        "chooseFolder": "选择文件夹",
-        "preparing": "准备中…",
-        "skip": "暂时跳过",
-        "defaultProjectName": "我的文件"
-      },
-      "noLocalModel": "未检测到本地大模型，您可以稍后在设置中手动配置 API Key。",
-      "configureLater": "稍后配置",
-      "searchReady": "已就绪",
-      "enterWorkspace": "进入工作区",
-      "cloudQuickStart": "云端模型快速开始",
-      "cloudQuickStartHint": "没有本地 GPU？还可以使用云端 AI 服务",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "含免费方案",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "国内友好，注册送额度",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "免费开源模型",
       "routing": {
         "pageTitle": "节省 API 费用",
         "pageDescription": "自动将简单任务交给轻量模型处理，质量不变，账单更低。",
@@ -12313,43 +12231,6 @@
         "skip": "跳过",
         "enable": "启用智能守卫"
       },
-      "telegramAssistant": {
-        "pageTitle": "连接 Telegram 助手",
-        "pageDescription": "通过向导一步完成个人 Telegram 助手初始化。",
-        "title": "Telegram 个人助手",
-        "description": "填写 Bot Token、设置助手档案后，即可在手机端直接开始对话。",
-        "safetyHint": "内置连通性校验与失败回滚保护",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "显示 Token",
-        "hideToken": "隐藏 Token",
-        "tokenRequired": "请先输入 Telegram Bot Token。",
-        "webhookLabel": "Webhook 地址（可选）",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "留空将使用轮询模式；如填写 webhook，必须使用 HTTPS。",
-        "webhookHttpsRequired": "Webhook 地址必须以 https:// 开头",
-        "assistantNameLabel": "助手名称",
-        "assistantDescriptionLabel": "助手描述（可选）",
-        "assistantDescriptionPlaceholder": "例如：你的日程管家与执行协作助手",
-        "defaultAssistantName": "Telegram 个人助手",
-        "setupButton": "完成 Telegram 助手配置",
-        "retryButton": "重试连接检测",
-        "continueButton": "先继续进入产品",
-        "skipButton": "暂时跳过",
-        "pendingTitle": "Telegram 已保存配置，连接仍在建立中",
-        "pendingDescription": "{botUsername} 可能还需要几秒钟才能可用。你可以先继续，或再次检测连接状态。",
-        "pendingToast": "配置已保存，Telegram 连接正在初始化。",
-        "retryingToast": "检测到配置正在处理中，正在自动重试...",
-        "inProgressFriendlyError": "配置仍在处理中，请稍后再试。",
-        "tokenRejectedError": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
-        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或在下方填写代理后重试，也可以先跳过。",
-        "telegramUnreachableViaProxyError": "通过代理仍无法连接 Telegram。请确认代理已启动，或在下方改填其他代理地址后重试，也可以先跳过。",
-        "telegramUnreachableSandboxError": "暂时无法连接 Telegram。请稍后重试，或先跳过。",
-        "proxyRejectedError": "该代理地址无法使用。请填写本机或局域网内代理的地址，例如 socks5://127.0.0.1:1080。",
-        "setupFailed": "Telegram 助手配置失败。",
-        "setupFailedToast": "配置失败，请检查凭据后重试。",
-        "successToast": "Telegram 助手已就绪：{agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "连接你的日常工具",
         "pageDescription": "让助手直接访问你每天使用的服务，随时可在设置中添加更多。",
@@ -12364,31 +12245,9 @@
         "continueButton": "继续",
         "skipButton": "保持默认"
       },
-      "deploymentTitle": "你的助手运行在哪里？",
-      "deploymentDescription": "使用本机、连接远端服务器，或使用云托管，随时可以在设置中更改。",
       "doctorTitle": "快速自检",
       "doctorDescription": "我们检查了最常挡住首次使用的三件事，标红的可一键修复，也可稍后处理。",
       "doctorContinueButton": "继续",
-      "powerStack": {
-        "title": "已经在为别的 AI 工具付费？",
-        "description": "留着它们。在各自擅长处使用，让 Myrm 负责编排其余工作。价格以定价页为准，这里不猜。",
-        "pricingLink": "查看真实价格",
-        "columns": {
-          "external": {
-            "title": "编码工具照常用",
-            "description": "日常编码继续用 Cursor、Devin 或 Claude Code，编排、定时与跨渠道工作交给 Myrm。"
-          },
-          "orchestrator": {
-            "title": "Myrm 负责编排",
-            "description": "一个智能体配置驱动对话、定时任务与各渠道，记忆共享，不用反复交代背景。"
-          },
-          "local": {
-            "title": "免费本地档",
-            "description": "草稿与分流用免费本地模型跑，重活再上云。"
-          }
-        },
-        "setupGuideLink": "安装指南"
-      },
       "doctor": {
         "fix": "去修复",
         "allClear": "三项检查全部通过，可以开始了。",
@@ -12412,9 +12271,7 @@
             "failHint": "额度已用完。",
             "pendingHint": "正在检查额度…"
           }
-        },
-        "contextRemote": "你选择了远端服务器，在设置中完成连接后，这些检查将面向它。",
-        "contextCloud": "你选择了云托管，在设置中完成连接后，这些检查将面向你的沙箱。"
+        }
       }
     }
   },

@@ -6,16 +6,14 @@ import { useTranslations } from 'next-intl';
 import { IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { checkBackendReadyOnce } from '@/lib/backend-health';
 import { fetchEntitlements } from '@/lib/cp-billing';
-import { isSandbox } from '@/lib/deploy-mode';
 import useProviderStore from '@/store/useProviderStore';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { OnboardingDeployChoice } from '@/lib/onboarding-deploy-choice';
 
 /**
  * [POS]
- * 首 30 分钟 Doctor 聚合卡：只读探针（模型可用/后端可达/配额），一键修深链。
- * 配额仅云沙箱探测；本地模式为天然通过态。无写副作用。
+ * 首 30 分钟 Doctor 聚合卡（仅云沙箱向导使用）：只读探针（模型可用/后端可达/配额），一键修深链。
+ * 无登录凭证时配额行视为通过。无写副作用。
  */
 
 type RowState = 'pending' | 'ok' | 'fail';
@@ -34,11 +32,7 @@ const ROW_ROUTES = {
   quota: '/pricing',
 } as const;
 
-interface FirstRunDoctorCardProps {
-  deployChoice?: OnboardingDeployChoice | null;
-}
-
-const FirstRunDoctorCard = memo(({ deployChoice }: FirstRunDoctorCardProps) => {
+const FirstRunDoctorCard = memo(() => {
   const t = useTranslations('boot.onboarding.doctor');
   const router = useRouter();
   const providers = useProviderStore((s) => s.providers);
@@ -59,16 +53,14 @@ const FirstRunDoctorCard = memo(({ deployChoice }: FirstRunDoctorCardProps) => {
       }
 
       let quotaOk = true;
-      if (isSandbox() && typeof window !== 'undefined') {
-        try {
-          const token = window.localStorage.getItem('auth_token');
-          if (token) {
-            const entitlements = await fetchEntitlements(token);
-            quotaOk = entitlements.balance_wu + entitlements.subscription_wu > 0;
-          }
-        } catch {
-          quotaOk = false;
+      try {
+        const token = window.localStorage.getItem('auth_token');
+        if (token) {
+          const entitlements = await fetchEntitlements(token);
+          quotaOk = entitlements.balance_wu + entitlements.subscription_wu > 0;
         }
+      } catch {
+        quotaOk = false;
       }
 
       if (!cancelled) {
@@ -94,11 +86,6 @@ const FirstRunDoctorCard = memo(({ deployChoice }: FirstRunDoctorCardProps) => {
 
   return (
     <div className="space-y-2">
-      {deployChoice && deployChoice !== 'local' && (
-        <p className="text-xs text-muted-foreground/70">
-          {t(deployChoice === 'cloud' ? 'contextCloud' : 'contextRemote')}
-        </p>
-      )}
       {ALL_ROWS.map((row) => {
         const state = rows[row];
         return (

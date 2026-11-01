@@ -3188,60 +3188,6 @@
       "sandbox_ro": "Filesystem is read-only",
       "healthy": "Environment healthy"
     },
-    "localModelDetected": {
-      "title": "Local AI Model Detected",
-      "description": "Found {provider} running locally with {count} model(s) available. Start chatting with zero configuration.",
-      "useModel": "Use {model}",
-      "configureManually": "Configure Manually",
-      "detecting": "Detecting local AI models...",
-      "noModels": "No local AI models detected",
-      "activated": "Ready to go!",
-      "activatedDesc": "{model} is now connected. Try your first task:",
-      "tryDemo": "Summarize today's tech news",
-      "tryDemoLabel": "Try it now"
-    },
-    "localCapabilities": {
-      "detecting": "Detecting local AI and search services...",
-      "searchTitle": "Free web search available",
-      "searchDescription": "Enable local SearXNG (via LiteLLM, no API key).",
-      "enableSearxng": "Enable SearXNG",
-      "enablingSearxng": "Enabling SearXNG…",
-      "searxngDockerHint": "Search is optional. Start local free search via SearXNG when you need it (Docker required).",
-      "startSearxngDocker": "Start SearXNG (Docker)",
-      "startingSearxng": "Starting SearXNG…",
-      "startSearxngFailed": "Could not start SearXNG. Is Docker installed?",
-      "usePaidSearchSettings": "Use a paid search provider instead",
-      "configureSearch": "Configure search",
-      "chipLabel": "Enable search",
-      "searchEnabled": "{service} search enabled",
-      "searchEnableFailed": "Failed to enable search",
-      "modelActivateFailed": "Failed to activate local model",
-      "customEndpointTitle": "OpenAI-compatible local endpoint",
-      "customEndpointDescription": "Paste your local endpoint to auto-detect models and finish setup in one step.",
-      "customApiUrlLabel": "API URL",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API Key (Optional for local/LAN endpoints)",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "Localhost and trusted split-stack endpoints can leave API key empty; public cloud endpoints still require a key.",
-      "customSplitStackHint": "Detected LAN / Tailscale split-stack endpoint; API key can be left empty for direct connection.",
-      "customNoAuthDetected": "Recognized no-auth mode; no API key will be attached or stored.",
-      "customDetectModels": "Detect Models",
-      "customUseModel": "Use {model}",
-      "customErrorApiUrlRequired": "Please enter API URL",
-      "customErrorDetectFailed": "Failed to detect models from this endpoint",
-      "customErrorNoModels": "Endpoint is reachable but returned no models",
-      "customErrorProbeFailed": "Failed to probe endpoint",
-      "customErrorDetectFirst": "Please detect models first",
-      "customErrorReachabilityFailed": "Endpoint connected but model health check failed",
-      "customDetectSuccess": "Detected {count} model(s)",
-      "checklistTitle": "Recommended Tool-Calling Models",
-      "checklistSubtitle": "Verified for complex tasks",
-      "recommendedBadge": "Recommended",
-      "verifiedBadge": "Verified Tool-Calling Support: {model}",
-      "verifiedDescription": "This model is fully tested for function calling, file operations, and web search.",
-      "unverifiedWarningTitle": "Unverified Model Notice: {model}",
-      "unverifiedWarningDescription": "This model is not officially verified for tool-calling compatibility. Executing complex tools may produce parsing issues."
-    },
     "migrationDiscovery": {
       "detecting": "Scanning for AI assistant data...",
       "title": "Detected {competitor} data",
@@ -5856,7 +5802,6 @@
           "description": "Optional: connect a local folder so the assistant reads and edits your files in place. Wiki import copies notes into a separate library — use this for your live vault or synced folder.",
           "chooseFolder": "Choose folder",
           "preparing": "Preparing…",
-          "skip": "Skip for now",
           "linkedSuccess": "Folder linked. Your next chat will use this workspace.",
           "defaultProjectName": "My Files",
           "candidateGeneric": "Folder detected from your previous assistant setup.",
@@ -12255,40 +12200,13 @@
       "ready": "Ready"
     },
     "skipHint": "Click or press ESC to skip",
-    "backendSetupHint": "Backend is not running. Run ./myrm setup from the project root, then refresh.",
     "onboarding": {
-      "migrationTitle": "History Data Detected",
-      "migrationDescription": "We found your data from other AI assistants. Import it seamlessly?",
       "migrationCloudTitle": "Import from Another Assistant",
       "migrationCloudDescription": "Upload an export package to migrate memories and workspace preferences into your cloud sandbox.",
       "instantStartTitle": "Instant Squad Experience",
       "instantStartDescription": "Pre-provisioned with General Assistant, Document Specialist, and Coding Agent. Start chatting immediately with zero configuration.",
       "instantStartButton": "Launch Instant Squad",
-      "customSetupButton": "Advanced Custom Setup",
       "skipStep": "Skip",
-      "capabilitiesTitle": "Configure AI Engine",
-      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience. Configure the Agent API under Settings → Agent API for external tool integration.",
-      "syncFolder": {
-        "pageTitle": "Link your notes folder",
-        "pageDescription": "Optional: point the assistant at Obsidian, Typora, or any synced documents folder.",
-        "hint": "Files stay on your device. The assistant edits them in place—no import into a separate database.",
-        "chooseFolder": "Choose folder",
-        "preparing": "Preparing…",
-        "skip": "Skip for now",
-        "defaultProjectName": "My Files"
-      },
-      "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
-      "configureLater": "Configure Later",
-      "searchReady": "Ready",
-      "enterWorkspace": "Enter Workspace",
-      "cloudQuickStart": "Cloud Models Quick Start",
-      "cloudQuickStartHint": "No local GPU? Use cloud AI services instead",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "Free tier available",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "China-friendly, free credits on signup",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "Free open-source models",
       "routing": {
         "pageTitle": "Save on API Costs",
         "pageDescription": "Route simple tasks to lighter models automatically — same quality, lower bills.",
@@ -12313,43 +12231,6 @@
         "skip": "Skip",
         "enable": "Enable Smart Guard"
       },
-      "telegramAssistant": {
-        "pageTitle": "Connect Telegram Assistant",
-        "pageDescription": "Set up your personal Telegram assistant in one guided step.",
-        "title": "Telegram Personal Assistant",
-        "description": "Connect your bot token, set an assistant profile, and start chatting from your phone without extra setup.",
-        "safetyHint": "Includes connection validation and rollback protection",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "Show token",
-        "hideToken": "Hide token",
-        "tokenRequired": "Telegram bot token is required.",
-        "webhookLabel": "Webhook URL (optional)",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "Leave blank to use polling mode. Use HTTPS if you provide a webhook URL.",
-        "webhookHttpsRequired": "Webhook URL must start with https://",
-        "assistantNameLabel": "Assistant Name",
-        "assistantDescriptionLabel": "Assistant Description (optional)",
-        "assistantDescriptionPlaceholder": "e.g. Your daily planner and execution copilot",
-        "defaultAssistantName": "Personal Telegram Assistant",
-        "setupButton": "Set Up Telegram Assistant",
-        "retryButton": "Retry Connection",
-        "continueButton": "Continue for now",
-        "skipButton": "Skip for now",
-        "pendingTitle": "Telegram is configured, connection still warming up",
-        "pendingDescription": "{botUsername} may need a few seconds to become reachable. You can continue now or retry the connection check.",
-        "pendingToast": "Configuration saved. Telegram connection is still initializing.",
-        "retryingToast": "Another setup request is finishing. Retrying now...",
-        "inProgressFriendlyError": "Setup is still in progress. Please wait a few seconds and try again.",
-        "tokenRejectedError": "Telegram did not accept this bot token. Copy the full token again from @BotFather.",
-        "telegramUnreachableError": "Could not reach Telegram from this device. Check your network, or enter a proxy below and try again. You can also skip for now.",
-        "telegramUnreachableViaProxyError": "Could not reach Telegram through the proxy. Make sure the proxy is running, or enter a different proxy address below and try again. You can also skip for now.",
-        "telegramUnreachableSandboxError": "Could not reach Telegram right now. Try again in a moment, or skip for now.",
-        "proxyRejectedError": "That proxy address cannot be used. Use the address of a proxy on this computer or your local network, for example socks5://127.0.0.1:1080.",
-        "setupFailed": "Failed to set up Telegram assistant.",
-        "setupFailedToast": "Telegram setup failed. Please check your credentials and retry.",
-        "successToast": "Telegram assistant is ready: {agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "Connect your everyday tools",
         "pageDescription": "Let your assistant access the services you use daily. You can always add more later in Settings.",
@@ -12364,31 +12245,9 @@
         "continueButton": "Continue",
         "skipButton": "Keep default"
       },
-      "deploymentTitle": "Where does your assistant run?",
-      "deploymentDescription": "Use this computer, connect a remote server, or use cloud hosting. You can change this anytime in Settings.",
       "doctorTitle": "Quick health check",
       "doctorDescription": "We checked the three things that most often block first use. Fix anything red, or continue.",
       "doctorContinueButton": "Continue",
-      "powerStack": {
-        "title": "Already paying for other AI tools?",
-        "description": "Keep them. Use each tool where it shines and let Myrm orchestrate the rest. Prices live on the pricing page, not here.",
-        "pricingLink": "See real prices",
-        "columns": {
-          "external": {
-            "title": "Your coding tools stay",
-            "description": "Keep Cursor, Devin, or Claude Code for daily coding. Myrm takes the orchestration, scheduling, and cross-channel work they skip."
-          },
-          "orchestrator": {
-            "title": "Myrm orchestrates",
-            "description": "One assistant profile drives chat, scheduled tasks, and channels with shared memory, so you stop repeating context."
-          },
-          "local": {
-            "title": "A free local slot",
-            "description": "Run a free local model for drafts and triage, and send only heavy work to the cloud."
-          }
-        },
-        "setupGuideLink": "Setup guide"
-      },
       "doctor": {
         "fix": "Fix",
         "allClear": "All three checks pass. Good to go.",
@@ -12412,9 +12271,7 @@
             "failHint": "The allowance is empty.",
             "pendingHint": "Checking allowance…"
           }
-        },
-        "contextRemote": "You chose a remote server. These checks will target it once you connect in Settings.",
-        "contextCloud": "You chose cloud hosting. These checks will target your sandbox once you connect in Settings."
+        }
       }
     }
   },

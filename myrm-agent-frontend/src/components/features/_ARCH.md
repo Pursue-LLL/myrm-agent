@@ -22,7 +22,7 @@
 | `projects/`                                   | 项目域仪表盘（Kanban/Cron/Artifacts 入口聚合）                       | [_ARCH.md](projects/_ARCH.md)                                                     |
 | `project-workspace/`                          | Project 级同步目录绑定 UI（Mount Wizard）                            | [_ARCH.md](project-workspace/_ARCH.md)                                            |
 | `health/`                                     | System Doctor                                                        | [_ARCH.md](health/_ARCH.md)                                                       |
-| `onboarding/`                                 | 首次启动向导（迁移 + 本地能力 + Cookbook）                           | [_ARCH.md](onboarding/_ARCH.md)                                                   |
+| `onboarding/`                                 | 云沙箱首次启动向导（迁移 + 工具连接 + 首检 + 路由/守卫 + 选肤）| [_ARCH.md](onboarding/_ARCH.md)                                                   |
 | `workspace/`                                  | 工作区与文件树                                                       | [_ARCH.md](workspace/_ARCH.md)                                                    |
 | `cron/`                                       | 定时任务 UI                                                          | [_ARCH.md](cron/_ARCH.md)                                                         |
 | `artifacts/`                                  | 工件与部署                                                           | [_ARCH.md](artifacts/_ARCH.md)                                                    |

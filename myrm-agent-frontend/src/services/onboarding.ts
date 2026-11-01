@@ -23,38 +23,6 @@ export async function completeOnboarding(): Promise<{ success: boolean; message:
   return apiRequest<{ success: boolean; message: string }>('/config/onboarding/complete', { method: 'POST' });
 }
 
-export interface TelegramAssistantOnboardingRequest {
-  botToken: string;
-  webhookUrl?: string;
-  /** Forward proxy for Telegram traffic; omitted keeps the proxy already saved. */
-  proxy?: string;
-  assistantName?: string;
-  assistantDescription?: string;
-  assistantSystemPrompt?: string;
-}
-
-export interface TelegramAssistantOnboardingResponse {
-  success: boolean;
-  message: string;
-  botUsername: string;
-  agentId: string;
-  agentName: string;
-  channelEnabled: boolean;
-  connected: boolean;
-  status: string;
-}
-
-export async function applyTelegramAssistantOnboarding(
-  payload: TelegramAssistantOnboardingRequest,
-): Promise<TelegramAssistantOnboardingResponse> {
-  return apiRequest<TelegramAssistantOnboardingResponse>('/config/onboarding/telegram-assistant/apply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    silent: true,
-  });
-}
-
 export interface SecondBrainChecklistItem {
   id: 'agent_tools' | 'cron_job' | 'vault_content' | 'corpus_dedup' | 'provider_ready';
   ready: boolean;

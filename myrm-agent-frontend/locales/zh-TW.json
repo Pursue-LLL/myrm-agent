@@ -3179,60 +3179,6 @@
       "sandbox_ro": "檔案系統為只讀",
       "healthy": "環境正常"
     },
-    "localModelDetected": {
-      "title": "檢測到本地 AI 模型",
-      "description": "發現本地執行的 {provider}，共 {count} 個模型可用。無需配置，即可開始對話。",
-      "useModel": "使用 {model}",
-      "configureManually": "手動配置",
-      "detecting": "正在檢測本地 AI 模型...",
-      "noModels": "未檢測到本地 AI 模型",
-      "activated": "已就緒！",
-      "activatedDesc": "{model} 已連線成功。試試你的第一個任務：",
-      "tryDemo": "幫我總結今天的科技新聞",
-      "tryDemoLabel": "立即體驗"
-    },
-    "localCapabilities": {
-      "detecting": "正在檢測本地 AI 與搜尋服務...",
-      "searchTitle": "可免費啟用聯網搜尋",
-      "searchDescription": "啟用本地 SearXNG（LiteLLM，無需 API Key）。",
-      "enableSearxng": "啟用 SearXNG",
-      "enablingSearxng": "正在啟用 SearXNG…",
-      "searxngDockerHint": "搜尋為可選項；需要本地免費搜尋時可一鍵啟動 SearXNG（需本機 Docker）",
-      "startSearxngDocker": "啟動 SearXNG（Docker）",
-      "startingSearxng": "正在啟動 SearXNG…",
-      "startSearxngFailed": "SearXNG 啟動失敗，請確認已安裝 Docker",
-      "usePaidSearchSettings": "改用付費搜尋服務",
-      "configureSearch": "配置搜尋",
-      "chipLabel": "啟用搜尋",
-      "searchEnabled": "已啟用 {service} 搜尋",
-      "searchEnableFailed": "啟用搜尋失敗",
-      "modelActivateFailed": "啟用本地模型失敗",
-      "customEndpointTitle": "OpenAI 相容本地端點",
-      "customEndpointDescription": "貼上本地端點地址，自動探測模型並一步完成配置。",
-      "customApiUrlLabel": "API 地址",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API Key（本地/區域網路分機可選）",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "localhost 或信任分機端點可留空 API Key；雲端公網端點仍需提供 Key。",
-      "customSplitStackHint": "已識別區域網路 / Tailscale 分機端點，支援留空 API Key 免密直連。",
-      "customNoAuthDetected": "已識別免鑑權模式，將不會強制附加或儲存 API Key。",
-      "customDetectModels": "檢測模型",
-      "customUseModel": "使用 {model}",
-      "customErrorApiUrlRequired": "請輸入 API 地址",
-      "customErrorDetectFailed": "該端點模型探測失敗",
-      "customErrorNoModels": "端點可達，但未返回任何模型",
-      "customErrorProbeFailed": "端點探測失敗",
-      "customErrorDetectFirst": "請先執行模型探測",
-      "customErrorReachabilityFailed": "端點連通但模型健康檢查失敗",
-      "customDetectSuccess": "已檢測到 {count} 個模型",
-      "checklistTitle": "工具調用推薦標竿",
-      "checklistSubtitle": "已驗證支援複雜任務",
-      "recommendedBadge": "推薦",
-      "verifiedBadge": "已驗證支援工具調用：{model}",
-      "verifiedDescription": "該模型經 Myrm 相容性測試，可穩定執行函式調用、檔案讀寫與聯網搜尋。",
-      "unverifiedWarningTitle": "未驗證模型提示：{model}",
-      "unverifiedWarningDescription": "該模型尚未經官方工具調用相容性驗證，執行複雜技能時可能出現格式異常。建議優先選用推薦標竿模型。"
-    },
     "migrationDiscovery": {
       "detecting": "正在掃描本地 AI 助手資料...",
       "title": "檢測到 {competitor} 資料",
@@ -5856,7 +5802,6 @@
           "description": "可選：連接本地資料夾，讓助手就地讀寫你的檔案。Wiki 導入會把筆記複製到獨立知識庫——若要用真實 vault 或同步目錄，請在此綁定。",
           "chooseFolder": "選擇資料夾",
           "preparing": "準備中…",
-          "skip": "暫時跳過",
           "linkedSuccess": "資料夾已連結，下一條對話將使用該工作區。",
           "defaultProjectName": "我的文件",
           "candidateGeneric": "已從先前助手配置檢測到資料夾。",
@@ -12255,40 +12200,13 @@
       "ready": "準備就緒"
     },
     "skipHint": "點選或按 ESC 跳過",
-    "backendSetupHint": "後端未啟動。請在專案根目錄執行 ./myrm setup，然後重新整理頁面。",
     "onboarding": {
-      "migrationTitle": "發現歷史資料",
-      "migrationDescription": "我們掃描到了您在其他 AI 助手中的資料，是否一鍵無縫匯入？",
       "migrationCloudTitle": "從其他助手導入",
       "migrationCloudDescription": "上傳導出包，將記憶與工作區偏好遷移到你的雲端沙箱。",
       "instantStartTitle": "開箱即用體驗",
       "instantStartDescription": "已為您預置通用助手、辦公文件助手與程式碼智慧體，零配置立即開啟對話。",
       "instantStartButton": "即刻開啟體驗",
-      "customSetupButton": "高級配置嚮導",
       "skipStep": "跳過此步",
-      "capabilitiesTitle": "配置 AI 引擎",
-      "capabilitiesDescription": "連線本地大模型與聯網搜尋，實現開箱即用的 AI 體驗。",
-      "syncFolder": {
-        "pageTitle": "關聯筆記資料夾",
-        "pageDescription": "可選：將助手指向 Obsidian、Typora 或任意同步文檔目錄。",
-        "hint": "檔案始終留在你的設備上，助手直接原地編輯，無需導入專用資料庫。",
-        "chooseFolder": "選擇資料夾",
-        "preparing": "準備中…",
-        "skip": "暫時跳過",
-        "defaultProjectName": "我的文件"
-      },
-      "noLocalModel": "未檢測到本地大模型，您可以稍後在設定中手動配置 API Key。",
-      "configureLater": "稍後配置",
-      "searchReady": "已就緒",
-      "enterWorkspace": "進入工作區",
-      "cloudQuickStart": "雲端模型快速開始",
-      "cloudQuickStartHint": "沒有本地 GPU？還可以使用雲端 AI 服務",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "含免費方案",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "國內友好，註冊送額度",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "免費開源模型",
       "routing": {
         "pageTitle": "節省 API 費用",
         "pageDescription": "自動將簡單任務交給輕量模型處理，質量不變，賬單更低。",
@@ -12313,43 +12231,6 @@
         "skip": "跳過",
         "enable": "啟用智能守衛"
       },
-      "telegramAssistant": {
-        "pageTitle": "連接 Telegram 助手",
-        "pageDescription": "通過嚮導一步完成個人 Telegram 助手初始化。",
-        "title": "Telegram 個人助手",
-        "description": "填寫 Bot Token、設置助手檔案後，即可在手機端直接開始對話。",
-        "safetyHint": "內置連通性校驗與失敗回滾保護",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "顯示 Token",
-        "hideToken": "隱藏 Token",
-        "tokenRequired": "請先輸入 Telegram Bot Token。",
-        "webhookLabel": "Webhook 地址（可選）",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "留空將使用輪詢模式；如填寫 webhook，必須使用 HTTPS。",
-        "webhookHttpsRequired": "Webhook 地址必須以 https:// 開頭",
-        "assistantNameLabel": "助手名稱",
-        "assistantDescriptionLabel": "助手描述（可選）",
-        "assistantDescriptionPlaceholder": "例如：你的日程管家與執行協作助手",
-        "defaultAssistantName": "Telegram 個人助手",
-        "setupButton": "完成 Telegram 助手配置",
-        "retryButton": "重試連接檢測",
-        "continueButton": "先繼續進入產品",
-        "skipButton": "暫時跳過",
-        "pendingTitle": "Telegram 已儲存配置，連接仍在建立中",
-        "pendingDescription": "{botUsername} 可能還需要幾秒鐘才能可用。你可以先繼續，或再次檢測連接狀態。",
-        "pendingToast": "配置已儲存，Telegram 連接正在初始化。",
-        "retryingToast": "檢測到配置正在處理中，正在自動重試...",
-        "inProgressFriendlyError": "配置仍在處理中，請稍後再試。",
-        "tokenRejectedError": "Telegram 不接受這個機器人令牌，請從 @BotFather 重新複製完整的令牌。",
-        "telegramUnreachableError": "目前裝置無法連線到 Telegram。請檢查網路，或在下方填寫代理後重試，也可以先跳過。",
-        "telegramUnreachableViaProxyError": "透過代理仍無法連線到 Telegram。請確認代理已啟動，或在下方改填其他代理位址後重試，也可以先跳過。",
-        "telegramUnreachableSandboxError": "目前無法連線到 Telegram。請稍後重試，或先跳過。",
-        "proxyRejectedError": "該代理位址無法使用。請填寫本機或區域網路內代理的位址，例如 socks5://127.0.0.1:1080。",
-        "setupFailed": "Telegram 助手配置失敗。",
-        "setupFailedToast": "配置失敗，請檢查憑據後重試。",
-        "successToast": "Telegram 助手已就緒：{agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "連接你的日常工具",
         "pageDescription": "讓助手直接訪問你每天使用的服務，隨時可在設置中添加更多。",
@@ -12364,31 +12245,9 @@
         "continueButton": "繼續",
         "skipButton": "保持默認"
       },
-      "deploymentTitle": "你的助手運行在哪裡？",
-      "deploymentDescription": "使用本機、連接遠端伺服器，或使用雲託管，隨時可以在設定中更改。",
       "doctorTitle": "快速自檢",
       "doctorDescription": "我們檢查了最常擋住首次使用的三件事，標紅的可一鍵修復，也可稍後處理。",
       "doctorContinueButton": "繼續",
-      "powerStack": {
-        "title": "已經在為別的 AI 工具付費？",
-        "description": "留著它們。在各自擅長處使用，讓 Myrm 負責編排其餘工作。價格以定價頁為準，這裡不猜。",
-        "pricingLink": "查看真實價格",
-        "columns": {
-          "external": {
-            "title": "編碼工具照常用",
-            "description": "日常編碼繼續用 Cursor、Devin 或 Claude Code，編排、定時與跨渠道工作交給 Myrm。"
-          },
-          "orchestrator": {
-            "title": "Myrm 負責編排",
-            "description": "一個智慧體配置驅動對話、定時任務與各渠道，記憶共享，不用反覆交代背景。"
-          },
-          "local": {
-            "title": "免費本地檔",
-            "description": "草稿與分流用免費本地模型跑，重活再上雲。"
-          }
-        },
-        "setupGuideLink": "安裝指南"
-      },
       "doctor": {
         "fix": "去修復",
         "allClear": "三項檢查全部通過，可以開始了。",
@@ -12412,9 +12271,7 @@
             "failHint": "額度已用完。",
             "pendingHint": "正在檢查額度…"
           }
-        },
-        "contextRemote": "你選擇了遠端伺服器，在設定中完成連接後，這些檢查將面向它。",
-        "contextCloud": "你選擇了雲託管，在設定中完成連接後，這些檢查將面向你的沙箱。"
+        }
       }
     }
   },

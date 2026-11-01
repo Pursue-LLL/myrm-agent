@@ -9,7 +9,7 @@
 - **toC 文案不泄露技术细节**：UI 只显示本地化文案；失败只按稳定错误码映射（`lib/instance-archive/errors.ts`），服务端措辞永不展示；再入凭据按 `reentry` 标识归并为四类用户语言（模型密钥 / 工具服务连接 / 已保存密码与机密 / 已连接账号与渠道）。
 - **运行中的进程不写自己的库**：导入/恢复只排队，用户重启后才生效；重启方式随部署形态选择（桌面端 Tauri 重启 / 沙箱重建 / 裸本地进程请用户自行重启）。
 - **全局通知**：用户可能从任意页面重启，`OutcomeNotifier` 挂在 `app-shell/deferred-app-initializers.tsx`，结果、需重新填写的凭据入口与撤销按钮随用户回到应用。
-- **首次启动入口就地展开**：`RestoreEntry` 挂在 `OnboardingWizard` 的首屏（非沙箱为去向步，沙箱无去向步故为迁移步），不在后续步骤重复；向导本身是 `z-50` 全屏层，入口就地展开而非再叠对话框；折叠时向导保持挂载，进行中的上传不因折叠丢失。
+- **首次启动入口就地展开**：`RestoreEntry` 挂在 `OnboardingWizard`（仅云沙箱出现）的迁移步，即向导首屏，不在后续步骤重复；向导本身是 `z-50` 全屏层，入口就地展开而非再叠对话框；折叠时向导保持挂载，进行中的上传不因折叠丢失。
 - **自动备份**：卡片位于子目录 `auto-backup/`（默认关闭、如实说明局限、只经既有恢复流程恢复），详见 [auto-backup/_ARCH.md](auto-backup/_ARCH.md)；连续失败的全局提示由 `hooks/globalEvents/backupAlertToast.ts` 渲染并直达卡片锚点 `#auto-backup`。
 - 文案命名空间为顶层 `instanceArchive`（六语言 monolith `locales/*.json`），自动备份在 `instanceArchive.auto`，提示在 `notifications.backupFailure*`。
 

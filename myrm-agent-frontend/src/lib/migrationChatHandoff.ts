@@ -4,7 +4,7 @@
  * - localStorage / sessionStorage for one-shot migration anchors
  *
  * [OUTPUT]
- * - queue/consume helpers for agent, readiness anchor, bound project, workspace candidates
+ * - queue/consume helpers for agent, readiness anchor, bound project, obsidian vault import
  *
  * [POS]
  * FE-only migration handoff SSOT between Settings/Onboarding and chat stream.
@@ -13,7 +13,6 @@
 export const MIGRATION_CHAT_AGENT_STORAGE_KEY = 'myrm:migration-chat-agent-id';
 const MIGRATION_READINESS_ANCHOR_STORAGE_KEY = 'myrm:migration-readiness-anchor';
 const MIGRATION_BOUND_PROJECT_STORAGE_KEY = 'myrm:migration-bound-project-id';
-const MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY = 'myrm:migration-workspace-bind-candidates';
 const MIGRATION_OBSIDIAN_VAULT_IMPORT_STORAGE_KEY = 'myrm:migration-obsidian-vault-import';
 const LEGACY_MIGRATION_READINESS_ANCHOR_SESSION_KEY = 'myrm:migration-readiness-anchor';
 const MIGRATION_READINESS_ANCHOR_TTL_MS = 30 * 60 * 1000;
@@ -292,80 +291,6 @@ export function syncChatSidebarProjectId(chatId: string, projectId: string): voi
     next[existingIndex] = { ...next[existingIndex], projectId: normalizedProjectId };
     setChatHistoryItems(next);
   });
-}
-
-export function queueMigrationWorkspaceBindCandidates(candidates: MigrationWorkspaceBindCandidate[]): void {
-  const storage = readHandoffStorage();
-  if (storage === null) {
-    return;
-  }
-  if (candidates.length === 0) {
-    storage.removeItem(MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY);
-    return;
-  }
-  storage.setItem(
-    MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY,
-    JSON.stringify({
-      value: candidates,
-      queuedAt: new Date().toISOString(),
-    }),
-  );
-}
-
-export function readMigrationWorkspaceBindCandidates(): MigrationWorkspaceBindCandidate[] {
-  const storage = readHandoffStorage();
-  if (storage === null) {
-    return [];
-  }
-  const raw = storage.getItem(MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(raw) as { value?: unknown; queuedAt?: unknown };
-    const queuedAt = typeof parsed.queuedAt === 'string' ? parsed.queuedAt.trim() : '';
-    const queuedAtMs = Date.parse(queuedAt);
-    if (!queuedAt || Number.isNaN(queuedAtMs) || Date.now() - queuedAtMs > MIGRATION_HANDOFF_TTL_MS) {
-      storage.removeItem(MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY);
-      return [];
-    }
-    const value = parsed.value;
-    if (!Array.isArray(value)) {
-      return [];
-    }
-    return value
-      .map((item): MigrationWorkspaceBindCandidate | null => {
-        if (!item || typeof item !== 'object') {
-          return null;
-        }
-        const record = item as Record<string, unknown>;
-        const path = typeof record.path === 'string' ? record.path.trim() : '';
-        if (!path) {
-          return null;
-        }
-        const label = typeof record.label === 'string' ? record.label.trim() : path;
-        const mdCountRaw = record.markdown_file_count;
-        const markdown_file_count = typeof mdCountRaw === 'number' ? mdCountRaw : Number(mdCountRaw ?? 0) || 0;
-        return {
-          path,
-          label: label || path,
-          has_obsidian_config: record.has_obsidian_config === true,
-          markdown_file_count: Math.max(0, markdown_file_count),
-        };
-      })
-      .filter((item): item is MigrationWorkspaceBindCandidate => item !== null);
-  } catch {
-    storage.removeItem(MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY);
-    return [];
-  }
-}
-
-export function clearMigrationWorkspaceBindCandidates(): void {
-  const storage = readHandoffStorage();
-  if (storage === null) {
-    return;
-  }
-  storage.removeItem(MIGRATION_WORKSPACE_CANDIDATES_STORAGE_KEY);
 }
 
 interface StoredMigrationObsidianVaultHandoff {

@@ -15,7 +15,6 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 vi.mock('@/lib/app-dialog', () => ({ chooseAction: vi.fn() }));
 vi.mock('@/lib/migrationChatHandoff', () => ({
   clearMigrationReadinessAnchor: vi.fn(),
-  queueMigrationWorkspaceBindCandidates: vi.fn(),
 }));
 vi.mock('@/services/skill/migration', () => ({ submitSkillMigration: vi.fn() }));
 vi.mock('@/services/migrationDiscovery', () => ({
