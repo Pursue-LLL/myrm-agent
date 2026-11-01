@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 设置里的「无感升级控制台」是计时器伪造的：镜像延迟是写死的数字，活动任务横幅恒为「可立即升级」，点按钮后五阶段流水线在约 0.3 秒内逐个「完成」，实际什么都没升级
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。「仍然存在」里的项未处理。 |
+| **症状** | [代码，删除前的 `HEAD`] 设置 → 系统 → 版本更新面板（`StackUpdatePanel.tsx`）里有一个主色按钮「无感升级控制台」（英文 "Seamless upgrade console"，测试钩子 `start-blue-green-upgrade-btn`），点击后调用 `upgrade-cockpit/useUpgradePreFlightDiagnostics.ts` 的 `startUpgradePipeline`：把「快照差异、拉取源码、依赖自愈、蓝绿待机、健康自检」五个阶段依次置为 running、等 60 ms、置为 completed，最后 `currentStage` 变成 `complete`，弹窗显示升级完成。这个 251 行的文件里只有 3 处 `setTimeout`（`:122` 80 ms、`:201` 60 ms、`:226` 40 ms），没有 `fetch`、`invoke` 或任何接口调用；`startUpgradePipeline` 的参数 `_options` 没有被读取，面板里选的镜像没有任何效果；弹窗里的「回滚」只是把五个阶段重置为 pending 再等 40 ms。面板里常驻的「多源网络体检」卡片显示 4 个镜像（CNB、GitHub、清华、Gitee）的延迟，是 `useState` 初始值里写死的 28、380、35、42 ms，点「重新检测」后改写成同样写死的 25 与 420 ms；「活动长任务」横幅的初始值恒为「当前无任何长任务或定时作业，可立即无感重载升级」，没有任何地方查询真实的任务。真正会改版本的路径（桌面端的 `desktopInstall`、自检、推迟、备份与恢复）与这个控制台没有任何连接。 |
+| **根因** | [代码] 这 10 个文件（1270 行，含 3 个测试文件）由在制品快照 `36edf65e55` 一次加入；数据全部来自初始 `useState` 字面量与 `setTimeout`，而不是接口。后端没有对应的预检、升级、回滚路由（在 `myrm-agent-server/app` 下检索 `upgrade/preflight`、`upgrade/execute`、`upgrade/rollback`、`system/upgrade` 都没有结果），桌面端也没有「蓝绿待机」这一步，所以界面没有可以接的真实数据。已有的 3 个测试断言的是组件对这些假数据的渲染，不是升级行为，因此一直是绿的。 |
+| **修复** | ① 删除 `settings/sections/system/upgrade-cockpit/` 整个目录（10 个文件）；`StackUpdatePanel.tsx` 去掉对它的导入、`selectedMirrorId` 状态、入口按钮、体检卡与横幅、流水线弹窗（净删 51 行）。② 六种语言删除 `settings.system.stackUpdate.openUpgradeCockpit` 与 `settings.system.upgradeCockpit.*`（共 29 个键），重新生成 zh-TW 与 ja 的简体独有字形集合（删除后集合与语料仍同步）。③ `system/_ARCH.md` 去掉 `upgrade-cockpit/` 一行，测试一行写明面板不提供模拟升级流水线与镜像探针入口。④ `StackUpdatePanel.test.tsx` 新增一例：面板里没有 `start-blue-green-upgrade-btn`、没有 `openUpgradeCockpit` 文案、没有对话框，也没有标签含 cockpit、pipeline、mirror 的按钮。真实的更新流程（桌面端安装、自检、推迟、备份与恢复、勿扰时段）一行未动。 |
+| **行为变化** | 版本更新面板不再显示「无感升级控制台」按钮、镜像体检卡与活动任务横幅；其余按钮与文案不变。设置里不再有一个点完就显示「完成」的假升级流程。 |
+| **回归证据** | [实测] 新增的那一例在删除前的面板上失败（按钮存在）、删除后通过；`system` 目录 57 个测试文件 410 例通过；前端全量 vitest 13823 例中 13822 通过，另有 1 个文件无法加载（`importWarningTranslations.test.ts`，候选树里没有 `myrm-agent-server`，读不到它要对照的 Python 词表）、1 例失败（`next-supervisor.test.ts` 的进程内存探针，沙箱里读不到进程占用）、1 个既有的未捕获错误（`KanbanSection` 删除看板确认，该测试文件与面板无关），三者都与这次改动无关；`tsc --noEmit` 无错误；`bun run lint` 失败的门禁与删除前完全一致（豁免 97 对额度 82，硬编码文案 231 个文件、2596 处，数字不变）；`verify:i18n` 与简体字形集检查通过；`next build` 通过；孤儿新增门对 `origin/main` 通过（删除没有造成新的孤儿）。 |
+| **踩坑** | 上一轮把这套界面的 28 个文案翻成了六种语言，当成「要保留的界面」处理；它的数据来源是计时器，我没有先核对就翻译。之后读 Hook 才发现整个控制台是假的。翻译或接入一个界面之前，先确认它背后有真实的数据源。 |
+| **仍然存在** | ① 真实的升级预检（发布源连通性、磁盘余量、数据库完整性）、活动任务排空、升级与回滚还没有实现，设置里现在没有这些入口；恢复它们需要后端路由与桌面端的 IPC，不是把被删的界面加回来。② 被删界面里写死的镜像地址（CNB、GitHub、清华、Gitee）没有验证过是否存在、是否可用。 |
+| **代码位置** | `myrm-agent-frontend/src/components/features/settings/sections/system/StackUpdatePanel.tsx` · `system/_ARCH.md` · `system/__tests__/StackUpdatePanel.test.tsx` · `locales/*.json` |
+
 ## 2026-11-01 · 预置邮件技能脚本不看服务器对命令的拒绝：被拒的搜索是回溯栈，被拒的取信与标记报成功或「邮件不存在」，被拒的文件夹列表把错误文本当文件夹名，被拒的登录把原因显示成 Python 的 bytes 字面量
 
 | 字段 | 内容 |

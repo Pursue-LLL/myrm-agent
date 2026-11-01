@@ -21,8 +21,7 @@
 | `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
-| `upgrade-cockpit/`                    | WebUI与桌面端可视化一键无感升级控制台、多源网络诊断探针与长任务排队热重载面板（Item 80 P0，详见 `upgrade-cockpit/_ARCH.md`） |
-| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段）                 |
+| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段、不提供模拟升级流水线与镜像探针入口）                 |
 | `ImportExportSection.tsx`             | 配置导入导出页：配置导入导出 + 存储治理卡（`StorageGovernanceCard`）+ 支持包导出卡 + 数据集导出卡 |
 
 ### 存储管理
