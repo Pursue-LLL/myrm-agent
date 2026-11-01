@@ -63,11 +63,16 @@ def test_golden_dataset_size():
         assert count >= 5, f"Category '{category}' should have at least 5 queries, got {count}"
 
 
-def test_evaluate_search_quality_bm25(mock_skills):
-    """Test evaluation with BM25 search engine
+# Measured on the 145-query dataset: MRR 0.839, top-1 0.738, top-3 0.938, top-5 0.966. Each floor sits a few points
+# below, so ordinary tuning passes while a broken tokenizer, scorer or synonym table does not.
+_MIN_MRR = 0.80
+_MIN_TOP1 = 0.70
+_MIN_TOP3 = 0.90
+_MIN_TOP5 = 0.94
 
-    This test demonstrates how to evaluate BM25 search quality.
-    """
+
+def test_evaluate_search_quality_bm25(mock_skills):
+    """The lexical engine keeps its measured quality on the golden dataset."""
     from myrm_agent_harness.agent.meta_tools.skills.search.engine import SkillSearchEngine
 
     engine = SkillSearchEngine(mock_skills)
@@ -80,45 +85,10 @@ def test_evaluate_search_quality_bm25(mock_skills):
     print_evaluation_report(results)
 
     assert results["total_queries"] == len(GOLDEN_DATASET)
-    assert 0.0 <= results["mrr"] <= 1.0
-    assert 0.0 <= results["top1_accuracy"] <= 1.0
-    assert 0.0 <= results["top3_accuracy"] <= 1.0
-    assert 0.0 <= results["top5_accuracy"] <= 1.0
-
-    assert results["top1_accuracy"] >= 0.3, "BM25 should have at least 30% top-1 accuracy"
-
-
-@pytest.mark.skipif(
-    True, reason="Hybrid search requires API access, skip by default. Run manually with --run-api-tests"
-)
-def test_evaluate_search_quality_hybrid(mock_skills):
-    """Test evaluation with Hybrid search engine
-
-    This test demonstrates how to evaluate Hybrid search quality.
-    Requires API access and is skipped by default.
-    """
-    from myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine import HybridSkillSearchEngine
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-
-    config = EmbeddingConfig(model="text-embedding-3-small")
-    engine = HybridSkillSearchEngine(mock_skills, config)
-
-    async def search_func(query: str):
-        return await engine.search_bm25(query, top_k=5)
-
-    import asyncio
-
-    def sync_search_func(query: str):
-        return asyncio.run(search_func(query))
-
-    results = evaluate_search_quality(sync_search_func, GOLDEN_DATASET)
-
-    print_evaluation_report(results)
-
-    assert results["total_queries"] == len(GOLDEN_DATASET)
-
-    assert results["top1_accuracy"] >= 0.5, "Hybrid should have at least 50% top-1 accuracy"
-    assert results["top3_accuracy"] >= 0.7, "Hybrid should have at least 70% top-3 accuracy"
+    assert results["mrr"] >= _MIN_MRR
+    assert results["top1_accuracy"] >= _MIN_TOP1
+    assert results["top3_accuracy"] >= _MIN_TOP3
+    assert results["top5_accuracy"] >= _MIN_TOP5
 
 
 def test_evaluation_metrics_calculation():

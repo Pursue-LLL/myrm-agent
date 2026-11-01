@@ -68,6 +68,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_orchestration_registry_parity.py` | Gate | `tool_registry_config` 与 orchestration SSOT 对齐（hook / signal 命名回归） | — |
 | `test_ruff_security_rules.py` | Gate | ruff S（security/bandit）规则保持激活，误报抑制不回归 | — |
 | `test_skill_analyze_tool_removed.py` | Gate | `skill_analyze` Agent tool 包不得存在（Curator GUI 为 SSOT） | — |
+| `test_skill_embedding_removed.py` | Gate | 技能侧三处（curator 聚类与相似度阈值、技能搜索的 embedding 一半、创建期相似度检查）不得出现 embedding / 语义相似度实现：按词扫描范围内的代码、注释、docstring 与同目录架构文档，被删文件不得回归（未完成的删除以 strict xfail 标记） | — |
 | `test_ssrf_single_source.py` | Gate | SSRF 校验仅允许位于 `core/security/guards`，禁止散落 | — |
 | `test_tool_catalog_product_id.py` | Gate | `tool_catalog` product_id 须派生自已有 group SSOT | — |
 | `test_tool_layer_boundary.py` | Gate | harness 与 external tool 层 SSOT 边界 | — |
