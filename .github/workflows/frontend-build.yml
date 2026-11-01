@@ -58,7 +58,7 @@ jobs:
       # Absolute zero-orphan cannot hold while unwired work is in flight, so a change may not introduce
       # orphans relative to what it builds on: a pull request relative to its merge-base, a push to main
       # relative to the commit main pointed at before it. Work lands by push, so the push check is the
-      # one that sees it; `pretest` keeps the absolute gate locally.
+      # one that sees it; `bun run verify:orphans` lists the standing orphans on demand.
       - name: Orphan modules (none introduced vs the PR base)
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
