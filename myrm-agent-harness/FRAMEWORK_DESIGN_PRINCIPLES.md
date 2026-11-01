@@ -90,9 +90,9 @@
 
 **框架边界**：不得硬编码 monorepo 路径，不得反向读取 `myrm-agent-server` 的文件。i18n、checkpoint、storage 必须自带默认数据或提供注入点（`register_translations()`、`StorageProvider`、checkpointer 工厂）。
 
-## 7. MCP 工具暴露：只允许两个结局
+## 7. MCP 工具暴露：当前的两个结局
 
-MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）：
+MCP / OpenAPI 工具溢出目前走两条路（`agent/_factory/mcp_routing.py`）；是否增加新的结局仍在评估，见 `TOOL_DESIGN_STRATEGY.md` §10.2：
 
 | 结局 | 条件 | 模型侧表现 |
 |---|---|---|
@@ -102,9 +102,9 @@ MCP / OpenAPI 工具溢出只有两条路（`agent/_factory/mcp_routing.py`）�
 - `mcp_surface_mode=direct_fc` 强制 direct 并跳过合计降级（`agent/_factory/mcp_routing.py` 的 `MCP direct_fc override` 分支）。
 - Direct FC 的 schema 预处理：描述截断到 2048 字符、`$ref` 内联、key 规范化排序（保 prompt cache 前缀稳定）、非规范 key 重命名、深层 schema 扁平化为点号路径、调用时反向还原；工具名统一加 `mcp__{server}__{tool}` 前缀。
 - PTC 的三级渐进披露：L1 元数据 → L2 SKILL.md（带工具签名，超预算退化为仅列名）→ L3 单工具文档（`agent/skills/mcp/core_generator.py`）。
-- **禁止第三路径**：`catalog_invoke` / `capability_invoke_tool` /「一个 invoke 工具代理所有 deferred MCP」/ RUNTIME 池 + Turn1 proxy gateway。`mcp_surface_mode=catalog_invoke` 会被解析成 `auto` 并打 WARNING（`agent/_factory/mcp_surface.py`）。
-- **禁止第三档阈值**：11,250（单服）与 15,000（合计）之外不得再加灰色档位。
-- 工具暴露模型与动作空间固定为上述两个结局；连接稳定性、OAuth、stdio 生命周期、重试属于实现细节，可独立演进。
+- **已删除的形态**：`catalog_invoke` / `capability_invoke_tool` /「一个 invoke 工具代理所有 deferred MCP」/ RUNTIME 池 + Turn1 proxy gateway（盲调，准确性劣于 PTC）。`mcp_surface_mode=catalog_invoke` 会被解析成 `auto` 并打 WARNING（`agent/_factory/mcp_surface.py`）。
+- 阈值目前只有 11,250（单服）与 15,000（合计）两个。
+- 目前的工具暴露模型与动作空间就是上述两个结局；连接稳定性、OAuth、stdio 生命周期、重试属于实现细节，可独立演进。
 
 **门禁现状**：`tests/architecture/test_mcp_routing_two_outcomes.py`（4 个断言）跑在 `harness-test.yml` 的全量单测里；该文件未打 `architecture` marker，`harness-boundary.yml` 的 `-m "architecture and not slow"` 会把它 deselect（实测 4 deselected）。65 个架构测试文件中有 16 个处于同样状态。
 

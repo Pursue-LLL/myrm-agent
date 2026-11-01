@@ -115,7 +115,7 @@ sorted_entries = sorted(
 
 **原则（框架 11.1）**：严禁在 `awrap_model_call` 中 append 非 Turn1 工具 schema 到 `bind_tools`。
 
-**MCP/OpenAPI 超 Turn1 预算**：整服 **MCP PTC**，见 `mcp_routing.py` + `TOOL_DESIGN_STRATEGY.md` §2.5。**禁止** catalog_invoke / capability_invoke 第三路径。PTC 家族见 `toolkits/code_execution/EXECUTION_SYSTEM.md` § PTC 家族。
+**MCP/OpenAPI 超 Turn1 预算**：整服 **MCP PTC**，见 `mcp_routing.py` + `TOOL_DESIGN_STRATEGY.md` §2.5（是否增加新的路由结局仍在评估，见 §10.2）。PTC 家族见 `toolkits/code_execution/EXECUTION_SYSTEM.md` § PTC 家族。
 
 | 组件 | 路径 | 作用 |
 |------|------|------|

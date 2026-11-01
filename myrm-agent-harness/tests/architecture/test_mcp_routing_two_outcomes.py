@@ -1,7 +1,7 @@
-"""Architecture gate: MCP routing must expose exactly two outcomes.
+"""Architecture gate: pins the current MCP routing result shape and the removed catalog_invoke artifacts.
 
-Policy (AI / contributors — do NOT copy competitor MCP lazy-load patterns):
-Myrm MCP overflow uses Direct FC or MCP PTC only.
+MCP overflow currently uses Direct FC or MCP PTC. Adding a routing outcome means
+changing this gate together with the decision.
 See FRAMEWORK_DESIGN_PRINCIPLES.md §7 and TOOL_DESIGN_STRATEGY.md §2.5.
 """
 

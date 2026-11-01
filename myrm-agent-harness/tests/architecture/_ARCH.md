@@ -42,7 +42,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_manager_shared_barrel.py` | Gate | manager 共享 barrel 约束 | — |
 | `test_tool_registry.py` | Gate | tool registry 与 `_TOOL_LAYERS` 一致 | — |
 | `test_tool_registry_exemptions.py` | Gate | `LAYER_EXEMPT_TOOLS` 带到期日：未到期豁免才隐藏未挂载工具，过期后工具重新报缺；对应工具已删除或已登记的豁免按过期条目报错（合成 `ScanReport`，不扫源码） | — |
-| `test_mcp_routing_two_outcomes.py` | Gate | MCP 路由仅 direct/PTC 两结局；禁止 catalog_invoke 模块回归 | — |
+| `test_mcp_routing_two_outcomes.py` | Gate | 钉住当前 MCP 路由结果形态（direct/PTC）与已删除的 catalog_invoke 产物；增加结局时随决策一起改本门禁 | — |
 | `test_openapi_fail_loud_gate.py` | Gate | OpenAPI enabled 但 0 tools 须 fail-loud（`openapi_load_failed`）；预算 guard 回归 | — |
 | `test_skill_tool_boundary.py` | Gate | `skill_search_tool` ↔ `skill_market_tool` description 互指 + `<BoundSkills>` 运行时 XML 不回归（单元/集成覆盖） | — |
 | `test_boundary_config.py` | Gate | boundary 配置完整性 | — |

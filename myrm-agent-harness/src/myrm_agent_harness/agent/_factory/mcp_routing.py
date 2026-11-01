@@ -11,8 +11,8 @@
 - PTC_OVERHEAD_MULTIPLIER, FALLBACK_PTC_OVERHEAD_TOKENS, compute_direct_threshold, estimate_schema_tokens
 
 [POS]
-MCP schema-token routing for SkillAgent factory. **Two outcomes only** (see
-``TOOL_DESIGN_STRATEGY.md`` §MCP 路由铁律 — 禁止 catalog_invoke / proxy 第三路径):
+MCP schema-token routing for SkillAgent factory. Current outcomes (see
+``TOOL_DESIGN_STRATEGY.md`` §2.5):
 - Direct FC (AUTO): per-server and aggregate within budget → native Turn1 FC with full schema
 - Direct FC (DIRECT_FC mode): forced direct regardless of per-server / aggregate thresholds
 - MCP PTC: per-server schema over threshold OR aggregate overflow → skill_select + bash SOP

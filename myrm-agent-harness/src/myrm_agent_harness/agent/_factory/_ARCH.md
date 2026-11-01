@@ -3,7 +3,7 @@
 ## Overview
 SkillAgent factory assembly — MCP routing, surface mode, OpenAPI direct bind, and `create_skill_agent` pipeline.
 
-## MCP routing (two outcomes only)
+## MCP routing (current outcomes: Direct FC, MCP PTC)
 
 | File | Role | Description |
 |------|------|-------------|
@@ -25,7 +25,7 @@ create_skill_agent() OpenAPI path
   └─ schema > 15K tok (non direct_fc) → ConfigIncompleteError (openapi_direct_budget_exceeded)
 ```
 
-**Forbidden**: catalog_invoke / capability_invoke proxy / RUNTIME MCP pools — see `TOOL_DESIGN_STRATEGY.md` §MCP 路由铁律.
+Routing policy and the evaluation of alternatives: `TOOL_DESIGN_STRATEGY.md` §2.5 and §10.2.
 
 ## Verification
 

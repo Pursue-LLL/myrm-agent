@@ -9,14 +9,14 @@ Unified Capability Discovery gateway. Indexes agent-bound searchable skills (MCP
 
 ## MCP / OpenAPI overflow policy (SSOT)
 
-**Only two harness outcomes** — see ``TOOL_DESIGN_STRATEGY.md`` §MCP 路由铁律:
+**Current harness outcomes** — see ``TOOL_DESIGN_STRATEGY.md`` §2.5:
 
 | Outcome | When |
 |---------|------|
 | **Direct FC Turn1** | Per-server schema ≤ `compute_direct_threshold()` (11,250 tok) **and** aggregate direct pool ≤ `AGGREGATE_DIRECT_TOKEN_BUDGET` (15,000 tok) |
 | **MCP PTC** | Per-server schema > threshold **or** aggregate overflow (largest servers demoted first) |
 
-**Forbidden**: catalog_invoke, capability_invoke_tool, RUNTIME-only MCP proxy gateways, or any third routing band between direct and PTC.
+Whether a further routing outcome is worth adding is under evaluation: `TOOL_DESIGN_STRATEGY.md` §10.2.
 
 ## File & Submodule Index
 

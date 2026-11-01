@@ -168,9 +168,9 @@ class ToolLayer(IntEnum):
 
 新增 LLM 工具时必须同步：`register_tool_layer()` + product_id 映射 + 跑 `validate_tool_registry.py`（含 pre-commit `--incremental` 静态层门禁）。
 
-### 2.5 MCP 路由铁律（禁止第三路径）
+### 2.5 MCP 路由（当前：Direct FC / MCP PTC）
 
-**Harness 层 MCP/OpenAPI 溢出只能二选一** — 证据：`agent/_factory/mcp_routing.py` · CI：`tests/architecture/test_mcp_routing_two_outcomes.py` · PTC 家族 SSOT：`toolkits/code_execution/EXECUTION_SYSTEM.md` § PTC 家族
+**Harness 层当前对 MCP/OpenAPI 溢出有两种结局；是否增加新的结局仍在评估（见 §10.2）** — 证据：`agent/_factory/mcp_routing.py` · CI：`tests/architecture/test_mcp_routing_two_outcomes.py` · PTC 家族 SSOT：`toolkits/code_execution/EXECUTION_SYSTEM.md` § PTC 家族
 
 | 结局 | 条件 | LLM 如何调用 |
 |------|------|-------------|
@@ -180,16 +180,16 @@ class ToolLayer(IntEnum):
 | **OpenAPI 拒绝** | enabled 但 0 tools 加载失败 | `ConfigIncompleteError`（`openapi_load_failed`）；检查 spec/认证/endpoint |
 | **OpenAPI 拒绝** | schema > `AGGREGATE_DIRECT_TOKEN_BUDGET`（非 `direct_fc`） | `ConfigIncompleteError`（`openapi_direct_budget_exceeded`）；Agent 设置减少 endpoint |
 
-**禁止模式（不得引入）**：
+**已删除的形态及其问题（评估输入）**：
 
-1. **catalog_invoke / capability_invoke_tool** — RUNTIME 池 + Turn1 proxy gateway，schema 藏 catalog 一行摘要，准确性与 PTC 重叠且更差。
-2. **双 aggregate 阈值**（如 11,250 单服 + 15,000 聚合之外的第三档）— 制造灰色地带，维护与认知成本失控。
-3. **第四种调用范式** — 在 direct / PTC / skill_search 之外再加 proxy tool。
+1. **catalog_invoke / capability_invoke_tool** — RUNTIME 池 + Turn1 proxy gateway，schema 藏在 catalog 一行摘要里，模型盲调；准确性与 PTC 重叠且更差。
+2. **多档 aggregate 阈值**（11,250 单服 + 15,000 聚合之外再加档位）— 会制造灰色地带，维护与认知成本上升；当前只有这两个数。
 
-**新增 MCP 集成前自问**：
+**评估新的集成或调用形态时需回答**：
 
-- 能否走现有 **Direct** 或 **MCP PTC**？若否，先改阈值或 Skill 文档，**不要**新建 proxy 工具。
-- 是否为了 Prompt Cache 牺牲参数 schema 可见性？若是，用 **MCP PTC**（按需读 doc），不要用 blind invoke。
+- 现有 **Direct** 或 **MCP PTC** 能否满足？若能，增量在哪里。
+- 是否牺牲参数 schema 可见性（盲调）？若是，准确性代价要实测。
+- 相对现状的收益是否有实测基准（见 §10.2）。
 
 **Profile 兼容**：`mcp_surface_mode=catalog_invoke` 解析为 `auto` 并打 WARNING（`mcp_surface.py`）。
 
@@ -465,7 +465,7 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
 | MCP 工具路由 | ✅ Direct FC + MCP PTC + 三级 `/mcp/*.md` 渐进披露 | ❌ Turn1 全量 bind 或单一 router/proxy tool |
 | Prompt Cache 优化 | ✅ 工具分层排序保证 harness 前缀稳定 | ❌ 无优化 |
 
-### 10.2 竞品 MCP 懒加载：禁止抄（AI / Roadmap 必读）
+### 10.2 竞品 MCP 懒加载：对照与待评估项（AI / Roadmap 必读）
 
 **⚠️ 事实更正（2026-10-19）**：本节原写「Myrm 在此维度已领先」，与代码事实不符。核实结果：
 
@@ -477,20 +477,20 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
 
 因此准确表述是：**我们目前只有「技能级检索 + PTC」，没有「工具级延迟加载」**。
 
-**这不改变禁令本身，但改变了理由与做法**：
+**评估应基于下列事实与理由，而不是预设结论**：
 
-| 仍然禁止（不变） | 理由（已修正） |
+| 已删除或已评估的形态 | 评估结论与理由 |
 | --- | --- |
 | `catalog_invoke` / `capability_invoke` / RUNTIME proxy gateway | 这些是**盲调**（只给工具名 + `arguments: dict`，不把真实 schema 交给模型），准确性劣于 PTC。已被删除的 `invoke_deferred_tool` 正属此类（入参就是 `arguments: dict`），所以删除它**技术方向是对的** |
 | 双 aggregate 阈值 | 制造灰色地带，与本节无关 |
-| 第四种调用范式 | 若与 PTC 重叠则不该新增 |
+| 新增调用范式 | 与 PTC 重叠的部分没有增量；是否有增量需要实测 |
 
 | 应当做（新） | 说明 |
 | --- | --- |
 | **「搜索 → 载入真实 schema → 直调」** | 这是 Hermes `tool_describe` 的形状，与盲调的区别是 **schema 真的进了上下文**。它与现有 Direct FC 的差别只是「schema 何时进入」，不是「有没有 schema」 |
 | **先补 >11.25K 真实服务器基准** | `PTC_OVERHEAD_MULTIPLIER=25` 的 11.25K 是**理论 crossover × 0.4**（`agent/_factory/mcp_routing.py:48-57`），不是实测；Anthropic 公开门槛是 >10K。没有实测就不该动架构 |
 
-**该不该做**：需要一次架构评审明确「恢复工具级延迟」是否修改 §2.5 铁律的适用范围。**在此之前不得动手**，但也不得再用「已领先」作为不做的理由。
+**该不该做**：评估中，尚无结论。需要一次架构评审，对照实测基准明确「恢复工具级延迟」或其他新增结局相对 §2.5 现状的收益。不得再用「已领先」作为不做的理由。
 
 SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 · CI `test_mcp_routing_two_outcomes.py`
 

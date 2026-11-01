@@ -3,8 +3,8 @@
 [POS]
 Shared enum for server profile → harness MCP routing without import cycles.
 
-Only two routing outcomes exist at the harness layer: Direct FC Turn1 bind or
-MCP PTC. Profile value ``catalog_invoke`` parses as ``auto`` with warning.
+The harness layer routes an MCP server to a Direct FC Turn1 bind or to MCP PTC.
+Profile value ``catalog_invoke`` is obsolete and parses as ``auto`` with warning.
 """
 
 from __future__ import annotations
