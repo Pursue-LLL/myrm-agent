@@ -4,10 +4,10 @@ import logging
 import re
 import time
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import IntEnum
-from pathlib import Path
 
+from myrm_agent_harness.backends.skills._content_memo import ContentMemo
 from myrm_agent_harness.backends.skills.scanning.ast_analyzer import AstScanFinding
 from myrm_agent_harness.backends.skills.types.types_enums import SkillTrustRecommendation
 from myrm_agent_harness.backends.skills.types.types_security import SecurityScanSummary
@@ -16,13 +16,14 @@ from myrm_agent_harness.backends.skills.types.types_security import SecurityScan
 
 [INPUT]
 - scanning.patterns::ALL_PATTERN_GROUPS (POS: Skill security scanner pattern definitions.)
+- _content_memo::ContentMemo (POS: Content-addressed memo of pure derivations of skill text.)
 
 [OUTPUT]
 - ScanSeverity: scan finding severity enum
 - ScanFinding: single scan finding
 - ScanResult: complete scan result with SkillTrust recommendation
 - SkillTrustRecommendation: recommended trust level based on findings
-- scan_skill_content(): scan skill content for security threats
+- scan_skill_content(): scan skill content for security threats (memoized per exact content)
 - compute_scan_summary(): generate SecurityScanSummary from ScanResult
 - format_scan_report(): generate human-readable scan report for Agent feedback
 
@@ -174,6 +175,12 @@ def _get_pattern_groups() -> list[tuple[str, list[tuple[re.Pattern[str], str, Sc
     return ALL_PATTERN_GROUPS
 
 
+# A result with this many findings belongs to content that is flagged or rejected anyway, and pinning it would hold
+# one object per finding (a 512 KB run of zero-width characters yields ~520k findings, ~90 MB).
+_MAX_MEMOIZED_FINDINGS = 128
+_SCAN_MEMO = ContentMemo[ScanResult]("skill-scan")
+
+
 def scan_skill_content(
     skill_name: str,
     content: str,
@@ -181,6 +188,10 @@ def scan_skill_content(
     file_extension: str = "",
 ) -> ScanResult:
     """Scan skill content for security threats.
+
+    The scan is a pure function of its arguments, so results are memoized per exact content: an unchanged skill is
+    scanned once per process, an edited one is rescanned because its content differs. Every call returns its own
+    ``ScanResult``; ``scan_duration_ms`` is that of the scan which produced the findings.
 
     This is a soft detection layer — findings are warnings, not blockers.
     The trust attenuation system provides the hard security boundary.
@@ -198,6 +209,17 @@ def scan_skill_content(
     Returns:
         ScanResult with all findings (empty if clean)
     """
+    memoized = _SCAN_MEMO.get_or_compute(
+        content,
+        lambda: _scan_content(skill_name, content, file_extension),
+        scope=f"{skill_name}\x00{file_extension}",
+        keep=lambda result: len(result.findings) + len(result.ast_findings) <= _MAX_MEMOIZED_FINDINGS,
+    )
+    return replace(memoized, findings=list(memoized.findings), ast_findings=list(memoized.ast_findings))
+
+
+def _scan_content(skill_name: str, content: str, file_extension: str) -> ScanResult:
+    """Run the three analysis passes (regex patterns, invisible Unicode, Python AST) over ``content``."""
     start_time = time.monotonic()
     result = ScanResult(skill_name=skill_name)
     pattern_groups = _get_pattern_groups()
@@ -274,119 +296,6 @@ def _looks_like_python(content: str) -> bool:
     first_lines = content[:500]
     indicators = ("def ", "import ", "from ", "class ", "if __name__")
     return any(indicator in first_lines for indicator in indicators)
-
-
-# ---------------------------------------------------------------------------
-# Multi-file directory scanning
-# ---------------------------------------------------------------------------
-
-_MAX_SCAN_FILES = 500
-_MAX_FILE_SIZE = 512 * 1024  # 512 KB
-_SCAN_TIMEOUT_S = 5.0
-_SKIP_DIRS = frozenset({"node_modules", ".git", "__pycache__", ".venv", "venv", ".svn", ".hg"})
-_TEXT_EXTENSIONS = frozenset(
-    {".py", ".sh", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".cfg", ".ini", ".js", ".ts"}
-)
-
-
-def scan_skill_directory(
-    skill_name: str,
-    skill_dir: str | Path,
-) -> ScanResult:
-    """Scan all files in a skill directory for security threats.
-
-    Performs multi-file scanning with safety limits:
-    - MAX_SCAN_FILES: 500 files
-    - MAX_FILE_SIZE: 512 KB per file
-    - SCAN_TIMEOUT: 5 seconds
-
-    Also audits any package.json files found.
-
-    Args:
-        skill_name: Skill identifier
-        skill_dir: Path to the skill directory
-
-    Returns:
-        Combined ScanResult from all files
-    """
-    from myrm_agent_harness.backends.skills.scanning.package_audit import audit_skill_directory
-
-    start_time = time.monotonic()
-    root = Path(skill_dir)
-    combined = ScanResult(skill_name=skill_name)
-
-    if not root.is_dir():
-        combined.scan_duration_ms = (time.monotonic() - start_time) * 1000
-        return combined
-
-    files_scanned = 0
-    for file_path in _walk_text_files(root):
-        if files_scanned >= _MAX_SCAN_FILES:
-            break
-        elapsed = time.monotonic() - start_time
-        if elapsed > _SCAN_TIMEOUT_S:
-            logger.warning("Scan timeout: scanned %d files in %.1fs", files_scanned, elapsed)
-            break
-
-        relative = str(file_path.relative_to(root))
-        ext = file_path.suffix.lower()
-
-        try:
-            stat = file_path.stat()
-            if stat.st_size > _MAX_FILE_SIZE or stat.st_size == 0:
-                continue
-            content = file_path.read_text(encoding="utf-8", errors="replace")
-        except (OSError, UnicodeDecodeError):
-            continue
-
-        files_scanned += 1
-        file_result = scan_skill_content(f"{skill_name}/{relative}", content, file_extension=ext)
-        combined.findings.extend(file_result.findings)
-        combined.ast_findings.extend(file_result.ast_findings)
-
-    # Package.json audit
-    pkg_findings = audit_skill_directory(root)
-    for pf in pkg_findings:
-        combined.findings.append(
-            ScanFinding(
-                threat_type=pf.threat_type,
-                severity=ScanSeverity.HIGH if pf.severity == "high" else ScanSeverity.MEDIUM,
-                description=pf.description,
-            )
-        )
-
-    combined.scan_duration_ms = (time.monotonic() - start_time) * 1000
-
-    if not combined.is_clean:
-        logger.warning("Directory scan: %s", combined.summary)
-
-    return combined
-
-
-def _walk_text_files(root: Path):
-    """Walk text files in a directory, skipping ignored directories."""
-    queue: list[Path] = [root]
-
-    while queue:
-        current = queue.pop(0)
-        try:
-            entries = sorted(current.iterdir())
-        except PermissionError:
-            continue
-
-        for entry in entries:
-            if entry.name.startswith(".") and entry.name not in {".env", ".gitignore"}:
-                continue
-            if entry.name in _SKIP_DIRS:
-                continue
-            if entry.is_symlink():
-                continue
-            if entry.is_file():
-                ext = entry.suffix.lower()
-                if ext in _TEXT_EXTENSIONS or entry.name == "SKILL.md":
-                    yield entry
-            elif entry.is_dir():
-                queue.append(entry)
 
 
 _SEVERITY_DEDUCTIONS: dict[ScanSeverity, int] = {

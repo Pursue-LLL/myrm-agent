@@ -4,7 +4,7 @@ Shared utilities for scanning, deduplication, ranking, origin tracking, and Lobe
 
 [INPUT]
 - backends.skills.market_protocols::SkillSearchResult (POS: unified skill market result type)
-- backends.skills.scanning::ScanResult (POS: scan result cache layer for skill content)
+- backends.skills.scanning::ScanResult (POS: findings of a security scan of skill content)
 - core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-protected outbound HTTP with size cap)
 
 [OUTPUT]

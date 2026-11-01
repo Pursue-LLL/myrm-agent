@@ -91,6 +91,20 @@ def _isolate_subagent_checkpointer() -> Iterator[None]:
     _reset_subagent_checkpointer_if_loaded()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_skill_content_memos() -> Iterator[None]:
+    """Start every test with empty skill-derivation memos.
+
+    Scan, frontmatter and token-count results are memoized per process by the exact skill text. Without
+    this, a test that asserts a warning or a derivation count sees nothing when an earlier test already
+    handled the same text. A module that was never imported holds no memo, so nothing is imported here.
+    """
+    module = sys.modules.get("myrm_agent_harness.backends.skills._content_memo")
+    if module is not None:
+        module.clear_content_memos()
+    yield
+
+
 _BROWSER_TEST_ROOT = Path(__file__).resolve().parent / "toolkits" / "browser"
 _TESTS_ROOT = Path(__file__).resolve().parent
 _INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"

@@ -13,7 +13,9 @@ Orchestrates multi-layer security scanning across installed and in-quarantine sk
 - KnownAdvisory, AdvisoryFinding, match_known_advisories (from security_advisories)
 - query_osv_batch (from osv_scanner)
 - VulnScanCache, get_vuln_cache (from vuln_cache)
-- scan_skill_directory, ScanFinding, ScanResult, ScanSeverity, SkillTrustRecommendation (from scanner)
+- scan_skill_directory (from directory_scanner)
+- ScanFinding, ScanResult, ScanSeverity (from scanner)
+- SkillTrustRecommendation (from types)
 - PackageAuditFinding, check_lifecycle_scripts, audit_skill_directory (from package_audit)
 - AstScanFinding, analyze_python_ast (from ast_analyzer)
 
@@ -46,6 +48,7 @@ from myrm_agent_harness.backends.skills.scanning.dependency_extractor import (
     extract_dependencies_from_files,
     extract_skill_dependencies,
 )
+from myrm_agent_harness.backends.skills.scanning.directory_scanner import scan_skill_directory
 from myrm_agent_harness.backends.skills.scanning.osv_scanner import query_osv_batch
 from myrm_agent_harness.backends.skills.scanning.package_audit import (
     PackageAuditFinding,
@@ -55,15 +58,14 @@ from myrm_agent_harness.backends.skills.scanning.package_audit import (
 from myrm_agent_harness.backends.skills.scanning.scanner import (
     ScanFinding,
     ScanSeverity,
-    SkillTrustRecommendation,
     scan_skill_content,
-    scan_skill_directory,
 )
 from myrm_agent_harness.backends.skills.scanning.security_advisories import (
     AdvisoryFinding,
     match_known_advisories,
 )
 from myrm_agent_harness.backends.skills.scanning.vuln_cache import VulnScanCache, get_vuln_cache
+from myrm_agent_harness.backends.skills.types import SkillTrustRecommendation
 
 logger = logging.getLogger(__name__)
 

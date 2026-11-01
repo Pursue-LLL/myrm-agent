@@ -4,6 +4,7 @@
 [INPUT]
 - types::SkillMetadata, SkillTrust (POS: 技能元数据类型和信任枚举)
 - _utils::SkillFrontmatter (POS: 解析后的 frontmatter 数据)
+- _content_memo::ContentMemo (POS: 按内容摘要寻址的有界缓存)
 
 [OUTPUT]
 - build_skill_metadata(): 构建完整 SkillMetadata 的工厂函数（含 token 预算超制钳位）
@@ -27,6 +28,7 @@ import shutil
 from collections.abc import Mapping
 from pathlib import Path
 
+from myrm_agent_harness.backends.skills._content_memo import ContentMemo
 from myrm_agent_harness.backends.skills._utils import SkillFrontmatter
 from myrm_agent_harness.backends.skills.credential_validator import CredentialValidator
 from myrm_agent_harness.backends.skills.scanning import (
@@ -41,6 +43,15 @@ from myrm_agent_harness.backends.skills.types import (
 from myrm_agent_harness.utils.text_utils import get_token_count
 
 logger = logging.getLogger(__name__)
+
+_TOKEN_COST_MEMO = ContentMemo[int]("skill-token-cost")
+
+
+def _skill_token_cost(content: str) -> int | None:
+    """Token count of the SKILL.md text; tokenizing dominates a warm listing, so it is memoized per text."""
+    if not content:
+        return None
+    return _TOKEN_COST_MEMO.get_or_compute(content, lambda: get_token_count(content))
 
 
 def evaluate_requires(
@@ -189,7 +200,7 @@ def build_skill_metadata(
         model_tier=frontmatter.model_tier,
         required_permissions=frontmatter.required_permissions,
         trust=trust,
-        token_cost=get_token_count(content) if content else None,
+        token_cost=_skill_token_cost(content),
         content_hash=compute_content_hash(content),
         available=available,
         unavailable_reason=unavailable_reason,

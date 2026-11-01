@@ -6,16 +6,11 @@ dependency extraction (package.json, requirements.txt, pyproject.toml),
 offline known-compromised package advisories matching,
 online OSV.dev batch vulnerability intelligence with TTL caching,
 advisory acknowledgment governance (AdvisoryAckRegistry),
-invisible Unicode detection, LLM-based semantic audit, persistent Volume cache,
+invisible Unicode detection, LLM-based semantic audit,
 and secure ZIP extraction with Zip Bomb / symlink / path traversal defense.
 """
 
 from myrm_agent_harness.backends.skills.scanning.ast_analyzer import AstScanFinding, analyze_python_ast
-from myrm_agent_harness.backends.skills.scanning.cache import (
-    CacheStats,
-    ScanResultCache,
-    get_scan_cache,
-)
 from myrm_agent_harness.backends.skills.scanning.dependency_extractor import (
     DeclaredDependency,
     extract_dependencies_from_bun_lock,
@@ -27,6 +22,7 @@ from myrm_agent_harness.backends.skills.scanning.dependency_extractor import (
     extract_dependencies_from_uv_lock,
     extract_skill_dependencies,
 )
+from myrm_agent_harness.backends.skills.scanning.directory_scanner import scan_skill_directory
 from myrm_agent_harness.backends.skills.scanning.osv_scanner import (
     parse_osv_severity,
     query_osv_batch,
@@ -71,7 +67,6 @@ from myrm_agent_harness.backends.skills.scanning.scanner import (
     compute_scan_summary,
     format_scan_report,
     scan_skill_content,
-    scan_skill_directory,
 )
 from myrm_agent_harness.backends.skills.scanning.scanning_write_backend import (
     _MAX_RESOURCE_SIZE,
@@ -97,7 +92,6 @@ __all__ = [
     "AdvisoryAckRegistry",
     "AdvisoryFinding",
     "AstScanFinding",
-    "CacheStats",
     "QualityRuleId",
     "SkillQualityLinter",
     "SkillQualityReport",
@@ -111,7 +105,6 @@ __all__ = [
     "PathRedirectionError",
     "ScanFinding",
     "ScanResult",
-    "ScanResultCache",
     "ScanSeverity",
     "SkillRescanResult",
     "SkillTrustRecommendation",
@@ -138,7 +131,6 @@ __all__ = [
     "is_path_redirect",
     "get_known_advisories_catalog",
     "get_rescan_engine",
-    "get_scan_cache",
     "get_vuln_cache",
     "match_known_advisories",
     "parse_osv_severity",

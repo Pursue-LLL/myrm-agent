@@ -5,6 +5,7 @@ import json
 import pytest
 
 from myrm_agent_harness.backends.skills.scanning.ast_analyzer import AstScanFinding
+from myrm_agent_harness.backends.skills.scanning.directory_scanner import scan_skill_directory
 from myrm_agent_harness.backends.skills.scanning.scanner import (
     ScanFinding,
     ScanResult,
@@ -13,7 +14,6 @@ from myrm_agent_harness.backends.skills.scanning.scanner import (
     compute_scan_summary,
     format_scan_report,
     scan_skill_content,
-    scan_skill_directory,
 )
 
 

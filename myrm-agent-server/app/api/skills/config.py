@@ -107,7 +107,6 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
 
     from myrm_agent_harness.backends.skills.scanning import (
         ScanSeverity,
-        get_scan_cache,
         scan_skill_content,
     )
 
@@ -117,13 +116,7 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
     if skill_content:
         content_str = skill_content.decode("utf-8") if isinstance(skill_content, bytes) else skill_content
 
-        scan_cache = get_scan_cache()
-        scan_result = scan_cache.get(content_str)
-        if scan_result is None:
-            scan_result = scan_skill_content(skill.name, content_str)
-            scan_cache.set(content_str, scan_result)
-        else:
-            logger.debug("Using cached scan result for skill_id=%s", skill_id)
+        scan_result = scan_skill_content(skill.name, content_str)
 
         if not scan_result.is_clean:
             scan_responses = [

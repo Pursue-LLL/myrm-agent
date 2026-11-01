@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.backends.skills._runtime (POS: skill metadata builder and content hash)
 - myrm_agent_harness.backends.skills._utils (POS: SKILL.md frontmatter parser)
+- myrm_agent_harness.backends.skills.evolution_lock (POS: evolution_locked frontmatter writer)
 
 [OUTPUT]
 - SkillMetadataError, parse_skill_frontmatter, update_frontmatter_evolution_lock,
@@ -23,8 +24,8 @@ from myrm_agent_harness.backends.skills._runtime import (
 from myrm_agent_harness.backends.skills._utils import (
     SkillMetadataError,
     parse_skill_frontmatter,
-    update_frontmatter_evolution_lock,
 )
+from myrm_agent_harness.backends.skills.evolution_lock import update_frontmatter_evolution_lock
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 __all__ = [

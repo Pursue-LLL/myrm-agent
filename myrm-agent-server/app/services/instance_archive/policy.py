@@ -72,7 +72,7 @@ _EXCLUDED_TOP_LEVEL: dict[str, PathCategory] = {
     "webui": PathCategory.HOST_BOUND,
     # Rebuildable indexes / derived state. The embedded vector store (`qdrant/`) is deliberately
     # absent: it holds the semantic and episodic memory content itself, so it travels as data.
-    "skill_scans": PathCategory.DERIVED,
+    "skill_scans": PathCategory.DERIVED,  # no longer written; upgraded installs may still hold scan caches here
     "config_hash": PathCategory.DERIVED,
     "config_snapshot.json": PathCategory.DERIVED,
     "config_version": PathCategory.DERIVED,

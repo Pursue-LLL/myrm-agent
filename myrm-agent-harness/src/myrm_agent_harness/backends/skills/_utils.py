@@ -5,11 +5,12 @@
 - yaml::yaml (POS: YAML 解析库)
 - re::re (POS: 正则表达式库)
 - types::SkillRequires (POS: 技能依赖声明类型)
+- _content_memo::ContentMemo (POS: 按内容摘要寻址的有界缓存)
 
 [OUTPUT]
 - SkillMetadataError: 技能元数据解析或验证错误异常
 - SkillFrontmatter: 解析后的 frontmatter 数据
-- parse_skill_frontmatter(): 从 SKILL.md 解析完整 frontmatter（返回 SkillFrontmatter）
+- parse_skill_frontmatter(): 从 SKILL.md 解析完整 frontmatter（按内容缓存，每次调用返回独立副本）
 
 [POS]
 Skill backend parsing utilities. Provides SKILL.md frontmatter parsing functionality.
@@ -18,14 +19,15 @@ Skill backend parsing utilities. Provides SKILL.md frontmatter parsing functiona
 
 from __future__ import annotations
 
+import copy
 import logging
 import math
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import yaml
 
+from myrm_agent_harness.backends.skills._content_memo import ContentMemo
 from myrm_agent_harness.backends.skills.types import (
     SkillContract,
     SkillContractJudgment,
@@ -535,6 +537,9 @@ def _parse_skill_contract(parsed: dict[str, object], skill_dir_name: str) -> Ski
     )
 
 
+_FRONTMATTER_MEMO = ContentMemo[SkillFrontmatter]("skill-frontmatter")
+
+
 def parse_skill_frontmatter(content: str, skill_dir_name: str) -> SkillFrontmatter:
     """Parse YAML frontmatter from SKILL.md (agentskills.io spec compliant).
 
@@ -550,6 +555,9 @@ def parse_skill_frontmatter(content: str, skill_dir_name: str) -> SkillFrontmatt
     - always (optional, bool)
     - version (optional, string)
 
+    Parsing is memoized per exact text and name; every call returns its own ``SkillFrontmatter``, so a caller may
+    mutate it freely.
+
     Args:
         content: Full SKILL.md file content
         skill_dir_name: Directory name (for validation and fallback)
@@ -560,6 +568,16 @@ def parse_skill_frontmatter(content: str, skill_dir_name: str) -> SkillFrontmatt
     Raises:
         SkillMetadataError: If frontmatter is invalid or missing required fields
     """
+    template = _FRONTMATTER_MEMO.get_or_compute(
+        content,
+        lambda: _parse_frontmatter_fields(content, skill_dir_name),
+        scope=skill_dir_name,
+    )
+    return copy.deepcopy(template)
+
+
+def _parse_frontmatter_fields(content: str, skill_dir_name: str) -> SkillFrontmatter:
+    """Build a SkillFrontmatter from SKILL.md text (uncached)."""
     parsed = _parse_frontmatter_yaml(content, skill_dir_name)
     _warn_unknown_fields(parsed, skill_dir_name)
     description = _validate_and_extract_description(parsed, skill_dir_name)
@@ -792,48 +810,3 @@ def parse_skill_frontmatter(content: str, skill_dir_name: str) -> SkillFrontmatt
         model_tier=model_tier,
         required_permissions=required_permissions,
     )
-
-
-def update_frontmatter_evolution_lock(skill_path: str | Path, locked: bool) -> None:
-    """Update the evolution_locked flag in the SKILL.md YAML frontmatter.
-
-    If the field exists, it updates it. If it doesn't exist, it appends it to the end
-    of the frontmatter block.
-
-    Args:
-        skill_path: Path to the SKILL.md file.
-        locked: True to lock, False to unlock.
-    """
-    path = Path(skill_path)
-    if not path.exists():
-        return
-
-    content = path.read_text(encoding="utf-8")
-    # Match the frontmatter block safely.
-    match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
-    if not match:
-        logger.warning(f"Failed to find valid YAML frontmatter in {path} to update evolution_locked.")
-        return
-
-    frontmatter = match.group(1)
-
-    # Check if evolution_locked or evolution-locked already exists
-    pattern = r"^(evolution[-_]locked\s*:\s*)(.*)$"
-    if re.search(pattern, frontmatter, re.IGNORECASE | re.MULTILINE):
-        # Replace the existing value
-        new_frontmatter = re.sub(
-            pattern,
-            f"\\g<1>{str(locked).lower()}",
-            frontmatter,
-            flags=re.IGNORECASE | re.MULTILINE,
-        )
-    else:
-        # Append to the end of frontmatter
-        # Ensure there's exactly one newline before appending
-        stripped_fm = frontmatter.rstrip()
-        new_frontmatter = stripped_fm + f"\nevolution_locked: {str(locked).lower()}\n"
-
-    # Reconstruct the file content
-    new_content = content[: match.start(1)] + new_frontmatter + content[match.end(1) :]
-    path.write_text(new_content, encoding="utf-8")
-    logger.debug(f"Updated evolution_locked to {locked} in {path}")

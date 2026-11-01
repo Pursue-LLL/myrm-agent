@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from myrm_agent_harness.backends.skills._utils import update_frontmatter_evolution_lock
+from myrm_agent_harness.backends.skills.evolution_lock import update_frontmatter_evolution_lock
 
 
 def test_update_frontmatter_evolution_lock_adds_new(tmp_path: Path):
