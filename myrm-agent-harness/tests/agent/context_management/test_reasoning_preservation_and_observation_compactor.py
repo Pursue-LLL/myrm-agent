@@ -10,7 +10,7 @@ Verifies:
 from __future__ import annotations
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from myrm_agent_harness.agent.context_management.pipeline.base import ProcessorContext
 from myrm_agent_harness.agent.context_management.pipeline.processors.active_tool_result_prune_processor import (
@@ -62,11 +62,7 @@ class TestReasoningAnchorExtractor:
     def test_extract_raw_reasoning_openai_responses_items(self) -> None:
         msg = AIMessage(
             content="Result",
-            additional_kwargs={
-                "responses_reasoning_items": [
-                    {"summary": "Evaluated schema and chosen strategy A."}
-                ]
-            },
+            additional_kwargs={"responses_reasoning_items": [{"summary": "Evaluated schema and chosen strategy A."}]},
         )
         extracted = extract_raw_reasoning(msg)
         assert "Evaluated schema and chosen strategy A." in (extracted or "")
@@ -93,7 +89,9 @@ class TestReasoningAnchorExtractor:
 
     def test_extract_decision_anchors_conclusive_fallback(self) -> None:
         # No explicit prefix, should trigger conclusive fallback
-        raw_reasoning = "We have explored multiple paths. Ultimately, using sqlite wal mode solved all concurrency issues."
+        raw_reasoning = (
+            "We have explored multiple paths. Ultimately, using sqlite wal mode solved all concurrency issues."
+        )
         anchors = extract_reasoning_anchors(raw_reasoning, turn_index=5, max_anchors=1)
         assert len(anchors) == 1
         assert anchors[0].category == "finding"
@@ -114,6 +112,14 @@ class TestReasoningAnchorExtractor:
         assert "finding" in categories
         assert any("JWT" in a.content for a in anchors)
         assert any("跨客户端" in a.content for a in anchors)
+
+    def test_tail_fallback_disabled_ignores_planning_chatter(self) -> None:
+        planning = "The pods need listing first.\nLet me read the docs"
+        assert extract_reasoning_anchors(planning, turn_index=1, tail_fallback=False) == []
+
+        with_decision = "Let me read the docs\n- 决策: 先读文档再调用"
+        anchors = extract_reasoning_anchors(with_decision, turn_index=1, tail_fallback=False)
+        assert [a.content for a in anchors] == ["先读文档再调用"]
 
 
 class TestSessionAnchorLedger:
@@ -161,10 +167,26 @@ class TestSessionAnchorLedger:
         assert len(ledger.get_anchors()) == 0
         assert ledger.render_anchors_context() == ""
 
+    def test_render_for_turn_freezes_block_until_the_turn_changes(self) -> None:
+        ledger = SessionAnchorLedger("test_turn_freeze")
+        assert ledger.render_for_turn("turn-1") == ""
+
+        ledger.record_anchor(ReasoningAnchor("a1", 1, "decision", "Use WAL"))
+        assert ledger.render_for_turn("turn-1") == ""
+        assert "Use WAL" in ledger.render_for_turn("turn-2")
+
+        ledger.record_anchor(ReasoningAnchor("a2", 2, "constraint", "No locks"))
+        assert "No locks" not in ledger.render_for_turn("turn-2")
+        assert "No locks" in ledger.render_for_turn("turn-3")
+
+        ledger.clear()
+        assert ledger.render_for_turn("turn-3") == ""
+
     def test_global_session_eviction(self) -> None:
         from myrm_agent_harness.agent.context_management.strategies.reasoning.anchor_ledger import (
             _SESSION_LEDGERS,
         )
+
         # Create many sessions to trigger bounded eviction
         for i in range(550):
             get_session_anchor_ledger(f"bulk_session_{i}")
@@ -181,9 +203,7 @@ class TestReasoningAnchorProcessor:
 
         ai_msg = AIMessage(
             content="I will fix this.",
-            additional_kwargs={
-                "reasoning_content": "分析完毕。\n- 核心结论: 数据库连接必须增加重试机制"
-            },
+            additional_kwargs={"reasoning_content": "分析完毕。\n- 核心结论: 数据库连接必须增加重试机制"},
         )
         human_msg = HumanMessage(content="Please proceed with the implementation.")
         ctx = ProcessorContext(
@@ -213,9 +233,7 @@ class TestReasoningAnchorProcessor:
 
         ai_msg = AIMessage(
             content="Plan approved.",
-            additional_kwargs={
-                "reasoning_content": "- 铁律: 禁止跨客户bundle复制"
-            },
+            additional_kwargs={"reasoning_content": "- 铁律: 禁止跨客户bundle复制"},
         )
         human_msg = HumanMessage(
             content=[
@@ -236,6 +254,106 @@ class TestReasoningAnchorProcessor:
         text_blocks = [b for b in last_human.content if isinstance(b, dict) and b.get("type") == "text"]
         assert any("禁止跨客户bundle复制" in str(b.get("text")) for b in text_blocks)
 
+    @pytest.mark.asyncio
+    async def test_multimodal_message_keeps_a_single_block_across_calls(self) -> None:
+        session_id = "test_pipe_multimodal_idempotent"
+        clear_session_anchor_ledger(session_id)
+
+        ai_msg = AIMessage(
+            content="Plan approved.", additional_kwargs={"reasoning_content": "- 铁律: 禁止跨客户bundle复制"}
+        )
+        human_msg = HumanMessage(
+            content=[
+                {"type": "text", "text": "Check this."},
+                {"type": "image_url", "image_url": "data:image/png;base64,xxxx"},
+            ]
+        )
+        processor = ReasoningAnchorProcessor()
+        for _ in range(3):
+            res = await processor.process(
+                ProcessorContext(messages=[ai_msg, human_msg], user_query="q", chat_id=session_id)
+            )
+
+        blocks = [
+            b
+            for b in res.messages[-1].content
+            if isinstance(b, dict) and "PRESERVED REASONING ANCHORS" in str(b.get("text"))
+        ]
+        assert len(blocks) == 1
+
+    @pytest.mark.asyncio
+    async def test_tool_rounds_never_rewrite_the_user_message(self) -> None:
+        session_id = "test_tool_rounds_stable"
+        clear_session_anchor_ledger(session_id)
+
+        human = HumanMessage(content="List the deployments.")
+        history: list[BaseMessage] = [human]
+        processor = ReasoningAnchorProcessor()
+        seen: list[str] = []
+        for round_no in range(4):
+            res = await processor.process(ProcessorContext(messages=list(history), user_query="q", chat_id=session_id))
+            seen.append(str(res.messages[0].content))
+            call_id = f"call_{round_no}"
+            history.append(
+                AIMessage(
+                    content="",
+                    additional_kwargs={"reasoning_content": f"Round {round_no} plan.\nLet me read the docs {round_no}"},
+                    tool_calls=[{"id": call_id, "name": "bash", "args": {}}],
+                )
+            )
+            history.append(ToolMessage(content="ok", tool_call_id=call_id))
+
+        assert seen == ["List the deployments."] * 4
+        assert get_session_anchor_ledger(session_id).get_anchors() == []
+
+    @pytest.mark.asyncio
+    async def test_anchor_from_a_tool_round_reaches_the_next_turn_only(self) -> None:
+        session_id = "test_anchor_next_turn"
+        clear_session_anchor_ledger(session_id)
+
+        first = HumanMessage(content="Pick a store.")
+        tool_round = AIMessage(
+            content="",
+            additional_kwargs={"reasoning_content": "- 决策: 统一使用 SQLite WAL"},
+            tool_calls=[{"id": "c1", "name": "bash", "args": {}}],
+        )
+        tool_result = ToolMessage(content="ok", tool_call_id="c1")
+        processor = ReasoningAnchorProcessor()
+
+        await processor.process(ProcessorContext(messages=[first], user_query="q", chat_id=session_id))
+        await processor.process(
+            ProcessorContext(messages=[first, tool_round, tool_result], user_query="q", chat_id=session_id)
+        )
+        assert first.content == "Pick a store."
+        assert [a.content for a in get_session_anchor_ledger(session_id).get_anchors()] == ["统一使用 SQLite WAL"]
+
+        second = HumanMessage(content="Next?")
+        history = [first, tool_round, tool_result, AIMessage(content="Done."), second]
+        await processor.process(ProcessorContext(messages=history, user_query="q", chat_id=session_id))
+        assert "统一使用 SQLite WAL" in str(second.content)
+        assert first.content == "Pick a store."
+
+    @pytest.mark.asyncio
+    async def test_turn_ending_reasoning_keeps_the_conclusion_fallback(self) -> None:
+        session_id = "test_turn_end_fallback"
+        clear_session_anchor_ledger(session_id)
+
+        final = AIMessage(
+            content="Done.",
+            additional_kwargs={
+                "reasoning_content": "We compared options. Ultimately, WAL mode solved the concurrency issue."
+            },
+        )
+        next_turn = HumanMessage(content="Anything else?")
+        processor = ReasoningAnchorProcessor()
+        await processor.process(
+            ProcessorContext(
+                messages=[HumanMessage(content="Fix it."), final, next_turn], user_query="q", chat_id=session_id
+            )
+        )
+
+        assert "WAL mode solved the concurrency issue" in str(next_turn.content)
+
 
 class TestConsumptionAwareCompaction:
     """Verify tool consumption state tracking and semantic observation cards."""
@@ -252,7 +370,9 @@ class TestConsumptionAwareCompaction:
         assert is_tool_result_consumed(messages, 2) is False
 
     def test_build_memory_truncated_placeholder_with_semantic_finding(self) -> None:
-        content = "Line 1\nTraceback (most recent call last):\n  File 'a.py'\nZeroDivisionError: division by zero\n" + ("x" * 2000)
+        content = "Line 1\nTraceback (most recent call last):\n  File 'a.py'\nZeroDivisionError: division by zero\n" + (
+            "x" * 2000
+        )
         ph = build_memory_truncated_placeholder(
             tool_name="bash_code_execute_tool",
             content=content,
