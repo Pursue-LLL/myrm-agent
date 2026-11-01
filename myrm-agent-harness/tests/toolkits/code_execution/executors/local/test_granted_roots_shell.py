@@ -23,16 +23,20 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import Executio
 _requires_os_sandbox = pytest.mark.skipif(
     not _bash_sessions.sandbox_enforces(), reason="the grant is only honoured under an OS sandbox"
 )
-# Only macOS keeps a temporary directory outside the sandbox's scratch area, so a read-only denial is only checkable there.
-_requires_scratch_outside_tmp = pytest.mark.skipif(
-    sys.platform != "darwin", reason="a read-only grant under the scratch area stays writable on other platforms"
+# The OS-level read-only denial is asserted under Seatbelt only.
+_requires_seatbelt = pytest.mark.skipif(
+    sys.platform != "darwin", reason="the read-only denial is only asserted under Seatbelt"
 )
 
 
 @pytest.fixture
-def places(tmp_path: Path) -> Iterator[tuple[Path, Path, Path, Path]]:
-    """A workspace, a directory granted writable, one granted read-only and one nobody granted."""
-    root = tmp_path.resolve()
+def places(outside_tmp_path: Path) -> Iterator[tuple[Path, Path, Path, Path]]:
+    """A workspace, a directory granted writable, one granted read-only and one nobody granted.
+
+    They sit outside ``/tmp``: the command validator always allows it, so a path there is never refused for lack of a
+    grant, and an OS sandbox keeps it writable as scratch.
+    """
+    root = outside_tmp_path
     workspace, writable, readable, ungranted = root / "ws", root / "rw", root / "ro", root / "other"
     for place in (workspace, writable, readable, ungranted):
         place.mkdir()
@@ -83,7 +87,7 @@ class TestBashUnderTheSandbox:
 
         assert read.success and "readable note" in read.stdout
 
-    @_requires_scratch_outside_tmp
+    @_requires_seatbelt
     async def test_a_read_only_grant_is_not_writable_for_the_os(
         self, executor: LocalExecutor, places: tuple[Path, Path, Path, Path]
     ) -> None:

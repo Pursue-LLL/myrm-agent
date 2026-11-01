@@ -100,14 +100,18 @@ class TestProfileText:
         assert lines.index(f'(deny file-write* (subpath "{ws}/.git/config"))') > allow
         assert lines.index(f'(deny file-write* (literal "{ws}/.git"))') > allow
 
-    def test_entry_held_directly_by_a_writable_root_is_not_pinned(self, tmp_path: Path) -> None:
-        ws = os.path.realpath(tmp_path)
+    # The next two describe a workspace outside the scratch area. One under /tmp is pinned as well (see the scratch
+    # test below), and pytest's tmp_path is under /tmp on Linux.
+    def test_entry_held_directly_by_a_writable_root_is_not_pinned(self, outside_tmp_path: Path) -> None:
+        ws = os.path.realpath(outside_tmp_path)
         policy = SandboxPolicy(writable_paths=(ws,), read_only_subpaths=(f"{ws}/.git",))
 
         assert f'(deny file-write* (literal "{ws}"))' not in _generate_sbpl_profile(policy, ws)
 
-    def test_every_directory_between_the_writable_root_and_a_protected_path_is_pinned(self, tmp_path: Path) -> None:
-        ws = os.path.realpath(tmp_path)
+    def test_every_directory_between_the_writable_root_and_a_protected_path_is_pinned(
+        self, outside_tmp_path: Path
+    ) -> None:
+        ws = os.path.realpath(outside_tmp_path)
         policy = SandboxPolicy(
             writable_paths=(ws,),
             read_only_subpaths=(f"{ws}/a/child/.git/config", f"{ws}/a/other/.git/config"),

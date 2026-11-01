@@ -9,7 +9,7 @@ import pytest
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.file_search._redaction import Match, redact_matches
-from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import create_grep_tool
+from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import _has_ripgrep, create_grep_tool
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 _PRIVATE_KEY = (
@@ -126,6 +126,8 @@ class TestGrepToolOutput:
         assert "No matches found" in out
 
     async def test_context_lines_are_redacted_like_matches(self, tmp_path: Path, executor: AsyncMock) -> None:
+        if not _has_ripgrep():
+            pytest.skip("context lines come from ripgrep")
         (tmp_path / "a.py").write_text('# marker\nAPI_KEY = "sk-abc123def456ghi789jkl012"\n')
         out = await self._grep(executor, pattern="marker", context_lines=1)
         assert "API_KEY" in out
