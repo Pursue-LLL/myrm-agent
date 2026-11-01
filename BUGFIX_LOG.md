@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 后端启动读 OS 钥匙串没有超时：钥匙串不回答时（macOS 授权弹窗没人点、`securityd` 无响应）事件循环被卡死，`/health` 永远不通，外壳等满 120 秒才报启动失败
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`myrm-agent` 本地提交，未 push，未发版）。修复要等下一次发版才会进入打包版。「仍然存在」里的项未处理。 |
+| **症状** | [实测] 对真实 v0.1.40 打包版：登录钥匙串里已有 `myrm-agent-vault/master-key` 时进程不就绪，采样 4 分钟 CPU 不增长，主线程停在 `SecItemCopyMatching` 下的 `securityd` 消息等待；设 `MYRM_MASTER_KEY` 后 7.7 s 就绪。[实测，复现] 源码方式启动，`PYTHON_KEYRING_BACKEND` 指向一个永不回答的测试后端（`/tmp` 下的 `BlockingKeyring`，不碰真实钥匙串），隔离数据目录与端口：改前 60 秒内 `/health` 不通，SIGTERM 无效，要 SIGKILL 才停。 |
+| **根因** | `app/server/lifespan.py` 的 `_init_vault_credentials_task` 在事件循环线程上构造 `VaultCredentialService()`，构造函数同步调用 `MasterKeyProvider.get_master_key()`，再进到 `keyring.get_password`；macOS 后端等 `securityd`，没有任何超时。服务要等 lifespan 启动完成才监听端口，卡在这一步整个启动就停了。`get_master_key` 只缓存成功的结果，失败或锁定时每次调用都重新读，同一处会再卡一次。成因是系统授权弹窗在等还是别的卡顿，没有验证；只有「钥匙串里已有这一项、而读取方是新二进制」的用户有可能遇到，比例没有量化。 |
+| **修复** | 新增 `app/core/security/keyring_gate.py`（`KeyringGate`）：每次钥匙串调用在独立的守护线程里跑，调用方最多等 10 秒（`master_key.py` 的 `_KEYRING_TIMEOUT_SEC`）。超时的调用留在后台；它还没返回时，后来的调用立即返回而不排队，也不再起第二个线程去触发同一个弹窗；它的结果迟到时交给回调。`master_key.py` 的读与写都经它：读超时按「金库锁定」处理（`VaultLockedError`，启动里这一步本来就 `except Exception` 记 ERROR 后继续）；迟到的读结果在金库仍未解锁时由 `_adopt_late_key` 采用，已用口令解锁则不覆盖。 |
+| **行为变化** | ① 钥匙串在 10 秒内回答：行为不变，原有 10 例通过。② 超过 10 秒：启动不再等，本次进程里这一步按金库锁定走；用户事后点了「允许」，后来的 `get_master_key()` 能用上这把钥匙。③ 启动时同步凭据（`sync_all_to_vault`）这一步在这次进程里已经跳过，迟到的答复不补跑；这与「启动时金库锁定、之后用口令解锁」的既有路径一致（`app/api/security/vault.py` 的解锁也不补跑同步）。④ 钥匙串卡住期间，`unlock_vault` 写钥匙串被跳过，派生出的密钥只留在内存。 |
+| **回归证据** | [实测] 测试先红后绿：`test_master_key_provider.py` 新增 4 例，在改前的 `master_key.py` 上全红（三个读用例没有抛 `VaultLockedError`，因为改前的代码一直等到 5 秒的假停顿结束并拿到了钥匙；写用例耗时 5.04 到 5.05 秒），改后通过；`test_keyring_gate.py` 9 例；`tests/core/security` 整个目录 348 例、引用主密钥或钥匙串的 10 个测试文件 97 例、`tests/services/security`、`tests/services/agent/backends`、`tests/api/security` 等相关目录 474 例通过。变异检查：去掉「卡住时跳过」红 2 例；去掉「迟到结果采用」红 1 例；让迟到结果覆盖口令解锁红 1 例。端到端（同一台机器，负载 7 到 13 之间，每组 1 次）：阻塞后端改前 60 秒不就绪、需 SIGKILL，改后 19.4 秒就绪（日志有「OS keyring did not answer within 10s」「Vault is locked」，启动继续）；快速失败后端作对照，改前 9.5 秒，改后 3 次 10.7 到 12.4 秒，差异在负载噪声内，没有声称常规路径变快或变慢。 |
+| **踩坑** | ① 第一版「迟到答复」测试抓不到变异（去掉采用逻辑它仍然绿）：假钥匙串每次都返回同一把钥匙，之后重新读一次也读得到；改成只有卡住的那一次读取带钥匙之后才能区分。② 曾把 `_init_vault_credentials_task` 里的构造放进 `asyncio.to_thread` 想让事件循环不被占住，实测 18.1、19.2 秒对 19.4 秒，差距在噪声内，已撤销，没有留下无收益的改动。 |
+| **仍然存在** | ① 没有用真实发布包复测：打包版里只有下一次发版之后才有这个修复；本机用「永不回答」的测试后端模拟，真实的授权弹窗这一触发条件没有复现，成因仍未验证。② 10 秒这个值依据的是「正常读取是毫秒级」，没有测过人点授权弹窗要多久；超过 10 秒才点的用户，本次启动已跳过凭据同步，要重启才同步。③ 快速失败后端的对照组（改后代码）里有一次启动 4.9 秒后进程以退出码 1 结束，当时 stderr 被丢弃，之后同配置重跑 4 次都正常，原因没查清。④ 服务端 `tests/architecture/test_api_route_consumers.py` 在本机有 2 例失败（`test_routes_have_callers` 在改前的 HEAD 上同样失败；`test_external_consumer_evidence_still_names_the_route` 指向 `competitor-comparison.mdx:1979` 超出文件长度），与本次改动的文件无关，未处理。 |
+| **代码位置** | `myrm-agent-server/app/core/security/keyring_gate.py`、`master_key.py`、`_ARCH.md`；测试 `tests/core/security/test_keyring_gate.py`、`test_master_key_provider.py`（`TestStalledKeyring`） |
+
 ## 2026-11-01 · 桌面发版的 Linux 更新清单：tag 流水线的 refinalize 失败，因为 bundler 现在只产出带签名的裸 `.AppImage`，`latest.json` 缺 `linux-x86_64`
 
 | 字段 | 内容 |
@@ -11,8 +25,8 @@
 | **根因** | `pick_platform_asset linux-x86_64` 只认 `*.AppImage.tar.gz`；`finalize-release.sh` 把 `linux-x86_64` 列为必需项，选不到就 `exit 1`；`verify-release.sh` 的 OTA 地址白名单也只收 `.AppImage.tar.gz`。这几步只在 tag 运行里执行，分支验证运行不会走到，所以此前的验证全绿。失败步骤的日志要登录才能读，没有看到日志原文，原因由脚本和资产名对出来。客户端 `tauri-plugin-updater 2.10.1`（`Cargo.lock`）对 gz 压缩包和裸 AppImage 都会安装（`updater.rs` 的 `install_appimage`）。 |
 | **修复** | `pick-platform-asset.sh`：先找压缩包，再找 `*x86_64*.AppImage`、`*amd64*.AppImage`（以 `.AppImage` 结尾，不会匹配同名的 `.sig`、`.sha256`）；`verify-release.sh` 的地址白名单收裸 `.AppImage`；`finalize-fixture-test.sh` 加「压缩包与裸 AppImage 并存取压缩包」和「只有带签名的裸 AppImage」两种布局；`scripts/ci/desktop-release/_ARCH.md` 同步。 |
 | **回归证据** | 新 fixture 在改前的挑选脚本上失败（退出码 1），改后通过；用 v0.1.40 Release 上的 15 个真实资产名跑改后的挑选脚本，三个平台都选中且各有 `.sig`，`darwin-x86_64` 仍然没有候选；`tests/architecture` 里发版相关的 5 个文件 44 例通过。 |
-| **仍然存在** | ① v0.1.40 的 `latest.json` 缺 `linux-x86_64`，Linux 用户收不到自动更新；要在 GitHub Actions 里手动运行 `Repair Desktop Release Manifest`，`tag` 填 `v0.1.40`（它用 `main` 上的脚本；本机没有登录 `gh`，未能代为触发）。② [实测] 打包版 sidecar 启动时有一个类的 `__init__` 同步读钥匙串（`SecretBackend`、`VaultCredentialService` 的构造函数都调 `MasterKeyProvider.get_master_key()`）。登录钥匙串里已有 `myrm-agent-vault/master-key` 而读取方是新的二进制时，进程卡在 `SecItemCopyMatching` 下的 `securityd` 消息等待，采样 4 分钟 CPU 不增长；设 `MYRM_MASTER_KEY` 后 7.7 s 就绪。是否是系统授权弹窗在等、有多少用户会遇到，都没有验证；未修改。 |
-| **代码位置** | `scripts/ci/desktop-release/pick-platform-asset.sh`、`verify-release.sh`、`finalize-fixture-test.sh`；`myrm-agent-server/app/core/security/master_key.py`（②） |
+| **仍然存在** | ① v0.1.40 的 `latest.json` 缺 `linux-x86_64`，Linux 用户收不到自动更新；要在 GitHub Actions 里手动运行 `Repair Desktop Release Manifest`，`tag` 填 `v0.1.40`（它用 `main` 上的脚本；本机没有登录 `gh`，未能代为触发）。 |
+| **代码位置** | `scripts/ci/desktop-release/pick-platform-asset.sh`、`verify-release.sh`、`finalize-fixture-test.sh` |
 
 ## 2026-11-01 · wiki 索引的页面名与磁盘文件对不上：名字以 `.md` 结尾或带 `wiki/concepts/` 前缀的页面（如 `AGENTS.md`、`SKILL.md`）索引行用原名，维护流程再按磁盘名发布又多一行；`Notes` 与 `Notes.md` 共用一行，一页的索引内容是另一页的；知识片段把这类页面当作陈旧行扣下，陈旧行占满名额时整个话题注入 0 段
 
