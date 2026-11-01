@@ -96,10 +96,8 @@ class WikiIndexer(FtsWriteMixin, FtsSearchMixin, SidecarIndexMixin):
         return concept_index_key(self._structure, concept_name)
 
     def _concept_name_variants(self, concept_name: str) -> tuple[str, ...]:
-        """Spellings a concept may be indexed under: as given, as the path its page is filed under, and as that path without ``.md``."""
-        filed = WikiStructure._sanitize_path(concept_name)
-        without_extension = WikiStructure._sanitize_path(concept_name.removesuffix(".md"))
-        return tuple(dict.fromkeys(name for name in (concept_name, filed, without_extension) if name))
+        """Spellings a concept may be indexed under: as given and as the path its page is filed under."""
+        return tuple(dict.fromkeys(name for name in (concept_name, WikiStructure._sanitize_path(concept_name)) if name))
 
     @contextlib.contextmanager
     def _get_conn(self) -> Iterator[sqlite3.Connection]:

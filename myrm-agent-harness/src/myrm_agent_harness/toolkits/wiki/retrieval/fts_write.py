@@ -12,7 +12,7 @@
 - .vector_chunks::delete_text_vectors, upsert_text_vectors (POS: L2 chunk vector operations)
 
 [OUTPUT]
-- FtsWriteMixin: FTS5 + vector upsert/delete and raw-text interim indexing for WikiIndexer; pages are keyed by their on-disk path, delete accepts any spelling
+- FtsWriteMixin: FTS5 + vector upsert/delete and raw-text interim indexing for WikiIndexer; pages are keyed by their on-disk path, delete accepts the name as given or as the path its page is filed under
 
 [POS]
 Wiki index write operations mixin. Keeps everything that changes the index (truth rows,
@@ -175,12 +175,12 @@ class FtsWriteMixin:
         """
         Delete concept from FTS5 index, its outgoing Edges, and Vector Store.
 
-        Removes the concept under every spelling it may be indexed by (as given, as the
-        path its page is filed under and as that path without ``.md``), so deleting by
-        compile name or by path both succeed. Edges
-        other pages hold to the concept stay: the links are still written in those
-        pages, they read as unresolved while the page is gone and name it again when
-        it returns. A link that named the concept together with another page of the
+        Removes the concept under every spelling it may be indexed by (as given and as the
+        path its page is filed under), so deleting by compile name or by path both
+        succeed; the name is never cut at ``.md`` (``Notes.md`` and ``Notes`` are two
+        pages). Edges other pages hold to the concept stay: the links are still written
+        in those pages, they read as unresolved while the page is gone and name it again
+        when it returns. A link that named the concept together with another page of the
         same name reads unambiguous again, so the pages that linked to the concept are
         re-read and edges spelled like it re-resolve.
         """

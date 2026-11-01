@@ -310,6 +310,19 @@ async def test_deleting_a_page_by_its_md_ending_name_removes_its_row_and_edges(
     assert _edges(indexer) == set()
 
 
+@pytest.mark.asyncio
+async def test_deleting_a_page_keeps_the_row_and_edges_of_the_page_named_without_md(
+    structure: WikiStructure, indexer: WikiIndexer
+) -> None:
+    await publish_concept_article(structure, indexer, "Notes", _article("Alpha. See [[Elsewhere]]."))
+    await publish_concept_article(structure, indexer, "Notes.md", _article("Bravo."))
+
+    await indexer.delete("Notes.md")
+
+    assert _fts_names(indexer) == ["notes"]
+    assert _edges(indexer) == {("notes", "Elsewhere")}
+
+
 def test_index_key_is_the_path_the_writer_files_the_name_under(structure: WikiStructure) -> None:
     for name in ("Notes", "Notes.md"):
         structure.get_concept_file_path(name).write_text(_article(name), encoding="utf-8")
