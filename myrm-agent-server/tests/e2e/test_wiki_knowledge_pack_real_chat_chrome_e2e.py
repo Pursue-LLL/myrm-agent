@@ -1,209 +1,48 @@
-"""Real Chrome E2E: a mounted knowledge base answers a real turn through the per-turn knowledge pack.
+"""Real Chrome E2E: a knowledge base mounted through the picker answers real turns through the per-turn knowledge pack.
 
-Full real-business-task loop with no mock on the critical path. A shared wiki vault is built through the harness
-publish pipeline inside the private runtime's data directory, with a page named ``SKILL.md`` (a page name that
-carries ``.md``) holding a random phrase. The knowledge base is mounted on one chat; a second chat of the same agent
-stays unmounted. Both chats are asked, through the real page and the real model, for the phrase:
+Full real-business-task loops with no mock on the critical path. Each test builds a shared vault inside the private
+runtime's data directory, mounts it on a chat with the composer's picker (the toggle a user clicks), and asks the real
+model, through the real page, for a random phrase only the vault holds. The question asks to answer from the context
+alone: a tool that reads files or runs a command waits on an approval card the test never answers, and the stored chat
+is checked afterwards, so a phrase in the final answer reached the model through the turn pack.
 
-  unmounted chat -> the completed reply never contains the phrase (the model cannot know it)
-  mounted chat   -> the completed reply contains it: the writer, the index, the selector and the turn pack agree on
-                    the page's identity, so the snippet reached the model and nothing else could have carried it
+  indexed vault, ``.md``-named page, English question -> an unmounted chat of the same agent cannot answer, the
+                                                          mounted one quotes the phrase: the writer, the index, the
+                                                          selector and the pack agree on the page's identity
+  indexed vault, Chinese page and question, a draft   -> the published page answers, the draft's phrase never appears
+  plain notes, with and without an unreadable index   -> the vault is read from its markdown files
+  incognito chat with the knowledge base mounted      -> no pack: the same vault answers a normal chat of the same agent
 """
 
 from __future__ import annotations
 
-import asyncio
-import json
-import shutil
-import sys
-import time
 import uuid
-from pathlib import Path
 
 import pytest
 
-_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
-if str(_LIB) not in sys.path:
-    sys.path.insert(0, str(_LIB))
-
-from cdp_chat.support import wait_e2e_provider_ready  # noqa: E402
-from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig  # noqa: E402
-from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure  # noqa: E402
-from myrm_agent_harness.toolkits.wiki.pipeline.publication import (  # noqa: E402
-    ArticlePublishOutcome,
-    publish_concept_article,
+from tests.support.knowledge_pack_chrome import (
+    KnowledgeBase,
+    assert_stayed_out_of_the_thread,
+    build_indexed_vault,
+    build_plain_vault,
+    completed_reply_count,
+    create_agent,
+    create_chat,
+    create_knowledge_base,
+    discard,
+    send_turn,
+    start_live_session,
+    wait_final_reply,
 )
-from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer  # noqa: E402
 
-from app.services.wiki.vault.resolver import sanitize_wiki_scope_id  # noqa: E402
-from tests.support.bash_compressor_e2e import _backend_runtime_data_dir  # noqa: E402
-from tests.support.chrome_mcp_e2e import (  # noqa: E402
-    dismiss_blocking_modals,
-    get_e2e_api_url,
-    get_e2e_ui_url,
-    http_json,
-    open_mcp_page,
-    prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
-    wait_for_state,
-    warm_ui_route,
+_FROM_CONTEXT_EN = (
+    "Answer from the context you were given only, without running commands or searching files; if it is not there, say so."
 )
-from tests.support.chrome_skill_hooks_observe import completed_assistant_replies, stored_messages  # noqa: E402
-from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
-
-_PAGE_NAME = "SKILL.md"
-_QUESTION = "What is the Orion handover phrase of the Meridian crew? Reply with the exact phrase."
-_REPLY_WAIT_SEC = 240.0
-
-_SEND_TURN_JS = """(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
-  bridge.setActionMode?.('agent');
-  const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
-  const result = await bridge.sendChatMessage({prompt_json}, {{
-    baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
-    preserveActionMode: true,
-  }});
-  return {{ ...result, usersBefore }};
-}})()"""
-
-_ATTACH_CHAT_PROBE = """(() => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  const store = window.__myrmChatStore?.getState?.();
-  const attached =
-    store?.chatId === {chat_id_json}
-    && Boolean(store?.isMessagesLoaded)
-    && !Boolean(store?.loadError)
-    && !Boolean(store?.notFound);
-  if (attached) return {{ ready: true, chatId: store?.chatId ?? null }};
-  if (bridge?.attachToChat && !window.__MYRM_E2E_ATTACHING__) {{
-    window.__MYRM_E2E_ATTACHING__ = true;
-    bridge.attachToChat({chat_id_json}).catch(() => {{}}).finally(() => {{
-      window.__MYRM_E2E_ATTACHING__ = false;
-    }});
-  }}
-  return {{ ready: false, chatId: store?.chatId ?? null, err: !bridge ? 'no-bridge' : null }};
-}})()"""
+_FROM_CONTEXT_ZH = "只依据你已有的上下文回答，不要执行命令或搜索文件；上下文里没有就直说。"
 
 
-def _runtime_data_dir(api_url: str) -> Path:
-    """The private backend's data directory: the vault is placed where that backend reads its shared vaults."""
-    data_dir = _backend_runtime_data_dir(api_url)
-    assert data_dir is not None, f"{api_url} is not an isolated runtime; refusing to write a vault into a shared stack"
-    assert (data_dir / "data.db").is_file(), f"{data_dir} holds no backend database; it is not a runtime data dir"
-    return data_dir
-
-
-def _page(phrase: str) -> str:
-    text = f"The Orion handover phrase of the Meridian crew is {phrase}. Quote it whenever the Orion handover phrase is asked."
-    return f"---\ntype: concept\n---\n## Compiled Truth\n{text}\n"
-
-
-def _publish_vault(vault_dir: Path, phrase: str) -> None:
-    """Publish the target page and two unrelated ones the way the harness publishes every page."""
-    pages = {
-        _PAGE_NAME: _page(phrase),
-        "Hotel Limits": "---\ntype: concept\n---\n## Compiled Truth\nHotel stays in Berlin are capped at 120 per night.\n",
-        "Flight Rules": "---\ntype: concept\n---\n## Compiled Truth\nConference travel allows economy flights only.\n",
-    }
-
-    async def publish() -> None:
-        structure = WikiStructure(vault_dir)
-        structure.ensure_structure()
-        indexer = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
-        for name, page in pages.items():
-            outcome = await publish_concept_article(structure, indexer, name, page)
-            assert outcome is ArticlePublishOutcome.PUBLISHED, (name, outcome)
-
-    asyncio.run(publish())
-
-
-def _create_agent(api_url: str, suffix: str) -> str:
-    response = http_json(
-        "POST",
-        f"{api_url}/api/v1/user-agents",
-        body={
-            "name": f"Knowledge Pack Probe {suffix}",
-            "description": "Knowledge pack e2e probe agent",
-            "enabled_builtin_tools": ["memory"],
-        },
-    )
-    assert isinstance(response, dict) and response.get("data", {}).get("id"), f"Create agent failed: {response}"
-    return str(response["data"]["id"])
-
-
-def _create_chat(api_url: str, chat_id: str, agent_id: str) -> None:
-    response = http_json(
-        "POST",
-        f"{api_url}/api/v1/chats/",
-        body={"chat_id": chat_id, "title": "Knowledge Pack E2E", "agent_id": agent_id, "action_mode": "agent", "messages": []},
-    )
-    assert isinstance(response, dict) and response.get("success") is True, f"Create chat failed: {response}"
-
-
-def _create_context(api_url: str, suffix: str) -> str:
-    response = http_json(
-        "POST",
-        f"{api_url}/api/v1/memory/shared-contexts/",
-        body={"name": f"Knowledge Pack Probe {suffix}", "description": "Knowledge pack e2e shared knowledge base"},
-    )
-    assert isinstance(response, dict) and response.get("id"), f"Create shared context failed: {response}"
-    return str(response["id"])
-
-
-def _send_turn(ui_url: str, chat_id: str, prompt: str) -> None:
-    """Open the chat page in real Chrome, wait for attach, send one real turn."""
-    chat_url = f"{ui_url.rstrip('/')}/{chat_id}"
-    warm_ui_route(f"/{chat_id}")
-    with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page, recover_url=chat_url)
-        bridge = wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
-        assert bridge.get("ready") is True, json.dumps(bridge, ensure_ascii=False)
-        attached = wait_for_state(
-            client,
-            page,
-            _ATTACH_CHAT_PROBE.format(chat_id_json=json.dumps(chat_id)),
-            timeout_sec=90.0,
-            page_url=chat_url,
-        )
-        assert attached.get("ready") is True, json.dumps(attached, ensure_ascii=False)
-        sent = client.evaluate(page, _SEND_TURN_JS.format(prompt_json=json.dumps(prompt)), timeout_sec=90.0)
-        assert isinstance(sent, dict) and sent.get("ok") is True, (
-            f"send turn failed for chat {chat_id}: {json.dumps(sent, ensure_ascii=False)[:600]}"
-        )
-
-
-def _turn_is_over(chat_id: str, api_url: str) -> bool:
-    """The server holds no run and no approval card of the chat any more."""
-    reply = http_json("GET", f"{api_url}/api/v1/agents/chat/{chat_id}/turn-state")
-    state = reply.get("data") if isinstance(reply, dict) else None
-    return isinstance(state, dict) and state.get("running") is False and state.get("awaitingApproval") is False
-
-
-def _wait_final_reply(chat_id: str, api_url: str) -> str:
-    """The words of the last non-empty assistant turn, once the run has ended.
-
-    A run that calls tools first stores empty assistant steps before its answer, so the first completed assistant
-    message is not the answer: waiting for the run to end is what makes an absence check mean something.
-    """
-    deadline = time.monotonic() + _REPLY_WAIT_SEC
-    while time.monotonic() < deadline:
-        replies = [reply for reply in completed_assistant_replies(stored_messages(chat_id, api_url)) if reply.strip()]
-        if replies and _turn_is_over(chat_id, api_url):
-            return replies[-1]
-        time.sleep(2.0)
-    pytest.fail(f"no final assistant reply for chat {chat_id} within {_REPLY_WAIT_SEC}s")
-
-
-def _cleanup(api_url: str, chat_ids: tuple[str, ...], context_id: str | None, vault_dir: Path | None) -> None:
-    gone = frozenset({200, 204, 404})
-    for chat_id in chat_ids:
-        http_json("DELETE", f"{api_url}/api/v1/chats/{chat_id}", expected_statuses=gone)
-    if context_id is not None:
-        http_json("DELETE", f"{api_url}/api/v1/memory/shared-contexts/{context_id}", expected_statuses=gone)
-    if vault_dir is not None:
-        shutil.rmtree(vault_dir, ignore_errors=True)
+def _code(prefix: str) -> str:
+    return f"{prefix}-{uuid.uuid4().hex[:8].upper()}"
 
 
 @pytest.mark.chrome_e2e(
@@ -214,45 +53,173 @@ def _cleanup(api_url: str, chat_ids: tuple[str, ...], context_id: str | None, va
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_mounted_knowledge_base_answers_through_the_turn_pack() -> None:
+def test_mounted_knowledge_base_answers_and_an_unmounted_chat_cannot() -> None:
     """The phrase of a ``.md``-named page reaches the model only when its knowledge base is mounted."""
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    data_dir = _runtime_data_dir(api_url)
-
-    prepare_e2e_ui_session(api_url)
-    seed_live_e2e_providers(api_url)
-    if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm-dev ready --chrome")
-
+    api_url, ui_url = start_live_session()
     suffix = uuid.uuid4().hex[:8]
-    phrase = f"ORION-{uuid.uuid4().hex[:8].upper()}"
-    unmounted_chat = f"e2ekpunmounted{suffix}"
-    mounted_chat = f"e2ekpmounted{suffix}"
-    context_id: str | None = None
-    vault_dir: Path | None = None
+    phrase = _code("ORION")
+    question = f"What is the Orion handover phrase of the Meridian crew? Reply with the exact phrase. {_FROM_CONTEXT_EN}"
+    unmounted_chat, mounted_chat = f"e2ekpunmounted{suffix}", f"e2ekpmounted{suffix}"
+    kb: KnowledgeBase | None = None
     try:
-        context_id = _create_context(api_url, suffix)
-        vault_dir = data_dir / "harness" / "wiki" / "shared" / sanitize_wiki_scope_id(context_id)
-        _publish_vault(vault_dir, phrase)
-
-        agent_id = _create_agent(api_url, suffix)
-        _create_chat(api_url, unmounted_chat, agent_id)
-        _create_chat(api_url, mounted_chat, agent_id)
-        http_json(
-            "POST",
-            f"{api_url}/api/v1/memory/shared-contexts/{context_id}/bindings",
-            body={"target_type": "conversation", "target_id": mounted_chat},
+        kb = create_knowledge_base(api_url, suffix)
+        build_indexed_vault(
+            kb.vault_dir,
+            {
+                "SKILL.md": f"The Orion handover phrase of the Meridian crew is {phrase}. Quote it whenever it is asked.",
+                "Hotel Limits": "Hotel stays in Berlin are capped at 120 per night.",
+                "Flight Rules": "Conference travel allows economy flights only.",
+            },
         )
+        agent_id = create_agent(api_url, suffix)
+        create_chat(api_url, unmounted_chat, agent_id)
+        create_chat(api_url, mounted_chat, agent_id)
 
-        _send_turn(ui_url, unmounted_chat, _QUESTION)
-        unmounted_reply = _wait_final_reply(unmounted_chat, api_url)
+        send_turn(ui_url, unmounted_chat, question)
+        unmounted_reply = wait_final_reply(unmounted_chat, api_url)
         print(f"E2E_KP_UNMOUNTED_REPLY: {unmounted_reply[:300]}", flush=True)
         assert phrase not in unmounted_reply, f"the unmounted chat knew the phrase: {unmounted_reply[:300]}"
 
-        _send_turn(ui_url, mounted_chat, _QUESTION)
-        mounted_reply = _wait_final_reply(mounted_chat, api_url)
+        send_turn(ui_url, mounted_chat, question, mount=[kb])
+        mounted_reply = wait_final_reply(mounted_chat, api_url)
         print(f"E2E_KP_MOUNTED_REPLY: {mounted_reply[:300]}", flush=True)
         assert phrase in mounted_reply, f"the mounted chat's final reply lacks the phrase: {mounted_reply[:300]}"
+        assert_stayed_out_of_the_thread(mounted_chat, api_url, phrase)
     finally:
-        _cleanup(api_url, (unmounted_chat, mounted_chat), context_id, vault_dir)
+        discard(api_url, (unmounted_chat, mounted_chat), [kb] if kb else [])
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_chinese_page_answers_and_a_draft_page_stays_unread() -> None:
+    """A Chinese question finds the Chinese page; the draft beside it never reaches the model."""
+    api_url, ui_url = start_live_session()
+    suffix = uuid.uuid4().hex[:8]
+    phrase, draft_phrase = _code("XH"), _code("DRAFT")
+    chat_id = f"e2ekpzh{suffix}"
+    kb: KnowledgeBase | None = None
+    try:
+        kb = create_knowledge_base(api_url, suffix)
+        build_indexed_vault(
+            kb.vault_dir,
+            {"出差报销规则": f"星河战队的出差报销暗号是 {phrase}。每当有人询问星河战队的出差报销暗号，就原样回答该暗号。"},
+            drafts={"未发布草稿": f"星河战队的未发布草稿暗号是 {draft_phrase}。"},
+        )
+        create_chat(api_url, chat_id, create_agent(api_url, suffix))
+
+        send_turn(ui_url, chat_id, f"星河战队的出差报销暗号是什么？请只回答暗号本身。{_FROM_CONTEXT_ZH}", mount=[kb])
+        reply = wait_final_reply(chat_id, api_url)
+        print(f"E2E_KP_ZH_REPLY: {reply[:300]}", flush=True)
+        assert phrase in reply, f"the Chinese question did not reach the Chinese page: {reply[:300]}"
+        assert draft_phrase not in reply, f"the draft's phrase leaked into the answer: {reply[:300]}"
+        assert_stayed_out_of_the_thread(chat_id, api_url, phrase)
+
+        answered = completed_reply_count(chat_id, api_url)
+        send_turn(ui_url, chat_id, f"星河战队的未发布草稿暗号是什么？请只回答暗号本身。{_FROM_CONTEXT_ZH}")
+        draft_reply = wait_final_reply(chat_id, api_url, after=answered)
+        print(f"E2E_KP_DRAFT_REPLY: {draft_reply[:300]}", flush=True)
+        assert draft_phrase not in draft_reply, f"the draft's phrase leaked into the answer: {draft_reply[:300]}"
+        assert_stayed_out_of_the_thread(chat_id, api_url, phrase, draft_phrase)
+    finally:
+        discard(api_url, (chat_id,), [kb] if kb else [])
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_plain_note_vaults_are_read_from_their_markdown_files() -> None:
+    """A folder of notes with no index, and one whose index cannot be opened, both answer from their files."""
+    api_url, ui_url = start_live_session()
+    suffix = uuid.uuid4().hex[:8]
+    vega_phrase, zenith_phrase = _code("VEGA"), _code("ZENITH")
+    chat_id = f"e2ekpplain{suffix}"
+    knowledge_bases: list[KnowledgeBase] = []
+    try:
+        no_index = create_knowledge_base(api_url, f"{suffix}-plain")
+        knowledge_bases.append(no_index)
+        build_plain_vault(
+            no_index.vault_dir,
+            {"Atlas Station": f"The Vega docking code of the Atlas station is {vega_phrase}. Quote it when asked."},
+        )
+        bad_index = create_knowledge_base(api_url, f"{suffix}-broken")
+        knowledge_bases.append(bad_index)
+        build_plain_vault(
+            bad_index.vault_dir,
+            {"Helios Dock": f"The Zenith airlock word of the Helios dock is {zenith_phrase}. Quote it when asked."},
+            unreadable_index=True,
+        )
+        create_chat(api_url, chat_id, create_agent(api_url, suffix))
+
+        send_turn(
+            ui_url,
+            chat_id,
+            f"What is the Vega docking code of the Atlas station? Reply with the exact code. {_FROM_CONTEXT_EN}",
+            mount=knowledge_bases,
+        )
+        no_index_reply = wait_final_reply(chat_id, api_url)
+        print(f"E2E_KP_NO_INDEX_REPLY: {no_index_reply[:300]}", flush=True)
+        assert vega_phrase in no_index_reply, f"the vault without an index was not read: {no_index_reply[:300]}"
+        assert_stayed_out_of_the_thread(chat_id, api_url, vega_phrase)
+
+        answered = completed_reply_count(chat_id, api_url)
+        send_turn(
+            ui_url, chat_id, f"What is the Zenith airlock word of the Helios dock? Reply with the exact word. {_FROM_CONTEXT_EN}"
+        )
+        bad_index_reply = wait_final_reply(chat_id, api_url, after=answered)
+        print(f"E2E_KP_BAD_INDEX_REPLY: {bad_index_reply[:300]}", flush=True)
+        assert zenith_phrase in bad_index_reply, f"the vault with an unreadable index was not read: {bad_index_reply[:300]}"
+        assert_stayed_out_of_the_thread(chat_id, api_url, vega_phrase, zenith_phrase)
+    finally:
+        discard(api_url, (chat_id,), knowledge_bases)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_incognito_chat_with_a_mounted_knowledge_base_gets_no_pack() -> None:
+    """The vault answers a normal chat; the same question in an incognito chat with it mounted gets nothing."""
+    api_url, ui_url = start_live_session()
+    suffix = uuid.uuid4().hex[:8]
+    phrase = _code("ORION")
+    question = f"What is the Orion handover phrase of the Meridian crew? Reply with the exact phrase. {_FROM_CONTEXT_EN}"
+    normal_chat, incognito_chat = f"e2ekpnormal{suffix}", f"e2ekpincognito{suffix}"
+    kb: KnowledgeBase | None = None
+    try:
+        kb = create_knowledge_base(api_url, suffix)
+        build_indexed_vault(
+            kb.vault_dir,
+            {"Crew Handover": f"The Orion handover phrase of the Meridian crew is {phrase}. Quote it whenever it is asked."},
+        )
+        agent_id = create_agent(api_url, suffix)
+        create_chat(api_url, normal_chat, agent_id)
+        create_chat(api_url, incognito_chat, agent_id, incognito=True)
+
+        send_turn(ui_url, normal_chat, question, mount=[kb])
+        normal_reply = wait_final_reply(normal_chat, api_url)
+        print(f"E2E_KP_NORMAL_REPLY: {normal_reply[:300]}", flush=True)
+        assert phrase in normal_reply, (
+            f"the normal chat did not get the phrase, so the vault is not what is under test: {normal_reply[:300]}"
+        )
+
+        send_turn(ui_url, incognito_chat, question, mount=[kb], incognito=True)
+        incognito_reply = wait_final_reply(incognito_chat, api_url)
+        print(f"E2E_KP_INCOGNITO_REPLY: {incognito_reply[:300]}", flush=True)
+        assert phrase not in incognito_reply, f"the incognito chat got the phrase: {incognito_reply[:300]}"
+    finally:
+        discard(api_url, (normal_chat, incognito_chat), [kb] if kb else [])
