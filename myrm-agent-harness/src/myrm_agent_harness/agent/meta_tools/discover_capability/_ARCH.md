@@ -3,6 +3,8 @@
 ## Overview
 Unified Capability Discovery gateway. Indexes agent-bound searchable skills (MCP PTC + user skills) into a semantic search index. When bound skills exceed inline catalog capacity (`hidden_skill_count > 0`), ``sync_discover_capability_tool()`` registers the discovery tool (LLM-facing name: `skill_search_tool`); otherwise it removes it. Stream and HITL resume paths call the same sync when the bound-set fingerprint changes (`agent/_internals/skill_catalog_turn.py`).
 
+**Query contract**: the index matches words in skill names and descriptions, and those are mostly English, so the description and the `query` argument ask for English keywords plus synonyms and do not promise that any language works. A miss names the retry (English keywords or synonyms) and, when skills are bound, how many skills `query='*'` would list; a hit ends with the same one-line retry, except the `*` listing itself. The `No capabilities found` prefix is stable for callers that test for it.
+
 **Boundary**: searches the **agent-bound skill library**. External marketplace install uses ``skill_market_tool`` when **product Turn1-mount** enables it (`enable_skill_market` / market backend wired in server `tool_setup.py`); otherwise the discovery tool description points users to Settings → Skills → Discover.
 
 ## MCP / OpenAPI overflow policy (SSOT)
@@ -20,7 +22,7 @@ Unified Capability Discovery gateway. Indexes agent-bound searchable skills (MCP
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| discover_capability_tool.py | Core | Unified discovery meta-tool (LLM name: `skill_search_tool`), index sync, `<BoundSkills>` XML output; description varies by `market_tool_mounted`. | ✅ |
+| discover_capability_tool.py | Core | Unified discovery meta-tool (LLM name: `skill_search_tool`), index sync, `<BoundSkills>` XML output with a one-line retry hint; description varies by `market_tool_mounted` and locale. | ✅ |
 | capability_gap.py | Core | Substring trigger registry (`CAPABILITY_GAP_REGISTRY`, 14 IDs) for server preflight intent matching. Discover miss no longer emits gap blocks/SSE. | ✅ |
 
 ## Key Dependencies

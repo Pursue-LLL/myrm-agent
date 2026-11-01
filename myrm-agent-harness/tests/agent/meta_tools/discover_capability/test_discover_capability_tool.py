@@ -165,6 +165,57 @@ async def test_skill_output_format(mock_skills):
     assert "bound_skill_1" in result
 
 
+@pytest.mark.parametrize(
+    ("locale", "asks_for", "over_promise"),
+    [("en", "English keywords", "any language"), ("zh", "英文关键词", "任意自然语言")],
+)
+def test_description_asks_for_english_keywords_and_promises_no_language(
+    locale: str, asks_for: str, over_promise: str
+) -> None:
+    """The index is matched word by word and its text is mostly English, so a query in another language alone often finds nothing."""
+    tool = create_discover_capability_tool(locale=locale)
+    assert asks_for in tool.description
+    assert over_promise not in tool.description
+
+
+def test_query_argument_asks_for_english_keywords_and_promises_no_language() -> None:
+    description = create_discover_capability_tool().args_schema.model_fields["query"].description
+    assert "English keywords" in description
+    assert "any language" not in description
+
+
+@pytest.mark.asyncio
+async def test_empty_result_says_how_to_retry(mock_skills):
+    tool = create_discover_capability_tool(skills=mock_skills)
+    result = await tool.ainvoke({"query": "nonexistent_capability_xyz123"})
+    assert result.startswith("No capabilities found matching 'nonexistent_capability_xyz123'.")
+    assert "Retry with English keywords or synonyms" in result
+    assert "query='*' lists all 2 bound skills" in result
+
+
+@pytest.mark.asyncio
+async def test_empty_result_without_bound_skills_does_not_point_to_the_full_list():
+    result = await create_discover_capability_tool().ainvoke({"query": "anything"})
+    assert result.startswith("No capabilities found matching 'anything'.")
+    assert "Retry with English keywords or synonyms" in result
+    assert "query='*'" not in result
+
+
+@pytest.mark.asyncio
+async def test_hit_result_offers_one_more_search(mock_skills):
+    tool = create_discover_capability_tool(skills=mock_skills)
+    result = await tool.ainvoke({"query": ".*", "mode": "regex"})
+    assert result.endswith("If none of these fit, search again with English keywords or synonyms.")
+
+
+@pytest.mark.asyncio
+async def test_full_list_carries_no_retry_hint(mock_skills):
+    tool = create_discover_capability_tool(skills=mock_skills)
+    result = await tool.ainvoke({"query": "*"})
+    assert "bound_skill_1" in result
+    assert "search again" not in result
+
+
 @pytest.mark.asyncio
 async def test_description_contains_skill_select_instruction():
     """Verify description mentions skill_select_tool for bound skills."""

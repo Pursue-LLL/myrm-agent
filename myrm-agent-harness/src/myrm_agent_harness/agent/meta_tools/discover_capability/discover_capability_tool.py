@@ -62,7 +62,7 @@ def _build_tool_description(*, market_tool_mounted: bool, locale: str | None = N
 重要：在因缺少能力而拒绝用户请求前，必须先在此搜索。切勿在未检查是否存在可用技能前宣称无法完成某项任务（如绘图、视频生成、GitHub、Jira 等）。
 
 **查询方式**：
-- 支持任意自然语言查询。
+- 索引里的技能名与描述以英文为主、按词匹配：请用英文关键词检索并补上同义词；只写其他语言的词经常搜不到。
 - 跨语言最佳效果格式："概念/翻译/同义词"（例如："火车票/railway ticket/train booking"）。
 - 精确名字：`select:<skill_name>`（不参与 BM25）。
 - 必含词：`+term query`（term 必须出现在索引中）。
@@ -82,7 +82,7 @@ def _build_tool_description(*, market_tool_mounted: bool, locale: str | None = N
 IMPORTANT: You MUST search here BEFORE declining any user request due to missing capability. Never tell the user you cannot do something without first checking if a skill exists (e.g., drawing, video generation, Github, Jira, etc.).
 
 **How to query**:
-- Query naturally in any language.
+- Skill names and descriptions are indexed mostly in English and matched word by word: write English keywords and add synonyms. A query in another language alone often finds nothing.
 - For best results across languages, use format: "concept/translation/synonym" (e.g., "火车票/railway ticket/train booking").
 - Exact name: `select:<skill_name>` (bypasses BM25).
 - Required term: `+term query` (the term must appear in the index).
@@ -138,7 +138,7 @@ def create_discover_capability_tool(
     class DiscoverCapabilityInput(BaseModel):
         query: str = Field(
             description=(
-                "Search query (any language). "
+                "Search query: English keywords plus synonyms (a query in another language alone often finds nothing). "
                 "Use 'concept/translation/synonym' format for best results. "
                 "Use 'select:<skill_name>' for an exact name, '+term query' to require a term, "
                 "or '*' to list all skills."
@@ -156,7 +156,12 @@ def create_discover_capability_tool(
     )
     async def discover_capability_func(query: str, mode: Literal["bm25", "regex"] = "bm25") -> str:
         """Search for capabilities among skills bound to this agent."""
-        not_found = f"No capabilities found matching '{query}'. Try broader terms or synonyms."
+        full_list_hint = (
+            f"; query='*' lists all {len(all_skills)} bound skills (a long list, use it last)" if all_skills else ""
+        )
+        not_found = (
+            f"No capabilities found matching '{query}'. Retry with English keywords or synonyms{full_list_hint}."
+        )
 
         if engine is None:
             return not_found
@@ -173,10 +178,13 @@ def create_discover_capability_tool(
             return not_found
 
         skill_text = "\n".join(f"- **{s.name}**: {s.description}" for s in matches)
-        return (
+        listing = (
             "### Found bound skills (You MUST use `skill_select_tool` to load their SOPs before using):\n"
             f"<BoundSkills>\n{skill_text}\n</BoundSkills>"
         )
+        if query.strip() == "*":
+            return listing
+        return f"{listing}\nIf none of these fit, search again with English keywords or synonyms."
 
     return discover_capability_func
 
@@ -201,7 +209,7 @@ def sync_discover_capability_tool(
         resolve_catalog_display_skills,
         should_mount_skill_search_tool,
     )
-    from myrm_agent_harness.agent.tool_management.registry import ToolSource
+    from myrm_agent_harness.agent.tool_management.types import ToolSource
 
     bound_skills = skills or []
     registry.remove_tool("skill_search_tool")
