@@ -15,7 +15,7 @@ trace, so a single such message blinded ``check``, ``search``, ``read`` and ``re
   body that does decode changes, when whitespace between encoded words is kept or dropped other than as RFC 2047 says,
   when a message id with raw UTF-8 bytes is not left out of the ids a threading header takes, or when an attachment is
   not named by its ``Content-Disposition`` or, failing that, its ``Content-Type``, or when an attached message is written out
-  through the stock header folding, which before Python 3.12.5 cuts a header at a vertical tab or a file separator
+  through the stock header folding, which on some interpreters cuts a header at a vertical tab or a file separator
 
 [POS]
 Message-decoding test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which covers the
@@ -179,7 +179,7 @@ def test_an_attachment_is_named_by_its_disposition_or_its_type(message: ModuleTy
 def test_an_attached_message_is_written_without_the_stock_header_folding(
     message: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Before Python 3.12.5 the stock folding splits a header at a file separator or a vertical tab, so the writer must not use it."""
+    """On some interpreters the stock folding splits a header at a file separator or a vertical tab, so the writer must not use it."""
 
     def stock_folding(*_args: object, **_kwargs: object) -> bytes:
         raise AssertionError("the stock header folding was used")

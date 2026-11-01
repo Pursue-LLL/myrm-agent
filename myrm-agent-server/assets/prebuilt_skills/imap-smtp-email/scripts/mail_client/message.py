@@ -16,7 +16,8 @@
   names itself stays the body, so does a part the HTML points at with a ``cid:`` URL unless it is attached by its
   disposition, and a message that is one attachment is its own part
 - attachment_bytes: what to save of an attachment part: its decoded content, an attached message/rfc822 with each header as
-  the parser read it and CRLF line breaks, or none for a part that holds no file or an attached message the generator cannot write
+  the parser read it and the lines of its headers and text body in CRLF, or none for a part that holds no file or an
+  attached message the generator cannot write
 - reply_recipients: where a reply goes, every Reply-To address or, when Reply-To holds none, every From address, comma
   separated; empty when neither holds one
 - extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8

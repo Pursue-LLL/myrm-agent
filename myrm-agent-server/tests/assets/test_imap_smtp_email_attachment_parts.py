@@ -4,7 +4,7 @@ Whether a part is an attachment follows from its ``Content-Disposition`` and fro
 the disposition type case-insensitive, a sender may write a file as an ``inline`` part that has a name, and the name may be
 given only in ``Content-Type``. A part missed here is a file that ``read`` does not list and ``download`` reports as absent;
 an image the HTML body embeds is part of the body, not a file the sender attached. ``download`` saves an attached message
-with its headers as they were sent, control characters included.
+with its headers as the parser read them, control characters included.
 
 [INPUT]
 - assets/prebuilt_skills/imap-smtp-email/scripts: mail_client.message and email_manager.py imported in process
