@@ -24,6 +24,7 @@ providers (Perplexity, Tavily, Exa, etc.) with caching, coalescing, retry, and e
 import asyncio
 import json
 import logging
+from collections.abc import Sequence
 
 from langchain_core.documents import Document
 from pydantic import BaseModel, ConfigDict, Field
@@ -45,6 +46,7 @@ from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     ErrorContext,
     SearchAPIError,
 )
+from myrm_agent_harness.toolkits.web_search.processing._explicit_params import ProviderOverride
 from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
     search_results_to_documents,
 )
@@ -142,7 +144,7 @@ class WebSearcher:
         self,
         query: str,
         num_results: int = 5,
-        extra_params_override: dict[str, str | int | bool] | None = None,
+        extra_params_override: ProviderOverride | None = None,
     ) -> list[SearchResult]:
         """Search using configured search engine
 
@@ -276,7 +278,7 @@ class WebSearcher:
         self,
         query: str,
         num_results: int,
-        extra_params_override: dict[str, str | int | bool] | None = None,
+        extra_params_override: ProviderOverride | None = None,
     ) -> tuple[str, list[Document], Exception | None]:
         """Execute single query and process results for compound search
 
@@ -371,7 +373,7 @@ class WebSearcher:
         self,
         queries: list[str],
         results_per_query: int,
-        per_query_overrides: list[dict[str, str | int | bool] | None] | None = None,
+        per_query_overrides: Sequence[ProviderOverride | None] | None = None,
     ) -> list[tuple[str, list[Document], Exception | None]]:
         """Multi-query parallel search
 

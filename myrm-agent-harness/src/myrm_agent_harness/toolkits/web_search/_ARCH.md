@@ -43,22 +43,25 @@ User query → LLM Query Rewriting → questions: list[str]
     → processing.intent_optimizer.resolve_search_params(intent, provider) per query
     → Fusion: explicit_params > intent_override > config.extra_params
     → IF provider=tavily AND query contains site: → map to search_domain_filter (LiteLLM)
-    → IF all queries = PLATFORM_BILIBILI:
-         providers.bilibili_search.search_bilibili() → structured results
+    → Per-question documents (one list per question, from the first source that applies):
+      IF all queries = PLATFORM_BILIBILI:
+         providers.bilibili_search.search_bilibili() per query
          (on failure → fallback: site:bilibili.com via generic search)
-    → ELIF all queries = CODE:
-         providers.github_code_search.search_github_code() → structured code snippets
-         (on failure → fallback: site:github.com via generic search)
-    → ELSE:
+      ELIF all queries = CODE:
+         providers.github_code_search.search_github_code() per query
+         (on failure → fallback: generic search)
+      ELSE:
          providers.WebSearcher.search(query, extra_params_override=fused_override)
          (when provider_chain set → providers.chain search_provider_chain failover)
          coalescing.await_coalesced_search deduplicates concurrent identical searches
          (same provider, credential, query, limit and params)
          (TTL cache skipped when the provider payload has no usable URL results)
-    → processing.combine_search_results_unified()
+    → processing.combine_search_results_unified()    (same merge for every source)
+         round-robin across questions + URL/content dedup: no question is crowded out
     → processing.apply_domain_diversity_sort()
     → _drop_blocked_hostname_docs()
-    → BM25 / Precision mode selection
+    → Basic mode: first top_k of the merged order (search-engine ranking is the relevance signal)
+      Precision mode (reranker configured): chunk → BM25 → rerank
     → processing.citation_resolver.enrich_sources_with_resolved_urls()
 ```
 

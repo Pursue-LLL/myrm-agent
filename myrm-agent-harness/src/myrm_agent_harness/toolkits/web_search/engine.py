@@ -5,8 +5,8 @@
 - retriever.autocut::AutocutConfig (POS: score-discontinuity autocut configuration)
 - retriever.engine::RetrieverManager, RetrieverConfig (POS: retrieval tools providing BM25 / Reranker with index cache)
 - web_search.core.common::SearchResult (POS: search result type)
-- web_search.processing._explicit_params::normalize_explicit_params, apply_tavily_site_constraint (POS: Agent explicit param normalizer)
-- web_search.processing.search_results_processor::combine_search_results_unified, apply_domain_diversity_sort (POS: search result merger and domain diversity sorting)
+- web_search.processing._explicit_params::ProviderOverride, normalize_explicit_params, apply_tavily_site_constraint (POS: Agent explicit param normalizer)
+- web_search.processing.search_results_processor::combine_search_results_unified, apply_domain_diversity_sort, search_results_to_documents (POS: search result merger and domain diversity sorting)
 - web_search.providers.web_searcher::WebSearcher, SearchServiceConfig, SearchServiceType (POS: web searcher supporting multiple engines)
 - utils.context_format::format_documents_with_metadata (POS: document formatting utility)
 - utils.text_utils::get_token_count (POS: token counting utility)
@@ -19,18 +19,20 @@
 Note: BM25/RRF parameters managed by RetrieverConfig; precise mode internal parameters are constants.
 
 [POS]
-Web search tools wrapper. Provides two modes: basic mode (BM25 full-document retrieval without Reranker)
-and precise mode (chunk-level semantic filtering, requires Reranker). Basic mode suits most scenarios
-with performance priority; precise mode suits long-document scenarios with accuracy priority.
-Supports multiple search engines; BM25 index cache managed by RetrieverManager. As the toolkit's
-external interface, provides unified web search capability for Agent and business layer.
+Web search tools wrapper. Provides two modes: basic mode (the search engines' own ordering, no ranking model)
+and precise mode (chunk-level semantic filtering, requires Reranker). Every query source (configured
+provider, Bilibili API, GitHub code search) feeds one merge pipeline: round-robin interleave across
+questions -> URL/content dedup -> domain-diversity decay -> first top_k, so every question stays represented
+in basic mode. As the toolkit's external interface, provides unified web search capability for Agent and
+business layer.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol
 from urllib.parse import urlparse
 
 from langchain_core.documents import Document
@@ -47,12 +49,14 @@ from myrm_agent_harness.toolkits.web_search.precision_search import (
     _precision_mode_search as _precision_mode_search,
 )
 from myrm_agent_harness.toolkits.web_search.processing._explicit_params import (
+    ProviderOverride,
     apply_tavily_site_constraint,
     normalize_explicit_params,
 )
 from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
     apply_domain_diversity_sort,
     combine_search_results_unified,
+    search_results_to_documents,
 )
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     SearchServiceConfig,
@@ -63,6 +67,8 @@ from myrm_agent_harness.utils.context_format import format_documents_with_metada
 from myrm_agent_harness.utils.text_utils import get_token_count
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from myrm_agent_harness.toolkits.retriever.engine import RetrieverConfig
     from myrm_agent_harness.toolkits.retriever.reranker import RerankerConfig, RerankerService
 
@@ -70,12 +76,31 @@ __all__ = ["SearchServiceConfig", "SearchServiceType", "WebSearchEngine", "WebSe
 
 logger = logging.getLogger(__name__)
 
+# One entry per question, in the shape combine_search_results_unified consumes: (query, documents, error).
+_QueryDocuments = list[tuple[str, list[Document], Exception | None]]
+
+
+class _NativeSearch(Protocol):
+    """A search source that is not the configured provider (Bilibili API, GitHub code search)."""
+
+    def __call__(self, query: str, /, *, max_results: int) -> Awaitable[list[SearchResult] | None]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class _QueryPlan:
+    """How each question is searched, derived from intent detection and explicit params."""
+
+    search_queries: list[str]
+    overrides: list[ProviderOverride | None]
+    bilibili_queries: list[str]
+    code_queries: list[str]
+
 
 class WebSearchTools:
     """Web search tool integrating parallel search + deduplication + ranking.
 
     Two modes (auto-selected):
-    - Basic mode (default): BM25 full-document retrieval -> smart truncation
+    - Basic mode (default): the search engines' own ordering, merged across questions
       No reranker, performance-first, suitable for most scenarios
 
     - Precision mode (auto-enabled): chunking -> BM25 filtering -> reranker reranking -> merging
@@ -139,18 +164,13 @@ class WebSearchTools:
         explicit_params: dict[str, object] | None = None,
         blocked_hostnames: tuple[str, ...] | None = None,
     ) -> tuple[list[dict[str, object]], str]:
-        """Multi-query parallel search + deduplication + ranking (auto-selects optimal mode).
+        """Search every question in parallel and return one merged, formatted result set.
 
-        Two modes (auto-selected):
-        - Basic mode (default): BM25 full-document retrieval -> smart truncated output
-          - Single query: uses search engine ordering
-          - Multi-query: BM25 + RRF fusion
-          - No reranker, performance-first
-
-        - Precision mode (optional): chunking -> BM25 filtering -> reranker reranking -> merge adjacent chunks
-          - Enabled when: enable_precision_mode=True + reranker configured
-          - For: long documents, uncertain key info location, accuracy-first
-          - Requires reranker
+        All query sources share one merge: results are interleaved round-robin across questions (a question
+        cannot be crowded out by the others), deduplicated by URL and content and reordered with
+        domain-diversity decay. Basic mode (default) keeps the first ``top_k`` of that order, so a single
+        question keeps the search engine's own ordering. Precision mode (reranker configured) additionally
+        chunks and reranks the merged pool for multi-query or long-document scenarios.
 
         Args:
             questions: Query list (rewritten)
@@ -167,114 +187,14 @@ class WebSearchTools:
             (sources_metadata, formatted_context). May be empty when every result is filtered out
             by the hostname blocklist — callers treat that as "no usable results", not an error.
         """
-        from myrm_agent_harness.toolkits.web_search.processing.intent_optimizer import (
-            SearchIntent,
-            detect_search_intent,
-            extract_and_pin_structured_identifiers,
-            resolve_search_params,
-        )
-
         start_time = time.perf_counter()
 
-        provider = self._searcher.config.search_service
-        normalized_explicit = normalize_explicit_params(explicit_params, provider) if explicit_params else None
+        plan = _plan_queries(questions, self._searcher.config.search_service, explicit_params)
+        per_query_docs = await self._search_per_query(questions, plan, search_results_per_query)
+        search_time_ms = (time.perf_counter() - start_time) * 1000
 
-        per_query_overrides: list[dict[str, str | int | bool] | None] = []
-        effective_questions: list[str] = []
-        bilibili_queries: list[str] = []
-        code_queries: list[str] = []
-        for q in questions:
-            # Pin structured domain identifiers (CVE/DOI/tickers) to preserve exact match
-            pinned_q, _ = extract_and_pin_structured_identifiers(q)
-            intent_result = detect_search_intent(q)
-            if intent_result.intent == SearchIntent.PLATFORM_BILIBILI:
-                bilibili_queries.append(pinned_q)
-            elif intent_result.intent == SearchIntent.CODE:
-                code_queries.append(pinned_q)
-            override = resolve_search_params(intent_result, provider)
-
-            # Fusion: explicit_params > intent_optimizer > config.extra_params
-            if normalized_explicit:
-                override = {**(override or {}), **normalized_explicit}
-
-            search_query = pinned_q
-            if provider == "tavily":
-                search_query, override = apply_tavily_site_constraint(pinned_q, override)
-
-            effective_questions.append(search_query)
-            per_query_overrides.append(override)
-            if override:
-                logger.info(
-                    f"Intent detected: query='{q[:50]}' intent={intent_result.intent.value} "
-                    f"confidence={intent_result.confidence:.2f} override={override}"
-                )
-
-        # Bilibili fast-path: when all queries target Bilibili, use native API
-        if bilibili_queries and len(bilibili_queries) == len(questions):
-            from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
-                search_results_to_documents,
-            )
-            from myrm_agent_harness.toolkits.web_search.providers.bilibili_search import search_bilibili
-
-            all_bili_results = []
-            for q in bilibili_queries:
-                bili_results = await search_bilibili(q, max_results=search_results_per_query)
-                if bili_results:
-                    all_bili_results.extend(bili_results)
-
-            if all_bili_results:
-                unified_docs = search_results_to_documents(all_bili_results)
-                unified_docs = apply_domain_diversity_sort(unified_docs)
-                search_time_ms = (time.perf_counter() - start_time) * 1000
-                logger.info(
-                    f"Bilibili fast-path: {len(bilibili_queries)} queries, "
-                    f"{len(unified_docs)} docs in {search_time_ms:.0f}ms"
-                )
-            else:
-                logger.info("Bilibili fast-path failed, falling back to generic search with site:bilibili.com")
-                fallback_questions = [f"{q} site:bilibili.com" for q in questions]
-                search_results = await self._searcher.multi_query_parallel_search(
-                    fallback_questions, search_results_per_query, [None] * len(fallback_questions)
-                )
-                _, unified_docs = combine_search_results_unified(search_results)
-                unified_docs = apply_domain_diversity_sort(unified_docs)
-                search_time_ms = (time.perf_counter() - start_time) * 1000
-        elif code_queries and len(code_queries) == len(questions):
-            from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
-                search_results_to_documents,
-            )
-            from myrm_agent_harness.toolkits.web_search.providers.github_code_search import search_github_code
-
-            all_code_results = []
-            for q in code_queries:
-                code_res = await search_github_code(q, max_results=search_results_per_query)
-                if code_res:
-                    all_code_results.extend(code_res)
-
-            if all_code_results:
-                unified_docs = search_results_to_documents(all_code_results)
-                unified_docs = apply_domain_diversity_sort(unified_docs)
-                search_time_ms = (time.perf_counter() - start_time) * 1000
-                logger.info(
-                    f"GitHub code fast-path: {len(code_queries)} queries, "
-                    f"{len(unified_docs)} docs in {search_time_ms:.0f}ms"
-                )
-            else:
-                logger.info("GitHub code fast-path yielded no results, falling back to generic search")
-                search_results = await self._searcher.multi_query_parallel_search(
-                    effective_questions, search_results_per_query, per_query_overrides
-                )
-                _, unified_docs = combine_search_results_unified(search_results)
-                unified_docs = apply_domain_diversity_sort(unified_docs)
-                search_time_ms = (time.perf_counter() - start_time) * 1000
-        else:
-            search_results = await self._searcher.multi_query_parallel_search(
-                effective_questions, search_results_per_query, per_query_overrides
-            )
-            _, unified_docs = combine_search_results_unified(search_results)
-            unified_docs = apply_domain_diversity_sort(unified_docs)
-            search_time_ms = (time.perf_counter() - start_time) * 1000
-
+        _, unified_docs = combine_search_results_unified(per_query_docs)
+        unified_docs = apply_domain_diversity_sort(unified_docs)
         if blocked_hostnames:
             unified_docs = _drop_blocked_hostname_docs(unified_docs, blocked_hostnames)
 
@@ -299,15 +219,9 @@ class WebSearchTools:
                 questions, unified_docs, self._reranker, self, self._retriever_manager
             )
         else:
-            # Basic mode: Dual-track hybrid consensus (search engine prior + BM25 consensus) -> smart truncation
-            logger.info(
-                f"Basic mode (dual-track RRF): {len(questions)} queries, {len(unified_docs)} docs, top_k={top_k}"
-            )
-            selected_docs = await self._retriever_manager.bm25_retrieval_only(
-                queries=questions,
-                documents=unified_docs,
-                top_k=top_k,
-            )
+            # Basic mode: the merged order is the selection; search-engine ranking is the relevance signal
+            logger.info(f"Basic mode: {len(questions)} queries, {len(unified_docs)} docs, top_k={top_k}")
+            selected_docs = unified_docs[: max(top_k, 0)]
 
         ranking_time_ms = (time.perf_counter() - ranking_start) * 1000
         total_time_ms = (time.perf_counter() - start_time) * 1000
@@ -334,6 +248,117 @@ class WebSearchTools:
             )
 
         return sources_metadata, formatted_context
+
+    async def _search_per_query(
+        self,
+        questions: list[str],
+        plan: _QueryPlan,
+        results_per_query: int,
+    ) -> _QueryDocuments:
+        """Search every question and return its documents.
+
+        Uses a native source when all questions target it (Bilibili API, GitHub code search) and falls back
+        to the configured provider when that source returns nothing. Every route yields per-question
+        documents, so the merge treats them identically.
+        """
+        if plan.bilibili_queries and len(plan.bilibili_queries) == len(questions):
+            from myrm_agent_harness.toolkits.web_search.providers.bilibili_search import search_bilibili
+
+            per_query = await _search_natively(plan.bilibili_queries, search_bilibili, results_per_query)
+            if per_query:
+                logger.info(f"Bilibili fast-path: {len(plan.bilibili_queries)} queries, {_count_docs(per_query)} docs")
+                return per_query
+            logger.info("Bilibili fast-path failed, falling back to generic search with site:bilibili.com")
+            fallback_questions = [f"{q} site:bilibili.com" for q in questions]
+            return await self._searcher.multi_query_parallel_search(
+                fallback_questions, results_per_query, [None] * len(fallback_questions)
+            )
+
+        if plan.code_queries and len(plan.code_queries) == len(questions):
+            from myrm_agent_harness.toolkits.web_search.providers.github_code_search import search_github_code
+
+            per_query = await _search_natively(plan.code_queries, search_github_code, results_per_query)
+            if per_query:
+                logger.info(f"GitHub code fast-path: {len(plan.code_queries)} queries, {_count_docs(per_query)} docs")
+                return per_query
+            logger.info("GitHub code fast-path yielded no results, falling back to generic search")
+
+        return await self._searcher.multi_query_parallel_search(plan.search_queries, results_per_query, plan.overrides)
+
+
+def _plan_queries(
+    questions: list[str],
+    provider: SearchServiceType,
+    explicit_params: dict[str, object] | None,
+) -> _QueryPlan:
+    """Detect intent per question and fuse search params (explicit > intent > config.extra_params)."""
+    from myrm_agent_harness.toolkits.web_search.processing.intent_optimizer import (
+        SearchIntent,
+        detect_search_intent,
+        extract_and_pin_structured_identifiers,
+        resolve_search_params,
+    )
+
+    normalized_explicit = normalize_explicit_params(explicit_params, provider) if explicit_params else None
+
+    search_queries: list[str] = []
+    overrides: list[ProviderOverride | None] = []
+    bilibili_queries: list[str] = []
+    code_queries: list[str] = []
+    for q in questions:
+        # Pin structured domain identifiers (CVE/DOI/tickers) to preserve exact match
+        pinned_q, _ = extract_and_pin_structured_identifiers(q)
+        intent_result = detect_search_intent(q)
+        if intent_result.intent == SearchIntent.PLATFORM_BILIBILI:
+            bilibili_queries.append(pinned_q)
+        elif intent_result.intent == SearchIntent.CODE:
+            code_queries.append(pinned_q)
+        override = resolve_search_params(intent_result, provider)
+
+        # Fusion: explicit_params > intent_optimizer > config.extra_params
+        if normalized_explicit:
+            override = {**(override or {}), **normalized_explicit}
+
+        search_query = pinned_q
+        if provider == "tavily":
+            search_query, override = apply_tavily_site_constraint(pinned_q, override)
+
+        search_queries.append(search_query)
+        overrides.append(override)
+        if override:
+            logger.info(
+                f"Intent detected: query='{q[:50]}' intent={intent_result.intent.value} "
+                f"confidence={intent_result.confidence:.2f} override={override}"
+            )
+
+    return _QueryPlan(
+        search_queries=search_queries,
+        overrides=overrides,
+        bilibili_queries=bilibili_queries,
+        code_queries=code_queries,
+    )
+
+
+async def _search_natively(
+    queries: list[str],
+    search: _NativeSearch,
+    results_per_query: int,
+) -> _QueryDocuments:
+    """Query a non-provider source once per query.
+
+    Queries the source returns nothing for are omitted, so an empty list means the source is unusable
+    and the caller falls back to the configured provider.
+    """
+    per_query: _QueryDocuments = []
+    for query in queries:
+        results = await search(query, max_results=results_per_query)
+        if results:
+            per_query.append((query, search_results_to_documents(results), None))
+    return per_query
+
+
+def _count_docs(per_query_docs: _QueryDocuments) -> int:
+    return sum(len(docs) for _, docs, _ in per_query_docs)
 
 
 def _drop_blocked_hostname_docs(

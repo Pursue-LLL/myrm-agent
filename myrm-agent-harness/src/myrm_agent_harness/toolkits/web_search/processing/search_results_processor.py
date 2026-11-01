@@ -213,26 +213,6 @@ def combine_search_results_unified(
             continue
         url_best[normalized_url_dedup] = (content_len, doc, normalized_url_semantic)
 
-    total_queries = len(search_results)
-    successful_queries = total_queries - failed_queries - zero_result_queries
-
-    if total_docs == 0:
-        logger.debug(
-            f"Document pool: 0 docs "
-            f"(queries={total_queries}: success={successful_queries}, empty={zero_result_queries}, failed={failed_queries})"
-        )
-        raise SearchAPIError(
-            "Search API is unavailable: all queries returned 0 results",
-            context=ErrorContext(
-                metadata={
-                    "total_queries": str(total_queries),
-                    "successful_queries": str(successful_queries),
-                    "zero_result_queries": str(zero_result_queries),
-                    "failed_queries": str(failed_queries),
-                },
-            ),
-        )
-
     # Build final document list preserving insertion order
     unified_docs: list[Document] = []
     url_metadata_list: list[dict[str, str]] = []

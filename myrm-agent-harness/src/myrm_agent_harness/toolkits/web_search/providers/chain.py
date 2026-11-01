@@ -42,6 +42,7 @@ from myrm_agent_harness.toolkits.web_search.providers.search_service_factory imp
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
+    from myrm_agent_harness.toolkits.web_search.processing._explicit_params import ProviderOverride
     from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
         SearchServiceConfig,
     )
@@ -153,7 +154,7 @@ async def search_provider_chain(
     query: str,
     num_results: int,
     *,
-    extra_params_override: dict[str, str | int | bool] | None = None,
+    extra_params_override: ProviderOverride | None = None,
     quota_tracker: ProviderQuotaTracker | None = None,
 ) -> tuple[list[SearchResult], str]:
     """Search using a priority-ordered provider chain with intelligent quota auto-skip.
