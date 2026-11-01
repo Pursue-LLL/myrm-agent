@@ -72,7 +72,7 @@ export default function WorkspaceLayout() {
               size="sm"
               onClick={() => openScratchpad()}
               className="gap-2 rounded-lg border-surface-700/60 hover:bg-surface-800 text-surface-200"
-              aria-label="Open quick scratchpad"
+              aria-label={t('openScratchpadAria')}
             >
               <Zap size={15} className="text-amber-400" />
               <span>Scratchpad</span>
@@ -84,7 +84,7 @@ export default function WorkspaceLayout() {
                 size="sm"
                 onClick={() => setReviewOpenMobile(true)}
                 className="gap-2 rounded-lg lg:hidden"
-                aria-label="Open review panel"
+                aria-label={t('openReviewPanelAria')}
               >
                 <FileDiff size={16} />
                 Review
@@ -151,20 +151,20 @@ export default function WorkspaceLayout() {
 
       {/* Mobile: Review Drawer */}
       {reviewOpenMobile && panes.length > 0 && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Review changes">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t('reviewChanges')}>
           <button
             type="button"
-            aria-label="Close review"
+            aria-label={t('closeReviewOverlayAria')}
             className="absolute inset-0 bg-background/80 backdrop-blur-sm cursor-default"
             onClick={() => setReviewOpenMobile(false)}
           />
           <div className="absolute inset-x-0 bottom-0 top-12 rounded-t-2xl border-t border-border bg-background shadow-xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50">
-              <span className="text-sm font-semibold">Review changes</span>
+              <span className="text-sm font-semibold">{t('reviewChanges')}</span>
               <button
                 type="button"
                 onClick={() => setReviewOpenMobile(false)}
-                aria-label="Close review panel"
+                aria-label={t('closeReviewPanelAria')}
                 className="p-1.5 rounded-full hover:bg-muted transition-colors text-muted-foreground"
               >
                 <X size={16} />

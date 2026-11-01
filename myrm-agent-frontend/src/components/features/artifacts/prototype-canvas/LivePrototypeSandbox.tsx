@@ -1,5 +1,6 @@
 /**
  * [INPUT]
+ * - next-intl: useTranslations
  * - prototypeCanvasTypes: PrototypeViewport
  *
  * [OUTPUT]
@@ -13,6 +14,7 @@
 'use client';
 
 import React, { memo, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { PrototypeViewport } from './prototypeCanvasTypes';
 
 interface SelectedElementPayload {
@@ -72,6 +74,7 @@ export const LivePrototypeSandbox: React.FC<LivePrototypeSandboxProps> = memo(({
   onElementSelect,
   className = '',
 }) => {
+  const t = useTranslations('prototypeCanvas');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Compile full iframe HTML with element-picking inspector shim
@@ -228,7 +231,7 @@ export const LivePrototypeSandbox: React.FC<LivePrototypeSandboxProps> = memo(({
         <iframe
           ref={iframeRef}
           data-testid="prototype-sandboxed-iframe"
-          title="Interactive Prototype Canvas"
+          title={t('sandboxIframeTitle')}
           srcDoc={compiledSrcDoc}
           sandbox="allow-scripts allow-forms"
           className="w-full flex-1 border-none bg-white select-text"

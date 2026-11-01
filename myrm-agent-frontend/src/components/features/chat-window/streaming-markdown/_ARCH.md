@@ -20,6 +20,7 @@
 
 - `lucide-react` (Gauge, Activity, Sparkles 统一轻量矢量图标)
 - `@/lib/utils/classnameUtils` (Tailwind 类名合并)
+- `next-intl` (`useTranslations('streamingMarkdown')`，代码块标签与降级提示文案)
 
 ## 生产集成点
 

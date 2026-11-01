@@ -4,6 +4,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { DualInstanceHandoffPipelineModal } from '../DualInstanceHandoffPipelineModal';
 import type { UpgradeStageStep } from '../upgradeCockpitTypes';
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
+
 const mockSteps: UpgradeStageStep[] = [
   {
     stage: 'snapshot_diff',

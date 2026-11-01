@@ -181,7 +181,7 @@ export function QueuedMessagesList({
           data-testid="queue-dock-toggle"
           className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:text-accent-warm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-expanded={!isCollapsed}
-          aria-label={isCollapsed ? 'Expand queued messages' : 'Collapse queued messages'}
+          aria-label={isCollapsed ? t('queue.expandDock') : t('queue.collapseDock')}
         >
           {isCollapsed ? (
             <CaretDown size={14} weight="bold" className="shrink-0 text-accent-warm" />
@@ -222,8 +222,8 @@ export function QueuedMessagesList({
               onClick={onClearQueue}
               data-testid="queue-clear-all"
               className="p-1 text-muted-foreground transition-colors hover:text-destructive"
-              title="Clear entire queue"
-              aria-label="Clear entire queue"
+              title={t('queue.clearAll')}
+              aria-label={t('queue.clearAll')}
             >
               <Trash size={13} />
             </button>

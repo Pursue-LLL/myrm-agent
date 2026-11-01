@@ -146,10 +146,10 @@ export const SubagentCard = memo(function SubagentCard({
         <div className="flex items-center justify-between">
           <Label htmlFor={`model-override-${subagentKey}`} className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             <Cpu size={12} className="text-primary" />
-            <span>模型覆盖 (Model Override)</span>
+            <span>{t('modelOverride')}</span>
           </Label>
           <span className="text-[10px] text-muted-foreground/80 bg-primary/10 text-primary px-1.5 py-0.2 rounded font-medium">
-            子代理降本
+            {t('subagentCostSaving')}
           </span>
         </div>
         <Select

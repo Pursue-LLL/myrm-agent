@@ -7,6 +7,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Bot, Compass, Zap, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useInFlightSteerStore } from './useInFlightSteerStore';
@@ -19,6 +20,7 @@ export interface ActiveSubagentSwimlanesBarProps {
 export const ActiveSubagentSwimlanesBar: React.FC<ActiveSubagentSwimlanesBarProps> = ({
   className,
 }) => {
+  const t = useTranslations('inFlightSteer');
   const { swimlanes, activePopoverSubagentId, openSteerPopover, closeSteerPopover } =
     useInFlightSteerStore();
 
@@ -38,7 +40,7 @@ export const ActiveSubagentSwimlanesBar: React.FC<ActiveSubagentSwimlanesBarProp
       <div className="flex items-center gap-2.5 min-w-max">
         <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
           <Bot size={13} className="text-indigo-500" />
-          <span>活跃专家泳道 ({swimlanes.length})</span>
+          <span>{t('swimlanesTitle', { count: swimlanes.length })}</span>
         </div>
 
         {swimlanes.map((subagent) => {
@@ -90,13 +92,13 @@ export const ActiveSubagentSwimlanesBar: React.FC<ActiveSubagentSwimlanesBarProp
 
               {/* Metrics */}
               <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono border-l border-neutral-100 dark:border-neutral-750 pl-2">
-                <span className="inline-flex items-center gap-0.5" title="消耗 Tokens">
+                <span className="inline-flex items-center gap-0.5" title={t('tokensUsed')}>
                   <Zap size={10} className="text-amber-500" />
                   {subagent.tokensUsed > 1000
                     ? `${(subagent.tokensUsed / 1000).toFixed(1)}k`
                     : subagent.tokensUsed}
                 </span>
-                <span className="inline-flex items-center gap-0.5" title="运行耗时">
+                <span className="inline-flex items-center gap-0.5" title={t('elapsed')}>
                   <Clock size={10} />
                   {subagent.elapsedSeconds}s
                 </span>
@@ -118,10 +120,10 @@ export const ActiveSubagentSwimlanesBar: React.FC<ActiveSubagentSwimlanesBarProp
                     ? 'bg-indigo-600 text-white'
                     : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40',
                 )}
-                title="动态追加纠偏指令"
+                title={t('steerHint')}
               >
                 <Compass size={12} />
-                <span>纠偏</span>
+                <span>{t('steerAction')}</span>
               </button>
             </div>
           );

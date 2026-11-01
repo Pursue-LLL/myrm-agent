@@ -17,6 +17,7 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   AlertCircle,
   Check,
@@ -39,34 +40,35 @@ export interface UpgradePreFlightProbeCardProps {
   isProbing?: boolean;
 }
 
-function renderHealthBadge(status: MirrorHealthStatus) {
+function HealthBadge({ status }: { status: MirrorHealthStatus }) {
+  const t = useTranslations('settings.system.upgradeCockpit');
   switch (status) {
     case 'optimal':
       return (
         <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3 w-3" />
-          <span>极速稳定</span>
+          <span>{t('healthOptimal')}</span>
         </span>
       );
     case 'healthy':
       return (
         <span className="flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
           <Check className="h-3 w-3" />
-          <span>连通正常</span>
+          <span>{t('healthHealthy')}</span>
         </span>
       );
     case 'degraded':
       return (
         <span className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
           <AlertCircle className="h-3 w-3" />
-          <span>延迟较高</span>
+          <span>{t('healthDegraded')}</span>
         </span>
       );
     case 'blocked':
       return (
         <span className="flex items-center gap-1 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400">
           <AlertCircle className="h-3 w-3" />
-          <span>端口超时</span>
+          <span>{t('healthBlocked')}</span>
         </span>
       );
   }
@@ -79,6 +81,7 @@ export const UpgradePreFlightProbeCard: React.FC<UpgradePreFlightProbeCardProps>
   onRefreshProbes,
   isProbing = false,
 }) => {
+  const t = useTranslations('settings.system.upgradeCockpit');
   return (
     <div
       data-testid="upgrade-preflight-probe-card"
@@ -92,10 +95,10 @@ export const UpgradePreFlightProbeCard: React.FC<UpgradePreFlightProbeCardProps>
           </div>
           <div>
             <h4 className="text-sm font-semibold text-foreground">
-              前置网络诊断探针
+              {t('probeTitle')}
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              多源跨境通道实时体检与一键切换，杜绝下载中断
+              {t('probeSubtitle')}
             </p>
           </div>
         </div>
@@ -110,7 +113,7 @@ export const UpgradePreFlightProbeCard: React.FC<UpgradePreFlightProbeCardProps>
           className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
         >
           <RotateCw className={cn('h-3 w-3', isProbing && 'animate-spin')} />
-          <span>{isProbing ? '正在体检...' : '重新测速'}</span>
+          <span>{isProbing ? t('probing') : t('retest')}</span>
         </button>
       </div>
 
@@ -142,7 +145,7 @@ export const UpgradePreFlightProbeCard: React.FC<UpgradePreFlightProbeCardProps>
                     {probe.isRecommended && (
                       <span className="flex items-center gap-0.5 rounded bg-amber-500/10 px-1 py-0.2 text-[9px] font-medium text-amber-600 dark:text-amber-400">
                         <Zap className="h-2.5 w-2.5" />
-                        <span>推荐</span>
+                        <span>{t('recommended')}</span>
                       </span>
                     )}
                   </div>
@@ -150,12 +153,12 @@ export const UpgradePreFlightProbeCard: React.FC<UpgradePreFlightProbeCardProps>
                     {probe.endpointUrl}
                   </p>
                 </div>
-                {renderHealthBadge(probe.status)}
+                <HealthBadge status={probe.status} />
               </div>
 
               <div className="mt-2.5 flex w-full items-center justify-between text-[11px] border-t border-border/30 pt-2">
                 <span className="text-muted-foreground">
-                  往返延迟: <strong className="font-mono text-foreground">{probe.latencyMs}ms</strong>
+                  {t('roundTripLatency')} <strong className="font-mono text-foreground">{probe.latencyMs}ms</strong>
                 </span>
                 <span className="text-[10px] text-muted-foreground">
                   {probe.statusDescription}

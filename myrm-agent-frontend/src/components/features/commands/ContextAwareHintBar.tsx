@@ -55,7 +55,7 @@ export const ContextAwareHintBar: React.FC<ContextAwareHintBarProps> = ({
     >
       <div className="flex items-center gap-1.5 text-primary font-medium text-[11px] select-none pl-0.5">
         <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-        <span>建议：</span>
+        <span>{t('suggestionLabel')}</span>
       </div>
 
       {suggestedChips.map((chip) => (

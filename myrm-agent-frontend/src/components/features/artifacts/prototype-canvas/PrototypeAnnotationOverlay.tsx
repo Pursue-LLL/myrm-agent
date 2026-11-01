@@ -121,7 +121,7 @@ export const PrototypeAnnotationOverlay: React.FC<PrototypeAnnotationOverlayProp
           />
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[10px] text-slate-400">⌘+Enter 提交</span>
+            <span className="text-[10px] text-slate-400">{t('submitShortcutHint')}</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"

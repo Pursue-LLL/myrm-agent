@@ -201,7 +201,6 @@ export function QueuedMessageItem({
                 {t('queue.attachments', { count: message.files.length })}
               </span>
             )}
-            {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- pointer shortcut; keyboard users reach the same action through the Edit button */}
             <span
               className="truncate text-muted-foreground"
               title={message.text}

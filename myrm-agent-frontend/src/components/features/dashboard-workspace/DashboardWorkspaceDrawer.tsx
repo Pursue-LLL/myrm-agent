@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
   Search,
@@ -28,6 +29,7 @@ export interface DashboardWorkspaceDrawerProps {
 export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> = ({
   className,
 }) => {
+  const t = useTranslations('dashboardWorkspace');
   const {
     widgets,
     isDrawerOpen,
@@ -84,7 +86,7 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
     <dialog
       open
       aria-modal="true"
-      aria-label="数字员工监控工作台"
+      aria-label={t('drawerAria')}
       className={cn(
         'fixed inset-y-0 right-0 z-50 m-0 p-0 border-0 border-l border-neutral-200 dark:border-neutral-800 max-w-none max-h-none h-full flex flex-col bg-neutral-50 dark:bg-neutral-900 shadow-2xl transition-all duration-200 ease-out',
         isFullScreen ? 'inset-x-0 w-full' : 'w-full md:w-[85vw] lg:w-[75vw] xl:w-[65vw]',
@@ -100,14 +102,14 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                项目工作台与监控大盘
+                {t('drawerTitle')}
               </h2>
               <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
-                {widgets.length} 个组件
+                {t('widgetCount', { count: widgets.length })}
               </span>
             </div>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              常驻持久化富交互原型、动态数据报表与数字员工监控卡片
+              {t('drawerSubtitle')}
             </p>
           </div>
         </div>
@@ -119,19 +121,19 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
                 type="button"
                 onClick={handleRefreshAll}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 transition-colors"
-                title="刷新所有组件"
+                title={t('refreshAllHint')}
               >
                 <RefreshCw size={13} />
-                <span>全部刷新</span>
+                <span>{t('refreshAll')}</span>
               </button>
               <button
                 type="button"
                 onClick={clearAllWidgets}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/50 transition-colors"
-                title="清空所有组件"
+                title={t('clearAllHint')}
               >
                 <Trash2 size={13} />
-                <span>清空</span>
+                <span>{t('clearAll')}</span>
               </button>
             </>
           ) : null}
@@ -140,8 +142,8 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
             type="button"
             onClick={() => setIsFullScreen(!isFullScreen)}
             className="p-2 rounded-lg text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            title={isFullScreen ? '还原视口' : '全屏展示'}
-            aria-label={isFullScreen ? '还原视口' : '全屏展示'}
+            title={isFullScreen ? t('restoreViewport') : t('fullscreen')}
+            aria-label={isFullScreen ? t('restoreViewport') : t('fullscreen')}
           >
             {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
@@ -150,8 +152,8 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
             type="button"
             onClick={closeDrawer}
             className="p-2 rounded-lg text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            title="关闭工作台"
-            aria-label="关闭工作台"
+            title={t('closeDrawer')}
+            aria-label={t('closeDrawer')}
           >
             <X size={16} />
           </button>
@@ -170,7 +172,7 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索组件标题或内容..."
+              placeholder={t('searchPlaceholder')}
               className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
           </div>
@@ -186,7 +188,7 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
                   : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-700',
               )}
             >
-              全部
+              {t('filterAll')}
             </button>
             {allTags.map((tag) => (
               <button
@@ -215,10 +217,10 @@ export const DashboardWorkspaceDrawer: React.FC<DashboardWorkspaceDrawerProps> =
               <Sparkles size={28} />
             </div>
             <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
-              工作台尚无固定组件
+              {t('emptyTitle')}
             </h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mb-4">
-              在对话消息中 Agent 生成的任意 HTML / SVG / 数据看板卡片右上角，点击固定图标，即可将其钉入此专属工作台，告别单次问答刷屏遗忘。
+              {t('emptyHint')}
             </p>
           </div>
         ) : (

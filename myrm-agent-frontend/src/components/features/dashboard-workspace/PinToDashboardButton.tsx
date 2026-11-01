@@ -6,7 +6,8 @@
 
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Pin, PinOff } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -31,6 +32,7 @@ export const PinToDashboardButton: React.FC<PinToDashboardButtonProps> = ({
   className,
   showText = false,
 }) => {
+  const t = useTranslations('dashboardWorkspace');
   const isPinned = useDashboardWorkspaceStore((state) =>
     state.widgets.some((w) => w.id === widgetId),
   );
@@ -50,12 +52,7 @@ export const PinToDashboardButton: React.FC<PinToDashboardButtonProps> = ({
     [togglePinWidget, widgetId, title, language, content, sourceChatId],
   );
 
-  const tooltipText = useMemo(() => {
-    if (isPinned) {
-      return '已固定至工作台 (点击取消)';
-    }
-    return '固定到工作台 Dashboard';
-  }, [isPinned]);
+  const tooltipText = isPinned ? t('pinnedTooltip') : t('pinTooltip');
 
   return (
     <Tooltip>
@@ -80,7 +77,7 @@ export const PinToDashboardButton: React.FC<PinToDashboardButtonProps> = ({
           )}
           {showText ? (
             <span className="text-xs font-medium">
-              {isPinned ? '已固定' : '固定'}
+              {isPinned ? t('pinned') : t('pin')}
             </span>
           ) : null}
         </button>

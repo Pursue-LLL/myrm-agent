@@ -9,3 +9,5 @@
 | `SelectionToolbar.tsx` / `DocumentSelectionToolbar.tsx` / `ElementPickerToolbar.tsx` | 选区与元素拾取                     |
 | `usePortalGestures.ts` / `usePortalKeyboard.ts` / `useSelectionAction.ts`            | 交互 hook                          |
 | `PortalErrorDisplay.tsx`                                                             | 门户级错误展示                     |
+
+`usePortalGestures` 的 `separatorProps` 给左缘宽度分隔条提供窗口分隔条语义：可聚焦，指针拖拽与键盘（←/→ 每次 20px、Home/End 跳到 320–1200px 边界）都能调宽。

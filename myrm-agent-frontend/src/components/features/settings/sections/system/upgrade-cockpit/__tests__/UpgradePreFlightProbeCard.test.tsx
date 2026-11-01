@@ -8,6 +8,8 @@ import type {
   NetworkMirrorProbeResult,
 } from '../upgradeCockpitTypes';
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
+
 const mockProbes: NetworkMirrorProbeResult[] = [
   {
     id: 'cnb',

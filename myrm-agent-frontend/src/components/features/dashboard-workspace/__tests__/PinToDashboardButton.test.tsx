@@ -5,6 +5,8 @@ import { TooltipProvider } from '@/components/primitives/tooltip';
 import { PinToDashboardButton } from '../PinToDashboardButton';
 import { useDashboardWorkspaceStore } from '../useDashboardWorkspaceStore';
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
+
 const renderWithProvider = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };

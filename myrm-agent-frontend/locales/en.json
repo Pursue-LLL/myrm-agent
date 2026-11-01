@@ -1473,7 +1473,9 @@
         "currentTime": "Current time",
         "osInfo": "Operating system info",
         "userName": "User name"
-      }
+      },
+      "modelOverride": "Model override",
+      "subagentCostSaving": "Subagent cost saving"
     },
     "preview": "Preview",
     "avatarColor": "Avatar Color",
@@ -2628,7 +2630,8 @@
       "noSessionStats": "No performance data",
       "modelBreakdown": "Model Breakdown",
       "performance": "Performance",
-      "toolBreakdown": "Tool Breakdown"
+      "toolBreakdown": "Tool Breakdown",
+      "costUnknown": "Cost unknown"
     },
     "liveness": {
       "idle": "Ready",
@@ -2797,7 +2800,10 @@
       "editHint": "Enter to save · Shift+Enter for a new line · Esc to cancel",
       "reorder": "Drag to reorder",
       "listLabel": "Queued messages",
-      "moveToTop": "Move to top"
+      "moveToTop": "Move to top",
+      "expandDock": "Expand queued messages",
+      "collapseDock": "Collapse queued messages",
+      "clearAll": "Clear entire queue"
     },
     "fileMention": {
       "title": "Workspace References",
@@ -6385,7 +6391,8 @@
     "code": "Code",
     "copy": "Copy code",
     "copied": "Copied",
-    "preview": "Preview"
+    "preview": "Preview",
+    "prototypeBoardTitle": "{language} prototype board"
   },
   "imageEditor": {
     "cancel": "Cancel",
@@ -6878,7 +6885,8 @@
       "loadFailed": "Could not load the file",
       "unavailable": "This file is no longer available",
       "downloadFull": "Download full file"
-    }
+    },
+    "resizePanel": "Resize panel"
   },
   "MessageSources": {
     "untitled": "Untitled",
@@ -10947,7 +10955,12 @@
     "workspacePath": "Workspace Path",
     "workspacePathEmpty": "Workspace path cannot be empty",
     "workspacePathInvalidChars": "Workspace path contains invalid control characters",
-    "workspacePathMustBeAbsolute": "Workspace path must be an absolute path or start with ~"
+    "workspacePathMustBeAbsolute": "Workspace path must be an absolute path or start with ~",
+    "openScratchpadAria": "Open quick scratchpad",
+    "openReviewPanelAria": "Open review panel",
+    "reviewChanges": "Review changes",
+    "closeReviewOverlayAria": "Close review",
+    "closeReviewPanelAria": "Close review panel"
   },
   "growthDashboard": {
     "title": "Growth Dashboard",
@@ -14337,7 +14350,8 @@
     "outlineDrawerSubtitle": "{count} user questions in total",
     "closeDrawer": "Close drawer",
     "noQuestionsYet": "No user questions yet",
-    "roundLabel": "Round {num}"
+    "roundLabel": "Round {num}",
+    "hudAria": "User question navigation"
   },
   "canvasSecurity": {
     "pendingEgressBadge": "Pending Egress ({count})",
@@ -14346,7 +14360,8 @@
     "egressPromptTitle": "Canvas requests external network connection",
     "blockEgress": "Block",
     "allowOnce": "Allow Once",
-    "alwaysAllowDomain": "Always Allow Domain"
+    "alwaysAllowDomain": "Always Allow Domain",
+    "egressAlertAria": "Network egress authorization alert"
   },
   "wechatPreview": {
     "badgeLabel": "WeChat Formatting",
@@ -14381,7 +14396,9 @@
     "noAnnotationsYet": "No annotations yet. Click any element to annotate.",
     "markResolved": "Mark Resolved",
     "markUnresolved": "Mark Unresolved",
-    "delete": "Delete"
+    "delete": "Delete",
+    "sandboxIframeTitle": "Interactive prototype canvas",
+    "submitShortcutHint": "⌘+Enter to submit"
   },
   "structuredAsking": {
     "skippedBadge": "Skipped",
@@ -14428,7 +14445,9 @@
     "noChartData": "No chart data available",
     "detailTableTitle": "Perspective Data Table",
     "rowsCount": "rows",
-    "searchPlaceholder": "Filter records by keyword..."
+    "searchPlaceholder": "Filter records by keyword...",
+    "chartTypeBar": "Bar chart",
+    "chartTypeLine": "Line chart"
   },
   "mobile": {
     "quickCapture": {
@@ -14510,7 +14529,8 @@
     "security_credential": "Security and credentials",
     "shortcutHint": "Press / to open the command matrix",
     "subtitle": "Browse and insert slash commands by category",
-    "title": "Command matrix"
+    "title": "Command matrix",
+    "suggestionLabel": "Suggested:"
   },
   "embedWidget": {
     "allowedOriginLabel": "Allowed origin",
@@ -14542,7 +14562,10 @@
     "themeDark": "Dark",
     "themeLabel": "Theme",
     "themeLight": "Light",
-    "widgetTitle": "Assistant"
+    "widgetTitle": "Assistant",
+    "drawerAria": "Agent slideout drawer",
+    "floatingAria": "Agent floating widget",
+    "allowedOriginPlaceholder": "https://example.com or *"
   },
   "reconnectProtocol": {
     "close": "Close",
@@ -14560,7 +14583,8 @@
     "epochBadge": "Epoch: {epoch}",
     "messagesCount": "Messages: {count}",
     "activeTools": "Active Tools: {count}",
-    "latestTurn": "Latest Turn: {summary}"
+    "latestTurn": "Latest Turn: {summary}",
+    "reconnectCount": "Reconnects: {count}"
   },
   "scratchpad": {
     "cancel": "Cancel",
@@ -14615,7 +14639,9 @@
     "inputChars": "Input chars: {count}",
     "outputChars": "Output chars: {count}",
     "tokensCount": "Tokens: Prompt {prompt} · Completion {completion}",
-    "emptyPayload": "No data attached"
+    "emptyPayload": "No data attached",
+    "collapseStep": "Collapse step",
+    "expandStep": "Expand step"
   },
   "quadGraph": {
     "closeDrawer": "Close node details",
@@ -17409,6 +17435,16 @@
         "failRate": "Failure rate",
         "avgMs": "Avg (ms)",
         "p90Ms": "p90 (ms)"
+      },
+      "composition": {
+        "title": "Tool composition for the period",
+        "totalCalls": "({count} calls in total)",
+        "daysOption": "{days} days",
+        "boundaryNote": "Call share and cumulative-duration share are computed separately. Parallel calls can overlap in time, so the duration share does not equal the share of wall-clock time; this view shows call and duration structure only and has no cost share.",
+        "callsWithPercent": "{calls} calls ({percent}%)",
+        "otherTools": "{count, plural, one {# other tool} other {# other tools}} ({calls} calls · {percent}%)",
+        "durationShare": "Duration: {percent}%",
+        "durationShareRow": "{percent}% of duration"
       }
     },
     "skillOptimization": {
@@ -20819,7 +20855,8 @@
         "snapshotEmpty": "No snapshots yet.",
         "snapshotRestore": "Restore",
         "snapshotDelete": "Delete",
-        "backupManualGuide": "Snapshots live in the snapshots folder of your data directory (~/.myrm by default). After reinstalling, copy data.db and checkpoints.db back to recover manually — see docs."
+        "backupManualGuide": "Snapshots live in the snapshots folder of your data directory (~/.myrm by default). After reinstalling, copy data.db and checkpoints.db back to recover manually — see docs.",
+        "openUpgradeCockpit": "Seamless upgrade console"
       },
       "unattendedDesktop": {
         "guideIntro": "Use the desktop app when you lock the screen and step away. Browser-only mode keeps in-chat approvals but not these protections.",
@@ -20836,6 +20873,36 @@
         "guideTitle": "Set up unattended computer use",
         "statusOn": "On",
         "statusOptional": "Optional"
+      },
+      "upgradeCockpit": {
+        "safeLabel": "Runtime is healthy and safe:",
+        "activeTitle": "Active long-task protection (forced restart blocked)",
+        "tasksRunning": "{count, plural, one {# task running} other {# tasks running}}",
+        "drainFirst": "Wait for current tasks to finish, then reload automatically",
+        "checkpointUpgrade": "Save a checkpoint and upgrade now",
+        "healthOptimal": "Fast and stable",
+        "healthHealthy": "Connected",
+        "healthDegraded": "High latency",
+        "healthBlocked": "Port timeout",
+        "probeTitle": "Pre-flight network diagnostics",
+        "probeSubtitle": "Live health checks of multiple cross-border channels with one-click switching, so downloads never stall",
+        "probing": "Checking...",
+        "retest": "Re-test speed",
+        "recommended": "Recommended",
+        "roundTripLatency": "Round-trip latency:",
+        "modalTitle": "Dual-instance seamless upgrade pipeline",
+        "modalSubtitle": "Atomic blue-green handoff with one-click snapshot rollback in seconds",
+        "oldInstance": "Old instance {version} (live fallback)",
+        "newInstance": "New instance {version} (ready to take over)",
+        "losslessSwitch": "Lossless switchover",
+        "stepRunning": "Running...",
+        "stepReady": "Ready",
+        "completeTitle": "Upgrade complete! The new instance has atomically taken over service",
+        "completeBody": "Sandbox health self-check and database migration finished automatically; all sessions and memories are preserved intact.",
+        "rolledBack": "Atomically rolled back to the previous stable snapshot",
+        "rollbackAction": "One-click atomic rollback in seconds",
+        "tryNewVersion": "Try the new version",
+        "closeWindow": "Close window"
       }
     },
     "push": {
@@ -21243,7 +21310,15 @@
       "wikiNegativeOutcomeRate": "Negative Outcome Rate",
       "wikiVerificationDwell": "Avg Verification Dwell",
       "wikiTelemetryDrops": "Telemetry Drops",
-      "wikiEvidenceWindow": "Window: {days} days; retention: {retentionDays} days"
+      "wikiEvidenceWindow": "Window: {days} days; retention: {retentionDays} days",
+      "exportCsvTitle": "Export usage data as a CSV report",
+      "exportCsv": "Export CSV",
+      "cacheRadarTitle": "Global prompt cache radar",
+      "cacheRadarWindow": "{sessions, plural, one {# session} other {# sessions}} ({days}d)",
+      "cacheRadarSavings": "Est. total savings:",
+      "cacheRadarCachedTokens": "Cached tokens",
+      "cacheRadarFreshInput": "Fresh input",
+      "cacheRadarTotalPrompt": "Total prompt tokens"
     },
     "workingState": {
       "title": "Working State",
@@ -22621,5 +22696,130 @@
         "default": "Define default, routing, and fallback models"
       }
     }
+  },
+  "digitalSelf": {
+    "satelliteTitle": "Digital twin drafts awaiting review",
+    "pendingCount": "({count} awaiting confirmation)",
+    "gateReady": "Gate ready",
+    "toneSelectorLabel": "Tone style",
+    "toneFormal": "Formal",
+    "toneFormalDesc": "Precise and courteous wording for reports to superiors, official documents and formal business exchanges",
+    "toneSemiFormal": "Professional",
+    "toneSemiFormalDesc": "Practical and efficient yet courteous, for everyday cross-team coordination and business alignment",
+    "toneFriendly": "Friendly",
+    "toneFriendlyDesc": "Warm and natural with fitting colloquial particles, for teammates and familiar collaborators",
+    "toneConcise": "Concise",
+    "toneConciseDesc": "Straight to the point, highlighting key conclusions and action items without lengthy pleasantries",
+    "relationLeader": "Direct manager",
+    "relationColleague": "Colleague",
+    "relationPartner": "External client / partner",
+    "relationTeammate": "Team member",
+    "channelFeishu": "Feishu",
+    "channelDingtalk": "DingTalk",
+    "channelWechat": "WeCom",
+    "channelEmail": "Work email",
+    "channelSlack": "Slack",
+    "safetyBanner": "Outbound send safety gate: nothing is sent without explicit human confirmation",
+    "originalSummary": "Original message summary:",
+    "sourcesToggle": "Factual references ({count})",
+    "draftHeading": "Digital twin draft reply:",
+    "statusConfirmed": "Confirmed for sending",
+    "statusDiscarded": "Discarded",
+    "editHint": "Click to edit the text directly",
+    "draftPlaceholder": "Draft the reply...",
+    "sentAt": "Explicitly authorized to send at {time}",
+    "discardedNote": "This draft has been voided",
+    "editedByHuman": "Edited manually",
+    "awaitingConfirmation": "Awaiting human confirmation",
+    "discard": "Discard",
+    "sending": "Sending...",
+    "confirmSend": "Confirm and send"
+  },
+  "inFlightSteer": {
+    "swimlanesTitle": "Active expert lanes ({count})",
+    "tokensUsed": "Tokens used",
+    "elapsed": "Elapsed time",
+    "steerHint": "Append a course-correction instruction while running",
+    "steerAction": "Steer",
+    "expandTaskAria": "Expand task details: {title}",
+    "collapseTaskAria": "Collapse task details: {title}",
+    "stepProgress": "{completed}/{total} steps ({percent}%)",
+    "currentOwner": "In charge: {name}",
+    "showDetails": "Show details",
+    "collapseSummary": "Collapse summary",
+    "findingsTitle": "Interim deliverables and key findings ({count})",
+    "findingsEmpty": "No interim deliverables yet...",
+    "workflowFooter": "Multi-agent collaboration workflow · live pulse reduction",
+    "updatedAt": "Updated at {time}",
+    "steerSubagentAria": "Steer subagent: {name}",
+    "close": "Close",
+    "quickPresets": "Quick steering directions",
+    "inputPlaceholder": "Enter a live fine-tuning instruction...",
+    "sendInstructionAria": "Send steering instruction",
+    "stopEarly": "Stop early (keep the partial draft so far)",
+    "presetConciseLabel": "Concise",
+    "presetConciseInstruction": "Focus on the core conclusion, trim the intermediate reasoning, and output the key code and solution directly.",
+    "presetDefensiveLabel": "Edge-case guard",
+    "presetDefensiveInstruction": "Pay special attention to null boundaries, exception handling and security checks.",
+    "presetLightweightLabel": "Lightweight approach",
+    "presetLightweightInstruction": "The current approach may be too heavy; try a lighter one that needs no heavy dependencies.",
+    "presetDraftNowLabel": "Output a draft",
+    "presetDraftNowInstruction": "Pause the deep refinement and first write out the partial conclusions already reached."
+  },
+  "streamingMarkdown": {
+    "closedCodeBlock": "Closed code block",
+    "streamingCode": "{language} (streaming...)",
+    "fastLayoutMode": "Fast layout mode",
+    "degradedProtection": "Load shedding active"
+  },
+  "thinkingPermission": {
+    "thinkingDepth": "Thinking depth",
+    "thinkingUnsupported": "Unsupported",
+    "thinkingUnsupportedHint": "The current model does not support thinking-budget control",
+    "thinkingSliderLabel": "Thinking depth slider (0k to 32k)",
+    "thinkingSliderAria": "Adjust the reasoning budget",
+    "thinkingTierOffLatency": "Answers directly with no thinking overhead",
+    "thinkingTierLowLatency": "Light thinking, good for simple polishing and explanations",
+    "thinkingTierMediumLatency": "Balanced thinking, good for routine multi-step reasoning",
+    "thinkingTierHighLatency": "Deep thinking, good for complex algorithms and system design",
+    "thinkingTierMaxLatency": "Maximum reasoning, good for rigorous math and whole-system architecture",
+    "permissionCurrent": "Current permission: {label} · {description}",
+    "permissionMenuTitle": "Agent permission mode",
+    "permissionTierStrict": "Safe guard",
+    "permissionTierStrictDesc": "Every file edit and shell command needs explicit human approval",
+    "permissionTierSemiAuto": "Semi-auto agile",
+    "permissionTierSemiAutoDesc": "Routine code edits and safe commands pass automatically; high-risk commands are intercepted for approval",
+    "permissionTierFullAuto": "Full-auto unattended",
+    "permissionTierFullAutoDesc": "Runs at full speed inside the sandbox boundary with no pop-ups and near-instant flow"
+  },
+  "dashboardWorkspace": {
+    "renameHint": "Click to rename",
+    "editTitle": "Edit title",
+    "cycleColSpan": "Switch layout width (currently {cols} columns)",
+    "refreshIntervalAria": "Auto-refresh interval",
+    "refreshManual": "Manual",
+    "refreshNow": "Refresh now",
+    "unpin": "Unpin",
+    "pinnedAt": "Pinned at {time}",
+    "refreshedAt": "Refreshed at {time}",
+    "drawerAria": "Digital employee monitoring workspace",
+    "drawerTitle": "Project workspace and monitoring board",
+    "widgetCount": "{count, plural, one {# widget} other {# widgets}}",
+    "drawerSubtitle": "Persistent rich-interaction prototypes, live data reports and digital-employee monitoring cards",
+    "refreshAllHint": "Refresh all widgets",
+    "refreshAll": "Refresh all",
+    "clearAllHint": "Clear all widgets",
+    "clearAll": "Clear",
+    "restoreViewport": "Restore viewport",
+    "fullscreen": "Full screen",
+    "closeDrawer": "Close workspace",
+    "searchPlaceholder": "Search widget title or content...",
+    "filterAll": "All",
+    "emptyTitle": "No widgets pinned yet",
+    "emptyHint": "Click the pin icon at the top right of any HTML / SVG / data-dashboard card the agent generates in a chat to pin it here, so it is not lost in the scroll of a single Q&A.",
+    "pinnedTooltip": "Pinned to workspace (click to unpin)",
+    "pinTooltip": "Pin to workspace dashboard",
+    "pinned": "Pinned",
+    "pin": "Pin"
   }
 }

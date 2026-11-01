@@ -66,7 +66,7 @@ export const UserQuestionNav: React.FC<UserQuestionNavProps> = ({
   return (
     <TooltipProvider delayDuration={150}>
       <aside
-        aria-label="User Question Navigation HUD"
+        aria-label={t('hudAria')}
         className={`fixed right-4 md:right-6 bottom-56 md:bottom-60 z-40 flex flex-col items-center rounded-full border border-slate-200/80 bg-white/90 p-1 shadow-lg backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90 ${className}`}
       >
         {/* Previous Question Jump Button */}

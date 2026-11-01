@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   RefreshCw,
   Trash2,
@@ -44,6 +45,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
   onUnpin,
   className,
 }) => {
+  const t = useTranslations('dashboardWorkspace');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.title);
 
@@ -104,7 +106,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
                 type="button"
                 className="text-left text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate hover:underline"
                 onClick={handleStartEdit}
-                title="点击重命名"
+                title={t('renameHint')}
               >
                 {widget.title}
               </button>
@@ -112,7 +114,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
                 type="button"
                 onClick={handleStartEdit}
                 className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-                title="编辑标题"
+                title={t('editTitle')}
               >
                 <Edit2 size={11} />
               </button>
@@ -139,7 +141,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
               )
             }
             className="p-1 rounded text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-            title={`切换布局宽档 (当前 ${widget.colSpan} 列)`}
+            title={t('cycleColSpan', { cols: widget.colSpan })}
           >
             {widget.colSpan === '1' ? (
               <Square size={13} />
@@ -152,7 +154,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
 
           {/* Refresh Interval Selector */}
           <select
-            aria-label="自动刷新频率"
+            aria-label={t('refreshIntervalAria')}
             value={widget.autoRefreshInterval}
             onChange={(e) =>
               onUpdateRefreshInterval(
@@ -162,7 +164,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
             }
             className="text-[10px] px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border-none rounded cursor-pointer focus:outline-none"
           >
-            <option value={0}>手动</option>
+            <option value={0}>{t('refreshManual')}</option>
             <option value={15}>15s</option>
             <option value={30}>30s</option>
             <option value={60}>1m</option>
@@ -174,7 +176,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
             type="button"
             onClick={() => onRefresh(widget.id)}
             className="p-1 rounded text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-            title="立即刷新"
+            title={t('refreshNow')}
           >
             <RefreshCw size={13} />
           </button>
@@ -184,7 +186,7 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
             type="button"
             onClick={() => onUnpin(widget.id)}
             className="p-1 rounded text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-            title="取消固定"
+            title={t('unpin')}
           >
             <Trash2 size={13} />
           </button>
@@ -200,13 +202,9 @@ export const DashboardWidgetCard: React.FC<DashboardWidgetCardProps> = ({
       <div className="flex items-center justify-between px-3 py-1.5 text-[10px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-850">
         <div className="flex items-center gap-1">
           <Clock size={10} />
-          <span>
-            固定于 {new Date(widget.pinnedAt).toLocaleTimeString()}
-          </span>
+          <span>{t('pinnedAt', { time: new Date(widget.pinnedAt).toLocaleTimeString() })}</span>
         </div>
-        <span>
-          已刷新 {new Date(widget.lastRefreshedAt).toLocaleTimeString()}
-        </span>
+        <span>{t('refreshedAt', { time: new Date(widget.lastRefreshedAt).toLocaleTimeString() })}</span>
       </div>
     </div>
   );

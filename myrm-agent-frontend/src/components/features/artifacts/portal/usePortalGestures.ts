@@ -3,12 +3,25 @@ import { SWIPE_CLOSE_THRESHOLD, SWIPE_MAX_OFFSET } from '@/lib/constants/artifac
 
 const MIN_PANEL_WIDTH = 320;
 const MAX_PANEL_WIDTH = 1200;
+const KEYBOARD_STEP = 20;
 
 interface UsePortalGesturesProps {
   isMobile: boolean;
   panelWidth: number;
   onClose: () => void;
   onSetPanelWidth: (width: number) => void;
+}
+
+/** 左缘分隔条的 ARIA 语义与指针、键盘操作；调用方自行补 `aria-label` 与样式。 */
+interface PortalSeparatorProps {
+  role: 'separator';
+  tabIndex: 0;
+  'aria-orientation': 'vertical';
+  'aria-valuenow': number;
+  'aria-valuemin': number;
+  'aria-valuemax': number;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
 }
 
 interface PortalGesturesReturn {
@@ -20,7 +33,7 @@ interface PortalGesturesReturn {
   handleTouchEnd: () => void;
   // 拖拽调整宽度
   isDragging: boolean;
-  handleDragStart: (e: React.MouseEvent) => void;
+  separatorProps: PortalSeparatorProps;
 }
 
 /** Portal 手势逻辑 Hook */
@@ -98,6 +111,32 @@ export function usePortalGestures({
     [panelWidth],
   );
 
+  // WAI-ARIA window splitter：面板右停靠，左键加宽、右键收窄，Home/End 跳到边界
+  const handleSeparatorKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      let target: number;
+      switch (e.key) {
+        case 'ArrowLeft':
+          target = panelWidth + KEYBOARD_STEP;
+          break;
+        case 'ArrowRight':
+          target = panelWidth - KEYBOARD_STEP;
+          break;
+        case 'Home':
+          target = MIN_PANEL_WIDTH;
+          break;
+        case 'End':
+          target = MAX_PANEL_WIDTH;
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+      onSetPanelWidth(Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, target)));
+    },
+    [panelWidth, onSetPanelWidth],
+  );
+
   // 拖拽移动和结束
   useEffect(() => {
     if (!isDragging) {
@@ -145,6 +184,15 @@ export function usePortalGestures({
     handleTouchMove,
     handleTouchEnd,
     isDragging,
-    handleDragStart,
+    separatorProps: {
+      role: 'separator',
+      tabIndex: 0,
+      'aria-orientation': 'vertical',
+      'aria-valuenow': panelWidth,
+      'aria-valuemin': MIN_PANEL_WIDTH,
+      'aria-valuemax': MAX_PANEL_WIDTH,
+      onMouseDown: handleDragStart,
+      onKeyDown: handleSeparatorKeyDown,
+    },
   };
 }

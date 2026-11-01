@@ -15,6 +15,7 @@
  */
 
 import React, { useEffect, useId, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { BrainCircuit, Info } from 'lucide-react';
 import {
   type ThinkingEffortLevel,
@@ -49,6 +50,7 @@ export default function ThinkingBudgetEffortSlider({
   className = '',
   disabled = false,
 }: ThinkingBudgetEffortSliderProps) {
+  const t = useTranslations('thinkingPermission');
   const sliderId = useId();
   const actionMode = useChatStore((state) => state.actionMode);
   const agentConfig = useChatStore((state) => state.agentConfig);
@@ -82,13 +84,13 @@ export default function ThinkingBudgetEffortSlider({
 
   const activeIndex = TIER_INDEX_MAP[currentLevel] ?? 0;
   const activeTierConfig = useMemo(() => {
-    const active = THINKING_BUDGET_TIERS.find((t) => t.level === currentLevel);
+    const active = THINKING_BUDGET_TIERS.find((tier) => tier.level === currentLevel);
     return active ?? THINKING_BUDGET_TIERS[0];
   }, [currentLevel]);
 
   const displayTier = useMemo(() => {
     if (hoveredLevel) {
-      return THINKING_BUDGET_TIERS.find((t) => t.level === hoveredLevel) ?? activeTierConfig;
+      return THINKING_BUDGET_TIERS.find((tier) => tier.level === hoveredLevel) ?? activeTierConfig;
     }
     return activeTierConfig;
   }, [hoveredLevel, activeTierConfig]);
@@ -127,12 +129,12 @@ export default function ThinkingBudgetEffortSlider({
           }`}
           aria-hidden="true"
         />
-        <span className="text-xs font-medium text-foreground">思考深度</span>
+        <span className="text-xs font-medium text-foreground">{t('thinkingDepth')}</span>
       </div>
 
       {isActuallyDisabled ? (
-        <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title="当前模型不支持思考预算调节">
-          <span className="italic">不支持</span>
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title={t('thinkingUnsupportedHint')}>
+          <span className="italic">{t('thinkingUnsupported')}</span>
           <Info className="w-3 h-3 opacity-70" />
         </div>
       ) : (
@@ -140,7 +142,7 @@ export default function ThinkingBudgetEffortSlider({
           {/* Native range slider for smooth touch & keyboard a11y */}
           <div className="relative flex items-center w-24">
             <label htmlFor={sliderId} className="sr-only">
-              思考深度滑块（0k 到 32k）
+              {t('thinkingSliderLabel')}
             </label>
             <input
               id={sliderId}
@@ -151,7 +153,7 @@ export default function ThinkingBudgetEffortSlider({
               value={activeIndex}
               onChange={handleSliderChange}
               disabled={isActuallyDisabled}
-              aria-label="调节思考推理预算"
+              aria-label={t('thinkingSliderAria')}
               data-testid="thinking-range-input"
               className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary focus:outline-hidden focus:ring-1 focus:ring-ring"
             />
@@ -181,7 +183,7 @@ export default function ThinkingBudgetEffortSlider({
                       ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
-                  title={`${tier.tokenLabel} · ${tier.latencyDescription}`}
+                  title={`${tier.tokenLabel} · ${t(tier.latencyDescriptionKey)}`}
                 >
                   {tier.tokenLabel}
                 </button>
@@ -193,7 +195,7 @@ export default function ThinkingBudgetEffortSlider({
           <span
             data-testid="thinking-tier-badge"
             className="text-[11px] font-medium text-muted-foreground min-w-[28px] text-right"
-            title={displayTier.latencyDescription}
+            title={t(displayTier.latencyDescriptionKey)}
           >
             {displayTier.tokenLabel}
           </span>

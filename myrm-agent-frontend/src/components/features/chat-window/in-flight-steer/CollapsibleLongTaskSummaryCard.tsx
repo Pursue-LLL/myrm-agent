@@ -7,6 +7,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Layers,
   ChevronDown,
@@ -29,6 +30,7 @@ export const CollapsibleLongTaskSummaryCard: React.FC<CollapsibleLongTaskSummary
   summary,
   className,
 }) => {
+  const t = useTranslations('inFlightSteer');
   const { toggleSummaryCollapse } = useInFlightSteerStore();
 
   const progressPercent =
@@ -48,7 +50,7 @@ export const CollapsibleLongTaskSummaryCard: React.FC<CollapsibleLongTaskSummary
         type="button"
         onClick={() => toggleSummaryCollapse(summary.id)}
         aria-expanded={!summary.isCollapsed}
-        aria-label={summary.isCollapsed ? `展开任务详情: ${summary.goalTitle}` : `折叠任务详情: ${summary.goalTitle}`}
+        aria-label={t(summary.isCollapsed ? 'expandTaskAria' : 'collapseTaskAria', { title: summary.goalTitle })}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
       >
         <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
@@ -61,13 +63,17 @@ export const CollapsibleLongTaskSummaryCard: React.FC<CollapsibleLongTaskSummary
                 {summary.goalTitle}
               </h4>
               <span className="px-1.5 py-0.2 text-[10px] font-medium rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
-                {summary.completedSteps}/{summary.totalSteps} 步骤 ({progressPercent}%)
+                {t('stepProgress', {
+                  completed: summary.completedSteps,
+                  total: summary.totalSteps,
+                  percent: progressPercent,
+                })}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
               <span className="inline-flex items-center gap-1">
                 <Bot size={11} className="text-neutral-400" />
-                <span>当前负责: {summary.currentActiveAgentName}</span>
+                <span>{t('currentOwner', { name: summary.currentActiveAgentName })}</span>
               </span>
             </div>
           </div>
@@ -75,7 +81,7 @@ export const CollapsibleLongTaskSummaryCard: React.FC<CollapsibleLongTaskSummary
 
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-neutral-400 font-medium max-sm:hidden">
-            {summary.isCollapsed ? '展开详情' : '折叠摘要'}
+            {summary.isCollapsed ? t('showDetails') : t('collapseSummary')}
           </span>
           <div className="p-1 rounded text-neutral-400">
             {summary.isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
@@ -96,11 +102,11 @@ export const CollapsibleLongTaskSummaryCard: React.FC<CollapsibleLongTaskSummary
         <div className="p-4 pt-3 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/40 dark:bg-neutral-900/40 animate-in fade-in slide-in-from-top-1 duration-150">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
             <Sparkles size={13} className="text-amber-500" />
-            <span>阶段性产物与关键发现 ({summary.keyFindings.length})</span>
+            <span>{t('findingsTitle', { count: summary.keyFindings.length })}</span>
           </div>
 
           {summary.keyFindings.length === 0 ? (
-            <p className="text-xs text-neutral-400 italic">暂无阶段性总结产物...</p>
+            <p className="text-xs text-neutral-400 italic">{t('findingsEmpty')}</p>
           ) : (
             <div className="space-y-1.5">
               {summary.keyFindings.map((finding, idx) => (
@@ -116,8 +122,8 @@ export const CollapsibleLongTaskSummaryCard: React.FC<CollapsibleLongTaskSummary
           )}
 
           <div className="mt-3 pt-2.5 flex items-center justify-between text-[10px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-200/50 dark:border-neutral-800">
-            <span>多智能体协作工作流 · 实时脉冲归约</span>
-            <span>更新于 {new Date(summary.updatedAt).toLocaleTimeString()}</span>
+            <span>{t('workflowFooter')}</span>
+            <span>{t('updatedAt', { time: new Date(summary.updatedAt).toLocaleTimeString() })}</span>
           </div>
         </div>
       ) : null}

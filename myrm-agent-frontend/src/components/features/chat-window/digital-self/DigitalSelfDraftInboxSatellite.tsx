@@ -2,6 +2,7 @@
 
 /**
  * [INPUT]
+ * - next-intl: useTranslations
  * - useDigitalSelfDraftStore::useDigitalSelfDraftStore (POS: Draft queue store)
  * - ToneDraftApprovalCard::ToneDraftApprovalCard (POS: Approval card)
  * - lucide-react::Mail, ChevronDown, ChevronUp, ShieldCheck (POS: Icons)
@@ -16,6 +17,7 @@
 
 import React, { useState } from 'react';
 import { Mail, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useDigitalSelfDraftStore } from './useDigitalSelfDraftStore';
 import ToneDraftApprovalCard from './ToneDraftApprovalCard';
 
@@ -26,6 +28,7 @@ export interface DigitalSelfDraftInboxSatelliteProps {
 export default function DigitalSelfDraftInboxSatellite({
   className = '',
 }: DigitalSelfDraftInboxSatelliteProps) {
+  const t = useTranslations('digitalSelf');
   const drafts = useDigitalSelfDraftStore((state) => state.drafts);
   const confirmAndSendOutbound = useDigitalSelfDraftStore((state) => state.confirmAndSendOutbound);
   const discardDraft = useDigitalSelfDraftStore((state) => state.discardDraft);
@@ -77,16 +80,16 @@ export default function DigitalSelfDraftInboxSatellite({
             </span>
           </div>
           <div>
-            <span className="font-semibold text-foreground">数字分身待审草稿</span>
+            <span className="font-semibold text-foreground">{t('satelliteTitle')}</span>
             <span className="text-[11px] text-muted-foreground ml-1.5">
-              （{pendingDrafts.length} 封待确认）
+              {t('pendingCount', { count: pendingDrafts.length })}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" aria-hidden="true" />
-          <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">门禁就绪</span>
+          <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">{t('gateReady')}</span>
           {expanded ? (
             <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
           ) : (

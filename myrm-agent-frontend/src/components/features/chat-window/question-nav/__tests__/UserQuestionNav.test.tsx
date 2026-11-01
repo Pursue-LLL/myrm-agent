@@ -49,7 +49,7 @@ describe('UserQuestionNav', () => {
     ]);
 
     render(<UserQuestionNav onJumpToMessageIndex={onJumpMock} />);
-    expect(screen.getByLabelText('User Question Navigation HUD')).toBeInTheDocument();
+    expect(screen.getByLabelText('hudAria')).toBeInTheDocument();
     expect(screen.getByText('1/2')).toBeInTheDocument();
   });
 

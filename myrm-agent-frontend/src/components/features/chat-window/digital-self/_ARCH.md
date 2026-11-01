@@ -7,7 +7,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |---|---|---|---|
-| `digitalSelfTypes.ts` | 核心契约 | 定义 4 档语气风格、4 档沟通对象关系、渠道类型、草稿状态与出站安全审计日志 | 纯契约导出与配置表 |
+| `digitalSelfTypes.ts` | 核心契约 | 定义 4 档语气风格、4 档沟通对象关系、渠道类型、草稿状态与出站安全审计日志；配置表里的名称与说明以 `digitalSelf` 命名空间的 message key（`labelKey` / `descriptionKey`）表达，由组件经 `useTranslations('digitalSelf')` 解析 | 纯契约导出与配置表 |
 | `useDigitalSelfDraftStore.ts` | 门禁状态机 | 管理待审草稿队列、内联快速编辑、语气重写润色、人类显式授权门禁与审计日志 | Zustand 响应式 Store |
 | `DigitalSelfToneSelector.tsx` | UI 组件 | 4 档语气风格（严谨正式/职场得体/友好活泼/简明干练）快速切换胶囊 | React 可交互组件 |
 | `ToneDraftApprovalCard.tsx` | UI 组件 | 待审草稿卡片，集成原消息摘要、关系标签、参考依据展开、内联编辑与出站硬门禁 | React 核心审核卡片 |

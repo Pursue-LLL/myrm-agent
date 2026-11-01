@@ -17,6 +17,7 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ArrowRight,
   CheckCircle2,
@@ -30,6 +31,9 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import type { UpgradeStage, UpgradeStageStep } from './upgradeCockpitTypes';
 
+const LEGACY_INSTANCE_VERSION = 'v0.21.4';
+const NEXT_INSTANCE_VERSION = 'v0.22.0';
+
 export interface DualInstanceHandoffPipelineModalProps {
   isOpen: boolean;
   currentStage: UpgradeStage;
@@ -41,6 +45,7 @@ export interface DualInstanceHandoffPipelineModalProps {
 export const DualInstanceHandoffPipelineModal: React.FC<
   DualInstanceHandoffPipelineModalProps
 > = ({ isOpen, currentStage, steps, onClose, onRollback }) => {
+  const t = useTranslations('settings.system.upgradeCockpit');
   if (!isOpen) {
     return null;
   }
@@ -65,10 +70,10 @@ export const DualInstanceHandoffPipelineModal: React.FC<
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">
-                双实例无感升级流水线
+                {t('modalTitle')}
               </h3>
               <p className="text-[11px] text-muted-foreground">
-                Blue-Green 原子接力与一键秒级快照回滚
+                {t('modalSubtitle')}
               </p>
             </div>
           </div>
@@ -89,16 +94,16 @@ export const DualInstanceHandoffPipelineModal: React.FC<
           <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
             <div className="flex items-center gap-2">
               <span className="rounded bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground border">
-                旧实例 v0.21.4 (活动兜底)
+                {t('oldInstance', { version: LEGACY_INSTANCE_VERSION })}
               </span>
             </div>
             <div className="flex items-center gap-1 text-primary">
               <ArrowRight className="h-4 w-4 animate-pulse" />
-              <span className="text-[10px] font-medium">无损切换</span>
+              <span className="text-[10px] font-medium">{t('losslessSwitch')}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded bg-primary/10 px-2 py-1 font-mono text-[11px] text-primary border border-primary/20 font-semibold">
-                新实例 v0.22.0 (准备接力)
+                {t('newInstance', { version: NEXT_INSTANCE_VERSION })}
               </span>
             </div>
           </div>
@@ -139,12 +144,12 @@ export const DualInstanceHandoffPipelineModal: React.FC<
                       </span>
                       {isRunning && (
                         <span className="font-mono text-[10px] text-primary font-medium">
-                          执行中...
+                          {t('stepRunning')}
                         </span>
                       )}
                       {isFinished && (
                         <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
-                          已就绪
+                          {t('stepReady')}
                         </span>
                       )}
                     </div>
@@ -165,10 +170,10 @@ export const DualInstanceHandoffPipelineModal: React.FC<
             >
               <div className="flex items-center gap-1.5 font-semibold text-emerald-800 dark:text-emerald-300">
                 <Sparkles className="h-4 w-4 text-emerald-500" />
-                <span>升级完成！新实例已原子接替服务</span>
+                <span>{t('completeTitle')}</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                已自动完成沙箱健康度自检与数据库迁移，全量会话与记忆无损保留。
+                {t('completeBody')}
               </p>
             </div>
           )}
@@ -181,7 +186,7 @@ export const DualInstanceHandoffPipelineModal: React.FC<
             >
               <div className="flex items-center gap-1.5 font-semibold">
                 <Undo2 className="h-4 w-4 text-blue-500" />
-                <span>已原子回滚至上一稳定版本快照</span>
+                <span>{t('rolledBack')}</span>
               </div>
             </div>
           )}
@@ -197,7 +202,7 @@ export const DualInstanceHandoffPipelineModal: React.FC<
             className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <Undo2 className="h-3 w-3" />
-            <span>一键秒级原子回滚</span>
+            <span>{t('rollbackAction')}</span>
           </button>
 
           <button
@@ -207,7 +212,7 @@ export const DualInstanceHandoffPipelineModal: React.FC<
             className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
           >
             <GitBranch className="h-3 w-3" />
-            <span>{isComplete ? '体验新版本' : '关闭窗口'}</span>
+            <span>{isComplete ? t('tryNewVersion') : t('closeWindow')}</span>
           </button>
         </div>
       </div>

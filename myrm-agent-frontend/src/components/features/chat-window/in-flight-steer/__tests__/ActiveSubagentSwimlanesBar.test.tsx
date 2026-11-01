@@ -4,6 +4,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ActiveSubagentSwimlanesBar } from '../ActiveSubagentSwimlanesBar';
 import { useInFlightSteerStore } from '../useInFlightSteerStore';
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
+
 vi.mock('@/services/background-tasks', () => ({
   steerBackgroundTask: vi.fn().mockResolvedValue({ message: 'ok', task_id: 't-1' }),
   cancelBackgroundTask: vi.fn().mockResolvedValue({ message: 'ok', task_id: 't-1' }),
@@ -61,16 +63,16 @@ describe('ActiveSubagentSwimlanesBar', () => {
 
     render(<ActiveSubagentSwimlanesBar />);
 
-    expect(screen.queryByRole('dialog', { name: /纠偏子代理: Security Bot/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /纠偏子智能体: Security Bot/ })).not.toBeInTheDocument();
 
     const steerBtn = screen.getByRole('button', { name: '纠偏' });
     fireEvent.click(steerBtn);
 
-    expect(screen.getByRole('dialog', { name: /纠偏子代理: Security Bot/ })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /纠偏子智能体: Security Bot/ })).toBeInTheDocument();
     expect(useInFlightSteerStore.getState().activePopoverSubagentId).toBe('agent-2');
 
     // Click again to close
     fireEvent.click(steerBtn);
-    expect(screen.queryByRole('dialog', { name: /纠偏子代理: Security Bot/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /纠偏子智能体: Security Bot/ })).not.toBeInTheDocument();
   });
 });

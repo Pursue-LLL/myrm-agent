@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import PermissionModeTierSwitcher from '../PermissionModeTierSwitcher';
 import { usePermissionTierStore } from '../usePermissionTierStore';
+
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
 
 describe('PermissionModeTierSwitcher', () => {
   beforeEach(() => {

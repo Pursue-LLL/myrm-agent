@@ -103,6 +103,6 @@ describe('ReconnectStatusPill', () => {
     render(<ReconnectStatusPill sessionId="chat_session_001" />);
 
     fireEvent.click(screen.getByRole('button'));
-    expect(screen.getByText(/重连计数: 3/)).toBeInTheDocument();
+    expect(screen.getByText('reconnectCount')).toBeInTheDocument();
   });
 });

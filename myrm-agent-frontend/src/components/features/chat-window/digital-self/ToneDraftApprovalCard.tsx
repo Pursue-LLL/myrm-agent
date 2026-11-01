@@ -2,6 +2,7 @@
 
 /**
  * [INPUT]
+ * - next-intl: useTranslations
  * - digitalSelfTypes::DigitalSelfDraftItem, ToneStyle, TONE_STYLE_CONFIGS, RELATIONSHIP_CONFIGS, CHANNEL_CONFIGS (POS: Contracts)
  * - DigitalSelfToneSelector (POS: Tone pill selector)
  * - lucide-react::Lock, Send, Trash2, ChevronDown, ChevronRight, ShieldCheck, ExternalLink, MessageCircle (POS: Icons)
@@ -26,6 +27,7 @@ import {
   MessageCircle,
   Loader2,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   type DigitalSelfDraftItem,
   type ToneStyle,
@@ -53,15 +55,15 @@ export default function ToneDraftApprovalCard({
   isSending = false,
   className = '',
 }: ToneDraftApprovalCardProps) {
+  const t = useTranslations('digitalSelf');
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const channelConfig = CHANNEL_CONFIGS[draft.channel] ?? { channel: draft.channel, displayName: draft.channel };
-  const relationConfig = RELATIONSHIP_CONFIGS[draft.relationship] ?? {
-    relationship: draft.relationship,
-    displayName: draft.relationship,
-    colorClass: 'text-muted-foreground bg-muted',
-  };
+  const channelConfig = CHANNEL_CONFIGS[draft.channel];
+  const channelLabel = channelConfig ? t(channelConfig.labelKey) : draft.channel;
+  const relationConfig = RELATIONSHIP_CONFIGS[draft.relationship];
+  const relationLabel = relationConfig ? t(relationConfig.labelKey) : draft.relationship;
+  const relationColorClass = relationConfig?.colorClass ?? 'text-muted-foreground bg-muted';
 
   const isConfirmedSent = draft.status === 'confirmed_sent';
   const isDiscarded = draft.status === 'discarded';
@@ -85,7 +87,7 @@ export default function ToneDraftApprovalCard({
       >
         <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 font-medium">
           <Lock className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-          <span>出站发送物理安全门禁：未经人工显式确认，绝对禁止直接发送</span>
+          <span>{t('safetyBanner')}</span>
         </div>
         <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" aria-hidden="true" />
       </div>
@@ -95,13 +97,13 @@ export default function ToneDraftApprovalCard({
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted text-xs font-semibold text-foreground">
             <MessageCircle className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-            <span>{channelConfig.displayName}</span>
+            <span>{channelLabel}</span>
           </div>
           <span className="text-sm font-semibold text-foreground">{draft.recipientName}</span>
           <span
-            className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${relationConfig.colorClass}`}
+            className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${relationColorClass}`}
           >
-            {relationConfig.displayName}
+            {relationLabel}
           </span>
         </div>
 
@@ -119,7 +121,7 @@ export default function ToneDraftApprovalCard({
 
       {/* Original Incoming Message Quote */}
       <div className="rounded-lg border border-border/40 bg-muted/40 p-2.5 mb-3 text-xs text-muted-foreground">
-        <div className="font-medium text-foreground mb-1">原消息摘要：</div>
+        <div className="font-medium text-foreground mb-1">{t('originalSummary')}</div>
         <div className="line-clamp-3 italic leading-relaxed">“{draft.originalMessage}”</div>
       </div>
 
@@ -139,7 +141,7 @@ export default function ToneDraftApprovalCard({
             ) : (
               <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
             )}
-            <span>事实参考依据（{draft.contextSources.length} 条）</span>
+            <span>{t('sourcesToggle', { count: draft.contextSources.length })}</span>
           </button>
 
           {sourcesOpen && (
@@ -176,10 +178,10 @@ export default function ToneDraftApprovalCard({
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1.5">
           <label htmlFor={`draft-input-${draft.id}`} className="text-xs font-semibold text-foreground">
-            数字分身拟答草案：
+            {t('draftHeading')}
           </label>
           <span className="text-[11px] text-muted-foreground">
-            {isConfirmedSent ? '已确认出站' : isDiscarded ? '已放弃' : '可直接点击修改文字'}
+            {isConfirmedSent ? t('statusConfirmed') : isDiscarded ? t('statusDiscarded') : t('editHint')}
           </span>
         </div>
 
@@ -194,7 +196,7 @@ export default function ToneDraftApprovalCard({
           }}
           rows={4}
           className="w-full text-xs p-2.5 rounded-lg border border-border/80 bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary disabled:opacity-60 resize-y leading-relaxed font-sans"
-          placeholder="草拟回复内容..."
+          placeholder={t('draftPlaceholder')}
         />
       </div>
 
@@ -207,14 +209,14 @@ export default function ToneDraftApprovalCard({
               className="text-xs font-medium text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
             >
               <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-              已于 {new Date(draft.confirmedAt ?? Date.now()).toLocaleTimeString()} 显式授权发送
+              {t('sentAt', { time: new Date(draft.confirmedAt ?? Date.now()).toLocaleTimeString() })}
             </span>
           ) : isDiscarded ? (
-            <span className="text-xs font-medium text-muted-foreground">该草稿已作废</span>
+            <span className="text-xs font-medium text-muted-foreground">{t('discardedNote')}</span>
           ) : isEditing ? (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400">已做人工修改</span>
+            <span className="text-[11px] text-amber-600 dark:text-amber-400">{t('editedByHuman')}</span>
           ) : (
-            <span className="text-[11px] text-muted-foreground">等待人工确认</span>
+            <span className="text-[11px] text-muted-foreground">{t('awaitingConfirmation')}</span>
           )}
         </div>
 
@@ -230,7 +232,7 @@ export default function ToneDraftApprovalCard({
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
               <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>放弃</span>
+              <span>{t('discard')}</span>
             </button>
 
             <button
@@ -243,12 +245,12 @@ export default function ToneDraftApprovalCard({
               {isSending ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-                  <span>正在出站发送...</span>
+                  <span>{t('sending')}</span>
                 </>
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>确认出站发送</span>
+                  <span>{t('confirmSend')}</span>
                 </>
               )}
             </button>
