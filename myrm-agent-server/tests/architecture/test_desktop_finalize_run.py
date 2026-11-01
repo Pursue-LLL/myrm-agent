@@ -54,7 +54,6 @@ case "$1 $2" in
   "release view")
     [[ "$3" == "$RELEASE_TAG" ]] || { echo "release not found" >&2; exit 1; }
     ls -1 "$RELEASE_DIR" | jq -R '{name: .}' | jq -s '{assets: .}' | emit ;;
-  "release list") jq -n --arg tag "$RELEASE_TAG" '[{tagName: $tag}]' | emit ;;
   "release download") cp "$RELEASE_DIR"/* "$download_dir"/ ;;
   "release upload")
     for arg in "${@:3}"; do [[ -f "$arg" ]] && cp "$arg" "$RELEASE_DIR"/; done
@@ -158,7 +157,7 @@ def test_verify_accepts_what_finalize_wrote(release: Release) -> None:
     assert _ANNOTATION not in verified.stdout
 
 
-def test_an_unknown_release_fails_with_the_reason_and_the_tags_that_exist(release: Release) -> None:
+def test_an_unknown_release_fails_with_the_reason(release: Release) -> None:
     done = release.finalize("v9.9.9")
 
     assert done.returncode == 1
@@ -166,7 +165,6 @@ def test_an_unknown_release_fails_with_the_reason_and_the_tags_that_exist(releas
     assert len(annotations) == 1
     assert "cannot read release v9.9.9" in annotations[0]
     assert "release not found" in annotations[0]
-    assert _TAG in annotations[0]
     assert not (release.assets / "latest.json").exists()
 
 
