@@ -18,7 +18,7 @@ _OPENAI_COMPAT = {"openai-like", "openai_compatible", "openai-compatible", "open
 
 
 def normalize_model(raw: str) -> tuple[str, str | None]:
-    """Convert env model names (e.g. openai-like/X) to LiteLLM (openai/X, provider)."""
+    """Convert env model names (e.g. openai-like/X) to a route id (openai/X, provider)."""
     if "/" in raw:
         prefix, model = raw.split("/", 1)
         if prefix in _OPENAI_COMPAT:
@@ -27,8 +27,8 @@ def normalize_model(raw: str) -> tuple[str, str | None]:
     return raw, None
 
 
-def litellm_config_for(key_prefix: str) -> tuple[str, str, str, str | None]:
-    """Return ``(api_key, base_url, route_model_id, provider)`` for raw litellm calls."""
+def route_config_for(key_prefix: str) -> tuple[str, str, str, str | None]:
+    """Return ``(api_key, base_url, route_model_id, provider)`` for raw transport calls."""
     api_key = os.environ.get(f"{key_prefix}_API_KEY", "")
     base_url = os.environ.get(f"{key_prefix}_BASE_URL", "")
     model = os.environ.get(f"{key_prefix}_MODEL", "")

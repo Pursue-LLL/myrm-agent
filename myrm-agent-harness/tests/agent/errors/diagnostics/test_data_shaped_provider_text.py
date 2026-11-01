@@ -10,9 +10,9 @@ from __future__ import annotations
 import httpx2
 import openai
 import pytest
-from litellm import exceptions as litellm_errors
 
 from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
+from tests.support.provider_errors import provider_error
 
 _MODEL = "stub-model"
 _BASE_URL = "https://provider.test/v1"
@@ -105,10 +105,8 @@ def test_failure_text_that_opens_with_a_bracketed_tag_is_still_shown(text: str) 
 
 
 @pytest.mark.parametrize("words", _TAGGED_WORDS.values(), ids=_TAGGED_WORDS.keys())
-def test_a_rejection_whose_words_after_the_provider_framing_open_with_a_tag_shows_them(words: str) -> None:
-    exc = litellm_errors.BadRequestError(
-        message=f"VolcengineException - {words}", model=_MODEL, llm_provider="volcengine"
-    )
+def test_a_rejection_whose_plain_text_body_opens_with_a_tag_shows_the_words(words: str) -> None:
+    exc = provider_error("volcengine", 400, words)
 
     result = LLMErrorDiagnostic.diagnose(exc, _CONTEXT, locale="en")
 

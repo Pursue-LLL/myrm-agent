@@ -98,7 +98,11 @@ class TestClassification:
                 '{"error": {"message": "This model\'s maximum context length is 8192 tokens", "code": "context_length_exceeded"}}',
                 ErrorKind.CONTEXT_OVERFLOW,
             ),
-            (404, '{"error": {"message": "The model `gpt-9` does not exist", "code": "model_not_found"}}', ErrorKind.MODEL_NOT_FOUND),
+            (
+                404,
+                '{"error": {"message": "The model `gpt-9` does not exist", "code": "model_not_found"}}',
+                ErrorKind.MODEL_NOT_FOUND,
+            ),
         ],
     )
     def test_http_failures_classify_by_status_and_text(self, status: int, body: str, kind: ErrorKind) -> None:

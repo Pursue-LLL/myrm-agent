@@ -32,7 +32,7 @@ pytestmark = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("compatible", [False, True], ids=["native_route", "openai_compatible_route"])
 async def test_a_message_with_an_unpaired_half_of_an_emoji_is_answered(compatible: bool) -> None:
-    """The LITE model is called through its own LiteLLM route and through the OpenAI-compatible route a custom provider takes."""
+    """The LITE model is called through its own provider route and through the OpenAI-compatible route a custom provider takes."""
     selection = get_lite_model_selection()
     native = str(selection["model"])
     route = f"openai/{native.split('/', 1)[1]}" if compatible else native

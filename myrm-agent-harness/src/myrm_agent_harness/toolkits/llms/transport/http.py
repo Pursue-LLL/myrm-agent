@@ -10,6 +10,8 @@
 - send_json / asend_json: one non-streaming round trip (JSON or multipart form body), parsed
 - open_stream / aopen_stream: one streaming round trip, as a chunk iterator
 - ProviderStream / AsyncProviderStream: chunk iterators that remember the finish reason the provider reported
+- aclose_clients: closes and forgets every shared client, so the next request builds its client under the TLS and
+  proxy settings then in force
 
 [POS]
 The only place the transport touches the network. A wire module builds a PreparedRequest and a decoder; this module
@@ -96,6 +98,27 @@ def _sync_client(proxy: str | None) -> httpx.Client:
         if client is None or client.is_closed:
             client = _SYNC_CLIENTS[proxy] = httpx.Client(proxy=proxy, limits=_LIMITS, timeout=_timeout(None))
         return client
+
+
+async def aclose_clients() -> None:
+    """Close and forget every shared client.
+
+    A client keeps the TLS context it was built with, so a process that changes its TLS policy at runtime calls this
+    to make the next request build a new one. Clients of another event loop cannot be closed from this one and are
+    only forgotten.
+    """
+    running = asyncio.get_running_loop()
+    entries = list(_ASYNC_CLIENTS.values())
+    _ASYNC_CLIENTS.clear()
+    with _SYNC_LOCK:
+        sync_clients = list(_SYNC_CLIENTS.values())
+        _SYNC_CLIENTS.clear()
+    for loop, clients in entries:
+        if loop is running:
+            for client in clients.values():
+                await client.aclose()
+    for sync_client in sync_clients:
+        sync_client.close()
 
 
 def _build(client: httpx.Client | httpx.AsyncClient, req: PreparedRequest) -> httpx.Request:

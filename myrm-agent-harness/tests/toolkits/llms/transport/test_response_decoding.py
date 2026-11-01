@@ -202,11 +202,19 @@ class TestAnthropicStream:
                 ),
                 (
                     "content_block_delta",
-                    {"type": "content_block_delta", "index": 1, "delta": {"type": "input_json_delta", "partial_json": '{"x":'}},
+                    {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "input_json_delta", "partial_json": '{"x":'},
+                    },
                 ),
                 (
                     "content_block_delta",
-                    {"type": "content_block_delta", "index": 1, "delta": {"type": "input_json_delta", "partial_json": "1}"}},
+                    {
+                        "type": "content_block_delta",
+                        "index": 1,
+                        "delta": {"type": "input_json_delta", "partial_json": "1}"},
+                    },
                 ),
                 (
                     "content_block_start",
@@ -218,7 +226,11 @@ class TestAnthropicStream:
                 ),
                 (
                     "content_block_delta",
-                    {"type": "content_block_delta", "index": 2, "delta": {"type": "input_json_delta", "partial_json": "{}"}},
+                    {
+                        "type": "content_block_delta",
+                        "index": 2,
+                        "delta": {"type": "input_json_delta", "partial_json": "{}"},
+                    },
                 ),
                 (
                     "message_delta",
@@ -323,7 +335,10 @@ class TestGeminiParse:
                     {
                         "content": {
                             "parts": [
-                                {"functionCall": {"name": "lookup", "args": {"city": "Paris"}}, "thoughtSignature": "SIG"}
+                                {
+                                    "functionCall": {"name": "lookup", "args": {"city": "Paris"}},
+                                    "thoughtSignature": "SIG",
+                                }
                             ]
                         },
                         "finishReason": "STOP",
@@ -339,7 +354,13 @@ class TestGeminiParse:
 
     @pytest.mark.parametrize(
         ("reason", "finish"),
-        [("STOP", "stop"), ("MAX_TOKENS", "length"), ("SAFETY", "content_filter"), ("RECITATION", "content_filter"), (None, "stop")],
+        [
+            ("STOP", "stop"),
+            ("MAX_TOKENS", "length"),
+            ("SAFETY", "content_filter"),
+            ("RECITATION", "content_filter"),
+            (None, "stop"),
+        ],
     )
     def test_finish_reason_mapping(self, reason: str | None, finish: str) -> None:
         candidate: Payload = {"content": {"parts": [{"text": "x"}]}}
@@ -386,7 +407,10 @@ class TestGeminiStream:
                     None,
                     {
                         "candidates": [
-                            {"content": {"parts": [{"functionCall": {"name": "b", "args": {"k": 1}}}]}, "finishReason": "STOP"}
+                            {
+                                "content": {"parts": [{"functionCall": {"name": "b", "args": {"k": 1}}}]},
+                                "finishReason": "STOP",
+                            }
                         ]
                     },
                 ),
@@ -442,9 +466,7 @@ class TestOllama:
 
     @pytest.mark.parametrize(("done_reason", "finish"), [("stop", "stop"), ("length", "length"), (None, "stop")])
     def test_parse_finish_reason(self, done_reason: str | None, finish: str) -> None:
-        answer = ollama_chat.parse(
-            self.route, {"message": {"content": "x"}, "done": True, "done_reason": done_reason}
-        )
+        answer = ollama_chat.parse(self.route, {"message": {"content": "x"}, "done": True, "done_reason": done_reason})
         assert answer["choices"][0]["finish_reason"] == finish  # type: ignore[index]
 
     def test_stream_fragments_then_the_done_line_with_counts(self) -> None:

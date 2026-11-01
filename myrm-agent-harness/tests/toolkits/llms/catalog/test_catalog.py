@@ -102,7 +102,9 @@ class TestCost:
             cache_read_input_token_cost=5e-7,
             cache_creation_input_token_cost=2.5e-6,
         )
-        prompt, completion = cost_per_token("vendor-a/priced", 1000, 0, cache_read_tokens=600, cache_write_tokens=100) or (0, 0)
+        prompt, completion = cost_per_token(
+            "vendor-a/priced", 1000, 0, cache_read_tokens=600, cache_write_tokens=100
+        ) or (0, 0)
         # 300 fresh @ 2/M + 600 read @ 0.5/M + 100 written @ 2.5/M
         assert prompt == pytest.approx(300 * 2e-6 + 600 * 5e-7 + 100 * 2.5e-6)
         assert completion == 0

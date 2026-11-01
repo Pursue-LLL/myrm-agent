@@ -6,6 +6,7 @@ import ssl
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
@@ -42,19 +43,17 @@ def _make_context_overflow_error() -> Exception:
     return exc
 
 
-# The two wordings client libraries give a rejected certificate: the reason only in the cause of a bare connection
-# error, or already in the outer text beside "Cannot connect to host".
+# The two wordings a connection failure gives a rejected certificate: the reason only in the cause of a bare
+# connection error, or already in the outer text.
 _CERTIFICATE_OUTER_TEXTS = (
-    "litellm.InternalServerError: OpenAIException - Connection error.",
-    "litellm.InternalServerError: AnthropicException - Cannot connect to host 127.0.0.1:443 ssl:True "
-    "[SSLCertVerificationError: (1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
-    "unable to get local issuer certificate')]",
+    "",
+    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate",
 )
 
 
 def _make_certificate_error(outer_text: str) -> Exception:
     root = ssl.SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed")
-    wrapper = Exception(outer_text)
+    wrapper = httpx.ConnectError(outer_text)
     wrapper.__cause__ = root
     return wrapper
 
@@ -248,7 +247,7 @@ class TestKeyPoolLLMAuthBillingRotation:
             key: _make_mock_llm(agenerate_result=_make_certificate_error(outer_text)) for key in ("k1", "k2", "k3")
         }
         llm = KeyPoolLLM(instances=instances, pool=pool)
-        with pytest.raises(Exception, match=r"litellm\.InternalServerError"):
+        with pytest.raises(httpx.ConnectError):
             await llm._agenerate([HumanMessage(content="hi")])
         assert sum(instance._agenerate.await_count for instance in instances.values()) == 1
         assert pool.available_count() == 3
@@ -261,7 +260,7 @@ class TestKeyPoolLLMAuthBillingRotation:
             key: _make_mock_llm(astream_chunks=_make_certificate_error(outer_text)) for key in ("k1", "k2", "k3")
         }
         llm = KeyPoolLLM(instances=instances, pool=pool)
-        with pytest.raises(Exception, match=r"litellm\.InternalServerError"):
+        with pytest.raises(httpx.ConnectError):
             _ = [chunk async for chunk in llm._astream([HumanMessage(content="hi")])]
         assert pool.available_count() == 3
 

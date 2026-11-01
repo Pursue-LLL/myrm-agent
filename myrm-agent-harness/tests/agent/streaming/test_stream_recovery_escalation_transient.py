@@ -13,6 +13,7 @@ import asyncio
 import ssl
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
@@ -292,7 +293,7 @@ class TestHandleTransientRetry:
     async def test_rejected_certificate_is_not_retried(self, ctx):
         """Waiting cannot change a certificate verdict, however the client library words the failure."""
         executor = _make_executor(ctx)
-        wrapper = Exception("litellm.InternalServerError: OpenAIException - Connection error.")
+        wrapper = httpx.ConnectError("")
         wrapper.__cause__ = ssl.SSLCertVerificationError(
             1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
         )

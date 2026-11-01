@@ -39,14 +39,16 @@ async def test_normal_request_with_retry_enabled():
     )
 
     # Make a normal request
-    import litellm
     from langchain_core.messages import HumanMessage
+    from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
 
     messages = [HumanMessage(content="Say 'test' only")]
     try:
         result = await llm.ainvoke(messages)
-    except litellm.AuthenticationError as e:
-        pytest.skip(f"Skipping due to AuthenticationError with provided key: {e}")
+    except LLMHTTPError as e:
+        if e.status_code not in (401, 403):
+            raise
+        pytest.skip(f"Skipping due to an authentication failure with the provided key: {e}")
 
     # Verify response is valid
     assert result is not None

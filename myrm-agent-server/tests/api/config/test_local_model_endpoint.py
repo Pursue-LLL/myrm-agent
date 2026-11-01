@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 from fastapi.testclient import TestClient
 
 from tests.support.minimal_app import build_minimal_app
@@ -67,8 +68,8 @@ def test_stalled_model_is_cancelled_and_reported_as_no_response() -> None:
 
 
 def test_provider_side_timeout_keeps_the_connection_message() -> None:
-    """A timeout reported by the provider client is a connection problem, not a deadline expiry."""
-    ainvoke = AsyncMock(side_effect=RuntimeError("litellm.Timeout: Connection timed out after 30 seconds"))
+    """A timeout reported by the HTTP client is a connection problem, not a deadline expiry."""
+    ainvoke = AsyncMock(side_effect=httpx.ConnectTimeout("Connection timed out after 30 seconds"))
     with patch(_FACTORY, return_value=_llm_with(ainvoke)):
         response = client.post(_URL, json=_PAYLOAD)
 

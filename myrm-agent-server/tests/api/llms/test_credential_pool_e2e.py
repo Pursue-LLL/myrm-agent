@@ -24,8 +24,8 @@ def _clear_llm_cache() -> None:
     LLMManager.clear_cache()
 
 
-def _mock_litellm_model(*, api_key: str, **kwargs: object) -> MagicMock:
-    """Create a mock LiteLLM model for testing."""
+def _mock_chat_model(*, api_key: str, **kwargs: object) -> MagicMock:
+    """Create a mock chat model for testing."""
     model = MagicMock()
     model.model = f"model-{api_key}"
     model._agenerate = MagicMock(return_value=MagicMock())
@@ -58,7 +58,7 @@ async def test_strategy_from_frontend_to_harness_fill_first(
     """Test FILL_FIRST strategy flows from frontend to Harness pool."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     # Frontend sends ModelSelection with fill_first strategy
@@ -88,7 +88,7 @@ async def test_strategy_from_frontend_to_harness_least_used(
     """Test LEAST_USED strategy flows from frontend to Harness pool."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     selection = ModelSelection(
@@ -111,7 +111,7 @@ async def test_strategy_defaults_to_round_robin_when_omitted(
     """Test default ROUND_ROBIN strategy when frontend doesn't specify."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     selection = ModelSelection(
@@ -135,7 +135,7 @@ async def test_strategy_case_insensitive_normalization(
     """Test strategy normalization handles various case formats."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     # Frontend sends uppercase with underscores
@@ -155,7 +155,7 @@ async def test_invalid_strategy_raises_error(mock_providers: dict[str, object], 
     """Test invalid strategy raises descriptive error."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     selection = ModelSelection(
@@ -175,7 +175,7 @@ async def test_single_key_always_uses_round_robin(monkeypatch: pytest.MonkeyPatc
     """Test single-key pool defaults to ROUND_ROBIN regardless of frontend choice."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     providers = {
@@ -211,7 +211,7 @@ async def test_strategy_affects_cache_key(mock_providers: dict[str, object], mon
     """Test different strategies result in different cached instances."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
-        _mock_litellm_model,
+        _mock_chat_model,
     )
 
     # Create two selections with different strategies

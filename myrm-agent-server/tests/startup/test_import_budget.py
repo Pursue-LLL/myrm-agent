@@ -8,10 +8,10 @@
   past its module budget.
 
 [POS]
-Startup tests. Importing the HTTP application must not wait on the network (litellm
-downloads its price table from GitHub at import time unless the process is told to use the
-packaged one) and must not silently grow: every extra module is CPU time spent on every
-launch of the server and of the desktop sidecar.
+Startup tests. Importing the HTTP application must not wait on the network (a dependency
+that fetches a remote table at import time would stall every launch) and must not silently
+grow: every extra module is CPU time spent on every launch of the server and of the desktop
+sidecar.
 """
 
 from __future__ import annotations
@@ -27,17 +27,17 @@ import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 
-# 8,206 modules were imported when this gate was introduced; the rest is ~10% headroom.
+# 6,418 modules were imported when the budget was last re-measured; the rest is ~10% headroom.
 # Raise it deliberately, with a reason, when a feature genuinely needs more modules, never to
 # silence an accidental eager import.
-_MAX_IMPORTED_MODULES = 9_000
+_MAX_IMPORTED_MODULES = 7_100
 
 _RESULT_FILE_ENV = "MYRM_STARTUP_GATE_RESULT_FILE"
 
 # Runs in a fresh interpreter so modules already imported by pytest cannot hide an eager
 # import. Non-loopback DNS lookups and connects are recorded and refused, so a regression
 # fails an assertion quickly instead of hanging on the network. The result goes to a file
-# because imports print to stdout (litellm does).
+# because imports may print to stdout.
 _PROBE_SOURCE = f"""
 import json
 import os
@@ -90,9 +90,7 @@ class _ImportProbe:
 @pytest.fixture(scope="module")
 def import_probe(tmp_path_factory: pytest.TempPathFactory) -> _ImportProbe:
     result_file = tmp_path_factory.mktemp("startup-gate") / "result.json"
-    # The default under test comes from the app package itself, so an override exported in
-    # the developer's shell must not leak into the child interpreter.
-    env = {key: value for key, value in os.environ.items() if key != "LITELLM_LOCAL_MODEL_COST_MAP"}
+    env = dict(os.environ)
     env[_RESULT_FILE_ENV] = str(result_file)
     completed = subprocess.run(
         [sys.executable, "-c", _PROBE_SOURCE],

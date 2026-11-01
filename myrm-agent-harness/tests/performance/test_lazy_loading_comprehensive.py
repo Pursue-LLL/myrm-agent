@@ -25,7 +25,7 @@ def test_toolkits_no_heavy_imports():
 import sys
 import myrm_agent_harness.toolkits
 
-heavy_deps = ["litellm", "patchright", "numpy", "jieba", "langgraph"]
+heavy_deps = ["myrm_agent_harness.toolkits.llms.transport", "patchright", "numpy", "jieba", "langgraph"]
 loaded = [dep for dep in heavy_deps if dep in sys.modules]
 
 assert not loaded, f"Unexpected heavy dependencies loaded: {loaded}"
@@ -75,7 +75,7 @@ def test_web_search_no_heavy_imports():
 import sys
 from myrm_agent_harness.toolkits.web_search import WebSearchTools
 
-heavy_deps = ["litellm", "jieba"]
+heavy_deps = ["myrm_agent_harness.toolkits.llms.transport", "jieba"]
 loaded = [dep for dep in heavy_deps if dep in sys.modules]
 
 assert not loaded, f"Unexpected heavy dependencies loaded: {loaded}"
@@ -90,8 +90,8 @@ print("OK")
     assert "OK" in result.stdout
 
 
-def test_lazy_loading_litellm():
-    """Verify litellm is loaded only when accessing llm_manager."""
+def test_lazy_loading_model_transport():
+    """Verify the model transport (and its HTTP client) is loaded only when accessing llm_manager."""
     result = subprocess.run(
         [
             sys.executable,
@@ -100,11 +100,13 @@ def test_lazy_loading_litellm():
 import sys
 from myrm_agent_harness import toolkits
 
-assert "litellm" not in sys.modules, "litellm should not be loaded yet"
+transport = "myrm_agent_harness.toolkits.llms.transport"
+assert transport not in sys.modules, "the model transport should not be loaded yet"
+assert "httpx" not in sys.modules, "httpx should not be loaded yet"
 
 from myrm_agent_harness.toolkits import llm_manager
 
-assert "litellm" in sys.modules, "litellm should be loaded after accessing llm_manager"
+assert transport in sys.modules, "the model transport should be loaded after accessing llm_manager"
 assert llm_manager is not None
 print("OK")
 """,
@@ -179,6 +181,8 @@ def test_no_accidental_global_imports():
         "myrm_agent_harness.toolkits.web_search",
     ]
 
+    heavy_deps = ["myrm_agent_harness.toolkits.llms.transport", "patchright", "numpy", "jieba"]
+
     for module_name in modules_to_check:
         if module_name in sys.modules:
             del sys.modules[module_name]
@@ -187,11 +191,11 @@ def test_no_accidental_global_imports():
             if key.startswith(module_name + "."):
                 del sys.modules[key]
 
-        heavy_before = {dep for dep in ["litellm", "patchright", "numpy", "jieba"] if dep in sys.modules}
+        heavy_before = {dep for dep in heavy_deps if dep in sys.modules}
 
         importlib.import_module(module_name)
 
-        heavy_after = {dep for dep in ["litellm", "patchright", "numpy", "jieba"] if dep in sys.modules}
+        heavy_after = {dep for dep in heavy_deps if dep in sys.modules}
         new_imports = heavy_after - heavy_before
 
         assert not new_imports, f"{module_name} imported heavy deps: {new_imports}"

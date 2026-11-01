@@ -7,7 +7,6 @@ import time
 from unittest.mock import AsyncMock, MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage
-from litellm.types.utils import Choices, Message, ModelResponse
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.fallback.health_check import (
@@ -89,9 +88,7 @@ async def test_probe_leaves_the_models_token_budget_alone() -> None:
     model = TransportChatModel(model="openai/probe-model", max_tokens=4096)
     model.client = MagicMock()
     model.client.acompletion = AsyncMock(
-        return_value=ModelResponse(
-            choices=[Choices(message=Message(role="assistant", content="ok"), finish_reason="stop")]
-        )
+        return_value={"choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}]}
     )
 
     assert await lightweight_health_check(model) is True

@@ -10,14 +10,13 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
-from types import SimpleNamespace
 
-import litellm
 import pytest
 from myrm_agent_harness.agent._internals.memory_extraction import allows_background_llm_extraction
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.retriever.embedding import cloud_embedding
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.channels.routing.identity_scope import resolve_team_identity, resolve_turn_memory_scope
@@ -43,19 +42,13 @@ def _embed(text: str) -> list[float]:
     return [value / norm for value in vector]
 
 
-async def _fake_aembedding(**kwargs: object) -> SimpleNamespace:
-    raw = kwargs["input"]
-    inputs = [raw] if isinstance(raw, str) else list(raw)  # type: ignore[call-overload]
-    return SimpleNamespace(
-        data=[{"embedding": _embed(text), "index": index} for index, text in enumerate(inputs)],
-        usage=SimpleNamespace(prompt_tokens=1, total_tokens=1),
-        model=kwargs.get("model"),
-    )
+async def _fake_aembed(model: str, texts: Sequence[str], **_: object) -> list[list[float]]:
+    return [_embed(text) for text in texts]
 
 
 @pytest.fixture(autouse=True)
 async def _isolated_memory_runtime(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
-    monkeypatch.setattr(litellm, "aembedding", _fake_aembedding)
+    monkeypatch.setattr(cloud_embedding, "aembed", _fake_aembed)
     _memory_manager_cache.clear()
     yield
     # Open sqlite connections keep non-daemon threads alive, so a failing test would otherwise

@@ -314,11 +314,11 @@ async def test_connect_mcp_wiki_real_flow(
             from langchain_core.tools import StructuredTool
             from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
-            from tests.api.agent.utils import _convert_litellm_model
+            from tests.api.agent.utils import _normalize_model_id
 
             base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
             llm = create_chat_model(
-                model=_convert_litellm_model(raw_model),
+                model=_normalize_model_id(raw_model),
                 api_key=basic_key,
                 base_url=base_url,
                 temperature=0,

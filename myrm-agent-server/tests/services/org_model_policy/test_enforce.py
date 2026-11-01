@@ -145,7 +145,7 @@ async def test_duplicate_models_deduped() -> None:
 
 
 @pytest.mark.asyncio
-async def test_legacy_slug_glob_matches_litellm_name() -> None:
+async def test_legacy_slug_glob_matches_provider_model_name() -> None:
     """Legacy slug-style patterns still match provider/model names."""
     wrapper = _make_agent_wrapper(model="deepseek/deepseek-chat")
     with _mock_config_service(_make_record(["deepseek-*"])):

@@ -1,7 +1,7 @@
 """Tests for /integrations/llm/verify, check-reachability, model-info, and batch model-info.
 
 Covers the remaining llms.py branches with LLM/tooling calls mocked out,
-including cache hit paths, failure paths, and LiteLLM-backed capability lookup.
+including cache hit paths, failure paths, and catalog-backed capability lookup.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.llms.catalog import register_model
+from myrm_agent_harness.toolkits.llms.catalog import store as catalog_store
 from myrm_agent_harness.toolkits.llms.fallback.health_check import HealthProbeResult
 
 from tests.support.minimal_app import build_minimal_app
@@ -272,7 +274,7 @@ class TestModelInfoEndpoints:
     """model-info and model-info/batch exact-match and fallback behavior."""
 
     def test_model_info_exact_match(self, client: TestClient) -> None:
-        """Exact LiteLLM match returns found=True with capabilities."""
+        """Exact catalog match returns found=True with capabilities."""
         info = {
             "supports_vision": True,
             "supports_function_calling": True,
@@ -425,74 +427,52 @@ class TestSpeedTestStreamingPaths:
         assert "bad config" in (results[0]["error"] or "")
 
 
-class TestLiteLLMBackedHelpers:
-    """_try_get_model_info_exact and _search_models_by_name against mocked litellm."""
+class TestCatalogBackedHelpers:
+    """_try_get_model_info_exact and _search_models_by_name against the model catalog."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_registrations(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(catalog_store, "_REGISTERED", {})
 
     def test_try_get_model_info_exact_returns_dict(self) -> None:
-        """Exact lookup converts LiteLLM info dict when not present in model_cost."""
+        """An exact catalog key returns its entry as a plain dict."""
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with (
-            patch("litellm.model_cost", {}),
-            patch(
-                "litellm.get_model_info",
-                return_value={"max_tokens": 8192},
-            ),
-        ):
-            assert _try_get_model_info_exact("gpt-4o") == {"max_tokens": 8192}
+        register_model("vendor/exact-model", {"max_tokens": 8192})
 
-    def test_try_get_model_info_exact_prefers_model_cost(self) -> None:
-        """model_cost wins over get_model_info so pricing metadata is not lost."""
+        assert _try_get_model_info_exact("vendor/exact-model") == {"max_tokens": 8192}
+
+    def test_try_get_model_info_exact_is_case_insensitive(self) -> None:
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with (
-            patch("litellm.model_cost", {"gpt-4o": {"max_tokens": 4096}}),
-            patch(
-                "litellm.get_model_info",
-                side_effect=AssertionError("must not be reached"),
-            ),
-        ):
-            assert _try_get_model_info_exact("gpt-4o") == {"max_tokens": 4096}
+        register_model("vendor/exact-model", {"max_tokens": 8192})
 
-    def test_try_get_model_info_exact_handles_exception(self) -> None:
-        """Unknown model or lookup failure degrades to None."""
+        assert _try_get_model_info_exact("Vendor/Exact-Model") == {"max_tokens": 8192}
+
+    def test_try_get_model_info_exact_strips_the_gateway_prefix(self) -> None:
+        """A gateway-composite id (gateway/provider/model) falls back to the provider's own entry."""
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with (
-            patch("litellm.model_cost", {}),
-            patch(
-                "litellm.get_model_info",
-                side_effect=KeyError("no such model"),
-            ),
-        ):
-            assert _try_get_model_info_exact("nope/xyz") is None
+        register_model("zai/glm-test-vision", {"supports_vision": True})
 
-    def test_try_get_model_info_exact_empty_info(self) -> None:
-        """Empty info dict from LiteLLM resolves to None."""
+        assert _try_get_model_info_exact("openrouter/zai/glm-test-vision") == {"supports_vision": True}
+
+    def test_try_get_model_info_exact_unknown_model_is_none(self) -> None:
+        """A model the catalog does not know degrades to None."""
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with (
-            patch("litellm.model_cost", {}),
-            patch(
-                "litellm.get_model_info",
-                return_value=None,
-            ),
-        ):
-            assert _try_get_model_info_exact("gpt-4o") is None
+        assert _try_get_model_info_exact("nope/xyz-not-a-model") is None
 
     def test_search_models_by_name_builds_candidates(self) -> None:
-        """Name search iterates litellm.model_cost and builds candidate list."""
+        """Name search iterates the catalog and builds the candidate list."""
         from app.api.integrations.llms import _search_models_by_name
 
-        fake_cost = {
+        fake_catalog = {
             "openai/gpt-4o": {"max_tokens": 8192},
             "anthropic/claude-3.5": {"max_tokens": 200000},
             "openai/other": {},
         }
-        with patch(
-            "litellm.model_cost",
-            fake_cost,
-        ):
+        with patch("app.api.integrations.llms.known_models", return_value=fake_catalog):
             candidates = _search_models_by_name("gpt-4o")
         assert len(candidates) == 1
         assert candidates[0].model_key == "openai/gpt-4o"
@@ -503,10 +483,7 @@ class TestLiteLLMBackedHelpers:
         """Keys without a provider prefix resolve to 'unknown'."""
         from app.api.integrations.llms import _search_models_by_name
 
-        with patch(
-            "litellm.model_cost",
-            {"plain-name": {"max_tokens": 4096}},
-        ):
+        with patch("app.api.integrations.llms.known_models", return_value={"plain-name": {"max_tokens": 4096}}):
             candidates = _search_models_by_name("plain")
         assert len(candidates) == 1
         assert candidates[0].provider == "unknown"

@@ -39,8 +39,6 @@ BUILTIN_PROVIDER_ROUTE_SEGMENT: dict[str, str] = {
     "spark": "openai",
     "perplexity": "perplexity",
     "cohere_chat": "cohere_chat",
-    "replicate": "replicate",
-    "bedrock": "bedrock",
     "cerebras": "cerebras",
     "xiaomi_mimo": "xiaomi_mimo",
     "nvidia": "openai",

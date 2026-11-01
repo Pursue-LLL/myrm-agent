@@ -195,14 +195,15 @@ _USAGE_LIMIT_TRANSIENT_SIGNALS = [
 
 _USAGE_LIMIT_PATTERNS = ["usage limit", "quota", "limit exceeded", "key limit exceeded"]
 
-# Provider refusals of the prompt or the reply on policy grounds: Azure's `content_filter` and
-# `ResponsibleAIPolicyViolation`, DashScope's `data_inspection_failed` and "may contain inappropriate content", Codex's
-# cybersecurity flag, MiniMax's `new_sensitive` (1027) and "Content Exists Risk". The spaced phrase "content filter"
-# does not match, so prose that merely mentions a filter never turns a rejected request into a safety block.
+# Provider refusals of the prompt or the reply on policy grounds: Azure's `content_filter`,
+# `ResponsibleAIPolicyViolation` and "content management policy" sentence (a gateway may drop its code),
+# DashScope's `data_inspection_failed` and "may contain inappropriate content", Codex's cybersecurity flag,
+# MiniMax's `new_sensitive` (1027) and "Content Exists Risk". The spaced phrase "content filter" does not match, so
+# prose that merely mentions a filter never turns a rejected request into a safety block.
 _SAFETY_BLOCK_RE = re.compile(
     r"content_?policy_?violation|violating our usage policy|safety system"
     r"|content filtered|responsible ai policy|safety block"
-    r"|content_filter|responsibleaipolicyviolation"
+    r"|content_filter|responsibleaipolicyviolation|content management policy"
     r"|data_inspection_failed|may contain inappropriate content|flagged for possible cybersecurity risk"
     r"|\bnew_sensitive\b|content exists risk",
     re.IGNORECASE,

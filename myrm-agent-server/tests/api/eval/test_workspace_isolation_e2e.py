@@ -18,8 +18,8 @@ from app.core.eval.executor import LocalEvalExecutor
 def _build_user_configs_from_env():
     """Build ``UserConfigs`` from ``.env.test`` env vars.
 
-    LiteLLM requires ``openai/`` prefix (not ``openai-like/``) with
-    a ``base_url`` for custom OpenAI-compatible endpoints.
+    Custom OpenAI-compatible endpoints use the ``openai/`` provider prefix (the
+    ``openai-like/`` picker alias is normalized away) with a ``base_url``.
     """
     from app.core.channel_bridge.config_loader import UserConfigs
     from app.core.types import ModelConfig

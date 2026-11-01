@@ -1,6 +1,6 @@
 """Wire-level proof that the output budget the adapter computes is the budget the provider receives.
 
-Each test builds the LLM through the production factory, makes one real LiteLLM call against a loopback
+Each test builds the LLM through the production factory, makes one real call against a loopback
 provider and inspects the request body that arrived there. Asserting on the wire (not on the constructed
 object) is the point: a value that is correct on the Python side but overridden on the way out is invisible
 to unit tests.
@@ -8,7 +8,6 @@ to unit tests.
 
 from __future__ import annotations
 
-import litellm
 import pytest
 from langchain_core.messages import HumanMessage
 
@@ -24,12 +23,8 @@ PLAIN_MODEL = "openai/plain-chat-model"
 
 
 @pytest.fixture(autouse=True)
-def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Apply the global LiteLLM switches the harness sets in production and keep the loopback off any proxy."""
+def _loopback_off_any_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
-    monkeypatch.setattr(litellm, "drop_params", True)
-    monkeypatch.setattr(litellm, "modify_params", True)
-    monkeypatch.setattr(litellm, "cache", None)
 
 
 async def _request_body(model: str, **kwargs: object) -> JsonBody:

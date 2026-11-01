@@ -86,7 +86,13 @@ class TestGeminiSchema:
 
     def test_unsupported_string_formats_are_dropped(self) -> None:
         converted = to_gemini_schema(
-            {"type": "object", "properties": {"u": {"type": "string", "format": "uri"}, "t": {"type": "string", "format": "date-time"}}}
+            {
+                "type": "object",
+                "properties": {
+                    "u": {"type": "string", "format": "uri"},
+                    "t": {"type": "string", "format": "date-time"},
+                },
+            }
         )
         assert converted["properties"] == {"u": {"type": "string"}, "t": {"type": "string", "format": "date-time"}}  # type: ignore[comparison-overlap]
 

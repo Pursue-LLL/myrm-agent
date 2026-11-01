@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
-from litellm import exceptions as litellm_errors
 
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
@@ -18,6 +17,7 @@ from myrm_agent_harness.agent.streaming.stream_executor import (
 )
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from tests.support.provider_errors import provider_error
 
 
 class FakeCompactor:
@@ -479,18 +479,14 @@ async def test_safety_fallback(ctx):
 @pytest.mark.parametrize(
     "exc",
     [
-        litellm_errors.ContentPolicyViolationError(
-            message="The response was filtered due to the prompt triggering Azure OpenAI's content management policy.",
-            model="gpt-4o",
-            llm_provider="azure",
+        provider_error(
+            "azure",
+            400,
+            "The response was filtered due to the prompt triggering Azure OpenAI's content management policy.",
         ),
-        litellm_errors.BadRequestError(
-            message='AzureException BadRequestError - {"error": {"message": "filtered", "code": "content_filter"}}',
-            model="gpt-4o",
-            llm_provider="azure",
-        ),
+        provider_error("azure", 400, {"error": {"message": "filtered", "code": "content_filter"}}),
     ],
-    ids=["litellm content policy error", "content_filter error code"],
+    ids=["content management policy sentence", "content_filter error code"],
 )
 async def test_a_provider_content_filter_exception_reaches_the_safety_fallback(ctx, exc):
     """The provider's own content-filter rejection counts as a safety block, so the safety fallback model takes over."""
@@ -863,28 +859,16 @@ async def test_consecutive_overloaded_resets_on_success(ctx):
 
 class TestOverflowE2EClassifier:
     """Verify the full classify_error → is_context_overflow → _handle_overflow
-    chain with REAL litellm exceptions — no mock on is_context_overflow."""
+    chain with REAL transport exceptions — no mock on is_context_overflow."""
 
     @pytest.fixture
     def executor(self, ctx):
         return _make_executor(ctx)
 
     @staticmethod
-    def _make_litellm_400(message: str) -> Exception:
-        """Build a litellm-style BadRequestError (status 400)."""
-        try:
-            from litellm.exceptions import BadRequestError as LiteBadRequest
-
-            return LiteBadRequest(
-                message=message,
-                model="test-model",
-                llm_provider="openai",
-                response=MagicMock(status_code=400),
-            )
-        except ImportError:
-            exc = Exception(message)
-            exc.status_code = 400
-            return exc
+    def _make_rejection(message: str, status: int = 400) -> Exception:
+        """The error the transport raises for a provider answer with *status* and a plain-text body."""
+        return provider_error("openai", status, message)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -898,7 +882,7 @@ class TestOverflowE2EClassifier:
     )
     async def test_real_overflow_triggers_compact(self, ctx, executor, error_msg):
         """Real provider errors (Z.AI, Kimi, OpenAI) go through full classify chain."""
-        exc = self._make_litellm_400(error_msg)
+        exc = self._make_rejection(error_msg)
 
         with patch(
             "myrm_agent_harness.agent.streaming.recovery.stream_recovery._emergency_compact",
@@ -921,7 +905,7 @@ class TestOverflowE2EClassifier:
     )
     async def test_non_overflow_not_triggered(self, ctx, executor, error_msg):
         """Non-overflow errors should NOT trigger overflow recovery."""
-        exc = self._make_litellm_400(error_msg)
+        exc = self._make_rejection(error_msg)
 
         result = await executor._handle_overflow(exc, 0)
 
@@ -930,7 +914,7 @@ class TestOverflowE2EClassifier:
     @pytest.mark.asyncio
     async def test_stage2_truncation_on_retry1(self, ctx, executor):
         """Stage 2 (retries=1): real overflow triggers _truncate_oldest_rounds."""
-        exc = self._make_litellm_400("Prompt exceeds max length")
+        exc = self._make_rejection("Prompt exceeds max length")
 
         with patch(
             "myrm_agent_harness.agent.streaming.recovery.stream_recovery._truncate_oldest_rounds",
@@ -944,7 +928,7 @@ class TestOverflowE2EClassifier:
     @pytest.mark.asyncio
     async def test_retries_exhausted_with_real_error(self, ctx, executor):
         """retries >= MAX_OVERFLOW_RETRIES → compression_exhausted, no recovery."""
-        exc = self._make_litellm_400("tokens in request more than max tokens allowed")
+        exc = self._make_rejection("tokens in request more than max tokens allowed")
 
         result = await executor._handle_overflow(exc, 2)
 
@@ -964,7 +948,7 @@ class TestOverflowE2EClassifier:
     )
     async def test_chinese_overflow_keywords(self, ctx, executor, error_msg):
         """Chinese overflow keywords are correctly detected."""
-        exc = self._make_litellm_400(error_msg)
+        exc = self._make_rejection(error_msg)
 
         with patch(
             "myrm_agent_harness.agent.streaming.recovery.stream_recovery._emergency_compact",
@@ -978,8 +962,7 @@ class TestOverflowE2EClassifier:
     @pytest.mark.asyncio
     async def test_http_413_compound_overflow(self, ctx, executor):
         """HTTP 413 + 'too large' compound check triggers overflow."""
-        exc = self._make_litellm_400("413 Request Entity Too Large")
-        exc.status_code = 413
+        exc = self._make_rejection("413 Request Entity Too Large", 413)
 
         with patch(
             "myrm_agent_harness.agent.streaming.recovery.stream_recovery._emergency_compact",
@@ -993,7 +976,7 @@ class TestOverflowE2EClassifier:
     @pytest.mark.asyncio
     async def test_compact_zero_falls_through_to_truncate(self, ctx, executor):
         """When _emergency_compact returns 0, falls through to _truncate_oldest_rounds."""
-        exc = self._make_litellm_400("total message size 9999999 exceeds limit 2097152")
+        exc = self._make_rejection("total message size 9999999 exceeds limit 2097152")
 
         with (
             patch(
@@ -1015,7 +998,7 @@ class TestOverflowE2EClassifier:
     async def test_resume_mode_rejects_real_overflow(self, ctx, executor):
         """Resume mode (Command input) rejects recovery even for real overflow."""
         ctx.agent_input = Command(resume="some_val")
-        exc = self._make_litellm_400("Prompt exceeds max length")
+        exc = self._make_rejection("Prompt exceeds max length")
 
         result = await executor._handle_overflow(exc, 0)
 

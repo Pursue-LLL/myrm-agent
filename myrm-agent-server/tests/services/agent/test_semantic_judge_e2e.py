@@ -1,6 +1,6 @@
 """End-to-end integration test for Semantic Completion Judge.
 
-Uses a real LLM (via litellm) — NO mocks.
+Uses a real LLM through the model transport — NO mocks.
 Requires WebUI model config (patched from BASIC_* in .env.test).
 """
 

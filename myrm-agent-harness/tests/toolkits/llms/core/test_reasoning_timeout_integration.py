@@ -2,7 +2,7 @@
 
 Validates that create_chat_model correctly propagates timeout floors
 to the TransportChatModel instance, and that the timeout parameter reaches
-the LiteLLM completion layer during a real API call.
+the transport's completion call during a real API call.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ class TestReasoningTimeoutIntegration:
         assert llm.request_timeout == 600.0
 
     def test_reasoning_model_timeout_in_params(self) -> None:
-        """timeout in litellm params must equal the reasoning floor."""
+        """timeout in the request params must equal the reasoning floor."""
         llm = create_chat_model("deepseek/deepseek-r1", api_key="sk-test")
         params = llm._default_params
         assert params["timeout"] == 600.0
@@ -172,13 +172,11 @@ class TestReasoningTimeoutRealAPI:
         content = result.content or result.additional_kwargs.get("reasoning_content")
         assert content
 
-    def test_real_call_timeout_propagates_to_litellm(self, env_config: dict[str, str]) -> None:
-        """Verify timeout actually reaches litellm.completion() kwargs.
+    def test_real_call_timeout_propagates_to_the_transport(self, env_config: dict[str, str]) -> None:
+        """Verify timeout actually reaches the transport's completion() kwargs.
 
-        Uses a spy on litellm.completion to capture the actual timeout value sent.
+        Uses a spy on the transport's completion to capture the actual timeout value sent.
         """
-        import litellm
-
         captured_kwargs: dict[str, object] = {}
 
         def spy_completion(*args: object, **kwargs: object) -> dict[str, object]:
@@ -207,9 +205,9 @@ class TestReasoningTimeoutRealAPI:
             max_tokens=5,
         )
 
-        with patch.object(litellm, "completion", side_effect=spy_completion):
+        with patch.object(llm.client, "completion", side_effect=spy_completion):
             llm.invoke("Say 'ok'")
 
-        assert captured_kwargs, "litellm.completion kwargs were not captured"
+        assert captured_kwargs, "transport completion kwargs were not captured"
         timeout_val = captured_kwargs.get("timeout")
         assert timeout_val == llm.request_timeout

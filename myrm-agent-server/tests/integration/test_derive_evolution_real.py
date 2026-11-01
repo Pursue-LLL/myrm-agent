@@ -31,8 +31,8 @@ BASIC_MODEL = os.getenv("BASIC_MODEL")
 BASIC_BASE_URL = os.getenv("BASIC_BASE_URL", "")
 
 
-def _env_model_to_litellm(env_model: str) -> str:
-    """Map BASIC_MODEL / LITE_MODEL style strings to LiteLLM provider/model."""
+def _env_model_to_route(env_model: str) -> str:
+    """Map BASIC_MODEL / LITE_MODEL style strings to a provider/model route."""
     raw = env_model.strip()
     if not raw:
         return raw
@@ -61,7 +61,7 @@ def real_llm():
     if not BASIC_MODEL:
         pytest.skip("BASIC_MODEL must be set for real LLM integration tests")
 
-    basic_model = _env_model_to_litellm(BASIC_MODEL)
+    basic_model = _env_model_to_route(BASIC_MODEL)
     provider_name = basic_model.split("/", 1)[0] if "/" in basic_model else "openai"
     if provider_name == "openai-compatible":
         provider_name = "openai"

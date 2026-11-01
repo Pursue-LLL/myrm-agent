@@ -5,8 +5,8 @@ produces fails the build on every platform. This pins each resource group to wha
 
 - the sidecar folder -> `sidecar/build.py`, run by every build job through one shared composite action
 - the Next server and client assets -> the frontend artifact the build jobs download
-- the tokenizer tables -> the sidecar's own copy: litellm carries them and the PyInstaller command
-  collects them, so no separate resource exists
+- the tokenizer tables -> harness package data (`utils/_tiktoken_tables`), collected with the package by the
+  PyInstaller command, so no separate resource exists
 """
 
 from __future__ import annotations

@@ -205,7 +205,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
 
-- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`litellm`/`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、dev `setup.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
+- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、dev `setup.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
 - **执行运行时绘图栈隔离**：`matplotlib`/`pandas`（`data-viz` extra 锁定 pandas 2.3.x，避开 yanked 的 3.0.4）收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
 - **动态监控隔离 (Metrics)**：`/metrics` 路由、内存直方图、数据库连接池采集器在 **local 与 sandbox 默认均关闭**；仅当 `METRICS_ENABLED=true` 时启用（见 `app/core/monitoring/__init__.py` + `DeploymentCapabilities.default_metrics_enabled`）。
 - **全链路追踪按需启用 (Tracing)**：OpenTelemetry 在任何部署模式下默认关闭：只有标准 `OTEL_EXPORTER_OTLP_*` 变量配置了端点时，Server 才初始化 SDK 与导出器（`app/core/monitoring/__init__.py` → harness `setup_tracing` / `setup_metrics`）；未配置时保持 No-Op provider，不记录、不发送。启用后导出的 trace 沿用请求的 `X-Trace-Id`，FastAPI 原生遥测不产生请求 span。
@@ -338,7 +338,7 @@ raise ToolError(
 - **运行时**: Python 3.13
 - **Web 框架**: FastAPI + uvicorn (uvloop)
 - **AI 框架**: LangChain + LangGraph
-- **LLM 适配**: LiteLLM（多模型支持）
+- **LLM 适配**: harness 自研模型传输层（OpenAI Chat/Responses、Anthropic Messages、Gemini、Ollama 线协议适配器 + 数据驱动 Provider Profile + 随包模型目录）
 - **包管理**: UV
 
 ---

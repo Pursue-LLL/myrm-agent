@@ -159,7 +159,11 @@ _REASON_TO_ERROR_KIND: dict[FailoverReason, ErrorKind] = {
 
 def classify_error(exc: Exception) -> ErrorKind:
     """Classify an LLM exception into an ``ErrorKind`` using multi-probe pipeline."""
-    reason = classify_failover_reason(exc)
+    return kind_of_reason(classify_failover_reason(exc))
+
+
+def kind_of_reason(reason: FailoverReason) -> ErrorKind:
+    """The ``ErrorKind`` a ``FailoverReason`` is reported as."""
     return _REASON_TO_ERROR_KIND.get(reason, ErrorKind.UNKNOWN)
 
 

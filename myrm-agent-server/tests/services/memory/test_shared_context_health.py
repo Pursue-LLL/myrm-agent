@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 
+import httpx
 import pytest
 from myrm_agent_harness.api.config import ConfigIncompleteError
+from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.services.memory.shared_context import shared_context_health as health_module
@@ -21,8 +24,11 @@ class _FakeEmbeddingService:
         return self._vector
 
 
-class AuthenticationError(Exception):
-    """LiteLLM-compatible authentication failure name."""
+def _auth_failure(message: str) -> LLMHTTPError:
+    """The failure the model transport raises when the embedding provider rejects the API key."""
+    body = json.dumps({"error": {"message": message}})
+    response = httpx.Response(401, content=body.encode(), request=httpx.Request("POST", "https://provider.test/v1/embeddings"))
+    return LLMHTTPError("openai", 401, body, response)
 
 
 async def _make_config(model: str, api_key: str, api_base: str | None) -> EmbeddingConfig:
@@ -111,7 +117,7 @@ async def test_shared_context_health_sanitizes_probe_auth_failure(monkeypatch: p
     monkeypatch.setattr(
         health_module,
         "get_embedding_service",
-        lambda config: _FakeEmbeddingService(exc=AuthenticationError("Incorrect API key provided: sk-invalid")),
+        lambda config: _FakeEmbeddingService(exc=_auth_failure("Incorrect API key provided: sk-invalid")),
     )
 
     result = await health_module.check_shared_context_memory_health(probe=True)

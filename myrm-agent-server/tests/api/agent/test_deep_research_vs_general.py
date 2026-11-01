@@ -108,10 +108,10 @@ async def _collect_deep_research_response(query: str) -> dict[str, object]:
     from myrm_agent_harness.agent.streaming.types import AgentEventType
     from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
-    from tests.api.agent.utils import _convert_litellm_model
+    from tests.api.agent.utils import _normalize_model_id
 
     llm = create_chat_model(
-        model=_convert_litellm_model(BASIC_MODEL),
+        model=_normalize_model_id(BASIC_MODEL),
         api_key=BASIC_API_KEY,
         base_url=BASIC_BASE_URL,
         temperature=0.3,

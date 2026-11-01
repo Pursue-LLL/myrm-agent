@@ -1,8 +1,8 @@
 """Output-cap recovery of TransportChatModel: provider-stated ``max_tokens`` limits.
 
 Real provider wordings go through the real error classifier and the real retry loops of all four
-entry points (sync/async x non-stream/stream). Only the provider client is faked, with genuine
-litellm response objects. The recovery contract under test:
+entry points (sync/async x non-stream/stream). Only the provider client is faked, with the response and chunk
+shapes the transport returns. The recovery contract under test:
 
 - a rejected request is retried with the limit the provider printed, and nothing else changes
   (so the provider-side prompt-prefix cache still hits);
@@ -16,10 +16,8 @@ import time
 from collections.abc import AsyncIterator, Iterator
 from unittest.mock import AsyncMock, MagicMock
 
-import litellm
 import pytest
 from langchain_core.messages import HumanMessage
-from litellm.types.utils import Choices, Delta, Message, ModelResponse, ModelResponseStream, StreamingChoices
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel, output_cap_recovery
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import (
@@ -31,6 +29,8 @@ from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
     reset_ephemeral_max_output_tokens,
     set_ephemeral_max_output_tokens,
 )
+from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
+from tests.support.provider_errors import provider_error
 
 MODEL = "openai/capped-model"
 REQUESTED = 16384
@@ -64,11 +64,11 @@ def _isolated_ceiling_memo() -> Iterator[None]:
 
 
 def _bad_request(message: str) -> Exception:
-    return litellm.exceptions.BadRequestError(message=message, model=MODEL, llm_provider="openai")
+    return provider_error("openai", 400, {"error": {"message": message, "type": "invalid_request_error"}})
 
 
 def _rate_limited(message: str) -> Exception:
-    return litellm.exceptions.RateLimitError(message=message, model=MODEL, llm_provider="openai")
+    return provider_error("openai", 429, {"error": {"message": message, "type": "rate_limit_error"}})
 
 
 def _model(**kwargs: object) -> TransportChatModel:
@@ -77,13 +77,11 @@ def _model(**kwargs: object) -> TransportChatModel:
     return model
 
 
-def _delta(text: str, finish_reason: str | None = None) -> ModelResponseStream:
-    return ModelResponseStream(
-        choices=[StreamingChoices(delta=Delta(content=text, role="assistant"), finish_reason=finish_reason)]
-    )
+def _delta(text: str, finish_reason: str | None = None) -> dict[str, object]:
+    return {"choices": [{"index": 0, "delta": {"content": text, "role": "assistant"}, "finish_reason": finish_reason}]}
 
 
-def _sync_stream(*, fail_with: Exception | None = None, after: int = 0) -> Iterator[ModelResponseStream]:
+def _sync_stream(*, fail_with: Exception | None = None, after: int = 0) -> Iterator[dict[str, object]]:
     """Yield ``after`` chunks of 'Hello', then raise ``fail_with`` or finish normally."""
     for _ in range(after):
         yield _delta("Hello")
@@ -92,7 +90,7 @@ def _sync_stream(*, fail_with: Exception | None = None, after: int = 0) -> Itera
     yield _delta("ok", "stop")
 
 
-async def _async_stream(*, fail_with: Exception | None = None, after: int = 0) -> AsyncIterator[ModelResponseStream]:
+async def _async_stream(*, fail_with: Exception | None = None, after: int = 0) -> AsyncIterator[dict[str, object]]:
     for _ in range(after):
         yield _delta("Hello")
     if fail_with is not None:
@@ -102,7 +100,7 @@ async def _async_stream(*, fail_with: Exception | None = None, after: int = 0) -
 
 def _success(path: str) -> object:
     if path in ("generate", "agenerate"):
-        return ModelResponse(choices=[Choices(message=Message(role="assistant", content="ok"), finish_reason="stop")])
+        return {"choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}]}
     return _sync_stream() if path == "stream" else _async_stream()
 
 
@@ -215,7 +213,7 @@ class TestRetryLoops:
         model = _model()
         client = _script(model, path, _bad_request(WINDOW_ERROR_NO_ROOM), "ok")
 
-        with pytest.raises(litellm.exceptions.BadRequestError):
+        with pytest.raises(LLMHTTPError):
             _run_sync(model, path)
 
         assert client.call_count == 1
@@ -225,7 +223,7 @@ class TestRetryLoops:
         model = _model()
         client = _script(model, path, _bad_request(WINDOW_ERROR_NO_ROOM), "ok")
 
-        with pytest.raises(litellm.exceptions.BadRequestError):
+        with pytest.raises(LLMHTTPError):
             await _run_async(model, path)
 
         assert client.call_count == 1
@@ -235,7 +233,7 @@ class TestRetryLoops:
         model = _model()
         client = _script(model, path, _bad_request(f"Range of max_tokens should be [1, {REQUESTED * 2}]"), "ok")
 
-        with pytest.raises(litellm.exceptions.BadRequestError):
+        with pytest.raises(LLMHTTPError):
             _run_sync(model, path)
 
         assert client.call_count == 1
@@ -245,7 +243,7 @@ class TestRetryLoops:
         model = _model()
         client = _script(model, path, _rate_limited(CEILING_ERROR), "ok")
 
-        with pytest.raises(litellm.exceptions.RateLimitError):
+        with pytest.raises(LLMHTTPError):
             await _run_async(model, path)
 
         assert client.call_count == 1

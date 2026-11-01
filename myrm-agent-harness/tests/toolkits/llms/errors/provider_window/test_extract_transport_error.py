@@ -1,13 +1,12 @@
-"""Extractor and classifier against exceptions raised by the real litellm transport.
+"""Extractor and classifier against exceptions raised by the real model transport.
 
 A local HTTP server answers with the header/body shapes of the Anthropic subscription route
-and the Codex route; litellm wraps them exactly as it does in production.
+and the Codex route; the transport raises them exactly as it does in production.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import threading
 import time
 from collections.abc import Iterator
@@ -16,9 +15,6 @@ from typing import ClassVar
 
 import pytest
 
-os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
-litellm = pytest.importorskip("litellm")
-
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from myrm_agent_harness.toolkits.llms.errors.provider_window import (
     WindowKind,
@@ -26,6 +22,7 @@ from myrm_agent_harness.toolkits.llms.errors.provider_window import (
     extract_provider_window,
     has_rejected_quota_window,
 )
+from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError, get_transport
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -61,14 +58,13 @@ def provider() -> Iterator[tuple[type[_Handler], str]]:
         server.server_close()
 
 
-def _call(model: str, base: str) -> Exception:
-    with pytest.raises(Exception) as caught:
-        litellm.completion(
+def _call(model: str, base: str) -> LLMHTTPError:
+    with pytest.raises(LLMHTTPError) as caught:
+        get_transport().completion(
             model=model,
             api_base=base,
             api_key="test-key",
             messages=[{"role": "user", "content": "hi"}],
-            num_retries=0,
             max_tokens=8,
         )
     return caught.value

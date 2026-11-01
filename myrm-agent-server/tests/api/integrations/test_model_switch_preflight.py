@@ -66,7 +66,7 @@ class TestModelSwitchPreflight:
         assert response.status_code == 422
 
     def test_unknown_model_with_frontend_window(self, client: TestClient) -> None:
-        """Frontend-provided window drives threshold even when litellm is unknown.
+        """Frontend-provided window drives threshold even when the catalog does not know the model.
 
         Window 16k maps to WEAK tier (context-length based) -> ratio 0.30.
         """
@@ -415,8 +415,8 @@ class TestPreflightWindowResolution:
         assert item["new_window"] is None
         assert item["will_compress"] is False
 
-    def test_backend_resolves_window_from_litellm_info(self, client: TestClient) -> None:
-        """Backend resolves max_input_tokens from LiteLLM model info when not provided."""
+    def test_backend_resolves_window_from_catalog_info(self, client: TestClient) -> None:
+        """Backend resolves max_input_tokens from the model catalog when not provided."""
         with patch(
             "app.api.integrations.llms._try_get_model_info_exact",
             return_value={"max_input_tokens": 32000},

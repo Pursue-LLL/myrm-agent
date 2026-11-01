@@ -34,7 +34,7 @@ from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.core.security.types import PermissionAction, PermissionRule, SecurityConfig
-from tests.integration.llm_extraction.llm_creds import litellm_config_for
+from tests.integration.llm_extraction.llm_creds import route_config_for
 
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(240)]
 
@@ -68,7 +68,7 @@ def _load_env_test() -> None:
 def basic_llm():
     from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
-    api_key, base_url, model, provider = litellm_config_for("BASIC")
+    api_key, base_url, model, provider = route_config_for("BASIC")
     return TransportChatModel(
         model=model,
         api_key=api_key,

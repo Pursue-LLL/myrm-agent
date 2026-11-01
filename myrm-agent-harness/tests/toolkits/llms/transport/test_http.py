@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable, Iterator
 
@@ -13,6 +14,7 @@ from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError
 from myrm_agent_harness.toolkits.llms.transport.http import (
     Chunk,
     PreparedRequest,
+    aclose_clients,
     aopen_stream,
     asend_json,
     open_stream,
@@ -49,9 +51,7 @@ def network(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[Handler], lis
         return handlers[0](request)
 
     monkeypatch.setattr(http, "_sync_client", lambda proxy: httpx.Client(transport=httpx.MockTransport(respond)))
-    monkeypatch.setattr(
-        http, "_async_client", lambda proxy: httpx.AsyncClient(transport=httpx.MockTransport(respond))
-    )
+    monkeypatch.setattr(http, "_async_client", lambda proxy: httpx.AsyncClient(transport=httpx.MockTransport(respond)))
 
     def arm(handler: Handler) -> list[httpx.Request]:
         handlers[:] = [handler]
@@ -94,7 +94,9 @@ class TestSendJson:
         assert request.url.params["api-version"] == "1"
         assert json.loads(request.content) == {"model": "m", "messages": []}
 
-    def test_non_ascii_text_goes_out_as_utf8_not_escapes(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+    def test_non_ascii_text_goes_out_as_utf8_not_escapes(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
         seen = network(lambda request: httpx.Response(200, json={}))
         send_json(_request(body={"text": "你好"}))
         assert "你好".encode() in seen[0].content
@@ -104,7 +106,9 @@ class TestSendJson:
         send_json(_request(headers={"content-type": "application/vnd.x+json"}))
         assert seen[0].headers["content-type"] == "application/vnd.x+json"
 
-    def test_a_failed_status_raises_with_the_provider_body(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+    def test_a_failed_status_raises_with_the_provider_body(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
         network(lambda request: httpx.Response(429, json={"error": {"message": "slow"}}))
         with pytest.raises(LLMHTTPError) as caught:
             send_json(_request())
@@ -131,7 +135,9 @@ class TestSendJson:
 
 
 class TestConnectRetry:
-    def test_a_refused_connection_is_retried_exactly_once(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+    def test_a_refused_connection_is_retried_exactly_once(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
         attempts: list[int] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -231,15 +237,49 @@ class TestStreaming:
         assert chunks == [{"choices": [{"delta": {}, "finish_reason": "stop"}]}]
         assert stream.received_finish_reason == "stop"
 
-    async def test_async_refusal_raises_before_any_chunk(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+    async def test_async_refusal_raises_before_any_chunk(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
         network(lambda request: httpx.Response(401, json={"error": {"message": "no key"}}))
         with pytest.raises(LLMHTTPError):
             await aopen_stream(_request(stream=True), _JsonLineDecoder())
 
-    def test_closing_a_stream_early_releases_the_connection(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+    def test_closing_a_stream_early_releases_the_connection(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
         network(lambda request: httpx.Response(200, content=b'data: {"n": 1}\n\ndata: {"n": 2}\n\n'))
         stream = open_stream(_request(stream=True), _JsonLineDecoder())
         assert next(stream) == {"n": 1}
         stream.close()
         with pytest.raises(StopIteration):
             next(stream)
+
+
+class TestSharedClients:
+    async def test_closing_forgets_the_clients_so_the_next_request_builds_a_new_one(self) -> None:
+        await aclose_clients()
+        first = http._async_client(None)
+        sync_first = http._sync_client(None)
+
+        await aclose_clients()
+
+        assert first.is_closed
+        assert sync_first.is_closed
+        assert http._async_client(None) is not first
+        assert http._sync_client(None) is not sync_first
+        await aclose_clients()
+
+    async def test_clients_of_another_loop_are_forgotten_not_closed(self) -> None:
+        await aclose_clients()
+        other_loop = asyncio.new_event_loop()
+        try:
+            foreign = httpx.AsyncClient()
+            http._ASYNC_CLIENTS[id(other_loop)] = (other_loop, {None: foreign})
+
+            await aclose_clients()
+
+            assert not foreign.is_closed
+            assert id(other_loop) not in http._ASYNC_CLIENTS
+        finally:
+            other_loop.close()
+            await foreign.aclose()

@@ -317,7 +317,7 @@ class TestKanbanCompletionVerifier:
         new_callable=AsyncMock,
     )
     async def test_judge_empty_response_uses_reasoning(self, mock_load_llm: AsyncMock) -> None:
-        """Empty AIMessage.content fails judge (no litellm reasoning_content fallback)."""
+        """Empty AIMessage.content fails judge (no reasoning_content fallback)."""
         mock_load_llm.return_value = _mock_platform_llm("")
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")

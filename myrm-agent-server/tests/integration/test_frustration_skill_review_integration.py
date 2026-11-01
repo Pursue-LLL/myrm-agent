@@ -34,10 +34,11 @@ class TestFrustrationSkillReviewIntegration:
     @pytest.fixture()
     def lite_llm_func(self):
         """Create a real LLM call function using LITE_MODEL."""
-        from litellm import acompletion
         from myrm_agent_harness.agent.config.provider_routing import (
             normalize_env_model_selection_string,
         )
+        from myrm_agent_harness.toolkits.llms.transport import get_transport
+        from myrm_agent_harness.utils.chat_utils import extract_completion_text
 
         api_key = resolve_test_env("LITE_API_KEY")
         base_url = resolve_test_env("LITE_BASE_URL")
@@ -45,7 +46,7 @@ class TestFrustrationSkillReviewIntegration:
         model = normalize_env_model_selection_string(raw_model)
 
         async def _call(system: str, user: str) -> str:
-            response = await acompletion(
+            response = await get_transport().acompletion(
                 model=model,
                 messages=[
                     {"role": "system", "content": system},
@@ -56,7 +57,7 @@ class TestFrustrationSkillReviewIntegration:
                 max_tokens=200,
                 temperature=0.0,
             )
-            return str(response.choices[0].message.content or "")
+            return extract_completion_text(response)
 
         return _call
 

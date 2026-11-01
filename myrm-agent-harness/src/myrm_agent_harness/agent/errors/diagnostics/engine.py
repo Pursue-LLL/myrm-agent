@@ -40,7 +40,7 @@ from myrm_agent_harness.agent.errors.diagnostics.types import (
     ErrorContext,
 )
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error, classify_failover_reason
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_failover_reason, kind_of_reason
 from myrm_agent_harness.toolkits.llms.errors.error_payload import is_json_shaped, provider_error_message
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 
@@ -59,8 +59,8 @@ _KEYWORD_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 # Failures the shared classifier recognizes by the status code the SDK parsed as well as by the provider's wording,
 # so the keyword families above miss some of them: each reads from its own catalogue entry instead of the raw
-# exception text. A missing model is left out because the classifier files provider policy blocks under it, and
-# those read better in the provider's own words than as a model that was not found.
+# exception text. A missing model is left out; it is read by the model family above, which knows whether the
+# endpoint is a custom one.
 _CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
     ErrorKind.AUTH: "api_key",
     ErrorKind.BILLING: "billing",
@@ -71,6 +71,9 @@ _CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
     ErrorKind.SAFETY_BLOCK: "safety_block",
     ErrorKind.CHALLENGE_BLOCKED: "challenge_blocked",
 }
+
+# Classifications shown in the provider's own words, because no card of ours names what the plan or account lacks.
+_PROVIDER_WORDS_REASONS = frozenset({FailoverReason.LONG_CONTEXT_TIER, FailoverReason.PROVIDER_POLICY_BLOCKED})
 
 # Framing a gateway or client SDK puts in front of the provider's words: a LiteLLM proxy relays its exception class
 # ("litellm.BadRequestError: ") and a provider tag ("OpenAIException - ", "AzureException BadRequestError - "), the
@@ -193,10 +196,22 @@ def _diagnose_rejected_request(
     return build_catalog_result("format_error", locale, cooldown_remaining_ms, entry="format_error_generic")
 
 
-def _is_tier_gate(exc: Exception, kind: ErrorKind) -> bool:
-    """The classifier files an Anthropic subscription tier gate under context overflow, but the gate is no overflow of
-    the model's window: the provider's own words say what the plan lacks."""
-    return kind is ErrorKind.CONTEXT_OVERFLOW and classify_failover_reason(exc) is FailoverReason.LONG_CONTEXT_TIER
+def _diagnose_outranking(
+    exc: Exception, reason: FailoverReason, locale: str, cooldown_remaining_ms: int | None
+) -> DiagnosticResult | None:
+    """A failure whose classification outranks the status code and the keywords found in the exception text.
+
+    The transport puts the HTTP status in the text, where the keyword families below would read a WAF challenge
+    (403) as a rejected key, a subscription tier gate (429) as a rate limit and a provider policy block (403, 404)
+    as a missing model. The classifier weighs the status against the provider's payload, so its verdict wins for
+    these. A tier gate and a policy block are no failure of the key, the model or the window: the provider's own
+    words say what the plan or the account lacks.
+    """
+    if reason is FailoverReason.CHALLENGE_BLOCKED:
+        return build_catalog_result("challenge_blocked", locale, cooldown_remaining_ms)
+    if reason in _PROVIDER_WORDS_REASONS:
+        return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=_error_text(exc))
+    return None
 
 
 def _is_model_not_found(full_text: str) -> bool:
@@ -292,11 +307,17 @@ class LLMErrorDiagnostic:
 
         full_text = f"{str(exc).lower()} {repr(exc).lower()}"
 
-        # 0-3. Transport (TLS, connection) then account (billing, provider policy, API key) families
+        # 0-1. Transport (TLS, connection) family, then the failures the classifier outranks the text on
         transport = diagnose_transport(exc, full_text, context, locale, cooldown_remaining_ms)
         if transport is not None:
             return transport
 
+        reason = classify_failover_reason(exc)
+        outranking = _diagnose_outranking(exc, reason, locale, cooldown_remaining_ms)
+        if outranking is not None:
+            return outranking
+
+        # 2-3. Account family (billing, provider policy, API key)
         account = diagnose_account(exc, full_text, locale, cooldown_remaining_ms)
         if account is not None:
             return account
@@ -315,13 +336,13 @@ class LLMErrorDiagnostic:
                 return build_catalog_result(error_type, locale, cooldown_remaining_ms)
 
         # 9. Failures only the shared classifier recognizes
-        kind = classify_error(exc)
+        kind = kind_of_reason(reason)
         if kind is ErrorKind.FORMAT_ERROR:
             return _diagnose_rejected_request(exc, context, locale, cooldown_remaining_ms)
         if kind is ErrorKind.RATE_LIMIT:
             return _diagnose_rate_limit(locale, cooldown_remaining_ms)
         classified_type = _CLASSIFIED_KIND_TYPES.get(kind)
-        if classified_type is not None and not _is_tier_gate(exc, kind):
+        if classified_type is not None:
             return build_catalog_result(classified_type, locale, cooldown_remaining_ms)
 
         # 10. Generic fallback

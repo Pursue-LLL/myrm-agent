@@ -22,7 +22,7 @@ def _opencode_key() -> str | None:
 
 
 @pytest.mark.asyncio
-async def test_chatlitellm_responses_stream() -> None:
+async def test_chat_model_responses_stream() -> None:
     key = _opencode_key()
     if not key:
         pytest.skip("OpenCode Go key not configured")

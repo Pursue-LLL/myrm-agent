@@ -93,7 +93,8 @@ def _make_long_screenshot_data_url() -> str:
 )
 async def test_llm_recognizes_sliced_long_screenshot_content():
     """Universal Task Flow E2E: LLM receives long screenshot through channel pipeline and recognizes elements."""
-    from litellm import acompletion
+    from myrm_agent_harness.toolkits.llms.transport import get_transport
+    from myrm_agent_harness.utils.chat_utils import extract_completion_text
     from myrm_agent_harness.utils.media.image_compressor import image_compressor
 
     data_url = _make_long_screenshot_data_url()
@@ -128,14 +129,14 @@ async def test_llm_recognizes_sliced_long_screenshot_content():
     base_url = os.environ.get("BASIC_BASE_URL")
 
     try:
-        response = await acompletion(
+        response = await get_transport().acompletion(
             model=model,
             messages=[{"role": "user", "content": query}],
             max_tokens=150,
             api_key=api_key,
-            base_url=base_url,
+            api_base=base_url,
         )
-        answer = response.choices[0].message.content.strip()
+        answer = extract_completion_text(response).strip()
         print(f"\n[LIVE MODEL RESPONSE]:\n{answer}")
         assert len(answer) > 0, "Model must return non-empty answer"
     except Exception as exc:

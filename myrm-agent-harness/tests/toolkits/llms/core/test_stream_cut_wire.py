@@ -1,13 +1,12 @@
 """Wire-level proof that a stream the connection cut short never executes a half-written tool call.
 
-LiteLLM's stream wrapper answers a stream that ended without any provider finish marker with a synthesized
-``stop``. Each test drives the real adapter -> LiteLLM -> HTTP path against a loopback fake provider that
-either finishes properly or closes the connection mid-call, and inspects the message the agent would act on.
+A stream that ended without any provider finish marker must never read as a finished turn. Each test drives the real
+adapter -> transport -> HTTP path against a loopback fake provider that either finishes properly or closes the
+connection mid-call, and inspects the message the agent would act on.
 """
 
 from __future__ import annotations
 
-import litellm
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
@@ -33,12 +32,8 @@ CUT_INSIDE_VALUE = ['{"path": "/tmp/report.md", ', '"content": "Dear Alice, the 
 
 
 @pytest.fixture(autouse=True)
-def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Apply the global LiteLLM switches the harness sets in production and keep the loopback off any proxy."""
+def _loopback_off_any_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
-    monkeypatch.setattr(litellm, "drop_params", True)
-    monkeypatch.setattr(litellm, "modify_params", True)
-    monkeypatch.setattr(litellm, "cache", None)
 
 
 @tool

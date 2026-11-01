@@ -16,7 +16,7 @@
 
 [POS]
 End-to-end drift guard for ``infra/tls_compat.py``. The unit tests prove the context policy; this proves that the
-libraries the product talks to through (litellm's aiohttp transport, httpx) actually build their contexts through it,
+libraries the product talks to through (the model transport's httpx clients, the harness's own httpx clients) actually build their contexts through it,
 against a loopback HTTPS listener whose chain strict OpenSSL verification rejects.
 """
 
@@ -28,15 +28,13 @@ from pathlib import Path
 
 import httpx
 import httpx2
-import litellm
 import pytest
 from langchain_core.messages import HumanMessage
-from litellm.llms.custom_httpx import http_handler as litellm_http_handler
-from litellm.llms.custom_httpx.async_client_cleanup import close_litellm_async_clients
 
 from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation, create_httpx_client
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
+from myrm_agent_harness.toolkits.llms.transport import aclose_clients
 from tests.support.mcp_testkit.tls_pki import InspectionChain, generate_inspection_chain
 from tests.support.tls_loopback import (
     CA_ENV_VARS,
@@ -51,26 +49,18 @@ _STACKS = ("httpx", "llm_factory")
 _STACKS_READING_SSL_CERT_FILE = (*_STACKS, "httpx2")
 
 
-async def _forget_cached_litellm_state() -> None:
-    """litellm keeps one SSL context per CA file and every client it built, for the life of the process."""
-    await close_litellm_async_clients()  # type: ignore[no-untyped-call]
-    litellm_http_handler._ssl_context_cache.clear()
-    litellm.in_memory_llm_clients_cache.flush_cache()  # type: ignore[no-untyped-call]
-
-
 @pytest.fixture(autouse=True)
 async def _pristine_tls(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
-    """Standard context builders, no TLS or proxy environment and no cached litellm clients, before and after."""
+    """Standard context builders, no TLS or proxy environment and no shared transport client, before and after.
+
+    The transport keeps one client per event loop and the client keeps the TLS context it was built with; the tests
+    share a loop, so each one starts the transport from a client built under its own policy.
+    """
     restore_standard_tls(monkeypatch)
     isolate_from_system_proxy(monkeypatch)
-    # The chat model writes its endpoint onto the litellm module on every call and leaves it there.
-    monkeypatch.setattr(litellm, "api_base", None)
-    monkeypatch.setattr(litellm, "api_key", None)
-    await _forget_cached_litellm_state()
-    # litellm builds its default context once, when it is imported, i.e. before any host reads the setting.
-    litellm_http_handler.get_ssl_configuration()
+    await aclose_clients()
     yield
-    await _forget_cached_litellm_state()
+    await aclose_clients()
 
 
 @pytest.fixture

@@ -25,7 +25,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_event_writers_redact.py` | 在 `EventLogger` 之外自己构造 `StructuredEvent` 并直接写后端的服务端模块必须登记在 `_DIRECT_WRITERS` 并写明理由；登记项里带自由文本的（接管轨迹的页面状态）必须调用 `sanitize_event_data`；已登记项消失即失败 |
 | `test_html_pages_contrast_gate.py` | 写整页 HTML 的 `app/` 模块（源码里有 `<!DOCTYPE html>` 或 `<html` 开标签）必须登记对应的对比度测试（文件须存在且真的调用 `assert_readable` / `assert_visible` / `contrast`，只导入不算），或列入 `_NOT_A_PAGE` 并写明它不展示页面的理由；登记项对应的模块不再写页面即失败，同一模块不得两边都登记；自带开标签探测器与「只导入不调用」的正反例自检 |
 | `test_unbounded_communicate_sites.py` | `app/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：写明输出与时长已由命令本身限定，或列入「待决」一栏（已知缺口，等待改用 harness 的 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；只数 `.communicate(` 这一种写法；自带检测器正反例自检 |
-| `test_outbound_model_calls.py` | `app/` 内直接调用 litellm 对话接口的文件必须登记：要么先用 `sanitize_outbound_text` 脱敏（文件内须真有该调用），要么写明其文本不含对话内容的理由；否则隐私开关挡不住它。自带检测器正反例与过期登记检查 |
+| `test_outbound_model_calls.py` | `app/` 内直接触达模型传输层（`get_transport()`、`LLMTransport`、`acomplete_text`）的文件必须登记：要么先用 `sanitize_outbound_text` 脱敏（文件内须真有该调用），要么写明其文本不含对话内容的理由；否则隐私开关挡不住它。自带检测器正反例与过期登记检查 |
 | `test_answer_text_consumers.py` | 每个 `process_stream` / `ai_agent_service_stream` 调用点必须归类：自己或其委托的协作者用 `AnswerDraft` / `StreamContentCollector` 拼装回复，或不拼装文本（语音、丢弃事件、网关出口，附理由），使恢复重启只替换在途段落；新增调用点未归类即失败，并自带探测器自检 |
 | `test_agent_run_tracking.py` | 每个 `process_stream` 调用点必须登记：经 `AgentGateway.execute_stream`（计入 `activeCount`）或文件内 `with track_background_agent_run()`（计入 `backgroundRunCount`），否则托管空闲回收器会在该运行中途暂停沙箱；新增/删除调用点未登记即失败，并自带探测器正反例自检 |
 | `test_memory_injection_contract_parity.py` | 前端 `MemoryBriefStatus(source)/MemoryBriefInjectionStatus` union 与 server+harness 状态契约严格同构 |
@@ -52,7 +52,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；禁止 import 含 ``._`` 的 harness 私有模块路径；并校验每个被 import 的 harness 模块在 harness 源包里**真实存在**（harness 单侧改名/移动时，服务端测试期即红，而不是等首个真实回合 `ImportError`） |
 | `test_runtime_image_x11_tools.py` | 两个运行时镜像（`Dockerfile`、`docker/Dockerfile.official`）的 `apt-get install` 必须在 xdotool 旁同时装 xclip 与 x11-utils（含非 ASCII 字符的文本走 xclip 剪贴板粘贴，缺失则中日韩文本整体失败；`xprop`、`xdpyinfo` 来自 x11-utils，缺失则前台窗口类名为空、屏幕分辨率回退成错误的 1920x1080） |
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |
-| `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source，且 lock 不解析出平台 core 轮子包（`compiled-core` extra 里的需求声明不算）；lock 只含 `pypi.org`/`files.pythonhosted.org`；禁止 GPL/optional 包与 harness 已 pin 的 `litellm`/`langchain`/`langchain-core` 回流 main |
+| `test_server_pyproject_lock_parity.py` | pyproject 主依赖/optional extras 与 uv.lock requires-dist 同构；harness 须为 in-repo editable path source，且 lock 不解析出平台 core 轮子包（`compiled-core` extra 里的需求声明不算）；lock 只含 `pypi.org`/`files.pythonhosted.org`；禁止 GPL/optional 包与 harness 已 pin 的 `langchain`/`langchain-core` 以及已删除的 `litellm` 回流 main |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
 | `test_no_private_references.py` | 开源仓全部已跟踪文本文件（不限 `*.md`）禁止出现私有开发壳的规划目录、名称、维护者速查文档名与 `topic_NN` 规划条目编号；一次 `git grep -I -i -E` 扫描（不区分大小写，目录名带不带斜杠都命中），编号用显式边界，紧贴中文的写法也命中；模式与样例由片段拼成，守卫文件不会命中自己；自带模式正反例自证；整树扫描另由不带路径过滤的 `.github/workflows/public-tree-guards.yml` 在每次 push main 与 PR 上独立运行（前端、桌面、脚本、根目录文档的改动同样被覆盖） |
 | `test_no_provider_shaped_secrets_in_tests.py` | server 测试目录禁止出现完整的厂商格式凭据（Stripe 密钥、Slack token），否则 GitHub push protection 会拒绝整个推送；假值统一经 `tests/support/fake_secrets.py` 拼装。含守卫自检：正则必须仍能匹配夹具输出，避免扫描空转 |

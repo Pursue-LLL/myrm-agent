@@ -22,7 +22,7 @@ def perform_fallback_test(client: TestClient, query: list[dict[str, object]]) ->
     # 我们使用用户配置的 BASIC_API_KEY 和 BaseUrl
     main_model_selection = get_model_selection()
 
-    # 修复 openai-compatible 在 LiteLLM 中的前缀问题
+    # openai-compatible / siliconflow 在传输层统一走 openai 路由
     if main_model_selection.get("providerId") in ("openai-compatible", "siliconflow"):
         main_model_selection["providerId"] = "openai"
 

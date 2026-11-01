@@ -244,7 +244,7 @@ reportMissingTypeStubs = false
 reportMissingModuleSource = false
 reportUnsupportedDunderAll = false
 # pyright 1.1.348+ 将 reportGeneralTypeIssues 拆分为细粒度规则。
-# LangChain/LiteLLM 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
+# LangChain 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
 reportGeneralTypeIssues = false
 reportAttributeAccessIssue = false
 reportArgumentType = false

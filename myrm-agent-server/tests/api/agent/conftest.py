@@ -20,8 +20,8 @@ from fastapi.testclient import TestClient
 
 import app.database.repositories.uow
 from tests.api.agent.utils import (
-    _convert_litellm_model,
     _infer_provider_id,
+    _normalize_model_id,
     _require_env,
     _strip_provider_prefix,
     build_memory_e2e_embedding_retrieval_dict,
@@ -82,7 +82,7 @@ def _build_mock_user_configs() -> object:
 
     model_cfg = enrich_model_config(
         ModelConfig(
-            model=_convert_litellm_model(basic_model),
+            model=_normalize_model_id(basic_model),
             api_key=basic_key,
             base_url=basic_url,
         ),
