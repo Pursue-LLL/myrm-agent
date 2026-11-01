@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 全新本地安装（还没配任何 LLM 提供商）打开聊天页时，`POST /agents/chats/{id}/prewarm` 返回 500，后端日志里一条带完整回溯栈的 ERROR
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。 |
+| **症状** | [实测] 真实 v0.1.40 macOS aarch64 打包版（隔离的 HOME 和数据目录，没配提供商）启动后窗口停在首次设置页，同时日志里出现 `POST /api/v1/agents/chats/<id>/prewarm → 500`，原因是 `ConfigIncompleteError: Please configure at least one LLM provider before using the Agent.`。一次约 12 秒的启动里出现 1 次。前端的 `useChatTurnPrewarm.ts` 吞掉了这个失败，所以用户看不到弹窗，只在日志里留下 ERROR。 |
+| **根因** | [代码] `app/api/agents/general_agent/prewarm.py` 调 `resolve_prewarm_agent_params`，它经 `convert_to_general_agent_params` 到 `model_resolver._fallback_model_from_providers`，没有提供商就抛 `ConfigIncompleteError`；路由没有接这个异常，落到全局中间件按 500 记录。预热是尽力而为的加速，没有可预热的东西不是服务端故障；真正的对话轮次会把「未配置提供商」告诉用户。 |
+| **修复** | 路由接住 `ConfigIncompleteError`，按 INFO 记一行，返回 200 和 `{started: false, chat_id, reason: "model_not_configured"}`，与已有的 `skipped_mode` 同一形状；没有改前端（它不看 `reason`）。 |
+| **回归证据** | [实测] `tests/api/agent/test_prewarm_api.py` 新增一例：让参数解析抛 `ConfigIncompleteError`，断言 200、`reason == "model_not_configured"`、`ensure_warming` 没有被调用；改前该例失败（异常直接冒出），改后该文件 5 例通过；`ruff check`、`ruff format --check` 通过。 |
+| **仍然存在** | ① 异常是用测试替身抛出的，用的是线上同一个异常类；没有重新打包后端在真实打包版里再跑一遍。② 没有静态类型检查的结果：本机 pyright 要求升级后才能运行。 |
+| **代码位置** | `myrm-agent-server/app/api/agents/general_agent/prewarm.py`；测试 `tests/api/agent/test_prewarm_api.py` |
+
 ## 2026-11-01 · 后端启动读 OS 钥匙串没有超时：钥匙串不回答时（macOS 授权弹窗没人点、`securityd` 无响应）事件循环被卡死，`/health` 永远不通，外壳等满 120 秒才报启动失败
 
 | 字段 | 内容 |

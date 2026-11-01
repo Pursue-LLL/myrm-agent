@@ -5,7 +5,7 @@
 - app.services.agent.execution_cache.prewarm.coordinator::get_turn_prewarm_coordinator (POS: turn prewarm coordinator)
 
 [OUTPUT]
-- POST /agents/chats/{chat_id}/prewarm: start background warm
+- POST /agents/chats/{chat_id}/prewarm: start background warm (`started: false` with a reason when there is nothing to warm: skipped_mode, model_not_configured)
 - DELETE /agents/chats/{chat_id}/prewarm: cancel scope warm tasks
 
 [POS]
@@ -18,6 +18,7 @@ import logging
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.api.config import ConfigIncompleteError
 from pydantic import BaseModel
 from pydantic.alias_generators import to_camel
 
@@ -54,12 +55,20 @@ async def prewarm_chat_turn(
             data={"started": False, "chat_id": chat_id, "reason": "skipped_mode"},
         )
 
-    params = await resolve_prewarm_agent_params(
-        chat_id=chat_id,
-        agent_id=body.agent_id,
-        action_mode=body.action_mode,
-        incognito_mode=body.incognito_mode,
-    )
+    try:
+        params = await resolve_prewarm_agent_params(
+            chat_id=chat_id,
+            agent_id=body.agent_id,
+            action_mode=body.action_mode,
+            incognito_mode=body.incognito_mode,
+        )
+    except ConfigIncompleteError as exc:
+        # The chat page opens before first-run provider setup; there is nothing to warm yet, and the real turn
+        # reports the missing provider to the user.
+        logger.info("Turn prewarm skipped: %s", exc.technical_details)
+        return success_response(
+            data={"started": False, "chat_id": chat_id, "reason": "model_not_configured"},
+        )
     await get_turn_prewarm_coordinator().ensure_warming(
         params,
         action_mode=body.action_mode,
