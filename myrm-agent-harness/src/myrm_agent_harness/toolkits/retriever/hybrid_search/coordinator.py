@@ -7,7 +7,6 @@ All model dependencies (embedding, reranker) are passed explicitly via method pa
 - toolkits.retriever.bm25_retrieval::BM25Retriever (POS: BM25 sparse retrieval engine)
 - toolkits.retriever.embedding::EmbeddingService (POS: Embedding protocol)
 - toolkits.retriever.reranker::RerankerService (POS: Reranker contract layer)
-- toolkits.retriever.autocut::AutocutConfig (POS: autocut configuration)
 
 [OUTPUT]
 - HybridSearchCoordinator: Coordinates BM25 sparse retrieval and vector retrieval with RRF fusion and reranking
@@ -23,7 +22,6 @@ import logging
 
 from langchain_core.documents import Document
 
-from myrm_agent_harness.toolkits.retriever.autocut import AutocutConfig
 from myrm_agent_harness.toolkits.retriever.bm25_retrieval import BM25Retriever
 from myrm_agent_harness.toolkits.retriever.embedding import EmbeddingService
 from myrm_agent_harness.toolkits.retriever.fusion_strategies import rrf_fusion
@@ -57,7 +55,6 @@ class HybridSearchCoordinator:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ) -> list[Document]:
         """Direct reranking (skips hybrid retrieval, for small document sets)."""
         if not _validate_inputs(queries, documents, final_top_k):
@@ -78,7 +75,6 @@ class HybridSearchCoordinator:
             fusion_weights=fusion_weights,
             rerank_score_threshold=rerank_score_threshold,
             fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
         )
         async with monitor.track_operation("result fusion"):
             selected = fusion.fuse_query_results(query_reranked, final_top_k)
@@ -99,7 +95,6 @@ class HybridSearchCoordinator:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ) -> list[Document]:
         """Hybrid retrieval + reranking (for large document sets)."""
         if not _validate_inputs(queries, documents, final_top_k):
@@ -129,7 +124,6 @@ class HybridSearchCoordinator:
             fusion_weights=fusion_weights,
             rerank_score_threshold=rerank_score_threshold,
             fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
         )
         async with monitor.track_operation("result fusion"):
             selected = fusion.fuse_query_results(query_reranked, final_top_k)

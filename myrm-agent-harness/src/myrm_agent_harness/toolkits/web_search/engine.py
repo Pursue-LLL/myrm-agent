@@ -113,7 +113,8 @@ class WebSearchTools:
 
         All query sources share one merge: results are interleaved round-robin across questions (a question
         cannot be crowded out by the others), deduplicated by URL and content, reordered with domain-diversity
-        decay and cut to ``top_k``. A single question keeps the search engine's own ordering.
+        decay and cut to ``top_k``. With one question the engine's ranking stands; only the same-domain
+        decay can move a result down.
 
         Args:
             questions: Query list (rewritten)

@@ -54,6 +54,14 @@ def _doc(owner: str, rank: int, text: str | None = None) -> Document:
     )
 
 
+def _page(host: str, rank: int) -> Document:
+    """Provider result on a chosen host, for tests that exercise the same-domain decay."""
+    return Document(
+        page_content=f"{host} snippet number {rank}",
+        metadata={"url": f"https://{host}/page-{rank}", "title": f"{host} result {rank}"},
+    )
+
+
 def _owner_counts(sources: list[dict[str, object]]) -> Counter[str]:
     """Count selected sources per owning question (host prefix before ``-r<rank>``)."""
     return Counter((urlparse(str(s["url"])).hostname or "").split("-r")[0] for s in sources)
@@ -141,7 +149,7 @@ class TestProviderPathMerge:
         assert set(counts) == {"qa", "qb", "qc"}
         assert max(counts.values()) - min(counts.values()) <= 1
 
-    async def test_single_question_keeps_search_engine_order(self) -> None:
+    async def test_single_question_on_distinct_domains_keeps_search_engine_order(self) -> None:
         per_question = {"history of rome": [_doc("qa", r) for r in range(5)]}
         tools = _make_tools()
 
@@ -149,6 +157,26 @@ class TestProviderPathMerge:
             sources, _ = await tools.fast_search_with_questions(questions=["history of rome"], top_k=3)
 
         assert [urlparse(str(s["url"])).hostname for s in sources] == [f"qa-r{r}.example.com" for r in range(3)]
+
+    async def test_single_question_repeated_domain_is_moved_down_by_the_decay(self) -> None:
+        """The engine's ranking stands except for the same-domain decay: a repeat host drops below a fresh one."""
+        results = [_page("docs.example.com", 0), _page("docs.example.com", 1), _page("docs.example.com", 2)]
+        results += [_page("other.example.org", 3), _page("docs.example.com", 4)]
+        tools = _make_tools()
+
+        with patch.object(
+            tools._searcher, "multi_query_parallel_search", _provider_search({"history of rome": results})
+        ):
+            sources, _ = await tools.fast_search_with_questions(questions=["history of rome"], top_k=5)
+
+        # decay score = 1 / (rank + 1) * 0.8 ** (earlier hits on the host): 1.0, 0.4, 0.213, 0.25, 0.102
+        assert [urlparse(str(s["url"])).path for s in sources] == [
+            "/page-0",
+            "/page-1",
+            "/page-3",
+            "/page-2",
+            "/page-4",
+        ]
 
     async def test_duplicate_url_across_questions_is_selected_once(self) -> None:
         shared = _doc("shared", 0)

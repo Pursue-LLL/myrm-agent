@@ -11,7 +11,6 @@ Detailed design: [RETRIEVER_SYSTEM.md](RETRIEVER_SYSTEM.md)
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Package | Public exports for hybrid retrieval entrypoints | ✅ |
-| `autocut.py` | Core | Score-discontinuity autocut for dynamic truncation after rerank | ✅ |
 | `bm25_retrieval.py` | Core | BM25 sparse retrieval; in-memory inverted index over document chunks | ✅ |
 | `cjk_tokenizer.py` | Core | Single-pass position-preserving CJK unigram/bigram & ASCII word tokenizer, expansion budget protection, and CjkFtsQueryPlanner for two-tier FTS5 query synthesis | ✅ |
 | `engine.py` | Core | Retrieval tools wrapper: crawl-result and URL retrieval with direct or hybrid reranking orchestration | ✅ |

@@ -1,13 +1,12 @@
 """Result fusion pipeline.
 
-Fuses multi-query reranked results: deduplication → orthogonal fusion → autocut → final top-k.
+Fuses multi-query reranked results: deduplication → orthogonal fusion → final top-k.
 
 [INPUT]
 - retriever.fusion_strategies::unified_fusion (POS: four-pillar orthogonal fusion algorithm)
-- retriever.autocut::AutocutConfig, apply_autocut (POS: score-discontinuity dynamic truncation)
 
 [OUTPUT]
-- FusionPipeline: Result fusion pipeline (deduplication, orthogonal fusion, autocut, top-k)
+- FusionPipeline: Result fusion pipeline (deduplication, orthogonal fusion, top-k)
 
 [POS]
 Provides FusionPipeline for multi-query result aggregation and ranking.
@@ -19,7 +18,6 @@ import logging
 
 from langchain_core.documents import Document
 
-from myrm_agent_harness.toolkits.retriever.autocut import AutocutConfig, apply_autocut
 from myrm_agent_harness.toolkits.retriever.fusion_strategies import unified_fusion
 from myrm_agent_harness.utils.hash_utils import get_document_dedup_hash
 
@@ -32,8 +30,7 @@ class FusionPipeline:
     Pipeline stages:
     1. Build global document index (deduplication)
     2. Four-pillar orthogonal fusion (quality, advantage, consensus, prestige)
-    3. Score-discontinuity autocut (dynamic truncation based on rerank scores)
-    4. Final top-k hard limit
+    3. Final top-k hard limit
     """
 
     def __init__(
@@ -42,7 +39,6 @@ class FusionPipeline:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ):
         """Initialise fusion pipeline.
 
@@ -51,13 +47,11 @@ class FusionPipeline:
             fusion_weights: Fusion weights (w1, w2, w3, w4).
             rerank_score_threshold: Minimum rerank score to keep a document.
             fusion_score_threshold: Minimum fusion score to keep a document.
-            autocut_config: Score-discontinuity autocut config (None = disabled).
         """
         self.dedup_strategy = dedup_strategy
         self.fusion_weights = fusion_weights
         self.rerank_score_threshold = rerank_score_threshold
         self.fusion_score_threshold = fusion_score_threshold
-        self.autocut_config = autocut_config
         self._all_documents: list[Document] = []
 
     def fuse_query_results(
@@ -65,7 +59,7 @@ class FusionPipeline:
         query_results: dict[str, list[tuple[Document, float]]],
         final_top_k: int,
     ) -> list[Document]:
-        """Fuse multi-query results through dedup → fusion → autocut → top-k.
+        """Fuse multi-query results through dedup → fusion → top-k.
 
         Args:
             query_results: Per-query results {query: [(doc, score), ...]}.
@@ -95,19 +89,6 @@ class FusionPipeline:
             rerank_score_threshold=self.rerank_score_threshold,
             fusion_score_threshold=self.fusion_score_threshold,
         )
-
-        # Autocut: dynamic truncation based on rerank score discontinuity.
-        # Operates on the fusion-ordered list but uses rerank scores for gap detection,
-        # since cross-encoder scores have the most reliable discontinuity signal.
-        if self.autocut_config is not None and self.autocut_config.enabled:
-            rerank_scores_ordered = [doc_rerank_scores.get(idx, 0.0) for idx, _ in fused_results]
-            decision = apply_autocut(rerank_scores_ordered, self.autocut_config)
-            if decision.was_cut:
-                fused_results = fused_results[: decision.kept_count]
-                logger.info(
-                    f"Autocut: {decision.original_count} → {decision.kept_count} results "
-                    f"(gap={decision.max_gap:.3f} at index {decision.cut_index})"
-                )
 
         selected_docs = []
         for doc_idx, final_score in fused_results[:final_top_k]:

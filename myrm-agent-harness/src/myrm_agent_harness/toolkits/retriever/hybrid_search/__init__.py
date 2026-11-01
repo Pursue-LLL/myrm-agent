@@ -2,7 +2,7 @@
 
 [INPUT]
 - .coordinator::HybridSearchCoordinator (POS: hybrid search coordinator)
-- .fusion_pipeline::FusionPipeline (POS: multi-query fusion and autocut)
+- .fusion_pipeline::FusionPipeline (POS: multi-query fusion)
 - .reranking_pipeline::RerankingPipeline (POS: document reranking pipeline)
 
 [OUTPUT]

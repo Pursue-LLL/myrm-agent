@@ -9,7 +9,7 @@ Hybrid retrieval module.
 |------|------|-------------|-------|
 | `__init__.py` | Package | Hybrid retrieval module. | ✅ |
 | coordinator.py | Core | Provides HybridSearchCoordinator. | ✅ |
-| fusion_pipeline.py | Core | Result fusion pipeline: dedup → orthogonal fusion → Autocut dynamic truncation → top-k. | ✅ |
+| fusion_pipeline.py | Core | Result fusion pipeline: dedup → orthogonal fusion → top-k. | ✅ |
 | reranking_pipeline.py | Core | Provides RerankingPipeline. | ✅ |
 
 ## Key Dependencies
