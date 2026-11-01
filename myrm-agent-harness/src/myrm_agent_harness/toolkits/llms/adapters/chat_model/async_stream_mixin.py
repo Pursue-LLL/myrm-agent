@@ -72,7 +72,6 @@ class ChatLiteLLMAsyncStreamMixin:
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         api_key: str | None
-        openai_api_key: str | None
         client: Any
         model: str
         model_name: str | None
@@ -85,7 +84,6 @@ class ChatLiteLLMAsyncStreamMixin:
         _retry_metrics: EmptyRetryMetrics
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, object]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, object]], dict[str, object]]]
-        _inject_allowed_params: Callable[..., None]
         _apply_output_budget: Callable[..., None]
         _recover_output_cap: Callable[..., bool]
         _inject_prompt_routing_key: Callable[..., None]
@@ -117,7 +115,7 @@ class ChatLiteLLMAsyncStreamMixin:
     ) -> AsyncGenerator[ChatGenerationChunk]:
         model_name = self.model_name or self.model
 
-        if (renewed := await renew_api_key(self.api_key or self.openai_api_key)) is not None:
+        if (renewed := await renew_api_key(self.api_key)) is not None:
             self.api_key = renewed
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
@@ -140,7 +138,6 @@ class ChatLiteLLMAsyncStreamMixin:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
         self._inject_prompt_routing_key(params)
 
@@ -176,14 +173,16 @@ class ChatLiteLLMAsyncStreamMixin:
                             return
                     memo.begin()
                     call.begin(attempt + 1)
-                    wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                    wire_protocol = self._wire_for(params)
                     if wire_protocol == "responses":
                         stream = stream_responses_async(self.client, message_dicts, params)
                     else:
                         call_params = (
                             apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                         )
-                        stream = await self.client.acreate(messages=message_dicts, **call_params)
+                        stream = await self.client.acompletion(
+                            messages=self._chat_messages(message_dicts), **call_params
+                        )
 
                     agg = StreamAggregator(AIMessageChunk)
                     xml_content_buffer = XmlStreamBuffer()

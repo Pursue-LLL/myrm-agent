@@ -174,18 +174,12 @@ class GoogleVeoProvider(VideoGenerationProvider):
             op_name = operation.get("name", "")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Submitted to Google Veo, polling operation..."
-                )
+                await config.progress_callback("Submitted to Google Veo, polling operation...")
 
-            completed = await self._poll_operation(
-                client, base_url, op_name, api_key, config
-            )
+            completed = await self._poll_operation(client, base_url, op_name, api_key, config)
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Generation complete, downloading video..."
-                )
+                await config.progress_callback("Generation complete, downloading video...")
 
             assets = await self._extract_videos(client, completed, config)
             return ProviderOutput(assets=assets)

@@ -77,7 +77,6 @@ class ChatLiteLLMSyncMixin:
         _convert_response_to_dict: Callable[..., dict[str, Any]]
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, Any]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]
-        _inject_allowed_params: Callable[..., None]
         _apply_output_budget: Callable[..., None]
         _recover_output_cap: Callable[..., bool]
 
@@ -109,7 +108,6 @@ class ChatLiteLLMSyncMixin:
         }
 
         params = {**params, **filtered_kwargs}
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
 
         max_attempts = self.empty_retry_max_attempts if self.empty_retry_enabled else 1
@@ -118,14 +116,14 @@ class ChatLiteLLMSyncMixin:
         for attempt in range(max_attempts):
             try:
                 started = time.perf_counter()
-                wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                wire_protocol = self._wire_for(params)
                 if wire_protocol == "responses":
                     response = invoke_responses_sync(self.client, message_dicts, params)
                 else:
                     call_params = (
                         apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                     )
-                    response = self.client.completion(messages=message_dicts, **call_params)
+                    response = self.client.completion(messages=self._chat_messages(message_dicts), **call_params)
                     response = self._convert_response_to_dict(response)
                 result = self._create_chat_result(response, available_tools, tool_schemas)
 
@@ -314,7 +312,6 @@ class ChatLiteLLMSyncMixin:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
 
         max_attempts = self.empty_retry_max_attempts if self.empty_retry_enabled else 1
@@ -327,14 +324,14 @@ class ChatLiteLLMSyncMixin:
                 xml_content_buffer = XmlStreamBuffer()
                 xml_reasoning_buffer = XmlStreamBuffer()
 
-                wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                wire_protocol = self._wire_for(params)
                 if wire_protocol == "responses":
                     stream_source = stream_responses_sync(self.client, message_dicts, params)
                 else:
                     call_params = (
                         apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                     )
-                    stream_source = self.client.completion(messages=message_dicts, **call_params)
+                    stream_source = self.client.completion(messages=self._chat_messages(message_dicts), **call_params)
 
                 for chunk in agg.track(stream_source):
                     chunk_dict = agg.ingest_raw_chunk(chunk)

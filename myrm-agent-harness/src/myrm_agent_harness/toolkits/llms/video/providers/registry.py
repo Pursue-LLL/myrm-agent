@@ -45,9 +45,7 @@ def get_registry() -> ProviderRegistry:
     return _registry
 
 
-def _register_builtin(
-    registry: ProviderRegistry, module_name: str, class_name: str
-) -> None:
+def _register_builtin(registry: ProviderRegistry, module_name: str, class_name: str) -> None:
     """Import and register a single built-in provider, tolerating import failures."""
     try:
         import importlib
@@ -56,6 +54,4 @@ def _register_builtin(
         cls = getattr(mod, class_name)
         registry.register(cls())
     except Exception:
-        logger.warning(
-            "Failed to register built-in video provider '%s'", class_name, exc_info=True
-        )
+        logger.warning("Failed to register built-in video provider '%s'", class_name, exc_info=True)

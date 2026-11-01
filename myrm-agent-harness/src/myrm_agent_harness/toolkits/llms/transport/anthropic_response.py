@@ -1,0 +1,214 @@
+"""Anthropic Messages wire: ``/v1/messages`` answers and event streams as chat.completion objects.
+
+[INPUT]
+- transport.profile (POS: Route — provider id and bare model)
+- transport.http (POS: Chunk, StreamDecoder)
+- transport.errors (POS: LLMStreamError for errors inside a 200 stream)
+
+[OUTPUT]
+- parse: a Messages answer as a chat.completion dict (content, reasoning, tool_calls, usage with cache accounting)
+- decoder: the SSE decoder yielding chat.completion.chunk dicts
+
+[POS]
+Response half of the Anthropic wire (the request half is ``anthropic_messages``). The answer is returned in the
+chat.completion shape the adapter already consumes, with Anthropic's cache counters folded into the prompt-token
+total the way every other provider reports it. A finish chunk is emitted only when the provider reported a stop
+reason, so an interrupted stream is never mistaken for a complete one.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping
+from typing import Final
+
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.http import Chunk, StreamDecoder
+from myrm_agent_harness.toolkits.llms.transport.profile import Route
+
+_STOP_REASON: Final = {
+    "end_turn": "stop",
+    "stop_sequence": "stop",
+    "pause_turn": "stop",
+    "max_tokens": "length",
+    "tool_use": "tool_calls",
+    "refusal": "content_filter",
+}
+Block = dict[str, object]
+
+
+def _usage(raw: Mapping[str, object]) -> dict[str, object]:
+    """Anthropic counts cache reads/writes beside ``input_tokens``; providers elsewhere fold them into the prompt."""
+
+    def count(key: str) -> int:
+        value = raw.get(key)
+        return value if isinstance(value, int) else 0
+
+    fresh, written, read, output = (
+        count("input_tokens"),
+        count("cache_creation_input_tokens"),
+        count("cache_read_input_tokens"),
+        count("output_tokens"),
+    )
+    prompt = fresh + written + read
+    return {
+        "prompt_tokens": prompt,
+        "completion_tokens": output,
+        "total_tokens": prompt + output,
+        "prompt_tokens_details": {"cached_tokens": read},
+        "cache_creation_input_tokens": written,
+        "cache_read_input_tokens": read,
+    }
+
+
+def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    texts: list[str] = []
+    reasoning: list[str] = []
+    thinking_blocks: list[Block] = []
+    tool_calls: list[Block] = []
+    content = payload.get("content")
+    for block in content if isinstance(content, list) else []:
+        if not isinstance(block, Mapping):
+            continue
+        kind = block.get("type")
+        if kind == "text":
+            texts.append(str(block.get("text") or ""))
+        elif kind == "thinking":
+            reasoning.append(str(block.get("thinking") or ""))
+            thinking_blocks.append(dict(block))
+        elif kind == "redacted_thinking":
+            thinking_blocks.append(dict(block))
+        elif kind == "tool_use":
+            tool_calls.append(
+                {
+                    "id": block.get("id"),
+                    "type": "function",
+                    "function": {
+                        "name": block.get("name"),
+                        "arguments": json.dumps(block.get("input") or {}, ensure_ascii=False),
+                    },
+                }
+            )
+    message: dict[str, object] = {"role": "assistant", "content": "".join(texts) or None}
+    if reasoning:
+        message["reasoning_content"] = "".join(reasoning)
+    if thinking_blocks:
+        message["thinking_blocks"] = thinking_blocks
+    if tool_calls:
+        message["tool_calls"] = tool_calls
+    reason = payload.get("stop_reason")
+    usage = payload.get("usage")
+    return {
+        "id": payload.get("id"),
+        "object": "chat.completion",
+        "model": payload.get("model") or route.model,
+        "choices": [
+            {
+                "index": 0,
+                "message": message,
+                "finish_reason": _STOP_REASON.get(str(reason), "stop") if reason else None,
+            }
+        ],
+        "usage": _usage(usage) if isinstance(usage, Mapping) else {},
+    }
+
+
+# --- stream ----------------------------------------------------------------------------------------------------
+
+
+class AnthropicStreamDecoder:
+    """Maps Messages stream events onto chat.completion.chunk dicts; tool blocks get running 0-based indexes."""
+
+    __slots__ = ("_block_kind", "_id", "_model", "_provider", "_stop", "_tool_index", "_usage", "done")
+
+    def __init__(self, provider: str, model: str) -> None:
+        self._provider = provider
+        self._model = model
+        self._id: object = None
+        self._block_kind: dict[int, str] = {}
+        self._tool_index = -1
+        self._stop: str | None = None
+        self._usage: dict[str, int] = {}
+        self.done = False
+
+    def _chunk(
+        self, delta: dict[str, object], finish: str | None = None, usage: dict[str, object] | None = None
+    ) -> Chunk:
+        chunk: Chunk = {
+            "id": self._id,
+            "object": "chat.completion.chunk",
+            "model": self._model,
+            "choices": [{"index": 0, "delta": delta, "finish_reason": finish}],
+        }
+        if usage is not None:
+            chunk["usage"] = usage
+        return chunk
+
+    def _merge_usage(self, raw: object) -> None:
+        if isinstance(raw, Mapping):
+            self._usage.update({k: v for k, v in raw.items() if isinstance(v, int)})
+
+    def feed(self, event: str | None, data: str) -> list[Chunk]:
+        try:
+            payload = json.loads(data)
+        except ValueError:
+            return []
+        if not isinstance(payload, dict):
+            return []
+        kind = payload.get("type") or event
+        if kind == "error":
+            raise LLMStreamError(self._provider, payload)
+        if kind == "message_start":
+            message = payload.get("message")
+            if isinstance(message, Mapping):
+                self._id = message.get("id")
+                self._model = str(message.get("model") or self._model)
+                self._merge_usage(message.get("usage"))
+            return [self._chunk({"role": "assistant", "content": ""})]
+        raw_index = payload.get("index")
+        index = raw_index if isinstance(raw_index, int) else 0
+        if kind == "content_block_start":
+            block = payload.get("content_block")
+            if isinstance(block, Mapping):
+                self._block_kind[index] = str(block.get("type"))
+                if block.get("type") == "tool_use":
+                    self._tool_index += 1
+                    call = {
+                        "index": self._tool_index,
+                        "id": block.get("id"),
+                        "type": "function",
+                        "function": {"name": block.get("name"), "arguments": ""},
+                    }
+                    return [self._chunk({"tool_calls": [call]})]
+            return []
+        if kind == "content_block_delta":
+            delta = payload.get("delta")
+            if not isinstance(delta, Mapping):
+                return []
+            delta_type = delta.get("type")
+            if delta_type == "text_delta":
+                return [self._chunk({"content": delta.get("text") or ""})]
+            if delta_type == "thinking_delta":
+                return [self._chunk({"reasoning_content": delta.get("thinking") or ""})]
+            if delta_type == "input_json_delta":
+                call = {"index": max(self._tool_index, 0), "function": {"arguments": delta.get("partial_json") or ""}}
+                return [self._chunk({"tool_calls": [call]})]
+            return []
+        if kind == "message_delta":
+            delta = payload.get("delta")
+            if isinstance(delta, Mapping) and delta.get("stop_reason"):
+                self._stop = str(delta["stop_reason"])
+            self._merge_usage(payload.get("usage"))
+            return []
+        if kind == "message_stop":
+            self.done = True
+        return []
+
+    def finish(self) -> list[Chunk]:
+        if self._stop is None:
+            return []  # the provider never said how the answer ended: no finish chunk is invented
+        return [self._chunk({}, _STOP_REASON.get(self._stop, "stop"), _usage(self._usage))]
+
+
+def decoder(route: Route) -> StreamDecoder:
+    return AnthropicStreamDecoder(route.profile.id, route.model)

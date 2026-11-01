@@ -1,22 +1,21 @@
-"""LLM Core — LiteLLM wrapper
+"""LLM Core — model factory
 
 Review agent/context_management/PROMPT_CACHE_PRACTICE.md §6.1-6.2 whenever this file changes.
 
 [INPUT]
 - adapters.chat_model::ChatLiteLLM, clean_model_kwargs (POS: LangChain adapter)
-- providers::ensure_providers_registered (POS: lazy custom-provider registration on first model creation)
-- litellm::supports_web_search (POS: model native search capability detection)
-- adapters.wire.native_anthropic::is_native_anthropic_wire (POS: first-party Anthropic Messages API detection)
+- catalog::supports_web_search (POS: model native search capability detection)
+- transport::speaks_openai_body (POS: whether the provider takes an OpenAI-shaped request body)
 
 [OUTPUT]
-- create_litellm_model(): factory function to create LiteLLM model instances
-- ChatLiteLLM: LangChain-compatible LiteLLM chat model (re-exported from adapter)
+- create_litellm_model(): factory function to create chat model instances
+- ChatLiteLLM: LangChain-compatible chat model (re-exported from adapter)
 
 [POS]
-LLM core. LiteLLM wrapper providing a unified multi-model invocation interface
-(OpenAI, Anthropic, Gemini, etc.). Provides a factory function to create LiteLLM instances,
-automatically merging model_kwargs into extra_body (except for first-party Anthropic Messages calls,
-whose API rejects that field). Integrates reasoning_timeout floor,
+LLM core. Unified multi-model invocation interface (OpenAI, Anthropic, Gemini, etc.).
+Provides a factory function to create chat model instances,
+automatically merging model_kwargs into extra_body (only for providers that take an OpenAI-shaped body;
+Anthropic, Gemini and Ollama build their own request body and reject unknown top-level fields). Integrates reasoning_timeout floor,
 thinking model max_tokens headroom (auto-raise floor to prevent thinking-phase truncation),
 local endpoint stall-detection relaxation (auto-detect localhost/RFC1918 → relax first_event/
 inter_chunk/request timeouts), Ollama-scoped 64k context window (options.num_ctx injected only for
@@ -39,12 +38,13 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     clean_model_kwargs as clean_model_kwargs,
 )
-from myrm_agent_harness.toolkits.llms.adapters.wire.native_anthropic import is_native_anthropic_wire
+from myrm_agent_harness.toolkits.llms.catalog import supports_web_search
 from myrm_agent_harness.toolkits.llms.core.deepseek_reasoning import apply_deepseek_reasoning_effort
 from myrm_agent_harness.toolkits.llms.core.openai_reasoning import apply_openai_reasoning_effort
 from myrm_agent_harness.toolkits.llms.core.openrouter_verbosity import apply_openrouter_reasoning_effort
 from myrm_agent_harness.toolkits.llms.core.reasoning_timeout import get_reasoning_timeout_floor
 from myrm_agent_harness.toolkits.llms.core.thinking_headroom import ensure_thinking_headroom
+from myrm_agent_harness.toolkits.llms.transport import speaks_openai_body
 
 logger = logging.getLogger(__name__)
 
@@ -98,19 +98,37 @@ def _is_ollama_endpoint(url: str | None, model: str | None) -> bool:
 
 
 # Kwargs the extra_body mirror must never copy:
-# - max_tokens: the OpenAI SDK flattens extra_body over typed fields, so a mirrored cap would overwrite the
-#   headroom-adjusted (and truncation-boosted) value on the wire.
+# - max_tokens: extra_body is laid over the typed fields on the wire, so a mirrored cap would overwrite the
+#   headroom-adjusted (and truncation-boosted) value.
 # - extra_body: copying a dict into itself makes a self-reference that cannot be serialized.
 # - supports_reasoning: factory-only switch that no provider understands.
-_NEVER_MIRRORED = frozenset({"max_tokens", "extra_body", "supports_reasoning"})
+# - the rest are ChatLiteLLM's own configuration (timeouts, retry policy, routing); they configure the call and
+#   are never request-body fields.
+_NEVER_MIRRORED = frozenset(
+    {
+        "max_tokens",
+        "extra_body",
+        "supports_reasoning",
+        "model_kwargs",
+        "custom_llm_provider",
+        "wire_protocol",
+        "egress_proxy",
+        "streaming",
+        "request_timeout",
+        "first_event_timeout",
+        "inter_chunk_timeout",
+        "empty_retry_enabled",
+        "empty_retry_max_attempts",
+        "empty_retry_delay",
+    }
+)
 
 
 def _merge_model_kwargs_to_extra_body(llm_kwargs: dict[str, Any], model_kwargs: dict[str, Any] | None) -> None:
     """Mirror model_kwargs into extra_body for cross-provider compatibility.
 
-    LiteLLM may drop non-standard parameters for some providers (e.g. OpenAI-compatible
-    endpoints). Duplicating model_kwargs into extra_body ensures they reach the provider.
-    The caller's own ``extra_body`` is copied rather than mutated, and its keys win.
+    Factory keyword arguments that are not adapter fields (``frequency_penalty``, ``thinking``, ...) reach the provider
+    only through ``extra_body``. The caller's own ``extra_body`` is copied rather than mutated, and its keys win.
 
     Args:
         llm_kwargs: LLM parameter dict (mutated in place).
@@ -136,7 +154,7 @@ def _resolve_web_search_options(
     """Resolve web_search_options based on native_tools configuration.
 
     Three-state logic:
-    - native_tools is None (default): auto-detect via litellm.supports_web_search()
+    - native_tools is None (default): auto-detect via the model catalog
     - native_tools contains "web_search": explicitly enable
     - native_tools is empty set: explicitly disable all native tools
 
@@ -156,15 +174,9 @@ def _resolve_web_search_options(
             return {}
         return None
 
-    try:
-        import litellm
-
-        if litellm.supports_web_search(model=model):
-            logger.info("Model '%s' supports native web search (auto-detected)", model)
-            return {}
-    except (ImportError, AttributeError):
-        logger.debug("litellm.supports_web_search() unavailable, skipping auto-detection")
-
+    if supports_web_search(model):
+        logger.info("Model '%s' supports native web search (auto-detected)", model)
+        return {}
     return None
 
 
@@ -200,22 +212,16 @@ def create_litellm_model(
     Returns:
         Configured ChatLiteLLM instance.
     """
-    # The provider modules import litellm; keep that out of the HTTP-server import path
-    # and pay it once, on the first real model creation.
-    from myrm_agent_harness.toolkits.llms.providers import ensure_providers_registered
-
-    ensure_providers_registered()
-
     llm_kwargs: dict[str, Any] = {"model": model, "wire_protocol": wire_protocol, **kwargs}
     custom_provider = llm_kwargs.get("custom_llm_provider")
-    native_anthropic = is_native_anthropic_wire(
-        model, base_url, custom_provider if isinstance(custom_provider, str) else None
+    openai_body = wire_protocol != "anthropic_messages" and speaks_openai_body(
+        model, api_base=base_url, custom_llm_provider=custom_provider if isinstance(custom_provider, str) else None
     )
     if egress_proxy is not None:
         llm_kwargs["egress_proxy"] = egress_proxy
     if reasoning_effort is not None:
         llm_kwargs["reasoning_effort"] = reasoning_effort
-        if not native_anthropic:
+        if openai_body:
             caller_extra_body = llm_kwargs.get("extra_body")
             llm_kwargs["extra_body"] = {
                 "reasoning_effort": reasoning_effort,
@@ -233,9 +239,9 @@ def create_litellm_model(
     if streaming:
         llm_kwargs["streaming"] = streaming
 
-    # Merge kwargs into extra_body for cross-provider compatibility. The Anthropic Messages API rejects an
-    # `extra_body` field, and LiteLLM already sends every kwarg it supports there.
-    if not native_anthropic:
+    # Merge kwargs into extra_body so non-field kwargs reach the provider. Providers with their own protocol build
+    # the body from typed parameters and reject unknown top-level fields, so only OpenAI-shaped bodies take them.
+    if openai_body:
         _merge_model_kwargs_to_extra_body(llm_kwargs, kwargs)
 
     # DeepSeek: normalize reasoning_effort ('off'|'low'|'high'|'max') & thinking ('enabled'|'disabled')

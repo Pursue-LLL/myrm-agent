@@ -107,9 +107,7 @@ class XAIGrokProvider(VideoGenerationProvider):
     def supported_models(self) -> tuple[ModelInfo, ...]:
         return (
             ModelInfo(id="grok-imagine-video", display_name="Grok Imagine Video"),
-            ModelInfo(
-                id="grok-imagine-video-1.5", display_name="Grok Imagine Video 1.5"
-            ),
+            ModelInfo(id="grok-imagine-video-1.5", display_name="Grok Imagine Video 1.5"),
         )
 
     @property
@@ -219,9 +217,7 @@ class XAIGrokProvider(VideoGenerationProvider):
                 raise ValueError("xAI response missing request_id")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    f"Submitted to xAI {mode} (id={request_id}), polling..."
-                )
+                await config.progress_callback(f"Submitted to xAI {mode} (id={request_id}), polling...")
 
             completed = await self._poll(client, base_url, request_id, config)
 
@@ -233,9 +229,7 @@ class XAIGrokProvider(VideoGenerationProvider):
                 raise ValueError("xAI video response missing video URL")
 
             if config.progress_callback:
-                await config.progress_callback(
-                    "Generation complete, downloading video..."
-                )
+                await config.progress_callback("Generation complete, downloading video...")
 
             video_bytes = await self._download(video_url, config)
 

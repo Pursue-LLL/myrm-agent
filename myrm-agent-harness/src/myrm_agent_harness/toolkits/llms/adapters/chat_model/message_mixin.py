@@ -26,6 +26,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
+from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     _SYSTEM_MESSAGE_DENYLIST_HINTS,
     DEVELOPER_ROLE_PATTERN,
@@ -49,6 +50,8 @@ from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
     is_stream_complete,
 )
+from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import strip_reasoning_replay
+from myrm_agent_harness.toolkits.llms.adapters.wire.routing import resolve_wire
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +217,16 @@ class ChatLiteLLMMessageMixin:
         replace_lone_surrogates(message_dicts)
         apply_outbound_message_guard(message_dicts)
         return message_dicts, params
+
+    def _wire_for(self, params: Mapping[str, Any]) -> WireProtocol:
+        """The protocol this call must use: the configured one unless the provider or model requires another."""
+        return resolve_wire(getattr(self, "wire_protocol", DEFAULT_WIRE_PROTOCOL), params)
+
+    def _chat_messages(self, message_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Messages for a chat-completions call; reasoning items only a Responses call can replay are dropped."""
+        if getattr(self, "wire_protocol", DEFAULT_WIRE_PROTOCOL) == "responses":
+            return strip_reasoning_replay(message_dicts)
+        return message_dicts
 
     def _sanitize_outbound_wire_messages(self, message_dicts: list[dict[str, Any]]) -> None:
         """Sanitize message dicts according to target wire protocol.

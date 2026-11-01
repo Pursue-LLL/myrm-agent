@@ -27,6 +27,32 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.translator import (
 )
 
 
+def _responses_tool_choice(choice: Any) -> Any:
+    """Chat-completions ``{"type": "function", "function": {"name": ...}}`` in its flat Responses form."""
+    function = choice.get("function") if isinstance(choice, dict) else None
+    if isinstance(function, dict) and isinstance(function.get("name"), str):
+        return {"type": "function", "name": function["name"]}
+    return choice
+
+
+def _responses_text_format(response_format: Any) -> dict[str, Any] | None:
+    """Structured-output request in the Responses ``text.format`` shape; plain ``json_object`` maps one to one."""
+    if not isinstance(response_format, dict):
+        return None
+    kind = response_format.get("type")
+    if kind == "json_object":
+        return {"type": "json_object"}
+    spec = response_format.get("json_schema")
+    if kind != "json_schema" or not isinstance(spec, dict) or not isinstance(spec.get("schema"), dict):
+        return None
+    return {
+        "type": "json_schema",
+        "name": str(spec.get("name") or "response"),
+        "schema": spec["schema"],
+        "strict": bool(spec.get("strict", False)),
+    }
+
+
 def build_responses_kwargs(
     message_dicts: list[dict[str, Any]],
     params: dict[str, Any],
@@ -72,7 +98,13 @@ def build_responses_kwargs(
     if params.get("tools"):
         kwargs["tools"] = params["tools"]
     if params.get("tool_choice") is not None:
-        kwargs["tool_choice"] = params["tool_choice"]
+        kwargs["tool_choice"] = _responses_tool_choice(params["tool_choice"])
+    if params.get("parallel_tool_calls") is not None:
+        kwargs["parallel_tool_calls"] = params["parallel_tool_calls"]
+    if isinstance(params.get("web_search_options"), dict):
+        kwargs["web_search_options"] = params["web_search_options"]
+    if (text_format := _responses_text_format(params.get("response_format"))) is not None:
+        kwargs["text"] = {"format": text_format}
     if params.get("temperature") is not None:
         kwargs["temperature"] = params["temperature"]
     if params.get("top_p") is not None:

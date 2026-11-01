@@ -12,6 +12,7 @@
   (POS: Responses wire 请求装配层)
 
 [OUTPUT]
+- strip_reasoning_replay: message dicts without the Responses-only reasoning replay items
 - invoke_responses_sync / invoke_responses_async: normalized chat.completion dicts
 - stream_responses_sync / stream_responses_async: chunk iterators with a terminal
   finish_reason; failed streams raise ResponsesStreamError
@@ -66,7 +67,7 @@ def _is_invalid_encrypted_content_error(exc: BaseException) -> bool:
     return "invalid_encrypted_content" in text
 
 
-def _strip_reasoning_replay(message_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def strip_reasoning_replay(message_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     stripped: list[dict[str, Any]] = []
     for msg in message_dicts:
         if not isinstance(msg, dict):
@@ -134,7 +135,7 @@ def invoke_responses_sync(client: Any, message_dicts: list[dict[str, Any]], para
         if not _is_invalid_encrypted_content_error(exc):
             raise
         logger.warning("Responses reasoning replay rejected; retrying without include/replay items")
-        fallback_messages = _strip_reasoning_replay(message_dicts)
+        fallback_messages = strip_reasoning_replay(message_dicts)
         fallback_params = _strip_reasoning_include(params)
         fallback_kwargs = build_responses_kwargs(fallback_messages, fallback_params)
         if "tools" in fallback_kwargs and isinstance(fallback_kwargs["tools"], list):
@@ -159,7 +160,7 @@ async def invoke_responses_async(
         if not _is_invalid_encrypted_content_error(exc):
             raise
         logger.warning("Responses reasoning replay rejected; retrying without include/replay items")
-        fallback_messages = _strip_reasoning_replay(message_dicts)
+        fallback_messages = strip_reasoning_replay(message_dicts)
         fallback_params = _strip_reasoning_include(params)
         fallback_kwargs = build_responses_kwargs(fallback_messages, fallback_params)
         if "tools" in fallback_kwargs and isinstance(fallback_kwargs["tools"], list):
@@ -184,7 +185,7 @@ def _iter_responses_stream(
         if not _is_invalid_encrypted_content_error(exc):
             raise
         logger.warning("Responses reasoning replay rejected; retrying stream without include/replay items")
-        fallback_messages = _strip_reasoning_replay(message_dicts)
+        fallback_messages = strip_reasoning_replay(message_dicts)
         fallback_params = _strip_reasoning_include(params)
         fallback_kwargs = build_responses_kwargs(fallback_messages, {**fallback_params, "stream": True})
         if "tools" in fallback_kwargs and isinstance(fallback_kwargs["tools"], list):
@@ -206,7 +207,7 @@ async def _aiter_responses_stream(
         if not _is_invalid_encrypted_content_error(exc):
             raise
         logger.warning("Responses reasoning replay rejected; retrying stream without include/replay items")
-        fallback_messages = _strip_reasoning_replay(message_dicts)
+        fallback_messages = strip_reasoning_replay(message_dicts)
         fallback_params = _strip_reasoning_include(params)
         fallback_kwargs = build_responses_kwargs(fallback_messages, {**fallback_params, "stream": True})
         if "tools" in fallback_kwargs and isinstance(fallback_kwargs["tools"], list):

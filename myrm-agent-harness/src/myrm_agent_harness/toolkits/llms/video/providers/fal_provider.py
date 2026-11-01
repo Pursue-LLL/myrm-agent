@@ -77,9 +77,7 @@ class FalVideoProvider(VideoGenerationProvider):
                 id="fal-ai/kling-video/v1.6/pro",
                 display_name="Kling 1.6 Pro (Keyframes/Continuation)",
             ),
-            ModelInfo(
-                id="fal-ai/luma-dream-machine", display_name="Luma Dream Machine"
-            ),
+            ModelInfo(id="fal-ai/luma-dream-machine", display_name="Luma Dream Machine"),
         )
 
     @property
@@ -156,9 +154,7 @@ class FalVideoProvider(VideoGenerationProvider):
         # Keyframes or single reference image support
         if reference_images:
             payload["image_url"] = _encode_data_uri(reference_images[0])
-            if generation_mode == "keyframes" or (
-                generation_mode == "auto" and len(reference_images) >= 2
-            ):
+            if generation_mode == "keyframes" or (generation_mode == "auto" and len(reference_images) >= 2):
                 payload["end_image_url"] = _encode_data_uri(reference_images[-1])
                 payload["mode"] = "keyframes"
 
@@ -221,14 +217,10 @@ class FalVideoProvider(VideoGenerationProvider):
         client = create_httpx_client(timeout=30.0)
         try:
             # 1. Submit to queue
-            logger.info(
-                "Submitting video generation to FAL queue model=%s", selected_model
-            )
+            logger.info("Submitting video generation to FAL queue model=%s", selected_model)
             resp = await client.post(submit_url, headers=headers, json=payload)
             if resp.status_code not in (200, 201, 202):
-                raise RuntimeError(
-                    f"FAL submission failed ({resp.status_code}): {resp.text}"
-                )
+                raise RuntimeError(f"FAL submission failed ({resp.status_code}): {resp.text}")
 
             submit_data = resp.json()
             status_url = submit_data.get("status_url")
@@ -243,9 +235,7 @@ class FalVideoProvider(VideoGenerationProvider):
             if not status_url:
                 # Direct synchronous response fallback
                 video_info = submit_data.get("video") or submit_data
-                video_url = (
-                    video_info.get("url") if isinstance(video_info, dict) else None
-                )
+                video_url = video_info.get("url") if isinstance(video_info, dict) else None
                 if video_url:
                     from myrm_agent_harness.core.security.http.secure_fetch import (
                         ContentTooLargeError,
@@ -262,21 +252,13 @@ class FalVideoProvider(VideoGenerationProvider):
                             f"Video exceeds max download size (>{config.max_download_bytes} bytes): {video_url[:80]}"
                         ) from exc
                     if dl_resp.status_code >= 400:
-                        raise RuntimeError(
-                            f"Failed to download video from {video_url}: HTTP {dl_resp.status_code}"
-                        )
-                    return ProviderOutput(
-                        assets=[VideoAsset(data=dl_resp.content, mime_type="video/mp4")]
-                    )
+                        raise RuntimeError(f"Failed to download video from {video_url}: HTTP {dl_resp.status_code}")
+                    return ProviderOutput(assets=[VideoAsset(data=dl_resp.content, mime_type="video/mp4")])
                 raise RuntimeError(f"FAL returned unrecognized response: {submit_data}")
 
             # 2. Poll for completion
             poll_interval = 3.0
-            max_attempts = (
-                int(config.timeout_seconds / poll_interval)
-                if config.timeout_seconds
-                else 100
-            )
+            max_attempts = int(config.timeout_seconds / poll_interval) if config.timeout_seconds else 100
             for _ in range(max_attempts):
                 await asyncio.sleep(poll_interval)
                 status_resp = await client.get(status_url, headers=headers)
@@ -288,13 +270,9 @@ class FalVideoProvider(VideoGenerationProvider):
                 if status_str == "COMPLETED":
                     break
                 if status_str in ("FAILED", "ERROR"):
-                    raise RuntimeError(
-                        f"FAL video generation failed: {status_info.get('error', 'unknown error')}"
-                    )
+                    raise RuntimeError(f"FAL video generation failed: {status_info.get('error', 'unknown error')}")
             else:
-                raise TimeoutError(
-                    f"FAL video generation timed out after {config.timeout_seconds}s"
-                )
+                raise TimeoutError(f"FAL video generation timed out after {config.timeout_seconds}s")
 
             # 3. Retrieve final result
             res_target = response_url or status_url
@@ -304,9 +282,7 @@ class FalVideoProvider(VideoGenerationProvider):
 
             result_data = final_resp.json()
             video_entry = result_data.get("video")
-            video_url = (
-                video_entry.get("url") if isinstance(video_entry, dict) else None
-            )
+            video_url = video_entry.get("url") if isinstance(video_entry, dict) else None
             if not video_url:
                 raise RuntimeError(f"FAL result missing video url: {result_data}")
 
@@ -327,9 +303,7 @@ class FalVideoProvider(VideoGenerationProvider):
                 ) from exc
 
             if dl_resp.status_code >= 400:
-                raise RuntimeError(
-                    f"Failed to download video from {video_url}: HTTP {dl_resp.status_code}"
-                )
+                raise RuntimeError(f"Failed to download video from {video_url}: HTTP {dl_resp.status_code}")
 
             return ProviderOutput(
                 assets=[VideoAsset(data=dl_resp.content, mime_type="video/mp4")],

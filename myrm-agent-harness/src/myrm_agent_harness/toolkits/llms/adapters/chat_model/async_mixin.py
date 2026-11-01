@@ -66,7 +66,6 @@ class ChatLiteLLMAsyncMixin:
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         api_key: str | None
-        openai_api_key: str | None
         client: Any
         model: str
         model_name: str | None
@@ -80,7 +79,6 @@ class ChatLiteLLMAsyncMixin:
         _convert_response_to_dict: Callable[..., dict[str, Any]]
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, Any]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]
-        _inject_allowed_params: Callable[..., None]
         _apply_output_budget: Callable[..., None]
         _recover_output_cap: Callable[..., bool]
         _inject_prompt_routing_key: Callable[..., None]
@@ -122,7 +120,7 @@ class ChatLiteLLMAsyncMixin:
                 logger.error(f" LiteLLM streaming failed (Model: {self.model_name or self.model})")
                 raise
 
-        if (renewed := await renew_api_key(self.api_key or self.openai_api_key)) is not None:
+        if (renewed := await renew_api_key(self.api_key)) is not None:
             self.api_key = renewed
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
@@ -140,7 +138,6 @@ class ChatLiteLLMAsyncMixin:
         }
 
         params = {**params, **filtered_kwargs}
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
         self._inject_prompt_routing_key(params)
 
@@ -202,14 +199,16 @@ class ChatLiteLLMAsyncMixin:
                 else:
                     memo.begin()
                     call.begin(attempt + 1)
-                    wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                    wire_protocol = self._wire_for(params)
                     if wire_protocol == "responses":
                         response = await invoke_responses_async(self.client, message_dicts, params)
                     else:
                         call_params = (
                             apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                         )
-                        response = await self.client.acreate(messages=message_dicts, **call_params)
+                        response = await self.client.acompletion(
+                            messages=self._chat_messages(message_dicts), **call_params
+                        )
                         response = self._convert_response_to_dict(response)
                     memo.finish_payload(response)
 
