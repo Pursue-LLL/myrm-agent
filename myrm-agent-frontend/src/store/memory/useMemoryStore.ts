@@ -78,7 +78,8 @@ const useMemoryStore = create<MemoryState>()(
       }
       set({ pendingLoading: true, pendingError: null });
       try {
-        const response = await getPendingMemories();
+        // Failures land in `pendingError` and render inline; a global toast would only repeat them.
+        const response = await getPendingMemories({ silent: true });
         set({
           pendingMemories: response.items,
           pendingCount: response.total,
@@ -408,8 +409,7 @@ const useMemoryStore = create<MemoryState>()(
           }
         }
       }
-      const message =
-        lastError instanceof Error ? lastError.message : 'Failed to fetch conflicts';
+      const message = lastError instanceof Error ? lastError.message : 'Failed to fetch conflicts';
       set({ conflictsLoading: false, conflictsError: message });
     },
 

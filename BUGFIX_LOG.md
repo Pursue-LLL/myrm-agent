@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 全新本机安装（没配模型提供商）一进首页就弹一条英文红色提示「Memory system unavailable」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。 |
+| **症状** | [实测：新前端 + 全新数据目录的后端，`onboarding_completed=false`，没有任何提供商] 首页右上角出现红色提示「Memory system unavailable」，带「重试」按钮；原文是后端的英文错误，没有走多语言。 |
+| **根因** | [代码] `lib/api.ts` 的 `apiRequest` 对失败请求默认弹全局提示（`silent` 为真才不弹）。首页挂载就会发 `GET /memory/pending`（`usePendingMemoryToast`、`PendingMemoryBadge` 等）和 `GET /memory/working-state`（`WorkingStateBadge`）两个后台读取，它们的调用方各自已经处理了失败（待审批列表内联显示 `pendingError`，徽标渲染空，汇总卡片显示「不可用」），全局提示只是重复。后端在没有任何提供商时建不出记忆管理器，这两个接口返回 503（后端日志：`MemoryManager creation failed: Please configure at least one LLM provider before using the Agent.`）。以前本机首次打开先被向导盖住，多数人配好模型才见到首页；向导删掉后，没配模型的状态成了首屏。 |
+| **修复** | `getPendingMemories`、`getWorkingState` 增加 `{ silent }` 选项，写法与已有的 `getMemoryStats` 一致；三个自己渲染错误状态的调用方（`useMemoryStore.fetchPendingMemories`、`WorkingStateBadge`、`useTeamAssetsHubSummary`）传 `silent: true`。`getPendingMemories` 的参数从位置参数 `userId` 改成选项对象 `{ userId, silent }`（所有调用方都不传 `userId`）。顺手让 prettier 格式化了 `useMemoryStore.ts` 里一行早已不合规的写法。 |
+| **行为变化** | 这两个读取失败时不再弹全局提示。待审批列表仍内联显示错误，汇总卡片仍显示「不可用」，徽标仍不显示。设置页的 `WorkingStateCard` 没有改，失败时仍弹提示。 |
+| **回归证据** | [实测] 新前端 `bun run dev` + 打包版后端 sidecar（全新数据目录）：修复前首页提示列表里有「Memory system unavailable」；修复后刷新首页，后端日志里 `/memory/pending` 仍返回 503，提示列表为空。vitest 53 个文件 363 例通过；去掉 `silent` 后新增的两个用例（store、徽标）失败，恢复后通过；`tsc --noEmit` 通过。 |
+| **仍然存在** | 没配 embedding 时首页顶部仍有琥珀色的「语义召回不可用，请检查 embedding 配置」条（`MemoryRecallDegradedBanner`），这是独立的产品设计，没有改；后端在没有提供商时 503 的语义没有改。 |
+| **代码位置** | `myrm-agent-frontend/src/services/memory/core.ts`、`src/store/memory/useMemoryStore.ts`、`src/components/features/chat-window/WorkingStateBadge.tsx`、`src/components/features/loadout/useTeamAssetsHubSummary.ts`；测试 `src/services/__tests__/memoryAmbientReadsApi.test.ts` 与三处现有测试的新增用例。 |
+
 ## 2026-11-01 · 25 个没有任何入口的前端目录（253 个文件、151 个模块、759 处硬编码中文）从产品入口不可达，没有规划条目点名，已逐个目录删除
 
 | 字段 | 内容 |

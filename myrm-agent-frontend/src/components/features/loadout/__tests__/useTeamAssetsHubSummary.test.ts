@@ -94,6 +94,7 @@ describe('useTeamAssetsHubSummary', () => {
       agentsStatus: 'ok',
     });
     expect(result.current.summary?.agents).toHaveLength(2);
+    expect(memoryApi.getPendingMemories).toHaveBeenCalledWith({ silent: true });
     expect(result.current.summary?.agents[0]).toMatchObject({
       agentId: 'agent-1',
       name: 'General',
