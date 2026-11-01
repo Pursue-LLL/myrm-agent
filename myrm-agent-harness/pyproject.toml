@@ -456,4 +456,5 @@ dev = [
   "blockbuster>=1.5.26",
   "openai>=3.24.0",                  # real SDK exception shapes for the error-classification tests
   "aiohttp>=3.14.3",                 # library-contract and loopback tests of infra/tls_compat.py
+  "python-dotenv>=1.2.2",            # live tests load the server's .env.test
 ]

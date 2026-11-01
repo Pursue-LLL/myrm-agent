@@ -81,7 +81,18 @@ def _body_message(body: Mapping[str, object], depth: int = 0) -> str | None:
         message = _upstream_message(error, depth) or _text(error.get("message"))
         if message:
             return message
-    return _text(error) or _text(body.get("message")) or _text(body.get("detail"))
+    return (
+        _text(error) or _text(body.get("message")) or _text(body.get("detail")) or _listed_message(body.get("errors"))
+    )
+
+
+def _listed_message(errors: object) -> str | None:
+    """Return the first sentence of an ``errors`` list of objects (``{"errors": [{"message": "..."}]}``)."""
+    if not isinstance(errors, list):
+        return None
+    return next(
+        (message for item in errors if isinstance(item, Mapping) and (message := _text(item.get("message")))), None
+    )
 
 
 def _upstream_message(error: Mapping[str, object], depth: int) -> str | None:
