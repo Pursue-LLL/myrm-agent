@@ -16,6 +16,7 @@ pytestmark = pytest.mark.architecture
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
+_DISTRIBUTION_COMPOSE = _WORKSPACE_ROOT / "docker-compose.yml"
 _STATE_DIR = "/home/myrm/.myrm"
 
 
@@ -38,8 +39,14 @@ def test_server_compose_mounts_state_dir() -> None:
     assert all(".myrm-agent" not in target for target in targets)
 
 
+# The distribution compose lives in the private dev-shell root that wraps this repository; a standalone
+# checkout has no such root, so this contract can only be verified inside the dev shell.
+@pytest.mark.skipif(
+    not _DISTRIBUTION_COMPOSE.is_file(),
+    reason="docker-compose.yml is part of the private dev-shell root",
+)
 def test_distribution_compose_mounts_state_dir() -> None:
-    targets = _service_volume_targets(_WORKSPACE_ROOT / "docker-compose.yml", "myrm-server")
+    targets = _service_volume_targets(_DISTRIBUTION_COMPOSE, "myrm-server")
     assert _STATE_DIR in targets
     assert all(".myrm-agent" not in target for target in targets)
 
